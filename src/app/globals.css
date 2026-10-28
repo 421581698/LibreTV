@@ -188,3 +188,46 @@ body {
     min-width: 40px !important;
   }
 }
+/* 腾讯视频风格自定义覆盖 */
+:root, .dark {
+  --c-page: 0 0 0;           /* 纯黑背景 #000000 */
+  --c-surface: 26 26 26;     /* 深灰卡片 #1a1a1a */
+  --c-card: 26 26 26;        /* 深灰卡片 #1a1a1a */
+  --c-accent: 0 190 6;       /* 腾讯绿 #00BE06 */
+  --c-accent-hover: 0 160 5; /* 腾讯绿悬停加深 */
+}
+/* ==========================================
+   ArtPlayer 播放器 UI 定制
+   ========================================== */
+
+/* 1. 进度条：已播放部分为腾讯绿 */
+.art-video-player .art-progress .art-progress-played {
+  background-color: #00BE06 !important;
+}
+
+/* 2. 进度条悬停变粗，小圆点变绿 */
+.art-video-player .art-progress:hover .art-progress-played {
+  height: 4px !important;
+}
+.art-video-player .art-progress-indicator {
+  background-color: #00BE06 !important; 
+}
+
+/* 3. 底部控制栏：增加黑色渐变，防止看视频时看不清字 */
+.art-video-player .art-bottom {
+  background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%) !important;
+  padding-top: 20px !important;
+}
+
+/* 4. 播放器正中间的大播放/暂停按钮变绿 */
+.art-video-player .art-state {
+  color: #00BE06 !important;
+}
+
+/* 5. 设置面板（右上角设置弹出的面板）改成深灰色 */
+.art-video-player .art-setting-panel {
+  background-color: #1a1a1a !important;
+}
+.art-video-player .art-setting-item:hover {
+  background-color: #333 !important;
+}
