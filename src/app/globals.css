@@ -188,142 +188,62 @@ body {
     min-width: 40px !important;
   }
 }
-/* 腾讯视频风格自定义覆盖 */
-:root, .dark {
-  --c-page: 0 0 0;           /* 纯黑背景 #000000 */
-  --c-surface: 26 26 26;     /* 深灰卡片 #1a1a1a */
-  --c-card: 26 26 26;        /* 深灰卡片 #1a1a1a */
-  --c-accent: 0 190 6;       /* 腾讯绿 #00BE06 */
-  --c-accent-hover: 0 160 5; /* 腾讯绿悬停加深 */
-}
 /* ==========================================
-   ArtPlayer 播放器 UI 定制
+   腾讯视频真实播放器界面 1:1 还原定制
    ========================================== */
 
-/* 1. 进度条：已播放部分为腾讯绿 */
+/* 1. 进度条：真实腾讯视频的热播剧是红色的 */
 .art-video-player .art-progress .art-progress-played {
-  background-color: #00BE06 !important;
+  background-color: #FF3333 !important; /* 腾讯视频红 */
 }
-
-/* 2. 进度条悬停变粗，小圆点变绿 */
 .art-video-player .art-progress:hover .art-progress-played {
   height: 4px !important;
 }
 .art-video-player .art-progress-indicator {
-  background-color: #00BE06 !important; 
+  background-color: #FF3333 !important; /* 进度条拖动圆点 */
 }
 
-/* 3. 底部控制栏：增加黑色渐变，防止看视频时看不清字 */
+/* 2. 进度条底槽：未播放部分是浅灰色 */
+.art-video-player .art-progress {
+  background-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* 3. 播放器底部控制栏：极简渐变，不遮挡画面 */
 .art-video-player .art-bottom {
-  background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%) !important;
-  padding-top: 20px !important;
+  background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%) !important;
+  padding-top: 30px !important; /* 拉高一点渐变区域 */
 }
 
-/* 4. 播放器正中间的大播放/暂停按钮变绿 */
+/* 4. 底部操作图标：全部强制变纯白 */
+.art-video-player .art-control, 
+.art-video-player .art-control svg {
+  color: #ffffff !important;
+  fill: #ffffff !important;
+}
+
+/* 5. 右下角的“选集”、“倍速”文字变白 */
+.art-video-player .art-control-selector, 
+.art-video-player .art-selector-item {
+  color: #ffffff !important;
+  font-size: 14px !important;
+}
+
+/* 6. 播放器中间的“大播放”按钮（半透明白色） */
 .art-video-player .art-state {
-  color: #00BE06 !important;
+  color: rgba(255, 255, 255, 0.8) !important;
+  transition: color 0.2s ease;
+}
+.art-video-player .art-state:hover {
+  color: #FF3333 !important; /* 鼠标放上去变红 */
 }
 
-/* 5. 设置面板（右上角设置弹出的面板）改成深灰色 */
+/* 7. 右上角设置面板（选清晰度的地方）变成深黑透明 */
 .art-video-player .art-setting-panel {
-  background-color: #1a1a1a !important;
+  background-color: rgba(20, 20, 20, 0.95) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.1) !important;
 }
 .art-video-player .art-setting-item:hover {
-  background-color: #333 !important;
-}
-/* ==========================================
-   主页 UI 腾讯视频风格定制
-   ========================================== */
-
-/* 1. 电影卡片悬停动效：放大、上浮、加绿色光晕 */
-.grid > div, .movie-card {
-  transition: transform 0.3s ease, box-shadow 0.3s ease !important;
-}
-.grid > div:hover, .movie-card:hover {
-  transform: translateY(-5px) scale(1.03) !important;
-  box-shadow: 0 10px 25px rgba(0, 190, 6, 0.2) !important;
-  z-index: 10;
-}
-
-/* 2. 海报图片圆角优化（更像腾讯视频的卡片） */
-.grid img, .movie-card img {
-  border-radius: 8px !important;
-}
-
-/* 3. 搜索框变绿（匹配主色调） */
-input[type="text"]:focus, input[type="search"]:focus {
-  outline: none !important;
-  border-color: #00BE06 !important;
-  box-shadow: 0 0 0 2px rgba(0, 190, 6, 0.3) !important;
-}
-
-/* 4. 搜索按钮变腾讯绿 */
-button[type="submit"], button:has(svg.lucide-search) {
-  background-color: #00BE06 !important;
-  color: white !important;
-  border: none !important;
-}
-button[type="submit"]:hover, button:has(svg.lucide-search):hover {
-  background-color: #00a005 !important;
-}
-
-/* 5. 顶部分类标签（电影周榜等）悬停变绿 */
-button:has(span), .category-tab {
-  transition: all 0.2s ease !important;
-}
-button:has(span):hover, .category-tab:hover {
-  background-color: rgba(0, 190, 6, 0.15) !important;
-  color: #00BE06 !important;
-}
-
-/* 6. 首页 Logo "LibreTV" 渐变色改成绿系 */
-.text-transparent.bg-clip-text {
-  background-image: linear-gradient(to right, #00BE06, #7CFF7C) !important;
-}
-/* ==========================================
-   腾讯视频深度质感细节补全
-   ========================================== */
-
-/* 1. 海报卡片底部黑色渐变遮罩（让文字更清晰） */
-.movie-card, .grid > div {
-  position: relative;
-}
-.movie-card::after {
-  content: '';
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 50%;
-  background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
-  pointer-events: none;
-  border-radius: 0 0 8px 8px;
-}
-
-/* 2. 选集按钮选中状态变腾讯绿 */
-button[aria-selected="true"], 
-.bg-primary {
-  background-color: #00BE06 !important;
-  color: #ffffff !important;
-}
-
-/* 3. 搜索框变成大圆角胶囊状 */
-input[type="text"], input[type="search"] {
-  border-radius: 9999px !important;
-  padding-left: 16px !important;
-  padding-right: 16px !important;
-}
-
-/* 4. 网页滚动条美化（电脑端可见） */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: #000000;
-}
-::-webkit-scrollbar-thumb {
-  background: #333333;
-  border-radius: 10px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #00BE06;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  color: #FF3333 !important;
 }
