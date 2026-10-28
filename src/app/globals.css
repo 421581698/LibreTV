@@ -231,3 +231,99 @@ body {
 .art-video-player .art-setting-item:hover {
   background-color: #333 !important;
 }
+/* ==========================================
+   主页 UI 腾讯视频风格定制
+   ========================================== */
+
+/* 1. 电影卡片悬停动效：放大、上浮、加绿色光晕 */
+.grid > div, .movie-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease !important;
+}
+.grid > div:hover, .movie-card:hover {
+  transform: translateY(-5px) scale(1.03) !important;
+  box-shadow: 0 10px 25px rgba(0, 190, 6, 0.2) !important;
+  z-index: 10;
+}
+
+/* 2. 海报图片圆角优化（更像腾讯视频的卡片） */
+.grid img, .movie-card img {
+  border-radius: 8px !important;
+}
+
+/* 3. 搜索框变绿（匹配主色调） */
+input[type="text"]:focus, input[type="search"]:focus {
+  outline: none !important;
+  border-color: #00BE06 !important;
+  box-shadow: 0 0 0 2px rgba(0, 190, 6, 0.3) !important;
+}
+
+/* 4. 搜索按钮变腾讯绿 */
+button[type="submit"], button:has(svg.lucide-search) {
+  background-color: #00BE06 !important;
+  color: white !important;
+  border: none !important;
+}
+button[type="submit"]:hover, button:has(svg.lucide-search):hover {
+  background-color: #00a005 !important;
+}
+
+/* 5. 顶部分类标签（电影周榜等）悬停变绿 */
+button:has(span), .category-tab {
+  transition: all 0.2s ease !important;
+}
+button:has(span):hover, .category-tab:hover {
+  background-color: rgba(0, 190, 6, 0.15) !important;
+  color: #00BE06 !important;
+}
+
+/* 6. 首页 Logo "LibreTV" 渐变色改成绿系 */
+.text-transparent.bg-clip-text {
+  background-image: linear-gradient(to right, #00BE06, #7CFF7C) !important;
+}
+/* ==========================================
+   腾讯视频深度质感细节补全
+   ========================================== */
+
+/* 1. 海报卡片底部黑色渐变遮罩（让文字更清晰） */
+.movie-card, .grid > div {
+  position: relative;
+}
+.movie-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 50%;
+  background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
+  pointer-events: none;
+  border-radius: 0 0 8px 8px;
+}
+
+/* 2. 选集按钮选中状态变腾讯绿 */
+button[aria-selected="true"], 
+.bg-primary {
+  background-color: #00BE06 !important;
+  color: #ffffff !important;
+}
+
+/* 3. 搜索框变成大圆角胶囊状 */
+input[type="text"], input[type="search"] {
+  border-radius: 9999px !important;
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+}
+
+/* 4. 网页滚动条美化（电脑端可见） */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+::-webkit-scrollbar-thumb {
+  background: #333333;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #00BE06;
+}
