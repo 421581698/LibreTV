@@ -433,3 +433,54 @@ button[class*="bg-primary"] * {
   background-color: #1a1a1a !important; /* 深色小标签 */
   color: #aaaaaa !important;
 }
+/* ==========================================
+   核武器级去蓝（彻底消灭设置界面的漏网之鱼）
+   ========================================== */
+
+/* 1. 干掉所有带有 blue 或 primary 的按钮/背景（强制变黑） */
+button[class*="bg-blue"],
+button[class*="bg-primary"],
+[class*="bg-blue"],
+[class*="bg-primary"] {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border-color: #000000 !important;
+}
+
+/* 2. 干掉所有带有 blue 的浅色小标签（强制变浅灰底黑字） */
+span[class*="bg-blue"],
+span[class*="text-blue"],
+div[class*="bg-blue"],
+div[class*="text-blue"] {
+  background-color: #f3f4f6 !important;
+  color: #333333 !important;
+}
+
+/* 3. 确保所有按钮内的文字和图标都是纯白色 */
+button[class*="bg-blue"] *,
+button[class*="bg-primary"] * {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+/* ==========================================
+   深色模式下的反转
+   ========================================== */
+.dark button[class*="bg-blue"],
+.dark button[class*="bg-primary"],
+.dark [class*="bg-blue"] {
+  background-color: #333333 !important; /* 深灰按钮 */
+  color: #ffffff !important;
+  border-color: #333333 !important;
+}
+.dark button[class*="bg-blue"] *,
+.dark button[class*="bg-primary"] * {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+.dark span[class*="bg-blue"],
+.dark div[class*="bg-blue"],
+.dark [class*="text-blue"] {
+  background-color: #1a1a1a !important; /* 深色小标签 */
+  color: #aaaaaa !important;
+}
