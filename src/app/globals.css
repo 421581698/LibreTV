@@ -189,9 +189,15 @@ body {
   }
 }
 /* ==========================================
-   1. 基础背景与真·毛玻璃（必须让父级透明）
+   1. 基础背景与真·毛玻璃（修复兜底与通配范围）
    ========================================== */
-html, body, main, #__next, div[class*="min-h-screen"] {
+html {
+  background-color: #f5f7fa !important; /* 兜底防露白 */
+}
+html.dark {
+  background-color: #000000 !important;
+}
+body, main, #__next {
   background-color: transparent !important;
 }
 body {
@@ -236,14 +242,15 @@ header a[href="/"]::before {
 }
 
 /* ==========================================
-   3. 搜索框与分类标签
+   3. 搜索框与分类标签（修复拼接缝隙版）
    ========================================== */
 input[type="text"], input[type="search"] {
   border-radius: 9999px 0 0 9999px !important;
   padding-left: 20px !important;
   border-right: none !important;
   outline: none !important;
-  margin-right: -1px !important;
+  position: relative !important; /* 修复缝隙 */
+  z-index: 2 !important;         /* 盖住可能存在的1px线 */
   background-color: rgba(255, 255, 255, 0.6) !important;
   backdrop-filter: blur(10px) !important;
 }
@@ -251,6 +258,8 @@ button[type="submit"], button:has(svg.lucide-search) {
   border-radius: 0 9999px 9999px 0 !important;
   padding: 0 24px !important;
   border-left: none !important;
+  position: relative !important;
+  z-index: 1 !important;
   background-color: #000000 !important;
   color: #ffffff !important;
 }
@@ -288,7 +297,7 @@ button[aria-selected="true"], button[aria-selected="false"] {
 }
 
 /* ==========================================
-   5. 电影卡片与 N源 角标（修复：父卡片overflow:hidden不能子级开visible，向内收缩角标）
+   5. 电影卡片与 N源 角标（防裁切、父级限定版）
    ========================================== */
 .grid > div:has(img), .movie-card {
   background-color: rgba(255, 255, 255, 0.55) !important;
@@ -314,9 +323,10 @@ button[aria-selected="true"], button[aria-selected="false"] {
     will-change: transform, box-shadow;
   }
 }
-/* 🚑 N源角标：向内偏移，不再尝试跳出卡片边界 */
-.absolute.top-0.left-0,
-.absolute.top-2.left-2 {
+/* N源角标：内缩 + 父级限定防误伤 */
+.movie-card .absolute.top-0.left-0,
+.movie-card .absolute.top-2.left-2,
+.grid > div:has(img) .absolute.top-0.left-0 {
   z-index: 99 !important;
   top: 8px !important;
   left: 8px !important;
@@ -329,20 +339,26 @@ button[aria-selected="true"], button[aria-selected="false"] {
   backdrop-filter: none !important;
   -webkit-font-smoothing: antialiased !important;
 }
-/* 移动端性能降级 */
-@media (max-width:768px) {
+
+/* ==========================================
+   6. 移动端性能降级（取消悬浮与减弱模糊）
+   ========================================== */
+@media (max-width: 768px) {
   .grid > div:has(img), .movie-card {
     backdrop-filter: blur(8px) !important;
     -webkit-backdrop-filter: blur(8px) !important;
-    background-color: rgba(255,255,255,0.65) !important;
+    background-color: rgba(255, 255, 255, 0.65) !important;
   }
   .dark .grid > div:has(img), .dark .movie-card {
-    background-color: rgba(26,26,26,0.65) !important;
+    background-color: rgba(26, 26, 26, 0.65) !important;
+  }
+  .grid > div:has(img):hover, .movie-card:hover {
+    transform: none !important; /* 移动端取消悬停动效 */
   }
 }
 
 /* ==========================================
-   6. 播放页与弹窗
+   7. 播放页与弹窗（保留爱奇艺红高亮）
    ========================================== */
 button[class*="episode"], .episode-btn {
   border-radius: 12px !important;
@@ -354,7 +370,7 @@ button[class*="episode"]:hover, .episode-btn:hover {
   opacity: 0.72 !important;
 }
 button[class*="episode"].active, .episode-btn.active {
-  background-color: #e63921 !important; /* 爱奇艺红高亮 */
+  background-color: #e63921 !important; /* 全站唯一的强调色 */
   color: #fff !important;
   opacity: 1 !important;
 }
