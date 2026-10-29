@@ -189,16 +189,28 @@ body {
   }
 }
 /* ==========================================
-   1. 门面定制：隐藏大 Logo，画黑底白字 L
+   1. 基础背景与真·毛玻璃（必须让父级透明）
    ========================================== */
-main h1, 
+html, body, main, #__next, div[class*="min-h-screen"] {
+  background-color: transparent !important;
+}
+body {
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%) !important;
+}
+.dark body {
+  background: linear-gradient(135deg, #111111 0%, #000000 100%) !important;
+}
+
+/* ==========================================
+   2. 门面定制：隐藏大 Logo，画黑底白字 L
+   ========================================== */
+main h1,
 .text-transparent.bg-clip-text.text-4xl,
 .text-transparent.bg-clip-text.text-5xl,
 .text-transparent.bg-clip-text.text-6xl {
   display: none !important;
 }
 main { padding-top: 10px !important; }
-
 header a[href="/"] > * { display: none !important; }
 header a[href="/"] {
   display: flex !important;
@@ -207,187 +219,162 @@ header a[href="/"] {
   box-shadow: none !important;
 }
 header a[href="/"]::before {
-  content: "L"; 
-  display: flex; 
-  align-items: center; 
+  content: "L";
+  display: flex;
+  align-items: center;
   justify-content: center;
-  width: 32px; 
-  height: 32px; 
-  background-color: #0d1117; 
-  color: #ffffff;            
-  font-weight: bold; 
-  font-size: 18px !important; 
+  width: 32px;
+  height: 32px;
+  background-color: #0d1117;
+  color: #ffffff;
+  font-weight: bold;
+  font-size: 18px !important;
   line-height: 1;
-  border-radius: 8px; 
+  border-radius: 8px;
   margin-right: 8px;
-  flex-shrink: 0 !important; 
+  flex-shrink: 0 !important;
 }
 
 /* ==========================================
-   2. 首页 UI：胶囊搜索框与爱奇艺质感卡片
+   3. 搜索框与分类标签
    ========================================== */
-/* 搜索框无缝拼接 */
 input[type="text"], input[type="search"] {
-  border-radius: 9999px 0 0 9999px !important; 
+  border-radius: 9999px 0 0 9999px !important;
   padding-left: 20px !important;
   border-right: none !important;
   outline: none !important;
-  margin-right: -1px !important; 
+  margin-right: -1px !important;
+  background-color: rgba(255, 255, 255, 0.6) !important;
+  backdrop-filter: blur(10px) !important;
 }
 button[type="submit"], button:has(svg.lucide-search) {
-  border-radius: 0 9999px 9999px 0 !important; 
+  border-radius: 0 9999px 9999px 0 !important;
   padding: 0 24px !important;
   border-left: none !important;
+  background-color: #000000 !important;
+  color: #ffffff !important;
 }
-
-/* 分类标签 */
+.dark button[type="submit"], .dark button:has(svg.lucide-search) {
+  background-color: #27272a !important;
+}
 button[aria-selected="true"], button[aria-selected="false"] {
-  border-radius: 9999px !important; 
+  border-radius: 9999px !important;
   padding: 6px 20px !important;
   transition: all 0.2s ease !important;
 }
 
-/* 彻底干掉所有残留的浅蓝色标签 */
-[class*="bg-blue-50"], [class*="bg-blue-100"] {
+/* ==========================================
+   4. 终极暴力去彩：全站标签变高级灰
+   ========================================== */
+[class*="bg-blue-50"], [class*="bg-blue-100"],
+[class*="bg-purple"], [class*="bg-violet"],
+[class*="bg-fuchsia"], [class*="bg-pink"],
+[class*="bg-amber"], [class*="bg-yellow"],
+[class*="bg-orange"],
+[class*="text-purple"], [class*="text-amber"] {
   background-color: #f3f4f6 !important;
-  color: #111111 !important;
+  color: #333333 !important;
+  border: none !important;
+  opacity: 1 !important;
 }
-.dark [class*="bg-blue-50"], .dark [class*="bg-blue-100"] {
-  background-color: #333333 !important;
-  color: #ffffff !important;
+.dark [class*="bg-blue-50"], .dark [class*="bg-blue-100"],
+.dark [class*="bg-purple"], .dark [class*="bg-violet"],
+.dark [class*="bg-fuchsia"], .dark [class*="bg-pink"],
+.dark [class*="bg-amber"], .dark [class*="bg-yellow"],
+.dark [class*="bg-orange"],
+.dark [class*="text-purple"], .dark [class*="text-amber"] {
+  background-color: #2a2a2a !important;
+  color: #aaaaaa !important;
 }
 
-/* 电影卡片质感（用 :has(img) 精准定位，防污染） */
+/* ==========================================
+   5. 电影卡片与 N源 角标（修复：父卡片overflow:hidden不能子级开visible，向内收缩角标）
+   ========================================== */
 .grid > div:has(img), .movie-card {
-  border-radius: 16px !important; 
+  background-color: rgba(255, 255, 255, 0.55) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.6) !important;
+  border-radius: 16px !important;
   overflow: hidden !important;
-  background-color: #ffffff !important; 
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06) !important; 
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04) !important;
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
 }
 .grid > div:has(img) img, .movie-card img {
   border-radius: 16px 16px 0 0 !important;
 }
-/* 仅在桌面端开启悬浮动效，防移动端卡死 */
+.dark .grid > div:has(img), .dark .movie-card {
+  background-color: rgba(26, 26, 26, 0.55) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
 @media (hover: hover) {
   .grid > div:has(img):hover, .movie-card:hover {
-    transform: translateY(-6px) !important; 
-    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.15) !important; 
-    will-change: transform, box-shadow; 
+    transform: translateY(-6px) !important;
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.15) !important;
+    will-change: transform, box-shadow;
+  }
+}
+/* 🚑 N源角标：向内偏移，不再尝试跳出卡片边界 */
+.absolute.top-0.left-0,
+.absolute.top-2.left-2 {
+  z-index: 99 !important;
+  top: 8px !important;
+  left: 8px !important;
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 4px 6px !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important;
+  backdrop-filter: none !important;
+  -webkit-font-smoothing: antialiased !important;
+}
+/* 移动端性能降级 */
+@media (max-width:768px) {
+  .grid > div:has(img), .movie-card {
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    background-color: rgba(255,255,255,0.65) !important;
+  }
+  .dark .grid > div:has(img), .dark .movie-card {
+    background-color: rgba(26,26,26,0.65) !important;
   }
 }
 
 /* ==========================================
-   3. 播放页：选集按钮与播放器安全适配
+   6. 播放页与弹窗
    ========================================== */
-/* 选集按钮大圆角 */
 button[class*="episode"], .episode-btn {
-  border-radius: 12px !important; 
+  border-radius: 12px !important;
   padding: 8px 16px !important;
   transition: all 0.2s ease !important;
   font-weight: 500 !important;
 }
-/* 悬停态 */
-button[class*="episode"]:hover, 
-.episode-btn:hover {
-  opacity: 0.85 !important; 
+button[class*="episode"]:hover, .episode-btn:hover {
+  opacity: 0.72 !important;
 }
-/* ✨ 当前播放集的【爱奇艺红】高亮！ */
-button[class*="episode"].active,
-.episode-btn.active {
-  background-color: #e63921 !important;
+button[class*="episode"].active, .episode-btn.active {
+  background-color: #e63921 !important; /* 爱奇艺红高亮 */
   color: #fff !important;
   opacity: 1 !important;
 }
-
-/* 播放器底部控制栏（渐变 80%，不挡进度条） */
 .art-video-player .art-bottom {
   background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 80%) !important;
 }
-/* 全屏状态下取消底部圆角 */
 .art-video-player.art-fullscreen .art-bottom {
   border-radius: 0 !important;
 }
-/* 进度条加粗点击热区 */
 .art-video-player .art-progress-bar {
-  height: 6px !important; 
+  height: 6px !important;
 }
-/* 播放器专属弹窗 */
 .art-setting-panel, .art-notice {
-  border-radius: 16px !important; 
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2) !important; 
-  border: 1px solid rgba(0, 0, 0, 0.1) !important; 
-}
-
-/* ==========================================
-   4. 深色模式适配
-   ========================================== */
-.dark .grid > div:has(img), .dark .movie-card {
-  background-color: #1a1a1a !important;
-  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.05) !important; 
-}
-@media (hover: hover) {
-  .dark .grid > div:has(img):hover, .dark .movie-card:hover {
-    box-shadow: 0 16px 32px rgba(255, 255, 255, 0.1) !important; 
-  }
-}
-.dark button[class*="episode"]:not(.active), 
-.dark .episode-btn:not(.active) {
-  background-color: #2a2a2a !important;
-  color: #eee !important;
-}
-.dark .art-setting-panel, .dark .art-notice {
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-}
-/* ==========================================
-   ✨ 终极通透感：毛玻璃 + 半透明质感拉满
-   ========================================== */
-
-/* 1. 搜索结果卡片：从“死白”变成半透明磨砂玻璃 */
-.grid > div:has(img), .movie-card {
-  background-color: rgba(255, 255, 255, 0.75) !important; /* 半透明白 */
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.5) !important; /* 增加一点玻璃反光感 */
-  border-radius: 16px !important; 
-  overflow: hidden !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04) !important; /* 阴影更淡更通透 */
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
-}
-
-/* 2. 深色模式下的卡片：黑曜石玻璃质感 */
-.dark .grid > div:has(img), .dark .movie-card {
-  background-color: rgba(26, 26, 26, 0.75) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
-}
-
-/* 3. 选集按钮：鼠标悬浮时更通透 */
-button[class*="episode"]:hover, 
-.episode-btn:hover {
-  opacity: 0.72 !important; /* 0.85 调低至 0.72，更柔和 */
-}
-
-/* 4. 播放器弹窗：同样做成半透明磨砂玻璃 */
-.art-setting-panel, .art-notice {
+  border-radius: 16px !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
   background-color: rgba(255, 255, 255, 0.9) !important;
   backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-  border-radius: 16px !important; 
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.15) !important; 
-  border: 1px solid rgba(0, 0, 0, 0.08) !important; 
 }
 .dark .art-setting-panel, .dark .art-notice {
-  background-color: rgba(30, 30, 30, 0.9) !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
-}
-
-/* 5. 解决图里那个“N源”角标看不清的问题：直接给它纯黑，不要透明度！ */
-.absolute.top-0.left-0, 
-.absolute.top-2.left-2,
-div[class*="source-count"] {
-  background-color: #000000 !important; /* 绝对纯黑 */
-  color: #ffffff !important;
-  border: 1px solid rgba(255, 255, 255, 0.5) !important;
-  backdrop-filter: blur(4px) !important;
+  background-color: rgba(30, 30, 30, 0.9) !important;
 }
