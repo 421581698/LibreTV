@@ -394,3 +394,60 @@ button[class*="episode"].active, .episode-btn.active {
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
   background-color: rgba(30, 30, 30, 0.9) !important;
 }
+/* ==========================================
+   🚑 终极急救合并版（搜框无缝 + 角标解裁 + Safari Hack）
+   ========================================== */
+
+/* 1. 搜索框与按钮：强制重叠 -2px 消除缝隙 */
+input[type="text"], input[type="search"] {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  border-right: none !important;
+  margin-right: -2px !important; /* 重叠 2px 暴力消缝 */
+}
+button[type="submit"], button:has(svg.lucide-search) {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  border-left: none !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+/* 防止图标贴边造成视觉缺口 */
+button[type="submit"] svg, button:has(svg.lucide-search) svg {
+  margin: 0 2px !important;
+}
+
+/* 2. 角标解裁切：暴力向内推 16px，并提升最高层级 */
+.grid > div:has(img) [class*="absolute"][class*="top-"],
+.movie-card [class*="absolute"][class*="top-"] {
+  margin-top: 16px !important;
+  margin-left: 16px !important;
+  top: 16px !important;
+  left: 16px !important;
+  z-index: 999 !important;
+  background-color: #000000 !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 6px !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* 3. 尝试解除海报内层容器的裁切（img标签本身不识别overflow，已移除无效img规则） */
+.grid > div:has(img) picture,
+.grid > div:has(img) .poster-wrap {
+  overflow: visible !important;
+}
+
+/* 4. iOS Safari 专属渲染 Hack（解决 1px 错位与毛边） */
+@supports (-webkit-touch-callout: none) {
+  input[type="text"], input[type="search"],
+  button[type="submit"], button:has(svg.lucide-search) {
+    -webkit-transform: translateZ(0) !important;
+  }
+  .grid > div:has(img) [class*="absolute"][class*="top-"],
+  .movie-card [class*="absolute"][class*="top-"] {
+    -webkit-transform: translateZ(0) !important;
+  }
+}
