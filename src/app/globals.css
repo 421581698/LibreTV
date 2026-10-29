@@ -237,3 +237,93 @@ span[class*="bg-blue-"], div[class*="bg-blue-"] {
 .dark input[type="text"] { background-color: #1a1a1a !important; color: #ffffff !important; }
 .dark button[aria-selected="true"] { background-color: #ffffff !important; color: #000000 !important; }
 .dark button[aria-selected="false"] { background-color: #1a1a1a !important; color: #aaaaaa !important; }
+/* ==========================================
+   设置界面：彻底拔除最后的蓝色残留
+   ========================================== */
+
+/* 1. 干掉所有蓝色的开关按钮 */
+[role="switch"][data-state="checked"],
+[role="switch"][aria-checked="true"],
+button[class*="bg-blue-"] {
+  background-color: #000000 !important; /* 开启变纯黑 */
+}
+
+/* 2. 干掉“添加 API”等主按钮的蓝色 */
+.bg-blue-500, 
+.bg-blue-600, 
+.bg-primary {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+
+/* 3. 干掉图3里“全部”那个标签的浅蓝色 */
+.bg-blue-50, 
+.bg-blue-100,
+.text-blue-600 {
+  background-color: #f3f4f6 !important; /* 变浅灰 */
+  color: #000000 !important;            /* 变黑字 */
+}
+
+/* 4. 干掉勾选框（Checkbox）的蓝色 */
+input[type="checkbox"] {
+  accent-color: #000000 !important; /* 把浏览器原生的勾选颜色变黑 */
+}
+
+/* 5. 如果它是用图标画的勾选框 */
+.text-blue-500, 
+.text-blue-600,
+svg.text-blue-500 {
+  color: #000000 !important;
+}
+/* ==========================================
+   爱奇艺 UI 质感设计（保留黑白配色）
+   ========================================== */
+
+/* 1. 电影卡片：大圆角 + 更细腻的阴影 + 悬浮上浮 */
+.movie-card, .grid > div {
+  border-radius: 12px !important; /* 大圆角，像爱奇艺一样圆润 */
+  overflow: hidden !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important; /* 更柔和的阴影 */
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+}
+.movie-card:hover, .grid > div:hover {
+  transform: translateY(-6px) !important; /* 悬浮上升更高一点 */
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15) !important; /* 悬浮时阴影加深 */
+}
+
+/* 2. 卡片图片：只有上方是大圆角，底部平整 */
+.movie-card img, .grid img {
+  border-radius: 12px 12px 0 0 !important;
+}
+
+/* 3. 搜索按钮：给纯黑按钮加一点圆角（如果它现在太方的话） */
+button[type="submit"], button:has(svg.lucide-search) {
+  border-radius: 0 9999px 9999px 0 !important; /* 右侧变圆润 */
+  padding-left: 20px !important;
+  padding-right: 20px !important;
+}
+
+/* 4. 分类标签（电影周榜等）：选中时更圆润 */
+button[aria-selected="true"], 
+.bg-blue-500 {
+  border-radius: 9999px !important; /* 变成胶囊状 */
+  padding: 6px 16px !important;
+}
+
+/* 5. 搜索结果右上角的“4个来源”按钮：质感优化 */
+.absolute.right-0.bottom-0,
+.border.border-gray-200 {
+  border-radius: 12px !important;
+  transition: all 0.2s ease !important;
+}
+.absolute.right-0.bottom-0:hover,
+.border.border-gray-200:hover {
+  background-color: #f9f9f9 !important;
+}
+
+/* 6. 深色模式下：卡片背景变成爱奇艺那种偏深灰的质感（不是死黑） */
+.dark .movie-card, .dark .grid > div {
+  background-color: #1e1e1e !important; 
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+}
