@@ -189,141 +189,137 @@ body {
   }
 }
 /* ==========================================
-   极简黑白灰（安全纯净版）
+   1. 全局基础与布局
    ========================================== */
+html, body, main, #__next, .min-h-screen {
+  background-color: #f5f6f7 !important;
+  color: #111111 !important;
+}
+main h1, .text-transparent.bg-clip-text { display: none !important; } /* 隐藏大Logo */
+main { padding-top: 10px !important; } /* 整体上移 */
 
-/* 1. 全局白底黑字 */
-html, body, main { background-color: #f5f6f7 !important; color: #111111 !important; }
-
-/* 2. 顶部 Logo：黑底白字 L */
+/* ==========================================
+   2. 顶部导航与黑底白字 L 图标
+   ========================================== */
 header a[href="/"] > * { display: none !important; }
+header a[href="/"] {
+  background: transparent !important;
+  box-shadow: none !important;
+}
 header a[href="/"]::before {
   content: "L"; display: flex; align-items: center; justify-content: center;
   width: 32px; height: 32px; background-color: #0d1117; color: #ffffff;
   font-weight: bold; font-size: 20px; border-radius: 8px; margin-right: 8px;
 }
 
-/* 3. 隐藏大字上移 */
-main h1, .text-transparent.bg-clip-text { display: none !important; }
-main { padding-top: 10px !important; }
-
-/* 4. 搜索按钮黑化，搜索框圆角 */
-button[type="submit"], button:has(svg.lucide-search) {
-  background-color: #000000 !important; color: #ffffff !important;
-}
-input[type="text"], input[type="search"] {
-  background-color: #ffffff !important; border-radius: 9999px !important; color: #111111 !important;
-}
-
-/* 5. 标签去蓝变黑 */
-button[class*="bg-blue-"], .bg-blue-500, .bg-primary, button[aria-selected="true"] {
-  background-color: #000000 !important; color: #ffffff !important;
-}
-span[class*="bg-blue-"], div[class*="bg-blue-"] {
-  background-color: #f3f4f6 !important; color: #333333 !important;
-}
-
-/* 6. 修复“N源”角标 */
-.absolute.top-0.left-0, .absolute.top-2.left-2, .absolute.top-1.left-1 {
-  background-color: rgba(0, 0, 0, 0.85) !important; color: #ffffff !important;
-}
-
-/* 7. 播放器进度条黑化 */
-.art-video-player .art-progress .art-progress-played { background-color: #000000 !important; }
-
-/* 8. 深色模式适配 */
-.dark, .dark body, .dark main { background-color: #000000 !important; color: #ffffff !important; }
-.dark .movie-card, .dark .grid > div { background-color: #1a1a1a !important; border: 1px solid #333 !important; }
-.dark input[type="text"] { background-color: #1a1a1a !important; color: #ffffff !important; }
-.dark button[aria-selected="true"] { background-color: #ffffff !important; color: #000000 !important; }
-.dark button[aria-selected="false"] { background-color: #1a1a1a !important; color: #aaaaaa !important; }
 /* ==========================================
-   设置界面：彻底拔除最后的蓝色残留
+   3. 搜索框与搜索按钮（无边框胶囊）
    ========================================== */
-
-/* 1. 干掉所有蓝色的开关按钮 */
-[role="switch"][data-state="checked"],
-[role="switch"][aria-checked="true"],
-button[class*="bg-blue-"] {
-  background-color: #000000 !important; /* 开启变纯黑 */
+input[type="text"], input[type="search"] {
+  background-color: #f0f0f0 !important;
+  color: #111111 !important;
+  border: none !important;
+  border-radius: 9999px 0 0 9999px !important;
+  padding-left: 16px !important;
+  outline: none !important;
 }
-
-/* 2. 干掉“添加 API”等主按钮的蓝色 */
-.bg-blue-500, 
-.bg-blue-600, 
-.bg-primary {
+button[type="submit"], button:has(svg.lucide-search) {
   background-color: #000000 !important;
   color: #ffffff !important;
   border: none !important;
+  border-radius: 0 9999px 9999px 0 !important;
+  padding: 0 20px !important;
+}
+button[type="submit"] svg, button:has(svg.lucide-search) svg {
+  stroke: #ffffff !important;
+}
+/* 聚焦时的微光 */
+input[type="text"]:focus, input[type="search"]:focus {
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1) !important;
 }
 
-/* 3. 干掉图3里“全部”那个标签的浅蓝色 */
-.bg-blue-50, 
-.bg-blue-100,
-.text-blue-600 {
-  background-color: #f3f4f6 !important; /* 变浅灰 */
-  color: #000000 !important;            /* 变黑字 */
-}
-
-/* 4. 干掉勾选框（Checkbox）的蓝色 */
-input[type="checkbox"] {
-  accent-color: #000000 !important; /* 把浏览器原生的勾选颜色变黑 */
-}
-
-/* 5. 如果它是用图标画的勾选框 */
-.text-blue-500, 
-.text-blue-600,
-svg.text-blue-500 {
-  color: #000000 !important;
-}
 /* ==========================================
-   爱奇艺 UI 质感设计（保留黑白配色）
+   4. 电影卡片与去蓝彻底覆盖
    ========================================== */
-
-/* 1. 电影卡片：大圆角 + 更细腻的阴影 + 悬浮上浮 */
+/* 爱奇艺大圆角 + 悬浮质感 */
 .movie-card, .grid > div {
-  border-radius: 12px !important; /* 大圆角，像爱奇艺一样圆润 */
+  background-color: #ffffff !important;
+  border-radius: 12px !important;
   overflow: hidden !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important; /* 更柔和的阴影 */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
 }
 .movie-card:hover, .grid > div:hover {
-  transform: translateY(-6px) !important; /* 悬浮上升更高一点 */
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15) !important; /* 悬浮时阴影加深 */
+  transform: translateY(-6px) !important;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15) !important;
+}
+.movie-card img, .grid img { border-radius: 12px 12px 0 0 !important; }
+
+/* 修复“N源”角标 */
+.absolute.top-0.left-0, .absolute.top-2.left-2, .absolute.top-1.left-1 {
+  background-color: rgba(0, 0, 0, 0.85) !important; 
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
 }
 
-/* 2. 卡片图片：只有上方是大圆角，底部平整 */
-.movie-card img, .grid img {
-  border-radius: 12px 12px 0 0 !important;
+/* 干掉所有的蓝色（分类标签、按钮、设置开关） */
+[class*="bg-blue"], [class*="text-blue"], .bg-primary {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border-color: #000000 !important;
+}
+span[class*="bg-blue"], div[class*="bg-blue"] {
+  background-color: #f3f4f6 !important; /* 小标签变浅灰 */
+  color: #333333 !important;
+}
+input[type="checkbox"] { accent-color: #000000 !important; }
+
+/* ==========================================
+   5. 播放器界面（黑白主题）
+   ========================================== */
+.art-video-player .art-progress .art-progress-played { background-color: #000000 !important; }
+.art-video-player .art-control, .art-video-player .art-control svg {
+  color: #ffffff !important; fill: #ffffff !important;
 }
 
-/* 3. 搜索按钮：给纯黑按钮加一点圆角（如果它现在太方的话） */
-button[type="submit"], button:has(svg.lucide-search) {
-  border-radius: 0 9999px 9999px 0 !important; /* 右侧变圆润 */
-  padding-left: 20px !important;
-  padding-right: 20px !important;
+/* ==========================================
+   6. 深色模式（夜晚模式）完美适配
+   ========================================== */
+.dark, .dark body, .dark main, html.dark {
+  background-color: #000000 !important;
+  color: #ffffff !important;
 }
-
-/* 4. 分类标签（电影周榜等）：选中时更圆润 */
-button[aria-selected="true"], 
-.bg-blue-500 {
-  border-radius: 9999px !important; /* 变成胶囊状 */
-  padding: 6px 16px !important;
-}
-
-/* 5. 搜索结果右上角的“4个来源”按钮：质感优化 */
-.absolute.right-0.bottom-0,
-.border.border-gray-200 {
-  border-radius: 12px !important;
-  transition: all 0.2s ease !important;
-}
-.absolute.right-0.bottom-0:hover,
-.border.border-gray-200:hover {
-  background-color: #f9f9f9 !important;
-}
-
-/* 6. 深色模式下：卡片背景变成爱奇艺那种偏深灰的质感（不是死黑） */
+/* 深色下的卡片 */
 .dark .movie-card, .dark .grid > div {
-  background-color: #1e1e1e !important; 
+  background-color: #1a1a1a !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
 }
+/* 深色下的搜索框与按钮（去边框融合） */
+.dark input[type="text"], .dark input[type="search"] {
+  background-color: #1a1a1a !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+.dark button[type="submit"], .dark button:has(svg.lucide-search) {
+  background-color: #1a1a1a !important;
+  color: #ffffff !important;
+}
+.dark input[type="text"]:focus {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2) !important;
+}
+/* 深色下的标签与开关反转 */
+.dark button[aria-selected="true"],
+.dark [role="tab"][data-state="active"],
+.dark [role="switch"][data-state="checked"],
+.dark [class*="bg-blue"] {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+}
+.dark button[aria-selected="false"] {
+  background-color: #1a1a1a !important;
+  color: #aaaaaa !important;
+}
+.dark input[type="checkbox"] { accent-color: #ffffff !important; }
+/* 深色下的进度条反色 */
+.dark .art-video-player .art-progress .art-progress-played { background-color: #ffffff !important; }
