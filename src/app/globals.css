@@ -323,3 +323,62 @@ input[type="checkbox"] { accent-color: #000000 !important; }
 .dark input[type="checkbox"] { accent-color: #ffffff !important; }
 /* 深色下的进度条反色 */
 .dark .art-video-player .art-progress .art-progress-played { background-color: #ffffff !important; }
+/* ==========================================
+   核武器级去蓝补丁（打不过就强制覆盖）
+   ========================================== */
+
+/* 1. 强制所有带 blue 背景的按钮/标签变纯黑 */
+[class*="bg-blue"], 
+[class*="bg-primary"] {
+  background-color: #000000 !important;
+  border-color: #000000 !important;
+}
+
+/* 2. 强制这些按钮里的文字和图标变纯白 */
+[class*="bg-blue"] *, 
+[class*="bg-primary"] * {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+/* 3. 强制所有蓝色的文字变纯黑（比如图4的“偏好设置”） */
+[class*="text-blue"], 
+[class*="text-primary"] {
+  color: #000000 !important;
+}
+
+/* 4. 强制图1的“电影周榜”这种选中的标签变黑 */
+button[aria-selected="true"],
+[role="tab"][data-state="active"] {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border-color: #000000 !important;
+}
+button[aria-selected="true"] * {
+  color: #ffffff !important;
+}
+
+/* 5. 强制所有蓝色的开关（Toggle）变黑 */
+[role="switch"][data-state="checked"],
+[role="switch"][aria-checked="true"] {
+  background-color: #000000 !important;
+}
+
+/* ==========================================
+   深色模式下的反转
+   ========================================== */
+.dark [class*="bg-blue"], 
+.dark [class*="bg-primary"],
+.dark button[aria-selected="true"],
+.dark [role="switch"][data-state="checked"] {
+  background-color: #ffffff !important;
+}
+.dark [class*="bg-blue"] *, 
+.dark [class*="bg-primary"] *,
+.dark button[aria-selected="true"] * {
+  color: #000000 !important;
+  stroke: #000000 !important;
+}
+.dark [class*="text-blue"] {
+  color: #ffffff !important;
+}
