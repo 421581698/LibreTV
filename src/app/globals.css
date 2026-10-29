@@ -290,3 +290,36 @@ header a[href="/"]::before {
   border-radius: 8px;
   margin-right: 8px;
 }
+/* 彻底干掉原版旧的渐变图标 */
+header a[href="/"] > * {
+  display: none !important;
+}
+
+/* 清除旧图标可能残留的背景色或背景图 */
+header a[href="/"] {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+/* ==========================================
+   搜索按钮强制变纯黑
+   ========================================== */
+
+button[type="submit"], 
+button:has(svg.lucide-search),
+.bg-blue-500, 
+.bg-blue-600 {
+  background-color: #000000 !important; 
+  color: #ffffff !important;            
+  border: 1px solid #333333 !important; 
+}
+
+button[type="submit"]:hover, 
+button:has(svg.lucide-search):hover {
+  background-color: #333333 !important;
+}
+
+button[type="submit"] svg, 
+button:has(svg.lucide-search) svg {
+  stroke: #ffffff !important;
+  color: #ffffff !important;
+}
