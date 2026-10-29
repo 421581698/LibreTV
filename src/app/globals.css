@@ -439,23 +439,11 @@ button[type="submit"] svg, button:has(svg.lucide-search) svg {
 .grid > div:has(img) .poster-wrap {
   overflow: visible !important;
 }
-
-/* 4. iOS Safari 专属渲染 Hack（解决 1px 错位与毛边） */
-@supports (-webkit-touch-callout: none) {
-  input[type="text"], input[type="search"],
-  button[type="submit"], button:has(svg.lucide-search) {
-    -webkit-transform: translateZ(0) !important;
-  }
-  .grid > div:has(img) [class*="absolute"][class*="top-"],
-  .movie-card [class*="absolute"][class*="top-"] {
-    -webkit-transform: translateZ(0) !important;
-  }
-}
 /* ==========================================
-   🎯 精准修复版：只推左侧N源，放过右侧评分
+   🎯 终极完美修复：左推N源，右留评分
    ========================================== */
 
-/* 1. 搜索框无缝拼接（保持原样，没问题） */
+/* 1. 搜索框重叠无缝（保留） */
 input[type="text"], input[type="search"] {
   border-top-right-radius: 0 !important;
   border-bottom-right-radius: 0 !important;
@@ -466,7 +454,6 @@ button[type="submit"], button:has(svg.lucide-search) {
   border-top-left-radius: 0 !important;
   border-bottom-left-radius: 0 !important;
   border-left: none !important;
-  overflow: hidden !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -475,50 +462,37 @@ button[type="submit"] svg, button:has(svg.lucide-search) svg {
   margin: 0 2px !important;
 }
 
-/* 2. 精准打击：只把【左侧】的角标往里推（放过右侧评分） */
+/* 2. 精准打击左侧：N源角标往里推 */
 .grid > div:has(img) .absolute.left-0,
 .grid > div:has(img) .absolute.left-2,
 .movie-card .absolute.left-0,
 .movie-card .absolute.left-2 {
-  margin-top: 12px !important;
-  margin-left: 12px !important;
-  top: 12px !important;
-  left: 12px !important;
-  z-index: 999 !important;
+  margin-top: 10px !important;
+  margin-left: 10px !important;
+  top: 10px !important;
+  left: 10px !important;
+  z-index: 99 !important;
   background-color: #000000 !important;
   border: 1px solid rgba(255, 255, 255, 0.15) !important;
   border-radius: 6px !important;
   backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
 }
 
-/* 3. 拯救被误伤的右侧评分标签 */
+/* 3. 精准保护右侧：评分标签恢复半透明小胶囊 */
 .grid > div:has(img) .absolute.right-0,
 .grid > div:has(img) .absolute.right-2,
 .movie-card .absolute.right-0,
-.movie-card .absolute.right-2 {
-  /* 恢复它原本的半透明黑底和小胶囊形状 */
-  background-color: rgba(0, 0, 0, 0.6) !important; 
-  border-radius: 9999px !important; /* 评分通常是圆角胶囊 */
+.movie-card .absolute.right-2,
+[class*="right-2"] {
+  background-color: rgba(0, 0, 0, 0.6) !important; /* 半透明黑底 */
+  border-radius: 9999px !important; /* 圆润胶囊 */
   border: none !important;
-  margin-top: 12px !important;
-  margin-right: 12px !important;
-  /* 清除之前强推的 margin-left */
-  margin-left: 0 !important; 
-  top: 12px !important;
-  right: 12px !important;
-  left: auto !important;
-  z-index: 99 !important;
-}
-
-/* 4. Safari 专属渲染 Hack（保险起见，只给左侧角标加） */
-@supports (-webkit-touch-callout: none) {
-  input[type="text"], input[type="search"],
-  button[type="submit"], button:has(svg.lucide-search) {
-    -webkit-transform: translateZ(0) !important;
-  }
-  .grid > div:has(img) .absolute.left-0,
-  .grid > div:has(img) .absolute.left-2 {
-    -webkit-transform: translateZ(0) !important;
-  }
+  width: auto !important; /* 宽度随文字自适应，绝不拉长 */
+  display: inline-flex !important;
+  padding: 2px 8px !important;
+  top: 10px !important;
+  right: 10px !important;
+  left: auto !important; 
+  margin: 0 !important;
+  z-index: 10 !important;
 }
