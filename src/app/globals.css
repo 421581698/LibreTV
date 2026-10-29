@@ -201,7 +201,7 @@ body { background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%) !important;
 main h1, .text-transparent.bg-clip-text.text-4xl, .text-transparent.bg-clip-text.text-5xl, .text-transparent.bg-clip-text.text-6xl { display: none !important; }
 main { padding-top: 10px !important; }
 header a[href="/"] > * { display: none !important; }
-header a[href="/"] { display: flex !important; align-items: center !important; background: transparent !important; box-shadow: none !important; }
+header a[href="/"] { display: flex !important; align-items: center !important; background: transparent !important; box-shadow: none !important; font-size: 0 !important; }
 header a[href="/"]::before {
   content: "L"; display: flex; align-items: center; justify-content: center;
   width: 32px; height: 32px; background-color: #0d1117; color: #ffffff;
@@ -212,7 +212,7 @@ header a[href="/"]::before {
 /* ==========================================
    2. 搜索框与去彩标签
    ========================================== */
-/* 搜索框无缝拼接 */
+/* 搜索框无缝拼接 + 防 iOS 放大 + 防 Safari 缝隙 */
 input[type="text"], input[type="search"] {
   border-radius: 9999px 0 0 9999px !important;
   padding-left: 20px !important;
@@ -221,6 +221,9 @@ input[type="text"], input[type="search"] {
   margin-right: -1px !important;
   background-color: rgba(255, 255, 255, 0.6) !important;
   backdrop-filter: blur(10px) !important;
+  font-size: 16px !important; 
+  position: relative !important; 
+  z-index: 2 !important;
 }
 button[type="submit"], button:has(svg.lucide-search) {
   border-radius: 0 9999px 9999px 0 !important;
@@ -228,6 +231,8 @@ button[type="submit"], button:has(svg.lucide-search) {
   border-left: none !important;
   background-color: #000000 !important;
   color: #ffffff !important;
+  position: relative !important;
+  z-index: 1 !important;
 }
 .dark button[type="submit"], .dark button:has(svg.lucide-search) { background-color: #27272a !important; }
 button[aria-selected="true"], button[aria-selected="false"] {
@@ -235,11 +240,11 @@ button[aria-selected="true"], button[aria-selected="false"] {
   padding: 6px 20px !important;
 }
 
-/* 全站标签去彩 */
+/* 全站标签去彩（含文字和暗色模式） */
 [class*="bg-blue-50"], [class*="bg-blue-100"], [class*="bg-purple"], [class*="bg-violet"], [class*="bg-fuchsia"], [class*="bg-pink"], [class*="bg-amber"], [class*="bg-yellow"], [class*="bg-orange"], [class*="text-purple"], [class*="text-amber"] {
   background-color: #f3f4f6 !important; color: #333333 !important; border: none !important; opacity: 1 !important;
 }
-.dark [class*="bg-blue-50"], .dark [class*="bg-blue-100"], .dark [class*="bg-purple"], .dark [class*="bg-violet"], .dark [class*="bg-fuchsia"], .dark [class*="bg-pink"], .dark [class*="bg-amber"], .dark [class*="bg-yellow"], .dark [class*="bg-orange"] {
+.dark [class*="bg-blue-50"], .dark [class*="bg-blue-100"], .dark [class*="bg-purple"], .dark [class*="bg-violet"], .dark [class*="bg-fuchsia"], .dark [class*="bg-pink"], .dark [class*="bg-amber"], .dark [class*="bg-yellow"], .dark [class*="bg-orange"], .dark [class*="text-purple"], .dark [class*="text-amber"] {
   background-color: #2a2a2a !important; color: #aaaaaa !important;
 }
 
@@ -258,16 +263,11 @@ button[aria-selected="true"], button[aria-selected="false"] {
   background-color: rgba(26, 26, 26, 0.55) !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
-@media (hover: hover) {
-  .grid > div:has(img):hover, .movie-card:hover {
-    transform: translateY(-6px) !important; box-shadow: 0 16px 32px rgba(0, 0, 0, 0.15) !important;
-  }
-}
 
 /* ==========================================
-   4. 🎯 角标处理：隐藏左源，保护右评分
+   4. 🎯 终极角标处理
    ========================================== */
-/* 👻 彻底隐藏左上角的 N源 角标 */
+/* 隐藏左侧 N源 */
 .grid > div:has(img) .absolute.left-0,
 .grid > div:has(img) .absolute.left-2,
 .movie-card .absolute.left-0,
@@ -275,24 +275,36 @@ button[aria-selected="true"], button[aria-selected="false"] {
   display: none !important;
 }
 
-/* 🛡️ 保护右侧的评分，恢复半透明小胶囊（防止变黑长条） */
+/* 保护右侧评分：原生定位优先，仅做质感修复 */
 .grid > div:has(img) .absolute.right-0,
 .grid > div:has(img) .absolute.right-2,
 .movie-card .absolute.right-0,
 .movie-card .absolute.right-2 {
   background-color: rgba(0, 0, 0, 0.6) !important; 
+  color: #fff !important;
   border-radius: 9999px !important; 
   border: none !important;
   width: auto !important; 
   display: inline-flex !important;
   padding: 2px 8px !important;
-  top: 10px !important;
-  right: 10px !important;
   z-index: 10 !important;
+  /* 移除了强制的 top/right 像素值，保留原生位置 */
+}
+
+/* 夜间模式：防亮色海报反光，加磨砂和阴影 */
+.dark .grid > div:has(img) .absolute.right-0,
+.dark .grid > div:has(img) .absolute.right-2,
+.dark .movie-card .absolute.right-0,
+.dark .movie-card .absolute.right-2 {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5) !important;
+  color: #fff !important;
 }
 
 /* ==========================================
-   5. 播放页与选集
+   5. 播放页与选集（补全 v1 掉队的代码）
    ========================================== */
 button[class*="episode"], .episode-btn {
   border-radius: 12px !important; padding: 8px 16px !important; font-weight: 500 !important;
@@ -302,10 +314,50 @@ button[class*="episode"].active, .episode-btn.active {
   background-color: #e63921 !important; color: #fff !important; opacity: 1 !important;
 }
 .art-video-player .art-bottom { background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 80%) !important; }
+/* 🚑 补回：全屏清除圆角 */
+.art-video-player.art-fullscreen .art-bottom { border-radius: 0 !important; }
+/* 🚑 补回：进度条加粗 */
+.art-video-player .art-progress-bar { height: 6px !important; }
+
 .art-setting-panel, .art-notice {
   border-radius: 16px !important; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2) !important; border: 1px solid rgba(0, 0, 0, 0.1) !important;
   background-color: rgba(255, 255, 255, 0.9) !important; backdrop-filter: blur(16px) !important;
 }
 .dark .art-setting-panel, .dark .art-notice {
   border: 1px solid rgba(255, 255, 255, 0.1) !important; background-color: rgba(30, 30, 30, 0.9) !important;
+}
+
+/* ==========================================
+   6. 移动端降级（修复了死代码，仅保留有效降级）
+   ========================================== */
+@media (max-width: 768px) {
+  .grid > div:has(img), .movie-card {
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    background-color: rgba(255, 255, 255, 0.65) !important;
+  }
+  .dark .grid > div:has(img), .dark .movie-card {
+    background-color: rgba(26, 26, 26, 0.65) !important;
+  }
+}
+
+/* 桌面端 hover 悬浮（和上面的移动端彻底分开） */
+@media (hover: hover) and (min-width: 769px) {
+  .grid > div:has(img):hover, .movie-card:hover {
+    transform: translateY(-6px) !important; box-shadow: 0 16px 32px rgba(0, 0, 0, 0.15) !important;
+  }
+}
+
+/* ==========================================
+   7. 🔒 防双击放大与文字自动调整
+   ========================================== */
+html, body, main {
+  -webkit-text-size-adjust: 100% !important;
+  text-size-adjust: 100% !important;
+}
+.movie-card,
+.grid > div:has(img),
+button,
+a {
+  touch-action: manipulation !important;
 }
