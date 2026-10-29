@@ -339,3 +339,55 @@ button[class*="episode"].active,
 .dark .art-setting-panel, .dark .art-notice {
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
+/* ==========================================
+   ✨ 终极通透感：毛玻璃 + 半透明质感拉满
+   ========================================== */
+
+/* 1. 搜索结果卡片：从“死白”变成半透明磨砂玻璃 */
+.grid > div:has(img), .movie-card {
+  background-color: rgba(255, 255, 255, 0.75) !important; /* 半透明白 */
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.5) !important; /* 增加一点玻璃反光感 */
+  border-radius: 16px !important; 
+  overflow: hidden !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04) !important; /* 阴影更淡更通透 */
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+}
+
+/* 2. 深色模式下的卡片：黑曜石玻璃质感 */
+.dark .grid > div:has(img), .dark .movie-card {
+  background-color: rgba(26, 26, 26, 0.75) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* 3. 选集按钮：鼠标悬浮时更通透 */
+button[class*="episode"]:hover, 
+.episode-btn:hover {
+  opacity: 0.72 !important; /* 0.85 调低至 0.72，更柔和 */
+}
+
+/* 4. 播放器弹窗：同样做成半透明磨砂玻璃 */
+.art-setting-panel, .art-notice {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-radius: 16px !important; 
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.15) !important; 
+  border: 1px solid rgba(0, 0, 0, 0.08) !important; 
+}
+.dark .art-setting-panel, .dark .art-notice {
+  background-color: rgba(30, 30, 30, 0.9) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 5. 解决图里那个“N源”角标看不清的问题：直接给它纯黑，不要透明度！ */
+.absolute.top-0.left-0, 
+.absolute.top-2.left-2,
+div[class*="source-count"] {
+  background-color: #000000 !important; /* 绝对纯黑 */
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  backdrop-filter: blur(4px) !important;
+}
