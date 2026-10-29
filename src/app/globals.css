@@ -188,7 +188,66 @@ body {
     min-width: 40px !important;
   }
 }
-/* 强制把顽固的浅蓝底色变成浅灰 */
+/* ==========================================
+   1. 门面定制：隐藏大 Logo，画黑底白字 L
+   ========================================== */
+main h1, 
+.text-transparent.bg-clip-text.text-4xl,
+.text-transparent.bg-clip-text.text-5xl,
+.text-transparent.bg-clip-text.text-6xl {
+  display: none !important;
+}
+main { padding-top: 10px !important; }
+
+header a[href="/"] > * { display: none !important; }
+header a[href="/"] {
+  display: flex !important;
+  align-items: center !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+header a[href="/"]::before {
+  content: "L"; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  width: 32px; 
+  height: 32px; 
+  background-color: #0d1117; 
+  color: #ffffff;            
+  font-weight: bold; 
+  font-size: 18px !important; 
+  line-height: 1;
+  border-radius: 8px; 
+  margin-right: 8px;
+  flex-shrink: 0 !important; 
+}
+
+/* ==========================================
+   2. 首页 UI：胶囊搜索框与爱奇艺质感卡片
+   ========================================== */
+/* 搜索框无缝拼接 */
+input[type="text"], input[type="search"] {
+  border-radius: 9999px 0 0 9999px !important; 
+  padding-left: 20px !important;
+  border-right: none !important;
+  outline: none !important;
+  margin-right: -1px !important; 
+}
+button[type="submit"], button:has(svg.lucide-search) {
+  border-radius: 0 9999px 9999px 0 !important; 
+  padding: 0 24px !important;
+  border-left: none !important;
+}
+
+/* 分类标签 */
+button[aria-selected="true"], button[aria-selected="false"] {
+  border-radius: 9999px !important; 
+  padding: 6px 20px !important;
+  transition: all 0.2s ease !important;
+}
+
+/* 彻底干掉所有残留的浅蓝色标签 */
 [class*="bg-blue-50"], [class*="bg-blue-100"] {
   background-color: #f3f4f6 !important;
   color: #111111 !important;
@@ -196,4 +255,87 @@ body {
 .dark [class*="bg-blue-50"], .dark [class*="bg-blue-100"] {
   background-color: #333333 !important;
   color: #ffffff !important;
+}
+
+/* 电影卡片质感（用 :has(img) 精准定位，防污染） */
+.grid > div:has(img), .movie-card {
+  border-radius: 16px !important; 
+  overflow: hidden !important;
+  background-color: #ffffff !important; 
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06) !important; 
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+}
+.grid > div:has(img) img, .movie-card img {
+  border-radius: 16px 16px 0 0 !important;
+}
+/* 仅在桌面端开启悬浮动效，防移动端卡死 */
+@media (hover: hover) {
+  .grid > div:has(img):hover, .movie-card:hover {
+    transform: translateY(-6px) !important; 
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.15) !important; 
+    will-change: transform, box-shadow; 
+  }
+}
+
+/* ==========================================
+   3. 播放页：选集按钮与播放器安全适配
+   ========================================== */
+/* 选集按钮大圆角 */
+button[class*="episode"], .episode-btn {
+  border-radius: 12px !important; 
+  padding: 8px 16px !important;
+  transition: all 0.2s ease !important;
+  font-weight: 500 !important;
+}
+/* 悬停态 */
+button[class*="episode"]:hover, 
+.episode-btn:hover {
+  opacity: 0.85 !important; 
+}
+/* ✨ 当前播放集的【爱奇艺红】高亮！ */
+button[class*="episode"].active,
+.episode-btn.active {
+  background-color: #e63921 !important;
+  color: #fff !important;
+  opacity: 1 !important;
+}
+
+/* 播放器底部控制栏（渐变 80%，不挡进度条） */
+.art-video-player .art-bottom {
+  background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 80%) !important;
+}
+/* 全屏状态下取消底部圆角 */
+.art-video-player.art-fullscreen .art-bottom {
+  border-radius: 0 !important;
+}
+/* 进度条加粗点击热区 */
+.art-video-player .art-progress-bar {
+  height: 6px !important; 
+}
+/* 播放器专属弹窗 */
+.art-setting-panel, .art-notice {
+  border-radius: 16px !important; 
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2) !important; 
+  border: 1px solid rgba(0, 0, 0, 0.1) !important; 
+}
+
+/* ==========================================
+   4. 深色模式适配
+   ========================================== */
+.dark .grid > div:has(img), .dark .movie-card {
+  background-color: #1a1a1a !important;
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.05) !important; 
+}
+@media (hover: hover) {
+  .dark .grid > div:has(img):hover, .dark .movie-card:hover {
+    box-shadow: 0 16px 32px rgba(255, 255, 255, 0.1) !important; 
+  }
+}
+.dark button[class*="episode"]:not(.active), 
+.dark .episode-btn:not(.active) {
+  background-color: #2a2a2a !important;
+  color: #eee !important;
+}
+.dark .art-setting-panel, .dark .art-notice {
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
