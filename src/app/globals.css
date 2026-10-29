@@ -484,3 +484,51 @@ button[class*="bg-primary"] * {
   background-color: #1a1a1a !important; /* 深色小标签 */
   color: #aaaaaa !important;
 }
+/* ==========================================
+   釜底抽薪：直接干掉原作者的蓝色变量源！
+   ========================================== */
+
+/* 1. 覆盖原作者的全局主色调变量（浅色模式） */
+:root {
+  --c-accent: 0 0 0 !important;        /* 强制主色变纯黑 (RGB: 0 0 0) */
+  --c-accent-hover: 51 51 51 !important;/* 悬停色变深灰 (RGB: 51 51 51) */
+  --c-on-accent: 255 255 255 !important;/* 主色上的文字变纯白 */
+}
+
+/* 2. 覆盖深色模式下的变量 */
+.dark {
+  --c-accent: 255 255 255 !important;   /* 深色下主色变白 */
+  --c-accent-hover: 204 204 204 !important;
+  --c-on-accent: 0 0 0 !important;      /* 深色下主色文字变黑 */
+}
+
+/* 3. 针对那些不听话的、写死了颜色或者用 accent 类名的组件强杀 */
+.bg-accent, 
+[class*="bg-accent"],
+button[class*="accent"],
+button[class*="primary"] {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border-color: #000000 !important;
+}
+.bg-accent *, 
+[class*="bg-accent"] * {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+/* 4. 图3里“订阅”那种浅蓝色小标签 */
+[class*="text-accent"],
+[class*="bg-blue-50"],
+[class*="bg-blue-100"] {
+  background-color: #f3f4f6 !important;
+  color: #333333 !important;
+}
+
+/* 5. 深色模式下的组件强制反转 */
+.dark .bg-accent,
+.dark [class*="bg-accent"],
+.dark button[class*="primary"] {
+  background-color: #333333 !important;
+  color: #ffffff !important;
+}
