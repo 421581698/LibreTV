@@ -189,68 +189,36 @@ body {
   }
 }
 /* ==========================================
-   1. 基础背景与真·毛玻璃（修复兜底与通配范围）
+   1. 门面与基础背景（安全兜底）
    ========================================== */
-html {
-  background-color: #f5f7fa !important; /* 兜底防露白 */
-}
-html.dark {
-  background-color: #000000 !important;
-}
-body, main, #__next {
-  background-color: transparent !important;
-}
-body {
-  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%) !important;
-}
-.dark body {
-  background: linear-gradient(135deg, #111111 0%, #000000 100%) !important;
-}
+html { background-color: #f5f7fa !important; }
+html.dark { background-color: #000000 !important; }
+body, main, #__next { background-color: transparent !important; }
+body { background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%) !important; }
+.dark body { background: linear-gradient(135deg, #111111 0%, #000000 100%) !important; }
 
-/* ==========================================
-   2. 门面定制：隐藏大 Logo，画黑底白字 L
-   ========================================== */
-main h1,
-.text-transparent.bg-clip-text.text-4xl,
-.text-transparent.bg-clip-text.text-5xl,
-.text-transparent.bg-clip-text.text-6xl {
-  display: none !important;
-}
+/* 隐藏原版大 Logo，画黑底白字 L */
+main h1, .text-transparent.bg-clip-text.text-4xl, .text-transparent.bg-clip-text.text-5xl, .text-transparent.bg-clip-text.text-6xl { display: none !important; }
 main { padding-top: 10px !important; }
 header a[href="/"] > * { display: none !important; }
-header a[href="/"] {
-  display: flex !important;
-  align-items: center !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
+header a[href="/"] { display: flex !important; align-items: center !important; background: transparent !important; box-shadow: none !important; }
 header a[href="/"]::before {
-  content: "L";
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  background-color: #0d1117;
-  color: #ffffff;
-  font-weight: bold;
-  font-size: 18px !important;
-  line-height: 1;
-  border-radius: 8px;
-  margin-right: 8px;
-  flex-shrink: 0 !important;
+  content: "L"; display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; background-color: #0d1117; color: #ffffff;
+  font-weight: bold; font-size: 18px !important; line-height: 1;
+  border-radius: 8px; margin-right: 8px; flex-shrink: 0 !important;
 }
 
 /* ==========================================
-   3. 搜索框与分类标签（修复拼接缝隙版）
+   2. 搜索框与去彩标签
    ========================================== */
+/* 搜索框无缝拼接（去掉了一切位置干预，最安全） */
 input[type="text"], input[type="search"] {
   border-radius: 9999px 0 0 9999px !important;
   padding-left: 20px !important;
   border-right: none !important;
   outline: none !important;
-  position: relative !important; /* 修复缝隙 */
-  z-index: 2 !important;         /* 盖住可能存在的1px线 */
+  margin-right: -1px !important;
   background-color: rgba(255, 255, 255, 0.6) !important;
   backdrop-filter: blur(10px) !important;
 }
@@ -258,241 +226,54 @@ button[type="submit"], button:has(svg.lucide-search) {
   border-radius: 0 9999px 9999px 0 !important;
   padding: 0 24px !important;
   border-left: none !important;
-  position: relative !important;
-  z-index: 1 !important;
   background-color: #000000 !important;
   color: #ffffff !important;
 }
-.dark button[type="submit"], .dark button:has(svg.lucide-search) {
-  background-color: #27272a !important;
-}
+.dark button[type="submit"], .dark button:has(svg.lucide-search) { background-color: #27272a !important; }
 button[aria-selected="true"], button[aria-selected="false"] {
   border-radius: 9999px !important;
   padding: 6px 20px !important;
-  transition: all 0.2s ease !important;
+}
+
+/* 全站标签去彩 */
+[class*="bg-blue-50"], [class*="bg-blue-100"], [class*="bg-purple"], [class*="bg-violet"], [class*="bg-fuchsia"], [class*="bg-pink"], [class*="bg-amber"], [class*="bg-yellow"], [class*="bg-orange"], [class*="text-purple"], [class*="text-amber"] {
+  background-color: #f3f4f6 !important; color: #333333 !important; border: none !important; opacity: 1 !important;
+}
+.dark [class*="bg-blue-50"], .dark [class*="bg-blue-100"], .dark [class*="bg-purple"], .dark [class*="bg-violet"], .dark [class*="bg-fuchsia"], .dark [class*="bg-pink"], .dark [class*="bg-amber"], .dark [class*="bg-yellow"], .dark [class*="bg-orange"] {
+  background-color: #2a2a2a !important; color: #aaaaaa !important;
 }
 
 /* ==========================================
-   4. 终极暴力去彩：全站标签变高级灰
-   ========================================== */
-[class*="bg-blue-50"], [class*="bg-blue-100"],
-[class*="bg-purple"], [class*="bg-violet"],
-[class*="bg-fuchsia"], [class*="bg-pink"],
-[class*="bg-amber"], [class*="bg-yellow"],
-[class*="bg-orange"],
-[class*="text-purple"], [class*="text-amber"] {
-  background-color: #f3f4f6 !important;
-  color: #333333 !important;
-  border: none !important;
-  opacity: 1 !important;
-}
-.dark [class*="bg-blue-50"], .dark [class*="bg-blue-100"],
-.dark [class*="bg-purple"], .dark [class*="bg-violet"],
-.dark [class*="bg-fuchsia"], .dark [class*="bg-pink"],
-.dark [class*="bg-amber"], .dark [class*="bg-yellow"],
-.dark [class*="bg-orange"],
-.dark [class*="text-purple"], .dark [class*="text-amber"] {
-  background-color: #2a2a2a !important;
-  color: #aaaaaa !important;
-}
-
-/* ==========================================
-   5. 电影卡片与 N源 角标（防裁切、父级限定版）
+   3. 卡片毛玻璃（去除所有位置干预，只留质感）
    ========================================== */
 .grid > div:has(img), .movie-card {
   background-color: rgba(255, 255, 255, 0.55) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
+  backdrop-filter: blur(16px) !important; -webkit-backdrop-filter: blur(16px) !important;
   border: 1px solid rgba(255, 255, 255, 0.6) !important;
-  border-radius: 16px !important;
-  overflow: hidden !important;
+  border-radius: 16px !important; overflow: hidden !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04) !important;
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
 }
-.grid > div:has(img) img, .movie-card img {
-  border-radius: 16px 16px 0 0 !important;
-}
+.grid > div:has(img) img, .movie-card img { border-radius: 16px 16px 0 0 !important; }
 .dark .grid > div:has(img), .dark .movie-card {
   background-color: rgba(26, 26, 26, 0.55) !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
-@media (hover: hover) {
-  .grid > div:has(img):hover, .movie-card:hover {
-    transform: translateY(-6px) !important;
-    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.15) !important;
-    will-change: transform, box-shadow;
-  }
-}
-/* N源角标：内缩 + 父级限定防误伤 */
-.movie-card .absolute.top-0.left-0,
-.movie-card .absolute.top-2.left-2,
-.grid > div:has(img) .absolute.top-0.left-0 {
-  z-index: 99 !important;
-  top: 8px !important;
-  left: 8px !important;
-  background-color: #000000 !important;
-  color: #ffffff !important;
-  border: none !important;
-  border-radius: 8px !important;
-  padding: 4px 6px !important;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important;
-  backdrop-filter: none !important;
-  -webkit-font-smoothing: antialiased !important;
-}
 
 /* ==========================================
-   6. 移动端性能降级（取消悬浮与减弱模糊）
-   ========================================== */
-@media (max-width: 768px) {
-  .grid > div:has(img), .movie-card {
-    backdrop-filter: blur(8px) !important;
-    -webkit-backdrop-filter: blur(8px) !important;
-    background-color: rgba(255, 255, 255, 0.65) !important;
-  }
-  .dark .grid > div:has(img), .dark .movie-card {
-    background-color: rgba(26, 26, 26, 0.65) !important;
-  }
-  .grid > div:has(img):hover, .movie-card:hover {
-    transform: none !important; /* 移动端取消悬停动效 */
-  }
-}
-
-/* ==========================================
-   7. 播放页与弹窗（保留爱奇艺红高亮）
+   4. 播放页与选集
    ========================================== */
 button[class*="episode"], .episode-btn {
-  border-radius: 12px !important;
-  padding: 8px 16px !important;
-  transition: all 0.2s ease !important;
-  font-weight: 500 !important;
+  border-radius: 12px !important; padding: 8px 16px !important; transition: all 0.2s ease !important; font-weight: 500 !important;
 }
-button[class*="episode"]:hover, .episode-btn:hover {
-  opacity: 0.72 !important;
-}
+button[class*="episode"]:hover, .episode-btn:hover { opacity: 0.72 !important; }
 button[class*="episode"].active, .episode-btn.active {
-  background-color: #e63921 !important; /* 全站唯一的强调色 */
-  color: #fff !important;
-  opacity: 1 !important;
+  background-color: #e63921 !important; color: #fff !important; opacity: 1 !important;
 }
-.art-video-player .art-bottom {
-  background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 80%) !important;
-}
-.art-video-player.art-fullscreen .art-bottom {
-  border-radius: 0 !important;
-}
-.art-video-player .art-progress-bar {
-  height: 6px !important;
-}
+.art-video-player .art-bottom { background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 80%) !important; }
 .art-setting-panel, .art-notice {
-  border-radius: 16px !important;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2) !important;
-  border: 1px solid rgba(0, 0, 0, 0.1) !important;
-  background-color: rgba(255, 255, 255, 0.9) !important;
-  backdrop-filter: blur(16px) !important;
+  border-radius: 16px !important; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2) !important; border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  background-color: rgba(255, 255, 255, 0.9) !important; backdrop-filter: blur(16px) !important;
 }
 .dark .art-setting-panel, .dark .art-notice {
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  background-color: rgba(30, 30, 30, 0.9) !important;
-}
-/* ==========================================
-   🚑 终极急救合并版（搜框无缝 + 角标解裁 + Safari Hack）
-   ========================================== */
-
-/* 1. 搜索框与按钮：强制重叠 -2px 消除缝隙 */
-input[type="text"], input[type="search"] {
-  border-top-right-radius: 0 !important;
-  border-bottom-right-radius: 0 !important;
-  border-right: none !important;
-  margin-right: -2px !important; /* 重叠 2px 暴力消缝 */
-}
-button[type="submit"], button:has(svg.lucide-search) {
-  border-top-left-radius: 0 !important;
-  border-bottom-left-radius: 0 !important;
-  border-left: none !important;
-  overflow: hidden !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-/* 防止图标贴边造成视觉缺口 */
-button[type="submit"] svg, button:has(svg.lucide-search) svg {
-  margin: 0 2px !important;
-}
-
-/* 2. 角标解裁切：暴力向内推 16px，并提升最高层级 */
-.grid > div:has(img) [class*="absolute"][class*="top-"],
-.movie-card [class*="absolute"][class*="top-"] {
-  margin-top: 16px !important;
-  margin-left: 16px !important;
-  top: 16px !important;
-  left: 16px !important;
-  z-index: 999 !important;
-  background-color: #000000 !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  border-radius: 6px !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-/* 3. 尝试解除海报内层容器的裁切（img标签本身不识别overflow，已移除无效img规则） */
-.grid > div:has(img) picture,
-.grid > div:has(img) .poster-wrap {
-  overflow: visible !important;
-}
-/* ==========================================
-   🎯 终极完美修复：左推N源，右留评分
-   ========================================== */
-
-/* 1. 搜索框重叠无缝（保留） */
-input[type="text"], input[type="search"] {
-  border-top-right-radius: 0 !important;
-  border-bottom-right-radius: 0 !important;
-  border-right: none !important;
-  margin-right: -2px !important; 
-}
-button[type="submit"], button:has(svg.lucide-search) {
-  border-top-left-radius: 0 !important;
-  border-bottom-left-radius: 0 !important;
-  border-left: none !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-button[type="submit"] svg, button:has(svg.lucide-search) svg {
-  margin: 0 2px !important;
-}
-
-/* 2. 精准打击左侧：N源角标往里推 */
-.grid > div:has(img) .absolute.left-0,
-.grid > div:has(img) .absolute.left-2,
-.movie-card .absolute.left-0,
-.movie-card .absolute.left-2 {
-  margin-top: 10px !important;
-  margin-left: 10px !important;
-  top: 10px !important;
-  left: 10px !important;
-  z-index: 99 !important;
-  background-color: #000000 !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  border-radius: 6px !important;
-  backdrop-filter: none !important;
-}
-
-/* 3. 精准保护右侧：评分标签恢复半透明小胶囊 */
-.grid > div:has(img) .absolute.right-0,
-.grid > div:has(img) .absolute.right-2,
-.movie-card .absolute.right-0,
-.movie-card .absolute.right-2,
-[class*="right-2"] {
-  background-color: rgba(0, 0, 0, 0.6) !important; /* 半透明黑底 */
-  border-radius: 9999px !important; /* 圆润胶囊 */
-  border: none !important;
-  width: auto !important; /* 宽度随文字自适应，绝不拉长 */
-  display: inline-flex !important;
-  padding: 2px 8px !important;
-  top: 10px !important;
-  right: 10px !important;
-  left: auto !important; 
-  margin: 0 !important;
-  z-index: 10 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important; background-color: rgba(30, 30, 30, 0.9) !important;
 }
