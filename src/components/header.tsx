@@ -10,7 +10,7 @@ import { requestShowDownloadManager } from './download-manager';
 import { Icon } from './icon';
 import { SearchHistoryDropdown, useSearchHistory } from './search-history';
 import { cn } from '@/lib/utils';
-
+import AIFloatingBall from '@/components/AIFloatingBall';
 /** 顶部导航：Logo、搜索框（首页外）、历史、设置 */
 export function Header({ showSearch = false }: { showSearch?: boolean }) {
   const router = useRouter();
@@ -37,6 +37,7 @@ export function Header({ showSearch = false }: { showSearch?: boolean }) {
 
   return (
     <>
+      <AIFloatingBall />
       <header className="sticky top-0 z-40 bg-surface/90 backdrop-blur border-b border-line">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-3">
           <Link href="/" aria-label="LibreTV 首页" className="flex items-center shrink-0">
@@ -44,6 +45,13 @@ export function Header({ showSearch = false }: { showSearch?: boolean }) {
             <img src="/icons/icon-512.png" alt="LibreTV" className="w-7 h-7 rounded-lg" />
           </Link>
 
+          {/* 🔥 Friday 按钮 */}
+          <button 
+            onClick={() => window.dispatchEvent(new CustomEvent('toggle-friday-panel', { detail: { reset: false } }))}
+            className="text-sm font-bold text-primary hover:text-primary-hover transition-colors cursor-pointer shrink-0 mr-2"
+          >
+            Friday
+          </button>
           {showSearch && (
             <form
               className="flex-1 max-w-xl hidden sm:block"
