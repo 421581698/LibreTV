@@ -50,7 +50,9 @@ body, main, #__next { background-color: transparent !important; }
 body { background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%) !important; }
 .dark body { background: linear-gradient(135deg, #111111 0%, #000000 100%) !important; }
 
-/* 2. 基础背景与页头定制 */
+/* ==========================================
+   2. 基础背景与页头定制
+   ========================================== */
 main h1, .text-transparent.bg-clip-text.text-4xl, .text-transparent.bg-clip-text.text-5xl, .text-transparent.bg-clip-text.text-6xl { display: none !important; }
 main { padding-top: 10px !important; }
 header a[href="/"] > * { display: none !important; }
@@ -62,7 +64,9 @@ header a[href="/"]::before {
   border-radius: 8px; margin-right: 8px; flex-shrink: 0 !important;
 }
 
-/* 3. 搜索框、去彩标签与防缩放 */
+/* ==========================================
+   3. 搜索框、去彩标签与防缩放
+   ========================================== */
 input[type="text"], input[type="search"] {
   border-radius: 9999px 0 0 9999px !important; padding-left: 20px !important;
   border-right: none !important; outline: none !important; margin-right: -1px !important;
@@ -84,7 +88,9 @@ button[aria-selected="true"], button[aria-selected="false"] { border-radius: 999
 html, body, main { -webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; }
 .movie-card, .grid > div:has(img), button, a { touch-action: manipulation !important; }
 
-/* 4. 卡片毛玻璃与角标 */
+/* ==========================================
+   4. 卡片毛玻璃与角标
+   ========================================== */
 .grid > div:has(img), .movie-card {
   background-color: rgba(255, 255, 255, 0.55) !important; backdrop-filter: blur(16px) !important; -webkit-backdrop-filter: blur(16px) !important;
   border: 1px solid rgba(255, 255, 255, 0.6) !important; border-radius: 16px !important; overflow: hidden !important;
@@ -116,7 +122,9 @@ html, body, main { -webkit-text-size-adjust: 100% !important; text-size-adjust: 
   .grid > div:has(img):hover, .movie-card:hover { transform: translateY(-6px) !important; box-shadow: 0 16px 32px rgba(0, 0, 0, 0.15) !important; }
 }
 
-/* 5. 播放器与选集 */
+/* ==========================================
+   5. 播放器与选集
+   ========================================== */
 button[class*="episode"], .episode-btn { border-radius: 12px !important; padding: 8px 16px !important; font-weight: 500 !important; }
 button[class*="episode"]:hover, .episode-btn:hover { opacity: 0.72 !important; }
 button[class*="episode"].active, .episode-btn.active { background-color: #e63921 !important; color: #fff !important; opacity: 1 !important; }
@@ -126,7 +134,9 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
 .art-setting-panel, .art-notice { border-radius: 16px !important; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2) !important; border: 1px solid rgba(0, 0, 0, 0.1) !important; background-color: rgba(255, 255, 255, 0.9) !important; backdrop-filter: blur(16px) !important; }
 .dark .art-setting-panel, .dark .art-notice { border: 1px solid rgba(255, 255, 255, 0.1) !important; background-color: rgba(30, 30, 30, 0.9) !important; }
 
-/* 6. AI 聊天面板 */
+/* ==========================================
+   6. AI 聊天面板
+   ========================================== */
 .ai-chat-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: transparent; z-index: 99995; }
 .ai-chat-panel {
   position: fixed; bottom: 100px; left: 0; right: 0; margin: 0 auto; width: calc(100vw - 40px); max-width: 360px;
@@ -145,7 +155,9 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
 .ai-chat-input-area { padding: 12px; display: flex; align-items: center; gap: 8px; border-top: 1px solid rgba(255, 255, 255, 0.08); background: rgba(0, 0, 0, 0.2); }
 .ai-chat-input-area input { flex: 1; padding: 10px 16px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.1); outline: none; background-color: rgba(0, 0, 0, 0.3); color: #ffffff; font-size: 16px !important; }
 
-/* 7. iOS 18 动态水波呼吸玻璃球 */
+/* ==========================================
+   7. 🍎 iOS 极致纯透玻璃球
+   ========================================== */
 .ai-orb-container {
   position: fixed; 
   width: 100px; 
@@ -168,47 +180,63 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   position: relative; 
   overflow: hidden; 
   pointer-events: none;
-  background: #000000 !important; 
-  box-shadow: inset 0 -1px 3px rgba(255, 255, 255, 0.8), inset 0 2px 5px rgba(255, 255, 255, 0.1), inset 0 -20px 30px rgba(255, 255, 255, 0.15), inset 0 15px 25px rgba(0, 0, 0, 0.9), 0 15px 35px rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(
+    180deg, 
+    #000000 0%, 
+    #111111 30%, 
+    #888888 65%, 
+    #e0e0e0 85%, 
+    #ffffff 100%
+  ) !important; 
+  box-shadow: 
+    inset 0 -2px 6px rgba(255, 255, 255, 1),    
+    inset 0 2px 5px rgba(255, 255, 255, 0.2),    
+    inset 0 -20px 30px rgba(255, 255, 255, 0.6), 
+    inset 0 25px 40px rgba(0, 0, 0, 1),          
+    0 15px 35px rgba(0, 0, 0, 0.4);              
+  border: 1px solid rgba(255, 255, 255, 0.15); 
   transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); 
-  animation: orb-breathe 4s ease-in-out infinite alternate;
+  animation: orb-breathe 5s ease-in-out infinite alternate;
 }
 
 .ai-orb::after {
-  content: ''; position: absolute; top: 45%; left: -10%; width: 120%; height: 25%;
-  background: linear-gradient(90deg, transparent 0%, rgba(255, 100, 50, 0.7) 20%, rgba(0, 150, 255, 0.9) 35%, #ffffff 50%, rgba(0, 150, 255, 0.9) 65%, rgba(255, 100, 50, 0.7) 80%, transparent 100%);
-  filter: blur(8px); border-radius: 50%;
-  animation: water-wave 3s ease-in-out infinite alternate;
+  content: '';
+  position: absolute;
+  top: 46%; 
+  left: 15%;
+  width: 70%; 
+  height: 12px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.5) 20%, 
+    rgba(180, 220, 255, 0.8) 40%, 
+    #ffffff 50%, 
+    rgba(180, 220, 255, 0.8) 60%, 
+    rgba(255, 255, 255, 0.5) 80%, 
+    transparent 100%
+  );
+  filter: blur(4px);
+  border-radius: 50%;
+  transform: scaleY(0.4);
+  animation: reflection-drift 4s ease-in-out infinite alternate;
 }
 
-.ai-orb::before {
-  content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; 
-  background: linear-gradient(45deg, transparent 40%, rgba(255, 255, 255, 0.15) 45%, rgba(255, 255, 255, 0.4) 50%, rgba(255, 255, 255, 0.15) 55%, transparent 60%);
-  pointer-events: none;
-  animation: light-sweep 6s ease-in-out infinite;
-}
-
-/* Hover 悬浮暂停 */
 .ai-orb-container:hover .ai-orb,
-.ai-orb-container:hover .ai-orb::before,
-.ai-orb-container:hover .ai-orb::after { 
+.ai-orb-container:hover .ai-orb::after,
+.ai-orb-container.is-dragging .ai-orb,
+.ai-orb-container.is-dragging .ai-orb::after {
   animation-play-state: paused !important; 
 }
 
-/* 拖拽时动态 class 暂停伪元素 */
-.ai-orb-container.is-dragging .ai-orb,
-.ai-orb-container.is-dragging .ai-orb::before,
-.ai-orb-container.is-dragging .ai-orb::after {
-  animation-play-state: paused !important;
+@keyframes orb-breathe { 
+  0% { transform: scale(1); } 
+  100% { transform: scale(1.03); } 
+}
+@keyframes reflection-drift { 
+  0% { transform: scaleY(0.4) scaleX(1) translateY(0); opacity: 0.8; } 
+  100% { transform: scaleY(0.5) scaleX(1.1) translateY(-1px); opacity: 1; } 
 }
 
-/* 动画关键帧 */
-@keyframes orb-breathe { 0% { transform: scale(1); } 100% { transform: scale(1.03); } }
-@keyframes water-wave { 0% { transform: translateY(-2px) scaleY(0.25) scaleX(0.9) rotate(-2deg); opacity: 0.8; } 100% { transform: translateY(2px) scaleY(0.35) scaleX(1.1) rotate(2deg); opacity: 1; } }
-@keyframes light-sweep { 0% { transform: translate(-30%, -30%); } 20% { transform: translate(30%, 30%); } 100% { transform: translate(30%, 30%); } }
-
-/* 小屏适配 */
 @media (max-width: 430px) {
   .ai-orb-container { width: 85px; height: 64px; bottom: max(20px, env(safe-area-inset-bottom, 0px) + 12px); right: 15px; }
 }
@@ -216,7 +244,9 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   .ai-orb-container { width: 75px; height: 56px; }
 }
 
-/* 8. 语音面板和麦克风按钮 */
+/* ==========================================
+   8. 语音面板和麦克风按钮
+   ========================================== */
 .voice-btn {
   background-color: #ffffff !important; color: #000000 !important;
   border: none !important; border-radius: 20px !important; 
@@ -233,7 +263,9 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
 .ai-voice-settings select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #444; border-radius: 4px; padding: 4px; width: 60%; }
 .ai-voice-settings input[type="range"] { flex: 1; accent-color: #fff; }
 
-/* 9. 无障碍关闭动画 */
+/* ==========================================
+   9. ✅ 无障碍关闭动画
+   ========================================== */
 @media (prefers-reduced-motion: reduce) {
   .ai-orb, .ai-orb::before, .ai-orb::after, .voice-btn.recording {
     animation: none !important;
