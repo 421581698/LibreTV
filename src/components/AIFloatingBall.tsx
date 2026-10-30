@@ -3,260 +3,410 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 
-const INIT_MESSAGE = { id: 'init', role: 'assistant', content: '你好！我是 Friday。你想看什么类型的电影？或者需要我为你推荐几部高分剧集吗？' };
+type Message = {
+  id: string; role: 'user' | 'assistant';
+  type: 'text' | 'movie_card' | 'system';
+  content: string; data?: any; 
+};
+
+const INIT_MESSAGE: Message = { id: 'init', role: 'assistant', type: 'text', content: '你好！我是 Friday。想看什么电影，或者需要我帮你换几个新接口？' };
+type SpeechState = 'idle' | 'listening' | 'thinking' | 'speaking';
+
+// 高精度唯一 ID 生成，兼容旧浏览器
+function simpleUid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
 
 export default function AIFloatingBall() {
-  // ==========================================
-  // 状态管理
-  // ==========================================
   const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  
-  // 聊天状态
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<{ id: string; role: string; content: string }[]>([INIT_MESSAGE]);
+  const [messages, setMessages] = useState<Message[]>([INIT_MESSAGE]);
   const [loading, setLoading] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
-  const [innerHeight, setInnerHeight] = useState(500);
-
-  // 悬浮球拖拽与录音状态
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
   
-  // 引用
-  const dragStartRef = useRef({ x: 0, y: 0 });
-  const isDraggingRef = useRef(false);
+  const [isVoiceMode, setIsVoiceMode] = useState(false);
+  const [speechState, setSpeechState] = useState<SpeechState>('idle');
+  const [isSpeechSupported, setIsSpeechSupported] = useState(true); 
+  
+  const recognitionRef = useRef<any>(null);
+  const synthRef = useRef<SpeechSynthesis | null>(null);
+  const isVoiceModeRef = useRef(false); 
+  const speechStateRef = useRef<SpeechState>('idle'); 
+  const micDeniedRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
+  
   const abortControllerRef = useRef<AbortController | null>(null);
-  const triggerElementRef = useRef<HTMLElement | null>(null);
+  const agentAbortControllerRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(false); 
+  const agentCallDepthRef = useRef(0); 
+  
+  const messagesRef = useRef(messages); 
+  const isOpenRef = useRef(isOpen); 
+  const isAgentExecutingRef = useRef(false); 
+  
+  const closeTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const reloadTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => setMounted(true), []);
+  // 统一状态更新，保证 messagesRef 强同步
+  const updateMessages = useCallback((updater: Message[] | ((prev: Message[]) => Message[])) => {
+    setMessages(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      messagesRef.current = next;
+      return next;
+    });
+  }, []);
 
-  // 1. 初始位置计算 & 窗口大小变化时的边界矫正
+  useEffect(() => { speechStateRef.current = speechState; }, [speechState]);
+  useEffect(() => { isOpenRef.current = isOpen; }, [isOpen]);
+  
   useEffect(() => {
-    const updateBounds = () => {
-      setPosition(prev => {
-        if (prev.x === 0 && prev.y === 0) {
-          return { x: window.innerWidth - 80, y: window.innerHeight - 150 };
-        }
-        return {
-          x: Math.min(prev.x, window.innerWidth - 60),
-          y: Math.min(prev.y, window.innerHeight - 60)
-        };
-      });
-    };
-    
-    if (mounted) {
-      updateBounds();
-      window.addEventListener('resize', updateBounds);
+    setMounted(true);
+    mountedRef.current = true; 
+    if (typeof window !== 'undefined') {
+      synthRef.current = window.speechSynthesis;
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SpeechRecognition) setIsSpeechSupported(false);
     }
-    return () => window.removeEventListener('resize', updateBounds);
-  }, [mounted]);
-
-  // 2. 退出动画延迟卸载 DOM
-  useEffect(() => {
-    if (!isMounted) return;
-    const timer = setTimeout(() => {
-      if (!isOpen) setIsMounted(false);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [isOpen, isMounted]);
-
-  // ==========================================
-  // 弹窗控制逻辑
-  // ==========================================
-  const togglePanel = useCallback((reset = false) => {
-    if (isOpen) {
-      setIsOpen(false);
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-        abortControllerRef.current = null;
-      }
-      setLoading(false);
+    return () => {
+      mountedRef.current = false; 
       document.body.classList.remove('friday-popup-lock');
+      synthRef.current?.cancel();
+      try { recognitionRef.current?.abort(); } catch (e) {}
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      if (agentAbortControllerRef.current) agentAbortControllerRef.current.abort();
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+      if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      agentCallDepthRef.current = 0; 
+    };
+  }, []);
 
-      if (triggerElementRef.current && triggerElementRef.current.focus && triggerElementRef.current !== document.body) {
-        triggerElementRef.current.focus();
+  // 页面切后台停止麦克风
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        try { recognitionRef.current?.abort(); } catch (e) {}
+      } else if (document.visibilityState === 'visible' && isVoiceModeRef.current && !micDeniedRef.current) { 
+        try { recognitionRef.current?.start(); } catch (e) {}
       }
-    } else {
-      triggerElementRef.current = document.activeElement as HTMLElement;
-      setIsMounted(true);
-      setTimeout(() => {
-        setIsOpen(true);
-        document.body.classList.add('friday-popup-lock');
-        setIsAtBottom(true);
-        
-        if (reset) {
-          setMessages([INIT_MESSAGE]);
-          setInput('');
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
+  // 语音识别初始化
+  useEffect(() => {
+    if (typeof window === 'undefined' || !isSpeechSupported) return;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'zh-CN';
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      
+      recognition.onstart = () => { if (isVoiceModeRef.current) setSpeechState('listening'); };
+      recognition.onresult = (event: any) => {
+        let finalTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
+          else setInput(event.results[i][0].transcript);
         }
-
-        setTimeout(() => {
-          inputRef.current?.focus();
-          forceScrollToBottom();
-        }, 100);
-      }, 10);
+        if (finalTranscript) {
+          try { recognition.stop(); } catch(e) {}
+          handleSend(finalTranscript); 
+        }
+      };
+      recognition.onerror = (e: any) => {
+        if (e.error === 'not-allowed') { setIsVoiceMode(false); isVoiceModeRef.current = false; micDeniedRef.current = true; }
+        setSpeechState('idle');
+      };
+      recognition.onend = () => {
+        if (micDeniedRef.current || document.visibilityState === 'hidden') return;
+        if (isVoiceModeRef.current && speechStateRef.current === 'listening') {
+          setTimeout(() => { try { recognition.start(); } catch (e) { setSpeechState('idle'); } }, 300);
+        }
+      };
+      recognitionRef.current = recognition;
     }
-  }, [isOpen]);
+  }, [isSpeechSupported]);
 
-  // ==========================================
-  // 全局副作用：ESC、软键盘、焦点陷阱
-  // ==========================================
+  const speakText = useCallback((text: string) => {
+    if (!synthRef.current) return;
+    synthRef.current.cancel(); 
+    const utterance = new SpeechSynthesisUtterance(text.replace(/\*\*|\*|#|>/g, ''));
+    utterance.lang = 'zh-CN';
+    utterance.onstart = () => setSpeechState('speaking');
+    utterance.onend = () => {
+      if (isVoiceModeRef.current) {
+        setSpeechState('listening');
+        try { recognitionRef.current?.start(); } catch (e) {}
+      } else setSpeechState('idle');
+    };
+    synthRef.current.speak(utterance);
+  }, []);
+
+  const toggleVoiceMode = () => {
+    if (!isSpeechSupported) return;
+    if (isVoiceMode) {
+      isVoiceModeRef.current = false; setIsVoiceMode(false); setSpeechState('idle');
+      synthRef.current?.cancel(); try { recognitionRef.current?.stop(); } catch (e) {}
+    } else {
+      micDeniedRef.current = false; isVoiceModeRef.current = true; setIsVoiceMode(true); setSpeechState('listening');
+      try { recognitionRef.current?.start(); } catch (e) {}
+    }
+  };
+
+  const togglePanel = useCallback((reset = false) => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      if (isOpenRef.current) {
+        setIsOpen(false); toggleVoiceMode(); synthRef.current?.cancel();
+        if (abortControllerRef.current) abortControllerRef.current.abort();
+        if (agentAbortControllerRef.current) agentAbortControllerRef.current.abort();
+        setLoading(false); document.body.classList.remove('friday-popup-lock');
+        closeTimerRef.current = setTimeout(() => { setIsMounted(false); }, 300);
+      } else {
+        setIsMounted(true);
+        setTimeout(() => {
+          setIsOpen(true); document.body.classList.add('friday-popup-lock');
+          if (reset) { updateMessages([INIT_MESSAGE]); setInput(''); }
+          setTimeout(() => { inputRef.current?.focus(); forceScrollToBottom(); }, 100);
+        }, 10);
+      }
+    }, 150); 
+  }, [isVoiceMode, updateMessages]); 
+
+  useEffect(() => {
+    const handleOpen = (e: Event) => togglePanel((e as CustomEvent).detail?.reset || false);
+    window.addEventListener('toggle-friday-panel', handleOpen);
+    return () => window.removeEventListener('toggle-friday-panel', handleOpen);
+  }, [togglePanel]);
+
+  // Tab 焦点陷阱
   useEffect(() => {
     if (!isOpen) return;
-
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        togglePanel(false);
-        return;
-      }
+      if (e.key === 'Escape') { togglePanel(false); return; }
       if (e.key === 'Tab' && popupRef.current) {
-        const focusableElements = popupRef.current.querySelectorAll(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        const visibleElements = Array.from(focusableElements).filter(el => (el as HTMLElement).offsetParent !== null) as HTMLElement[];
-        
-        if (visibleElements.length === 0) return;
-        const firstElement = visibleElements[0];
-        const lastElement = visibleElements[visibleElements.length - 1];
-
-        if (e.shiftKey) {
-          if (document.activeElement === firstElement) {
-            e.preventDefault();
-            lastElement.focus();
-          }
-        } else {
-          if (document.activeElement === lastElement) {
-            e.preventDefault();
-            firstElement.focus();
-          }
-        }
+        const focusable = popupRef.current.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        const visible = Array.from(focusable).filter(el => (el as HTMLElement).offsetParent !== null) as HTMLElement[];
+        if (visible.length === 0) return;
+        const first = visible[0]; const last = visible[visible.length - 1];
+        if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } } 
+        else { if (document.activeElement === last) { e.preventDefault(); first.focus(); } }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-
-    const handleResize = () => {
-      setInnerHeight(Math.min(600, window.visualViewport?.height ?? window.innerHeight * 0.8));
-    };
-    const vp = window.visualViewport;
-    if (vp) vp.addEventListener('resize', handleResize);
-    handleResize();
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      if (vp) vp.removeEventListener('resize', handleResize);
-    };
-  }, [isOpen, togglePanel]); // 修复：加入了 togglePanel 依赖
-
-  // ==========================================
-  // 拖拽逻辑
-  // ==========================================
-  const handlePointerDown = (e: React.MouseEvent | React.TouchEvent) => {
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    
-    dragStartRef.current = {
-      x: clientX - position.x,
-      y: clientY - position.y
-    };
-    isDraggingRef.current = false;
-    setIsDragging(false);
-
-    const handlePointerMove = (moveEvent: MouseEvent | TouchEvent) => {
-      const moveX = 'touches' in moveEvent ? moveEvent.touches[0].clientX : moveEvent.clientX;
-      const moveY = 'touches' in moveEvent ? moveEvent.touches[0].clientY : moveEvent.clientY;
-      
-      const deltaX = Math.abs(moveX - (dragStartRef.current.x + position.x));
-      const deltaY = Math.abs(moveY - (dragStartRef.current.y + position.y));
-      
-      if (deltaX > 5 || deltaY > 5) {
-        if (!isDraggingRef.current) {
-          isDraggingRef.current = true;
-          setIsDragging(true);
-        }
-        
-        const maxX = window.innerWidth - 60;
-        const maxY = window.innerHeight - 60;
-        const newX = Math.max(0, Math.min(moveX - dragStartRef.current.x, maxX));
-        const newY = Math.max(0, Math.min(moveY - dragStartRef.current.y, maxY));
-        
-        setPosition({ x: newX, y: newY });
-      }
-    };
-
-    const handlePointerUp = () => {
-      window.removeEventListener('mousemove', handlePointerMove);
-      window.removeEventListener('mouseup', handlePointerUp);
-      window.removeEventListener('touchmove', handlePointerMove);
-      window.removeEventListener('touchend', handlePointerUp);
-      
-      setIsDragging(false);
-      requestAnimationFrame(() => {
-        isDraggingRef.current = false;
-      });
-    };
-
-    window.addEventListener('mousemove', handlePointerMove);
-    window.addEventListener('mouseup', handlePointerUp);
-    window.addEventListener('touchmove', handlePointerMove, { passive: true });
-    window.addEventListener('touchend', handlePointerUp);
-  };
-
-  const handleOrbClick = () => {
-    if (isDraggingRef.current) return;
-    togglePanel();
-  };
-
-  // ==========================================
-  // 滚动与请求逻辑
-  // ==========================================
-  const formatText = (text: string) => {
-    if (!text) return { __html: '' };
-    // 修复：将 let 改为 const
-    const safe = text
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/\n/g, '<br />');
-    return { __html: safe };
-  };
-
-  const handleScroll = () => {
-    if (!chatContainerRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
-    setIsAtBottom(scrollHeight - scrollTop - clientHeight < 50);
-  };
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, togglePanel]);
 
   const forceScrollToBottom = () => {
     setIsAtBottom(true);
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTo({ top: chatContainerRef.current.scrollHeight, behavior: 'smooth' });
-    }
+    if (chatContainerRef.current) chatContainerRef.current.scrollTo({ top: chatContainerRef.current.scrollHeight, behavior: 'smooth' });
   };
 
   useEffect(() => {
-    if (isAtBottom && chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-    }
+    if (isAtBottom && chatContainerRef.current) chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
   }, [messages, isAtBottom, loading]);
 
-  const handleSend = async () => {
-    const text = input.trim();
-    if (!text || loading) return;
+  const formatText = (text: string) => {
+    if (!text) return { __html: '' };
+    const safe = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br />');
+    return { __html: safe };
+  };
 
-    const userId = Date.now() + Math.random().toString(36).substring(2);
-    const newMessages = [...messages, { id: userId, role: 'user', content: text }];
-    setMessages(newMessages);
-    setInput('');
+  // 核心流解析
+  const processStreamResponse = async (response: Response) => {
+    if (!response.body) throw new Error('empty body');
+    const reader = response.body.getReader();
+    
+    let fullContent = '';
+    let toolName = ''; 
+    let toolArgsBuffer = '';
+    
+    const streamMsgId = crypto.randomUUID ? crypto.randomUUID() : simpleUid();
+    let hasStreamedText = false;
+
+    // 修复：提取 decoder，并在 done 时冲刷
+    const decoder = new TextDecoder('utf-8');
+
+    while (true) {
+      const { done, value } = await reader.read();
+      
+      const chunk = decoder.decode(value, { stream: !done });
+      if (done) {
+        decoder.decode(); 
+        break;
+      }
+
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ') && line.trim() !== 'data: [DONE]') {
+          try {
+            const data = JSON.parse(line.slice(6));
+            const delta = data.choices?.[0]?.delta;
+            
+            if (delta?.content) {
+              fullContent += delta.content;
+              if (!hasStreamedText) {
+                hasStreamedText = true;
+                updateMessages(prev => [...prev, { id: streamMsgId, role: 'assistant', type: 'text', content: fullContent }]);
+              } else {
+                updateMessages(prev => {
+                  const updated = [...prev];
+                  const msgIndex = updated.findIndex(m => m.id === streamMsgId);
+                  if (msgIndex > -1) updated[msgIndex].content = fullContent;
+                  return updated;
+                });
+              }
+            }
+            
+            if (delta?.tool_calls && delta.tool_calls.length > 0) {
+              if (delta.tool_calls[0].function?.name) {
+                toolName = '';
+                toolArgsBuffer = '';
+              }
+              const tc = delta.tool_calls[0];
+              if (tc.function?.name) toolName = tc.function.name;
+              if (tc.function?.arguments) {
+                if (toolArgsBuffer.length < 10000) toolArgsBuffer += tc.function.arguments;
+              }
+            }
+          } catch (e) { console.warn('SSE parse error:', e); }
+        }
+      }
+    }
+
+    if (!mountedRef.current) return; 
+
+    if (toolName && toolArgsBuffer) {
+      try {
+        const args = JSON.parse(toolArgsBuffer);
+
+        if (toolName === 'search_movie' && args.keyword) {
+          const realPoster = `https://picsum.photos/seed/${encodeURIComponent(args.keyword)}/300/450`; 
+          updateMessages(prev => [...prev, { 
+            id: crypto.randomUUID ? crypto.randomUUID() : simpleUid(), role: 'assistant', type: 'movie_card', content: '',
+            data: { title: args.keyword, poster: realPoster, link: `/search?q=${encodeURIComponent(args.keyword)}` }
+          }]);
+          speakText(fullContent || `已经为您搜索到关于${args.keyword}的影片。`);
+          window.dispatchEvent(new CustomEvent('friday-action-search', { detail: args.keyword }));
+        } 
+        
+        else if (toolName === 'fetch_and_add_source') {
+          executeAgentFetchSources();
+        }
+
+        else if (toolName === 'add_video_source' && args.name && args.api_url) {
+          updateMessages(prev => [...prev, { id: crypto.randomUUID ? crypto.randomUUID() : simpleUid(), role: 'assistant', type: 'system', content: `✅ 已写入新接口：\n名称：${args.name}\n地址：${args.api_url}` }]);
+          try {
+            let existing = [];
+            const localData = localStorage.getItem('custom_api_url');
+            if (localData) {
+              try { 
+                const parsed = JSON.parse(localData);
+                existing = Array.isArray(parsed) ? parsed : [{ name: '默认', url: parsed }];
+              } catch { existing = [{ name: '默认', url: localData }]; }
+            }
+            existing.push({ name: args.name, url: args.api_url });
+            localStorage.setItem('custom_api_url', JSON.stringify(existing));
+          } catch(e) { console.error('写入源失败', e); }
+
+          speakText(fullContent || `已经帮您把${args.name}的接口加好了，马上为您刷新。`);
+          reloadTimerRef.current = setTimeout(() => window.location.reload(), 2500);
+        }
+        
+        else if (toolName === 'update_api_config' && args.api_url) {
+          updateMessages(prev => [...prev, { id: crypto.randomUUID ? crypto.randomUUID() : simpleUid(), role: 'assistant', type: 'system', content: `✅ 已更新 API 地址：${args.api_url}` }]);
+          let existing = [];
+          const localData = localStorage.getItem('custom_api_url');
+          if (localData) {
+            try { 
+              const parsed = JSON.parse(localData);
+              existing = Array.isArray(parsed) ? parsed : [{ name: '默认', url: parsed }];
+            } catch { existing = [{ name: '默认', url: localData }]; }
+          }
+          if (existing.length > 0) existing[0].url = args.api_url;
+          else existing.push({ name: '默认', url: args.api_url });
+          localStorage.setItem('custom_api_url', JSON.stringify(existing));
+
+          speakText(fullContent || '设置已更新，即将刷新页面。');
+          reloadTimerRef.current = setTimeout(() => window.location.reload(), 2000);
+        }
+      } catch (err) {
+         console.error("工具调用参数解析失败", err, toolArgsBuffer);
+         updateMessages(prev => [...prev, {id: crypto.randomUUID ? crypto.randomUUID() : simpleUid(), role:'assistant', type:'text', content:'⚠️ 工具调用解析出错，请重试'}]);
+      }
+    } 
+    else if (fullContent) {
+      speakText(fullContent);
+    }
+  };
+
+  const executeAgentFetchSources = async () => {
+    if (isAgentExecutingRef.current || !mountedRef.current || agentCallDepthRef.current >= 2) return;
+    agentCallDepthRef.current += 1;
+    
+    if (isVoiceModeRef.current) setSpeechState('thinking');
+    
+    isAgentExecutingRef.current = true;
     setLoading(true);
-    setIsAtBottom(true);
+    updateMessages(prev => [...prev, { id: crypto.randomUUID ? crypto.randomUUID() : simpleUid(), role: 'assistant', type: 'text', content: `正在全网抓取接口并自动筛选，请稍候...` }]);
     forceScrollToBottom();
 
-    const history = newMessages.slice(-10).map(m => ({ role: m.role, content: m.content }));
+    agentAbortControllerRef.current = new AbortController();
+    
+    const latestHistory = messagesRef.current.map(m => ({ role: m.role, content: m.content }));
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'fetch_sources', messages: latestHistory }),
+        signal: agentAbortControllerRef.current.signal
+      });
+
+      if (!response.ok) {
+         const errorData = await response.json().catch(() => ({}));
+         throw new Error(errorData.error || 'Agent 抓取失败');
+      }
+
+      await processStreamResponse(response);
+      
+    } catch (error: any) {
+       if (error.name !== 'AbortError' && mountedRef.current) {
+         updateMessages(prev => [...prev, { id: crypto.randomUUID ? crypto.randomUUID() : simpleUid(), role: 'assistant', type: 'text', content: `⚠️ 抓取源失败：${error.message}` }]);
+       }
+    } finally {
+       if (mountedRef.current) {
+         isAgentExecutingRef.current = false;
+         agentAbortControllerRef.current = null;
+         setLoading(false);
+         agentCallDepthRef.current = 0;
+         if (isVoiceModeRef.current) setSpeechState('listening');
+       }
+    }
+  };
+
+  const handleSend = async (overrideText?: string) => {
+    const text = overrideText || input.trim();
+    if (!text || loading) return;
+
+    synthRef.current?.cancel(); setInput('');
+    const userMsg: Message = { id: crypto.randomUUID ? crypto.randomUUID() : simpleUid(), role: 'user', type: 'text', content: text };
+    updateMessages(prev => [...prev, userMsg]); 
+    
+    setLoading(true); setIsAtBottom(true);
+    if (isVoiceModeRef.current) setSpeechState('thinking');
+    forceScrollToBottom();
+
+    const history = messagesRef.current.map(m => ({ role: m.role, content: m.content }));
     abortControllerRef.current = new AbortController();
 
     try {
@@ -267,203 +417,104 @@ export default function AIFloatingBall() {
         signal: abortControllerRef.current.signal
       });
 
-      if (!response.ok) throw new Error('Network response was not ok');
-      if (!response.body) throw new Error('empty response body');
-
-      const reader = response.body.getReader();
-      
-      const aiId = Date.now() + Math.random().toString(36).substring(2);
-      setMessages(prev => [...prev, { id: aiId, role: 'assistant', content: '' }]);
-
-      let fullContent = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        const decoder = new TextDecoder('utf-8');
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
-            try {
-              const data = JSON.parse(line.slice(6));
-              const delta = data.choices?.[0]?.delta?.content;
-              if (delta) {
-                fullContent += delta;
-                setMessages(prev => {
-                  const updated = [...prev];
-                  updated[updated.length - 1].content = fullContent;
-                  return updated;
-                });
-              }
-            } catch (e) {
-              console.warn('SSE 解析错误:', e);
-            }
-          }
-        }
+      if (!response.ok) {
+         const errorData = await response.json().catch(() => ({}));
+         throw new Error(errorData.error || `HTTP Error ${response.status}`);
       }
-    } catch (error: unknown) {
-      // 修复：将 error: any 改为 error: unknown，消除 Lint 警告
-      if (error instanceof Error && error.name !== 'AbortError') {
-        const errId = Date.now() + Math.random().toString(36).substring(2);
-        setMessages(prev => [...prev, { id: errId, role: 'assistant', content: '⚠️ 网络开小差了，请稍后再试。' }]);
+
+      await processStreamResponse(response);
+
+    } catch (error: any) {
+      if (error.name !== 'AbortError' && mountedRef.current) {
+        updateMessages(prev => [...prev, { id: crypto.randomUUID ? crypto.randomUUID() : simpleUid(), role: 'assistant', type: 'text', content: `⚠️ 网络错误：${error.message}` }]);
       }
     } finally {
-      setLoading(false);
-      abortControllerRef.current = null;
+      if (mountedRef.current) {
+        setLoading(false); abortControllerRef.current = null;
+      }
     }
   };
 
-  // ==========================================
-  // 渲染
-  // ==========================================
-  return (
-    <>
-      {/* 悬浮球 */}
-      {!isOpen && (
-        <div
-          onMouseDown={handlePointerDown}
-          onTouchStart={handlePointerDown}
-          onClick={handleOrbClick}
-          style={{
-            position: 'fixed',
-            left: 0,
-            top: 0,
-            transform: `translate(${position.x}px, ${position.y}px) scale(${isDragging ? 0.9 : 1})`,
-            transition: isDragging ? 'none' : 'transform 0.2s cubic-bezier(0.25, 1.2, 0.5, 1)',
-            zIndex: 1300,
-            cursor: 'pointer',
-            touchAction: 'none',
-            width: '56px',
-            height: '56px',
-            opacity: position.x === 0 && position.y === 0 ? 0 : 1
-          }}
-        >
-          <div
-            style={{
-              width: '100%',
-              height: '100%',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #007aff, #00c6ff)',
-              boxShadow: '0 8px 24px rgba(0,122,255,0.4), inset 0 2px 4px rgba(255,255,255,0.5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontSize: '20px'
-            }}
-          >
-            ✨
-          </div>
+  if (!mounted || !isMounted) return null;
+
+  return createPortal(
+    <div className={`fixed inset-0 z-[1400] flex items-start justify-center pt-[max(60px,env(safe-area-inset-top,0px)+10px)] pointer-events-none transition-all duration-300 ${isOpen ? 'opacity-100' : 'opacity-0'}`}>
+      <div className="absolute inset-0 bg-black/40 pointer-events-auto backdrop-blur-sm" onClick={() => togglePanel(false)}></div>
+      
+      <div 
+        ref={popupRef}
+        className={`relative w-[90%] max-w-[400px] bg-[#020202] rounded-[40px] overflow-hidden flex flex-col pointer-events-auto shadow-[0_20px_50px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.15)] transition-all duration-500 ease-[cubic-bezier(0.25,1.2,0.5,1)] ${isOpen ? 'scale-100 translate-y-0' : 'scale-90 -translate-y-8'}`} 
+        style={{ maxHeight: '75vh', height: '75dvh' }}
+      >
+        <div className="absolute bottom-0 left-0 w-full h-[60px] pointer-events-none z-0 opacity-80 mix-blend-screen overflow-hidden">
+           <div className="absolute bottom-[-20px] left-[10%] w-[80%] h-[60px] bg-[radial-gradient(ellipse_at_bottom,rgba(255,220,0,0.8)_0%,transparent_70%)] blur-[12px]"></div>
+           <div className="absolute bottom-[-10px] left-[20%] w-[60%] h-[50px] bg-[radial-gradient(ellipse_at_bottom,rgba(0,255,200,0.5)_0%,transparent_60%)] blur-[15px]"></div>
+           <div className="absolute bottom-[10px] left-[30%] w-[40%] h-[30px] bg-[radial-gradient(ellipse_at_center,rgba(255,50,50,0.6)_0%,transparent_70%)] blur-[10px]"></div>
         </div>
-      )}
 
-      {/* 弹窗 */}
-      {mounted && isMounted && createPortal(
-        <div 
-          className={`fixed inset-0 z-[1400] flex items-start justify-center pt-[max(60px,env(safe-area-inset-top,0px)+10px)] pointer-events-none transition-all duration-300 ${isOpen ? 'opacity-100' : 'opacity-0'}`}
-        >
-          <div 
-            className="absolute inset-0 bg-black/40 pointer-events-auto backdrop-blur-sm transition-opacity duration-300" 
-            onClick={() => togglePanel(false)}
-          ></div>
+        <div className="relative z-10 flex flex-col min-h-0">
+          <div className="flex justify-between items-center px-6 py-4 z-50 shrink-0">
+             <span className="text-sm text-gray-300 font-semibold flex items-center gap-2">✨ Friday</span>
+             <button className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-sm hover:bg-white/20" onClick={() => togglePanel(false)}>✕</button>
+          </div>
           
-          <div 
-            ref={popupRef}
-            className={`relative w-[90%] max-w-[400px] bg-[#08080a] text-white rounded-[40px] overflow-hidden flex flex-col pointer-events-auto shadow-[0_20px_40px_rgba(0,0,0,0.5),inset_0_0_0_1px_rgba(255,255,255,0.1)] transition-all duration-300 ease-[cubic-bezier(0.25,1.2,0.5,1)] ${isOpen ? 'scale-100 translate-y-0' : 'scale-90 -translate-y-5'}`}
-            style={{ height: `${innerHeight}px` }}
-          >
-            <div className="absolute bottom-[-20px] left-0 w-full h-[80px] bg-[radial-gradient(ellipse_at_bottom,rgba(255,165,0,0.8)_0%,rgba(0,140,255,0.6)_40%,rgba(0,0,0,0)_70%)] blur-[15px] pointer-events-none opacity-80 z-0 animate-pulse"></div>
-
-            <div className="relative z-10 flex flex-col h-full">
-              <button 
-                className="absolute top-4 right-4 w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-sm z-50 hover:bg-white/20 transition-colors" 
-                onClick={() => togglePanel(false)}
-              >
-                ✕
-              </button>
-              
-              <div 
-                className="flex-1 overflow-y-auto p-6 pt-12 flex flex-col gap-4 scrollbar-hide relative" 
-                ref={chatContainerRef} 
-                onScroll={handleScroll}
-              >
-                <div className="flex items-center gap-2 text-sm text-gray-300 font-semibold mb-2">
-                  <span>✨ Friday AI 助手</span>
-                </div>
-
-                {messages.map(msg => (
-                  <div 
-                    key={msg.id} 
-                    className={`max-w-[85%] p-3 rounded-2xl text-[14px] leading-relaxed break-words ${
-                      msg.role === 'user' 
-                        ? 'self-end bg-blue-500/20 border border-blue-500/30 rounded-br-sm' 
-                        : 'self-start bg-white/10 border border-white/10 rounded-bl-sm'
-                    }`}
-                  >
+          <div className={`overflow-y-auto px-6 pb-4 flex flex-col gap-4 relative transition-all duration-500 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${isVoiceMode ? 'opacity-20 blur-sm pointer-events-none' : ''}`} ref={chatContainerRef}>
+            {messages.map((msg) => (
+              <div key={msg.id} className={`flex flex-col w-full ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                {msg.type === 'text' && (
+                  <div className={`text-[15px] leading-relaxed break-words max-w-[90%] ${msg.role === 'user' ? 'bg-blue-500/20 text-blue-100 border border-blue-500/30 p-3 rounded-2xl rounded-br-sm' : 'text-gray-100 p-1'}`}>
                     <div dangerouslySetInnerHTML={formatText(msg.content)} />
                   </div>
-                ))}
-
-                {loading && (
-                  <div className="self-start bg-white/10 border border-white/10 p-4 rounded-2xl rounded-bl-sm flex gap-1 items-center">
-                    <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></span>
-                    <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-100"></span>
-                    <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-200"></span>
+                )}
+                {msg.type === 'movie_card' && (
+                  <div className="bg-[#1a1a1a] border border-white/10 rounded-2xl overflow-hidden w-[240px] shadow-lg mt-2">
+                    <div className="h-[130px] bg-cover bg-center" style={{ backgroundImage: `url(${msg.data.poster})` }} />
+                    <div className="p-3 flex flex-col gap-1">
+                      <span className="text-white font-bold text-sm truncate">{msg.data.title}</span>
+                      <button onClick={() => { synthRef.current?.cancel(); window.location.href = msg.data.link; togglePanel(false); }} className="mt-2 w-full bg-blue-600 hover:bg-blue-500 text-white text-xs py-1.5 rounded-lg">立即播放</button>
+                    </div>
                   </div>
                 )}
-
-                {!isAtBottom && (
-                  <button 
-                    onClick={forceScrollToBottom} 
-                    className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-gray-800/90 border border-white/20 text-xs px-4 py-1.5 rounded-full shadow-lg backdrop-blur hover:bg-gray-700 transition z-30"
-                  >
-                    ↓ 回到底部
-                  </button>
+                {msg.type === 'system' && (
+                  <div className="text-[13px] text-green-400 bg-green-500/10 border border-green-500/30 p-3 rounded-xl mt-2 whitespace-pre-wrap">{msg.content}</div>
                 )}
               </div>
-
-              <div className="flex items-center p-4 gap-2 bg-black/40 border-t border-white/5 relative z-20">
-                <button 
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isRecording ? 'bg-red-500/20 text-red-500' : 'bg-white/5 text-gray-400 hover:text-white'}`}
-                  onClick={() => setIsRecording(!isRecording)}
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-                    <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-                  </svg>
-                </button>
-                
-                <input 
-                  ref={inputRef}
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                  placeholder="问问 Friday 看点什么..."
-                  disabled={loading}
-                  className="flex-1 bg-white/5 border border-white/10 rounded-full px-4 py-2.5 text-sm text-white outline-none focus:border-blue-500/50 transition-colors"
-                />
-                
-                <button 
-                  onClick={handleSend}
-                  disabled={!input.trim() || loading}
-                  className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center disabled:bg-gray-700 disabled:text-gray-500 transition-colors"
-                >
-                  {loading ? (
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                  ) : (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-                  )}
-                </button>
+            ))}
+            {loading && !isVoiceMode && (
+              <div className="self-start flex gap-1 items-center p-1">
+                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></span>
+                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-100"></span>
+                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-200"></span>
               </div>
-            </div>
+            )}
           </div>
-        </div>,
-        document.body
-      )}
-    </>
+
+          {isVoiceMode && (
+            <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/60 backdrop-blur-md rounded-[40px]">
+               <div className="w-24 h-24 rounded-full flex items-center justify-center transition-all duration-500 bg-black/50 shadow-[0_0_40px_rgba(255,255,255,0.1)] border border-white/10">
+                  <span className="text-3xl">{speechState === 'listening' ? '🎙️' : speechState === 'thinking' ? '🧠' : '🗣️'}</span>
+               </div>
+               <div className="text-gray-400 text-sm mt-4 animate-pulse">
+                  {speechState === 'listening' ? '我在听...' : speechState === 'thinking' ? '让我想想...' : '正在回答...'}
+               </div>
+               <button onClick={toggleVoiceMode} className="absolute bottom-6 px-6 py-2 bg-red-500/80 text-white text-sm rounded-full">结束通话</button>
+            </div>
+          )}
+
+          <div className={`flex items-center px-4 pb-4 pt-2 gap-2 shrink-0 relative z-20 ${isVoiceMode ? 'opacity-0 pointer-events-none' : ''}`}>
+            {isSpeechSupported && (
+              <button onClick={toggleVoiceMode} className="w-10 h-10 rounded-full flex items-center justify-center text-gray-400 hover:text-white bg-white/5">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+              </button>
+            )}
+            <input ref={inputRef} type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder={loading ? "Friday 正在处理中..." : "输入消息或搜索电影..."} disabled={loading} className="flex-1 bg-transparent border border-white/10 rounded-full px-4 py-2 text-sm text-white outline-none focus:border-white/30" />
+            <button onClick={() => handleSend()} disabled={!input.trim() || loading} className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center disabled:bg-gray-700 disabled:text-gray-500">
+              {loading ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> : <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
