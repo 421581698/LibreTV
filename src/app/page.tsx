@@ -16,7 +16,7 @@ import { useToast } from '@/components/toast';
 import { EmptyState } from '@/components/states';
 import { Icon } from '@/components/icon';
 import { SiteFooter } from '@/components/site-footer';
-
+import AIFloatingBall from '@/components/AIFloatingBall';
 /**
  * 首页：搜索（URL ?s= 驱动，可后退/分享）+ 豆瓣推荐。
  * 搜索状态由 React Query 管理，失败源在结果区顶部以非阻塞方式展示。
@@ -28,6 +28,7 @@ export default function HomePage() {
   return (
     <Suspense>
       <HomeContent />
+      <AIFloatingBall />
     </Suspense>
   );
 }
