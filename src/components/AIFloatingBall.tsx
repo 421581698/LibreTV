@@ -11,7 +11,7 @@ export default function AIFloatingBall() {
   const [loading, setLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   
-  // ✅ 恢复：语音开关与防抖锁
+  // 语音开关与防抖锁
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(true); 
   const [orbLock, setOrbLock] = useState(false);
   
@@ -36,8 +36,10 @@ export default function AIFloatingBall() {
   useEffect(() => { loadingRef.current = loading; }, [loading]);
 
   const getOrbSize = () => {
-    if (typeof window === 'undefined') return { w: 90, h: 60 };
-    return window.innerWidth <= 430 ? { w: 75, h: 50 } : { w: 90, h: 60 };
+    if (typeof window === 'undefined') return { w: 100, h: 75 };
+    if (window.innerWidth <= 340) return { w: 75, h: 56 };
+    if (window.innerWidth <= 430) return { w: 85, h: 64 };
+    return { w: 100, h: 75 };
   };
 
   // 监听屏幕变化
@@ -95,7 +97,7 @@ export default function AIFloatingBall() {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, isOpen, loading]);
 
-  // ✅ 恢复：统一的关闭面板逻辑，自动停止语音
+  // 统一关闭逻辑
   const closePanel = useCallback(() => {
     fetchAbortRef.current?.abort();
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -107,7 +109,7 @@ export default function AIFloatingBall() {
 
   // 语音播报逻辑
   const speakText = useCallback((text: string) => {
-    if (!isVoiceEnabled) return; // ✅ 拦截静音
+    if (!isVoiceEnabled) return; 
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return; 
     try {
       window.speechSynthesis.cancel(); 
@@ -203,7 +205,7 @@ export default function AIFloatingBall() {
     }
   }, [messages, router, speakText, closePanel]);
 
-  // ✅ 恢复：拖拽与点击的完美区分逻辑
+  // 拖拽与点击互斥逻辑
   const togglePanel = () => {
     if (hasMoved.current || orbLock) return;
     setOrbLock(true);
@@ -247,14 +249,12 @@ export default function AIFloatingBall() {
     <React.Fragment>
       {isOpen && (
         <React.Fragment>
-          {/* ✅ 恢复：背景遮罩层 */}
           <div className="ai-chat-overlay" onClick={closePanel}></div>
           
           <div className="ai-chat-panel" onClick={(e) => e.stopPropagation()}>
             <div className="ai-chat-header">
               <span>AI 贾维斯管家</span>
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                {/* ✅ 恢复：静音开关 */}
                 <button onClick={() => setIsVoiceEnabled(!isVoiceEnabled)} style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer' }}>
                   {isVoiceEnabled ? '🔊' : '🔇'}
                 </button>
@@ -299,12 +299,23 @@ export default function AIFloatingBall() {
       
       {!isOpen && (
         <div 
-          className="ai-orb-container" onClick={togglePanel}
+          className={`ai-orb-container ${isDragging ? 'is-dragging' : ''}`} 
+          onClick={togglePanel}
           onMouseDown={handleTouchStart} onMouseMove={handleTouchMove} onMouseUp={handleTouchEnd} onMouseLeave={handleTouchEnd}
           onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
-          style={{ transform: `translate(${position.x}px, ${position.y}px)`, left: '0', top: '0', bottom: 'auto', right: 'auto', margin: '0' }}
+          style={{ 
+            transform: `translate(${position.x}px, ${position.y}px)`, 
+            transition: isDragging ? 'none' : 'transform 0.3s ease-out', 
+            left: '0', top: '0', bottom: 'auto', right: 'auto', margin: '0' 
+          }}
         >
-          <div className="ai-orb"></div>
+          <div 
+            className="ai-orb"
+            style={{
+              transform: `scale(${isDragging ? 1.05 : 1})`,
+              transition: isDragging ? 'none' : 'transform 0.3s ease-out'
+            }}
+          ></div>
         </div>
       )}
     </React.Fragment>
