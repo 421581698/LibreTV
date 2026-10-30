@@ -473,15 +473,6 @@ export default function AIFloatingBall() {
         </div>,
         document.body
       )}
-
-      {/* 
-        警告：如果你的 Next.js 项目 App Router 报错，请将以下 CSS 移入 app/globals.css 中
-      */}
-      <style jsx global>{`
-        .friday-popup-lock { overflow: hidden !important; }
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-      `}</style>
-    </>
+</>
   );
 }
