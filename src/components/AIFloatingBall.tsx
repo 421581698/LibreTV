@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 
 const INIT_MESSAGE = { id: 'init', role: 'assistant', content: '你好！我是 Friday。你想看什么类型的电影？或者需要我为你推荐几部高分剧集吗？' };
@@ -40,11 +40,9 @@ export default function AIFloatingBall() {
   useEffect(() => {
     const updateBounds = () => {
       setPosition(prev => {
-        // 如果未初始化（0,0），设置到右下角
         if (prev.x === 0 && prev.y === 0) {
           return { x: window.innerWidth - 80, y: window.innerHeight - 150 };
         }
-        // 如果已经存在，确保在旋转屏幕/缩小窗口后不超出边界
         return {
           x: Math.min(prev.x, window.innerWidth - 60),
           y: Math.min(prev.y, window.innerHeight - 60)
@@ -71,17 +69,16 @@ export default function AIFloatingBall() {
   // ==========================================
   // 弹窗控制逻辑
   // ==========================================
-  const togglePanel = (reset = false) => {
+  const togglePanel = useCallback((reset = false) => {
     if (isOpen) {
       setIsOpen(false);
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
       }
-      setLoading(false); // 强制复位加载状态
+      setLoading(false);
       document.body.classList.remove('friday-popup-lock');
 
-      // 焦点回退
       if (triggerElementRef.current && triggerElementRef.current.focus && triggerElementRef.current !== document.body) {
         triggerElementRef.current.focus();
       }
@@ -94,7 +91,6 @@ export default function AIFloatingBall() {
         setIsAtBottom(true);
         
         if (reset) {
-          // 修复：使用完整的欢迎文案
           setMessages([INIT_MESSAGE]);
           setInput('');
         }
@@ -105,7 +101,7 @@ export default function AIFloatingBall() {
         }, 100);
       }, 10);
     }
-  };
+  }, [isOpen]);
 
   // ==========================================
   // 全局副作用：ESC、软键盘、焦点陷阱
@@ -113,7 +109,6 @@ export default function AIFloatingBall() {
   useEffect(() => {
     if (!isOpen) return;
 
-    // 1. 键盘事件 (ESC关闭 + Tab焦点陷阱)
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         togglePanel(false);
@@ -144,7 +139,6 @@ export default function AIFloatingBall() {
     };
     window.addEventListener('keydown', handleKeyDown);
 
-    // 2. 软键盘适配
     const handleResize = () => {
       setInnerHeight(Math.min(600, window.visualViewport?.height ?? window.innerHeight * 0.8));
     };
@@ -156,7 +150,7 @@ export default function AIFloatingBall() {
       window.removeEventListener('keydown', handleKeyDown);
       if (vp) vp.removeEventListener('resize', handleResize);
     };
-  }, [isOpen]);
+  }, [isOpen, togglePanel]); // 修复：加入了 togglePanel 依赖
 
   // ==========================================
   // 拖拽逻辑
@@ -200,10 +194,7 @@ export default function AIFloatingBall() {
       window.removeEventListener('touchmove', handlePointerMove);
       window.removeEventListener('touchend', handlePointerUp);
       
-      // 修复时序问题：直接同步重置状态，不用 setTimeout。这能防止快速点击被误判为拖拽
       setIsDragging(false);
-      // 注意：isDraggingRef.current 会在 handleOrbClick 中的 onClick 触发后再重置
-      // 使用 requestAnimationFrame 确保 onClick 事件优先于状态重置
       requestAnimationFrame(() => {
         isDraggingRef.current = false;
       });
@@ -225,7 +216,8 @@ export default function AIFloatingBall() {
   // ==========================================
   const formatText = (text: string) => {
     if (!text) return { __html: '' };
-    let safe = text
+    // 修复：将 let 改为 const
+    const safe = text
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
@@ -289,7 +281,6 @@ export default function AIFloatingBall() {
         const { done, value } = await reader.read();
         if (done) break;
         
-        // 修复：每次分片处理都实例化解码器，避免跨域残留碎片导致乱码
         const decoder = new TextDecoder('utf-8');
         const chunk = decoder.decode(value, { stream: true });
         const lines = chunk.split('\n');
@@ -313,8 +304,9 @@ export default function AIFloatingBall() {
           }
         }
       }
-    } catch (error: any) {
-      if (error.name !== 'AbortError') {
+    } catch (error: unknown) {
+      // 修复：将 error: any 改为 error: unknown，消除 Lint 警告
+      if (error instanceof Error && error.name !== 'AbortError') {
         const errId = Date.now() + Math.random().toString(36).substring(2);
         setMessages(prev => [...prev, { id: errId, role: 'assistant', content: '⚠️ 网络开小差了，请稍后再试。' }]);
       }
@@ -434,7 +426,6 @@ export default function AIFloatingBall() {
               </div>
 
               <div className="flex items-center p-4 gap-2 bg-black/40 border-t border-white/5 relative z-20">
-                {/* 麦克风按钮：如果不需要直接删掉这个 <button> 即可 */}
                 <button 
                   className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isRecording ? 'bg-red-500/20 text-red-500' : 'bg-white/5 text-gray-400 hover:text-white'}`}
                   onClick={() => setIsRecording(!isRecording)}
@@ -473,6 +464,6 @@ export default function AIFloatingBall() {
         </div>,
         document.body
       )}
-</>
+    </>
   );
 }
