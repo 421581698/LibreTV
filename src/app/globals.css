@@ -479,3 +479,120 @@ a {
   padding: 0 18px; border-radius: 9999px; border: none; background-color: #ffffff; color: #000000; font-weight: bold; cursor: pointer; font-size: 14px;
 }
 .ai-chat-input-area button:disabled { opacity: 0.5; }
+/* ==========================================
+   🪐 纯 CSS 液态金属胶囊（顶级设备·满血版）
+   ========================================== */
+
+:root {
+  --orb-color-dark1: #050505;
+  --orb-color-dark2: #1a1a1a;
+  --orb-color-mid: #888888;
+  --orb-color-light: #e6e6e6;
+  --orb-highlight: #ffffff;
+  
+  --highlight-shadow: 0 0 12px 3px color-mix(in srgb, var(--orb-highlight) 95%, transparent),
+    0 0 24px 8px color-mix(in srgb, var(--orb-highlight) 50%, transparent),
+    0 0 48px 16px color-mix(in srgb, var(--orb-highlight) 15%, transparent);
+}
+
+.ai-orb-container {
+  position: fixed;
+  bottom: max(30px, env(safe-area-inset-bottom, 0px) + 20px);
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: 90px;
+  height: 60px;
+  z-index: 99999; 
+  cursor: pointer;
+  transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  user-select: none;
+  -webkit-user-select: none;
+  isolation: isolate;
+  outline: none;
+}
+
+.ai-orb-container:hover {
+  transform: scale(1.05);
+}
+
+.ai-orb-container:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.8);
+  outline-offset: 6px;
+}
+
+.ai-orb {
+  width: 100%;
+  height: 100%;
+  border-radius: 30px; 
+  position: relative;
+  overflow: hidden;
+  pointer-events: none;
+
+  background: linear-gradient(
+    135deg,
+    var(--orb-color-dark1) 0%, 
+    var(--orb-color-dark2) 25%, 
+    var(--orb-color-mid) 50%, 
+    var(--orb-color-light) 75%, 
+    var(--orb-color-dark1) 100%
+  );
+  background-size: 300% 300%;
+  
+  animation: liquid-flow 5s ease-in-out infinite;
+  will-change: auto;
+
+  box-shadow:
+    inset 0 -10px 20px rgba(255, 255, 255, 0.95),
+    inset 0 15px 25px rgba(0, 0, 0, 1),
+    0 15px 35px rgba(0, 0, 0, 0.5);
+}
+
+.ai-orb::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 70%;
+  height: 4px;
+  background: var(--orb-highlight);
+  border-radius: 50%;
+  box-shadow: var(--highlight-shadow);
+  filter: blur(2px);
+  pointer-events: none;
+
+  animation: light-drift 4s ease-in-out infinite alternate;
+  will-change: auto;
+}
+
+.ai-orb {
+  will-change: background-position;
+}
+.ai-orb::before {
+  will-change: width, transform, opacity;
+}
+
+@keyframes liquid-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes light-drift {
+  0% {
+    width: 60%;
+    transform: translate(-50%, -50%) scaleX(1) translateY(0);
+    opacity: 0.8;
+  }
+  50% {
+    width: 85%;
+    transform: translate(-50%, -50%) scaleX(1.3) translateY(-3px);
+    opacity: 1;
+  }
+  100% {
+    width: 60%;
+    transform: translate(-50%, -50%) scaleX(1) translateY(0);
+    opacity: 0.8;
+  }
+}
