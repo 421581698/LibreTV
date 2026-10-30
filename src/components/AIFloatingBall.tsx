@@ -19,7 +19,13 @@ export default function AIFloatingBall() {
   const [loading, setLoading] = useState(false);
   const [orbLock, setOrbLock] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(true); 
+  const [showSettings, setShowSettings] = useState(false);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState('');
+  const [voiceRate, setVoiceRate] = useState(1.0);
+  const [voicePitch, setVoicePitch] = useState(0.9); 
   
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -34,11 +40,16 @@ export default function AIFloatingBall() {
 
   useEffect(() => { loadingRef.current = loading; }, [loading]);
 
-  // 屏幕旋转/窗口改变自动校正位置
+  const getOrbSize = () => {
+    if (typeof window === 'undefined') return { w: 90, h: 60 };
+    return window.innerWidth <= 430 ? { w: 75, h: 50 } : { w: 90, h: 60 };
+  };
+
   useEffect(() => {
     const handleResize = () => {
-      const maxW = window.innerWidth - 90;
-      const maxH = window.innerHeight - 100;
+      const { w, h } = getOrbSize();
+      const maxW = window.innerWidth - w;
+      const maxH = window.innerHeight - h - 20;
       setPosition(p => ({
         x: Math.max(0, Math.min(p.x, maxW)),
         y: Math.max(0, Math.min(p.y, maxH))
@@ -62,8 +73,24 @@ export default function AIFloatingBall() {
       recognitionRef.current.continuous = false;
       recognitionRef.current.lang = 'zh-CN';
     }
+
+    const loadVoices = () => {
+      if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+      const available = window.speechSynthesis.getVoices().filter(v => v.lang.includes('zh'));
+      setVoices(available);
+      if (available.length > 0) {
+        const defaultVoice = available.find(v => v.name.includes('美') || v.name.includes('婷')) || available[0];
+        setSelectedVoice(defaultVoice.name);
+      }
+    };
+    loadVoices();
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+
     return () => {
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.onvoiceschanged = null;
         window.speechSynthesis.cancel();
       }
     };
@@ -79,8 +106,11 @@ export default function AIFloatingBall() {
       window.speechSynthesis.cancel(); 
       const speakStr = text.length > 80 ? text.substring(0, 80) + '...' : text;
       const utterance = new SpeechSynthesisUtterance(speakStr);
-      utterance.lang = 'zh-CN';
-      utterance.rate = 1.1;
+      utterance.rate = voiceRate;
+      utterance.pitch = voicePitch;
+      const v = voices.find(v => v.name === selectedVoice);
+      if (v) utterance.voice = v;
+      utterance.onerror = (e) => console.warn('语音合成错误', e);
       window.speechSynthesis.speak(utterance);
     }
   };
@@ -180,7 +210,7 @@ export default function AIFloatingBall() {
     } finally {
       setLoading(false);
     }
-  }, [messages, isVoiceEnabled]);
+  }, [messages, isVoiceEnabled, voices, selectedVoice, voiceRate, voicePitch]);
 
   const handleTouchStart = (e: React.TouchEvent | React.MouseEvent) => {
     const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
@@ -192,33 +222,25 @@ export default function AIFloatingBall() {
 
   const handleTouchMove = (e: React.TouchEvent | React.MouseEvent) => {
     if (!isDragging) return;
-    
     const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
-    
     const moveX = clientX - dragStart.current.x;
     const moveY = clientY - dragStart.current.y;
 
     if (Math.abs(moveX - position.x) > 5 || Math.abs(moveY - position.y) > 5) {
       hasMoved.current = true;
-      if ('touches' in e && e.cancelable) {
-        e.preventDefault(); 
-      }
+      if ('touches' in e && e.cancelable) e.preventDefault(); 
     }
 
-    const maxW = window.innerWidth - 90;
-    const maxH = window.innerHeight - 100;
-    setPosition({ 
-      x: Math.max(0, Math.min(moveX, maxW)), 
-      y: Math.max(0, Math.min(moveY, maxH)) 
-    });
+    const { w, h } = getOrbSize();
+    const maxW = window.innerWidth - w;
+    const maxH = window.innerHeight - h - 20;
+    setPosition({ x: Math.max(0, Math.min(moveX, maxW)), y: Math.max(0, Math.min(moveY, maxH)) });
   };
 
   const handleTouchEnd = () => {
     setIsDragging(false);
-    if (hasMoved.current) {
-      localStorage.setItem('ai-orb-pos', JSON.stringify(position));
-    }
+    if (hasMoved.current) localStorage.setItem('ai-orb-pos', JSON.stringify(position));
     setTimeout(() => { hasMoved.current = false; }, 50); 
   };
 
@@ -231,9 +253,7 @@ export default function AIFloatingBall() {
 
   const closePanel = () => {
     fetchAbortRef.current?.abort();
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
     setIsOpen(false);
     setInput('');
   };
@@ -244,18 +264,42 @@ export default function AIFloatingBall() {
         <React.Fragment>
           <div className="ai-chat-overlay" onClick={closePanel}></div>
           <div className="ai-chat-panel" onClick={(e) => e.stopPropagation()}>
+            
             <div className="ai-chat-header">
               <span>AI 贾维斯管家</span>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button 
-                  onClick={() => setIsVoiceEnabled(!isVoiceEnabled)}
-                  style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer', opacity: 0.8 }}
-                >
-                  {isVoiceEnabled ? '🔊' : '🔇'}
-                </button>
-                <button onClick={closePanel}>✕</button>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <button onClick={() => setShowSettings(!showSettings)} style={{ background: 'none', border: 'none', fontSize: '14px', cursor: 'pointer', color: '#aaa', fontWeight: 'bold' }}>设置</button>
+                <button onClick={closePanel} style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer', color: '#aaa' }}>✕</button>
               </div>
             </div>
+            
+            {showSettings && (
+              <div className="ai-voice-settings">
+                <div style={{ marginBottom: '8px' }}>
+                  <span>发音人：</span>
+                  {voices.length === 0 ? (
+                    <span style={{color:'#ff9999', fontSize: '12px'}}>
+                      未检测到中文语音，请前往 iPad 设置 - 辅助功能 - 朗读内容 下载
+                    </span>
+                  ) : (
+                    <select value={selectedVoice} onChange={(e) => setSelectedVoice(e.target.value)}>
+                      {voices.map(v => (
+                        <option key={v.name} value={v.name}>{v.name}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+                <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>语速：</span>
+                  <input type="range" min="0.5" max="1.5" step="0.1" value={voiceRate} onChange={(e) => setVoiceRate(parseFloat(e.target.value))} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>音调：</span>
+                  <input type="range" min="0.5" max="1.5" step="0.1" value={voicePitch} onChange={(e) => setVoicePitch(parseFloat(e.target.value))} />
+                </div>
+              </div>
+            )}
+
             <div className="ai-chat-messages" ref={scrollRef}>
               {messages.length === 0 && (
                 <div className="ai-msg-assistant">你好，我是你的贾维斯。我能看见你的屏幕，可以帮你搜电影、打开设置，甚至写代码。</div>
@@ -267,13 +311,14 @@ export default function AIFloatingBall() {
               ))}
               {loading && <div className="ai-msg-assistant">正在思考中...</div>}
             </div>
+
             <div className="ai-chat-input-area">
-              <button 
-                className="voice-btn" 
-                onClick={startVoiceInput}
-                style={{ background: 'transparent', color: isRecording ? '#ff4444' : '#fff', border: 'none', fontSize: '20px', padding: '0 10px' }}
-              >
-                {isRecording ? '🔴' : '🎤'}
+              <button className={`voice-btn ${isRecording ? 'recording' : ''}`} onClick={startVoiceInput}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                  <line x1="12" x2="12" y1="19" y2="22"></line>
+                </svg>
               </button>
               <input
                 ref={inputRef}
@@ -281,14 +326,16 @@ export default function AIFloatingBall() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleSend(input);
-                  }
+                  if (e.key === 'Enter') { e.preventDefault(); handleSend(input); }
                 }}
                 placeholder="说话或输入..."
               />
-              <button onClick={() => handleSend(input)} disabled={loading}>↑</button>
+              <button onClick={() => handleSend(input)} disabled={loading} style={{ borderRadius: '50%', width: '36px', height: '36px', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m5 12 7-7 7 7"/>
+                  <path d="M12 19V5"/>
+                </svg>
+              </button>
             </div>
           </div>
         </React.Fragment>
@@ -308,11 +355,7 @@ export default function AIFloatingBall() {
           style={{
             transform: `translate(${position.x}px, ${position.y}px)`,
             transition: isDragging ? 'none' : 'transform 0.3s ease-out',
-            left: '0',
-            top: '0',
-            bottom: 'auto',
-            right: 'auto',
-            margin: '0',
+            left: '0', top: '0', bottom: 'auto', right: 'auto', margin: '0',
           }}
         >
           <div 
