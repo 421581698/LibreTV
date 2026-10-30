@@ -2,192 +2,49 @@
 @tailwind components;
 @tailwind utilities;
 
-/*
- * 语义化配色（RGB 三元组，供 Tailwind 以 <alpha-value> 注入透明度）：
- * 深色主题沿用旧版 LibreTV 配色；浅色主题为对应的白底变体。
- */
 :root {
-  --c-page: 246 247 249;           /* #f6f7f9 */
-  --c-surface: 255 255 255;        /* #ffffff */
+  --c-page: 246 247 249;
+  --c-surface: 255 255 255;
   --c-surface-raised: 255 255 255;
   --c-card: 255 255 255;
-  --c-chip: 238 240 243;           /* #eef0f3 */
-  --c-hover: 233 236 240;          /* #e9ecf0 */
-  --c-line: 224 227 232;           /* #e0e3e8 */
-  --c-content: 26 26 26;           /* #1a1a1a */
-  --c-muted: 95 99 104;            /* #5f6368 */
-  --c-faint: 107 114 128;          /* #6b7280（原 #8a8f98 对白底仅 3.2:1，加深后达到 AA 4.5:1） */
-  --c-accent:    0 0 0;         /* blue-600 */
-  --c-accent-hover: 51 51 51;     /* blue-700 */
-  --c-on-accent: 255 255 255;      /* accent 实心底上的文字色 */
-  /* 语义状态色（亮色主题取偏深值，保证浅底上的对比度） */
-  --c-danger: 220 38 38;           /* red-600 */
-  --c-danger-hover: 185 28 28;     /* red-700 */
-  --c-success: 22 163 74;          /* green-600 */
-  --c-warning: 217 119 6;          /* amber-600 */
-  --c-info: 37 99 235;             /* blue-600 */
-  --c-rating: 245 158 11;          /* amber-500 */
-  /* 实心状态底色（配白字）：比「文字用」色更深一档，保证白字对比度 ≥ 4.5:1 */
-  --c-danger-solid: 185 28 28;     /* red-700 */
-  --c-success-solid: 21 128 61;    /* green-700 */
-  --c-warning-solid: 180 83 9;     /* amber-700 */
-  --c-info-solid: 29 78 216;       /* blue-700 */
-  color-scheme: light;
+  --c-chip: 238 240 243;
+  --c-hover: 233 236 240;
+  --c-line: 224 227 232;
+  --c-content: 26 26 26;
+  --c-muted: 95 99 104;
+  --c-faint: 107 114 128;
+  --c-accent: 0 0 0; /* 修改为纯黑 */
+  --c-accent-hover: 51 51 51;
+  --c-on-accent: 255 255 255;
+  --c-danger: 220 38 38;
+  --c-danger-hover: 185 28 28;
+  --c-success: 22 163 74;
+  --c-warning: 217 119 6;
+  --c-info: 37 99 235;
+  --c-rating: 245 158 11;
 }
 
 .dark {
-  /* 旧版 LibreTV（backup-2025）赛博影视主题（整体调深一档）：深蓝黑底 + 霓虹蓝/粉点缀 */
-  --c-page:  0 0 0;             /* #0b101a 深蓝黑页面底色 */
-  --c-surface:  26 26 26;           /* #141c29 弹窗/抽屉底色 */
+  --c-page: 0 0 0; /* 纯黑 */
+  --c-surface: 26 26 26; /* 深灰 */
   --c-surface-raised: 20 28 41;
-  --c-card:   26 26 26;             /* #0d141f 卡片底色 */
-  --c-chip: 22 32 46;              /* #16202e 卡片/输入框底色 */
-  --c-hover: 29 42 61;             /* #1d2a3d 悬停态（chip 提亮） */
-  --c-line: 34 48 69;              /* #223045 边框（近似旧版 rgba(0,204,255,.15) 观感） */
-  --c-content: 230 242 255;        /* #e6f2ff 蓝白主文本（--text-color） */
-  --c-muted: 133 153 178;          /* #8599b2 次级文本（--text-muted） */
-  --c-faint: 122 140 166;          /* #7a8ca6 三级文本（原 #6b7f99 在抽屉底色 #141c29 上仅 4.17:1，12px 小字不达标；提亮后 4.99:1） */
-  --c-accent:  255 255 255;          /* #00b8e6 霓虹蓝主色（--primary-color 调深一档） */
-  --c-accent-hover: 204 204 204;     /* #33d6ff 霓虹蓝浅变体（--primary-light） */
-  /* 霓虹蓝底亮度过高（对白字仅 2.35:1），暗色下实心底改用深色文字 */
-  --c-on-accent:  0 0 0; 
-  /* 语义状态色（暗色主题取中等明度值，保证深蓝黑底上的对比度） */
-  --c-danger: 239 68 68;           /* red-500 */
-  --c-danger-hover: 248 113 113;   /* red-400 */
-  --c-success: 34 197 94;          /* green-500 */
-  --c-warning: 245 158 11;         /* amber-500 */
-  --c-info: 59 130 246;            /* blue-500 */
-  --c-rating: 251 191 36;          /* amber-400 */
-  /* 实心状态底色（配白字）：与亮色一致取深档，避免琥珀/绿色底白字对比度不足 */
-  --c-danger-solid: 185 28 28;     /* red-700 */
-  --c-success-solid: 21 128 61;    /* green-700 */
-  --c-warning-solid: 180 83 9;     /* amber-700 */
-  --c-info-solid: 29 78 216;       /* blue-700 */
-  color-scheme: dark;
-}
-
-html,
-body {
-  @apply bg-page text-content antialiased;
-}
-
-/* 暗色主题：模拟旧版 .page-bg 的深蓝黑纵向渐变 */
-.dark body {
-  background: linear-gradient(180deg, rgb(11 16 26), rgb(20 28 41)) fixed;
+  --c-card: 26 26 26;
+  --c-chip: 22 32 46;
+  --c-hover: 29 42 61;
+  --c-line: 34 48 69;
+  --c-content: 230 242 255;
+  --c-muted: 133 153 178;
+  --c-faint: 122 140 166;
+  --c-accent: 255 255 255; /* 纯白 */
+  --c-accent-hover: 204 204 204;
+  --c-on-accent: 0 0 0;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC',
-    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  background-color: rgb(var(--c-page));
+  color: rgb(var(--c-content));
 }
 
-@layer components {
-  .card {
-    @apply bg-card border border-line rounded-lg overflow-hidden transition-all duration-200;
-  }
-  .btn {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed;
-    /* 统一焦点环：键盘用户可见，与 .input 同一规格 */
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40;
-  }
-  .btn-primary {
-    @apply btn bg-accent text-on-accent hover:bg-accent-hover;
-  }
-  .btn-ghost {
-    @apply btn bg-chip text-muted hover:bg-hover hover:text-content border border-line;
-  }
-  .input {
-    @apply bg-chip border border-line rounded-md px-3 py-2 text-sm text-content placeholder:text-faint;
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:border-accent;
-  }
-  .tag {
-    @apply inline-flex items-center text-xs px-1.5 py-0.5 rounded-full;
-  }
-  /* 小尺寸按钮：定义在 .btn-* 之后，确保尺寸覆盖生效（与 .btn-primary / .btn-ghost 组合使用） */
-  .btn-sm {
-    @apply btn px-2.5 py-1 text-xs;
-  }
-  /* 胶囊控件（筛选、分类标签）：统一内边距与圆角 */
-  .chip {
-    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] transition-colors;
-  }
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    @apply bg-line rounded-full;
-  }
-}
-
-/* 行数截断 */
-.line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
-.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-
-/* 播放器集数激活态 */
-.episode-active {
-  background: rgb(var(--c-accent)) !important;
-  border-color: rgb(var(--c-accent)) !important;
-  /* 暗色下霓虹蓝底对白字对比度不足，统一用 on-accent（亮色白 / 暗色深） */
-  color: rgb(var(--c-on-accent)) !important;
-}
-
-/* 品牌渐变字（沿用旧版 LibreTV 的霓虹蓝→霓虹粉） */
-.brand-gradient {
-  background: linear-gradient(to right, #00ccff, #ff3c78);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-}
-
-/* LIVE 呼吸红点（直播页标识） */
-.live-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 9999px;
-  background: #ef4444;
-  animation: live-breathe 2s ease-in-out infinite;
-}
-@keyframes live-breathe {
-  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
-  50% { opacity: 0.55; box-shadow: 0 0 0 4px rgba(239, 68, 68, 0); }
-}
-
-/*
- * 播放器控制条在窄屏没有多余横向空间：
- * 上/下集控件会把右侧的「网页全屏」「全屏」挤出可视区（手机上表现为图标显示不全）。
- * 只在窄于 640px 时收起这两个控件——手机横屏、平板仍有空间，可以保留。
- * 切集在任何情况下都还能用播放器下方的按钮。
- */
-@media (max-width: 640px) {
-  /* 竖屏空间只够放「播放 + 时间 + 设置 + 网页全屏 + 全屏」：
-     音量交给系统按键，截图与画中画在手机上很少用，一并收起，
-     保证最右侧的全屏按钮完整可见 */
-  .art-control-prev-episode,
-  .art-control-next-episode,
-  .art-control-volume,
-  .art-control-screenshot,
-  .art-control-pip {
-    display: none !important;
-  }
-
-  /* 00:04 / 01:26:30 这种长文本占宽最多，缩字号再收紧内边距 */
-  .art-control-time {
-    font-size: 11px;
-    padding: 0 2px;
-  }
-
-  /* 默认每个图标 46px，竖屏下收到 40px —— 省出的宽度正好让最后一个全屏按钮不贴边 */
-  .art-control-playAndPause,
-  .art-control-setting,
-  .art-control-fullscreenWeb,
-  .art-control-fullscreen {
-    width: 40px !important;
-    min-width: 40px !important;
-  }
-}
 /* ==========================================
    1. 门面与基础背景（安全兜底）
    ========================================== */
@@ -240,7 +97,7 @@ button[aria-selected="true"], button[aria-selected="false"] {
   padding: 6px 20px !important;
 }
 
-/* 全站标签去彩（含文字和暗色模式） */
+/* 全站标签去彩 */
 [class*="bg-blue-50"], [class*="bg-blue-100"], [class*="bg-purple"], [class*="bg-violet"], [class*="bg-fuchsia"], [class*="bg-pink"], [class*="bg-amber"], [class*="bg-yellow"], [class*="bg-orange"], [class*="text-purple"], [class*="text-amber"] {
   background-color: #f3f4f6 !important; color: #333333 !important; border: none !important; opacity: 1 !important;
 }
@@ -265,7 +122,7 @@ button[aria-selected="true"], button[aria-selected="false"] {
 }
 
 /* ==========================================
-   4. 🎯 终极角标处理
+   4. 终极角标处理
    ========================================== */
 /* 隐藏左侧 N源 */
 .grid > div:has(img) .absolute.left-0,
@@ -274,8 +131,7 @@ button[aria-selected="true"], button[aria-selected="false"] {
 .movie-card .absolute.left-2 {
   display: none !important;
 }
-
-/* 保护右侧评分：原生定位优先，仅做质感修复 */
+/* 保护右侧评分 */
 .grid > div:has(img) .absolute.right-0,
 .grid > div:has(img) .absolute.right-2,
 .movie-card .absolute.right-0,
@@ -288,10 +144,7 @@ button[aria-selected="true"], button[aria-selected="false"] {
   display: inline-flex !important;
   padding: 2px 8px !important;
   z-index: 10 !important;
-  /* 移除了强制的 top/right 像素值，保留原生位置 */
 }
-
-/* 夜间模式：防亮色海报反光，加磨砂和阴影 */
 .dark .grid > div:has(img) .absolute.right-0,
 .dark .grid > div:has(img) .absolute.right-2,
 .dark .movie-card .absolute.right-0,
@@ -304,7 +157,7 @@ button[aria-selected="true"], button[aria-selected="false"] {
 }
 
 /* ==========================================
-   5. 播放页与选集（补全 v1 掉队的代码）
+   5. 播放页与选集
    ========================================== */
 button[class*="episode"], .episode-btn {
   border-radius: 12px !important; padding: 8px 16px !important; font-weight: 500 !important;
@@ -314,11 +167,8 @@ button[class*="episode"].active, .episode-btn.active {
   background-color: #e63921 !important; color: #fff !important; opacity: 1 !important;
 }
 .art-video-player .art-bottom { background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 80%) !important; }
-/* 🚑 补回：全屏清除圆角 */
 .art-video-player.art-fullscreen .art-bottom { border-radius: 0 !important; }
-/* 🚑 补回：进度条加粗 */
 .art-video-player .art-progress-bar { height: 6px !important; }
-
 .art-setting-panel, .art-notice {
   border-radius: 16px !important; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2) !important; border: 1px solid rgba(0, 0, 0, 0.1) !important;
   background-color: rgba(255, 255, 255, 0.9) !important; backdrop-filter: blur(16px) !important;
@@ -328,7 +178,7 @@ button[class*="episode"].active, .episode-btn.active {
 }
 
 /* ==========================================
-   6. 移动端降级（修复了死代码，仅保留有效降级）
+   6. 移动端与桌面端悬浮
    ========================================== */
 @media (max-width: 768px) {
   .grid > div:has(img), .movie-card {
@@ -340,8 +190,6 @@ button[class*="episode"].active, .episode-btn.active {
     background-color: rgba(26, 26, 26, 0.65) !important;
   }
 }
-
-/* 桌面端 hover 悬浮（和上面的移动端彻底分开） */
 @media (hover: hover) and (min-width: 769px) {
   .grid > div:has(img):hover, .movie-card:hover {
     transform: translateY(-6px) !important; box-shadow: 0 16px 32px rgba(0, 0, 0, 0.15) !important;
@@ -349,250 +197,72 @@ button[class*="episode"].active, .episode-btn.active {
 }
 
 /* ==========================================
-   7. 🔒 防双击放大与文字自动调整
+   7. 防双击放大与文字自动调整
    ========================================== */
 html, body, main {
   -webkit-text-size-adjust: 100% !important;
   text-size-adjust: 100% !important;
 }
-.movie-card,
-.grid > div:has(img),
-button,
-a {
+.movie-card, .grid > div:has(img), button, a {
   touch-action: manipulation !important;
 }
+
 /* ==========================================
-   🍎 AI 悬浮球与深色毛玻璃聊天面板
+   8. AI 聊天面板深色毛玻璃
    ========================================== */
-
-/* 悬浮球 */
-.ai-orb-container {
-  position: fixed;
-  bottom: 30px;
-  left: 0;
-  right: 0;
-  margin: 0 auto;
-  width: 50px;
-  z-index: 9999;
-  cursor: pointer;
-}
-.ai-orb {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #ffffff 0%, #555555 20%, #111111 70%, #000000 100%);
-  box-shadow: inset -8px -8px 15px rgba(0,0,0,0.8), inset 4px 4px 10px rgba(255,255,255,0.2), 0 0 20px rgba(255, 255, 255, 0.3);
-  position: relative;
-  overflow: hidden;
-  transition: transform 0.3s ease;
-}
-.ai-orb::before {
-  content: '';
-  position: absolute;
-  top: 15%; left: 20%;
-  width: 60%; height: 20%;
-  background: radial-gradient(ellipse at center, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 70%);
-  border-radius: 50%;
-  transform: rotate(-15deg);
-}
-
-/* 遮罩层（点击外部关闭） */
-.ai-chat-overlay {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: transparent;
-  z-index: 9997;
-}
-
-/* 深色毛玻璃面板 */
+.ai-chat-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: transparent; z-index: 99997; }
 .ai-chat-panel {
-  position: fixed;
-  bottom: 100px;
-  left: 0;
-  right: 0;
-  margin: 0 auto;
-  width: calc(100vw - 40px);
-  max-width: 360px;
-  height: calc(var(--app-height, 100vh) - 160px);
-  max-height: calc(var(--app-height, 100vh) - 160px);
-  background-color: rgba(28, 28, 30, 0.75) !important;
-  backdrop-filter: blur(30px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(30px) saturate(180%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  border-radius: 24px !important;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5) !important;
-  z-index: 9998;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  position: fixed; bottom: 100px; left: 0; right: 0; margin: 0 auto; width: calc(100vw - 40px); max-width: 360px;
+  height: calc(var(--app-height, 100vh) - 160px); max-height: calc(var(--app-height, 100vh) - 160px);
+  background-color: rgba(28, 28, 30, 0.75) !important; backdrop-filter: blur(30px) saturate(180%) !important; -webkit-backdrop-filter: blur(30px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important; border-radius: 24px !important; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5) !important;
+  z-index: 99998; display: flex; flex-direction: column; overflow: hidden;
 }
-
-/* 头部 */
-.ai-chat-header {
-  padding: 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  font-weight: bold;
-  color: #ffffff;
-  font-size: 15px;
-}
-.ai-chat-header button {
-  background: none; border: none; font-size: 18px; padding: 4px 12px; cursor: pointer; color: #aaaaaa;
-}
-
-/* 消息滚动区 */
-.ai-chat-messages {
-  flex: 1;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
+.ai-chat-header { padding: 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-weight: bold; color: #ffffff; font-size: 15px; }
+.ai-chat-header button { background: none; border: none; font-size: 18px; padding: 4px 12px; cursor: pointer; color: #aaaaaa; }
+.ai-chat-messages { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
 .ai-chat-messages::-webkit-scrollbar { width: 4px; }
 .ai-chat-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
-
-/* 气泡 */
-.ai-msg-user, .ai-msg-assistant {
-  padding: 10px 16px; border-radius: 18px; max-width: 85%; font-size: 14px; line-height: 1.5; word-wrap: break-word;
-}
-.ai-msg-user {
-  background-color: #3a3a3c; color: #ffffff; align-self: flex-end; border-bottom-right-radius: 4px;
-}
-.ai-msg-assistant {
-  background-color: rgba(255, 255, 255, 0.1); color: #eeeeee; align-self: flex-start; border-bottom-left-radius: 4px;
-}
-
-/* 输入区 */
-.ai-chat-input-area {
-  padding: 12px; display: flex; gap: 8px; border-top: 1px solid rgba(255, 255, 255, 0.08); background: rgba(0, 0, 0, 0.2);
-}
-.ai-chat-input-area input {
-  flex: 1; padding: 10px 16px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.1);
-  outline: none; background-color: rgba(0, 0, 0, 0.3); color: #ffffff; font-size: 16px !important;
-}
+.ai-msg-user, .ai-msg-assistant { padding: 10px 16px; border-radius: 18px; max-width: 85%; font-size: 14px; line-height: 1.5; word-wrap: break-word; }
+.ai-msg-user { background-color: #3a3a3c; color: #ffffff; align-self: flex-end; border-bottom-right-radius: 4px; }
+.ai-msg-assistant { background-color: rgba(255, 255, 255, 0.1); color: #eeeeee; align-self: flex-start; border-bottom-left-radius: 4px; }
+.ai-chat-input-area { padding: 12px; display: flex; gap: 8px; border-top: 1px solid rgba(255, 255, 255, 0.08); background: rgba(0, 0, 0, 0.2); }
+.ai-chat-input-area input { flex: 1; padding: 10px 16px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.1); outline: none; background-color: rgba(0, 0, 0, 0.3); color: #ffffff; font-size: 16px !important; }
 .ai-chat-input-area input::placeholder { color: #888888; }
-.ai-chat-input-area button {
-  padding: 0 18px; border-radius: 9999px; border: none; background-color: #ffffff; color: #000000; font-weight: bold; cursor: pointer; font-size: 14px;
-}
+.ai-chat-input-area button { padding: 0 18px; border-radius: 9999px; border: none; background-color: #ffffff; color: #000000; font-weight: bold; cursor: pointer; font-size: 14px; }
 .ai-chat-input-area button:disabled { opacity: 0.5; }
-/* ==========================================
-   🪐 纯 CSS 液态金属胶囊（顶级设备·满血版）
-   ========================================== */
 
+/* ==========================================
+   9. 纯 CSS 液态金属胶囊（绝对完美最终版）
+   ========================================== */
 :root {
   --orb-color-dark1: #050505;
   --orb-color-dark2: #1a1a1a;
   --orb-color-mid: #888888;
   --orb-color-light: #e6e6e6;
   --orb-highlight: #ffffff;
-  
-  --highlight-shadow: 0 0 12px 3px color-mix(in srgb, var(--orb-highlight) 95%, transparent),
-    0 0 24px 8px color-mix(in srgb, var(--orb-highlight) 50%, transparent),
-    0 0 48px 16px color-mix(in srgb, var(--orb-highlight) 15%, transparent);
+  --highlight-shadow: 0 0 12px 3px rgba(255, 255, 255, 0.95), 0 0 24px 8px rgba(255, 255, 255, 0.5), 0 0 48px 16px rgba(255, 255, 255, 0.15);
 }
-
 .ai-orb-container {
-  position: fixed;
-  bottom: max(30px, env(safe-area-inset-bottom, 0px) + 20px);
-  left: 0;
-  right: 0;
-  margin: 0 auto;
-  width: 90px;
-  height: 60px;
-  z-index: 99999; 
-  cursor: pointer;
-  transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-  user-select: none;
-  -webkit-user-select: none;
-  isolation: isolate;
-  outline: none;
+  position: fixed; width: 90px; height: 60px; z-index: 99999; cursor: grab; user-select: none; -webkit-user-select: none;
+  isolation: isolate; bottom: max(30px, env(safe-area-inset-bottom, 0px) + 16px); right: 20px;
 }
-
-.ai-orb-container:hover {
-  transform: scale(1.05);
-}
-
-.ai-orb-container:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.8);
-  outline-offset: 6px;
-}
-
+.ai-orb-container:active { cursor: grabbing; }
 .ai-orb {
-  width: 100%;
-  height: 100%;
-  border-radius: 30px; 
-  position: relative;
-  overflow: hidden;
-  pointer-events: none;
-
-  background: linear-gradient(
-    135deg,
-    var(--orb-color-dark1) 0%, 
-    var(--orb-color-dark2) 25%, 
-    var(--orb-color-mid) 50%, 
-    var(--orb-color-light) 75%, 
-    var(--orb-color-dark1) 100%
-  );
-  background-size: 300% 300%;
-  
-  animation: liquid-flow 5s ease-in-out infinite;
-  will-change: auto;
-
-  box-shadow:
-    inset 0 -10px 20px rgba(255, 255, 255, 0.95),
-    inset 0 15px 25px rgba(0, 0, 0, 1),
-    0 15px 35px rgba(0, 0, 0, 0.5);
+  width: 100%; height: 100%; border-radius: 30px; position: relative; overflow: hidden; pointer-events: none;
+  background: linear-gradient(135deg, var(--orb-color-dark1) 0%, var(--orb-color-dark2) 25%, var(--orb-color-mid) 50%, var(--orb-color-light) 75%, var(--orb-color-dark1) 100%);
+  background-size: 300% 300%; animation: liquid-flow 5s ease-in-out infinite;
+  box-shadow: inset 0 -10px 20px rgba(255, 255, 255, 0.95), inset 0 15px 25px rgba(0, 0, 0, 1), 0 15px 35px rgba(0, 0, 0, 0.5);
+  transition: transform 0.3s ease-out; 
 }
-
+.ai-orb-container:hover .ai-orb { transform: scale(1.02); }
 .ai-orb::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 70%;
-  height: 4px;
-  background: var(--orb-highlight);
-  border-radius: 50%;
-  box-shadow: var(--highlight-shadow);
-  filter: blur(2px);
-  pointer-events: none;
-
-  animation: light-drift 4s ease-in-out infinite alternate;
-  will-change: auto;
+  content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 70%; height: 4px; background: var(--orb-highlight); border-radius: 50%;
+  box-shadow: var(--highlight-shadow); filter: blur(2px); pointer-events: none; animation: light-drift 4s ease-in-out infinite alternate;
 }
-
-.ai-orb {
-  will-change: background-position;
-}
-.ai-orb::before {
-  will-change: width, transform, opacity;
-}
-
-@keyframes liquid-flow {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-@keyframes light-drift {
-  0% {
-    width: 60%;
-    transform: translate(-50%, -50%) scaleX(1) translateY(0);
-    opacity: 0.8;
-  }
-  50% {
-    width: 85%;
-    transform: translate(-50%, -50%) scaleX(1.3) translateY(-3px);
-    opacity: 1;
-  }
-  100% {
-    width: 60%;
-    transform: translate(-50%, -50%) scaleX(1) translateY(0);
-    opacity: 0.8;
-  }
+@keyframes liquid-flow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+@keyframes light-drift { 0% { width: 60%; transform: translate(-50%, -50%) scaleX(1) translateY(0); opacity: 0.8; } 50% { width: 85%; transform: translate(-50%, -50%) scaleX(1.3) translateY(-3px); opacity: 1; } 100% { width: 60%; transform: translate(-50%, -50%) scaleX(1) translateY(0); opacity: 0.8; } }
+@media (max-width: 340px) {
+  .ai-orb-container { width: 70px; height: 46px; --highlight-shadow: 0 0 6px 1px rgba(255, 255, 255, 0.95), 0 0 12px 4px rgba(255, 255, 255, 0.5), 0 0 20px 6px rgba(255, 255, 255, 0.15); }
+  .ai-orb { border-radius: 23px; }
 }
