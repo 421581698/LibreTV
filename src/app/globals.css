@@ -273,3 +273,6 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   }
   .ai-chat-panel { transition: none !important; }
 }
+.friday-popup-lock { overflow: hidden !important; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
