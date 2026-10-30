@@ -66,34 +66,34 @@ export default function AIFloatingBall() {
     }
   }, []);
 
+  // ✅ 核心修复：把 `speechSynthesis` 的空值判断写死，防止无痕模式崩溃
   useEffect(() => {
-    if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.lang = 'zh-CN';
-    }
-
-    const loadVoices = () => {
-      if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-      const available = window.speechSynthesis.getVoices().filter(v => v.lang.includes('zh'));
-      setVoices(available);
-      if (available.length > 0) {
-        const defaultVoice = available.find(v => v.name.includes('美') || v.name.includes('婷')) || available[0];
-        setSelectedVoice(defaultVoice.name);
+    if (typeof window !== 'undefined') {
+      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = false;
+        recognitionRef.current.lang = 'zh-CN';
       }
-    };
-    loadVoices();
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.onvoiceschanged = loadVoices;
-    }
 
-    return () => {
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.onvoiceschanged = null;
-        window.speechSynthesis.cancel();
+      if (window.speechSynthesis) {
+        const loadVoices = () => {
+          const available = window.speechSynthesis.getVoices().filter(v => v.lang.includes('zh'));
+          setVoices(available);
+          if (available.length > 0) {
+            const defaultVoice = available.find(v => v.name.includes('美') || v.name.includes('婷')) || available[0];
+            setSelectedVoice(defaultVoice.name);
+          }
+        };
+        loadVoices();
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+
+        return () => {
+          window.speechSynthesis.onvoiceschanged = null;
+          window.speechSynthesis.cancel();
+        };
       }
-    };
+    }
   }, []);
 
   useEffect(() => {
@@ -102,7 +102,7 @@ export default function AIFloatingBall() {
 
   const speakText = (text: string) => {
     if (!isVoiceEnabled) return; 
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel(); 
       const speakStr = text.length > 80 ? text.substring(0, 80) + '...' : text;
       const utterance = new SpeechSynthesisUtterance(speakStr);
@@ -253,7 +253,7 @@ export default function AIFloatingBall() {
 
   const closePanel = () => {
     fetchAbortRef.current?.abort();
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+    if (typeof window !== 'undefined' && window.speechSynthesis) window.speechSynthesis.cancel();
     setIsOpen(false);
     setInput('');
   };
