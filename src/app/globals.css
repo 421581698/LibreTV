@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================================
+   1. 全局变量与配色
+   ========================================== */
 :root {
   --c-page: 246 247 249;
   --c-surface: 255 255 255;
@@ -47,6 +50,7 @@ body, main, #__next { background-color: transparent !important; }
 body { background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%) !important; }
 .dark body { background: linear-gradient(135deg, #111111 0%, #000000 100%) !important; }
 
+/* 2. 基础背景与页头定制 */
 main h1, .text-transparent.bg-clip-text.text-4xl, .text-transparent.bg-clip-text.text-5xl, .text-transparent.bg-clip-text.text-6xl { display: none !important; }
 main { padding-top: 10px !important; }
 header a[href="/"] > * { display: none !important; }
@@ -58,6 +62,7 @@ header a[href="/"]::before {
   border-radius: 8px; margin-right: 8px; flex-shrink: 0 !important;
 }
 
+/* 3. 搜索框、去彩标签与防缩放 */
 input[type="text"], input[type="search"] {
   border-radius: 9999px 0 0 9999px !important; padding-left: 20px !important;
   border-right: none !important; outline: none !important; margin-right: -1px !important;
@@ -70,6 +75,7 @@ button[type="submit"], button:has(svg.lucide-search) {
   position: relative !important; z-index: 1 !important;
 }
 .dark button[type="submit"], .dark button:has(svg.lucide-search) { background-color: #27272a !important; }
+
 button[aria-selected="true"], button[aria-selected="false"] { border-radius: 9999px !important; padding: 6px 20px !important; }
 
 [class*="bg-blue-50"], [class*="bg-blue-100"], [class*="bg-purple"], [class*="bg-violet"], [class*="bg-fuchsia"], [class*="bg-pink"], [class*="bg-amber"], [class*="bg-yellow"], [class*="bg-orange"], [class*="text-purple"], [class*="text-amber"] { background-color: #f3f4f6 !important; color: #333333 !important; border: none !important; opacity: 1 !important; }
@@ -78,6 +84,7 @@ button[aria-selected="true"], button[aria-selected="false"] { border-radius: 999
 html, body, main { -webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; }
 .movie-card, .grid > div:has(img), button, a { touch-action: manipulation !important; }
 
+/* 4. 卡片毛玻璃与角标 */
 .grid > div:has(img), .movie-card {
   background-color: rgba(255, 255, 255, 0.55) !important; backdrop-filter: blur(16px) !important; -webkit-backdrop-filter: blur(16px) !important;
   border: 1px solid rgba(255, 255, 255, 0.6) !important; border-radius: 16px !important; overflow: hidden !important;
@@ -109,6 +116,7 @@ html, body, main { -webkit-text-size-adjust: 100% !important; text-size-adjust: 
   .grid > div:has(img):hover, .movie-card:hover { transform: translateY(-6px) !important; box-shadow: 0 16px 32px rgba(0, 0, 0, 0.15) !important; }
 }
 
+/* 5. 播放器与选集 */
 button[class*="episode"], .episode-btn { border-radius: 12px !important; padding: 8px 16px !important; font-weight: 500 !important; }
 button[class*="episode"]:hover, .episode-btn:hover { opacity: 0.72 !important; }
 button[class*="episode"].active, .episode-btn.active { background-color: #e63921 !important; color: #fff !important; opacity: 1 !important; }
@@ -118,6 +126,7 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
 .art-setting-panel, .art-notice { border-radius: 16px !important; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2) !important; border: 1px solid rgba(0, 0, 0, 0.1) !important; background-color: rgba(255, 255, 255, 0.9) !important; backdrop-filter: blur(16px) !important; }
 .dark .art-setting-panel, .dark .art-notice { border: 1px solid rgba(255, 255, 255, 0.1) !important; background-color: rgba(30, 30, 30, 0.9) !important; }
 
+/* 6. AI 聊天面板 */
 .ai-chat-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: transparent; z-index: 99995; }
 .ai-chat-panel {
   position: fixed; bottom: 100px; left: 0; right: 0; margin: 0 auto; width: calc(100vw - 40px); max-width: 360px;
@@ -136,32 +145,99 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
 .ai-chat-input-area { padding: 12px; display: flex; align-items: center; gap: 8px; border-top: 1px solid rgba(255, 255, 255, 0.08); background: rgba(0, 0, 0, 0.2); }
 .ai-chat-input-area input { flex: 1; padding: 10px 16px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.1); outline: none; background-color: rgba(0, 0, 0, 0.3); color: #ffffff; font-size: 16px !important; }
 
-.ai-orb-container { position: fixed; width: 90px; height: 60px; z-index: 99990; cursor: grab; user-select: none; -webkit-user-select: none; isolation: isolate; bottom: max(30px, env(safe-area-inset-bottom, 0px) + 16px); right: 20px; transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
+/* 7. iOS 18 动态水波呼吸玻璃球 */
+.ai-orb-container {
+  position: fixed; 
+  width: 100px; 
+  height: 75px; 
+  z-index: 99990; 
+  cursor: grab; 
+  user-select: none; 
+  -webkit-user-select: none;
+  isolation: isolate; 
+  bottom: max(30px, env(safe-area-inset-bottom, 0px) + 16px); 
+  right: 20px;
+  transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
 .ai-orb-container:active { cursor: grabbing; }
-.ai-orb { width: 100%; height: 100%; border-radius: 30px; position: relative; overflow: hidden; pointer-events: none; background: #000000 !important; box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.4), inset 0 -20px 30px -10px rgba(255, 255, 255, 0.1), 0 10px 30px rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
-.ai-orb-container:hover .ai-orb { transform: scale(1.05); }
-.ai-orb::after { content: ''; position: absolute; bottom: -30px; left: -50%; width: 200%; height: 120%; background: radial-gradient(ellipse at 30% 80%, rgba(255, 0, 80, 0.6) 0%, transparent 50%), radial-gradient(ellipse at 50% 90%, rgba(255, 200, 0, 0.8) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, rgba(0, 150, 255, 0.6) 0%, transparent 50%); filter: blur(16px); animation: siri-aurora 4s ease-in-out infinite alternate; }
-.ai-orb::before { content: ''; position: absolute; top: 2px; left: 10%; width: 80%; height: 30%; background: linear-gradient(to bottom, rgba(255, 255, 255, 0.3) 0%, transparent 100%); border-radius: 50%; filter: blur(2px); pointer-events: none; }
-@keyframes siri-aurora { 0% { transform: rotate(0deg) scale(1); opacity: 0.8; } 50% { transform: rotate(3deg) scaleY(1.1); opacity: 1; } 100% { transform: rotate(-3deg) scale(1); opacity: 0.9; } }
 
-.voice-btn { background-color: #ffffff !important; color: #000000 !important; border: none !important; border-radius: 20px !important; width: 44px; height: 36px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-right: 8px; transition: all 0.2s; }
-.voice-btn.recording { background-color: #ff3b30 !important; color: #ffffff !important; animation: pulse 1.5s infinite; }
+.ai-orb {
+  width: 100%; 
+  height: 100%; 
+  border-radius: 50%; 
+  position: relative; 
+  overflow: hidden; 
+  pointer-events: none;
+  background: #000000 !important; 
+  box-shadow: inset 0 -1px 3px rgba(255, 255, 255, 0.8), inset 0 2px 5px rgba(255, 255, 255, 0.1), inset 0 -20px 30px rgba(255, 255, 255, 0.15), inset 0 15px 25px rgba(0, 0, 0, 0.9), 0 15px 35px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); 
+  animation: orb-breathe 4s ease-in-out infinite alternate;
+}
+
+.ai-orb::after {
+  content: ''; position: absolute; top: 45%; left: -10%; width: 120%; height: 25%;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 100, 50, 0.7) 20%, rgba(0, 150, 255, 0.9) 35%, #ffffff 50%, rgba(0, 150, 255, 0.9) 65%, rgba(255, 100, 50, 0.7) 80%, transparent 100%);
+  filter: blur(8px); border-radius: 50%;
+  animation: water-wave 3s ease-in-out infinite alternate;
+}
+
+.ai-orb::before {
+  content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; 
+  background: linear-gradient(45deg, transparent 40%, rgba(255, 255, 255, 0.15) 45%, rgba(255, 255, 255, 0.4) 50%, rgba(255, 255, 255, 0.15) 55%, transparent 60%);
+  pointer-events: none;
+  animation: light-sweep 6s ease-in-out infinite;
+}
+
+/* Hover 悬浮暂停 */
+.ai-orb-container:hover .ai-orb,
+.ai-orb-container:hover .ai-orb::before,
+.ai-orb-container:hover .ai-orb::after { 
+  animation-play-state: paused !important; 
+}
+
+/* 拖拽时动态 class 暂停伪元素 */
+.ai-orb-container.is-dragging .ai-orb,
+.ai-orb-container.is-dragging .ai-orb::before,
+.ai-orb-container.is-dragging .ai-orb::after {
+  animation-play-state: paused !important;
+}
+
+/* 动画关键帧 */
+@keyframes orb-breathe { 0% { transform: scale(1); } 100% { transform: scale(1.03); } }
+@keyframes water-wave { 0% { transform: translateY(-2px) scaleY(0.25) scaleX(0.9) rotate(-2deg); opacity: 0.8; } 100% { transform: translateY(2px) scaleY(0.35) scaleX(1.1) rotate(2deg); opacity: 1; } }
+@keyframes light-sweep { 0% { transform: translate(-30%, -30%); } 20% { transform: translate(30%, 30%); } 100% { transform: translate(30%, 30%); } }
+
+/* 小屏适配 */
+@media (max-width: 430px) {
+  .ai-orb-container { width: 85px; height: 64px; bottom: max(20px, env(safe-area-inset-bottom, 0px) + 12px); right: 15px; }
+}
+@media (max-width: 340px) {
+  .ai-orb-container { width: 75px; height: 56px; }
+}
+
+/* 8. 语音面板和麦克风按钮 */
+.voice-btn {
+  background-color: #ffffff !important; color: #000000 !important;
+  border: none !important; border-radius: 20px !important; 
+  width: 44px; height: 36px; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-right: 8px; transition: all 0.2s;
+}
+.voice-btn.recording {
+  background-color: #ff3b30 !important; color: #ffffff !important;
+  animation: pulse 1.5s infinite;
+}
 @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
 .ai-voice-settings { padding: 12px; background: rgba(255, 255, 255, 0.05); border-bottom: 1px solid rgba(255, 255, 255, 0.1); font-size: 13px; color: #ddd; }
 .ai-voice-settings select { background: rgba(0,0,0,0.5); color: white; border: 1px solid #444; border-radius: 4px; padding: 4px; width: 60%; }
 .ai-voice-settings input[type="range"] { flex: 1; accent-color: #fff; }
 
-@media (max-width: 430px) {
-  .ai-orb-container { width: 75px; height: 50px; bottom: max(20px, env(safe-area-inset-bottom, 0px) + 12px); right: 15px; }
-  .ai-orb { border-radius: 25px; }
-  .ai-chat-panel { max-height: calc(var(--app-height, 100vh) - 140px); bottom: max(80px, env(safe-area-inset-bottom, 0px) + 40px); }
-}
-@media (max-width: 340px) {
-  .ai-orb-container { width: 70px; height: 46px; }
-  .ai-orb { border-radius: 23px; }
-}
+/* 9. 无障碍关闭动画 */
 @media (prefers-reduced-motion: reduce) {
-  .ai-orb::after, .voice-btn.recording { animation: none !important; }
+  .ai-orb, .ai-orb::before, .ai-orb::after, .voice-btn.recording {
+    animation: none !important;
+    transition: none !important;
+  }
   .ai-chat-panel { transition: none !important; }
 }
