@@ -287,7 +287,7 @@ export default function AIFloatingBall() {
               window.dispatchEvent(new CustomEvent('friday-action-search', { detail: args.keyword }));
             }
           } else if (toolName === 'fetch_and_add_source') {
-            executeAgentFetchSources(reader.signal);
+            executeAgentFetchSources(); 
           } else if (toolName === 'add_video_source' && args.name && args.api_url) {
             updateMessages(prev => [...prev, {
               id: simpleUid(), role: 'assistant', type: 'system',
