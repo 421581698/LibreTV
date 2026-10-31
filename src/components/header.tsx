@@ -36,7 +36,7 @@ export function Header({ showSearch = false }: { showSearch?: boolean }) {
   };
 
   return (
-    <>
+    <React.Fragment> 
       <AIFloatingBall />
       <header className="sticky top-0 z-40 bg-surface/90 backdrop-blur border-b border-line">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-3">
@@ -104,6 +104,15 @@ export function Header({ showSearch = false }: { showSearch?: boolean }) {
 
           <div className="flex-1 sm:hidden" />
 
+         <button
+          onClick={() => {
+            if (typeof window !== 'undefined') window.__FRIDAY_PENDING_OPEN__ = true;
+            window.dispatchEvent(new CustomEvent('toggle-friday-panel', { detail: { reset: false } }));
+          }}
+          className="text-sm font-bold text-primary hover:text-primary-hover transition-colors cursor-pointer mr-2"
+        >
+          Friday
+        </button> 
           <nav className="flex items-center gap-1 ml-auto">
             <HeaderLink href="/live" active={pathname === '/live'}>
               直播
@@ -127,10 +136,11 @@ export function Header({ showSearch = false }: { showSearch?: boolean }) {
 
       <SourceManagerDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <HistoryPanel open={historyOpen} onClose={() => setHistoryOpen(false)} />
-    </>
+    {/* 🔥 挂载 AI 组件 */}
+      <AIFloatingBall />
+    </React.Fragment>
   );
 }
-
 function HeaderLink({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
   return (
     <Link
