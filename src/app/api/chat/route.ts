@@ -1,31 +1,62 @@
-export async function OPTIONS() {
+export async function OPTIONS(req: Request) {
+  const origin = req.headers.get('origin') || '*';
   return new Response(null, {
     headers: {
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': origin,
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Agent-Action',
       'Access-Control-Max-Age': '86400',
     },
   });
+}
+
+function sanitizeMessages(rawMessages: any[]) {
+  if (!Array.isArray(rawMessages) || rawMessages.length === 0) {
+    return [{ role: 'user', content: '你好' }];
+  }
+  const cleaned: any[] = [];
+  let lastRole = '';
+  for (const msg of rawMessages) {
+    if (!msg || !msg.role || !msg.content || String(msg.content).trim() === '') continue;
+    if (msg.role === lastRole && (msg.role === 'user' || msg.role === 'assistant')) {
+      cleaned[cleaned.length - 1].content += '\n' + String(msg.content);
+    } else {
+      cleaned.push({ role: msg.role, content: String(msg.content) });
+      lastRole = msg.role;
+    }
+  }
+  if (!cleaned.some(m => m.role === 'user')) {
+    cleaned.push({ role: 'user', content: '继续' });
+  }
+  return cleaned;
 }
 
 export async function POST(req: Request) {
   try {
     const { messages, action } = await req.json();
     const apiKey = process.env.ZHIPU_API_KEY;
-    
-    if (!apiKey) throw new Error("Missing ZHIPU_API_KEY.");
+    if (!apiKey) return new Response(JSON.stringify({ error: "未配置 ZHIPU_API_KEY" }), { status: 500 });
 
-    let finalMessages = messages || [];
+    const reqHeader = req.headers.get('X-Agent-Action');
+    const referer = req.headers.get('referer') || '';
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || '';
+
+    if (action === 'fetch_sources') {
+      const allowReferer = referer === '' || (siteUrl && referer.includes(siteUrl));
+      if (reqHeader !== 'enable' || !allowReferer) {
+        return new Response(JSON.stringify({ error: "非法调用" }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+      }
+    }
+
+    let finalMessages = sanitizeMessages(messages || []);
+
     if (finalMessages.length > 12) {
-      const systemMsgs = finalMessages.filter((m: any) => m.role === 'system');
+      const systemMsgs = finalMessages.filter((m: any) => m.role === 'system').slice(-2);
       const chatMsgs = finalMessages.filter((m: any) => m.role !== 'system').slice(-8);
       finalMessages = [...systemMsgs, ...chatMsgs];
     }
 
-    if (action && action !== 'fetch_sources') {
-      return new Response(JSON.stringify({ error: 'Invalid action' }), { status: 400 });
-    }
+    if (action && action !== 'fetch_sources') return new Response(JSON.stringify({ error: 'Invalid action' }), { status: 400 });
 
     const tools = [
       { type: "function", function: { name: "search_movie", description: "搜索电影。", parameters: { type: "object", properties: { keyword: { type: "string" } }, required: ["keyword"] } } },
@@ -35,37 +66,29 @@ export async function POST(req: Request) {
     ];
 
     let systemPrompt = '你是管家。用户要搜电影调用 search_movie。若要找新源，调用 fetch_and_add_source。';
-    
+
     if (action === 'fetch_sources') {
       let githubData = [];
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
-      
       try {
-        const ghRes = await fetch('https://raw.githubusercontent.com/gaotianliuyun/gao/master/js.json', {
-          signal: controller.signal 
-        });
-        if (!ghRes.ok) throw new Error(`GitHub HTTP ${ghRes.status}`);
-        const data = await ghRes.json();
-        githubData = data.sites.slice(0, 10).map((s: any) => ({ name: s.name, api: s.api }));
+        const ghRes = await fetch('https://raw.githubusercontent.com/gaotianliuyun/gao/master/js.json', { signal: controller.signal });
+        if (ghRes.ok) {
+          const data = await ghRes.json();
+          githubData = data.sites.slice(0, 10).map((s: any) => ({ name: s.name, api: s.api }));
+        }
       } catch (e) {
-        console.warn("Github拉取失败或超时", e);
-      } finally {
-        clearTimeout(timeoutId);
-      }
+        console.warn("Github拉取失败，使用真实HTTPS兜底数据");
+        githubData = [
+          { name: "非凡资源", api: "https://cj.ffzyapi.com/api.php/provide/vod/" },
+          { name: "量子资源", api: "https://cj.lziapi.com/api.php/provide/vod/" }
+        ];
+      } finally { clearTimeout(timeoutId); }
 
       const recentChat = finalMessages.filter((m: any) => m.role !== 'system').slice(-6);
-      const globalSystem = finalMessages.filter((m: any) => m.role === 'system' && !m.content.includes('系统为你抓取到')); 
-      
-      finalMessages = [
-        ...globalSystem,
-        ...recentChat,
-        { 
-          role: 'system', 
-          content: githubData.length > 0 
-            ? `系统为你抓取到以下源列表，请立刻调用 add_video_source 挑选一个添加，绝对不要回复多余的话：${JSON.stringify(githubData)}`
-            : '系统抓取源失败，请告诉用户网络不佳。'
-        }
+      const globalSystem = finalMessages.filter((m: any) => m.role === 'system' && !m.content.includes('系统为你抓取到'));
+      finalMessages = [...globalSystem, ...recentChat,
+        { role: 'system', content: `系统为你抓取到以下源列表，请立刻调用 add_video_source 挑选一个添加：${JSON.stringify(githubData)}` }
       ];
       systemPrompt = '你正在执行自动添加源的任务，必须直接调用 add_video_source。';
     }
@@ -75,38 +98,30 @@ export async function POST(req: Request) {
     const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
-      body: JSON.stringify({
-        model: 'glm-4-flash', 
-        messages: [ { role: 'system', content: systemPrompt }, ...finalMessages ],
-        tools: finalTools,
-        stream: true
-      })
+      body: JSON.stringify({ model: 'glm-4-flash', messages: [{ role: 'system', content: systemPrompt }, ...finalMessages], tools: finalTools, stream: true })
     });
 
     if (!response.ok) {
-        const errText = await response.text();
-        return new Response(JSON.stringify({ error: `上游 API 报错: ${errText}` }), { status: response.status, headers: { 'Content-Type': 'application/json' } });
+      const errText = await response.text();
+      if (response.body) {
+        try { await response.body.cancel(); } catch { /* ignore */ }
+      }
+      return new Response(JSON.stringify({ error: `上游报错: ${errText}` }), { status: response.status, headers: { 'Content-Type': 'application/json' } });
     }
 
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
-        const errData = await response.text();
-        return new Response(JSON.stringify({ error: `API 返回了 JSON 错误: ${errData}` }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+      const errData = await response.text();
+      if (response.body) {
+        try { await response.body.cancel(); } catch { /* ignore */ }
+      }
+      return new Response(JSON.stringify({ error: `API格式错误: ${errData}` }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
 
     return new Response(response.body, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'Access-Control-Allow-Origin': '*'
-      }
+      headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' }
     });
-
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), { 
-      status: 500, 
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } 
-    });
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 }
