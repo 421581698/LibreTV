@@ -1,11 +1,13 @@
 name = "libretv"
 main = ".open-next/worker.js"
+# 兼容日期更新到较新版本，支持 process.env
 compatibility_date = "2024-12-01"
-compatibility_flags = ["nodejs_compat"] 
-assets = { directory = ".open-next/assets" }
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
 
 [vars]
-PASSWORD = "123456"
-# 🚨 新增的变量
 CMS_SEARCH_API = "https://caiji.dyttzyapi.com/api.php/provide/vod"
 LLM_MODEL = "glm-4-flash"
