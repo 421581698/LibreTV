@@ -481,7 +481,12 @@ export async function searchSources(
 
         // 过滤掉明显非影视类别；成人内容只在用户开启过滤时移除。
         if (outcome.ok) {
+          const seenVodIds = new Set<string>();
           outcome.list = outcome.list.filter((item) => {
+            // 同一资源站内重复 vod_id 只保留首次出现的条目。
+            if (seenVodIds.has(item.vodId)) return false;
+            seenVodIds.add(item.vodId);
+
             const category = item.typeName || '';
             if (/足球|篮球|网球|排球|棒球|体育|赛事/.test(category)) {
               return false;
