@@ -133,7 +133,8 @@ async function fetchHeadersOnly(
   url: string,
   timeoutMs: number,
   referer?: string,
-  range = false
+  range = false,
+  requestSignal?: AbortSignal
 ): Promise<FetchHeadResult> {
   const headers: Record<string, string> = {
     'User-Agent': UA,
@@ -149,6 +150,7 @@ async function fetchHeadersOnly(
     retries: 0,
     headers,
     allowPrivate: true,
+    signal: requestSignal,
   });
   const contentType = res.headers.get('content-type') || '';
   const isM3u8 =
@@ -222,7 +224,7 @@ function elapsed(start: number): number {
  * 与分片可达性检查是两次独立请求（前者只取响应头即 cancel）。
  * 服务器忽略 Range 时按整段返回，读到 THROUGHPUT_BYTES 即停，不影响估算。
  */
-async function measureThroughput(segmentUrl: string, referer?: string): Promise<number | undefined> {
+async function measureThroughput(segmentUrl: string, referer?: string, requestSignal?: AbortSignal): Promise<number | undefined> {
   const start = performance.now();
   try {
     const { res } = await fetchUpstreamWithMeta(segmentUrl, {
@@ -235,6 +237,7 @@ async function measureThroughput(segmentUrl: string, referer?: string): Promise<
         ...(referer ? { Referer: referer } : {}),
       },
       allowPrivate: true,
+      signal: requestSignal,
     });
     if (!res.ok || !res.body) return undefined;
     const reader = res.body.getReader();
@@ -261,7 +264,7 @@ async function measureThroughput(segmentUrl: string, referer?: string): Promise<
 }
 
 /** 两级探测：manifest →（master 时穿透 variant）→ 分片 */
-async function probeOne(url: string): Promise<ProbeOutcome> {
+async function probeOne(url: string, requestSignal?: AbortSignal): Promise<ProbeOutcome> {
   const start = performance.now();
   const deadline = start + URL_BUDGET_MS;
   const remaining = () => deadline - performance.now();
@@ -271,7 +274,7 @@ async function probeOne(url: string): Promise<ProbeOutcome> {
 
   try {
     // 第一级：入口地址
-    const entry = await fetchHeadersOnly(url, timeout(), referer);
+    const entry = await fetchHeadersOnly(url, timeout(), referer, false, requestSignal);
     if (!entry.ok) {
       return { url, ok: false, status: entry.status, ms: elapsed(start), error: `入口响应 ${entry.status}` };
     }
@@ -323,7 +326,7 @@ async function probeOne(url: string): Promise<ProbeOutcome> {
       return { url, ok: false, ms: elapsed(start), error: 'playlist 中没有可用的流地址' };
     }
     if (variant !== null) {
-      const variantRes = await fetchHeadersOnly(variant, timeout(), referer);
+      const variantRes = await fetchHeadersOnly(variant, timeout(), referer, false, requestSignal);
       const variantText = (variantRes.text || '').replace(/^\uFEFF/, '').trimStart();
       if (!variantRes.ok || !HEADER_OK.test(variantText)) {
         return {
@@ -350,7 +353,8 @@ async function probeOne(url: string): Promise<ProbeOutcome> {
       segmentUrl,
       Math.min(timeout(), SEGMENT_TIMEOUT_MS),
       referer,
-      true
+      true,
+      requestSignal
     );
     // ms 只统计分片往返：三级累计耗时当作「延迟」对用户没有参考意义
     const segmentMs = elapsed(segmentStart);
@@ -368,7 +372,7 @@ async function probeOne(url: string): Promise<ProbeOutcome> {
     // 分片可达：采样实际吞吐，识别「可达但限速」的源（绿点却播不了的主因）
     const kbps =
       remaining() > THROUGHPUT_MIN_REMAINING_MS
-        ? await measureThroughput(segmentUrl, referer)
+        ? await measureThroughput(segmentUrl, referer, requestSignal)
         : undefined;
     return {
       url,
@@ -438,7 +442,7 @@ function ndjsonResponse(urls: string[], reqSignal: AbortSignal): Response {
         while (cursor < pending.length) {
           if (closed || reqSignal.aborted) return;
           const url = pending[cursor++];
-          const outcome = await withHostLimit(url, () => probeOne(url));
+          const outcome = await withHostLimit(url, () => probeOne(url, reqSignal));
           if (closed || reqSignal.aborted) return;
           cacheSet(url, outcome);
           send(outcome);
