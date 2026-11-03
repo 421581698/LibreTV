@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   verify:
@@ -24,6 +24,16 @@ jobs:
       # 仓库目前没有提交 package-lock.json；先生成 lock，再使用 npm ci。
       - name: Generate dependency lock
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Commit dependency lockfile
+        if: github.event_name == 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "build: commit npm dependency lockfile"
+            git push
+          fi
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
       - name: TypeScript
