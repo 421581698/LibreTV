@@ -13,7 +13,7 @@ import {
 import { z } from "zod";
 
 import { searchSources, mergeSearchResults } from "@/lib/search";
-import type { SourceConfig } from "@/lib/types";
+import type { SearchResultItem, SourceConfig } from "@/lib/types";
 import { guardRequest } from "@/lib/api-guard";
 
 export const runtime = "nodejs";
@@ -45,19 +45,7 @@ const requestSchema = z.object({
   filterAdult: z.boolean().default(true),
 });
 
-type SearchItem = {
-  sourceKey?: string;
-  sourceName?: string;
-  vodId?: string | number;
-  name?: string;
-  pic?: string;
-  typeName?: string;
-  year?: string | number;
-  area?: string;
-  remarks?: string;
-  sourceUrl?: string;
-  isAdult?: boolean;
-};
+type SearchItem = SearchResultItem;
 
 type SearchOutcome = {
   sourceKey: string;
@@ -410,20 +398,16 @@ export async function POST(request: Request) {
       }
 
       try {
-        const outcomes = (
-          await searchSources(
-            keyword,
-            sources as SourceConfig[],
-            {
-              filterAdult: payload.filterAdult,
-              signal: request.signal,
-            },
-          )
-        ) as SearchOutcome[];
+        const outcomes = await searchSources(
+          keyword,
+          sources as SourceConfig[],
+          {
+            filterAdult: payload.filterAdult,
+            signal: request.signal,
+          },
+        );
 
-        const merged = mergeSearchResults(
-          outcomes,
-        ) as SearchItem[];
+        const merged = mergeSearchResults(outcomes);
 
         const allResults = Array.isArray(merged)
           ? merged.filter(
