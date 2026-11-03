@@ -275,7 +275,7 @@ function ndjsonResponse(
       const send = (event: SearchStreamEvent) => {
         if (cancelled || abortController.signal.aborted) return;
         try {
-          streamController.enqueue(encoder.encode(`${JSON.stringify(event)}\\n`));
+          streamController.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
         } catch {
           cancelled = true;
           abortController.abort();
