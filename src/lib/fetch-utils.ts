@@ -88,13 +88,18 @@ export async function fetchUpstream(url: string, options: FetchOptions = {}): Pr
 /** 同 fetchUpstream，额外返回重定向后的最终 URL */
 export async function fetchUpstreamWithMeta(url: string, options: FetchOptions = {}): Promise<FetchResult> {
   const { timeoutMs = 8000, retries = 0, safeRedirects = true, allowPrivate = false, ...init } = options;
-  // 外部 signal（调用方的总死线中断）与单次超时合并：任一触发即中断请求
-  const timeoutSignal = AbortSignal.timeout(timeoutMs);
-  const signal = init.signal
-    ? AbortSignal.any([init.signal, timeoutSignal])
-    : timeoutSignal;
   let lastError: unknown;
   for (let attempt = 0; attempt <= retries; attempt++) {
+    // 每次重试都创建新的超时信号，避免复用已 abort 的 signal 导致重试立即失败。
+    if (init.signal?.aborted) {
+      throw init.signal.reason instanceof Error
+        ? init.signal.reason
+        : new Error('请求已取消');
+    }
+    const timeoutSignal = AbortSignal.timeout(timeoutMs);
+    const signal = init.signal
+      ? AbortSignal.any([init.signal, timeoutSignal])
+      : timeoutSignal;
     try {
       if (!safeRedirects) {
         const res = await fetch(url, {
@@ -104,10 +109,11 @@ export async function fetchUpstreamWithMeta(url: string, options: FetchOptions =
         });
         return { res, finalUrl: res.url || url };
       }
-      // 手动逐跳跟随，每一跳重新过 SSRF 校验
+      // 手动逐跳跟随，每一跳重新过 SSRF 校验。
       return await fetchWithSafeRedirects(url, { ...init, signal }, { allowPrivate });
     } catch (err) {
       lastError = err;
+      if (init.signal?.aborted) break;
     }
   }
   throw lastError instanceof Error ? lastError : new Error('上游请求失败');
