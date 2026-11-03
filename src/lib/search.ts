@@ -489,7 +489,7 @@ export async function searchSources(
             if (
               options?.filterAdult &&
               (item.isAdult === true ||
-                /成人|色情|情色|福利视频|无码|三级|伦理|\\bAV\\b/i.test(
+                /成人|色情|情色|福利视频|无码|三级|伦理|\bAV\b/i.test(
                   `${item.typeName || ''} ${item.name || ''}`,
                 ))
             ) {
