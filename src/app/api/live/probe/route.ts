@@ -418,6 +418,7 @@ function ndjsonResponse(urls: string[], reqSignal: AbortSignal): Response {
   }
 
   let closed = false;
+  let streamClosed = false;
   const cancelController = new AbortController();
   const probeSignal = AbortSignal.any([reqSignal, cancelController.signal]);
   const onRequestAbort = () => {
@@ -435,8 +436,10 @@ function ndjsonResponse(urls: string[], reqSignal: AbortSignal): Response {
         }
       };
       const finish = () => {
-        if (closed) return;
+        if (streamClosed) return;
+        streamClosed = true;
         closed = true;
+        reqSignal.removeEventListener('abort', onRequestAbort);
         try { controller.close(); } catch { /* 已关闭 */ }
       };
       if (reqSignal.aborted) onRequestAbort();
@@ -462,6 +465,7 @@ function ndjsonResponse(urls: string[], reqSignal: AbortSignal): Response {
     cancel() {
       // 客户端主动断开时同步中止正在进行的上游探测。
       closed = true;
+      streamClosed = true;
       cancelController.abort(new DOMException('客户端已断开', 'AbortError'));
       reqSignal.removeEventListener('abort', onRequestAbort);
     },
@@ -540,6 +544,7 @@ export async function POST(req: Request) {
       if (req.signal.aborted) return;
       const url = pending[cursor++];
       const outcome = await withHostLimit(url, () => probeOne(url, req.signal));
+      if (req.signal.aborted) return;
       cacheSet(url, outcome);
       outcomes.set(url, outcome);
     }
