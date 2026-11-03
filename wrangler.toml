@@ -11,3 +11,7 @@ assets = { directory = ".open-next/assets" }
 # 🚨 新增的变量
 CMS_SEARCH_API = "https://caiji.dyttzyapi.com/api.php/provide/vod"
 LLM_MODEL = "glm-4-flash"
+
+[previews.vars]
+CMS_SEARCH_API = "https://caiji.dyttzyapi.com/api.php/provide/vod"
+LLM_MODEL = "glm-4-flash"
