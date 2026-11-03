@@ -54,40 +54,31 @@ export async function fetchWithSafeRedirects(
   const { allowPrivate = false, headerTimeoutMs } = options;
   let current = url;
   const controller = new AbortController();
-  const abortFromExternal = () => controller.abort(init.signal?.reason);
+  const externalSignal = init.signal;
+  const abortFromExternal = () => controller.abort(externalSignal?.reason);
 
-  if (init.signal) {
-    if (init.signal.aborted) controller.abort(init.signal.reason);
-    else init.signal.addEventListener('abort', abortFromExternal, { once: true });
+  if (externalSignal?.aborted) {
+    controller.abort(externalSignal.reason);
+  } else {
+    externalSignal?.addEventListener('abort', abortFromExternal, { once: true });
   }
 
   try {
     for (let hop = 0; hop <= MAX_REDIRECT_HOPS; hop++) {
       if (controller.signal.aborted) {
-        throw controller.signal.reason instanceof Error
-          ? controller.signal.reason
-          : new Error('请求已取消');
+        throw controller.signal.reason ?? new DOMException('请求已取消', 'AbortError');
       }
 
       const verdict = allowPrivate
         ? await checkLiveUrlAllowed(current)
         : await checkUpstreamAllowed(current);
-
-      // DNS 校验期间客户端也可能断开；校验完成后再次检查，避免继续发起请求。
-      if (controller.signal.aborted) {
-        throw controller.signal.reason instanceof Error
-          ? controller.signal.reason
-          : new Error('请求已取消');
-      }
-
       if (!verdict.ok) {
         throw new Error(`跳转目标被拒绝: ${verdict.reason}`);
       }
 
       const timer = headerTimeoutMs
-        ? setTimeout(() => controller.abort(), headerTimeoutMs)
+        ? setTimeout(() => controller.abort(new DOMException('上游响应头超时', 'TimeoutError')), headerTimeoutMs)
         : null;
-
       let res: Response;
       try {
         res = await fetch(current, {
@@ -105,12 +96,18 @@ export async function fetchWithSafeRedirects(
 
       const location = res.headers.get('location');
       if (!location) return { res, finalUrl: current };
+
+      try {
+        await res.body?.cancel();
+      } catch {
+        // 重定向 body 取消失败不改变目标地址校验结果。
+      }
+
       current = new URL(location, current).href;
     }
-
     throw new Error('重定向次数过多');
   } finally {
-    init.signal?.removeEventListener('abort', abortFromExternal);
+    externalSignal?.removeEventListener('abort', abortFromExternal);
   }
 }
 
@@ -122,17 +119,13 @@ export async function fetchUpstream(url: string, options: FetchOptions = {}): Pr
 export async function fetchUpstreamWithMeta(url: string, options: FetchOptions = {}): Promise<FetchResult> {
   const { timeoutMs = 8000, retries = 0, safeRedirects = true, allowPrivate = false, ...init } = options;
   let lastError: unknown;
+
   for (let attempt = 0; attempt <= retries; attempt++) {
-    // 每次重试都创建新的超时信号，避免复用已 abort 的 signal 导致重试立即失败。
-    if (init.signal?.aborted) {
-      throw init.signal.reason instanceof Error
-        ? init.signal.reason
-        : new Error('请求已取消');
-    }
     const timeoutSignal = AbortSignal.timeout(timeoutMs);
     const signal = init.signal
       ? AbortSignal.any([init.signal, timeoutSignal])
       : timeoutSignal;
+
     try {
       if (!safeRedirects) {
         const res = await fetch(url, {
@@ -142,11 +135,10 @@ export async function fetchUpstreamWithMeta(url: string, options: FetchOptions =
         });
         return { res, finalUrl: res.url || url };
       }
-      // 手动逐跳跟随，每一跳重新过 SSRF 校验。
       return await fetchWithSafeRedirects(url, { ...init, signal }, { allowPrivate });
     } catch (err) {
       lastError = err;
-      if (init.signal?.aborted) break;
+      if (init.signal?.aborted) throw err;
     }
   }
   throw lastError instanceof Error ? lastError : new Error('上游请求失败');
