@@ -36,7 +36,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
       # tag 触发时强制 tag 与 package.json 版本一致，避免镜像标签与 /api/status 返回值不一致
       - name: 校验 tag 与 package.json 版本一致
@@ -49,7 +48,11 @@ jobs:
             exit 1
           fi
 
-      - run: npm ci
+      - name: Generate dependency lock
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Generate dependency lock
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
       - run: npm run typecheck
       - run: npm test
 
