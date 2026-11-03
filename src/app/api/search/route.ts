@@ -4,6 +4,7 @@ import {
   mergeSearchResults,
 } from '@/lib/search';
 import type { SourceConfig } from '@/lib/types';
+import { guardRequest } from '@/lib/api-guard';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -211,6 +212,9 @@ function validateSources(
 }
 
 export async function POST(req: NextRequest) {
+  const guarded = guardRequest(req);
+  if (guarded) return guarded;
+
   try {
     if (req.signal.aborted) {
       return jsonError('请求已取消', 400);
