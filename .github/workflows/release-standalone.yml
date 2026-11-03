@@ -35,10 +35,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
-      - name: Generate dependency lock
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-      - run: npm ci --no-audit --no-fund
+      - run: npm ci
 
       # next.config.ts 只在 DOCKER_BUILD=1 时启用 output: 'standalone'
       - name: 构建 standalone 产物
