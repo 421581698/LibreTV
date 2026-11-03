@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import {
   searchSources,
   mergeSearchResults,
@@ -40,7 +40,7 @@ function jsonError(
  * 导致超大请求体被完整载入内存。
  */
 async function readLimitedBody(
-  req: NextRequest,
+  req: Request,
 ): Promise<string> {
   const contentLength = req.headers.get('content-length');
 
@@ -211,7 +211,7 @@ function validateSources(
   return sources;
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   const guarded = guardRequest(req);
   if (guarded) return guarded;
 
