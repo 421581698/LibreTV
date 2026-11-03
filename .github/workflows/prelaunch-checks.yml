@@ -1,0 +1,39 @@
+name: prelaunch-checks
+
+on:
+  push:
+    branches:
+      - fix/prelaunch-security-voice-2026-11-03
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # 仓库目前没有提交 package-lock.json；先生成 lock，再使用 npm ci。
+      - name: Generate dependency lock
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript
+        run: npm run typecheck
+      - name: ESLint
+        run: npm run lint
+      - name: Unit tests
+        run: npm test
+      - name: Production build
+        env:
+          PASSWORD: ci-test-password
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: npm run build
