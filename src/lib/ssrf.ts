@@ -1,4 +1,4 @@
-import dns from 'node:dns/promises';
+import { resolve4, resolve6 } from 'node:dns/promises';
 import { isIP } from 'node:net';
 
 /** 去掉 URL.hostname 对 IPv6 附加的方括号（"[::1]" → "::1"） */
@@ -100,8 +100,26 @@ export async function isBlockedByDNS(urlString: string): Promise<boolean> {
     if (/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname) || hostname.includes(':')) {
       return isPrivateIP(hostname);
     }
-    const result = await dns.lookup(hostname, { all: true });
-    return result.some((r) => isPrivateIP(r.address));
+    // Cloudflare Workers 不实现 dns.lookup；resolve4/resolve6 使用 Workers DNS API。
+    // ENODATA 只表示该地址族没有记录；其他解析错误一律 fail-closed。
+    const resolveFamily = async (resolver: typeof resolve4 | typeof resolve6) => {
+      try {
+        return await resolver(hostname);
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException)?.code;
+        if (code === 'ENODATA') return [];
+        throw error;
+      }
+    };
+
+    const [ipv4, ipv6] = await Promise.all([
+      resolveFamily(resolve4),
+      resolveFamily(resolve6),
+    ]);
+    const addresses = [...ipv4, ...ipv6];
+    // 没有任何 A/AAAA 记录时无法确认目标安全，拒绝请求。
+    if (addresses.length === 0) return true;
+    return addresses.some((address) => isPrivateIP(address));
   } catch {
     // DNS 失败必须 fail-closed：无法证明目标是公网地址时，不发起上游请求。
     return true;
