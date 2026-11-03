@@ -3,6 +3,15 @@ import { POST } from './route';
 import { SESSION_COOKIE, signSession } from '@/lib/auth';
 import type { SearchResponse, SearchStreamEvent, SourceConfig } from '@/lib/types';
 
+// 测试域名使用保留的 .test/.example 后缀；模拟公网 DNS 答案，
+// 让这些测试只验证路由与上游逻辑，不依赖 CI runner 的真实 DNS。
+vi.mock('node:dns/promises', () => ({
+  resolve4: async () => ['93.184.216.34'],
+  resolve6: async () => {
+    throw Object.assign(new Error('ENODATA'), { code: 'ENODATA' });
+  },
+}));
+
 /**
  * 聚合搜索接口单测：跨源聚合、同源去重、精确命中置顶、成人内容过滤、
  * 失败源不影响整体、SSRF 字面量拒绝。上游一律 mock fetch，无真实网络。
