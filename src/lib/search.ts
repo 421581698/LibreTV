@@ -373,6 +373,7 @@ export async function searchSources(
   options?: {
     filterAdult?: boolean;
     signal?: AbortSignal;
+    onOutcome?: (outcome: SourceSearchOutcome) => void;
   },
 ): Promise<SourceSearchOutcome[]> {
   const safeKeyword = safeString(
@@ -471,13 +472,40 @@ export async function searchSources(
     );
 
     const batchResults = await Promise.all(
-      batch.map(source =>
-        fetchFromSource(
+      batch.map(async (source) => {
+        const outcome = await fetchFromSource(
           safeKeyword,
           source,
           effectiveSignal,
-        ),
-      ),
+        );
+
+        // 过滤掉明显非影视类别；成人内容只在用户开启过滤时移除。
+        if (outcome.ok) {
+          outcome.list = outcome.list.filter((item) => {
+            const category = item.typeName || '';
+            if (/足球|篮球|网球|排球|棒球|体育|赛事/.test(category)) {
+              return false;
+            }
+            if (
+              options?.filterAdult &&
+              (item.isAdult === true ||
+                /成人|色情|情色|福利视频|无码|三级|伦理|\\bAV\\b/i.test(
+                  `${item.typeName || ''} ${item.name || ''}`,
+                ))
+            ) {
+              return false;
+            }
+            return true;
+          });
+        }
+
+        try {
+          options?.onOutcome?.(outcome);
+        } catch {
+          // 单个流式消费者回调失败不能中断其余来源的搜索。
+        }
+        return outcome;
+      }),
     );
 
     outcomes.push(...batchResults);
