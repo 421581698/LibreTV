@@ -418,6 +418,12 @@ function ndjsonResponse(urls: string[], reqSignal: AbortSignal): Response {
   }
 
   let closed = false;
+  const cancelController = new AbortController();
+  const probeSignal = AbortSignal.any([reqSignal, cancelController.signal]);
+  const onRequestAbort = () => {
+    closed = true;
+    cancelController.abort(reqSignal.reason);
+  };
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       const send = (o: ProbeOutcome) => {
@@ -433,7 +439,8 @@ function ndjsonResponse(urls: string[], reqSignal: AbortSignal): Response {
         closed = true;
         try { controller.close(); } catch { /* 已关闭 */ }
       };
-      reqSignal.addEventListener('abort', () => { closed = true; }, { once: true });
+      if (reqSignal.aborted) onRequestAbort();
+      else reqSignal.addEventListener('abort', onRequestAbort, { once: true });
 
       for (const o of cachedOutcomes) send(o);
 
@@ -442,7 +449,7 @@ function ndjsonResponse(urls: string[], reqSignal: AbortSignal): Response {
         while (cursor < pending.length) {
           if (closed || reqSignal.aborted) return;
           const url = pending[cursor++];
-          const outcome = await withHostLimit(url, () => probeOne(url, reqSignal));
+          const outcome = await withHostLimit(url, () => probeOne(url, probeSignal));
           if (closed || reqSignal.aborted) return;
           cacheSet(url, outcome);
           send(outcome);
@@ -453,8 +460,10 @@ function ndjsonResponse(urls: string[], reqSignal: AbortSignal): Response {
         .catch(finish);
     },
     cancel() {
-      // 客户端主动断开
+      // 客户端主动断开时同步中止正在进行的上游探测。
       closed = true;
+      cancelController.abort(new DOMException('客户端已断开', 'AbortError'));
+      reqSignal.removeEventListener('abort', onRequestAbort);
     },
   });
 
@@ -528,13 +537,15 @@ export async function POST(req: Request) {
   let cursor = 0;
   const worker = async () => {
     while (cursor < pending.length) {
+      if (req.signal.aborted) return;
       const url = pending[cursor++];
-      const outcome = await withHostLimit(url, () => probeOne(url));
+      const outcome = await withHostLimit(url, () => probeOne(url, req.signal));
       cacheSet(url, outcome);
       outcomes.set(url, outcome);
     }
   };
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, pending.length) }, worker));
+  if (req.signal.aborted) return jsonError('请求已取消', 499);
 
   return NextResponse.json(
     { results: urls.map((u) => outcomes.get(u)!) },
