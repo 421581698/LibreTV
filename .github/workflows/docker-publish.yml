@@ -50,8 +50,6 @@ jobs:
 
       - name: Generate dependency lock
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-      - name: Generate dependency lock
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
       - run: npm ci --no-audit --no-fund
       - run: npm run typecheck
       - run: npm test
