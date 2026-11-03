@@ -72,6 +72,9 @@ export async function fetchWithSafeRedirects(
       const verdict = allowPrivate
         ? await checkLiveUrlAllowed(current)
         : await checkUpstreamAllowed(current);
+      if (controller.signal.aborted) {
+        throw controller.signal.reason ?? new DOMException('请求已取消', 'AbortError');
+      }
       if (!verdict.ok) {
         throw new Error(`跳转目标被拒绝: ${verdict.reason}`);
       }
