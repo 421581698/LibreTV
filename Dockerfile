@@ -2,9 +2,8 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-COPY package.json .npmrc ./
-# 仓库暂未提交 package-lock.json，先生成锁文件再执行干净安装。
-RUN npm install --package-lock-only --ignore-scripts --no-audit --no-fund && npm ci --no-audit --no-fund
+COPY package.json package-lock.json .npmrc ./
+RUN npm ci --no-audit --no-fund
 
 COPY . .
 ENV DOCKER_BUILD=1
