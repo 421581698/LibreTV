@@ -14,6 +14,7 @@ import { z } from "zod";
 
 import { searchSources, mergeSearchResults } from "@/lib/search";
 import type { SourceConfig } from "@/lib/types";
+import { guardRequest } from "@/lib/api-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -267,6 +268,9 @@ function makeSearchId() {
 }
 
 export async function POST(request: Request) {
+  const authError = guardRequest(request);
+  if (authError) return authError;
+
   if (request.signal.aborted) {
     return jsonError("请求已取消", 499);
   }
