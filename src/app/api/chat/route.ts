@@ -13,7 +13,7 @@ import {
 import { z } from "zod";
 
 import { searchSources, mergeSearchResults } from "@/lib/search";
-import type { SearchResultItem, SourceConfig } from "@/lib/types";
+import type { SearchResultItem, SourceConfig, SourceSearchOutcome } from "@/lib/types";
 import { guardRequest } from "@/lib/api-guard";
 
 export const runtime = "nodejs";
@@ -47,14 +47,7 @@ const requestSchema = z.object({
 
 type SearchItem = SearchResultItem;
 
-type SearchOutcome = {
-  sourceKey: string;
-  ok: boolean;
-  list: SearchItem[];
-  error?: string;
-  timedOut?: boolean;
-  ms?: number;
-};
+type SearchOutcome = SourceSearchOutcome;
 
 type MovieDataPart = {
   searchId: string;
