@@ -53,32 +53,65 @@ export async function fetchWithSafeRedirects(
 ): Promise<FetchResult> {
   const { allowPrivate = false, headerTimeoutMs } = options;
   let current = url;
-  // headerTimeout 超时即 abort 内部 controller；外部 signal（调用方死线/客户端断开）链入同一 controller
   const controller = new AbortController();
+  const abortFromExternal = () => controller.abort(init.signal?.reason);
+
   if (init.signal) {
     if (init.signal.aborted) controller.abort(init.signal.reason);
-    else init.signal.addEventListener('abort', () => controller.abort(init.signal?.reason), { once: true });
+    else init.signal.addEventListener('abort', abortFromExternal, { once: true });
   }
-  for (let hop = 0; hop <= MAX_REDIRECT_HOPS; hop++) {
-    const verdict = allowPrivate
-      ? await checkLiveUrlAllowed(current)
-      : await checkUpstreamAllowed(current);
-    if (!verdict.ok) {
-      throw new Error(`跳转目标被拒绝: ${verdict.reason}`);
+
+  try {
+    for (let hop = 0; hop <= MAX_REDIRECT_HOPS; hop++) {
+      if (controller.signal.aborted) {
+        throw controller.signal.reason instanceof Error
+          ? controller.signal.reason
+          : new Error('请求已取消');
+      }
+
+      const verdict = allowPrivate
+        ? await checkLiveUrlAllowed(current)
+        : await checkUpstreamAllowed(current);
+
+      // DNS 校验期间客户端也可能断开；校验完成后再次检查，避免继续发起请求。
+      if (controller.signal.aborted) {
+        throw controller.signal.reason instanceof Error
+          ? controller.signal.reason
+          : new Error('请求已取消');
+      }
+
+      if (!verdict.ok) {
+        throw new Error(`跳转目标被拒绝: ${verdict.reason}`);
+      }
+
+      const timer = headerTimeoutMs
+        ? setTimeout(() => controller.abort(), headerTimeoutMs)
+        : null;
+
+      let res: Response;
+      try {
+        res = await fetch(current, {
+          ...init,
+          signal: controller.signal,
+          redirect: 'manual',
+        });
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+
+      if (!REDIRECT_STATUSES.has(res.status)) {
+        return { res, finalUrl: current };
+      }
+
+      const location = res.headers.get('location');
+      if (!location) return { res, finalUrl: current };
+      current = new URL(location, current).href;
     }
-    const timer = headerTimeoutMs ? setTimeout(() => controller.abort(), headerTimeoutMs) : null;
-    let res: Response;
-    try {
-      res = await fetch(current, { ...init, signal: controller.signal, redirect: 'manual' });
-    } finally {
-      if (timer) clearTimeout(timer);
-    }
-    if (!REDIRECT_STATUSES.has(res.status)) return { res, finalUrl: current };
-    const location = res.headers.get('location');
-    if (!location) return { res, finalUrl: current };
-    current = new URL(location, current).href;
+
+    throw new Error('重定向次数过多');
+  } finally {
+    init.signal?.removeEventListener('abort', abortFromExternal);
   }
-  throw new Error('重定向次数过多');
 }
 
 export async function fetchUpstream(url: string, options: FetchOptions = {}): Promise<Response> {
