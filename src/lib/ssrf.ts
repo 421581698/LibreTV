@@ -76,6 +76,7 @@ export function isPrivateIP(ip: string): boolean {
 }
 
 const BLOCKED_HOSTNAMES = new Set(['localhost', '127.0.0.1', '0.0.0.0', '::1']);
+const DNS_LOOKUP_TIMEOUT_MS = 4000;
 
 /** URL 字面量校验：协议白名单 + 主机名/字面量 IP 黑名单 */
 export function isValidProxyUrl(urlString: string): boolean {
@@ -112,10 +113,24 @@ export async function isBlockedByDNS(urlString: string): Promise<boolean> {
       }
     };
 
-    const [ipv4, ipv6] = await Promise.all([
-      resolveFamily(resolve4),
-      resolveFamily(resolve6),
-    ]);
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let resolved: [string[], string[]];
+    try {
+      const lookup = Promise.all([
+        resolveFamily(resolve4),
+        resolveFamily(resolve6),
+      ]) as Promise<[string[], string[]]>;
+      const timeout = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(
+          () => reject(new Error('DNS 查询超时')),
+          DNS_LOOKUP_TIMEOUT_MS,
+        );
+      });
+      resolved = await Promise.race([lookup, timeout]);
+    } finally {
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+    }
+    const [ipv4, ipv6] = resolved;
     const addresses = [...ipv4, ...ipv6];
     // 没有任何 A/AAAA 记录时无法确认目标安全，拒绝请求。
     if (addresses.length === 0) return true;
