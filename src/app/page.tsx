@@ -367,7 +367,7 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
 
   return (
     <div className={isV2 ? "home-v2 min-h-screen flex flex-col" : "legacy-home min-h-screen flex flex-col"}>
-      <Header showFridayFab={!isV2} />
+      <Header showFridayFab={!isV2} showFridayButton={!isV2} />
       <main className={isV2 ? "home-v2-main relative flex-1 max-w-6xl w-full mx-auto px-4" : "relative flex-1 max-w-6xl w-full mx-auto px-4 py-6"}>
         {!urlQuery && (
           <div
