@@ -487,7 +487,17 @@ export function DoubanCard({
         {tmdbPoster ? (
           // TMDB 图片为 HTTPS 静态 CDN 地址；只在豆瓣原图候选链耗尽后显示
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={tmdbPoster} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
+          <img
+            src={tmdbPoster}
+            alt={item.title}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            onError={() => {
+              setTmdbPoster(null);
+              setTmdbFailed(true);
+              setImgFailed(true);
+            }}
+          />
         ) : item.cover && !imgFailed ? (
           <SmartImage
             url={item.cover}
@@ -498,10 +508,14 @@ export function DoubanCard({
             onExhausted={loadTmdbFallback}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-chip">
-            <svg className="w-8 h-8 text-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 4v16m10-16v16M3 6a1 1 0 011-1h1a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V6zm4 0a1 1 0 011-1h1a1 1 0 011 1v12a1 1 0 01-1 1h-1a1 1 0 01-1-1V6zm8 0a1 1 0 011-1h1a1 1 0 011 1v12a1 1 0 01-1 1h-1a1 1 0 01-1-1V6zm4 0a1 1 0 011-1h1a1 1 0 011 1v12a1 1 0 01-1 1h-1a1 1 0 01-1-1V6z" />
-            </svg>
+          <div className="cinema-lobby-poster-fallback" aria-label="封面暂不可用">
+            <span className="cinema-lobby-poster-fallback-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="4" y="3" width="16" height="18" rx="2.5" />
+                <path d="M8 3v18M16 3v18M4 8h4m8 0h4M4 16h4m8 0h4" />
+              </svg>
+            </span>
+            <span>封面暂不可用</span>
           </div>
         )}
         {item.rating && (
