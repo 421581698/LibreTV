@@ -1,6 +1,6 @@
 'use client';
 
-import { Children } from 'react';
+import { Children, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/client-api';
 import { DoubanCard } from '@/components/video-card';
@@ -127,7 +127,7 @@ export function CinemaLobbyCultureSections({
   );
 }
 
-function PosterGrid({ children }: { children: React.ReactNode }) {
+function PosterGrid({ children }: { children: ReactNode }) {
   return (
     <div className={mobileRailClass}>
       {Children.map(children, (child) => (
