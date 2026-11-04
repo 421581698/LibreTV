@@ -243,15 +243,14 @@ export default function AIFloatingBall({
     stopAllVoice();
 
     if (busyRef.current) {
+      // 先使当前 requestId 失效，再停止底层流，屏蔽 stop 触发的迟到完成事件。
+      cancelActiveRequest();
       stop();
     }
 
     setClosing(false);
     setOpen(false);
     dispatchMachine({ type: "CLOSE" });
-    if (busyRef.current) {
-      cancelActiveRequest();
-    }
     setExpanded(false);
   }, [resetPendingMovie, stopAllVoice, stop, cancelActiveRequest]);
 
@@ -275,9 +274,11 @@ export default function AIFloatingBall({
     stopAllVoice();
 
     if (busyRef.current) {
+      // 手动中断与切换影片采用同一取消语义，不把中断误记为正常完成。
+      cancelActiveRequest();
       stop();
     }
-  }, [stopAllVoice, stop]);
+  }, [stopAllVoice, cancelActiveRequest, stop]);
 
   useFridayResponseController({
     messages: typedMessages,
