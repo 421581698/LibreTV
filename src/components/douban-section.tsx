@@ -90,7 +90,7 @@ function DoubanView({ onPick }: { onPick: (item: DoubanItem) => void }) {
               item={item}
               isTv={type === 'tv'}
               enableTmdbFallback
-              onClick={() => onPick(item)}
+              onClick={() => onPick({ ...item, isTv: type === 'tv' })}
             />
           ))}
         </div>
@@ -140,7 +140,7 @@ function BangumiView({ onPick }: { onPick: (item: DoubanItem) => void }) {
               item={item}
               isTv={item.isTv ?? true}
               enableTmdbFallback
-              onClick={() => onPick(item)}
+              onClick={() => onPick({ ...item, isTv: item.isTv ?? true })}
             />
           ))}
         </div>
