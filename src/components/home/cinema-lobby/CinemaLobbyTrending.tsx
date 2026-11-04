@@ -39,7 +39,7 @@ export function CinemaLobbyTrending({
         <span className="cinema-lobby-section-note">精选影视</span>
       </div>
       {isNearViewport ? (
-        <RecommendSection onPick={onPick} />
+        <RecommendSection onPick={onPick} cinemaLobbyLayout />
       ) : (
         <div
           className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8"
