@@ -13,14 +13,14 @@ const TV_TAGS = ['热门', '美剧', '英剧', '韩剧', '日剧', '国产剧', 
 const WEEKDAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 
 /** 首页推荐区：数据源由设置决定（豆瓣热门 / Bangumi 新番放送 / 影视热榜），二选一展示 */
-export function RecommendSection({ onPick }: { onPick: (title: string) => void }) {
+export function RecommendSection({ onPick, cinemaLobbyLayout = false }: { onPick: (title: string) => void; cinemaLobbyLayout?: boolean }) {
   const doubanEnabled = useAppStore((s) => s.doubanEnabled);
   const recommendSource = useAppStore((s) => s.recommendSource);
 
   if (!doubanEnabled) return null;
-  if (recommendSource === 'bangumi') return <BangumiView onPick={onPick} />;
-  if (recommendSource === 'hot-list') return <HotListView onPick={onPick} />;
-  return <DoubanView onPick={onPick} />;
+  if (recommendSource === 'bangumi') return <BangumiView onPick={onPick} cinemaLobbyLayout={cinemaLobbyLayout} />;
+  if (recommendSource === 'hot-list') return <HotListView onPick={onPick} cinemaLobbyLayout={cinemaLobbyLayout} />;
+  return <DoubanView onPick={onPick} cinemaLobbyLayout={cinemaLobbyLayout} />;
 }
 
 /**
@@ -28,7 +28,7 @@ export function RecommendSection({ onPick }: { onPick: (title: string) => void }
  * 一次性渲染全部条目：数据本就一次拉全（50 条），卡片图片又是 lazy 加载，
  * 视口外的图不会请求，因此不需要「加载更多」这类本地切片分页来打断浏览。
  */
-function DoubanView({ onPick }: { onPick: (title: string) => void }) {
+function DoubanView({ onPick, cinemaLobbyLayout }: { onPick: (title: string) => void; cinemaLobbyLayout: boolean }) {
   const [type, setType] = useState<'movie' | 'tv'>('movie');
   const [tag, setTag] = useState('热门');
 
@@ -79,19 +79,20 @@ function DoubanView({ onPick }: { onPick: (title: string) => void }) {
       {query.isError ? (
         <QueryError error={query.error} onRetry={() => void query.refetch()} />
       ) : query.isLoading ? (
-        <GridSkeleton />
+        <GridSkeleton cinemaLobbyLayout={cinemaLobbyLayout} />
       ) : items.length === 0 ? (
         <p className="text-center text-sm text-faint py-8">该分类暂无推荐内容</p>
       ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
+        <div className={cinemaLobbyLayout ? "flex gap-3 overflow-x-auto overscroll-x-contain snap-x snap-mandatory pb-3 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 sm:gap-2.5 sm:overflow-visible sm:pb-0" : "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5"}>
           {items.map((item) => (
-            <DoubanCard
-              key={item.id}
+            <div key={item.id} className={cinemaLobbyLayout ? 'w-[38vw] max-w-[160px] shrink-0 snap-start sm:w-auto sm:max-w-none' : 'min-w-0'}>
+              <DoubanCard
               item={item}
               isTv={type === 'tv'}
               enableTmdbFallback
               onClick={() => onPick(item.title)}
-            />
+              />
+            </div>
           ))}
         </div>
       )}
@@ -100,7 +101,7 @@ function DoubanView({ onPick }: { onPick: (title: string) => void }) {
 }
 
 /** Bangumi 每日放送：星期筛选，一次拉全量无分页 */
-function BangumiView({ onPick }: { onPick: (title: string) => void }) {
+function BangumiView({ onPick, cinemaLobbyLayout }: { onPick: (title: string) => void; cinemaLobbyLayout: boolean }) {
   const [weekday, setWeekday] = useState<number | 'all'>('all');
 
   const query = useQuery({
@@ -131,17 +132,18 @@ function BangumiView({ onPick }: { onPick: (title: string) => void }) {
       {query.isError ? (
         <p className="text-center text-sm text-faint py-8">推荐内容加载失败，可稍后重试或在设置中关闭</p>
       ) : query.isLoading ? (
-        <GridSkeleton />
+        <GridSkeleton cinemaLobbyLayout={cinemaLobbyLayout} />
       ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
+        <div className={cinemaLobbyLayout ? "flex gap-3 overflow-x-auto overscroll-x-contain snap-x snap-mandatory pb-3 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 sm:gap-2.5 sm:overflow-visible sm:pb-0" : "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5"}>
           {items.map((item) => (
-            <DoubanCard
-              key={item.id}
+            <div key={item.id} className={cinemaLobbyLayout ? 'w-[38vw] max-w-[160px] shrink-0 snap-start sm:w-auto sm:max-w-none' : 'min-w-0'}>
+              <DoubanCard
               item={item}
               isTv={item.isTv ?? true}
               enableTmdbFallback
               onClick={() => onPick(item.title)}
-            />
+              />
+            </div>
           ))}
         </div>
       )}
@@ -159,7 +161,7 @@ const HOT_LISTS = [
 ];
 
 /** 影视热榜（60s API）：豆瓣五个周榜 + 百度热播剧，chips 切换 */
-function HotListView({ onPick }: { onPick: (title: string) => void }) {
+function HotListView({ onPick, cinemaLobbyLayout }: { onPick: (title: string) => void; cinemaLobbyLayout: boolean }) {
   const [listId, setListId] = useState(HOT_LISTS[0].id);
 
   const query = useQuery({
@@ -182,11 +184,13 @@ function HotListView({ onPick }: { onPick: (title: string) => void }) {
       {query.isError ? (
         <QueryError error={query.error} onRetry={() => void query.refetch()} />
       ) : query.isLoading ? (
-        <GridSkeleton />
+        <GridSkeleton cinemaLobbyLayout={cinemaLobbyLayout} />
       ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
+        <div className={cinemaLobbyLayout ? "flex gap-3 overflow-x-auto overscroll-x-contain snap-x snap-mandatory pb-3 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 sm:gap-2.5 sm:overflow-visible sm:pb-0" : "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5"}>
           {items.map((item) => (
-            <DoubanCard key={item.id} item={item} onClick={() => onPick(item.title)} />
+            <div key={item.id} className={cinemaLobbyLayout ? 'w-[38vw] max-w-[160px] shrink-0 snap-start sm:w-auto sm:max-w-none' : 'min-w-0'}>
+              <DoubanCard item={item} onClick={() => onPick(item.title)} />
+            </div>
           ))}
         </div>
       )}
@@ -210,11 +214,14 @@ function QueryError({ error, onRetry }: { error: unknown; onRetry: () => void })
   );
 }
 
-function GridSkeleton() {
+function GridSkeleton({ cinemaLobbyLayout = false }: { cinemaLobbyLayout?: boolean }) {
+  const gridClass = cinemaLobbyLayout
+    ? 'flex gap-3 overflow-hidden -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 sm:gap-2.5'
+    : 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5';
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
+    <div className={gridClass}>
       {Array.from({ length: 16 }).map((_, i) => (
-        <div key={i}>
+        <div key={i} className={cinemaLobbyLayout ? 'w-[38vw] max-w-[160px] shrink-0 sm:w-auto sm:max-w-none' : undefined}>
           <div className="aspect-[2/3] rounded-lg bg-chip animate-pulse" />
           <div className="h-3 mt-2 rounded bg-chip animate-pulse" />
         </div>
