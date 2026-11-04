@@ -365,6 +365,9 @@ export default function AIFloatingBall({
   const pendingVoiceTextRef = useRef("");
   const manualVoiceStopRef = useRef(false);
   const voiceResumeTimerRef = useRef<number | null>(null);
+  const recognitionStartTimerRef = useRef<number | null>(null);
+  const recognitionRetryTimerRef = useRef<number | null>(null);
+  const recognitionStartRetryCountRef = useRef(0);
 
   const lastSpokenMessageRef = useRef("");
   const lastCompletedMessageRef = useRef("");
@@ -505,6 +508,16 @@ export default function AIFloatingBall({
       window.clearTimeout(voiceResumeTimerRef.current);
       voiceResumeTimerRef.current = null;
     }
+
+    if (recognitionStartTimerRef.current !== null) {
+      window.clearTimeout(recognitionStartTimerRef.current);
+      recognitionStartTimerRef.current = null;
+    }
+
+    if (recognitionRetryTimerRef.current !== null) {
+      window.clearTimeout(recognitionRetryTimerRef.current);
+      recognitionRetryTimerRef.current = null;
+    }
   }, []);
 
   const setVoiceSession = useCallback((active: boolean) => {
@@ -512,13 +525,15 @@ export default function AIFloatingBall({
     setVoiceSessionActive(active);
 
     if (!active) {
+      clearVoiceResumeTimer();
+      recognitionStartRetryCountRef.current = 0;
       dispatchMachine({
         type: "VOICE_STOP",
         sessionId: voiceSessionIdRef.current,
       });
       voiceSessionIdRef.current += 1;
     }
-  }, []);
+  }, [clearVoiceResumeTimer]);
 
   const stopSpeech = useCallback(() => {
     utteranceRef.current = null;
@@ -799,9 +814,14 @@ export default function AIFloatingBall({
       clearVoiceResumeTimer();
       setVoiceError("");
 
-      // 只在用户主动开启语音时请求音量分析权限；自动恢复复用同一条音频流。
-      if (!automatic) {
+      // iOS Safari 不启动独立 getUserMedia 音量采集流，
+      // 避免它与 SpeechRecognition 争用麦克风/音频会话。
+      if (!isIOSWebKit() && !automatic) {
         void startAudioMeter();
+      }
+
+      if (!automatic) {
+        recognitionStartRetryCountRef.current = 0;
       }
 
       if (
@@ -854,6 +874,12 @@ export default function AIFloatingBall({
         if (recognitionRef.current !== recognition) return;
         if (sessionId !== voiceSessionIdRef.current) return;
 
+        if (recognitionStartTimerRef.current !== null) {
+          window.clearTimeout(recognitionStartTimerRef.current);
+          recognitionStartTimerRef.current = null;
+        }
+
+        recognitionStartRetryCountRef.current = 0;
         listeningRef.current = true;
         setListening(true);
         dispatchMachine({ type: "VOICE_STARTED", sessionId });
@@ -898,6 +924,11 @@ export default function AIFloatingBall({
         if (recognitionRef.current !== recognition) return;
         if (sessionId !== voiceSessionIdRef.current) return;
 
+        if (recognitionStartTimerRef.current !== null) {
+          window.clearTimeout(recognitionStartTimerRef.current);
+          recognitionStartTimerRef.current = null;
+        }
+
         recognitionErrorRef.current = event.error || "unknown";
 
         const message = getSpeechErrorMessage(event.error);
@@ -917,6 +948,11 @@ export default function AIFloatingBall({
         if (recognitionRef.current !== recognition) return;
         if (sessionId !== voiceSessionIdRef.current) return;
 
+        if (recognitionStartTimerRef.current !== null) {
+          window.clearTimeout(recognitionStartTimerRef.current);
+          recognitionStartTimerRef.current = null;
+        }
+
         recognitionRef.current = null;
         listeningRef.current = false;
         setListening(false);
@@ -932,6 +968,12 @@ export default function AIFloatingBall({
 
         if (finalText) {
           setInput("");
+
+          // 先释放独立音量采集流，再提交文本并进入 TTS。
+          if (isIOSWebKit()) {
+            stopAudioMeter();
+          }
+
           // 手动停止时提交最终文本后结束语音会话；自然结束则保留连续聆听会话。
           void handleSendRef.current(finalText, !wasManualStop);
           return;
@@ -977,6 +1019,63 @@ export default function AIFloatingBall({
       try {
         // 首次启动必须在用户点击的同步调用链内。
         recognition.start();
+
+        // Safari 偶发 start() 不抛错、却一直不触发 onstart 的情况。
+        recognitionStartTimerRef.current = window.setTimeout(() => {
+          recognitionStartTimerRef.current = null;
+
+          if (recognitionRef.current !== recognition) return;
+          if (sessionId !== voiceSessionIdRef.current) return;
+
+          console.warn("[Friday] Speech recognition startup timeout");
+
+          // 解除旧实例引用后再 abort，避免旧 onend 干扰重试实例。
+          recognitionRef.current = null;
+          listeningRef.current = false;
+          setListening(false);
+
+          try {
+            recognition.abort();
+          } catch {
+            // 忽略已挂起实例的 abort 异常。
+          }
+
+          const retryDelays = [700, 1400, 2800];
+          const retryIndex = recognitionStartRetryCountRef.current;
+
+          if (
+            retryIndex < retryDelays.length &&
+            voiceSessionActiveRef.current &&
+            openRef.current &&
+            !closingRef.current
+          ) {
+            recognitionStartRetryCountRef.current += 1;
+            setVoiceError("Safari 语音通道暂未就绪，正在尝试恢复…");
+
+            recognitionRetryTimerRef.current = window.setTimeout(() => {
+              recognitionRetryTimerRef.current = null;
+
+              if (sessionId !== voiceSessionIdRef.current) return;
+              if (!voiceSessionActiveRef.current) return;
+              if (!openRef.current || closingRef.current) return;
+              if (busyRef.current || listeningRef.current) return;
+
+              startListeningRef.current(true);
+            }, retryDelays[retryIndex]);
+          } else {
+            recognitionStartRetryCountRef.current = 0;
+            setVoiceError(
+              "Safari 语音识别启动超时，请点击麦克风重新聆听。",
+            );
+            dispatchMachine({
+              type: "VOICE_FAILED",
+              sessionId,
+              code: "start-timeout",
+              message: "语音识别启动超时",
+            });
+            stopAudioMeter();
+          }
+        }, 6000);
       } catch (recognitionError) {
         console.error(
           "[Friday] Speech recognition start failed:",
