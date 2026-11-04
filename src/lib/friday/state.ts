@@ -167,6 +167,8 @@ export function fridayReducer(
         ? state
         : {
             ...state,
+            // 使取消后迟到的工具/完成事件失效；下一个请求使用递增后的 ID。
+            requestId: state.requestId + 1,
             agent: "idle",
             errors: { ...state.errors, agent: undefined },
           };
