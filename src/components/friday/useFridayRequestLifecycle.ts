@@ -89,7 +89,7 @@ export function useFridayRequestLifecycle({
     activeRequestIdRef.current = 0;
     observedBusyRef.current = false;
     observedToolStatesRef.current.clear();
-      activeToolCallsRef.current.clear();
+    activeToolCallsRef.current.clear();
     baselineMessageIdsRef.current.clear();
     renderingDispatchedRef.current = false;
   }, [dispatchMachine]);
