@@ -45,7 +45,16 @@ export function CinemaLobbyTvSection({
         <span className="cinema-lobby-section-note">剧集精选</span>
       </div>
 
-      {query.isError ? (
+      {!isNearViewport || query.isLoading ? (
+        <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8" aria-hidden="true">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="min-w-0">
+              <div className="aspect-[2/3] animate-pulse rounded-lg bg-chip" />
+              <div className="mt-2 h-3 animate-pulse rounded bg-chip" />
+            </div>
+          ))}
+        </div>
+      ) : query.isError ? (
         <div className="py-6 text-center">
           <p className="text-sm text-faint">电视剧推荐暂时加载失败</p>
           <button
