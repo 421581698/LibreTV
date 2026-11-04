@@ -1115,6 +1115,9 @@ export default function AIFloatingBall({
           listeningRef.current = false;
           setListening(false);
 
+          // 启动超时同样要等待 Safari 释放旧识别实例，不能直接并发重试。
+          retiringRecognitionRef.current = recognition;
+
           try {
             recognition.abort();
           } catch {
@@ -1165,6 +1168,16 @@ export default function AIFloatingBall({
 
         if (recognitionRef.current === recognition) {
           recognitionRef.current = null;
+        }
+
+        // 即使 start() 同步失败，也把旧实例标记为待释放，防止下次点击抢占。
+        retiringRecognitionRef.current = recognition;
+        try {
+          recognition.abort();
+        } catch {
+          if (retiringRecognitionRef.current === recognition) {
+            retiringRecognitionRef.current = null;
+          }
         }
 
         // start() 同步抛错时不会触发可靠的 onend 清理，立即释放独立音量分析链路。
