@@ -108,6 +108,15 @@ export default function AIFloatingBall({
   busyRef.current = busy;
   closingRef.current = closing;
 
+  const suppressPartialResponse = useCallback(() => {
+    const lastAssistantMessage = [...typedMessages]
+      .reverse()
+      .find((message) => message?.role === "assistant" && message.id);
+    if (lastAssistantMessage?.id) {
+      lastSpokenMessageRef.current = lastAssistantMessage.id;
+    }
+  }, [typedMessages, lastSpokenMessageRef]);
+
   const {
     clearMovieCloseTimer,
     resetPendingMovie,
@@ -123,6 +132,7 @@ export default function AIFloatingBall({
     stopAllVoice,
     stop,
     cancelRequest: cancelActiveRequest,
+    suppressPartialResponse,
   });
 
   const auroraState: AuroraState = speaking
@@ -240,6 +250,7 @@ export default function AIFloatingBall({
     openRef.current = false;
     closingRef.current = false;
 
+    if (busyRef.current) suppressPartialResponse();
     stopAllVoice();
 
     if (busyRef.current) {
@@ -252,7 +263,7 @@ export default function AIFloatingBall({
     setOpen(false);
     dispatchMachine({ type: "CLOSE" });
     setExpanded(false);
-  }, [resetPendingMovie, stopAllVoice, stop, cancelActiveRequest]);
+  }, [resetPendingMovie, suppressPartialResponse, stopAllVoice, stop, cancelActiveRequest]);
 
   const {
     fabHidden,
@@ -273,13 +284,7 @@ export default function AIFloatingBall({
   const interrupt = useCallback(() => {
     if (busyRef.current) {
       // 屏蔽停止流后可能回到 ready 的部分回复，避免中断后又被自动播报。
-      const lastAssistantMessage = [...typedMessages]
-        .reverse()
-        .find((message) => message?.role === "assistant" && message.id);
-      if (lastAssistantMessage?.id) {
-        lastSpokenMessageRef.current = lastAssistantMessage.id;
-      }
-
+      suppressPartialResponse();
       stopAllVoice();
       // 手动中断与切换影片采用同一取消语义，不把中断误记为正常完成。
       cancelActiveRequest();
@@ -289,8 +294,7 @@ export default function AIFloatingBall({
 
     stopAllVoice();
   }, [
-    typedMessages,
-    lastSpokenMessageRef,
+    suppressPartialResponse,
     stopAllVoice,
     cancelActiveRequest,
     stop,
