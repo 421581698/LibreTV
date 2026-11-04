@@ -41,7 +41,7 @@ import {
   validateSourceUrl,
 } from '@/lib/utils';
 import { useToast } from '@/components/toast';
-import { EmptyState } from '@/components/states';
+import { EmptyState, LoadingState } from '@/components/states';
 import { SiteFooter } from '@/components/site-footer';
 import { normalizeFridayMovieId } from '@/lib/friday/movie-detail';
 
@@ -61,7 +61,13 @@ const HOME_V2_ENABLED = process.env.NEXT_PUBLIC_HOME_V2 === 'true';
 
 export default function HomePage() {
   return (
-    <Suspense>
+    <Suspense
+      fallback={
+        <main className="min-h-screen flex items-center justify-center px-4">
+          <LoadingState label="正在进入影院大厅…" />
+        </main>
+      }
+    >
       {HOME_V2_ENABLED ? <HomePageV2 /> : <HomeContent />}
     </Suspense>
   );
