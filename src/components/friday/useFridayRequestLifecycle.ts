@@ -11,6 +11,10 @@ type ToolPartLike = {
   data?: unknown;
 };
 
+export function shouldStopRequest(busy: boolean, cancelled: boolean): boolean {
+  return busy || cancelled;
+}
+
 export function hasMovieResultData(data: unknown): boolean {
   return Boolean(
     data &&
@@ -81,9 +85,9 @@ export function useFridayRequestLifecycle({
     [dispatchMachine],
   );
 
-  const cancelActiveRequest = useCallback(() => {
+  const cancelActiveRequest = useCallback((): boolean => {
     const requestId = activeRequestIdRef.current;
-    if (!requestId) return;
+    if (!requestId) return false;
 
     dispatchMachine({ type: "REQUEST_CANCELLED", requestId });
     activeRequestIdRef.current = 0;
@@ -92,6 +96,7 @@ export function useFridayRequestLifecycle({
     activeToolCallsRef.current.clear();
     baselineMessageIdsRef.current.clear();
     renderingDispatchedRef.current = false;
+    return true;
   }, [dispatchMachine]);
 
   useEffect(() => {
