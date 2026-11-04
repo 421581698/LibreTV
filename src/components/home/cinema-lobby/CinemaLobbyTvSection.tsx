@@ -18,7 +18,7 @@ export function CinemaLobbyTvSection({
   onPick,
 }: CinemaLobbyTvSectionProps) {
   const query = useQuery({
-    queryKey: ['cinema-lobby-tv', '热门'],
+    queryKey: ['douban', 'tv', '热门'],
     queryFn: ({ signal }) => api.douban('tv', '热门', 0, 18, signal),
     enabled,
   });
