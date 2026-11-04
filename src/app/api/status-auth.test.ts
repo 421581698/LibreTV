@@ -43,7 +43,12 @@ describe('GET /api/status configuration visibility', () => {
       defaultSubscriptions: Array<{ url: string }>;
     };
     expect(data.verified).toBe(true);
-    expect(data.defaultSources[0]?.name).toBe('Private CMS');
+    expect(data.defaultSources.map((source) => source.name)).toEqual([
+      '360资源',
+      '量子资源',
+      '非凡资源',
+      'Private CMS',
+    ]);
     expect(data.defaultLiveSources[0]?.name).toBe('Private IPTV');
     expect(data.defaultSubscriptions[0]?.url).toContain('subscriptions.example');
   });
