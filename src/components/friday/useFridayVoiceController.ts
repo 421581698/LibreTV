@@ -55,6 +55,27 @@ export function shouldEndVoiceSession(error?: string): boolean {
   return Boolean(error && error !== "aborted" && error !== "no-speech");
 }
 
+type VoiceResumeConditions = {
+  sessionActive: boolean;
+  panelOpen: boolean;
+  closing: boolean;
+  busy: boolean;
+  listening: boolean;
+  speaking: boolean;
+};
+
+/** A delayed resume is valid only while the same voice session is still eligible. */
+export function canResumeVoiceSession({
+  sessionActive,
+  panelOpen,
+  closing,
+  busy,
+  listening,
+  speaking,
+}: VoiceResumeConditions): boolean {
+  return sessionActive && panelOpen && !closing && !busy && !listening && !speaking;
+}
+
 export function getSpeechStartErrorMessage(error: unknown, automatic = false): string {
   const errorName =
     error && typeof error === "object" && "name" in error &&
@@ -197,18 +218,23 @@ export function useFridayVoiceController({
   const scheduleVoiceResume = useCallback(() => {
     clearVoiceResumeTimer();
 
-    if (!voiceSessionActiveRef.current) return;
-    if (!openRef.current || closingRef.current) return;
-    if (busyRef.current || speakingRef.current) return;
+    const canResume = () => canResumeVoiceSession({
+      sessionActive: voiceSessionActiveRef.current,
+      panelOpen: openRef.current,
+      closing: closingRef.current,
+      busy: busyRef.current,
+      listening: listeningRef.current,
+      speaking: speakingRef.current,
+    });
+
+    if (!canResume()) return;
 
     const sessionId = voiceSessionIdRef.current;
     voiceResumeTimerRef.current = window.setTimeout(() => {
       voiceResumeTimerRef.current = null;
 
       if (sessionId !== voiceSessionIdRef.current) return;
-      if (!voiceSessionActiveRef.current) return;
-      if (!openRef.current || closingRef.current) return;
-      if (busyRef.current || listeningRef.current) return;
+      if (!canResume()) return;
 
       startListeningRef.current(true);
     }, VOICE_RESUME_DELAY);
