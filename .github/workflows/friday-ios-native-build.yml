@@ -58,6 +58,22 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string Friday 使用麦克风来识别你的语音指令。" ios/App/App/Info.plist || \
             /usr/libexec/PlistBuddy -c "Set :NSMicrophoneUsageDescription Friday 使用麦克风来识别你的语音指令。" ios/App/App/Info.plist
 
+      - name: Register App Intents package in the host app target
+        run: |
+          cp native/ios/FridayAppIntentsPackage.swift ios/App/App/FridayAppIntentsPackage.swift
+          gem install xcodeproj --no-document
+          ruby - <<'RUBY'
+          require 'xcodeproj'
+          project_path = 'ios/App/App.xcodeproj'
+          project = Xcodeproj::Project.open(project_path)
+          target = project.targets.find { |item| item.name == 'App' }
+          abort 'App target not found' unless target
+          app_group = project.main_group.find_subpath('App', true)
+          file_ref = app_group.new_file('FridayAppIntentsPackage.swift')
+          target.source_build_phase.add_file_reference(file_ref)
+          project.save
+          RUBY
+
       - name: Resolve Swift packages
         run: |
           xcodebuild -resolvePackageDependencies \
