@@ -200,7 +200,6 @@ function HotListView({ onPick, cinemaLobbyLayout }: { onPick: (title: string) =>
         </div>
       )}
       </div>
-      </div>
     </section>
   );
 }
