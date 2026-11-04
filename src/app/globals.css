@@ -1232,3 +1232,31 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   }
 }
 
+
+/* Cinema lobby genre chips — a compact, snap-friendly mobile rail. */
+@media (max-width: 639px) {
+  .home-v2 .cinema-lobby-category-tags {
+    -webkit-overflow-scrolling: touch;
+    scroll-padding-inline: 8px;
+    scrollbar-width: none;
+  }
+
+  .home-v2 .cinema-lobby-category-tags::-webkit-scrollbar {
+    display: none;
+  }
+
+  .home-v2 .cinema-lobby-category-tags button {
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+}
+
+.home-v2 .cinema-lobby-category-tags button {
+  scroll-margin-inline: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-v2 .cinema-lobby-category-tags {
+    scroll-behavior: auto;
+  }
+}
