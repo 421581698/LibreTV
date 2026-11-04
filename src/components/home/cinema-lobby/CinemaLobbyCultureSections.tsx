@@ -15,7 +15,7 @@ export function CinemaLobbyCultureSections({
   enabled,
   onPick,
 }: CinemaLobbyCultureSectionsProps) {
-  const { ref, isNearViewport } = useCinemaLobbyVisibility<HTMLDivElement>();
+  const { ref, isNearViewport } = useCinemaLobbyVisibility<HTMLDivElement>(enabled);
   const shouldLoad = enabled && isNearViewport;
   const animeQuery = useQuery({
     queryKey: ['bangumi-calendar'],
