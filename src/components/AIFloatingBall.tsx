@@ -3008,3 +3008,22 @@ export default function AIFloatingBall({
               </div>
             </footer>
           </section>
+        ) : null}
+      </div>
+
+      {fabHidden && !open ? (
+        <button
+          type="button"
+          className="friday-restore"
+          aria-label="恢复 Friday 助手"
+          title="恢复 Friday"
+          onClick={restoreAssistant}
+        >
+          F
+        </button>
+      ) : null}
+    </>
+  );
+
+  return createPortal(content, document.body);
+}
