@@ -76,12 +76,14 @@ function DoubanView({ onPick, cinemaLobbyLayout }: { onPick: (title: string) => 
         ))}
       </div>
 
+      <div aria-busy={query.isLoading} aria-live="polite">
+      <div aria-busy={query.isLoading} aria-live="polite">
       {query.isError ? (
         <QueryError error={query.error} onRetry={() => void query.refetch()} />
       ) : query.isLoading ? (
         <GridSkeleton cinemaLobbyLayout={cinemaLobbyLayout} />
       ) : items.length === 0 ? (
-        <p className="text-center text-sm text-faint py-8">该分类暂无推荐内容</p>
+        <p className="text-center text-sm text-faint py-8" role="status">该分类暂无推荐内容</p>
       ) : (
         <div className={cinemaLobbyLayout ? "flex gap-3 overflow-x-auto overscroll-x-contain snap-x snap-mandatory pb-3 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 sm:gap-2.5 sm:overflow-visible sm:pb-0" : "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5"}>
           {items.map((item) => (
@@ -96,6 +98,7 @@ function DoubanView({ onPick, cinemaLobbyLayout }: { onPick: (title: string) => 
           ))}
         </div>
       )}
+      </div>
     </section>
   );
 }
@@ -129,8 +132,9 @@ function BangumiView({ onPick, cinemaLobbyLayout }: { onPick: (title: string) =>
         ))}
       </div>
 
+      <div aria-busy={query.isLoading} aria-live="polite">
       {query.isError ? (
-        <p className="text-center text-sm text-faint py-8">推荐内容加载失败，可稍后重试或在设置中关闭</p>
+        <p className="text-center text-sm text-faint py-8" role="alert">推荐内容加载失败，可稍后重试或在设置中关闭</p>
       ) : query.isLoading ? (
         <GridSkeleton cinemaLobbyLayout={cinemaLobbyLayout} />
       ) : (
@@ -147,6 +151,7 @@ function BangumiView({ onPick, cinemaLobbyLayout }: { onPick: (title: string) =>
           ))}
         </div>
       )}
+      </div>
     </section>
   );
 }
@@ -194,6 +199,7 @@ function HotListView({ onPick, cinemaLobbyLayout }: { onPick: (title: string) =>
           ))}
         </div>
       )}
+      </div>
     </section>
   );
 }
@@ -201,7 +207,7 @@ function HotListView({ onPick, cinemaLobbyLayout }: { onPick: (title: string) =>
 function QueryError({ error, onRetry }: { error: unknown; onRetry: () => void }) {
   const message = error instanceof Error ? error.message.slice(0, 180) : '未知错误';
   return (
-    <div className="flex flex-col items-center gap-2 text-center py-8">
+    <div className="flex flex-col items-center gap-2 text-center py-8" role="alert">
       <p className="text-sm text-faint">推荐内容加载失败：{message}</p>
       <button
         type="button"
@@ -219,7 +225,7 @@ function GridSkeleton({ cinemaLobbyLayout = false }: { cinemaLobbyLayout?: boole
     ? 'flex gap-3 overflow-hidden -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 sm:gap-2.5'
     : 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5';
   return (
-    <div className={gridClass}>
+    <div className={gridClass} aria-hidden="true">
       {Array.from({ length: 16 }).map((_, i) => (
         <div key={i} className={cinemaLobbyLayout ? 'w-[38vw] max-w-[160px] shrink-0 sm:w-auto sm:max-w-none' : undefined}>
           <div className="aspect-[2/3] rounded-lg bg-chip animate-pulse" />
