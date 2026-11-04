@@ -15,6 +15,7 @@ import { Header } from '@/components/header';
 import { CinemaLobbyHero } from '@/components/home/cinema-lobby/CinemaLobbyHero';
 import { HomeSearchSection } from '@/components/home/HomeSearchSection';
 import { RecommendSection } from '@/components/douban-section';
+import { CinemaLobbyTrending } from '@/components/home/cinema-lobby/CinemaLobbyTrending';
 import { DetailModal } from '@/components/detail-modal';
 import { AggregatedCard, aggregateResults } from '@/components/video-card';
 import {
@@ -481,17 +482,22 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
           </section>
         )}
         {!urlQuery && (
-          <>
-            {isV2 && doubanEnabled ? (
-              <h2 className="home-v2-trending-title">今日热门</h2>
-            ) : null}
+          isV2 ? (
+            <CinemaLobbyTrending
+              enabled={doubanEnabled}
+              onPick={(title) => {
+                setInput(title);
+                runSearch(title);
+              }}
+            />
+          ) : (
             <RecommendSection
               onPick={(title) => {
                 setInput(title);
                 runSearch(title);
               }}
             />
-          </>
+          )
         )}
       </main>
       <SiteFooter />
