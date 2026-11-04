@@ -13,6 +13,7 @@ type MovieTransitionOptions<TMovie> = {
   stopAllVoice: () => void;
   stop: () => void;
   cancelRequest: () => void;
+  suppressPartialResponse: () => void;
 };
 
 export function useFridayMovieTransition<TMovie>({
@@ -25,6 +26,7 @@ export function useFridayMovieTransition<TMovie>({
   stopAllVoice,
   stop,
   cancelRequest,
+  suppressPartialResponse,
 }: MovieTransitionOptions<TMovie>) {
   const pendingMovieRef = useRef<TMovie | null>(null);
   const closeTimerRef = useRef<number | null>(null);
@@ -71,6 +73,8 @@ export function useFridayMovieTransition<TMovie>({
 
       stopAllVoice();
       if (busyRef.current) {
+        // 屏蔽取消后可能回到 ready 的半截回复，避免下次打开时自动播报。
+        suppressPartialResponse();
         // 影片详情切换属于主动中断，不能把被 stop 的请求误报为正常完成。
         cancelRequest();
         stop();
@@ -100,6 +104,7 @@ export function useFridayMovieTransition<TMovie>({
       stop,
       stopAllVoice,
       cancelRequest,
+      suppressPartialResponse,
     ],
   );
 
