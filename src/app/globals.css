@@ -725,3 +725,114 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   padding-top: clamp(18px, 2.5vw, 24px);
   border-top: 1px solid rgba(128, 145, 170, .16);
 }
+
+
+/* Desktop cinema lobby composition.
+   This final desktop layer intentionally follows the mobile viewport budget
+   so the 55–65vh hero target is not overwritten by the mobile-first rule. */
+@media (min-width: 1024px) {
+  .home-v2 .home-v2-main {
+    width: 100%;
+    max-width: 1280px;
+    padding: 18px clamp(28px, 4vw, 56px) 40px;
+  }
+
+  .home-v2 .friday-hero-v2 {
+    height: clamp(430px, 58svh, 620px);
+    max-height: 65svh;
+    padding: 20px 24px 12px;
+    background:
+      radial-gradient(ellipse at 50% 42%, rgba(94, 139, 220, .16), transparent 43%),
+      radial-gradient(ellipse at 50% 76%, rgba(178, 106, 220, .10), transparent 54%);
+  }
+
+  .home-v2 .friday-hero-eyebrow {
+    margin-bottom: 13px;
+    font-size: 10px;
+  }
+
+  .home-v2 .friday-hero-title {
+    font-size: clamp(38px, 4vw, 54px);
+  }
+
+  .home-v2 .friday-hero-description {
+    max-width: 480px;
+    margin: 12px 0 16px;
+    font-size: 14px;
+  }
+
+  .home-v2 .friday-hero-orb {
+    width: 196px;
+    height: 196px;
+  }
+
+  .home-v2 .friday-hero-orb-button {
+    gap: 10px;
+  }
+
+  .home-v2 .friday-hero-orb-label {
+    font-size: 12px;
+  }
+
+  .home-v2 .friday-hero-text-entry {
+    margin-top: 13px;
+    font-size: 11px;
+  }
+
+  .home-v2 .cinema-lobby-hero > section {
+    margin-bottom: 30px !important;
+  }
+
+  .home-v2 .cinema-lobby-hero > section > div {
+    max-width: 720px;
+  }
+
+  .home-v2 .cinema-lobby-section-heading {
+    margin-bottom: 15px;
+  }
+
+  .home-v2 .cinema-lobby-section-heading .home-v2-trending-title {
+    font-size: 22px;
+  }
+
+  .home-v2 .cinema-lobby-section-eyebrow {
+    font-size: 10px;
+  }
+
+  .home-v2 .cinema-lobby-section-note {
+    font-size: 11px;
+  }
+
+  .home-v2 .cinema-lobby-trending .grid.grid-cols-3 {
+    column-gap: 14px;
+    row-gap: 20px;
+  }
+
+  .home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card {
+    border-radius: 14px;
+  }
+
+  .home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card > div:last-child {
+    padding: 9px 8px 10px;
+  }
+
+  .home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card .text-xs.font-medium {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .home-v2 .cinema-lobby-tv,
+  .home-v2 .cinema-lobby-anime,
+  .home-v2 .cinema-lobby-variety {
+    margin-top: 44px;
+    padding-top: 26px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .home-v2 .home-v2-main {
+    max-width: 1360px;
+    padding-right: 64px;
+    padding-left: 64px;
+  }
+}
