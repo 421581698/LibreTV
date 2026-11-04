@@ -97,7 +97,12 @@ export default function AIFloatingBall({
   });
 
   const { beginRequest, failActiveRequest, cancelActiveRequest } =
-    useFridayRequestLifecycle({ busy, error, dispatchMachine });
+    useFridayRequestLifecycle({
+      busy,
+      error,
+      messages: typedMessages,
+      dispatchMachine,
+    });
 
   // 同步引用，避免回调读取到上一轮渲染的状态。
   busyRef.current = busy;
