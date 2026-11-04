@@ -135,15 +135,21 @@ export default function AIFloatingBall({
           : "standby";
 
   const stateLabel =
-    auroraState === "listening"
-      ? "正在聆听"
-      : auroraState === "thinking"
-        ? "正在寻找合适的影视资源"
-        : auroraState === "speaking"
-          ? "Friday 正在回复"
-          : auroraState === "completed"
-            ? "已完成"
-            : "随时为你服务";
+    machineState.agent === "executing"
+      ? "正在执行影视搜索"
+      : machineState.agent === "rendering"
+        ? "正在整理搜索结果"
+        : machineState.agent === "completed"
+          ? "结果已准备好"
+          : auroraState === "listening"
+            ? "正在聆听"
+            : auroraState === "thinking"
+              ? "正在理解你的需求"
+              : auroraState === "speaking"
+                ? "Friday 正在回复"
+                : auroraState === "completed"
+                  ? "已完成"
+                  : "随时为你服务";
 
   const openPanel = useCallback(() => {
     resetPendingMovie();
