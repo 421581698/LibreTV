@@ -173,7 +173,7 @@ function buildSearchUrl(
     url.pathname = `${basePath}/api.php/provide/vod`;
   }
 
-  url.searchParams.set('ac', 'videolist');
+  url.searchParams.set('ac', 'list');
   url.searchParams.set('wd', keyword);
 
   return url;
