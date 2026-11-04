@@ -130,6 +130,32 @@ describe("fridayReducer", () => {
     expect(state.errors.agent?.code).toBe("network");
   });
 
+  it("ignores late completion and tool events after a request is cancelled", () => {
+    let state = fridayReducer(initialFridayState, {
+      type: "MESSAGE_SUBMITTED",
+      requestId: 1,
+    });
+
+    state = fridayReducer(state, {
+      type: "REQUEST_CANCELLED",
+      requestId: 1,
+    });
+    expect(state.agent).toBe("idle");
+    expect(state.requestId).toBe(2);
+
+    const lateTool = fridayReducer(state, {
+      type: "TOOL_STARTED",
+      requestId: 1,
+    });
+    const lateCompletion = fridayReducer(state, {
+      type: "RESPONSE_COMPLETED",
+      requestId: 1,
+    });
+
+    expect(lateTool).toBe(state);
+    expect(lateCompletion).toBe(state);
+  });
+
   it("does not reopen a closed surface when a request completes", () => {
     let state = fridayReducer(initialFridayState, {
       type: "MESSAGE_SUBMITTED",
