@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { fridayReducer, initialFridayState } from "./state";
+import { hasMovieResultData } from "@/components/friday/useFridayRequestLifecycle";
 import {
   canResumeVoiceSession,
   getSpeechErrorMessage,
@@ -238,5 +239,20 @@ describe("Friday voice error handling", () => {
     expect(canResumeVoiceSession({ ...eligible, busy: true })).toBe(false);
     expect(canResumeVoiceSession({ ...eligible, listening: true })).toBe(false);
     expect(canResumeVoiceSession({ ...eligible, speaking: true })).toBe(false);
+  });
+});
+
+
+describe("Friday movie result lifecycle", () => {
+  it("enters result rendering only for a movie data payload with a results array", () => {
+    expect(hasMovieResultData({
+      searchId: "search-1",
+      results: [],
+    })).toBe(true);
+    expect(hasMovieResultData({ results: [{ name: "真实影片" }] })).toBe(true);
+    expect(hasMovieResultData({})).toBe(false);
+    expect(hasMovieResultData({ results: null })).toBe(false);
+    expect(hasMovieResultData({ results: "not-an-array" })).toBe(false);
+    expect(hasMovieResultData(null)).toBe(false);
   });
 });
