@@ -386,7 +386,7 @@ export async function POST(req: Request) {
       // 内置源优先，客户端传入的同地址配置不能覆盖其固定地址。
       const merged = new Map<string, SourceConfig>();
       for (const source of [...getEnvSources(), ...requestedSources]) {
-        const normalizedUrl = source.url.replace(/\\/+$/, '').toLowerCase();
+        const normalizedUrl = source.url.replace(/\/+$/, '').toLowerCase();
         if (!merged.has(normalizedUrl)) merged.set(normalizedUrl, source);
       }
       sources = Array.from(merged.values()).slice(0, MAX_SOURCES);
