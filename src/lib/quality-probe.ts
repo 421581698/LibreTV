@@ -276,7 +276,7 @@ async function probeSegmentResolution(
 
 /** 取影片的播放地址列表（与 /api/detail 同逻辑：列表接口优先，拿不到再爬详情页） */
 async function fetchEpisodes(source: SourceConfig, id: string, signal: AbortSignal): Promise<string[]> {
-  const api = `${source.url.replace(/\/+$/, '')}?ac=videolist&ids=${encodeURIComponent(id)}`;
+  const api = `${source.url.replace(/\/+$/, '')}?ac=detail&ids=${encodeURIComponent(id)}`;
   const res = await fetchUpstream(api, { timeoutMs: 6000, headers: cmsRequestHeaders(), signal });
   if (res.ok) {
     try {
