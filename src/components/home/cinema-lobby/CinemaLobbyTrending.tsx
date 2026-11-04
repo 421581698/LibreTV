@@ -1,6 +1,7 @@
 'use client';
 
 import { RecommendSection } from '@/components/douban-section';
+import { useCinemaLobbyVisibility } from '@/components/home/cinema-lobby/useCinemaLobbyVisibility';
 
 type CinemaLobbyTrendingProps = {
   enabled: boolean;
@@ -15,10 +16,13 @@ export function CinemaLobbyTrending({
   enabled,
   onPick,
 }: CinemaLobbyTrendingProps) {
+  const { ref, isNearViewport } = useCinemaLobbyVisibility<HTMLElement>();
+
   if (!enabled) return null;
 
   return (
     <section
+      ref={ref}
       className="cinema-lobby-trending"
       aria-labelledby="cinema-lobby-trending-title"
     >
