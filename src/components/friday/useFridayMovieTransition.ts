@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import type { AnimationEvent, Dispatch, MutableRefObject, SetStateAction } from "react";
+import { shouldStopRequest } from "@/components/friday/useFridayRequestLifecycle";
 
 type MovieTransitionOptions<TMovie> = {
   openRef: MutableRefObject<boolean>;
@@ -12,7 +13,7 @@ type MovieTransitionOptions<TMovie> = {
   setExpanded: Dispatch<SetStateAction<boolean>>;
   stopAllVoice: () => void;
   stop: () => void;
-  cancelRequest: () => void;
+  cancelRequest: () => boolean;
   suppressPartialResponse: () => void;
 };
 
@@ -75,8 +76,10 @@ export function useFridayMovieTransition<TMovie>({
       if (busyRef.current) {
         // 屏蔽取消后可能回到 ready 的半截回复，避免下次打开时自动播报。
         suppressPartialResponse();
-        // 影片详情切换属于主动中断，不能把被 stop 的请求误报为正常完成。
-        cancelRequest();
+      }
+      // 不依赖 React 下一次 render 更新 busyRef：请求刚启动时也必须立即失效并停止。
+      const requestCancelled = cancelRequest();
+      if (shouldStopRequest(busyRef.current, requestCancelled)) {
         stop();
       }
 
