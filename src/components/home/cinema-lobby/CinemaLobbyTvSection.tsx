@@ -18,7 +18,7 @@ export function CinemaLobbyTvSection({
   enabled,
   onPick,
 }: CinemaLobbyTvSectionProps) {
-  const { ref, isNearViewport } = useCinemaLobbyVisibility<HTMLElement>();
+  const { ref, isNearViewport } = useCinemaLobbyVisibility<HTMLElement>(enabled);
   const query = useQuery({
     queryKey: ['douban', 'tv', '热门'],
     queryFn: ({ signal }) => api.douban('tv', '热门', 0, 18, signal),
