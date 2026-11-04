@@ -716,3 +716,12 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   padding-top: clamp(18px, 2.5vw, 24px);
   border-top: 1px solid rgba(128, 145, 170, .16);
 }
+
+
+/* Separate anime and variety as their own destinations in the lobby. */
+.home-v2 .cinema-lobby-anime,
+.home-v2 .cinema-lobby-variety {
+  margin-top: clamp(28px, 4vw, 42px);
+  padding-top: clamp(18px, 2.5vw, 24px);
+  border-top: 1px solid rgba(128, 145, 170, .16);
+}
