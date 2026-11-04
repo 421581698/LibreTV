@@ -577,7 +577,10 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   align-items: end;
   justify-content: space-between;
   gap: 12px;
-  margin: 0 0 10px;
+  min-height: 42px;
+  margin: 0 0 14px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--c-line, rgba(128, 128, 128, .16));
 }
 
 .home-v2 .cinema-lobby-section-eyebrow {
