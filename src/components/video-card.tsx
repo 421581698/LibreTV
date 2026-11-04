@@ -411,6 +411,7 @@ export function DoubanCard({
   const [imgFailed, setImgFailed] = useState(false);
   const [tmdbPoster, setTmdbPoster] = useState<string | null>(null);
   const [tmdbFailed, setTmdbFailed] = useState(false);
+  const [tmdbLoaded, setTmdbLoaded] = useState(false);
   const fallbackRequestRef = useRef<AbortController | null>(null);
 
   const loadTmdbFallback = async () => {
@@ -456,6 +457,7 @@ export function DoubanCard({
     setImgFailed(false);
     setTmdbPoster(null);
     setTmdbFailed(false);
+    setTmdbLoaded(false);
 
     return () => {
       fallbackRequestRef.current?.abort();
@@ -490,10 +492,12 @@ export function DoubanCard({
           <img
             src={tmdbPoster}
             alt={item.title}
-            className="w-full h-full object-cover"
+            className={`w-full h-full object-cover transition-opacity duration-300 ${tmdbLoaded ? 'opacity-100' : 'opacity-0'}`}
             loading="lazy"
+            onLoad={() => setTmdbLoaded(true)}
             onError={() => {
               setTmdbPoster(null);
+              setTmdbLoaded(false);
               setTmdbFailed(true);
               setImgFailed(true);
             }}
@@ -505,6 +509,7 @@ export function DoubanCard({
             customProxy={customImageProxy}
             alt={item.title}
             className="w-full h-full object-cover"
+            revealOnLoad
             onExhausted={loadTmdbFallback}
           />
         ) : (
