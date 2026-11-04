@@ -66,9 +66,9 @@ export function CinemaLobbyCultureSections({
           </div>
           <span className="cinema-lobby-section-note">每日放送</span>
         </div>
-        <div aria-busy={!isNearViewport || animeQuery.isLoading} aria-live="polite">
+        <div aria-busy={!isNearViewport || animeQuery.isFetching} aria-live="polite">
         {animeQuery.isError ? (
-          <SectionError onRetry={() => void animeQuery.refetch()} />
+          <SectionError isRetrying={animeQuery.isFetching} onRetry={() => void animeQuery.refetch()} />
         ) : !isNearViewport || animeQuery.isLoading ? (
           <PosterSkeleton />
         ) : animeItems.length === 0 ? (
@@ -103,11 +103,12 @@ export function CinemaLobbyCultureSections({
           <span className="cinema-lobby-section-note">国内 · 海外</span>
         </div>
         <div
-          aria-busy={!isNearViewport || domesticVarietyQuery.isLoading || globalVarietyQuery.isLoading}
+          aria-busy={!isNearViewport || domesticVarietyQuery.isFetching || globalVarietyQuery.isFetching}
           aria-live="polite"
         >
         {domesticVarietyQuery.isError && globalVarietyQuery.isError ? (
           <SectionError
+            isRetrying={domesticVarietyQuery.isFetching || globalVarietyQuery.isFetching}
             onRetry={() => {
               void domesticVarietyQuery.refetch();
               void globalVarietyQuery.refetch();
@@ -171,16 +172,17 @@ function PosterSkeleton() {
   );
 }
 
-function SectionError({ onRetry }: { onRetry: () => void }) {
+function SectionError({ onRetry, isRetrying = false }: { onRetry: () => void; isRetrying?: boolean }) {
   return (
     <div className="py-6 text-center" role="alert">
       <p className="text-sm text-faint">内容暂时加载失败</p>
       <button
         type="button"
-        className="mt-2 rounded-full bg-chip px-3 py-1.5 text-xs text-muted hover:text-content"
+        className="mt-2 rounded-full bg-chip px-3 py-1.5 text-xs text-muted hover:text-content disabled:cursor-wait disabled:opacity-60"
         onClick={onRetry}
+        disabled={isRetrying}
       >
-        重新加载
+        {isRetrying ? '正在重新加载…' : '重新加载'}
       </button>
     </div>
   );
