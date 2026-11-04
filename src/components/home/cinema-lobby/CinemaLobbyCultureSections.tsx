@@ -5,6 +5,11 @@ import { api } from '@/lib/client-api';
 import { DoubanCard } from '@/components/video-card';
 import { useCinemaLobbyVisibility } from '@/components/home/cinema-lobby/useCinemaLobbyVisibility';
 
+const mobileRailClass =
+  'flex gap-3 overflow-x-auto overscroll-x-contain snap-x snap-mandatory pb-3 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 sm:gap-2.5 sm:overflow-visible sm:pb-0';
+const mobileCardClass =
+  'w-[38vw] max-w-[160px] shrink-0 snap-start sm:w-auto sm:max-w-none';
+
 type CinemaLobbyCultureSectionsProps = {
   enabled: boolean;
   onPick: (title: string) => void;
@@ -123,17 +128,19 @@ export function CinemaLobbyCultureSections({
 
 function PosterGrid({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
-      {children}
+    <div className={mobileRailClass}>
+      {React.Children.map(children, (child) => (
+        <div className={mobileCardClass}>{child}</div>
+      ))}
     </div>
   );
 }
 
 function PosterSkeleton() {
   return (
-    <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
+    <div className={mobileRailClass}>
       {Array.from({ length: 6 }).map((_, index) => (
-        <div key={index} className="min-w-0">
+        <div key={index} className={mobileCardClass}>
           <div className="aspect-[2/3] animate-pulse rounded-lg bg-chip" />
           <div className="mt-2 h-3 animate-pulse rounded bg-chip" />
         </div>
@@ -144,7 +151,7 @@ function PosterSkeleton() {
 
 function SectionError({ onRetry }: { onRetry: () => void }) {
   return (
-    <div className="py-6 text-center">
+    <div className="py-6 text-center" role="status">
       <p className="text-sm text-faint">内容暂时加载失败</p>
       <button
         type="button"
