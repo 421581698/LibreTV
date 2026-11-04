@@ -934,7 +934,9 @@ export function FridayStyles() {
         .friday-root .friday-orb-rim,
         .friday-root .friday-status-dot,
         .friday-root .friday-message,
-        .friday-root .friday-status{
+        .friday-root .friday-status,
+        .friday-root .friday-movie-section,
+        .friday-root .friday-movie-card{
             animation: none !important;
           }
 
