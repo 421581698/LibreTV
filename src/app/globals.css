@@ -476,3 +476,80 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
     font-size: 19px;
   }
 }
+
+
+/* Cinema Lobby: mobile-first viewport budget. Keep the poster row in the
+   first screen without letting Friday consume the entire viewport. */
+.home-v2 .home-v2-main {
+  padding-top: 8px;
+  padding-bottom: 20px;
+}
+
+.home-v2 .friday-hero-v2 {
+  height: clamp(250px, 42svh, 350px);
+  min-height: 0;
+  padding: 6px 8px 2px;
+}
+
+.home-v2 .home-v2-trending-title {
+  margin: 2px 0 10px;
+}
+
+.home-v2 .home-v2-trending-title + section {
+  margin-top: 0;
+}
+
+@media (max-height: 667px) and (max-width: 1023px) {
+  .home-v2 .friday-hero-v2 {
+    height: clamp(220px, 37svh, 248px);
+  }
+
+  .home-v2 .friday-hero-orb {
+    width: 104px;
+    height: 104px;
+  }
+
+  .home-v2 .friday-hero-eyebrow {
+    margin-bottom: 5px;
+  }
+
+  .home-v2 .friday-hero-title {
+    font-size: 25px;
+  }
+
+  .home-v2 .friday-hero-description {
+    margin-top: 4px;
+    margin-bottom: 6px;
+  }
+
+  .home-v2 .friday-hero-orb-button {
+    gap: 5px;
+  }
+
+  .home-v2 .friday-hero-text-entry {
+    margin-top: 5px;
+  }
+
+  .home-v2 .home-v2-quick-searches {
+    gap: 6px;
+    margin-top: 7px;
+  }
+}
+
+@media (min-height: 668px) and (max-height: 812px) and (max-width: 1023px) {
+  .home-v2 .friday-hero-v2 {
+    height: clamp(270px, 40svh, 322px);
+  }
+}
+
+@media (min-height: 813px) and (max-width: 1023px) {
+  .home-v2 .friday-hero-v2 {
+    height: clamp(300px, 42svh, 350px);
+  }
+}
+
+@media (min-width: 1024px) {
+  .home-v2 .home-v2-main {
+    padding-top: 12px;
+  }
+}
