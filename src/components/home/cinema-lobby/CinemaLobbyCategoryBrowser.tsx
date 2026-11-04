@@ -20,7 +20,7 @@ type Props = {
 
 /** 分类浏览使用现有豆瓣标签查询，不新增数据接口或点播 ID 映射。 */
 export function CinemaLobbyCategoryBrowser({ enabled, onPick }: Props) {
-  const { ref, isNearViewport } = useCinemaLobbyVisibility<HTMLElement>();
+  const { ref, isNearViewport } = useCinemaLobbyVisibility<HTMLElement>(enabled);
   const [type, setType] = useState<MediaType>('movie');
   const [tag, setTag] = useState('科幻');
   const query = useQuery({
