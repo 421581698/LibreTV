@@ -45,21 +45,21 @@ export function getEnvSources(): SourceConfig[] {
 
     parsed.forEach((item, i) => {
       if (typeof item !== 'object' || item === null) {
-        throw new Error(\`第 \${i + 1} 项不是对象\`);
+        throw new Error('第 ' + (i + 1) + ' 项不是对象');
       }
       const { name, url, detail, isAdult } = item as Record<string, unknown>;
       if (typeof name !== 'string' || !name.trim()) {
-        throw new Error(\`第 \${i + 1} 项缺少 name\`);
+        throw new Error('第 ' + (i + 1) + ' 项缺少 name');
       }
       if (typeof url !== 'string' || !/^https?:\/\//.test(url.trim())) {
-        throw new Error(\`第 \${i + 1} 项的 url 必须以 http:// 或 https:// 开头\`);
+        throw new Error('第 ' + (i + 1) + ' 项的 url 必须以 http:// 或 https:// 开头');
       }
       const normalizedUrl = url.trim().replace(/\/+$/, '');
       const dedupeKey = normalizedUrl.toLowerCase();
       if (seenUrls.has(dedupeKey)) return;
       seenUrls.add(dedupeKey);
       result.push({
-        key: \`env_custom_\${i}\`,
+        key: 'env_custom_' + i,
         name: name.trim(),
         url: normalizedUrl,
         detail: typeof detail === 'string' && detail.trim() ? detail.trim() : undefined,
