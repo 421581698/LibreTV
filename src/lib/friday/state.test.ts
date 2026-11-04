@@ -256,3 +256,58 @@ describe("Friday movie result lifecycle", () => {
     expect(hasMovieResultData(null)).toBe(false);
   });
 });
+
+
+describe("Friday failed request lifecycle", () => {
+  it("invalidates late tool and completion events after a request fails", () => {
+    let state = fridayReducer(initialFridayState, {
+      type: "MESSAGE_SUBMITTED",
+      requestId: 1,
+    });
+
+    state = fridayReducer(state, {
+      type: "REQUEST_FAILED",
+      requestId: 1,
+      code: "network",
+      message: "Request failed",
+    });
+
+    expect(state.agent).toBe("error");
+    expect(state.requestId).toBe(2);
+    expect(state.errors.agent?.code).toBe("network");
+
+    const lateTool = fridayReducer(state, {
+      type: "TOOL_STARTED",
+      requestId: 1,
+    });
+    const lateCompletion = fridayReducer(state, {
+      type: "RESPONSE_COMPLETED",
+      requestId: 1,
+    });
+
+    expect(lateTool).toBe(state);
+    expect(lateCompletion).toBe(state);
+    expect(lateCompletion.agent).toBe("error");
+  });
+
+  it("uses the next request id after a failed request", () => {
+    let state = fridayReducer(initialFridayState, {
+      type: "MESSAGE_SUBMITTED",
+      requestId: 1,
+    });
+    state = fridayReducer(state, {
+      type: "REQUEST_FAILED",
+      requestId: 1,
+      code: "network",
+      message: "Request failed",
+    });
+    state = fridayReducer(state, {
+      type: "MESSAGE_SUBMITTED",
+      requestId: 2,
+    });
+
+    expect(state.requestId).toBe(2);
+    expect(state.agent).toBe("thinking");
+    expect(state.errors.agent).toBeUndefined();
+  });
+});
