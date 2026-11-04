@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/client-api';
 import { DoubanCard } from '@/components/video-card';
+import { useCinemaLobbyVisibility } from '@/components/home/cinema-lobby/useCinemaLobbyVisibility';
 
 type MediaType = 'movie' | 'tv';
 
@@ -19,12 +20,13 @@ type Props = {
 
 /** 分类浏览使用现有豆瓣标签查询，不新增数据接口或点播 ID 映射。 */
 export function CinemaLobbyCategoryBrowser({ enabled, onPick }: Props) {
+  const { ref, isNearViewport } = useCinemaLobbyVisibility<HTMLElement>();
   const [type, setType] = useState<MediaType>('movie');
   const [tag, setTag] = useState('科幻');
   const query = useQuery({
     queryKey: ['douban', type, tag],
     queryFn: ({ signal }) => api.douban(type, tag, 0, 18, signal),
-    enabled,
+    enabled: enabled && isNearViewport,
   });
 
   if (!enabled) return null;
@@ -39,6 +41,7 @@ export function CinemaLobbyCategoryBrowser({ enabled, onPick }: Props) {
 
   return (
     <section
+      ref={ref}
       className="cinema-lobby-categories cinema-lobby-trending"
       aria-labelledby="cinema-lobby-categories-title"
     >
