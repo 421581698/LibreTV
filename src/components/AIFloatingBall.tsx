@@ -623,14 +623,21 @@ export default function AIFloatingBall({
       });
 
       // 用户可能在权限弹窗期间关闭助手。
-      if (!openRef.current || closingRef.current) {
+      if (
+        !openRef.current ||
+        closingRef.current ||
+        audioContextRef.current !== context ||
+        context.state === "closed"
+      ) {
         stream.getTracks().forEach((track) => track.stop());
         if (audioContextRef.current === context) {
           audioContextRef.current = null;
         }
-        await context.close().catch(() => {
-          // 忽略已关闭上下文的异常。
-        });
+        if (context.state !== "closed") {
+          await context.close().catch(() => {
+            // 忽略已关闭上下文的异常。
+          });
+        }
         return;
       }
 
