@@ -591,6 +591,8 @@ export default function AIFloatingBall({
       return;
     }
 
+    let pendingContext: AudioContext | null = null;
+
     try {
       const AudioContextClass =
         window.AudioContext ||
@@ -599,6 +601,17 @@ export default function AIFloatingBall({
         }).webkitAudioContext;
 
       if (!AudioContextClass) return;
+
+      // 在用户点击手势内创建并尝试恢复 AudioContext，兼容 iOS Safari 的自动播放策略。
+      const context = new AudioContextClass();
+      pendingContext = context;
+      audioContextRef.current = context;
+
+      if (context.state === "suspended") {
+        void context.resume().catch(() => {
+          // getUserMedia 授权完成后会再次尝试恢复。
+        });
+      }
 
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -612,10 +625,15 @@ export default function AIFloatingBall({
       // 用户可能在权限弹窗期间关闭助手。
       if (!openRef.current || closingRef.current) {
         stream.getTracks().forEach((track) => track.stop());
+        if (audioContextRef.current === context) {
+          audioContextRef.current = null;
+        }
+        await context.close().catch(() => {
+          // 忽略已关闭上下文的异常。
+        });
         return;
       }
 
-      const context = new AudioContextClass();
       const analyser = context.createAnalyser();
       analyser.fftSize = 256;
       analyser.smoothingTimeConstant = 0.72;
@@ -681,6 +699,12 @@ export default function AIFloatingBall({
 
       audioFrameRef.current = window.requestAnimationFrame(animate);
     } catch (audioError) {
+      if (pendingContext && audioContextRef.current === pendingContext) {
+        audioContextRef.current = null;
+        void pendingContext.close().catch(() => {
+          // 忽略浏览器音频上下文关闭异常。
+        });
+      }
       console.warn("[Friday] Audio meter unavailable:", audioError);
       // 音量可视化失败不阻断原有语音识别。
     }
