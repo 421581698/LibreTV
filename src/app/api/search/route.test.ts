@@ -4,6 +4,10 @@ import { NextRequest } from 'next/server';
 import { SESSION_COOKIE, signSession } from '@/lib/auth';
 import type { SearchResponse, SearchStreamEvent, SourceConfig } from '@/lib/types';
 
+// 路由单测只验证请求中传入的源；内置源列表由 env-sources 独立负责，
+// 避免三个真实源污染这些使用固定 mock 的隔离测试。
+vi.mock('@/lib/env-sources', () => ({ getEnvSources: () => [] }));
+
 // 测试域名使用保留的 .test/.example 后缀；模拟公网 DNS 答案，
 // 让这些测试只验证路由与上游逻辑，不依赖 CI runner 的真实 DNS。
 vi.mock('node:dns/promises', () => ({
