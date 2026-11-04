@@ -122,6 +122,7 @@ export default function AIFloatingBall({
     setExpanded,
     stopAllVoice,
     stop,
+    cancelRequest: cancelActiveRequest,
   });
 
   const auroraState: AuroraState = speaking
