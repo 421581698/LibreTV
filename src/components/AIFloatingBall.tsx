@@ -368,6 +368,7 @@ export default function AIFloatingBall({
     automatic: boolean;
   } | null>(null);
   const recognitionReleaseTimerRef = useRef<number | null>(null);
+  const recognitionSafetyTimerRef = useRef<number | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   // V3.1：独立音量分析链路，不干扰 SpeechRecognition 的识别流程。
@@ -540,6 +541,11 @@ export default function AIFloatingBall({
       recognitionReleaseTimerRef.current = null;
     }
 
+    if (recognitionSafetyTimerRef.current !== null) {
+      window.clearTimeout(recognitionSafetyTimerRef.current);
+      recognitionSafetyTimerRef.current = null;
+    }
+
     pendingRecognitionStartRef.current = null;
   }, []);
 
@@ -564,33 +570,92 @@ export default function AIFloatingBall({
     setSpeaking(false);
   }, []);
 
-  const stopRecognition = useCallback((abort = true) => {
-    const recognition = recognitionRef.current;
+  const handleRecognitionReleased = useCallback(
+    (recognition: SpeechRecognitionLike) => {
+      // 只允许当前退役实例触发后续逻辑。
+      if (retiringRecognitionRef.current !== recognition) return;
 
-    recognitionRef.current = null;
-    listeningRef.current = false;
-    pendingVoiceTextRef.current = "";
-    recognitionErrorRef.current = "";
-    setListening(false);
+      retiringRecognitionRef.current = null;
 
-    if (!recognition) return;
-
-    // 不把旧实例的 onend 回调丢掉：iOS Safari 需要异步完成底层音频会话释放。
-    retiringRecognitionRef.current = recognition;
-
-    try {
-      if (abort) {
-        recognition.abort();
-      } else {
-        recognition.stop();
+      if (recognitionReleaseTimerRef.current !== null) {
+        window.clearTimeout(recognitionReleaseTimerRef.current);
+        recognitionReleaseTimerRef.current = null;
       }
-    } catch {
-      if (retiringRecognitionRef.current === recognition) {
-        retiringRecognitionRef.current = null;
+
+      // 清理旧实例所有事件处理器。
+      recognition.onstart = null;
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onend = null;
+
+      const pending = pendingRecognitionStartRef.current;
+      pendingRecognitionStartRef.current = null;
+
+      if (
+        !pending ||
+        pending.sessionId !== voiceSessionIdRef.current ||
+        !voiceSessionActiveRef.current ||
+        !openRef.current ||
+        closingRef.current ||
+        busyRef.current ||
+        listeningRef.current
+      ) {
+        return;
       }
-      // 忽略浏览器识别实例已结束的异常。
-    }
-  }, []);
+
+      // 统一经过 200ms 安全缓冲。
+      if (recognitionSafetyTimerRef.current !== null) {
+        window.clearTimeout(recognitionSafetyTimerRef.current);
+      }
+
+      recognitionSafetyTimerRef.current = window.setTimeout(() => {
+        recognitionSafetyTimerRef.current = null;
+
+        if (pending.sessionId !== voiceSessionIdRef.current) return;
+        if (!voiceSessionActiveRef.current) return;
+        if (!openRef.current || closingRef.current) return;
+        if (busyRef.current || listeningRef.current) return;
+        if (retiringRecognitionRef.current) return;
+
+        startListeningRef.current(pending.automatic);
+      }, 200);
+    },
+    [],
+  );
+
+  const stopRecognition = useCallback(
+    (abort = true) => {
+      const recognition = recognitionRef.current;
+
+      recognitionRef.current = null;
+      listeningRef.current = false;
+      pendingVoiceTextRef.current = "";
+      recognitionErrorRef.current = "";
+      setListening(false);
+
+      if (!recognition) return;
+
+      // 旧实例进入退役状态，保留 onend 以等待 Safari 释放通知。
+      retiringRecognitionRef.current = recognition;
+
+      // 阻止旧实例继续修改 UI 或提交识别结果。
+      recognition.onstart = null;
+      recognition.onresult = null;
+      recognition.onerror = null;
+
+      try {
+        if (abort) {
+          recognition.abort();
+        } else {
+          recognition.stop();
+        }
+      } catch {
+        // 同步抛错：直接进入统一释放逻辑。
+        handleRecognitionReleased(recognition);
+      }
+    },
+    [handleRecognitionReleased],
+  );
 
   const stopAudioMeter = useCallback(() => {
     if (audioFrameRef.current !== null) {
@@ -846,20 +911,19 @@ export default function AIFloatingBall({
         pendingRecognitionStartRef.current = { sessionId, automatic };
 
         if (recognitionReleaseTimerRef.current === null) {
+          const retiringRecognition = retiringRecognitionRef.current;
+
           recognitionReleaseTimerRef.current = window.setTimeout(() => {
             recognitionReleaseTimerRef.current = null;
-            const pending = pendingRecognitionStartRef.current;
-            pendingRecognitionStartRef.current = null;
 
-            if (!pending) return;
-            if (pending.sessionId !== voiceSessionIdRef.current) return;
-            if (!voiceSessionActiveRef.current) return;
-            if (!openRef.current || closingRef.current) return;
-            if (busyRef.current || listeningRef.current) return;
+            // 防止旧看门狗误伤新实例。
+            if (retiringRecognitionRef.current !== retiringRecognition) {
+              return;
+            }
 
             console.warn("[Friday] Recognition release watchdog fired");
-            retiringRecognitionRef.current = null;
-            startListeningRef.current(pending.automatic);
+
+            handleRecognitionReleased(retiringRecognition);
           }, 900);
         }
 
@@ -1002,29 +1066,7 @@ export default function AIFloatingBall({
 
       recognition.onend = () => {
         if (recognitionRef.current !== recognition) {
-          if (retiringRecognitionRef.current === recognition) {
-            retiringRecognitionRef.current = null;
-
-            if (recognitionReleaseTimerRef.current !== null) {
-              window.clearTimeout(recognitionReleaseTimerRef.current);
-              recognitionReleaseTimerRef.current = null;
-            }
-
-            const pending = pendingRecognitionStartRef.current;
-            pendingRecognitionStartRef.current = null;
-
-            if (
-              pending &&
-              pending.sessionId === voiceSessionIdRef.current &&
-              voiceSessionActiveRef.current &&
-              openRef.current &&
-              !closingRef.current &&
-              !busyRef.current &&
-              !listeningRef.current
-            ) {
-              startListeningRef.current(pending.automatic);
-            }
-          }
+          handleRecognitionReleased(recognition);
           return;
         }
         if (sessionId !== voiceSessionIdRef.current) return;
@@ -1206,6 +1248,7 @@ export default function AIFloatingBall({
     },
     [
       clearVoiceResumeTimer,
+      handleRecognitionReleased,
       setVoiceSession,
       stopSpeech,
       startAudioMeter,
