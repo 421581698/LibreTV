@@ -108,7 +108,10 @@ export async function isBlockedByDNS(urlString: string): Promise<boolean> {
         return await resolver(hostname);
       } catch (error) {
         const code = (error as NodeJS.ErrnoException)?.code;
-        if (code === 'ENODATA') return [];
+        // DNS over HTTPS 在不同解析器/地址族上可能用 ENODATA 或 ENOTFOUND
+        // 表示该地址族没有记录。只将这两种“无记录”结果视为空数组；
+        // 超时、SERVFAIL 等真实解析故障仍然 fail-closed。
+        if (code === 'ENODATA' || code === 'ENOTFOUND') return [];
         throw error;
       }
     };
