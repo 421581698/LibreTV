@@ -30,7 +30,7 @@ jobs:
       - name: Checkout feature branch
         uses: actions/checkout@v4
         with:
-          ref: feature/homepage-friday
+          ref: feature/homepage-cinema-lobby
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
