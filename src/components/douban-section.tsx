@@ -77,7 +77,6 @@ function DoubanView({ onPick, cinemaLobbyLayout }: { onPick: (title: string) => 
       </div>
 
       <div aria-busy={query.isLoading} aria-live="polite">
-      <div aria-busy={query.isLoading} aria-live="polite">
       {query.isError ? (
         <QueryError error={query.error} onRetry={() => void query.refetch()} />
       ) : query.isLoading ? (
@@ -186,6 +185,7 @@ function HotListView({ onPick, cinemaLobbyLayout }: { onPick: (title: string) =>
         ))}
       </div>
 
+      <div aria-busy={query.isLoading} aria-live="polite">
       {query.isError ? (
         <QueryError error={query.error} onRetry={() => void query.refetch()} />
       ) : query.isLoading ? (
@@ -199,6 +199,7 @@ function HotListView({ onPick, cinemaLobbyLayout }: { onPick: (title: string) =>
           ))}
         </div>
       )}
+      </div>
       </div>
     </section>
   );
