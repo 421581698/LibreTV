@@ -553,3 +553,14 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
     padding-top: 12px;
   }
 }
+
+
+/* The hero and search now share one presentation wrapper. */
+.home-v2 .cinema-lobby-hero > section {
+  margin-top: 0 !important;
+  margin-bottom: 20px !important;
+}
+
+.home-v2 .cinema-lobby-hero > section > div {
+  width: 100%;
+}
