@@ -155,6 +155,8 @@ export function fridayReducer(
         ? state
         : {
             ...state,
+            // 失败后立即使当前请求编号失效，避免迟到的完成事件覆盖错误状态。
+            requestId: state.requestId + 1,
             agent: "error",
             errors: {
               ...state.errors,
