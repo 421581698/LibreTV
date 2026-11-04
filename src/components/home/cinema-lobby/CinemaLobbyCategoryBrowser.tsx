@@ -82,7 +82,14 @@ export function CinemaLobbyCategoryBrowser({ enabled, onPick }: Props) {
         </div>
       </div>
 
-      <div id={resultsId} aria-busy={query.isLoading} aria-live="polite">
+      <div
+        id={resultsId}
+        role="region"
+        aria-label={`${type === 'movie' ? '电影' : '剧集'}·${tag}分类结果`}
+        tabIndex={-1}
+        aria-busy={query.isLoading}
+        aria-live="polite"
+      >
       {query.isError ? (
         <div className="py-6 text-center" role="alert">
           <p className="text-sm text-faint">分类内容暂时加载失败</p>
