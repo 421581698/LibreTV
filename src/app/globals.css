@@ -1036,6 +1036,30 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   }
 }
 
+/* Cinema lobby loading placeholders: a restrained shimmer instead of a pulsing flash. */
+@keyframes cinema-lobby-poster-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+.home-v2 .cinema-lobby-trending .animate-pulse {
+  background-image: linear-gradient(
+    100deg,
+    rgba(128, 145, 170, .07) 20%,
+    rgba(150, 165, 190, .2) 45%,
+    rgba(128, 145, 170, .07) 70%
+  );
+  background-size: 220% 100%;
+  animation: cinema-lobby-poster-shimmer 1.7s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-v2 .cinema-lobby-trending .animate-pulse {
+    animation: none;
+    background-position: 50% 0;
+  }
+}
+
 /* Cinema lobby poster fallback — a deliberate state, not an empty image hole. */
 .home-v2 .cinema-lobby-poster-fallback {
   display: flex;
