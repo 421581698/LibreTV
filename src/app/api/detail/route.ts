@@ -22,7 +22,7 @@ function parseSource(raw: string | null): SourceConfig | null {
 }
 
 /**
- * 视频详情：优先走列表接口 ?ac=videolist&ids=，
+ * 视频详情：优先走列表接口 ?ac=detail&ids=，
  * 拿不到播放地址时（部分源需要爬详情页）降级到 detail 页 HTML 提取。
  */
 export async function GET(req: Request) {
@@ -60,7 +60,7 @@ export async function GET(req: Request) {
     let resolved: VideoDetail | null = null;
 
     // 1) 标准列表接口
-    const api = `${source.url.replace(/\/+$/, '')}?ac=videolist&ids=${encodeURIComponent(id)}`;
+    const api = `${source.url.replace(/\/+$/, '')}?ac=detail&ids=${encodeURIComponent(id)}`;
     const res = await fetchUpstream(api, { timeoutMs: 10000, signal: req.signal, headers: cmsRequestHeaders() });
     if (res.ok) {
       const data = await res.json();
