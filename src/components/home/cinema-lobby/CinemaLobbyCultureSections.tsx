@@ -118,6 +118,7 @@ export function CinemaLobbyCultureSections({
           <PosterSkeleton />
         ) : varietyItems.length === 0 && (domesticVarietyQuery.isError || globalVarietyQuery.isError) ? (
           <SectionError
+            isRetrying={domesticVarietyQuery.isFetching || globalVarietyQuery.isFetching}
             onRetry={() => {
               void domesticVarietyQuery.refetch();
               void globalVarietyQuery.refetch();
