@@ -11,6 +11,8 @@ interface SmartImageProps {
   alt: string;
   className?: string;
   loading?: 'lazy' | 'eager';
+  /** 图片成功解码后淡入，适用于影院海报 */
+  revealOnLoad?: boolean;
   /** 候选链耗尽后回调，调用方切换占位图等兜底 UI */
   onExhausted?: () => void;
 }
@@ -28,16 +30,19 @@ export function SmartImage({
   alt,
   className,
   loading = 'lazy',
+  revealOnLoad = false,
   onExhausted,
 }: SmartImageProps) {
   const candidates = buildImageCandidates(url, mode, customProxy);
   const [idx, setIdx] = useState(0);
+  const [isLoaded, setIsLoaded] = useState(false);
   const exhaustionReportedRef = useRef(false);
 
   // 地址或加载方式变化时重置降级进度与耗尽标记。
   useEffect(() => {
     exhaustionReportedRef.current = false;
     setIdx(0);
+    setIsLoaded(false);
   }, [url, mode, customProxy]);
 
   useEffect(() => {
@@ -54,10 +59,14 @@ export function SmartImage({
     <img
       src={src}
       alt={alt}
-      className={className}
+      className={[className, revealOnLoad ? `transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}` : ''].filter(Boolean).join(' ')}
       loading={loading}
       referrerPolicy="no-referrer"
-      onError={() => setIdx((i) => i + 1)}
+      onLoad={() => setIsLoaded(true)}
+      onError={() => {
+        setIsLoaded(false);
+        setIdx((i) => i + 1);
+      }}
     />
   );
 }
