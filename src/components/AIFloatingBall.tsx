@@ -997,7 +997,7 @@ export default function AIFloatingBall({
 
         dispatchMachine({
           type: "VOICE_FAILED",
-          sessionId,
+          sessionId: voiceSessionIdRef.current,
           code: "start-failed",
           message: "语音识别启动失败",
         });
