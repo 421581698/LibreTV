@@ -8,6 +8,11 @@ import { useCinemaLobbyVisibility } from '@/components/home/cinema-lobby/useCine
 
 type MediaType = 'movie' | 'tv';
 
+const mobileRailClass =
+  'flex gap-3 overflow-x-auto overscroll-x-contain snap-x snap-mandatory pb-3 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 sm:gap-2.5 sm:overflow-visible sm:pb-0';
+const mobileCardClass =
+  'w-[38vw] max-w-[160px] shrink-0 snap-start sm:w-auto sm:max-w-none';
+
 const CATEGORY_TAGS: Record<MediaType, string[]> = {
   movie: ['科幻', '悬疑', '动作', '喜剧', '爱情', '犯罪', '惊悚', '动画', '纪录片', '奇幻'],
   tv: ['悬疑', '爱情', '喜剧', '犯罪', '动作', '科幻', '古装', '都市', '纪录片', '动画'],
@@ -60,7 +65,7 @@ export function CinemaLobbyCategoryBrowser({ enabled, onPick }: Props) {
           <button type="button" aria-pressed={type === 'movie'} className={type === 'movie' ? 'is-active' : ''} onClick={() => switchType('movie')}>电影</button>
           <button type="button" aria-pressed={type === 'tv'} className={type === 'tv' ? 'is-active' : ''} onClick={() => switchType('tv')}>剧集</button>
         </div>
-        <div className="cinema-lobby-category-tags" aria-label="选择题材">
+        <div className="cinema-lobby-category-tags flex max-w-full gap-2 overflow-x-auto overscroll-x-contain whitespace-nowrap pb-1 sm:flex-wrap sm:overflow-visible" aria-label="选择题材">
           {tags.map((item) => (
             <button
               key={item}
@@ -81,9 +86,9 @@ export function CinemaLobbyCategoryBrowser({ enabled, onPick }: Props) {
           <button type="button" className="mt-2 rounded-full bg-chip px-3 py-1.5 text-xs text-muted" onClick={() => void query.refetch()}>重新加载</button>
         </div>
       ) : !isNearViewport || query.isLoading ? (
-        <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
+        <div className={mobileRailClass}>
           {Array.from({ length: 6 }).map((_, index) => (
-            <div key={index} className="min-w-0">
+            <div key={index} className={mobileCardClass}>
               <div className="aspect-[2/3] animate-pulse rounded-lg bg-chip" />
               <div className="mt-2 h-3 animate-pulse rounded bg-chip" />
             </div>
@@ -92,15 +97,16 @@ export function CinemaLobbyCategoryBrowser({ enabled, onPick }: Props) {
       ) : items.length === 0 ? (
         <p className="py-6 text-center text-sm text-faint">这个分类暂时没有推荐内容</p>
       ) : (
-        <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
+        <div className={mobileRailClass}>
           {items.map((item) => (
-            <DoubanCard
-              key={item.id}
-              item={item}
-              isTv={type === 'tv'}
-              enableTmdbFallback
-              onClick={() => onPick(item.title)}
-            />
+            <div key={item.id} className={mobileCardClass}>
+              <DoubanCard
+                item={item}
+                isTv={type === 'tv'}
+                enableTmdbFallback
+                onClick={() => onPick(item.title)}
+              />
+            </div>
           ))}
         </div>
       )}
