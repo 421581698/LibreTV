@@ -1,6 +1,13 @@
 name: Friday iOS Native Build
 
 on:
+  push:
+    branches:
+      - feature/friday-ios-native-bootstrap
+    paths:
+      - ".github/workflows/friday-ios-native-build.yml"
+      - "capacitor.config.ts"
+      - "native/**"
   workflow_dispatch:
     inputs:
       web_url:
