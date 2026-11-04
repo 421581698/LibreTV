@@ -564,3 +564,49 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
 .home-v2 .cinema-lobby-hero > section > div {
   width: 100%;
 }
+
+
+/* Cinema Lobby content hierarchy */
+.home-v2 .cinema-lobby-trending {
+  margin-top: 2px;
+  min-width: 0;
+}
+
+.home-v2 .cinema-lobby-section-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 10px;
+}
+
+.home-v2 .cinema-lobby-section-eyebrow {
+  margin: 0 0 3px;
+  color: var(--c-faint, #888);
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: .18em;
+}
+
+.home-v2 .cinema-lobby-section-heading .home-v2-trending-title {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.home-v2 .cinema-lobby-section-note {
+  padding-bottom: 1px;
+  color: var(--c-faint, #888);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.home-v2 .cinema-lobby-trending > section {
+  margin-top: 0;
+}
+
+@media (min-width: 1024px) {
+  .home-v2 .cinema-lobby-section-heading .home-v2-trending-title {
+    font-size: 21px;
+  }
+}
