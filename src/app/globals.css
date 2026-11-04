@@ -1197,3 +1197,38 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   }
 }
 
+/* Cinema lobby horizontal rails: smoother, predictable touch scrolling. */
+.home-v2 .cinema-lobby-trending .snap-x {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scroll-padding-inline: 16px;
+  scrollbar-width: none;
+  scrollbar-gutter: stable;
+}
+
+.home-v2 .cinema-lobby-trending .snap-x::-webkit-scrollbar {
+  display: none;
+}
+
+.home-v2 .cinema-lobby-trending .snap-x > .snap-start {
+  scroll-snap-stop: always;
+  scroll-margin-inline: 2px;
+}
+
+@media (max-width: 639px) {
+  .home-v2 .cinema-lobby-trending .snap-x {
+    column-gap: 12px;
+    padding-bottom: 12px;
+  }
+
+  .home-v2 .cinema-lobby-trending .snap-x > .snap-start {
+    scroll-snap-align: start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-v2 .cinema-lobby-trending .snap-x {
+    scroll-behavior: auto;
+  }
+}
+
