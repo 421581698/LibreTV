@@ -1036,6 +1036,32 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   }
 }
 
+/* Shared poster-card frame across every cinema lobby recommendation grid. */
+.home-v2 .cinema-lobby-trending .grid:not(.grid-cols-3) {
+  column-gap: 10px;
+  row-gap: 16px;
+}
+
+.home-v2 .cinema-lobby-trending .grid:not(.grid-cols-3) > .card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(128, 145, 170, .16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .035);
+  box-shadow: 0 5px 18px rgba(0, 0, 0, .12);
+}
+
+@media (max-width: 639px) {
+  .home-v2 .cinema-lobby-trending .grid:not(.grid-cols-3) {
+    column-gap: 8px;
+    row-gap: 13px;
+  }
+
+  .home-v2 .cinema-lobby-trending .grid:not(.grid-cols-3) > .card {
+    border-radius: 10px;
+  }
+}
+
 /* Ultra-wide cinema lobby: use the extra canvas without stretching poster cards. */
 @media (min-width: 1600px) {
   .home-v2 .home-v2-main {
