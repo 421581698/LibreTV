@@ -500,6 +500,46 @@ export function FridayStyles() {
           filter: brightness(1.28);
         }
 
+        .friday-root .friday-orb-stage .friday-orb-visual{
+          transition: width .32s cubic-bezier(.2,.8,.2,1),
+            height .32s cubic-bezier(.2,.8,.2,1),
+            flex-basis .32s cubic-bezier(.2,.8,.2,1),
+            border-radius .32s ease;
+        }
+
+        .friday-root .friday-panel[data-agent-state="thinking"] .friday-orb-stage .friday-orb-visual{
+          width: 17px;
+          height: 17px;
+          flex-basis: 17px;
+          animation-duration: 2.2s,1.25s;
+          filter: brightness(1.2);
+        }
+
+        .friday-root .friday-panel[data-agent-state="executing"] .friday-orb-stage .friday-orb-visual{
+          width: 58px;
+          height: 27px;
+          flex-basis: 58px;
+          border-radius: 999px;
+          animation-duration: 2.8s,1s;
+          filter: brightness(1.28) saturate(1.35);
+        }
+
+        .friday-root .friday-panel[data-agent-state="rendering"] .friday-orb-stage .friday-orb-visual{
+          width: 38px;
+          height: 38px;
+          flex-basis: 38px;
+          animation-duration: 3.2s,1.8s;
+          filter: brightness(1.2);
+        }
+
+        .friday-root .friday-panel[data-agent-state="completed"] .friday-orb-stage .friday-orb-visual{
+          width: 28px;
+          height: 28px;
+          flex-basis: 28px;
+          animation-duration: 5s,3s;
+          filter: brightness(1.08);
+        }
+
         .friday-root .friday-input-area{
           position: relative;
           z-index: 4;
