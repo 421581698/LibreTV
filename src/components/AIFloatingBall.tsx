@@ -17,7 +17,7 @@ import type { MovieItem } from "@/components/friday/FridayPanel";
 import { useFridayVoiceController } from "@/components/friday/useFridayVoiceController";
 import { useFridayFabController } from "@/components/friday/useFridayFabController";
 import { useFridayResponseController } from "@/components/friday/useFridayResponseController";
-import { useFridayRequestLifecycle } from "@/components/friday/useFridayRequestLifecycle";
+import { shouldStopRequest, useFridayRequestLifecycle } from "@/components/friday/useFridayRequestLifecycle";
 import { useFridayPanelEvents } from "@/components/friday/useFridayPanelEvents";
 import { useFridayMovieTransition } from "@/components/friday/useFridayMovieTransition";
 
@@ -250,12 +250,14 @@ export default function AIFloatingBall({
     openRef.current = false;
     closingRef.current = false;
 
-    if (busyRef.current) suppressPartialResponse();
+    const wasBusy = busyRef.current;
+    if (wasBusy) suppressPartialResponse();
     stopAllVoice();
 
-    if (busyRef.current) {
+    // beginRequest 在 sendMessage 前同步登记；即使 busy 尚未经过 React render，也能取消。
+    const requestCancelled = cancelActiveRequest();
+    if (shouldStopRequest(wasBusy, requestCancelled)) {
       // 先使当前 requestId 失效，再停止底层流，屏蔽 stop 触发的迟到完成事件。
-      cancelActiveRequest();
       stop();
     }
 
@@ -282,17 +284,19 @@ export default function AIFloatingBall({
   });
 
   const interrupt = useCallback(() => {
-    if (busyRef.current) {
+    const wasBusy = busyRef.current;
+    if (wasBusy) {
       // 屏蔽停止流后可能回到 ready 的部分回复，避免中断后又被自动播报。
       suppressPartialResponse();
-      stopAllVoice();
-      // 手动中断与切换影片采用同一取消语义，不把中断误记为正常完成。
-      cancelActiveRequest();
-      stop();
-      return;
     }
-
     stopAllVoice();
+
+    // 手动中断也覆盖请求启动后、busy 状态尚未刷新这一帧。
+    const requestCancelled = cancelActiveRequest();
+    if (shouldStopRequest(wasBusy, requestCancelled)) {
+      // 不把被 stop 的请求误记为正常完成。
+      stop();
+    }
   }, [
     suppressPartialResponse,
     stopAllVoice,
