@@ -29,6 +29,9 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Build OpenNext for Cloudflare
+        env:
+          NEXT_PUBLIC_HOME_V2: "true"
+          NEXT_TELEMETRY_DISABLED: "1"
         run: npx opennextjs-cloudflare build
 
       - name: Deploy Worker
