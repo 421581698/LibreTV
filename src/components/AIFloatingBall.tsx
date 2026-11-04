@@ -354,6 +354,13 @@ export default function AIFloatingBall({
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
+  // V3.1：独立音量分析链路，不干扰 SpeechRecognition 的识别流程。
+  const audioStreamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioAnalyserRef = useRef<AnalyserNode | null>(null);
+  const audioFrameRef = useRef<number | null>(null);
+  const audioSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+
   const recognitionErrorRef = useRef("");
   const pendingVoiceTextRef = useRef("");
   const manualVoiceStopRef = useRef(false);
@@ -541,16 +548,156 @@ export default function AIFloatingBall({
     }
   }, []);
 
+  const stopAudioMeter = useCallback(() => {
+    if (audioFrameRef.current !== null) {
+      window.cancelAnimationFrame(audioFrameRef.current);
+      audioFrameRef.current = null;
+    }
+
+    audioAnalyserRef.current = null;
+    audioSourceRef.current?.disconnect();
+    audioSourceRef.current = null;
+
+    audioStreamRef.current?.getTracks().forEach((track) => track.stop());
+    audioStreamRef.current = null;
+
+    const context = audioContextRef.current;
+    audioContextRef.current = null;
+
+    if (context && context.state !== "closed") {
+      void context.close().catch(() => {
+        // 忽略浏览器音频上下文关闭异常。
+      });
+    }
+
+    if (typeof document !== "undefined") {
+      document
+        .querySelectorAll<HTMLElement>(".friday-orb-visual")
+        .forEach((orb) => {
+          orb.style.setProperty("--friday-orb-scale", "1");
+          orb.style.setProperty("--friday-fluid-scale", "1");
+          orb.style.setProperty("--friday-orb-brightness", "1");
+        });
+    }
+  }, []);
+
+  const startAudioMeter = useCallback(async () => {
+    if (audioStreamRef.current || audioContextRef.current) return;
+
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.mediaDevices?.getUserMedia
+    ) {
+      return;
+    }
+
+    try {
+      const AudioContextClass =
+        window.AudioContext ||
+        (window as Window & {
+          webkitAudioContext?: typeof AudioContext;
+        }).webkitAudioContext;
+
+      if (!AudioContextClass) return;
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+        video: false,
+      });
+
+      // 用户可能在权限弹窗期间关闭助手。
+      if (!openRef.current || closingRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      const context = new AudioContextClass();
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.72;
+
+      const source = context.createMediaStreamSource(stream);
+      source.connect(analyser);
+
+      audioStreamRef.current = stream;
+      audioContextRef.current = context;
+      audioAnalyserRef.current = analyser;
+      audioSourceRef.current = source;
+
+      if (context.state === "suspended") {
+        await context.resume();
+      }
+
+      const samples = new Uint8Array(analyser.fftSize);
+      let smoothedLevel = 0;
+
+      const animate = () => {
+        const activeAnalyser = audioAnalyserRef.current;
+        if (!activeAnalyser || !audioStreamRef.current) return;
+
+        activeAnalyser.getByteTimeDomainData(samples);
+
+        let sum = 0;
+        for (let index = 0; index < samples.length; index += 1) {
+          const sample = (samples[index] - 128) / 128;
+          sum += sample * sample;
+        }
+
+        const rms = Math.sqrt(sum / samples.length);
+        const targetLevel = Math.min(
+          1,
+          Math.max(0, (rms - 0.012) * 14),
+        );
+
+        smoothedLevel += (targetLevel - smoothedLevel) * 0.24;
+
+        const orbScale = 1 + smoothedLevel * 0.12;
+        const fluidScale = 1 + smoothedLevel * 0.2;
+        const brightness = 1 + smoothedLevel * 0.34;
+
+        document
+          .querySelectorAll<HTMLElement>(".friday-orb-visual")
+          .forEach((orb) => {
+            orb.style.setProperty(
+              "--friday-orb-scale",
+              orbScale.toFixed(3),
+            );
+            orb.style.setProperty(
+              "--friday-fluid-scale",
+              fluidScale.toFixed(3),
+            );
+            orb.style.setProperty(
+              "--friday-orb-brightness",
+              brightness.toFixed(3),
+            );
+          });
+
+        audioFrameRef.current = window.requestAnimationFrame(animate);
+      };
+
+      audioFrameRef.current = window.requestAnimationFrame(animate);
+    } catch (audioError) {
+      console.warn("[Friday] Audio meter unavailable:", audioError);
+      // 音量可视化失败不阻断原有语音识别。
+    }
+  }, []);
+
   const stopAllVoice = useCallback(() => {
     setVoiceSession(false);
     clearVoiceResumeTimer();
     stopRecognition(true);
     stopSpeech();
+    stopAudioMeter();
   }, [
     setVoiceSession,
     clearVoiceResumeTimer,
     stopRecognition,
     stopSpeech,
+    stopAudioMeter,
   ]);
 
   const clearMovieCloseTimer = useCallback(() => {
@@ -597,6 +744,11 @@ export default function AIFloatingBall({
 
       clearVoiceResumeTimer();
       setVoiceError("");
+
+      // 只在用户主动开启语音时请求音量分析权限；自动恢复复用同一条音频流。
+      if (!automatic) {
+        void startAudioMeter();
+      }
 
       if (
         typeof window === "undefined" ||
@@ -792,12 +944,19 @@ export default function AIFloatingBall({
       clearVoiceResumeTimer,
       setVoiceSession,
       stopSpeech,
+      startAudioMeter,
     ],
   );
 
   useEffect(() => {
     startListeningRef.current = startListening;
   }, [startListening]);
+
+  useEffect(() => {
+    return () => {
+      stopAudioMeter();
+    };
+  }, [stopAudioMeter]);
 
   const openPanel = useCallback(() => {
     clearMovieCloseTimer();
@@ -1447,7 +1606,8 @@ export default function AIFloatingBall({
           backdrop-filter: blur(2px) saturate(175%);
           animation: friday-orb-morph 9s ease-in-out infinite,
             friday-orb-breathe 4.8s ease-in-out infinite;
-          transition: border-radius .45s ease, transform .45s ease;
+          scale: var(--friday-orb-scale, 1);
+          transition: border-radius .45s ease, transform .45s ease, scale .07s linear;
         }
 
         .friday-orb-inner {
@@ -1475,6 +1635,9 @@ export default function AIFloatingBall({
             radial-gradient(ellipse at 12% 78%,rgba(119,48,77,.16),transparent 40%);
           mix-blend-mode: screen;
           opacity: .78;
+          scale: var(--friday-fluid-scale, 1);
+          filter: brightness(var(--friday-orb-brightness, 1));
+          transition: scale .07s linear, filter .07s linear;
           animation: friday-fluid-drift 8s ease-in-out infinite alternate;
           pointer-events: none;
         }
