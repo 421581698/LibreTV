@@ -34,6 +34,7 @@ export function useFridayRequestLifecycle({
   const observedToolStatesRef = useRef(new Map<string, string>());
   const messagesRef = useRef(messages);
   const baselineMessageIdsRef = useRef(new Set<string>());
+  const renderingDispatchedRef = useRef(false);
   messagesRef.current = messages;
 
   const beginRequest = useCallback(() => {
@@ -41,6 +42,7 @@ export function useFridayRequestLifecycle({
     activeRequestIdRef.current = requestId;
     observedBusyRef.current = false;
     observedToolStatesRef.current.clear();
+    renderingDispatchedRef.current = false;
     baselineMessageIdsRef.current = new Set(messagesRef.current.map((message) => message.id));
     dispatchMachine({ type: "MESSAGE_SUBMITTED", requestId });
     return requestId;
@@ -61,6 +63,7 @@ export function useFridayRequestLifecycle({
       observedBusyRef.current = false;
       observedToolStatesRef.current.clear();
       baselineMessageIdsRef.current.clear();
+      renderingDispatchedRef.current = false;
     },
     [dispatchMachine],
   );
@@ -74,6 +77,7 @@ export function useFridayRequestLifecycle({
     observedBusyRef.current = false;
     observedToolStatesRef.current.clear();
     baselineMessageIdsRef.current.clear();
+    renderingDispatchedRef.current = false;
   }, [dispatchMachine]);
 
   useEffect(() => {
@@ -81,11 +85,15 @@ export function useFridayRequestLifecycle({
     if (!requestId) return;
 
     // AI SDK 将服务端工具执行过程作为 tool-* message parts 写回消息。
-    // 以真实 part.state 驱动状态机，不用延时器模拟工具执行。
+    // data-movies 是实际搜索结果事件；只在新消息出现真实结果时进入 rendering。
+    let hasMovieResults = false;
     for (const message of messages) {
       if (baselineMessageIdsRef.current.has(message.id)) continue;
       for (let index = 0; index < (message.parts?.length ?? 0); index += 1) {
         const part = message.parts?.[index];
+        if (part?.type === "data-movies" && part.data && typeof part.data === "object") {
+          hasMovieResults = true;
+        }
         if (!part?.type?.startsWith("tool-")) continue;
 
         const key = `${message.id}:${part.toolCallId || index}`;
@@ -107,6 +115,11 @@ export function useFridayRequestLifecycle({
       }
     }
 
+    if (hasMovieResults && !renderingDispatchedRef.current) {
+      renderingDispatchedRef.current = true;
+      dispatchMachine({ type: "RESPONSE_RENDERING", requestId });
+    }
+
     if (error) {
       dispatchMachine({
         type: "REQUEST_FAILED",
@@ -118,6 +131,7 @@ export function useFridayRequestLifecycle({
       observedBusyRef.current = false;
       observedToolStatesRef.current.clear();
       baselineMessageIdsRef.current.clear();
+      renderingDispatchedRef.current = false;
       return;
     }
 
@@ -132,6 +146,7 @@ export function useFridayRequestLifecycle({
       observedBusyRef.current = false;
       observedToolStatesRef.current.clear();
       baselineMessageIdsRef.current.clear();
+      renderingDispatchedRef.current = false;
     }
   }, [busy, error, messages, dispatchMachine]);
 
