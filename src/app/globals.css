@@ -1033,3 +1033,23 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   }
 }
 
+/* Ultra-wide cinema lobby: use the extra canvas without stretching poster cards. */
+@media (min-width: 1600px) {
+  .home-v2 .home-v2-main {
+    max-width: 1520px;
+    padding-right: 72px;
+    padding-left: 72px;
+  }
+
+  .home-v2 .cinema-lobby-trending .grid.grid-cols-3 {
+    column-gap: 18px;
+    row-gap: 24px;
+  }
+
+  .home-v2 .cinema-lobby-tv,
+  .home-v2 .cinema-lobby-anime,
+  .home-v2 .cinema-lobby-variety {
+    margin-top: 52px;
+    padding-top: 30px;
+  }
+}
