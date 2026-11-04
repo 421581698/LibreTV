@@ -1286,9 +1286,8 @@ export default function AIFloatingBall({
     activeRequestIdRef.current = 0;
     observedBusyRef.current = false;
 
-    if (busyRef.current) {
-      stop();
-    }
+    // stop() 即使当前渲染尚未反映 submitted 状态，也要尝试取消旧请求。
+    stop();
 
     setClosing(false);
     setOpen(false);
@@ -2924,22 +2923,3 @@ export default function AIFloatingBall({
               </div>
             </footer>
           </section>
-        ) : null}
-      </div>
-
-      {fabHidden && !open ? (
-        <button
-          type="button"
-          className="friday-restore"
-          aria-label="恢复 Friday 助手"
-          title="恢复 Friday"
-          onClick={restoreAssistant}
-        >
-          F
-        </button>
-      ) : null}
-    </>
-  );
-
-  return createPortal(content, document.body);
-}
