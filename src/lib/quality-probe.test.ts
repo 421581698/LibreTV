@@ -170,7 +170,7 @@ function bytesResponse(bytes: Uint8Array): Response {
 
 /** 按 URL 返回不同的上游响应；未匹配返回 404 */
 function route(url: string): Response {
-  if (url.includes('ac=videolist')) {
+  if (url.includes('ac=detail')) {
     // CMS 的 vod_play_url 是「集名$地址」格式，裸 URL 会被解析成空
     const body = JSON.stringify({ list: [{ vod_id: '123', vod_name: '测试影片', vod_play_url: `第1集$${PLAYLIST_URL}` }] });
     return new Response(body, { status: 200 });
@@ -212,7 +212,7 @@ describe('probeQuality 降级到分片解析', () => {
     expect(result.height).toBe(1080);
     // 详情接口 + m3u8，仅此两次：多码率源没有理由再拉分片
     expect(urls()).toEqual([
-      'https://api.test/api.php/provide/vod?ac=videolist&ids=123',
+      'https://api.test/api.php/provide/vod?ac=detail&ids=123',
       PLAYLIST_URL,
     ]);
   });
@@ -265,7 +265,7 @@ seg0.ts
 
   it('mp4 直链：直接解析 moov，不经过 m3u8', async () => {
     mocks.fetchUpstream.mockImplementation((url: string) => {
-      if (url.includes('ac=videolist')) {
+      if (url.includes('ac=detail')) {
         const body = JSON.stringify({
           list: [{ vod_id: '123', vod_name: 'x', vod_play_url: '正片$https://cdn.test/movie.mp4' }],
         });
@@ -285,7 +285,7 @@ seg0.ts
     const EP3 = 'https://cdn.test/2024/01/abc/3/index.m3u8';
     mocks.fetchUpstream.mockClear();
     mocks.fetchUpstream.mockImplementation((url: string) => {
-      if (url.includes('ac=videolist')) {
+      if (url.includes('ac=detail')) {
         const body = JSON.stringify({
           list: [
             {
