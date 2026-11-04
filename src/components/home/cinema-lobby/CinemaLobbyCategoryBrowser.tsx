@@ -80,7 +80,7 @@ export function CinemaLobbyCategoryBrowser({ enabled, onPick }: Props) {
           <p className="text-sm text-faint">分类内容暂时加载失败</p>
           <button type="button" className="mt-2 rounded-full bg-chip px-3 py-1.5 text-xs text-muted" onClick={() => void query.refetch()}>重新加载</button>
         </div>
-      ) : query.isLoading ? (
+      ) : !isNearViewport || query.isLoading ? (
         <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
           {Array.from({ length: 6 }).map((_, index) => (
             <div key={index} className="min-w-0">
