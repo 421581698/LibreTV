@@ -16,6 +16,7 @@ import { CinemaLobbyHero } from '@/components/home/cinema-lobby/CinemaLobbyHero'
 import { HomeSearchSection } from '@/components/home/HomeSearchSection';
 import { RecommendSection } from '@/components/douban-section';
 import { CinemaLobbyTrending } from '@/components/home/cinema-lobby/CinemaLobbyTrending';
+import { CinemaLobbyTvSection } from '@/components/home/cinema-lobby/CinemaLobbyTvSection';
 import { DetailModal } from '@/components/detail-modal';
 import { AggregatedCard, aggregateResults } from '@/components/video-card';
 import {
@@ -483,13 +484,22 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
         )}
         {!urlQuery && (
           isV2 ? (
-            <CinemaLobbyTrending
-              enabled={doubanEnabled}
-              onPick={(title) => {
-                setInput(title);
-                runSearch(title);
-              }}
-            />
+            <>
+              <CinemaLobbyTrending
+                enabled={doubanEnabled}
+                onPick={(title) => {
+                  setInput(title);
+                  runSearch(title);
+                }}
+              />
+              <CinemaLobbyTvSection
+                enabled={doubanEnabled}
+                onPick={(title) => {
+                  setInput(title);
+                  runSearch(title);
+                }}
+              />
+            </>
           ) : (
             <RecommendSection
               onPick={(title) => {
