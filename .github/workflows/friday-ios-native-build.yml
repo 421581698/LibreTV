@@ -1,0 +1,91 @@
+name: Friday iOS Native Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      web_url:
+        description: "可选：现有 LibreTV Preview 地址；留空则构建本地原生测试壳"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: friday-ios-native-build
+  cancel-in-progress: true
+
+jobs:
+  build-ios-simulator:
+    name: Build Friday for iOS Simulator
+    runs-on: xcode-27
+    timeout-minutes: 45
+    env:
+      FRIDAY_WEB_URL: ${{ inputs.web_url }}
+      IOS_BUNDLE_ID: com.libretv.friday
+      NODE_OPTIONS: --max-old-space-size=4096
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode 27
+        run: |
+          xcodebuild -version
+          xcodebuild -showsdks
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Install Capacitor 8 and local Friday plugin
+        run: |
+          npm install --no-save --no-package-lock --legacy-peer-deps \
+            @capacitor/core@^8 \
+            @capacitor/cli@^8 \
+            @capacitor/ios@^8 \
+            ./native/friday-voice-plugin
+
+      - name: Generate Capacitor iOS project
+        run: |
+          npx cap add ios --packagemanager SPM
+          npx cap sync ios
+          /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string Friday 使用麦克风来识别你的语音指令。" ios/App/App/Info.plist || \
+            /usr/libexec/PlistBuddy -c "Set :NSMicrophoneUsageDescription Friday 使用麦克风来识别你的语音指令。" ios/App/App/Info.plist
+
+      - name: Resolve Swift packages
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project ios/App/App.xcodeproj \
+            -scheme App
+
+      - name: Build unsigned iOS Simulator app
+        run: |
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/FridayDerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package simulator build
+        run: |
+          APP_PATH="build/FridayDerivedData/Build/Products/Debug-iphonesimulator/App.app"
+          test -d "$APP_PATH"
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" Friday-iOS-Simulator.zip
+
+      - name: Upload simulator build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Friday-iOS-Simulator
+          path: Friday-iOS-Simulator.zip
+          if-no-files-found: error
+          retention-days: 14
