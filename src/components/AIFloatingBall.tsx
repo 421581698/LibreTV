@@ -271,14 +271,30 @@ export default function AIFloatingBall({
   });
 
   const interrupt = useCallback(() => {
-    stopAllVoice();
-
     if (busyRef.current) {
+      // 屏蔽停止流后可能回到 ready 的部分回复，避免中断后又被自动播报。
+      const lastAssistantMessage = [...typedMessages]
+        .reverse()
+        .find((message) => message?.role === "assistant" && message.id);
+      if (lastAssistantMessage?.id) {
+        lastSpokenMessageRef.current = lastAssistantMessage.id;
+      }
+
+      stopAllVoice();
       // 手动中断与切换影片采用同一取消语义，不把中断误记为正常完成。
       cancelActiveRequest();
       stop();
+      return;
     }
-  }, [stopAllVoice, cancelActiveRequest, stop]);
+
+    stopAllVoice();
+  }, [
+    typedMessages,
+    lastSpokenMessageRef,
+    stopAllVoice,
+    cancelActiveRequest,
+    stop,
+  ]);
 
   useFridayResponseController({
     messages: typedMessages,
