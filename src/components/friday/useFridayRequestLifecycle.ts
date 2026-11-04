@@ -44,7 +44,7 @@ export function useFridayRequestLifecycle({
     activeRequestIdRef.current = requestId;
     observedBusyRef.current = false;
     observedToolStatesRef.current.clear();
-    activeToolCallsRef.current.clear();
+      activeToolCallsRef.current.clear();
     renderingDispatchedRef.current = false;
     baselineMessageIdsRef.current = new Set(messagesRef.current.map((message) => message.id));
     dispatchMachine({ type: "MESSAGE_SUBMITTED", requestId });
@@ -65,7 +65,7 @@ export function useFridayRequestLifecycle({
       activeRequestIdRef.current = 0;
       observedBusyRef.current = false;
       observedToolStatesRef.current.clear();
-    activeToolCallsRef.current.clear();
+      activeToolCallsRef.current.clear();
       baselineMessageIdsRef.current.clear();
       renderingDispatchedRef.current = false;
     },
@@ -80,7 +80,7 @@ export function useFridayRequestLifecycle({
     activeRequestIdRef.current = 0;
     observedBusyRef.current = false;
     observedToolStatesRef.current.clear();
-    activeToolCallsRef.current.clear();
+      activeToolCallsRef.current.clear();
     baselineMessageIdsRef.current.clear();
     renderingDispatchedRef.current = false;
   }, [dispatchMachine]);
@@ -139,7 +139,7 @@ export function useFridayRequestLifecycle({
       activeRequestIdRef.current = 0;
       observedBusyRef.current = false;
       observedToolStatesRef.current.clear();
-    activeToolCallsRef.current.clear();
+      activeToolCallsRef.current.clear();
       baselineMessageIdsRef.current.clear();
       renderingDispatchedRef.current = false;
       return;
@@ -155,7 +155,7 @@ export function useFridayRequestLifecycle({
       activeRequestIdRef.current = 0;
       observedBusyRef.current = false;
       observedToolStatesRef.current.clear();
-    activeToolCallsRef.current.clear();
+      activeToolCallsRef.current.clear();
       baselineMessageIdsRef.current.clear();
       renderingDispatchedRef.current = false;
     }
