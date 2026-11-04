@@ -15,17 +15,33 @@ export function fridayReducer(
 ): FridayState {
   switch (event.type) {
     case "OPEN":
-      return {
-        ...state,
-        surface: state.surface === "closed" ? "launcher" : state.surface,
-      };
+      return state.surface === "closed"
+        ? {
+            ...state,
+            surface: "launcher",
+            voice: "idle",
+            agent: "idle",
+            requestId: 0,
+            errors: {
+              ...state.errors,
+              voice: undefined,
+              agent: undefined,
+            },
+          }
+        : state;
 
     case "CLOSE":
       return {
         ...state,
         surface: "closed",
         voice: "idle",
-        errors: { ...state.errors, voice: undefined },
+        agent: "idle",
+        requestId: 0,
+        errors: {
+          ...state.errors,
+          voice: undefined,
+          agent: undefined,
+        },
       };
 
     case "EXPAND":
