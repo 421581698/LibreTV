@@ -10,8 +10,8 @@ const MAX_KEYWORD_LENGTH = 50;
 const MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
 const MAX_RESULTS_PER_SOURCE = 30;
 const MAX_SOURCES = 30;
-const SEARCH_TIMEOUT_MS = 8000;
-const SEARCH_TOTAL_TIMEOUT_MS = 16000;
+const SEARCH_TIMEOUT_MS = 6000;
+const SEARCH_TOTAL_TIMEOUT_MS = 12000;
 const MAX_CONCURRENT_SOURCES = 6;
 
 function safeString(value: unknown, maxLength: number): string {
