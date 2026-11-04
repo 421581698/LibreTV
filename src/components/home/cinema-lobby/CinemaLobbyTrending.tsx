@@ -38,7 +38,21 @@ export function CinemaLobbyTrending({
         </div>
         <span className="cinema-lobby-section-note">精选影视</span>
       </div>
-      <RecommendSection onPick={onPick} />
+      {isNearViewport ? (
+        <RecommendSection onPick={onPick} />
+      ) : (
+        <div
+          className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8"
+          aria-hidden="true"
+        >
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="min-w-0">
+              <div className="aspect-[2/3] animate-pulse rounded-lg bg-chip" />
+              <div className="mt-2 h-3 animate-pulse rounded bg-chip" />
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
