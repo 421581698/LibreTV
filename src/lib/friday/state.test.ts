@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { fridayReducer, initialFridayState } from "./state";
+import {
+  getSpeechErrorMessage,
+  getSpeechStartErrorMessage,
+  shouldEndVoiceSession,
+} from "@/components/friday/useFridayVoiceController";
 
 describe("fridayReducer", () => {
   it("opens, expands, collapses and closes the surface", () => {
@@ -161,5 +166,31 @@ describe("fridayReducer", () => {
 
     expect(state.agent).toBe("thinking");
     expect(state.errors.agent).toBeUndefined();
+  });
+});
+
+
+describe("Friday voice error handling", () => {
+  it("explains microphone permission denial from the recognition API", () => {
+    expect(getSpeechErrorMessage("not-allowed")).toContain("权限被拒绝");
+    expect(getSpeechErrorMessage("service-not-allowed")).toContain("权限被拒绝");
+  });
+
+  it("explains synchronous microphone startup failures by browser error name", () => {
+    expect(getSpeechStartErrorMessage({ name: "NotAllowedError" })).toContain("权限被拒绝");
+    expect(getSpeechStartErrorMessage({ name: "SecurityError" })).toContain("HTTPS");
+    expect(getSpeechStartErrorMessage({ name: "NotFoundError" })).toContain("没有检测到可用的麦克风");
+    expect(getSpeechStartErrorMessage({ name: "NotReadableError" })).toContain("其他应用占用");
+  });
+
+  it("asks for a manual retry when automatic listening cannot resume", () => {
+    expect(getSpeechStartErrorMessage(new Error(), true)).toContain("点击麦克风继续聆听");
+  });
+
+  it("ends blocked sessions but preserves retry after silence or cancellation", () => {
+    expect(shouldEndVoiceSession("not-allowed")).toBe(true);
+    expect(shouldEndVoiceSession("network")).toBe(true);
+    expect(shouldEndVoiceSession("no-speech")).toBe(false);
+    expect(shouldEndVoiceSession("aborted")).toBe(false);
   });
 });
