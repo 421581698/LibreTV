@@ -619,7 +619,8 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   row-gap: 16px;
 }
 
-.home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card {
+.home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card,
+.home-v2 .cinema-lobby-trending .snap-x > .snap-start > .card {
   min-width: 0;
   overflow: hidden;
   border: 1px solid rgba(128, 145, 170, .16);
@@ -629,26 +630,30 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
 }
 
-.home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card > .relative {
+.home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card > .relative,
+.home-v2 .cinema-lobby-trending .snap-x > .snap-start > .card > .relative {
   width: 100%;
   aspect-ratio: 2 / 3;
   overflow: hidden;
   background: var(--c-chip, #222);
 }
 
-.home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card > .relative img {
+.home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card > .relative img,
+.home-v2 .cinema-lobby-trending .snap-x > .snap-start > .card > .relative img {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card > div:last-child {
+.home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card > div:last-child,
+.home-v2 .cinema-lobby-trending .snap-x > .snap-start > .card > div:last-child {
   min-width: 0;
   padding: 7px 6px 8px;
 }
 
-.home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card .text-xs.font-medium {
+.home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card .text-xs.font-medium,
+.home-v2 .cinema-lobby-trending .snap-x > .snap-start > .card .text-xs.font-medium {
   display: -webkit-box;
   min-height: 2.65em;
   overflow: hidden;
@@ -660,17 +665,20 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   line-height: 1.35;
 }
 
-.home-v2 .cinema-lobby-trending .grid.grid-cols-3 > div:not(.card) {
+.home-v2 .cinema-lobby-trending .grid.grid-cols-3 > div:not(.card),
+.home-v2 .cinema-lobby-trending .snap-x > .snap-start {
   min-width: 0;
 }
 
-.home-v2 .cinema-lobby-trending .grid.grid-cols-3 > div:not(.card) > div:first-child {
+.home-v2 .cinema-lobby-trending .grid.grid-cols-3 > div:not(.card) > div:first-child,
+.home-v2 .cinema-lobby-trending .snap-x > .snap-start > div:first-child {
   width: 100%;
   aspect-ratio: 2 / 3;
   border-radius: 10px;
 }
 
-.home-v2 .cinema-lobby-trending .grid.grid-cols-3 > div:not(.card) > div:last-child {
+.home-v2 .cinema-lobby-trending .grid.grid-cols-3 > div:not(.card) > div:last-child,
+.home-v2 .cinema-lobby-trending .snap-x > .snap-start > div:last-child {
   height: 9px;
   margin-top: 7px;
   border-radius: 5px;
@@ -696,7 +704,8 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
 }
 
 @media (hover: hover) and (min-width: 769px) {
-  .home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card:hover {
+  .home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card:hover,
+  .home-v2 .cinema-lobby-trending .snap-x > .snap-start > .card:hover {
     transform: translateY(-3px);
     border-color: rgba(150, 180, 235, .38);
     box-shadow: 0 12px 28px rgba(0, 0, 0, .22);
@@ -704,7 +713,8 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card {
+  .home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card,
+  .home-v2 .cinema-lobby-trending .snap-x > .snap-start > .card {
     transition: none;
   }
 }
