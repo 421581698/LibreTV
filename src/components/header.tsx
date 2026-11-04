@@ -12,7 +12,7 @@ import { SearchHistoryDropdown, useSearchHistory } from './search-history';
 import { cn } from '@/lib/utils';
 import AIFloatingBall from '@/components/AIFloatingBall';
 /** 顶部导航：Logo、搜索框（首页外）、历史、设置 */
-export function Header({ showSearch = false, showFridayFab = true }: { showSearch?: boolean; showFridayFab?: boolean }) {
+export function Header({ showSearch = false, showFridayFab = true, showFridayButton = true }: { showSearch?: boolean; showFridayFab?: boolean; showFridayButton?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -95,15 +95,17 @@ export function Header({ showSearch = false, showFridayFab = true }: { showSearc
 
           <div className="flex-1 sm:hidden" />
 
-         <button
-          onClick={() => {
-            if (typeof window !== 'undefined') window.__FRIDAY_PENDING_OPEN__ = true;
-            window.dispatchEvent(new CustomEvent('toggle-friday-panel', { detail: { reset: false } }));
-          }}
-          className="text-sm font-bold text-primary hover:text-primary-hover transition-colors cursor-pointer mr-2"
-        >
-          Friday
-        </button> 
+         {showFridayButton && (
+          <button
+            onClick={() => {
+              if (typeof window !== 'undefined') window.__FRIDAY_PENDING_OPEN__ = true;
+              window.dispatchEvent(new CustomEvent('toggle-friday-panel', { detail: { reset: false } }));
+            }}
+            className="text-sm font-bold text-primary hover:text-primary-hover transition-colors cursor-pointer mr-2"
+          >
+            Friday
+          </button>
+        )}
           <nav className="flex items-center gap-1 ml-auto">
             <HeaderLink href="/live" active={pathname === '/live'}>
               直播
