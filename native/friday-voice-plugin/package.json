@@ -1,0 +1,21 @@
+{
+  "name": "@libretv/friday-voice",
+  "version": "0.1.0",
+  "description": "Friday native iOS voice bridge for Capacitor",
+  "main": "dist/plugin.cjs.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/esm/index.d.ts",
+  "files": [
+    "dist/",
+    "ios/"
+  ],
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    }
+  },
+  "peerDependencies": {
+    "@capacitor/core": "^8.0.0"
+  },
+  "license": "UNLICENSED"
+}
