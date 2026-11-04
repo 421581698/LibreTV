@@ -396,15 +396,16 @@ export function useFridayVoiceController({
         "name" in recognitionError && typeof recognitionError.name === "string"
           ? recognitionError.name
           : "start-failed";
+      listeningRef.current = false;
+      setListening(false);
+      // 先结束会话，再写入失败事件；否则 VOICE_STOP 会立即清除刚写入的错误。
+      setVoiceSession(false);
       dispatchMachine({
         type: "VOICE_FAILED",
         sessionId,
         code: errorName,
         message,
       });
-      listeningRef.current = false;
-      setListening(false);
-      setVoiceSession(false);
       setVoiceError(message);
     }
   }, [
