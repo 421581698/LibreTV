@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/client-api';
 import { DoubanCard } from '@/components/video-card';
@@ -26,6 +26,7 @@ type Props = {
 /** 分类浏览使用现有豆瓣标签查询，不新增数据接口或点播 ID 映射。 */
 export function CinemaLobbyCategoryBrowser({ enabled, onPick }: Props) {
   const { ref, isNearViewport } = useCinemaLobbyVisibility<HTMLElement>(enabled);
+  const resultsId = useId();
   const [type, setType] = useState<MediaType>('movie');
   const [tag, setTag] = useState('科幻');
   const query = useQuery({
@@ -62,8 +63,8 @@ export function CinemaLobbyCategoryBrowser({ enabled, onPick }: Props) {
 
       <div className="cinema-lobby-category-toolbar">
         <div className="cinema-lobby-category-types" aria-label="选择内容类型">
-          <button type="button" aria-pressed={type === 'movie'} className={type === 'movie' ? 'is-active' : ''} onClick={() => switchType('movie')}>电影</button>
-          <button type="button" aria-pressed={type === 'tv'} className={type === 'tv' ? 'is-active' : ''} onClick={() => switchType('tv')}>剧集</button>
+          <button type="button" aria-pressed={type === 'movie'} aria-controls={resultsId} className={type === 'movie' ? 'is-active' : ''} onClick={() => switchType('movie')}>电影</button>
+          <button type="button" aria-pressed={type === 'tv'} aria-controls={resultsId} className={type === 'tv' ? 'is-active' : ''} onClick={() => switchType('tv')}>剧集</button>
         </div>
         <div className="cinema-lobby-category-tags flex max-w-full gap-2 overflow-x-auto overscroll-x-contain whitespace-nowrap pb-1 sm:flex-wrap sm:overflow-visible" aria-label="选择题材">
           {tags.map((item) => (
@@ -71,6 +72,7 @@ export function CinemaLobbyCategoryBrowser({ enabled, onPick }: Props) {
               key={item}
               type="button"
               aria-pressed={tag === item}
+              aria-controls={resultsId}
               className={tag === item ? 'is-active' : ''}
               onClick={() => setTag(item)}
             >
@@ -80,7 +82,7 @@ export function CinemaLobbyCategoryBrowser({ enabled, onPick }: Props) {
         </div>
       </div>
 
-      <div aria-busy={query.isLoading} aria-live="polite">
+      <div id={resultsId} aria-busy={query.isLoading} aria-live="polite">
       {query.isError ? (
         <div className="py-6 text-center" role="alert">
           <p className="text-sm text-faint">分类内容暂时加载失败</p>
