@@ -115,18 +115,32 @@ export function CinemaLobbyCultureSections({
           />
         ) : !isNearViewport || domesticVarietyQuery.isLoading || globalVarietyQuery.isLoading ? (
           <PosterSkeleton />
+        ) : varietyItems.length === 0 && (domesticVarietyQuery.isError || globalVarietyQuery.isError) ? (
+          <SectionError
+            onRetry={() => {
+              void domesticVarietyQuery.refetch();
+              void globalVarietyQuery.refetch();
+            }}
+          />
         ) : varietyItems.length === 0 ? (
           <p className="py-6 text-center text-sm text-faint" role="status">暂时没有可展示的综艺</p>
         ) : (
-          <PosterGrid>
-            {varietyItems.map((item) => (
-              <DoubanCard
-                key={item.id}
-                item={item}
-                onClick={() => onPick(item.title)}
-              />
-            ))}
-          </PosterGrid>
+          <>
+            {(domesticVarietyQuery.isError || globalVarietyQuery.isError) && (
+              <p className="mb-3 text-xs text-faint" role="status">
+                部分综艺来源暂时不可用，以下为已获取内容
+              </p>
+            )}
+            <PosterGrid>
+              {varietyItems.map((item) => (
+                <DoubanCard
+                  key={item.id}
+                  item={item}
+                  onClick={() => onPick(item.title)}
+                />
+              ))}
+            </PosterGrid>
+          </>
         )}
         </div>
       </section>
