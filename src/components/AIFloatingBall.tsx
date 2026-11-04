@@ -592,6 +592,9 @@ export default function AIFloatingBall({
     }
 
     let pendingContext: AudioContext | null = null;
+    let pendingStream: MediaStream | null = null;
+    let pendingSource: MediaStreamAudioSourceNode | null = null;
+    let pendingAnalyser: AnalyserNode | null = null;
 
     try {
       const AudioContextClass =
@@ -621,6 +624,7 @@ export default function AIFloatingBall({
         },
         video: false,
       });
+      pendingStream = stream;
 
       // 用户可能在权限弹窗期间关闭助手。
       if (
@@ -642,10 +646,12 @@ export default function AIFloatingBall({
       }
 
       const analyser = context.createAnalyser();
+      pendingAnalyser = analyser;
       analyser.fftSize = 256;
       analyser.smoothingTimeConstant = 0.72;
 
       const source = context.createMediaStreamSource(stream);
+      pendingSource = source;
       source.connect(analyser);
 
       audioStreamRef.current = stream;
@@ -706,14 +712,19 @@ export default function AIFloatingBall({
 
       audioFrameRef.current = window.requestAnimationFrame(animate);
     } catch (audioError) {
-      // 创建节点或恢复 AudioContext 失败时，必须同时释放本次申请的音频流。
-      audioSourceRef.current?.disconnect();
-      audioSourceRef.current = null;
-      audioAnalyserRef.current = null;
+      // 只清理本次启动尝试持有的资源，避免误停随后启动的新会话。
+      pendingSource?.disconnect();
+      pendingStream?.getTracks().forEach((track) => track.stop());
 
-      audioStreamRef.current?.getTracks().forEach((track) => track.stop());
-      audioStreamRef.current = null;
-
+      if (audioSourceRef.current === pendingSource) {
+        audioSourceRef.current = null;
+      }
+      if (audioAnalyserRef.current === pendingAnalyser) {
+        audioAnalyserRef.current = null;
+      }
+      if (audioStreamRef.current === pendingStream) {
+        audioStreamRef.current = null;
+      }
       if (pendingContext && audioContextRef.current === pendingContext) {
         audioContextRef.current = null;
       }
