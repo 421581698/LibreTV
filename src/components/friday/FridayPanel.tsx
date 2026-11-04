@@ -160,7 +160,11 @@ export function FridayPanel({
                     {listening
                       ? "请说出你想看的影片"
                       : busy
-                        ? "正在连接影视资源"
+                        ? agentState === "executing"
+                          ? "正在搜索已启用的视频源"
+                          : agentState === "rendering"
+                            ? "正在整理真实搜索结果"
+                            : "正在理解你的需求"
                         : speaking
                           ? "正在为你播报"
                           : completed
