@@ -987,6 +987,14 @@ export default function AIFloatingBall({
           recognitionRef.current = null;
         }
 
+        // start() 同步抛错时不会触发可靠的 onend 清理，立即释放独立音量分析链路。
+        stopAudioMeter();
+        clearVoiceResumeTimer();
+        manualVoiceStopRef.current = false;
+        pendingVoiceTextRef.current = "";
+        recognitionErrorRef.current = "";
+        setVoiceSession(false);
+
         dispatchMachine({
           type: "VOICE_FAILED",
           sessionId,
