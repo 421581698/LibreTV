@@ -85,6 +85,38 @@ describe("fridayReducer", () => {
     expect(state.errors.voice?.message).toBe("麦克风权限被拒绝");
   });
 
+  it("ignores a late error from a voice session after a newer session starts", () => {
+    let state = fridayReducer(initialFridayState, {
+      type: "VOICE_START_REQUESTED",
+      sessionId: 10,
+    });
+    state = fridayReducer(state, {
+      type: "VOICE_FAILED",
+      sessionId: 10,
+      code: "network",
+      message: "旧会话网络错误",
+    });
+    state = fridayReducer(state, {
+      type: "VOICE_STOP",
+      sessionId: 10,
+    });
+    state = fridayReducer(state, {
+      type: "VOICE_START_REQUESTED",
+      sessionId: 11,
+    });
+
+    const lateFailure = fridayReducer(state, {
+      type: "VOICE_FAILED",
+      sessionId: 10,
+      code: "not-allowed",
+      message: "旧会话权限错误",
+    });
+
+    expect(lateFailure).toBe(state);
+    expect(lateFailure.voice).toBe("requesting");
+    expect(lateFailure.errors.voice).toBeUndefined();
+  });
+
   it("ignores stale voice callbacks", () => {
     const state = fridayReducer(initialFridayState, {
       type: "VOICE_START_REQUESTED",
