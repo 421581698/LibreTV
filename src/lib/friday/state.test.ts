@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { fridayReducer, initialFridayState } from "./state";
 import {
+  canResumeVoiceSession,
   getSpeechErrorMessage,
   getSpeechStartErrorMessage,
   shouldEndVoiceSession,
@@ -218,5 +219,24 @@ describe("Friday voice error handling", () => {
     expect(shouldEndVoiceSession("network")).toBe(true);
     expect(shouldEndVoiceSession("no-speech")).toBe(false);
     expect(shouldEndVoiceSession("aborted")).toBe(false);
+  });
+
+  it("resumes listening only while the voice session remains eligible", () => {
+    const eligible = {
+      sessionActive: true,
+      panelOpen: true,
+      closing: false,
+      busy: false,
+      listening: false,
+      speaking: false,
+    };
+
+    expect(canResumeVoiceSession(eligible)).toBe(true);
+    expect(canResumeVoiceSession({ ...eligible, sessionActive: false })).toBe(false);
+    expect(canResumeVoiceSession({ ...eligible, panelOpen: false })).toBe(false);
+    expect(canResumeVoiceSession({ ...eligible, closing: true })).toBe(false);
+    expect(canResumeVoiceSession({ ...eligible, busy: true })).toBe(false);
+    expect(canResumeVoiceSession({ ...eligible, listening: true })).toBe(false);
+    expect(canResumeVoiceSession({ ...eligible, speaking: true })).toBe(false);
   });
 });
