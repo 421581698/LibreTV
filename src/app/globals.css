@@ -708,3 +708,11 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
     transition: none;
   }
 }
+
+
+/* Keep the dedicated TV rail visually distinct from today's mixed hot picks. */
+.home-v2 .cinema-lobby-tv {
+  margin-top: clamp(28px, 4vw, 42px);
+  padding-top: clamp(18px, 2.5vw, 24px);
+  border-top: 1px solid rgba(128, 145, 170, .16);
+}
