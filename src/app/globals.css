@@ -836,3 +836,86 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
     padding-left: 64px;
   }
 }
+
+
+/* Genre browser controls — isolated to the V2 cinema lobby. */
+.home-v2 .cinema-lobby-categories {
+  margin-top: clamp(28px, 4vw, 42px);
+  padding-top: clamp(18px, 2.5vw, 24px);
+  border-top: 1px solid rgba(128, 145, 170, .16);
+}
+
+.home-v2 .cinema-lobby-category-toolbar {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 11px;
+  margin: 0 0 16px;
+}
+
+.home-v2 .cinema-lobby-category-types,
+.home-v2 .cinema-lobby-category-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.home-v2 .cinema-lobby-category-types button,
+.home-v2 .cinema-lobby-category-tags button {
+  min-height: 30px;
+  padding: 6px 12px;
+  border: 1px solid var(--c-line, rgba(128, 128, 128, .2));
+  border-radius: 999px;
+  background: var(--c-chip, rgba(128, 128, 128, .08));
+  color: var(--c-muted, currentColor);
+  font-size: 11px;
+  line-height: 1;
+  transition: color .18s ease, border-color .18s ease, background-color .18s ease;
+}
+
+.home-v2 .cinema-lobby-category-types button.is-active,
+.home-v2 .cinema-lobby-category-tags button.is-active {
+  border-color: var(--c-accent, currentColor);
+  background: color-mix(in srgb, var(--c-accent, #8b9cff) 15%, transparent);
+  color: var(--c-content, currentColor);
+}
+
+.home-v2 .cinema-lobby-category-types button:focus-visible,
+.home-v2 .cinema-lobby-category-tags button:focus-visible {
+  outline: 2px solid var(--c-accent, currentColor);
+  outline-offset: 2px;
+}
+
+@media (min-width: 1024px) {
+  .home-v2 .cinema-lobby-category-toolbar {
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .home-v2 .cinema-lobby-category-tags {
+    gap: 8px;
+  }
+
+  .home-v2 .cinema-lobby-category-types button,
+  .home-v2 .cinema-lobby-category-tags button {
+    min-height: 32px;
+    padding-right: 14px;
+    padding-left: 14px;
+    font-size: 12px;
+  }
+
+  .home-v2 .cinema-lobby-categories {
+    margin-top: 44px;
+    padding-top: 26px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-v2 .cinema-lobby-category-types button,
+  .home-v2 .cinema-lobby-category-tags button {
+    transition: none;
+  }
+}
