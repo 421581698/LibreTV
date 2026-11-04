@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/client-api';
 import { DoubanCard } from '@/components/video-card';
+import { useCinemaLobbyVisibility } from '@/components/home/cinema-lobby/useCinemaLobbyVisibility';
 
 type CinemaLobbyTvSectionProps = {
   enabled: boolean;
@@ -17,10 +18,11 @@ export function CinemaLobbyTvSection({
   enabled,
   onPick,
 }: CinemaLobbyTvSectionProps) {
+  const { ref, isNearViewport } = useCinemaLobbyVisibility<HTMLElement>();
   const query = useQuery({
     queryKey: ['douban', 'tv', '热门'],
     queryFn: ({ signal }) => api.douban('tv', '热门', 0, 18, signal),
-    enabled,
+    enabled: enabled && isNearViewport,
   });
 
   if (!enabled) return null;
@@ -29,6 +31,7 @@ export function CinemaLobbyTvSection({
 
   return (
     <section
+      ref={ref}
       className="cinema-lobby-tv cinema-lobby-trending"
       aria-labelledby="cinema-lobby-tv-title"
     >
