@@ -706,12 +706,24 @@ export default function AIFloatingBall({
 
       audioFrameRef.current = window.requestAnimationFrame(animate);
     } catch (audioError) {
+      // 创建节点或恢复 AudioContext 失败时，必须同时释放本次申请的音频流。
+      audioSourceRef.current?.disconnect();
+      audioSourceRef.current = null;
+      audioAnalyserRef.current = null;
+
+      audioStreamRef.current?.getTracks().forEach((track) => track.stop());
+      audioStreamRef.current = null;
+
       if (pendingContext && audioContextRef.current === pendingContext) {
         audioContextRef.current = null;
+      }
+
+      if (pendingContext && pendingContext.state !== "closed") {
         void pendingContext.close().catch(() => {
           // 忽略浏览器音频上下文关闭异常。
         });
       }
+
       console.warn("[Friday] Audio meter unavailable:", audioError);
       // 音量可视化失败不阻断原有语音识别。
     }
@@ -915,23 +927,32 @@ export default function AIFloatingBall({
         }
 
         if (wasManualStop) {
+          stopAudioMeter();
           setVoiceSession(false);
           return;
         }
 
-        if (!voiceSessionActiveRef.current) return;
+        if (!voiceSessionActiveRef.current) {
+          stopAudioMeter();
+          return;
+        }
 
         if (
           recognitionError &&
           recognitionError !== "aborted"
         ) {
+          // 识别已结束且不会自动重启，立即释放独立音量分析所占用的麦克风。
           if (recognitionError === "no-speech") {
             setVoiceError("没有识别到语音，请点击麦克风重新聆听。");
           }
 
           // 权限、网络和设备错误不自动循环重启。
+          stopAudioMeter();
           return;
         }
+
+        // 浏览器自然结束识别时，本轮采集已经停止；下次由用户点击重新启动。
+        stopAudioMeter();
 
         if (openRef.current && !busyRef.current) {
           setVoiceError(
