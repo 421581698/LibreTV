@@ -7,11 +7,13 @@ import { useEffect, useRef, useState } from 'react';
  * The observer disconnects after the first intersection because the query
  * cache owns subsequent refreshes; this hook only controls first activation.
  */
-export function useCinemaLobbyVisibility<T extends HTMLElement>() {
+export function useCinemaLobbyVisibility<T extends HTMLElement>(enabled = true) {
   const ref = useRef<T | null>(null);
   const [isNearViewport, setIsNearViewport] = useState(false);
 
   useEffect(() => {
+    if (!enabled) return;
+
     const element = ref.current;
     if (!element) return;
 
@@ -31,7 +33,7 @@ export function useCinemaLobbyVisibility<T extends HTMLElement>() {
 
     observer.observe(element);
     return () => observer.disconnect();
-  }, []);
+  }, [enabled]);
 
   return { ref, isNearViewport };
 }
