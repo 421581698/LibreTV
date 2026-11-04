@@ -49,6 +49,7 @@ export function CinemaLobbyTvSection({
         <span className="cinema-lobby-section-note">剧集精选</span>
       </div>
 
+      <div aria-busy={!isNearViewport || query.isLoading} aria-live="polite">
       {!isNearViewport || query.isLoading ? (
         <div className={mobileRailClass} aria-hidden="true">
           {Array.from({ length: 6 }).map((_, index) => (
@@ -59,7 +60,7 @@ export function CinemaLobbyTvSection({
           ))}
         </div>
       ) : query.isError ? (
-        <div className="py-6 text-center" role="status">
+        <div className="py-6 text-center" role="alert">
           <p className="text-sm text-faint">电视剧推荐暂时加载失败</p>
           <button
             type="button"
@@ -70,7 +71,7 @@ export function CinemaLobbyTvSection({
           </button>
         </div>
       ) : items.length === 0 ? (
-        <p className="py-6 text-center text-sm text-faint">暂时没有可展示的电视剧</p>
+        <p className="py-6 text-center text-sm text-faint" role="status">暂时没有可展示的电视剧</p>
       ) : (
         <div className={mobileRailClass} aria-label="热门电视剧列表">
           {items.map((item) => (
@@ -85,6 +86,7 @@ export function CinemaLobbyTvSection({
           ))}
         </div>
       )}
+      </div>
     </section>
   );
 }
