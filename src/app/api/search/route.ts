@@ -5,6 +5,7 @@ import {
 } from '@/lib/search';
 import type { SearchResponse, SearchStreamEvent, SourceConfig, SourceSearchOutcome } from '@/lib/types';
 import { guardRequest } from '@/lib/api-guard';
+import { getEnvSources } from '@/lib/env-sources';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -380,7 +381,15 @@ export async function POST(req: Request) {
 
     let sources: SourceConfig[];
     try {
-      sources = validateSources(body.sources);
+      const requestedSources = validateSources(body.sources);
+      // 三个内置源始终参与搜索；客户端即使漏传 sources，也不会导致资源源消失。
+      // 内置源优先，客户端传入的同地址配置不能覆盖其固定地址。
+      const merged = new Map<string, SourceConfig>();
+      for (const source of [...getEnvSources(), ...requestedSources]) {
+        const normalizedUrl = source.url.replace(/\\/+$/, '').toLowerCase();
+        if (!merged.has(normalizedUrl)) merged.set(normalizedUrl, source);
+      }
+      sources = Array.from(merged.values()).slice(0, MAX_SOURCES);
     } catch {
       return jsonError('资源站配置无效', 400);
     }
