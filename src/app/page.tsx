@@ -12,8 +12,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 
 import { Header } from '@/components/header';
+import { CinemaLobbyHero } from '@/components/home/cinema-lobby/CinemaLobbyHero';
 import { HomeSearchSection } from '@/components/home/HomeSearchSection';
-import { FridayHero } from '@/components/friday/FridayHero';
 import { RecommendSection } from '@/components/douban-section';
 import { DetailModal } from '@/components/detail-modal';
 import { AggregatedCard, aggregateResults } from '@/components/video-card';
@@ -375,20 +375,29 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
             }}
           />
         )}
-        {!urlQuery && isV2 ? (
-          <FridayHero onSearchFocus={() => inputRef.current?.focus()} />
-        ) : null}
-        <HomeSearchSection
-          urlQuery={urlQuery}
-          input={input}
-          setInput={setInput}
-          inputRef={inputRef}
-          searchHistory={searchHistory}
-          runSearch={runSearch}
-          pickHistory={pickHistory}
-          showBrandTitle={!isV2}
-          showQuickSearches={isV2}
-        />
+        {isV2 && !urlQuery ? (
+          <CinemaLobbyHero
+            input={input}
+            setInput={setInput}
+            inputRef={inputRef}
+            searchHistory={searchHistory}
+            runSearch={runSearch}
+            pickHistory={pickHistory}
+            onSearchFocus={() => inputRef.current?.focus()}
+          />
+        ) : (
+          <HomeSearchSection
+            urlQuery={urlQuery}
+            input={input}
+            setInput={setInput}
+            inputRef={inputRef}
+            searchHistory={searchHistory}
+            runSearch={runSearch}
+            pickHistory={pickHistory}
+            showBrandTitle={!isV2}
+            showQuickSearches={false}
+          />
+        )}
         {urlQuery && (
           <section aria-label="搜索结果" className="mb-10">
             <div className="flex items-center justify-between mb-3">
