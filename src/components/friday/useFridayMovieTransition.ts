@@ -12,6 +12,7 @@ type MovieTransitionOptions<TMovie> = {
   setExpanded: Dispatch<SetStateAction<boolean>>;
   stopAllVoice: () => void;
   stop: () => void;
+  cancelRequest: () => void;
 };
 
 export function useFridayMovieTransition<TMovie>({
@@ -23,6 +24,7 @@ export function useFridayMovieTransition<TMovie>({
   setExpanded,
   stopAllVoice,
   stop,
+  cancelRequest,
 }: MovieTransitionOptions<TMovie>) {
   const pendingMovieRef = useRef<TMovie | null>(null);
   const closeTimerRef = useRef<number | null>(null);
@@ -68,7 +70,11 @@ export function useFridayMovieTransition<TMovie>({
       if (closingRef.current || dispatchedRef.current) return;
 
       stopAllVoice();
-      if (busyRef.current) stop();
+      if (busyRef.current) {
+        // 影片详情切换属于主动中断，不能把被 stop 的请求误报为正常完成。
+        cancelRequest();
+        stop();
+      }
 
       pendingMovieRef.current = movie;
       dispatchedRef.current = false;
@@ -93,6 +99,7 @@ export function useFridayMovieTransition<TMovie>({
       setOpen,
       stop,
       stopAllVoice,
+      cancelRequest,
     ],
   );
 
