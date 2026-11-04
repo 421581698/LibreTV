@@ -49,7 +49,7 @@ export function CinemaLobbyTvSection({
         <span className="cinema-lobby-section-note">剧集精选</span>
       </div>
 
-      <div aria-busy={!isNearViewport || query.isLoading} aria-live="polite">
+      <div aria-busy={!isNearViewport || query.isFetching} aria-live="polite">
       {!isNearViewport || query.isLoading ? (
         <div className={mobileRailClass} aria-hidden="true">
           {Array.from({ length: 6 }).map((_, index) => (
@@ -64,10 +64,12 @@ export function CinemaLobbyTvSection({
           <p className="text-sm text-faint">电视剧推荐暂时加载失败</p>
           <button
             type="button"
-            className="mt-2 rounded-full bg-chip px-3 py-1.5 text-xs text-muted hover:text-content"
+            className="mt-2 rounded-full bg-chip px-3 py-1.5 text-xs text-muted hover:text-content disabled:cursor-wait disabled:opacity-60"
             onClick={() => void query.refetch()}
+            disabled={query.isFetching}
+            aria-live="polite"
           >
-            重新加载
+            {query.isFetching ? '正在重新加载…' : '重新加载'}
           </button>
         </div>
       ) : items.length === 0 ? (
