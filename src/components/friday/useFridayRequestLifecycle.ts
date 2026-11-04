@@ -33,6 +33,7 @@ export function useFridayRequestLifecycle({
   const activeRequestIdRef = useRef(0);
   const observedBusyRef = useRef(false);
   const observedToolStatesRef = useRef(new Map<string, string>());
+  const activeToolCallsRef = useRef(new Set<string>());
   const messagesRef = useRef(messages);
   const baselineMessageIdsRef = useRef(new Set<string>());
   const renderingDispatchedRef = useRef(false);
@@ -43,6 +44,7 @@ export function useFridayRequestLifecycle({
     activeRequestIdRef.current = requestId;
     observedBusyRef.current = false;
     observedToolStatesRef.current.clear();
+    activeToolCallsRef.current.clear();
     renderingDispatchedRef.current = false;
     baselineMessageIdsRef.current = new Set(messagesRef.current.map((message) => message.id));
     dispatchMachine({ type: "MESSAGE_SUBMITTED", requestId });
@@ -63,6 +65,7 @@ export function useFridayRequestLifecycle({
       activeRequestIdRef.current = 0;
       observedBusyRef.current = false;
       observedToolStatesRef.current.clear();
+    activeToolCallsRef.current.clear();
       baselineMessageIdsRef.current.clear();
       renderingDispatchedRef.current = false;
     },
@@ -77,6 +80,7 @@ export function useFridayRequestLifecycle({
     activeRequestIdRef.current = 0;
     observedBusyRef.current = false;
     observedToolStatesRef.current.clear();
+    activeToolCallsRef.current.clear();
     baselineMessageIdsRef.current.clear();
     renderingDispatchedRef.current = false;
   }, [dispatchMachine]);
@@ -101,11 +105,15 @@ export function useFridayRequestLifecycle({
         const previousState = observedToolStatesRef.current.get(key);
         if (previousState === part.state) continue;
 
-        if (part.state === "input-available") {
-          dispatchMachine({ type: "TOOL_STARTED", requestId });
+        if (part.state === "input-available" && !activeToolCallsRef.current.has(key)) {
+          if (activeToolCallsRef.current.size === 0) {
+            dispatchMachine({ type: "TOOL_STARTED", requestId });
+          }
+          activeToolCallsRef.current.add(key);
         } else if (
-          part.state === "output-available" ||
-          part.state === "output-error"
+          (part.state === "output-available" || part.state === "output-error") &&
+          activeToolCallsRef.current.delete(key) &&
+          activeToolCallsRef.current.size === 0
         ) {
           dispatchMachine({ type: "TOOL_FINISHED", requestId });
         }
@@ -131,6 +139,7 @@ export function useFridayRequestLifecycle({
       activeRequestIdRef.current = 0;
       observedBusyRef.current = false;
       observedToolStatesRef.current.clear();
+    activeToolCallsRef.current.clear();
       baselineMessageIdsRef.current.clear();
       renderingDispatchedRef.current = false;
       return;
@@ -146,6 +155,7 @@ export function useFridayRequestLifecycle({
       activeRequestIdRef.current = 0;
       observedBusyRef.current = false;
       observedToolStatesRef.current.clear();
+    activeToolCallsRef.current.clear();
       baselineMessageIdsRef.current.clear();
       renderingDispatchedRef.current = false;
     }
