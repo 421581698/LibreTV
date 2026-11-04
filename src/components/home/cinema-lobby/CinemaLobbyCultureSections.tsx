@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/client-api';
 import { DoubanCard } from '@/components/video-card';
+import { useCinemaLobbyVisibility } from '@/components/home/cinema-lobby/useCinemaLobbyVisibility';
 
 type CinemaLobbyCultureSectionsProps = {
   enabled: boolean;
@@ -14,20 +15,22 @@ export function CinemaLobbyCultureSections({
   enabled,
   onPick,
 }: CinemaLobbyCultureSectionsProps) {
+  const { ref, isNearViewport } = useCinemaLobbyVisibility<HTMLDivElement>();
+  const shouldLoad = enabled && isNearViewport;
   const animeQuery = useQuery({
     queryKey: ['bangumi-calendar'],
     queryFn: ({ signal }) => api.bangumiCalendar(signal),
-    enabled,
+    enabled: shouldLoad,
   });
   const domesticVarietyQuery = useQuery({
     queryKey: ['hot-list', 'douban_show_chinese'],
     queryFn: ({ signal }) => api.hotList('douban_show_chinese', signal),
-    enabled,
+    enabled: shouldLoad,
   });
   const globalVarietyQuery = useQuery({
     queryKey: ['hot-list', 'douban_show_global'],
     queryFn: ({ signal }) => api.hotList('douban_show_global', signal),
-    enabled,
+    enabled: shouldLoad,
   });
 
   if (!enabled) return null;
@@ -43,7 +46,7 @@ export function CinemaLobbyCultureSections({
     .slice(0, 18);
 
   return (
-    <>
+    <div ref={ref} className="cinema-lobby-culture-sections">
       <section
         className="cinema-lobby-anime cinema-lobby-trending"
         aria-labelledby="cinema-lobby-anime-title"
@@ -114,7 +117,7 @@ export function CinemaLobbyCultureSections({
           </PosterGrid>
         )}
       </section>
-    </>
+    </div>
   );
 }
 
