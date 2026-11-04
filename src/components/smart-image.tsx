@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { buildImageCandidates } from '@/lib/utils';
 
 interface SmartImageProps {
@@ -32,12 +32,19 @@ export function SmartImage({
 }: SmartImageProps) {
   const candidates = buildImageCandidates(url, mode, customProxy);
   const [idx, setIdx] = useState(0);
+  const exhaustionReportedRef = useRef(false);
 
-  // 地址或加载方式变化时重置降级进度
-  useEffect(() => setIdx(0), [url, mode, customProxy]);
+  // 地址或加载方式变化时重置降级进度与耗尽标记。
   useEffect(() => {
-    if (idx >= candidates.length) onExhausted?.();
-    // 候选数组随 url/mode 变化，length 是充分的稳定信号
+    exhaustionReportedRef.current = false;
+    setIdx(0);
+  }, [url, mode, customProxy]);
+
+  useEffect(() => {
+    if (idx < candidates.length || exhaustionReportedRef.current) return;
+    exhaustionReportedRef.current = true;
+    onExhausted?.();
+    // 候选数组随 url/mode 变化，length 是充分的稳定信号。
   }, [idx, candidates.length, onExhausted]);
 
   const src = candidates[idx];
