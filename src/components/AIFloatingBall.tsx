@@ -1261,14 +1261,30 @@ export default function AIFloatingBall({
 
   const closePanel = useCallback(() => {
     clearMovieCloseTimer();
+    clearVoiceResumeTimer();
 
     pendingMovieRef.current = null;
     movieDispatchedRef.current = false;
 
+    // 先关闭入口并使所有旧会话失效，防止异步回调在关闭后重新启动。
     openRef.current = false;
     closingRef.current = false;
+    voiceSessionActiveRef.current = false;
+    voiceSessionIdRef.current += 1;
 
     stopAllVoice();
+    stopAudioMeter();
+
+    // 无论 busy 状态是否已来得及刷新，都终止请求并使旧 requestId 失效。
+    const requestId = activeRequestIdRef.current;
+    if (requestId) {
+      dispatchMachine({
+        type: "REQUEST_CANCELLED",
+        requestId,
+      });
+    }
+    activeRequestIdRef.current = 0;
+    observedBusyRef.current = false;
 
     if (busyRef.current) {
       stop();
@@ -1276,17 +1292,20 @@ export default function AIFloatingBall({
 
     setClosing(false);
     setOpen(false);
+    setSpeaking(false);
+    setListening(false);
+    setVoiceSessionActive(false);
+    setCompleted(false);
+    setVoiceError("");
     dispatchMachine({ type: "CLOSE" });
-    if (busyRef.current && activeRequestIdRef.current) {
-      dispatchMachine({
-        type: "REQUEST_CANCELLED",
-        requestId: activeRequestIdRef.current,
-      });
-      activeRequestIdRef.current = 0;
-      observedBusyRef.current = false;
-    }
     setExpanded(false);
-  }, [clearMovieCloseTimer, stopAllVoice, stop]);
+  }, [
+    clearMovieCloseTimer,
+    clearVoiceResumeTimer,
+    stopAllVoice,
+    stopAudioMeter,
+    stop,
+  ]);
 
   const handleOpenMovie = useCallback(
     (movie: MovieItem) => {
