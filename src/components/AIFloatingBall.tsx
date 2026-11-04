@@ -1016,6 +1016,7 @@ export default function AIFloatingBall({
       setVoiceSession,
       stopSpeech,
       startAudioMeter,
+      stopAudioMeter,
     ],
   );
 
