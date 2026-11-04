@@ -4,25 +4,40 @@ import { useCallback, useEffect, useRef } from "react";
 import type { Dispatch } from "react";
 import type { FridayEvent } from "@/lib/friday/types";
 
+type ToolPartLike = {
+  type?: string;
+  state?: string;
+  toolCallId?: string;
+};
+
+type RequestMessageLike = {
+  id: string;
+  parts?: ToolPartLike[];
+};
+
 type FridayRequestLifecycleOptions = {
   busy: boolean;
   error?: { message?: string } | null;
+  messages?: RequestMessageLike[];
   dispatchMachine: Dispatch<FridayEvent>;
 };
 
 export function useFridayRequestLifecycle({
   busy,
   error,
+  messages = [],
   dispatchMachine,
 }: FridayRequestLifecycleOptions) {
   const requestSequenceRef = useRef(0);
   const activeRequestIdRef = useRef(0);
   const observedBusyRef = useRef(false);
+  const observedToolStatesRef = useRef(new Map<string, string>());
 
   const beginRequest = useCallback(() => {
     const requestId = ++requestSequenceRef.current;
     activeRequestIdRef.current = requestId;
     observedBusyRef.current = false;
+    observedToolStatesRef.current.clear();
     dispatchMachine({ type: "MESSAGE_SUBMITTED", requestId });
     return requestId;
   }, [dispatchMachine]);
@@ -40,6 +55,7 @@ export function useFridayRequestLifecycle({
       });
       activeRequestIdRef.current = 0;
       observedBusyRef.current = false;
+      observedToolStatesRef.current.clear();
     },
     [dispatchMachine],
   );
@@ -51,11 +67,38 @@ export function useFridayRequestLifecycle({
     dispatchMachine({ type: "REQUEST_CANCELLED", requestId });
     activeRequestIdRef.current = 0;
     observedBusyRef.current = false;
+    observedToolStatesRef.current.clear();
   }, [dispatchMachine]);
 
   useEffect(() => {
     const requestId = activeRequestIdRef.current;
     if (!requestId) return;
+
+    // AI SDK 将服务端工具执行过程作为 tool-* message parts 写回消息。
+    // 以真实 part.state 驱动状态机，不用延时器模拟工具执行。
+    for (const message of messages) {
+      for (let index = 0; index < (message.parts?.length ?? 0); index += 1) {
+        const part = message.parts?.[index];
+        if (!part?.type?.startsWith("tool-")) continue;
+
+        const key = `${message.id}:${part.toolCallId || index}`;
+        const previousState = observedToolStatesRef.current.get(key);
+        if (previousState === part.state) continue;
+
+        if (part.state === "input-available") {
+          dispatchMachine({ type: "TOOL_STARTED", requestId });
+        } else if (
+          part.state === "output-available" ||
+          part.state === "output-error"
+        ) {
+          dispatchMachine({ type: "TOOL_FINISHED", requestId });
+        }
+
+        if (part.state) {
+          observedToolStatesRef.current.set(key, part.state);
+        }
+      }
+    }
 
     if (error) {
       dispatchMachine({
@@ -66,6 +109,7 @@ export function useFridayRequestLifecycle({
       });
       activeRequestIdRef.current = 0;
       observedBusyRef.current = false;
+      observedToolStatesRef.current.clear();
       return;
     }
 
@@ -78,8 +122,9 @@ export function useFridayRequestLifecycle({
       dispatchMachine({ type: "RESPONSE_COMPLETED", requestId });
       activeRequestIdRef.current = 0;
       observedBusyRef.current = false;
+      observedToolStatesRef.current.clear();
     }
-  }, [busy, error, dispatchMachine]);
+  }, [busy, error, messages, dispatchMachine]);
 
   return { beginRequest, failActiveRequest, cancelActiveRequest };
 }
