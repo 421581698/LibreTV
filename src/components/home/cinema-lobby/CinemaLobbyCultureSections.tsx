@@ -66,12 +66,13 @@ export function CinemaLobbyCultureSections({
           </div>
           <span className="cinema-lobby-section-note">每日放送</span>
         </div>
+        <div aria-busy={!isNearViewport || animeQuery.isLoading} aria-live="polite">
         {animeQuery.isError ? (
           <SectionError onRetry={() => void animeQuery.refetch()} />
         ) : !isNearViewport || animeQuery.isLoading ? (
           <PosterSkeleton />
         ) : animeItems.length === 0 ? (
-          <p className="py-6 text-center text-sm text-faint">暂时没有可展示的动漫</p>
+          <p className="py-6 text-center text-sm text-faint" role="status">暂时没有可展示的动漫</p>
         ) : (
           <PosterGrid>
             {animeItems.map((item) => (
@@ -85,6 +86,7 @@ export function CinemaLobbyCultureSections({
             ))}
           </PosterGrid>
         )}
+        </div>
       </section>
 
       <section
@@ -100,6 +102,10 @@ export function CinemaLobbyCultureSections({
           </div>
           <span className="cinema-lobby-section-note">国内 · 海外</span>
         </div>
+        <div
+          aria-busy={!isNearViewport || domesticVarietyQuery.isLoading || globalVarietyQuery.isLoading}
+          aria-live="polite"
+        >
         {domesticVarietyQuery.isError && globalVarietyQuery.isError ? (
           <SectionError
             onRetry={() => {
@@ -110,7 +116,7 @@ export function CinemaLobbyCultureSections({
         ) : !isNearViewport || domesticVarietyQuery.isLoading || globalVarietyQuery.isLoading ? (
           <PosterSkeleton />
         ) : varietyItems.length === 0 ? (
-          <p className="py-6 text-center text-sm text-faint">暂时没有可展示的综艺</p>
+          <p className="py-6 text-center text-sm text-faint" role="status">暂时没有可展示的综艺</p>
         ) : (
           <PosterGrid>
             {varietyItems.map((item) => (
@@ -122,6 +128,7 @@ export function CinemaLobbyCultureSections({
             ))}
           </PosterGrid>
         )}
+        </div>
       </section>
     </div>
   );
@@ -139,7 +146,7 @@ function PosterGrid({ children }: { children: ReactNode }) {
 
 function PosterSkeleton() {
   return (
-    <div className={mobileRailClass}>
+    <div className={mobileRailClass} aria-hidden="true">
       {Array.from({ length: 6 }).map((_, index) => (
         <div key={index} className={mobileCardClass}>
           <div className="aspect-[2/3] animate-pulse rounded-lg bg-chip" />
@@ -152,7 +159,7 @@ function PosterSkeleton() {
 
 function SectionError({ onRetry }: { onRetry: () => void }) {
   return (
-    <div className="py-6 text-center" role="status">
+    <div className="py-6 text-center" role="alert">
       <p className="text-sm text-faint">内容暂时加载失败</p>
       <button
         type="button"
