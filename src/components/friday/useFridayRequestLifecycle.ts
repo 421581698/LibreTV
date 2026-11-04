@@ -11,6 +11,15 @@ type ToolPartLike = {
   data?: unknown;
 };
 
+export function hasMovieResultData(data: unknown): boolean {
+  return Boolean(
+    data &&
+      typeof data === "object" &&
+      "results" in data &&
+      Array.isArray((data as { results?: unknown }).results),
+  );
+}
+
 type RequestMessageLike = {
   id: string;
   parts?: ToolPartLike[];
@@ -44,7 +53,7 @@ export function useFridayRequestLifecycle({
     activeRequestIdRef.current = requestId;
     observedBusyRef.current = false;
     observedToolStatesRef.current.clear();
-      activeToolCallsRef.current.clear();
+    activeToolCallsRef.current.clear();
     renderingDispatchedRef.current = false;
     baselineMessageIdsRef.current = new Set(messagesRef.current.map((message) => message.id));
     dispatchMachine({ type: "MESSAGE_SUBMITTED", requestId });
@@ -96,7 +105,7 @@ export function useFridayRequestLifecycle({
       if (baselineMessageIdsRef.current.has(message.id)) continue;
       for (let index = 0; index < (message.parts?.length ?? 0); index += 1) {
         const part = message.parts?.[index];
-        if (part?.type === "data-movies" && part.data && typeof part.data === "object") {
+        if (part?.type === "data-movies" && hasMovieResultData(part.data)) {
           hasMovieResults = true;
         }
         if (!part?.type?.startsWith("tool-")) continue;
