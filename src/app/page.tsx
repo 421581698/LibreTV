@@ -25,12 +25,14 @@ import { api } from '@/lib/client-api';
 import type {
   SearchResultItem,
   SourceSearchOutcome,
+  DoubanItem,
 } from '@/lib/types';
 import {
   SearchHistoryDropdown,
   useSearchHistory,
 } from '@/components/search-history';
 import {
+  buildWatchUrl,
   cn,
   formatDisableTtl,
   validateSourceUrl,
@@ -279,6 +281,64 @@ function HomeContent() {
   });
 
   const searchHistory = useSearchHistory(input);
+  const recommendationBusyRef = useRef(false);
+
+  const openRecommended = async (recommended: DoubanItem) => {
+    if (recommendationBusyRef.current) return;
+    recommendationBusyRef.current = true;
+    try {
+      const response = await api.search(recommended.title, selectedSources, yellowFilter, {
+        onSource: () => undefined,
+      });
+      const normalizeTitle = (value: string) =>
+        value.toLowerCase().replace(/[\s·:：,，.。!！?？\-—_（）()【】\[\]]/g, '');
+      const wanted = normalizeTitle(recommended.title);
+      const exact = response.list.filter((entry) => normalizeTitle(entry.name) === wanted);
+      const partial = response.list.filter((entry) => {
+        const name = normalizeTitle(entry.name);
+        return name.length >= 2 && (name.includes(wanted) || wanted.includes(name));
+      });
+      const matched = exact.length ? exact : partial.length === 1 ? partial : [];
+      if (!matched.length) {
+        toast('没有匹配到同名可播放资源，可以使用搜索框手动查找', 'warning');
+        return;
+      }
+      const typePattern = recommended.isTv ? /剧|电视|综艺|动漫|番剧|纪录/i : /电影/i;
+      const typed = matched.filter((entry) => typePattern.test(entry.typeName || ''));
+      const candidates = (typed.length ? typed : matched).slice(0, 6);
+      const currentStore = useAppStore.getState();
+      const checks = await Promise.all(candidates.map(async (candidate) => {
+        const source = resolveSource(currentStore, candidate.sourceKey) ??
+          (candidate.sourceUrl
+            ? { key: candidate.sourceKey, name: candidate.sourceName, url: candidate.sourceUrl }
+            : undefined);
+        if (!source || !validateSourceUrl(source.url)) return null;
+        try {
+          const detail = await api.detail(candidate.vodId, source);
+          return detail.episodes.length ? candidate : null;
+        } catch {
+          return null;
+        }
+      }));
+      const playable = checks.find((entry) => entry !== null);
+      if (!playable) {
+        toast('已找到影片，但当前来源没有可用播放集数，请稍后重试或手动换源', 'warning');
+        return;
+      }
+      searchHistory.record(recommended.title);
+      router.push(buildWatchUrl({
+        sourceKey: playable.sourceKey,
+        vodId: playable.vodId,
+        index: 0,
+        title: playable.name,
+        sourceUrl: playable.sourceUrl,
+      }));
+    } catch (error) {
+      toast(error instanceof Error ? error.message : '推荐影片加载失败，请稍后重试', 'error');
+    } finally {
+      recommendationBusyRef.current = false;
+    }
+  };
 
   const runSearch = (q: string) => {
     const query = q.trim().slice(0, 100);
@@ -531,12 +591,7 @@ function HomeContent() {
           </section>
         )}
         {!urlQuery && (
-          <RecommendSection
-            onPick={(title) => {
-              setInput(title);
-              runSearch(title);
-            }}
-          />
+          <RecommendSection onPick={openRecommended} />
         )}
       </main>
       <SiteFooter />
