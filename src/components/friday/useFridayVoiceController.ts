@@ -329,12 +329,7 @@ export function useFridayVoiceController({
       recognitionErrorRef.current = event.error || "unknown";
       const message = getSpeechErrorMessage(event.error);
       if (message) {
-        dispatchMachine({
-          type: "VOICE_FAILED",
-          sessionId,
-          code: event.error || "unknown",
-          message,
-        });
+        // 先记录给 UI；机器状态等 onend 收尾后再写入，避免后续 VOICE_STOP 清除错误。
         setVoiceError(message);
       }
     };
@@ -368,12 +363,19 @@ export function useFridayVoiceController({
       if (!voiceSessionActiveRef.current) return;
 
       if (recognitionError && recognitionError !== "aborted") {
-        if (recognitionError === "no-speech") {
-          setVoiceError("没有识别到语音，请点击麦克风重新聆听。");
-        } else if (shouldEndVoiceSession(recognitionError)) {
-          // 权限、设备或网络错误后结束本轮会话，避免残留活动态。
-          // 用户修复问题后仍可再次点击麦克风启动新会话。
+        const message = getSpeechErrorMessage(recognitionError);
+        if (shouldEndVoiceSession(recognitionError)) {
+          // 先结束会话，再派发失败；VOICE_STOP 会清理错误，所以顺序不能反过来。
           setVoiceSession(false);
+        }
+        if (message) {
+          dispatchMachine({
+            type: "VOICE_FAILED",
+            sessionId,
+            code: recognitionError,
+            message,
+          });
+          setVoiceError(message);
         }
         return;
       }
