@@ -55,6 +55,34 @@ export function shouldEndVoiceSession(error?: string): boolean {
   return Boolean(error && error !== "aborted" && error !== "no-speech");
 }
 
+export function getSpeechStartErrorMessage(error: unknown, automatic = false): string {
+  const errorName =
+    error && typeof error === "object" && "name" in error &&
+    typeof error.name === "string"
+      ? error.name
+      : "";
+
+  switch (errorName) {
+    case "NotAllowedError":
+    case "PermissionDeniedError":
+      return "麦克风权限被拒绝，请在浏览器地址栏或系统设置中允许麦克风访问。";
+    case "SecurityError":
+      return "语音识别需要安全连接，请使用 HTTPS 网站或 localhost。";
+    case "NotFoundError":
+    case "DevicesNotFoundError":
+      return "没有检测到可用的麦克风，请检查设备连接。";
+    case "NotReadableError":
+    case "TrackStartError":
+      return "麦克风当前无法使用，可能正被其他应用占用。";
+    case "InvalidStateError":
+      return "语音识别暂时还没准备好，请稍后再试。";
+    default:
+      return automatic
+        ? "浏览器未允许自动恢复麦克风，请点击麦克风继续聆听。"
+        : "语音识别启动失败，请检查麦克风权限后重试。";
+  }
+}
+
 export function getSpeechErrorMessage(error?: string): string {
   switch (error) {
     case "not-allowed":
@@ -336,19 +364,22 @@ export function useFridayVoiceController({
       if (recognitionRef.current === recognition) {
         recognitionRef.current = null;
       }
+      const message = getSpeechStartErrorMessage(recognitionError, automatic);
+      const errorName =
+        recognitionError && typeof recognitionError === "object" &&
+        "name" in recognitionError && typeof recognitionError.name === "string"
+          ? recognitionError.name
+          : "start-failed";
       dispatchMachine({
         type: "VOICE_FAILED",
         sessionId,
-        code: "start-failed",
-        message: "语音识别启动失败",
+        code: errorName,
+        message,
       });
       listeningRef.current = false;
       setListening(false);
-      setVoiceError(
-        automatic
-          ? "浏览器未允许自动恢复麦克风，请点击麦克风继续聆听。"
-          : "语音识别启动失败，请检查麦克风权限后重试。",
-      );
+      setVoiceSession(false);
+      setVoiceError(message);
     }
   }, [
     busyRef,
