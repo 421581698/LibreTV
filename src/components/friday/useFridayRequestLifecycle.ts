@@ -8,6 +8,7 @@ type ToolPartLike = {
   type?: string;
   state?: string;
   toolCallId?: string;
+  data?: unknown;
 };
 
 type RequestMessageLike = {
