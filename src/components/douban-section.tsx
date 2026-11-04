@@ -238,6 +238,7 @@ function ChipButton({ active, onClick, children }: { active: boolean; onClick: (
         active ? 'bg-accent text-on-accent' : 'bg-chip text-muted hover:text-content hover:bg-hover'
       )}
       onClick={onClick}
+      aria-pressed={active}
     >
       {children}
     </button>
