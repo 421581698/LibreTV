@@ -17,6 +17,7 @@ import { HomeSearchSection } from '@/components/home/HomeSearchSection';
 import { RecommendSection } from '@/components/douban-section';
 import { CinemaLobbyTrending } from '@/components/home/cinema-lobby/CinemaLobbyTrending';
 import { CinemaLobbyTvSection } from '@/components/home/cinema-lobby/CinemaLobbyTvSection';
+import { CinemaLobbyCultureSections } from '@/components/home/cinema-lobby/CinemaLobbyCultureSections';
 import { DetailModal } from '@/components/detail-modal';
 import { AggregatedCard, aggregateResults } from '@/components/video-card';
 import {
@@ -493,6 +494,13 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
                 }}
               />
               <CinemaLobbyTvSection
+                enabled={doubanEnabled}
+                onPick={(title) => {
+                  setInput(title);
+                  runSearch(title);
+                }}
+              />
+              <CinemaLobbyCultureSections
                 enabled={doubanEnabled}
                 onPick={(title) => {
                   setInput(title);
