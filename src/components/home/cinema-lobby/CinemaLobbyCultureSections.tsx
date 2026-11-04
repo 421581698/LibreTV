@@ -62,7 +62,7 @@ export function CinemaLobbyCultureSections({
         </div>
         {animeQuery.isError ? (
           <SectionError onRetry={() => void animeQuery.refetch()} />
-        ) : animeQuery.isLoading ? (
+        ) : !isNearViewport || animeQuery.isLoading ? (
           <PosterSkeleton />
         ) : animeItems.length === 0 ? (
           <p className="py-6 text-center text-sm text-faint">暂时没有可展示的动漫</p>
@@ -101,7 +101,7 @@ export function CinemaLobbyCultureSections({
               void globalVarietyQuery.refetch();
             }}
           />
-        ) : domesticVarietyQuery.isLoading || globalVarietyQuery.isLoading ? (
+        ) : !isNearViewport || domesticVarietyQuery.isLoading || globalVarietyQuery.isLoading ? (
           <PosterSkeleton />
         ) : varietyItems.length === 0 ? (
           <p className="py-6 text-center text-sm text-faint">暂时没有可展示的综艺</p>
