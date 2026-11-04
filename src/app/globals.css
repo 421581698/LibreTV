@@ -685,6 +685,15 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
 }
 
 @media (max-width: 380px) {
+  .home-v2 .cinema-lobby-hero > section {
+    margin-bottom: 14px !important;
+  }
+
+  .home-v2 .cinema-lobby-section-heading {
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
   .home-v2 .cinema-lobby-trending .grid.grid-cols-3 {
     column-gap: 7px;
     row-gap: 13px;
