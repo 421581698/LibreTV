@@ -60,6 +60,7 @@ export function useFridayRequestLifecycle({
       activeRequestIdRef.current = 0;
       observedBusyRef.current = false;
       observedToolStatesRef.current.clear();
+      baselineMessageIdsRef.current.clear();
     },
     [dispatchMachine],
   );
@@ -72,6 +73,7 @@ export function useFridayRequestLifecycle({
     activeRequestIdRef.current = 0;
     observedBusyRef.current = false;
     observedToolStatesRef.current.clear();
+    baselineMessageIdsRef.current.clear();
   }, [dispatchMachine]);
 
   useEffect(() => {
