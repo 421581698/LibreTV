@@ -70,64 +70,74 @@ final class FridayVoiceEngine {
             compatibleWith: [transcriber],
             priority: .userInitiated
         )
-
         let audioSession = AVAudioSession.sharedInstance()
-        try audioSession.setCategory(
-            .playAndRecord,
-            mode: .spokenAudio,
-            options: [.defaultToSpeaker, .duckOthers]
-        )
-        try audioSession.setActive(true)
-
-        guard let format = await SpeechAnalyzer.bestAvailableAudioFormat(
-            compatibleWith: [transcriber]
-        ) else {
-            throw FridayVoiceError.noCompatibleAudioFormat
-        }
-
-        let analyzer = SpeechAnalyzer(
-            modules: [transcriber],
-            options: .init(
-                priority: .userInitiated,
-                modelRetention: .lingering
-            )
-        )
-        try await analyzer.prepareToAnalyze(in: format)
-
-        finalizedText = ""
-        volatileText = ""
-        self.captureProvider = provider
-        self.analyzer = analyzer
+        captureProvider = provider
         self.transcriber = transcriber
 
-        resultsTask = Task { @MainActor [weak self] in
-            do {
-                for try await result in transcriber.results {
-                    guard let self else { return }
-                    let phrase = String(result.text.characters)
-                    if result.isFinal {
-                        self.finalizedText += phrase
-                        self.volatileText = ""
-                    } else {
-                        self.volatileText = phrase
+        do {
+            try audioSession.setCategory(
+                .playAndRecord,
+                mode: .spokenAudio,
+                options: [.defaultToSpeaker, .duckOthers]
+            )
+            try audioSession.setActive(true)
+
+            guard let format = await SpeechAnalyzer.bestAvailableAudioFormat(
+                compatibleWith: [transcriber]
+            ) else {
+                throw FridayVoiceError.noCompatibleAudioFormat
+            }
+
+            let analyzer = SpeechAnalyzer(
+                modules: [transcriber],
+                options: .init(
+                    priority: .userInitiated,
+                    modelRetention: .lingering
+                )
+            )
+            try await analyzer.prepareToAnalyze(in: format)
+            self.analyzer = analyzer
+
+            finalizedText = ""
+            volatileText = ""
+
+            resultsTask = Task { @MainActor [weak self] in
+                do {
+                    for try await result in transcriber.results {
+                        guard let self else { return }
+                        let phrase = String(result.text.characters)
+                        if result.isFinal {
+                            self.finalizedText += phrase
+                            self.volatileText = ""
+                        } else {
+                            self.volatileText = phrase
+                        }
+                        self.onTranscript?(self.finalizedText + self.volatileText, result.isFinal)
                     }
-                    self.onTranscript?(self.finalizedText + self.volatileText, result.isFinal)
+                } catch {
+                    self?.onState?("error", error.localizedDescription)
                 }
-            } catch {
-                self?.onState?("error", error.localizedDescription)
             }
-        }
 
-        await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                provider.captureSession.startRunning()
-                continuation.resume()
+            await startCaptureSession(provider)
+            try await analyzer.start(inputSequence: provider.analyzerInputs)
+            isRunning = true
+            onState?("listening", "Friday 正在聆听")
+        } catch {
+            await stopCaptureSession(provider)
+            if let analyzer = self.analyzer {
+                await analyzer.cancelAndFinishNow()
             }
+            resultsTask?.cancel()
+            resultsTask = nil
+            try? audioSession.setActive(false, options: .notifyOthersOnDeactivation)
+            captureProvider = nil
+            analyzer = nil
+            self.transcriber = nil
+            isRunning = false
+            onState?("error", error.localizedDescription)
+            throw error
         }
-
-        try await analyzer.start(inputSequence: provider.analyzerInputs)
-        isRunning = true
-        onState?("listening", "Friday 正在聆听")
     }
 
     func stop() async throws -> String {
@@ -137,36 +147,70 @@ final class FridayVoiceEngine {
 
         onState?("processing", "正在完成语音识别")
         if let provider = captureProvider {
-            await withCheckedContinuation { continuation in
-                DispatchQueue.global(qos: .userInitiated).async {
-                    provider.captureSession.stopRunning()
-                    continuation.resume()
-                }
+            await stopCaptureSession(provider)
+        }
+
+        do {
+            if let analyzer {
+                try await analyzer.finalizeAndFinishThroughEndOfInput()
             }
+            await resultsTask?.value
+        } catch {
+            if let analyzer {
+                await analyzer.cancelAndFinishNow()
+            }
+            resultsTask?.cancel()
+            await resultsTask?.value
+            releaseAudioSession()
+            resetSession()
+            onState?("error", error.localizedDescription)
+            throw error
         }
-
-        if let analyzer {
-            try await analyzer.finalizeAndFinishThroughEndOfInput()
-        }
-
-        await resultsTask?.value
-        resultsTask = nil
-
-        let audioSession = AVAudioSession.sharedInstance()
-        try? audioSession.setActive(false, options: .notifyOthersOnDeactivation)
-
-        captureProvider = nil
-        analyzer = nil
-        transcriber = nil
-        isRunning = false
 
         let result = finalizedText + volatileText
+        releaseAudioSession()
+        resetSession()
         onState?("idle", "录音已结束")
         return result
     }
 
     func status() -> (state: String, text: String) {
         (isRunning ? "listening" : "idle", finalizedText + volatileText)
+    }
+
+    private func startCaptureSession(_ provider: CaptureInputSequenceProvider) async {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                provider.captureSession.startRunning()
+                continuation.resume()
+            }
+        }
+    }
+
+    private func stopCaptureSession(_ provider: CaptureInputSequenceProvider) async {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                if provider.captureSession.isRunning {
+                    provider.captureSession.stopRunning()
+                }
+                continuation.resume()
+            }
+        }
+    }
+
+    private func releaseAudioSession() {
+        try? AVAudioSession.sharedInstance().setActive(
+            false,
+            options: .notifyOthersOnDeactivation
+        )
+    }
+
+    private func resetSession() {
+        captureProvider = nil
+        analyzer = nil
+        transcriber = nil
+        resultsTask = nil
+        isRunning = false
     }
 }
 
