@@ -874,6 +874,21 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   gap: 7px;
 }
 
+@media (max-width: 1023px) {
+  .home-v2 .cinema-lobby-category-tags {
+    max-width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding: 2px 2px 6px;
+    scrollbar-width: thin;
+  }
+
+  .home-v2 .cinema-lobby-category-tags button {
+    flex: 0 0 auto;
+  }
+}
+
 .home-v2 .cinema-lobby-category-types button,
 .home-v2 .cinema-lobby-category-tags button {
   min-height: 30px;
