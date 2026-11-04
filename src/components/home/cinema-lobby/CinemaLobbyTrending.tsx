@@ -16,7 +16,7 @@ export function CinemaLobbyTrending({
   enabled,
   onPick,
 }: CinemaLobbyTrendingProps) {
-  const { ref, isNearViewport } = useCinemaLobbyVisibility<HTMLElement>();
+  const { ref, isNearViewport } = useCinemaLobbyVisibility<HTMLElement>(enabled);
 
   if (!enabled) return null;
 
