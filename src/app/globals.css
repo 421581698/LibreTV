@@ -919,3 +919,80 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
     transition: none;
   }
 }
+
+/* Cinema lobby — poster grid polish.
+   Scoped to the V2 trending section so legacy cards and search results stay unchanged. */
+.home-v2 .cinema-lobby-trending .grid[class*="grid-cols-3"] {
+  column-gap: 8px;
+  row-gap: 13px;
+}
+
+.home-v2 .cinema-lobby-trending .grid > .card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 11px;
+  transform: translateZ(0);
+}
+
+.home-v2 .cinema-lobby-trending .grid > .card > .relative {
+  width: 100%;
+  flex: none;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  background: var(--c-chip, rgba(128, 128, 128, .08));
+}
+
+.home-v2 .cinema-lobby-trending .grid > .card > .relative img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.home-v2 .cinema-lobby-trending .grid > .card > div:last-child {
+  min-width: 0;
+  flex: 1;
+  padding: 7px 7px 9px;
+}
+
+.home-v2 .cinema-lobby-trending .grid > .card > div:last-child > div:first-child {
+  display: -webkit-box;
+  min-height: 2.7em;
+  overflow: hidden;
+  color: var(--c-content, currentColor);
+  font-size: 11px;
+  font-weight: 550;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+@media (max-width: 639px) {
+  .home-v2 .cinema-lobby-trending .grid[class*="grid-cols-3"] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .home-v2 .cinema-lobby-trending .grid > .card {
+    border-radius: 10px;
+  }
+
+  .home-v2 .cinema-lobby-trending .grid > .card > div:last-child {
+    padding: 6px 6px 8px;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .home-v2 .cinema-lobby-trending .grid > .card {
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  }
+
+  .home-v2 .cinema-lobby-trending .grid > .card:hover {
+    transform: translateY(-2px);
+  }
+}
+
