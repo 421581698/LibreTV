@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/homepage-friday
+      - feature/homepage-cinema-lobby
 
 permissions:
   contents: read
