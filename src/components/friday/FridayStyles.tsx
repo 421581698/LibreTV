@@ -731,6 +731,33 @@ export function FridayStyles() {
           transform: scale(.985);
         }
 
+        .friday-root .friday-panel[data-agent-state="rendering"] .friday-movie-section,
+        .friday-root .friday-panel[data-agent-state="completed"] .friday-movie-section{
+          animation: friday-results-arrive .42s cubic-bezier(.2,.8,.2,1) both;
+        }
+
+        .friday-root .friday-panel[data-agent-state="rendering"] .friday-movie-card,
+        .friday-root .friday-panel[data-agent-state="completed"] .friday-movie-card{
+          animation: friday-result-card-in .38s cubic-bezier(.2,.8,.2,1) both;
+        }
+
+        .friday-root .friday-panel[data-agent-state="rendering"] .friday-movie-card:nth-child(2),
+        .friday-root .friday-panel[data-agent-state="completed"] .friday-movie-card:nth-child(2){ animation-delay: .045s; }
+        .friday-root .friday-panel[data-agent-state="rendering"] .friday-movie-card:nth-child(3),
+        .friday-root .friday-panel[data-agent-state="completed"] .friday-movie-card:nth-child(3){ animation-delay: .09s; }
+        .friday-root .friday-panel[data-agent-state="rendering"] .friday-movie-card:nth-child(4),
+        .friday-root .friday-panel[data-agent-state="completed"] .friday-movie-card:nth-child(4){ animation-delay: .135s; }
+
+        @keyframes friday-results-arrive{
+          from{ opacity: 0; transform: translateY(9px); }
+          to{ opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes friday-result-card-in{
+          from{ opacity: 0; transform: translateY(7px) scale(.985); }
+          to{ opacity: 1; transform: translateY(0) scale(1); }
+        }
+
         .friday-root .friday-poster{
           position: relative;
           width: 46px;
