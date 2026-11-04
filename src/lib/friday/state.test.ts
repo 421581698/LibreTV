@@ -42,6 +42,27 @@ describe("fridayReducer", () => {
     expect(state.voice).toBe("idle");
   });
 
+  it("preserves a synchronous voice startup failure after ending the session", () => {
+    let state = fridayReducer(initialFridayState, {
+      type: "VOICE_START_REQUESTED",
+      sessionId: 5,
+    });
+
+    state = fridayReducer(state, {
+      type: "VOICE_STOP",
+      sessionId: 5,
+    });
+    state = fridayReducer(state, {
+      type: "VOICE_FAILED",
+      sessionId: 5,
+      code: "NotAllowedError",
+      message: "Microphone permission denied",
+    });
+
+    expect(state.voice).toBe("error");
+    expect(state.errors.voice?.code).toBe("NotAllowedError");
+  });
+
   it("ignores stale voice callbacks", () => {
     const state = fridayReducer(initialFridayState, {
       type: "VOICE_START_REQUESTED",
