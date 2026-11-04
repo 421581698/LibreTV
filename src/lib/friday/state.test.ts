@@ -63,6 +63,28 @@ describe("fridayReducer", () => {
     expect(state.errors.voice?.code).toBe("NotAllowedError");
   });
 
+  it("preserves asynchronous recognition errors after onend stops the session", () => {
+    let state = fridayReducer(initialFridayState, {
+      type: "VOICE_START_REQUESTED",
+      sessionId: 6,
+    });
+    state = fridayReducer(state, { type: "VOICE_STARTED", sessionId: 6 });
+
+    // recognition.onerror records the UI message; onend then emits these events in order.
+    state = fridayReducer(state, { type: "VOICE_ENDED", sessionId: 6 });
+    state = fridayReducer(state, { type: "VOICE_STOP", sessionId: 6 });
+    state = fridayReducer(state, {
+      type: "VOICE_FAILED",
+      sessionId: 6,
+      code: "not-allowed",
+      message: "麦克风权限被拒绝",
+    });
+
+    expect(state.voice).toBe("error");
+    expect(state.errors.voice?.code).toBe("not-allowed");
+    expect(state.errors.voice?.message).toBe("麦克风权限被拒绝");
+  });
+
   it("ignores stale voice callbacks", () => {
     const state = fridayReducer(initialFridayState, {
       type: "VOICE_START_REQUESTED",
