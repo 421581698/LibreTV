@@ -30,3 +30,6 @@ public struct FridayAppShortcuts: AppShortcutsProvider {
         )
     }
 }
+
+@available(iOS 16.0, *)
+public struct FridayVoiceIntentsPackage: AppIntentsPackage {}
