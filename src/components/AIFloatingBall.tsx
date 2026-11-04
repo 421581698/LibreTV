@@ -197,6 +197,15 @@ function cancelBrowserSpeech(): void {
   }
 }
 
+function isIOSWebKit(): boolean {
+  if (typeof navigator === "undefined") return false;
+
+  return (
+    /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
+
 function getSpeechErrorMessage(error?: string): string {
   switch (error) {
     case "not-allowed":
