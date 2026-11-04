@@ -20,12 +20,9 @@ export function fridayReducer(
             ...state,
             surface: "launcher",
             voice: "idle",
-            agent: "idle",
-            requestId: 0,
             errors: {
               ...state.errors,
               voice: undefined,
-              agent: undefined,
             },
           }
         : state;
@@ -35,12 +32,9 @@ export function fridayReducer(
         ...state,
         surface: "closed",
         voice: "idle",
-        agent: "idle",
-        requestId: 0,
         errors: {
           ...state.errors,
           voice: undefined,
-          agent: undefined,
         },
       };
 
