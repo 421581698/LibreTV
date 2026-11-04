@@ -610,3 +610,101 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
     font-size: 21px;
   }
 }
+
+
+/* Cinema Lobby — poster-first recommendation cards.
+   Scoped to the V2 trending section; legacy cards keep their original layout. */
+.home-v2 .cinema-lobby-trending .grid.grid-cols-3 {
+  column-gap: 9px;
+  row-gap: 16px;
+}
+
+.home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(128, 145, 170, .16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .035);
+  box-shadow: 0 5px 18px rgba(0, 0, 0, .12);
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+
+.home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card > .relative {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  background: var(--c-chip, #222);
+}
+
+.home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card > .relative img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card > div:last-child {
+  min-width: 0;
+  padding: 7px 6px 8px;
+}
+
+.home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card .text-xs.font-medium {
+  display: -webkit-box;
+  min-height: 2.65em;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.home-v2 .cinema-lobby-trending .grid.grid-cols-3 > div:not(.card) {
+  min-width: 0;
+}
+
+.home-v2 .cinema-lobby-trending .grid.grid-cols-3 > div:not(.card) > div:first-child {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: 10px;
+}
+
+.home-v2 .cinema-lobby-trending .grid.grid-cols-3 > div:not(.card) > div:last-child {
+  height: 9px;
+  margin-top: 7px;
+  border-radius: 5px;
+}
+
+@media (max-width: 380px) {
+  .home-v2 .cinema-lobby-trending .grid.grid-cols-3 {
+    column-gap: 7px;
+    row-gap: 13px;
+  }
+
+  .home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card {
+    border-radius: 10px;
+  }
+
+  .home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card > div:last-child {
+    padding: 6px 5px 7px;
+  }
+
+  .home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card .text-xs.font-medium {
+    font-size: 10px;
+  }
+}
+
+@media (hover: hover) and (min-width: 769px) {
+  .home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(150, 180, 235, .38);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, .22);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card {
+    transition: none;
+  }
+}
