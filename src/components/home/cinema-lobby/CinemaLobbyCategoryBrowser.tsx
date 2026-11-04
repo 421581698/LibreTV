@@ -80,13 +80,14 @@ export function CinemaLobbyCategoryBrowser({ enabled, onPick }: Props) {
         </div>
       </div>
 
+      <div aria-busy={query.isLoading} aria-live="polite">
       {query.isError ? (
-        <div className="py-6 text-center">
+        <div className="py-6 text-center" role="alert">
           <p className="text-sm text-faint">分类内容暂时加载失败</p>
           <button type="button" className="mt-2 rounded-full bg-chip px-3 py-1.5 text-xs text-muted" onClick={() => void query.refetch()}>重新加载</button>
         </div>
       ) : !isNearViewport || query.isLoading ? (
-        <div className={mobileRailClass}>
+        <div className={mobileRailClass} role="status" aria-label="正在加载分类内容">
           {Array.from({ length: 6 }).map((_, index) => (
             <div key={index} className={mobileCardClass}>
               <div className="aspect-[2/3] animate-pulse rounded-lg bg-chip" />
@@ -95,7 +96,7 @@ export function CinemaLobbyCategoryBrowser({ enabled, onPick }: Props) {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <p className="py-6 text-center text-sm text-faint">这个分类暂时没有推荐内容</p>
+        <p className="py-6 text-center text-sm text-faint" role="status">这个分类暂时没有推荐内容</p>
       ) : (
         <div className={mobileRailClass}>
           {items.map((item) => (
@@ -110,6 +111,7 @@ export function CinemaLobbyCategoryBrowser({ enabled, onPick }: Props) {
           ))}
         </div>
       )}
+      </div>
     </section>
   );
 }
