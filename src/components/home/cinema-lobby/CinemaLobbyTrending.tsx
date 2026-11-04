@@ -42,11 +42,11 @@ export function CinemaLobbyTrending({
         <RecommendSection onPick={onPick} cinemaLobbyLayout />
       ) : (
         <div
-          className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8"
+          className="flex gap-3 overflow-hidden -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 sm:gap-2.5"
           aria-hidden="true"
         >
           {Array.from({ length: 6 }).map((_, index) => (
-            <div key={index} className="min-w-0">
+            <div key={index} className="w-[38vw] max-w-[160px] shrink-0 sm:w-auto sm:max-w-none sm:min-w-0">
               <div className="aspect-[2/3] animate-pulse rounded-lg bg-chip" />
               <div className="mt-2 h-3 animate-pulse rounded bg-chip" />
             </div>
