@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { SearchResultItem, SourceConfig } from '@/lib/types';
 import { useAppStore } from '@/lib/store';
 import { qualityKey } from '@/lib/quality';
@@ -411,35 +411,59 @@ export function DoubanCard({
   const [imgFailed, setImgFailed] = useState(false);
   const [tmdbPoster, setTmdbPoster] = useState<string | null>(null);
   const [tmdbFailed, setTmdbFailed] = useState(false);
-
-  useEffect(() => {
-    setImgFailed(false);
-    setTmdbPoster(null);
-    setTmdbFailed(false);
-  }, [item.cover, item.title, isTv]);
+  const fallbackRequestRef = useRef<AbortController | null>(null);
 
   const loadTmdbFallback = async () => {
     if (!enableTmdbFallback || tmdbPoster || tmdbFailed) {
       setImgFailed(true);
       return;
     }
+
+    fallbackRequestRef.current?.abort();
+    const controller = new AbortController();
+    fallbackRequestRef.current = controller;
+
     try {
       const params = new URLSearchParams({ title: item.title, type: isTv ? 'tv' : 'movie' });
-      const response = await fetch(`/api/poster-fallback?${params.toString()}`);
+      const response = await fetch(`/api/poster-fallback?${params.toString()}`, {
+        signal: controller.signal,
+      });
       if (!response.ok) throw new Error('TMDB fallback unavailable');
       const data = (await response.json()) as { poster?: string | null };
+      if (controller.signal.aborted) return;
       if (data.poster) {
         setTmdbPoster(data.poster);
         return;
       }
     } catch {
-      // TMDB 不可用时回到原占位图，不影响列表和点击播放
+      // 切换影片时主动取消的请求不应覆盖新卡片状态。
+      if (controller.signal.aborted) return;
+    } finally {
+      if (fallbackRequestRef.current === controller) {
+        fallbackRequestRef.current = null;
+      }
     }
+
+    if (controller.signal.aborted) return;
     setTmdbFailed(true);
     setImgFailed(true);
   };
 
-  // 原始数据本身没有封面时也直接尝试 TMDB；有封面时仍严格等原图候选链失败后再兜底
+  // 卡片复用到另一部影片时，取消旧海报请求，避免旧响应污染新卡片。
+  useEffect(() => {
+    fallbackRequestRef.current?.abort();
+    fallbackRequestRef.current = null;
+    setImgFailed(false);
+    setTmdbPoster(null);
+    setTmdbFailed(false);
+
+    return () => {
+      fallbackRequestRef.current?.abort();
+      fallbackRequestRef.current = null;
+    };
+  }, [item.cover, item.title, isTv, enableTmdbFallback]);
+
+  // 原始数据本身没有封面时也直接尝试 TMDB；有封面时仍严格等原图候选链失败后再兜底。
   useEffect(() => {
     if (!item.cover && enableTmdbFallback) void loadTmdbFallback();
     // eslint-disable-next-line react-hooks/exhaustive-deps
