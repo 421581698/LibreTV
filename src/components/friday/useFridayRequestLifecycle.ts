@@ -32,12 +32,16 @@ export function useFridayRequestLifecycle({
   const activeRequestIdRef = useRef(0);
   const observedBusyRef = useRef(false);
   const observedToolStatesRef = useRef(new Map<string, string>());
+  const messagesRef = useRef(messages);
+  const baselineMessageIdsRef = useRef(new Set<string>());
+  messagesRef.current = messages;
 
   const beginRequest = useCallback(() => {
     const requestId = ++requestSequenceRef.current;
     activeRequestIdRef.current = requestId;
     observedBusyRef.current = false;
     observedToolStatesRef.current.clear();
+    baselineMessageIdsRef.current = new Set(messagesRef.current.map((message) => message.id));
     dispatchMachine({ type: "MESSAGE_SUBMITTED", requestId });
     return requestId;
   }, [dispatchMachine]);
@@ -77,6 +81,7 @@ export function useFridayRequestLifecycle({
     // AI SDK 将服务端工具执行过程作为 tool-* message parts 写回消息。
     // 以真实 part.state 驱动状态机，不用延时器模拟工具执行。
     for (const message of messages) {
+      if (baselineMessageIdsRef.current.has(message.id)) continue;
       for (let index = 0; index < (message.parts?.length ?? 0); index += 1) {
         const part = message.parts?.[index];
         if (!part?.type?.startsWith("tool-")) continue;
@@ -110,6 +115,7 @@ export function useFridayRequestLifecycle({
       activeRequestIdRef.current = 0;
       observedBusyRef.current = false;
       observedToolStatesRef.current.clear();
+      baselineMessageIdsRef.current.clear();
       return;
     }
 
@@ -123,6 +129,7 @@ export function useFridayRequestLifecycle({
       activeRequestIdRef.current = 0;
       observedBusyRef.current = false;
       observedToolStatesRef.current.clear();
+      baselineMessageIdsRef.current.clear();
     }
   }, [busy, error, messages, dispatchMachine]);
 
