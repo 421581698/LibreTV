@@ -1,5 +1,6 @@
 'use client';
 
+import { Children } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/client-api';
 import { DoubanCard } from '@/components/video-card';
@@ -129,7 +130,7 @@ export function CinemaLobbyCultureSections({
 function PosterGrid({ children }: { children: React.ReactNode }) {
   return (
     <div className={mobileRailClass}>
-      {React.Children.map(children, (child) => (
+      {Children.map(children, (child) => (
         <div className={mobileCardClass}>{child}</div>
       ))}
     </div>
