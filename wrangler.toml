@@ -8,6 +8,6 @@ assets = { directory = ".open-next/assets" }
 # 注意：PASSWORD 写在此处会随公开仓库暴露，请勿用于敏感或复用密码。
 PASSWORD = "12345"
 CMS_SEARCH_API = "https://caiji.dyttzyapi.com/api.php/provide/vod"
-DEFAULT_SOURCES = '[{"name":"360资源","url":"https://360zy.com/api.php/provide/vod","detail":"https://360zy.com","isAdult":false},{"name":"量子资源","url":"https://cj.lziapi.com/api.php/provide/vod","detail":"https://www.lzizy.net","isAdult":false},{"name":"非凡资源","url":"http://cj.ffzyapi.com/api.php/provide/vod","detail":"https://ffzy.tv","isAdult":false}]'
+DEFAULT_SOURCES = '[{"name":"360资源","url":"https://360zy.com/api.php/provide/vod","detail":"https://360zy.com","isAdult":false},{"name":"量子资源","url":"https://cj.lziapi.com/api.php/provide/vod/","detail":"https://www.lzizy.net","isAdult":false},{"name":"非凡资源","url":"http://api.ffzyapi.com/api.php/provide/vod/","detail":"http://api.ffzyapi.com","isAdult":false}]'
 API_60S_BASE = "https://60s.bggdbh.workers.dev"
 LLM_MODEL = "glm-4-flash"
