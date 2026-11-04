@@ -690,15 +690,18 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
     row-gap: 13px;
   }
 
-  .home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card {
+  .home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card,
+  .home-v2 .cinema-lobby-trending .snap-x > .snap-start > .card {
     border-radius: 10px;
   }
 
-  .home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card > div:last-child {
+  .home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card > div:last-child,
+  .home-v2 .cinema-lobby-trending .snap-x > .snap-start > .card > div:last-child {
     padding: 6px 5px 7px;
   }
 
-  .home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card .text-xs.font-medium {
+  .home-v2 .cinema-lobby-trending .grid.grid-cols-3 > .card .text-xs.font-medium,
+  .home-v2 .cinema-lobby-trending .snap-x > .snap-start > .card .text-xs.font-medium {
     font-size: 10px;
   }
 }
