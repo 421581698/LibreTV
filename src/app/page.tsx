@@ -193,7 +193,7 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
     try {
       const result = await api.search(movie.title, selectedSources, yellowFilter);
       const normalizeTitle = (value: string) =>
-        value.replace(/[\\s\\p{P}\\p{S}]/gu, '').toLocaleLowerCase();
+        value.replace(/[\s\p{P}\p{S}]/gu, '').toLocaleLowerCase();
       const exact = result.list.find(
         (entry) => normalizeTitle(entry.name) === normalizeTitle(movie.title)
       );
