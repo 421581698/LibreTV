@@ -114,6 +114,7 @@ export function HomeSearchSection({
 
     recognition.onstart = () => {
       setListening(true);
+      window.dispatchEvent(new CustomEvent('friday-orb-state', { detail: { state: 'listening' } }));
       setVoiceError('');
     };
 
@@ -145,12 +146,14 @@ export function HomeSearchSection({
         setVoiceError('语音识别暂时不可用，请检查网络或改用文字搜索。');
       }
       setListening(false);
+      window.dispatchEvent(new CustomEvent('friday-orb-state', { detail: { state: 'standby' } }));
     };
 
     recognition.onend = () => {
       if (recognitionRef.current !== recognition) return;
       recognitionRef.current = null;
       setListening(false);
+      window.dispatchEvent(new CustomEvent('friday-orb-state', { detail: { state: 'standby' } }));
 
       const transcript = finalTranscriptRef.current.trim();
       if (!transcript || recognitionErrorRef.current) return;
@@ -172,6 +175,7 @@ export function HomeSearchSection({
     } catch (error) {
       recognitionRef.current = null;
       setListening(false);
+      window.dispatchEvent(new CustomEvent('friday-orb-state', { detail: { state: 'standby' } }));
       const name = error instanceof Error ? error.name : '';
       setVoiceError(
         name === 'NotAllowedError' || name === 'SecurityError'
