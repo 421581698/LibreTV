@@ -1,6 +1,7 @@
 'use client';
 
 import { RecommendSection } from '@/components/douban-section';
+import { useAppStore } from '@/lib/store';
 import { useCinemaLobbyVisibility } from '@/components/home/cinema-lobby/useCinemaLobbyVisibility';
 
 type CinemaLobbyTrendingProps = {
@@ -17,8 +18,10 @@ export function CinemaLobbyTrending({
   onPick,
 }: CinemaLobbyTrendingProps) {
   const { ref, isNearViewport } = useCinemaLobbyVisibility<HTMLElement>(enabled);
+  const doubanEnabled = useAppStore((state) => state.doubanEnabled);
 
-  if (!enabled) return null;
+  // 推荐源关闭时隐藏整个模块，避免留下没有内容的标题和骨架区。
+  if (!enabled || !doubanEnabled) return null;
 
   return (
     <section
