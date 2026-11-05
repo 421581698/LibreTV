@@ -307,9 +307,11 @@ export function AggregatedCard({
                     entry={qualities[itemKey]}
                     loading={probing[itemKey]}
                     onRetry={() => retry([item])}
-                    className="!bg-chip !text-muted text-[10px]"
+                    className={cn(
+                      '!bg-chip !text-muted text-[10px]',
+                      'min-w-[3.25rem] justify-center tabular-nums'
+                    )}
                     // 定宽 + 等宽数字：三行的 360P / 540P / 1080P 左缘对齐，不随字符数抖动
-                    className="min-w-[3.25rem] justify-center tabular-nums"
                   />
                   {/* 集数一致时已提到表头，逐行不再重复 */}
                   {!sharedRemarks && label && (
@@ -378,7 +380,7 @@ export function VideoCard({ item, onClick }: { item: SearchResultItem; onClick: 
             <h3 className="font-semibold text-sm text-content mb-1.5 line-clamp-2" title={item.name}>
               {item.name}
             </h3>
-            <div className="flex flex-wrap gap-1 mb-1.5">
+            <div className="flex flex-wrap gap-1.5 mb-1.5">
               {item.typeName && <span className="tag bg-chip text-muted text-[10px] leading-5 px-2">{item.typeName}</span>}
               {item.year && <span className="tag bg-chip text-muted text-[10px] leading-5 px-2">{item.year}</span>}
             </div>
