@@ -95,15 +95,7 @@ export function Header({ showSearch = false, showFridayFab = true, minimalFriday
 
           <div className="flex-1 sm:hidden" />
 
-         <button
-          onClick={() => {
-            if (typeof window !== 'undefined') window.__FRIDAY_PENDING_OPEN__ = true;
-            window.dispatchEvent(new CustomEvent('toggle-friday-panel', { detail: { reset: false } }));
-          }}
-          className="text-sm font-bold text-primary hover:text-primary-hover transition-colors cursor-pointer mr-2"
-        >
-          Friday
-        </button> 
+
           {!minimalFridayNav && (
             <nav className="flex items-center gap-1 ml-auto">
               <HeaderLink href="/live" active={pathname === '/live'}>
@@ -119,9 +111,16 @@ export function Header({ showSearch = false, showFridayFab = true, minimalFriday
               <IconButton label="下载管理" onClick={requestShowDownloadManager}>
                 <Icon name="download" />
               </IconButton>
-              <IconButton label="设置" onClick={() => setSettingsOpen(true)}>
+              <button
+                type="button"
+                onClick={() => setSettingsOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-muted transition-colors hover:bg-hover hover:text-content"
+                aria-label="打开系统设置"
+                title="设置"
+              >
                 <Icon name="gear" />
-              </IconButton>
+                <span>设置</span>
+              </button>
             </nav>
           )}
         </div>
