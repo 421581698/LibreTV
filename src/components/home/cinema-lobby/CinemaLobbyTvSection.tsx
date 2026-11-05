@@ -75,9 +75,9 @@ export function CinemaLobbyTvSection({
       ) : items.length === 0 ? (
         <p className="py-6 text-center text-sm text-faint" role="status">暂时没有可展示的电视剧</p>
       ) : (
-        <div className={mobileRailClass} aria-label="热门电视剧列表">
+        <div className={mobileRailClass} role="list" aria-label="热门电视剧列表">
           {items.map((item) => (
-            <div key={item.id} className={mobileCardClass}>
+            <div key={item.id} className={mobileCardClass} role="listitem">
               <DoubanCard
                 item={item}
                 isTv
