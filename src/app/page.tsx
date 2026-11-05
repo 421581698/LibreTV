@@ -192,17 +192,19 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
 
     try {
       const result = await api.search(movie.title, selectedSources, yellowFilter);
-      const normalizedTitle = movie.title.trim().toLocaleLowerCase();
-      const matched =
-        result.list.find((entry) => entry.name.trim().toLocaleLowerCase() === normalizedTitle) ??
-        result.list[0];
+      const normalizeTitle = (value: string) =>
+        value.replace(/[\\s\\p{P}\\p{S}]/gu, '').toLocaleLowerCase();
+      const exact = result.list.find(
+        (entry) => normalizeTitle(entry.name) === normalizeTitle(movie.title)
+      );
 
-      if (!matched) {
-        toast(`暂未在已启用的点播源中找到《${movie.title}》的详情`, 'warning');
-        return;
+      if (exact) {
+        setDetailItem(exact);
+      } else {
+        setInput(movie.title);
+        runSearch(movie.title);
+        toast('没有找到标题完全匹配的片源，已切换到搜索结果', 'info');
       }
-
-      setDetailItem(matched);
     } catch (error) {
       toast(error instanceof Error ? error.message : '获取影片详情失败，请稍后重试', 'error');
     }
