@@ -4,20 +4,30 @@ on:
   push:
     branches:
       - feature/friday-2.2-architecture
+      - fix/friday-orb-clean
     paths:
       - "src/lib/friday/**"
+      - "src/components/friday/**"
+      - "src/components/AIFloatingBall.tsx"
+      - "src/components/header.tsx"
+      - "src/app/page.tsx"
+      - "src/app/api/chat/route.ts"
+      - "public/media/**"
       - "docs/FRIDAY-2.2-TECHNICAL-SPEC.md"
       - ".github/workflows/friday-2.2-verify.yml"
-      - "src/components/AIFloatingBall.tsx"
-      - "src/app/api/chat/route.ts"
   pull_request:
     branches:
       - main
     paths:
       - "src/lib/friday/**"
-      - "docs/FRIDAY-2.2-TECHNICAL-SPEC.md"
+      - "src/components/friday/**"
       - "src/components/AIFloatingBall.tsx"
+      - "src/components/header.tsx"
+      - "src/app/page.tsx"
       - "src/app/api/chat/route.ts"
+      - "public/media/**"
+      - "docs/FRIDAY-2.2-TECHNICAL-SPEC.md"
+      - ".github/workflows/friday-2.2-verify.yml"
   workflow_dispatch:
 
 permissions:
@@ -25,12 +35,12 @@ permissions:
 
 jobs:
   verify:
-    if: github.ref == 'refs/heads/feature/friday-2.2-architecture' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: feature/friday-2.2-architecture
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v7
         with:
           node-version: 24
