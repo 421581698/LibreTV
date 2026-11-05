@@ -390,7 +390,7 @@ export function VideoCard({ item, onClick }: { item: SearchResultItem; onClick: 
   );
 }
 
-/** 豆瓣推荐卡片（无来源徽章，点击直接搜索） */
+/** 豆瓣推荐卡片（无来源徽章；点击行为由首页注入，打开影片详情） */
 export function DoubanCard({
   item,
   onClick,
