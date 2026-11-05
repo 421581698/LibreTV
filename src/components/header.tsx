@@ -71,7 +71,7 @@ export function Header({ showSearch = false, showFridayFab = true, showFridayBut
                   onKeyDown={(e) => searchHistory.onKeyDown(e, pickHistory)}
                   role="combobox"
                   aria-expanded={searchHistory.visible}
-                  aria-controls="header-search-history"
+                  aria-controls={searchHistory.visible ? "header-search-history" : undefined}
                   aria-autocomplete="list"
                   aria-activedescendant={
                     searchHistory.visible && searchHistory.activeIndex >= 0
