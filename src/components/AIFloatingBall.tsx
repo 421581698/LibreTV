@@ -130,6 +130,12 @@ export default function AIFloatingBall({
           ? "completed"
           : "standby";
 
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("friday-orb-state", {
+      detail: { state: busy ? "thinking" : listening ? "listening" : speaking ? "speaking" : "standby" },
+    }));
+  }, [busy, listening, speaking]);
+
   const stateLabel = voiceError
     ? "语音暂不可用，可重试或使用文字输入"
     : auroraState === "listening"
