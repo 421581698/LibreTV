@@ -87,13 +87,20 @@ export function CinemaLobbyCategoryBrowser({ enabled, onPick }: Props) {
         role="region"
         aria-label={`${type === 'movie' ? '电影' : '剧集'}·${tag}分类结果`}
         tabIndex={-1}
-        aria-busy={query.isLoading}
+        aria-busy={query.isFetching}
         aria-live="polite"
       >
       {query.isError ? (
         <div className="py-6 text-center" role="alert">
           <p className="text-sm text-faint">分类内容暂时加载失败</p>
-          <button type="button" className="mt-2 rounded-full bg-chip px-3 py-1.5 text-xs text-muted" onClick={() => void query.refetch()}>重新加载</button>
+          <button
+            type="button"
+            className="mt-2 rounded-full bg-chip px-3 py-1.5 text-xs text-muted disabled:cursor-wait disabled:opacity-60"
+            onClick={() => void query.refetch()}
+            disabled={query.isFetching}
+          >
+            {query.isFetching ? '正在重新加载…' : '重新加载'}
+          </button>
         </div>
       ) : !isNearViewport || query.isLoading ? (
         <div className={mobileRailClass} role="status" aria-label="正在加载分类内容">
