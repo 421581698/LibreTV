@@ -152,9 +152,9 @@ export function CinemaLobbyCultureSections({
 
 function PosterGrid({ children }: { children: ReactNode }) {
   return (
-    <div className={mobileRailClass}>
+    <div className={mobileRailClass} role="list" aria-label="推荐内容列表">
       {Children.map(children, (child) => (
-        <div className={mobileCardClass}>{child}</div>
+        <div className={mobileCardClass} role="listitem">{child}</div>
       ))}
     </div>
   );
