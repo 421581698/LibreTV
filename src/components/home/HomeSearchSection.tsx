@@ -51,6 +51,8 @@ export function HomeSearchSection({
                 className="relative w-full max-w-2xl"
               >
                 <form
+                  role="search"
+                  aria-label="影片搜索"
                   className="w-full"
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -120,6 +122,7 @@ export function HomeSearchSection({
                 </form>
                 {showQuickSearches && !urlQuery && (
                   <div
+                    role="group"
                     className="home-v2-quick-searches"
                     aria-label="热门搜索"
                   >
