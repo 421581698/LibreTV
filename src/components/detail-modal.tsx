@@ -373,12 +373,20 @@ export function DetailModal({
                       </span>
                     </div>
 
-                    <button
-                      className="btn-primary btn-sm"
-                      onClick={copyLinks}
-                    >
-                      复制链接
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="btn-primary btn-sm"
+                        onClick={() => play(reversed ? detail.episodes.length - 1 : 0)}
+                      >
+                        立即播放
+                      </button>
+                      <button
+                        className="btn-ghost btn-sm"
+                        onClick={copyLinks}
+                      >
+                        复制链接
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 gap-2 max-h-[40vh] overflow-y-auto scrollbar-thin pr-1">

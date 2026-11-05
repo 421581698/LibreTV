@@ -83,9 +83,8 @@ export function AggregatedCard({
 }) {
   const imageProxyMode = useAppStore((s) => s.imageProxyMode);
   const customImageProxy = useAppStore((s) => s.customImageProxy);
-  const [imgFailed, setImgFailed] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const showImg = !!group.pic && !imgFailed;
+  const showImg = !!group.pic;
 
   const multi = group.items.length > 1;
   const adult = useMemo(() => group.items.some((i) => i.isAdult), [group.items]);
@@ -169,7 +168,6 @@ export function AggregatedCard({
               customProxy={customImageProxy}
               alt={group.name}
               className="absolute inset-0 h-full w-full object-cover"
-              onExhausted={() => setImgFailed(true)}
             />
             <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-transparent" />
             {multi && (
@@ -196,31 +194,34 @@ export function AggregatedCard({
             <h3 className="font-semibold text-sm text-content mb-1.5 line-clamp-2" title={group.name}>
               {group.name}
             </h3>
-            <div className="flex flex-wrap gap-1 mb-1.5">
-              {group.typeName && <span className="tag bg-accent/15 text-accent">{group.typeName}</span>}
-              {group.year && <span className="tag bg-purple-500/15 text-purple-600 dark:text-purple-300">{group.year}</span>}
-              {adult && <span className="tag bg-pink-500/15 text-pink-600 dark:text-pink-400">(18+)</span>}
+            <div className="flex flex-wrap gap-1.5 mb-1.5">
+              {group.typeName && <span className="tag bg-chip text-muted text-[10px] leading-5 px-2">{group.typeName}</span>}
+              {group.year && <span className="tag bg-chip text-muted text-[10px] leading-5 px-2">{group.year}</span>}
+              {adult && <span className="tag bg-chip text-muted text-[10px] leading-5 px-2">(18+)</span>}
               {/* 单源卡片没有展开列表，画质只能在这里露出；失败态可点重试 */}
               {singleKey && (
                 <QualityBadge
                   entry={qualities[singleKey]}
                   loading={probing[singleKey]}
                   onRetry={singleItem ? () => retry([singleItem]) : undefined}
+                  className="!bg-chip !text-muted text-[10px]"
                 />
               )}
             </div>
             <p className="text-xs text-muted line-clamp-2 mb-2">{group.remarks || '暂无介绍'}</p>
           </div>
-          <div className="flex items-center justify-between gap-1.5 mt-auto pt-1.5 border-t border-line">
-            <span className="tag bg-chip text-muted truncate max-w-[80%]">
-              {multi ? `${group.items.length} 个来源` : group.items[0].sourceName}
-            </span>
+          <div className={cn('flex items-center justify-between gap-1.5 mt-auto pt-1.5 border-t border-line', !multi && 'hidden')}>
+            {multi && (
+              <span className="tag bg-chip text-muted truncate max-w-[80%]">
+                {group.items.length} 个来源
+              </span>
+            )}
             {multi && (
               <span className="flex items-center gap-1 shrink-0">
                 {/* 收起态先给结论：最高画质比「N 个来源」更影响要不要点开 */}
                 {progress.best && (
                   <span
-                    className="tag bg-accent/15 text-accent font-medium"
+                    className="tag bg-chip text-muted text-[10px] font-medium"
                     title={
                       progress.known < progress.total
                         ? `已探到 / 实测的最高画质（${progress.known}/${progress.total} 个来源已有结论）`
@@ -306,8 +307,11 @@ export function AggregatedCard({
                     entry={qualities[itemKey]}
                     loading={probing[itemKey]}
                     onRetry={() => retry([item])}
+                    className={cn(
+                      '!bg-chip !text-muted text-[10px]',
+                      'min-w-[3.25rem] justify-center tabular-nums'
+                    )}
                     // 定宽 + 等宽数字：三行的 360P / 540P / 1080P 左缘对齐，不随字符数抖动
-                    className="min-w-[3.25rem] justify-center tabular-nums"
                   />
                   {/* 集数一致时已提到表头，逐行不再重复 */}
                   {!sharedRemarks && label && (
@@ -335,8 +339,7 @@ export function AggregatedCard({
 export function VideoCard({ item, onClick }: { item: SearchResultItem; onClick: () => void }) {
   const imageProxyMode = useAppStore((s) => s.imageProxyMode);
   const customImageProxy = useAppStore((s) => s.customImageProxy);
-  const [imgFailed, setImgFailed] = useState(false);
-  const showImg = !!item.pic && !imgFailed;
+  const showImg = !!item.pic;
 
   return (
     <div
@@ -361,7 +364,6 @@ export function VideoCard({ item, onClick }: { item: SearchResultItem; onClick: 
               customProxy={customImageProxy}
               alt={item.name}
               className="h-full w-full object-cover"
-              onExhausted={() => setImgFailed(true)}
             />
             <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-transparent" />
           </div>
@@ -378,14 +380,11 @@ export function VideoCard({ item, onClick }: { item: SearchResultItem; onClick: 
             <h3 className="font-semibold text-sm text-content mb-1.5 line-clamp-2" title={item.name}>
               {item.name}
             </h3>
-            <div className="flex flex-wrap gap-1 mb-1.5">
-              {item.typeName && <span className="tag bg-accent/15 text-accent">{item.typeName}</span>}
-              {item.year && <span className="tag bg-purple-500/15 text-purple-600 dark:text-purple-300">{item.year}</span>}
+            <div className="flex flex-wrap gap-1.5 mb-1.5">
+              {item.typeName && <span className="tag bg-chip text-muted text-[10px] leading-5 px-2">{item.typeName}</span>}
+              {item.year && <span className="tag bg-chip text-muted text-[10px] leading-5 px-2">{item.year}</span>}
             </div>
             <p className="text-xs text-muted line-clamp-2 mb-2">{formatRemarks(item.remarks) || '暂无介绍'}</p>
-          </div>
-          <div className="flex items-center justify-between mt-auto pt-1.5 border-t border-line">
-            <span className="tag bg-chip text-muted truncate max-w-[80%]">{item.sourceName}</span>
           </div>
         </div>
       </div>
@@ -393,7 +392,7 @@ export function VideoCard({ item, onClick }: { item: SearchResultItem; onClick: 
   );
 }
 
-/** 豆瓣推荐卡片（无来源徽章，点击直接搜索） */
+/** 豆瓣推荐卡片（无来源徽章；点击行为由首页注入，打开影片详情） */
 export function DoubanCard({
   item,
   onClick,
