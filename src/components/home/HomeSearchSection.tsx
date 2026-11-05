@@ -83,7 +83,7 @@ export function HomeSearchSection({
                       role="combobox"
                       aria-label="搜索影片"
                       aria-expanded={searchHistory.visible}
-                      aria-controls="home-search-history"
+                      aria-controls={searchHistory.visible ? "home-search-history" : undefined}
                       aria-autocomplete="list"
                       aria-activedescendant={
                         searchHistory.visible && searchHistory.activeIndex >= 0
