@@ -41,7 +41,6 @@ export function FridayStyles() {
           user-select: none;
           -webkit-user-select: none;
           -webkit-tap-highlight-color: transparent;
-          filter: drop-shadow(0 8px 16px rgba(0,0,0,.24));
         }
 
         .friday-root .friday-fab:active{ cursor: grabbing; }
@@ -725,7 +724,6 @@ export function FridayStyles() {
           width: clamp(150px,32vw,260px);
           height: clamp(150px,32vw,260px);
           flex: 0 0 auto;
-          filter: drop-shadow(0 0 34px rgba(91,151,255,.25));
         }
 
         .friday-root .friday-immersive .friday-orb-status{
@@ -876,8 +874,6 @@ export function FridayStyles() {
           .friday-root .friday-fab *,
         .friday-root .friday-panel,
         .friday-root .friday-orb-visual,
-        .friday-root .friday-orb-fluid,
-        .friday-root .friday-orb-rim,
         .friday-root .friday-status-dot,
         .friday-root .friday-message,
         .friday-root .friday-status{
