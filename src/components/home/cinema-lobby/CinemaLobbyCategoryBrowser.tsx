@@ -122,9 +122,9 @@ export function CinemaLobbyCategoryBrowser({ enabled, onPick }: Props) {
       ) : items.length === 0 ? (
         <p className="py-6 text-center text-sm text-faint" role="status">这个分类暂时没有推荐内容</p>
       ) : (
-        <div className={mobileRailClass}>
+        <div className={mobileRailClass} role="list" aria-label="分类推荐列表">
           {items.map((item) => (
-            <div key={item.id} className={mobileCardClass}>
+            <div key={item.id} className={mobileCardClass} role="listitem">
               <DoubanCard
                 item={item}
                 isTv={type === 'tv'}
