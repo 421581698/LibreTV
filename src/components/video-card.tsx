@@ -221,7 +221,7 @@ export function AggregatedCard({
                 {/* 收起态先给结论：最高画质比「N 个来源」更影响要不要点开 */}
                 {progress.best && (
                   <span
-                    className="tag bg-accent/15 text-accent font-medium"
+                    className="tag bg-chip text-muted text-[10px] font-medium"
                     title={
                       progress.known < progress.total
                         ? `已探到 / 实测的最高画质（${progress.known}/${progress.total} 个来源已有结论）`
@@ -307,6 +307,7 @@ export function AggregatedCard({
                     entry={qualities[itemKey]}
                     loading={probing[itemKey]}
                     onRetry={() => retry([item])}
+                    className="!bg-chip !text-muted text-[10px]"
                     // 定宽 + 等宽数字：三行的 360P / 540P / 1080P 左缘对齐，不随字符数抖动
                     className="min-w-[3.25rem] justify-center tabular-nums"
                   />
