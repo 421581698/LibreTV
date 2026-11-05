@@ -84,9 +84,9 @@ function DoubanView({ onPick, cinemaLobbyLayout }: { onPick: (title: string) => 
       ) : items.length === 0 ? (
         <p className="text-center text-sm text-faint py-8" role="status">该分类暂无推荐内容</p>
       ) : (
-        <div className={cinemaLobbyLayout ? "flex gap-3 overflow-x-auto overscroll-x-contain snap-x snap-mandatory pb-3 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 sm:gap-2.5 sm:overflow-visible sm:pb-0" : "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5"}>
+        <div role="list" aria-label={`${type === "movie" ? "电影" : "剧集"}·${tag}推荐列表`} className={cinemaLobbyLayout ? "flex gap-3 overflow-x-auto overscroll-x-contain snap-x snap-mandatory pb-3 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 sm:gap-2.5 sm:overflow-visible sm:pb-0" : "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5"}>
           {items.map((item) => (
-            <div key={item.id} className={cinemaLobbyLayout ? 'w-[38vw] max-w-[160px] shrink-0 snap-start sm:w-auto sm:max-w-none' : 'min-w-0'}>
+            <div key={item.id} role="listitem" className={cinemaLobbyLayout ? 'w-[38vw] max-w-[160px] shrink-0 snap-start sm:w-auto sm:max-w-none' : 'min-w-0'}>
               <DoubanCard
               item={item}
               isTv={type === 'tv'}
@@ -137,9 +137,9 @@ function BangumiView({ onPick, cinemaLobbyLayout }: { onPick: (title: string) =>
       ) : query.isLoading ? (
         <GridSkeleton cinemaLobbyLayout={cinemaLobbyLayout} />
       ) : (
-        <div className={cinemaLobbyLayout ? "flex gap-3 overflow-x-auto overscroll-x-contain snap-x snap-mandatory pb-3 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 sm:gap-2.5 sm:overflow-visible sm:pb-0" : "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5"}>
+        <div role="list" aria-label="新番放送列表" className={cinemaLobbyLayout ? "flex gap-3 overflow-x-auto overscroll-x-contain snap-x snap-mandatory pb-3 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 sm:gap-2.5 sm:overflow-visible sm:pb-0" : "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5"}>
           {items.map((item) => (
-            <div key={item.id} className={cinemaLobbyLayout ? 'w-[38vw] max-w-[160px] shrink-0 snap-start sm:w-auto sm:max-w-none' : 'min-w-0'}>
+            <div key={item.id} role="listitem" className={cinemaLobbyLayout ? 'w-[38vw] max-w-[160px] shrink-0 snap-start sm:w-auto sm:max-w-none' : 'min-w-0'}>
               <DoubanCard
               item={item}
               isTv={item.isTv ?? true}
@@ -191,9 +191,9 @@ function HotListView({ onPick, cinemaLobbyLayout }: { onPick: (title: string) =>
       ) : query.isLoading ? (
         <GridSkeleton cinemaLobbyLayout={cinemaLobbyLayout} />
       ) : (
-        <div className={cinemaLobbyLayout ? "flex gap-3 overflow-x-auto overscroll-x-contain snap-x snap-mandatory pb-3 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 sm:gap-2.5 sm:overflow-visible sm:pb-0" : "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5"}>
+        <div role="list" aria-label={`${HOT_LISTS.find((list) => list.id === listId)?.label ?? "影视榜单"}列表`} className={cinemaLobbyLayout ? "flex gap-3 overflow-x-auto overscroll-x-contain snap-x snap-mandatory pb-3 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 sm:gap-2.5 sm:overflow-visible sm:pb-0" : "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5"}>
           {items.map((item) => (
-            <div key={item.id} className={cinemaLobbyLayout ? 'w-[38vw] max-w-[160px] shrink-0 snap-start sm:w-auto sm:max-w-none' : 'min-w-0'}>
+            <div key={item.id} role="listitem" className={cinemaLobbyLayout ? 'w-[38vw] max-w-[160px] shrink-0 snap-start sm:w-auto sm:max-w-none' : 'min-w-0'}>
               <DoubanCard item={item} onClick={() => onPick(item.title)} />
             </div>
           ))}
