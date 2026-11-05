@@ -62,11 +62,19 @@ export function CinemaLobbyCategoryBrowser({ enabled, onPick }: Props) {
       </div>
 
       <div className="cinema-lobby-category-toolbar">
-        <div className="cinema-lobby-category-types" aria-label="选择内容类型">
+        <div
+          className="cinema-lobby-category-types"
+          role="group"
+          aria-label="选择内容类型"
+        >
           <button type="button" aria-pressed={type === 'movie'} aria-controls={resultsId} className={type === 'movie' ? 'is-active' : ''} onClick={() => switchType('movie')}>电影</button>
           <button type="button" aria-pressed={type === 'tv'} aria-controls={resultsId} className={type === 'tv' ? 'is-active' : ''} onClick={() => switchType('tv')}>剧集</button>
         </div>
-        <div className="cinema-lobby-category-tags flex max-w-full gap-2 overflow-x-auto overscroll-x-contain whitespace-nowrap pb-1 sm:flex-wrap sm:overflow-visible" aria-label="选择题材">
+        <div
+          className="cinema-lobby-category-tags flex max-w-full gap-2 overflow-x-auto overscroll-x-contain whitespace-nowrap pb-1 sm:flex-wrap sm:overflow-visible"
+          role="group"
+          aria-label="选择题材"
+        >
           {tags.map((item) => (
             <button
               key={item}
