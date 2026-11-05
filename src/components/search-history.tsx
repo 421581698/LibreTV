@@ -172,13 +172,15 @@ export function SearchHistoryDropdown({
         {matches.map((h, i) => (
           <li
             key={h.text}
-            id={`${id}-${i}`}
-            role="option"
-            aria-selected={i === activeIndex}
+            role="presentation"
             className={cn('flex items-center hover:bg-hover', i === activeIndex && 'bg-hover')}
           >
             <button
               type="button"
+              id={`${id}-${i}`}
+              role="option"
+              tabIndex={-1}
+              aria-selected={i === activeIndex}
               className="flex-1 min-w-0 pl-4 pr-2 py-2.5 text-left text-sm text-content truncate"
               onClick={() => onPick(h.text)}
             >
