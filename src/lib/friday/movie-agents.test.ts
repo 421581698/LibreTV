@@ -45,6 +45,18 @@ describe("Friday movie agents", () => {
     });
   });
 
+  it("labels reachability and latency as source probing, never resolution measurement", async () => {
+    const agents = createMovieAgentRegistry({
+      search: async () => [],
+      probe: async () => [{ sourceId: "s1", checkedAt: "now", reachable: true, latencyMs: 85 }],
+    });
+    const quality = agents.find((agent) => agent.id === "quality-agent")!;
+    const result = await quality.execute(context("quality-agent", {}, {
+      source: { probes: [{ sourceId: "s1", checkedAt: "now", reachable: true, latencyMs: 85 }] },
+    })) as { assessments: Array<{ status: string; latencyMs: number | null }> };
+    expect(result.assessments[0]).toMatchObject({ status: "probe_only", latencyMs: 85 });
+  });
+
   it("reviews search and quality evidence without inventing missing measurements", async () => {
     const agents = createMovieAgentRegistry({ search: async () => [], probe: async () => [] });
     const review = agents.find((agent) => agent.id === "review-agent")!;
