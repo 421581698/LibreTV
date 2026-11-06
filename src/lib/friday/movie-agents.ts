@@ -140,7 +140,7 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
       const assessmentCandidateIds = new Set(assessments.map((item) => item.candidateId).filter((id): id is string => Boolean(id)));
       const assessmentSourceIds = new Set(assessments.map((item) => item.sourceId));
       const unmatchedCandidates = candidates.filter((candidate) =>
-        candidate.candidateId
+        assessmentCandidateIds.size > 0
           ? !assessmentCandidateIds.has(candidate.id)
           : Boolean(candidate.sourceId && !assessmentSourceIds.has(candidate.sourceId)),
       );
