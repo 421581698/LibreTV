@@ -7,10 +7,7 @@ type FridayOrbVisualProps = {
   audioLevel?: number;
 };
 
-/**
- * Friday JARVIS-inspired holographic core.
- * Pure presentation only: runtime state is supplied by the existing orchestrator.
- */
+/** Friday's state-driven holographic core. */
 export function FridayOrbVisual({
   state = "standby",
   audioLevel = 0,
@@ -37,7 +34,6 @@ export function FridayOrbVisual({
         </div>
       </div>
       <div className="friday-jarvis-scan" />
-      <div className="friday-jarvis-label">F</div>
     </div>
   );
 }
