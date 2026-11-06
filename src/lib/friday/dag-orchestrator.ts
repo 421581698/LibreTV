@@ -68,6 +68,13 @@ export async function runFridayDag(args: {
         })),
       );
 
+      // Cancellation takes precedence over dependency failure: descendants of an
+      // aborted workflow are cancelled, not misreported as failed dependencies.
+      if (signal?.aborted) {
+        await runtime.record(task, "task.cancelled");
+        return { taskId: task.taskId, status: "cancelled" };
+      }
+
       const failedDependency = dependencies.find(({ result }) => result.status !== "succeeded");
       if (failedDependency) {
         const error = {
@@ -77,11 +84,6 @@ export async function runFridayDag(args: {
         };
         await runtime.record(task, "task.failed", undefined, error);
         return { taskId: task.taskId, status: "failed", error };
-      }
-
-      if (signal?.aborted) {
-        await runtime.record(task, "task.cancelled");
-        return { taskId: task.taskId, status: "cancelled" };
       }
 
       const agent = agentById.get(task.agent)!;
