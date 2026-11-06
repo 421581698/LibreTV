@@ -8,7 +8,7 @@ const MAX_INPUT_LENGTH = 1000;
 export function FridayComposer({
   inputRef, input, setInput, busy, closing, listening, onSend, onToggleListening,
   voiceError, voiceEnabled, onToggleVoiceEnabled, onClearConversation,
-  speaking, onStopSpeechAndResume, onInterrupt, onToggleExpanded, expanded, onHideAssistant,
+  speaking, onStopSpeechAndResume, onInterrupt, onToggleExpanded, expanded, onHideAssistant, language,
 }: {
   inputRef: RefObject<HTMLTextAreaElement | null>;
   input: string;
@@ -28,6 +28,7 @@ export function FridayComposer({
   onToggleExpanded: () => void;
   expanded: boolean;
   onHideAssistant: () => void;
+  language: "zh" | "en";
 }) {
   return (
   <footer className="friday-input-area">
@@ -35,8 +36,8 @@ export function FridayComposer({
       <button
         type="button"
         className="friday-plus-btn"
-        aria-label="附加功能"
-        title="附加功能暂未接入"
+        aria-label={language === "en" ? "More options" : "附加功能"}
+        title={language === "en" ? "More options coming soon" : "附加功能暂未接入"}
         disabled
       >
         +
@@ -51,7 +52,7 @@ export function FridayComposer({
         rows={1}
         maxLength={MAX_INPUT_LENGTH}
         placeholder={
-          listening ? "正在聆听…" : "询问 Friday..."
+          listening ? (language === "en" ? "Listening…" : "正在聆听…") : (language === "en" ? "Ask Friday..." : "询问 Friday...")
         }
         disabled={busy || closing}
         onChange={(event) => {
@@ -78,12 +79,12 @@ export function FridayComposer({
         }`}
         disabled={busy || closing}
         aria-label={
-          listening ? "停止语音输入" : "开始语音输入"
+          listening ? (language === "en" ? "Stop voice input" : "停止语音输入") : (language === "en" ? "Start voice input" : "开始语音输入")
         }
         title={
           listening
-            ? "停止本次聆听"
-            : "开始语音输入或恢复连续对话"
+            ? (language === "en" ? "Stop listening" : "停止本次聆听")
+            : (language === "en" ? "Start voice input or resume conversation" : "开始语音输入或恢复连续对话")
         }
         aria-describedby={voiceError ? "friday-voice-error" : undefined}
         onClick={onToggleListening}
@@ -95,7 +96,7 @@ export function FridayComposer({
         type="button"
         className="friday-send-btn"
         disabled={busy || closing || !input.trim()}
-        aria-label="发送消息"
+        aria-label={language === "en" ? "Send message" : "发送消息"}
         onClick={onSend}
       >
         ↑
@@ -123,7 +124,7 @@ export function FridayComposer({
           }`}
           onClick={onToggleVoiceEnabled}
         >
-          {voiceEnabled ? "语音播报开启" : "语音播报关闭"}
+          {voiceEnabled ? (language === "en" ? "Voice on" : "语音播报开启") : (language === "en" ? "Voice off" : "语音播报关闭")}
         </button>
     
         <button
@@ -131,7 +132,7 @@ export function FridayComposer({
           className="friday-tool-btn"
           onClick={onClearConversation}
         >
-          新对话
+          {language === "en" ? "New chat" : "新对话"}
         </button>
       </div>
     
@@ -142,7 +143,7 @@ export function FridayComposer({
             className="friday-tool-btn active"
             onClick={onStopSpeechAndResume}
           >
-            停止播报
+            {language === "en" ? "Stop speaking" : "停止播报"}
           </button>
         ) : null}
     
@@ -152,7 +153,7 @@ export function FridayComposer({
             className="friday-tool-btn active"
             onClick={onInterrupt}
           >
-            中断
+            {language === "en" ? "Interrupt" : "中断"}
           </button>
         ) : null}
     
@@ -161,7 +162,7 @@ export function FridayComposer({
           className="friday-tool-btn active"
           onClick={onToggleExpanded}
         >
-          {expanded ? "收起面板" : "展开对话"}
+          {expanded ? (language === "en" ? "Collapse" : "收起面板") : (language === "en" ? "Expand chat" : "展开对话")}
         </button>
     
         <button
@@ -169,7 +170,7 @@ export function FridayComposer({
           className="friday-tool-btn"
           onClick={onHideAssistant}
         >
-          隐藏助手
+          {language === "en" ? "Hide assistant" : "隐藏助手"}
         </button>
       </div>
     </div>
