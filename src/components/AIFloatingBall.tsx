@@ -118,6 +118,7 @@ export default function AIFloatingBall({
     stop,
     setMessages,
     workflowBySearchId,
+    restoredTasks,
     busy,
   } = useFridayChatSession({
     sources: activeSources,
@@ -564,6 +565,7 @@ export default function AIFloatingBall({
             messagesRef={messagesRef}
             messages={typedMessages}
             workflowBySearchId={workflowBySearchId}
+            restoredTasks={restoredTasks}
             listening={listening}
             busy={busy}
             status={status}
