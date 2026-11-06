@@ -9,6 +9,7 @@ import type { SearchResultItem, SourceConfig } from "@/lib/types";
 import { createLibreTVMovieAgentAdapters } from "@/lib/friday/libretv-movie-adapters";
 import { runLibreTVMovieWorkflow } from "@/lib/friday/movie-workflow";
 import { fridayTaskRuntime } from "@/lib/friday/task-service";
+import type { TaskSnapshot } from "@/lib/friday/task-runtime";
 
 export type FridayWorkflowView = {
   status: "running" | "completed" | "failed";
@@ -33,6 +34,18 @@ export function useFridayChatSession({
   const processedSearchIds = useRef(new Set<string>());
   const activeWorkflowControllers = useRef(new Map<string, AbortController>());
   const [workflowBySearchId, setWorkflowBySearchId] = useState<Record<string, FridayWorkflowView>>({});
+  const [restoredTasks, setRestoredTasks] = useState<TaskSnapshot[]>([]);
+
+  // Restore the local audit snapshots for display only. Interrupted work is never replayed here.
+  useEffect(() => {
+    let active = true;
+    void fridayTaskRuntime.restoreAll().then((snapshots) => {
+      if (active) setRestoredTasks(snapshots);
+    }).catch((restoreError) => {
+      console.error("[Friday] Could not restore local task history:", restoreError);
+    });
+    return () => { active = false; };
+  }, []);
 
   const handleData = useCallback((part: { type: string; data?: unknown }) => {
     if (part.type !== "data-movies" || !part.data || typeof part.data !== "object") return;
@@ -156,6 +169,7 @@ export function useFridayChatSession({
     stop: stopChat,
     setMessages,
     workflowBySearchId,
+    restoredTasks,
     busy: status === "submitted" || status === "streaming",
   };
 }
