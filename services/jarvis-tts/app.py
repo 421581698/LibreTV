@@ -2,7 +2,6 @@ import hmac
 import io
 import os
 import wave
-import tempfile
 from pathlib import Path
 
 from fastapi import FastAPI, Header, HTTPException
