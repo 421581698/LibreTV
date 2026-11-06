@@ -43,16 +43,16 @@ function WorkflowSummary({ workflow, language }: { workflow: FridayWorkflowView;
           {workflow.qualityChecks.map((item) => (
             <div className="friday-workflow-row" key={item.candidateId || item.sourceId}>
               <span>{item.sourceId}{item.candidateId ? ` · ${item.candidateId.split(":").slice(1).join(":")}` : ""}</span>
-              <span>{item.status === "resolution_detected" ? `${item.resolutionHeight}P（清单/分片解析）` : item.status === "unavailable" ? (language === "en" ? "Check failed" : "探测失败") : item.status === "resolution_unknown" ? (language === "en" ? "Checked; resolution unknown" : "已探测，分辨率未知") : (language === "en" ? "No evidence" : "未取得证据")}</span>
+              <span>{item.status === "resolution_detected" ? (language === "en" ? `${item.resolutionHeight}p (manifest/segment)` : `${item.resolutionHeight}P（清单/分片解析）`) : item.status === "unavailable" ? (language === "en" ? "Check failed" : "探测失败") : item.status === "resolution_unknown" ? (language === "en" ? "Checked; resolution unknown" : "已探测，分辨率未知") : (language === "en" ? "No evidence" : "未取得证据")}</span>
             </div>
           ))}
         </div>
       ) : null}
       {workflow.review ? (
         <div className="friday-workflow-review">
-          Review：{workflow.review.accepted ? "结构与证据检查通过" : "发现待处理问题"}
+          {language === "en" ? "Review: " : "Review："}{workflow.review.accepted ? (language === "en" ? "Structure and evidence checks passed" : "结构与证据检查通过") : (language === "en" ? "Issues need attention" : "发现待处理问题")}
           · {workflow.review.candidateCount} {language === "en" ? "candidates" : "条候选"} · {workflow.review.assessmentCount} {language === "en" ? "source assessments" : "项来源评估"}
-          {workflow.review.findings.length ? <p>{workflow.review.findings.join("、")}</p> : null}
+          {workflow.review.findings.length ? <p>{workflow.review.findings.join(language === "en" ? ", " : "、")}</p> : null}
         </div>
       ) : null}
     </section>
