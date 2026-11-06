@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { MutableRefObject, PointerEvent } from "react";
+import type { MutableRefObject, PointerEvent as ReactPointerEvent } from "react";
 
 type DragState = {
   pointerId: number;
@@ -57,7 +57,7 @@ export function useFridayFabController({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const handleFabPointerDown = useCallback((event: PointerEvent<HTMLButtonElement>) => {
+  const handleFabPointerDown = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
     if (openRef.current || closingRef.current) return;
     // Clear a stale drag-click suppression if the browser omitted click after
     // a previous pointer sequence (seen on some mobile Safari versions).
@@ -75,7 +75,7 @@ export function useFridayFabController({
     // the synthesized click after capture. A normal tap is handled by onClick.
   }, [openRef, closingRef]);
 
-  const handleFabPointerMove = useCallback((event: PointerEvent<HTMLButtonElement>) => {
+  const handleFabPointerMove = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
 
@@ -91,7 +91,7 @@ export function useFridayFabController({
     }));
   }, []);
 
-  const handleFabPointerUp = useCallback((event: PointerEvent<HTMLButtonElement>) => {
+  const handleFabPointerUp = useCallback((event: { pointerId: number }) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
 
@@ -112,12 +112,28 @@ export function useFridayFabController({
     }
   }, [onOpen, openRef, closingRef]);
 
-  const handleFabPointerCancel = useCallback((event: PointerEvent<HTMLButtonElement>) => {
+  const handleFabPointerCancel = useCallback((event: { pointerId: number }) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     dragRef.current = null;
     suppressClickRef.current = false;
   }, []);
+
+  // Listen on window rather than only the button: iOS Safari can retarget
+  // pointerup after a tiny finger drift, which otherwise leaves a tap unhandled.
+  useEffect(() => {
+    const onPointerMove = (event: globalThis.PointerEvent) => handleFabPointerMove(event);
+    const onPointerUp = (event: globalThis.PointerEvent) => handleFabPointerUp(event);
+    const onPointerCancel = (event: globalThis.PointerEvent) => handleFabPointerCancel(event);
+    window.addEventListener("pointermove", onPointerMove, true);
+    window.addEventListener("pointerup", onPointerUp, true);
+    window.addEventListener("pointercancel", onPointerCancel, true);
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove, true);
+      window.removeEventListener("pointerup", onPointerUp, true);
+      window.removeEventListener("pointercancel", onPointerCancel, true);
+    };
+  }, [handleFabPointerMove, handleFabPointerUp, handleFabPointerCancel]);
 
   const handleFabTouchEnd = useCallback(() => {
     // iOS Safari may deliver touch events differently from synthesized clicks.
