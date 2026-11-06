@@ -12,7 +12,7 @@ import { fridayTaskRuntime } from "@/lib/friday/task-service";
 
 export type FridayWorkflowView = {
   status: "running" | "completed" | "failed";
-  sourceChecks?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean }>;
+  sourceChecks?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean; latencyMs?: number }>;
   qualityChecks?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null }>;
   review?: { accepted: boolean; findings: string[]; candidateCount: number; assessmentCount: number };
   error?: string;
