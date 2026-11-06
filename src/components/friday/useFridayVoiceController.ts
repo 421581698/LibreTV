@@ -57,7 +57,26 @@ export function shouldEndVoiceSession(error?: string): boolean {
   return Boolean(error && error !== "aborted" && error !== "no-speech");
 }
 
-export function getSpeechErrorMessage(error?: string): string {
+export function getSpeechErrorMessage(error?: string, language: "zh" | "en" = "zh"): string {
+  if (language === "en") {
+    switch (error) {
+      case "not-allowed":
+      case "service-not-allowed":
+        return "Microphone access was denied. Allow microphone access in your browser settings.";
+      case "audio-capture":
+        return "No microphone was detected. Check your device settings.";
+      case "network":
+        return "Speech recognition network error. Check your connection and try again.";
+      case "no-speech":
+        return "No speech detected. Tap the microphone to try again.";
+      case "language-not-supported":
+        return "English speech recognition is not supported by this browser. Please type instead.";
+      case "aborted":
+        return "";
+      default:
+        return "Speech recognition is unavailable. Check microphone access or type your message.";
+    }
+  }
   switch (error) {
     case "not-allowed":
     case "service-not-allowed":
@@ -291,7 +310,7 @@ export function useFridayVoiceController({
       if (sessionId !== voiceSessionIdRef.current) return;
 
       recognitionErrorRef.current = event.error || "unknown";
-      const message = getSpeechErrorMessage(event.error);
+      const message = getSpeechErrorMessage(event.error, language);
       listeningRef.current = false;
       setListening(false);
       if (message) {
@@ -358,7 +377,7 @@ export function useFridayVoiceController({
 
       if (recognitionError && recognitionError !== "aborted") {
         if (recognitionError === "no-speech") {
-          setVoiceError("没有识别到语音，请点击麦克风重新聆听。");
+          setVoiceError(language === "en" ? "No speech detected. Tap the microphone to try again." : "没有识别到语音，请点击麦克风重新聆听。");
         } else if (shouldEndVoiceSession(recognitionError)) {
           // 权限、设备或网络错误后结束本轮会话，避免残留活动态。
           // 用户修复问题后仍可再次点击麦克风启动新会话。
