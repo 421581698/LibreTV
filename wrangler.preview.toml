@@ -14,6 +14,8 @@ preview_urls = false
 CMS_SEARCH_API = "https://caiji.dyttzyapi.com/api.php/provide/vod"
 API_60S_BASE = "https://60s.bggdbh.workers.dev"
 LLM_MODEL = "glm-4-flash"
+# 仅 Friday V3 独立预览站关闭登录门禁；正式部署默认仍需密码。
+AUTH_DISABLED = "true"
 
 # 不要在此文件写 PASSWORD、ZHIPU_API_KEY、METADATA_API_KEY 或其他密钥。
 # 请在 Cloudflare Worker 的 Secrets 中单独配置预览环境专用值。
