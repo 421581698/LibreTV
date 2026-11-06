@@ -155,7 +155,11 @@ export default function AIFloatingBall({
         const AudioContextClass =
           window.AudioContext ||
           (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-        if (!AudioContextClass) return;
+        if (!AudioContextClass) {
+          stream.getTracks().forEach((track) => track.stop());
+          stream = null;
+          return;
+        }
 
         audioContext = new AudioContextClass();
         const analyser = audioContext.createAnalyser();
@@ -187,6 +191,12 @@ export default function AIFloatingBall({
         }
         measure();
       } catch (error) {
+        stream?.getTracks().forEach((track) => track.stop());
+        stream = null;
+        if (audioContext && audioContext.state !== "closed") {
+          void audioContext.close().catch(() => undefined);
+        }
+        audioContext = null;
         if (!cancelled) {
           console.info("[Friday] Microphone meter unavailable; using state animation.", error);
         }
@@ -202,7 +212,6 @@ export default function AIFloatingBall({
       if (audioContext && audioContext.state !== "closed") {
         void audioContext.close().catch(() => undefined);
       }
-      setAudioLevel(0);
     };
   }, [listening]);
 
