@@ -20,7 +20,7 @@ export function createBrowserTtsProvider(language: "zh" | "en" = "zh"): FridayTt
   return {
     speak(text, events) {
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = language === "en" ? "en-GB" : "zh-CN";
+      utterance.lang = language === "en" ? "en-US" : "zh-CN";
       utterance.rate = 1;
       utterance.pitch = 1;
       utterance.onstart = events.onStart;
@@ -47,16 +47,16 @@ export function createBrowserTtsProvider(language: "zh" | "en" = "zh"): FridayTt
 
 /**
  * Friday voice routing:
- * - English: Cloudflare Workers AI / Deepgram Aura-2, with browser TTS fallback.
- * - Chinese: browser zh-CN TTS. Aura-2 is English-only and must not receive Chinese.
+ * - Chinese: Microsoft Edge TTS zh-CN-XiaoxiaoNeural.
+ * - English: Microsoft Edge TTS en-US-AvaMultilingualNeural.
+ * - Any upstream, network, or playback failure falls back to browser SpeechSynthesis.
  *
- * No third-party paid TTS provider is enabled by this implementation.
+ * The Edge endpoint is unofficial and may change; browser fallback remains available.
  */
 export function createFridayTtsProvider(language: "zh" | "en" = "zh"): FridayTtsProvider | null {
-  if (language === "zh") return createBrowserTtsProvider("zh");
   if (typeof window === "undefined" || typeof Audio === "undefined") return null;
 
-  const browserFallback = createBrowserTtsProvider("en");
+  const browserFallback = createBrowserTtsProvider(language);
 
   return {
     speak(text, events) {
@@ -99,17 +99,19 @@ export function createFridayTtsProvider(language: "zh" | "en" = "zh"): FridayTts
       void fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, language: "en" }),
+        body: JSON.stringify({ text, language }),
         signal: controller.signal,
         cache: "no-store",
       }).then(async (response) => {
-        if (!response.ok) throw new Error(`Workers AI TTS request failed: ${response.status}`);
+        if (!response.ok) throw new Error(`Edge TTS request failed: ${response.status}`);
         const contentType = response.headers.get("content-type") || "";
         if (!contentType.toLowerCase().includes("audio/mpeg")) {
-          throw new Error("Workers AI TTS returned an unsupported audio format.");
+          throw new Error("Edge TTS returned an unsupported audio format.");
         }
         const blob = await response.blob();
+        if (!blob.size) throw new Error("Edge TTS returned empty audio.");
         if (cancelled) return;
+
         objectUrl = URL.createObjectURL(blob);
         audio = new Audio(objectUrl);
         audio.preload = "auto";
@@ -126,7 +128,7 @@ export function createFridayTtsProvider(language: "zh" | "en" = "zh"): FridayTts
         await audio.play();
       }).catch((error: unknown) => {
         if (cancelled || (error instanceof DOMException && error.name === "AbortError")) return;
-        console.error("[Friday] Cloudflare TTS unavailable; using browser voice:", error);
+        console.error("[Friday] Edge TTS unavailable; using browser voice:", error);
         fallback();
       });
 
