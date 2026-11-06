@@ -5,7 +5,7 @@ export type TaskDefinition = { taskId:string; parentTaskId?:string; agent:string
 export type TaskSnapshot = { taskId:string; parentTaskId?:string; agent:string; status:TaskStatus; input:unknown; output?:unknown; dependsOn:string[]; sideEffect:boolean; checkpoint?:unknown; lastSequence:number; error?:{code:string;message:string;retryable:boolean} };
 export interface TaskEventStore { append(event:TaskEvent):Promise<void>; read(taskId:string):Promise<TaskEvent[]> }
 export class TaskRuntimeError extends Error { constructor(message:string, public readonly code:string){super(message);this.name="TaskRuntimeError"} }
-const TERMINAL=new Set<TaskStatus>(["succeeded","failed","cancelled"]);
+const TERMINAL=new Set<TaskStatus>(["succeeded","cancelled"]);
 function assertSafeId(value:string,label:string):void { if(!/^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/.test(value)) throw new TaskRuntimeError("Invalid "+label,"INVALID_ID") }
 export function validateTaskGraph(definitions:TaskDefinition[]):void {
  const byId=new Map<string,TaskDefinition>();
