@@ -154,6 +154,21 @@ export function FridayPanel({
                   </div>
                 </div>
     
+                {restoredTasks.length > 0 ? (
+                  <details className="friday-restored-tasks" style={{ margin: "0 16px 12px", padding: "10px 12px", borderRadius: 12, background: "rgba(255,255,255,0.05)", color: "inherit" }}>
+                    <summary style={{ cursor: "pointer", fontSize: 13 }}>
+                      {language === "en" ? `Local task history · ${restoredTasks.length}` : `本地任务记录 · ${restoredTasks.length}`}
+                    </summary>
+                    <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: 12, opacity: 0.85 }}>
+                      {restoredTasks.slice(-12).reverse().map((task) => (
+                        <li key={task.taskId} style={{ margin: "4px 0" }}>
+                          <strong>{task.agent}</strong> · {task.status === "running" ? (language === "en" ? "Interrupted; not auto-resumed" : "上次运行中断，未自动续跑") : task.status === "queued" ? (language === "en" ? "Queued" : "等待执行") : task.status === "succeeded" ? (language === "en" ? "Completed" : "已完成") : task.status === "failed" ? (language === "en" ? "Failed" : "失败") : task.status === "cancelled" ? (language === "en" ? "Cancelled" : "已取消") : (language === "en" ? "Waiting" : "等待中")}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ) : null}
+
                 <FridayConversation
                   messagesRef={messagesRef}
                   messages={conversationEntries}
