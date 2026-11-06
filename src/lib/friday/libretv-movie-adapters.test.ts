@@ -49,7 +49,7 @@ describe("LibreTV movie agent adapters", () => {
     }), { status: 200, headers: { "Content-Type": "application/json" } }));
     const adapters = createLibreTVMovieAgentAdapters(sources, { fetcher });
     const result = await adapters.probe({ candidates: [{ id: "alpha:1", vodId: "1", title: "Arrival", sourceId: "alpha" }] });
-    expect(result[0]).toMatchObject({ reachable: true });
+    expect(result[0]).toMatchObject({ reachable: true, resolutionProbed: true });
     expect(result[0].resolutionHeight).toBeUndefined();
     expect(result[0].resolutionError).toBeUndefined();
   });
