@@ -1,6 +1,6 @@
 import {describe,expect,it} from "vitest";
 import {reduceTaskEvents,TaskRuntime,TaskRuntimeError,validateTaskGraph,type TaskDefinition,type TaskEvent,type TaskEventStore} from "./task-runtime";
-class MemoryStore implements TaskEventStore { private data=new Map<string,TaskEvent[]>(); async append(event:TaskEvent){const list=this.data.get(event.taskId)??[];list.push(event);this.data.set(event.taskId,list)} async read(id:string){return [...(this.data.get(id)??[])]} async readAll(){return [...this.data.values()].flat()} }
+class MemoryStore implements TaskEventStore { private data=new Map<string,TaskEvent[]>(); async append(event:TaskEvent){const list=this.data.get(event.taskId)??[];list.push(event);this.data.set(event.taskId,list)} async read(id:string){return [...(this.data.get(id)??[])]} async readRecent(){return [...this.data.values()].flat()} }
 const task:TaskDefinition={taskId:"movie-search-1",agent:"search-agent",input:{title:"Arrival"}};
 describe("Friday task runtime",()=>{
  it("restores task snapshots from the durable event log after a reload",async()=>{
@@ -24,10 +24,10 @@ describe("Friday task runtime",()=>{
  it("rebuilds a failed snapshot from immutable events",()=>{const events:TaskEvent[]=[{eventId:"1",taskId:task.taskId,sequence:1,type:"task.created",occurredAt:"2026-11-06T00:00:00Z"},{eventId:"2",taskId:task.taskId,sequence:2,type:"task.started",occurredAt:"2026-11-06T00:00:01Z"},{eventId:"3",taskId:task.taskId,sequence:3,type:"task.failed",occurredAt:"2026-11-06T00:00:02Z",error:{code:"TIMEOUT",message:"Timed out",retryable:true}}];expect(reduceTaskEvents(task,events)).toMatchObject({status:"failed",lastSequence:3,error:{code:"TIMEOUT",retryable:true}})});
  it("skips legacy events without a persisted task definition during restore",async()=>{
   const legacyEvent:TaskEvent={eventId:"legacy-1",taskId:task.taskId,sequence:1,type:"task.created",occurredAt:"2026-11-06T00:00:00Z",agent:task.agent};
-  const store:TaskEventStore={append:async()=>{},read:async()=>[],readAll:async()=>[legacyEvent]};
+  const store:TaskEventStore={append:async()=>{},read:async()=>[],readRecent:async()=>[legacyEvent]};
   await expect(new TaskRuntime(store).restoreAll()).resolves.toEqual([]);
  });
- it("remains compatible with event stores that do not implement readAll",async()=>{
+ it("remains compatible with event stores that do not implement a restore reader",async()=>{
   const store:TaskEventStore={append:async()=>{},read:async()=>[]};
   await expect(new TaskRuntime(store).restoreAll()).resolves.toEqual([]);
  });
