@@ -1,26 +1,55 @@
-import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { z } from "zod";
 import { guardRequest } from "@/lib/api-guard";
+import { createEdgeTtsStream } from "@/lib/friday/edgeTts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const requestSchema = z.object({
   text: z.string().trim().min(1).max(1200),
-  language: z.enum(["zh", "en"]).default("en"),
+  language: z.enum(["zh", "en"]).default("zh"),
 });
-
-type WorkersAiBinding = {
-  run(
-    model: "@cf/deepgram/aura-2-en",
-    input: { text: string; speaker: "luna"; encoding: "mp3" },
-  ): Promise<ReadableStream<Uint8Array>>;
-};
 
 function jsonError(message: string, status: number) {
   return Response.json({ error: message }, {
     status,
-    headers: { "Cache-Control": "no-store" },
+    headers: {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+}
+
+async function primeAudioStream(stream: ReadableStream<Uint8Array>) {
+  const reader = stream.getReader();
+  const firstChunk = await reader.read();
+  if (firstChunk.done || !firstChunk.value?.byteLength) {
+    await reader.cancel();
+    throw new Error("Edge TTS returned an empty audio stream.");
+  }
+
+  let firstChunkPending = true;
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        if (firstChunkPending) {
+          firstChunkPending = false;
+          controller.enqueue(firstChunk.value);
+          return;
+        }
+        const chunk = await reader.read();
+        if (chunk.done) {
+          controller.close();
+          return;
+        }
+        controller.enqueue(chunk.value);
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+    async cancel(reason) {
+      await reader.cancel(reason);
+    },
   });
 }
 
@@ -28,7 +57,7 @@ export async function POST(request: Request) {
   const authError = guardRequest(request);
   if (authError) return authError;
 
-  if (!request.headers.get("content-type")?.includes("application/json")) {
+  if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) {
     return jsonError("Unsupported content type.", 415);
   }
 
@@ -41,36 +70,17 @@ export async function POST(request: Request) {
     return jsonError("Invalid request body.", 400);
   }
 
-  // Aura-2 is English-only. Chinese intentionally remains on the browser
-  // SpeechSynthesis provider until a supported Cloudflare-hosted Mandarin
-  // model is available; do not silently route Chinese text to an English voice.
-  if (payload.language !== "en") {
-    return jsonError("Cloudflare TTS currently supports English in this provider.", 400);
-  }
-
-  let ai: WorkersAiBinding | undefined;
-  try {
-    const { env } = getCloudflareContext();
-    ai = (env as { AI?: WorkersAiBinding }).AI;
-  } catch (error) {
-    console.error("[Friday TTS] Cloudflare AI binding unavailable:", error);
-    return jsonError("Cloudflare Workers AI is not configured.", 503);
-  }
-
-  if (!ai || typeof ai.run !== "function") {
-    return jsonError("Cloudflare Workers AI binding is not configured.", 503);
-  }
-
   if (request.signal.aborted) return new Response(null, { status: 499 });
 
   try {
-    const audio = await ai.run("@cf/deepgram/aura-2-en", {
+    const stream = await createEdgeTtsStream({
       text: payload.text,
-      speaker: "luna",
-      encoding: "mp3",
+      voice: payload.language === "zh"
+        ? "zh-CN-XiaoxiaoNeural"
+        : "en-US-AvaMultilingualNeural",
+      signal: request.signal,
     });
-
-    if (request.signal.aborted) return new Response(null, { status: 499 });
+    const audio = await primeAudioStream(stream);
 
     return new Response(audio, {
       status: 200,
@@ -81,7 +91,8 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error("[Friday TTS] Workers AI synthesis failed:", error);
-    return jsonError("Cloudflare voice synthesis is temporarily unavailable.", 502);
+    if (request.signal.aborted) return new Response(null, { status: 499 });
+    console.error("[Friday TTS] Edge TTS synthesis failed:", error);
+    return jsonError("Friday voice synthesis is temporarily unavailable.", 502);
   }
 }
