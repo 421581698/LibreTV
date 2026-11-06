@@ -119,6 +119,16 @@ export function useFridayFabController({
     suppressClickRef.current = false;
   }, []);
 
+  const handleFabTouchEnd = useCallback(() => {
+    // iOS Safari may deliver touch events differently from synthesized clicks.
+    // Keep touch as a direct activation path; a completed drag must not open.
+    const drag = dragRef.current;
+    if (drag?.moved) return;
+    if (openRef.current || closingRef.current) return;
+    suppressClickRef.current = true;
+    onOpen();
+  }, [onOpen, openRef, closingRef]);
+
   const handleFabClick = useCallback(() => {
     if (suppressClickRef.current) {
       suppressClickRef.current = false;
@@ -146,6 +156,7 @@ export function useFridayFabController({
     handleFabPointerUp,
     handleFabPointerCancel,
     handleFabClick,
+    handleFabTouchEnd,
     hideAssistant,
     restoreAssistant,
   };
