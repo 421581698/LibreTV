@@ -20,20 +20,24 @@ type Options = {
 };
 
 const FAB_SIZE = 68;
-const DRAG_THRESHOLD = 6;
+const DRAG_THRESHOLD = 8;
 
 function clampPosition(position: { left: number; top: number }) {
   const margin = 8;
   const maxLeft = Math.max(margin, window.innerWidth - FAB_SIZE - margin);
   const maxTop = Math.max(margin, window.innerHeight - FAB_SIZE - margin);
-
   return {
     left: Math.min(maxLeft, Math.max(margin, position.left)),
     top: Math.min(maxTop, Math.max(margin, position.top)),
   };
 }
 
-/** Owns only the floating orb's drag, visibility, and restore interactions. */
+/**
+ * Floating assistant interaction:
+ * - A tap opens the assistant from the click event (including iOS Safari).
+ * - Pointer events are used only for dragging.
+ * - A drag suppresses its follow-up click so it cannot accidentally open.
+ */
 export function useFridayFabController({
   openRef,
   closingRef,
@@ -44,28 +48,17 @@ export function useFridayFabController({
   const [fabPosition, setFabPosition] = useState<{ left: number; top: number } | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const suppressClickRef = useRef(false);
-  const dragResetTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const handleResize = () => {
       setFabPosition((current) => (current ? clampPosition(current) : current));
     };
-
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (dragResetTimerRef.current !== null) {
-        window.clearTimeout(dragResetTimerRef.current);
-      }
-    };
-  }, []);
-
   const handleFabPointerDown = useCallback((event: PointerEvent<HTMLButtonElement>) => {
     if (openRef.current || closingRef.current) return;
-
     const rect = event.currentTarget.getBoundingClientRect();
     dragRef.current = {
       pointerId: event.pointerId,
@@ -75,12 +68,8 @@ export function useFridayFabController({
       startY: event.clientY,
       moved: false,
     };
-
-    try {
-      event.currentTarget.setPointerCapture(event.pointerId);
-    } catch {
-      // Some browsers do not support pointer capture.
-    }
+    // Deliberately avoid pointer capture: iOS Safari can retarget/suppress
+    // the synthesized click after capture. A normal tap is handled by onClick.
   }, [openRef, closingRef]);
 
   const handleFabPointerMove = useCallback((event: PointerEvent<HTMLButtonElement>) => {
@@ -102,35 +91,15 @@ export function useFridayFabController({
   const handleFabPointerUp = useCallback((event: PointerEvent<HTMLButtonElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-
-    const wasMoved = drag.moved;
+    if (drag.moved) suppressClickRef.current = true;
     dragRef.current = null;
-
-    // 在 pointerup 的真实用户手势中直接处理轻触，避免 iOS Safari
-    // 在 pointer capture 场景下未派发合成 click，导致全息球无响应。
-    suppressClickRef.current = true;
-    if (dragResetTimerRef.current !== null) {
-      window.clearTimeout(dragResetTimerRef.current);
-    }
-    dragResetTimerRef.current = window.setTimeout(() => {
-      suppressClickRef.current = false;
-      dragResetTimerRef.current = null;
-    }, 500);
-
-    if (!wasMoved) {
-      onOpen();
-    }
-  }, [onOpen]);
+  }, []);
 
   const handleFabPointerCancel = useCallback((event: PointerEvent<HTMLButtonElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     dragRef.current = null;
     suppressClickRef.current = false;
-    if (dragResetTimerRef.current !== null) {
-      window.clearTimeout(dragResetTimerRef.current);
-      dragResetTimerRef.current = null;
-    }
   }, []);
 
   const handleFabClick = useCallback(() => {
@@ -138,8 +107,9 @@ export function useFridayFabController({
       suppressClickRef.current = false;
       return;
     }
+    if (openRef.current || closingRef.current) return;
     onOpen();
-  }, [onOpen]);
+  }, [onOpen, openRef, closingRef]);
 
   const hideAssistant = useCallback(() => {
     onClose();
