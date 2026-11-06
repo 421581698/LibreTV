@@ -7,7 +7,15 @@ export const dynamic = "force-dynamic";
 
 const requestSchema = z.object({
   text: z.string().trim().min(1).max(1200),
+  language: z.enum(["zh", "en"]).default("en"),
 });
+
+type WorkersAiBinding = {
+  run(
+    model: "@cf/deepgram/aura-2-en",
+    input: { text: string; speaker: "luna"; encoding: "mp3" },
+  ): Promise<ReadableStream<Uint8Array>>;
+};
 
 function jsonError(message: string, status: number) {
   return Response.json({ error: message }, {
@@ -33,72 +41,47 @@ export async function POST(request: Request) {
     return jsonError("Invalid request body.", 400);
   }
 
-  let serviceUrl = "";
-  let serviceToken = "";
+  // Aura-2 is English-only. Chinese intentionally remains on the browser
+  // SpeechSynthesis provider until a supported Cloudflare-hosted Mandarin
+  // model is available; do not silently route Chinese text to an English voice.
+  if (payload.language !== "en") {
+    return jsonError("Cloudflare TTS currently supports English in this provider.", 400);
+  }
+
+  let ai: WorkersAiBinding | undefined;
   try {
     const { env } = getCloudflareContext();
-    const bindings = env as { JARVIS_TTS_URL?: string; JARVIS_TTS_TOKEN?: string };
-    serviceUrl = (bindings.JARVIS_TTS_URL || "").trim();
-    serviceToken = (bindings.JARVIS_TTS_TOKEN || "").trim();
+    ai = (env as { AI?: WorkersAiBinding }).AI;
   } catch (error) {
-    console.error("[Friday TTS] Cloudflare bindings unavailable:", error);
-    return jsonError("JARVIS voice service is not configured.", 503);
+    console.error("[Friday TTS] Cloudflare AI binding unavailable:", error);
+    return jsonError("Cloudflare Workers AI is not configured.", 503);
   }
 
-  if (!serviceUrl || !serviceToken) {
-    return jsonError("JARVIS voice service is not configured.", 503);
+  if (!ai || typeof ai.run !== "function") {
+    return jsonError("Cloudflare Workers AI binding is not configured.", 503);
   }
 
-  let upstream: URL;
-  try {
-    upstream = new URL(serviceUrl);
-    if (upstream.protocol !== "https:" && upstream.hostname !== "localhost") {
-      return jsonError("JARVIS voice service must use HTTPS.", 500);
-    }
-  } catch {
-    return jsonError("JARVIS voice service URL is invalid.", 500);
-  }
-
-  const controller = new AbortController();
-  const abortUpstream = () => controller.abort();
-  request.signal.addEventListener("abort", abortUpstream, { once: true });
+  if (request.signal.aborted) return new Response(null, { status: 499 });
 
   try {
-    const response = await fetch(new URL("/v1/tts", upstream), {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${serviceToken}`,
-        "Content-Type": "application/json",
-        "Accept": "audio/wav",
-      },
-      body: JSON.stringify({ text: payload.text }),
-      signal: controller.signal,
-      cache: "no-store",
+    const audio = await ai.run("@cf/deepgram/aura-2-en", {
+      text: payload.text,
+      speaker: "luna",
+      encoding: "mp3",
     });
 
-    if (!response.ok) {
-      console.error("[Friday TTS] Upstream synthesis failed:", response.status);
-      return jsonError("JARVIS voice synthesis is temporarily unavailable.", 502);
-    }
+    if (request.signal.aborted) return new Response(null, { status: 499 });
 
-    const contentType = response.headers.get("content-type") || "";
-    if (!contentType.toLowerCase().includes("audio/wav")) {
-      return jsonError("JARVIS voice service returned an invalid audio format.", 502);
-    }
-
-    return new Response(response.body, {
+    return new Response(audio, {
       status: 200,
       headers: {
-        "Content-Type": "audio/wav",
+        "Content-Type": "audio/mpeg",
         "Cache-Control": "no-store",
         "X-Content-Type-Options": "nosniff",
       },
     });
   } catch (error) {
-    if (request.signal.aborted) return new Response(null, { status: 499 });
-    console.error("[Friday TTS] Upstream request failed:", error);
-    return jsonError("Could not reach the JARVIS voice service.", 502);
-  } finally {
-    request.signal.removeEventListener("abort", abortUpstream);
+    console.error("[Friday TTS] Workers AI synthesis failed:", error);
+    return jsonError("Cloudflare voice synthesis is temporarily unavailable.", 502);
   }
 }
