@@ -1030,6 +1030,144 @@ export function FridayStyles() {
         .friday-root .friday-movie-card{ background: rgba(35,37,44,.96); }
         }
       
+
+        /* JARVIS-inspired holographic core: CSS-only, mobile-friendly and state-driven. */
+        .friday-root .friday-orb-visual{
+          overflow:visible;
+          border:0;
+          border-radius:50%;
+          background:transparent;
+          box-shadow:none;
+          -webkit-backdrop-filter:none;
+          backdrop-filter:none;
+          animation:none;
+          filter:drop-shadow(0 0 7px rgba(65,220,255,.34));
+          isolation:isolate;
+          transform:translateZ(0);
+        }
+        .friday-root .friday-jarvis-aura,
+        .friday-root .friday-jarvis-ring,
+        .friday-root .friday-jarvis-ticks,
+        .friday-root .friday-jarvis-core,
+        .friday-root .friday-jarvis-scan,
+        .friday-root .friday-jarvis-label{
+          position:absolute;
+          pointer-events:none;
+        }
+        .friday-root .friday-jarvis-aura{
+          inset:17%;
+          border-radius:50%;
+          background:radial-gradient(circle,rgba(43,211,255,.22),rgba(24,119,190,.08) 48%,transparent 72%);
+          filter:blur(5px);
+          animation:friday-jarvis-pulse 3.2s ease-in-out infinite;
+        }
+        .friday-root .friday-jarvis-ring-outer{
+          inset:3%;
+          border:1px solid rgba(110,237,255,.82);
+          border-radius:50%;
+          box-shadow:0 0 5px rgba(53,214,255,.45),inset 0 0 5px rgba(53,214,255,.18);
+          border-left-color:rgba(110,237,255,.2);
+          border-right-color:rgba(110,237,255,.55);
+          animation:friday-jarvis-spin 18s linear infinite;
+        }
+        .friday-root .friday-jarvis-ticks{
+          inset:7%;
+          border-radius:50%;
+          background:repeating-conic-gradient(from 0deg,rgba(127,239,255,.95) 0deg 1deg,transparent 1deg 6deg);
+          -webkit-mask:radial-gradient(circle,transparent 0 83%,#000 84% 88%,transparent 89%);
+          mask:radial-gradient(circle,transparent 0 83%,#000 84% 88%,transparent 89%);
+          animation:friday-jarvis-spin-reverse 32s linear infinite;
+          opacity:.9;
+        }
+        .friday-root .friday-jarvis-ring-arcs{
+          inset:13%;
+          border-radius:50%;
+          background:conic-gradient(from 20deg,transparent 0 9%,rgba(76,225,255,.95) 9.5% 10.5%,transparent 11% 26%,rgba(76,225,255,.72) 26.5% 39%,transparent 39.5% 62%,rgba(76,225,255,.85) 62.5% 64%,transparent 64.5% 83%,rgba(76,225,255,.7) 83.5% 92%,transparent 92.5%);
+          -webkit-mask:radial-gradient(circle,transparent 0 82%,#000 83% 88%,transparent 89%);
+          mask:radial-gradient(circle,transparent 0 82%,#000 83% 88%,transparent 89%);
+          filter:drop-shadow(0 0 3px rgba(64,218,255,.65));
+          animation:friday-jarvis-spin 11s linear infinite;
+        }
+        .friday-root .friday-jarvis-ring-data{
+          inset:22%;
+          border:1px dashed rgba(111,231,255,.72);
+          border-radius:50%;
+          box-shadow:0 0 5px rgba(60,212,255,.25);
+          animation:friday-jarvis-spin-reverse 14s linear infinite;
+        }
+        .friday-root .friday-jarvis-ring-inner{
+          inset:31%;
+          border:1px solid rgba(157,246,255,.88);
+          border-radius:50%;
+          box-shadow:0 0 8px rgba(56,220,255,.5),inset 0 0 8px rgba(56,220,255,.22);
+          animation:friday-jarvis-pulse 2.4s ease-in-out infinite;
+        }
+        .friday-root .friday-jarvis-core{
+          inset:37%;
+          display:grid;
+          place-items:center;
+          overflow:hidden;
+          border:1px solid rgba(195,250,255,.95);
+          border-radius:50%;
+          background:radial-gradient(circle at 35% 28%,#e8ffff 0 4%,#8cf2ff 10%,#21bce8 31%,rgba(7,82,143,.82) 62%,rgba(3,20,50,.96) 100%);
+          box-shadow:0 0 9px rgba(83,228,255,.95),0 0 22px rgba(31,172,255,.55),inset 0 0 9px rgba(255,255,255,.7);
+          animation:friday-jarvis-core-breathe 2.8s ease-in-out infinite;
+        }
+        .friday-root .friday-jarvis-core-light{
+          position:absolute;
+          inset:-35%;
+          border-radius:50%;
+          background:conic-gradient(from 0deg,transparent,rgba(202,251,255,.72),transparent 38%,rgba(30,179,255,.45),transparent 72%);
+          animation:friday-jarvis-spin 5s linear infinite;
+        }
+        .friday-root .friday-jarvis-core-glint{
+          position:absolute;
+          top:17%;
+          left:23%;
+          width:25%;
+          height:12%;
+          border-radius:50%;
+          background:rgba(255,255,255,.95);
+          filter:blur(1px);
+          box-shadow:0 0 7px #fff;
+          transform:rotate(-35deg);
+        }
+        .friday-root .friday-jarvis-scan{
+          inset:18%;
+          border-radius:50%;
+          background:linear-gradient(180deg,transparent 46%,rgba(119,239,255,.42) 50%,transparent 54%);
+          opacity:.7;
+          animation:friday-jarvis-scan 4.5s ease-in-out infinite;
+        }
+        .friday-root .friday-jarvis-label{
+          right:17%;
+          bottom:15%;
+          color:rgba(185,249,255,.92);
+          font:600 7px/1 Arial,sans-serif;
+          letter-spacing:.08em;
+          text-shadow:0 0 5px #26dfff;
+        }
+        .friday-root .friday-orb-visual[data-state="listening"] .friday-jarvis-aura{opacity:1;animation-duration:1.1s;}
+        .friday-root .friday-orb-visual[data-state="listening"] .friday-jarvis-core{animation-duration:1s;filter:brightness(1.35);}
+        .friday-root .friday-orb-visual[data-state="thinking"] .friday-jarvis-ring-arcs{animation-duration:2.8s;}
+        .friday-root .friday-orb-visual[data-state="thinking"] .friday-jarvis-scan{animation-duration:1.5s;opacity:1;}
+        .friday-root .friday-orb-visual[data-state="speaking"] .friday-jarvis-core{animation-duration:.55s;filter:brightness(1.55);}
+        .friday-root .friday-orb-visual[data-state="speaking"] .friday-jarvis-ring-inner{box-shadow:0 0 15px rgba(56,220,255,.9),inset 0 0 12px rgba(56,220,255,.5);}
+        .friday-root .friday-orb-visual[data-state="completed"] .friday-jarvis-core{filter:hue-rotate(18deg) brightness(1.2);}
+        .friday-root .friday-fab:active .friday-orb-visual{transform:scale(.9);border-radius:50%;}
+        @keyframes friday-jarvis-spin{to{transform:rotate(360deg);}}
+        @keyframes friday-jarvis-spin-reverse{to{transform:rotate(-360deg);}}
+        @keyframes friday-jarvis-pulse{0%,100%{transform:scale(.94);opacity:.72;}50%{transform:scale(1.06);opacity:1;}}
+        @keyframes friday-jarvis-core-breathe{0%,100%{transform:scale(.92);}50%{transform:scale(1.08);}}
+        @keyframes friday-jarvis-scan{0%,100%{transform:rotate(-35deg);opacity:.15;}50%{transform:rotate(35deg);opacity:.85;}}
+        @media (prefers-reduced-motion:reduce){
+          .friday-root .friday-jarvis-aura,.friday-root .friday-jarvis-ring,
+          .friday-root .friday-jarvis-ticks,.friday-root .friday-jarvis-core,
+          .friday-root .friday-jarvis-core-light,.friday-root .friday-jarvis-scan{
+            animation:none!important;
+          }
+        }
+
       `}</style>
     </>
   );
