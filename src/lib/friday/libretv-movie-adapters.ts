@@ -85,6 +85,7 @@ export function createLibreTVMovieAgentAdapters(
               checkedAt: new Date().toISOString(),
               reachable: Boolean(result && !result.error),
               resolutionHeight: typeof result?.height === "number" ? result.height : undefined,
+              resolutionProbed: Boolean(result && !result.error),
               resolutionError: result?.error ?? (result ? undefined : "No quality result returned"),
             };
           }));
