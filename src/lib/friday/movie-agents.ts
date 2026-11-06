@@ -4,6 +4,7 @@ export type MovieCandidate = {
   id: string;
   title: string;
   sourceId?: string;
+  vodId?: string;
   evidence?: string[];
 };
 
@@ -14,11 +15,16 @@ export type SourceProbe = {
   latencyMs?: number;
   statusCode?: number;
   advertisedQualities?: string[];
+  candidateId?: string;
+  title?: string;
+  resolutionHeight?: number;
+  resolutionError?: string;
 };
 
 export type QualityAssessment = {
   sourceId: string;
-  status: "probe_only" | "unavailable" | "unknown";
+  status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown";
+  resolutionHeight: number | null;
   latencyMs: number | null;
   reachable: boolean | null;
   advertisedQualities: string[];
@@ -90,13 +96,18 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
         const validLatency = typeof probe.latencyMs === "number" &&
           Number.isFinite(probe.latencyMs) && probe.latencyMs >= 0;
         const validReachability = typeof probe.reachable === "boolean";
+        const validHeight = typeof probe.resolutionHeight === "number" &&
+          Number.isFinite(probe.resolutionHeight) && probe.resolutionHeight > 0;
+        const probeCompleted = probe.resolutionError === undefined;
         const evidence: string[] = [];
-        if (validReachability) evidence.push("probe.reachable");
-        if (validLatency) evidence.push("probe.latencyMs");
-        if (typeof probe.statusCode === "number") evidence.push("probe.statusCode");
+        if (probeCompleted) evidence.push("quality_probe.completed");
+        if (validHeight) evidence.push("hls_or_segment.resolution_height");
+        if (validReachability) evidence.push("source.reachable");
+        if (validLatency) evidence.push("source.latency");
         return {
           sourceId: probe.sourceId,
-          status: validLatency || validReachability ? (probe.reachable ? "probe_only" : "unavailable") : "unknown",
+          status: validHeight ? "resolution_detected" : probe.resolutionError ? "unavailable" : probeCompleted ? "resolution_unknown" : "unknown",
+          resolutionHeight: validHeight ? probe.resolutionHeight! : null,
           latencyMs: validLatency ? probe.latencyMs! : null,
           reachable: validReachability ? probe.reachable : null,
           advertisedQualities: Array.isArray(probe.advertisedQualities)
@@ -125,7 +136,7 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
       const findings = [
         ...(!Array.isArray(searchOutput.candidates) ? ["missing-search-candidates"] : []),
         ...candidates.filter((candidate) => !candidate.id || !candidate.title).map(() => "invalid-candidate"),
-        ...assessments.filter((item) => item.status === "probe_only" && item.evidence.length === 0)
+        ...assessments.filter((item) => item.status === "resolution_detected" && item.evidence.length === 0)
           .map(() => "measurement-without-evidence"),
       ];
       return {
@@ -134,8 +145,8 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
         candidateCount: candidates.length,
         assessmentCount: assessments.length,
         unmatchedCandidates: candidates.filter((candidate) => candidate.sourceId && !assessmentIds.has(candidate.sourceId)).map((item) => item.id),
-        measurementScope: "source_probe_only",
-        note: "This stage measures source reachability and latency only. It does not measure video resolution; advertised quality labels are not proof of playback quality.",
+        measurementScope: "playlist_or_segment_resolution",
+        note: "Resolution is parsed from the HLS playlist or media-segment headers. This is source-side resolution evidence, not decoded playback videoHeight; advertised labels alone are not proof.",
       };
     },
   };
