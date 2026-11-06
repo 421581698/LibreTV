@@ -10,7 +10,8 @@ export function FridayStyles() {
 
         .friday-root{
           position: fixed;
-          z-index: 30;
+          z-index: 2147483000;
+          isolation: isolate;
           right: 16px;
           bottom: max(20px, env(safe-area-inset-bottom, 0px));
           font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
