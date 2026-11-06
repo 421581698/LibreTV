@@ -101,11 +101,11 @@ export function useFridayChatSession({
         ...current,
         [data.searchId!]: {
           status: "failed",
-          error: error instanceof Error ? error.message : (options.language === "en" ? "Task execution failed" : "任务执行失败"),
+          error: error instanceof Error ? error.message : (language === "en" ? "Task execution failed" : "任务执行失败"),
         },
       }));
     });
-  }, [sources, filterAdult, options.language]);
+  }, [sources, filterAdult, language]);
 
   const transport = useMemo(
     () =>
