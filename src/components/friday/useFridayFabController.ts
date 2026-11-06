@@ -105,8 +105,9 @@ export function useFridayFabController({
 
     const wasMoved = drag.moved;
     dragRef.current = null;
-    if (!wasMoved) return;
 
+    // 在 pointerup 的真实用户手势中直接处理轻触，避免 iOS Safari
+    // 在 pointer capture 场景下未派发合成 click，导致全息球无响应。
     suppressClickRef.current = true;
     if (dragResetTimerRef.current !== null) {
       window.clearTimeout(dragResetTimerRef.current);
@@ -114,8 +115,12 @@ export function useFridayFabController({
     dragResetTimerRef.current = window.setTimeout(() => {
       suppressClickRef.current = false;
       dragResetTimerRef.current = null;
-    }, 350);
-  }, []);
+    }, 500);
+
+    if (!wasMoved) {
+      onOpen();
+    }
+  }, [onOpen]);
 
   const handleFabClick = useCallback(() => {
     if (suppressClickRef.current) {
