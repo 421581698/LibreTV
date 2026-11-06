@@ -62,7 +62,7 @@ describe("Friday movie agents", () => {
     const agents = createMovieAgentRegistry({ search: async () => [], probe: async () => [] });
     const quality = agents.find((agent) => agent.id === "quality-agent")!;
     const result = await quality.execute(context("quality-agent", {}, {
-      source: { probes: [{ sourceId: "s1", checkedAt: "now", reachable: true }] },
+      source: { probes: [{ sourceId: "s1", checkedAt: "now", reachable: true, resolutionProbed: true }] },
     })) as { assessments: Array<{ status: string; resolutionHeight: number | null }> };
     expect(result.assessments[0]).toMatchObject({ status: "resolution_unknown", resolutionHeight: null });
   });
