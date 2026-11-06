@@ -105,7 +105,7 @@ export function useFridayChatSession({
         },
       }));
     });
-  }, [sources, filterAdult]);
+  }, [sources, filterAdult, options.language]);
 
   const transport = useMemo(
     () =>
