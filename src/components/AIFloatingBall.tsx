@@ -296,6 +296,7 @@ export default function AIFloatingBall({
     handleFabPointerDown,
     handleFabPointerMove,
     handleFabPointerUp,
+    handleFabPointerCancel,
     handleFabClick,
     hideAssistant,
     restoreAssistant,
@@ -421,7 +422,7 @@ export default function AIFloatingBall({
             onPointerDown={handleFabPointerDown}
             onPointerMove={handleFabPointerMove}
             onPointerUp={handleFabPointerUp}
-            onPointerCancel={handleFabPointerUp}
+            onPointerCancel={handleFabPointerCancel}
             onClick={handleFabClick}
           >
             <FridayOrbVisual />
