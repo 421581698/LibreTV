@@ -288,3 +288,8 @@ export type { SourceConfig };
 db.version(4).stores({
   fridayTaskEvents: 'eventId, taskId, [taskId+sequence], occurredAt, type',
 });
+
+// v5: efficiently restore only the 50 most recently created tasks without scanning the full event log.
+db.version(5).stores({
+  fridayTaskEvents: 'eventId, taskId, [taskId+sequence], occurredAt, type, [type+occurredAt]',
+});
