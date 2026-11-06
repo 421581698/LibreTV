@@ -18,7 +18,7 @@ export type SourceProbe = {
 
 export type QualityAssessment = {
   sourceId: string;
-  status: "measured" | "unavailable" | "unknown";
+  status: "probe_only" | "unavailable" | "unknown";
   latencyMs: number | null;
   reachable: boolean | null;
   advertisedQualities: string[];
@@ -96,7 +96,7 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
         if (typeof probe.statusCode === "number") evidence.push("probe.statusCode");
         return {
           sourceId: probe.sourceId,
-          status: validLatency || validReachability ? (probe.reachable ? "measured" : "unavailable") : "unknown",
+          status: validLatency || validReachability ? (probe.reachable ? "probe_only" : "unavailable") : "unknown",
           latencyMs: validLatency ? probe.latencyMs! : null,
           reachable: validReachability ? probe.reachable : null,
           advertisedQualities: Array.isArray(probe.advertisedQualities)
@@ -125,7 +125,7 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
       const findings = [
         ...(!Array.isArray(searchOutput.candidates) ? ["missing-search-candidates"] : []),
         ...candidates.filter((candidate) => !candidate.id || !candidate.title).map(() => "invalid-candidate"),
-        ...assessments.filter((item) => item.status === "measured" && item.evidence.length === 0)
+        ...assessments.filter((item) => item.status === "probe_only" && item.evidence.length === 0)
           .map(() => "measurement-without-evidence"),
       ];
       return {
@@ -134,7 +134,7 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
         candidateCount: candidates.length,
         assessmentCount: assessments.length,
         unmatchedCandidates: candidates.filter((candidate) => candidate.sourceId && !assessmentIds.has(candidate.sourceId)).map((item) => item.id),
-        note: "Only measured probe fields are treated as evidence; advertised quality labels are not proof of playback quality.",
+        measurementScope: "source_probe_only",\n        note: "This stage measures source reachability and latency only. It does not measure video resolution; advertised quality labels are not proof of playback quality.",
       };
     },
   };
