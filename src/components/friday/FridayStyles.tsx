@@ -1147,6 +1147,37 @@ export function FridayStyles() {
           letter-spacing:.08em;
           text-shadow:0 0 5px #26dfff;
         }
+        .friday-root .friday-jarvis-equalizer{
+          position:absolute;
+          inset:0;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          gap:5%;
+          opacity:0;
+          transition:opacity .2s ease;
+        }
+        .friday-root .friday-jarvis-equalizer i{
+          display:block;
+          width:7%;
+          height:18%;
+          border-radius:99px;
+          background:linear-gradient(180deg,#e8ffff,#8ceeff 48%,#25aee8);
+          box-shadow:0 0 5px rgba(188,250,255,.9),0 0 10px rgba(35,194,255,.65);
+          transform:scaleY(.35);
+          transform-origin:center;
+        }
+        .friday-root .friday-orb-visual[data-state="speaking"] .friday-jarvis-equalizer{
+          opacity:1;
+        }
+        .friday-root .friday-orb-visual[data-state="speaking"] .friday-jarvis-equalizer i{
+          animation:friday-jarvis-equalize .62s ease-in-out infinite alternate;
+        }
+        .friday-root .friday-orb-visual[data-state="speaking"] .friday-jarvis-equalizer i:nth-child(2){animation-delay:-.42s;}
+        .friday-root .friday-orb-visual[data-state="speaking"] .friday-jarvis-equalizer i:nth-child(3){animation-delay:-.18s;}
+        .friday-root .friday-orb-visual[data-state="speaking"] .friday-jarvis-equalizer i:nth-child(4){animation-delay:-.5s;}
+        .friday-root .friday-orb-visual[data-state="speaking"] .friday-jarvis-equalizer i:nth-child(5){animation-delay:-.28s;}
+        @keyframes friday-jarvis-equalize{0%{transform:scaleY(.3);}100%{transform:scaleY(2.5);}}
         .friday-root .friday-orb-visual[data-state="listening"] .friday-jarvis-aura{opacity:1;animation-duration:1.1s;}
         .friday-root .friday-orb-visual[data-state="listening"] .friday-jarvis-core{animation-duration:1s;filter:brightness(1.35);}
         .friday-root .friday-orb-visual[data-state="thinking"] .friday-jarvis-ring-arcs{animation-duration:2.8s;}
@@ -1163,7 +1194,7 @@ export function FridayStyles() {
         @media (prefers-reduced-motion:reduce){
           .friday-root .friday-jarvis-aura,.friday-root .friday-jarvis-ring,
           .friday-root .friday-jarvis-ticks,.friday-root .friday-jarvis-core,
-          .friday-root .friday-jarvis-core-light,.friday-root .friday-jarvis-scan{
+          .friday-root .friday-jarvis-core-light,.friday-root .friday-jarvis-scan,.friday-root .friday-jarvis-equalizer i{
             animation:none!important;
           }
         }
