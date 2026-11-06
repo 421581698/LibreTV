@@ -47,7 +47,11 @@ export class TaskRuntime {
    if(!definition||definition.taskId!==created?.taskId||typeof definition.agent!=="string")continue;
    snapshots.push(reduceTaskEvents(definition,taskEvents));
   }
-  return snapshots.sort((a,b)=>a.taskId.localeCompare(b.taskId));
+  return snapshots.sort((a, b) => {
+   const createdAt = (taskId: string) =>
+    grouped.get(taskId)?.find((event) => event.type === "task.created")?.occurredAt ?? "";
+   return createdAt(b.taskId).localeCompare(createdAt(a.taskId));
+  });
  }
 
 }
