@@ -1,8 +1,18 @@
 import {describe,expect,it} from "vitest";
 import {reduceTaskEvents,TaskRuntime,TaskRuntimeError,validateTaskGraph,type TaskDefinition,type TaskEvent,type TaskEventStore} from "./task-runtime";
-class MemoryStore implements TaskEventStore { private data=new Map<string,TaskEvent[]>(); async append(event:TaskEvent){const list=this.data.get(event.taskId)??[];list.push(event);this.data.set(event.taskId,list)} async read(id:string){return [...(this.data.get(id)??[])]} }
+class MemoryStore implements TaskEventStore { private data=new Map<string,TaskEvent[]>(); async append(event:TaskEvent){const list=this.data.get(event.taskId)??[];list.push(event);this.data.set(event.taskId,list)} async read(id:string){return [...(this.data.get(id)??[])]} async readAll(){return [...this.data.values()].flat()} }
 const task:TaskDefinition={taskId:"movie-search-1",agent:"search-agent",input:{title:"Arrival"}};
 describe("Friday task runtime",()=>{
+ it("restores task snapshots from the durable event log after a reload",async()=>{
+  const store=new MemoryStore();
+  const firstRuntime=new TaskRuntime(store);
+  await firstRuntime.create({...task,dependsOn:["source"],sideEffect:false});
+  await firstRuntime.record(task,"task.started");
+  await firstRuntime.record(task,"task.checkpoint",{cursor:"page-2"});
+  const restored=await new TaskRuntime(store).restoreAll();
+  expect(restored).toHaveLength(1);
+  expect(restored[0]).toMatchObject({taskId:task.taskId,status:"running",input:task.input,dependsOn:["source"],checkpoint:{cursor:"page-2"},lastSequence:3});
+ });
  it("rejects cyclic DAG dependencies",()=>{expect(()=>validateTaskGraph([{...task,dependsOn:["quality"]},{taskId:"quality",agent:"quality-agent",input:{},dependsOn:[task.taskId]}])).toThrowError(TaskRuntimeError)});
  it("records lifecycle and reconstructs checkpoints",async()=>{const runtime=new TaskRuntime(new MemoryStore(),()=>"2026-11-06T00:00:00Z",()=>"event-id");await runtime.create(task);await runtime.record(task,"task.started");await runtime.record(task,"task.checkpoint",{cursor:"source-2"});const result=await runtime.record(task,"task.succeeded",{matches:3});expect(result).toMatchObject({status:"succeeded",checkpoint:{cursor:"source-2"},output:{matches:3}})});
  it("blocks automatic replay for side effects",async()=>{const side={...task,taskId:"player-control-1",sideEffect:true};const runtime=new TaskRuntime(new MemoryStore());await runtime.create(side);await expect(runtime.requestReplay(side)).rejects.toMatchObject({code:"REPLAY_SIDE_EFFECT_BLOCKED"})});
