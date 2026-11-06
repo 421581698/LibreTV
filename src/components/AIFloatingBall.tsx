@@ -59,6 +59,31 @@ export default function AIFloatingBall({
   const [expanded, setExpanded] = useState(false);
   const [immersive, setImmersive] = useState(false);
   const [language, setLanguage] = useState<"zh" | "en">("zh");
+  const [languagePreferenceLoaded, setLanguagePreferenceLoaded] = useState(false);
+
+  // Read after hydration to avoid server/client markup mismatch, then persist
+  // only after the stored preference has been applied.
+  useEffect(() => {
+    try {
+      const savedLanguage = window.localStorage.getItem("friday-language");
+      if (savedLanguage === "zh" || savedLanguage === "en") {
+        setLanguage(savedLanguage);
+      }
+    } catch {
+      // Storage may be unavailable in private browsing; keep the default.
+    } finally {
+      setLanguagePreferenceLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!languagePreferenceLoaded) return;
+    try {
+      window.localStorage.setItem("friday-language", language);
+    } catch {
+      // Language switching remains available for this session.
+    }
+  }, [language, languagePreferenceLoaded]);
 
   const openRef = useRef(false);
   const closingRef = useRef(false);
