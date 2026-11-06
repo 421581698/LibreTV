@@ -420,7 +420,6 @@ export default function AIFloatingBall({
     handleFabPointerUp,
     handleFabPointerCancel,
     handleFabClick,
-    handleFabTouchEnd,
     hideAssistant,
     restoreAssistant,
   } = useFridayFabController({
@@ -543,7 +542,6 @@ export default function AIFloatingBall({
                 : undefined
             }
             onPointerDown={handleFabPointerDown}
-            onTouchEnd={handleFabTouchEnd}
             onClick={handleFabClick}
           >
             <FridayOrbVisual state={auroraState} audioLevel={audioLevel} />
