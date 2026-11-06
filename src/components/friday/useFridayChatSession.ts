@@ -60,7 +60,7 @@ export function useFridayChatSession({
     });
   }, [sources, filterAdult]);
 
-  const transport = useMemo((
+  const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: "/api/chat",
