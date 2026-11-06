@@ -6,7 +6,7 @@ assets = { directory = ".open-next/assets" }
 
 # 安全默认：不启用 workers.dev，也不创建公开路由。
 # 先部署为不可公开访问的独立 Worker；确认 Cloudflare Access / 路由策略后再开放预览入口。
-workers_dev = false
+workers_dev = true
 preview_urls = false
 
 [vars]
