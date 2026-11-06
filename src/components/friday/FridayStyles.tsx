@@ -41,7 +41,7 @@ export function FridayStyles() {
           border-radius: 50%;
           background: transparent;
           cursor: grab;
-          touch-action: manipulation;
+          touch-action: none;
           user-select: none;
           -webkit-user-select: none;
           -webkit-tap-highlight-color: transparent;
