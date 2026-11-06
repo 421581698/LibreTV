@@ -49,7 +49,13 @@ describe("Friday movie agents", () => {
     const agents = createMovieAgentRegistry({ search: async () => [], probe: async () => [] });
     const quality = agents.find((agent) => agent.id === "quality-agent")!;
     const result = await quality.execute(context("quality-agent", {}, {
-      source: { probes: [{ sourceId: "s1", checkedAt: "now", reachable: true, resolutionHeight: 1080 }] },
+      source: { probes: [{
+        sourceId: "s1",
+        checkedAt: "now",
+        reachable: true,
+        resolutionProbed: true,
+        resolutionHeight: 1080,
+      }] },
     })) as { assessments: Array<{ status: string; resolutionHeight: number | null; evidence: string[] }> };
     expect(result.assessments[0]).toMatchObject({
       status: "resolution_detected",
