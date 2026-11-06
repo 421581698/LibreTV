@@ -1167,6 +1167,14 @@ export function FridayStyles() {
           transform:scaleY(.35);
           transform-origin:center;
         }
+        .friday-root .friday-orb-visual[data-state="listening"] .friday-jarvis-equalizer{
+          opacity:1;
+        }
+        .friday-root .friday-orb-visual[data-state="listening"] .friday-jarvis-equalizer i{
+          animation:none;
+          transform:scaleY(calc(.3 + var(--friday-audio-level, 0) * 2.2));
+          transition:transform 65ms linear;
+        }
         .friday-root .friday-orb-visual[data-state="speaking"] .friday-jarvis-equalizer{
           opacity:1;
         }
