@@ -7,6 +7,7 @@ import { FridayConversation } from "@/components/friday/FridayConversation";
 import { FridayComposer } from "@/components/friday/FridayComposer";
 import { getMovieDataForMessage, getPartText } from "@/lib/friday/message";
 import type { FridayWorkflowView } from "@/components/friday/useFridayChatSession";
+import type { TaskSnapshot } from "@/lib/friday/task-runtime";
 
 
 export type MovieItem = {
@@ -68,6 +69,7 @@ type FridayPanelProps = {
   messagesRef: RefObject<HTMLDivElement | null>;
   messages: MessageLike[];
   workflowBySearchId: Record<string, FridayWorkflowView>;
+  restoredTasks: TaskSnapshot[];
   listening: boolean;
   busy: boolean;
   status: string;
@@ -104,7 +106,7 @@ export { getMovieDataForMessage, getPartText } from "@/lib/friday/message";
 
 export function FridayPanel({
   expanded, immersive, closing, auroraState, agentState, voiceState, stateLabel,
-  onAnimationEnd, onClose, messagesRef, messages, workflowBySearchId, listening, busy, status,
+  onAnimationEnd, onClose, messagesRef, messages, workflowBySearchId, restoredTasks, listening, busy, status,
   error, speaking, completed, voiceSessionActive, inputRef, input, setInput,
   onSend, onToggleListening, voiceError, voiceEnabled, onToggleVoiceEnabled,
   onClearConversation, onStopSpeechAndResume, onInterrupt, onToggleExpanded,
