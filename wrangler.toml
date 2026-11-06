@@ -4,6 +4,9 @@ compatibility_date = "2025-04-01"
 compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
 assets = { directory = ".open-next/assets" }
 
+[ai]
+binding = "AI"
+
 [vars]
 # PASSWORD 必须通过 Cloudflare Worker Secret 配置，禁止写入仓库。
 # 配置命令：npx wrangler secret put PASSWORD
