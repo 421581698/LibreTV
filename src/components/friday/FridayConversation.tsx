@@ -3,6 +3,7 @@
 import React from "react";
 import type { RefObject } from "react";
 import type { MovieData, MovieItem } from "./FridayPanel";
+import type { FridayWorkflowView } from "./useFridayChatSession";
 import { FridayMovieResults } from "./FridayMovieResults";
 
 export type FridayConversationEntry = {
@@ -10,7 +11,52 @@ export type FridayConversationEntry = {
   isUser: boolean;
   text: string;
   movies: MovieData[];
+  workflows?: Record<string, FridayWorkflowView>;
 };
+
+function WorkflowSummary({ workflow }: { workflow: FridayWorkflowView }) {
+  const statusLabel = workflow.status === "running" ? "执行中" : workflow.status === "completed" ? "已完成" : "未完成";
+  return (
+    <section className="friday-workflow" aria-live="polite">
+      <div className="friday-workflow-heading">
+        <strong>Friday 资源核验</strong>
+        <span>{statusLabel}</span>
+      </div>
+      {workflow.status === "running" ? <p>正在检查来源连通性并整理可验证证据…</p> : null}
+      {workflow.status === "failed" ? <p>任务未完整完成：{workflow.error || "部分步骤失败"}</p> : null}
+      {workflow.sourceChecks ? (
+        <div className="friday-workflow-block">
+          <strong>来源探测 · {workflow.sourceChecks.filter((item) => item.reachable).length}/{workflow.sourceChecks.length} 可访问</strong>
+          {workflow.sourceChecks.length ? workflow.sourceChecks.map((item) => (
+            <div className="friday-workflow-row" key={item.sourceId}>
+              <span>{item.sourceId}</span>
+              <span>{item.reachable ? "可访问" : "不可访问"}{typeof item.latencyMs === "number" ? ` · ${Math.round(item.latencyMs)} ms` : ""}</span>
+            </div>
+          )) : <p>没有可探测的匹配来源。</p>}
+        </div>
+      ) : null}
+      {workflow.qualityChecks ? (
+        <div className="friday-workflow-block">
+          <strong>画质证据</strong>
+          <p>当前仅完成来源探活，不代表视频分辨率实测；1080P / 4K 仍需播放器实际播放测量。</p>
+          {workflow.qualityChecks.map((item) => (
+            <div className="friday-workflow-row" key={item.sourceId}>
+              <span>{item.sourceId}</span>
+              <span>{item.status === "probe_only" ? "仅有探活数据" : item.status === "unavailable" ? "来源不可用" : "画质未知"}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {workflow.review ? (
+        <div className="friday-workflow-review">
+          Review：{workflow.review.accepted ? "结构与证据检查通过" : "发现待处理问题"}
+          · {workflow.review.candidateCount} 条候选 · {workflow.review.assessmentCount} 项来源评估
+          {workflow.review.findings.length ? <p>{workflow.review.findings.join("、")}</p> : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
 
 export function FridayConversation({
   messagesRef,
@@ -36,9 +82,7 @@ export function FridayConversation({
           <div className="friday-welcome-kicker">YOUR AMBIENT AI</div>
           <div className="friday-welcome-title">你好，我是 Friday。</div>
           <div className="friday-welcome-text">
-            {listening
-              ? "我正在聆听。告诉我你想看什么电影或电视剧。"
-              : "告诉我你想看什么，或者让我帮你寻找更好的影视资源。"}
+            {listening ? "我正在聆听。告诉我你想看什么电影或电视剧。" : "告诉我你想看什么，或者让我帮你寻找更好的影视资源。"}
           </div>
         </div>
       ) : null}
@@ -51,28 +95,20 @@ export function FridayConversation({
             </div>
           ) : null}
           {message.movies.map((data) => (
-            <FridayMovieResults
-              key={data.searchId}
-              data={data}
-              onOpen={onOpenMovie}
-            />
+            <React.Fragment key={data.searchId}>
+              <FridayMovieResults data={data} onOpen={onOpenMovie} />
+              {message.workflows?.[data.searchId] ? <WorkflowSummary workflow={message.workflows[data.searchId]} /> : null}
+            </React.Fragment>
           ))}
         </React.Fragment>
       ))}
 
       {busy ? (
         <div className="friday-status">
-          {status === "submitted"
-            ? "Friday 正在接收消息…"
-            : "正在为你寻找合适的影视资源…"}
+          {status === "submitted" ? "Friday 正在接收消息…" : "正在为你寻找合适的影视资源…"}
         </div>
       ) : null}
-
-      {error ? (
-        <div className="friday-error">
-          {error.message || "请求失败，请稍后重试。"}
-        </div>
-      ) : null}
+      {error ? <div className="friday-error">{error.message || "请求失败，请稍后重试。"}</div> : null}
     </div>
   );
 }
