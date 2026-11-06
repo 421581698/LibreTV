@@ -101,6 +101,7 @@ export function useFridayVoiceController({
   const voiceSessionActiveRef = useRef(false);
   const voiceSessionIdRef = useRef(0);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const recognitionStartTimerRef = useRef<number | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const recognitionErrorRef = useRef("");
   const pendingVoiceTextRef = useRef("");
@@ -149,6 +150,10 @@ export function useFridayVoiceController({
   const stopRecognition = useCallback((abort = true) => {
     const recognition = recognitionRef.current;
 
+    if (recognitionStartTimerRef.current !== null) {
+      window.clearTimeout(recognitionStartTimerRef.current);
+      recognitionStartTimerRef.current = null;
+    }
     recognitionRef.current = null;
     listeningRef.current = false;
     pendingVoiceTextRef.current = "";
@@ -193,7 +198,8 @@ export function useFridayVoiceController({
   }, [clearVoiceResumeTimer, openRef, closingRef, busyRef]);
 
   const startListening = useCallback((automatic = false) => {
-    if (busyRef.current || listeningRef.current) return;
+    // 包括“正在等待 onstart”的阶段；避免 iOS Safari 并发启动识别实例。
+    if (busyRef.current || listeningRef.current || recognitionRef.current) return;
     if (closingRef.current || !openRef.current) return;
 
     if (!automatic && !voiceSessionActiveRef.current) {
@@ -258,6 +264,10 @@ export function useFridayVoiceController({
     recognition.onstart = () => {
       if (recognitionRef.current !== recognition) return;
       if (sessionId !== voiceSessionIdRef.current) return;
+      if (recognitionStartTimerRef.current !== null) {
+        window.clearTimeout(recognitionStartTimerRef.current);
+        recognitionStartTimerRef.current = null;
+      }
       listeningRef.current = true;
       setListening(true);
       dispatchMachine({ type: "VOICE_STARTED", sessionId });
@@ -311,6 +321,10 @@ export function useFridayVoiceController({
       if (recognitionRef.current !== recognition) return;
       if (sessionId !== voiceSessionIdRef.current) return;
 
+      if (recognitionStartTimerRef.current !== null) {
+        window.clearTimeout(recognitionStartTimerRef.current);
+        recognitionStartTimerRef.current = null;
+      }
       recognitionRef.current = null;
       listeningRef.current = false;
       setListening(false);
@@ -352,9 +366,27 @@ export function useFridayVoiceController({
 
     recognitionRef.current = recognition;
     try {
+      // Safari 偶尔不及时派发 onstart；看门狗避免启动锁永久残留。
+      recognitionStartTimerRef.current = window.setTimeout(() => {
+        recognitionStartTimerRef.current = null;
+        if (recognitionRef.current !== recognition || listeningRef.current) return;
+        recognitionRef.current = null;
+        try {
+          recognition.abort();
+        } catch {
+          // 忽略已失效实例。
+        }
+        setVoiceSession(false);
+        setVoiceError("浏览器未能启动语音识别，请再次点击麦克风重试。");
+      }, 8000);
+
       // 首次启动必须在用户点击的同步调用链内。
       recognition.start();
     } catch (recognitionError) {
+      if (recognitionStartTimerRef.current !== null) {
+        window.clearTimeout(recognitionStartTimerRef.current);
+        recognitionStartTimerRef.current = null;
+      }
       if (recognitionRef.current === recognition) {
         recognitionRef.current = null;
       }
