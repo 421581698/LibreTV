@@ -56,3 +56,8 @@
 - Never auto-start microphone capture outside a direct user gesture.
 - Preserve existing search, detail modal, player, and /api/chat contracts.
 - Merge only after CI is green, a real Preview URL is verified, and iPhone Safari behavior is manually accepted.
+
+
+## Persistence decision
+
+The first durable adapter uses the existing Dexie/IndexedDB database. This makes task history survive page reloads on the same browser without adding an unconfigured Cloudflare binding or changing production infrastructure. It is browser-local, not cross-device or server-side persistence. Event writes are transactional, event IDs and per-task sequence numbers are unique, and the adapter rejects gaps. Task data may include prompts and source metadata, so it stays in the user's browser. A future shared/server audit store requires an explicitly provisioned D1 or equivalent binding, retention policy, and privacy review.
