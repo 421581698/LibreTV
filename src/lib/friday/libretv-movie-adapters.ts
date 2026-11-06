@@ -56,45 +56,51 @@ export function createLibreTVMovieAgentAdapters(
       const entries = Array.from(unique.values());
       if (entries.length === 0) return [];
 
-      try {
-        const response = await fetcher("/api/quality", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify({
-            items: entries.map(({ source, id }) => ({ source, id })),
-          }),
-          signal,
-          cache: "no-store",
-        });
-        if (!response.ok) throw new Error(`Quality probe failed: HTTP ${response.status}`);
-        const payload = await readJson<QualityApiResponse>(response);
-        const results = new Map(
-          (Array.isArray(payload.results) ? payload.results : [])
-            .map((item) => [`${item.sourceKey}:${item.vodId}`, item]),
-        );
-        return entries.map(({ source, candidate, id }) => {
-          const result = results.get(`${source.key}:${id}`);
-          return {
+      const output: SourceProbe[] = [];
+      // /api/quality accepts at most 50 movie/source pairs per request.
+      for (let offset = 0; offset < entries.length; offset += 50) {
+        const batch = entries.slice(offset, offset + 50);
+        try {
+          const response = await fetcher("/api/quality", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({
+              items: batch.map(({ source, id }) => ({ source, id })),
+            }),
+            signal,
+            cache: "no-store",
+          });
+          if (!response.ok) throw new Error(`Quality probe failed: HTTP ${response.status}`);
+          const payload = await readJson<QualityApiResponse>(response);
+          const results = new Map(
+            (Array.isArray(payload.results) ? payload.results : [])
+              .map((item) => [`${item.sourceKey}:${item.vodId}`, item]),
+          );
+          output.push(...batch.map(({ source, candidate, id }) => {
+            const result = results.get(`${source.key}:${id}`);
+            return {
+              sourceId: source.key,
+              candidateId: candidate.id,
+              title: candidate.title,
+              checkedAt: new Date().toISOString(),
+              reachable: Boolean(result && !result.error),
+              resolutionHeight: typeof result?.height === "number" ? result.height : undefined,
+              resolutionError: result?.error ?? (result ? undefined : "No quality result returned"),
+            };
+          }));
+        } catch (error) {
+          if (signal?.aborted) throw error;
+          output.push(...batch.map(({ source, candidate }) => ({
             sourceId: source.key,
             candidateId: candidate.id,
             title: candidate.title,
             checkedAt: new Date().toISOString(),
-            reachable: Boolean(result && !result.error),
-            resolutionHeight: typeof result?.height === "number" ? result.height : undefined,
-            resolutionError: result?.error,
-          };
-        });
-      } catch (error) {
-        if (signal?.aborted) throw error;
-        return entries.map(({ source, candidate }) => ({
-          sourceId: source.key,
-          candidateId: candidate.id,
-          title: candidate.title,
-          checkedAt: new Date().toISOString(),
-          reachable: false,
-          resolutionError: error instanceof Error ? error.message : "画质探测请求失败",
-        }));
+            reachable: false,
+            resolutionError: error instanceof Error ? error.message : "画质探测请求失败",
+          })));
+        }
       }
+      return output;
     },
   };
 }
