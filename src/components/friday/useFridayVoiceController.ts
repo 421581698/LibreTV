@@ -301,6 +301,25 @@ export function useFridayVoiceController({
         });
         setVoiceError(message);
       }
+
+      // WebKit 通常会在 error 后派发 end，但部分异常路径可能漏掉 end。
+      // 保留短暂宽限期，避免与正在收尾的识别器并发；若 end 始终缺失，
+      // 自动释放实例引用，让用户下一次点击可以创建全新的 Recognition。
+      if (recognitionStartTimerRef.current !== null) {
+        window.clearTimeout(recognitionStartTimerRef.current);
+      }
+      recognitionStartTimerRef.current = window.setTimeout(() => {
+        recognitionStartTimerRef.current = null;
+        if (recognitionRef.current !== recognition) return;
+        recognitionRef.current = null;
+        listeningRef.current = false;
+        setListening(false);
+        try {
+          recognition.abort();
+        } catch {
+          // 实例可能已由浏览器自行结束。
+        }
+      }, 1500);
     };
 
     recognition.onend = () => {
