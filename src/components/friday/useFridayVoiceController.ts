@@ -264,7 +264,7 @@ export function useFridayVoiceController({
       return;
     }
 
-    recognition.lang = language === "en" ? "en-US" : "zh-CN";
+    recognition.lang = language === "en" ? "en-GB" : "zh-CN";
     recognition.continuous = false;
     recognition.interimResults = true;
 
