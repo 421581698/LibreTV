@@ -807,3 +807,30 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   .home-v2 .home-v2-mic-button.is-listening,
   .home-v2 .home-v2-voice-pulse { animation: none !important; }
 }
+
+
+/* Friday V3 workflow evidence panel */
+.friday-workflow {
+  width: min(100%, 560px);
+  margin: 10px 0 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(145, 160, 185, .24);
+  border-radius: 14px;
+  background: rgba(110, 125, 150, .07);
+  color: inherit;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.friday-workflow-heading, .friday-workflow-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.friday-workflow-heading { margin-bottom: 7px; font-size: 13px; }
+.friday-workflow-heading span { color: var(--c-muted, #888); font-weight: 500; }
+.friday-workflow p { margin: 5px 0; color: var(--c-muted, #888); }
+.friday-workflow-block { margin-top: 9px; padding-top: 8px; border-top: 1px solid rgba(145, 160, 185, .2); }
+.friday-workflow-block > strong { display: block; margin-bottom: 4px; }
+.friday-workflow-row { padding: 3px 0; color: var(--c-muted, #888); }
+.friday-workflow-review { margin-top: 9px; padding-top: 8px; border-top: 1px solid rgba(145, 160, 185, .2); font-weight: 600; }
