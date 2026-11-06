@@ -94,9 +94,23 @@ export function useFridayFabController({
   const handleFabPointerUp = useCallback((event: PointerEvent<HTMLButtonElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    if (drag.moved) suppressClickRef.current = true;
+
+    const wasDrag = drag.moved;
     dragRef.current = null;
-  }, []);
+
+    if (wasDrag) {
+      // Suppress the click synthesized after a completed drag.
+      suppressClickRef.current = true;
+      return;
+    }
+
+    // Do not rely exclusively on a synthesized click: some mobile Safari
+    // pointer sequences can omit it. A stationary pointer release is a tap.
+    suppressClickRef.current = true;
+    if (!openRef.current && !closingRef.current) {
+      onOpen();
+    }
+  }, [onOpen, openRef, closingRef]);
 
   const handleFabPointerCancel = useCallback((event: PointerEvent<HTMLButtonElement>) => {
     const drag = dragRef.current;
