@@ -1,6 +1,7 @@
 import hmac
 import io
 import os
+import wave
 import tempfile
 from pathlib import Path
 
@@ -44,7 +45,8 @@ def synthesize(payload: SpeechRequest, authorization: str | None = Header(defaul
         raise HTTPException(status_code=400, detail="Invalid text")
 
     output = io.BytesIO()
-    voice.synthesize_wav(text, output)
+    with wave.open(output, "wb") as wav_file:
+        voice.synthesize_wav(text, wav_file)
     return Response(
         content=output.getvalue(),
         media_type="audio/wav",
