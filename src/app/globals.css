@@ -573,9 +573,22 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   gap: 0;
 }
 .home-v2 .friday-hero-description,
-.home-v2 .friday-hero-orb-button,
 .home-v2 .friday-hero-orb-label,
 .home-v2 .friday-hero-text-entry { display: none !important; }
+
+/* The hero orb is wrapped by this button so it remains visible and tappable. */
+.home-v2 .friday-hero-orb-button {
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
 .home-v2 .friday-hero-orb {
   display: block;
   width: 132px;
