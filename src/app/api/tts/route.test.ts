@@ -37,7 +37,7 @@ describe("POST /api/tts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     guardRequest.mockReturnValue(null);
-    createEdgeTtsStream.mockResolvedValue(audioStream());
+    createEdgeTtsStream.mockImplementation(() => Promise.resolve(audioStream()));
   });
 
   it("rejects unauthenticated requests before parsing or synthesis", async () => {
