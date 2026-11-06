@@ -113,17 +113,6 @@ export function useFridayChatSession({
     });
   }, [sources, filterAdult, language]);
 
-  const stopChat = useCallback(() => {
-    for (const controller of activeWorkflowControllers.current.values()) controller.abort();
-    activeWorkflowControllers.current.clear();
-    stop();
-  }, [stop]);
-
-  useEffect(() => () => {
-    for (const controller of activeWorkflowControllers.current.values()) controller.abort();
-    activeWorkflowControllers.current.clear();
-  }, []);
-
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
@@ -138,7 +127,7 @@ export function useFridayChatSession({
     sendMessage,
     status,
     error,
-    stop: stopChat,
+    stop: stopRequest,
     setMessages,
   } = useChat({
     transport,
@@ -148,12 +137,23 @@ export function useFridayChatSession({
     },
   });
 
+  const stopChat = useCallback(() => {
+    for (const controller of activeWorkflowControllers.current.values()) controller.abort();
+    activeWorkflowControllers.current.clear();
+    stopRequest();
+  }, [stopRequest]);
+
+  useEffect(() => () => {
+    for (const controller of activeWorkflowControllers.current.values()) controller.abort();
+    activeWorkflowControllers.current.clear();
+  }, []);
+
   return {
     typedMessages: messages as unknown as MessageLike[],
     sendMessage,
     status,
     error,
-    stop,
+    stop: stopChat,
     setMessages,
     workflowBySearchId,
     busy: status === "submitted" || status === "streaming",
