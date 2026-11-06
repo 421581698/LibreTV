@@ -599,7 +599,7 @@ export default function AIFloatingBall({
           title="恢复 Friday"
           onClick={restoreAssistant}
         >
-          F
+          <FridayOrbVisual state="standby" />
         </button>
       ) : null}
       </div>
