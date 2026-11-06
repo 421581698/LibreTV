@@ -137,10 +137,17 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
       const assessments = Array.isArray(qualityOutput.assessments)
         ? qualityOutput.assessments as QualityAssessment[]
         : [];
-      const assessmentIds = new Set(assessments.map((item) => item.sourceId));
+      const assessmentCandidateIds = new Set(assessments.map((item) => item.candidateId).filter((id): id is string => Boolean(id)));
+      const assessmentSourceIds = new Set(assessments.map((item) => item.sourceId));
+      const unmatchedCandidates = candidates.filter((candidate) =>
+        candidate.candidateId
+          ? !assessmentCandidateIds.has(candidate.id)
+          : Boolean(candidate.sourceId && !assessmentSourceIds.has(candidate.sourceId)),
+      );
       const findings = [
         ...(!Array.isArray(searchOutput.candidates) ? ["missing-search-candidates"] : []),
         ...candidates.filter((candidate) => !candidate.id || !candidate.title).map(() => "invalid-candidate"),
+        ...(unmatchedCandidates.length ? ["candidate-without-quality-assessment"] : []),
         ...assessments.filter((item) => item.status === "resolution_detected" && item.evidence.length === 0)
           .map(() => "measurement-without-evidence"),
       ];
@@ -149,7 +156,7 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
         findings,
         candidateCount: candidates.length,
         assessmentCount: assessments.length,
-        unmatchedCandidates: candidates.filter((candidate) => candidate.sourceId && !assessmentIds.has(candidate.sourceId)).map((item) => item.id),
+        unmatchedCandidates: unmatchedCandidates.map((item) => item.id),
         measurementScope: "playlist_or_segment_resolution",
         note: "Resolution is parsed from the HLS playlist or media-segment headers. This is source-side resolution evidence, not decoded playback videoHeight; advertised labels alone are not proof.",
       };
