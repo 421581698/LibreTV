@@ -58,6 +58,7 @@ export default function AIFloatingBall({
   const [input, setInput] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [immersive, setImmersive] = useState(false);
+  const [language, setLanguage] = useState<"zh" | "en">("zh");
 
   const openRef = useRef(false);
   const closingRef = useRef(false);
@@ -79,7 +80,7 @@ export default function AIFloatingBall({
     stopSpeechAndResume, toggleListening, setVoiceError, setCompleted,
     lastSpokenMessageRef,
   } = useFridayVoiceController({
-    busyRef, openRef, closingRef, dispatchMachine, setInput, handleSendRef,
+    busyRef, openRef, closingRef, dispatchMachine, setInput, handleSendRef, language,
   });
 
   const { activeSources, activeFilterAdult } = useFridaySources(sources, filterAdult);
@@ -225,17 +226,17 @@ export default function AIFloatingBall({
           ? "completed"
           : "standby";
 
-  const stateLabel = voiceError
-    ? "语音暂不可用，可重试或使用文字输入"
-    : auroraState === "listening"
-      ? "正在聆听"
-      : auroraState === "thinking"
-        ? "正在寻找合适的影视资源"
-        : auroraState === "speaking"
-          ? "Friday 正在回复"
-          : auroraState === "completed"
-            ? "已完成"
-            : "随时为你服务";
+  const stateLabel = language === "en"
+    ? voiceError ? "Voice unavailable — retry or type a message"
+      : auroraState === "listening" ? "Listening"
+      : auroraState === "thinking" ? "Finding the right titles"
+      : auroraState === "speaking" ? "Friday is responding"
+      : auroraState === "completed" ? "Completed" : "Ready when you are"
+    : voiceError ? "语音暂不可用，可重试或使用文字输入"
+      : auroraState === "listening" ? "正在聆听"
+      : auroraState === "thinking" ? "正在寻找合适的影视资源"
+      : auroraState === "speaking" ? "Friday 正在回复"
+      : auroraState === "completed" ? "已完成" : "随时为你服务";
 
   const openPanel = useCallback(() => {
     resetPendingMovie();
@@ -558,6 +559,8 @@ export default function AIFloatingBall({
             onToggleExpanded={() => setExpanded((value) => !value)}
             onHideAssistant={hideAssistant}
             onOpenMovie={handleOpenMovie}
+            language={language}
+            onLanguageChange={setLanguage}
           />
         ) : null}
       {showFab && fabHidden && !open ? (
