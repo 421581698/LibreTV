@@ -38,11 +38,11 @@ function WorkflowSummary({ workflow }: { workflow: FridayWorkflowView }) {
       {workflow.qualityChecks ? (
         <div className="friday-workflow-block">
           <strong>画质证据</strong>
-          <p>当前仅完成来源探活，不代表视频分辨率实测；1080P / 4K 仍需播放器实际播放测量。</p>
+          <p>分辨率来自 HLS 清单或媒体分片解析；这是片源侧证据，不等同于播放器解码后的 videoHeight 实测。</p>
           {workflow.qualityChecks.map((item) => (
             <div className="friday-workflow-row" key={item.sourceId}>
-              <span>{item.sourceId}</span>
-              <span>{item.status === "probe_only" ? "仅有探活数据" : item.status === "unavailable" ? "来源不可用" : "画质未知"}</span>
+              <span>{item.sourceId}{item.candidateId ? ` · ${item.candidateId.split(":").slice(1).join(":")}` : ""}</span>
+              <span>{item.status === "resolution_detected" ? `${item.resolutionHeight}P（清单/分片解析）` : item.status === "unavailable" ? "探测失败" : item.status === "resolution_unknown" ? "已探测，分辨率未知" : "未取得证据"}</span>
             </div>
           ))}
         </div>
