@@ -5,6 +5,31 @@ import { createEdgeTtsStream } from "@/lib/friday/edgeTts";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const requestTimes = new Map<string, number[]>();
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_REQUESTS = 20;
+
+function isRateLimited(request: Request): boolean {
+  const key = request.headers.get("cf-connecting-ip")
+    || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    || "unknown-client";
+  const now = Date.now();
+  const recent = (requestTimes.get(key) || []).filter((time) => now - time < RATE_LIMIT_WINDOW_MS);
+  if (recent.length >= RATE_LIMIT_MAX_REQUESTS) {
+    requestTimes.set(key, recent);
+    return true;
+  }
+  recent.push(now);
+  requestTimes.set(key, recent);
+  if (requestTimes.size > 500) {
+    for (const [client, times] of requestTimes) {
+      if (!times.some((time) => now - time < RATE_LIMIT_WINDOW_MS)) requestTimes.delete(client);
+      if (requestTimes.size <= 400) break;
+    }
+  }
+  return false;
+}
+
 const requestSchema = z.object({
   text: z.string().trim().min(1).max(1200),
   language: z.enum(["zh", "en"]).default("zh"),
@@ -57,7 +82,7 @@ export async function POST(request: Request) {
   const authError = guardRequest(request);
   if (authError) return authError;
 
-  if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) {
+  if (isRateLimited(request)) return jsonError("Too many speech requests. Please wait and try again.", 429);\n\n  if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) {
     return jsonError("Unsupported content type.", 415);
   }
 
