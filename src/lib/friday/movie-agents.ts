@@ -23,6 +23,8 @@ export type SourceProbe = {
 
 export type QualityAssessment = {
   sourceId: string;
+  candidateId?: string;
+  title?: string;
   status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown";
   resolutionHeight: number | null;
   latencyMs: number | null;
@@ -106,6 +108,8 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
         if (validLatency) evidence.push("source.latency");
         return {
           sourceId: probe.sourceId,
+          candidateId: probe.candidateId,
+          title: probe.title,
           status: validHeight ? "resolution_detected" : probe.resolutionError ? "unavailable" : probeCompleted ? "resolution_unknown" : "unknown",
           resolutionHeight: validHeight ? probe.resolutionHeight! : null,
           latencyMs: validLatency ? probe.latencyMs! : null,
