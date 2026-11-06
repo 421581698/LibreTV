@@ -1,19 +1,19 @@
 name = "libretv"
 main = ".open-next/worker.js"
 compatibility_date = "2025-04-01"
-compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"] 
+compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
 assets = { directory = ".open-next/assets" }
 
 [vars]
-# 注意：PASSWORD 写在此处会随公开仓库暴露，请勿用于敏感或复用密码。
-PASSWORD = "12345"
+# PASSWORD 必须通过 Cloudflare Worker Secret 配置，禁止写入仓库。
+# 配置命令：npx wrangler secret put PASSWORD
 CMS_SEARCH_API = "https://caiji.dyttzyapi.com/api.php/provide/vod"
 API_60S_BASE = "https://60s.bggdbh.workers.dev"
 LLM_MODEL = "glm-4-flash"
+
 [previews.vars]
-# Preview 环境不启用站点密码；不要复制生产 PASSWORD。
-PASSWORD = ""
-# 仅复用公开只读上游接口；Preview 不连接生产数据库或私有资源。
+# Preview 同样采用 fail-closed：未配置专用 PASSWORD Secret 时拒绝登录，
+# 请在对应 Preview Worker 的 Secrets 中设置，不要在仓库中放置密码。
 CMS_SEARCH_API = "https://caiji.dyttzyapi.com/api.php/provide/vod"
 API_60S_BASE = "https://60s.bggdbh.workers.dev"
 LLM_MODEL = "glm-4-flash"
