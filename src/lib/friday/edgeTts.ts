@@ -80,7 +80,7 @@ async function hashSecMsGecV2(ticksAndToken: string): Promise<string> {
 }
 
 async function generateSecMsGec(): Promise<string> {
-  let ticks = Date.now() / 1000 + WIN_EPOCH_SECONDS;
+  let ticks = Math.floor(Date.now() / 1000) + WIN_EPOCH_SECONDS;
   ticks -= ticks % 300;
   ticks *= 1e7;
   return hashSecMsGecV2(`${ticks.toFixed(0)}${TRUSTED_CLIENT_TOKEN}`);
