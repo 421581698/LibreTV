@@ -18,6 +18,7 @@ export type SourceProbe = {
   candidateId?: string;
   title?: string;
   resolutionHeight?: number;
+  resolutionProbed?: boolean;
   resolutionError?: string;
 };
 
@@ -100,7 +101,7 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
         const validReachability = typeof probe.reachable === "boolean";
         const validHeight = typeof probe.resolutionHeight === "number" &&
           Number.isFinite(probe.resolutionHeight) && probe.resolutionHeight > 0;
-        const probeCompleted = probe.resolutionError === undefined;
+        const probeCompleted = probe.resolutionProbed === true;
         const evidence: string[] = [];
         if (probeCompleted) evidence.push("quality_probe.completed");
         if (validHeight) evidence.push("hls_or_segment.resolution_height");
