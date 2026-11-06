@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import type { MessageLike } from "@/components/friday/FridayPanel";
@@ -31,6 +31,7 @@ export function useFridayChatSession({
   language,
 }: FridayChatSessionOptions) {
   const processedSearchIds = useRef(new Set<string>());
+  const activeWorkflowControllers = useRef(new Map<string, AbortController>());
   const [workflowBySearchId, setWorkflowBySearchId] = useState<Record<string, FridayWorkflowView>>({});
 
   const handleData = useCallback((part: { type: string; data?: unknown }) => {
@@ -66,12 +67,16 @@ export function useFridayChatSession({
     }));
 
     const taskIdPrefix = `friday-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const controller = new AbortController();
+    activeWorkflowControllers.current.set(data.searchId, controller);
     void runLibreTVMovieWorkflow({
       query: String(data.keyword || "影视搜索").slice(0, 50),
       taskIdPrefix,
       adapters: workflowAdapters,
       runtime: fridayTaskRuntime,
+      signal: controller.signal,
     }).then((workflow) => {
+      activeWorkflowControllers.current.delete(data.searchId!);
       const sourceOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.source)?.output as
         | { probes?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean }> }
         | undefined;
@@ -96,6 +101,7 @@ export function useFridayChatSession({
         },
       }));
     }).catch((error) => {
+      activeWorkflowControllers.current.delete(data.searchId!);
       console.error("[Friday] V3 movie workflow failed:", error);
       setWorkflowBySearchId((current) => ({
         ...current,
@@ -106,6 +112,17 @@ export function useFridayChatSession({
       }));
     });
   }, [sources, filterAdult, language]);
+
+  const stopChat = useCallback(() => {
+    for (const controller of activeWorkflowControllers.current.values()) controller.abort();
+    activeWorkflowControllers.current.clear();
+    stop();
+  }, [stop]);
+
+  useEffect(() => () => {
+    for (const controller of activeWorkflowControllers.current.values()) controller.abort();
+    activeWorkflowControllers.current.clear();
+  }, []);
 
   const transport = useMemo(
     () =>
@@ -121,7 +138,7 @@ export function useFridayChatSession({
     sendMessage,
     status,
     error,
-    stop,
+    stop: stopChat,
     setMessages,
   } = useChat({
     transport,
