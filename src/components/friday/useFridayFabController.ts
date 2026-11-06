@@ -59,6 +59,9 @@ export function useFridayFabController({
 
   const handleFabPointerDown = useCallback((event: PointerEvent<HTMLButtonElement>) => {
     if (openRef.current || closingRef.current) return;
+    // Clear a stale drag-click suppression if the browser omitted click after
+    // a previous pointer sequence (seen on some mobile Safari versions).
+    suppressClickRef.current = false;
     const rect = event.currentTarget.getBoundingClientRect();
     dragRef.current = {
       pointerId: event.pointerId,
