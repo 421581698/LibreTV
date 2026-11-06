@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { runFridayDag } from "./dag-orchestrator";
-import { TaskRuntime, type TaskDefinition, type TaskEvent, type TaskEventStore } from "./task-runtime";
+import { reduceTaskEvents, TaskRuntime, type TaskDefinition, type TaskEvent, type TaskEventStore } from "./task-runtime";
 
 class MemoryStore implements TaskEventStore {
   private events = new Map<string, TaskEvent[]>();
@@ -31,6 +31,31 @@ describe("Friday DAG orchestrator", () => {
     });
     expect(order).toEqual(["search", "review"]);
     expect(result[1]).toMatchObject({ status: "succeeded", output: { count: 2 } });
+  });
+
+  it("marks downstream tasks cancelled when the workflow is aborted", async () => {
+    const store = new MemoryStore();
+    const runtime = new TaskRuntime(store);
+    const controller = new AbortController();
+    let downstreamCalled = false;
+    const result = await runFridayDag({
+      tasks: [
+        { taskId: "search", agent: "search-agent", input: {} },
+        { taskId: "quality", agent: "quality-agent", input: {}, dependsOn: ["search"] },
+      ],
+      runtime,
+      signal: controller.signal,
+      agents: [
+        { id: "search-agent", execute: async () => { controller.abort(); return { candidates: [] }; } },
+        { id: "quality-agent", execute: async () => { downstreamCalled = true; return {}; } },
+      ],
+    });
+    expect(downstreamCalled).toBe(false);
+    expect(result).toMatchObject([
+      { taskId: "search", status: "cancelled" },
+      { taskId: "quality", status: "cancelled" },
+    ]);
+    expect(reduceTaskEvents({ taskId: "quality", agent: "quality-agent", input: {} }, await store.read("quality"))).toMatchObject({ status: "cancelled" });
   });
 
   it("does not execute a dependent agent after its prerequisite fails", async () => {
