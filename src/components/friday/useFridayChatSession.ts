@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import type { MessageLike } from "@/components/friday/FridayPanel";
@@ -10,17 +10,26 @@ import { createLibreTVMovieAgentAdapters } from "@/lib/friday/libretv-movie-adap
 import { runLibreTVMovieWorkflow } from "@/lib/friday/movie-workflow";
 import { fridayTaskRuntime } from "@/lib/friday/task-service";
 
+export type FridayWorkflowView = {
+  status: "running" | "completed" | "failed";
+  sourceChecks?: Array<{ sourceId: string; reachable: boolean; latencyMs?: number }>;
+  qualityChecks?: Array<{ sourceId: string; status: "probe_only" | "unavailable" | "unknown"; latencyMs: number | null }>;
+  review?: { accepted: boolean; findings: string[]; candidateCount: number; assessmentCount: number };
+  error?: string;
+};
+
 type FridayChatSessionOptions = {
   sources: FridaySourceConfig[];
   filterAdult: boolean;
 };
 
-/** Owns Friday's AI SDK transport and chat session state. */
+/** Owns Friday's AI SDK transport, chat session and local movie-workflow view state. */
 export function useFridayChatSession({
   sources,
   filterAdult,
 }: FridayChatSessionOptions) {
   const processedSearchIds = useRef(new Set<string>());
+  const [workflowBySearchId, setWorkflowBySearchId] = useState<Record<string, FridayWorkflowView>>({});
 
   const handleData = useCallback((part: { type: string; data?: unknown }) => {
     if (part.type !== "data-movies" || !part.data || typeof part.data !== "object") return;
@@ -37,8 +46,7 @@ export function useFridayChatSession({
       sources as SourceConfig[],
       { filterAdult },
     );
-    // Search has already completed on the server and arrived as trusted application data.
-    // Reuse those exact results in the DAG instead of issuing a second movie search.
+    // Reuse the exact server search results; do not issue a duplicate movie search.
     const workflowAdapters = {
       ...adapters,
       search: async () => movieResults.map((item) => ({
@@ -49,14 +57,50 @@ export function useFridayChatSession({
       })),
     };
 
+    setWorkflowBySearchId((current) => ({
+      ...current,
+      [data.searchId!]: { status: "running" },
+    }));
+
     const taskIdPrefix = `friday-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     void runLibreTVMovieWorkflow({
       query: String(data.keyword || "影视搜索").slice(0, 50),
       taskIdPrefix,
       adapters: workflowAdapters,
       runtime: fridayTaskRuntime,
+    }).then((workflow) => {
+      const sourceOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.source)?.output as
+        | { probes?: Array<{ sourceId: string; reachable: boolean; latencyMs?: number }> }
+        | undefined;
+      const qualityOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.quality)?.output as
+        | { assessments?: Array<{ sourceId: string; status: "probe_only" | "unavailable" | "unknown"; latencyMs: number | null }> }
+        | undefined;
+      const reviewOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.review)?.output as
+        | { accepted?: boolean; findings?: string[]; candidateCount?: number; assessmentCount?: number }
+        | undefined;
+      setWorkflowBySearchId((current) => ({
+        ...current,
+        [data.searchId!]: {
+          status: workflow.results.every((item) => item.status === "succeeded") ? "completed" : "failed",
+          sourceChecks: sourceOutput?.probes ?? [],
+          qualityChecks: qualityOutput?.assessments ?? [],
+          review: reviewOutput && {
+            accepted: reviewOutput.accepted === true,
+            findings: reviewOutput.findings ?? [],
+            candidateCount: reviewOutput.candidateCount ?? movieResults.length,
+            assessmentCount: reviewOutput.assessmentCount ?? 0,
+          },
+        },
+      }));
     }).catch((error) => {
       console.error("[Friday] V3 movie workflow failed:", error);
+      setWorkflowBySearchId((current) => ({
+        ...current,
+        [data.searchId!]: {
+          status: "failed",
+          error: error instanceof Error ? error.message : "任务执行失败",
+        },
+      }));
     });
   }, [sources, filterAdult]);
 
@@ -91,6 +135,7 @@ export function useFridayChatSession({
     error,
     stop,
     setMessages,
+    workflowBySearchId,
     busy: status === "submitted" || status === "streaming",
   };
 }
