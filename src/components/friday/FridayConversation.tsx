@@ -22,15 +22,16 @@ function WorkflowSummary({ workflow }: { workflow: FridayWorkflowView }) {
         <strong>Friday 资源核验</strong>
         <span>{statusLabel}</span>
       </div>
-      {workflow.status === "running" ? <p>正在检查来源连通性并整理可验证证据…</p> : null}
+      {workflow.status === "running" ? <p>正在探测来源并整理片源侧证据…</p> : null}
       {workflow.status === "failed" ? <p>任务未完整完成：{workflow.error || "部分步骤失败"}</p> : null}
       {workflow.sourceChecks ? (
         <div className="friday-workflow-block">
-          <strong>影片-来源探测 · {workflow.sourceChecks.filter((item) => item.reachable).length}/{workflow.sourceChecks.length} 可访问</strong>
+          <strong>影片-来源探测 · {workflow.sourceChecks.filter((item) => item.reachable).length}/{workflow.sourceChecks.length} 次解析请求成功</strong>
+          <p>请求成功仅表示本次片源解析接口返回了有效结果，不代表播放器已成功解码或播放；本阶段不提供真实播放加载速度。</p>
           {workflow.sourceChecks.length ? workflow.sourceChecks.map((item) => (
             <div className="friday-workflow-row" key={item.candidateId || item.sourceId}>
               <span>{item.sourceId}</span>
-              <span>{item.reachable ? "可访问" : "不可访问"}{typeof item.latencyMs === "number" ? ` · ${Math.round(item.latencyMs)} ms` : ""}</span>
+              <span>{item.reachable ? "解析请求成功" : "探测失败"}{typeof item.latencyMs === "number" ? ` · ${Math.round(item.latencyMs)} ms` : ""}</span>
             </div>
           )) : <p>没有可探测的匹配来源。</p>}
         </div>
