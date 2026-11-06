@@ -2,6 +2,7 @@ import hmac
 import io
 import os
 import wave
+import threading
 from pathlib import Path
 
 from fastapi import FastAPI, Header, HTTPException
@@ -20,6 +21,7 @@ if not MODEL_PATH.is_file() or not CONFIG_PATH.is_file():
 
 # Load once at process start; do not reload a 114 MB model for every request.
 voice = PiperVoice.load(str(MODEL_PATH), config_path=str(CONFIG_PATH))
+synthesis_lock = threading.Lock()
 app = FastAPI(title="Friday JARVIS Piper TTS", docs_url=None, redoc_url=None)
 
 
@@ -44,8 +46,9 @@ def synthesize(payload: SpeechRequest, authorization: str | None = Header(defaul
         raise HTTPException(status_code=400, detail="Invalid text")
 
     output = io.BytesIO()
-    with wave.open(output, "wb") as wav_file:
-        voice.synthesize_wav(text, wav_file)
+    with synthesis_lock:
+        with wave.open(output, "wb") as wav_file:
+            voice.synthesize_wav(text, wav_file)
     return Response(
         content=output.getvalue(),
         media_type="audio/wav",
