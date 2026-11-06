@@ -91,6 +91,7 @@ export default function AIFloatingBall({
     error,
     stop,
     setMessages,
+    workflowBySearchId,
     busy,
   } = useFridayChatSession({
     sources: activeSources,
@@ -440,6 +441,7 @@ export default function AIFloatingBall({
             onClose={closePanel}
             messagesRef={messagesRef}
             messages={typedMessages}
+            workflowBySearchId={workflowBySearchId}
             listening={listening}
             busy={busy}
             status={status}
