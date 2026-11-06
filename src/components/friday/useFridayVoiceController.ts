@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type { FridayEvent } from "@/lib/friday/types";
-import { createBrowserTtsProvider, type TtsPlaybackHandle } from "@/components/friday/browserTts";
+import { createFridayTtsProvider, type TtsPlaybackHandle } from "@/components/friday/browserTts";
 
 type SpeechRecognitionAlternativeLike = { transcript: string };
 type SpeechRecognitionResultLike = {
@@ -463,7 +463,7 @@ export function useFridayVoiceController({
       return;
     }
 
-    const provider = createBrowserTtsProvider(language);
+    const provider = createFridayTtsProvider(language);
     if (!provider) {
       setSpeakingState(false);
       setCompleted(true);
