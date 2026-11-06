@@ -10,7 +10,7 @@ export function FridayStyles() {
 
         .friday-root{
           position: fixed;
-          z-index: 2147483000;
+          z-index: 2147483647;
           isolation: isolate;
           right: 16px;
           bottom: max(20px, env(safe-area-inset-bottom, 0px));
@@ -30,7 +30,7 @@ export function FridayStyles() {
           position: fixed;
           right: 16px;
           bottom: max(20px, env(safe-area-inset-bottom, 0px));
-          z-index: 2147483001;
+          z-index: 2147483647;
           display: grid;
           place-items: center;
           width: 68px;
