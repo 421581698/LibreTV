@@ -122,6 +122,7 @@ export default function AIFloatingBall({
   } = useFridayChatSession({
     sources: activeSources,
     filterAdult: activeFilterAdult,
+    language,
   });
 
   const { beginRequest, failActiveRequest, cancelActiveRequest } =
