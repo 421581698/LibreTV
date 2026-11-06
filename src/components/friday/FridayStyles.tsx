@@ -189,20 +189,16 @@ export function FridayStyles() {
           z-index: 30;
           display: grid;
           place-items: center;
-          width: 34px;
-          height: 34px;
+          width: 46px;
+          height: 46px;
           padding: 0;
-          border: 1px solid rgba(255,255,255,.25);
+          border: 0;
           border-radius: 50%;
-          background: rgba(18,22,34,.7);
-          color: rgba(255,255,255,.85);
-          font-family: Georgia,serif;
-          font-size: 15px;
+          background: transparent;
           box-shadow: 0 4px 16px rgba(0,0,0,.22);
-          -webkit-backdrop-filter: blur(12px);
-          backdrop-filter: blur(12px);
           cursor: pointer;
           pointer-events: auto;
+          -webkit-tap-highlight-color: transparent;
         }
 
         .friday-root .friday-panel{
