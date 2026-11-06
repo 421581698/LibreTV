@@ -53,15 +53,35 @@ describe("LibreTV movie workflow", () => {
       assessmentCount: 1,
     });
 
-    for (const taskId of Object.values(result.taskIds)) {
-      const events = await store.read(taskId);
-      expect(events.map((event) => event.type)).toEqual([
+    const expectedEvents = {
+      [result.taskIds.search]: [
         "task.created",
         "task.started",
         "task.progress",
         "task.checkpoint",
         "task.succeeded",
-      ]);
+      ],
+      [result.taskIds.source]: [
+        "task.created",
+        "task.started",
+        "task.progress",
+        "task.succeeded",
+      ],
+      [result.taskIds.quality]: [
+        "task.created",
+        "task.started",
+        "task.succeeded",
+      ],
+      [result.taskIds.review]: [
+        "task.created",
+        "task.started",
+        "task.succeeded",
+      ],
+    } as const;
+
+    for (const [taskId, expected] of Object.entries(expectedEvents)) {
+      const events = await store.read(taskId);
+      expect(events.map((event) => event.type)).toEqual(expected);
     }
   });
 
