@@ -229,7 +229,7 @@ export function useFridayVoiceController({
 
     if (typeof window === "undefined" || !window.isSecureContext) {
       setVoiceSession(false);
-      setVoiceError("语音识别需要安全连接，请使用 HTTPS 网站或 localhost。");
+      setVoiceError(language === "en" ? "Speech recognition requires a secure connection (HTTPS or localhost)." : "语音识别需要安全连接，请使用 HTTPS 网站或 localhost。");
       return;
     }
 
@@ -237,7 +237,7 @@ export function useFridayVoiceController({
       window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognitionClass) {
       setVoiceSession(false);
-      setVoiceError("当前浏览器暂不支持语音识别，请使用键盘输入。");
+      setVoiceError(language === "en" ? "Speech recognition is not supported by this browser. Please type instead." : "当前浏览器暂不支持语音识别，请使用键盘输入。");
       return;
     }
 
@@ -257,10 +257,10 @@ export function useFridayVoiceController({
         type: "VOICE_FAILED",
         sessionId: voiceSessionIdRef.current,
         code: "constructor-failed",
-        message: "无法初始化语音识别，请检查浏览器兼容性或改用键盘输入。",
+        message: language === "en" ? "Could not initialize speech recognition. Check browser compatibility or type instead." : "无法初始化语音识别，请检查浏览器兼容性或改用键盘输入。",
       });
       setVoiceSession(false);
-      setVoiceError("无法初始化语音识别，请检查浏览器兼容性或改用键盘输入。");
+      setVoiceError(language === "en" ? "Could not initialize speech recognition. Check browser compatibility or type instead." : "无法初始化语音识别，请检查浏览器兼容性或改用键盘输入。");
       return;
     }
 
@@ -386,7 +386,7 @@ export function useFridayVoiceController({
         return;
       }
       if (openRef.current && !busyRef.current) {
-        setVoiceError("本次没有识别到完整语音，请点击麦克风继续。");
+        setVoiceError(language === "en" ? "No complete speech was detected. Tap the microphone to try again." : "本次没有识别到完整语音，请点击麦克风继续。");
       }
     };
 
@@ -403,7 +403,7 @@ export function useFridayVoiceController({
           // 忽略已失效实例。
         }
         setVoiceSession(false);
-        setVoiceError("浏览器未能启动语音识别，请再次点击麦克风重试。");
+        setVoiceError(language === "en" ? "The browser could not start speech recognition. Tap the microphone to retry." : "浏览器未能启动语音识别，请再次点击麦克风重试。");
       }, 8000);
 
       // 首次启动必须在用户点击的同步调用链内。
@@ -420,7 +420,7 @@ export function useFridayVoiceController({
         type: "VOICE_FAILED",
         sessionId,
         code: "start-failed",
-        message: "语音识别启动失败",
+        message: language === "en" ? "Speech recognition failed to start." : "语音识别启动失败",
       });
       listeningRef.current = false;
       setListening(false);
@@ -428,12 +428,12 @@ export function useFridayVoiceController({
         recognitionError instanceof Error ? recognitionError.name : "";
       const startErrorMessage =
         errorName === "NotAllowedError" || errorName === "SecurityError"
-          ? "浏览器未授予麦克风权限，请在网站设置中允许麦克风访问。"
+          ? (language === "en" ? "Microphone access was not granted. Allow it in site settings." : "浏览器未授予麦克风权限，请在网站设置中允许麦克风访问。")
           : errorName === "InvalidStateError"
-            ? "语音识别仍在启动，请稍后再点击麦克风。"
+            ? (language === "en" ? "Speech recognition is still starting. Please wait and try again." : "语音识别仍在启动，请稍后再点击麦克风。")
             : automatic
-              ? "浏览器未允许自动恢复麦克风，请点击麦克风继续聆听。"
-              : "语音识别启动失败，请检查麦克风权限后重试。";
+              ? (language === "en" ? "The browser did not allow automatic microphone restart. Tap the microphone to continue." : "浏览器未允许自动恢复麦克风，请点击麦克风继续聆听。")
+              : (language === "en" ? "Speech recognition failed to start. Check microphone permissions and try again." : "语音识别启动失败，请检查麦克风权限后重试。");
       setVoiceSession(false);
       setVoiceError(startErrorMessage);
     }
@@ -448,6 +448,7 @@ export function useFridayVoiceController({
     dispatchMachine,
     setInput,
     handleSendRef,
+    language,
   ]);
 
   useEffect(() => {
