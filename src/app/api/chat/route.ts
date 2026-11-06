@@ -43,6 +43,7 @@ const requestSchema = z.object({
   messages: z.array(z.unknown()).min(1).max(MAX_MESSAGES),
   sources: z.array(sourceSchema).max(MAX_SOURCES).default([]),
   filterAdult: z.boolean().default(true),
+  language: z.enum(["zh", "en"]).default("zh"),
 });
 
 type SearchItem = SearchResultItem;
@@ -345,6 +346,8 @@ export async function POST(request: Request) {
 
   const system = `
 你是 Friday，驻扎在 LibreTV 影视网站的 AI 助手。
+
+你的回复语言必须遵循本次请求的语言设置：${payload.language === "en" ? "English. Reply in natural, concise English unless the user explicitly asks for another language." : "简体中文。除非用户明确要求其他语言，否则使用自然、简洁的简体中文。"}
 
 你的主要任务：
 1. 自然、简洁地回答用户的问题。
