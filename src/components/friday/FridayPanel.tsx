@@ -160,9 +160,9 @@ export function FridayPanel({
                       {language === "en" ? `Local task history · ${restoredTasks.length}` : `本地任务记录 · ${restoredTasks.length}`}
                     </summary>
                     <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: 12, opacity: 0.85 }}>
-                      {restoredTasks.slice(-12).reverse().map((task) => (
+                      {restoredTasks.slice(0, 12).map((task) => (
                         <li key={task.taskId} style={{ margin: "4px 0" }}>
-                          <strong>{task.agent}</strong> · {task.status === "running" ? (language === "en" ? "Interrupted; not auto-resumed" : "上次运行中断，未自动续跑") : task.status === "queued" ? (language === "en" ? "Queued" : "等待执行") : task.status === "succeeded" ? (language === "en" ? "Completed" : "已完成") : task.status === "failed" ? (language === "en" ? "Failed" : "失败") : task.status === "cancelled" ? (language === "en" ? "Cancelled" : "已取消") : (language === "en" ? "Waiting" : "等待中")}
+                          <strong>{task.agent}</strong> · {task.status === "running" ? (language === "en" ? "Last recorded as running; not auto-resumed after reload" : "上次记录为运行中，刷新后未自动续跑") : task.status === "queued" ? (language === "en" ? "Queued" : "等待执行") : task.status === "succeeded" ? (language === "en" ? "Completed" : "已完成") : task.status === "failed" ? (language === "en" ? "Failed" : "失败") : task.status === "cancelled" ? (language === "en" ? "Cancelled" : "已取消") : (language === "en" ? "Waiting" : "等待中")}
                         </li>
                       ))}
                     </ul>
