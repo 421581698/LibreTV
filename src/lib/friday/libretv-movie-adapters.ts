@@ -74,7 +74,7 @@ export function createLibreTVMovieAgentAdapters(
           const payload = await readJson<QualityApiResponse>(response);
           const results = new Map(
             (Array.isArray(payload.results) ? payload.results : [])
-              .map((item) => [`${item.sourceKey}:${item.vodId}`, item]),
+              .map((item): [string, QualityProbeResult] => [`${item.sourceKey}:${item.vodId}`, item]),
           );
           output.push(...batch.map(({ source, candidate, id }) => {
             const result = results.get(`${source.key}:${id}`);
