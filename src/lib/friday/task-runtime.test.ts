@@ -22,4 +22,13 @@ describe("Friday task runtime",()=>{
  it("only records replay requests for retryable failed tasks",async()=>{const runtime=new TaskRuntime(new MemoryStore());await runtime.create(task);await expect(runtime.requestReplay(task)).rejects.toMatchObject({code:"REPLAY_STATE_INVALID"});await runtime.record(task,"task.started");await runtime.record(task,"task.failed",undefined,{code:"BAD_INPUT",message:"Invalid input",retryable:false});await expect(runtime.requestReplay(task)).rejects.toMatchObject({code:"REPLAY_STATE_INVALID"});});
  it("records replay intent before explicitly resuming a retryable task",async()=>{const runtime=new TaskRuntime(new MemoryStore());await runtime.create(task);await runtime.record(task,"task.started");await runtime.record(task,"task.checkpoint",{cursor:"page-3"});await runtime.record(task,"task.failed",undefined,{code:"TEMPORARY",message:"Temporary failure",retryable:true});const replay=await runtime.requestReplay(task);expect(replay.type).toBe("task.replay_requested");expect(replay.payload).toMatchObject({fromSequence:4,checkpoint:{cursor:"page-3"}});const resumed=await runtime.record(task,"task.resumed");expect(resumed).toMatchObject({status:"running",lastSequence:6,error:undefined,checkpoint:{cursor:"page-3"}});});
  it("rebuilds a failed snapshot from immutable events",()=>{const events:TaskEvent[]=[{eventId:"1",taskId:task.taskId,sequence:1,type:"task.created",occurredAt:"2026-11-06T00:00:00Z"},{eventId:"2",taskId:task.taskId,sequence:2,type:"task.started",occurredAt:"2026-11-06T00:00:01Z"},{eventId:"3",taskId:task.taskId,sequence:3,type:"task.failed",occurredAt:"2026-11-06T00:00:02Z",error:{code:"TIMEOUT",message:"Timed out",retryable:true}}];expect(reduceTaskEvents(task,events)).toMatchObject({status:"failed",lastSequence:3,error:{code:"TIMEOUT",retryable:true}})});
+ it("skips legacy events without a persisted task definition during restore",async()=>{
+  const legacyEvent:TaskEvent={eventId:"legacy-1",taskId:task.taskId,sequence:1,type:"task.created",occurredAt:"2026-11-06T00:00:00Z",agent:task.agent};
+  const store:TaskEventStore={append:async()=>{},read:async()=>[],readAll:async()=>[legacyEvent]};
+  await expect(new TaskRuntime(store).restoreAll()).resolves.toEqual([]);
+ });
+ it("remains compatible with event stores that do not implement readAll",async()=>{
+  const store:TaskEventStore={append:async()=>{},read:async()=>[]};
+  await expect(new TaskRuntime(store).restoreAll()).resolves.toEqual([]);
+ });
 });
