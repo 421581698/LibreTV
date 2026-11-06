@@ -22,6 +22,9 @@ export function FridayOrbVisual({ state = "standby" }: FridayOrbVisualProps) {
       <div className="friday-jarvis-core">
         <div className="friday-jarvis-core-light" />
         <div className="friday-jarvis-core-glint" />
+        <div className="friday-jarvis-equalizer" aria-hidden="true">
+          <i /><i /><i /><i /><i />
+        </div>
       </div>
       <div className="friday-jarvis-scan" />
       <div className="friday-jarvis-label">F</div>
