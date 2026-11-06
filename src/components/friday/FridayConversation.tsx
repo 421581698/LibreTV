@@ -67,6 +67,7 @@ export function FridayConversation({
   status,
   error,
   onOpenMovie,
+  language,
 }: {
   messagesRef: RefObject<HTMLDivElement | null>;
   messages: FridayConversationEntry[];
@@ -75,15 +76,18 @@ export function FridayConversation({
   status: string;
   error?: { message?: string } | null;
   onOpenMovie: (movie: MovieItem) => void;
+  language: "zh" | "en";
 }) {
   return (
     <div ref={messagesRef} className="friday-messages">
       {messages.length === 0 ? (
         <div className="friday-welcome">
           <div className="friday-welcome-kicker">YOUR AMBIENT AI</div>
-          <div className="friday-welcome-title">你好，我是 Friday。</div>
+          <div className="friday-welcome-title">{language === "en" ? "Hello, I’m Friday." : "你好，我是 Friday。"}</div>
           <div className="friday-welcome-text">
-            {listening ? "我正在聆听。告诉我你想看什么电影或电视剧。" : "告诉我你想看什么，或者让我帮你寻找更好的影视资源。"}
+            {language === "en"
+              ? (listening ? "I’m listening. Tell me what you want to watch." : "Tell me what you’re looking for, or let me find better video sources.")
+              : (listening ? "我正在聆听。告诉我你想看什么电影或电视剧。" : "告诉我你想看什么，或者让我帮你寻找更好的影视资源。")}
           </div>
         </div>
       ) : null}
@@ -106,10 +110,10 @@ export function FridayConversation({
 
       {busy ? (
         <div className="friday-status">
-          {status === "submitted" ? "Friday 正在接收消息…" : "正在为你寻找合适的影视资源…"}
+          {language === "en" ? (status === "submitted" ? "Friday is receiving your message…" : "Finding titles for you…") : (status === "submitted" ? "Friday 正在接收消息…" : "正在为你寻找合适的影视资源…")}
         </div>
       ) : null}
-      {error ? <div className="friday-error">{error.message || "请求失败，请稍后重试。"}</div> : null}
+      {error ? <div className="friday-error">{error.message || (language === "en" ? "Request failed. Please try again." : "请求失败，请稍后重试。")}</div> : null}
     </div>
   );
 }
