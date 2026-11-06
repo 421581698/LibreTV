@@ -19,12 +19,14 @@ export class DexieTaskEventStore implements TaskEventStore {
       if (existingId) {
         throw new Error("Task event id already exists");
       }
-      const latest = await db.fridayTaskEvents
+      const taskEvents = await db.fridayTaskEvents
         .where("taskId")
         .equals(event.taskId)
-        .reverse()
-        .sortBy("sequence");
-      const maxSequence = latest[0]?.sequence ?? 0;
+        .toArray();
+      const maxSequence = taskEvents.reduce(
+        (max, item) => Math.max(max, item.sequence),
+        0,
+      );
       if (event.sequence !== maxSequence + 1) {
         throw new Error("Task event sequence must be contiguous");
       }
