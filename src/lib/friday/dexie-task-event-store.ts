@@ -1,3 +1,4 @@
+import Dexie from "dexie";
 import { db, type FridayTaskEventEntry } from "../db";
 import type { TaskEvent, TaskEventStore } from "./task-runtime";
 
@@ -42,9 +43,16 @@ export class DexieTaskEventStore implements TaskEventStore {
     return events as TaskEvent[];
   }
 
-  async readAll(): Promise<TaskEvent[]> {
-    const events = await db.fridayTaskEvents.orderBy("occurredAt").toArray();
-    return events as TaskEvent[];
+  async readRecent(): Promise<TaskEvent[]> {
+    // Restore at most 50 newest tasks, then load each selected task's complete event stream.
+    const created = await db.fridayTaskEvents
+      .where("[type+occurredAt]")
+      .between(["task.created", Dexie.minKey], ["task.created", Dexie.maxKey])
+      .reverse()
+      .limit(50)
+      .toArray();
+    const streams = await Promise.all(created.map((event) => this.read(event.taskId)));
+    return streams.flat() as TaskEvent[];
   }
 
   async deleteTask(taskId: string): Promise<void> {
