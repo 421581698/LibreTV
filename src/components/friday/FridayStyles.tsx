@@ -27,7 +27,10 @@ export function FridayStyles() {
         }
 
         .friday-root .friday-fab{
-          position: relative;
+          position: fixed;
+          right: 16px;
+          bottom: max(20px, env(safe-area-inset-bottom, 0px));
+          z-index: 2147483001;
           display: grid;
           place-items: center;
           width: 68px;
@@ -38,7 +41,7 @@ export function FridayStyles() {
           border-radius: 50%;
           background: transparent;
           cursor: grab;
-          touch-action: none;
+          touch-action: manipulation;
           user-select: none;
           -webkit-user-select: none;
           -webkit-tap-highlight-color: transparent;
