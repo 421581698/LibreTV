@@ -471,9 +471,9 @@ export function useFridayVoiceController({
         type: "VOICE_FAILED",
         sessionId: voiceSessionIdRef.current,
         code: "speech-synthesis-unsupported",
-        message: "当前浏览器不支持语音播报。",
+        message: language === "en" ? "Speech synthesis is not supported by this browser." : "当前浏览器不支持语音播报。",
       });
-      setVoiceError("当前浏览器不支持语音播报。");
+      setVoiceError(language === "en" ? "Speech synthesis is not supported by this browser." : "当前浏览器不支持语音播报。");
       scheduleVoiceResume();
       return;
     }
@@ -512,9 +512,9 @@ export function useFridayVoiceController({
             type: "VOICE_FAILED",
             sessionId: voiceSessionIdRef.current,
             code: "speech-synthesis-error",
-            message: "语音播报中断",
+            message: language === "en" ? "Speech was interrupted." : "语音播报中断",
           });
-          setVoiceError("语音播报中断，请继续使用文字或重新开启语音。");
+          setVoiceError(language === "en" ? "Speech was interrupted. Continue typing or turn voice output back on." : "语音播报中断，请继续使用文字或重新开启语音。");
           scheduleVoiceResume();
         },
       });
@@ -528,9 +528,9 @@ export function useFridayVoiceController({
         type: "VOICE_FAILED",
         sessionId: voiceSessionIdRef.current,
         code: "speech-synthesis-start-failed",
-        message: "语音播报启动失败",
+        message: language === "en" ? "Speech playback failed to start." : "语音播报启动失败",
       });
-      setVoiceError("语音播报启动失败，请继续使用文字或重新开启语音。");
+      setVoiceError(language === "en" ? "Could not start speech playback. Continue typing or turn voice output back on." : "语音播报启动失败，请继续使用文字或重新开启语音。");
       scheduleVoiceResume();
     }
   }, [voiceEnabled, language, stopSpeech, scheduleVoiceResume, setVoiceError, dispatchMachine]);
