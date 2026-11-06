@@ -89,6 +89,8 @@ type FridayPanelProps = {
   onToggleExpanded: () => void;
   onHideAssistant: () => void;
   onOpenMovie: (movie: MovieItem) => void;
+  language: "zh" | "en";
+  onLanguageChange: (language: "zh" | "en") => void;
 };
 
 export { getMovieDataForMessage, getPartText } from "@/lib/friday/message";
@@ -106,7 +108,7 @@ export function FridayPanel({
   error, speaking, completed, voiceSessionActive, inputRef, input, setInput,
   onSend, onToggleListening, voiceError, voiceEnabled, onToggleVoiceEnabled,
   onClearConversation, onStopSpeechAndResume, onInterrupt, onToggleExpanded,
-  onHideAssistant, onOpenMovie,
+  onHideAssistant, onOpenMovie, language, onLanguageChange,
 }: FridayPanelProps) {
   const typedMessages = messages;
   const conversationEntries = typedMessages.map((message) => ({
@@ -124,12 +126,13 @@ export function FridayPanel({
                 data-state={auroraState}
                 data-agent-state={agentState}
                 data-voice-state={voiceState}
-                aria-label="Friday AI 助手"
+                aria-label={language === "en" ? "Friday AI assistant" : "Friday AI 助手"}
                 aria-hidden={closing}
                 onAnimationEnd={onAnimationEnd}
               >
                 <div className="friday-canvas-top">
                   <div className="friday-wordmark">Friday</div>
+                  <button type="button" className="friday-tool-btn" aria-label={language === "en" ? "Switch language" : "切换语言"} title={language === "en" ? "Switch to Chinese" : "切换到 English"} onClick={() => onLanguageChange(language === "zh" ? "en" : "zh")}>{language === "zh" ? "中文 / EN" : "EN / 中文"}</button>
     
                   <div className="friday-header-actions">
                     <div className="friday-state-wrap">
@@ -140,8 +143,8 @@ export function FridayPanel({
                     <button
                       type="button"
                       className="friday-close-btn"
-                      title="关闭 Friday"
-                      aria-label="关闭 Friday"
+                      title={language === "en" ? "Close Friday" : "关闭 Friday"}
+                      aria-label={language === "en" ? "Close Friday" : "关闭 Friday"}
                       onClick={onClose}
                     >
                       ×
@@ -157,23 +160,24 @@ export function FridayPanel({
                   status={status}
                   error={error}
                   onOpenMovie={onOpenMovie}
+                  language={language}
                 />
     
                 <div className="friday-orb-stage">
                   <span className="friday-orb-status" role="status" aria-live="polite" aria-atomic="true">
                     {voiceError
-                      ? "语音暂时不可用，可重试或使用文字输入"
+                      ? (language === "en" ? "Voice unavailable — retry or type" : "语音暂时不可用，可重试或使用文字输入")
                       : listening
-                        ? "请说出你想看的影片"
+                        ? (language === "en" ? "Tell me what you want to watch" : "请说出你想看的影片")
                       : busy
-                        ? "正在连接影视资源"
+                        ? (language === "en" ? "Connecting to video sources" : "正在连接影视资源")
                         : speaking
-                          ? "正在为你播报"
+                          ? (language === "en" ? "Speaking" : "正在为你播报")
                           : completed
-                            ? "已经为你准备好了"
+                            ? (language === "en" ? "Ready" : "已经为你准备好了")
                             : voiceSessionActive
-                              ? "等待恢复语音聆听"
-                              : "Friday 随时待命"}
+                              ? (language === "en" ? "Waiting to resume listening" : "等待恢复语音聆听")
+                              : (language === "en" ? "Friday standing by" : "Friday 随时待命")}
                   </span>
     
                   <FridayOrbVisual state={auroraState} />
@@ -198,6 +202,7 @@ export function FridayPanel({
                   onToggleExpanded={onToggleExpanded}
                   expanded={expanded}
                   onHideAssistant={onHideAssistant}
+                  language={language}
                 />
               </section>
   );
