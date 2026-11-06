@@ -256,6 +256,8 @@ export async function createEdgeTtsStream({ text, voice, signal }: TtsOptions): 
       socket.addEventListener("error", onError);
       signal?.addEventListener("abort", onAbort, { once: true });
       timeoutId = setTimeout(() => fail(new Error("Edge TTS synthesis timed out.")), 45000);
+      // Pin binary frames to ArrayBuffer so async Blob decoding cannot reorder audio chunks.
+      socket.binaryType = "arraybuffer";
       socket.accept();
       socket.send(buildSpeechConfig());
       socket.send(buildSsml(makeId(), voice, text));
