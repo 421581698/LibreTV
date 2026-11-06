@@ -14,6 +14,13 @@ describe('legacy AI endpoints require a session', () => {
   beforeEach(() => {
     process.env.PASSWORD = 'test-password-123';
     delete process.env.PROXY_SECRET;
+    delete process.env.AUTH_DISABLED;
+  });
+
+  it('allows preview API requests when AUTH_DISABLED is explicitly enabled', async () => {
+    process.env.AUTH_DISABLED = 'true';
+    const response = await cancelChatPost(request('/api/chat/cancel', {}) as never);
+    expect(response.status).toBe(400);
   });
 
   it('rejects unauthenticated legacy AI chat requests', async () => {
