@@ -6,6 +6,7 @@ import { FridayOrbVisual } from "@/components/friday/FridayOrbVisual";
 import { FridayConversation } from "@/components/friday/FridayConversation";
 import { FridayComposer } from "@/components/friday/FridayComposer";
 import { getMovieDataForMessage, getPartText } from "@/lib/friday/message";
+import type { FridayWorkflowView } from "@/components/friday/useFridayChatSession";
 
 
 export type MovieItem = {
@@ -66,6 +67,7 @@ type FridayPanelProps = {
   onClose: () => void;
   messagesRef: RefObject<HTMLDivElement | null>;
   messages: MessageLike[];
+  workflowBySearchId: Record<string, FridayWorkflowView>;
   listening: boolean;
   busy: boolean;
   status: string;
@@ -100,7 +102,7 @@ export { getMovieDataForMessage, getPartText } from "@/lib/friday/message";
 
 export function FridayPanel({
   expanded, immersive, closing, auroraState, agentState, voiceState, stateLabel,
-  onAnimationEnd, onClose, messagesRef, messages, listening, busy, status,
+  onAnimationEnd, onClose, messagesRef, messages, workflowBySearchId, listening, busy, status,
   error, speaking, completed, voiceSessionActive, inputRef, input, setInput,
   onSend, onToggleListening, voiceError, voiceEnabled, onToggleVoiceEnabled,
   onClearConversation, onStopSpeechAndResume, onInterrupt, onToggleExpanded,
@@ -112,6 +114,7 @@ export function FridayPanel({
     isUser: message.role === "user",
     text: getPartText(message),
     movies: getMovieDataForMessage(message),
+    workflows: workflowBySearchId,
   }));
   return (
               <section
