@@ -17,7 +17,7 @@ export type FridayTtsProvider = {
   speak: (text: string, events: TtsPlaybackEvents) => TtsPlaybackHandle;
 };
 
-export function createBrowserTtsProvider(): FridayTtsProvider | null {
+export function createBrowserTtsProvider(language: "zh" | "en" = "zh"): FridayTtsProvider | null {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) {
     return null;
   }
@@ -25,7 +25,7 @@ export function createBrowserTtsProvider(): FridayTtsProvider | null {
   return {
     speak(text, events) {
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "zh-CN";
+      utterance.lang = language === "en" ? "en-US" : "zh-CN";
       utterance.rate = 1;
       utterance.pitch = 1;
       utterance.onstart = events.onStart;
