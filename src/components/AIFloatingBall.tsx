@@ -543,9 +543,6 @@ export default function AIFloatingBall({
                 : undefined
             }
             onPointerDown={handleFabPointerDown}
-            onPointerMove={handleFabPointerMove}
-            onPointerUp={handleFabPointerUp}
-            onPointerCancel={handleFabPointerCancel}
             onTouchEnd={handleFabTouchEnd}
             onClick={handleFabClick}
           >
