@@ -32,7 +32,7 @@ describe("Friday movie agents", () => {
     expect(result.assessments[0]).toMatchObject({ status: "unknown", latencyMs: null, reachable: null });
   });
 
-  it("does not treat an advertised 4K label as measured quality", async () => {
+  it("does not treat source probing or an advertised 4K label as measured resolution", async () => {
     const agents = createMovieAgentRegistry({ search: async () => [], probe: async () => [] });
     const quality = agents.find((agent) => agent.id === "quality-agent")!;
     const result = await quality.execute(context("quality-agent", {}, {
