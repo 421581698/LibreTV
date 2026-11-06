@@ -82,7 +82,9 @@ export async function POST(request: Request) {
   const authError = guardRequest(request);
   if (authError) return authError;
 
-  if (isRateLimited(request)) return jsonError("Too many speech requests. Please wait and try again.", 429);\n\n  if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) {
+  if (isRateLimited(request)) return jsonError("Too many speech requests. Please wait and try again.", 429);
+
+  if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) {
     return jsonError("Unsupported content type.", 415);
   }
 
