@@ -121,6 +121,91 @@ export default function AIFloatingBall({
     stop,
   });
 
+  const [audioLevel, setAudioLevel] = useState(0);
+
+  // Web Speech API 不暴露原始麦克风波形；在聆听期间通过同源
+  // getUserMedia + Web Audio 做独立分析。权限/设备不可用时静默回退。
+  useEffect(() => {
+    if (!listening || typeof window === "undefined") {
+      setAudioLevel(0);
+      return;
+    }
+
+    let stream: MediaStream | null = null;
+    let audioContext: AudioContext | null = null;
+    let animationFrame = 0;
+    let cancelled = false;
+    let frameCount = 0;
+
+    const startMeter = async () => {
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) return;
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        const AudioContextClass =
+          window.AudioContext ||
+          (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (!AudioContextClass) return;
+
+        audioContext = new AudioContextClass();
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.72;
+        const source = audioContext.createMediaStreamSource(stream);
+        source.connect(analyser);
+        const samples = new Uint8Array(analyser.fftSize);
+
+        const measure = () => {
+          if (cancelled) return;
+          analyser.getByteTimeDomainData(samples);
+          let energy = 0;
+          for (let i = 0; i < samples.length; i += 1) {
+            const normalized = (samples[i] - 128) / 128;
+            energy += normalized * normalized;
+          }
+          const rms = Math.sqrt(energy / samples.length);
+          const level = Math.min(1, Math.max(0, (rms - 0.012) * 5.5));
+          frameCount += 1;
+          if (frameCount % 3 === 0) {
+            setAudioLevel((current) => current * 0.35 + level * 0.65);
+          }
+          animationFrame = window.requestAnimationFrame(measure);
+        };
+
+        if (audioContext.state === "suspended") {
+          await audioContext.resume().catch(() => undefined);
+        }
+        measure();
+      } catch (error) {
+        if (!cancelled) {
+          console.info("[Friday] Microphone meter unavailable; using state animation.", error);
+        }
+      }
+    };
+
+    void startMeter();
+
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(animationFrame);
+      stream?.getTracks().forEach((track) => track.stop());
+      if (audioContext && audioContext.state !== "closed") {
+        void audioContext.close().catch(() => undefined);
+      }
+      setAudioLevel(0);
+    };
+  }, [listening]);
+
   const auroraState: AuroraState = speaking
     ? "speaking"
     : listening
@@ -425,7 +510,7 @@ export default function AIFloatingBall({
             onPointerCancel={handleFabPointerCancel}
             onClick={handleFabClick}
           >
-            <FridayOrbVisual state={auroraState} />
+            <FridayOrbVisual state={auroraState} audioLevel={audioLevel} />
           </button>
         ) : null}
 
