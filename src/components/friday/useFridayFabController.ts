@@ -122,6 +122,17 @@ export function useFridayFabController({
     }
   }, [onOpen]);
 
+  const handleFabPointerCancel = useCallback((event: PointerEvent<HTMLButtonElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    suppressClickRef.current = false;
+    if (dragResetTimerRef.current !== null) {
+      window.clearTimeout(dragResetTimerRef.current);
+      dragResetTimerRef.current = null;
+    }
+  }, []);
+
   const handleFabClick = useCallback(() => {
     if (suppressClickRef.current) {
       suppressClickRef.current = false;
@@ -146,6 +157,7 @@ export function useFridayFabController({
     handleFabPointerDown,
     handleFabPointerMove,
     handleFabPointerUp,
+    handleFabPointerCancel,
     handleFabClick,
     hideAssistant,
     restoreAssistant,
