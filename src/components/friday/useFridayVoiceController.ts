@@ -47,6 +47,7 @@ type Options = {
   handleSendRef: MutableRefObject<
     (text?: string, keepVoiceSession?: boolean) => Promise<void>
   >;
+  language: "zh" | "en";
 };
 
 const MAX_INPUT_LENGTH = 1000;
@@ -84,6 +85,7 @@ export function useFridayVoiceController({
   dispatchMachine,
   setInput,
   handleSendRef,
+  language,
 }: Options) {
   const [listening, setListening] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
@@ -243,7 +245,7 @@ export function useFridayVoiceController({
       return;
     }
 
-    recognition.lang = "zh-CN";
+    recognition.lang = language === "en" ? "en-US" : "zh-CN";
     recognition.continuous = false;
     recognition.interimResults = true;
 
@@ -441,7 +443,7 @@ export function useFridayVoiceController({
       return;
     }
 
-    const provider = createBrowserTtsProvider();
+    const provider = createBrowserTtsProvider(language);
     if (!provider) {
       setSpeakingState(false);
       setCompleted(true);
@@ -511,7 +513,7 @@ export function useFridayVoiceController({
       setVoiceError("语音播报启动失败，请继续使用文字或重新开启语音。");
       scheduleVoiceResume();
     }
-  }, [voiceEnabled, stopSpeech, scheduleVoiceResume, setVoiceError, dispatchMachine]);
+  }, [voiceEnabled, language, stopSpeech, scheduleVoiceResume, setVoiceError, dispatchMachine]);
 
   const toggleVoiceEnabled = useCallback(() => {
     if (voiceEnabled) {
