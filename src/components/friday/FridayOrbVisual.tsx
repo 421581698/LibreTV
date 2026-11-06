@@ -6,15 +6,25 @@ type FridayOrbVisualProps = {
   state?: "standby" | "listening" | "thinking" | "speaking" | "completed";
 };
 
-/** Friday 的纯视觉球体；只呈现传入状态，不持有语音、对话或搜索状态。 */
+/**
+ * Friday JARVIS-inspired holographic core.
+ * Pure presentation only: runtime state is supplied by the existing orchestrator.
+ */
 export function FridayOrbVisual({ state = "standby" }: FridayOrbVisualProps) {
   return (
     <div className="friday-orb-visual" data-state={state} aria-hidden="true">
-      <div className="friday-orb-inner" />
-      <div className="friday-orb-fluid" />
-      <div className="friday-orb-rim" />
-      <div className="friday-orb-glint" />
-      <div className="friday-orb-glint-small" />
+      <div className="friday-jarvis-aura" />
+      <div className="friday-jarvis-ring friday-jarvis-ring-outer" />
+      <div className="friday-jarvis-ticks" />
+      <div className="friday-jarvis-ring friday-jarvis-ring-arcs" />
+      <div className="friday-jarvis-ring friday-jarvis-ring-data" />
+      <div className="friday-jarvis-ring friday-jarvis-ring-inner" />
+      <div className="friday-jarvis-core">
+        <div className="friday-jarvis-core-light" />
+        <div className="friday-jarvis-core-glint" />
+      </div>
+      <div className="friday-jarvis-scan" />
+      <div className="friday-jarvis-label">F</div>
     </div>
   );
 }
