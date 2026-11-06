@@ -12,8 +12,8 @@ import { fridayTaskRuntime } from "@/lib/friday/task-service";
 
 export type FridayWorkflowView = {
   status: "running" | "completed" | "failed";
-  sourceChecks?: Array<{ sourceId: string; reachable: boolean; latencyMs?: number }>;
-  qualityChecks?: Array<{ sourceId: string; status: "probe_only" | "unavailable" | "unknown"; latencyMs: number | null }>;
+  sourceChecks?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean }>;
+  qualityChecks?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null }>;
   review?: { accepted: boolean; findings: string[]; candidateCount: number; assessmentCount: number };
   error?: string;
 };
@@ -53,6 +53,7 @@ export function useFridayChatSession({
         id: `${item.sourceKey}:${item.vodId}`,
         title: item.name,
         sourceId: item.sourceKey,
+        vodId: String(item.vodId),
         evidence: ["server search_movie result"],
       })),
     };
@@ -70,10 +71,10 @@ export function useFridayChatSession({
       runtime: fridayTaskRuntime,
     }).then((workflow) => {
       const sourceOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.source)?.output as
-        | { probes?: Array<{ sourceId: string; reachable: boolean; latencyMs?: number }> }
+        | { probes?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean }> }
         | undefined;
       const qualityOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.quality)?.output as
-        | { assessments?: Array<{ sourceId: string; status: "probe_only" | "unavailable" | "unknown"; latencyMs: number | null }> }
+        | { assessments?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null }> }
         | undefined;
       const reviewOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.review)?.output as
         | { accepted?: boolean; findings?: string[]; candidateCount?: number; assessmentCount?: number }
