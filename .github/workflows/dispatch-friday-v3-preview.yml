@@ -50,12 +50,12 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          PREVIEW_PASSWORD: ${{ secrets.PREVIEW_PASSWORD }}
+          LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY: ${{ secrets.LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY }}
         run: |
           test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing preview secret: CLOUDFLARE_API_TOKEN" && exit 1)
           test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "Missing preview secret: CLOUDFLARE_ACCOUNT_ID" && exit 1)
-          test -n "$PREVIEW_PASSWORD" || (echo "Missing preview secret: PREVIEW_PASSWORD" && exit 1)
-          test "${#PREVIEW_PASSWORD}" -ge 24 || (echo "PREVIEW_PASSWORD must contain at least 24 characters" && exit 1)
+          test -n "$LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY" || (echo "Missing preview secret: LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY" && exit 1)
+          test "${#LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY}" -ge 24 || (echo "LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY must contain at least 24 characters" && exit 1)
 
       - name: Deploy isolated Worker
         env:
@@ -67,5 +67,5 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          PREVIEW_PASSWORD: ${{ secrets.PREVIEW_PASSWORD }}
-        run: printf '%s' "$PREVIEW_PASSWORD" | npx wrangler secret put PASSWORD --config wrangler.preview.toml
+          LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY: ${{ secrets.LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY }}
+        run: printf '%s' "$LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY" | npx wrangler secret put PASSWORD --config wrangler.preview.toml
