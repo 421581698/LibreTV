@@ -42,6 +42,11 @@ export class DexieTaskEventStore implements TaskEventStore {
     return events as TaskEvent[];
   }
 
+  async readAll(): Promise<TaskEvent[]> {
+    const events = await db.fridayTaskEvents.orderBy("occurredAt").toArray();
+    return events as TaskEvent[];
+  }
+
   async deleteTask(taskId: string): Promise<void> {
     await db.transaction("rw", db.fridayTaskEvents, async () => {
       await db.fridayTaskEvents.where("taskId").equals(taskId).delete();
