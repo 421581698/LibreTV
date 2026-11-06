@@ -45,16 +45,26 @@ describe("Friday movie agents", () => {
     });
   });
 
-  it("labels reachability and latency as source probing, never resolution measurement", async () => {
-    const agents = createMovieAgentRegistry({
-      search: async () => [],
-      probe: async () => [{ sourceId: "s1", checkedAt: "now", reachable: true, latencyMs: 85 }],
-    });
+  it("recognizes parsed HLS or segment resolution without claiming playback measurement", async () => {
+    const agents = createMovieAgentRegistry({ search: async () => [], probe: async () => [] });
     const quality = agents.find((agent) => agent.id === "quality-agent")!;
     const result = await quality.execute(context("quality-agent", {}, {
-      source: { probes: [{ sourceId: "s1", checkedAt: "now", reachable: true, latencyMs: 85 }] },
-    })) as { assessments: Array<{ status: string; latencyMs: number | null }> };
-    expect(result.assessments[0]).toMatchObject({ status: "probe_only", latencyMs: 85 });
+      source: { probes: [{ sourceId: "s1", checkedAt: "now", reachable: true, resolutionHeight: 1080 }] },
+    })) as { assessments: Array<{ status: string; resolutionHeight: number | null; evidence: string[] }> };
+    expect(result.assessments[0]).toMatchObject({
+      status: "resolution_detected",
+      resolutionHeight: 1080,
+      evidence: ["quality_probe.completed", "hls_or_segment.resolution_height", "source.reachable"],
+    });
+  });
+
+  it("keeps completed-but-unparseable resolution unknown", async () => {
+    const agents = createMovieAgentRegistry({ search: async () => [], probe: async () => [] });
+    const quality = agents.find((agent) => agent.id === "quality-agent")!;
+    const result = await quality.execute(context("quality-agent", {}, {
+      source: { probes: [{ sourceId: "s1", checkedAt: "now", reachable: true }] },
+    })) as { assessments: Array<{ status: string; resolutionHeight: number | null }> };
+    expect(result.assessments[0]).toMatchObject({ status: "resolution_unknown", resolutionHeight: null });
   });
 
   it("reviews search and quality evidence without inventing missing measurements", async () => {
@@ -62,7 +72,7 @@ describe("Friday movie agents", () => {
     const review = agents.find((agent) => agent.id === "review-agent")!;
     const result = await review.execute(context("review-agent", {}, {
       search: { candidates: [{ id: "m1", title: "Arrival", sourceId: "s1" }] },
-      quality: { assessments: [{ sourceId: "s1", status: "unknown", latencyMs: null, reachable: null, advertisedQualities: ["4K"], evidence: [] }] },
+      quality: { assessments: [{ sourceId: "s1", status: "unknown", resolutionHeight: null, latencyMs: null, reachable: null, advertisedQualities: ["4K"], evidence: [] }] },
     })) as { accepted: boolean; unmatchedCandidates: string[] };
     expect(result).toMatchObject({ accepted: true, unmatchedCandidates: [] });
   });
