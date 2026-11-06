@@ -134,7 +134,8 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
         candidateCount: candidates.length,
         assessmentCount: assessments.length,
         unmatchedCandidates: candidates.filter((candidate) => candidate.sourceId && !assessmentIds.has(candidate.sourceId)).map((item) => item.id),
-        measurementScope: "source_probe_only",\n        note: "This stage measures source reachability and latency only. It does not measure video resolution; advertised quality labels are not proof of playback quality.",
+        measurementScope: "source_probe_only",
+        note: "This stage measures source reachability and latency only. It does not measure video resolution; advertised quality labels are not proof of playback quality.",
       };
     },
   };
