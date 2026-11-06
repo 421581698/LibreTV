@@ -226,16 +226,6 @@ export function useFridayVoiceController({
 
     stopSpeech();
 
-    const previousRecognition = recognitionRef.current;
-    recognitionRef.current = null;
-    if (previousRecognition) {
-      try {
-        previousRecognition.abort();
-      } catch {
-        // 忽略旧实例异常。
-      }
-    }
-
     const sessionId = voiceSessionIdRef.current;
     dispatchMachine({ type: "VOICE_START_REQUESTED", sessionId });
     pendingVoiceTextRef.current = "";
