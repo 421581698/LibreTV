@@ -72,6 +72,29 @@ describe("POST /api/tts", () => {
     }));
   });
 
+  it("selects the Xiaoxiao voice for Chinese requests", async () => {
+    const response = await POST(makeRequest({ text: "你好，Friday。" }));
+
+    expect(response.status).toBe(200);
+    expect(createEdgeTtsStream).toHaveBeenCalledWith(expect.objectContaining({
+      text: "你好，Friday。",
+      voice: "zh-CN-XiaoxiaoNeural",
+    }));
+  });
+
+  it("rejects an upstream stream that completes without audio", async () => {
+    createEdgeTtsStream.mockResolvedValue(new ReadableStream<Uint8Array>({
+      start(controller) { controller.close(); },
+    }));
+
+    const response = await POST(makeRequest({ text: "你好" }));
+
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({
+      error: "Friday voice synthesis is temporarily unavailable.",
+    });
+  });
+
   it("returns a safe gateway error when upstream synthesis fails", async () => {
     createEdgeTtsStream.mockRejectedValue(new Error("upstream details must not leak"));
 
