@@ -24,7 +24,6 @@ describe("Friday DAG orchestrator", () => {
     const result = await runFridayDag({
       tasks,
       runtime,
-      store,
       agents: [
         { id: "search-agent", execute: async () => { order.push("search"); return { count: 2 }; } },
         { id: "review-agent", execute: async ({ dependencyOutputs }) => { order.push("review"); return dependencyOutputs.search; } },
@@ -44,7 +43,6 @@ describe("Friday DAG orchestrator", () => {
         { taskId: "quality", agent: "quality-agent", input: {}, dependsOn: ["probe"] },
       ],
       runtime,
-      store,
       agents: [
         { id: "probe-agent", execute: async () => { throw new Error("probe timeout"); } },
         { id: "quality-agent", execute: async () => { downstreamCalled = true; return {}; } },

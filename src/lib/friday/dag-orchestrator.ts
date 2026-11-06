@@ -2,7 +2,6 @@ import {
   TaskRuntime,
   validateTaskGraph,
   type TaskDefinition,
-  type TaskEventStore,
 } from "./task-runtime";
 
 export type AgentExecutionContext = {
@@ -41,10 +40,9 @@ export async function runFridayDag(args: {
   tasks: TaskDefinition[];
   agents: FridayAgent[];
   runtime: TaskRuntime;
-  store: TaskEventStore;
   signal?: AbortSignal;
 }): Promise<DagRunResult[]> {
-  const { tasks, agents, runtime, store, signal } = args;
+  const { tasks, agents, runtime, signal } = args;
   validateTaskGraph(tasks);
 
   const agentById = new Map(agents.map((agent) => [agent.id, agent]));
