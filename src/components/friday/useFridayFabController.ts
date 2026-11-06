@@ -75,7 +75,7 @@ export function useFridayFabController({
     // the synthesized click after capture. A normal tap is handled by onClick.
   }, [openRef, closingRef]);
 
-  const handleFabPointerMove = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
+  const handleFabPointerMove = useCallback((event: { pointerId: number; clientX: number; clientY: number }) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
 
