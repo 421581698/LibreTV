@@ -123,6 +123,7 @@ export default function AIFloatingBall({
 
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const homeWakeTokenRef = useRef(0);
 
 
   const {
@@ -269,6 +270,7 @@ export default function AIFloatingBall({
   // 首页圆球不再创建自己的 SpeechRecognition；所有语音入口统一走本控制器。
   useEffect(() => {
     const handleHomeOrbToggle = () => {
+      const wakeToken = ++homeWakeTokenRef.current;
       // A second tap during speech interrupts both the current answer and TTS,
       // then uses this fresh user gesture to start recognition immediately.
       if (speaking) {
@@ -308,10 +310,12 @@ export default function AIFloatingBall({
         utterance.pitch = 1;
         setSpeaking(true);
         utterance.onend = () => {
+          if (wakeToken !== homeWakeTokenRef.current) return;
           setSpeaking(false);
           startListening(false);
         };
         utterance.onerror = () => {
+          if (wakeToken !== homeWakeTokenRef.current) return;
           setSpeaking(false);
           setVoiceError("唤醒播报未能完成，正在尝试启动麦克风；如未开始，请再次点击圆球。");
           startListening(false);
