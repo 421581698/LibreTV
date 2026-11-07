@@ -212,6 +212,56 @@ describe("Friday voice session recovery", () => {
     expect(shouldEndVoiceSession("no-speech")).toBe(false);
   });
 
+  it("automatically retries no-speech twice, then waits for a manual tap", async () => {
+    const { controller } = renderController();
+    controller.toggleListening();
+
+    const first = MockRecognition.instances[0];
+    first.errorEvent("no-speech");
+    first.endEvent();
+    await vi.advanceTimersByTimeAsync(700);
+    expect(MockRecognition.instances).toHaveLength(2);
+
+    const second = MockRecognition.instances[1];
+    second.errorEvent("no-speech");
+    second.endEvent();
+    await vi.advanceTimersByTimeAsync(700);
+    expect(MockRecognition.instances).toHaveLength(3);
+
+    const third = MockRecognition.instances[2];
+    third.errorEvent("no-speech");
+    third.endEvent();
+    await vi.advanceTimersByTimeAsync(1400);
+    expect(MockRecognition.instances).toHaveLength(3);
+
+    controller.toggleListening();
+    expect(MockRecognition.instances).toHaveLength(4);
+    expect(MockRecognition.instances[3].start).toHaveBeenCalledTimes(1);
+  });
+
+  it("resets the no-speech retry budget after receiving speech", async () => {
+    const { controller } = renderController();
+    controller.toggleListening();
+
+    const first = MockRecognition.instances[0];
+    first.errorEvent("no-speech");
+    first.endEvent();
+    await vi.advanceTimersByTimeAsync(700);
+
+    const second = MockRecognition.instances[1];
+    second.result("你好", false);
+    second.errorEvent("no-speech");
+    second.endEvent();
+    await vi.advanceTimersByTimeAsync(700);
+
+    expect(MockRecognition.instances).toHaveLength(3);
+    const third = MockRecognition.instances[2];
+    third.errorEvent("no-speech");
+    third.endEvent();
+    await vi.advanceTimersByTimeAsync(700);
+    expect(MockRecognition.instances).toHaveLength(4);
+  });
+
   it("does not treat an intentional abort as a terminal error", () => {
     expect(shouldEndVoiceSession("aborted")).toBe(false);
     expect(shouldEndVoiceSession(undefined)).toBe(false);
