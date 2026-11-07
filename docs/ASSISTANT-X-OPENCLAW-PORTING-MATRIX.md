@@ -73,3 +73,19 @@ A capability is complete only when all applicable items are true:
 5. CI is green on the latest branch head.
 6. Device-dependent behavior is separately verified on target browsers/devices.
 7. Documentation describes actual behavior and limitations accurately.
+
+## Implemented: OpenClaw model-provider routing
+
+The chat route now supports the Gateway's OpenAI-compatible HTTP API while preserving Zhipu as the default provider.
+
+Server-side Cloudflare Worker variables:
+
+- `OPENCLAW_GATEWAY_URL`: public HTTPS Gateway origin (optional path prefix allowed; `/v1` is appended).
+- `OPENCLAW_GATEWAY_TOKEN`: Gateway operator token; keep it in Worker secrets only.
+- `OPENCLAW_AGENT_FRIDAY`, `OPENCLAW_AGENT_JARVIS`, `OPENCLAW_AGENT_LIN_MEIMEI`: explicit server-side Agent IDs for each UI profile.
+
+When both Gateway URL and token are absent, Friday continues to use `ZHIPU_API_KEY` and `glm-4-air`. If only one Gateway credential is present, or the selected profile has no valid Agent ID, the request fails closed with a configuration error rather than silently switching providers.
+
+The selected Agent ID is never accepted from the browser. The server maps the validated assistant profile to its corresponding Worker variable and requests the OpenClaw model name `openclaw/<agentId>` through `/v1/chat/completions`. Gateway URLs must use HTTPS, public DNS hostnames, and must not embed credentials, query strings, or fragments. Literal IP addresses and local hostnames are rejected.
+
+This adapter is implemented and unit-tested. Live Gateway interoperability still requires a user-managed Gateway endpoint, its operator token, and three configured Agent IDs; those credentials must not be committed to the repository. The Gateway bearer token grants operator-level authority, so it must be treated as a high-privilege secret.
