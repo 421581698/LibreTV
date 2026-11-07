@@ -43,11 +43,14 @@ export function HomeSearchSection({
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const finalTranscriptRef = useRef('');
   const errorRef = useRef('');
+  const manualStopRef = useRef(false);
   const [voiceError, setVoiceError] = useState('');
 
   const stopRecognition = () => {
     const recognition = recognitionRef.current;
     if (!recognition) return;
+    manualStopRef.current = true;
+    setVoiceState('IDLE');
     try { recognition.stop(); } catch { /* recognition may already be ending */ }
   };
 
@@ -56,6 +59,7 @@ export function HomeSearchSection({
     setVoiceError('');
     finalTranscriptRef.current = '';
     errorRef.current = '';
+    manualStopRef.current = false;
 
     if (typeof window === 'undefined' || !window.isSecureContext) {
       setVoiceError('语音识别需要 HTTPS 安全连接。');
@@ -112,6 +116,12 @@ export function HomeSearchSection({
       if (recognitionRef.current !== recognition) return;
       recognitionRef.current = null;
       const transcript = finalTranscriptRef.current.trim();
+      if (manualStopRef.current) {
+        manualStopRef.current = false;
+        finalTranscriptRef.current = '';
+        setVoiceState('IDLE');
+        return;
+      }
       if (errorRef.current && errorRef.current !== 'no-speech') {
         setVoiceState('IDLE');
         return;
