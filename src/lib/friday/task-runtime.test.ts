@@ -4,14 +4,18 @@ class MemoryStore implements TaskEventStore { private data=new Map<string,TaskEv
 const task:TaskDefinition={taskId:"movie-search-1",agent:"search-agent",input:{title:"Arrival"}};
 describe("Friday task runtime",()=>{
  it("allows only one concurrent creator to claim a persisted task ID",async()=>{
-  class UniqueStore extends MemoryStore {
+  class UniqueStore implements TaskEventStore {
+   private events=new Map<string,TaskEvent[]>();
    async append(event:TaskEvent) {
-    const existing=await this.read(event.taskId);
-    if(existing.some(item=>item.sequence===event.sequence)||existing.some(item=>item.eventId===event.eventId)) {
+    const list=this.events.get(event.taskId)??[];
+    if(list.some(item=>item.sequence===event.sequence)||[...this.events.values()].flat().some(item=>item.eventId===event.eventId)) {
      throw new Error("Duplicate task event key");
     }
-    return super.append(event);
+    list.push(event);
+    this.events.set(event.taskId,list);
    }
+   async read(taskId:string) { return [...(this.events.get(taskId)??[])]; }
+   async readRecent() { return [...this.events.values()].flat(); }
   }
   const store=new UniqueStore();
   const runtimes=[new TaskRuntime(store),new TaskRuntime(store)];
