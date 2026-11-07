@@ -99,6 +99,8 @@ export interface QualityProbeResult {
   /** Server-side duration of this individual probe; cached results retain the original duration. */
   probeDurationMs?: number;
   cached?: boolean;
+  /** True when the source-side probe failed for a transient reason and may be retried. */
+  transient?: boolean;
 }
 
 // —— API 响应结构 ——
