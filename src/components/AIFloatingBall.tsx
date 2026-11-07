@@ -310,16 +310,14 @@ export default function AIFloatingBall({
 
     stopAllVoice();
 
-    if (busyRef.current) {
-      stop();
-    }
+    // stop/cancel unconditionally: the request may have been submitted
+    // before the AI SDK's busy status reaches this render.
+    stop();
+    cancelActiveRequest();
 
     setClosing(false);
     setOpen(false);
     dispatchMachine({ type: "CLOSE" });
-    if (busyRef.current) {
-      cancelActiveRequest();
-    }
     setExpanded(false);
     setImmersive(false);
   }, [resetPendingMovie, stopAllVoice, stop, cancelActiveRequest]);
@@ -343,11 +341,9 @@ export default function AIFloatingBall({
 
   const interrupt = useCallback(() => {
     stopAllVoice();
-
-    if (busyRef.current) {
-      stop();
-      cancelActiveRequest();
-    }
+    // Do not rely on busyRef here: it can lag the synchronous submit event.
+    stop();
+    cancelActiveRequest();
   }, [stopAllVoice, stop, cancelActiveRequest]);
 
   useFridayResponseController({
