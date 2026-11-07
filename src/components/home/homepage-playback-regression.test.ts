@@ -123,7 +123,8 @@ describe('首页与播放页回归契约', () => {
 
   it('观看历史可恢复播放，播放页提供明确的回首页与返回兜底', () => {
     expect(history).toContain('buildWatchUrl({');
-    expect(history).toContain('href={buildWatchUrl');
+    expect(history).toContain('const href = buildWatchUrl({');
+    expect(history).toContain('href={href}');
     expect(watch).toContain('aria-label="回首页"');
     expect(watch).toContain('href="/"');
     expect(watch).toContain('router.back()');
