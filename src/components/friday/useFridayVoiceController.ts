@@ -101,6 +101,7 @@ export function useFridayVoiceController({
   const microphonePermissionObservedRef = useRef(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const recognitionStartTimerRef = useRef<number | null>(null);
+  const speechSilenceTimerRef = useRef<number | null>(null);
   const playbackRef = useRef<TtsPlaybackHandle | null>(null);
   const voiceActivityInterruptRef = useRef<VoiceActivityInterruptController | null>(null);
   const recognitionErrorRef = useRef("");
@@ -151,6 +152,10 @@ export function useFridayVoiceController({
     if (recognitionStartTimerRef.current !== null) {
       window.clearTimeout(recognitionStartTimerRef.current);
       recognitionStartTimerRef.current = null;
+    }
+    if (speechSilenceTimerRef.current !== null) {
+      window.clearTimeout(speechSilenceTimerRef.current);
+      speechSilenceTimerRef.current = null;
     }
     recognitionRef.current = null;
     listeningRef.current = false;
@@ -281,7 +286,16 @@ export function useFridayVoiceController({
         .slice(0, MAX_INPUT_LENGTH);
       if (recognizedText) {
         setInput(recognizedText);
+        window.dispatchEvent(new CustomEvent("friday-home-transcript", { detail: { text: recognizedText } }));
         noSpeechRetryCountRef.current = 0;
+        if (speechSilenceTimerRef.current !== null) window.clearTimeout(speechSilenceTimerRef.current);
+        // Native Web Speech owns the iOS microphone. Reset a 1.5s result-silence
+        // clock instead of opening a competing getUserMedia VAD stream.
+        speechSilenceTimerRef.current = window.setTimeout(() => {
+          speechSilenceTimerRef.current = null;
+          if (recognitionRef.current !== recognition || sessionId !== voiceSessionIdRef.current) return;
+          try { recognition.stop(); } catch { /* onend dispatches the final segment */ }
+        }, 1500);
       }
 
       if (finalText.trim()) {
@@ -348,6 +362,10 @@ export function useFridayVoiceController({
       if (recognitionStartTimerRef.current !== null) {
         window.clearTimeout(recognitionStartTimerRef.current);
         recognitionStartTimerRef.current = null;
+      }
+      if (speechSilenceTimerRef.current !== null) {
+        window.clearTimeout(speechSilenceTimerRef.current);
+        speechSilenceTimerRef.current = null;
       }
       recognitionRef.current = null;
       listeningRef.current = false;
