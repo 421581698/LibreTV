@@ -623,6 +623,7 @@ export function createFridayOrb(canvas, options){
   }
 
   function setAudioLevel(level){
+    if(state.reduced) return;
     var v = Number(level);
     if(!isFinite(v)) v = 0;
     v = clamp(v / 100, 0, 1);
@@ -718,6 +719,9 @@ export function createFridayOrb(canvas, options){
   function onReduceChange(e){
     state.reduced = !!e.matches;
     if(state.reduced){
+      /* 减少动态效果时冻结相位并禁用音量驱动，保留单帧状态图。 */
+      state.targetEnergy = 0;
+      state.energy = 0;
       stop();
       render();
     }else{
