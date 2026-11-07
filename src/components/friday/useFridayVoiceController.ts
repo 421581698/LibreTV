@@ -19,6 +19,7 @@ type Options = {
   language: "zh" | "en";
   assistantId: "friday" | "jarvis" | "lin-meimei";
   wakeWordEnabled: boolean;
+  onAudioLevel?: (level: number) => void;
 };
 
 const MAX_INPUT_LENGTH = 1000;
@@ -78,6 +79,7 @@ export function useFridayVoiceController({
   language,
   assistantId,
   wakeWordEnabled,
+  onAudioLevel,
 }: Options) {
   const [listening, setListening] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
@@ -503,6 +505,7 @@ export function useFridayVoiceController({
           if (voiceSessionActiveRef.current) {
             const interruptController = createVoiceActivityInterruptController({
               hasPriorMicGrant: () => microphonePermissionObservedRef.current,
+              captureOptions: { onAudioLevel },
               onInterrupt: () => {
                 if (playbackRef.current !== playback) return;
                 playbackRef.current = null;
