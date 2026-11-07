@@ -4,6 +4,7 @@ import {
   Suspense,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 
@@ -61,11 +62,21 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
   const routeQuery = searchParams.get('q') ?? searchParams.get('s') ?? '';
   const [voiceState, setVoiceState] = useState<'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING'>('IDLE');
   const [audioLevel, setAudioLevel] = useState(0);
+  const audioLevelRef = useRef(0);
+  const audioLevelUpdateAtRef = useRef(0);
 
   useEffect(() => {
     const handleAudioLevel = (event: Event) => {
-      const level = (event as CustomEvent<{ level?: number }>).detail?.level;
-      setAudioLevel(typeof level === 'number' && Number.isFinite(level) ? Math.max(0, Math.min(1, level)) : 0);
+      const raw = (event as CustomEvent<{ level?: number }>).detail?.level;
+      const level = typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.min(100, raw)) : 0;
+      const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      /* 音频采样不直接驱动整页 React 重渲染：最多 20 次/秒，静音立即归零。 */
+      if (level !== 0 && now - audioLevelUpdateAtRef.current < 50 && Math.abs(level - audioLevelRef.current) < 2.5) return;
+      if (level === 0 || now - audioLevelUpdateAtRef.current >= 50) {
+        audioLevelRef.current = level;
+        audioLevelUpdateAtRef.current = now;
+        setAudioLevel(level);
+      }
     };
     window.addEventListener('friday-audio-level', handleAudioLevel);
     return () => window.removeEventListener('friday-audio-level', handleAudioLevel);
