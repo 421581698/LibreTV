@@ -59,7 +59,7 @@ export function validateOpenClawGatewayUrl(input: string): string {
   }
 
   const pathname = url.pathname.replace(/\/+$/, "");
-  return `${url.origin}${pathname}/v1`;
+  return `${url.origin}${pathname.endsWith("/v1") ? pathname : `${pathname}/v1`}`;
 }
 
 export function resolveFridayModelConfig(
