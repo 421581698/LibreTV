@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import { createLibreTVMovieAgentAdapters } from "./libretv-movie-adapters";
-import { DagExecutionError } from "./dag-orchestrator";
 import type { SourceConfig } from "../types";
 
 const sources: SourceConfig[] = [
@@ -61,6 +60,5 @@ describe("LibreTV movie agent adapters", () => {
     await expect(adapters.probe({ candidates: [{ id: "alpha:1", vodId: "1", title: "Arrival", sourceId: "alpha" }] }))
       .rejects.toMatchObject({ code: "QUALITY_HTTP_ERROR", retryable: true });
     expect(fetcher).toHaveBeenCalledTimes(1);
-    expect(DagExecutionError).toBeDefined();
   });
 });
