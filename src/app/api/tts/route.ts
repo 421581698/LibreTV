@@ -36,6 +36,7 @@ const requestSchema = z.object({
   text: z.string().trim().min(1).max(1200),
   language: z.enum(["zh", "en"]).default("zh"),
   assistantId: z.enum(["friday", "jarvis", "lin-meimei"]).default("friday"),
+  voiceStyle: z.enum(["auto", "jarvis", "warm", "clear"]).default("auto"),
 });
 
 function jsonError(message: string, status: number) {
@@ -104,6 +105,13 @@ export async function POST(request: Request) {
 
   // The selected profile preset, not a client-supplied voice URL, chooses the engine.
   const voicePreset = getFridayAssistantProfile(payload.assistantId).voicePreset;
+  const selectedVoice = payload.voiceStyle === "jarvis"
+    ? payload.language === "zh" ? "zh-CN-YunxiNeural" : "en-GB-RyanNeural"
+    : payload.voiceStyle === "warm"
+      ? payload.language === "zh" ? "zh-CN-XiaoxiaoNeural" : "en-GB-SoniaNeural"
+      : payload.voiceStyle === "clear"
+        ? payload.language === "zh" ? "zh-CN-XiaoyiNeural" : "en-US-AvaMultilingualNeural"
+        : null;
   if (voicePreset === "piper-jarvis" && process.env.JARVIS_TTS_URL && process.env.JARVIS_TTS_TOKEN) {
     try {
       const piper = await createPiperTtsResponse({ text: payload.text, signal: request.signal });
@@ -127,7 +135,7 @@ export async function POST(request: Request) {
   try {
     const stream = await createEdgeTtsStream({
       text: payload.text,
-      voice: payload.language === "zh"
+      voice: selectedVoice ?? (payload.language === "zh"
         ? voicePreset === "edge-xiaoyi"
           ? "zh-CN-XiaoyiNeural"
           : voicePreset === "piper-jarvis"
@@ -135,7 +143,7 @@ export async function POST(request: Request) {
             : "zh-CN-XiaoxiaoNeural"
         : voicePreset === "piper-jarvis"
           ? "en-GB-RyanNeural"
-          : "en-US-AvaMultilingualNeural",
+          : "en-US-AvaMultilingualNeural"),
       signal: request.signal,
     });
     const audio = await primeAudioStream(stream);
