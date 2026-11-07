@@ -57,8 +57,13 @@ describe("LibreTV movie agent adapters", () => {
   it("does not turn an HTTP failure into a reachable source", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response("bad gateway", { status: 502 }));
     const adapters = createLibreTVMovieAgentAdapters(sources, { fetcher });
-    await expect(adapters.probe({ candidates: [{ id: "alpha:1", vodId: "1", title: "Arrival", sourceId: "alpha" }] }))
-      .rejects.toMatchObject({ code: "QUALITY_HTTP_ERROR", retryable: true });
+    let caught: unknown;
+    try {
+      await adapters.probe({ candidates: [{ id: "alpha:1", vodId: "1", title: "Arrival", sourceId: "alpha" }] });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toMatchObject({ code: "QUALITY_HTTP_ERROR", retryable: true });
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 });
