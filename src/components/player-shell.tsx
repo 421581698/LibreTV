@@ -12,6 +12,7 @@ import {
 } from '@/lib/video-prefetcher';
 import { loadCacheSettings } from '@/lib/video-cache';
 import { formatTime } from '@/lib/utils';
+import { executeFridayPlayerCommand, parseFridayPlayerCommand } from '@/lib/friday/player-control';
 import { prefersTouchPointer } from '@/lib/touch-pointer';
 import {
   findActiveSegment,
@@ -133,6 +134,18 @@ export function PlayerShell({
   // 起播前的品牌占位图（沿用旧版 nomedia 素材），实际开始播放后隐藏
   const [showPoster, setShowPoster] = useState(true);
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const handleFridayPlayerCommand = (event: Event) => {
+      const command = parseFridayPlayerCommand((event as CustomEvent<unknown>).detail);
+      if (!command) return;
+      const ok = executeFridayPlayerCommand(artRef.current, command);
+      window.dispatchEvent(new CustomEvent('friday-player-control-result', { detail: { commandId: command.commandId, ok } }));
+      if (ok) showHint('Friday 已执行播放器指令');
+    };
+    window.addEventListener('friday-player-control', handleFridayPlayerCommand);
+    return () => window.removeEventListener('friday-player-control', handleFridayPlayerCommand);
+  }, []);
 
   // 始终持有最新 props/回调，避免重建播放器
   const propsRef = useRef({
@@ -563,6 +576,7 @@ export function PlayerShell({
       },
     });
     artRef.current = art;
+    window.dispatchEvent(new CustomEvent('friday-player-state', { detail: { active: true } }));
 
     // 进度条区间可视化：初始渲染一次，换集 duration 变化时重绘
     renderSkipMarks();
@@ -937,6 +951,7 @@ export function PlayerShell({
       propsRef.current.onPlayerApi?.(null);
       art.destroy();
       artRef.current = null;
+      window.dispatchEvent(new CustomEvent('friday-player-state', { detail: { active: false } }));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

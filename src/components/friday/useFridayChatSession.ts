@@ -25,6 +25,7 @@ type FridayChatSessionOptions = {
   filterAdult: boolean;
   language: "zh" | "en";
   assistantId: "friday" | "jarvis" | "lin-meimei";
+  playerActive: boolean;
 };
 
 /** Owns Friday's AI SDK transport, chat session and local movie-workflow view state. */
@@ -33,6 +34,7 @@ export function useFridayChatSession({
   filterAdult,
   language,
   assistantId,
+  playerActive,
 }: FridayChatSessionOptions) {
   const mountedRef = useRef(false);
   const processedSearchIds = useRef(new Set<string>());
@@ -58,6 +60,10 @@ export function useFridayChatSession({
 
   const handleData = useCallback((part: { type: string; data?: unknown }) => {
     if (!mountedRef.current) return;
+    if (part.type === "data-player-control" && part.data && typeof part.data === "object") {
+      window.dispatchEvent(new CustomEvent("friday-player-control", { detail: part.data }));
+      return;
+    }
     if (part.type !== "data-movies" || !part.data || typeof part.data !== "object") return;
     const data = part.data as {
       searchId?: string;
@@ -146,9 +152,9 @@ export function useFridayChatSession({
     () =>
       new DefaultChatTransport({
         api: "/api/chat",
-        body: { sources, filterAdult, language, assistantId },
+        body: { sources, filterAdult, language, assistantId, playerActive },
       }),
-    [sources, filterAdult, language, assistantId],
+    [sources, filterAdult, language, assistantId, playerActive],
   );
 
   const {
