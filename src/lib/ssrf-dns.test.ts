@@ -24,6 +24,18 @@ describe('isBlockedByDNS', () => {
     await expect(isBlockedByDNS('https://public.example')).resolves.toBe(false);
   });
 
+  it('兼容某一地址族返回 ENOTFOUND、另一地址族为公网记录', async () => {
+    resolve4.mockResolvedValue(['8.8.8.8']);
+    resolve6.mockRejectedValue(dnsError('ENOTFOUND'));
+    await expect(isBlockedByDNS('https://a-only.example')).resolves.toBe(false);
+  });
+
+  it('A 和 AAAA 都是 ENOTFOUND 时仍拒绝无地址域名', async () => {
+    resolve4.mockRejectedValue(dnsError('ENOTFOUND'));
+    resolve6.mockRejectedValue(dnsError('ENOTFOUND'));
+    await expect(isBlockedByDNS('https://not-found.example')).resolves.toBe(true);
+  });
+
   it('只要任一地址族返回私有地址就拒绝', async () => {
     resolve4.mockResolvedValue(['8.8.8.8']);
     resolve6.mockResolvedValue(['fd00::1234']);
