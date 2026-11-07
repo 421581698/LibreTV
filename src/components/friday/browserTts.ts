@@ -75,7 +75,8 @@ export function createFridayTtsProvider(
 ): FridayTtsProvider | null {
   if (typeof window === "undefined" || typeof Audio === "undefined") return null;
 
-  const browserFallback = createBrowserTtsProvider(language, voiceStyle);
+  const fallbackVoiceStyle = voiceStyle === "auto" && assistantId === "jarvis" ? "jarvis" : voiceStyle;
+  const browserFallback = createBrowserTtsProvider(language, fallbackVoiceStyle);
 
   return {
     speak(text, events) {
