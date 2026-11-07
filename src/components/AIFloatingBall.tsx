@@ -326,6 +326,7 @@ export default function AIFloatingBall({
     },
     [
       input,
+      inlineMode,
       sendMessage,
       beginRequest,
       failActiveRequest,
