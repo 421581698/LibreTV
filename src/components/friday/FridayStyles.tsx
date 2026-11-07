@@ -1033,6 +1033,7 @@ export function FridayStyles() {
 
         /* Canvas sigil owns all motion and colour; keep the wrapper neutral and gold-tinted. */
         .friday-root .friday-orb-visual{
+          display:block;
           overflow:hidden;
           border:1px solid rgba(245,217,154,.38);
           border-radius:50%;
@@ -1044,6 +1045,12 @@ export function FridayStyles() {
           filter:none;
           isolation:isolate;
           transform:translateZ(0);
+        }
+
+        .friday-root .friday-sigil-canvas{
+          display:block;
+          width:100%;
+          height:100%;
         }
 
       `}</style>
