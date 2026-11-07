@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runFridayDag } from "./dag-orchestrator";
+import { DagExecutionError, runFridayDag } from "./dag-orchestrator";
 import { reduceTaskEvents, TaskRuntime, type TaskDefinition, type TaskEvent, type TaskEventStore } from "./task-runtime";
 
 class MemoryStore implements TaskEventStore {
@@ -87,7 +87,7 @@ describe("Friday DAG orchestrator", () => {
         id: "transient-agent",
         execute: async () => {
           calls += 1;
-          if (calls === 1) throw new (await import("./dag-orchestrator")).DagExecutionError("Upstream temporarily unavailable", "UPSTREAM_503", true);
+          if (calls === 1) throw new DagExecutionError("Upstream temporarily unavailable", "UPSTREAM_503", true);
           return { ok: true };
         },
       }],
