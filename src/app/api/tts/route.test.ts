@@ -44,8 +44,8 @@ describe("POST /api/tts", () => {
       status: 200,
       headers: { "content-type": "audio/wav" },
     })));
-    vi.stubEnv("JARVIS_TTS_URL", "https://voice.example.com");
-    vi.stubEnv("JARVIS_TTS_TOKEN", "test-secret");
+    vi.stubEnv("JARVIS_TTS_URL", "");
+    vi.stubEnv("JARVIS_TTS_TOKEN", "");
   });
 
   it("rejects unauthenticated requests before parsing or synthesis", async () => {
@@ -91,6 +91,8 @@ describe("POST /api/tts", () => {
   });
 
   it("uses Piper JARVIS for English when configured", async () => {
+    vi.stubEnv("JARVIS_TTS_URL", "https://voice.example.com");
+    vi.stubEnv("JARVIS_TTS_TOKEN", "test-secret");
     const response = await POST(makeRequest({ text: "Hello Friday", language: "en" }));
 
     expect(response.status).toBe(200);
@@ -103,6 +105,8 @@ describe("POST /api/tts", () => {
   });
 
   it("keeps Chinese on Microsoft Edge even when Piper is configured", async () => {
+    vi.stubEnv("JARVIS_TTS_URL", "https://voice.example.com");
+    vi.stubEnv("JARVIS_TTS_TOKEN", "test-secret");
     const response = await POST(makeRequest({ text: "你好", language: "zh" }));
 
     expect(response.status).toBe(200);
@@ -115,6 +119,8 @@ describe("POST /api/tts", () => {
   });
 
   it("falls back to Microsoft Edge when optional Piper JARVIS fails", async () => {
+    vi.stubEnv("JARVIS_TTS_URL", "https://voice.example.com");
+    vi.stubEnv("JARVIS_TTS_TOKEN", "test-secret");
     createPiperTtsResponse.mockRejectedValueOnce(new Error("Piper unavailable"));
 
     const response = await POST(makeRequest({ text: "Hello Friday", language: "en" }));
