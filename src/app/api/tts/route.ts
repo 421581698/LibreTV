@@ -51,7 +51,7 @@ async function primeAudioStream(stream: ReadableStream<Uint8Array>) {
   const firstChunk = await reader.read();
   if (firstChunk.done || !firstChunk.value?.byteLength) {
     await reader.cancel();
-    throw new Error("Edge TTS returned an empty audio stream.");
+    throw new Error("TTS upstream returned an empty audio stream.");
   }
 
   let firstChunkPending = true;
