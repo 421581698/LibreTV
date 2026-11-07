@@ -71,10 +71,12 @@ export function createVoiceActivityInterruptController(
         if (runId !== generation) return false;
 
         interrupted = false;
-        const nextCapture = createCapture({
-          ...options.captureOptions,
-          onError: options.onError,
-          onEvent: (event) => {
+        let nextCapture: BrowserVadCapture;
+        try {
+          nextCapture = createCapture({
+            ...options.captureOptions,
+            onError: options.onError,
+            onEvent: (event) => {
             if (event.type !== "speechstart" || !armed || interrupted || runId !== generation) {
               return;
             }
@@ -82,13 +84,17 @@ export function createVoiceActivityInterruptController(
             armed = false;
             const current = capture;
             capture = null;
-            void current?.stop().then(() => {
-              if (runId === generation) void options.onInterrupt();
-            }).catch((error: unknown) => {
-              options.onError?.(error instanceof Error ? error : new Error("Unable to release VAD capture"));
-            });
-          },
-        });
+              void current?.stop().then(async () => {
+                if (runId === generation) await options.onInterrupt();
+              }).catch((error: unknown) => {
+                options.onError?.(error instanceof Error ? error : new Error("VAD interruption failed"));
+              });
+            },
+          });
+        } catch (error) {
+          options.onError?.(error instanceof Error ? error : new Error("Unable to create VAD capture"));
+          return false;
+        }
         capture = nextCapture;
         try {
           await nextCapture.start();
