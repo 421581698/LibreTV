@@ -16,6 +16,7 @@ import { searchSources, mergeSearchResults } from "@/lib/search";
 import type { SearchResultItem, SourceConfig, SourceSearchOutcome } from "@/lib/types";
 import { guardRequest } from "@/lib/api-guard";
 import { buildFridayAssistantSystemPrompt } from "@/lib/friday/assistant-profiles";
+import { resolveFridayModelConfig } from "@/lib/friday/model-provider";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -310,41 +311,29 @@ export async function POST(request: Request) {
     return jsonError("请输入内容", 400);
   }
 
-  let apiKey: string | undefined;
+  let env: Record<string, unknown>;
 
   try {
-    const { env } = getCloudflareContext();
-
-    apiKey = (
-      env as { ZHIPU_API_KEY?: string }
-    ).ZHIPU_API_KEY;
+    const context = getCloudflareContext();
+    env = context.env as Record<string, unknown>;
   } catch (error) {
-    console.error(
-      "[Friday] Cloudflare context unavailable:",
-      error,
-    );
-
+    console.error("[Friday] Cloudflare context unavailable:", error);
     return jsonError("服务器环境配置不可用", 500);
   }
 
-  if (!apiKey) {
-    console.error(
-      "[Friday] Missing Cloudflare binding: ZHIPU_API_KEY",
-    );
-
-    return jsonError(
-      "AI 服务尚未配置，请检查服务器密钥",
-      503,
-    );
+  let model;
+  try {
+    const modelConfig = resolveFridayModelConfig(env, payload.assistantId);
+    const provider = createOpenAICompatible({
+      name: modelConfig.providerName,
+      apiKey: modelConfig.apiKey,
+      baseURL: modelConfig.baseURL,
+    });
+    model = provider(modelConfig.modelName);
+  } catch (error) {
+    console.error("[Friday] Model configuration invalid:", error instanceof Error ? error.message : "unknown");
+    return jsonError("AI 服务配置不完整或无效，请检查服务器环境变量", 503);
   }
-
-  const provider = createOpenAICompatible({
-    name: "zhipu",
-    apiKey,
-    baseURL: MODEL_BASE_URL,
-  });
-
-  const model = provider(MODEL_NAME);
 
   const system = buildFridayAssistantSystemPrompt(
     payload.assistantId,
