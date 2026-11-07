@@ -519,6 +519,7 @@ export async function POST(request: Request) {
 
         onStepFinish: async ({ toolResults }) => {
           for (const toolResult of toolResults) {
+            if (!toolResult) continue;
             if (toolResult.toolName === "control_player") {
               const output = toolResult.output as { ok?: boolean; commandId?: string } | undefined;
               if (!output?.ok || !output.commandId) continue;
