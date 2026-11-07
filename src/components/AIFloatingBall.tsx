@@ -11,7 +11,7 @@ import React, {
 import { createPortal } from "react-dom";
 import { FridayStyles } from "@/components/friday/FridayStyles";
 import { fridayReducer, initialFridayState } from "@/lib/friday/state";
-import { FridayOrbVisual } from "@/components/friday/FridayOrbVisual";
+import FridayOrb from "@/components/friday/FridayOrb";
 import { FridayPanel, getPartText, getMovieDataForMessage } from "@/components/friday/FridayPanel";
 import type { MovieItem } from "@/components/friday/FridayPanel";
 import { useFridayVoiceController } from "@/components/friday/useFridayVoiceController";
@@ -185,7 +185,7 @@ export default function AIFloatingBall({
 
   // The VAD interrupt controller owns its microphone only during TTS playback;
   // its RMS callback drives the orb meter without opening a competing ASR stream.
-  const auroraState: AuroraState = speaking
+  const fridayOrbState = auroraState === "listening" ? "LISTENING"\n    : auroraState === "thinking" ? "THINKING"\n    : auroraState === "speaking" ? "SPEAKING" : "IDLE";\n\n  const auroraState: AuroraState = speaking
     ? "speaking"
     : listening
       ? "listening"
@@ -487,7 +487,7 @@ export default function AIFloatingBall({
             onPointerDown={handleFabPointerDown}
             onClick={handleFabClick}
           >
-            <FridayOrbVisual state={auroraState} audioLevel={audioLevel} />
+            <FridayOrb state={fridayOrbState} audioLevel={audioLevel} theme="auto" />
           </button>
         ) : null}
 
@@ -545,7 +545,7 @@ export default function AIFloatingBall({
           title="恢复 Friday"
           onClick={restoreAssistant}
         >
-          <FridayOrbVisual state="standby" />
+          <FridayOrb state="IDLE" theme="auto" interactive={false} />
         </button>
       ) : null}
       </div>
