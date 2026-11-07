@@ -134,7 +134,10 @@ export default function AIFloatingBall({
     lastSpokenMessageRef,
   } = useFridayVoiceController({
     busyRef, openRef, closingRef, dispatchMachine, setInput, handleSendRef, language, assistantId, wakeWordEnabled,
-    onAudioLevel: setAudioLevel,
+    onAudioLevel: (level) => {
+      setAudioLevel(level);
+      window.dispatchEvent(new CustomEvent('friday-audio-level', { detail: { level } }));
+    },
   });
 
   const { activeSources, activeFilterAdult } = useFridaySources(sources, filterAdult);
