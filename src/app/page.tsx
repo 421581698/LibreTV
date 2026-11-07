@@ -66,7 +66,9 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
   const audioLevelUpdateAtRef = useRef(0);
 
   useEffect(() => {
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)');
     const handleAudioLevel = (event: Event) => {
+      if (reduceMotion?.matches) return;
       const raw = (event as CustomEvent<{ level?: number }>).detail?.level;
       const level = typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.min(100, raw)) : 0;
       const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
