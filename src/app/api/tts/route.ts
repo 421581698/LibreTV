@@ -112,7 +112,7 @@ export async function POST(request: Request) {
       : payload.voiceStyle === "clear"
         ? payload.language === "zh" ? "zh-CN-XiaoyiNeural" : "en-US-AvaMultilingualNeural"
         : null;
-  if (voicePreset === "piper-jarvis" && process.env.JARVIS_TTS_URL && process.env.JARVIS_TTS_TOKEN) {
+  if (voicePreset === "piper-jarvis" && (payload.voiceStyle === "auto" || payload.voiceStyle === "jarvis") && process.env.JARVIS_TTS_URL && process.env.JARVIS_TTS_TOKEN) {
     try {
       const piper = await createPiperTtsResponse({ text: payload.text, signal: request.signal });
       if (!piper.body) throw new Error("JARVIS TTS returned an empty body.");
