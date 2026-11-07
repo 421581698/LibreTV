@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Dispatch, RefObject, SetStateAction } from 'react';
 import { SearchHistoryDropdown, useSearchHistory } from '@/components/search-history';
 import { Icon } from '@/components/icon';
@@ -8,18 +8,6 @@ import { cn } from '@/lib/utils';
 
 type SearchHistoryState = ReturnType<typeof useSearchHistory>;
 type VoiceState = 'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING';
-type SpeechResultLike = { 0?: { transcript?: string }; isFinal?: boolean };
-type SpeechEventLike = Event & { results: ArrayLike<SpeechResultLike> };
-type SpeechRecognitionLike = {
-  lang: string; continuous: boolean; interimResults: boolean;
-  onstart: (() => void) | null;
-  onresult: ((event: SpeechEventLike) => void) | null;
-  onerror: ((event: Event & { error?: string }) => void) | null;
-  onend: (() => void) | null;
-  start: () => void; stop: () => void; abort: () => void;
-};
-type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
-
 type HomeSearchSectionProps = {
   urlQuery: string;
   input: string;
@@ -35,153 +23,42 @@ type HomeSearchSectionProps = {
   showQuickSearches?: boolean;
 };
 
-/** 首页搜索框复用为语音识别文本显示器；识别结束后直接刷新本页搜索结果。 */
+/** 首页只负责展示与发出语音意图；ASR 生命周期统一由 Friday voice controller 管理。 */
 export function HomeSearchSection({
   urlQuery, input, setInput, inputRef, searchHistory, runSearch, runSearchInPlace,
   pickHistory, voiceState, setVoiceState, showBrandTitle = true, showQuickSearches = false,
 }: HomeSearchSectionProps) {
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const finalTranscriptRef = useRef('');
-  const errorRef = useRef('');
-  const manualStopRef = useRef(false);
   const [voiceError, setVoiceError] = useState('');
 
-  const stopRecognition = () => {
-    const recognition = recognitionRef.current;
-    if (!recognition) return;
-    manualStopRef.current = true;
-    setVoiceState('IDLE');
-    try { recognition.stop(); } catch {
-      manualStopRef.current = false;
-      recognitionRef.current = null;
-      try { recognition.abort(); } catch { /* recognition may already be closed */ }
-      setVoiceState('IDLE');
-    }
-  };
-
-  const startListening = () => {
-    if (recognitionRef.current) return;
-    setVoiceError('');
-    finalTranscriptRef.current = '';
-    errorRef.current = '';
-    manualStopRef.current = false;
-
-    if (typeof window === 'undefined' || !window.isSecureContext) {
-      setVoiceError('语音识别需要 HTTPS 安全连接。');
-      setVoiceState('IDLE');
-      return;
-    }
-    const speechWindow = window as unknown as {
-      SpeechRecognition?: SpeechRecognitionConstructor;
-      webkitSpeechRecognition?: SpeechRecognitionConstructor;
-    };
-    const Recognition = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
-    if (!Recognition) {
-      setVoiceError('当前浏览器不支持语音识别，请使用搜索框输入。');
-      setVoiceState('IDLE');
-      return;
-    }
-
-    let recognition: SpeechRecognitionLike;
-    try { recognition = new Recognition(); }
-    catch {
-      setVoiceError('无法启动语音识别，请检查麦克风权限。');
-      setVoiceState('IDLE');
-      return;
-    }
-
-    recognition.lang = 'zh-CN';
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.onstart = () => setVoiceError('');
-    recognition.onresult = (event) => {
-      let finalText = '';
-      let interimText = '';
-      for (let i = 0; i < event.results.length; i += 1) {
-        const result = event.results[i];
-        const transcript = result?.[0]?.transcript?.trim() ?? '';
-        if (!transcript) continue;
-        if (result.isFinal) finalText += transcript;
-        else interimText += transcript;
-      }
-      const visible = (finalText || interimText).trim().slice(0, 100);
-      if (visible) setInput(visible);
-      if (finalText.trim()) finalTranscriptRef.current = finalText.trim().slice(0, 100);
-    };
-    recognition.onerror = (event) => {
-      const code = (event as Event & { error?: string }).error || 'unknown';
-      errorRef.current = code;
-      if (code === 'not-allowed' || code === 'service-not-allowed') {
-        setVoiceError('麦克风权限被拒绝，请在 Safari 网站设置中允许麦克风。');
-      } else if (code !== 'aborted' && code !== 'no-speech') {
-        setVoiceError('语音识别暂时不可用，请检查网络后重试。');
+  useEffect(() => {
+    const handleVoiceState = (event: Event) => {
+      const next = (event as CustomEvent<{ state?: VoiceState }>).detail?.state;
+      if (next && ['IDLE', 'LISTENING', 'THINKING', 'SPEAKING'].includes(next)) {
+        setVoiceState(next);
       }
     };
-    recognition.onend = () => {
-      if (recognitionRef.current !== recognition) return;
-      recognitionRef.current = null;
-      const transcript = finalTranscriptRef.current.trim();
-      if (manualStopRef.current) {
-        manualStopRef.current = false;
-        finalTranscriptRef.current = '';
-        setVoiceState('IDLE');
-        return;
-      }
-      if (errorRef.current && errorRef.current !== 'no-speech') {
-        setVoiceState('IDLE');
-        return;
-      }
-      if (!transcript) {
-        setVoiceState('IDLE');
-        return;
-      }
-      setInput(transcript);
-      setVoiceState('THINKING');
-      if (!runSearchInPlace(transcript)) setVoiceState('IDLE');
+    const handleVoiceError = (event: Event) => {
+      const message = (event as CustomEvent<{ message?: string }>).detail?.message;
+      setVoiceError(typeof message === 'string' ? message : '');
     };
-
-    recognitionRef.current = recognition;
-    setVoiceState('LISTENING');
-    try {
-      // 必须在圆球真实点击触发的同步事件链中调用 start，兼容 iOS Safari。
-      recognition.start();
-    } catch (error) {
-      recognitionRef.current = null;
-      setVoiceState('IDLE');
-      const name = error instanceof Error ? error.name : '';
-      setVoiceError(name === 'NotAllowedError' || name === 'SecurityError'
-        ? '浏览器未授予麦克风权限，请允许网站访问麦克风。'
-        : '语音识别启动失败，请再次点击圆球重试。');
-    }
-  };
+    const handleTranscript = (event: Event) => {
+      const text = (event as CustomEvent<{ text?: string }>).detail?.text?.trim();
+      if (text) setInput(text.slice(0, 100));
+    };
+    window.addEventListener('friday-home-voice-state', handleVoiceState);
+    window.addEventListener('friday-home-voice-error', handleVoiceError);
+    window.addEventListener('friday-home-transcript', handleTranscript);
+    return () => {
+      window.removeEventListener('friday-home-voice-state', handleVoiceState);
+      window.removeEventListener('friday-home-voice-error', handleVoiceError);
+      window.removeEventListener('friday-home-transcript', handleTranscript);
+    };
+  }, [setInput, setVoiceState]);
 
   const toggleOrbVoice = () => {
-    if (voiceState === 'LISTENING') {
-      stopRecognition();
-      return;
-    }
-    if (voiceState === 'SPEAKING') {
-      window.speechSynthesis?.cancel();
-      setVoiceState('LISTENING');
-      startListening();
-      return;
-    }
-    if (voiceState === 'THINKING') return;
-    startListening();
+    // The central Friday controller owns the only SpeechRecognition instance.
+    window.dispatchEvent(new CustomEvent('friday-home-orb-toggle'));
   };
-
-  useEffect(() => {
-    const handleOrbToggle = () => toggleOrbVoice();
-    window.addEventListener('friday-home-orb-toggle', handleOrbToggle);
-    return () => window.removeEventListener('friday-home-orb-toggle', handleOrbToggle);
-  });
-
-  useEffect(() => () => {
-    const recognition = recognitionRef.current;
-    recognitionRef.current = null;
-    try { recognition?.abort(); } catch { /* ignore unmount cleanup */ }
-    window.speechSynthesis?.cancel();
-  }, []);
 
   const placeholder = voiceState === 'LISTENING'
     ? '正在聆听，请说…'
