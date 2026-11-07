@@ -48,9 +48,19 @@ export function useFridayResponseController({
   setVoiceError,
 }: FridayResponseControllerOptions) {
   const lastCompletedMessageRef = useRef("");
+  const previousStatusRef = useRef(status);
 
   useEffect(() => {
-    if (status !== "ready" || !open) return;
+    const previousStatus = previousStatusRef.current;
+    previousStatusRef.current = status;
+
+    // Only handle a response when the active request transitions from busy to
+    // ready. Reopening the panel while the chat is already ready must not replay
+    // an old assistant message or restart voice output from a prior session.
+    const completedActiveRequest =
+      (previousStatus === "submitted" || previousStatus === "streaming") &&
+      status === "ready";
+    if (!completedActiveRequest || !open) return;
 
     const lastAssistant = [...messages]
       .reverse()
