@@ -48,7 +48,8 @@ export async function runFridayDag(args: {
   maxAttempts?: number;
 }): Promise<DagRunResult[]> {
   const { tasks, agents, runtime, signal } = args;
-  const maxAttempts = Math.max(1, Math.min(3, Math.floor(args.maxAttempts ?? 2)));
+  const requestedAttempts = Number.isFinite(args.maxAttempts) ? Math.floor(args.maxAttempts as number) : 2;
+  const maxAttempts = Math.max(1, Math.min(3, requestedAttempts));
   validateTaskGraph(tasks);
 
   const agentById = new Map(agents.map((agent) => [agent.id, agent]));
