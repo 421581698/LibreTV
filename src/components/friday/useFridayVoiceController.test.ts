@@ -338,6 +338,9 @@ describe("Friday voice session recovery", () => {
 
     expect(failed.abort).toHaveBeenCalledTimes(1);
     controller.toggleListening();
+    expect(MockRecognition.instances).toHaveLength(1);
+    // Wait for the Safari release watchdog and the 200ms hand-off buffer.
+    await vi.advanceTimersByTimeAsync(1100);
     expect(MockRecognition.instances).toHaveLength(2);
     expect(MockRecognition.instances[1].start).toHaveBeenCalledTimes(1);
   });
