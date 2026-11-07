@@ -2,6 +2,7 @@ import { z } from "zod";
 import { guardRequest } from "@/lib/api-guard";
 import { createEdgeTtsStream } from "@/lib/friday/edgeTts";
 import { createPiperTtsResponse } from "@/lib/friday/piperTts";
+import { getFridayAssistantProfile } from "@/lib/friday/assistant-profiles";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -101,10 +102,9 @@ export async function POST(request: Request) {
 
   if (request.signal.aborted) return new Response(null, { status: 499 });
 
-  // Role voice routing is server-owned. Jarvis prefers the configured Piper
-  // endpoint; Friday and Lin Meimei use distinct Edge voices. All routes have
-  // a deterministic browser fallback on the client.
-  if (payload.assistantId === "jarvis" && process.env.JARVIS_TTS_URL && process.env.JARVIS_TTS_TOKEN) {
+  // The selected profile preset, not a client-supplied voice URL, chooses the engine.
+  const voicePreset = getFridayAssistantProfile(payload.assistantId).voicePreset;
+  if (voicePreset === "piper-jarvis" && process.env.JARVIS_TTS_URL && process.env.JARVIS_TTS_TOKEN) {
     try {
       const piper = await createPiperTtsResponse({ text: payload.text, signal: request.signal });
       if (!piper.body) throw new Error("JARVIS TTS returned an empty body.");
@@ -128,7 +128,7 @@ export async function POST(request: Request) {
     const stream = await createEdgeTtsStream({
       text: payload.text,
       voice: payload.language === "zh"
-        ? payload.assistantId === "lin-meimei" ? "zh-CN-XiaoyiNeural" : "zh-CN-XiaoxiaoNeural"
+        ? voicePreset === "edge-xiaoyi" ? "zh-CN-XiaoyiNeural" : "zh-CN-XiaoxiaoNeural"
         : "en-US-AvaMultilingualNeural",
       signal: request.signal,
     });
@@ -140,7 +140,7 @@ export async function POST(request: Request) {
         "Content-Type": "audio/mpeg",
         "Cache-Control": "no-store",
         "X-Content-Type-Options": "nosniff",
-        "X-Friday-TTS-Engine": payload.assistantId === "lin-meimei" && payload.language === "zh" ? "edge-xiaoyi" : "microsoft-edge",
+        "X-Friday-TTS-Engine": voicePreset === "edge-xiaoyi" && payload.language === "zh" ? "edge-xiaoyi" : "microsoft-edge",
       },
     });
   } catch (error) {
