@@ -318,7 +318,7 @@ export function useFridayVoiceController({
       if (finalText.trim()) {
         let commandText = finalText.trim();
         if (wakeWordEnabled) {
-          const wakePrefix = commandText.match(/^(?:(?:嘿|嗨|喂)\\s*)?(?:friday|弗莱迪)[，,、:：\\s-]*/i);
+          const wakePrefix = commandText.match(/^(?:(?:嘿|嗨|喂)\s*)?(?:friday|弗莱迪)[，,、:：\s-]*/i);
           if (!wakePrefix || !commandText.slice(wakePrefix[0].length).trim()) {
             pendingVoiceTextRef.current = "";
             setInput("");
