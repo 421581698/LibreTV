@@ -558,7 +558,8 @@ export function createFridayOrb(canvas, options){
       flashAt: state.flashAt,
       energy: state.energy,
       activity: state.activity,
-      quality: opts.quality || 0
+      quality: opts.quality || 0,
+      showHud: opts.showHud !== false
     });
     state.frames++;
   }
