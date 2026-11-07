@@ -14,7 +14,7 @@ export const FRIDAY_ASSISTANT_PROFILES = {
   "lin-meimei": {
     id: "lin-meimei",
     name: "林妹妹",
-    voicePreset: "melo-zh",
+    voicePreset: "edge-xiaoyi",
     persona: "你是一位温柔、细腻、略带古典语感的中文 AI 助手。表达亲切、俏皮但不过度撒娇，始终尊重用户，不擅自使用亲属称呼。",
   },
 } as const;
