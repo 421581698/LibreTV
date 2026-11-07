@@ -236,6 +236,42 @@ describe("Friday voice session recovery", () => {
     expect(MockRecognition.instances[1].start).toHaveBeenCalledTimes(1);
   });
 
+  it("ignores late events from a replaced recognition instance", () => {
+    const { controller, input, sent } = renderController();
+    controller.toggleListening();
+    const oldRecognition = MockRecognition.instances[0];
+    oldRecognition.startEvent();
+    oldRecognition.endEvent();
+
+    controller.startListeningRef.current(false);
+    const currentRecognition = MockRecognition.instances[1];
+    expect(currentRecognition).toBeDefined();
+
+    oldRecognition.result("过期的旧会话文本", true);
+    oldRecognition.endEvent();
+
+    expect(input).not.toHaveBeenCalledWith("过期的旧会话文本");
+    expect(sent).not.toHaveBeenCalled();
+    expect(currentRecognition.start).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not resume twice when speech playback is interrupted", async () => {
+    const { controller } = renderController();
+    controller.toggleListening();
+    const first = MockRecognition.instances[0];
+    first.startEvent();
+    first.endEvent();
+
+    controller.speakText("正在播报", "message-interrupt");
+    const playback = harness.playbackEvents;
+    controller.stopSpeechAndResume();
+    playback?.onEnd();
+
+    await vi.advanceTimersByTimeAsync(700);
+    expect(MockRecognition.instances).toHaveLength(2);
+    expect(MockRecognition.instances[1].start).toHaveBeenCalledTimes(1);
+  });
+
   it("does not restart listening after the panel closes", async () => {
     const { controller } = renderController();
     controller.toggleListening();
