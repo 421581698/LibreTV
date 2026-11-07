@@ -120,7 +120,7 @@ export default function AIFloatingBall({
     stopSpeechAndResume, toggleListening, setVoiceError, setCompleted,
     lastSpokenMessageRef,
   } = useFridayVoiceController({
-    busyRef, openRef, closingRef, dispatchMachine, setInput, handleSendRef, language,
+    busyRef, openRef, closingRef, dispatchMachine, setInput, handleSendRef, language, assistantId,
   });
 
   const { activeSources, activeFilterAdult } = useFridaySources(sources, filterAdult);
