@@ -89,6 +89,8 @@ export function useFridayChatSession({
       runtime: fridayTaskRuntime,
       signal: controller.signal,
     }).then((workflow) => {
+      // A stopped or superseded workflow must never overwrite the current conversation UI.
+      if (activeWorkflowControllers.current.get(data.searchId!) !== controller || controller.signal.aborted) return;
       activeWorkflowControllers.current.delete(data.searchId!);
       const sourceOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.source)?.output as
         | { probes?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean }> }
@@ -114,6 +116,8 @@ export function useFridayChatSession({
         },
       }));
     }).catch((error) => {
+      // Abort is an expected lifecycle event, not a failed workflow to display to the user.
+      if (activeWorkflowControllers.current.get(data.searchId!) !== controller || controller.signal.aborted) return;
       activeWorkflowControllers.current.delete(data.searchId!);
       console.error("[Friday] V3 movie workflow failed:", error);
       setWorkflowBySearchId((current) => ({
