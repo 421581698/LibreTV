@@ -54,7 +54,7 @@ export class TaskRuntimeError extends Error {
     this.name = "TaskRuntimeError";
   }
 }
-const TERMINAL = new Set<TaskStatus>(["succeeded", "cancelled", "failed"]);
+const TERMINAL = new Set<TaskStatus>(["succeeded", "cancelled"]);
 function assertSafeId(value: string, label: string): void {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/.test(value)) {
     throw new TaskRuntimeError("Invalid " + label, "INVALID_ID");
