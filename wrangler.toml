@@ -6,8 +6,8 @@ assets = { directory = ".open-next/assets" }
 
 
 [vars]
-# PASSWORD 必须通过 Cloudflare Worker Secret 配置，禁止写入仓库。
-# 配置命令：npx wrangler secret put PASSWORD
+# 临时关闭正式站点密码验证；恢复时将 AUTH_DISABLED 改为 "false"。
+AUTH_DISABLED = "true"
 CMS_SEARCH_API = "https://caiji.dyttzyapi.com/api.php/provide/vod"
 API_60S_BASE = "https://60s.bggdbh.workers.dev"
 LLM_MODEL = "glm-4-flash"
