@@ -68,7 +68,7 @@ describe("POST /api/tts", () => {
   });
 
   it("streams MP3 audio and selects the requested voice", async () => {
-    const response = await POST(makeRequest({ text: "Hello Friday", language: "en" }));
+    const response = await POST(makeRequest({ text: "Hello Friday", language: "en", assistantId: "jarvis" }));
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("audio/mpeg");
