@@ -68,7 +68,7 @@ describe("POST /api/tts", () => {
   });
 
   it("streams MP3 audio and selects the requested voice", async () => {
-    const response = await POST(makeRequest({ text: "Hello Friday", language: "en", assistantId: "jarvis" }));
+    const response = await POST(makeRequest({ text: "Hello Friday", language: "en" }));
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("audio/mpeg");
@@ -93,7 +93,7 @@ describe("POST /api/tts", () => {
   it("uses Piper JARVIS for English when configured", async () => {
     vi.stubEnv("JARVIS_TTS_URL", "https://voice.example.com");
     vi.stubEnv("JARVIS_TTS_TOKEN", "test-secret");
-    const response = await POST(makeRequest({ text: "Hello Friday", language: "en" }));
+    const response = await POST(makeRequest({ text: "Hello Friday", language: "en", assistantId: "jarvis" }));
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("audio/wav");
