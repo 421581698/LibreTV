@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { guardRequest, createEdgeTtsStream } = vi.hoisted(() => ({
+const { guardRequest, createEdgeTtsStream, createPiperTtsResponse } = vi.hoisted(() => ({
   guardRequest: vi.fn(),
   createEdgeTtsStream: vi.fn(),
+  createPiperTtsResponse: vi.fn(),
 }));
 
 vi.mock("@/lib/api-guard", () => ({ guardRequest }));
 vi.mock("@/lib/friday/edgeTts", () => ({ createEdgeTtsStream }));
+vi.mock("@/lib/friday/piperTts", () => ({ createPiperTtsResponse }));
 
 import { POST } from "./route";
 
@@ -38,6 +40,12 @@ describe("POST /api/tts", () => {
     vi.clearAllMocks();
     guardRequest.mockReturnValue(null);
     createEdgeTtsStream.mockImplementation(() => Promise.resolve(audioStream()));
+    createPiperTtsResponse.mockImplementation(() => Promise.resolve(new Response(audioStream(), {
+      status: 200,
+      headers: { "content-type": "audio/wav" },
+    })));
+    vi.stubEnv("JARVIS_TTS_URL", "https://voice.example.com");
+    vi.stubEnv("JARVIS_TTS_TOKEN", "test-secret");
   });
 
   it("rejects unauthenticated requests before parsing or synthesis", async () => {
@@ -79,6 +87,43 @@ describe("POST /api/tts", () => {
     expect(createEdgeTtsStream).toHaveBeenCalledWith(expect.objectContaining({
       text: "你好，Friday。",
       voice: "zh-CN-XiaoxiaoNeural",
+    }));
+  });
+
+  it("uses Piper JARVIS for English when configured", async () => {
+    const response = await POST(makeRequest({ text: "Hello Friday", language: "en" }));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("audio/wav");
+    expect(response.headers.get("x-friday-tts-engine")).toBe("piper-jarvis");
+    expect(createPiperTtsResponse).toHaveBeenCalledWith(expect.objectContaining({
+      text: "Hello Friday",
+    }));
+    expect(createEdgeTtsStream).not.toHaveBeenCalled();
+  });
+
+  it("keeps Chinese on Microsoft Edge even when Piper is configured", async () => {
+    const response = await POST(makeRequest({ text: "你好", language: "zh" }));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("audio/mpeg");
+    expect(response.headers.get("x-friday-tts-engine")).toBe("microsoft-edge");
+    expect(createPiperTtsResponse).not.toHaveBeenCalled();
+    expect(createEdgeTtsStream).toHaveBeenCalledWith(expect.objectContaining({
+      voice: "zh-CN-XiaoxiaoNeural",
+    }));
+  });
+
+  it("falls back to Microsoft Edge when optional Piper JARVIS fails", async () => {
+    createPiperTtsResponse.mockRejectedValueOnce(new Error("Piper unavailable"));
+
+    const response = await POST(makeRequest({ text: "Hello Friday", language: "en" }));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("audio/mpeg");
+    expect(response.headers.get("x-friday-tts-engine")).toBe("microsoft-edge");
+    expect(createEdgeTtsStream).toHaveBeenCalledWith(expect.objectContaining({
+      voice: "en-US-AvaMultilingualNeural",
     }));
   });
 
