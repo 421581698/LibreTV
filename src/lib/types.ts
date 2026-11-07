@@ -96,6 +96,9 @@ export interface QualityProbeResult {
   vodId: string;
   height?: number;
   error?: string;
+  /** Server-side duration of this individual probe; cached results retain the original duration. */
+  probeDurationMs?: number;
+  cached?: boolean;
 }
 
 // —— API 响应结构 ——
