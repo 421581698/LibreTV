@@ -3,6 +3,24 @@ import {reduceTaskEvents,TaskRuntime,TaskRuntimeError,validateTaskGraph,type Tas
 class MemoryStore implements TaskEventStore { private data=new Map<string,TaskEvent[]>(); async append(event:TaskEvent){const list=this.data.get(event.taskId)??[];list.push(event);this.data.set(event.taskId,list)} async read(id:string){return [...(this.data.get(id)??[])]} async readRecent(){return [...this.data.values()].flat()} }
 const task:TaskDefinition={taskId:"movie-search-1",agent:"search-agent",input:{title:"Arrival"}};
 describe("Friday task runtime",()=>{
+ it("allows only one concurrent creator to claim a persisted task ID",async()=>{
+  class UniqueStore extends MemoryStore {
+   async append(event:TaskEvent) {
+    const existing=await this.read(event.taskId);
+    if(existing.some(item=>item.sequence===event.sequence)||existing.some(item=>item.eventId===event.eventId)) {
+     throw new Error("Duplicate task event key");
+    }
+    return super.append(event);
+   }
+  }
+  const store=new UniqueStore();
+  const runtimes=[new TaskRuntime(store),new TaskRuntime(store)];
+  const outcomes=await Promise.allSettled(runtimes.map(runtime=>runtime.create(task)));
+  expect(outcomes.filter(result=>result.status==="fulfilled")).toHaveLength(1);
+  expect(outcomes.filter(result=>result.status==="rejected")).toHaveLength(1);
+  expect(await store.read(task.taskId)).toHaveLength(1);
+ });
+
  it("marks orphaned running tasks interrupted when restoring after a reload",async()=>{
   const store=new MemoryStore();
   const firstRuntime=new TaskRuntime(store);
