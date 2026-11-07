@@ -329,40 +329,55 @@ export default function AIFloatingBall({
       setVoiceSession(true);
       setVoiceError("");
 
-      if (typeof window !== "undefined" && "speechSynthesis" in window && "SpeechSynthesisUtterance" in window) {
-        const utterance = new SpeechSynthesisUtterance(language === "en" ? "I am here, sir." : "我在，先生");
-        utterance.lang = language === "en" ? "en-GB" : "zh-CN";
-        utterance.rate = voiceStyle === "jarvis" || (voiceStyle === "auto" && assistantId === "jarvis") ? 0.92 : 1;
-        utterance.pitch = voiceStyle === "jarvis" || (voiceStyle === "auto" && assistantId === "jarvis") ? 0.82 : 1;
-        const voicePattern = voiceStyle === "jarvis" || (voiceStyle === "auto" && assistantId === "jarvis")
-          ? /yunxi|ryan|male|男|david|daniel/i
-          : voiceStyle === "warm" ? /xiaoxiao|sonia|female|女/i
-            : voiceStyle === "clear" ? /xiaoyi|ava/i : null;
-        const matchingVoice = voicePattern && window.speechSynthesis.getVoices().find((voice) =>
-          voicePattern.test(voice.name) && (language === "en" ? /^en(-|_)/i.test(voice.lang) : /^zh(-|_)/i.test(voice.lang))
-        );
-        if (matchingVoice) utterance.voice = matchingVoice;
-        setSpeaking(true);
-        utterance.onend = () => {
+      // Use the same server-side neural TTS path as assistant replies.
+      // Never use speechSynthesis here: on iOS it can silently sound like Siri.
+      setSpeaking(true);
+      void (async () => {
+        let wakeAudio: HTMLAudioElement | null = null;
+        let wakeUrl = "";
+        const finishWake = (message?: string) => {
           if (wakeToken !== homeWakeTokenRef.current) return;
+          if (wakeUrl) URL.revokeObjectURL(wakeUrl);
+          wakeUrl = "";
+          wakeAudio = null;
           setSpeaking(false);
+          if (message) setVoiceError(message);
           startListening(false);
         };
-        utterance.onerror = () => {
+        try {
+          const response = await fetch("/api/tts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            cache: "no-store",
+            body: JSON.stringify({
+              text: language === "en" ? "I am here, sir." : "我在，先生",
+              language,
+              assistantId,
+              voiceStyle,
+            }),
+          });
+          if (!response.ok) throw new Error(`TTS request failed: ${response.status}`);
+          const contentType = (response.headers.get("content-type") || "").toLowerCase();
+          if (!contentType.includes("audio/mpeg") && !contentType.includes("audio/wav")) {
+            throw new Error("Unsupported TTS audio format");
+          }
+          const blob = await response.blob();
+          if (!blob.size) throw new Error("Empty TTS audio");
           if (wakeToken !== homeWakeTokenRef.current) return;
-          setSpeaking(false);
-          setVoiceError("唤醒播报未能完成，正在尝试启动麦克风；如未开始，请再次点击圆球。");
-          startListening(false);
-        };
-        window.speechSynthesis.speak(utterance);
-      } else {
-        setVoiceError("当前浏览器不支持语音播报，已尝试直接启动麦克风。");
-        startListening(false);
-      }
+          wakeUrl = URL.createObjectURL(blob);
+          wakeAudio = new Audio(wakeUrl);
+          wakeAudio.onended = () => finishWake();
+          wakeAudio.onerror = () => finishWake("贾维斯语音播放失败，请检查网络或 TTS 服务。");
+          await wakeAudio.play();
+        } catch (error) {
+          console.error("[Friday] Wake acknowledgement TTS failed:", error);
+          finishWake("贾维斯语音服务暂时不可用，已启动麦克风；不会回退到 Siri 系统声音。");
+        }
+      })();
     };
     window.addEventListener("friday-home-orb-toggle", handleHomeOrbToggle);
     return () => window.removeEventListener("friday-home-orb-toggle", handleHomeOrbToggle);
-  }, [speaking, listening, toggleListening, openPanel, clearVoiceResumeTimer, stopRecognition, stopSpeech, stop, cancelActiveRequest, setVoiceSession, setVoiceError, setSpeaking, startListening]);
+  }, [speaking, listening, toggleListening, openPanel, clearVoiceResumeTimer, stopRecognition, stopSpeech, stop, cancelActiveRequest, setVoiceSession, setVoiceError, setSpeaking, startListening, language, assistantId, voiceStyle]);
 
 
   const handleSend = useCallback(
