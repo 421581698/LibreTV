@@ -39,6 +39,7 @@ export function createVoiceActivityInterruptController(
   const disarm = async () => {
     armed = false;
     generation += 1;
+    starting = null;
     const current = capture;
     capture = null;
     await current?.stop();
@@ -99,9 +100,14 @@ export function createVoiceActivityInterruptController(
         }
       })();
       starting = startPromise;
-      void startPromise.finally(() => {
-        if (starting === startPromise) starting = null;
-      });
+      void startPromise.then(
+        () => {
+          if (starting === startPromise) starting = null;
+        },
+        () => {
+          if (starting === startPromise) starting = null;
+        },
+      );
       return startPromise;
     },
 
