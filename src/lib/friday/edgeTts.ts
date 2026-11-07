@@ -125,7 +125,7 @@ function buildSpeechConfig(): string {
 }
 
 function buildSsml(requestId: string, voice: TtsOptions["voice"], text: string): string {
-  const locale = voice.startsWith("zh-") ? "zh-CN" : "en-US";
+  const locale = voice.startsWith("zh-") ? "zh-CN" : voice.startsWith("en-GB-") ? "en-GB" : "en-US";
   const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${locale}"><voice name="${voice}"><prosody pitch="+0Hz" rate="+0%" volume="+0%">${escapeXml(text)}</prosody></voice></speak>`;
   return `X-RequestId:${requestId}\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:${timestamp()}Z\r\nPath:ssml\r\n\r\n${ssml}`;
 }
