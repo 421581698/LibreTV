@@ -77,13 +77,13 @@ export function createVoiceActivityInterruptController(
             ...options.captureOptions,
             onError: options.onError,
             onEvent: (event) => {
-            if (event.type !== "speechstart" || !armed || interrupted || runId !== generation) {
-              return;
-            }
-            interrupted = true;
-            armed = false;
-            const current = capture;
-            capture = null;
+              if (event.type !== "speechstart" || !armed || interrupted || runId !== generation) {
+                return;
+              }
+              interrupted = true;
+              armed = false;
+              const current = capture;
+              capture = null;
               void current?.stop().then(async () => {
                 if (runId === generation) await options.onInterrupt();
               }).catch((error: unknown) => {
