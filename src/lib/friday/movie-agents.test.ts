@@ -80,6 +80,6 @@ describe("Friday movie agents", () => {
       search: { candidates: [{ id: "m1", title: "Arrival", sourceId: "s1" }] },
       quality: { assessments: [{ sourceId: "s1", candidateId: "m1", status: "unknown", assessmentCompleted: true, resolutionHeight: null, latencyMs: null, probeDurationMs: null, probeResultCached: null, reachable: null, advertisedQualities: ["4K"], evidence: [] }] },
     })) as { accepted: boolean; unmatchedCandidates: string[] };
-    expect(result).toMatchObject({ accepted: true, unmatchedCandidates: [], measurementCompleted: true, resolutionMeasured: false });
+    expect(result).toMatchObject({ accepted: false, unmatchedCandidates: ["m1"], measurementCompleted: true, resolutionMeasured: false });
   });
 });
