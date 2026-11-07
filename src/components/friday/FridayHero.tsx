@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import type { MouseEvent } from 'react';
 import { FridayOrbVisual } from '@/components/friday/FridayOrbVisual';
 
 type VoiceState = 'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING';
 
 /** 首页唯一 Friday 语音入口；状态变化只改变圆球，不创建面板或遮罩。 */
 export function FridayHero({ voiceState = 'IDLE' }: { voiceState?: VoiceState }) {
-  const toggleVoice = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const toggleVoice = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
     window.dispatchEvent(new CustomEvent('friday-home-orb-toggle'));
@@ -32,7 +32,7 @@ export function FridayHero({ voiceState = 'IDLE' }: { voiceState?: VoiceState })
         aria-pressed={voiceState === 'LISTENING'}
       >
         <span className="friday-hero-orb">
-          <FridayOrbVisual state={voiceState.toLowerCase() as 'standby' | 'listening' | 'thinking' | 'speaking'} />
+          <FridayOrbVisual state={voiceState === 'IDLE' ? 'standby' : voiceState.toLowerCase() as 'listening' | 'thinking' | 'speaking'} />
         </span>
         <span className="friday-hero-orb-label" role="status" aria-live="polite">{labels[voiceState]}</span>
       </button>
