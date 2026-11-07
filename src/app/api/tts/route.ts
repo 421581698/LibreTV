@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { guardRequest } from "@/lib/api-guard";
 import { createEdgeTtsStream } from "@/lib/friday/edgeTts";
+import { createPiperTtsResponse } from "@/lib/friday/piperTts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -99,6 +100,29 @@ export async function POST(request: Request) {
 
   if (request.signal.aborted) return new Response(null, { status: 499 });
 
+  // Piper JARVIS is an optional English-only voice. Chinese always stays on
+  // Microsoft Edge Xiaoxiao; if Piper is unavailable, English falls back to
+  // Microsoft Edge Ava rather than breaking voice output.
+  if (payload.language === "en" && process.env.JARVIS_TTS_URL && process.env.JARVIS_TTS_TOKEN) {
+    try {
+      const piper = await createPiperTtsResponse({ text: payload.text, signal: request.signal });
+      if (!piper.body) throw new Error("JARVIS TTS returned an empty body.");
+      const audio = await primeAudioStream(piper.body);
+      return new Response(audio, {
+        status: 200,
+        headers: {
+          "Content-Type": "audio/wav",
+          "Cache-Control": "no-store",
+          "X-Content-Type-Options": "nosniff",
+          "X-Friday-TTS-Engine": "piper-jarvis",
+        },
+      });
+    } catch (error) {
+      if (request.signal.aborted) return new Response(null, { status: 499 });
+      console.warn("[Friday TTS] Optional Piper JARVIS unavailable; falling back to Edge TTS:", error);
+    }
+  }
+
   try {
     const stream = await createEdgeTtsStream({
       text: payload.text,
@@ -115,6 +139,7 @@ export async function POST(request: Request) {
         "Content-Type": "audio/mpeg",
         "Cache-Control": "no-store",
         "X-Content-Type-Options": "nosniff",
+        "X-Friday-TTS-Engine": "microsoft-edge",
       },
     });
   } catch (error) {
