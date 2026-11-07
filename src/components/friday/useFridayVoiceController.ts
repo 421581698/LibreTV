@@ -93,6 +93,7 @@ export function useFridayVoiceController({
   const [voiceError, setVoiceError] = useState("");
   const [voiceSessionActive, setVoiceSessionActive] = useState(false);
   const lastSpokenMessageRef = useRef("");
+  const mountedRef = useRef(true);
 
   const listeningRef = useRef(false);
   const voiceSessionActiveRef = useRef(false);
@@ -100,6 +101,11 @@ export function useFridayVoiceController({
   const noSpeechRetryCountRef = useRef(0);
   const microphonePermissionObservedRef = useRef(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  // Safari 的 abort() 可能晚于下一次点击才释放；退役实例必须先收到 onend。
+  const retiringRecognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const pendingRecognitionStartRef = useRef<{ sessionId: number; automatic: boolean } | null>(null);
+  const recognitionReleaseTimerRef = useRef<number | null>(null);
+  const recognitionSafetyTimerRef = useRef<number | null>(null);
   const recognitionStartTimerRef = useRef<number | null>(null);
   const speechSilenceTimerRef = useRef<number | null>(null);
   const playbackRef = useRef<TtsPlaybackHandle | null>(null);
@@ -109,6 +115,32 @@ export function useFridayVoiceController({
   const manualVoiceStopRef = useRef(false);
   const voiceResumeTimerRef = useRef<number | null>(null);
   const startListeningRef = useRef<(automatic?: boolean) => void>(() => {});
+
+  const handleRecognitionReleased = useCallback((recognition: SpeechRecognitionLike) => {
+    if (retiringRecognitionRef.current !== recognition) return;
+    retiringRecognitionRef.current = null;
+    if (recognitionReleaseTimerRef.current !== null) {
+      window.clearTimeout(recognitionReleaseTimerRef.current);
+      recognitionReleaseTimerRef.current = null;
+    }
+    recognition.onstart = null;
+    recognition.onresult = null;
+    recognition.onerror = null;
+    recognition.onend = null;
+    const pending = pendingRecognitionStartRef.current;
+    pendingRecognitionStartRef.current = null;
+    if (!pending || !mountedRef.current || pending.sessionId !== voiceSessionIdRef.current ||
+      !voiceSessionActiveRef.current || !openRef.current || closingRef.current ||
+      busyRef.current || listeningRef.current) return;
+    if (recognitionSafetyTimerRef.current !== null) window.clearTimeout(recognitionSafetyTimerRef.current);
+    recognitionSafetyTimerRef.current = window.setTimeout(() => {
+      recognitionSafetyTimerRef.current = null;
+      if (!mountedRef.current || pending.sessionId !== voiceSessionIdRef.current || !voiceSessionActiveRef.current ||
+        !openRef.current || closingRef.current || busyRef.current ||
+        listeningRef.current || retiringRecognitionRef.current) return;
+      startListeningRef.current(pending.automatic);
+    }, 200);
+  }, []);
 
   const clearVoiceResumeTimer = useCallback(() => {
     if (voiceResumeTimerRef.current !== null) {
@@ -148,7 +180,6 @@ export function useFridayVoiceController({
 
   const stopRecognition = useCallback((abort = true) => {
     const recognition = recognitionRef.current;
-
     if (recognitionStartTimerRef.current !== null) {
       window.clearTimeout(recognitionStartTimerRef.current);
       recognitionStartTimerRef.current = null;
@@ -162,16 +193,26 @@ export function useFridayVoiceController({
     pendingVoiceTextRef.current = "";
     recognitionErrorRef.current = "";
     setListening(false);
-
     if (!recognition) return;
 
+    retiringRecognitionRef.current = recognition;
+    recognition.onstart = null;
+    recognition.onresult = null;
+    recognition.onerror = null;
+    recognition.onend = () => handleRecognitionReleased(recognition);
     try {
       if (abort) recognition.abort();
       else recognition.stop();
     } catch {
-      // 忽略浏览器识别实例已结束的异常。
+      handleRecognitionReleased(recognition);
+      return;
     }
-  }, []);
+    if (recognitionReleaseTimerRef.current !== null) window.clearTimeout(recognitionReleaseTimerRef.current);
+    recognitionReleaseTimerRef.current = window.setTimeout(() => {
+      recognitionReleaseTimerRef.current = null;
+      if (retiringRecognitionRef.current === recognition) handleRecognitionReleased(recognition);
+    }, 900);
+  }, [handleRecognitionReleased]);
 
   const stopAllVoice = useCallback(() => {
     setVoiceSession(false);
@@ -201,6 +242,8 @@ export function useFridayVoiceController({
   }, [clearVoiceResumeTimer, openRef, closingRef, busyRef]);
 
   const startListening = useCallback((automatic = false) => {
+    // 组件卸载后，迟到的计时器/浏览器事件不得重新打开麦克风。
+    if (!mountedRef.current) return;
     // 包括“正在等待 onstart”的阶段；避免 iOS Safari 并发启动识别实例。
     if (busyRef.current || listeningRef.current || recognitionRef.current) return;
     if (closingRef.current || !openRef.current) return;
@@ -210,6 +253,20 @@ export function useFridayVoiceController({
       setVoiceSession(true);
     }
     if (!voiceSessionActiveRef.current) return;
+
+    if (retiringRecognitionRef.current) {
+      const sessionId = voiceSessionIdRef.current;
+      pendingRecognitionStartRef.current = { sessionId, automatic };
+      if (recognitionReleaseTimerRef.current === null) {
+        const retiring = retiringRecognitionRef.current;
+        recognitionReleaseTimerRef.current = window.setTimeout(() => {
+          recognitionReleaseTimerRef.current = null;
+          if (retiringRecognitionRef.current === retiring) handleRecognitionReleased(retiring);
+        }, 900);
+      }
+      setVoiceError("正在释放上一轮语音通道，请稍候…");
+      return;
+    }
 
     clearVoiceResumeTimer();
     setVoiceError("");
@@ -349,11 +406,21 @@ export function useFridayVoiceController({
         recognitionRef.current = null;
         listeningRef.current = false;
         setListening(false);
+        retiringRecognitionRef.current = recognition;
+        recognition.onstart = null;
+        recognition.onresult = null;
+        recognition.onerror = null;
+        recognition.onend = () => handleRecognitionReleased(recognition);
         try {
           recognition.abort();
         } catch {
-          // 实例可能已由浏览器自行结束。
+          handleRecognitionReleased(recognition);
+          return;
         }
+        recognitionReleaseTimerRef.current = window.setTimeout(() => {
+          recognitionReleaseTimerRef.current = null;
+          if (retiringRecognitionRef.current === recognition) handleRecognitionReleased(recognition);
+        }, 900);
       }, 1500);
     };
 
@@ -425,10 +492,21 @@ export function useFridayVoiceController({
         recognitionStartTimerRef.current = null;
         if (recognitionRef.current !== recognition || listeningRef.current) return;
         recognitionRef.current = null;
+        retiringRecognitionRef.current = recognition;
+        recognition.onstart = null;
+        recognition.onresult = null;
+        recognition.onerror = null;
+        recognition.onend = () => handleRecognitionReleased(recognition);
         try {
           recognition.abort();
         } catch {
-          // 忽略已失效实例。
+          handleRecognitionReleased(recognition);
+        }
+        if (retiringRecognitionRef.current === recognition) {
+          recognitionReleaseTimerRef.current = window.setTimeout(() => {
+            recognitionReleaseTimerRef.current = null;
+            if (retiringRecognitionRef.current === recognition) handleRecognitionReleased(recognition);
+          }, 900);
         }
         setVoiceSession(false);
         setVoiceError(language === "en" ? "The browser could not start speech recognition. Tap the microphone to retry." : "浏览器未能启动语音识别，请再次点击麦克风重试。");
@@ -472,6 +550,7 @@ export function useFridayVoiceController({
     setVoiceSession,
     clearVoiceResumeTimer,
     scheduleVoiceResume,
+    handleRecognitionReleased,
     setVoiceError,
     stopSpeech,
     dispatchMachine,
@@ -639,14 +718,36 @@ export function useFridayVoiceController({
   }, [clearVoiceResumeTimer, stopRecognition, setVoiceSession]);
 
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
       voiceSessionActiveRef.current = false;
       voiceSessionIdRef.current += 1;
+      pendingRecognitionStartRef.current = null;
       clearVoiceResumeTimer();
-      stopRecognition(true);
+      for (const timer of [recognitionStartTimerRef.current, speechSilenceTimerRef.current,
+        recognitionReleaseTimerRef.current, recognitionSafetyTimerRef.current]) {
+        if (timer !== null) window.clearTimeout(timer);
+      }
+      recognitionStartTimerRef.current = null;
+      speechSilenceTimerRef.current = null;
+      recognitionReleaseTimerRef.current = null;
+      recognitionSafetyTimerRef.current = null;
+      const active = recognitionRef.current;
+      const retiring = retiringRecognitionRef.current;
+      recognitionRef.current = null;
+      retiringRecognitionRef.current = null;
+      for (const instance of [active, retiring]) {
+        if (!instance) continue;
+        instance.onstart = null;
+        instance.onresult = null;
+        instance.onerror = null;
+        instance.onend = null;
+        try { instance.abort(); } catch { /* already released */ }
+      }
       stopSpeech(false);
     };
-  }, [clearVoiceResumeTimer, stopRecognition, stopSpeech]);
+  }, [clearVoiceResumeTimer, stopSpeech]);
 
   return {
     listening,
