@@ -47,6 +47,7 @@ const requestSchema = z.object({
   filterAdult: z.boolean().default(true),
   language: z.enum(["zh", "en"]).default("zh"),
   assistantId: z.enum(["friday", "jarvis", "lin-meimei"]).default("friday"),
+  playerActive: z.boolean().default(false),
 });
 
 type SearchItem = SearchResultItem;
@@ -339,7 +340,28 @@ export async function POST(request: Request) {
   const system = buildFridayAssistantSystemPrompt(
     payload.assistantId,
     payload.language,
+    payload.playerActive,
   );
+
+  const pendingPlayerCommands = new Map<string, { commandId: string; action: string; seconds?: number; volume?: number }>();
+
+  const controlPlayerTool = tool({
+    description: "控制当前已打开的 LibreTV 点播播放器。仅在用户明确要求播放、暂停、快进、快退、跳转、音量或全屏操作时调用。",
+    inputSchema: z.object({
+      action: z.enum(["play", "pause", "toggle", "seek_to", "seek_forward", "seek_backward", "volume_up", "volume_down", "set_volume", "mute", "unmute", "fullscreen"]),
+      seconds: z.number().finite().min(0).max(86400).optional(),
+      volume: z.number().finite().min(0).max(1).optional(),
+    }),
+    execute: async ({ action, seconds, volume }) => {
+      if (request.signal.aborted) return { ok: false, summary: "播放器控制已取消。" };
+      if (!payload.playerActive) return { ok: false, summary: "当前没有打开的点播播放器，请先进入影片播放页面。" };
+      if (action === "seek_to" && seconds === undefined) return { ok: false, summary: "请提供跳转时间。" };
+      if (action === "set_volume" && volume === undefined) return { ok: false, summary: "请提供 0 到 1 之间的音量值。" };
+      const commandId = makeSearchId();
+      pendingPlayerCommands.set(commandId, { commandId, action, seconds, volume });
+      return { ok: true, commandId, summary: "播放器控制指令已提交到当前播放页。" };
+    },
+  });
 
   const searchMovieTool = tool({
     description:
@@ -487,6 +509,7 @@ export async function POST(request: Request) {
 
         tools: {
           search_movie: searchMovieTool,
+          ...(payload.playerActive ? { control_player: controlPlayerTool } : {}),
         },
 
         stopWhen: stepCountIs(MAX_TOOL_STEPS),
@@ -496,15 +519,23 @@ export async function POST(request: Request) {
 
         onStepFinish: async ({ toolResults }) => {
           for (const toolResult of toolResults) {
+            if (!toolResult) continue;
+            if (toolResult.toolName === "control_player") {
+              const output = toolResult.output as { ok?: boolean; commandId?: string } | undefined;
+              if (!output?.ok || !output.commandId) continue;
+              const command = pendingPlayerCommands.get(output.commandId);
+              if (!command) continue;
+              writer.write({ type: "data-player-control", id: command.commandId, data: command });
+              pendingPlayerCommands.delete(output.commandId);
+              continue;
+            }
+
             if (toolResult.toolName !== "search_movie") {
               continue;
             }
 
             const output = toolResult.output as
-              | {
-                  ok?: boolean;
-                  searchId?: string;
-                }
+              | { ok?: boolean; searchId?: string }
               | undefined;
 
             if (

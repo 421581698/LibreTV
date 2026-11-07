@@ -15,9 +15,16 @@ on:
       - main
     paths:
       - "src/lib/friday/**"
-      - "docs/FRIDAY-2.2-TECHNICAL-SPEC.md"
+      - "src/components/friday/**"
+      - "src/components/home/**"
       - "src/components/AIFloatingBall.tsx"
+      - "src/components/player-shell.tsx"
       - "src/app/api/chat/route.ts"
+      - "src/app/api/quality/route.ts"
+      - "src/app/page.tsx"
+      - "src/app/watch/page.tsx"
+      - "docs/FRIDAY-2.2-TECHNICAL-SPEC.md"
+      - ".github/workflows/friday-2.2-verify.yml"
   workflow_dispatch:
 
 permissions:

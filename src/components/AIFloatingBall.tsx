@@ -68,6 +68,7 @@ export default function AIFloatingBall({
   const [wakeWordEnabled, setWakeWordEnabled] = useState(false);
   const [languagePreferenceLoaded, setLanguagePreferenceLoaded] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
+  const [playerActive, setPlayerActive] = useState(false);
 
   // Read after hydration to avoid server/client markup mismatch, then persist
   // only after the stored preference has been applied.
@@ -169,6 +170,15 @@ export default function AIFloatingBall({
     },
   });
 
+  useEffect(() => {
+    const handlePlayerState = (event: Event) => {
+      const active = (event as CustomEvent<{ active?: boolean }>).detail?.active;
+      setPlayerActive(active === true);
+    };
+    window.addEventListener("friday-player-state", handlePlayerState);
+    return () => window.removeEventListener("friday-player-state", handlePlayerState);
+  }, []);
+
   const { activeSources, activeFilterAdult } = useFridaySources(sources, filterAdult);
 
   const {
@@ -187,6 +197,7 @@ export default function AIFloatingBall({
     filterAdult: activeFilterAdult,
     language,
     assistantId,
+    playerActive,
   });
 
   const { beginRequest, failActiveRequest, cancelActiveRequest } =

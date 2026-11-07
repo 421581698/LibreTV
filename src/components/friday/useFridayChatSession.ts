@@ -11,6 +11,7 @@ import { createMovieWorkflowTaskIdPrefix, runLibreTVMovieWorkflow } from "@/lib/
 import { fridayTaskEventStore, fridayTaskRuntime } from "@/lib/friday/task-service";
 import type { TaskSnapshot } from "@/lib/friday/task-runtime";
 import { isCurrentFridayWorkflow } from "@/components/friday/workflowRequestGuard";
+import { restoreFridayConversationHistory, serializeFridayConversationHistory } from "@/lib/friday/conversation-history";
 
 export type FridayWorkflowView = {
   status: "running" | "completed" | "failed";
@@ -25,6 +26,7 @@ type FridayChatSessionOptions = {
   filterAdult: boolean;
   language: "zh" | "en";
   assistantId: "friday" | "jarvis" | "lin-meimei";
+  playerActive: boolean;
 };
 
 /** Owns Friday's AI SDK transport, chat session and local movie-workflow view state. */
@@ -33,6 +35,7 @@ export function useFridayChatSession({
   filterAdult,
   language,
   assistantId,
+  playerActive,
 }: FridayChatSessionOptions) {
   const mountedRef = useRef(false);
   const processedSearchIds = useRef(new Set<string>());
@@ -58,6 +61,10 @@ export function useFridayChatSession({
 
   const handleData = useCallback((part: { type: string; data?: unknown }) => {
     if (!mountedRef.current) return;
+    if (part.type === "data-player-control" && part.data && typeof part.data === "object") {
+      window.dispatchEvent(new CustomEvent("friday-player-control", { detail: part.data }));
+      return;
+    }
     if (part.type !== "data-movies" || !part.data || typeof part.data !== "object") return;
     const data = part.data as {
       searchId?: string;
@@ -146,9 +153,9 @@ export function useFridayChatSession({
     () =>
       new DefaultChatTransport({
         api: "/api/chat",
-        body: { sources, filterAdult, language, assistantId },
+        body: { sources, filterAdult, language, assistantId, playerActive },
       }),
-    [sources, filterAdult, language, assistantId],
+    [sources, filterAdult, language, assistantId, playerActive],
   );
 
   const {
@@ -165,6 +172,32 @@ export function useFridayChatSession({
       console.error("[Friday] Chat error:", chatError);
     },
   });
+
+  // Conversation continuity is browser-local and deliberately excludes tool/data payloads.
+  const historyKey = `friday-conversation-v1:${assistantId}`;
+  const [loadedHistoryKey, setLoadedHistoryKey] = useState("");
+  useEffect(() => {
+    let active = true;
+    try {
+      const stored = window.localStorage.getItem(historyKey);
+      const restored = restoreFridayConversationHistory(stored);
+      setMessages(restored as typeof messages);
+    } catch {
+      // Private browsing or storage denial must not prevent chat from working.
+    } finally {
+      if (active) setLoadedHistoryKey(historyKey);
+    }
+    return () => { active = false; };
+  }, [historyKey, setMessages]);
+
+  useEffect(() => {
+    if (loadedHistoryKey !== historyKey) return;
+    try {
+      window.localStorage.setItem(historyKey, serializeFridayConversationHistory(messages));
+    } catch {
+      // Quota/storage failures are non-fatal; the current in-memory conversation remains available.
+    }
+  }, [messages, historyKey, loadedHistoryKey]);
 
   const stopChat = useCallback(() => {
     for (const controller of activeWorkflowControllers.current.values()) controller.abort();

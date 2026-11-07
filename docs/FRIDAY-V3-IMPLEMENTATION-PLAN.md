@@ -47,15 +47,17 @@
 - Rebuild orb as real-time WebGL2 with background sampling, Fresnel response, refraction, and restrained bloom.
 - Keep a low-power fallback for devices without WebGL2 or with reduced motion.
 
+## V3.4 implementation baseline
+The current V3.4 delivery scope, nine workstreams, preserved contracts, and CI acceptance rules are tracked in [FRIDAY-V3.4-IMPLEMENTATION.md](./FRIDAY-V3.4-IMPLEMENTATION.md).
+
 ## Non-negotiable safeguards
-- main and production remain untouched during development.
-- Keep fix/friday-orb-clean PR #17 draft isolated.
-- All V3 work happens on feature/friday-v3-runtime.
-- Never fabricate task progress, source latency, resolution, or agent results.
+- Use current main as the integration base; keep all V3.4 changes on `feature/friday-v3.4-complete-upgrade` until CI acceptance.
+- Do not alter the selected gold holographic orb design or replace its established interaction path.
+- Never fabricate task progress, source latency, resolution, player state, or agent results.
 - Replay is an audit event; external side-effect tasks are blocked from automatic replay.
 - Never auto-start microphone capture outside a direct user gesture.
 - Preserve existing search, detail modal, player, and /api/chat contracts.
-- Merge only after CI is green, a real Preview URL is verified, and iPhone Safari behavior is manually accepted.
+- User acceptance for this V3.4 delivery is CI-green only: TypeScript, ESLint, unit tests, and production build. No preview or production deployment is implied.
 
 
 ## Persistence decision

@@ -19,6 +19,11 @@ describe("Friday assistant profiles", () => {
     expect(getFridayAssistantProfile(null).id).toBe("friday");
   });
 
+  it("exposes player controls only when a playback page is active", () => {
+    expect(buildFridayAssistantSystemPrompt("friday", "zh", true)).toContain("调用 control_player");
+    expect(buildFridayAssistantSystemPrompt("friday", "zh", false)).toContain("不要调用播放器控制工具");
+  });
+
   it("builds language-specific prompts without exposing credentials", () => {
     const chinese = buildFridayAssistantSystemPrompt("jarvis", "zh");
     const english = buildFridayAssistantSystemPrompt("lin-meimei", "en");
