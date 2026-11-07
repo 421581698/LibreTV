@@ -4,6 +4,13 @@ import { useCallback, useEffect, useRef } from "react";
 import type { Dispatch } from "react";
 import type { FridayEvent } from "@/lib/friday/types";
 
+export function isActiveFridayRequest(
+  requestId: number,
+  activeRequestId: number,
+): boolean {
+  return requestId !== 0 && requestId === activeRequestId;
+}
+
 type FridayRequestLifecycleOptions = {
   busy: boolean;
   error?: { message?: string } | null;
@@ -28,9 +35,8 @@ export function useFridayRequestLifecycle({
   }, [dispatchMachine]);
 
   const failActiveRequest = useCallback(
-    (code: string, message: string) => {
-      const requestId = activeRequestIdRef.current;
-      if (!requestId) return;
+    (requestId: number, code: string, message: string) => {
+      if (!isActiveFridayRequest(requestId, activeRequestIdRef.current)) return;
 
       dispatchMachine({
         type: "REQUEST_FAILED",
