@@ -33,6 +33,14 @@ var STATE_ACTIVITY = {
 };
 var VALID_STATES = ['IDLE', 'LISTENING', 'THINKING', 'SPEAKING'];
 function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
+/* 音频表头的非对称低通：起音灵敏、回落柔和，抑制 RMS 抖动。 */
+export function smoothFridayEnergy(current, target, dt){
+  var safeDt = clamp(Number(dt) || 0, 0, 0.12);
+  var goal = clamp(Number(target) || 0, 0, 1);
+  var tau = goal > current ? 0.085 : 0.24;
+  var alpha = 1 - Math.exp(-safeDt / tau);
+  return clamp(current + (goal - current) * alpha, 0, 1);
+}
 function lerp(a, b, t){ return a + (b - a) * t; }
 function hexToRgb(h){
   var s = h.charAt(0) === '#' ? h.slice(1) : h;
@@ -225,7 +233,7 @@ export function createFridayOrb(canvas, options){
     pace: STATE_PACE[normalizeState(opts.state)], targetPace: STATE_PACE[normalizeState(opts.state)],
     energy: clamp(opts.audioLevel / 100, 0, 1), targetEnergy: clamp(opts.audioLevel / 100, 0, 1),
     activity: STATE_ACTIVITY[normalizeState(opts.state)], phase: normalizeState(opts.state),
-    paused: !!opts.paused, autoPaused: false, reduced: false, running: false,
+    paused: !!opts.paused, autoPaused: !!(opts.autoPause && typeof document !== 'undefined' && document.hidden), reduced: false, running: false,
     raf: 0, last: 0, lastRender: 0, frames: 0, flashAt: -99, bursts: []
   };
   var cssW = 0, cssH = 0, dpr = 1;
@@ -575,7 +583,7 @@ export function createFridayOrb(canvas, options){
     if(dt > 0.12) dt = 0.12;
     var k = Math.min(1, dt * 4.5);
     state.pace += (state.targetPace - state.pace) * k;
-    state.energy += (state.targetEnergy - state.energy) * Math.min(1, dt * 8);
+    state.energy = smoothFridayEnergy(state.energy, state.targetEnergy, dt);
     state.t = (state.t + dt * state.pace) % DUR;
     state.clock += dt;
     if(now - state.lastRender >= 1000 / FPS - 2){
@@ -615,9 +623,14 @@ export function createFridayOrb(canvas, options){
   }
 
   function setAudioLevel(level){
+    if(state.reduced) return;
     var v = Number(level);
     if(!isFinite(v)) v = 0;
-    state.targetEnergy = clamp(v / 100, 0, 1);
+    v = clamp(v / 100, 0, 1);
+    /* 麦克风底噪门限 + 小幅死区，避免静音附近反复闪烁。 */
+    v = v <= 0.018 ? 0 : (v - 0.018) / 0.982;
+    if(Math.abs(state.targetEnergy - v) < 0.008) return;
+    state.targetEnergy = v;
     if(state.reduced) render();
   }
 
@@ -706,6 +719,9 @@ export function createFridayOrb(canvas, options){
   function onReduceChange(e){
     state.reduced = !!e.matches;
     if(state.reduced){
+      /* 减少动态效果时冻结相位并禁用音量驱动，保留单帧状态图。 */
+      state.targetEnergy = 0;
+      state.energy = 0;
       stop();
       render();
     }else{
@@ -739,6 +755,12 @@ export function createFridayOrb(canvas, options){
     gridCache = { key: '', c: null };
     bloomCanvas = null;
     exportCanvas = null;
+    /* 释放 Canvas backing store，避免卸载后的高 DPR 像素缓冲继续占用内存。 */
+    try{
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.width = 0;
+      canvas.height = 0;
+    }catch(e){}
   }
 
   canvas.style.display = 'block';
