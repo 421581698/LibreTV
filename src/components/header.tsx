@@ -18,6 +18,7 @@ export function Header({ showSearch = false, showFridayFab = true, minimalFriday
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   // 与首页搜索框共用同一套「最近搜索」下拉逻辑
   const searchHistory = useSearchHistory(query);
 
@@ -93,7 +94,22 @@ export function Header({ showSearch = false, showFridayFab = true, minimalFriday
             </form>
           )}
 
-          {homeSearch && <div className="home-v2-header-search-slot">{homeSearch}</div>}
+          {homeSearch && (
+            <>
+              <button
+                type="button"
+                className="home-v2-mobile-search-toggle"
+                aria-label={mobileSearchOpen ? '关闭搜索框' : '打开搜索框'}
+                aria-expanded={mobileSearchOpen}
+                onClick={() => setMobileSearchOpen((open) => !open)}
+              >
+                <Icon name={mobileSearchOpen ? "close" : "search"} />
+              </button>
+              <div className={cn("home-v2-header-search-slot", mobileSearchOpen && "is-open")}>
+                {homeSearch}
+              </div>
+            </>
+          )}
 
           {!homeSearch && <div className="flex-1 sm:hidden" />}
 
