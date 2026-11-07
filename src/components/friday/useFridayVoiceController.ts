@@ -286,7 +286,9 @@ export function useFridayVoiceController({
         .slice(0, MAX_INPUT_LENGTH);
       if (recognizedText) {
         setInput(recognizedText);
-        window.dispatchEvent(new CustomEvent("friday-home-transcript", { detail: { text: recognizedText } }));
+        if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+          window.dispatchEvent(new CustomEvent("friday-home-transcript", { detail: { text: recognizedText } }));
+        }
         noSpeechRetryCountRef.current = 0;
         if (speechSilenceTimerRef.current !== null) window.clearTimeout(speechSilenceTimerRef.current);
         // Native Web Speech owns the iOS microphone. Reset a 1.5s result-silence
