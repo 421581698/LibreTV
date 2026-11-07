@@ -93,6 +93,8 @@ type FridayPanelProps = {
   onOpenMovie: (movie: MovieItem) => void;
   language: "zh" | "en";
   onLanguageChange: (language: "zh" | "en") => void;
+  assistantId: "friday" | "jarvis" | "lin-meimei";
+  onAssistantChange: (assistantId: "friday" | "jarvis" | "lin-meimei") => void;
 };
 
 export { getMovieDataForMessage, getPartText } from "@/lib/friday/message";
@@ -110,7 +112,7 @@ export function FridayPanel({
   error, speaking, completed, voiceSessionActive, inputRef, input, setInput,
   onSend, onToggleListening, voiceError, voiceEnabled, onToggleVoiceEnabled,
   onClearConversation, onStopSpeechAndResume, onInterrupt, onToggleExpanded,
-  onHideAssistant, onOpenMovie, language, onLanguageChange,
+  onHideAssistant, onOpenMovie, language, onLanguageChange, assistantId, onAssistantChange,
 }: FridayPanelProps) {
   const typedMessages = messages;
   const conversationEntries = typedMessages.map((message) => ({
@@ -133,7 +135,12 @@ export function FridayPanel({
                 onAnimationEnd={onAnimationEnd}
               >
                 <div className="friday-canvas-top">
-                  <div className="friday-wordmark">Friday</div>
+                  <div className="friday-wordmark">{assistantId === "jarvis" ? "Jarvis" : assistantId === "lin-meimei" ? "林妹妹" : "Friday"}</div>
+                  <select className="friday-tool-btn" aria-label={language === "en" ? "Assistant profile" : "助手角色"} value={assistantId} onChange={(event) => onAssistantChange(event.target.value as "friday" | "jarvis" | "lin-meimei")}>
+                    <option value="friday">Friday</option>
+                    <option value="jarvis">Jarvis</option>
+                    <option value="lin-meimei">林妹妹</option>
+                  </select>
                   <button type="button" className="friday-tool-btn" aria-label={language === "en" ? "Switch language" : "切换语言"} title={language === "en" ? "Switch to Chinese" : "切换到 English"} onClick={() => onLanguageChange(language === "zh" ? "en" : "zh")}>{language === "zh" ? "中文 / EN" : "EN / 中文"}</button>
     
                   <div className="friday-header-actions">
