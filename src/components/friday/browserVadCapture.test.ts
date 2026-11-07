@@ -72,6 +72,31 @@ describe("browser VAD microphone capture", () => {
     expect(close).toHaveBeenCalledTimes(1);
   });
 
+  it("stops a stream that resolves after capture was cancelled", async () => {
+    const trackStop = vi.fn();
+    let resolveStream!: (stream: MediaStream) => void;
+    const getUserMedia = vi.fn(() => new Promise<MediaStream>((resolve) => {
+      resolveStream = resolve;
+    }));
+    const capture = createBrowserVadCapture({
+      onEvent: vi.fn(),
+      mediaDevices: { getUserMedia },
+      createAudioContext: vi.fn(),
+      requestFrame: vi.fn(() => 1),
+      cancelFrame: vi.fn(),
+    });
+
+    const starting = capture.start();
+    await capture.stop();
+    resolveStream({
+      getTracks: () => [{ stop: trackStop }],
+    } as unknown as MediaStream);
+    await starting;
+
+    expect(trackStop).toHaveBeenCalledTimes(1);
+    expect(capture.isRunning()).toBe(false);
+  });
+
   it("cleans up the acquired stream when Web Audio initialization fails", async () => {
     const trackStop = vi.fn();
     const onError = vi.fn();
