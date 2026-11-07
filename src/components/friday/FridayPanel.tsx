@@ -2,7 +2,7 @@
 
 import React from "react";
 import type { RefObject } from "react";
-import { FridayOrbVisual } from "@/components/friday/FridayOrbVisual";
+import FridayOrb from "@/components/friday/FridayOrb";
 import { FridayConversation } from "@/components/friday/FridayConversation";
 import { FridayComposer } from "@/components/friday/FridayComposer";
 import { getMovieDataForMessage, getPartText } from "@/lib/friday/message";
@@ -61,6 +61,7 @@ type FridayPanelProps = {
   immersive: boolean;
   closing: boolean;
   auroraState: "standby" | "listening" | "thinking" | "speaking" | "completed";
+  audioLevel: number;
   agentState: string;
   voiceState: string;
   stateLabel: string;
@@ -111,7 +112,7 @@ export { getMovieDataForMessage, getPartText } from "@/lib/friday/message";
 
 
 export function FridayPanel({
-  expanded, immersive, closing, auroraState, agentState, voiceState, stateLabel,
+  expanded, immersive, closing, auroraState, audioLevel, agentState, voiceState, stateLabel,
   onAnimationEnd, onClose, messagesRef, messages, workflowBySearchId, restoredTasks, listening, busy, status,
   error, speaking, completed, voiceSessionActive, inputRef, input, setInput,
   onSend, onToggleListening, voiceError, voiceEnabled, onToggleVoiceEnabled,
@@ -240,7 +241,7 @@ export function FridayPanel({
                               : (language === "en" ? "Friday standing by" : "Friday 随时待命")}
                   </span>
     
-                  <FridayOrbVisual state={auroraState} />
+                  <FridayOrb state={auroraState === "listening" ? "LISTENING" : auroraState === "thinking" ? "THINKING" : auroraState === "speaking" ? "SPEAKING" : "IDLE"} audioLevel={audioLevel} theme="auto" interactive={false} />
                 </div>
     
                 <FridayComposer
