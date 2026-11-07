@@ -138,6 +138,44 @@ describe("Friday TTS provider lifecycle", () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledTimes(1);
   });
 
+  it("settles normally when Edge audio ends and cleans up exactly once", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => successfulAudioResponse()));
+
+    const provider = createFridayTtsProvider("zh");
+    const events = { onStart: vi.fn(), onEnd: vi.fn(), onError: vi.fn() };
+    provider!.speak("正常结束", events);
+    await flushPromises();
+
+    const audio = MockAudio.instances[0];
+    audio.onplay?.();
+    audio.onended?.();
+    audio.onended?.();
+
+    expect(events.onStart).toHaveBeenCalledTimes(1);
+    expect(events.onEnd).toHaveBeenCalledTimes(1);
+    expect(events.onError).not.toHaveBeenCalled();
+    expect(audio.pause).toHaveBeenCalledTimes(1);
+    expect(audio.removeAttribute).toHaveBeenCalledWith("src");
+    expect(URL.revokeObjectURL).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels browser speech after Edge TTS has fallen back", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("unavailable", { status: 503 })));
+
+    const provider = createFridayTtsProvider("zh");
+    const playback = provider!.speak("取消回退", {
+      onStart: vi.fn(),
+      onEnd: vi.fn(),
+      onError: vi.fn(),
+    });
+    await flushPromises();
+
+    expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1);
+    playback.cancel();
+
+    expect(window.speechSynthesis.cancel).toHaveBeenCalledTimes(1);
+  });
+
   it("cleans up audio and ignores late playback events after cancellation", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => successfulAudioResponse()));
 
