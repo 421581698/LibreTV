@@ -91,20 +91,20 @@ var PALETTES = {
   },
   light: {
     additive: false,
-    ramp: buildRamp(['#0F3568', '#2E6EAC', '#CFE3FF', '#E9DEFF', '#94661F', '#FFE6BC', '#DCEAFF', '#4C7FB8', '#0F3568']),
+    ramp: buildRamp(['#174B83', '#3D8BCB', '#D9EEFF', '#F4F0FF', '#B98224', '#FFF0C4', '#E7F4FF', '#6BA5D8', '#174B83']),
     hud: [31, 111, 178],
-    warm: [154, 106, 18],
-    neon: [58, 128, 196],
+    warm: [184, 126, 24],
+    neon: [62, 151, 222],
     ink: [36, 78, 138],
     grid: [58, 110, 176],
     ray: [64, 116, 178],
-    rayGold: [168, 124, 44],
-    coreMid: [217, 169, 78],
-    coreOut: [169, 118, 26],
+    rayGold: [194, 145, 48],
+    coreMid: [246, 196, 94],
+    coreOut: [190, 132, 30],
     dust: ['#B8862B', '#7A5A1C', '#3F6FA8'],
-    hazeWarm: [212, 162, 74],
-    hazeCool: [110, 156, 214],
-    bloom: 0.0,
+    hazeWarm: [232, 184, 88],
+    hazeCool: [116, 174, 232],
+    bloom: 0.12,
     hudA: 1.05
   }
 };
@@ -421,9 +421,9 @@ export function createFridayOrb(canvas, options){
     var rad = R * 0.295 * pulse * (1 + 0.10 * energy);
     var g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
     g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.08, 'rgba(255,253,246,0.97)');
-    g.addColorStop(0.20, css(pal.coreMid, (pal.additive ? 0.90 : 0.82) * (1 + 0.08 * energy)));
-    g.addColorStop(0.44, css(pal.coreOut, (pal.additive ? 0.30 : 0.22) * (1 + 0.30 * energy)));
-    g.addColorStop(0.74, css(pal.coreOut, 0.06 + 0.06 * energy)); g.addColorStop(1, css(pal.coreOut, 0));
+    g.addColorStop(0.20, css(pal.coreMid, (pal.additive ? 0.90 : 0.94) * (1 + 0.08 * energy)));
+    g.addColorStop(0.44, css(pal.coreOut, (pal.additive ? 0.30 : 0.30) * (1 + 0.30 * energy)));
+    g.addColorStop(0.74, css(pal.coreOut, 0.09 + 0.07 * energy)); g.addColorStop(1, css(pal.coreOut, 0));
     ctx.save(); ctx.globalCompositeOperation = pal.additive ? 'lighter' : 'source-over'; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, rad, 0, TAU); ctx.fill();
     var ringR = R * 0.105; var rot = TAU * t / DUR * 2;
     for(var k = 0; k < 3; k++){
