@@ -82,10 +82,11 @@ Server-side Cloudflare Worker variables:
 
 - `OPENCLAW_GATEWAY_URL`: public HTTPS Gateway origin (optional path prefix allowed; `/v1` is appended).
 - `OPENCLAW_GATEWAY_TOKEN`: Gateway operator token; keep it in Worker secrets only.
+- `OPENCLAW_ACCESS_CLIENT_ID` and `OPENCLAW_ACCESS_CLIENT_SECRET`: Cloudflare Access service token for the protected private-ingress hostname; both are mandatory whenever Gateway routing is enabled.
 - `OPENCLAW_AGENT_FRIDAY`, `OPENCLAW_AGENT_JARVIS`, `OPENCLAW_AGENT_LIN_MEIMEI`: explicit server-side Agent IDs for each UI profile.
 
 When both Gateway URL and token are absent, Friday continues to use `ZHIPU_API_KEY` and `glm-4-air`. If only one Gateway credential is present, or the selected profile has no valid Agent ID, the request fails closed with a configuration error rather than silently switching providers.
 
-The selected Agent ID is never accepted from the browser. The server maps the validated assistant profile to its corresponding Worker variable and requests the OpenClaw model name `openclaw/<agentId>` through `/v1/chat/completions`. Gateway URLs must use HTTPS, public DNS hostnames, and must not embed credentials, query strings, or fragments. Literal IP addresses and local hostnames are rejected.
+The selected Agent ID is never accepted from the browser. The server maps the validated assistant profile to its corresponding Worker variable and requests the OpenClaw model name `openclaw/<agentId>` through `/v1/chat/completions`. Gateway URLs must use HTTPS, public DNS hostnames, and must not embed credentials, query strings, or fragments. Literal IP addresses and local hostnames are rejected. The request also carries a Cloudflare Access service-token pair, so the Gateway hostname must be behind an Access policy and must not have a public bypass. Do not expose the Gateway port directly to the public internet: OpenClaw documents the bearer token as full operator access and recommends loopback, tailnet, or private ingress.
 
-This adapter is implemented and unit-tested. Live Gateway interoperability still requires a user-managed Gateway endpoint, its operator token, and three configured Agent IDs; those credentials must not be committed to the repository. The Gateway bearer token grants operator-level authority, so it must be treated as a high-privilege secret.
+This adapter is implemented and unit-tested. Live Gateway interoperability still requires a user-managed Gateway endpoint behind Cloudflare Access, its operator token, the Access service-token pair, and three configured Agent IDs; those credentials must not be committed to the repository. The Gateway bearer token grants operator-level authority, so it must be treated as a high-privilege secret.
