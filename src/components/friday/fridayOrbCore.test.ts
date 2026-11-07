@@ -11,7 +11,7 @@ describe("FridayOrb audio energy smoothing", () => {
   it("releases more slowly than it attacks to avoid visual flicker", () => {
     const attack = smoothFridayEnergy(0, 1, 1 / 30);
     const release = smoothFridayEnergy(1, 0, 1 / 30);
-    expect(release).toBeLessThan(attack);
+    expect(1 - release).toBeLessThan(attack);
     expect(release).toBeGreaterThan(0);
   });
 
