@@ -8,7 +8,7 @@ import type { FridaySourceConfig } from "@/components/friday/useFridaySources";
 import type { SearchResultItem, SourceConfig } from "@/lib/types";
 import { createLibreTVMovieAgentAdapters } from "@/lib/friday/libretv-movie-adapters";
 import { runLibreTVMovieWorkflow } from "@/lib/friday/movie-workflow";
-import { fridayTaskRuntime } from "@/lib/friday/task-service";
+import { fridayTaskEventStore, fridayTaskRuntime } from "@/lib/friday/task-service";
 import type { TaskSnapshot } from "@/lib/friday/task-runtime";
 import { isCurrentFridayWorkflow } from "@/components/friday/workflowRequestGuard";
 
@@ -39,6 +39,11 @@ export function useFridayChatSession({
   const activeWorkflowControllers = useRef(new Map<string, AbortController>());
   const [workflowBySearchId, setWorkflowBySearchId] = useState<Record<string, FridayWorkflowView>>({});
   const [restoredTasks, setRestoredTasks] = useState<TaskSnapshot[]>([]);
+
+  const clearTaskHistory = useCallback(async () => {
+    await fridayTaskEventStore.clearAll();
+    setRestoredTasks([]);
+  }, []);
 
   // Restore the local audit snapshots for display only. Interrupted work is never replayed here.
   useEffect(() => {
@@ -183,6 +188,7 @@ export function useFridayChatSession({
     setMessages,
     workflowBySearchId,
     restoredTasks,
+    clearTaskHistory,
     busy: status === "submitted" || status === "streaming",
   };
 }
