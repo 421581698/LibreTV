@@ -225,6 +225,11 @@ describe("Friday voice session recovery", () => {
     }));
     expect(denied.abort).not.toHaveBeenCalled();
     expect(denied.start).toHaveBeenCalledTimes(1);
+
+    MockRecognition.startImplementation = null;
+    controller.toggleListening();
+    expect(MockRecognition.instances).toHaveLength(2);
+    expect(MockRecognition.instances[1].start).toHaveBeenCalledTimes(1);
   });
 
   it("releases a permission-denied recognizer so a later tap can retry", () => {
