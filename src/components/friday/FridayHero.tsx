@@ -40,8 +40,6 @@ export function FridayHero({ voiceState = 'IDLE', audioLevel = 0 }: { voiceState
 
   return (
     <section className="friday-hero-v2" aria-label="Friday AI 影视助手" data-state={voiceState.toLowerCase()}>
-      <p className="friday-hero-eyebrow">FRIDAY · AI ASSISTANT</p>
-      <h1 className="friday-hero-title">今天想看什么？</h1>
       <button
         type="button"
         className={`friday-hero-orb-button friday-home-orb-${voiceState.toLowerCase()}`}
