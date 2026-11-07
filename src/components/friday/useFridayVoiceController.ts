@@ -18,7 +18,7 @@ type Options = {
   >;
   language: "zh" | "en";
   assistantId: "friday" | "jarvis" | "lin-meimei";
-  voiceStyle: "auto" | "jarvis" | "warm" | "clear";
+  voiceStyle?: "auto" | "jarvis" | "warm" | "clear";
   wakeWordEnabled: boolean;
   onAudioLevel?: (level: number) => void;
 };
@@ -79,7 +79,7 @@ export function useFridayVoiceController({
   handleSendRef,
   language,
   assistantId,
-  voiceStyle,
+  voiceStyle = "auto",
   wakeWordEnabled,
   onAudioLevel,
 }: Options) {
