@@ -117,6 +117,7 @@ export function FridayPanel({
   onSend, onToggleListening, voiceError, voiceEnabled, onToggleVoiceEnabled,
   onClearConversation, onStopSpeechAndResume, onInterrupt, onToggleExpanded,
   onHideAssistant, onOpenMovie, language, onLanguageChange, assistantId, onAssistantChange,
+  wakeWordEnabled, onWakeWordChange, onRevokeSession, onClearTaskHistory,
 }: FridayPanelProps) {
   const typedMessages = messages;
   const conversationEntries = typedMessages.map((message) => ({
