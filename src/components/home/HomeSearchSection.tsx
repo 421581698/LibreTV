@@ -20,12 +20,13 @@ type HomeSearchSectionProps = {
   voiceState: VoiceState;
   setVoiceState: Dispatch<SetStateAction<VoiceState>>;
   showBrandTitle?: boolean;
+  compactHeader?: boolean;
 };
 
 /** 首页只负责展示与发出语音意图；ASR 生命周期统一由 Friday voice controller 管理。 */
 export function HomeSearchSection({
   urlQuery, input, setInput, inputRef, searchHistory, runSearch,
-  pickHistory, voiceState, setVoiceState, showBrandTitle = true,
+  pickHistory, voiceState, setVoiceState, showBrandTitle = true, compactHeader = false,
 }: HomeSearchSectionProps) {
   const [voiceError, setVoiceError] = useState('');
 
@@ -66,7 +67,7 @@ export function HomeSearchSection({
       : '说出你想看的内容，或输入片名…';
 
   return (
-    <section className={cn('flex flex-col items-center', urlQuery ? 'mb-6' : 'mt-8 mb-8')}>
+    <section className={cn('flex flex-col items-center', compactHeader ? 'home-v2-header-search' : urlQuery ? 'mb-6' : 'mt-8 mb-8')}>
       {!urlQuery && showBrandTitle && <header className="text-center mb-6"><h1 className="text-4xl sm:text-5xl font-bold brand-gradient">LibreTV</h1></header>}
       {urlQuery && <h1 className="sr-only">LibreTV 视频搜索</h1>}
       <div ref={searchHistory.containerRef} className="relative w-full max-w-2xl">
