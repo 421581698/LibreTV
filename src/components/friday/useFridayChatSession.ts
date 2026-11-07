@@ -11,6 +11,7 @@ import { createMovieWorkflowTaskIdPrefix, runLibreTVMovieWorkflow } from "@/lib/
 import { fridayTaskEventStore, fridayTaskRuntime } from "@/lib/friday/task-service";
 import type { TaskSnapshot } from "@/lib/friday/task-runtime";
 import { isCurrentFridayWorkflow } from "@/components/friday/workflowRequestGuard";
+import { restoreFridayConversationHistory, serializeFridayConversationHistory } from "@/lib/friday/conversation-history";
 
 export type FridayWorkflowView = {
   status: "running" | "completed" | "failed";
@@ -171,6 +172,32 @@ export function useFridayChatSession({
       console.error("[Friday] Chat error:", chatError);
     },
   });
+
+  // Conversation continuity is browser-local and deliberately excludes tool/data payloads.
+  const historyKey = `friday-conversation-v1:${assistantId}`;
+  const [loadedHistoryKey, setLoadedHistoryKey] = useState("");
+  useEffect(() => {
+    let active = true;
+    try {
+      const stored = window.localStorage.getItem(historyKey);
+      const restored = restoreFridayConversationHistory(stored);
+      setMessages(restored as typeof messages);
+    } catch {
+      // Private browsing or storage denial must not prevent chat from working.
+    } finally {
+      if (active) setLoadedHistoryKey(historyKey);
+    }
+    return () => { active = false; };
+  }, [historyKey, setMessages]);
+
+  useEffect(() => {
+    if (loadedHistoryKey !== historyKey) return;
+    try {
+      window.localStorage.setItem(historyKey, serializeFridayConversationHistory(messages));
+    } catch {
+      // Quota/storage failures are non-fatal; the current in-memory conversation remains available.
+    }
+  }, [messages, historyKey, loadedHistoryKey]);
 
   const stopChat = useCallback(() => {
     for (const controller of activeWorkflowControllers.current.values()) controller.abort();
