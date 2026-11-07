@@ -1,7 +1,7 @@
 'use client';
 
 import type { MouseEvent } from 'react';
-import { FridayOrbVisual } from '@/components/friday/FridayOrbVisual';
+import FridayOrb from '@/components/friday/FridayOrb';
 
 type VoiceState = 'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING';
 
@@ -32,7 +32,7 @@ export function FridayHero({ voiceState = 'IDLE', audioLevel = 0 }: { voiceState
         aria-pressed={voiceState === 'LISTENING'}
       >
         <span className="friday-hero-orb">
-          <FridayOrbVisual state={voiceState === 'IDLE' ? 'standby' : voiceState.toLowerCase() as 'listening' | 'thinking' | 'speaking'} audioLevel={audioLevel} />
+          <FridayOrb state={voiceState} audioLevel={audioLevel * 100} showHud={false} interactive={false} quality={1} />
         </span>
         <span className="friday-hero-orb-label" role="status" aria-live="polite">{labels[voiceState]}</span>
       </button>
