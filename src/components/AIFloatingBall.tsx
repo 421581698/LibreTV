@@ -150,6 +150,8 @@ export default function AIFloatingBall({
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const homeWakeTokenRef = useRef(0);
+  const homeWakeAudioRef = useRef<HTMLAudioElement | null>(null);
+  const homeWakeUrlRef = useRef("");
 
 
   const {
@@ -293,34 +295,32 @@ export default function AIFloatingBall({
     startListening(false);
   }, [openPanel, startListening, setVoiceSession]);
 
-  // 首页圆球不再创建自己的 SpeechRecognition；所有语音入口统一走本控制器。
+  // 首页圆球每次点击都执行同一条 Neural TTS 唤醒链路。
+  // 若上一轮正在聆听/播报，先彻底释放旧会话，再播放唤醒音并重新启动识别。
   useEffect(() => {
     const handleHomeOrbToggle = () => {
       const wakeToken = ++homeWakeTokenRef.current;
-      // A second tap during speech interrupts both the current answer and TTS,
-      // then uses this fresh user gesture to start recognition immediately.
-      if (speaking) {
-        window.speechSynthesis?.cancel();
-        stopSpeech();
-        stop();
-        cancelActiveRequest();
-        setSpeaking(false);
-        setVoiceSession(true);
-        startListening(false);
-        return;
+
+      const previousAudio = homeWakeAudioRef.current;
+      homeWakeAudioRef.current = null;
+      if (previousAudio) {
+        previousAudio.onended = null;
+        previousAudio.onerror = null;
+        previousAudio.pause();
+        previousAudio.removeAttribute("src");
+        previousAudio.load();
+      }
+      if (homeWakeUrlRef.current) {
+        URL.revokeObjectURL(homeWakeUrlRef.current);
+        homeWakeUrlRef.current = "";
       }
 
-      if (listening) {
-        toggleListening();
-        return;
-      }
-
-      // The fixed wake acknowledgement is native and synchronous in the tap
-      // handler, so iOS Safari does not lose the user-activation window to fetch.
       openPanel();
       openRef.current = true;
       closingRef.current = false;
       clearVoiceResumeTimer();
+
+      // 统一中断旧识别、旧回复和旧请求；第二次及后续点击不再走“只关闭聆听”的分支。
       stopRecognition(true);
       stopSpeech();
       stop();
@@ -328,22 +328,30 @@ export default function AIFloatingBall({
       window.speechSynthesis?.cancel();
       setVoiceSession(true);
       setVoiceError("");
-
-      // Use the same server-side neural TTS path as assistant replies.
-      // Never use speechSynthesis here: on iOS it can silently sound like Siri.
       setSpeaking(true);
+
+      const finishWake = (message?: string) => {
+        if (wakeToken !== homeWakeTokenRef.current) return;
+        const activeAudio = homeWakeAudioRef.current;
+        homeWakeAudioRef.current = null;
+        if (activeAudio) {
+          activeAudio.onended = null;
+          activeAudio.onerror = null;
+          activeAudio.pause();
+          activeAudio.removeAttribute("src");
+          activeAudio.load();
+        }
+        if (homeWakeUrlRef.current) {
+          URL.revokeObjectURL(homeWakeUrlRef.current);
+          homeWakeUrlRef.current = "";
+        }
+        setSpeaking(false);
+        if (message) setVoiceError(message);
+        // Safari 可能仍在释放上一识别实例；startListening 会排队等待 onend。
+        startListening(false);
+      };
+
       void (async () => {
-        let wakeAudio: HTMLAudioElement | null = null;
-        let wakeUrl = "";
-        const finishWake = (message?: string) => {
-          if (wakeToken !== homeWakeTokenRef.current) return;
-          if (wakeUrl) URL.revokeObjectURL(wakeUrl);
-          wakeUrl = "";
-          wakeAudio = null;
-          setSpeaking(false);
-          if (message) setVoiceError(message);
-          startListening(false);
-        };
         try {
           const response = await fetch("/api/tts", {
             method: "POST",
@@ -364,21 +372,39 @@ export default function AIFloatingBall({
           const blob = await response.blob();
           if (!blob.size) throw new Error("Empty TTS audio");
           if (wakeToken !== homeWakeTokenRef.current) return;
-          wakeUrl = URL.createObjectURL(blob);
-          wakeAudio = new Audio(wakeUrl);
+
+          const wakeUrl = URL.createObjectURL(blob);
+          homeWakeUrlRef.current = wakeUrl;
+          const wakeAudio = new Audio(wakeUrl);
+          homeWakeAudioRef.current = wakeAudio;
           wakeAudio.onended = () => finishWake();
-          wakeAudio.onerror = () => finishWake("贾维斯语音播放失败，请检查网络或 TTS 服务。");
+          wakeAudio.onerror = () => finishWake("Jarvis 语音播放失败，请检查网络或 TTS 服务。");
           await wakeAudio.play();
         } catch (error) {
+          if (wakeToken !== homeWakeTokenRef.current) return;
           console.error("[Friday] Wake acknowledgement TTS failed:", error);
-          finishWake("贾维斯语音服务暂时不可用，已启动麦克风；不会回退到 Siri 系统声音。");
+          finishWake("Jarvis 语音服务暂时不可用，已启动麦克风；不会回退到 Siri 系统声音。");
         }
       })();
     };
+
     window.addEventListener("friday-home-orb-toggle", handleHomeOrbToggle);
     return () => window.removeEventListener("friday-home-orb-toggle", handleHomeOrbToggle);
-  }, [speaking, listening, toggleListening, openPanel, clearVoiceResumeTimer, stopRecognition, stopSpeech, stop, cancelActiveRequest, setVoiceSession, setVoiceError, setSpeaking, startListening, language, assistantId, voiceStyle]);
-
+  }, [
+    openPanel,
+    clearVoiceResumeTimer,
+    stopRecognition,
+    stopSpeech,
+    stop,
+    cancelActiveRequest,
+    setVoiceSession,
+    setVoiceError,
+    setSpeaking,
+    startListening,
+    language,
+    assistantId,
+    voiceStyle,
+  ]);
 
   const handleSend = useCallback(
     async (text?: string, keepVoiceSession = false) => {
