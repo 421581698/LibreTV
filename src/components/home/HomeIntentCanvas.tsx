@@ -3,24 +3,20 @@
 import type { ReactNode } from 'react';
 import { FridayHero } from '@/components/friday/FridayHero';
 
+type VoiceState = 'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING';
+
 type HomeIntentCanvasProps = {
   variant: 'legacy' | 'v2';
   children: ReactNode;
+  voiceState?: VoiceState;
+  audioLevel?: number;
 };
 
-/**
- * 首页意图画布：统一承载 Friday 主视觉与搜索入口。
- * 只负责展示组合，不接管搜索状态、语音会话或搜索请求。
- */
-export function HomeIntentCanvas({
-  variant,
-  children,
-}: HomeIntentCanvasProps) {
+/** 首页意图画布：Friday 圆球和搜索入口始终留在首页原位。 */
+export function HomeIntentCanvas({ variant, children, voiceState = 'IDLE', audioLevel = 0 }: HomeIntentCanvasProps) {
   return (
     <>
-      {variant === 'v2' ? (
-        <FridayHero />
-      ) : null}
+      {variant === 'v2' ? <FridayHero voiceState={voiceState} audioLevel={audioLevel} /> : null}
       {children}
     </>
   );

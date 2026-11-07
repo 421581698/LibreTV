@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { MutableRefObject, PointerEvent } from "react";
+import type { MutableRefObject, PointerEvent as ReactPointerEvent } from "react";
 
 type DragState = {
   pointerId: number;
@@ -20,20 +20,24 @@ type Options = {
 };
 
 const FAB_SIZE = 68;
-const DRAG_THRESHOLD = 6;
+const DRAG_THRESHOLD = 8;
 
 function clampPosition(position: { left: number; top: number }) {
   const margin = 8;
   const maxLeft = Math.max(margin, window.innerWidth - FAB_SIZE - margin);
   const maxTop = Math.max(margin, window.innerHeight - FAB_SIZE - margin);
-
   return {
     left: Math.min(maxLeft, Math.max(margin, position.left)),
     top: Math.min(maxTop, Math.max(margin, position.top)),
   };
 }
 
-/** Owns only the floating orb's drag, visibility, and restore interactions. */
+/**
+ * Floating assistant interaction:
+ * - A tap opens the assistant from the click event (including iOS Safari).
+ * - Pointer events are used only for dragging.
+ * - A drag suppresses its follow-up click so it cannot accidentally open.
+ */
 export function useFridayFabController({
   openRef,
   closingRef,
@@ -44,28 +48,20 @@ export function useFridayFabController({
   const [fabPosition, setFabPosition] = useState<{ left: number; top: number } | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const suppressClickRef = useRef(false);
-  const dragResetTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const handleResize = () => {
       setFabPosition((current) => (current ? clampPosition(current) : current));
     };
-
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (dragResetTimerRef.current !== null) {
-        window.clearTimeout(dragResetTimerRef.current);
-      }
-    };
-  }, []);
-
-  const handleFabPointerDown = useCallback((event: PointerEvent<HTMLButtonElement>) => {
+  const handleFabPointerDown = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
     if (openRef.current || closingRef.current) return;
-
+    // Clear a stale drag-click suppression if the browser omitted click after
+    // a previous pointer sequence (seen on some mobile Safari versions).
+    suppressClickRef.current = false;
     const rect = event.currentTarget.getBoundingClientRect();
     dragRef.current = {
       pointerId: event.pointerId,
@@ -75,15 +71,11 @@ export function useFridayFabController({
       startY: event.clientY,
       moved: false,
     };
-
-    try {
-      event.currentTarget.setPointerCapture(event.pointerId);
-    } catch {
-      // Some browsers do not support pointer capture.
-    }
+    // Deliberately avoid pointer capture: iOS Safari can retarget/suppress
+    // the synthesized click after capture. A normal tap is handled by onClick.
   }, [openRef, closingRef]);
 
-  const handleFabPointerMove = useCallback((event: PointerEvent<HTMLButtonElement>) => {
+  const handleFabPointerMove = useCallback((event: { pointerId: number; clientX: number; clientY: number }) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
 
@@ -99,31 +91,58 @@ export function useFridayFabController({
     }));
   }, []);
 
-  const handleFabPointerUp = useCallback((event: PointerEvent<HTMLButtonElement>) => {
+  const handleFabPointerUp = useCallback((event: { pointerId: number }) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
 
-    const wasMoved = drag.moved;
+    const wasDrag = drag.moved;
     dragRef.current = null;
-    if (!wasMoved) return;
 
-    suppressClickRef.current = true;
-    if (dragResetTimerRef.current !== null) {
-      window.clearTimeout(dragResetTimerRef.current);
+    if (wasDrag) {
+      // Suppress the click synthesized after a completed drag.
+      suppressClickRef.current = true;
+      return;
     }
-    dragResetTimerRef.current = window.setTimeout(() => {
-      suppressClickRef.current = false;
-      dragResetTimerRef.current = null;
-    }, 350);
+
+    // Do not rely exclusively on a synthesized click: some mobile Safari
+    // pointer sequences can omit it. A stationary pointer release is a tap.
+    suppressClickRef.current = true;
+    if (!openRef.current && !closingRef.current) {
+      onOpen();
+    }
+  }, [onOpen, openRef, closingRef]);
+
+  const handleFabPointerCancel = useCallback((event: { pointerId: number }) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    suppressClickRef.current = false;
   }, []);
+
+  // Listen on window rather than only the button: iOS Safari can retarget
+  // pointerup after a tiny finger drift, which otherwise leaves a tap unhandled.
+  useEffect(() => {
+    const onPointerMove = (event: globalThis.PointerEvent) => handleFabPointerMove(event);
+    const onPointerUp = (event: globalThis.PointerEvent) => handleFabPointerUp(event);
+    const onPointerCancel = (event: globalThis.PointerEvent) => handleFabPointerCancel(event);
+    window.addEventListener("pointermove", onPointerMove, true);
+    window.addEventListener("pointerup", onPointerUp, true);
+    window.addEventListener("pointercancel", onPointerCancel, true);
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove, true);
+      window.removeEventListener("pointerup", onPointerUp, true);
+      window.removeEventListener("pointercancel", onPointerCancel, true);
+    };
+  }, [handleFabPointerMove, handleFabPointerUp, handleFabPointerCancel]);
 
   const handleFabClick = useCallback(() => {
     if (suppressClickRef.current) {
       suppressClickRef.current = false;
       return;
     }
+    if (openRef.current || closingRef.current) return;
     onOpen();
-  }, [onOpen]);
+  }, [onOpen, openRef, closingRef]);
 
   const hideAssistant = useCallback(() => {
     onClose();
@@ -141,6 +160,7 @@ export function useFridayFabController({
     handleFabPointerDown,
     handleFabPointerMove,
     handleFabPointerUp,
+    handleFabPointerCancel,
     handleFabClick,
     hideAssistant,
     restoreAssistant,

@@ -5,16 +5,18 @@ import type { MovieData, MovieItem } from "./FridayPanel";
 export function FridayMovieResults({
   data,
   onOpen,
+  language,
 }: {
   data: MovieData;
   onOpen: (movie: MovieItem) => void;
+  language: "zh" | "en";
 }) {
   const total = data.totalFound ?? data.total ?? data.results.length;
 
   if (!data.results.length) {
     return (
       <div className="friday-empty-result">
-        没有找到相关影片，可以换个关键词试试。
+        {language === "en" ? "No titles found. Try another keyword." : "没有找到相关影片，可以换个关键词试试。"}
       </div>
     );
   }
@@ -22,8 +24,8 @@ export function FridayMovieResults({
   return (
     <div className="friday-movie-section">
       <div className="friday-result-heading">
-        <span>搜索结果 · {data.keyword}</span>
-        <span className="friday-result-count">{total} 条</span>
+        <span>{language === "en" ? "Search results" : "搜索结果"} · {data.keyword}</span>
+        <span className="friday-result-count">{total} {language === "en" ? "results" : "条"}</span>
       </div>
 
       <div className="friday-movie-grid">
@@ -46,7 +48,7 @@ export function FridayMovieResults({
                 {movie.pic ? (
                   <img
                     src={movie.pic}
-                    alt={movie.name || "影片海报"}
+                    alt={movie.name || (language === "en" ? "Movie poster" : "影片海报")}
                     loading="lazy"
                     referrerPolicy="no-referrer"
                     onError={(event) => {
@@ -66,17 +68,17 @@ export function FridayMovieResults({
 
               <div className="friday-movie-info">
                 <div className="friday-movie-name">
-                  {movie.name || "未命名影片"}
+                  {movie.name || (language === "en" ? "Untitled" : "未命名影片")}
                 </div>
 
                 <div className="friday-movie-meta">
                   {[movie.year, movie.typeName, movie.area]
                     .filter(Boolean)
-                    .join(" · ") || "影视资源"}
+                    .join(" · ") || (language === "en" ? "Video" : "影视资源")}
                 </div>
 
                 <div className="friday-movie-source">
-                  {movie.sourceName || movie.sourceKey || "未知来源"}
+                  {movie.sourceName || movie.sourceKey || (language === "en" ? "Unknown source" : "未知来源")}
                 </div>
               </div>
             </button>

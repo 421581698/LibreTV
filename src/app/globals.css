@@ -573,9 +573,22 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   gap: 0;
 }
 .home-v2 .friday-hero-description,
-.home-v2 .friday-hero-orb-button,
 .home-v2 .friday-hero-orb-label,
 .home-v2 .friday-hero-text-entry { display: none !important; }
+
+/* The hero orb is wrapped by this button so it remains visible and tappable. */
+.home-v2 .friday-hero-orb-button {
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
 .home-v2 .friday-hero-orb {
   display: block;
   width: 132px;
@@ -806,4 +819,114 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   .home-v2 .friday-hero-orb .friday-orb-rim,
   .home-v2 .home-v2-mic-button.is-listening,
   .home-v2 .home-v2-voice-pulse { animation: none !important; }
+}
+
+
+/* Friday V3 workflow evidence panel */
+.friday-workflow {
+  width: min(100%, 560px);
+  margin: 10px 0 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(145, 160, 185, .24);
+  border-radius: 14px;
+  background: rgba(110, 125, 150, .07);
+  color: inherit;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.friday-workflow-heading, .friday-workflow-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.friday-workflow-heading { margin-bottom: 7px; font-size: 13px; }
+.friday-workflow-heading span { color: var(--c-muted, #888); font-weight: 500; }
+.friday-workflow p { margin: 5px 0; color: var(--c-muted, #888); }
+.friday-workflow-block { margin-top: 9px; padding-top: 8px; border-top: 1px solid rgba(145, 160, 185, .2); }
+.friday-workflow-block > strong { display: block; margin-bottom: 4px; }
+.friday-workflow-row { padding: 3px 0; color: var(--c-muted, #888); }
+.friday-workflow-review { margin-top: 9px; padding-top: 8px; border-top: 1px solid rgba(145, 160, 185, .2); font-weight: 600; }
+
+
+/* Friday Golden Sigil — transparent canvas ribbons, replacing the legacy glass orb. */
+.friday-orb-visual {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+  isolation: isolate;
+  contain: layout paint;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  animation: none !important;
+  -webkit-transform: none !important;
+  transform: none !important;
+}
+.friday-orb-visual::before,
+.friday-orb-visual::after,
+.friday-orb-visual > div { display: none !important; }
+.friday-sigil-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  background: transparent;
+  touch-action: pan-y;
+}
+.home-v2 .friday-hero-orb {
+  width: 132px;
+  height: 132px;
+  flex: 0 0 132px;
+  overflow: visible;
+  filter: none;
+}
+.home-v2 .friday-hero-orb .friday-orb-visual {
+  width: 100%;
+  height: 100%;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.home-v2 .friday-hero-orb-button:focus-visible {
+  outline: 2px solid var(--c-accent, #78bfff);
+  outline-offset: 8px;
+  border-radius: 12px;
+}
+.friday-orb-stage {
+  position: relative;
+  width: min(100%, 320px);
+  height: clamp(170px, 25vh, 230px);
+  margin-inline: auto;
+  overflow: visible;
+}
+.friday-orb-stage .friday-orb-visual {
+  position: absolute;
+  inset: 0;
+}
+@media (max-width: 430px) {
+  .home-v2 .friday-hero-orb {
+    width: 112px;
+    height: 112px;
+    flex-basis: 112px;
+  }
+}
+@media (max-height: 700px) and (max-width: 767px) {
+  .home-v2 .friday-hero-orb {
+    width: 88px;
+    height: 88px;
+    flex-basis: 88px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .friday-sigil-canvas { animation: none !important; }
 }

@@ -70,6 +70,21 @@ export interface DownloadTaskEntry {
   updatedAt: number;
 }
 
+
+// Friday V3 task audit events are stored locally in IndexedDB.
+// Event payloads may contain user prompts and source metadata; they remain on this browser.
+export interface FridayTaskEventEntry {
+  eventId: string;
+  taskId: string;
+  sequence: number;
+  type: string;
+  occurredAt: string;
+  parentTaskId?: string;
+  agent?: string;
+  payload?: unknown;
+  error?: { code: string; message: string; retryable: boolean };
+}
+
 export const db = new Dexie('libretv') as Dexie & {
   history: EntityTable<HistoryEntry, 'id'>;
   progress: EntityTable<ProgressEntry, 'key'>;
@@ -77,6 +92,7 @@ export const db = new Dexie('libretv') as Dexie & {
   liveProbe: EntityTable<LiveProbeEntry & { url: string }, 'url'>;
   segmentMeta: EntityTable<SegmentMetaEntry, 'key'>;
   downloads: EntityTable<DownloadTaskEntry, 'id'>;
+  fridayTaskEvents: EntityTable<FridayTaskEventEntry, 'eventId'>;
 };
 
 db.version(1).stores({
@@ -266,3 +282,14 @@ export async function importConfig(content: string): Promise<void> {
 }
 
 export type { SourceConfig };
+
+
+// v4: Friday V3 append-only task event log. Compound uniqueness protects task sequence ordering.
+db.version(4).stores({
+  fridayTaskEvents: 'eventId, taskId, [taskId+sequence], occurredAt, type',
+});
+
+// v5: efficiently restore only the 50 most recently created tasks without scanning the full event log.
+db.version(5).stores({
+  fridayTaskEvents: 'eventId, taskId, [taskId+sequence], occurredAt, type, [type+occurredAt]',
+});

@@ -11,6 +11,16 @@ type MutableRef<T> = {
   current: T;
 };
 
+export function isCompletedFridayRequestTransition(
+  previousStatus: string,
+  status: string,
+): boolean {
+  return (
+    (previousStatus === "submitted" || previousStatus === "streaming") &&
+    status === "ready"
+  );
+}
+
 type FridayResponseControllerOptions = {
   messages: MessageLike[];
   status: string;
@@ -48,9 +58,16 @@ export function useFridayResponseController({
   setVoiceError,
 }: FridayResponseControllerOptions) {
   const lastCompletedMessageRef = useRef("");
+  const previousStatusRef = useRef(status);
 
   useEffect(() => {
-    if (status !== "ready" || !open) return;
+    const previousStatus = previousStatusRef.current;
+    previousStatusRef.current = status;
+
+    // Only handle a response when the active request transitions from busy to
+    // ready. Reopening the panel while the chat is already ready must not replay
+    // an old assistant message or restart voice output from a prior session.
+    if (!isCompletedFridayRequestTransition(previousStatus, status) || !open) return;
 
     const lastAssistant = [...messages]
       .reverse()

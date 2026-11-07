@@ -162,4 +162,34 @@ describe("fridayReducer", () => {
     expect(state.agent).toBe("thinking");
     expect(state.errors.agent).toBeUndefined();
   });
+  it("cancels the active request without changing the closed surface", () => {
+    let state = fridayReducer(initialFridayState, { type: "OPEN" });
+    state = fridayReducer(state, { type: "MESSAGE_SUBMITTED", requestId: 21 });
+    state = fridayReducer(state, { type: "CLOSE" });
+    state = fridayReducer(state, { type: "REQUEST_CANCELLED", requestId: 21 });
+
+    expect(state.surface).toBe("closed");
+    expect(state.agent).toBe("idle");
+    expect(state.errors.agent).toBeUndefined();
+  });
+
+  it("ignores a cancellation event from an older request", () => {
+    const state = fridayReducer(initialFridayState, {
+      type: "MESSAGE_SUBMITTED",
+      requestId: 22,
+    });
+    const newer = fridayReducer(state, {
+      type: "MESSAGE_SUBMITTED",
+      requestId: 23,
+    });
+    const staleCancellation = fridayReducer(newer, {
+      type: "REQUEST_CANCELLED",
+      requestId: 22,
+    });
+
+    expect(staleCancellation).toBe(newer);
+    expect(staleCancellation.agent).toBe("thinking");
+    expect(staleCancellation.requestId).toBe(23);
+  });
+
 });

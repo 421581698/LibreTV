@@ -16,8 +16,12 @@ export function getPassword(): string {
   return process.env.PASSWORD || '';
 }
 
+export function isAuthDisabled(): boolean {
+  return process.env.AUTH_DISABLED === 'true';
+}
+
 export function isPasswordConfigured(): boolean {
-  return getPassword().length > 0;
+  return !isAuthDisabled() && getPassword().length > 0;
 }
 
 function getSecret(): string {

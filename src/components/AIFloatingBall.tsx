@@ -11,7 +11,7 @@ import React, {
 import { createPortal } from "react-dom";
 import { FridayStyles } from "@/components/friday/FridayStyles";
 import { fridayReducer, initialFridayState } from "@/lib/friday/state";
-import { FridayOrbVisual } from "@/components/friday/FridayOrbVisual";
+import FridayOrb from "@/components/friday/FridayOrb";
 import { FridayPanel, getPartText, getMovieDataForMessage } from "@/components/friday/FridayPanel";
 import type { MovieItem } from "@/components/friday/FridayPanel";
 import { useFridayVoiceController } from "@/components/friday/useFridayVoiceController";
@@ -23,6 +23,7 @@ import { useFridayMovieTransition } from "@/components/friday/useFridayMovieTran
 
 import { useFridaySources, type FridaySourceConfig } from "@/components/friday/useFridaySources";
 import { useFridayChatSession } from "@/components/friday/useFridayChatSession";
+import type { FridayAssistantId } from "@/lib/friday/assistant-profiles";
 
 
 
@@ -58,6 +59,59 @@ export default function AIFloatingBall({
   const [input, setInput] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [immersive, setImmersive] = useState(false);
+  const [language, setLanguage] = useState<"zh" | "en">("zh");
+  const [assistantId, setAssistantId] = useState<FridayAssistantId>("friday");
+  const [wakeWordEnabled, setWakeWordEnabled] = useState(false);
+  const [languagePreferenceLoaded, setLanguagePreferenceLoaded] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
+
+  // Read after hydration to avoid server/client markup mismatch, then persist
+  // only after the stored preference has been applied.
+  useEffect(() => {
+    try {
+      const savedLanguage = window.localStorage.getItem("friday-language");
+      const savedAssistant = window.localStorage.getItem("friday-assistant");
+      const savedWakeWord = window.localStorage.getItem("friday-wake-word");
+      if (savedAssistant === "friday" || savedAssistant === "jarvis" || savedAssistant === "lin-meimei") {
+        setAssistantId(savedAssistant);
+      }
+      if (savedWakeWord === "true") setWakeWordEnabled(true);
+      if (savedLanguage === "zh" || savedLanguage === "en") {
+        setLanguage(savedLanguage);
+      }
+    } catch {
+      // Storage may be unavailable in private browsing; keep the default.
+    } finally {
+      setLanguagePreferenceLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!languagePreferenceLoaded) return;
+    try {
+      window.localStorage.setItem("friday-language", language);
+    } catch {
+      // Language switching remains available for this session.
+    }
+  }, [language, languagePreferenceLoaded]);
+
+  useEffect(() => {
+    if (!languagePreferenceLoaded) return;
+    try {
+      window.localStorage.setItem("friday-wake-word", String(wakeWordEnabled));
+    } catch {
+      // Wake phrase preference remains available for this session.
+    }
+  }, [wakeWordEnabled, languagePreferenceLoaded]);
+
+  useEffect(() => {
+    if (!languagePreferenceLoaded) return;
+    try {
+      window.localStorage.setItem("friday-assistant", assistantId);
+    } catch {
+      // Profile selection remains available for this session.
+    }
+  }, [assistantId, languagePreferenceLoaded]);
 
   const openRef = useRef(false);
   const closingRef = useRef(false);
@@ -79,7 +133,11 @@ export default function AIFloatingBall({
     stopSpeechAndResume, toggleListening, setVoiceError, setCompleted,
     lastSpokenMessageRef,
   } = useFridayVoiceController({
-    busyRef, openRef, closingRef, dispatchMachine, setInput, handleSendRef,
+    busyRef, openRef, closingRef, dispatchMachine, setInput, handleSendRef, language, assistantId, wakeWordEnabled,
+    onAudioLevel: (level) => {
+      setAudioLevel(level);
+      window.dispatchEvent(new CustomEvent('friday-audio-level', { detail: { level } }));
+    },
   });
 
   const { activeSources, activeFilterAdult } = useFridaySources(sources, filterAdult);
@@ -91,10 +149,15 @@ export default function AIFloatingBall({
     error,
     stop,
     setMessages,
+    workflowBySearchId,
+    restoredTasks,
+    clearTaskHistory,
     busy,
   } = useFridayChatSession({
     sources: activeSources,
     filterAdult: activeFilterAdult,
+    language,
+    assistantId,
   });
 
   const { beginRequest, failActiveRequest, cancelActiveRequest } =
@@ -120,6 +183,8 @@ export default function AIFloatingBall({
     stop,
   });
 
+  // The VAD interrupt controller owns its microphone only during TTS playback;
+  // its RMS callback drives the orb meter without opening a competing ASR stream.
   const auroraState: AuroraState = speaking
     ? "speaking"
     : listening
@@ -130,17 +195,37 @@ export default function AIFloatingBall({
           ? "completed"
           : "standby";
 
-  const stateLabel = voiceError
-    ? "语音暂不可用，可重试或使用文字输入"
-    : auroraState === "listening"
-      ? "正在聆听"
-      : auroraState === "thinking"
-        ? "正在寻找合适的影视资源"
-        : auroraState === "speaking"
-          ? "Friday 正在回复"
-          : auroraState === "completed"
-            ? "已完成"
-            : "随时为你服务";
+  const fridayOrbState = auroraState === "listening" ? "LISTENING"
+    : auroraState === "thinking" ? "THINKING"
+    : auroraState === "speaking" ? "SPEAKING" : "IDLE";
+
+  useEffect(() => {
+    if (auroraState !== "speaking") setAudioLevel(0);
+  }, [auroraState]);
+
+  useEffect(() => {
+    const state = auroraState === "listening" ? "LISTENING"
+      : auroraState === "thinking" ? "THINKING"
+      : auroraState === "speaking" ? "SPEAKING" : "IDLE";
+    window.dispatchEvent(new CustomEvent("friday-home-voice-state", { detail: { state } }));
+  }, [auroraState]);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("friday-home-voice-error", { detail: { message: voiceError } }));
+  }, [voiceError]);
+
+
+  const stateLabel = language === "en"
+    ? voiceError ? "Voice unavailable — retry or type a message"
+      : auroraState === "listening" ? "Listening"
+      : auroraState === "thinking" ? "Finding the right titles"
+      : auroraState === "speaking" ? "Friday is responding"
+      : auroraState === "completed" ? "Completed" : "Ready when you are"
+    : voiceError ? "语音暂不可用，可重试或使用文字输入"
+      : auroraState === "listening" ? "正在聆听"
+      : auroraState === "thinking" ? "正在寻找合适的影视资源"
+      : auroraState === "speaking" ? "Friday 正在回复"
+      : auroraState === "completed" ? "已完成" : "随时为你服务";
 
   const openPanel = useCallback(() => {
     resetPendingMovie();
@@ -181,6 +266,20 @@ export default function AIFloatingBall({
     startListening(false);
   }, [openPanel, startListening, setVoiceSession]);
 
+  // 首页圆球不再创建自己的 SpeechRecognition；所有语音入口统一走本控制器。
+  useEffect(() => {
+    const handleHomeOrbToggle = () => {
+      if (listening) {
+        toggleListening();
+        return;
+      }
+      openAndListen();
+    };
+    window.addEventListener("friday-home-orb-toggle", handleHomeOrbToggle);
+    return () => window.removeEventListener("friday-home-orb-toggle", handleHomeOrbToggle);
+  }, [listening, toggleListening, openAndListen]);
+
+
   const handleSend = useCallback(
     async (text?: string, keepVoiceSession = false) => {
       const content = (text ?? input).trim();
@@ -200,7 +299,9 @@ export default function AIFloatingBall({
       setCompleted(false);
       setInput("");
 
-      beginRequest();
+      const requestId = beginRequest();
+      // Lock synchronously before the AI SDK status render to serialize ASR/VAD/manual sends.
+      busyRef.current = true;
 
       if (inputRef.current) {
         inputRef.current.style.height = "auto";
@@ -211,7 +312,7 @@ export default function AIFloatingBall({
       } catch (sendError) {
         console.error("[Friday] Send failed:", sendError);
 
-        failActiveRequest("send-failed", "消息发送失败，请检查网络后重试。");
+        failActiveRequest(requestId, "send-failed", "消息发送失败，请检查网络后重试。");
         setVoiceError("消息发送失败，请检查网络后重试。");
 
         if (keepVoiceSession && voiceSessionActiveRef.current) {
@@ -275,16 +376,14 @@ export default function AIFloatingBall({
 
     stopAllVoice();
 
-    if (busyRef.current) {
-      stop();
-    }
+    // stop/cancel unconditionally: the request may have been submitted
+    // before the AI SDK's busy status reaches this render.
+    stop();
+    cancelActiveRequest();
 
     setClosing(false);
     setOpen(false);
     dispatchMachine({ type: "CLOSE" });
-    if (busyRef.current) {
-      cancelActiveRequest();
-    }
     setExpanded(false);
     setImmersive(false);
   }, [resetPendingMovie, stopAllVoice, stop, cancelActiveRequest]);
@@ -295,6 +394,7 @@ export default function AIFloatingBall({
     handleFabPointerDown,
     handleFabPointerMove,
     handleFabPointerUp,
+    handleFabPointerCancel,
     handleFabClick,
     hideAssistant,
     restoreAssistant,
@@ -307,11 +407,10 @@ export default function AIFloatingBall({
 
   const interrupt = useCallback(() => {
     stopAllVoice();
-
-    if (busyRef.current) {
-      stop();
-    }
-  }, [stopAllVoice, stop]);
+    // Do not rely on busyRef here: it can lag the synchronous submit event.
+    stop();
+    cancelActiveRequest();
+  }, [stopAllVoice, stop, cancelActiveRequest]);
 
   useFridayResponseController({
     messages: typedMessages,
@@ -418,12 +517,9 @@ export default function AIFloatingBall({
                 : undefined
             }
             onPointerDown={handleFabPointerDown}
-            onPointerMove={handleFabPointerMove}
-            onPointerUp={handleFabPointerUp}
-            onPointerCancel={handleFabPointerUp}
             onClick={handleFabClick}
           >
-            <FridayOrbVisual />
+            <FridayOrb state={fridayOrbState} audioLevel={audioLevel} theme="auto" />
           </button>
         ) : null}
 
@@ -433,6 +529,7 @@ export default function AIFloatingBall({
             immersive={immersive}
             closing={closing}
             auroraState={auroraState}
+            audioLevel={audioLevel}
             agentState={machineState.agent}
             voiceState={machineState.voice}
             stateLabel={stateLabel}
@@ -440,6 +537,8 @@ export default function AIFloatingBall({
             onClose={closePanel}
             messagesRef={messagesRef}
             messages={typedMessages}
+            workflowBySearchId={workflowBySearchId}
+            restoredTasks={restoredTasks}
             listening={listening}
             busy={busy}
             status={status}
@@ -461,6 +560,14 @@ export default function AIFloatingBall({
             onToggleExpanded={() => setExpanded((value) => !value)}
             onHideAssistant={hideAssistant}
             onOpenMovie={handleOpenMovie}
+            language={language}
+            onLanguageChange={setLanguage}
+            assistantId={assistantId}
+            onAssistantChange={setAssistantId}
+            wakeWordEnabled={wakeWordEnabled}
+            onWakeWordChange={setWakeWordEnabled}
+            onRevokeSession={clearConversation}
+            onClearTaskHistory={() => { void clearTaskHistory(); }}
           />
         ) : null}
       {showFab && fabHidden && !open ? (
@@ -471,7 +578,7 @@ export default function AIFloatingBall({
           title="恢复 Friday"
           onClick={restoreAssistant}
         >
-          F
+          <FridayOrb state="IDLE" theme="auto" interactive={false} />
         </button>
       ) : null}
       </div>

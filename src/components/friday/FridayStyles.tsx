@@ -10,7 +10,8 @@ export function FridayStyles() {
 
         .friday-root{
           position: fixed;
-          z-index: 30;
+          z-index: 2147483647;
+          isolation: isolate;
           right: 16px;
           bottom: max(20px, env(safe-area-inset-bottom, 0px));
           font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
@@ -26,7 +27,10 @@ export function FridayStyles() {
         }
 
         .friday-root .friday-fab{
-          position: relative;
+          position: fixed;
+          right: 16px;
+          bottom: max(20px, env(safe-area-inset-bottom, 0px));
+          z-index: 2147483647;
           display: grid;
           place-items: center;
           width: 68px;
@@ -46,141 +50,6 @@ export function FridayStyles() {
 
         .friday-root .friday-fab:active{ cursor: grabbing; }
 
-        .friday-root .friday-orb-visual{
-          position: relative;
-          isolation: isolate;
-          width: 100%;
-          height: 100%;
-          overflow: hidden;
-          border: 1px solid rgba(255,255,255,.55);
-          border-radius: 46% 54% 52% 48% / 49% 44% 56% 51%;
-          background:
-            radial-gradient(ellipse at 28% 17%,rgba(255,255,255,.22),transparent 24%),
-            radial-gradient(ellipse at 75% 80%,rgba(92,95,160,.14),transparent 46%),
-            rgba(15,18,29,.19);
-          box-shadow:
-            0 0 0 1px rgba(255,255,255,.08),
-            0 0 16px rgba(111,194,255,.16),
-            0 0 25px rgba(190,117,255,.12),
-            inset 0 1px 2px rgba(255,255,255,.5),
-            inset 0 -2px 7px rgba(0,0,0,.16);
-          -webkit-backdrop-filter: blur(2px) saturate(175%);
-          backdrop-filter: blur(2px) saturate(175%);
-          animation: friday-orb-morph 9s ease-in-out infinite,
-            friday-orb-breathe 4.8s ease-in-out infinite;
-          transition: border-radius .45s ease, transform .45s ease;
-        }
-
-        .friday-root .friday-orb-inner{
-          position: absolute;
-          z-index: 0;
-          inset: 3px;
-          border-radius: inherit;
-          background:
-            radial-gradient(ellipse at 29% 18%,rgba(255,255,255,.17),transparent 25%),
-            radial-gradient(ellipse at 70% 72%,rgba(113,99,183,.13),transparent 43%),
-            radial-gradient(ellipse at 50% 52%,rgba(17,23,38,.18),rgba(9,13,25,.11) 60%,rgba(3,5,12,.24) 100%);
-          box-shadow: inset 0 0 8px rgba(0,0,0,.16),
-            inset 0 1px 3px rgba(255,255,255,.22);
-        }
-
-        .friday-root .friday-orb-fluid{
-          position: absolute;
-          z-index: 1;
-          inset: 8%;
-          border-radius: 48% 52% 57% 43% / 55% 43% 57% 45%;
-          background:
-            radial-gradient(ellipse at 20% 38%,rgba(102,231,255,.28),transparent 39%),
-            radial-gradient(ellipse at 82% 32%,rgba(183,132,255,.25),transparent 38%),
-            radial-gradient(ellipse at 55% 90%,rgba(255,180,135,.2),transparent 44%),
-            radial-gradient(ellipse at 12% 78%,rgba(119,48,77,.16),transparent 40%);
-          mix-blend-mode: screen;
-          opacity: .78;
-          animation: friday-fluid-drift 8s ease-in-out infinite alternate;
-          pointer-events: none;
-        }
-
-        .friday-root .friday-orb-rim{
-          position: absolute;
-          z-index: 2;
-          inset: 0;
-          padding: 1.7px;
-          border-radius: inherit;
-          background: conic-gradient(
-            from 15deg,
-            rgba(120,220,255,.95),
-            rgba(185,151,255,.92),
-            rgba(255,211,180,.94),
-            rgba(255,255,255,.98),
-            rgba(104,233,221,.94),
-            rgba(115,155,255,.95),
-            rgba(120,220,255,.95)
-          );
-          -webkit-mask: linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
-          -webkit-mask-composite: xor;
-          mask: linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
-          mask-composite: exclude;
-          filter: drop-shadow(0 0 2px rgba(167,220,255,.55));
-          pointer-events: none;
-          animation: friday-orb-spectrum 12s linear infinite;
-        }
-
-        .friday-root .friday-orb-glint{
-          position: absolute;
-          z-index: 3;
-          top: 10%;
-          left: 17%;
-          width: 29%;
-          height: 11%;
-          border-radius: 50%;
-          transform: rotate(-32deg);
-          background: linear-gradient(90deg,rgba(255,255,255,.94),rgba(255,255,255,.38) 60%,transparent);
-          filter: blur(.25px);
-          opacity: .9;
-          pointer-events: none;
-        }
-
-        .friday-root .friday-orb-glint-small{
-          position: absolute;
-          z-index: 3;
-          top: 23%;
-          left: 13%;
-          width: 8%;
-          height: 4%;
-          border-radius: 50%;
-          background: rgba(255,255,255,.9);
-          box-shadow: 0 0 6px rgba(255,255,255,.65);
-          transform: rotate(-32deg);
-          pointer-events: none;
-        }
-
-        @keyframes friday-orb-morph {
-          0%,100% { border-radius: 46% 54% 52% 48% / 49% 44% 56% 51%; }
-          35% { border-radius: 55% 45% 44% 56% / 44% 56% 44% 56%; }
-          70% { border-radius: 43% 57% 58% 42% / 55% 45% 55% 45%; }
-        }
-
-        @keyframes friday-orb-breathe {
-          0%,100% { transform: scale(.97); filter: brightness(1); }
-          50% { transform: scale(1.045); filter: brightness(1.16); }
-        }
-
-        @keyframes friday-orb-spectrum {
-          from { filter: hue-rotate(0deg); }
-          to { filter: hue-rotate(360deg); }
-        }
-
-        @keyframes friday-fluid-drift {
-          0% { transform: translate(-3%,2%) rotate(-8deg) scale(.94); }
-          50% { transform: translate(3%,-2%) rotate(8deg) scale(1.08); }
-          100% { transform: translate(-1%,3%) rotate(3deg) scale(1.02); }
-        }
-
-        .friday-root .friday-fab:active .friday-orb-visual{
-          transform: scale(.86);
-          border-radius: 42% 58% 60% 40% / 57% 43% 57% 43%;
-        }
-
         .friday-root .friday-restore{
           position: fixed;
           right: 8px;
@@ -188,20 +57,16 @@ export function FridayStyles() {
           z-index: 30;
           display: grid;
           place-items: center;
-          width: 34px;
-          height: 34px;
+          width: 46px;
+          height: 46px;
           padding: 0;
-          border: 1px solid rgba(255,255,255,.25);
+          border: 0;
           border-radius: 50%;
-          background: rgba(18,22,34,.7);
-          color: rgba(255,255,255,.85);
-          font-family: Georgia,serif;
-          font-size: 15px;
+          background: transparent;
           box-shadow: 0 4px 16px rgba(0,0,0,.22);
-          -webkit-backdrop-filter: blur(12px);
-          backdrop-filter: blur(12px);
           cursor: pointer;
           pointer-events: auto;
+          -webkit-tap-highlight-color: transparent;
         }
 
         .friday-root .friday-panel{
@@ -473,7 +338,7 @@ export function FridayStyles() {
           pointer-events: none;
         }
 
-        .friday-root .friday-orb-stage .friday-orb-visual{
+        .friday-root .friday-orb-stage .friday-orb{
           width: 32px;
           height: 32px;
           flex: 0 0 32px;
@@ -483,42 +348,6 @@ export function FridayStyles() {
           color: rgba(255,255,255,.69);
           font-size: 10px;
           letter-spacing: .3px;
-        }
-
-        .friday-root .friday-panel[data-state="listening"] .friday-orb-visual{
-          animation-duration: 5s,1.5s;
-          filter: brightness(1.22);
-        }
-
-        .friday-root .friday-panel[data-state="thinking"] .friday-orb-visual{
-          animation-duration: 2.5s,1.1s;
-          filter: brightness(1.24) saturate(1.3);
-        }
-
-        .friday-root .friday-panel[data-state="speaking"] .friday-orb-visual{
-          animation-duration: 2s,.75s;
-          filter: brightness(1.28);
-        }
-
-        .friday-root .friday-orb-visual[data-state="listening"] .friday-orb-fluid{
-          opacity: .98;
-          animation-duration: 2.4s;
-          filter: saturate(1.35) brightness(1.12);
-        }
-
-        .friday-root .friday-orb-visual[data-state="thinking"] .friday-orb-fluid{
-          opacity: .92;
-          animation-duration: 1.8s;
-          filter: hue-rotate(28deg) saturate(1.45);
-        }
-
-        .friday-root .friday-orb-visual[data-state="speaking"] .friday-orb-glint{
-          opacity: 1;
-          filter: blur(.1px) brightness(1.3);
-        }
-
-        .friday-root .friday-orb-visual[data-state="completed"] .friday-orb-rim{
-          filter: drop-shadow(0 0 4px rgba(167,220,255,.8));
         }
 
         .friday-root .friday-input-area{
@@ -802,7 +631,7 @@ export function FridayStyles() {
         .friday-root .friday-expanded .friday-message-content{ font-size: 14px; }
         .friday-root .friday-expanded .friday-orb-stage{ min-height: 55px; }
 
-        .friday-root .friday-expanded .friday-orb-stage .friday-orb-visual{
+        .friday-root .friday-expanded .friday-orb-stage .friday-orb{
           width: 48px;
           height: 48px;
           flex-basis: 48px;
@@ -853,7 +682,7 @@ export function FridayStyles() {
           padding: 8px 20px 22px;
         }
 
-        .friday-root .friday-immersive .friday-orb-stage .friday-orb-visual{
+        .friday-root .friday-immersive .friday-orb-stage .friday-orb{
           width: clamp(150px,32vw,260px);
           height: clamp(150px,32vw,260px);
           flex: 0 0 auto;
@@ -897,7 +726,7 @@ export function FridayStyles() {
             padding-bottom: 12px;
           }
 
-          .friday-root .friday-immersive .friday-orb-stage .friday-orb-visual{
+          .friday-root .friday-immersive .friday-orb-stage .friday-orb{
             width: clamp(142px,42vw,210px);
             height: clamp(142px,42vw,210px);
           }
@@ -915,7 +744,7 @@ export function FridayStyles() {
             padding-bottom: 8px;
           }
 
-          .friday-root .friday-immersive .friday-orb-stage .friday-orb-visual{
+          .friday-root .friday-immersive .friday-orb-stage .friday-orb{
             width: 112px;
             height: 112px;
           }
@@ -1007,9 +836,9 @@ export function FridayStyles() {
         @media (prefers-reduced-motion:reduce) {
           .friday-root .friday-fab *,
         .friday-root .friday-panel,
-        .friday-root .friday-orb-visual,
-        .friday-root .friday-orb-fluid,
-        .friday-root .friday-orb-rim,
+        .friday-root .friday-orb,
+        .friday-root ,
+        .friday-root ,
         .friday-root .friday-status-dot,
         .friday-root .friday-message,
         .friday-root .friday-status{
@@ -1030,6 +859,13 @@ export function FridayStyles() {
         .friday-root .friday-movie-card{ background: rgba(35,37,44,.96); }
         }
       
+
+        .friday-root .friday-sigil-canvas{
+          display:block;
+          width:100%;
+          height:100%;
+        }
+
       `}</style>
     </>
   );

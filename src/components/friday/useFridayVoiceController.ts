@@ -3,39 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type { FridayEvent } from "@/lib/friday/types";
-
-type SpeechRecognitionAlternativeLike = { transcript: string };
-type SpeechRecognitionResultLike = {
-  0: SpeechRecognitionAlternativeLike;
-  isFinal: boolean;
-};
-type SpeechRecognitionEventLike = Event & {
-  results: ArrayLike<SpeechRecognitionResultLike>;
-};
-type SpeechRecognitionErrorLike = Event & {
-  error?: string;
-  message?: string;
-};
-type SpeechRecognitionLike = {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
-  onerror: ((event: SpeechRecognitionErrorLike) => void) | null;
-  onend: (() => void) | null;
-  onstart: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-  abort: () => void;
-};
-type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
-
-declare global {
-  interface Window {
-    SpeechRecognition?: SpeechRecognitionConstructor;
-    webkitSpeechRecognition?: SpeechRecognitionConstructor;
-  }
-}
+import { createFridayTtsProvider, type TtsPlaybackHandle } from "@/components/friday/browserTts";
+import { getBrowserAsrConstructor, type SpeechRecognitionLike } from "@/components/friday/browserAsr";
+import { createVoiceActivityInterruptController, type VoiceActivityInterruptController } from "@/components/friday/voiceActivityInterrupt";
 
 type Options = {
   busyRef: MutableRefObject<boolean>;
@@ -46,6 +16,10 @@ type Options = {
   handleSendRef: MutableRefObject<
     (text?: string, keepVoiceSession?: boolean) => Promise<void>
   >;
+  language: "zh" | "en";
+  assistantId: "friday" | "jarvis" | "lin-meimei";
+  wakeWordEnabled: boolean;
+  onAudioLevel?: (level: number) => void;
 };
 
 const MAX_INPUT_LENGTH = 1000;
@@ -55,7 +29,26 @@ export function shouldEndVoiceSession(error?: string): boolean {
   return Boolean(error && error !== "aborted" && error !== "no-speech");
 }
 
-export function getSpeechErrorMessage(error?: string): string {
+export function getSpeechErrorMessage(error?: string, language: "zh" | "en" = "zh"): string {
+  if (language === "en") {
+    switch (error) {
+      case "not-allowed":
+      case "service-not-allowed":
+        return "Microphone access was denied. Allow microphone access in your browser settings.";
+      case "audio-capture":
+        return "No microphone was detected. Check your device settings.";
+      case "network":
+        return "Speech recognition network error. Check your connection and try again.";
+      case "no-speech":
+        return "No speech detected. Tap the microphone to try again.";
+      case "language-not-supported":
+        return "English speech recognition is not supported by this browser. Please type instead.";
+      case "aborted":
+        return "";
+      default:
+        return "Speech recognition is unavailable. Check microphone access or type your message.";
+    }
+  }
   switch (error) {
     case "not-allowed":
     case "service-not-allowed":
@@ -83,6 +76,10 @@ export function useFridayVoiceController({
   dispatchMachine,
   setInput,
   handleSendRef,
+  language,
+  assistantId,
+  wakeWordEnabled,
+  onAudioLevel,
 }: Options) {
   const [listening, setListening] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
@@ -100,8 +97,13 @@ export function useFridayVoiceController({
   const listeningRef = useRef(false);
   const voiceSessionActiveRef = useRef(false);
   const voiceSessionIdRef = useRef(0);
+  const noSpeechRetryCountRef = useRef(0);
+  const microphonePermissionObservedRef = useRef(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const recognitionStartTimerRef = useRef<number | null>(null);
+  const speechSilenceTimerRef = useRef<number | null>(null);
+  const playbackRef = useRef<TtsPlaybackHandle | null>(null);
+  const voiceActivityInterruptRef = useRef<VoiceActivityInterruptController | null>(null);
   const recognitionErrorRef = useRef("");
   const pendingVoiceTextRef = useRef("");
   const manualVoiceStopRef = useRef(false);
@@ -129,14 +131,12 @@ export function useFridayVoiceController({
   }, [dispatchMachine]);
 
   const stopSpeech = useCallback((notifyMachine = true) => {
-    utteranceRef.current = null;
-    if (typeof window !== "undefined") {
-      try {
-        window.speechSynthesis?.cancel();
-      } catch {
-        // 忽略浏览器语音取消异常。
-      }
-    }
+    const playback = playbackRef.current;
+    playbackRef.current = null;
+    const interruptController = voiceActivityInterruptRef.current;
+    voiceActivityInterruptRef.current = null;
+    void interruptController?.stop();
+    playback?.cancel();
     setSpeakingState(false);
     if (notifyMachine) {
       dispatchMachine({
@@ -149,6 +149,14 @@ export function useFridayVoiceController({
   const stopRecognition = useCallback((abort = true) => {
     const recognition = recognitionRef.current;
 
+    if (recognitionStartTimerRef.current !== null) {
+      window.clearTimeout(recognitionStartTimerRef.current);
+      recognitionStartTimerRef.current = null;
+    }
+    if (speechSilenceTimerRef.current !== null) {
+      window.clearTimeout(speechSilenceTimerRef.current);
+      speechSilenceTimerRef.current = null;
+    }
     recognitionRef.current = null;
     listeningRef.current = false;
     pendingVoiceTextRef.current = "";
@@ -193,9 +201,11 @@ export function useFridayVoiceController({
   }, [clearVoiceResumeTimer, openRef, closingRef, busyRef]);
 
   const startListening = useCallback((automatic = false) => {
-    if (busyRef.current || listeningRef.current) return;
+    // 包括“正在等待 onstart”的阶段；避免 iOS Safari 并发启动识别实例。
+    if (busyRef.current || listeningRef.current || recognitionRef.current) return;
     if (closingRef.current || !openRef.current) return;
 
+    if (!automatic) noSpeechRetryCountRef.current = 0;
     if (!automatic && !voiceSessionActiveRef.current) {
       setVoiceSession(true);
     }
@@ -206,29 +216,18 @@ export function useFridayVoiceController({
 
     if (typeof window === "undefined" || !window.isSecureContext) {
       setVoiceSession(false);
-      setVoiceError("语音识别需要安全连接，请使用 HTTPS 网站或 localhost。");
+      setVoiceError(language === "en" ? "Speech recognition requires a secure connection (HTTPS or localhost)." : "语音识别需要安全连接，请使用 HTTPS 网站或 localhost。");
       return;
     }
 
-    const SpeechRecognitionClass =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRecognitionClass = getBrowserAsrConstructor();
     if (!SpeechRecognitionClass) {
       setVoiceSession(false);
-      setVoiceError("当前浏览器暂不支持语音识别，请使用键盘输入。");
+      setVoiceError(language === "en" ? "Speech recognition is not supported by this browser. Please type instead." : "当前浏览器暂不支持语音识别，请使用键盘输入。");
       return;
     }
 
     stopSpeech();
-
-    const previousRecognition = recognitionRef.current;
-    recognitionRef.current = null;
-    if (previousRecognition) {
-      try {
-        previousRecognition.abort();
-      } catch {
-        // 忽略旧实例异常。
-      }
-    }
 
     const sessionId = voiceSessionIdRef.current;
     dispatchMachine({ type: "VOICE_START_REQUESTED", sessionId });
@@ -244,21 +243,26 @@ export function useFridayVoiceController({
         type: "VOICE_FAILED",
         sessionId: voiceSessionIdRef.current,
         code: "constructor-failed",
-        message: "无法初始化语音识别，请检查浏览器兼容性或改用键盘输入。",
+        message: language === "en" ? "Could not initialize speech recognition. Check browser compatibility or type instead." : "无法初始化语音识别，请检查浏览器兼容性或改用键盘输入。",
       });
       setVoiceSession(false);
-      setVoiceError("无法初始化语音识别，请检查浏览器兼容性或改用键盘输入。");
+      setVoiceError(language === "en" ? "Could not initialize speech recognition. Check browser compatibility or type instead." : "无法初始化语音识别，请检查浏览器兼容性或改用键盘输入。");
       return;
     }
 
-    recognition.lang = "zh-CN";
+    recognition.lang = language === "en" ? "en-GB" : "zh-CN";
     recognition.continuous = false;
     recognition.interimResults = true;
 
     recognition.onstart = () => {
       if (recognitionRef.current !== recognition) return;
       if (sessionId !== voiceSessionIdRef.current) return;
+      if (recognitionStartTimerRef.current !== null) {
+        window.clearTimeout(recognitionStartTimerRef.current);
+        recognitionStartTimerRef.current = null;
+      }
       listeningRef.current = true;
+      microphonePermissionObservedRef.current = true;
       setListening(true);
       dispatchMachine({ type: "VOICE_STARTED", sessionId });
       setVoiceError("");
@@ -280,11 +284,35 @@ export function useFridayVoiceController({
       const recognizedText = (finalText || interimText)
         .trim()
         .slice(0, MAX_INPUT_LENGTH);
-      if (recognizedText) setInput(recognizedText);
+      if (recognizedText) {
+        setInput(recognizedText);
+        if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+          window.dispatchEvent(new CustomEvent("friday-home-transcript", { detail: { text: recognizedText } }));
+        }
+        noSpeechRetryCountRef.current = 0;
+        if (speechSilenceTimerRef.current !== null) window.clearTimeout(speechSilenceTimerRef.current);
+        // Native Web Speech owns the iOS microphone. Reset a 1.5s result-silence
+        // clock instead of opening a competing getUserMedia VAD stream.
+        speechSilenceTimerRef.current = window.setTimeout(() => {
+          speechSilenceTimerRef.current = null;
+          if (recognitionRef.current !== recognition || sessionId !== voiceSessionIdRef.current) return;
+          try { recognition.stop(); } catch { /* onend dispatches the final segment */ }
+        }, 1500);
+      }
 
       if (finalText.trim()) {
+        let commandText = finalText.trim();
+        if (wakeWordEnabled) {
+          const wakePrefix = commandText.match(/^(?:(?:嘿|嗨|喂)\s*)?(?:friday|弗莱迪)[，,、:：\s-]*/i);
+          if (!wakePrefix || !commandText.slice(wakePrefix[0].length).trim()) {
+            pendingVoiceTextRef.current = "";
+            setInput("");
+            return;
+          }
+          commandText = commandText.slice(wakePrefix[0].length).trim();
+        }
         dispatchMachine({ type: "VOICE_FINAL_TEXT", sessionId });
-        pendingVoiceTextRef.current = finalText.trim().slice(0, MAX_INPUT_LENGTH);
+        pendingVoiceTextRef.current = commandText.slice(0, MAX_INPUT_LENGTH);
       }
     };
 
@@ -293,7 +321,10 @@ export function useFridayVoiceController({
       if (sessionId !== voiceSessionIdRef.current) return;
 
       recognitionErrorRef.current = event.error || "unknown";
-      const message = getSpeechErrorMessage(event.error);
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        microphonePermissionObservedRef.current = false;
+      }
+      const message = getSpeechErrorMessage(event.error, language);
       listeningRef.current = false;
       setListening(false);
       if (message) {
@@ -305,12 +336,39 @@ export function useFridayVoiceController({
         });
         setVoiceError(message);
       }
+
+      // WebKit 通常会在 error 后派发 end，但部分异常路径可能漏掉 end。
+      // 保留短暂宽限期，避免与正在收尾的识别器并发；若 end 始终缺失，
+      // 自动释放实例引用，让用户下一次点击可以创建全新的 Recognition。
+      if (recognitionStartTimerRef.current !== null) {
+        window.clearTimeout(recognitionStartTimerRef.current);
+      }
+      recognitionStartTimerRef.current = window.setTimeout(() => {
+        recognitionStartTimerRef.current = null;
+        if (recognitionRef.current !== recognition) return;
+        recognitionRef.current = null;
+        listeningRef.current = false;
+        setListening(false);
+        try {
+          recognition.abort();
+        } catch {
+          // 实例可能已由浏览器自行结束。
+        }
+      }, 1500);
     };
 
     recognition.onend = () => {
       if (recognitionRef.current !== recognition) return;
       if (sessionId !== voiceSessionIdRef.current) return;
 
+      if (recognitionStartTimerRef.current !== null) {
+        window.clearTimeout(recognitionStartTimerRef.current);
+        recognitionStartTimerRef.current = null;
+      }
+      if (speechSilenceTimerRef.current !== null) {
+        window.clearTimeout(speechSilenceTimerRef.current);
+        speechSilenceTimerRef.current = null;
+      }
       recognitionRef.current = null;
       listeningRef.current = false;
       setListening(false);
@@ -337,7 +395,12 @@ export function useFridayVoiceController({
 
       if (recognitionError && recognitionError !== "aborted") {
         if (recognitionError === "no-speech") {
-          setVoiceError("没有识别到语音，请点击麦克风重新聆听。");
+          if (noSpeechRetryCountRef.current < 2) {
+            noSpeechRetryCountRef.current += 1;
+            scheduleVoiceResume();
+          } else {
+            setVoiceError(language === "en" ? "No speech detected after two automatic retries. Tap the microphone to try again." : "连续两次未检测到语音，已暂停自动重试，请点击麦克风继续。");
+          }
         } else if (shouldEndVoiceSession(recognitionError)) {
           // 权限、设备或网络错误后结束本轮会话，避免残留活动态。
           // 用户修复问题后仍可再次点击麦克风启动新会话。
@@ -346,15 +409,38 @@ export function useFridayVoiceController({
         return;
       }
       if (openRef.current && !busyRef.current) {
-        setVoiceError("本次没有识别到完整语音，请点击麦克风继续。");
+        if (noSpeechRetryCountRef.current < 2) {
+          noSpeechRetryCountRef.current += 1;
+          scheduleVoiceResume();
+        } else {
+          setVoiceError(language === "en" ? "No complete speech after two automatic retries. Tap the microphone to continue." : "连续两次未识别到完整语音，已暂停自动重试，请点击麦克风继续。");
+        }
       }
     };
 
     recognitionRef.current = recognition;
     try {
+      // Safari 偶尔不及时派发 onstart；看门狗避免启动锁永久残留。
+      recognitionStartTimerRef.current = window.setTimeout(() => {
+        recognitionStartTimerRef.current = null;
+        if (recognitionRef.current !== recognition || listeningRef.current) return;
+        recognitionRef.current = null;
+        try {
+          recognition.abort();
+        } catch {
+          // 忽略已失效实例。
+        }
+        setVoiceSession(false);
+        setVoiceError(language === "en" ? "The browser could not start speech recognition. Tap the microphone to retry." : "浏览器未能启动语音识别，请再次点击麦克风重试。");
+      }, 8000);
+
       // 首次启动必须在用户点击的同步调用链内。
       recognition.start();
     } catch (recognitionError) {
+      if (recognitionStartTimerRef.current !== null) {
+        window.clearTimeout(recognitionStartTimerRef.current);
+        recognitionStartTimerRef.current = null;
+      }
       if (recognitionRef.current === recognition) {
         recognitionRef.current = null;
       }
@@ -362,7 +448,7 @@ export function useFridayVoiceController({
         type: "VOICE_FAILED",
         sessionId,
         code: "start-failed",
-        message: "语音识别启动失败",
+        message: language === "en" ? "Speech recognition failed to start." : "语音识别启动失败",
       });
       listeningRef.current = false;
       setListening(false);
@@ -370,12 +456,12 @@ export function useFridayVoiceController({
         recognitionError instanceof Error ? recognitionError.name : "";
       const startErrorMessage =
         errorName === "NotAllowedError" || errorName === "SecurityError"
-          ? "浏览器未授予麦克风权限，请在网站设置中允许麦克风访问。"
+          ? (language === "en" ? "Microphone access was not granted. Allow it in site settings." : "浏览器未授予麦克风权限，请在网站设置中允许麦克风访问。")
           : errorName === "InvalidStateError"
-            ? "语音识别仍在启动，请稍后再点击麦克风。"
+            ? (language === "en" ? "Speech recognition is still starting. Please wait and try again." : "语音识别仍在启动，请稍后再点击麦克风。")
             : automatic
-              ? "浏览器未允许自动恢复麦克风，请点击麦克风继续聆听。"
-              : "语音识别启动失败，请检查麦克风权限后重试。";
+              ? (language === "en" ? "The browser did not allow automatic microphone restart. Tap the microphone to continue." : "浏览器未允许自动恢复麦克风，请点击麦克风继续聆听。")
+              : (language === "en" ? "Speech recognition failed to start. Check microphone permissions and try again." : "语音识别启动失败，请检查麦克风权限后重试。");
       setVoiceSession(false);
       setVoiceError(startErrorMessage);
     }
@@ -385,11 +471,13 @@ export function useFridayVoiceController({
     openRef,
     setVoiceSession,
     clearVoiceResumeTimer,
+    scheduleVoiceResume,
     setVoiceError,
     stopSpeech,
     dispatchMachine,
     setInput,
     handleSendRef,
+    language,
   ]);
 
   useEffect(() => {
@@ -404,80 +492,116 @@ export function useFridayVoiceController({
       return;
     }
 
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+    const provider = createFridayTtsProvider(language, assistantId);
+    if (!provider) {
       setSpeakingState(false);
       setCompleted(true);
       dispatchMachine({
         type: "VOICE_FAILED",
         sessionId: voiceSessionIdRef.current,
         code: "speech-synthesis-unsupported",
-        message: "当前浏览器不支持语音播报。",
+        message: language === "en" ? "Speech synthesis is not supported by this browser." : "当前浏览器不支持语音播报。",
       });
-      setVoiceError("当前浏览器不支持语音播报。");
+      setVoiceError(language === "en" ? "Speech synthesis is not supported by this browser." : "当前浏览器不支持语音播报。");
       scheduleVoiceResume();
       return;
     }
 
     stopSpeech();
     setCompleted(false);
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "zh-CN";
-    utterance.rate = 1;
-    utterance.pitch = 1;
-
-    utterance.onstart = () => {
-      if (utteranceRef.current !== utterance) return;
-      setSpeakingState(true);
-      dispatchMachine({
-        type: "VOICE_SPEAK_START",
-        sessionId: voiceSessionIdRef.current,
-      });
-    };
-    utterance.onend = () => {
-      if (utteranceRef.current !== utterance) return;
-      utteranceRef.current = null;
-      setSpeakingState(false);
-      setCompleted(true);
-      dispatchMachine({
-        type: "VOICE_SPEAK_END",
-        sessionId: voiceSessionIdRef.current,
-      });
-      scheduleVoiceResume();
-    };
-    utterance.onerror = () => {
-      if (utteranceRef.current !== utterance) return;
-      utteranceRef.current = null;
-      setSpeakingState(false);
-      setCompleted(true);
-      dispatchMachine({
-        type: "VOICE_FAILED",
-        sessionId: voiceSessionIdRef.current,
-        code: "speech-synthesis-error",
-        message: "语音播报中断",
-      });
-      setVoiceError("语音播报中断，请继续使用文字或重新开启语音。");
-      scheduleVoiceResume();
-    };
-
     lastSpokenMessageRef.current = messageId;
-    utteranceRef.current = utterance;
+
     try {
-      window.speechSynthesis.speak(utterance);
+      const playback = provider.speak(text, {
+        onStart: () => {
+          if (playbackRef.current !== playback) return;
+          setSpeakingState(true);
+          dispatchMachine({
+            type: "VOICE_SPEAK_START",
+            sessionId: voiceSessionIdRef.current,
+          });
+          // Acoustic interruption is armed only in an active voice session and
+          // only when the browser reports an already-granted mic permission.
+          if (voiceSessionActiveRef.current) {
+            const interruptController = createVoiceActivityInterruptController({
+              hasPriorMicGrant: () => microphonePermissionObservedRef.current,
+              captureOptions: { onAudioLevel },
+              onInterrupt: () => {
+                if (playbackRef.current !== playback) return;
+                playbackRef.current = null;
+                playback.cancel();
+                setSpeakingState(false);
+                startListeningRef.current(true);
+              },
+            });
+            voiceActivityInterruptRef.current = interruptController;
+            void interruptController.start().then((armed) => {
+              if (!armed && voiceActivityInterruptRef.current === interruptController) {
+                voiceActivityInterruptRef.current = null;
+              }
+            });
+          }
+        },
+        onEnd: () => {
+          if (playbackRef.current !== playback) return;
+          playbackRef.current = null;
+          const interruptController = voiceActivityInterruptRef.current;
+          voiceActivityInterruptRef.current = null;
+          setSpeakingState(false);
+          setCompleted(true);
+          dispatchMachine({
+            type: "VOICE_SPEAK_END",
+            sessionId: voiceSessionIdRef.current,
+          });
+          if (interruptController) {
+            void interruptController.stop().then(
+              () => scheduleVoiceResume(),
+              () => scheduleVoiceResume(),
+            );
+          } else {
+            scheduleVoiceResume();
+          }
+        },
+        onError: () => {
+          if (playbackRef.current !== playback) return;
+          playbackRef.current = null;
+          const interruptController = voiceActivityInterruptRef.current;
+          voiceActivityInterruptRef.current = null;
+          setSpeakingState(false);
+          setCompleted(true);
+          dispatchMachine({
+            type: "VOICE_FAILED",
+            sessionId: voiceSessionIdRef.current,
+            code: "speech-synthesis-error",
+            message: language === "en" ? "Speech was interrupted." : "语音播报中断",
+          });
+          setVoiceError(language === "en" ? "Speech was interrupted. Continue typing or turn voice output back on." : "语音播报中断，请继续使用文字或重新开启语音。");
+          if (interruptController) {
+            void interruptController.stop().then(
+              () => scheduleVoiceResume(),
+              () => scheduleVoiceResume(),
+            );
+          } else {
+            scheduleVoiceResume();
+          }
+        },
+      });
+      playbackRef.current = playback;
     } catch (speechError) {
       console.error("[Friday] Speech synthesis failed:", speechError);
-      if (utteranceRef.current === utterance) utteranceRef.current = null;
+      playbackRef.current = null;
       setSpeakingState(false);
       setCompleted(true);
       dispatchMachine({
         type: "VOICE_FAILED",
         sessionId: voiceSessionIdRef.current,
         code: "speech-synthesis-start-failed",
-        message: "语音播报启动失败",
+        message: language === "en" ? "Speech playback failed to start." : "语音播报启动失败",
       });
-      setVoiceError("语音播报启动失败，请继续使用文字或重新开启语音。");
+      setVoiceError(language === "en" ? "Could not start speech playback. Continue typing or turn voice output back on." : "语音播报启动失败，请继续使用文字或重新开启语音。");
       scheduleVoiceResume();
     }
-  }, [voiceEnabled, stopSpeech, scheduleVoiceResume, setVoiceError, dispatchMachine]);
+  }, [voiceEnabled, language, assistantId, stopSpeech, scheduleVoiceResume, setVoiceError, dispatchMachine]);
 
   const toggleVoiceEnabled = useCallback(() => {
     if (voiceEnabled) {
@@ -497,6 +621,10 @@ export function useFridayVoiceController({
       // 等待 onresult/onend 收齐最终识别文本，不提前结束 session。
       manualVoiceStopRef.current = true;
       clearVoiceResumeTimer();
+      if (speechSilenceTimerRef.current !== null) {
+        window.clearTimeout(speechSilenceTimerRef.current);
+        speechSilenceTimerRef.current = null;
+      }
       try {
         recognitionRef.current?.stop();
       } catch {

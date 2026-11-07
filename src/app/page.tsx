@@ -58,7 +58,18 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
   const searchParams = useSearchParams();
   const { toast } = useToast();
 
-  const urlQuery = searchParams.get('q') ?? searchParams.get('s') ?? '';
+  const routeQuery = searchParams.get('q') ?? searchParams.get('s') ?? '';
+  const [voiceState, setVoiceState] = useState<'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING'>('IDLE');
+  const [audioLevel, setAudioLevel] = useState(0);
+
+  useEffect(() => {
+    const handleAudioLevel = (event: Event) => {
+      const level = (event as CustomEvent<{ level?: number }>).detail?.level;
+      setAudioLevel(typeof level === 'number' && Number.isFinite(level) ? Math.max(0, Math.min(1, level)) : 0);
+    };
+    window.addEventListener('friday-audio-level', handleAudioLevel);
+    return () => window.removeEventListener('friday-audio-level', handleAudioLevel);
+  }, []);
 
   const customAPIs = useAppStore((s) => s.customAPIs);
   const envSources = useAppStore((s) => s.envSources);
@@ -101,8 +112,10 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
     inputRef,
     searchHistory,
     runSearch,
+    runSearchInPlace,
     pickHistory,
-  } = useHomeSearchController(urlQuery, selectedSources.length, toast);
+    activeQuery: urlQuery,
+  } = useHomeSearchController(routeQuery, selectedSources.length, toast);
 
   const disabledSources = useMemo(
     () => selectedKeys.filter((key) => isSourceDisabled({ sourceHealth }, key)),
@@ -148,6 +161,12 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
   });
 
   const isSearching = Boolean(urlQuery) && searchQuery.isFetching && !searchQuery.data;
+
+  useEffect(() => {
+    if (voiceState === 'THINKING' && urlQuery && !searchQuery.isFetching && (searchQuery.isSuccess || searchQuery.isError)) {
+      setVoiceState('IDLE');
+    }
+  }, [voiceState, urlQuery, searchQuery.isFetching, searchQuery.isSuccess, searchQuery.isError]);
 
   const streamedList = useMemo(
     () => streamedOutcomes.flatMap((o) => o.list),
@@ -223,7 +242,9 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
           />
         )}
         <HomeIntentCanvas
-          variant={isV2 && !urlQuery ? 'v2' : 'legacy'}
+          variant={isV2 ? 'v2' : 'legacy'}
+          voiceState={voiceState}
+          audioLevel={audioLevel}
         >
           <HomeSearchSection
             urlQuery={urlQuery}
@@ -232,7 +253,10 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
             inputRef={inputRef}
             searchHistory={searchHistory}
             runSearch={runSearch}
+            runSearchInPlace={runSearchInPlace}
             pickHistory={pickHistory}
+            voiceState={voiceState}
+            setVoiceState={setVoiceState}
             showBrandTitle={!isV2}
             showQuickSearches={isV2}
           />
