@@ -7,7 +7,7 @@ import type { MessageLike } from "@/components/friday/FridayPanel";
 import type { FridaySourceConfig } from "@/components/friday/useFridaySources";
 import type { SearchResultItem, SourceConfig } from "@/lib/types";
 import { createLibreTVMovieAgentAdapters } from "@/lib/friday/libretv-movie-adapters";
-import { runLibreTVMovieWorkflow } from "@/lib/friday/movie-workflow";
+import { createMovieWorkflowTaskIdPrefix, runLibreTVMovieWorkflow } from "@/lib/friday/movie-workflow";
 import { fridayTaskEventStore, fridayTaskRuntime } from "@/lib/friday/task-service";
 import type { TaskSnapshot } from "@/lib/friday/task-runtime";
 import { isCurrentFridayWorkflow } from "@/components/friday/workflowRequestGuard";
@@ -89,7 +89,7 @@ export function useFridayChatSession({
       [data.searchId!]: { status: "running" },
     }));
 
-    const taskIdPrefix = `friday-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const taskIdPrefix = createMovieWorkflowTaskIdPrefix();
     const controller = new AbortController();
     activeWorkflowControllers.current.set(data.searchId, controller);
     void runLibreTVMovieWorkflow({
