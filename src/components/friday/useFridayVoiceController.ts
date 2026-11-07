@@ -521,21 +521,26 @@ export function useFridayVoiceController({
           playbackRef.current = null;
           const interruptController = voiceActivityInterruptRef.current;
           voiceActivityInterruptRef.current = null;
-          void interruptController?.stop();
           setSpeakingState(false);
           setCompleted(true);
           dispatchMachine({
             type: "VOICE_SPEAK_END",
             sessionId: voiceSessionIdRef.current,
           });
-          scheduleVoiceResume();
+          if (interruptController) {
+            void interruptController.stop().then(
+              () => scheduleVoiceResume(),
+              () => scheduleVoiceResume(),
+            );
+          } else {
+            scheduleVoiceResume();
+          }
         },
         onError: () => {
           if (playbackRef.current !== playback) return;
           playbackRef.current = null;
           const interruptController = voiceActivityInterruptRef.current;
           voiceActivityInterruptRef.current = null;
-          void interruptController?.stop();
           setSpeakingState(false);
           setCompleted(true);
           dispatchMachine({
@@ -545,7 +550,14 @@ export function useFridayVoiceController({
             message: language === "en" ? "Speech was interrupted." : "语音播报中断",
           });
           setVoiceError(language === "en" ? "Speech was interrupted. Continue typing or turn voice output back on." : "语音播报中断，请继续使用文字或重新开启语音。");
-          scheduleVoiceResume();
+          if (interruptController) {
+            void interruptController.stop().then(
+              () => scheduleVoiceResume(),
+              () => scheduleVoiceResume(),
+            );
+          } else {
+            scheduleVoiceResume();
+          }
         },
       });
       playbackRef.current = playback;
