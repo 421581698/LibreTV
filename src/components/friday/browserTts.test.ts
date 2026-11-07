@@ -102,6 +102,17 @@ describe("Friday TTS provider lifecycle", () => {
     expect(window.speechSynthesis.speak).not.toHaveBeenCalled();
   });
 
+  it("sends the selected assistant profile to the server TTS route", async () => {
+    const fetchMock = vi.fn(async () => successfulAudioResponse());
+    vi.stubGlobal("fetch", fetchMock);
+    const provider = createFridayTtsProvider("zh", "lin-meimei");
+    provider!.speak("你好", { onStart: vi.fn(), onEnd: vi.fn(), onError: vi.fn() });
+    await flushPromises();
+    expect(fetchMock).toHaveBeenCalledWith("/api/tts", expect.objectContaining({
+      body: JSON.stringify({ text: "你好", language: "zh", assistantId: "lin-meimei" }),
+    }));
+  });
+
   it("falls back to browser speech when the Edge TTS request fails", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("unavailable", { status: 503 })));
 
