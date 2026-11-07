@@ -118,7 +118,7 @@ export function createBrowserVadCapture(
     detector.reset();
   };
 
-  const sample = (runId: number, buffer: Float32Array) => {
+  const sample = (runId: number, buffer: Float32Array<ArrayBuffer>) => {
     if (!running || runId !== generation || !analyser) return;
     analyser.getFloatTimeDomainData(buffer);
     const level = calculateAudioRms(buffer);
@@ -171,7 +171,7 @@ export function createBrowserVadCapture(
 
           running = true;
           const runId = ++generation;
-          sample(runId, new Float32Array(audioAnalyser.fftSize));
+          sample(runId, new Float32Array(new ArrayBuffer(audioAnalyser.fftSize * Float32Array.BYTES_PER_ELEMENT)));
         } catch (cause) {
           await cleanup();
           const error = cause instanceof Error ? cause : new Error("Unable to start microphone VAD");
