@@ -358,6 +358,58 @@ describe("Friday voice session recovery", () => {
     expect(sent).toHaveBeenCalledWith("帮我找一部科幻电影", false);
   });
 
+  it("completes two voice turns through recognition, response playback, and automatic microphone resume", async () => {
+    const { controller, sent, dispatch } = renderController();
+
+    controller.toggleListening();
+    const first = MockRecognition.instances[0];
+    first.startEvent();
+    first.result("第一轮问题", true);
+    first.endEvent();
+
+    expect(sent).toHaveBeenCalledTimes(1);
+    expect(sent).toHaveBeenLastCalledWith("第一轮问题", true);
+    expect(controller.voiceSessionActiveRef.current).toBe(true);
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: "VOICE_FINAL_TEXT" }));
+
+    controller.speakText("第一轮回答", "voice-turn-1");
+    harness.playbackEvents?.onStart();
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: "VOICE_SPEAK_START" }));
+    harness.playbackEvents?.onEnd();
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: "VOICE_SPEAK_END" }));
+
+    await vi.advanceTimersByTimeAsync(700);
+    expect(MockRecognition.instances).toHaveLength(2);
+    const second = MockRecognition.instances[1];
+    second.startEvent();
+    second.result("第二轮问题", true);
+    second.endEvent();
+
+    expect(sent).toHaveBeenCalledTimes(2);
+    expect(sent).toHaveBeenLastCalledWith("第二轮问题", true);
+    expect(controller.voiceSessionActiveRef.current).toBe(true);
+  });
+
+  it("aborts a retiring recognizer and prevents delayed microphone restart after unmount", async () => {
+    const { controller, unmount } = renderController();
+    controller.toggleListening();
+    const recognition = MockRecognition.instances[0];
+
+    controller.stopRecognition(true);
+    expect(recognition.abort).toHaveBeenCalledTimes(1);
+    expect(recognition.onend).toBeTypeOf("function");
+
+    unmount();
+    expect(recognition.abort).toHaveBeenCalledTimes(2);
+    expect(recognition.onstart).toBeNull();
+    expect(recognition.onresult).toBeNull();
+    expect(recognition.onerror).toBeNull();
+    expect(recognition.onend).toBeNull();
+
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(MockRecognition.instances).toHaveLength(1);
+  });
+
   it("interrupts active TTS when the user starts speaking again", () => {
     const { controller } = renderController();
     controller.toggleListening();
