@@ -161,6 +161,30 @@ describe("VAD speech interruption coordinator", () => {
     expect(fake.capture.start).toHaveBeenCalledTimes(1);
   });
 
+  it("stops a partially initialized capture when VAD startup fails", async () => {
+    const fake = createFakeCapture();
+    fake.capture.start.mockRejectedValueOnce(new Error("AudioContext failed"));
+    const onError = vi.fn();
+    vi.stubGlobal("navigator", {
+      permissions: {
+        query: vi.fn(async () => ({ state: "granted" })),
+      },
+    });
+    const controller = createVoiceActivityInterruptController({
+      onInterrupt: vi.fn(),
+      onError,
+      createCapture: fake.createCapture as any,
+    });
+
+    await expect(controller.start()).resolves.toBe(false);
+    expect(fake.capture.start).toHaveBeenCalledTimes(1);
+    expect(fake.capture.stop).toHaveBeenCalledTimes(1);
+    expect(controller.isArmed()).toBe(false);
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({
+      message: "AudioContext failed",
+    }));
+  });
+
   it("uses a previously confirmed ASR microphone grant when Permissions API is absent", async () => {
     const fake = createFakeCapture();
     vi.stubGlobal("navigator", {});
