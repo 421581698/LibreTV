@@ -139,9 +139,25 @@ export function PlayerShell({
     const handleFridayPlayerCommand = (event: Event) => {
       const command = parseFridayPlayerCommand((event as CustomEvent<unknown>).detail);
       if (!command) return;
-      const ok = executeFridayPlayerCommand(artRef.current, command);
+      const art = artRef.current;
+      const video = art?.video;
+      const target = art ? {
+        play: () => art.play(),
+        pause: () => art.pause(),
+        toggle: () => video?.paused ? art.play() : art.pause(),
+        get currentTime() { return art.currentTime ?? video?.currentTime ?? 0; },
+        set currentTime(value: number) { art.currentTime = value; },
+        get duration() { return art.duration ?? video?.duration ?? 0; },
+        get volume() { return video?.volume ?? art.volume ?? 1; },
+        set volume(value: number) { if (video) video.volume = value; else art.volume = value; },
+        get muted() { return video?.muted ?? false; },
+        set muted(value: boolean) { if (video) video.muted = value; },
+        get fullscreen() { return Boolean(art.fullscreen); },
+        set fullscreen(value: boolean) { art.fullscreen = value; },
+      } : null;
+      const ok = executeFridayPlayerCommand(target, command);
       window.dispatchEvent(new CustomEvent('friday-player-control-result', { detail: { commandId: command.commandId, ok } }));
-      if (ok) showHint('Friday 已执行播放器指令');
+      if (ok) showHint('Friday 控制指令已发送');
     };
     window.addEventListener('friday-player-control', handleFridayPlayerCommand);
     return () => window.removeEventListener('friday-player-control', handleFridayPlayerCommand);
