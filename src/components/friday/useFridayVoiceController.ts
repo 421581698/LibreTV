@@ -226,8 +226,8 @@ export function useFridayVoiceController({
     if (busyRef.current || listeningRef.current || recognitionRef.current) return;
     if (closingRef.current || !openRef.current) return;
 
+    if (!automatic) noSpeechRetryCountRef.current = 0;
     if (!automatic && !voiceSessionActiveRef.current) {
-      noSpeechRetryCountRef.current = 0;
       setVoiceSession(true);
     }
     if (!voiceSessionActiveRef.current) return;
@@ -468,6 +468,7 @@ export function useFridayVoiceController({
     openRef,
     setVoiceSession,
     clearVoiceResumeTimer,
+    scheduleVoiceResume,
     setVoiceError,
     stopSpeech,
     dispatchMachine,
