@@ -20,7 +20,7 @@ export function createBrowserTtsProvider(language: "zh" | "en" = "zh", voiceStyl
   return {
     speak(text, events) {
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = language === "en" ? "en-US" : "zh-CN";
+      utterance.lang = language === "en" ? (voiceStyle === "jarvis" || voiceStyle === "warm" ? "en-GB" : "en-US") : "zh-CN";
       utterance.rate = 1;
       utterance.pitch = voiceStyle === "jarvis" ? 0.82 : 1;
       const voicePattern = voiceStyle === "jarvis"
@@ -129,7 +129,7 @@ export function createFridayTtsProvider(
       void fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, language, assistantId, voiceStyle }),
+        body: JSON.stringify({ text, language, assistantId, ...(voiceStyle !== "auto" ? { voiceStyle } : {}) }),
         signal: controller.signal,
         cache: "no-store",
       }).then(async (response) => {
