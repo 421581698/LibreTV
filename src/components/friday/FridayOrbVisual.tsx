@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
+import { getSigilFrameInterval, getSigilParticleCount } from "@/components/friday/sigilPerformance";
 
 type FridayOrbVisualProps = {
   state?: "standby" | "listening" | "thinking" | "speaking" | "completed";
@@ -189,7 +190,7 @@ function drawGoldenSigil(
   // Layer 7 — star dust, distant stars and soft bokeh.
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
-  const particleCount = width < 420 ? 430 : 820;
+  const particleCount = getSigilParticleCount(width);
   for (let i = 0; i < particleCount; i++) {
     const a = seeded(i, 17) * TAU + phase * (0.025 + seeded(i, 6) * 0.07);
     const r = radius * (0.18 + seeded(i, 3) * 1.05);
@@ -256,7 +257,6 @@ export function FridayOrbVisual({ state = "standby", audioLevel = 0 }: FridayOrb
     let visible = !document.hidden;
     const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     let reducedMotion = motionQuery.matches;
-    let lastReducedDraw = 0;
     let theme: SigilTheme = document.documentElement.classList.contains("dark") ||
       document.body.classList.contains("dark") ? "dark" : "light";
 
@@ -292,8 +292,7 @@ export function FridayOrbVisual({ state = "standby", audioLevel = 0 }: FridayOrb
     const onMotionPreference = () => {
       reducedMotion = motionQuery.matches;
       last = 0;
-      lastReducedDraw = 0;
-    };
+     };
     motionQuery.addEventListener("change", onMotionPreference);
 
     const onVisibility = () => {
@@ -309,13 +308,13 @@ export function FridayOrbVisual({ state = "standby", audioLevel = 0 }: FridayOrb
     const draw = (now: number) => {
       frame = 0;
       if (!visible) return;
-      // Respect reduced-motion without polling matchMedia on every frame.
-      // A 10 FPS ceiling keeps the sigil responsive while reducing paint work.
-      if (reducedMotion && now - lastReducedDraw < 100) {
+      // Keep the full-resolution Canvas work within a device-aware frame budget.
+      // Reduced-motion users get a calmer 10 FPS cadence; narrow screens get 30 FPS.
+      const frameInterval = getSigilFrameInterval(width, reducedMotion);
+      if (last && now - last < frameInterval) {
         frame = requestAnimationFrame(draw);
         return;
       }
-      if (reducedMotion) lastReducedDraw = now;
       const dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
       last = now;
       elapsed = (elapsed + dt) % 6;
