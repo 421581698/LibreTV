@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type { FridayEvent } from "@/lib/friday/types";
 import { createFridayTtsProvider, type TtsPlaybackHandle } from "@/components/friday/browserTts";
+import { createVoiceActivityInterruptController, type VoiceActivityInterruptController } from "@/components/friday/voiceActivityInterrupt";
 
 type SpeechRecognitionAlternativeLike = { transcript: string };
 type SpeechRecognitionResultLike = {
@@ -125,6 +126,7 @@ export function useFridayVoiceController({
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const recognitionStartTimerRef = useRef<number | null>(null);
   const playbackRef = useRef<TtsPlaybackHandle | null>(null);
+  const voiceActivityInterruptRef = useRef<VoiceActivityInterruptController | null>(null);
   const recognitionErrorRef = useRef("");
   const pendingVoiceTextRef = useRef("");
   const manualVoiceStopRef = useRef(false);
@@ -154,6 +156,9 @@ export function useFridayVoiceController({
   const stopSpeech = useCallback((notifyMachine = true) => {
     const playback = playbackRef.current;
     playbackRef.current = null;
+    const interruptController = voiceActivityInterruptRef.current;
+    voiceActivityInterruptRef.current = null;
+    void interruptController?.stop();
     playback?.cancel();
     setSpeakingState(false);
     if (notifyMachine) {
@@ -491,10 +496,32 @@ export function useFridayVoiceController({
             type: "VOICE_SPEAK_START",
             sessionId: voiceSessionIdRef.current,
           });
+          // Acoustic interruption is armed only in an active voice session and
+          // only when the browser reports an already-granted mic permission.
+          if (voiceSessionActiveRef.current) {
+            const interruptController = createVoiceActivityInterruptController({
+              onInterrupt: () => {
+                if (playbackRef.current !== playback) return;
+                playbackRef.current = null;
+                playback.cancel();
+                setSpeakingState(false);
+                startListeningRef.current(true);
+              },
+            });
+            voiceActivityInterruptRef.current = interruptController;
+            void interruptController.start().then((armed) => {
+              if (!armed && voiceActivityInterruptRef.current === interruptController) {
+                voiceActivityInterruptRef.current = null;
+              }
+            });
+          }
         },
         onEnd: () => {
           if (playbackRef.current !== playback) return;
           playbackRef.current = null;
+          const interruptController = voiceActivityInterruptRef.current;
+          voiceActivityInterruptRef.current = null;
+          void interruptController?.stop();
           setSpeakingState(false);
           setCompleted(true);
           dispatchMachine({
@@ -506,6 +533,9 @@ export function useFridayVoiceController({
         onError: () => {
           if (playbackRef.current !== playback) return;
           playbackRef.current = null;
+          const interruptController = voiceActivityInterruptRef.current;
+          voiceActivityInterruptRef.current = null;
+          void interruptController?.stop();
           setSpeakingState(false);
           setCompleted(true);
           dispatchMachine({
