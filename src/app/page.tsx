@@ -60,6 +60,16 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
 
   const routeQuery = searchParams.get('q') ?? searchParams.get('s') ?? '';
   const [voiceState, setVoiceState] = useState<'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING'>('IDLE');
+  const [audioLevel, setAudioLevel] = useState(0);
+
+  useEffect(() => {
+    const handleAudioLevel = (event: Event) => {
+      const level = (event as CustomEvent<{ level?: number }>).detail?.level;
+      setAudioLevel(typeof level === 'number' && Number.isFinite(level) ? Math.max(0, Math.min(1, level)) : 0);
+    };
+    window.addEventListener('friday-audio-level', handleAudioLevel);
+    return () => window.removeEventListener('friday-audio-level', handleAudioLevel);
+  }, []);
 
   const customAPIs = useAppStore((s) => s.customAPIs);
   const envSources = useAppStore((s) => s.envSources);
@@ -234,6 +244,7 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
         <HomeIntentCanvas
           variant={isV2 ? 'v2' : 'legacy'}
           voiceState={voiceState}
+          audioLevel={audioLevel}
         >
           <HomeSearchSection
             urlQuery={urlQuery}
