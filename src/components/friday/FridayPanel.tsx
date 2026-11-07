@@ -188,7 +188,7 @@ export function FridayPanel({
                     </label>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                       <button type="button" className="friday-tool-btn" onClick={onRevokeSession}>
-                        {language === "en" ? "Revoke & clear current session" : "撤销并清空当前会话"}
+                        {language === "en" ? "End current session & clear chat" : "结束当前会话并清空对话"}
                       </button>
                       <button type="button" className="friday-tool-btn" onClick={onClearTaskHistory}>
                         {language === "en" ? "Delete local task history" : "删除本地任务记录"}
