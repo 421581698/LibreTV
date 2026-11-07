@@ -232,11 +232,21 @@ export class TaskRuntime {
 
       let snapshot = reduceTaskEvents(definition, taskEvents);
       if (snapshot.status === "running" || snapshot.status === "waiting") {
-        snapshot = await this.record(definition, "task.failed", undefined, {
-          code: "TASK_INTERRUPTED",
-          message: "Task was interrupted by a page reload or runtime shutdown; it was not automatically resumed.",
-          retryable: false,
-        });
+        try {
+          snapshot = await this.record(definition, "task.failed", undefined, {
+            code: "TASK_INTERRUPTED",
+            message: "Task was interrupted by a page reload or runtime shutdown; it was not automatically resumed.",
+            retryable: false,
+          });
+        } catch (error) {
+          // Another tab may reconcile the same task between our read and append.
+          // Accept the winner's terminal/current snapshot, but never hide an
+          // unrelated storage failure while the task is still orphaned.
+          const latestEvents = await this.store.read(definition.taskId);
+          const latest = reduceTaskEvents(definition, latestEvents);
+          if (latest.status === "running" || latest.status === "waiting") throw error;
+          snapshot = latest;
+        }
       }
       snapshots.push(snapshot);
     }
