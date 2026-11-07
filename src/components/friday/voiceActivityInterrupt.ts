@@ -73,8 +73,10 @@ export function createVoiceActivityInterruptController(
           armed = false;
           const current = capture;
           capture = null;
-          void current?.stop().finally(() => {
+          void current?.stop().then(() => {
             if (runId === generation) void options.onInterrupt();
+          }).catch((error: unknown) => {
+            options.onError?.(error instanceof Error ? error : new Error("Unable to release VAD capture"));
           });
         },
       });
@@ -82,7 +84,7 @@ export function createVoiceActivityInterruptController(
       try {
         await nextCapture.start();
         if (runId !== generation) {
-          await nextCapture.stop();
+          // stop() already owns cleanup when it invalidates an in-flight start.
           return false;
         }
         armed = true;
