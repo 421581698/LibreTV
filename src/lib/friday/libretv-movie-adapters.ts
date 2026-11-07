@@ -36,7 +36,7 @@ export function createLibreTVMovieAgentAdapters(
         cache: "no-store",
         });
       } catch (error) {
-        if (signal?.aborted) throw error;
+        if (signal?.aborted || !(error instanceof TypeError)) throw error;
         throw new DagExecutionError(
           error instanceof Error ? error.message : "Search network request failed",
           "SEARCH_NETWORK_ERROR",
@@ -44,7 +44,7 @@ export function createLibreTVMovieAgentAdapters(
         );
       }
       if (!response.ok) {
-        const retryable = response.status === 429 || response.status >= 500;
+        const retryable = response.status === 408 || response.status === 429 || response.status >= 500;
         throw new DagExecutionError(`Search API failed: HTTP ${response.status}`, "SEARCH_HTTP_ERROR", retryable);
       }
       const payload = await readJson<SearchApiResponse>(response);
