@@ -20,13 +20,12 @@ type HomeSearchSectionProps = {
   voiceState: VoiceState;
   setVoiceState: Dispatch<SetStateAction<VoiceState>>;
   showBrandTitle?: boolean;
-  showQuickSearches?: boolean;
 };
 
 /** 首页只负责展示与发出语音意图；ASR 生命周期统一由 Friday voice controller 管理。 */
 export function HomeSearchSection({
   urlQuery, input, setInput, inputRef, searchHistory, runSearch,
-  pickHistory, voiceState, setVoiceState, showBrandTitle = true, showQuickSearches = false,
+  pickHistory, voiceState, setVoiceState, showBrandTitle = true,
 }: HomeSearchSectionProps) {
   const [voiceError, setVoiceError] = useState('');
 
@@ -67,7 +66,7 @@ export function HomeSearchSection({
       : '说出你想看的内容，或输入片名…';
 
   return (
-    <section className={cn('flex flex-col items-center', urlQuery ? 'mb-6' : showQuickSearches ? 'mt-2 mb-4' : 'mt-8 mb-8')}>
+    <section className={cn('flex flex-col items-center', urlQuery ? 'mb-6' : 'mt-8 mb-8')}>
       {!urlQuery && showBrandTitle && <header className="text-center mb-6"><h1 className="text-4xl sm:text-5xl font-bold brand-gradient">LibreTV</h1></header>}
       {urlQuery && <h1 className="sr-only">LibreTV 视频搜索</h1>}
       <div ref={searchHistory.containerRef} className="relative w-full max-w-2xl">
@@ -95,8 +94,6 @@ export function HomeSearchSection({
           </div>
         </form>
         {voiceError && <p className="home-v2-voice-error" role="status" aria-live="polite">{voiceError}</p>}
-        {voiceState === 'LISTENING' && <p className="home-v2-voice-status" role="status" aria-live="polite"><span className="home-v2-voice-pulse" />正在聆听，说完后会自动搜索</p>}
-        {showQuickSearches && !urlQuery && <div className="home-v2-quick-searches" aria-label="热门搜索">{['蜘蛛侠', '科幻', '悬疑', '动漫'].map((term) => <button key={term} type="button" className="home-v2-quick-search" onClick={() => runSearch(term)}>{term}</button>)}</div>}
         {searchHistory.visible && <SearchHistoryDropdown id="home-search-history" matches={searchHistory.matches} activeIndex={searchHistory.activeIndex} onPick={pickHistory} onRemove={searchHistory.remove} onClearAll={searchHistory.clearAll} />}
       </div>
     </section>
