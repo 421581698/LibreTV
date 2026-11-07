@@ -33,6 +33,12 @@ const flushPromises = async () => {
   await Promise.resolve();
 };
 
+const successfulAudioResponse = () => ({
+  ok: true,
+  headers: { get: () => "audio/mpeg" },
+  blob: async () => new Blob(["audio"]),
+});
+
 describe("Friday TTS provider lifecycle", () => {
   beforeEach(() => {
     MockAudio.instances = [];
@@ -91,12 +97,42 @@ describe("Friday TTS provider lifecycle", () => {
     expect(utterance.lang).toBe("zh-CN");
   });
 
+  it("falls back exactly once when HTML audio playback rejects", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => successfulAudioResponse()));
+    MockAudio.prototype.play = vi.fn(async () => {
+      throw new Error("Autoplay was blocked");
+    });
+
+    const provider = createFridayTtsProvider("zh");
+    const events = { onStart: vi.fn(), onEnd: vi.fn(), onError: vi.fn() };
+    provider!.speak("播放失败", events);
+    await flushPromises();
+
+    expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1);
+    expect(MockAudio.instances).toHaveLength(1);
+    expect(URL.revokeObjectURL).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not emit onStart twice if Edge audio starts before falling back", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => successfulAudioResponse()));
+
+    const provider = createFridayTtsProvider("zh");
+    const events = { onStart: vi.fn(), onEnd: vi.fn(), onError: vi.fn() };
+    provider!.speak("测试重复开始", events);
+    await flushPromises();
+
+    const audio = MockAudio.instances[0];
+    audio.onplay?.();
+    audio.onerror?.();
+    await flushPromises();
+
+    expect(events.onStart).toHaveBeenCalledTimes(1);
+    expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1);
+    expect(URL.revokeObjectURL).toHaveBeenCalledTimes(1);
+  });
+
   it("cleans up audio and ignores late playback events after cancellation", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => ({
-      ok: true,
-      headers: { get: () => "audio/mpeg" },
-      blob: async () => new Blob(["audio"]),
-    })));
+    vi.stubGlobal("fetch", vi.fn(async () => successfulAudioResponse()));
 
     const provider = createFridayTtsProvider("en");
     const events = { onStart: vi.fn(), onEnd: vi.fn(), onError: vi.fn() };
