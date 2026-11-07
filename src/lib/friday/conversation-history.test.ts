@@ -20,10 +20,10 @@ describe("Friday browser-local conversation history", () => {
     expect(restoreFridayConversationHistory("x".repeat(128 * 1024 + 1), 1000)).toEqual([]);
   });
   it("bounds message count and text length and drops duplicate ids", () => {
-    const messages = Array.from({ length: 35 }, (_, index) => ({
+    const messages = Array.from({ length: 34 }, (_, index) => ({
       id: `m${index}`, role: "user", parts: [{ type: "text", text: "x".repeat(2500) }],
     }));
-    messages.push({ id: "m34", role: "user", parts: [{ type: "text", text: "duplicate" }] });
+    messages.push({ id: "m33", role: "user", parts: [{ type: "text", text: "duplicate" }] });
     const restored = restoreFridayConversationHistory(serializeFridayConversationHistory(messages, 1000), 1000);
     expect(restored).toHaveLength(30);
     expect(restored[0].id).toBe("m5");

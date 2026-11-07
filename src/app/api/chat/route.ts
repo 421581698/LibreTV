@@ -349,7 +349,7 @@ export async function POST(request: Request) {
     description: "控制当前已打开的 LibreTV 点播播放器。仅在用户明确要求播放、暂停、快进、快退、跳转、音量或全屏操作时调用。",
     inputSchema: z.object({
       action: z.enum(["play", "pause", "toggle", "seek_to", "seek_forward", "seek_backward", "volume_up", "volume_down", "set_volume", "mute", "unmute", "fullscreen"]),
-      seconds: z.number().finite().min(0).max(3600).optional(),
+      seconds: z.number().finite().min(0).max(86400).optional(),
       volume: z.number().finite().min(0).max(1).optional(),
     }),
     execute: async ({ action, seconds, volume }) => {
