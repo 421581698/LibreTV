@@ -125,7 +125,22 @@ function renderController() {
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const controller = useFridayVoiceController(options);
   for (const effect of harness.pendingEffects) effect();
-  return { controller, options, sent, dispatch, input };
+  return {
+    controller,
+    options,
+    sent,
+    dispatch,
+    input,
+    unmount() {
+      for (const slot of harness.slots) {
+        if (slot && typeof slot === "object" && typeof slot.cleanup === "function") {
+          const cleanup = slot.cleanup;
+          slot.cleanup = undefined;
+          cleanup();
+        }
+      }
+    },
+  };
 }
 
 describe("Friday speech recognition errors", () => {
@@ -286,6 +301,25 @@ describe("Friday voice session recovery", () => {
 
     expect(recognition.abort).toHaveBeenCalledTimes(1);
     expect(playback?.cancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("releases recognition, cancels playback, and clears resume timers on unmount", async () => {
+    const { controller, unmount } = renderController();
+    controller.toggleListening();
+    const recognition = MockRecognition.instances[0];
+    recognition.startEvent();
+
+    controller.speakText("正在播报", "message-unmount");
+    const playback = harness.playbackHandle;
+    controller.scheduleVoiceResume();
+
+    unmount();
+
+    expect(recognition.abort).toHaveBeenCalledTimes(1);
+    expect(playback?.cancel).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(MockRecognition.instances).toHaveLength(1);
   });
 
   it("does not resume twice when speech playback is interrupted", async () => {
