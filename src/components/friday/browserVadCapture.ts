@@ -1,6 +1,6 @@
 import {
   createVoiceActivityDetector,
-  type VoiceActivityDetectorEvent,
+  type VoiceActivityEvent,
   type VoiceActivityDetectorOptions,
 } from "./voiceActivityDetector";
 
@@ -12,7 +12,7 @@ type AnalyserLike = Pick<AnalyserNode, "fftSize" | "getFloatTimeDomainData" | "d
 type SourceLike = Pick<MediaStreamAudioSourceNode, "connect" | "disconnect">;
 
 export type BrowserVadCaptureOptions = {
-  onEvent: (event: VoiceActivityDetectorEvent) => void;
+  onEvent: (event: VoiceActivityEvent) => void;
   onError?: (error: Error) => void;
   detector?: VoiceActivityDetectorOptions;
   mediaDevices?: Pick<MediaDevices, "getUserMedia">;
