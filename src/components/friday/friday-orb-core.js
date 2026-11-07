@@ -505,7 +505,7 @@ export function createFridayOrb(canvas, options){
     drawHaze(cx, cy, R, pal, t, glow);
     drawSpirals(cx, cy, R, t, pal, model, u);
     for(i = 0; i < 2; i++){ drawRibbon(cx, cy, R, RIBBONS[i], t, pal, model.ramp, u, q, glow); }
-    drawRays(cx, cy, R, t, pal, model, u, glow);
+    if(o.showHud !== false) drawRays(cx, cy, R, t, pal, model, u, glow);
     for(i = 2; i < RIBBONS.length; i++){ drawRibbon(cx, cy, R, RIBBONS[i], t, pal, model.ramp, u, q, glow); }
     if(o.showHud !== false) { drawTicks(cx, cy, R, t, pal, Math.min(1, u * 2), glow); drawHudArcs(cx, cy, R, t, pal, Math.min(1, u * 2), glow); drawDataRing(cx, cy, R, t, pal, u, glow); }
     var flash = 0; if(o.flashAt != null && o.clock != null){ var fa = (o.clock - o.flashAt) / 0.5; if(fa >= 0 && fa <= 1) flash = 1 - fa; }
