@@ -85,6 +85,23 @@ describe("Friday TTS provider lifecycle", () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
+  it("plays WAV audio returned by the optional Piper JARVIS engine", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      headers: { get: () => "audio/wav" },
+      blob: async () => new Blob(["wav-audio"], { type: "audio/wav" }),
+    })));
+
+    const provider = createFridayTtsProvider("en");
+    const events = { onStart: vi.fn(), onEnd: vi.fn(), onError: vi.fn() };
+    provider!.speak("Hello Friday", events);
+    await flushPromises();
+
+    expect(MockAudio.instances).toHaveLength(1);
+    expect(MockAudio.instances[0].play).toHaveBeenCalledTimes(1);
+    expect(window.speechSynthesis.speak).not.toHaveBeenCalled();
+  });
+
   it("falls back to browser speech when the Edge TTS request fails", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("unavailable", { status: 503 })));
 
