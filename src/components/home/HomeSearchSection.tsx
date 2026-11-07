@@ -27,7 +27,7 @@ type HomeSearchSectionProps = {
   inputRef: RefObject<HTMLInputElement | null>;
   searchHistory: SearchHistoryState;
   runSearch: (query: string) => void;
-  runSearchInPlace: (query: string) => void;
+  runSearchInPlace: (query: string) => boolean;
   pickHistory: (text: string) => void;
   voiceState: VoiceState;
   setVoiceState: Dispatch<SetStateAction<VoiceState>>;
@@ -137,7 +137,7 @@ export function HomeSearchSection({
       }
       setInput(transcript);
       setVoiceState('THINKING');
-      runSearchInPlace(transcript);
+      if (!runSearchInPlace(transcript)) setVoiceState('IDLE');
     };
 
     recognitionRef.current = recognition;
