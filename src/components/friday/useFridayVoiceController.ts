@@ -18,6 +18,7 @@ type Options = {
   >;
   language: "zh" | "en";
   assistantId: "friday" | "jarvis" | "lin-meimei";
+  voiceStyle: "auto" | "jarvis" | "warm" | "clear";
   wakeWordEnabled: boolean;
   onAudioLevel?: (level: number) => void;
 };
@@ -78,6 +79,7 @@ export function useFridayVoiceController({
   handleSendRef,
   language,
   assistantId,
+  voiceStyle,
   wakeWordEnabled,
   onAudioLevel,
 }: Options) {
@@ -571,7 +573,7 @@ export function useFridayVoiceController({
       return;
     }
 
-    const provider = createFridayTtsProvider(language, assistantId);
+    const provider = createFridayTtsProvider(language, assistantId, voiceStyle);
     if (!provider) {
       setSpeakingState(false);
       setCompleted(true);
@@ -680,7 +682,7 @@ export function useFridayVoiceController({
       setVoiceError(language === "en" ? "Could not start speech playback. Continue typing or turn voice output back on." : "语音播报启动失败，请继续使用文字或重新开启语音。");
       scheduleVoiceResume();
     }
-  }, [voiceEnabled, language, assistantId, stopSpeech, scheduleVoiceResume, setVoiceError, dispatchMachine]);
+  }, [voiceEnabled, language, assistantId, voiceStyle, stopSpeech, scheduleVoiceResume, setVoiceError, dispatchMachine]);
 
   const toggleVoiceEnabled = useCallback(() => {
     if (voiceEnabled) {
