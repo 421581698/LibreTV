@@ -847,3 +847,86 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
 .friday-workflow-block > strong { display: block; margin-bottom: 4px; }
 .friday-workflow-row { padding: 3px 0; color: var(--c-muted, #888); }
 .friday-workflow-review { margin-top: 9px; padding-top: 8px; border-top: 1px solid rgba(145, 160, 185, .2); font-weight: 600; }
+
+
+/* Friday Golden Sigil — transparent canvas ribbons, replacing the legacy glass orb. */
+.friday-orb-visual {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+  isolation: isolate;
+  contain: layout paint;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  animation: none !important;
+  -webkit-transform: none !important;
+  transform: none !important;
+}
+.friday-orb-visual::before,
+.friday-orb-visual::after,
+.friday-orb-visual > div { display: none !important; }
+.friday-sigil-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  background: transparent;
+  touch-action: pan-y;
+}
+.home-v2 .friday-hero-orb {
+  width: 132px;
+  height: 132px;
+  flex: 0 0 132px;
+  overflow: visible;
+  filter: none;
+}
+.home-v2 .friday-hero-orb .friday-orb-visual {
+  width: 100%;
+  height: 100%;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.home-v2 .friday-hero-orb-button:focus-visible {
+  outline: 2px solid var(--c-accent, #78bfff);
+  outline-offset: 8px;
+  border-radius: 12px;
+}
+.friday-orb-stage {
+  position: relative;
+  width: min(100%, 320px);
+  height: clamp(170px, 25vh, 230px);
+  margin-inline: auto;
+  overflow: visible;
+}
+.friday-orb-stage .friday-orb-visual {
+  position: absolute;
+  inset: 0;
+}
+@media (max-width: 430px) {
+  .home-v2 .friday-hero-orb {
+    width: 112px;
+    height: 112px;
+    flex-basis: 112px;
+  }
+}
+@media (max-height: 700px) and (max-width: 767px) {
+  .home-v2 .friday-hero-orb {
+    width: 88px;
+    height: 88px;
+    flex-basis: 88px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .friday-sigil-canvas { animation: none !important; }
+}
