@@ -134,6 +134,7 @@ function renderController() {
     setInput: input,
     handleSendRef: { current: sent },
     language: "zh" as const,
+    assistantId: "friday" as const,
   };
   // This deterministic hook harness invokes the hook with mocked React primitives.
   // eslint-disable-next-line react-hooks/rules-of-hooks
