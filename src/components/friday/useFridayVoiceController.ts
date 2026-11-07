@@ -4,40 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type { FridayEvent } from "@/lib/friday/types";
 import { createFridayTtsProvider, type TtsPlaybackHandle } from "@/components/friday/browserTts";
+import { getBrowserAsrConstructor, type SpeechRecognitionLike } from "@/components/friday/browserAsr";
 import { createVoiceActivityInterruptController, type VoiceActivityInterruptController } from "@/components/friday/voiceActivityInterrupt";
-
-type SpeechRecognitionAlternativeLike = { transcript: string };
-type SpeechRecognitionResultLike = {
-  0: SpeechRecognitionAlternativeLike;
-  isFinal: boolean;
-};
-type SpeechRecognitionEventLike = Event & {
-  results: ArrayLike<SpeechRecognitionResultLike>;
-};
-type SpeechRecognitionErrorLike = Event & {
-  error?: string;
-  message?: string;
-};
-type SpeechRecognitionLike = {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
-  onerror: ((event: SpeechRecognitionErrorLike) => void) | null;
-  onend: (() => void) | null;
-  onstart: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-  abort: () => void;
-};
-type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
-
-declare global {
-  interface Window {
-    SpeechRecognition?: SpeechRecognitionConstructor;
-    webkitSpeechRecognition?: SpeechRecognitionConstructor;
-  }
-}
 
 type Options = {
   busyRef: MutableRefObject<boolean>;
@@ -245,8 +213,7 @@ export function useFridayVoiceController({
       return;
     }
 
-    const SpeechRecognitionClass =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRecognitionClass = getBrowserAsrConstructor();
     if (!SpeechRecognitionClass) {
       setVoiceSession(false);
       setVoiceError(language === "en" ? "Speech recognition is not supported by this browser. Please type instead." : "当前浏览器暂不支持语音识别，请使用键盘输入。");
