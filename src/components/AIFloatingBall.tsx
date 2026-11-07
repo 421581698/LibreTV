@@ -183,14 +183,8 @@ export default function AIFloatingBall({
     stop,
   });
 
-  // Web Speech API owns the microphone stream. Do not open a second getUserMedia
-  // stream just for the orb meter: iOS Safari can treat it as a competing capture
-  // session and trigger a second permission/resource lifecycle. The orb animates
-  // from the explicit listening/thinking/speaking state instead.
-  useEffect(() => {
-    if (auroraState !== "speaking") setAudioLevel(0);
-  }, [auroraState]);
-
+  // The VAD interrupt controller owns its microphone only during TTS playback;
+  // its RMS callback drives the orb meter without opening a competing ASR stream.
   const auroraState: AuroraState = speaking
     ? "speaking"
     : listening
@@ -200,6 +194,10 @@ export default function AIFloatingBall({
         : completed
           ? "completed"
           : "standby";
+
+  useEffect(() => {
+    if (auroraState !== "speaking") setAudioLevel(0);
+  }, [auroraState]);
 
   const stateLabel = language === "en"
     ? voiceError ? "Voice unavailable — retry or type a message"
