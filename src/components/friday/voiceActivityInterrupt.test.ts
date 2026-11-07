@@ -118,6 +118,49 @@ describe("VAD speech interruption coordinator", () => {
     expect(onInterrupt).not.toHaveBeenCalled();
   });
 
+  it("does not arm after a pending permission check is cancelled", async () => {
+    const fake = createFakeCapture();
+    let resolvePermission!: (status: PermissionStatus) => void;
+    const query = vi.fn(() => new Promise<PermissionStatus>((resolve) => {
+      resolvePermission = resolve;
+    }));
+    vi.stubGlobal("navigator", { permissions: { query } });
+    const controller = createVoiceActivityInterruptController({
+      onInterrupt: vi.fn(),
+      createCapture: fake.createCapture as any,
+    });
+
+    const starting = controller.start();
+    await controller.stop();
+    resolvePermission({ state: "granted" } as PermissionStatus);
+
+    await expect(starting).resolves.toBe(false);
+    expect(fake.createCapture).not.toHaveBeenCalled();
+    expect(controller.isArmed()).toBe(false);
+  });
+
+  it("shares one pending start instead of opening duplicate microphone streams", async () => {
+    const fake = createFakeCapture();
+    let resolvePermission!: (status: PermissionStatus) => void;
+    const query = vi.fn(() => new Promise<PermissionStatus>((resolve) => {
+      resolvePermission = resolve;
+    }));
+    vi.stubGlobal("navigator", { permissions: { query } });
+    const controller = createVoiceActivityInterruptController({
+      onInterrupt: vi.fn(),
+      createCapture: fake.createCapture as any,
+    });
+
+    const first = controller.start();
+    const second = controller.start();
+    resolvePermission({ state: "granted" } as PermissionStatus);
+
+    await expect(Promise.all([first, second])).resolves.toEqual([true, true]);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(fake.createCapture).toHaveBeenCalledTimes(1);
+    expect(fake.capture.start).toHaveBeenCalledTimes(1);
+  });
+
   it("stays disabled when the browser cannot query microphone permission", async () => {
     vi.stubGlobal("navigator", {});
     const createCapture = vi.fn();
