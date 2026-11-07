@@ -50,6 +50,7 @@ type Options = {
   >;
   language: "zh" | "en";
   assistantId: "friday" | "jarvis" | "lin-meimei";
+  wakeWordEnabled: boolean;
 };
 
 const MAX_INPUT_LENGTH = 1000;
@@ -108,6 +109,7 @@ export function useFridayVoiceController({
   handleSendRef,
   language,
   assistantId,
+  wakeWordEnabled,
 }: Options) {
   const [listening, setListening] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
@@ -314,8 +316,18 @@ export function useFridayVoiceController({
       }
 
       if (finalText.trim()) {
+        let commandText = finalText.trim();
+        if (wakeWordEnabled) {
+          const wakePrefix = commandText.match(/^(?:(?:嘿|嗨|喂)\\s*)?(?:friday|弗莱迪)[，,、:：\\s-]*/i);
+          if (!wakePrefix || !commandText.slice(wakePrefix[0].length).trim()) {
+            pendingVoiceTextRef.current = "";
+            setInput("");
+            return;
+          }
+          commandText = commandText.slice(wakePrefix[0].length).trim();
+        }
         dispatchMachine({ type: "VOICE_FINAL_TEXT", sessionId });
-        pendingVoiceTextRef.current = finalText.trim().slice(0, MAX_INPUT_LENGTH);
+        pendingVoiceTextRef.current = commandText.slice(0, MAX_INPUT_LENGTH);
       }
     };
 
