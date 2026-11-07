@@ -67,6 +67,13 @@ export function createFridayTtsProvider(language: "zh" | "en" = "zh"): FridayTts
       let cancelled = false;
       let settled = false;
       let usingFallback = false;
+      let startNotified = false;
+
+      const notifyStart = () => {
+        if (cancelled || settled || startNotified) return;
+        startNotified = true;
+        events.onStart();
+      };
 
       const cleanupAudio = () => {
         if (objectUrl) {
@@ -89,7 +96,10 @@ export function createFridayTtsProvider(language: "zh" | "en" = "zh"): FridayTts
         usingFallback = true;
         cleanupAudio();
         if (browserFallback) {
-          fallbackHandle = browserFallback.speak(text, events);
+          fallbackHandle = browserFallback.speak(text, {
+            ...events,
+            onStart: notifyStart,
+          });
         } else {
           settled = true;
           events.onError();
@@ -115,9 +125,7 @@ export function createFridayTtsProvider(language: "zh" | "en" = "zh"): FridayTts
         objectUrl = URL.createObjectURL(blob);
         audio = new Audio(objectUrl);
         audio.preload = "auto";
-        audio.onplay = () => {
-          if (!cancelled && !settled && !usingFallback) events.onStart();
-        };
+        audio.onplay = notifyStart;
         audio.onended = () => {
           if (cancelled || settled || usingFallback) return;
           settled = true;
