@@ -13,6 +13,7 @@ class MockUtterance {
 
 class MockAudio {
   static instances: MockAudio[] = [];
+  static playImplementation: () => Promise<void> = async () => {};
   preload = "";
   onplay: (() => void) | null = null;
   onended: (() => void) | null = null;
@@ -20,7 +21,7 @@ class MockAudio {
   pause = vi.fn();
   removeAttribute = vi.fn();
   load = vi.fn();
-  play = vi.fn(async () => {});
+  play = vi.fn(() => MockAudio.playImplementation());
 
   constructor(public src: string) {
     MockAudio.instances.push(this);
@@ -42,6 +43,7 @@ const successfulAudioResponse = () => ({
 describe("Friday TTS provider lifecycle", () => {
   beforeEach(() => {
     MockAudio.instances = [];
+    MockAudio.playImplementation = async () => {};
     vi.stubGlobal("Audio", MockAudio);
     vi.stubGlobal("SpeechSynthesisUtterance", MockUtterance);
     vi.stubGlobal("URL", {
@@ -99,9 +101,9 @@ describe("Friday TTS provider lifecycle", () => {
 
   it("falls back exactly once when HTML audio playback rejects", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => successfulAudioResponse()));
-    MockAudio.prototype.play = vi.fn(async () => {
+    MockAudio.playImplementation = async () => {
       throw new Error("Autoplay was blocked");
-    });
+    };
 
     const provider = createFridayTtsProvider("zh");
     const events = { onStart: vi.fn(), onEnd: vi.fn(), onError: vi.fn() };
@@ -126,6 +128,9 @@ describe("Friday TTS provider lifecycle", () => {
     audio.onerror?.();
     await flushPromises();
 
+    expect(events.onStart).toHaveBeenCalledTimes(1);
+    const fallbackUtterance = (window.speechSynthesis.speak as ReturnType<typeof vi.fn>).mock.calls[0][0] as MockUtterance;
+    fallbackUtterance.onstart?.();
     expect(events.onStart).toHaveBeenCalledTimes(1);
     expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1);
     expect(URL.revokeObjectURL).toHaveBeenCalledTimes(1);
