@@ -31,6 +31,8 @@ type FridayProps = {
   sources?: FridaySourceConfig[];
   filterAdult?: boolean;
   showFab?: boolean;
+  /** Homepage V2 keeps the orchestrator for voice/chat but never mounts the legacy popup. */
+  inlineMode?: boolean;
 };
 
 type AuroraState =
@@ -46,6 +48,7 @@ export default function AIFloatingBall({
   sources,
   filterAdult,
   showFab = true,
+  inlineMode = false,
 }: FridayProps) {
   const [machineState, dispatchMachine] = useReducer(
     fridayReducer,
@@ -523,7 +526,7 @@ export default function AIFloatingBall({
           </button>
         ) : null}
 
-        {open || closing ? (
+        {!inlineMode && (open || closing) ? (
           <FridayPanel
             expanded={expanded}
             immersive={immersive}
