@@ -309,8 +309,15 @@ export default function AIFloatingBall({
       if (typeof window !== "undefined" && "speechSynthesis" in window && "SpeechSynthesisUtterance" in window) {
         const utterance = new SpeechSynthesisUtterance("我在，先生");
         utterance.lang = "zh-CN";
-        utterance.rate = 1;
-        utterance.pitch = 1;
+        utterance.rate = 0.92;
+        utterance.pitch = 0.82;
+        // Prefer an installed masculine Chinese voice for the Jarvis-style wake acknowledgement.
+        const availableVoices = window.speechSynthesis.getVoices();
+        const jarvisVoice = availableVoices.find((voice) =>
+          /yunxi|male|男|david|daniel/i.test(voice.name) &&
+          /^zh(-|_)/i.test(voice.lang)
+        );
+        if (jarvisVoice) utterance.voice = jarvisVoice;
         setSpeaking(true);
         utterance.onend = () => {
           if (wakeToken !== homeWakeTokenRef.current) return;
