@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import type { MouseEvent } from 'react';
 import FridayOrb from '@/components/friday/FridayOrb';
 
@@ -7,6 +8,23 @@ type VoiceState = 'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING';
 
 /** 首页唯一 Friday 语音入口；状态变化只改变圆球，不创建面板或遮罩。 */
 export function FridayHero({ voiceState = 'IDLE', audioLevel = 0 }: { voiceState?: VoiceState; audioLevel?: number }) {
+  const [orbTheme, setOrbTheme] = useState<'light' | 'dark'>('light');
+
+  // The app theme is controlled by the .dark class, not necessarily the OS color scheme.
+  // Observe both document roots so FridayOrb always matches the actual UI theme.
+  useEffect(() => {
+    const syncTheme = () => {
+      const dark = document.documentElement.classList.contains('dark')
+        || document.body.classList.contains('dark');
+      setOrbTheme(dark ? 'dark' : 'light');
+    };
+    syncTheme();
+    const observer = new MutationObserver(syncTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
   const toggleVoice = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
@@ -35,7 +53,8 @@ export function FridayHero({ voiceState = 'IDLE', audioLevel = 0 }: { voiceState
           <FridayOrb
             state={voiceState}
             audioLevel={audioLevel}
-            theme="auto"
+            theme={orbTheme}
+            interactive
             ariaLabel="Friday 金界全息能量核心"
           />
         </span>
