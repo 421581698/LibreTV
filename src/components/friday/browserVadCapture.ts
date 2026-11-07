@@ -14,6 +14,8 @@ type SourceLike = Pick<MediaStreamAudioSourceNode, "connect" | "disconnect">;
 export type BrowserVadCaptureOptions = {
   onEvent: (event: VoiceActivityEvent) => void;
   onError?: (error: Error) => void;
+  /** Normalized RMS level (0..1) sampled from the same analyser used by VAD. */
+  onAudioLevel?: (level: number) => void;
   detector?: VoiceActivityDetectorOptions;
   mediaDevices?: Pick<MediaDevices, "getUserMedia">;
   createAudioContext?: () => AudioContextLike;
@@ -122,6 +124,11 @@ export function createBrowserVadCapture(
     if (!running || runId !== generation || !analyser) return;
     analyser.getFloatTimeDomainData(buffer);
     const level = calculateAudioRms(buffer);
+    try {
+      options.onAudioLevel?.(Math.min(1, level));
+    } catch {
+      // Visual metering must never interrupt microphone capture or VAD timing.
+    }
     for (const event of detector.pushLevel(level, now())) {
       options.onEvent(event);
     }
