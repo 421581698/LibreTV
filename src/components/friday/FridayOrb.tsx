@@ -4,10 +4,28 @@ import React, {
   useImperativeHandle,
   useRef
 } from 'react'
-// @ts-ignore - core 是原生 JS 文件，忽略 TS 类型推导报错
 import { createFridayOrb } from './friday-orb-core.js'
 
 export type FridayState = 'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING'
+
+export interface FridayOrbEngine {
+  setState(state: FridayState | string): void
+  setAudioLevel(level: number): void
+  setTheme(theme: 'dark' | 'light' | 'auto'): void
+  setPaused(paused: boolean): void
+  burst(x?: number, y?: number, scale?: number): void
+  resize(): void
+  getState(): unknown
+  getMetrics(): unknown
+  destroy(): void
+}
+
+export interface FridayOrbHandle {
+  burst(x?: number, y?: number, scale?: number): void
+  resize(): void
+  getState(): unknown
+  getMetrics(): unknown
+}
 
 export interface FridayOrbProps {
   state?: FridayState | string
@@ -21,12 +39,12 @@ export interface FridayOrbProps {
   ariaLabel?: string
   className?: string
   style?: React.CSSProperties
-  onReady?: (engine: any) => void
-  onBurst?: (e: any) => void
+  onReady?: (engine: FridayOrbEngine) => void
+  onBurst?: (event: unknown) => void
   onVisibility?: (visible: boolean) => void
 }
 
-const FridayOrb = forwardRef<any, FridayOrbProps>(function FridayOrb(props, ref) {
+const FridayOrb = forwardRef<FridayOrbHandle, FridayOrbProps>(function FridayOrb(props, ref) {
   const {
     state = 'IDLE',
     audioLevel = 0,
@@ -46,7 +64,7 @@ const FridayOrb = forwardRef<any, FridayOrbProps>(function FridayOrb(props, ref)
   } = props
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const engineRef = useRef<any>(null)
+  const engineRef = useRef<FridayOrbEngine | null>(null)
 
   /* 只创建一次：后续全部走命令式接口，避免重建画布 */
   useEffect(() => {
