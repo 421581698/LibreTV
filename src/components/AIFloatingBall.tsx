@@ -203,6 +203,18 @@ export default function AIFloatingBall({
     if (auroraState !== "speaking") setAudioLevel(0);
   }, [auroraState]);
 
+  useEffect(() => {
+    const state = auroraState === "listening" ? "LISTENING"
+      : auroraState === "thinking" ? "THINKING"
+      : auroraState === "speaking" ? "SPEAKING" : "IDLE";
+    window.dispatchEvent(new CustomEvent("friday-home-voice-state", { detail: { state } }));
+  }, [auroraState]);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("friday-home-voice-error", { detail: { message: voiceError } }));
+  }, [voiceError]);
+
+
   const stateLabel = language === "en"
     ? voiceError ? "Voice unavailable — retry or type a message"
       : auroraState === "listening" ? "Listening"
@@ -254,6 +266,20 @@ export default function AIFloatingBall({
     startListening(false);
   }, [openPanel, startListening, setVoiceSession]);
 
+  // 首页圆球不再创建自己的 SpeechRecognition；所有语音入口统一走本控制器。
+  useEffect(() => {
+    const handleHomeOrbToggle = () => {
+      if (listening) {
+        toggleListening();
+        return;
+      }
+      openAndListen();
+    };
+    window.addEventListener("friday-home-orb-toggle", handleHomeOrbToggle);
+    return () => window.removeEventListener("friday-home-orb-toggle", handleHomeOrbToggle);
+  }, [listening, toggleListening, openAndListen]);
+
+
   const handleSend = useCallback(
     async (text?: string, keepVoiceSession = false) => {
       const content = (text ?? input).trim();
@@ -274,6 +300,8 @@ export default function AIFloatingBall({
       setInput("");
 
       const requestId = beginRequest();
+      // Lock synchronously before the AI SDK status render to serialize ASR/VAD/manual sends.
+      busyRef.current = true;
 
       if (inputRef.current) {
         inputRef.current.style.height = "auto";
