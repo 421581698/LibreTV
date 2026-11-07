@@ -930,3 +930,89 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
 @media (prefers-reduced-motion: reduce) {
   .friday-sigil-canvas { animation: none !important; }
 }
+
+
+/* HOME V2 — clean Friday sigil presentation and compact header search. */
+.home-v2 .friday-hero-eyebrow,
+.home-v2 .friday-hero-title {
+  display: none !important;
+}
+.home-v2 .friday-hero-v2 {
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 6px 8px 0 !important;
+  margin: 0 auto !important;
+  overflow: visible;
+}
+.home-v2 .friday-hero-orb {
+  width: clamp(158px, 18vw, 190px) !important;
+  height: clamp(158px, 18vw, 190px) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  flex: 0 0 auto !important;
+  margin: 0 auto !important;
+  filter: drop-shadow(0 8px 30px rgba(91,151,255,.22));
+}
+.home-v2 .friday-hero-orb .friday-orb,
+.home-v2 .friday-hero-orb .friday-orb__canvas {
+  width: 100%;
+  height: 100%;
+}
+.home-v2-header-search-slot {
+  display: flex;
+  align-items: center;
+  flex: 1 1 0%;
+  min-width: 0;
+  max-width: 680px;
+}
+.home-v2-header-search {
+  width: 100%;
+  min-width: 0;
+  margin: 0 !important;
+}
+.home-v2-header-search > div {
+  width: 100%;
+  max-width: none !important;
+}
+.home-v2-header-search .home-v2-ai-search {
+  min-height: 38px;
+  height: 38px;
+  border-radius: 12px;
+}
+.home-v2-header-search .home-v2-ai-search-input {
+  min-width: 0;
+  font-size: 14px;
+}
+.home-v2-header-search .home-v2-search-leading {
+  padding-left: 10px;
+}
+.home-v2-header-search .home-v2-search-submit {
+  width: 36px;
+  height: 34px;
+}
+.home-v2-header-search .home-v2-voice-error {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  z-index: 60;
+  max-width: min(88vw, 420px);
+}
+@media (max-width: 520px) {
+  .home-v2 header > div {
+    gap: 8px;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  .home-v2-header-search-slot {
+    flex: 1 1 0%;
+    width: auto;
+  }
+  .home-v2-header-search .home-v2-ai-search-input {
+    font-size: 13px;
+  }
+  .home-v2 header nav a {
+    padding-left: 8px;
+    padding-right: 8px;
+    white-space: nowrap;
+  }
+}
