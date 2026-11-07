@@ -108,7 +108,9 @@ describe("Friday TTS provider lifecycle", () => {
     const provider = createFridayTtsProvider("zh");
     const events = { onStart: vi.fn(), onEnd: vi.fn(), onError: vi.fn() };
     provider!.speak("播放失败", events);
-    await flushPromises();
+    await vi.waitFor(() => {
+      expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1);
+    });
 
     expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1);
     expect(MockAudio.instances).toHaveLength(1);
