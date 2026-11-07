@@ -15,6 +15,8 @@ describe("Friday model provider", () => {
     const env = {
       OPENCLAW_GATEWAY_URL: "https://gateway.example.com/",
       OPENCLAW_GATEWAY_TOKEN: "gateway-secret",
+      OPENCLAW_ACCESS_CLIENT_ID: "access-id",
+      OPENCLAW_ACCESS_CLIENT_SECRET: "access-secret",
       OPENCLAW_AGENT_FRIDAY: "main",
       OPENCLAW_AGENT_JARVIS: "jarvis",
       OPENCLAW_AGENT_LIN_MEIMEI: "lin-meimei",
@@ -22,6 +24,10 @@ describe("Friday model provider", () => {
     expect(resolveFridayModelConfig(env, "friday").modelName).toBe("openclaw/main");
     expect(resolveFridayModelConfig(env, "jarvis").modelName).toBe("openclaw/jarvis");
     expect(resolveFridayModelConfig(env, "lin-meimei").modelName).toBe("openclaw/lin-meimei");
+    expect(resolveFridayModelConfig(env, "friday").headers).toEqual({
+      "CF-Access-Client-Id": "access-id",
+      "CF-Access-Client-Secret": "access-secret",
+    });
   });
 
   it("requires URL and token together", () => {
@@ -37,8 +43,18 @@ describe("Friday model provider", () => {
     expect(() => validateOpenClawGatewayUrl("https://gateway.example.com?token=x")).toThrow(/query/);
   });
 
+  it("requires a Cloudflare Access service token for protected Gateway ingress", () => {
+    expect(() => resolveFridayModelConfig({
+      OPENCLAW_GATEWAY_URL: "https://gateway.example.com",
+      OPENCLAW_GATEWAY_TOKEN: "gateway-secret",
+      OPENCLAW_AGENT_FRIDAY: "main",
+    }, "friday")).toThrow(/Access service token/);
+  });
+
   it("normalizes the OpenAI-compatible API base path", () => {
     expect(validateOpenClawGatewayUrl("https://gateway.example.com/openclaw/"))
+      .toBe("https://gateway.example.com/openclaw/v1");
+    expect(validateOpenClawGatewayUrl("https://gateway.example.com/openclaw/v1"))
       .toBe("https://gateway.example.com/openclaw/v1");
   });
 
@@ -46,6 +62,8 @@ describe("Friday model provider", () => {
     expect(() => resolveFridayModelConfig({
       OPENCLAW_GATEWAY_URL: "https://gateway.example.com",
       OPENCLAW_GATEWAY_TOKEN: "secret",
+      OPENCLAW_ACCESS_CLIENT_ID: "access-id",
+      OPENCLAW_ACCESS_CLIENT_SECRET: "access-secret",
       OPENCLAW_AGENT_FRIDAY: "../admin",
     }, "friday")).toThrow(/valid configured agent ID/);
   });
