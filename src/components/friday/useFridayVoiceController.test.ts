@@ -287,7 +287,7 @@ describe("Friday voice session recovery", () => {
   });
 
   it("does not restart listening after the panel closes", async () => {
-    const { controller } = renderController();
+    const { controller, options } = renderController();
     controller.toggleListening();
     const first = MockRecognition.instances[0];
     first.startEvent();
@@ -295,8 +295,8 @@ describe("Friday voice session recovery", () => {
 
     controller.speakText("正在播报", "message-2");
     harness.playbackEvents?.onEnd();
-    controller.options?.openRef && (controller.options.openRef.current = false);
-    controller.options?.closingRef && (controller.options.closingRef.current = true);
+    options.openRef.current = false;
+    options.closingRef.current = true;
     controller.stopAllVoice();
 
     await vi.advanceTimersByTimeAsync(1000);
