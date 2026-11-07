@@ -5,6 +5,7 @@ const harness = vi.hoisted(() => ({
   index: 0,
   pendingEffects: [] as Array<() => void>,
   playbackEvents: null as null | { onStart: () => void; onEnd: () => void; onError: () => void },
+  playbackHandle: null as null | { cancel: ReturnType<typeof vi.fn> },
 }));
 
 vi.mock("react", () => ({
@@ -57,7 +58,8 @@ vi.mock("./browserTts", () => ({
   createFridayTtsProvider: () => ({
     speak: (_text: string, events: typeof harness.playbackEvents) => {
       harness.playbackEvents = events;
-      return { cancel: vi.fn() };
+      harness.playbackHandle = { cancel: vi.fn() };
+      return harness.playbackHandle;
     },
   }),
 }));
@@ -157,6 +159,7 @@ describe("Friday voice session recovery", () => {
     harness.index = 0;
     harness.pendingEffects = [];
     harness.playbackEvents = null;
+    harness.playbackHandle = null;
     MockRecognition.instances = [];
     vi.useFakeTimers();
     vi.stubGlobal("window", {
@@ -267,6 +270,22 @@ describe("Friday voice session recovery", () => {
     expect(input).not.toHaveBeenCalledWith("过期的旧会话文本");
     expect(sent).not.toHaveBeenCalled();
     expect(currentRecognition.start).toHaveBeenCalledTimes(1);
+  });
+
+  it("releases active recognition and cancels pending playback when the panel closes", () => {
+    const { controller } = renderController();
+    controller.toggleListening();
+    const recognition = MockRecognition.instances[0];
+    recognition.startEvent();
+
+    controller.speakText("正在播报", "message-close");
+    const playback = harness.playbackHandle;
+    expect(playback).not.toBeNull();
+
+    controller.stopAllVoice();
+
+    expect(recognition.abort).toHaveBeenCalledTimes(1);
+    expect(playback?.cancel).toHaveBeenCalledTimes(1);
   });
 
   it("does not resume twice when speech playback is interrupted", async () => {
