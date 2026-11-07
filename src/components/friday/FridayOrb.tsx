@@ -36,6 +36,7 @@ export interface FridayOrbProps {
   respectReducedMotion?: boolean
   dprCap?: number
   quality?: number
+  showHud?: boolean
   ariaLabel?: string
   className?: string
   style?: React.CSSProperties
