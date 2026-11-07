@@ -93,6 +93,7 @@ export function useFridayVoiceController({
   const [voiceError, setVoiceError] = useState("");
   const [voiceSessionActive, setVoiceSessionActive] = useState(false);
   const lastSpokenMessageRef = useRef("");
+  const mountedRef = useRef(true);
 
   const listeningRef = useRef(false);
   const voiceSessionActiveRef = useRef(false);
@@ -128,13 +129,13 @@ export function useFridayVoiceController({
     recognition.onend = null;
     const pending = pendingRecognitionStartRef.current;
     pendingRecognitionStartRef.current = null;
-    if (!pending || pending.sessionId !== voiceSessionIdRef.current ||
+    if (!pending || !mountedRef.current || pending.sessionId !== voiceSessionIdRef.current ||
       !voiceSessionActiveRef.current || !openRef.current || closingRef.current ||
       busyRef.current || listeningRef.current) return;
     if (recognitionSafetyTimerRef.current !== null) window.clearTimeout(recognitionSafetyTimerRef.current);
     recognitionSafetyTimerRef.current = window.setTimeout(() => {
       recognitionSafetyTimerRef.current = null;
-      if (pending.sessionId !== voiceSessionIdRef.current || !voiceSessionActiveRef.current ||
+      if (!mountedRef.current || pending.sessionId !== voiceSessionIdRef.current || !voiceSessionActiveRef.current ||
         !openRef.current || closingRef.current || busyRef.current ||
         listeningRef.current || retiringRecognitionRef.current) return;
       startListeningRef.current(pending.automatic);
@@ -241,6 +242,8 @@ export function useFridayVoiceController({
   }, [clearVoiceResumeTimer, openRef, closingRef, busyRef]);
 
   const startListening = useCallback((automatic = false) => {
+    // 组件卸载后，迟到的计时器/浏览器事件不得重新打开麦克风。
+    if (!mountedRef.current) return;
     // 包括“正在等待 onstart”的阶段；避免 iOS Safari 并发启动识别实例。
     if (busyRef.current || listeningRef.current || recognitionRef.current) return;
     if (closingRef.current || !openRef.current) return;
@@ -715,7 +718,9 @@ export function useFridayVoiceController({
   }, [clearVoiceResumeTimer, stopRecognition, setVoiceSession]);
 
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
       voiceSessionActiveRef.current = false;
       voiceSessionIdRef.current += 1;
       pendingRecognitionStartRef.current = null;
