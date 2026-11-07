@@ -142,6 +142,7 @@ export function createBrowserVadCapture(
         throw new Error("Microphone capture is not supported by this browser");
       }
 
+      const startToken = generation;
       const startPromise = (async () => {
         try {
           const acquiredStream = await mediaDevices.getUserMedia({
@@ -152,10 +153,15 @@ export function createBrowserVadCapture(
             },
             video: false,
           });
+          if (startToken !== generation) {
+            acquiredStream.getTracks().forEach((track) => track.stop());
+            return;
+          }
           stream = acquiredStream;
           const audioContext = createAudioContext();
           context = audioContext;
           if (audioContext.state === "suspended") await audioContext.resume();
+          if (startToken !== generation) return;
           const mediaSource = audioContext.createMediaStreamSource(acquiredStream);
           source = mediaSource;
           const audioAnalyser = audioContext.createAnalyser();
