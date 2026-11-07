@@ -26,6 +26,7 @@ V3.4 is one integrated upgrade containing all nine workstreams. It preserves the
 - Relative seek is bounded to one hour per command; absolute seek accepts a valid movie timeline position up to 24 hours and is clamped to the loaded media duration.
 - Volume is clamped to `[0, 1]`.
 - Commands require an active VOD PlayerShell; live-player behavior is not changed.
+- The playback page exposes the same holographic orb as a compact toolbar entry and mounts Friday without its global floating FAB, so the assistant can control the current player without covering player controls.
 - Server tool success means the command was dispatched to the active page, not proof that playback state changed. Friday must not claim that a media operation succeeded solely from dispatch acceptance.
 
 ## Conversation-history contract
