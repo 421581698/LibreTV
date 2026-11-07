@@ -510,6 +510,8 @@ export default function AIFloatingBall({
             onOpenMovie={handleOpenMovie}
             language={language}
             onLanguageChange={setLanguage}
+            assistantId={assistantId}
+            onAssistantChange={setAssistantId}
           />
         ) : null}
       {showFab && fabHidden && !open ? (
