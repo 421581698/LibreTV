@@ -222,13 +222,16 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
 
     try {
       const result = await api.search(movie.title, selectedSources, yellowFilter);
-      const normalizedTitle = movie.title.trim().toLocaleLowerCase();
-      const matched =
-        result.list.find((entry) => entry.name.trim().toLocaleLowerCase() === normalizedTitle) ??
-        result.list[0];
+      const normalizeTitle = (value: string) =>
+        value.replace(/[\\s\\p{P}\\p{S}]/gu, '').toLocaleLowerCase();
+      const normalizedTitle = normalizeTitle(movie.title);
+      const matched = result.list.find(
+        (entry) => normalizeTitle(entry.name) === normalizedTitle
+      );
 
+      /* 不再用“第一个搜索结果”兜底，避免海报点击后误开另一部影片。 */
       if (!matched) {
-        toast(`暂未在已启用的点播源中找到《${movie.title}》的详情`, 'warning');
+        toast(`暂未在已启用的点播源中找到《${movie.title}》的准确详情，请更换点播源后重试`, 'warning');
         return;
       }
 
