@@ -123,6 +123,7 @@ export function useFridayVoiceController({
   const listeningRef = useRef(false);
   const voiceSessionActiveRef = useRef(false);
   const voiceSessionIdRef = useRef(0);
+  const microphonePermissionObservedRef = useRef(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const recognitionStartTimerRef = useRef<number | null>(null);
   const playbackRef = useRef<TtsPlaybackHandle | null>(null);
@@ -281,6 +282,7 @@ export function useFridayVoiceController({
         recognitionStartTimerRef.current = null;
       }
       listeningRef.current = true;
+      microphonePermissionObservedRef.current = true;
       setListening(true);
       dispatchMachine({ type: "VOICE_STARTED", sessionId });
       setVoiceError("");
@@ -315,6 +317,9 @@ export function useFridayVoiceController({
       if (sessionId !== voiceSessionIdRef.current) return;
 
       recognitionErrorRef.current = event.error || "unknown";
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        microphonePermissionObservedRef.current = false;
+      }
       const message = getSpeechErrorMessage(event.error, language);
       listeningRef.current = false;
       setListening(false);
@@ -500,6 +505,7 @@ export function useFridayVoiceController({
           // only when the browser reports an already-granted mic permission.
           if (voiceSessionActiveRef.current) {
             const interruptController = createVoiceActivityInterruptController({
+              hasPriorMicGrant: () => microphonePermissionObservedRef.current,
               onInterrupt: () => {
                 if (playbackRef.current !== playback) return;
                 playbackRef.current = null;
