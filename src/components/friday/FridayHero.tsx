@@ -6,7 +6,7 @@ import { FridayOrbVisual } from '@/components/friday/FridayOrbVisual';
 type VoiceState = 'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING';
 
 /** 首页唯一 Friday 语音入口；状态变化只改变圆球，不创建面板或遮罩。 */
-export function FridayHero({ voiceState = 'IDLE' }: { voiceState?: VoiceState }) {
+export function FridayHero({ voiceState = 'IDLE', audioLevel = 0 }: { voiceState?: VoiceState; audioLevel?: number }) {
   const toggleVoice = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
@@ -32,7 +32,7 @@ export function FridayHero({ voiceState = 'IDLE' }: { voiceState?: VoiceState })
         aria-pressed={voiceState === 'LISTENING'}
       >
         <span className="friday-hero-orb">
-          <FridayOrbVisual state={voiceState === 'IDLE' ? 'standby' : voiceState.toLowerCase() as 'listening' | 'thinking' | 'speaking'} />
+          <FridayOrbVisual state={voiceState === 'IDLE' ? 'standby' : voiceState.toLowerCase() as 'listening' | 'thinking' | 'speaking'} audioLevel={audioLevel} />
         </span>
         <span className="friday-hero-orb-label" role="status" aria-live="polite">{labels[voiceState]}</span>
       </button>
