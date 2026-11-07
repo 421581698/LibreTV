@@ -58,7 +58,8 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
   const searchParams = useSearchParams();
   const { toast } = useToast();
 
-  const urlQuery = searchParams.get('q') ?? searchParams.get('s') ?? '';
+  const routeQuery = searchParams.get('q') ?? searchParams.get('s') ?? '';
+  const [voiceState, setVoiceState] = useState<'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING'>('IDLE');
 
   const customAPIs = useAppStore((s) => s.customAPIs);
   const envSources = useAppStore((s) => s.envSources);
@@ -101,8 +102,10 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
     inputRef,
     searchHistory,
     runSearch,
+    runSearchInPlace,
     pickHistory,
-  } = useHomeSearchController(urlQuery, selectedSources.length, toast);
+    activeQuery: urlQuery,
+  } = useHomeSearchController(routeQuery, selectedSources.length, toast);
 
   const disabledSources = useMemo(
     () => selectedKeys.filter((key) => isSourceDisabled({ sourceHealth }, key)),
@@ -148,6 +151,12 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
   });
 
   const isSearching = Boolean(urlQuery) && searchQuery.isFetching && !searchQuery.data;
+
+  useEffect(() => {
+    if (voiceState === 'THINKING' && urlQuery && !searchQuery.isFetching && (searchQuery.isSuccess || searchQuery.isError)) {
+      setVoiceState('IDLE');
+    }
+  }, [voiceState, urlQuery, searchQuery.isFetching, searchQuery.isSuccess, searchQuery.isError]);
 
   const streamedList = useMemo(
     () => streamedOutcomes.flatMap((o) => o.list),
@@ -224,6 +233,7 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
         )}
         <HomeIntentCanvas
           variant={isV2 && !urlQuery ? 'v2' : 'legacy'}
+          voiceState={voiceState}
         >
           <HomeSearchSection
             urlQuery={urlQuery}
@@ -232,7 +242,10 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
             inputRef={inputRef}
             searchHistory={searchHistory}
             runSearch={runSearch}
+            runSearchInPlace={runSearchInPlace}
             pickHistory={pickHistory}
+            voiceState={voiceState}
+            setVoiceState={setVoiceState}
             showBrandTitle={!isV2}
             showQuickSearches={isV2}
           />
