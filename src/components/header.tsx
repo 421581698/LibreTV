@@ -129,22 +129,20 @@ export function Header({ showSearch = false, showFridayFab = true, minimalFriday
               直播
             </HeaderLink>
             {!minimalFridayNav && (
-              <>
-                <HeaderLink href="/about" active={pathname === '/about'}>
-                  关于
-                </HeaderLink>
-                <ThemeToggle />
-                <IconButton label="观看历史" onClick={() => setHistoryOpen(true)}>
-                  <Icon name="clock" />
-                </IconButton>
-                <IconButton label="下载管理" onClick={requestShowDownloadManager}>
-                  <Icon name="download" />
-                </IconButton>
-                <IconButton label="设置" onClick={() => setSettingsOpen(true)}>
-                  <Icon name="gear" />
-                </IconButton>
-              </>
+              <HeaderLink href="/about" active={pathname === '/about'}>
+                关于
+              </HeaderLink>
             )}
+            <ThemeToggle />
+            <IconButton label="观看历史" onClick={() => setHistoryOpen(true)}>
+              <Icon name="clock" />
+            </IconButton>
+            <IconButton label="下载管理" onClick={requestShowDownloadManager}>
+              <Icon name="download" />
+            </IconButton>
+            <IconButton label="设置" onClick={() => setSettingsOpen(true)}>
+              <Icon name="gear" />
+            </IconButton>
           </nav>
         </div>
       </header>

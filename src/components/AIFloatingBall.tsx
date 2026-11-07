@@ -64,6 +64,7 @@ export default function AIFloatingBall({
   const [immersive, setImmersive] = useState(false);
   const [language, setLanguage] = useState<"zh" | "en">("zh");
   const [assistantId, setAssistantId] = useState<FridayAssistantId>("friday");
+  const [voiceStyle, setVoiceStyle] = useState<"auto" | "jarvis" | "warm" | "clear">("auto");
   const [wakeWordEnabled, setWakeWordEnabled] = useState(false);
   const [languagePreferenceLoaded, setLanguagePreferenceLoaded] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
@@ -75,6 +76,8 @@ export default function AIFloatingBall({
       const savedLanguage = window.localStorage.getItem("friday-language");
       const savedAssistant = window.localStorage.getItem("friday-assistant");
       const savedWakeWord = window.localStorage.getItem("friday-wake-word");
+      const savedVoiceStyle = window.localStorage.getItem("friday-voice-style");
+      if (savedVoiceStyle === "auto" || savedVoiceStyle === "jarvis" || savedVoiceStyle === "warm" || savedVoiceStyle === "clear") setVoiceStyle(savedVoiceStyle);
       if (savedAssistant === "friday" || savedAssistant === "jarvis" || savedAssistant === "lin-meimei") {
         setAssistantId(savedAssistant);
       }
@@ -116,6 +119,17 @@ export default function AIFloatingBall({
     }
   }, [assistantId, languagePreferenceLoaded]);
 
+  useEffect(() => {
+    const handleVoicePreferenceChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ voiceStyle?: string }>).detail;
+      if (detail?.voiceStyle === "auto" || detail?.voiceStyle === "jarvis" || detail?.voiceStyle === "warm" || detail?.voiceStyle === "clear") {
+        setVoiceStyle(detail.voiceStyle);
+      }
+    };
+    window.addEventListener("friday-voice-preference-change", handleVoicePreferenceChange);
+    return () => window.removeEventListener("friday-voice-preference-change", handleVoicePreferenceChange);
+  }, []);
+
   const openRef = useRef(false);
   const closingRef = useRef(false);
   const busyRef = useRef(false);
@@ -137,7 +151,7 @@ export default function AIFloatingBall({
     stopSpeechAndResume, toggleListening, setVoiceError, setCompleted,
     lastSpokenMessageRef,
   } = useFridayVoiceController({
-    busyRef, openRef, closingRef, dispatchMachine, setInput, handleSendRef, language, assistantId, wakeWordEnabled,
+    busyRef, openRef, closingRef, dispatchMachine, setInput, handleSendRef, language, assistantId, voiceStyle, wakeWordEnabled,
     onAudioLevel: (level) => {
       setAudioLevel(level);
       window.dispatchEvent(new CustomEvent('friday-audio-level', { detail: { level } }));
@@ -307,10 +321,18 @@ export default function AIFloatingBall({
       setVoiceError("");
 
       if (typeof window !== "undefined" && "speechSynthesis" in window && "SpeechSynthesisUtterance" in window) {
-        const utterance = new SpeechSynthesisUtterance("我在，先生");
-        utterance.lang = "zh-CN";
-        utterance.rate = 1;
-        utterance.pitch = 1;
+        const utterance = new SpeechSynthesisUtterance(language === "en" ? "I am here, sir." : "我在，先生");
+        utterance.lang = language === "en" ? "en-GB" : "zh-CN";
+        utterance.rate = voiceStyle === "jarvis" || (voiceStyle === "auto" && assistantId === "jarvis") ? 0.92 : 1;
+        utterance.pitch = voiceStyle === "jarvis" || (voiceStyle === "auto" && assistantId === "jarvis") ? 0.82 : 1;
+        const voicePattern = voiceStyle === "jarvis" || (voiceStyle === "auto" && assistantId === "jarvis")
+          ? /yunxi|ryan|male|男|david|daniel/i
+          : voiceStyle === "warm" ? /xiaoxiao|sonia|female|女/i
+            : voiceStyle === "clear" ? /xiaoyi|ava/i : null;
+        const matchingVoice = voicePattern && window.speechSynthesis.getVoices().find((voice) =>
+          voicePattern.test(voice.name) && (language === "en" ? /^en(-|_)/i.test(voice.lang) : /^zh(-|_)/i.test(voice.lang))
+        );
+        if (matchingVoice) utterance.voice = matchingVoice;
         setSpeaking(true);
         utterance.onend = () => {
           if (wakeToken !== homeWakeTokenRef.current) return;

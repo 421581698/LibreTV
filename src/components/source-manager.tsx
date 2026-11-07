@@ -40,7 +40,7 @@ import { describeParseStats } from '@/lib/tvbox-parser';
  */
 
 type PrimaryTab = 'sources' | 'prefs' | 'data';
-type SecondaryTab = 'vod' | 'live' | 'subs' | 'playback' | 'image' | 'home' | 'io';
+type SecondaryTab = 'vod' | 'live' | 'subs' | 'playback' | 'image' | 'home' | 'voice' | 'io';
 
 const PRIMARY_TABS: { id: PrimaryTab; label: string; icon: IconName }[] = [
   { id: 'sources', label: '源管理', icon: 'link' },
@@ -58,6 +58,7 @@ const SECONDARY_TABS: Record<PrimaryTab, { id: SecondaryTab; label: string }[]> 
     { id: 'playback', label: '播放与过滤' },
     { id: 'image', label: '封面图加载' },
     { id: 'home', label: '首页与内容' },
+    { id: 'voice', label: '语音设置' },
   ],
   data: [{ id: 'io', label: '配置导入导出' }],
 };
@@ -136,6 +137,7 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
       {current === 'playback' && <PlaybackPanel />}
       {current === 'image' && <ImagePanel />}
       {current === 'home' && <HomePanel />}
+      {current === 'voice' && <VoiceSettingsPanel />}
       {current === 'subs' && <SourceSubscriptions />}
       {current === 'io' && <ConfigIoPanel />}
     </Drawer>
@@ -725,6 +727,53 @@ function CustomProxyInput() {
       value={draft}
       onChange={(e) => setDraft(e.target.value)}
     />
+  );
+}
+
+
+function VoiceSettingsPanel() {
+  const [voiceStyle, setVoiceStyle] = useState<"auto" | "jarvis" | "warm" | "clear">("auto");
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("friday-voice-style");
+      if (saved === "jarvis" || saved === "warm" || saved === "clear" || saved === "auto") setVoiceStyle(saved);
+    } catch { /* Keep the automatic voice when storage is unavailable. */ }
+  }, []);
+
+  const updateVoiceStyle = (value: string) => {
+    const next = value === "jarvis" || value === "warm" || value === "clear" ? value : "auto";
+    setVoiceStyle(next);
+    try { window.localStorage.setItem("friday-voice-style", next); } catch { /* Session-only preference. */ }
+    window.dispatchEvent(new CustomEvent("friday-voice-preference-change", { detail: { voiceStyle: next } }));
+  };
+
+  const descriptions: Record<typeof voiceStyle, string> = {
+    auto: "跟随助手角色：Jarvis 使用沉稳男声，Friday / 林妹妹使用各自默认声线",
+    jarvis: "中文：云希男声 · English：Ryan 英式男声",
+    warm: "中文：晓晓女声 · English：Sonia 英式女声",
+    clear: "中文：晓伊女声 · English：Ava 美式女声",
+  };
+
+  return (
+    <section>
+      <SectionTitle title="语音设置" hint="选择 AI 回复播报使用的声音，切换语言后自动匹配对应语种" />
+      <div className="space-y-3">
+        <SelectRow
+          label="语音音色"
+          value={voiceStyle}
+          description={descriptions[voiceStyle]}
+          onChange={updateVoiceStyle}
+          options={[
+            { value: "auto", label: "自动匹配", hint: "跟随助手角色" },
+            { value: "jarvis", label: "沉稳男声", hint: "云希 / 英式 Ryan" },
+            { value: "warm", label: "温柔女声", hint: "晓晓 / 英式 Sonia" },
+            { value: "clear", label: "清晰女声", hint: "晓伊 / 美式 Ava" },
+          ]}
+        />
+        <p className="text-xs text-faint leading-relaxed">更改后立即应用于后续语音播报，并保存在当前设备。若远程语音服务不可用，将尝试使用设备已安装的匹配语音。</p>
+      </div>
+    </section>
   );
 }
 
