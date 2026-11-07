@@ -782,20 +782,6 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   overflow: visible;
 }
 
-@media (max-width: 430px) {
-  .home-v2 .friday-hero-orb {
-    width: 168px;
-    height: 168px;
-    flex-basis: 168px;
-  }
-}
-@media (max-height: 700px) and (max-width: 767px) {
-  .home-v2 .friday-hero-orb {
-    width: 152px;
-    height: 152px;
-    flex-basis: 152px;
-  }
-}
 @media (prefers-reduced-motion: reduce) {
   .friday-sigil-canvas { animation: none !important; }
 }
