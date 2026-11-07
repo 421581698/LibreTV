@@ -13,6 +13,17 @@ export type MovieWorkflowResult = {
 };
 
 /**
+ * Generates a per-request namespace. UUID entropy prevents two searches started
+ * in the same millisecond (or across tabs) from sharing persisted task IDs.
+ */
+export function createMovieWorkflowTaskIdPrefix(
+  now = Date.now(),
+  uniqueId = globalThis.crypto.randomUUID(),
+): string {
+  return `friday-${now}-${uniqueId}`;
+}
+
+/**
  * Runs the movie discovery and source-evidence workflow through the durable
  * TaskRuntime. Callers provide a unique prefix per user request so persisted
  * task IDs cannot collide with earlier runs.
