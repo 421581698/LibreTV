@@ -120,7 +120,7 @@ class MockRecognition {
   }
 }
 
-function renderController() {
+function renderController(wakeWordEnabled = false) {
   harness.index = 0;
   harness.pendingEffects = [];
   const sent = vi.fn(async (_text?: string, _keepVoiceSession?: boolean) => {});
@@ -135,7 +135,7 @@ function renderController() {
     handleSendRef: { current: sent },
     language: "zh" as const,
     assistantId: "friday" as const,
-    wakeWordEnabled: false,
+    wakeWordEnabled,
   };
   // This deterministic hook harness invokes the hook with mocked React primitives.
   // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -262,6 +262,21 @@ describe("Friday voice session recovery", () => {
     third.endEvent();
     await vi.advanceTimersByTimeAsync(700);
     expect(MockRecognition.instances).toHaveLength(4);
+  });
+
+  it("requires and strips the configured foreground wake phrase", () => {
+    const { controller, sent } = renderController(true);
+    controller.toggleListening();
+    const first = MockRecognition.instances[0];
+    first.result("帮我搜索星际穿越");
+    first.endEvent();
+    expect(sent).not.toHaveBeenCalled();
+
+    controller.toggleListening();
+    const second = MockRecognition.instances[1];
+    second.result("嘿 Friday，帮我搜索星际穿越");
+    second.endEvent();
+    expect(sent).toHaveBeenCalledWith("帮我搜索星际穿越", true);
   });
 
   it("does not treat an intentional abort as a terminal error", () => {
