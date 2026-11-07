@@ -498,7 +498,9 @@ export default function AIFloatingBall({
     resizeTextarea();
   }, [input, resizeTextarea]);
 
-  if (!mounted) return null;
+  // V2 homepage runs the shared voice/chat controller without mounting any legacy portal,
+  // floating FAB, panel shell, backdrop, or panel CSS.
+  if (!mounted || inlineMode) return null;
 
   const content = (
     <>
