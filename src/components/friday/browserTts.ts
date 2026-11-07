@@ -53,7 +53,12 @@ export function createBrowserTtsProvider(language: "zh" | "en" = "zh"): FridayTt
  *
  * The Edge endpoint is unofficial and may change; browser fallback remains available.
  */
-export function createFridayTtsProvider(language: "zh" | "en" = "zh"): FridayTtsProvider | null {
+export type FridayTtsAssistantId = "friday" | "jarvis" | "lin-meimei";
+
+export function createFridayTtsProvider(
+  language: "zh" | "en" = "zh",
+  assistantId: FridayTtsAssistantId = "friday",
+): FridayTtsProvider | null {
   if (typeof window === "undefined" || typeof Audio === "undefined") return null;
 
   const browserFallback = createBrowserTtsProvider(language);
@@ -109,7 +114,7 @@ export function createFridayTtsProvider(language: "zh" | "en" = "zh"): FridayTts
       void fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, language }),
+        body: JSON.stringify({ text, language, assistantId }),
         signal: controller.signal,
         cache: "no-store",
       }).then(async (response) => {
