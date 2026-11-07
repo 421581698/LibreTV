@@ -111,7 +111,7 @@ describe("Friday DAG orchestrator", () => {
         id: "side-agent",
         execute: async () => {
           calls += 1;
-          throw new (await import("./dag-orchestrator")).DagExecutionError("Temporary", "TEMPORARY", true);
+          throw new DagExecutionError("Temporary", "TEMPORARY", true);
         },
       }],
     });
