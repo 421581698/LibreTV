@@ -90,3 +90,18 @@ When both Gateway URL and token are absent, Friday continues to use `ZHIPU_API_K
 The selected Agent ID is never accepted from the browser. The server maps the validated assistant profile to its corresponding Worker variable and requests the OpenClaw model name `openclaw/<agentId>` through `/v1/chat/completions`. Gateway URLs must use HTTPS, public DNS hostnames, and must not embed credentials, query strings, or fragments. Literal IP addresses and local hostnames are rejected. The request also carries a Cloudflare Access service-token pair, so the Gateway hostname must be behind an Access policy and must not have a public bypass. Do not expose the Gateway port directly to the public internet: OpenClaw documents the bearer token as full operator access and recommends loopback, tailnet, or private ingress.
 
 This adapter is implemented and unit-tested. Live Gateway interoperability still requires a user-managed Gateway endpoint behind Cloudflare Access, its operator token, the Access service-token pair, and three configured Agent IDs; those credentials must not be committed to the repository. The Gateway bearer token grants operator-level authority, so it must be treated as a high-privilege secret.
+
+
+## Implemented: role-aware speech output and foreground ASR controls
+
+- Friday Chinese speech uses Edge Xiaoxiao; Jarvis prefers the configured Piper endpoint and falls back to the existing Edge/browser route; 林妹妹 Chinese speech uses the distinct Edge Xiaoyi voice.
+- The active assistant profile is included in the server TTS request. Provider credentials remain server-side.
+- Browser ASR capability detection is isolated behind `browserAsr.ts`; Web Speech remains the current browser provider. Unsupported browsers retain text input as the fallback.
+- Optional foreground wake-phrase gating is persisted per browser. When enabled, an active listening session accepts commands prefixed with “Friday” or “嘿 Friday”. This is not background wake-word detection and does not keep the microphone open when the panel is closed.
+- Existing VAD interruption remains one-shot and serialized: VAD capture is stopped before browser SpeechRecognition starts, avoiding simultaneous microphone ownership on Safari.
+- The settings panel exposes wake-phrase preference, local task-history deletion, and local conversation/session revocation.
+- Task event history remains in browser IndexedDB. Clearing task history deletes those local events. Revoking the current conversation stops voice playback, aborts the active chat request/workflow and clears the visible conversation; the OpenClaw HTTP adapter is stateless by default and does not claim to revoke an external Gateway session.
+
+## Device verification still required
+
+CI cannot prove microphone permission prompts, real acoustic interruption, voice quality, background behavior, or iOS Safari lifecycle correctness. Final acceptance must include a real iPhone Safari pass for: microphone permission grant/deny, repeated recognition starts, role-specific TTS playback, interruption while speaking, manual stop, close/reopen, network loss, and wake phrase while the page is foregrounded. Background always-on wake is explicitly out of scope for browser-only deployment.
