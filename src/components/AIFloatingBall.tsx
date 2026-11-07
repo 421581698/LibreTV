@@ -31,6 +31,8 @@ type FridayProps = {
   sources?: FridaySourceConfig[];
   filterAdult?: boolean;
   showFab?: boolean;
+  /** Homepage V2 keeps the orchestrator for voice/chat but never mounts the legacy popup. */
+  inlineMode?: boolean;
 };
 
 type AuroraState =
@@ -46,6 +48,7 @@ export default function AIFloatingBall({
   sources,
   filterAdult,
   showFab = true,
+  inlineMode = false,
 }: FridayProps) {
   const [machineState, dispatchMachine] = useReducer(
     fridayReducer,
@@ -348,7 +351,8 @@ export default function AIFloatingBall({
 
       setVoiceError("");
       setCompleted(false);
-      setInput("");
+      // Inline homepage mode keeps the recognized phrase visible in the home search field.
+      if (!inlineMode) setInput("");
 
       const requestId = beginRequest();
       // Lock synchronously before the AI SDK status render to serialize ASR/VAD/manual sends.
@@ -373,6 +377,7 @@ export default function AIFloatingBall({
     },
     [
       input,
+      inlineMode,
       sendMessage,
       beginRequest,
       failActiveRequest,
@@ -544,7 +549,9 @@ export default function AIFloatingBall({
     resizeTextarea();
   }, [input, resizeTextarea]);
 
-  if (!mounted) return null;
+  // V2 homepage runs the shared voice/chat controller without mounting any legacy portal,
+  // floating FAB, panel shell, backdrop, or panel CSS.
+  if (!mounted || inlineMode) return null;
 
   const content = (
     <>
@@ -574,7 +581,7 @@ export default function AIFloatingBall({
           </button>
         ) : null}
 
-        {open || closing ? (
+        {!inlineMode && (open || closing) ? (
           <FridayPanel
             expanded={expanded}
             immersive={immersive}
