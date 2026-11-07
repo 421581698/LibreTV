@@ -222,7 +222,7 @@ var TOKENS = [
 
 export function createFridayOrb(canvas, options){
   if(!canvas || typeof canvas.getContext !== 'function'){ throw new Error('FridayOrb: 需要一个有效的 <canvas> 元素'); }
-  var opts = Object.assign({ theme: 'dark', state: 'IDLE', audioLevel: 0, paused: false, interactive: true, autoPause: true, respectReducedMotion: true, dprCap: 2, quality: 0, ariaLabel: '', onBurst: null, onVisibility: null, onThemeChange: null }, options || {});
+  var opts = Object.assign({ theme: 'dark', state: 'IDLE', audioLevel: 0, paused: false, interactive: true, autoPause: true, respectReducedMotion: true, showHud: true, dprCap: 2, quality: 0, ariaLabel: '', onBurst: null, onVisibility: null, onThemeChange: null }, options || {});
   var ctx = canvas.getContext('2d', { alpha: true });
   if(!ctx) throw new Error('FridayOrb: 当前环境不支持 Canvas 2D');
   var gridCache = { key: '', c: null };
@@ -509,15 +509,16 @@ export function createFridayOrb(canvas, options){
     var energy = clamp(o.energy || 0, 0, 1); var activity = clamp(o.activity || 0, 0, 1);
     var glow = 1 + energy * 0.55 + activity * 0.12; var q = o.quality || autoQuality(W, H); var i;
     ctx.clearRect(0, 0, W, H);
-    drawBackdrop(W, H, cx, cy, R, pal, themeName, t); drawHaze(cx, cy, R, pal, t, glow); drawRadar(cx, cy, R, pal, t, Math.min(1, u * 2), activity);
+    if(o.showHud !== false) { drawBackdrop(W, H, cx, cy, R, pal, themeName, t); drawRadar(cx, cy, R, pal, t, Math.min(1, u * 2), activity); }
+    drawHaze(cx, cy, R, pal, t, glow);
     drawSpirals(cx, cy, R, t, pal, model, u);
     for(i = 0; i < 2; i++){ drawRibbon(cx, cy, R, RIBBONS[i], t, pal, model.ramp, u, q, glow); }
-    drawRays(cx, cy, R, t, pal, model, u, glow);
+    if(o.showHud !== false) drawRays(cx, cy, R, t, pal, model, u, glow);
     for(i = 2; i < RIBBONS.length; i++){ drawRibbon(cx, cy, R, RIBBONS[i], t, pal, model.ramp, u, q, glow); }
-    drawTicks(cx, cy, R, t, pal, Math.min(1, u * 2), glow); drawHudArcs(cx, cy, R, t, pal, Math.min(1, u * 2), glow); drawDataRing(cx, cy, R, t, pal, u, glow);
+    if(o.showHud !== false) { drawTicks(cx, cy, R, t, pal, Math.min(1, u * 2), glow); drawHudArcs(cx, cy, R, t, pal, Math.min(1, u * 2), glow); drawDataRing(cx, cy, R, t, pal, u, glow); }
     var flash = 0; if(o.flashAt != null && o.clock != null){ var fa = (o.clock - o.flashAt) / 0.5; if(fa >= 0 && fa <= 1) flash = 1 - fa; }
     drawCore(cx, cy, R, t, pal, flash, energy); drawDust(cx, cy, R, t, pal, model, u, glow);
-    drawScanline(cx, cy, R, t, pal, u); if(pal.bloom > 0){ applyBloom(pal.bloom * (1 + energy * 0.60 + activity * 0.20), pal.additive ? 'lighter' : 'source-over'); }
+    if(o.showHud !== false) drawScanline(cx, cy, R, t, pal, u); if(pal.bloom > 0){ applyBloom(pal.bloom * (1 + energy * 0.60 + activity * 0.20), pal.additive ? 'lighter' : 'source-over'); }
     drawShockwave(cx, cy, R, t, pal, u);
     if(o.bursts && o.bursts.length && o.clock != null){
       ctx.save(); ctx.globalCompositeOperation = pal.additive ? 'lighter' : 'source-over';
@@ -565,7 +566,8 @@ export function createFridayOrb(canvas, options){
       flashAt: state.flashAt,
       energy: state.energy,
       activity: state.activity,
-      quality: opts.quality || 0
+      quality: opts.quality || 0,
+      showHud: opts.showHud !== false
     });
     state.frames++;
   }
