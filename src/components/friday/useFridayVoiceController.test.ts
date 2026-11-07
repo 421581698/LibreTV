@@ -251,6 +251,24 @@ describe("Friday voice session recovery", () => {
     expect(sent).toHaveBeenCalledWith("帮我找一部科幻电影", false);
   });
 
+  it("interrupts active TTS when the user starts speaking again", () => {
+    const { controller } = renderController();
+    controller.toggleListening();
+    const first = MockRecognition.instances[0];
+    first.startEvent();
+    first.endEvent();
+
+    controller.speakText("正在播报的内容", "message-interrupt-by-user");
+    const playback = harness.playbackHandle;
+    expect(playback).not.toBeNull();
+
+    controller.toggleListening();
+
+    expect(playback?.cancel).toHaveBeenCalledTimes(1);
+    expect(MockRecognition.instances).toHaveLength(2);
+    expect(MockRecognition.instances[1].start).toHaveBeenCalledTimes(1);
+  });
+
   it("resumes listening after speech playback ends", async () => {
     const { controller } = renderController();
     controller.toggleListening();
