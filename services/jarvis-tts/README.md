@@ -16,7 +16,7 @@ npx wrangler secret put JARVIS_TTS_TOKEN
 npx wrangler secret put JARVIS_TTS_URL
 ```
 
-The TTS URL should be a base URL such as `https://voice.example.com`, not a URL ending in `/v1/tts`.
+The TTS URL should be a base URL such as `https://voice.example.com`, not a URL ending in `/v1/tts`. In the LibreTV Friday deployment, configure both `JARVIS_TTS_URL` and `JARVIS_TTS_TOKEN` as Worker secrets/variables. The API route uses Piper only for English when both values are present. Chinese always remains on Microsoft Edge Xiaoxiao, and an unavailable Piper service automatically falls back to Microsoft Edge Ava. The browser player accepts both WAV and MP3 responses.
 
 ## Health check
 
