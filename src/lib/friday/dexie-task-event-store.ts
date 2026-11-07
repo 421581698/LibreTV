@@ -55,6 +55,10 @@ export class DexieTaskEventStore implements TaskEventStore {
     return streams.flat() as TaskEvent[];
   }
 
+  async clearAll(): Promise<void> {
+    await db.fridayTaskEvents.clear();
+  }
+
   async deleteTask(taskId: string): Promise<void> {
     await db.transaction("rw", db.fridayTaskEvents, async () => {
       await db.fridayTaskEvents.where("taskId").equals(taskId).delete();
