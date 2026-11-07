@@ -13,7 +13,7 @@ function sanitizeMessages(value: unknown): FridayPersistedMessage[] {
   if (!Array.isArray(value)) return [];
   const output: FridayPersistedMessage[] = [];
   const seen = new Set<string>();
-  for (const item of value.slice(-MAX_MESSAGES)) {
+  for (const item of value) {
     if (!item || typeof item !== "object") continue;
     const message = item as Record<string, unknown>;
     if (typeof message.id !== "string" || !message.id || message.id.length > 200) continue;
@@ -28,7 +28,7 @@ function sanitizeMessages(value: unknown): FridayPersistedMessage[] {
     seen.add(message.id);
     output.push({ id: message.id, role: message.role, parts });
   }
-  return output;
+  return output.slice(-MAX_MESSAGES);
 }
 
 export function restoreFridayConversationHistory(raw: string | null, now = Date.now()): FridayPersistedMessage[] {

@@ -26,7 +26,7 @@ describe("Friday browser-local conversation history", () => {
     messages.push({ id: "m33", role: "user", parts: [{ type: "text", text: "duplicate" }] });
     const restored = restoreFridayConversationHistory(serializeFridayConversationHistory(messages, 1000), 1000);
     expect(restored).toHaveLength(30);
-    expect(restored[0].id).toBe("m5");
+    expect(restored[0].id).toBe("m4");
     expect(restored[29].parts[0].text).toHaveLength(2000);
   });
 });
