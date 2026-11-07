@@ -120,6 +120,15 @@ export default function AIFloatingBall({
   }, [assistantId, languagePreferenceLoaded]);
 
   useEffect(() => {
+    const handleLanguagePreferenceChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ language?: string }>).detail;
+      if (detail?.language === "zh" || detail?.language === "en") setLanguage(detail.language);
+    };
+    window.addEventListener("friday-language-preference-change", handleLanguagePreferenceChange);
+    return () => window.removeEventListener("friday-language-preference-change", handleLanguagePreferenceChange);
+  }, []);
+
+  useEffect(() => {
     const handleVoicePreferenceChange = (event: Event) => {
       const detail = (event as CustomEvent<{ voiceStyle?: string }>).detail;
       if (detail?.voiceStyle === "auto" || detail?.voiceStyle === "jarvis" || detail?.voiceStyle === "warm" || detail?.voiceStyle === "clear") {

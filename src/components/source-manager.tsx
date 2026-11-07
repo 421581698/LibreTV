@@ -732,14 +732,24 @@ function CustomProxyInput() {
 
 
 function VoiceSettingsPanel() {
+  const [language, setLanguage] = useState<"zh" | "en">("zh");
   const [voiceStyle, setVoiceStyle] = useState<"auto" | "jarvis" | "warm" | "clear">("auto");
 
   useEffect(() => {
     try {
-      const saved = window.localStorage.getItem("friday-voice-style");
-      if (saved === "jarvis" || saved === "warm" || saved === "clear" || saved === "auto") setVoiceStyle(saved);
-    } catch { /* Keep the automatic voice when storage is unavailable. */ }
+      const savedLanguage = window.localStorage.getItem("friday-language");
+      const savedVoice = window.localStorage.getItem("friday-voice-style");
+      if (savedLanguage === "zh" || savedLanguage === "en") setLanguage(savedLanguage);
+      if (savedVoice === "jarvis" || savedVoice === "warm" || savedVoice === "clear" || savedVoice === "auto") setVoiceStyle(savedVoice);
+    } catch { /* Keep defaults when storage is unavailable. */ }
   }, []);
+
+  const updateLanguage = (value: string) => {
+    const next = value === "en" ? "en" : "zh";
+    setLanguage(next);
+    try { window.localStorage.setItem("friday-language", next); } catch { /* Session-only preference. */ }
+    window.dispatchEvent(new CustomEvent("friday-language-preference-change", { detail: { language: next } }));
+  };
 
   const updateVoiceStyle = (value: string) => {
     const next = value === "jarvis" || value === "warm" || value === "clear" ? value : "auto";
@@ -757,8 +767,18 @@ function VoiceSettingsPanel() {
 
   return (
     <section>
-      <SectionTitle title="语音设置" hint="选择 AI 回复播报使用的声音，切换语言后自动匹配对应语种" />
+      <SectionTitle title="语音设置" hint="语言与音色分开设置；切换语言不会重置已选音色" />
       <div className="space-y-3">
+        <SelectRow
+          label="播报语言"
+          value={language}
+          description={language === "zh" ? "AI 使用中文回复与语音播报" : "AI uses English replies and speech"}
+          onChange={updateLanguage}
+          options={[
+            { value: "zh", label: "中文", hint: "简体中文" },
+            { value: "en", label: "English", hint: "英语" },
+          ]}
+        />
         <SelectRow
           label="语音音色"
           value={voiceStyle}
@@ -771,7 +791,7 @@ function VoiceSettingsPanel() {
             { value: "clear", label: "清晰女声", hint: "晓伊 / 美式 Ava" },
           ]}
         />
-        <p className="text-xs text-faint leading-relaxed">更改后立即应用于后续语音播报，并保存在当前设备。若远程语音服务不可用，将尝试使用设备已安装的匹配语音。</p>
+        <p className="text-xs text-faint leading-relaxed">语言与音色均保存在当前设备并立即应用。语音服务不可用时会明确提示，不应静默切换成系统默认声音。</p>
       </div>
     </section>
   );
