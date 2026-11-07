@@ -62,9 +62,10 @@ export function createBrowserTtsProvider(language: "zh" | "en" = "zh", voiceStyl
  * Friday voice routing:
  * - Chinese: Microsoft Edge TTS zh-CN-XiaoxiaoNeural.
  * - English: Microsoft Edge TTS en-US-AvaMultilingualNeural.
- * - Any upstream, network, or playback failure falls back to browser SpeechSynthesis.
+ * - Non-Jarvis profiles may fall back to browser SpeechSynthesis.
+ * - Jarvis never falls back to a device/system voice; failures are surfaced instead.
  *
- * The Edge endpoint is unofficial and may change; browser fallback remains available.
+ * The Edge endpoint is unofficial and may change.
  */
 export type FridayTtsAssistantId = "friday" | "jarvis" | "lin-meimei";
 
@@ -115,6 +116,13 @@ export function createFridayTtsProvider(
         if (cancelled || settled || usingFallback) return;
         usingFallback = true;
         cleanupAudio();
+        // Jarvis must never silently become an iOS/Siri system voice.
+        // Keep browser fallback only for the non-Jarvis assistant profiles.
+        if (assistantId === "jarvis" || voiceStyle === "jarvis") {
+          settled = true;
+          events.onError();
+          return;
+        }
         if (browserFallback) {
           fallbackHandle = browserFallback.speak(text, {
             ...events,
