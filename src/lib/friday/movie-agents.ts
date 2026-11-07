@@ -13,6 +13,8 @@ export type SourceProbe = {
   checkedAt: string;
   reachable: boolean;
   latencyMs?: number;
+  probeDurationMs?: number;
+  probeResultCached?: boolean;
   statusCode?: number;
   advertisedQualities?: string[];
   candidateId?: string;
@@ -30,6 +32,8 @@ export type QualityAssessment = {
   assessmentCompleted: boolean;
   resolutionHeight: number | null;
   latencyMs: number | null;
+  probeDurationMs: number | null;
+  probeResultCached: boolean | null;
   reachable: boolean | null;
   advertisedQualities: string[];
   evidence: string[];
@@ -108,6 +112,7 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
         if (validHeight) evidence.push("hls_or_segment.resolution_height");
         if (validReachability) evidence.push("source.reachable");
         if (validLatency) evidence.push("source.latency");
+        if (typeof probe.probeDurationMs === "number" && Number.isFinite(probe.probeDurationMs) && probe.probeDurationMs >= 0) evidence.push("quality_probe.duration_ms");
         return {
           sourceId: probe.sourceId,
           candidateId: probe.candidateId,
@@ -116,6 +121,8 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
           assessmentCompleted: probeCompleted || Boolean(probe.resolutionError),
           resolutionHeight: validHeight ? probe.resolutionHeight! : null,
           latencyMs: validLatency ? probe.latencyMs! : null,
+          probeDurationMs: typeof probe.probeDurationMs === "number" && Number.isFinite(probe.probeDurationMs) && probe.probeDurationMs >= 0 ? probe.probeDurationMs : null,
+          probeResultCached: typeof probe.probeResultCached === "boolean" ? probe.probeResultCached : null,
           reachable: validReachability ? probe.reachable : null,
           advertisedQualities: Array.isArray(probe.advertisedQualities)
             ? probe.advertisedQualities.filter((quality): quality is string => typeof quality === "string")
