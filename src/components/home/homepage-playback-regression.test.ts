@@ -117,8 +117,11 @@ describe('首页与播放页回归契约', () => {
     expect(player).toContain('artRef.current?.pause()');
   });
 
-  it('播放页不挂载全局 Friday 浮球，避免其高层级容器覆盖播放器控件', () => {
-    expect(watch).not.toContain('AIFloatingBall');
+  it('播放页保留独立圆球入口，但不挂载会遮挡播放器的全局浮球', () => {
+    expect(watch).toContain('AIFloatingBall');
+    expect(watch).toContain('showFab={false}');
+    expect(watch).toContain('FridayPlayerAssistantButton');
+    expect(watch).toContain('friday-home-orb-toggle');
     expect(watch).not.toContain("from '@/components/header'");
     expect(styles).toContain('z-index: 2147483647');
     expect(styles).toContain('pointer-events: none');

@@ -4,8 +4,10 @@ import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
+import FridayOrb from '@/components/friday/FridayOrb';
 import { api } from '@/lib/client-api';
 // 播放器（artplayer + hls.js）按需加载：拆出独立 chunk，不占首屏 First Load JS
+const FridayAssistant = dynamic(() => import('@/components/AIFloatingBall'), { ssr: false });
 const PlayerShell = dynamic(() => import('@/components/player-shell').then((m) => m.PlayerShell), {
   ssr: false,
   loading: () => (
@@ -352,6 +354,7 @@ function WatchContent() {
             </p>
           </div>
           <div className="ml-auto flex items-center gap-2">
+            <FridayPlayerAssistantButton />
             <button
               className="btn-ghost btn-sm"
               onClick={() => {
@@ -579,6 +582,7 @@ function WatchContent() {
           </aside>
         </div>
       </main>
+      <FridayAssistant showFab={false} />
       {switchOpen && (
         <SwitchSourceModal
           currentTitle={videoTitle}
@@ -591,6 +595,49 @@ function WatchContent() {
     </div>
   );
 }
+/** 播放页专用圆球入口：放在页面工具栏，不覆盖播放器控制区。 */
+function FridayPlayerAssistantButton() {
+  const [voiceState, setVoiceState] = useState<'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING'>('IDLE');
+  const [audioLevel, setAudioLevel] = useState(0);
+
+  useEffect(() => {
+    const onState = (event: Event) => {
+      const state = (event as CustomEvent<{ state?: string }>).detail?.state;
+      if (state === 'IDLE' || state === 'LISTENING' || state === 'THINKING' || state === 'SPEAKING') {
+        setVoiceState(state);
+      }
+    };
+    const onAudio = (event: Event) => {
+      const level = (event as CustomEvent<{ level?: number }>).detail?.level;
+      setAudioLevel(typeof level === 'number' && Number.isFinite(level) ? Math.max(0, Math.min(1, level)) : 0);
+    };
+    window.addEventListener('friday-home-voice-state', onState);
+    window.addEventListener('friday-audio-level', onAudio);
+    return () => {
+      window.removeEventListener('friday-home-voice-state', onState);
+      window.removeEventListener('friday-audio-level', onAudio);
+    };
+  }, []);
+
+  const label = voiceState === 'LISTENING' ? 'Friday 正在聆听'
+    : voiceState === 'THINKING' ? 'Friday 正在思考'
+    : voiceState === 'SPEAKING' ? 'Friday 正在回答'
+    : '打开 Friday 语音助手';
+
+  return (
+    <button
+      type="button"
+      className="h-10 w-10 shrink-0 rounded-full border border-line bg-surface/80 p-1 shadow-sm transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      aria-label={label}
+      title={label}
+      aria-pressed={voiceState === 'LISTENING'}
+      onClick={() => window.dispatchEvent(new CustomEvent('friday-home-orb-toggle'))}
+    >
+      <FridayOrb state={voiceState} audioLevel={audioLevel * 100} showHud={false} interactive={false} quality={0} ariaLabel="Friday 全息语音助手" />
+    </button>
+  );
+}
+
 /** 集数按钮：激活时自动滚动进可视区（长剧列表） */
 function EpisodeButton({
   index,
