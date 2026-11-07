@@ -7,6 +7,7 @@ export type FridayModelConfig = {
   apiKey: string;
   baseURL: string;
   modelName: string;
+  headers?: Record<string, string>;
 };
 
 const ZHIPU_BASE_URL = "https://open.bigmodel.cn/api/paas/v4";
@@ -73,6 +74,12 @@ export function resolveFridayModelConfig(
       throw new Error("OpenClaw Gateway URL and token must be configured together");
     }
 
+    const accessClientId = requiredString(env, "OPENCLAW_ACCESS_CLIENT_ID");
+    const accessClientSecret = requiredString(env, "OPENCLAW_ACCESS_CLIENT_SECRET");
+    if (!accessClientId || !accessClientSecret) {
+      throw new Error("Cloudflare Access service token ID and secret are required for the Gateway ingress");
+    }
+
     const agentEnvKey = AGENT_ENV_KEYS[assistantId];
     const agentId = requiredString(env, agentEnvKey);
     if (!agentId || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(agentId)) {
@@ -84,6 +91,10 @@ export function resolveFridayModelConfig(
       apiKey: gatewayToken,
       baseURL: validateOpenClawGatewayUrl(gatewayUrl),
       modelName: `openclaw/${agentId}`,
+      headers: {
+        "CF-Access-Client-Id": accessClientId,
+        "CF-Access-Client-Secret": accessClientSecret,
+      },
     };
   }
 
