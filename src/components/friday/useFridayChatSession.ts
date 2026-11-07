@@ -141,7 +141,7 @@ export function useFridayChatSession({
         api: "/api/chat",
         body: { sources, filterAdult, language, assistantId },
       }),
-    [sources, filterAdult, language],
+    [sources, filterAdult, language, assistantId],
   );
 
   const {
