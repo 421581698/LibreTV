@@ -13,6 +13,7 @@ const state = vi.hoisted(() => ({
   calls: 0,
   /** 模拟 probeQuality 抛异常（客户端断开） */
   abort: false,
+  transient: false,
   /** 内存缓存，模拟 fetch-utils 内的 getCache/setCache */
   cache: new Map<string, { value: unknown; expiresAt: number }>(),
 }));
@@ -36,6 +37,7 @@ vi.mock('@/lib/quality-probe', () => ({
   probeQuality: vi.fn(async () => {
     state.calls++;
     if (state.abort) throw new DOMException('aborted', 'AbortError');
+    if (state.transient) return { sourceKey: 'mock', vodId: 'mock', error: 'HTTP 503' };
     return { sourceKey: 'mock', vodId: 'mock', height: 1080 };
   }),
 }));
@@ -55,6 +57,7 @@ function post(items: unknown[]): Request {
 beforeEach(() => {
   state.calls = 0;
   state.abort = false;
+  state.transient = false;
   state.cache.clear();
 });
 
@@ -85,6 +88,20 @@ describe('POST /api/quality', () => {
     expect(state.calls).toBe(1);
     await POST(post([item('a', 'https://s.test/api')]));
     expect(state.calls).toBe(1);
+  });
+
+  it('does not cache transient upstream failures so a DAG retry reaches the source again', async () => {
+    state.transient = true;
+    const first = await POST(post([item('a', 'https://s.test/api')]));
+    const firstData = (await first.json()) as { results: QualityProbeResult[] };
+    expect(firstData.results[0]).toMatchObject({ error: 'HTTP 503', transient: true, cached: false });
+    expect(state.cache.size).toBe(0);
+
+    state.transient = false;
+    const second = await POST(post([item('a', 'https://s.test/api')]));
+    const secondData = (await second.json()) as { results: QualityProbeResult[] };
+    expect(secondData.results[0]).toMatchObject({ height: 1080, transient: false, cached: false });
+    expect(state.calls).toBe(2);
   });
 
   it('客户端断开等中断：error 为「探测已取消」且不写缓存（下次仍会重试）', async () => {
