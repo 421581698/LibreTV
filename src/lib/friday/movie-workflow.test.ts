@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runLibreTVMovieWorkflow } from "./movie-workflow";
+import { createMovieWorkflowTaskIdPrefix, runLibreTVMovieWorkflow } from "./movie-workflow";
 import { TaskRuntime, type TaskEvent, type TaskEventStore } from "./task-runtime";
 
 class MemoryStore implements TaskEventStore {
@@ -15,6 +15,13 @@ class MemoryStore implements TaskEventStore {
 }
 
 describe("LibreTV movie workflow", () => {
+  it("creates distinct task namespaces even within the same millisecond", () => {
+    const first = createMovieWorkflowTaskIdPrefix(1234, "00000000-0000-4000-8000-000000000001");
+    const second = createMovieWorkflowTaskIdPrefix(1234, "00000000-0000-4000-8000-000000000002");
+    expect(first).not.toBe(second);
+    expect(first).toBe("friday-1234-00000000-0000-4000-8000-000000000001");
+  });
+
   it("executes search, source probe, quality assessment and review as persisted DAG tasks", async () => {
     const store = new MemoryStore();
     const runtime = new TaskRuntime(store);
