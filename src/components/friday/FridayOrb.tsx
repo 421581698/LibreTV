@@ -36,6 +36,7 @@ export interface FridayOrbProps {
   respectReducedMotion?: boolean
   dprCap?: number
   quality?: number
+  showHud?: boolean
   ariaLabel?: string
   className?: string
   style?: React.CSSProperties
@@ -54,6 +55,7 @@ const FridayOrb = forwardRef<FridayOrbHandle, FridayOrbProps>(function FridayOrb
     respectReducedMotion = true,
     dprCap = 1.5,
     quality = 0,
+    showHud = true,
     ariaLabel = 'Friday 全息能量核心',
     className = '',
     style,
@@ -79,6 +81,7 @@ const FridayOrb = forwardRef<FridayOrbHandle, FridayOrbProps>(function FridayOrb
       respectReducedMotion,
       dprCap,
       quality,
+      showHud,
       ariaLabel,
       onBurst,
       onVisibility

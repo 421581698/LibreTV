@@ -126,6 +126,7 @@ export default function AIFloatingBall({
 
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const homeWakeTokenRef = useRef(0);
 
 
   const {
@@ -272,15 +273,65 @@ export default function AIFloatingBall({
   // 首页圆球不再创建自己的 SpeechRecognition；所有语音入口统一走本控制器。
   useEffect(() => {
     const handleHomeOrbToggle = () => {
+      const wakeToken = ++homeWakeTokenRef.current;
+      // A second tap during speech interrupts both the current answer and TTS,
+      // then uses this fresh user gesture to start recognition immediately.
+      if (speaking) {
+        window.speechSynthesis?.cancel();
+        stopSpeech();
+        stop();
+        cancelActiveRequest();
+        setSpeaking(false);
+        setVoiceSession(true);
+        startListening(false);
+        return;
+      }
+
       if (listening) {
         toggleListening();
         return;
       }
-      openAndListen();
+
+      // The fixed wake acknowledgement is native and synchronous in the tap
+      // handler, so iOS Safari does not lose the user-activation window to fetch.
+      openPanel();
+      openRef.current = true;
+      closingRef.current = false;
+      clearVoiceResumeTimer();
+      stopRecognition(true);
+      stopSpeech();
+      stop();
+      cancelActiveRequest();
+      window.speechSynthesis?.cancel();
+      setVoiceSession(true);
+      setVoiceError("");
+
+      if (typeof window !== "undefined" && "speechSynthesis" in window && "SpeechSynthesisUtterance" in window) {
+        const utterance = new SpeechSynthesisUtterance("我在，先生");
+        utterance.lang = "zh-CN";
+        utterance.rate = 1;
+        utterance.pitch = 1;
+        setSpeaking(true);
+        utterance.onend = () => {
+          if (wakeToken !== homeWakeTokenRef.current) return;
+          setSpeaking(false);
+          startListening(false);
+        };
+        utterance.onerror = () => {
+          if (wakeToken !== homeWakeTokenRef.current) return;
+          setSpeaking(false);
+          setVoiceError("唤醒播报未能完成，正在尝试启动麦克风；如未开始，请再次点击圆球。");
+          startListening(false);
+        };
+        window.speechSynthesis.speak(utterance);
+      } else {
+        setVoiceError("当前浏览器不支持语音播报，已尝试直接启动麦克风。");
+        startListening(false);
+      }
     };
     window.addEventListener("friday-home-orb-toggle", handleHomeOrbToggle);
     return () => window.removeEventListener("friday-home-orb-toggle", handleHomeOrbToggle);
-  }, [listening, toggleListening, openAndListen]);
+  }, [speaking, listening, toggleListening, openPanel, clearVoiceResumeTimer, stopRecognition, stopSpeech, stop, cancelActiveRequest, setVoiceSession, setVoiceError, setSpeaking, startListening]);
 
 
   const handleSend = useCallback(
