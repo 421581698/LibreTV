@@ -43,12 +43,13 @@ export function useHomeSearchController(routeQuery: string, selectedSourceCount:
     searchHistory.record(query);
   };
 
-  const runSearchInPlace = (queryText: string) => {
+  const runSearchInPlace = (queryText: string): boolean => {
     const query = validateQuery(queryText);
-    if (!query) return;
+    if (!query) return false;
     setInput(query);
     setLocalQuery(query);
     searchHistory.record(query);
+    return true;
   };
 
   const pickHistory = (text: string) => {
