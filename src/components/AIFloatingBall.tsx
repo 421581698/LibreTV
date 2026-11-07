@@ -61,6 +61,7 @@ export default function AIFloatingBall({
   const [immersive, setImmersive] = useState(false);
   const [language, setLanguage] = useState<"zh" | "en">("zh");
   const [assistantId, setAssistantId] = useState<FridayAssistantId>("friday");
+  const [wakeWordEnabled, setWakeWordEnabled] = useState(false);
   const [languagePreferenceLoaded, setLanguagePreferenceLoaded] = useState(false);
 
   // Read after hydration to avoid server/client markup mismatch, then persist
@@ -69,9 +70,11 @@ export default function AIFloatingBall({
     try {
       const savedLanguage = window.localStorage.getItem("friday-language");
       const savedAssistant = window.localStorage.getItem("friday-assistant");
+      const savedWakeWord = window.localStorage.getItem("friday-wake-word");
       if (savedAssistant === "friday" || savedAssistant === "jarvis" || savedAssistant === "lin-meimei") {
         setAssistantId(savedAssistant);
       }
+      if (savedWakeWord === "true") setWakeWordEnabled(true);
       if (savedLanguage === "zh" || savedLanguage === "en") {
         setLanguage(savedLanguage);
       }
@@ -90,6 +93,15 @@ export default function AIFloatingBall({
       // Language switching remains available for this session.
     }
   }, [language, languagePreferenceLoaded]);
+
+  useEffect(() => {
+    if (!languagePreferenceLoaded) return;
+    try {
+      window.localStorage.setItem("friday-wake-word", String(wakeWordEnabled));
+    } catch {
+      // Wake phrase preference remains available for this session.
+    }
+  }, [wakeWordEnabled, languagePreferenceLoaded]);
 
   useEffect(() => {
     if (!languagePreferenceLoaded) return;
@@ -120,7 +132,7 @@ export default function AIFloatingBall({
     stopSpeechAndResume, toggleListening, setVoiceError, setCompleted,
     lastSpokenMessageRef,
   } = useFridayVoiceController({
-    busyRef, openRef, closingRef, dispatchMachine, setInput, handleSendRef, language, assistantId,
+    busyRef, openRef, closingRef, dispatchMachine, setInput, handleSendRef, language, assistantId, wakeWordEnabled,
   });
 
   const { activeSources, activeFilterAdult } = useFridaySources(sources, filterAdult);
@@ -134,6 +146,7 @@ export default function AIFloatingBall({
     setMessages,
     workflowBySearchId,
     restoredTasks,
+    clearTaskHistory,
     busy,
   } = useFridayChatSession({
     sources: activeSources,
@@ -513,6 +526,10 @@ export default function AIFloatingBall({
             onLanguageChange={setLanguage}
             assistantId={assistantId}
             onAssistantChange={setAssistantId}
+            wakeWordEnabled={wakeWordEnabled}
+            onWakeWordChange={setWakeWordEnabled}
+            onRevokeSession={clearConversation}
+            onClearTaskHistory={() => { void clearTaskHistory(); }}
           />
         ) : null}
       {showFab && fabHidden && !open ? (
