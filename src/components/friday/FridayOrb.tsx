@@ -54,6 +54,7 @@ const FridayOrb = forwardRef<FridayOrbHandle, FridayOrbProps>(function FridayOrb
     respectReducedMotion = true,
     dprCap = 2,
     quality = 0,
+    showHud = true,
     ariaLabel = 'Friday 全息能量核心',
     className = '',
     style,
@@ -79,6 +80,7 @@ const FridayOrb = forwardRef<FridayOrbHandle, FridayOrbProps>(function FridayOrb
       respectReducedMotion,
       dprCap,
       quality,
+      showHud,
       ariaLabel,
       onBurst,
       onVisibility
