@@ -25,7 +25,7 @@ type HomeSearchSectionProps = {
 
 /** 首页只负责展示与发出语音意图；ASR 生命周期统一由 Friday voice controller 管理。 */
 export function HomeSearchSection({
-  urlQuery, input, setInput, inputRef, searchHistory, runSearch, runSearchInPlace,
+  urlQuery, input, setInput, inputRef, searchHistory, runSearch,
   pickHistory, voiceState, setVoiceState, showBrandTitle = true, showQuickSearches = false,
 }: HomeSearchSectionProps) {
   const [voiceError, setVoiceError] = useState('');
