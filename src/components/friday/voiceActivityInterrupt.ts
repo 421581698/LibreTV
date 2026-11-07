@@ -15,6 +15,8 @@ export type VoiceActivityInterruptOptions = {
   onError?: BrowserVadCaptureOptions["onError"];
   createCapture?: (options: BrowserVadCaptureOptions) => BrowserVadCapture;
   captureOptions?: Omit<BrowserVadCaptureOptions, "onEvent" | "onError">;
+  /** True only after this session has successfully opened the browser ASR microphone. */
+  hasPriorMicGrant?: () => boolean;
 };
 
 /**
@@ -51,19 +53,22 @@ export function createVoiceActivityInterruptController(
       if (starting) return starting;
       const runId = ++generation;
       const startPromise = (async () => {
-        if (typeof navigator === "undefined" || !navigator.permissions?.query) {
-          return false;
-        }
+        if (typeof navigator === "undefined") return false;
 
-        let permission: PermissionStatus;
-        try {
-          permission = await navigator.permissions.query({
-            name: "microphone" as PermissionName,
-          });
-        } catch {
+        const permissionQuery = navigator.permissions?.query;
+        if (permissionQuery) {
+          try {
+            const permission = await permissionQuery.call(navigator.permissions, {
+              name: "microphone" as PermissionName,
+            });
+            if (runId !== generation || permission.state !== "granted") return false;
+          } catch {
+            if (runId !== generation || !options.hasPriorMicGrant?.()) return false;
+          }
+        } else if (!options.hasPriorMicGrant?.()) {
           return false;
         }
-        if (runId !== generation || permission.state !== "granted") return false;
+        if (runId !== generation) return false;
 
         interrupted = false;
         const nextCapture = createCapture({
