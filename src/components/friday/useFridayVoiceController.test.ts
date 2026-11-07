@@ -206,6 +206,20 @@ describe("Friday voice session recovery", () => {
     expect(MockRecognition.instances[1].start).toHaveBeenCalledTimes(1);
   });
 
+  it("releases a failed recognizer when the browser omits the end event", async () => {
+    const { controller } = renderController();
+    controller.toggleListening();
+    const failed = MockRecognition.instances[0];
+
+    failed.errorEvent("not-allowed");
+    await vi.advanceTimersByTimeAsync(1500);
+
+    expect(failed.abort).toHaveBeenCalledTimes(1);
+    controller.toggleListening();
+    expect(MockRecognition.instances).toHaveLength(2);
+    expect(MockRecognition.instances[1].start).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps final recognition text when the user manually stops listening", () => {
     const { controller, sent } = renderController();
     controller.toggleListening();
@@ -281,6 +295,8 @@ describe("Friday voice session recovery", () => {
 
     controller.speakText("正在播报", "message-2");
     harness.playbackEvents?.onEnd();
+    controller.options?.openRef && (controller.options.openRef.current = false);
+    controller.options?.closingRef && (controller.options.closingRef.current = true);
     controller.stopAllVoice();
 
     await vi.advanceTimersByTimeAsync(1000);
