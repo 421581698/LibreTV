@@ -89,6 +89,9 @@ export function createLibreTVMovieAgentAdapters(
             throw new DagExecutionError(`Quality probe failed: HTTP ${response.status}`, "QUALITY_HTTP_ERROR", retryable);
           }
           const payload = await readJson<QualityApiResponse>(response);
+          if (Array.isArray(payload.results) && payload.results.some((item) => item.transient === true)) {
+            throw new DagExecutionError("One or more source probes failed transiently", "QUALITY_SOURCE_TRANSIENT", true);
+          }
           const results = new Map(
             (Array.isArray(payload.results) ? payload.results : [])
               .map((item): [string, QualityProbeResult] => [`${item.sourceKey}:${item.vodId}`, item]),
