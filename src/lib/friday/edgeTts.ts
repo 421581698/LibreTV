@@ -18,7 +18,7 @@ type WorkerSocket = WebSocket & { accept: () => void };
 
 type TtsOptions = {
   text: string;
-  voice: "zh-CN-XiaoxiaoNeural" | "zh-CN-XiaoyiNeural" | "en-US-AvaMultilingualNeural";
+  voice: "zh-CN-XiaoxiaoNeural" | "zh-CN-XiaoyiNeural" | "en-US-AvaMultilingualNeural" | "zh-CN-YunxiNeural" | "en-GB-RyanNeural" | "en-GB-SoniaNeural";
   signal?: AbortSignal;
 };
 
