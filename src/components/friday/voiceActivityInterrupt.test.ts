@@ -161,6 +161,20 @@ describe("VAD speech interruption coordinator", () => {
     expect(fake.capture.start).toHaveBeenCalledTimes(1);
   });
 
+  it("uses a previously confirmed ASR microphone grant when Permissions API is absent", async () => {
+    const fake = createFakeCapture();
+    vi.stubGlobal("navigator", {});
+    const controller = createVoiceActivityInterruptController({
+      onInterrupt: vi.fn(),
+      hasPriorMicGrant: () => true,
+      createCapture: fake.createCapture as any,
+    });
+
+    await expect(controller.start()).resolves.toBe(true);
+    expect(fake.createCapture).toHaveBeenCalledTimes(1);
+    expect(fake.capture.start).toHaveBeenCalledTimes(1);
+  });
+
   it("stays disabled when the browser cannot query microphone permission", async () => {
     vi.stubGlobal("navigator", {});
     const createCapture = vi.fn();
