@@ -34,7 +34,7 @@ interface CachedProbe {
 }
 
 function isTransientProbeError(error?: string): boolean {
-  return Boolean(error && /HTTP (408|425|429|5\\d\\d)|timeout|timed out|超时|fetch failed|network error|网络错误/i.test(error));
+  return Boolean(error && /HTTP (408|425|429|5\d\d)|timeout|timed out|超时|fetch failed|network error|网络错误/i.test(error));
 }
 
 function isProbeItem(v: unknown): v is QualityProbeItem {
