@@ -92,12 +92,13 @@ export default function AIFloatingBall({
   }, [language, languagePreferenceLoaded]);
 
   useEffect(() => {
+    if (!languagePreferenceLoaded) return;
     try {
       window.localStorage.setItem("friday-assistant", assistantId);
     } catch {
       // Profile selection remains available for this session.
     }
-  }, [assistantId]);
+  }, [assistantId, languagePreferenceLoaded]);
 
   const openRef = useRef(false);
   const closingRef = useRef(false);
