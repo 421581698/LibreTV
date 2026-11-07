@@ -33,6 +33,10 @@ interface CachedProbe {
   probeDurationMs?: number;
 }
 
+function isTransientProbeError(error?: string): boolean {
+  return Boolean(error && /HTTP (408|425|429|5\\d\\d)|timeout|timed out|超时|fetch failed|network error|网络错误/i.test(error));
+}
+
 function isProbeItem(v: unknown): v is QualityProbeItem {
   if (!v || typeof v !== 'object') return false;
   const item = v as { source?: unknown; id?: unknown };
@@ -99,7 +103,7 @@ export async function POST(req: Request) {
     const key = cacheKey(item);
     const cached = getCache<CachedProbe>(key);
     if (cached) {
-      return { sourceKey: item.source.key, vodId: item.id, height: cached.height, error: cached.error, probeDurationMs: cached.probeDurationMs, cached: true };
+      return { sourceKey: item.source.key, vodId: item.id, height: cached.height, error: cached.error, probeDurationMs: cached.probeDurationMs, cached: true, transient: false };
     }
     let pending = inflight.get(key);
     if (!pending) {
@@ -115,9 +119,10 @@ export async function POST(req: Request) {
             error: result.error,
             probeDurationMs: Math.max(0, Date.now() - probeStartedAt),
           };
-          // 「测不出」（height 缺失且无 error）同样是有效结论，也要缓存，
-          // 否则单码率源每次展开都会被重复探测一遍
-          setCache(key, value, result.error ? FAIL_CACHE_TTL : OK_CACHE_TTL);
+          // Cache definitive outcomes, but never cache transient failures: a retry
+          // must reach the source again instead of replaying the same stale error.
+          const transient = isTransientProbeError(result.error);
+          if (!transient) setCache(key, value, result.error ? FAIL_CACHE_TTL : OK_CACHE_TTL);
           return value;
         } catch {
           // 客户端断开等中断：不缓存、也不作为失败结果下发
@@ -134,6 +139,7 @@ export async function POST(req: Request) {
       error: value.error,
       probeDurationMs: value.probeDurationMs,
       cached: false,
+      transient: isTransientProbeError(value.error),
     };
   };
 
