@@ -621,6 +621,10 @@ export function useFridayVoiceController({
       // 等待 onresult/onend 收齐最终识别文本，不提前结束 session。
       manualVoiceStopRef.current = true;
       clearVoiceResumeTimer();
+      if (speechSilenceTimerRef.current !== null) {
+        window.clearTimeout(speechSilenceTimerRef.current);
+        speechSilenceTimerRef.current = null;
+      }
       try {
         recognitionRef.current?.stop();
       } catch {
