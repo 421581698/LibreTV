@@ -210,6 +210,24 @@ describe("Friday voice session recovery", () => {
     expect(MockRecognition.instances[0].start).toHaveBeenCalledTimes(1);
   });
 
+  it("handles a synchronous microphone permission rejection and allows retry", () => {
+    const { controller, dispatch } = renderController();
+    controller.toggleListening();
+    const denied = MockRecognition.instances[0];
+    denied.start.mockImplementation(() => {
+      throw new DOMException("Permission denied", "NotAllowedError");
+    });
+
+    // Retry through a fresh controller gesture after the browser rejects start().
+    controller.startListeningRef.current(false);
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({
+      type: "VOICE_FAILED",
+      code: "start-failed",
+    }));
+    expect(denied.abort).not.toHaveBeenCalled();
+    expect(denied.start).toHaveBeenCalledTimes(1);
+  });
+
   it("releases a permission-denied recognizer so a later tap can retry", () => {
     const { controller } = renderController();
     controller.toggleListening();
@@ -267,6 +285,20 @@ describe("Friday voice session recovery", () => {
     expect(playback?.cancel).toHaveBeenCalledTimes(1);
     expect(MockRecognition.instances).toHaveLength(2);
     expect(MockRecognition.instances[1].start).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends one request for a final transcript and ignores late duplicate events", () => {
+    const { controller, sent } = renderController();
+    controller.toggleListening();
+    const recognition = MockRecognition.instances[0];
+    recognition.startEvent();
+    recognition.result("只处理一次", true);
+    recognition.endEvent();
+    recognition.result("重复的迟到文本", true);
+    recognition.endEvent();
+
+    expect(sent).toHaveBeenCalledTimes(1);
+    expect(sent).toHaveBeenCalledWith("只处理一次", true);
   });
 
   it("resumes listening after speech playback ends", async () => {
