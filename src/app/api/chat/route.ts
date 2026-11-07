@@ -328,6 +328,7 @@ export async function POST(request: Request) {
       name: modelConfig.providerName,
       apiKey: modelConfig.apiKey,
       baseURL: modelConfig.baseURL,
+      headers: modelConfig.headers,
     });
     model = provider(modelConfig.modelName);
   } catch (error) {
