@@ -108,7 +108,9 @@ export async function isBlockedByDNS(urlString: string): Promise<boolean> {
         return await resolver(hostname);
       } catch (error) {
         const code = (error as NodeJS.ErrnoException)?.code;
-        if (code === 'ENODATA') return [];
+        // Workers DNS resolvers may report ENOTFOUND for an address family
+        // with no records. Treat it like ENODATA; other resolver failures remain fail-closed.
+        if (code === 'ENODATA' || code === 'ENOTFOUND') return [];
         throw error;
       }
     };
