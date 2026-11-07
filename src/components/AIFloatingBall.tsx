@@ -235,7 +235,7 @@ export default function AIFloatingBall({
       setCompleted(false);
       setInput("");
 
-      beginRequest();
+      const requestId = beginRequest();
 
       if (inputRef.current) {
         inputRef.current.style.height = "auto";
@@ -246,7 +246,7 @@ export default function AIFloatingBall({
       } catch (sendError) {
         console.error("[Friday] Send failed:", sendError);
 
-        failActiveRequest("send-failed", "消息发送失败，请检查网络后重试。");
+        failActiveRequest(requestId, "send-failed", "消息发送失败，请检查网络后重试。");
         setVoiceError("消息发送失败，请检查网络后重试。");
 
         if (keepVoiceSession && voiceSessionActiveRef.current) {
