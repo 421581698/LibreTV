@@ -51,7 +51,12 @@ export function HomeSearchSection({
     if (!recognition) return;
     manualStopRef.current = true;
     setVoiceState('IDLE');
-    try { recognition.stop(); } catch { /* recognition may already be ending */ }
+    try { recognition.stop(); } catch {
+      manualStopRef.current = false;
+      recognitionRef.current = null;
+      try { recognition.abort(); } catch { /* recognition may already be closed */ }
+      setVoiceState('IDLE');
+    }
   };
 
   const startListening = () => {
