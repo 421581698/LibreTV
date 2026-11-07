@@ -24,6 +24,7 @@ type FridayChatSessionOptions = {
   sources: FridaySourceConfig[];
   filterAdult: boolean;
   language: "zh" | "en";
+  assistantId: "friday" | "jarvis" | "lin-meimei";
 };
 
 /** Owns Friday's AI SDK transport, chat session and local movie-workflow view state. */
@@ -31,6 +32,7 @@ export function useFridayChatSession({
   sources,
   filterAdult,
   language,
+  assistantId,
 }: FridayChatSessionOptions) {
   const mountedRef = useRef(false);
   const processedSearchIds = useRef(new Set<string>());
@@ -137,7 +139,7 @@ export function useFridayChatSession({
     () =>
       new DefaultChatTransport({
         api: "/api/chat",
-        body: { sources, filterAdult, language },
+        body: { sources, filterAdult, language, assistantId },
       }),
     [sources, filterAdult, language],
   );
