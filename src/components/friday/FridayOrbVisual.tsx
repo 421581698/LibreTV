@@ -237,6 +237,10 @@ export function FridayOrbVisual({ state = "standby", audioLevel = 0 }: FridayOrb
   const activityRef = useRef(0);
   const shockRef = useRef(0);
   const shockStartedRef = useRef<number | null>(null);
+  const stateRef = useRef(state);
+  const audioLevelRef = useRef(audioLevel);
+  stateRef.current = state;
+  audioLevelRef.current = audioLevel;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -250,6 +254,9 @@ export function FridayOrbVisual({ state = "standby", audioLevel = 0 }: FridayOrb
     let height = 0;
     let dpr = 1;
     let visible = !document.hidden;
+    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let reducedMotion = motionQuery.matches;
+    let lastReducedDraw = 0;
     let theme: SigilTheme = document.documentElement.classList.contains("dark") ||
       document.body.classList.contains("dark") ? "dark" : "light";
 
@@ -282,6 +289,13 @@ export function FridayOrbVisual({ state = "standby", audioLevel = 0 }: FridayOrb
     };
     canvas.addEventListener("pointerdown", onPointer);
 
+    const onMotionPreference = () => {
+      reducedMotion = motionQuery.matches;
+      last = 0;
+      lastReducedDraw = 0;
+    };
+    motionQuery.addEventListener("change", onMotionPreference);
+
     const onVisibility = () => {
       visible = !document.hidden;
       last = 0;
@@ -295,19 +309,26 @@ export function FridayOrbVisual({ state = "standby", audioLevel = 0 }: FridayOrb
     const draw = (now: number) => {
       frame = 0;
       if (!visible) return;
-      const dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
+      // Respect reduced-motion without polling matchMedia on every frame.
+      // A 10 FPS ceiling keeps the sigil responsive while reducing paint work.
+      if (reducedMotion && now - lastReducedDraw < 100) {
+        frame = requestAnimationFrame(draw);
+        return;
+      }
+      if (reducedMotion) lastReducedDraw = now;
+      const dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
       last = now;
       elapsed = (elapsed + dt) % 6;
-      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const currentState = stateRef.current;
       const target = Math.max(
-        audioLevel,
-        state === "listening" ? 0.38 : state === "thinking" ? 0.5 : state === "speaking" ? 0.72 : state === "completed" ? 0.3 : 0.12,
+        audioLevelRef.current,
+        currentState === "listening" ? 0.38 : currentState === "thinking" ? 0.5 : currentState === "speaking" ? 0.72 : currentState === "completed" ? 0.3 : 0.12,
       );
       activityRef.current += (clamp(target, 0, 1) - activityRef.current) * Math.min(1, dt * 5);
       const age = shockStartedRef.current === null ? 2 : (now - shockStartedRef.current) / 1000;
       shockRef.current = age < 1.5 ? 1 - age / 1.5 : 0;
       if (age >= 1.5) shockStartedRef.current = null;
-      drawGoldenSigil(ctx, width, height, elapsed * (reduced ? 0.45 : 1), theme, activityRef.current, shockRef.current);
+      drawGoldenSigil(ctx, width, height, elapsed * (reducedMotion ? 0.45 : 1), theme, activityRef.current, shockRef.current);
       frame = requestAnimationFrame(draw);
     };
 
@@ -319,8 +340,9 @@ export function FridayOrbVisual({ state = "standby", audioLevel = 0 }: FridayOrb
       themeObserver.disconnect();
       canvas.removeEventListener("pointerdown", onPointer);
       document.removeEventListener("visibilitychange", onVisibility);
+      motionQuery.removeEventListener("change", onMotionPreference);
     };
-  }, [audioLevel, state]);
+  }, []);
 
   return (
     <div className="friday-orb-visual" data-state={state} aria-hidden="true">
