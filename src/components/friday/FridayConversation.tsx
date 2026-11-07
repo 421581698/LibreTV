@@ -39,7 +39,7 @@ function WorkflowSummary({ workflow, language }: { workflow: FridayWorkflowView;
       {workflow.qualityChecks ? (
         <div className="friday-workflow-block">
           <strong>{language === "en" ? "Quality evidence" : "画质证据"}</strong>
-          <p>{language === "en" ? "Resolution is inferred from HLS manifests or media segments. This is source-side evidence, not a measurement of the player’s decoded videoHeight." : "分辨率来自 HLS 清单或媒体分片解析；探测耗时是服务端单条探测总耗时，不是源站 RTT，也不等同于播放器解码后的 videoHeight 实测。"}</p>
+          <p>{language === "en" ? "Resolution is inferred from HLS manifests or media segments. Probe duration is server-side end-to-end time, not source RTT or decoded videoHeight." : "分辨率来自 HLS 清单或媒体分片解析；探测耗时是服务端单条探测总耗时，不是源站 RTT，也不等同于播放器解码后的 videoHeight 实测。"}</p>
           {workflow.qualityChecks.map((item) => (
             <div className="friday-workflow-row" key={item.candidateId || item.sourceId}>
               <span>{item.sourceId}{item.candidateId ? ` · ${item.candidateId.split(":").slice(1).join(":")}` : ""}</span>
