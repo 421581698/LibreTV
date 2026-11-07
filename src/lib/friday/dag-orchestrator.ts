@@ -21,28 +21,35 @@ export type DagRunResult = {
   taskId: string;
   status: "succeeded" | "failed" | "cancelled";
   output?: unknown;
+  attempts: number;
   error?: { code: string; message: string; retryable: boolean };
 };
 
 export class DagExecutionError extends Error {
-  constructor(message: string, public readonly code: string) {
+  constructor(
+    message: string,
+    public readonly code: string,
+    public readonly retryable = false,
+  ) {
     super(message);
     this.name = "DagExecutionError";
   }
 }
 
 /**
- * Executes a validated DAG. Independent nodes may run concurrently; each node
- * waits for all declared dependencies and receives only their successful outputs.
- * The runtime/event store remains the source of truth for lifecycle and progress.
+ * Executes a validated DAG. Only explicitly classified transient failures are
+ * retried. Side-effect tasks are never automatically replayed.
  */
 export async function runFridayDag(args: {
   tasks: TaskDefinition[];
   agents: FridayAgent[];
   runtime: TaskRuntime;
   signal?: AbortSignal;
+  maxAttempts?: number;
 }): Promise<DagRunResult[]> {
   const { tasks, agents, runtime, signal } = args;
+  const requestedAttempts = Number.isFinite(args.maxAttempts) ? Math.floor(args.maxAttempts as number) : 2;
+  const maxAttempts = Math.max(1, Math.min(3, requestedAttempts));
   validateTaskGraph(tasks);
 
   const agentById = new Map(agents.map((agent) => [agent.id, agent]));
@@ -52,7 +59,6 @@ export async function runFridayDag(args: {
     }
   }
 
-  // Persist every node before execution so the complete graph is inspectable.
   for (const task of tasks) await runtime.create(task);
 
   const executions = new Map<string, Promise<DagRunResult>>();
@@ -68,11 +74,9 @@ export async function runFridayDag(args: {
         })),
       );
 
-      // Cancellation takes precedence over dependency failure: descendants of an
-      // aborted workflow are cancelled, not misreported as failed dependencies.
       if (signal?.aborted) {
         await runtime.record(task, "task.cancelled");
-        return { taskId: task.taskId, status: "cancelled" };
+        return { taskId: task.taskId, status: "cancelled", attempts: 0 };
       }
 
       const failedDependency = dependencies.find(({ result }) => result.status !== "succeeded");
@@ -83,49 +87,70 @@ export async function runFridayDag(args: {
           retryable: false,
         };
         await runtime.record(task, "task.failed", undefined, error);
-        return { taskId: task.taskId, status: "failed", error };
+        return { taskId: task.taskId, status: "failed", attempts: 0, error };
       }
 
       const agent = agentById.get(task.agent)!;
       const dependencyOutputs: Record<string, unknown> = {};
-      for (const dependency of dependencies) {
-        dependencyOutputs[dependency.id] = dependency.result.output;
-      }
+      for (const dependency of dependencies) dependencyOutputs[dependency.id] = dependency.result.output;
 
-      try {
-        await runtime.record(task, "task.started");
-        const output = await agent.execute({
-          task,
-          dependencyOutputs,
-          signal,
-          progress: async (value) => {
-            if (signal?.aborted) throw new DagExecutionError("Task cancelled", "ABORTED");
-            await runtime.record(task, "task.progress", value);
-          },
-          checkpoint: async (value) => {
-            if (signal?.aborted) throw new DagExecutionError("Task cancelled", "ABORTED");
-            await runtime.record(task, "task.checkpoint", value);
-          },
-        });
+      let attempts = 0;
+      while (attempts < maxAttempts) {
         if (signal?.aborted) {
           await runtime.record(task, "task.cancelled");
-          return { taskId: task.taskId, status: "cancelled" };
+          return { taskId: task.taskId, status: "cancelled", attempts };
         }
-        await runtime.record(task, "task.succeeded", output);
-        return { taskId: task.taskId, status: "succeeded", output };
-      } catch (cause) {
-        if (signal?.aborted || (cause instanceof DagExecutionError && cause.code === "ABORTED")) {
-          await runtime.record(task, "task.cancelled");
-          return { taskId: task.taskId, status: "cancelled" };
+
+        attempts += 1;
+        if (attempts === 1) {
+          await runtime.record(task, "task.started");
+        } else {
+          await runtime.requestReplay(task);
+          await runtime.record(task, "task.resumed");
         }
-        const error = {
-          code: cause instanceof DagExecutionError ? cause.code : "AGENT_EXECUTION_FAILED",
-          message: cause instanceof Error ? cause.message : "Agent execution failed",
-          retryable: false,
-        };
-        await runtime.record(task, "task.failed", undefined, error);
-        return { taskId: task.taskId, status: "failed", error };
+
+        try {
+          const output = await agent.execute({
+            task,
+            dependencyOutputs,
+            signal,
+            progress: async (value) => {
+              if (signal?.aborted) throw new DagExecutionError("Task cancelled", "ABORTED");
+              await runtime.record(task, "task.progress", value);
+            },
+            checkpoint: async (value) => {
+              if (signal?.aborted) throw new DagExecutionError("Task cancelled", "ABORTED");
+              await runtime.record(task, "task.checkpoint", value);
+            },
+          });
+          if (signal?.aborted) {
+            await runtime.record(task, "task.cancelled");
+            return { taskId: task.taskId, status: "cancelled", attempts };
+          }
+          await runtime.record(task, "task.succeeded", output);
+          return { taskId: task.taskId, status: "succeeded", output, attempts };
+        } catch (cause) {
+          if (signal?.aborted || (cause instanceof DagExecutionError && cause.code === "ABORTED")) {
+            await runtime.record(task, "task.cancelled");
+            return { taskId: task.taskId, status: "cancelled", attempts };
+          }
+          const retryable = cause instanceof DagExecutionError && cause.retryable;
+          const error = {
+            code: cause instanceof DagExecutionError ? cause.code : "AGENT_EXECUTION_FAILED",
+            message: cause instanceof Error ? cause.message : "Agent execution failed",
+            retryable: retryable && !task.sideEffect && attempts < maxAttempts,
+          };
+          await runtime.record(task, "task.failed", undefined, error);
+          if (!error.retryable) return { taskId: task.taskId, status: "failed", attempts, error };
+        }
       }
+
+      const error = {
+        code: "RETRY_LIMIT_REACHED",
+        message: "Task exhausted its retry budget",
+        retryable: false,
+      };
+      return { taskId: task.taskId, status: "failed", attempts, error };
     })();
 
     executions.set(task.taskId, promise);

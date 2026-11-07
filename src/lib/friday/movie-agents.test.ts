@@ -78,8 +78,9 @@ describe("Friday movie agents", () => {
     const review = agents.find((agent) => agent.id === "review-agent")!;
     const result = await review.execute(context("review-agent", {}, {
       search: { candidates: [{ id: "m1", title: "Arrival", sourceId: "s1" }] },
-      quality: { assessments: [{ sourceId: "s1", status: "unknown", resolutionHeight: null, latencyMs: null, reachable: null, advertisedQualities: ["4K"], evidence: [] }] },
+      // No candidateId: a source-level assessment cannot be attributed to this movie.
+      quality: { assessments: [{ sourceId: "s1", status: "unknown", assessmentCompleted: true, resolutionHeight: null, latencyMs: null, probeDurationMs: null, probeResultCached: null, reachable: null, advertisedQualities: ["4K"], evidence: [] }] },
     })) as { accepted: boolean; unmatchedCandidates: string[] };
-    expect(result).toMatchObject({ accepted: true, unmatchedCandidates: [] });
+    expect(result).toMatchObject({ accepted: false, unmatchedCandidates: ["m1"], measurementCompleted: true, resolutionMeasured: false });
   });
 });

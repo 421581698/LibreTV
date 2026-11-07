@@ -34,6 +34,8 @@ describe("LibreTV movie workflow", () => {
           expect(candidates).toHaveLength(1);
           return [{
             sourceId: "alpha",
+            candidateId: "alpha:1",
+            resolutionProbed: true,
             checkedAt: "2026-11-06T00:00:00.000Z",
             reachable: true,
             latencyMs: 120,
@@ -51,6 +53,8 @@ describe("LibreTV movie workflow", () => {
       accepted: true,
       candidateCount: 1,
       assessmentCount: 1,
+      measurementCompleted: true,
+      resolutionMeasured: false,
     });
 
     const expectedEvents = {

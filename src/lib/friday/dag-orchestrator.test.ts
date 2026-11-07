@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runFridayDag } from "./dag-orchestrator";
+import { DagExecutionError, runFridayDag } from "./dag-orchestrator";
 import { reduceTaskEvents, TaskRuntime, type TaskDefinition, type TaskEvent, type TaskEventStore } from "./task-runtime";
 
 class MemoryStore implements TaskEventStore {
@@ -76,4 +76,47 @@ describe("Friday DAG orchestrator", () => {
     expect(downstreamCalled).toBe(false);
     expect(result[1]).toMatchObject({ status: "failed", error: { code: "DEPENDENCY_FAILED" } });
   });
+  it("retries only explicitly transient failures and records replay lineage", async () => {
+    const store = new MemoryStore();
+    const runtime = new TaskRuntime(store);
+    let calls = 0;
+    const result = await runFridayDag({
+      tasks: [{ taskId: "transient", agent: "transient-agent", input: {} }],
+      runtime,
+      agents: [{
+        id: "transient-agent",
+        execute: async () => {
+          calls += 1;
+          if (calls === 1) throw new DagExecutionError("Upstream temporarily unavailable", "UPSTREAM_503", true);
+          return { ok: true };
+        },
+      }],
+      maxAttempts: 2,
+    });
+    expect(calls).toBe(2);
+    expect(result[0]).toMatchObject({ status: "succeeded", attempts: 2, output: { ok: true } });
+    expect((await store.read("transient")).map((event) => event.type)).toEqual([
+      "task.created", "task.started", "task.failed", "task.replay_requested", "task.resumed", "task.succeeded",
+    ]);
+  });
+
+  it("does not retry side-effect failures even when explicitly transient", async () => {
+    const store = new MemoryStore();
+    const runtime = new TaskRuntime(store);
+    let calls = 0;
+    const result = await runFridayDag({
+      tasks: [{ taskId: "side-effect", agent: "side-agent", input: {}, sideEffect: true }],
+      runtime,
+      agents: [{
+        id: "side-agent",
+        execute: async () => {
+          calls += 1;
+          throw new DagExecutionError("Temporary", "TEMPORARY", true);
+        },
+      }],
+    });
+    expect(calls).toBe(1);
+    expect(result[0]).toMatchObject({ status: "failed", attempts: 1, error: { retryable: false } });
+  });
+
 });

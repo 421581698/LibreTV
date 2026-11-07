@@ -15,8 +15,8 @@ import { isCurrentFridayWorkflow } from "@/components/friday/workflowRequestGuar
 export type FridayWorkflowView = {
   status: "running" | "completed" | "failed";
   sourceChecks?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean; latencyMs?: number }>;
-  qualityChecks?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null }>;
-  review?: { accepted: boolean; findings: string[]; candidateCount: number; assessmentCount: number };
+  qualityChecks?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; probeDurationMs?: number | null; probeResultCached?: boolean | null }>;
+  review?: { accepted: boolean; findings: string[]; candidateCount: number; assessmentCount: number; measurementCompleted: boolean; resolutionMeasured: boolean };
   error?: string;
 };
 
@@ -106,10 +106,10 @@ export function useFridayChatSession({
         | { probes?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean }> }
         | undefined;
       const qualityOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.quality)?.output as
-        | { assessments?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null }> }
+        | { assessments?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; probeDurationMs: number | null; probeResultCached: boolean | null }> }
         | undefined;
       const reviewOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.review)?.output as
-        | { accepted?: boolean; findings?: string[]; candidateCount?: number; assessmentCount?: number }
+        | { accepted?: boolean; findings?: string[]; candidateCount?: number; assessmentCount?: number; measurementCompleted?: boolean; resolutionMeasured?: boolean }
         | undefined;
       setWorkflowBySearchId((current) => ({
         ...current,
@@ -122,6 +122,8 @@ export function useFridayChatSession({
             findings: reviewOutput.findings ?? [],
             candidateCount: reviewOutput.candidateCount ?? movieResults.length,
             assessmentCount: reviewOutput.assessmentCount ?? 0,
+            measurementCompleted: reviewOutput.measurementCompleted === true,
+            resolutionMeasured: reviewOutput.resolutionMeasured === true,
           },
         },
       }));

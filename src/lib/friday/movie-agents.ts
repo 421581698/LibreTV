@@ -13,6 +13,8 @@ export type SourceProbe = {
   checkedAt: string;
   reachable: boolean;
   latencyMs?: number;
+  probeDurationMs?: number;
+  probeResultCached?: boolean;
   statusCode?: number;
   advertisedQualities?: string[];
   candidateId?: string;
@@ -27,8 +29,11 @@ export type QualityAssessment = {
   candidateId?: string;
   title?: string;
   status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown";
+  assessmentCompleted: boolean;
   resolutionHeight: number | null;
   latencyMs: number | null;
+  probeDurationMs: number | null;
+  probeResultCached: boolean | null;
   reachable: boolean | null;
   advertisedQualities: string[];
   evidence: string[];
@@ -107,13 +112,17 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
         if (validHeight) evidence.push("hls_or_segment.resolution_height");
         if (validReachability) evidence.push("source.reachable");
         if (validLatency) evidence.push("source.latency");
+        if (typeof probe.probeDurationMs === "number" && Number.isFinite(probe.probeDurationMs) && probe.probeDurationMs >= 0) evidence.push("quality_probe.duration_ms");
         return {
           sourceId: probe.sourceId,
           candidateId: probe.candidateId,
           title: probe.title,
           status: validHeight ? "resolution_detected" : probe.resolutionError ? "unavailable" : probeCompleted ? "resolution_unknown" : "unknown",
+          assessmentCompleted: probeCompleted || Boolean(probe.resolutionError),
           resolutionHeight: validHeight ? probe.resolutionHeight! : null,
           latencyMs: validLatency ? probe.latencyMs! : null,
+          probeDurationMs: typeof probe.probeDurationMs === "number" && Number.isFinite(probe.probeDurationMs) && probe.probeDurationMs >= 0 ? probe.probeDurationMs : null,
+          probeResultCached: typeof probe.probeResultCached === "boolean" ? probe.probeResultCached : null,
           reachable: validReachability ? probe.reachable : null,
           advertisedQualities: Array.isArray(probe.advertisedQualities)
             ? probe.advertisedQualities.filter((quality): quality is string => typeof quality === "string")
@@ -137,22 +146,25 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
       const assessments = Array.isArray(qualityOutput.assessments)
         ? qualityOutput.assessments as QualityAssessment[]
         : [];
-      const assessmentCandidateIds = new Set(assessments.map((item) => item.candidateId).filter((id): id is string => Boolean(id)));
-      const assessmentSourceIds = new Set(assessments.map((item) => item.sourceId));
-      const unmatchedCandidates = candidates.filter((candidate) =>
-        assessmentCandidateIds.size > 0
-          ? !assessmentCandidateIds.has(candidate.id)
-          : Boolean(candidate.sourceId && !assessmentSourceIds.has(candidate.sourceId)),
+      // Every candidate must be matched by its stable candidate ID. A source-level
+      // match is insufficient because one source can return multiple different titles.
+      const assessmentCandidateIds = new Set(
+        assessments.map((item) => item.candidateId).filter((id): id is string => Boolean(id)),
       );
+      const unmatchedCandidates = candidates.filter((candidate) => !assessmentCandidateIds.has(candidate.id));
       const findings = [
         ...(!Array.isArray(searchOutput.candidates) ? ["missing-search-candidates"] : []),
         ...candidates.filter((candidate) => !candidate.id || !candidate.title).map(() => "invalid-candidate"),
         ...(unmatchedCandidates.length ? ["candidate-without-quality-assessment"] : []),
+        ...assessments.filter((item) => !item.assessmentCompleted).map(() => "quality-assessment-incomplete"),
         ...assessments.filter((item) => item.status === "resolution_detected" && item.evidence.length === 0)
           .map(() => "measurement-without-evidence"),
       ];
       return {
         accepted: findings.length === 0,
+        reviewStatus: findings.length === 0 ? "complete" : "incomplete",
+        measurementCompleted: assessments.length > 0 && assessments.every((item) => item.assessmentCompleted),
+        resolutionMeasured: assessments.some((item) => item.status === "resolution_detected"),
         findings,
         candidateCount: candidates.length,
         assessmentCount: assessments.length,

@@ -1,5 +1,6 @@
 import type { SearchResultItem, SourceConfig, QualityProbeResult } from "../types";
 import type { MovieAgentAdapters, MovieCandidate, SourceProbe } from "./movie-agents";
+import { DagExecutionError } from "./dag-orchestrator";
 
 type SearchApiResponse = { list?: SearchResultItem[]; failures?: Array<{ sourceKey: string; error: string }> };
 type QualityApiResponse = { results?: QualityProbeResult[] };
@@ -25,14 +26,27 @@ export function createLibreTVMovieAgentAdapters(
 
   return {
     async search({ query }, signal): Promise<MovieCandidate[]> {
-      const response = await fetcher("/api/search", {
+      let response: Response;
+      try {
+        response = await fetcher("/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ wd: query, sources, filterAdult: options.filterAdult === true }),
         signal,
         cache: "no-store",
-      });
-      if (!response.ok) throw new Error(`Search API failed: HTTP ${response.status}`);
+        });
+      } catch (error) {
+        if (signal?.aborted || !(error instanceof TypeError)) throw error;
+        throw new DagExecutionError(
+          error instanceof Error ? error.message : "Search network request failed",
+          "SEARCH_NETWORK_ERROR",
+          true,
+        );
+      }
+      if (!response.ok) {
+        const retryable = response.status === 408 || response.status === 429 || response.status >= 500;
+        throw new DagExecutionError(`Search API failed: HTTP ${response.status}`, "SEARCH_HTTP_ERROR", retryable);
+      }
       const payload = await readJson<SearchApiResponse>(response);
       return (Array.isArray(payload.list) ? payload.list : []).map((item) => ({
         id: `${item.sourceKey}:${item.vodId}`,
@@ -70,8 +84,14 @@ export function createLibreTVMovieAgentAdapters(
             signal,
             cache: "no-store",
           });
-          if (!response.ok) throw new Error(`Quality probe failed: HTTP ${response.status}`);
+          if (!response.ok) {
+            const retryable = response.status === 429 || response.status >= 500;
+            throw new DagExecutionError(`Quality probe failed: HTTP ${response.status}`, "QUALITY_HTTP_ERROR", retryable);
+          }
           const payload = await readJson<QualityApiResponse>(response);
+          if (Array.isArray(payload.results) && payload.results.some((item) => item.transient === true)) {
+            throw new DagExecutionError("One or more source probes failed transiently", "QUALITY_SOURCE_TRANSIENT", true);
+          }
           const results = new Map(
             (Array.isArray(payload.results) ? payload.results : [])
               .map((item): [string, QualityProbeResult] => [`${item.sourceKey}:${item.vodId}`, item]),
@@ -86,11 +106,17 @@ export function createLibreTVMovieAgentAdapters(
               reachable: Boolean(result && !result.error),
               resolutionHeight: typeof result?.height === "number" ? result.height : undefined,
               resolutionProbed: Boolean(result && !result.error),
+              probeDurationMs: result?.probeDurationMs,
+              probeResultCached: result?.cached,
               resolutionError: result?.error ?? (result ? undefined : "No quality result returned"),
             };
           }));
         } catch (error) {
           if (signal?.aborted) throw error;
+          if (error instanceof DagExecutionError && error.retryable) throw error;
+          if (error instanceof TypeError) {
+            throw new DagExecutionError(error.message || "Quality probe network request failed", "QUALITY_NETWORK_ERROR", true);
+          }
           output.push(...batch.map(({ source, candidate }) => ({
             sourceId: source.key,
             candidateId: candidate.id,

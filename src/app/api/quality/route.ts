@@ -30,6 +30,11 @@ const FAIL_CACHE_TTL = 2 * 60 * 1000;
 interface CachedProbe {
   height?: number;
   error?: string;
+  probeDurationMs?: number;
+}
+
+function isTransientProbeError(error?: string): boolean {
+  return Boolean(error && /HTTP (408|425|429|5\d\d)|timeout|timed out|超时|fetch failed|network error|网络错误/i.test(error));
 }
 
 function isProbeItem(v: unknown): v is QualityProbeItem {
@@ -98,7 +103,7 @@ export async function POST(req: Request) {
     const key = cacheKey(item);
     const cached = getCache<CachedProbe>(key);
     if (cached) {
-      return { sourceKey: item.source.key, vodId: item.id, height: cached.height, error: cached.error };
+      return { sourceKey: item.source.key, vodId: item.id, height: cached.height, error: cached.error, probeDurationMs: cached.probeDurationMs, cached: true, transient: false };
     }
     let pending = inflight.get(key);
     if (!pending) {
@@ -107,11 +112,17 @@ export async function POST(req: Request) {
           // per-host 闸门放在最外层：同一采集站的多个影片共用一个 host，
           // 只限单请求内的 CONCURRENCY 挡不住「多用户 × 单请求并发」的叠加冲击。
           // 排队等待不占用 probeQuality 内部的 8s 死线（超时在拿到名额后才起算）
+          const probeStartedAt = Date.now();
           const result = await withHostLimit(item.source.url, () => probeQuality(item, req.signal));
-          const value: CachedProbe = { height: result.height, error: result.error };
-          // 「测不出」（height 缺失且无 error）同样是有效结论，也要缓存，
-          // 否则单码率源每次展开都会被重复探测一遍
-          setCache(key, value, result.error ? FAIL_CACHE_TTL : OK_CACHE_TTL);
+          const value: CachedProbe = {
+            height: result.height,
+            error: result.error,
+            probeDurationMs: Math.max(0, Date.now() - probeStartedAt),
+          };
+          // Cache definitive outcomes, but never cache transient failures: a retry
+          // must reach the source again instead of replaying the same stale error.
+          const transient = isTransientProbeError(result.error);
+          if (!transient) setCache(key, value, result.error ? FAIL_CACHE_TTL : OK_CACHE_TTL);
           return value;
         } catch {
           // 客户端断开等中断：不缓存、也不作为失败结果下发
@@ -121,7 +132,15 @@ export async function POST(req: Request) {
       inflight.set(key, pending);
     }
     const value = await pending;
-    return { sourceKey: item.source.key, vodId: item.id, height: value.height, error: value.error };
+    return {
+      sourceKey: item.source.key,
+      vodId: item.id,
+      height: value.height,
+      error: value.error,
+      probeDurationMs: value.probeDurationMs,
+      cached: false,
+      transient: isTransientProbeError(value.error),
+    };
   };
 
   if (!isStream) {
