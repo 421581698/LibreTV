@@ -258,7 +258,6 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
             voiceState={voiceState}
             setVoiceState={setVoiceState}
             showBrandTitle={!isV2}
-            showQuickSearches={isV2}
           />
         </HomeIntentCanvas>
         {urlQuery && (
