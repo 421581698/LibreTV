@@ -6,6 +6,8 @@ const harness = vi.hoisted(() => ({
   pendingEffects: [] as Array<() => void>,
   playbackEvents: null as null | { onStart: () => void; onEnd: () => void; onError: () => void },
   playbackHandle: null as null | { cancel: ReturnType<typeof vi.fn> },
+  interruptOptions: null as null | { onInterrupt: () => void | Promise<void> },
+  interruptHandle: null as null | { start: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn> },
 }));
 
 vi.mock("react", () => ({
@@ -51,6 +53,17 @@ vi.mock("react", () => ({
           typeof cleanup === "function" ? cleanup : undefined;
       });
     }
+  },
+}));
+
+vi.mock("./voiceActivityInterrupt", () => ({
+  createVoiceActivityInterruptController: (options: typeof harness.interruptOptions) => {
+    harness.interruptOptions = options;
+    harness.interruptHandle = {
+      start: vi.fn(async () => true),
+      stop: vi.fn(async () => {}),
+    };
+    return harness.interruptHandle;
   },
 }));
 
@@ -176,6 +189,8 @@ describe("Friday voice session recovery", () => {
     harness.pendingEffects = [];
     harness.playbackEvents = null;
     harness.playbackHandle = null;
+    harness.interruptOptions = null;
+    harness.interruptHandle = null;
     MockRecognition.instances = [];
     MockRecognition.startImplementation = null;
     vi.useFakeTimers();
@@ -286,6 +301,27 @@ describe("Friday voice session recovery", () => {
 
     controller.toggleListening();
 
+    expect(playback?.cancel).toHaveBeenCalledTimes(1);
+    expect(MockRecognition.instances).toHaveLength(2);
+    expect(MockRecognition.instances[1].start).toHaveBeenCalledTimes(1);
+  });
+
+  it("interrupts TTS on acoustic speech onset and hands the mic back to ASR", async () => {
+    const { controller } = renderController();
+    controller.toggleListening();
+    const first = MockRecognition.instances[0];
+    first.startEvent();
+    first.endEvent();
+
+    controller.speakText("正在播报的内容", "message-acoustic-interrupt");
+    harness.playbackEvents?.onStart();
+    await Promise.resolve();
+
+    const playback = harness.playbackHandle;
+    expect(harness.interruptHandle?.start).toHaveBeenCalledTimes(1);
+    expect(harness.interruptOptions).not.toBeNull();
+
+    void harness.interruptOptions?.onInterrupt();
     expect(playback?.cancel).toHaveBeenCalledTimes(1);
     expect(MockRecognition.instances).toHaveLength(2);
     expect(MockRecognition.instances[1].start).toHaveBeenCalledTimes(1);
