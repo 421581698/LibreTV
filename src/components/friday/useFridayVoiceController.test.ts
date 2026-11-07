@@ -72,6 +72,7 @@ import {
 
 class MockRecognition {
   static instances: MockRecognition[] = [];
+  static startImplementation: (() => void) | null = null;
   lang = "";
   continuous = false;
   interimResults = false;
@@ -79,7 +80,7 @@ class MockRecognition {
   onerror: ((event: any) => void) | null = null;
   onend: (() => void) | null = null;
   onstart: (() => void) | null = null;
-  start = vi.fn();
+  start = vi.fn(() => MockRecognition.startImplementation?.());
   stop = vi.fn();
   abort = vi.fn();
 
@@ -176,6 +177,7 @@ describe("Friday voice session recovery", () => {
     harness.playbackEvents = null;
     harness.playbackHandle = null;
     MockRecognition.instances = [];
+    MockRecognition.startImplementation = null;
     vi.useFakeTimers();
     vi.stubGlobal("window", {
       isSecureContext: true,
@@ -212,14 +214,11 @@ describe("Friday voice session recovery", () => {
 
   it("handles a synchronous microphone permission rejection and allows retry", () => {
     const { controller, dispatch } = renderController();
+    MockRecognition.startImplementation = () => {
+      throw new DOMException("Permission denied", "NotAllowedError");
+    };
     controller.toggleListening();
     const denied = MockRecognition.instances[0];
-    denied.start.mockImplementation(() => {
-      throw new DOMException("Permission denied", "NotAllowedError");
-    });
-
-    // Retry through a fresh controller gesture after the browser rejects start().
-    controller.startListeningRef.current(false);
     expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({
       type: "VOICE_FAILED",
       code: "start-failed",
