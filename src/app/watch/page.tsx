@@ -5,9 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import FridayOrb from '@/components/friday/FridayOrb';
+import AIFloatingBall from '@/components/AIFloatingBall';
 import { api } from '@/lib/client-api';
 // 播放器（artplayer + hls.js）按需加载：拆出独立 chunk，不占首屏 First Load JS
-const FridayAssistant = dynamic(() => import('@/components/AIFloatingBall'), { ssr: false });
 const PlayerShell = dynamic(() => import('@/components/player-shell').then((m) => m.PlayerShell), {
   ssr: false,
   loading: () => (
@@ -582,7 +582,7 @@ function WatchContent() {
           </aside>
         </div>
       </main>
-      <FridayAssistant showFab={false} />
+      <AIFloatingBall showFab={false} />
       {switchOpen && (
         <SwitchSourceModal
           currentTitle={videoTitle}
