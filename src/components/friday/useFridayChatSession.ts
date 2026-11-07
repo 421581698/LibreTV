@@ -32,6 +32,7 @@ export function useFridayChatSession({
   filterAdult,
   language,
 }: FridayChatSessionOptions) {
+  const mountedRef = useRef(false);
   const processedSearchIds = useRef(new Set<string>());
   const activeWorkflowControllers = useRef(new Map<string, AbortController>());
   const [workflowBySearchId, setWorkflowBySearchId] = useState<Record<string, FridayWorkflowView>>({});
@@ -49,6 +50,7 @@ export function useFridayChatSession({
   }, []);
 
   const handleData = useCallback((part: { type: string; data?: unknown }) => {
+    if (!mountedRef.current) return;
     if (part.type !== "data-movies" || !part.data || typeof part.data !== "object") return;
     const data = part.data as {
       searchId?: string;
@@ -91,7 +93,7 @@ export function useFridayChatSession({
       signal: controller.signal,
     }).then((workflow) => {
       // A stopped or superseded workflow must never overwrite the current conversation UI.
-      if (!isCurrentFridayWorkflow(controller, activeWorkflowControllers.current.get(data.searchId!))) return;
+      if (!mountedRef.current || !isCurrentFridayWorkflow(controller, activeWorkflowControllers.current.get(data.searchId!))) return;
       activeWorkflowControllers.current.delete(data.searchId!);
       const sourceOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.source)?.output as
         | { probes?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean }> }
@@ -118,7 +120,7 @@ export function useFridayChatSession({
       }));
     }).catch((error) => {
       // Abort is an expected lifecycle event, not a failed workflow to display to the user.
-      if (!isCurrentFridayWorkflow(controller, activeWorkflowControllers.current.get(data.searchId!))) return;
+      if (!mountedRef.current || !isCurrentFridayWorkflow(controller, activeWorkflowControllers.current.get(data.searchId!))) return;
       activeWorkflowControllers.current.delete(data.searchId!);
       console.error("[Friday] V3 movie workflow failed:", error);
       setWorkflowBySearchId((current) => ({
@@ -161,9 +163,13 @@ export function useFridayChatSession({
     stopRequest();
   }, [stopRequest]);
 
-  useEffect(() => () => {
-    for (const controller of activeWorkflowControllers.current.values()) controller.abort();
-    activeWorkflowControllers.current.clear();
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      for (const controller of activeWorkflowControllers.current.values()) controller.abort();
+      activeWorkflowControllers.current.clear();
+    };
   }, []);
 
   return {
