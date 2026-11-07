@@ -115,8 +115,9 @@ export function createFridayTtsProvider(language: "zh" | "en" = "zh"): FridayTts
       }).then(async (response) => {
         if (!response.ok) throw new Error(`Edge TTS request failed: ${response.status}`);
         const contentType = response.headers.get("content-type") || "";
-        if (!contentType.toLowerCase().includes("audio/mpeg")) {
-          throw new Error("Edge TTS returned an unsupported audio format.");
+        const normalizedContentType = contentType.toLowerCase();
+        if (!normalizedContentType.includes("audio/mpeg") && !normalizedContentType.includes("audio/wav")) {
+          throw new Error("Friday TTS returned an unsupported audio format.");
         }
         const blob = await response.blob();
         if (!blob.size) throw new Error("Edge TTS returned empty audio.");
@@ -136,7 +137,7 @@ export function createFridayTtsProvider(language: "zh" | "en" = "zh"): FridayTts
         await audio.play();
       }).catch((error: unknown) => {
         if (cancelled || (error instanceof DOMException && error.name === "AbortError")) return;
-        console.error("[Friday] Edge TTS unavailable; using browser voice:", error);
+        console.error("[Friday] Remote TTS unavailable; using browser voice:", error);
         fallback();
       });
 
