@@ -119,7 +119,9 @@ function renderController() {
     handleSendRef: { current: sent },
     language: "zh" as const,
   };
-  // This deterministic hook harness invokes the hook with mocked React primitives.\n  // eslint-disable-next-line react-hooks/rules-of-hooks\n  const controller = useFridayVoiceController(options);
+  // This deterministic hook harness invokes the hook with mocked React primitives.
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const controller = useFridayVoiceController(options);
   for (const effect of harness.pendingEffects) effect();
   return { controller, options, sent, dispatch, input };
 }
