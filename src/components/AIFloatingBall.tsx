@@ -300,7 +300,8 @@ export default function AIFloatingBall({
 
       setVoiceError("");
       setCompleted(false);
-      setInput("");
+      // Inline homepage mode keeps the recognized phrase visible in the home search field.
+      if (!inlineMode) setInput("");
 
       const requestId = beginRequest();
       // Lock synchronously before the AI SDK status render to serialize ASR/VAD/manual sends.
