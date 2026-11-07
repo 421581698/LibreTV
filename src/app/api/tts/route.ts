@@ -128,8 +128,14 @@ export async function POST(request: Request) {
     const stream = await createEdgeTtsStream({
       text: payload.text,
       voice: payload.language === "zh"
-        ? voicePreset === "edge-xiaoyi" ? "zh-CN-XiaoyiNeural" : "zh-CN-XiaoxiaoNeural"
-        : "en-US-AvaMultilingualNeural",
+        ? voicePreset === "edge-xiaoyi"
+          ? "zh-CN-XiaoyiNeural"
+          : voicePreset === "piper-jarvis"
+            ? "zh-CN-YunxiNeural"
+            : "zh-CN-XiaoxiaoNeural"
+        : voicePreset === "piper-jarvis"
+          ? "en-GB-RyanNeural"
+          : "en-US-AvaMultilingualNeural",
       signal: request.signal,
     });
     const audio = await primeAudioStream(stream);
