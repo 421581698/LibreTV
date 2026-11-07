@@ -198,7 +198,11 @@ export class TaskRuntime {
       type: "task.replay_requested",
       occurredAt: this.now(),
       agent: definition.agent,
-      payload: { fromSequence: current.lastSequence, checkpoint: current.checkpoint },
+      payload: {
+        attempt: events.filter((event) => event.type === "task.replay_requested").length + 2,
+        fromSequence: current.lastSequence,
+        checkpoint: current.checkpoint,
+      },
     };
     await this.store.append(event);
     return event;
