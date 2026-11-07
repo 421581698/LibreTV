@@ -49,7 +49,9 @@ describe('首页与播放页回归契约', () => {
     expect(search).toContain('searchHistory.record(query)');
     expect(search).toContain('const pickHistory = (text: string)');
     expect(search).toContain('runSearch(text)');
-    expect(searchHistory).toContain('useLiveQuery');
+    expect(searchHistory).toContain('useQuery({');
+    expect(searchHistory).toContain("queryKey: ['searchHistory']");
+    expect(searchHistory).toContain('history.refetch()');
     expect(searchHistory).toContain('role="listbox"');
   });
 
@@ -76,7 +78,8 @@ describe('首页与播放页回归契约', () => {
   });
 
   it('影片详情请求成功后通过标准 watch URL 进入播放页', () => {
-    expect(detail).toContain('api.detail(item.vodId, source, controller.signal)');
+    expect(detail).toContain('.detail(item.vodId, source, controller.signal)');
+    expect(detail).toContain('.then((result) => {');
     expect(detail).toContain('buildWatchUrl({');
     expect(detail).toContain('router.push(');
     expect(detail).toContain('sourceUrl: item.sourceUrl');
