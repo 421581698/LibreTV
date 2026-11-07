@@ -104,9 +104,21 @@ export function createVoiceActivityInterruptController(
           }
           armed = true;
           return true;
-        } catch {
+        } catch (error) {
           if (capture === nextCapture) capture = null;
           armed = false;
+          // Capture implementations must release their resources even when
+          // startup fails after partially acquiring the microphone.
+          try {
+            await nextCapture.stop();
+          } catch (cleanupError) {
+            options.onError?.(
+              cleanupError instanceof Error
+                ? cleanupError
+                : new Error("Unable to clean up failed VAD capture"),
+            );
+          }
+          options.onError?.(error instanceof Error ? error : new Error("Unable to start VAD capture"));
           return false;
         }
       })();
