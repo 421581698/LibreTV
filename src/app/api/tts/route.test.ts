@@ -104,6 +104,25 @@ describe("POST /api/tts", () => {
     expect(createEdgeTtsStream).not.toHaveBeenCalled();
   });
 
+  it("routes Jarvis to Piper when configured, including Chinese requests", async () => {
+    vi.stubEnv("JARVIS_TTS_URL", "https://voice.example.com");
+    vi.stubEnv("JARVIS_TTS_TOKEN", "test-secret");
+    const response = await POST(makeRequest({ text: "你好", language: "zh", assistantId: "jarvis" }));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-friday-tts-engine")).toBe("piper-jarvis");
+    expect(createPiperTtsResponse).toHaveBeenCalledTimes(1);
+    expect(createEdgeTtsStream).not.toHaveBeenCalled();
+  });
+
+  it("selects the Lin Meimei Chinese voice preset", async () => {
+    const response = await POST(makeRequest({ text: "你好", language: "zh", assistantId: "lin-meimei" }));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-friday-tts-engine")).toBe("edge-xiaoyi");
+    expect(createEdgeTtsStream).toHaveBeenCalledWith(expect.objectContaining({
+      voice: "zh-CN-XiaoyiNeural",
+    }));
+  });
+
   it("keeps Chinese on Microsoft Edge even when Piper is configured", async () => {
     vi.stubEnv("JARVIS_TTS_URL", "https://voice.example.com");
     vi.stubEnv("JARVIS_TTS_TOKEN", "test-secret");
