@@ -63,6 +63,7 @@ export default function AIFloatingBall({
   const [assistantId, setAssistantId] = useState<FridayAssistantId>("friday");
   const [wakeWordEnabled, setWakeWordEnabled] = useState(false);
   const [languagePreferenceLoaded, setLanguagePreferenceLoaded] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
 
   // Read after hydration to avoid server/client markup mismatch, then persist
   // only after the stored preference has been applied.
@@ -133,6 +134,7 @@ export default function AIFloatingBall({
     lastSpokenMessageRef,
   } = useFridayVoiceController({
     busyRef, openRef, closingRef, dispatchMachine, setInput, handleSendRef, language, assistantId, wakeWordEnabled,
+    onAudioLevel: setAudioLevel,
   });
 
   const { activeSources, activeFilterAdult } = useFridaySources(sources, filterAdult);
@@ -182,7 +184,9 @@ export default function AIFloatingBall({
   // stream just for the orb meter: iOS Safari can treat it as a competing capture
   // session and trigger a second permission/resource lifecycle. The orb animates
   // from the explicit listening/thinking/speaking state instead.
-  const audioLevel = 0;
+  useEffect(() => {
+    if (auroraState !== "speaking") setAudioLevel(0);
+  }, [auroraState]);
 
   const auroraState: AuroraState = speaking
     ? "speaking"
