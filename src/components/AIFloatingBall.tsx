@@ -501,6 +501,7 @@ export default function AIFloatingBall({
             immersive={immersive}
             closing={closing}
             auroraState={auroraState}
+            audioLevel={audioLevel}
             agentState={machineState.agent}
             voiceState={machineState.voice}
             stateLabel={stateLabel}
