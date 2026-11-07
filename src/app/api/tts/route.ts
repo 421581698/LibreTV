@@ -34,6 +34,7 @@ function isRateLimited(request: Request): boolean {
 const requestSchema = z.object({
   text: z.string().trim().min(1).max(1200),
   language: z.enum(["zh", "en"]).default("zh"),
+  assistantId: z.enum(["friday", "jarvis", "lin-meimei"]).default("friday"),
 });
 
 function jsonError(message: string, status: number) {
@@ -100,10 +101,10 @@ export async function POST(request: Request) {
 
   if (request.signal.aborted) return new Response(null, { status: 499 });
 
-  // Piper JARVIS is an optional English-only voice. Chinese always stays on
-  // Microsoft Edge Xiaoxiao; if Piper is unavailable, English falls back to
-  // Microsoft Edge Ava rather than breaking voice output.
-  if (payload.language === "en" && process.env.JARVIS_TTS_URL && process.env.JARVIS_TTS_TOKEN) {
+  // Role voice routing is server-owned. Jarvis prefers the configured Piper
+  // endpoint; Friday and Lin Meimei use distinct Edge voices. All routes have
+  // a deterministic browser fallback on the client.
+  if (payload.assistantId === "jarvis" && process.env.JARVIS_TTS_URL && process.env.JARVIS_TTS_TOKEN) {
     try {
       const piper = await createPiperTtsResponse({ text: payload.text, signal: request.signal });
       if (!piper.body) throw new Error("JARVIS TTS returned an empty body.");
@@ -127,7 +128,7 @@ export async function POST(request: Request) {
     const stream = await createEdgeTtsStream({
       text: payload.text,
       voice: payload.language === "zh"
-        ? "zh-CN-XiaoxiaoNeural"
+        ? payload.assistantId === "lin-meimei" ? "zh-CN-XiaoyiNeural" : "zh-CN-XiaoxiaoNeural"
         : "en-US-AvaMultilingualNeural",
       signal: request.signal,
     });
@@ -139,7 +140,7 @@ export async function POST(request: Request) {
         "Content-Type": "audio/mpeg",
         "Cache-Control": "no-store",
         "X-Content-Type-Options": "nosniff",
-        "X-Friday-TTS-Engine": "microsoft-edge",
+        "X-Friday-TTS-Engine": payload.assistantId === "lin-meimei" && payload.language === "zh" ? "edge-xiaoyi" : "microsoft-edge",
       },
     });
   } catch (error) {
