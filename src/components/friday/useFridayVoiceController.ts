@@ -123,6 +123,7 @@ export function useFridayVoiceController({
   const listeningRef = useRef(false);
   const voiceSessionActiveRef = useRef(false);
   const voiceSessionIdRef = useRef(0);
+  const noSpeechRetryCountRef = useRef(0);
   const microphonePermissionObservedRef = useRef(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const recognitionStartTimerRef = useRef<number | null>(null);
@@ -226,6 +227,7 @@ export function useFridayVoiceController({
     if (closingRef.current || !openRef.current) return;
 
     if (!automatic && !voiceSessionActiveRef.current) {
+      noSpeechRetryCountRef.current = 0;
       setVoiceSession(true);
     }
     if (!voiceSessionActiveRef.current) return;
@@ -304,7 +306,10 @@ export function useFridayVoiceController({
       const recognizedText = (finalText || interimText)
         .trim()
         .slice(0, MAX_INPUT_LENGTH);
-      if (recognizedText) setInput(recognizedText);
+      if (recognizedText) {
+        setInput(recognizedText);
+        noSpeechRetryCountRef.current = 0;
+      }
 
       if (finalText.trim()) {
         dispatchMachine({ type: "VOICE_FINAL_TEXT", sessionId });
@@ -387,7 +392,12 @@ export function useFridayVoiceController({
 
       if (recognitionError && recognitionError !== "aborted") {
         if (recognitionError === "no-speech") {
-          setVoiceError(language === "en" ? "No speech detected. Tap the microphone to try again." : "没有识别到语音，请点击麦克风重新聆听。");
+          if (noSpeechRetryCountRef.current < 2) {
+            noSpeechRetryCountRef.current += 1;
+            scheduleVoiceResume();
+          } else {
+            setVoiceError(language === "en" ? "No speech detected after two automatic retries. Tap the microphone to try again." : "连续两次未检测到语音，已暂停自动重试，请点击麦克风继续。");
+          }
         } else if (shouldEndVoiceSession(recognitionError)) {
           // 权限、设备或网络错误后结束本轮会话，避免残留活动态。
           // 用户修复问题后仍可再次点击麦克风启动新会话。
@@ -396,7 +406,12 @@ export function useFridayVoiceController({
         return;
       }
       if (openRef.current && !busyRef.current) {
-        setVoiceError(language === "en" ? "No complete speech was detected. Tap the microphone to try again." : "本次没有识别到完整语音，请点击麦克风继续。");
+        if (noSpeechRetryCountRef.current < 2) {
+          noSpeechRetryCountRef.current += 1;
+          scheduleVoiceResume();
+        } else {
+          setVoiceError(language === "en" ? "No complete speech after two automatic retries. Tap the microphone to continue." : "连续两次未识别到完整语音，已暂停自动重试，请点击麦克风继续。");
+        }
       }
     };
 
