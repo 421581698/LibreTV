@@ -39,11 +39,11 @@ function WorkflowSummary({ workflow, language }: { workflow: FridayWorkflowView;
       {workflow.qualityChecks ? (
         <div className="friday-workflow-block">
           <strong>{language === "en" ? "Quality evidence" : "画质证据"}</strong>
-          <p>{language === "en" ? "Resolution is inferred from HLS manifests or media segments. This is source-side evidence, not a measurement of the player’s decoded videoHeight." : "分辨率来自 HLS 清单或媒体分片解析；这是片源侧证据，不等同于播放器解码后的 videoHeight 实测。"}</p>
+          <p>{language === "en" ? "Resolution is inferred from HLS manifests or media segments. This is source-side evidence, not a measurement of the player’s decoded videoHeight." : "分辨率来自 HLS 清单或媒体分片解析；探测耗时是服务端单条探测总耗时，不是源站 RTT，也不等同于播放器解码后的 videoHeight 实测。"}</p>
           {workflow.qualityChecks.map((item) => (
             <div className="friday-workflow-row" key={item.candidateId || item.sourceId}>
               <span>{item.sourceId}{item.candidateId ? ` · ${item.candidateId.split(":").slice(1).join(":")}` : ""}</span>
-              <span>{item.status === "resolution_detected" ? (language === "en" ? `${item.resolutionHeight}p (manifest/segment)` : `${item.resolutionHeight}P（清单/分片解析）`) : item.status === "unavailable" ? (language === "en" ? "Check failed" : "探测失败") : item.status === "resolution_unknown" ? (language === "en" ? "Checked; resolution unknown" : "已探测，分辨率未知") : (language === "en" ? "No evidence" : "未取得证据")}</span>
+              <span>{item.status === "resolution_detected" ? (language === "en" ? `${item.resolutionHeight}p (manifest/segment)` : `${item.resolutionHeight}P（清单/分片解析）`) : item.status === "unavailable" ? (language === "en" ? "Check failed" : "探测失败") : item.status === "resolution_unknown" ? (language === "en" ? "Checked; resolution unknown" : "已探测，分辨率未知") : (language === "en" ? "No evidence" : "未取得证据")}{typeof item.probeDurationMs === "number" ? ` · ${Math.round(item.probeDurationMs)} ms` : ""}{item.probeResultCached ? (language === "en" ? " · cached" : " · 缓存结果") : ""}</span>
             </div>
           ))}
         </div>
@@ -52,7 +52,7 @@ function WorkflowSummary({ workflow, language }: { workflow: FridayWorkflowView;
         <div className="friday-workflow-review">
           {language === "en" ? "Review: " : "Review："}{workflow.review.accepted ? (language === "en" ? "Structure and evidence checks passed" : "结构与证据检查通过") : (language === "en" ? "Issues need attention" : "发现待处理问题")}
           · {workflow.review.candidateCount} {language === "en" ? "candidates" : "条候选"} · {workflow.review.assessmentCount} {language === "en" ? "source assessments" : "项来源评估"}
-          {workflow.review.findings.length ? <p>{workflow.review.findings.join(language === "en" ? ", " : "、")}</p> : null}
+          {language === "en" ? (workflow.review.measurementCompleted ? " · Assessment complete" : " · Assessment incomplete") : (workflow.review.measurementCompleted ? " · 评估流程已完成" : " · 评估流程未完成")}{language === "en" ? (workflow.review.resolutionMeasured ? " · Resolution measured" : " · No resolution measurement") : (workflow.review.resolutionMeasured ? " · 已测得分辨率" : " · 尚未测得分辨率")}{workflow.review.findings.length ? <p>{workflow.review.findings.join(language === "en" ? ", " : "、")}</p> : null}
         </div>
       ) : null}
     </section>
