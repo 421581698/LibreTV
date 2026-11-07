@@ -49,6 +49,7 @@ type Options = {
     (text?: string, keepVoiceSession?: boolean) => Promise<void>
   >;
   language: "zh" | "en";
+  assistantId: "friday" | "jarvis" | "lin-meimei";
 };
 
 const MAX_INPUT_LENGTH = 1000;
@@ -106,6 +107,7 @@ export function useFridayVoiceController({
   setInput,
   handleSendRef,
   language,
+  assistantId,
 }: Options) {
   const [listening, setListening] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
@@ -489,7 +491,7 @@ export function useFridayVoiceController({
       return;
     }
 
-    const provider = createFridayTtsProvider(language);
+    const provider = createFridayTtsProvider(language, assistantId);
     if (!provider) {
       setSpeakingState(false);
       setCompleted(true);
@@ -597,7 +599,7 @@ export function useFridayVoiceController({
       setVoiceError(language === "en" ? "Could not start speech playback. Continue typing or turn voice output back on." : "语音播报启动失败，请继续使用文字或重新开启语音。");
       scheduleVoiceResume();
     }
-  }, [voiceEnabled, language, stopSpeech, scheduleVoiceResume, setVoiceError, dispatchMachine]);
+  }, [voiceEnabled, language, assistantId, stopSpeech, scheduleVoiceResume, setVoiceError, dispatchMachine]);
 
   const toggleVoiceEnabled = useCallback(() => {
     if (voiceEnabled) {
