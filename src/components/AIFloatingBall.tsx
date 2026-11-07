@@ -185,7 +185,7 @@ export default function AIFloatingBall({
 
   // The VAD interrupt controller owns its microphone only during TTS playback;
   // its RMS callback drives the orb meter without opening a competing ASR stream.
-  const fridayOrbState = auroraState === "listening" ? "LISTENING"\n    : auroraState === "thinking" ? "THINKING"\n    : auroraState === "speaking" ? "SPEAKING" : "IDLE";\n\n  const auroraState: AuroraState = speaking
+  const auroraState: AuroraState = speaking
     ? "speaking"
     : listening
       ? "listening"
@@ -194,6 +194,10 @@ export default function AIFloatingBall({
         : completed
           ? "completed"
           : "standby";
+
+  const fridayOrbState = auroraState === "listening" ? "LISTENING"
+    : auroraState === "thinking" ? "THINKING"
+    : auroraState === "speaking" ? "SPEAKING" : "IDLE";
 
   useEffect(() => {
     if (auroraState !== "speaking") setAudioLevel(0);
