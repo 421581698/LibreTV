@@ -346,8 +346,9 @@ export default function AIFloatingBall({
 
     if (busyRef.current) {
       stop();
+      cancelActiveRequest();
     }
-  }, [stopAllVoice, stop]);
+  }, [stopAllVoice, stop, cancelActiveRequest]);
 
   useFridayResponseController({
     messages: typedMessages,
