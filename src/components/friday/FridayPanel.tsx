@@ -95,6 +95,10 @@ type FridayPanelProps = {
   onLanguageChange: (language: "zh" | "en") => void;
   assistantId: "friday" | "jarvis" | "lin-meimei";
   onAssistantChange: (assistantId: "friday" | "jarvis" | "lin-meimei") => void;
+  wakeWordEnabled: boolean;
+  onWakeWordChange: (enabled: boolean) => void;
+  onRevokeSession: () => void;
+  onClearTaskHistory: () => void;
 };
 
 export { getMovieDataForMessage, getPartText } from "@/lib/friday/message";
@@ -161,6 +165,37 @@ export function FridayPanel({
                   </div>
                 </div>
     
+                <details className="friday-settings" style={{ margin: "0 16px 12px", padding: "10px 12px", borderRadius: 12, background: "rgba(255,255,255,0.045)", color: "inherit" }}>
+                  <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+                    {language === "en" ? "Voice & session settings" : "语音与会话控制中心"}
+                  </summary>
+                  <div style={{ display: "grid", gap: 10, marginTop: 10, fontSize: 12 }}>
+                    <label style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                      <input
+                        type="checkbox"
+                        checked={wakeWordEnabled}
+                        onChange={(event) => onWakeWordChange(event.target.checked)}
+                      />
+                      <span>
+                        <strong>{language === "en" ? "Require a wake phrase" : "启用前台唤醒词确认"}</strong>
+                        <span style={{ display: "block", opacity: 0.72, marginTop: 3 }}>
+                          {language === "en"
+                            ? "When the panel is open and listening, say “Friday” or “Hey Friday” before your command. This does not enable background or always-on listening."
+                            : "仅在 Friday 面板打开且正在聆听时生效，说“Friday”或“嘿 Friday”后再说指令；不支持后台常驻监听。"}
+                        </span>
+                      </span>
+                    </label>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      <button type="button" className="friday-tool-btn" onClick={onRevokeSession}>
+                        {language === "en" ? "Revoke & clear current session" : "撤销并清空当前会话"}
+                      </button>
+                      <button type="button" className="friday-tool-btn" onClick={onClearTaskHistory}>
+                        {language === "en" ? "Delete local task history" : "删除本地任务记录"}
+                      </button>
+                    </div>
+                  </div>
+                </details>
+
                 {restoredTasks.length > 0 ? (
                   <details className="friday-restored-tasks" style={{ margin: "0 16px 12px", padding: "10px 12px", borderRadius: 12, background: "rgba(255,255,255,0.05)", color: "inherit" }}>
                     <summary style={{ cursor: "pointer", fontSize: 13 }}>
