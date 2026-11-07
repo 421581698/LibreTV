@@ -321,7 +321,7 @@ export default function AIFloatingBall({
       setVoiceError("");
 
       if (typeof window !== "undefined" && "speechSynthesis" in window && "SpeechSynthesisUtterance" in window) {
-        utterance = new SpeechSynthesisUtterance(language === "en" ? "I am here, sir." : "我在，先生");
+        const utterance = new SpeechSynthesisUtterance(language === "en" ? "I am here, sir." : "我在，先生");
         utterance.lang = language === "en" ? "en-GB" : "zh-CN";
         utterance.rate = voiceStyle === "jarvis" || (voiceStyle === "auto" && assistantId === "jarvis") ? 0.92 : 1;
         utterance.pitch = voiceStyle === "jarvis" || (voiceStyle === "auto" && assistantId === "jarvis") ? 0.82 : 1;
