@@ -23,6 +23,7 @@ import { useFridayMovieTransition } from "@/components/friday/useFridayMovieTran
 
 import { useFridaySources, type FridaySourceConfig } from "@/components/friday/useFridaySources";
 import { useFridayChatSession } from "@/components/friday/useFridayChatSession";
+import type { FridayAssistantId } from "@/lib/friday/assistant-profiles";
 
 
 
@@ -59,6 +60,7 @@ export default function AIFloatingBall({
   const [expanded, setExpanded] = useState(false);
   const [immersive, setImmersive] = useState(false);
   const [language, setLanguage] = useState<"zh" | "en">("zh");
+  const [assistantId, setAssistantId] = useState<FridayAssistantId>("friday");
   const [languagePreferenceLoaded, setLanguagePreferenceLoaded] = useState(false);
 
   // Read after hydration to avoid server/client markup mismatch, then persist
@@ -66,6 +68,10 @@ export default function AIFloatingBall({
   useEffect(() => {
     try {
       const savedLanguage = window.localStorage.getItem("friday-language");
+      const savedAssistant = window.localStorage.getItem("friday-assistant");
+      if (savedAssistant === "friday" || savedAssistant === "jarvis" || savedAssistant === "lin-meimei") {
+        setAssistantId(savedAssistant);
+      }
       if (savedLanguage === "zh" || savedLanguage === "en") {
         setLanguage(savedLanguage);
       }
@@ -84,6 +90,14 @@ export default function AIFloatingBall({
       // Language switching remains available for this session.
     }
   }, [language, languagePreferenceLoaded]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("friday-assistant", assistantId);
+    } catch {
+      // Profile selection remains available for this session.
+    }
+  }, [assistantId]);
 
   const openRef = useRef(false);
   const closingRef = useRef(false);
@@ -124,6 +138,7 @@ export default function AIFloatingBall({
     sources: activeSources,
     filterAdult: activeFilterAdult,
     language,
+    assistantId,
   });
 
   const { beginRequest, failActiveRequest, cancelActiveRequest } =
