@@ -105,7 +105,7 @@ export function validateTaskGraph(definitions: TaskDefinition[]): void {
   for (const task of definitions) {
     assertSafeId(task.taskId, "task id");
     assertSafeId(task.agent, "agent id");
-    if (task.parentTaskId) {
+    if (task.parentTaskId !== undefined) {
       assertSafeId(task.parentTaskId, "parent task id");
       if (task.parentTaskId === task.taskId) {
         throw new TaskRuntimeError("Task cannot be its own parent", "TASK_LINEAGE_CYCLE");
