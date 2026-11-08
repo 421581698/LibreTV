@@ -9,9 +9,13 @@
 - Do not import its self-hosted Manager/Worker runtime wholesale into this Next.js application.
 
 ### Assistant-X-OpenClaw
-- Study shader-driven orb, metaballs, HUD composition, speech interruption, and audio-effect pipeline.
-- Reimplement the visual layer for the web with WebGL2/Three.js rather than copying Flutter shader code.
+- Study HUD composition, layered animated cores, speech interruption, and audio-effect pipeline.
+- Keep Friday's approved gold holographic “金界展开” visual: the existing zero-dependency Canvas 2D rendering core and its eight-layer drawing pipeline. Do not replace it with a WebGL2/Three.js rewrite or copy Flutter shader code.
 - Keep wake-word and speaker-verification features optional and privacy-sensitive.
+
+## Four-project reference matrix
+
+The formal capability mapping, porting decisions, security boundaries and acceptance gates for JarvisAgent, Cypher-AI, jarvis_ai and Assistant-X-OpenClaw are maintained in [FRIDAY-V3-REFERENCE-PORTING-MATRIX.md](./FRIDAY-V3-REFERENCE-PORTING-MATRIX.md). The current source-level integration and recovery findings are recorded in [FRIDAY-V3-INTEGRATION-AUDIT.md](./FRIDAY-V3-INTEGRATION-AUDIT.md). These documents supersede any assumption that a desktop project can be copied into the browser application unchanged.
 
 ## Target architecture
 
@@ -44,8 +48,8 @@
 
 ### Phase 4 — Cockpit and orb
 - Task timeline is driven only by runtime events.
-- Rebuild orb as real-time WebGL2 with background sampling, Fresnel response, refraction, and restrained bloom.
-- Keep a low-power fallback for devices without WebGL2 or with reduced motion.
+- Drive the existing Canvas 2D “金界展开” core from explicit IDLE / LISTENING / THINKING / SPEAKING states; keep rendering separate from voice/task business state.
+- Preserve a low-power and reduced-motion fallback, with device-aware DPR and bounded frame work.
 
 ## V3.4 implementation baseline
 The current V3.4 delivery scope, nine workstreams, preserved contracts, and CI acceptance rules are tracked in [FRIDAY-V3.4-IMPLEMENTATION.md](./FRIDAY-V3.4-IMPLEMENTATION.md).
@@ -66,7 +70,7 @@ Delivered reliability work:
 - Add parentTaskId lineage across search, source probe, quality and review tasks.
 - Strengthen review to reject missing, duplicate, orphaned and incorrectly evidenced candidate assessments. “Assessment complete” now requires exactly one completed assessment per candidate.
 
-CI acceptance remains the user-approved gate: both `prelaunch-checks` and `friday-2.2-verify` must pass TypeScript, ESLint, unit tests and production build. No production deployment is part of V3.5.
+CI acceptance is evaluated against the exact PR head SHA. prelaunch-checks runs for pull requests to main; friday-2.2-verify is path-filtered and runs when Friday/runtime/API files in its configured paths change. A documentation-only PR is not expected to trigger the latter. For code changes covered by both workflows, require both to pass TypeScript, ESLint, unit tests and production build. A Cloudflare Workers Build check is Preview build evidence only; it is not production deployment or browser/device acceptance. No production deployment is part of V3.5.
 
 ## Non-negotiable safeguards
 - Use current main as the integration base; keep all V3.4 changes on `feature/friday-v3.4-complete-upgrade` until CI acceptance.
