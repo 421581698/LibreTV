@@ -3,6 +3,7 @@ import type { AgentExecutionContext, FridayAgent } from "./dag-orchestrator";
 export type MovieCandidate = {
   id: string;
   title: string;
+  year?: string;
   sourceId?: string;
   vodId?: string;
   evidence?: string[];
@@ -238,7 +239,13 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
       }>>();
       for (const candidate of candidates) {
         const title = candidate.title.trim();
-        const titleKey = title.normalize("NFKC").toLocaleLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
+        const normalizedTitle = title.normalize("NFKC").toLocaleLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
+        const normalizedYear = typeof candidate.year === "string"
+          ? (candidate.year.match(/\\d{4}/)?.[0] ?? "")
+          : "";
+        // Different releases can share a title. Never compare source quality
+        // across distinct known years; missing years remain in their own group.
+        const titleKey = normalizedTitle ? `${normalizedTitle}::${normalizedYear}` : "";
         const assessment = assessmentByCandidate.get(candidate.id);
         if (!titleKey || !candidate.sourceId || !assessment ||
           assessment.assessmentCompleted !== true || assessment.reachable !== true) continue;
