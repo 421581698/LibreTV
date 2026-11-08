@@ -55,6 +55,40 @@ export class DexieTaskEventStore implements TaskEventStore {
     return streams.flat() as TaskEvent[];
   }
 
+  /**
+   * Explicit maintenance only: remove old terminal task streams while retaining
+   * active tasks and the newest task records for diagnostics.
+   */
+  async pruneTerminalTasks(olderThan: string, keepRecentTaskCount = 50): Promise<string[]> {
+    const cutoff = Date.parse(olderThan);
+    if (!Number.isFinite(cutoff)) throw new Error("Invalid task retention cutoff");
+    const keepCount = Math.max(0, Math.floor(keepRecentTaskCount));
+    const recentCreated = await db.fridayTaskEvents
+      .where("[type+occurredAt]")
+      .between(["task.created", Dexie.minKey], ["task.created", Dexie.maxKey])
+      .reverse()
+      .limit(keepCount)
+      .toArray();
+    const protectedTaskIds = new Set(recentCreated.map((event) => event.taskId));
+    const terminalTypes = new Set(["task.succeeded", "task.failed", "task.cancelled"]);
+    const terminalEvents = await db.fridayTaskEvents
+      .where("occurredAt")
+      .below(olderThan)
+      .toArray();
+    const candidateIds = [...new Set(terminalEvents.map((event) => event.taskId))]
+      .filter((taskId) => !protectedTaskIds.has(taskId));
+    const removed: string[] = [];
+    for (const taskId of candidateIds) {
+      const stream = await this.read(taskId);
+      const last = stream[stream.length - 1];
+      if (last && terminalTypes.has(last.type) && Date.parse(last.occurredAt) < cutoff) {
+        await this.deleteTask(taskId);
+        removed.push(taskId);
+      }
+    }
+    return removed;
+  }
+
   async clearAll(): Promise<void> {
     await db.fridayTaskEvents.clear();
   }
