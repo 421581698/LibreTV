@@ -1,5 +1,7 @@
 'use client';
 
+import { SpatialTaskAuditPanel } from './SpatialTaskAuditPanel';
+
 export function SpatialIntelligenceSpace() {
   const openFriday = () => window.dispatchEvent(new CustomEvent('friday-home-open-panel'));
 
@@ -20,6 +22,7 @@ export function SpatialIntelligenceSpace() {
           <button type="button" className="spatial-v4-action-button" onClick={openFriday}>打开 Friday</button>
         </div>
       </div>
+      <SpatialTaskAuditPanel />
       <div className="spatial-v4-capability-grid">
         <article><strong>影视 Agent</strong><span>搜索、资源候选、审核与播放工作流</span></article>
         <article><strong>任务运行时</strong><span>任务状态、事件记录、检查点与安全恢复</span></article>
