@@ -79,6 +79,11 @@ describe('首页与播放页回归契约', () => {
     expect(watch).toContain("from: 'play'");
     expect(fridayConversation).toContain('manifest/segment');
     expect(fridayConversation).toContain('videoHeight');
+    expect(watch).toContain("friday-player-quality");
+    expect(chatSession).toContain("friday-player-quality");
+    expect(chatSession).toContain("decodedPlaybackHeightsRef");
+    expect(fridayConversation).toContain("decodedVideoHeight");
+    expect(fridayConversation).toContain("播放器解码实测");
   });
 
   it('今日热门海报通过精确片名匹配打开原详情弹窗，不误开第一个结果', () => {
