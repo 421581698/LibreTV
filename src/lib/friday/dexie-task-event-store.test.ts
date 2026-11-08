@@ -121,6 +121,33 @@ describe("DexieTaskEventStore with native IndexedDB", () => {
     expect(recent).toHaveLength(100);
   });
 
+  it("prunes only old terminal tasks and preserves active and recent tasks", async () => {
+    const old = "2025-01-01T00:00:00.000Z";
+    const recent = "2026-11-09T00:00:00.000Z";
+    await store.append(event({ eventId: "old-created", taskId: "old-done", occurredAt: old }));
+    await store.append(event({
+      eventId: "old-failed", taskId: "old-done", sequence: 2,
+      type: "task.failed", occurredAt: old,
+      error: { code: "FAILED", message: "done", retryable: false },
+    }));
+    await store.append(event({ eventId: "active-created", taskId: "old-active", occurredAt: old }));
+    await store.append(event({
+      eventId: "active-started", taskId: "old-active", sequence: 2,
+      type: "task.started", occurredAt: old,
+    }));
+    await store.append(event({ eventId: "recent-created", taskId: "recent-done", occurredAt: recent }));
+    await store.append(event({
+      eventId: "recent-succeeded", taskId: "recent-done", sequence: 2,
+      type: "task.succeeded", occurredAt: recent,
+    }));
+
+    const removed = await store.pruneTerminalTasks("2026-01-01T00:00:00.000Z", 1);
+    expect(removed).toEqual(["old-done"]);
+    expect(await store.read("old-done")).toEqual([]);
+    expect(await store.read("old-active")).toHaveLength(2);
+    expect(await store.read("recent-done")).toHaveLength(2);
+  });
+
   it("deletes one task transactionally and supports explicit full clearing", async () => {
     await store.append(event());
     await store.append(event({ eventId: "other-created", taskId: "other-task" }));
