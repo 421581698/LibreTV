@@ -12,6 +12,7 @@ import { buildWatchUrl, formatTime } from '@/lib/utils';
 const CONTINUE_LIMIT = 8;
 
 export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => void }) {
+  const doubanEnabled = useAppStore((s) => s.doubanEnabled);
   const history = useLiveQuery(
     () => db.history.orderBy('timestamp').reverse().limit(CONTINUE_LIMIT).toArray(),
     [],
@@ -19,12 +20,14 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
 
   return (
     <>
-      <section className="v4-content-section v4-recommendation-section" id="today-recommendations" aria-label="今日推荐">
-        <div className="v4-section-heading">
-          <h2>今日推荐 <span aria-hidden="true">›</span></h2>
-        </div>
-        <RecommendSection onPick={onPick} />
-      </section>
+      {doubanEnabled ? (
+        <section className="v4-content-section v4-recommendation-section" id="today-recommendations" aria-label="今日推荐">
+          <div className="v4-section-heading">
+            <h2>今日推荐 <span aria-hidden="true">›</span></h2>
+          </div>
+          <RecommendSection onPick={onPick} />
+        </section>
+      ) : null}
 
       <section className="v4-content-section v4-continue-section" id="continue-watching" aria-label="继续观看">
         <div className="v4-section-heading">
