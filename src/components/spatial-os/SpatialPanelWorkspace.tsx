@@ -15,15 +15,17 @@ const DOCKS:{id:PanelDock;label:string}[]=[{id:'floating',label:'浮动'},{id:'l
 export function SpatialPanelWorkspace(){
  const state=useSpatialState();
  const panelRef=useRef<HTMLElement|null>(null);
+ const triggerRefs=useRef<Partial<Record<SpatialPanel,HTMLButtonElement|null>>>({});
+ const previousPanel=useRef<SpatialPanel|null>(null);
  const active=state.focusedPanel;
  const selected=PANELS.find(item=>item.id===active);
  const rect=active?state.panelLayouts[active]:undefined;
- useEffect(()=>{if(active&&!rect?.minimized)panelRef.current?.focus();},[active,rect?.minimized]);
+ useEffect(()=>{if(active&&!rect?.minimized){previousPanel.current=active;panelRef.current?.focus();}else if(!active&&previousPanel.current){triggerRefs.current[previousPanel.current]?.focus();previousPanel.current=null;}},[active,rect?.minimized]);
  const style:CSSProperties=rect?{zIndex:rect.zIndex,...(rect.dock==='left'?{left:12,top:12,bottom:12,width:Math.min(rect.width,480)}:rect.dock==='right'?{right:12,top:12,bottom:12,width:Math.min(rect.width,480)}:rect.dock==='bottom'?{left:12,right:12,bottom:12,height:Math.min(rect.height,420)}:{left:rect.x,top:rect.y,width:rect.width,height:rect.height})}:{};
  return <div className="spatial-panel-workspace">
   <div className="spatial-panel-toolbar" role="group" aria-label="空间面板管理">
    <span>面板</span>
-   {PANELS.map(item=><button key={item.id} type="button" aria-pressed={state.focusedPanel===item.id} onClick={()=>spatialStateStore.expand(state.expandedPanel===item.id?null:item.id)}>{item.label}</button>)}
+   {PANELS.map(item=><button key={item.id} ref={node=>{triggerRefs.current[item.id]=node;}} type="button" aria-pressed={state.focusedPanel===item.id} aria-expanded={state.expandedPanel===item.id} onClick={()=>spatialStateStore.expand(state.expandedPanel===item.id?null:item.id)}>{item.label}</button>)}
   </div>
   {selected&&<section ref={node=>{panelRef.current=node;}} className="spatial-panel-window" data-dock={rect?.dock??'floating'} style={style} tabIndex={-1} aria-label={selected.label+'面板'}>
    <header className="spatial-panel-window-header"><strong>{selected.label}</strong><span>{selected.description}</span><div className="spatial-panel-window-actions">
