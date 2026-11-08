@@ -39,6 +39,10 @@ import {
 import { useToast } from '@/components/toast';
 import { EmptyState } from '@/components/states';
 import { SiteFooter } from '@/components/site-footer';
+import { SpatialAppShell } from '@/components/spatial-os-v4/app/SpatialAppShell';
+import { SpatialSpacePlaceholder } from '@/components/spatial-os-v4/app/SpatialSpacePlaceholder';
+import { SpatialFridayEntry } from '@/components/spatial-os-v4/friday/SpatialFridayEntry';
+import type { SpatialSpace } from '@/components/spatial-os-v4/navigation/SpatialRouter';
 
 const RESULT_PAGE_SIZE = 60;
 
@@ -56,6 +60,7 @@ type HomeContentProps = {
 
 function HomeContent({ variant = 'legacy' }: HomeContentProps) {
   const isV2 = variant === 'v2';
+  const [activeSpace, setActiveSpace] = useState<SpatialSpace>('cinematic');
   const searchParams = useSearchParams();
   const { toast } = useToast();
 
