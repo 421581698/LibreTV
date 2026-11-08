@@ -433,6 +433,10 @@ function WatchContent() {
                         timestamp: Date.now(),
                       },
                     });
+                    // Publish playback-only decoded evidence to the local Friday workflow view.
+                    window.dispatchEvent(new CustomEvent('friday-player-quality', {
+                      detail: { candidateId: `${sourceKey}:${vodId}`, sourceKey, vodId, height },
+                    }));
                   }}
                 />
               ) : (
