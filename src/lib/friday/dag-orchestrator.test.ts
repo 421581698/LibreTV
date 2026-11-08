@@ -176,4 +176,29 @@ describe("Friday DAG orchestrator", () => {
     expect(result[0]).toMatchObject({ status: "failed", attempts: 1, error: { retryable: false } });
   });
 
+  it("passes a durable checkpoint into an explicitly replayed safe agent", async () => {
+    const store = new MemoryStore();
+    const runtime = new TaskRuntime(store);
+    const task = { taskId: "checkpoint-resume", agent: "checkpoint-agent", input: {} };
+    let executions = 0;
+    let resumedCheckpoint: unknown;
+    const agent: FridayAgent = {
+      id: "checkpoint-agent",
+      execute: async (context) => {
+        executions += 1;
+        if (executions === 1) {
+          await context.checkpoint({ cursor: "candidate-17" });
+          throw new DagExecutionError("Temporary interruption", "UPSTREAM_503", true);
+        }
+        resumedCheckpoint = context.checkpointState;
+        return { resumed: true };
+      },
+    };
+    const first = await runFridayDag({ tasks: [task], runtime, agents: [agent], maxAttempts: 1 });
+    expect(first[0].status).toBe("failed");
+    const replay = await runFridayDag({ tasks: [task], runtime, agents: [agent], maxAttempts: 1, replayFailed: true });
+    expect(replay[0]).toMatchObject({ status: "succeeded", output: { resumed: true } });
+    expect(resumedCheckpoint).toEqual({ cursor: "candidate-17" });
+  });
+
 });
