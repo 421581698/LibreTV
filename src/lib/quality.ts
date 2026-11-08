@@ -59,6 +59,34 @@ export function qualityKey(sourceKey: string, vodId: string): string {
 }
 
 /**
+ * 比较两条画质证据的排序优先级。
+ * 实际解码高度高于播放列表声明值；同为实测时先比较最高解码高度，
+ * 再用有效观测次数作为置信度的轻量 tie-breaker。
+ * 返回负数表示 a 应排在 b 前面。
+ */
+export function compareQualityEvidence(a?: QualityEntry, b?: QualityEntry): number {
+  const rank = (entry?: QualityEntry) => {
+    if (entry?.from === 'play' && typeof entry.height === 'number' && entry.height > 0) return 2;
+    if (entry?.from === 'probe' && typeof entry.height === 'number' && entry.height > 0) return 1;
+    return 0;
+  };
+
+  const rankDiff = rank(b) - rank(a);
+  if (rankDiff !== 0) return rankDiff;
+
+  const heightA = a?.height ?? 0;
+  const heightB = b?.height ?? 0;
+  if (heightA !== heightB) return heightB - heightA;
+
+  if (a?.from === 'play' && b?.from === 'play') {
+    const samplesA = a.playbackSampleCount ?? 1;
+    const samplesB = b.playbackSampleCount ?? 1;
+    if (samplesA !== samplesB) return samplesB - samplesA;
+  }
+  return 0;
+}
+
+/**
  * 档位容差：与档位值的偏差在此比例内才算同一档。
  *
  * 采集站普遍对片源做裁切（1920×1080 → 1924×1040、1920×960 这类），
