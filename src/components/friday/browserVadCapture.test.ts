@@ -120,4 +120,57 @@ describe("browser VAD microphone capture", () => {
     expect(onError).toHaveBeenCalledWith(failure);
     expect(capture.isRunning()).toBe(false);
   });
+  it("keeps sampling when a VAD event consumer throws", async () => {
+    const trackStop = vi.fn();
+    const close = vi.fn(async () => {});
+    const onEvent = vi.fn(() => {
+      throw new Error("consumer failed");
+    });
+    const onError = vi.fn();
+    const requestFrame = vi.fn((_callback: FrameRequestCallback) => 29);
+    const cancelFrame = vi.fn();
+    const getUserMedia = vi.fn(async () => ({
+      getTracks: () => [{ stop: trackStop }],
+    } as unknown as MediaStream));
+    const analyser = {
+      fftSize: 0,
+      getFloatTimeDomainData: vi.fn((buffer: Float32Array) => buffer.fill(0.5)),
+      disconnect: vi.fn(),
+    };
+    const audioContext = {
+      state: "running",
+      resume: vi.fn(async () => {}),
+      close,
+      createMediaStreamSource: () => ({
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      }),
+      createAnalyser: () => analyser,
+    };
+
+    const capture = createBrowserVadCapture({
+      onEvent,
+      onError,
+      mediaDevices: { getUserMedia },
+      createAudioContext: () => audioContext as unknown as AudioContext,
+      requestFrame,
+      cancelFrame,
+      now: () => 10,
+      detector: { startThreshold: 0.1, stopThreshold: 0.05, minSpeechMs: 0 },
+    });
+
+    await capture.start();
+
+    expect(onEvent).toHaveBeenCalledWith({ type: "speechstart", at: 10 });
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: "consumer failed" }));
+    expect(capture.isRunning()).toBe(true);
+    expect(requestFrame).toHaveBeenCalledTimes(1);
+
+    await capture.stop();
+    expect(capture.isRunning()).toBe(false);
+    expect(cancelFrame).toHaveBeenCalledWith(29);
+    expect(trackStop).toHaveBeenCalledTimes(1);
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
 });

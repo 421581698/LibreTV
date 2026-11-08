@@ -8,6 +8,7 @@ export type MovieWorkflowResult = {
     source: string;
     quality: string;
     review: string;
+    playback: string;
   };
   results: DagRunResult[];
 };
@@ -47,6 +48,7 @@ export async function runLibreTVMovieWorkflow(args: {
     source: `${prefix}.source`,
     quality: `${prefix}.quality`,
     review: `${prefix}.review`,
+    playback: `${prefix}.playback`,
   };
 
   const tasks = [
@@ -71,6 +73,17 @@ export async function runLibreTVMovieWorkflow(args: {
       agent: "review-agent",
       input: { searchTaskId: taskIds.search, qualityTaskId: taskIds.quality },
       dependsOn: [taskIds.search, taskIds.quality],
+    },
+    {
+      taskId: taskIds.playback,
+      parentTaskId: taskIds.review,
+      agent: "playback-agent",
+      input: {
+        searchTaskId: taskIds.search,
+        qualityTaskId: taskIds.quality,
+        reviewTaskId: taskIds.review,
+      },
+      dependsOn: [taskIds.search, taskIds.quality, taskIds.review],
     },
   ];
 

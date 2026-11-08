@@ -52,6 +52,7 @@ export function createLibreTVMovieAgentAdapters(
         id: `${item.sourceKey}:${item.vodId}`,
         vodId: String(item.vodId),
         title: item.name,
+        year: typeof item.year === "string" ? item.year : undefined,
         sourceId: item.sourceKey,
         sourceUrl: item.sourceUrl,
         evidence: ["GET /api/search"],

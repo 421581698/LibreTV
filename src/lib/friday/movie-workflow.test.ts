@@ -54,7 +54,7 @@ describe("LibreTV movie workflow", () => {
 
     expect(calls).toEqual(["search", "probe"]);
     expect(result.results.map((item) => item.status)).toEqual([
-      "succeeded", "succeeded", "succeeded", "succeeded",
+      "succeeded", "succeeded", "succeeded", "succeeded", "succeeded",
     ]);
     expect(result.results[3].output).toMatchObject({
       accepted: true,
@@ -64,6 +64,15 @@ describe("LibreTV movie workflow", () => {
       resolutionMeasured: false,
     });
 
+    expect(result.results[4].output).toMatchObject({
+      ready: true,
+      recommendations: [{
+        candidateId: "alpha:1",
+        sourceId: "alpha",
+        selectionBasis: "reachable-only",
+        requiresUserConfirmation: true,
+      }],
+    });
     const expectedEvents = {
       [result.taskIds.search]: [
         "task.created",
@@ -86,6 +95,12 @@ describe("LibreTV movie workflow", () => {
       [result.taskIds.review]: [
         "task.created",
         "task.started",
+        "task.succeeded",
+      ],
+      [result.taskIds.playback]: [
+        "task.created",
+        "task.started",
+        "task.checkpoint",
         "task.succeeded",
       ],
     } as const;
