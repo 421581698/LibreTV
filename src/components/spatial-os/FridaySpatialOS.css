@@ -1,0 +1,132 @@
+/* FRIDAY SPATIAL OS · Phase 2.2
+   Persistent core yields visual focus to the active workspace. */
+.spatial-os-stage-anchor {
+  position: relative;
+  z-index: 1;
+  width: 0;
+  height: 0;
+  min-height: 0 !important;
+  overflow: visible;
+  pointer-events: none;
+}
+.spatial-os[data-presentation="space"] .spatial-os-core,
+.spatial-os[data-presentation="task"] .spatial-os-core {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  z-index: 60;
+  width: 116px;
+  height: 116px;
+  padding: 0;
+  overflow: visible;
+  transform: none !important;
+  pointer-events: auto;
+  filter: drop-shadow(0 8px 28px rgba(0,0,0,.22));
+}
+.spatial-os[data-presentation="space"] .spatial-os-core .friday-hero-v2,
+.spatial-os[data-presentation="task"] .spatial-os-core .friday-hero-v2 {
+  width: 116px;
+  min-height: 0 !important;
+  height: 116px;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+}
+.spatial-os[data-presentation="space"] .spatial-os-core .friday-hero-orb-button,
+.spatial-os[data-presentation="task"] .spatial-os-core .friday-hero-orb-button {
+  gap: 2px;
+}
+.spatial-os[data-presentation="space"] .spatial-os-core .friday-hero-orb,
+.spatial-os[data-presentation="task"] .spatial-os-core .friday-hero-orb {
+  width: 76px;
+  height: 76px;
+  flex: 0 0 76px;
+}
+.spatial-os[data-presentation="space"] .spatial-os-core .friday-hero-orb-label,
+.spatial-os[data-presentation="task"] .spatial-os-core .friday-hero-orb-label {
+  max-width: 112px;
+  overflow: hidden;
+  color: #c9b98f;
+  font-size: 9px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.spatial-os[data-presentation="space"] .spatial-os-core .friday-orb-response,
+.spatial-os[data-presentation="task"] .spatial-os-core .friday-orb-response {
+  display: none;
+}
+.spatial-os[data-presentation="space"] > section,
+.spatial-os[data-presentation="task"] > section {
+  height: 0;
+  min-height: 0;
+  padding: 0;
+}
+.spatial-os[data-presentation="space"] > div:not(.spatial-os-core),
+.spatial-os[data-presentation="task"] > div:not(.spatial-os-core) {
+  animation: spatial-workspace-enter 560ms cubic-bezier(.2,.75,.2,1) both;
+  transform-origin: 50% 20%;
+}
+.spatial-os[data-presentation="space"] .spatial-os-cinematic,
+.spatial-os[data-presentation="task"] .spatial-os-panel {
+  animation: spatial-surface-enter 620ms cubic-bezier(.2,.75,.2,1) both;
+}
+@keyframes spatial-workspace-enter {
+  from { opacity: 0; transform: translateY(18px) scale(.985); filter: blur(5px); }
+  to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+@keyframes spatial-surface-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* ERROR is a recoverable pause, never a red alarm or an active execution glow. */
+.spatial-os .friday-hero-v2[data-state="error"] .friday-hero-orb-label {
+  color: #b8aa91 !important;
+}
+.spatial-os .friday-hero-v2[data-state="error"] .friday-hero-orb {
+  filter: saturate(.58) brightness(.82) drop-shadow(0 0 12px rgba(166,145,111,.16)) !important;
+}
+.spatial-os .friday-hero-v2[data-state="error"] .friday-hero-orb-button {
+  opacity: .86;
+}
+.spatial-os .friday-hero-v2[data-state="error"] .friday-hero-orb-label::after {
+  content: " · 点击 Friday 重试";
+  color: #9f927b;
+}
+@media (max-width: 640px) {
+  .spatial-os[data-presentation="space"] .spatial-os-core,
+  .spatial-os[data-presentation="task"] .spatial-os-core {
+    top: max(8px, env(safe-area-inset-top));
+    right: max(8px, env(safe-area-inset-right));
+    width: 92px;
+    height: 92px;
+  }
+  .spatial-os[data-presentation="space"] .spatial-os-core .friday-hero-v2,
+  .spatial-os[data-presentation="task"] .spatial-os-core .friday-hero-v2 {
+    width: 92px;
+    height: 92px;
+  }
+  .spatial-os[data-presentation="space"] .spatial-os-core .friday-hero-orb,
+  .spatial-os[data-presentation="task"] .spatial-os-core .friday-hero-orb {
+    width: 62px;
+    height: 62px;
+    flex-basis: 62px;
+  }
+  .spatial-os[data-presentation="space"] .spatial-os-core .friday-hero-orb-label,
+  .spatial-os[data-presentation="task"] .spatial-os-core .friday-hero-orb-label {
+    max-width: 88px;
+    font-size: 8px;
+  }
+  .spatial-os[data-presentation="space"] .spatial-os-core .friday-orb-response,
+  .spatial-os[data-presentation="task"] .spatial-os-core .friday-orb-response {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spatial-os[data-presentation="space"] > div:not(.spatial-os-core),
+  .spatial-os[data-presentation="task"] > div:not(.spatial-os-core),
+  .spatial-os[data-presentation="space"] .spatial-os-cinematic,
+  .spatial-os[data-presentation="task"] .spatial-os-panel {
+    animation: none !important;
+  }
+}
