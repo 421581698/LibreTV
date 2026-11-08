@@ -15,6 +15,9 @@ export type SourceProbe = {
   reachable: boolean;
   latencyMs?: number;
   probeDurationMs?: number;
+  originTtfbMs?: number;
+  decodedResolutionHeight?: number;
+  resolutionSource?: "decoded_playback" | "playlist_or_segment" | "unknown";
   probeResultCached?: boolean;
   statusCode?: number;
   advertisedQualities?: string[];
@@ -34,6 +37,9 @@ export type QualityAssessment = {
   resolutionHeight: number | null;
   latencyMs: number | null;
   probeDurationMs: number | null;
+  originTtfbMs: number | null;
+  decodedResolutionHeight: number | null;
+  resolutionSource: "decoded_playback" | "playlist_or_segment" | "unknown";
   probeResultCached: boolean | null;
   reachable: boolean | null;
   advertisedQualities: string[];
@@ -107,13 +113,19 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
         const validReachability = typeof probe.reachable === "boolean";
         const validHeight = typeof probe.resolutionHeight === "number" &&
           Number.isFinite(probe.resolutionHeight) && probe.resolutionHeight > 0;
+        const validDecodedHeight = typeof probe.decodedResolutionHeight === "number" &&
+          Number.isFinite(probe.decodedResolutionHeight) && probe.decodedResolutionHeight > 0;
+        const validOriginTtfb = typeof probe.originTtfbMs === "number" &&
+          Number.isFinite(probe.originTtfbMs) && probe.originTtfbMs >= 0;
         const probeCompleted = probe.resolutionProbed === true;
         const evidence: string[] = [];
         if (probeCompleted) evidence.push("quality_probe.completed");
-        if (validHeight) evidence.push("hls_or_segment.resolution_height");
+        if (validDecodedHeight) evidence.push("player.videoHeight");
+        else if (validHeight) evidence.push("hls_or_segment.resolution_height");
         if (validReachability) evidence.push("source.reachable");
         if (validLatency) evidence.push("source.latency");
         if (typeof probe.probeDurationMs === "number" && Number.isFinite(probe.probeDurationMs) && probe.probeDurationMs >= 0) evidence.push("quality_probe.duration_ms");
+        if (validOriginTtfb) evidence.push("origin.media_ttfb_ms");
         return {
           sourceId: probe.sourceId,
           candidateId: probe.candidateId,
@@ -123,6 +135,9 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
           resolutionHeight: validHeight ? probe.resolutionHeight! : null,
           latencyMs: validLatency ? probe.latencyMs! : null,
           probeDurationMs: typeof probe.probeDurationMs === "number" && Number.isFinite(probe.probeDurationMs) && probe.probeDurationMs >= 0 ? probe.probeDurationMs : null,
+          originTtfbMs: validOriginTtfb ? probe.originTtfbMs! : null,
+          decodedResolutionHeight: validDecodedHeight ? probe.decodedResolutionHeight! : null,
+          resolutionSource: validDecodedHeight ? "decoded_playback" : validHeight ? "playlist_or_segment" : "unknown",
           probeResultCached: typeof probe.probeResultCached === "boolean" ? probe.probeResultCached : null,
           reachable: validReachability ? probe.reachable : null,
           advertisedQualities: Array.isArray(probe.advertisedQualities)
@@ -165,7 +180,7 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
       const invalidMeasurements = assessments.filter((item) =>
         item.status === "resolution_detected" &&
         (!(typeof item.resolutionHeight === "number" && Number.isFinite(item.resolutionHeight) && item.resolutionHeight > 0) ||
-          !item.evidence.includes("hls_or_segment.resolution_height")),
+          !item.evidence.includes("hls_or_segment.resolution_height") && !item.evidence.includes("player.videoHeight")),
       );
       const duplicateCandidateIds = candidates.filter((candidate, index) =>
         candidates.findIndex((item) => item.id === candidate.id) !== index,
@@ -191,8 +206,8 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
         duplicateCandidateAssessments: duplicateCandidateAssessments,
         orphanAssessmentCount: orphanAssessments.length,
         unmatchedCandidates: unmatchedCandidates.map((item) => item.id),
-        measurementScope: "playlist_or_segment_resolution",
-        note: "Resolution is parsed from the HLS playlist or media-segment headers. This is source-side resolution evidence, not decoded playback videoHeight; advertised labels alone are not proof.",
+        measurementScope: "decoded_playback_or_playlist_segment_resolution",
+        note: "player.videoHeight is decoded playback evidence; HLS playlist or segment resolution is source-side evidence. They are kept distinct, and advertised labels alone are not proof.",
       };
     },
   };

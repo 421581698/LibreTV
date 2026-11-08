@@ -31,6 +31,7 @@ interface CachedProbe {
   height?: number;
   error?: string;
   probeDurationMs?: number;
+  originTtfbMs?: number;
 }
 
 function isTransientProbeError(error?: string): boolean {
@@ -103,7 +104,7 @@ export async function POST(req: Request) {
     const key = cacheKey(item);
     const cached = getCache<CachedProbe>(key);
     if (cached) {
-      return { sourceKey: item.source.key, vodId: item.id, height: cached.height, error: cached.error, probeDurationMs: cached.probeDurationMs, cached: true, transient: false };
+      return { sourceKey: item.source.key, vodId: item.id, height: cached.height, error: cached.error, probeDurationMs: cached.probeDurationMs, originTtfbMs: cached.originTtfbMs, cached: true, transient: false };
     }
     let pending = inflight.get(key);
     if (!pending) {
@@ -118,6 +119,7 @@ export async function POST(req: Request) {
             height: result.height,
             error: result.error,
             probeDurationMs: Math.max(0, Date.now() - probeStartedAt),
+            originTtfbMs: result.originTtfbMs,
           };
           // Cache definitive outcomes, but never cache transient failures: a retry
           // must reach the source again instead of replaying the same stale error.
@@ -138,6 +140,7 @@ export async function POST(req: Request) {
       height: value.height,
       error: value.error,
       probeDurationMs: value.probeDurationMs,
+      originTtfbMs: value.originTtfbMs,
       cached: false,
       transient: isTransientProbeError(value.error),
     };

@@ -6,6 +6,7 @@ import { DefaultChatTransport } from "ai";
 import type { MessageLike } from "@/components/friday/FridayPanel";
 import type { FridaySourceConfig } from "@/components/friday/useFridaySources";
 import type { SearchResultItem, SourceConfig } from "@/lib/types";
+import { readQuality } from "@/lib/store";
 import { createLibreTVMovieAgentAdapters } from "@/lib/friday/libretv-movie-adapters";
 import { createMovieWorkflowTaskIdPrefix, runLibreTVMovieWorkflow } from "@/lib/friday/movie-workflow";
 import { fridayTaskEventStore, fridayTaskRuntime } from "@/lib/friday/task-service";
@@ -16,8 +17,8 @@ import { restoreFridayConversationHistory, serializeFridayConversationHistory } 
 
 export type FridayWorkflowView = {
   status: "running" | "completed" | "failed";
-  sourceChecks?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean; latencyMs?: number }>;
-  qualityChecks?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; probeDurationMs?: number | null; probeResultCached?: boolean | null }>;
+  sourceChecks?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean; latencyMs?: number; originTtfbMs?: number; probeDurationMs?: number }>;
+  qualityChecks?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; decodedResolutionHeight?: number | null; resolutionSource?: "decoded_playback" | "playlist_or_segment" | "unknown"; originTtfbMs?: number | null; probeDurationMs?: number | null; probeResultCached?: boolean | null }>;
   review?: { accepted: boolean; findings: string[]; candidateCount: number; assessmentCount: number; measurementCompleted: boolean; resolutionMeasured: boolean };
   playbackRecommendations?: Array<{
     title: string;
@@ -88,7 +89,14 @@ export function useFridayChatSession({
     const movieResults = Array.isArray(data.results) ? data.results : [];
     const adapters = createLibreTVMovieAgentAdapters(
       sources as SourceConfig[],
-      { filterAdult },
+      {
+        filterAdult,
+        readDecodedHeight: (candidate) => {
+          if (!candidate.sourceId || !candidate.vodId) return undefined;
+          const quality = readQuality(candidate.sourceId, candidate.vodId);
+          return quality?.from === "play" ? quality.height : undefined;
+        },
+      },
     );
     // Reuse the exact server search results; do not issue a duplicate movie search.
     const workflowAdapters = {
@@ -126,7 +134,7 @@ export function useFridayChatSession({
         | { probes?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean }> }
         | undefined;
       const qualityOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.quality)?.output as
-        | { assessments?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; probeDurationMs: number | null; probeResultCached: boolean | null }> }
+        | { assessments?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; decodedResolutionHeight: number | null; resolutionSource: "decoded_playback" | "playlist_or_segment" | "unknown"; originTtfbMs: number | null; probeDurationMs: number | null; probeResultCached: boolean | null }> }
         | undefined;
       const reviewOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.review)?.output as
         | { accepted?: boolean; findings?: string[]; candidateCount?: number; assessmentCount?: number; measurementCompleted?: boolean; resolutionMeasured?: boolean }
