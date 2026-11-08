@@ -9,11 +9,11 @@ const sources: SourceConfig[] = [
 describe("LibreTV movie agent adapters", () => {
   it("maps real search API results into candidates", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
-      list: [{ sourceKey: "alpha", sourceName: "Alpha", vodId: "1", name: "Arrival", sourceUrl: sources[0].url }],
+      list: [{ sourceKey: "alpha", sourceName: "Alpha", vodId: "1", name: "Arrival", year: "2024", sourceUrl: sources[0].url }],
     }), { status: 200, headers: { "Content-Type": "application/json" } }));
     const adapters = createLibreTVMovieAgentAdapters(sources, { fetcher });
     await expect(adapters.search({ query: "Arrival" })).resolves.toMatchObject([
-      { id: "alpha:1", vodId: "1", title: "Arrival", sourceId: "alpha", evidence: ["GET /api/search"] },
+      { id: "alpha:1", vodId: "1", title: "Arrival", year: "2024", sourceId: "alpha", evidence: ["GET /api/search"] },
     ]);
     expect(fetcher).toHaveBeenCalledWith("/api/search", expect.objectContaining({
       method: "POST",
