@@ -492,6 +492,9 @@ export function useFridayChatSession({
   const stopChat = useCallback(() => {
     for (const controller of activeWorkflowControllers.current.values()) controller.abort();
     activeWorkflowControllers.current.clear();
+    window.dispatchEvent(new CustomEvent("friday-home-runtime-state", {
+      detail: { agent: "idle" },
+    }));
     stopRequest();
   }, [stopRequest]);
 
