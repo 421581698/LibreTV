@@ -212,7 +212,9 @@ describe('首页与播放页回归契约', () => {
   it('V3 首页采用 Jarvis 式单圆球入口：回复与语音状态回到圆球，不挂载独立 AI 面板', () => {
     expect(header).toContain('<AIFloatingBall showFab={showFridayFab} inlineMode />');
     expect(watch).toContain('showFab={false} inlineMode');
-    expect(assistant).toContain('if (!mounted || inlineMode) return null;');
+    expect(assistant).toContain('if (inlineMode) {');
+    expect(assistant).toContain('if (!showFab) return null;');
+    expect(assistant).toContain('onClick={openAndListen}');
     expect(assistant).toContain('friday-home-assistant-response');
     expect(hero).toContain('friday-home-assistant-response');
     expect(hero).toContain('friday-orb-response');
