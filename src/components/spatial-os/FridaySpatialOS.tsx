@@ -36,7 +36,7 @@ export function FridaySpatialOS({children,friday}:{children:ReactNode;friday?:Re
    </section>
    {!inLobby&&<div className="relative z-10 flex min-h-0 flex-1 flex-col">
     <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3">
-     <button type="button" onClick={()=>spatialStateStore.returnToLobby()} className="rounded-full border border-amber-200/20 px-4 py-2 text-xs text-amber-100/80 hover:border-amber-200/50">← 空间大厅</button>
+     <button type="button" onClick={()=>inTask?spatialStateStore.setTaskContext(null):spatialStateStore.returnToLobby()} className="rounded-full border border-amber-200/20 px-4 py-2 text-xs text-amber-100/80 hover:border-amber-200/50">{inTask?"← 智能空间":"← 空间大厅"}</button>
      <span className="text-[10px] tracking-[.2em] text-amber-200/55">{inTask?'TASK SURFACE':state.activeSpace.toUpperCase()}</span>
     </div>
     <div className="mx-auto w-full max-w-6xl flex-1 px-4 pb-12">
