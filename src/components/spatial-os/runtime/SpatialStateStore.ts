@@ -24,7 +24,7 @@ export const spatialStateStore={
  returnToLobby(){const next=returnToLobby(hydrate());if(next!==snapshot){commit(next);pushSpaceHistory(snapshot);}},
  back(){const current=hydrate(),next=goBackSpace(current);if(next!==current){commit(next);pushSpaceHistory(snapshot);}},
  setPresentation(presentation:SpatialPresentation){commit(setSpatialPresentation(hydrate(),presentation));},
- setTaskContext(context:SpatialTaskContext|null){const current=hydrate();if(context&&(!context.taskId||context.taskId.length>160))return;commit({...current,taskContext:context,presentation:context?'task':'space'});},
+ setTaskContext(context:SpatialTaskContext|null){const current=hydrate();if(context&&(!context.taskId||context.taskId.length>160))return;commit({...current,taskContext:context,presentation:context?'task':'space',...(context?{expandedPanel:null,focusedPanel:null}:{})});},
  expand(panel:SpatialPanel|null){commit(setExpandedPanel(hydrate(),panel));},
  focus(panel:SpatialPanel){commit(bringPanelToFront(hydrate(),panel));},
  dock(panel:SpatialPanel,dock:PanelDock){commit(setPanelDock(hydrate(),panel,dock));},
