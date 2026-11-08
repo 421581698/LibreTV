@@ -30,7 +30,7 @@ jobs:
       - name: Checkout Friday V3 runtime branch
         uses: actions/checkout@v4
         with:
-          ref: feature/friday-v3-runtime
+          ref: feature/friday-v3-integrated-acceptance-2026-11-08
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -46,13 +46,16 @@ jobs:
           NEXT_TELEMETRY_DISABLED: "1"
         run: npx opennextjs-cloudflare build
 
-      - name: Verify Cloudflare preview credentials
+      - name: Verify Cloudflare preview credentials and gate key
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PREVIEW_GATE_KEY: ${{ secrets.LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY }}
         run: |
           test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing preview secret: CLOUDFLARE_API_TOKEN" && exit 1)
           test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "Missing preview secret: CLOUDFLARE_ACCOUNT_ID" && exit 1)
+          test -n "$PREVIEW_GATE_KEY" || (echo "Missing preview secret: LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY" && exit 1)
+          test "${#PREVIEW_GATE_KEY}" -ge 24 || (echo "LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY must contain at least 24 characters" && exit 1)
 
       - name: Deploy isolated Worker
         env:
@@ -60,3 +63,10 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler deploy --config wrangler.preview.toml
 
+
+      - name: Set Worker PASSWORD secret without logging its value
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PREVIEW_GATE_KEY: ${{ secrets.LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY }}
+        run: printf '%s' "$PREVIEW_GATE_KEY" | npx wrangler secret put PASSWORD --config wrangler.preview.toml
