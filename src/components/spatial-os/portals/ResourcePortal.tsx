@@ -89,6 +89,7 @@ export function ResourcePortal(){
      <button type="button" onClick={()=>toggleFavorite(resource.id)} aria-label={favorites.includes(resource.id)?'取消收藏':'收藏资源'} aria-pressed={favorites.includes(resource.id)} className="shrink-0 rounded-full border px-3 py-1 text-sm">{favorites.includes(resource.id)?'★':'☆'}</button>
     </div>
     <p className="mt-3 text-xs opacity-60">{resource.section.join(' / ')||resource.categoryTitle}</p>
+    <p className="mt-1 text-[11px] opacity-45">来源快照 {resource.sourceRetrievedAt} · 修订 {resource.sourceRevision.slice(0,7)}</p>
     <div className="mt-3 flex flex-wrap gap-1.5">
      {resource.flags.recommended&&<span className="rounded-full bg-amber-500/10 px-2 py-1 text-xs">社区推荐</span>}
      {resource.flags.thirdParty&&<span className="rounded-full bg-sky-500/10 px-2 py-1 text-xs">第三方索引</span>}
