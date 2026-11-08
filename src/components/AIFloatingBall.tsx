@@ -332,16 +332,24 @@ export default function AIFloatingBall({
     startListening(false);
   }, [openPanel, startListening, setVoiceSession]);
 
-  // 首页圆球点击必须在同一个用户手势调用栈内启动 ASR。
-  // 不在启动麦克风前等待网络 TTS，否则 iOS Safari 可能丢失用户激活状态。
+  // 首页圆球是独立的原位语音入口：不打开聊天面板，也不等待网络 TTS。
+  // 首次 ASR.start() 必须留在真实点击事件的同步调用链内，兼容 iOS Safari。
   useEffect(() => {
     const handleHomeOrbToggle = () => {
-      openPanel();
-      openRef.current = true;
-      closingRef.current = false;
       clearVoiceResumeTimer();
 
-      // 先终止上一轮请求/播报，再同步启动唯一的语音识别控制器。
+      if (listening) {
+        stopRecognition(true);
+        stopSpeech();
+        setVoiceSession(false);
+        openRef.current = false;
+        setSpeaking(false);
+        return;
+      }
+
+      openRef.current = true;
+      closingRef.current = false;
+      dispatchMachine({ type: "OPEN" });
       stopRecognition(true);
       stopSpeech();
       stop();
@@ -356,12 +364,13 @@ export default function AIFloatingBall({
     window.addEventListener("friday-home-orb-toggle", handleHomeOrbToggle);
     return () => window.removeEventListener("friday-home-orb-toggle", handleHomeOrbToggle);
   }, [
-    openPanel,
+    listening,
     clearVoiceResumeTimer,
     stopRecognition,
     stopSpeech,
     stop,
     cancelActiveRequest,
+    dispatchMachine,
     setVoiceSession,
     setVoiceError,
     setSpeaking,
