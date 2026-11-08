@@ -241,7 +241,7 @@ describe('mergeQualityEntries', () => {
 
     // 同一播放阶段 loadedmetadata / canplay / playing 重复上报，不虚增样本数
     const duplicate = mergeQualityEntries(first, { [KEY]: play(720) }, T + 5_000);
-    expect(duplicate[KEY].playbackSampleCount).toBe(1);
+    expect(duplicate[KEY]).toMatchObject({ playbackSampleCount: 1, lastPlaybackSampleAt: T });
 
     // ABR 升档是新的有效观测，保留最高档同时记录观测范围
     const upgraded = mergeQualityEntries(duplicate, { [KEY]: play(1080) }, T + 8_000);
