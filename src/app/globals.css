@@ -1201,3 +1201,6 @@ html:not(.dark) .spatial-os-category-grid small,html:not(.dark) .spatial-os-task
 html:not(.dark) .spatial-os-panel h3{color:#373226}
 html:not(.dark) .spatial-os-quality{color:#6f5524!important}
 html:not(.dark) .spatial-os .friday-hero-orb-label{color:#71654d}
+
+.spatial-environment{position:relative;min-height:100vh;isolation:isolate;background-image:radial-gradient(1px 1px at 12% 18%,rgba(224,199,146,.25) 50%,transparent 100%),radial-gradient(1px 1px at 76% 24%,rgba(224,199,146,.18) 50%,transparent 100%),radial-gradient(1px 1px at 44% 72%,rgba(224,199,146,.16) 50%,transparent 100%);background-size:240px 220px,310px 280px,390px 340px}
+html:not(.dark) .spatial-environment{background-image:radial-gradient(1px 1px at 12% 18%,rgba(140,112,61,.13) 50%,transparent 100%),radial-gradient(1px 1px at 76% 24%,rgba(140,112,61,.10) 50%,transparent 100%)}

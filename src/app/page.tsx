@@ -14,7 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Header } from '@/components/header';
 import { HomeSearchSection } from '@/components/home/HomeSearchSection';
 import { HomeIntentCanvas } from '@/components/home/HomeIntentCanvas';
-import { FridayHero } from '@/components/friday/FridayHero';
+import { FridayCore } from '@/components/spatial-os/core/FridayCore';
 import { FridaySpatialOS } from '@/components/spatial-os/FridaySpatialOS';
 import { useFridayDetailBridge } from '@/components/friday/useFridayDetailBridge';
 import { useHomeSearchController } from '@/components/home/useHomeSearchController';
@@ -246,7 +246,7 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
   };
 
   return (
-    <FridaySpatialOS friday={isV2 ? <FridayHero voiceState={voiceState} audioLevel={audioLevel / 100} /> : null}>
+    <FridaySpatialOS friday={isV2 ? <FridayCore voiceState={voiceState} audioLevel={audioLevel / 100} /> : null}>
     <div className={isV2 ? "home-v2 min-h-screen flex flex-col" : "legacy-home min-h-screen flex flex-col"}>
       <Header showFridayFab={!isV2} minimalFridayNav={isV2} homeSearch={isV2 ? <HomeSearchSection
             urlQuery={urlQuery}
