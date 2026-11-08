@@ -8,7 +8,7 @@ let snapshot:SpatialSnapshot=DEFAULT_SPATIAL_STATE,hydrated=false,historyBound=f
 const listeners=new Set<()=>void>();
 function emit(){listeners.forEach(fn=>fn());}
 function persist(){writeWorkspace(snapshot);}
-function commit(next:SpatialSnapshot){if(next===snapshot)return;snapshot=next;persist();emit();}
+function commit(next:SpatialSnapshot){if(next===snapshot)return;snapshot={...next,updatedAt:Date.now()};persist();emit();}
 function withHistoryMarker(value:unknown,state:SpatialSnapshot){return {...(value&&typeof value==='object'?value as Record<string,unknown>:{}),[SPATIAL_HISTORY_KEY]:{snapshot:state}};}
 function hydrate(){
  if(!hydrated&&typeof window!=='undefined'){
@@ -32,13 +32,13 @@ function pushSpaceHistory(next:SpatialSnapshot){
 }
 function onStorage(event:StorageEvent){
  if(event.key!==WORKSPACE_KEY||!event.newValue)return;
- try{const incoming=migrateWorkspace(JSON.parse(event.newValue));if(incoming.updatedAt>=snapshot.updatedAt){snapshot=incoming;emit();}}catch{/* Ignore malformed cross-tab payloads. */}
+ try{const incoming=migrateWorkspace(JSON.parse(event.newValue));if(incoming.updatedAt>=snapshot.updatedAt){snapshot=incoming;try{window.history.replaceState(withHistoryMarker(window.history.state,snapshot),'',window.location.href);}catch{};emit();}}catch{/* Ignore malformed cross-tab payloads. */}
 }
 function bindStorage(){if(typeof window!=='undefined'&&!storageBound){window.addEventListener('storage',onStorage);storageBound=true;}}
 export const spatialStateStore={
  getSnapshot:()=>hydrate(),
  subscribe(listener:()=>void){hydrate();bindHistory();bindStorage();listeners.add(listener);return()=>{listeners.delete(listener);};},
- activate(space:SpatialSpace){const current=hydrate(),next=activateSpace(current,space);if(next!==current){snapshot=next;pushSpaceHistory(next);persist();emit();}},
+ activate(space:SpatialSpace){const current=hydrate(),next=activateSpace(current,space);if(next!==current){commit(next);pushSpaceHistory(snapshot);}},
  back(){hydrate();if(typeof window!=='undefined'&&snapshot.history.length>1){window.history.back();return;}commit(goBackSpace(snapshot));},
  expand(panel:SpatialPanel|null){commit(setExpandedPanel(hydrate(),panel));},
  focus(panel:SpatialPanel){commit(bringPanelToFront(hydrate(),panel));},
