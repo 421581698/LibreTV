@@ -150,7 +150,18 @@ export function mergeQualityEntries(
     if (prev?.from === 'probe' && value.from === 'probe' && prev.height !== undefined && value.height === undefined) {
       continue;
     }
-    next[key] = value;
+    if (value.from === 'play' && typeof value.height === 'number' && value.height > 0) {
+      next[key] = {
+        ...value,
+        playbackSampleCount: Math.max(1, value.playbackSampleCount ?? 1),
+        playbackMinHeight: value.playbackMinHeight ?? value.height,
+        playbackMaxHeight: value.playbackMaxHeight ?? value.height,
+        lastPlaybackHeight: value.lastPlaybackHeight ?? value.height,
+        lastPlaybackSampleAt: value.lastPlaybackSampleAt ?? value.timestamp,
+      };
+    } else {
+      next[key] = value;
+    }
   }
 
   const overflow = Object.keys(next).length - QUALITY_MAX_ENTRIES;
