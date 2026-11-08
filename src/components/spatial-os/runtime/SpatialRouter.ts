@@ -1,4 +1,4 @@
-import {DEFAULT_SPATIAL_STATE,SPATIAL_SPACES,type SpatialSnapshot,type SpatialSpace} from '../core/types';
+import {DEFAULT_SPATIAL_STATE,SPATIAL_SPACES,type SpatialSnapshot,type SpatialSpace,type SpatialTaskContext} from '../core/types';
 export const SPATIAL_HISTORY_KEY='__libretvSpatialOS';
 export function activateSpace(state:SpatialSnapshot,next:SpatialSpace):SpatialSnapshot {
  if(!SPATIAL_SPACES.includes(next))return state;
@@ -10,6 +10,10 @@ export function activateSpace(state:SpatialSnapshot,next:SpatialSpace):SpatialSn
 export function returnToLobby(state:SpatialSnapshot):SpatialSnapshot {
  if(state.presentation==='lobby')return state;
  return {...state,presentation:'lobby',expandedPanel:null,focusedPanel:null,taskContext:null,updatedAt:Date.now()};
+}
+export function setSpatialTaskContext(state:SpatialSnapshot,context:SpatialTaskContext|null):SpatialSnapshot {
+ if(context&&(!context.taskId||context.taskId.length>160))return state;
+ return {...state,taskContext:context,presentation:context?'task':'space',...(context?{expandedPanel:null,focusedPanel:null}:{}) ,updatedAt:Date.now()};
 }
 export function setSpatialPresentation(state:SpatialSnapshot,presentation:SpatialSnapshot['presentation']):SpatialSnapshot {
  if(!['lobby','space','task'].includes(presentation)||state.presentation===presentation)return state;
