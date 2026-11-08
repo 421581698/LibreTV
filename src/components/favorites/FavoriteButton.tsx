@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type MouseEvent } from 'react';
 import { getFavorite, toggleFavorite, type FavoriteEntry } from '@/lib/db';
 
 type FavoriteButtonProps = {
@@ -26,7 +26,7 @@ export function FavoriteButton({ entry, className = '', label = '收藏' }: Favo
     return () => { active = false; };
   }, [entry.id]);
 
-  const onToggle = async (event: React.MouseEvent<HTMLButtonElement>) => {
+  const onToggle = async (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
     try {
