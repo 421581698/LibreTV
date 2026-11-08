@@ -168,4 +168,34 @@ describe("Friday movie agents", () => {
     expect(result).toMatchObject({ ready: false, recommendations: [] });
   });
 
+  it("does not combine different release years when recommending sources for same-title films", async () => {
+    const agents = createMovieAgentRegistry({ search: async () => [], probe: async () => [] });
+    const playback = agents.find((agent) => agent.id === "playback-agent")!;
+    const result = await playback.execute(context("playback-agent", {}, {
+      search: { candidates: [
+        { id: "source-a:1", title: "Dune", year: "1984", sourceId: "source-a" },
+        { id: "source-b:2", title: "Dune", year: "2021", sourceId: "source-b" },
+      ] },
+      quality: { assessments: [
+        {
+          sourceId: "source-a", candidateId: "source-a:1", status: "resolution_detected",
+          assessmentCompleted: true, resolutionHeight: 1080, latencyMs: null,
+          probeDurationMs: null, probeResultCached: false, reachable: true,
+          advertisedQualities: [], evidence: ["hls_or_segment.resolution_height"],
+        },
+        {
+          sourceId: "source-b", candidateId: "source-b:2", status: "resolution_detected",
+          assessmentCompleted: true, resolutionHeight: 720, latencyMs: null,
+          probeDurationMs: null, probeResultCached: false, reachable: true,
+          advertisedQualities: [], evidence: ["hls_or_segment.resolution_height"],
+        },
+      ] },
+      review: { accepted: true },
+    })) as { recommendations: Array<{ candidateId: string }> };
+    expect(result.recommendations.map((item) => item.candidateId)).toEqual([
+      "source-a:1",
+      "source-b:2",
+    ]);
+  });
+
 });
