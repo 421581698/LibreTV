@@ -6,6 +6,10 @@ on:
       - feature/friday-2.2-architecture
     paths:
       - "src/lib/friday/**"
+      - "src/lib/quality.ts"
+      - "src/lib/quality.test.ts"
+      - "src/lib/types.ts"
+      - "src/components/switch-source.tsx"
       - "docs/FRIDAY-2.2-TECHNICAL-SPEC.md"
       - ".github/workflows/friday-2.2-verify.yml"
       - "src/components/AIFloatingBall.tsx"
