@@ -8,6 +8,8 @@ function context(agent: string, input: unknown, dependencyOutputs: Record<string
     dependencyOutputs,
     progress: async () => undefined,
     checkpoint: async () => undefined,
+    // Unit tests invoke agents directly; orchestration-level tests verify denial behavior.
+    requireCapability: () => undefined,
   };
 }
 
