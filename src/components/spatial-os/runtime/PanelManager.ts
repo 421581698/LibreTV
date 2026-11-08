@@ -13,7 +13,7 @@ export function bringPanelToFront(state:SpatialSnapshot,panel:SpatialPanel):Spat
 }
 export function setExpandedPanel(state:SpatialSnapshot,panel:SpatialPanel|null):SpatialSnapshot {
  if(panel!==null&&!SPATIAL_PANELS.includes(panel))return state;
- if(panel===null)return {...state,expandedPanel:null,focusedPanel:null,panelStack:state.panelStack.filter(entry=>entry.panel!==state.focusedPanel),updatedAt:Date.now()};
+ if(panel===null){const panelStack=state.panelStack.filter(entry=>entry.panel!==state.focusedPanel);const restored=panelStack.at(-1)?.panel??null;return {...state,expandedPanel:restored,focusedPanel:restored,panelStack,updatedAt:Date.now()};}
  const focused=bringPanelToFront(state,panel);
  return {...focused,expandedPanel:panel,focusedPanel:panel};
 }
