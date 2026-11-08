@@ -114,7 +114,7 @@ export function createLibreTVMovieAgentAdapters(
               reachable: Boolean(result && !result.error),
               resolutionHeight: hasDecodedHeight ? decodedHeight : hasProbeHeight ? result!.height : undefined,
               decodedResolutionHeight: hasDecodedHeight ? decodedHeight : undefined,
-              resolutionSource: hasDecodedHeight ? "decoded_playback" : hasProbeHeight ? "playlist_or_segment" : "unknown",
+              resolutionSource: (hasDecodedHeight ? "decoded_playback" : hasProbeHeight ? "playlist_or_segment" : "unknown") as SourceProbe["resolutionSource"],
               resolutionProbed: Boolean(result && !result.error) || hasDecodedHeight,
               probeDurationMs: result?.probeDurationMs,
               originTtfbMs: result?.originTtfbMs,
