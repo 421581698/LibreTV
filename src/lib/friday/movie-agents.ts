@@ -141,7 +141,7 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
           sourceId: probe.sourceId,
           candidateId: probe.candidateId,
           title: probe.title,
-          status: validHeight ? "resolution_detected" : probe.resolutionError ? "unavailable" : probeCompleted ? "resolution_unknown" : "unknown",
+          status: validDecodedHeight || validHeight ? "resolution_detected" : probe.resolutionError ? "unavailable" : probeCompleted ? "resolution_unknown" : "unknown",
           assessmentCompleted: probeCompleted || Boolean(probe.resolutionError),
           resolutionHeight: validDecodedHeight
             ? probe.decodedResolutionHeight!
