@@ -23,15 +23,24 @@ var STATE_PACE = {
   IDLE: 1.00,
   LISTENING: 1.45,
   THINKING: 2.10,
-  SPEAKING: 1.25
+  EXECUTING: 2.45,
+  SPEAKING: 1.25,
+  ERROR: 0.72
 };
 var STATE_ACTIVITY = {
   IDLE: 0.15,
   LISTENING: 0.55,
   THINKING: 0.80,
-  SPEAKING: 0.62
+  EXECUTING: 0.96,
+  SPEAKING: 0.62,
+  ERROR: 0.98
 };
-var VALID_STATES = ['IDLE', 'LISTENING', 'THINKING', 'SPEAKING'];
+var VALID_STATES = ['IDLE', 'LISTENING', 'THINKING', 'EXECUTING', 'SPEAKING', 'ERROR'];
+
+export function normalizeFridayOrbState(value){
+  var state = String(value == null ? 'IDLE' : value).toUpperCase();
+  return VALID_STATES.indexOf(state) >= 0 ? state : 'IDLE';
+}
 function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
 /* 音频表头的非对称低通：起音灵敏、回落柔和，抑制 RMS 抖动。 */
 export function smoothFridayEnergy(current, target, dt){
@@ -242,8 +251,7 @@ export function createFridayOrb(canvas, options){
   var destroyed = false;
 
   function normalizeState(v){
-    var s = String(v == null ? 'IDLE' : v).toUpperCase();
-    return VALID_STATES.indexOf(s) >= 0 ? s : 'IDLE';
+    return normalizeFridayOrbState(v);
   }
 
   function gridLayer(W, H, theme, pal){

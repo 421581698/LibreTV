@@ -14,6 +14,9 @@ import { useQuery } from '@tanstack/react-query';
 import { Header } from '@/components/header';
 import { HomeSearchSection } from '@/components/home/HomeSearchSection';
 import { HomeIntentCanvas } from '@/components/home/HomeIntentCanvas';
+import { FridayCore } from '@/components/spatial-os/core/FridayCore';
+import { FridaySpatialOS } from '@/components/spatial-os/FridaySpatialOS';
+import { spatialStateStore } from '@/components/spatial-os/runtime/SpatialStateStore';
 import { useFridayDetailBridge } from '@/components/friday/useFridayDetailBridge';
 import { useHomeSearchController } from '@/components/home/useHomeSearchController';
 import { HomeRecommendationSection } from '@/components/home/HomeRecommendationSection';
@@ -130,6 +133,17 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
     activeQuery: urlQuery,
   } = useHomeSearchController(routeQuery, selectedSources.length, toast);
 
+  useEffect(() => {
+    const handleSpatialSearch = (event: Event) => {
+      const query = (event as CustomEvent<{ query?: string }>).detail?.query?.trim();
+      if (!query) return;
+      spatialStateStore.activate('cinematic');
+      runSearchInPlace(query);
+    };
+    window.addEventListener('friday-spatial-search', handleSpatialSearch);
+    return () => window.removeEventListener('friday-spatial-search', handleSpatialSearch);
+  }, [runSearchInPlace]);
+
   const disabledSources = useMemo(
     () => selectedKeys.filter((key) => isSourceDisabled({ sourceHealth }, key)),
     [selectedKeys, sourceHealth]
@@ -244,6 +258,7 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
   };
 
   return (
+    <FridaySpatialOS friday={isV2 ? <FridayCore voiceState={voiceState} audioLevel={audioLevel / 100} /> : null}>
     <div className={isV2 ? "home-v2 min-h-screen flex flex-col" : "legacy-home min-h-screen flex flex-col"}>
       <Header showFridayFab={!isV2} minimalFridayNav={isV2} homeSearch={isV2 ? <HomeSearchSection
             urlQuery={urlQuery}
@@ -382,6 +397,7 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
       <SiteFooter />
       <DetailModal item={detailItem} onClose={() => setDetailItem(null)} />
     </div>
+    </FridaySpatialOS>
   );
 }
 

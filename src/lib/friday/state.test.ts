@@ -1,8 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { fridayReducer, initialFridayState } from "./state";
+import { fridayReducer, initialFridayState, projectFridayOrbState } from "./state";
 
 describe("fridayReducer", () => {
+  it("projects the existing voice and agent lifecycle into all six orb states", () => {
+    expect(projectFridayOrbState(initialFridayState, "standby")).toBe("IDLE");
+    expect(projectFridayOrbState({ ...initialFridayState, voice: "listening" }, "standby")).toBe("LISTENING");
+    expect(projectFridayOrbState({ ...initialFridayState, agent: "thinking" }, "standby")).toBe("THINKING");
+    expect(projectFridayOrbState({ ...initialFridayState, agent: "executing" }, "standby")).toBe("EXECUTING");
+    expect(projectFridayOrbState({ ...initialFridayState, voice: "speaking" }, "standby")).toBe("SPEAKING");
+    expect(projectFridayOrbState({ ...initialFridayState, agent: "error" }, "standby")).toBe("ERROR");
+  });
+
+
   it("opens, expands, collapses and closes the surface", () => {
     const opened = fridayReducer(initialFridayState, { type: "OPEN" });
     expect(opened.surface).toBe("launcher");

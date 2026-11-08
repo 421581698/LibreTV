@@ -181,7 +181,14 @@ export function PlayerShell({
 
   /** 上报实测画质：多次上报取大值由调用方决定，这里只管把拿到的高度传出去 */
   const reportQuality = (height: number) => {
-    if (height > 0) propsRef.current.onQuality?.(height);
+    if (height > 0) {
+      propsRef.current.onQuality?.(height);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('friday-player-quality-evidence', {
+          detail: { kind: 'player-decoded', decodedHeight: height, observedAt: Date.now() },
+        }));
+      }
+    }
   };
 
   // 跨集共享、每次换集重置的播放链路状态

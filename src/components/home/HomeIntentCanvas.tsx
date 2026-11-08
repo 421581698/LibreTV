@@ -1,23 +1,10 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { FridayHero } from '@/components/friday/FridayHero';
 
-type VoiceState = 'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING';
+type HomeIntentCanvasProps = { variant: 'legacy' | 'v2'; children: ReactNode; voiceState?: 'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING'; audioLevel?: number };
 
-type HomeIntentCanvasProps = {
-  variant: 'legacy' | 'v2';
-  children: ReactNode;
-  voiceState?: VoiceState;
-  audioLevel?: number;
-};
-
-/** 首页意图画布：Friday 圆球和搜索入口始终留在首页原位。 */
+/** Spatial navigation is mounted at the application boundary; keep this slot presentational. */
 export function HomeIntentCanvas({ variant, children, voiceState, audioLevel }: HomeIntentCanvasProps) {
-  return (
-    <>
-      {variant === 'v2' ? <FridayHero voiceState={voiceState} audioLevel={audioLevel} /> : null}
-      {children}
-    </>
-  );
+  return <>{variant === 'v2' ? <span hidden data-friday-voice-state={voiceState} data-friday-audio-level={audioLevel} /> : children}</>;
 }

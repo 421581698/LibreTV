@@ -1132,3 +1132,100 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   border-radius: 0;
   box-shadow: none;
 }
+
+/* LibreTV FRIDAY SPATIAL OS · UI Baseline V1.0 */
+.spatial-os{min-height:100vh;position:relative;isolation:isolate;background:radial-gradient(ellipse at 50% 0%,rgba(198,158,78,.10),transparent 48%),linear-gradient(180deg,#090b10 0%,#050608 72%);color:#f2f0e9}
+.spatial-os-core{position:relative;z-index:2;display:flex;justify-content:center;align-items:center;padding:clamp(18px,3vh,36px) 16px 8px}
+.spatial-os-core:empty{display:none}
+.spatial-os .friday-hero-v2{width:100%;max-width:720px;margin:0 auto}
+.spatial-os-nav{position:relative;z-index:3;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;width:min(1120px,calc(100% - 32px));margin:10px auto 24px}
+.spatial-os-nav button,.spatial-os-panel button{min-width:0;padding:12px 10px;border:1px solid rgba(220,194,135,.22);border-radius:14px;background:rgba(20,23,29,.72);color:#e8dfc9;text-align:left;backdrop-filter:blur(14px);transition:border-color .2s,background .2s}
+.spatial-os-nav button[aria-current=page]{border-color:rgba(230,192,112,.75);background:rgba(127,94,42,.22);box-shadow:0 0 28px rgba(196,151,73,.10)}
+.spatial-os-nav button span,.spatial-os-nav button small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.spatial-os-nav button span{font-size:11px;letter-spacing:.12em;font-weight:700}
+.spatial-os-nav button small{margin-top:4px;color:#a9a18f;font-size:11px}
+.spatial-os-cinematic{width:100%;min-height:30vh}
+.spatial-os-panel{width:min(1080px,calc(100% - 32px));min-height:42vh;margin:20px auto 48px;padding:clamp(20px,4vw,40px);border:1px solid rgba(218,190,130,.18);border-radius:24px;background:linear-gradient(145deg,rgba(24,27,34,.94),rgba(10,12,17,.94));box-shadow:0 24px 90px rgba(0,0,0,.35)}
+.spatial-os-panel h2{margin:8px 0 12px;font-size:clamp(24px,4vw,36px);font-weight:650;letter-spacing:-.03em}
+.spatial-os-panel p{max-width:760px;color:#b9b5aa;line-height:1.75}
+.spatial-os-eyebrow{font-size:10px!important;letter-spacing:.2em;color:#d6b878!important}
+.spatial-os-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
+.spatial-os-panel button{cursor:pointer;text-align:center}
+.spatial-os-note{margin-top:18px;padding:12px;border-left:2px solid #c6a15e;background:rgba(198,161,94,.08)}
+.spatial-os-category-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:24px 0}
+.spatial-os-category-grid a{display:block;min-width:0;padding:14px;border:1px solid rgba(220,194,135,.16);border-radius:14px;background:rgba(255,255,255,.025);color:#eee6d4;text-decoration:none}
+.spatial-os-category-grid a:hover{border-color:rgba(230,192,112,.6);background:rgba(198,161,94,.08)}
+.spatial-os-category-grid strong,.spatial-os-category-grid small{display:block;overflow-wrap:anywhere}
+.spatial-os-category-grid small{margin-top:5px;color:#a9a18f;font-size:11px}
+.spatial-os-source{display:inline-block;margin-top:8px;color:#e2c27f;text-decoration:underline;text-underline-offset:4px}
+@media(max-width:640px){.spatial-os-core{padding:12px 10px 4px}.spatial-os-nav{gap:6px;width:calc(100% - 20px);margin:8px auto 16px}.spatial-os-nav button{padding:10px 6px;border-radius:11px}.spatial-os-nav button span{font-size:9px;letter-spacing:.04em}.spatial-os-nav button small{font-size:10px}.spatial-os-category-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.spatial-os-panel{width:calc(100% - 20px);padding:18px;border-radius:18px}}
+@media(prefers-reduced-motion:reduce){.spatial-os-nav button{transition:none}}
+
+.spatial-os-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:20px 0 28px}
+.spatial-os-metrics span{padding:14px;border:1px solid rgba(220,194,135,.16);border-radius:12px;background:rgba(255,255,255,.025)}
+.spatial-os-metrics strong,.spatial-os-metrics small{display:block}.spatial-os-metrics strong{font-size:24px;color:#e4c17c}.spatial-os-metrics small{font-size:11px;color:#a9a18f}
+.spatial-os-panel h3{margin:24px 0 10px;font-size:15px;color:#e9dfc9}
+.spatial-os-task-list{display:grid;gap:8px;padding:0;list-style:none}
+.spatial-os-task-list li{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;padding:11px 13px;border:1px solid rgba(220,194,135,.12);border-radius:10px;background:rgba(255,255,255,.02)}
+.spatial-os-task-list li span{font-size:12px;overflow-wrap:anywhere}.spatial-os-task-list li small,.spatial-os-footnote{font-size:11px;color:#a9a18f}
+.spatial-os-quality{display:inline-flex;padding:10px 14px;border:1px solid rgba(220,194,135,.25);border-radius:10px;color:#e7c783!important}
+.spatial-os-quality[data-confidence=verified]{border-color:rgba(93,184,132,.55);color:#a8e0bd!important}
+@media(max-width:520px){.spatial-os-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.spatial-os .friday-hero-v2{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:clamp(220px,38vh,390px);margin:0 auto}
+.spatial-os .friday-hero-orb-button{display:flex;flex-direction:column;align-items:center;gap:8px;border:0;background:transparent;color:inherit;cursor:pointer}
+.spatial-os .friday-hero-orb{display:block;width:clamp(150px,24vw,260px);height:clamp(150px,24vw,260px)}
+.spatial-os .friday-hero-orb-label{font-size:12px;color:#c5b99e;text-align:center}
+.spatial-os .friday-orb-response{width:min(88vw,620px);max-height:112px;overflow:auto;text-align:center;white-space:pre-wrap;color:#e9e1d1;font-size:12px}
+
+.spatial-os-nav{position:relative}
+.spatial-os-nav .spatial-os-back{position:absolute;left:-48px;top:0;width:40px;height:100%;padding:8px 4px;text-align:center}
+.spatial-os-nav .spatial-os-back small{font-size:9px}
+@media(max-width:760px){.spatial-os-nav .spatial-os-back{position:static;width:auto;height:auto;grid-column:1/-1;display:flex;align-items:center;gap:6px;justify-content:center}.spatial-os-nav .spatial-os-back small{display:inline}}
+
+.spatial-os .friday-hero-v2[data-state=executing] .friday-hero-orb-label{color:#e5c17a}
+.spatial-os .friday-hero-v2[data-state=error] .friday-hero-orb-label{color:#e69b91}
+.spatial-os .friday-hero-v2[data-state=executing] .friday-hero-orb{filter:drop-shadow(0 0 18px rgba(210,166,85,.28))}
+.spatial-os .friday-hero-v2[data-state=error] .friday-hero-orb{filter:drop-shadow(0 0 18px rgba(210,95,85,.22))}
+
+/* Day scene: retain the same spatial hierarchy while switching the environment to warm porcelain. */
+html:not(.dark) .spatial-os{background:radial-gradient(ellipse at 50% 0%,rgba(198,158,78,.12),transparent 48%),linear-gradient(180deg,#f5f3ee 0%,#e9e7e1 100%);color:#24231f}
+html:not(.dark) .spatial-os-nav button{background:rgba(255,255,255,.76);border-color:rgba(130,104,57,.22);color:#353126;backdrop-filter:blur(14px)}
+html:not(.dark) .spatial-os-nav button[aria-current=page]{background:rgba(213,184,125,.24);border-color:rgba(150,113,48,.58);box-shadow:0 0 24px rgba(170,133,68,.10)}
+html:not(.dark) .spatial-os-nav button small{color:#77705f}
+html:not(.dark) .spatial-os-panel{background:linear-gradient(145deg,rgba(255,255,255,.94),rgba(244,241,233,.96));border-color:rgba(130,104,57,.22);box-shadow:0 24px 90px rgba(65,55,35,.10)}
+html:not(.dark) .spatial-os-panel p{color:#686252}
+html:not(.dark) .spatial-os-eyebrow{color:#8b6c31!important}
+html:not(.dark) .spatial-os-category-grid a{background:rgba(255,255,255,.64);border-color:rgba(130,104,57,.18);color:#29271f}
+html:not(.dark) .spatial-os-category-grid small,html:not(.dark) .spatial-os-task-list li small,html:not(.dark) .spatial-os-footnote{color:#77705f}
+html:not(.dark) .spatial-os-panel h3{color:#373226}
+html:not(.dark) .spatial-os-quality{color:#6f5524!important}
+html:not(.dark) .spatial-os .friday-hero-orb-label{color:#71654d}
+
+.spatial-environment{position:relative;min-height:100vh;isolation:isolate;background-image:radial-gradient(1px 1px at 12% 18%,rgba(224,199,146,.25) 50%,transparent 100%),radial-gradient(1px 1px at 76% 24%,rgba(224,199,146,.18) 50%,transparent 100%),radial-gradient(1px 1px at 44% 72%,rgba(224,199,146,.16) 50%,transparent 100%);background-size:240px 220px,310px 280px,390px 340px}
+html:not(.dark) .spatial-environment{background-image:radial-gradient(1px 1px at 12% 18%,rgba(140,112,61,.13) 50%,transparent 100%),radial-gradient(1px 1px at 76% 24%,rgba(140,112,61,.10) 50%,transparent 100%)}
+
+
+/* FRIDAY SPATIAL OS V4 · shared panel workspace */
+.spatial-panel-workspace{position:relative;z-index:40;width:min(1120px,calc(100% - 32px));margin:0 auto 12px}
+.spatial-panel-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:7px;padding:8px 10px;border:1px solid rgba(220,194,135,.14);border-radius:14px;background:rgba(14,17,22,.55);backdrop-filter:blur(14px)}
+.spatial-panel-toolbar>span{padding:0 5px;color:#b9ad94;font-size:11px;letter-spacing:.12em}
+.spatial-panel-toolbar button,.spatial-panel-window button{padding:7px 10px;border:1px solid rgba(220,194,135,.2);border-radius:9px;background:rgba(255,255,255,.045);color:inherit;font-size:11px;cursor:pointer}
+.spatial-panel-toolbar button[aria-pressed=true],.spatial-panel-docks button[aria-pressed=true]{border-color:rgba(230,192,112,.8);background:rgba(170,128,55,.22)}
+.spatial-panel-window{position:fixed;display:flex;flex-direction:column;min-width:260px;max-width:calc(100vw - 24px);max-height:calc(100dvh - 24px);overflow:hidden;border:1px solid rgba(220,194,135,.35);border-radius:16px;background:rgba(12,15,20,.96);color:#f2ead8;box-shadow:0 24px 80px rgba(0,0,0,.42);backdrop-filter:blur(22px);outline:none}
+.spatial-panel-window:focus-visible{outline:2px solid rgba(230,192,112,.8);outline-offset:3px}
+.spatial-panel-window-header{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:12px;border-bottom:1px solid rgba(220,194,135,.16)}
+.spatial-panel-window-header>strong{font-size:13px}.spatial-panel-window-header>span{flex:1;min-width:120px;color:#b9ad94;font-size:10px}
+.spatial-panel-window-actions{display:flex;gap:5px}.spatial-panel-window-actions button{padding:5px 8px}
+.spatial-panel-window-body{flex:1;min-height:90px;padding:16px;overflow:auto}.spatial-panel-window-body p{margin:0 0 8px;color:#e9dfc9}.spatial-panel-window-body small{color:#aaa18f;line-height:1.7}
+.spatial-panel-docks{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:10px 12px;border-top:1px solid rgba(220,194,135,.16)}
+.spatial-panel-docks>span{margin-right:4px;color:#b9ad94;font-size:10px}
+html:not(.dark) .spatial-panel-toolbar{background:rgba(255,255,255,.7);border-color:rgba(130,104,57,.2)}
+html:not(.dark) .spatial-panel-toolbar>span{color:#6e624b}
+html:not(.dark) .spatial-panel-toolbar button{background:rgba(255,255,255,.75);color:#393326;border-color:rgba(130,104,57,.22)}
+html:not(.dark) .spatial-panel-window{background:rgba(250,248,242,.97);color:#2c281f;border-color:rgba(130,104,57,.35)}
+html:not(.dark) .spatial-panel-window-header{border-color:rgba(130,104,57,.18)}
+html:not(.dark) .spatial-panel-window-header>span,html:not(.dark) .spatial-panel-window-body small,html:not(.dark) .spatial-panel-docks>span{color:#756b58}
+html:not(.dark) .spatial-panel-window-body p{color:#393326}
+html:not(.dark) .spatial-panel-window button{background:rgba(255,255,255,.8);color:#393326;border-color:rgba(130,104,57,.22)}
+@media(max-width:640px){.spatial-panel-workspace{width:calc(100% - 20px)}.spatial-panel-toolbar{gap:5px;padding:7px}.spatial-panel-toolbar button{padding:7px 8px}.spatial-panel-window{left:10px!important;right:10px!important;top:auto!important;bottom:max(10px,env(safe-area-inset-bottom))!important;width:auto!important;height:min(52dvh,440px)!important;max-width:none}}

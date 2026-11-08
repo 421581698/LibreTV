@@ -190,3 +190,25 @@ export function fridayReducer(
       return state;
   }
 }
+
+export type FridayOrbVisualState = "IDLE" | "LISTENING" | "THINKING" | "EXECUTING" | "SPEAKING" | "ERROR";
+export type FridayOrbActivity = "standby" | "listening" | "thinking" | "speaking" | "completed";
+
+/** Project the existing V3 voice + agent reducer into the six spatial orb states. */
+export function projectFridayOrbState(
+  state: FridayState,
+  activity: FridayOrbActivity,
+): FridayOrbVisualState {
+  if (state.voice === "error" || state.agent === "error" || state.errors.voice || state.errors.agent) return "ERROR";
+  if (state.voice === "speaking" || activity === "speaking") return "SPEAKING";
+  if (
+    state.voice === "requesting" ||
+    state.voice === "listening" ||
+    state.voice === "recognizing" ||
+    state.voice === "recovering" ||
+    activity === "listening"
+  ) return "LISTENING";
+  if (state.agent === "executing" || state.agent === "rendering") return "EXECUTING";
+  if (state.agent === "thinking" || activity === "thinking") return "THINKING";
+  return "IDLE";
+}

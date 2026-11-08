@@ -15,6 +15,7 @@ import FridayOrb from "@/components/friday/FridayOrb";
 import { FridayPanel, getPartText, getMovieDataForMessage } from "@/components/friday/FridayPanel";
 import type { MovieItem } from "@/components/friday/FridayPanel";
 import { useFridayVoiceController } from "@/components/friday/useFridayVoiceController";
+import { projectFridayOrbState } from "@/lib/friday/state";
 import { useFridayFabController } from "@/components/friday/useFridayFabController";
 import { useFridayResponseController } from "@/components/friday/useFridayResponseController";
 import { useFridayRequestLifecycle } from "@/components/friday/useFridayRequestLifecycle";
@@ -270,11 +271,9 @@ export default function AIFloatingBall({
   }, [typedMessages]);
 
   useEffect(() => {
-    const state = auroraState === "listening" ? "LISTENING"
-      : auroraState === "thinking" ? "THINKING"
-      : auroraState === "speaking" ? "SPEAKING" : "IDLE";
+    const state = projectFridayOrbState(machineState, auroraState);
     window.dispatchEvent(new CustomEvent("friday-home-voice-state", { detail: { state } }));
-  }, [auroraState]);
+  }, [machineState, auroraState]);
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("friday-home-voice-error", { detail: { message: voiceError } }));

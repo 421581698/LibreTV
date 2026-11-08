@@ -6,7 +6,7 @@ import React, {
 } from 'react'
 import { createFridayOrb } from './friday-orb-core.js'
 
-export type FridayState = 'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING'
+export type FridayState = 'IDLE' | 'LISTENING' | 'THINKING' | 'EXECUTING' | 'SPEAKING' | 'ERROR'
 
 export interface FridayOrbEngine {
   setState(state: FridayState | string): void

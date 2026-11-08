@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { smoothFridayEnergy } from "./friday-orb-core.js";
+import { normalizeFridayOrbState, smoothFridayEnergy } from "./friday-orb-core.js";
 
 describe("FridayOrb audio energy smoothing", () => {
   it("ramps up smoothly instead of snapping to a noisy input sample", () => {
@@ -18,5 +18,16 @@ describe("FridayOrb audio energy smoothing", () => {
   it("clamps invalid time steps and energy targets", () => {
     expect(smoothFridayEnergy(0.4, 4, 1)).toBeLessThan(1);
     expect(smoothFridayEnergy(0.4, -1, -1)).toBe(0.4);
+  });
+});
+
+describe("FridayOrb six-state visual contract", () => {
+  it("preserves executing and error as distinct Canvas states", () => {
+    expect(normalizeFridayOrbState("EXECUTING")).toBe("EXECUTING");
+    expect(normalizeFridayOrbState("ERROR")).toBe("ERROR");
+  });
+
+  it("normalizes unknown states safely to idle", () => {
+    expect(normalizeFridayOrbState("UNKNOWN")).toBe("IDLE");
   });
 });
