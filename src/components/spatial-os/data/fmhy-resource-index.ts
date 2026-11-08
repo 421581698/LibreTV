@@ -1,17 +1,3 @@
-import privacy from './fmhy-resources/privacy.json';
-import ai from './fmhy-resources/ai.json';
-import video from './fmhy-resources/video.json';
-import audio from './fmhy-resources/audio.json';
-import gaming from './fmhy-resources/gaming.json';
-import reading from './fmhy-resources/reading.json';
-import downloading from './fmhy-resources/downloading.json';
-import torrenting from './fmhy-resources/torrenting.json';
-import educational from './fmhy-resources/educational.json';
-import mobile from './fmhy-resources/mobile.json';
-import linuxMacos from './fmhy-resources/linux-macos.json';
-import nonEnglish from './fmhy-resources/non-english.json';
-import misc from './fmhy-resources/misc.json';
-
 export interface FMHYResource {
   id: string;
   title: string;
@@ -25,16 +11,40 @@ export interface FMHYResource {
   sourcePage: string;
 }
 
-const sources = [privacy,ai,video,audio,gaming,reading,downloading,torrenting,educational,mobile,linuxMacos,nonEnglish,misc] as const;
+type FMHYDataset = {category:{id:string;title:string};records:Array<Omit<FMHYResource,'categoryId'|'categoryTitle'|'sourcePage'>>};
 
-export const FMHY_RESOURCES: FMHYResource[] = sources.flatMap(source =>
-  source.records.map(record => ({
+const loaders: Record<string, () => Promise<{default:FMHYDataset}>> = {
+  privacy: () => import('./fmhy-resources/privacy.json'),
+  ai: () => import('./fmhy-resources/ai.json'),
+  video: () => import('./fmhy-resources/video.json'),
+  audio: () => import('./fmhy-resources/audio.json'),
+  gaming: () => import('./fmhy-resources/gaming.json'),
+  reading: () => import('./fmhy-resources/reading.json'),
+  downloading: () => import('./fmhy-resources/downloading.json'),
+  torrenting: () => import('./fmhy-resources/torrenting.json'),
+  educational: () => import('./fmhy-resources/educational.json'),
+  mobile: () => import('./fmhy-resources/mobile.json'),
+  'linux-macos': () => import('./fmhy-resources/linux-macos.json'),
+  'non-english': () => import('./fmhy-resources/non-english.json'),
+  misc: () => import('./fmhy-resources/misc.json'),
+};
+
+export async function loadFMHYCategory(categoryId: string): Promise<FMHYResource[]> {
+  const load = loaders[categoryId];
+  if (!load) return [];
+  const {default:data} = await load();
+  return data.records.map(record => ({
     ...record,
-    categoryId: source.category.id,
-    categoryTitle: source.category.title,
-    sourcePage: `https://github.com/fmhy/edit/blob/main/docs/${source.category.id}.md`,
-  })) as FMHYResource[]
-);
+    categoryId: data.category.id,
+    categoryTitle: data.category.title,
+    sourcePage: `https://github.com/fmhy/edit/blob/main/docs/${data.category.id}.md`,
+  }));
+}
+
+export async function loadAllFMHYCategories(): Promise<FMHYResource[]> {
+  const groups = await Promise.all(Object.keys(loaders).map(loadFMHYCategory));
+  return groups.flat();
+}
 
 export const FMHY_RESOURCE_SOURCE = {
   name: 'FMHY',
