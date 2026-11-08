@@ -60,8 +60,7 @@ export function FridayAssistantButton({
         onClick={onClick}
         disabled={disabled}
         aria-label={label}
-        aria-haspopup="dialog"
-        aria-expanded={false}
+        aria-pressed={state === "LISTENING"}
         data-state={state.toLowerCase()}
       >
         <span className="spatial-v4-friday-renderer" aria-hidden="true">
