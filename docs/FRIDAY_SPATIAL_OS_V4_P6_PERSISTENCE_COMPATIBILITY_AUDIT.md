@@ -31,6 +31,25 @@ This document records source-level findings. It is not a claim that P6 implement
 - Spatial workspace restore rejects unknown values and falls back to the Cinematic space.
 - Profile import validates the profile envelope and filters favorite URLs and imported record shapes before writing.
 
+## P6 implementation delivered in this branch
+
+- Added `fake-indexeddb` test support and IndexedDB-backed tests for task event append/read ordering, duplicate IDs and sequence keys, contiguous sequencing, concurrent same-sequence writes, recent-task cap, deletion, interrupted-task reconciliation, and explicit side-effect replay blocking.
+- Added an actual v3-to-v6 Dexie upgrade test that seeds a legacy viewing-history row and verifies it survives the schema upgrade while the Friday event, favorites and spatial-state tables are introduced.
+- Added spatial preference read/write/overwrite tests.
+- Made profile import parse all supplied JSON sections before mutation and execute favorites, spatial state, history and progress writes in one Dexie read-write transaction. Browser `localStorage` settings are committed after the IndexedDB transaction; these two browser storage engines cannot participate in one atomic transaction, and a localStorage failure is surfaced to the caller.
+- Added profile export/import round-trip, unsafe favorite URL filtering, malformed-section no-partial-write tests. Friday task event logs and conversation bodies remain excluded from profile export.
+- Added explicit `pruneTerminalTasks(cutoff, keepRecentTaskCount)` maintenance. It only removes old terminal streams, never active tasks, and protects the newest requested number of task-created records. It is opt-in and is not silently run during restore.
+- Enforced a 256 KiB serialized event limit before task event writes; event payloads remain browser-local and are not included in portable profile export.
+- Added `getLastPersistError()` and the `libretv:persistence-error` event for throttled localStorage write failures instead of silently swallowing quota/security errors. Dexie write failures continue to reject to their callers.
+- Added tests for localStorage quota error reporting and error clearing after a successful write.
+
+## Remaining operational boundaries
+
+- The IndexedDB suite uses `fake-indexeddb`, a standards-oriented in-memory implementation of the IndexedDB API. It validates Dexie transaction and schema behavior in CI, but it is not a substitute for real browser storage quota, eviction, Safari private-mode or multi-process device testing.
+- Profile transfer is manual JSON export/import; there is no cloud sync. The Dexie portion is atomic across its four tables; the separate localStorage settings write follows after the Dexie commit.
+- Retention is an explicit maintenance API; no automatic deletion policy is enabled until product-level retention settings are chosen.
+- No automatic replay of side effects after reload.
+
 ## P6 gaps to resolve, in priority order
 
 ### P6.1 — Persistence contract and tests
@@ -61,10 +80,10 @@ This document records source-level findings. It is not a claim that P6 implement
 
 ## P6 completion gates
 
-1. Persistence tests exercise real IndexedDB/Dexie behavior, not only memory mocks.
-2. Import/export behavior and failure semantics are documented and covered by tests.
+1. Persistence tests exercise Dexie behavior over an IndexedDB implementation, including schema migration and transaction semantics; real Safari/device storage remains a separate acceptance item.
+2. Import/export behavior and failure semantics are documented and covered by tests, including the IndexedDB/localStorage atomicity boundary.
 3. Task recovery is tested without automatic side-effect replay.
-4. Retention, payload privacy and storage failure behavior have explicit contracts.
+4. Retention, payload size, privacy and storage failure behavior have explicit contracts and tests.
 5. TypeScript, ESLint, unit tests and production build pass on the latest P6 branch head.
 6. Preview and iPhone Safari validation are reported separately from CI.
 
