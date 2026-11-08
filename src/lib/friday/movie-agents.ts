@@ -116,7 +116,7 @@ export function createPlaybackEvidenceAgent(): FridayAgent {
       }
       if (!Number.isFinite(observedTime)) throw new Error("Playback evidence requires a valid observation timestamp");
       const sampleCount = input.sampleCount;
-      if (sampleCount !== undefined && (!Number.isInteger(sampleCount) || (sampleCount as number) < 1)) {
+      if (sampleCount !== undefined && (typeof sampleCount !== "number" || !Number.isInteger(sampleCount) || sampleCount < 1)) {
         throw new Error("Playback evidence sample count must be a positive integer");
       }
       const minHeight = input.minHeight;
