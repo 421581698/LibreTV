@@ -120,4 +120,52 @@ describe("Friday movie agents", () => {
     expect(result).toMatchObject({ accepted: false, unmatchedCandidates: ["m1"], measurementCompleted: false, resolutionMeasured: false });
     expect(result.findings).toContain("candidate-without-quality-assessment");
   });
+  it("recommends the reachable candidate with the highest measured resolution", async () => {
+    const agents = createMovieAgentRegistry({ search: async () => [], probe: async () => [] });
+    const playback = agents.find((agent) => agent.id === "playback-agent")!;
+    const result = await playback.execute(context("playback-agent", {}, {
+      search: { candidates: [
+        { id: "source-a:1", title: "Arrival", sourceId: "source-a" },
+        { id: "source-b:9", title: "Arrival", sourceId: "source-b" },
+      ] },
+      quality: { assessments: [
+        {
+          sourceId: "source-a", candidateId: "source-a:1", title: "Arrival",
+          status: "resolution_detected", assessmentCompleted: true,
+          resolutionHeight: 720, latencyMs: null, probeDurationMs: 90,
+          probeResultCached: false, reachable: true, advertisedQualities: [],
+          evidence: ["hls_or_segment.resolution_height"],
+        },
+        {
+          sourceId: "source-b", candidateId: "source-b:9", title: "Arrival",
+          status: "resolution_detected", assessmentCompleted: true,
+          resolutionHeight: 1080, latencyMs: null, probeDurationMs: 140,
+          probeResultCached: false, reachable: true, advertisedQualities: [],
+          evidence: ["hls_or_segment.resolution_height"],
+        },
+      ] },
+      review: { accepted: true },
+    })) as { ready: boolean; recommendations: Array<Record<string, unknown>> };
+    expect(result.ready).toBe(true);
+    expect(result.recommendations).toHaveLength(1);
+    expect(result.recommendations[0]).toMatchObject({
+      candidateId: "source-b:9",
+      sourceId: "source-b",
+      resolutionHeight: 1080,
+      selectionBasis: "measured-resolution",
+      requiresUserConfirmation: true,
+    });
+  });
+
+  it("withholds playback recommendations when evidence review is rejected", async () => {
+    const agents = createMovieAgentRegistry({ search: async () => [], probe: async () => [] });
+    const playback = agents.find((agent) => agent.id === "playback-agent")!;
+    const result = await playback.execute(context("playback-agent", {}, {
+      search: { candidates: [{ id: "source-a:1", title: "Arrival", sourceId: "source-a" }] },
+      quality: { assessments: [] },
+      review: { accepted: false },
+    })) as { ready: boolean; recommendations: unknown[] };
+    expect(result).toMatchObject({ ready: false, recommendations: [] });
+  });
+
 });
