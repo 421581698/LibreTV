@@ -31,7 +31,10 @@ const fridayPanel = source('src/components/friday/FridayPanel.tsx');
 describe('首页与播放页回归契约', () => {
   it('首页 FridayOrb 保持可见、可访问，并将点击交给唯一语音控制器', () => {
     expect(home).toContain('<HomeIntentCanvas');
-    expect(home).toContain("variant={isV2 ? 'v2' : 'legacy'}");
+    expect(home).toContain('{!isV2 ? (');
+    expect(home).toContain('<SpatialAppShell');
+    expect(home).toContain('fridayEntry={<SpatialFridayEntry />}');
+    expect(home).toContain("activeSpace === 'cinematic' ? mainContent");
     expect(hero).toContain('<FridayOrb');
     expect(hero).toContain('friday-home-orb-toggle');
     expect(hero).toContain('aria-label={labels[voiceState]}');
