@@ -196,5 +196,92 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
     },
   };
 
-  return [searchAgent, sourceAgent, qualityAgent, reviewAgent];
+  const playbackAgent: FridayAgent = {
+    id: "playback-agent",
+    async execute(context) {
+      const input = objectInput(context.task.input);
+      const searchTaskId = typeof input.searchTaskId === "string" ? input.searchTaskId : "search";
+      const qualityTaskId = typeof input.qualityTaskId === "string" ? input.qualityTaskId : "quality";
+      const reviewTaskId = typeof input.reviewTaskId === "string" ? input.reviewTaskId : "review";
+      const searchOutput = objectInput(dependencyValue(context, searchTaskId));
+      const qualityOutput = objectInput(dependencyValue(context, qualityTaskId));
+      const reviewOutput = objectInput(dependencyValue(context, reviewTaskId));
+      const candidates = candidatesFrom(searchOutput.candidates);
+      const assessments = Array.isArray(qualityOutput.assessments)
+        ? qualityOutput.assessments as QualityAssessment[]
+        : [];
+
+      if (reviewOutput.accepted !== true) {
+        return {
+          ready: false,
+          recommendations: [],
+          reason: "Quality review did not accept the candidate evidence; automatic source selection is withheld.",
+        };
+      }
+
+      const assessmentByCandidate = new Map<string, QualityAssessment>();
+      for (const assessment of assessments) {
+        if (typeof assessment.candidateId === "string" && assessment.candidateId) {
+          // The review agent rejects duplicate candidate assessments. Keep the
+          // playback agent defensive in case it is ever invoked independently.
+          if (assessmentByCandidate.has(assessment.candidateId)) {
+            assessmentByCandidate.delete(assessment.candidateId);
+            continue;
+          }
+          assessmentByCandidate.set(assessment.candidateId, assessment);
+        }
+      }
+
+      const byTitle = new Map<string, Array<{
+        candidate: MovieCandidate;
+        assessment: QualityAssessment;
+      }>>();
+      for (const candidate of candidates) {
+        const title = candidate.title.trim();
+        const titleKey = title.normalize("NFKC").toLocaleLowerCase().replace(/[\\s\\p{P}\\p{S}]/gu, "");
+        const assessment = assessmentByCandidate.get(candidate.id);
+        if (!titleKey || !candidate.sourceId || !assessment ||
+          assessment.assessmentCompleted !== true || assessment.reachable !== true) continue;
+        const group = byTitle.get(titleKey) ?? [];
+        group.push({ candidate, assessment });
+        byTitle.set(titleKey, group);
+      }
+
+      const recommendations = [...byTitle.values()].map((group) => {
+        group.sort((left, right) => {
+          const leftHeight = left.assessment.status === "resolution_detected"
+            ? left.assessment.resolutionHeight ?? 0 : 0;
+          const rightHeight = right.assessment.status === "resolution_detected"
+            ? right.assessment.resolutionHeight ?? 0 : 0;
+          return rightHeight - leftHeight ||
+            String(left.candidate.sourceId).localeCompare(String(right.candidate.sourceId)) ||
+            left.candidate.id.localeCompare(right.candidate.id);
+        });
+        const selected = group[0];
+        const measured = selected.assessment.status === "resolution_detected" &&
+          typeof selected.assessment.resolutionHeight === "number" &&
+          selected.assessment.resolutionHeight > 0;
+        return {
+          title: selected.candidate.title,
+          candidateId: selected.candidate.id,
+          sourceId: selected.candidate.sourceId!,
+          resolutionHeight: measured ? selected.assessment.resolutionHeight : null,
+          selectionBasis: measured ? "measured-resolution" as const : "reachable-only" as const,
+          alternativeCount: Math.max(0, group.length - 1),
+          requiresUserConfirmation: true as const,
+        };
+      });
+
+      await context.checkpoint({ recommendationCount: recommendations.length });
+      return {
+        ready: true,
+        recommendations,
+        reason: recommendations.length
+          ? "Selected the reachable candidate with the highest measured manifest/segment resolution; unknown resolution is never presented as measured."
+          : "No candidate has both a completed quality assessment and a reachable source.",
+      };
+    },
+  };
+
+  return [searchAgent, sourceAgent, qualityAgent, reviewAgent, playbackAgent];
 }
