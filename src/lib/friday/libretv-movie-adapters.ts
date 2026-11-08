@@ -85,7 +85,7 @@ export function createLibreTVMovieAgentAdapters(
             cache: "no-store",
           });
           if (!response.ok) {
-            const retryable = response.status === 429 || response.status >= 500;
+            const retryable = response.status === 408 || response.status === 425 || response.status === 429 || response.status >= 500;
             throw new DagExecutionError(`Quality probe failed: HTTP ${response.status}`, "QUALITY_HTTP_ERROR", retryable);
           }
           const payload = await readJson<QualityApiResponse>(response);
