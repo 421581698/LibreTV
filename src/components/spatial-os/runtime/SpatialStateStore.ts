@@ -1,7 +1,7 @@
 'use client';
 import {useSyncExternalStore} from 'react';
 import {DEFAULT_SPATIAL_STATE,type PanelDock,type PanelRect,type SpatialSnapshot,type SpatialSpace,type SpatialPanel,type SpatialTaskContext,type SpatialPresentation} from '../core/types';
-import {activateSpace,goBackSpace,historyIndexFromState,restoreHistorySnapshot,snapshotFromHistoryState,SPATIAL_HISTORY_KEY,returnToLobby,setSpatialPresentation,shouldAcceptWorkspaceUpdate} from './SpatialRouter';
+import {activateSpace,goBackSpace,historyIndexFromState,restoreHistorySnapshot,snapshotFromHistoryState,SPATIAL_HISTORY_KEY,returnToLobby,setSpatialPresentation,setSpatialTaskContext,shouldAcceptWorkspaceUpdate} from './SpatialRouter';
 import {bringPanelToFront,placePanelAvoidingOverlap,setExpandedPanel,setPanelDock,setPanelRect} from './PanelManager';
 import {readWorkspace,writeWorkspace,WORKSPACE_KEY,migrateWorkspace} from './WorkspacePersistence';
 let snapshot:SpatialSnapshot=DEFAULT_SPATIAL_STATE,hydrated=false,historyBound=false,storageBound=false,historyIndex=0,tabOriginId='';
@@ -24,7 +24,7 @@ export const spatialStateStore={
  returnToLobby(){const next=returnToLobby(hydrate());if(next!==snapshot){commit(next);pushSpaceHistory(snapshot);}},
  back(){const current=hydrate(),next=goBackSpace(current);if(next!==current){commit(next);pushSpaceHistory(snapshot);}},
  setPresentation(presentation:SpatialPresentation){commit(setSpatialPresentation(hydrate(),presentation));},
- setTaskContext(context:SpatialTaskContext|null){const current=hydrate();if(context&&(!context.taskId||context.taskId.length>160))return;commit({...current,taskContext:context,presentation:context?'task':'space',...(context?{expandedPanel:null,focusedPanel:null}:{})});},
+ setTaskContext(context:SpatialTaskContext|null){commit(setSpatialTaskContext(hydrate(),context));},
  expand(panel:SpatialPanel|null){commit(setExpandedPanel(hydrate(),panel));},
  focus(panel:SpatialPanel){commit(bringPanelToFront(hydrate(),panel));},
  dock(panel:SpatialPanel,dock:PanelDock){commit(setPanelDock(hydrate(),panel,dock));},
