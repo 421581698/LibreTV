@@ -113,6 +113,17 @@ export function FridayAssistantButton({
           cursor: not-allowed;
           opacity: .55;
         }
+        .spatial-v4-friday-button[data-state="executing"] {
+          border-color: var(--spatial-accent, #c9963d);
+          box-shadow: 0 0 0 3px color-mix(in srgb, var(--spatial-accent, #c9963d) 18%, transparent);
+        }
+        .spatial-v4-friday-button[data-state="error"] {
+          border-color: var(--spatial-error, #c83c36);
+          box-shadow: 0 0 0 3px color-mix(in srgb, var(--spatial-error, #c83c36) 16%, transparent);
+        }
+        .spatial-v4-friday-entry:has(.spatial-v4-friday-button[data-state="error"]) .spatial-v4-friday-status {
+          color: var(--spatial-error, #c83c36);
+        }
         .spatial-v4-friday-renderer {
           display: block;
           width: 36px;
