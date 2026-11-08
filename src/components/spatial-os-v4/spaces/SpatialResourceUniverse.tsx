@@ -14,7 +14,6 @@ type ApiResponse = {
 
 export function SpatialResourceUniverse() {
   const [activeCategory, setActiveCategory] = useState<FmhyCategoryId | 'all' | 'favorites'>('all');
-  const [resourceStateRestored, setResourceStateRestored] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<FmhyResource[]>([]);
   const [selected, setSelected] = useState<FmhyResource | null>(null);
@@ -28,21 +27,6 @@ export function SpatialResourceUniverse() {
     } catch {
       setFavoriteRows([]);
     }
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    readSpatialState<{ category?: string; query?: string }>('resource-universe')
-      .then((saved) => {
-        if (!active || !saved) return;
-        if (saved.category === 'all' || saved.category === 'favorites' || FMHY_CATEGORIES.some((item) => item.id === saved.category)) {
-          setActiveCategory(saved.category as FmhyCategoryId | 'all' | 'favorites');
-        }
-        if (typeof saved.query === 'string') setQuery(saved.query.slice(0, 100));
-      })
-      .catch(() => {})
-      .finally(() => { if (active) setResourceStateRestored(true); });
-    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -77,6 +61,34 @@ export function SpatialResourceUniverse() {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    const restore = async () => {
+      try {
+        const saved = await readSpatialState<{ category?: string; query?: string }>('resource-universe');
+        if (!active || !saved) return;
+        const savedQuery = typeof saved.query === 'string' ? saved.query.slice(0, 100) : '';
+        setQuery(savedQuery);
+        if (saved.category === 'favorites') {
+          setActiveCategory('favorites');
+          await refreshFavorites();
+          return;
+        }
+        const savedCategory = saved.category === 'all' || FMHY_CATEGORIES.some((item) => item.id === saved.category)
+          ? saved.category as FmhyCategoryId | 'all'
+          : 'all';
+        setActiveCategory(savedCategory);
+        if (savedCategory !== 'all' || savedQuery.length >= 2) {
+          await loadResources(savedCategory, savedQuery);
+        }
+      } catch {
+        // Keep the default workspace when IndexedDB is unavailable.
+      }
+    };
+    void restore();
+    return () => { active = false; };
+  }, [loadResources, refreshFavorites]);
 
   const selectCategory = (category: FmhyCategoryId | 'all' | 'favorites') => {
     setActiveCategory(category);
