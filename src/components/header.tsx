@@ -132,16 +132,18 @@ export function Header({ showSearch = false, showFridayFab = true, minimalFriday
                 关于
               </HeaderLink>
             )}
-            <ThemeToggle />
-            <IconButton label="观看历史" onClick={() => setHistoryOpen(true)}>
-              <Icon name="clock" />
-            </IconButton>
-            <IconButton label="下载管理" onClick={requestShowDownloadManager}>
-              <Icon name="download" />
-            </IconButton>
-            <IconButton label="设置" onClick={() => setSettingsOpen(true)}>
-              <Icon name="gear" />
-            </IconButton>
+            {!minimalFridayNav && <>
+              <ThemeToggle />
+              <IconButton label="观看历史" onClick={() => setHistoryOpen(true)}>
+                <Icon name="clock" />
+              </IconButton>
+              <IconButton label="下载管理" onClick={requestShowDownloadManager}>
+                <Icon name="download" />
+              </IconButton>
+              <IconButton label="设置" onClick={() => setSettingsOpen(true)}>
+                <Icon name="gear" />
+              </IconButton>
+            </>}
           </nav>
         </div>
       </header>
