@@ -19,6 +19,9 @@ export async function GET(request: NextRequest) {
   const query = (params.get('q') ?? '').trim().toLocaleLowerCase().slice(0, 100);
   const categoryParam = params.get('category');
   const resourceUrl = params.get('url');
+  const requestedOffset = Number.parseInt(params.get('offset') ?? '0', 10);
+  const offset = Number.isFinite(requestedOffset) ? Math.max(0, Math.min(10000, requestedOffset)) : 0;
+  const pageSize = 100;
 
   const selected = categoryParam
     ? FMHY_CATEGORIES.filter((item) => item.id === categoryParam)
@@ -45,7 +48,7 @@ export async function GET(request: NextRequest) {
     }
 
     const terms = query.split(/\s+/).filter(Boolean);
-    const results = all
+    const ranked = all
       .map((item) => {
         const title = item.title.toLocaleLowerCase();
         const description = item.description.toLocaleLowerCase();
@@ -57,14 +60,16 @@ export async function GET(request: NextRequest) {
         return { item, matches, score };
       })
       .filter((entry) => query ? entry.matches : true)
-      .sort((a, b) => b.score - a.score || a.item.title.localeCompare(b.item.title))
-      .slice(0, query ? 250 : 100)
-      .map((entry) => entry.item);
+      .sort((a, b) => b.score - a.score || a.item.title.localeCompare(b.item.title));
+    const total = ranked.length;
+    const results = ranked.slice(offset, offset + pageSize).map((entry) => entry.item);
 
     return NextResponse.json({
       categories: FMHY_CATEGORIES,
       results,
-      total: results.length,
+      total,
+      offset,
+      hasMore: offset + results.length < total,
       source: 'fmhy/edit',
     });
   } catch (error) {
