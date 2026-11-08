@@ -1182,3 +1182,8 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
 .spatial-os-nav .spatial-os-back{position:absolute;left:-48px;top:0;width:40px;height:100%;padding:8px 4px;text-align:center}
 .spatial-os-nav .spatial-os-back small{font-size:9px}
 @media(max-width:760px){.spatial-os-nav .spatial-os-back{position:static;width:auto;height:auto;grid-column:1/-1;display:flex;align-items:center;gap:6px;justify-content:center}.spatial-os-nav .spatial-os-back small{display:inline}}
+
+.spatial-os .friday-hero-v2[data-state=executing] .friday-hero-orb-label{color:#e5c17a}
+.spatial-os .friday-hero-v2[data-state=error] .friday-hero-orb-label{color:#e69b91}
+.spatial-os .friday-hero-v2[data-state=executing] .friday-hero-orb{filter:drop-shadow(0 0 18px rgba(210,166,85,.28))}
+.spatial-os .friday-hero-v2[data-state=error] .friday-hero-orb{filter:drop-shadow(0 0 18px rgba(210,95,85,.22))}

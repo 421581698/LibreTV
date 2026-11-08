@@ -5,16 +5,16 @@ import type { MouseEvent } from 'react';
 import FridayOrb from '@/components/friday/FridayOrb';
 import { upsertFridaySubtitleLine } from '@/lib/friday/subtitles';
 
-type VoiceState = 'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING';
+type VoiceState = 'IDLE' | 'LISTENING' | 'THINKING' | 'EXECUTING' | 'SPEAKING' | 'ERROR';
 
 /** 首页唯一 Friday 语音入口；字幕始终位于圆球下方，不创建聊天面板或气泡。 */
 export function FridayHero({ voiceState: controlledVoiceState, audioLevel: controlledAudioLevel }: { voiceState?: VoiceState; audioLevel?: number }) {
   const [orbTheme, setOrbTheme] = useState<'light' | 'dark'>('light');
   const [subtitleLines, setSubtitleLines] = useState<string[]>([]);
   const [voiceError, setVoiceError] = useState('');
-  const [runtimeVoiceState, setRuntimeVoiceState] = useState<VoiceState>('IDLE');
+  const [runtimeVoiceState, setRuntimeVoiceState] = useState<VoiceState | null>(null);
   const [runtimeAudioLevel, setRuntimeAudioLevel] = useState(0);
-  const voiceState = controlledVoiceState ?? runtimeVoiceState;
+  const voiceState = runtimeVoiceState ?? controlledVoiceState ?? 'IDLE';
   const audioLevel = controlledAudioLevel ?? runtimeAudioLevel;
 
   useEffect(() => {
@@ -109,7 +109,7 @@ export function FridayHero({ voiceState: controlledVoiceState, audioLevel: contr
       >
         <span className="friday-hero-orb">
           <FridayOrb
-            state={voiceState}
+            state={voiceState === 'EXECUTING' || voiceState === 'ERROR' ? 'THINKING' : voiceState}
             audioLevel={audioLevel * 100}
             theme={orbTheme}
             showHud={false}
