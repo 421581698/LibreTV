@@ -1160,3 +1160,14 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
 .spatial-os-source{display:inline-block;margin-top:8px;color:#e2c27f;text-decoration:underline;text-underline-offset:4px}
 @media(max-width:640px){.spatial-os-core{padding:12px 10px 4px}.spatial-os-nav{gap:6px;width:calc(100% - 20px);margin:8px auto 16px}.spatial-os-nav button{padding:10px 6px;border-radius:11px}.spatial-os-nav button span{font-size:9px;letter-spacing:.04em}.spatial-os-nav button small{font-size:10px}.spatial-os-category-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.spatial-os-panel{width:calc(100% - 20px);padding:18px;border-radius:18px}}
 @media(prefers-reduced-motion:reduce){.spatial-os-nav button{transition:none}}
+
+.spatial-os-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:20px 0 28px}
+.spatial-os-metrics span{padding:14px;border:1px solid rgba(220,194,135,.16);border-radius:12px;background:rgba(255,255,255,.025)}
+.spatial-os-metrics strong,.spatial-os-metrics small{display:block}.spatial-os-metrics strong{font-size:24px;color:#e4c17c}.spatial-os-metrics small{font-size:11px;color:#a9a18f}
+.spatial-os-panel h3{margin:24px 0 10px;font-size:15px;color:#e9dfc9}
+.spatial-os-task-list{display:grid;gap:8px;padding:0;list-style:none}
+.spatial-os-task-list li{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;padding:11px 13px;border:1px solid rgba(220,194,135,.12);border-radius:10px;background:rgba(255,255,255,.02)}
+.spatial-os-task-list li span{font-size:12px;overflow-wrap:anywhere}.spatial-os-task-list li small,.spatial-os-footnote{font-size:11px;color:#a9a18f}
+.spatial-os-quality{display:inline-flex;padding:10px 14px;border:1px solid rgba(220,194,135,.25);border-radius:10px;color:#e7c783!important}
+.spatial-os-quality[data-confidence=verified]{border-color:rgba(93,184,132,.55);color:#a8e0bd!important}
+@media(max-width:520px){.spatial-os-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
