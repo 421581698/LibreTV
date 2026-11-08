@@ -13,7 +13,7 @@ import { fridayTaskEventStore, fridayTaskRuntime } from "@/lib/friday/task-servi
 import type { TaskDefinition, TaskSnapshot } from "@/lib/friday/task-runtime";
 import type { MovieAgentAdapters, MovieCandidate } from "@/lib/friday/movie-agents";
 import { isCurrentFridayWorkflow } from "@/components/friday/workflowRequestGuard";
-import { applyDecodedPlaybackEvidence } from "@/lib/friday/playback-feedback";
+import { applyDecodedPlaybackEvidence, applyPlaybackFeedbackToWorkflow } from "@/lib/friday/playback-feedback";
 import { restoreFridayConversationHistory, serializeFridayConversationHistory } from "@/lib/friday/conversation-history";
 
 export type FridayWorkflowView = {
@@ -118,49 +118,19 @@ export function useFridayChatSession({
       });
 
       setWorkflowBySearchId((current) => Object.fromEntries(
-        Object.entries(current).map(([searchId, workflow]) => {
-          const previousChecks = workflow.qualityChecks;
-          if (!previousChecks) return [searchId, workflow];
-          const target = previousChecks.find((item) => item.candidateId === detail.candidateId);
-          if (!target) return [searchId, workflow];
-          const qualityChecks = previousChecks.map((item) => item.candidateId === detail.candidateId
-            ? {
-                ...item,
-                status: "resolution_detected" as const,
-                resolutionHeight: height,
-                decodedResolutionHeight: height,
-                decodedVideoHeight: height,
-                resolutionSource: "decoded_playback" as const,
-                playbackSampleCount: sampleCount ?? item.playbackSampleCount ?? 1,
-              }
-            : item);
-          const playbackRecommendations = [...(workflow.playbackRecommendations ?? [])];
-          const reachable = workflow.sourceChecks?.some((item) =>
-            item.candidateId === detail.candidateId && item.reachable,
-          ) ?? false;
-          if (reachable && target.title) {
-            const index = playbackRecommendations.findIndex((item) => item.title === target.title && (item.year ?? "") === (target.year ?? ""));
-            if (index >= 0) {
-              const currentRecommendation = playbackRecommendations[index];
-              const currentRank = currentRecommendation.selectionBasis === "decoded-playback" ? 2 :
-                currentRecommendation.selectionBasis === "source-probe" ? 1 : 0;
-              const candidateWins = 2 > currentRank ||
-                (currentRank === 2 && (
-                  height > (currentRecommendation.resolutionHeight ?? 0) ||
-                  (height === currentRecommendation.resolutionHeight && (sampleCount ?? 1) > (currentRecommendation.playbackSampleCount ?? 0))
-                ));
-              if (candidateWins) playbackRecommendations[index] = {
-                ...currentRecommendation,
-                candidateId: detail.candidateId as string,
-                sourceId: detail.sourceKey as string,
-                resolutionHeight: height,
-                selectionBasis: "decoded-playback",
-                playbackSampleCount: sampleCount ?? 1,
-              };
-            }
-          }
-          return [searchId, { ...workflow, qualityChecks, playbackRecommendations }];
-        }),
+        Object.entries(current).map(([searchId, workflow]) => [
+          searchId,
+          applyPlaybackFeedbackToWorkflow(workflow, {
+            candidateId: detail.candidateId as string,
+            sourceKey: detail.sourceKey as string,
+            vodId: detail.vodId as string,
+            height,
+            playbackSampleCount: sampleCount,
+            playbackMinHeight: minHeight,
+            playbackMaxHeight: maxHeight,
+            observedAt,
+          }),
+        ]),
       ));
     };
     window.addEventListener("friday-player-quality", handlePlaybackQuality);
