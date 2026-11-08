@@ -1,4 +1,5 @@
 import "fake-indexeddb/auto";
+import Dexie from "dexie";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { db, exportConfig, favoriteId, importConfig, readSpatialState, writeSpatialState } from "../db";
 import { DexieTaskEventStore } from "./dexie-task-event-store";
@@ -6,6 +7,7 @@ import { PERSIST_KEY } from "../persist-storage";
 import { TaskRuntime, type TaskDefinition, type TaskEvent } from "./task-runtime";
 
 const store = new DexieTaskEventStore();
+let migrationPreservedHistory: boolean;
 
 function event(overrides: Partial<TaskEvent> = {}): TaskEvent {
   return {
@@ -19,7 +21,35 @@ function event(overrides: Partial<TaskEvent> = {}): TaskEvent {
 }
 
 beforeAll(async () => {
+  // Open the same database at its historical v3 schema, seed a record, then
+  // let the production Dexie instance execute the real v3 -> v6 migrations.
+  const legacy = new Dexie("libretv");
+  legacy.version(1).stores({
+    history: "id, timestamp",
+    progress: "key, updatedAt",
+    searchHistory: "text, timestamp",
+  });
+  legacy.version(2).stores({ liveProbe: "url" });
+  legacy.version(3).stores({
+    segmentMeta: "key, episodeKey, lastAccess",
+    downloads: "id, createdAt",
+  });
+  await legacy.open();
+  await legacy.table("history").add({
+    id: "migration-source_movie",
+    sourceKey: "migration-source",
+    vodId: "movie",
+    title: "Migration keeps history",
+    episodeIndex: 0,
+    totalEpisodes: 1,
+    playbackPosition: 0,
+    duration: 0,
+    timestamp: 1,
+  });
+  legacy.close();
+
   await db.open();
+  migrationPreservedHistory = Boolean(await db.history.get("migration-source_movie"));
 });
 
 beforeEach(async () => {
@@ -35,7 +65,13 @@ afterAll(async () => {
   vi.unstubAllGlobals();
 });
 
-describe("DexieTaskEventStore with native IndexedDB", () => {
+describe("DexieTaskEventStore with IndexedDB", () => {
+  it("upgrades the existing v3 database to v6 without losing viewing history", () => {
+    expect(migrationPreservedHistory).toBe(true);
+    expect(db.tables.map((table) => table.name)).toEqual(expect.arrayContaining([
+      "fridayTaskEvents", "favorites", "spatialState",
+    ]));
+  });
   it("persists and reads a complete task stream in sequence order", async () => {
     await store.append(event());
     await store.append(event({
