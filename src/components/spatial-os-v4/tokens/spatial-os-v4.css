@@ -1,0 +1,72 @@
+/* LibreTV FRIDAY SPATIAL OS V4 — Apple-inspired design tokens */
+:root {
+  --spatial-bg: #f5f5f7;
+  --spatial-surface: #ffffff;
+  --spatial-surface-secondary: #ececef;
+  --spatial-text: #1d1d1f;
+  --spatial-text-secondary: #6e6e73;
+  --spatial-separator: rgba(60, 60, 67, 0.14);
+  --spatial-accent: #c9963d;
+  --spatial-success: #248a4b;
+  --spatial-error: #c83c36;
+  --spatial-radius-control: 8px;
+  --spatial-radius-card: 12px;
+  --spatial-radius-media: 16px;
+  --spatial-shadow-card: 0 2px 12px rgba(0, 0, 0, 0.045);
+  --spatial-motion-fast: 180ms;
+  --spatial-motion-layout: 320ms;
+  color-scheme: light;
+}
+
+.dark {
+  --spatial-bg: #111214;
+  --spatial-surface: #1c1d20;
+  --spatial-surface-secondary: #26282c;
+  --spatial-text: #f5f5f7;
+  --spatial-text-secondary: #a1a1a6;
+  --spatial-separator: rgba(235, 235, 245, 0.16);
+  --spatial-accent: #e0b35d;
+  --spatial-success: #35b66a;
+  --spatial-error: #ff625a;
+  --spatial-shadow-card: 0 2px 16px rgba(0, 0, 0, 0.22);
+  color-scheme: dark;
+}
+
+.spatial-v4 {
+  color: var(--spatial-text);
+  background: var(--spatial-bg);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC",
+    "Noto Sans SC", sans-serif;
+}
+
+.spatial-v4 *,
+.spatial-v4 *::before,
+.spatial-v4 *::after {
+  box-sizing: border-box;
+}
+
+.spatial-v4-surface {
+  background: var(--spatial-surface);
+  border: 1px solid var(--spatial-separator);
+  border-radius: var(--spatial-radius-card);
+  box-shadow: var(--spatial-shadow-card);
+}
+
+.spatial-v4-muted {
+  color: var(--spatial-text-secondary);
+}
+
+.spatial-v4-focus:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--spatial-accent) 55%, transparent);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spatial-v4 *,
+  .spatial-v4 *::before,
+  .spatial-v4 *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
