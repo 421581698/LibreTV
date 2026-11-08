@@ -14,6 +14,20 @@ const THROTTLE_MS = 800;
 
 let timer: ReturnType<typeof setTimeout> | null = null;
 let pending: [string, string] | null = null;
+let lastPersistError: string | null = null;
+
+export function getLastPersistError(): string | null {
+  return lastPersistError;
+}
+
+function reportPersistError(error: unknown): void {
+  lastPersistError = error instanceof Error ? error.message : "Browser storage is unavailable";
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("libretv:persistence-error", {
+      detail: { store: "localStorage", message: lastPersistError },
+    }));
+  }
+}
 
 function flush(): void {
   if (timer) {
@@ -25,8 +39,9 @@ function flush(): void {
   pending = null;
   try {
     localStorage.setItem(key, value);
-  } catch {
-    // 配额不足 / 隐私模式下静默放弃持久化，内存态仍可用
+    lastPersistError = null;
+  } catch (error) {
+    reportPersistError(error);
   }
 }
 
