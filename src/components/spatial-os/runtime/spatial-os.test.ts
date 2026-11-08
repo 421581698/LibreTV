@@ -1,7 +1,7 @@
 import {describe,expect,it} from 'vitest';
 import type {TaskEvent} from '@/lib/friday/task-runtime';
 import {DEFAULT_SPATIAL_STATE} from '../core/types';
-import {activateSpace,goBackSpace} from './SpatialRouter';
+import {activateSpace,goBackSpace,restoreHistorySnapshot} from './SpatialRouter';
 import {bringPanelToFront,placePanelAvoidingOverlap,setExpandedPanel,setPanelDock,setPanelRect} from './PanelManager';
 import {migrateWorkspace} from './WorkspacePersistence';
 import {snapshotFromHistoryState,SPATIAL_HISTORY_KEY} from './SpatialRouter';
@@ -14,6 +14,7 @@ describe('Spatial OS runtime',()=>{
  it('switches spaces and restores the previous space',()=>{const next=activateSpace(DEFAULT_SPATIAL_STATE,'resources');expect(next.activeSpace).toBe('resources');expect(goBackSpace(next).activeSpace).toBe('cinematic');});
  it('allows only one expanded panel',()=>{const next=setExpandedPanel(DEFAULT_SPATIAL_STATE,'quality');expect(next.expandedPanel).toBe('quality');expect(setExpandedPanel(next,null).expandedPanel).toBeNull();});
  it('keeps bounded, reversible spatial history and ignores no-op navigation',()=>{let state=DEFAULT_SPATIAL_STATE;for(const space of ['intelligence','resources','identity','cinematic','resources','identity','intelligence','cinematic','resources'] as const)state=activateSpace(state,space);expect(state.history.length).toBeLessThanOrEqual(32);expect(goBackSpace(state).activeSpace).toBe('cinematic');expect(activateSpace(state,state.activeSpace)).toBe(state);});
+ it('preserves the outgoing space scroll position when restoring a previous history entry',()=>{const previous={...DEFAULT_SPATIAL_STATE,activeSpace:'cinematic' as const,scrollPositions:{cinematic:240}};const outgoing={...activateSpace(previous,'resources'),scrollPositions:{cinematic:240,resources:860}};const restored=restoreHistorySnapshot(previous,outgoing);expect(restored.activeSpace).toBe('cinematic');expect(restored.scrollPositions).toEqual({cinematic:240,resources:860});});
  it('restores a validated snapshot from browser history state',()=>{const state=activateSpace(DEFAULT_SPATIAL_STATE,'resources');expect(snapshotFromHistoryState({[SPATIAL_HISTORY_KEY]:{snapshot:state}})?.activeSpace).toBe('resources');expect(snapshotFromHistoryState({[SPATIAL_HISTORY_KEY]:{snapshot:{version:99,activeSpace:'resources'}}})).toBeNull();});
  it('brings focused panels to the front with a stable z-order',()=>{const first=bringPanelToFront(DEFAULT_SPATIAL_STATE,'search');const second=bringPanelToFront(first,'quality');expect(second.focusedPanel).toBe('quality');expect(second.panelOrder).toEqual(['search','quality']);expect(second.panelLayouts.quality!.zIndex).toBeGreaterThan(second.panelLayouts.search!.zIndex);});
  it('supports panel docking, resizing and minimized state',()=>{const docked=setPanelDock(DEFAULT_SPATIAL_STATE,'tasks','right');expect(docked.panelLayouts.tasks?.dock).toBe('right');const resized=setPanelRect(docked,'tasks',{width:480,height:600,minimized:true});expect(resized.panelLayouts.tasks).toMatchObject({width:480,height:600,minimized:true});});
