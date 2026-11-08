@@ -140,6 +140,23 @@ export default function AIFloatingBall({
     return () => window.removeEventListener("friday-voice-preference-change", handleVoicePreferenceChange);
   }, []);
 
+  useEffect(() => {
+    const handleAssistantPreferenceChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ assistantId?: string }>).detail;
+      if (detail?.assistantId === "friday" || detail?.assistantId === "jarvis" || detail?.assistantId === "lin-meimei") setAssistantId(detail.assistantId);
+    };
+    const handleWakeWordPreferenceChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ enabled?: boolean }>).detail;
+      if (typeof detail?.enabled === "boolean") setWakeWordEnabled(detail.enabled);
+    };
+    window.addEventListener("friday-assistant-preference-change", handleAssistantPreferenceChange);
+    window.addEventListener("friday-wake-word-preference-change", handleWakeWordPreferenceChange);
+    return () => {
+      window.removeEventListener("friday-assistant-preference-change", handleAssistantPreferenceChange);
+      window.removeEventListener("friday-wake-word-preference-change", handleWakeWordPreferenceChange);
+    };
+  }, []);
+
   const openRef = useRef(false);
   const closingRef = useRef(false);
   const busyRef = useRef(false);
@@ -261,6 +278,15 @@ export default function AIFloatingBall({
   useEffect(() => {
     if (auroraState !== "speaking") setAudioLevel(0);
   }, [auroraState]);
+
+  // The orb is the sole assistant surface: publish the latest assistant answer
+  // as a compact inline HUD instead of opening a conversation panel.
+  useEffect(() => {
+    const lastAssistant = [...typedMessages].reverse().find((message) => message.role === "assistant");
+    if (!lastAssistant) return;
+    const responseText = getPartText(lastAssistant).trim();
+    if (responseText) window.dispatchEvent(new CustomEvent("friday-home-assistant-response", { detail: { text: responseText } }));
+  }, [typedMessages]);
 
   useEffect(() => {
     const state = auroraState === "listening" ? "LISTENING"
@@ -643,9 +669,28 @@ export default function AIFloatingBall({
     resizeTextarea();
   }, [input, resizeTextarea]);
 
-  // V2 homepage runs the shared voice/chat controller without mounting any legacy portal,
-  // floating FAB, panel shell, backdrop, or panel CSS.
-  if (!mounted || inlineMode) return null;
+  // Orb-only mode keeps the shared AI/voice runtime but never mounts a chat panel.
+  // On pages without the central homepage orb, the compact orb itself remains the entry.
+  if (!mounted) return null;
+  if (inlineMode) {
+    if (!showFab) return null;
+    const orbOnly = (
+      <>
+        <FridayStyles />
+        <div className="friday-root">
+          <button
+            type="button"
+            className="friday-fab"
+            aria-label="打开 Friday 并开始语音聆听"
+            onClick={openAndListen}
+          >
+            <FridayOrb state={fridayOrbState} audioLevel={audioLevel} theme="auto" />
+          </button>
+        </div>
+      </>
+    );
+    return createPortal(orbOnly, document.body);
+  }
 
   const content = (
     <>

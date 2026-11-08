@@ -208,4 +208,28 @@ describe('首页与播放页回归契约', () => {
     expect(assistant).toContain('homeWakeUrlRef.current = ""');
   });
 
+
+  it('V3 首页采用 Jarvis 式单圆球入口：回复与语音状态回到圆球，不挂载独立 AI 面板', () => {
+    expect(header).toContain('<AIFloatingBall showFab={showFridayFab} inlineMode />');
+    expect(watch).toContain('showFab={false} inlineMode');
+    expect(assistant).toContain('if (inlineMode) {');
+    expect(assistant).toContain('if (!showFab) return null;');
+    expect(assistant).toContain('onClick={openAndListen}');
+    expect(assistant).toContain('friday-home-assistant-response');
+    expect(hero).toContain('friday-home-assistant-response');
+    expect(hero).toContain('friday-orb-response');
+    expect(hero).toContain('friday-home-orb-toggle');
+  });
+
+  it('设置中可选择界面语言、助手角色和语音风格，顶部搜索默认收起', () => {
+    expect(settings).toContain("{ id: 'language', label: '语言设置' }");
+    expect(settings).toContain('function LanguageSettingsPanel()');
+    expect(settings).toContain('label="界面语言"');
+    expect(settings).toContain('label="助手角色"');
+    expect(settings).toContain('label="启用唤醒词确认"');
+    expect(header).toContain('home-v2-mobile-search-toggle');
+    expect(header).toContain('home-v2-header-search-slot');
+    expect(header).toContain('is-open');
+  });
+
 });

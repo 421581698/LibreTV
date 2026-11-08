@@ -94,23 +94,6 @@ export function Header({ showSearch = false, showFridayFab = true, minimalFriday
             </form>
           )}
 
-          {homeSearch && (
-            <>
-              <button
-                type="button"
-                className="home-v2-mobile-search-toggle"
-                aria-label={mobileSearchOpen ? '关闭搜索框' : '打开搜索框'}
-                aria-expanded={mobileSearchOpen}
-                onClick={() => setMobileSearchOpen((open) => !open)}
-              >
-                <Icon name={mobileSearchOpen ? "close" : "search"} />
-              </button>
-              <div className={cn("home-v2-header-search-slot", mobileSearchOpen && "is-open")}>
-                {homeSearch}
-              </div>
-            </>
-          )}
-
           {!homeSearch && <div className="flex-1 sm:hidden" />}
 
           {!minimalFridayNav && (
@@ -128,6 +111,22 @@ export function Header({ showSearch = false, showFridayFab = true, minimalFriday
             <HeaderLink href="/live" active={pathname === '/live'}>
               直播
             </HeaderLink>
+            {homeSearch && (
+              <>
+                <button
+                  type="button"
+                  className="home-v2-mobile-search-toggle"
+                  aria-label={mobileSearchOpen ? '关闭搜索框' : '打开搜索框'}
+                  aria-expanded={mobileSearchOpen}
+                  onClick={() => setMobileSearchOpen((open) => !open)}
+                >
+                  <Icon name={mobileSearchOpen ? "close" : "search"} />
+                </button>
+                <div className={cn("home-v2-header-search-slot", mobileSearchOpen && "is-open")}>
+                  {homeSearch}
+                </div>
+              </>
+            )}
             {!minimalFridayNav && (
               <HeaderLink href="/about" active={pathname === '/about'}>
                 关于
@@ -147,7 +146,7 @@ export function Header({ showSearch = false, showFridayFab = true, minimalFriday
         </div>
       </header>
 
-      <AIFloatingBall showFab={showFridayFab} inlineMode={!showFridayFab} />
+      <AIFloatingBall showFab={showFridayFab} inlineMode />
       <SourceManagerDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <HistoryPanel open={historyOpen} onClose={() => setHistoryOpen(false)} />
     </React.Fragment>
