@@ -23,7 +23,7 @@ const styles = source('src/components/friday/FridayStyles.tsx');
 const fridayConversation = source('src/components/friday/FridayConversation.tsx');
 const movieAgents = source('src/lib/friday/movie-agents.ts');
 const movieWorkflow = source('src/lib/friday/movie-workflow.ts');
-const fridayConversation = source('src/components/friday/FridayConversation.tsx');
+
 
 describe('首页与播放页回归契约', () => {
   it('首页 FridayOrb 保持可见、可访问，并将点击交给唯一语音控制器', () => {
