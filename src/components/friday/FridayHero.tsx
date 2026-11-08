@@ -90,7 +90,7 @@ export function FridayHero({ voiceState = 'IDLE', audioLevel = 0 }: { voiceState
       </button>
       {subtitleLines.length > 0 && (
         <div
-          className="friday-orb-subtitles"
+          className="friday-orb-response friday-orb-subtitles"
           role="log"
           aria-live="polite"
           aria-label="Friday 连续语音字幕"
