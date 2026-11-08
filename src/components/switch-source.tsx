@@ -300,7 +300,7 @@ export function SwitchSourceModal({
             </p>
             {phase === 'done' && (
               <p className="text-[10px] text-faint mt-0.5">
-                排序优先级：实播解码画质 · 探测画质 · 响应速度
+                排序优先级：实测画质（观测次数）· 探测画质 · 响应速度
               </p>
             )}
             {phase === 'done' && progress.total > 0 && (
