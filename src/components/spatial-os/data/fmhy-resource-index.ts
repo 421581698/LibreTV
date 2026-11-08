@@ -9,9 +9,23 @@ export interface FMHYResource {
   categoryId: string;
   categoryTitle: string;
   sourcePage: string;
+  sourceRevision: string;
+  sourceRetrievedAt: string;
+  sourcePath: string;
 }
 
-type FMHYDataset = {category:{id:string;title:string};records:Array<Omit<FMHYResource,'categoryId'|'categoryTitle'|'sourcePage'>>};
+type FMHYSourceSnapshot = {
+  repository: string;
+  path: string;
+  sha: string;
+  retrievedAt: string;
+};
+
+type FMHYDataset = {
+  category: {id:string;title:string};
+  source: FMHYSourceSnapshot;
+  records: Array<Omit<FMHYResource,'categoryId'|'categoryTitle'|'sourcePage'|'sourceRevision'|'sourceRetrievedAt'|'sourcePath'>>;
+};
 
 const loaders: Record<string, () => Promise<{default:FMHYDataset}>> = {
   privacy: () => import('./fmhy-resources/privacy.json'),
@@ -37,7 +51,10 @@ export async function loadFMHYCategory(categoryId: string): Promise<FMHYResource
     ...record,
     categoryId: data.category.id,
     categoryTitle: data.category.title,
-    sourcePage: `https://github.com/fmhy/edit/blob/main/docs/${data.category.id}.md`,
+    sourcePage: `${data.source.repository}/blob/${data.source.sha}/${data.source.path}`,
+    sourceRevision: data.source.sha,
+    sourceRetrievedAt: data.source.retrievedAt,
+    sourcePath: data.source.path,
   }));
 }
 
