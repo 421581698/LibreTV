@@ -51,42 +51,16 @@ This document records source-level findings. It is not a claim that P6 implement
 - Retention is an explicit maintenance API; no automatic deletion policy is enabled until product-level retention settings are chosen.
 - No automatic replay of side effects after reload.
 
-## P6 gaps to resolve, in priority order
+## P6 final status
 
-### P6.1 — Persistence contract and tests
+The implementation items listed above were delivered and verified by the P6 CI run on commit `fe943970d9375f6b405b66460ffefe6caaac19d7`.
 
-- Add focused tests for `spatialState` read/write, unknown values, profile round-trip, and Dexie schema migration behavior.
-- Add real IndexedDB-backed tests for `DexieTaskEventStore` (transactional append, duplicate IDs/sequences, contiguous sequence enforcement, ordering and recent-task cap). Current Task Runtime unit tests primarily use an in-memory store and do not prove browser IndexedDB behavior.
-- Verify profile import behavior when individual stores fail; the current importer performs multiple store writes and should not be described as one atomic cross-store transaction.
-
-### P6.2 — Task recovery and audit UX
-
-- Verify restore behavior across reloads and multiple tabs using the real Dexie store.
-- Preserve the rule that a restored task is an audit/recovery candidate, not permission to replay side effects.
-- Make persisted task outcomes inspectable from the Intelligence workspace without creating a parallel task store or exposing raw sensitive payloads by default.
-- Define explicit user-triggered retry behavior for retryable read-only tasks; never silently replay playback, download, or other side-effect tasks.
-
-### P6.3 — Storage lifecycle and privacy
-
-- Define bounded retention/cleanup for old task event streams and stale spatial state entries without deleting active or diagnostically useful records.
-- Review what task event payloads may contain and establish a redaction/size policy before adding broader export or UI exposure.
-- Keep Friday conversation and task event logs out of portable profile export unless a separate explicit, user-consented export design is approved.
-- Surface IndexedDB unavailable/quota failures instead of silently implying that a preference was saved.
-
-### P6.4 — Cross-device and multi-tab semantics
-
-- Keep profile transfer as explicit user-managed export/import; no cloud sync is implied.
-- Define merge-versus-replace behavior for imported favorites, settings and spatial preferences.
-- Add concurrency tests for same-task event append and concurrent workspace preference writes where appropriate.
-
-## P6 completion gates
-
-1. Persistence tests exercise Dexie behavior over an IndexedDB implementation, including schema migration and transaction semantics; real Safari/device storage remains a separate acceptance item.
-2. Import/export behavior and failure semantics are documented and covered by tests, including the IndexedDB/localStorage atomicity boundary.
-3. Task recovery is tested without automatic side-effect replay.
-4. Retention, payload size, privacy and storage failure behavior have explicit contracts and tests.
-5. TypeScript, ESLint, unit tests and production build pass on the latest P6 branch head.
-6. Preview and iPhone Safari validation are reported separately from CI.
+- Dexie event persistence, schema migration, spatial state, profile import/export, retention, payload bounds and persistence error reporting have automated coverage.
+- The Intelligence workspace exposes read-only, redacted task audit summaries.
+- CI passed TypeScript, ESLint, 840 unit tests and production build.
+- Browser-native IndexedDB behavior, real Safari quota/private mode and multi-tab behavior remain device acceptance items; the fake IndexedDB suite does not claim to validate those environments.
+- Profile transfer remains manual; Dexie writes are atomic within the database transaction, while localStorage settings are committed separately afterward.
+- No cloud sync or automatic side-effect replay is provided.
 
 ## Explicitly out of scope
 
