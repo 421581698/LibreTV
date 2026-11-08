@@ -4,6 +4,7 @@ import {fridayTaskEventStore} from '@/lib/friday/dexie-task-event-store';
 import type {TaskEvent} from '@/lib/friday/task-runtime';
 import {db} from '@/lib/db';
 import {readQualities} from '@/lib/store';
+import {qualityKey} from '@/lib/quality';
 import {assessQuality,type QualityAssessment,type QualityEvidence} from '../runtime/QualityVerifier';
 
 function eventStatus(type:string):'waiting'|'running'|'succeeded'|'failed'|'cancelled' {
@@ -24,7 +25,7 @@ export function IntelligencePortal(){
    if(!active||history.length===0)return;
    const qualities=readQualities(history.map(item=>({sourceKey:item.sourceKey,vodId:item.vodId})));
    for(const item of history){
-    const entry=qualities[`${item.sourceKey}:${item.vodId}`] ?? qualities[`${item.sourceKey}_${item.vodId}`];
+    const entry=qualities[qualityKey(item.sourceKey,item.vodId)];
     if(!entry?.height)continue;
     const evidence:QualityEvidence=entry.from==='play'
      ?{kind:'player-decoded',decodedHeight:entry.lastPlaybackHeight??entry.height,observedAt:entry.lastPlaybackSampleAt??entry.timestamp}
