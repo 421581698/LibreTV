@@ -164,6 +164,34 @@ describe("DexieTaskEventStore with IndexedDB", () => {
     expect(recent).toHaveLength(100);
   });
 
+  it("exposes redacted task audit summaries without prompt or result payloads", async () => {
+    const definition: TaskDefinition = {
+      taskId: "audit-redacted",
+      agent: "movie-search-agent",
+      input: { prompt: "private search phrase" },
+      sideEffect: false,
+    };
+    const runtime = new TaskRuntime(store);
+    await runtime.create(definition);
+    await runtime.record(definition, "task.started");
+    await runtime.record(definition, "task.succeeded", {
+      privateResult: "sensitive result payload",
+    });
+
+    const [summary] = await store.listRecentTaskAudit();
+    expect(summary).toMatchObject({
+      taskId: "audit-redacted",
+      agent: "movie-search-agent",
+      status: "succeeded",
+      sideEffect: false,
+      eventCount: 3,
+    });
+    expect(summary).not.toHaveProperty("input");
+    expect(summary).not.toHaveProperty("payload");
+    expect(JSON.stringify(summary)).not.toContain("private search phrase");
+    expect(JSON.stringify(summary)).not.toContain("sensitive result payload");
+  });
+
   it("prunes only old terminal tasks and preserves active and recent tasks", async () => {
     const old = "2025-01-01T00:00:00.000Z";
     const recent = "2026-11-09T00:00:00.000Z";
