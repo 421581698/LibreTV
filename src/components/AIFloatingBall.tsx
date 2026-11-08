@@ -680,6 +680,7 @@ export default function AIFloatingBall({
             messagesRef={messagesRef}
             messages={typedMessages}
             workflowBySearchId={workflowBySearchId}
+            onRetryWorkflow={(searchId) => { void retryMovieWorkflow(searchId); }}
             restoredTasks={restoredTasks}
             listening={listening}
             busy={busy}
