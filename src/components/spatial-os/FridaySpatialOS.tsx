@@ -1,6 +1,5 @@
 'use client';
 import {useEffect} from 'react';
-import {goBackSpace} from './runtime/SpatialRouter';
 import type {ReactNode} from 'react';
 import {CinematicPortal} from './portals/CinematicPortal';
 import {ResourcePortal} from './portals/ResourcePortal';
