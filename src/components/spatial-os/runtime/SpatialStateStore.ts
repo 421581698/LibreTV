@@ -4,7 +4,7 @@ import {DEFAULT_SPATIAL_STATE,type PanelDock,type PanelRect,type SpatialSnapshot
 import {activateSpace,goBackSpace,snapshotFromHistoryState,SPATIAL_HISTORY_KEY} from './SpatialRouter';
 import {bringPanelToFront,placePanelAvoidingOverlap,setExpandedPanel,setPanelDock,setPanelRect} from './PanelManager';
 import {readWorkspace,writeWorkspace,WORKSPACE_KEY,migrateWorkspace} from './WorkspacePersistence';
-let snapshot:SpatialSnapshot=DEFAULT_SPATIAL_STATE,hydrated=false,historyBound=false;
+let snapshot:SpatialSnapshot=DEFAULT_SPATIAL_STATE,hydrated=false,historyBound=false,storageBound=false;
 const listeners=new Set<()=>void>();
 function emit(){listeners.forEach(fn=>fn());}
 function persist(){writeWorkspace(snapshot);}
@@ -34,7 +34,7 @@ function onStorage(event:StorageEvent){
  if(event.key!==WORKSPACE_KEY||!event.newValue)return;
  try{const incoming=migrateWorkspace(JSON.parse(event.newValue));if(incoming.updatedAt>=snapshot.updatedAt){snapshot=incoming;emit();}}catch{/* Ignore malformed cross-tab payloads. */}
 }
-function bindStorage(){if(typeof window!=='undefined')window.addEventListener('storage',onStorage);}
+function bindStorage(){if(typeof window!=='undefined'&&!storageBound){window.addEventListener('storage',onStorage);storageBound=true;}}
 export const spatialStateStore={
  getSnapshot:()=>hydrate(),
  subscribe(listener:()=>void){hydrate();bindHistory();bindStorage();listeners.add(listener);return()=>{listeners.delete(listener);};},
