@@ -116,7 +116,7 @@ describe("Friday movie agents", () => {
       search: { candidates: [{ id: "m1", title: "Arrival", sourceId: "s1" }] },
       // No candidateId: a source-level assessment cannot be attributed to this movie.
       quality: { assessments: [{ sourceId: "s1", status: "unknown", assessmentCompleted: true, resolutionHeight: null, latencyMs: null, probeDurationMs: null, probeResultCached: null, reachable: null, advertisedQualities: ["4K"], evidence: [] }] },
-    })) as { accepted: boolean; unmatchedCandidates: string[] };
+    })) as { accepted: boolean; unmatchedCandidates: string[]; findings: string[]; measurementCompleted: boolean; resolutionMeasured: boolean };
     expect(result).toMatchObject({ accepted: false, unmatchedCandidates: ["m1"], measurementCompleted: false, resolutionMeasured: false });
     expect(result.findings).toContain("candidate-without-quality-assessment");
   });

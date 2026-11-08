@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DagExecutionError, runFridayDag } from "./dag-orchestrator";
+import { DagExecutionError, runFridayDag, type FridayAgent } from "./dag-orchestrator";
 import { reduceTaskEvents, TaskRuntime, type TaskDefinition, type TaskEvent, type TaskEventStore } from "./task-runtime";
 
 class MemoryStore implements TaskEventStore {
@@ -110,7 +110,7 @@ describe("Friday DAG orchestrator", () => {
     ];
     let searchCalls = 0;
     let probeCalls = 0;
-    const agents = [
+    const agents: FridayAgent[] = [
       { id: "search-agent", execute: async () => { searchCalls += 1; return { candidates: ["a"] }; } },
       { id: "probe-agent", execute: async () => {
         probeCalls += 1;
