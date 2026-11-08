@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - feature/friday-playback-quality-evidence-2026-11-08
-  push:
-    branches:
       - feature/friday-2.2-architecture
     paths:
       - "src/lib/friday/**"
@@ -13,13 +11,14 @@ on:
       - "src/lib/quality.test.ts"
       - "src/lib/types.ts"
       - "src/components/switch-source.tsx"
-      - "docs/FRIDAY-2.2-TECHNICAL-SPEC.md"
+      - "src/components/friday/**"
+      - "src/components/home/**"
+      - "src/app/watch/page.tsx"
       - ".github/workflows/friday-2.2-verify.yml"
-      - "src/components/AIFloatingBall.tsx"
-      - "src/app/api/chat/route.ts"
   pull_request:
     branches:
       - main
+      - feature/friday-v3-completion-batch-2026-11-08
       - feature/friday-v3-completion-batch-2026-11-08
     paths:
       - "src/lib/friday/**"
@@ -29,13 +28,7 @@ on:
       - "src/components/switch-source.tsx"
       - "src/components/friday/**"
       - "src/components/home/**"
-      - "src/components/AIFloatingBall.tsx"
-      - "src/components/player-shell.tsx"
-      - "src/app/api/chat/route.ts"
-      - "src/app/api/quality/route.ts"
-      - "src/app/page.tsx"
       - "src/app/watch/page.tsx"
-      - "docs/FRIDAY-2.2-TECHNICAL-SPEC.md"
       - ".github/workflows/friday-2.2-verify.yml"
   workflow_dispatch:
 
@@ -44,7 +37,7 @@ permissions:
 
 jobs:
   verify:
-    if: github.ref == 'refs/heads/feature/friday-2.2-architecture' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    if: github.ref == 'refs/heads/feature/friday-2.2-architecture' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

@@ -4,12 +4,11 @@ on:
   push:
     branches:
       - feature/friday-playback-quality-evidence-2026-11-08
-  push:
-    branches:
       - fix/prelaunch-security-voice-2026-11-03
   pull_request:
     branches:
       - main
+      - feature/friday-v3-completion-batch-2026-11-08
       - feature/friday-v3-completion-batch-2026-11-08
   workflow_dispatch:
 
