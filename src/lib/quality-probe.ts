@@ -205,7 +205,7 @@ function probeHeaders(source: SourceConfig): Record<string, string> {
   };
 }
 
-type ProbeMetrics = { upstreamRequestMs: number; upstreamRequestCount: number };
+type ProbeMetrics = { upstreamRequestMs: number; upstreamRequestCount: number; originTtfbMs?: number };
 
 /**
  * Measures server-observed upstream fetch time to response headers.
@@ -216,11 +216,16 @@ async function fetchMeasuredUpstream(
   url: string,
   options: Parameters<typeof fetchUpstream>[1],
   metrics: ProbeMetrics,
+  mediaOrigin = false,
 ): Promise<Response> {
   const startedAt = Date.now();
   metrics.upstreamRequestCount += 1;
   try {
-    return await fetchUpstream(url, options);
+    const response = await fetchUpstream(url, options);
+    if (mediaOrigin && metrics.originTtfbMs === undefined) {
+      metrics.originTtfbMs = Math.max(0, Date.now() - startedAt);
+    }
+    return response;
   } finally {
     metrics.upstreamRequestMs += Math.max(0, Date.now() - startedAt);
   }
@@ -248,7 +253,7 @@ async function fetchBytesPrefix(
     timeoutMs: 6000,
     headers: probeHeaders(source),
     signal,
-  }, metrics);
+  }, metrics, true);
   if (!res.ok) return undefined;
   return readBytesPrefix(res, maxBytes);
 }
@@ -361,7 +366,7 @@ async function probeEpisode(
     timeoutMs: 6000,
     headers: probeHeaders(source),
     signal: merged,
-  }, metrics);
+  }, metrics, true);
   if (!res.ok) return { error: `HTTP ${res.status}` };
   const text = await readTextPrefix(res, M3U8_MAX_BYTES);
 
@@ -385,6 +390,7 @@ export async function probeQuality(item: QualityProbeItem, signal?: AbortSignal)
     ...result,
     upstreamRequestMs: metrics.upstreamRequestMs,
     upstreamRequestCount: metrics.upstreamRequestCount,
+    ...(metrics.originTtfbMs === undefined ? {} : { originTtfbMs: metrics.originTtfbMs }),
   });
 
   if (!/^https?:\/\//.test(source.url || '') || !/^[\w-]+$/.test(id)) {
