@@ -1,7 +1,8 @@
 import "fake-indexeddb/auto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { db, exportConfig, favoriteId, importConfig, PERSIST_KEY, readSpatialState, writeSpatialState } from "../db";
+import { db, exportConfig, favoriteId, importConfig, readSpatialState, writeSpatialState } from "../db";
 import { DexieTaskEventStore } from "./dexie-task-event-store";
+import { PERSIST_KEY } from "../persist-storage";
 import { TaskRuntime, type TaskDefinition, type TaskEvent } from "./task-runtime";
 
 const store = new DexieTaskEventStore();
