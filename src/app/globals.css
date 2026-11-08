@@ -893,11 +893,11 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   gap: 14px;
 }
 .home-v2-header-search-slot {
-  flex: 0 1 320px;
-  width: min(320px, 30vw);
-  max-width: 320px;
-  margin-left: auto;
-  margin-right: 10px;
+  flex: 0 1 260px;
+  width: min(260px, 25vw);
+  max-width: 260px;
+  min-width: 150px;
+  margin: 0 8px 0 4px;
 }
 .home-v2-header-search .home-v2-ai-search {
   min-height: 34px;
@@ -1014,4 +1014,99 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
 }
 @media (min-width: 521px) {
   .home-v2-header-search-slot { display: flex; }
+}
+
+/* Orb-only Jarvis presentation: no separate AI surface on the homepage. */
+.home-v2 .home-v2-mobile-search-toggle {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border: 1px solid rgb(var(--c-line));
+  border-radius: 10px;
+  background: rgb(var(--c-surface));
+  color: rgb(var(--c-content));
+}
+.home-v2 .home-v2-header-search-slot {
+  display: none !important;
+  position: absolute;
+  top: calc(100% + 1px);
+  left: 10px;
+  right: 10px;
+  z-index: 70;
+  width: auto;
+  max-width: none;
+  margin: 0;
+  padding: 9px;
+  border: 1px solid rgb(var(--c-line));
+  border-radius: 0 0 15px 15px;
+  background: rgb(var(--c-surface));
+  box-shadow: 0 14px 28px rgba(0,0,0,.14);
+}
+.home-v2 .home-v2-header-search-slot.is-open { display: block !important; }
+.home-v2 .friday-hero-orb-button { position: relative; }
+.home-v2 .friday-orb-response {
+  position: relative;
+  z-index: 4;
+  display: block;
+  width: min(88vw, 620px);
+  max-height: 132px;
+  margin: 14px auto 0;
+  padding: 7px 11px;
+  overflow-y: auto;
+  border: 1px solid rgba(185,205,235,.25);
+  border-radius: 12px;
+  background: rgba(12,18,29,.66);
+  color: rgba(245,248,255,.95);
+  font-size: 12px;
+  line-height: 1.65;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 4px 20px rgba(0,0,0,.12);
+  animation: friday-response-flow-in .28s ease-out both;
+}
+.home-v2 .friday-hero-orb-label { display:block; }
+.home-v2 .friday-hero-orb-button { display:flex; flex-direction:column; align-items:center; }
+
+
+@keyframes friday-response-flow-in {
+  from { opacity: 0; transform: translateY(8px); filter: blur(3px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+.home-v2 .friday-response-cursor { display: inline-block; margin-left: 2px; opacity: .8; animation: friday-response-cursor-blink .85s steps(2, start) infinite; }
+@keyframes friday-response-cursor-blink { to { visibility: hidden; } }
+
+
+/* Desktop: place the full search field directly after the Live navigation item. */
+@media (min-width: 521px) {
+  .home-v2 .home-v2-mobile-search-toggle { display: none !important; }
+  .home-v2 .home-v2-header-search-slot {
+    display: flex !important;
+    position: relative;
+    inset: auto;
+    z-index: auto;
+    flex: 0 1 260px;
+    width: min(260px, 25vw);
+    max-width: 260px;
+    min-width: 150px;
+    margin: 0 8px 0 4px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+}
+@media (max-width: 520px) {
+  .home-v2 .home-v2-header-search-slot {
+    position: absolute;
+    top: calc(100% + 1px);
+    left: 10px;
+    right: 10px;
+  }
 }
