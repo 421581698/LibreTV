@@ -70,3 +70,24 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           PREVIEW_GATE_KEY: ${{ secrets.LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY }}
         run: printf '%s' "$PREVIEW_GATE_KEY" | npx wrangler secret put PASSWORD --config wrangler.preview.toml
+
+      - name: Verify deployed preview password gate
+        run: |
+          node --input-type=module <<'NODE'
+          const base = "https://libretv-homepage-preview.bggdbh.workers.dev";
+          const statusResponse = await fetch(base + "/api/status");
+          if (!statusResponse.ok) throw new Error("Preview status endpoint returned " + statusResponse.status);
+          const status = await statusResponse.json();
+          if (status.passwordRequired !== true || status.verified !== false) {
+            throw new Error("Preview is not locked: passwordRequired=" + status.passwordRequired + ", verified=" + status.verified);
+          }
+          const authResponse = await fetch(base + "/api/auth", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ password: "__invalid_preview_smoke_password__" }),
+          });
+          if (authResponse.status !== 401) {
+            throw new Error("Expected invalid password to return 401, got " + authResponse.status);
+          }
+          console.log("Preview gate verified: anonymous session is unverified and invalid password is rejected.");
+          NODE
