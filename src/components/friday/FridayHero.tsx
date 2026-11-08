@@ -10,6 +10,7 @@ type VoiceState = 'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING';
 export function FridayHero({ voiceState = 'IDLE', audioLevel = 0 }: { voiceState?: VoiceState; audioLevel?: number }) {
   const [orbTheme, setOrbTheme] = useState<'light' | 'dark'>('light');
   const [assistantReply, setAssistantReply] = useState('');
+  const [visibleReply, setVisibleReply] = useState('');
   const [voiceError, setVoiceError] = useState('');
 
   // The app theme is controlled by the .dark class, not necessarily the OS color scheme.
@@ -43,6 +44,18 @@ export function FridayHero({ voiceState = 'IDLE', audioLevel = 0 }: { voiceState
       window.removeEventListener('friday-home-voice-error', onError);
     };
   }, []);
+
+  useEffect(() => {
+    setVisibleReply('');
+    if (!assistantReply) return;
+    let index = 0;
+    const timer = window.setInterval(() => {
+      index = Math.min(index + 2, assistantReply.length);
+      setVisibleReply(assistantReply.slice(0, index));
+      if (index >= assistantReply.length) window.clearInterval(timer);
+    }, 24);
+    return () => window.clearInterval(timer);
+  }, [assistantReply]);
 
   const toggleVoice = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -78,7 +91,7 @@ export function FridayHero({ voiceState = 'IDLE', audioLevel = 0 }: { voiceState
           />
         </span>
         <span className="friday-hero-orb-label" role="status" aria-live="polite">{voiceError || labels[voiceState]}</span>
-        {assistantReply && <span className="friday-orb-response" role="status" aria-live="polite">{assistantReply}</span>}
+        {visibleReply && <span className="friday-orb-response" role="status" aria-live="polite">{visibleReply}<span className="friday-response-cursor" aria-hidden="true">▍</span></span>}
       </button>
     </section>
   );
