@@ -53,7 +53,6 @@ function HomeContent() {
   const yellowFilter = useAppStore((s) => s.yellowFilter);
   const sourceHealth = useAppStore((s) => s.sourceHealth);
   const subscriptions = useAppStore((s) => s.subscriptions);
-  const doubanEnabled = useAppStore((s) => s.doubanEnabled);
 
   const [detailItem, setDetailItem] =
     useState<SearchResultItem | null>(null);
@@ -271,7 +270,7 @@ function HomeContent() {
             )}
           </section>
         )}
-        {!urlQuery && doubanEnabled && <V4HomepageContent onPick={openRecommendation} />}
+        {!urlQuery && <V4HomepageContent onPick={openRecommendation} />}
       </main>
       <DetailModal item={detailItem} onClose={() => setDetailItem(null)} />
     </div>
