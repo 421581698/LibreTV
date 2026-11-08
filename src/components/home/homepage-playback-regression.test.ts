@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest';
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
 const home = source('src/app/page.tsx');
+const v4Header = source('src/components/home/V4HomepageHeader.tsx');
+const v4Skeleton = source('src/components/home/V4HomepageSkeleton.tsx');
 const watch = source('src/app/watch/page.tsx');
 const hero = source('src/components/friday/FridayHero.tsx');
 const canvas = source('src/components/home/HomeIntentCanvas.tsx');
@@ -30,14 +32,12 @@ const fridayPanel = source('src/components/friday/FridayPanel.tsx');
 
 describe('首页与播放页回归契约', () => {
   it('首页 FridayOrb 保持可见、可访问，并将点击交给唯一语音控制器', () => {
-    expect(home).toContain('<HomeIntentCanvas');
-    expect(home).toContain("variant={isV2 ? 'v2' : 'legacy'}");
-    expect(hero).toContain('<FridayOrb');
-    expect(hero).toContain('friday-home-orb-toggle');
-    expect(hero).toContain('aria-label={labels[voiceState]}');
+    expect(home).toContain('<V4HomepageHeader />');
+    expect(v4Header).toContain('<AIFloatingBall showFab inlineMode={false} />');
+    expect(assistant).toContain('onClick={openAndListen}');
+    expect(assistant).toContain('startListening(false)');
     expect(orb).toContain('createFridayOrb(canvasRef.current');
     expect(orb).toContain('engine.destroy()');
-    expect(assistant).toContain('window.addEventListener("friday-home-orb-toggle", handleHomeOrbToggle)');
   });
 
   it('首页圆球点击贯通唯一语音控制器，并覆盖识别错误、停止和卸载清理', () => {
@@ -87,22 +87,22 @@ describe('首页与播放页回归契约', () => {
     expect(fridayConversation).toContain("播放器解码实测");
   });
 
-  it('今日热门海报通过精确片名匹配打开原详情弹窗，不误开第一个结果', () => {
-    expect(home).toContain('<HomeRecommendationSection');
-    expect(home).toContain('onPick={openRecommendation}');
-    expect(home).toContain('api.search(movie.title, selectedSources, yellowFilter)');
-    expect(home).toContain('normalizeTitle(entry.name) === normalizedTitle');
-    expect(home).toContain('setDetailItem(matched)');
-    expect(home).toContain('不再用“第一个搜索结果”兜底');
+  it('V4 首页在 A 阶段呈现今日推荐与继续观看的独立横向布局骨架', () => {
+    expect(home).toContain('<V4HomepageSkeleton />');
+    expect(v4Skeleton).toContain('id="today-recommendations"');
+    expect(v4Skeleton).toContain('id="continue-watching"');
+    expect(v4Skeleton).toContain('v4-poster-row');
+    expect(v4Skeleton).toContain('v4-landscape-row');
     expect(home).toContain('<DetailModal item={detailItem}');
   });
 
-  it('搜索与最近搜索历史保留 URL、输入校验和回选链路', () => {
-    expect(home).toContain('<HomeSearchSection');
+  it('V4 Header 搜索与最近搜索历史保留 URL、输入校验和回选链路', () => {
+    expect(home).toContain('<V4HomepageHeader />');
+    expect(v4Header).toContain('<SearchHistoryDropdown');
+    expect(v4Header).toContain('router.push(`/?s=${encodeURIComponent(q)}`');
+    expect(v4Header).toContain('searchHistory.record(q)');
+    expect(v4Header).toContain('const pickHistory = (value: string)');
     expect(search).toContain('router.push(`/?q=${encodeURIComponent(query)}`');
-    expect(search).toContain('searchHistory.record(query)');
-    expect(search).toContain('const pickHistory = (text: string)');
-    expect(search).toContain('runSearch(text)');
     expect(searchHistory).toContain('useQuery({');
     expect(searchHistory).toContain("queryKey: ['searchHistory']");
     expect(searchHistory).toContain('history.refetch()');
