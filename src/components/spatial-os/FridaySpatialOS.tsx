@@ -9,6 +9,7 @@ import {IdentityPortal} from './portals/IdentityPortal';
 import {SpatialPanelWorkspace} from './SpatialPanelWorkspace';
 import {useSpatialState,spatialStateStore} from './runtime/SpatialStateStore';
 import type {SpatialSpace} from './core/types';
+import './FridaySpatialOS.css';
 
 const SPACES:{id:SpatialSpace;label:string;sub:string;position:string}[]=[
  {id:'cinematic',label:'CINEMATIC',sub:'影视空间',position:'left-0 top-0'},
@@ -27,7 +28,7 @@ export function FridaySpatialOS({children,friday}:{children:ReactNode;friday?:Re
  },[state.activeSpace,state.presentation,state.scrollPositions,inLobby]);
  return <SpatialEnvironment>
   <div className="spatial-os relative min-h-[100svh] overflow-hidden" data-space={state.activeSpace} data-presentation={state.presentation}>
-   <section className={inLobby?'relative flex min-h-[100svh] items-center justify-center px-5 py-16':'relative flex min-h-[100svh] flex-col'} aria-label={inLobby?'Friday 空间大厅':'Friday '+state.activeSpace+' 空间'}>
+   <section className={inLobby?'relative flex min-h-[100svh] items-center justify-center px-5 py-16':'spatial-os-stage-anchor'} aria-label={inLobby?'Friday 空间大厅':'Friday '+state.activeSpace+' 空间'}>
     <div className="spatial-os-core relative z-10 flex items-center justify-center" style={{...CORE_STYLE,transform:inLobby?'scale(1)':'scale(.62)',opacity:1}}>{friday}</div>
     {inLobby&&<div className="pointer-events-none absolute inset-0" aria-hidden="true"><div className="absolute left-1/2 top-1/2 h-[min(78vw,620px)] w-[min(78vw,620px)] -translate-x-1/2 -translate-y-1/2 rounded-full border border-amber-300/10 shadow-[0_0_100px_rgba(212,166,74,0.07)]"/><div className="absolute left-1/2 top-1/2 h-[min(58vw,460px)] w-[min(58vw,460px)] -translate-x-1/2 -translate-y-1/2 rounded-full border border-amber-200/10"/></div>}
     {inLobby&&<nav className="absolute inset-0 z-20 mx-auto max-w-5xl" aria-label="四大空间入口">
