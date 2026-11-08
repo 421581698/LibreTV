@@ -6,7 +6,7 @@ import { api } from '@/lib/client-api';
 import type { SourceConfig, SearchResultItem } from '@/lib/types';
 import { buildWatchUrl, cn } from '@/lib/utils';
 import { useAppStore, resolveSource } from '@/lib/store';
-import { qualityKey, qualityLabel } from '@/lib/quality';
+import { compareQualityEvidence, qualityKey, qualityLabel } from '@/lib/quality';
 import { useToast } from './toast';
 import { Icon } from './icon';
 import { SmartImage } from './smart-image';
@@ -172,10 +172,20 @@ export function SwitchSourceModal({
     const aCurrent = isCurrentCandidate(a, currentSourceKey, currentVodId);
     const bCurrent = isCurrentCandidate(b, currentSourceKey, currentVodId);
     if (aCurrent !== bCurrent) return aCurrent ? -1 : 1;
+
+    // 先排除不可用源，再比较画质证据：真实解码实测 > 播放列表探测 > 未知；
+    // 同为实测时按最高解码高度、有效观测次数排序，速度作为最后的 tie-breaker。
+    if (Boolean(a.ok) !== Boolean(b.ok)) return a.ok ? -1 : 1;
+    const qualityOrder = compareQualityEvidence(
+      qualities[qualityKey(a.source.key, a.result.vodId)],
+      qualities[qualityKey(b.source.key, b.result.vodId)]
+    );
+    if (qualityOrder !== 0) return qualityOrder;
+
     const msA = a.ok ? a.ms ?? 99_999 : 99_999;
     const msB = b.ok ? b.ms ?? 99_999 : 99_999;
     return msA - msB;
-  }), [candidates, currentSourceKey, currentVodId]);
+  }), [candidates, currentSourceKey, currentVodId, qualities]);
 
   /**
    * 面板展示的源：优先用户点过的那个；还没点过时先落到「第一个可切换的源」——
@@ -288,6 +298,11 @@ export function SwitchSourceModal({
                   ? '正在测试各资源速率...'
                   : `共 ${sorted.length} 个来源 · ${sorted.filter((c) => c.ok).length} 个可用`}
             </p>
+            {phase === 'done' && (
+              <p className="text-[10px] text-faint mt-0.5">
+                排序优先级：当前播放源 · 可用性 · 实测画质（观测次数）· 探测画质 · 响应速度
+              </p>
+            )}
             {phase === 'done' && progress.total > 0 && (
               <p className="text-xs text-faint tabular-nums mt-0.5">
                 {progress.done < progress.total

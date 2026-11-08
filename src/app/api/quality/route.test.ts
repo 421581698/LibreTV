@@ -38,7 +38,7 @@ vi.mock('@/lib/quality-probe', () => ({
     state.calls++;
     if (state.abort) throw new DOMException('aborted', 'AbortError');
     if (state.transient) return { sourceKey: 'mock', vodId: 'mock', error: 'HTTP 503' };
-    return { sourceKey: 'mock', vodId: 'mock', height: 1080 };
+    return { sourceKey: 'mock', vodId: 'mock', height: 1080, upstreamRequestMs: 37, upstreamRequestCount: 2, originTtfbMs: 41 };
   }),
 }));
 
@@ -71,6 +71,7 @@ describe('POST /api/quality', () => {
     expect(data.results).toHaveLength(2);
     expect(data.results.map((r) => r.sourceKey).sort()).toEqual(['a', 'b']);
     expect(data.results.every((r) => r.height === 1080)).toBe(true);
+    expect(data.results[0]).toMatchObject({ upstreamRequestMs: 37, upstreamRequestCount: 2, originTtfbMs: 41 });
   });
 
   it('探测完成后才写缓存；并发请求缓存未命中时也只会打一次源站', async () => {

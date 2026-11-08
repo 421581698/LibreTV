@@ -23,7 +23,7 @@ describe("LibreTV movie agent adapters", () => {
 
   it("uses the existing per-movie quality endpoint and maps extracted resolution", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
-      results: [{ sourceKey: "alpha", vodId: "1", height: 1080 }],
+      results: [{ sourceKey: "alpha", vodId: "1", height: 1080, probeDurationMs: 240, upstreamRequestMs: 92, upstreamRequestCount: 3 }],
     }), { status: 200, headers: { "Content-Type": "application/json" } }));
     const adapters = createLibreTVMovieAgentAdapters(sources, { fetcher });
     const result = await adapters.probe({ candidates: [
@@ -35,12 +35,45 @@ describe("LibreTV movie agent adapters", () => {
       candidateId: "alpha:1",
       reachable: true,
       resolutionHeight: 1080,
+      probeDurationMs: 240,
+      upstreamRequestMs: 92,
+      upstreamRequestCount: 3,
     });
     expect(fetcher).toHaveBeenCalledWith("/api/quality", expect.objectContaining({
       method: "POST",
       cache: "no-store",
       body: JSON.stringify({ items: [{ source: sources[0], id: "1" }] }),
     }));
+  });
+
+  it("includes accumulated decoded playback samples separately from source resolution", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
+      results: [{ sourceKey: "alpha", vodId: "1", height: 2160 }],
+    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    const adapters = createLibreTVMovieAgentAdapters(sources, {
+      fetcher,
+      readPlaybackEvidence: () => ({
+        from: "play",
+        height: 720,
+        playbackSampleCount: 4,
+        playbackMinHeight: 480,
+        playbackMaxHeight: 1080,
+        lastPlaybackHeight: 720,
+        lastPlaybackSampleAt: 1_794_000_000_000,
+        timestamp: 1_794_000_000_000,
+      }),
+    });
+    const result = await adapters.probe({
+      candidates: [{ id: "alpha:1", vodId: "1", title: "Arrival", sourceId: "alpha" }],
+    });
+    expect(result[0]).toMatchObject({
+      resolutionHeight: 2160,
+      decodedResolutionHeight: 720,
+      playbackSampleCount: 4,
+      playbackMinHeight: 480,
+      playbackMaxHeight: 1080,
+      lastPlaybackHeight: 720,
+    });
   });
 
   it("keeps resolution unknown when the endpoint completes without a height", async () => {

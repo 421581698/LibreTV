@@ -6,16 +6,22 @@ import {
   type TaskSnapshot,
 } from "./task-runtime";
 
+export type AgentCapability = "movie.search" | "source.probe" | "quality.assess" | "quality.review" | "playback.recommend" | "playback.observe";
+
 export type AgentExecutionContext = {
   task: TaskDefinition;
   dependencyOutputs: Readonly<Record<string, unknown>>;
   signal?: AbortSignal;
   progress(value: unknown): Promise<void>;
   checkpoint(value: unknown): Promise<void>;
+  /** Enforces the least-privilege capability contract declared by this agent. */
+  requireCapability(capability: AgentCapability): void;
 };
 
 export type FridayAgent = {
   id: string;
+  /** No capabilities are granted by default. Memory and arbitrary tool access are intentionally absent. */
+  capabilities?: readonly AgentCapability[];
   execute(context: AgentExecutionContext): Promise<unknown>;
 };
 
@@ -168,6 +174,14 @@ export async function runFridayDag(args: {
             checkpoint: async (value) => {
               if (signal?.aborted) throw new DagExecutionError("Task cancelled", "ABORTED");
               await runtime.record(task, "task.checkpoint", value);
+            },
+            requireCapability: (capability) => {
+              if (!agent.capabilities?.includes(capability)) {
+                throw new DagExecutionError(
+                  "Agent " + agent.id + " is not authorized for capability " + capability,
+                  "AGENT_CAPABILITY_DENIED",
+                );
+              }
             },
           });
           if (signal?.aborted) {

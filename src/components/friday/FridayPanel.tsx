@@ -72,6 +72,7 @@ type FridayPanelProps = {
   workflowBySearchId: Record<string, FridayWorkflowView>;
   onRetryWorkflow: (searchId: string) => void;
   restoredTasks: TaskSnapshot[];
+  onRetryInterruptedTask: (taskId: string) => void;
   listening: boolean;
   busy: boolean;
   status: string;
@@ -114,7 +115,7 @@ export { getMovieDataForMessage, getPartText } from "@/lib/friday/message";
 
 export function FridayPanel({
   expanded, immersive, closing, auroraState, audioLevel, agentState, voiceState, stateLabel,
-  onAnimationEnd, onClose, messagesRef, messages, workflowBySearchId, onRetryWorkflow, restoredTasks, listening, busy, status,
+  onAnimationEnd, onClose, messagesRef, messages, workflowBySearchId, onRetryWorkflow, restoredTasks, onRetryInterruptedTask, listening, busy, status,
   error, speaking, completed, voiceSessionActive, inputRef, input, setInput,
   onSend, onToggleListening, voiceError, voiceEnabled, onToggleVoiceEnabled,
   onClearConversation, onStopSpeechAndResume, onInterrupt, onToggleExpanded,
@@ -208,6 +209,11 @@ export function FridayPanel({
                       {restoredTasks.slice(0, 12).map((task) => (
                         <li key={task.taskId} style={{ margin: "4px 0" }}>
                           <strong>{task.agent}</strong> · {task.status === "running" ? (language === "en" ? "Last recorded as running; not auto-resumed after reload" : "上次记录为运行中，刷新后未自动续跑") : task.status === "queued" ? (language === "en" ? "Queued" : "等待执行") : task.status === "succeeded" ? (language === "en" ? "Completed" : "已完成") : task.status === "failed" ? (language === "en" ? "Failed" : "失败") : task.status === "cancelled" ? (language === "en" ? "Cancelled" : "已取消") : (language === "en" ? "Waiting" : "等待中")}
+                          {task.error?.code === "TASK_INTERRUPTED" && task.error.retryable && !task.sideEffect ? (
+                            <button type="button" className="friday-tool-btn" style={{ marginLeft: 8 }} onClick={() => onRetryInterruptedTask(task.taskId)}>
+                              {language === "en" ? "Resume safe workflow" : "恢复可安全重试的工作流"}
+                            </button>
+                          ) : null}
                         </li>
                       ))}
                     </ul>

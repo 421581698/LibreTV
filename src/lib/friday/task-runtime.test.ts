@@ -34,9 +34,29 @@ describe("Friday task runtime",()=>{
   await firstRuntime.record(definition,"task.checkpoint",{cursor:"page-2"});
   const restored=await new TaskRuntime(store).restoreAll();
   expect(restored).toHaveLength(1);
-  expect(restored[0]).toMatchObject({taskId:task.taskId,status:"failed",input:task.input,dependsOn:["source"],checkpoint:{cursor:"page-2"},lastSequence:4,error:{code:"TASK_INTERRUPTED",retryable:false}});
+  expect(restored[0]).toMatchObject({taskId:task.taskId,status:"failed",input:task.input,dependsOn:["source"],checkpoint:{cursor:"page-2"},lastSequence:4,error:{code:"TASK_INTERRUPTED",retryable:true}});
   const restoredAgain=await new TaskRuntime(store).restoreAll();
   expect(restoredAgain[0]).toMatchObject({status:"failed",lastSequence:4});
+ });
+ it("allows explicit replay of an interrupted read-only task but never replays an interrupted side effect",async()=>{
+  const store=new MemoryStore();
+  const runtime=new TaskRuntime(store);
+  const safeDefinition={...task,dependsOn:["source"],sideEffect:false};
+  await runtime.create(safeDefinition);
+  await runtime.record(safeDefinition,"task.started");
+  await runtime.record(safeDefinition,"task.checkpoint",{cursor:"page-2"});
+  const restoredRuntime=new TaskRuntime(store);
+  const [restored]=await restoredRuntime.restoreAll();
+  expect(restored).toMatchObject({status:"failed",error:{code:"TASK_INTERRUPTED",retryable:true}});
+  const replay=await restoredRuntime.requestReplay(safeDefinition);
+  expect(replay).toMatchObject({type:"task.replay_requested",payload:{checkpoint:{cursor:"page-2"}}});
+
+  const sideEffectDefinition={...task,taskId:"player-action-1",sideEffect:true};
+  await runtime.create(sideEffectDefinition);
+  await runtime.record(sideEffectDefinition,"task.started");
+  const [interruptedSideEffect]=await runtime.restoreAll().then(items=>items.filter(item=>item.taskId===sideEffectDefinition.taskId));
+  expect(interruptedSideEffect).toMatchObject({status:"failed",error:{code:"TASK_INTERRUPTED",retryable:false}});
+  await expect(runtime.requestReplay(sideEffectDefinition)).rejects.toMatchObject({code:"REPLAY_SIDE_EFFECT_BLOCKED"});
  });
  it("rejects cyclic DAG dependencies",()=>{expect(()=>validateTaskGraph([{...task,dependsOn:["quality"]},{taskId:"quality",agent:"quality-agent",input:{},dependsOn:[task.taskId]}])).toThrowError(TaskRuntimeError)});
  it("rejects duplicate dependency edges",()=>{
