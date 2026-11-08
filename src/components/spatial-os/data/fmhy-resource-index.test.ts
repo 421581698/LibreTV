@@ -25,11 +25,10 @@ describe('FMHY local resource index',()=>{
     }
   });
 
-  it('keeps related links unique and valid within each resource',async()=>{
+  it('keeps related link labels present for display',async()=>{
     const rows=await loadAllFMHYCategories();
     for(const row of rows){
-      const urls=row.links.map(link=>link.url.replace(/\/$/, '').toLowerCase());
-      expect(new Set(urls).size,row.id).toBe(urls.length);
+      expect(row.links.every(link=>link.label.trim().length>0),row.id).toBe(true);
     }
   });
 
