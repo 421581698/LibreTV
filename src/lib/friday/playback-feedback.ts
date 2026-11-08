@@ -122,5 +122,5 @@ export function applyPlaybackFeedbackToWorkflow<T extends PlaybackFeedbackWorkfl
     (qualityChecks ?? []).filter((item) => item.candidateId === detail.candidateId),
     workflow.sourceChecks ?? [],
   );
-  return { ...workflow, qualityChecks, playbackRecommendations };
+  return { ...workflow, qualityChecks, playbackRecommendations } as T;
 }
