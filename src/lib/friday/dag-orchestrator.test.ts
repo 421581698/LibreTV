@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DagExecutionError, runFridayDag, type FridayAgent } from "./dag-orchestrator";
+import { DagExecutionError, runFridayDag, type FridayAgent, type AgentExecutionContext } from "./dag-orchestrator";
 import { reduceTaskEvents, TaskRuntime, type TaskDefinition, type TaskEvent, type TaskEventStore } from "./task-runtime";
 
 class MemoryStore implements TaskEventStore {
@@ -117,7 +117,7 @@ describe("Friday DAG orchestrator", () => {
         if (probeCalls === 1) throw new DagExecutionError("Temporary upstream failure", "UPSTREAM_503", true);
         return { probes: ["p"] };
       } },
-      { id: "quality-agent", execute: async ({ dependencyOutputs }) => ({ assessed: dependencyOutputs.probe }) },
+      { id: "quality-agent", execute: async (context: AgentExecutionContext) => ({ assessed: context.dependencyOutputs.probe }) },
     ];
     const first = await runFridayDag({ tasks, runtime, agents, maxAttempts: 1 });
     expect(first.map((item) => item.status)).toEqual(["succeeded", "failed", "failed"]);
