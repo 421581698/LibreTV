@@ -237,7 +237,7 @@ describe('首页与播放页回归契约', () => {
     expect(spatialFridayEntry).toContain("window.addEventListener('friday-home-runtime-state', onRuntimeState)");
     expect(spatialFridayEntry).toContain("window.addEventListener('friday-audio-level', onAudioLevel)");
     expect(spatialFridayEntry).toContain('getFridaySpatialVisualState');
-    expect(spatialFridayEntry).toContain("detail: { agent: '");
+    expect(spatialFridayEntry).toContain('setAgent(detail.agent)');
   });
 
   it('设置中可选择界面语言、助手角色和语音风格，顶部搜索默认收起', () => {
