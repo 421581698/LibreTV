@@ -1,3 +1,4 @@
+import "fake-indexeddb/auto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { db, readSpatialState, writeSpatialState } from "../db";
 import { DexieTaskEventStore } from "./dexie-task-event-store";
@@ -17,9 +18,6 @@ function event(overrides: Partial<TaskEvent> = {}): TaskEvent {
 }
 
 beforeAll(async () => {
-  if (typeof indexedDB === "undefined") {
-    throw new Error("This suite requires Node 24's native IndexedDB implementation.");
-  }
   await db.open();
 });
 
