@@ -154,6 +154,23 @@ export default function AIFloatingBall({
   const homeWakeAudioRef = useRef<HTMLAudioElement | null>(null);
   const homeWakeUrlRef = useRef("");
 
+  const cancelHomeWakeAudio = useCallback(() => {
+    homeWakeTokenRef.current += 1;
+    const wakeAudio = homeWakeAudioRef.current;
+    homeWakeAudioRef.current = null;
+    if (wakeAudio) {
+      wakeAudio.onended = null;
+      wakeAudio.onerror = null;
+      wakeAudio.pause();
+      wakeAudio.removeAttribute("src");
+      wakeAudio.load();
+    }
+    if (homeWakeUrlRef.current) {
+      URL.revokeObjectURL(homeWakeUrlRef.current);
+      homeWakeUrlRef.current = "";
+    }
+  }, []);
+
 
   const {
     listening, voiceEnabled, speaking, completed, voiceError, voiceSessionActive,
@@ -311,21 +328,8 @@ export default function AIFloatingBall({
   // 若上一轮正在聆听/播报，先彻底释放旧会话，再播放唤醒音并重新启动识别。
   useEffect(() => {
     const handleHomeOrbToggle = () => {
-      const wakeToken = ++homeWakeTokenRef.current;
-
-      const previousAudio = homeWakeAudioRef.current;
-      homeWakeAudioRef.current = null;
-      if (previousAudio) {
-        previousAudio.onended = null;
-        previousAudio.onerror = null;
-        previousAudio.pause();
-        previousAudio.removeAttribute("src");
-        previousAudio.load();
-      }
-      if (homeWakeUrlRef.current) {
-        URL.revokeObjectURL(homeWakeUrlRef.current);
-        homeWakeUrlRef.current = "";
-      }
+      cancelHomeWakeAudio();
+      const wakeToken = homeWakeTokenRef.current;
 
       openPanel();
       openRef.current = true;
@@ -403,23 +407,7 @@ export default function AIFloatingBall({
     window.addEventListener("friday-home-orb-toggle", handleHomeOrbToggle);
     return () => {
       window.removeEventListener("friday-home-orb-toggle", handleHomeOrbToggle);
-      // A pending wake acknowledgement is outside the voice controller's TTS
-      // handle. Invalidate its async continuation and release its audio URL on
-      // unmount so a late fetch cannot leave audio or blob resources behind.
-      homeWakeTokenRef.current += 1;
-      const wakeAudio = homeWakeAudioRef.current;
-      homeWakeAudioRef.current = null;
-      if (wakeAudio) {
-        wakeAudio.onended = null;
-        wakeAudio.onerror = null;
-        wakeAudio.pause();
-        wakeAudio.removeAttribute("src");
-        wakeAudio.load();
-      }
-      if (homeWakeUrlRef.current) {
-        URL.revokeObjectURL(homeWakeUrlRef.current);
-        homeWakeUrlRef.current = "";
-      }
+      cancelHomeWakeAudio();
     };
   }, [
     openPanel,
@@ -435,6 +423,7 @@ export default function AIFloatingBall({
     language,
     assistantId,
     voiceStyle,
+    cancelHomeWakeAudio,
   ]);
 
   const handleSend = useCallback(
@@ -529,6 +518,7 @@ export default function AIFloatingBall({
 
   const closePanel = useCallback(() => {
     resetPendingMovie();
+    cancelHomeWakeAudio();
 
     openRef.current = false;
     closingRef.current = false;
@@ -545,7 +535,7 @@ export default function AIFloatingBall({
     dispatchMachine({ type: "CLOSE" });
     setExpanded(false);
     setImmersive(false);
-  }, [resetPendingMovie, stopAllVoice, stop, cancelActiveRequest]);
+  }, [resetPendingMovie, cancelHomeWakeAudio, stopAllVoice, stop, cancelActiveRequest]);
 
   const {
     fabHidden,
