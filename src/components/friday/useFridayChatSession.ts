@@ -9,7 +9,7 @@ import type { SearchResultItem, SourceConfig } from "@/lib/types";
 import { createLibreTVMovieAgentAdapters } from "@/lib/friday/libretv-movie-adapters";
 import { createMovieWorkflowTaskIdPrefix, runLibreTVMovieWorkflow } from "@/lib/friday/movie-workflow";
 import { fridayTaskEventStore, fridayTaskRuntime } from "@/lib/friday/task-service";
-import type { TaskSnapshot } from "@/lib/friday/task-runtime";
+import type { TaskDefinition, TaskSnapshot } from "@/lib/friday/task-runtime";
 import type { MovieAgentAdapters, MovieCandidate } from "@/lib/friday/movie-agents";
 import { isCurrentFridayWorkflow } from "@/components/friday/workflowRequestGuard";
 import { restoreFridayConversationHistory, serializeFridayConversationHistory } from "@/lib/friday/conversation-history";
@@ -285,7 +285,15 @@ export function useFridayChatSession({
     if (!suffix.test(taskId)) return;
     const taskIdPrefix = taskId.replace(suffix, "");
     const workflowTasks = restoredTasks.filter((task) => task.taskId.startsWith(`${taskIdPrefix}.`));
-    const searchTask = workflowTasks.find((task) => task.taskId === `${taskIdPrefix}.search`);
+    let searchTask = workflowTasks.find((task) => task.taskId === `${taskIdPrefix}.search`);
+    if (!searchTask) {
+      // The task may fall outside the 50-item history summary. Read its complete
+      // event stream directly so a newer interrupted child can still be resumed.
+      const searchEvents = await fridayTaskEventStore.read(`${taskIdPrefix}.search`);
+      const created = searchEvents.find((event) => event.type === "task.created");
+      const definition = (created?.payload as { definition?: TaskDefinition } | undefined)?.definition;
+      if (definition) searchTask = await fridayTaskRuntime.getSnapshot(definition);
+    }
     if (!searchTask) {
       console.error("[Friday] Cannot recover workflow: persisted search task is missing from local history.");
       return;

@@ -64,6 +64,7 @@ describe('首页与播放页回归契约', () => {
     expect(chatSession).toContain('retryInterruptedWorkflow');
     expect(chatSession).toContain('taskIdPrefix');
     expect(chatSession).toContain('storedCandidates');
+    expect(chatSession).toContain('fridayTaskEventStore.read');
     expect(chatSession).toContain('replayFailed: true');
     expect(fridayPanel).toContain('onRetryInterruptedTask');
     expect(fridayPanel).toContain('task.error?.code === "TASK_INTERRUPTED"');
