@@ -11,6 +11,9 @@ const canvas = source('src/components/home/HomeIntentCanvas.tsx');
 const orb = source('src/components/friday/FridayOrb.tsx');
 const assistant = source('src/components/AIFloatingBall.tsx');
 const spatialFridayEntry = source('src/components/spatial-os-v4/friday/SpatialFridayEntry.tsx');
+const spatialIntelligence = source('src/components/spatial-os-v4/spaces/SpatialIntelligenceSpace.tsx');
+const spatialIdentity = source('src/components/spatial-os-v4/spaces/SpatialIdentitySpace.tsx');
+const spatialResources = source('src/components/spatial-os-v4/spaces/SpatialResourceUniverse.tsx');
 const header = source('src/components/header.tsx');
 const detail = source('src/components/detail-modal.tsx');
 const player = source('src/components/player-shell.tsx');
@@ -238,6 +241,19 @@ describe('首页与播放页回归契约', () => {
     expect(spatialFridayEntry).toContain("window.addEventListener('friday-audio-level', onAudioLevel)");
     expect(spatialFridayEntry).toContain('getFridaySpatialVisualState');
     expect(spatialFridayEntry).toContain('setAgent(detail.agent)');
+  });
+
+  it('P5 四空间接入现有 Friday、历史与数据源能力，不另建运行时', () => {
+    expect(home).toContain("activeSpace === 'intelligence' ? <SpatialIntelligenceSpace />");
+    expect(home).toContain("activeSpace === 'resources' ? <SpatialResourceUniverse />");
+    expect(home).toContain('<SpatialIdentitySpace />');
+    expect(assistant).toContain('window.addEventListener("friday-home-open-panel", handleOpenPanel)');
+    expect(spatialIntelligence).toContain("new CustomEvent('friday-home-open-panel')");
+    expect(spatialIdentity).toContain("new CustomEvent('libretv:open-history')");
+    expect(spatialIdentity).toContain("new CustomEvent('libretv:open-source-settings')");
+    expect(header).toContain("window.addEventListener('libretv:open-history', openHistory)");
+    expect(header).toContain("window.addEventListener('libretv:open-source-settings', openSourceSettings)");
+    expect(spatialResources).toContain('freemediaheckyeah.org/categories/');
   });
 
   it('设置中可选择界面语言、助手角色和语音风格，顶部搜索默认收起', () => {
