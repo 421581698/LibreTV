@@ -19,7 +19,7 @@ export function SpatialPanelWorkspace(){
  const selected=PANELS.find(item=>item.id===active);
  const rect=active?state.panelLayouts[active]:undefined;
  useEffect(()=>{if(active&&!rect?.minimized)panelRef.current?.focus();},[active,rect?.minimized]);
- const style:CSSProperties=rect?{zIndex:rect.zIndex,...(rect.dock==='right'?{right:12,top:12,width:Math.min(rect.width,480),height:Math.min(rect.height,windowSafeHeight())}:rect.dock==='bottom'?{left:12,right:12,bottom:12,height:Math.min(rect.height,420)}:{left:rect.x,top:rect.y,width:rect.width,height:rect.height})}:{};
+ const style:CSSProperties=rect?{zIndex:rect.zIndex,...(rect.dock==='left'?{left:12,top:12,bottom:12,width:Math.min(rect.width,480)}:rect.dock==='right'?{right:12,top:12,bottom:12,width:Math.min(rect.width,480)}:rect.dock==='bottom'?{left:12,right:12,bottom:12,height:Math.min(rect.height,420)}:{left:rect.x,top:rect.y,width:rect.width,height:rect.height})}:{};
  return <div className="spatial-panel-workspace">
   <div className="spatial-panel-toolbar" role="group" aria-label="空间面板管理">
    <span>面板</span>
