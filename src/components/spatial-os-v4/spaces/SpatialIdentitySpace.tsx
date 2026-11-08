@@ -3,7 +3,7 @@
 export function SpatialIdentitySpace() {
   const openHistory = () => window.dispatchEvent(new CustomEvent('libretv:open-history'));
   const openSourceSettings = () => window.dispatchEvent(new CustomEvent('libretv:open-source-settings'));
-  const openFriday = () => window.dispatchEvent(new CustomEvent('friday-home-orb-toggle'));
+  const openFriday = () => window.dispatchEvent(new CustomEvent('friday-home-open-panel'));
 
   return (
     <section className="spatial-v4-space-content" aria-labelledby="spatial-identity-title">
