@@ -85,6 +85,27 @@ export interface FridayTaskEventEntry {
   error?: { code: string; message: string; retryable: boolean };
 }
 
+export type FavoriteKind = 'fmhy-resource' | 'media' | 'live';
+
+export interface FavoriteEntry {
+  id: string;
+  kind: FavoriteKind;
+  title: string;
+  href?: string;
+  image?: string;
+  category?: string;
+  description?: string;
+  metadata?: Record<string, unknown>;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface SpatialStateEntry {
+  key: string;
+  value: unknown;
+  updatedAt: number;
+}
+
 export const db = new Dexie('libretv') as Dexie & {
   history: EntityTable<HistoryEntry, 'id'>;
   progress: EntityTable<ProgressEntry, 'key'>;
@@ -93,6 +114,8 @@ export const db = new Dexie('libretv') as Dexie & {
   segmentMeta: EntityTable<SegmentMetaEntry, 'key'>;
   downloads: EntityTable<DownloadTaskEntry, 'id'>;
   fridayTaskEvents: EntityTable<FridayTaskEventEntry, 'eventId'>;
+  favorites: EntityTable<FavoriteEntry, 'id'>;
+  spatialState: EntityTable<SpatialStateEntry, 'key'>;
 };
 
 db.version(1).stores({
@@ -293,3 +316,62 @@ db.version(4).stores({
 db.version(5).stores({
   fridayTaskEvents: 'eventId, taskId, [taskId+sequence], occurredAt, type, [type+occurredAt]',
 });
+
+
+// v6: local-first unified favorites and V4 spatial workspace preferences.
+db.version(6).stores({
+  favorites: 'id, kind, createdAt, updatedAt',
+  spatialState: 'key, updatedAt',
+});
+
+export function favoriteId(kind: FavoriteKind, stableKey: string): string {
+  return kind + ':' + stableKey;
+}
+
+export async function getFavorite(id: string): Promise<FavoriteEntry | undefined> {
+  return db.favorites.get(id);
+}
+
+export async function listFavorites(kind?: FavoriteKind): Promise<FavoriteEntry[]> {
+  const rows = kind
+    ? await db.favorites.where('kind').equals(kind).toArray()
+    : await db.favorites.toArray();
+  return rows.sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+export async function upsertFavorite(
+  entry: Omit<FavoriteEntry, 'createdAt' | 'updatedAt'> & Partial<Pick<FavoriteEntry, 'createdAt' | 'updatedAt'>>
+): Promise<void> {
+  const now = Date.now();
+  const existing = await db.favorites.get(entry.id);
+  await db.favorites.put({
+    ...entry,
+    createdAt: existing?.createdAt ?? entry.createdAt ?? now,
+    updatedAt: now,
+  });
+}
+
+export async function removeFavorite(id: string): Promise<void> {
+  await db.favorites.delete(id);
+}
+
+export async function toggleFavorite(
+  entry: Omit<FavoriteEntry, 'createdAt' | 'updatedAt'>
+): Promise<boolean> {
+  const existing = await db.favorites.get(entry.id);
+  if (existing) {
+    await db.favorites.delete(entry.id);
+    return false;
+  }
+  await upsertFavorite(entry);
+  return true;
+}
+
+export async function readSpatialState<T = unknown>(key: string): Promise<T | undefined> {
+  const entry = await db.spatialState.get(key);
+  return entry?.value as T | undefined;
+}
+
+export async function writeSpatialState(key: string, value: unknown): Promise<void> {
+  await db.spatialState.put({ key, value, updatedAt: Date.now() });
+}
