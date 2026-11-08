@@ -135,3 +135,66 @@
 @media (prefers-reduced-motion: reduce) {
   .spatial-v4-player-frame { scroll-behavior: auto; }
 }
+
+
+/* P5 — connected workspace surfaces */
+.spatial-v4-space-content {
+  width: min(100%, 1120px);
+  margin: 0 auto;
+  padding: clamp(20px, 4vw, 44px);
+}
+.spatial-v4-space-heading { max-width: 760px; margin-bottom: 28px; }
+.spatial-v4-space-heading h1 { margin: 8px 0; font-size: clamp(28px, 4vw, 40px); letter-spacing: -0.035em; }
+.spatial-v4-space-heading p:not(.spatial-v4-space-eyebrow) { color: var(--text-muted, #777); line-height: 1.7; }
+.spatial-v4-space-eyebrow, .spatial-v4-card-kicker { color: var(--text-muted, #777); font-size: 11px; font-weight: 700; letter-spacing: .12em; }
+.spatial-v4-intelligence-card, .spatial-v4-identity-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 20px;
+  padding: 22px; border: 1px solid var(--border, rgba(128,128,128,.2));
+  border-radius: 16px; background: var(--surface, rgba(128,128,128,.06));
+}
+.spatial-v4-intelligence-card h2, .spatial-v4-identity-card h2 { margin: 6px 0; font-size: 18px; font-weight: 650; }
+.spatial-v4-intelligence-card p, .spatial-v4-identity-card p { margin: 0; color: var(--text-muted, #777); font-size: 13px; line-height: 1.6; }
+.spatial-v4-intelligence-actions { display: flex; align-items: center; gap: 14px; }
+.spatial-v4-action-button {
+  min-height: 44px; padding: 0 16px; border: 1px solid var(--border, rgba(128,128,128,.25));
+  border-radius: 999px; background: var(--surface, rgba(128,128,128,.08)); color: inherit;
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.spatial-v4-action-button:hover { background: var(--surface-hover, rgba(128,128,128,.14)); }
+.spatial-v4-capability-grid, .spatial-v4-identity-grid {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px;
+}
+.spatial-v4-capability-grid article {
+  display: grid; gap: 8px; padding: 18px; border: 1px solid var(--border, rgba(128,128,128,.2)); border-radius: 12px;
+}
+.spatial-v4-capability-grid strong { font-size: 14px; }
+.spatial-v4-capability-grid span { color: var(--text-muted, #777); font-size: 12px; line-height: 1.6; }
+.spatial-v4-identity-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.spatial-v4-identity-card { min-height: 132px; align-items: flex-start; flex-direction: column; }
+.spatial-v4-resource-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.spatial-v4-resource-card {
+  position: relative; display: flex; min-height: 124px; flex-direction: column; justify-content: center; gap: 6px;
+  padding: 18px 42px 18px 18px; border: 1px solid var(--border, rgba(128,128,128,.2));
+  border-radius: 14px; background: var(--surface, rgba(128,128,128,.06)); color: inherit; text-decoration: none;
+  transition: border-color 180ms ease, transform 180ms ease;
+}
+.spatial-v4-resource-card:hover { border-color: var(--accent, #c9963d); transform: translateY(-2px); }
+.spatial-v4-resource-index { color: var(--text-muted, #777); font-size: 10px; font-variant-numeric: tabular-nums; }
+.spatial-v4-resource-title { font-size: 15px; font-weight: 650; }
+.spatial-v4-resource-source { color: var(--text-muted, #777); font-size: 11px; }
+.spatial-v4-resource-open { position: absolute; top: 18px; right: 18px; color: var(--text-muted, #777); }
+.spatial-v4-source-note { margin-top: 20px; color: var(--text-muted, #777); font-size: 12px; line-height: 1.7; }
+.spatial-v4-source-note a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 767px) {
+  .spatial-v4-space-content { padding: 20px 16px calc(28px + env(safe-area-inset-bottom)); }
+  .spatial-v4-resource-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+  .spatial-v4-resource-card { min-height: 112px; padding: 14px 34px 14px 14px; }
+  .spatial-v4-resource-title { font-size: 13px; }
+  .spatial-v4-capability-grid, .spatial-v4-identity-grid { grid-template-columns: 1fr; }
+  .spatial-v4-intelligence-card { align-items: flex-start; flex-direction: column; }
+  .spatial-v4-intelligence-actions { width: 100%; justify-content: space-between; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spatial-v4-resource-card { transition: none; }
+  .spatial-v4-resource-card:hover { transform: none; }
+}
