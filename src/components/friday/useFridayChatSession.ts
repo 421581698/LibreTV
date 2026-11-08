@@ -8,7 +8,7 @@ import type { FridaySourceConfig } from "@/components/friday/useFridaySources";
 import type { SearchResultItem, SourceConfig } from "@/lib/types";
 import { readQuality } from "@/lib/store";
 import { createLibreTVMovieAgentAdapters } from "@/lib/friday/libretv-movie-adapters";
-import { createMovieWorkflowTaskIdPrefix, runLibreTVMovieWorkflow } from "@/lib/friday/movie-workflow";
+import { createMovieWorkflowTaskIdPrefix, recordPlaybackEvidence, runLibreTVMovieWorkflow } from "@/lib/friday/movie-workflow";
 import { fridayTaskEventStore, fridayTaskRuntime } from "@/lib/friday/task-service";
 import type { TaskDefinition, TaskSnapshot } from "@/lib/friday/task-runtime";
 import type { MovieAgentAdapters, MovieCandidate } from "@/lib/friday/movie-agents";
@@ -18,14 +18,14 @@ import { restoreFridayConversationHistory, serializeFridayConversationHistory } 
 export type FridayWorkflowView = {
   status: "running" | "completed" | "failed";
   sourceChecks?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean; latencyMs?: number; upstreamRequestMs?: number; upstreamRequestCount?: number; originTtfbMs?: number }>;
-  qualityChecks?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; decodedVideoHeight?: number | null; decodedResolutionHeight?: number | null; sourceResolutionHeight?: number | null; resolutionSource?: "decoded_playback" | "playlist_or_segment" | "unknown"; originTtfbMs?: number | null; probeDurationMs?: number | null; upstreamRequestMs?: number | null; upstreamRequestCount?: number | null; probeResultCached?: boolean | null }>;
+  qualityChecks?: Array<{ sourceId: string; candidateId?: string; title?: string; playbackSampleCount?: number | null; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; decodedVideoHeight?: number | null; decodedResolutionHeight?: number | null; sourceResolutionHeight?: number | null; resolutionSource?: "decoded_playback" | "playlist_or_segment" | "unknown"; originTtfbMs?: number | null; probeDurationMs?: number | null; upstreamRequestMs?: number | null; upstreamRequestCount?: number | null; probeResultCached?: boolean | null }>;
   review?: { accepted: boolean; findings: string[]; candidateCount: number; assessmentCount: number; measurementCompleted: boolean; resolutionMeasured: boolean };
   playbackRecommendations?: Array<{
     title: string;
     candidateId: string;
     sourceId: string;
     resolutionHeight: number | null;
-    selectionBasis: "measured-resolution" | "reachable-only";
+    selectionBasis: "decoded-playback" | "source-probe" | "reachable-only";
     alternativeCount: number;
   }>;
   error?: string;
@@ -51,7 +51,7 @@ export function useFridayChatSession({
   const mountedRef = useRef(false);
   const processedSearchIds = useRef(new Set<string>());
   const activeWorkflowControllers = useRef(new Map<string, AbortController>());
-  const workflowContexts = useRef(new Map<string, { query: string; taskIdPrefix: string; adapters: MovieAgentAdapters }>());
+  const workflowContexts = useRef(new Map<string, { query: string; taskIdPrefix: string; adapters: MovieAgentAdapters; candidateIds: Set<string> }>());
   const [workflowBySearchId, setWorkflowBySearchId] = useState<Record<string, FridayWorkflowView>>({});
   const decodedPlaybackHeightsRef = useRef(new Map<string, number>());
   const [restoredTasks, setRestoredTasks] = useState<TaskSnapshot[]>([]);
@@ -61,27 +61,99 @@ export function useFridayChatSession({
     setRestoredTasks([]);
   }, []);
 
-  // Decoded videoHeight is playback-only evidence. Keep it separate from source manifest probes.
+  // Decoded videoHeight feeds the visible workflow and is also persisted as a child DAG task.
   useEffect(() => {
     const handlePlaybackQuality = (event: Event) => {
-      const detail = (event as CustomEvent<{ candidateId?: unknown; height?: unknown }>).detail;
+      const detail = (event as CustomEvent<{
+        candidateId?: unknown;
+        sourceKey?: unknown;
+        vodId?: unknown;
+        height?: unknown;
+        playbackSampleCount?: unknown;
+        playbackMinHeight?: unknown;
+        playbackMaxHeight?: unknown;
+        observedAt?: unknown;
+      }>).detail;
       if (typeof detail?.candidateId !== "string" || !detail.candidateId.trim()) return;
+      if (typeof detail.sourceKey !== "string" || !detail.sourceKey.trim()) return;
+      if (typeof detail.vodId !== "string" || !detail.vodId.trim()) return;
       if (typeof detail.height !== "number" || !Number.isFinite(detail.height)) return;
       const height = Math.floor(detail.height);
       if (height < 1 || height > 16384) return;
+      const sampleCount = typeof detail.playbackSampleCount === "number" &&
+        Number.isInteger(detail.playbackSampleCount) && detail.playbackSampleCount > 0
+        ? detail.playbackSampleCount : undefined;
+      const minHeight = typeof detail.playbackMinHeight === "number" ? detail.playbackMinHeight : height;
+      const maxHeight = typeof detail.playbackMaxHeight === "number" ? detail.playbackMaxHeight : height;
+      const observedAt = typeof detail.observedAt === "string" && Number.isFinite(Date.parse(detail.observedAt))
+        ? detail.observedAt : new Date().toISOString();
       decodedPlaybackHeightsRef.current.set(detail.candidateId, height);
+
+      const parentContext = [...workflowContexts.current.values()].reverse()
+        .find((context) => context.candidateIds.has(detail.candidateId as string));
+      void recordPlaybackEvidence({
+        evidence: {
+          candidateId: detail.candidateId,
+          sourceId: detail.sourceKey,
+          vodId: detail.vodId,
+          decodedHeight: height,
+          observedAt,
+          sampleCount,
+          minHeight,
+          maxHeight,
+        },
+        runtime: fridayTaskRuntime,
+        parentTaskId: parentContext ? `${parentContext.taskIdPrefix}.playback` : undefined,
+      }).then(async () => {
+        try {
+          setRestoredTasks(await fridayTaskRuntime.restoreAll());
+        } catch (restoreError) {
+          console.error("[Friday] Could not refresh playback evidence audit:", restoreError);
+        }
+      }).catch((feedbackError) => {
+        console.error("[Friday] Could not persist playback evidence:", feedbackError);
+      });
+
       setWorkflowBySearchId((current) => Object.fromEntries(
-        Object.entries(current).map(([searchId, workflow]) => [
-          searchId,
-          workflow.qualityChecks
+        Object.entries(current).map(([searchId, workflow]) => {
+          const previousChecks = workflow.qualityChecks;
+          if (!previousChecks) return [searchId, workflow];
+          const target = previousChecks.find((item) => item.candidateId === detail.candidateId);
+          if (!target) return [searchId, workflow];
+          const qualityChecks = previousChecks.map((item) => item.candidateId === detail.candidateId
             ? {
-                ...workflow,
-                qualityChecks: workflow.qualityChecks.map((item) => item.candidateId === detail.candidateId
-                  ? { ...item, decodedVideoHeight: height }
-                  : item),
+                ...item,
+                status: "resolution_detected" as const,
+                resolutionHeight: height,
+                decodedResolutionHeight: height,
+                decodedVideoHeight: height,
+                resolutionSource: "decoded_playback" as const,
+                playbackSampleCount: sampleCount ?? item.playbackSampleCount ?? 1,
               }
-            : workflow,
-        ]),
+            : item);
+          const playbackRecommendations = [...(workflow.playbackRecommendations ?? [])];
+          const reachable = workflow.sourceChecks?.some((item) =>
+            item.candidateId === detail.candidateId && item.reachable,
+          ) ?? false;
+          if (reachable && target.title) {
+            const index = playbackRecommendations.findIndex((item) => item.title === target.title);
+            if (index >= 0) {
+              const currentRecommendation = playbackRecommendations[index];
+              const currentRank = currentRecommendation.selectionBasis === "decoded-playback" ? 2 :
+                currentRecommendation.selectionBasis === "source-probe" ? 1 : 0;
+              const candidateWins = 2 > currentRank ||
+                (currentRank === 2 && height > (currentRecommendation.resolutionHeight ?? 0));
+              if (candidateWins) playbackRecommendations[index] = {
+                ...currentRecommendation,
+                candidateId: detail.candidateId as string,
+                sourceId: detail.sourceKey as string,
+                resolutionHeight: height,
+                selectionBasis: "decoded-playback",
+              };
+            }
+          }
+          return [searchId, { ...workflow, qualityChecks, playbackRecommendations }];
+        }),
       ));
     };
     window.addEventListener("friday-player-quality", handlePlaybackQuality);
@@ -119,10 +191,10 @@ export function useFridayChatSession({
       sources as SourceConfig[],
       {
         filterAdult,
-        readDecodedHeight: (candidate) => {
+        readPlaybackEvidence: (candidate) => {
           if (!candidate.sourceId || !candidate.vodId) return undefined;
           const quality = readQuality(candidate.sourceId, candidate.vodId);
-          return quality?.from === "play" ? quality.height : undefined;
+          return quality?.from === "play" ? quality : undefined;
         },
       },
     );
@@ -145,7 +217,7 @@ export function useFridayChatSession({
     }));
 
     const taskIdPrefix = createMovieWorkflowTaskIdPrefix();
-    workflowContexts.current.set(data.searchId, { query: String(data.keyword || "影视搜索").slice(0, 50), taskIdPrefix, adapters: workflowAdapters });
+    workflowContexts.current.set(data.searchId, { query: String(data.keyword || "影视搜索").slice(0, 50), taskIdPrefix, adapters: workflowAdapters, candidateIds: new Set(movieResults.map((item) => `${item.sourceKey}:${item.vodId}`)) });
     const controller = new AbortController();
     activeWorkflowControllers.current.set(data.searchId, controller);
     void runLibreTVMovieWorkflow({
