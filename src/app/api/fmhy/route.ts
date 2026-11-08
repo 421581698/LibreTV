@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { FMHY_CATEGORIES, parseFmhyMarkdown, type FmhyCategoryId, type FmhyResource } from '@/lib/fmhy-index';
 
 export const runtime = 'nodejs';
