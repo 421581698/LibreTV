@@ -10,6 +10,7 @@ export interface FMHYResource {
   categoryTitle: string;
   sourcePage: string;
   sourceRevision: string;
+  sourceBlobSha: string;
   sourceRetrievedAt: string;
   sourcePath: string;
 }
@@ -24,7 +25,23 @@ type FMHYSourceSnapshot = {
 type FMHYDataset = {
   category: {id:string;title:string};
   source: FMHYSourceSnapshot;
-  records: Array<Omit<FMHYResource,'categoryId'|'categoryTitle'|'sourcePage'|'sourceRevision'|'sourceRetrievedAt'|'sourcePath'>>;
+  records: Array<Omit<FMHYResource,'categoryId'|'categoryTitle'|'sourcePage'|'sourceRevision'|'sourceBlobSha'|'sourceRetrievedAt'|'sourcePath'>>;
+};
+
+const SOURCE_COMMITS: Record<string,string> = {
+  privacy: '46a32832774933b149739050d669d73a672c905a',
+  ai: '1e66cc9ddebc326008932a5d6fef4ee31b862f18',
+  video: '46a32832774933b149739050d669d73a672c905a',
+  audio: '46a32832774933b149739050d669d73a672c905a',
+  gaming: '46a32832774933b149739050d669d73a672c905a',
+  reading: '1e66cc9ddebc326008932a5d6fef4ee31b862f18',
+  downloading: '46a32832774933b149739050d669d73a672c905a',
+  torrenting: '5fbf2d3b6a6f478f36a90f1108f88c2f1f08f336',
+  educational: '46a32832774933b149739050d669d73a672c905a',
+  mobile: '46a32832774933b149739050d669d73a672c905a',
+  'linux-macos': '46a32832774933b149739050d669d73a672c905a',
+  'non-english': '46a32832774933b149739050d669d73a672c905a',
+  misc: '46a32832774933b149739050d669d73a672c905a',
 };
 
 const loaders: Record<string, () => Promise<{default:FMHYDataset}>> = {
@@ -45,14 +62,16 @@ const loaders: Record<string, () => Promise<{default:FMHYDataset}>> = {
 
 export async function loadFMHYCategory(categoryId: string): Promise<FMHYResource[]> {
   const load = loaders[categoryId];
-  if (!load) return [];
+  const sourceCommit = SOURCE_COMMITS[categoryId];
+  if (!load || !sourceCommit) return [];
   const {default:data} = await load();
   return data.records.map(record => ({
     ...record,
     categoryId: data.category.id,
     categoryTitle: data.category.title,
-    sourcePage: `${data.source.repository}/blob/${data.source.sha}/${data.source.path}`,
-    sourceRevision: data.source.sha,
+    sourcePage: `${data.source.repository}/blob/${sourceCommit}/${data.source.path}`,
+    sourceRevision: sourceCommit,
+    sourceBlobSha: data.source.sha,
     sourceRetrievedAt: data.source.retrievedAt,
     sourcePath: data.source.path,
   }));
