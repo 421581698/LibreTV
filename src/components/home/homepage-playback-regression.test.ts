@@ -6,7 +6,8 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf
 
 const home = source('src/app/page.tsx');
 const v4Header = source('src/components/home/V4HomepageHeader.tsx');
-const v4Skeleton = source('src/components/home/V4HomepageSkeleton.tsx');
+const v4Content = source('src/components/home/V4HomepageContent.tsx');
+const v4Styles = source('src/app/v4-homepage.css');
 const watch = source('src/app/watch/page.tsx');
 const hero = source('src/components/friday/FridayHero.tsx');
 const canvas = source('src/components/home/HomeIntentCanvas.tsx');
@@ -87,12 +88,15 @@ describe('首页与播放页回归契约', () => {
     expect(fridayConversation).toContain("播放器解码实测");
   });
 
-  it('V4 首页在 A 阶段呈现今日推荐与继续观看的独立横向布局骨架', () => {
-    expect(home).toContain('<V4HomepageSkeleton />');
-    expect(v4Skeleton).toContain('id="today-recommendations"');
-    expect(v4Skeleton).toContain('id="continue-watching"');
-    expect(v4Skeleton).toContain('v4-poster-row');
-    expect(v4Skeleton).toContain('v4-landscape-row');
+  it('V4 首页接入真实推荐接口与 IndexedDB 继续观看记录', () => {
+    expect(home).toContain('<V4HomepageContent onPick={openRecommendation} />');
+    expect(v4Content).toContain('<RecommendSection onPick={onPick} />');
+    expect(v4Content).toContain('db.history.orderBy(\'timestamp\').reverse().limit(CONTINUE_LIMIT)');
+    expect(v4Content).toContain('buildWatchUrl({');
+    expect(v4Content).toContain('playbackPosition / item.duration');
+    expect(v4Styles).toContain('.v4-history-row');
+    expect(v4Styles).not.toContain('v4-poster-skeleton');
+    expect(v4Styles).not.toContain('v4-landscape-skeleton');
     expect(home).toContain('<DetailModal item={detailItem}');
   });
 
