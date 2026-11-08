@@ -72,7 +72,9 @@ function dependencyValue(context: AgentExecutionContext, key: string): unknown {
 export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAgent[] {
   const searchAgent: FridayAgent = {
     id: "search-agent",
+    capabilities: ["movie.search"],
     async execute(context) {
+      context.requireCapability("movie.search");
       const input = objectInput(context.task.input);
       const query = typeof input.query === "string" ? input.query.trim() : "";
       if (!query) throw new Error("Search Agent requires a non-empty query");
@@ -86,7 +88,9 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
 
   const sourceAgent: FridayAgent = {
     id: "source-agent",
+    capabilities: ["source.probe"],
     async execute(context) {
+      context.requireCapability("source.probe");
       const input = objectInput(context.task.input);
       const dependencyKey = typeof input.searchTaskId === "string" ? input.searchTaskId : "search";
       const searchOutput = objectInput(dependencyValue(context, dependencyKey));
@@ -100,7 +104,9 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
 
   const qualityAgent: FridayAgent = {
     id: "quality-agent",
+    capabilities: ["quality.assess"],
     async execute(context) {
+      context.requireCapability("quality.assess");
       const input = objectInput(context.task.input);
       const sourceTaskId = typeof input.sourceTaskId === "string" ? input.sourceTaskId : "source";
       const sourceOutput = objectInput(dependencyValue(context, sourceTaskId));
@@ -144,7 +150,9 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
 
   const reviewAgent: FridayAgent = {
     id: "review-agent",
+    capabilities: ["quality.review"],
     async execute(context) {
+      context.requireCapability("quality.review");
       const input = objectInput(context.task.input);
       const searchTaskId = typeof input.searchTaskId === "string" ? input.searchTaskId : "search";
       const qualityTaskId = typeof input.qualityTaskId === "string" ? input.qualityTaskId : "quality";
@@ -206,7 +214,9 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
 
   const playbackAgent: FridayAgent = {
     id: "playback-agent",
+    capabilities: ["playback.recommend"],
     async execute(context) {
+      context.requireCapability("playback.recommend");
       const input = objectInput(context.task.input);
       const searchTaskId = typeof input.searchTaskId === "string" ? input.searchTaskId : "search";
       const qualityTaskId = typeof input.qualityTaskId === "string" ? input.qualityTaskId : "quality";
