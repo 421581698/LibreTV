@@ -1,6 +1,9 @@
 name: Deploy Friday V3 Private Preview
 
 on:
+  push:
+    branches:
+      - feature/friday-v3-integrated-acceptance-2026-11-08
   workflow_dispatch:
     inputs:
       confirm_preview_deploy:
@@ -21,7 +24,7 @@ concurrency:
 
 jobs:
   deploy-preview:
-    if: ${{ inputs.confirm_preview_deploy == 'yes' }}
+    if: ${{ github.event_name == 'push' || inputs.confirm_preview_deploy == 'yes' }}
     name: Build and deploy isolated Friday V3 preview
     runs-on: ubuntu-latest
     timeout-minutes: 30
