@@ -162,7 +162,7 @@ describe("LibreTV movie workflow", () => {
     });
     expect(result.results[4].output).toMatchObject({
       ready: true,
-      recommendations: [{ candidateId: "alpha:1", selectionBasis: "measured-resolution", resolutionHeight: 720 }],
+      recommendations: [{ candidateId: "alpha:1", selectionBasis: "decoded-playback", resolutionHeight: 720 }],
     });
     for (const taskId of Object.values(result.taskIds)) {
       expect((await store.read(taskId)).at(-1)?.type).toBe("task.succeeded");
@@ -223,7 +223,7 @@ describe("LibreTV movie workflow", () => {
     };
     expect(playback.recommendations[0]).toMatchObject({
       resolutionHeight: 720,
-      selectionBasis: "measured-resolution",
+      selectionBasis: "decoded-playback",
     });
   });
 
