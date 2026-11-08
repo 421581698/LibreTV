@@ -1204,3 +1204,28 @@ html:not(.dark) .spatial-os .friday-hero-orb-label{color:#71654d}
 
 .spatial-environment{position:relative;min-height:100vh;isolation:isolate;background-image:radial-gradient(1px 1px at 12% 18%,rgba(224,199,146,.25) 50%,transparent 100%),radial-gradient(1px 1px at 76% 24%,rgba(224,199,146,.18) 50%,transparent 100%),radial-gradient(1px 1px at 44% 72%,rgba(224,199,146,.16) 50%,transparent 100%);background-size:240px 220px,310px 280px,390px 340px}
 html:not(.dark) .spatial-environment{background-image:radial-gradient(1px 1px at 12% 18%,rgba(140,112,61,.13) 50%,transparent 100%),radial-gradient(1px 1px at 76% 24%,rgba(140,112,61,.10) 50%,transparent 100%)}
+
+
+/* FRIDAY SPATIAL OS V4 · shared panel workspace */
+.spatial-panel-workspace{position:relative;z-index:40;width:min(1120px,calc(100% - 32px));margin:0 auto 12px}
+.spatial-panel-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:7px;padding:8px 10px;border:1px solid rgba(220,194,135,.14);border-radius:14px;background:rgba(14,17,22,.55);backdrop-filter:blur(14px)}
+.spatial-panel-toolbar>span{padding:0 5px;color:#b9ad94;font-size:11px;letter-spacing:.12em}
+.spatial-panel-toolbar button,.spatial-panel-window button{padding:7px 10px;border:1px solid rgba(220,194,135,.2);border-radius:9px;background:rgba(255,255,255,.045);color:inherit;font-size:11px;cursor:pointer}
+.spatial-panel-toolbar button[aria-pressed=true],.spatial-panel-docks button[aria-pressed=true]{border-color:rgba(230,192,112,.8);background:rgba(170,128,55,.22)}
+.spatial-panel-window{position:fixed;display:flex;flex-direction:column;min-width:260px;max-width:calc(100vw - 24px);max-height:calc(100dvh - 24px);overflow:hidden;border:1px solid rgba(220,194,135,.35);border-radius:16px;background:rgba(12,15,20,.96);color:#f2ead8;box-shadow:0 24px 80px rgba(0,0,0,.42);backdrop-filter:blur(22px);outline:none}
+.spatial-panel-window:focus-visible{outline:2px solid rgba(230,192,112,.8);outline-offset:3px}
+.spatial-panel-window-header{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:12px;border-bottom:1px solid rgba(220,194,135,.16)}
+.spatial-panel-window-header>strong{font-size:13px}.spatial-panel-window-header>span{flex:1;min-width:120px;color:#b9ad94;font-size:10px}
+.spatial-panel-window-actions{display:flex;gap:5px}.spatial-panel-window-actions button{padding:5px 8px}
+.spatial-panel-window-body{flex:1;min-height:90px;padding:16px;overflow:auto}.spatial-panel-window-body p{margin:0 0 8px;color:#e9dfc9}.spatial-panel-window-body small{color:#aaa18f;line-height:1.7}
+.spatial-panel-docks{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:10px 12px;border-top:1px solid rgba(220,194,135,.16)}
+.spatial-panel-docks>span{margin-right:4px;color:#b9ad94;font-size:10px}
+html:not(.dark) .spatial-panel-toolbar{background:rgba(255,255,255,.7);border-color:rgba(130,104,57,.2)}
+html:not(.dark) .spatial-panel-toolbar>span{color:#6e624b}
+html:not(.dark) .spatial-panel-toolbar button{background:rgba(255,255,255,.75);color:#393326;border-color:rgba(130,104,57,.22)}
+html:not(.dark) .spatial-panel-window{background:rgba(250,248,242,.97);color:#2c281f;border-color:rgba(130,104,57,.35)}
+html:not(.dark) .spatial-panel-window-header{border-color:rgba(130,104,57,.18)}
+html:not(.dark) .spatial-panel-window-header>span,html:not(.dark) .spatial-panel-window-body small,html:not(.dark) .spatial-panel-docks>span{color:#756b58}
+html:not(.dark) .spatial-panel-window-body p{color:#393326}
+html:not(.dark) .spatial-panel-window button{background:rgba(255,255,255,.8);color:#393326;border-color:rgba(130,104,57,.22)}
+@media(max-width:640px){.spatial-panel-workspace{width:calc(100% - 20px)}.spatial-panel-toolbar{gap:5px;padding:7px}.spatial-panel-toolbar button{padding:7px 8px}.spatial-panel-window{left:10px!important;right:10px!important;top:auto!important;bottom:max(10px,env(safe-area-inset-bottom))!important;width:auto!important;height:min(52dvh,440px)!important;max-width:none}}
