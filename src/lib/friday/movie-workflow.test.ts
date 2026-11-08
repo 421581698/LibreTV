@@ -96,6 +96,26 @@ describe("LibreTV movie workflow", () => {
     }
   });
 
+  it("persists the workflow DAG as an explicit parent-child lineage", async () => {
+    const store = new MemoryStore();
+    const result = await runLibreTVMovieWorkflow({
+      query: "Arrival", taskIdPrefix: "lineage-001", parentTaskId: "parent-search",
+      runtime: new TaskRuntime(store),
+      adapters: {
+        search: async ({ query }) => [{ id: "alpha:1", title: query, sourceId: "alpha" }],
+        probe: async () => [{ sourceId: "alpha", candidateId: "alpha:1", checkedAt: "now", reachable: true, resolutionProbed: true }],
+      },
+    });
+    const search = await store.read(result.taskIds.search);
+    const source = await store.read(result.taskIds.source);
+    const quality = await store.read(result.taskIds.quality);
+    const review = await store.read(result.taskIds.review);
+    expect(search[0].parentTaskId).toBe("parent-search");
+    expect(source[0].parentTaskId).toBe(result.taskIds.search);
+    expect(quality[0].parentTaskId).toBe(result.taskIds.source);
+    expect(review[0].parentTaskId).toBe(result.taskIds.quality);
+  });
+
   it("rejects blank query and blank task prefix before writing events", async () => {
     const store = new MemoryStore();
     const runtime = new TaskRuntime(store);
