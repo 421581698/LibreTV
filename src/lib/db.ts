@@ -301,7 +301,11 @@ export async function migrateLegacyLiveFavorites(
       updatedAt: now,
     };
   });
-  if (entries.length) await db.favorites.bulkPut(entries);
+  if (entries.length) {
+    const existing = await db.favorites.bulkGet(entries.map((entry) => entry.id));
+    const missing = entries.filter((entry, index) => !existing[index]);
+    if (missing.length) await db.favorites.bulkAdd(missing);
+  }
 }
 
 export async function importConfig(content: string): Promise<void> {
