@@ -8,6 +8,7 @@ import {readQualities} from '@/lib/store';
 import {qualityKey} from '@/lib/quality';
 import {assessQuality,type QualityAssessment,type QualityEvidence} from '../runtime/QualityVerifier';
 import {projectTaskEvents,summarizeTasks} from '../runtime/TaskProjection';
+import {spatialStateStore} from '../runtime/SpatialStateStore';
 
 export function IntelligencePortal({taskId}:{taskId?:string|null}={}){
  const [events,setEvents]=useState<TaskEvent[]>([]);
@@ -45,7 +46,7 @@ export function IntelligencePortal({taskId}:{taskId?:string|null}={}){
   <h3>Agent DAG / 任务事件</h3>{loadError&&<p role="status">{loadError}</p>}
   {tasks.length===0&&!loadError&&<p>{taskId?'尚未找到该任务的持久化事件。':'当前浏览器尚无可展示的任务事件。执行 Friday 任务后会显示持久化记录。'}</p>}
   <ul className="spatial-os-task-list">{tasks.map(task=><li key={task.id}>
-   <div><span>{task.label}</span><small>{task.id} · {task.status} · {task.lastEventType}</small></div>
+   <div><button type="button" className="text-left" onClick={()=>spatialStateStore.setTaskContext({taskId:task.id,agentId:task.agent})}><span>{task.label}</span><small className="block">{task.id} · {task.status} · {task.lastEventType} · 查看任务 ↗</small></button></div>
    {task.parentTaskId&&<small>父任务：{task.parentTaskId}</small>}
    {task.dependsOn.length>0&&<small>依赖：{task.dependsOn.join('、')}</small>}
    {task.progress&&<small>进度：{task.progress}</small>}
