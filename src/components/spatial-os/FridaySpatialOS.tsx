@@ -40,7 +40,7 @@ export function FridaySpatialOS({children,friday}:{children:ReactNode;friday?:Re
      <span className="text-[10px] tracking-[.2em] text-amber-200/55">{inTask?'TASK SURFACE':state.activeSpace.toUpperCase()}</span>
     </div>
     <div className="mx-auto w-full max-w-6xl flex-1 px-4 pb-12">
-     {inTask?<IntelligencePortal/>:state.activeSpace==='cinematic'?<CinematicPortal>{children}</CinematicPortal>:state.activeSpace==='intelligence'?<IntelligencePortal/>:state.activeSpace==='resources'?<ResourcePortal/>:<IdentityPortal onReset={()=>spatialStateStore.reset()}/>}
+     {inTask?<IntelligencePortal taskId={state.taskContext?.taskId}/>:state.activeSpace==='cinematic'?<CinematicPortal>{children}</CinematicPortal>:state.activeSpace==='intelligence'?<IntelligencePortal/>:state.activeSpace==='resources'?<ResourcePortal/>:<IdentityPortal onReset={()=>spatialStateStore.reset()}/>}
     </div>
    </div>}
    {!inLobby&&<SpatialPanelWorkspace/>}
