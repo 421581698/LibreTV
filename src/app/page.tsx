@@ -254,8 +254,6 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
             runSearch={runSearch}
             runSearchInPlace={runSearchInPlace}
             pickHistory={pickHistory}
-            voiceState={voiceState}
-            setVoiceState={setVoiceState}
             showBrandTitle={!isV2}
             compactHeader
           /> : undefined} />
@@ -284,8 +282,6 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
             runSearch={runSearch}
             runSearchInPlace={runSearchInPlace}
             pickHistory={pickHistory}
-            voiceState={voiceState}
-            setVoiceState={setVoiceState}
             showBrandTitle={!isV2}
           /> : null}
         </HomeIntentCanvas>
