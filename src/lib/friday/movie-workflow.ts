@@ -1,5 +1,5 @@
 import { runFridayDag, type DagRunResult } from "./dag-orchestrator";
-import { createMovieAgentRegistry, type MovieAgentAdapters } from "./movie-agents";
+import { createMovieAgentRegistry, createPlaybackEvidenceAgent, type MovieAgentAdapters, type PlaybackEvidenceInput } from "./movie-agents";
 import type { TaskRuntime } from "./task-runtime";
 
 export type MovieWorkflowResult = {
@@ -96,4 +96,30 @@ export async function runLibreTVMovieWorkflow(args: {
   });
 
   return { taskIds, results };
+}
+
+
+/**
+ * Persists a real player decode observation as a separate, auditable child task.
+ * It deliberately does not mutate a completed recommendation task; later
+ * workflows consume the updated quality cache and this event remains replay-safe.
+ */
+export async function recordPlaybackEvidence(args: {
+  evidence: PlaybackEvidenceInput;
+  runtime: TaskRuntime;
+  parentTaskId?: string;
+}): Promise<{ taskId: string; result: DagRunResult }> {
+  const taskId = `${createMovieWorkflowTaskIdPrefix()}.playback-evidence`;
+  const task = {
+    taskId,
+    parentTaskId: args.parentTaskId,
+    agent: "playback-evidence-agent",
+    input: args.evidence,
+  };
+  const results = await runFridayDag({
+    tasks: [task],
+    agents: [createPlaybackEvidenceAgent()],
+    runtime: args.runtime,
+  });
+  return { taskId, result: results[0] };
 }
