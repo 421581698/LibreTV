@@ -10,7 +10,8 @@ export function SpatialPanelContent({panel}:{panel:'search'|'sources'|'quality'|
  switch(panel){
   case 'search':return <SpatialSearchPanel/>;
   case 'sources':return <SpatialSourcesPanel/>;
-  case 'quality':case 'tasks':return <IntelligencePortal/>;
+  case 'quality':return <IntelligencePortal view="quality"/>;
+  case 'tasks':return <IntelligencePortal view="tasks"/>;
   case 'history':return <SpatialHistoryPanel/>;
   case 'settings':return <SpatialSettingsPanel/>;
  }
