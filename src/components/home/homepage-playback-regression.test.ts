@@ -15,6 +15,7 @@ const spatialIntelligence = source('src/components/spatial-os-v4/spaces/SpatialI
 const spatialIdentity = source('src/components/spatial-os-v4/spaces/SpatialIdentitySpace.tsx');
 const spatialResources = source('src/components/spatial-os-v4/spaces/SpatialResourceUniverse.tsx');
 const spatialDb = source('src/lib/db.ts');
+const appStore = source('src/lib/store.ts');
 const fmhyIndex = source('src/lib/fmhy-index.ts');
 const fmhyApi = source('src/app/api/fmhy/route.ts');
 const favoriteButton = source('src/components/favorites/FavoriteButton.tsx');
@@ -284,6 +285,9 @@ describe('首页与播放页回归契约', () => {
     expect(spatialDb).toContain("favorites: JSON.stringify(favorites)");
     expect(spatialDb).toContain("spatialState: JSON.stringify(spatialState)");
     expect(spatialDb).toContain("db.favorites.bulkPut");
+    expect(appStore).toContain("favoriteId('live', channelUrl)");
+    expect(appStore).toContain('void upsertFavorite({');
+    expect(appStore).toContain('void removeFavorite(favoriteKey)');
   });
 
   it('设置中可选择界面语言、助手角色和语音风格，顶部搜索默认收起', () => {
