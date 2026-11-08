@@ -34,7 +34,7 @@ function cleanMarkdownText(value: string): string {
     .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '$1')
     .replace(/<[^>]*>/g, ' ')
     .replace(/[*_`~]/g, '')
-    .replace(/\\s+/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
