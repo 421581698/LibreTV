@@ -213,6 +213,8 @@ describe('probeQuality 降级到分片解析', () => {
     expect(result.upstreamRequestCount).toBe(urls().length);
     expect(result.upstreamRequestMs).toEqual(expect.any(Number));
     expect(result.upstreamRequestMs).toBeGreaterThanOrEqual(0);
+    expect(result.originTtfbMs).toEqual(expect.any(Number));
+    expect(result.originTtfbMs).toBeGreaterThanOrEqual(0);
     // 详情接口 + m3u8，仅此两次：多码率源没有理由再拉分片
     expect(urls()).toEqual([
       'https://api.test/api.php/provide/vod?ac=videolist&ids=123',
