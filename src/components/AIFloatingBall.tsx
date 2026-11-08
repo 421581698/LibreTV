@@ -270,11 +270,11 @@ export default function AIFloatingBall({
   }, [typedMessages]);
 
   useEffect(() => {
-    const state = auroraState === "listening" ? "LISTENING"
-      : auroraState === "thinking" ? "THINKING"
-      : auroraState === "speaking" ? "SPEAKING" : "IDLE";
-    window.dispatchEvent(new CustomEvent("friday-home-voice-state", { detail: { state } }));
-  }, [auroraState]);
+    // Publish the actual reducer state; the V4 shell is presentation-only.
+    window.dispatchEvent(new CustomEvent("friday-home-runtime-state", {
+      detail: { voice: machineState.voice, agent: machineState.agent },
+    }));
+  }, [machineState.voice, machineState.agent]);
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("friday-home-voice-error", { detail: { message: voiceError } }));
