@@ -92,11 +92,13 @@ describe("LibreTV movie workflow", () => {
       [result.taskIds.quality]: [
         "task.created",
         "task.started",
+        "task.checkpoint",
         "task.succeeded",
       ],
       [result.taskIds.review]: [
         "task.created",
         "task.started",
+        "task.checkpoint",
         "task.succeeded",
       ],
       [result.taskIds.playback]: [
@@ -161,6 +163,64 @@ describe("LibreTV movie workflow", () => {
     for (const taskId of Object.values(result.taskIds)) {
       expect((await store.read(taskId)).at(-1)?.type).toBe("task.succeeded");
     }
+  });
+
+  it("prefers stored decoded videoHeight while preserving source resolution and origin timing", async () => {
+    const store = new MemoryStore();
+    const workflow = await runLibreTVMovieWorkflow({
+      query: "Arrival",
+      taskIdPrefix: "decoded-quality-e2e",
+      runtime: new TaskRuntime(store),
+      adapters: {
+        search: async ({ query }) => [{
+          id: "alpha:arrival",
+          title: query,
+          sourceId: "alpha",
+          vodId: "arrival",
+        }],
+        probe: async () => [{
+          sourceId: "alpha",
+          candidateId: "alpha:arrival",
+          title: "Arrival",
+          checkedAt: "2026-11-08T00:00:00.000Z",
+          reachable: true,
+          resolutionProbed: true,
+          resolutionHeight: 1080,
+          decodedResolutionHeight: 720,
+          originTtfbMs: 64,
+          probeDurationMs: 438,
+          upstreamRequestMs: 91,
+          upstreamRequestCount: 3,
+        }],
+      },
+    });
+
+    const quality = workflow.results.find((item) => item.taskId === workflow.taskIds.quality)?.output as {
+      assessments: Array<Record<string, unknown>>;
+    };
+    expect(quality.assessments[0]).toMatchObject({
+      status: "resolution_detected",
+      resolutionHeight: 720,
+      decodedResolutionHeight: 720,
+      sourceResolutionHeight: 1080,
+      resolutionSource: "decoded_playback",
+      originTtfbMs: 64,
+      probeDurationMs: 438,
+      upstreamRequestMs: 91,
+      upstreamRequestCount: 3,
+    });
+    expect(quality.assessments[0].evidence).toEqual(expect.arrayContaining([
+      "player.videoHeight",
+      "hls_or_segment.resolution_height",
+      "origin.media_ttfb_ms",
+    ]));
+    const playback = workflow.results.find((item) => item.taskId === workflow.taskIds.playback)?.output as {
+      recommendations: Array<{ resolutionHeight: number | null; selectionBasis: string }>;
+    };
+    expect(playback.recommendations[0]).toMatchObject({
+      resolutionHeight: 720,
+      selectionBasis: "measured-resolution",
+    });
   });
 
   it("persists the workflow DAG as an explicit parent-child lineage", async () => {
