@@ -43,9 +43,11 @@ describe("Friday task runtime",()=>{
   expect(()=>validateTaskGraph([{...task,dependsOn:["source","source"]},{taskId:"source",agent:"source-agent",input:{}}]))
    .toThrowError("duplicate dependency");
  });
- it("rejects self-parent and cyclic parent lineage",()=>{
+ it("rejects self-parent, empty parent IDs, and cyclic parent lineage",()=>{
   expect(()=>validateTaskGraph([{...task,parentTaskId:task.taskId}]))
    .toThrowError("its own parent");
+  expect(()=>validateTaskGraph([{...task,parentTaskId:""}]))
+   .toThrowError("Invalid parent task id");
   expect(()=>validateTaskGraph([
    {...task,parentTaskId:"quality"},
    {taskId:"quality",agent:"quality-agent",input:{},parentTaskId:task.taskId},
