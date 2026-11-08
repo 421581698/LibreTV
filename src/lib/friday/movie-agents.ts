@@ -120,8 +120,8 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
         const probeCompleted = probe.resolutionProbed === true;
         const evidence: string[] = [];
         if (probeCompleted) evidence.push("quality_probe.completed");
+        if (validHeight) evidence.push("hls_or_segment.resolution_height");
         if (validDecodedHeight) evidence.push("player.videoHeight");
-        else if (validHeight) evidence.push("hls_or_segment.resolution_height");
         if (validReachability) evidence.push("source.reachable");
         if (validLatency) evidence.push("source.latency");
         if (typeof probe.probeDurationMs === "number" && Number.isFinite(probe.probeDurationMs) && probe.probeDurationMs >= 0) evidence.push("quality_probe.duration_ms");
@@ -132,7 +132,9 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
           title: probe.title,
           status: validHeight ? "resolution_detected" : probe.resolutionError ? "unavailable" : probeCompleted ? "resolution_unknown" : "unknown",
           assessmentCompleted: probeCompleted || Boolean(probe.resolutionError),
-          resolutionHeight: validHeight ? probe.resolutionHeight! : null,
+          resolutionHeight: validDecodedHeight
+            ? probe.decodedResolutionHeight!
+            : validHeight ? probe.resolutionHeight! : null,
           latencyMs: validLatency ? probe.latencyMs! : null,
           probeDurationMs: typeof probe.probeDurationMs === "number" && Number.isFinite(probe.probeDurationMs) && probe.probeDurationMs >= 0 ? probe.probeDurationMs : null,
           originTtfbMs: validOriginTtfb ? probe.originTtfbMs! : null,
