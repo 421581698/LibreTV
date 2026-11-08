@@ -60,16 +60,82 @@ export function useFridayChatSession({
     setRestoredTasks([]);
   }, []);
 
-  // Restore the local audit snapshots for display only. Interrupted work is never replayed here.
+  // Restore browser-local task history and safely resume interrupted read-only workflows.
+  // Player/device side effects are never replayed by TaskRuntime.
+  const recoveredWorkflowPrefixes = useRef(new Set<string>());
   useEffect(() => {
     let active = true;
-    void fridayTaskRuntime.restoreAll().then((snapshots) => {
-      if (active) setRestoredTasks(snapshots);
+    if (sources.length === 0) return () => { active = false; };
+    void fridayTaskRuntime.restoreAll().then(async (snapshots) => {
+      if (!active) return;
+      setRestoredTasks(snapshots);
+      const roots = snapshots.filter((snapshot) =>
+        snapshot.agent === "search-agent" && snapshot.taskId.endsWith(".search"),
+      );
+      for (const root of roots) {
+        const taskIdPrefix = root.taskId.slice(0, -".search".length);
+        const related = snapshots.filter((snapshot) => snapshot.taskId.startsWith(taskIdPrefix + "."));
+        const interrupted = related.some((snapshot) =>
+          snapshot.status === "failed" && snapshot.error?.code === "TASK_INTERRUPTED" && snapshot.error.retryable,
+        );
+        if (!interrupted || recoveredWorkflowPrefixes.current.has(taskIdPrefix)) continue;
+        const input = root.input as { query?: unknown };
+        const query = typeof input?.query === "string" ? input.query.trim() : "";
+        if (!query) continue;
+
+        recoveredWorkflowPrefixes.current.add(taskIdPrefix);
+        const adapters = createLibreTVMovieAgentAdapters(sources as SourceConfig[], {
+          filterAdult,
+          readDecodedHeight: (candidate) => {
+            if (!candidate.sourceId || !candidate.vodId) return undefined;
+            const quality = readQuality(candidate.sourceId, candidate.vodId);
+            return quality?.from === "play" ? quality.height : undefined;
+          },
+        });
+        workflowContexts.current.set(taskIdPrefix, { query, taskIdPrefix, adapters });
+        const controller = new AbortController();
+        activeWorkflowControllers.current.set(taskIdPrefix, controller);
+        setWorkflowBySearchId((current) => ({
+          ...current,
+          [taskIdPrefix]: { status: "running" },
+        }));
+        try {
+          const workflow = await runLibreTVMovieWorkflow({
+            query,
+            taskIdPrefix,
+            adapters,
+            runtime: fridayTaskRuntime,
+            signal: controller.signal,
+            replayFailed: true,
+          });
+          if (!active) return;
+          activeWorkflowControllers.current.delete(taskIdPrefix);
+          setWorkflowBySearchId((current) => ({
+            ...current,
+            [taskIdPrefix]: {
+              status: workflow.results.every((item) => item.status === "succeeded") ? "completed" : "failed",
+              retryable: workflow.results.some((item) => item.status === "failed" && item.error?.retryable === true),
+            },
+          }));
+        } catch (recoveryError) {
+          if (!active) return;
+          activeWorkflowControllers.current.delete(taskIdPrefix);
+          setWorkflowBySearchId((current) => ({
+            ...current,
+            [taskIdPrefix]: {
+              status: "failed",
+              error: recoveryError instanceof Error ? recoveryError.message : "Interrupted workflow recovery failed",
+              retryable: false,
+            },
+          }));
+        }
+        if (active) setRestoredTasks(await fridayTaskRuntime.restoreAll());
+      }
     }).catch((restoreError) => {
       console.error("[Friday] Could not restore local task history:", restoreError);
     });
     return () => { active = false; };
-  }, []);
+  }, [sources, filterAdult]);
 
   const handleData = useCallback((part: { type: string; data?: unknown }) => {
     if (!mountedRef.current) return;

@@ -38,7 +38,7 @@ vi.mock('@/lib/quality-probe', () => ({
     state.calls++;
     if (state.abort) throw new DOMException('aborted', 'AbortError');
     if (state.transient) return { sourceKey: 'mock', vodId: 'mock', error: 'HTTP 503' };
-    return { sourceKey: 'mock', vodId: 'mock', height: 1080 };
+    return { sourceKey: 'mock', vodId: 'mock', height: 1080, originTtfbMs: 41 };
   }),
 }));
 
@@ -71,6 +71,16 @@ describe('POST /api/quality', () => {
     expect(data.results).toHaveLength(2);
     expect(data.results.map((r) => r.sourceKey).sort()).toEqual(['a', 'b']);
     expect(data.results.every((r) => r.height === 1080)).toBe(true);
+    expect(data.results.every((r) => r.originTtfbMs === 41)).toBe(true);
+  });
+
+  it('preserves the media-origin TTFB separately from total probe duration in cached results', async () => {
+    const first = await POST(post([item('a', 'https://s.test/api')]));
+    const firstData = (await first.json()) as { results: QualityProbeResult[] };
+    expect(firstData.results[0]).toMatchObject({ originTtfbMs: 41 });
+    const second = await POST(post([item('a', 'https://s.test/api')]));
+    const secondData = (await second.json()) as { results: QualityProbeResult[] };
+    expect(secondData.results[0]).toMatchObject({ originTtfbMs: 41, cached: true });
   });
 
   it('探测完成后才写缓存；并发请求缓存未命中时也只会打一次源站', async () => {
