@@ -9,13 +9,15 @@ describe('FMHY local resource index',()=>{
       const rows=await loadFMHYCategory(category.id);
       expect(rows.length,category.id).toBeGreaterThan(0);
       expect(rows.every(row=>row.categoryId===category.id)).toBe(true);
+      expect(rows.some(row=>row.flags.section),category.id).toBe(true);
     }
   });
 
   it('keeps resource and related destinations on http(s)',async()=>{
     const rows=await loadAllFMHYCategories();
     expect(rows.length).toBeGreaterThan(1000);
-    expect(rows.every(row=>!row.flags.section)).toBe(true);
+    expect(rows.some(row=>row.flags.section)).toBe(true);
+    expect(rows.every(row=>Array.isArray(row.section))).toBe(true);
     for(const row of rows){
       expect(()=>new URL(row.url)).not.toThrow();
       expect(['http:','https:']).toContain(new URL(row.url).protocol);
