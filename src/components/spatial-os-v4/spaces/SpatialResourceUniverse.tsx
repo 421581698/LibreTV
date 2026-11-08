@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { FavoriteButton } from '@/components/favorites/FavoriteButton';
-import { listFavorites, type FavoriteEntry } from '@/lib/db';
+import { listFavorites, readSpatialState, writeSpatialState, type FavoriteEntry } from '@/lib/db';
 import { FMHY_CATEGORIES, type FmhyCategoryId, type FmhyResource } from '@/lib/fmhy-index';
 
 type ApiResponse = {
@@ -14,6 +14,7 @@ type ApiResponse = {
 
 export function SpatialResourceUniverse() {
   const [activeCategory, setActiveCategory] = useState<FmhyCategoryId | 'all' | 'favorites'>('all');
+  const [resourceStateRestored, setResourceStateRestored] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<FmhyResource[]>([]);
   const [selected, setSelected] = useState<FmhyResource | null>(null);
@@ -27,6 +28,21 @@ export function SpatialResourceUniverse() {
     } catch {
       setFavoriteRows([]);
     }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    readSpatialState<{ category?: string; query?: string }>('resource-universe')
+      .then((saved) => {
+        if (!active || !saved) return;
+        if (saved.category === 'all' || saved.category === 'favorites' || FMHY_CATEGORIES.some((item) => item.id === saved.category)) {
+          setActiveCategory(saved.category as FmhyCategoryId | 'all' | 'favorites');
+        }
+        if (typeof saved.query === 'string') setQuery(saved.query.slice(0, 100));
+      })
+      .catch(() => {})
+      .finally(() => { if (active) setResourceStateRestored(true); });
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -44,6 +60,7 @@ export function SpatialResourceUniverse() {
     }
     setLoading(true);
     setError('');
+    void writeSpatialState('resource-universe', { category, query: search.trim() }).catch(() => {});
     setSelected(null);
     try {
       const params = new URLSearchParams();
