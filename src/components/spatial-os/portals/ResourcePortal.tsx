@@ -74,7 +74,7 @@ export function ResourcePortal(){
   </div>
 
   <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-   <button type="button" onClick={()=>setFavoritesOnly(v=>!v)} aria-pressed={favoritesOnly} className={`rounded-full border px-3 py-2 ${favoritesOnly?'bg-black text-white dark:bg-white dark:text-black':''}`}>★ {favoritesOnly?'正在查看收藏':'我的收藏'} ({favorites.length})</button>
+   <button type="button" onClick={()=>{if(!favoritesOnly)setCategory('all');setFavoritesOnly(v=>!v);}} aria-pressed={favoritesOnly} className={`rounded-full border px-3 py-2 ${favoritesOnly?'bg-black text-white dark:bg-white dark:text-black':''}`}>★ {favoritesOnly?'正在查看收藏':'我的收藏'} ({favorites.length})</button>
    <span className="opacity-60">当前显示 {visible.length} / {filtered.length}</span>
   </div>
 
