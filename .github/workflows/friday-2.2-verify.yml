@@ -20,6 +20,9 @@ on:
       - feature/friday-v3-completion-batch-2026-11-08
     paths:
       - "src/lib/friday/**"
+      - "src/lib/quality.ts"
+      - "src/lib/quality.test.ts"
+      - "src/lib/types.ts"
       - "src/components/friday/**"
       - "src/components/home/**"
       - "src/components/AIFloatingBall.tsx"
