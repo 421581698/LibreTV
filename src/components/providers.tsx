@@ -8,6 +8,7 @@ import { ThemeProvider } from './theme';
 import { GlobalDownloadManager } from './download-manager';
 import { useAppStore, hydrateLiveProbeResults } from '@/lib/store';
 import { api, STATUS_QUERY_KEY } from '@/lib/client-api';
+import { migrateLegacyLiveFavorites } from '@/lib/db';
 import { applyEnvPresets } from '@/lib/subscription-sync';
 
 export function Providers({ children }: { children: ReactNode }) {
@@ -26,7 +27,9 @@ export function Providers({ children }: { children: ReactNode }) {
     // 先等持久化状态恢复，再拉服务端下发数据：
     // 避免 setEnvSources/setLiveEnvSources 的勾选合并发生在 rehydrate 之前被覆盖
     Promise.resolve(useAppStore.persist.rehydrate())
-      .then(() => {
+      .then(async () => {
+        const state = useAppStore.getState();
+        await migrateLegacyLiveFavorites(state.liveFavorites, state.liveRecent);
         // 测活缓存从 IndexedDB 恢复（并顺带搬迁旧 localStorage 快照里的存量），
         // 与下方 /api/status 拉取互不依赖，失败静默
         void hydrateLiveProbeResults();
