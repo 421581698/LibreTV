@@ -123,10 +123,10 @@ export function createPlaybackEvidenceAgent(): FridayAgent {
       }
       const minHeight = input.minHeight;
       const maxHeight = input.maxHeight;
-      if (minHeight !== undefined && (typeof minHeight !== "number" || minHeight < 1 || minHeight > height)) {
+      if (minHeight !== undefined && (typeof minHeight !== "number" || !Number.isFinite(minHeight) || minHeight < 1 || minHeight > height)) {
         throw new Error("Playback evidence minimum height is invalid");
       }
-      if (maxHeight !== undefined && (typeof maxHeight !== "number" || maxHeight < height || maxHeight > 16384)) {
+      if (maxHeight !== undefined && (typeof maxHeight !== "number" || !Number.isFinite(maxHeight) || maxHeight < height || maxHeight > 16384)) {
         throw new Error("Playback evidence maximum height is invalid");
       }
       const evidence = {
@@ -218,9 +218,9 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
           resolutionHeight: validDecodedHeight ? probe.decodedResolutionHeight! : validHeight ? probe.resolutionHeight! : null,
           decodedResolutionHeight: validDecodedHeight ? probe.decodedResolutionHeight! : null,
           playbackSampleCount: Number.isInteger(probe.playbackSampleCount) && (probe.playbackSampleCount ?? 0) > 0 ? probe.playbackSampleCount! : validDecodedHeight ? 1 : null,
-          playbackMinHeight: typeof probe.playbackMinHeight === "number" && probe.playbackMinHeight > 0 ? probe.playbackMinHeight : validDecodedHeight ? probe.decodedResolutionHeight! : null,
-          playbackMaxHeight: typeof probe.playbackMaxHeight === "number" && probe.playbackMaxHeight > 0 ? probe.playbackMaxHeight : validDecodedHeight ? probe.decodedResolutionHeight! : null,
-          lastPlaybackHeight: typeof probe.lastPlaybackHeight === "number" && probe.lastPlaybackHeight > 0 ? probe.lastPlaybackHeight : validDecodedHeight ? probe.decodedResolutionHeight! : null,
+          playbackMinHeight: typeof probe.playbackMinHeight === "number" && Number.isFinite(probe.playbackMinHeight) && probe.playbackMinHeight > 0 && probe.playbackMinHeight <= 16384 ? probe.playbackMinHeight : validDecodedHeight ? probe.decodedResolutionHeight! : null,
+          playbackMaxHeight: typeof probe.playbackMaxHeight === "number" && Number.isFinite(probe.playbackMaxHeight) && probe.playbackMaxHeight > 0 && probe.playbackMaxHeight <= 16384 ? probe.playbackMaxHeight : validDecodedHeight ? probe.decodedResolutionHeight! : null,
+          lastPlaybackHeight: typeof probe.lastPlaybackHeight === "number" && Number.isFinite(probe.lastPlaybackHeight) && probe.lastPlaybackHeight > 0 && probe.lastPlaybackHeight <= 16384 ? probe.lastPlaybackHeight : validDecodedHeight ? probe.decodedResolutionHeight! : null,
           sourceResolutionHeight: validHeight ? probe.resolutionHeight! : null,
           resolutionSource: validDecodedHeight ? "decoded_playback" : validHeight ? "playlist_or_segment" : "unknown",
           originTtfbMs: validOriginTtfb ? probe.originTtfbMs! : null,
