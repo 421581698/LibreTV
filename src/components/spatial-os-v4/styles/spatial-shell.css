@@ -198,3 +198,71 @@
   .spatial-v4-resource-card { transition: none; }
   .spatial-v4-resource-card:hover { transform: none; }
 }
+
+
+/* P5/P6 — FMHY search, local favorites and portable profile */
+.spatial-v4-favorite-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  width: 36px; height: 36px; border: 1px solid var(--border, rgba(128,128,128,.25));
+  border-radius: 999px; background: var(--surface, rgba(20,20,20,.72)); color: var(--text-muted, #aaa);
+  cursor: pointer; backdrop-filter: blur(10px);
+}
+.spatial-v4-favorite-button[aria-pressed="true"] { color: var(--accent, #d5a64a); border-color: currentColor; }
+.spatial-v4-favorite-button:disabled { opacity: .55; cursor: wait; }
+.spatial-v4-fmhy-search { display: flex; gap: 10px; margin: 0 0 16px; }
+.spatial-v4-fmhy-search input {
+  flex: 1; min-width: 0; min-height: 46px; padding: 0 14px; border: 1px solid var(--border, rgba(128,128,128,.25));
+  border-radius: 12px; background: var(--surface, rgba(128,128,128,.06)); color: inherit; font: inherit;
+}
+.spatial-v4-fmhy-search button, .spatial-v4-fmhy-categories button {
+  min-height: 40px; padding: 0 14px; border: 1px solid var(--border, rgba(128,128,128,.22));
+  border-radius: 999px; background: var(--surface, rgba(128,128,128,.06)); color: inherit; font-size: 12px; cursor: pointer;
+}
+.spatial-v4-fmhy-search button:disabled { opacity: .6; cursor: wait; }
+.spatial-v4-fmhy-categories { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.spatial-v4-fmhy-categories button[data-active="true"] { border-color: var(--accent, #c9963d); background: var(--surface-hover, rgba(201,150,61,.12)); }
+.spatial-v4-fmhy-message { padding: 22px 12px; color: var(--text-muted, #777); text-align: center; font-size: 13px; }
+.spatial-v4-resource-card { padding: 14px 52px 14px 16px; min-height: 104px; }
+.spatial-v4-resource-open-card {
+  display: flex; width: 100%; height: 100%; flex-direction: column; justify-content: center; align-items: flex-start; gap: 6px;
+  border: 0; padding: 0; background: transparent; color: inherit; text-align: left; cursor: pointer;
+}
+.spatial-v4-resource-star { color: var(--accent, #c9963d); font-size: 10px; }
+.spatial-v4-resource-detail, .spatial-v4-profile-transfer, .spatial-v4-favorites-section {
+  margin-top: 22px; padding: 20px; border: 1px solid var(--border, rgba(128,128,128,.22));
+  border-radius: 16px; background: var(--surface, rgba(128,128,128,.05));
+}
+.spatial-v4-resource-detail-head, .spatial-v4-favorites-heading, .spatial-v4-profile-transfer {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+}
+.spatial-v4-resource-detail h2, .spatial-v4-profile-transfer h2, .spatial-v4-favorites-heading h2 { margin: 4px 0 8px; font-size: 18px; font-weight: 650; }
+.spatial-v4-resource-detail p, .spatial-v4-profile-transfer p, .spatial-v4-favorites-heading p { color: var(--text-muted, #777); font-size: 13px; line-height: 1.7; }
+.spatial-v4-resource-domain { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.spatial-v4-resource-detail-actions, .spatial-v4-profile-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; }
+.spatial-v4-source-link { color: var(--text-muted, #777); font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
+.spatial-v4-profile-transfer { flex-wrap: wrap; }
+.spatial-v4-profile-transfer > div:first-child { flex: 1; min-width: 220px; }
+.spatial-v4-transfer-message { flex-basis: 100%; color: var(--accent, #c9963d) !important; }
+.spatial-v4-favorites-heading { margin-bottom: 14px; }
+.spatial-v4-favorite-list { display: flex; flex-direction: column; gap: 8px; }
+.spatial-v4-favorite-row {
+  display: flex; align-items: center; gap: 12px; min-width: 0; padding: 10px;
+  border: 1px solid var(--border, rgba(128,128,128,.18)); border-radius: 12px;
+}
+.spatial-v4-favorite-row img, .spatial-v4-favorite-placeholder {
+  width: 42px; height: 58px; flex: 0 0 auto; border-radius: 6px; object-fit: cover;
+}
+.spatial-v4-favorite-placeholder { display: grid; place-items: center; background: var(--surface-hover, rgba(128,128,128,.12)); color: var(--accent, #c9963d); }
+.spatial-v4-favorite-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4px; }
+.spatial-v4-favorite-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.spatial-v4-favorite-copy span, .spatial-v4-favorite-row a, .spatial-v4-favorite-row button { color: var(--text-muted, #777); font-size: 11px; }
+.spatial-v4-favorite-row button { border: 0; background: transparent; cursor: pointer; padding: 6px; }
+@media (max-width: 767px) {
+  .spatial-v4-fmhy-search { gap: 7px; }
+  .spatial-v4-fmhy-search button { padding: 0 11px; }
+  .spatial-v4-resource-grid { grid-template-columns: 1fr; }
+  .spatial-v4-profile-transfer { flex-direction: column; }
+  .spatial-v4-profile-actions { width: 100%; }
+  .spatial-v4-resource-detail-head { align-items: flex-start; }
+  .spatial-v4-favorite-row { gap: 8px; }
+}
