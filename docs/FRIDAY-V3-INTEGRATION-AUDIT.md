@@ -6,17 +6,17 @@
 
 ## 1. Executive summary
 
-The DAG is **connected to the real Friday AI conversation path**. It is not only a standalone test fixture. The current implementation is nevertheless **not production-complete as a resumable/retryable workflow engine**.
+The DAG is **connected to the real Friday AI conversation path**. It is not only a standalone test fixture. The current implementation has bounded retry/replay and browser-local interruption reconciliation, but it is **not a general-purpose resume engine**: interrupted network work and side effects are deliberately not resumed.
 
 | Audit item | Result | Evidence / limitation |
 |---|---|---|
 | DAG reached from Friday task entry | PASS | `useFridayChatSession.handleData` receives the `data-movies` UI data part and calls `runLibreTVMovieWorkflow` |
 | Search uses real LibreTV data | PASS | `/api/chat` `search_movie` calls `searchSources`; workflow deliberately reuses the exact returned movie results |
 | Source probing uses real data | PASS WITH SCOPE NOTE | Source Agent calls browser adapter `/api/quality`; server uses `probeQuality`, HLS playlist and media segment parsing |
-| Quality assessment uses measured values | PASS WITH LIMITATION | It consumes returned resolution height and reachability; current adapter does not provide per-source latency or advertised-quality measurements |
+| Quality assessment uses measured values | PASS WITH LIMITATION | It consumes parsed manifest/segment resolution, reachability and per-item probeDurationMs; it does not measure source-origin RTT or decoded player videoHeight |
 | Review agent evidence matching | PASS WITH SCOPE NOTE | Review validates candidate-to-assessment evidence association and coverage; it does not certify decoded player resolution or successful playback |
 | Failure propagation | PASS WITH SCOPE NOTE | Failed agents and dependent failures are persisted; transient errors can be classified as retryable within a bounded DAG retry policy |
-| Cancellation | PARTIAL / BASIC PATH WORKS | Chat stop and component unmount abort active workflow controllers; AbortSignal is passed to adapters; DAG records cancelled nodes. No durable cancel/resume coordinator exists |
+| Cancellation | IMPLEMENTED FOR ACTIVE SESSION | Chat stop and component unmount abort active workflow controllers; AbortSignal reaches search/quality adapters and the DAG persists cancellation. There is no cross-reload cancellation/resume coordinator; in-flight external work is not resumed |
 | Retry / replay | IMPLEMENTED WITH SAFEGUARDS | Workflow exposes retry for eligible failed steps; DAG supports bounded transient retries and explicit failed-task replay. Side-effect tasks remain blocked; this is not arbitrary resume of an in-flight run |
 | Reload recovery | HISTORY RESTORE + INTERRUPTION RECONCILIATION | IndexedDB restores recent task history; orphaned running tasks are recorded as `TASK_INTERRUPTED` and non-retryable. No microphone, network, or side-effect work is automatically resumed |
 | Existing chat/detail/player contracts | PRESERVED BY STATIC REVIEW | `/api/chat`, `data-movies`, `friday-open-detail`, `DetailModal`, homepage search and player paths remain separate; this audit did not execute a browser playback session |
@@ -57,7 +57,8 @@ Important: the workflow's Search Agent adapter is intentionally overridden to ma
 - Uses `POST /api/quality`, batched at no more than 50 candidates per request.
 - The server endpoint uses `probeQuality`, host concurrency limits, SSRF checks, cache and HLS/segment parsing.
 - The current adapter's `reachable` value means a quality-probe response returned without an error. It should not be marketed as a separate TCP/HTTP uptime monitor.
-- Per-source latency is currently not returned by `/api/quality`; do not render or claim it as measured latency.
+- The adapter forwards probeDurationMs, probeResultCached, and parsed resolution evidence into the agent pipeline and conversation UI.
+- /api/quality returns probeDurationMs for each item. It measures server-side per-item elapsed time (including host-gate wait and probe work; cached values retain the original measured duration). It is not source-origin RTT or a clean source-only network latency measurement. latencyMs remains unavailable/null.
 
 ### Quality Agent
 
@@ -65,7 +66,8 @@ Important: the workflow's Search Agent adapter is intentionally overridden to ma
 - Uses numeric `resolutionHeight` only when supplied and positive.
 - Emits `resolution_detected`, `resolution_unknown`, `unavailable` or `unknown`.
 - It must not convert advertised labels such as “4K” into measured resolution.
-- Source-side playlist/segment resolution is not decoded player `videoHeight`.
+- Source-side playlist/segment resolution is not decoded player videoHeight.
+- probeDurationMs is a per-item server-side elapsed duration, not source RTT. The current UI labels this distinction explicitly.
 
 ### Review Agent
 
@@ -146,18 +148,38 @@ Existing regression coverage to keep in CI:
 - `src/lib/friday/movie-workflow.test.ts`
 - `src/lib/friday/task-runtime.test.ts`
 
-This document records static source review. It does not claim that typecheck, lint, Vitest, preview deployment or physical iPhone playback was run during this audit.
+This document records static source review plus the CI results recorded for the PR head at the time of each update. It does not claim a physical iPhone Safari session or a human-operated end-to-end playback session unless those are separately recorded with device, build and result.
 
-## 6. Required follow-up gates before calling V3 workflow complete
+## 6. Completion status and remaining acceptance
 
-1. Add a typed error taxonomy and retry policy; only known transient failures become retryable.
-2. Implement a workflow-level replay coordinator that creates a new execution identity, records lineage to the original run, and revalidates dependencies/checkpoints. Do not replay side-effect tasks automatically.
-3. Reconcile orphaned `running` tasks on reload as interrupted/abandoned; do not silently resume microphone, network or side-effect work.
-4. Make review output distinguish “assessment completed” from “resolution measured”; enforce candidate-level assessment coverage.
-5. If source latency is required, add an explicit server response field with defined semantics (source-origin duration versus API round-trip); never label batched API wall time as per-source latency.
-6. Add integration tests for the actual `data-movies -> workflow` entry, cancellation while search/probe is in flight, dependency failure, retry lineage, and reload reconciliation.
-7. Run `npm run typecheck`, `npm run lint`, `npm test`, GitHub Actions and a deployed preview smoke test.
-8. Manually verify on iPhone Safari: repeated microphone starts, stop during ASR, stop during TTS, search result cards, detail modal, episode selection and playback.
+### Implemented and covered by current source/tests
+
+| Capability | Current evidence | Status |
+|---|---|---|
+| Typed retry classification and bounded automatic retries | DagExecutionError, adapter HTTP/network classification, DAG retry tests | IMPLEMENTED |
+| Explicit failed-step replay with fresh execution identity and dependency reuse | replayFailed, requestReplay, lineage and side-effect guards; DAG/runtime tests | IMPLEMENTED |
+| Reload reconciliation | TaskRuntime.restoreAll records orphaned running/waiting tasks as non-retryable TASK_INTERRUPTED; runtime tests cover repeat restore | IMPLEMENTED |
+| Candidate assessment completeness | Review checks unmatched, duplicate, orphan and incomplete candidate assessments; movie-agent tests cover invalid evidence | IMPLEMENTED |
+| Per-item probe duration | /api/quality returns probeDurationMs; adapter forwards it; workflow/UI display it with an explicit semantic disclaimer | IMPLEMENTED |
+| Real conversation-to-workflow wiring | data-movies -> useFridayChatSession.handleData -> runLibreTVMovieWorkflow; workflow and request-guard tests cover adjacent behavior | WIRED; hook-level browser integration not independently proven by these unit tests |
+| Cancellation and request cleanup | Chat stop/unmount abort controllers; DAG, API route and request-guard tests cover cancellation behavior | IMPLEMENTED; physical browser timing still needs validation |
+
+### Not implemented (intentionally out of current scope)
+
+1. **Source-origin RTT / isolated network latency:** probeDurationMs is server-side per-item elapsed time, not source RTT. latencyMs is not measured. Add a separately defined metric only if product requirements still need it.
+2. **Decoded playback resolution certification:** HLS/segment resolution is not the HTML video element's decoded videoHeight. This requires a real playback telemetry path and must not be inferred from source probes.
+3. **Cross-device/server-side task persistence:** task history remains browser-local IndexedDB. A shared store requires explicit infrastructure, retention and privacy approval.
+4. **General resume of interrupted work:** interrupted tasks are reconciled and displayed, not automatically resumed. This is a deliberate safety boundary for microphone, network and side-effect work.
+
+### CI and manual acceptance gates
+
+- The current PR head's applicable GitHub Actions workflow and Cloudflare Preview build must be checked by exact head SHA. Never carry forward a green result from an older commit.
+- prelaunch-checks runs on pull requests to main. friday-2.2-verify has path filters for Friday/runtime/API code; a documentation-only PR does not trigger it. For code changes within its path filters, require its result as well.
+- Required automated steps in the workflows are dependency installation, TypeScript, ESLint, unit tests and production build.
+- A successful Cloudflare Workers Build check is a Preview build result, not a production deployment or a browser smoke test.
+- **Still requires a human-operated physical-device pass:** iPhone Safari repeated microphone starts, permission denial/recovery, stop during ASR, stop during TTS, second-turn restart, homepage movie cards, detail modal, episode selection and actual playback. No physical iPhone test is claimed by this static audit or by CI.
+
+The remaining items above are validation or explicitly out-of-scope capabilities, not a request to repeat V3.6–V3.14 implementation.
 
 ## 7. Branch hygiene
 

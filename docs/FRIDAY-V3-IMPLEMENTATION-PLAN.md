@@ -70,7 +70,7 @@ Delivered reliability work:
 - Add parentTaskId lineage across search, source probe, quality and review tasks.
 - Strengthen review to reject missing, duplicate, orphaned and incorrectly evidenced candidate assessments. “Assessment complete” now requires exactly one completed assessment per candidate.
 
-CI acceptance remains the user-approved gate: both `prelaunch-checks` and `friday-2.2-verify` must pass TypeScript, ESLint, unit tests and production build. No production deployment is part of V3.5.
+CI acceptance is evaluated against the exact PR head SHA. prelaunch-checks runs for pull requests to main; friday-2.2-verify is path-filtered and runs when Friday/runtime/API files in its configured paths change. A documentation-only PR is not expected to trigger the latter. For code changes covered by both workflows, require both to pass TypeScript, ESLint, unit tests and production build. A Cloudflare Workers Build check is Preview build evidence only; it is not production deployment or browser/device acceptance. No production deployment is part of V3.5.
 
 ## Non-negotiable safeguards
 - Use current main as the integration base; keep all V3.4 changes on `feature/friday-v3.4-complete-upgrade` until CI acceptance.

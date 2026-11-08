@@ -23,7 +23,7 @@ describe("LibreTV movie agent adapters", () => {
 
   it("uses the existing per-movie quality endpoint and maps extracted resolution", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
-      results: [{ sourceKey: "alpha", vodId: "1", height: 1080 }],
+      results: [{ sourceKey: "alpha", vodId: "1", height: 1080, probeDurationMs: 137, cached: false }],
     }), { status: 200, headers: { "Content-Type": "application/json" } }));
     const adapters = createLibreTVMovieAgentAdapters(sources, { fetcher });
     const result = await adapters.probe({ candidates: [
@@ -35,6 +35,8 @@ describe("LibreTV movie agent adapters", () => {
       candidateId: "alpha:1",
       reachable: true,
       resolutionHeight: 1080,
+      probeDurationMs: 137,
+      probeResultCached: false,
     });
     expect(fetcher).toHaveBeenCalledWith("/api/quality", expect.objectContaining({
       method: "POST",
