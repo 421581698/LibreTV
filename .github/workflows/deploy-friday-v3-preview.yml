@@ -3,7 +3,7 @@ name: Deploy Friday V3 Private Preview
 on:
   push:
     branches:
-      - feature/friday-v3-integrated-acceptance-2026-11-08
+      - feature/friday-spatial-os-v1
   workflow_dispatch:
     inputs:
       confirm_preview_deploy:
@@ -30,10 +30,10 @@ jobs:
     timeout-minutes: 30
     environment: preview
     steps:
-      - name: Checkout Friday V3 runtime branch
+      - name: Checkout the exact triggering commit
         uses: actions/checkout@v4
         with:
-          ref: feature/friday-v3-integrated-acceptance-2026-11-08
+          ref: ${{ github.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
