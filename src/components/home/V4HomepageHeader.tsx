@@ -107,7 +107,7 @@ export function V4HomepageHeader() {
               <Icon name="gear" />
             </button>
             <button className="v4-avatar" type="button" aria-label="个人账户" title="个人账户">
-              <Icon name="user" />
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5" /><path d="M4.8 20c.7-3.4 3.1-5.2 7.2-5.2s6.5 1.8 7.2 5.2" /></svg>
             </button>
           </div>
         </div>
