@@ -318,17 +318,24 @@ export async function importConfig(content: string): Promise<void> {
   if (config.name !== 'LibreTV-Settings') throw new Error('配置文件格式不正确');
   const data = config.data || {};
 
-  if (typeof data[PERSIST_KEY] === 'string') {
-    // 关键：先 flush 节流缓冲中的旧状态再写导入配置，否则缓冲会在
-    // 之后 flush 时用导入前的旧状态覆盖刚写入的配置（导入静默丢失）
-    flushPendingPersist();
-    localStorage.setItem(PERSIST_KEY, data[PERSIST_KEY]);
-  }
+  // Parse every supplied section before mutating any store. A malformed later
+  // section must not leave earlier stores partially imported.
+  const importedFavorites = typeof data['favorites'] === 'string'
+    ? JSON.parse(data['favorites']) as unknown
+    : undefined;
+  const importedSpatialState = typeof data['spatialState'] === 'string'
+    ? JSON.parse(data['spatialState']) as unknown
+    : undefined;
+  const importedHistory = typeof data['viewingHistory'] === 'string'
+    ? JSON.parse(data['viewingHistory']) as Record<string, unknown>[]
+    : undefined;
+  const importedProgress = typeof data['playbackProgress'] === 'string'
+    ? JSON.parse(data['playbackProgress']) as unknown
+    : undefined;
 
-  if (typeof data['favorites'] === 'string') {
-    const imported = JSON.parse(data['favorites']) as unknown;
-    if (Array.isArray(imported)) {
-      const valid = imported.filter((item): item is FavoriteEntry =>
+  await db.transaction('rw', db.favorites, db.spatialState, db.history, db.progress, async () => {
+    if (Array.isArray(importedFavorites)) {
+      const valid = importedFavorites.filter((item): item is FavoriteEntry =>
         !!item &&
         typeof item === 'object' &&
         typeof (item as FavoriteEntry).id === 'string' &&
@@ -343,12 +350,9 @@ export async function importConfig(content: string): Promise<void> {
         updatedAt: Date.now(),
       })));
     }
-  }
 
-  if (typeof data['spatialState'] === 'string') {
-    const imported = JSON.parse(data['spatialState']) as unknown;
-    if (Array.isArray(imported)) {
-      const valid = imported.filter((item): item is SpatialStateEntry =>
+    if (Array.isArray(importedSpatialState)) {
+      const valid = importedSpatialState.filter((item): item is SpatialStateEntry =>
         !!item &&
         typeof item === 'object' &&
         typeof (item as SpatialStateEntry).key === 'string' &&
@@ -356,38 +360,34 @@ export async function importConfig(content: string): Promise<void> {
       ).slice(0, 100);
       await db.spatialState.bulkPut(valid.map((item) => ({ ...item, updatedAt: Date.now() })));
     }
-  }
 
-  if (typeof data['viewingHistory'] === 'string') {
-    // 兼容旧版历史结构（含全集 URL 列表），只迁移定位信息
-    const importedHistory = JSON.parse(data['viewingHistory']) as Record<string, unknown>[];
-    for (const item of importedHistory.slice(0, MAX_HISTORY)) {
-      const sourceKey = String(item.sourceKey || item.sourceCode || item.sourceName || '');
-      const vodId = String(item.vodId || item.vod_id || '');
-      const title = String(item.title || '未知视频');
-      if (!sourceKey || !vodId) continue;
-      const totalEpisodes = typeof item.totalEpisodes === 'number'
-        ? item.totalEpisodes
-        : Array.isArray(item.episodes) ? item.episodes.length : 0;
-      await upsertHistory({
-        sourceKey,
-        sourceUrl: typeof item.sourceUrl === 'string' && isSafeProfileUrl(item.sourceUrl) ? item.sourceUrl : undefined,
-        vodId,
-        title,
-        pic: typeof item.pic === 'string' && isSafeProfileUrl(item.pic) ? item.pic : undefined,
-        episodeIndex: typeof item.episodeIndex === 'number' ? item.episodeIndex : 0,
-        totalEpisodes,
-        playbackPosition: typeof item.playbackPosition === 'number' ? item.playbackPosition : 0,
-        duration: typeof item.duration === 'number' ? item.duration : 0,
-        timestamp: typeof item.timestamp === 'number' ? item.timestamp : Date.now(),
-      });
+    if (Array.isArray(importedHistory)) {
+      // Compatible with older history records: retain locator metadata only.
+      for (const item of importedHistory.slice(0, MAX_HISTORY)) {
+        const sourceKey = String(item.sourceKey || item.sourceCode || item.sourceName || '');
+        const vodId = String(item.vodId || item.vod_id || '');
+        const title = String(item.title || '未知视频');
+        if (!sourceKey || !vodId) continue;
+        const totalEpisodes = typeof item.totalEpisodes === 'number'
+          ? item.totalEpisodes
+          : Array.isArray(item.episodes) ? item.episodes.length : 0;
+        await upsertHistory({
+          sourceKey,
+          sourceUrl: typeof item.sourceUrl === 'string' && isSafeProfileUrl(item.sourceUrl) ? item.sourceUrl : undefined,
+          vodId,
+          title,
+          pic: typeof item.pic === 'string' && isSafeProfileUrl(item.pic) ? item.pic : undefined,
+          episodeIndex: typeof item.episodeIndex === 'number' ? item.episodeIndex : 0,
+          totalEpisodes,
+          playbackPosition: typeof item.playbackPosition === 'number' ? item.playbackPosition : 0,
+          duration: typeof item.duration === 'number' ? item.duration : 0,
+          timestamp: typeof item.timestamp === 'number' ? item.timestamp : Date.now(),
+        });
+      }
     }
-  }
 
-  if (typeof data['playbackProgress'] === 'string') {
-    const imported = JSON.parse(data['playbackProgress']) as unknown;
-    if (Array.isArray(imported)) {
-      const valid = imported.filter((item): item is ProgressEntry =>
+    if (Array.isArray(importedProgress)) {
+      const valid = importedProgress.filter((item): item is ProgressEntry =>
         !!item &&
         typeof item === 'object' &&
         typeof (item as ProgressEntry).key === 'string' &&
@@ -399,6 +399,14 @@ export async function importConfig(content: string): Promise<void> {
         updatedAt: Number.isFinite(item.updatedAt) ? item.updatedAt : Date.now(),
       })));
     }
+  });
+
+  // IndexedDB writes are atomic as one transaction. localStorage is a separate
+  // browser storage engine, so write settings only after the Dexie transaction
+  // commits and allow quota/security errors to reach the caller.
+  if (typeof data[PERSIST_KEY] === 'string') {
+    flushPendingPersist();
+    localStorage.setItem(PERSIST_KEY, data[PERSIST_KEY]);
   }
 }
 
