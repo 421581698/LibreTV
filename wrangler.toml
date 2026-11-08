@@ -13,8 +13,8 @@ API_60S_BASE = "https://60s.bggdbh.workers.dev"
 LLM_MODEL = "glm-4-flash"
 
 [previews.vars]
-# Preview 同样采用 fail-closed：未配置专用 PASSWORD Secret 时拒绝登录，
-# 请在对应 Preview Worker 的 Secrets 中设置，不要在仓库中放置密码。
+# V4 Preview 允许免密码访问；仅覆盖 Worker Preview，不改变 Production 变量。
+AUTH_DISABLED = "true"
 CMS_SEARCH_API = "https://caiji.dyttzyapi.com/api.php/provide/vod"
 API_60S_BASE = "https://60s.bggdbh.workers.dev"
 LLM_MODEL = "glm-4-flash"
