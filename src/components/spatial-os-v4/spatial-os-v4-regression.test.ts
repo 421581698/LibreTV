@@ -43,7 +43,7 @@ describe('FRIDAY SPATIAL OS V4 cross-layer regression contracts', () => {
     expect(home).toContain("activeSpace === 'cinematic' ? mainContent");
     expect(home).toContain("activeSpace === 'intelligence' ?");
     expect(home).toContain("activeSpace === 'resources' ?");
-    expect(home).toContain("activeSpace === 'identity' ?");
+    expect(home).toContain("<SpatialIdentitySpace />");
     expect(home).toContain('<HomeRecommendationSection');
     expect(home).toContain('<HomeSearchSection');
     expect(home).toContain('<DetailModal');
