@@ -16,6 +16,7 @@ import { HomeSearchSection } from '@/components/home/HomeSearchSection';
 import { HomeIntentCanvas } from '@/components/home/HomeIntentCanvas';
 import { FridayCore } from '@/components/spatial-os/core/FridayCore';
 import { FridaySpatialOS } from '@/components/spatial-os/FridaySpatialOS';
+import { spatialStateStore } from '@/components/spatial-os/runtime/SpatialStateStore';
 import { useFridayDetailBridge } from '@/components/friday/useFridayDetailBridge';
 import { useHomeSearchController } from '@/components/home/useHomeSearchController';
 import { HomeRecommendationSection } from '@/components/home/HomeRecommendationSection';
@@ -131,6 +132,17 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
     pickHistory,
     activeQuery: urlQuery,
   } = useHomeSearchController(routeQuery, selectedSources.length, toast);
+
+  useEffect(() => {
+    const handleSpatialSearch = (event: Event) => {
+      const query = (event as CustomEvent<{ query?: string }>).detail?.query?.trim();
+      if (!query) return;
+      spatialStateStore.activate('cinematic');
+      runSearchInPlace(query);
+    };
+    window.addEventListener('friday-spatial-search', handleSpatialSearch);
+    return () => window.removeEventListener('friday-spatial-search', handleSpatialSearch);
+  }, [runSearchInPlace]);
 
   const disabledSources = useMemo(
     () => selectedKeys.filter((key) => isSourceDisabled({ sourceHealth }, key)),
