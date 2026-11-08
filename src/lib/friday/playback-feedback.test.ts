@@ -158,7 +158,11 @@ describe("player-to-Friday playback feedback integration", () => {
         observedAt: "2026-11-08T12:00:00.000Z",
       },
     }));
-    const audit = await persisted;
+    const auditPromise = persisted;
+    if (!auditPromise) {
+      throw new Error("Player quality event did not start playback evidence persistence");
+    }
+    const audit = await auditPromise;
 
     expect(visible.qualityChecks?.[0]).toMatchObject({
       resolutionHeight: 720,
