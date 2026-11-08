@@ -222,6 +222,36 @@ describe('mergeQualityEntries', () => {
     expect(back[KEY].height).toBe(1080);
   });
 
+
+  it('累计播放解码观测：同阶段重复事件去重，变化或间隔足够长时记录新样本', () => {
+    const first = mergeQualityEntries({}, { [KEY]: play(720) }, T);
+    expect(first[KEY]).toMatchObject({
+      playbackSampleCount: 1,
+      playbackMinHeight: 720,
+      playbackMaxHeight: 720,
+      lastPlaybackHeight: 720,
+      lastPlaybackSampleAt: T,
+    });
+
+    // 同一播放阶段 loadedmetadata / canplay / playing 重复上报，不虚增样本数
+    const duplicate = mergeQualityEntries(first, { [KEY]: play(720) }, T + 5_000);
+    expect(duplicate[KEY].playbackSampleCount).toBe(1);
+
+    // ABR 升档是新的有效观测，保留最高档同时记录观测范围
+    const upgraded = mergeQualityEntries(duplicate, { [KEY]: play(1080) }, T + 8_000);
+    expect(upgraded[KEY]).toMatchObject({
+      height: 1080,
+      playbackSampleCount: 2,
+      playbackMinHeight: 720,
+      playbackMaxHeight: 1080,
+      lastPlaybackHeight: 1080,
+    });
+
+    // 相同高度在较长时间后再次观测，视作新的播放阶段样本
+    const later = mergeQualityEntries(upgraded, { [KEY]: play(1080) }, T + 70_000);
+    expect(later[KEY].playbackSampleCount).toBe(3);
+  });
+
   it('已有明确档位时，不被「测不出」的探测抹掉', () => {
     const current = { [KEY]: probe(1080) };
     const next = mergeQualityEntries(current, { [KEY]: probe() }, T + 1000);
