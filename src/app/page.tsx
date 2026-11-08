@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import { V4HomepageHeader } from '@/components/home/V4HomepageHeader';
 import { V4HomepageHero } from '@/components/home/V4HomepageHero';
-import { V4HomepageSkeleton } from '@/components/home/V4HomepageSkeleton';
+import { V4HomepageContent } from '@/components/home/V4HomepageContent';
 import './v4-homepage.css';
 import { useFridayDetailBridge } from '@/components/friday/useFridayDetailBridge';
 import { useHomeSearchController } from '@/components/home/useHomeSearchController';
@@ -23,6 +23,7 @@ import { api } from '@/lib/client-api';
 import type {
   SearchResultItem,
   SourceSearchOutcome,
+  DoubanItem,
 } from '@/lib/types';
 import {
   formatDisableTtl,
@@ -52,6 +53,7 @@ function HomeContent() {
   const yellowFilter = useAppStore((s) => s.yellowFilter);
   const sourceHealth = useAppStore((s) => s.sourceHealth);
   const subscriptions = useAppStore((s) => s.subscriptions);
+  const doubanEnabled = useAppStore((s) => s.doubanEnabled);
 
   const [detailItem, setDetailItem] =
     useState<SearchResultItem | null>(null);
@@ -81,6 +83,28 @@ function HomeContent() {
   }, [customAPIs, envSources, selectedKeys, sourceHealth, subscriptions]);
 
   const { activeQuery: urlQuery } = useHomeSearchController(routeQuery, selectedSources.length, toast);
+
+  // 推荐卡片必须先用当前启用的采集源解析真实 vodId，不能把豆瓣 ID 当作资源站 ID。
+  const openRecommendation = async (movie: DoubanItem) => {
+    if (selectedSources.length === 0) {
+      toast('请先在设置中启用至少一个点播源，才能查看影片详情', 'warning');
+      return;
+    }
+    try {
+      const result = await api.search(movie.title, selectedSources, yellowFilter);
+      const normalizeTitle = (value: string) =>
+        value.replace(/[\\s\\p{P}\\p{S}]/gu, '').toLocaleLowerCase();
+      const normalizedTitle = normalizeTitle(movie.title);
+      const matched = result.list.find((entry) => normalizeTitle(entry.name) === normalizedTitle);
+      if (!matched) {
+        toast(`暂未在已启用的点播源中找到《${movie.title}》的准确详情，请更换点播源后重试`, 'warning');
+        return;
+      }
+      setDetailItem(matched);
+    } catch (error) {
+      toast(error instanceof Error ? error.message : '获取影片详情失败，请稍后重试', 'error');
+    }
+  };
 
   const disabledSources = useMemo(
     () => selectedKeys.filter((key) => isSourceDisabled({ sourceHealth }, key)),
@@ -247,7 +271,7 @@ function HomeContent() {
             )}
           </section>
         )}
-        {!urlQuery && <V4HomepageSkeleton />}
+        {!urlQuery && doubanEnabled && <V4HomepageContent onPick={openRecommendation} />}
       </main>
       <DetailModal item={detailItem} onClose={() => setDetailItem(null)} />
     </div>
