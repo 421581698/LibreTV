@@ -34,7 +34,7 @@ describe("Friday task runtime",()=>{
   await firstRuntime.record(definition,"task.checkpoint",{cursor:"page-2"});
   const restored=await new TaskRuntime(store).restoreAll();
   expect(restored).toHaveLength(1);
-  expect(restored[0]).toMatchObject({taskId:task.taskId,status:"failed",input:task.input,dependsOn:["source"],checkpoint:{cursor:"page-2"},lastSequence:4,error:{code:"TASK_INTERRUPTED",retryable:false}});
+  expect(restored[0]).toMatchObject({taskId:task.taskId,status:"failed",input:task.input,dependsOn:["source"],checkpoint:{cursor:"page-2"},lastSequence:4,error:{code:"TASK_INTERRUPTED",retryable:true}});
   const restoredAgain=await new TaskRuntime(store).restoreAll();
   expect(restoredAgain[0]).toMatchObject({status:"failed",lastSequence:4});
  });
@@ -123,4 +123,14 @@ describe("Friday task runtime",()=>{
   await expect(runtime.record({...task,input:{title:"Changed"}},"task.started"))
    .rejects.toMatchObject({code:"TASK_DEFINITION_MISMATCH"});
  });
+  it("keeps interrupted side-effect tasks non-retryable",async()=>{
+   const store=new MemoryStore();
+   const definition={...task,taskId:"interrupted-player-command",sideEffect:true};
+   const runtime=new TaskRuntime(store);
+   await runtime.create(definition);
+   await runtime.record(definition,"task.started");
+   const restored=await new TaskRuntime(store).restoreAll();
+   expect(restored[0]).toMatchObject({status:"failed",error:{code:"TASK_INTERRUPTED",retryable:false}});
+  });
+
 });
