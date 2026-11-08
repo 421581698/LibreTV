@@ -81,3 +81,57 @@
 @media (prefers-reduced-motion: reduce) {
   .spatial-v4-nav-item { transition: none; }
 }
+
+/* V4 responsive playback workspace. The ArtPlayer/HLS engine remains untouched. */
+.spatial-v4-player-page {
+  width: min(100% - 32px, 1440px);
+  min-width: 0;
+  padding-block: clamp(12px, 2vw, 28px) max(32px, env(safe-area-inset-bottom));
+}
+.spatial-v4-player-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: clamp(12px, 1.6vw, 24px);
+}
+.spatial-v4-player-grid > * { min-width: 0; }
+.spatial-v4-player-frame {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 16px;
+  background: #000;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .14);
+}
+.spatial-v4-player-frame > * { width: 100%; height: 100%; }
+@media (min-width: 1024px) {
+  .spatial-v4-player-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  }
+}
+@media (max-width: 767px) {
+  .spatial-v4-player-page {
+    width: 100%;
+    padding: 10px 12px calc(28px + env(safe-area-inset-bottom));
+  }
+  .spatial-v4-player-grid { gap: 14px; }
+  .spatial-v4-player-frame {
+    width: calc(100% + 24px);
+    max-width: 100vw;
+    margin-inline: -12px;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+@media (orientation: landscape) and (max-height: 600px) {
+  .spatial-v4-player-frame {
+    width: min(100%, calc((100svh - 132px) * 16 / 9));
+    margin-inline: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spatial-v4-player-frame { scroll-behavior: auto; }
+}
