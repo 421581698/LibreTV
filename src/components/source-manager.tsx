@@ -736,8 +736,6 @@ function CustomProxyInput() {
 
 function LanguageSettingsPanel() {
   const [language, setLanguage] = useState<"zh" | "en">("zh");
-  const [assistantId, setAssistantId] = useState<"friday" | "jarvis" | "lin-meimei">("friday");
-  const [wakeWordEnabled, setWakeWordEnabled] = useState(false);
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem("libretv-language") || window.localStorage.getItem("friday-language");
@@ -775,27 +773,19 @@ function LanguageSettingsPanel() {
 }
 
 function VoiceSettingsPanel() {
-  const [language, setLanguage] = useState<"zh" | "en">("zh");
+  const [assistantId, setAssistantId] = useState<"friday" | "jarvis" | "lin-meimei">("friday");
+  const [wakeWordEnabled, setWakeWordEnabled] = useState(false);
   const [voiceStyle, setVoiceStyle] = useState<"auto" | "jarvis" | "warm" | "clear">("auto");
 
   useEffect(() => {
     try {
-      const savedLanguage = window.localStorage.getItem("friday-language");
-      const savedVoice = window.localStorage.getItem("friday-voice-style");
-      if (savedLanguage === "zh" || savedLanguage === "en") setLanguage(savedLanguage);
       const savedAssistant = window.localStorage.getItem("friday-assistant");
       if (savedAssistant === "friday" || savedAssistant === "jarvis" || savedAssistant === "lin-meimei") setAssistantId(savedAssistant);
       setWakeWordEnabled(window.localStorage.getItem("friday-wake-word") === "true");
+      const savedVoice = window.localStorage.getItem("friday-voice-style");
       if (savedVoice === "jarvis" || savedVoice === "warm" || savedVoice === "clear" || savedVoice === "auto") setVoiceStyle(savedVoice);
     } catch { /* Keep defaults when storage is unavailable. */ }
   }, []);
-
-  const updateLanguage = (value: string) => {
-    const next = value === "en" ? "en" : "zh";
-    setLanguage(next);
-    try { window.localStorage.setItem("friday-language", next); } catch { /* Session-only preference. */ }
-    window.dispatchEvent(new CustomEvent("friday-language-preference-change", { detail: { language: next } }));
-  };
 
   const updateAssistant = (value: string) => {
     const next = value === "jarvis" || value === "lin-meimei" ? value : "friday";
@@ -808,7 +798,6 @@ function VoiceSettingsPanel() {
     try { window.localStorage.setItem("friday-wake-word", String(value)); } catch { /* Session-only preference. */ }
     window.dispatchEvent(new CustomEvent("friday-wake-word-preference-change", { detail: { enabled: value } }));
   };
-
   const updateVoiceStyle = (value: string) => {
     const next = value === "jarvis" || value === "warm" || value === "clear" ? value : "auto";
     setVoiceStyle(next);
@@ -825,17 +814,23 @@ function VoiceSettingsPanel() {
 
   return (
     <section>
-      <SectionTitle title="语音设置" hint="助手角色、音色与唤醒方式；语言请在「语言设置」中选择" />
+      <SectionTitle title="语音设置" hint="助手角色、音色与唤醒方式" />
       <div className="space-y-3">
         <SelectRow
-          label="播报语言"
-          value={language}
-          description={language === "zh" ? "AI 使用中文回复与语音播报" : "AI uses English replies and speech"}
-          onChange={updateLanguage}
+          label="助手角色"
+          value={assistantId}
+          onChange={updateAssistant}
           options={[
-            { value: "zh", label: "中文", hint: "简体中文" },
-            { value: "en", label: "English", hint: "英语" },
+            { value: "friday", label: "Friday", hint: "默认助手" },
+            { value: "jarvis", label: "Jarvis", hint: "贾维斯风格" },
+            { value: "lin-meimei", label: "林妹妹", hint: "温柔陪伴" },
           ]}
+        />
+        <ToggleRow
+          label="启用唤醒词确认"
+          description="语音聆听时可要求先说 Friday；不会后台常驻监听"
+          checked={wakeWordEnabled}
+          onChange={updateWakeWord}
         />
         <SelectRow
           label="语音音色"
@@ -849,7 +844,7 @@ function VoiceSettingsPanel() {
             { value: "clear", label: "清晰女声", hint: "晓伊 / 美式 Ava" },
           ]}
         />
-        <p className="text-xs text-faint leading-relaxed">语言与音色均保存在当前设备并立即应用。语音服务不可用时会明确提示，不应静默切换成系统默认声音。</p>
+        <p className="text-xs text-faint leading-relaxed">角色、唤醒词与音色保存在当前设备并立即应用。语音服务不可用时会明确提示，不会静默切换系统声音。</p>
       </div>
     </section>
   );
