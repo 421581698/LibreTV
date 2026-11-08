@@ -9,6 +9,9 @@ export function goBackSpace(state:SpatialSnapshot):SpatialSnapshot {
  const history=state.history.slice(0,-1);
  return {...state,activeSpace:history.at(-1)??DEFAULT_SPATIAL_STATE.activeSpace,history,expandedPanel:null,focusedPanel:null,updatedAt:Date.now()};
 }
+export function restoreHistorySnapshot(restored:SpatialSnapshot,current:SpatialSnapshot):SpatialSnapshot {
+ return {...restored,scrollPositions:{...restored.scrollPositions,...current.scrollPositions}};
+}
 export function snapshotFromHistoryState(value:unknown):SpatialSnapshot|null {
  if(!value||typeof value!=='object')return null;
  const candidate=(value as Record<string,unknown>)[SPATIAL_HISTORY_KEY];
