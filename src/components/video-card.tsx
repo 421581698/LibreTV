@@ -163,6 +163,17 @@ export function AggregatedCard({
       >
         {showImg ? (
           <div className="relative flex-shrink-0 w-[105px] sm:w-[120px] aspect-[2/3] bg-chip">
+            <FavoriteButton
+              entry={{
+                id: `media:${group.typeName || 'video'}:${group.name.trim().toLocaleLowerCase()}:${group.year || ''}`,
+                kind: 'media',
+                title: group.name,
+                image: group.pic,
+                category: group.typeName || '影视',
+                description: group.remarks,
+              }}
+              className="spatial-v4-favorite-button absolute left-2 top-2 z-10"
+            />
             <SmartImage
               url={group.pic}
               mode={imageProxyMode}
@@ -179,6 +190,16 @@ export function AggregatedCard({
           </div>
         ) : (
           <div className="relative flex-shrink-0 w-[105px] sm:w-[120px] aspect-[2/3] bg-chip flex items-center justify-center">
+            <FavoriteButton
+              entry={{
+                id: `media:${group.typeName || 'video'}:${group.name.trim().toLocaleLowerCase()}:${group.year || ''}`,
+                kind: 'media',
+                title: group.name,
+                category: group.typeName || '影视',
+                description: group.remarks,
+              }}
+              className="spatial-v4-favorite-button absolute left-2 top-2 z-10"
+            />
             <svg className="w-8 h-8 text-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 4v16m10-16v16M3 6a1 1 0 011-1h1a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V6zm4 0a1 1 0 011-1h1a1 1 0 011 1v12a1 1 0 01-1 1h-1a1 1 0 01-1-1V6zm8 0a1 1 0 011-1h1a1 1 0 011 1v12a1 1 0 01-1 1h-1a1 1 0 01-1-1V6zm4 0a1 1 0 011-1h1a1 1 0 011 1v12a1 1 0 01-1 1h-1a1 1 0 01-1-1V6z" />
             </svg>
@@ -359,6 +380,17 @@ export function VideoCard({ item, onClick }: { item: SearchResultItem; onClick: 
       <div className="flex h-full">
         {showImg ? (
           <div className="relative flex-shrink-0 w-[105px] sm:w-[120px] aspect-[2/3] bg-chip">
+            <FavoriteButton
+              entry={{
+                id: `media:${item.typeName || 'video'}:${item.name.trim().toLocaleLowerCase()}:${item.year || ''}`,
+                kind: 'media',
+                title: item.name,
+                image: item.pic,
+                category: item.typeName || '影视',
+                description: item.remarks,
+              }}
+              className="spatial-v4-favorite-button absolute left-2 top-2 z-10"
+            />
             <SmartImage
               url={item.pic}
               mode={imageProxyMode}
