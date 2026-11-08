@@ -320,6 +320,9 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
       const assessments = Array.isArray(qualityOutput.assessments)
         ? qualityOutput.assessments as QualityAssessment[]
         : [];
+      const assessmentEvidenceRank = (assessment: QualityAssessment) =>
+        assessment.resolutionSource === "decoded_playback" || assessment.evidence.includes("player.videoHeight") ? 2 :
+          assessment.resolutionSource === "playlist_or_segment" || assessment.evidence.includes("hls_or_segment.resolution_height") ? 1 : 0;
 
       if (reviewOutput.accepted !== true) {
         return {
@@ -365,10 +368,7 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
 
       const recommendations = [...byTitle.values()].map((group) => {
         group.sort((left, right) => {
-          const evidenceRank = (assessment: QualityAssessment) =>
-            assessment.resolutionSource === "decoded_playback" ? 2 :
-              assessment.resolutionSource === "playlist_or_segment" ? 1 : 0;
-          const rankOrder = evidenceRank(right.assessment) - evidenceRank(left.assessment);
+          const rankOrder = assessmentEvidenceRank(right.assessment) - assessmentEvidenceRank(left.assessment);
           if (rankOrder !== 0) return rankOrder;
           const leftHeight = left.assessment.status === "resolution_detected" ? left.assessment.resolutionHeight ?? 0 : 0;
           const rightHeight = right.assessment.status === "resolution_detected" ? right.assessment.resolutionHeight ?? 0 : 0;
@@ -388,7 +388,7 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
           candidateId: selected.candidate.id,
           sourceId: selected.candidate.sourceId!,
           resolutionHeight: measured ? selected.assessment.resolutionHeight : null,
-          selectionBasis: selected.assessment.resolutionSource === "decoded_playback" && measured ? "decoded-playback" as const : selected.assessment.resolutionSource === "playlist_or_segment" && measured ? "source-probe" as const : "reachable-only" as const,
+          selectionBasis: assessmentEvidenceRank(selected.assessment) === 2 && measured ? "decoded-playback" as const : assessmentEvidenceRank(selected.assessment) === 1 && measured ? "source-probe" as const : "reachable-only" as const,
           alternativeCount: Math.max(0, group.length - 1),
           requiresUserConfirmation: true as const,
         };
