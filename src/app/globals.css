@@ -1187,3 +1187,17 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
 .spatial-os .friday-hero-v2[data-state=error] .friday-hero-orb-label{color:#e69b91}
 .spatial-os .friday-hero-v2[data-state=executing] .friday-hero-orb{filter:drop-shadow(0 0 18px rgba(210,166,85,.28))}
 .spatial-os .friday-hero-v2[data-state=error] .friday-hero-orb{filter:drop-shadow(0 0 18px rgba(210,95,85,.22))}
+
+/* Day scene: retain the same spatial hierarchy while switching the environment to warm porcelain. */
+html:not(.dark) .spatial-os{background:radial-gradient(ellipse at 50% 0%,rgba(198,158,78,.12),transparent 48%),linear-gradient(180deg,#f5f3ee 0%,#e9e7e1 100%);color:#24231f}
+html:not(.dark) .spatial-os-nav button{background:rgba(255,255,255,.76);border-color:rgba(130,104,57,.22);color:#353126;backdrop-filter:blur(14px)}
+html:not(.dark) .spatial-os-nav button[aria-current=page]{background:rgba(213,184,125,.24);border-color:rgba(150,113,48,.58);box-shadow:0 0 24px rgba(170,133,68,.10)}
+html:not(.dark) .spatial-os-nav button small{color:#77705f}
+html:not(.dark) .spatial-os-panel{background:linear-gradient(145deg,rgba(255,255,255,.94),rgba(244,241,233,.96));border-color:rgba(130,104,57,.22);box-shadow:0 24px 90px rgba(65,55,35,.10)}
+html:not(.dark) .spatial-os-panel p{color:#686252}
+html:not(.dark) .spatial-os-eyebrow{color:#8b6c31!important}
+html:not(.dark) .spatial-os-category-grid a{background:rgba(255,255,255,.64);border-color:rgba(130,104,57,.18);color:#29271f}
+html:not(.dark) .spatial-os-category-grid small,html:not(.dark) .spatial-os-task-list li small,html:not(.dark) .spatial-os-footnote{color:#77705f}
+html:not(.dark) .spatial-os-panel h3{color:#373226}
+html:not(.dark) .spatial-os-quality{color:#6f5524!important}
+html:not(.dark) .spatial-os .friday-hero-orb-label{color:#71654d}
