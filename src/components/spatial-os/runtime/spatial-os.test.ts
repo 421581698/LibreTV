@@ -5,9 +5,11 @@ import {setExpandedPanel} from './PanelManager';
 import {projectFridayState} from './TaskProjection';
 import {transitionFridayVisualState} from './FridayStateMachine';
 import {assessQuality} from './QualityVerifier';
+import {FMHY_CATEGORIES} from '../data/fmhy-categories';
 describe('Spatial OS runtime',()=>{
  it('switches spaces and restores the previous space',()=>{const next=activateSpace(DEFAULT_SPATIAL_STATE,'resources');expect(next.activeSpace).toBe('resources');expect(goBackSpace(next).activeSpace).toBe('cinematic');});
  it('allows only one expanded panel',()=>{const next=setExpandedPanel(DEFAULT_SPATIAL_STATE,'quality');expect(next.expandedPanel).toBe('quality');expect(setExpandedPanel(next,null).expandedPanel).toBeNull();});
  it('maps detailed runtime phases and drives presentation-only transitions',()=>{expect(projectFridayState('recognizing')).toBe('listening');expect(projectFridayState('executing')).toBe('executing');expect(transitionFridayVisualState('idle','MIC_ON')).toBe('listening');expect(transitionFridayVisualState('speaking','FAIL')).toBe('error');});
+ it('keeps all 13 official FMHY categories as distinct canonical destinations',()=>{expect(FMHY_CATEGORIES).toHaveLength(13);expect(new Set(FMHY_CATEGORIES.map(category=>category.href)).size).toBe(13);});
  it('distinguishes decoded height from playlist claims',()=>{expect(assessQuality({kind:'player-decoded',decodedHeight:1080,observedAt:1}).confidence).toBe('verified');expect(assessQuality({kind:'playlist-declared',declaredHeight:1080,observedAt:1}).confidence).toBe('indicative');});
 });
