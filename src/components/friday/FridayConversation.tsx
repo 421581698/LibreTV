@@ -14,7 +14,7 @@ export type FridayConversationEntry = {
   workflows?: Record<string, FridayWorkflowView>;
 };
 
-function WorkflowSummary({ workflow, searchId, onRetryWorkflow, language }: { workflow: FridayWorkflowView; searchId: string; onRetryWorkflow: (searchId: string) => void; language: "zh" | "en" }) {
+function WorkflowSummary({ workflow, searchId, onRetryWorkflow, language, movies, onOpenMovie }: { workflow: FridayWorkflowView; searchId: string; onRetryWorkflow: (searchId: string) => void; language: "zh" | "en"; movies: MovieItem[]; onOpenMovie: (movie: MovieItem) => void }) {
   const statusLabel = workflow.status === "running" ? (language === "en" ? "Running" : "执行中") : workflow.status === "completed" ? (language === "en" ? "Completed" : "已完成") : (language === "en" ? "Incomplete" : "未完成");
   return (
     <section className="friday-workflow" aria-live="polite">
@@ -51,6 +51,33 @@ function WorkflowSummary({ workflow, searchId, onRetryWorkflow, language }: { wo
               <span>{item.status === "resolution_detected" ? (language === "en" ? `${item.resolutionHeight}p (manifest/segment)` : `${item.resolutionHeight}P（清单/分片解析）`) : item.status === "unavailable" ? (language === "en" ? "Check failed" : "探测失败") : item.status === "resolution_unknown" ? (language === "en" ? "Checked; resolution unknown" : "已探测，分辨率未知") : (language === "en" ? "No evidence" : "未取得证据")}{typeof item.probeDurationMs === "number" ? ` · ${Math.round(item.probeDurationMs)} ms` : ""}{item.probeResultCached ? (language === "en" ? " · cached" : " · 缓存结果") : ""}</span>
             </div>
           ))}
+        </div>
+      ) : null}
+      {workflow.playbackRecommendations?.length ? (
+        <div className="friday-workflow-block">
+          <strong>{language === "en" ? "Recommended playback source" : "智能推荐播放源"}</strong>
+          <p>{language === "en" ? "The recommendation uses completed source evidence. Measured resolution is preferred; when resolution is unknown, the UI says so. Open the movie details to confirm before playback." : "推荐依据为已完成的来源证据：优先选择已解析出分辨率的资源；分辨率未知时会明确标注。点击后先进入影片详情，由你确认播放。"}</p>
+          {workflow.playbackRecommendations.map((recommendation) => {
+            const movie = movies.find((item) => `${item.sourceKey}:${item.vodId}` === recommendation.candidateId);
+            return (
+              <div className="friday-workflow-row" key={recommendation.candidateId}>
+                <span>
+                  {recommendation.title} · {recommendation.sourceId}
+                  {recommendation.selectionBasis === "measured-resolution" && recommendation.resolutionHeight
+                    ? ` · ${recommendation.resolutionHeight}P`
+                    : (language === "en" ? " · resolution unknown" : " · 分辨率未知")}
+                  {recommendation.alternativeCount > 0
+                    ? (language === "en" ? ` · ${recommendation.alternativeCount} alternatives` : ` · 另有 ${recommendation.alternativeCount} 个候选`)
+                    : ""}
+                </span>
+                {movie ? (
+                  <button type="button" className="friday-tool-btn" onClick={() => onOpenMovie(movie)}>
+                    {language === "en" ? "Open recommended source" : "打开推荐资源"}
+                  </button>
+                ) : null}
+              </div>
+            );
+          })}
         </div>
       ) : null}
       {workflow.review ? (
@@ -109,7 +136,7 @@ export function FridayConversation({
           {message.movies.map((data) => (
             <React.Fragment key={data.searchId}>
               <FridayMovieResults data={data} onOpen={onOpenMovie} language={language} />
-              {message.workflows?.[data.searchId] ? <WorkflowSummary workflow={message.workflows[data.searchId]} searchId={data.searchId} onRetryWorkflow={onRetryWorkflow} language={language} /> : null}
+              {message.workflows?.[data.searchId] ? <WorkflowSummary workflow={message.workflows[data.searchId]} searchId={data.searchId} onRetryWorkflow={onRetryWorkflow} language={language} movies={data.results} onOpenMovie={onOpenMovie} /> : null}
             </React.Fragment>
           ))}
         </React.Fragment>
