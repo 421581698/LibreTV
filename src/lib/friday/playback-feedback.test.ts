@@ -122,7 +122,7 @@ describe("player-to-Friday playback feedback integration", () => {
       }],
     };
     let visible = initial;
-    let persisted: Promise<unknown> | undefined;
+    let persisted: Promise<{ taskId: string }> | undefined;
     const playerEvents = new EventTarget();
     playerEvents.addEventListener("friday-player-quality", (event) => {
       const detail = (event as CustomEvent<{
@@ -158,7 +158,7 @@ describe("player-to-Friday playback feedback integration", () => {
         observedAt: "2026-11-08T12:00:00.000Z",
       },
     }));
-    await persisted;
+    const audit = await persisted;
 
     expect(visible.qualityChecks?.[0]).toMatchObject({
       resolutionHeight: 720,
@@ -172,9 +172,10 @@ describe("player-to-Friday playback feedback integration", () => {
       selectionBasis: "decoded-playback",
       playbackSampleCount: 3,
     });
-    const auditTasks = await runtime.restoreAll();
-    const playbackTask = auditTasks.find((task) => task.taskId.endsWith(".playback-evidence"));
-    expect(playbackTask?.status).toBe("succeeded");
-    expect(playbackTask?.parentTaskId).toBe("friday-parent.playback");
+    const auditEvents = await store.read(audit.taskId);
+    expect(auditEvents.map((item) => item.type)).toEqual([
+      "task.created", "task.started", "task.checkpoint", "task.succeeded",
+    ]);
+    expect(auditEvents[0].parentTaskId).toBe("friday-parent.playback");
   });
 });
