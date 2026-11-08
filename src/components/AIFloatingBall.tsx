@@ -669,9 +669,28 @@ export default function AIFloatingBall({
     resizeTextarea();
   }, [input, resizeTextarea]);
 
-  // V2 homepage runs the shared voice/chat controller without mounting any legacy portal,
-  // floating FAB, panel shell, backdrop, or panel CSS.
-  if (!mounted || inlineMode) return null;
+  // Orb-only mode keeps the shared AI/voice runtime but never mounts a chat panel.
+  // On pages without the central homepage orb, the compact orb itself remains the entry.
+  if (!mounted) return null;
+  if (inlineMode) {
+    if (!showFab) return null;
+    const orbOnly = (
+      <>
+        <FridayStyles />
+        <div className="friday-root">
+          <button
+            type="button"
+            className="friday-fab"
+            aria-label="打开 Friday 并开始语音聆听"
+            onClick={openAndListen}
+          >
+            <FridayOrb state={fridayOrbState} audioLevel={audioLevel} theme="auto" />
+          </button>
+        </div>
+      </>
+    );
+    return createPortal(orbOnly, document.body);
+  }
 
   const content = (
     <>
