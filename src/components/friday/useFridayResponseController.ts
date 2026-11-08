@@ -21,6 +21,16 @@ export function isCompletedFridayRequestTransition(
   );
 }
 
+export function shouldSpeakFridayResponse(
+  previousStatus: string,
+  status: string,
+  panelOpen: boolean,
+  voiceSessionActive: boolean,
+): boolean {
+  return isCompletedFridayRequestTransition(previousStatus, status) &&
+    (panelOpen || voiceSessionActive);
+}
+
 type FridayResponseControllerOptions = {
   messages: MessageLike[];
   status: string;
@@ -69,8 +79,7 @@ export function useFridayResponseController({
     // an old assistant message or restart voice output from a prior session.
     // Home-orb voice sessions deliberately keep the panel closed; still speak
     // their response while that independent voice session remains active.
-    if (!isCompletedFridayRequestTransition(previousStatus, status) ||
-      (!open && !voiceSessionActiveRef.current)) return;
+    if (!shouldSpeakFridayResponse(previousStatus, status, open, voiceSessionActiveRef.current)) return;
 
     const lastAssistant = [...messages]
       .reverse()
