@@ -122,8 +122,29 @@ export function mergeQualityEntries(
     const prev = next[key];
     if (prev?.from === 'play') {
       if (value.from !== 'play') continue;
-      const best = Math.max(prev.height ?? 0, value.height ?? 0);
-      next[key] = { from: 'play', height: best || undefined, timestamp: now };
+      const previousHeight = prev.lastPlaybackHeight ?? prev.height;
+      const incomingHeight = value.height;
+      const previousSampleAt = prev.lastPlaybackSampleAt ?? prev.timestamp;
+      // loadedmetadata/canplay/playing may report the same decoded height in one
+      // playback phase. Count a new observation only when height changes or the
+      // previous observation is at least 60 seconds old.
+      const isNewSample = incomingHeight !== undefined && (
+        previousHeight !== incomingHeight || value.timestamp - previousSampleAt >= 60_000
+      );
+      const previousCount = Math.max(1, prev.playbackSampleCount ?? 1);
+      const heights = [prev.playbackMinHeight ?? prev.height, prev.playbackMaxHeight ?? prev.height, incomingHeight]
+        .filter((height): height is number => typeof height === 'number' && Number.isFinite(height) && height > 0);
+      const best = Math.max(prev.height ?? 0, incomingHeight ?? 0);
+      next[key] = {
+        from: 'play',
+        height: best || undefined,
+        playbackSampleCount: previousCount + (isNewSample ? 1 : 0),
+        playbackMinHeight: heights.length ? Math.min(...heights) : undefined,
+        playbackMaxHeight: heights.length ? Math.max(...heights) : undefined,
+        lastPlaybackHeight: incomingHeight ?? previousHeight,
+        lastPlaybackSampleAt: isNewSample ? value.timestamp : previousSampleAt,
+        timestamp: now,
+      };
       continue;
     }
     if (prev?.from === 'probe' && value.from === 'probe' && prev.height !== undefined && value.height === undefined) {
@@ -178,7 +199,7 @@ export function describeQualityBadge(
       label,
       title:
         entry.from === 'play'
-          ? `播放实测的真实分辨率（${entry.height}P）`
+          ? `播放实测的真实分辨率（最高观察 ${entry.height}P）${entry.playbackSampleCount ? `；有效观测 ${entry.playbackSampleCount} 次` : ''}${entry.playbackMinHeight && entry.playbackMaxHeight && entry.playbackMinHeight !== entry.playbackMaxHeight ? `；观察范围 ${entry.playbackMinHeight}–${entry.playbackMaxHeight}P` : ''}`
           : `解析播放列表得到的档位（${entry.height}P）`,
       retryable: false,
     };
