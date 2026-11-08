@@ -17,7 +17,7 @@ import { restoreFridayConversationHistory, serializeFridayConversationHistory } 
 export type FridayWorkflowView = {
   status: "running" | "completed" | "failed";
   sourceChecks?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean; latencyMs?: number; upstreamRequestMs?: number; upstreamRequestCount?: number }>;
-  qualityChecks?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; probeDurationMs?: number | null; upstreamRequestMs?: number | null; upstreamRequestCount?: number | null; probeResultCached?: boolean | null }>;
+  qualityChecks?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; decodedVideoHeight?: number | null; probeDurationMs?: number | null; upstreamRequestMs?: number | null; upstreamRequestCount?: number | null; probeResultCached?: boolean | null }>;
   review?: { accepted: boolean; findings: string[]; candidateCount: number; assessmentCount: number; measurementCompleted: boolean; resolutionMeasured: boolean };
   playbackRecommendations?: Array<{
     title: string;
@@ -52,11 +52,39 @@ export function useFridayChatSession({
   const activeWorkflowControllers = useRef(new Map<string, AbortController>());
   const workflowContexts = useRef(new Map<string, { query: string; taskIdPrefix: string; adapters: MovieAgentAdapters }>());
   const [workflowBySearchId, setWorkflowBySearchId] = useState<Record<string, FridayWorkflowView>>({});
+  const decodedPlaybackHeightsRef = useRef(new Map<string, number>());
   const [restoredTasks, setRestoredTasks] = useState<TaskSnapshot[]>([]);
 
   const clearTaskHistory = useCallback(async () => {
     await fridayTaskEventStore.clearAll();
     setRestoredTasks([]);
+  }, []);
+
+  // Decoded videoHeight is playback-only evidence. Keep it separate from source manifest probes.
+  useEffect(() => {
+    const handlePlaybackQuality = (event: Event) => {
+      const detail = (event as CustomEvent<{ candidateId?: unknown; height?: unknown }>).detail;
+      if (typeof detail?.candidateId !== "string" || !detail.candidateId.trim()) return;
+      if (typeof detail.height !== "number" || !Number.isFinite(detail.height)) return;
+      const height = Math.floor(detail.height);
+      if (height < 1 || height > 16384) return;
+      decodedPlaybackHeightsRef.current.set(detail.candidateId, height);
+      setWorkflowBySearchId((current) => Object.fromEntries(
+        Object.entries(current).map(([searchId, workflow]) => [
+          searchId,
+          workflow.qualityChecks
+            ? {
+                ...workflow,
+                qualityChecks: workflow.qualityChecks.map((item) => item.candidateId === detail.candidateId
+                  ? { ...item, decodedVideoHeight: height }
+                  : item),
+              }
+            : workflow,
+        ]),
+      ));
+    };
+    window.addEventListener("friday-player-quality", handlePlaybackQuality);
+    return () => window.removeEventListener("friday-player-quality", handlePlaybackQuality);
   }, []);
 
   // Restore the local audit snapshots for display only. Interrupted work is never replayed here.
@@ -140,7 +168,7 @@ export function useFridayChatSession({
           status: workflow.results.every((item) => item.status === "succeeded") ? "completed" : "failed",
           retryable: workflow.results.some((item) => item.status === "failed" && item.error?.retryable === true),
           sourceChecks: sourceOutput?.probes ?? [],
-          qualityChecks: qualityOutput?.assessments ?? [],
+          qualityChecks: (qualityOutput?.assessments ?? []).map((item) => ({ ...item, decodedVideoHeight: item.candidateId ? decodedPlaybackHeightsRef.current.get(item.candidateId) ?? null : null })),
           review: reviewOutput && {
             accepted: reviewOutput.accepted === true,
             findings: reviewOutput.findings ?? [],
@@ -253,7 +281,7 @@ export function useFridayChatSession({
           status: workflow.results.every((item) => item.status === "succeeded") ? "completed" : "failed",
           retryable: workflow.results.some((item) => item.status === "failed" && item.error?.retryable === true),
           sourceChecks: sourceOutput?.probes ?? [],
-          qualityChecks: qualityOutput?.assessments ?? [],
+          qualityChecks: (qualityOutput?.assessments ?? []).map((item) => ({ ...item, decodedVideoHeight: item.candidateId ? decodedPlaybackHeightsRef.current.get(item.candidateId) ?? null : null })),
           review: reviewOutput && {
             accepted: reviewOutput.accepted === true,
             findings: reviewOutput.findings ?? [],
