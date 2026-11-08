@@ -404,7 +404,7 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
         ready: true,
         recommendations,
         reason: recommendations.length
-          ? "Selected the reachable candidate with the highest measured manifest/segment resolution; unknown resolution is never presented as measured."
+          ? "Selected the reachable candidate using decoded playback evidence first, then manifest/segment resolution; unknown resolution is never presented as measured."
           : "No candidate has both a completed quality assessment and a reachable source.",
       };
     },
