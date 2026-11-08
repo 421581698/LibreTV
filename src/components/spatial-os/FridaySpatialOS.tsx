@@ -6,6 +6,7 @@ import {CinematicPortal} from './portals/CinematicPortal';
 import {ResourcePortal} from './portals/ResourcePortal';
 import {IntelligencePortal} from './portals/IntelligencePortal';
 import {IdentityPortal} from './portals/IdentityPortal';
+import {SpatialPanelWorkspace} from './SpatialPanelWorkspace';
 import {useSpatialState,spatialStateStore} from './runtime/SpatialStateStore';
 import type {SpatialSpace} from './core/types';
 const SPACES:{id:SpatialSpace;label:string;sub:string}[]=[
@@ -18,6 +19,7 @@ export function FridaySpatialOS({children,friday}:{children:ReactNode;friday?:Re
  useEffect(()=>{if(typeof window!=='undefined')window.scrollTo({top:state.scrollPositions[state.activeSpace]??0,behavior:'auto'});},[state.activeSpace,state.scrollPositions]);
  return <SpatialEnvironment><div className="spatial-os" data-space={state.activeSpace}>
   <div className="spatial-os-core">{friday}</div>
+  <SpatialPanelWorkspace/>
   <nav className="spatial-os-nav" aria-label="Spatial OS 空间导航">{state.history.length>1&&<button type="button" className="spatial-os-back" onClick={()=>{if(typeof window!=='undefined')spatialStateStore.saveScroll(state.activeSpace,window.scrollY);spatialStateStore.back();}} aria-label="返回上一个空间">←<small>返回</small></button>}{SPACES.map(s=><button key={s.id} type="button" aria-current={state.activeSpace===s.id?'page':undefined} onClick={()=>{if(typeof window!=='undefined')spatialStateStore.saveScroll(state.activeSpace,window.scrollY);spatialStateStore.activate(s.id);}}><span>{s.label}</span><small>{s.sub}</small></button>)}</nav>
   {state.activeSpace==='cinematic'&&<CinematicPortal>{children}</CinematicPortal>}
   {state.activeSpace==='intelligence'&&<IntelligencePortal/>}
