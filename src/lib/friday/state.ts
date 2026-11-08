@@ -1,4 +1,18 @@
-import type { FridayEvent, FridayState } from "./types";
+import type { AgentState, FridayEvent, FridayState, VoiceState } from "./types";
+
+export type FridaySpatialVisualState = "IDLE" | "LISTENING" | "THINKING" | "EXECUTING" | "SPEAKING" | "ERROR";
+
+/** Maps the existing voice/agent state machine to the six V4 presentation states. */
+export function getFridaySpatialVisualState(state: Pick<FridayState, "voice" | "agent">): FridaySpatialVisualState {
+  const voice: VoiceState = state.voice;
+  const agent: AgentState = state.agent;
+  if (voice === "error" || agent === "error") return "ERROR";
+  if (voice === "speaking") return "SPEAKING";
+  if (voice === "listening" || voice === "recognizing" || voice === "requesting" || voice === "recovering") return "LISTENING";
+  if (agent === "executing") return "EXECUTING";
+  if (agent === "thinking" || agent === "rendering") return "THINKING";
+  return "IDLE";
+}
 
 export const initialFridayState: FridayState = {
   voice: "idle",
