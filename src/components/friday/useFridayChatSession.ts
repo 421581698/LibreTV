@@ -332,6 +332,9 @@ export function useFridayChatSession({
     if (!context || activeWorkflowControllers.current.has(searchId)) return;
     const controller = new AbortController();
     activeWorkflowControllers.current.set(searchId, controller);
+    window.dispatchEvent(new CustomEvent("friday-home-runtime-state", {
+      detail: { agent: "executing" },
+    }));
     setWorkflowBySearchId((current) => ({
       ...current,
       [searchId]: { ...current[searchId], status: "running", error: undefined },
@@ -344,6 +347,9 @@ export function useFridayChatSession({
         replayFailed: true,
       });
       if (!mountedRef.current || !isCurrentFridayWorkflow(controller, activeWorkflowControllers.current.get(searchId))) return;
+      window.dispatchEvent(new CustomEvent("friday-home-runtime-state", {
+        detail: { agent: "rendering" },
+      }));
       activeWorkflowControllers.current.delete(searchId);
       const sourceOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.source)?.output as
         | { probes?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean; upstreamRequestMs?: number; upstreamRequestCount?: number; originTtfbMs?: number }> }
@@ -357,10 +363,11 @@ export function useFridayChatSession({
       const playbackOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.playback)?.output as
         | { recommendations?: NonNullable<FridayWorkflowView["playbackRecommendations"]> }
         | undefined;
+      const retrySucceeded = workflow.results.every((item) => item.status === "succeeded");
       setWorkflowBySearchId((current) => ({
         ...current,
         [searchId]: {
-          status: workflow.results.every((item) => item.status === "succeeded") ? "completed" : "failed",
+          status: retrySucceeded ? "completed" : "failed",
           retryable: workflow.results.some((item) => item.status === "failed" && item.error?.retryable === true),
           sourceChecks: sourceOutput?.probes ?? [],
           qualityChecks: (qualityOutput?.assessments ?? []).map((item) => {
@@ -385,9 +392,15 @@ export function useFridayChatSession({
           ),
         },
       }));
+      window.dispatchEvent(new CustomEvent("friday-home-runtime-state", {
+        detail: { agent: retrySucceeded ? "completed" : "error" },
+      }));
     } catch (retryError) {
       if (!mountedRef.current || !isCurrentFridayWorkflow(controller, activeWorkflowControllers.current.get(searchId))) return;
       activeWorkflowControllers.current.delete(searchId);
+      window.dispatchEvent(new CustomEvent("friday-home-runtime-state", {
+        detail: { agent: "error" },
+      }));
       setWorkflowBySearchId((current) => ({
         ...current,
         [searchId]: {
