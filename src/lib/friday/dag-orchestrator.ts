@@ -57,7 +57,13 @@ export async function runFridayDag(args: {
   const maxAttempts = Math.max(1, Math.min(3, requestedAttempts));
   validateTaskGraph(tasks);
 
-  const agentById = new Map(agents.map((agent) => [agent.id, agent]));
+  const agentById = new Map<string, FridayAgent>();
+  for (const agent of agents) {
+    if (!agent.id || agentById.has(agent.id)) {
+      throw new DagExecutionError("Duplicate or empty agent registration: " + agent.id, "AGENT_DUPLICATE");
+    }
+    agentById.set(agent.id, agent);
+  }
   for (const task of tasks) {
     if (!agentById.has(task.agent)) {
       throw new DagExecutionError("No agent registered for task: " + task.agent, "AGENT_NOT_FOUND");

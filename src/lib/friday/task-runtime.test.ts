@@ -39,6 +39,21 @@ describe("Friday task runtime",()=>{
   expect(restoredAgain[0]).toMatchObject({status:"failed",lastSequence:4});
  });
  it("rejects cyclic DAG dependencies",()=>{expect(()=>validateTaskGraph([{...task,dependsOn:["quality"]},{taskId:"quality",agent:"quality-agent",input:{},dependsOn:[task.taskId]}])).toThrowError(TaskRuntimeError)});
+ it("rejects duplicate dependency edges",()=>{
+  expect(()=>validateTaskGraph([{...task,dependsOn:["source","source"]},{taskId:"source",agent:"source-agent",input:{}}]))
+   .toThrowError(expect.objectContaining({code:"DUPLICATE_DEPENDENCY"}));
+ });
+ it("rejects self-parent and cyclic parent lineage",()=>{
+  expect(()=>validateTaskGraph([{...task,parentTaskId:task.taskId}]))
+   .toThrowError(expect.objectContaining({code:"TASK_LINEAGE_CYCLE"}));
+  expect(()=>validateTaskGraph([
+   {...task,parentTaskId:"quality"},
+   {taskId:"quality",agent:"quality-agent",input:{},parentTaskId:task.taskId},
+  ])).toThrowError(expect.objectContaining({code:"TASK_LINEAGE_CYCLE"}));
+ });
+ it("allows parent request IDs outside the current DAG",()=>{
+  expect(()=>validateTaskGraph([{...task,parentTaskId:"request-123"}])).not.toThrow();
+ });
  it("records lifecycle and reconstructs checkpoints",async()=>{let eventNumber=0;const runtime=new TaskRuntime(new MemoryStore(),()=>"2026-11-06T00:00:00Z",()=>`event-${++eventNumber}`);await runtime.create(task);await runtime.record(task,"task.started");await runtime.record(task,"task.checkpoint",{cursor:"source-2"});const result=await runtime.record(task,"task.succeeded",{matches:3});expect(result).toMatchObject({status:"succeeded",checkpoint:{cursor:"source-2"},output:{matches:3}})});
  it("blocks automatic replay for side effects",async()=>{const side={...task,taskId:"player-control-1",sideEffect:true};const runtime=new TaskRuntime(new MemoryStore());await runtime.create(side);await expect(runtime.requestReplay(side)).rejects.toMatchObject({code:"REPLAY_SIDE_EFFECT_BLOCKED"})});
  it("rejects lifecycle transitions that skip required states",async()=>{const runtime=new TaskRuntime(new MemoryStore());await runtime.create(task);await expect(runtime.record(task,"task.succeeded",{})).rejects.toMatchObject({code:"INVALID_TRANSITION"});await expect(runtime.record(task,"task.progress",50)).rejects.toMatchObject({code:"INVALID_TRANSITION"});await runtime.record(task,"task.started");await expect(runtime.record(task,"task.resumed")).rejects.toMatchObject({code:"INVALID_TRANSITION"});await runtime.record(task,"task.waiting");await expect(runtime.record(task,"task.succeeded",{})).rejects.toMatchObject({code:"INVALID_TRANSITION"});});
