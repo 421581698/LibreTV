@@ -70,6 +70,7 @@ describe("Friday Agent least-privilege capability boundary", () => {
 
     expect(contextKeys).toEqual([
       "checkpoint",
+      "checkpointState",
       "dependencyOutputs",
       "progress",
       "requireCapability",
