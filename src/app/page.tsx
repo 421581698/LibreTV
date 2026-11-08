@@ -243,9 +243,8 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
     }
   };
 
-  return (
-    <div className={isV2 ? "home-v2 min-h-screen flex flex-col" : "legacy-home min-h-screen flex flex-col"}>
-      <Header showFridayFab={!isV2} minimalFridayNav={isV2} homeSearch={isV2 ? <HomeSearchSection
+  const header = (
+    <Header showFridayFab={!isV2} minimalFridayNav={isV2} homeSearch={isV2 ? <HomeSearchSection
             urlQuery={urlQuery}
             input={input}
             setInput={setInput}
@@ -259,7 +258,9 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
             showBrandTitle={!isV2}
             compactHeader
           /> : undefined} />
-      <main className={cn("relative flex-1 max-w-6xl w-full mx-auto px-4 py-6", isV2 && "home-v2-main")}>
+  );
+  const mainContent = (
+      <div className={cn("relative flex-1 w-full min-w-0", !isV2 && "max-w-6xl mx-auto px-4 py-6", isV2 && "home-v2-main")} role={!isV2 ? "main" : undefined}>
         {!urlQuery && (
           <div
             aria-hidden
@@ -270,25 +271,23 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
             }}
           />
         )}
-        <HomeIntentCanvas
-          variant={isV2 ? 'v2' : 'legacy'}
-          voiceState={voiceState}
-          audioLevel={audioLevel}
-        >
-          {!isV2 ? <HomeSearchSection
-            urlQuery={urlQuery}
-            input={input}
-            setInput={setInput}
-            inputRef={inputRef}
-            searchHistory={searchHistory}
-            runSearch={runSearch}
-            runSearchInPlace={runSearchInPlace}
-            pickHistory={pickHistory}
-            voiceState={voiceState}
-            setVoiceState={setVoiceState}
-            showBrandTitle={!isV2}
-          /> : null}
-        </HomeIntentCanvas>
+        {!isV2 ? (
+          <HomeIntentCanvas variant="legacy" voiceState={voiceState} audioLevel={audioLevel}>
+            <HomeSearchSection
+              urlQuery={urlQuery}
+              input={input}
+              setInput={setInput}
+              inputRef={inputRef}
+              searchHistory={searchHistory}
+              runSearch={runSearch}
+              runSearchInPlace={runSearchInPlace}
+              pickHistory={pickHistory}
+              voiceState={voiceState}
+              setVoiceState={setVoiceState}
+              showBrandTitle
+            />
+          </HomeIntentCanvas>
+        ) : null}
         {urlQuery && (
           <section aria-label="搜索结果" className="mb-10">
             <div className="flex items-center justify-between mb-3">
@@ -378,9 +377,30 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
             onPick={openRecommendation}
           />
         )}
-      </main>
-      <SiteFooter />
-      <DetailModal item={detailItem} onClose={() => setDetailItem(null)} />
+      </div>
+  );
+
+  return (
+    <div className={isV2 ? "home-v2 min-h-screen flex flex-col" : "legacy-home min-h-screen flex flex-col"}>
+      {isV2 ? (
+        <SpatialAppShell
+          activeSpace={activeSpace}
+          onSpaceChange={setActiveSpace}
+          brand={header}
+          fridayEntry={<SpatialFridayEntry />}
+        >
+          {activeSpace === 'cinematic' ? mainContent : <SpatialSpacePlaceholder space={activeSpace} />}
+          <SiteFooter />
+          <DetailModal item={detailItem} onClose={() => setDetailItem(null)} />
+        </SpatialAppShell>
+      ) : (
+        <>
+          {header}
+          {mainContent}
+          <SiteFooter />
+          <DetailModal item={detailItem} onClose={() => setDetailItem(null)} />
+        </>
+      )}
     </div>
   );
 }
