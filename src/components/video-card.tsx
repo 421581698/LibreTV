@@ -10,6 +10,7 @@ import { SmartImage } from './smart-image';
 import { QualityBadge } from './quality-badge';
 import { useQualityProbe } from './use-quality-probe';
 import { useInView } from './use-in-view';
+import { FavoriteButton } from './favorites/FavoriteButton';
 
 // —— 跨源同名聚合 ——
 
@@ -459,6 +460,17 @@ export function DoubanCard({
       }}
     >
       <div className="relative aspect-[2/3] bg-chip">
+        <FavoriteButton
+          entry={{
+            id: `media:${isTv ? 'tv' : 'movie'}:${item.title.trim().toLocaleLowerCase()}`,
+            kind: 'media',
+            title: item.title,
+            image: item.cover || tmdbPoster || undefined,
+            category: isTv ? '剧集' : '电影',
+            description: item.rating ? `评分 ${item.rating}` : undefined,
+          }}
+          className="spatial-v4-favorite-button absolute left-2 top-2 z-10"
+        />
         {tmdbPoster ? (
           // TMDB 图片为 HTTPS 静态 CDN 地址；只在豆瓣原图候选链耗尽后显示
           // eslint-disable-next-line @next/next/no-img-element
