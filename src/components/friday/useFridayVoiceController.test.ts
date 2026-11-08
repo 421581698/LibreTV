@@ -358,6 +358,34 @@ describe("Friday voice session recovery", () => {
     expect(sent).toHaveBeenCalledWith("帮我找一部科幻电影", false);
   });
 
+  it("runs two consecutive turns through the WebKit-prefixed Safari recognition constructor", async () => {
+    vi.stubGlobal("window", {
+      isSecureContext: true,
+      setTimeout,
+      clearTimeout,
+      webkitSpeechRecognition: MockRecognition,
+    });
+    const { controller, sent } = renderController();
+    controller.toggleListening();
+    const first = MockRecognition.instances[0];
+    first.startEvent();
+    first.result("Safari 第一轮", true);
+    first.endEvent();
+    expect(sent).toHaveBeenCalledWith("Safari 第一轮", true);
+
+    controller.speakText("第一轮回答", "safari-turn-1");
+    harness.playbackEvents?.onEnd();
+    await vi.advanceTimersByTimeAsync(700);
+    expect(MockRecognition.instances).toHaveLength(2);
+
+    const second = MockRecognition.instances[1];
+    second.startEvent();
+    second.result("Safari 第二轮", true);
+    second.endEvent();
+    expect(sent).toHaveBeenLastCalledWith("Safari 第二轮", true);
+    expect(sent).toHaveBeenCalledTimes(2);
+  });
+
   it("completes two voice turns through recognition, response playback, and automatic microphone resume", async () => {
     const { controller, sent, dispatch } = renderController();
 
