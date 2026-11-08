@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { FridayHero } from '@/components/friday/FridayHero';
+import { FridaySpatialOS } from '@/components/spatial-os/FridaySpatialOS';
 
 type VoiceState = 'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING';
 
@@ -12,12 +13,8 @@ type HomeIntentCanvasProps = {
   audioLevel?: number;
 };
 
-/** 首页意图画布：Friday 圆球和搜索入口始终留在首页原位。 */
+/** Spatial OS shell wraps the existing homepage and keeps the Friday core mounted. */
 export function HomeIntentCanvas({ variant, children, voiceState, audioLevel }: HomeIntentCanvasProps) {
-  return (
-    <>
-      {variant === 'v2' ? <FridayHero voiceState={voiceState} audioLevel={audioLevel} /> : null}
-      {children}
-    </>
-  );
+  const friday = variant === 'v2' ? <FridayHero voiceState={voiceState} audioLevel={audioLevel} /> : null;
+  return <FridaySpatialOS friday={friday}>{children}</FridaySpatialOS>;
 }
