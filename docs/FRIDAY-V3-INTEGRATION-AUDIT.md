@@ -79,11 +79,8 @@ Important: the workflow's Search Agent adapter is intentionally overridden to ma
 
 Current behavior:
 - Agent exceptions are caught by `runFridayDag`.
-- The active task receives `task.failed`.
-- Downstream nodes are prevented from running and receive `DEPENDENCY_FAILED`.
+- The active task receives `task.failed`; downstream nodes are prevented from running and receive `DEPENDENCY_FAILED`.
 - `useFridayChatSession` maps non-all-success results to an incomplete workflow view.
-
-Current behavior:
 - The DAG classifies eligible transient failures and applies a bounded automatic retry budget.
 - Failed tasks retain retryability only when the error policy explicitly permits it; dependent-task retryability follows the failed prerequisite.
 - The workflow UI exposes a retry action for eligible failed steps and starts a new workflow execution identity with lineage to the prior tasks.
