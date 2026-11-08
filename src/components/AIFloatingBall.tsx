@@ -167,26 +167,7 @@ export default function AIFloatingBall({
 
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
-  const homeWakeTokenRef = useRef(0);
-  const homeWakeAudioRef = useRef<HTMLAudioElement | null>(null);
-  const homeWakeUrlRef = useRef("");
 
-  const cancelHomeWakeAudio = useCallback(() => {
-    homeWakeTokenRef.current += 1;
-    const wakeAudio = homeWakeAudioRef.current;
-    homeWakeAudioRef.current = null;
-    if (wakeAudio) {
-      wakeAudio.onended = null;
-      wakeAudio.onerror = null;
-      wakeAudio.pause();
-      wakeAudio.removeAttribute("src");
-      wakeAudio.load();
-    }
-    if (homeWakeUrlRef.current) {
-      URL.revokeObjectURL(homeWakeUrlRef.current);
-      homeWakeUrlRef.current = "";
-    }
-  }, []);
 
 
   const {
@@ -351,19 +332,16 @@ export default function AIFloatingBall({
     startListening(false);
   }, [openPanel, startListening, setVoiceSession]);
 
-  // 首页圆球每次点击都执行同一条 Neural TTS 唤醒链路。
-  // 若上一轮正在聆听/播报，先彻底释放旧会话，再播放唤醒音并重新启动识别。
+  // 首页圆球点击必须在同一个用户手势调用栈内启动 ASR。
+  // 不在启动麦克风前等待网络 TTS，否则 iOS Safari 可能丢失用户激活状态。
   useEffect(() => {
     const handleHomeOrbToggle = () => {
-      cancelHomeWakeAudio();
-      const wakeToken = homeWakeTokenRef.current;
-
       openPanel();
       openRef.current = true;
       closingRef.current = false;
       clearVoiceResumeTimer();
 
-      // 统一中断旧识别、旧回复和旧请求；第二次及后续点击不再走“只关闭聆听”的分支。
+      // 先终止上一轮请求/播报，再同步启动唯一的语音识别控制器。
       stopRecognition(true);
       stopSpeech();
       stop();
@@ -371,71 +349,12 @@ export default function AIFloatingBall({
       window.speechSynthesis?.cancel();
       setVoiceSession(true);
       setVoiceError("");
-      setSpeaking(true);
-
-      const finishWake = (message?: string) => {
-        if (wakeToken !== homeWakeTokenRef.current) return;
-        const activeAudio = homeWakeAudioRef.current;
-        homeWakeAudioRef.current = null;
-        if (activeAudio) {
-          activeAudio.onended = null;
-          activeAudio.onerror = null;
-          activeAudio.pause();
-          activeAudio.removeAttribute("src");
-          activeAudio.load();
-        }
-        if (homeWakeUrlRef.current) {
-          URL.revokeObjectURL(homeWakeUrlRef.current);
-          homeWakeUrlRef.current = "";
-        }
-        setSpeaking(false);
-        if (message) setVoiceError(message);
-        // Safari 可能仍在释放上一识别实例；startListening 会排队等待 onend。
-        startListening(false);
-      };
-
-      void (async () => {
-        try {
-          const response = await fetch("/api/tts", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            cache: "no-store",
-            body: JSON.stringify({
-              text: language === "en" ? "I am here, sir." : "我在，先生",
-              language,
-              assistantId,
-              voiceStyle,
-            }),
-          });
-          if (!response.ok) throw new Error(`TTS request failed: ${response.status}`);
-          const contentType = (response.headers.get("content-type") || "").toLowerCase();
-          if (!contentType.includes("audio/mpeg") && !contentType.includes("audio/wav")) {
-            throw new Error("Unsupported TTS audio format");
-          }
-          const blob = await response.blob();
-          if (!blob.size) throw new Error("Empty TTS audio");
-          if (wakeToken !== homeWakeTokenRef.current) return;
-
-          const wakeUrl = URL.createObjectURL(blob);
-          homeWakeUrlRef.current = wakeUrl;
-          const wakeAudio = new Audio(wakeUrl);
-          homeWakeAudioRef.current = wakeAudio;
-          wakeAudio.onended = () => finishWake();
-          wakeAudio.onerror = () => finishWake("Jarvis 语音播放失败，请检查网络或 TTS 服务。");
-          await wakeAudio.play();
-        } catch (error) {
-          if (wakeToken !== homeWakeTokenRef.current) return;
-          console.error("[Friday] Wake acknowledgement TTS failed:", error);
-          finishWake("Jarvis 语音服务暂时不可用，已启动麦克风；不会回退到 Siri 系统声音。");
-        }
-      })();
+      setSpeaking(false);
+      startListening(false);
     };
 
     window.addEventListener("friday-home-orb-toggle", handleHomeOrbToggle);
-    return () => {
-      window.removeEventListener("friday-home-orb-toggle", handleHomeOrbToggle);
-      cancelHomeWakeAudio();
-    };
+    return () => window.removeEventListener("friday-home-orb-toggle", handleHomeOrbToggle);
   }, [
     openPanel,
     clearVoiceResumeTimer,
@@ -447,10 +366,6 @@ export default function AIFloatingBall({
     setVoiceError,
     setSpeaking,
     startListening,
-    language,
-    assistantId,
-    voiceStyle,
-    cancelHomeWakeAudio,
   ]);
 
   const handleSend = useCallback(
