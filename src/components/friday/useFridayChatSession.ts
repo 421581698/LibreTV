@@ -19,6 +19,14 @@ export type FridayWorkflowView = {
   sourceChecks?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean; latencyMs?: number }>;
   qualityChecks?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; probeDurationMs?: number | null; probeResultCached?: boolean | null }>;
   review?: { accepted: boolean; findings: string[]; candidateCount: number; assessmentCount: number; measurementCompleted: boolean; resolutionMeasured: boolean };
+  playbackRecommendations?: Array<{
+    title: string;
+    candidateId: string;
+    sourceId: string;
+    resolutionHeight: number | null;
+    selectionBasis: "measured-resolution" | "reachable-only";
+    alternativeCount: number;
+  }>;
   error?: string;
   retryable?: boolean;
 };
@@ -122,6 +130,9 @@ export function useFridayChatSession({
       const reviewOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.review)?.output as
         | { accepted?: boolean; findings?: string[]; candidateCount?: number; assessmentCount?: number; measurementCompleted?: boolean; resolutionMeasured?: boolean }
         | undefined;
+      const playbackOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.playback)?.output as
+        | { recommendations?: NonNullable<FridayWorkflowView["playbackRecommendations"]> }
+        | undefined;
       setWorkflowBySearchId((current) => ({
         ...current,
         [data.searchId!]: {
@@ -137,6 +148,7 @@ export function useFridayChatSession({
             measurementCompleted: reviewOutput.measurementCompleted === true,
             resolutionMeasured: reviewOutput.resolutionMeasured === true,
           },
+          playbackRecommendations: playbackOutput?.recommendations ?? [],
         },
       }));
     }).catch((error) => {
@@ -231,6 +243,9 @@ export function useFridayChatSession({
       const reviewOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.review)?.output as
         | { accepted?: boolean; findings?: string[]; candidateCount?: number; assessmentCount?: number; measurementCompleted?: boolean; resolutionMeasured?: boolean }
         | undefined;
+      const playbackOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.playback)?.output as
+        | { recommendations?: NonNullable<FridayWorkflowView["playbackRecommendations"]> }
+        | undefined;
       setWorkflowBySearchId((current) => ({
         ...current,
         [searchId]: {
@@ -246,6 +261,7 @@ export function useFridayChatSession({
             measurementCompleted: reviewOutput.measurementCompleted === true,
             resolutionMeasured: reviewOutput.resolutionMeasured === true,
           },
+          playbackRecommendations: playbackOutput?.recommendations ?? [],
         },
       }));
     } catch (retryError) {
