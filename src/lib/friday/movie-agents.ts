@@ -79,9 +79,12 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
       const query = typeof input.query === "string" ? input.query.trim() : "";
       if (!query) throw new Error("Search Agent requires a non-empty query");
       await context.progress({ stage: "searching", query });
-      const candidates = await adapters.search({ query }, context.signal);
+      const saved = context.checkpointState as { candidates?: unknown } | undefined;
+      const candidates = Array.isArray(saved?.candidates)
+        ? candidatesFrom(saved.candidates)
+        : await adapters.search({ query }, context.signal);
       if (!Array.isArray(candidates)) throw new Error("Search adapter returned an invalid result");
-      await context.checkpoint({ candidateCount: candidates.length });
+      await context.checkpoint({ candidateCount: candidates.length, candidates });
       return { query, candidates };
     },
   };
@@ -94,8 +97,12 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
       const searchOutput = objectInput(dependencyValue(context, dependencyKey));
       const candidates = candidatesFrom(searchOutput.candidates);
       await context.progress({ stage: "probing", candidateCount: candidates.length });
-      const probes = await adapters.probe({ candidates }, context.signal);
+      const saved = context.checkpointState as { probes?: unknown } | undefined;
+      const probes = Array.isArray(saved?.probes)
+        ? saved.probes as SourceProbe[]
+        : await adapters.probe({ candidates }, context.signal);
       if (!Array.isArray(probes)) throw new Error("Source probe adapter returned an invalid result");
+      await context.checkpoint({ probeCount: probes.length, probes });
       return { probes };
     },
   };
@@ -107,7 +114,10 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
       const sourceTaskId = typeof input.sourceTaskId === "string" ? input.sourceTaskId : "source";
       const sourceOutput = objectInput(dependencyValue(context, sourceTaskId));
       const probes = Array.isArray(sourceOutput.probes) ? sourceOutput.probes as SourceProbe[] : [];
-      const assessments: QualityAssessment[] = probes.map((probe) => {
+      const saved = context.checkpointState as { assessments?: unknown } | undefined;
+      const assessments: QualityAssessment[] = Array.isArray(saved?.assessments)
+        ? saved.assessments as QualityAssessment[]
+        : probes.map((probe) => {
         const validLatency = typeof probe.latencyMs === "number" &&
           Number.isFinite(probe.latencyMs) && probe.latencyMs >= 0;
         const validReachability = typeof probe.reachable === "boolean";
@@ -148,6 +158,7 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
           evidence,
         };
       });
+      await context.checkpoint({ assessmentCount: assessments.length, assessments });
       return { assessments };
     },
   };
@@ -197,7 +208,7 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
         ...assessments.filter((item) => !item.assessmentCompleted).map(() => "quality-assessment-incomplete"),
         ...(invalidMeasurements.length ? ["measurement-without-resolution-evidence"] : []),
       ];
-      return {
+      const review = {
         accepted: findings.length === 0,
         reviewStatus: findings.length === 0 ? "complete" : "incomplete",
         measurementCompleted: candidates.length > 0 && assessments.length === candidates.length && assessments.every((item) => item.assessmentCompleted) && unmatchedCandidates.length === 0 && duplicateCandidateAssessments.length === 0 && orphanAssessments.length === 0,
@@ -211,6 +222,8 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
         measurementScope: "decoded_playback_or_playlist_segment_resolution",
         note: "player.videoHeight is decoded playback evidence; HLS playlist or segment resolution is source-side evidence. They are kept distinct, and advertised labels alone are not proof.",
       };
+      await context.checkpoint(review);
+      return review;
     },
   };
 
@@ -230,11 +243,13 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
         : [];
 
       if (reviewOutput.accepted !== true) {
-        return {
+        const withheld = {
           ready: false,
           recommendations: [],
           reason: "Quality review did not accept the candidate evidence; automatic source selection is withheld.",
         };
+        await context.checkpoint(withheld);
+        return withheld;
       }
 
       const assessmentByCandidate = new Map<string, QualityAssessment>();
@@ -296,14 +311,15 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
         };
       });
 
-      await context.checkpoint({ recommendationCount: recommendations.length });
-      return {
+      const playback = {
         ready: true,
         recommendations,
         reason: recommendations.length
-          ? "Selected the reachable candidate with the highest measured manifest/segment resolution; unknown resolution is never presented as measured."
+          ? "Selected the reachable candidate with the highest measured decoded playback or source-side resolution; unknown resolution is never presented as measured."
           : "No candidate has both a completed quality assessment and a reachable source.",
       };
+      await context.checkpoint(playback);
+      return playback;
     },
   };
 
