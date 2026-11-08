@@ -270,6 +270,40 @@ export async function exportConfig(): Promise<string> {
   });
 }
 
+function isSafeProfileUrl(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
+export async function migrateLegacyLiveFavorites(
+  urls: string[],
+  recent: Array<{ url: string; name: string; logo?: string; group?: string }>
+): Promise<void> {
+  const recentByUrl = new Map(recent.map((item) => [item.url, item]));
+  const entries: FavoriteEntry[] = urls.filter(isSafeProfileUrl).map((url) => {
+    const item = recentByUrl.get(url);
+    let title = item?.name || url;
+    try { title = item?.name || new URL(url).hostname; } catch { /* filtered above */ }
+    const now = Date.now();
+    return {
+      id: favoriteId('live', url),
+      kind: 'live',
+      title,
+      image: isSafeProfileUrl(item?.logo) ? item?.logo : undefined,
+      category: item?.group || '直播频道',
+      metadata: { streamUrl: url },
+      createdAt: now,
+      updatedAt: now,
+    };
+  });
+  if (entries.length) await db.favorites.bulkPut(entries);
+}
+
 export async function importConfig(content: string): Promise<void> {
   const config = JSON.parse(content) as {
     name?: string;
@@ -293,7 +327,9 @@ export async function importConfig(content: string): Promise<void> {
         typeof item === 'object' &&
         typeof (item as FavoriteEntry).id === 'string' &&
         typeof (item as FavoriteEntry).title === 'string' &&
-        ['fmhy-resource', 'media', 'live'].includes((item as FavoriteEntry).kind)
+        ['fmhy-resource', 'media', 'live'].includes((item as FavoriteEntry).kind) &&
+        ((item as FavoriteEntry).href === undefined || isSafeProfileUrl((item as FavoriteEntry).href)) &&
+        ((item as FavoriteEntry).image === undefined || isSafeProfileUrl((item as FavoriteEntry).image))
       ).slice(0, 5000);
       await db.favorites.bulkPut(valid.map((item) => ({
         ...item,
