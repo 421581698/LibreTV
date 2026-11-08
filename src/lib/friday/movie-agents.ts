@@ -15,6 +15,8 @@ export type SourceProbe = {
   reachable: boolean;
   latencyMs?: number;
   probeDurationMs?: number;
+  upstreamRequestMs?: number;
+  upstreamRequestCount?: number;
   probeResultCached?: boolean;
   statusCode?: number;
   advertisedQualities?: string[];
@@ -34,6 +36,8 @@ export type QualityAssessment = {
   resolutionHeight: number | null;
   latencyMs: number | null;
   probeDurationMs: number | null;
+  upstreamRequestMs: number | null;
+  upstreamRequestCount: number | null;
   probeResultCached: boolean | null;
   reachable: boolean | null;
   advertisedQualities: string[];
@@ -114,6 +118,7 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
         if (validReachability) evidence.push("source.reachable");
         if (validLatency) evidence.push("source.latency");
         if (typeof probe.probeDurationMs === "number" && Number.isFinite(probe.probeDurationMs) && probe.probeDurationMs >= 0) evidence.push("quality_probe.duration_ms");
+        if (typeof probe.upstreamRequestMs === "number" && Number.isFinite(probe.upstreamRequestMs) && probe.upstreamRequestMs >= 0) evidence.push("quality_probe.upstream_request_ms");
         return {
           sourceId: probe.sourceId,
           candidateId: probe.candidateId,
@@ -123,6 +128,8 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
           resolutionHeight: validHeight ? probe.resolutionHeight! : null,
           latencyMs: validLatency ? probe.latencyMs! : null,
           probeDurationMs: typeof probe.probeDurationMs === "number" && Number.isFinite(probe.probeDurationMs) && probe.probeDurationMs >= 0 ? probe.probeDurationMs : null,
+          upstreamRequestMs: typeof probe.upstreamRequestMs === "number" && Number.isFinite(probe.upstreamRequestMs) && probe.upstreamRequestMs >= 0 ? probe.upstreamRequestMs : null,
+          upstreamRequestCount: typeof probe.upstreamRequestCount === "number" && Number.isInteger(probe.upstreamRequestCount) && probe.upstreamRequestCount >= 0 ? probe.upstreamRequestCount : null,
           probeResultCached: typeof probe.probeResultCached === "boolean" ? probe.probeResultCached : null,
           reachable: validReachability ? probe.reachable : null,
           advertisedQualities: Array.isArray(probe.advertisedQualities)

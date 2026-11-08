@@ -16,8 +16,8 @@ import { restoreFridayConversationHistory, serializeFridayConversationHistory } 
 
 export type FridayWorkflowView = {
   status: "running" | "completed" | "failed";
-  sourceChecks?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean; latencyMs?: number }>;
-  qualityChecks?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; probeDurationMs?: number | null; probeResultCached?: boolean | null }>;
+  sourceChecks?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean; latencyMs?: number; upstreamRequestMs?: number; upstreamRequestCount?: number }>;
+  qualityChecks?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; probeDurationMs?: number | null; upstreamRequestMs?: number | null; upstreamRequestCount?: number | null; probeResultCached?: boolean | null }>;
   review?: { accepted: boolean; findings: string[]; candidateCount: number; assessmentCount: number; measurementCompleted: boolean; resolutionMeasured: boolean };
   playbackRecommendations?: Array<{
     title: string;
@@ -123,10 +123,10 @@ export function useFridayChatSession({
       if (!mountedRef.current || !isCurrentFridayWorkflow(controller, activeWorkflowControllers.current.get(data.searchId!))) return;
       activeWorkflowControllers.current.delete(data.searchId!);
       const sourceOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.source)?.output as
-        | { probes?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean }> }
+        | { probes?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean; upstreamRequestMs?: number; upstreamRequestCount?: number }> }
         | undefined;
       const qualityOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.quality)?.output as
-        | { assessments?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; probeDurationMs: number | null; probeResultCached: boolean | null }> }
+        | { assessments?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; probeDurationMs: number | null; upstreamRequestMs: number | null; upstreamRequestCount: number | null; probeResultCached: boolean | null }> }
         | undefined;
       const reviewOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.review)?.output as
         | { accepted?: boolean; findings?: string[]; candidateCount?: number; assessmentCount?: number; measurementCompleted?: boolean; resolutionMeasured?: boolean }
@@ -236,10 +236,10 @@ export function useFridayChatSession({
       if (!mountedRef.current || !isCurrentFridayWorkflow(controller, activeWorkflowControllers.current.get(searchId))) return;
       activeWorkflowControllers.current.delete(searchId);
       const sourceOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.source)?.output as
-        | { probes?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean }> }
+        | { probes?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean; upstreamRequestMs?: number; upstreamRequestCount?: number }> }
         | undefined;
       const qualityOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.quality)?.output as
-        | { assessments?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; probeDurationMs: number | null; probeResultCached: boolean | null }> }
+        | { assessments?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; probeDurationMs: number | null; upstreamRequestMs: number | null; upstreamRequestCount: number | null; probeResultCached: boolean | null }> }
         | undefined;
       const reviewOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.review)?.output as
         | { accepted?: boolean; findings?: string[]; candidateCount?: number; assessmentCount?: number; measurementCompleted?: boolean; resolutionMeasured?: boolean }

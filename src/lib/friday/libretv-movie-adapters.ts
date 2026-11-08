@@ -108,6 +108,8 @@ export function createLibreTVMovieAgentAdapters(
               resolutionHeight: typeof result?.height === "number" ? result.height : undefined,
               resolutionProbed: Boolean(result && !result.error),
               probeDurationMs: result?.probeDurationMs,
+              upstreamRequestMs: result?.upstreamRequestMs,
+              upstreamRequestCount: result?.upstreamRequestCount,
               probeResultCached: result?.cached,
               resolutionError: result?.error ?? (result ? undefined : "No quality result returned"),
             };

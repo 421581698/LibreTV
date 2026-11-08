@@ -23,6 +23,8 @@ const styles = source('src/components/friday/FridayStyles.tsx');
 const fridayConversation = source('src/components/friday/FridayConversation.tsx');
 const movieAgents = source('src/lib/friday/movie-agents.ts');
 const movieWorkflow = source('src/lib/friday/movie-workflow.ts');
+const voiceController = source('src/components/friday/useFridayVoiceController.ts');
+const chatSession = source('src/components/friday/useFridayChatSession.ts');
 
 describe('首页与播放页回归契约', () => {
   it('首页 FridayOrb 保持可见、可访问，并将点击交给唯一语音控制器', () => {
@@ -34,6 +36,37 @@ describe('首页与播放页回归契约', () => {
     expect(orb).toContain('createFridayOrb(canvasRef.current');
     expect(orb).toContain('engine.destroy()');
     expect(assistant).toContain('window.addEventListener("friday-home-orb-toggle", handleHomeOrbToggle)');
+  });
+
+  it('首页圆球点击贯通唯一语音控制器，并覆盖识别错误、停止和卸载清理', () => {
+    expect(assistant).toContain('window.addEventListener("friday-home-orb-toggle", handleHomeOrbToggle)');
+    expect(assistant).toContain('startListening(false)');
+    expect(assistant).toContain('stopRecognition(true)');
+    expect(voiceController).toContain('getBrowserAsrConstructor()');
+    expect(voiceController).toContain('recognition.onstart');
+    expect(voiceController).toContain('recognition.onresult');
+    expect(voiceController).toContain('recognition.onerror');
+    expect(voiceController).toContain('recognition.onend');
+    expect(voiceController).toContain('mountedRef.current = false');
+    expect(voiceController).toContain('stopAllVoice');
+  });
+
+  it('真实 data-movies 结果进入五 Agent 工作流，停止与重试沿用同一运行时', () => {
+    expect(chatSession).toContain('part.type !== "data-movies"');
+    expect(chatSession).toContain('runLibreTVMovieWorkflow');
+    expect(chatSession).toContain('replayFailed: true');
+    expect(chatSession).toContain('controller.abort()');
+    expect(movieWorkflow).toContain('agent: "playback-agent"');
+  });
+
+  it('播放器以 videoHeight 作为真实解码画质，并与清单探测结果区分', () => {
+    expect(player).toContain('const reportVideoHeight');
+    expect(player).toContain('art.video?.videoHeight');
+    expect(player).toContain("art.on('video:loadedmetadata', reportVideoHeight)");
+    expect(player).toContain("art.on('video:canplay', reportVideoHeight)");
+    expect(watch).toContain("from: 'play'");
+    expect(fridayConversation).toContain('manifest/segment');
+    expect(fridayConversation).toContain('videoHeight');
   });
 
   it('今日热门海报通过精确片名匹配打开原详情弹窗，不误开第一个结果', () => {

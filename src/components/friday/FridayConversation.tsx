@@ -36,7 +36,7 @@ function WorkflowSummary({ workflow, searchId, onRetryWorkflow, language, movies
           {workflow.sourceChecks.length ? workflow.sourceChecks.map((item) => (
             <div className="friday-workflow-row" key={item.candidateId || item.sourceId}>
               <span>{item.sourceId}</span>
-              <span>{item.reachable ? (language === "en" ? "Request succeeded" : "解析请求成功") : (language === "en" ? "Check failed" : "探测失败")}{typeof item.latencyMs === "number" ? ` · ${Math.round(item.latencyMs)} ms` : ""}</span>
+              <span>{item.reachable ? (language === "en" ? "Request succeeded" : "解析请求成功") : (language === "en" ? "Check failed" : "探测失败")}{typeof item.upstreamRequestMs === "number" ? (language === "en" ? ` · upstream response wait ${Math.round(item.upstreamRequestMs)} ms / ${item.upstreamRequestCount ?? 0} requests` : ` · 上游请求等待合计 ${Math.round(item.upstreamRequestMs)} ms / ${item.upstreamRequestCount ?? 0} 次`) : ""}</span>
             </div>
           )) : <p>{language === "en" ? "No matching sources to check." : "没有可探测的匹配来源。"}</p>}
         </div>
@@ -44,11 +44,11 @@ function WorkflowSummary({ workflow, searchId, onRetryWorkflow, language, movies
       {workflow.qualityChecks ? (
         <div className="friday-workflow-block">
           <strong>{language === "en" ? "Quality evidence" : "画质证据"}</strong>
-          <p>{language === "en" ? "Resolution is inferred from HLS manifests or media segments. Probe duration is server-side end-to-end time, not source RTT or decoded videoHeight." : "分辨率来自 HLS 清单或媒体分片解析；探测耗时是服务端单条探测总耗时，不是源站 RTT，也不等同于播放器解码后的 videoHeight 实测。"}</p>
+          <p>{language === "en" ? "Manifest/segment resolution is source-side evidence. Server probe duration includes queue wait and parsing; upstream request time sums response-header waits and is not packet RTT. Decoded videoHeight is measured only during playback." : "清单/分片分辨率属于源侧证据；服务端探测总耗时包含排队等待与解析，上游请求等待是各次响应头耗时之和，并非网络层 RTT；videoHeight 只在实际播放解码后测量。"}</p>
           {workflow.qualityChecks.map((item) => (
             <div className="friday-workflow-row" key={item.candidateId || item.sourceId}>
               <span>{item.sourceId}{item.candidateId ? ` · ${item.candidateId.split(":").slice(1).join(":")}` : ""}</span>
-              <span>{item.status === "resolution_detected" ? (language === "en" ? `${item.resolutionHeight}p (manifest/segment)` : `${item.resolutionHeight}P（清单/分片解析）`) : item.status === "unavailable" ? (language === "en" ? "Check failed" : "探测失败") : item.status === "resolution_unknown" ? (language === "en" ? "Checked; resolution unknown" : "已探测，分辨率未知") : (language === "en" ? "No evidence" : "未取得证据")}{typeof item.probeDurationMs === "number" ? ` · ${Math.round(item.probeDurationMs)} ms` : ""}{item.probeResultCached ? (language === "en" ? " · cached" : " · 缓存结果") : ""}</span>
+              <span>{item.status === "resolution_detected" ? (language === "en" ? `${item.resolutionHeight}p (manifest/segment)` : `${item.resolutionHeight}P（清单/分片解析）`) : item.status === "unavailable" ? (language === "en" ? "Check failed" : "探测失败") : item.status === "resolution_unknown" ? (language === "en" ? "Checked; resolution unknown" : "已探测，分辨率未知") : (language === "en" ? "No evidence" : "未取得证据")}{typeof item.probeDurationMs === "number" ? ` · ${Math.round(item.probeDurationMs)} ms（服务端总耗时）` : ""}{typeof item.upstreamRequestMs === "number" ? (language === "en" ? ` · upstream response wait ${Math.round(item.upstreamRequestMs)} ms / ${item.upstreamRequestCount ?? 0} requests` : ` · 上游响应等待 ${Math.round(item.upstreamRequestMs)} ms / ${item.upstreamRequestCount ?? 0} 次`) : ""}{item.probeResultCached ? (language === "en" ? " · cached" : " · 缓存结果") : ""}</span>
             </div>
           ))}
         </div>

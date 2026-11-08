@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { createLibreTVMovieAgentAdapters } from "./libretv-movie-adapters";
+import type { SourceConfig } from "../types";
 import { createMovieWorkflowTaskIdPrefix, runLibreTVMovieWorkflow } from "./movie-workflow";
 import { TaskRuntime, type TaskEvent, type TaskEventStore } from "./task-runtime";
 
@@ -108,6 +110,56 @@ describe("LibreTV movie workflow", () => {
     for (const [taskId, expected] of Object.entries(expectedEvents)) {
       const events = await store.read(taskId);
       expect(events.map((event) => event.type)).toEqual(expected);
+    }
+  });
+
+  it("integrates the real LibreTV search and quality adapters through all five persisted agents", async () => {
+    const source: SourceConfig = { key: "alpha", name: "Alpha", url: "https://alpha.example/api.php/provide/vod" };
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (input) => {
+      if (String(input) === "/api/search") {
+        return new Response(JSON.stringify({
+          list: [{ sourceKey: "alpha", sourceName: "Alpha", vodId: "1", name: "Arrival", year: "2016", sourceUrl: source.url }],
+        }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+      if (String(input) === "/api/quality") {
+        return new Response(JSON.stringify({
+          results: [{
+            sourceKey: "alpha", vodId: "1", height: 1080,
+            probeDurationMs: 240, upstreamRequestMs: 92, upstreamRequestCount: 3,
+            cached: false, transient: false,
+          }],
+        }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+      throw new Error(`Unexpected adapter request: ${String(input)}`);
+    });
+    const store = new MemoryStore();
+    const result = await runLibreTVMovieWorkflow({
+      query: "Arrival",
+      taskIdPrefix: "adapter-e2e",
+      runtime: new TaskRuntime(store),
+      adapters: createLibreTVMovieAgentAdapters([source], { fetcher }),
+    });
+
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(result.results.map((item) => item.status)).toEqual([
+      "succeeded", "succeeded", "succeeded", "succeeded", "succeeded",
+    ]);
+    expect(result.results[2].output).toMatchObject({
+      assessments: [{
+        status: "resolution_detected",
+        resolutionHeight: 1080,
+        probeDurationMs: 240,
+        upstreamRequestMs: 92,
+        upstreamRequestCount: 3,
+        evidence: expect.arrayContaining(["quality_probe.upstream_request_ms"]),
+      }],
+    });
+    expect(result.results[4].output).toMatchObject({
+      ready: true,
+      recommendations: [{ candidateId: "alpha:1", selectionBasis: "measured-resolution", resolutionHeight: 1080 }],
+    });
+    for (const taskId of Object.values(result.taskIds)) {
+      expect((await store.read(taskId)).at(-1)?.type).toBe("task.succeeded");
     }
   });
 

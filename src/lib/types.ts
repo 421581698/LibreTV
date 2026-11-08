@@ -96,8 +96,12 @@ export interface QualityProbeResult {
   vodId: string;
   height?: number;
   error?: string;
-  /** Server-side duration of this individual probe; cached results retain the original duration. */
+  /** Server-side per-item duration, including host-gate wait and probe work. */
   probeDurationMs?: number;
+  /** Sum of upstream fetch request wall times until response headers; excludes host-gate wait and body parsing. Not a network-level RTT. */
+  upstreamRequestMs?: number;
+  /** Number of upstream fetch requests included in upstreamRequestMs. */
+  upstreamRequestCount?: number;
   cached?: boolean;
   /** True when the source-side probe failed for a transient reason and may be retried. */
   transient?: boolean;
