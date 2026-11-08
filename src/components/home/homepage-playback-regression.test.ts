@@ -257,7 +257,7 @@ describe('首页与播放页回归契约', () => {
     expect(spatialIdentity).toContain("new CustomEvent('libretv:open-source-settings')");
     expect(header).toContain("window.addEventListener('libretv:open-history', openHistory)");
     expect(header).toContain("window.addEventListener('libretv:open-source-settings', openSourceSettings)");
-    expect(spatialResources).toContain('freemediaheckyeah.org/categories/');
+    expect(fmhyIndex).toContain("sourceTitle: 'Movies / TV / Anime'");
   });
 
   it('FMHY 全站搜索、详情与收藏使用官方索引和本地安全存储', () => {
