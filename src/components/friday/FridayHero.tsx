@@ -120,7 +120,7 @@ export function FridayHero({ voiceState: controlledVoiceState, audioLevel: contr
       >
         <span className="friday-hero-orb">
           <FridayOrb
-            state={voiceState === 'EXECUTING' || voiceState === 'ERROR' ? 'THINKING' : voiceState}
+            state={voiceState}
             audioLevel={audioLevel * 100}
             theme={orbTheme}
             showHud={false}
