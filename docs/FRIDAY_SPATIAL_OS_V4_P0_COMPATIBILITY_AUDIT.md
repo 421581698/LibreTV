@@ -136,3 +136,71 @@ References:
 ## 8. Release boundary
 
 V4 work remains on `feature/friday-spatial-os-v4`. Do not modify `main`, merge PRs, or deploy production without separate explicit approval.
+
+
+## 9. P0 follow-up verification — 2026-11-08
+
+This section supersedes any earlier P0 rows marked pending where the evidence below is now available.
+
+### 9.1 Player and decoded-quality path — SOURCE VERIFIED
+
+- Playback route: `src/app/watch/page.tsx`.
+- Player implementation: `src/components/player-shell.tsx`, dynamically loaded by the watch page.
+- Engine: ArtPlayer + hls.js; the ArtPlayer instance is retained across episode URL changes to avoid losing fullscreen/video context.
+- Source/episode switching, subtitle and player controls remain in the existing player surface; V4 must compose around this owner rather than instantiate a second player.
+- Decoded height is sampled from `art.video?.videoHeight` on loadedmetadata, canplay, resize and playing-related paths. The watch page persists measured quality and dispatches `friday-player-quality`; `useFridayChatSession` consumes that event and records playback evidence through the existing task runtime.
+- Evidence precedence remains explicit: decoded playback > playlist/segment claim > unknown. Do not label source claims as measured quality.
+
+### 9.2 Persistence — SOURCE VERIFIED
+
+- Dexie database name: `libretv`.
+- Schema versions: v1 history/progress/searchHistory; v2 liveProbe; v3 segmentMeta/downloads; v4 fridayTaskEvents; v5 adds the `[type+occurredAt]` index used to efficiently select recent task-created events.
+- Friday task events are append-only IndexedDB records with event ID, task ID, sequence and timestamp indexes. Writes enforce contiguous per-task sequence numbers.
+- `restoreAll()` reads the recent task streams (Dexie implementation selects up to 50 newest task-created records), validates streams and reconciles orphaned running/waiting tasks as interrupted. It does not automatically replay network side effects. Explicit bounded recovery is a user-initiated action.
+- Conversation history is separate browser-local localStorage, keyed by assistant ID. It stores sanitized text messages only, capped at 30 messages / 2,000 characters per text part / 30 days; tool payloads are excluded. Storage denial is non-fatal.
+- Playback history/progress is another separate IndexedDB concern. V4 must not merge space state, conversation state, playback state and task events into one store.
+
+### 9.3 FMHY 13-category mapping — DECISION RECORDED
+
+The 13-category Resource Universe navigation should follow the current official FMHY site sitemap, which explicitly labels its directory as **Categories (13)**:
+
+1. Adblocking / Privacy
+2. Artificial Intelligence
+3. Movies / TV / Anime
+4. Music / Podcasts / Radio
+5. Gaming / Emulation
+6. Books / Comics / Manga
+7. Downloading
+8. Torrenting
+9. Educational
+10. Android / iOS
+11. Linux / macOS
+12. Non-English
+13. Miscellaneous Tools
+
+The legacy GitHub Wiki index still exposes separate `Tools` and `Miscellaneous` headings, which explains the apparent 14-heading count. Treat that Wiki as legacy page/source provenance, not as the authoritative count for the new 13-item navigation. Preserve source page titles and canonical URLs in the data model; do not silently discard or rewrite source metadata when mapping legacy pages into the current 13-category navigation.
+
+Authoritative category index: https://freemediaheckyeah.org/sitemap/ . Legacy provenance: https://github.com/fmhy/FMHY/wiki .
+
+### 9.4 Test and CI evidence boundary
+
+- The repository contains focused tests for ASR, TTS, VAD, voice controller/interruption, Canvas renderer, DAG orchestration, movie workflow, task runtime, conversation-history sanitization, playback feedback and player controls.
+- Test files existing in the tree are **not** evidence that they pass. No local test command was executed in this audit session.
+- The PR-triggered workflow-run lookup for the audited head returned no runs; this does not establish that CI is green or failed. CI remains unverified until a concrete workflow run for the current branch head is inspected.
+- Preview, desktop browser, iPad and iPhone Safari remain unverified.
+
+### 9.5 P0 disposition
+
+| Item | Result |
+|---|---|
+| Existing capability inventory | Source verified |
+| Player route and player owner | Source verified |
+| Actual decoded-height event path | Source verified |
+| Dexie schema and task restore semantics | Source verified |
+| Conversation history limits | Source verified |
+| FMHY 13-category navigation mapping | Decision recorded from official sitemap |
+| Test execution | Not run |
+| CI | Not verified |
+| Preview / device acceptance | Not verified |
+
+P0 source-compatibility audit is complete. P0 runtime/test acceptance is intentionally separate and must not be represented as complete. Proceed to P1 implementation on this feature branch only; do not modify `main`, merge a PR or deploy production.
