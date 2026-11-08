@@ -14,7 +14,7 @@ afterEach(() => {
 
 describe('GET /api/fmhy', () => {
   it('returns category results from the fixed official FMHY source', async () => {
-    const fetchMock = vi.fn(async () => new Response(markdown, { status: 200 }));
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) => new Response(markdown, { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await GET(new NextRequest('https://libretv.test/api/fmhy?category=ai'));
