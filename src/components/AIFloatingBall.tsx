@@ -335,6 +335,12 @@ export default function AIFloatingBall({
   // 首页圆球是独立的原位语音入口：不打开聊天面板，也不等待网络 TTS。
   // 首次 ASR.start() 必须留在真实点击事件的同步调用链内，兼容 iOS Safari。
   useEffect(() => {
+    const handleOpenPanel = () => openPanel();
+    window.addEventListener("friday-home-open-panel", handleOpenPanel);
+    return () => window.removeEventListener("friday-home-open-panel", handleOpenPanel);
+  }, [openPanel]);
+
+  useEffect(() => {
     const handleHomeOrbToggle = () => {
       clearVoiceResumeTimer();
 
