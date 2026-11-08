@@ -285,11 +285,12 @@ export class TaskRuntime {
 
     const snapshots: TaskSnapshot[] = [];
     for (const taskEvents of grouped.values()) {
-      const created = taskEvents.find((event) => event.type === "task.created");
+      const orderedEvents = validateEventStream(taskEvents[0]?.taskId ?? "", taskEvents);
+      const created = orderedEvents.find((event) => event.type === "task.created");
       const definition = (created?.payload as { definition?: TaskDefinition } | undefined)?.definition;
       if (!definition || definition.taskId !== created?.taskId || typeof definition.agent !== "string") continue;
 
-      let snapshot = reduceTaskEvents(definition, taskEvents);
+      let snapshot = reduceTaskEvents(definition, orderedEvents);
       if (snapshot.status === "running" || snapshot.status === "waiting") {
         try {
           snapshot = await this.record(definition, "task.failed", undefined, {
