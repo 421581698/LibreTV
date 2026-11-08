@@ -23,7 +23,6 @@ import { api } from '@/lib/client-api';
 import type {
   SearchResultItem,
   SourceSearchOutcome,
-  DoubanItem,
 } from '@/lib/types';
 import {
   cn,
@@ -161,35 +160,6 @@ function HomeContent() {
   useEffect(() => {
     setVisibleCount(RESULT_PAGE_SIZE);
   }, [groups]);
-
-  // 首页推荐卡片不走搜索框/URL 搜索流程。先用已启用点播源解析真实 vodId，
-  // 再复用原有 DetailModal；DoubanItem.id 不是采集站 vodId，不能直接混用。
-  const openRecommendation = async (movie: DoubanItem) => {
-    if (selectedSources.length === 0) {
-      toast('请先在设置中启用至少一个点播源，才能查看影片详情', 'warning');
-      return;
-    }
-
-    try {
-      const result = await api.search(movie.title, selectedSources, yellowFilter);
-      const normalizeTitle = (value: string) =>
-        value.replace(/[\s\p{P}\p{S}]/gu, '').toLocaleLowerCase();
-      const normalizedTitle = normalizeTitle(movie.title);
-      const matched = result.list.find(
-        (entry) => normalizeTitle(entry.name) === normalizedTitle
-      );
-
-      /* 不再用“第一个搜索结果”兜底，避免海报点击后误开另一部影片。 */
-      if (!matched) {
-        toast(`暂未在已启用的点播源中找到《${movie.title}》的准确详情，请更换点播源后重试`, 'warning');
-        return;
-      }
-
-      setDetailItem(matched);
-    } catch (error) {
-      toast(error instanceof Error ? error.message : '获取影片详情失败，请稍后重试', 'error');
-    }
-  };
 
   return (
     <div className="v4-home min-h-screen flex flex-col">
