@@ -220,16 +220,16 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
       }
 
       const assessmentByCandidate = new Map<string, QualityAssessment>();
+      const duplicateAssessmentIds = new Set<string>();
       for (const assessment of assessments) {
-        if (typeof assessment.candidateId === "string" && assessment.candidateId) {
-          // The review agent rejects duplicate candidate assessments. Keep the
-          // playback agent defensive in case it is ever invoked independently.
-          if (assessmentByCandidate.has(assessment.candidateId)) {
-            assessmentByCandidate.delete(assessment.candidateId);
-            continue;
-          }
-          assessmentByCandidate.set(assessment.candidateId, assessment);
+        if (typeof assessment.candidateId !== "string" || !assessment.candidateId ||
+          duplicateAssessmentIds.has(assessment.candidateId)) continue;
+        if (assessmentByCandidate.has(assessment.candidateId)) {
+          assessmentByCandidate.delete(assessment.candidateId);
+          duplicateAssessmentIds.add(assessment.candidateId);
+          continue;
         }
+        assessmentByCandidate.set(assessment.candidateId, assessment);
       }
 
       const byTitle = new Map<string, Array<{
@@ -238,7 +238,7 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
       }>>();
       for (const candidate of candidates) {
         const title = candidate.title.trim();
-        const titleKey = title.normalize("NFKC").toLocaleLowerCase().replace(/[\\s\\p{P}\\p{S}]/gu, "");
+        const titleKey = title.normalize("NFKC").toLocaleLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
         const assessment = assessmentByCandidate.get(candidate.id);
         if (!titleKey || !candidate.sourceId || !assessment ||
           assessment.assessmentCompleted !== true || assessment.reachable !== true) continue;
