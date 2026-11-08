@@ -95,7 +95,7 @@ export function FridayHero({ voiceState = 'IDLE', audioLevel = 0 }: { voiceState
           aria-live="polite"
           aria-label="Friday 连续语音字幕"
         >
-          {subtitleLines.join('\\n')}
+          {subtitleLines.join('\n')}
         </div>
       )}
     </section>
