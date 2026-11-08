@@ -29,7 +29,7 @@ describe('FMHY local resource index',()=>{
     const rows=await loadAllFMHYCategories();
     for(const row of rows){
       expect(row.sourceRevision,row.id).toMatch(/^[a-f0-9]{40}$/);
-      expect(row.sourceRetrievedAt,row.id).toMatch(/^\\d{4}-\\d{2}-\\d{2}$/);
+      expect(row.sourceRetrievedAt,row.id).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(row.sourcePath,row.id).toBe(`docs/${row.categoryId}.md`);
       expect(row.sourcePage,row.id).toBe(`https://github.com/fmhy/edit/blob/${row.sourceRevision}/${row.sourcePath}`);
     }
