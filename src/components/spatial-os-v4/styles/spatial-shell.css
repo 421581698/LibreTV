@@ -270,3 +270,31 @@
 
 .spatial-v4-fmhy-count { margin: 0 0 10px; color: var(--text-muted, #777); font-size: 11px; font-variant-numeric: tabular-nums; }
 .spatial-v4-load-more { display: flex; justify-content: center; margin: 18px 0 4px; }
+
+
+/* P6 — payload-redacted task audit in the Intelligence workspace */
+.spatial-v4-task-audit {
+  margin-top: 22px; padding: 20px; border: 1px solid var(--border, rgba(128,128,128,.22));
+  border-radius: 16px; background: var(--surface, rgba(128,128,128,.05));
+}
+.spatial-v4-task-audit-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.spatial-v4-task-audit-heading h2 { margin: 4px 0 8px; font-size: 18px; font-weight: 650; }
+.spatial-v4-task-audit-heading p, .spatial-v4-task-audit-message { color: var(--text-muted, #777); font-size: 12px; line-height: 1.65; }
+.spatial-v4-task-audit-list { display: flex; flex-direction: column; gap: 8px; padding: 0; margin: 0; list-style: none; }
+.spatial-v4-task-audit-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px; min-width: 0; padding: 12px;
+  border: 1px solid var(--border, rgba(128,128,128,.18)); border-radius: 12px;
+}
+.spatial-v4-task-audit-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4px; }
+.spatial-v4-task-audit-copy strong { font-size: 13px; }
+.spatial-v4-task-audit-copy code { overflow: hidden; color: var(--text-muted, #777); font-size: 10px; text-overflow: ellipsis; }
+.spatial-v4-task-audit-copy span { color: var(--text-muted, #777); font-size: 11px; }
+.spatial-v4-task-audit-tags { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.spatial-v4-task-audit-tags span { padding: 5px 8px; border-radius: 999px; background: var(--surface-hover, rgba(128,128,128,.1)); color: var(--text-muted, #777); font-size: 10px; white-space: nowrap; }
+.spatial-v4-task-audit-tags span[data-status="failed"] { color: #c45b50; }
+.spatial-v4-task-audit-tags span[data-status="succeeded"] { color: #4b9a70; }
+@media (max-width: 767px) {
+  .spatial-v4-task-audit { padding: 15px; }
+  .spatial-v4-task-audit-row { align-items: flex-start; flex-direction: column; }
+  .spatial-v4-task-audit-tags { justify-content: flex-start; }
+}
