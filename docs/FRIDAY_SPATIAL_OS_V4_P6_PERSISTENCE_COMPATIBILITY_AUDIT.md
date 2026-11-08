@@ -41,11 +41,12 @@ This document records source-level findings. It is not a claim that P6 implement
 - Added explicit `pruneTerminalTasks(cutoff, keepRecentTaskCount)` maintenance. It only removes old terminal streams, never active tasks, and protects the newest requested number of task-created records. It is opt-in and is not silently run during restore.
 - Enforced a 256 KiB serialized event limit before task event writes; event payloads remain browser-local and are not included in portable profile export.
 - Added `getLastPersistError()` and the `libretv:persistence-error` event for throttled localStorage write failures instead of silently swallowing quota/security errors. Dexie write failures continue to reject to their callers.
+- Added a read-only task audit summary API and an Intelligence workspace panel. It shows recent task ID, agent, status, timestamps, event count, side-effect flag and error code only; it never renders task input, prompt, output or raw event payload.
 - Added tests for localStorage quota error reporting and error clearing after a successful write.
 
 ## Remaining operational boundaries
 
-- The IndexedDB suite uses `fake-indexeddb`, a standards-oriented in-memory implementation of the IndexedDB API. It validates Dexie transaction and schema behavior in CI, but it is not a substitute for real browser storage quota, eviction, Safari private-mode or multi-process device testing.
+- The IndexedDB suite uses `fake-indexeddb`, a standards-oriented in-memory implementation of the IndexedDB API. It validates Dexie transaction and schema behavior in CI, but it is not a substitute for real browser storage quota, eviction, Safari private-mode or multi-process device testing. Concurrent writes are tested against the same IndexedDB database connection; actual multi-tab Safari behavior remains part of device acceptance.
 - Profile transfer is manual JSON export/import; there is no cloud sync. The Dexie portion is atomic across its four tables; the separate localStorage settings write follows after the Dexie commit.
 - Retention is an explicit maintenance API; no automatic deletion policy is enabled until product-level retention settings are chosen.
 - No automatic replay of side effects after reload.
