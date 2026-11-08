@@ -3,6 +3,9 @@ name: friday-2.2-verify
 on:
   push:
     branches:
+      - feature/friday-playback-quality-evidence-2026-11-08
+  push:
+    branches:
       - feature/friday-2.2-architecture
     paths:
       - "src/lib/friday/**"
@@ -17,7 +20,7 @@ on:
   pull_request:
     branches:
       - main
-      - feature/friday-playback-quality-evidence-2026-11-08
+      - feature/friday-v3-completion-batch-2026-11-08
     paths:
       - "src/lib/friday/**"
       - "src/lib/quality.ts"
