@@ -401,7 +401,26 @@ export default function AIFloatingBall({
     };
 
     window.addEventListener("friday-home-orb-toggle", handleHomeOrbToggle);
-    return () => window.removeEventListener("friday-home-orb-toggle", handleHomeOrbToggle);
+    return () => {
+      window.removeEventListener("friday-home-orb-toggle", handleHomeOrbToggle);
+      // A pending wake acknowledgement is outside the voice controller's TTS
+      // handle. Invalidate its async continuation and release its audio URL on
+      // unmount so a late fetch cannot leave audio or blob resources behind.
+      homeWakeTokenRef.current += 1;
+      const wakeAudio = homeWakeAudioRef.current;
+      homeWakeAudioRef.current = null;
+      if (wakeAudio) {
+        wakeAudio.onended = null;
+        wakeAudio.onerror = null;
+        wakeAudio.pause();
+        wakeAudio.removeAttribute("src");
+        wakeAudio.load();
+      }
+      if (homeWakeUrlRef.current) {
+        URL.revokeObjectURL(homeWakeUrlRef.current);
+        homeWakeUrlRef.current = "";
+      }
+    };
   }, [
     openPanel,
     clearVoiceResumeTimer,
