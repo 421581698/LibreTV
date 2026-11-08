@@ -13,6 +13,7 @@ export const spatialStateStore={
  getSnapshot:()=>hydrate(),
  subscribe(listener:()=>void){listeners.add(listener);return()=>{listeners.delete(listener);};},
  activate(space:SpatialSpace){commit(activateSpace(hydrate(),space));},
+ back(){commit(goBackSpace(hydrate()));},
  expand(panel:SpatialPanel|null){commit(setExpandedPanel(hydrate(),panel));},
  saveScroll(space:SpatialSpace,top:number){const current=hydrate();commit({...current,scrollPositions:{...current.scrollPositions,[space]:Math.max(0,top)}});},
  setFilter(key:string,value:string){const current=hydrate();commit({...current,filters:{...current.filters,[key]:value}});},
