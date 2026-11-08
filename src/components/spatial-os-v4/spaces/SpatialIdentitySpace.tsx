@@ -54,6 +54,7 @@ export function SpatialIdentitySpace() {
     setTransferBusy(true);
     setTransferMessage('');
     try {
+      if (file.size > 10 * 1024 * 1024) throw new Error('个人资料文件不能超过 10 MB');
       const content = await file.text();
       await importConfig(content);
       await useAppStore.persist.rehydrate();
