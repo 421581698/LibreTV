@@ -94,6 +94,7 @@ export function SpatialResourceUniverse() {
     setActiveCategory(category);
     setSelected(null);
     if (category === 'favorites') {
+      void writeSpatialState('resource-universe', { category, query: query.trim() }).catch(() => {});
       void refreshFavorites();
       setResults([]);
       setError('');
