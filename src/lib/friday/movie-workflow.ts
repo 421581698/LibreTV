@@ -34,6 +34,8 @@ export async function runLibreTVMovieWorkflow(args: {
   adapters: MovieAgentAdapters;
   runtime: TaskRuntime;
   signal?: AbortSignal;
+  replayFailed?: boolean;
+  parentTaskId?: string;
 }): Promise<MovieWorkflowResult> {
   const prefix = args.taskIdPrefix.trim();
   const query = args.query.trim();
@@ -48,21 +50,24 @@ export async function runLibreTVMovieWorkflow(args: {
   };
 
   const tasks = [
-    { taskId: taskIds.search, agent: "search-agent", input: { query } },
+    { taskId: taskIds.search, parentTaskId: args.parentTaskId, agent: "search-agent", input: { query } },
     {
       taskId: taskIds.source,
+      parentTaskId: taskIds.search,
       agent: "source-agent",
       input: { searchTaskId: taskIds.search },
       dependsOn: [taskIds.search],
     },
     {
       taskId: taskIds.quality,
+      parentTaskId: taskIds.source,
       agent: "quality-agent",
       input: { sourceTaskId: taskIds.source },
       dependsOn: [taskIds.source],
     },
     {
       taskId: taskIds.review,
+      parentTaskId: taskIds.quality,
       agent: "review-agent",
       input: { searchTaskId: taskIds.search, qualityTaskId: taskIds.quality },
       dependsOn: [taskIds.search, taskIds.quality],
@@ -74,6 +79,7 @@ export async function runLibreTVMovieWorkflow(args: {
     agents: createMovieAgentRegistry(args.adapters),
     runtime: args.runtime,
     signal: args.signal,
+    replayFailed: args.replayFailed,
   });
 
   return { taskIds, results };
