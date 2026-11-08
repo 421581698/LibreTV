@@ -96,6 +96,7 @@ export function useFridayChatSession({
       search: async () => movieResults.map((item) => ({
         id: `${item.sourceKey}:${item.vodId}`,
         title: item.name,
+        year: typeof item.year === "string" ? item.year : undefined,
         sourceId: item.sourceKey,
         vodId: String(item.vodId),
         evidence: ["server search_movie result"],
