@@ -1,15 +1,19 @@
 import type {PanelDock,PanelRect,SpatialPanel,SpatialSnapshot} from '../core/types';
 export const SPATIAL_PANELS:SpatialPanel[]=['search','sources','quality','tasks','history','settings'];
 const DEFAULT_RECT:Omit<PanelRect,'zIndex'>={x:8,y:12,width:360,height:520,dock:'floating',minimized:false};
+function addPanelToStack(state:SpatialSnapshot,panel:SpatialPanel){
+ const without=state.panelStack.filter(entry=>entry.panel!==panel);
+ return [...without,{panel,ownerSpace:state.activeSpace,openedAt:Date.now()}];
+}
 export function bringPanelToFront(state:SpatialSnapshot,panel:SpatialPanel):SpatialSnapshot {
  if(!SPATIAL_PANELS.includes(panel))return state;
  const order=[...state.panelOrder.filter(item=>item!==panel),panel];
  const zIndex=Math.max(20,...Object.values(state.panelLayouts).map(rect=>rect?.zIndex??0))+1;
- return {...state,focusedPanel:panel,panelOrder:order,panelLayouts:{...state.panelLayouts,[panel]:{...(state.panelLayouts[panel]??DEFAULT_RECT),zIndex}},updatedAt:Date.now()};
+ return {...state,focusedPanel:panel,panelOrder:order,panelStack:addPanelToStack(state,panel),panelLayouts:{...state.panelLayouts,[panel]:{...(state.panelLayouts[panel]??DEFAULT_RECT),zIndex}},updatedAt:Date.now()};
 }
 export function setExpandedPanel(state:SpatialSnapshot,panel:SpatialPanel|null):SpatialSnapshot {
  if(panel!==null&&!SPATIAL_PANELS.includes(panel))return state;
- if(panel===null)return {...state,expandedPanel:null,focusedPanel:null,updatedAt:Date.now()};
+ if(panel===null)return {...state,expandedPanel:null,focusedPanel:null,panelStack:state.panelStack.filter(entry=>entry.panel!==state.focusedPanel),updatedAt:Date.now()};
  const focused=bringPanelToFront(state,panel);
  return {...focused,expandedPanel:panel,focusedPanel:panel};
 }
