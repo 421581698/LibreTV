@@ -1177,3 +1177,8 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
 .spatial-os .friday-hero-orb{display:block;width:clamp(150px,24vw,260px);height:clamp(150px,24vw,260px)}
 .spatial-os .friday-hero-orb-label{font-size:12px;color:#c5b99e;text-align:center}
 .spatial-os .friday-orb-response{width:min(88vw,620px);max-height:112px;overflow:auto;text-align:center;white-space:pre-wrap;color:#e9e1d1;font-size:12px}
+
+.spatial-os-nav{position:relative}
+.spatial-os-nav .spatial-os-back{position:absolute;left:-48px;top:0;width:40px;height:100%;padding:8px 4px;text-align:center}
+.spatial-os-nav .spatial-os-back small{font-size:9px}
+@media(max-width:760px){.spatial-os-nav .spatial-os-back{position:static;width:auto;height:auto;grid-column:1/-1;display:flex;align-items:center;gap:6px;justify-content:center}.spatial-os-nav .spatial-os-back small{display:inline}}
