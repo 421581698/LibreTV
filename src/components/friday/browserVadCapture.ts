@@ -130,7 +130,19 @@ export function createBrowserVadCapture(
       // Visual metering must never interrupt microphone capture or VAD timing.
     }
     for (const event of detector.pushLevel(level, now())) {
-      options.onEvent(event);
+      try {
+        options.onEvent(event);
+      } catch (cause) {
+        // A consumer callback must not silently terminate the animation-frame
+        // loop and leave the microphone capture half-alive.
+        try {
+          options.onError?.(
+            cause instanceof Error ? cause : new Error("VAD event handler failed"),
+          );
+        } catch {
+          // Error reporting is also isolated from the capture lifecycle.
+        }
+      }
     }
     if (running && runId === generation && requestFrame) {
       frameHandle = requestFrame(() => sample(runId, buffer));
