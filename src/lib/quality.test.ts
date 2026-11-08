@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   QUALITY_FAIL_TTL_MS,
   QUALITY_TTL_MS,
+  compareQualityEvidence,
   describeQualityBadge,
   failureReasonLabel,
   inferHeightFromBitrate,
@@ -58,6 +59,33 @@ describe('qualityLabel', () => {
   it('缺失或非法高度返回 undefined（前端据此显示「未知」）', () => {
     expect(qualityLabel(undefined)).toBeUndefined();
     expect(qualityLabel(0)).toBeUndefined();
+  });
+});
+
+describe('compareQualityEvidence', () => {
+  const T = 1_700_000_000_000;
+
+  it('实际解码证据优先于播放列表声明，即使声明档位更高', () => {
+    const measured: QualityEntry = { height: 720, from: 'play', timestamp: T, playbackSampleCount: 2 };
+    const declared: QualityEntry = { height: 2160, from: 'probe', timestamp: T };
+    expect(compareQualityEvidence(measured, declared)).toBeLessThan(0);
+  });
+
+  it('同为实测时优先最高解码高度', () => {
+    const measured1080: QualityEntry = { height: 1080, from: 'play', timestamp: T };
+    const measured720: QualityEntry = { height: 720, from: 'play', timestamp: T };
+    expect(compareQualityEvidence(measured1080, measured720)).toBeLessThan(0);
+  });
+
+  it('同高度实测优先有效观测次数更多的来源', () => {
+    const wellObserved: QualityEntry = { height: 1080, from: 'play', timestamp: T, playbackSampleCount: 5 };
+    const sparse: QualityEntry = { height: 1080, from: 'play', timestamp: T, playbackSampleCount: 1 };
+    expect(compareQualityEvidence(wellObserved, sparse)).toBeLessThan(0);
+  });
+
+  it('没有可用画质证据时保持平级，不虚构高度', () => {
+    const unknown: QualityEntry = { from: 'probe', timestamp: T };
+    expect(compareQualityEvidence(unknown, undefined)).toBe(0);
   });
 });
 
@@ -193,7 +221,7 @@ describe('isQualityEntryFresh', () => {
 describe('mergeQualityEntries', () => {
   const T = 1_700_000_000_000;
   const probe = (height?: number, error?: string): QualityEntry => ({ height, from: 'probe', error, timestamp: T });
-  const play = (height: number): QualityEntry => ({ height, from: 'play', timestamp: T });
+  const play = (height: number, timestamp = T): QualityEntry => ({ height, from: 'play', timestamp });
   const KEY = 'huang:123';
 
   it('播放实测覆盖此前的「测不出」——单码率源的画质只能这样补上', () => {
@@ -218,8 +246,44 @@ describe('mergeQualityEntries', () => {
     expect(next[KEY].height).toBe(1080);
 
     // 反向：后来的低档位不该把已知的高档位拉低
-    const back = mergeQualityEntries(next, { [KEY]: play(540) }, T + 2000);
-    expect(back[KEY].height).toBe(1080);
+    const back = mergeQualityEntries(next, { [KEY]: play(540, T + 2000) }, T + 2000);
+    expect(back[KEY]).toMatchObject({
+      height: 1080,
+      playbackSampleCount: 3,
+      playbackMinHeight: 540,
+      playbackMaxHeight: 1080,
+      lastPlaybackHeight: 540,
+    });
+  });
+
+
+  it('累计播放解码观测：同阶段重复事件去重，变化或间隔足够长时记录新样本', () => {
+    const first = mergeQualityEntries({}, { [KEY]: play(720) }, T);
+    expect(first[KEY]).toMatchObject({
+      playbackSampleCount: 1,
+      playbackMinHeight: 720,
+      playbackMaxHeight: 720,
+      lastPlaybackHeight: 720,
+      lastPlaybackSampleAt: T,
+    });
+
+    // 同一播放阶段 loadedmetadata / canplay / playing 重复上报，不虚增样本数
+    const duplicate = mergeQualityEntries(first, { [KEY]: play(720, T + 5_000) }, T + 5_000);
+    expect(duplicate[KEY]).toMatchObject({ playbackSampleCount: 1, lastPlaybackSampleAt: T });
+
+    // ABR 升档是新的有效观测，保留最高档同时记录观测范围
+    const upgraded = mergeQualityEntries(duplicate, { [KEY]: play(1080, T + 8_000) }, T + 8_000);
+    expect(upgraded[KEY]).toMatchObject({
+      height: 1080,
+      playbackSampleCount: 2,
+      playbackMinHeight: 720,
+      playbackMaxHeight: 1080,
+      lastPlaybackHeight: 1080,
+    });
+
+    // 相同高度在较长时间后再次观测，视作新的播放阶段样本
+    const later = mergeQualityEntries(upgraded, { [KEY]: play(1080, T + 70_000) }, T + 70_000);
+    expect(later[KEY].playbackSampleCount).toBe(3);
   });
 
   it('已有明确档位时，不被「测不出」的探测抹掉', () => {

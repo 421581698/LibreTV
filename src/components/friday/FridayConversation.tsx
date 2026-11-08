@@ -36,7 +36,7 @@ function WorkflowSummary({ workflow, searchId, onRetryWorkflow, language, movies
           {workflow.sourceChecks.length ? workflow.sourceChecks.map((item) => (
             <div className="friday-workflow-row" key={item.candidateId || item.sourceId}>
               <span>{item.sourceId}</span>
-              <span>{item.reachable ? (language === "en" ? "Request succeeded" : "解析请求成功") : (language === "en" ? "Check failed" : "探测失败")}{typeof item.latencyMs === "number" ? ` · ${Math.round(item.latencyMs)} ms` : ""}</span>
+              <span>{item.reachable ? (language === "en" ? "Request succeeded" : "解析请求成功") : (language === "en" ? "Check failed" : "探测失败")}{typeof item.originTtfbMs === "number" ? (language === "en" ? ` · media-origin TTFB ${Math.round(item.originTtfbMs)} ms` : ` · 媒体源首包 ${Math.round(item.originTtfbMs)} ms`) : ""}{typeof item.upstreamRequestMs === "number" ? (language === "en" ? ` · cumulative upstream wait ${Math.round(item.upstreamRequestMs)} ms / ${item.upstreamRequestCount ?? 0} requests` : ` · 上游响应等待合计 ${Math.round(item.upstreamRequestMs)} ms / ${item.upstreamRequestCount ?? 0} 次`) : ""}</span>
             </div>
           )) : <p>{language === "en" ? "No matching sources to check." : "没有可探测的匹配来源。"}</p>}
         </div>
@@ -44,11 +44,11 @@ function WorkflowSummary({ workflow, searchId, onRetryWorkflow, language, movies
       {workflow.qualityChecks ? (
         <div className="friday-workflow-block">
           <strong>{language === "en" ? "Quality evidence" : "画质证据"}</strong>
-          <p>{language === "en" ? "Resolution is inferred from HLS manifests or media segments. Probe duration is server-side end-to-end time, not source RTT or decoded videoHeight." : "分辨率来自 HLS 清单或媒体分片解析；探测耗时是服务端单条探测总耗时，不是源站 RTT，也不等同于播放器解码后的 videoHeight 实测。"}</p>
+          <p>{language === "en" ? "Manifest/segment resolution is source-side evidence. Server probe duration includes queue wait and parsing; upstream request time sums response-header waits and is not packet RTT. Decoded videoHeight is measured only during playback." : "清单/分片分辨率属于源侧证据；服务端探测总耗时包含排队等待与解析，上游请求等待是各次响应头耗时之和，并非网络层 RTT；videoHeight 只在实际播放解码后测量。"}</p>
           {workflow.qualityChecks.map((item) => (
             <div className="friday-workflow-row" key={item.candidateId || item.sourceId}>
               <span>{item.sourceId}{item.candidateId ? ` · ${item.candidateId.split(":").slice(1).join(":")}` : ""}</span>
-              <span>{item.status === "resolution_detected" ? (language === "en" ? `${item.resolutionHeight}p (manifest/segment)` : `${item.resolutionHeight}P（清单/分片解析）`) : item.status === "unavailable" ? (language === "en" ? "Check failed" : "探测失败") : item.status === "resolution_unknown" ? (language === "en" ? "Checked; resolution unknown" : "已探测，分辨率未知") : (language === "en" ? "No evidence" : "未取得证据")}{typeof item.probeDurationMs === "number" ? ` · ${Math.round(item.probeDurationMs)} ms` : ""}{item.probeResultCached ? (language === "en" ? " · cached" : " · 缓存结果") : ""}</span>
+              <span>{item.status === "resolution_detected" ? (item.resolutionSource === "decoded_playback" ? (language === "en" ? `${item.resolutionHeight}p (decoded playback)` : `${item.resolutionHeight}P（播放器解码实测）`) : (language === "en" ? `${item.resolutionHeight}p (manifest/segment)` : `${item.resolutionHeight}P（清单/分片解析）`)) : item.status === "unavailable" ? (language === "en" ? "Check failed" : "探测失败") : item.status === "resolution_unknown" ? (language === "en" ? "Checked; resolution unknown" : "已探测，分辨率未知") : (language === "en" ? "No evidence" : "未取得证据")}{typeof item.decodedVideoHeight === "number" ? (language === "en" ? ` · decoded playback ${item.decodedVideoHeight}p` : ` · 播放器解码实测 ${item.decodedVideoHeight}P`) : ""}{typeof item.sourceResolutionHeight === "number" && item.resolutionSource === "decoded_playback" ? (language === "en" ? ` · source-side ${item.sourceResolutionHeight}p` : ` · 源侧解析 ${item.sourceResolutionHeight}P`) : ""}{typeof item.originTtfbMs === "number" ? (language === "en" ? ` · origin TTFB ${Math.round(item.originTtfbMs)} ms` : ` · 源站首包 ${Math.round(item.originTtfbMs)} ms`) : ""}{typeof item.probeDurationMs === "number" ? ` · ${Math.round(item.probeDurationMs)} ms（服务端总耗时）` : ""}{typeof item.upstreamRequestMs === "number" ? (language === "en" ? ` · upstream response wait ${Math.round(item.upstreamRequestMs)} ms / ${item.upstreamRequestCount ?? 0} requests` : ` · 上游响应等待 ${Math.round(item.upstreamRequestMs)} ms / ${item.upstreamRequestCount ?? 0} 次`) : ""}{item.probeResultCached ? (language === "en" ? " · cached" : " · 缓存结果") : ""}</span>
             </div>
           ))}
         </div>
@@ -56,16 +56,18 @@ function WorkflowSummary({ workflow, searchId, onRetryWorkflow, language, movies
       {workflow.playbackRecommendations?.length ? (
         <div className="friday-workflow-block">
           <strong>{language === "en" ? "Recommended playback source" : "智能推荐播放源"}</strong>
-          <p>{language === "en" ? "The recommendation uses completed source evidence. Measured resolution is preferred; when resolution is unknown, the UI says so. Open the movie details to confirm before playback." : "推荐依据为已完成的来源证据：优先选择已解析出分辨率的资源；分辨率未知时会明确标注。点击后先进入影片详情，由你确认播放。"}</p>
+          <p>{language === "en" ? "The recommendation prioritizes decoded playback evidence over manifest probes. Unknown resolution is never presented as measured. Open the movie details to confirm before playback." : "推荐优先级为播放器真实解码实测，其次是清单/分片解析；未知分辨率不会冒充实测。点击后先进入影片详情，由你确认播放。"}</p>
           {workflow.playbackRecommendations.map((recommendation) => {
             const movie = movies.find((item) => `${item.sourceKey}:${item.vodId}` === recommendation.candidateId);
             return (
               <div className="friday-workflow-row" key={recommendation.candidateId}>
                 <span>
                   {recommendation.title} · {recommendation.sourceId}
-                  {recommendation.selectionBasis === "measured-resolution" && recommendation.resolutionHeight
-                    ? ` · ${recommendation.resolutionHeight}P`
-                    : (language === "en" ? " · resolution unknown" : " · 分辨率未知")}
+                  {recommendation.selectionBasis === "decoded-playback" && recommendation.resolutionHeight
+                    ? (language === "en" ? ` · ${recommendation.resolutionHeight}p decoded` : ` · ${recommendation.resolutionHeight}P 播放实测`)
+                    : recommendation.selectionBasis === "source-probe" && recommendation.resolutionHeight
+                      ? (language === "en" ? ` · ${recommendation.resolutionHeight}p source probe` : ` · ${recommendation.resolutionHeight}P 源侧探测`)
+                      : (language === "en" ? " · resolution unknown" : " · 分辨率未知")}
                   {recommendation.alternativeCount > 0
                     ? (language === "en" ? ` · ${recommendation.alternativeCount} alternatives` : ` · 另有 ${recommendation.alternativeCount} 个候选`)
                     : ""}

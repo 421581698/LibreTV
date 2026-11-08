@@ -424,15 +424,36 @@ function WatchContent() {
                   onPrevEpisode={() => goEpisode(currentIndex - 1)}
                   onNextEpisode={() => goEpisode(currentIndex + 1)}
                   onQuality={(height) => {
-                    // 播放实测是最权威的画质来源，回写后搜索列表里该「源 + 影片」直接显示
+                    // 播放实测是最权威的画质来源；缓存合并器负责同阶段事件去重与样本累计
                     if (!sourceKey || !vodId) return;
-                    useAppStore.getState().setQuality({
-                      [qualityKey(sourceKey, vodId)]: {
+                    const key = qualityKey(sourceKey, vodId);
+                    const store = useAppStore.getState();
+                    const previous = store.qualityMap[key];
+                    const previousCount = previous?.from === 'play' ? previous.playbackSampleCount ?? 1 : 0;
+                    store.setQuality({
+                      [key]: {
                         height,
                         from: 'play',
                         timestamp: Date.now(),
                       },
                     });
+                    const current = useAppStore.getState().qualityMap[key];
+                    if (current?.from !== 'play') return;
+                    const sampleCount = current.playbackSampleCount ?? 1;
+                    // loadedmetadata/canplay/playing 可能连续报告同一高度；只有新有效样本才进入 Agent 审计流
+                    if (sampleCount <= previousCount) return;
+                    window.dispatchEvent(new CustomEvent('friday-player-quality', {
+                      detail: {
+                        candidateId: `${sourceKey}:${vodId}`,
+                        sourceKey,
+                        vodId,
+                        height,
+                        playbackSampleCount: sampleCount,
+                        playbackMinHeight: current.playbackMinHeight ?? height,
+                        playbackMaxHeight: current.playbackMaxHeight ?? height,
+                        observedAt: new Date(current.lastPlaybackSampleAt ?? Date.now()).toISOString(),
+                      },
+                    }));
                   }}
                 />
               ) : (
@@ -582,7 +603,7 @@ function WatchContent() {
           </aside>
         </div>
       </main>
-      <AIFloatingBall showFab={false} />
+      <AIFloatingBall showFab={false} inlineMode />
       {switchOpen && (
         <SwitchSourceModal
           currentTitle={videoTitle}

@@ -23,6 +23,9 @@ const styles = source('src/components/friday/FridayStyles.tsx');
 const fridayConversation = source('src/components/friday/FridayConversation.tsx');
 const movieAgents = source('src/lib/friday/movie-agents.ts');
 const movieWorkflow = source('src/lib/friday/movie-workflow.ts');
+const voiceController = source('src/components/friday/useFridayVoiceController.ts');
+const chatSession = source('src/components/friday/useFridayChatSession.ts');
+const fridayPanel = source('src/components/friday/FridayPanel.tsx');
 
 describe('首页与播放页回归契约', () => {
   it('首页 FridayOrb 保持可见、可访问，并将点击交给唯一语音控制器', () => {
@@ -34,6 +37,53 @@ describe('首页与播放页回归契约', () => {
     expect(orb).toContain('createFridayOrb(canvasRef.current');
     expect(orb).toContain('engine.destroy()');
     expect(assistant).toContain('window.addEventListener("friday-home-orb-toggle", handleHomeOrbToggle)');
+  });
+
+  it('首页圆球点击贯通唯一语音控制器，并覆盖识别错误、停止和卸载清理', () => {
+    expect(assistant).toContain('window.addEventListener("friday-home-orb-toggle", handleHomeOrbToggle)');
+    expect(assistant).toContain('startListening(false)');
+    expect(assistant).toContain('stopRecognition(true)');
+    expect(voiceController).toContain('getBrowserAsrConstructor()');
+    expect(voiceController).toContain('recognition.onstart');
+    expect(voiceController).toContain('recognition.onresult');
+    expect(voiceController).toContain('recognition.onerror');
+    expect(voiceController).toContain('recognition.onend');
+    expect(voiceController).toContain('mountedRef.current = false');
+    expect(voiceController).toContain('stopAllVoice');
+  });
+
+  it('真实 data-movies 结果进入五 Agent 工作流，停止与重试沿用同一运行时', () => {
+    expect(chatSession).toContain('part.type !== "data-movies"');
+    expect(chatSession).toContain('runLibreTVMovieWorkflow');
+    expect(chatSession).toContain('replayFailed: true');
+    expect(chatSession).toContain('controller.abort()');
+    expect(movieWorkflow).toContain('agent: "playback-agent"');
+  });
+
+  it('刷新后可从 IndexedDB 任务记录显式恢复只读工作流，副作用任务不提供恢复按钮', () => {
+    expect(chatSession).toContain('retryInterruptedWorkflow');
+    expect(chatSession).toContain('taskIdPrefix');
+    expect(chatSession).toContain('storedCandidates');
+    expect(chatSession).toContain('fridayTaskEventStore.read');
+    expect(chatSession).toContain('replayFailed: true');
+    expect(fridayPanel).toContain('onRetryInterruptedTask');
+    expect(fridayPanel).toContain('task.error?.code === "TASK_INTERRUPTED"');
+    expect(fridayPanel).toContain('!task.sideEffect');
+  });
+
+  it('播放器以 videoHeight 作为真实解码画质，并与清单探测结果区分', () => {
+    expect(player).toContain('const reportVideoHeight');
+    expect(player).toContain('art.video?.videoHeight');
+    expect(player).toContain("art.on('video:loadedmetadata', reportVideoHeight)");
+    expect(player).toContain("art.on('video:canplay', reportVideoHeight)");
+    expect(watch).toContain("from: 'play'");
+    expect(fridayConversation).toContain('manifest/segment');
+    expect(fridayConversation).toContain('videoHeight');
+    expect(watch).toContain("friday-player-quality");
+    expect(chatSession).toContain("friday-player-quality");
+    expect(chatSession).toContain("decodedPlaybackHeightsRef");
+    expect(fridayConversation).toContain("decodedVideoHeight");
+    expect(fridayConversation).toContain("播放器解码实测");
   });
 
   it('今日热门海报通过精确片名匹配打开原详情弹窗，不误开第一个结果', () => {
@@ -143,7 +193,9 @@ describe('首页与播放页回归契约', () => {
     expect(movieWorkflow).toContain('playback: `${prefix}.playback`');
     expect(movieWorkflow).toContain('agent: "playback-agent"');
     expect(movieAgents).toContain('id: "playback-agent"');
-    expect(movieAgents).toContain('selectionBasis: measured ? "measured-resolution"');
+    expect(movieAgents).toContain('"decoded-playback" as const');
+    expect(movieAgents).toContain('"source-probe" as const');
+    expect(movieAgents).toContain('assessmentEvidenceRank');
     expect(movieAgents).toContain('requiresUserConfirmation: true');
     expect(fridayConversation).toContain('workflow.playbackRecommendations');
     expect(fridayConversation).toContain('movies.find((item) => `${item.sourceKey}:${item.vodId}` === recommendation.candidateId)');
@@ -156,6 +208,36 @@ describe('首页与播放页回归契约', () => {
     expect(assistant).toContain('wakeAudio.pause()');
     expect(assistant).toContain('URL.revokeObjectURL(homeWakeUrlRef.current)');
     expect(assistant).toContain('homeWakeUrlRef.current = ""');
+  });
+
+
+  it('V3 首页采用 Jarvis 式单圆球入口：回复与语音状态回到圆球，不挂载独立 AI 面板', () => {
+    expect(header).toContain('<AIFloatingBall showFab={showFridayFab} inlineMode />');
+    expect(watch).toContain('showFab={false} inlineMode');
+    expect(assistant).toContain('if (inlineMode) {');
+    expect(assistant).toContain('if (!showFab) return null;');
+    expect(assistant).toContain('onClick={openAndListen}');
+    expect(assistant).toContain('friday-home-assistant-response');
+    expect(hero).toContain('friday-home-assistant-response');
+    expect(hero).toContain('friday-orb-response');
+    expect(hero).toContain('friday-home-orb-toggle');
+  });
+
+  it('设置中可选择界面语言、助手角色和语音风格，顶部搜索默认收起', () => {
+    expect(settings).toContain("{ id: 'language', label: '语言设置' }");
+    expect(settings).toContain('function LanguageSettingsPanel()');
+    expect(settings).toContain('label="界面语言"');
+    expect(settings).toContain('label="助手角色"');
+    expect(settings).toContain('label="启用唤醒词确认"');
+    expect(header).toContain('home-v2-mobile-search-toggle');
+    expect(header).toContain('home-v2-header-search-slot');
+    expect(header).toContain('is-open');
+  });
+
+  it('播放实测证据任务中断后可从独立 checkpoint 安全恢复', () => {
+    expect(chatSession).toContain('taskId.endsWith(".playback-evidence")');
+    expect(chatSession).toContain('createPlaybackEvidenceAgent()');
+    expect(chatSession).toContain('replayFailed: true');
   });
 
 });

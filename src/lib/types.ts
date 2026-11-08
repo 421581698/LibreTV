@@ -80,6 +80,16 @@ export interface QualityEntry {
    * 两者在 UI 上都显示「未知」，靠这个字段区分出「源站不给」和「我们没够着」。
    */
   error?: string;
+  /** 播放实测有效观测次数；旧缓存缺失时按 1 次兼容 */
+  playbackSampleCount?: number;
+  /** 播放实测观察到的最低解码高度 */
+  playbackMinHeight?: number;
+  /** 播放实测观察到的最高解码高度 */
+  playbackMaxHeight?: number;
+  /** 最近一次播放实测高度 */
+  lastPlaybackHeight?: number;
+  /** 最近一次有效播放观测时间（epoch ms），用于抑制同一播放阶段的重复事件 */
+  lastPlaybackSampleAt?: number;
   /** 记录时间（epoch ms），用于 LRU 淘汰与失败重试 */
   timestamp: number;
 }
@@ -96,8 +106,14 @@ export interface QualityProbeResult {
   vodId: string;
   height?: number;
   error?: string;
-  /** Server-side duration of this individual probe; cached results retain the original duration. */
+  /** Server-side per-item duration, including host-gate wait and probe work. */
   probeDurationMs?: number;
+  /** Sum of upstream fetch request wall times until response headers; excludes host-gate wait and body parsing. Not a network-level RTT. */
+  upstreamRequestMs?: number;
+  /** Number of upstream fetch requests included in upstreamRequestMs. */
+  upstreamRequestCount?: number;
+  /** First media-origin response-header wait; distinct from cumulative upstream waits and total probe duration. */
+  originTtfbMs?: number;
   cached?: boolean;
   /** True when the source-side probe failed for a transient reason and may be retried. */
   transient?: boolean;

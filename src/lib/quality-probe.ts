@@ -205,6 +205,32 @@ function probeHeaders(source: SourceConfig): Record<string, string> {
   };
 }
 
+type ProbeMetrics = { upstreamRequestMs: number; upstreamRequestCount: number; originTtfbMs?: number };
+
+/**
+ * Measures server-observed upstream fetch time to response headers.
+ * This is cumulative request wall time, not a packet-level RTT and not the
+ * complete probe duration (which also includes host-gate wait and parsing).
+ */
+async function fetchMeasuredUpstream(
+  url: string,
+  options: Parameters<typeof fetchUpstream>[1],
+  metrics: ProbeMetrics,
+  mediaOrigin = false,
+): Promise<Response> {
+  const startedAt = Date.now();
+  metrics.upstreamRequestCount += 1;
+  try {
+    const response = await fetchUpstream(url, options);
+    if (mediaOrigin && metrics.originTtfbMs === undefined) {
+      metrics.originTtfbMs = Math.max(0, Date.now() - startedAt);
+    }
+    return response;
+  } finally {
+    metrics.upstreamRequestMs += Math.max(0, Date.now() - startedAt);
+  }
+}
+
 function resolveUrl(base: string, ref: string): string | undefined {
   try {
     return new URL(ref, base).toString();
@@ -218,15 +244,16 @@ async function fetchBytesPrefix(
   url: string,
   maxBytes: number,
   source: SourceConfig,
-  signal: AbortSignal
+  signal: AbortSignal,
+  metrics: ProbeMetrics,
 ): Promise<Uint8Array | undefined> {
   const verdict = await checkUpstreamAllowed(url);
   if (!verdict.ok) return undefined;
-  const res = await fetchUpstream(url, {
+  const res = await fetchMeasuredUpstream(url, {
     timeoutMs: 6000,
     headers: probeHeaders(source),
     signal,
-  });
+  }, metrics, true);
   if (!res.ok) return undefined;
   return readBytesPrefix(res, maxBytes);
 }
@@ -239,7 +266,8 @@ async function probeSegmentResolution(
   text: string,
   playlistUrl: string,
   source: SourceConfig,
-  signal: AbortSignal
+  signal: AbortSignal,
+  metrics: ProbeMetrics,
 ): Promise<number | undefined> {
   const list = parseMediaPlaylist(text);
   if (!list.firstSegment) return undefined;
@@ -248,7 +276,7 @@ async function probeSegmentResolution(
   if (list.initUri) {
     const initUrl = resolveUrl(playlistUrl, list.initUri);
     if (initUrl) {
-      const buf = await fetchBytesPrefix(initUrl, INIT_PREFIX_BYTES, source, signal);
+      const buf = await fetchBytesPrefix(initUrl, INIT_PREFIX_BYTES, source, signal, metrics);
       const found = buf ? parseMp4VideoResolution(buf) : undefined;
       if (found) return found.height;
     }
@@ -256,7 +284,7 @@ async function probeSegmentResolution(
 
   const segmentUrl = resolveUrl(playlistUrl, list.firstSegment);
   if (!segmentUrl) return undefined;
-  let buf = await fetchBytesPrefix(segmentUrl, SEGMENT_PREFIX_BYTES, source, signal);
+  let buf = await fetchBytesPrefix(segmentUrl, SEGMENT_PREFIX_BYTES, source, signal, metrics);
   if (!buf || buf.length === 0) return undefined;
 
   if (list.keyMethod && list.keyMethod !== 'NONE') {
@@ -264,7 +292,7 @@ async function probeSegmentResolution(
     if (list.keyMethod !== 'AES-128' || !list.keyUri) return undefined;
     const keyUrl = resolveUrl(playlistUrl, list.keyUri);
     if (!keyUrl) return undefined;
-    const key = await fetchBytesPrefix(keyUrl, 32, source, signal);
+    const key = await fetchBytesPrefix(keyUrl, 32, source, signal, metrics);
     if (!key || key.length < 16) return undefined;
     buf = decryptAes128CbcPrefix(buf, key, list.keyIv ?? defaultIv(list.mediaSequence));
   }
@@ -275,9 +303,9 @@ async function probeSegmentResolution(
 }
 
 /** 取影片的播放地址列表（与 /api/detail 同逻辑：列表接口优先，拿不到再爬详情页） */
-async function fetchEpisodes(source: SourceConfig, id: string, signal: AbortSignal): Promise<string[]> {
+async function fetchEpisodes(source: SourceConfig, id: string, signal: AbortSignal, metrics: ProbeMetrics): Promise<string[]> {
   const api = `${source.url.replace(/\/+$/, '')}?ac=videolist&ids=${encodeURIComponent(id)}`;
-  const res = await fetchUpstream(api, { timeoutMs: 6000, headers: cmsRequestHeaders(), signal });
+  const res = await fetchMeasuredUpstream(api, { timeoutMs: 6000, headers: cmsRequestHeaders(), signal }, metrics);
   if (res.ok) {
     try {
       const detail = parseDetail(await res.json(), source);
@@ -292,11 +320,11 @@ async function fetchEpisodes(source: SourceConfig, id: string, signal: AbortSign
   if (!/^https?:\/\//.test(detailRoot)) return [];
   const verdict = await checkUpstreamAllowed(detailRoot);
   if (!verdict.ok) return [];
-  const detailRes = await fetchUpstream(`${detailRoot}/index.php/vod/detail/id/${id}.html`, {
+  const detailRes = await fetchMeasuredUpstream(`${detailRoot}/index.php/vod/detail/id/${id}.html`, {
     timeoutMs: 6000,
     headers: { 'User-Agent': cmsRequestHeaders()['User-Agent'] },
     signal,
-  });
+  }, metrics);
   if (!detailRes.ok) return [];
   return parseDetailPageHtml(await detailRes.text(), source).episodes;
 }
@@ -321,7 +349,8 @@ async function probeEpisode(
   target: string,
   source: SourceConfig,
   merged: AbortSignal,
-  signal?: AbortSignal
+  signal: AbortSignal | undefined,
+  metrics: ProbeMetrics,
 ): Promise<{ height?: number; error?: string }> {
   // 末尾允许 ?query / #fragment：不少源在 .m3u8 后挂鉴权参数或分片锚点
   const isM3u8 = /\.m3u8([?#]|$)/i.test(target);
@@ -329,15 +358,15 @@ async function probeEpisode(
   if (!isM3u8) {
     // mp4 直链：moov 里有分辨率。未 faststart 的文件 moov 在尾部，前缀拿不到 → 仍未知
     if (!/\.mp4([?#]|$)/i.test(target)) return {};
-    const buf = await fetchBytesPrefix(target, SEGMENT_PREFIX_BYTES, source, merged);
+    const buf = await fetchBytesPrefix(target, SEGMENT_PREFIX_BYTES, source, merged, metrics);
     return { height: buf ? parseMp4VideoResolution(buf)?.height : undefined };
   }
 
-  const res = await fetchUpstream(target, {
+  const res = await fetchMeasuredUpstream(target, {
     timeoutMs: 6000,
     headers: probeHeaders(source),
     signal: merged,
-  });
+  }, metrics, true);
   if (!res.ok) return { error: `HTTP ${res.status}` };
   const text = await readTextPrefix(res, M3U8_MAX_BYTES);
 
@@ -345,7 +374,7 @@ async function probeEpisode(
   if (height !== undefined) return { height };
 
   // 单码率媒体列表：m3u8 里没有档位信息，下沉到分片挖分辨率
-  return { height: await withSegmentBudget(target, text, source, merged, signal) };
+  return { height: await withSegmentBudget(target, text, source, merged, signal, metrics) };
 }
 
 /**
@@ -356,12 +385,19 @@ async function probeEpisode(
 export async function probeQuality(item: QualityProbeItem, signal?: AbortSignal): Promise<QualityProbeResult> {
   const { source, id } = item;
   const base: QualityProbeResult = { sourceKey: source.key, vodId: id };
+  const metrics: ProbeMetrics = { upstreamRequestMs: 0, upstreamRequestCount: 0 };
+  const withMetrics = (result: QualityProbeResult): QualityProbeResult => ({
+    ...result,
+    upstreamRequestMs: metrics.upstreamRequestMs,
+    upstreamRequestCount: metrics.upstreamRequestCount,
+    ...(metrics.originTtfbMs === undefined ? {} : { originTtfbMs: metrics.originTtfbMs }),
+  });
 
   if (!/^https?:\/\//.test(source.url || '') || !/^[\w-]+$/.test(id)) {
-    return { ...base, error: '无效的源或影片 ID' };
+    return withMetrics({ ...base, error: '无效的源或影片 ID' });
   }
   const verdict = await checkUpstreamAllowed(source.url);
-  if (!verdict.ok) return { ...base, error: verdict.reason };
+  if (!verdict.ok) return withMetrics({ ...base, error: verdict.reason });
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(new DOMException('画质探测超时', 'TimeoutError')), QUALITY_PROBE_TIMEOUT_MS);
@@ -370,25 +406,25 @@ export async function probeQuality(item: QualityProbeItem, signal?: AbortSignal)
   const merged = AbortSignal.any(signals);
 
   try {
-    const episodes = await fetchEpisodes(source, id, merged);
-    if (episodes.length === 0) return { ...base, error: '未找到播放资源' };
+    const episodes = await fetchEpisodes(source, id, merged, metrics);
+    if (episodes.length === 0) return withMetrics({ ...base, error: '未找到播放资源' });
 
     const startedAt = Date.now();
     let lastError: string | undefined;
     for (const target of probeEpisodeOrder(episodes)) {
-      const r = await probeEpisode(target, source, merged, signal);
-      if (r.height !== undefined) return { ...base, height: r.height };
+      const r = await probeEpisode(target, source, merged, signal, metrics);
+      if (r.height !== undefined) return withMetrics({ ...base, height: r.height });
       if (r.error) lastError = r.error;
       // 源站级拒绝（401/403）换集也不会变，不必再耗一轮超时
       if (lastError && /^HTTP (401|403)$/.test(lastError)) break;
       // 慢源换集重试会把 8s 总死线打穿，反而把「未知」变成「探测失败」：时间过半就不再换集
       if (Date.now() - startedAt > QUALITY_PROBE_TIMEOUT_MS / 2) break;
     }
-    return lastError ? { ...base, error: lastError } : base;
+    return withMetrics(lastError ? { ...base, error: lastError } : base);
   } catch (err) {
     // 客户端主动中止：不算失败，也不该污染缓存
     if (signal?.aborted) throw err;
-    return { ...base, error: err instanceof Error ? err.message : '探测失败' };
+    return withMetrics({ ...base, error: err instanceof Error ? err.message : '探测失败' });
   } finally {
     clearTimeout(timer);
   }
@@ -404,12 +440,13 @@ async function withSegmentBudget(
   text: string,
   source: SourceConfig,
   merged: AbortSignal,
-  clientSignal?: AbortSignal
+  clientSignal: AbortSignal | undefined,
+  metrics: ProbeMetrics,
 ): Promise<number | undefined> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(new DOMException('分片解析超时', 'TimeoutError')), SEGMENT_BUDGET_MS);
   try {
-    return await probeSegmentResolution(text, playlistUrl, source, AbortSignal.any([merged, controller.signal]));
+    return await probeSegmentResolution(text, playlistUrl, source, AbortSignal.any([merged, controller.signal]), metrics);
   } catch {
     if (clientSignal?.aborted) throw new DOMException('已取消', 'AbortError');
     return undefined;
