@@ -13,6 +13,7 @@ on:
   pull_request:
     branches:
       - main
+      - feature/friday-quality-aware-source-ranking-2026-11-08
     paths:
       - "src/lib/friday/**"
       - "src/components/friday/**"
