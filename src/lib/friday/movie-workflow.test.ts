@@ -85,16 +85,19 @@ describe("LibreTV movie workflow", () => {
         "task.created",
         "task.started",
         "task.progress",
+        "task.checkpoint",
         "task.succeeded",
       ],
       [result.taskIds.quality]: [
         "task.created",
         "task.started",
+        "task.checkpoint",
         "task.succeeded",
       ],
       [result.taskIds.review]: [
         "task.created",
         "task.started",
+        "task.checkpoint",
         "task.succeeded",
       ],
       [result.taskIds.playback]: [
@@ -181,7 +184,7 @@ describe("LibreTV movie workflow", () => {
       assessments: Array<Record<string, unknown>>;
     };
     expect(quality.assessments[0]).toMatchObject({
-      resolutionHeight: 1080,
+      resolutionHeight: 720,
       decodedResolutionHeight: 720,
       resolutionSource: "decoded_playback",
       originTtfbMs: 64,
