@@ -388,6 +388,7 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
           candidateId: selected.candidate.id,
           sourceId: selected.candidate.sourceId!,
           resolutionHeight: measured ? selected.assessment.resolutionHeight : null,
+          playbackSampleCount: selected.assessment.resolutionSource === "decoded_playback" ? selected.assessment.playbackSampleCount : null,
           selectionBasis: assessmentEvidenceRank(selected.assessment) === 2 && measured ? "decoded-playback" as const : assessmentEvidenceRank(selected.assessment) === 1 && measured ? "source-probe" as const : "reachable-only" as const,
           alternativeCount: Math.max(0, group.length - 1),
           requiresUserConfirmation: true as const,
