@@ -18,7 +18,7 @@ import { restoreFridayConversationHistory, serializeFridayConversationHistory } 
 export type FridayWorkflowView = {
   status: "running" | "completed" | "failed";
   sourceChecks?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean; latencyMs?: number; originTtfbMs?: number; probeDurationMs?: number }>;
-  qualityChecks?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; decodedResolutionHeight?: number | null; resolutionSource?: "decoded_playback" | "playlist_or_segment" | "unknown"; originTtfbMs?: number | null; probeDurationMs?: number | null; probeResultCached?: boolean | null }>;
+  qualityChecks?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; decodedResolutionHeight?: number | null; sourceResolutionHeight?: number | null; resolutionSource?: "decoded_playback" | "playlist_or_segment" | "unknown"; originTtfbMs?: number | null; probeDurationMs?: number | null; probeResultCached?: boolean | null }>;
   review?: { accepted: boolean; findings: string[]; candidateCount: number; assessmentCount: number; measurementCompleted: boolean; resolutionMeasured: boolean };
   playbackRecommendations?: Array<{
     title: string;
@@ -212,7 +212,7 @@ export function useFridayChatSession({
         | { probes?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean }> }
         | undefined;
       const qualityOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.quality)?.output as
-        | { assessments?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; decodedResolutionHeight: number | null; resolutionSource: "decoded_playback" | "playlist_or_segment" | "unknown"; originTtfbMs: number | null; probeDurationMs: number | null; probeResultCached: boolean | null }> }
+        | { assessments?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; decodedResolutionHeight: number | null; sourceResolutionHeight: number | null; resolutionSource: "decoded_playback" | "playlist_or_segment" | "unknown"; originTtfbMs: number | null; probeDurationMs: number | null; probeResultCached: boolean | null }> }
         | undefined;
       const reviewOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.review)?.output as
         | { accepted?: boolean; findings?: string[]; candidateCount?: number; assessmentCount?: number; measurementCompleted?: boolean; resolutionMeasured?: boolean }

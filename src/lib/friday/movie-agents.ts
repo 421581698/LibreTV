@@ -39,6 +39,7 @@ export type QualityAssessment = {
   probeDurationMs: number | null;
   originTtfbMs: number | null;
   decodedResolutionHeight: number | null;
+  sourceResolutionHeight: number | null;
   resolutionSource: "decoded_playback" | "playlist_or_segment" | "unknown";
   probeResultCached: boolean | null;
   reachable: boolean | null;
@@ -149,6 +150,7 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
           probeDurationMs: typeof probe.probeDurationMs === "number" && Number.isFinite(probe.probeDurationMs) && probe.probeDurationMs >= 0 ? probe.probeDurationMs : null,
           originTtfbMs: validOriginTtfb ? probe.originTtfbMs! : null,
           decodedResolutionHeight: validDecodedHeight ? probe.decodedResolutionHeight! : null,
+          sourceResolutionHeight: validHeight ? probe.resolutionHeight! : null,
           resolutionSource: validDecodedHeight ? "decoded_playback" : validHeight ? "playlist_or_segment" : "unknown",
           probeResultCached: typeof probe.probeResultCached === "boolean" ? probe.probeResultCached : null,
           reachable: validReachability ? probe.reachable : null,

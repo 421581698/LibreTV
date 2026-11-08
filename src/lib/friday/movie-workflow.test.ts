@@ -186,6 +186,7 @@ describe("LibreTV movie workflow", () => {
     expect(quality.assessments[0]).toMatchObject({
       resolutionHeight: 720,
       decodedResolutionHeight: 720,
+      sourceResolutionHeight: 1080,
       resolutionSource: "decoded_playback",
       originTtfbMs: 64,
       probeDurationMs: 438,
