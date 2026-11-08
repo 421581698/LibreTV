@@ -113,7 +113,7 @@ describe("DexieTaskEventStore with native IndexedDB", () => {
 
     const recent = await store.readRecent();
     const taskIds = new Set(recent.map((item) => item.taskId));
-    expect(taskIds).toHaveLength(50);
+    expect(taskIds.size).toBe(50);
     expect(taskIds.has("recent-00")).toBe(false);
     expect(taskIds.has("recent-50")).toBe(true);
     expect(recent).toHaveLength(100);
