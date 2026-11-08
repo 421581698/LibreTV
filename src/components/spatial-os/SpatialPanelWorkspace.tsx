@@ -16,12 +16,12 @@ const DOCKS:{id:PanelDock;label:string}[]=[{id:'floating',label:'浮动'},{id:'l
 export function SpatialPanelWorkspace(){
  const state=useSpatialState();
  const panelRef=useRef<HTMLElement|null>(null);
- const triggerRefs=useRef<Partial<Record<SpatialPanel,HTMLButtonElement|null>>>({});
- const previousPanel=useRef<SpatialPanel|null>(null);
- const active=state.focusedPanel;
+ const focusedEntry=state.panelStack.find(entry=>entry.panel===state.focusedPanel);
+ // A panel belongs to the space that opened it; never leak it into another workspace.
+ const active=focusedEntry?.ownerSpace===state.activeSpace?state.focusedPanel:null;
  const selected=PANELS.find(item=>item.id===active);
  const rect=active?state.panelLayouts[active]:undefined;
- useEffect(()=>{if(active&&!rect?.minimized){previousPanel.current=active;panelRef.current?.focus();}else if(!active&&previousPanel.current){triggerRefs.current[previousPanel.current]?.focus();previousPanel.current=null;}},[active,rect?.minimized]);
+ useEffect(()=>{if(active&&!rect?.minimized)panelRef.current?.focus();},[active,rect?.minimized]);
  const style:CSSProperties=rect?{zIndex:rect.zIndex,...(rect.dock==='left'?{left:12,top:12,bottom:12,width:Math.min(rect.width,480)}:rect.dock==='right'?{right:12,top:12,bottom:12,width:Math.min(rect.width,480)}:rect.dock==='bottom'?{left:12,right:12,bottom:12,height:Math.min(rect.height,420)}:{left:rect.x,top:rect.y,width:rect.width,height:rect.height})}:{};
  return <div className="spatial-panel-workspace">
   {selected&&<section ref={node=>{panelRef.current=node;}} className="spatial-panel-window" data-dock={rect?.dock??'floating'} style={style} tabIndex={-1} aria-label={selected.label+'面板'}>
