@@ -1,6 +1,6 @@
 'use client';
 
-import {useState} from 'react';
+import {useState,type FormEvent} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import {db} from '@/lib/db';
 import {useAppStore} from '@/lib/store';
@@ -18,7 +18,7 @@ export function SpatialPanelContent({panel}:{panel:'search'|'sources'|'quality'|
 
 function SpatialSearchPanel(){
  const [query,setQuery]=useState('');
- const submit=(event:React.FormEvent)=>{event.preventDefault();const value=query.trim().slice(0,100);if(value)window.dispatchEvent(new CustomEvent('friday-spatial-search',{detail:{query:value}}));};
+ const submit=(event:FormEvent)=>{event.preventDefault();const value=query.trim().slice(0,100);if(value)window.dispatchEvent(new CustomEvent('friday-spatial-search',{detail:{query:value}}));};
  return <section className="spatial-os-panel" aria-label="影视搜索面板">
   <p className="spatial-os-eyebrow">FRIDAY / SEARCH</p><h2>影视意图搜索</h2>
   <p>复用 LibreTV 当前搜索控制器与已启用点播源，不创建第二套搜索或 Agent 生命周期。</p>
