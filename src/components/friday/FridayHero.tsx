@@ -9,6 +9,8 @@ type VoiceState = 'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING';
 /** 首页唯一 Friday 语音入口；状态变化只改变圆球，不创建面板或遮罩。 */
 export function FridayHero({ voiceState = 'IDLE', audioLevel = 0 }: { voiceState?: VoiceState; audioLevel?: number }) {
   const [orbTheme, setOrbTheme] = useState<'light' | 'dark'>('light');
+  const [assistantReply, setAssistantReply] = useState('');
+  const [voiceError, setVoiceError] = useState('');
 
   // The app theme is controlled by the .dark class, not necessarily the OS color scheme.
   // Observe both document roots so FridayOrb always matches the actual UI theme.
@@ -23,6 +25,23 @@ export function FridayHero({ voiceState = 'IDLE', audioLevel = 0 }: { voiceState
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const onReply = (event: Event) => {
+      const value = (event as CustomEvent<{ text?: string }>).detail?.text;
+      if (typeof value === 'string') setAssistantReply(value.slice(0, 420));
+    };
+    const onError = (event: Event) => {
+      const value = (event as CustomEvent<{ message?: string }>).detail?.message;
+      setVoiceError(typeof value === 'string' ? value : '');
+    };
+    window.addEventListener('friday-home-assistant-response', onReply);
+    window.addEventListener('friday-home-voice-error', onError);
+    return () => {
+      window.removeEventListener('friday-home-assistant-response', onReply);
+      window.removeEventListener('friday-home-voice-error', onError);
+    };
   }, []);
 
   const toggleVoice = (event: MouseEvent<HTMLButtonElement>) => {
@@ -58,7 +77,8 @@ export function FridayHero({ voiceState = 'IDLE', audioLevel = 0 }: { voiceState
             ariaLabel="Friday 金界全息能量核心"
           />
         </span>
-        <span className="friday-hero-orb-label" role="status" aria-live="polite">{labels[voiceState]}</span>
+        <span className="friday-hero-orb-label" role="status" aria-live="polite">{voiceError || labels[voiceState]}</span>
+        {assistantReply && <span className="friday-orb-response" role="status" aria-live="polite">{assistantReply}</span>}
       </button>
     </section>
   );
