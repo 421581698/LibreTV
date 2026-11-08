@@ -20,6 +20,9 @@ const downloads = source('src/components/download-manager.tsx');
 const search = source('src/components/home/useHomeSearchController.ts');
 const searchHistory = source('src/components/search-history.tsx');
 const styles = source('src/components/friday/FridayStyles.tsx');
+const fridayConversation = source('src/components/friday/FridayConversation.tsx');
+const movieAgents = source('src/lib/friday/movie-agents.ts');
+const movieWorkflow = source('src/lib/friday/movie-workflow.ts');
 
 describe('首页与播放页回归契约', () => {
   it('首页 FridayOrb 保持可见、可访问，并将点击交给唯一语音控制器', () => {
@@ -136,4 +139,15 @@ describe('首页与播放页回归契约', () => {
     expect(watch).toContain('router.back()');
     expect(watch).toContain("router.push('/')");
   });
+  it('shows evidence-ranked playback recommendations and routes the exact candidate through the existing detail modal', () => {
+    expect(movieWorkflow).toContain('playback: `${prefix}.playback`');
+    expect(movieWorkflow).toContain('agent: "playback-agent"');
+    expect(movieAgents).toContain('id: "playback-agent"');
+    expect(movieAgents).toContain('selectionBasis: measured ? "measured-resolution"');
+    expect(movieAgents).toContain('requiresUserConfirmation: true');
+    expect(fridayConversation).toContain('workflow.playbackRecommendations');
+    expect(fridayConversation).toContain('movies.find((item) => `${item.sourceKey}:${item.vodId}` === recommendation.candidateId)');
+    expect(fridayConversation).toContain('onOpenMovie(movie)');
+  });
+
 });
