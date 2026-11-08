@@ -266,3 +266,7 @@
   .spatial-v4-resource-detail-head { align-items: flex-start; }
   .spatial-v4-favorite-row { gap: 8px; }
 }
+
+
+.spatial-v4-fmhy-count { margin: 0 0 10px; color: var(--text-muted, #777); font-size: 11px; font-variant-numeric: tabular-nums; }
+.spatial-v4-load-more { display: flex; justify-content: center; margin: 18px 0 4px; }
