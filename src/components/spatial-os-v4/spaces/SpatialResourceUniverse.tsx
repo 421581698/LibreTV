@@ -128,7 +128,7 @@ export function SpatialResourceUniverse() {
     categoryTitle: item.category ?? '收藏资源',
     description: item.description ?? '',
     starred: false,
-    sourceUrl: typeof item.metadata?.sourceUrl === 'string' ? item.metadata.sourceUrl : 'https://freemediaheckyeah.org/sitemap/',
+    sourceUrl: 'https://github.com/fmhy/edit',
   }));
 
   const visibleItems = activeCategory === 'favorites' ? favoriteItems : results;
