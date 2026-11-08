@@ -10,7 +10,7 @@ import { createLibreTVMovieAgentAdapters } from "@/lib/friday/libretv-movie-adap
 import { createMovieWorkflowTaskIdPrefix, runLibreTVMovieWorkflow } from "@/lib/friday/movie-workflow";
 import { fridayTaskEventStore, fridayTaskRuntime } from "@/lib/friday/task-service";
 import type { TaskSnapshot } from "@/lib/friday/task-runtime";
-import type { MovieAgentAdapters } from "@/lib/friday/movie-agents";
+import type { MovieAgentAdapters, MovieCandidate } from "@/lib/friday/movie-agents";
 import { isCurrentFridayWorkflow } from "@/components/friday/workflowRequestGuard";
 import { restoreFridayConversationHistory, serializeFridayConversationHistory } from "@/lib/friday/conversation-history";
 
@@ -280,6 +280,50 @@ export function useFridayChatSession({
     }
   }, [language]);
 
+  const retryInterruptedWorkflow = useCallback(async (taskId: string) => {
+    const suffix = /\.(search|source|quality|review|playback)$/;
+    if (!suffix.test(taskId)) return;
+    const taskIdPrefix = taskId.replace(suffix, "");
+    const workflowTasks = restoredTasks.filter((task) => task.taskId.startsWith(`${taskIdPrefix}.`));
+    const searchTask = workflowTasks.find((task) => task.taskId === `${taskIdPrefix}.search`);
+    if (!searchTask) {
+      console.error("[Friday] Cannot recover workflow: persisted search task is missing from local history.");
+      return;
+    }
+    const query = (searchTask.input as { query?: unknown })?.query;
+    if (typeof query !== "string" || !query.trim()) {
+      console.error("[Friday] Cannot recover workflow: persisted search query is unavailable.");
+      return;
+    }
+
+    const baseAdapters = createLibreTVMovieAgentAdapters(sources as SourceConfig[], { filterAdult });
+    const storedCandidates = (searchTask.output as { candidates?: unknown } | undefined)?.candidates;
+    const adapters: MovieAgentAdapters = searchTask.status === "succeeded" && Array.isArray(storedCandidates)
+      ? {
+          ...baseAdapters,
+          search: async () => storedCandidates as MovieCandidate[],
+        }
+      : baseAdapters;
+
+    try {
+      await runLibreTVMovieWorkflow({
+        query,
+        taskIdPrefix,
+        adapters,
+        runtime: fridayTaskRuntime,
+        replayFailed: true,
+      });
+    } catch (recoveryError) {
+      console.error("[Friday] Explicit interrupted-workflow recovery failed:", recoveryError);
+    } finally {
+      try {
+        setRestoredTasks(await fridayTaskRuntime.restoreAll());
+      } catch (restoreError) {
+        console.error("[Friday] Could not refresh recovered task history:", restoreError);
+      }
+    }
+  }, [restoredTasks, sources, filterAdult]);
+
   const stopChat = useCallback(() => {
     for (const controller of activeWorkflowControllers.current.values()) controller.abort();
     activeWorkflowControllers.current.clear();
@@ -304,6 +348,7 @@ export function useFridayChatSession({
     setMessages,
     workflowBySearchId,
     retryMovieWorkflow,
+    retryInterruptedWorkflow,
     restoredTasks,
     clearTaskHistory,
     busy: status === "submitted" || status === "streaming",

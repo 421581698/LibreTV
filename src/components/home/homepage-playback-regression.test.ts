@@ -25,6 +25,7 @@ const movieAgents = source('src/lib/friday/movie-agents.ts');
 const movieWorkflow = source('src/lib/friday/movie-workflow.ts');
 const voiceController = source('src/components/friday/useFridayVoiceController.ts');
 const chatSession = source('src/components/friday/useFridayChatSession.ts');
+const fridayPanel = source('src/components/friday/FridayPanel.tsx');
 
 describe('首页与播放页回归契约', () => {
   it('首页 FridayOrb 保持可见、可访问，并将点击交给唯一语音控制器', () => {
@@ -57,6 +58,16 @@ describe('首页与播放页回归契约', () => {
     expect(chatSession).toContain('replayFailed: true');
     expect(chatSession).toContain('controller.abort()');
     expect(movieWorkflow).toContain('agent: "playback-agent"');
+  });
+
+  it('刷新后可从 IndexedDB 任务记录显式恢复只读工作流，副作用任务不提供恢复按钮', () => {
+    expect(chatSession).toContain('retryInterruptedWorkflow');
+    expect(chatSession).toContain('taskIdPrefix');
+    expect(chatSession).toContain('storedCandidates');
+    expect(chatSession).toContain('replayFailed: true');
+    expect(fridayPanel).toContain('onRetryInterruptedTask');
+    expect(fridayPanel).toContain('task.error?.code === "TASK_INTERRUPTED"');
+    expect(fridayPanel).toContain('!task.sideEffect');
   });
 
   it('播放器以 videoHeight 作为真实解码画质，并与清单探测结果区分', () => {

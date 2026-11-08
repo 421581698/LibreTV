@@ -207,6 +207,7 @@ export default function AIFloatingBall({
     setMessages,
     workflowBySearchId,
     retryMovieWorkflow,
+    retryInterruptedWorkflow,
     restoredTasks,
     clearTaskHistory,
     busy,
@@ -691,6 +692,7 @@ export default function AIFloatingBall({
             workflowBySearchId={workflowBySearchId}
             onRetryWorkflow={(searchId) => { void retryMovieWorkflow(searchId); }}
             restoredTasks={restoredTasks}
+            onRetryInterruptedTask={(taskId) => { void retryInterruptedWorkflow(taskId); }}
             listening={listening}
             busy={busy}
             status={status}
