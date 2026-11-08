@@ -25,6 +25,14 @@ describe('FMHY local resource index',()=>{
     }
   });
 
+  it('keeps related links unique and valid within each resource',async()=>{
+    const rows=await loadAllFMHYCategories();
+    for(const row of rows){
+      const urls=row.links.map(link=>link.url.replace(/\\/$/, '').toLowerCase());
+      expect(new Set(urls).size,row.id).toBe(urls.length);
+    }
+  });
+
   it('keeps stable ids unique within each category',async()=>{
     for(const category of FMHY_CATEGORIES){
       const rows=await loadFMHYCategory(category.id);
