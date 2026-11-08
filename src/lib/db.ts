@@ -251,17 +251,21 @@ export async function exportConfig(): Promise<string> {
   // 导出前 flush：把节流缓冲中的最新设置落盘，避免导出的是 800ms 前的旧快照
   flushPendingPersist();
   const history = await db.history.toArray();
+  const favorites = await db.favorites.toArray();
+  const spatialState = await db.spatialState.toArray();
   const settings = localStorage.getItem(PERSIST_KEY);
 
   const data: Record<string, unknown> = {
     viewingHistory: JSON.stringify(history),
+    favorites: JSON.stringify(favorites),
+    spatialState: JSON.stringify(spatialState),
   };
   if (settings) data[PERSIST_KEY] = settings;
 
   return JSON.stringify({
     name: 'LibreTV-Settings',
     time: Date.now().toString(),
-    cfgVer: '2.0.0',
+    cfgVer: '3.0.0',
     data,
   });
 }
@@ -279,6 +283,37 @@ export async function importConfig(content: string): Promise<void> {
     // 之后 flush 时用导入前的旧状态覆盖刚写入的配置（导入静默丢失）
     flushPendingPersist();
     localStorage.setItem(PERSIST_KEY, data[PERSIST_KEY]);
+  }
+
+  if (typeof data['favorites'] === 'string') {
+    const imported = JSON.parse(data['favorites']) as unknown;
+    if (Array.isArray(imported)) {
+      const valid = imported.filter((item): item is FavoriteEntry =>
+        !!item &&
+        typeof item === 'object' &&
+        typeof (item as FavoriteEntry).id === 'string' &&
+        typeof (item as FavoriteEntry).title === 'string' &&
+        ['fmhy-resource', 'media', 'live'].includes((item as FavoriteEntry).kind)
+      ).slice(0, 5000);
+      await db.favorites.bulkPut(valid.map((item) => ({
+        ...item,
+        createdAt: Number.isFinite(item.createdAt) ? item.createdAt : Date.now(),
+        updatedAt: Date.now(),
+      })));
+    }
+  }
+
+  if (typeof data['spatialState'] === 'string') {
+    const imported = JSON.parse(data['spatialState']) as unknown;
+    if (Array.isArray(imported)) {
+      const valid = imported.filter((item): item is SpatialStateEntry =>
+        !!item &&
+        typeof item === 'object' &&
+        typeof (item as SpatialStateEntry).key === 'string' &&
+        'value' in (item as object)
+      ).slice(0, 100);
+      await db.spatialState.bulkPut(valid.map((item) => ({ ...item, updatedAt: Date.now() })));
+    }
   }
 
   if (typeof data['viewingHistory'] === 'string') {
