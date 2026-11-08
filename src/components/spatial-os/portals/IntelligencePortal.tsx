@@ -10,7 +10,8 @@ import {assessQuality,type QualityAssessment,type QualityEvidence} from '../runt
 import {projectTaskEvents,summarizeTasks} from '../runtime/TaskProjection';
 import {spatialStateStore} from '../runtime/SpatialStateStore';
 
-export function IntelligencePortal({taskId}:{taskId?:string|null}={}){
+type IntelligenceView = 'overview'|'tasks'|'quality';
+export function IntelligencePortal({taskId,view='overview'}:{taskId?:string|null;view?:IntelligenceView}={}){
  const [events,setEvents]=useState<TaskEvent[]>([]);
  const [loadError,setLoadError]=useState('');
  const [quality,setQuality]=useState<QualityAssessment>({label:'尚无播放器解码证据',height:null,confidence:'unknown',source:'unknown'});
@@ -39,22 +40,31 @@ export function IntelligencePortal({taskId}:{taskId?:string|null}={}){
  const allTasks=projectTaskEvents(events);
  const tasks=taskId?allTasks.filter(task=>task.id===taskId||task.parentTaskId===taskId):allTasks;
  const metrics=summarizeTasks(tasks);
- return <section className="spatial-os-panel" aria-label={taskId?'Friday 任务详情':'Friday 智能任务空间'}>
-  <p className="spatial-os-eyebrow">FRIDAY / INTELLIGENCE</p><h2>{taskId?'任务执行详情':'智能任务中心'}</h2>
-  <p>{taskId?'当前任务及其直接子任务的持久化事件、进度和恢复信息。':'实时读取现有 Friday V3 IndexedDB 任务事件；DAG 依赖、进度、检查点和失败信息均从持久化事件重建，不创建第二套任务运行时。'}</p>
-  <div className="spatial-os-metrics"><span><strong>{metrics.total}</strong><small>{taskId?'关联任务':'近期任务'}</small></span><span><strong>{metrics.running}</strong><small>运行中</small></span><span><strong>{metrics.completed}</strong><small>已完成</small></span><span><strong>{metrics.failed}</strong><small>失败</small></span></div>
-  <h3>Agent DAG / 任务事件</h3>{loadError&&<p role="status">{loadError}</p>}
-  {tasks.length===0&&!loadError&&<p>{taskId?'尚未找到该任务的持久化事件。':'当前浏览器尚无可展示的任务事件。执行 Friday 任务后会显示持久化记录。'}</p>}
-  <ul className="spatial-os-task-list">{tasks.map(task=><li key={task.id}>
-   <div><button type="button" className="text-left" onClick={()=>spatialStateStore.setTaskContext({taskId:task.id,agentId:task.agent})}><span>{task.label}</span><small className="block">{task.id} · {task.status} · {task.lastEventType} · 查看任务 ↗</small></button></div>
-   {task.parentTaskId&&<small>父任务：{task.parentTaskId}</small>}
-   {task.dependsOn.length>0&&<small>依赖：{task.dependsOn.join('、')}</small>}
-   {task.progress&&<small>进度：{task.progress}</small>}
-   {task.checkpoint&&<small>恢复检查点：{task.checkpoint}</small>}
-   {task.replayCount>0&&<small>显式恢复次数：{task.replayCount}</small>}
-   {task.error&&<p role="alert">失败原因：{task.error.message}（{task.error.code} · {task.error.retryable?'允许受限重试':'不可自动重试'}）</p>}
-   <small>{new Date(task.occurredAt).toLocaleString()}</small>
-  </li>)}</ul>
-  {!taskId&&<><h3>播放质量证据</h3><p className="spatial-os-quality" data-confidence={quality.confidence}>{quality.label} · {quality.confidence==='verified'?'播放器实测':quality.confidence==='indicative'?'接口/分片参考':'未知'}</p><p className="spatial-os-footnote">播放器 videoHeight 才标记为 verified；播放列表声明和服务端分片探测不能冒充实际解码画质。</p></>}
+ const showTasks=view!=='quality';
+ const showQuality=view!=='tasks';
+ return <section className="spatial-os-panel" aria-label={taskId?'Friday 任务详情':view==='quality'?'播放器画质证据':'Friday 智能任务空间'}>
+  <p className="spatial-os-eyebrow">FRIDAY / INTELLIGENCE</p>
+  <h2>{taskId?'任务执行详情':view==='quality'?'播放质量证据':view==='tasks'?'Agent DAG / 任务事件':'智能任务中心'}</h2>
+  {view==='overview'&&!taskId&&<div className="spatial-os-actions" aria-label="智能空间工具">
+   <button type="button" onClick={()=>spatialStateStore.expand('search')}>打开影视搜索</button>
+   <button type="button" onClick={()=>spatialStateStore.expand('tasks')}>打开任务面板</button>
+   <button type="button" onClick={()=>spatialStateStore.expand('quality')}>打开画质面板</button>
+  </div>}
+  {showTasks&&<><p>{taskId?'当前任务及其直接子任务的持久化事件、进度和恢复信息。':'实时读取现有 Friday V3 IndexedDB 任务事件；DAG 依赖、进度、检查点和失败信息均从持久化事件重建，不创建第二套任务运行时。'}</p>
+   <div className="spatial-os-metrics"><span><strong>{metrics.total}</strong><small>{taskId?'关联任务':'近期任务'}</small></span><span><strong>{metrics.running}</strong><small>运行中</small></span><span><strong>{metrics.completed}</strong><small>已完成</small></span><span><strong>{metrics.failed}</strong><small>失败</small></span></div>
+   <h3>Agent DAG / 任务事件</h3>{loadError&&<p role="status">{loadError}</p>}
+   {tasks.length===0&&!loadError&&<p>{taskId?'尚未找到该任务的持久化事件。':'当前浏览器尚无可展示的任务事件。执行 Friday 任务后会显示持久化记录。'}</p>}
+   <ul className="spatial-os-task-list">{tasks.map(task=><li key={task.id}>
+    <div><button type="button" className="text-left" onClick={()=>spatialStateStore.setTaskContext({taskId:task.id,agentId:task.agent})}><span>{task.label}</span><small className="block">{task.id} · {task.status} · {task.lastEventType} · 查看任务 ↗</small></button></div>
+    {task.parentTaskId&&<small>父任务：{task.parentTaskId}</small>}
+    {task.dependsOn.length>0&&<small>依赖：{task.dependsOn.join('、')}</small>}
+    {task.progress&&<small>进度：{task.progress}</small>}
+    {task.checkpoint&&<small>恢复检查点：{task.checkpoint}</small>}
+    {task.replayCount>0&&<small>显式恢复次数：{task.replayCount}</small>}
+    {task.error&&<p role="alert">失败原因：{task.error.message}（{task.error.code} · {task.error.retryable?'允许受限重试':'不可自动重试'}）</p>}
+    <small>{new Date(task.occurredAt).toLocaleString()}</small>
+   </li>)}</ul>
+  </>}
+  {showQuality&&<><h3>播放质量证据</h3><p className="spatial-os-quality" data-confidence={quality.confidence}>{quality.label} · {quality.confidence==='verified'?'播放器实测':quality.confidence==='indicative'?'接口/分片参考':'未知'}</p><p className="spatial-os-footnote">播放器 videoHeight 才标记为 verified；播放列表声明和服务端分片探测不能冒充实际解码画质。</p></>}
  </section>;
 }
