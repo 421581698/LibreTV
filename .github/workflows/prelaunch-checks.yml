@@ -5,6 +5,7 @@ on:
     branches:
       - feature/friday-playback-feedback-agent-2026-11-08
       - fix/prelaunch-security-voice-2026-11-03
+      - feature/friday-spatial-os-v4
   pull_request:
     branches:
       - main
