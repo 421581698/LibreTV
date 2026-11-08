@@ -140,6 +140,23 @@ export default function AIFloatingBall({
     return () => window.removeEventListener("friday-voice-preference-change", handleVoicePreferenceChange);
   }, []);
 
+  useEffect(() => {
+    const handleAssistantPreferenceChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ assistantId?: string }>).detail;
+      if (detail?.assistantId === "friday" || detail?.assistantId === "jarvis" || detail?.assistantId === "lin-meimei") setAssistantId(detail.assistantId);
+    };
+    const handleWakeWordPreferenceChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ enabled?: boolean }>).detail;
+      if (typeof detail?.enabled === "boolean") setWakeWordEnabled(detail.enabled);
+    };
+    window.addEventListener("friday-assistant-preference-change", handleAssistantPreferenceChange);
+    window.addEventListener("friday-wake-word-preference-change", handleWakeWordPreferenceChange);
+    return () => {
+      window.removeEventListener("friday-assistant-preference-change", handleAssistantPreferenceChange);
+      window.removeEventListener("friday-wake-word-preference-change", handleWakeWordPreferenceChange);
+    };
+  }, []);
+
   const openRef = useRef(false);
   const closingRef = useRef(false);
   const busyRef = useRef(false);
@@ -261,6 +278,15 @@ export default function AIFloatingBall({
   useEffect(() => {
     if (auroraState !== "speaking") setAudioLevel(0);
   }, [auroraState]);
+
+  // The orb is the sole assistant surface: publish the latest assistant answer
+  // as a compact inline HUD instead of opening a conversation panel.
+  useEffect(() => {
+    const lastAssistant = [...typedMessages].reverse().find((message) => message.role === "assistant");
+    if (!lastAssistant) return;
+    const responseText = getPartText(lastAssistant).trim();
+    if (responseText) window.dispatchEvent(new CustomEvent("friday-home-assistant-response", { detail: { text: responseText } }));
+  }, [typedMessages]);
 
   useEffect(() => {
     const state = auroraState === "listening" ? "LISTENING"
