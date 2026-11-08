@@ -2,12 +2,23 @@ import Dexie from "dexie";
 import { db, type FridayTaskEventEntry } from "../db";
 import type { TaskEvent, TaskEventStore } from "./task-runtime";
 
+export const MAX_TASK_EVENT_BYTES = 256 * 1024;
+
 /**
  * Browser-local durable event store backed by the existing LibreTV Dexie database.
  * Writes are transactional and sequence numbers are unique per task.
  */
 export class DexieTaskEventStore implements TaskEventStore {
   async append(event: TaskEvent): Promise<void> {
+    let serialized: string;
+    try {
+      serialized = JSON.stringify(event);
+    } catch {
+      throw new Error("Task event must be JSON-serializable");
+    }
+    if (new TextEncoder().encode(serialized).byteLength > MAX_TASK_EVENT_BYTES) {
+      throw new Error("Task event exceeds the 256 KiB persistence limit");
+    }
     await db.transaction("rw", db.fridayTaskEvents, async () => {
       const existingSequence = await db.fridayTaskEvents
         .where("[taskId+sequence]")
