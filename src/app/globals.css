@@ -1135,3 +1135,99 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   border-radius: 0;
   box-shadow: none;
 }
+
+
+/* FRIDAY SPATIAL OS V4 — P2 content-first homepage composition.
+   The compact header entry is the single visible Friday control; the legacy
+   full-size hero orb remains available only to the legacy homepage variant. */
+.home-v2 .spatial-v4-header-inner {
+  width: min(100% - 24px, 1440px);
+  gap: 8px;
+}
+.home-v2 .spatial-v4-header-inner > .spatial-v4-brand {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: inherit;
+  font-weight: inherit;
+}
+.home-v2 .spatial-v4-brand > header {
+  position: relative !important;
+  inset: auto !important;
+  z-index: auto !important;
+  width: 100%;
+  background: transparent !important;
+  border: 0 !important;
+  backdrop-filter: none !important;
+}
+.home-v2 .spatial-v4-brand > header > div {
+  width: 100%;
+  max-width: none;
+  padding-inline: 0;
+}
+.home-v2 .spatial-v4-friday-slot {
+  flex: 0 0 auto;
+  margin-left: 4px;
+}
+.home-v2 .spatial-v4-main {
+  width: min(100% - 24px, 1440px);
+  padding-block: 14px 32px;
+}
+.home-v2 .home-v2-main {
+  display: block;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  padding: 0 !important;
+}
+.home-v2 .home-v2-trending-title {
+  margin: 0 0 12px !important;
+  font-size: 18px;
+  line-height: 1.3;
+}
+.home-v2 .spatial-v4-space-placeholder {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  min-height: min(52vh, 520px);
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  border: 1px solid var(--spatial-separator);
+  border-radius: 16px;
+  background: var(--spatial-surface);
+}
+.home-v2 .spatial-v4-space-eyebrow {
+  margin: 0 0 12px;
+  color: var(--spatial-accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .12em;
+}
+.home-v2 .spatial-v4-space-placeholder h1 {
+  margin: 0 0 8px;
+  font-size: clamp(24px, 4vw, 34px);
+  font-weight: 650;
+}
+.home-v2 .spatial-v4-space-placeholder p:not(.spatial-v4-space-eyebrow) {
+  margin: 0 0 20px;
+  color: var(--spatial-text-secondary);
+  line-height: 1.6;
+}
+.home-v2 .spatial-v4-space-placeholder span {
+  color: var(--spatial-text-secondary);
+  font-size: 13px;
+}
+@media (max-width: 767px) {
+  .home-v2 .spatial-v4-main {
+    padding-top: 12px;
+    padding-bottom: calc(88px + env(safe-area-inset-bottom));
+  }
+  .home-v2 .spatial-v4-header-inner {
+    width: calc(100% - 16px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-v2 .spatial-v4-friday-button {
+    transition: none !important;
+  }
+}
