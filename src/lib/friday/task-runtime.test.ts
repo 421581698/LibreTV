@@ -41,15 +41,15 @@ describe("Friday task runtime",()=>{
  it("rejects cyclic DAG dependencies",()=>{expect(()=>validateTaskGraph([{...task,dependsOn:["quality"]},{taskId:"quality",agent:"quality-agent",input:{},dependsOn:[task.taskId]}])).toThrowError(TaskRuntimeError)});
  it("rejects duplicate dependency edges",()=>{
   expect(()=>validateTaskGraph([{...task,dependsOn:["source","source"]},{taskId:"source",agent:"source-agent",input:{}}]))
-   .toThrowError(expect.objectContaining({code:"DUPLICATE_DEPENDENCY"}));
+   .toThrowError("duplicate dependency");
  });
  it("rejects self-parent and cyclic parent lineage",()=>{
   expect(()=>validateTaskGraph([{...task,parentTaskId:task.taskId}]))
-   .toThrowError(expect.objectContaining({code:"TASK_LINEAGE_CYCLE"}));
+   .toThrowError("its own parent");
   expect(()=>validateTaskGraph([
    {...task,parentTaskId:"quality"},
    {taskId:"quality",agent:"quality-agent",input:{},parentTaskId:task.taskId},
-  ])).toThrowError(expect.objectContaining({code:"TASK_LINEAGE_CYCLE"}));
+  ])).toThrowError("parent lineage contains a cycle");
  });
  it("allows parent request IDs outside the current DAG",()=>{
   expect(()=>validateTaskGraph([{...task,parentTaskId:"request-123"}])).not.toThrow();
