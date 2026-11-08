@@ -16,6 +16,7 @@ const taskAudit = read('src/components/spatial-os-v4/spaces/SpatialTaskAuditPane
 const resource = read('src/components/spatial-os-v4/spaces/SpatialResourceUniverse.tsx');
 const identity = read('src/components/spatial-os-v4/spaces/SpatialIdentitySpace.tsx');
 const header = read('src/components/header.tsx');
+const assistant = read('src/components/AIFloatingBall.tsx');
 const css = read('src/components/spatial-os-v4/styles/spatial-shell.css');
 const player = read('src/app/watch/page.tsx');
 const playerShell = read('src/components/player-shell.tsx');
@@ -59,7 +60,7 @@ describe('FRIDAY SPATIAL OS V4 cross-layer regression contracts', () => {
     expect(fridayButton).toContain('<FridayOrb');
     expect(fridayButton).toContain('interactive={false}');
     expect(fridayButton).toContain('state={rendererState}');
-    expect(header).toContain('window.addEventListener("friday-home-orb-toggle", handleHomeOrbToggle)');
+    expect(assistant).toContain('friday-home-orb-toggle');
   });
 
   it('connects Intelligence to the existing Friday panel and a payload-redacted task audit', () => {
