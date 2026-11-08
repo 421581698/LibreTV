@@ -202,12 +202,13 @@ describe('首页与播放页回归契约', () => {
     expect(fridayConversation).toContain('onOpenMovie(movie)');
   });
 
-  it('releases pending homepage wake audio and object URLs when the assistant unmounts', () => {
-    expect(assistant).toContain('homeWakeTokenRef.current += 1');
-    expect(assistant).toContain('homeWakeAudioRef.current = null');
-    expect(assistant).toContain('wakeAudio.pause()');
-    expect(assistant).toContain('URL.revokeObjectURL(homeWakeUrlRef.current)');
-    expect(assistant).toContain('homeWakeUrlRef.current = ""');
+  it('starts homepage voice recognition directly from the orb gesture without a wake-audio fetch', () => {
+    expect(assistant).toContain('window.addEventListener("friday-home-orb-toggle", handleHomeOrbToggle)');
+    expect(assistant).toContain('startListening(false)');
+    expect(assistant).toContain('setVoiceSession(true)');
+    expect(assistant).toContain('stopRecognition(true)');
+    expect(assistant).not.toContain('homeWakeAudioRef');
+    expect(assistant).not.toContain('homeWakeUrlRef');
   });
 
 
