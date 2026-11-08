@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   QUALITY_FAIL_TTL_MS,
   QUALITY_TTL_MS,
+  compareQualityEvidence,
   describeQualityBadge,
   failureReasonLabel,
   inferHeightFromBitrate,
@@ -58,6 +59,33 @@ describe('qualityLabel', () => {
   it('缺失或非法高度返回 undefined（前端据此显示「未知」）', () => {
     expect(qualityLabel(undefined)).toBeUndefined();
     expect(qualityLabel(0)).toBeUndefined();
+  });
+});
+
+describe('compareQualityEvidence', () => {
+  const T = 1_700_000_000_000;
+
+  it('实际解码证据优先于播放列表声明，即使声明档位更高', () => {
+    const measured: QualityEntry = { height: 720, from: 'play', timestamp: T, playbackSampleCount: 2 };
+    const declared: QualityEntry = { height: 2160, from: 'probe', timestamp: T };
+    expect(compareQualityEvidence(measured, declared)).toBeLessThan(0);
+  });
+
+  it('同为实测时优先最高解码高度', () => {
+    const measured1080: QualityEntry = { height: 1080, from: 'play', timestamp: T };
+    const measured720: QualityEntry = { height: 720, from: 'play', timestamp: T };
+    expect(compareQualityEvidence(measured1080, measured720)).toBeLessThan(0);
+  });
+
+  it('同高度实测优先有效观测次数更多的来源', () => {
+    const wellObserved: QualityEntry = { height: 1080, from: 'play', timestamp: T, playbackSampleCount: 5 };
+    const sparse: QualityEntry = { height: 1080, from: 'play', timestamp: T, playbackSampleCount: 1 };
+    expect(compareQualityEvidence(wellObserved, sparse)).toBeLessThan(0);
+  });
+
+  it('没有可用画质证据时保持平级，不虚构高度', () => {
+    const unknown: QualityEntry = { from: 'probe', timestamp: T };
+    expect(compareQualityEvidence(unknown, undefined)).toBe(0);
   });
 });
 
