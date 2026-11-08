@@ -67,7 +67,10 @@ export function useFridayResponseController({
     // Only handle a response when the active request transitions from busy to
     // ready. Reopening the panel while the chat is already ready must not replay
     // an old assistant message or restart voice output from a prior session.
-    if (!isCompletedFridayRequestTransition(previousStatus, status) || !open) return;
+    // Home-orb voice sessions deliberately keep the panel closed; still speak
+    // their response while that independent voice session remains active.
+    if (!isCompletedFridayRequestTransition(previousStatus, status) ||
+      (!open && !voiceSessionActiveRef.current)) return;
 
     const lastAssistant = [...messages]
       .reverse()
