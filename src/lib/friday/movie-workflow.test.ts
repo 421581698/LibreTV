@@ -127,7 +127,7 @@ describe("LibreTV movie workflow", () => {
         return new Response(JSON.stringify({
           results: [{
             sourceKey: "alpha", vodId: "1", height: 1080,
-            probeDurationMs: 240, upstreamRequestMs: 92, upstreamRequestCount: 3,
+            probeDurationMs: 240, upstreamRequestMs: 92, upstreamRequestCount: 3, originTtfbMs: 41,
             cached: false, transient: false,
           }],
         }), { status: 200, headers: { "Content-Type": "application/json" } });
@@ -139,7 +139,7 @@ describe("LibreTV movie workflow", () => {
       query: "Arrival",
       taskIdPrefix: "adapter-e2e",
       runtime: new TaskRuntime(store),
-      adapters: createLibreTVMovieAgentAdapters([source], { fetcher }),
+      adapters: createLibreTVMovieAgentAdapters([source], { fetcher, readDecodedHeight: () => 720 }),
     });
 
     expect(fetcher).toHaveBeenCalledTimes(2);
@@ -149,16 +149,20 @@ describe("LibreTV movie workflow", () => {
     expect(result.results[2].output).toMatchObject({
       assessments: [{
         status: "resolution_detected",
-        resolutionHeight: 1080,
+        resolutionHeight: 720,
+        decodedResolutionHeight: 720,
+        sourceResolutionHeight: 1080,
+        resolutionSource: "decoded_playback",
+        originTtfbMs: 41,
         probeDurationMs: 240,
         upstreamRequestMs: 92,
         upstreamRequestCount: 3,
-        evidence: expect.arrayContaining(["quality_probe.upstream_request_ms"]),
+        evidence: expect.arrayContaining(["quality_probe.upstream_request_ms", "player.videoHeight", "origin.media_ttfb_ms"]),
       }],
     });
     expect(result.results[4].output).toMatchObject({
       ready: true,
-      recommendations: [{ candidateId: "alpha:1", selectionBasis: "measured-resolution", resolutionHeight: 1080 }],
+      recommendations: [{ candidateId: "alpha:1", selectionBasis: "measured-resolution", resolutionHeight: 720 }],
     });
     for (const taskId of Object.values(result.taskIds)) {
       expect((await store.read(taskId)).at(-1)?.type).toBe("task.succeeded");
