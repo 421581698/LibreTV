@@ -147,7 +147,7 @@ export function Header({ showSearch = false, showFridayFab = true, minimalFriday
         </div>
       </header>
 
-      <AIFloatingBall showFab={showFridayFab} inlineMode={!showFridayFab} />
+      <AIFloatingBall showFab={showFridayFab} inlineMode />
       <SourceManagerDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <HistoryPanel open={historyOpen} onClose={() => setHistoryOpen(false)} />
     </React.Fragment>
