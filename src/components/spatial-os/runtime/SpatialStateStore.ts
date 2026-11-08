@@ -1,7 +1,7 @@
 'use client';
 import {useSyncExternalStore} from 'react';
 import {DEFAULT_SPATIAL_STATE,type SpatialSnapshot,type SpatialSpace,type SpatialPanel} from '../core/types';
-import {activateSpace} from './SpatialRouter';
+import {activateSpace,goBackSpace} from './SpatialRouter';
 import {setExpandedPanel} from './PanelManager';
 import {readWorkspace,writeWorkspace} from './WorkspacePersistence';
 let snapshot:SpatialSnapshot=DEFAULT_SPATIAL_STATE,hydrated=false;
