@@ -2,6 +2,8 @@
 import {useEffect,useState} from 'react';
 import {fridayTaskEventStore} from '@/lib/friday/dexie-task-event-store';
 import type {TaskEvent} from '@/lib/friday/task-runtime';
+import {db} from '@/lib/db';
+import {readQualities} from '@/lib/store';
 import {assessQuality,type QualityAssessment,type QualityEvidence} from '../runtime/QualityVerifier';
 
 function eventStatus(type:string):'waiting'|'running'|'succeeded'|'failed'|'cancelled' {
@@ -18,6 +20,18 @@ export function IntelligencePortal(){
  useEffect(()=>{
   let active=true;
   void fridayTaskEventStore.readRecent().then(rows=>{if(active)setEvents(rows);}).catch(()=>{if(active)setLoadError('本地任务事件暂不可读取');});
+  void db.history.orderBy('timestamp').reverse().limit(30).toArray().then(history=>{
+   if(!active||history.length===0)return;
+   const qualities=readQualities(history.map(item=>({sourceKey:item.sourceKey,vodId:item.vodId})));
+   for(const item of history){
+    const entry=qualities[`${item.sourceKey}:${item.vodId}`] ?? qualities[`${item.sourceKey}_${item.vodId}`];
+    if(!entry?.height)continue;
+    const evidence:QualityEvidence=entry.from==='play'
+     ?{kind:'player-decoded',decodedHeight:entry.lastPlaybackHeight??entry.height,observedAt:entry.lastPlaybackSampleAt??entry.timestamp}
+     :{kind:'segment-probe',segmentHeight:entry.height,observedAt:entry.timestamp};
+    setQuality(assessQuality(evidence));break;
+   }
+  }).catch(()=>{});
   const onQuality=(event:Event)=>{const evidence=(event as CustomEvent<QualityEvidence>).detail;if(evidence)setQuality(assessQuality(evidence));};
   window.addEventListener('friday-player-quality-evidence',onQuality);
   return()=>{active=false;window.removeEventListener('friday-player-quality-evidence',onQuality);};
