@@ -224,6 +224,16 @@ describe('首页与播放页回归契约', () => {
     expect(hero).toContain('friday-home-orb-toggle');
   });
 
+  it('首页圆球订阅真实语音状态和音量事件，而不是永久停留在默认空闲态', () => {
+    expect(assistant).toContain('friday-home-voice-state');
+    expect(assistant).toContain('friday-audio-level');
+    expect(hero).toContain("window.addEventListener('friday-home-voice-state', onVoiceState)");
+    expect(hero).toContain("window.addEventListener('friday-audio-level', onAudioLevel)");
+    expect(hero).toContain('setRuntimeVoiceState(next[normalized])');
+    expect(hero).toContain('setRuntimeAudioLevel(Math.max(0, Math.min(1, value)))');
+    expect(canvas).toContain('voiceState, audioLevel');
+  });
+
   it('设置中可选择界面语言、助手角色和语音风格，顶部搜索默认收起', () => {
     expect(settings).toContain("{ id: 'language', label: '语言设置' }");
     expect(settings).toContain('function LanguageSettingsPanel()');
