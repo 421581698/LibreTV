@@ -70,6 +70,7 @@ type FridayPanelProps = {
   messagesRef: RefObject<HTMLDivElement | null>;
   messages: MessageLike[];
   workflowBySearchId: Record<string, FridayWorkflowView>;
+  onRetryWorkflow: (searchId: string) => void;
   restoredTasks: TaskSnapshot[];
   listening: boolean;
   busy: boolean;
@@ -113,7 +114,7 @@ export { getMovieDataForMessage, getPartText } from "@/lib/friday/message";
 
 export function FridayPanel({
   expanded, immersive, closing, auroraState, audioLevel, agentState, voiceState, stateLabel,
-  onAnimationEnd, onClose, messagesRef, messages, workflowBySearchId, restoredTasks, listening, busy, status,
+  onAnimationEnd, onClose, messagesRef, messages, workflowBySearchId, onRetryWorkflow, restoredTasks, listening, busy, status,
   error, speaking, completed, voiceSessionActive, inputRef, input, setInput,
   onSend, onToggleListening, voiceError, voiceEnabled, onToggleVoiceEnabled,
   onClearConversation, onStopSpeechAndResume, onInterrupt, onToggleExpanded,
@@ -221,6 +222,7 @@ export function FridayPanel({
                   status={status}
                   error={error}
                   onOpenMovie={onOpenMovie}
+                  onRetryWorkflow={onRetryWorkflow}
                   language={language}
                 />
     

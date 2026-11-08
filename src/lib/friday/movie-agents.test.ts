@@ -73,6 +73,42 @@ describe("Friday movie agents", () => {
     expect(result.assessments[0]).toMatchObject({ status: "resolution_unknown", resolutionHeight: null });
   });
 
+  it("rejects duplicate and orphan candidate assessments instead of accepting partial coverage", async () => {
+    const agents = createMovieAgentRegistry({ search: async () => [], probe: async () => [] });
+    const review = agents.find((agent) => agent.id === "review-agent")!;
+    const assessment = {
+      sourceId: "s1", candidateId: "m1", status: "resolution_unknown" as const,
+      assessmentCompleted: true, resolutionHeight: null, latencyMs: null,
+      probeDurationMs: null, probeResultCached: null, reachable: true,
+      advertisedQualities: [], evidence: ["quality_probe.completed"],
+    };
+    const result = await review.execute(context("review-agent", {}, {
+      search: { candidates: [{ id: "m1", title: "Arrival" }] },
+      quality: { assessments: [assessment, assessment, { ...assessment, candidateId: "unknown" }] },
+    })) as { accepted: boolean; findings: string[]; assessmentCount: number; measurementCompleted: boolean };
+    expect(result.accepted).toBe(false);
+    expect(result.assessmentCount).toBe(3);
+    expect(result.measurementCompleted).toBe(false);
+    expect(result.findings).toContain("duplicate-candidate-assessment");
+    expect(result.findings).toContain("assessment-for-unknown-candidate");
+  });
+
+  it("requires resolution evidence and a positive measured height for detected resolution", async () => {
+    const agents = createMovieAgentRegistry({ search: async () => [], probe: async () => [] });
+    const review = agents.find((agent) => agent.id === "review-agent")!;
+    const result = await review.execute(context("review-agent", {}, {
+      search: { candidates: [{ id: "m1", title: "Arrival" }] },
+      quality: { assessments: [{
+        sourceId: "s1", candidateId: "m1", status: "resolution_detected",
+        assessmentCompleted: true, resolutionHeight: 1080, latencyMs: null,
+        probeDurationMs: null, probeResultCached: null, reachable: true,
+        advertisedQualities: [], evidence: ["source.reachable"],
+      }] },
+    })) as { accepted: boolean; findings: string[] };
+    expect(result.accepted).toBe(false);
+    expect(result.findings).toContain("measurement-without-resolution-evidence");
+  });
+
   it("reviews search and quality evidence without inventing missing measurements", async () => {
     const agents = createMovieAgentRegistry({ search: async () => [], probe: async () => [] });
     const review = agents.find((agent) => agent.id === "review-agent")!;
@@ -80,7 +116,8 @@ describe("Friday movie agents", () => {
       search: { candidates: [{ id: "m1", title: "Arrival", sourceId: "s1" }] },
       // No candidateId: a source-level assessment cannot be attributed to this movie.
       quality: { assessments: [{ sourceId: "s1", status: "unknown", assessmentCompleted: true, resolutionHeight: null, latencyMs: null, probeDurationMs: null, probeResultCached: null, reachable: null, advertisedQualities: ["4K"], evidence: [] }] },
-    })) as { accepted: boolean; unmatchedCandidates: string[] };
-    expect(result).toMatchObject({ accepted: false, unmatchedCandidates: ["m1"], measurementCompleted: true, resolutionMeasured: false });
+    })) as { accepted: boolean; unmatchedCandidates: string[]; findings: string[]; measurementCompleted: boolean; resolutionMeasured: boolean };
+    expect(result).toMatchObject({ accepted: false, unmatchedCandidates: ["m1"], measurementCompleted: false, resolutionMeasured: false });
+    expect(result.findings).toContain("candidate-without-quality-assessment");
   });
 });

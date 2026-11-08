@@ -1,7 +1,9 @@
 import {
   TaskRuntime,
+  TaskRuntimeError,
   validateTaskGraph,
   type TaskDefinition,
+  type TaskSnapshot,
 } from "./task-runtime";
 
 export type AgentExecutionContext = {
@@ -38,7 +40,9 @@ export class DagExecutionError extends Error {
 
 /**
  * Executes a validated DAG. Only explicitly classified transient failures are
- * retried. Side-effect tasks are never automatically replayed.
+ * retried. A later explicit replay reuses successful dependency outputs and
+ * reruns only failed tasks whose persisted error is retryable.
+ * Side-effect tasks are never automatically or manually replayed.
  */
 export async function runFridayDag(args: {
   tasks: TaskDefinition[];
@@ -46,6 +50,7 @@ export async function runFridayDag(args: {
   runtime: TaskRuntime;
   signal?: AbortSignal;
   maxAttempts?: number;
+  replayFailed?: boolean;
 }): Promise<DagRunResult[]> {
   const { tasks, agents, runtime, signal } = args;
   const requestedAttempts = Number.isFinite(args.maxAttempts) ? Math.floor(args.maxAttempts as number) : 2;
@@ -59,14 +64,43 @@ export async function runFridayDag(args: {
     }
   }
 
-  for (const task of tasks) await runtime.create(task);
+  const existing = new Map<string, TaskSnapshot>();
+  for (const task of tasks) {
+    try {
+      const snapshot = await runtime.getSnapshot(task);
+      if (!args.replayFailed) {
+        throw new TaskRuntimeError("Task already exists", "TASK_EXISTS");
+      }
+      if (snapshot.status === "running" || snapshot.status === "waiting") {
+        throw new TaskRuntimeError("Task is already active and cannot be replayed concurrently", "TASK_ALREADY_ACTIVE");
+      }
+      if (snapshot.status === "cancelled") {
+        throw new TaskRuntimeError("Cancelled tasks require a new execution identity", "TASK_CANCELLED");
+      }
+      if (snapshot.status === "failed" && (snapshot.error?.retryable !== true || task.sideEffect)) {
+        throw new TaskRuntimeError("Task failure is not eligible for replay", "REPLAY_STATE_INVALID");
+      }
+      existing.set(task.taskId, snapshot);
+    } catch (error) {
+      if (error instanceof TaskRuntimeError && error.code === "TASK_NOT_FOUND") {
+        await runtime.create(task);
+        continue;
+      }
+      throw error;
+    }
+  }
 
   const executions = new Map<string, Promise<DagRunResult>>();
   const execute = (task: TaskDefinition): Promise<DagRunResult> => {
-    const existing = executions.get(task.taskId);
-    if (existing) return existing;
+    const prior = executions.get(task.taskId);
+    if (prior) return prior;
 
     const promise = (async (): Promise<DagRunResult> => {
+      const previous = existing.get(task.taskId);
+      if (previous?.status === "succeeded") {
+        return { taskId: task.taskId, status: "succeeded", output: previous.output, attempts: 0 };
+      }
+
       const dependencies = await Promise.all(
         (task.dependsOn ?? []).map(async (id) => ({
           id,
@@ -84,9 +118,15 @@ export async function runFridayDag(args: {
         const error = {
           code: "DEPENDENCY_FAILED",
           message: "Dependency did not succeed: " + failedDependency.id,
-          retryable: false,
+          retryable: failedDependency.result.error?.retryable === true && !task.sideEffect,
         };
-        await runtime.record(task, "task.failed", undefined, error);
+        const snapshot = existing.get(task.taskId);
+        if (snapshot?.status === "failed" && args.replayFailed) {
+          await runtime.record(task, "task.resumed");
+          await runtime.record(task, "task.failed", undefined, error);
+        } else {
+          await runtime.record(task, "task.failed", undefined, error);
+        }
         return { taskId: task.taskId, status: "failed", attempts: 0, error };
       }
 
@@ -95,6 +135,14 @@ export async function runFridayDag(args: {
       for (const dependency of dependencies) dependencyOutputs[dependency.id] = dependency.result.output;
 
       let attempts = 0;
+      let lastError: DagRunResult["error"];
+      if (previous?.status === "failed") {
+        await runtime.requestReplay(task);
+        await runtime.record(task, "task.resumed");
+      } else {
+        await runtime.record(task, "task.started");
+      }
+
       while (attempts < maxAttempts) {
         if (signal?.aborted) {
           await runtime.record(task, "task.cancelled");
@@ -102,13 +150,6 @@ export async function runFridayDag(args: {
         }
 
         attempts += 1;
-        if (attempts === 1) {
-          await runtime.record(task, "task.started");
-        } else {
-          await runtime.requestReplay(task);
-          await runtime.record(task, "task.resumed");
-        }
-
         try {
           const output = await agent.execute({
             task,
@@ -134,23 +175,28 @@ export async function runFridayDag(args: {
             await runtime.record(task, "task.cancelled");
             return { taskId: task.taskId, status: "cancelled", attempts };
           }
-          const retryable = cause instanceof DagExecutionError && cause.retryable;
+          const transient = cause instanceof DagExecutionError && cause.retryable;
           const error = {
             code: cause instanceof DagExecutionError ? cause.code : "AGENT_EXECUTION_FAILED",
             message: cause instanceof Error ? cause.message : "Agent execution failed",
-            retryable: retryable && !task.sideEffect && attempts < maxAttempts,
+            retryable: transient && !task.sideEffect,
           };
+          lastError = error;
           await runtime.record(task, "task.failed", undefined, error);
-          if (!error.retryable) return { taskId: task.taskId, status: "failed", attempts, error };
+          if (!error.retryable || attempts >= maxAttempts) {
+            return { taskId: task.taskId, status: "failed", attempts, error };
+          }
+          await runtime.requestReplay(task);
+          await runtime.record(task, "task.resumed");
         }
       }
 
-      const error = {
-        code: "RETRY_LIMIT_REACHED",
-        message: "Task exhausted its retry budget",
-        retryable: false,
+      return {
+        taskId: task.taskId,
+        status: "failed",
+        attempts,
+        error: lastError ?? { code: "RETRY_LIMIT_REACHED", message: "Task exhausted its retry budget", retryable: false },
       };
-      return { taskId: task.taskId, status: "failed", attempts, error };
     })();
 
     executions.set(task.taskId, promise);

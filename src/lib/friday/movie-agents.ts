@@ -148,26 +148,47 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
         : [];
       // Every candidate must be matched by its stable candidate ID. A source-level
       // match is insufficient because one source can return multiple different titles.
-      const assessmentCandidateIds = new Set(
-        assessments.map((item) => item.candidateId).filter((id): id is string => Boolean(id)),
+      const assessmentCounts = new Map<string, number>();
+      for (const assessment of assessments) {
+        if (typeof assessment.candidateId === "string" && assessment.candidateId) {
+          assessmentCounts.set(assessment.candidateId, (assessmentCounts.get(assessment.candidateId) ?? 0) + 1);
+        }
+      }
+      const candidateIds = new Set(candidates.map((candidate) => candidate.id));
+      const unmatchedCandidates = candidates.filter((candidate) => !assessmentCounts.has(candidate.id));
+      const duplicateCandidateAssessments = [...assessmentCounts.entries()]
+        .filter(([, count]) => count > 1).map(([id]) => id);
+      const orphanAssessments = assessments.filter((item) =>
+        !item.candidateId || !candidateIds.has(item.candidateId),
       );
-      const unmatchedCandidates = candidates.filter((candidate) => !assessmentCandidateIds.has(candidate.id));
+      const invalidMeasurements = assessments.filter((item) =>
+        item.status === "resolution_detected" &&
+        (!(typeof item.resolutionHeight === "number" && Number.isFinite(item.resolutionHeight) && item.resolutionHeight > 0) ||
+          !item.evidence.includes("hls_or_segment.resolution_height")),
+      );
+      const duplicateCandidateIds = candidates.filter((candidate, index) =>
+        candidates.findIndex((item) => item.id === candidate.id) !== index,
+      );
       const findings = [
         ...(!Array.isArray(searchOutput.candidates) ? ["missing-search-candidates"] : []),
         ...candidates.filter((candidate) => !candidate.id || !candidate.title).map(() => "invalid-candidate"),
+        ...(duplicateCandidateIds.length ? ["duplicate-search-candidate-id"] : []),
         ...(unmatchedCandidates.length ? ["candidate-without-quality-assessment"] : []),
+        ...(duplicateCandidateAssessments.length ? ["duplicate-candidate-assessment"] : []),
+        ...(orphanAssessments.length ? ["assessment-for-unknown-candidate"] : []),
         ...assessments.filter((item) => !item.assessmentCompleted).map(() => "quality-assessment-incomplete"),
-        ...assessments.filter((item) => item.status === "resolution_detected" && item.evidence.length === 0)
-          .map(() => "measurement-without-evidence"),
+        ...(invalidMeasurements.length ? ["measurement-without-resolution-evidence"] : []),
       ];
       return {
         accepted: findings.length === 0,
         reviewStatus: findings.length === 0 ? "complete" : "incomplete",
-        measurementCompleted: assessments.length > 0 && assessments.every((item) => item.assessmentCompleted),
+        measurementCompleted: candidates.length > 0 && assessments.length === candidates.length && assessments.every((item) => item.assessmentCompleted) && unmatchedCandidates.length === 0 && duplicateCandidateAssessments.length === 0 && orphanAssessments.length === 0,
         resolutionMeasured: assessments.some((item) => item.status === "resolution_detected"),
         findings,
         candidateCount: candidates.length,
         assessmentCount: assessments.length,
+        duplicateCandidateAssessments: duplicateCandidateAssessments,
+        orphanAssessmentCount: orphanAssessments.length,
         unmatchedCandidates: unmatchedCandidates.map((item) => item.id),
         measurementScope: "playlist_or_segment_resolution",
         note: "Resolution is parsed from the HLS playlist or media-segment headers. This is source-side resolution evidence, not decoded playback videoHeight; advertised labels alone are not proof.",

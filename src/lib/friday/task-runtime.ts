@@ -122,6 +122,12 @@ export class TaskRuntime {
     private readonly createId: () => string = () => "evt-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8),
   ) {}
 
+  async getSnapshot(definition: TaskDefinition): Promise<TaskSnapshot> {
+    const events = await this.store.read(definition.taskId);
+    if (!events.length) throw new TaskRuntimeError("Task does not exist", "TASK_NOT_FOUND");
+    return reduceTaskEvents(definition, events);
+  }
+
   async create(definition: TaskDefinition): Promise<TaskSnapshot> {
     assertSafeId(definition.taskId, "task id");
     assertSafeId(definition.agent, "agent id");
@@ -189,6 +195,10 @@ export class TaskRuntime {
     }
     if (current.status !== "failed" || current.error?.retryable !== true) {
       throw new TaskRuntimeError("Only retryable failed tasks can request replay", "REPLAY_STATE_INVALID");
+    }
+    const replayCount = events.filter((event) => event.type === "task.replay_requested").length;
+    if (replayCount >= 4) {
+      throw new TaskRuntimeError("Task reached its manual replay limit", "REPLAY_LIMIT_REACHED");
     }
     const event: TaskEvent = {
       eventId: this.createId(),

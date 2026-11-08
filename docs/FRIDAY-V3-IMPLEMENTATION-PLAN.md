@@ -50,6 +50,24 @@
 ## V3.4 implementation baseline
 The current V3.4 delivery scope, nine workstreams, preserved contracts, and CI acceptance rules are tracked in [FRIDAY-V3.4-IMPLEMENTATION.md](./FRIDAY-V3.4-IMPLEMENTATION.md).
 
+
+## V3.5 — workflow reliability and safe replay
+
+V3.5 builds directly on the merged V3.4 baseline. It does not change the selected gold holographic orb, homepage entry, voice lifecycle, LibreTV search/detail/player contracts, or browser-local storage boundary.
+
+Delivered reliability work:
+- Add a task snapshot read API so the DAG can distinguish new, successful, failed, cancelled, and active persisted tasks.
+- Add explicit DAG replay mode. Successful dependency outputs are reused; only failed tasks with persisted retryable errors can be replayed.
+- Propagate retryability to dependent tasks only when the failed prerequisite is itself retryable.
+- Keep side-effect tasks blocked from automatic and explicit replay; active/cancelled tasks require a new execution identity.
+- Preserve retryable status after the automatic attempt budget is exhausted so the user can explicitly retry from the workflow UI.
+- Bound replay requests to four per task to prevent unbounded loops.
+- Expose a “Retry failed steps” action only for a workflow whose failed tasks are eligible for safe replay.
+- Add parentTaskId lineage across search, source probe, quality and review tasks.
+- Strengthen review to reject missing, duplicate, orphaned and incorrectly evidenced candidate assessments. “Assessment complete” now requires exactly one completed assessment per candidate.
+
+CI acceptance remains the user-approved gate: both `prelaunch-checks` and `friday-2.2-verify` must pass TypeScript, ESLint, unit tests and production build. No production deployment is part of V3.5.
+
 ## Non-negotiable safeguards
 - Use current main as the integration base; keep all V3.4 changes on `feature/friday-v3.4-complete-upgrade` until CI acceptance.
 - Do not alter the selected gold holographic orb design or replace its established interaction path.
