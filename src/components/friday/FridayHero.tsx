@@ -3,18 +3,20 @@
 import { useEffect, useState } from 'react';
 import type { MouseEvent } from 'react';
 import FridayOrb from '@/components/friday/FridayOrb';
+import { upsertFridaySubtitleLine } from '@/lib/friday/subtitles';
 
 type VoiceState = 'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING';
 
-/** 首页唯一 Friday 语音入口；状态变化只改变圆球，不创建面板或遮罩。 */
-export function FridayHero({ voiceState = 'IDLE', audioLevel = 0 }: { voiceState?: VoiceState; audioLevel?: number }) {
+/** 首页唯一 Friday 语音入口；字幕始终位于圆球下方，不创建聊天面板或气泡。 */
+export function FridayHero({ voiceState: controlledVoiceState, audioLevel: controlledAudioLevel }: { voiceState?: VoiceState; audioLevel?: number }) {
   const [orbTheme, setOrbTheme] = useState<'light' | 'dark'>('light');
-  const [assistantReply, setAssistantReply] = useState('');
-  const [visibleReply, setVisibleReply] = useState('');
+  const [subtitleLines, setSubtitleLines] = useState<string[]>([]);
   const [voiceError, setVoiceError] = useState('');
+  const [runtimeVoiceState, setRuntimeVoiceState] = useState<VoiceState>('IDLE');
+  const [runtimeAudioLevel, setRuntimeAudioLevel] = useState(0);
+  const voiceState = controlledVoiceState ?? runtimeVoiceState;
+  const audioLevel = controlledAudioLevel ?? runtimeAudioLevel;
 
-  // The app theme is controlled by the .dark class, not necessarily the OS color scheme.
-  // Observe both document roots so FridayOrb always matches the actual UI theme.
   useEffect(() => {
     const syncTheme = () => {
       const dark = document.documentElement.classList.contains('dark')
@@ -29,33 +31,59 @@ export function FridayHero({ voiceState = 'IDLE', audioLevel = 0 }: { voiceState
   }, []);
 
   useEffect(() => {
+    const onVoiceState = (event: Event) => {
+      const value = (event as CustomEvent<{ state?: string }>).detail?.state;
+      const normalized = typeof value === 'string' ? value.toLowerCase() : '';
+      const next: Record<string, VoiceState> = {
+        idle: 'IDLE',
+        ready: 'IDLE',
+        listening: 'LISTENING',
+        thinking: 'THINKING',
+        speaking: 'SPEAKING',
+        completed: 'IDLE',
+      };
+      if (next[normalized]) setRuntimeVoiceState(next[normalized]);
+    };
+    const onAudioLevel = (event: Event) => {
+      const value = (event as CustomEvent<{ level?: number }>).detail?.level;
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        setRuntimeAudioLevel(Math.max(0, Math.min(1, value)));
+      }
+    };
+    window.addEventListener('friday-home-voice-state', onVoiceState);
+    window.addEventListener('friday-audio-level', onAudioLevel);
+    return () => {
+      window.removeEventListener('friday-home-voice-state', onVoiceState);
+      window.removeEventListener('friday-audio-level', onAudioLevel);
+    };
+  }, []);
+
+  useEffect(() => {
     const onReply = (event: Event) => {
       const value = (event as CustomEvent<{ text?: string }>).detail?.text;
-      if (typeof value === 'string') setAssistantReply(value.slice(0, 420));
+      if (typeof value === 'string' && value.trim()) {
+        setSubtitleLines((lines) => upsertFridaySubtitleLine(lines, 'assistant', value));
+      }
+    };
+    const onTranscript = (event: Event) => {
+      const value = (event as CustomEvent<{ text?: string }>).detail?.text;
+      if (typeof value === 'string' && value.trim()) {
+        setSubtitleLines((lines) => upsertFridaySubtitleLine(lines, 'user', value));
+      }
     };
     const onError = (event: Event) => {
       const value = (event as CustomEvent<{ message?: string }>).detail?.message;
       setVoiceError(typeof value === 'string' ? value : '');
     };
     window.addEventListener('friday-home-assistant-response', onReply);
+    window.addEventListener('friday-home-transcript', onTranscript);
     window.addEventListener('friday-home-voice-error', onError);
     return () => {
       window.removeEventListener('friday-home-assistant-response', onReply);
+      window.removeEventListener('friday-home-transcript', onTranscript);
       window.removeEventListener('friday-home-voice-error', onError);
     };
   }, []);
-
-  useEffect(() => {
-    setVisibleReply('');
-    if (!assistantReply) return;
-    let index = 0;
-    const timer = window.setInterval(() => {
-      index = Math.min(index + 2, assistantReply.length);
-      setVisibleReply(assistantReply.slice(0, index));
-      if (index >= assistantReply.length) window.clearInterval(timer);
-    }, 24);
-    return () => window.clearInterval(timer);
-  }, [assistantReply]);
 
   const toggleVoice = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -91,8 +119,17 @@ export function FridayHero({ voiceState = 'IDLE', audioLevel = 0 }: { voiceState
           />
         </span>
         <span className="friday-hero-orb-label" role="status" aria-live="polite">{voiceError || labels[voiceState]}</span>
-        {visibleReply && <span className="friday-orb-response" role="status" aria-live="polite">{visibleReply}<span className="friday-response-cursor" aria-hidden="true">▍</span></span>}
       </button>
+      {subtitleLines.length > 0 && (
+        <div
+          className="friday-orb-response friday-orb-subtitles"
+          role="log"
+          aria-live="polite"
+          aria-label="Friday 连续语音字幕"
+        >
+          {subtitleLines.join('\n')}
+        </div>
+      )}
     </section>
   );
 }

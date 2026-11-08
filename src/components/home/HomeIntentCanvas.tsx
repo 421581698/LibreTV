@@ -13,7 +13,7 @@ type HomeIntentCanvasProps = {
 };
 
 /** 首页意图画布：Friday 圆球和搜索入口始终留在首页原位。 */
-export function HomeIntentCanvas({ variant, children, voiceState = 'IDLE', audioLevel = 0 }: HomeIntentCanvasProps) {
+export function HomeIntentCanvas({ variant, children, voiceState, audioLevel }: HomeIntentCanvasProps) {
   return (
     <>
       {variant === 'v2' ? <FridayHero voiceState={voiceState} audioLevel={audioLevel} /> : null}

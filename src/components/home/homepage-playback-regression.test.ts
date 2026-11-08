@@ -7,6 +7,7 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf
 const home = source('src/app/page.tsx');
 const watch = source('src/app/watch/page.tsx');
 const hero = source('src/components/friday/FridayHero.tsx');
+const canvas = source('src/components/home/HomeIntentCanvas.tsx');
 const orb = source('src/components/friday/FridayOrb.tsx');
 const assistant = source('src/components/AIFloatingBall.tsx');
 const header = source('src/components/header.tsx');
@@ -202,12 +203,13 @@ describe('首页与播放页回归契约', () => {
     expect(fridayConversation).toContain('onOpenMovie(movie)');
   });
 
-  it('releases pending homepage wake audio and object URLs when the assistant unmounts', () => {
-    expect(assistant).toContain('homeWakeTokenRef.current += 1');
-    expect(assistant).toContain('homeWakeAudioRef.current = null');
-    expect(assistant).toContain('wakeAudio.pause()');
-    expect(assistant).toContain('URL.revokeObjectURL(homeWakeUrlRef.current)');
-    expect(assistant).toContain('homeWakeUrlRef.current = ""');
+  it('starts homepage voice recognition directly from the orb gesture without a wake-audio fetch', () => {
+    expect(assistant).toContain('window.addEventListener("friday-home-orb-toggle", handleHomeOrbToggle)');
+    expect(assistant).toContain('startListening(false)');
+    expect(assistant).toContain('setVoiceSession(true)');
+    expect(assistant).toContain('stopRecognition(true)');
+    expect(assistant).not.toContain('homeWakeAudioRef');
+    expect(assistant).not.toContain('homeWakeUrlRef');
   });
 
 
@@ -221,6 +223,16 @@ describe('首页与播放页回归契约', () => {
     expect(hero).toContain('friday-home-assistant-response');
     expect(hero).toContain('friday-orb-response');
     expect(hero).toContain('friday-home-orb-toggle');
+  });
+
+  it('首页圆球订阅真实语音状态和音量事件，而不是永久停留在默认空闲态', () => {
+    expect(assistant).toContain('friday-home-voice-state');
+    expect(assistant).toContain('friday-audio-level');
+    expect(hero).toContain("window.addEventListener('friday-home-voice-state', onVoiceState)");
+    expect(hero).toContain("window.addEventListener('friday-audio-level', onAudioLevel)");
+    expect(hero).toContain('setRuntimeVoiceState(next[normalized])');
+    expect(hero).toContain('setRuntimeAudioLevel(Math.max(0, Math.min(1, value)))');
+    expect(canvas).toContain('voiceState, audioLevel');
   });
 
   it('设置中可选择界面语言、助手角色和语音风格，顶部搜索默认收起', () => {

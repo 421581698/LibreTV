@@ -1110,3 +1110,25 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
     right: 10px;
   }
 }
+
+
+/* Friday orb subtitles: a continuous transcript, deliberately not chat bubbles. */
+.home-v2 .friday-orb-subtitles {
+  display: block;
+  width: min(88vw, 620px);
+  max-height: 116px;
+  margin: 10px auto 0;
+  padding: 0 14px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  color: var(--c-content, currentColor);
+  font-size: 13px;
+  line-height: 1.65;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
