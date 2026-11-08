@@ -469,8 +469,6 @@ export default function AIFloatingBall({
 
   const closePanel = useCallback(() => {
     resetPendingMovie();
-    cancelHomeWakeAudio();
-
     openRef.current = false;
     closingRef.current = false;
 
@@ -486,7 +484,7 @@ export default function AIFloatingBall({
     dispatchMachine({ type: "CLOSE" });
     setExpanded(false);
     setImmersive(false);
-  }, [resetPendingMovie, cancelHomeWakeAudio, stopAllVoice, stop, cancelActiveRequest]);
+  }, [resetPendingMovie, stopAllVoice, stop, cancelActiveRequest]);
 
   const {
     fabHidden,
