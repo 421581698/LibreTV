@@ -380,12 +380,12 @@ function WatchContent() {
           </div>
         </div>
       </header>
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-4">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-4">
+      <main className="spatial-v4-player-page flex-1 max-w-7xl w-full mx-auto px-4 py-4">
+        <div className="spatial-v4-player-grid grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-4">
           <div>
             <div
               ref={playerFrameRef}
-              className="aspect-video bg-black rounded-lg overflow-hidden"
+              className="spatial-v4-player-frame aspect-video bg-black rounded-lg overflow-hidden"
             >
               {currentUrl ? (
                 <PlayerShell
