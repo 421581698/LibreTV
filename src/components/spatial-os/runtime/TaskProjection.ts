@@ -3,7 +3,7 @@ import type {FridayVisualState} from '../core/types';
 
 export type RuntimePhase='idle'|'listening'|'recognizing'|'thinking'|'executing'|'rendering'|'result'|'recovering'|'error';
 export function projectFridayState(phase:RuntimePhase):FridayVisualState {
- switch(phase){case'listening':case'recognizing':return'listening';case'thinking':return'thinking';case'executing':case'rendering':return'executing';case'error':return'error';case'recovering':return'thinking';default:return'idle';}
+ switch(phase){case'listening':return'listening';case'recognizing':return'thinking';case'thinking':return'thinking';case'executing':case'rendering':return'executing';case'error':return'error';case'recovering':return'thinking';default:return'idle';}
 }
 
 export interface TaskProjection {
