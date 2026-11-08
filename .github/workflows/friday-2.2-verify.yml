@@ -3,35 +3,31 @@ name: friday-2.2-verify
 on:
   push:
     branches:
+      - feature/friday-playback-feedback-agent-2026-11-08
       - feature/friday-2.2-architecture
-      - feature/friday-v3-completion-batch-2026-11-08
     paths:
       - "src/lib/friday/**"
       - "src/lib/quality.ts"
       - "src/lib/quality.test.ts"
       - "src/lib/types.ts"
-      - "docs/FRIDAY-2.2-TECHNICAL-SPEC.md"
+      - "src/components/switch-source.tsx"
+      - "src/components/friday/**"
+      - "src/components/home/**"
+      - "src/app/watch/page.tsx"
       - ".github/workflows/friday-2.2-verify.yml"
-      - "src/components/AIFloatingBall.tsx"
-      - "src/app/api/chat/route.ts"
   pull_request:
     branches:
       - main
-      - feature/friday-v3-completion-batch-2026-11-08
+      - feature/friday-quality-aware-source-ranking-2026-11-08
     paths:
       - "src/lib/friday/**"
       - "src/lib/quality.ts"
       - "src/lib/quality.test.ts"
       - "src/lib/types.ts"
+      - "src/components/switch-source.tsx"
       - "src/components/friday/**"
       - "src/components/home/**"
-      - "src/components/AIFloatingBall.tsx"
-      - "src/components/player-shell.tsx"
-      - "src/app/api/chat/route.ts"
-      - "src/app/api/quality/route.ts"
-      - "src/app/page.tsx"
       - "src/app/watch/page.tsx"
-      - "docs/FRIDAY-2.2-TECHNICAL-SPEC.md"
       - ".github/workflows/friday-2.2-verify.yml"
   workflow_dispatch:
 
@@ -40,7 +36,7 @@ permissions:
 
 jobs:
   verify:
-    if: github.ref == 'refs/heads/feature/friday-2.2-architecture' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    if: github.ref == 'refs/heads/feature/friday-2.2-architecture' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

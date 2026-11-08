@@ -193,7 +193,9 @@ describe('首页与播放页回归契约', () => {
     expect(movieWorkflow).toContain('playback: `${prefix}.playback`');
     expect(movieWorkflow).toContain('agent: "playback-agent"');
     expect(movieAgents).toContain('id: "playback-agent"');
-    expect(movieAgents).toContain('selectionBasis: measured ? "measured-resolution"');
+    expect(movieAgents).toContain('"decoded-playback" as const');
+    expect(movieAgents).toContain('"source-probe" as const');
+    expect(movieAgents).toContain('assessmentEvidenceRank');
     expect(movieAgents).toContain('requiresUserConfirmation: true');
     expect(fridayConversation).toContain('workflow.playbackRecommendations');
     expect(fridayConversation).toContain('movies.find((item) => `${item.sourceKey}:${item.vodId}` === recommendation.candidateId)');

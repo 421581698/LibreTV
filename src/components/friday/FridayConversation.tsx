@@ -56,16 +56,18 @@ function WorkflowSummary({ workflow, searchId, onRetryWorkflow, language, movies
       {workflow.playbackRecommendations?.length ? (
         <div className="friday-workflow-block">
           <strong>{language === "en" ? "Recommended playback source" : "智能推荐播放源"}</strong>
-          <p>{language === "en" ? "The recommendation uses completed source evidence. Measured resolution is preferred; when resolution is unknown, the UI says so. Open the movie details to confirm before playback." : "推荐依据为已完成的来源证据：优先选择已解析出分辨率的资源；分辨率未知时会明确标注。点击后先进入影片详情，由你确认播放。"}</p>
+          <p>{language === "en" ? "The recommendation prioritizes decoded playback evidence over manifest probes. Unknown resolution is never presented as measured. Open the movie details to confirm before playback." : "推荐优先级为播放器真实解码实测，其次是清单/分片解析；未知分辨率不会冒充实测。点击后先进入影片详情，由你确认播放。"}</p>
           {workflow.playbackRecommendations.map((recommendation) => {
             const movie = movies.find((item) => `${item.sourceKey}:${item.vodId}` === recommendation.candidateId);
             return (
               <div className="friday-workflow-row" key={recommendation.candidateId}>
                 <span>
                   {recommendation.title} · {recommendation.sourceId}
-                  {recommendation.selectionBasis === "measured-resolution" && recommendation.resolutionHeight
-                    ? ` · ${recommendation.resolutionHeight}P`
-                    : (language === "en" ? " · resolution unknown" : " · 分辨率未知")}
+                  {recommendation.selectionBasis === "decoded-playback" && recommendation.resolutionHeight
+                    ? (language === "en" ? ` · ${recommendation.resolutionHeight}p decoded` : ` · ${recommendation.resolutionHeight}P 播放实测`)
+                    : recommendation.selectionBasis === "source-probe" && recommendation.resolutionHeight
+                      ? (language === "en" ? ` · ${recommendation.resolutionHeight}p source probe` : ` · ${recommendation.resolutionHeight}P 源侧探测`)
+                      : (language === "en" ? " · resolution unknown" : " · 分辨率未知")}
                   {recommendation.alternativeCount > 0
                     ? (language === "en" ? ` · ${recommendation.alternativeCount} alternatives` : ` · 另有 ${recommendation.alternativeCount} 个候选`)
                     : ""}

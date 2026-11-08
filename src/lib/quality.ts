@@ -59,6 +59,34 @@ export function qualityKey(sourceKey: string, vodId: string): string {
 }
 
 /**
+ * 比较两条画质证据的排序优先级。
+ * 实际解码高度高于播放列表声明值；同为实测时先比较最高解码高度，
+ * 再用有效观测次数作为置信度的轻量 tie-breaker。
+ * 返回负数表示 a 应排在 b 前面。
+ */
+export function compareQualityEvidence(a?: QualityEntry, b?: QualityEntry): number {
+  const rank = (entry?: QualityEntry) => {
+    if (entry?.from === 'play' && typeof entry.height === 'number' && entry.height > 0) return 2;
+    if (entry?.from === 'probe' && typeof entry.height === 'number' && entry.height > 0) return 1;
+    return 0;
+  };
+
+  const rankDiff = rank(b) - rank(a);
+  if (rankDiff !== 0) return rankDiff;
+
+  const heightA = a?.height ?? 0;
+  const heightB = b?.height ?? 0;
+  if (heightA !== heightB) return heightB - heightA;
+
+  if (a?.from === 'play' && b?.from === 'play') {
+    const samplesA = a.playbackSampleCount ?? 1;
+    const samplesB = b.playbackSampleCount ?? 1;
+    if (samplesA !== samplesB) return samplesB - samplesA;
+  }
+  return 0;
+}
+
+/**
  * 档位容差：与档位值的偏差在此比例内才算同一档。
  *
  * 采集站普遍对片源做裁切（1920×1080 → 1924×1040、1920×960 这类），
@@ -122,14 +150,46 @@ export function mergeQualityEntries(
     const prev = next[key];
     if (prev?.from === 'play') {
       if (value.from !== 'play') continue;
-      const best = Math.max(prev.height ?? 0, value.height ?? 0);
-      next[key] = { from: 'play', height: best || undefined, timestamp: now };
+      const previousHeight = prev.lastPlaybackHeight ?? prev.height;
+      const incomingHeight = value.height;
+      const previousSampleAt = prev.lastPlaybackSampleAt ?? prev.timestamp;
+      // loadedmetadata/canplay/playing may report the same decoded height in one
+      // playback phase. Count a new observation only when height changes or the
+      // previous observation is at least 60 seconds old.
+      const isNewSample = incomingHeight !== undefined && (
+        previousHeight !== incomingHeight || value.timestamp - previousSampleAt >= 60_000
+      );
+      const previousCount = Math.max(1, prev.playbackSampleCount ?? 1);
+      const heights = [prev.playbackMinHeight ?? prev.height, prev.playbackMaxHeight ?? prev.height, incomingHeight]
+        .filter((height): height is number => typeof height === 'number' && Number.isFinite(height) && height > 0);
+      const best = Math.max(prev.height ?? 0, incomingHeight ?? 0);
+      next[key] = {
+        from: 'play',
+        height: best || undefined,
+        playbackSampleCount: previousCount + (isNewSample ? 1 : 0),
+        playbackMinHeight: heights.length ? Math.min(...heights) : undefined,
+        playbackMaxHeight: heights.length ? Math.max(...heights) : undefined,
+        lastPlaybackHeight: incomingHeight ?? previousHeight,
+        lastPlaybackSampleAt: isNewSample ? value.timestamp : previousSampleAt,
+        timestamp: now,
+      };
       continue;
     }
     if (prev?.from === 'probe' && value.from === 'probe' && prev.height !== undefined && value.height === undefined) {
       continue;
     }
-    next[key] = value;
+    if (value.from === 'play' && typeof value.height === 'number' && value.height > 0) {
+      next[key] = {
+        ...value,
+        playbackSampleCount: Math.max(1, value.playbackSampleCount ?? 1),
+        playbackMinHeight: value.playbackMinHeight ?? value.height,
+        playbackMaxHeight: value.playbackMaxHeight ?? value.height,
+        lastPlaybackHeight: value.lastPlaybackHeight ?? value.height,
+        lastPlaybackSampleAt: value.lastPlaybackSampleAt ?? value.timestamp,
+      };
+    } else {
+      next[key] = value;
+    }
   }
 
   const overflow = Object.keys(next).length - QUALITY_MAX_ENTRIES;
@@ -178,7 +238,7 @@ export function describeQualityBadge(
       label,
       title:
         entry.from === 'play'
-          ? `播放实测的真实分辨率（${entry.height}P）`
+          ? `播放实测的真实分辨率（最高观察 ${entry.height}P）${entry.playbackSampleCount ? `；有效观测 ${entry.playbackSampleCount} 次` : ''}${entry.playbackMinHeight && entry.playbackMaxHeight && entry.playbackMinHeight !== entry.playbackMaxHeight ? `；观察范围 ${entry.playbackMinHeight}–${entry.playbackMaxHeight}P` : ''}`
           : `解析播放列表得到的档位（${entry.height}P）`,
       retryable: false,
     };

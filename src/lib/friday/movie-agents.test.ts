@@ -154,9 +154,102 @@ describe("Friday movie agents", () => {
       candidateId: "source-b:9",
       sourceId: "source-b",
       resolutionHeight: 1080,
-      selectionBasis: "measured-resolution",
+      selectionBasis: "source-probe",
       requiresUserConfirmation: true,
     });
+  });
+
+  it("prefers decoded playback evidence over a higher manifest declaration", async () => {
+    const agents = createMovieAgentRegistry({ search: async () => [], probe: async () => [] });
+    const playback = agents.find((agent) => agent.id === "playback-agent")!;
+    const result = await playback.execute(context("playback-agent", {}, {
+      search: { candidates: [
+        { id: "source-a:1", title: "Arrival", sourceId: "source-a" },
+        { id: "source-b:9", title: "Arrival", sourceId: "source-b" },
+      ] },
+      quality: { assessments: [
+        {
+          sourceId: "source-a", candidateId: "source-a:1", title: "Arrival",
+          status: "resolution_detected", assessmentCompleted: true,
+          resolutionHeight: 720, decodedResolutionHeight: 720, sourceResolutionHeight: 1080,
+          resolutionSource: "decoded_playback", playbackSampleCount: 3,
+          latencyMs: null, probeDurationMs: null, upstreamRequestMs: null,
+          upstreamRequestCount: null, probeResultCached: false, reachable: true,
+          advertisedQualities: [], evidence: ["player.videoHeight", "hls_or_segment.resolution_height"],
+        },
+        {
+          sourceId: "source-b", candidateId: "source-b:9", title: "Arrival",
+          status: "resolution_detected", assessmentCompleted: true,
+          resolutionHeight: 2160, decodedResolutionHeight: null, sourceResolutionHeight: 2160,
+          resolutionSource: "playlist_or_segment", playbackSampleCount: null,
+          latencyMs: null, probeDurationMs: null, upstreamRequestMs: null,
+          upstreamRequestCount: null, probeResultCached: false, reachable: true,
+          advertisedQualities: [], evidence: ["hls_or_segment.resolution_height"],
+        },
+      ] },
+      review: { accepted: true },
+    })) as { recommendations: Array<Record<string, unknown>> };
+    expect(result.recommendations[0]).toMatchObject({
+      candidateId: "source-a:1",
+      sourceId: "source-a",
+      resolutionHeight: 720,
+      selectionBasis: "decoded-playback",
+    });
+  });
+
+  it("uses accumulated playback sample count as a tie-breaker for equal decoded heights", async () => {
+    const agents = createMovieAgentRegistry({ search: async () => [], probe: async () => [] });
+    const playback = agents.find((agent) => agent.id === "playback-agent")!;
+    const assessment = (sourceId: string, candidateId: string, playbackSampleCount: number) => ({
+      sourceId, candidateId, title: "Arrival",
+      status: "resolution_detected" as const, assessmentCompleted: true,
+      resolutionHeight: 1080, decodedResolutionHeight: 1080, sourceResolutionHeight: null,
+      resolutionSource: "decoded_playback" as const, playbackSampleCount,
+      latencyMs: null, probeDurationMs: null, upstreamRequestMs: null,
+      upstreamRequestCount: null, probeResultCached: false, reachable: true,
+      advertisedQualities: [], evidence: ["player.videoHeight"],
+    });
+    const result = await playback.execute(context("playback-agent", {}, {
+      search: { candidates: [
+        { id: "source-a:1", title: "Arrival", sourceId: "source-a" },
+        { id: "source-b:9", title: "Arrival", sourceId: "source-b" },
+      ] },
+      quality: { assessments: [
+        assessment("source-a", "source-a:1", 1),
+        assessment("source-b", "source-b:9", 5),
+      ] },
+      review: { accepted: true },
+    })) as { recommendations: Array<{ candidateId: string; selectionBasis: string }> };
+    expect(result.recommendations[0]).toMatchObject({
+      candidateId: "source-b:9",
+      selectionBasis: "decoded-playback",
+    });
+  });
+
+  it("validates and returns real playback evidence through a least-privilege agent", async () => {
+    const agents = createMovieAgentRegistry({ search: async () => [], probe: async () => [] });
+    const feedback = agents.find((agent) => agent.id === "playback-evidence-agent")!;
+    const result = await feedback.execute(context("playback-evidence-agent", {
+      candidateId: "alpha:vod-1",
+      sourceId: "alpha",
+      vodId: "vod-1",
+      decodedHeight: 720,
+      sampleCount: 2,
+      minHeight: 480,
+      maxHeight: 1080,
+      observedAt: "2026-11-08T12:00:00.000Z",
+    })) as Record<string, unknown>;
+    expect(result).toMatchObject({
+      accepted: true,
+      candidateId: "alpha:vod-1",
+      decodedHeight: 720,
+      sampleCount: 2,
+      evidenceSource: "player.videoHeight",
+    });
+    await expect(feedback.execute(context("playback-evidence-agent", {
+      candidateId: "alpha:vod-1", sourceId: "alpha", vodId: "vod-1",
+      decodedHeight: 0, observedAt: "2026-11-08T12:00:00.000Z",
+    }))).rejects.toThrow("invalid decoded height");
   });
 
   it("withholds playback recommendations when evidence review is rejected", async () => {
