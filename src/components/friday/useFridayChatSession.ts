@@ -183,13 +183,17 @@ export function useFridayChatSession({
               const currentRank = currentRecommendation.selectionBasis === "decoded-playback" ? 2 :
                 currentRecommendation.selectionBasis === "source-probe" ? 1 : 0;
               const candidateWins = 2 > currentRank ||
-                (currentRank === 2 && height > (currentRecommendation.resolutionHeight ?? 0));
+                (currentRank === 2 && (
+                  height > (currentRecommendation.resolutionHeight ?? 0) ||
+                  (height === currentRecommendation.resolutionHeight && (sampleCount ?? 1) > (currentRecommendation.playbackSampleCount ?? 0))
+                ));
               if (candidateWins) playbackRecommendations[index] = {
                 ...currentRecommendation,
                 candidateId: detail.candidateId as string,
                 sourceId: detail.sourceKey as string,
                 resolutionHeight: height,
                 selectionBasis: "decoded-playback",
+                playbackSampleCount: sampleCount ?? 1,
               };
             }
           }
@@ -398,7 +402,7 @@ export function useFridayChatSession({
         | { probes?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean; upstreamRequestMs?: number; upstreamRequestCount?: number; originTtfbMs?: number }> }
         | undefined;
       const qualityOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.quality)?.output as
-        | { assessments?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; decodedResolutionHeight: number | null; sourceResolutionHeight: number | null; resolutionSource: "decoded_playback" | "playlist_or_segment" | "unknown"; originTtfbMs: number | null; probeDurationMs: number | null; upstreamRequestMs: number | null; upstreamRequestCount: number | null; probeResultCached: boolean | null }> }
+        | { assessments?: Array<{ sourceId: string; candidateId?: string; title?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; decodedResolutionHeight: number | null; playbackSampleCount?: number | null; playbackMinHeight?: number | null; playbackMaxHeight?: number | null; lastPlaybackHeight?: number | null; sourceResolutionHeight: number | null; resolutionSource: "decoded_playback" | "playlist_or_segment" | "unknown"; originTtfbMs: number | null; probeDurationMs: number | null; upstreamRequestMs: number | null; upstreamRequestCount: number | null; probeResultCached: boolean | null }> }
         | undefined;
       const reviewOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.review)?.output as
         | { accepted?: boolean; findings?: string[]; candidateCount?: number; assessmentCount?: number; measurementCompleted?: boolean; resolutionMeasured?: boolean }
@@ -424,7 +428,14 @@ export function useFridayChatSession({
             measurementCompleted: reviewOutput.measurementCompleted === true,
             resolutionMeasured: reviewOutput.resolutionMeasured === true,
           },
-          playbackRecommendations: playbackOutput?.recommendations ?? [],
+          playbackRecommendations: applyDecodedPlaybackEvidence(
+            playbackOutput?.recommendations ?? [],
+            (qualityOutput?.assessments ?? []).map((item) => {
+              const decodedHeight = item.candidateId ? decodedPlaybackHeightsRef.current.get(item.candidateId) : undefined;
+              return decodedHeight ? { ...item, status: "resolution_detected" as const, resolutionHeight: decodedHeight, decodedResolutionHeight: decodedHeight, decodedVideoHeight: decodedHeight, resolutionSource: "decoded_playback" as const } : { ...item, decodedVideoHeight: null };
+            }),
+            sourceOutput?.probes ?? [],
+          ),
         },
       }));
     } catch (retryError) {
