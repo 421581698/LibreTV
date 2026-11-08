@@ -75,7 +75,8 @@ describe('FRIDAY SPATIAL OS V4 cross-layer regression contracts', () => {
 
   it('connects Resource Universe search, category filtering, pagination, favorites and state restoration', () => {
     expect(resource).toContain("fetch('/api/fmhy?' + params.toString())");
-    expect(resource).toContain('setParams');
+    expect(resource).toContain('params.set(\'category\'');
+    expect(resource).toContain('params.set(\'q\'');
     expect(resource).toContain('hasMore');
     expect(resource).toContain('loadMore');
     expect(resource).toContain('FavoriteButton');
