@@ -39,3 +39,7 @@ The upstream `fmhy/edit` repository did not expose an explicit LICENSE file at t
 ## Refresh workflow
 
 Refresh from the official FMHY Markdown/API source, compare source revisions, re-run canonical URL de-duplication and index tests, then update the snapshot date and per-category source SHAs. Do not fetch third-party destination pages during the import or silently proxy them.
+
+## Completeness audit (2026-11-08)
+
+The imported snapshot was cross-checked against the 13 upstream Markdown files at their recorded source SHAs. The audit found additional links on existing resource bullets that were not retained by the first parser pass. A follow-up import preserved 107 additional related destinations across 10 category datasets. Links in editorial warnings, safety notes, and cross-category navigation remain contextual references rather than standalone resource cards; section-navigation records are excluded from the visible resource list. The audit does not certify that third-party destinations are reachable, safe, or legally usable.
