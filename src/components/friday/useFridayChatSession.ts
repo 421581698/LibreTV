@@ -272,7 +272,7 @@ export function useFridayChatSession({
       if (!mountedRef.current || !isCurrentFridayWorkflow(controller, activeWorkflowControllers.current.get(searchId))) return;
       activeWorkflowControllers.current.delete(searchId);
       const sourceOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.source)?.output as
-        | { probes?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean; upstreamRequestMs?: number; upstreamRequestCount?: number }> }
+        | { probes?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean; upstreamRequestMs?: number; upstreamRequestCount?: number; originTtfbMs?: number }> }
         | undefined;
       const qualityOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.quality)?.output as
         | { assessments?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; decodedResolutionHeight: number | null; sourceResolutionHeight: number | null; resolutionSource: "decoded_playback" | "playlist_or_segment" | "unknown"; originTtfbMs: number | null; probeDurationMs: number | null; upstreamRequestMs: number | null; upstreamRequestCount: number | null; probeResultCached: boolean | null }> }
