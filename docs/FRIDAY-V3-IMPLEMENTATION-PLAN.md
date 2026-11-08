@@ -9,8 +9,8 @@
 - Do not import its self-hosted Manager/Worker runtime wholesale into this Next.js application.
 
 ### Assistant-X-OpenClaw
-- Study shader-driven orb, metaballs, HUD composition, speech interruption, and audio-effect pipeline.
-- Reimplement the visual layer for the web with WebGL2/Three.js rather than copying Flutter shader code.
+- Study HUD composition, layered animated cores, speech interruption, and audio-effect pipeline.
+- Keep Friday's approved gold holographic “金界展开” visual: the existing zero-dependency Canvas 2D rendering core and its eight-layer drawing pipeline. Do not replace it with a WebGL2/Three.js rewrite or copy Flutter shader code.
 - Keep wake-word and speaker-verification features optional and privacy-sensitive.
 
 ## Four-project reference matrix
@@ -48,8 +48,8 @@ The formal capability mapping, porting decisions, security boundaries and accept
 
 ### Phase 4 — Cockpit and orb
 - Task timeline is driven only by runtime events.
-- Rebuild orb as real-time WebGL2 with background sampling, Fresnel response, refraction, and restrained bloom.
-- Keep a low-power fallback for devices without WebGL2 or with reduced motion.
+- Drive the existing Canvas 2D “金界展开” core from explicit IDLE / LISTENING / THINKING / SPEAKING states; keep rendering separate from voice/task business state.
+- Preserve a low-power and reduced-motion fallback, with device-aware DPR and bounded frame work.
 
 ## V3.4 implementation baseline
 The current V3.4 delivery scope, nine workstreams, preserved contracts, and CI acceptance rules are tracked in [FRIDAY-V3.4-IMPLEMENTATION.md](./FRIDAY-V3.4-IMPLEMENTATION.md).
