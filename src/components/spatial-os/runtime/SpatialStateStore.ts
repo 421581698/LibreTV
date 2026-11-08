@@ -14,6 +14,8 @@ export const spatialStateStore={
  subscribe(listener:()=>void){listeners.add(listener);return()=>{listeners.delete(listener);};},
  activate(space:SpatialSpace){commit(activateSpace(hydrate(),space));},
  expand(panel:SpatialPanel|null){commit(setExpandedPanel(hydrate(),panel));},
+ saveScroll(space:SpatialSpace,top:number){const current=hydrate();commit({...current,scrollPositions:{...current.scrollPositions,[space]:Math.max(0,top)}});},
+ setFilter(key:string,value:string){const current=hydrate();commit({...current,filters:{...current.filters,[key]:value}});},
  reset(){commit(DEFAULT_SPATIAL_STATE);},
 };
 export function useSpatialState(){return useSyncExternalStore(spatialStateStore.subscribe,spatialStateStore.getSnapshot,()=>DEFAULT_SPATIAL_STATE);}

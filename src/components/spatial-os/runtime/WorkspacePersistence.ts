@@ -7,7 +7,7 @@ export function readWorkspace():SpatialSnapshot {
   const value=JSON.parse(raw) as Partial<SpatialSnapshot>;
   if(value.version!==1||!SPATIAL_SPACES.includes(value.activeSpace as never))return DEFAULT_SPATIAL_STATE;
   const history=Array.isArray(value.history)?value.history.filter((x):x is SpatialSnapshot['activeSpace']=>SPATIAL_SPACES.includes(x as never)).slice(-8):['cinematic'];
-  return {...DEFAULT_SPATIAL_STATE,...value,activeSpace:value.activeSpace as SpatialSnapshot['activeSpace'],history,expandedPanel:null};
+  return {...DEFAULT_SPATIAL_STATE,...value,activeSpace:value.activeSpace as SpatialSnapshot['activeSpace'],history,expandedPanel:null,scrollPositions:value.scrollPositions??{},filters:value.filters??{}};
  } catch{return DEFAULT_SPATIAL_STATE;}
 }
 export function writeWorkspace(state:SpatialSnapshot):void {
