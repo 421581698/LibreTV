@@ -14,6 +14,10 @@ const spatialFridayEntry = source('src/components/spatial-os-v4/friday/SpatialFr
 const spatialIntelligence = source('src/components/spatial-os-v4/spaces/SpatialIntelligenceSpace.tsx');
 const spatialIdentity = source('src/components/spatial-os-v4/spaces/SpatialIdentitySpace.tsx');
 const spatialResources = source('src/components/spatial-os-v4/spaces/SpatialResourceUniverse.tsx');
+const spatialDb = source('src/lib/db.ts');
+const fmhyIndex = source('src/lib/fmhy-index.ts');
+const fmhyApi = source('src/app/api/fmhy/route.ts');
+const favoriteButton = source('src/components/favorites/FavoriteButton.tsx');
 const header = source('src/components/header.tsx');
 const detail = source('src/components/detail-modal.tsx');
 const player = source('src/components/player-shell.tsx');
@@ -254,6 +258,32 @@ describe('首页与播放页回归契约', () => {
     expect(header).toContain("window.addEventListener('libretv:open-history', openHistory)");
     expect(header).toContain("window.addEventListener('libretv:open-source-settings', openSourceSettings)");
     expect(spatialResources).toContain('freemediaheckyeah.org/categories/');
+  });
+
+  it('FMHY 全站搜索、详情与收藏使用官方索引和本地安全存储', () => {
+    expect(fmhyIndex).toContain("file: 'video.md'");
+    expect(fmhyIndex).toContain("file: 'non-english.md'");
+    expect(fmhyApi).toContain("https://raw.githubusercontent.com/fmhy/edit/main/docs/");
+    expect(fmhyApi).toContain('resourceUrl');
+    expect(spatialResources).toContain("fetch('/api/fmhy?'");
+    expect(spatialResources).toContain('setSelected(resource)');
+    expect(spatialResources).toContain("listFavorites('fmhy-resource')");
+    expect(favoriteButton).toContain('toggleFavorite(entry)');
+  });
+
+  it('P6 持久化空间导航、资源工作区、统一收藏和可迁移个人资料', () => {
+    expect(spatialDb).toContain('db.version(6)');
+    expect(spatialDb).toContain("favorites: 'id, kind, createdAt, updatedAt'");
+    expect(spatialDb).toContain("spatialState: 'key, updatedAt'");
+    expect(home).toContain("readSpatialState<unknown>('active-space')");
+    expect(home).toContain("writeSpatialState('active-space', activeSpace)");
+    expect(spatialResources).toContain("writeSpatialState('resource-universe'");
+    expect(spatialIdentity).toContain('exportConfig()');
+    expect(spatialIdentity).toContain('importConfig(content)');
+    expect(spatialDb).toContain("playbackProgress: JSON.stringify(progress)");
+    expect(spatialDb).toContain("favorites: JSON.stringify(favorites)");
+    expect(spatialDb).toContain("spatialState: JSON.stringify(spatialState)");
+    expect(spatialDb).toContain("db.favorites.bulkPut");
   });
 
   it('设置中可选择界面语言、助手角色和语音风格，顶部搜索默认收起', () => {
