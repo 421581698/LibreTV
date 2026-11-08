@@ -9,6 +9,8 @@ import type { SearchResultItem, SourceConfig } from "@/lib/types";
 import { readQuality } from "@/lib/store";
 import { createLibreTVMovieAgentAdapters } from "@/lib/friday/libretv-movie-adapters";
 import { createMovieWorkflowTaskIdPrefix, recordPlaybackEvidence, runLibreTVMovieWorkflow } from "@/lib/friday/movie-workflow";
+import { runFridayDag } from "@/lib/friday/dag-orchestrator";
+import { createPlaybackEvidenceAgent } from "@/lib/friday/movie-agents";
 import { fridayTaskEventStore, fridayTaskRuntime } from "@/lib/friday/task-service";
 import type { TaskDefinition, TaskSnapshot } from "@/lib/friday/task-runtime";
 import type { MovieAgentAdapters, MovieCandidate } from "@/lib/friday/movie-agents";
@@ -386,6 +388,36 @@ export function useFridayChatSession({
   }, [language]);
 
   const retryInterruptedWorkflow = useCallback(async (taskId: string) => {
+    // Playback observations are independent, read-only audit tasks rather than
+    // part of the five-stage movie workflow. Resume them from their own durable
+    // definition/checkpoint instead of deriving a movie-workflow prefix.
+    if (taskId.endsWith(".playback-evidence")) {
+      const events = await fridayTaskEventStore.read(taskId);
+      const created = events.find((event) => event.type === "task.created");
+      const definition = (created?.payload as { definition?: TaskDefinition } | undefined)?.definition;
+      if (!definition || definition.taskId !== taskId || definition.agent !== "playback-evidence-agent") {
+        console.error("[Friday] Cannot recover playback evidence: persisted task definition is unavailable.");
+        return;
+      }
+      try {
+        await runFridayDag({
+          tasks: [definition],
+          agents: [createPlaybackEvidenceAgent()],
+          runtime: fridayTaskRuntime,
+          replayFailed: true,
+        });
+      } catch (recoveryError) {
+        console.error("[Friday] Explicit playback-evidence recovery failed:", recoveryError);
+      } finally {
+        try {
+          setRestoredTasks(await fridayTaskRuntime.restoreAll());
+        } catch (restoreError) {
+          console.error("[Friday] Could not refresh recovered playback evidence:", restoreError);
+        }
+      }
+      return;
+    }
+
     const suffix = /\.(search|source|quality|review|playback)$/;
     if (!suffix.test(taskId)) return;
     const taskIdPrefix = taskId.replace(suffix, "");
