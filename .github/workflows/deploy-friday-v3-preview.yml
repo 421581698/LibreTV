@@ -55,7 +55,7 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing preview secret: CLOUDFLARE_API_TOKEN" && exit 1)
           test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "Missing preview secret: CLOUDFLARE_ACCOUNT_ID" && exit 1)
           test -n "$PREVIEW_GATE_KEY" || (echo "Missing preview secret: LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY" && exit 1)
-          test "${#PREVIEW_PASSWORD}" -ge 24 || (echo "LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY must contain at least 24 characters" && exit 1)
+          test "${#PREVIEW_GATE_KEY}" -ge 24 || (echo "LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY must contain at least 24 characters" && exit 1)
 
       - name: Deploy isolated Worker
         env:
