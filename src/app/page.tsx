@@ -40,7 +40,9 @@ import { useToast } from '@/components/toast';
 import { EmptyState } from '@/components/states';
 import { SiteFooter } from '@/components/site-footer';
 import { SpatialAppShell } from '@/components/spatial-os-v4/app/SpatialAppShell';
-import { SpatialSpacePlaceholder } from '@/components/spatial-os-v4/app/SpatialSpacePlaceholder';
+import { SpatialIntelligenceSpace } from '@/components/spatial-os-v4/spaces/SpatialIntelligenceSpace';
+import { SpatialResourceUniverse } from '@/components/spatial-os-v4/spaces/SpatialResourceUniverse';
+import { SpatialIdentitySpace } from '@/components/spatial-os-v4/spaces/SpatialIdentitySpace';
 import { SpatialFridayEntry } from '@/components/spatial-os-v4/friday/SpatialFridayEntry';
 import type { SpatialSpace } from '@/components/spatial-os-v4/navigation/SpatialRouter';
 
@@ -394,7 +396,7 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
           brand={header}
           fridayEntry={<SpatialFridayEntry />}
         >
-          {activeSpace === 'cinematic' ? mainContent : <SpatialSpacePlaceholder space={activeSpace} />}
+          {activeSpace === 'cinematic' ? mainContent : activeSpace === 'intelligence' ? <SpatialIntelligenceSpace /> : activeSpace === 'resources' ? <SpatialResourceUniverse /> : <SpatialIdentitySpace />}
           <SiteFooter />
           <DetailModal item={detailItem} onClose={() => setDetailItem(null)} />
         </SpatialAppShell>
