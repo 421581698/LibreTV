@@ -40,7 +40,7 @@ import { describeParseStats } from '@/lib/tvbox-parser';
  */
 
 type PrimaryTab = 'sources' | 'prefs' | 'data';
-type SecondaryTab = 'vod' | 'live' | 'subs' | 'playback' | 'image' | 'home' | 'voice' | 'io';
+type SecondaryTab = 'vod' | 'live' | 'subs' | 'playback' | 'image' | 'home' | 'voice' | 'language' | 'io';
 
 const PRIMARY_TABS: { id: PrimaryTab; label: string; icon: IconName }[] = [
   { id: 'sources', label: '源管理', icon: 'link' },
@@ -59,6 +59,7 @@ const SECONDARY_TABS: Record<PrimaryTab, { id: SecondaryTab; label: string }[]> 
     { id: 'image', label: '封面图加载' },
     { id: 'home', label: '首页与内容' },
     { id: 'voice', label: '语音设置' },
+    { id: 'language', label: '语言设置' },
   ],
   data: [{ id: 'io', label: '配置导入导出' }],
 };
@@ -138,6 +139,7 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
       {current === 'image' && <ImagePanel />}
       {current === 'home' && <HomePanel />}
       {current === 'voice' && <VoiceSettingsPanel />}
+      {current === 'language' && <LanguageSettingsPanel />}
       {current === 'subs' && <SourceSubscriptions />}
       {current === 'io' && <ConfigIoPanel />}
     </Drawer>
@@ -731,6 +733,47 @@ function CustomProxyInput() {
 }
 
 
+
+function LanguageSettingsPanel() {
+  const [language, setLanguage] = useState<"zh" | "en">("zh");
+  const [assistantId, setAssistantId] = useState<"friday" | "jarvis" | "lin-meimei">("friday");
+  const [wakeWordEnabled, setWakeWordEnabled] = useState(false);
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("libretv-language") || window.localStorage.getItem("friday-language");
+      if (saved === "zh" || saved === "en") setLanguage(saved);
+    } catch { /* Keep the default language. */ }
+  }, []);
+  const updateLanguage = (value: string) => {
+    const next = value === "en" ? "en" : "zh";
+    setLanguage(next);
+    try {
+      window.localStorage.setItem("libretv-language", next);
+      window.localStorage.setItem("friday-language", next);
+    } catch { /* Session-only preference. */ }
+    document.documentElement.lang = next === "zh" ? "zh-CN" : "en";
+    window.dispatchEvent(new CustomEvent("friday-language-preference-change", { detail: { language: next } }));
+  };
+  return (
+    <section>
+      <SectionTitle title="语言设置" hint="选择站点与 Friday 的首选语言；设置保存在当前设备" />
+      <div className="space-y-3">
+        <SelectRow
+          label="界面语言"
+          value={language}
+          onChange={updateLanguage}
+          description={language === "zh" ? "当前选择：简体中文" : "Selected: English"}
+          options={[
+            { value: "zh", label: "简体中文", hint: "Chinese (Simplified)" },
+            { value: "en", label: "English", hint: "英语" },
+          ]}
+        />
+        <p className="text-xs text-faint leading-relaxed">Friday 的识别语言、回复语言和语音播报会同步切换。部分站点页面文案目前仍为中文，完整站点翻译需要后续补齐。</p>
+      </div>
+    </section>
+  );
+}
+
 function VoiceSettingsPanel() {
   const [language, setLanguage] = useState<"zh" | "en">("zh");
   const [voiceStyle, setVoiceStyle] = useState<"auto" | "jarvis" | "warm" | "clear">("auto");
@@ -740,6 +783,9 @@ function VoiceSettingsPanel() {
       const savedLanguage = window.localStorage.getItem("friday-language");
       const savedVoice = window.localStorage.getItem("friday-voice-style");
       if (savedLanguage === "zh" || savedLanguage === "en") setLanguage(savedLanguage);
+      const savedAssistant = window.localStorage.getItem("friday-assistant");
+      if (savedAssistant === "friday" || savedAssistant === "jarvis" || savedAssistant === "lin-meimei") setAssistantId(savedAssistant);
+      setWakeWordEnabled(window.localStorage.getItem("friday-wake-word") === "true");
       if (savedVoice === "jarvis" || savedVoice === "warm" || savedVoice === "clear" || savedVoice === "auto") setVoiceStyle(savedVoice);
     } catch { /* Keep defaults when storage is unavailable. */ }
   }, []);
@@ -749,6 +795,18 @@ function VoiceSettingsPanel() {
     setLanguage(next);
     try { window.localStorage.setItem("friday-language", next); } catch { /* Session-only preference. */ }
     window.dispatchEvent(new CustomEvent("friday-language-preference-change", { detail: { language: next } }));
+  };
+
+  const updateAssistant = (value: string) => {
+    const next = value === "jarvis" || value === "lin-meimei" ? value : "friday";
+    setAssistantId(next);
+    try { window.localStorage.setItem("friday-assistant", next); } catch { /* Session-only preference. */ }
+    window.dispatchEvent(new CustomEvent("friday-assistant-preference-change", { detail: { assistantId: next } }));
+  };
+  const updateWakeWord = (value: boolean) => {
+    setWakeWordEnabled(value);
+    try { window.localStorage.setItem("friday-wake-word", String(value)); } catch { /* Session-only preference. */ }
+    window.dispatchEvent(new CustomEvent("friday-wake-word-preference-change", { detail: { enabled: value } }));
   };
 
   const updateVoiceStyle = (value: string) => {
@@ -767,7 +825,7 @@ function VoiceSettingsPanel() {
 
   return (
     <section>
-      <SectionTitle title="语音设置" hint="语言与音色分开设置；切换语言不会重置已选音色" />
+      <SectionTitle title="语音设置" hint="助手角色、音色与唤醒方式；语言请在「语言设置」中选择" />
       <div className="space-y-3">
         <SelectRow
           label="播报语言"
