@@ -72,3 +72,55 @@ export function applyDecodedPlaybackEvidence(
   }
   return next;
 }
+
+
+export type PlaybackFeedbackEventDetail = {
+  candidateId: string;
+  sourceKey: string;
+  vodId: string;
+  height: number;
+  playbackSampleCount?: number;
+  playbackMinHeight?: number;
+  playbackMaxHeight?: number;
+  observedAt?: string;
+};
+
+export type PlaybackFeedbackWorkflow = {
+  sourceChecks?: Array<{ candidateId?: string; reachable: boolean }>;
+  qualityChecks?: Array<PlaybackQualityEvidence & {
+    status?: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown";
+    decodedResolutionHeight?: number | null;
+    sourceResolutionHeight?: number | null;
+    playbackMinHeight?: number | null;
+    playbackMaxHeight?: number | null;
+  }>;
+  playbackRecommendations?: PlaybackRecommendation[];
+};
+
+/** Apply a validated player event to the same workflow view rendered by Friday. */
+export function applyPlaybackFeedbackToWorkflow<T extends PlaybackFeedbackWorkflow>(
+  workflow: T,
+  detail: PlaybackFeedbackEventDetail,
+): T {
+  if (!detail.candidateId || detail.candidateId !== `${detail.sourceKey}:${detail.vodId}`) return workflow;
+  if (!Number.isInteger(detail.height) || detail.height < 1 || detail.height > 16384) return workflow;
+  const qualityChecks = workflow.qualityChecks?.map((item) => item.candidateId === detail.candidateId
+    ? {
+        ...item,
+        status: "resolution_detected" as const,
+        resolutionHeight: detail.height,
+        decodedResolutionHeight: detail.height,
+        decodedVideoHeight: detail.height,
+        resolutionSource: "decoded_playback" as const,
+        playbackSampleCount: detail.playbackSampleCount ?? item.playbackSampleCount ?? 1,
+        playbackMinHeight: detail.playbackMinHeight ?? item.playbackMinHeight ?? detail.height,
+        playbackMaxHeight: detail.playbackMaxHeight ?? item.playbackMaxHeight ?? detail.height,
+      }
+    : item);
+  const playbackRecommendations = applyDecodedPlaybackEvidence(
+    workflow.playbackRecommendations ?? [],
+    (qualityChecks ?? []).filter((item) => item.candidateId === detail.candidateId),
+    workflow.sourceChecks ?? [],
+  );
+  return { ...workflow, qualityChecks, playbackRecommendations };
+}
