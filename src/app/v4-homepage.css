@@ -1,5 +1,6 @@
 /* LibreTV V4 PC Light Homepage — isolated presentation layer */
 .v4-home {
+  color-scheme: light;
   min-height: 100vh;
   color: #20232a;
   background:
@@ -71,6 +72,7 @@
 .v4-landscape-meta i+ i { width:34%; height:5px; }
 .v4-continue-section { margin-bottom:0; padding-bottom:0; }
 body:has(.v4-home) .friday-fab { position:fixed !important; top:88px !important; right:24px !important; bottom:auto !important; left:auto !important; width:76px !important; height:76px !important; z-index:120 !important; }
+body:has(.v4-home) .friday-fab::before { content:""; position:absolute; right:8px; top:8px; width:9px; height:9px; border-radius:50%; background:#39c978; border:2px solid rgba(255,255,255,.95); box-shadow:0 0 10px rgba(57,201,120,.72); z-index:2; pointer-events:none; }
 body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"; position:absolute; right:82px; top:17px; width:max-content; padding:10px 14px; border:1px solid rgba(255,255,255,.42); border-radius:13px; color:#f6f7f9; background:rgba(35,39,45,.72); box-shadow:0 8px 24px rgba(0,0,0,.16); font-size:12px; font-weight:500; white-space:nowrap; backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); pointer-events:none; }
 @media (max-width: 1100px) {
   .v4-header-inner { width:calc(100% - 36px); grid-template-columns:auto 1fr; gap:16px; }
