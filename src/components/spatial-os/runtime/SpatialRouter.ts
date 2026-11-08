@@ -12,6 +12,13 @@ export function goBackSpace(state:SpatialSnapshot):SpatialSnapshot {
 export function restoreHistorySnapshot(restored:SpatialSnapshot,current:SpatialSnapshot):SpatialSnapshot {
  return {...restored,scrollPositions:{...restored.scrollPositions,...current.scrollPositions}};
 }
+export function historyIndexFromState(value:unknown):number {
+ if(!value||typeof value!=='object')return 0;
+ const candidate=(value as Record<string,unknown>)[SPATIAL_HISTORY_KEY];
+ if(!candidate||typeof candidate!=='object')return 0;
+ const index=(candidate as {index?:unknown}).index;
+ return typeof index==='number'&&Number.isInteger(index)&&index>=0?index:0;
+}
 export function snapshotFromHistoryState(value:unknown):SpatialSnapshot|null {
  if(!value||typeof value!=='object')return null;
  const candidate=(value as Record<string,unknown>)[SPATIAL_HISTORY_KEY];
