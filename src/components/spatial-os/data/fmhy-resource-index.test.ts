@@ -15,6 +15,7 @@ describe('FMHY local resource index',()=>{
   it('keeps resource and related destinations on http(s)',async()=>{
     const rows=await loadAllFMHYCategories();
     expect(rows.length).toBeGreaterThan(1000);
+    expect(rows.every(row=>!row.flags.section)).toBe(true);
     for(const row of rows){
       expect(()=>new URL(row.url)).not.toThrow();
       expect(['http:','https:']).toContain(new URL(row.url).protocol);
