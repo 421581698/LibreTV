@@ -194,6 +194,9 @@ export function useFridayChatSession({
       ...current,
       [data.searchId!]: { status: "running" },
     }));
+    window.dispatchEvent(new CustomEvent("friday-home-runtime-state", {
+      detail: { agent: "executing" },
+    }));
 
     const taskIdPrefix = createMovieWorkflowTaskIdPrefix();
     workflowContexts.current.set(data.searchId, { query: String(data.keyword || "影视搜索").slice(0, 50), taskIdPrefix, adapters: workflowAdapters, candidateIds: new Set(movieResults.map((item) => `${item.sourceKey}:${item.vodId}`)) });
@@ -208,6 +211,9 @@ export function useFridayChatSession({
     }).then((workflow) => {
       // A stopped or superseded workflow must never overwrite the current conversation UI.
       if (!mountedRef.current || !isCurrentFridayWorkflow(controller, activeWorkflowControllers.current.get(data.searchId!))) return;
+      window.dispatchEvent(new CustomEvent("friday-home-runtime-state", {
+        detail: { agent: "rendering" },
+      }));
       activeWorkflowControllers.current.delete(data.searchId!);
       const sourceOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.source)?.output as
         | { probes?: Array<{ sourceId: string; candidateId?: string; title?: string; year?: string; reachable: boolean; upstreamRequestMs?: number; upstreamRequestCount?: number; originTtfbMs?: number }> }
@@ -221,10 +227,11 @@ export function useFridayChatSession({
       const playbackOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.playback)?.output as
         | { recommendations?: NonNullable<FridayWorkflowView["playbackRecommendations"]> }
         | undefined;
+      const workflowSucceeded = workflow.results.every((item) => item.status === "succeeded");
       setWorkflowBySearchId((current) => ({
         ...current,
         [data.searchId!]: {
-          status: workflow.results.every((item) => item.status === "succeeded") ? "completed" : "failed",
+          status: workflowSucceeded ? "completed" : "failed",
           retryable: workflow.results.some((item) => item.status === "failed" && item.error?.retryable === true),
           sourceChecks: sourceOutput?.probes ?? [],
           qualityChecks: (qualityOutput?.assessments ?? []).map((item) => {
@@ -249,10 +256,16 @@ export function useFridayChatSession({
           ),
         },
       }));
+      window.dispatchEvent(new CustomEvent("friday-home-runtime-state", {
+        detail: { agent: workflowSucceeded ? "completed" : "error" },
+      }));
     }).catch((error) => {
       // Abort is an expected lifecycle event, not a failed workflow to display to the user.
       if (!mountedRef.current || !isCurrentFridayWorkflow(controller, activeWorkflowControllers.current.get(data.searchId!))) return;
       activeWorkflowControllers.current.delete(data.searchId!);
+      window.dispatchEvent(new CustomEvent("friday-home-runtime-state", {
+        detail: { agent: "error" },
+      }));
       console.error("[Friday] V3 movie workflow failed:", error);
       setWorkflowBySearchId((current) => ({
         ...current,
