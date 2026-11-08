@@ -1,5 +1,6 @@
 'use client';
 import {useEffect,useRef} from 'react';
+import {SpatialPanelContent} from './SpatialPanelContent';
 import type {CSSProperties} from 'react';
 import type {PanelDock,SpatialPanel} from './core/types';
 import {spatialStateStore,useSpatialState} from './runtime/SpatialStateStore';
@@ -33,7 +34,7 @@ export function SpatialPanelWorkspace(){
     <button type="button" onClick={()=>spatialStateStore.setPanelRect(selected.id,{minimized:!rect?.minimized})}>{rect?.minimized?'展开':'收起'}</button>
     <button type="button" onClick={()=>spatialStateStore.expand(null)} aria-label="关闭面板">关闭</button>
    </div></header>
-   {!rect?.minimized&&<><div className="spatial-panel-window-body"><p>{selected.description}</p><small>面板容器已接入统一焦点、层级、停靠与布局状态；业务内容继续由对应的 Friday / LibreTV 模块提供，不复制运行时数据。</small></div>
+   {!rect?.minimized&&<><div className="spatial-panel-window-body"><SpatialPanelContent panel={selected.id}/></div>
    <footer className="spatial-panel-docks"><span>布局</span>{DOCKS.map(dock=><button key={dock.id} type="button" aria-pressed={(rect?.dock??'floating')===dock.id} onClick={()=>spatialStateStore.dock(selected.id,dock.id)}>{dock.label}</button>)}<button type="button" onClick={()=>spatialStateStore.avoidPanelOverlap(selected.id,{width:windowSafeWidth(),height:windowSafeHeight()})}>自动避让</button></footer></>}
   </section>}
  </div>;
