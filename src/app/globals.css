@@ -1110,3 +1110,23 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
     right: 10px;
   }
 }
+
+
+/* Friday 首页语音对话流：与影视搜索 UI 完全分离，固定显示在圆球下方。 */
+.home-v2 .friday-home-conversation {
+  display: flex; flex-direction: column; gap: 9px;
+  width: min(92vw, 620px); max-height: min(34vh, 280px);
+  margin: 14px auto 0; padding: 0 2px 4px;
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+}
+.home-v2 .friday-home-message {
+  width: fit-content; max-width: 88%; padding: 9px 13px;
+  border: 1px solid rgba(145,165,195,.22); border-radius: 14px;
+  color: rgb(var(--c-content)); background: rgba(125,145,170,.09);
+  text-align: left; animation: friday-response-flow-in .22s ease-out both;
+}
+.home-v2 .friday-home-message.is-user { align-self: flex-end; border-bottom-right-radius: 5px; }
+.home-v2 .friday-home-message.is-assistant { align-self: flex-start; border-bottom-left-radius: 5px; }
+.home-v2 .friday-home-message-speaker { display: block; margin-bottom: 3px; color: rgb(var(--c-muted)); font-size: 10px; font-weight: 650; letter-spacing: .04em; }
+.home-v2 .friday-home-message p { margin: 0; font-size: 13px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+.home-v2 .friday-home-message-pending { opacity: .55; }

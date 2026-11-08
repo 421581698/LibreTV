@@ -9,8 +9,7 @@ type VoiceState = 'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING';
 /** 首页唯一 Friday 语音入口；状态变化只改变圆球，不创建面板或遮罩。 */
 export function FridayHero({ voiceState = 'IDLE', audioLevel = 0 }: { voiceState?: VoiceState; audioLevel?: number }) {
   const [orbTheme, setOrbTheme] = useState<'light' | 'dark'>('light');
-  const [assistantReply, setAssistantReply] = useState('');
-  const [visibleReply, setVisibleReply] = useState('');
+  const [conversation, setConversation] = useState<Array<{ id: number; role: 'user' | 'assistant'; text: string; interim?: boolean }>>([]);
   const [voiceError, setVoiceError] = useState('');
 
   // The app theme is controlled by the .dark class, not necessarily the OS color scheme.
@@ -30,32 +29,34 @@ export function FridayHero({ voiceState = 'IDLE', audioLevel = 0 }: { voiceState
 
   useEffect(() => {
     const onReply = (event: Event) => {
-      const value = (event as CustomEvent<{ text?: string }>).detail?.text;
-      if (typeof value === 'string') setAssistantReply(value.slice(0, 420));
+      const value = (event as CustomEvent<{ text?: string }>).detail?.text?.trim();
+      if (value) setConversation((items) => [...items, { id: Date.now() + Math.random(), role: 'assistant', text: value.slice(0, 1200) }].slice(-8));
+    };
+    const onTranscript = (event: Event) => {
+      const detail = (event as CustomEvent<{ text?: string; isFinal?: boolean }>).detail;
+      const value = detail?.text?.trim();
+      if (!value) return;
+      setConversation((items) => {
+        const next = [...items];
+        const last = next[next.length - 1];
+        if (last?.role === 'user' && last.interim) next[next.length - 1] = { ...last, text: value.slice(0, 500), interim: !detail.isFinal };
+        else next.push({ id: Date.now() + Math.random(), role: 'user', text: value.slice(0, 500), interim: !detail.isFinal });
+        return next.slice(-8);
+      });
     };
     const onError = (event: Event) => {
       const value = (event as CustomEvent<{ message?: string }>).detail?.message;
       setVoiceError(typeof value === 'string' ? value : '');
     };
     window.addEventListener('friday-home-assistant-response', onReply);
+    window.addEventListener('friday-home-transcript', onTranscript);
     window.addEventListener('friday-home-voice-error', onError);
     return () => {
       window.removeEventListener('friday-home-assistant-response', onReply);
+      window.removeEventListener('friday-home-transcript', onTranscript);
       window.removeEventListener('friday-home-voice-error', onError);
     };
   }, []);
-
-  useEffect(() => {
-    setVisibleReply('');
-    if (!assistantReply) return;
-    let index = 0;
-    const timer = window.setInterval(() => {
-      index = Math.min(index + 2, assistantReply.length);
-      setVisibleReply(assistantReply.slice(0, index));
-      if (index >= assistantReply.length) window.clearInterval(timer);
-    }, 24);
-    return () => window.clearInterval(timer);
-  }, [assistantReply]);
 
   const toggleVoice = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -91,8 +92,17 @@ export function FridayHero({ voiceState = 'IDLE', audioLevel = 0 }: { voiceState
           />
         </span>
         <span className="friday-hero-orb-label" role="status" aria-live="polite">{voiceError || labels[voiceState]}</span>
-        {visibleReply && <span className="friday-orb-response" role="status" aria-live="polite">{visibleReply}<span className="friday-response-cursor" aria-hidden="true">▍</span></span>}
       </button>
+      {conversation.length > 0 && (
+        <div className="friday-home-conversation" role="log" aria-live="polite" aria-label="Friday 对话流">
+          {conversation.map((message) => (
+            <div key={message.id} className={`friday-home-message ${message.role === 'user' ? 'is-user' : 'is-assistant'}`}>
+              <span className="friday-home-message-speaker">{message.role === 'user' ? '你' : 'Friday'}</span>
+              <p>{message.text}{message.interim ? <span className="friday-home-message-pending"> …</span> : null}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

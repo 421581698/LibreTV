@@ -1,13 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import type { Dispatch, RefObject, SetStateAction } from 'react';
 import { SearchHistoryDropdown, useSearchHistory } from '@/components/search-history';
 import { Icon } from '@/components/icon';
 import { cn } from '@/lib/utils';
 
 type SearchHistoryState = ReturnType<typeof useSearchHistory>;
-type VoiceState = 'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING';
 type HomeSearchSectionProps = {
   urlQuery: string;
   input: string;
@@ -17,8 +15,6 @@ type HomeSearchSectionProps = {
   runSearch: (query: string) => void;
   runSearchInPlace: (query: string) => boolean;
   pickHistory: (text: string) => void;
-  voiceState: VoiceState;
-  setVoiceState: Dispatch<SetStateAction<VoiceState>>;
   showBrandTitle?: boolean;
   compactHeader?: boolean;
 };
@@ -26,58 +22,20 @@ type HomeSearchSectionProps = {
 /** 首页只负责展示与发出语音意图；ASR 生命周期统一由 Friday voice controller 管理。 */
 export function HomeSearchSection({
   urlQuery, input, setInput, inputRef, searchHistory, runSearch,
-  pickHistory, voiceState, setVoiceState, showBrandTitle = true, compactHeader = false,
+  pickHistory, showBrandTitle = true, compactHeader = false,
 }: HomeSearchSectionProps) {
-  const [voiceError, setVoiceError] = useState('');
-
-  useEffect(() => {
-    const handleVoiceState = (event: Event) => {
-      const next = (event as CustomEvent<{ state?: VoiceState }>).detail?.state;
-      if (next && ['IDLE', 'LISTENING', 'THINKING', 'SPEAKING'].includes(next)) {
-        setVoiceState(next);
-      }
-    };
-    const handleVoiceError = (event: Event) => {
-      const message = (event as CustomEvent<{ message?: string }>).detail?.message;
-      setVoiceError(typeof message === 'string' ? message : '');
-    };
-    const handleTranscript = (event: Event) => {
-      const text = (event as CustomEvent<{ text?: string }>).detail?.text?.trim();
-      if (text) setInput(text.slice(0, 100));
-    };
-    window.addEventListener('friday-home-voice-state', handleVoiceState);
-    window.addEventListener('friday-home-voice-error', handleVoiceError);
-    window.addEventListener('friday-home-transcript', handleTranscript);
-    return () => {
-      window.removeEventListener('friday-home-voice-state', handleVoiceState);
-      window.removeEventListener('friday-home-voice-error', handleVoiceError);
-      window.removeEventListener('friday-home-transcript', handleTranscript);
-    };
-  }, [setInput, setVoiceState]);
-
-  const toggleOrbVoice = () => {
-    // The central Friday controller owns the only SpeechRecognition instance.
-    window.dispatchEvent(new CustomEvent('friday-home-orb-toggle'));
-  };
-
-  const placeholder = voiceState === 'LISTENING'
-    ? '正在聆听，请说…'
-    : voiceState === 'THINKING'
-      ? '正在为你寻找…'
-      : '说出你想看的内容，或输入片名…';
-
   return (
     <section className={cn('flex flex-col items-center', compactHeader ? 'home-v2-header-search' : urlQuery ? 'mb-6' : 'mt-8 mb-8')}>
       {!urlQuery && showBrandTitle && <header className="text-center mb-6"><h1 className="text-4xl sm:text-5xl font-bold brand-gradient">LibreTV</h1></header>}
       {urlQuery && <h1 className="sr-only">LibreTV 视频搜索</h1>}
       <div ref={searchHistory.containerRef} className="relative w-full max-w-2xl">
         <form className="w-full" onSubmit={(event) => { event.preventDefault(); runSearch(input); }}>
-          <div className={cn('home-v2-ai-search flex items-center min-h-14 border', searchHistory.visible ? 'rounded-t-2xl rounded-b-none border-accent border-b-line bg-surface-raised' : 'rounded-2xl border-line bg-chip', voiceState === 'LISTENING' && 'is-listening')}>
+          <div className={cn('home-v2-ai-search flex items-center min-h-14 border', searchHistory.visible ? 'rounded-t-2xl rounded-b-none border-accent border-b-line bg-surface-raised' : 'rounded-2xl border-line bg-chip', )}>
             <span className="home-v2-search-leading" aria-hidden="true"><Icon name="search" className="w-5 h-5" /></span>
             <input
               ref={inputRef}
               className="home-v2-ai-search-input"
-              placeholder={placeholder}
+              placeholder="输入片名，搜索影视资源…"
               value={input}
               maxLength={100}
               onChange={(event) => { setInput(event.target.value); searchHistory.resetActive(); }}
@@ -94,7 +52,6 @@ export function HomeSearchSection({
             <button type="submit" className="home-v2-search-submit" aria-label="搜索"><Icon name="search" className="w-5 h-5" /></button>
           </div>
         </form>
-        {voiceError && <p className="home-v2-voice-error" role="status" aria-live="polite">{voiceError}</p>}
         {searchHistory.visible && <SearchHistoryDropdown id="home-search-history" matches={searchHistory.matches} activeIndex={searchHistory.activeIndex} onPick={pickHistory} onRemove={searchHistory.remove} onClearAll={searchHistory.clearAll} />}
       </div>
     </section>
