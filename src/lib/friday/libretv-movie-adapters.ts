@@ -20,7 +20,7 @@ async function readJson<T>(response: Response): Promise<T> {
  */
 export function createLibreTVMovieAgentAdapters(
   sources: SourceConfig[],
-  options: { filterAdult?: boolean; fetcher?: typeof fetch } = {},
+  options: { filterAdult?: boolean; fetcher?: typeof fetch; readDecodedHeight?: (candidate: MovieCandidate) => number | undefined } = {},
 ): MovieAgentAdapters {
   const fetcher = options.fetcher ?? fetch;
 
@@ -106,6 +106,8 @@ export function createLibreTVMovieAgentAdapters(
               checkedAt: new Date().toISOString(),
               reachable: Boolean(result && !result.error),
               resolutionHeight: typeof result?.height === "number" ? result.height : undefined,
+              decodedResolutionHeight: options.readDecodedHeight?.(candidate),
+              originTtfbMs: result?.originTtfbMs,
               resolutionProbed: Boolean(result && !result.error),
               probeDurationMs: result?.probeDurationMs,
               upstreamRequestMs: result?.upstreamRequestMs,
