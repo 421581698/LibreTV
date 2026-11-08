@@ -5,7 +5,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import type { QualityEntry, SourceConfig, LiveSourceConfig, SourceSearchOutcome } from './types';
 import { migrateSkipMarks, type SkipMark, type SkipSegment } from './skip-marks';
 import { isQualityEntryFresh, mergeQualityEntries, qualityKey } from './quality';
-import { clearLiveProbeResultsDb, loadLiveProbeResults, saveLiveProbeResults } from './db';
+import { clearLiveProbeResultsDb, loadLiveProbeResults, saveLiveProbeResults, favoriteId, upsertFavorite, removeFavorite } from './db';
 import { PERSIST_KEY, createThrottledStorage } from './persist-storage';
 
 /**
@@ -665,11 +665,28 @@ export const useAppStore = create<AppState>()(
 
       toggleLiveFavorite: (channelUrl) => {
         const cur = get().liveFavorites;
+        const removing = cur.includes(channelUrl);
         set({
-          liveFavorites: cur.includes(channelUrl)
+          liveFavorites: removing
             ? cur.filter((u) => u !== channelUrl)
             : [...cur, channelUrl],
         });
+        const favoriteKey = favoriteId('live', channelUrl);
+        if (removing) {
+          void removeFavorite(favoriteKey).catch(() => {});
+          return;
+        }
+        const recent = get().liveRecent.find((entry) => entry.url === channelUrl);
+        let title = recent?.name || channelUrl;
+        try { title = recent?.name || new URL(channelUrl).hostname; } catch { /* retain the source URL label */ }
+        void upsertFavorite({
+          id: favoriteKey,
+          kind: 'live',
+          title,
+          image: recent?.logo,
+          category: recent?.group || '直播频道',
+          metadata: { streamUrl: channelUrl },
+        }).catch(() => {});
       },
 
       addLiveRecent: (entry) => {
