@@ -25,6 +25,16 @@ describe('FMHY local resource index',()=>{
     }
   });
 
+  it('preserves an immutable upstream revision and retrieval date for every category',async()=>{
+    const rows=await loadAllFMHYCategories();
+    for(const row of rows){
+      expect(row.sourceRevision,row.id).toMatch(/^[a-f0-9]{40}$/);
+      expect(row.sourceRetrievedAt,row.id).toMatch(/^\\d{4}-\\d{2}-\\d{2}$/);
+      expect(row.sourcePath,row.id).toBe(`docs/${row.categoryId}.md`);
+      expect(row.sourcePage,row.id).toBe(`https://github.com/fmhy/edit/blob/${row.sourceRevision}/${row.sourcePath}`);
+    }
+  });
+
   it('keeps related link labels present for display',async()=>{
     const rows=await loadAllFMHYCategories();
     for(const row of rows){
