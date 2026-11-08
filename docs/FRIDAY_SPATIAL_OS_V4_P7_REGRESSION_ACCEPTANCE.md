@@ -31,11 +31,24 @@ Existing suites continue to cover Friday reducer/visual-state mapping, homepage/
 
 The run is green. Two earlier runs failed only because the new static regression assertions targeted the wrong owner/string; those assertions were corrected and the final run above passed.
 
+## Private Preview deployment
+
+- Preview workflow: [42501095284](https://github.com/421581698/LibreTV/actions/runs/42501095284)
+- Source commit: `ee5573d8788bb0109607008097a5242286d5fbb2`
+- Worker: `https://libretv-homepage-preview.bggdbh.workers.dev/`
+- OpenNext Cloudflare build: passed
+- Cloudflare credential and dedicated preview gate-key checks: passed
+- Worker deployment: passed
+- Preview `PASSWORD` secret installation: passed
+- `/api/status` smoke check confirms `passwordRequired=true` and `verified=false` for anonymous sessions; invalid password returns HTTP 401.
+
+This is an isolated protected Preview Worker. It is not the production Worker. The browser tool could not render the protected Preview URL, so visual interaction acceptance remains outstanding.
+
 ## Manual acceptance still required
 
 | Environment | Acceptance | Status |
 |---|---|---|
-| Preview deployment | Load latest branch build and verify all four spaces | Not verified |
+| Preview deployment | Build/deploy/authentication gate | Passed; visual inspection pending |
 | Desktop browser | Navigation, keyboard focus, content overflow, Friday interaction | Not verified |
 | iPad Safari | Sidebar composition, touch targets, orientation changes | Not verified |
 | iPhone Safari | Bottom navigation, safe area, player viewport and scroll | Not verified |
