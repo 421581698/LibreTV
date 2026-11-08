@@ -1,3 +1,6 @@
+@import '../components/spatial-os-v4/tokens/spatial-os-v4.css';
+@import '../components/spatial-os-v4/styles/spatial-shell.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
