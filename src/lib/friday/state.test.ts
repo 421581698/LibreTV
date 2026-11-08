@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { fridayReducer, initialFridayState } from "./state";
+import { fridayReducer, getFridaySpatialVisualState, initialFridayState } from "./state";
 
 describe("fridayReducer", () => {
   it("opens, expands, collapses and closes the surface", () => {
@@ -192,4 +192,25 @@ describe("fridayReducer", () => {
     expect(staleCancellation.requestId).toBe(23);
   });
 
+});
+
+
+describe("Friday V4 spatial visual state mapping", () => {
+  it("maps all six visual states from the existing voice and agent state", () => {
+    expect(getFridaySpatialVisualState({ voice: "idle", agent: "idle" })).toBe("IDLE");
+    expect(getFridaySpatialVisualState({ voice: "listening", agent: "idle" })).toBe("LISTENING");
+    expect(getFridaySpatialVisualState({ voice: "recognizing", agent: "idle" })).toBe("LISTENING");
+    expect(getFridaySpatialVisualState({ voice: "idle", agent: "thinking" })).toBe("THINKING");
+    expect(getFridaySpatialVisualState({ voice: "idle", agent: "rendering" })).toBe("THINKING");
+    expect(getFridaySpatialVisualState({ voice: "idle", agent: "executing" })).toBe("EXECUTING");
+    expect(getFridaySpatialVisualState({ voice: "speaking", agent: "completed" })).toBe("SPEAKING");
+    expect(getFridaySpatialVisualState({ voice: "error", agent: "idle" })).toBe("ERROR");
+    expect(getFridaySpatialVisualState({ voice: "idle", agent: "error" })).toBe("ERROR");
+  });
+
+  it("prioritizes active voice feedback over agent progress", () => {
+    expect(getFridaySpatialVisualState({ voice: "speaking", agent: "executing" })).toBe("SPEAKING");
+    expect(getFridaySpatialVisualState({ voice: "listening", agent: "thinking" })).toBe("LISTENING");
+    expect(getFridaySpatialVisualState({ voice: "error", agent: "executing" })).toBe("ERROR");
+  });
 });
