@@ -13,6 +13,17 @@ class MemoryStore implements TaskEventStore {
 }
 
 describe("Friday DAG orchestrator", () => {
+  it("rejects duplicate agent registrations instead of silently shadowing one", async () => {
+    await expect(runFridayDag({
+      tasks: [{ taskId: "task", agent: "agent", input: {} }],
+      runtime: new TaskRuntime(new MemoryStore()),
+      agents: [
+        { id: "agent", execute: async () => ({ first: true }) },
+        { id: "agent", execute: async () => ({ second: true }) },
+      ],
+    })).rejects.toMatchObject({ code: "AGENT_DUPLICATE" });
+  });
+
   it("runs dependent agents in order and passes dependency outputs", async () => {
     const store = new MemoryStore();
     const runtime = new TaskRuntime(store);

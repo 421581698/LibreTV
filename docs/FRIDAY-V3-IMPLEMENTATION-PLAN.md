@@ -81,3 +81,14 @@ CI acceptance remains the user-approved gate: both `prelaunch-checks` and `frida
 ## Persistence decision
 
 The first durable adapter uses the existing Dexie/IndexedDB database. This makes task history survive page reloads on the same browser without adding an unconfigured Cloudflare binding or changing production infrastructure. It is browser-local, not cross-device or server-side persistence. Event writes are transactional, event IDs and per-task sequence numbers are unique, and the adapter rejects gaps. Task data may include prompts and source metadata, so it stays in the user's browser. A future shared/server audit store requires an explicitly provisioned D1 or equivalent binding, retention policy, and privacy review.
+
+
+## V3.7 — DAG and lineage integrity
+
+V3.7 tightens graph validation before any persisted task is created or agent is executed:
+- Reject duplicate dependency edges and malformed dependency/parent identifiers.
+- Reject self-parent references and cycles in in-graph parent lineage while allowing an external parent request ID.
+- Reject duplicate or empty Agent registrations rather than silently allowing Map insertion order to shadow an Agent.
+- Preserve the distinction between execution dependencies (`dependsOn`) and audit lineage (`parentTaskId`).
+- Keep all validation deterministic and covered by unit tests; no UI, orb, voice, player, or deployment changes.
+

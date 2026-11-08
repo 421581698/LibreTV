@@ -105,11 +105,22 @@ export function validateTaskGraph(definitions: TaskDefinition[]): void {
   for (const task of definitions) {
     assertSafeId(task.taskId, "task id");
     assertSafeId(task.agent, "agent id");
+    if (task.parentTaskId !== undefined) {
+      assertSafeId(task.parentTaskId, "parent task id");
+      if (task.parentTaskId === task.taskId) {
+        throw new TaskRuntimeError("Task cannot be its own parent", "TASK_LINEAGE_CYCLE");
+      }
+    }
     if (byId.has(task.taskId)) throw new TaskRuntimeError("Duplicate task id", "DUPLICATE_TASK");
     byId.set(task.taskId, task);
   }
   for (const task of definitions) {
-    for (const dependency of task.dependsOn ?? []) {
+    const dependencies = task.dependsOn ?? [];
+    if (new Set(dependencies).size !== dependencies.length) {
+      throw new TaskRuntimeError("Task contains a duplicate dependency", "DUPLICATE_DEPENDENCY");
+    }
+    for (const dependency of dependencies) {
+      assertSafeId(dependency, "dependency id");
       if (!byId.has(dependency)) throw new TaskRuntimeError("Unknown dependency: " + dependency, "UNKNOWN_DEPENDENCY");
       if (dependency === task.taskId) throw new TaskRuntimeError("Task cannot depend on itself", "TASK_CYCLE");
     }
@@ -125,6 +136,24 @@ export function validateTaskGraph(definitions: TaskDefinition[]): void {
     visited.add(id);
   };
   for (const id of byId.keys()) visit(id);
+
+  // Parent lineage is audit metadata, but it must still be acyclic when both
+  // ends of a parent link belong to this graph. External parent request IDs
+  // are allowed and intentionally remain outside the current execution DAG.
+  const lineageVisiting = new Set<string>();
+  const lineageVisited = new Set<string>();
+  const visitLineage = (id: string): void => {
+    if (lineageVisiting.has(id)) {
+      throw new TaskRuntimeError("Task parent lineage contains a cycle", "TASK_LINEAGE_CYCLE");
+    }
+    if (lineageVisited.has(id)) return;
+    lineageVisiting.add(id);
+    const parentId = byId.get(id)?.parentTaskId;
+    if (parentId && byId.has(parentId)) visitLineage(parentId);
+    lineageVisiting.delete(id);
+    lineageVisited.add(id);
+  };
+  for (const id of byId.keys()) visitLineage(id);
 }
 export function reduceTaskEvents(definition: TaskDefinition, events: TaskEvent[]): TaskSnapshot {
   const state: TaskSnapshot = {
