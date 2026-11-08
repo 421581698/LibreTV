@@ -14,7 +14,7 @@ export type FridayConversationEntry = {
   workflows?: Record<string, FridayWorkflowView>;
 };
 
-function WorkflowSummary({ workflow, language }: { workflow: FridayWorkflowView; language: "zh" | "en" }) {
+function WorkflowSummary({ workflow, searchId, onRetryWorkflow, language }: { workflow: FridayWorkflowView; searchId: string; onRetryWorkflow: (searchId: string) => void; language: "zh" | "en" }) {
   const statusLabel = workflow.status === "running" ? (language === "en" ? "Running" : "执行中") : workflow.status === "completed" ? (language === "en" ? "Completed" : "已完成") : (language === "en" ? "Incomplete" : "未完成");
   return (
     <section className="friday-workflow" aria-live="polite">
@@ -24,6 +24,11 @@ function WorkflowSummary({ workflow, language }: { workflow: FridayWorkflowView;
       </div>
       {workflow.status === "running" ? <p>{language === "en" ? "Checking sources and collecting playback evidence…" : "正在探测来源并整理片源侧证据…"}</p> : null}
       {workflow.status === "failed" ? <p>{language === "en" ? "Task incomplete: " : "任务未完整完成："}{workflow.error || (language === "en" ? "Some steps failed" : "部分步骤失败")}</p> : null}
+      {workflow.status === "failed" && workflow.retryable ? (
+        <button type="button" className="friday-tool-btn" onClick={() => onRetryWorkflow(searchId)}>
+          {language === "en" ? "Retry failed steps" : "重试失败步骤"}
+        </button>
+      ) : null}
       {workflow.sourceChecks ? (
         <div className="friday-workflow-block">
           <strong>{language === "en" ? `Title-source checks · ${workflow.sourceChecks.filter((item) => item.reachable).length}/${workflow.sourceChecks.length} requests succeeded` : `影片-来源探测 · ${workflow.sourceChecks.filter((item) => item.reachable).length}/${workflow.sourceChecks.length} 次解析请求成功`}</strong>
@@ -67,6 +72,7 @@ export function FridayConversation({
   status,
   error,
   onOpenMovie,
+  onRetryWorkflow,
   language,
 }: {
   messagesRef: RefObject<HTMLDivElement | null>;
@@ -76,6 +82,7 @@ export function FridayConversation({
   status: string;
   error?: { message?: string } | null;
   onOpenMovie: (movie: MovieItem) => void;
+  onRetryWorkflow: (searchId: string) => void;
   language: "zh" | "en";
 }) {
   return (
@@ -102,7 +109,7 @@ export function FridayConversation({
           {message.movies.map((data) => (
             <React.Fragment key={data.searchId}>
               <FridayMovieResults data={data} onOpen={onOpenMovie} language={language} />
-              {message.workflows?.[data.searchId] ? <WorkflowSummary workflow={message.workflows[data.searchId]} language={language} /> : null}
+              {message.workflows?.[data.searchId] ? <WorkflowSummary workflow={message.workflows[data.searchId]} searchId={data.searchId} onRetryWorkflow={onRetryWorkflow} language={language} /> : null}
             </React.Fragment>
           ))}
         </React.Fragment>

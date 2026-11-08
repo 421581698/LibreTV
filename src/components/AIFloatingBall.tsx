@@ -189,6 +189,7 @@ export default function AIFloatingBall({
     stop,
     setMessages,
     workflowBySearchId,
+    retryMovieWorkflow,
     restoredTasks,
     clearTaskHistory,
     busy,

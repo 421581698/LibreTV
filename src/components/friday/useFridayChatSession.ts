@@ -10,6 +10,7 @@ import { createLibreTVMovieAgentAdapters } from "@/lib/friday/libretv-movie-adap
 import { createMovieWorkflowTaskIdPrefix, runLibreTVMovieWorkflow } from "@/lib/friday/movie-workflow";
 import { fridayTaskEventStore, fridayTaskRuntime } from "@/lib/friday/task-service";
 import type { TaskSnapshot } from "@/lib/friday/task-runtime";
+import type { MovieAgentAdapters } from "@/lib/friday/movie-agents";
 import { isCurrentFridayWorkflow } from "@/components/friday/workflowRequestGuard";
 import { restoreFridayConversationHistory, serializeFridayConversationHistory } from "@/lib/friday/conversation-history";
 
@@ -19,6 +20,7 @@ export type FridayWorkflowView = {
   qualityChecks?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; probeDurationMs?: number | null; probeResultCached?: boolean | null }>;
   review?: { accepted: boolean; findings: string[]; candidateCount: number; assessmentCount: number; measurementCompleted: boolean; resolutionMeasured: boolean };
   error?: string;
+  retryable?: boolean;
 };
 
 type FridayChatSessionOptions = {
@@ -40,6 +42,7 @@ export function useFridayChatSession({
   const mountedRef = useRef(false);
   const processedSearchIds = useRef(new Set<string>());
   const activeWorkflowControllers = useRef(new Map<string, AbortController>());
+  const workflowContexts = useRef(new Map<string, { query: string; taskIdPrefix: string; adapters: MovieAgentAdapters }>());
   const [workflowBySearchId, setWorkflowBySearchId] = useState<Record<string, FridayWorkflowView>>({});
   const [restoredTasks, setRestoredTasks] = useState<TaskSnapshot[]>([]);
 
@@ -97,6 +100,7 @@ export function useFridayChatSession({
     }));
 
     const taskIdPrefix = createMovieWorkflowTaskIdPrefix();
+    workflowContexts.current.set(data.searchId, { query: String(data.keyword || "影视搜索").slice(0, 50), taskIdPrefix, adapters: workflowAdapters });
     const controller = new AbortController();
     activeWorkflowControllers.current.set(data.searchId, controller);
     void runLibreTVMovieWorkflow({
@@ -122,6 +126,7 @@ export function useFridayChatSession({
         ...current,
         [data.searchId!]: {
           status: workflow.results.every((item) => item.status === "succeeded") ? "completed" : "failed",
+          retryable: workflow.results.some((item) => item.status === "failed" && item.error?.retryable === true),
           sourceChecks: sourceOutput?.probes ?? [],
           qualityChecks: qualityOutput?.assessments ?? [],
           review: reviewOutput && {
@@ -199,6 +204,65 @@ export function useFridayChatSession({
     }
   }, [messages, historyKey, loadedHistoryKey]);
 
+  const retryMovieWorkflow = useCallback(async (searchId: string) => {
+    const context = workflowContexts.current.get(searchId);
+    if (!context || activeWorkflowControllers.current.has(searchId)) return;
+    const controller = new AbortController();
+    activeWorkflowControllers.current.set(searchId, controller);
+    setWorkflowBySearchId((current) => ({
+      ...current,
+      [searchId]: { ...current[searchId], status: "running", error: undefined },
+    }));
+    try {
+      const workflow = await runLibreTVMovieWorkflow({
+        ...context,
+        runtime: fridayTaskRuntime,
+        signal: controller.signal,
+        replayFailed: true,
+      });
+      if (!mountedRef.current || !isCurrentFridayWorkflow(controller, activeWorkflowControllers.current.get(searchId))) return;
+      activeWorkflowControllers.current.delete(searchId);
+      const sourceOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.source)?.output as
+        | { probes?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean }> }
+        | undefined;
+      const qualityOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.quality)?.output as
+        | { assessments?: Array<{ sourceId: string; candidateId?: string; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; probeDurationMs: number | null; probeResultCached: boolean | null }> }
+        | undefined;
+      const reviewOutput = workflow.results.find((item) => item.taskId === workflow.taskIds.review)?.output as
+        | { accepted?: boolean; findings?: string[]; candidateCount?: number; assessmentCount?: number; measurementCompleted?: boolean; resolutionMeasured?: boolean }
+        | undefined;
+      setWorkflowBySearchId((current) => ({
+        ...current,
+        [searchId]: {
+          status: workflow.results.every((item) => item.status === "succeeded") ? "completed" : "failed",
+          retryable: workflow.results.some((item) => item.status === "failed" && item.error?.retryable === true),
+          sourceChecks: sourceOutput?.probes ?? [],
+          qualityChecks: qualityOutput?.assessments ?? [],
+          review: reviewOutput && {
+            accepted: reviewOutput.accepted === true,
+            findings: reviewOutput.findings ?? [],
+            candidateCount: reviewOutput.candidateCount ?? 0,
+            assessmentCount: reviewOutput.assessmentCount ?? 0,
+            measurementCompleted: reviewOutput.measurementCompleted === true,
+            resolutionMeasured: reviewOutput.resolutionMeasured === true,
+          },
+        },
+      }));
+    } catch (retryError) {
+      if (!mountedRef.current || !isCurrentFridayWorkflow(controller, activeWorkflowControllers.current.get(searchId))) return;
+      activeWorkflowControllers.current.delete(searchId);
+      setWorkflowBySearchId((current) => ({
+        ...current,
+        [searchId]: {
+          ...current[searchId],
+          status: "failed",
+          retryable: false,
+          error: retryError instanceof Error ? retryError.message : (language === "en" ? "Retry failed" : "重试失败"),
+        },
+      }));
+    }
+  }, [language]);
+
   const stopChat = useCallback(() => {
     for (const controller of activeWorkflowControllers.current.values()) controller.abort();
     activeWorkflowControllers.current.clear();
@@ -222,6 +286,7 @@ export function useFridayChatSession({
     stop: stopChat,
     setMessages,
     workflowBySearchId,
+    retryMovieWorkflow,
     restoredTasks,
     clearTaskHistory,
     busy: status === "submitted" || status === "streaming",
