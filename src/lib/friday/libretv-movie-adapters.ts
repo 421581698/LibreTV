@@ -1,4 +1,4 @@
-import type { SearchResultItem, SourceConfig, QualityProbeResult } from "../types";
+import type { SearchResultItem, SourceConfig, QualityProbeResult, QualityEntry } from "../types";
 import type { MovieAgentAdapters, MovieCandidate, SourceProbe } from "./movie-agents";
 import { DagExecutionError } from "./dag-orchestrator";
 
@@ -20,7 +20,7 @@ async function readJson<T>(response: Response): Promise<T> {
  */
 export function createLibreTVMovieAgentAdapters(
   sources: SourceConfig[],
-  options: { filterAdult?: boolean; fetcher?: typeof fetch; readDecodedHeight?: (candidate: MovieCandidate) => number | undefined } = {},
+  options: { filterAdult?: boolean; fetcher?: typeof fetch; readDecodedHeight?: (candidate: MovieCandidate) => number | undefined; readPlaybackEvidence?: (candidate: MovieCandidate) => QualityEntry | undefined } = {},
 ): MovieAgentAdapters {
   const fetcher = options.fetcher ?? fetch;
 
@@ -99,14 +99,22 @@ export function createLibreTVMovieAgentAdapters(
           );
           output.push(...batch.map(({ source, candidate, id }) => {
             const result = results.get(`${source.key}:${id}`);
+            const playbackEvidence = options.readPlaybackEvidence?.(candidate);
             return {
               sourceId: source.key,
               candidateId: candidate.id,
               title: candidate.title,
+              year: candidate.year,
               checkedAt: new Date().toISOString(),
               reachable: Boolean(result && !result.error),
               resolutionHeight: typeof result?.height === "number" ? result.height : undefined,
-              decodedResolutionHeight: options.readDecodedHeight?.(candidate),
+              decodedResolutionHeight: playbackEvidence?.from === "play"
+                ? playbackEvidence.height
+                : options.readDecodedHeight?.(candidate),
+              playbackSampleCount: playbackEvidence?.from === "play" ? playbackEvidence.playbackSampleCount : undefined,
+              playbackMinHeight: playbackEvidence?.from === "play" ? playbackEvidence.playbackMinHeight : undefined,
+              playbackMaxHeight: playbackEvidence?.from === "play" ? playbackEvidence.playbackMaxHeight : undefined,
+              lastPlaybackHeight: playbackEvidence?.from === "play" ? playbackEvidence.lastPlaybackHeight : undefined,
               originTtfbMs: result?.originTtfbMs,
               resolutionProbed: Boolean(result && !result.error),
               probeDurationMs: result?.probeDurationMs,
