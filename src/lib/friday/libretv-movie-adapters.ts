@@ -104,6 +104,7 @@ export function createLibreTVMovieAgentAdapters(
               sourceId: source.key,
               candidateId: candidate.id,
               title: candidate.title,
+              year: candidate.year,
               checkedAt: new Date().toISOString(),
               reachable: Boolean(result && !result.error),
               resolutionHeight: typeof result?.height === "number" ? result.height : undefined,
