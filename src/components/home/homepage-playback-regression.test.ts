@@ -23,6 +23,7 @@ const styles = source('src/components/friday/FridayStyles.tsx');
 const fridayConversation = source('src/components/friday/FridayConversation.tsx');
 const movieAgents = source('src/lib/friday/movie-agents.ts');
 const movieWorkflow = source('src/lib/friday/movie-workflow.ts');
+const fridayConversation = source('src/components/friday/FridayConversation.tsx');
 
 describe('首页与播放页回归契约', () => {
   it('首页 FridayOrb 保持可见、可访问，并将点击交给唯一语音控制器', () => {
@@ -34,6 +35,9 @@ describe('首页与播放页回归契约', () => {
     expect(orb).toContain('createFridayOrb(canvasRef.current');
     expect(orb).toContain('engine.destroy()');
     expect(assistant).toContain('window.addEventListener("friday-home-orb-toggle", handleHomeOrbToggle)');
+    expect(fridayConversation).toContain('播放器解码实测');
+    expect(fridayConversation).toContain('源站首包');
+    expect(fridayConversation).toContain('探测总耗时');
   });
 
   it('今日热门海报通过精确片名匹配打开原详情弹窗，不误开第一个结果', () => {
