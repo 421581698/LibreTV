@@ -26,6 +26,8 @@ import {
   isSourceDisabled,
 } from '@/lib/store';
 import { api } from '@/lib/client-api';
+import { readSpatialState, writeSpatialState } from '@/lib/db';
+import { isSpatialSpace } from '@/components/spatial-os-v4/navigation/SpatialRouter';
 import type {
   SearchResultItem,
   SourceSearchOutcome,
@@ -63,8 +65,38 @@ type HomeContentProps = {
 function HomeContent({ variant = 'legacy' }: HomeContentProps) {
   const isV2 = variant === 'v2';
   const [activeSpace, setActiveSpace] = useState<SpatialSpace>('cinematic');
+  const [spaceStateRestored, setSpaceStateRestored] = useState(false);
   const searchParams = useSearchParams();
   const { toast } = useToast();
+
+
+  useEffect(() => {
+    let active = true;
+    const restoreSpace = async () => {
+      try {
+        const saved = await readSpatialState<unknown>('active-space');
+        if (active && isSpatialSpace(saved)) setActiveSpace(saved);
+      } catch {
+        // IndexedDB unavailable: retain the safe default workspace.
+      } finally {
+        if (active) setSpaceStateRestored(true);
+      }
+    };
+    const onProfileImported = () => {
+      void restoreSpace();
+    };
+    void restoreSpace();
+    window.addEventListener('libretv:spatial-profile-imported', onProfileImported);
+    return () => {
+      active = false;
+      window.removeEventListener('libretv:spatial-profile-imported', onProfileImported);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!spaceStateRestored) return;
+    void writeSpatialState('active-space', activeSpace).catch(() => {});
+  }, [activeSpace, spaceStateRestored]);
 
   const routeQuery = searchParams.get('q') ?? searchParams.get('s') ?? '';
   const [voiceState, setVoiceState] = useState<'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING'>('IDLE');
