@@ -69,6 +69,11 @@ export function SpatialIdentitySpace() {
   };
 
   const deleteFavorite = async (id: string) => {
+    const favorite = favorites.find((item) => item.id === id);
+    if (favorite?.kind === 'live' && typeof favorite.metadata?.streamUrl === 'string') {
+      const store = useAppStore.getState();
+      if (store.liveFavorites.includes(favorite.metadata.streamUrl)) store.toggleLiveFavorite(favorite.metadata.streamUrl);
+    }
     await removeFavorite(id);
     await refreshFavorites();
     window.dispatchEvent(new CustomEvent('libretv:favorites-changed'));
@@ -119,7 +124,7 @@ export function SpatialIdentitySpace() {
           />
         </div>
         {transferMessage ? <p className="spatial-v4-transfer-message" role="status">{transferMessage}</p> : null}
-        <p className="spatial-v4-source-note">资料包由你自行保管并传输；当前版本是本地加导入 / 导出，不会把资料上传到公共服务器，也不提供自动云端同步。Friday 对话正文与任务事件不会包含在资料包中。</p>
+        <p className="spatial-v4-source-note">资料包由你自行保管并传输；当前版本提供本地加导入 / 导出，不会把资料上传到公共服务器，也不提供自动云端同步。Friday 对话正文与任务事件不会包含在资料包中。</p>
       </div>
 
       <div className="spatial-v4-favorites-section">
