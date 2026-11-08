@@ -241,7 +241,7 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
         const title = candidate.title.trim();
         const normalizedTitle = title.normalize("NFKC").toLocaleLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
         const normalizedYear = typeof candidate.year === "string"
-          ? (candidate.year.match(/\\d{4}/)?.[0] ?? "")
+          ? (candidate.year.match(/\d{4}/)?.[0] ?? "")
           : "";
         // Different releases can share a title. Never compare source quality
         // across distinct known years; missing years remain in their own group.
