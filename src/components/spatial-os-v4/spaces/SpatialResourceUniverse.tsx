@@ -10,12 +10,17 @@ type ApiResponse = {
   results?: FmhyResource[];
   resource?: FmhyResource;
   error?: string;
+  total?: number;
+  offset?: number;
+  hasMore?: boolean;
 };
 
 export function SpatialResourceUniverse() {
   const [activeCategory, setActiveCategory] = useState<FmhyCategoryId | 'all' | 'favorites'>('all');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<FmhyResource[]>([]);
+  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [selected, setSelected] = useState<FmhyResource | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -36,9 +41,11 @@ export function SpatialResourceUniverse() {
     return () => window.removeEventListener('libretv:favorites-changed', refresh);
   }, [refreshFavorites]);
 
-  const loadResources = useCallback(async (category: FmhyCategoryId | 'all', search: string) => {
+  const loadResources = useCallback(async (category: FmhyCategoryId | 'all', search: string, offset = 0, append = false) => {
     if (category === 'all' && search.trim().length < 2) {
       setResults([]);
+      setTotal(0);
+      setHasMore(false);
       setError(search.trim() ? '至少输入两个字符再搜索' : '');
       return;
     }
@@ -50,13 +57,18 @@ export function SpatialResourceUniverse() {
       const params = new URLSearchParams();
       if (category !== 'all') params.set('category', category);
       if (search.trim()) params.set('q', search.trim());
+      if (offset > 0) params.set('offset', String(offset));
       const response = await fetch('/api/fmhy?' + params.toString());
       const data = await response.json() as ApiResponse;
       if (!response.ok) throw new Error(data.error || 'FMHY 目录加载失败');
-      setResults(data.results ?? []);
+      setResults((current) => append ? [...current, ...(data.results ?? [])] : (data.results ?? []));
+      setTotal(data.total ?? data.results?.length ?? 0);
+      setHasMore(data.hasMore ?? false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'FMHY 目录加载失败');
       setResults([]);
+      setTotal(0);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
@@ -97,6 +109,8 @@ export function SpatialResourceUniverse() {
       void writeSpatialState('resource-universe', { category, query: query.trim() }).catch(() => {});
       void refreshFavorites();
       setResults([]);
+      setTotal(favoriteRows.length);
+      setHasMore(false);
       setError('');
       return;
     }
@@ -107,6 +121,11 @@ export function SpatialResourceUniverse() {
     event.preventDefault();
     if (activeCategory === 'favorites') setActiveCategory('all');
     void loadResources(activeCategory === 'favorites' ? 'all' : activeCategory, query);
+  };
+
+  const loadMore = () => {
+    if (loading || !hasMore || activeCategory === 'favorites') return;
+    void loadResources(activeCategory, query, results.length, true);
   };
 
   const favoriteResource = (resource: FmhyResource) => ({
@@ -177,6 +196,7 @@ export function SpatialResourceUniverse() {
         </p>
       ) : null}
 
+      {visibleItems.length > 0 ? <p className="spatial-v4-fmhy-count">显示 {visibleItems.length} / {activeCategory === 'favorites' ? favoriteRows.length : total} 项</p> : null}
       <div className="spatial-v4-resource-grid">
         {visibleItems.map((resource) => (
           <article className="spatial-v4-resource-card" key={resource.id}>
@@ -192,6 +212,14 @@ export function SpatialResourceUniverse() {
           </article>
         ))}
       </div>
+
+      {hasMore && activeCategory !== 'favorites' ? (
+        <div className="spatial-v4-load-more">
+          <button type="button" className="spatial-v4-action-button" onClick={loadMore} disabled={loading}>
+            {loading ? '正在加载…' : '加载更多资源'}
+          </button>
+        </div>
+      ) : null}
 
       {selected ? (
         <div className="spatial-v4-resource-detail" role="region" aria-labelledby="spatial-resource-detail-title">
