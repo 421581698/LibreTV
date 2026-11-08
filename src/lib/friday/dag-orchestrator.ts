@@ -10,6 +10,8 @@ export type AgentExecutionContext = {
   task: TaskDefinition;
   dependencyOutputs: Readonly<Record<string, unknown>>;
   signal?: AbortSignal;
+  /** Last durable checkpoint from a prior interrupted/failed attempt. */
+  checkpointState?: unknown;
   progress(value: unknown): Promise<void>;
   checkpoint(value: unknown): Promise<void>;
 };
@@ -161,6 +163,7 @@ export async function runFridayDag(args: {
             task,
             dependencyOutputs,
             signal,
+            checkpointState: previous?.checkpoint,
             progress: async (value) => {
               if (signal?.aborted) throw new DagExecutionError("Task cancelled", "ABORTED");
               await runtime.record(task, "task.progress", value);

@@ -98,6 +98,8 @@ export interface QualityProbeResult {
   error?: string;
   /** Server-side duration of this individual probe; cached results retain the original duration. */
   probeDurationMs?: number;
+  /** Time to first response headers from the media origin; not total probe duration or pure network RTT. */
+  originTtfbMs?: number;
   cached?: boolean;
   /** True when the source-side probe failed for a transient reason and may be retried. */
   transient?: boolean;

@@ -324,8 +324,11 @@ export class TaskRuntime {
         try {
           snapshot = await this.record(definition, "task.failed", undefined, {
             code: "TASK_INTERRUPTED",
-            message: "Task was interrupted by a page reload or runtime shutdown; it was not automatically resumed.",
-            retryable: false,
+            message: definition.sideEffect
+              ? "Task was interrupted by a page reload or runtime shutdown; side-effect work requires a new execution."
+              : "Task was interrupted by a page reload or runtime shutdown; it can be explicitly replayed from its last checkpoint.",
+            // Only read-only/idempotent work is eligible for explicit replay.
+            retryable: !definition.sideEffect,
           });
         } catch (error) {
           // Another tab may reconcile the same task between our read and append.

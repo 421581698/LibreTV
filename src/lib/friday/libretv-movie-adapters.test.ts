@@ -23,7 +23,7 @@ describe("LibreTV movie agent adapters", () => {
 
   it("uses the existing per-movie quality endpoint and maps extracted resolution", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
-      results: [{ sourceKey: "alpha", vodId: "1", height: 1080 }],
+      results: [{ sourceKey: "alpha", vodId: "1", height: 1080, originTtfbMs: 86, probeDurationMs: 420 }],
     }), { status: 200, headers: { "Content-Type": "application/json" } }));
     const adapters = createLibreTVMovieAgentAdapters(sources, { fetcher });
     const result = await adapters.probe({ candidates: [
@@ -35,12 +35,34 @@ describe("LibreTV movie agent adapters", () => {
       candidateId: "alpha:1",
       reachable: true,
       resolutionHeight: 1080,
+      resolutionSource: "playlist_or_segment",
+      originTtfbMs: 86,
+      probeDurationMs: 420,
     });
     expect(fetcher).toHaveBeenCalledWith("/api/quality", expect.objectContaining({
       method: "POST",
       cache: "no-store",
       body: JSON.stringify({ items: [{ source: sources[0], id: "1" }] }),
     }));
+  });
+
+  it("prefers decoded player videoHeight over source-side manifest resolution", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
+      results: [{ sourceKey: "alpha", vodId: "1", height: 1080, originTtfbMs: 73 }],
+    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    const adapters = createLibreTVMovieAgentAdapters(sources, {
+      fetcher,
+      readDecodedHeight: () => 720,
+    });
+    const result = await adapters.probe({
+      candidates: [{ id: "alpha:1", vodId: "1", title: "Arrival", sourceId: "alpha" }],
+    });
+    expect(result[0]).toMatchObject({
+      resolutionHeight: 720,
+      decodedResolutionHeight: 720,
+      resolutionSource: "decoded_playback",
+      originTtfbMs: 73,
+    });
   });
 
   it("keeps resolution unknown when the endpoint completes without a height", async () => {

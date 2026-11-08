@@ -20,7 +20,11 @@ async function readJson<T>(response: Response): Promise<T> {
  */
 export function createLibreTVMovieAgentAdapters(
   sources: SourceConfig[],
-  options: { filterAdult?: boolean; fetcher?: typeof fetch } = {},
+  options: {
+    filterAdult?: boolean;
+    fetcher?: typeof fetch;
+    readDecodedHeight?: (candidate: MovieCandidate) => number | undefined;
+  } = {},
 ): MovieAgentAdapters {
   const fetcher = options.fetcher ?? fetch;
 
@@ -99,15 +103,21 @@ export function createLibreTVMovieAgentAdapters(
           );
           output.push(...batch.map(({ source, candidate, id }) => {
             const result = results.get(`${source.key}:${id}`);
+            const decodedHeight = options.readDecodedHeight?.(candidate);
+            const hasDecodedHeight = typeof decodedHeight === "number" && Number.isFinite(decodedHeight) && decodedHeight > 0;
+            const hasProbeHeight = typeof result?.height === "number" && Number.isFinite(result.height) && result.height > 0;
             return {
               sourceId: source.key,
               candidateId: candidate.id,
               title: candidate.title,
               checkedAt: new Date().toISOString(),
               reachable: Boolean(result && !result.error),
-              resolutionHeight: typeof result?.height === "number" ? result.height : undefined,
-              resolutionProbed: Boolean(result && !result.error),
+              resolutionHeight: hasDecodedHeight ? decodedHeight : hasProbeHeight ? result!.height : undefined,
+              decodedResolutionHeight: hasDecodedHeight ? decodedHeight : undefined,
+              resolutionSource: (hasDecodedHeight ? "decoded_playback" : hasProbeHeight ? "playlist_or_segment" : "unknown") as SourceProbe["resolutionSource"],
+              resolutionProbed: Boolean(result && !result.error) || hasDecodedHeight,
               probeDurationMs: result?.probeDurationMs,
+              originTtfbMs: result?.originTtfbMs,
               probeResultCached: result?.cached,
               resolutionError: result?.error ?? (result ? undefined : "No quality result returned"),
             };
