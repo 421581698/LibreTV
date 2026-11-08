@@ -425,6 +425,9 @@ export function useFridayChatSession({
         console.error("[Friday] Cannot recover playback evidence: persisted task definition is unavailable.");
         return;
       }
+      window.dispatchEvent(new CustomEvent("friday-home-runtime-state", {
+        detail: { agent: "executing" },
+      }));
       try {
         await runFridayDag({
           tasks: [definition],
@@ -432,7 +435,13 @@ export function useFridayChatSession({
           runtime: fridayTaskRuntime,
           replayFailed: true,
         });
+        window.dispatchEvent(new CustomEvent("friday-home-runtime-state", {
+          detail: { agent: "completed" },
+        }));
       } catch (recoveryError) {
+        window.dispatchEvent(new CustomEvent("friday-home-runtime-state", {
+          detail: { agent: "error" },
+        }));
         console.error("[Friday] Explicit playback-evidence recovery failed:", recoveryError);
       } finally {
         try {
@@ -483,6 +492,9 @@ export function useFridayChatSession({
         }
       : baseAdapters;
 
+    window.dispatchEvent(new CustomEvent("friday-home-runtime-state", {
+      detail: { agent: "executing" },
+    }));
     try {
       await runLibreTVMovieWorkflow({
         query,
@@ -491,7 +503,13 @@ export function useFridayChatSession({
         runtime: fridayTaskRuntime,
         replayFailed: true,
       });
+      window.dispatchEvent(new CustomEvent("friday-home-runtime-state", {
+        detail: { agent: "completed" },
+      }));
     } catch (recoveryError) {
+      window.dispatchEvent(new CustomEvent("friday-home-runtime-state", {
+        detail: { agent: "error" },
+      }));
       console.error("[Friday] Explicit interrupted-workflow recovery failed:", recoveryError);
     } finally {
       try {
