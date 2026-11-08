@@ -1,7 +1,5 @@
 'use client';
 
-import { FridayAssistantButton } from '../friday/FridayAssistantButton';
-
 export function SpatialIntelligenceSpace() {
   const openFriday = () => window.dispatchEvent(new CustomEvent('friday-home-orb-toggle'));
 
@@ -19,7 +17,6 @@ export function SpatialIntelligenceSpace() {
           <p>影视搜索、播放控制、语音输入和任务恢复仍由现有 Friday 模块执行。</p>
         </div>
         <div className="spatial-v4-intelligence-actions">
-          <FridayAssistantButton state="IDLE" onClick={openFriday} aria-label="打开 Friday 助手" />
           <button type="button" className="spatial-v4-action-button" onClick={openFriday}>打开 Friday</button>
         </div>
       </div>
