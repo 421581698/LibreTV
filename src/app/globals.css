@@ -1015,3 +1015,53 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
 @media (min-width: 521px) {
   .home-v2-header-search-slot { display: flex; }
 }
+
+/* Orb-only Jarvis presentation: no separate AI surface on the homepage. */
+.home-v2 .home-v2-mobile-search-toggle {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border: 1px solid rgb(var(--c-line));
+  border-radius: 10px;
+  background: rgb(var(--c-surface));
+  color: rgb(var(--c-content));
+}
+.home-v2 .home-v2-header-search-slot {
+  display: none !important;
+  position: absolute;
+  top: calc(100% + 1px);
+  left: 10px;
+  right: 10px;
+  z-index: 70;
+  width: auto;
+  max-width: none;
+  margin: 0;
+  padding: 9px;
+  border: 1px solid rgb(var(--c-line));
+  border-radius: 0 0 15px 15px;
+  background: rgb(var(--c-surface));
+  box-shadow: 0 14px 28px rgba(0,0,0,.14);
+}
+.home-v2 .home-v2-header-search-slot.is-open { display: block !important; }
+.home-v2 .friday-orb-response {
+  display: block;
+  width: min(88vw, 520px);
+  max-height: 96px;
+  overflow: auto;
+  margin: 8px auto 0;
+  padding: 9px 13px;
+  border: 1px solid rgba(145,160,185,.22);
+  border-radius: 14px;
+  background: rgba(18,24,35,.78);
+  color: rgba(245,248,255,.92);
+  font-size: 12px;
+  line-height: 1.55;
+  text-align: center;
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+.home-v2 .friday-hero-orb-label { display:block; }
+.home-v2 .friday-hero-orb-button { display:flex; flex-direction:column; align-items:center; }
