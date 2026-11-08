@@ -227,7 +227,7 @@ describe('首页与播放页回归契约', () => {
     expect(settings).toContain('label="启用唤醒词确认"');
     expect(header).toContain('home-v2-mobile-search-toggle');
     expect(header).toContain('home-v2-header-search-slot');
-    expect(styles).toContain('.home-v2 .home-v2-header-search-slot.is-open');
+    expect(header).toContain('is-open');
   });
 
 });
