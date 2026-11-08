@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createLibreTVMovieAgentAdapters } from "./libretv-movie-adapters";
 import type { SourceConfig } from "../types";
-import { createMovieWorkflowTaskIdPrefix, runLibreTVMovieWorkflow } from "./movie-workflow";
+import { createMovieWorkflowTaskIdPrefix, recordPlaybackEvidence, runLibreTVMovieWorkflow } from "./movie-workflow";
 import { TaskRuntime, type TaskEvent, type TaskEventStore } from "./task-runtime";
 
 class MemoryStore implements TaskEventStore {
@@ -245,6 +245,41 @@ describe("LibreTV movie workflow", () => {
     expect(source[0].parentTaskId).toBe(result.taskIds.search);
     expect(quality[0].parentTaskId).toBe(result.taskIds.source);
     expect(review[0].parentTaskId).toBe(result.taskIds.quality);
+  });
+
+  it("persists real decoded playback feedback as a child audit task", async () => {
+    const store = new MemoryStore();
+    const runtime = new TaskRuntime(store);
+    const recorded = await recordPlaybackEvidence({
+      runtime,
+      parentTaskId: "friday-parent.playback",
+      evidence: {
+        candidateId: "alpha:arrival",
+        sourceId: "alpha",
+        vodId: "arrival",
+        decodedHeight: 720,
+        sampleCount: 3,
+        minHeight: 480,
+        maxHeight: 1080,
+        observedAt: "2026-11-08T12:00:00.000Z",
+      },
+    });
+    expect(recorded.result).toMatchObject({
+      taskId: recorded.taskId,
+      status: "succeeded",
+      output: {
+        accepted: true,
+        candidateId: "alpha:arrival",
+        decodedHeight: 720,
+        sampleCount: 3,
+        evidenceSource: "player.videoHeight",
+      },
+    });
+    const events = await store.read(recorded.taskId);
+    expect(events.map((event) => event.type)).toEqual([
+      "task.created", "task.started", "task.checkpoint", "task.succeeded",
+    ]);
+    expect(events[0].parentTaskId).toBe("friday-parent.playback");
   });
 
   it("rejects blank query and blank task prefix before writing events", async () => {
