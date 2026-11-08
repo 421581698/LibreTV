@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
