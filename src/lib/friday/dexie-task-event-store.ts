@@ -4,6 +4,17 @@ import type { TaskEvent, TaskEventStore } from "./task-runtime";
 
 export const MAX_TASK_EVENT_BYTES = 256 * 1024;
 
+export type TaskAuditSummary = {
+  taskId: string;
+  agent: string;
+  status: "queued" | "running" | "waiting" | "succeeded" | "failed" | "cancelled";
+  sideEffect: boolean;
+  eventCount: number;
+  createdAt: string;
+  updatedAt: string;
+  errorCode?: string;
+};
+
 /**
  * Browser-local durable event store backed by the existing LibreTV Dexie database.
  * Writes are transactional and sequence numbers are unique per task.
@@ -64,6 +75,52 @@ export class DexieTaskEventStore implements TaskEventStore {
       .toArray();
     const streams = await Promise.all(created.map((event) => this.read(event.taskId)));
     return streams.flat() as TaskEvent[];
+  }
+
+  /** Read-only, payload-redacted summaries for the Intelligence workspace. */
+  async listRecentTaskAudit(): Promise<TaskAuditSummary[]> {
+    const events = await this.readRecent();
+    const grouped = new Map<string, TaskEvent[]>();
+    for (const event of events) {
+      const stream = grouped.get(event.taskId) ?? [];
+      stream.push(event);
+      grouped.set(event.taskId, stream);
+    }
+
+    const summaries: TaskAuditSummary[] = [];
+    for (const [taskId, stream] of grouped) {
+      const ordered = [...stream].sort((a, b) => a.sequence - b.sequence);
+      const created = ordered.find((event) => event.type === "task.created");
+      if (!created) continue;
+      const definition = (created.payload as {
+        definition?: { agent?: string; sideEffect?: boolean };
+      } | undefined)?.definition;
+      let status: TaskAuditSummary["status"] = "queued";
+      for (const event of ordered) {
+        switch (event.type) {
+          case "task.started":
+          case "task.resumed": status = "running"; break;
+          case "task.waiting": status = "waiting"; break;
+          case "task.succeeded": status = "succeeded"; break;
+          case "task.failed": status = "failed"; break;
+          case "task.cancelled": status = "cancelled"; break;
+          default: break;
+        }
+      }
+      const last = ordered[ordered.length - 1];
+      const errorCode = last?.type === "task.failed" ? last.error?.code : undefined;
+      summaries.push({
+        taskId,
+        agent: typeof definition?.agent === "string" ? definition.agent : "unknown",
+        status,
+        sideEffect: Boolean(definition?.sideEffect),
+        eventCount: ordered.length,
+        createdAt: created.occurredAt,
+        updatedAt: last?.occurredAt ?? created.occurredAt,
+        ...(errorCode ? { errorCode } : {}),
+      });
+    }
+    return summaries.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
 
   /**
