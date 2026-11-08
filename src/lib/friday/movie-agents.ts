@@ -29,6 +29,7 @@ export type SourceProbe = {
   advertisedQualities?: string[];
   candidateId?: string;
   title?: string;
+  year?: string;
   resolutionHeight?: number;
   resolutionProbed?: boolean;
   resolutionError?: string;
@@ -38,6 +39,7 @@ export type QualityAssessment = {
   sourceId: string;
   candidateId?: string;
   title?: string;
+  year?: string;
   status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown";
   assessmentCompleted: boolean;
   resolutionHeight: number | null;
@@ -210,6 +212,7 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
           sourceId: probe.sourceId,
           candidateId: probe.candidateId,
           title: probe.title,
+          year: probe.year,
           status: validDecodedHeight || validHeight ? "resolution_detected" : probe.resolutionError ? "unavailable" : probeCompleted ? "resolution_unknown" : "unknown",
           assessmentCompleted: probeCompleted || validDecodedHeight || Boolean(probe.resolutionError),
           resolutionHeight: validDecodedHeight ? probe.decodedResolutionHeight! : validHeight ? probe.resolutionHeight! : null,
@@ -385,6 +388,7 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
           selected.assessment.resolutionHeight > 0;
         return {
           title: selected.candidate.title,
+          year: selected.candidate.year,
           candidateId: selected.candidate.id,
           sourceId: selected.candidate.sourceId!,
           resolutionHeight: measured ? selected.assessment.resolutionHeight : null,
