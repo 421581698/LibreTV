@@ -37,6 +37,25 @@ describe('GET /api/fmhy', () => {
     expect(body.results.length).toBeGreaterThan(0);
   });
 
+  it('paginates category results without truncating the directory at the first page', async () => {
+    const largeMarkdown = Array.from({ length: 120 }, (_, index) =>
+      `* [Resource ${index}](https://resource-${index}.example/) - Directory entry ${index}`
+    ).join(String.fromCharCode(10));
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(largeMarkdown, { status: 200 })));
+
+    const first = await GET(new NextRequest('https://libretv.test/api/fmhy?category=ai'));
+    const firstBody = await first.json();
+    expect(firstBody.results).toHaveLength(100);
+    expect(firstBody.total).toBe(120);
+    expect(firstBody.hasMore).toBe(true);
+
+    const second = await GET(new NextRequest('https://libretv.test/api/fmhy?category=ai&offset=100'));
+    const secondBody = await second.json();
+    expect(secondBody.results).toHaveLength(20);
+    expect(secondBody.offset).toBe(100);
+    expect(secondBody.hasMore).toBe(false);
+  });
+
   it('rejects unknown categories without fetching an arbitrary URL', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
