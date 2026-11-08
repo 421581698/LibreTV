@@ -1,6 +1,6 @@
 # Friday V3 — Integration Audit
 
-> Audit baseline: `main` at `2001be7f9498abfb3eb97c719242aa14502cc931`  
+> Audit baseline: `main` at `dba11d31e972b3bf3a0053ba19a84c7e11f2b1d9`  
 > Date: 2026-11-08  
 > Scope: DAG entry point, real LibreTV adapters, failure/cancellation/retry/restore, protected chat/detail/player contracts, and reference-project migration matrix.
 
@@ -14,11 +14,11 @@ The DAG is **connected to the real Friday AI conversation path**. It is not only
 | Search uses real LibreTV data | PASS | `/api/chat` `search_movie` calls `searchSources`; workflow deliberately reuses the exact returned movie results |
 | Source probing uses real data | PASS WITH SCOPE NOTE | Source Agent calls browser adapter `/api/quality`; server uses `probeQuality`, HLS playlist and media segment parsing |
 | Quality assessment uses measured values | PASS WITH LIMITATION | It consumes returned resolution height and reachability; current adapter does not provide per-source latency or advertised-quality measurements |
-| Review agent evidence matching | NEEDS HARDENING | Review checks structural association, but a passing review is not proof that every source yielded a measured resolution |
-| Failure propagation | PARTIAL | Failed agent is recorded; dependent tasks are marked failed; workflow view becomes incomplete. DAG currently hardcodes agent errors as `retryable: false` |
+| Review agent evidence matching | PASS WITH SCOPE NOTE | Review validates candidate-to-assessment evidence association and coverage; it does not certify decoded player resolution or successful playback |
+| Failure propagation | PASS WITH SCOPE NOTE | Failed agents and dependent failures are persisted; transient errors can be classified as retryable within a bounded DAG retry policy |
 | Cancellation | PARTIAL / BASIC PATH WORKS | Chat stop and component unmount abort active workflow controllers; AbortSignal is passed to adapters; DAG records cancelled nodes. No durable cancel/resume coordinator exists |
-| Retry | NOT COMPLETE | Runtime can record a replay request only for retryable failures, but DAG marks failures non-retryable and no workflow-level replay executor consumes replay events |
-| Reload recovery | DISPLAY ONLY | IndexedDB restores up to 50 task histories; running tasks are intentionally not resumed; restored snapshots are shown as history |
+| Retry / replay | IMPLEMENTED WITH SAFEGUARDS | Workflow exposes retry for eligible failed steps; DAG supports bounded transient retries and explicit failed-task replay. Side-effect tasks remain blocked; this is not arbitrary resume of an in-flight run |
+| Reload recovery | HISTORY RESTORE + INTERRUPTION RECONCILIATION | IndexedDB restores recent task history; orphaned running tasks are recorded as `TASK_INTERRUPTED` and non-retryable. No microphone, network, or side-effect work is automatically resumed |
 | Existing chat/detail/player contracts | PRESERVED BY STATIC REVIEW | `/api/chat`, `data-movies`, `friday-open-detail`, `DetailModal`, homepage search and player paths remain separate; this audit did not execute a browser playback session |
 
 ## 2. Actual DAG entry path
@@ -83,9 +83,15 @@ Current behavior:
 - Downstream nodes are prevented from running and receive `DEPENDENCY_FAILED`.
 - `useFridayChatSession` maps non-all-success results to an incomplete workflow view.
 
-Gap:
-- The orchestrator currently writes every caught agent error with `retryable: false`. There is no transient/permanent error classifier or retry budget.
-- A task may fail and be visible, but the user cannot safely replay the failed workflow through the current UI.
+Current behavior:
+- The DAG classifies eligible transient failures and applies a bounded automatic retry budget.
+- Failed tasks retain retryability only when the error policy explicitly permits it; dependent-task retryability follows the failed prerequisite.
+- The workflow UI exposes a retry action for eligible failed steps and starts a new workflow execution identity with lineage to the prior tasks.
+- Successful dependency outputs can be reused during explicit failed-step replay; side-effect tasks are excluded from automatic and explicit replay.
+
+Limitations:
+- This is bounded failed-step retry/replay, not general resumption of an interrupted in-flight execution.
+- Retry eligibility is policy-driven; a visible retry control is not evidence that every failure is retryable.
 
 ### Cancellation
 
@@ -102,15 +108,15 @@ Limitations:
 ### Retry / replay
 
 Current behavior:
-- `TaskRuntime.requestReplay` records `task.replay_requested` only when the task is failed and its error is explicitly retryable.
-- Automatic replay of side-effect tasks is blocked.
+- `TaskRuntime.requestReplay` records `task.replay_requested` only for failed tasks whose persisted error is explicitly retryable, subject to a per-task manual replay limit.
+- `runLibreTVMovieWorkflow` and the DAG orchestrator support an explicit failed-step replay path with a fresh execution identity and task lineage; successful prerequisite outputs may be reused.
+- The DAG classifies transient failures and applies a bounded automatic retry policy. Retryability is not assigned indiscriminately to all errors.
+- Side-effect tasks are blocked from automatic and explicit replay.
+- The Friday conversation session exposes a retry action for eligible failed workflow steps.
 
-Blocking gaps:
-- The DAG catch path currently sets `retryable: false` for all agent failures.
-- No caller in the current Friday workflow invokes `requestReplay`.
-- No replay worker reconstructs the graph and resumes from the stored checkpoint.
-- Calling `runLibreTVMovieWorkflow` again with the same task ID prefix fails because the task IDs already exist.
-- Therefore retry/replay is an event-contract prototype, not a completed user-facing capability.
+Limitations:
+- Replay is limited to eligible failed work; it is not a general-purpose resume mechanism for interrupted or partially completed external side effects.
+- A new execution identity is required; reusing an existing task ID prefix is not the supported retry strategy.
 
 ### Reload recovery
 
@@ -120,9 +126,9 @@ Current behavior:
 - The UI explicitly labels previously running tasks as not auto-resumed after reload.
 
 Conclusion:
-- Audit history restoration works.
-- Execution restoration does not. A running task remains a historical running snapshot and is not resumed, reconciled or marked abandoned after reload.
-- This is a deliberate safety boundary today, not a completed crash-recovery system.
+- Recent task history is restored from browser-local IndexedDB.
+- Any task left in `running` when the page/runtime is reloaded or shut down is reconciled as failed/interrupted with code `TASK_INTERRUPTED` and `retryable: false`.
+- Interrupted work is not automatically resumed. This preserves the safety boundary around microphone capture, network operations and side effects; it is not cross-device or server-side recovery.
 
 ## 5. Existing LibreTV contracts checked
 
@@ -158,4 +164,4 @@ This document records static source review. It does not claim that typecheck, li
 
 ## 7. Branch hygiene
 
-At audit time, `feature/friday-v3-runtime` is 29 commits behind `main` and 0 commits ahead. It must not be treated as the current integration base. This audit work is isolated on a new branch based on the audited `main` SHA; the old branch is left untouched.
+This audit branch is based on the audited `main` baseline recorded above. The historical `feature/friday-v3-runtime` branch is not the integration base and is left untouched. Re-check branch divergence from GitHub before using any commit-count statement; commit counts are intentionally omitted here because they change over time.
