@@ -1,22 +1,16 @@
 'use client';
 
-import {
-  Suspense,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { Suspense, useMemo, useState } from 'react';
 
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 
-import { Header } from '@/components/header';
-import { HomeSearchSection } from '@/components/home/HomeSearchSection';
-import { HomeIntentCanvas } from '@/components/home/HomeIntentCanvas';
+import { V4HomepageHeader } from '@/components/home/V4HomepageHeader';
+import { V4HomepageHero } from '@/components/home/V4HomepageHero';
+import { V4HomepageSkeleton } from '@/components/home/V4HomepageSkeleton';
+import './v4-homepage.css';
 import { useFridayDetailBridge } from '@/components/friday/useFridayDetailBridge';
 import { useHomeSearchController } from '@/components/home/useHomeSearchController';
-import { HomeRecommendationSection } from '@/components/home/HomeRecommendationSection';
 import { DetailModal } from '@/components/detail-modal';
 import { AggregatedCard, aggregateResults } from '@/components/video-card';
 import {
@@ -38,59 +32,28 @@ import {
 } from '@/lib/utils';
 import { useToast } from '@/components/toast';
 import { EmptyState } from '@/components/states';
-import { SiteFooter } from '@/components/site-footer';
 
 const RESULT_PAGE_SIZE = 60;
 
 export default function HomePage() {
   return (
     <Suspense>
-      <HomeContent variant="v2" />
+      <HomeContent />
     </Suspense>
   );
 }
 
-type HomeContentProps = {
-  variant?: 'legacy' | 'v2';
-};
-
-function HomeContent({ variant = 'legacy' }: HomeContentProps) {
-  const isV2 = variant === 'v2';
+function HomeContent() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
 
   const routeQuery = searchParams.get('q') ?? searchParams.get('s') ?? '';
-  const [voiceState, setVoiceState] = useState<'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING'>('IDLE');
-  const [audioLevel, setAudioLevel] = useState(0);
-  const audioLevelRef = useRef(0);
-  const audioLevelUpdateAtRef = useRef(0);
-
-  useEffect(() => {
-    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)');
-    const handleAudioLevel = (event: Event) => {
-      if (reduceMotion?.matches) return;
-      const raw = (event as CustomEvent<{ level?: number }>).detail?.level;
-      const level = typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.min(100, raw)) : 0;
-      const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-      /* 音频采样不直接驱动整页 React 重渲染：最多 20 次/秒，静音立即归零。 */
-      if (level !== 0 && now - audioLevelUpdateAtRef.current < 50 && Math.abs(level - audioLevelRef.current) < 2.5) return;
-      if (level === 0 || now - audioLevelUpdateAtRef.current >= 50) {
-        audioLevelRef.current = level;
-        audioLevelUpdateAtRef.current = now;
-        setAudioLevel(level);
-      }
-    };
-    window.addEventListener('friday-audio-level', handleAudioLevel);
-    return () => window.removeEventListener('friday-audio-level', handleAudioLevel);
-  }, []);
-
   const customAPIs = useAppStore((s) => s.customAPIs);
   const envSources = useAppStore((s) => s.envSources);
   const selectedKeys = useAppStore((s) => s.selectedKeys);
   const yellowFilter = useAppStore((s) => s.yellowFilter);
   const sourceHealth = useAppStore((s) => s.sourceHealth);
   const subscriptions = useAppStore((s) => s.subscriptions);
-  const doubanEnabled = useAppStore((s) => s.doubanEnabled);
 
   const [detailItem, setDetailItem] =
     useState<SearchResultItem | null>(null);
@@ -119,16 +82,7 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
       .filter((s) => !isInDisabledSubscription({ subscriptions }, s.key));
   }, [customAPIs, envSources, selectedKeys, sourceHealth, subscriptions]);
 
-  const {
-    input,
-    setInput,
-    inputRef,
-    searchHistory,
-    runSearch,
-    runSearchInPlace,
-    pickHistory,
-    activeQuery: urlQuery,
-  } = useHomeSearchController(routeQuery, selectedSources.length, toast);
+  const { activeQuery: urlQuery } = useHomeSearchController(routeQuery, selectedSources.length, toast);
 
   const disabledSources = useMemo(
     () => selectedKeys.filter((key) => isSourceDisabled({ sourceHealth }, key)),
@@ -174,12 +128,6 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
   });
 
   const isSearching = Boolean(urlQuery) && searchQuery.isFetching && !searchQuery.data;
-
-  useEffect(() => {
-    if (voiceState === 'THINKING' && urlQuery && !searchQuery.isFetching && (searchQuery.isSuccess || searchQuery.isError)) {
-      setVoiceState('IDLE');
-    }
-  }, [voiceState, urlQuery, searchQuery.isFetching, searchQuery.isSuccess, searchQuery.isError]);
 
   const streamedList = useMemo(
     () => streamedOutcomes.flatMap((o) => o.list),
@@ -244,51 +192,10 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
   };
 
   return (
-    <div className={isV2 ? "home-v2 min-h-screen flex flex-col" : "legacy-home min-h-screen flex flex-col"}>
-      <Header showFridayFab={!isV2} minimalFridayNav={isV2} homeSearch={isV2 ? <HomeSearchSection
-            urlQuery={urlQuery}
-            input={input}
-            setInput={setInput}
-            inputRef={inputRef}
-            searchHistory={searchHistory}
-            runSearch={runSearch}
-            runSearchInPlace={runSearchInPlace}
-            pickHistory={pickHistory}
-            voiceState={voiceState}
-            setVoiceState={setVoiceState}
-            showBrandTitle={!isV2}
-            compactHeader
-          /> : undefined} />
-      <main className={cn("relative flex-1 max-w-6xl w-full mx-auto px-4 py-6", isV2 && "home-v2-main")}>
-        {!urlQuery && (
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 h-[420px] -z-10"
-            style={{
-              background:
-                'radial-gradient(60% 60% at 50% 0%, rgba(35,173,229,0.10) 0%, rgba(35,173,229,0.03) 45%, transparent 75%)',
-            }}
-          />
-        )}
-        <HomeIntentCanvas
-          variant={isV2 ? 'v2' : 'legacy'}
-          voiceState={voiceState}
-          audioLevel={audioLevel}
-        >
-          {!isV2 ? <HomeSearchSection
-            urlQuery={urlQuery}
-            input={input}
-            setInput={setInput}
-            inputRef={inputRef}
-            searchHistory={searchHistory}
-            runSearch={runSearch}
-            runSearchInPlace={runSearchInPlace}
-            pickHistory={pickHistory}
-            voiceState={voiceState}
-            setVoiceState={setVoiceState}
-            showBrandTitle={!isV2}
-          /> : null}
-        </HomeIntentCanvas>
+    <div className="v4-home min-h-screen flex flex-col">
+      <V4HomepageHeader />
+      <main className="v4-home-main">
+        {!urlQuery && <V4HomepageHero />}
         {urlQuery && (
           <section aria-label="搜索结果" className="mb-10">
             <div className="flex items-center justify-between mb-3">
@@ -371,15 +278,8 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
             )}
           </section>
         )}
-        {!urlQuery && (
-          <HomeRecommendationSection
-            isV2={isV2}
-            enabled={doubanEnabled}
-            onPick={openRecommendation}
-          />
-        )}
+        {!urlQuery && <V4HomepageSkeleton />}
       </main>
-      <SiteFooter />
       <DetailModal item={detailItem} onClose={() => setDetailItem(null)} />
     </div>
   );
