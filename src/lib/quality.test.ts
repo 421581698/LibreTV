@@ -193,7 +193,7 @@ describe('isQualityEntryFresh', () => {
 describe('mergeQualityEntries', () => {
   const T = 1_700_000_000_000;
   const probe = (height?: number, error?: string): QualityEntry => ({ height, from: 'probe', error, timestamp: T });
-  const play = (height: number): QualityEntry => ({ height, from: 'play', timestamp: T });
+  const play = (height: number, timestamp = T): QualityEntry => ({ height, from: 'play', timestamp });
   const KEY = 'huang:123';
 
   it('播放实测覆盖此前的「测不出」——单码率源的画质只能这样补上', () => {
@@ -218,7 +218,7 @@ describe('mergeQualityEntries', () => {
     expect(next[KEY].height).toBe(1080);
 
     // 反向：后来的低档位不该把已知的高档位拉低
-    const back = mergeQualityEntries(next, { [KEY]: play(540) }, T + 2000);
+    const back = mergeQualityEntries(next, { [KEY]: play(540, T + 2000) }, T + 2000);
     expect(back[KEY]).toMatchObject({
       height: 1080,
       playbackSampleCount: 3,
@@ -240,11 +240,11 @@ describe('mergeQualityEntries', () => {
     });
 
     // 同一播放阶段 loadedmetadata / canplay / playing 重复上报，不虚增样本数
-    const duplicate = mergeQualityEntries(first, { [KEY]: play(720) }, T + 5_000);
+    const duplicate = mergeQualityEntries(first, { [KEY]: play(720, T + 5_000) }, T + 5_000);
     expect(duplicate[KEY]).toMatchObject({ playbackSampleCount: 1, lastPlaybackSampleAt: T });
 
     // ABR 升档是新的有效观测，保留最高档同时记录观测范围
-    const upgraded = mergeQualityEntries(duplicate, { [KEY]: play(1080) }, T + 8_000);
+    const upgraded = mergeQualityEntries(duplicate, { [KEY]: play(1080, T + 8_000) }, T + 8_000);
     expect(upgraded[KEY]).toMatchObject({
       height: 1080,
       playbackSampleCount: 2,
@@ -254,7 +254,7 @@ describe('mergeQualityEntries', () => {
     });
 
     // 相同高度在较长时间后再次观测，视作新的播放阶段样本
-    const later = mergeQualityEntries(upgraded, { [KEY]: play(1080) }, T + 70_000);
+    const later = mergeQualityEntries(upgraded, { [KEY]: play(1080, T + 70_000) }, T + 70_000);
     expect(later[KEY].playbackSampleCount).toBe(3);
   });
 
