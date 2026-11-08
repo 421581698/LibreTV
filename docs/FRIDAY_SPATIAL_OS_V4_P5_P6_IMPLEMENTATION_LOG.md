@@ -20,6 +20,7 @@ Branch: `feature/friday-spatial-os-v4`
 - FMHY resources can be starred from result cards and the detail view.
 - Movie / TV recommendation cards now expose the same favorite action.
 - Existing live-channel favorites are migrated idempotently from the legacy Zustand store into the unified collection.
+- New live-channel favorite toggles now write through to the same Dexie collection while preserving the legacy Zustand field for backward compatibility.
 - Removing a migrated live favorite also updates the legacy live-favorites list, preventing the next startup migration from restoring a removed item.
 - Favorites are local to the current browser profile. No user data is uploaded by the favorite controls.
 
