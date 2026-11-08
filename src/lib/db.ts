@@ -251,12 +251,14 @@ export async function exportConfig(): Promise<string> {
   // 导出前 flush：把节流缓冲中的最新设置落盘，避免导出的是 800ms 前的旧快照
   flushPendingPersist();
   const history = await db.history.toArray();
+  const progress = await db.progress.toArray();
   const favorites = await db.favorites.toArray();
   const spatialState = await db.spatialState.toArray();
   const settings = localStorage.getItem(PERSIST_KEY);
 
   const data: Record<string, unknown> = {
     viewingHistory: JSON.stringify(history),
+    playbackProgress: JSON.stringify(progress),
     favorites: JSON.stringify(favorites),
     spatialState: JSON.stringify(spatialState),
   };
@@ -358,23 +360,44 @@ export async function importConfig(content: string): Promise<void> {
 
   if (typeof data['viewingHistory'] === 'string') {
     // 兼容旧版历史结构（含全集 URL 列表），只迁移定位信息
-    const legacy = JSON.parse(data['viewingHistory']) as Record<string, unknown>[];
-    for (const item of legacy.slice(0, MAX_HISTORY)) {
-      const sourceKey = String(item.sourceCode || item.sourceName || '');
-      const vodId = String(item.vod_id || '');
+    const importedHistory = JSON.parse(data['viewingHistory']) as Record<string, unknown>[];
+    for (const item of importedHistory.slice(0, MAX_HISTORY)) {
+      const sourceKey = String(item.sourceKey || item.sourceCode || item.sourceName || '');
+      const vodId = String(item.vodId || item.vod_id || '');
       const title = String(item.title || '未知视频');
       if (!sourceKey || !vodId) continue;
-      const totalEpisodes = Array.isArray(item.episodes) ? item.episodes.length : 0;
+      const totalEpisodes = typeof item.totalEpisodes === 'number'
+        ? item.totalEpisodes
+        : Array.isArray(item.episodes) ? item.episodes.length : 0;
       await upsertHistory({
         sourceKey,
+        sourceUrl: typeof item.sourceUrl === 'string' && isSafeProfileUrl(item.sourceUrl) ? item.sourceUrl : undefined,
         vodId,
         title,
+        pic: typeof item.pic === 'string' && isSafeProfileUrl(item.pic) ? item.pic : undefined,
         episodeIndex: typeof item.episodeIndex === 'number' ? item.episodeIndex : 0,
         totalEpisodes,
         playbackPosition: typeof item.playbackPosition === 'number' ? item.playbackPosition : 0,
         duration: typeof item.duration === 'number' ? item.duration : 0,
         timestamp: typeof item.timestamp === 'number' ? item.timestamp : Date.now(),
       });
+    }
+  }
+
+  if (typeof data['playbackProgress'] === 'string') {
+    const imported = JSON.parse(data['playbackProgress']) as unknown;
+    if (Array.isArray(imported)) {
+      const valid = imported.filter((item): item is ProgressEntry =>
+        !!item &&
+        typeof item === 'object' &&
+        typeof (item as ProgressEntry).key === 'string' &&
+        Number.isFinite((item as ProgressEntry).position) &&
+        Number.isFinite((item as ProgressEntry).duration)
+      ).slice(0, 5000);
+      await db.progress.bulkPut(valid.map((item) => ({
+        ...item,
+        updatedAt: Number.isFinite(item.updatedAt) ? item.updatedAt : Date.now(),
+      })));
     }
   }
 }
