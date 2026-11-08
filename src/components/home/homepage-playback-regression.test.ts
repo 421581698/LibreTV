@@ -158,4 +158,16 @@ describe('首页与播放页回归契约', () => {
     expect(assistant).toContain('homeWakeUrlRef.current = ""');
   });
 
+  it('records decoded player resolution separately from server-side source probing and keeps player commands wired', () => {
+    expect(player).toContain('const reportVideoHeight = () =>');
+    expect(player).toContain('art.video?.videoHeight');
+    expect(player).toContain('reportQuality(height)');
+    expect(player).toContain('art.on(\'video:canplay\', reportVideoHeight)');
+    expect(player).toContain('friday-player-control');
+    expect(player).toContain('executeFridayPlayerCommand');
+    expect(home).toContain('<HomeRecommendationSection');
+    expect(hero).toContain('friday-home-orb-toggle');
+    expect(assistant).toContain('window.addEventListener("friday-home-orb-toggle", handleHomeOrbToggle)');
+  });
+
 });

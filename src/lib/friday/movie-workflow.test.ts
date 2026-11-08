@@ -143,4 +143,68 @@ describe("LibreTV movie workflow", () => {
     })).rejects.toThrow("task ID prefix");
     expect(await store.read("request-002.search")).toEqual([]);
   });
+  it("runs the full five-agent workflow with separate origin, probe, and decoded-playback evidence", async () => {
+    const store = new MemoryStore();
+    const runtime = new TaskRuntime(store);
+    const workflow = await runLibreTVMovieWorkflow({
+      query: "Arrival",
+      taskIdPrefix: "five-agent-e2e",
+      runtime,
+      adapters: {
+        search: async ({ query }) => [{
+          id: "alpha:arrival",
+          title: query,
+          sourceId: "alpha",
+          vodId: "arrival",
+        }],
+        probe: async () => [{
+          sourceId: "alpha",
+          candidateId: "alpha:arrival",
+          title: "Arrival",
+          checkedAt: "2026-11-08T00:00:00.000Z",
+          reachable: true,
+          resolutionProbed: true,
+          resolutionHeight: 1080,
+          decodedResolutionHeight: 720,
+          resolutionSource: "decoded_playback",
+          originTtfbMs: 64,
+          probeDurationMs: 438,
+          probeResultCached: false,
+        }],
+      },
+    });
+
+    expect(workflow.results.map((item) => item.status)).toEqual([
+      "succeeded", "succeeded", "succeeded", "succeeded", "succeeded",
+    ]);
+    const quality = workflow.results.find((item) => item.taskId === workflow.taskIds.quality)?.output as {
+      assessments: Array<Record<string, unknown>>;
+    };
+    expect(quality.assessments[0]).toMatchObject({
+      resolutionHeight: 1080,
+      decodedResolutionHeight: 720,
+      resolutionSource: "decoded_playback",
+      originTtfbMs: 64,
+      probeDurationMs: 438,
+    });
+    expect(quality.assessments[0].evidence).toEqual(expect.arrayContaining([
+      "player.videoHeight",
+      "origin.media_ttfb_ms",
+      "quality_probe.duration_ms",
+    ]));
+
+    const playback = workflow.results.find((item) => item.taskId === workflow.taskIds.playback)?.output as {
+      ready: boolean;
+      recommendations: Array<{ resolutionHeight: number | null; selectionBasis: string }>;
+    };
+    expect(playback.ready).toBe(true);
+    expect(playback.recommendations[0]).toMatchObject({
+      resolutionHeight: 720,
+      selectionBasis: "measured-resolution",
+    });
+    for (const taskId of Object.values(workflow.taskIds)) {
+      expect((await store.read(taskId)).at(-1)?.type).toBe("task.succeeded");
+    }
+  });
+
 });

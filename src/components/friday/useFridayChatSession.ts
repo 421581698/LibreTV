@@ -63,6 +63,7 @@ export function useFridayChatSession({
   // Restore browser-local task history and safely resume interrupted read-only workflows.
   // Player/device side effects are never replayed by TaskRuntime.
   const recoveredWorkflowPrefixes = useRef(new Set<string>());
+  const recoveryControllers = useRef(new Map<string, AbortController>());
   useEffect(() => {
     let active = true;
     if (sources.length === 0) return () => { active = false; };
@@ -95,6 +96,7 @@ export function useFridayChatSession({
         workflowContexts.current.set(taskIdPrefix, { query, taskIdPrefix, adapters });
         const controller = new AbortController();
         activeWorkflowControllers.current.set(taskIdPrefix, controller);
+        recoveryControllers.current.set(taskIdPrefix, controller);
         setWorkflowBySearchId((current) => ({
           ...current,
           [taskIdPrefix]: { status: "running" },
@@ -110,6 +112,7 @@ export function useFridayChatSession({
           });
           if (!active) return;
           activeWorkflowControllers.current.delete(taskIdPrefix);
+          recoveryControllers.current.delete(taskIdPrefix);
           setWorkflowBySearchId((current) => ({
             ...current,
             [taskIdPrefix]: {
@@ -120,6 +123,7 @@ export function useFridayChatSession({
         } catch (recoveryError) {
           if (!active) return;
           activeWorkflowControllers.current.delete(taskIdPrefix);
+          recoveryControllers.current.delete(taskIdPrefix);
           setWorkflowBySearchId((current) => ({
             ...current,
             [taskIdPrefix]: {
@@ -134,7 +138,15 @@ export function useFridayChatSession({
     }).catch((restoreError) => {
       console.error("[Friday] Could not restore local task history:", restoreError);
     });
-    return () => { active = false; };
+    return () => {
+      active = false;
+      for (const [prefix, controller] of recoveryControllers.current) {
+        controller.abort();
+        activeWorkflowControllers.current.delete(prefix);
+        recoveredWorkflowPrefixes.current.delete(prefix);
+      }
+      recoveryControllers.current.clear();
+    };
   }, [sources, filterAdult]);
 
   const handleData = useCallback((part: { type: string; data?: unknown }) => {
