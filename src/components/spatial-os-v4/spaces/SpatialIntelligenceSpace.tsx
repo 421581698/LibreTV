@@ -1,7 +1,7 @@
 'use client';
 
 export function SpatialIntelligenceSpace() {
-  const openFriday = () => window.dispatchEvent(new CustomEvent('friday-home-orb-toggle'));
+  const openFriday = () => window.dispatchEvent(new CustomEvent('friday-home-open-panel'));
 
   return (
     <section className="spatial-v4-space-content" aria-labelledby="spatial-intelligence-title">
