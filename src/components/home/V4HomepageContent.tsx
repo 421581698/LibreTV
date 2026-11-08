@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { RecommendSection } from '@/components/douban-section';
 import { SmartImage } from '@/components/smart-image';
-import { db } from '@/lib/db';
+import { db, type HistoryEntry } from '@/lib/db';
 import { resolveSource, useAppStore } from '@/lib/store';
 import type { DoubanItem } from '@/lib/types';
 import { buildWatchUrl, formatTime } from '@/lib/utils';
@@ -47,7 +47,7 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
   );
 }
 
-function V4ContinueCard({ item }: { item: Awaited<ReturnType<typeof db.history.get>> & {} }) {
+function V4ContinueCard({ item }: { item: HistoryEntry }) {
   const imageProxyMode = useAppStore((s) => s.imageProxyMode);
   const customImageProxy = useAppStore((s) => s.customImageProxy);
   const customAPIs = useAppStore((s) => s.customAPIs);
