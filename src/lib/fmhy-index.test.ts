@@ -12,7 +12,7 @@ describe('FMHY resource index parser', () => {
       '* [Second Resource](https://second.example/path) - Another resource',
       '## Not a resource heading',
       '* [Unsafe Scheme](javascript:alert(1)) - ignored',
-    ].join('\\n');
+    ].join(String.fromCharCode(10));
 
     const results = parseFmhyMarkdown(markdown, 'ai');
     expect(results).toHaveLength(2);
@@ -31,7 +31,7 @@ describe('FMHY resource index parser', () => {
     const markdown = [
       '* [Example](https://example.org/)',
       '* [Example duplicate](https://example.org/)',
-    ].join('\\n');
+    ].join(String.fromCharCode(10));
     expect(parseFmhyMarkdown(markdown, 'video')).toHaveLength(1);
   });
 
