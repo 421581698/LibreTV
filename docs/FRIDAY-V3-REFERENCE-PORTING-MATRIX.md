@@ -2,7 +2,7 @@
 
 > Status: architecture and migration decision record  
 > Updated: 2026-11-08  
-> Target: `feature/friday-v3-runtime` architecture, implemented incrementally on the current mainline
+> Target: current `main` integration baseline (`dba11d31e972b3bf3a0053ba19a84c7e11f2b1d9`); implement and validate future changes on isolated feature branches
 
 This matrix records what Friday should learn from the four reviewed repositories. It is a selective porting plan, not a dependency-import plan. None of the four projects is a drop-in replacement for the existing Next.js/React application.
 
