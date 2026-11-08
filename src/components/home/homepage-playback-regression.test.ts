@@ -234,4 +234,10 @@ describe('首页与播放页回归契约', () => {
     expect(header).toContain('is-open');
   });
 
+  it('播放实测证据任务中断后可从独立 checkpoint 安全恢复', () => {
+    expect(chatSession).toContain('taskId.endsWith(".playback-evidence")');
+    expect(chatSession).toContain('createPlaybackEvidenceAgent()');
+    expect(chatSession).toContain('replayFailed: true');
+  });
+
 });
