@@ -18,7 +18,7 @@ import { restoreFridayConversationHistory, serializeFridayConversationHistory } 
 export type FridayWorkflowView = {
   status: "running" | "completed" | "failed";
   sourceChecks?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean; latencyMs?: number; upstreamRequestMs?: number; upstreamRequestCount?: number; originTtfbMs?: number }>;
-  qualityChecks?: Array<{ sourceId: string; candidateId?: string; title?: string; playbackSampleCount?: number | null; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; decodedVideoHeight?: number | null; decodedResolutionHeight?: number | null; sourceResolutionHeight?: number | null; resolutionSource?: "decoded_playback" | "playlist_or_segment" | "unknown"; originTtfbMs?: number | null; probeDurationMs?: number | null; upstreamRequestMs?: number | null; upstreamRequestCount?: number | null; probeResultCached?: boolean | null }>;
+  qualityChecks?: Array<{ sourceId: string; candidateId?: string; title?: string; playbackSampleCount?: number | null; playbackMinHeight?: number | null; playbackMaxHeight?: number | null; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; decodedVideoHeight?: number | null; decodedResolutionHeight?: number | null; sourceResolutionHeight?: number | null; resolutionSource?: "decoded_playback" | "playlist_or_segment" | "unknown"; originTtfbMs?: number | null; probeDurationMs?: number | null; upstreamRequestMs?: number | null; upstreamRequestCount?: number | null; probeResultCached?: boolean | null }>;
   review?: { accepted: boolean; findings: string[]; candidateCount: number; assessmentCount: number; measurementCompleted: boolean; resolutionMeasured: boolean };
   playbackRecommendations?: Array<{
     title: string;
@@ -248,7 +248,10 @@ export function useFridayChatSession({
           status: workflow.results.every((item) => item.status === "succeeded") ? "completed" : "failed",
           retryable: workflow.results.some((item) => item.status === "failed" && item.error?.retryable === true),
           sourceChecks: sourceOutput?.probes ?? [],
-          qualityChecks: (qualityOutput?.assessments ?? []).map((item) => ({ ...item, decodedVideoHeight: item.candidateId ? decodedPlaybackHeightsRef.current.get(item.candidateId) ?? null : null })),
+          qualityChecks: (qualityOutput?.assessments ?? []).map((item) => {
+            const decodedHeight = item.candidateId ? decodedPlaybackHeightsRef.current.get(item.candidateId) : undefined;
+            return decodedHeight ? { ...item, status: "resolution_detected" as const, resolutionHeight: decodedHeight, decodedResolutionHeight: decodedHeight, decodedVideoHeight: decodedHeight, resolutionSource: "decoded_playback" as const } : { ...item, decodedVideoHeight: null };
+          }),
           review: reviewOutput && {
             accepted: reviewOutput.accepted === true,
             findings: reviewOutput.findings ?? [],
@@ -361,7 +364,10 @@ export function useFridayChatSession({
           status: workflow.results.every((item) => item.status === "succeeded") ? "completed" : "failed",
           retryable: workflow.results.some((item) => item.status === "failed" && item.error?.retryable === true),
           sourceChecks: sourceOutput?.probes ?? [],
-          qualityChecks: (qualityOutput?.assessments ?? []).map((item) => ({ ...item, decodedVideoHeight: item.candidateId ? decodedPlaybackHeightsRef.current.get(item.candidateId) ?? null : null })),
+          qualityChecks: (qualityOutput?.assessments ?? []).map((item) => {
+            const decodedHeight = item.candidateId ? decodedPlaybackHeightsRef.current.get(item.candidateId) : undefined;
+            return decodedHeight ? { ...item, status: "resolution_detected" as const, resolutionHeight: decodedHeight, decodedResolutionHeight: decodedHeight, decodedVideoHeight: decodedHeight, resolutionSource: "decoded_playback" as const } : { ...item, decodedVideoHeight: null };
+          }),
           review: reviewOutput && {
             accepted: reviewOutput.accepted === true,
             findings: reviewOutput.findings ?? [],
@@ -414,10 +420,10 @@ export function useFridayChatSession({
 
     const baseAdapters = createLibreTVMovieAgentAdapters(sources as SourceConfig[], {
       filterAdult,
-      readDecodedHeight: (candidate) => {
+      readPlaybackEvidence: (candidate) => {
         if (!candidate.sourceId || !candidate.vodId) return undefined;
         const quality = readQuality(candidate.sourceId, candidate.vodId);
-        return quality?.from === "play" ? quality.height : undefined;
+        return quality?.from === "play" ? quality : undefined;
       },
     });
     const storedCandidates = (searchTask.output as { candidates?: unknown } | undefined)?.candidates;
