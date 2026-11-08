@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { ThemeToggle } from './theme';
 import { SourceManagerDrawer } from './source-manager';
@@ -19,6 +19,17 @@ export function Header({ showSearch = false, showFridayFab = true, minimalFriday
   const [historyOpen, setHistoryOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  useEffect(() => {
+    const openHistory = () => setHistoryOpen(true);
+    const openSourceSettings = () => setSettingsOpen(true);
+    window.addEventListener('libretv:open-history', openHistory);
+    window.addEventListener('libretv:open-source-settings', openSourceSettings);
+    return () => {
+      window.removeEventListener('libretv:open-history', openHistory);
+      window.removeEventListener('libretv:open-source-settings', openSourceSettings);
+    };
+  }, []);
+
   // 与首页搜索框共用同一套「最近搜索」下拉逻辑
   const searchHistory = useSearchHistory(query);
 
