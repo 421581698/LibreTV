@@ -13,6 +13,10 @@
 - Reimplement the visual layer for the web with WebGL2/Three.js rather than copying Flutter shader code.
 - Keep wake-word and speaker-verification features optional and privacy-sensitive.
 
+## Four-project reference matrix
+
+The formal capability mapping, porting decisions, security boundaries and acceptance gates for JarvisAgent, Cypher-AI, jarvis_ai and Assistant-X-OpenClaw are maintained in [FRIDAY-V3-REFERENCE-PORTING-MATRIX.md](./FRIDAY-V3-REFERENCE-PORTING-MATRIX.md). The current source-level integration and recovery findings are recorded in [FRIDAY-V3-INTEGRATION-AUDIT.md](./FRIDAY-V3-INTEGRATION-AUDIT.md). These documents supersede any assumption that a desktop project can be copied into the browser application unchanged.
+
 ## Target architecture
 
 1. Friday UI: conversation, voice cockpit, task timeline, responsive orb.
