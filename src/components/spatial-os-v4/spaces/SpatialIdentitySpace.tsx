@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { exportConfig, importConfig, listFavorites, removeFavorite, type FavoriteEntry } from '@/lib/db';
+import { exportConfig, importConfig, listFavorites, migrateLegacyLiveFavorites, removeFavorite, type FavoriteEntry } from '@/lib/db';
 import { useAppStore } from '@/lib/store';
 
 export function SpatialIdentitySpace() {
@@ -58,6 +58,8 @@ export function SpatialIdentitySpace() {
       const content = await file.text();
       await importConfig(content);
       await useAppStore.persist.rehydrate();
+      const restored = useAppStore.getState();
+      await migrateLegacyLiveFavorites(restored.liveFavorites, restored.liveRecent);
       await refreshFavorites();
       window.dispatchEvent(new CustomEvent('libretv:spatial-profile-imported'));
       setTransferMessage('个人资料导入完成。空间偏好、收藏、设置和观看历史已恢复。');
