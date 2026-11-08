@@ -346,7 +346,7 @@ export function useFridayVoiceController({
       if (recognizedText) {
         setInput(recognizedText);
         if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
-          window.dispatchEvent(new CustomEvent("friday-home-transcript", { detail: { text: recognizedText } }));
+          window.dispatchEvent(new CustomEvent("friday-home-transcript", { detail: { text: recognizedText, isFinal: Boolean(finalText.trim()) } }));
         }
         noSpeechRetryCountRef.current = 0;
         if (speechSilenceTimerRef.current !== null) window.clearTimeout(speechSilenceTimerRef.current);
