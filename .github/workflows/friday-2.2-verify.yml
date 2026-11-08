@@ -20,6 +20,10 @@ on:
       - feature/friday-playback-quality-evidence-2026-11-08
     paths:
       - "src/lib/friday/**"
+      - "src/lib/quality.ts"
+      - "src/lib/quality.test.ts"
+      - "src/lib/types.ts"
+      - "src/components/switch-source.tsx"
       - "src/components/friday/**"
       - "src/components/home/**"
       - "src/components/AIFloatingBall.tsx"
