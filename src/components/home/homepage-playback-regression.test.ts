@@ -7,6 +7,7 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf
 const home = source('src/app/page.tsx');
 const watch = source('src/app/watch/page.tsx');
 const hero = source('src/components/friday/FridayHero.tsx');
+const canvas = source('src/components/home/HomeIntentCanvas.tsx');
 const orb = source('src/components/friday/FridayOrb.tsx');
 const assistant = source('src/components/AIFloatingBall.tsx');
 const header = source('src/components/header.tsx');
