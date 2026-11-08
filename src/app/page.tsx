@@ -246,7 +246,7 @@ function HomeContent({ variant = 'legacy' }: HomeContentProps) {
   };
 
   return (
-    <FridaySpatialOS friday={isV2 ? <FridayHero voiceState={voiceState} audioLevel={audioLevel} /> : null}>
+    <FridaySpatialOS friday={isV2 ? <FridayHero voiceState={voiceState} audioLevel={audioLevel / 100} /> : null}>
     <div className={isV2 ? "home-v2 min-h-screen flex flex-col" : "legacy-home min-h-screen flex flex-col"}>
       <Header showFridayFab={!isV2} minimalFridayNav={isV2} homeSearch={isV2 ? <HomeSearchSection
             urlQuery={urlQuery}
