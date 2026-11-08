@@ -67,4 +67,42 @@ describe("Friday task runtime",()=>{
   const store:TaskEventStore={append:async()=>{},read:async()=>[]};
   await expect(new TaskRuntime(store).restoreAll()).resolves.toEqual([]);
  });
+ it("rejects reuse of a task ID with a different persisted input",async()=>{
+  const runtime=new TaskRuntime(new MemoryStore());
+  await runtime.create(task);
+  await expect(runtime.getSnapshot({...task,input:{title:"Different film"}}))
+   .rejects.toMatchObject({code:"TASK_DEFINITION_MISMATCH"});
+ });
+ it("rejects reuse of a task ID with a different agent or dependency contract",async()=>{
+  const runtime=new TaskRuntime(new MemoryStore());
+  const definition={...task,dependsOn:["source"]};
+  await runtime.create(definition);
+  await expect(runtime.getSnapshot({...definition,agent:"other-agent"}))
+   .rejects.toMatchObject({code:"TASK_DEFINITION_MISMATCH"});
+  await expect(runtime.getSnapshot({...definition,dependsOn:["other-source"]}))
+   .rejects.toMatchObject({code:"TASK_DEFINITION_MISMATCH"});
+ });
+ it("compares task input objects independent of property insertion order",async()=>{
+  const runtime=new TaskRuntime(new MemoryStore());
+  await runtime.create({...task,input:{title:"Arrival",filters:{year:2016,genre:"Sci-Fi"}}});
+  await expect(runtime.getSnapshot({...task,input:{filters:{genre:"Sci-Fi",year:2016},title:"Arrival"}}))
+   .resolves.toMatchObject({status:"queued"});
+ });
+ it("rejects event streams with sequence gaps or duplicate event IDs",async()=>{
+  const corruptStore:TaskEventStore={
+   append:async()=>{},
+   read:async()=>[
+    {eventId:"same",taskId:task.taskId,sequence:1,type:"task.created",occurredAt:"2026-11-08T00:00:00Z",payload:{definition:task}},
+    {eventId:"same",taskId:task.taskId,sequence:3,type:"task.started",occurredAt:"2026-11-08T00:00:01Z"},
+   ],
+  };
+  await expect(new TaskRuntime(corruptStore).getSnapshot(task))
+   .rejects.toMatchObject({code:"EVENT_STREAM_CORRUPT"});
+ });
+ it("checks the persisted definition before recording a lifecycle event",async()=>{
+  const runtime=new TaskRuntime(new MemoryStore());
+  await runtime.create(task);
+  await expect(runtime.record({...task,input:{title:"Changed"}},"task.started"))
+   .rejects.toMatchObject({code:"TASK_DEFINITION_MISMATCH"});
+ });
 });

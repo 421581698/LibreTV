@@ -60,6 +60,46 @@ function assertSafeId(value: string, label: string): void {
     throw new TaskRuntimeError("Invalid " + label, "INVALID_ID");
   }
 }
+
+function stableSerialize(value: unknown): string {
+  if (Array.isArray(value)) return "[" + value.map(stableSerialize).join(",") + "]";
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return "{" + Object.keys(record).sort().map((key) =>
+      JSON.stringify(key) + ":" + stableSerialize(record[key]),
+    ).join(",") + "}";
+  }
+  return JSON.stringify(value) ?? "undefined";
+}
+
+function validateEventStream(taskId: string, events: TaskEvent[]): TaskEvent[] {
+  const ordered = [...events].sort((a, b) => a.sequence - b.sequence);
+  const eventIds = new Set<string>();
+  ordered.forEach((event, index) => {
+    if (event.taskId !== taskId || event.sequence !== index + 1 || !event.eventId || eventIds.has(event.eventId)) {
+      throw new TaskRuntimeError("Task event stream is inconsistent", "EVENT_STREAM_CORRUPT");
+    }
+    eventIds.add(event.eventId);
+  });
+  return ordered;
+}
+
+function assertTaskDefinitionMatches(definition: TaskDefinition, events: TaskEvent[]): void {
+  const created = events.find((event) => event.type === "task.created");
+  const persisted = (created?.payload as { definition?: TaskDefinition } | undefined)?.definition;
+  if (!persisted) throw new TaskRuntimeError("Persisted task definition is missing", "TASK_DEFINITION_MISSING");
+  const normalize = (task: TaskDefinition) => ({
+    taskId: task.taskId,
+    parentTaskId: task.parentTaskId ?? null,
+    agent: task.agent,
+    input: task.input,
+    dependsOn: task.dependsOn ?? [],
+    sideEffect: Boolean(task.sideEffect),
+  });
+  if (stableSerialize(normalize(definition)) !== stableSerialize(normalize(persisted))) {
+    throw new TaskRuntimeError("Task ID is already bound to a different definition", "TASK_DEFINITION_MISMATCH");
+  }
+}
 export function validateTaskGraph(definitions: TaskDefinition[]): void {
   const byId = new Map<string, TaskDefinition>();
   for (const task of definitions) {
@@ -122,9 +162,16 @@ export class TaskRuntime {
     private readonly createId: () => string = () => "evt-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8),
   ) {}
 
+  private async readValidatedEvents(taskId: string): Promise<TaskEvent[]> {
+    const events = await this.store.read(taskId);
+    if (!events.length) return [];
+    return validateEventStream(taskId, events);
+  }
+
   async getSnapshot(definition: TaskDefinition): Promise<TaskSnapshot> {
-    const events = await this.store.read(definition.taskId);
+    const events = await this.readValidatedEvents(definition.taskId);
     if (!events.length) throw new TaskRuntimeError("Task does not exist", "TASK_NOT_FOUND");
+    assertTaskDefinitionMatches(definition, events);
     return reduceTaskEvents(definition, events);
   }
 
@@ -154,8 +201,9 @@ export class TaskRuntime {
     payload?: unknown,
     error?: TaskEvent["error"],
   ): Promise<TaskSnapshot> {
-    const events = await this.store.read(definition.taskId);
+    const events = await this.readValidatedEvents(definition.taskId);
     if (!events.length) throw new TaskRuntimeError("Task does not exist", "TASK_NOT_FOUND");
+    assertTaskDefinitionMatches(definition, events);
     const current = reduceTaskEvents(definition, events);
     if (TERMINAL.has(current.status)) throw new TaskRuntimeError("Terminal task cannot be changed", "TASK_TERMINAL");
     const allowed: Record<Exclude<TaskEventType, "task.created" | "task.replay_requested">, TaskStatus[]> = {
@@ -187,8 +235,9 @@ export class TaskRuntime {
   }
 
   async requestReplay(definition: TaskDefinition): Promise<TaskEvent> {
-    const events = await this.store.read(definition.taskId);
+    const events = await this.readValidatedEvents(definition.taskId);
     if (!events.length) throw new TaskRuntimeError("Task does not exist", "TASK_NOT_FOUND");
+    assertTaskDefinitionMatches(definition, events);
     const current = reduceTaskEvents(definition, events);
     if (definition.sideEffect) {
       throw new TaskRuntimeError("Side-effect tasks require an explicit new execution; automatic replay is blocked", "REPLAY_SIDE_EFFECT_BLOCKED");
@@ -252,7 +301,8 @@ export class TaskRuntime {
           // Another tab may reconcile the same task between our read and append.
           // Accept the winner's terminal/current snapshot, but never hide an
           // unrelated storage failure while the task is still orphaned.
-          const latestEvents = await this.store.read(definition.taskId);
+          const latestEvents = await this.readValidatedEvents(definition.taskId);
+          assertTaskDefinitionMatches(definition, latestEvents);
           const latest = reduceTaskEvents(definition, latestEvents);
           if (latest.status === "running" || latest.status === "waiting") throw error;
           snapshot = latest;
