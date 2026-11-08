@@ -39,10 +39,18 @@ export function FridayHero({ voiceState: controlledVoiceState, audioLevel: contr
         ready: 'IDLE',
         listening: 'LISTENING',
         thinking: 'THINKING',
+        executing: 'EXECUTING',
+        rendering: 'EXECUTING',
+        recovering: 'THINKING',
         speaking: 'SPEAKING',
+        error: 'ERROR',
+        failed: 'ERROR',
         completed: 'IDLE',
       };
-      if (next[normalized]) setRuntimeVoiceState(next[normalized]);
+      if (next[normalized]) {
+        setRuntimeVoiceState(next[normalized]);
+        if (next[normalized] !== 'ERROR') setVoiceError('');
+      }
     };
     const onAudioLevel = (event: Event) => {
       const value = (event as CustomEvent<{ level?: number }>).detail?.level;
@@ -74,6 +82,7 @@ export function FridayHero({ voiceState: controlledVoiceState, audioLevel: contr
     const onError = (event: Event) => {
       const value = (event as CustomEvent<{ message?: string }>).detail?.message;
       setVoiceError(typeof value === 'string' ? value : '');
+      setRuntimeVoiceState('ERROR');
     };
     window.addEventListener('friday-home-assistant-response', onReply);
     window.addEventListener('friday-home-transcript', onTranscript);
@@ -95,7 +104,9 @@ export function FridayHero({ voiceState: controlledVoiceState, audioLevel: contr
     IDLE: '点击圆球开始说话',
     LISTENING: '正在聆听，请说出你想看的影片',
     THINKING: '正在为你寻找…',
+    EXECUTING: '正在执行任务…',
     SPEAKING: 'Friday 正在回答',
+    ERROR: voiceError || '遇到问题，正在等待恢复',
   };
 
   return (
