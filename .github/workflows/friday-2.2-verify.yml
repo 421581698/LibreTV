@@ -4,8 +4,12 @@ on:
   push:
     branches:
       - feature/friday-2.2-architecture
+      - feature/friday-v3-completion-batch-2026-11-08
     paths:
       - "src/lib/friday/**"
+      - "src/lib/quality.ts"
+      - "src/lib/quality.test.ts"
+      - "src/lib/types.ts"
       - "docs/FRIDAY-2.2-TECHNICAL-SPEC.md"
       - ".github/workflows/friday-2.2-verify.yml"
       - "src/components/AIFloatingBall.tsx"
@@ -13,6 +17,7 @@ on:
   pull_request:
     branches:
       - main
+      - feature/friday-v3-completion-batch-2026-11-08
     paths:
       - "src/lib/friday/**"
       - "src/components/friday/**"
