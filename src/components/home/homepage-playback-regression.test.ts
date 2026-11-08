@@ -251,6 +251,16 @@ describe('首页与播放页回归契约', () => {
     expect(header).toContain('is-open');
   });
 
+  it('Friday Agent 工作流向空间入口发布执行、结果生成、完成、失败和取消状态', () => {
+    expect(chatSession).toContain('detail: { agent: "executing" }');
+    expect(chatSession).toContain('detail: { agent: "rendering" }');
+    expect(chatSession).toContain('detail: { agent: workflowSucceeded ? "completed" : "error" }');
+    expect(chatSession).toContain('detail: { agent: "error" }');
+    expect(chatSession).toContain('controller.abort()');
+    expect(chatSession).toContain('detail: { agent: "idle" }');
+    expect(chatSession).toContain('retryInterruptedWorkflow');
+  });
+
   it('播放实测证据任务中断后可从独立 checkpoint 安全恢复', () => {
     expect(chatSession).toContain('taskId.endsWith(".playback-evidence")');
     expect(chatSession).toContain('createPlaybackEvidenceAgent()');
