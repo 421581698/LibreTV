@@ -6,7 +6,7 @@ import {
   type TaskSnapshot,
 } from "./task-runtime";
 
-export type AgentCapability = "movie.search" | "source.probe" | "quality.assess" | "quality.review" | "playback.recommend";
+export type AgentCapability = "movie.search" | "source.probe" | "quality.assess" | "quality.review" | "playback.recommend" | "playback.observe";
 
 export type AgentExecutionContext = {
   task: TaskDefinition;

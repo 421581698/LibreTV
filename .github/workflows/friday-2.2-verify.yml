@@ -3,7 +3,7 @@ name: friday-2.2-verify
 on:
   push:
     branches:
-      - feature/friday-quality-aware-source-ranking-2026-11-08
+      - feature/friday-playback-feedback-agent-2026-11-08
       - feature/friday-2.2-architecture
     paths:
       - "src/lib/friday/**"
@@ -18,7 +18,6 @@ on:
   pull_request:
     branches:
       - main
-      - feature/friday-playback-quality-evidence-2026-11-08
       - feature/friday-quality-aware-source-ranking-2026-11-08
     paths:
       - "src/lib/friday/**"

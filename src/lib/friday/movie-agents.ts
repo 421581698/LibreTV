@@ -19,11 +19,17 @@ export type SourceProbe = {
   upstreamRequestCount?: number;
   originTtfbMs?: number;
   decodedResolutionHeight?: number;
+  playbackSampleCount?: number;
+  playbackMinHeight?: number;
+  playbackMaxHeight?: number;
+  lastPlaybackHeight?: number;
+  lastPlaybackSampleAt?: number;
   probeResultCached?: boolean;
   statusCode?: number;
   advertisedQualities?: string[];
   candidateId?: string;
   title?: string;
+  year?: string;
   resolutionHeight?: number;
   resolutionProbed?: boolean;
   resolutionError?: string;
@@ -33,10 +39,15 @@ export type QualityAssessment = {
   sourceId: string;
   candidateId?: string;
   title?: string;
+  year?: string;
   status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown";
   assessmentCompleted: boolean;
   resolutionHeight: number | null;
   decodedResolutionHeight: number | null;
+  playbackSampleCount: number | null;
+  playbackMinHeight: number | null;
+  playbackMaxHeight: number | null;
+  lastPlaybackHeight: number | null;
   sourceResolutionHeight: number | null;
   resolutionSource: "decoded_playback" | "playlist_or_segment" | "unknown";
   originTtfbMs: number | null;
@@ -73,6 +84,66 @@ function candidatesFrom(value: unknown): MovieCandidate[] {
 
 function dependencyValue(context: AgentExecutionContext, key: string): unknown {
   return context.dependencyOutputs[key];
+}
+
+export type PlaybackEvidenceInput = {
+  candidateId: string;
+  sourceId: string;
+  vodId: string;
+  decodedHeight: number;
+  observedAt: string;
+  sampleCount?: number;
+  minHeight?: number;
+  maxHeight?: number;
+};
+
+export function createPlaybackEvidenceAgent(): FridayAgent {
+  return {
+    id: "playback-evidence-agent",
+    capabilities: ["playback.observe"],
+    async execute(context) {
+      context.requireCapability("playback.observe");
+      const input = objectInput(context.task.input);
+      const candidateId = typeof input.candidateId === "string" ? input.candidateId.trim() : "";
+      const sourceId = typeof input.sourceId === "string" ? input.sourceId.trim() : "";
+      const vodId = typeof input.vodId === "string" ? input.vodId.trim() : "";
+      const height = input.decodedHeight;
+      const observedAt = typeof input.observedAt === "string" ? input.observedAt : "";
+      const observedTime = Date.parse(observedAt);
+      if (!candidateId || !sourceId || !vodId || candidateId !== `${sourceId}:${vodId}`) {
+        throw new Error("Playback evidence requires a matching candidate, source and VOD identity");
+      }
+      if (typeof height !== "number" || !Number.isInteger(height) || height < 1 || height > 16384) {
+        throw new Error("Playback evidence contains an invalid decoded height");
+      }
+      if (!Number.isFinite(observedTime)) throw new Error("Playback evidence requires a valid observation timestamp");
+      const sampleCount = input.sampleCount;
+      if (sampleCount !== undefined && (typeof sampleCount !== "number" || !Number.isInteger(sampleCount) || sampleCount < 1)) {
+        throw new Error("Playback evidence sample count must be a positive integer");
+      }
+      const minHeight = input.minHeight;
+      const maxHeight = input.maxHeight;
+      if (minHeight !== undefined && (typeof minHeight !== "number" || !Number.isFinite(minHeight) || minHeight < 1 || minHeight > height)) {
+        throw new Error("Playback evidence minimum height is invalid");
+      }
+      if (maxHeight !== undefined && (typeof maxHeight !== "number" || !Number.isFinite(maxHeight) || maxHeight < height || maxHeight > 16384)) {
+        throw new Error("Playback evidence maximum height is invalid");
+      }
+      const evidence = {
+        candidateId,
+        sourceId,
+        vodId,
+        decodedHeight: height,
+        sampleCount: sampleCount as number | undefined,
+        minHeight: minHeight as number | undefined,
+        maxHeight: maxHeight as number | undefined,
+        observedAt: new Date(observedTime).toISOString(),
+        evidenceSource: "player.videoHeight" as const,
+      };
+      await context.checkpoint(evidence);
+      return { accepted: true, ...evidence };
+    },
+  };
 }
 
 export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAgent[] {
@@ -141,10 +212,15 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
           sourceId: probe.sourceId,
           candidateId: probe.candidateId,
           title: probe.title,
+          year: probe.year,
           status: validDecodedHeight || validHeight ? "resolution_detected" : probe.resolutionError ? "unavailable" : probeCompleted ? "resolution_unknown" : "unknown",
           assessmentCompleted: probeCompleted || validDecodedHeight || Boolean(probe.resolutionError),
           resolutionHeight: validDecodedHeight ? probe.decodedResolutionHeight! : validHeight ? probe.resolutionHeight! : null,
           decodedResolutionHeight: validDecodedHeight ? probe.decodedResolutionHeight! : null,
+          playbackSampleCount: Number.isInteger(probe.playbackSampleCount) && (probe.playbackSampleCount ?? 0) > 0 ? probe.playbackSampleCount! : validDecodedHeight ? 1 : null,
+          playbackMinHeight: typeof probe.playbackMinHeight === "number" && Number.isFinite(probe.playbackMinHeight) && probe.playbackMinHeight > 0 && probe.playbackMinHeight <= 16384 ? probe.playbackMinHeight : validDecodedHeight ? probe.decodedResolutionHeight! : null,
+          playbackMaxHeight: typeof probe.playbackMaxHeight === "number" && Number.isFinite(probe.playbackMaxHeight) && probe.playbackMaxHeight > 0 && probe.playbackMaxHeight <= 16384 ? probe.playbackMaxHeight : validDecodedHeight ? probe.decodedResolutionHeight! : null,
+          lastPlaybackHeight: typeof probe.lastPlaybackHeight === "number" && Number.isFinite(probe.lastPlaybackHeight) && probe.lastPlaybackHeight > 0 && probe.lastPlaybackHeight <= 16384 ? probe.lastPlaybackHeight : validDecodedHeight ? probe.decodedResolutionHeight! : null,
           sourceResolutionHeight: validHeight ? probe.resolutionHeight! : null,
           resolutionSource: validDecodedHeight ? "decoded_playback" : validHeight ? "playlist_or_segment" : "unknown",
           originTtfbMs: validOriginTtfb ? probe.originTtfbMs! : null,
@@ -247,6 +323,9 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
       const assessments = Array.isArray(qualityOutput.assessments)
         ? qualityOutput.assessments as QualityAssessment[]
         : [];
+      const assessmentEvidenceRank = (assessment: QualityAssessment) =>
+        assessment.resolutionSource === "decoded_playback" || assessment.evidence.includes("player.videoHeight") ? 2 :
+          assessment.resolutionSource === "playlist_or_segment" || assessment.evidence.includes("hls_or_segment.resolution_height") ? 1 : 0;
 
       if (reviewOutput.accepted !== true) {
         return {
@@ -292,11 +371,14 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
 
       const recommendations = [...byTitle.values()].map((group) => {
         group.sort((left, right) => {
-          const leftHeight = left.assessment.status === "resolution_detected"
-            ? left.assessment.resolutionHeight ?? 0 : 0;
-          const rightHeight = right.assessment.status === "resolution_detected"
-            ? right.assessment.resolutionHeight ?? 0 : 0;
-          return rightHeight - leftHeight ||
+          const rankOrder = assessmentEvidenceRank(right.assessment) - assessmentEvidenceRank(left.assessment);
+          if (rankOrder !== 0) return rankOrder;
+          const leftHeight = left.assessment.status === "resolution_detected" ? left.assessment.resolutionHeight ?? 0 : 0;
+          const rightHeight = right.assessment.status === "resolution_detected" ? right.assessment.resolutionHeight ?? 0 : 0;
+          const heightOrder = rightHeight - leftHeight;
+          if (heightOrder !== 0) return heightOrder;
+          const sampleOrder = (right.assessment.playbackSampleCount ?? 0) - (left.assessment.playbackSampleCount ?? 0);
+          return sampleOrder ||
             String(left.candidate.sourceId).localeCompare(String(right.candidate.sourceId)) ||
             left.candidate.id.localeCompare(right.candidate.id);
         });
@@ -306,10 +388,12 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
           selected.assessment.resolutionHeight > 0;
         return {
           title: selected.candidate.title,
+          year: selected.candidate.year,
           candidateId: selected.candidate.id,
           sourceId: selected.candidate.sourceId!,
           resolutionHeight: measured ? selected.assessment.resolutionHeight : null,
-          selectionBasis: measured ? "measured-resolution" as const : "reachable-only" as const,
+          playbackSampleCount: selected.assessment.resolutionSource === "decoded_playback" ? selected.assessment.playbackSampleCount : null,
+          selectionBasis: assessmentEvidenceRank(selected.assessment) === 2 && measured ? "decoded-playback" as const : assessmentEvidenceRank(selected.assessment) === 1 && measured ? "source-probe" as const : "reachable-only" as const,
           alternativeCount: Math.max(0, group.length - 1),
           requiresUserConfirmation: true as const,
         };
@@ -320,11 +404,11 @@ export function createMovieAgentRegistry(adapters: MovieAgentAdapters): FridayAg
         ready: true,
         recommendations,
         reason: recommendations.length
-          ? "Selected the reachable candidate with the highest measured manifest/segment resolution; unknown resolution is never presented as measured."
+          ? "Selected the reachable candidate using decoded playback evidence first, then manifest/segment resolution; unknown resolution is never presented as measured."
           : "No candidate has both a completed quality assessment and a reachable source.",
       };
     },
   };
 
-  return [searchAgent, sourceAgent, qualityAgent, reviewAgent, playbackAgent];
+  return [searchAgent, sourceAgent, qualityAgent, reviewAgent, playbackAgent, createPlaybackEvidenceAgent()];
 }

@@ -27,6 +27,7 @@ describe("Friday Agent least-privilege capability boundary", () => {
       ["quality-agent", ["quality.assess"]],
       ["review-agent", ["quality.review"]],
       ["playback-agent", ["playback.recommend"]],
+      ["playback-evidence-agent", ["playback.observe"]],
     ]);
   });
 
