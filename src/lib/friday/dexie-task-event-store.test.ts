@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { db, readSpatialState, writeSpatialState } from "../db";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { db, exportConfig, favoriteId, importConfig, PERSIST_KEY, readSpatialState, writeSpatialState } from "../db";
 import { DexieTaskEventStore } from "./dexie-task-event-store";
 import { TaskRuntime, type TaskDefinition, type TaskEvent } from "./task-runtime";
 
@@ -24,10 +24,14 @@ beforeAll(async () => {
 beforeEach(async () => {
   await db.fridayTaskEvents.clear();
   await db.spatialState.clear();
+  await db.favorites.clear();
+  await db.history.clear();
+  await db.progress.clear();
 });
 
 afterAll(async () => {
   db.close();
+  vi.unstubAllGlobals();
 });
 
 describe("DexieTaskEventStore with native IndexedDB", () => {
@@ -165,5 +169,115 @@ describe("spatial preference persistence with native IndexedDB", () => {
 
   it("returns undefined for an unknown spatial preference key", async () => {
     await expect(readSpatialState("not-present")).resolves.toBeUndefined();
+  });
+});
+
+describe("portable profile import/export with IndexedDB", () => {
+  const localValues = new Map<string, string>();
+
+  beforeEach(() => {
+    localValues.clear();
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => localValues.get(key) ?? null,
+      setItem: (key: string, value: string) => { localValues.set(key, String(value)); },
+      removeItem: (key: string) => { localValues.delete(key); },
+    });
+  });
+
+  it("round-trips favorites, spatial preferences, viewing history, progress and settings", async () => {
+    const profile = {
+      name: "LibreTV-Settings",
+      time: "1794182400000",
+      cfgVer: "3.0.0",
+      data: {
+        [PERSIST_KEY]: JSON.stringify({ state: { theme: "dark" }, version: 1 }),
+        favorites: JSON.stringify([{
+          id: favoriteId("fmhy-resource", "https://fmhy.net/"),
+          kind: "fmhy-resource",
+          title: "FMHY",
+          href: "https://fmhy.net/",
+          createdAt: 100,
+          updatedAt: 100,
+        }]),
+        spatialState: JSON.stringify([{ key: "active-space", value: "resources", updatedAt: 100 }]),
+        viewingHistory: JSON.stringify([{
+          sourceKey: "source-a",
+          vodId: "movie-1",
+          title: "Test Movie",
+          episodeIndex: 2,
+          totalEpisodes: 8,
+          playbackPosition: 120,
+          duration: 3600,
+          timestamp: 100,
+        }]),
+        playbackProgress: JSON.stringify([{
+          key: "source-a_movie-1_2",
+          position: 120,
+          duration: 3600,
+          updatedAt: 100,
+        }]),
+      },
+    };
+
+    await importConfig(JSON.stringify(profile));
+    expect(await db.favorites.count()).toBe(1);
+    expect(await readSpatialState("active-space")).toBe("resources");
+    expect(await db.history.get("source-a_movie-1")).toMatchObject({
+      title: "Test Movie",
+      episodeIndex: 2,
+      totalEpisodes: 8,
+    });
+    expect(await db.progress.get("source-a_movie-1_2")).toMatchObject({
+      position: 120,
+      duration: 3600,
+    });
+    expect(localValues.get(PERSIST_KEY)).toBe(profile.data[PERSIST_KEY]);
+
+    const exported = JSON.parse(await exportConfig());
+    expect(exported.name).toBe("LibreTV-Settings");
+    expect(JSON.parse(exported.data.favorites)).toHaveLength(1);
+    expect(JSON.parse(exported.data.spatialState)).toHaveLength(1);
+    expect(JSON.parse(exported.data.viewingHistory)).toHaveLength(1);
+    expect(JSON.parse(exported.data.playbackProgress)).toHaveLength(1);
+    expect(exported.data).not.toHaveProperty("fridayTaskEvents");
+    expect(exported.data).not.toHaveProperty("conversationHistory");
+  });
+
+  it("validates all JSON sections before changing any IndexedDB or localStorage data", async () => {
+    const invalid = {
+      name: "LibreTV-Settings",
+      data: {
+        [PERSIST_KEY]: "new-settings",
+        favorites: JSON.stringify([{
+          id: "fmhy-resource:one",
+          kind: "fmhy-resource",
+          title: "One",
+          createdAt: 1,
+          updatedAt: 1,
+        }]),
+        spatialState: "{not-json",
+      },
+    };
+
+    await expect(importConfig(JSON.stringify(invalid))).rejects.toThrow();
+    expect(await db.favorites.count()).toBe(0);
+    expect(await db.spatialState.count()).toBe(0);
+    expect(localValues.has(PERSIST_KEY)).toBe(false);
+  });
+
+  it("filters unsafe favorite URLs while importing valid records", async () => {
+    const profile = {
+      name: "LibreTV-Settings",
+      data: {
+        favorites: JSON.stringify([
+          { id: "safe", kind: "media", title: "Safe", href: "https://example.com/a" },
+          { id: "unsafe", kind: "media", title: "Unsafe", href: "javascript:alert(1)" },
+        ]),
+      },
+    };
+    await importConfig(JSON.stringify(profile));
+    expect(await db.favorites.toArray()).toMatchObject([
+      { id: "safe", href: "https://example.com/a" },
+    ]);
   });
 });
