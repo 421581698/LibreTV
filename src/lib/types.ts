@@ -102,6 +102,8 @@ export interface QualityProbeResult {
   upstreamRequestMs?: number;
   /** Number of upstream fetch requests included in upstreamRequestMs. */
   upstreamRequestCount?: number;
+  /** First media-origin response-header wait; distinct from cumulative upstream waits and total probe duration. */
+  originTtfbMs?: number;
   cached?: boolean;
   /** True when the source-side probe failed for a transient reason and may be retried. */
   transient?: boolean;
