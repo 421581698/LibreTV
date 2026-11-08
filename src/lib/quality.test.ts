@@ -219,7 +219,13 @@ describe('mergeQualityEntries', () => {
 
     // 反向：后来的低档位不该把已知的高档位拉低
     const back = mergeQualityEntries(next, { [KEY]: play(540) }, T + 2000);
-    expect(back[KEY].height).toBe(1080);
+    expect(back[KEY]).toMatchObject({
+      height: 1080,
+      playbackSampleCount: 3,
+      playbackMinHeight: 540,
+      playbackMaxHeight: 1080,
+      lastPlaybackHeight: 540,
+    });
   });
 
 
