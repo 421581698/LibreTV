@@ -17,11 +17,12 @@ import { restoreFridayConversationHistory, serializeFridayConversationHistory } 
 
 export type FridayWorkflowView = {
   status: "running" | "completed" | "failed";
-  sourceChecks?: Array<{ sourceId: string; candidateId?: string; title?: string; reachable: boolean; latencyMs?: number; upstreamRequestMs?: number; upstreamRequestCount?: number; originTtfbMs?: number }>;
-  qualityChecks?: Array<{ sourceId: string; candidateId?: string; title?: string; playbackSampleCount?: number | null; playbackMinHeight?: number | null; playbackMaxHeight?: number | null; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; decodedVideoHeight?: number | null; decodedResolutionHeight?: number | null; sourceResolutionHeight?: number | null; resolutionSource?: "decoded_playback" | "playlist_or_segment" | "unknown"; originTtfbMs?: number | null; probeDurationMs?: number | null; upstreamRequestMs?: number | null; upstreamRequestCount?: number | null; probeResultCached?: boolean | null }>;
+  sourceChecks?: Array<{ sourceId: string; candidateId?: string; title?: string; year?: string; reachable: boolean; latencyMs?: number; upstreamRequestMs?: number; upstreamRequestCount?: number; originTtfbMs?: number }>;
+  qualityChecks?: Array<{ sourceId: string; candidateId?: string; title?: string; year?: string; playbackSampleCount?: number | null; playbackMinHeight?: number | null; playbackMaxHeight?: number | null; status: "resolution_detected" | "resolution_unknown" | "unavailable" | "unknown"; resolutionHeight: number | null; decodedVideoHeight?: number | null; decodedResolutionHeight?: number | null; sourceResolutionHeight?: number | null; resolutionSource?: "decoded_playback" | "playlist_or_segment" | "unknown"; originTtfbMs?: number | null; probeDurationMs?: number | null; upstreamRequestMs?: number | null; upstreamRequestCount?: number | null; probeResultCached?: boolean | null }>;
   review?: { accepted: boolean; findings: string[]; candidateCount: number; assessmentCount: number; measurementCompleted: boolean; resolutionMeasured: boolean };
   playbackRecommendations?: Array<{
     title: string;
+    year?: string;
     candidateId: string;
     sourceId: string;
     resolutionHeight: number | null;
@@ -47,7 +48,7 @@ function applyDecodedPlaybackEvidence(
       source.candidateId === item.candidateId && source.reachable,
     );
     if (!reachable) continue;
-    const index = next.findIndex((recommendation) => recommendation.title === item.title);
+    const index = next.findIndex((recommendation) => recommendation.title === item.title && (recommendation.year ?? "") === (item.year ?? ""));
     const existing = index >= 0 ? next[index] : undefined;
     const currentRank = existing?.selectionBasis === "decoded-playback" ? 2 :
       existing?.selectionBasis === "source-probe" ? 1 : existing ? 0 : -1;
@@ -60,6 +61,7 @@ function applyDecodedPlaybackEvidence(
     if (!wins) continue;
     const recommendation = {
       title: item.title,
+      year: item.year,
       candidateId: item.candidateId,
       sourceId: item.sourceId,
       resolutionHeight: height,
@@ -177,7 +179,7 @@ export function useFridayChatSession({
             item.candidateId === detail.candidateId && item.reachable,
           ) ?? false;
           if (reachable && target.title) {
-            const index = playbackRecommendations.findIndex((item) => item.title === target.title);
+            const index = playbackRecommendations.findIndex((item) => item.title === target.title && (item.year ?? "") === (target.year ?? ""));
             if (index >= 0) {
               const currentRecommendation = playbackRecommendations[index];
               const currentRank = currentRecommendation.selectionBasis === "decoded-playback" ? 2 :
