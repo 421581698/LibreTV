@@ -33,7 +33,7 @@ export async function loadFMHYCategory(categoryId: string): Promise<FMHYResource
   const load = loaders[categoryId];
   if (!load) return [];
   const {default:data} = await load();
-  return data.records.map(record => ({
+  return data.records.filter(record => !record.flags.section).map(record => ({
     ...record,
     categoryId: data.category.id,
     categoryTitle: data.category.title,
