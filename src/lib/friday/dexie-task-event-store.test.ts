@@ -58,6 +58,12 @@ describe("DexieTaskEventStore with native IndexedDB", () => {
     ]);
   });
 
+  it("rejects oversized task payloads before writing to IndexedDB", async () => {
+    await expect(store.append(event({ payload: { prompt: "x".repeat(300 * 1024) } })))
+      .rejects.toThrow("Task event exceeds the 256 KiB persistence limit");
+    expect(await db.fridayTaskEvents.count()).toBe(0);
+  });
+
   it("rejects a duplicate event ID without changing the existing stream", async () => {
     await store.append(event());
     await expect(store.append(event({
