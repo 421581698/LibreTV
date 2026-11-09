@@ -1,4 +1,6 @@
 'use client';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -18,15 +20,28 @@ function TabIcon({ name }: { name: (typeof tabs)[number]['icon'] }) {
 
 export function MobileTabBar() {
   const pathname = usePathname();
+  const [portalReady, setPortalReady] = useState(false);
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
+
   const normalized = !pathname || pathname === '/' ? '/' : pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
-  return <nav className="v4-mobile-tabbar" aria-label="底部导航">
-    {tabs.map(tab => {
-      const active = tab.href === '/' ? normalized === '/' : normalized === tab.href || normalized.startsWith(tab.href + '/');
-      return <Link key={tab.href} href={tab.href} className={active ? 'is-active' : ''} aria-current={active ? 'page' : undefined}>
-        <TabIcon name={tab.icon} />
-        <span>{tab.label}</span>
-        {active && <i aria-hidden="true" />}
-      </Link>;
-    })}
-  </nav>;
+  const navigation = (
+    <nav className="v4-mobile-tabbar" aria-label="底部导航">
+      {tabs.map(tab => {
+        const active = tab.href === '/' ? normalized === '/' : normalized === tab.href || normalized.startsWith(tab.href + '/');
+        return <Link key={tab.href} href={tab.href} className={active ? 'is-active' : ''} aria-current={active ? 'page' : undefined}>
+          <TabIcon name={tab.icon} />
+          <span>{tab.label}</span>
+          {active && <i aria-hidden="true" />}
+        </Link>;
+      })}
+    </nav>
+  );
+
+  // Keep the fixed dock outside transformed/filtered page containers.
+  // On iOS Safari, those ancestors can become the containing block for
+  // position: fixed and make the dock scroll into the middle of the page.
+  return portalReady ? createPortal(navigation, document.body) : null;
 }

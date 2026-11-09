@@ -456,3 +456,74 @@
     overflow: hidden !important;
   }
 }
+
+
+/* iPhone header search action: keep the magnifier visible on both themes.
+   The mobile toggle sits beside Settings and Profile inside header-actions;
+   give it the same solid, high-contrast glass treatment as those controls. */
+@media screen and (max-width: 700px) {
+  :root:not(.dark) .v4-header .v4-header-actions > .v4-mobile-search-toggle,
+  :root:not(.dark) .v4-home .v4-header .v4-header-actions > .v4-mobile-search-toggle,
+  :root:not(.dark) .v4-spatial-screen .v4-header .v4-header-actions > .v4-mobile-search-toggle {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+    flex: 0 0 38px !important;
+    color: #46515f !important;
+    -webkit-text-fill-color: #46515f !important;
+    background: rgba(226,231,238,.82) !important;
+    border: 1px solid rgba(102,116,135,.28) !important;
+    border-radius: 50% !important;
+    box-shadow: 0 2px 8px rgba(35,48,66,.08) !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  :root:not(.dark) .v4-header .v4-header-actions > .v4-mobile-search-toggle svg,
+  :root:not(.dark) .v4-home .v4-header .v4-header-actions > .v4-mobile-search-toggle svg,
+  :root:not(.dark) .v4-spatial-screen .v4-header .v4-header-actions > .v4-mobile-search-toggle svg {
+    display: block !important;
+    width: 19px !important;
+    height: 19px !important;
+    color: #46515f !important;
+    stroke: #46515f !important;
+    fill: none !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  .dark .v4-header .v4-header-actions > .v4-mobile-search-toggle,
+  .dark .v4-home .v4-header .v4-header-actions > .v4-mobile-search-toggle,
+  .dark .v4-spatial-screen .v4-header .v4-header-actions > .v4-mobile-search-toggle {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+    flex: 0 0 38px !important;
+    color: #F2F2F4 !important;
+    -webkit-text-fill-color: #F2F2F4 !important;
+    background: rgba(255,255,255,.11) !important;
+    border: 1px solid rgba(255,255,255,.22) !important;
+    border-radius: 50% !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,.18) !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  .dark .v4-header .v4-header-actions > .v4-mobile-search-toggle svg,
+  .dark .v4-home .v4-header .v4-header-actions > .v4-mobile-search-toggle svg,
+  .dark .v4-spatial-screen .v4-header .v4-header-actions > .v4-mobile-search-toggle svg {
+    display: block !important;
+    width: 19px !important;
+    height: 19px !important;
+    color: #F2F2F4 !important;
+    stroke: #F2F2F4 !important;
+    fill: none !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+}
