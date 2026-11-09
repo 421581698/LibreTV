@@ -48,7 +48,7 @@ if settings.api_key is None and not _is_loopback_host(settings.host):
 app = FastAPI(
     title="LibreTV Scrapling Engine",
     version="0.3.0",
-    description="Phase-one isolated crawler service built on upstream Scrapling.",
+    description="Independent Scrapling crawler and FMHY resource catalog service.",
 )
 job_store = JobStore(settings.job_database_path)
 catalog_store = CatalogStore(settings.catalog_database_path)
@@ -307,6 +307,7 @@ async def capabilities() -> dict:
             "fmhy_official_markdown_import",
             "versioned_resource_catalog",
             "normalized_domain_index",
+            "catalog_category_index",
         ],
         "planned": [
             "dynamic_browser",
@@ -635,4 +636,22 @@ async def get_catalog_domains(
         "snapshot_id": snapshot["snapshot_id"],
         "count": len(domains),
         "domains": domains,
+    }
+
+
+
+@app.get("/v1/catalog/categories")
+async def get_catalog_categories(include_unsafe: bool = False) -> dict:
+    snapshot = catalog_store.latest_snapshot()
+    if snapshot is None:
+        raise HTTPException(status_code=404, detail="FMHY catalog has not been synchronized.")
+    categories = catalog_store.list_categories(
+        snapshot_id=snapshot["snapshot_id"],
+        include_unsafe=include_unsafe,
+    )
+    return {
+        "ok": True,
+        "snapshot_id": snapshot["snapshot_id"],
+        "count": len(categories),
+        "categories": categories,
     }
