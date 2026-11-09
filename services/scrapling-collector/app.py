@@ -6,6 +6,7 @@ import http.client
 import hmac
 import ipaddress
 import json
+import math
 import os
 import re
 import socket
@@ -298,6 +299,7 @@ def parse_mpd_manifest(body: bytes, base_url: str = "") -> dict:
     template_references: list[str] = []
     segment_references: list[str] = []
     dynamic = root.attrib.get("type", "static").lower() == "dynamic"
+    mpd_duration = parse_iso8601_duration_seconds(root.attrib.get("mediaPresentationDuration"))
     time_shift_depth = parse_iso8601_duration_seconds(root.attrib.get("timeShiftBufferDepth"))
     dynamic_metadata = {
         key: root.attrib.get(key)
@@ -321,7 +323,7 @@ def parse_mpd_manifest(body: bytes, base_url: str = "") -> dict:
             timelines = _xml_children(node, "SegmentTimeline")
             if timelines:
                 period_timeline = timelines[0]
-        period_duration = parse_iso8601_duration_seconds(period.attrib.get("duration"))
+        period_duration = parse_iso8601_duration_seconds(period.attrib.get("duration")) or mpd_duration
         for adaptation in _xml_children(period, "AdaptationSet"):
             adaptation_base = _first_base_url(adaptation)
             adaptation_url = urljoin(current_base, adaptation_base) if adaptation_base else current_base
@@ -408,7 +410,7 @@ def parse_mpd_manifest(body: bytes, base_url: str = "") -> dict:
                                 end_tick = int(period_duration * timescale)
                                 count = max(0, (end_tick - start + duration - 1) // duration)
                             elif dynamic and time_shift_depth is not None:
-                                count = max(0, int(time_shift_depth * timescale + duration - 1) // duration)
+                                count = max(0, math.ceil(time_shift_depth * timescale / duration))
                             else:
                                 count = 50
                                 timeline_truncated = True
@@ -543,6 +545,15 @@ def validate_manifest_references(manifest: dict, base_url: str) -> dict:
                 safe_list.append(resolved)
         if "segment_list" in item:
             item["segment_list"] = safe_list
+        safe_timeline = []
+        for entry in item.get("segment_timeline", []):
+            timeline_item = dict(entry)
+            resolved = safe_reference(timeline_item.get("url", ""))
+            if resolved:
+                timeline_item["url"] = resolved
+                safe_timeline.append(timeline_item)
+        if "segment_timeline" in item:
+            item["segment_timeline"] = safe_timeline
         safe_representations.append(item)
     if "representations" in result:
         result["representations"] = safe_representations
