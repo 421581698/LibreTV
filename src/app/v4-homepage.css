@@ -841,3 +841,65 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
   .v4-header-actions { gap: 8px; }
   .v4-search { width: min(100%, 260px); }
 }
+
+
+/* Final Hero conversion pass: vivid primary action, restrained secondary,
+   lighter artwork veil and crisp, tactile recommendation posters. */
+.v4-home .v4-hero-veil {
+  background:
+    linear-gradient(90deg, rgba(4, 8, 15, .76) 0%, rgba(4, 8, 15, .56) 34%, rgba(4, 8, 15, .24) 66%, rgba(4, 8, 15, .06) 100%),
+    linear-gradient(0deg, rgba(4, 8, 15, .48) 0%, rgba(4, 8, 15, .14) 38%, rgba(4, 8, 15, .025) 100%) !important;
+}
+.v4-home .v4-hero-content .v4-hero-primary {
+  color: #000 !important;
+  -webkit-text-fill-color: #000 !important;
+  background: #fff !important;
+  border: 1px solid #fff !important;
+  box-shadow: 0 10px 30px rgba(0,0,0,.28), 0 0 22px rgba(255,255,255,.16) !important;
+  transition: transform .2s ease, box-shadow .2s ease, background .2s ease !important;
+}
+.v4-home .v4-hero-content .v4-hero-primary:hover {
+  color: #000 !important;
+  background: #fff !important;
+  transform: translateY(-2px) scale(1.035) !important;
+  box-shadow: 0 14px 36px rgba(0,0,0,.34), 0 0 28px rgba(255,255,255,.22) !important;
+}
+.v4-home .v4-hero-content .v4-hero-secondary {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  background: rgba(12,16,24,.24) !important;
+  border: 1px solid rgba(255,255,255,.58) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.10) !important;
+  transition: transform .2s ease, background .2s ease, border-color .2s ease !important;
+}
+.v4-home .v4-hero-content .v4-hero-secondary:hover {
+  color: #fff !important;
+  background: rgba(255,255,255,.13) !important;
+  border-color: rgba(255,255,255,.86) !important;
+  transform: translateY(-2px) !important;
+}
+.v4-home .v4-recommendation-section .card {
+  overflow: hidden !important;
+  transition: transform .28s ease, box-shadow .28s ease !important;
+}
+.v4-home .v4-recommendation-section .card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover !important;
+  filter: none !important;
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .v4-home .v4-recommendation-section .card:hover {
+    transform: translateY(-3px) scale(1.05) !important;
+    box-shadow: 0 18px 38px rgba(0,0,0,.22) !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .v4-home .v4-hero-content .v4-hero-primary,
+  .v4-home .v4-hero-content .v4-hero-secondary,
+  .v4-home .v4-recommendation-section .card,
+  .v4-home .v4-recommendation-section .card img {
+    transition: none !important;
+  }
+}
