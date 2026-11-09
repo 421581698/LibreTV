@@ -1384,3 +1384,54 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
 .artplayer .art-state svg {
   filter: drop-shadow(0 1px 8px rgba(0,0,0,.5));
 }
+
+
+/* Player four-zone contrast and hierarchy correction. */
+.netflix-watch-sidebar {
+  color:#f4f6fa !important;
+  background:rgba(20,22,28,.97) !important;
+  border-color:rgba(255,255,255,.14) !important;
+}
+.netflix-watch-sidebar,
+.netflix-watch-sidebar * { color-scheme:dark; }
+.netflix-watch-sidebar .text-content,
+.netflix-watch-sidebar h3,
+.netflix-watch-sidebar .netflix-episode-row,
+.netflix-watch-sidebar .netflix-next-card { color:#f4f6fa !important; }
+.netflix-watch-sidebar .text-muted,
+.netflix-watch-sidebar .text-faint,
+.netflix-watch-sidebar small,
+.netflix-watch-sidebar .netflix-section-kicker,
+.netflix-watch-sidebar .netflix-sidebar-footer { color:rgba(230,235,244,.68) !important; }
+.netflix-watch-sidebar .netflix-sidebar-tabs button { color:rgba(230,235,244,.72) !important; }
+.netflix-watch-sidebar .netflix-sidebar-tabs button.active { color:#fff !important; }
+.netflix-watch-sidebar .netflix-sidebar-tabs button span { color:rgba(230,235,244,.62) !important; }
+.netflix-watch-sidebar .netflix-episode-row { background:rgba(255,255,255,.07) !important; }
+.netflix-watch-sidebar .netflix-episode-row.active { background:rgba(57,120,239,.2) !important; }
+.netflix-watch-sidebar .netflix-next-card,
+.netflix-watch-sidebar .netflix-source-card { background:rgba(255,255,255,.07) !important; border-color:rgba(255,255,255,.13) !important; }
+.netflix-watch-sidebar .netflix-next-card:hover,
+.netflix-watch-sidebar .netflix-episode-row:hover { background:rgba(255,255,255,.12) !important; }
+.netflix-watch-sidebar .netflix-next-card strong,
+.netflix-watch-sidebar .netflix-source-card strong { color:#fff !important; }
+.netflix-watch-sidebar .netflix-next-card small,
+.netflix-watch-sidebar .netflix-source-card div span { color:rgba(230,235,244,.68) !important; }
+.netflix-watch-sidebar .netflix-next-preview { border-color:rgba(255,255,255,.14); }
+.netflix-watch-sidebar .netflix-sidebar-tabs { border-color:rgba(255,255,255,.14); }
+.netflix-watch-sidebar .netflix-sidebar-footer { border-color:rgba(255,255,255,.14); }
+.netflix-watch .netflix-related-card strong { color:var(--c-content,#f5f5f5); }
+.netflix-watch .netflix-related-card > span { color:var(--c-muted,#aaa); }
+@media (min-width:901px) {
+  .netflix-watch-grid { grid-template-columns:minmax(0,1fr) clamp(320px,27vw,390px); gap:22px; }
+  .netflix-watch-sidebar { max-height:calc(100dvh - 92px); }
+}
+@media (min-width:701px) and (max-width:900px) {
+  .netflix-watch-grid { grid-template-columns:minmax(0,1fr); }
+  .netflix-watch-sidebar { position:static; max-height:none; }
+  .netflix-sidebar-content { max-height:38vh; }
+}
+@media (max-width:700px) {
+  .netflix-watch-sidebar { margin:0 12px; }
+  .netflix-sidebar-content { max-height:42vh; }
+  .netflix-next-preview { margin:0 12px 12px; }
+}
