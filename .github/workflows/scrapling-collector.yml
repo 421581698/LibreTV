@@ -8,12 +8,7 @@ on:
       - "src/components/source-manager.tsx"
       - "docker-compose.yml"
       - ".github/workflows/scrapling-collector.yml"
-  push:
-    branches:
-      - "feat/iphone-inline-play-top-search-2026-11-09"
-    paths:
-      - "services/scrapling-collector/**"
-      - ".github/workflows/scrapling-collector.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
