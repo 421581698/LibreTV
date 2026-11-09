@@ -107,10 +107,14 @@ def extract_page_signals(page: Any, page_url: str) -> dict[str, Any]:
             continue
         if normalized == page_url:
             continue
+        if not _PAGE_HINTS.search(f"{target.path} {href}"):
+            continue
         label = ""
-        role = "detail_page"
-        if _PAGE_HINTS.search(f"{target.path} {href}"):
-            role = "playback_page" if re.search(r"(?:play|watch|episode|embed)", target.path, re.I) else "detail_page"
+        role = (
+            "playback_page"
+            if re.search(r"(?:play|watch|episode|embed)", target.path, re.I)
+            else "detail_page"
+        )
         navigation.setdefault(normalized, {"url": normalized, "role": role, "label": label})
         if len(navigation) >= 100:
             break
