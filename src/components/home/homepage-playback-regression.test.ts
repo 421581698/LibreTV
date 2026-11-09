@@ -152,16 +152,25 @@ describe('首页与播放页回归契约', () => {
     const navStart = v4Header.indexOf('<nav');
     const navEnd = v4Header.indexOf('</nav>', navStart);
     const navMarkup = v4Header.slice(navStart, navEnd);
-    expect(navMarkup).toContain("item.href === '/movies'");
+    const searchStart = v4Header.indexOf('id="v4-header-search"');
     expect(navMarkup).not.toContain('id="v4-header-search"');
-    expect(v4Header).toContain('id="v4-header-search"');
+    expect(searchStart).toBeGreaterThan(navEnd);
+    expect(v4Header).toContain("{ label: '首页', href: '/' }");
+    expect(v4Header).toContain("{ label: '电影', href: '/movies' }");
+    expect(v4Header).toContain("{ label: '电视剧', href: '/tv' }");
+    expect(v4Header).toContain("{ label: '动漫', href: '/anime' }");
+    expect(v4Header).toContain("{ label: '综艺', href: '/variety' }");
+    expect(v4Header).toContain("{ label: '海外剧', href: '/overseas' }");
+    expect(v4Header).toContain("{ label: '直播', href: '/live' }");
     expect(sharedHeaderStyles).toContain('@media screen and (min-width: 701px)');
-    expect(sharedHeaderStyles).toContain('.v4-header .v4-primary-nav {');
     expect(sharedHeaderStyles).toContain('display: contents !important;');
+    expect(sharedHeaderStyles).toContain('order: 1 !important;');
+    expect(sharedHeaderStyles).toContain('order: 2 !important;');
+    expect(sharedHeaderStyles).toContain('order: 3 !important;');
     expect(sharedHeaderStyles).toContain('.v4-header .v4-nav-link[href="/"]');
     expect(sharedHeaderStyles).toContain('color: #fff !important;');
     expect(sharedHeaderStyles).toContain('color: #17171B !important;');
-    expect(sharedHeaderStyles).toContain('order: 2 !important;');
+    expect(sharedHeaderStyles).not.toContain('@media screen and (min-width: 1200px)');
   });
 
   it('V4 Header 搜索与最近搜索历史保留 URL、输入校验和回选链路', () => {
