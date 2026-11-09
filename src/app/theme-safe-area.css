@@ -35,8 +35,26 @@ html::after {
   content: "";
   position: fixed;
   z-index: 2147483000;
-  inset: auto 0 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   height: env(safe-area-inset-bottom, 0px);
-  background: var(--safe-area-surface);
+  min-height: env(safe-area-inset-bottom, 0px);
+  background-color: var(--safe-area-surface, #F5F7FA) !important;
   pointer-events: none;
+  transition: background-color .15s ease;
+}
+
+/* iOS Safari may composite the home-indicator inset from the body layer. */
+body::after {
+  content: "";
+  position: fixed;
+  z-index: 2147482999;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: env(safe-area-inset-bottom, 0px);
+  background-color: var(--safe-area-surface, #F5F7FA) !important;
+  pointer-events: none;
+  transition: background-color .15s ease;
 }
