@@ -28,6 +28,7 @@ const fridayConversation = source('src/components/friday/FridayConversation.tsx'
 const movieAgents = source('src/lib/friday/movie-agents.ts');
 const movieWorkflow = source('src/lib/friday/movie-workflow.ts');
 const voiceController = source('src/components/friday/useFridayVoiceController.ts');
+const browserAsr = source('src/components/friday/browserAsr.ts');
 const chatSession = source('src/components/friday/useFridayChatSession.ts');
 const fridayPanel = source('src/components/friday/FridayPanel.tsx');
 
@@ -254,6 +255,22 @@ describe('首页与播放页回归契约', () => {
     expect(chatSession).toContain('taskId.endsWith(".playback-evidence")');
     expect(chatSession).toContain('createPlaybackEvidenceAgent()');
     expect(chatSession).toContain('replayFailed: true');
+  });
+
+  it('默认清晰度设置持久化并限制 HLS 自适应档位', () => {
+    expect(settings).toContain('label="默认清晰度"');
+    expect(settings).toContain('libretv-quality-preference');
+    expect(player).toContain('applyHlsQualityPreference(hls)');
+    expect(player).toContain('autoLevelCapping');
+    expect(player).toContain('libretv-quality-preference-change');
+  });
+
+  it('Friday 语音识别语言设置实际写入浏览器 ASR 实例', () => {
+    expect(settings).toContain('label="语音识别语言"');
+    expect(settings).toContain('friday-asr-language');
+    expect(voiceController).toContain('preferredRecognitionLanguage');
+    expect(voiceController).toContain('recognition.lang = preferredRecognitionLanguage');
+    expect(browserAsr).toContain('window.webkitSpeechRecognition');
   });
 
 });
