@@ -240,14 +240,11 @@ def captured_api_candidates(session, page_url: str, limit: int) -> list[dict]:
 
 class SiteSpider(Spider):
     name = "libretv-fmhy-site"
+    start_urls: list[str] = []
+    allowed_domains: list[str] = []
     concurrent_requests = 1
     robots_txt_obey = True
     download_delay = 2
-
-    def __init__(self, target_url: str, **kwargs):
-        self.target_url = target_url
-        self.allowed_domains = [urlparse(target_url).hostname]
-        super().__init__(start_urls=[target_url], **kwargs)
 
     async def parse(self, response: Response):
         title = (response.css("title::text").get() or "").strip()[:200]
@@ -265,7 +262,10 @@ class SiteSpider(Spider):
 
 
 def run_spider(url: str, limit: int) -> list[dict]:
-    result = SiteSpider(url, concurrent_requests=1).start()
+    class TargetSiteSpider(SiteSpider):
+        start_urls = [url]
+        allowed_domains = [urlparse(url).hostname]
+    result = TargetSiteSpider().start()
     candidates: list[dict] = []
     seen: set[str] = set()
     for item in result.items:
