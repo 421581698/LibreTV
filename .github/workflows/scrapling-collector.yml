@@ -38,11 +38,13 @@ jobs:
       - name: Run collector unit tests
         run: python -m unittest discover -s tests -v
       - name: Validate Docker Compose collector profile
+        working-directory: .
         env:
           PASSWORD: collector-ci-password
           SCRAPLING_API_TOKEN: collector-ci-token
-        run: docker compose --profile collector config --quiet
+        run: docker compose -f ../../docker-compose.yml --project-directory ../.. --profile collector config --quiet
       - name: Validate Render Blueprint YAML syntax
+        working-directory: ../..
         run: ruby -e 'require "yaml"; YAML.safe_load_file("render.yaml", permitted_classes: [], aliases: false); puts "Render Blueprint YAML syntax passed"'
       - name: Validate host firewall script syntax
         run: bash -n ../../scripts/scrapling-egress-firewall.sh
