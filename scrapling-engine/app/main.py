@@ -34,7 +34,7 @@ job_store.initialize()
 job_store.recover_interrupted()
 _active_spiders: dict[str, Any] = {}
 _job_tasks: dict[str, asyncio.Task] = {}
-_job_locks: dict[str, asyncio.Lock] = {}
+_job_transition_lock = asyncio.Lock()
 
 
 class FetchRequest(BaseModel):
@@ -104,7 +104,6 @@ def _ensure_checkpoint_manifest(
 
 
 def _schedule_job(task_id: str) -> None:
-    _job_locks.setdefault(task_id, asyncio.Lock())
     existing = _job_tasks.get(task_id)
     if existing and not existing.done():
         return
@@ -135,7 +134,7 @@ async def _run_job(task_id: str) -> None:
                     "title": item.get("title"),
                 },
             )
-        async with _job_locks.setdefault(task_id, asyncio.Lock()):
+        async with _job_transition_lock:
             current = job_store.get(task_id)
             paused = current is not None and current["status"] == "pausing"
             result = {
