@@ -8,6 +8,7 @@ class Settings(BaseSettings):
         default=None,
         validation_alias="SCRAPLING_API_KEY",
         min_length=32,
+        pattern=r"^[A-Za-z0-9_-]+$",
     )
     port: int = Field(default=8787, ge=1, le=65535)
     log_level: str = "INFO"
