@@ -161,7 +161,9 @@ describe('首页与播放页回归契约', () => {
     const actionsStart = v4Header.indexOf('className="v4-header-actions"');
     expect(navMarkup).not.toContain('id="v4-header-search"');
     expect(searchStart).toBeGreaterThan(navEnd);
-    expect(actionsStart).toBeGreaterThan(searchStart);
+    expect(actionsStart).toBeGreaterThan(navEnd);
+    expect(searchStart).toBeGreaterThan(actionsStart);
+    expect(v4Header.indexOf('<SearchModule')).toBeLessThan(v4Header.indexOf('<HistoryModule'));
 
     const navLabels = ['首页', '电影', '电视剧', '海外剧', '动漫', '综艺', '直播'];
     const navPositions = navLabels.map((label, index) => navModules[index].indexOf('label="' + label + '"'));
