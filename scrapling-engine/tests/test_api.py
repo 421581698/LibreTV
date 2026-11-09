@@ -3,6 +3,7 @@ from unittest.mock import Mock
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.scraper import ScraplingAdapter
 client = TestClient(app)
 
 
@@ -55,3 +56,42 @@ def test_fetch_uses_adapter_and_returns_extraction(monkeypatch) -> None:
     )
     assert response.status_code == 200
     assert response.json()["result"]["title"] == "fixture"
+
+
+
+def test_adapter_extracts_css_and_metadata() -> None:
+    heading = Mock()
+    heading.get_all_text.return_value = "Example heading"
+    title = Mock()
+    title.get.return_value = "Example title"
+    page = Mock()
+    page.get_all_text.return_value = "Example heading body"
+    page.css.return_value = [heading]
+    page.css_first.return_value = title
+    page.status = 200
+    page.url = "https://example.com/"
+    page.markdown.return_value = "# Example"
+
+    result = ScraplingAdapter.extract(page, "h1", "css")
+
+    assert result["text"] == ["Example heading"]
+    assert result["title"] == "Example title"
+    assert result["markdown"] == "# Example"
+    assert result["status"] == 200
+
+
+def test_adapter_supports_xpath_and_regex() -> None:
+    node = Mock()
+    node.get_all_text.return_value = "Chapter 12"
+    page = Mock()
+    page.get_all_text.return_value = "Chapter 12 and Chapter 13"
+    page.xpath.return_value = [node]
+    page.css_first.return_value = None
+    page.markdown.return_value = None
+
+    xpath_result = ScraplingAdapter.extract(page, "//h2", "xpath")
+    regex_result = ScraplingAdapter.extract(page, r"Chapter (\\d+)", "regex")
+
+    assert xpath_result["text"] == ["Chapter 12"]
+    assert regex_result["text"] == ["12", "13"]
+    assert regex_result["count"] == 2
