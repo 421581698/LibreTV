@@ -123,7 +123,10 @@ export function V4HomepageHeader() {
             <GlassButton className="v4-header-icon" aria-label="观看历史" title="观看历史" onClick={() => setHistoryOpen(true)}>
               <Icon name="clock" />
             </GlassButton>
-            <GlassButton className="v4-header-icon" aria-label="设置" title="设置" onClick={() => setSettingsOpen(true)}>
+            <GlassButton className="v4-header-icon" aria-label="设置" title="设置" onClick={() => {
+                if (pathname === '/settings') setSettingsOpen(true);
+                else router.push('/settings');
+              }}>
               <Icon name="gear" />
             </GlassButton>
             <GlassButton
