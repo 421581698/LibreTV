@@ -312,6 +312,14 @@ segment-2.ts
         self.assertEqual(result["representations"][0]["height"], 1080)
         self.assertEqual(result["representations"][0]["bandwidth"], 5000000)
 
+    def test_mpd_manifest_rejects_empty_periods_without_representations(self):
+        result = collector.parse_mpd_manifest(
+            b"<MPD><Period><AdaptationSet/></Period></MPD>",
+            "https://cdn.example/manifest.mpd",
+        )
+        self.assertFalse(result["manifest_valid"])
+        self.assertEqual(result["manifest_error"], "missing_representations")
+
     def test_mpd_manifest_rejects_doctype_and_entities(self):
         body = b"""<!DOCTYPE MPD [<!ENTITY x "expanded">]>
 <MPD><Period><AdaptationSet><Representation id="&x;"/></AdaptationSet></Period></MPD>"""
