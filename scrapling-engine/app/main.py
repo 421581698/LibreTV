@@ -17,6 +17,7 @@ from starlette.concurrency import run_in_threadpool
 from app.config import settings
 from app.job_store import JobStore
 from app.scraper import ScraplingAdapter
+from app.robots import RobotsPolicyError, RobotsUnavailableError, ensure_robots_allowed
 from app.security import UnsafeTargetError, validate_public_http_url
 from app.spider import ScraplingSpiderAdapter
 
@@ -244,6 +245,11 @@ async def fetch(request: FetchRequest) -> dict:
         )
 
     try:
+        await run_in_threadpool(
+            ensure_robots_allowed,
+            target,
+            settings.request_timeout_seconds,
+        )
         page = await run_in_threadpool(
             ScraplingAdapter.fetch_page,
             target,
@@ -256,6 +262,10 @@ async def fetch(request: FetchRequest) -> dict:
             request.mode,
         )
         return {"ok": True, "result": result}
+    except RobotsPolicyError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except RobotsUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
