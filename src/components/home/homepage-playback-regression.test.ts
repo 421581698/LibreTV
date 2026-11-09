@@ -424,14 +424,16 @@ describe('首页与播放页回归契约', () => {
   });
 
 
-  it('Preview 保持公开访问，功能分支推送后先通过检查再部署', () => {
-    expect(previewConfig).toContain('AUTH_DISABLED = "true"');
+  it('Preview 必须保持密码保护，且部署前先通过完整检查', () => {
+    expect(previewConfig).toContain('AUTH_DISABLED = "false"');
     expect(previewWorkflow).toContain('workflow_dispatch:');
     expect(previewWorkflow).toContain('  push:');
     expect(previewWorkflow).toContain('feature/libretv-eight-screen-glass-2026-11-09');
     expect(previewWorkflow).toContain('run: npm test -- --reporter=dot');
-    expect(previewWorkflow).toContain('Deploy isolated public preview Worker');
-    expect(previewWorkflow).not.toContain('password protection');
+    expect(previewWorkflow).toContain('Verify preview authentication remains enabled');
+    expect(previewWorkflow).toContain('Deploy password-protected isolated preview Worker');
+    expect(previewWorkflow).toContain('password-protected');
+    expect(previewWorkflow).not.toContain('Deploy isolated public preview Worker');
   });
 
   it('设置页快捷入口会打开指定的真实设置面板', () => {
