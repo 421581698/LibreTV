@@ -10,6 +10,7 @@ from scrapling.fetchers import FetcherSession
 from scrapling.spiders import Response, Spider
 
 from app.config import settings
+from app.media_discovery import extract_page_signals
 
 
 class _SeedSpider(Spider):
@@ -50,12 +51,17 @@ class _SeedSpider(Spider):
                 "bytes": len(body),
             }
             return
-        title = response.css("title::text").get() or ""
+        page_url = str(response.url)
+        signals = extract_page_signals(response, page_url)
         yield {
-            "url": str(response.url),
+            "url": page_url,
             "status": getattr(response, "status", None),
-            "title": title.strip(),
+            "title": signals["title"] or "",
             "text": response.get_all_text(strip=True)[:20_000],
+            "discovered_pages": signals["discovered_pages"],
+            "media_candidates": signals["media_candidates"],
+            "poster_url": signals["poster_url"],
+            "discovery_only": True,
         }
 
 
