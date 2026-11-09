@@ -19,6 +19,7 @@ services:
       # 可选：FMHY / Scrapling 采集服务（启用 collector profile 后使用）
       - SCRAPLING_API_BASE=${SCRAPLING_API_BASE:-http://scrapling-collector:8000}
       - SCRAPLING_API_TOKEN=${SCRAPLING_API_TOKEN:-}
+      - PORT=8000
       - SCRAPLING_DB_PATH=/data/collector.sqlite3
       # 可选：会话/代理签名密钥（多实例部署建议显式设置：openssl rand -hex 32）
       # - PROXY_SECRET=your-secret
