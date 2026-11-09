@@ -1,4 +1,5 @@
-/* Hidden outside the phone breakpoint; desktop/tablet keep the full search field. */
+/* Mobile-only navigation dock; desktop and tablet retain the full header navigation. */
+.v4-mobile-tabbar { display: none; }
 .v4-mobile-search-toggle { display: none; }
 
 /* LibreTV iPhone Safari profile
