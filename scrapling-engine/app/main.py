@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import uuid
+from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
@@ -29,6 +30,7 @@ app = FastAPI(
 )
 job_store = JobStore(settings.job_database_path)
 job_store.initialize()
+job_store.recover_interrupted()
 _active_spiders: dict[str, object] = {}
 _job_tasks: dict[str, asyncio.Task] = {}
 
@@ -102,7 +104,7 @@ async def _run_job(task_id: str) -> None:
             "items": items,
             "completed": not paused,
             "paused": paused,
-            "stats": spider.stats.__dict__ if hasattr(spider.stats, "__dict__") else {},
+            "stats": asdict(spider.stats),
         }
         job_store.update(
             task_id,
@@ -270,11 +272,12 @@ async def pause_job(task_id: str) -> dict:
     spider_instance = _active_spiders.get(task_id)
     if job["status"] != "running" or spider_instance is None:
         raise HTTPException(status_code=409, detail="Crawl job is not currently pausable.")
+    job_store.update(task_id, "pausing")
     try:
         spider_instance.pause()
     except RuntimeError as exc:
+        job_store.update(task_id, "running", error="Pause request rejected before crawl loop started.")
         raise HTTPException(status_code=409, detail="Spider has not started its crawl loop.") from exc
-    job_store.update(task_id, "pausing")
     return {"ok": True, "task_id": task_id, "status": "pausing"}
 
 
