@@ -12,7 +12,7 @@ The eight capability areas are:
 2. Extraction: CSS, XPath, text, regex and DOM traversal.
 3. Adaptive parsing: saved element fingerprints and relocation after layout changes.
 4. Browser automation: JavaScript rendering, sessions and browser interactions.
-5. Spider crawling: concurrent requests, scheduling, streaming and checkpoint-based pause/resume.
+5. Spider crawling: the first integration exposes a seed-URL crawl endpoint backed by Scrapling Spider, with concurrency limits and robots.txt enforcement. Recursive link discovery and persistent job controls remain gated until request-level egress protection is in place.
 6. Public API discovery: capture and inspect page network responses; never assume every endpoint is public or usable.
 7. Network resilience: proxy configuration, retries, blocked-response handling, throttling and robots policy.
 8. AI integration: upstream MCP server/Agent Skill plus a controlled LibreTV adapter surface.
@@ -30,6 +30,8 @@ uvicorn app.main:app --host 127.0.0.1 --port 8787
 ```
 
 Open `http://127.0.0.1:8787/health`.
+
+`POST /v1/spider` accepts `{"urls": ["https://public.example/"]}` (1–20 seed URLs). The current endpoint validates every seed, deduplicates URLs, obeys robots.txt, limits concurrency, and returns extracted page text plus Scrapling crawl statistics. It intentionally does not follow page links yet: browser subrequests, redirects, and DNS rebinding need deployment-level egress enforcement before recursive crawling is enabled.
 
 Browser-backed fetchers require the optional browser dependencies and browser installation described by the upstream Scrapling documentation. Keep the service bound to localhost until authentication and deployment hardening are configured.
 
