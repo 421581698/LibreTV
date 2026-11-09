@@ -45,11 +45,14 @@ class CollectorTests(unittest.TestCase):
 
         class Manager:
             def add(self, session_id, session, default=False, lazy=False):
-                captured.update(session_id=session_id, session=session)
+                captured["session_id"] = session_id
+                captured["session"] = session
 
-        collector.SiteSpider().configure_sessions(Manager())
+        with patch.object(collector, "FetcherSession") as fetcher_session:
+            collector.SiteSpider().configure_sessions(Manager())
+        fetcher_session.assert_called_once_with(follow_redirects="safe")
         self.assertEqual(captured["session_id"], "default")
-        self.assertEqual(captured["session"]._follow_redirects, "safe")
+        self.assertIs(captured["session"], fetcher_session.return_value)
 
     def test_classifies_direct_media(self):
         self.assertEqual(
