@@ -16,8 +16,8 @@ from starlette.concurrency import run_in_threadpool
 
 from app.config import settings
 from app.job_store import JobStore
-from app.scraper import ScraplingAdapter
 from app.robots import RobotsPolicyError, RobotsUnavailableError, ensure_robots_allowed
+from app.scraper import ScraplingAdapter
 from app.security import UnsafeTargetError, validate_public_http_url
 from app.spider import ScraplingSpiderAdapter
 
@@ -179,7 +179,7 @@ async def stop_active_crawls() -> None:
             )
     tasks = list(_job_tasks.values())
     if tasks:
-        done, pending = await asyncio.wait(tasks, timeout=30)
+        _, pending = await asyncio.wait(tasks, timeout=30)
         for task in pending:
             task.cancel()
         if pending:
@@ -207,6 +207,7 @@ async def capabilities() -> dict:
             "spider_seed_crawl",
             "spider_concurrency_limits",
             "spider_robots_txt_policy",
+            "one_off_fetch_robots_policy",
             "spider_checkpoint_storage",
             "persistent_job_registry",
             "async_job_execution",
