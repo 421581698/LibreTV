@@ -202,8 +202,6 @@ def test_job_runner_marks_pause_without_checkpoint_as_interrupted(
         ["https://example.com/one", "https://example.com/two"],
         str(checkpoint),
     )
-    store.update("job_pause_no_checkpoint", "pausing")
-
     @dataclass
     class FakeStats:
         requests_count: int = 1
@@ -212,6 +210,7 @@ def test_job_runner_marks_pause_without_checkpoint_as_interrupted(
         stats = FakeStats()
 
         async def stream(self):
+            store.update("job_pause_no_checkpoint", "pausing")
             yield {
                 "url": "https://example.com/one",
                 "title": "one",
