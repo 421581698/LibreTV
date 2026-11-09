@@ -1,5 +1,5 @@
-
 import { NextRequest, NextResponse } from 'next/server';
+import { guardRequest } from '@/lib/api-guard';
 import { fetchUpstream } from '@/lib/fetch-utils';
 
 export const runtime = 'nodejs';
@@ -27,6 +27,12 @@ function errorResponse(message: string, status: number) {
 }
 
 export async function GET(req: NextRequest) {
+  // This endpoint accepts an arbitrary public URL and acts as an image proxy.
+  // Keep it behind the same session gate as search/detail APIs to prevent
+  // unauthenticated third-party bandwidth abuse.
+  const guarded = guardRequest(req);
+  if (guarded) return guarded;
+
   const raw = req.nextUrl.searchParams.get('url') || '';
 
   if (!raw || raw.length > 4096) {
