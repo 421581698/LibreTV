@@ -87,6 +87,7 @@ function CatalogScreen({ category, onPick }: { category: CatalogCategory; onPick
     refetchOnWindowFocus: true,
   });
   const [loadingStalled, setLoadingStalled] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   useEffect(() => {
     if (!query.isLoading) {
       setLoadingStalled(false);
@@ -94,7 +95,7 @@ function CatalogScreen({ category, onPick }: { category: CatalogCategory; onPick
     }
     const timer = window.setTimeout(() => setLoadingStalled(true), 12000);
     return () => window.clearTimeout(timer);
-  }, [query.isLoading, category, tag]);
+  }, [query.isLoading, category, tag, loadAttempt]);
   const items = query.data?.items ?? [];
   return (
     <section className="v4-spatial-panel" aria-label={`${COPY[category === 'movie' ? 'movies' : category].title}推荐`}>
@@ -116,7 +117,7 @@ function CatalogScreen({ category, onPick }: { category: CatalogCategory; onPick
       ) : query.isLoading ? (
         <div className="v4-spatial-empty flex flex-col items-center gap-3" role="status">
           <span>海报请求超过 12 秒仍未完成，可能是上游数据源响应缓慢。</span>
-          <button type="button" className="v4-spatial-primary" onClick={() => { setLoadingStalled(false); void query.refetch(); }}>重试加载</button>
+          <button type="button" className="v4-spatial-primary" onClick={() => { setLoadingStalled(false); setLoadAttempt((value) => value + 1); void query.refetch(); }}>重试加载</button>
         </div>
       ) : items.length === 0 ? (
         <div className="v4-spatial-empty">该分类暂无推荐内容。</div>
