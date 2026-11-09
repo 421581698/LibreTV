@@ -1,8 +1,8 @@
 from unittest.mock import Mock
 
-import pytest
 from cssselect.parser import SelectorSyntaxError
 from lxml.etree import XPathError
+import pytest
 
 from fastapi.testclient import TestClient
 
