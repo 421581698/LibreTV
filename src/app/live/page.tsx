@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/client-api';
 import { copyToClipboard } from '@/lib/clipboard';
-import { Header } from '@/components/header';
+import { V4HomepageHeader } from '@/components/home/V4HomepageHeader';
 // 播放器（artplayer + hls.js）按需加载：拆出独立 chunk，不占首屏 First Load JS
 import dynamic from 'next/dynamic';
 const LivePlayer = dynamic(() => import('@/components/live-player').then((m) => m.LivePlayer), {
@@ -206,7 +206,7 @@ function LiveContent() {
   if (!verified) {
     return (
       <div className="min-h-screen flex flex-col">
-        <Header />
+        <V4HomepageHeader />
         <div className="flex-1 flex items-center justify-center">
           <p className="text-faint text-sm">等待访问验证...</p>
         </div>
@@ -219,7 +219,7 @@ function LiveContent() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header showSearch />
+      <V4HomepageHeader />
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-4">
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
           {/* 主栏：播放器 + 信息条 + 节目单 */}
