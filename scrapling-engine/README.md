@@ -31,9 +31,9 @@ uvicorn app.main:app --host 127.0.0.1 --port 8787
 
 Open `http://127.0.0.1:8787/health`.
 
-POST /v1/spider accepts {"urls": ["https://public.example/"]} (1–20 seed URLs). Add an optional task_id (1–64 letters, digits, _ or -) to enable Scrapling's on-disk checkpoint directory. Reusing the same task ID and seed configuration allows the upstream Spider checkpoint to be resumed after a graceful interruption. Checkpoint files are stored under CRAWL_DATA_DIR (default ./crawl_data). The endpoint validates every seed, deduplicates URLs, obeys robots.txt, limits concurrency, and returns extracted page text plus Scrapling crawl statistics. It intentionally does not follow page links yet: browser subrequests, redirects, and DNS rebinding need deployment-level egress enforcement before recursive crawling is enabled. The HTTP API does not yet provide a job registry or a remote pause button; those remain planned.
+POST /v1/spider remains a synchronous compatibility endpoint. For managed work, POST /v1/jobs accepts 1–20 seed URLs and returns a task_id; GET /v1/jobs/{task_id} returns persistent status; POST /v1/jobs/{task_id}/pause and /resume control the live Spider; GET /v1/jobs/{task_id}/events streams persisted events over SSE. Job metadata and audit events are stored in SQLite (CRAWL_JOB_DATABASE_PATH, default ./crawl_data/jobs.sqlite3), while Scrapling checkpoints live under CRAWL_DATA_DIR (default ./crawl_data). A task_id is immutable with respect to its seed URL list. On process restart, unfinished jobs are marked interrupted; resume is allowed only when a checkpoint file exists. The async Spider stream avoids calling Spider.start() and its process signal handlers from a worker thread. The crawler obeys robots.txt, limits concurrency and per-domain requests, and does not recursively follow page links yet. Browser subrequests, redirect destinations and DNS rebinding still require deployment-level egress enforcement before recursive or browser crawling is enabled.
 
-Browser-backed fetchers require the optional browser dependencies and browser installation described by the upstream Scrapling documentation. Keep the service bound to localhost until authentication and deployment hardening are configured.
+Browser-backed fetchers require the optional browser dependencies and browser installation described by the upstream Scrapling documentation. Keep the service bound to localhost. The job and fetch APIs do not yet include user authentication or tenant isolation; do not expose this service to the public internet. Before any remote deployment, add authentication/authorization, per-user quotas, audit retention, and network-level egress filtering that blocks private, loopback, link-local and metadata-service ranges even after DNS resolution and redirects.
 
 ## Safety boundary
 
@@ -44,4 +44,4 @@ Browser-backed fetchers require the optional browser dependencies and browser in
 
 ## Verification
 
-Run `pytest` and `ruff check .`. Network-dependent tests are opt-in and must use a controlled public test target.
+Run `pytest` and `ruff check .`. CI verifies unit/API behavior without relying on arbitrary public targets. A separate controlled public-site smoke test is still required before declaring real-world crawling accepted.
