@@ -318,7 +318,7 @@ def parse_mpd_manifest(body: bytes, base_url: str = "") -> dict:
     dynamic_metadata["time_shift_buffer_depth_seconds"] = time_shift_depth
     dynamic_metadata["suggested_presentation_delay_seconds"] = parse_iso8601_duration_seconds(root.attrib.get("suggestedPresentationDelay"))
 
-    def walk_period(period, mpd_base: str, inherited_template: dict, inherited_timeline=None):
+    def walk_period(period, mpd_base: str, inherited_template: dict, inherited_timeline=None, duration_override=None):
         period_base = _first_base_url(period)
         current_base = urljoin(mpd_base, period_base) if period_base else mpd_base
         period_templates = dict(inherited_template)
@@ -330,7 +330,7 @@ def parse_mpd_manifest(body: bytes, base_url: str = "") -> dict:
                 period_timeline = timelines[0]
         period_duration = parse_iso8601_duration_seconds(period.attrib.get("duration"))
         if period_duration is None:
-            period_duration = mpd_duration
+            period_duration = duration_override
         for adaptation in _xml_children(period, "AdaptationSet"):
             adaptation_base = _first_base_url(adaptation)
             adaptation_url = urljoin(current_base, adaptation_base) if adaptation_base else current_base
@@ -478,8 +478,29 @@ def parse_mpd_manifest(body: bytes, base_url: str = "") -> dict:
         timelines = _xml_children(node, "SegmentTimeline")
         if timelines:
             root_timeline = timelines[0]
-    for period in _xml_children(root, "Period"):
-        walk_period(period, mpd_base, root_templates, root_timeline)
+    periods = _xml_children(root, "Period")
+    inferred_period_end = 0.0
+    for index, period in enumerate(periods):
+        period_start = parse_iso8601_duration_seconds(period.attrib.get("start"))
+        if period_start is None:
+            period_start = inferred_period_end if index == 0 or inferred_period_end > 0 else None
+        explicit_duration = parse_iso8601_duration_seconds(period.attrib.get("duration"))
+        duration_override = None
+        if explicit_duration is None and period_start is not None:
+            next_start = None
+            for following in periods[index + 1:]:
+                next_start = parse_iso8601_duration_seconds(following.attrib.get("start"))
+                if next_start is not None:
+                    break
+            boundary = next_start if next_start is not None else mpd_duration
+            if boundary is not None and boundary >= period_start:
+                duration_override = boundary - period_start
+        effective_duration = explicit_duration if explicit_duration is not None else duration_override
+        if period_start is not None and effective_duration is not None:
+            inferred_period_end = period_start + effective_duration
+        else:
+            inferred_period_end = 0.0
+        walk_period(period, mpd_base, root_templates, root_timeline, duration_override)
 
     if not representations:
         return {"manifest_valid": False, "manifest_error": "missing_representations"}
