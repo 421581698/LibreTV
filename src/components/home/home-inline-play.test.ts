@@ -109,7 +109,7 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
     expect(collectorSettings).toContain("{ id: 'collector', label: '资源采集中心'");
     expect(collectorSettings).toContain('ResourceCollectorPanel');
     expect(collectorSettings).toContain('CollectorPlayerShell');
-    expect(collectorRoute).toContain('guardRequest(request)');
+    expect(collectorRoute).toContain('guardPrivateFeatureRequest(request)');
     expect(collectorRoute).toContain("action === 'tasks' ? '/v1/tasks' : '/v1/discover'");
     expect(collectorRoute).toContain("collectorRequest('/v1/crawl'");
   });
@@ -123,7 +123,7 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
     expect(collectorSettings).toContain("candidate.kind === 'direct-media' && candidate.status === 'checked'");
     expect(collectorSettings).toContain('validation.cms_shape && validation.reachable');
     expect(collectorSettings).toContain('store.addCustomApi');
-    expect(collectorValidationRoute).toContain('guardRequest(request)');
+    expect(collectorValidationRoute).toContain('guardPrivateFeatureRequest(request)');
     expect(collectorValidationRoute).toContain('/validate');
   });
   it('applies light-theme colors to routed iPhone screens and keeps safe-area paint below the dock', () => {
