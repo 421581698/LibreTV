@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import asdict
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -15,8 +17,8 @@ class _SeedSpider(Spider):
     concurrent_requests_per_domain = 1
     download_delay = 1.0
 
-    def __init__(self, urls: list[str]) -> None:
-        super().__init__()
+    def __init__(self, urls: list[str], crawldir: Path | None = None) -> None:
+        super().__init__(crawldir=crawldir, interval=60.0)
         self.start_urls = urls
         self.allowed_domains = {
             (urlsplit(url).hostname or "").lower() for url in urls
@@ -36,11 +38,11 @@ class ScraplingSpiderAdapter:
     """Runs the upstream Spider engine with conservative LibreTV defaults."""
 
     @staticmethod
-    def crawl(urls: list[str]) -> dict[str, Any]:
-        result = _SeedSpider(urls).start()
+    def crawl(urls: list[str], crawldir: Path | None = None) -> dict[str, Any]:
+        result = _SeedSpider(urls, crawldir=crawldir).start()
         return {
             "items": list(result.items),
             "completed": result.completed,
             "paused": result.paused,
-            "stats": result.stats.to_dict(),
+            "stats": asdict(result.stats),
         }
