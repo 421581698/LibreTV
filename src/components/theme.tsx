@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
 /**
- * 主题上下文：light / dark / system，持久化到 localStorage，默认 dark。
+ * 主题上下文：light / dark / system，持久化到 localStorage，默认跟随系统。
  * html 上的 .dark 类由 layout 中的内联脚本先行设置（避免首屏闪烁），此处负责后续切换。
  */
 
@@ -17,7 +17,7 @@ interface ThemeContextValue {
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
-  theme: 'dark',
+  theme: 'system',
   resolved: 'dark',
   setTheme: () => {},
 });
@@ -35,9 +35,9 @@ function systemPrefersDark(): boolean {
 function readStoredTheme(): ThemeChoice {
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
-    return stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'dark';
+    return stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
   } catch {
-    return 'dark';
+    return 'system';
   }
 }
 
@@ -66,7 +66,7 @@ function apply(choice: ThemeChoice): 'light' | 'dark' {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeChoice>('dark');
+  const [theme, setThemeState] = useState<ThemeChoice>('system');
   const [resolved, setResolved] = useState<'light' | 'dark'>('dark');
 
   useEffect(() => {
