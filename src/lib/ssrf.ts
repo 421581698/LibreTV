@@ -50,12 +50,50 @@ const BLOCKED_IPV4_CIDRS: Array<[string, number]> = [
   ['240.0.0.0', 4],     // 保留 / 广播
 ];
 
-/** 判断 IP 是否为私有、回环、链路本地、多播或特殊用途保留地址。 */
+/**
+ * Expand a validated IPv6 address into eight 16-bit groups.
+ * Embedded IPv4 tails are converted to their two hexadecimal groups.
+ */
+function ipv6Groups(ip: string): number[] | null {
+  let value = stripBrackets(ip.trim()).toLowerCase();
+  if (!value || value.includes('%')) return null;
+
+  if (value.includes('.')) {
+    const separator = value.lastIndexOf(':');
+    if (separator < 0) return null;
+    const ipv4 = value.slice(separator + 1);
+    if (isIP(ipv4) !== 4) return null;
+    const number = ipv4ToNumber(ipv4);
+    const high = ((number >>> 16) & 0xffff).toString(16);
+    const low = (number & 0xffff).toString(16);
+    value = value.slice(0, separator + 1) + high + ':' + low;
+  }
+
+  const halves = value.split('::');
+  if (halves.length > 2) return null;
+  const parseHalf = (half: string): number[] => {
+    if (!half) return [];
+    return half.split(':').map((part) =>
+      /^[0-9a-f]{1,4}$/.test(part) ? parseInt(part, 16) : Number.NaN,
+    );
+  };
+  const left = parseHalf(halves[0]);
+  const right = halves.length === 2 ? parseHalf(halves[1]) : [];
+  if ([...left, ...right].some((group) => !Number.isInteger(group))) return null;
+
+  const missing = 8 - left.length - right.length;
+  if (halves.length === 2 ? missing < 1 : missing !== 0) return null;
+  return halves.length === 2
+    ? [...left, ...Array<number>(missing).fill(0), ...right]
+    : left;
+}
+
+/** 判断 IPv6 是否为全球单播之外的地址或特殊用途保留地址。 */
 export function isPrivateIP(ip: string): boolean {
   let value = stripBrackets(ip.trim()).toLowerCase();
   if (!value) return true;
 
-  // IPv4-mapped IPv6 先还原，再统一按 IPv4 CIDR 判断。
+  // IPv4-mapped / compatible IPv6 先还原，再统一按 IPv4 CIDR 判断。
   value = toIPv4(value) ?? value;
 
   if (isIP(value) === 4) {
@@ -65,13 +103,20 @@ export function isPrivateIP(ip: string): boolean {
   }
 
   if (isIP(value) !== 6) return true;
+  const groups = ipv6Groups(value);
+  if (!groups) return true;
 
-  // IPv6 未指定、回环、唯一本地、链路本地、多播及文档示例网段。
-  if (value === '::' || value === '::1') return true;
-  if (/^(fc|fd)/i.test(value)) return true;       // fc00::/7
-  if (/^fe[89ab]/i.test(value)) return true;      // fe80::/10
-  if (/^ff/i.test(value)) return true;            // ff00::/8
-  if (/^2001:db8:/i.test(value)) return true;     // 2001:db8::/32
+  // 只允许 2000::/3 全球单播空间；这同时拒绝 ULA、链路本地、
+  // 回环、未指定、组播、NAT64 well-known prefix 和其他非全球地址。
+  if ((groups[0] >> 13) !== 1) return true;
+
+  // IANA 特殊用途空间、Teredo/benchmark/ORCHID，以及过时的 6to4
+  // 隧道地址一律拒绝，避免通过隧道/转换网关触达嵌入的私网 IPv4。
+  if (groups[0] === 0x2001 && groups[1] <= 0x01ff) return true; // 2001::/23
+  if (groups[0] === 0x2001 && groups[1] === 0x0db8) return true; // 2001:db8::/32
+  if (groups[0] === 0x2002) return true; // 2002::/16 (6to4)
+  if (groups[0] === 0x3fff && (groups[1] >> 12) === 0) return true; // 3fff::/20 docs
+
   return false;
 }
 
