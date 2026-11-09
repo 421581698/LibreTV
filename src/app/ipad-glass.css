@@ -374,3 +374,35 @@
     stroke-width: 1.8 !important;
   }
 }
+
+
+/* Tablet catalogue grids: overseas dramas use the same deliberate density
+   as movies, rather than inheriting a cramped phone/desktop utility count. */
+@media screen and (min-width: 701px) and (max-width: 1440px) and (any-pointer: coarse) and (orientation: portrait) {
+  .v4-spatial-screen[data-screen="overseas"] .v4-spatial-panel > .grid.grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+  }
+  .v4-spatial-screen[data-screen="movies"] .v4-spatial-panel > .grid.grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+  }
+  .v4-spatial-screen[data-screen="overseas"] .v4-spatial-panel,
+  .v4-spatial-screen[data-screen="movies"] .v4-spatial-panel {
+    padding: 18px !important;
+  }
+}
+@media screen and (min-width: 1024px) and (max-width: 1440px) and (any-pointer: coarse) and (orientation: landscape) {
+  .v4-spatial-screen[data-screen="overseas"] .v4-spatial-panel > .grid.grid-cols-3 {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+  }
+  .v4-spatial-screen[data-screen="movies"] .v4-spatial-panel > .grid.grid-cols-3 {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+  }
+  .v4-spatial-screen[data-screen="overseas"] .v4-spatial-panel,
+  .v4-spatial-screen[data-screen="movies"] .v4-spatial-panel {
+    padding: 22px !important;
+  }
+}
