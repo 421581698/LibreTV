@@ -46,4 +46,4 @@ Browser-backed fetchers require the optional browser dependencies and browser in
 
 ## Verification
 
-Run `pytest` and `ruff check .`. CI verifies unit/API behavior without relying on arbitrary public targets. A separate controlled public-site smoke test is still required before declaring real-world crawling accepted.
+Run `pytest` and `ruff check .`. CI verifies unit/API behavior without relying on arbitrary public targets. CI also runs a controlled public-site smoke test against example.com through both the HTTP Fetcher and async Spider; broader target-site acceptance remains a separate step.
