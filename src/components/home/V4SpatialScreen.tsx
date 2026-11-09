@@ -172,7 +172,7 @@ function ResourcesScreen() {
     all.find((source) => source.key === key)?.name ?? key;
 
   return (
-    <div className="space-y-5">
+    <div className="v4-resources-layout space-y-5">
       <section className="v4-spatial-panel">
         <div className="v4-spatial-panel-head"><h2>搜索播放资源</h2><span>{activeSources.length} 个可用点播源</span></div>
         <form className="v4-resource-search" onSubmit={runSearch}>
