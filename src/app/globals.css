@@ -1326,3 +1326,15 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
 @media (prefers-reduced-motion: reduce) {
   .netflix-history-card, .netflix-episode-row, .netflix-next-play, .netflix-history-play { transition: none !important; }
 }
+
+.netflix-autonext-banner {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 0 14px 12px; padding: 12px 13px;
+  border: 1px solid color-mix(in srgb, var(--c-accent, #3978ef) 35%, var(--c-line, transparent));
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--c-accent, #3978ef) 9%, var(--c-panel, #151923));
+}
+.netflix-autonext-banner > div { flex: 1 1 120px; min-width: 0; }
+.netflix-autonext-banner strong, .netflix-autonext-banner span { display: block; }
+.netflix-autonext-banner strong { color: var(--c-content, #fff); font-size: 12px; }
+.netflix-autonext-banner span { margin-top: 3px; color: var(--c-muted, #aaa); font-size: 11px; }
