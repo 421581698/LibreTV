@@ -1,4 +1,4 @@
-from app.fmhy_catalog import parse_fmhy_markdown
+from app.fmhy_catalog import parse_fmhy_markdown, parse_official_source_file_list
 
 
 def test_parser_keeps_category_section_marker_and_primary_link() -> None:
@@ -109,3 +109,27 @@ def test_parser_classifies_named_mirror_and_ordered_list_items() -> None:
 
     assert len(entries) == 1
     assert [link.role for link in entries[0].links] == ["primary", "mirror"]
+
+
+
+def test_official_source_manifest_parser_reads_only_safe_markdown_paths() -> None:
+    route_source = """const files = (
+      [
+        'video.md',
+        'audio.md',
+        'unsafe.md'
+      ] as const
+    ).map((file) => file)
+    """
+    assert parse_official_source_file_list(route_source) == (
+        "video.md", "audio.md", "unsafe.md",
+    )
+
+
+def test_official_source_manifest_parser_rejects_duplicate_or_unsafe_paths() -> None:
+    duplicate = "const files = ([ 'video.md', 'video.md' ] as const)"
+    unsafe = "const files = ([ '../secrets.md' ] as const)"
+    with pytest.raises(RuntimeError, match="duplicate"):
+        parse_official_source_file_list(duplicate)
+    with pytest.raises(RuntimeError, match="unsupported"):
+        parse_official_source_file_list(unsafe)
