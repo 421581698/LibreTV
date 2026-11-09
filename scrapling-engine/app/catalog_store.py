@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from contextlib import closing
 import uuid
+from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -113,7 +113,8 @@ class CatalogStore:
         with closing(self._connect()) as connection, connection:
             if snapshot_id:
                 row = connection.execute(
-                    "SELECT COUNT(DISTINCT domain) AS total FROM catalog_links WHERE snapshot_id = ?",
+                    "SELECT COUNT(DISTINCT domain) AS total "
+                    "FROM catalog_links WHERE snapshot_id = ?",
                     (snapshot_id,),
                 ).fetchone()
             else:
