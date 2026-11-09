@@ -260,3 +260,79 @@
     border-color: rgba(255, 255, 255, 0.24) !important;
   }
 }
+
+
+/* Shared channel header: the same light translucent glass strip on every
+ * routed destination (Movies, TV, Anime, Variety, Overseas and Live).
+ * The homepage overlay remains transparent and keeps its cinematic hero. */
+.v4-header:not(.is-overlay) {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 150 !important;
+  color: #fff !important;
+  background: rgba(255,255,255,.13) !important;
+  background-image: linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,.055)) !important;
+  border: 1px solid rgba(255,255,255,.24) !important;
+  border-left: 0 !important;
+  border-right: 0 !important;
+  border-top: 0 !important;
+  box-shadow: 0 8px 28px rgba(0,0,0,.10),inset 0 1px 0 rgba(255,255,255,.22) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(165%) !important;
+  backdrop-filter: blur(22px) saturate(165%) !important;
+}
+.v4-header:not(.is-overlay) .v4-brand,
+.v4-header:not(.is-overlay) .v4-nav-link,
+.v4-header:not(.is-overlay) .v4-header-icon,
+.v4-header:not(.is-overlay) .v4-mobile-search-toggle {
+  color: rgba(255,255,255,.94) !important;
+}
+.v4-header:not(.is-overlay) .v4-nav-link {
+  border-radius: 999px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.v4-header:not(.is-overlay) .v4-nav-link:hover {
+  color: #fff !important;
+  background: rgba(255,255,255,.14) !important;
+}
+.v4-header:not(.is-overlay) .v4-nav-link.is-active {
+  color: #17191d !important;
+  background: rgba(255,255,255,.96) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,.13),inset 0 1px 0 #fff !important;
+  text-shadow: none !important;
+}
+.v4-header:not(.is-overlay) .v4-header-actions .v4-header-icon,
+.v4-header:not(.is-overlay) .v4-header-actions .v4-avatar,
+.v4-header:not(.is-overlay) .v4-mobile-search-toggle {
+  border-color: rgba(255,255,255,.24) !important;
+  background: rgba(255,255,255,.12) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
+  backdrop-filter: blur(16px) saturate(150%) !important;
+}
+.v4-header:not(.is-overlay) .v4-search {
+  color: #fff !important;
+  background: rgba(255,255,255,.12) !important;
+  border-color: rgba(255,255,255,.25) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(155%) !important;
+  backdrop-filter: blur(18px) saturate(155%) !important;
+}
+.v4-header:not(.is-overlay) .v4-search input,
+.v4-header:not(.is-overlay) .v4-search input::placeholder {
+  color: rgba(255,255,255,.92) !important;
+}
+@media screen and (max-width: 700px) {
+  .v4-header:not(.is-overlay) .v4-primary-nav {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    white-space: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+  }
+  .v4-header:not(.is-overlay) .v4-primary-nav::-webkit-scrollbar { display:none !important; }
+  .v4-header:not(.is-overlay) .v4-nav-link {
+    flex: 0 0 auto !important;
+    min-height: 40px !important;
+    padding: 0 13px !important;
+  }
+}
