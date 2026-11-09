@@ -1,65 +1,73 @@
 'use client';
 
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/client-api';
+import { SmartImage } from '@/components/smart-image';
+import { useAppStore } from '@/lib/store';
+import type { DoubanItem } from '@/lib/types';
 
-const slides = [
-  {
-    title: '星际穿越',
-    subtitle: '穿越虫洞，寻找人类的未来',
-    image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=2400&q=88',
-    alt: '深邃宇宙与地球地平线',
-  },
-  {
-    title: '深空探索',
-    subtitle: '在未知的边界，寻找新的答案',
-    image: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=2400&q=88',
-    alt: '星云与深空',
-  },
-  {
-    title: '星际旅程',
-    subtitle: '每一次远行，都是新的开始',
-    image: 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=2400&q=88',
-    alt: '从太空俯瞰地球',
-  },
-];
-
-export function V4HomepageHero() {
+export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void }) {
   const [activeSlide, setActiveSlide] = useState(0);
-  const slide = slides[activeSlide];
+  const imageProxyMode = useAppStore((s) => s.imageProxyMode);
+  const customImageProxy = useAppStore((s) => s.customImageProxy);
+  const featuredQuery = useQuery({
+    queryKey: ['v4-featured-movies'],
+    queryFn: ({ signal }) => api.douban('movie', '热门', 0, 8, signal),
+    staleTime: 5 * 60_000,
+  });
+  const slides = (featuredQuery.data?.items ?? []).filter((item) => item.cover).slice(0, 5);
+  const slide = slides[activeSlide] ?? slides[0];
 
   return (
-    <section className="v4-hero" aria-label="精选影片轮播">
-      <div
-        className="v4-hero-image"
-        role="img"
-        aria-label={slide.alt}
-        style={{ backgroundImage: `linear-gradient(90deg, rgba(4, 9, 18, .78) 0%, rgba(4, 9, 18, .38) 43%, rgba(4, 9, 18, .04) 100%), linear-gradient(0deg, rgba(4, 9, 18, .28), transparent 42%), url("${slide.image}")` }}
-      />
-      <div className="v4-hero-content">
-        <span className="v4-hero-eyebrow">LIBRETV · FEATURED</span>
-        <h1>{slide.title}</h1>
-        <p>{slide.subtitle}</p>
-        <div className="v4-hero-actions">
-          <a className="v4-hero-primary" href="#today-recommendations">
-            <span aria-hidden="true">▶</span>
-            立即播放
-          </a>
-          <a className="v4-hero-secondary" href="#today-recommendations">更多详情</a>
+    <section className="v4-hero" aria-label="精选影片">
+      {slide ? (
+        <>
+          <div className="v4-hero-image" aria-hidden="true">
+            <SmartImage
+              url={slide.cover}
+              mode={imageProxyMode}
+              customProxy={customImageProxy}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          </div>
+          <div className="v4-hero-veil" aria-hidden="true" />
+          <div className="v4-hero-content">
+            <span className="v4-hero-eyebrow">LIBRETV · FEATURED</span>
+            <h1>{slide.title}</h1>
+            <p>{slide.rating ? `豆瓣评分 ${slide.rating} · 精选推荐` : '来自实时影视推荐的精选内容'}</p>
+            <div className="v4-hero-actions">
+              <button type="button" className="v4-hero-primary" onClick={() => onPick(slide)}>
+                <span aria-hidden="true">▶</span>
+                查看播放资源
+              </button>
+              <a className="v4-hero-secondary" href="#today-recommendations">浏览全部推荐</a>
+            </div>
+          </div>
+          <div className="v4-hero-indicators" role="group" aria-label="选择精选影片">
+            {slides.map((item, index) => (
+              <button
+                key={item.id}
+                type="button"
+                aria-label={`查看精选影片：${item.title}`}
+                aria-pressed={activeSlide === index}
+                className={activeSlide === index ? 'is-active' : ''}
+                onClick={() => setActiveSlide(index)}
+              />
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="v4-hero-content v4-hero-empty" role="status">
+          <span className="v4-hero-eyebrow">LIBRETV · FEATURED</span>
+          <h1>{featuredQuery.isLoading ? '正在载入精选内容' : '精选内容暂不可用'}</h1>
+          <p>{featuredQuery.isError ? '推荐接口暂时没有响应，请稍后重试。' : '连接真实推荐数据后，这里会展示可查找播放资源的影片。'}</p>
+          <div className="v4-hero-actions">
+            <a className="v4-hero-primary" href="#today-recommendations">浏览今日推荐</a>
+          </div>
         </div>
-      </div>
-      <div className="v4-hero-indicators" role="tablist" aria-label="选择 Banner">
-        {slides.map((item, index) => (
-          <button
-            key={item.title}
-            type="button"
-            role="tab"
-            aria-label={`第 ${index + 1} 张`}
-            aria-selected={activeSlide === index}
-            className={activeSlide === index ? 'is-active' : ''}
-            onClick={() => setActiveSlide(index)}
-          />
-        ))}
-      </div>
+      )}
     </section>
   );
 }
