@@ -4,7 +4,7 @@ An independently runnable Python service that hosts the upstream Scrapling frame
 
 ## Scope
 
-The engine is built on the complete upstream `D4Vinci/Scrapling` package. It does not fork or replace Scrapling with a reduced implementation.
+The engine is built on the complete upstream `D4Vinci/Scrapling` package. It does not fork or replace Scrapling with a reduced implementation. The dependency is pinned to the compatible upstream v0.5.1 line (`scrapling[all]>=0.5.1,<0.6`); v0.5 migration changes are applied rather than silently allowing an untested major/minor API jump.
 
 The eight capability areas are:
 
