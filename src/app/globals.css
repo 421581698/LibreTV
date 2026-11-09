@@ -1522,3 +1522,69 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
  .watch-topbar-left,.watch-topbar-right { gap:6px; }
  .watch-topbar-title { max-width:52vw; }
 }
+
+
+/* Player sidebar follows the selected app theme; the previous dark-only
+   treatment is intentionally scoped to .dark and must not leak into light mode. */
+html:not(.dark) .netflix-watch-sidebar {
+  color-scheme: light !important;
+  color: #252b34 !important;
+  background: rgba(255,255,255,.97) !important;
+  border-color: rgba(35,48,66,.12) !important;
+  box-shadow: 0 8px 26px rgba(30,45,65,.055) !important;
+}
+html:not(.dark) .netflix-watch-sidebar,
+html:not(.dark) .netflix-watch-sidebar * {
+  color-scheme: light !important;
+}
+html:not(.dark) .netflix-watch-sidebar .text-content,
+html:not(.dark) .netflix-watch-sidebar h3,
+html:not(.dark) .netflix-watch-sidebar .netflix-episode-row,
+html:not(.dark) .netflix-watch-sidebar .netflix-next-card,
+html:not(.dark) .netflix-watch-sidebar .netflix-source-card strong,
+html:not(.dark) .netflix-watch-sidebar .netflix-next-card strong {
+  color: #252b34 !important;
+}
+html:not(.dark) .netflix-watch-sidebar .text-muted,
+html:not(.dark) .netflix-watch-sidebar .text-faint,
+html:not(.dark) .netflix-watch-sidebar small,
+html:not(.dark) .netflix-watch-sidebar .netflix-section-kicker,
+html:not(.dark) .netflix-watch-sidebar .netflix-sidebar-footer,
+html:not(.dark) .netflix-watch-sidebar .netflix-sidebar-tabs button {
+  color: #687383 !important;
+}
+html:not(.dark) .netflix-watch-sidebar .netflix-sidebar-tabs,
+html:not(.dark) .netflix-watch-sidebar .netflix-sidebar-footer,
+html:not(.dark) .netflix-watch-sidebar .netflix-next-preview {
+  border-color: rgba(35,48,66,.10) !important;
+}
+html:not(.dark) .netflix-watch-sidebar .netflix-sidebar-tabs button.active {
+  color: #202630 !important;
+}
+html:not(.dark) .netflix-watch-sidebar .netflix-episode-row {
+  background: #f3f5f8 !important;
+  border-color: rgba(35,48,66,.055) !important;
+}
+html:not(.dark) .netflix-watch-sidebar .netflix-episode-row:hover,
+html:not(.dark) .netflix-watch-sidebar .netflix-next-card:hover {
+  background: #e9edf2 !important;
+}
+html:not(.dark) .netflix-watch-sidebar .netflix-episode-row.active {
+  color: #202630 !important;
+  background: rgba(241,166,58,.14) !important;
+  border-color: rgba(190,128,35,.32) !important;
+}
+html:not(.dark) .netflix-watch-sidebar .netflix-next-card,
+html:not(.dark) .netflix-watch-sidebar .netflix-source-card {
+  color: #252b34 !important;
+  background: #f5f6f8 !important;
+  border-color: rgba(35,48,66,.10) !important;
+}
+html:not(.dark) .netflix-watch-sidebar .netflix-next-card small,
+html:not(.dark) .netflix-watch-sidebar .netflix-source-card div span {
+  color: #687383 !important;
+}
+html:not(.dark) .netflix-watch-sidebar .text-white,
+html:not(.dark) .netflix-watch-sidebar [class*="text-white/"] {
+  color: #46515f !important;
+}
