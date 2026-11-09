@@ -60,3 +60,4 @@ def test_spider_configures_user_agent_timeout_and_safe_redirects(monkeypatch) ->
     assert captured["timeout"] > 0
     assert captured["follow_redirects"] == "safe"
     assert captured["stealthy_headers"] is False
+    assert captured["impersonate"] is None
