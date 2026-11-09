@@ -80,95 +80,130 @@ const SETTINGS_TABS: { id: SecondaryTab; label: string; icon?: IconName }[] = [
 
 const TAB_STORAGE_KEY = 'libretv-settings-tab';
 
+type SettingsPage = SecondaryTab | 'index' | 'appearance';
+
+const SETTINGS_SECTIONS: { title: string; items: { id: SettingsPage; label: string; detail: string; icon: IconName }[] }[] = [
+  { title: '偏好设置', items: [
+    { id: 'appearance', label: '外观', detail: '浅色、深色与系统外观', icon: 'gear' },
+    { id: 'playback', label: '播放设置', detail: '画质、自动连播与内容过滤', icon: 'filter' },
+    { id: 'image', label: '封面图加载', detail: '海报与图片加载偏好', icon: 'search' },
+    { id: 'language', label: '语言设置', detail: '界面语言与显示偏好', icon: 'gear' },
+  ] },
+  { title: '内容与资源', items: [
+    { id: 'vod', label: '影视源管理', detail: '点播源、优先级与健康检测', icon: 'link' },
+    { id: 'live', label: '直播设置', detail: '直播源与频道管理', icon: 'home' },
+    { id: 'subs', label: '资源订阅', detail: '管理已配置的数据源订阅', icon: 'download' },
+    { id: 'home', label: '首页与内容', detail: '首页展示与内容偏好', icon: 'home' },
+  ] },
+  { title: 'Friday 助手', items: [
+    { id: 'voice', label: '语音与声音', detail: '语音识别、助手角色与语音偏好', icon: 'microphone' },
+  ] },
+  { title: '数据管理', items: [
+    { id: 'io', label: '配置导入与导出', detail: '备份或恢复本机配置', icon: 'download' },
+    { id: 'cache', label: '本机缓存', detail: '查看与管理本机视频缓存', icon: 'clock' },
+  ] },
+];
+
+const SETTINGS_PAGE_META: Record<Exclude<SettingsPage, 'index'>, { title: string; description: string }> = {
+  appearance: { title: '外观', description: '自定义 LibreTV 的显示方式。' },
+  playback: { title: '播放设置', description: '管理播放体验、画质与内容过滤。' },
+  image: { title: '封面图加载', description: '管理海报和图片的加载行为。' },
+  language: { title: '语言设置', description: '选择界面与助手使用的语言。' },
+  vod: { title: '影视源管理', description: '管理点播来源及其可用状态。' },
+  live: { title: '直播设置', description: '管理直播来源与频道。' },
+  subs: { title: '资源订阅', description: '管理已经配置的数据源订阅。' },
+  home: { title: '首页与内容', description: '调整首页展示和内容偏好。' },
+  voice: { title: '语音与声音', description: '配置 Friday 的语音识别和声音偏好。' },
+  io: { title: '配置导入与导出', description: '备份或恢复 LibreTV 本机配置。' },
+  cache: { title: '本机缓存', description: '查看并管理本机缓存数据。' },
+};
+
 export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [primary, setPrimary] = useState<PrimaryTab>('sources');
-  const [secondary, setSecondary] = useState<Record<PrimaryTab, SecondaryTab>>({
-    sources: 'vod',
-    prefs: 'playback',
-    data: 'io',
-  });
-
-  // 挂载后读取上次位置（不在渲染期读 localStorage，避免 SSR/hydration 不一致）
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(TAB_STORAGE_KEY);
-      if (!raw) return;
-      const saved = JSON.parse(raw) as {
-        primary?: PrimaryTab;
-        secondary?: Partial<Record<PrimaryTab, SecondaryTab>>;
-      };
-      // 旧版把「数据源订阅」放在「数据」下，现已迁至「源管理」：自动重定向到新位置
-      const migratedSubs = saved.secondary?.data === 'subs';
-      const targetPrimary = migratedSubs && saved.primary === 'data' ? 'sources' : saved.primary;
-      if (targetPrimary && SECONDARY_TABS[targetPrimary]) setPrimary(targetPrimary);
-      setSecondary((prev) => {
-        const next = { ...prev };
-        if (migratedSubs) next.sources = 'subs';
-        for (const key of Object.keys(SECONDARY_TABS) as PrimaryTab[]) {
-          const v = saved.secondary?.[key];
-          if (v && SECONDARY_TABS[key].some((t) => t.id === v)) next[key] = v;
-        }
-        return next;
-      });
-    } catch {
-      /* 本地记录损坏时忽略，回到默认面板 */
-    }
-  }, []);
+  const [activePage, setActivePage] = useState<SettingsPage>('index');
 
   useEffect(() => {
-    try {
-      localStorage.setItem(TAB_STORAGE_KEY, JSON.stringify({ primary, secondary }));
-    } catch {
-      /* 隐私模式等无法写入时忽略 */
-    }
-  }, [primary, secondary]);
+    if (open) setActivePage('index');
+  }, [open]);
 
-  const current = secondary[primary];
+  const pageTitle = activePage === 'index' ? '设置' : SETTINGS_PAGE_META[activePage].title;
 
   return (
     <Drawer
       open={open}
       onClose={onClose}
       title="设置"
-      resetScrollKey={current}
-      subheader={
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-card px-3 py-2">
-            <div className="min-w-0">
-              <div className="text-sm font-medium text-content">界面主题</div>
-              <div className="text-xs text-faint">浅色、深色或跟随系统</div>
-            </div>
-            <ThemeToggle />
-          </div>
-          <div className="overflow-x-auto -mx-1 px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <TabRow
-              tabs={SETTINGS_TABS}
-              value={current}
-              onChange={(id) => {
-                const group = (Object.keys(SECONDARY_TABS) as PrimaryTab[]).find((key) =>
-                  SECONDARY_TABS[key].some((tab) => tab.id === id)
-                );
-                if (!group) return;
-                setPrimary(group);
-                setSecondary((prev) => ({ ...prev, [group]: id }));
-              }}
-              variant="primary"
-              ariaLabel="设置分类"
-            />
-          </div>
-        </div>
-      }
+      width="max-w-2xl"
+      resetScrollKey={activePage}
     >
-      {current === 'vod' && <VodSourcesPanel />}
-      {current === 'live' && <LiveSourceManager />}
-      {current === 'playback' && <PlaybackPanel />}
-      {current === 'image' && <ImagePanel />}
-      {current === 'home' && <HomePanel />}
-      {current === 'voice' && <VoiceSettingsPanel />}
-      {current === 'language' && <LanguageSettingsPanel />}
-      {current === 'subs' && <SourceSubscriptions />}
-      {current === 'io' && <ConfigIoPanel />}
-      {current === 'cache' && <VideoCachePanel />}
+      {activePage === 'index' ? (
+        <div className="mx-auto w-full max-w-2xl space-y-7 pb-3">
+          <div className="space-y-1">
+            <h2 className="text-3xl font-semibold tracking-tight text-content">设置</h2>
+            <p className="text-sm text-muted">管理 LibreTV 的外观、播放与资源偏好。</p>
+          </div>
+          {SETTINGS_SECTIONS.map((section) => (
+            <section key={section.title} className="space-y-2">
+              <h3 className="px-1 text-xs font-semibold tracking-wide text-muted">{section.title}</h3>
+              <div className="overflow-hidden rounded-2xl border border-line bg-card divide-y divide-line">
+                {section.items.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className="group flex min-h-[68px] w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
+                    onClick={() => setActivePage(item.id)}
+                    aria-label={item.label}
+                  >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-chip text-muted">
+                      <Icon name={item.icon} className="h-5 w-5" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium text-content">{item.label}</span>
+                      <span className="mt-0.5 block text-xs text-muted">{item.detail}</span>
+                    </span>
+                    <Icon name="chevron-right" className="h-4 w-4 shrink-0 text-faint transition-transform group-hover:translate-x-0.5" />
+                  </button>
+                ))}
+              </div>
+            </section>
+          ))}
+          <p className="px-1 text-center text-xs text-faint">LibreTV · 本机设置</p>
+        </div>
+      ) : (
+        <div className="mx-auto w-full max-w-2xl space-y-5 pb-3">
+          <button
+            type="button"
+            onClick={() => setActivePage('index')}
+            className="inline-flex min-h-9 items-center gap-1 rounded-lg pr-2 text-sm font-medium text-accent transition-colors hover:opacity-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            aria-label="返回设置"
+          >
+            <Icon name="chevron-left" className="h-4 w-4" />
+            设置
+          </button>
+          <div className="space-y-1 border-b border-line pb-4">
+            <h2 className="text-2xl font-semibold tracking-tight text-content">{pageTitle}</h2>
+            <p className="text-sm text-muted">{SETTINGS_PAGE_META[activePage].description}</p>
+          </div>
+          {activePage === 'appearance' && (
+            <section className="rounded-2xl border border-line bg-card p-4">
+              <div className="mb-3">
+                <h3 className="text-sm font-semibold text-content">外观模式</h3>
+                <p className="mt-1 text-xs text-muted">选择浅色、深色，或跟随设备系统设置。</p>
+              </div>
+              <ThemeToggle />
+            </section>
+          )}
+          {activePage === 'vod' && <VodSourcesPanel />}
+          {activePage === 'live' && <LiveSourceManager />}
+          {activePage === 'playback' && <PlaybackPanel />}
+          {activePage === 'image' && <ImagePanel />}
+          {activePage === 'home' && <HomePanel />}
+          {activePage === 'voice' && <VoiceSettingsPanel />}
+          {activePage === 'language' && <LanguageSettingsPanel />}
+          {activePage === 'subs' && <SourceSubscriptions />}
+          {activePage === 'io' && <ConfigIoPanel />}
+          {activePage === 'cache' && <VideoCachePanel />}
+        </div>
+      )}
     </Drawer>
   );
 }
