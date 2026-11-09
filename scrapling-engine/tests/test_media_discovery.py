@@ -90,3 +90,18 @@ def test_normalizes_default_and_alternate_ports_without_fragment() -> None:
         "https://cdn.example/master.m3u8",
         "https://cdn.example:8443/master.m3u8",
     ]
+
+
+def test_keeps_embedded_player_urls_without_media_file_extensions() -> None:
+    page = FakePage({"iframe::attr(src)": ["/embed/movie-123"]})
+
+    result = extract_page_signals(page, "https://catalog.example/")
+
+    assert result["media_candidates"] == [
+        {
+            "url": "https://catalog.example/embed/movie-123",
+            "media_type": "embed",
+            "discovered_via": "iframe_player",
+            "validation_status": "pending_fetch_validation",
+        },
+    ]
