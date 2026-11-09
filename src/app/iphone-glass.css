@@ -50,10 +50,7 @@
     margin-left: auto;
   }
 
-  /* History remains available from the Me screen; retain search, settings and profile. */
-  .v4-header-actions .v4-header-icon[aria-label="观看历史"] {
-    display: none !important;
-  }
+  /* Keep the complete user-confirmed utility set: search, history, settings and profile. */
   .v4-header-icon,
   .v4-avatar {
     width: 38px !important;
