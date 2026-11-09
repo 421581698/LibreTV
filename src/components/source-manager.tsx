@@ -37,7 +37,7 @@ import { describeParseStats } from '@/lib/tvbox-parser';
  * Apple-inspired 设置抽屉：纵向分组首页 → 独立详情页。
  * 具体设置面板继续复用现有业务组件与持久化逻辑。
  */
-type SecondaryTab = 'vod' | 'live' | 'subs' | 'playback' | 'image' | 'home' | 'voice' | 'language' | 'io' | 'cache';
+type SecondaryTab = 'vod' | 'live' | 'subs' | 'playback' | 'image' | 'home' | 'voice' | 'language' | 'io' | 'cache' | 'collector';
 type SettingsPage = SecondaryTab | 'index' | 'appearance';
 
 const SETTINGS_SECTIONS: { title: string; items: { id: SettingsPage; label: string; detail: string; icon: IconName }[] }[] = [
@@ -51,6 +51,7 @@ const SETTINGS_SECTIONS: { title: string; items: { id: SettingsPage; label: stri
     { id: 'vod', label: '影视源管理', detail: '点播源、优先级与健康检测', icon: 'link' },
     { id: 'live', label: '直播设置', detail: '直播源与频道管理', icon: 'home' },
     { id: 'subs', label: '资源订阅', detail: '管理已配置的数据源订阅', icon: 'download' },
+    { id: 'collector', label: '资源采集中心', detail: 'FMHY 网站发现目录与 Scrapling 采集引擎', icon: 'search' },
     { id: 'home', label: '首页与内容', detail: '首页展示与内容偏好', icon: 'home' },
   ] },
   { title: 'Friday 助手', items: [
@@ -74,6 +75,7 @@ const SETTINGS_PAGE_META: Record<Exclude<SettingsPage, 'index'>, { title: string
   voice: { title: '语音与声音', description: '配置 Friday 的语音识别和声音偏好。' },
   io: { title: '配置导入与导出', description: '备份或恢复 LibreTV 本机配置。' },
   cache: { title: '本机缓存', description: '查看并管理本机缓存数据。' },
+  collector: { title: '资源采集中心', description: '从 FMHY 目录发现站点，并通过 Scrapling 检查公开媒体链接。' },
 };
 
 const SETTINGS_OPEN_PAGE_KEY = 'libretv-settings-open-page';
@@ -173,9 +175,126 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
           {activePage === 'subs' && <SourceSubscriptions />}
           {activePage === 'io' && <ConfigIoPanel />}
           {activePage === 'cache' && <VideoCachePanel />}
+          {activePage === 'collector' && <ResourceCollectorPanel />}
         </div>
       )}
     </Drawer>
+  );
+}
+
+
+type CollectorSite = { title: string; url: string; host: string; directory: string };
+type CollectorCandidate = { url: string; kind: string; host: string };
+
+function ResourceCollectorPanel() {
+  const [sites, setSites] = useState<CollectorSite[]>([]);
+  const [selectedSite, setSelectedSite] = useState<CollectorSite | null>(null);
+  const [candidates, setCandidates] = useState<CollectorCandidate[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [loaded, setLoaded] = useState(false);
+
+  const discover = async () => {
+    setBusy(true);
+    setError('');
+    setSelectedSite(null);
+    setCandidates([]);
+    try {
+      const response = await fetch('/api/resource-collector', { cache: 'no-store' });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'FMHY 目录加载失败。');
+      setSites(Array.isArray(payload.sites) ? payload.sites : []);
+      setLoaded(true);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '无法连接资源采集服务。');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const crawl = async (site: CollectorSite) => {
+    setBusy(true);
+    setError('');
+    setSelectedSite(site);
+    setCandidates([]);
+    try {
+      const response = await fetch('/api/resource-collector', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: site.url }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Scrapling 采集失败。');
+      setCandidates(Array.isArray(payload.candidates) ? payload.candidates : []);
+      if (!payload.candidates?.length) setError('该页面没有发现可直接识别的公开媒体或播放器链接。');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Scrapling 采集失败。');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="space-y-4">
+      <div className="rounded-2xl border border-line bg-card p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-content">FMHY · 唯一网站发现目录</h3>
+            <p className="mt-1 text-xs text-muted">目录来源固定为 FMHY Movies / TV / Anime，不从其他目录扩展发现。</p>
+            <a className="mt-2 inline-flex text-xs text-accent underline" href="https://fmhy.net/video" target="_blank" rel="noreferrer">打开 FMHY 视频目录</a>
+          </div>
+          <button type="button" className="btn-primary btn-sm" onClick={() => void discover()} disabled={busy}>
+            {busy ? '处理中…' : loaded ? '刷新 FMHY 目录' : '发现网站'}
+          </button>
+        </div>
+      </div>
+
+      {error ? <p className="rounded-xl border border-line bg-card px-3 py-2 text-xs text-muted" role="status">{error}</p> : null}
+
+      {sites.length > 0 ? (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-content">发现的网站</h3>
+            <span className="text-xs text-muted">{sites.length} 个候选站点</span>
+          </div>
+          <div className="max-h-80 space-y-2 overflow-y-auto">
+            {sites.map((site) => (
+              <div key={site.host} className="flex items-center gap-3 rounded-xl border border-line bg-card p-3">
+                <div className="min-w-0 flex-1">
+                  <strong className="block truncate text-sm text-content">{site.title}</strong>
+                  <span className="block truncate text-xs text-muted">{site.host}</span>
+                </div>
+                <button type="button" className="btn-ghost btn-sm shrink-0" onClick={() => void crawl(site)} disabled={busy}>
+                  {selectedSite?.host === site.host && busy ? '采集中…' : 'Scrapling 检查'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : loaded ? (
+        <p className="text-xs text-muted">FMHY 当前没有返回可用的外部站点链接。</p>
+      ) : null}
+
+      {selectedSite ? (
+        <div className="space-y-2 rounded-2xl border border-line bg-card p-4">
+          <div>
+            <h3 className="text-sm font-semibold text-content">采集结果 · {selectedSite.title}</h3>
+            <p className="mt-1 truncate text-xs text-muted">{selectedSite.url}</p>
+          </div>
+          {candidates.length > 0 ? candidates.map((candidate) => (
+            <div key={candidate.url} className="flex min-w-0 items-center gap-2 rounded-lg bg-chip p-2">
+              <div className="min-w-0 flex-1">
+                <span className="block text-[10px] text-muted">{candidate.kind} · {candidate.host}</span>
+                <a className="block truncate text-xs text-content underline" href={candidate.url} target="_blank" rel="noreferrer">{candidate.url}</a>
+              </div>
+              <button type="button" className="btn-ghost btn-sm shrink-0" onClick={() => void copyToClipboard(candidate.url)}>复制</button>
+            </div>
+          )) : <p className="text-xs text-muted">尚未发现可直接识别的媒体链接。</p>}
+        </div>
+      ) : null}
+
+      <p className="text-xs leading-6 text-muted">底层引擎：Scrapling Python 服务。仅提取公开可访问的媒体/播放器链接，不绕过登录、付费墙、DRM 或访问控制。采集到的直链仍需单独验证，不能直接当作兼容 CMS 点播源。</p>
+    </section>
   );
 }
 
