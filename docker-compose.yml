@@ -54,7 +54,7 @@ services:
     container_name: libretv-scrapling-collector
     restart: unless-stopped
     environment:
-      - SCRAPLING_API_TOKEN=${SCRAPLING_API_TOKEN:?请在 .env 中设置 SCRAPLING_API_TOKEN}
+      - SCRAPLING_API_TOKEN=${SCRAPLING_API_TOKEN:-}
     expose:
       - "8000"
     healthcheck:
