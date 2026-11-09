@@ -350,7 +350,8 @@ describe('首页与播放页回归契约', () => {
   it('Preview 保持公开访问，且部署必须人工确认', () => {
     expect(previewConfig).toContain('AUTH_DISABLED = "true"');
     expect(previewWorkflow).toContain('workflow_dispatch:');
-    expect(previewWorkflow).toContain("inputs.confirm_preview_deploy == 'yes'");
+    expect(previewWorkflow).toContain('feature/libretv-eight-screen-glass-2026-11-09');
+    expect(previewWorkflow).toContain('run: npm test -- --reporter=dot');
     expect(previewWorkflow).toContain('public Preview Worker');
     expect(previewWorkflow).not.toContain('password protection');
     expect(previewWorkflow).not.toContain('  push:');
