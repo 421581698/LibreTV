@@ -312,6 +312,9 @@ describe('首页与播放页回归契约', () => {
     expect(theme).toContain("{ value: 'light', label: '浅色' }");
     expect(theme).toContain("{ value: 'dark', label: '深色' }");
     expect(theme).toContain("{ value: 'system', label: '跟随系统' }");
+    expect(theme).toContain('function readStoredTheme()');
+    expect(theme).toContain('media.addListener(onChange)');
+    expect(theme).toContain('persistTheme(t)');
     expect(settings).toContain('浅色、深色与系统外观');
     expect(settings).toContain('<ThemeToggle />');
     expect(settings).toContain("activePage === 'appearance'");
