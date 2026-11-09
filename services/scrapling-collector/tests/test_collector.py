@@ -391,8 +391,9 @@ segment-2.ts
         self.assertTrue(result["dynamic"])
         self.assertEqual(result["dynamic_metadata"]["minimum_update_period_seconds"], 5.0)
         self.assertEqual(result["dynamic_metadata"]["time_shift_buffer_depth_seconds"], 12.0)
-        self.assertEqual([item["time"] for item in timeline], [100, 104, 108])
-        self.assertEqual(len(timeline), 3)
+        self.assertEqual(len(timeline), 50)
+        self.assertTrue(result["representations"][0]["timeline_requires_live_edge"])
+        self.assertTrue(result["representations"][0]["segment_timeline_truncated"])
 
     def test_mpd_segment_timeline_inherits_from_period_and_checks_urls(self):
         body = b"""<MPD type="static"><Period>
