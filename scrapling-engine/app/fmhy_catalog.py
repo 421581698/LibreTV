@@ -106,7 +106,7 @@ def _canonicalize_url(raw_url: str) -> tuple[str, str] | None:
     except ValueError:
         return None
     host = parsed.hostname.rstrip(".").lower()
-    if not host or host == "localhost" or host.endswith(".localhost"):
+    if not host or host == "localhost" or host.endswith(".localhost") or port == 0:
         return None
     try:
         host = host.encode("idna").decode("ascii")
@@ -120,9 +120,11 @@ def _canonicalize_url(raw_url: str) -> tuple[str, str] | None:
         return None
     scheme = parsed.scheme.lower()
     default_port = 443 if scheme == "https" else 80
-    if port is not None and (port not in {80, 443} or port != default_port):
-        return None
-    canonical = urlunsplit((scheme, host, parsed.path or "/", parsed.query, ""))
+    authority_host = f"[{host}]" if isinstance(address, ipaddress.IPv6Address) else host
+    authority = authority_host
+    if port is not None and port != default_port:
+        authority = f"{authority}:{port}"
+    canonical = urlunsplit((scheme, authority, parsed.path or "/", parsed.query, ""))
     return canonical, host
 
 
