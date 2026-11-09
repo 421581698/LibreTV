@@ -151,7 +151,11 @@ async def _run_job(task_id: str) -> None:
                 result_json=json.dumps(result, ensure_ascii=False),
             )
     except asyncio.CancelledError:
-        job_store.update(task_id, "interrupted", error="Task cancelled before a checkpoint was confirmed.")
+        job_store.update(
+            task_id,
+            "interrupted",
+            error="Task cancelled before a checkpoint was confirmed.",
+        )
         raise
     except Exception as exc:
         logger.exception("Scrapling job %s failed", task_id)
