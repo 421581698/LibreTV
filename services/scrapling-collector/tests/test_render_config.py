@@ -33,5 +33,9 @@ class RenderDeploymentConfigTests(unittest.TestCase):
         self.assertIn("- PORT=8000", compose)
         self.assertIn("http://scrapling-collector:8000", compose)
 
+    def test_compose_defaults_scrapling_egress_gate_to_disabled(self):
+        compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+        self.assertIn("SCRAPLING_EGRESS_FIREWALL_CONFIRMED=${SCRAPLING_EGRESS_FIREWALL_CONFIRMED:-0}", compose)
+
 if __name__ == "__main__":
     unittest.main()
