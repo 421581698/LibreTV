@@ -9,6 +9,14 @@ from scrapling.fetchers import Fetcher
 
 from app.config import settings
 
+class RobotsPolicyError(PermissionError):
+    pass
+
+
+class RobotsUnavailableError(RuntimeError):
+    pass
+
+
 _CACHE_TTL_SECONDS = 3600
 _cache: dict[str, tuple[float, RobotFileParser]] = {}
 _cache_lock = Lock()
@@ -37,7 +45,7 @@ def ensure_robots_allowed(url: str, timeout: float | None = None) -> None:
         )
         status = getattr(response, "status", 200)
         if isinstance(status, int) and status >= 500:
-            raise ValueError("robots.txt could not be checked; refusing the fetch.")
+            raise RobotsUnavailableError("robots.txt could not be checked; refusing the fetch.")
         parser = RobotFileParser(robots_url)
         if isinstance(status, int) and 400 <= status < 500:
             parser.parse([])
@@ -50,4 +58,4 @@ def ensure_robots_allowed(url: str, timeout: float | None = None) -> None:
             _cache[origin] = (now, parser)
 
     if not parser.can_fetch(settings.default_user_agent, url):
-        raise ValueError("The target URL is disallowed by the site's robots.txt policy.")
+        raise RobotsPolicyError("The target URL is disallowed by the site's robots.txt policy.")
