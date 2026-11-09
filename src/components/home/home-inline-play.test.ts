@@ -104,6 +104,8 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
     expect(theme).toContain(':root:not(.dark) .v4-spatial-screen');
     expect(theme).toContain(':root:not(.dark) .v4-spatial-screen .v4-resource-search input');
     expect(theme).toContain('html.dark .v4-mobile-tabbar');
+    expect(theme).toContain('html.dark .v4-header:not(.is-overlay) .v4-search input');
+    expect(theme).toContain('-webkit-text-fill-color: #F7F8FA !important;');
     expect(safeArea).toContain('z-index: 1;');
     expect(safeArea).not.toContain('2147483000');
   });
