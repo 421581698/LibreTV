@@ -410,9 +410,9 @@ def parse_mpd_manifest(body: bytes, base_url: str = "") -> dict:
                                 count = max(0, (end_tick - start + duration - 1) // duration)
                             else:
                                 # timeShiftBufferDepth is a window length, not an absolute
-                                # timeline end. Without a trustworthy live-edge timestamp,
-                                # expanding r=-1 from this start time would invent segments.
-                                count = 50
+                                # timeline end. Without a trustworthy live edge, do not emit
+                                # speculative segment URLs for an open-ended dynamic repeat.
+                                count = 0 if dynamic else 50
                                 timeline_truncated = True
                                 if dynamic:
                                     representation_info["timeline_requires_live_edge"] = True
