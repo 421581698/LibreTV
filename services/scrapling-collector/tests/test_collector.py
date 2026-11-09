@@ -365,6 +365,50 @@ segment-2.ts
             "https://cdn.example/root/init/$RepresentationID$.mp4",
         )
 
+    def test_mpd_segment_timeline_expands_bounded_static_segments(self):
+        body = b"""<MPD type="static" mediaPresentationDuration="PT12S">
+<Period><AdaptationSet><SegmentTemplate timescale="1" startNumber="7"
+ media="video/$RepresentationID$/$Number%03d$-$Time$.m4s">
+<SegmentTimeline><S t="0" d="4" r="2"/></SegmentTimeline>
+</SegmentTemplate><Representation id="v1" bandwidth="900000"/></AdaptationSet></Period></MPD>"""
+        result = collector.parse_mpd_manifest(body, "https://cdn.example/manifest.mpd")
+        timeline = result["representations"][0]["segment_timeline"]
+        self.assertEqual([item["number"] for item in timeline], [7, 8, 9])
+        self.assertEqual([item["time"] for item in timeline], [0, 4, 8])
+        self.assertEqual(timeline[1]["url"], "https://cdn.example/video/v1/008-4.m4s")
+        self.assertFalse(result["representations"][0]["segment_timeline_truncated"])
+
+    def test_dynamic_mpd_bounds_negative_repeat_to_time_shift_window(self):
+        body = b"""<MPD type="dynamic" availabilityStartTime="2026-01-01T00:00:00Z"
+ minimumUpdatePeriod="PT5S" timeShiftBufferDepth="PT12S"
+ suggestedPresentationDelay="PT3S">
+<Period><AdaptationSet><SegmentTemplate timescale="1" startNumber="1"
+ media="live/$Number$-$Time$.m4s">
+<SegmentTimeline><S t="100" d="4" r="-1"/></SegmentTimeline>
+</SegmentTemplate><Representation id="live1" bandwidth="1000000"/></AdaptationSet></Period></MPD>"""
+        result = collector.parse_mpd_manifest(body, "https://cdn.example/live.mpd")
+        timeline = result["representations"][0]["segment_timeline"]
+        self.assertTrue(result["dynamic"])
+        self.assertEqual(result["dynamic_metadata"]["minimum_update_period_seconds"], 5.0)
+        self.assertEqual(result["dynamic_metadata"]["time_shift_buffer_depth_seconds"], 12.0)
+        self.assertEqual([item["time"] for item in timeline], [100, 104, 108])
+        self.assertEqual(len(timeline), 3)
+
+    def test_mpd_segment_timeline_inherits_from_period_and_checks_urls(self):
+        body = b"""<MPD type="static"><Period>
+<SegmentTemplate timescale="1" media="segments/$Number$.m4s">
+<SegmentTimeline><S t="0" d="5" r="1"/></SegmentTimeline></SegmentTemplate>
+<AdaptationSet><Representation id="v1"/></AdaptationSet>
+</Period></MPD>"""
+        result = collector.parse_mpd_manifest(body, "https://cdn.example/manifest.mpd")
+        self.assertEqual(len(result["representations"][0]["segment_timeline"]), 2)
+        with patch.object(collector.socket, "getaddrinfo", return_value=[
+            (None, None, None, None, ("8.8.8.8", 443))
+        ]):
+            checked = collector.validate_manifest_references(result, "https://cdn.example/manifest.mpd")
+        self.assertEqual(len(checked["representations"][0]["segment_timeline"]), 2)
+        self.assertEqual(checked["rejected_reference_count"], 0)
+
     def test_mpd_manifest_extracts_segment_list_urls(self):
         body = b"""<MPD><Period><AdaptationSet>
 <SegmentList><Initialization sourceURL="init.mp4"/>
