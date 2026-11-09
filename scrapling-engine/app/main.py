@@ -319,8 +319,7 @@ async def capabilities() -> dict:
             "job_discovery_results_api",
         ],
         "planned": [
-            "dynamic_browser",
-            "stealth_browser",
+            "controlled_browser_fetch",
             "recursive_link_crawling",
             "network_api_capture",
             "media_candidate_validation",
