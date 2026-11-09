@@ -33,6 +33,41 @@ import {
 /** 片段时间统一保留 1 位小数：与面板展示保持一致，避免浮点尾巴 */
 const round1 = (v: number) => Math.round(v * 10) / 10;
 
+// 用户选择的 HLS 最高分辨率；直链/单码率源不承诺可被此设置控制。
+const QUALITY_PREFERENCE_KEY = 'libretv-quality-preference';
+function applyHlsQualityPreference(hls: Hls): void {
+  let maxHeight: number | null = null;
+  try {
+    const saved = window.localStorage.getItem(QUALITY_PREFERENCE_KEY);
+    if (saved && saved !== 'auto') {
+      const parsed = Number(saved);
+      if ([480, 720, 1080, 2160].includes(parsed)) maxHeight = parsed;
+    }
+  } catch {
+    // Storage unavailable: keep adaptive quality.
+  }
+
+  if (maxHeight === null) {
+    hls.autoLevelCapping = -1;
+    hls.currentLevel = -1;
+    return;
+  }
+
+  const levels = hls.levels
+    .map((level, index) => ({ index, height: level.height }))
+    .filter((level) => Number.isFinite(level.height) && level.height > 0);
+  if (levels.length === 0) return;
+
+  const withinLimit = levels.filter((level) => level.height <= maxHeight!);
+  const selected = withinLimit.length > 0
+    ? withinLimit.reduce((best, level) => level.height > best.height ? level : best)
+    : levels.reduce((best, level) => level.height < best.height ? level : best);
+
+  // 保持 ABR 自适应，但限制它不会超过用户选择的档位。
+  hls.autoLevelCapping = selected.index;
+  hls.currentLevel = -1;
+}
+
 /**
  * 播放器外壳：ArtPlayer + hls.js（旧版 player.js 的 React 化）。
  * 保留：广告分片过滤、自动连播回调、进度回调、快捷键、移动端长按倍速、错误恢复。
@@ -129,6 +164,7 @@ export function PlayerShell({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const artRef = useRef<any>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const qualityPreferenceHandlerRef = useRef<(() => void) | null>(null);
   const [error, setError] = useState('');
   const [hint, setHint] = useState('');
   // 起播前的品牌占位图（沿用旧版 nomedia 素材），实际开始播放后隐藏
@@ -376,10 +412,17 @@ export function PlayerShell({
   const setupHls = (video: HTMLVideoElement, mediaUrl: string, allowProxyFallback: boolean) => {
     restoreCleanupRef.current?.();
     restoreCleanupRef.current = null;
+    if (qualityPreferenceHandlerRef.current) {
+      window.removeEventListener('libretv-quality-preference-change', qualityPreferenceHandlerRef.current);
+      qualityPreferenceHandlerRef.current = null;
+    }
     hlsRef.current?.destroy();
     currentMediaUrlRef.current = mediaUrl;
     const hls = new Hls(buildHlsConfig());
     hlsRef.current = hls;
+    const handleQualityPreferenceChange = () => applyHlsQualityPreference(hls);
+    qualityPreferenceHandlerRef.current = handleQualityPreferenceChange;
+    window.addEventListener('libretv-quality-preference-change', handleQualityPreferenceChange);
 
     let restoreInFlight = false;
     const restoreAndStart = async () => {
@@ -423,6 +466,7 @@ export function PlayerShell({
     hls.attachMedia(video);
 
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      applyHlsQualityPreference(hls);
       recoveryRef.current?.markHealthy();
       // master playlist 的档位高度：多码率源在这里就能拿到上限
       const heights = hls.levels
@@ -959,6 +1003,10 @@ export function PlayerShell({
       restoreCleanupRef.current?.();
       restoreCleanupRef.current = null;
       Artplayer.CONTROL_HIDE_TIME = ART_DEFAULT_CONTROL_HIDE_MS;
+      if (qualityPreferenceHandlerRef.current) {
+        window.removeEventListener('libretv-quality-preference-change', qualityPreferenceHandlerRef.current);
+        qualityPreferenceHandlerRef.current = null;
+      }
       hlsRef.current?.destroy();
       hlsRef.current = null;
       recoveryRef.current?.dispose();
