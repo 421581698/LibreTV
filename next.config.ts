@@ -22,14 +22,6 @@ const nextConfig: NextConfig = {
   env: { APP_VERSION: readAppVersion() },
   // 采集站/豆瓣等上游地址在运行时由用户配置，构建期无法枚举，关闭图片优化改用 <img>
   images: { unoptimized: true },
-  
-  // 🚨 强行加上下面这两段，跳过警告和类型报错，确保 Cloudflare 顺利打包
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
 };
 
 export default nextConfig;
