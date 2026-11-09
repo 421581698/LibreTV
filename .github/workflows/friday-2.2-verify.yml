@@ -5,6 +5,7 @@ on:
     branches:
       - feature/friday-playback-feedback-agent-2026-11-08
       - feature/friday-2.2-architecture
+      - feature/libretv-eight-screen-glass-2026-11-09
     paths:
       - "src/lib/friday/**"
       - "src/lib/quality.ts"
@@ -19,6 +20,7 @@ on:
     branches:
       - main
       - feature/friday-quality-aware-source-ranking-2026-11-08
+      - feature/libretv-v4-pc-light-homepage-2026-11-09
     paths:
       - "src/lib/friday/**"
       - "src/lib/quality.ts"
