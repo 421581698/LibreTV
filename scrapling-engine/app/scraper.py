@@ -43,6 +43,7 @@ class ScraplingAdapter:
             url,
             timeout=timeout,
             follow_redirects="safe",
+            stealthy_headers=False,
             headers={"User-Agent": settings.default_user_agent},
         )
         headers = getattr(page, "headers", {}) or {}
