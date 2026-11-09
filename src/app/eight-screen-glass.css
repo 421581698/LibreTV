@@ -916,3 +916,82 @@ html:not(.dark) .v4-mobile-tabs a.is-active {
 }
 
 /* The Friday Canvas keeps its own gold rendering in both themes. */
+
+
+/* The profile action is a real navigation target, with an explicit SVG viewport. */
+.v4-avatar { display: inline-flex !important; align-items: center !important; justify-content: center !important; }
+.v4-avatar .v4-avatar-icon {
+  display: block !important;
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  min-height: 22px !important;
+  flex: 0 0 22px !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 1.8 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+
+/* Dedicated cover for the Me screen; decorative artwork never replaces user data. */
+.v4-me-layout { display: grid; gap: 22px; }
+.v4-me-cover {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: flex-end;
+  min-height: 230px;
+  overflow: hidden;
+  padding: clamp(20px, 4vw, 42px);
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 26px;
+  color: #F5F6F8;
+  background: linear-gradient(115deg, #15171c 0%, #252a32 48%, #111318 100%);
+  box-shadow: 0 22px 58px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.10);
+}
+.v4-me-cover-art { position: absolute; z-index: -1; inset: 0; overflow: hidden; pointer-events: none; }
+.v4-me-cover-glow {
+  position: absolute; width: 420px; height: 280px; right: 8%; top: -42%;
+  border-radius: 50%; background: radial-gradient(circle,rgba(255,255,255,.22),rgba(255,255,255,.04) 48%,transparent 72%);
+  filter: blur(8px);
+}
+.v4-me-cover-orbit {
+  position: absolute; right: 8%; top: 12%; width: 310px; height: 190px;
+  border: 1px solid rgba(255,255,255,.22); border-radius: 50%;
+  transform: rotate(-24deg); box-shadow: 0 0 34px rgba(255,255,255,.08), inset 0 0 24px rgba(255,255,255,.05);
+}
+.v4-me-cover-orbit-two {
+  right: 1%; top: 20%; width: 390px; height: 150px;
+  transform: rotate(22deg); border-color: rgba(255,255,255,.12);
+}
+.v4-me-cover-profile { display: flex; align-items: center; gap: 18px; width: 100%; min-width: 0; }
+.v4-me-profile-avatar {
+  display: grid; place-items: center; flex: 0 0 76px; width: 76px; height: 76px;
+  border: 1px solid rgba(255,255,255,.5); border-radius: 24px;
+  color: #20242b; background: linear-gradient(145deg,#fff,#dfe3e9);
+  box-shadow: 0 10px 28px rgba(0,0,0,.24),inset 0 1px 0 #fff;
+}
+.v4-me-profile-avatar svg { display:block; width:38px; height:38px; fill:none; stroke:currentColor; stroke-width:1.45; stroke-linecap:round; stroke-linejoin:round; }
+.v4-me-cover-copy { min-width:0; }
+.v4-me-cover-eyebrow { display:block; margin-bottom:8px; color:rgba(255,255,255,.58); font-size:9px; font-weight:700; letter-spacing:.18em; }
+.v4-me-cover-copy h2 { color:#fff; font-size:clamp(25px,3vw,34px); font-weight:650; letter-spacing:-.04em; }
+.v4-me-cover-copy p { margin-top:7px; color:rgba(255,255,255,.68); font-size:13px; }
+.v4-me-local-badge { display:inline-flex; align-items:center; gap:8px; flex:0 0 auto; margin-left:auto; padding:9px 12px; border:1px solid rgba(255,255,255,.18); border-radius:999px; color:rgba(255,255,255,.78); background:rgba(255,255,255,.08); font-size:11px; -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); }
+.v4-me-local-badge span { width:7px; height:7px; border-radius:50%; background:#9ed7ad; box-shadow:0 0 10px rgba(158,215,173,.65); }
+html:not(.dark) .v4-me-cover { color:#fff; background:linear-gradient(115deg,#252a32 0%,#414956 52%,#20242b 100%); }
+html:not(.dark) .v4-me-cover-copy h2 { color:#fff !important; }
+@media(max-width:700px) {
+  .v4-me-cover { min-height:220px; padding:20px 17px; border-radius:20px; }
+  .v4-me-cover-profile { align-items:flex-start; flex-wrap:wrap; gap:13px; }
+  .v4-me-profile-avatar { flex-basis:62px; width:62px; height:62px; border-radius:19px; }
+  .v4-me-profile-avatar svg { width:32px; height:32px; }
+  .v4-me-cover-copy { flex:1 1 calc(100% - 80px); padding-top:3px; }
+  .v4-me-cover-copy p { max-width:25em; font-size:12px; }
+  .v4-me-local-badge { margin:0 0 0 75px; }
+}
+@media(prefers-reduced-motion:no-preference) {
+  .v4-me-cover-orbit-one { animation:v4-me-orbit-drift 18s ease-in-out infinite alternate; }
+  .v4-me-cover-orbit-two { animation:v4-me-orbit-drift 23s ease-in-out infinite alternate-reverse; }
+  @keyframes v4-me-orbit-drift { from { transform:translate3d(0,-5px,0) rotate(-24deg); } to { transform:translate3d(-12px,8px,0) rotate(-17deg); } }
+}
