@@ -148,6 +148,19 @@ describe('首页与播放页回归契约', () => {
     expect(sharedHeaderStyles).not.toContain('background: rgba(246, 248, 251, 0.88)');
   });
 
+  it('顶部导航紧邻 Logo，搜索位于电影与电视剧之间，首页白字、频道黑字', () => {
+    const navStart = v4Header.indexOf('<nav');
+    const navEnd = v4Header.indexOf('</nav>', navStart);
+    const navMarkup = v4Header.slice(navStart, navEnd);
+    expect(navMarkup.indexOf("item.href === '/movies'")).toBeGreaterThan(navMarkup.indexOf('{item.label}'));
+    expect(navMarkup).toContain('id="v4-header-search"');
+    expect(navMarkup.indexOf('id="v4-header-search"')).toBeLessThan(navMarkup.indexOf("{item.label}", navMarkup.indexOf("item.href === '/movies'")));
+    expect(sharedHeaderStyles).toContain('.v4-header .v4-nav-link[href="/"]');
+    expect(sharedHeaderStyles).toContain('color: #fff !important;');
+    expect(sharedHeaderStyles).toContain('color: #17171B !important;');
+    expect(sharedHeaderStyles).toContain('flex: 0 0 205px !important;');
+  });
+
   it('V4 Header 搜索与最近搜索历史保留 URL、输入校验和回选链路', () => {
     expect(home).toContain('<V4HomepageHeader overlay={!urlQuery} />');
     expect(v4Header).toContain('<SearchHistoryDropdown');
