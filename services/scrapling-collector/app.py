@@ -265,7 +265,24 @@ def run_spider(url: str, limit: int) -> list[dict]:
     class TargetSiteSpider(SiteSpider):
         start_urls = [url]
         allowed_domains = [urlparse(url).hostname]
-    result = TargetSiteSpider().start()
+        followed_urls: set[str] = set()
+
+        async def parse(self, response: Response):
+            for item in await super().parse(response):
+                yield item
+            # Crawl a small same-host sample so directory pages can lead to
+            # catalogue/API pages without turning one click into an open crawl.
+            for anchor in response.css("a"):
+                href = (anchor.attrib.get("href") or "").strip()
+                target = urljoin(response.url, href)
+                parsed = urlparse(target)
+                if parsed.scheme != "https" or parsed.hostname != self.allowed_domains[0]:
+                    continue
+                if target in self.followed_urls or len(self.followed_urls) >= 8:
+                    continue
+                self.followed_urls.add(target)
+                yield response.follow(target)
+    result = TargetSiteSpider(crawldir=str(DB_PATH.parent / "crawls" / hashlib.sha256(url.encode()).hexdigest()[:16])).start()
     candidates: list[dict] = []
     seen: set[str] = set()
     for item in result.items:
