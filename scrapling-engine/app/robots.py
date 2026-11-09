@@ -90,9 +90,10 @@ def ensure_robots_allowed(url: str, timeout: float | None = None) -> None:
         else 0
     )
     minimum_delay = max(1.0, float(crawl_delay), rate_delay)
+    now = time.monotonic()
     with _cache_lock:
-        previous = _last_request_at.get(origin, 0.0)
-        wait = minimum_delay - (time.monotonic() - previous)
-        if wait > 0:
-            time.sleep(wait)
-        _last_request_at[origin] = time.monotonic()
+        next_allowed = max(now, _last_request_at.get(origin, 0.0))
+        _last_request_at[origin] = next_allowed + minimum_delay
+    wait = next_allowed - now
+    if wait > 0:
+        time.sleep(wait)
