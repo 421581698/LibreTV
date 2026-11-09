@@ -288,3 +288,147 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
   .v4-home .v4-hero-content h1 { font-size:clamp(42px,11vw,58px); }
   .v4-home .v4-content-section { width:calc(100% - 28px); margin-top:24px; }
 }
+
+
+/* V4 reference-match: single-row translucent glass navigation over the hero.
+   Keep this final block after all legacy responsive rules. */
+.v4-home {
+  position: relative !important;
+  isolation: isolate;
+}
+.v4-home .v4-header {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  min-height: 82px !important;
+  z-index: 300 !important;
+  background: rgba(17, 31, 52, .30) !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,.16) !important;
+  box-shadow: 0 8px 30px rgba(4,12,25,.08), inset 0 1px 0 rgba(255,255,255,.10) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(155%) !important;
+  backdrop-filter: blur(22px) saturate(155%) !important;
+}
+.v4-home .v4-header-inner {
+  width: calc(100% - 64px) !important;
+  max-width: 1720px !important;
+  min-height: 82px !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: clamp(12px, 1.8vw, 30px) !important;
+}
+.v4-home .v4-brand {
+  flex: 0 0 auto !important;
+  color: #fff !important;
+  white-space: nowrap !important;
+  text-shadow: 0 1px 8px rgba(0,0,0,.2);
+}
+.v4-home .v4-primary-nav {
+  display: flex !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: clamp(2px, .55vw, 10px) !important;
+  overflow: visible !important;
+  padding: 0 !important;
+  white-space: nowrap !important;
+}
+.v4-home .v4-nav-link {
+  flex: 0 0 auto !important;
+  padding: 10px clamp(9px, 1.05vw, 18px) !important;
+  color: rgba(255,255,255,.94) !important;
+  font-size: 14px !important;
+  font-weight: 560 !important;
+  text-shadow: 0 1px 8px rgba(0,0,0,.18);
+}
+.v4-home .v4-nav-link:hover {
+  color: #fff !important;
+  background: rgba(255,255,255,.16) !important;
+}
+.v4-home .v4-nav-link.is-active {
+  color: #161c27 !important;
+  background: rgba(255,255,255,.94) !important;
+  box-shadow: 0 4px 18px rgba(0,0,0,.14), inset 0 1px 0 rgba(255,255,255,.95) !important;
+}
+.v4-home .v4-header-actions {
+  flex: 0 0 auto !important;
+  margin-left: auto !important;
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: clamp(7px, .8vw, 14px) !important;
+}
+.v4-home .v4-search {
+  width: clamp(175px, 18vw, 300px) !important;
+  height: 42px !important;
+  padding: 0 15px !important;
+  border: 1px solid rgba(255,255,255,.27) !important;
+  border-radius: 999px !important;
+  color: #fff !important;
+  background: rgba(255,255,255,.13) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 4px 18px rgba(0,0,0,.08) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(150%) !important;
+  backdrop-filter: blur(18px) saturate(150%) !important;
+}
+.v4-home .v4-search input { color: #fff !important; }
+.v4-home .v4-search input::placeholder { color: rgba(255,255,255,.78) !important; }
+.v4-home .v4-header-icon,
+.v4-home .v4-avatar {
+  width: 40px !important;
+  height: 40px !important;
+  flex: 0 0 40px !important;
+  color: #fff !important;
+  background: rgba(255,255,255,.13) !important;
+  border: 1px solid rgba(255,255,255,.24) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  backdrop-filter: blur(16px) !important;
+}
+.v4-home .v4-mobile-search-toggle { display: none !important; }
+.v4-home .v4-home-main { padding-top: 0 !important; }
+.v4-home .v4-hero { margin-top: 0 !important; }
+@media (max-width: 1100px) {
+  .v4-home .v4-header { min-height: 72px !important; }
+  .v4-home .v4-header-inner {
+    width: calc(100% - 32px) !important;
+    min-height: 72px !important;
+    gap: 8px !important;
+  }
+  .v4-home .v4-brand { font-size: 18px !important; }
+  .v4-home .v4-brand-mark { width: 26px !important; height: 26px !important; flex-basis: 26px !important; }
+  .v4-home .v4-nav-link { padding: 9px 8px !important; font-size: 12px !important; }
+  .v4-home .v4-search { width: 160px !important; }
+  .v4-home .v4-header-actions { gap: 5px !important; }
+  .v4-home .v4-header-icon,.v4-home .v4-avatar { width: 34px !important; height: 34px !important; flex-basis: 34px !important; }
+}
+@media (max-width: 700px) {
+  .v4-home .v4-header { min-height: 60px !important; }
+  .v4-home .v4-header-inner {
+    width: calc(100% - 24px) !important;
+    min-height: 60px !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+  }
+  .v4-home .v4-brand { font-size: 16px !important; }
+  .v4-home .v4-primary-nav {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    order: initial !important;
+    justify-content: flex-start !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+  .v4-home .v4-primary-nav::-webkit-scrollbar { display: none !important; }
+  .v4-home .v4-nav-link { padding: 8px 7px !important; font-size: 11px !important; }
+  .v4-home .v4-header-actions { gap: 3px !important; }
+  .v4-home .v4-search { width: 36px !important; height: 34px !important; padding: 0 9px !important; overflow: hidden !important; }
+  .v4-home .v4-search input { width: 150px !important; opacity: 0 !important; }
+  .v4-home .v4-header-icon,.v4-home .v4-avatar { width: 30px !important; height: 30px !important; flex-basis: 30px !important; }
+}
