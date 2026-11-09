@@ -395,9 +395,10 @@ def crawl_site(payload: CrawlRequest) -> dict:
                 item["status"] = "pending"
             connection.execute(
                 "UPDATE tasks SET status=?,updated_at=?,error=?,result_count=? WHERE id=?",
-                ("completed" if not errors or candidates else "failed", now, "; ".join(errors) or None, len(candidates), task_id),
+                ("partial" if errors and candidates else ("failed" if errors else "completed"), now, "; ".join(errors) or None, len(candidates), task_id),
             )
-        return {"task_id": task_id, "status": "completed" if candidates else ("failed" if errors else "completed"),
+        task_status = "partial" if errors and candidates else ("failed" if errors else "completed")
+        return {"task_id": task_id, "status": task_status,
                 "page_url": raw_url, "engine": "Scrapling Spider + StealthySession", "count": len(candidates),
                 "candidates": candidates[:payload.limit], "errors": errors,
                 "note": "Collected public candidates only. Candidates are not yet trusted playback sources and require validation/approval."}
@@ -442,9 +443,11 @@ def tasks(authorization: str | None = Header(default=None), limit: int = 50):
 def retry_task(task_id: str, authorization: str | None = Header(default=None)):
     require_token(authorization)
     with db() as connection:
-        row = connection.execute("SELECT url,mode FROM tasks WHERE id=?", (task_id,)).fetchone()
+        row = connection.execute("SELECT url,mode,status FROM tasks WHERE id=?", (task_id,)).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Task not found")
+    if row["status"] not in ("failed", "interrupted", "partial"):
+        raise HTTPException(status_code=409, detail="Only failed, interrupted or partial tasks can be retried")
     return crawl_site(CrawlRequest(url=row["url"], mode=row["mode"], limit=MAX_CANDIDATES))
 
 
