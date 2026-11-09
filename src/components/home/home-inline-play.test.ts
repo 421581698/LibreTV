@@ -32,6 +32,9 @@ describe('iPhone homepage inline playback and top search', () => {
   it('inline player aborts pending detail requests and supports closing without route navigation', () => {
     expect(player).toContain('const controller = new AbortController()');
     expect(player).toContain('return () => controller.abort()');
+    expect(player).toContain('const visibleDetail = requestKey && detailKey === requestKey ? detail : null;');
+    expect(player).toContain('detailKey !== requestKey');
+    expect(player).toContain('setDetailKey(currentRequestKey)');
     expect(player).toContain('onCloseRef.current()');
     expect(player).toContain('aria-modal="true"');
     expect(player).toContain('onNextEpisode');
