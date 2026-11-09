@@ -127,8 +127,8 @@ describe('首页与播放页回归契约', () => {
     expect(v4Styles).toContain('.v4-home .v4-header.is-overlay');
     expect(v4Styles).toContain('.v4-home .v4-header.is-overlay.is-scrolled');
     expect(v4Styles).toContain('.v4-home-main--cinema > .v4-hero');
-    for (const label of ['首页', '电影', '电视剧', '动漫', '综艺', '海外剧', '直播']) {
-      expect(v4Header).toContain(`label: '${label}'`);
+    for (const label of ['首页', '电影', '电视剧', '海外剧', '动漫', '综艺', '直播']) {
+      expect(navModules.some((module) => module.includes('label="' + label + '"'))).toBe(true);
     }
     expect(v4Styles).toContain('.v4-nav-link.is-active');
   });
