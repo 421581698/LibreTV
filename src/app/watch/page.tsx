@@ -36,7 +36,7 @@ import {
   upsertHistory,
   db,
 } from '@/lib/db';
-import { buildWatchUrl, cn, formatTime, validateSourceUrl } from '@/lib/utils';
+import { buildWatchUrl, cn, validateSourceUrl } from '@/lib/utils';
 import { SmartImage } from '@/components/smart-image';
 /**
  * 播放页（唯一入口，替代旧版 watch.html → player.html 跳转链）。
@@ -484,8 +484,8 @@ function WatchContent() {
                   return (
                     <Link key={`${item.sourceKey}:${item.vodId}`} href={href} className="netflix-history-card">
                       <div className="netflix-history-art">
-                        {item.pic ? <SmartImage url={item.pic} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-chip" />}
-                        <span className="netflix-history-play"><Icon name="play" className="w-5 h-5" /></span>
+                        {item.pic ? <SmartImage url={item.pic} mode="direct" alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-chip" />}
+                        <span className="netflix-history-play"><span aria-hidden="true">▶</span></span>
                       </div>
                       <div className="netflix-history-meta">
                         <strong>{item.title}</strong>
@@ -567,7 +567,7 @@ function WatchContent() {
             {sidebarTab === 'details' && (
               <div className="netflix-sidebar-content">
                 <div className="netflix-detail-hero">
-                  {detailQuery.data?.videoInfo?.cover && <SmartImage url={detailQuery.data.videoInfo.cover} alt="" className="w-24 aspect-[2/3] object-cover rounded-lg" />}
+                  {detailQuery.data?.videoInfo?.cover && <SmartImage url={detailQuery.data.videoInfo.cover} mode="direct" alt="" className="w-24 aspect-[2/3] object-cover rounded-lg" />}
                   <div className="min-w-0"><h3 className="font-semibold text-content">{videoTitle}</h3><p className="text-xs text-muted mt-1">{source.name}</p><p className="text-xs text-faint mt-2">{episodes.length} 集</p></div>
                 </div>
                 <p className="text-sm text-muted leading-6 mt-4">{detailQuery.data?.videoInfo?.description || '暂无影片简介。'}</p>
@@ -579,11 +579,11 @@ function WatchContent() {
                 <div className="netflix-section-kicker">接下来播放</div>
                 <button className="netflix-next-card" onClick={() => goEpisode(currentIndex + 1)}>
                   <div className="netflix-next-thumb">
-                    {detailQuery.data?.videoInfo?.cover ? <SmartImage url={detailQuery.data.videoInfo.cover} alt="" className="w-full h-full object-cover" /> : <span>EP {currentIndex + 2}</span>}
-                    <span className="netflix-next-play"><Icon name="play" className="w-4 h-4" /></span>
+                    {detailQuery.data?.videoInfo?.cover ? <SmartImage url={detailQuery.data.videoInfo.cover} mode="direct" alt="" className="w-full h-full object-cover" /> : <span>EP {currentIndex + 2}</span>}
+                    <span className="netflix-next-play"><span aria-hidden="true">▶</span></span>
                   </div>
                   <span className="min-w-0 flex-1 text-left"><strong>第 {currentIndex + 2} 集</strong><small>{videoTitle}</small></span>
-                  <Icon name="chevronRight" className="w-4 h-4" />
+                  <span aria-hidden="true">›</span>
                 </button>
               </div>
             )}
@@ -658,7 +658,7 @@ function EpisodeRow({ index, active, onClick }: { index: number; active: boolean
     <button ref={ref} className={cn('netflix-episode-row', active && 'active')} onClick={onClick} aria-current={active ? 'true' : undefined}>
       <span className="netflix-episode-number">{index + 1}</span>
       <span className="min-w-0 flex-1 text-left"><strong>第 {index + 1} 集</strong><small>{active ? '正在播放' : '点击播放'}</small></span>
-      {active ? <Icon name="volume2" className="w-4 h-4 text-accent" /> : <Icon name="play" className="w-4 h-4 opacity-60" />}
+      {active ? <span className="text-accent" aria-hidden="true">●</span> : <Icon name="play" className="w-4 h-4 opacity-60" />}
     </button>
   );
 }
