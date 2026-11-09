@@ -162,7 +162,7 @@ function MobileScreenTabs({ active }: { active: Screen }) {
   const items = [{ href: '/', label: '首页' }, { href: '/movies', label: '影视' }, { href: '/anime', label: '动漫' }, { href: '/live', label: '直播' }, { href: '/me', label: '我的' }];
   return (
     <nav className="v4-mobile-tabs" aria-label="移动端导航">
-      {items.map((item) => <a key={item.href} href={item.href} className={(active === 'movies' && item.href === '/movies') || (active === 'anime' && item.href === '/anime') || (active === 'me' && item.href === '/me') || (active === 'resources' && item.href === '/movies') ? 'is-active' : ''}>{item.label}</a>)}
+      {items.map((item) => <a key={item.href} href={item.href} className={(active === 'movies' && item.href === '/movies') || (active === 'anime' && item.href === '/anime') || (active === 'me' && item.href === '/me') ? 'is-active' : ''}>{item.label}</a>)}
     </nav>
   );
 }

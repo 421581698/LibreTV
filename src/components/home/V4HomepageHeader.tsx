@@ -24,26 +24,8 @@ export function V4HomepageHeader() {
   const pathname = usePathname();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [activeNavHref, setActiveNavHref] = useState('/');
   const [query, setQuery] = useState('');
   const searchHistory = useSearchHistory(query);
-
-  useEffect(() => {
-    if (pathname !== '/') return;
-    const ids = ['today-recommendations', 'anime-recommendations', 'resources', 'my-library'];
-    const nodes = ids.map((id) => document.getElementById(id)).filter((node): node is HTMLElement => Boolean(node));
-    if (nodes.length === 0) return;
-    const observer = new IntersectionObserver((entries) => {
-      const visible = entries
-        .filter((entry) => entry.isIntersecting)
-        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-      if (visible?.target instanceof HTMLElement) {
-        setActiveNavHref(`/#${visible.target.id}`);
-      }
-    }, { rootMargin: '-18% 0px -66% 0px', threshold: [0, 0.2, 0.45, 0.7] });
-    nodes.forEach((node) => observer.observe(node));
-    return () => observer.disconnect();
-  }, [pathname]);
 
   useEffect(() => {
     const openSourceManager = () => setSettingsOpen(true);
