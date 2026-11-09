@@ -42,6 +42,16 @@ describe('collectorRequest', () => {
     expect(response.headers.get('Cache-Control')).toBe('no-store');
   });
 
+  it('does not allow caller-provided headers to override the collector bearer token', async () => {
+    vi.stubEnv('SCRAPLING_API_BASE', 'https://collector.example');
+    vi.stubEnv('SCRAPLING_API_TOKEN', 'server-only-token');
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await collectorRequest('/v1/tasks', { headers: { Authorization: 'Bearer attacker-value' } });
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer server-only-token');
+  });
+
   it('allows only the documented Docker Compose internal HTTP service', async () => {
     vi.stubEnv('SCRAPLING_API_BASE', 'http://scrapling-collector:8000');
     vi.stubEnv('SCRAPLING_API_TOKEN', 'server-only-token');
