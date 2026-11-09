@@ -262,8 +262,12 @@ describe('首页与播放页回归契约', () => {
 
   it('点播播放器保留播放、进度、音量、全屏与 HLS 恢复配置', () => {
     expect(player).toContain('volume: 0.8');
-    expect(player).toContain('fullscreen: true');
-    expect(player).toContain('fullscreenWeb: true');
+    // iPhone uses the native video fullscreen control; ArtPlayer's two
+    // page-fullscreen controls remain enabled on iPad, desktop and other devices.
+    expect(player).toContain('fullscreen: !isIPhone');
+    expect(player).toContain('fullscreenWeb: !isIPhone');
+    expect(player).toContain("name: 'ios-native-fullscreen'");
+    expect(player).toContain('video.webkitEnterFullscreen()');
     expect(player).toContain('playbackRate: true');
     expect(player).toContain('art.on(\'video:ratechange\'');
     expect(player).toContain('art.on(\'video:loadedmetadata\'');
