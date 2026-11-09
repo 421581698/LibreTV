@@ -120,7 +120,7 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
                       <span className="block text-sm font-medium text-content">{item.label}</span>
                       <span className="mt-0.5 block text-xs text-muted">{item.detail}</span>
                     </span>
-                    <Icon name="chevron-right" className="h-4 w-4 shrink-0 text-faint transition-transform group-hover:translate-x-0.5" />
+                    <span aria-hidden="true" className="shrink-0 text-xl leading-none text-faint transition-transform group-hover:translate-x-0.5">›</span>
                   </button>
                 ))}
               </div>
@@ -136,7 +136,7 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
             className="inline-flex min-h-9 items-center gap-1 rounded-lg pr-2 text-sm font-medium text-accent transition-colors hover:opacity-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             aria-label="返回设置"
           >
-            <Icon name="chevron-left" className="h-4 w-4" />
+            <span aria-hidden="true" className="text-lg leading-none">‹</span>
             设置
           </button>
           <div className="space-y-1 border-b border-line pb-4">
