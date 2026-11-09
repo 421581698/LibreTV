@@ -407,4 +407,10 @@ describe('首页与播放页回归契约', () => {
     expect(drawer).toContain('if (!mounted || !modal) return;');
   });
 
+
+  it('紧凑桌面窗口宽度下 Header 三列布局不会挤出视口', () => {
+    expect(homepageHeroStyles).toContain('@media screen and (min-width: 1101px) and (max-width: 1180px)');
+    expect(homepageHeroStyles).toContain('grid-template-columns: minmax(150px, .7fr) auto minmax(300px, .9fr)');
+  });
+
 });
