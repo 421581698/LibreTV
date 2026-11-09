@@ -558,7 +558,11 @@ def probe_hls_variant_tree(
                 "media_format": probe.get("media_format"),
             }
             child_manifest = probe if probe.get("manifest_valid") else {}
-            if not item["reachable"] or probe.get("media_format") != "hls":
+            if (
+                not item["reachable"]
+                or probe.get("media_format") != "hls"
+                or probe.get("rejected_reference_count", 0) > 0
+            ):
                 item["reachable"] = False
             elif child_manifest.get("is_master_playlist"):
                 if depth < max_depth:
