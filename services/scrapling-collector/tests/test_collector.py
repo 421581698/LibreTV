@@ -399,6 +399,21 @@ segment-2.ts
         self.assertEqual([item["number"] for item in timeline], [1, 2, 3, 4])
         self.assertFalse(result["representations"][0]["segment_timeline_truncated"])
 
+    def test_static_mpd_negative_repeat_without_duration_emits_no_guessed_urls(self):
+        body = b"""<MPD type="static"><Period><AdaptationSet>
+<SegmentTemplate timescale="1" media="segment-$Number$-$Time$.m4s">
+<SegmentTimeline><S t="0" d="4" r="-1"/></SegmentTimeline>
+</SegmentTemplate><Representation id="v1"/></AdaptationSet></Period></MPD>"""
+        result = collector.parse_mpd_manifest(body, "https://cdn.example/manifest.mpd")
+        representation = result["representations"][0]
+        self.assertEqual(representation["segment_timeline"], [])
+        self.assertTrue(representation["timeline_requires_duration_boundary"])
+        self.assertTrue(representation["segment_timeline_truncated"])
+
+    def test_dash_duration_rejects_non_finite_and_zero_boundaries(self):
+        self.assertIsNone(collector.parse_iso8601_duration_seconds("P999999999999999999999999999999999999D"))
+        self.assertEqual(collector.parse_iso8601_duration_seconds("PT0S"), 0)
+
     def test_dynamic_mpd_defers_negative_repeat_until_live_edge_is_known(self):
         body = b"""<MPD type="dynamic" availabilityStartTime="2026-01-01T00:00:00Z"
  minimumUpdatePeriod="PT5S" timeShiftBufferDepth="PT12S"
