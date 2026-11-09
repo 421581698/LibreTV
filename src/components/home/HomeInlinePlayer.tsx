@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/client-api';
 import { useAppStore, resolveSource } from '@/lib/store';
 import type { SearchResultItem, SourceConfig, VideoDetail } from '@/lib/types';
@@ -29,6 +29,8 @@ export function HomeInlinePlayer({
   const [error, setError] = useState('');
   const [episodeIndex, setEpisodeIndex] = useState(0);
   const [pendingStart, setPendingStart] = useState<number | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   const source = useMemo<SourceConfig | null>(() => {
     if (!item) return null;
@@ -59,6 +61,7 @@ export function HomeInlinePlayer({
       setEpisodeIndex(0);
       return;
     }
+    setDetail(null);
     if (!source) {
       setError('播放源不存在或地址未通过安全校验，请到设置中检查点播源');
       setLoading(false);
@@ -89,14 +92,14 @@ export function HomeInlinePlayer({
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') onCloseRef.current();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [item, onClose]);
+  }, [item]);
 
   if (!item) return null;
   const episodes = detail?.episodes ?? [];
@@ -104,7 +107,7 @@ export function HomeInlinePlayer({
 
   return (
     <div
-      className="fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto bg-black/95 p-3 sm:p-6"
+      className="home-inline-player fixed inset-0 z-[300] flex items-center justify-center overflow-y-auto bg-black/95 p-3 sm:p-6"
       role="presentation"
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
