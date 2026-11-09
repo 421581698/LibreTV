@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import regex as re
 from pathlib import Path
 from typing import Any, Literal
+
+import regex as re
 
 from scrapling.fetchers import Fetcher
 
