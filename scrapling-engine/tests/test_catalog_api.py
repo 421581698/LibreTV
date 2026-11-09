@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+import app.fmhy_catalog as fmhy_catalog
 import app.main as main
 from app.catalog_store import CatalogStore
 from app.fmhy_catalog import parse_fmhy_markdown
@@ -48,19 +49,45 @@ def test_catalog_api_hides_unsafe_records_by_default(tmp_path, monkeypatch) -> N
     assert client.get("/v1/catalog/entries?include_unsafe=true").json()["count"] == 1
 
 
-def test_catalog_sync_endpoint_calls_official_importer(monkeypatch) -> None:
-    async def fake_sync(store):
-        return {
-            "snapshot_id": "fixture",
-            "source_count": 25,
-            "entry_count": 4,
-            "link_count": 5,
-            "unique_domain_count": 5,
-            "source_files": 25,
-        }
+def test_catalog_sync_endpoint_imports_and_persists_official_source_data(
+    tmp_path, monkeypatch,
+) -> None:
+    store = CatalogStore(str(tmp_path / "catalog.sqlite3"))
+    store.initialize()
+    monkeypatch.setattr(main, "catalog_store", store)
 
-    monkeypatch.setattr(main, "sync_fmhy_catalog", fake_sync)
+    async def fake_fetch():
+        return {
+            "video.md": "* [Imported](https://imported.example/) - Movie index\\n",
+        }, "a" * 40
+
+    monkeypatch.setattr(fmhy_catalog, "fetch_official_fmhy_sources", fake_fetch)
     response = TestClient(main.app).post("/v1/catalog/fmhy/sync")
 
     assert response.status_code == 200
-    assert response.json()["source_files"] == 25
+    assert response.json()["source_files"] == 1
+    snapshot = store.latest_snapshot()
+    assert snapshot is not None
+    assert snapshot["source_revision"] == "a" * 40
+    imported = store.list_entries(snapshot_id=snapshot["snapshot_id"])
+    assert imported[0]["title"] == "Imported"
+
+
+def test_failed_catalog_sync_keeps_previous_snapshot(tmp_path, monkeypatch) -> None:
+    store = CatalogStore(str(tmp_path / "catalog.sqlite3"))
+    store.initialize()
+    entries = parse_fmhy_markdown("video.md", "* [Existing](https://existing.example/)\\n")
+    original = store.import_snapshot(
+        entries, source_repository="fmhy/edit", source_branch="main",
+        source_revision="previous", source_count=1,
+    )
+    monkeypatch.setattr(main, "catalog_store", store)
+
+    async def failing_fetch():
+        raise RuntimeError("upstream unavailable")
+
+    monkeypatch.setattr(fmhy_catalog, "fetch_official_fmhy_sources", failing_fetch)
+    response = TestClient(main.app).post("/v1/catalog/fmhy/sync")
+
+    assert response.status_code == 502
+    assert store.latest_snapshot()["snapshot_id"] == original["snapshot_id"]
