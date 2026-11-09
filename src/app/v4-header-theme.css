@@ -97,3 +97,114 @@
   color: rgba(255,255,255,.52) !important;
   -webkit-text-fill-color: rgba(255,255,255,.52) !important;
 }
+
+
+/* Header action glyphs: make inline SVGs explicit and theme-readable.
+   The clock, settings gear and profile icon are local SVGs, not remote assets. */
+.v4-header-actions > .v4-header-icon,
+.v4-header-actions > .v4-avatar {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+.v4-header-actions > .v4-header-icon > svg,
+.v4-header-actions > .v4-avatar > svg,
+.v4-header-actions > .v4-header-icon svg,
+.v4-header-actions > .v4-avatar svg {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  min-height: 20px !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 1.9 !important;
+  flex: 0 0 20px !important;
+  overflow: visible !important;
+}
+.v4-header-actions > .v4-avatar .v4-avatar-icon {
+  width: 21px !important;
+  height: 21px !important;
+  stroke-width: 1.8 !important;
+}
+:root:not(.dark) .v4-header-actions > .v4-header-icon,
+:root:not(.dark) .v4-header-actions > .v4-avatar {
+  color: #596372 !important;
+  background: rgba(226,231,238,.58) !important;
+  border: 1px solid rgba(102,116,135,.16) !important;
+  box-shadow: 0 2px 8px rgba(35,48,66,.045) !important;
+}
+:root:not(.dark) .v4-header-actions > .v4-header-icon:hover,
+:root:not(.dark) .v4-header-actions > .v4-avatar:hover {
+  color: #252d38 !important;
+  background: rgba(214,222,232,.78) !important;
+}
+.dark .v4-header-actions > .v4-header-icon,
+.dark .v4-header-actions > .v4-avatar {
+  color: #F2F2F4 !important;
+  background: rgba(255,255,255,.075) !important;
+  border-color: rgba(255,255,255,.14) !important;
+}
+
+/* Light header blends into the page instead of ending in a hard rule. */
+:root:not(.dark) .v4-header:not(.is-overlay) {
+  background-image: linear-gradient(180deg,rgba(255,255,255,.94) 0%,rgba(247,249,252,.76) 72%,rgba(247,249,252,.40) 100%) !important;
+  border-bottom-color: transparent !important;
+  box-shadow: 0 4px 16px rgba(35,48,66,.025) !important;
+}
+
+/* Give routed catalogue pages more usable width without touching the phone layout. */
+@media screen and (min-width: 701px) {
+  .v4-spatial-main {
+    width: min(100%, 1480px) !important;
+    max-width: 1480px !important;
+    padding-left: clamp(18px, 2.2vw, 34px) !important;
+    padding-right: clamp(18px, 2.2vw, 34px) !important;
+  }
+  .v4-spatial-panel {
+    box-shadow: 0 14px 38px rgba(22,38,58,.075) !important;
+  }
+}
+@media screen and (max-width: 700px) {
+  .v4-spatial-main {
+    width: calc(100% - 20px) !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+
+/* Catalogue filters remain a single swipeable row as tags are added. */
+.v4-catalog-filters {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  padding: 2px 2px 8px;
+  margin-bottom: 1rem;
+  white-space: nowrap;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+}
+.v4-catalog-filters::-webkit-scrollbar { display: none !important; }
+.v4-catalog-filters > button {
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+}
+:root:not(.dark) .v4-spatial-panel {
+  border-color: rgba(255,255,255,.86) !important;
+  background: linear-gradient(145deg,rgba(255,255,255,.94),rgba(249,251,253,.84)) !important;
+  box-shadow: 0 14px 38px rgba(40,58,82,.065) !important;
+}
+.dark .v4-spatial-panel {
+  box-shadow: 0 16px 42px rgba(0,0,0,.22) !important;
+}
