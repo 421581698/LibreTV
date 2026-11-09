@@ -150,17 +150,35 @@ async def _run_job(task_id: str) -> None:
             )
         async with _job_transition_lock:
             current = job_store.get(task_id)
-            paused = current is not None and current["status"] == "pausing"
+            pause_requested = current is not None and current["status"] == "pausing"
+            checkpoint_dir = Path(job["checkpoint_dir"])
+            has_checkpoint = any(
+                path.is_file()
+                and path.name != "libretv-manifest.json"
+                and not path.name.endswith(".tmp")
+                for path in checkpoint_dir.iterdir()
+            )
+            if pause_requested and has_checkpoint:
+                final_status = "paused"
+            elif pause_requested and len(items) < len(job["seeds"]):
+                final_status = "interrupted"
+            else:
+                final_status = "completed"
             result = {
                 "items": items,
-                "completed": not paused,
-                "paused": paused,
+                "completed": final_status == "completed",
+                "paused": final_status == "paused",
                 "stats": asdict(spider.stats),
             }
             job_store.update(
                 task_id,
-                "paused" if paused else "completed",
-                finished_at=_now() if not paused else None,
+                final_status,
+                finished_at=_now() if final_status in {"completed", "failed"} else None,
+                error=(
+                    "Pause ended without a persisted checkpoint."
+                    if final_status == "interrupted"
+                    else None
+                ),
                 result_json=json.dumps(result, ensure_ascii=False),
             )
     except asyncio.CancelledError:
