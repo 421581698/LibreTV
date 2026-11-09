@@ -517,3 +517,21 @@
   text-align: left;
   cursor: pointer;
 }
+
+
+/* The four-item iPhone dock is declared in the homepage stylesheet with
+   light-only !important values; explicitly bind its surface to dark mode. */
+@media screen and (max-width: 700px) {
+  html.dark .v4-mobile-tabbar {
+    color: #F2F2F4 !important;
+    border-color: rgba(255,255,255,.14) !important;
+    background: rgba(20,20,24,.92) !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,.42) !important;
+  }
+  html.dark .v4-mobile-tabbar a {
+    color: rgba(245,246,248,.58) !important;
+  }
+  html.dark .v4-mobile-tabbar a.is-active {
+    color: #F7F8FA !important;
+  }
+}
