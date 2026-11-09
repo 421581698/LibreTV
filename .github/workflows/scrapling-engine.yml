@@ -59,3 +59,49 @@ jobs:
           assert "Example Domain" in spider_result["items"][0]["text"]
           print("Public Fetcher and Spider smoke tests passed.")
           PY
+      - name: FMHY official source import smoke test
+        run: |
+          python - <<'PY'
+          import asyncio
+          import tempfile
+          from pathlib import Path
+
+          from app.catalog_store import CatalogStore
+          from app.fmhy_catalog import (
+              FMHY_SOURCE_FILES,
+              fetch_official_fmhy_sources,
+              parse_fmhy_markdown,
+          )
+
+          async def main():
+              sources, revision = await fetch_official_fmhy_sources()
+              assert len(sources) == len(FMHY_SOURCE_FILES) == 25
+              entries = [
+                  entry
+                  for source_file, markdown in sources.items()
+                  for entry in parse_fmhy_markdown(source_file, markdown)
+              ]
+              assert entries, "FMHY parser returned no catalog entries"
+              with tempfile.TemporaryDirectory() as directory:
+                  store = CatalogStore(str(Path(directory) / "catalog.sqlite3"))
+                  store.initialize()
+                  snapshot = store.import_snapshot(
+                      entries,
+                      source_repository="fmhy/edit",
+                      source_branch="main",
+                      source_revision=revision,
+                      source_count=len(sources),
+                  )
+                  assert snapshot["entry_count"] == len(entries)
+                  assert snapshot["unique_domain_count"] > 0
+                  print(
+                      "FMHY import passed:",
+                      revision,
+                      snapshot["entry_count"],
+                      "entries /",
+                      snapshot["unique_domain_count"],
+                      "domains",
+                  )
+
+          asyncio.run(main())
+          PY
