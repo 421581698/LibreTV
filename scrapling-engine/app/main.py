@@ -141,6 +141,8 @@ async def _run_job(task_id: str) -> None:
     spider = None
     items: list[dict] = job_store.get_results(task_id)
     seen_urls = {item.get("url") for item in items if item.get("url")}
+    previous_result = job.get("result") or {}
+    stats = previous_result.get("stats", {})
     try:
         spider = ScraplingSpiderAdapter.create(
             job["seeds"],
@@ -156,6 +158,7 @@ async def _run_job(task_id: str) -> None:
             items.append(item)
             if item_url:
                 seen_urls.add(item_url)
+            stats = asdict(spider.stats)
             job_store.add_event(
                 task_id,
                 "item",
@@ -185,7 +188,7 @@ async def _run_job(task_id: str) -> None:
                 "items": items,
                 "completed": final_status == "completed",
                 "paused": final_status == "paused",
-                "stats": asdict(spider.stats),
+                "stats": stats,
             }
             job_store.update(
                 task_id,
