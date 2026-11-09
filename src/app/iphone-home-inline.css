@@ -1,5 +1,5 @@
-/* iPhone homepage: always-visible search row above the channel navigation.
-   Keep desktop and iPad header layouts unchanged. */
+/* iPhone header: keep brand, search and utility actions on the first row,
+   with the seven channel links on the second row. Desktop/iPad stay unchanged. */
 @media screen and (max-width: 700px) {
   .v4-header .v4-header-inner {
     display: flex !important;
