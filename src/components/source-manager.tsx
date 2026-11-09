@@ -119,7 +119,14 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
       title="设置"
       resetScrollKey={current}
       subheader={
-        <div className="space-y-2">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-card px-3 py-2">
+            <div className="min-w-0">
+              <div className="text-sm font-medium text-content">界面主题</div>
+              <div className="text-xs text-faint">浅色、深色或跟随系统</div>
+            </div>
+            <ThemeToggle />
+          </div>
           <TabRow tabs={PRIMARY_TABS} value={primary} onChange={setPrimary} variant="primary" ariaLabel="设置分类" />
           {/* 分组下只有一项时无需二级导航，直接展示该面板 */}
           {SECONDARY_TABS[primary].length > 1 && (
@@ -715,13 +722,6 @@ function ImagePanel() {
   return (
     <section>
       <SectionTitle title="外观与封面" hint="主题和封面图片加载策略" />
-      <div className="mb-3 flex items-center justify-between rounded-lg border border-line bg-card px-3 py-2.5">
-        <div>
-          <div className="text-sm font-medium text-content">界面主题</div>
-          <div className="text-xs text-faint">浅色、深色或跟随系统</div>
-        </div>
-        <ThemeToggle />
-      </div>
       <div className="space-y-2">
         <SelectRow
           label="加载方式"
