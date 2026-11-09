@@ -446,3 +446,118 @@ html.dark main:has(.live-dot) :is(button,a):focus-visible {
   .v4-header-inner { width:min(1360px,calc(100% - 88px));margin-inline:auto; }
   .v4-mobile-tabs { display:none !important; }
 }
+
+
+/* PC / Mac desktop composition — 1440 × 810 reference canvas.
+   This profile uses pointer/keyboard interaction, never TV remote emulation. */
+@media (min-width: 1101px) and (pointer: fine) {
+  .v4-header-inner {
+    width: min(calc(100% - 88px), 1320px);
+    min-height: 76px;
+    grid-template-columns: 190px minmax(0, 1fr) auto;
+    gap: 22px;
+  }
+  .v4-brand { font-size: 19px; gap: 9px; }
+  .v4-brand img { width: 30px; height: 30px; border-radius: 9px; }
+  .v4-primary-nav { gap: 4px; }
+  .v4-nav-link { min-height: 40px; padding: 0 15px; font-size: 13px; }
+  .v4-header-actions { gap: 9px; }
+  .v4-search { width: 230px; height: 40px; border-radius: 20px; }
+  .v4-header-icon, .v4-avatar { width: 40px; height: 40px; flex-basis: 40px; }
+
+  .v4-home-main {
+    width: min(calc(100% - 120px), 1320px);
+    max-width: 1320px;
+    padding: 18px 0 72px !important;
+  }
+  .v4-hero {
+    height: 500px;
+    min-height: 500px;
+    border-radius: 18px !important;
+  }
+  .v4-hero-content {
+    left: 60px;
+    top: auto;
+    bottom: 56px;
+    transform: none;
+    width: min(660px, 55%);
+  }
+  .v4-hero-content h1 { font-size: 62px; line-height: 1.02; }
+  .v4-hero-content p { max-width: 25em; margin: 13px 0 24px; font-size: 15px; }
+  .v4-hero-eyebrow { font-size: 10px; letter-spacing: .16em; }
+  .v4-hero-actions { gap: 12px; }
+  .v4-content-section { margin-top: 28px; }
+  .v4-section-heading { margin-bottom: 12px; }
+  .v4-section-heading h2 { font-size: 19px; }
+
+  /* The homepage keeps real recommendation results; desktop simply exposes more columns. */
+  .v4-home .v4-recommendation-section .grid.grid-cols-3,
+  .v4-home .v4-anime-section .grid.grid-cols-3 {
+    grid-template-columns: repeat(9, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .v4-home .v4-recommendation-section .grid > *,
+  .v4-home .v4-anime-section .grid > * { min-width: 0; }
+  .v4-home .v4-history-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .v4-spatial-main {
+    width: min(100%, 1360px);
+    max-width: 1360px;
+    padding: 42px 48px 84px;
+  }
+  .v4-spatial-heading { margin: 4px 0 24px; }
+  .v4-spatial-heading h1 { font-size: 40px; }
+  .v4-spatial-heading p { max-width: 620px; font-size: 13px; }
+  .v4-spatial-panel { padding: 22px; border-radius: 18px; }
+  .v4-spatial-panel-head { margin-bottom: 16px; }
+  .v4-spatial-panel-head h2 { font-size: 18px; }
+
+  .v4-spatial-screen[data-screen="movies"] .v4-spatial-panel > section > .grid.grid-cols-3 {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 18px;
+  }
+  .v4-spatial-screen[data-screen="anime"] .v4-spatial-panel > section > .grid.grid-cols-3 {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 18px;
+  }
+  .v4-spatial-screen[data-screen="resources"] .v4-spatial-main > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    align-items: start;
+    gap: 20px;
+  }
+  .v4-spatial-screen[data-screen="resources"] .v4-spatial-main > div > section {
+    min-width: 0;
+  }
+  .v4-spatial-screen[data-screen="resources"] .v4-spatial-main > div > section:first-child {
+    min-height: 430px;
+  }
+  .v4-spatial-screen[data-screen="resources"] .v4-source-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .v4-spatial-screen[data-screen="resources"] .v4-source-card { padding: 14px; }
+  .v4-spatial-screen[data-screen="me"] .v4-me-history-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .v4-spatial-screen[data-screen="settings"] .v4-settings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .v4-spatial-screen[data-screen="settings"] .v4-settings-card {
+    min-height: 112px;
+    padding: 20px;
+  }
+
+  .v4-mobile-tabs { display: none !important; }
+  :is(a, button, input, select, textarea, [role="button"]):focus-visible {
+    outline: 2px solid rgba(241, 166, 58, .95);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 5px rgba(241, 166, 58, .12);
+  }
+}
