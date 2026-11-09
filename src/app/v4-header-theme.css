@@ -70,6 +70,11 @@
   background-image: linear-gradient(180deg,rgba(20,20,24,.96),rgba(8,8,10,.9)) !important;
   border-bottom-color: rgba(255,255,255,.12) !important;
 }
+.dark .v4-header .v4-nav-link.is-active,
+.dark .v4-home .v4-header .v4-nav-link.is-active,
+.dark .v4-spatial-screen .v4-header .v4-nav-link.is-active {
+  color: #17171B !important;
+}
 .dark .v4-header .v4-nav-link,
 .dark .v4-home .v4-header .v4-nav-link,
 .dark .v4-spatial-screen .v4-header .v4-nav-link,
