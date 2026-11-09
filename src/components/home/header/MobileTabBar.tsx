@@ -18,7 +18,7 @@ function TabIcon({ name }: { name: (typeof tabs)[number]['icon'] }) {
 
 export function MobileTabBar() {
   const pathname = usePathname();
-  const normalized = !pathname || pathname === '/' ? '/' : pathname.replace(/\\/+$/, '');
+  const normalized = !pathname || pathname === '/' ? '/' : pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
   return <nav className="v4-mobile-tabbar" aria-label="底部导航">
     {tabs.map(tab => {
       const active = tab.href === '/' ? normalized === '/' : normalized === tab.href || normalized.startsWith(tab.href + '/');
