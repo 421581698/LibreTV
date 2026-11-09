@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { RecommendSection } from '@/components/douban-section';
+import { AnimeRecommendationSection, RecommendSection } from '@/components/douban-section';
 import { GlassPanel } from '@/components/ui/glass';
 import { SmartImage } from '@/components/smart-image';
 import { db, type HistoryEntry } from '@/lib/db';
@@ -29,6 +29,13 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
           <RecommendSection onPick={onPick} />
         </section>
       ) : null}
+
+      <section className="v4-content-section v4-anime-section" id="anime-recommendations" aria-label="动漫与新番">
+        <div className="v4-section-heading">
+          <h2>动漫 · 每日放送 <span aria-hidden="true">›</span></h2>
+        </div>
+        <AnimeRecommendationSection onPick={onPick} />
+      </section>
 
       <section className="v4-content-section v4-continue-section" id="continue-watching" aria-label="继续观看">
         <div className="v4-section-heading">
