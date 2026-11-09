@@ -431,20 +431,20 @@ function WatchContent() {
   }
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="glass-toolbar sticky top-0 z-40 !rounded-none border-x-0 border-t-0 px-0">
-        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-3">
-          <BackButton />
-          <HomeButton />
-          <div className="min-w-0">
-            <h1 className="text-sm font-medium text-content truncate">
-              {videoTitle}
-            </h1>
-            <p className="text-xs text-faint">
-              {source.name}
-              {hasEpisodeNavigation ? ` · 第 ${currentIndex + 1}/${episodes.length} 集` : isMovie ? ' · 电影' : ' · 单集内容'}
-            </p>
+      <header className="watch-topbar sticky top-0 z-40">
+        <div className="watch-topbar-inner">
+          <div className="watch-topbar-left">
+            <BackButton />
+            <HomeButton />
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="watch-topbar-right">
+            <div className="watch-topbar-title min-w-0 text-right">
+              <h1 className="text-sm font-semibold text-content truncate">{videoTitle}</h1>
+              <p className="text-xs text-faint truncate">
+                {source.name}
+                {hasEpisodeNavigation ? ` · 第 ${currentIndex + 1}/${episodes.length} 集` : isMovie ? ' · 电影' : ' · 单集内容'}
+              </p>
+            </div>
             <FridayPlayerAssistantButton />
           </div>
         </div>
@@ -646,7 +646,7 @@ function WatchContent() {
                 <div className="netflix-source-card">
                   <span className="netflix-source-indicator" />
                   <div className="min-w-0 flex-1"><strong>{source.name}</strong><span>当前使用 · 可切换其他可用资源</span></div>
-                  <button className="btn-primary btn-sm" onClick={() => setSwitchOpen(true)}>切换</button>
+                  <button className="btn-primary btn-sm" onClick={() => setSwitchOpen(true)}>换源</button>
                 </div>
                 <p className="text-xs text-faint mt-3">播放源切换会保留当前影片和集数，具体进度按现有换源逻辑处理。</p>
               </div>
