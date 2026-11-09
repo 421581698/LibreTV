@@ -65,33 +65,37 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   return <ThemeContext.Provider value={{ theme, resolved, setTheme }}>{children}</ThemeContext.Provider>;
 }
 
-/** 亮暗切换按钮：在 light → dark → system 三态间循环 */
+/** 明确的三态主题选择：浅色、深色、跟随系统。 */
 export function ThemeToggle() {
-  const { theme, resolved, setTheme } = useTheme();
-  const next: ThemeChoice = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light';
-  const label = theme === 'system' ? '跟随系统（当前深色）' : theme === 'dark' ? '深色' : '浅色';
-  const nextLabel = next === 'light' ? '浅色' : next === 'dark' ? '深色' : '跟随系统';
+  const { theme, setTheme } = useTheme();
+  const options: { value: ThemeChoice; label: string }[] = [
+    { value: 'light', label: '浅色' },
+    { value: 'dark', label: '深色' },
+    { value: 'system', label: '跟随系统' },
+  ];
 
   return (
-    <button
-      className="p-2 rounded-md text-muted hover:text-content hover:bg-hover transition-colors"
-      title={`主题：${label}，点击切换为${nextLabel}`}
-      aria-label={`切换主题，当前 ${label}`}
-      onClick={() => setTheme(next)}
+    <div
+      className="inline-flex items-center gap-1 rounded-xl border border-line bg-surface-raised p-1"
+      role="group"
+      aria-label="界面主题"
     >
-      {theme === 'system' ? (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-        </svg>
-      ) : resolved === 'dark' ? (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-        </svg>
-      ) : (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-        </svg>
-      )}
-    </button>
+      {options.map((option) => {
+        const active = theme === option.value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={active}
+            onClick={() => setTheme(option.value)}
+            className={active
+              ? 'rounded-lg bg-white px-2.5 py-2 text-xs font-semibold text-zinc-900 shadow-sm'
+              : 'rounded-lg px-2.5 py-2 text-xs font-medium text-muted transition-colors hover:bg-hover hover:text-content'}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
