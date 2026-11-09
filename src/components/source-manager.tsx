@@ -6,6 +6,7 @@ import { ConfirmDialog } from './confirm-dialog';
 import { Dropdown, type DropdownOption } from './dropdown';
 import { Icon, type IconName } from './icon';
 import { LiveSourceManager } from './live-source-manager';
+import { ThemeToggle } from './theme';
 import {
   HealthBadge,
   SearchInput,
@@ -40,7 +41,7 @@ import { describeParseStats } from '@/lib/tvbox-parser';
  */
 
 type PrimaryTab = 'sources' | 'prefs' | 'data';
-type SecondaryTab = 'vod' | 'live' | 'subs' | 'playback' | 'image' | 'home' | 'voice' | 'language' | 'io';
+type SecondaryTab = 'vod' | 'live' | 'subs' | 'playback' | 'image' | 'home' | 'voice' | 'language' | 'io' | 'cache';
 
 const PRIMARY_TABS: { id: PrimaryTab; label: string; icon: IconName }[] = [
   { id: 'sources', label: '源管理', icon: 'link' },
@@ -61,7 +62,7 @@ const SECONDARY_TABS: Record<PrimaryTab, { id: SecondaryTab; label: string }[]> 
     { id: 'voice', label: '语音设置' },
     { id: 'language', label: '语言设置' },
   ],
-  data: [{ id: 'io', label: '配置导入导出' }],
+  data: [{ id: 'io', label: '配置导入导出' }, { id: 'cache', label: '本机缓存' }],
 };
 
 const TAB_STORAGE_KEY = 'libretv-settings-tab';
@@ -142,6 +143,7 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
       {current === 'language' && <LanguageSettingsPanel />}
       {current === 'subs' && <SourceSubscriptions />}
       {current === 'io' && <ConfigIoPanel />}
+      {current === 'cache' && <VideoCachePanel />}
     </Drawer>
   );
 }
@@ -397,8 +399,7 @@ function VodSourcesPanel() {
                       const r = await api.testSource(source.url);
                       // 手动测试也写入健康度，与搜索 / 批量测活共用同一份模型（不再存在两套健康度）
                       useAppStore.getState().recordSourceHealth([
-                        { sourceKey: source.key, ok: r.ok, ms: r.ms, error: r.error, list: [] },
-                      ]);
+                        { sourceKey: source.key, ok: r.ok, ms: r.ms, error: r.error, list: [] },                      ]);
                       return r;
                     })
                   }
@@ -684,7 +685,14 @@ function ImagePanel() {
   };
   return (
     <section>
-      <SectionTitle title="封面图加载" />
+      <SectionTitle title="外观与封面" hint="主题和封面图片加载策略" />
+      <div className="mb-3 flex items-center justify-between rounded-lg border border-line bg-card px-3 py-2.5">
+        <div>
+          <div className="text-sm font-medium text-content">界面主题</div>
+          <div className="text-xs text-faint">浅色、深色或跟随系统</div>
+        </div>
+        <ThemeToggle />
+      </div>
       <div className="space-y-2">
         <SelectRow
           label="加载方式"
@@ -797,8 +805,7 @@ function VoiceSettingsPanel() {
     setWakeWordEnabled(value);
     try { window.localStorage.setItem("friday-wake-word", String(value)); } catch { /* Session-only preference. */ }
     window.dispatchEvent(new CustomEvent("friday-wake-word-preference-change", { detail: { enabled: value } }));
-  };
-  const updateVoiceStyle = (value: string) => {
+  };  const updateVoiceStyle = (value: string) => {
     const next = value === "jarvis" || value === "warm" || value === "clear" ? value : "auto";
     setVoiceStyle(next);
     try { window.localStorage.setItem("friday-voice-style", next); } catch { /* Session-only preference. */ }
@@ -1197,8 +1204,7 @@ function SourceSubscriptions() {
                       {paused ? (
                         <span className="text-warning">
                           已暂停：连续失败 {sub.failStreak} 次，手动同步成功即恢复
-                        </span>
-                      ) : remainingMs > 0 ? (
+                        </span>                      ) : remainingMs > 0 ? (
                         <span>约 {Math.max(1, Math.ceil(remainingMs / 86_400_000))} 天后刷新</span>
                       ) : sub.refreshDays ? (
                         <span>下次打开站点时刷新</span>
