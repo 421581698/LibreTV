@@ -515,7 +515,7 @@ export async function POST(req: Request) {
   } catch {
     return jsonError('无效请求体', requestBodyErrorStatus(err));
   }
-  if (!Array.isArray(body.urls)) return jsonError('urls 必须为字符串数组', 400);
+  if (!body || typeof body !== 'object' || !Array.isArray(body.urls)) return jsonError('urls 必须为字符串数组', 400);
 
   const urls = [...new Set(
     body.urls.filter((u): u is string => typeof u === 'string' && /^https?:\/\//.test(u))
