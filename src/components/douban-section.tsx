@@ -149,35 +149,17 @@ function BangumiView({ onPick }: { onPick: (item: DoubanItem) => void }) {
   );
 }
 
-const HOT_LISTS = [
-  { id: 'douban_movie_weekly', label: '电影周榜' },
-  { id: 'douban_tv_chinese', label: '国产剧周榜' },
-  { id: 'douban_tv_global', label: '海外剧周榜' },
-  { id: 'douban_show_chinese', label: '国内综艺' },
-  { id: 'douban_show_global', label: '海外综艺' },
-];
-
-/** 影视热榜（60s API）：豆瓣电影/剧集/综艺榜单，chips 切换 */
+/** 影视热榜（60s API）：首页直接展示电影周榜海报，不再占用首屏胶囊筛选区。 */
 function HotListView({ onPick }: { onPick: (item: DoubanItem) => void }) {
-  const [listId, setListId] = useState(HOT_LISTS[0].id);
-
   const query = useQuery({
-    queryKey: ['hot-list', listId],
-    queryFn: ({ signal }) => api.hotList(listId, signal),
+    queryKey: ['hot-list', 'douban_movie_weekly'],
+    queryFn: ({ signal }) => api.hotList('douban_movie_weekly', signal),
   });
 
   const items = query.data?.items ?? [];
 
   return (
     <section aria-label="影视榜单推荐">
-      <div className="flex flex-wrap gap-1.5 mb-4">
-        {HOT_LISTS.map((l) => (
-          <ChipButton key={l.id} active={listId === l.id} onClick={() => setListId(l.id)}>
-            {l.label}
-          </ChipButton>
-        ))}
-      </div>
-
       {query.isError ? (
         <QueryError error={query.error} onRetry={() => void query.refetch()} />
       ) : query.isLoading ? (
@@ -185,7 +167,7 @@ function HotListView({ onPick }: { onPick: (item: DoubanItem) => void }) {
       ) : (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
           {items.map((item) => (
-            <DoubanCard key={item.id} item={item} onClick={() => onPick(item)} />
+            <DoubanCard key={item.id} item={item} enableTmdbFallback onClick={() => onPick(item)} />
           ))}
         </div>
       )}
@@ -245,5 +227,50 @@ function TypeButton({ active, onClick, children }: { active: boolean; onClick: (
     >
       {children}
     </button>
+  );
+}
+
+/** 独立动漫屏使用 Bangumi 当季放送真实数据，不复用影视榜单占位。 */
+export function AnimeRecommendationSection({ onPick }: { onPick: (item: DoubanItem) => void }) {
+  const [weekday, setWeekday] = useState<number | 'all'>('all');
+  const query = useQuery({
+    queryKey: ['bangumi-calendar', 'homepage-anime'],
+    queryFn: ({ signal }) => api.bangumiCalendar(signal),
+  });
+  const items = query.data
+    ? weekday === 'all'
+      ? query.data.days.flatMap((day) => day.items)
+      : (query.data.days.find((day) => day.weekday === weekday)?.items ?? [])
+    : [];
+  return (
+    <section aria-label="当季动漫与每日放送">
+      <div className="flex flex-wrap gap-1.5 mb-4">
+        <ChipButton active={weekday === 'all'} onClick={() => setWeekday('all')}>全部</ChipButton>
+        {WEEKDAYS.map((name, index) => (
+          <ChipButton key={name} active={weekday === index + 1} onClick={() => setWeekday(index + 1)}>
+            {name}
+          </ChipButton>
+        ))}
+      </div>
+      {query.isError ? (
+        <QueryError error={query.error} onRetry={() => void query.refetch()} />
+      ) : query.isLoading ? (
+        <GridSkeleton />
+      ) : items.length === 0 ? (
+        <p className="text-center text-sm text-faint py-8">当前没有可显示的新番放送数据</p>
+      ) : (
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
+          {items.map((item) => (
+            <DoubanCard
+              key={item.id}
+              item={item}
+              isTv={item.isTv ?? true}
+              enableTmdbFallback
+              onClick={() => onPick(item)}
+            />
+          ))}
+        </div>
+      )}
+    </section>
   );
 }

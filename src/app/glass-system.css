@@ -1,0 +1,131 @@
+/* LibreTV Global Glass Design System
+ * Components style UI surfaces only; never apply blur to video/poster media.
+ */
+:root {
+  color-scheme: light;
+  --glass-page: 246 248 251;
+  --glass-panel: 255 255 255;
+  --glass-panel-rgb: 255, 255, 255;
+  --glass-text: 28 35 45;
+  --glass-muted: 93 105 120;
+  --glass-border: 255, 255, 255;
+  --glass-border-alpha: .68;
+  --glass-fill-alpha: .58;
+  --glass-fill-strong-alpha: .76;
+  --glass-blur: 18px;
+  --glass-blur-strong: 26px;
+  --glass-saturate: 155%;
+  --glass-shadow: 0 12px 36px rgba(31, 48, 69, .10);
+  --glass-shadow-soft: 0 4px 18px rgba(31, 48, 69, .07);
+  --glass-radius-sm: 12px;
+  --glass-radius-md: 18px;
+  --glass-radius-lg: 24px;
+}
+.dark {
+  color-scheme: dark;
+  --glass-page: 8 8 10;
+  --glass-panel: 24 24 27;
+  --glass-panel-rgb: 24, 24, 27;
+  --glass-text: 242 242 244;
+  --glass-muted: 164 164 170;
+  --glass-border: 220, 220, 220;
+  --glass-border-alpha: .15;
+  --glass-fill-alpha: .48;
+  --glass-fill-strong-alpha: .68;
+  --glass-blur: 20px;
+  --glass-blur-strong: 28px;
+  --glass-shadow: 0 16px 44px rgba(0, 0, 0, .28);
+  --glass-shadow-soft: 0 5px 20px rgba(0, 0, 0, .2);
+}
+@supports (backdrop-filter: blur(1px)) {
+  .glass-panel, .glass-popover, .glass-dialog, .glass-toolbar, .glass-button {
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  }
+}
+.glass-panel, .glass-popover, .glass-dialog, .glass-toolbar {
+  color: rgb(var(--glass-text));
+  background: rgba(var(--glass-panel-rgb), var(--glass-fill-alpha));
+  border: 1px solid rgba(var(--glass-border), var(--glass-border-alpha));
+  box-shadow: var(--glass-shadow-soft);
+}
+.glass-panel { border-radius: var(--glass-radius-md); }
+.glass-popover { border-radius: var(--glass-radius-md); background: rgba(var(--glass-panel-rgb), var(--glass-fill-strong-alpha)); box-shadow: var(--glass-shadow); }
+.glass-dialog { border-radius: var(--glass-radius-lg); background: rgba(var(--glass-panel-rgb), var(--glass-fill-strong-alpha)); box-shadow: var(--glass-shadow); }
+.glass-toolbar { display: flex; align-items: center; gap: .5rem; border-radius: 999px; padding: .5rem; }
+.glass-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  min-height: 2.5rem; padding: .55rem 1rem; border-radius: 999px;
+  color: rgb(var(--glass-text)); background: rgba(var(--glass-panel-rgb), var(--glass-fill-alpha));
+  border: 1px solid rgba(var(--glass-border), var(--glass-border-alpha));
+  box-shadow: var(--glass-shadow-soft); cursor: pointer;
+  transition: background-color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+.glass-button:hover { background: rgba(var(--glass-panel-rgb), var(--glass-fill-strong-alpha)); box-shadow: var(--glass-shadow); }
+.glass-button:active { transform: translateY(1px); }
+.glass-button:focus-visible, .glass-panel :focus-visible, .glass-toolbar :focus-visible {
+  outline: 2px solid #d5a94f; outline-offset: 3px;
+}
+/* Fallback: retain translucent surfaces without expensive backdrop sampling. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-panel, .glass-popover, .glass-dialog, .glass-toolbar, .glass-button {
+    background: rgba(var(--glass-panel-rgb), .94);
+    box-shadow: var(--glass-shadow-soft);
+  }
+}
+/* Reduce blur and motion on constrained devices / user preference. */
+@media (max-width: 700px), (prefers-reduced-motion: reduce) {
+  :root { --glass-blur: 12px; --glass-blur-strong: 16px; }
+  .glass-button { transition: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root { --glass-fill-alpha: .9; --glass-fill-strong-alpha: .96; --glass-blur: 4px; }
+}
+/* ArtPlayer chrome refinements: controls, settings rows and popover menus only. */
+.artplayer .art-bottom,
+.artplayer .art-controls,
+.artplayer .art-control,
+.artplayer .art-settings,
+.artplayer .art-contextmenus,
+.artplayer .art-info,
+.artplayer .art-notice {
+  border-color: rgba(var(--glass-border), var(--glass-border-alpha)) !important;
+}
+.artplayer .art-settings,
+.artplayer .art-contextmenus {
+  border: 1px solid rgba(var(--glass-border), var(--glass-border-alpha)) !important;
+  border-radius: var(--glass-radius-md) !important;
+  box-shadow: var(--glass-shadow) !important;
+}
+.artplayer .art-settings .art-setting-item,
+.artplayer .art-contextmenus .art-contextmenu {
+  color: rgb(var(--glass-text)) !important;
+}
+.artplayer .art-settings .art-setting-item:hover,
+.artplayer .art-contextmenus .art-contextmenu:hover {
+  background: rgba(var(--glass-panel-rgb), .16) !important;
+}
+.artplayer .art-control .art-control-volume-panel,
+.artplayer .art-control .art-control-volume-inner {
+  background: rgba(var(--glass-panel-rgb), var(--glass-fill-strong-alpha)) !important;
+  border-color: rgba(var(--glass-border), var(--glass-border-alpha)) !important;
+}
+/* Never apply glass/backdrop filters to .art-video, poster or canvas media layers. */
+
+/* ArtPlayer chrome only. The video canvas and poster remain crisp. */
+.artplayer .art-bottom, .artplayer .art-control, .artplayer .art-contextmenus,
+.artplayer .art-settings, .artplayer .art-info, .artplayer .art-notice {
+  background-color: rgba(var(--glass-panel-rgb), var(--glass-fill-strong-alpha)) !important;
+  border-color: rgba(var(--glass-border), var(--glass-border-alpha)) !important;
+  color: rgb(var(--glass-text)) !important;
+}
+.artplayer .art-bottom, .artplayer .art-settings, .artplayer .art-contextmenus {
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+}
+@media (hover: none), (pointer: coarse) {
+  .artplayer .art-bottom { background: rgba(var(--glass-panel-rgb), .88) !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

@@ -1,0 +1,1 @@
+import {NavItem} from './NavItem';import styles from './VarietyNav.module.css';export function VarietyNavModule({pathname}:{pathname:string|null}){return <NavItem pathname={pathname} href="/variety" label="综艺" className={styles.root}/>;}

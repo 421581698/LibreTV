@@ -58,6 +58,21 @@ describe('buildImageCandidates', () => {
     ]);
   });
 
+  it('豆瓣标准小海报优先升级为 l_ratio_poster 高清图，并保留原图回退', () => {
+    const small = 'https://img3.doubanio.com/view/photo/s_ratio_poster/public/p123.jpg';
+    const large = 'https://img3.doubanio.com/view/photo/l_ratio_poster/public/p123.jpg';
+    expect(buildImageCandidates(small, 'direct', '')).toEqual([
+      large,
+      small,
+      'https://img.doubanio.cmliussss.net/view/photo/l_ratio_poster/public/p123.jpg',
+      'https://img.doubanio.cmliussss.com/view/photo/l_ratio_poster/public/p123.jpg',
+      'https://img.doubanio.cmliussss.net/view/photo/s_ratio_poster/public/p123.jpg',
+      'https://img.doubanio.cmliussss.com/view/photo/s_ratio_poster/public/p123.jpg',
+      '/api/proxy?url=' + encodeURIComponent(large),
+      '/api/proxy?url=' + encodeURIComponent(small),
+    ]);
+  });
+
   it('custom 模式为单一候选（模板错误显式暴露，不静默回退）', () => {
     expect(buildImageCandidates(DOUBAN, 'custom', 'https://p.example.com/?u=')).toHaveLength(1);
     expect(buildImageCandidates(undefined, 'direct', '')).toEqual([]);

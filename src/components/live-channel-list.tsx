@@ -301,7 +301,7 @@ export function LiveChannelList({ channels, groups, currentUrl, onSelect, onFilt
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* 视图 tab */}
-      <div className="flex items-center gap-1 px-3 pt-2.5 pb-2 border-b border-line shrink-0">
+      <div className="glass-panel flex items-center gap-1 px-3 pt-2.5 pb-2 border-b border-line shrink-0">
         {(
           [
             ['all', `全部${channels.length ? ` ${channels.length}` : ''}`],
@@ -323,7 +323,7 @@ export function LiveChannelList({ channels, groups, currentUrl, onSelect, onFilt
       </div>
 
       {/* 搜索 + 排序 */}
-      <div className="px-3 py-2 shrink-0 flex items-center gap-1.5">
+      <div className="glass-panel px-3 py-2 shrink-0 flex items-center gap-1.5">
         <input
           className="input w-full !py-1.5 text-xs"
           placeholder="搜索频道 / tvg-id / 分组..."
@@ -356,7 +356,7 @@ export function LiveChannelList({ channels, groups, currentUrl, onSelect, onFilt
       </div>
 
       {/* 测活 + 可用性筛选工具条 */}
-      <div className="flex items-center gap-1.5 px-3 pb-2 shrink-0 flex-wrap">
+      <div className="glass-panel flex items-center gap-1.5 px-3 pb-2 shrink-0 flex-wrap">
         <button
           className="btn-ghost btn-sm"
           disabled={isProbing || filtered.length === 0}
@@ -428,7 +428,7 @@ export function LiveChannelList({ channels, groups, currentUrl, onSelect, onFilt
 
       {/* 分组标签条（横向可滑动：滚轮/滚动条之外，鼠标可直接拖动） */}
       {view === 'all' && groups.length > 0 && (
-        <div className="px-3 pb-2 shrink-0">
+        <div className="glass-panel px-3 pb-2 shrink-0">
           <div className="relative">
             <div
               ref={chipStrip.ref}
@@ -595,7 +595,7 @@ const ChannelRow = memo(function ChannelRow({
           键盘操作由外层列表容器的 ↑↓ 导航提供 */}
       <div
         className={cn(
-          'group flex items-center gap-2.5 px-2 py-2 rounded-md cursor-pointer transition-colors relative',
+          'glass-panel group flex items-center gap-2.5 px-2 py-2 rounded-md cursor-pointer transition-colors relative !shadow-none',
           active ? 'bg-accent/10' : 'hover:bg-hover',
           cursor && 'ring-1 ring-accent/70'
         )}

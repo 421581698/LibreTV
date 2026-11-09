@@ -1,0 +1,422 @@
+/* Mobile-only navigation dock; desktop and tablet retain the full header navigation. */
+.v4-mobile-tabbar { display: none; }
+.v4-mobile-search-toggle { display: none; }
+
+/* LibreTV iPhone Safari profile
+ * Phone-only layout refinements. Tablet and desktop profiles remain untouched.
+ * Preserve native scrolling, safe areas, Friday Canvas and player media.
+ */
+@media screen and (max-width: 700px) {
+  html, body {
+    min-width: 0 !important;
+    width: 100%;
+    overflow-x: clip;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .v4-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .v4-header-inner {
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: center;
+    width: 100% !important;
+    min-height: 0 !important;
+    gap: 8px !important;
+    padding: 9px 12px 0 !important;
+  }
+
+  .v4-brand {
+    flex: 0 0 auto;
+    min-height: 40px;
+    font-size: 17px !important;
+    gap: 7px;
+    white-space: nowrap;
+  }
+  .v4-brand-mark { width: 25px; height: 25px; flex-basis: 25px; }
+
+  .v4-header-actions {
+    display: flex;
+    flex: 1 1 auto;
+    justify-content: flex-end;
+    align-items: center;
+    min-width: 0;
+    gap: 6px !important;
+    margin-left: auto;
+  }
+
+  /* History remains available from the Me screen; retain search, settings and profile. */
+  .v4-header-actions .v4-header-icon[aria-label="观看历史"] {
+    display: none !important;
+  }
+  .v4-header-icon,
+  .v4-avatar {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px;
+    min-height: 38px;
+    flex: 0 0 38px !important;
+  }
+
+  /* The explicit search toggle opens a real, keyboard-focusable search field. */
+  .v4-mobile-search-toggle {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    padding: 0;
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 12px;
+    color: #F2F2F4;
+    background: rgba(255,255,255,.07);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+  }
+  .v4-search { display: none !important; }
+  .v4-search.is-open {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 12px;
+    right: 12px;
+    z-index: 120;
+    display: flex !important;
+    width: auto !important;
+    height: 48px !important;
+    min-width: 0;
+    padding: 0 14px !important;
+    overflow: visible;
+    background: rgba(20,20,25,.96) !important;
+    border-color: rgba(255,255,255,.24) !important;
+    box-shadow: 0 16px 38px rgba(0,0,0,.42) !important;
+  }
+  .v4-search-field { min-width: 0; }
+  .v4-search.is-open input {
+    width: 100% !important;
+    min-width: 0;
+    height: 44px;
+    opacity: 1 !important;
+    font-size: 16px !important;
+  }
+
+  /* All seven destinations stay in the header and can be swiped horizontally. */
+  .v4-primary-nav {
+    order: 3;
+    display: flex !important;
+    flex: 0 0 calc(100% + 24px);
+    width: calc(100% + 24px) !important;
+    min-width: 0;
+    justify-content: flex-start !important;
+    gap: 5px !important;
+    margin: 0 -12px;
+    padding: 3px 12px 9px !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+  }
+  .v4-primary-nav::-webkit-scrollbar { display: none; }
+  .v4-nav-link {
+    flex: 0 0 auto;
+    min-height: 40px;
+    padding: 0 13px !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px !important;
+    border-radius: 999px;
+  }
+
+  .v4-home-main,
+  .v4-spatial-main {
+    width: calc(100% - 24px) !important;
+    max-width: none !important;
+    min-width: 0;
+    padding: 14px 0 max(36px, env(safe-area-inset-bottom)) !important;
+  }
+  .v4-hero {
+    width: 100%;
+    min-width: 0;
+    border-radius: 17px !important;
+  }
+  .v4-hero-content {
+    left: 20px !important;
+    right: 18px !important;
+    max-width: none;
+  }
+  .v4-hero-content h1 {
+    font-size: clamp(30px, 9vw, 42px) !important;
+    line-height: 1.08;
+  }
+  .v4-hero-content p {
+    font-size: 13px !important;
+    line-height: 1.55;
+  }
+  .v4-hero-actions { flex-wrap: wrap; gap: 8px; }
+  .v4-hero-primary,
+  .v4-hero-secondary {
+    min-height: 44px;
+    height: 44px;
+    padding: 0 14px;
+    font-size: 13px;
+  }
+
+  .v4-spatial-heading {
+    align-items: flex-start;
+    gap: 12px;
+    margin: 8px 0 18px;
+  }
+  .v4-spatial-heading h1 { font-size: clamp(28px, 8vw, 36px) !important; }
+  .v4-spatial-heading p { font-size: 13px; line-height: 1.6; }
+  .v4-spatial-panel {
+    min-width: 0;
+    padding: 14px !important;
+    border-radius: 17px !important;
+  }
+  .v4-settings-grid,
+  .v4-source-grid,
+  .v4-me-history-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 10px !important;
+  }
+  .v4-settings-card { min-height: 64px !important; padding: 12px 13px !important; }
+  .v4-resource-search { display: flex; flex-direction: column; gap: 9px; }
+  .v4-resource-search input,
+  .v4-resource-search button { width: 100%; min-height: 46px; }
+  .v4-resource-result { min-width: 0; overflow-wrap: anywhere; }
+
+  /* Fixed four-destination dock. Its surface continues behind the iOS home indicator. */
+  .v4-mobile-tabbar {
+    position: fixed;
+    z-index: 220;
+    inset-inline: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    gap: 4px;
+    min-height: 62px;
+    padding: 7px 10px calc(7px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid rgba(128, 128, 140, .20);
+    color: rgb(var(--glass-text, 28 28 32));
+    background: rgba(var(--glass-panel-rgb, 250, 250, 252), .88);
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
+    backdrop-filter: blur(22px) saturate(160%);
+    box-shadow: 0 -8px 28px rgba(0, 0, 0, .10);
+  }
+  .v4-mobile-tabbar a {
+    position: relative;
+    display: flex;
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 46px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border-radius: 13px;
+    color: inherit;
+    text-decoration: none;
+    font-size: 11px;
+    font-weight: 560;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .v4-mobile-tabbar a svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .v4-mobile-tabbar a.is-active {
+    color: #D99A38;
+    background: rgba(217, 154, 56, .10);
+  }
+  .v4-mobile-tabbar a i {
+    position: absolute;
+    top: 2px;
+    width: 16px;
+    height: 2px;
+    border-radius: 2px;
+    background: currentColor;
+  }
+  body:has(.v4-mobile-tabbar) { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+  body:has(.v4-home) .friday-fab {
+    top: 42%;
+    right: 12px;
+    bottom: auto;
+    left: auto;
+    width: 60px;
+    height: 60px;
+    touch-action: none;
+    cursor: grab;
+  }
+  body:has(.v4-home) .friday-fab:active { cursor: grabbing; }
+  body:has(.v4-home) .friday-fab::after { display: none !important; }
+
+  /* Never apply glass filters to video, poster artwork or the Friday canvas. */
+  .friday-orb__canvas,
+  .artplayer video,
+  .artplayer canvas,
+  .v4-hero-image,
+  .v4-recommendation-section img { filter: none !important; }
+}
+
+@media screen and (max-width: 390px) {
+  .v4-header-inner { padding-inline: 10px !important; }
+  .v4-brand { font-size: 16px !important; }
+  .v4-nav-link { padding-inline: 11px !important; font-size: 12px !important; }
+  .v4-home-main,
+  .v4-spatial-main { width: calc(100% - 20px) !important; }
+  .v4-hero-content { left: 16px !important; right: 14px !important; }
+  .v4-hero-content h1 { font-size: clamp(28px, 8.5vw, 36px) !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v4-search { transition: none !important; }
+}
+
+
+/* iPhone search: keep the expanded search surface dark and high-contrast
+ * in both appearance modes; prevent the global light-theme glass rule
+ * from washing the field out. */
+@media screen and (max-width: 700px) {
+  .v4-search.is-open,
+  html:not(.dark) .v4-search.is-open {
+    color: #F7F8FA !important;
+    background: rgba(24, 25, 29, 0.98) !important;
+    border: 1px solid rgba(255, 255, 255, 0.24) !important;
+    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.42) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(150%) !important;
+    backdrop-filter: blur(20px) saturate(150%) !important;
+  }
+
+  .v4-search.is-open input,
+  html:not(.dark) .v4-search.is-open input {
+    color: #FFFFFF !important;
+    caret-color: #FFFFFF !important;
+    opacity: 1 !important;
+  }
+
+  .v4-search.is-open input::placeholder,
+  html:not(.dark) .v4-search.is-open input::placeholder {
+    color: rgba(255, 255, 255, 0.68) !important;
+    opacity: 1 !important;
+  }
+
+  .v4-mobile-search-toggle {
+    color: #FFFFFF !important;
+    background: rgba(28, 29, 34, 0.92) !important;
+    border-color: rgba(255, 255, 255, 0.24) !important;
+  }
+}
+
+
+
+/* Unified routed-page header for Movies, TV, Anime, Variety, Overseas and Live.
+ * Keep a light translucent surface, readable dark controls and a restrained
+ * active state. The homepage cinematic overlay is deliberately excluded. */
+.v4-header:not(.is-overlay) {
+  position: -webkit-sticky !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 150 !important;
+  color: #17191d !important;
+  background: rgba(246, 248, 251, 0.88) !important;
+  background-image: linear-gradient(180deg, rgba(255,255,255,.92), rgba(242,245,249,.84)) !important;
+  border-color: rgba(28,35,45,.12) !important;
+  box-shadow: 0 6px 22px rgba(25,35,50,.07), inset 0 1px 0 rgba(255,255,255,.92) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(145%) !important;
+  backdrop-filter: blur(18px) saturate(145%) !important;
+}
+.v4-header:not(.is-overlay) .v4-brand,
+.v4-header:not(.is-overlay) .v4-nav-link,
+.v4-header:not(.is-overlay) .v4-header-icon,
+.v4-header:not(.is-overlay) .v4-mobile-search-toggle {
+  color: #17191d !important;
+}
+.v4-header:not(.is-overlay) .v4-nav-link {
+  border-radius: 999px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.v4-header:not(.is-overlay) .v4-nav-link:hover {
+  color: #111318 !important;
+  background: rgba(35,45,60,.06) !important;
+}
+.v4-header:not(.is-overlay) .v4-nav-link.is-active {
+  color: #17191d !important;
+  background: rgba(35,45,60,.09) !important;
+  border: 1px solid rgba(35,45,60,.10) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.72) !important;
+  text-shadow: none !important;
+}
+.v4-header:not(.is-overlay) .v4-header-actions .v4-header-icon,
+.v4-header:not(.is-overlay) .v4-header-actions .v4-avatar,
+.v4-header:not(.is-overlay) .v4-mobile-search-toggle {
+  color: #17191d !important;
+  background: rgba(255,255,255,.82) !important;
+  border: 1px solid rgba(28,35,45,.16) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
+  backdrop-filter: blur(16px) saturate(150%) !important;
+}
+.v4-header:not(.is-overlay) .v4-search {
+  color: #17191d !important;
+  background: rgba(255,255,255,.90) !important;
+  border: 1px solid rgba(28,35,45,.18) !important;
+  box-shadow: inset 0 1px 2px rgba(25,35,50,.04), 0 3px 12px rgba(25,35,50,.05) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(155%) !important;
+  backdrop-filter: blur(18px) saturate(155%) !important;
+}
+.v4-header:not(.is-overlay) .v4-search input {
+  color: #17191d !important;
+  -webkit-text-fill-color: #17191d !important;
+}
+.v4-header:not(.is-overlay) .v4-search input::placeholder {
+  color: #59616d !important;
+  -webkit-text-fill-color: #59616d !important;
+  opacity: 1 !important;
+}
+.v4-header:not(.is-overlay) .v4-search svg,
+.v4-header:not(.is-overlay) .v4-header-icon svg,
+.v4-header:not(.is-overlay) .v4-mobile-search-toggle svg {
+  color: #17191d !important;
+  stroke: currentColor;
+}
+@media screen and (max-width: 700px) {
+  .v4-header:not(.is-overlay) .v4-primary-nav {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    white-space: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+  }
+  .v4-header:not(.is-overlay) .v4-primary-nav::-webkit-scrollbar { display: none !important; }
+  .v4-header:not(.is-overlay) .v4-nav-link {
+    flex: 0 0 auto !important;
+    min-height: 40px !important;
+    padding: 0 13px !important;
+  }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .v4-header:not(.is-overlay) {
+    background: rgba(246,248,251,.98) !important;
+    background-image: none !important;
+  }
+}
+@supports not (overflow: clip) {
+  @media screen and (max-width: 700px) {
+    html, body { overflow-x: hidden !important; }
+  }
+}

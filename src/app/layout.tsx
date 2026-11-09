@@ -1,5 +1,19 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import './glass-system.css';
+import './eight-screen-glass.css';
+import './ipad-glass.css';
+import './iphone-glass.css';
+// Shared by the homepage header and every V4 spatial channel route.
+import './v4-homepage.css';
+// Last-loaded contract: identical header surface and navigation on every route.
+import './v4-shared-header.css';
+// Keep header text and controls contrasted with the active light/dark surface.
+import './v4-header-theme.css';
+// Final theme layer: keep iOS Safari's bottom safe area in sync with dark mode.
+import './theme-safe-area.css';
+// Final global contrast layer: dark mode must remain legible on every device and route.
+import './theme-global-compat.css';
 import { Providers } from '@/components/providers';
 
 export const metadata: Metadata = {
@@ -24,11 +38,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0b101a',
+  themeColor: '#08080A',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -39,12 +52,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "(function(){try{var t=localStorage.getItem('libretv-theme')||'dark';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);}catch(e){}})()",
+              "(function(){try{var t=localStorage.getItem('libretv-theme')||'system';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);var r=d?'dark':'light';document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=r;var m=document.querySelector('meta[name=\"theme-color\"]');if(m)m.content=d?'#08080A':'#F5F7FA';}catch(e){}})()",
           }}
         />
       </head>
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );

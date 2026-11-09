@@ -5,10 +5,12 @@ on:
     branches:
       - feature/friday-playback-feedback-agent-2026-11-08
       - fix/prelaunch-security-voice-2026-11-03
+      - feature/libretv-eight-screen-glass-2026-11-09
   pull_request:
     branches:
       - main
       - feature/friday-quality-aware-source-ranking-2026-11-08
+      - feature/libretv-v4-pc-light-homepage-2026-11-09
   workflow_dispatch:
 
 permissions:

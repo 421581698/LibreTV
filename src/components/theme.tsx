@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
 /**
- * 主题上下文：light / dark / system，持久化到 localStorage，默认 dark。
+ * 主题上下文：light / dark / system，持久化到 localStorage，默认跟随系统。
  * html 上的 .dark 类由 layout 中的内联脚本先行设置（避免首屏闪烁），此处负责后续切换。
  */
 
@@ -17,7 +17,7 @@ interface ThemeContextValue {
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
-  theme: 'dark',
+  theme: 'system',
   resolved: 'dark',
   setTheme: () => {},
 });
@@ -27,37 +27,77 @@ export function useTheme(): ThemeContextValue {
 }
 
 function systemPrefersDark(): boolean {
-  return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  return typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+function readStoredTheme(): ThemeChoice {
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    return stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
+  } catch {
+    return 'system';
+  }
+}
+
+function persistTheme(choice: ThemeChoice): void {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, choice);
+  } catch {
+    // Private browsing or storage restrictions must not break theme switching.
+  }
 }
 
 function apply(choice: ThemeChoice): 'light' | 'dark' {
   const resolved = choice === 'system' ? (systemPrefersDark() ? 'dark' : 'light') : choice;
-  document.documentElement.classList.toggle('dark', resolved === 'dark');
+  const root = document.documentElement;
+  const surface = resolved === 'dark' ? '#08080A' : '#F5F7FA';
+  root.classList.toggle('dark', resolved === 'dark');
+  // Set the safe-area paint color imperatively as well as through CSS so
+  // iOS Safari's separately composited home-indicator inset updates instantly.
+  root.style.setProperty('--page-chrome', surface);
+  root.style.setProperty('--safe-area-surface', surface);
+  root.style.backgroundColor = surface;
+  document.body?.style.setProperty('background-color', surface, 'important');
+  // Keep Safari/iOS browser chrome aligned with the explicit app theme.
+  const themeColor = surface;
+  let themeMeta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (!themeMeta) {
+    themeMeta = document.createElement('meta');
+    themeMeta.name = 'theme-color';
+    document.head.appendChild(themeMeta);
+  }
+  themeMeta.content = themeColor;
+  document.documentElement.style.colorScheme = resolved;
   return resolved;
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeChoice>('dark');
+  const [theme, setThemeState] = useState<ThemeChoice>('system');
   const [resolved, setResolved] = useState<'light' | 'dark'>('dark');
 
   useEffect(() => {
-    const stored = (localStorage.getItem(STORAGE_KEY) as ThemeChoice | null) || 'dark';
+    const stored = readStoredTheme();
     setThemeState(stored);
     setResolved(apply(stored));
 
+    if (typeof window.matchMedia !== 'function') return;
     const media = window.matchMedia('(prefers-color-scheme: dark)');
     const onChange = () => {
-      const current = (localStorage.getItem(STORAGE_KEY) as ThemeChoice | null) || 'dark';
-      if (current === 'system') {
-        setResolved(apply('system'));
-      }
+      if (readStoredTheme() === 'system') setResolved(apply('system'));
     };
-    media.addEventListener('change', onChange);
-    return () => media.removeEventListener('change', onChange);
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', onChange);
+      return () => media.removeEventListener('change', onChange);
+    }
+    // Safari 13 and earlier expose the legacy MediaQueryList listener API.
+    media.addListener(onChange);
+    return () => media.removeListener(onChange);
   }, []);
 
   const setTheme = useCallback((t: ThemeChoice) => {
-    localStorage.setItem(STORAGE_KEY, t);
+    persistTheme(t);
     setThemeState(t);
     setResolved(apply(t));
   }, []);
@@ -65,33 +105,37 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   return <ThemeContext.Provider value={{ theme, resolved, setTheme }}>{children}</ThemeContext.Provider>;
 }
 
-/** 亮暗切换按钮：在 light → dark → system 三态间循环 */
+/** 明确的三态主题选择：浅色、深色、跟随系统。 */
 export function ThemeToggle() {
-  const { theme, resolved, setTheme } = useTheme();
-  const next: ThemeChoice = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light';
-  const label = theme === 'system' ? '跟随系统（当前深色）' : theme === 'dark' ? '深色' : '浅色';
-  const nextLabel = next === 'light' ? '浅色' : next === 'dark' ? '深色' : '跟随系统';
+  const { theme, setTheme } = useTheme();
+  const options: { value: ThemeChoice; label: string }[] = [
+    { value: 'light', label: '浅色' },
+    { value: 'dark', label: '深色' },
+    { value: 'system', label: '跟随系统' },
+  ];
 
   return (
-    <button
-      className="p-2 rounded-md text-muted hover:text-content hover:bg-hover transition-colors"
-      title={`主题：${label}，点击切换为${nextLabel}`}
-      aria-label={`切换主题，当前 ${label}`}
-      onClick={() => setTheme(next)}
+    <div
+      className="inline-flex items-center gap-1 rounded-xl border border-line bg-surface-raised p-1"
+      role="group"
+      aria-label="界面主题"
     >
-      {theme === 'system' ? (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-        </svg>
-      ) : resolved === 'dark' ? (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-        </svg>
-      ) : (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-        </svg>
-      )}
-    </button>
+      {options.map((option) => {
+        const active = theme === option.value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={active}
+            onClick={() => setTheme(option.value)}
+            className={active
+              ? 'rounded-lg bg-white px-2.5 py-2 text-xs font-semibold text-zinc-900 shadow-sm'
+              : 'rounded-lg px-2.5 py-2 text-xs font-medium text-muted transition-colors hover:bg-hover hover:text-content'}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }

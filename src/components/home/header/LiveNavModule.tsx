@@ -1,0 +1,1 @@
+import {NavItem} from './NavItem';import styles from './LiveNav.module.css';export function LiveNavModule({pathname}:{pathname:string|null}){return <NavItem pathname={pathname} href="/live" label="直播" className={styles.root}/>;}

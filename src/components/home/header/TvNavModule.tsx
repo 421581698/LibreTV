@@ -1,0 +1,1 @@
+import {NavItem} from './NavItem';import styles from './TvNav.module.css';export function TvNavModule({pathname}:{pathname:string|null}){return <NavItem pathname={pathname} href="/tv" label="电视剧" className={styles.root}/>;}

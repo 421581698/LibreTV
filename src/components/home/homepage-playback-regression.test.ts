@@ -5,6 +5,14 @@ import { describe, expect, it } from 'vitest';
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
 const home = source('src/app/page.tsx');
+const v4Header = source('src/components/home/V4HomepageHeader.tsx');
+const searchModule = source('src/components/home/header/SearchModule.tsx');
+const historyModule = source('src/components/home/header/HistoryModule.tsx');
+const settingsModule = source('src/components/home/header/SettingsModule.tsx');
+const avatarModule = source('src/components/home/header/AvatarModule.tsx');
+const navModules = ['HomeNavModule', 'MoviesNavModule', 'TvNavModule', 'OverseasNavModule', 'AnimeNavModule', 'VarietyNavModule', 'LiveNavModule'].map((name) => source('src/components/home/header/' + name + '.tsx'));
+const v4Content = source('src/components/home/V4HomepageContent.tsx');
+const v4Styles = source('src/app/v4-homepage.css');
 const watch = source('src/app/watch/page.tsx');
 const hero = source('src/components/friday/FridayHero.tsx');
 const canvas = source('src/components/home/HomeIntentCanvas.tsx');
@@ -15,6 +23,7 @@ const detail = source('src/components/detail-modal.tsx');
 const player = source('src/components/player-shell.tsx');
 const history = source('src/components/history-panel.tsx');
 const settings = source('src/components/source-manager.tsx');
+const drawer = source('src/components/drawer.tsx');
 const theme = source('src/components/theme.tsx');
 const live = source('src/app/live/page.tsx');
 const downloads = source('src/components/download-manager.tsx');
@@ -25,19 +34,30 @@ const fridayConversation = source('src/components/friday/FridayConversation.tsx'
 const movieAgents = source('src/lib/friday/movie-agents.ts');
 const movieWorkflow = source('src/lib/friday/movie-workflow.ts');
 const voiceController = source('src/components/friday/useFridayVoiceController.ts');
+const browserAsr = source('src/components/friday/browserAsr.ts');
+
+const spatialScreen = source('src/components/home/V4SpatialScreen.tsx');
+const channelStyles = source('src/app/eight-screen-glass.css');
+const ipadStyles = source('src/app/ipad-glass.css');
+const channelHeaderStyles = source('src/app/iphone-glass.css');
+const homepageHeroStyles = source('src/app/v4-homepage.css');
+const featuredHero = source('src/components/home/V4HomepageHero.tsx');
+const previewConfig = source('wrangler.preview.toml');
+const previewWorkflow = source('.github/workflows/deploy-homepage-preview.yml');
+const rootLayout = source('src/app/layout.tsx');
+const glassStyles = source('src/app/eight-screen-glass.css');
+const sharedHeaderStyles = source('src/app/v4-shared-header.css');
 const chatSession = source('src/components/friday/useFridayChatSession.ts');
 const fridayPanel = source('src/components/friday/FridayPanel.tsx');
 
 describe('首页与播放页回归契约', () => {
   it('首页 FridayOrb 保持可见、可访问，并将点击交给唯一语音控制器', () => {
-    expect(home).toContain('<HomeIntentCanvas');
-    expect(home).toContain("variant={isV2 ? 'v2' : 'legacy'}");
-    expect(hero).toContain('<FridayOrb');
-    expect(hero).toContain('friday-home-orb-toggle');
-    expect(hero).toContain('aria-label={labels[voiceState]}');
+    expect(home).toContain('<V4HomepageHeader overlay={!urlQuery} />');
+    expect(v4Header).toContain('<AIFloatingBall showFab inlineMode={false}/>');
+    expect(assistant).toContain('onClick={openAndListen}');
+    expect(assistant).toContain('startListening(false)');
     expect(orb).toContain('createFridayOrb(canvasRef.current');
     expect(orb).toContain('engine.destroy()');
-    expect(assistant).toContain('window.addEventListener("friday-home-orb-toggle", handleHomeOrbToggle)');
   });
 
   it('首页圆球点击贯通唯一语音控制器，并覆盖识别错误、停止和卸载清理', () => {
@@ -87,35 +107,116 @@ describe('首页与播放页回归契约', () => {
     expect(fridayConversation).toContain("播放器解码实测");
   });
 
-  it('今日热门海报通过精确片名匹配打开原详情弹窗，不误开第一个结果', () => {
-    expect(home).toContain('<HomeRecommendationSection');
-    expect(home).toContain('onPick={openRecommendation}');
-    expect(home).toContain('api.search(movie.title, selectedSources, yellowFilter)');
-    expect(home).toContain('normalizeTitle(entry.name) === normalizedTitle');
-    expect(home).toContain('setDetailItem(matched)');
-    expect(home).toContain('不再用“第一个搜索结果”兜底');
+  it('V4 首页接入真实推荐接口与 IndexedDB 继续观看记录', () => {
+    expect(home).toContain('<V4HomepageContent onPick={openRecommendation} />');
+    expect(v4Content).toContain('<RecommendSection onPick={onPick} />');
+    expect(v4Content).toContain('db.history.orderBy(\'timestamp\').reverse().limit(CONTINUE_LIMIT)');
+    expect(v4Content).toContain('buildWatchUrl({');
+    expect(v4Content).toContain('playbackPosition / item.duration');
+    expect(v4Styles).toContain('.v4-history-row');
+    expect(v4Styles).not.toContain('v4-poster-skeleton');
+    expect(v4Styles).not.toContain('v4-landscape-skeleton');
     expect(home).toContain('<DetailModal item={detailItem}');
   });
 
-  it('搜索与最近搜索历史保留 URL、输入校验和回选链路', () => {
-    expect(home).toContain('<HomeSearchSection');
+  it('V4 首页 Header 使用双层动态导航，首屏叠加 Hero，滚动后转为轻量悬浮栏', () => {
+    expect(home).toContain('<V4HomepageHeader overlay={!urlQuery} />');
+    expect(v4Header).toContain('setIsScrolled(window.scrollY > 48)');
+    expect(v4Header).toContain('is-overlay');
+    expect(v4Header).toContain('is-scrolled');
+    expect(v4Styles).toContain('.v4-home .v4-header.is-overlay');
+    expect(v4Styles).toContain('.v4-home .v4-header.is-overlay.is-scrolled');
+    expect(v4Styles).toContain('.v4-home-main--cinema > .v4-hero');
+    for (const label of ['首页', '电影', '电视剧', '海外剧', '动漫', '综艺', '直播']) {
+      expect(navModules.some((module) => module.includes('label="' + label + '"'))).toBe(true);
+    }
+    expect(v4Styles).toContain('.v4-nav-link.is-active');
+  });
+
+
+  it('首页与全部频道共用同一套顶部导航外观和响应式结构', () => {
+    expect(rootLayout).toContain("import './v4-shared-header.css';");
+    expect(rootLayout.indexOf("import './v4-shared-header.css';")).toBeGreaterThan(rootLayout.indexOf("import './v4-homepage.css';"));
+    for (const selector of ['.v4-header,', '.v4-home .v4-header,', '.v4-spatial-screen > .v4-header']) {
+      expect(sharedHeaderStyles).toContain(selector);
+    }
+    expect(sharedHeaderStyles).toContain('background: rgba(10, 10, 13, .84) !important;');
+    expect(sharedHeaderStyles).toContain('.v4-home .v4-header-inner');
+    expect(sharedHeaderStyles).toContain('.v4-spatial-screen .v4-header-inner');
+    expect(sharedHeaderStyles).toContain('@media screen and (max-width: 700px)');
+    expect(sharedHeaderStyles).toContain('.v4-home .v4-header.is-overlay {');
+    expect(sharedHeaderStyles).toContain('.v4-home .v4-header.is-overlay.is-scrolled {');
+    expect(sharedHeaderStyles).toContain('background: rgba(10, 10, 13, .84) !important;');
+    expect(sharedHeaderStyles).toContain('background: rgba(10, 10, 13, .92) !important;');
+    expect(sharedHeaderStyles).toContain('position: absolute !important;');
+    expect(sharedHeaderStyles).toContain('position: fixed !important;');
+    expect(sharedHeaderStyles).not.toContain('background: rgba(246, 248, 251, 0.88)');
+  });
+
+  it('顶部导航完整顺序为 Logo、频道、搜索、历史、设置和头像，PC/iPad 共用', () => {
+    const navStart = v4Header.indexOf('<nav');
+    const navEnd = v4Header.indexOf('</nav>', navStart);
+    const navMarkup = v4Header.slice(navStart, navEnd);
+    const searchStart = v4Header.indexOf('<SearchModule');
+    const actionsStart = v4Header.indexOf('className="v4-header-actions"');
+    expect(navMarkup).not.toContain('id="v4-header-search"');
+    expect(searchStart).toBeGreaterThan(navEnd);
+    expect(actionsStart).toBeGreaterThan(navEnd);
+    expect(searchStart).toBeGreaterThan(actionsStart);
+    expect(v4Header.indexOf('<SearchModule')).toBeLessThan(v4Header.indexOf('<HistoryModule'));
+
+    const navLabels = ['首页', '电影', '电视剧', '海外剧', '动漫', '综艺', '直播'];
+    const navPositions = navLabels.map((label, index) => navModules[index].indexOf('label="' + label + '"'));
+    expect(navPositions.every((position) => position >= 0)).toBe(true);
+    expect(v4Header.indexOf('<HomeNavModule')).toBeLessThan(v4Header.indexOf('<MoviesNavModule'));
+    expect(v4Header.indexOf('<MoviesNavModule')).toBeLessThan(v4Header.indexOf('<TvNavModule'));
+    expect(v4Header.indexOf('<TvNavModule')).toBeLessThan(v4Header.indexOf('<OverseasNavModule'));
+    expect(v4Header.indexOf('<OverseasNavModule')).toBeLessThan(v4Header.indexOf('<AnimeNavModule'));
+    expect(v4Header.indexOf('<AnimeNavModule')).toBeLessThan(v4Header.indexOf('<VarietyNavModule'));
+    expect(v4Header.indexOf('<VarietyNavModule')).toBeLessThan(v4Header.indexOf('<LiveNavModule'));
+
+    expect(v4Header.indexOf('<HistoryModule')).toBeLessThan(v4Header.indexOf('<SettingsModule'));
+    expect(v4Header.indexOf('<SettingsModule')).toBeLessThan(v4Header.indexOf('<AvatarModule'));
+    expect(historyModule).toContain('aria-label="观看历史"');
+    expect(settingsModule).toContain('aria-label="设置"');
+    expect(avatarModule).toContain('aria-label="打开我的个人空间"');
+
+    expect(sharedHeaderStyles).toContain('@media screen and (min-width: 701px)');
+    expect(sharedHeaderStyles).toContain('display: contents !important;');
+    for (const order of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      expect(sharedHeaderStyles).toContain(`order: ${order} !important;`);
+    }
+    expect(sharedHeaderStyles).toContain('.v4-header .v4-header-actions .v4-search');
+    expect(sharedHeaderStyles).toContain('order: 0 !important;');
+    expect(sharedHeaderStyles).toContain('.v4-header .v4-primary-nav .v4-nav-link[href="/"]');
+    expect(sharedHeaderStyles).toContain('color: #fff !important;');
+    expect(sharedHeaderStyles).toContain('color: #17171B !important;');
+    expect(sharedHeaderStyles).not.toContain('@media screen and (min-width: 1200px)');
+  });
+
+  it('V4 Header 搜索与最近搜索历史保留 URL、输入校验和回选链路', () => {
+    expect(home).toContain('<V4HomepageHeader overlay={!urlQuery} />');
+    expect(searchModule).toContain('<SearchHistoryDropdown');
+    expect(searchModule).toContain("router.push('/?s='+encodeURIComponent(q)");
+    expect(searchModule).toContain('h.record(q)');
+    expect(searchModule).toContain('const pick=(v:string)');
     expect(search).toContain('router.push(`/?q=${encodeURIComponent(query)}`');
-    expect(search).toContain('searchHistory.record(query)');
-    expect(search).toContain('const pickHistory = (text: string)');
-    expect(search).toContain('runSearch(text)');
     expect(searchHistory).toContain('useQuery({');
     expect(searchHistory).toContain("queryKey: ['searchHistory']");
     expect(searchHistory).toContain('history.refetch()');
     expect(searchHistory).toContain('role="listbox"');
   });
 
-  it('分类与筛选入口仍由设置抽屉的分组导航和点播源过滤器提供', () => {
-    expect(settings).toContain("ariaLabel=\"设置分类\"");
-    expect(settings).toContain("const PRIMARY_TABS");
+  it('设置首页采用 Apple 式纵向分组列表，分类进入独立详情页并可返回', () => {
+    expect(settings).toContain('const SETTINGS_SECTIONS');
+    expect(settings).toContain('rounded-2xl border border-line bg-card divide-y');
+    expect(settings).toContain("setActivePage(item.id)");
+    expect(settings).toContain("setActivePage('index')");
+    expect(settings).toContain("activePage === 'appearance'");
+    expect(settings).toContain("activePage === 'vod' && <VodSourcesPanel />");
+    expect(settings).toContain("activePage === 'live' && <LiveSourceManager />");
     expect(settings).toContain("type VodFilter = 'all' | 'enabled' | 'disabled' | 'sub' | 'manual'");
     expect(settings).toContain('const VOD_FILTERS');
-    expect(settings).toContain("current === 'vod' && <VodSourcesPanel />");
-    expect(settings).toContain("current === 'live' && <LiveSourceManager />");
   });
 
   it('顶部设置、主题、直播、下载和历史入口保持连接', () => {
@@ -126,8 +227,9 @@ describe('首页与播放页回归契约', () => {
     expect(header).toContain('设置');
     expect(header).toContain('<SourceManagerDrawer');
     expect(header).toContain('<HistoryPanel');
-    expect(theme).toContain("localStorage.setItem(STORAGE_KEY, t)");
-    expect(live).toContain('<Header');
+    expect(theme).toContain("function persistTheme(choice: ThemeChoice)");
+    expect(theme).toContain("window.localStorage.setItem(STORAGE_KEY, choice)");
+    expect(live).toContain('<V4HomepageHeader');
     expect(downloads).toContain("window.addEventListener(ADD_TASK_EVENT, onAdd)");
   });
 
@@ -236,7 +338,7 @@ describe('首页与播放页回归契约', () => {
   });
 
   it('设置中可选择界面语言、助手角色和语音风格，顶部搜索默认收起', () => {
-    expect(settings).toContain("{ id: 'language', label: '语言设置' }");
+    expect(settings).toContain("{ id: 'language', label: '语言设置', detail: '界面语言与显示偏好'");
     expect(settings).toContain('function LanguageSettingsPanel()');
     expect(settings).toContain('label="界面语言"');
     expect(settings).toContain('label="助手角色"');
@@ -250,6 +352,166 @@ describe('首页与播放页回归契约', () => {
     expect(chatSession).toContain('taskId.endsWith(".playback-evidence")');
     expect(chatSession).toContain('createPlaybackEvidenceAgent()');
     expect(chatSession).toContain('replayFailed: true');
+  });
+
+  it('默认清晰度设置持久化并限制 HLS 自适应档位', () => {
+    expect(settings).toContain('label="默认清晰度"');
+    expect(settings).toContain('libretv-quality-preference');
+    expect(player).toContain('applyHlsQualityPreference(hls)');
+    expect(player).toContain('autoLevelCapping');
+    expect(player).toContain('libretv-quality-preference-change');
+  });
+
+  it('Friday 语音识别语言设置实际写入浏览器 ASR 实例', () => {
+    expect(settings).toContain('label="语音识别语言"');
+    expect(settings).toContain('friday-asr-language');
+    expect(voiceController).toContain('preferredRecognitionLanguage');
+    expect(voiceController).toContain('recognition.lang = preferredRecognitionLanguage');
+    expect(browserAsr).toContain('window.webkitSpeechRecognition');
+  });
+
+  it('iPad 品牌图标固定尺寸，设置按钮直接打开设置抽屉', () => {
+    expect(glassStyles).toContain('.v4-brand-mark');
+    expect(glassStyles).toContain('width: 24px !important');
+    expect(settingsModule).toContain('onOpen');
+    expect(v4Header).toContain('<SettingsModule onOpen={()=>setSettingsOpen(true)}/>');
+    expect(v4Header).not.toContain("else router.push('/settings')");
+  });
+
+  it('浅色、深色与系统主题均有显式选择，并提供浅色毛玻璃表面', () => {
+    expect(theme).toContain("{ value: 'light', label: '浅色' }");
+    expect(theme).toContain("{ value: 'dark', label: '深色' }");
+    expect(theme).toContain("{ value: 'system', label: '跟随系统' }");
+    expect(theme).toContain('function readStoredTheme()');
+    expect(theme).toContain('media.addListener(onChange)');
+    expect(theme).toContain('persistTheme(t)');
+    expect(settings).toContain('浅色、深色与系统外观');
+    expect(settings).toContain('<ThemeToggle />');
+    expect(settings).toContain("activePage === 'appearance'");
+    expect(settings).toContain('浅色、深色，或跟随设备系统设置');
+    expect(glassStyles).toContain('html:not(.dark)');
+    expect(glassStyles).toContain('linear-gradient(145deg,#f7f8fa 0%,#e9edf2 100%)');
+  });
+
+
+  it('V4 空间频道与首页共用根布局样式，客户端路由切换不会卸载频道 CSS', () => {
+    expect(rootLayout).toContain("import './v4-homepage.css'");
+    expect(home).not.toContain("import './v4-homepage.css'");
+    expect(channelStyles).toContain('.v4-spatial-screen');
+    expect(channelStyles).toContain('.v4-spatial-main');
+    expect(homepageHeroStyles).toContain('.v4-header-inner');
+    expect(spatialScreen).toContain('<V4HomepageHeader />');
+  });
+
+  it('电影与动漫频道不预留不存在的 Banner 空间，导航保持文档流并兼容 Safari', () => {
+    expect(spatialScreen).toContain('<V4HomepageHeader />');
+    expect(spatialScreen).toContain('<main className="v4-spatial-main">');
+    expect(spatialScreen).not.toContain('<V4HomepageHero');
+    expect(channelStyles).toContain('.v4-spatial-screen > .v4-header');
+    expect(channelStyles).toContain('position: -webkit-sticky');
+    expect(channelStyles).toContain('padding-block-start: clamp(20px, 2.5vw, 32px)');
+    expect(channelStyles).toContain('@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)))');
+    expect(channelHeaderStyles).toContain('background: rgba(246, 248, 251, 0.88)');
+    expect(channelHeaderStyles).toContain('background: rgba(35,45,60,.09)');
+  });
+
+  it('首页精选 Banner 始终使用渐变遮罩与白色文案，并保留无数据占位高度', () => {
+    expect(featuredHero).toContain('<div className="v4-hero-veil"');
+    expect(featuredHero).toContain('v4-hero-empty');
+    expect(homepageHeroStyles).toContain('.v4-home .v4-hero-veil');
+    expect(homepageHeroStyles).toContain('rgba(4, 8, 15, .94)');
+    expect(homepageHeroStyles).toContain('-webkit-text-fill-color: #fff');
+  });
+
+
+  it('Preview 必须保持密码保护，且部署前先通过完整检查', () => {
+    expect(previewConfig).toContain('AUTH_DISABLED = "false"');
+    expect(previewWorkflow).toContain('workflow_dispatch:');
+    expect(previewWorkflow).toContain('  push:');
+    expect(previewWorkflow).toContain('feature/libretv-eight-screen-glass-2026-11-09');
+    expect(previewWorkflow).toContain('run: npm test -- --reporter=dot');
+    expect(previewWorkflow).toContain('Verify preview authentication remains enabled');
+    expect(previewWorkflow).toContain('Deploy password-protected isolated preview Worker');
+    expect(previewWorkflow).toContain('password-protected');
+    expect(previewWorkflow).not.toContain('Deploy isolated public preview Worker');
+  });
+
+  it('设置页快捷入口会打开指定的真实设置面板', () => {
+    expect(spatialScreen).toContain("localStorage.setItem('libretv-settings-open-page', page)");
+    expect(spatialScreen).toContain("title: '外观模式', description: '浅色、深色与跟随系统主题', page: 'appearance'");
+    expect(spatialScreen).toContain("title: '封面图加载', description: '海报图片代理与加载偏好', page: 'image'");
+    expect(spatialScreen).toContain("title: '直播设置', description: '管理直播源与频道', page: 'live'");
+    expect(spatialScreen).toContain("title: '资源订阅', description: '管理点播与直播资源订阅', page: 'subs'");
+    expect(spatialScreen).toContain("title: '本机缓存', description: '查看和管理本机视频缓存', page: 'cache'");
+    expect(settings).toContain("localStorage.getItem(SETTINGS_OPEN_PAGE_KEY)");
+    expect(settings).toContain('setActivePage(nextPage)');
+    expect(settings).toContain('removeItem(SETTINGS_OPEN_PAGE_KEY)');
+  });
+
+  it('移动端七项底部导航可横向滚动，不压缩或换行', () => {
+    expect(channelStyles).toContain('.v4-mobile-tabs {');
+    expect(channelStyles).toContain('overflow-x: auto !important');
+    expect(channelStyles).toContain('white-space: nowrap');
+    expect(channelStyles).toContain('flex: 0 0 auto !important');
+  });
+
+  it('页面允许用户缩放，避免移动端强制禁止放大', () => {
+    expect(rootLayout).not.toContain('maximumScale: 1');
+    expect(rootLayout).not.toContain('userScalable: false');
+  });
+
+
+  it('iPad 横屏资源页只对资源内容区应用双栏布局，不把页面标题塞进网格', () => {
+    expect(spatialScreen).toContain('className="v4-resources-layout space-y-5"');
+    expect(ipadStyles).toContain('.v4-spatial-screen[data-screen="resources"] .v4-resources-layout');
+    expect(ipadStyles).not.toContain('.v4-spatial-screen[data-screen="resources"] .v4-spatial-main > div');
+    expect(ipadStyles).toContain('.v4-spatial-screen[data-screen="movies"] .v4-spatial-panel > .grid.grid-cols-3');
+    expect(ipadStyles.match(/\.v4-spatial-screen\[data-screen="movies"\] \.v4-spatial-panel > \.grid\.grid-cols-3/g)).toHaveLength(2);
+  });
+
+
+  it('无 vodId 的直连视频也能保存、恢复和清理播放进度', () => {
+    expect(watch).toContain('const progressId = vodId || currentUrl');
+    expect(watch).toContain('progressKeyOf(sourceKey, progressId, currentIndex)');
+    expect(watch).toContain('saveProgress(\n        sourceKey,\n        progressId');
+    expect(watch).toContain('clearProgress(sourceKey, progressId, currentIndex)');
+  });
+
+
+  it('精选轮播数据缩减时仍有有效选中项，加载失败可重试', () => {
+    expect(featuredHero).toContain('activeSlide % slides.length');
+    expect(featuredHero).toContain('aria-pressed={normalizedActiveSlide === index}');
+    expect(featuredHero).toContain('featuredQuery.refetch()');
+  });
+
+
+  it('iOS Safari 模态抽屉锁定背景滚动并在关闭后恢复页面位置', () => {
+    expect(drawer).toContain("body.style.position = 'fixed'");
+    expect(drawer).toContain('body.style.top = `-${scrollY}px`');
+    expect(drawer).toContain('window.scrollTo(0, scrollY)');
+    expect(drawer).toContain('if (!mounted || !modal) return;');
+  });
+
+
+  it('紧凑桌面窗口宽度下 Header 三列布局不会挤出视口', () => {
+    expect(homepageHeroStyles).toContain('@media screen and (min-width: 1101px) and (max-width: 1180px)');
+    expect(homepageHeroStyles).toContain('grid-template-columns: minmax(150px, .7fr) auto minmax(300px, .9fr)');
+  });
+  it('iPad 13 英寸横屏宽视口仍命中平板专属布局', () => {
+    expect(ipadStyles).toContain('max-width: 1440px');
+    expect(ipadStyles).toContain('(any-pointer: coarse)');
+    expect(ipadStyles).toContain('orientation: landscape');
+    expect(rootLayout).toContain("import './ipad-glass.css'");
+  });
+
+
+
+  it('iPad 适配覆盖 1440px 宽屏触控设备，并分别定义横竖屏布局', () => {
+    expect(ipadStyles).toContain('(min-width: 701px) and (max-width: 1440px) and (any-pointer: coarse)');
+    expect(ipadStyles).toContain('(max-width: 1440px) and (any-pointer: coarse) and (orientation: portrait)');
+    expect(ipadStyles).toContain('(min-width: 1024px) and (max-width: 1440px) and (any-pointer: coarse) and (orientation: landscape)');
+    expect(rootLayout).toContain("width: 'device-width'");
+    expect(rootLayout).not.toContain('maximumScale: 1');
   });
 
 });

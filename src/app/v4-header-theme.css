@@ -1,0 +1,458 @@
+/* Theme-aware contrast for the shared header.
+ * The active app theme is resolved on <html> before hydration; the header
+ * follows that surface so foreground colors never stay fixed to the old skin.
+ */
+:root:not(.dark) .v4-header,
+:root:not(.dark) .v4-home .v4-header,
+:root:not(.dark) .v4-spatial-screen > .v4-header {
+  color: #17171B !important;
+  background: rgba(250,252,255,.88) !important;
+  background-image: linear-gradient(180deg,rgba(255,255,255,.94),rgba(246,248,251,.88)) !important;
+  border-bottom-color: rgba(20,28,40,.12) !important;
+  box-shadow: 0 10px 30px rgba(20,30,45,.08), inset 0 1px 0 rgba(255,255,255,.92) !important;
+}
+:root:not(.dark) .v4-header .v4-nav-link,
+:root:not(.dark) .v4-home .v4-header .v4-nav-link,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-nav-link {
+  color: #17171B !important;
+}
+:root:not(.dark) .v4-header .v4-nav-link:hover,
+:root:not(.dark) .v4-home .v4-header .v4-nav-link:hover,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-nav-link:hover {
+  color: #000 !important;
+  background: rgba(20,30,45,.07) !important;
+}
+:root:not(.dark) .v4-header .v4-nav-link.is-active,
+:root:not(.dark) .v4-home .v4-header .v4-nav-link.is-active,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-nav-link.is-active {
+  color: #fff !important;
+  background: #17171B !important;
+  border-color: rgba(20,30,45,.16) !important;
+}
+:root:not(.dark) .v4-header .v4-search,
+:root:not(.dark) .v4-home .v4-header .v4-search,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-search {
+  color: #17171B !important;
+  background: rgba(255,255,255,.94) !important;
+  border-color: rgba(20,30,45,.16) !important;
+}
+:root:not(.dark) .v4-header .v4-search input,
+:root:not(.dark) .v4-home .v4-header .v4-search input,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-search input {
+  color: #17171B !important;
+  -webkit-text-fill-color: #17171B !important;
+}
+:root:not(.dark) .v4-header .v4-search input::placeholder,
+:root:not(.dark) .v4-home .v4-header .v4-search input::placeholder,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-search input::placeholder {
+  color: rgba(23,23,27,.48) !important;
+  -webkit-text-fill-color: rgba(23,23,27,.48) !important;
+}
+:root:not(.dark) .v4-header .v4-search svg,
+:root:not(.dark) .v4-home .v4-header .v4-search svg,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-search svg,
+:root:not(.dark) .v4-header .v4-header-icon,
+:root:not(.dark) .v4-header .v4-avatar,
+:root:not(.dark) .v4-header .v4-mobile-search-toggle {
+  color: #17171B !important;
+}
+:root:not(.dark) .v4-header .v4-header-icon,
+:root:not(.dark) .v4-header .v4-avatar,
+:root:not(.dark) .v4-header .v4-mobile-search-toggle {
+  background: rgba(20,30,45,.045) !important;
+  border-color: rgba(20,30,45,.14) !important;
+}
+.dark .v4-header,
+.dark .v4-home .v4-header,
+.dark .v4-spatial-screen > .v4-header {
+  color: #F2F2F4 !important;
+  background: rgba(8,8,10,.88) !important;
+  background-image: linear-gradient(180deg,rgba(20,20,24,.96),rgba(8,8,10,.9)) !important;
+  border-bottom-color: rgba(255,255,255,.12) !important;
+}
+.dark .v4-header .v4-nav-link.is-active,
+.dark .v4-home .v4-header .v4-nav-link.is-active,
+.dark .v4-spatial-screen .v4-header .v4-nav-link.is-active {
+  color: #17171B !important;
+}
+.dark .v4-header .v4-nav-link,
+.dark .v4-home .v4-header .v4-nav-link,
+.dark .v4-spatial-screen .v4-header .v4-nav-link,
+.dark .v4-header .v4-header-icon,
+.dark .v4-header .v4-avatar,
+.dark .v4-header .v4-mobile-search-toggle,
+.dark .v4-header .v4-search,
+.dark .v4-header .v4-search svg {
+  color: #F2F2F4 !important;
+}
+.dark .v4-header .v4-search input,
+.dark .v4-home .v4-header .v4-search input,
+.dark .v4-spatial-screen .v4-header .v4-search input {
+  color: #F2F2F4 !important;
+  -webkit-text-fill-color: #F2F2F4 !important;
+}
+.dark .v4-header .v4-search input::placeholder,
+.dark .v4-home .v4-header .v4-search input::placeholder,
+.dark .v4-spatial-screen .v4-header .v4-search input::placeholder {
+  color: rgba(255,255,255,.52) !important;
+  -webkit-text-fill-color: rgba(255,255,255,.52) !important;
+}
+
+
+/* Header action glyphs: make inline SVGs explicit and theme-readable.
+   The clock, settings gear and profile icon are local SVGs, not remote assets. */
+.v4-header-actions > .v4-header-icon,
+.v4-header-actions > .v4-avatar {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+.v4-header-actions > .v4-header-icon > svg,
+.v4-header-actions > .v4-avatar > svg,
+.v4-header-actions > .v4-header-icon svg,
+.v4-header-actions > .v4-avatar svg {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  min-height: 20px !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 1.9 !important;
+  flex: 0 0 20px !important;
+  overflow: visible !important;
+}
+.v4-header-actions > .v4-avatar .v4-avatar-icon {
+  width: 21px !important;
+  height: 21px !important;
+  stroke-width: 1.8 !important;
+}
+:root:not(.dark) .v4-header-actions > .v4-header-icon,
+:root:not(.dark) .v4-header-actions > .v4-avatar {
+  color: #596372 !important;
+  background: rgba(226,231,238,.58) !important;
+  border: 1px solid rgba(102,116,135,.16) !important;
+  box-shadow: 0 2px 8px rgba(35,48,66,.045) !important;
+}
+:root:not(.dark) .v4-header-actions > .v4-header-icon:hover,
+:root:not(.dark) .v4-header-actions > .v4-avatar:hover {
+  color: #252d38 !important;
+  background: rgba(214,222,232,.78) !important;
+}
+.dark .v4-header-actions > .v4-header-icon,
+.dark .v4-header-actions > .v4-avatar {
+  color: #F2F2F4 !important;
+  background: rgba(255,255,255,.075) !important;
+  border-color: rgba(255,255,255,.14) !important;
+}
+
+/* Light header blends into the page instead of ending in a hard rule. */
+:root:not(.dark) .v4-header:not(.is-overlay) {
+  background-image: linear-gradient(180deg,rgba(255,255,255,.94) 0%,rgba(247,249,252,.76) 72%,rgba(247,249,252,.40) 100%) !important;
+  border-bottom-color: transparent !important;
+  box-shadow: 0 4px 16px rgba(35,48,66,.025) !important;
+}
+
+/* Give routed catalogue pages more usable width without touching the phone layout. */
+@media screen and (min-width: 701px) {
+  .v4-spatial-main {
+    width: min(100%, 1480px) !important;
+    max-width: 1480px !important;
+    padding-left: clamp(18px, 2.2vw, 34px) !important;
+    padding-right: clamp(18px, 2.2vw, 34px) !important;
+  }
+  .v4-spatial-panel {
+    box-shadow: 0 14px 38px rgba(22,38,58,.075) !important;
+  }
+}
+@media screen and (max-width: 700px) {
+  .v4-spatial-main {
+    width: calc(100% - 20px) !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+
+/* Catalogue filters remain a single swipeable row as tags are added. */
+.v4-catalog-filters {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  padding: 2px 2px 8px;
+  margin-bottom: 1rem;
+  white-space: nowrap;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+}
+.v4-catalog-filters::-webkit-scrollbar { display: none !important; }
+.v4-catalog-filters > button {
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+}
+:root:not(.dark) .v4-spatial-panel {
+  border-color: rgba(255,255,255,.86) !important;
+  background: linear-gradient(145deg,rgba(255,255,255,.94),rgba(249,251,253,.84)) !important;
+  box-shadow: 0 14px 38px rgba(40,58,82,.065) !important;
+}
+.dark .v4-spatial-panel {
+  box-shadow: 0 16px 42px rgba(0,0,0,.22) !important;
+}
+
+
+/* P0: keep action glyphs visible above the late shared-header surface rules. */
+:root:not(.dark) .v4-header:not(.is-overlay) .v4-header-actions > .v4-header-icon,
+:root:not(.dark) .v4-header:not(.is-overlay) .v4-header-actions > .v4-avatar {
+  color: #46515f !important;
+  -webkit-text-fill-color: #46515f !important;
+  background: rgba(226,231,238,.72) !important;
+  border: 1px solid rgba(102,116,135,.2) !important;
+}
+:root:not(.dark) .v4-header:not(.is-overlay) .v4-header-actions > .v4-header-icon svg,
+:root:not(.dark) .v4-header:not(.is-overlay) .v4-header-actions > .v4-avatar svg {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  color: #46515f !important;
+  stroke: #46515f !important;
+  fill: none !important;
+  width: 20px !important;
+  height: 20px !important;
+}
+:root:not(.dark) .v4-header:not(.is-overlay) {
+  color: #202630 !important;
+  background: rgba(247,249,252,.88) !important;
+  background-image: linear-gradient(180deg,rgba(255,255,255,.94),rgba(243,246,250,.88)) !important;
+  border-bottom: 1px solid rgba(20,30,45,.055) !important;
+  box-shadow: 0 3px 18px rgba(20,30,45,.025) !important;
+}
+:root:not(.dark) .v4-header:not(.is-overlay) .v4-nav-link,
+:root:not(.dark) .v4-header:not(.is-overlay) .v4-search,
+:root:not(.dark) .v4-header:not(.is-overlay) .v4-search svg {
+  color: #202630 !important;
+}
+:root:not(.dark) .v4-header:not(.is-overlay) .v4-search input {
+  color: #202630 !important;
+  -webkit-text-fill-color: #202630 !important;
+}
+
+/* The desktop/tablet header must never wrap; only the search field may yield width. */
+@media screen and (min-width: 701px) {
+  .v4-header-inner,
+  .v4-home .v4-header-inner,
+  .v4-spatial-screen .v4-header-inner {
+    flex-wrap: nowrap !important;
+  }
+  .v4-header .v4-primary-nav,
+  .v4-home .v4-header .v4-primary-nav,
+  .v4-spatial-screen .v4-header .v4-primary-nav {
+    flex-wrap: nowrap !important;
+    white-space: nowrap !important;
+  }
+  .v4-header .v4-nav-link,
+  .v4-home .v4-header .v4-nav-link,
+  .v4-spatial-screen .v4-header .v4-nav-link {
+    white-space: nowrap !important;
+  }
+  .v4-header .v4-header-actions,
+  .v4-home .v4-header .v4-header-actions,
+  .v4-spatial-screen .v4-header .v4-header-actions {
+    min-width: 0 !important;
+    flex-wrap: nowrap !important;
+  }
+  .v4-header .v4-search,
+  .v4-home .v4-header .v4-search,
+  .v4-spatial-screen .v4-header .v4-search {
+    flex: 1 1 180px !important;
+    min-width: 0 !important;
+    width: auto !important;
+  }
+}
+
+/* Home hero title/actions clear the absolute floating header. */
+.v4-home .v4-hero-content {
+  top: calc(50% + clamp(24px, 4vh, 40px)) !important;
+}
+
+
+/* Homepage overlay is genuinely floating/transparent; content remains legible
+   because the hero copy is shifted below the header's visual footprint. */
+.v4-home .v4-header.is-overlay {
+  background: linear-gradient(180deg,rgba(8,10,14,.38) 0%,rgba(8,10,14,.16) 68%,transparent 100%) !important;
+  background-image: linear-gradient(180deg,rgba(8,10,14,.38) 0%,rgba(8,10,14,.16) 68%,transparent 100%) !important;
+  border-bottom-color: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: blur(10px) saturate(125%) !important;
+  backdrop-filter: blur(10px) saturate(125%) !important;
+}
+:root:not(.dark) .v4-spatial-panel {
+  box-shadow: 0 4px 24px rgba(0,0,0,.04) !important;
+}
+.dark .v4-spatial-panel {
+  box-shadow: 0 8px 28px rgba(0,0,0,.18) !important;
+}
+@media screen and (min-width: 701px) {
+  .v4-header .v4-search,
+  .v4-home .v4-header .v4-search,
+  .v4-spatial-screen .v4-header .v4-search {
+    flex-shrink: 1 !important;
+  }
+}
+
+/* Tablet hero copy already anchors from the bottom; retain that layout below desktop. */
+@media screen and (max-width: 1440px) {
+  .v4-home .v4-hero-content {
+    top: auto !important;
+  }
+}
+
+
+/* Navigation state must come only from NavItem.is-active.
+   Never style the home href as selected on every route. */
+@media screen and (min-width: 701px) {
+  .v4-header .v4-primary-nav .v4-nav-link[href="/"]:not(.is-active),
+  .v4-home .v4-header .v4-primary-nav .v4-nav-link[href="/"]:not(.is-active),
+  .v4-spatial-screen .v4-header .v4-primary-nav .v4-nav-link[href="/"]:not(.is-active) {
+    color: #303844 !important;
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  :root:not(.dark) .v4-header .v4-primary-nav .v4-nav-link:not(.is-active),
+  :root:not(.dark) .v4-home .v4-header .v4-primary-nav .v4-nav-link:not(.is-active),
+  :root:not(.dark) .v4-spatial-screen .v4-header .v4-primary-nav .v4-nav-link:not(.is-active) {
+    color: #303844 !important;
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+  :root:not(.dark) .v4-header .v4-primary-nav .v4-nav-link.is-active,
+  :root:not(.dark) .v4-home .v4-header .v4-primary-nav .v4-nav-link.is-active,
+  :root:not(.dark) .v4-spatial-screen .v4-header .v4-primary-nav .v4-nav-link.is-active {
+    color: #fff !important;
+    background: #17191d !important;
+    border-color: #17191d !important;
+    box-shadow: 0 2px 8px rgba(20,25,32,.16) !important;
+    text-shadow: none !important;
+  }
+  .v4-header .v4-header-inner,
+  .v4-home .v4-header-inner,
+  .v4-spatial-screen .v4-header-inner {
+    width: min(calc(100% - 48px), 1480px) !important;
+    max-width: 1480px !important;
+    margin-inline: auto !important;
+    justify-content: flex-start !important;
+    gap: clamp(10px, 1.2vw, 18px) !important;
+  }
+  .v4-header .v4-header-actions,
+  .v4-home .v4-header .v4-header-actions,
+  .v4-spatial-screen .v4-header .v4-header-actions {
+    display: flex !important;
+    flex: 0 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    margin-left: auto !important;
+    justify-content: flex-end !important;
+    gap: 8px !important;
+  }
+  .v4-header .v4-header-actions .v4-search,
+  .v4-home .v4-header .v4-header-actions .v4-search,
+  .v4-spatial-screen .v4-header .v4-header-actions .v4-search {
+    flex: 0 1 clamp(140px, 17vw, 230px) !important;
+    width: clamp(140px, 17vw, 230px) !important;
+    min-width: 112px !important;
+    max-width: 230px !important;
+  }
+  .v4-header .v4-header-actions > .v4-header-icon,
+  .v4-header .v4-header-actions > .v4-avatar,
+  .v4-home .v4-header .v4-header-actions > .v4-header-icon,
+  .v4-home .v4-header .v4-header-actions > .v4-avatar,
+  .v4-spatial-screen .v4-header .v4-header-actions > .v4-header-icon,
+  .v4-spatial-screen .v4-header .v4-header-actions > .v4-avatar {
+    flex: 0 0 40px !important;
+    width: 40px !important;
+    min-width: 40px !important;
+  }
+}
+@media screen and (min-width: 701px) and (max-width: 1440px) and (any-pointer: coarse) {
+  .v4-header .v4-header-inner,
+  .v4-home .v4-header-inner,
+  .v4-spatial-screen .v4-header-inner {
+    width: calc(100% - 48px) !important;
+    max-width: 1480px !important;
+  }
+}
+
+/* Keep the three action glyphs real, centered SVGs rather than empty circles. */
+:root:not(.dark) .v4-header .v4-header-actions > .v4-header-icon,
+:root:not(.dark) .v4-header .v4-header-actions > .v4-avatar,
+:root:not(.dark) .v4-home .v4-header .v4-header-actions > .v4-header-icon,
+:root:not(.dark) .v4-home .v4-header .v4-header-actions > .v4-avatar,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-header-actions > .v4-header-icon,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-header-actions > .v4-avatar {
+  color: #46515f !important;
+  -webkit-text-fill-color: #46515f !important;
+}
+:root:not(.dark) .v4-header .v4-header-actions > .v4-header-icon svg,
+:root:not(.dark) .v4-header .v4-header-actions > .v4-avatar svg,
+:root:not(.dark) .v4-home .v4-header .v4-header-actions > .v4-header-icon svg,
+:root:not(.dark) .v4-home .v4-header .v4-header-actions > .v4-avatar svg,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-header-actions > .v4-header-icon svg,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-header-actions > .v4-avatar svg {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: 20px !important;
+  height: 20px !important;
+  fill: none !important;
+  stroke: #46515f !important;
+  color: #46515f !important;
+}
+:root:not(.dark) .v4-header .v4-header-actions > .v4-header-icon svg *,
+:root:not(.dark) .v4-header .v4-header-actions > .v4-avatar svg *,
+:root:not(.dark) .v4-home .v4-header .v4-header-actions > .v4-header-icon svg *,
+:root:not(.dark) .v4-home .v4-header .v4-header-actions > .v4-avatar svg *,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-header-actions > .v4-header-icon svg *,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-header-actions > .v4-avatar svg * {
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 1.9 !important;
+}
+
+
+/* P0: the search module also renders a phone-only toggle immediately after
+   the desktop search form. Collapse that sibling completely on PC/iPad so it
+   cannot leave an empty circular button between search and the clock. */
+@media screen and (min-width: 701px) {
+  .v4-header .v4-header-actions > .v4-mobile-search-toggle,
+  .v4-home .v4-header .v4-header-actions > .v4-mobile-search-toggle,
+  .v4-spatial-screen .v4-header .v4-header-actions > .v4-mobile-search-toggle {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    flex: 0 0 0 !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+  }
+}

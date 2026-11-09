@@ -92,13 +92,32 @@ export function Drawer({
     return () => clearTimeout(timer);
   }, [open, modal]);
 
-  // 打开期间锁定背景滚动（移动端可避免滚动穿透）；非模态不锁，页面照常可用
+  // 锁定背景滚动。iOS Safari 仅设置 overflow:hidden 仍可能发生 body 滚动穿透，
+  // 因此模态抽屉打开时固定 body，并在关闭后恢复原滚动位置与内联样式。
   useEffect(() => {
     if (!mounted || !modal) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    const body = document.body;
+    const scrollY = window.scrollY;
+    const previous = {
+      overflow: body.style.overflow,
+      position: body.style.position,
+      top: body.style.top,
+      width: body.style.width,
+      paddingRight: body.style.paddingRight,
+    };
+    const scrollbarWidth = Math.max(0, window.innerWidth - document.documentElement.clientWidth);
+    body.style.overflow = 'hidden';
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.width = '100%';
+    if (scrollbarWidth > 0) body.style.paddingRight = `${scrollbarWidth}px`;
     return () => {
-      document.body.style.overflow = prev;
+      body.style.overflow = previous.overflow;
+      body.style.position = previous.position;
+      body.style.top = previous.top;
+      body.style.width = previous.width;
+      body.style.paddingRight = previous.paddingRight;
+      window.scrollTo(0, scrollY);
     };
   }, [mounted, modal]);
 
@@ -156,7 +175,7 @@ export function Drawer({
 
   return (
     // 非模态时容器只用于定位：pointer-events-none 让抽屉以外的点击穿透到页面
-    <div className={cn('fixed inset-0 z-50', !modal && 'pointer-events-none')}>
+    <div className={cn('fixed inset-0 z-[100000]', !modal && 'pointer-events-none')}>
       {modal && (
         <div
           className={cn(
@@ -174,7 +193,7 @@ export function Drawer({
         aria-label={title}
         tabIndex={-1}
         className={cn(
-          'absolute right-0 top-0 h-full w-full bg-surface-raised border-l border-line flex flex-col outline-none',
+          'absolute right-0 top-0 h-full w-full glass-panel !rounded-none border-l border-line flex flex-col outline-none',
           'transition-transform duration-200 ease-out',
           width,
           !modal && 'pointer-events-auto shadow-2xl',

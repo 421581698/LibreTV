@@ -21,6 +21,10 @@ export interface HistoryEntry {
   vodId: string;
   title: string;
   pic?: string;
+  /** 最近一次详情接口提供的真实影片元数据，用于本地个性化推荐 */
+  typeName?: string;
+  year?: string;
+  area?: string;
   episodeIndex: number;
   totalEpisodes: number;
   playbackPosition: number;
@@ -122,6 +126,9 @@ export async function upsertHistory(entry: Omit<HistoryEntry, 'id'>): Promise<vo
     ...existing,
     ...entry,
     id,
+    typeName: entry.typeName || existing?.typeName,
+    year: entry.year || existing?.year,
+    area: entry.area || existing?.area,
     playbackPosition: entry.playbackPosition > 10 ? entry.playbackPosition : existing?.playbackPosition ?? 0,
     duration: entry.duration || existing?.duration || 0,
     timestamp: Date.now(),

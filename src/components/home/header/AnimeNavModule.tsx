@@ -1,0 +1,1 @@
+import {NavItem} from './NavItem';import styles from './AnimeNav.module.css';export function AnimeNavModule({pathname}:{pathname:string|null}){return <NavItem pathname={pathname} href="/anime" label="动漫" className={styles.root}/>;}

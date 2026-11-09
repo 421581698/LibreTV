@@ -1,0 +1,406 @@
+/* LibreTV iPad profile
+ * Phase 2 only: tablet touch layouts. PC/Mac desktop rules remain unchanged;
+ * the phone profile is intentionally excluded (max-width: 700px).
+ */
+@media screen and (min-width: 701px) and (max-width: 1440px) and (any-pointer: coarse) {
+  html,
+  body {
+    min-width: 0 !important;
+  }
+
+  /* Two-row tablet chrome: brand/actions above, all seven destinations below. */
+  .v4-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .v4-header-inner {
+    width: calc(100% - 48px) !important;
+    min-height: 0 !important;
+    grid-template-columns: minmax(132px, auto) minmax(0, 1fr) !important;
+    grid-template-rows: auto auto;
+    gap: 10px 16px !important;
+    padding: 12px 0 4px !important;
+  }
+
+  .v4-brand {
+    grid-column: 1;
+    grid-row: 1;
+    font-size: 20px;
+  }
+
+  .v4-primary-nav {
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+    display: flex;
+    justify-content: flex-start;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+    padding: 0 0 8px !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .v4-primary-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .v4-nav-link {
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding: 0 17px !important;
+    font-size: 14px;
+  }
+
+  .v4-header-actions {
+    grid-column: 2;
+    grid-row: 1;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .v4-search {
+    flex: 1 1 180px;
+    width: auto !important;
+    min-width: 0;
+    max-width: 360px;
+    height: 44px !important;
+  }
+
+  .v4-header-icon,
+  .v4-avatar {
+    width: 44px !important;
+    height: 44px !important;
+    flex: 0 0 44px !important;
+  }
+
+  /* Home: a balanced cinema hero, with enough space for real poster rows. */
+  .v4-home-main {
+    width: calc(100% - 48px) !important;
+    max-width: 1360px;
+    padding: 18px 0 40px !important;
+  }
+
+  .v4-hero {
+    height: clamp(330px, 47svh, 520px) !important;
+    min-height: 330px !important;
+    border-radius: 22px !important;
+  }
+
+  .v4-hero-content {
+    left: 36px !important;
+    right: 32px !important;
+    bottom: 42px !important;
+    top: auto !important;
+    width: min(620px, 68%) !important;
+    max-width: 68% !important;
+    transform: none !important;
+  }
+
+  .v4-hero-content h1 {
+    font-size: clamp(34px, 4.2vw, 54px) !important;
+    line-height: 1.08;
+  }
+
+  .v4-hero-content p {
+    max-width: 30em;
+    margin: 12px 0 20px;
+    font-size: 15px;
+  }
+
+  .v4-hero-actions {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .v4-content-section {
+    margin-top: 26px;
+  }
+
+  .v4-section-heading {
+    margin-bottom: 14px;
+  }
+
+  .v4-section-heading h2 {
+    font-size: 20px;
+  }
+
+  .v4-home .v4-recommendation-section .grid.grid-cols-3,
+  .v4-home .v4-anime-section .grid.grid-cols-3 {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .v4-home .v4-recommendation-section .grid > *,
+  .v4-home .v4-anime-section .grid > * {
+    min-width: 0;
+  }
+
+  .v4-home .v4-history-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  /* Routed screens: comfortable touch spacing and a tablet-sized content frame. */
+  .v4-spatial-screen {
+    min-height: 100svh;
+  }
+
+  .v4-spatial-main {
+    width: calc(100% - 48px);
+    max-width: 1360px;
+    padding: 32px 0 40px;
+  }
+
+  .v4-spatial-heading {
+    gap: 18px;
+    margin-bottom: 22px;
+  }
+
+  .v4-spatial-heading h1 {
+    font-size: clamp(34px, 4vw, 44px);
+  }
+
+  .v4-spatial-panel {
+    padding: 20px;
+    border-radius: 22px;
+  }
+
+  .v4-source-grid,
+  .v4-settings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .v4-me-history-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .v4-settings-card {
+    min-height: 76px;
+    padding: 13px 15px;
+  }
+
+  .v4-resource-search input,
+  .v4-resource-search button,
+  .v4-resource-entry .glass-button {
+    min-height: 48px;
+  }
+
+  .v4-resource-result {
+    min-height: 64px;
+  }
+
+  /* Tablet navigation stays in the header; remove the floating bottom strip. */
+  .v4-mobile-tabs {
+    display: none !important;
+  }
+
+  /* Keep player media crisp; enlarge only the player chrome touch targets. */
+  .artplayer .art-control {
+    min-width: 38px;
+    min-height: 38px;
+  }
+}
+
+@media screen and (min-width: 701px) and (max-width: 1440px) and (any-pointer: coarse) and (orientation: portrait) {
+  .v4-home-main {
+    width: calc(100% - 40px) !important;
+  }
+
+  .v4-hero {
+    height: clamp(300px, 39svh, 420px) !important;
+    min-height: 300px !important;
+  }
+
+  .v4-hero-content {
+    left: 28px !important;
+    right: 24px !important;
+    bottom: 30px !important;
+    width: min(560px, 78%) !important;
+    max-width: 78% !important;
+  }
+
+  .v4-hero-content h1 {
+    font-size: clamp(30px, 5vw, 44px) !important;
+  }
+
+  .v4-hero-content p {
+    font-size: 13px;
+    margin: 9px 0 15px;
+  }
+
+  .v4-home .v4-recommendation-section .grid.grid-cols-3,
+  .v4-home .v4-anime-section .grid.grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .v4-spatial-main {
+    width: calc(100% - 40px);
+    padding-top: 26px;
+  }
+
+  .v4-spatial-screen[data-screen="anime"] .v4-spatial-panel > section > .grid.grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+ }
+
+@media screen and (min-width: 1024px) and (max-width: 1440px) and (any-pointer: coarse) and (orientation: landscape) {
+  .v4-home .v4-recommendation-section .grid.grid-cols-3,
+  .v4-home .v4-anime-section .grid.grid-cols-3 {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .v4-home .v4-history-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .v4-spatial-main {
+    width: calc(100% - 64px);
+    padding-top: 30px;
+  }
+
+  .v4-spatial-screen[data-screen="anime"] .v4-spatial-panel > section > .grid.grid-cols-3 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .v4-me-history-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .v4-spatial-screen[data-screen="resources"] .v4-resources-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    align-items: start;
+    gap: 18px;
+  }
+
+  .v4-spatial-screen[data-screen="resources"] .v4-source-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* iPad Safari uses safe-area insets even when the device is in landscape. */
+@supports (padding: max(0px)) {
+  @media screen and (min-width: 701px) and (max-width: 1440px) and (any-pointer: coarse) {
+    .v4-spatial-main {
+      padding-bottom: max(40px, env(safe-area-inset-bottom));
+    }
+  }
+}
+
+
+/* iPad Settings: use the whole canvas instead of a narrow right-side strip.
+ * This removes the unused blank area beside the settings panel on tablet. */
+@media screen and (min-width: 701px) and (max-width: 1440px) and (any-pointer: coarse) {
+  .ipad-settings-drawer {
+    inset: 0 !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    border-top: 0 !important;
+    border-left: 0 !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+  }
+
+  .ipad-settings-content {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .ipad-settings-content > section {
+    width: 100%;
+  }
+
+  .ipad-settings-content section > div.rounded-2xl {
+    border-radius: 20px;
+  }
+
+  .ipad-settings-content section > div.rounded-2xl > button {
+    min-height: 78px;
+    padding-inline: 22px;
+  }
+
+  .ipad-settings-content section > div.rounded-2xl > button > span:first-child {
+    width: 48px;
+    height: 48px;
+    border-radius: 15px;
+  }
+}
+
+
+/* iPad Safari: force a visible, correctly sized profile glyph inside the avatar control. */
+@media screen and (min-width: 701px) and (max-width: 1440px) and (any-pointer: coarse) {
+  .v4-header-actions .v4-avatar {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    overflow: visible !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+  .v4-header-actions .v4-avatar .v4-avatar-icon {
+    display: block !important;
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    min-height: 24px !important;
+    fill: none !important;
+    stroke: currentColor !important;
+    stroke-width: 1.8 !important;
+  }
+}
+
+
+/* Tablet catalogue grids: overseas dramas use the same deliberate density
+   as movies, rather than inheriting a cramped phone/desktop utility count. */
+@media screen and (min-width: 701px) and (max-width: 1440px) and (any-pointer: coarse) and (orientation: portrait) {
+  .v4-spatial-screen[data-screen="overseas"] .v4-spatial-panel > .grid.grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+  }
+  .v4-spatial-screen[data-screen="movies"] .v4-spatial-panel > .grid.grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+  }
+  .v4-spatial-screen[data-screen="overseas"] .v4-spatial-panel,
+  .v4-spatial-screen[data-screen="movies"] .v4-spatial-panel {
+    padding: 18px !important;
+  }
+}
+@media screen and (min-width: 1024px) and (max-width: 1440px) and (any-pointer: coarse) and (orientation: landscape) {
+  .v4-spatial-screen[data-screen="overseas"] .v4-spatial-panel > .grid.grid-cols-3 {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+  }
+  .v4-spatial-screen[data-screen="movies"] .v4-spatial-panel > .grid.grid-cols-3 {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+  }
+  .v4-spatial-screen[data-screen="overseas"] .v4-spatial-panel,
+  .v4-spatial-screen[data-screen="movies"] .v4-spatial-panel {
+    padding: 22px !important;
+  }
+}

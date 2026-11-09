@@ -309,7 +309,16 @@ export function useFridayVoiceController({
       return;
     }
 
-    recognition.lang = language === "en" ? "en-GB" : "zh-CN";
+    let preferredRecognitionLanguage: string | null = null;
+    try {
+      const savedLanguage = window.localStorage.getItem("friday-asr-language");
+      if (savedLanguage === "zh-CN" || savedLanguage === "en-GB") {
+        preferredRecognitionLanguage = savedLanguage;
+      }
+    } catch {
+      // Fall back to the active Friday response language when storage is unavailable.
+    }
+    recognition.lang = preferredRecognitionLanguage ?? (language === "en" ? "en-GB" : "zh-CN");
     recognition.continuous = false;
     recognition.interimResults = true;
 

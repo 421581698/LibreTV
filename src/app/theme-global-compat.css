@@ -1,0 +1,281 @@
+/* LibreTV global theme compatibility layer.
+ * Loaded after all device/page styles so explicit light-theme component rules
+ * cannot override the selected app theme. Media-independent: PC, Mac, iPad,
+ * iPhone and embedded Safari/WebKit all consume the same semantic palette.
+ */
+:root {
+  color-scheme: light;
+  --theme-page: #f5f7fa;
+  --theme-surface: #ffffff;
+  --theme-surface-raised: #ffffff;
+  --theme-surface-soft: #f0f2f5;
+  --theme-text: #20242b;
+  --theme-text-secondary: #59616d;
+  --theme-text-muted: #7c8795;
+  --theme-border: #dfe4eb;
+  --theme-control: #ffffff;
+  --theme-control-text: #20242b;
+  --theme-shadow: 0 8px 28px rgba(20, 30, 45, .08);
+}
+html.dark {
+  color-scheme: dark;
+  --theme-page: #08090c;
+  --theme-surface: #17191e;
+  --theme-surface-raised: #20232a;
+  --theme-surface-soft: #262a32;
+  --theme-text: #f3f5f8;
+  --theme-text-secondary: #c1c7d0;
+  --theme-text-muted: #969eaa;
+  --theme-border: rgba(255,255,255,.14);
+  --theme-control: #242830;
+  --theme-control-text: #f3f5f8;
+  --theme-shadow: 0 10px 30px rgba(0,0,0,.32);
+}
+html, body {
+  color-scheme: inherit;
+}
+html.dark,
+html.dark body {
+  background-color: var(--theme-page) !important;
+  color: var(--theme-text);
+}
+html.dark body {
+  background-image: linear-gradient(145deg, #101217 0%, #08090c 72%) !important;
+}
+html.dark :where(main, section, article, aside, nav, header, footer) {
+  color-scheme: inherit;
+}
+
+/* Common Tailwind surfaces and copy used throughout all eight channels. */
+html.dark :where(.bg-white, .bg-gray-50, .bg-slate-50, .bg-zinc-50, .bg-neutral-50,
+  .bg-gray-100, .bg-slate-100, .bg-zinc-100, .bg-neutral-100) {
+  background-color: var(--theme-surface) !important;
+}
+html.dark :where(.bg-gray-200, .bg-slate-200, .bg-zinc-200, .bg-neutral-200,
+  .bg-gray-300, .bg-slate-300, .bg-zinc-300, .bg-neutral-300) {
+  background-color: var(--theme-surface-soft) !important;
+}
+html.dark :where(.text-black, .text-gray-900, .text-gray-800, .text-slate-900,
+  .text-slate-800, .text-zinc-900, .text-zinc-800, .text-neutral-900,
+  .text-neutral-800) {
+  color: var(--theme-text) !important;
+}
+html.dark :where(.text-gray-700, .text-gray-600, .text-slate-700, .text-slate-600,
+  .text-zinc-700, .text-zinc-600, .text-neutral-700, .text-neutral-600) {
+  color: var(--theme-text-secondary) !important;
+}
+html.dark :where(.text-gray-500, .text-slate-500, .text-zinc-500, .text-neutral-500,
+  .text-gray-400, .text-slate-400, .text-zinc-400, .text-neutral-400) {
+  color: var(--theme-text-muted) !important;
+}
+html.dark :where(.border-gray-100, .border-gray-200, .border-gray-300,
+  .border-slate-100, .border-slate-200, .border-zinc-100, .border-zinc-200,
+  .divide-gray-100 > *, .divide-gray-200 > *) {
+  border-color: var(--theme-border) !important;
+}
+html.dark :where(input:not([type="checkbox"]):not([type="radio"]),
+  textarea, select, [contenteditable="true"]) {
+  color: var(--theme-control-text);
+  caret-color: var(--theme-text);
+}
+html.dark :where(input:not([type="checkbox"]):not([type="radio"]),
+  textarea, select) {
+  background-color: var(--theme-control);
+  border-color: var(--theme-border);
+}
+html.dark :where(input, textarea, select)::placeholder {
+  color: var(--theme-text-muted) !important;
+  opacity: 1;
+}
+html.dark :where(button:disabled, input:disabled, select:disabled, textarea:disabled) {
+  color: var(--theme-text-muted);
+  opacity: .72;
+}
+
+/* Routed-page shared navigation: prevent the mobile/desktop light glass header
+   from keeping black labels over a dark surface. */
+html.dark .v4-header:not(.is-overlay) {
+  color: var(--theme-text) !important;
+  background: rgba(20,22,27,.90) !important;
+  background-image: linear-gradient(180deg, rgba(31,34,41,.96), rgba(18,20,25,.92)) !important;
+  border-color: var(--theme-border) !important;
+  box-shadow: 0 6px 22px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.04) !important;
+}
+html.dark .v4-header:not(.is-overlay) :where(.v4-brand, .v4-nav-link,
+  .v4-header-icon, .v4-mobile-search-toggle, .v4-search, .v4-search input,
+  .v4-search svg) {
+  color: var(--theme-text) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+html.dark .v4-header:not(.is-overlay) .v4-search,
+html.dark .v4-header:not(.is-overlay) .v4-header-actions .v4-header-icon,
+html.dark .v4-header:not(.is-overlay) .v4-header-actions .v4-avatar,
+html.dark .v4-header:not(.is-overlay) .v4-mobile-search-toggle {
+  background: rgba(255,255,255,.07) !important;
+  border-color: var(--theme-border) !important;
+}
+html.dark .v4-header:not(.is-overlay) .v4-nav-link:hover,
+html.dark .v4-header:not(.is-overlay) .v4-nav-link.is-active {
+  color: #fff !important;
+  background: rgba(255,255,255,.12) !important;
+  border-color: rgba(255,255,255,.16) !important;
+}
+html.dark .v4-header:not(.is-overlay) .v4-search input::placeholder {
+  color: var(--theme-text-muted) !important;
+  -webkit-text-fill-color: var(--theme-text-muted) !important;
+}
+
+/* V4 homepage: keep the artwork/hero white typography intact, while the page
+   chrome, headings, cards and reading surfaces follow the selected theme. */
+html.dark .v4-home {
+  color-scheme: dark !important;
+  color: var(--theme-text) !important;
+  background: linear-gradient(180deg, #101217 0%, #08090c 100%) !important;
+}
+html.dark .v4-home .v4-section-heading h2,
+html.dark .v4-home .v4-history-copy strong {
+  color: var(--theme-text) !important;
+}
+html.dark .v4-home .v4-section-heading a,
+html.dark .v4-home .v4-history-copy > span,
+html.dark .v4-home .v4-history-count {
+  color: var(--theme-text-muted) !important;
+}
+html.dark .v4-home .v4-recommendation-section .card,
+html.dark .v4-home .v4-history-card,
+html.dark .v4-home .v4-history-empty {
+  color: var(--theme-text) !important;
+  background: rgba(28,31,38,.94) !important;
+  border-color: var(--theme-border) !important;
+  box-shadow: var(--theme-shadow) !important;
+}
+html.dark .v4-home .v4-history-image { background: #242832 !important; }
+html.dark .v4-home .v4-progress-track { background: #3a404b !important; }
+
+/* The four-item mobile dock and iOS safe area must switch as one surface. */
+html.dark .v4-mobile-tabbar {
+  color: var(--theme-text) !important;
+  background: rgba(24,26,31,.94) !important;
+  border-color: rgba(255,255,255,.16) !important;
+  box-shadow: 0 8px 28px rgba(0,0,0,.42) !important;
+}
+html.dark .v4-mobile-tabbar a { color: #aab1bc !important; }
+html.dark .v4-mobile-tabbar a.is-active { color: #fff !important; }
+html.dark body:has(.v4-mobile-tabbar) {
+  background-color: var(--theme-page) !important;
+}
+
+/* Native controls, settings panes, dialogs, popovers and resource panels. */
+html.dark :where([role="dialog"], [role="menu"], [role="listbox"], .modal,
+  .popover, .dropdown-menu, .settings-panel, .glass-panel, .glass-card,
+  .resource-card, .source-card, .episode-list, .filter-panel) {
+  color: var(--theme-text);
+  border-color: var(--theme-border);
+}
+html.dark :where(.bg-white\/90, .bg-white\/95, .bg-white\/80) {
+  background-color: rgba(23,25,30,.94) !important;
+}
+html.dark :where(.text-white) { color: #fff; }
+html.dark :where(.text-black) { color: var(--theme-text) !important; }
+
+/* Friday's chat surfaces intentionally remain dark glass in both themes;
+   keep readable copy and form controls in every browser. */
+html.dark .ai-chat-panel,
+html.dark .ai-chat-header,
+html.dark .ai-chat-messages,
+html.dark .ai-chat-input-area {
+  color: #f4f6fa !important;
+}
+html.dark .ai-chat-input-area input,
+html.dark .ai-voice-settings select {
+  color: #fff !important;
+  background: rgba(0,0,0,.42) !important;
+  border-color: rgba(255,255,255,.2) !important;
+}
+html.dark .ai-msg-assistant { color: #f0f2f5 !important; }
+
+/* Safari form controls and browser-rendered widgets follow the app theme. */
+html.dark input[type="date"],
+html.dark input[type="time"],
+html.dark input[type="datetime-local"],
+html.dark input[type="number"],
+html.dark select,
+html.dark option {
+  color-scheme: dark;
+}
+@media (prefers-reduced-transparency: reduce) {
+  html.dark .v4-header:not(.is-overlay),
+  html.dark .v4-mobile-tabbar {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background: #17191e !important;
+  }
+}
+
+
+/* P0 dark navigation state: explicitly style BOTH inactive and active links.
+   The shared header's light active capsule and the homepage overlay must not
+   leak into dark mode. Keep this block last in the global theme layer. */
+html.dark .v4-header .v4-primary-nav .v4-nav-link:not(.is-active),
+html.dark .v4-home .v4-header .v4-primary-nav .v4-nav-link:not(.is-active),
+html.dark .v4-spatial-screen .v4-header .v4-primary-nav .v4-nav-link:not(.is-active) {
+  color: #c7cbd3 !important;
+  -webkit-text-fill-color: #c7cbd3 !important;
+  background: transparent !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+html.dark .v4-header .v4-primary-nav .v4-nav-link:not(.is-active):hover,
+html.dark .v4-home .v4-header .v4-primary-nav .v4-nav-link:not(.is-active):hover,
+html.dark .v4-spatial-screen .v4-header .v4-primary-nav .v4-nav-link:not(.is-active):hover {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  background: rgba(255,255,255,.10) !important;
+  border-color: rgba(255,255,255,.12) !important;
+}
+html.dark .v4-header .v4-primary-nav .v4-nav-link.is-active,
+html.dark .v4-home .v4-header .v4-primary-nav .v4-nav-link.is-active,
+html.dark .v4-spatial-screen .v4-header .v4-primary-nav .v4-nav-link.is-active {
+  color: #17191d !important;
+  -webkit-text-fill-color: #17191d !important;
+  background: linear-gradient(135deg, #f2c46f 0%, #d99a38 100%) !important;
+  background-image: linear-gradient(135deg, #f2c46f 0%, #d99a38 100%) !important;
+  border: 1px solid rgba(255,220,157,.82) !important;
+  box-shadow: 0 3px 14px rgba(217,154,56,.24), inset 0 1px 0 rgba(255,255,255,.38) !important;
+  text-shadow: none !important;
+}
+@media screen and (min-width: 701px) and (max-width: 1440px) and (any-pointer: coarse) {
+  html.dark .v4-header .v4-primary-nav .v4-nav-link,
+  html.dark .v4-spatial-screen .v4-header .v4-primary-nav .v4-nav-link {
+    min-height: 44px !important;
+    padding-inline: 16px !important;
+  }
+}
+
+/* Dark catalogue posters must remain real, visible media. Separate the title
+   from the artwork so the label does not look like a dirty attached overlay. */
+html.dark .v4-spatial-screen[data-screen="overseas"] .v4-spatial-panel .card img,
+html.dark .v4-spatial-screen[data-screen="movies"] .v4-spatial-panel .card img {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+html.dark .v4-spatial-screen[data-screen="movies"] .v4-spatial-panel .card {
+  overflow: visible !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html.dark .v4-spatial-screen[data-screen="movies"] .v4-spatial-panel .card > .relative {
+  overflow: hidden !important;
+  border-radius: 13px !important;
+  box-shadow: 0 5px 16px rgba(0,0,0,.26) !important;
+}
+html.dark .v4-spatial-screen[data-screen="movies"] .v4-spatial-panel .card > .p-2 {
+  padding: 8px 2px 2px !important;
+  background: transparent !important;
+  border: 0 !important;
+}
