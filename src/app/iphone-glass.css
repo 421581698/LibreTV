@@ -420,3 +420,32 @@
     html, body { overflow-x: hidden !important; }
   }
 }
+
+
+/* iPhone search history: keep the clear action and the final row above the home indicator. */
+@media screen and (max-width: 700px) {
+  .search-history-dropdown {
+    max-height: calc(
+      100dvh - env(safe-area-inset-top, 0px) -
+      env(safe-area-inset-bottom, 0px) - 132px
+    ) !important;
+    max-height: calc(
+      100vh - env(safe-area-inset-top, 0px) -
+      env(safe-area-inset-bottom, 0px) - 132px
+    ) !important;
+  }
+
+  .search-history-dropdown [role="listbox"] {
+    max-height: min(
+      400px,
+      calc(
+        100dvh - env(safe-area-inset-top, 0px) -
+        env(safe-area-inset-bottom, 0px) - 190px
+      )
+    ) !important;
+    padding-bottom: max(0.25rem, env(safe-area-inset-bottom, 0px));
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scroll-padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
