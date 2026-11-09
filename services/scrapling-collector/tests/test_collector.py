@@ -411,7 +411,7 @@ segment-2.ts
         self.assertTrue(representation["segment_timeline_truncated"])
 
     def test_dash_duration_rejects_non_finite_and_zero_boundaries(self):
-        self.assertIsNone(collector.parse_iso8601_duration_seconds("P999999999999999999999999999999999999D"))
+        self.assertIsNone(collector.parse_iso8601_duration_seconds("P" + ("9" * 400) + "D"))
         self.assertEqual(collector.parse_iso8601_duration_seconds("PT0S"), 0)
 
     def test_dynamic_mpd_defers_negative_repeat_until_live_edge_is_known(self):
