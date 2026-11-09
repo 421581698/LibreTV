@@ -39,4 +39,20 @@ describe('GET /api/img authentication', () => {
 
     expect(response.status).toBe(503);
   });
+
+  it('rate limits repeated public image proxy requests per client', async () => {
+    process.env.AUTH_DISABLED = 'true';
+    const requestForClient = () => new NextRequest(
+      'https://local.test/api/img?url=invalid',
+      { headers: { 'cf-connecting-ip': '203.0.113.44' } },
+    );
+
+    for (let index = 0; index < 120; index += 1) {
+      const response = await GET(requestForClient());
+      expect(response.status).toBe(400);
+    }
+
+    const limited = await GET(requestForClient());
+    expect(limited.status).toBe(429);
+  });
 });
