@@ -1,14 +1,20 @@
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
+import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
 from app.config import settings
+from app.job_store import JobStore
 from app.scraper import ScraplingAdapter
 from app.security import UnsafeTargetError, validate_public_http_url
 from app.spider import ScraplingSpiderAdapter
@@ -18,9 +24,13 @@ logger = logging.getLogger("libretv.scrapling")
 
 app = FastAPI(
     title="LibreTV Scrapling Engine",
-    version="0.2.0",
+    version="0.3.0",
     description="Phase-one isolated crawler service built on upstream Scrapling.",
 )
+job_store = JobStore(settings.job_database_path)
+job_store.initialize()
+_active_spiders: dict[str, object] = {}
+_job_tasks: dict[str, asyncio.Task] = {}
 
 
 class FetchRequest(BaseModel):
@@ -37,6 +47,78 @@ class SpiderRequest(BaseModel):
         max_length=64,
         pattern=r"^[a-zA-Z0-9_-]+$",
     )
+
+
+def _safe_seed_urls(urls: list[str]) -> list[str]:
+    safe_urls: list[str] = []
+    try:
+        for url in urls:
+            safe_url = validate_public_http_url(url)
+            if safe_url not in safe_urls:
+                safe_urls.append(safe_url)
+    except UnsafeTargetError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return safe_urls
+
+
+def _now() -> str:
+    return datetime.now(UTC).isoformat()
+
+
+def _schedule_job(task_id: str) -> None:
+    existing = _job_tasks.get(task_id)
+    if existing and not existing.done():
+        return
+    task = asyncio.create_task(_run_job(task_id), name=f"scrapling-job-{task_id}")
+    _job_tasks[task_id] = task
+
+
+async def _run_job(task_id: str) -> None:
+    job = job_store.get(task_id)
+    if job is None:
+        return
+    spider = ScraplingSpiderAdapter.create(
+        job["seeds"],
+        Path(job["checkpoint_dir"]),
+    )
+    _active_spiders[task_id] = spider
+    job_store.update(task_id, "running", started_at=_now())
+    items: list[dict] = []
+    try:
+        async for item in spider.stream():
+            items.append(item)
+            job_store.add_event(
+                task_id,
+                "item",
+                {
+                    "count": len(items),
+                    "url": item.get("url"),
+                    "title": item.get("title"),
+                },
+            )
+        current = job_store.get(task_id)
+        paused = current is not None and current["status"] == "pausing"
+        result = {
+            "items": items,
+            "completed": not paused,
+            "paused": paused,
+            "stats": spider.stats.__dict__ if hasattr(spider.stats, "__dict__") else {},
+        }
+        job_store.update(
+            task_id,
+            "paused" if paused else "completed",
+            finished_at=_now() if not paused else None,
+            result_json=json.dumps(result, ensure_ascii=False),
+        )
+    except asyncio.CancelledError:
+        job_store.update(task_id, "paused", error="Task cancelled during service shutdown.")
+        raise
+    except Exception as exc:
+        logger.exception("Scrapling job %s failed", task_id)
+        job_store.update(task_id, "failed", finished_at=_now(), error=str(exc)[:1000])
+    finally:
+        _active_spiders.pop(task_id, None)
+        _job_tasks.pop(task_id, None)
 
 
 @app.get("/health")
@@ -61,26 +143,29 @@ async def capabilities() -> dict:
             "spider_concurrency_limits",
             "spider_robots_txt_policy",
             "spider_checkpoint_storage",
+            "persistent_job_registry",
+            "async_job_execution",
+            "job_status_api",
+            "job_event_stream",
+            "api_pause_resume_controls",
         ],
         "planned": [
             "dynamic_browser",
             "stealth_browser",
             "adaptive_element_relocation",
             "recursive_link_crawling",
-            "persistent_spider_job_registry",
-            "api_controlled_pause_resume",
             "network_api_capture",
-            "robots_and_throttling_policy",
             "mcp_agent_integration",
         ],
         "service_layer": [
             "target_validation",
             "health_endpoint",
             "structured_fetch_api",
+            "sqlite_job_registry",
         ],
         "note": (
-            "Only implemented entries have been integrated and verified by this service. "
-            "Browser, recursive link crawling, and API-controlled job lifecycle remain planned."
+            "Only implemented entries have been integrated. Browser and recursive crawling "
+            "remain disabled until request-level and deployment egress protections are verified."
         ),
     }
 
@@ -113,7 +198,7 @@ async def fetch(request: FetchRequest) -> dict:
         return {"ok": True, "result": result}
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except Exception as exc:  # upstream errors are returned without leaking stack traces
+    except Exception as exc:
         logger.exception("Scrapling fetch failed for %s", target)
         raise HTTPException(
             status_code=502,
@@ -121,18 +206,9 @@ async def fetch(request: FetchRequest) -> dict:
         ) from exc
 
 
-
 @app.post("/v1/spider")
 async def spider(request: SpiderRequest) -> dict:
-    safe_urls: list[str] = []
-    try:
-        for url in request.urls:
-            safe_url = validate_public_http_url(url)
-            if safe_url not in safe_urls:
-                safe_urls.append(safe_url)
-    except UnsafeTargetError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
+    safe_urls = _safe_seed_urls(request.urls)
     try:
         checkpoint_dir = None
         if request.task_id:
@@ -155,3 +231,85 @@ async def spider(request: SpiderRequest) -> dict:
             status_code=502,
             detail="Scrapling spider could not complete the crawl.",
         ) from exc
+
+
+@app.post("/v1/jobs", status_code=202)
+async def create_job(request: SpiderRequest) -> dict:
+    safe_urls = _safe_seed_urls(request.urls)
+    task_id = request.task_id or uuid.uuid4().hex
+    checkpoint_dir = Path(settings.crawl_data_dir) / task_id
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+    created = job_store.create(task_id, safe_urls, str(checkpoint_dir))
+    job = job_store.get(task_id)
+    if not created:
+        if job is None or job["seeds"] != safe_urls:
+            raise HTTPException(
+                status_code=409,
+                detail="task_id already exists with a different seed configuration.",
+            )
+        return {"ok": True, "created": False, "job": job}
+
+    _schedule_job(task_id)
+    return {"ok": True, "created": True, "job": job_store.get(task_id)}
+
+
+@app.get("/v1/jobs/{task_id}")
+async def get_job(task_id: str) -> dict:
+    job = job_store.get(task_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Crawl job not found.")
+    return {"ok": True, "job": job}
+
+
+@app.post("/v1/jobs/{task_id}/pause")
+async def pause_job(task_id: str) -> dict:
+    job = job_store.get(task_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Crawl job not found.")
+    spider_instance = _active_spiders.get(task_id)
+    if job["status"] != "running" or spider_instance is None:
+        raise HTTPException(status_code=409, detail="Crawl job is not currently pausable.")
+    try:
+        spider_instance.pause()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail="Spider has not started its crawl loop.") from exc
+    job_store.update(task_id, "pausing")
+    return {"ok": True, "task_id": task_id, "status": "pausing"}
+
+
+@app.post("/v1/jobs/{task_id}/resume", status_code=202)
+async def resume_job(task_id: str) -> dict:
+    job = job_store.get(task_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Crawl job not found.")
+    if job["status"] != "paused":
+        raise HTTPException(status_code=409, detail="Only paused jobs can be resumed.")
+    checkpoint_dir = Path(job["checkpoint_dir"])
+    if not checkpoint_dir.is_dir():
+        raise HTTPException(status_code=409, detail="Checkpoint directory is missing.")
+    job_store.update(task_id, "queued", finished_at=None, error=None)
+    _schedule_job(task_id)
+    return {"ok": True, "task_id": task_id, "status": "queued"}
+
+
+@app.get("/v1/jobs/{task_id}/events")
+async def job_events(task_id: str, last_event_id: int = 0) -> StreamingResponse:
+    if job_store.get(task_id) is None:
+        raise HTTPException(status_code=404, detail="Crawl job not found.")
+
+    async def stream_events():
+        cursor = max(last_event_id, 0)
+        while True:
+            events = job_store.events_after(task_id, cursor)
+            for event in events:
+                cursor = event["id"]
+                yield f"id: {cursor}\nevent: {event['type']}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
+            job = job_store.get(task_id)
+            if job is None or job["status"] in {"completed", "paused", "failed"}:
+                break
+            if not events:
+                yield ": keep-alive\n\n"
+                await asyncio.sleep(1)
+
+    return StreamingResponse(stream_events(), media_type="text/event-stream")
