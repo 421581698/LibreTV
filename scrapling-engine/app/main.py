@@ -166,16 +166,17 @@ async def _run_job(task_id: str) -> None:
 
 @app.on_event("shutdown")
 async def stop_active_crawls() -> None:
-    for task_id, spider_instance in list(_active_spiders.items()):
-        job_store.update(task_id, "pausing")
-        try:
-            spider_instance.pause()
-        except RuntimeError:
-            job_store.update(
-                task_id,
-                "interrupted",
-                error="Service shutdown occurred before the crawler loop was ready.",
-            )
+    async with _job_transition_lock:
+        for task_id, spider_instance in list(_active_spiders.items()):
+            job_store.update(task_id, "pausing")
+            try:
+                spider_instance.pause()
+            except RuntimeError:
+                job_store.update(
+                    task_id,
+                    "interrupted",
+                    error="Service shutdown occurred before the crawler loop was ready.",
+                )
     tasks = list(_job_tasks.values())
     if tasks:
         _, pending = await asyncio.wait(tasks, timeout=30)
