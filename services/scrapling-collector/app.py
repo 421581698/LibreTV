@@ -520,6 +520,89 @@ def probe_hls_segments(segment_urls: list[str], max_segments: int = 3) -> dict:
     }
 
 
+def probe_hls_variant_tree(
+    manifest: dict,
+    max_depth: int = 2,
+    max_variants_per_level: int = 3,
+    max_segments_per_playlist: int = 3,
+    max_requests: int = 12,
+) -> dict:
+    """Follow a bounded HLS master -> variant -> media-playlist tree."""
+    state = {"requests": 0, "visited": set(), "leaf_successes": 0}
+    results = []
+
+    def walk(current_manifest: dict, depth: int) -> list[dict]:
+        level_results = []
+        variants = current_manifest.get("variants", [])[:max_variants_per_level]
+        for variant in variants:
+            if state["requests"] >= max_requests:
+                break
+            url = variant.get("uri")
+            if not isinstance(url, str) or url in state["visited"]:
+                continue
+            try:
+                _, host = public_https_url(url)
+            except HTTPException:
+                level_results.append({"reachable": False, "error": "unsafe_variant_url"})
+                continue
+            state["visited"].add(url)
+            throttle(host)
+            state["requests"] += 1
+            probe = probe_direct_media(url)
+            item = {
+                "url": url,
+                "height": variant.get("height"),
+                "bandwidth": variant.get("bandwidth"),
+                "reachable": bool(probe.get("reachable")),
+                "http_status": probe.get("http_status"),
+                "media_format": probe.get("media_format"),
+            }
+            child_manifest = probe if probe.get("manifest_valid") else {}
+            if not item["reachable"] or probe.get("media_format") != "hls":
+                item["reachable"] = False
+            elif child_manifest.get("is_master_playlist"):
+                if depth < max_depth:
+                    nested = walk(child_manifest, depth + 1)
+                    item["children"] = nested
+                    item["reachable"] = any(child.get("leaf_reachable") for child in nested)
+                else:
+                    item["reachable"] = False
+                    item["depth_limit_reached"] = True
+            else:
+                segment_urls = child_manifest.get("segment_uris", [])
+                declared_segments = child_manifest.get("segment_count", 0)
+                if declared_segments:
+                    remaining = max_requests - state["requests"]
+                    sample_limit = min(max_segments_per_playlist, remaining)
+                    if sample_limit > 0:
+                        segment_probe = probe_hls_segments(segment_urls, max_segments=sample_limit)
+                        state["requests"] += segment_probe["sampled"]
+                        item["segment_probe"] = segment_probe
+                        item["reachable"] = (
+                            segment_probe["sampled"] > 0
+                            and segment_probe["failed"] == 0
+                        )
+                    else:
+                        item["reachable"] = False
+                        item["request_budget_exhausted"] = True
+                item["leaf_reachable"] = bool(item["reachable"])
+                if item["leaf_reachable"]:
+                    state["leaf_successes"] += 1
+            level_results.append(item)
+        return level_results
+
+    results = walk(manifest, 0)
+    return {
+        "sampled_variant_count": len(state["visited"]),
+        "reachable_leaf_count": state["leaf_successes"],
+        "request_count": state["requests"],
+        "request_limit": max_requests,
+        "max_depth": max_depth,
+        "results": results,
+        "note": "Variant playlists and a bounded segment sample were checked; this is not a complete playback test.",
+    }
+
+
 def throttle(host: str) -> None:
     now = time.monotonic()
     previous = _last_request_by_host.get(host, 0.0)
@@ -948,14 +1031,26 @@ def validate_candidate(candidate_id: str, authorization: str | None = Header(def
             "note": "HTTP/media headers were checked with a bounded request. This does not guarantee full playback; verify in PlayerShell.",
         })
         segment_probe = None
-        if probe.get("media_format") == "hls" and probe.get("segment_uris"):
-            segment_probe = probe_hls_segments(probe["segment_uris"])
-            validation["segment_probe"] = segment_probe
+        variant_tree_probe = None
+        if probe.get("media_format") == "hls":
+            if probe.get("is_master_playlist"):
+                variant_tree_probe = probe_hls_variant_tree(probe)
+                validation["variant_tree_probe"] = variant_tree_probe
+            elif probe.get("segment_uris"):
+                segment_probe = probe_hls_segments(probe["segment_uris"])
+                validation["segment_probe"] = segment_probe
+        references_safe = probe.get("rejected_reference_count", 0) == 0
+        samples_passed = (
+            not segment_probe
+            or (segment_probe.get("sampled", 0) > 0 and segment_probe.get("failed", 0) == 0)
+        )
+        variants_passed = (
+            not variant_tree_probe
+            or variant_tree_probe.get("reachable_leaf_count", 0) > 0
+        )
         candidate_status = (
             "validated"
-            if probe.get("reachable") and (
-                not segment_probe or segment_probe.get("sampled", 0) == segment_probe.get("reachable", 0)
-            )
+            if probe.get("reachable") and references_safe and samples_passed and variants_passed
             else "rejected"
         )
     else:
