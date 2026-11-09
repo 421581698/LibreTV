@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+from scrapling.fetchers import FetcherSession
 from scrapling.spiders import Response, Spider
 
 from app.config import settings
@@ -26,6 +27,16 @@ class _SeedSpider(Spider):
         self.allowed_domains = {
             (urlsplit(url).hostname or "").lower() for url in urls
         }
+
+    def configure_sessions(self, manager) -> None:
+        manager.add(
+            "default",
+            FetcherSession(
+                headers={"User-Agent": settings.default_user_agent},
+                timeout=settings.request_timeout_seconds,
+                follow_redirects="safe",
+            ),
+        )
 
     async def parse(self, response: Response):
         body = getattr(response, "body", b"")
