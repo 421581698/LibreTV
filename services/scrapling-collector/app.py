@@ -409,11 +409,14 @@ def parse_mpd_manifest(body: bytes, base_url: str = "") -> dict:
                             elif period_duration is not None:
                                 end_tick = int(period_duration * timescale)
                                 count = max(0, (end_tick - start + duration - 1) // duration)
-                            elif dynamic and time_shift_depth is not None:
-                                count = max(0, math.ceil(time_shift_depth * timescale / duration))
                             else:
+                                # timeShiftBufferDepth is a window length, not an absolute
+                                # timeline end. Without a trustworthy live-edge timestamp,
+                                # expanding r=-1 from this start time would invent segments.
                                 count = 50
                                 timeline_truncated = True
+                                if dynamic:
+                                    representation_info["timeline_requires_live_edge"] = True
                         for offset in range(count):
                             if len(representation_info["segment_timeline"]) >= 50:
                                 timeline_truncated = True
