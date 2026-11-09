@@ -418,5 +418,12 @@ describe('首页与播放页回归契约', () => {
     expect(homepageHeroStyles).toContain('@media screen and (min-width: 1101px) and (max-width: 1180px)');
     expect(homepageHeroStyles).toContain('grid-template-columns: minmax(150px, .7fr) auto minmax(300px, .9fr)');
   });
+  it('iPad 13 英寸横屏宽视口仍命中平板专属布局', () => {
+    expect(ipadStyles).toContain('max-width: 1440px');
+    expect(ipadStyles).toContain('(any-pointer: coarse)');
+    expect(ipadStyles).toContain('orientation: landscape');
+    expect(rootLayout).toContain("import './ipad-glass.css'");
+  });
+
 
 });
