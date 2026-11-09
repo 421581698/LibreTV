@@ -14,9 +14,9 @@ export async function POST(req: Request) {
 
   let url = '';
   try {
-    const body = (await req.json()) as { url?: string };
+    const body = await readJsonLimited<{ url?: unknown }>(req, 8192);
     url = (body.url || '').trim().replace(/\/+$/, '');
-  } catch {
+  } catch (err) {
     return NextResponse.json({ error: '请求格式错误' }, { status: requestBodyErrorStatus(err) });
   }
   if (!/^https?:\/\//.test(url)) {
