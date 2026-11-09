@@ -1,0 +1,1 @@
+import {NavItem} from './NavItem';export function AnimeNavModule({pathname}:{pathname:string|null}){return <NavItem pathname={pathname} href="/anime" label="动漫"/>;}

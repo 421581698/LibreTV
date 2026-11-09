@@ -1,0 +1,1 @@
+import {NavItem} from './NavItem';export function MoviesNavModule({pathname}:{pathname:string|null}){return <NavItem pathname={pathname} href="/movies" label="电影"/>;}

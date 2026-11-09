@@ -1,0 +1,1 @@
+import {NavItem} from './NavItem';export function VarietyNavModule({pathname}:{pathname:string|null}){return <NavItem pathname={pathname} href="/variety" label="综艺"/>;}

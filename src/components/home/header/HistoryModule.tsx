@@ -1,0 +1,1 @@
+import {GlassButton} from '@/components/ui/glass';import {Icon} from '@/components/icon';export function HistoryModule({onOpen}:{onOpen:()=>void}){return <GlassButton className="v4-header-icon" aria-label="观看历史" title="观看历史" onClick={onOpen}><Icon name="clock"/></GlassButton>;}

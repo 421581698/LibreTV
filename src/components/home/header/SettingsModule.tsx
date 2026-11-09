@@ -1,0 +1,1 @@
+import {GlassButton} from '@/components/ui/glass';import {Icon} from '@/components/icon';export function SettingsModule({onOpen}:{onOpen:()=>void}){return <GlassButton className="v4-header-icon" aria-label="设置" title="设置" onClick={onOpen}><Icon name="gear"/></GlassButton>;}
