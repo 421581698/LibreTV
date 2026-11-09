@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import hashlib
 import http.client
 import hmac
@@ -127,14 +128,21 @@ def parse_hls_manifest(body: bytes) -> dict:
     if not lines or lines[0] != "#EXTM3U":
         return {"manifest_valid": False, "manifest_error": "missing_extm3u"}
     variants: list[dict] = []
+    segment_uris: list[str] = []
     segment_count = 0
     durations: list[float] = []
     pending_variant: dict | None = None
+    encryption_methods: set[str] = set()
+    key_uri_present = False
     for line in lines[1:]:
         if line.startswith("#EXT-X-STREAM-INF:"):
             attrs = {}
             raw_attrs = line.split(":", 1)[1]
-            for part in raw_attrs.split(","):
+            try:
+                parts = next(csv.reader([raw_attrs], skipinitialspace=True))
+            except (csv.Error, StopIteration):
+                parts = raw_attrs.split(",")
+            for part in parts:
                 if "=" in part:
                     key, value = part.split("=", 1)
                     attrs[key.strip().upper()] = value.strip().strip('"')
@@ -152,6 +160,21 @@ def parse_hls_manifest(body: bytes) -> dict:
                 "height": height,
                 "codecs": attrs.get("CODECS"),
             }
+        elif line.startswith("#EXT-X-KEY:"):
+            attrs = {}
+            raw_attrs = line.split(":", 1)[1]
+            try:
+                parts = next(csv.reader([raw_attrs], skipinitialspace=True))
+            except (csv.Error, StopIteration):
+                parts = raw_attrs.split(",")
+            for part in parts:
+                if "=" in part:
+                    key, value = part.split("=", 1)
+                    attrs[key.strip().upper()] = value.strip().strip('"')
+            method = attrs.get("METHOD", "UNKNOWN")
+            encryption_methods.add(method)
+            key_uri_present = key_uri_present or "URI" in attrs
+            # Deliberately do not retain or fetch key URI values.
         elif line.startswith("#EXTINF:"):
             try:
                 durations.append(float(line.split(":", 1)[1].split(",", 1)[0]))
@@ -159,10 +182,13 @@ def parse_hls_manifest(body: bytes) -> dict:
                 pass
         elif not line.startswith("#"):
             if pending_variant is not None:
+                pending_variant["uri"] = line
                 variants.append(pending_variant)
                 pending_variant = None
             else:
                 segment_count += 1
+                if len(segment_uris) < 50:
+                    segment_uris.append(line)
     return {
         "manifest_valid": True,
         "manifest_type": "hls",
@@ -170,7 +196,11 @@ def parse_hls_manifest(body: bytes) -> dict:
         "variant_count": len(variants),
         "variants": variants[:20],
         "segment_count": segment_count,
+        "segment_uris": segment_uris,
         "duration_seconds": round(sum(durations), 3) if durations else None,
+        "encrypted": bool(encryption_methods - {"NONE"}),
+        "encryption_methods": sorted(encryption_methods),
+        "key_uri_present": key_uri_present,
     }
 
 
