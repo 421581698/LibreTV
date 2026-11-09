@@ -777,3 +777,52 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
 @media (prefers-reduced-motion: reduce) {
   .v4-home .v4-header.is-overlay { transition: none !important; }
 }
+
+
+/* Hero contrast contract: artwork is always beneath a strong left/bottom
+ * gradient; copy remains white whether the image is bright, dark or loading. */
+.v4-home .v4-hero {
+  position: relative !important;
+  isolation: isolate !important;
+}
+.v4-home .v4-hero-image {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+}
+.v4-home .v4-hero-veil {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+  background:
+    linear-gradient(90deg, rgba(4, 8, 15, .94) 0%, rgba(4, 8, 15, .78) 34%, rgba(4, 8, 15, .38) 66%, rgba(4, 8, 15, .12) 100%),
+    linear-gradient(0deg, rgba(4, 8, 15, .72) 0%, rgba(4, 8, 15, .22) 38%, rgba(4, 8, 15, .08) 100%) !important;
+}
+.v4-home .v4-hero-content {
+  z-index: 2 !important;
+  color: #fff !important;
+  text-shadow: 0 2px 16px rgba(0,0,0,.48);
+}
+.v4-home .v4-hero-content h1,
+.v4-home .v4-hero-content p,
+.v4-home .v4-hero-content .v4-hero-eyebrow {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+.v4-home .v4-hero-content p { color: rgba(255,255,255,.92) !important; }
+.v4-home .v4-hero-content .v4-hero-primary { color: #17191d !important; -webkit-text-fill-color: #17191d !important; }
+.v4-home .v4-hero-content .v4-hero-secondary { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.v4-home .v4-hero-indicators { z-index: 3 !important; }
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .v4-home .v4-header.is-overlay.is-scrolled {
+    background: rgba(248,250,252,.96) !important;
+    border-color: rgba(25,35,50,.14) !important;
+  }
+  .v4-home .v4-header.is-overlay.is-scrolled .v4-brand,
+  .v4-home .v4-header.is-overlay.is-scrolled .v4-nav-link,
+  .v4-home .v4-header.is-overlay.is-scrolled .v4-header-icon {
+    color: #17191d !important;
+  }
+}
