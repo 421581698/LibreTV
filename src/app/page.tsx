@@ -188,7 +188,7 @@ function HomeContent() {
     <div className="v4-home min-h-screen flex flex-col">
       <V4HomepageHeader />
       <main className="v4-home-main">
-        {!urlQuery && <V4HomepageHero />}
+        {!urlQuery && <V4HomepageHero onPick={openRecommendation} />}
         {urlQuery && (
           <section aria-label="搜索结果" className="mb-10">
             <div className="flex items-center justify-between mb-3">
