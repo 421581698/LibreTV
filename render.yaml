@@ -8,7 +8,7 @@ services:
     rootDir: services/scrapling-collector
     dockerfilePath: services/scrapling-collector/Dockerfile
     dockerContext: services/scrapling-collector
-    autoDeployTrigger: off
+    autoDeployTrigger: "off"
     healthCheckPath: /health
     disk:
       name: scrapling-collector-data
