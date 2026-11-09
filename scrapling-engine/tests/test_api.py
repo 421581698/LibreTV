@@ -20,7 +20,7 @@ def test_capabilities_distinguish_planned_features() -> None:
     body = response.json()
     assert "http_fetch" in body["implemented"]
     assert "xpath_extraction" in body["implemented"]
-    assert "spider_jobs" in body["planned"]
+    assert "recursive_link_crawling" in body["planned"]
 
 
 def test_fetch_rejects_localhost_before_network_request() -> None:
@@ -95,3 +95,37 @@ def test_adapter_supports_xpath_and_regex() -> None:
     assert xpath_result["text"] == ["Chapter 12"]
     assert regex_result["text"] == ["12", "13"]
     assert regex_result["count"] == 2
+
+
+
+def test_spider_rejects_private_seed_urls() -> None:
+    response = client.post(
+        "/v1/spider",
+        json={"urls": ["http://127.0.0.1/"]},
+    )
+    assert response.status_code == 400
+
+
+def test_spider_runs_validated_seed_urls(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.main.validate_public_http_url",
+        lambda url: url,
+    )
+    monkeypatch.setattr(
+        "app.main.ScraplingSpiderAdapter.crawl",
+        lambda urls: {
+            "items": [{"url": urls[0], "title": "fixture"}],
+            "completed": True,
+            "paused": False,
+            "stats": {"requests_count": 1},
+        },
+    )
+
+    response = client.post(
+        "/v1/spider",
+        json={"urls": ["https://example.com/", "https://example.com/"]},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["result"]["stats"]["requests_count"] == 1
+    assert len(response.json()["result"]["items"]) == 1
