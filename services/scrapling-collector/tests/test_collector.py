@@ -166,6 +166,43 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(Connection.last_request[0], "GET")
         self.assertEqual(Connection.last_request[2]["Range"], "bytes=0-0")
 
+    def test_hls_probe_fetches_full_bounded_manifest_without_range(self):
+        class Response:
+            status = 200
+
+            def getheaders(self):
+                return [("Content-Type", "application/vnd.apple.mpegurl")]
+
+            def read(self, size):
+                self.read_size = size
+                return b"#EXTM3U\\n#EXTINF:5,\\nsegment.ts\\n"
+
+            def close(self):
+                pass
+
+        class Connection:
+            last_headers = None
+
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def request(self, method, target, headers):
+                Connection.last_headers = headers
+
+            def getresponse(self):
+                return Response()
+
+            def close(self):
+                pass
+
+        with patch.object(collector.socket, "getaddrinfo", return_value=[
+            (None, None, None, None, ("8.8.8.8", 443))
+        ]), patch.object(collector.http.client, "HTTPSConnection", Connection):
+            result = collector.probe_direct_media("https://media.example/master.m3u8")
+        self.assertTrue(result["reachable"])
+        self.assertEqual(result["media_format"], "hls")
+        self.assertNotIn("Range", Connection.last_headers)
+
     def test_direct_media_probe_rejects_private_redirect(self):
         class Response:
             status = 302
