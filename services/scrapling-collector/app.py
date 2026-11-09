@@ -1080,6 +1080,7 @@ def persist_task(task_id: str, url: str, host: str, mode: str, status: str, erro
 
 
 def crawl_site(payload: CrawlRequest) -> dict:
+    require_egress_firewall()
     raw_url, host = public_https_url(str(payload.url))
     with db() as connection:
         site = connection.execute("SELECT host FROM sites WHERE host=?", (host,)).fetchone()
@@ -1195,6 +1196,7 @@ def task_candidates(task_id: str, authorization: str | None = Header(default=Non
 @app.post("/v1/candidates/{candidate_id}/validate")
 def validate_candidate(candidate_id: str, authorization: str | None = Header(default=None)):
     require_token(authorization)
+    require_egress_firewall()
     with db() as connection:
         row = connection.execute("SELECT * FROM candidates WHERE id=?", (candidate_id,)).fetchone()
     if not row:
