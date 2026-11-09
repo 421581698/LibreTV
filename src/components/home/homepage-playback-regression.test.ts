@@ -391,4 +391,11 @@ describe('首页与播放页回归契约', () => {
     expect(watch).toContain('clearProgress(sourceKey, progressId, currentIndex)');
   });
 
+
+  it('精选轮播数据缩减时仍有有效选中项，加载失败可重试', () => {
+    expect(featuredHero).toContain('activeSlide % slides.length');
+    expect(featuredHero).toContain('aria-pressed={normalizedActiveSlide === index}');
+    expect(featuredHero).toContain('featuredQuery.refetch()');
+  });
+
 });
