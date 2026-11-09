@@ -87,7 +87,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: '请求格式错误' }, { status: requestBodyErrorStatus(err) });
   }
 
-  if (!Array.isArray(body.items) || body.items.length === 0) {
+  if (!body || typeof body !== 'object' || !Array.isArray(body.items) || body.items.length === 0) {
     return NextResponse.json({ error: '请提供待探测的条目' }, { status: 400 });
   }
   const items = body.items.filter(isProbeItem).slice(0, MAX_ITEMS);
