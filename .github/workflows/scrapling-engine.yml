@@ -76,6 +76,7 @@ jobs:
           async def main():
               sources, revision = await fetch_official_fmhy_sources()
               assert len(sources) == len(FMHY_SOURCE_FILES) == 25
+              assert set(sources) == set(FMHY_SOURCE_FILES)
               entries = [
                   entry
                   for source_file, markdown in sources.items()
