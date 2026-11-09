@@ -38,12 +38,17 @@ def ensure_robots_allowed(url: str, timeout: float | None = None) -> None:
             parser = None
 
     if parser is None:
-        response = Fetcher.get(
-            robots_url,
-            timeout=timeout or settings.request_timeout_seconds,
-            follow_redirects="safe",
-            headers={"User-Agent": settings.default_user_agent},
-        )
+        try:
+            response = Fetcher.get(
+                robots_url,
+                timeout=timeout or settings.request_timeout_seconds,
+                follow_redirects="safe",
+                headers={"User-Agent": settings.default_user_agent},
+            )
+        except Exception as exc:
+            raise RobotsUnavailableError(
+                "robots.txt could not be checked; refusing the fetch."
+            ) from exc
         status = getattr(response, "status", 200)
         if isinstance(status, int) and (status in {401, 403, 429} or status >= 500):
             raise RobotsUnavailableError("robots.txt could not be checked; refusing the fetch.")
