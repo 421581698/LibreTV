@@ -164,6 +164,29 @@ class CatalogStore:
                 results.append(item)
         return results
 
+    def get_primary_seeds(
+        self, *, snapshot_id: str, entry_ids: list[str],
+    ) -> list[dict]:
+        """Return primary public-site seeds for selected, non-unsafe catalog entries."""
+        if not entry_ids:
+            return []
+        placeholders = ",".join("?" for _ in entry_ids)
+        sql = f"""
+            SELECT e.entry_id, e.title, e.category, e.source_file, e.source_line,
+                   e.source_url, l.canonical_url, l.domain
+            FROM catalog_entries e
+            JOIN catalog_links l
+              ON l.snapshot_id = e.snapshot_id AND l.entry_id = e.entry_id
+            WHERE e.snapshot_id = ?
+              AND e.entry_id IN ({placeholders})
+              AND e.safety_status != 'flagged_unsafe'
+              AND l.is_primary = 1
+            ORDER BY e.source_file, e.source_line
+        """
+        with closing(self._connect()) as connection, connection:
+            rows = connection.execute(sql, [snapshot_id, *entry_ids]).fetchall()
+        return [dict(row) for row in rows]
+
     def list_domains(
         self, *, snapshot_id: str, query: str | None = None,
         limit: int = 100, offset: int = 0, include_unsafe: bool = False,
