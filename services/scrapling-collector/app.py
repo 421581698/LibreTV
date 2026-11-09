@@ -73,6 +73,7 @@ def init_db() -> None:
         CREATE INDEX IF NOT EXISTS idx_candidates_task ON candidates(task_id);
         CREATE INDEX IF NOT EXISTS idx_tasks_created ON tasks(created_at DESC);
         """)
+        connection.execute("UPDATE tasks SET status='interrupted',updated_at=? WHERE status='running'", (int(time.time()),))
 
 
 init_db()
@@ -432,6 +433,16 @@ def tasks(authorization: str | None = Header(default=None), limit: int = 50):
     with db() as connection:
         rows = connection.execute("SELECT * FROM tasks ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
     return {"tasks": [dict(row) for row in rows]}
+
+
+@app.post("/v1/tasks/{task_id}/retry")
+def retry_task(task_id: str, authorization: str | None = Header(default=None)):
+    require_token(authorization)
+    with db() as connection:
+        row = connection.execute("SELECT url,mode FROM tasks WHERE id=?", (task_id,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return crawl_site(CrawlRequest(url=row["url"], mode=row["mode"], limit=MAX_CANDIDATES))
 
 
 @app.get("/v1/tasks/{task_id}/candidates")
