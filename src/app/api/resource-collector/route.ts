@@ -4,7 +4,7 @@ import { guardRequest } from '@/lib/api-guard';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const SERVICE_TIMEOUT_MS = 25_000;
+const SERVICE_TIMEOUT_MS = 65_000;
 
 function collectorConfig() {
   const base = process.env.SCRAPLING_API_BASE?.trim().replace(/\/$/, '');
