@@ -27,6 +27,7 @@ def test_fetch_page_applies_user_agent_and_rejects_oversized_response(
 
     assert captured["follow_redirects"] == "safe"
     assert captured["stealthy_headers"] is False
+    assert captured["impersonate"] is None
     assert captured["headers"]["User-Agent"]
 
 
