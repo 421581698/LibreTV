@@ -223,16 +223,16 @@ def probe_direct_media(raw_url: str, max_redirects: int = 5) -> dict:
             host, 443, timeout=10, context=ssl.create_default_context()
         )
         try:
-            connection.request(
-                "GET",
-                target,
-                headers={
-                    "Range": "bytes=0-0",
-                    "Accept": "*/*",
-                    "User-Agent": "LibreTV-Resource-Validator/1.0",
-                    "Connection": "close",
-                },
-            )
+            request_headers = {
+                "Accept": "*/*",
+                "User-Agent": "LibreTV-Resource-Validator/1.0",
+                "Connection": "close",
+            }
+            # Do not Range-truncate manifests: the parser needs the complete
+            # bounded playlist/MPD document. Progressive files use a one-byte probe.
+            if not parsed.path.lower().endswith((".m3u8", ".mpd")):
+                request_headers["Range"] = "bytes=0-0"
+            connection.request("GET", target, headers=request_headers)
             response = connection.getresponse()
             status = response.status
             headers = {key.lower(): value for key, value in response.getheaders()}
