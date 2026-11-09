@@ -46,9 +46,25 @@ _AUXILIARY_LABELS = {
     "wiki",
     "api",
     "instances",
-    "mirror",
-    "mirrors",
 }
+
+
+def parse_official_source_file_list(route_source: str) -> tuple[str, ...]:
+    block = re.search(
+        r"const\\s+files\\s*=\\s*\\(\\s*\\[(.*?)\\]\\s*as\\s+const",
+        route_source,
+        re.DOTALL,
+    )
+    if block is None:
+        raise RuntimeError("FMHY single-page route did not expose its source file list.")
+    names = re.findall(r"""['"]([^'"]+)['"]""", block.group(1))
+    if not names or len(names) > 100:
+        raise RuntimeError("FMHY source file list is empty or exceeds the safety limit.")
+    if any(not re.fullmatch(r"[a-z0-9-]+\\.md", name) for name in names):
+        raise RuntimeError("FMHY source list contains an unsupported file path.")
+    if len(names) != len(set(names)):
+        raise RuntimeError("FMHY source list contains duplicate files.")
+    return tuple(names)
 
 
 @dataclass(frozen=True)
@@ -326,12 +342,22 @@ async def fetch_official_fmhy_sources() -> tuple[dict[str, str], str]:
         source_revision = commit_response.json().get("sha", "")
         if not re.fullmatch(r"[0-9a-f]{40}", source_revision):
             raise RuntimeError("FMHY API did not return a valid immutable source commit.")
-        validate_public_http_url(f"{FMHY_RAW_BASE}/{source_revision}/docs/video.md")
+        route_url = (
+            f"{FMHY_RAW_BASE}/{source_revision}/api/routes/single-page.ts"
+        )
+        validate_public_http_url(route_url)
+        route_response = await client.get(route_url)
+        route_response.raise_for_status()
+        if route_response.url.host != "raw.githubusercontent.com":
+            raise RuntimeError("FMHY source manifest did not come from the official raw host.")
+        if len(route_response.content) > 1_000_000:
+            raise RuntimeError("FMHY source manifest exceeded the size limit.")
+        source_files = parse_official_source_file_list(route_response.text)
         results = await asyncio.gather(*(
             _fetch_source(client, semaphore, source_file, source_revision)
-            for source_file in FMHY_SOURCE_FILES
+            for source_file in source_files
         ))
-    return dict(zip(FMHY_SOURCE_FILES, results, strict=True)), source_revision
+    return dict(zip(source_files, results, strict=True)), source_revision
 
 
 async def sync_fmhy_catalog(store) -> dict:
