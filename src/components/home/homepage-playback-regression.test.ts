@@ -29,6 +29,8 @@ const movieAgents = source('src/lib/friday/movie-agents.ts');
 const movieWorkflow = source('src/lib/friday/movie-workflow.ts');
 const voiceController = source('src/components/friday/useFridayVoiceController.ts');
 const browserAsr = source('src/components/friday/browserAsr.ts');
+const theme = source('src/components/theme.tsx');
+const glassStyles = source('src/app/eight-screen-glass.css');
 const chatSession = source('src/components/friday/useFridayChatSession.ts');
 const fridayPanel = source('src/components/friday/FridayPanel.tsx');
 
@@ -271,6 +273,21 @@ describe('首页与播放页回归契约', () => {
     expect(voiceController).toContain('preferredRecognitionLanguage');
     expect(voiceController).toContain('recognition.lang = preferredRecognitionLanguage');
     expect(browserAsr).toContain('window.webkitSpeechRecognition');
+  });
+
+  it('iPad 品牌图标固定尺寸，设置按钮直接打开设置抽屉', () => {
+    expect(glassStyles).toContain('.v4-brand-mark');
+    expect(glassStyles).toContain('width: 24px !important');
+    expect(v4Header).toContain('onClick={() => setSettingsOpen(true)}');
+    expect(v4Header).not.toContain("else router.push('/settings')");
+  });
+
+  it('浅色、深色与系统主题均有显式选择，并提供浅色毛玻璃表面', () => {
+    expect(theme).toContain("{ value: 'light', label: '浅色' }");
+    expect(theme).toContain("{ value: 'dark', label: '深色' }");
+    expect(theme).toContain("{ value: 'system', label: '跟随系统' }");
+    expect(glassStyles).toContain('html:not(.dark)');
+    expect(glassStyles).toContain('linear-gradient(145deg,#f7f8fa 0%,#e9edf2 100%)');
   });
 
 });
