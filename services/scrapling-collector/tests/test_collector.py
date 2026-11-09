@@ -70,9 +70,9 @@ class CollectorTests(unittest.TestCase):
             {"url": "https://catalog.example/b.m3u8", "kind": "direct-media", "host": "catalog.example"},
         ]
         with patch.object(collector.SiteSpider, "start", return_value=type("Result", (), {"items": items})()):
-            result = collector.run_spider("https://catalog.example/start", limit=1)
-        self.assertEqual(len(result), 1)
-        self.assertEqual(result[0]["url"], "https://catalog.example/a.mp4")
+            result = collector.run_spider("https://catalog.example/start", limit=5)
+        self.assertEqual(len(result), 2)
+        self.assertEqual([item["url"] for item in result], ["https://catalog.example/a.mp4", "https://catalog.example/b.m3u8"])
 
     def test_browser_capture_installs_request_guard_and_deduplicates_network_candidates(self):
         page = object()
@@ -355,6 +355,31 @@ class CollectorTests(unittest.TestCase):
         self.assertTrue(result["reachable"])
         self.assertEqual(result["media_format"], "hls")
         self.assertNotIn("Range", Connection.last_headers)
+
+    def test_direct_media_probe_rejects_dns_rebinding_redirect_before_second_connection(self):
+        class Response:
+            status = 302
+            def getheaders(self):
+                return [("Location", "https://internal.example/admin")]
+            def close(self):
+                pass
+        class Connection:
+            def __init__(self, *args, **kwargs):
+                pass
+            def request(self, *args, **kwargs):
+                pass
+            def getresponse(self):
+                return Response()
+            def close(self):
+                pass
+        public = [(None, None, None, None, ("8.8.8.8", 443))]
+        private = [(None, None, None, None, ("10.0.0.7", 443))]
+        with patch.object(collector.socket, "getaddrinfo", side_effect=[public, public, private]), \\
+             patch.object(collector, "PinnedHTTPSConnection", Connection) as connection:
+            result = collector.probe_direct_media("https://media.example/movie.mp4")
+        self.assertFalse(result["reachable"])
+        self.assertEqual(result["error"], "unsafe_or_invalid_redirect_target")
+        connection.assert_called_once()
 
     def test_direct_media_probe_rejects_private_redirect(self):
         class Response:
