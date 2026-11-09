@@ -98,7 +98,7 @@ export async function POST(request: Request) {
     const parsed = requestSchema.safeParse(await readJsonLimited(request, 8192));
     if (!parsed.success) return jsonError("Invalid speech request.", 400);
     payload = parsed.data;
-  } catch {
+  } catch (error) {
     return jsonError("Invalid request body.", requestBodyErrorStatus(error));
   }
 
