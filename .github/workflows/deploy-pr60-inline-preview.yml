@@ -80,16 +80,37 @@ jobs:
         run: |
           node --input-type=module <<'NODE'
           const base = "https://libretv-pr60-inline-preview.bggdbh.workers.dev";
-          const home = await fetch(base + "/", {
-            redirect: "follow",
-            headers: { "cache-control": "no-cache" },
-          });
-          if (!home.ok || !(home.headers.get("content-type") || "").includes("text/html")) {
-            throw new Error("Preview homepage failed: HTTP " + home.status);
+          async function request(path) {
+            let last;
+            for (let attempt = 1; attempt <= 8; attempt++) {
+              try {
+                const response = await fetch(base + path, {
+                  redirect: "follow",
+                  headers: { "cache-control": "no-cache" },
+                  signal: AbortSignal.timeout(15000),
+                });
+                const body = await response.text();
+                console.log(path + " attempt " + attempt + ": HTTP " + response.status + " " + (response.headers.get("content-type") || ""));
+                if (response.ok) return { response, body };
+                last = new Error(path + " returned HTTP " + response.status + ": " + body.slice(0, 800));
+              } catch (error) {
+                last = error;
+                console.log(path + " attempt " + attempt + " failed: " + String(error));
+              }
+              if (attempt < 8) await new Promise((resolve) => setTimeout(resolve, 5000));
+            }
+            throw last;
           }
-          const statusResponse = await fetch(base + "/api/status", { cache: "no-store" });
-          if (!statusResponse.ok) throw new Error("Preview status endpoint returned " + statusResponse.status);
-          const status = await statusResponse.json();
+          const [home, statusResult] = await Promise.all([
+            request("/"),
+            request("/api/status"),
+          ]);
+          if (!(home.response.headers.get("content-type") || "").includes("text/html")) {
+            throw new Error("Preview homepage is not HTML: " + home.body.slice(0, 800));
+          }
+          let status;
+          try { status = JSON.parse(statusResult.body); }
+          catch { throw new Error("/api/status did not return JSON: " + statusResult.body.slice(0, 800)); }
           if (status.passwordRequired !== false || status.verified !== true) {
             throw new Error("Preview should be public: passwordRequired=" + status.passwordRequired + ", verified=" + status.verified);
           }
