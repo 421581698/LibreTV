@@ -55,6 +55,8 @@ describe('iPhone homepage inline playback and top search', () => {
 describe('iPhone shared navigation, routed playback and runtime cleanup', () => {
   const spatial = read('src/components/home/V4SpatialScreen.tsx');
   const friday = read('src/components/AIFloatingBall.tsx');
+  const fridayFab = read('src/components/friday/useFridayFabController.ts');
+  const homepageHeader = read('src/components/home/V4HomepageHeader.tsx');
   const theme = read('src/app/v4-header-theme.css');
   const safeArea = read('src/app/theme-safe-area.css');
   const collectorSettings = read('src/components/source-manager.tsx');
@@ -80,6 +82,16 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
     expect(friday).toContain('stopAllVoice();');
     expect(friday).toContain('cancelActiveRequest();');
     expect(friday).toContain('window.speechSynthesis?.cancel();');
+  });
+
+  it('wires the homepage Friday orb tap to the existing synchronous voice start path', () => {
+    expect(homepageHeader).toContain('<AIFloatingBall showFab inlineMode={false}/>');
+    expect(friday).toContain('onOpen: openAndListen');
+    expect(friday).toContain('onClick={handleFabClick}');
+    expect(friday).toContain('const openAndListen = useCallback(() => {');
+    expect(friday).toContain('startListening(false);');
+    expect(fridayFab).toContain('window.addEventListener("pointerup", onPointerUp, true)');
+    expect(fridayFab).toContain('onOpen();');
   });
 
   it('exposes FMHY discovery and Scrapling media preview behind the authenticated API proxy', () => {
