@@ -10,6 +10,8 @@ services:
     restart: unless-stopped
     ports:
       - "8080:8080"
+    networks:
+      - collector_net
     # 无状态服务：观看历史在浏览器 IndexedDB、设置在 localStorage，无需挂载卷
     environment:
       # 必填：访问密码（在 .env 中设置，缺失时 compose 启动即报错提醒）
@@ -54,6 +56,22 @@ services:
       context: ./services/scrapling-collector
     container_name: libretv-scrapling-collector
     restart: unless-stopped
+    networks:
+      collector_net:
+        ipv4_address: 172.30.60.10
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,noexec,nosuid
+    shm_size: 256m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 1g
+    cpus: 2.0
+    sysctls:
+      net.ipv6.conf.all.disable_ipv6: "1"
     environment:
       - SCRAPLING_API_TOKEN=${SCRAPLING_API_TOKEN:-}
     expose:
@@ -69,3 +87,11 @@ services:
 
 volumes:
   scrapling_data:
+
+networks:
+  collector_net:
+    name: libretv_scrapling_net
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${SCRAPLING_NETWORK_SUBNET:-172.30.60.0/24}
