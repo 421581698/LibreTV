@@ -68,7 +68,7 @@ Content-Type: application/json
 }
 ```
 
-The endpoint resolves only selected primary links from the chosen snapshot, rejects unsafe or missing entries, validates each public HTTP(S) seed, and creates a normal persistent Scrapling job. The job event stream records the FMHY entry IDs, source file/line provenance, and seed URLs. Spider results now include same-host detail/playback page discoveries and candidate HLS (M3U8), MP4, DASH (MPD), and WebM URLs found in media elements or inline scripts. Candidate records remain `pending_fetch_validation`; discovering a URL does not establish that it is reachable, authorized, or playable.
+The endpoint resolves only selected primary links from the chosen snapshot, rejects unsafe or missing entries, validates each public HTTP(S) seed, and creates a normal persistent Scrapling job. The job event stream records the FMHY entry IDs, source file/line provenance, and seed URLs. Spider results now include same-host detail/playback page discoveries and candidate HLS (M3U8), MP4, DASH (MPD), WebM, and embedded-player URLs found in media elements or inline scripts. Retrieve the persisted, de-duplicated output with `GET /v1/jobs/{task_id}/discovery`. Candidate records remain `pending_fetch_validation`; discovering a URL does not establish that it is reachable, authorized, or playable.
 
 Recursive link following, dynamic-browser crawling, and network API capture remain gated. The service must validate every subsequent URL and redirect at fetch time and have deployment-level egress protection against DNS rebinding/private destinations before expanding beyond seed pages. The FMHY source repository remains the sole directory ingestion authority; third-party mirrors are not used as ingestion authorities.
 
