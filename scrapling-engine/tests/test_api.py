@@ -221,3 +221,24 @@ def test_adapter_supports_adaptive_css_save_and_relocate() -> None:
     )
     page.css.assert_called_with(".headline", adaptive=True)
     assert relocated["adaptive_action"] == "relocate"
+
+
+
+def test_adapter_supports_adaptive_xpath_relocation() -> None:
+    node = Mock()
+    node.get_all_text.return_value = "Adaptive result"
+    page = Mock()
+    page.get_all_text.return_value = "Adaptive result"
+    page.xpath.return_value = [node]
+    page.css_first.return_value = None
+    page.markdown.return_value = None
+
+    result = ScraplingAdapter.extract(
+        page,
+        "//h2",
+        "adaptive_xpath",
+        adaptive_action="relocate",
+    )
+
+    page.xpath.assert_called_with("//h2", adaptive=True)
+    assert result["text"] == ["Adaptive result"]
