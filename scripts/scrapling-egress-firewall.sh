@@ -64,7 +64,11 @@ while iptables -w -C INPUT -s "$COLLECTOR_CIDR" -j DROP 2>/dev/null; do
 done
 iptables -w -I INPUT 1 -s "$COLLECTOR_CIDR" -j DROP
 
-echo "Applied IPv4 egress restrictions for Scrapling collector $COLLECTOR_CIDR."
+# Fail the installer if either enforcement hook is not actually present.
+iptables -w -C DOCKER-USER -s "$COLLECTOR_CIDR" -j "$CHAIN"
+iptables -w -C INPUT -s "$COLLECTOR_CIDR" -j DROP
+
+echo "Verified IPv4 egress restrictions for Scrapling collector $COLLECTOR_CIDR."
 echo "The collector may reach public IPv4 destinations, but private/reserved ranges are blocked."
 echo "IPv6 is disabled in the collector container by docker-compose.yml."
 echo "To remove these rules: iptables -D DOCKER-USER -s $COLLECTOR_CIDR -j $CHAIN; iptables -D INPUT -s $COLLECTOR_CIDR -j DROP; iptables -F $CHAIN; iptables -X $CHAIN"
