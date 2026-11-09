@@ -6,6 +6,11 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf
 
 const home = source('src/app/page.tsx');
 const v4Header = source('src/components/home/V4HomepageHeader.tsx');
+const searchModule = source('src/components/home/header/SearchModule.tsx');
+const historyModule = source('src/components/home/header/HistoryModule.tsx');
+const settingsModule = source('src/components/home/header/SettingsModule.tsx');
+const avatarModule = source('src/components/home/header/AvatarModule.tsx');
+const navModules = ['HomeNavModule', 'MoviesNavModule', 'TvNavModule', 'OverseasNavModule', 'AnimeNavModule', 'VarietyNavModule', 'LiveNavModule'].map((name) => source('src/components/home/header/' + name + '.tsx'));
 const v4Content = source('src/components/home/V4HomepageContent.tsx');
 const v4Styles = source('src/app/v4-homepage.css');
 const watch = source('src/app/watch/page.tsx');
@@ -158,26 +163,21 @@ describe('首页与播放页回归契约', () => {
     expect(searchStart).toBeGreaterThan(navEnd);
     expect(actionsStart).toBeGreaterThan(searchStart);
 
-    const navOrder = [
-      "{ label: '首页', href: '/' }",
-      "{ label: '电影', href: '/movies' }",
-      "{ label: '电视剧', href: '/tv' }",
-      "{ label: '海外剧', href: '/overseas' }",
-      "{ label: '动漫', href: '/anime' }",
-      "{ label: '综艺', href: '/variety' }",
-      "{ label: '直播', href: '/live' }",
-    ];
-    const navPositions = navOrder.map((item) => v4Header.indexOf(item));
+    const navLabels = ['首页', '电影', '电视剧', '海外剧', '动漫', '综艺', '直播'];
+    const navPositions = navLabels.map((label, index) => navModules[index].indexOf('label="' + label + '"'));
     expect(navPositions.every((position) => position >= 0)).toBe(true);
-    expect(navPositions).toEqual([...navPositions].sort((a, b) => a - b));
+    expect(v4Header.indexOf('<HomeNavModule')).toBeLessThan(v4Header.indexOf('<MoviesNavModule'));
+    expect(v4Header.indexOf('<MoviesNavModule')).toBeLessThan(v4Header.indexOf('<TvNavModule'));
+    expect(v4Header.indexOf('<TvNavModule')).toBeLessThan(v4Header.indexOf('<OverseasNavModule'));
+    expect(v4Header.indexOf('<OverseasNavModule')).toBeLessThan(v4Header.indexOf('<AnimeNavModule'));
+    expect(v4Header.indexOf('<AnimeNavModule')).toBeLessThan(v4Header.indexOf('<VarietyNavModule'));
+    expect(v4Header.indexOf('<VarietyNavModule')).toBeLessThan(v4Header.indexOf('<LiveNavModule'));
 
-    const actionsMarkup = v4Header.slice(actionsStart);
-    const historyPosition = actionsMarkup.indexOf('aria-label="观看历史"');
-    const settingsPosition = actionsMarkup.indexOf('aria-label="设置"');
-    const avatarPosition = actionsMarkup.indexOf('aria-label="打开我的个人空间"');
-    expect(historyPosition).toBeGreaterThan(-1);
-    expect(settingsPosition).toBeGreaterThan(historyPosition);
-    expect(avatarPosition).toBeGreaterThan(settingsPosition);
+    expect(v4Header.indexOf('<HistoryModule')).toBeLessThan(v4Header.indexOf('<SettingsModule'));
+    expect(v4Header.indexOf('<SettingsModule')).toBeLessThan(v4Header.indexOf('<AvatarModule'));
+    expect(historyModule).toContain('aria-label="观看历史"');
+    expect(settingsModule).toContain('aria-label="设置"');
+    expect(avatarModule).toContain('aria-label="打开我的个人空间"');
 
     expect(sharedHeaderStyles).toContain('@media screen and (min-width: 701px)');
     expect(sharedHeaderStyles).toContain('display: contents !important;');
@@ -192,10 +192,10 @@ describe('首页与播放页回归契约', () => {
 
   it('V4 Header 搜索与最近搜索历史保留 URL、输入校验和回选链路', () => {
     expect(home).toContain('<V4HomepageHeader overlay={!urlQuery} />');
-    expect(v4Header).toContain('<SearchHistoryDropdown');
-    expect(v4Header).toContain('router.push(`/?s=${encodeURIComponent(q)}`');
-    expect(v4Header).toContain('searchHistory.record(q)');
-    expect(v4Header).toContain('const pickHistory = (value: string)');
+    expect(searchModule).toContain('<SearchHistoryDropdown');
+    expect(searchModule).toContain("router.push('/?s='+encodeURIComponent(q)");
+    expect(searchModule).toContain('h.record(q)');
+    expect(searchModule).toContain('const pick=(v:string)');
     expect(search).toContain('router.push(`/?q=${encodeURIComponent(query)}`');
     expect(searchHistory).toContain('useQuery({');
     expect(searchHistory).toContain("queryKey: ['searchHistory']");
