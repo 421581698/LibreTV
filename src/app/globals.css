@@ -1435,3 +1435,90 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   .netflix-sidebar-content { max-height:42vh; }
   .netflix-next-preview { margin:0 12px 12px; }
 }
+
+
+/* Player light theme: sidebar must follow the selected app theme, not force dark mode. */
+.netflix-watch-sidebar {
+  color-scheme:light !important;
+  color:#20232a !important;
+  background:rgba(255,255,255,.94) !important;
+  border:1px solid rgba(30,45,65,.1) !important;
+  box-shadow:0 12px 32px rgba(25,42,65,.08);
+}
+.netflix-watch-sidebar .text-content,
+.netflix-watch-sidebar h3,
+.netflix-watch-sidebar .netflix-episode-row,
+.netflix-watch-sidebar .netflix-next-card,
+.netflix-watch-sidebar .netflix-next-card strong,
+.netflix-watch-sidebar .netflix-source-card strong { color:#20232a !important; }
+.netflix-watch-sidebar .text-muted,
+.netflix-watch-sidebar .text-faint,
+.netflix-watch-sidebar small,
+.netflix-watch-sidebar .netflix-section-kicker,
+.netflix-watch-sidebar .netflix-sidebar-footer,
+.netflix-watch-sidebar .netflix-next-card small,
+.netflix-watch-sidebar .netflix-source-card div span { color:#687383 !important; }
+.netflix-watch-sidebar .netflix-sidebar-tabs,
+.netflix-watch-sidebar .netflix-sidebar-footer { border-color:#e5e9ef !important; }
+.netflix-watch-sidebar .netflix-sidebar-tabs button { color:#667080 !important; }
+.netflix-watch-sidebar .netflix-sidebar-tabs button.active { color:#20232a !important; }
+.netflix-watch-sidebar .netflix-sidebar-tabs button span { color:#7b8795 !important; }
+.netflix-watch-sidebar .netflix-episode-row,
+.netflix-watch-sidebar .netflix-next-card,
+.netflix-watch-sidebar .netflix-source-card { background:#f4f6f9 !important; border-color:#e4e8ee !important; }
+.netflix-watch-sidebar .netflix-episode-row.active { background:#e8f0ff !important; }
+.netflix-watch-sidebar .netflix-next-card:hover,
+.netflix-watch-sidebar .netflix-episode-row:hover { background:#edf1f6 !important; }
+.netflix-watch-sidebar .netflix-next-preview { border-color:#e4e8ee !important; }
+.netflix-watch-sidebar .btn-primary { min-width:68px; padding:8px 13px; border-radius:9px; white-space:nowrap; font-weight:650; }
+.dark .netflix-watch-sidebar {
+  color-scheme:dark !important; color:#f4f6fa !important;
+  background:rgba(20,22,28,.97) !important; border-color:rgba(255,255,255,.14) !important;
+}
+.dark .netflix-watch-sidebar .text-content,
+.dark .netflix-watch-sidebar h3,
+.dark .netflix-watch-sidebar .netflix-episode-row,
+.dark .netflix-watch-sidebar .netflix-next-card,
+.dark .netflix-watch-sidebar .netflix-next-card strong,
+.dark .netflix-watch-sidebar .netflix-source-card strong { color:#f4f6fa !important; }
+.dark .netflix-watch-sidebar .text-muted,
+.dark .netflix-watch-sidebar .text-faint,
+.dark .netflix-watch-sidebar small,
+.dark .netflix-watch-sidebar .netflix-section-kicker,
+.dark .netflix-watch-sidebar .netflix-sidebar-footer,
+.dark .netflix-watch-sidebar .netflix-next-card small,
+.dark .netflix-watch-sidebar .netflix-source-card div span { color:rgba(230,235,244,.68) !important; }
+.dark .netflix-watch-sidebar .netflix-sidebar-tabs,
+.dark .netflix-watch-sidebar .netflix-sidebar-footer { border-color:rgba(255,255,255,.14) !important; }
+.dark .netflix-watch-sidebar .netflix-sidebar-tabs button { color:rgba(230,235,244,.72) !important; }
+.dark .netflix-watch-sidebar .netflix-sidebar-tabs button.active { color:#fff !important; }
+.dark .netflix-watch-sidebar .netflix-episode-row,
+.dark .netflix-watch-sidebar .netflix-next-card,
+.dark .netflix-watch-sidebar .netflix-source-card { background:rgba(255,255,255,.07) !important; border-color:rgba(255,255,255,.13) !important; }
+.dark .netflix-watch-sidebar .netflix-episode-row.active { background:rgba(57,120,239,.2) !important; }
+.dark .netflix-watch-sidebar .netflix-next-card:hover,
+.dark .netflix-watch-sidebar .netflix-episode-row:hover { background:rgba(255,255,255,.12) !important; }
+
+
+/* Player toolbar: navigation stays left; title and Friday controls stay right. */
+.watch-topbar {
+  width:100%; min-height:60px; z-index:140;
+  background:rgba(var(--c-page),.88);
+  border-bottom:1px solid rgba(var(--c-line),.82);
+  -webkit-backdrop-filter:blur(18px) saturate(150%);
+  backdrop-filter:blur(18px) saturate(150%);
+}
+.watch-topbar-inner {
+  width:min(100% - 32px,1600px); min-height:60px; margin:0 auto;
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+}
+.watch-topbar-left,.watch-topbar-right { display:flex; align-items:center; gap:12px; min-width:0; }
+.watch-topbar-right { margin-left:auto; }
+.watch-topbar-title { max-width:min(48vw,560px); }
+.watch-topbar-left button,.watch-topbar-left a { display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px; margin:0; border-radius:50%; background:rgba(var(--c-surface),.8); border:1px solid rgb(var(--c-line)); }
+.watch-topbar-left button:hover,.watch-topbar-left a:hover { background:rgb(var(--c-hover)); }
+@media (max-width:640px) {
+ .watch-topbar-inner { width:calc(100% - 20px); min-height:54px; gap:8px; }
+ .watch-topbar-left,.watch-topbar-right { gap:6px; }
+ .watch-topbar-title { max-width:52vw; }
+}
