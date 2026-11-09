@@ -44,6 +44,10 @@ def test_fetch_uses_adapter_and_returns_extraction(monkeypatch) -> None:
         lambda url: url,
     )
     monkeypatch.setattr(
+        "app.main.ensure_robots_allowed",
+        lambda url, timeout: None,
+    )
+    monkeypatch.setattr(
         "app.main.ScraplingAdapter.fetch_page",
         lambda url, timeout: page,
     )
