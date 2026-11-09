@@ -358,6 +358,8 @@ describe('首页与播放页回归契约', () => {
 
   it('设置页快捷入口会打开指定的真实设置面板', () => {
     expect(spatialScreen).toContain("localStorage.setItem('libretv-settings-open-page', page)");
+    expect(spatialScreen).toContain("title: '外观模式', description: '浅色、深色与跟随系统主题', page: 'appearance'");
+    expect(spatialScreen).toContain("title: '封面图加载', description: '海报图片代理与加载偏好', page: 'image'");
     expect(settings).toContain("localStorage.getItem(SETTINGS_OPEN_PAGE_KEY)");
     expect(settings).toContain('setActivePage(nextPage)');
     expect(settings).toContain('removeItem(SETTINGS_OPEN_PAGE_KEY)');
