@@ -60,8 +60,10 @@ export async function GET(req: Request) {
     let resolved: VideoDetail | null = null;
 
     // 1) 标准列表接口
-    const api = `${source.url.replace(/\/+$/, '')}?ac=videolist&ids=${encodeURIComponent(id)}`;
-    const res = await fetchUpstream(api, { timeoutMs: 10000, signal: req.signal, headers: cmsRequestHeaders() });
+    const api = new URL(source.url);
+    api.searchParams.set('ac', 'videolist');
+    api.searchParams.set('ids', id);
+    const res = await fetchUpstream(api.toString(), { timeoutMs: 10000, signal: req.signal, headers: cmsRequestHeaders() });
     if (res.ok) {
       const data = await res.json();
       try {
