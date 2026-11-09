@@ -56,3 +56,26 @@ def test_domain_index_hides_unsafe_domains_by_default(tmp_path) -> None:
     assert {item["domain"] for item in all_domains} == {
         "safe.example", "unsafe.example",
     }
+
+
+def test_catalog_store_returns_primary_seed_provenance_for_selected_entries(tmp_path) -> None:
+    store = CatalogStore(str(tmp_path / "catalog.sqlite3"))
+    store.initialize()
+    entries = parse_fmhy_markdown(
+        "video.md",
+        "* [Primary](https://primary.example/) or [Mirror](https://mirror.example/)\\n",
+    )
+    result = store.import_snapshot(
+        entries, source_repository="fmhy/edit", source_branch="main",
+        source_revision="fixture", source_count=1,
+    )
+
+    seeds = store.get_primary_seeds(
+        snapshot_id=result["snapshot_id"],
+        entry_ids=[entries[0].entry_id],
+    )
+
+    assert len(seeds) == 1
+    assert seeds[0]["entry_id"] == entries[0].entry_id
+    assert seeds[0]["canonical_url"] == "https://primary.example/"
+    assert seeds[0]["source_file"] == "video.md"
