@@ -94,6 +94,20 @@ def require_token(authorization: str | None) -> None:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
+def require_egress_firewall() -> None:
+    """Fail closed unless the operator confirms an enforced host-level egress boundary.
+
+    DNS checks in application code cannot prevent rebinding between resolution
+    and connection. This opt-in flag is an operator assertion, not an automatic
+    firewall installer or a substitute for verifying the actual host rules.
+    """
+    if os.environ.get("SCRAPLING_EGRESS_FIREWALL_CONFIRMED", "").strip() != "1":
+        raise HTTPException(
+            status_code=503,
+            detail="Crawling is disabled until host-level egress filtering is installed and verified",
+        )
+
+
 def public_https_url(raw_url: str) -> tuple[str, str]:
     parsed = urlparse(raw_url)
     try:
