@@ -4,6 +4,8 @@ import './glass-system.css';
 import './eight-screen-glass.css';
 import './ipad-glass.css';
 import './iphone-glass.css';
+// Shared by the homepage header and every V4 spatial channel route.
+import './v4-homepage.css';
 import { Providers } from '@/components/providers';
 
 export const metadata: Metadata = {
