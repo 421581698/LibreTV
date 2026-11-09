@@ -566,11 +566,40 @@ function PlaybackPanel() {
   const store = useAppStore();
   const { toast } = useToast();
   const [clearMarksOpen, setClearMarksOpen] = useState(false);
+  const [qualityPreference, setQualityPreference] = useState("auto");
   const markCount = Object.keys(store.skipMarks).length;
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("libretv-quality-preference");
+      if (saved === "480" || saved === "720" || saved === "1080" || saved === "2160") setQualityPreference(saved);
+    } catch { /* Adaptive quality remains the default. */ }
+  }, []);
+
+  const updateQualityPreference = (value: string) => {
+    const next = ["480", "720", "1080", "2160"].includes(value) ? value : "auto";
+    setQualityPreference(next);
+    try { window.localStorage.setItem("libretv-quality-preference", next); } catch { /* Session-only preference. */ }
+    window.dispatchEvent(new CustomEvent("libretv-quality-preference-change", { detail: { maxHeight: next === "auto" ? null : Number(next) } }));
+  };
+
   return (
     <section>
       <SectionTitle title="播放与过滤" />
       <div className="space-y-3">
+        <SelectRow
+          label="默认清晰度"
+          value={qualityPreference}
+          onChange={updateQualityPreference}
+          options={[
+            { value: "auto", label: "自动", hint: "根据网络与设备自适应" },
+            { value: "2160", label: "4K · 2160p", hint: "有可用档位时优先使用" },
+            { value: "1080", label: "1080p", hint: "最高不超过 1080p" },
+            { value: "720", label: "720p", hint: "最高不超过 720p" },
+            { value: "480", label: "480p", hint: "最高不超过 480p" },
+          ]}
+        />
+        <p className="text-xs text-faint leading-relaxed">仅对提供多档清晰度的 HLS 播放源生效；播放器会按源实际提供的档位选择不高于此上限的最高可用画质。直链或单码率源不受此项控制。</p>
         <ToggleRow
           label="广告切片过滤"
           description="剔除播放列表中的广告分片段落（按分片 URL 特征、片头插入与长片间超短中插识别，不动 DISCONTINUITY 时间轴）"
@@ -784,9 +813,12 @@ function VoiceSettingsPanel() {
   const [assistantId, setAssistantId] = useState<"friday" | "jarvis" | "lin-meimei">("friday");
   const [wakeWordEnabled, setWakeWordEnabled] = useState(false);
   const [voiceStyle, setVoiceStyle] = useState<"auto" | "jarvis" | "warm" | "clear">("auto");
+  const [asrLanguage, setAsrLanguage] = useState<"auto" | "zh-CN" | "en-GB">("auto");
 
   useEffect(() => {
     try {
+      const savedAsrLanguage = window.localStorage.getItem("friday-asr-language");
+      if (savedAsrLanguage === "zh-CN" || savedAsrLanguage === "en-GB") setAsrLanguage(savedAsrLanguage);
       const savedAssistant = window.localStorage.getItem("friday-assistant");
       if (savedAssistant === "friday" || savedAssistant === "jarvis" || savedAssistant === "lin-meimei") setAssistantId(savedAssistant);
       setWakeWordEnabled(window.localStorage.getItem("friday-wake-word") === "true");
@@ -794,6 +826,12 @@ function VoiceSettingsPanel() {
       if (savedVoice === "jarvis" || savedVoice === "warm" || savedVoice === "clear" || savedVoice === "auto") setVoiceStyle(savedVoice);
     } catch { /* Keep defaults when storage is unavailable. */ }
   }, []);
+
+  const updateAsrLanguage = (value: string) => {
+    const next = value === "zh-CN" || value === "en-GB" ? value : "auto";
+    setAsrLanguage(next);
+    try { window.localStorage.setItem("friday-asr-language", next); } catch { /* Session-only preference. */ }
+  };
 
   const updateAssistant = (value: string) => {
     const next = value === "jarvis" || value === "lin-meimei" ? value : "friday";
@@ -823,6 +861,17 @@ function VoiceSettingsPanel() {
     <section>
       <SectionTitle title="语音设置" hint="助手角色、音色与唤醒方式" />
       <div className="space-y-3">
+        <SelectRow
+          label="语音识别语言"
+          value={asrLanguage}
+          onChange={updateAsrLanguage}
+          options={[
+            { value: "auto", label: "自动跟随", hint: "跟随 Friday 的回复语言" },
+            { value: "zh-CN", label: "简体中文", hint: "中文识别" },
+            { value: "en-GB", label: "English", hint: "英语识别（英式）" },
+          ]}
+        />
+        <p className="text-xs text-faint leading-relaxed">使用当前浏览器内置的语音识别能力，不提供虚假的第三方引擎切换。更改后从下一次开始聆听时生效；浏览器支持情况与识别服务由浏览器决定。</p>
         <SelectRow
           label="助手角色"
           value={assistantId}
