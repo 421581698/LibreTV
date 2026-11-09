@@ -283,3 +283,28 @@
 .v4-home .v4-hero-content {
   top: calc(50% + clamp(24px, 4vh, 40px)) !important;
 }
+
+
+/* Homepage overlay is genuinely floating/transparent; content remains legible
+   because the hero copy is shifted below the header's visual footprint. */
+.v4-home .v4-header.is-overlay {
+  background: linear-gradient(180deg,rgba(8,10,14,.38) 0%,rgba(8,10,14,.16) 68%,transparent 100%) !important;
+  background-image: linear-gradient(180deg,rgba(8,10,14,.38) 0%,rgba(8,10,14,.16) 68%,transparent 100%) !important;
+  border-bottom-color: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: blur(10px) saturate(125%) !important;
+  backdrop-filter: blur(10px) saturate(125%) !important;
+}
+:root:not(.dark) .v4-spatial-panel {
+  box-shadow: 0 4px 24px rgba(0,0,0,.04) !important;
+}
+.dark .v4-spatial-panel {
+  box-shadow: 0 8px 28px rgba(0,0,0,.18) !important;
+}
+@media screen and (min-width: 701px) {
+  .v4-header .v4-search,
+  .v4-home .v4-header .v4-search,
+  .v4-spatial-screen .v4-header .v4-search {
+    flex-shrink: 1 !important;
+  }
+}
