@@ -247,3 +247,48 @@ function TypeButton({ active, onClick, children }: { active: boolean; onClick: (
     </button>
   );
 }
+
+/** 独立动漫屏使用 Bangumi 当季放送真实数据，不复用影视榜单占位。 */
+export function AnimeRecommendationSection({ onPick }: { onPick: (item: DoubanItem) => void }) {
+  const [weekday, setWeekday] = useState<number | 'all'>('all');
+  const query = useQuery({
+    queryKey: ['bangumi-calendar', 'homepage-anime'],
+    queryFn: ({ signal }) => api.bangumiCalendar(signal),
+  });
+  const items = query.data
+    ? weekday === 'all'
+      ? query.data.days.flatMap((day) => day.items)
+      : (query.data.days.find((day) => day.weekday === weekday)?.items ?? [])
+    : [];
+  return (
+    <section aria-label="当季动漫与每日放送">
+      <div className="flex flex-wrap gap-1.5 mb-4">
+        <ChipButton active={weekday === 'all'} onClick={() => setWeekday('all')}>全部</ChipButton>
+        {WEEKDAYS.map((name, index) => (
+          <ChipButton key={name} active={weekday === index + 1} onClick={() => setWeekday(index + 1)}>
+            {name}
+          </ChipButton>
+        ))}
+      </div>
+      {query.isError ? (
+        <QueryError error={query.error} onRetry={() => void query.refetch()} />
+      ) : query.isLoading ? (
+        <GridSkeleton />
+      ) : items.length === 0 ? (
+        <p className="text-center text-sm text-faint py-8">当前没有可显示的新番放送数据</p>
+      ) : (
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
+          {items.map((item) => (
+            <DoubanCard
+              key={item.id}
+              item={item}
+              isTv={item.isTv ?? true}
+              enableTmdbFallback
+              onClick={() => onPick(item)}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
