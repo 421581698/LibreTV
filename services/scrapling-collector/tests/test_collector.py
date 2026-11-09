@@ -55,6 +55,12 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(host, "media.example")
 
     @patch.object(collector.socket, "getaddrinfo")
+    def test_public_https_url_blocks_private_ip_literal_without_dns(self, getaddrinfo):
+        with self.assertRaises(collector.HTTPException):
+            collector.public_https_url("https://127.0.0.1/private")
+        getaddrinfo.assert_not_called()
+
+    @patch.object(collector.socket, "getaddrinfo")
     def test_public_https_url_blocks_private_dns(self, getaddrinfo):
         getaddrinfo.return_value = [(None, None, None, None, ("127.0.0.1", 443))]
         with self.assertRaises(collector.HTTPException):
