@@ -141,20 +141,31 @@ function WatchContent() {
   });
   const relatedItems = useMemo(() => {
     const watchedIds = new Set((watchedHistory ?? []).map((item) => `${item.sourceKey}:${item.vodId}`));
-    const watchedTitles = new Set((watchedHistory ?? []).map((item) => item.title.trim().toLocaleLowerCase()).filter(Boolean));
+    const normalize = (value?: string) => (value ?? '').trim().toLocaleLowerCase().replace(/[\\s\\p{P}\\p{S}]/gu, '');
+    const watchedTitles = new Set((watchedHistory ?? []).map((item) => normalize(item.title)).filter(Boolean));
+    const currentInfo = detailQuery.data?.videoInfo;
     const seen = new Set<string>();
-    return (relatedQuery.data?.list ?? [])
+    const candidates = (relatedQuery.data?.list ?? [])
       .filter((item) => !(item.sourceKey === sourceKey && item.vodId === vodId))
       .filter((item) => !watchedIds.has(`${item.sourceKey}:${item.vodId}`))
-      .filter((item) => !watchedTitles.has(item.name.trim().toLocaleLowerCase()))
+      .filter((item) => !watchedTitles.has(normalize(item.name)))
       .filter((item) => {
-        const title = item.name.trim().toLocaleLowerCase();
+        const title = normalize(item.name);
         if (!title || seen.has(title)) return false;
         seen.add(title);
         return true;
-      })
-      .slice(0, 8);
-  }, [relatedQuery.data, sourceKey, vodId, watchedHistory]);
+      });
+    // 只按真实详情元数据做轻量排序；缺失字段不猜测、不伪造相似度。
+    const score = (item: (typeof candidates)[number]) =>
+      (currentInfo?.typeName && item.typeName && normalize(currentInfo.typeName) === normalize(item.typeName) ? 4 : 0) +
+      (currentInfo?.year && item.year && currentInfo.year === item.year ? 2 : 0) +
+      (currentInfo?.area && item.area && normalize(currentInfo.area) === normalize(item.area) ? 1 : 0);
+    return candidates
+      .map((item, index) => ({ item, index, score: score(item) }))
+      .sort((a, b) => b.score - a.score || a.index - b.index)
+      .slice(0, 8)
+      .map(({ item }) => item);
+  }, [relatedQuery.data, sourceKey, vodId, watchedHistory, detailQuery.data?.videoInfo]);
   // 当前播放地址：优先取剧集列表中的当前集，其次直连 URL 参数
   const currentUrl = useMemo(() => {
     if (episodes.length > 0) {
