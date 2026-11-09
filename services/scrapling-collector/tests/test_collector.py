@@ -306,6 +306,69 @@ segment-2.ts
         self.assertEqual(result["representations"][0]["height"], 1080)
         self.assertEqual(result["representations"][0]["bandwidth"], 5000000)
 
+    def test_mpd_manifest_resolves_base_url_and_segment_template(self):
+        body = b"""<MPD type="static">
+<BaseURL>https://cdn.example/root/</BaseURL>
+<Period><AdaptationSet>
+<SegmentTemplate media="video/$RepresentationID$/$Number$.m4s"
+ initialization="init/$RepresentationID$.mp4" startNumber="1"/>
+<Representation id="v1080" width="1920" height="1080" bandwidth="5000000"/>
+</AdaptationSet></Period></MPD>"""
+        result = collector.parse_mpd_manifest(body, "https://origin.example/manifest.mpd")
+        self.assertTrue(result["manifest_valid"])
+        self.assertEqual(result["representations"][0]["base_url"], "https://cdn.example/root/")
+        self.assertEqual(
+            result["representations"][0]["segment_template"]["media"],
+            "https://cdn.example/root/video/$RepresentationID$/$Number$.m4s",
+        )
+        self.assertEqual(
+            result["representations"][0]["segment_template"]["initialization"],
+            "https://cdn.example/root/init/$RepresentationID$.mp4",
+        )
+
+    def test_mpd_manifest_extracts_segment_list_urls(self):
+        body = b"""<MPD><Period><AdaptationSet>
+<SegmentList><Initialization sourceURL="init.mp4"/>
+<SegmentURL media="chunk-1.m4s"/><SegmentURL media="chunk-2.m4s"/></SegmentList>
+<Representation id="v1" bandwidth="1000000"/>
+</AdaptationSet></Period></MPD>"""
+        result = collector.parse_mpd_manifest(body, "https://cdn.example/path/manifest.mpd")
+        self.assertEqual(
+            result["representations"][0]["segment_list"],
+            [
+                "https://cdn.example/path/init.mp4",
+                "https://cdn.example/path/chunk-1.m4s",
+                "https://cdn.example/path/chunk-2.m4s",
+            ],
+        )
+
+    def test_mpd_reference_validation_rejects_private_base_and_keeps_public_template(self):
+        manifest = {
+            "manifest_valid": True,
+            "manifest_type": "dash",
+            "representations": [
+                {
+                    "id": "v1",
+                    "base_url": "https://cdn.example/root/",
+                    "segment_template": {"media": "https://cdn.example/root/$Number$.m4s"},
+                    "segment_list": [],
+                },
+                {
+                    "id": "v2",
+                    "base_url": "https://127.0.0.1/private/",
+                    "segment_template": {},
+                    "segment_list": [],
+                },
+            ],
+        }
+        with patch.object(collector.socket, "getaddrinfo", return_value=[
+            (None, None, None, None, ("8.8.8.8", 443))
+        ]):
+            result = collector.validate_manifest_references(manifest, "https://origin.example/manifest.mpd")
+        self.assertEqual(result["representation_count"], 1)
+        self.assertEqual(result["representations"][0]["id"], "v1")
+        self.assertEqual(result["rejected_reference_count"], 1)
+
     def test_hls_segment_probe_samples_only_bounded_number(self):
         urls = [f"https://media.example/segment-{i}.ts" for i in range(8)]
         with patch.object(collector, "public_https_url", return_value=(urls[0], "media.example")), patch.object(collector, "throttle"), patch.object(collector, "probe_direct_media", return_value={"reachable": True, "http_status": 206, "content_type": "video/mp2t"}) as probe:
