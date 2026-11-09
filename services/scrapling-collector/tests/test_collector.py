@@ -312,6 +312,31 @@ segment-2.ts
         self.assertEqual(result["representations"][0]["height"], 1080)
         self.assertEqual(result["representations"][0]["bandwidth"], 5000000)
 
+    def test_mpd_manifest_rejects_doctype_and_entities(self):
+        body = b"""<!DOCTYPE MPD [<!ENTITY x "expanded">]>
+<MPD><Period><AdaptationSet><Representation id="&x;"/></AdaptationSet></Period></MPD>"""
+        result = collector.parse_mpd_manifest(body, "https://cdn.example/manifest.mpd")
+        self.assertFalse(result["manifest_valid"])
+        self.assertEqual(result["manifest_error"], "doctype_or_entity_blocked")
+
+    def test_hls_master_tree_rejects_empty_media_playlist(self):
+        root = {"variants": [{"uri": "https://media.example/empty.m3u8"}]}
+        empty_playlist = {
+            "reachable": True,
+            "media_format": "hls",
+            "manifest_valid": True,
+            "is_master_playlist": False,
+            "segment_uris": [],
+            "segment_count": 0,
+        }
+        with patch.object(collector, "public_https_url", return_value=("https://media.example/empty.m3u8", "media.example")), \
+             patch.object(collector, "throttle"), \
+             patch.object(collector, "probe_direct_media", return_value=empty_playlist):
+            result = collector.probe_hls_variant_tree(root, max_requests=2)
+        self.assertEqual(result["reachable_leaf_count"], 0)
+        self.assertTrue(result["results"][0]["empty_media_playlist"])
+        self.assertFalse(result["results"][0]["leaf_reachable"])
+
     def test_mpd_manifest_resolves_base_url_and_segment_template(self):
         body = b"""<MPD type="static">
 <BaseURL>https://cdn.example/root/</BaseURL>
