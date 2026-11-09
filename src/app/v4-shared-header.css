@@ -450,138 +450,95 @@
 }
 
 
-/* Navigation order: brand, Home, Movies, inline search, TV, Anime,
-   Variety, Overseas, Live. Channel labels use black text; Home stays white. */
-.v4-header-inner,
-.v4-home .v4-header-inner,
-.v4-spatial-screen .v4-header-inner {
-  grid-template-columns: auto minmax(0, 1fr) auto !important;
-}
-.v4-header .v4-primary-nav,
-.v4-home .v4-header .v4-primary-nav,
-.v4-spatial-screen .v4-header .v4-primary-nav {
-  justify-content: flex-start !important;
-  gap: 6px !important;
-  overflow: visible !important;
-}
-.v4-header .v4-nav-link,
-.v4-home .v4-header .v4-nav-link,
-.v4-spatial-screen .v4-header .v4-nav-link {
-  color: #17171B !important;
-  background: rgba(255,255,255,.88) !important;
-  border-color: rgba(255,255,255,.68) !important;
-  box-shadow: 0 2px 8px rgba(0,0,0,.08) !important;
-}
-.v4-header .v4-nav-link:hover,
-.v4-home .v4-header .v4-nav-link:hover,
-.v4-spatial-screen .v4-header .v4-nav-link:hover {
-  color: #000 !important;
-  background: #fff !important;
-}
-.v4-header .v4-nav-link.is-active,
-.v4-home .v4-header .v4-nav-link.is-active,
-.v4-spatial-screen .v4-header .v4-nav-link.is-active {
-  color: #000 !important;
-  background: #fff !important;
-  border-color: #fff !important;
-  box-shadow: 0 4px 14px rgba(0,0,0,.12), inset 0 1px 0 #fff !important;
-}
-/* Home is the sole white-text navigation item on a dark glass capsule. */
-.v4-header .v4-nav-link[href="/"],
-.v4-home .v4-header .v4-nav-link[href="/"],
-.v4-spatial-screen .v4-header .v4-nav-link[href="/"] {
-  color: #fff !important;
-  background: rgba(20,20,24,.78) !important;
-  border-color: rgba(255,255,255,.18) !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.08) !important;
-}
-.v4-header .v4-nav-link[href="/"]:hover,
-.v4-home .v4-header .v4-nav-link[href="/"]:hover {
-  color: #fff !important;
-  background: rgba(40,40,46,.92) !important;
-}
-.v4-header .v4-search,
-.v4-home .v4-header .v4-search,
-.v4-spatial-screen .v4-header .v4-search {
-  display: flex !important;
-  flex: 0 0 clamp(180px, 17vw, 230px) !important;
-  width: clamp(180px, 17vw, 230px) !important;
-  min-width: 160px !important;
-  height: 40px !important;
-  margin: 0 2px !important;
-  color: #17171B !important;
-  background: rgba(255,255,255,.94) !important;
-  border: 1px solid rgba(255,255,255,.82) !important;
-  box-shadow: 0 2px 10px rgba(0,0,0,.10) !important;
-}
-.v4-header .v4-search input,
-.v4-home .v4-header .v4-search input,
-.v4-spatial-screen .v4-header .v4-search input {
-  color: #17171B !important;
-  -webkit-text-fill-color: #17171B !important;
-}
-.v4-header .v4-search input::placeholder,
-.v4-home .v4-header .v4-search input::placeholder,
-.v4-spatial-screen .v4-header .v4-search input::placeholder {
-  color: #777 !important;
-  -webkit-text-fill-color: #777 !important;
-}
-.v4-header .v4-search svg,
-.v4-home .v4-header .v4-search svg,
-.v4-spatial-screen .v4-header .v4-search svg { color: #555 !important; }
 
-@media screen and (min-width: 701px) and (max-width: 1440px) and (any-pointer: coarse) {
-  .v4-header .v4-primary-nav,
-  .v4-home .v4-header .v4-primary-nav,
-  .v4-spatial-screen .v4-header .v4-primary-nav {
-    grid-column: 1 / -1 !important;
-    grid-row: 2 !important;
-    justify-content: flex-start !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    gap: 6px !important;
-  }
-  .v4-header .v4-search,
-  .v4-home .v4-header .v4-search,
-  .v4-spatial-screen .v4-header .v4-search {
-    flex-basis: 220px !important;
-    width: 220px !important;
-  }
-}
-@media screen and (max-width: 700px) {
-  .v4-header .v4-mobile-search-toggle,
-  .v4-home .v4-header .v4-mobile-search-toggle,
-  .v4-spatial-screen .v4-header .v4-mobile-search-toggle {
-    display: none !important;
-  }
-  .v4-header .v4-primary-nav,
-  .v4-home .v4-header .v4-primary-nav,
-  .v4-spatial-screen .v4-header .v4-primary-nav {
-    flex-wrap: nowrap !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    justify-content: flex-start !important;
-    gap: 5px !important;
-    padding: 0 12px 8px !important;
-  }
-  .v4-header .v4-search,
-  .v4-home .v4-header .v4-search,
-  .v4-spatial-screen .v4-header .v4-search {
+/* Desktop-only header composition. iPhone and iPad keep their own layouts. */
+@media screen and (min-width: 1200px) {
+  .v4-header-inner,
+  .v4-home .v4-header-inner,
+  .v4-spatial-screen .v4-header-inner {
     display: flex !important;
-    position: relative !important;
-    inset: auto !important;
-    flex: 0 0 205px !important;
-    width: 205px !important;
-    min-width: 205px !important;
-    height: 38px !important;
-    margin: 0 2px !important;
-    padding: 0 10px !important;
+    align-items: center !important;
+    gap: 18px !important;
   }
-  .v4-header .v4-nav-link,
-  .v4-home .v4-header .v4-nav-link,
-  .v4-spatial-screen .v4-header .v4-nav-link {
-    min-height: 38px !important;
-    padding: 0 12px !important;
-    font-size: 12px !important;
+  .v4-header .v4-brand,
+  .v4-home .v4-header .v4-brand,
+  .v4-spatial-screen .v4-header .v4-brand { flex: 0 0 auto !important; }
+  .v4-header .v4-primary-nav,
+  .v4-home .v4-header .v4-primary-nav,
+  .v4-spatial-screen .v4-header .v4-primary-nav {
+    display: contents !important;
+  }
+  .v4-header .v4-primary-nav .v4-nav-link,
+  .v4-home .v4-header .v4-primary-nav .v4-nav-link,
+  .v4-spatial-screen .v4-header .v4-primary-nav .v4-nav-link {
+    flex: 0 0 auto !important;
+    order: 0 !important;
+    color: #17171B !important;
+    background: rgba(255,255,255,.88) !important;
+    border: 1px solid rgba(255,255,255,.68) !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08) !important;
+  }
+  .v4-header .v4-primary-nav .v4-nav-link[href="/"],
+  .v4-home .v4-header .v4-primary-nav .v4-nav-link[href="/"],
+  .v4-spatial-screen .v4-header .v4-primary-nav .v4-nav-link[href="/"] {
+    color: #fff !important;
+    background: rgba(20,20,24,.78) !important;
+    border-color: rgba(255,255,255,.18) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.08) !important;
+  }
+  .v4-header .v4-primary-nav .v4-nav-link[href="/movies"],
+  .v4-home .v4-header .v4-primary-nav .v4-nav-link[href="/movies"],
+  .v4-spatial-screen .v4-header .v4-primary-nav .v4-nav-link[href="/movies"] { order: 1 !important; }
+  .v4-header .v4-primary-nav .v4-nav-link[href="/tv"],
+  .v4-home .v4-header .v4-primary-nav .v4-nav-link[href="/tv"],
+  .v4-spatial-screen .v4-header .v4-primary-nav .v4-nav-link[href="/tv"] { order: 3 !important; }
+  .v4-header .v4-primary-nav .v4-nav-link[href="/anime"],
+  .v4-home .v4-header .v4-primary-nav .v4-nav-link[href="/anime"] { order: 4 !important; }
+  .v4-header .v4-primary-nav .v4-nav-link[href="/variety"],
+  .v4-home .v4-header .v4-primary-nav .v4-nav-link[href="/variety"] { order: 5 !important; }
+  .v4-header .v4-primary-nav .v4-nav-link[href="/overseas"],
+  .v4-home .v4-header .v4-primary-nav .v4-nav-link[href="/overseas"] { order: 6 !important; }
+  .v4-header .v4-primary-nav .v4-nav-link[href="/live"],
+  .v4-home .v4-header .v4-primary-nav .v4-nav-link[href="/live"] { order: 7 !important; }
+  .v4-header .v4-search,
+  .v4-home .v4-header .v4-search,
+  .v4-spatial-screen .v4-header .v4-search {
+    order: 2 !important;
+    display: flex !important;
+    flex: 0 0 clamp(180px, 17vw, 230px) !important;
+    width: clamp(180px, 17vw, 230px) !important;
+    min-width: 160px !important;
+    height: 40px !important;
+    margin: 0 2px !important;
+    color: #17171B !important;
+    background: rgba(255,255,255,.94) !important;
+    border: 1px solid rgba(255,255,255,.82) !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,.10) !important;
+  }
+  .v4-header .v4-search input,
+  .v4-home .v4-header .v4-search input,
+  .v4-spatial-screen .v4-header .v4-search input {
+    color: #17171B !important;
+    -webkit-text-fill-color: #17171B !important;
+  }
+  .v4-header .v4-search input::placeholder,
+  .v4-home .v4-header .v4-search input::placeholder,
+  .v4-spatial-screen .v4-header .v4-search input::placeholder {
+    color: #777 !important;
+    -webkit-text-fill-color: #777 !important;
+  }
+  .v4-header .v4-header-actions,
+  .v4-home .v4-header .v4-header-actions,
+  .v4-spatial-screen .v4-header .v4-header-actions {
+    order: 8 !important;
+    flex: 0 0 auto !important;
+    margin-left: auto !important;
+  }
+  .v4-header .v4-nav-link.is-active,
+  .v4-home .v4-header .v4-nav-link.is-active,
+  .v4-spatial-screen .v4-header .v4-nav-link.is-active {
+    color: #000 !important;
+    background: #fff !important;
+    border-color: #fff !important;
   }
 }
