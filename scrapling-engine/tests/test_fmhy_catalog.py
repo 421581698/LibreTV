@@ -88,3 +88,14 @@ def test_fmhy_markers_are_not_misclassified_as_primary_sites() -> None:
     assert entries[1].links[0].is_primary is False
     assert entries[0].source_url.endswith("/docs/video.md#L3")
     assert "a" * 40 in entries[0].source_url
+
+
+def test_parser_preserves_parentheses_inside_markdown_urls() -> None:
+    entries = parse_fmhy_markdown(
+        "video.md",
+        "* [Nested URL](https://example.com/watch_(extended)/episode_(1)) - Example\\n",
+    )
+
+    assert entries[0].links[0].canonical_url == (
+        "https://example.com/watch_(extended)/episode_(1)"
+    )
