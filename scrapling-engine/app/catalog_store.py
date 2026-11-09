@@ -190,3 +190,24 @@ class CatalogStore:
         with closing(self._connect()) as connection, connection:
             rows = connection.execute(sql, parameters).fetchall()
         return [dict(row) for row in rows]
+
+
+    def list_categories(
+        self, *, snapshot_id: str, include_unsafe: bool = False,
+    ) -> list[dict]:
+        clauses = ["e.snapshot_id = ?"]
+        parameters: list[object] = [snapshot_id]
+        if not include_unsafe:
+            clauses.append("e.safety_status != 'flagged_unsafe'")
+        sql = f"""
+            SELECT e.category, COUNT(DISTINCT e.entry_id) AS entry_count,
+                   COUNT(DISTINCT l.domain) AS domain_count
+            FROM catalog_entries e
+            LEFT JOIN catalog_links l
+              ON l.snapshot_id = e.snapshot_id AND l.entry_id = e.entry_id
+            WHERE {" AND ".join(clauses)}
+            GROUP BY e.category ORDER BY e.category
+        """
+        with closing(self._connect()) as connection, connection:
+            rows = connection.execute(sql, parameters).fetchall()
+        return [dict(row) for row in rows]
