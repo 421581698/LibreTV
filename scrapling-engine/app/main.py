@@ -33,6 +33,7 @@ job_store.initialize()
 job_store.recover_interrupted()
 _active_spiders: dict[str, Any] = {}
 _job_tasks: dict[str, asyncio.Task] = {}
+_job_locks: dict[str, asyncio.Lock] = {}
 
 
 class FetchRequest(BaseModel):
@@ -99,6 +100,7 @@ def _ensure_checkpoint_manifest(
 
 
 def _schedule_job(task_id: str) -> None:
+    _job_locks.setdefault(task_id, asyncio.Lock())
     existing = _job_tasks.get(task_id)
     if existing and not existing.done():
         return
@@ -129,20 +131,21 @@ async def _run_job(task_id: str) -> None:
                     "title": item.get("title"),
                 },
             )
-        current = job_store.get(task_id)
-        paused = current is not None and current["status"] == "pausing"
-        result = {
-            "items": items,
-            "completed": not paused,
-            "paused": paused,
-            "stats": asdict(spider.stats),
-        }
-        job_store.update(
-            task_id,
-            "paused" if paused else "completed",
-            finished_at=_now() if not paused else None,
-            result_json=json.dumps(result, ensure_ascii=False),
-        )
+        async with _job_locks.setdefault(task_id, asyncio.Lock()):
+            current = job_store.get(task_id)
+            paused = current is not None and current["status"] == "pausing"
+            result = {
+                "items": items,
+                "completed": not paused,
+                "paused": paused,
+                "stats": asdict(spider.stats),
+            }
+            job_store.update(
+                task_id,
+                "paused" if paused else "completed",
+                finished_at=_now() if not paused else None,
+                result_json=json.dumps(result, ensure_ascii=False),
+            )
     except asyncio.CancelledError:
         job_store.update(task_id, "paused", error="Task cancelled during service shutdown.")
         raise
@@ -359,7 +362,7 @@ async def job_events(task_id: str, last_event_id: int = 0) -> StreamingResponse:
                 payload = json.dumps(event, ensure_ascii=False)
                 yield f"id: {cursor}\nevent: {event['type']}\ndata: {payload}\n\n"
             job = job_store.get(task_id)
-            if job is None or job["status"] in {"completed", "paused", "failed"}:
+            if job is None or job["status"] in {"completed", "paused", "failed", "interrupted"}:
                 break
             if not events:
                 yield ": keep-alive\n\n"
