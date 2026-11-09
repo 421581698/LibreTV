@@ -4,6 +4,7 @@ import asyncio
 from dataclasses import dataclass
 
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 
 from app import main
 from app.job_store import JobStore
@@ -230,3 +231,29 @@ def test_job_runner_marks_pause_without_checkpoint_as_interrupted(
     assert job["status"] == "interrupted"
     assert job["error"] == "Pause ended without a persisted checkpoint."
     assert len(store.get_results("job_pause_no_checkpoint")) == 1
+
+
+
+def test_remote_api_key_protects_v1_routes_but_not_health(monkeypatch) -> None:
+    monkeypatch.setattr(main.settings, "api_key", SecretStr("test-secret"))
+    client = TestClient(main.app)
+
+    denied = client.get("/v1/jobs/missing")
+    assert denied.status_code == 401
+
+    allowed = client.get(
+        "/v1/jobs/missing",
+        headers={"X-API-Key": "test-secret"},
+    )
+    assert allowed.status_code == 404
+
+    health = client.get("/health")
+    assert health.status_code == 200
+
+
+def test_loopback_host_detection() -> None:
+    assert main._is_loopback_host("127.0.0.1")
+    assert main._is_loopback_host("::1")
+    assert main._is_loopback_host("localhost")
+    assert not main._is_loopback_host("0.0.0.0")
+    assert not main._is_loopback_host("192.0.2.10")
