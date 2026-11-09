@@ -142,14 +142,15 @@ class CollectorTests(unittest.TestCase):
                 pass
 
         class Connection:
+            last_request = None
+
             def __init__(self, *args, **kwargs):
-                self.request_args = None
+                pass
 
             def request(self, method, target, headers):
-                self.request_args = (method, target, headers)
+                Connection.last_request = (method, target, headers)
 
             def getresponse(self):
-                self.test_request = self.request_args
                 return Response()
 
             def close(self):
@@ -162,6 +163,8 @@ class CollectorTests(unittest.TestCase):
         self.assertTrue(result["reachable"])
         self.assertEqual(result["http_status"], 206)
         self.assertTrue(result["range_supported"])
+        self.assertEqual(Connection.last_request[0], "GET")
+        self.assertEqual(Connection.last_request[2]["Range"], "bytes=0-0")
 
     def test_direct_media_probe_rejects_private_redirect(self):
         class Response:
