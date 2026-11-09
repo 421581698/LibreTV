@@ -16,7 +16,7 @@ class JobStore:
     """Small SQLite-backed registry for crawl jobs and their audit events."""
 
     def __init__(self, database_path: str) -> None:
-        self.path = Path(database_path)
+        self.path = Path(database_path).expanduser().resolve()
 
     def _connect(self) -> sqlite3.Connection:
         self.path.parent.mkdir(parents=True, exist_ok=True)
