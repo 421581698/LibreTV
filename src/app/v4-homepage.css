@@ -903,3 +903,23 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
     transition: none !important;
   }
 }
+
+
+/* Bright poster pass: keep artwork luminous and detailed; retain only a
+   restrained text-side veil so the hero title remains readable. */
+.v4-home .v4-hero-image img {
+  filter: brightness(1.22) contrast(1.08) saturate(1.14) !important;
+  image-rendering: auto;
+}
+.v4-home .v4-hero-veil {
+  background:
+    linear-gradient(90deg, rgba(4, 8, 15, .38) 0%, rgba(4, 8, 15, .22) 34%, rgba(4, 8, 15, .08) 66%, rgba(4, 8, 15, .015) 100%),
+    linear-gradient(0deg, rgba(4, 8, 15, .24) 0%, rgba(4, 8, 15, .07) 38%, transparent 100%) !important;
+}
+.v4-home .v4-recommendation-section .card img {
+  filter: brightness(1.12) contrast(1.06) saturate(1.10) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .v4-home .v4-hero-image img,
+  .v4-home .v4-recommendation-section .card img { transition: none !important; }
+}
