@@ -340,6 +340,7 @@ function SettingsScreen() {
     { title: '点播源管理', description: '管理点播来源、优先级与健康检测', page: 'vod' },
     { title: '直播设置', description: '管理直播源与频道', page: 'live' },
     { title: '资源订阅', description: '管理点播与直播资源订阅', page: 'subs' },
+    { title: '资源采集中心', description: 'FMHY 网站发现目录与 Scrapling 采集引擎', page: 'collector' },
     { title: 'Friday 语音', description: '助手角色、语音音色、唤醒词与对话语言', page: 'voice' },
     { title: '配置导入与导出', description: '备份或恢复 LibreTV 本机配置', page: 'io' },
     { title: '本机缓存', description: '查看和管理本机视频缓存', page: 'cache' },
