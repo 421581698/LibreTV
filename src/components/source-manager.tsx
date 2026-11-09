@@ -385,7 +385,7 @@ function ResourceCollectorPanel() {
                 <a className="block truncate text-xs text-content underline" href={candidate.url} target="_blank" rel="noreferrer">{candidate.url}</a>
               </div>
               <div className="flex shrink-0 flex-wrap gap-1">
-                {candidate.kind === 'direct-media' ? (
+                {candidate.kind === 'direct-media' && candidate.status === 'validated' ? (
                   <button type="button" className="btn-primary btn-sm" onClick={() => setPlayingCandidate(candidate)}>播放</button>
                 ) : null}
                 <button type="button" className="btn-ghost btn-sm" disabled={busy || !candidate.id} onClick={() => void validateCandidate(candidate)}>
