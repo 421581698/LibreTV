@@ -4,6 +4,8 @@ from pathlib import Path
 from typing import Any, Literal
 
 import regex as re
+from cssselect.parser import SelectorSyntaxError
+from lxml.etree import XPathError
 from scrapling.fetchers import Fetcher
 
 from app.config import settings
@@ -73,8 +75,13 @@ class ScraplingAdapter:
                     nodes = page.css(selector, adaptive=True)
                 else:
                     raise ValueError("Adaptive CSS extraction requires save or relocate action.")
+                if adaptive_action in {"save", "relocate"} and not isinstance(nodes, list):
+                    nodes = list(nodes)
             else:
-                nodes = page.css(selector)
+                try:
+                    nodes = page.css(selector)
+                except SelectorSyntaxError as exc:
+                    raise ValueError("Invalid CSS selector.") from exc
             values = [_element_text(node) for node in nodes]
         elif mode in {"xpath", "adaptive_xpath"}:
             if not selector:
@@ -87,7 +94,10 @@ class ScraplingAdapter:
                 else:
                     raise ValueError("Adaptive XPath extraction requires save or relocate action.")
             else:
-                nodes = page.xpath(selector)
+                try:
+                    nodes = page.xpath(selector)
+                except XPathError as exc:
+                    raise ValueError("Invalid XPath expression.") from exc
             values = [_element_text(node) for node in nodes]
         elif mode == "regex":
             if not selector:
