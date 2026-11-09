@@ -55,7 +55,8 @@ jobs:
         run: docker compose -f docker-compose.yml --project-directory . --profile collector config --quiet
       - name: Validate Render Blueprint YAML syntax
         working-directory: .
-        run: ruby -e 'require "yaml"; YAML.safe_load_file("render.yaml", permitted_classes: [], aliases: false); puts "Render Blueprint YAML syntax passed"'
+        run: |
+          ruby -e 'require "yaml"; YAML.safe_load_file("render.yaml", permitted_classes: [], aliases: false); puts "Render Blueprint YAML syntax passed"'
       - name: Validate host firewall script syntax
         run: bash -n ../../scripts/scrapling-egress-firewall.sh
       - name: Build isolated collector image
