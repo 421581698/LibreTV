@@ -26,7 +26,7 @@ const COPY: Record<Screen, { eyebrow: string; title: string; subtitle: string }>
   anime: { eyebrow: 'LIBRARY / ANIME', title: '动漫', subtitle: '按星期查看 Bangumi 当季放送，追踪正在更新的新番。' },
   resources: { eyebrow: 'LIBRARY / SOURCES', title: '资源', subtitle: '管理真实接入的点播源、订阅和源健康状态，不展示虚构网盘结果。' },
   me: { eyebrow: 'PERSONAL / LIBRARY', title: '我的', subtitle: '本机观看记录与播放进度保存在你的设备上。' },
-  settings: { eyebrow: 'SYSTEM / SETTINGS', title: '设置', subtitle: '播放、外观、网络、语音与数据选项沿用现有设置模块。' },
+  settings: { eyebrow: '', title: '设置', subtitle: '播放、外观、网络、语音与数据选项沿用现有设置模块。' },
 };
 
 export function V4SpatialScreen({ screen }: { screen: Screen }) {
@@ -38,7 +38,7 @@ export function V4SpatialScreen({ screen }: { screen: Screen }) {
       <main className="v4-spatial-main">
         <div className="v4-spatial-heading">
           <div>
-            <span className="v4-spatial-eyebrow">{copy.eyebrow}</span>
+            {copy.eyebrow ? <span className="v4-spatial-eyebrow">{copy.eyebrow}</span> : null}
             <h1>{copy.title}</h1>
             <p>{copy.subtitle}</p>
           </div>
