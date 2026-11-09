@@ -6,6 +6,7 @@ import http.client
 import hmac
 import ipaddress
 import json
+import math
 import os
 import re
 import socket
@@ -256,8 +257,12 @@ def parse_iso8601_duration_seconds(value: str | None) -> float | None:
     )
     if not match or not any(part is not None for part in match.groups()):
         return None
-    days, hours, minutes, seconds = (float(part or 0) for part in match.groups())
-    return days * 86400 + hours * 3600 + minutes * 60 + seconds
+    try:
+        days, hours, minutes, seconds = (float(part or 0) for part in match.groups())
+        total = days * 86400 + hours * 3600 + minutes * 60 + seconds
+    except (OverflowError, ValueError):
+        return None
+    return total if math.isfinite(total) else None
 
 
 def expand_dash_template(template: str, representation: dict, number: int, media_time: int) -> str:
@@ -323,7 +328,9 @@ def parse_mpd_manifest(body: bytes, base_url: str = "") -> dict:
             timelines = _xml_children(node, "SegmentTimeline")
             if timelines:
                 period_timeline = timelines[0]
-        period_duration = parse_iso8601_duration_seconds(period.attrib.get("duration")) or mpd_duration
+        period_duration = parse_iso8601_duration_seconds(period.attrib.get("duration"))
+        if period_duration is None:
+            period_duration = mpd_duration
         for adaptation in _xml_children(period, "AdaptationSet"):
             adaptation_base = _first_base_url(adaptation)
             adaptation_url = urljoin(current_base, adaptation_base) if adaptation_base else current_base
@@ -413,10 +420,12 @@ def parse_mpd_manifest(body: bytes, base_url: str = "") -> dict:
                                 # timeShiftBufferDepth is a window length, not an absolute
                                 # timeline end. Without a trustworthy live edge, do not emit
                                 # speculative segment URLs for an open-ended dynamic repeat.
-                                count = 0 if dynamic else 50
+                                count = 0
                                 timeline_truncated = True
                                 if dynamic:
                                     representation_info["timeline_requires_live_edge"] = True
+                                else:
+                                    representation_info["timeline_requires_duration_boundary"] = True
                         for offset in range(count):
                             if len(representation_info["segment_timeline"]) >= 50:
                                 timeline_truncated = True
