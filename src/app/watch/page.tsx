@@ -570,7 +570,7 @@ function WatchContent() {
                   {detailQuery.data?.videoInfo?.cover && <SmartImage url={detailQuery.data.videoInfo.cover} mode="direct" alt="" className="w-24 aspect-[2/3] object-cover rounded-lg" />}
                   <div className="min-w-0"><h3 className="font-semibold text-content">{videoTitle}</h3><p className="text-xs text-muted mt-1">{source.name}</p><p className="text-xs text-faint mt-2">{episodes.length} 集</p></div>
                 </div>
-                <p className="text-sm text-muted leading-6 mt-4">{detailQuery.data?.videoInfo?.description || '暂无影片简介。'}</p>
+                <p className="text-sm text-muted leading-6 mt-4">{'影片详情可在影片资料页查看。'}</p>
               </div>
             )}
 
