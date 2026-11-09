@@ -52,6 +52,16 @@ function persistTheme(choice: ThemeChoice): void {
 function apply(choice: ThemeChoice): 'light' | 'dark' {
   const resolved = choice === 'system' ? (systemPrefersDark() ? 'dark' : 'light') : choice;
   document.documentElement.classList.toggle('dark', resolved === 'dark');
+  // Keep Safari/iOS browser chrome aligned with the explicit app theme.
+  const themeColor = resolved === 'dark' ? '#08080A' : '#F5F7FA';
+  let themeMeta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (!themeMeta) {
+    themeMeta = document.createElement('meta');
+    themeMeta.name = 'theme-color';
+    document.head.appendChild(themeMeta);
+  }
+  themeMeta.content = themeColor;
+  document.documentElement.style.colorScheme = resolved;
   return resolved;
 }
 
