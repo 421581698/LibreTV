@@ -12,6 +12,7 @@ def test_spider_skips_text_extraction_for_oversized_page(monkeypatch) -> None:
     response.body = b"oversized"
     response.url = "https://example.com/"
     response.status = 200
+    response.css.return_value.get.return_value = "Oversized"
 
     async def collect():
         return [item async for item in _SeedSpider([]).parse(response)]
