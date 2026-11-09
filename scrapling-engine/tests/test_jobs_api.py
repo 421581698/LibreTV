@@ -181,3 +181,52 @@ def test_legacy_and_managed_apis_cannot_share_active_task_id(
         json={"task_id": "managed_busy", "urls": ["https://example.com/"]},
     )
     assert legacy.status_code == 409
+
+
+
+def test_job_runner_marks_pause_without_checkpoint_as_interrupted(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    store = _use_test_store(monkeypatch, tmp_path)
+    checkpoint = tmp_path / "crawls" / "job_pause_no_checkpoint"
+    checkpoint.mkdir(parents=True)
+    (checkpoint / "libretv-manifest.json").write_text(
+        '{"task_id": "job_pause_no_checkpoint", "seeds": '
+        '["https://example.com/one", "https://example.com/two"]}',
+        encoding="utf-8",
+    )
+    assert store.create(
+        "job_pause_no_checkpoint",
+        ["https://example.com/one", "https://example.com/two"],
+        str(checkpoint),
+    )
+    store.update("job_pause_no_checkpoint", "pausing")
+
+    @dataclass
+    class FakeStats:
+        requests_count: int = 1
+
+    class FakeSpider:
+        stats = FakeStats()
+
+        async def stream(self):
+            yield {
+                "url": "https://example.com/one",
+                "title": "one",
+                "text": "partial",
+            }
+
+    monkeypatch.setattr(
+        main.ScraplingSpiderAdapter,
+        "create",
+        lambda urls, crawldir: FakeSpider(),
+    )
+
+    asyncio.run(main._run_job("job_pause_no_checkpoint"))
+
+    job = store.get("job_pause_no_checkpoint")
+    assert job is not None
+    assert job["status"] == "interrupted"
+    assert job["error"] == "Pause ended without a persisted checkpoint."
+    assert len(store.get_results("job_pause_no_checkpoint")) == 1
