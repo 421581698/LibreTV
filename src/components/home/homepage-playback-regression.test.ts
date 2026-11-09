@@ -36,7 +36,7 @@ const fridayPanel = source('src/components/friday/FridayPanel.tsx');
 
 describe('首页与播放页回归契约', () => {
   it('首页 FridayOrb 保持可见、可访问，并将点击交给唯一语音控制器', () => {
-    expect(home).toContain('<V4HomepageHeader />');
+    expect(home).toContain('<V4HomepageHeader overlay={!urlQuery} />');
     expect(v4Header).toContain('<AIFloatingBall showFab inlineMode={false} />');
     expect(assistant).toContain('onClick={openAndListen}');
     expect(assistant).toContain('startListening(false)');
@@ -103,8 +103,22 @@ describe('首页与播放页回归契约', () => {
     expect(home).toContain('<DetailModal item={detailItem}');
   });
 
+  it('V4 首页 Header 使用双层动态导航，首屏叠加 Hero，滚动后转为轻量悬浮栏', () => {
+    expect(home).toContain('<V4HomepageHeader overlay={!urlQuery} />');
+    expect(v4Header).toContain('setIsScrolled(window.scrollY > 48)');
+    expect(v4Header).toContain('is-overlay');
+    expect(v4Header).toContain('is-scrolled');
+    expect(v4Styles).toContain('.v4-home .v4-header.is-overlay');
+    expect(v4Styles).toContain('.v4-home .v4-header.is-overlay.is-scrolled');
+    expect(v4Styles).toContain('.v4-home-main--cinema > .v4-hero');
+    for (const label of ['首页', '电影', '电视剧', '动漫', '综艺', '海外剧', '直播']) {
+      expect(v4Header).toContain(`label: '${label}'`);
+    }
+    expect(v4Styles).toContain('.v4-nav-link.is-active');
+  });
+
   it('V4 Header 搜索与最近搜索历史保留 URL、输入校验和回选链路', () => {
-    expect(home).toContain('<V4HomepageHeader />');
+    expect(home).toContain('<V4HomepageHeader overlay={!urlQuery} />');
     expect(v4Header).toContain('<SearchHistoryDropdown');
     expect(v4Header).toContain('router.push(`/?s=${encodeURIComponent(q)}`');
     expect(v4Header).toContain('searchHistory.record(q)');
