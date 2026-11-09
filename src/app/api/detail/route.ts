@@ -4,11 +4,13 @@ import { cmsRequestHeaders, parseDetail, parseDetailPageHtml } from '@/lib/cms-p
 import { fetchUpstream, getCache, setCache } from '@/lib/fetch-utils';
 import { checkUpstreamAllowed } from '@/lib/ssrf';
 import type { SourceConfig, VideoDetail } from '@/lib/types';
+import { readResponseJsonLimited, readResponseTextLimited } from '@/lib/response-body';
 
 export const runtime = 'nodejs';
 
 /** 详情结果短缓存：换源测速/多人观看同一影片时避免重复打上游 */
 const DETAIL_CACHE_TTL = 60 * 1000;
+const MAX_DETAIL_RESPONSE_BYTES = 2 * 1024 * 1024;
 
 function parseSource(raw: string | null): SourceConfig | null {
   if (!raw) return null;
@@ -65,7 +67,7 @@ export async function GET(req: Request) {
     api.searchParams.set('ids', id);
     const res = await fetchUpstream(api.toString(), { timeoutMs: 10000, signal: req.signal, headers: cmsRequestHeaders() });
     if (res.ok) {
-      const data = await res.json();
+      const data = await readResponseJsonLimited(res, MAX_DETAIL_RESPONSE_BYTES);
       try {
         const detail = parseDetail(data, source);
         if (detail.episodes.length > 0) {
@@ -90,7 +92,7 @@ export async function GET(req: Request) {
         headers: { 'User-Agent': cmsRequestHeaders()['User-Agent'] },
       });
       if (detailRes.ok) {
-        const html = await detailRes.text();
+        const html = await readResponseTextLimited(detailRes, MAX_DETAIL_RESPONSE_BYTES);
         resolved = parseDetailPageHtml(html, source);
       }
     }
