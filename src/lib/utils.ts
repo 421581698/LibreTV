@@ -64,20 +64,36 @@ export function buildImageCandidates(
   mode: 'direct' | 'proxy' | 'custom',
   customTemplate: string
 ): string[] {
-  const built = buildImageUrl(url, mode, customTemplate);
-  if (!built || !url) return [];
-  const mirrors = url.includes('doubanio.com')
+  if (!url) return [];
+  // 豆瓣 API 常返回 s_ratio_poster 小图；优先请求 l_ratio_poster 高清版，
+  // 同时保留原图作为回退，兼容非标准路径和图床不提供大图的情况。
+  const preferredUrl = url.replace(/\\/s_ratio_poster\\//g, '/l_ratio_poster/');
+  if (mode === 'custom') {
+    const custom = buildImageUrl(url, mode, customTemplate);
+    return custom ? [custom] : [];
+  }
+
+  const urls = [...new Set([preferredUrl, url])];
+  const mirrors = (source: string) => source.includes('doubanio.com')
     ? [
-        url.replace(/img\d+\.doubanio\.com/g, 'img.doubanio.cmliussss.net'),
-        url.replace(/img\d+\.doubanio\.com/g, 'img.doubanio.cmliussss.com'),
+        source.replace(/img\\d+\\.doubanio\\.com/g, 'img.doubanio.cmliussss.net'),
+        source.replace(/img\\d+\\.doubanio\\.com/g, 'img.doubanio.cmliussss.com'),
       ]
     : [];
+  const variants = [...urls, ...urls.flatMap(mirrors)];
   if (mode === 'proxy') {
-    return [...new Set([built, ...mirrors, url])];
+    return [...new Set([
+      ...urls.map((source) => buildImageUrl(source, mode, customTemplate)),
+      ...urls.flatMap(mirrors),
+      url,
+    ].filter((candidate): candidate is string => Boolean(candidate)))];
   }
-  if (mode !== 'direct') return [built];
-  return [...new Set([built, ...mirrors, `/api/proxy?url=${encodeURIComponent(url)}`])];
+  return [...new Set([
+    ...variants,
+    ...urls.map((source) => `/api/proxy?url=${encodeURIComponent(source)}`),
+  ])];
 }
+
 export function validateSourceUrl(url: string): boolean {
   return /^https?:\/\/.+/.test(url);
 }
