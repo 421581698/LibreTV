@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import ipaddress
 import socket
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 
 class UnsafeTargetError(ValueError):
@@ -18,9 +18,10 @@ def validate_public_http_url(url: str) -> str:
     This is an application-layer guard, not a substitute for network egress
     filtering. DNS can change between this check and the HTTP connection.
     """
-    if not url or len(url) > 2048 or any(ord(char) < 32 for char in url):
+    decoded_url = unquote(url)
+    if not url or len(url) > 2048 or any(ord(char) < 32 for char in decoded_url):
         raise UnsafeTargetError("Target URL is empty, too long or contains control characters.")
-    if "\\" in url:
+    if "\\" in decoded_url:
         raise UnsafeTargetError("Backslashes are not allowed in target URLs.")
 
     try:
