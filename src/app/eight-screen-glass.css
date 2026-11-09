@@ -995,3 +995,23 @@ html:not(.dark) .v4-me-cover-copy h2 { color:#fff !important; }
   .v4-me-cover-orbit-two { animation:v4-me-orbit-drift 23s ease-in-out infinite alternate-reverse; }
   @keyframes v4-me-orbit-drift { from { transform:translate3d(0,-5px,0) rotate(-24deg); } to { transform:translate3d(-12px,8px,0) rotate(-17deg); } }
 }
+
+
+/* V4 homepage header: remove the frosted-glass layer completely. */
+.v4-home .v4-header,
+.dark .v4-home .v4-header {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  filter: none !important;
+}
+.v4-home .v4-nav-link.is-active,
+.dark .v4-home .v4-nav-link.is-active {
+  color: #FFD18A !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
