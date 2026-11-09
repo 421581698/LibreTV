@@ -36,3 +36,26 @@ def test_spider_adapter_uses_async_stream_without_signal_start(monkeypatch) -> N
         {"url": "https://example.com/", "title": "streamed fixture"}
     ]
     assert result["stats"]["requests_count"] == 1
+
+
+
+def test_spider_configures_user_agent_timeout_and_safe_redirects(monkeypatch) -> None:
+    captured = {}
+
+    class FakeFetcherSession:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    class FakeManager:
+        def add(self, session_id, session):
+            captured["session_id"] = session_id
+            captured["session"] = session
+
+    monkeypatch.setattr("app.spider.FetcherSession", FakeFetcherSession)
+    spider = ScraplingSpiderAdapter.create(["https://example.com/"])
+    spider.configure_sessions(FakeManager())
+
+    assert captured["session_id"] == "default"
+    assert captured["headers"]["User-Agent"]
+    assert captured["timeout"] > 0
+    assert captured["follow_redirects"] == "safe"
