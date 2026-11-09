@@ -29,7 +29,7 @@ const movieAgents = source('src/lib/friday/movie-agents.ts');
 const movieWorkflow = source('src/lib/friday/movie-workflow.ts');
 const voiceController = source('src/components/friday/useFridayVoiceController.ts');
 const browserAsr = source('src/components/friday/browserAsr.ts');
-const theme = source('src/components/theme.tsx');
+
 const glassStyles = source('src/app/eight-screen-glass.css');
 const chatSession = source('src/components/friday/useFridayChatSession.ts');
 const fridayPanel = source('src/components/friday/FridayPanel.tsx');
