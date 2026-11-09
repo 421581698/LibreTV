@@ -12,11 +12,12 @@ import { SearchHistoryDropdown, useSearchHistory } from '@/components/search-his
 
 const NAV_ITEMS = [
   { label: '首页', href: '/' },
-  { label: '影视', href: '/movies' },
+  { label: '电影', href: '/movies' },
+  { label: '电视剧', href: '/tv' },
   { label: '动漫', href: '/anime' },
+  { label: '综艺', href: '/variety' },
+  { label: '海外剧', href: '/overseas' },
   { label: '直播', href: '/live' },
-  { label: '资源', href: '/resources' },
-  { label: '我的', href: '/me' },
 ];
 
 export function V4HomepageHeader() {
