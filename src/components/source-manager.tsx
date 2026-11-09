@@ -65,6 +65,19 @@ const SECONDARY_TABS: Record<PrimaryTab, { id: SecondaryTab; label: string }[]> 
   data: [{ id: 'io', label: '配置导入导出' }, { id: 'cache', label: '本机缓存' }],
 };
 
+const SETTINGS_TABS: { id: SecondaryTab; label: string; icon?: IconName }[] = [
+  { id: 'vod', label: '点播源', icon: 'play-square' },
+  { id: 'live', label: '直播源', icon: 'radio' },
+  { id: 'subs', label: '数据源订阅', icon: 'rss' },
+  { id: 'playback', label: '播放与过滤', icon: 'sliders' },
+  { id: 'image', label: '封面图加载', icon: 'image' },
+  { id: 'home', label: '首页与内容', icon: 'house' },
+  { id: 'voice', label: '语音设置', icon: 'mic' },
+  { id: 'language', label: '语言设置', icon: 'languages' },
+  { id: 'io', label: '配置导入导出', icon: 'folder-input' },
+  { id: 'cache', label: '本机缓存', icon: 'database' },
+];
+
 const TAB_STORAGE_KEY = 'libretv-settings-tab';
 
 export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -127,17 +140,22 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
             </div>
             <ThemeToggle />
           </div>
-          <TabRow tabs={PRIMARY_TABS} value={primary} onChange={setPrimary} variant="primary" ariaLabel="设置分类" />
-          {/* 分组下只有一项时无需二级导航，直接展示该面板 */}
-          {SECONDARY_TABS[primary].length > 1 && (
+          <div className="overflow-x-auto -mx-1 px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <TabRow
-              tabs={SECONDARY_TABS[primary]}
+              tabs={SETTINGS_TABS}
               value={current}
-              onChange={(id) => setSecondary((prev) => ({ ...prev, [primary]: id }))}
-              variant="secondary"
-              ariaLabel="设置项"
+              onChange={(id) => {
+                const group = (Object.keys(SECONDARY_TABS) as PrimaryTab[]).find((key) =>
+                  SECONDARY_TABS[key].some((tab) => tab.id === id)
+                );
+                if (!group) return;
+                setPrimary(group);
+                setSecondary((prev) => ({ ...prev, [group]: id }));
+              }}
+              variant="primary"
+              ariaLabel="设置分类"
             />
-          )}
+          </div>
         </div>
       }
     >
@@ -177,7 +195,7 @@ function TabRow<T extends string>({
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className={cn('flex w-full gap-1', variant === 'primary' && 'p-0.5 bg-chip rounded-lg')}
+      className={cn('flex w-max min-w-full gap-1', variant === 'primary' && 'p-0.5 bg-chip rounded-xl')}
       onKeyDown={(e) => {
         if (e.key === 'ArrowRight') {
           e.preventDefault();
@@ -197,14 +215,14 @@ function TabRow<T extends string>({
             aria-selected={active}
             className={cn(
               // 两级导航都等宽撑满一行（原先二级按内容宽度、超宽才横滚，与一级不一致）
-              'flex-1 min-w-0 inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-md transition-colors',
+              'shrink-0 inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg transition-colors',
               variant === 'primary'
                 ? cn(
-                    'px-2 py-1.5 text-xs',
+                    'px-3.5 py-2 text-xs',
                     active ? 'bg-surface-raised text-accent font-medium shadow-sm' : 'text-muted hover:text-content'
                   )
                 : cn(
-                    'px-2.5 py-1 text-xs',
+                    'px-3.5 py-2 text-xs',
                     active ? 'bg-accent/10 text-accent font-medium' : 'text-muted hover:text-content hover:bg-hover'
                   )
             )}
