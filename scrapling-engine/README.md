@@ -39,7 +39,7 @@ Browser-backed fetchers require the optional browser dependencies and browser in
 
 ## Phase 2 — FMHY resource catalog
 
-The catalog importer reads the official `fmhy/edit` Markdown sources only. It resolves the current upstream commit first, then fetches the complete source set pinned to that immutable SHA so one snapshot cannot mix revisions. The importer follows the official source list used by FMHY's single-page export (25 Markdown files), limits each source to 2 MiB, uses at most three concurrent requests, and does not follow redirects.
+The catalog importer reads the official `fmhy/edit` Markdown sources only. It resolves the current upstream commit first, then fetches the complete source set pinned to that immutable SHA so one snapshot cannot mix revisions. The importer reads the source-file manifest from FMHY's official single-page export at the same pinned commit (currently 25 Markdown files), limits each source to 2 MiB, uses at most three concurrent requests, and does not follow redirects.
 
 Run a sync from a trusted local/admin client:
 
