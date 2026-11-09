@@ -30,6 +30,11 @@ const movieWorkflow = source('src/lib/friday/movie-workflow.ts');
 const voiceController = source('src/components/friday/useFridayVoiceController.ts');
 const browserAsr = source('src/components/friday/browserAsr.ts');
 
+const spatialScreen = source('src/components/home/V4SpatialScreen.tsx');
+const channelStyles = source('src/app/eight-screen-glass.css');
+const channelHeaderStyles = source('src/app/iphone-glass.css');
+const homepageHeroStyles = source('src/app/v4-homepage.css');
+const featuredHero = source('src/components/home/V4HomepageHero.tsx');
 const glassStyles = source('src/app/eight-screen-glass.css');
 const chatSession = source('src/components/friday/useFridayChatSession.ts');
 const fridayPanel = source('src/components/friday/FridayPanel.tsx');
@@ -309,6 +314,27 @@ describe('首页与播放页回归契约', () => {
     expect(settings).toContain('浅色、深色，或跟随设备系统设置');
     expect(glassStyles).toContain('html:not(.dark)');
     expect(glassStyles).toContain('linear-gradient(145deg,#f7f8fa 0%,#e9edf2 100%)');
+  });
+
+
+  it('电影与动漫频道不预留不存在的 Banner 空间，导航保持文档流并兼容 Safari', () => {
+    expect(spatialScreen).toContain('<V4HomepageHeader />');
+    expect(spatialScreen).toContain('<main className="v4-spatial-main">');
+    expect(spatialScreen).not.toContain('<V4HomepageHero');
+    expect(channelStyles).toContain('.v4-spatial-screen > .v4-header');
+    expect(channelStyles).toContain('position: -webkit-sticky');
+    expect(channelStyles).toContain('padding-block-start: clamp(20px, 2.5vw, 32px)');
+    expect(channelStyles).toContain('@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)))');
+    expect(channelHeaderStyles).toContain('background: rgba(246, 248, 251, 0.88)');
+    expect(channelHeaderStyles).toContain('background: rgba(35, 45, 60, 0.09)');
+  });
+
+  it('首页精选 Banner 始终使用渐变遮罩与白色文案，并保留无数据占位高度', () => {
+    expect(featuredHero).toContain('<div className="v4-hero-veil"');
+    expect(featuredHero).toContain('v4-hero-empty');
+    expect(homepageHeroStyles).toContain('.v4-home .v4-hero-veil');
+    expect(homepageHeroStyles).toContain('rgba(4, 8, 15, .94)');
+    expect(homepageHeroStyles).toContain('-webkit-text-fill-color: #fff');
   });
 
 });
