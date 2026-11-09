@@ -99,3 +99,13 @@ def test_parser_preserves_parentheses_inside_markdown_urls() -> None:
     assert entries[0].links[0].canonical_url == (
         "https://example.com/watch_(extended)/episode_(1)"
     )
+
+
+def test_parser_classifies_named_mirror_and_ordered_list_items() -> None:
+    entries = parse_fmhy_markdown(
+        "video.md",
+        "1. [Primary](https://primary.example/) or [Mirror](https://mirror.example/)\\n",
+    )
+
+    assert len(entries) == 1
+    assert [link.role for link in entries[0].links] == ["primary", "mirror"]
