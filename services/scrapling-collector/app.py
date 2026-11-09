@@ -122,6 +122,20 @@ def throttle(host: str) -> None:
     _last_request_by_host[host] = time.monotonic()
 
 
+def adaptive_css(page, selector: str):
+    """Persist stable element traits per domain and relocate them after markup changes."""
+    try:
+        elements = page.css(selector, auto_save=True)
+        if elements:
+            return elements
+        return page.css(selector, adaptive=True)
+    except Exception:
+        try:
+            return page.css(selector)
+        except Exception:
+            return []
+
+
 def text_of(element) -> str:
     try:
         return " ".join(element.css("::text").getall() or []).strip()
@@ -132,7 +146,7 @@ def text_of(element) -> str:
 def fmhy_sites_from_page(page) -> list[dict]:
     sites: list[dict] = []
     seen: set[str] = set()
-    for anchor in page.css("a"):
+    for anchor in adaptive_css(page, "a"):
         href = (anchor.attrib.get("href") or "").strip()
         if not href:
             continue
@@ -188,7 +202,7 @@ def extract_candidates(page, page_url: str, limit: int) -> list[dict]:
     title = (page.css("title::text").get() or "").strip()[:200]
     selectors = [("video", "src"), ("source", "src"), ("iframe", "src"), ("a", "href"), ("script", "src")]
     for selector, attribute in selectors:
-        for element in page.css(selector):
+        for element in adaptive_css(page, selector):
             value = (element.attrib.get(attribute) or "").strip()
             if not value:
                 continue
@@ -201,7 +215,7 @@ def extract_candidates(page, page_url: str, limit: int) -> list[dict]:
             if len(found) >= limit:
                 return list(found.values())
     # Public metadata and common player configuration attributes.
-    for element in page.css("[data-src], [data-url], [data-play], [content]"):
+    for element in adaptive_css(page, "[data-src], [data-url], [data-play], [content]"):
         for attribute in ("data-src", "data-url", "data-play", "content"):
             value = (element.attrib.get(attribute) or "").strip()
             if not value.startswith("https://"):
@@ -268,7 +282,7 @@ class SiteSpider(Spider):
         title = (response.css("title::text").get() or "").strip()[:200]
         seen: set[str] = set()
         for selector, attribute in (("video", "src"), ("source", "src"), ("iframe", "src"), ("a", "href"), ("script", "src")):
-            for element in response.css(selector):
+            for element in adaptive_css(response, selector):
                 value = (element.attrib.get(attribute) or "").strip()
                 absolute = urljoin(response.url, value)
                 classified = classify_url(absolute)
