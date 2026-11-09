@@ -152,7 +152,7 @@ export function V4HomepageHeader({ overlay = false }: { overlay?: boolean }) {
                     />
                   )}
                 </div>
-                    </form
+                  </form>
                 ) : null}
               </React.Fragment>
             ))}
