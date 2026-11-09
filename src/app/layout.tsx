@@ -8,6 +8,8 @@ import './iphone-glass.css';
 import './v4-homepage.css';
 // Last-loaded contract: identical header surface and navigation on every route.
 import './v4-shared-header.css';
+// Keep header text and controls contrasted with the active light/dark surface.
+import './v4-header-theme.css';
 import { Providers } from '@/components/providers';
 
 export const metadata: Metadata = {

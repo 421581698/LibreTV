@@ -1,0 +1,94 @@
+/* Theme-aware contrast for the shared header.
+ * The active app theme is resolved on <html> before hydration; the header
+ * follows that surface so foreground colors never stay fixed to the old skin.
+ */
+:root:not(.dark) .v4-header,
+:root:not(.dark) .v4-home .v4-header,
+:root:not(.dark) .v4-spatial-screen > .v4-header {
+  color: #17171B !important;
+  background: rgba(250,252,255,.88) !important;
+  background-image: linear-gradient(180deg,rgba(255,255,255,.94),rgba(246,248,251,.88)) !important;
+  border-bottom-color: rgba(20,28,40,.12) !important;
+  box-shadow: 0 10px 30px rgba(20,30,45,.08), inset 0 1px 0 rgba(255,255,255,.92) !important;
+}
+:root:not(.dark) .v4-header .v4-nav-link,
+:root:not(.dark) .v4-home .v4-header .v4-nav-link,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-nav-link {
+  color: #17171B !important;
+}
+:root:not(.dark) .v4-header .v4-nav-link:hover,
+:root:not(.dark) .v4-home .v4-header .v4-nav-link:hover,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-nav-link:hover {
+  color: #000 !important;
+  background: rgba(20,30,45,.07) !important;
+}
+:root:not(.dark) .v4-header .v4-nav-link.is-active,
+:root:not(.dark) .v4-home .v4-header .v4-nav-link.is-active,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-nav-link.is-active {
+  color: #fff !important;
+  background: #17171B !important;
+  border-color: rgba(20,30,45,.16) !important;
+}
+:root:not(.dark) .v4-header .v4-search,
+:root:not(.dark) .v4-home .v4-header .v4-search,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-search {
+  color: #17171B !important;
+  background: rgba(255,255,255,.94) !important;
+  border-color: rgba(20,30,45,.16) !important;
+}
+:root:not(.dark) .v4-header .v4-search input,
+:root:not(.dark) .v4-home .v4-header .v4-search input,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-search input {
+  color: #17171B !important;
+  -webkit-text-fill-color: #17171B !important;
+}
+:root:not(.dark) .v4-header .v4-search input::placeholder,
+:root:not(.dark) .v4-home .v4-header .v4-search input::placeholder,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-search input::placeholder {
+  color: rgba(23,23,27,.48) !important;
+  -webkit-text-fill-color: rgba(23,23,27,.48) !important;
+}
+:root:not(.dark) .v4-header .v4-search svg,
+:root:not(.dark) .v4-home .v4-header .v4-search svg,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-search svg,
+:root:not(.dark) .v4-header .v4-header-icon,
+:root:not(.dark) .v4-header .v4-avatar,
+:root:not(.dark) .v4-header .v4-mobile-search-toggle {
+  color: #17171B !important;
+}
+:root:not(.dark) .v4-header .v4-header-icon,
+:root:not(.dark) .v4-header .v4-avatar,
+:root:not(.dark) .v4-header .v4-mobile-search-toggle {
+  background: rgba(20,30,45,.045) !important;
+  border-color: rgba(20,30,45,.14) !important;
+}
+.dark .v4-header,
+.dark .v4-home .v4-header,
+.dark .v4-spatial-screen > .v4-header {
+  color: #F2F2F4 !important;
+  background: rgba(8,8,10,.88) !important;
+  background-image: linear-gradient(180deg,rgba(20,20,24,.96),rgba(8,8,10,.9)) !important;
+  border-bottom-color: rgba(255,255,255,.12) !important;
+}
+.dark .v4-header .v4-nav-link,
+.dark .v4-home .v4-header .v4-nav-link,
+.dark .v4-spatial-screen .v4-header .v4-nav-link,
+.dark .v4-header .v4-header-icon,
+.dark .v4-header .v4-avatar,
+.dark .v4-header .v4-mobile-search-toggle,
+.dark .v4-header .v4-search,
+.dark .v4-header .v4-search svg {
+  color: #F2F2F4 !important;
+}
+.dark .v4-header .v4-search input,
+.dark .v4-home .v4-header .v4-search input,
+.dark .v4-spatial-screen .v4-header .v4-search input {
+  color: #F2F2F4 !important;
+  -webkit-text-fill-color: #F2F2F4 !important;
+}
+.dark .v4-header .v4-search input::placeholder,
+.dark .v4-home .v4-header .v4-search input::placeholder,
+.dark .v4-spatial-screen .v4-header .v4-search input::placeholder {
+  color: rgba(255,255,255,.52) !important;
+  -webkit-text-fill-color: rgba(255,255,255,.52) !important;
+}
