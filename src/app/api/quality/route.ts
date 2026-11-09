@@ -83,7 +83,7 @@ export async function POST(req: Request) {
   let body: QualityBody;
   try {
     body = await readJsonLimited<QualityBody>(req, 256 * 1024);
-  } catch {
+  } catch (err) {
     return NextResponse.json({ error: '请求格式错误' }, { status: requestBodyErrorStatus(err) });
   }
 
