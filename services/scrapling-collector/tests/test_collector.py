@@ -353,7 +353,7 @@ segment-2.ts
             "$/$RepresentationID$/$Bandwidth$/$Number%05d$/$Time%999999999d$",
             {"id": "v1", "bandwidth": 800000}, 7, 12,
         )
-        self.assertEqual(expanded, "$/v1/800000/00007/" + ("0" * 17) + "12")
+        self.assertEqual(expanded, "$/v1/800000/00007/" + ("0" * 18) + "12")
 
     def test_mpd_manifest_resolves_base_url_and_segment_template(self):
         body = b"""<MPD type="static">
