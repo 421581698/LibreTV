@@ -32,6 +32,9 @@ if not TOKEN:
 
 app = FastAPI(title="LibreTV FMHY Scrapling Collector", docs_url=None, redoc_url=None)
 
+# Scrapling stores adaptive selector fingerprints in its own SQLite storage.
+Fetcher.adaptive = True
+
 
 class CrawlRequest(BaseModel):
     url: HttpUrl
