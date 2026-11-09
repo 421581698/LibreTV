@@ -60,7 +60,8 @@ async function relay(path: string, init?: RequestInit) {
 export async function GET(request: Request) {
   const guarded = guardRequest(request);
   if (guarded) return guarded;
-  return relay('/v1/discover');
+  const action = new URL(request.url).searchParams.get('action');
+  return relay(action === 'tasks' ? '/v1/tasks' : '/v1/discover');
 }
 
 export async function POST(request: NextRequest) {
@@ -73,7 +74,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
   }
 
-  if (!body || typeof body !== 'object' || !('url' in body) || typeof body.url !== 'string') {
+  if (!body || typeof body !== 'object') {
+    return NextResponse.json({ error: 'Invalid collector request.' }, { status: 400 });
+  }
+  if ('candidateId' in body && typeof body.candidateId === 'string') {
+    if (!/^[a-f0-9]{32}$/i.test(body.candidateId)) {
+      return NextResponse.json({ error: 'Invalid candidate ID.' }, { status: 400 });
+    }
+    return relay(`/v1/candidates/${body.candidateId}/validate`, { method: 'POST' });
+  }
+  if (!('url' in body) || typeof body.url !== 'string') {
     return NextResponse.json({ error: 'A discovered FMHY site URL is required.' }, { status: 400 });
   }
   let parsed: URL;
