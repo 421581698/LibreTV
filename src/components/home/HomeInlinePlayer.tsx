@@ -6,7 +6,7 @@ import { api } from '@/lib/client-api';
 import { useAppStore, resolveSource } from '@/lib/store';
 import type { SearchResultItem, SourceConfig, VideoDetail } from '@/lib/types';
 import { validateSourceUrl } from '@/lib/utils';
-import { db, progressKeyOf, saveProgress, updateHistoryProgress, upsertHistory } from '@/lib/db';
+import { clearProgress, db, progressKeyOf, saveProgress, updateHistoryProgress, upsertHistory } from '@/lib/db';
 
 const PlayerShell = dynamic(
   () => import('@/components/player-shell').then((module) => module.PlayerShell),
@@ -30,6 +30,8 @@ export function HomeInlinePlayer({
   const [error, setError] = useState('');
   const [episodeIndex, setEpisodeIndex] = useState(0);
   const [pendingStart, setPendingStart] = useState<number | null>(null);
+  const [showAutoNext, setShowAutoNext] = useState(false);
+  const autoNextTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
@@ -97,7 +99,11 @@ export function HomeInlinePlayer({
   const getRestorePosition = useCallback(async () => {
     if (!item) return 0;
     const progress = await db.progress.get(progressKeyOf(item.sourceKey, item.vodId, episodeIndex));
-    return progress?.position ?? 0;
+    if (progress?.position) return progress.position;
+    const history = await db.history.get(`${item.sourceKey}_${item.vodId}`);
+    return history?.episodeIndex === episodeIndex && history.playbackPosition > 5
+      ? history.playbackPosition
+      : 0;
   }, [item, episodeIndex]);
 
   useEffect(() => {
@@ -118,6 +124,33 @@ export function HomeInlinePlayer({
       timestamp: Date.now(),
     }).catch(() => {});
   }, [item, source, detail, episodeIndex]);
+  const cancelAutoNext = useCallback(() => {
+    if (autoNextTimer.current) clearTimeout(autoNextTimer.current);
+    autoNextTimer.current = null;
+    setShowAutoNext(false);
+  }, []);
+
+  const handleEnded = useCallback(() => {
+    if (!item) return;
+    void clearProgress(item.sourceKey, item.vodId, episodeIndex).catch(() => {});
+    if (!autoplayNext || episodeIndex >= episodes.length - 1) return;
+    cancelAutoNext();
+    setShowAutoNext(true);
+    autoNextTimer.current = setTimeout(() => {
+      autoNextTimer.current = null;
+      setShowAutoNext(false);
+      setEpisodeIndex((index) => Math.min(episodes.length - 1, index + 1));
+    }, 8000);
+  }, [item, episodeIndex, episodes.length, autoplayNext, cancelAutoNext]);
+
+  const goEpisode = useCallback((index: number) => {
+    cancelAutoNext();
+    setEpisodeIndex(Math.max(0, Math.min(episodes.length - 1, index)));
+  }, [episodes.length, cancelAutoNext]);
+
+  useEffect(() => () => {
+    if (autoNextTimer.current) clearTimeout(autoNextTimer.current);
+  }, []);
   useEffect(() => {
     if (!item) return;
     const previousOverflow = document.body.style.overflow;
@@ -181,18 +214,27 @@ export function HomeInlinePlayer({
               nextEpisodeKey={episodes[episodeIndex + 1] ? `${item.sourceKey}:${item.vodId}:${episodeIndex + 1}` : undefined}
               hasPrevEpisode={episodeIndex > 0}
               hasNextEpisode={episodeIndex < episodes.length - 1}
-              onPrevEpisode={() => setEpisodeIndex((index) => Math.max(0, index - 1))}
-              onNextEpisode={() => setEpisodeIndex((index) => Math.min(episodes.length - 1, index + 1))}
+              onPrevEpisode={() => goEpisode(episodeIndex - 1)}
+              onNextEpisode={() => goEpisode(episodeIndex + 1)}
               getRestorePosition={getRestorePosition}
               onTimeUpdate={handleProgress}
               onPause={handleProgress}
-              onEnded={() => setEpisodeIndex((index) => Math.min(episodes.length - 1, index + 1))}
+              onEnded={handleEnded}
             />
           </div>
         ) : (
           <div className="flex aspect-video items-center justify-center bg-black text-sm text-white/65">该影片暂时没有可播放剧集</div>
         )}
 
+        {showAutoNext ? (
+          <div className="flex items-center justify-between gap-3 border-t border-white/10 bg-white/5 px-4 py-3 text-xs text-white/80" role="status">
+            <span>即将自动播放下一集</span>
+            <div className="flex shrink-0 gap-2">
+              <button type="button" className="rounded-lg bg-amber-400 px-3 py-2 font-semibold text-black" onClick={() => goEpisode(episodeIndex + 1)}>立即播放</button>
+              <button type="button" className="rounded-lg bg-white/10 px-3 py-2 text-white" onClick={cancelAutoNext}>取消</button>
+            </div>
+          </div>
+        ) : null}
         {episodes.length > 1 && (
           <div className="max-h-36 overflow-y-auto border-t border-white/10 p-3 sm:p-4">
             <div className="mb-2 text-xs text-white/55">选集 · {episodes.length} 集</div>
