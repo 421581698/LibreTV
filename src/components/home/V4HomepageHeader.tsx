@@ -148,7 +148,13 @@ export function V4HomepageHeader() {
               className="v4-avatar"
               aria-label="我的观看记录"
               title="我的观看记录"
-              onClick={() => document.getElementById('my-library')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              onClick={() => {
+                if (pathname === '/') {
+                  document.getElementById('my-library')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } else {
+                  router.push('/#my-library');
+                }
+              }}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5" /><path d="M4.8 20c.7-3.4 3.1-5.2 7.2-5.2s6.5 1.8 7.2 5.2" /></svg>
             </GlassButton>
