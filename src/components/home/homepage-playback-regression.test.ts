@@ -116,9 +116,11 @@ describe('首页与播放页回归契约', () => {
     expect(searchHistory).toContain('role="listbox"');
   });
 
-  it('分类与筛选入口仍由设置抽屉的分组导航和点播源过滤器提供', () => {
+  it('设置分类使用单行横向导航并切换对应面板', () => {
     expect(settings).toContain("ariaLabel=\"设置分类\"");
-    expect(settings).toContain("const PRIMARY_TABS");
+    expect(settings).toContain("const SETTINGS_TABS");
+    expect(settings).toContain("overflow-x-auto");
+    expect(settings).toContain("setSecondary((prev) => ({ ...prev, [group]: id }))");
     expect(settings).toContain("type VodFilter = 'all' | 'enabled' | 'disabled' | 'sub' | 'manual'");
     expect(settings).toContain('const VOD_FILTERS');
     expect(settings).toContain("current === 'vod' && <VodSourcesPanel />");
@@ -288,7 +290,7 @@ describe('首页与播放页回归契约', () => {
     expect(theme).toContain("{ value: 'system', label: '跟随系统' }");
     expect(settings).toContain('浅色、深色或跟随系统');
     expect(settings).toContain('<ThemeToggle />');
-    expect(settings.indexOf('<ThemeToggle />')).toBeLessThan(settings.indexOf('<TabRow tabs={PRIMARY_TABS}'));
+    expect(settings.indexOf('<ThemeToggle />')).toBeLessThan(settings.indexOf('tabs={SETTINGS_TABS}'));
     expect(glassStyles).toContain('html:not(.dark)');
     expect(glassStyles).toContain('linear-gradient(145deg,#f7f8fa 0%,#e9edf2 100%)');
   });
