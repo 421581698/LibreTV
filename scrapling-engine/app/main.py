@@ -615,6 +615,7 @@ async def get_catalog_domains(
     q: str | None = Query(default=None, max_length=120),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
+    include_unsafe: bool = False,
 ) -> dict:
     snapshot = catalog_store.latest_snapshot()
     if snapshot is None:
@@ -624,6 +625,7 @@ async def get_catalog_domains(
         query=q,
         limit=limit,
         offset=offset,
+        include_unsafe=include_unsafe,
     )
     return {
         "ok": True,
