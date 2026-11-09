@@ -35,6 +35,18 @@ class CollectorTests(unittest.TestCase):
         self.assertIsNone(collector.classify_url("http://media.example/movie.mp4"))
         self.assertIsNone(collector.classify_url("https://user:pass@media.example/movie.mp4"))
 
+    def test_public_https_url_rejects_malformed_port(self):
+        with self.assertRaises(collector.HTTPException) as error:
+            collector.public_https_url("https://media.example:not-a-port/watch")
+        self.assertEqual(error.exception.status_code, 400)
+
+    @patch.object(collector.socket, "getaddrinfo")
+    def test_public_https_url_rejects_nonstandard_port(self, getaddrinfo):
+        with self.assertRaises(collector.HTTPException) as error:
+            collector.public_https_url("https://media.example:8443/watch")
+        self.assertEqual(error.exception.status_code, 400)
+        getaddrinfo.assert_not_called()
+
     @patch.object(collector.socket, "getaddrinfo")
     def test_public_https_url_accepts_public_dns(self, getaddrinfo):
         getaddrinfo.return_value = [(None, None, None, None, ("8.8.8.8", 443))]
