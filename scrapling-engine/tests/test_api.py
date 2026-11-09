@@ -114,7 +114,7 @@ def test_spider_runs_validated_seed_urls(monkeypatch) -> None:
     )
     monkeypatch.setattr(
         "app.main.ScraplingSpiderAdapter.crawl",
-        lambda urls: {
+        lambda urls, crawldir=None: {
             "items": [{"url": urls[0], "title": "fixture"}],
             "completed": True,
             "paused": False,
@@ -130,3 +130,42 @@ def test_spider_runs_validated_seed_urls(monkeypatch) -> None:
     assert response.status_code == 200
     assert response.json()["result"]["stats"]["requests_count"] == 1
     assert len(response.json()["result"]["items"]) == 1
+
+
+
+def test_spider_task_id_enables_checkpoint_directory(monkeypatch, tmp_path) -> None:
+    captured = {}
+    monkeypatch.setattr(
+        "app.main.validate_public_http_url",
+        lambda url: url,
+    )
+    monkeypatch.setattr("app.main.settings.crawl_data_dir", str(tmp_path))
+
+    def fake_crawl(urls, crawldir=None):
+        captured["urls"] = urls
+        captured["crawldir"] = crawldir
+        return {
+            "items": [],
+            "completed": True,
+            "paused": False,
+            "stats": {"requests_count": 0},
+        }
+
+    monkeypatch.setattr("app.main.ScraplingSpiderAdapter.crawl", fake_crawl)
+    response = client.post(
+        "/v1/spider",
+        json={"urls": ["https://example.com/"], "task_id": "weekly_scan_01"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["checkpoint_enabled"] is True
+    assert captured["crawldir"] == tmp_path / "weekly_scan_01"
+    assert captured["crawldir"].is_dir()
+
+
+def test_spider_rejects_unsafe_task_id() -> None:
+    response = client.post(
+        "/v1/spider",
+        json={"urls": ["https://example.com/"], "task_id": "../escape"},
+    )
+    assert response.status_code == 422
