@@ -25,7 +25,6 @@ FMHY_SOURCE_FILES = (
     "social-media-tools.md", "storage.md", "system-tools.md", "text-tools.md",
     "torrenting.md", "unsafe.md", "video-tools.md", "video.md",
 )
-_LINK_RE = re.compile(r"(?<!!)\[([^\]]+)\]\(\s*(https?://[^\s)]+)", re.IGNORECASE)
 _MARKERS = ("🌟", "⭐", "🌐", "↪️")
 _REPOSITORY_HOSTS = {"github.com", "gitlab.com", "codeberg.org", "bitbucket.org"}
 _COMMUNITY_HOSTS = {
@@ -125,10 +124,59 @@ def _link_role(label: str, host: str) -> str:
     return "resource"
 
 
+def _extract_markdown_links(line: str) -> list[tuple[str, str]]:
+    links: list[tuple[str, str]] = []
+    cursor = 0
+    while cursor < len(line):
+        start = line.find("[", cursor)
+        if start < 0:
+            break
+        if start > 0 and line[start - 1] == "!":
+            cursor = start + 1
+            continue
+        label_end = line.find("](", start + 1)
+        if label_end < 0:
+            cursor = start + 1
+            continue
+        label = line[start + 1:label_end].strip()
+        url_start = label_end + 2
+        while url_start < len(line) and line[url_start].isspace():
+            url_start += 1
+        if url_start < len(line) and line[url_start] == "<":
+            url_start += 1
+            url_end = line.find(">", url_start)
+            if url_end < 0:
+                cursor = label_end + 2
+                continue
+            raw_url = line[url_start:url_end]
+            cursor = url_end + 1
+        else:
+            url_end = url_start
+            depth = 0
+            while url_end < len(line):
+                char = line[url_end]
+                if char == "(":
+                    depth += 1
+                elif char == ")":
+                    if depth == 0:
+                        break
+                    depth -= 1
+                elif char.isspace() and depth == 0:
+                    break
+                url_end += 1
+            raw_url = line[url_start:url_end]
+            cursor = max(url_end, label_end + 2)
+        if raw_url.lower().startswith(("http://", "https://")):
+            links.append((label, raw_url))
+        if cursor <= start:
+            cursor = start + 1
+    return links
+
+
 def _clean_description(line: str) -> str:
     text = re.sub(r"^\s*[*+-]\s*", "", line)
     text = re.sub(r"^[🌟⭐🌐↪️]\s*", "", text)
-    text = _LINK_RE.sub(lambda match: match.group(1), text)
+    text = re.sub(r"\[[^\]]+\]\([^)]*\)", "", text)
     text = text.replace(chr(96), "").replace("**", "").replace("__", "")
     return re.sub(r"\s+", " ", text).strip(" -–—|")
 
@@ -161,9 +209,8 @@ def parse_fmhy_markdown(
             continue
         marker = next((item for item in _MARKERS if item in raw_line), None)
         links: list[CatalogLink] = []
-        for index, match in enumerate(_LINK_RE.finditer(raw_line)):
-            label = match.group(1).strip()
-            original_url = match.group(2).rstrip(".,;")
+        for index, (label, original_url) in enumerate(_extract_markdown_links(raw_line)):
+            original_url = original_url.rstrip(".,;")
             normalized = _canonicalize_url(original_url)
             if normalized is None:
                 continue
