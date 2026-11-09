@@ -326,6 +326,15 @@ describe('首页与播放页回归契约', () => {
   });
 
 
+  it('V4 空间频道与首页共用根布局样式，客户端路由切换不会卸载频道 CSS', () => {
+    expect(rootLayout).toContain("import './v4-homepage.css'");
+    expect(home).not.toContain("import './v4-homepage.css'");
+    expect(homepageHeroStyles).toContain('.v4-spatial-screen');
+    expect(homepageHeroStyles).toContain('.v4-spatial-main');
+    expect(homepageHeroStyles).toContain('.v4-header-inner');
+    expect(spatialScreen).toContain('<V4HomepageHeader />');
+  });
+
   it('电影与动漫频道不预留不存在的 Banner 空间，导航保持文档流并兼容 Safari', () => {
     expect(spatialScreen).toContain('<V4HomepageHeader />');
     expect(spatialScreen).toContain('<main className="v4-spatial-main">');
