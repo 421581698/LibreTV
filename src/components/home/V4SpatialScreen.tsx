@@ -2,14 +2,17 @@
 
 import Link from 'next/link';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { V4HomepageHeader } from '@/components/home/V4HomepageHeader';
 import { AnimeRecommendationSection, RecommendSection } from '@/components/douban-section';
 import { GlassPanel } from '@/components/ui/glass';
 import { SmartImage } from '@/components/smart-image';
 import { db, type HistoryEntry } from '@/lib/db';
-import { resolveSource, useAppStore } from '@/lib/store';
-import type { DoubanItem } from '@/lib/types';
+import { isInDisabledSubscription, isSourceDisabled, resolveSource, useAppStore } from '@/lib/store';
+import type { DoubanItem, SearchResultItem, SourceConfig } from '@/lib/types';
+import { api } from '@/lib/client-api';
+import { validateSourceUrl } from '@/lib/utils';
 import { buildWatchUrl, formatTime } from '@/lib/utils';
 
 type Screen = 'movies' | 'anime' | 'resources' | 'me' | 'settings';
@@ -78,30 +81,88 @@ function ResourcesScreen() {
   const customAPIs = useAppStore((s) => s.customAPIs);
   const envSources = useAppStore((s) => s.envSources);
   const sourceHealth = useAppStore((s) => s.sourceHealth);
+  const subscriptions = useAppStore((s) => s.subscriptions);
+  const yellowFilter = useAppStore((s) => s.yellowFilter);
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<SearchResultItem[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [error, setError] = useState('');
   const all = [...envSources, ...customAPIs];
+  const activeSources = selectedKeys
+    .map((key) => resolveSource({ customAPIs, envSources }, key))
+    .filter((source): source is SourceConfig => Boolean(
+      source && validateSourceUrl(source.url) &&
+      !isSourceDisabled({ sourceHealth }, source.key) &&
+      !isInDisabledSubscription({ subscriptions }, source.key)
+    ));
+  const runSearch = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const keyword = query.trim().slice(0, 100);
+    if (!keyword) return;
+    if (activeSources.length === 0) {
+      setError('请先在设置中启用至少一个可用点播源。');
+      setResults([]);
+      return;
+    }
+    setSearching(true);
+    setError('');
+    try {
+      const response = await api.search(keyword, activeSources, yellowFilter);
+      setResults(response.list);
+      if (response.list.length === 0) setError('没有在当前启用的点播源中找到结果。');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '资源搜索失败，请稍后重试。');
+      setResults([]);
+    } finally {
+      setSearching(false);
+    }
+  };
+  const sourceName = (key: string) =>
+    all.find((source) => source.key === key)?.name ?? key;
+
   return (
-    <section className="v4-spatial-panel">
-      <div className="v4-spatial-panel-head"><h2>已配置的数据源</h2><span>{all.length} 个来源 · {selectedKeys.length} 个已勾选</span></div>
-      {all.length === 0 ? (
-        <div className="v4-spatial-empty"><strong>还没有配置点播源</strong><p>添加一个兼容的采集 API 后，即可搜索和播放影视内容。</p></div>
-      ) : (
-        <div className="v4-source-grid">
-          {all.map((source) => {
-            const selected = selectedKeys.includes(source.key);
-            const health = sourceHealth[source.key];
-            return (
-              <article className="v4-source-card" key={source.key}>
-                <div className="v4-source-status"><i className={selected ? 'is-enabled' : ''} />{selected ? '已勾选' : '未勾选'}</div>
-                <h3>{source.name}</h3>
-                <p title={source.url}>{source.url}</p>
-                <span>{health?.ok ? `最近响应 ${health.ms}ms` : health?.error ? '最近请求异常' : '尚无健康度记录'}</span>
-              </article>
-            );
-          })}
-        </div>
-      )}
-      <button type="button" className="v4-spatial-primary" onClick={() => window.dispatchEvent(new CustomEvent('libretv:open-source-manager'))}>管理点播源与订阅</button>
-    </section>
+    <div className="space-y-5">
+      <section className="v4-spatial-panel">
+        <div className="v4-spatial-panel-head"><h2>搜索播放资源</h2><span>{activeSources.length} 个可用点播源</span></div>
+        <form className="v4-resource-search" onSubmit={runSearch}>
+          <input aria-label="搜索影视资源" value={query} maxLength={100} onChange={(event) => setQuery(event.target.value)} placeholder="搜索片名、剧集…" />
+          <button type="submit" disabled={searching || !query.trim()}>{searching ? '搜索中…' : '搜索资源'}</button>
+        </form>
+        {error ? <p className="v4-resource-feedback" role="status">{error}</p> : null}
+        {results.length > 0 ? (
+          <div className="v4-resource-results">
+            {results.map((item) => (
+              <Link key={`${item.sourceKey}:${item.id}`} href={`/?s=${encodeURIComponent(item.name)}`} className="v4-resource-result">
+                <div><strong>{item.name}</strong><span>{sourceName(item.sourceKey)} · {item.remarks || '可查看详情'}</span></div>
+                <b>查看详情 ›</b>
+              </Link>
+            ))}
+          </div>
+        ) : null}
+      </section>
+      <section className="v4-spatial-panel">
+        <div className="v4-spatial-panel-head"><h2>已配置的数据源</h2><span>{all.length} 个来源 · {selectedKeys.length} 个已勾选</span></div>
+        {all.length === 0 ? (
+          <div className="v4-spatial-empty"><strong>还没有配置点播源</strong><p>添加一个兼容的采集 API 后，即可搜索和播放影视内容。</p></div>
+        ) : (
+          <div className="v4-source-grid">
+            {all.map((source) => {
+              const selected = selectedKeys.includes(source.key);
+              const health = sourceHealth[source.key];
+              return (
+                <article className="v4-source-card" key={source.key}>
+                  <div className="v4-source-status"><i className={selected ? 'is-enabled' : ''} />{selected ? '已勾选' : '未勾选'}</div>
+                  <h3>{source.name}</h3>
+                  <p title={source.url}>{source.url}</p>
+                  <span>{health?.ok ? `最近响应 ${health.ms}ms` : health?.error ? '最近请求异常' : '尚无健康度记录'}</span>
+                </article>
+              );
+            })}
+          </div>
+        )}
+        <button type="button" className="v4-spatial-primary" onClick={() => window.dispatchEvent(new CustomEvent('libretv:open-source-manager'))}>管理点播源与订阅</button>
+      </section>
+    </div>
   );
 }
 
