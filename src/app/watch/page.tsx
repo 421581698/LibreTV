@@ -258,6 +258,9 @@ function WatchContent() {
   useEffect(() => {
     if (!store.autoplayNext) cancelAutoNext();
   }, [store.autoplayNext, cancelAutoNext]);
+  useEffect(() => {
+    cancelAutoNext();
+  }, [currentIndex, cancelAutoNext]);
   // 快捷键（Shift+I/O/S/E）记录片段：校验后写入
   const handleRecordSegment = useCallback(
     (segment: SkipSegment) => {
