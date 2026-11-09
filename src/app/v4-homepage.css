@@ -1060,3 +1060,38 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
   .v4-home .v4-primary-nav { display: contents !important; }
   .v4-home .v4-search { flex: 0 1 190px !important; min-width: 145px !important; }
 }
+
+
+/* Screenshot feedback: give the title its own breathing room above the CTA,
+   and lift the complete title/actions/pagination group higher in the artwork. */
+.v4-home .v4-hero-content {
+  bottom: clamp(176px, 21vh, 232px) !important;
+}
+.v4-home .v4-hero-content h1 {
+  margin: 0 0 26px !important;
+}
+.v4-home .v4-hero-content .v4-hero-actions {
+  margin-top: 0 !important;
+}
+.v4-home .v4-hero-content .v4-hero-indicators {
+  margin-top: 28px !important;
+}
+@media (max-width: 700px) {
+  .v4-home .v4-hero-content {
+    bottom: 112px !important;
+  }
+  .v4-home .v4-hero-content h1 {
+    margin-bottom: 20px !important;
+  }
+  .v4-home .v4-hero-content .v4-hero-indicators {
+    margin-top: 22px !important;
+  }
+}
+@media (min-width: 701px) and (max-width: 1200px) {
+  .v4-home .v4-hero-content {
+    bottom: clamp(148px, 18vh, 196px) !important;
+  }
+  .v4-home .v4-hero-content h1 {
+    margin-bottom: 22px !important;
+  }
+}
