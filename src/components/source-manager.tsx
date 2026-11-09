@@ -275,7 +275,7 @@ function ResourceCollectorPanel() {
         ? { ...item, status: validation.cms_shape ? 'validated' : 'checked', validation }
         : item));
       if (validation.cms_shape && validation.reachable && candidate.kind === 'cms-api-candidate') {
-        const duplicate = store.customAPIs.some((source) => source.url.replace(/\/$/, '') === candidate.url.replace(/\/$/, ''));
+        const duplicate = [...store.customAPIs, ...store.envSources].some((source) => source.url.replace(/\/$/, '') === candidate.url.replace(/\/$/, ''));
         if (!duplicate) {
           store.addCustomApi({ name: candidate.title || candidate.host, url: candidate.url, detail: selectedSite?.url });
         }
@@ -360,15 +360,16 @@ function ResourceCollectorPanel() {
           {candidates.length > 0 ? candidates.map((candidate) => (
             <div key={candidate.url} className="flex min-w-0 items-center gap-2 rounded-lg bg-chip p-2">
               <div className="min-w-0 flex-1">
-                <span className="block text-[10px] text-muted">{candidate.kind} · {candidate.host}</span>
+                <span className="block text-[10px] text-muted">{candidate.kind} · {candidate.host} · {candidate.status === 'validated' ? 'CMS 结构通过' : candidate.status === 'checked' ? '地址已检查，待播放验证' : '待验证'}</span>
+                {candidate.validation?.note ? <span className="block text-[10px] text-muted">{candidate.validation.note}</span> : null}
                 <a className="block truncate text-xs text-content underline" href={candidate.url} target="_blank" rel="noreferrer">{candidate.url}</a>
               </div>
               <div className="flex shrink-0 flex-wrap gap-1">
-                {candidate.kind !== 'embedded-player' ? (
+                {candidate.kind === 'direct-media' ? (
                   <button type="button" className="btn-primary btn-sm" onClick={() => setPlayingCandidate(candidate)}>播放</button>
                 ) : null}
                 <button type="button" className="btn-ghost btn-sm" disabled={busy || !candidate.id} onClick={() => void validateCandidate(candidate)}>
-                  {candidate.status === 'validated' ? '已验证' : '验证'}
+                  {candidate.status === 'validated' ? '已验证' : candidate.status === 'checked' ? '已检查' : '验证'}
                 </button>
                 <button type="button" className="btn-ghost btn-sm" onClick={() => void copyToClipboard(candidate.url)}>复制</button>
               </div>
