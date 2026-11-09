@@ -145,8 +145,8 @@ class JobStore:
             task_ids = [row["task_id"] for row in rows]
             for task_id in task_ids:
                 db.execute(
-                    "UPDATE crawl_jobs SET status = 'paused', updated_at = ? WHERE task_id = ?",
+                    "UPDATE crawl_jobs SET status = 'interrupted', updated_at = ? WHERE task_id = ?",
                     (_now(), task_id),
                 )
-                self._event(db, task_id, "paused", {"reason": "service_restart"})
+                self._event(db, task_id, "interrupted", {"reason": "service_restart"})
         return task_ids
