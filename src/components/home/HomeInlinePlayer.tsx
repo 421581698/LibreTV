@@ -34,6 +34,7 @@ export function HomeInlinePlayer({
   const autoNextTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  const episodes = detail?.episodes ?? [];
 
   const source = useMemo<SourceConfig | null>(() => {
     if (!item) return null;
@@ -151,6 +152,10 @@ export function HomeInlinePlayer({
   useEffect(() => () => {
     if (autoNextTimer.current) clearTimeout(autoNextTimer.current);
   }, []);
+
+  useEffect(() => {
+    cancelAutoNext();
+  }, [item, cancelAutoNext]);
   useEffect(() => {
     if (!item) return;
     const previousOverflow = document.body.style.overflow;
@@ -166,7 +171,6 @@ export function HomeInlinePlayer({
   }, [item]);
 
   if (!item) return null;
-  const episodes = detail?.episodes ?? [];
   const currentUrl = episodes[episodeIndex];
 
   return (
@@ -244,7 +248,7 @@ export function HomeInlinePlayer({
                   key={index}
                   type="button"
                   aria-pressed={episodeIndex === index}
-                  onClick={() => setEpisodeIndex(index)}
+                  onClick={() => goEpisode(index)}
                   className={`min-h-9 min-w-12 rounded-lg px-3 text-xs ${episodeIndex === index ? 'bg-amber-400 text-black' : 'bg-white/10 text-white'}`}
                 >
                   {index + 1}
