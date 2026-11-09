@@ -18,6 +18,7 @@ const detail = source('src/components/detail-modal.tsx');
 const player = source('src/components/player-shell.tsx');
 const history = source('src/components/history-panel.tsx');
 const settings = source('src/components/source-manager.tsx');
+const drawer = source('src/components/drawer.tsx');
 const theme = source('src/components/theme.tsx');
 const live = source('src/app/live/page.tsx');
 const downloads = source('src/components/download-manager.tsx');
@@ -396,6 +397,14 @@ describe('首页与播放页回归契约', () => {
     expect(featuredHero).toContain('activeSlide % slides.length');
     expect(featuredHero).toContain('aria-pressed={normalizedActiveSlide === index}');
     expect(featuredHero).toContain('featuredQuery.refetch()');
+  });
+
+
+  it('iOS Safari 模态抽屉锁定背景滚动并在关闭后恢复页面位置', () => {
+    expect(drawer).toContain("body.style.position = 'fixed'");
+    expect(drawer).toContain('body.style.top = `-${scrollY}px`');
+    expect(drawer).toContain('window.scrollTo(0, scrollY)');
+    expect(drawer).toContain('if (!mounted || !modal) return;');
   });
 
 });
