@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Drawer } from './drawer';
 import { ConfirmDialog } from './confirm-dialog';
 import { Dropdown, type DropdownOption } from './dropdown';
@@ -32,6 +33,12 @@ import { useAuth } from './auth';
 import { api } from '@/lib/client-api';
 import { AUTO_REFRESH_MAX_FAIL_STREAK, syncSourceSubscription } from '@/lib/subscription-sync';
 import { describeParseStats } from '@/lib/tvbox-parser';
+
+
+const CollectorPlayerShell = dynamic(
+  () => import('@/components/player-shell').then((module) => module.PlayerShell),
+  { ssr: false, loading: () => <div className="aspect-video w-full animate-pulse bg-black" /> },
+);
 
 /**
  * Apple-inspired 设置抽屉：纵向分组首页 → 独立详情页。
@@ -189,6 +196,7 @@ type CollectorCandidate = { url: string; kind: string; host: string };
 function ResourceCollectorPanel() {
   const [sites, setSites] = useState<CollectorSite[]>([]);
   const [selectedSite, setSelectedSite] = useState<CollectorSite | null>(null);
+  const [playingCandidate, setPlayingCandidate] = useState<CollectorCandidate | null>(null);
   const [candidates, setCandidates] = useState<CollectorCandidate[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -287,14 +295,48 @@ function ResourceCollectorPanel() {
                 <span className="block text-[10px] text-muted">{candidate.kind} · {candidate.host}</span>
                 <a className="block truncate text-xs text-content underline" href={candidate.url} target="_blank" rel="noreferrer">{candidate.url}</a>
               </div>
-              <button type="button" className="btn-ghost btn-sm shrink-0" onClick={() => void copyToClipboard(candidate.url)}>复制</button>
+              <div className="flex shrink-0 gap-1">
+                {candidate.kind !== 'embedded-player' ? (
+                  <button type="button" className="btn-primary btn-sm" onClick={() => setPlayingCandidate(candidate)}>播放</button>
+                ) : null}
+                <button type="button" className="btn-ghost btn-sm" onClick={() => void copyToClipboard(candidate.url)}>复制</button>
+              </div>
             </div>
           )) : <p className="text-xs text-muted">尚未发现可直接识别的媒体链接。</p>}
         </div>
       ) : null}
 
-      <p className="text-xs leading-6 text-muted">底层引擎：Scrapling Python 服务。仅提取公开可访问的媒体/播放器链接，不绕过登录、付费墙、DRM 或访问控制。采集到的直链仍需单独验证，不能直接当作兼容 CMS 点播源。</p>
+      <p className="text-xs leading-6 text-muted">底层引擎：Scrapling Python 服务。仅提取公开可访问的媒体/播放器链接，不绕过登录、付费墙、DRM 或访问控制。可直接播放的媒体直链使用 LibreTV 原有 PlayerShell 预览；这类直链不会冒充 CMS 点播 API 源。</p>
+      {playingCandidate ? <CollectorDirectPlayer candidate={playingCandidate} onClose={() => setPlayingCandidate(null)} /> : null}
     </section>
+  );
+}
+
+function CollectorDirectPlayer({ candidate, onClose }: { candidate: CollectorCandidate; onClose: () => void }) {
+  const adFilter = useAppStore((state) => state.adFilter);
+  const [pendingStart, setPendingStart] = useState<number | null>(null);
+  return (
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center overflow-y-auto bg-black/95 p-3 sm:p-6" role="presentation">
+      <section className="w-full max-w-5xl overflow-hidden rounded-2xl border border-white/15 bg-[#101014] text-white shadow-2xl" role="dialog" aria-modal="true" aria-label="资源采集结果预览">
+        <header className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold">资源预览</h3>
+            <p className="truncate text-xs text-white/55">{candidate.host} · {candidate.kind}</p>
+          </div>
+          <button type="button" className="h-10 w-10 rounded-full bg-white/10 text-xl" onClick={onClose} aria-label="关闭预览">×</button>
+        </header>
+        <CollectorPlayerShell
+          url={candidate.url}
+          title={candidate.host}
+          adFilter={adFilter}
+          autoplayNext={false}
+          autoSkipSegments={false}
+          pendingStart={pendingStart}
+          onPendingStart={setPendingStart}
+          episodeKey={`collector:${candidate.host}`}
+        />
+      </section>
+    </div>
   );
 }
 
