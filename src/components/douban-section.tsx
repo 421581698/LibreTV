@@ -149,35 +149,17 @@ function BangumiView({ onPick }: { onPick: (item: DoubanItem) => void }) {
   );
 }
 
-const HOT_LISTS = [
-  { id: 'douban_movie_weekly', label: '电影周榜' },
-  { id: 'douban_tv_chinese', label: '国产剧周榜' },
-  { id: 'douban_tv_global', label: '海外剧周榜' },
-  { id: 'douban_show_chinese', label: '国内综艺' },
-  { id: 'douban_show_global', label: '海外综艺' },
-];
-
-/** 影视热榜（60s API）：豆瓣电影/剧集/综艺榜单，chips 切换 */
+/** 影视热榜（60s API）：首页直接展示电影周榜海报，不再占用首屏胶囊筛选区。 */
 function HotListView({ onPick }: { onPick: (item: DoubanItem) => void }) {
-  const [listId, setListId] = useState(HOT_LISTS[0].id);
-
   const query = useQuery({
-    queryKey: ['hot-list', listId],
-    queryFn: ({ signal }) => api.hotList(listId, signal),
+    queryKey: ['hot-list', 'douban_movie_weekly'],
+    queryFn: ({ signal }) => api.hotList('douban_movie_weekly', signal),
   });
 
   const items = query.data?.items ?? [];
 
   return (
     <section aria-label="影视榜单推荐">
-      <div className="flex flex-wrap gap-1.5 mb-4">
-        {HOT_LISTS.map((l) => (
-          <ChipButton key={l.id} active={listId === l.id} onClick={() => setListId(l.id)}>
-            {l.label}
-          </ChipButton>
-        ))}
-      </div>
-
       {query.isError ? (
         <QueryError error={query.error} onRetry={() => void query.refetch()} />
       ) : query.isLoading ? (
@@ -185,7 +167,7 @@ function HotListView({ onPick }: { onPick: (item: DoubanItem) => void }) {
       ) : (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
           {items.map((item) => (
-            <DoubanCard key={item.id} item={item} onClick={() => onPick(item)} />
+            <DoubanCard key={item.id} item={item} enableTmdbFallback onClick={() => onPick(item)} />
           ))}
         </div>
       )}
