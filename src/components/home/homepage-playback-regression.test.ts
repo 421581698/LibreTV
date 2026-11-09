@@ -167,7 +167,7 @@ describe('首页与播放页回归契约', () => {
     expect(sharedHeaderStyles).toContain('order: 1 !important;');
     expect(sharedHeaderStyles).toContain('order: 2 !important;');
     expect(sharedHeaderStyles).toContain('order: 3 !important;');
-    expect(sharedHeaderStyles).toContain('.v4-header .v4-nav-link[href="/"]');
+    expect(sharedHeaderStyles).toContain('.v4-header .v4-primary-nav .v4-nav-link[href="/"]');
     expect(sharedHeaderStyles).toContain('color: #fff !important;');
     expect(sharedHeaderStyles).toContain('color: #17171B !important;');
     expect(sharedHeaderStyles).not.toContain('@media screen and (min-width: 1200px)');
