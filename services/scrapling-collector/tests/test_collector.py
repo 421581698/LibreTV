@@ -102,6 +102,45 @@ class CollectorTests(unittest.TestCase):
         with self.assertRaises(collector.HTTPException):
             collector.public_https_url("https://internal.example/")
 
+    def test_resolver_rejects_mixed_public_and_private_dns_answers(self):
+        answers = [
+            (None, None, None, None, ("8.8.8.8", 443)),
+            (None, None, None, None, ("10.0.0.7", 443)),
+        ]
+        with patch.object(collector.socket, "getaddrinfo", return_value=answers):
+            with self.assertRaises(collector.HTTPException):
+                collector.resolve_public_addresses("mixed.example")
+
+    def test_pinned_https_connection_connects_ip_without_dns_and_keeps_tls_hostname(self):
+        class FakeSocket:
+            def __init__(self):
+                self.connected = None
+                self.timeout = None
+                self.closed = False
+
+            def settimeout(self, value):
+                self.timeout = value
+
+            def connect(self, address):
+                self.connected = address
+
+            def close(self):
+                self.closed = True
+
+        fake_socket = FakeSocket()
+        tls_socket = object()
+        context = unittest.mock.Mock()
+        context.wrap_socket.return_value = tls_socket
+        connection = collector.PinnedHTTPSConnection(
+            "media.example", "8.8.8.8", timeout=5, context=context
+        )
+        with patch.object(collector.socket, "socket", return_value=fake_socket), \\
+             patch.object(collector.socket, "getaddrinfo", side_effect=AssertionError("DNS lookup after pinning")):
+            connection.connect()
+        self.assertEqual(fake_socket.connected, ("8.8.8.8", 443))
+        context.wrap_socket.assert_called_once_with(fake_socket, server_hostname="media.example")
+        self.assertIs(connection.sock, tls_socket)
+
     def test_browser_request_guard_blocks_private_and_non_https_requests(self):
         class Request:
             def __init__(self, url):
