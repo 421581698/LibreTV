@@ -366,7 +366,12 @@ async def sync_fmhy_catalog(store) -> dict:
         for source_file, markdown in sources.items()
         for entry in parse_fmhy_markdown(source_file, markdown, source_revision)
     ]
-    result = store.import_snapshot(
+    if not entries or not any(entry.links for entry in entries):
+        raise RuntimeError(
+            "FMHY parser produced no linked resources; refusing to create an empty snapshot."
+        )
+    result = await asyncio.to_thread(
+        store.import_snapshot,
         entries,
         source_repository=FMHY_REPOSITORY,
         source_branch=FMHY_BRANCH,
