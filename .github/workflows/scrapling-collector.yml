@@ -7,6 +7,8 @@ on:
     paths:
       - "services/scrapling-collector/**"
       - "src/app/api/resource-collector/**"
+      - "src/lib/resource-collector-client.ts"
+      - "src/lib/resource-collector-client.test.ts"
       - "docker-compose.yml"
       - "render.yaml"
       - "scripts/scrapling-egress-firewall.sh"
