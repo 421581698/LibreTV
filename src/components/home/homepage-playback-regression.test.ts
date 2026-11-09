@@ -41,6 +41,7 @@ const previewConfig = source('wrangler.preview.toml');
 const previewWorkflow = source('.github/workflows/deploy-homepage-preview.yml');
 const rootLayout = source('src/app/layout.tsx');
 const glassStyles = source('src/app/eight-screen-glass.css');
+const sharedHeaderStyles = source('src/app/v4-shared-header.css');
 const chatSession = source('src/components/friday/useFridayChatSession.ts');
 const fridayPanel = source('src/components/friday/FridayPanel.tsx');
 
@@ -125,6 +126,21 @@ describe('首页与播放页回归契约', () => {
       expect(v4Header).toContain(`label: '${label}'`);
     }
     expect(v4Styles).toContain('.v4-nav-link.is-active');
+  });
+
+
+  it('首页与全部频道共用同一套顶部导航外观和响应式结构', () => {
+    expect(rootLayout).toContain("import './v4-shared-header.css';");
+    expect(rootLayout.indexOf("import './v4-shared-header.css';")).toBeGreaterThan(rootLayout.indexOf("import './v4-homepage.css';"));
+    for (const selector of ['.v4-header,', '.v4-home .v4-header,', '.v4-spatial-screen > .v4-header']) {
+      expect(sharedHeaderStyles).toContain(selector);
+    }
+    expect(sharedHeaderStyles).toContain('background: rgba(10, 10, 13, .84) !important;');
+    expect(sharedHeaderStyles).toContain('.v4-home .v4-header-inner');
+    expect(sharedHeaderStyles).toContain('.v4-spatial-screen .v4-header-inner');
+    expect(sharedHeaderStyles).toContain('@media screen and (max-width: 700px)');
+    expect(sharedHeaderStyles).toContain('海外剧');
+    expect(sharedHeaderStyles).not.toContain('background: rgba(246, 248, 251, 0.88)');
   });
 
   it('V4 Header 搜索与最近搜索历史保留 URL、输入校验和回选链路', () => {
