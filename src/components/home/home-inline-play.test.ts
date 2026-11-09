@@ -57,6 +57,7 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
   const friday = read('src/components/AIFloatingBall.tsx');
   const fridayFab = read('src/components/friday/useFridayFabController.ts');
   const homepageHeader = read('src/components/home/V4HomepageHeader.tsx');
+  const searchModule = read('src/components/home/header/SearchModule.tsx');
   const theme = read('src/app/v4-header-theme.css');
   const safeArea = read('src/app/theme-safe-area.css');
   const collectorSettings = read('src/components/source-manager.tsx');
@@ -92,6 +93,15 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
     expect(friday).toContain('startListening(false);');
     expect(fridayFab).toContain('window.addEventListener("pointerup", onPointerUp, true)');
     expect(fridayFab).toContain('onOpen();');
+  });
+
+  it('keeps the iPhone header search accessible and the orb tap independent of pointer capture', () => {
+    expect(searchModule).toContain('aria-label="搜索电影、电视剧"');
+    expect(searchModule).toContain('onSubmit');
+    expect(mobileSearch).toContain('min-width: 84px !important;');
+    expect(mobileSearch).toContain('.v4-header .v4-primary-nav');
+    expect(fridayFab).not.toContain('setPointerCapture');
+    expect(fridayFab).toContain('A tap opens the assistant from the click event');
   });
 
   it('exposes FMHY discovery and Scrapling media preview behind the authenticated API proxy', () => {
