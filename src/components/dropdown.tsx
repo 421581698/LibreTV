@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { Icon } from './icon';
 
@@ -34,18 +35,53 @@ export function Dropdown({
   /** 键盘 / 悬停高亮项下标；-1 表示无高亮 */
   const [active, setActive] = useState(-1);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLUListElement>(null);
+  const [menuStyle, setMenuStyle] = useState<{ top: number; left: number; minWidth: number; maxWidth: number; maxHeight: number } | null>(null);
 
   const selected = options.find((o) => o.value === value);
 
-  // 展开期间监听外部点击收起
+  // 菜单通过 portal 脱离设置抽屉的滚动容器，避免被 overflow-y-auto 裁切。
+  // 根据触发按钮位置自动向上/向下展开，并限制在当前可视窗口内。
   useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    if (!open) {
+      setMenuStyle(null);
+      return;
+    }
+    const updatePosition = () => {
+      const trigger = triggerRef.current;
+      if (!trigger) return;
+      const rect = trigger.getBoundingClientRect();
+      const viewportWidth = document.documentElement.clientWidth;
+      const viewportHeight = document.documentElement.clientHeight;
+      const maxWidth = Math.max(120, viewportWidth - 24);
+      const minWidth = Math.min(rect.width, maxWidth);
+      const estimatedHeight = Math.min(240, Math.max(44, options.length * 36 + 8));
+      const below = viewportHeight - rect.bottom - 12;
+      const above = rect.top - 12;
+      const placeAbove = below < Math.min(estimatedHeight, 160) && above > below;
+      const available = Math.max(96, (placeAbove ? above : below) - 8);
+      const top = placeAbove
+        ? Math.max(12, rect.top - Math.min(estimatedHeight, available))
+        : Math.min(viewportHeight - 12, rect.bottom + 6);
+      const left = Math.max(12, Math.min(rect.right - Math.max(minWidth, 180), viewportWidth - Math.min(maxWidth, Math.max(minWidth, 180)) - 12));
+      setMenuStyle({ top, left, minWidth, maxWidth, maxHeight: Math.min(240, available) });
     };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [open]);
+    const frame = requestAnimationFrame(updatePosition);
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    const onDown = (e: PointerEvent) => {
+      const target = e.target as Node;
+      if (!rootRef.current?.contains(target) && !menuRef.current?.contains(target)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', onDown);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+      document.removeEventListener('pointerdown', onDown);
+    };
+  }, [open, options.length]);
 
   const toggle = () => {
     if (open) {
@@ -94,6 +130,7 @@ export function Dropdown({
   return (
     <div ref={rootRef} className={cn('relative', className)}>
       <button
+        ref={triggerRef}
         type="button"
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -115,14 +152,13 @@ export function Dropdown({
           )}
         />
       </button>
-      {open && (
+      {open && menuStyle && typeof document !== 'undefined' && createPortal(
         <ul
+          ref={menuRef}
           role="listbox"
           aria-label={ariaLabel}
-          className={cn(
-            'absolute right-0 top-full z-50 mt-1.5 min-w-full w-max max-h-60 overflow-y-auto py-1',
-            'rounded-xl border border-line bg-surface-raised shadow-xl animate-fade-in'
-          )}
+          className="fixed z-[100100] overflow-y-auto overscroll-contain py-1 rounded-xl border border-line bg-surface-raised shadow-2xl animate-fade-in"
+          style={{ top: menuStyle.top, left: menuStyle.left, minWidth: menuStyle.minWidth, maxWidth: menuStyle.maxWidth, maxHeight: menuStyle.maxHeight }}
         >
           {options.map((o, i) => {
             const isSelected = o.value === value;
@@ -135,29 +171,23 @@ export function Dropdown({
                   onMouseEnter={() => setActive(i)}
                   onClick={() => pick(o.value)}
                   className={cn(
-                    'flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors',
+                    'flex w-full items-center gap-2 px-3 py-2 text-left transition-colors',
                     i === active && 'bg-hover'
                   )}
                 >
                   <span className="min-w-0">
-                    <span
-                      className={cn(
-                        'block whitespace-nowrap text-xs',
-                        isSelected ? 'text-accent font-medium' : 'text-content'
-                      )}
-                    >
+                    <span className={cn('block whitespace-nowrap text-xs', isSelected ? 'text-accent font-medium' : 'text-content')}>
                       {o.label}
                     </span>
-                    {o.hint && (
-                      <span className="block whitespace-nowrap text-[11px] text-faint">{o.hint}</span>
-                    )}
+                    {o.hint && <span className="block whitespace-nowrap text-[11px] text-faint">{o.hint}</span>}
                   </span>
                   {isSelected && <Icon name="check" className="ml-auto w-3.5 h-3.5 shrink-0 text-accent" />}
                 </button>
               </li>
             );
           })}
-        </ul>
+        </ul>,
+        document.body
       )}
     </div>
   );
