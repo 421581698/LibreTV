@@ -19,7 +19,7 @@ from app.security import UnsafeTargetError, validate_public_http_url
         "https://@example.com/",
         " https://example.com/",
         "http://example.com:0/",
-        "https://example.com:80/",
+        "https://example.com:65536/",
         "http://example.com\\@127.0.0.1/",
         "http://example.com/%0d%0aHost:localhost",
     ],
