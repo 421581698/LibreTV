@@ -26,6 +26,7 @@ def test_extracts_title_poster_same_host_pages_and_hls_candidates() -> None:
         "a::attr(href)": [
             "/movie/example-2026",
             "/watch/example-2026",
+            "/privacy",
             "https://external.example/ignore",
             "javascript:alert(1)",
         ],
