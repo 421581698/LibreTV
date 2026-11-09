@@ -655,3 +655,125 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
     box-shadow: none !important;
   }
 }
+
+
+/* D: dual-state cinematic navigation.
+ * The home header overlays the first hero frame; after scrolling it becomes
+ * a compact floating glass bar. Non-home/search layouts keep their normal flow.
+ */
+.v4-home .v4-header.is-overlay {
+  position: absolute !important;
+  inset: 0 0 auto 0 !important;
+  z-index: 120 !important;
+  width: 100% !important;
+  padding-top: env(safe-area-inset-top, 0px);
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  transition: background .22s ease, border-color .22s ease, box-shadow .22s ease,
+    width .22s ease, top .22s ease, border-radius .22s ease;
+}
+.v4-home .v4-header.is-overlay .v4-brand,
+.v4-home .v4-header.is-overlay .v4-nav-link { color: #fff !important; }
+.v4-home .v4-header.is-overlay .v4-nav-link:not(.is-active) {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.v4-home .v4-header.is-overlay .v4-nav-link.is-active {
+  color: #17191d !important;
+  background: #fff !important;
+  border-radius: 999px !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,.18), inset 0 0 0 1px rgba(255,255,255,.95) !important;
+}
+.v4-home .v4-header.is-overlay .v4-header-icon {
+  color: #fff !important;
+  border-color: rgba(255,255,255,.22) !important;
+  background: rgba(0,0,0,.14) !important;
+}
+.v4-home .v4-header.is-overlay .v4-search {
+  background: rgba(0,0,0,.20) !important;
+  border-color: rgba(255,255,255,.22) !important;
+}
+.v4-home .v4-header.is-overlay .v4-search input { color: #fff !important; }
+.v4-home .v4-header.is-overlay.is-scrolled {
+  position: fixed !important;
+  inset: max(10px, env(safe-area-inset-top)) 0 auto 0 !important;
+  width: min(calc(100% - 32px), 1360px) !important;
+  margin-inline: auto !important;
+  overflow: visible;
+  border: 1px solid rgba(255,255,255,.16) !important;
+  border-radius: 20px !important;
+  background: rgba(14,15,19,.78) !important;
+  box-shadow: 0 12px 34px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.08) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(155%) !important;
+  backdrop-filter: blur(18px) saturate(155%) !important;
+}
+.v4-home .v4-header.is-overlay.is-scrolled .v4-header-inner {
+  min-height: 62px !important;
+}
+.v4-home .v4-header.is-overlay.is-scrolled .v4-nav-link {
+  min-height: 36px;
+  padding-inline: 12px;
+  font-size: 13px;
+}
+
+/* The hero owns the full first-screen canvas, beginning at y=0 behind the nav. */
+.v4-home-main--cinema {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+.v4-home-main--cinema > .v4-hero {
+  width: 100% !important;
+  min-height: 480px;
+  border-radius: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.v4-home-main--cinema > .v4-content-section {
+  width: min(calc(100% - 64px), 1360px);
+  margin-inline: auto;
+}
+.v4-home-main--cinema > .v4-content-section:first-of-type { margin-top: 34px; }
+
+@media (max-width: 1366px) {
+  .v4-home-main--cinema > .v4-hero { min-height: 0; }
+  .v4-home-main--cinema > .v4-content-section { width: calc(100% - 48px); }
+  .v4-home .v4-header.is-overlay.is-scrolled { width: calc(100% - 24px) !important; }
+}
+@media (max-width: 700px) {
+  .v4-home .v4-header.is-overlay {
+    padding-top: env(safe-area-inset-top);
+  }
+  .v4-home .v4-header.is-overlay.is-scrolled {
+    inset: max(6px, env(safe-area-inset-top)) 0 auto 0 !important;
+    width: calc(100% - 16px) !important;
+    border-radius: 16px !important;
+  }
+  .v4-home .v4-header.is-overlay.is-scrolled .v4-header-inner {
+    padding-top: 5px !important;
+    gap: 4px !important;
+  }
+  .v4-home .v4-header.is-overlay.is-scrolled .v4-primary-nav {
+    padding-top: 0 !important;
+    padding-bottom: 5px !important;
+  }
+  .v4-home .v4-header.is-overlay.is-scrolled .v4-nav-link {
+    min-height: 34px;
+    padding-inline: 10px !important;
+    font-size: 12px !important;
+  }
+  .v4-home-main--cinema > .v4-hero {
+    min-height: 380px !important;
+    border-radius: 0 !important;
+  }
+  .v4-home-main--cinema > .v4-content-section {
+    width: calc(100% - 24px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .v4-home .v4-header.is-overlay { transition: none !important; }
+}
