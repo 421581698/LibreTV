@@ -26,6 +26,7 @@ def test_fetch_page_applies_user_agent_and_rejects_oversized_response(
         ScraplingAdapter.fetch_page("https://example.com/")
 
     assert captured["follow_redirects"] == "safe"
+    assert captured["stealthy_headers"] is False
     assert captured["headers"]["User-Agent"]
 
 
