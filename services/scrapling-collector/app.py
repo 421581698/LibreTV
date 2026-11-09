@@ -1192,6 +1192,7 @@ def health():
 @app.get("/v1/discover")
 def discover(authorization: str | None = Header(default=None)):
     require_token(authorization)
+    require_egress_firewall()
     try:
         sites = discover_sites()
     except Exception as exc:
