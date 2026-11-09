@@ -50,14 +50,13 @@ _AUXILIARY_LABELS = {
 
 
 def parse_official_source_file_list(route_source: str) -> tuple[str, ...]:
-    block = re.search(
-        r"const\s+files\s*=\s*\(\s*\[(.*?)\]\s*as\s+const",
-        route_source,
-        re.DOTALL,
-    )
-    if block is None:
+    assignment_start = route_source.find("const files")
+    array_start = route_source.find("[", assignment_start)
+    array_end = route_source.find("] as const", array_start)
+    if assignment_start < 0 or array_start < 0 or array_end < 0:
         raise RuntimeError("FMHY single-page route did not expose its source file list.")
-    names = re.findall(r"""['"]([^'"]+)['"]""", block.group(1))
+    array_source = route_source[array_start + 1:array_end]
+    names = re.findall(r"""['"]([^'"]+)['"]""", array_source)
     if not names or len(names) > 100:
         raise RuntimeError("FMHY source file list is empty or exceeds the safety limit.")
     if any(not re.fullmatch(r"[a-z0-9-]+\.md", name) for name in names):
