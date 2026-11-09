@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from contextlib import closing
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -24,7 +25,7 @@ class CatalogStore:
         return connection
 
     def initialize(self) -> None:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection, connection:
             connection.executescript("""
                 CREATE TABLE IF NOT EXISTS catalog_snapshots (
                     snapshot_id TEXT PRIMARY KEY, source_repository TEXT NOT NULL,
@@ -163,10 +164,12 @@ class CatalogStore:
 
     def list_domains(
         self, *, snapshot_id: str, query: str | None = None,
-        limit: int = 100, offset: int = 0,
+        limit: int = 100, offset: int = 0, include_unsafe: bool = False,
     ) -> list[dict]:
         clauses = ["l.snapshot_id = ?"]
         parameters: list[object] = [snapshot_id]
+        if not include_unsafe:
+            clauses.append("e.safety_status != 'flagged_unsafe'")
         if query:
             clauses.append("l.domain LIKE ?")
             parameters.append(f"%{query}%")
