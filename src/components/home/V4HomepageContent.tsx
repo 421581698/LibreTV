@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { RecommendSection } from '@/components/douban-section';
+import { GlassPanel } from '@/components/ui/glass';
 import { SmartImage } from '@/components/smart-image';
 import { db, type HistoryEntry } from '@/lib/db';
 import { resolveSource, useAppStore } from '@/lib/store';
@@ -35,9 +36,9 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
           {history && history.length > 0 ? <span className="v4-history-count">最近 {history.length} 部</span> : null}
         </div>
         {!history ? (
-          <div className="v4-history-empty" role="status">正在读取本机观看记录…</div>
+          <GlassPanel className="v4-history-empty" role="status">正在读取本机观看记录…</GlassPanel>
         ) : history.length === 0 ? (
-          <div className="v4-history-empty">还没有观看记录，开始播放后会显示在这里。</div>
+          <GlassPanel className="v4-history-empty">还没有观看记录，开始播放后会显示在这里。</GlassPanel>
         ) : (
           <div className="v4-history-row">
             {history.map((item) => (
