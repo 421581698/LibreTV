@@ -76,6 +76,8 @@ services:
       net.ipv6.conf.all.disable_ipv6: "1"
     environment:
       - SCRAPLING_API_TOKEN=${SCRAPLING_API_TOKEN:-}
+      # Keep every outbound collector operation disabled until the host firewall has been installed and verified.
+      - SCRAPLING_EGRESS_FIREWALL_CONFIRMED=${SCRAPLING_EGRESS_FIREWALL_CONFIRMED:-0}
       - PORT=8000
     expose:
       - "8000"
