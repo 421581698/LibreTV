@@ -24,6 +24,42 @@ const UA =
 
 const MAX_M3U8_BYTES = 1024 * 1024;
 
+const PROXY_RATE_WINDOW_MS = 60_000;
+const PROXY_RATE_MAX_REQUESTS = 240;
+const proxyRequestTimes = new Map<string, number[]>();
+
+function isProxyRateLimited(request: Request, scope: 'vod' | 'live'): boolean {
+  const client = request.headers.get('cf-connecting-ip')?.trim()
+    || request.headers.get('x-real-ip')?.trim()
+    || 'unknown-client';
+  const key = scope + ':' + client;
+  const now = Date.now();
+  const recent = (proxyRequestTimes.get(key) || []).filter(
+    (time) => now - time < PROXY_RATE_WINDOW_MS,
+  );
+  if (recent.length >= PROXY_RATE_MAX_REQUESTS) {
+    proxyRequestTimes.set(key, recent);
+    return true;
+  }
+  recent.push(now);
+  proxyRequestTimes.set(key, recent);
+
+  if (proxyRequestTimes.size > 2_000) {
+    for (const [clientKey, times] of proxyRequestTimes) {
+      if (!times.some((time) => now - time < PROXY_RATE_WINDOW_MS)) {
+        proxyRequestTimes.delete(clientKey);
+      }
+      if (proxyRequestTimes.size <= 1_500) break;
+    }
+    while (proxyRequestTimes.size > 2_000) {
+      const oldest = proxyRequestTimes.keys().next().value;
+      if (oldest === undefined) break;
+      proxyRequestTimes.delete(oldest);
+    }
+  }
+  return false;
+}
+
 /** Reject active document/script payloads from an arbitrary upstream proxy target. */
 function isUnsafeProxyContentType(contentType: string): boolean {
   const type = contentType.split(';')[0].trim().toLowerCase();
@@ -133,6 +169,7 @@ export function decodePathTarget(encodedUrl: string): string {
 export async function handleProxyRequest(req: Request, targetUrl: string): Promise<Response> {
   const guarded = guardRequest(req);
   if (guarded && !looksLikeImageUrl(targetUrl)) return guarded;
+  if (isProxyRateLimited(req, 'vod')) return jsonError('代理请求过于频繁，请稍后重试', 429);
 
   if (!isValidProxyUrl(targetUrl)) {
     return new NextResponse('无效的 URL', { status: 400 });
@@ -256,6 +293,7 @@ export async function handleProxyRequest(req: Request, targetUrl: string): Promi
 export async function handleLiveStreamRequest(req: Request, targetUrl: string): Promise<Response> {
   const guarded = guardRequest(req);
   if (guarded) return guarded;
+  if (isProxyRateLimited(req, 'live')) return jsonError('直播请求过于频繁，请稍后重试', 429);
 
   const verdict = await checkLiveUrlAllowed(targetUrl);
   if (!verdict.ok) return jsonError(verdict.reason, 403);
