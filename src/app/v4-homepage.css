@@ -587,3 +587,71 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
     content: none !important;
   }
 }
+
+
+/* iPad landscape: true overlay header — the hero starts at the top behind it. */
+@media (min-width: 701px) and (max-width: 1200px) {
+  .v4-home {
+    position: relative !important;
+  }
+  .v4-home > .v4-header,
+  .v4-home .v4-header {
+    position: absolute !important;
+    inset: 0 0 auto 0 !important;
+    height: 76px !important;
+    min-height: 76px !important;
+    z-index: 100 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  .v4-home .v4-header-inner {
+    width: calc(100% - 56px) !important;
+    min-height: 76px !important;
+    height: 76px !important;
+    margin: 0 auto !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+  .v4-home .v4-home-main {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .v4-home .v4-hero {
+    width: 100% !important;
+    height: clamp(390px, 48vw, 560px) !important;
+    min-height: 390px !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  .v4-home .v4-hero-content {
+    padding-top: 76px !important;
+  }
+  .v4-home .v4-brand {
+    color: #fff !important;
+    text-shadow: 0 1px 8px rgba(0,0,0,.3) !important;
+  }
+  .v4-home .v4-nav-link,
+  .v4-home .v4-nav-link:hover,
+  .v4-home .v4-nav-link.is-active {
+    color: #fff !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    text-shadow: 0 1px 8px rgba(0,0,0,.36) !important;
+  }
+  .v4-home .v4-header-icon,
+  .v4-home .v4-avatar {
+    color: #fff !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+}
