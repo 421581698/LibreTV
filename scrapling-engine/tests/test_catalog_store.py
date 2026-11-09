@@ -35,3 +35,24 @@ def test_catalog_store_hides_unsafe_entries_by_default(tmp_path) -> None:
     )
     assert store.list_entries(snapshot_id=result["snapshot_id"]) == []
     assert len(store.list_entries(snapshot_id=result["snapshot_id"], include_unsafe=True)) == 1
+
+
+def test_domain_index_hides_unsafe_domains_by_default(tmp_path) -> None:
+    store = CatalogStore(str(tmp_path / "catalog.sqlite3"))
+    store.initialize()
+    safe = parse_fmhy_markdown("video.md", "* [Safe](https://safe.example/)\\n")
+    unsafe = parse_fmhy_markdown("unsafe.md", "* [Unsafe](https://unsafe.example/)\\n")
+    entries = safe + unsafe
+    result = store.import_snapshot(
+        entries, source_repository="fmhy/edit", source_branch="main",
+        source_revision="fixture", source_count=2,
+    )
+
+    visible = store.list_domains(snapshot_id=result["snapshot_id"])
+    all_domains = store.list_domains(
+        snapshot_id=result["snapshot_id"], include_unsafe=True,
+    )
+    assert {item["domain"] for item in visible} == {"safe.example"}
+    assert {item["domain"] for item in all_domains} == {
+        "safe.example", "unsafe.example",
+    }
