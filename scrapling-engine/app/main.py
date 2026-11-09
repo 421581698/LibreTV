@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import uuid
+from contextlib import asynccontextmanager
 from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
@@ -164,7 +165,6 @@ async def _run_job(task_id: str) -> None:
         _job_tasks.pop(task_id, None)
 
 
-@app.on_event("shutdown")
 async def stop_active_crawls() -> None:
     async with _job_transition_lock:
         for task_id, spider_instance in list(_active_spiders.items()):
@@ -184,6 +184,15 @@ async def stop_active_crawls() -> None:
             task.cancel()
         if pending:
             await asyncio.gather(*pending, return_exceptions=True)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    yield
+    await stop_active_crawls()
+
+
+app.router.lifespan_context = lifespan
 
 
 @app.get("/health")
