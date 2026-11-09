@@ -1362,3 +1362,25 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
 @media (max-width: 640px) {
   .netflix-related-rail { grid-auto-columns: minmax(104px, 34vw); gap: 10px; }
 }
+
+
+/* Player polish: readable sidebar status and unobtrusive paused-state overlay. */
+.netflix-sidebar-content .netflix-now-playing,
+.netflix-sidebar-content > .flex > .text-sm {
+  color: var(--c-content, #f5f5f5);
+}
+.netflix-sidebar-content > .flex > .text-sm strong {
+  color: var(--c-content, #fff);
+}
+.artplayer .art-state {
+  opacity: .42;
+  transform: scale(.72);
+  transition: opacity .18s ease, transform .18s ease;
+}
+.artplayer.art-hover .art-state,
+.artplayer.art-playing .art-state {
+  opacity: 0;
+}
+.artplayer .art-state svg {
+  filter: drop-shadow(0 1px 8px rgba(0,0,0,.5));
+}
