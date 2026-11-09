@@ -225,6 +225,17 @@ def parse_hls_manifest(body: bytes) -> dict:
     }
 
 
+def _xml_children(node, name: str):
+    return [child for child in list(node) if child.tag.split("}")[-1] == name]
+
+
+def _first_base_url(node) -> str | None:
+    values = _xml_children(node, "BaseURL")
+    if not values:
+        return None
+    return (values[0].text or "").strip() or None
+
+
 def parse_mpd_manifest(body: bytes) -> dict:
     try:
         root = ET.fromstring(body)
@@ -232,29 +243,93 @@ def parse_mpd_manifest(body: bytes) -> dict:
         return {"manifest_valid": False, "manifest_error": "invalid_xml"}
     if root.tag.split("}")[-1] != "MPD":
         return {"manifest_valid": False, "manifest_error": "missing_mpd_root"}
+
     representations = []
-    for node in root.iter():
-        if node.tag.split("}")[-1] != "Representation":
-            continue
-        try:
-            width = int(node.attrib["width"]) if node.attrib.get("width") else None
-            height = int(node.attrib["height"]) if node.attrib.get("height") else None
-            bandwidth = int(node.attrib["bandwidth"]) if node.attrib.get("bandwidth") else None
-        except ValueError:
-            width = height = bandwidth = None
-        representations.append({
-            "id": node.attrib.get("id"),
-            "width": width,
-            "height": height,
-            "bandwidth": bandwidth,
-            "codecs": node.attrib.get("codecs"),
-        })
+    base_references: list[str] = []
+    template_references: list[str] = []
+    segment_references: list[str] = []
+
+    def walk_period(period, mpd_base: str, inherited_template: dict):
+        period_base = _first_base_url(period)
+        current_base = urljoin(mpd_base, period_base) if period_base else mpd_base
+        period_templates = dict(inherited_template)
+        for node in _xml_children(period, "SegmentTemplate"):
+            period_templates.update(node.attrib)
+        for adaptation in _xml_children(period, "AdaptationSet"):
+            adaptation_base = _first_base_url(adaptation)
+            adaptation_url = urljoin(current_base, adaptation_base) if adaptation_base else current_base
+            adaptation_templates = dict(period_templates)
+            for node in _xml_children(adaptation, "SegmentTemplate"):
+                adaptation_templates.update(node.attrib)
+            for representation in _xml_children(adaptation, "Representation"):
+                representation_base = _first_base_url(representation)
+                resolved_base = urljoin(adaptation_url, representation_base) if representation_base else adaptation_url
+                if resolved_base != mpd_base and len(base_references) < 50:
+                    base_references.append(resolved_base)
+
+                template = dict(adaptation_templates)
+                for node in _xml_children(representation, "SegmentTemplate"):
+                    template.update(node.attrib)
+                template_refs = {}
+                for key in ("media", "initialization"):
+                    value = template.get(key)
+                    if value:
+                        resolved = urljoin(resolved_base, value)
+                        template_refs[key] = resolved
+                        if len(template_references) < 50:
+                            template_references.append(resolved)
+
+                segment_list_refs = []
+                segment_lists = _xml_children(representation, "SegmentList")
+                if not segment_lists:
+                    segment_lists = _xml_children(adaptation, "SegmentList")
+                for segment_list in segment_lists[:1]:
+                    for initialization in _xml_children(segment_list, "Initialization"):
+                        source = initialization.attrib.get("sourceURL")
+                        if source:
+                            segment_list_refs.append(urljoin(resolved_base, source))
+                    for segment in _xml_children(segment_list, "SegmentURL"):
+                        media = segment.attrib.get("media")
+                        if media and len(segment_list_refs) < 50:
+                            segment_list_refs.append(urljoin(resolved_base, media))
+                segment_references.extend(segment_list_refs[: max(0, 50 - len(segment_references))])
+
+                try:
+                    width = int(representation.attrib["width"]) if representation.attrib.get("width") else None
+                    height = int(representation.attrib["height"]) if representation.attrib.get("height") else None
+                    bandwidth = int(representation.attrib["bandwidth"]) if representation.attrib.get("bandwidth") else None
+                except ValueError:
+                    width = height = bandwidth = None
+                representations.append({
+                    "id": representation.attrib.get("id"),
+                    "width": width,
+                    "height": height,
+                    "bandwidth": bandwidth,
+                    "codecs": representation.attrib.get("codecs") or adaptation.attrib.get("codecs"),
+                    "base_url": resolved_base,
+                    "segment_template": template_refs,
+                    "segment_list": segment_list_refs[:50],
+                })
+
+    mpd_base = ""
+    root_base = _first_base_url(root)
+    if root_base:
+        mpd_base = root_base
+    root_templates = {}
+    for node in _xml_children(root, "SegmentTemplate"):
+        root_templates.update(node.attrib)
+    for period in _xml_children(root, "Period"):
+        walk_period(period, mpd_base, root_templates)
+
     return {
         "manifest_valid": True,
         "manifest_type": "dash",
         "dynamic": root.attrib.get("type", "static").lower() == "dynamic",
         "representation_count": len(representations),
         "representations": representations[:20],
+        "base_urls": base_references,
+        "segment_template_urls": template_references,
+        "segment_urls": segment_references,
     }
 
 
