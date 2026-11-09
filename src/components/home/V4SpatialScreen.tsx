@@ -276,7 +276,8 @@ function MeHistoryCard({ item }: { item: HistoryEntry }) {
 function SettingsScreen() {
   const groups = [
     { title: '播放与过滤', description: '自动连播、片头片尾跳过、广告过滤与本机播放缓存', page: 'playback' },
-    { title: '外观与封面', description: '封面图代理方式、自定义代理模板与显示主题', page: 'image' },
+    { title: '外观模式', description: '浅色、深色与跟随系统主题', page: 'appearance' },
+    { title: '封面图加载', description: '海报图片代理与加载偏好', page: 'image' },
     { title: '网络与数据源', description: '点播源管理、直播源、订阅同步与源健康检测', page: 'vod' },
     { title: 'Friday 语音', description: '助手角色、语音音色、唤醒词与对话语言偏好', page: 'voice' },
     { title: '数据管理', description: '配置导入导出；本机缓存可在播放与过滤面板管理', page: 'io' },
