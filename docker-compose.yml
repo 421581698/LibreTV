@@ -19,7 +19,6 @@ services:
       # 可选：FMHY / Scrapling 采集服务（启用 collector profile 后使用）
       - SCRAPLING_API_BASE=${SCRAPLING_API_BASE:-http://scrapling-collector:8000}
       - SCRAPLING_API_TOKEN=${SCRAPLING_API_TOKEN:-}
-      - SCRAPLING_DB_PATH=/data/collector.sqlite3
       # 可选：会话/代理签名密钥（多实例部署建议显式设置：openssl rand -hex 32）
       # - PROXY_SECRET=your-secret
       # 可选：Cookie Secure 策略覆盖（true=强制开启 / false=强制关闭；不设置时按请求协议自动推导，HTTP 部署无需配置）
@@ -81,6 +80,7 @@ services:
       - SCRAPLING_API_TOKEN=${SCRAPLING_API_TOKEN:-}
       # Keep every outbound collector operation disabled until the host firewall has been installed and verified.
       - SCRAPLING_EGRESS_FIREWALL_CONFIRMED=${SCRAPLING_EGRESS_FIREWALL_CONFIRMED:-0}
+      - SCRAPLING_DB_PATH=${SCRAPLING_DB_PATH:-/data/collector.sqlite3}
       - PORT=8000
     expose:
       - "8000"
