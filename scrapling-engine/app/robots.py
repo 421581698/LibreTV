@@ -65,6 +65,15 @@ def ensure_robots_allowed(url: str, timeout: float | None = None) -> None:
                 )
             parser.parse(bytes(body).decode("utf-8", errors="replace").splitlines())
         with _cache_lock:
+            expired = [
+                key for key, (saved_at, _) in _cache.items()
+                if now - saved_at >= _CACHE_TTL_SECONDS
+            ]
+            for key in expired:
+                _cache.pop(key, None)
+            if len(_cache) >= 1024:
+                oldest = min(_cache, key=lambda key: _cache[key][0])
+                _cache.pop(oldest, None)
             _cache[origin] = (now, parser)
 
     if not parser.can_fetch(settings.default_user_agent, url):
