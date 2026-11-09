@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -35,14 +36,30 @@ class _SeedSpider(Spider):
 
 
 class ScraplingSpiderAdapter:
-    """Runs the upstream Spider engine with conservative LibreTV defaults."""
+    """Runs Scrapling Spider through its async streaming API."""
+
+    @staticmethod
+    def create(urls: list[str], crawldir: Path | None = None) -> _SeedSpider:
+        return _SeedSpider(urls, crawldir=crawldir)
+
+    @staticmethod
+    async def crawl_async(
+        urls: list[str],
+        crawldir: Path | None = None,
+    ) -> dict[str, Any]:
+        spider = ScraplingSpiderAdapter.create(urls, crawldir)
+        items: list[dict[str, Any]] = []
+        async for item in spider.stream():
+            items.append(item)
+        return {
+            "items": items,
+            "completed": True,
+            "paused": False,
+            "stats": asdict(spider.stats),
+        }
 
     @staticmethod
     def crawl(urls: list[str], crawldir: Path | None = None) -> dict[str, Any]:
-        result = _SeedSpider(urls, crawldir=crawldir).start()
-        return {
-            "items": list(result.items),
-            "completed": result.completed,
-            "paused": result.paused,
-            "stats": asdict(result.stats),
-        }
+        # Kept for the legacy synchronous endpoint. Unlike Spider.start(), stream()
+        # does not install process signal handlers, so it is safe in a worker thread.
+        return asyncio.run(ScraplingSpiderAdapter.crawl_async(urls, crawldir))
