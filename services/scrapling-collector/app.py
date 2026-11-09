@@ -263,6 +263,8 @@ def probe_direct_media(raw_url: str, max_redirects: int = 5) -> dict:
             response.close()
             reachable = 200 <= status < 300 and media_type
             manifest_valid = manifest.get("manifest_valid") if manifest else None
+            if manifest_valid is False:
+                reachable = False
             return {
                 "reachable": bool(reachable),
                 "http_status": status,
