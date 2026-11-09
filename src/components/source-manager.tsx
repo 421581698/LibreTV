@@ -322,7 +322,7 @@ function ResourceCollectorPanel() {
               <code className="text-xs font-semibold text-content">SCRAPLING_API_BASE</code>
               <span className="text-[10px] text-muted">Text / Variable</span>
             </div>
-            <p className="mt-1 text-xs text-muted">必填。Scrapling Collector 的 HTTPS 服务根地址，例如 https://scrapling.example.com；不要填写 /v1 路径，建议不带末尾斜杠。</p>
+            <p className="mt-1 text-xs text-muted">必填。填写 Scrapling Collector 服务根地址，不要填写 /v1 路径，建议不带末尾斜杠。独立部署必须使用 HTTPS（例如 https://scrapling.example.com）；仅在 LibreTV 与 Collector 位于同一受信任 Docker Compose 内部网络时，才使用 http://scrapling-collector:8000。</p>
           </div>
           <div className="rounded-xl bg-chip p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -335,13 +335,15 @@ function ResourceCollectorPanel() {
         <div className="mt-3 rounded-xl border border-line p-3">
           <h4 className="text-xs font-semibold text-content">Scrapling Collector 主机额外要求</h4>
           <p className="mt-1 text-xs leading-5 text-muted">
-            在 Collector 服务端设置同一个 SCRAPLING_API_TOKEN。只有在独立主机已实际安装并验证出站防火墙规则后，才可设置
+            在 Collector 服务端设置同一个 SCRAPLING_API_TOKEN。仅在 Docker 持久化部署时，可选设置
+            <code className="mx-1 font-semibold text-content">SCRAPLING_DB_PATH</code>
+            （默认 /data/collector.sqlite3，必须映射到持久化卷）。只有在独立主机已实际安装并验证出站防火墙规则后，才可设置
             <code className="mx-1 font-semibold text-content">SCRAPLING_EGRESS_FIREWALL_CONFIRMED=1</code>；
             该值只是安全闸门声明，不会自动创建或验证防火墙。未完成防火墙验证时必须保持未设置，采集接口应继续拒绝执行。
           </p>
         </div>
         <p className="mt-2 text-[11px] leading-5 text-muted">
-          保存位置：Cloudflare Worker 环境配置；Preview 与 Production 是独立环境，需分别配置。修改 Secret 后无需在本页面输入密码，重新部署/生效后点击“发现网站”测试连接。
+          配置位置：SCRAPLING_API_BASE 与 SCRAPLING_API_TOKEN 配置在 LibreTV Worker（Preview / Production 分别设置）；SCRAPLING_API_TOKEN、SCRAPLING_EGRESS_FIREWALL_CONFIRMED 与可选 SCRAPLING_DB_PATH 配置在 Collector 主机。Preview 与 Production 是独立环境，需分别配置。修改 Secret 后无需在本页面输入密码，重新部署/生效后点击“发现网站”测试连接。
         </p>
       </div>
 
