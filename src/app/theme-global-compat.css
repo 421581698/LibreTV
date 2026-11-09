@@ -211,3 +211,71 @@ html.dark option {
     background: #17191e !important;
   }
 }
+
+
+/* P0 dark navigation state: explicitly style BOTH inactive and active links.
+   The shared header's light active capsule and the homepage overlay must not
+   leak into dark mode. Keep this block last in the global theme layer. */
+html.dark .v4-header .v4-primary-nav .v4-nav-link:not(.is-active),
+html.dark .v4-home .v4-header .v4-primary-nav .v4-nav-link:not(.is-active),
+html.dark .v4-spatial-screen .v4-header .v4-primary-nav .v4-nav-link:not(.is-active) {
+  color: #c7cbd3 !important;
+  -webkit-text-fill-color: #c7cbd3 !important;
+  background: transparent !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+html.dark .v4-header .v4-primary-nav .v4-nav-link:not(.is-active):hover,
+html.dark .v4-home .v4-header .v4-primary-nav .v4-nav-link:not(.is-active):hover,
+html.dark .v4-spatial-screen .v4-header .v4-primary-nav .v4-nav-link:not(.is-active):hover {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  background: rgba(255,255,255,.10) !important;
+  border-color: rgba(255,255,255,.12) !important;
+}
+html.dark .v4-header .v4-primary-nav .v4-nav-link.is-active,
+html.dark .v4-home .v4-header .v4-primary-nav .v4-nav-link.is-active,
+html.dark .v4-spatial-screen .v4-header .v4-primary-nav .v4-nav-link.is-active {
+  color: #17191d !important;
+  -webkit-text-fill-color: #17191d !important;
+  background: linear-gradient(135deg, #f2c46f 0%, #d99a38 100%) !important;
+  background-image: linear-gradient(135deg, #f2c46f 0%, #d99a38 100%) !important;
+  border: 1px solid rgba(255,220,157,.82) !important;
+  box-shadow: 0 3px 14px rgba(217,154,56,.24), inset 0 1px 0 rgba(255,255,255,.38) !important;
+  text-shadow: none !important;
+}
+@media screen and (min-width: 701px) and (max-width: 1440px) and (any-pointer: coarse) {
+  html.dark .v4-header .v4-primary-nav .v4-nav-link,
+  html.dark .v4-spatial-screen .v4-header .v4-primary-nav .v4-nav-link {
+    min-height: 44px !important;
+    padding-inline: 16px !important;
+  }
+}
+
+/* Dark catalogue posters must remain real, visible media. Separate the title
+   from the artwork so the label does not look like a dirty attached overlay. */
+html.dark .v4-spatial-screen[data-screen="overseas"] .v4-spatial-panel .card img,
+html.dark .v4-spatial-screen[data-screen="movies"] .v4-spatial-panel .card img {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+html.dark .v4-spatial-screen[data-screen="movies"] .v4-spatial-panel .card {
+  overflow: visible !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html.dark .v4-spatial-screen[data-screen="movies"] .v4-spatial-panel .card > .relative {
+  overflow: hidden !important;
+  border-radius: 13px !important;
+  box-shadow: 0 5px 16px rgba(0,0,0,.26) !important;
+}
+html.dark .v4-spatial-screen[data-screen="movies"] .v4-spatial-panel .card > .p-2 {
+  padding: 8px 2px 2px !important;
+  background: transparent !important;
+  border: 0 !important;
+}
