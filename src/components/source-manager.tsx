@@ -192,6 +192,7 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
 
 type CollectorSite = { title: string; url: string; host: string; directory: string };
 type CollectorCandidate = { id?: string; url: string; kind: string; host: string; status?: string; validation?: { cms_shape?: boolean; reachable?: boolean; public_host?: boolean; note?: string } };
+type CollectorTask = { id: string; url: string; host: string; status: string; created_at: number; updated_at: number; error?: string | null; result_count: number };
 
 function ResourceCollectorPanel() {
   const store = useAppStore();
@@ -199,9 +200,22 @@ function ResourceCollectorPanel() {
   const [selectedSite, setSelectedSite] = useState<CollectorSite | null>(null);
   const [playingCandidate, setPlayingCandidate] = useState<CollectorCandidate | null>(null);
   const [candidates, setCandidates] = useState<CollectorCandidate[]>([]);
+  const [tasks, setTasks] = useState<CollectorTask[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [loaded, setLoaded] = useState(false);
+
+  const loadTasks = async () => {
+    try {
+      const response = await fetch('/api/resource-collector/tasks', { cache: 'no-store' });
+      const payload = await response.json();
+      if (response.ok) setTasks(Array.isArray(payload.tasks) ? payload.tasks : []);
+    } catch {
+      // Keep the discovery and collection panel usable if task history is temporarily unavailable.
+    }
+  };
+
+  useEffect(() => { void loadTasks(); }, []);
 
   const discover = async () => {
     setBusy(true);
@@ -214,6 +228,7 @@ function ResourceCollectorPanel() {
       if (!response.ok) throw new Error(payload.error || 'FMHY 目录加载失败。');
       setSites(Array.isArray(payload.sites) ? payload.sites : []);
       setLoaded(true);
+      await loadTasks();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '无法连接资源采集服务。');
     } finally {
@@ -235,6 +250,7 @@ function ResourceCollectorPanel() {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Scrapling 采集失败。');
       setCandidates(Array.isArray(payload.candidates) ? payload.candidates : []);
+      await loadTasks();
       if (!payload.candidates?.length) setError('该页面没有发现可直接识别的公开媒体或播放器链接。');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Scrapling 采集失败。');
@@ -312,6 +328,27 @@ function ResourceCollectorPanel() {
         </div>
       ) : loaded ? (
         <p className="text-xs text-muted">FMHY 当前没有返回可用的外部站点链接。</p>
+      ) : null}
+
+      {tasks.length > 0 ? (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-content">采集任务记录</h3>
+            <button type="button" className="btn-ghost btn-sm" onClick={() => void loadTasks()}>刷新</button>
+          </div>
+          <div className="max-h-52 space-y-2 overflow-y-auto">
+            {tasks.map((task) => (
+              <div key={task.id} className="rounded-xl border border-line bg-card p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-xs text-content">{task.host}</span>
+                  <span className="shrink-0 text-[10px] text-muted">{task.status} · {task.result_count} 项</span>
+                </div>
+                <p className="mt-1 truncate text-[10px] text-muted">{task.url}</p>
+                {task.error ? <p className="mt-1 text-[10px] text-warning">{task.error}</p> : null}
+              </div>
+            ))}
+          </div>
+        </div>
       ) : null}
 
       {selectedSite ? (
