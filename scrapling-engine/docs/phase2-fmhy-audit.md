@@ -68,3 +68,28 @@ These are not bugs in the directory importer; they are the next controlled integ
 - Phase 2 FMHY directory importer and read APIs exist, but the quality/security acceptance items above remain open.
 - The current service does not crawl all FMHY websites, does not verify playable media, and does not yet feed resources into LibreTV.
 - No main-branch merge or production deployment is part of this audit.
+
+
+## Implementation update — 2026-11-09
+
+The first controlled FMHY-to-Scrapling collection slice is now implemented on the feature branch:
+
+- `POST /v1/catalog/crawl` accepts up to 20 selected FMHY entry IDs and an optional snapshot ID.
+- The catalog store resolves only each selected entry's primary link, rejects unsafe entries and entries without a primary resource, and retains source-file/line/revision provenance in the job's `catalog_selection` event.
+- Selected seeds enter the existing persistent Scrapling job queue; job status, result rows, pause/resume controls, and SSE events remain the existing managed-job contract.
+- Scrapling Spider results now include title, poster candidate, same-host detail/playback page links, and media candidates found in media elements, iframe player elements, and inline scripts.
+- Media candidate types include HLS/M3U8, MP4, DASH/MPD, WebM, generic video elements, and extensionless player embeds. Every candidate is explicitly marked `pending_fetch_validation`; discovery does not mean reachable, authorized, or playable.
+- Public non-default ports are accepted by the URL guard; IPv6 authorities are bracketed in canonical URLs. Regression tests were added for these cases.
+- The project dependency floor has been migrated to upstream Scrapling v0.5.1 (`>=0.5.1,<0.6`). The upstream v0.5 network capture API is session-based (`record_requests=True` plus `session.network.search(...)`), not the removed `capture_xhr` / `response.captured_xhr` API. Network capture is still gated and not claimed as implemented.
+
+### Still not complete
+
+1. The current Spider still fetches selected seed pages only. It records discovered detail/playback page links but does not yet enqueue them recursively.
+2. Candidate media URLs are not yet fetched and validated as media resources. There is no persisted media-specific validation observation (HTTP status, content type, redirect chain, byte-range support, playlist parse result, codec/resolution evidence).
+3. There is no real playback verification and no resource promotion/review workflow. No candidate is currently eligible for the LibreTV player.
+4. Dynamic browser collection and Scrapling v0.5.1 network-history capture remain disabled until browser subrequest/redirect egress enforcement and per-request URL policy are implemented.
+5. Domain alias/mirror relationship modeling, catalog pagination totals, parser coverage, cross-process sync locking, and full health observation history remain open audit items.
+
+### Current honest status
+
+FMHY selected entries can now create persistent Scrapling seed-crawl jobs, and seed-page results can expose candidate movie pages and media URLs. This is a first end-to-end discovery slice, not a completed automatic media acquisition pipeline. The remaining path is: safe follow-up page scheduling → candidate fetch validation → HLS/DASH/MP4 inspection → playback verification → review/promotion → later LibreTV player integration. No main merge or production deployment is included.
