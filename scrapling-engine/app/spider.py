@@ -33,6 +33,7 @@ class _SeedSpider(Spider):
             "default",
             FetcherSession(
                 headers={"User-Agent": settings.default_user_agent},
+                stealthy_headers=False,
                 timeout=settings.request_timeout_seconds,
                 follow_redirects="safe",
             ),
