@@ -282,7 +282,7 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .v4-spatial-screen[data-screen="resources"] .v4-spatial-main > div {
+  .v4-spatial-screen[data-screen="resources"] .v4-resources-layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 300px;
     align-items: start;
