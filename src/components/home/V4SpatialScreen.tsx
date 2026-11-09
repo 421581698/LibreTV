@@ -275,12 +275,15 @@ function MeHistoryCard({ item }: { item: HistoryEntry }) {
 
 function SettingsScreen() {
   const groups = [
-    { title: '播放与过滤', description: '自动连播、片头片尾跳过、广告过滤与本机播放缓存', page: 'playback' },
+    { title: '播放与过滤', description: '自动连播、片头片尾跳过、广告过滤与播放缓存', page: 'playback' },
     { title: '外观模式', description: '浅色、深色与跟随系统主题', page: 'appearance' },
     { title: '封面图加载', description: '海报图片代理与加载偏好', page: 'image' },
-    { title: '网络与数据源', description: '点播源管理、直播源、订阅同步与源健康检测', page: 'vod' },
-    { title: 'Friday 语音', description: '助手角色、语音音色、唤醒词与对话语言偏好', page: 'voice' },
-    { title: '数据管理', description: '配置导入导出；本机缓存可在播放与过滤面板管理', page: 'io' },
+    { title: '点播源管理', description: '管理点播来源、优先级与健康检测', page: 'vod' },
+    { title: '直播设置', description: '管理直播源与频道', page: 'live' },
+    { title: '资源订阅', description: '管理点播与直播资源订阅', page: 'subs' },
+    { title: 'Friday 语音', description: '助手角色、语音音色、唤醒词与对话语言', page: 'voice' },
+    { title: '配置导入与导出', description: '备份或恢复 LibreTV 本机配置', page: 'io' },
+    { title: '本机缓存', description: '查看和管理本机视频缓存', page: 'cache' },
   ] as const;
 
   const openCategory = (page: string) => {
