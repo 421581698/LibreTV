@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { V4HomepageHeader } from '@/components/home/V4HomepageHeader';
@@ -79,7 +79,22 @@ function CatalogScreen({ category, onPick }: { category: CatalogCategory; onPick
   const query = useQuery({
     queryKey: ['catalog', category, tag],
     queryFn: ({ signal }) => api.douban(type, tag, 0, 50, signal),
+    // A transient upstream failure should not leave the catalogue retrying
+    // invisibly for a long time; cached results remain usable across tabs.
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+    retryDelay: 900,
+    refetchOnWindowFocus: true,
   });
+  const [loadingStalled, setLoadingStalled] = useState(false);
+  useEffect(() => {
+    if (!query.isLoading) {
+      setLoadingStalled(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setLoadingStalled(true), 12000);
+    return () => window.clearTimeout(timer);
+  }, [query.isLoading, category, tag]);
   const items = query.data?.items ?? [];
   return (
     <section className="v4-spatial-panel" aria-label={`${COPY[category === 'movie' ? 'movies' : category].title}推荐`}>
@@ -92,9 +107,17 @@ function CatalogScreen({ category, onPick }: { category: CatalogCategory; onPick
         ))}
       </div>
       {query.isError ? (
-        <div className="v4-spatial-empty" role="alert">分类数据加载失败，请稍后重试。</div>
+        <div className="v4-spatial-empty flex flex-col items-center gap-3" role="alert">
+          <span>分类数据暂时无法加载，请检查网络后重试。</span>
+          <button type="button" className="v4-spatial-primary" onClick={() => void query.refetch()}>重新加载海报</button>
+        </div>
+      ) : query.isLoading && !loadingStalled ? (
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3" aria-label="正在加载海报" aria-busy="true">{Array.from({ length: 12 }, (_, i) => <div key={i} className="aspect-[2/3] rounded-lg bg-chip animate-pulse" />)}</div>
       ) : query.isLoading ? (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">{Array.from({ length: 12 }, (_, i) => <div key={i} className="aspect-[2/3] rounded-lg bg-chip animate-pulse" />)}</div>
+        <div className="v4-spatial-empty flex flex-col items-center gap-3" role="status">
+          <span>海报请求超过 12 秒仍未完成，可能是上游数据源响应缓慢。</span>
+          <button type="button" className="v4-spatial-primary" onClick={() => { setLoadingStalled(false); void query.refetch(); }}>重试加载</button>
+        </div>
       ) : items.length === 0 ? (
         <div className="v4-spatial-empty">该分类暂无推荐内容。</div>
       ) : (
