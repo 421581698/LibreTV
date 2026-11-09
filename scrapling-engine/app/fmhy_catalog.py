@@ -11,10 +11,11 @@ from urllib.parse import urlsplit, urlunsplit
 import httpx
 
 from app.config import settings
+from app.security import validate_public_http_url
 
 FMHY_REPOSITORY = "fmhy/edit"
 FMHY_BRANCH = "main"
-FMHY_RAW_BASE = "https://raw.githubusercontent.com/fmhy/edit/main/docs"
+FMHY_RAW_BASE = "https://raw.githubusercontent.com/fmhy/edit"
 MAX_SOURCE_BYTES = 2 * 1024 * 1024
 MAX_CONCURRENT_SOURCE_REQUESTS = 3
 FMHY_SOURCE_FILES = (
@@ -166,8 +167,14 @@ def parse_fmhy_markdown(source_file: str, markdown: str) -> list[CatalogEntry]:
     return entries
 
 
-async def _fetch_source(client: httpx.AsyncClient, semaphore: asyncio.Semaphore, source_file: str) -> str:
-    url = f"{FMHY_RAW_BASE}/{source_file}"
+async def _fetch_source(
+    client: httpx.AsyncClient,
+    semaphore: asyncio.Semaphore,
+    source_file: str,
+    source_revision: str,
+) -> str:
+    url = f"{FMHY_RAW_BASE}/{source_revision}/docs/{source_file}"
+    validate_public_http_url(url)
     async with semaphore:
         async with client.stream("GET", url) as response:
             if response.status_code != 200:
@@ -187,7 +194,7 @@ async def _fetch_source(client: httpx.AsyncClient, semaphore: asyncio.Semaphore,
             return b"".join(chunks).decode("utf-8-sig")
 
 
-async def fetch_official_fmhy_sources() -> dict[str, str]:
+async def fetch_official_fmhy_sources() -> tuple[dict[str, str], str]:
     timeout = httpx.Timeout(settings.request_timeout_seconds)
     limits = httpx.Limits(max_connections=MAX_CONCURRENT_SOURCE_REQUESTS, max_keepalive_connections=MAX_CONCURRENT_SOURCE_REQUESTS)
     semaphore = asyncio.Semaphore(MAX_CONCURRENT_SOURCE_REQUESTS)
@@ -196,14 +203,22 @@ async def fetch_official_fmhy_sources() -> dict[str, str]:
         headers={"User-Agent": settings.default_user_agent},
         follow_redirects=False,
     ) as client:
+        commit_url = "https://api.github.com/repos/fmhy/edit/commits/main"
+        validate_public_http_url(commit_url)
+        commit_response = await client.get(commit_url)
+        commit_response.raise_for_status()
+        source_revision = commit_response.json().get("sha", "")
+        if not re.fullmatch(r"[0-9a-f]{40}", source_revision):
+            raise RuntimeError("FMHY API did not return a valid immutable source commit.")
         results = await asyncio.gather(*(
-            _fetch_source(client, semaphore, source_file) for source_file in FMHY_SOURCE_FILES
+            _fetch_source(client, semaphore, source_file, source_revision)
+            for source_file in FMHY_SOURCE_FILES
         ))
-    return dict(zip(FMHY_SOURCE_FILES, results, strict=True))
+    return dict(zip(FMHY_SOURCE_FILES, results, strict=True)), source_revision
 
 
 async def sync_fmhy_catalog(store) -> dict:
-    sources = await fetch_official_fmhy_sources()
+    sources, source_revision = await fetch_official_fmhy_sources()
     entries = [
         entry
         for source_file, markdown in sources.items()
@@ -213,7 +228,7 @@ async def sync_fmhy_catalog(store) -> dict:
         entries,
         source_repository=FMHY_REPOSITORY,
         source_branch=FMHY_BRANCH,
-        source_revision=datetime.now(UTC).isoformat(),
+        source_revision=source_revision,
         source_count=len(sources),
     )
     result["source_files"] = len(sources)
