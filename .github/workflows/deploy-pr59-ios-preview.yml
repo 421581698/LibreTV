@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm_preview_deploy:
-        description: "确认部署 PR #59 到独立、受密码保护的 Preview Worker"
+        description: "确认部署公开、无需密码的 PR #59 Preview Worker"
         required: true
         type: choice
         options:
@@ -65,27 +65,12 @@ jobs:
       - name: Verify isolated preview configuration
         run: |
           grep -Eq '^[[:space:]]*name[[:space:]]*=[[:space:]]*"libretv-pr59-ios-preview"' wrangler.pr59-preview.toml
-          grep -Eq '^[[:space:]]*AUTH_DISABLED[[:space:]]*=[[:space:]]*"false"' wrangler.pr59-preview.toml
-          if grep -Eq '^[[:space:]]*AUTH_DISABLED[[:space:]]*=[[:space:]]*"true"' wrangler.pr59-preview.toml; then
-            echo "PR #59 Preview must remain password-protected"
-            exit 1
-          fi
+          grep -Eq '^[[:space:]]*AUTH_DISABLED[[:space:]]*=[[:space:]]*"true"' wrangler.pr59-preview.toml
 
       - name: Build isolated preview
         env:
           NEXT_TELEMETRY_DISABLED: "1"
         run: npx opennextjs-cloudflare build
-
-      - name: Verify Preview deployment credentials
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          PREVIEW_GATE_KEY: ${{ secrets.LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY }}
-        run: |
-          test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing preview secret: CLOUDFLARE_API_TOKEN" && exit 1)
-          test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "Missing preview secret: CLOUDFLARE_ACCOUNT_ID" && exit 1)
-          test -n "$PREVIEW_GATE_KEY" || (echo "Missing preview secret: LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY" && exit 1)
-          test "${#PREVIEW_GATE_KEY}" -ge 24 || (echo "Preview gate key must contain at least 24 characters" && exit 1)
 
       - name: Deploy isolated PR #59 Worker
         env:
@@ -93,14 +78,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler deploy --config wrangler.pr59-preview.toml
 
-      - name: Set password secret without logging its value
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          PREVIEW_GATE_KEY: ${{ secrets.LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY }}
-        run: printf '%s' "$PREVIEW_GATE_KEY" | npx wrangler secret put PASSWORD --config wrangler.pr59-preview.toml
-
-      - name: Verify deployed PR #59 Preview and password gate
+      - name: Verify deployed public PR #59 Preview
         run: |
           node --input-type=module <<'NODE'
           const base = "https://libretv-pr59-ios-preview.bggdbh.workers.dev";
@@ -111,16 +89,8 @@ jobs:
           const statusResponse = await fetch(base + "/api/status", { cache: "no-store" });
           if (!statusResponse.ok) throw new Error("Preview status endpoint returned " + statusResponse.status);
           const status = await statusResponse.json();
-          if (status.passwordRequired !== true || status.verified !== false) {
-            throw new Error("Preview is not locked: passwordRequired=" + status.passwordRequired + ", verified=" + status.verified);
+          if (status.passwordRequired !== false || status.verified !== true) {
+            throw new Error("Preview should be public: passwordRequired=" + status.passwordRequired + ", verified=" + status.verified);
           }
-          const authResponse = await fetch(base + "/api/auth", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ password: "__invalid_pr59_preview_smoke_password__" }),
-          });
-          if (authResponse.status !== 401) {
-            throw new Error("Expected invalid password to return 401, got " + authResponse.status);
-          }
-          console.log("PR #59 Preview verified: homepage responds, anonymous session is unverified, invalid password is rejected.");
+          console.log("PR #59 Preview verified: homepage responds without a password; authentication is disabled for this isolated preview.");
           NODE
