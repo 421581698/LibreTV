@@ -12,6 +12,8 @@ import './v4-shared-header.css';
 import './v4-header-theme.css';
 // Final theme layer: keep iOS Safari's bottom safe area in sync with dark mode.
 import './theme-safe-area.css';
+// Final global contrast layer: dark mode must remain legible on every device and route.
+import './theme-global-compat.css';
 import { Providers } from '@/components/providers';
 
 export const metadata: Metadata = {
