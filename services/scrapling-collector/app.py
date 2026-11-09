@@ -237,6 +237,48 @@ def parse_mpd_manifest(body: bytes) -> dict:
     }
 
 
+def validate_manifest_references(manifest: dict, base_url: str) -> dict:
+    """Resolve and DNS-check HLS variant/segment URLs; never retain key URLs."""
+    dns_cache: dict[str, bool] = {}
+    rejected = 0
+
+    def safe_reference(reference: str) -> str | None:
+        nonlocal rejected
+        absolute = urljoin(base_url, reference)
+        try:
+            _, host = public_https_url(absolute)
+        except HTTPException:
+            rejected += 1
+            return None
+        if host not in dns_cache:
+            dns_cache[host] = True
+        return absolute if dns_cache[host] else None
+
+    safe_variants = []
+    for variant in manifest.get("variants", []):
+        item = dict(variant)
+        uri = item.get("uri")
+        resolved = safe_reference(uri) if isinstance(uri, str) else None
+        if resolved:
+            item["uri"] = resolved
+            safe_variants.append(item)
+    safe_segments = []
+    for uri in manifest.get("segment_uris", []):
+        resolved = safe_reference(uri)
+        if resolved:
+            safe_segments.append(resolved)
+    result = dict(manifest)
+    if "variants" in result:
+        result["variants"] = safe_variants
+        result["variant_count"] = len(safe_variants)
+    if "segment_uris" in result:
+        result["segment_uris"] = safe_segments
+        result["segment_count"] = len(safe_segments)
+    result["rejected_reference_count"] = rejected
+    result["safe_reference_count"] = len(safe_variants) + len(safe_segments)
+    return result
+
+
 def probe_direct_media(raw_url: str, max_redirects: int = 5) -> dict:
     """Probe media headers with a one-byte range request and safe manual redirects."""
     current = raw_url
@@ -288,6 +330,8 @@ def probe_direct_media(raw_url: str, max_redirects: int = 5) -> dict:
                     manifest = {"manifest_valid": False, "manifest_error": "manifest_too_large"}
                 elif is_hls:
                     manifest = parse_hls_manifest(body)
+                    if manifest.get("manifest_valid"):
+                        manifest = validate_manifest_references(manifest, normalized)
                 else:
                     manifest = parse_mpd_manifest(body)
             response.close()
