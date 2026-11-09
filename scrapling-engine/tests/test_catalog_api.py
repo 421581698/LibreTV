@@ -147,3 +147,43 @@ def test_selected_unsafe_fmhy_entry_cannot_be_queued(tmp_path, monkeypatch) -> N
     )
 
     assert response.status_code == 422
+
+
+def test_job_discovery_api_returns_persisted_movie_pages_and_media_candidates(
+    tmp_path, monkeypatch,
+) -> None:
+    jobs = main.JobStore(str(tmp_path / "jobs.sqlite3"))
+    jobs.initialize()
+    jobs.create("discovery-job", ["https://catalog.example/"], str(tmp_path / "checkpoint"))
+    jobs.add_result(
+        "discovery-job",
+        {
+            "url": "https://catalog.example/",
+            "title": "Example Movie",
+            "discovered_pages": [
+                {
+                    "url": "https://catalog.example/watch/123",
+                    "role": "playback_page",
+                    "label": "",
+                },
+            ],
+            "media_candidates": [
+                {
+                    "url": "https://cdn.example/master.m3u8",
+                    "media_type": "hls",
+                    "discovered_via": "video_src",
+                    "validation_status": "pending_fetch_validation",
+                },
+            ],
+        },
+    )
+    monkeypatch.setattr(main, "job_store", jobs)
+
+    response = TestClient(main.app).get("/v1/jobs/discovery-job/discovery")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["page_count"] == 1
+    assert payload["media_candidate_count"] == 1
+    assert payload["media_candidates"][0]["source_page_title"] == "Example Movie"
+    assert payload["media_candidates"][0]["validation_status"] == "pending_fetch_validation"
