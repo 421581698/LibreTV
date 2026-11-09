@@ -327,3 +327,37 @@ body:has(.v4-home) .friday-fab::after {
   .v4-resource-entry { align-items:flex-start; flex-direction:column; padding:16px; }
   .v4-resource-entry .glass-button { width:100%; }
 }
+
+/* Featured hero uses real recommendation artwork; keep the artwork sharp under glass overlays. */
+.v4-hero-image { z-index: 0 !important; overflow: hidden; }
+.v4-hero-veil {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background:
+    linear-gradient(90deg,rgba(6,6,8,.92) 0%,rgba(6,6,8,.74) 28%,rgba(6,6,8,.28) 58%,rgba(6,6,8,.04) 100%),
+    linear-gradient(0deg,#08080A 0%,rgba(8,8,10,.68) 9%,transparent 48%);
+}
+.v4-hero-content { z-index: 2 !important; }
+.v4-hero-indicators { z-index: 3 !important; }
+.v4-hero-empty { max-width: 620px; }
+.v4-hero-primary,.v4-hero-secondary {
+  min-height: 48px !important; height: 48px !important; border-radius: 24px !important;
+}
+.v4-hero-primary {
+  color: #17110A !important;
+  background: linear-gradient(135deg,#FFD18A,#EBA13A) !important;
+  border: 1px solid rgba(255,225,180,.55) !important;
+  box-shadow: 0 8px 24px rgba(241,166,58,.18) !important;
+}
+.v4-hero-secondary {
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,.24) !important;
+  background: rgba(255,255,255,.10) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(150%) !important;
+  backdrop-filter: blur(18px) saturate(150%) !important;
+}
+.v4-nav-link:focus-visible,
+.v4-header-icon:focus-visible,
+.v4-avatar:focus-visible {
+  outline: 2px solid #fff !important; outline-offset: 3px !important;
+  box-shadow: 0 0 24px rgba(255,255,255,.20) !important;
+}
