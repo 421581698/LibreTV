@@ -432,3 +432,46 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
   .v4-home .v4-search input { width: 150px !important; opacity: 0 !important; }
   .v4-home .v4-header-icon,.v4-home .v4-avatar { width: 30px !important; height: 30px !important; flex-basis: 30px !important; }
 }
+
+
+/* Header refinement: transparent navigation, longer search, three quiet utility actions. */
+.v4-home .v4-header {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+.v4-home .v4-nav-link,
+.v4-home .v4-nav-link:hover,
+.v4-home .v4-nav-link.is-active {
+  color: rgba(255,255,255,.96) !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  text-shadow: 0 1px 8px rgba(0,0,0,.32) !important;
+}
+.v4-home .v4-nav-link:hover { color: #fff !important; }
+.v4-home .v4-header-actions { gap: clamp(10px, 1.15vw, 18px) !important; }
+.v4-home .v4-search {
+  width: clamp(250px, 23vw, 380px) !important;
+  min-width: 250px !important;
+  background: rgba(255,255,255,.16) !important;
+  border: 1px solid rgba(255,255,255,.28) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(135%) !important;
+  backdrop-filter: blur(10px) saturate(135%) !important;
+}
+.v4-home .v4-header-icon,
+.v4-home .v4-avatar {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+@media (max-width: 1200px) and (min-width: 701px) {
+  .v4-home .v4-search { width: clamp(205px, 21vw, 270px) !important; min-width: 205px !important; }
+}
+@media (max-width: 700px) {
+  .v4-home .v4-search { width: 38px !important; min-width: 38px !important; }
+}
