@@ -41,3 +41,26 @@ def test_robots_server_error_fails_closed(monkeypatch) -> None:
 
     with pytest.raises(RobotsUnavailableError):
         ensure_robots_allowed("https://robots-down.example/public")
+
+
+
+def test_robots_rate_limit_fails_closed(monkeypatch) -> None:
+    page = Mock()
+    page.status = 429
+    page.body = b""
+    monkeypatch.setattr("app.robots._cache", {})
+    monkeypatch.setattr("app.robots.Fetcher.get", lambda *args, **kwargs: page)
+
+    with pytest.raises(RobotsUnavailableError):
+        ensure_robots_allowed("https://robots-rate-limited.example/public")
+
+
+def test_robots_network_error_fails_closed(monkeypatch) -> None:
+    monkeypatch.setattr("app.robots._cache", {})
+    monkeypatch.setattr(
+        "app.robots.Fetcher.get",
+        lambda *args, **kwargs: (_ for _ in ()).throw(TimeoutError("timeout")),
+    )
+
+    with pytest.raises(RobotsUnavailableError):
+        ensure_robots_allowed("https://robots-timeout.example/public")
