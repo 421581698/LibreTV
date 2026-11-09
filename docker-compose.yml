@@ -66,7 +66,10 @@ services:
     cap_drop:
       - ALL
     cap_add:
+      # Entrypoint needs CHOWN for the mounted volume and SETGID/SETUID for gosu.
       - CHOWN
+      - SETGID
+      - SETUID
     security_opt:
       - no-new-privileges:true
     pids_limit: 128
