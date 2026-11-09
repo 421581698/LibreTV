@@ -565,6 +565,7 @@ def probe_hls_variant_tree(
                     nested = walk(child_manifest, depth + 1)
                     item["children"] = nested
                     item["reachable"] = any(child.get("leaf_reachable") for child in nested)
+                    item["leaf_reachable"] = item["reachable"]
                 else:
                     item["reachable"] = False
                     item["depth_limit_reached"] = True
