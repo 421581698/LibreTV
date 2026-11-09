@@ -56,6 +56,9 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
   const safeArea = read('src/app/theme-safe-area.css');
   const collectorSettings = read('src/components/source-manager.tsx');
   const collectorRoute = read('src/app/api/resource-collector/route.ts');
+  const collectorValidationRoute = read('src/app/api/resource-collector/candidates/[candidateId]/validate/route.ts');
+  const collectorDock = read('src/components/home/header/MobileTabBar.tsx');
+  const iphoneLayout = read('src/app/iphone-glass.css');
 
   it('renders only the shared four-item dock on routed screens', () => {
     expect(spatial).not.toContain('MobileScreenTabs');
@@ -83,6 +86,19 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
     expect(collectorRoute).toContain('guardRequest(request)');
     expect(collectorRoute).toContain("relay('/v1/discover')");
     expect(collectorRoute).toContain("relay('/v1/crawl'");
+  });
+  it('keeps the four-item dock and all confirmed header utilities visible', () => {
+    expect(collectorDock).toContain("href: '/me'");
+    expect(iphoneLayout).not.toContain('[aria-label="观看历史"]');
+    expect(iphoneLayout).toContain('v4-mobile-tabbar');
+  });
+
+  it('plays only direct media and imports a source only after CMS shape validation', () => {
+    expect(collectorSettings).toContain("candidate.kind === 'direct-media'");
+    expect(collectorSettings).toContain('validation.cms_shape && validation.reachable');
+    expect(collectorSettings).toContain('store.addCustomApi');
+    expect(collectorValidationRoute).toContain('guardRequest(request)');
+    expect(collectorValidationRoute).toContain('/validate');
   });
   it('applies light-theme colors to routed iPhone screens and keeps safe-area paint below the dock', () => {
     expect(theme).toContain(':root:not(.dark) .v4-spatial-screen');
