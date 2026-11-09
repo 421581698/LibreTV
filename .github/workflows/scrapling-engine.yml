@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/scrapling-engine-phase1
+      - feature/fmhy-resource-directory-phase2
     paths:
       - "scrapling-engine/**"
       - ".github/workflows/scrapling-engine.yml"
