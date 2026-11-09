@@ -185,8 +185,8 @@ function HomeContent() {
 
   return (
     <div className="v4-home min-h-screen flex flex-col">
-      <V4HomepageHeader />
-      <main className="v4-home-main">
+      <V4HomepageHeader overlay={!urlQuery} />
+      <main className={urlQuery ? "v4-home-main" : "v4-home-main v4-home-main--cinema"}>
         {!urlQuery && <V4HomepageHero onPick={openRecommendation} />}
         {urlQuery && (
           <section aria-label="搜索结果" className="mb-10">
