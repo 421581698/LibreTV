@@ -251,7 +251,7 @@ def parse_iso8601_duration_seconds(value: str | None) -> float | None:
     if not value:
         return None
     match = re.fullmatch(
-        r"P(?:(\\d+(?:\\.\\d+)?)D)?(?:T(?:(\\d+(?:\\.\\d+)?)H)?(?:(\\d+(?:\\.\\d+)?)M)?(?:(\\d+(?:\\.\\d+)?)S)?)?",
+        r"P(?:(\d+(?:\.\d+)?)D)?(?:T(?:(\d+(?:\.\d+)?)H)?(?:(\d+(?:\.\d+)?)M)?(?:(\d+(?:\.\d+)?)S)?)?",
         value,
     )
     if not match:
@@ -262,15 +262,15 @@ def parse_iso8601_duration_seconds(value: str | None) -> float | None:
 
 def expand_dash_template(template: str, representation: dict, number: int, media_time: int) -> str:
     """Expand the finite DASH template tokens needed for bounded timeline inspection."""
-    sentinel = "\\x00DASH_DOLLAR\\x00"
-    value = template.replace("$", sentinel)
+    sentinel = "\x00DASH_DOLLAR\x00"
+    value = template.replace("$$", sentinel)
     replacements = {
         "RepresentationID": str(representation.get("id") or ""),
         "Bandwidth": str(representation.get("bandwidth") or ""),
         "Number": str(number),
         "Time": str(media_time),
     }
-    pattern = re.compile(r"\\$(RepresentationID|Bandwidth|Number|Time)(%0(\\d+)d)?\\$")
+    pattern = re.compile(r"\$(RepresentationID|Bandwidth|Number|Time)(%0(\d+)d)?\$")
     def substitute(match):
         token = match.group(1)
         replacement = replacements[token]
