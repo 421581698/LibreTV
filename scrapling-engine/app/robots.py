@@ -72,9 +72,11 @@ def ensure_robots_allowed(url: str, timeout: float | None = None) -> None:
             ]
             for key in expired:
                 _cache.pop(key, None)
+                _last_request_at.pop(key, None)
             if len(_cache) >= 1024:
                 oldest = min(_cache, key=lambda key: _cache[key][0])
                 _cache.pop(oldest, None)
+                _last_request_at.pop(oldest, None)
             _cache[origin] = (now, parser)
 
     if not parser.can_fetch(settings.default_user_agent, url):
