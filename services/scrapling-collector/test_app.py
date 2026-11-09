@@ -1,9 +1,11 @@
 import os
 import sys
+import tempfile
 import unittest
 from unittest.mock import patch
 
 os.environ.setdefault("SCRAPLING_API_TOKEN", "collector-test-token")
+os.environ.setdefault("SCRAPLING_DB_PATH", os.path.join(tempfile.gettempdir(), f"libretv-scrapling-test-{os.getpid()}.sqlite3"))
 sys.path.insert(0, os.path.dirname(__file__))
 
 import app
@@ -49,6 +51,10 @@ class CollectorSecurityTests(unittest.TestCase):
             with self.assertRaises(Exception):
                 app.public_https_url("https://private.example")
 
+    def test_rejects_nonstandard_https_ports(self):
+        with self.assertRaises(Exception):
+            app.public_https_url("https://public.example:8443/watch")
+
     def test_accepts_public_https_target(self):
         with patch("app.socket.getaddrinfo", return_value=[(None, None, None, None, ("93.184.216.34", 443))]):
             url, host = app.public_https_url("https://public.example/watch")
@@ -65,7 +71,9 @@ class CollectorSecurityTests(unittest.TestCase):
             sites = app.discover_sites()
         self.assertEqual(len(sites), 1)
         self.assertEqual(sites[0]["host"], "stream.example")
-        self.assertEqual(app._discovered_hosts, {"stream.example"})
+        with app.db() as connection:
+            rows = connection.execute("SELECT host FROM sites").fetchall()
+        self.assertEqual([row["host"] for row in rows], ["stream.example"])
 
 
 if __name__ == "__main__":
