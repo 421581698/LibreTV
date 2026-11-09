@@ -150,7 +150,7 @@ export function SearchHistoryDropdown({
         'rounded-b-xl border-x border-b border-accent bg-surface-raised shadow-2xl animate-fade-in'
       )}
     >
-      <div className="flex items-center justify-between pl-4 pr-2 py-2 border-b border-line">
+      <div className="glass-toolbar flex items-center justify-between pl-4 pr-2 py-2 !rounded-none border-x-0 border-t-0">
         <span className="flex items-center gap-1.5 text-xs text-faint">
           <Icon name="clock" className="w-3.5 h-3.5" />
           最近搜索
