@@ -34,6 +34,7 @@ class _SeedSpider(Spider):
             FetcherSession(
                 headers={"User-Agent": settings.default_user_agent},
                 stealthy_headers=False,
+                impersonate=None,
                 timeout=settings.request_timeout_seconds,
                 follow_redirects="safe",
             ),
