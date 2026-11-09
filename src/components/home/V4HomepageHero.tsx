@@ -35,9 +35,7 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
           </div>
           <div className="v4-hero-veil" aria-hidden="true" />
           <div className="v4-hero-content">
-            <span className="v4-hero-eyebrow">LIBRETV · FEATURED</span>
             <h1>{slide.title}</h1>
-            <p>{slide.rating ? `豆瓣评分 ${slide.rating} · 精选推荐` : '精选推荐'}</p>
             <div className="v4-hero-actions">
               <button type="button" className="v4-hero-primary" onClick={() => onPick(slide)}>
                 <span aria-hidden="true">▶</span>
@@ -61,9 +59,8 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
         </>
       ) : (
         <div className="v4-hero-content v4-hero-empty" role="status">
-          <span className="v4-hero-eyebrow">LIBRETV · FEATURED</span>
           <h1>{featuredQuery.isLoading ? '正在载入精选内容' : '精选内容暂不可用'}</h1>
-          <p>{featuredQuery.isError ? '推荐接口暂时没有响应，请稍后重试。' : '连接真实推荐数据后，这里会展示可查找播放资源的影片。'}</p>
+          {featuredQuery.isError && <p>推荐接口暂时没有响应，请稍后重试。</p>}
           <div className="v4-hero-actions">
             <a className="v4-hero-primary" href="#today-recommendations">立即观看</a>
             {featuredQuery.isError && (
