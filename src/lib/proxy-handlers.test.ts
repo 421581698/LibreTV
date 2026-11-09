@@ -57,6 +57,7 @@ describe("media proxy response safety", () => {
 
     expect(response.status).toBe(415);
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(response.headers.get("content-security-policy")).toBe("sandbox");
     expect(await response.text()).toContain("不允许");
   });
 
@@ -126,6 +127,7 @@ describe("media proxy response safety", () => {
 
     expect(response.status).toBe(415);
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(response.headers.get("content-security-policy")).toBe("sandbox");
   });
 
   it("rejects oversized HLS manifests before rewriting", async () => {
