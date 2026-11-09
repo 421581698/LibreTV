@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException
@@ -30,6 +31,12 @@ class FetchRequest(BaseModel):
 
 class SpiderRequest(BaseModel):
     urls: list[str] = Field(min_length=1, max_length=20)
+    task_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=64,
+        pattern=r"^[a-zA-Z0-9_-]+$",
+    )
 
 
 @app.get("/health")
@@ -53,14 +60,15 @@ async def capabilities() -> dict:
             "spider_seed_crawl",
             "spider_concurrency_limits",
             "spider_robots_txt_policy",
+            "spider_checkpoint_storage",
         ],
         "planned": [
             "dynamic_browser",
             "stealth_browser",
             "adaptive_element_relocation",
             "recursive_link_crawling",
-            "persistent_spider_jobs",
-            "checkpoint_pause_resume",
+            "persistent_spider_job_registry",
+            "api_controlled_pause_resume",
             "network_api_capture",
             "robots_and_throttling_policy",
             "mcp_agent_integration",
@@ -72,7 +80,7 @@ async def capabilities() -> dict:
         ],
         "note": (
             "Only implemented entries have been integrated and verified by this service. "
-            "Browser, recursive link crawling, and persistent job controls remain planned."
+            "Browser, recursive link crawling, and API-controlled job lifecycle remain planned."
         ),
     }
 
@@ -126,8 +134,21 @@ async def spider(request: SpiderRequest) -> dict:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     try:
-        result = await run_in_threadpool(ScraplingSpiderAdapter.crawl, safe_urls)
-        return {"ok": True, "result": result}
+        checkpoint_dir = None
+        if request.task_id:
+            checkpoint_dir = Path(settings.crawl_data_dir) / request.task_id
+            checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        result = await run_in_threadpool(
+            ScraplingSpiderAdapter.crawl,
+            safe_urls,
+            checkpoint_dir,
+        )
+        return {
+            "ok": True,
+            "task_id": request.task_id,
+            "checkpoint_enabled": checkpoint_dir is not None,
+            "result": result,
+        }
     except Exception as exc:
         logger.exception("Scrapling spider failed for %d seed URLs", len(safe_urls))
         raise HTTPException(
