@@ -191,9 +191,10 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
 
 
 type CollectorSite = { title: string; url: string; host: string; directory: string };
-type CollectorCandidate = { url: string; kind: string; host: string };
+type CollectorCandidate = { id?: string; url: string; kind: string; host: string; status?: string; validation?: { cms_shape?: boolean; reachable?: boolean; public_host?: boolean; note?: string } };
 
 function ResourceCollectorPanel() {
+  const store = useAppStore();
   const [sites, setSites] = useState<CollectorSite[]>([]);
   const [selectedSite, setSelectedSite] = useState<CollectorSite | null>(null);
   const [playingCandidate, setPlayingCandidate] = useState<CollectorCandidate | null>(null);
@@ -237,6 +238,36 @@ function ResourceCollectorPanel() {
       if (!payload.candidates?.length) setError('该页面没有发现可直接识别的公开媒体或播放器链接。');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Scrapling 采集失败。');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const validateCandidate = async (candidate: CollectorCandidate) => {
+    if (!candidate.id) {
+      setError('采集服务没有返回候选资源 ID，请重新采集。');
+      return;
+    }
+    setBusy(true);
+    setError('');
+    try {
+      const response = await fetch(`/api/resource-collector/candidates/${candidate.id}/validate`, { method: 'POST' });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || '资源验证失败。');
+      const validation = payload.validation ?? {};
+      setCandidates((current) => current.map((item) => item.id === candidate.id
+        ? { ...item, status: validation.cms_shape ? 'validated' : 'checked', validation }
+        : item));
+      if (validation.cms_shape && validation.reachable && candidate.kind === 'cms-api-candidate') {
+        const duplicate = store.customAPIs.some((source) => source.url.replace(/\\/$/, '') === candidate.url.replace(/\\/$/, ''));
+        if (!duplicate) {
+          store.addCustomApi({ name: candidate.title || candidate.host, url: candidate.url, detail: selectedSite?.url });
+        }
+      } else if (candidate.kind === 'cms-api-candidate') {
+        setError('该地址未通过 CMS API 结构验证，没有加入点播源。');
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '资源验证失败。');
     } finally {
       setBusy(false);
     }
@@ -295,12 +326,16 @@ function ResourceCollectorPanel() {
                 <span className="block text-[10px] text-muted">{candidate.kind} · {candidate.host}</span>
                 <a className="block truncate text-xs text-content underline" href={candidate.url} target="_blank" rel="noreferrer">{candidate.url}</a>
               </div>
-              <div className="flex shrink-0 gap-1">
+              <div className="flex shrink-0 flex-wrap gap-1">
                 {candidate.kind !== 'embedded-player' ? (
                   <button type="button" className="btn-primary btn-sm" onClick={() => setPlayingCandidate(candidate)}>播放</button>
                 ) : null}
+                <button type="button" className="btn-ghost btn-sm" disabled={busy || !candidate.id} onClick={() => void validateCandidate(candidate)}>
+                  {candidate.status === 'validated' ? '已验证' : '验证'}
+                </button>
                 <button type="button" className="btn-ghost btn-sm" onClick={() => void copyToClipboard(candidate.url)}>复制</button>
               </div>
+              {candidate.validation?.cms_shape ? <span className="text-[10px] text-success">CMS API 可用，已加入点播源</span> : null}
             </div>
           )) : <p className="text-xs text-muted">尚未发现可直接识别的媒体链接。</p>}
         </div>
