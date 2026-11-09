@@ -1338,3 +1338,27 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
 .netflix-autonext-banner strong, .netflix-autonext-banner span { display: block; }
 .netflix-autonext-banner strong { color: var(--c-content, #fff); font-size: 12px; }
 .netflix-autonext-banner span { margin-top: 3px; color: var(--c-muted, #aaa); font-size: 11px; }
+
+.netflix-related-section { margin: 18px 0 22px; }
+.netflix-related-rail {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(112px, 150px);
+  gap: 12px; overflow-x: auto; overscroll-behavior-inline: contain;
+  padding: 2px 1px 10px; scrollbar-width: thin;
+}
+.netflix-related-card { display: block; min-width: 0; color: var(--c-content, inherit); text-decoration: none; }
+.netflix-related-art {
+  aspect-ratio: 2 / 3; overflow: hidden; border-radius: 9px;
+  background: var(--c-chip, #222); border: 1px solid var(--c-line, transparent);
+}
+.netflix-related-card strong {
+  display: block; margin-top: 7px; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; font-size: 12px; font-weight: 600;
+}
+.netflix-related-card > span {
+  display: block; margin-top: 3px; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; color: var(--c-muted, #999); font-size: 10px;
+}
+.netflix-related-card:focus-visible { outline: 2px solid var(--c-accent, #3978ef); outline-offset: 3px; border-radius: 10px; }
+@media (max-width: 640px) {
+  .netflix-related-rail { grid-auto-columns: minmax(104px, 34vw); gap: 10px; }
+}
