@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     request_timeout_seconds: float = Field(default=25.0, gt=0, le=300)
     max_response_bytes: int = Field(default=5 * 1024 * 1024, gt=0, le=100 * 1024 * 1024)
     crawl_data_dir: str = "./crawl_data"
+    catalog_database_path: str = Field(
+        default="./crawl_data/catalog.sqlite3",
+        validation_alias="CATALOG_DATABASE_PATH",
+    )
     job_database_path: str = Field(
         default="./crawl_data/jobs.sqlite3",
         validation_alias="CRAWL_JOB_DATABASE_PATH",
