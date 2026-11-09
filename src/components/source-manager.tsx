@@ -1215,7 +1215,8 @@ function SourceSubscriptions() {
                       {paused ? (
                         <span className="text-warning">
                           已暂停：连续失败 {sub.failStreak} 次，手动同步成功即恢复
-                        </span>\n                      ) : remainingMs > 0 ? (
+                        </span>
+                      ) : remainingMs > 0 ? (
                         <span>约 {Math.max(1, Math.ceil(remainingMs / 86_400_000))} 天后刷新</span>
                       ) : sub.refreshDays ? (
                         <span>下次打开站点时刷新</span>
