@@ -209,7 +209,11 @@ export async function handleProxyRequest(req: Request, targetUrl: string): Promi
     try { await response.body?.cancel(); } catch { /* ignore */ }
     return new NextResponse('上游响应类型不允许通过媒体代理转发', {
       status: 415,
-      headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
+      headers: {
+        'Cache-Control': 'no-store',
+        'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': 'sandbox',
+      },
     });
   }
 
