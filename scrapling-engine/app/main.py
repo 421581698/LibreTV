@@ -169,7 +169,7 @@ async def _run_job(task_id: str) -> None:
             current = job_store.get(task_id)
             pause_requested = current is not None and current["status"] == "pausing"
             checkpoint_dir = Path(job["checkpoint_dir"])
-            has_checkpoint = any(
+            has_checkpoint = checkpoint_dir.is_dir() and any(
                 path.is_file()
                 and path.name != "libretv-manifest.json"
                 and not path.name.endswith(".tmp")
