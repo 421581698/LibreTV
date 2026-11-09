@@ -426,4 +426,13 @@ describe('首页与播放页回归契约', () => {
   });
 
 
+
+  it('iPad 适配覆盖 1440px 宽屏触控设备，并分别定义横竖屏布局', () => {
+    expect(ipadStyles).toContain('(min-width: 701px) and (max-width: 1440px) and (any-pointer: coarse)');
+    expect(ipadStyles).toContain('(max-width: 1440px) and (any-pointer: coarse) and (orientation: portrait)');
+    expect(ipadStyles).toContain('(min-width: 1024px) and (max-width: 1440px) and (any-pointer: coarse) and (orientation: landscape)');
+    expect(rootLayout).toContain("width: 'device-width'");
+    expect(rootLayout).not.toContain('maximumScale: 1');
+  });
+
 });
