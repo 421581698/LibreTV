@@ -334,6 +334,9 @@ def parse_mpd_manifest(body: bytes, base_url: str = "") -> dict:
     for period in _xml_children(root, "Period"):
         walk_period(period, mpd_base, root_templates)
 
+    if not representations:
+        return {"manifest_valid": False, "manifest_error": "missing_representations"}
+
     return {
         "manifest_valid": True,
         "manifest_type": "dash",
