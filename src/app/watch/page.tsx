@@ -135,6 +135,9 @@ function WatchContent() {
     () => detailQuery.data?.episodes ?? [],
     [detailQuery.data]
   );
+  const mediaType = detailQuery.data?.videoInfo?.typeName ?? '';
+  const isMovie = /电影|movie|film/i.test(mediaType) || episodes.length === 1;
+  const hasEpisodeNavigation = episodes.length > 1;
   const videoTitle =
     titleParam || detailQuery.data?.videoInfo?.title || '未知视频';
   // 真实相关内容：使用用户已启用的点播源按当前片名搜索，不生成虚构推荐。
@@ -236,7 +239,12 @@ function WatchContent() {
     const entry = await db.progress.get(
       progressKeyOf(sourceKey, vodId, currentIndex)
     );
-    return entry?.position ?? 0;
+    if (entry?.position && entry.position > 5) return entry.position;
+    // 兼容旧版或进度表缺失：从本机观看历史恢复最后一次有效位置。
+    const history = await db.history.get(`${sourceKey}_${vodId}`);
+    return history && history.playbackPosition > 5
+      ? history.playbackPosition
+      : 0;
   }, [searchParams, sourceKey, vodId, currentIndex]);
   // 写入观看历史（进入页面即记录，进度后续增量更新）
   useEffect(() => {
@@ -430,34 +438,11 @@ function WatchContent() {
             </h1>
             <p className="text-xs text-faint">
               {source.name}
-              {episodes.length > 0 &&
-                ` · 第 ${currentIndex + 1}/${episodes.length} 集`}
+              {hasEpisodeNavigation ? ` · 第 ${currentIndex + 1}/${episodes.length} 集` : isMovie ? ' · 电影' : ''}
             </p>
           </div>
           <div className="ml-auto flex items-center gap-2">
             <FridayPlayerAssistantButton />
-            <button
-              className="btn-ghost btn-sm"
-              onClick={() => {
-                if (!currentUrl) return;
-                enqueueDownload({
-                  url: currentUrl,
-                  // 多集才带集数后缀；单集影片（含电影）文件名就是纯标题
-                  title: `${videoTitle}${episodes.length > 1 ? ` 第${currentIndex + 1}集` : ''}`,
-                  format: 'MP4',
-                });
-                // 「已加入下载队列」由 DownloadManager 在真正入队后提示：
-                // 这里先提示的话，用户随后取消保存位置会出现「已加入→已取消」的矛盾
-              }}
-            >
-              下载本集
-            </button>
-            <button
-              className="btn-ghost btn-sm"
-              onClick={() => setSwitchOpen(true)}
-            >
-              切换资源
-            </button>
           </div>
         </div>
       </header>
@@ -531,16 +516,10 @@ function WatchContent() {
               <div className="min-w-0">
                 <h1 className="text-xl sm:text-2xl font-semibold text-content truncate">{videoTitle}</h1>
                 <p className="text-xs sm:text-sm text-muted mt-1">
-                  {source.name} · {episodes.length > 0 ? `第 ${currentIndex + 1} / ${episodes.length} 集` : '正在播放'}
+                  {source.name} · {hasEpisodeNavigation ? `第 ${currentIndex + 1} / ${episodes.length} 集` : isMovie ? '电影' : '正在播放'}
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2 shrink-0">
-                <button className="btn-ghost btn-sm" onClick={() => setSwitchOpen(true)}>切换资源</button>
-                <button className="btn-ghost btn-sm" onClick={() => {
-                  if (!currentUrl) return;
-                  enqueueDownload({ url: currentUrl, title: `${videoTitle}${episodes.length > 1 ? ` 第${currentIndex + 1}集` : ''}`, format: 'MP4' });
-                }}>下载本集</button>
-              </div>
+
             </div>
 
             <div className="netflix-below-player">
@@ -607,8 +586,9 @@ function WatchContent() {
             </section>
 
             <div className="netflix-watch-tools">
-              <button className="btn-ghost btn-sm" disabled={currentIndex <= 0} onClick={() => goEpisode(currentIndex - 1)}>上一集</button>
-              <button className="btn-ghost btn-sm" disabled={episodes.length === 0 || currentIndex >= episodes.length - 1} onClick={() => goEpisode(currentIndex + 1)}>下一集</button>
+              {hasEpisodeNavigation && <><button className="btn-ghost btn-sm" disabled={currentIndex <= 0} onClick={() => goEpisode(currentIndex - 1)}>上一集</button>
+              <button className="btn-ghost btn-sm" disabled={currentIndex >= episodes.length - 1} onClick={() => goEpisode(currentIndex + 1)}>下一集</button></>}
+              <button className="btn-ghost btn-sm" onClick={() => { if (currentUrl) enqueueDownload({ url: currentUrl, title: `${videoTitle}${hasEpisodeNavigation ? ` 第${currentIndex + 1}集` : ''}`, format: 'MP4' }); }}>下载本集</button>
               <button className={cn('btn-ghost btn-sm', skipPanelOpen && 'bg-chip text-content')} aria-expanded={skipPanelOpen} aria-haspopup="dialog" onClick={() => setSkipPanelOpen((v) => !v)}>
                 跳过标记{markedCount > 0 ? ` (${markedCount})` : ''}
               </button>
@@ -634,15 +614,15 @@ function WatchContent() {
 
           <aside className="netflix-watch-sidebar">
             <div className="netflix-sidebar-tabs" role="tablist" aria-label="播放内容">
-              <button role="tab" aria-selected={sidebarTab === 'episodes'} className={sidebarTab === 'episodes' ? 'active' : ''} onClick={() => setSidebarTab('episodes')}>选集 <span>{episodes.length}</span></button>
+              {hasEpisodeNavigation && <button role="tab" aria-selected={sidebarTab === 'episodes'} className={sidebarTab === 'episodes' ? 'active' : ''} onClick={() => setSidebarTab('episodes')}>选集 <span>{episodes.length}</span></button>}
               <button role="tab" aria-selected={sidebarTab === 'sources'} className={sidebarTab === 'sources' ? 'active' : ''} onClick={() => setSidebarTab('sources')}>播放源</button>
               <button role="tab" aria-selected={sidebarTab === 'details'} className={sidebarTab === 'details' ? 'active' : ''} onClick={() => setSidebarTab('details')}>详情</button>
             </div>
 
-            {sidebarTab === 'episodes' && (
+            {sidebarTab === 'episodes' && hasEpisodeNavigation && (
               <div className="netflix-sidebar-content">
                 <div className="flex items-center justify-between gap-2 mb-3">
-                  <div className="text-sm text-muted">正在播放 <strong className="text-content">第 {currentIndex + 1} 集</strong></div>
+                  <div className="text-sm text-content">正在播放 <strong className="text-content">第 {currentIndex + 1} 集</strong></div>
                   {episodes.length > 1 && <button className="btn-ghost btn-sm" onClick={() => setReversed((v) => !v)}>{reversed ? '正序 ↑' : '倒序 ↓'}</button>}
                 </div>
                 {episodes.length === 0 ? (
