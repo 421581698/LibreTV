@@ -254,7 +254,7 @@ def parse_iso8601_duration_seconds(value: str | None) -> float | None:
         r"P(?:(\d+(?:\.\d+)?)D)?(?:T(?:(\d+(?:\.\d+)?)H)?(?:(\d+(?:\.\d+)?)M)?(?:(\d+(?:\.\d+)?)S)?)?",
         value,
     )
-    if not match:
+    if not match or not any(part is not None for part in match.groups()):
         return None
     days, hours, minutes, seconds = (float(part or 0) for part in match.groups())
     return days * 86400 + hours * 3600 + minutes * 60 + seconds
@@ -276,7 +276,8 @@ def expand_dash_template(template: str, representation: dict, number: int, media
         replacement = replacements[token]
         width = match.group(3)
         if width and token in ("Number", "Time") and replacement:
-            replacement = replacement.zfill(int(width))
+            # The width comes from an untrusted MPD template; bound padding work.
+            replacement = replacement.zfill(min(int(width), 20))
         return replacement
     return pattern.sub(substitute, value).replace(sentinel, "$")
 
