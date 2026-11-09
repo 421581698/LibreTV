@@ -90,11 +90,11 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
       open={open}
       onClose={onClose}
       title="设置"
-      width="max-w-2xl"
+      width="max-w-2xl ipad-settings-drawer"
       resetScrollKey={activePage}
     >
       {activePage === 'index' ? (
-        <div className="mx-auto w-full max-w-2xl space-y-7 pb-3">
+        <div className="ipad-settings-content mx-auto w-full max-w-2xl space-y-7 pb-3">
           <div className="space-y-1">
             <h2 className="text-3xl font-semibold tracking-tight text-content">设置</h2>
             <p className="text-sm text-muted">管理 LibreTV 的外观、播放与资源偏好。</p>
@@ -127,7 +127,7 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
           <p className="px-1 text-center text-xs text-faint">LibreTV · 本机设置</p>
         </div>
       ) : (
-        <div className="mx-auto w-full max-w-2xl space-y-5 pb-3">
+        <div className="ipad-settings-content mx-auto w-full max-w-2xl space-y-5 pb-3">
           <button
             type="button"
             onClick={() => setActivePage('index')}
