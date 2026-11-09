@@ -5,7 +5,6 @@ import hashlib
 import ipaddress
 import re
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
@@ -94,7 +93,7 @@ def _canonicalize_url(raw_url: str) -> tuple[str, str] | None:
     return canonical, host
 
 
-def _link_role(label: str, host: str, order: int) -> str:
+def _link_role(label: str, host: str) -> str:
     normalized = label.strip().lower()
     if host in _REPOSITORY_HOSTS or any(host.endswith(f".{item}") for item in _REPOSITORY_HOSTS):
         return "repository"
@@ -144,7 +143,7 @@ def parse_fmhy_markdown(source_file: str, markdown: str) -> list[CatalogEntry]:
             if normalized is None:
                 continue
             canonical_url, domain = normalized
-            links.append(CatalogLink(label, original_url, canonical_url, domain, _link_role(label, domain, index), False, index))
+            links.append(CatalogLink(label, original_url, canonical_url, domain, _link_role(label, domain), False, index))
         if not links and safety_status != "flagged_unsafe":
             continue
         primary_index = next((i for i, link in enumerate(links) if link.role == "resource"), None)
