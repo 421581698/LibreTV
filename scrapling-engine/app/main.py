@@ -392,7 +392,9 @@ async def resume_job(task_id: str) -> dict:
     _ensure_checkpoint_manifest(task_id, job["seeds"], checkpoint_dir)
     checkpoint_files = [
         path for path in checkpoint_dir.iterdir()
-        if path.name != "libretv-manifest.json"
+        if path.is_file()
+        and path.name != "libretv-manifest.json"
+        and not path.name.endswith(".tmp")
     ]
     if not checkpoint_files:
         raise HTTPException(
