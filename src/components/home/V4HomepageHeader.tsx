@@ -1,204 +1,53 @@
 'use client';
-
-import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
-import { Icon } from '@/components/icon';
-import { GlassButton } from '@/components/ui/glass';
+import { usePathname } from 'next/navigation';
 import { SourceManagerDrawer } from '@/components/source-manager';
 import { HistoryPanel } from '@/components/history-panel';
 import AIFloatingBall from '@/components/AIFloatingBall';
-import { SearchHistoryDropdown, useSearchHistory } from '@/components/search-history';
-
-const normalizePath = (value: string | null) => {
-  if (!value || value === '/') return '/';
-  return value.replace(/\/+$/, '');
-};
-
-const isNavItemActive = (pathname: string | null, href: string) => {
-  const current = normalizePath(pathname);
-  const target = normalizePath(href);
-  return target === '/' ? current === '/' : current === target || current.startsWith(`${target}/`);
-};
-
-const NAV_ITEMS = [
-  { label: '首页', href: '/' },
-  { label: '电影', href: '/movies' },
-  { label: '电视剧', href: '/tv' },
-  { label: '海外剧', href: '/overseas' },
-  { label: '动漫', href: '/anime' },
-  { label: '综艺', href: '/variety' },
-  { label: '直播', href: '/live' },
-];
+import { BrandModule, HomeNavModule, MoviesNavModule, TvNavModule, OverseasNavModule, AnimeNavModule, VarietyNavModule, LiveNavModule, SearchModule, HistoryModule, SettingsModule, AvatarModule } from './header/HeaderModules';
 
 export function V4HomepageHeader({ overlay = false }: { overlay?: boolean }) {
-  const router = useRouter();
   const pathname = usePathname();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsInstance, setSettingsInstance] = useState(0);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const searchHistory = useSearchHistory(query);
-
   useEffect(() => {
     if (!overlay) { setIsScrolled(false); return; }
-    const updateScrollState = () => setIsScrolled(window.scrollY > 48);
-    updateScrollState();
-    window.addEventListener('scroll', updateScrollState, { passive: true });
-    return () => window.removeEventListener('scroll', updateScrollState);
+    const update = () => setIsScrolled(window.scrollY > 48);
+    update(); window.addEventListener('scroll', update, { passive: true });
+    return () => window.removeEventListener('scroll', update);
   }, [overlay]);
-
   useEffect(() => {
-    const openSourceManager = () => {
-      setSettingsInstance((value) => value + 1);
-      setSettingsOpen(true);
-    };
-    window.addEventListener('libretv:open-source-manager', openSourceManager);
-    return () => window.removeEventListener('libretv:open-source-manager', openSourceManager);
+    const open = () => { setSettingsInstance((v) => v + 1); setSettingsOpen(true); };
+    window.addEventListener('libretv:open-source-manager', open);
+    return () => window.removeEventListener('libretv:open-source-manager', open);
   }, []);
-
-  const submitSearch = (value: string) => {
-    const q = value.trim().slice(0, 100);
-    if (!q) return;
-    searchHistory.close();
-    setMobileSearchOpen(false);
-    searchHistory.record(q);
-    router.push(`/?s=${encodeURIComponent(q)}`, { scroll: false });
-  };
-
-  const pickHistory = (value: string) => {
-    setQuery(value);
-    submitSearch(value);
-  };
-
-  return (
-    <>
-      <header className={`v4-header${overlay ? " is-overlay" : ""}${overlay && isScrolled ? " is-scrolled" : ""}`}>
-        <div className="v4-header-inner">
-          <Link href="/" className="v4-brand" aria-label="LibreTV 首页">
-            <svg className="v4-brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.4 5.6c0-1 1.1-1.6 2-1.1l9 6.4c.8.6.8 1.7 0 2.3l-9 6.4c-.9.6-2 0-2-1.1z" fill="#F1A63A" /></svg>
-            <span>LibreTV</span>
-          </Link>
-
-          <nav
-            className="v4-primary-nav"
-            aria-label="主导航"
-            onKeyDown={(event) => {
-              if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-              const links = Array.from(event.currentTarget.querySelectorAll<HTMLAnchorElement>('a'));
-              const current = links.indexOf(document.activeElement as HTMLAnchorElement);
-              if (current < 0 || links.length < 2) return;
-              event.preventDefault();
-              const delta = event.key === 'ArrowRight' ? 1 : -1;
-              links[(current + delta + links.length) % links.length]?.focus();
-            }}
-          >
-            {NAV_ITEMS.map((item) => (
-              <React.Fragment key={item.label}>
-                <Link
-                  href={item.href}
-                  className={isNavItemActive(pathname, item.href) ? 'v4-nav-link is-active' : 'v4-nav-link'}
-                  aria-current={isNavItemActive(pathname, item.href) ? 'page' : undefined}
-                >
-                  {item.label}
-                </Link>
-
-              </React.Fragment>
-            ))}
-          </nav>
-
-<form
-                id="v4-header-search"
-                className={mobileSearchOpen ? "v4-search is-open" : "v4-search"}
-                role="search"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  submitSearch(query);
-                }}
-              >
-                <Icon name="search" />
-                <div className="v4-search-field" ref={searchHistory.containerRef}>
-                  <input
-          aria-label="搜索电影、电视剧"
-          placeholder="搜索电影、电视剧..."
-          autoFocus={mobileSearchOpen}
-          value={query}
-          maxLength={100}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            searchHistory.resetActive();
-          }}
-          onFocus={searchHistory.onFocus}
-          onKeyDown={(event) => {
-            if (event.key === "Escape" && mobileSearchOpen) {
-              event.preventDefault();
-              setMobileSearchOpen(false);
-              event.currentTarget.blur();
-              return;
-            }
-            searchHistory.onKeyDown(event, pickHistory);
-          }}
-          role="combobox"
-          aria-expanded={searchHistory.visible}
-          aria-controls="v4-header-search-history"
-          aria-autocomplete="list"
-                  />
-                  {searchHistory.visible && (
-          <SearchHistoryDropdown
-            id="v4-header-search-history"
-            matches={searchHistory.matches}
-            activeIndex={searchHistory.activeIndex}
-            onPick={pickHistory}
-            onRemove={searchHistory.remove}
-            onClearAll={searchHistory.clearAll}
-          />
-                  )}
-                </div>
-                  </form>
-
-          <div className="v4-header-actions">
-            <button
-              type="button"
-              className="v4-mobile-search-toggle"
-              aria-label={mobileSearchOpen ? "关闭搜索" : "打开搜索"}
-              aria-expanded={mobileSearchOpen}
-              aria-controls="v4-header-search"
-              onClick={() => setMobileSearchOpen((open) => !open)}
-            >
-              <Icon name="search" />
-            </button>
-            <GlassButton className="v4-header-icon" aria-label="观看历史" title="观看历史" onClick={() => setHistoryOpen(true)}>
-              <Icon name="clock" />
-            </GlassButton>
-            <GlassButton className="v4-header-icon" aria-label="设置" title="设置" onClick={() => setSettingsOpen(true)}>
-              <Icon name="gear" />
-            </GlassButton>
-            <GlassButton
-              className="v4-avatar"
-              aria-label="打开我的个人空间"
-              title="我的个人空间"
-              onClick={() => {
-                if (pathname === '/me') {
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                } else {
-                  router.push('/me');
-                }
-              }}
-            >
-              <svg className="v4-avatar-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="8" r="3.5" />
-                <path d="M4.8 20c.7-3.4 3.1-5.2 7.2-5.2s6.5 1.8 7.2 5.2" />
-              </svg>
-            </GlassButton>
-          </div>
+  return <>
+    <header className={'v4-header' + (overlay ? ' is-overlay' : '') + (overlay && isScrolled ? ' is-scrolled' : '')}>
+      <div className="v4-header-inner">
+        <BrandModule />
+        <nav className="v4-primary-nav" aria-label="主导航" onKeyDown={(event) => {
+          if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+          const links = Array.from(event.currentTarget.querySelectorAll<HTMLAnchorElement>('a'));
+          const current = links.indexOf(document.activeElement as HTMLAnchorElement);
+          if (current < 0 || links.length < 2) return;
+          event.preventDefault(); const delta = event.key === 'ArrowRight' ? 1 : -1;
+          links[(current + delta + links.length) % links.length]?.focus();
+        }}>
+          <HomeNavModule pathname={pathname} /><MoviesNavModule pathname={pathname} /><TvNavModule pathname={pathname} />
+          <OverseasNavModule pathname={pathname} /><AnimeNavModule pathname={pathname} /><VarietyNavModule pathname={pathname} /><LiveNavModule pathname={pathname} />
+        </nav>
+        <SearchModule />
+        <div className="v4-header-actions">
+          <HistoryModule onOpen={() => setHistoryOpen(true)} />
+          <SettingsModule onOpen={() => setSettingsOpen(true)} />
+          <AvatarModule pathname={pathname} />
         </div>
-      </header>
-
-      <AIFloatingBall showFab inlineMode={false} />
-      <SourceManagerDrawer key={settingsInstance} open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-      <HistoryPanel open={historyOpen} onClose={() => setHistoryOpen(false)} />
-    </>
-  );
+      </div>
+    </header>
+    <AIFloatingBall showFab inlineMode={false} />
+    <SourceManagerDrawer key={settingsInstance} open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+    <HistoryPanel open={historyOpen} onClose={() => setHistoryOpen(false)} />
+  </>;
 }
