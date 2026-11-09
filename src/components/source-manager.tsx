@@ -259,7 +259,7 @@ function ResourceCollectorPanel() {
         ? { ...item, status: validation.cms_shape ? 'validated' : 'checked', validation }
         : item));
       if (validation.cms_shape && validation.reachable && candidate.kind === 'cms-api-candidate') {
-        const duplicate = store.customAPIs.some((source) => source.url.replace(/\\/$/, '') === candidate.url.replace(/\\/$/, ''));
+        const duplicate = store.customAPIs.some((source) => source.url.replace(/\/$/, '') === candidate.url.replace(/\/$/, ''));
         if (!duplicate) {
           store.addCustomApi({ name: candidate.title || candidate.host, url: candidate.url, detail: selectedSite?.url });
         }
