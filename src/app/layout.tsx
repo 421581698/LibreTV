@@ -6,6 +6,8 @@ import './ipad-glass.css';
 import './iphone-glass.css';
 // Shared by the homepage header and every V4 spatial channel route.
 import './v4-homepage.css';
+// Last-loaded contract: identical header surface and navigation on every route.
+import './v4-shared-header.css';
 import { Providers } from '@/components/providers';
 
 export const metadata: Metadata = {
