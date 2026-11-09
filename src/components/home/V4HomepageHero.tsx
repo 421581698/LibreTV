@@ -37,13 +37,13 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
           <div className="v4-hero-content">
             <span className="v4-hero-eyebrow">LIBRETV · FEATURED</span>
             <h1>{slide.title}</h1>
-            <p>{slide.rating ? `豆瓣评分 ${slide.rating} · 精选推荐` : '来自实时影视推荐的精选内容'}</p>
+            <p>{slide.rating ? `豆瓣评分 ${slide.rating} · 精选推荐` : '精选推荐'}</p>
             <div className="v4-hero-actions">
               <button type="button" className="v4-hero-primary" onClick={() => onPick(slide)}>
                 <span aria-hidden="true">▶</span>
-                查看播放资源
+                立即观看
               </button>
-              <a className="v4-hero-secondary" href="#today-recommendations">浏览全部推荐</a>
+              <a className="v4-hero-secondary" href="#today-recommendations"><span aria-hidden="true">ⓘ</span>更多详情</a>
             </div>
           </div>
           <div className="v4-hero-indicators" role="group" aria-label="选择精选影片">
@@ -65,7 +65,7 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
           <h1>{featuredQuery.isLoading ? '正在载入精选内容' : '精选内容暂不可用'}</h1>
           <p>{featuredQuery.isError ? '推荐接口暂时没有响应，请稍后重试。' : '连接真实推荐数据后，这里会展示可查找播放资源的影片。'}</p>
           <div className="v4-hero-actions">
-            <a className="v4-hero-primary" href="#today-recommendations">浏览今日推荐</a>
+            <a className="v4-hero-primary" href="#today-recommendations">立即观看</a>
             {featuredQuery.isError && (
               <button type="button" className="v4-hero-secondary" onClick={() => void featuredQuery.refetch()}>
                 重试加载
