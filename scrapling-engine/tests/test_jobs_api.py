@@ -89,6 +89,13 @@ def test_job_runner_persists_results_and_item_events(monkeypatch, tmp_path) -> N
         str(tmp_path / "job_runner_01"),
     )
 
+    previous_item = {
+        "url": "https://example.com/previous",
+        "title": "previous",
+        "text": "already saved",
+    }
+    store.add_result("job_runner_01", previous_item)
+
     @dataclass
     class FakeStats:
         requests_count: int = 1
@@ -97,8 +104,9 @@ def test_job_runner_persists_results_and_item_events(monkeypatch, tmp_path) -> N
         stats = FakeStats()
 
         async def stream(self):
+            yield previous_item
             yield {
-                "url": "https://example.com/",
+                "url": "https://example.com/new",
                 "title": "fixture",
                 "text": "fixture body",
             }
@@ -114,7 +122,11 @@ def test_job_runner_persists_results_and_item_events(monkeypatch, tmp_path) -> N
     job = store.get("job_runner_01")
     assert job is not None
     assert job["status"] == "completed"
-    assert job["result"]["items"][0]["title"] == "fixture"
+    assert [item["title"] for item in job["result"]["items"]] == [
+        "previous",
+        "fixture",
+    ]
+    assert len(store.get_results("job_runner_01")) == 2
     assert any(
         event["type"] == "item"
         for event in store.events_after("job_runner_01", 0)
