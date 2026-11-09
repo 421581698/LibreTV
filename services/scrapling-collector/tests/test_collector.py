@@ -247,6 +247,39 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(result["variants"][0]["height"], 1080)
         self.assertEqual(result["variants"][0]["bandwidth"], 2800000)
 
+    def test_hls_parser_keeps_variant_uri_and_encryption_metadata_only(self):
+        body = b"""#EXTM3U
+#EXT-X-STREAM-INF:BANDWIDTH=5000000,RESOLUTION=1920x1080,CODECS="avc1.640028,mp4a.40.2"
+video/1080.m3u8
+#EXT-X-KEY:METHOD=AES-128,URI="https://keys.example/secret"
+#EXTINF:6,
+segment-1.ts
+"""
+        result = collector.parse_hls_manifest(body)
+        self.assertEqual(result["variants"][0]["uri"], "video/1080.m3u8")
+        self.assertEqual(result["variants"][0]["codecs"], "avc1.640028,mp4a.40.2")
+        self.assertTrue(result["encrypted"])
+        self.assertTrue(result["key_uri_present"])
+        self.assertNotIn("secret", str(result))
+        self.assertEqual(result["segment_uris"], ["segment-1.ts"])
+
+    def test_hls_reference_validation_resolves_and_rejects_unsafe_urls(self):
+        manifest = {
+            "variants": [{"uri": "../master/720.m3u8", "height": 720}],
+            "variant_count": 1,
+            "segment_uris": ["segments/1.ts", "http://127.0.0.1/admin"],
+            "segment_count": 2,
+        }
+        with patch.object(collector.socket, "getaddrinfo", return_value=[
+            (None, None, None, None, ("8.8.8.8", 443))
+        ]):
+            result = collector.validate_manifest_references(
+                manifest, "https://media.example/hls/index.m3u8"
+            )
+        self.assertEqual(result["variants"][0]["uri"], "https://media.example/master/720.m3u8")
+        self.assertEqual(result["segment_uris"], ["https://media.example/hls/segments/1.ts"])
+        self.assertEqual(result["rejected_reference_count"], 1)
+
     def test_hls_media_playlist_counts_segments_and_duration(self):
         body = b"""#EXTM3U
 #EXT-X-TARGETDURATION:6
