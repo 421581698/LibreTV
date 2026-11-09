@@ -66,6 +66,7 @@ function WatchContent() {
   const indexParam = parseInt(searchParams.get('index') || '0', 10) || 0;
   const [reversed, setReversed] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<'episodes' | 'sources' | 'details'>('episodes');
+  const [showAutoNext, setShowAutoNext] = useState(false);
   const recentHistory = useLiveQuery(
     () => db.history.orderBy('timestamp').reverse().limit(8).toArray(),
     [sourceKey, vodId]
@@ -230,15 +231,21 @@ function WatchContent() {
     },
     []
   );
+  const cancelAutoNext = useCallback(() => {
+    if (autoNextTimer.current) clearTimeout(autoNextTimer.current);
+    autoNextTimer.current = null;
+    setShowAutoNext(false);
+  }, []);
   const handleEnded = useCallback(() => {
     if (vodId) {
       clearProgress(sourceKey, vodId, currentIndex).catch(() => {});
     }
     if (store.autoplayNext && currentIndex < episodes.length - 1) {
-      autoNextTimer.current = setTimeout(
-        () => goEpisode(currentIndex + 1),
-        800
-      );
+      setShowAutoNext(true);
+      autoNextTimer.current = setTimeout(() => {
+        setShowAutoNext(false);
+        goEpisode(currentIndex + 1);
+      }, 8000);
     }
   }, [
     store.autoplayNext,
@@ -248,6 +255,9 @@ function WatchContent() {
     sourceKey,
     vodId,
   ]);
+  useEffect(() => {
+    if (!store.autoplayNext) cancelAutoNext();
+  }, [store.autoplayNext, cancelAutoNext]);
   // 快捷键（Shift+I/O/S/E）记录片段：校验后写入
   const handleRecordSegment = useCallback(
     (segment: SkipSegment) => {
@@ -574,6 +584,16 @@ function WatchContent() {
               </div>
             )}
 
+            {showAutoNext && currentIndex + 1 < episodes.length && (
+              <div className="netflix-autonext-banner" role="status" aria-live="polite">
+                <div className="min-w-0">
+                  <strong>本集播放完毕</strong>
+                  <span>即将播放第 {currentIndex + 2} 集</span>
+                </div>
+                <button className="btn-primary btn-sm" onClick={() => { cancelAutoNext(); goEpisode(currentIndex + 1); }}>立即播放</button>
+                <button className="btn-ghost btn-sm" onClick={cancelAutoNext}>取消</button>
+              </div>
+            )}
             {currentIndex + 1 < episodes.length && (
               <div className="netflix-next-preview">
                 <div className="netflix-section-kicker">接下来播放</div>
