@@ -7,7 +7,11 @@ from scrapling.fetchers import Fetcher
 
 from app.config import settings
 
-ExtractMode = Literal["text", "css", "xpath", "regex"]
+ExtractMode = Literal[
+    "text", "css", "xpath", "regex", "adaptive_css", "adaptive_xpath"
+]
+AdaptiveAction = Literal["save", "relocate"]
+Fetcher.configure(adaptive=True)
 REGEX_TIMEOUT_SECONDS = 0.25
 
 
@@ -48,18 +52,37 @@ class ScraplingAdapter:
         page: Any,
         selector: str | None = None,
         mode: ExtractMode = "text",
+        adaptive_action: AdaptiveAction | None = None,
     ) -> dict[str, Any]:
         full_text = page.get_all_text(strip=True)
         values: list[str]
 
-        if mode == "css":
+        if mode in {"css", "adaptive_css"}:
             if not selector:
                 raise ValueError("A CSS selector is required for css extraction.")
-            values = [_element_text(node) for node in page.css(selector)]
-        elif mode == "xpath":
+            if mode == "adaptive_css":
+                if adaptive_action == "save":
+                    nodes = page.css(selector, auto_save=True)
+                elif adaptive_action == "relocate":
+                    nodes = page.css(selector, adaptive=True)
+                else:
+                    raise ValueError("Adaptive CSS extraction requires save or relocate action.")
+            else:
+                nodes = page.css(selector)
+            values = [_element_text(node) for node in nodes]
+        elif mode in {"xpath", "adaptive_xpath"}:
             if not selector:
                 raise ValueError("An XPath expression is required for xpath extraction.")
-            values = [_element_text(node) for node in page.xpath(selector)]
+            if mode == "adaptive_xpath":
+                if adaptive_action == "save":
+                    nodes = page.xpath(selector, auto_save=True)
+                elif adaptive_action == "relocate":
+                    nodes = page.xpath(selector, adaptive=True)
+                else:
+                    raise ValueError("Adaptive XPath extraction requires save or relocate action.")
+            else:
+                nodes = page.xpath(selector)
+            values = [_element_text(node) for node in nodes]
         elif mode == "regex":
             if not selector:
                 raise ValueError("A regular expression is required for regex extraction.")
@@ -90,4 +113,5 @@ class ScraplingAdapter:
             "text": values,
             "count": len(values),
             "markdown": markdown,
+            "adaptive_action": adaptive_action if mode.startswith("adaptive_") else None,
         }
