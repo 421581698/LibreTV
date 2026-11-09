@@ -40,6 +40,17 @@ class CollectorTests(unittest.TestCase):
                     collector.validate_candidate("candidate-does-not-exist")
             self.assertEqual(error.exception.status_code, 503)
 
+    def test_spider_http_session_uses_safe_redirect_policy(self):
+        captured = {}
+
+        class Manager:
+            def add(self, session_id, session, default=False, lazy=False):
+                captured.update(session_id=session_id, session=session)
+
+        collector.SiteSpider().configure_sessions(Manager())
+        self.assertEqual(captured["session_id"], "default")
+        self.assertEqual(captured["session"]._follow_redirects, "safe")
+
     def test_classifies_direct_media(self):
         self.assertEqual(
             collector.classify_url("https://media.example/video/master.m3u8"),
