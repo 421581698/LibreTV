@@ -51,7 +51,7 @@ _AUXILIARY_LABELS = {
 
 def parse_official_source_file_list(route_source: str) -> tuple[str, ...]:
     block = re.search(
-        r"const\\s+files\\s*=\\s*\\(\\s*\\[(.*?)\\]\\s*as\\s+const",
+        r"const\s+files\s*=\s*\(\s*\[(.*?)\]\s*as\s+const",
         route_source,
         re.DOTALL,
     )
@@ -60,7 +60,7 @@ def parse_official_source_file_list(route_source: str) -> tuple[str, ...]:
     names = re.findall(r"""['"]([^'"]+)['"]""", block.group(1))
     if not names or len(names) > 100:
         raise RuntimeError("FMHY source file list is empty or exceeds the safety limit.")
-    if any(not re.fullmatch(r"[a-z0-9-]+\\.md", name) for name in names):
+    if any(not re.fullmatch(r"[a-z0-9-]+\.md", name) for name in names):
         raise RuntimeError("FMHY source list contains an unsupported file path.")
     if len(names) != len(set(names)):
         raise RuntimeError("FMHY source list contains duplicate files.")
