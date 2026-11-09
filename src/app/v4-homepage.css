@@ -475,3 +475,75 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
 @media (max-width: 700px) {
   .v4-home .v4-search { width: 38px !important; min-width: 38px !important; }
 }
+
+
+/* iPad / tablet navigation: keep the complete Chinese menu legible on one row. */
+@media (min-width: 701px) and (max-width: 1200px) {
+  .v4-home .v4-header-inner {
+    width: calc(100% - 28px) !important;
+    min-height: 72px !important;
+    gap: 7px !important;
+  }
+  .v4-home .v4-brand {
+    flex: 0 0 auto !important;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif !important;
+    font-size: 18px !important;
+    font-weight: 650 !important;
+    letter-spacing: -.35px !important;
+  }
+  .v4-home .v4-primary-nav {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    gap: 0 !important;
+    overflow: visible !important;
+  }
+  .v4-home .v4-nav-link,
+  .v4-home .v4-nav-link:hover,
+  .v4-home .v4-nav-link.is-active {
+    flex: 0 0 auto !important;
+    padding: 9px clamp(5px, .7vw, 9px) !important;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif !important;
+    font-size: clamp(12px, 1.25vw, 14px) !important;
+    line-height: 1.35 !important;
+    font-weight: 550 !important;
+    letter-spacing: .01em !important;
+    white-space: nowrap !important;
+    color: rgba(255,255,255,.97) !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    text-shadow: 0 1px 7px rgba(0,0,0,.38) !important;
+  }
+  .v4-home .v4-header-actions {
+    flex: 0 0 auto !important;
+    gap: 8px !important;
+    margin-left: 4px !important;
+  }
+  .v4-home .v4-search {
+    width: clamp(175px, 22vw, 245px) !important;
+    min-width: 175px !important;
+    height: 38px !important;
+    padding: 0 12px !important;
+  }
+  .v4-home .v4-header-icon,
+  .v4-home .v4-avatar {
+    width: 32px !important;
+    height: 32px !important;
+    flex: 0 0 32px !important;
+  }
+}
+@media (min-width: 701px) and (max-width: 900px) {
+  .v4-home .v4-header-inner { gap: 5px !important; }
+  .v4-home .v4-brand { font-size: 16px !important; }
+  .v4-home .v4-nav-link,
+  .v4-home .v4-nav-link:hover,
+  .v4-home .v4-nav-link.is-active {
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+    font-size: 11px !important;
+  }
+  .v4-home .v4-search { width: 150px !important; min-width: 150px !important; }
+  .v4-home .v4-header-actions { gap: 5px !important; }
+  .v4-home .v4-header-icon,
+  .v4-home .v4-avatar { width: 29px !important; height: 29px !important; flex-basis: 29px !important; }
+}
