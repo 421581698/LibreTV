@@ -1,10 +1,9 @@
 from unittest.mock import Mock
 
-from cssselect.parser import SelectorSyntaxError
-from lxml.etree import XPathError
 import pytest
-
+from cssselect.parser import SelectorSyntaxError
 from fastapi.testclient import TestClient
+from lxml.etree import XPathError
 
 from app.main import app
 from app.scraper import ScraplingAdapter
