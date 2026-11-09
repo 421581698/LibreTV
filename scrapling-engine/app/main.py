@@ -7,7 +7,7 @@ import uuid
 from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
@@ -31,7 +31,7 @@ app = FastAPI(
 job_store = JobStore(settings.job_database_path)
 job_store.initialize()
 job_store.recover_interrupted()
-_active_spiders: dict[str, object] = {}
+_active_spiders: dict[str, Any] = {}
 _job_tasks: dict[str, asyncio.Task] = {}
 
 
@@ -286,11 +286,11 @@ async def resume_job(task_id: str) -> dict:
     job = job_store.get(task_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Crawl job not found.")
-    if job["status"] != "paused":
-        raise HTTPException(status_code=409, detail="Only paused jobs can be resumed.")
+    if job["status"] not in {"paused", "interrupted"}:
+        raise HTTPException(status_code=409, detail="Only paused or interrupted jobs can be resumed.")
     checkpoint_dir = Path(job["checkpoint_dir"])
-    if not checkpoint_dir.is_dir():
-        raise HTTPException(status_code=409, detail="Checkpoint directory is missing.")
+    if not checkpoint_dir.is_dir() or not any(checkpoint_dir.iterdir()):
+        raise HTTPException(status_code=409, detail="No saved checkpoint is available for this job.")
     job_store.update(task_id, "queued", finished_at=None, error=None)
     _schedule_job(task_id)
     return {"ok": True, "task_id": task_id, "status": "queued"}
