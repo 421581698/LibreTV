@@ -124,6 +124,25 @@ function WatchContent() {
   );
   const videoTitle =
     titleParam || detailQuery.data?.videoInfo?.title || '未知视频';
+  // 真实相关内容：使用用户已启用的点播源按当前片名搜索，不生成虚构推荐。
+  const recommendationSources = useMemo(
+    () => store.customAPIs.filter((item) => store.selectedKeys.includes(item.key) && (!item.isAdult || store.adFilter)),
+    [store.customAPIs, store.selectedKeys, store.adFilter]
+  );
+  const relatedQuery = useQuery({
+    queryKey: ['watch-related', videoTitle, recommendationSources.map((item) => item.key).join(',')],
+    queryFn: () => api.search(videoTitle, recommendationSources, store.adFilter),
+    enabled: verified && videoTitle !== '未知视频' && recommendationSources.length > 0,
+    staleTime: 10 * 60_000,
+    retry: 1,
+  });
+  const relatedItems = useMemo(
+    () => (relatedQuery.data?.list ?? [])
+      .filter((item) => !(item.sourceKey === sourceKey && item.vodId === vodId))
+      .filter((item, index, all) => all.findIndex((candidate) => candidate.name.trim().toLowerCase() === item.name.trim().toLowerCase()) === index)
+      .slice(0, 8),
+    [relatedQuery.data, sourceKey, vodId]
+  );
   // 当前播放地址：优先取剧集列表中的当前集，其次直连 URL 参数
   const currentUrl = useMemo(() => {
     if (episodes.length > 0) {
@@ -513,6 +532,38 @@ function WatchContent() {
                 )}
               </div>
             </div>
+
+            <section className="netflix-related-section" aria-labelledby="netflix-related-heading">
+              <div className="netflix-section-heading">
+                <div>
+                  <h2 id="netflix-related-heading">相关影片</h2>
+                  <p>根据当前影片，从已启用的片源检索真实结果</p>
+                </div>
+              </div>
+              {relatedQuery.isLoading ? (
+                <p className="text-sm text-faint py-4">正在查找相关影片…</p>
+              ) : relatedItems.length > 0 ? (
+                <div className="netflix-related-rail">
+                  {relatedItems.map((item) => (
+                    <Link
+                      key={`${item.sourceKey}:${item.vodId}`}
+                      href={buildWatchUrl({ sourceKey: item.sourceKey, vodId: item.vodId, index: 0, title: item.name, sourceUrl: item.sourceUrl })}
+                      className="netflix-related-card"
+                    >
+                      <div className="netflix-related-art">
+                        {item.pic ? <SmartImage url={item.pic} mode="direct" alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-chip" />}
+                      </div>
+                      <strong>{item.name}</strong>
+                      <span>{[item.year, item.typeName, item.remarks].filter(Boolean).join(' · ') || item.sourceName}</span>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-faint py-4">
+                  {recommendationSources.length === 0 ? '请先启用至少一个点播资源，才能检索相关影片。' : relatedQuery.isError ? '相关影片暂时无法获取。' : '当前片源没有返回其他相关影片。'}
+                </p>
+              )}
+            </section>
 
             <div className="netflix-watch-tools">
               <button className="btn-ghost btn-sm" disabled={currentIndex <= 0} onClick={() => goEpisode(currentIndex - 1)}>上一集</button>
