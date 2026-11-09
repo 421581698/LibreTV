@@ -21,6 +21,10 @@ export interface HistoryEntry {
   vodId: string;
   title: string;
   pic?: string;
+  /** 最近一次详情接口提供的真实影片元数据，用于本地个性化推荐 */
+  typeName?: string;
+  year?: string;
+  area?: string;
   episodeIndex: number;
   totalEpisodes: number;
   playbackPosition: number;
