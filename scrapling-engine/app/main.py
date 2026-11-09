@@ -35,6 +35,7 @@ job_store = JobStore(settings.job_database_path)
 job_store.initialize()
 job_store.recover_interrupted()
 _active_spiders: dict[str, Any] = {}
+_legacy_task_ids: set[str] = set()
 _job_tasks: dict[str, asyncio.Task] = {}
 _job_transition_lock = asyncio.Lock()
 
@@ -305,10 +306,24 @@ async def fetch(request: FetchRequest) -> dict:
 @app.post("/v1/spider")
 async def spider(request: SpiderRequest) -> dict:
     safe_urls = _safe_seed_urls(request.urls)
+    if request.task_id:
+        async with _job_transition_lock:
+            if (
+                request.task_id in _legacy_task_ids
+                or job_store.get(request.task_id) is not None
+            ):
+                raise HTTPException(
+                    status_code=409,
+                    detail="task_id is already in use; use a new ID or the managed jobs API.",
+                )
+            _legacy_task_ids.add(request.task_id)
+
     try:
         checkpoint_dir = None
         if request.task_id:
-            checkpoint_dir = Path(settings.crawl_data_dir).expanduser().resolve() / request.task_id
+            checkpoint_dir = (
+                Path(settings.crawl_data_dir).expanduser().resolve() / request.task_id
+            )
             _ensure_checkpoint_manifest(request.task_id, safe_urls, checkpoint_dir)
         result = await run_in_threadpool(
             ScraplingSpiderAdapter.crawl,
@@ -329,27 +344,44 @@ async def spider(request: SpiderRequest) -> dict:
             status_code=502,
             detail="Scrapling spider could not complete the crawl.",
         ) from exc
+    finally:
+        if request.task_id:
+            async with _job_transition_lock:
+                _legacy_task_ids.discard(request.task_id)
 
 
 @app.post("/v1/jobs", status_code=202)
 async def create_job(request: SpiderRequest) -> dict:
     safe_urls = _safe_seed_urls(request.urls)
     task_id = request.task_id or uuid.uuid4().hex
-    checkpoint_dir = Path(settings.crawl_data_dir).resolve() / task_id
-    _ensure_checkpoint_manifest(task_id, safe_urls, checkpoint_dir)
+    checkpoint_dir = Path(settings.crawl_data_dir).expanduser().resolve() / task_id
 
-    created = job_store.create(task_id, safe_urls, str(checkpoint_dir))
-    job = job_store.get(task_id)
-    if not created:
-        if job is None or job["seeds"] != safe_urls:
+    async with _job_transition_lock:
+        if task_id in _legacy_task_ids:
             raise HTTPException(
                 status_code=409,
-                detail="task_id already exists with a different seed configuration.",
+                detail="task_id is currently running through the legacy Spider API.",
             )
-        return {"ok": True, "created": False, "job": job}
+        existing = job_store.get(task_id)
+        if existing is not None:
+            if existing["seeds"] != safe_urls:
+                raise HTTPException(
+                    status_code=409,
+                    detail="task_id already exists with a different seed configuration.",
+                )
+            _ensure_checkpoint_manifest(
+                task_id,
+                existing["seeds"],
+                Path(existing["checkpoint_dir"]),
+            )
+            if existing["status"] == "queued":
+                _schedule_job(task_id)
+            return {"ok": True, "created": False, "job": job_store.get(task_id)}
 
-    _schedule_job(task_id)
-    return {"ok": True, "created": True, "job": job_store.get(task_id)}
+        _ensure_checkpoint_manifest(task_id, safe_urls, checkpoint_dir)
+        job_store.create(task_id, safe_urls, str(checkpoint_dir))
+        _schedule_job(task_id)
+        return {"ok": True, "created": True, "job": job_store.get(task_id)}
 
 
 @app.get("/v1/jobs/{task_id}")
@@ -362,54 +394,56 @@ async def get_job(task_id: str) -> dict:
 
 @app.post("/v1/jobs/{task_id}/pause")
 async def pause_job(task_id: str) -> dict:
-    job = job_store.get(task_id)
-    if job is None:
-        raise HTTPException(status_code=404, detail="Crawl job not found.")
-    spider_instance = _active_spiders.get(task_id)
-    if job["status"] != "running" or spider_instance is None:
-        raise HTTPException(status_code=409, detail="Crawl job is not currently pausable.")
-    job_store.update(task_id, "pausing")
-    try:
-        spider_instance.pause()
-    except RuntimeError as exc:
-        job_store.update(
-            task_id,
-            "running",
-            error="Pause request rejected before crawl loop started.",
-        )
-        raise HTTPException(
-            status_code=409,
-            detail="Spider has not started its crawl loop.",
-        ) from exc
-    return {"ok": True, "task_id": task_id, "status": "pausing"}
+    async with _job_transition_lock:
+        job = job_store.get(task_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail="Crawl job not found.")
+        spider_instance = _active_spiders.get(task_id)
+        if job["status"] != "running" or spider_instance is None:
+            raise HTTPException(status_code=409, detail="Crawl job is not currently pausable.")
+        job_store.update(task_id, "pausing")
+        try:
+            spider_instance.pause()
+        except RuntimeError as exc:
+            job_store.update(
+                task_id,
+                "running",
+                error="Pause request rejected before crawl loop started.",
+            )
+            raise HTTPException(
+                status_code=409,
+                detail="Spider has not started its crawl loop.",
+            ) from exc
+        return {"ok": True, "task_id": task_id, "status": "pausing"}
 
 
 @app.post("/v1/jobs/{task_id}/resume", status_code=202)
 async def resume_job(task_id: str) -> dict:
-    job = job_store.get(task_id)
-    if job is None:
-        raise HTTPException(status_code=404, detail="Crawl job not found.")
-    if job["status"] not in {"paused", "interrupted"}:
-        raise HTTPException(
-            status_code=409,
-            detail="Only paused or interrupted jobs can be resumed.",
-        )
-    checkpoint_dir = Path(job["checkpoint_dir"])
-    _ensure_checkpoint_manifest(task_id, job["seeds"], checkpoint_dir)
-    checkpoint_files = [
-        path for path in checkpoint_dir.iterdir()
-        if path.is_file()
-        and path.name != "libretv-manifest.json"
-        and not path.name.endswith(".tmp")
-    ]
-    if not checkpoint_files:
-        raise HTTPException(
-            status_code=409,
-            detail="No saved Scrapling checkpoint is available for this job.",
-        )
-    job_store.update(task_id, "queued", finished_at=None, error=None)
-    _schedule_job(task_id)
-    return {"ok": True, "task_id": task_id, "status": "queued"}
+    async with _job_transition_lock:
+        job = job_store.get(task_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail="Crawl job not found.")
+        if job["status"] not in {"paused", "interrupted"}:
+            raise HTTPException(
+                status_code=409,
+                detail="Only paused or interrupted jobs can be resumed.",
+            )
+        checkpoint_dir = Path(job["checkpoint_dir"])
+        _ensure_checkpoint_manifest(task_id, job["seeds"], checkpoint_dir)
+        checkpoint_files = [
+            path for path in checkpoint_dir.iterdir()
+            if path.is_file()
+            and path.name != "libretv-manifest.json"
+            and not path.name.endswith(".tmp")
+        ]
+        if not checkpoint_files:
+            raise HTTPException(
+                status_code=409,
+                detail="No saved Scrapling checkpoint is available for this job.",
+            )
+        job_store.update(task_id, "queued", finished_at=None, error=None)
+        _schedule_job(task_id)
+        return {"ok": True, "task_id": task_id, "status": "queued"}
 
 
 @app.get("/v1/jobs/{task_id}/events")
