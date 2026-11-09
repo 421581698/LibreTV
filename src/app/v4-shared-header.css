@@ -451,8 +451,8 @@
 
 
 
-/* Desktop-only header composition. iPhone and iPad keep their own layouts. */
-@media screen and (min-width: 1200px) {
+/* Shared PC/Mac + iPad header composition. Only iPhone is independent. */
+@media screen and (min-width: 701px) {
   .v4-header-inner,
   .v4-home .v4-header-inner,
   .v4-spatial-screen .v4-header-inner {
@@ -505,9 +505,9 @@
   .v4-spatial-screen .v4-header .v4-search {
     order: 2 !important;
     display: flex !important;
-    flex: 0 0 clamp(180px, 17vw, 230px) !important;
-    width: clamp(180px, 17vw, 230px) !important;
-    min-width: 160px !important;
+    flex: 0 1 clamp(140px, 17vw, 230px) !important;
+    width: clamp(140px, 17vw, 230px) !important;
+    min-width: 130px !important;
     height: 40px !important;
     margin: 0 2px !important;
     color: #17171B !important;
