@@ -425,6 +425,7 @@ def validate_candidate(candidate_id: str, authorization: str | None = Header(def
     validation = {"https": True, "public_host": True, "kind": candidate["kind"],
                   "importable_as_cms_source": candidate["kind"] == "cms-api-candidate",
                   "note": "Direct media/player URLs are playback candidates, not CMS API source definitions."}
+    candidate_status = "review"
     if candidate["kind"] == "cms-api-candidate":
         throttle(host)
         try:
@@ -441,10 +442,17 @@ def validate_candidate(candidate_id: str, authorization: str | None = Header(def
                                "cms_shape": cms_shape,
                                "sample_count": len(cms_list) if isinstance(cms_list, list) else 0,
                                "content_type": content_type, "http_status": page.status})
+            candidate_status = "validated" if cms_shape and isinstance(parsed, dict) else "rejected"
         except Exception as exc:
             validation.update({"reachable": False, "error": type(exc).__name__})
+            candidate_status = "rejected"
+    else:
+        validation.update({
+            "reachable": None,
+            "playback_probe": "not_performed",
+            "note": "Public URL and candidate type were checked. Actual playback must be verified in PlayerShell; this is not a CMS API source.",
+        })
     with db() as connection:
         connection.execute("UPDATE candidates SET status=?,validation=? WHERE id=?",
-                           ("validated" if validation.get("public_host") and validation.get("reachable", True) else "rejected",
-                            json.dumps(validation, ensure_ascii=False), candidate_id))
+                           (candidate_status, json.dumps(validation, ensure_ascii=False), candidate_id))
     return {"candidate_id": candidate_id, "validation": validation}
