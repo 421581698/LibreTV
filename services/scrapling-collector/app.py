@@ -20,7 +20,7 @@ from urllib.parse import urljoin, urlparse
 
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field, HttpUrl
-from scrapling.fetchers import Fetcher, StealthySession
+from scrapling.fetchers import Fetcher, FetcherSession, StealthySession
 from scrapling.spiders import Response, Spider
 
 FMHY_VIDEO_URL = "https://fmhy.net/video"
@@ -975,6 +975,11 @@ class SiteSpider(Spider):
     concurrent_requests = 1
     robots_txt_obey = True
     download_delay = 2
+
+    def configure_sessions(self, manager) -> None:
+        # Make the HTTP Spider's redirect policy explicit: never follow a
+        # redirect into loopback, private, or link-local address space.
+        manager.add("default", FetcherSession(follow_redirects="safe"))
 
     async def parse(self, response: Response):
         title = (response.css("title::text").get() or "").strip()[:200]
