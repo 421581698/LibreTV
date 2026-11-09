@@ -4,6 +4,7 @@ import { checkLiveUrlAllowed } from '@/lib/ssrf';
 import { fetchUpstream } from '@/lib/fetch-utils';
 import { getLiveCache, setLiveCache } from '@/lib/live-cache';
 import { currentAndNext, parseXmltv } from '@/lib/xmltv';
+import { readResponseBytesLimited } from '@/lib/response-body';
 import type { EpgProgram } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -13,6 +14,7 @@ const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 /** XMLTV 文件较大，放宽抓取超时 */
 const FETCH_TIMEOUT_MS = 30_000;
 const WINDOW_MS = 24 * 60 * 60 * 1000;
+const MAX_EPG_DOWNLOAD_BYTES = 25 * 1024 * 1024;
 
 /**
  * 拉取并解析 XMLTV 节目单（支持 gzip）。
@@ -43,7 +45,7 @@ export async function GET(req: Request) {
         return jsonError(`节目单地址请求失败: ${res.status}`, 502);
       }
       // gzip 由 parseXmltv 内识别（fetch 对 .gz 不会自动解压）
-      const buf = Buffer.from(await res.arrayBuffer());
+      const buf = Buffer.from(await readResponseBytesLimited(res, MAX_EPG_DOWNLOAD_BYTES));
       programMap = parseXmltv(buf, WINDOW_MS);
       setLiveCache(key, programMap, CACHE_TTL_MS, buf.byteLength * 2);
     } catch (err) {
