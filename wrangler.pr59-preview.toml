@@ -1,7 +1,7 @@
 name = "libretv-pr59-ios-preview"
 main = ".open-next/worker.js"
 compatibility_date = "2025-04-01"
-compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
+compatibility_flags = ["nodejs_compat", "nodejs_compat_populate_process_env", "global_fetch_strictly_public"]
 assets = { directory = ".open-next/assets" }
 
 # Dedicated PR #59 Worker: never shares the homepage preview Worker name or URL.
