@@ -8,7 +8,7 @@ The engine is built on the complete upstream `D4Vinci/Scrapling` package. It doe
 
 The eight capability areas are:
 
-1. Fetching: HTTP, async, dynamic-browser and stealth fetchers.
+1. Fetching: HTTP/async fetchers and the upstream v0.5.1 StealthyFetcher browser-session API. The removed DynamicFetcher API is not referenced.
 2. Extraction: CSS, XPath, text, regex and DOM traversal.
 3. Adaptive parsing: saved element fingerprints and relocation after layout changes.
 4. Browser automation: JavaScript rendering, sessions and browser interactions.
