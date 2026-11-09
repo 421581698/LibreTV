@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { guardRequest } from '@/lib/api-guard';
+import { guardPrivateFeatureRequest } from '@/lib/api-guard';
 import { collectorRequest } from '@/lib/resource-collector-client';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  const guarded = guardRequest(request);
+  const guarded = guardPrivateFeatureRequest(request);
   if (guarded) return guarded;
   const action = new URL(request.url).searchParams.get('action');
   return collectorRequest(action === 'tasks' ? '/v1/tasks' : '/v1/discover', {}, 20_000);
 }
 
 export async function POST(request: NextRequest) {
-  const guarded = guardRequest(request);
+  const guarded = guardPrivateFeatureRequest(request);
   if (guarded) return guarded;
 
   const contentLength = Number(request.headers.get('content-length') ?? '0');
