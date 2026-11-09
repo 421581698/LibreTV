@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { guardRequest } from '@/lib/api-guard';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -56,11 +57,15 @@ async function relay(path: string, init?: RequestInit) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const guarded = guardRequest(request);
+  if (guarded) return guarded;
   return relay('/v1/discover');
 }
 
 export async function POST(request: NextRequest) {
+  const guarded = guardRequest(request);
+  if (guarded) return guarded;
   let body: unknown;
   try {
     body = await request.json();
