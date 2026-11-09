@@ -59,6 +59,13 @@ class JobStore:
                     payload_json TEXT NOT NULL,
                     created_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS crawl_results (
+                    task_id TEXT NOT NULL REFERENCES crawl_jobs(task_id) ON DELETE CASCADE,
+                    sequence INTEGER NOT NULL,
+                    item_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    PRIMARY KEY (task_id, sequence)
+                );
                 CREATE INDEX IF NOT EXISTS idx_crawl_events_task_id_id
                     ON crawl_events(task_id, id);
                 """
@@ -127,6 +134,33 @@ class JobStore:
             item["result"] = json.loads(item["result_json"])
         item.pop("result_json")
         return item
+
+    def add_result(self, task_id: str, item: dict[str, Any]) -> int:
+        with self._connection() as db:
+            row = db.execute(
+                "SELECT COALESCE(MAX(sequence), 0) FROM crawl_results WHERE task_id = ?",
+                (task_id,),
+            ).fetchone()
+            sequence = int(row[0]) + 1
+            db.execute(
+                """
+                INSERT INTO crawl_results (task_id, sequence, item_json, created_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (task_id, sequence, json.dumps(item, ensure_ascii=False), _now()),
+            )
+        return sequence
+
+    def get_results(self, task_id: str) -> list[dict[str, Any]]:
+        with self._connection() as db:
+            rows = db.execute(
+                """
+                SELECT item_json FROM crawl_results
+                WHERE task_id = ? ORDER BY sequence
+                """,
+                (task_id,),
+            ).fetchall()
+        return [json.loads(row["item_json"]) for row in rows]
 
     def events_after(self, task_id: str, last_id: int) -> list[dict[str, Any]]:
         with self._connection() as db:
