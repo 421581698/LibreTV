@@ -50,12 +50,12 @@ class _SeedSpider(Spider):
                 "bytes": len(body),
             }
             return
-        title = response.css_first("title::text")
+        title = response.css("title::text").get() or ""
         yield {
             "url": str(response.url),
             "status": getattr(response, "status", None),
-            "title": title.get("").strip() if title else "",
-            "text": response.get_all_text(strip=True)[:20000],
+            "title": title.strip(),
+            "text": response.get_all_text(strip=True)[:20_000],
         }
 
 
@@ -73,13 +73,15 @@ class ScraplingSpiderAdapter:
     ) -> dict[str, Any]:
         spider = ScraplingSpiderAdapter.create(urls, crawldir)
         items: list[dict[str, Any]] = []
+        stats: dict[str, Any] = {}
         async for item in spider.stream():
             items.append(item)
+            stats = asdict(spider.stats)
         return {
             "items": items,
             "completed": True,
             "paused": False,
-            "stats": asdict(spider.stats),
+            "stats": stats,
         }
 
     @staticmethod
