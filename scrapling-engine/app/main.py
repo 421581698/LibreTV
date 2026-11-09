@@ -43,7 +43,10 @@ _job_transition_lock = asyncio.Lock()
 class FetchRequest(BaseModel):
     url: str = Field(min_length=8, max_length=2048)
     selector: str | None = Field(default=None, max_length=500)
-    mode: Literal["text", "css", "xpath", "regex"] = "text"
+    mode: Literal[
+        "text", "css", "xpath", "regex", "adaptive_css", "adaptive_xpath"
+    ] = "text"
+    adaptive_action: Literal["save", "relocate"] | None = None
 
 
 class SpiderRequest(BaseModel):
@@ -230,6 +233,8 @@ async def capabilities() -> dict:
             "css_extraction",
             "xpath_extraction",
             "regex_extraction",
+            "adaptive_css_extraction",
+            "adaptive_xpath_extraction",
             "text_extraction",
             "markdown_conversion",
             "public_target_validation",
@@ -247,7 +252,6 @@ async def capabilities() -> dict:
         "planned": [
             "dynamic_browser",
             "stealth_browser",
-            "adaptive_element_relocation",
             "recursive_link_crawling",
             "network_api_capture",
             "mcp_agent_integration",
@@ -277,6 +281,16 @@ async def fetch(request: FetchRequest) -> dict:
             status_code=422,
             detail=f"A selector or pattern is required for {request.mode} extraction.",
         )
+    if request.mode.startswith("adaptive_") and request.adaptive_action is None:
+        raise HTTPException(
+            status_code=422,
+            detail="Adaptive extraction requires adaptive_action='save' or 'relocate'.",
+        )
+    if not request.mode.startswith("adaptive_") and request.adaptive_action is not None:
+        raise HTTPException(
+            status_code=422,
+            detail="adaptive_action is only valid for adaptive extraction modes.",
+        )
 
     try:
         await run_in_threadpool(
@@ -294,6 +308,7 @@ async def fetch(request: FetchRequest) -> dict:
             page,
             request.selector,
             request.mode,
+            adaptive_action=request.adaptive_action,
         )
         return {"ok": True, "result": result}
     except RobotsPolicyError as exc:
