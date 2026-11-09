@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import asyncio
+from dataclasses import dataclass
+
 from fastapi.testclient import TestClient
 
 from app import main
@@ -75,3 +78,44 @@ def test_job_pause_and_resume_controls(monkeypatch, tmp_path) -> None:
     resume = client.post("/v1/jobs/job_api_02/resume")
     assert resume.status_code == 202
     assert store.get("job_api_02")["status"] == "queued"
+
+
+
+def test_job_runner_persists_results_and_item_events(monkeypatch, tmp_path) -> None:
+    store = _use_test_store(monkeypatch, tmp_path)
+    assert store.create(
+        "job_runner_01",
+        ["https://example.com/"],
+        str(tmp_path / "job_runner_01"),
+    )
+
+    @dataclass
+    class FakeStats:
+        requests_count: int = 1
+
+    class FakeSpider:
+        stats = FakeStats()
+
+        async def stream(self):
+            yield {
+                "url": "https://example.com/",
+                "title": "fixture",
+                "text": "fixture body",
+            }
+
+    monkeypatch.setattr(
+        main.ScraplingSpiderAdapter,
+        "create",
+        lambda urls, crawldir: FakeSpider(),
+    )
+
+    asyncio.run(main._run_job("job_runner_01"))
+
+    job = store.get("job_runner_01")
+    assert job is not None
+    assert job["status"] == "completed"
+    assert job["result"]["items"][0]["title"] == "fixture"
+    assert any(
+        event["type"] == "item"
+        for event in store.events_after("job_runner_01", 0)
+    )
