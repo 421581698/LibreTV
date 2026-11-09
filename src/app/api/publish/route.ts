@@ -64,7 +64,7 @@ export async function POST(req: Request) {
   let raw: unknown;
   try {
     raw = await readJsonLimited(req, MAX_PUBLISH_BYTES);
-  } catch {
+  } catch (err) {
     return NextResponse.json(
       { error: '请求内容不是合法 JSON' },
       { status: requestBodyErrorStatus(err) }
