@@ -383,6 +383,18 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(result["error"], "unsafe_or_invalid_redirect_target")
         connection.assert_called_once()
 
+    def test_direct_media_probe_rejects_dns_change_between_validation_and_connect(self):
+        public = [(None, None, None, None, ("8.8.8.8", 443))]
+        private = [(None, None, None, None, ("127.0.0.1", 443))]
+        with (
+            patch.object(collector.socket, "getaddrinfo", side_effect=[public, private]),
+            patch.object(collector, "PinnedHTTPSConnection") as connection,
+        ):
+            result = collector.probe_direct_media("https://media.example/movie.mp4")
+        self.assertFalse(result["reachable"])
+        self.assertEqual(result["error"], "unsafe_or_invalid_redirect_target")
+        connection.assert_not_called()
+
     def test_direct_media_probe_rejects_private_redirect(self):
         class Response:
             status = 302
