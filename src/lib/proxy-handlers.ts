@@ -186,7 +186,11 @@ export async function handleProxyRequest(req: Request, targetUrl: string): Promi
     if (text === null || !isValidM3u8(text)) {
       return new NextResponse('上游播放列表无效或超过大小限制', {
         status: 502,
-        headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
+        headers: {
+        'Cache-Control': 'no-store',
+        'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': 'sandbox',
+      },
       });
     }
     return new NextResponse(rewriteM3u8(text, finalUrl), {
@@ -196,6 +200,7 @@ export async function handleProxyRequest(req: Request, targetUrl: string): Promi
         'Cache-Control': 'no-store',
         'Access-Control-Allow-Origin': '*',
         'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': 'sandbox',
       },
     });
   }
@@ -222,6 +227,7 @@ export async function handleProxyRequest(req: Request, targetUrl: string): Promi
   );
   outHeaders.set('Access-Control-Allow-Origin', '*');
   outHeaders.set('X-Content-Type-Options', 'nosniff');
+  outHeaders.set('Content-Security-Policy', 'sandbox');
 
   return new NextResponse(response.body, {
     status: response.status,
@@ -306,6 +312,7 @@ export async function handleLiveStreamRequest(req: Request, targetUrl: string): 
         'Content-Type': 'application/vnd.apple.mpegurl',
         'Cache-Control': 'no-store',
         'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': 'sandbox',
       },
     });
   }
@@ -322,6 +329,7 @@ export async function handleLiveStreamRequest(req: Request, targetUrl: string): 
   outHeaders.set('Cache-Control', 'no-store, no-transform');
   outHeaders.set('X-Accel-Buffering', 'no');
   outHeaders.set('X-Content-Type-Options', 'nosniff');
+  outHeaders.set('Content-Security-Policy', 'sandbox');
 
   return new NextResponse(response.body, {
     status: response.status,
