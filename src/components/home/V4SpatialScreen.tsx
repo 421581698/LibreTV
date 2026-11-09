@@ -132,7 +132,7 @@ function ResourcesScreen() {
         {results.length > 0 ? (
           <div className="v4-resource-results">
             {results.map((item) => (
-              <Link key={`${item.sourceKey}:${item.id}`} href={`/?s=${encodeURIComponent(item.name)}`} className="v4-resource-result">
+              <Link key={`${item.sourceKey}:${item.vodId}`} href={`/?s=${encodeURIComponent(item.name)}`} className="v4-resource-result">
                 <div><strong>{item.name}</strong><span>{sourceName(item.sourceKey)} · {item.remarks || '可查看详情'}</span></div>
                 <b>查看详情 ›</b>
               </Link>
