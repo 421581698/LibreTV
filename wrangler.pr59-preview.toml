@@ -1,0 +1,17 @@
+name = "libretv-pr59-ios-preview"
+main = ".open-next/worker.js"
+compatibility_date = "2025-04-01"
+compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
+assets = { directory = ".open-next/assets" }
+
+# Dedicated PR #59 Worker: never shares the homepage preview Worker name or URL.
+workers_dev = true
+preview_urls = false
+
+[vars]
+CMS_SEARCH_API = "https://caiji.dyttzyapi.com/api.php/provide/vod"
+API_60S_BASE = "https://60s.bggdbh.workers.dev"
+LLM_MODEL = "glm-4-flash"
+AUTH_DISABLED = "false"
+
+# PASSWORD and API credentials must be injected as Worker secrets, never committed.
