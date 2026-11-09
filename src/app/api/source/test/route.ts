@@ -30,7 +30,10 @@ export async function POST(req: Request) {
 
   const start = Date.now();
   try {
-    const res = await fetchUpstream(`${url}?ac=videolist&wd=test`, {
+    const searchUrl = new URL(url);
+    searchUrl.searchParams.set('ac', 'videolist');
+    searchUrl.searchParams.set('wd', 'test');
+    const res = await fetchUpstream(searchUrl.toString(), {
       timeoutMs: 6000,
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36', Accept: 'application/json' },
     });
