@@ -54,7 +54,7 @@ export function V4SpatialScreen({ screen }: { screen: Screen }) {
     }
     try {
       const response = await api.search(movie.title, selectedSources, yellowFilter);
-      const normalize = (value: string) => value.replace(/[\\s\\p{P}\\p{S}]/gu, '').toLocaleLowerCase();
+      const normalize = (value: string) => value.replace(/[\s\p{P}\p{S}]/gu, '').toLocaleLowerCase();
       const target = normalize(movie.title);
       const match = response.list.find((entry) => normalize(entry.name) === target);
       if (!match) {
