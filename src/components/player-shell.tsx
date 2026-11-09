@@ -608,7 +608,7 @@ export function PlayerShell({
       hotkey: false,
       theme: '#2563eb',
       lang: navigator.language.toLowerCase().startsWith('zh') ? 'zh-cn' : 'en',
-      moreVideoAttr: { crossOrigin: 'anonymous', playsInline: true, playsinline: 'true', 'webkit-playsinline': 'true' },
+      moreVideoAttr: { crossOrigin: 'anonymous', playsInline: true },
       // 上/下集放在播放键右侧：换集是看剧最高频的动作，不该让用户滚回页面下方找按钮
       controls: [
         {
@@ -641,7 +641,8 @@ export function PlayerShell({
             const video = artRef.current?.video as IOSFullscreenVideo | undefined;
             if (video?.webkitSupportsFullscreen && video.webkitEnterFullscreen) {
               try {
-                const orientationLock = screen.orientation?.lock?.('landscape');
+                const orientation = screen.orientation as ScreenOrientation & { lock?: (orientation: string) => Promise<void> };
+                const orientationLock = orientation.lock?.('landscape');
                 void orientationLock?.catch(() => {});
                 video.webkitEnterFullscreen();
                 return;
@@ -661,10 +662,12 @@ export function PlayerShell({
     });
     artRef.current = art;
     const iosNativeVideo = art.video as IOSFullscreenVideo;
+    iosNativeVideo.setAttribute('playsinline', '');
+    iosNativeVideo.setAttribute('webkit-playsinline', '');
     const onIOSNativeFullscreenEnd = () => {
       try { screen.orientation?.unlock?.(); } catch { /* iOS may not expose orientation locking */ }
       art.controls.show = true;
-      art.resize();
+      window.dispatchEvent(new Event('resize'));
     };
     iosNativeVideo.addEventListener('webkitendfullscreen', onIOSNativeFullscreenEnd);
     window.dispatchEvent(new CustomEvent('friday-player-state', { detail: { active: true } }));
