@@ -658,7 +658,7 @@ function EpisodeRow({ index, active, onClick }: { index: number; active: boolean
     <button ref={ref} className={cn('netflix-episode-row', active && 'active')} onClick={onClick} aria-current={active ? 'true' : undefined}>
       <span className="netflix-episode-number">{index + 1}</span>
       <span className="min-w-0 flex-1 text-left"><strong>第 {index + 1} 集</strong><small>{active ? '正在播放' : '点击播放'}</small></span>
-      {active ? <span className="text-accent" aria-hidden="true">●</span> : <Icon name="play" className="w-4 h-4 opacity-60" />}
+      {active ? <span className="text-accent" aria-hidden="true">●</span> : <span className="opacity-60" aria-hidden="true">▶</span>}
     </button>
   );
 }
