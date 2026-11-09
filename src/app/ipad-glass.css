@@ -1,0 +1,342 @@
+/* LibreTV iPad profile
+ * Phase 2 only: tablet touch layouts. PC/Mac desktop rules remain unchanged;
+ * the phone profile is intentionally excluded (max-width: 700px).
+ */
+@media screen and (min-width: 701px) and (max-width: 1366px) and (any-pointer: coarse) {
+  html,
+  body {
+    min-width: 0 !important;
+  }
+
+  /* Two-row tablet chrome: brand/actions above, all six destinations below. */
+  .v4-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .v4-header-inner {
+    width: calc(100% - 48px) !important;
+    min-height: 0 !important;
+    grid-template-columns: minmax(132px, auto) minmax(0, 1fr) !important;
+    grid-template-rows: auto auto;
+    gap: 10px 16px !important;
+    padding: 12px 0 4px;
+  }
+
+  .v4-brand {
+    grid-column: 1;
+    grid-row: 1;
+    font-size: 20px;
+  }
+
+  .v4-primary-nav {
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+    display: flex;
+    justify-content: flex-start;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+    padding: 0 0 8px !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .v4-primary-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .v4-nav-link {
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding: 0 17px;
+    font-size: 14px;
+  }
+
+  .v4-header-actions {
+    grid-column: 2;
+    grid-row: 1;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .v4-search {
+    flex: 1 1 180px;
+    width: auto;
+    min-width: 0;
+    max-width: 360px;
+    height: 44px;
+  }
+
+  .v4-header-icon,
+  .v4-avatar {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+  }
+
+  /* Home: a balanced cinema hero, with enough space for real poster rows. */
+  .v4-home-main {
+    width: calc(100% - 48px) !important;
+    max-width: 1360px;
+    padding: 18px 0 40px !important;
+  }
+
+  .v4-hero {
+    height: clamp(330px, 47svh, 520px);
+    min-height: 330px;
+    border-radius: 22px !important;
+  }
+
+  .v4-hero-content {
+    left: 36px;
+    right: 32px;
+    bottom: 42px;
+    top: auto;
+    width: min(620px, 68%);
+    max-width: 68%;
+    transform: none;
+  }
+
+  .v4-hero-content h1 {
+    font-size: clamp(34px, 4.2vw, 54px);
+    line-height: 1.08;
+  }
+
+  .v4-hero-content p {
+    max-width: 30em;
+    margin: 12px 0 20px;
+    font-size: 15px;
+  }
+
+  .v4-hero-actions {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .v4-content-section {
+    margin-top: 26px;
+  }
+
+  .v4-section-heading {
+    margin-bottom: 14px;
+  }
+
+  .v4-section-heading h2 {
+    font-size: 20px;
+  }
+
+  .v4-home .v4-recommendation-section .grid.grid-cols-3,
+  .v4-home .v4-anime-section .grid.grid-cols-3 {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .v4-home .v4-recommendation-section .grid > *,
+  .v4-home .v4-anime-section .grid > * {
+    min-width: 0;
+  }
+
+  .v4-home .v4-history-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  /* Routed screens: comfortable touch spacing and a tablet-sized content frame. */
+  .v4-spatial-screen {
+    min-height: 100svh;
+  }
+
+  .v4-spatial-main {
+    width: calc(100% - 48px);
+    max-width: 1360px;
+    padding: 32px 0 112px;
+  }
+
+  .v4-spatial-heading {
+    gap: 18px;
+    margin-bottom: 22px;
+  }
+
+  .v4-spatial-heading h1 {
+    font-size: clamp(34px, 4vw, 44px);
+  }
+
+  .v4-spatial-panel {
+    padding: 20px;
+    border-radius: 22px;
+  }
+
+  .v4-source-grid,
+  .v4-settings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .v4-me-history-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .v4-settings-card {
+    min-height: 104px;
+    padding: 18px;
+  }
+
+  .v4-resource-search input,
+  .v4-resource-search button,
+  .v4-resource-entry .glass-button {
+    min-height: 48px;
+  }
+
+  .v4-resource-result {
+    min-height: 64px;
+  }
+
+  /* The routed-screen tab bar is tablet navigation, not the phone layout. */
+  .v4-mobile-tabs {
+    position: fixed;
+    z-index: 60;
+    left: 50%;
+    right: auto;
+    bottom: max(14px, env(safe-area-inset-bottom));
+    display: flex !important;
+    width: min(620px, calc(100% - 48px));
+    min-height: 64px;
+    justify-content: space-around;
+    gap: 6px;
+    padding: 8px 10px;
+    transform: translateX(-50%);
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 22px;
+    background: rgba(17,17,21,.88);
+    -webkit-backdrop-filter: blur(28px) saturate(160%);
+    backdrop-filter: blur(28px) saturate(160%);
+    box-shadow: 0 14px 40px rgba(0,0,0,.42);
+  }
+
+  .v4-mobile-tabs a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 72px;
+    min-height: 44px;
+    padding: 8px 12px;
+    border-radius: 13px;
+    font-size: 13px;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Keep player media crisp; enlarge only the player chrome touch targets. */
+  .artplayer .art-control {
+    min-width: 38px;
+    min-height: 38px;
+  }
+}
+
+@media screen and (min-width: 701px) and (max-width: 1366px) and (any-pointer: coarse) and (orientation: portrait) {
+  .v4-home-main {
+    width: calc(100% - 40px) !important;
+  }
+
+  .v4-hero {
+    height: clamp(300px, 39svh, 420px);
+    min-height: 300px;
+  }
+
+  .v4-hero-content {
+    left: 28px;
+    right: 24px;
+    bottom: 30px;
+    width: min(560px, 78%);
+    max-width: 78%;
+  }
+
+  .v4-hero-content h1 {
+    font-size: clamp(30px, 5vw, 44px);
+  }
+
+  .v4-hero-content p {
+    font-size: 13px;
+    margin: 9px 0 15px;
+  }
+
+  .v4-home .v4-recommendation-section .grid.grid-cols-3,
+  .v4-home .v4-anime-section .grid.grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .v4-spatial-main {
+    width: calc(100% - 40px);
+    padding-top: 26px;
+  }
+
+  .v4-spatial-screen[data-screen="movies"] .v4-spatial-panel > section > .grid.grid-cols-3,
+  .v4-spatial-screen[data-screen="anime"] .v4-spatial-panel > section > .grid.grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .v4-mobile-tabs {
+    width: min(560px, calc(100% - 32px));
+  }
+
+  .v4-mobile-tabs a {
+    min-width: 60px;
+    padding-inline: 8px;
+  }
+}
+
+@media screen and (min-width: 1024px) and (max-width: 1366px) and (any-pointer: coarse) and (orientation: landscape) {
+  .v4-home .v4-recommendation-section .grid.grid-cols-3,
+  .v4-home .v4-anime-section .grid.grid-cols-3 {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .v4-home .v4-history-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .v4-spatial-main {
+    width: calc(100% - 64px);
+    padding-top: 30px;
+  }
+
+  .v4-spatial-screen[data-screen="movies"] .v4-spatial-panel > section > .grid.grid-cols-3,
+  .v4-spatial-screen[data-screen="anime"] .v4-spatial-panel > section > .grid.grid-cols-3 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .v4-me-history-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .v4-spatial-screen[data-screen="resources"] .v4-spatial-main > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    align-items: start;
+    gap: 18px;
+  }
+
+  .v4-spatial-screen[data-screen="resources"] .v4-source-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* iPad Safari uses safe-area insets even when the device is in landscape. */
+@supports (padding: max(0px)) {
+  @media screen and (min-width: 701px) and (max-width: 1366px) and (any-pointer: coarse) {
+    .v4-spatial-main {
+      padding-bottom: max(112px, calc(env(safe-area-inset-bottom) + 92px));
+    }
+  }
+}
