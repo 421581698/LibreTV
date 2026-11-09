@@ -262,7 +262,7 @@ function SettingsScreen() {
       <div className="v4-settings-grid">
         {groups.map(([title, description], index) => (
           <button key={title} type="button" className="v4-settings-card" onClick={() => window.dispatchEvent(new CustomEvent('libretv:open-source-manager'))}>
-            <span>0{index + 1}</span><div><strong>{title}</strong><p>{description}</p></div><b>›</b>
+            <div><strong>{title}</strong><p>{description}</p></div><b aria-hidden="true">›</b>
           </button>
         ))}
       </div>
