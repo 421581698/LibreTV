@@ -61,3 +61,15 @@ def test_spider_configures_user_agent_timeout_and_safe_redirects(monkeypatch) ->
     assert captured["follow_redirects"] == "safe"
     assert captured["stealthy_headers"] is False
     assert captured["impersonate"] is None
+
+
+
+def test_sync_spider_wrapper_uses_async_stream_in_worker_compatible_mode(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr("app.spider._SeedSpider", FakeSpider)
+
+    result = ScraplingSpiderAdapter.crawl(["https://example.com/"])
+
+    assert result["completed"] is True
+    assert result["items"][0]["title"] == "streamed fixture"
