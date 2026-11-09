@@ -376,6 +376,7 @@ describe('首页与播放页回归契约', () => {
     expect(spatialScreen).toContain('className="v4-resources-layout space-y-5"');
     expect(ipadStyles).toContain('.v4-spatial-screen[data-screen="resources"] .v4-resources-layout');
     expect(ipadStyles).not.toContain('.v4-spatial-screen[data-screen="resources"] .v4-spatial-main > div');
+    expect(ipadStyles).toContain('.v4-spatial-screen[data-screen="movies"] .v4-spatial-panel > .grid.grid-cols-3');
   });
 
 });
