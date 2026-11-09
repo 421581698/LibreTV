@@ -17,6 +17,7 @@ services:
       # 可选：FMHY / Scrapling 采集服务（启用 collector profile 后使用）
       - SCRAPLING_API_BASE=${SCRAPLING_API_BASE:-http://scrapling-collector:8000}
       - SCRAPLING_API_TOKEN=${SCRAPLING_API_TOKEN:-}
+      - SCRAPLING_DB_PATH=/data/collector.sqlite3
       # 可选：会话/代理签名密钥（多实例部署建议显式设置：openssl rand -hex 32）
       # - PROXY_SECRET=your-secret
       # 可选：Cookie Secure 策略覆盖（true=强制开启 / false=强制关闭；不设置时按请求协议自动推导，HTTP 部署无需配置）
@@ -57,9 +58,14 @@ services:
       - SCRAPLING_API_TOKEN=${SCRAPLING_API_TOKEN:-}
     expose:
       - "8000"
+    volumes:
+      - scrapling_data:/data
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 20s
+
+volumes:
+  scrapling_data:
