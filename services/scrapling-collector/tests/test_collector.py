@@ -375,6 +375,45 @@ segment-2.ts
         self.assertEqual(result["representations"][0]["id"], "v1")
         self.assertEqual(result["rejected_reference_count"], 1)
 
+    def test_hls_master_variant_tree_checks_variant_and_segment_with_budget(self):
+        root = {"variants": [{"uri": "https://media.example/variant.m3u8", "height": 1080}]}
+        media_playlist = {
+            "reachable": True,
+            "media_format": "hls",
+            "manifest_valid": True,
+            "is_master_playlist": False,
+            "segment_uris": ["https://media.example/segment-1.ts"],
+            "segment_count": 1,
+        }
+        with patch.object(collector, "public_https_url", return_value=("https://media.example/variant.m3u8", "media.example")), \
+             patch.object(collector, "throttle"), \
+             patch.object(collector, "probe_direct_media", return_value=media_playlist) as probe, \
+             patch.object(collector, "probe_hls_segments", return_value={
+                 "sampled": 1, "reachable": 1, "failed": 0, "results": [{"reachable": True}]
+             }) as segment_probe:
+            result = collector.probe_hls_variant_tree(root, max_requests=2)
+        self.assertEqual(result["reachable_leaf_count"], 1)
+        self.assertEqual(result["request_count"], 2)
+        self.assertEqual(probe.call_count, 1)
+        segment_probe.assert_called_once()
+
+    def test_hls_master_variant_tree_enforces_depth_limit(self):
+        root = {"variants": [{"uri": "https://media.example/nested-master.m3u8"}]}
+        nested_master = {
+            "reachable": True,
+            "media_format": "hls",
+            "manifest_valid": True,
+            "is_master_playlist": True,
+            "variants": [{"uri": "https://media.example/deeper.m3u8"}],
+        }
+        with patch.object(collector, "public_https_url", return_value=("https://media.example/nested-master.m3u8", "media.example")), \
+             patch.object(collector, "throttle"), \
+             patch.object(collector, "probe_direct_media", return_value=nested_master) as probe:
+            result = collector.probe_hls_variant_tree(root, max_depth=0, max_requests=4)
+        self.assertEqual(result["reachable_leaf_count"], 0)
+        self.assertTrue(result["results"][0]["depth_limit_reached"])
+        probe.assert_called_once()
+
     def test_hls_segment_probe_samples_only_bounded_number(self):
         urls = [f"https://media.example/segment-{i}.ts" for i in range(8)]
         with patch.object(collector, "public_https_url", return_value=(urls[0], "media.example")), patch.object(collector, "throttle"), patch.object(collector, "probe_direct_media", return_value={"reachable": True, "http_status": 206, "content_type": "video/mp2t"}) as probe:
