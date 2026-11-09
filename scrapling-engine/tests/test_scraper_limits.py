@@ -27,3 +27,26 @@ def test_fetch_page_applies_user_agent_and_rejects_oversized_response(
 
     assert captured["follow_redirects"] == "safe"
     assert captured["headers"]["User-Agent"]
+
+
+
+def test_regex_extraction_rejects_invalid_pattern() -> None:
+    page = Mock()
+    page.get_all_text.return_value = "chapter twelve"
+
+    with pytest.raises(ValueError, match="Invalid regular expression"):
+        ScraplingAdapter.extract(page, "(", "regex")
+
+
+def test_regex_extraction_converts_timeout_to_validation_error(monkeypatch) -> None:
+    page = Mock()
+    page.get_all_text.return_value = "chapter twelve"
+
+    def timeout(*args, **kwargs):
+        assert kwargs["timeout"] == 0.25
+        raise TimeoutError
+
+    monkeypatch.setattr("app.scraper.re.findall", timeout)
+
+    with pytest.raises(ValueError, match="time limit"):
+        ScraplingAdapter.extract(page, "chapter", "regex")
