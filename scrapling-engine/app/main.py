@@ -81,6 +81,11 @@ class SpiderRequest(BaseModel):
     )
 
 
+class CatalogCrawlRequest(BaseModel):
+    entry_ids: list[str] = Field(min_length=1, max_length=20)
+    snapshot_id: str | None = Field(default=None, min_length=1, max_length=64)
+
+
 def _safe_seed_urls(urls: list[str]) -> list[str]:
     safe_urls: list[str] = []
     try:
@@ -308,12 +313,18 @@ async def capabilities() -> dict:
             "versioned_resource_catalog",
             "normalized_domain_index",
             "catalog_category_index",
+            "fmhy_catalog_to_spider_jobs",
+            "same_host_movie_page_discovery",
+            "media_url_candidate_extraction",
         ],
         "planned": [
             "dynamic_browser",
             "stealth_browser",
             "recursive_link_crawling",
             "network_api_capture",
+            "media_candidate_validation",
+            "playback_verification",
+            "resource_review_and_export",
             "mcp_agent_integration",
         ],
         "service_layer": [
@@ -577,6 +588,56 @@ async def sync_fmhy_directory() -> dict:
                     "previous snapshot was retained."
                 ),
             ) from exc
+
+
+@app.post("/v1/catalog/crawl", status_code=202)
+async def crawl_selected_catalog_entries(request: CatalogCrawlRequest) -> dict:
+    if len(set(request.entry_ids)) != len(request.entry_ids):
+        raise HTTPException(status_code=422, detail="entry_ids must not contain duplicates.")
+
+    latest = catalog_store.latest_snapshot()
+    snapshot_id = request.snapshot_id or (latest["snapshot_id"] if latest else None)
+    if snapshot_id is None:
+        raise HTTPException(status_code=404, detail="FMHY catalog has not been synchronized.")
+
+    selected = catalog_store.get_primary_seeds(
+        snapshot_id=snapshot_id,
+        entry_ids=request.entry_ids,
+    )
+    selected_ids = {item["entry_id"] for item in selected}
+    missing_ids = sorted(set(request.entry_ids) - selected_ids)
+    if missing_ids:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Every selected entry must exist in this snapshot, be non-unsafe, "
+                "and have a primary resource link."
+            ),
+        )
+
+    try:
+        safe_urls = _safe_seed_urls([item["canonical_url"] for item in selected])
+    except HTTPException:
+        raise
+
+    job_response = await create_job(SpiderRequest(urls=safe_urls))
+    task_id = job_response["job"]["task_id"]
+    job_store.add_event(
+        task_id,
+        "catalog_selection",
+        {
+            "snapshot_id": snapshot_id,
+            "entries": selected,
+            "seed_urls": safe_urls,
+        },
+    )
+    return {
+        "ok": True,
+        "snapshot_id": snapshot_id,
+        "selected_entries": len(selected),
+        "seed_count": len(safe_urls),
+        "job": job_response["job"],
+    }
 
 
 @app.get("/v1/catalog/snapshot")
