@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.scraper import ScraplingAdapter
 
+
 client = TestClient(app)
 
 
@@ -91,7 +92,7 @@ def test_adapter_supports_xpath_and_regex() -> None:
     page.markdown.return_value = None
 
     xpath_result = ScraplingAdapter.extract(page, "//h2", "xpath")
-    regex_result = ScraplingAdapter.extract(page, r"Chapter (\\d+)", "regex")
+    regex_result = ScraplingAdapter.extract(page, r"Chapter (\d+)", "regex")
 
     assert xpath_result["text"] == ["Chapter 12"]
     assert regex_result["text"] == ["12", "13"]
