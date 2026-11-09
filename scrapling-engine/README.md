@@ -31,7 +31,7 @@ uvicorn app.main:app --host 127.0.0.1 --port 8787
 
 Open `http://127.0.0.1:8787/health`.
 
-`POST /v1/spider` accepts `{"urls": ["https://public.example/"]}` (1–20 seed URLs). The current endpoint validates every seed, deduplicates URLs, obeys robots.txt, limits concurrency, and returns extracted page text plus Scrapling crawl statistics. It intentionally does not follow page links yet: browser subrequests, redirects, and DNS rebinding need deployment-level egress enforcement before recursive crawling is enabled.
+POST /v1/spider accepts {"urls": ["https://public.example/"]} (1–20 seed URLs). Add an optional task_id (1–64 letters, digits, _ or -) to enable Scrapling's on-disk checkpoint directory. Reusing the same task ID and seed configuration allows the upstream Spider checkpoint to be resumed after a graceful interruption. Checkpoint files are stored under CRAWL_DATA_DIR (default ./crawl_data). The endpoint validates every seed, deduplicates URLs, obeys robots.txt, limits concurrency, and returns extracted page text plus Scrapling crawl statistics. It intentionally does not follow page links yet: browser subrequests, redirects, and DNS rebinding need deployment-level egress enforcement before recursive crawling is enabled. The HTTP API does not yet provide a job registry or a remote pause button; those remain planned.
 
 Browser-backed fetchers require the optional browser dependencies and browser installation described by the upstream Scrapling documentation. Keep the service bound to localhost until authentication and deployment hardening are configured.
 
