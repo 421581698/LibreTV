@@ -152,7 +152,7 @@ function WatchContent() {
   const relatedItems = useMemo(() => {
     const history = watchedHistory ?? [];
     const watchedIds = new Set(history.map((item) => `${item.sourceKey}:${item.vodId}`));
-    const normalize = (value?: string) => (value ?? '').trim().toLocaleLowerCase().replace(/[\\s\\p{P}\\p{S}]/gu, '');
+    const normalize = (value?: string) => (value ?? '').trim().toLocaleLowerCase().replace(/[\s\p{P}\p{S}]/gu, '');
     const watchedTitles = new Set(history.map((item) => normalize(item.title)).filter(Boolean));
     const currentInfo = detailQuery.data?.videoInfo;
     const recentGenreCounts = new Map<string, number>();
