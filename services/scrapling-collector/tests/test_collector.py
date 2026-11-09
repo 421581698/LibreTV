@@ -345,6 +345,16 @@ segment-2.ts
         self.assertTrue(result["results"][0]["empty_media_playlist"])
         self.assertFalse(result["results"][0]["leaf_reachable"])
 
+    def test_dash_duration_and_template_expansion_are_bounded(self):
+        self.assertIsNone(collector.parse_iso8601_duration_seconds("P"))
+        self.assertIsNone(collector.parse_iso8601_duration_seconds("PT"))
+        self.assertEqual(collector.parse_iso8601_duration_seconds("P1DT2H3M4S"), 93784)
+        expanded = collector.expand_dash_template(
+            "$/$RepresentationID$/$Bandwidth$/$Number%05d$/$Time%999999999d$",
+            {"id": "v1", "bandwidth": 800000}, 7, 12,
+        )
+        self.assertEqual(expanded, "$/v1/800000/00007/" + ("0" * 17) + "12")
+
     def test_mpd_manifest_resolves_base_url_and_segment_template(self):
         body = b"""<MPD type="static">
 <BaseURL>https://cdn.example/root/</BaseURL>
