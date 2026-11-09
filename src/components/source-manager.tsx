@@ -312,7 +312,7 @@ function ResourceCollectorPanel() {
         <div className="mb-3">
           <h3 className="text-sm font-semibold text-content">Scrapling 连接配置 · 变量名与配置要求</h3>
           <p className="mt-1 text-xs leading-5 text-muted">
-            以下配置需要由部署者在 Cloudflare 对应 LibreTV Worker 的 Settings → Variables and Secrets 中添加。
+            以下配置需要由部署者添加到 LibreTV 服务端环境。Cloudflare 部署使用 Worker Settings → Variables and Secrets；Docker 部署使用服务端环境变量或 .env（不要提交到 Git）。
             本页面只展示配置说明，不会把访问令牌保存到浏览器、公开配置或代码仓库。
           </p>
         </div>
@@ -329,7 +329,7 @@ function ResourceCollectorPanel() {
               <code className="text-xs font-semibold text-content">SCRAPLING_API_TOKEN</code>
               <span className="text-[10px] text-warning">Secret / 密钥</span>
             </div>
-            <p className="mt-1 text-xs text-muted">必填。LibreTV Worker 与 Collector 必须配置完全相同的 Bearer Token。只使用 Cloudflare Secret，不要设为普通明文变量，也不要发到聊天或提交到 Git。</p>
+            <p className="mt-1 text-xs text-muted">必填。LibreTV 服务端与 Collector 服务端必须配置完全相同的 Bearer Token。Cloudflare 端使用 Secret；Docker / Collector 端使用部署平台的 Secret 或受保护环境变量。不要写入前端、普通公开配置、聊天或 Git。</p>
           </div>
         </div>
         <div className="mt-3 rounded-xl border border-line p-3">
@@ -343,7 +343,7 @@ function ResourceCollectorPanel() {
           </p>
         </div>
         <p className="mt-2 text-[11px] leading-5 text-muted">
-          配置位置：SCRAPLING_API_BASE 与 SCRAPLING_API_TOKEN 配置在 LibreTV Worker（Preview / Production 分别设置）；SCRAPLING_API_TOKEN、SCRAPLING_EGRESS_FIREWALL_CONFIRMED 与可选 SCRAPLING_DB_PATH 配置在 Collector 主机。Preview 与 Production 是独立环境，需分别配置。修改 Secret 后无需在本页面输入密码，重新部署/生效后点击“发现网站”测试连接。
+          配置位置：SCRAPLING_API_BASE 与 SCRAPLING_API_TOKEN 配置在 LibreTV 服务端；SCRAPLING_API_TOKEN、SCRAPLING_EGRESS_FIREWALL_CONFIRMED 与可选 SCRAPLING_DB_PATH 配置在 Collector 主机。Cloudflare Preview 与 Production 是独立环境，需分别配置。修改 Secret 后无需在本页面输入密码，重新部署/生效后点击“发现网站”测试连接。
         </p>
       </div>
 
