@@ -127,6 +127,72 @@ class CollectorTests(unittest.TestCase):
         self.assertTrue(route.continued)
         self.assertFalse(route.aborted)
 
+    def test_direct_media_probe_uses_range_and_accepts_media_response(self):
+        class Response:
+            status = 206
+
+            def getheaders(self):
+                return [
+                    ("Content-Type", "video/mp4"),
+                    ("Content-Length", "1024"),
+                    ("Content-Range", "bytes 0-0/1024"),
+                ]
+
+            def close(self):
+                pass
+
+        class Connection:
+            def __init__(self, *args, **kwargs):
+                self.request_args = None
+
+            def request(self, method, target, headers):
+                self.request_args = (method, target, headers)
+
+            def getresponse(self):
+                self.test_request = self.request_args
+                return Response()
+
+            def close(self):
+                pass
+
+        with patch.object(collector.socket, "getaddrinfo", return_value=[
+            (None, None, None, None, ("8.8.8.8", 443))
+        ]), patch.object(collector.http.client, "HTTPSConnection", Connection):
+            result = collector.probe_direct_media("https://media.example/movie.mp4")
+        self.assertTrue(result["reachable"])
+        self.assertEqual(result["http_status"], 206)
+        self.assertTrue(result["range_supported"])
+
+    def test_direct_media_probe_rejects_private_redirect(self):
+        class Response:
+            status = 302
+
+            def getheaders(self):
+                return [("Location", "http://127.0.0.1/admin")]
+
+            def close(self):
+                pass
+
+        class Connection:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def request(self, *args, **kwargs):
+                pass
+
+            def getresponse(self):
+                return Response()
+
+            def close(self):
+                pass
+
+        with patch.object(collector.socket, "getaddrinfo", return_value=[
+            (None, None, None, None, ("8.8.8.8", 443))
+        ]), patch.object(collector.http.client, "HTTPSConnection", Connection):
+            result = collector.probe_direct_media("https://media.example/movie.mp4")
+        self.assertFalse(result["reachable"])
+        self.assertEqual(result["error"], "unsafe_or_invalid_redirect_target")
+
     def test_authorization_is_constant_time_checked(self):
         collector.require_token(f"Bearer {collector.TOKEN}")
         with self.assertRaises(collector.HTTPException):
