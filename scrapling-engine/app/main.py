@@ -67,6 +67,37 @@ def _now() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def _ensure_checkpoint_manifest(
+    task_id: str,
+    seeds: list[str],
+    checkpoint_dir: Path,
+) -> None:
+    manifest = checkpoint_dir / "libretv-manifest.json"
+    if manifest.exists():
+        try:
+            saved = json.loads(manifest.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise HTTPException(status_code=409, detail="Checkpoint manifest is unreadable.") from exc
+        if saved.get("task_id") != task_id or saved.get("seeds") != seeds:
+            raise HTTPException(
+                status_code=409,
+                detail="Checkpoint directory belongs to a different task configuration.",
+            )
+        return
+    if checkpoint_dir.exists() and any(checkpoint_dir.iterdir()):
+        raise HTTPException(
+            status_code=409,
+            detail="Checkpoint directory contains unregistered data.",
+        )
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    temporary = manifest.with_suffix(".tmp")
+    temporary.write_text(
+        json.dumps({"task_id": task_id, "seeds": seeds}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    temporary.replace(manifest)
+
+
 def _schedule_job(task_id: str) -> None:
     existing = _job_tasks.get(task_id)
     if existing and not existing.done():
@@ -240,7 +271,7 @@ async def create_job(request: SpiderRequest) -> dict:
     safe_urls = _safe_seed_urls(request.urls)
     task_id = request.task_id or uuid.uuid4().hex
     checkpoint_dir = Path(settings.crawl_data_dir) / task_id
-    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    _ensure_checkpoint_manifest(task_id, safe_urls, checkpoint_dir)
 
     created = job_store.create(task_id, safe_urls, str(checkpoint_dir))
     job = job_store.get(task_id)
@@ -299,10 +330,15 @@ async def resume_job(task_id: str) -> dict:
             detail="Only paused or interrupted jobs can be resumed.",
         )
     checkpoint_dir = Path(job["checkpoint_dir"])
-    if not checkpoint_dir.is_dir() or not any(checkpoint_dir.iterdir()):
+    _ensure_checkpoint_manifest(task_id, job["seeds"], checkpoint_dir)
+    checkpoint_files = [
+        path for path in checkpoint_dir.iterdir()
+        if path.name != "libretv-manifest.json"
+    ]
+    if not checkpoint_files:
         raise HTTPException(
             status_code=409,
-            detail="No saved checkpoint is available for this job.",
+            detail="No saved Scrapling checkpoint is available for this job.",
         )
     job_store.update(task_id, "queued", finished_at=None, error=None)
     _schedule_job(task_id)
