@@ -17,12 +17,15 @@
     display: flex !important;
     position: relative !important;
     order: 2 !important;
-    flex: 0 0 100% !important;
-    width: 100% !important;
-    height: 44px !important;
+    order: 1 !important;
+    flex: 1 1 120px !important;
+    width: auto !important;
+    min-width: 96px !important;
+    max-width: 220px !important;
+    height: 40px !important;
     min-width: 0 !important;
-    margin: 0 0 2px !important;
-    padding: 0 14px !important;
+    margin: 0 !important;
+    padding: 0 10px !important;
     border-radius: 14px !important;
     overflow: visible !important;
     background: rgba(255,255,255,.09) !important;
@@ -37,14 +40,10 @@
     height: 40px !important;
     opacity: 1 !important;
     font-size: 16px !important;
-    color: #F7F8FA !important;
-    -webkit-text-fill-color: #F7F8FA !important;
-  }
+   }
 
   .v4-header .v4-header-actions .v4-search input::placeholder {
-    color: rgba(255,255,255,.62) !important;
-    -webkit-text-fill-color: rgba(255,255,255,.62) !important;
-    opacity: 1 !important;
+     opacity: 1 !important;
   }
 
   .v4-header .v4-mobile-search-toggle {
@@ -53,7 +52,7 @@
 
   .v4-header .v4-header-icon,
   .v4-header .v4-avatar {
-    order: 1 !important;
+    order: 2 !important;
   }
 
   .v4-header .v4-primary-nav {
