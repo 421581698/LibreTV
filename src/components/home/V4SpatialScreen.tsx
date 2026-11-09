@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
 import { V4HomepageHeader } from '@/components/home/V4HomepageHeader';
+import { HomeInlinePlayer } from '@/components/home/HomeInlinePlayer';
 import { AnimeRecommendationSection, RecommendSection } from '@/components/douban-section';
 import { DoubanCard } from '@/components/video-card';
 import { GlassPanel } from '@/components/ui/glass';
@@ -30,8 +30,42 @@ const COPY: Record<Screen, { eyebrow: string; title: string; subtitle: string }>
 };
 
 export function V4SpatialScreen({ screen }: { screen: Screen }) {
-  const router = useRouter();
   const copy = COPY[screen];
+  const selectedKeys = useAppStore((s) => s.selectedKeys);
+  const customAPIs = useAppStore((s) => s.customAPIs);
+  const envSources = useAppStore((s) => s.envSources);
+  const yellowFilter = useAppStore((s) => s.yellowFilter);
+  const sourceHealth = useAppStore((s) => s.sourceHealth);
+  const subscriptions = useAppStore((s) => s.subscriptions);
+  const [quickPlayItem, setQuickPlayItem] = useState<SearchResultItem | null>(null);
+  const [playbackError, setPlaybackError] = useState('');
+  const selectedSources = selectedKeys
+    .map((key) => resolveSource({ customAPIs, envSources }, key))
+    .filter((source): source is SourceConfig => Boolean(
+      source && validateSourceUrl(source.url) &&
+      !isSourceDisabled({ sourceHealth }, source.key) &&
+      !isInDisabledSubscription({ subscriptions }, source.key)
+    ));
+  const openRecommendation = async (movie: DoubanItem) => {
+    setPlaybackError('');
+    if (selectedSources.length === 0) {
+      setPlaybackError('请先在设置中启用至少一个可用点播源。');
+      return;
+    }
+    try {
+      const response = await api.search(movie.title, selectedSources, yellowFilter);
+      const normalize = (value: string) => value.replace(/[\\s\\p{P}\\p{S}]/gu, '').toLocaleLowerCase();
+      const target = normalize(movie.title);
+      const match = response.list.find((entry) => normalize(entry.name) === target);
+      if (!match) {
+        setPlaybackError('暂未在已启用的点播源中找到《' + movie.title + '》的准确资源，请更换点播源后重试。');
+        return;
+      }
+      setQuickPlayItem(match);
+    } catch (error) {
+      setPlaybackError(error instanceof Error ? error.message : '获取影片详情失败，请稍后重试。');
+    }
+  };
   return (
     <div className="v4-spatial-screen min-h-screen" data-screen={screen}>
       <V4HomepageHeader />
@@ -49,15 +83,17 @@ export function V4SpatialScreen({ screen }: { screen: Screen }) {
           ) : null}
         </div>
 
-        {screen === 'movies' ? <CatalogScreen category="movie" onPick={(item) => router.push(`/?s=${encodeURIComponent(item.title)}`)} /> : null}
-        {screen === 'tv' ? <CatalogScreen category="tv" onPick={(item) => router.push(`/?s=${encodeURIComponent(item.title)}`)} /> : null}
-        {screen === 'variety' ? <CatalogScreen category="variety" onPick={(item) => router.push(`/?s=${encodeURIComponent(item.title)}`)} /> : null}
-        {screen === 'overseas' ? <CatalogScreen category="overseas" onPick={(item) => router.push(`/?s=${encodeURIComponent(item.title)}`)} /> : null}
-        {screen === 'anime' ? <AnimeScreen onPick={(item) => router.push(`/?s=${encodeURIComponent(item.title)}`)} /> : null}
-        {screen === 'resources' ? <ResourcesScreen /> : null}
+        {screen === 'movies' ? <CatalogScreen category="movie" onPick={openRecommendation} /> : null}
+        {screen === 'tv' ? <CatalogScreen category="tv" onPick={openRecommendation} /> : null}
+        {screen === 'variety' ? <CatalogScreen category="variety" onPick={openRecommendation} /> : null}
+        {screen === 'overseas' ? <CatalogScreen category="overseas" onPick={openRecommendation} /> : null}
+        {screen === 'anime' ? <AnimeScreen onPick={openRecommendation} /> : null}
+        {screen === 'resources' ? <ResourcesScreen onPick={setQuickPlayItem} /> : null}
         {screen === 'me' ? <MeScreen /> : null}
         {screen === 'settings' ? <SettingsScreen /> : null}
       </main>
+      {playbackError ? <p className="v4-spatial-footnote" role="status">{playbackError}</p> : null}
+      <HomeInlinePlayer item={quickPlayItem} onClose={() => setQuickPlayItem(null)} />
     </div>
   );
 }
@@ -150,7 +186,7 @@ function AnimeScreen({ onPick }: { onPick: (item: DoubanItem) => void }) {
   );
 }
 
-function ResourcesScreen() {
+function ResourcesScreen({ onPick }: { onPick: (item: SearchResultItem) => void }) {
   const selectedKeys = useAppStore((s) => s.selectedKeys);
   const customAPIs = useAppStore((s) => s.customAPIs);
   const envSources = useAppStore((s) => s.envSources);
@@ -206,10 +242,10 @@ function ResourcesScreen() {
         {results.length > 0 ? (
           <div className="v4-resource-results">
             {results.map((item) => (
-              <Link key={`${item.sourceKey}:${item.vodId}`} href={`/?s=${encodeURIComponent(item.name)}`} className="v4-resource-result">
+              <button key={`${item.sourceKey}:${item.vodId}`} type="button" onClick={() => onPick(item)} className="v4-resource-result">
                 <div><strong>{item.name}</strong><span>{sourceName(item.sourceKey)} · {item.remarks || '可查看详情'}</span></div>
-                <b>查看详情 ›</b>
-              </Link>
+                <b>立即播放 ›</b>
+              </button>
             ))}
           </div>
         ) : null}
