@@ -10,7 +10,7 @@ export default function AboutPage() {
       <Header />
 
       <main className="flex-1 max-w-2xl w-full mx-auto px-4 py-10 space-y-8">
-        <section>
+        <section className="glass-panel p-4">
           <h1 className="text-xl font-bold text-content mb-3">
             关于 LibreTV
           </h1>
