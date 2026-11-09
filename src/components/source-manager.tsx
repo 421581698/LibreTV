@@ -40,46 +40,6 @@ import { describeParseStats } from '@/lib/tvbox-parser';
  * 选中位置记忆到 localStorage，再次打开回到上次所在面板。
  */
 
-type PrimaryTab = 'sources' | 'prefs' | 'data';
-type SecondaryTab = 'vod' | 'live' | 'subs' | 'playback' | 'image' | 'home' | 'voice' | 'language' | 'io' | 'cache';
-
-const PRIMARY_TABS: { id: PrimaryTab; label: string; icon: IconName }[] = [
-  { id: 'sources', label: '源管理', icon: 'link' },
-  { id: 'prefs', label: '偏好设置', icon: 'gear' },
-  { id: 'data', label: '数据', icon: 'download' },
-];
-
-const SECONDARY_TABS: Record<PrimaryTab, { id: SecondaryTab; label: string }[]> = {
-  sources: [
-    { id: 'vod', label: '点播源' },
-    { id: 'live', label: '直播源' },
-    { id: 'subs', label: '数据源订阅' },
-  ],
-  prefs: [
-    { id: 'playback', label: '播放与过滤' },
-    { id: 'image', label: '封面图加载' },
-    { id: 'home', label: '首页与内容' },
-    { id: 'voice', label: '语音设置' },
-    { id: 'language', label: '语言设置' },
-  ],
-  data: [{ id: 'io', label: '配置导入导出' }, { id: 'cache', label: '本机缓存' }],
-};
-
-const SETTINGS_TABS: { id: SecondaryTab; label: string; icon?: IconName }[] = [
-  { id: 'vod', label: '点播源', icon: 'link' },
-  { id: 'live', label: '直播源', icon: 'home' },
-  { id: 'subs', label: '数据源订阅', icon: 'download' },
-  { id: 'playback', label: '播放与过滤', icon: 'filter' },
-  { id: 'image', label: '封面图加载', icon: 'search' },
-  { id: 'home', label: '首页与内容', icon: 'home' },
-  { id: 'voice', label: '语音设置', icon: 'microphone' },
-  { id: 'language', label: '语言设置', icon: 'gear' },
-  { id: 'io', label: '配置导入导出', icon: 'download' },
-  { id: 'cache', label: '本机缓存', icon: 'clock' },
-];
-
-const TAB_STORAGE_KEY = 'libretv-settings-tab';
-
 type SettingsPage = SecondaryTab | 'index' | 'appearance';
 
 const SETTINGS_SECTIONS: { title: string; items: { id: SettingsPage; label: string; detail: string; icon: IconName }[] }[] = [
@@ -205,70 +165,6 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
         </div>
       )}
     </Drawer>
-  );
-}
-
-/** 一级/二级导航条（role=tablist，左右方向键切换） */
-function TabRow<T extends string>({
-  tabs,
-  value,
-  onChange,
-  variant,
-  ariaLabel,
-}: {
-  tabs: { id: T; label: string; icon?: IconName }[];
-  value: T;
-  onChange: (id: T) => void;
-  variant: 'primary' | 'secondary';
-  ariaLabel: string;
-}) {
-  const move = (dir: 1 | -1) => {
-    const idx = tabs.findIndex((t) => t.id === value);
-    onChange(tabs[(idx + dir + tabs.length) % tabs.length].id);
-  };
-  return (
-    <div
-      role="tablist"
-      aria-label={ariaLabel}
-      className={cn('flex w-max min-w-full gap-1', variant === 'primary' && 'p-0.5 bg-chip rounded-xl')}
-      onKeyDown={(e) => {
-        if (e.key === 'ArrowRight') {
-          e.preventDefault();
-          move(1);
-        } else if (e.key === 'ArrowLeft') {
-          e.preventDefault();
-          move(-1);
-        }
-      }}
-    >
-      {tabs.map((t) => {
-        const active = t.id === value;
-        return (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={active}
-            className={cn(
-              // 两级导航都等宽撑满一行（原先二级按内容宽度、超宽才横滚，与一级不一致）
-              'shrink-0 inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg transition-colors',
-              variant === 'primary'
-                ? cn(
-                    'px-3.5 py-2 text-xs',
-                    active ? 'bg-surface-raised text-accent font-medium shadow-sm' : 'text-muted hover:text-content'
-                  )
-                : cn(
-                    'px-3.5 py-2 text-xs',
-                    active ? 'bg-accent/10 text-accent font-medium' : 'text-muted hover:text-content hover:bg-hover'
-                  )
-            )}
-            onClick={() => onChange(t.id)}
-          >
-            {t.icon && <Icon name={t.icon} className="w-3.5 h-3.5" />}
-            {t.label}
-          </button>
-        );
-      })}
-    </div>
   );
 }
 
