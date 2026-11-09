@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
         Boolean(message && typeof message === 'object' &&
           typeof (message as { content?: unknown }).content === 'string'))
       .map((message) => ({
-        role: message.role === 'assistant' ? 'assistant' : 'user',
+        role: message.role === 'assistant' ? ('assistant' as const) : ('user' as const),
         content: message.content.slice(0, 2000),
       }));
 
