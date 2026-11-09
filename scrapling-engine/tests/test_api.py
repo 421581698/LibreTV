@@ -7,11 +7,13 @@ from app.scraper import ScraplingAdapter
 
 client = TestClient(app)
 
+
 def test_health_reports_phase_one() -> None:
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json()["engine"] == "scrapling"
     assert response.json()["phase"] == "1"
+
 
 def test_capabilities_distinguish_planned_features() -> None:
     response = client.get("/capabilities")
@@ -21,9 +23,11 @@ def test_capabilities_distinguish_planned_features() -> None:
     assert "xpath_extraction" in body["implemented"]
     assert "recursive_link_crawling" in body["planned"]
 
+
 def test_fetch_rejects_localhost_before_network_request() -> None:
     response = client.post("/v1/fetch", json={"url": "http://127.0.0.1/"})
     assert response.status_code == 400
+
 
 def test_fetch_requires_selector_for_structured_modes() -> None:
     response = client.post(
@@ -31,6 +35,7 @@ def test_fetch_requires_selector_for_structured_modes() -> None:
         json={"url": "https://example.com/", "mode": "css"},
     )
     assert response.status_code == 422
+
 
 def test_fetch_uses_adapter_and_returns_extraction(monkeypatch) -> None:
     page = Mock()
@@ -53,6 +58,7 @@ def test_fetch_uses_adapter_and_returns_extraction(monkeypatch) -> None:
     assert response.status_code == 200
     assert response.json()["result"]["title"] == "fixture"
 
+
 def test_adapter_extracts_css_and_metadata() -> None:
     heading = Mock()
     heading.get_all_text.return_value = "Example heading"
@@ -73,6 +79,7 @@ def test_adapter_extracts_css_and_metadata() -> None:
     assert result["markdown"] == "# Example"
     assert result["status"] == 200
 
+
 def test_adapter_supports_xpath_and_regex() -> None:
     node = Mock()
     node.get_all_text.return_value = "Chapter 12"
@@ -89,12 +96,14 @@ def test_adapter_supports_xpath_and_regex() -> None:
     assert regex_result["text"] == ["12", "13"]
     assert regex_result["count"] == 2
 
+
 def test_spider_rejects_private_seed_urls() -> None:
     response = client.post(
         "/v1/spider",
         json={"urls": ["http://127.0.0.1/"]},
     )
     assert response.status_code == 400
+
 
 def test_spider_runs_validated_seed_urls(monkeypatch) -> None:
     monkeypatch.setattr(
@@ -119,6 +128,7 @@ def test_spider_runs_validated_seed_urls(monkeypatch) -> None:
     assert response.status_code == 200
     assert response.json()["result"]["stats"]["requests_count"] == 1
     assert len(response.json()["result"]["items"]) == 1
+
 
 def test_spider_task_id_enables_checkpoint_directory(monkeypatch, tmp_path) -> None:
     captured = {}
@@ -148,6 +158,7 @@ def test_spider_task_id_enables_checkpoint_directory(monkeypatch, tmp_path) -> N
     assert response.json()["checkpoint_enabled"] is True
     assert captured["crawldir"] == tmp_path / "weekly_scan_01"
     assert captured["crawldir"].is_dir()
+
 
 def test_spider_rejects_unsafe_task_id() -> None:
     response = client.post(
