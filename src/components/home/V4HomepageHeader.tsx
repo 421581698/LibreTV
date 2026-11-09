@@ -51,7 +51,7 @@ export function V4HomepageHeader() {
       <header className="v4-header">
         <div className="v4-header-inner">
           <Link href="/" className="v4-brand" aria-label="LibreTV 首页">
-            <img src="/icons/icon-512.png" alt="" />
+            <svg className="v4-brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.4 5.6c0-1 1.1-1.6 2-1.1l9 6.4c.8.6.8 1.7 0 2.3l-9 6.4c-.9.6-2 0-2-1.1z" fill="#F1A63A" /></svg>
             <span>LibreTV</span>
           </Link>
 
