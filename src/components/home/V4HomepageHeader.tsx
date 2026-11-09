@@ -24,8 +24,26 @@ export function V4HomepageHeader() {
   const pathname = usePathname();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [activeNavHref, setActiveNavHref] = useState('/');
   const [query, setQuery] = useState('');
   const searchHistory = useSearchHistory(query);
+
+  useEffect(() => {
+    if (pathname !== '/') return;
+    const ids = ['today-recommendations', 'anime-recommendations', 'resources', 'my-library'];
+    const nodes = ids.map((id) => document.getElementById(id)).filter((node): node is HTMLElement => Boolean(node));
+    if (nodes.length === 0) return;
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (visible?.target instanceof HTMLElement) {
+        setActiveNavHref(`/#${visible.target.id}`);
+      }
+    }, { rootMargin: '-18% 0px -66% 0px', threshold: [0, 0.2, 0.45, 0.7] });
+    nodes.forEach((node) => observer.observe(node));
+    return () => observer.disconnect();
+  }, [pathname]);
 
   useEffect(() => {
     const openSourceManager = () => setSettingsOpen(true);
@@ -55,13 +73,25 @@ export function V4HomepageHeader() {
             <span>LibreTV</span>
           </Link>
 
-          <nav className="v4-primary-nav" aria-label="主导航">
+          <nav
+            className="v4-primary-nav"
+            aria-label="主导航"
+            onKeyDown={(event) => {
+              if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+              const links = Array.from(event.currentTarget.querySelectorAll<HTMLAnchorElement>('a'));
+              const current = links.indexOf(document.activeElement as HTMLAnchorElement);
+              if (current < 0 || links.length < 2) return;
+              event.preventDefault();
+              const delta = event.key === 'ArrowRight' ? 1 : -1;
+              links[(current + delta + links.length) % links.length]?.focus();
+            }}
+          >
             {NAV_ITEMS.map((item) => (
               <Link
                 key={item.label}
                 href={item.href}
-                className={(pathname === '/' && item.href === '/') || (pathname === '/live' && item.href === '/live') ? 'v4-nav-link is-active' : 'v4-nav-link'}
-                aria-current={(pathname === '/' && item.href === '/') || (pathname === '/live' && item.href === '/live') ? 'page' : undefined}
+                className={(pathname === '/live' && item.href === '/live') || (pathname === '/' && item.href === activeNavHref) ? 'v4-nav-link is-active' : 'v4-nav-link'}
+                aria-current={(pathname === '/live' && item.href === '/live') || (pathname === '/' && item.href === activeNavHref) ? 'page' : undefined}
               >
                 {item.label}
               </Link>
