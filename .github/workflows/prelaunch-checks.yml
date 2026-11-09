@@ -28,6 +28,25 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+      - name: Dependency vulnerability report
+        run: |
+          npm audit --json > /tmp/npm-audit.json || true
+          node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          const report = JSON.parse(readFileSync("/tmp/npm-audit.json", "utf8"));
+          const counts = report.metadata?.vulnerabilities ?? {};
+          console.log("Dependency audit totals:", JSON.stringify(counts));
+          for (const [name, item] of Object.entries(report.vulnerabilities ?? {})) {
+            console.log(JSON.stringify({
+              package: name,
+              severity: item.severity,
+              direct: item.isDirect,
+              range: item.range,
+              fixAvailable: item.fixAvailable,
+              via: item.via?.map((entry) => typeof entry === "string" ? entry : entry.title),
+            }));
+          }
+          NODE
       - name: TypeScript
         run: npm run typecheck
       - name: ESLint
