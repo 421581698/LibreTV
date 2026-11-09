@@ -136,3 +136,30 @@ def test_job_event_stream_replays_persisted_events(monkeypatch, tmp_path) -> Non
     assert response.status_code == 200
     assert "event: queued" in response.text
     assert "event: completed" in response.text
+
+
+
+def test_legacy_and_managed_apis_cannot_share_active_task_id(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    store = _use_test_store(monkeypatch, tmp_path)
+    client = TestClient(main.app)
+
+    monkeypatch.setitem(main._legacy_task_ids, "legacy_busy")
+    managed = client.post(
+        "/v1/jobs",
+        json={"task_id": "legacy_busy", "urls": ["https://example.com/"]},
+    )
+    assert managed.status_code == 409
+
+    assert store.create(
+        "managed_busy",
+        ["https://example.com/"],
+        str(tmp_path / "managed_busy"),
+    )
+    legacy = client.post(
+        "/v1/spider",
+        json={"task_id": "managed_busy", "urls": ["https://example.com/"]},
+    )
+    assert legacy.status_code == 409
