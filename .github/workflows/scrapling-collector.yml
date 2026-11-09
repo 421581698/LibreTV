@@ -1,6 +1,16 @@
 name: Scrapling Collector
 
 on:
+  push:
+    branches:
+      - feat/iphone-inline-play-top-search-2026-11-09
+    paths:
+      - "services/scrapling-collector/**"
+      - "src/app/api/resource-collector/**"
+      - "docker-compose.yml"
+      - "render.yaml"
+      - "scripts/scrapling-egress-firewall.sh"
+      - ".github/workflows/scrapling-collector.yml"
   pull_request:
     paths:
       - "services/scrapling-collector/**"
