@@ -27,7 +27,26 @@ export function useTheme(): ThemeContextValue {
 }
 
 function systemPrefersDark(): boolean {
-  return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  return typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+function readStoredTheme(): ThemeChoice {
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    return stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'dark';
+  } catch {
+    return 'dark';
+  }
+}
+
+function persistTheme(choice: ThemeChoice): void {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, choice);
+  } catch {
+    // Private browsing or storage restrictions must not break theme switching.
+  }
 }
 
 function apply(choice: ThemeChoice): 'light' | 'dark' {
@@ -41,23 +60,26 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [resolved, setResolved] = useState<'light' | 'dark'>('dark');
 
   useEffect(() => {
-    const stored = (localStorage.getItem(STORAGE_KEY) as ThemeChoice | null) || 'dark';
+    const stored = readStoredTheme();
     setThemeState(stored);
     setResolved(apply(stored));
 
+    if (typeof window.matchMedia !== 'function') return;
     const media = window.matchMedia('(prefers-color-scheme: dark)');
     const onChange = () => {
-      const current = (localStorage.getItem(STORAGE_KEY) as ThemeChoice | null) || 'dark';
-      if (current === 'system') {
-        setResolved(apply('system'));
-      }
+      if (readStoredTheme() === 'system') setResolved(apply('system'));
     };
-    media.addEventListener('change', onChange);
-    return () => media.removeEventListener('change', onChange);
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', onChange);
+      return () => media.removeEventListener('change', onChange);
+    }
+    // Safari 13 and earlier expose the legacy MediaQueryList listener API.
+    media.addListener(onChange);
+    return () => media.removeListener(onChange);
   }, []);
 
   const setTheme = useCallback((t: ThemeChoice) => {
-    localStorage.setItem(STORAGE_KEY, t);
+    persistTheme(t);
     setThemeState(t);
     setResolved(apply(t));
   }, []);
