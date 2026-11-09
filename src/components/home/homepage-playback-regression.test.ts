@@ -383,4 +383,12 @@ describe('首页与播放页回归契约', () => {
     expect(ipadStyles.match(/\.v4-spatial-screen\[data-screen="movies"\] \.v4-spatial-panel > \.grid\.grid-cols-3/g)).toHaveLength(2);
   });
 
+
+  it('无 vodId 的直连视频也能保存、恢复和清理播放进度', () => {
+    expect(watch).toContain('const progressId = vodId || currentUrl');
+    expect(watch).toContain('progressKeyOf(sourceKey, progressId, currentIndex)');
+    expect(watch).toContain('saveProgress(\n        sourceKey,\n        progressId');
+    expect(watch).toContain('clearProgress(sourceKey, progressId, currentIndex)');
+  });
+
 });
