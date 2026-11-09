@@ -561,3 +561,14 @@ html.dark main:has(.live-dot) :is(button,a):focus-visible {
     box-shadow: 0 0 0 5px rgba(241, 166, 58, .12);
   }
 }
+
+/* Typography rule: the LibreTV logo keeps its gold identity; all page and
+   section titles use clean white across the eight-screen glass surfaces. */
+.v4-brand { color: #F1A63A !important; }
+.v4-home :is(h1,h2,h3,h4,h5,h6),
+.v4-spatial-screen :is(h1,h2,h3,h4,h5,h6),
+.v4-home .v4-section-heading h2 span,
+.v4-home .v4-hero-eyebrow,
+.v4-spatial-screen .v4-spatial-eyebrow {
+  color: #F2F2F4 !important;
+}
