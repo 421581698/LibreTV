@@ -4,12 +4,12 @@ import asyncio
 import json
 import logging
 import uuid
-from urllib.parse import urlsplit
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
