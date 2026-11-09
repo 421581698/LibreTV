@@ -275,19 +275,16 @@ function MeHistoryCard({ item }: { item: HistoryEntry }) {
 
 function SettingsScreen() {
   const groups = [
-    { title: '播放与过滤', description: '自动连播、片头片尾跳过、广告过滤与本机播放缓存', primary: 'prefs', secondary: 'playback' },
-    { title: '外观与封面', description: '封面图代理方式、自定义代理模板与显示主题', primary: 'prefs', secondary: 'image' },
-    { title: '网络与数据源', description: '点播源管理、直播源、订阅同步与源健康检测', primary: 'sources', secondary: 'vod' },
-    { title: 'Friday 语音', description: '助手角色、语音音色、唤醒词与对话语言偏好', primary: 'prefs', secondary: 'voice' },
-    { title: '数据管理', description: '配置导入导出；本机缓存可在播放与过滤面板管理', primary: 'data', secondary: 'io' },
+    { title: '播放与过滤', description: '自动连播、片头片尾跳过、广告过滤与本机播放缓存', page: 'playback' },
+    { title: '外观与封面', description: '封面图代理方式、自定义代理模板与显示主题', page: 'image' },
+    { title: '网络与数据源', description: '点播源管理、直播源、订阅同步与源健康检测', page: 'vod' },
+    { title: 'Friday 语音', description: '助手角色、语音音色、唤醒词与对话语言偏好', page: 'voice' },
+    { title: '数据管理', description: '配置导入导出；本机缓存可在播放与过滤面板管理', page: 'io' },
   ] as const;
 
-  const openCategory = (primary: 'sources' | 'prefs' | 'data', secondary: string) => {
+  const openCategory = (page: string) => {
     try {
-      window.localStorage.setItem('libretv-settings-tab', JSON.stringify({
-        primary,
-        secondary: { sources: 'vod', prefs: 'playback', data: 'io', [primary]: secondary },
-      }));
+      window.localStorage.setItem('libretv-settings-open-page', page);
     } catch {
       // 即使浏览器禁用本地存储，也仍然打开设置抽屉。
     }
@@ -298,7 +295,7 @@ function SettingsScreen() {
     <section className="v4-spatial-panel">
       <div className="v4-settings-grid">
         {groups.map((group) => (
-          <button key={group.title} type="button" className="v4-settings-card" onClick={() => openCategory(group.primary, group.secondary)}>
+          <button key={group.title} type="button" className="v4-settings-card" onClick={() => openCategory(group.page)}>
             <div><strong>{group.title}</strong><p>{group.description}</p></div><b aria-hidden="true">›</b>
           </button>
         ))}
