@@ -26,6 +26,7 @@ export function HomeInlinePlayer({
   const autoSkipSegments = useAppStore((state) => state.autoSkipSegments);
   const autoplayNext = useAppStore((state) => state.autoplayNext);
   const [detail, setDetail] = useState<VideoDetail | null>(null);
+  const [detailKey, setDetailKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [episodeIndex, setEpisodeIndex] = useState(0);
@@ -34,7 +35,9 @@ export function HomeInlinePlayer({
   const autoNextTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
-  const episodes = detail?.episodes ?? [];
+  const requestKey = item && source ? `${item.sourceKey}:${item.vodId}:${source.url}` : null;
+  const visibleDetail = requestKey && detailKey === requestKey ? detail : null;
+  const episodes = visibleDetail?.episodes ?? [];
 
   const source = useMemo<SourceConfig | null>(() => {
     if (!item) return null;
@@ -60,12 +63,14 @@ export function HomeInlinePlayer({
   useEffect(() => {
     if (!item) {
       setDetail(null);
+      setDetailKey(null);
       setError('');
       setLoading(false);
       setEpisodeIndex(0);
       return;
     }
     setDetail(null);
+    setDetailKey(null);
     if (!source) {
       setError('播放源不存在或地址未通过安全校验，请到设置中检查点播源');
       setLoading(false);
@@ -73,13 +78,17 @@ export function HomeInlinePlayer({
     }
 
     const controller = new AbortController();
+    const currentRequestKey = `${item.sourceKey}:${item.vodId}:${source.url}`;
     setDetail(null);
     setError('');
     setLoading(true);
     setEpisodeIndex(0);
     api.detail(item.vodId, source, controller.signal)
       .then((result) => {
-        if (!controller.signal.aborted) setDetail(result);
+        if (!controller.signal.aborted) {
+          setDetail(result);
+          setDetailKey(currentRequestKey);
+        }
       })
       .catch((reason) => {
         if (controller.signal.aborted || (reason instanceof DOMException && reason.name === 'AbortError')) return;
@@ -108,7 +117,7 @@ export function HomeInlinePlayer({
   }, [item, episodeIndex]);
 
   useEffect(() => {
-    if (!item || !detail) return;
+    if (!item || !detail || detailKey !== requestKey) return;
     let cancelled = false;
     void (async () => {
       try {
@@ -139,7 +148,7 @@ export function HomeInlinePlayer({
     return () => {
       cancelled = true;
     };
-  }, [item, source, detail, episodeIndex]);
+  }, [item, source, detail, detailKey, requestKey, episodeIndex]);
   const cancelAutoNext = useCallback(() => {
     if (autoNextTimer.current) clearTimeout(autoNextTimer.current);
     autoNextTimer.current = null;
