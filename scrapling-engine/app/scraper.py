@@ -1,31 +1,71 @@
 from __future__ import annotations
 
-from typing import Any
+import re
+from typing import Any, Literal
 
 from scrapling.fetchers import Fetcher
 
+ExtractMode = Literal["text", "css", "xpath", "regex"]
+
+
+def _element_text(element: Any) -> str:
+    if hasattr(element, "get_all_text"):
+        return str(element.get_all_text(strip=True))
+    if isinstance(element, bytes):
+        return element.decode("utf-8", errors="replace")
+    return str(element).strip()
+
 
 class ScraplingAdapter:
-    """Thin adapter around upstream Scrapling; extraction stays framework-native."""
+    """Thin adapter around upstream Scrapling; no replacement parser is introduced."""
 
     @staticmethod
     def fetch_page(url: str, timeout: float = 25.0) -> Any:
-        # Fetcher is the low-cost HTTP path. Dynamic/stealth browser modes are
-        # exposed only after their browser runtime is installed and verified.
-        return Fetcher.get(url, timeout=timeout)
+        # Scrapling >=0.4.5 supports safe redirect handling, rejecting redirects
+        # to internal/private destinations. Network egress policy is still required
+        # to close the DNS-rebinding gap between validation and connection.
+        return Fetcher.get(
+            url,
+            timeout=timeout,
+            follow_redirects="safe",
+        )
 
     @staticmethod
-    def extract(page: Any, selector: str | None = None) -> dict[str, Any]:
-        if selector:
-            elements = page.css(selector)
-            text = [element.get_all_text(strip=True) for element in elements]
+    def extract(
+        page: Any,
+        selector: str | None = None,
+        mode: ExtractMode = "text",
+    ) -> dict[str, Any]:
+        full_text = page.get_all_text(strip=True)
+        values: list[str]
+
+        if mode == "css":
+            if not selector:
+                raise ValueError("A CSS selector is required for css extraction.")
+            values = [_element_text(node) for node in page.css(selector)]
+        elif mode == "xpath":
+            if not selector:
+                raise ValueError("An XPath expression is required for xpath extraction.")
+            values = [_element_text(node) for node in page.xpath(selector)]
+        elif mode == "regex":
+            if not selector:
+                raise ValueError("A regular expression is required for regex extraction.")
+            values = re.findall(selector, full_text)
+            values = [item if isinstance(item, str) else "".join(item) for item in values]
+        elif mode == "text":
+            values = [full_text]
         else:
-            text = [page.get_all_text(strip=True)]
+            raise ValueError(f"Unsupported extraction mode: {mode}")
+
+        title_node = page.css_first("title::text")
+        markdown_method = getattr(page, "markdown", None)
+        markdown = markdown_method() if callable(markdown_method) else None
+
         return {
             "status": getattr(page, "status", None),
             "url": getattr(page, "url", None),
-            "title": page.css_first("title::text").get()
-            if page.css_first("title::text") else None,
-            "text": text,
-            "count": len(text),
+            "title": title_node.get() if title_node else None,
+            "text": values,
+            "count": len(values),
+            "markdown": markdown,
         }
