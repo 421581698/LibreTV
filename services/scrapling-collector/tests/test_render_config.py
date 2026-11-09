@@ -25,6 +25,8 @@ class RenderDeploymentConfigTests(unittest.TestCase):
         entrypoint = (ROOT / "services/scrapling-collector/docker-entrypoint.sh").read_text(encoding="utf-8")
         self.assertIn("chown -R collector:collector /data", entrypoint)
         self.assertIn("exec gosu collector", entrypoint)
+        compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+        self.assertIn("    cap_add:\\n      - CHOWN", compose)
 
     def test_compose_keeps_internal_default_port(self):
         compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
