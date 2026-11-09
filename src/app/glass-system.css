@@ -81,6 +81,37 @@
 @media (prefers-reduced-transparency: reduce) {
   :root { --glass-fill-alpha: .9; --glass-fill-strong-alpha: .96; --glass-blur: 4px; }
 }
+/* ArtPlayer chrome refinements: controls, settings rows and popover menus only. */
+.artplayer .art-bottom,
+.artplayer .art-controls,
+.artplayer .art-control,
+.artplayer .art-settings,
+.artplayer .art-contextmenus,
+.artplayer .art-info,
+.artplayer .art-notice {
+  border-color: rgba(var(--glass-border), var(--glass-border-alpha)) !important;
+}
+.artplayer .art-settings,
+.artplayer .art-contextmenus {
+  border: 1px solid rgba(var(--glass-border), var(--glass-border-alpha)) !important;
+  border-radius: var(--glass-radius-md) !important;
+  box-shadow: var(--glass-shadow) !important;
+}
+.artplayer .art-settings .art-setting-item,
+.artplayer .art-contextmenus .art-contextmenu {
+  color: rgb(var(--glass-text)) !important;
+}
+.artplayer .art-settings .art-setting-item:hover,
+.artplayer .art-contextmenus .art-contextmenu:hover {
+  background: rgba(var(--glass-panel-rgb), .16) !important;
+}
+.artplayer .art-control .art-control-volume-panel,
+.artplayer .art-control .art-control-volume-inner {
+  background: rgba(var(--glass-panel-rgb), var(--glass-fill-strong-alpha)) !important;
+  border-color: rgba(var(--glass-border), var(--glass-border-alpha)) !important;
+}
+/* Never apply glass/backdrop filters to .art-video, poster or canvas media layers. */
+
 /* ArtPlayer chrome only. The video canvas and poster remain crisp. */
 .artplayer .art-bottom, .artplayer .art-control, .artplayer .art-contextmenus,
 .artplayer .art-settings, .artplayer .art-info, .artplayer .art-notice {
