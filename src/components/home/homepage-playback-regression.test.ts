@@ -155,7 +155,7 @@ describe('首页与播放页回归契约', () => {
     expect(navMarkup).toContain("item.href === '/movies'");
     expect(navMarkup).not.toContain('id="v4-header-search"');
     expect(v4Header).toContain('id="v4-header-search"');
-    expect(sharedHeaderStyles).toContain('@media screen and (min-width: 1200px)');
+    expect(sharedHeaderStyles).toContain('@media screen and (min-width: 701px)');
     expect(sharedHeaderStyles).toContain('.v4-header .v4-primary-nav {');
     expect(sharedHeaderStyles).toContain('display: contents !important;');
     expect(sharedHeaderStyles).toContain('.v4-header .v4-nav-link[href="/"]');
