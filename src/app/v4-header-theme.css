@@ -315,3 +315,117 @@
     top: auto !important;
   }
 }
+
+
+/* Navigation state must come only from NavItem.is-active.
+   Never style the home href as selected on every route. */
+@media screen and (min-width: 701px) {
+  .v4-header .v4-primary-nav .v4-nav-link[href="/"]:not(.is-active),
+  .v4-home .v4-header .v4-primary-nav .v4-nav-link[href="/"]:not(.is-active),
+  .v4-spatial-screen .v4-header .v4-primary-nav .v4-nav-link[href="/"]:not(.is-active) {
+    color: #303844 !important;
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  :root:not(.dark) .v4-header .v4-primary-nav .v4-nav-link:not(.is-active),
+  :root:not(.dark) .v4-home .v4-header .v4-primary-nav .v4-nav-link:not(.is-active),
+  :root:not(.dark) .v4-spatial-screen .v4-header .v4-primary-nav .v4-nav-link:not(.is-active) {
+    color: #303844 !important;
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+  :root:not(.dark) .v4-header .v4-primary-nav .v4-nav-link.is-active,
+  :root:not(.dark) .v4-home .v4-header .v4-primary-nav .v4-nav-link.is-active,
+  :root:not(.dark) .v4-spatial-screen .v4-header .v4-primary-nav .v4-nav-link.is-active {
+    color: #fff !important;
+    background: #17191d !important;
+    border-color: #17191d !important;
+    box-shadow: 0 2px 8px rgba(20,25,32,.16) !important;
+    text-shadow: none !important;
+  }
+  .v4-header .v4-header-inner,
+  .v4-home .v4-header-inner,
+  .v4-spatial-screen .v4-header-inner {
+    width: min(calc(100% - 48px), 1480px) !important;
+    max-width: 1480px !important;
+    margin-inline: auto !important;
+    justify-content: flex-start !important;
+    gap: clamp(10px, 1.2vw, 18px) !important;
+  }
+  .v4-header .v4-header-actions,
+  .v4-home .v4-header .v4-header-actions,
+  .v4-spatial-screen .v4-header .v4-header-actions {
+    display: flex !important;
+    flex: 0 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    margin-left: auto !important;
+    justify-content: flex-end !important;
+    gap: 8px !important;
+  }
+  .v4-header .v4-header-actions .v4-search,
+  .v4-home .v4-header .v4-header-actions .v4-search,
+  .v4-spatial-screen .v4-header .v4-header-actions .v4-search {
+    flex: 0 1 clamp(140px, 17vw, 230px) !important;
+    width: clamp(140px, 17vw, 230px) !important;
+    min-width: 112px !important;
+    max-width: 230px !important;
+  }
+  .v4-header .v4-header-actions > .v4-header-icon,
+  .v4-header .v4-header-actions > .v4-avatar,
+  .v4-home .v4-header .v4-header-actions > .v4-header-icon,
+  .v4-home .v4-header .v4-header-actions > .v4-avatar,
+  .v4-spatial-screen .v4-header .v4-header-actions > .v4-header-icon,
+  .v4-spatial-screen .v4-header .v4-header-actions > .v4-avatar {
+    flex: 0 0 40px !important;
+    width: 40px !important;
+    min-width: 40px !important;
+  }
+}
+@media screen and (min-width: 701px) and (max-width: 1440px) and (any-pointer: coarse) {
+  .v4-header .v4-header-inner,
+  .v4-home .v4-header-inner,
+  .v4-spatial-screen .v4-header-inner {
+    width: calc(100% - 48px) !important;
+    max-width: 1480px !important;
+  }
+}
+
+/* Keep the three action glyphs real, centered SVGs rather than empty circles. */
+:root:not(.dark) .v4-header .v4-header-actions > .v4-header-icon,
+:root:not(.dark) .v4-header .v4-header-actions > .v4-avatar,
+:root:not(.dark) .v4-home .v4-header .v4-header-actions > .v4-header-icon,
+:root:not(.dark) .v4-home .v4-header .v4-header-actions > .v4-avatar,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-header-actions > .v4-header-icon,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-header-actions > .v4-avatar {
+  color: #46515f !important;
+  -webkit-text-fill-color: #46515f !important;
+}
+:root:not(.dark) .v4-header .v4-header-actions > .v4-header-icon svg,
+:root:not(.dark) .v4-header .v4-header-actions > .v4-avatar svg,
+:root:not(.dark) .v4-home .v4-header .v4-header-actions > .v4-header-icon svg,
+:root:not(.dark) .v4-home .v4-header .v4-header-actions > .v4-avatar svg,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-header-actions > .v4-header-icon svg,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-header-actions > .v4-avatar svg {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: 20px !important;
+  height: 20px !important;
+  fill: none !important;
+  stroke: #46515f !important;
+  color: #46515f !important;
+}
+:root:not(.dark) .v4-header .v4-header-actions > .v4-header-icon svg *,
+:root:not(.dark) .v4-header .v4-header-actions > .v4-avatar svg *,
+:root:not(.dark) .v4-home .v4-header .v4-header-actions > .v4-header-icon svg *,
+:root:not(.dark) .v4-home .v4-header .v4-header-actions > .v4-avatar svg *,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-header-actions > .v4-header-icon svg *,
+:root:not(.dark) .v4-spatial-screen .v4-header .v4-header-actions > .v4-avatar svg * {
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 1.9 !important;
+}
