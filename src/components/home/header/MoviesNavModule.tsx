@@ -1,1 +1,1 @@
-import {NavItem} from './NavItem';export function MoviesNavModule({pathname}:{pathname:string|null}){return <NavItem pathname={pathname} href="/movies" label="电影"/>;}
+import {NavItem} from './NavItem';import styles from './MoviesNav.module.css';export function MoviesNavModule({pathname}:{pathname:string|null}){return <NavItem pathname={pathname} href="/movies" label="电影" className={styles.root}/>;}

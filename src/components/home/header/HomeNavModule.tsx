@@ -1,1 +1,1 @@
-import {NavItem} from './NavItem';export function HomeNavModule({pathname}:{pathname:string|null}){return <NavItem pathname={pathname} href="/" label="首页"/>;}
+import {NavItem} from './NavItem';import styles from './HomeNav.module.css';export function HomeNavModule({pathname}:{pathname:string|null}){return <NavItem pathname={pathname} href="/" label="首页" className={styles.root}/>;}

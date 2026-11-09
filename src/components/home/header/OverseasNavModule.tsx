@@ -1,1 +1,1 @@
-import {NavItem} from './NavItem';export function OverseasNavModule({pathname}:{pathname:string|null}){return <NavItem pathname={pathname} href="/overseas" label="海外剧"/>;}
+import {NavItem} from './NavItem';import styles from './OverseasNav.module.css';export function OverseasNavModule({pathname}:{pathname:string|null}){return <NavItem pathname={pathname} href="/overseas" label="海外剧" className={styles.root}/>;}
