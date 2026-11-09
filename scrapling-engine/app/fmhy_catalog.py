@@ -28,8 +28,28 @@ FMHY_SOURCE_FILES = (
 _LINK_RE = re.compile(r"(?<!!)\[([^\]]+)\]\(\s*(https?://[^\s)]+)", re.IGNORECASE)
 _MARKERS = ("🌟", "⭐", "🌐", "↪️")
 _REPOSITORY_HOSTS = {"github.com", "gitlab.com", "codeberg.org", "bitbucket.org"}
-_COMMUNITY_HOSTS = {"reddit.com", "www.reddit.com", "discord.com", "discord.gg", "t.me", "telegram.me"}
-_AUXILIARY_LABELS = {"discord", "telegram", "github", "gitlab", "source", "status", "guide", "wiki", "api", "instances", "mirror", "mirrors"}
+_COMMUNITY_HOSTS = {
+    "reddit.com",
+    "www.reddit.com",
+    "discord.com",
+    "discord.gg",
+    "t.me",
+    "telegram.me",
+}
+_AUXILIARY_LABELS = {
+    "discord",
+    "telegram",
+    "github",
+    "gitlab",
+    "source",
+    "status",
+    "guide",
+    "wiki",
+    "api",
+    "instances",
+    "mirror",
+    "mirrors",
+}
 
 
 @dataclass(frozen=True)
@@ -136,33 +156,69 @@ def parse_fmhy_markdown(source_file: str, markdown: str) -> list[CatalogEntry]:
             continue
         if not re.match(r"^\s*[*+-]\s+", raw_line):
             continue
+        marker = next((item for item in _MARKERS if item in raw_line), None)
         links: list[CatalogLink] = []
         for index, match in enumerate(_LINK_RE.finditer(raw_line)):
-            label, original_url = match.group(1).strip(), match.group(2).rstrip(".,;")
+            label = match.group(1).strip()
+            original_url = match.group(2).rstrip(".,;")
             normalized = _canonicalize_url(original_url)
             if normalized is None:
                 continue
             canonical_url, domain = normalized
-            links.append(CatalogLink(label, original_url, canonical_url, domain, _link_role(label, domain), False, index))
+            role = _link_role(label, domain)
+            if marker == "↪️":
+                role = "navigation"
+            elif marker == "🌐" and role in {"resource", "alternate"}:
+                role = "index"
+            links.append(
+                CatalogLink(
+                    label, original_url, canonical_url, domain, role, False, index
+                )
+            )
         if not links and safety_status != "flagged_unsafe":
             continue
-        primary_index = next((i for i, link in enumerate(links) if link.role == "resource"), None)
+        primary_index = next(
+            (i for i, link in enumerate(links) if link.role == "resource"),
+            None,
+        )
         if primary_index is not None:
             links = [
-                CatalogLink(link.label, link.original_url, link.canonical_url, link.domain,
-                            "primary" if i == primary_index else ("alternate" if link.role == "resource" else link.role),
-                            i == primary_index, link.order)
+                CatalogLink(
+                    link.label,
+                    link.original_url,
+                    link.canonical_url,
+                    link.domain,
+                    (
+                        "primary"
+                        if i == primary_index
+                        else "alternate" if link.role == "resource" else link.role
+                    ),
+                    i == primary_index,
+                    link.order,
+                )
                 for i, link in enumerate(links)
             ]
-        title = next((link.label for link in links if link.is_primary), links[0].label if links else "")
+        title = next(
+            (link.label for link in links if link.is_primary),
+            links[0].label if links else "",
+        )
         description = _clean_description(raw_line)
         title = title or description[:160] or f"{category} entry {line_number}"
-        entries.append(CatalogEntry(
-            _stable_id(f"{source_file}:{line_number}:{title}"),
-            title[:300], description[:2000], category, tuple(headings),
-            source_file, line_number, next((m for m in _MARKERS if m in raw_line), None),
-            safety_status, raw_line[:4000], tuple(links),
-        ))
+        entries.append(
+            CatalogEntry(
+                _stable_id(f"{source_file}:{line_number}:{title}"),
+                title[:300],
+                description[:2000],
+                category,
+                tuple(headings),
+                source_file,
+                line_number,
+                marker,
+                safety_status,
+                raw_line[:4000],
+                tuple(links),
+            )
+        )
     return entries
 
 
@@ -173,11 +229,12 @@ async def _fetch_source(
     source_revision: str,
 ) -> str:
     url = f"{FMHY_RAW_BASE}/{source_revision}/docs/{source_file}"
-    validate_public_http_url(url)
     async with semaphore:
         async with client.stream("GET", url) as response:
             if response.status_code != 200:
-                raise RuntimeError(f"FMHY source {source_file} returned HTTP {response.status_code}.")
+                raise RuntimeError(
+                    f"FMHY source {source_file} returned HTTP {response.status_code}."
+                )
             if response.url.host != "raw.githubusercontent.com":
                 raise RuntimeError("FMHY source redirected away from the official raw host.")
             content_length = response.headers.get("content-length")
@@ -195,10 +252,14 @@ async def _fetch_source(
 
 async def fetch_official_fmhy_sources() -> tuple[dict[str, str], str]:
     timeout = httpx.Timeout(settings.request_timeout_seconds)
-    limits = httpx.Limits(max_connections=MAX_CONCURRENT_SOURCE_REQUESTS, max_keepalive_connections=MAX_CONCURRENT_SOURCE_REQUESTS)
+    limits = httpx.Limits(
+        max_connections=MAX_CONCURRENT_SOURCE_REQUESTS,
+        max_keepalive_connections=MAX_CONCURRENT_SOURCE_REQUESTS,
+    )
     semaphore = asyncio.Semaphore(MAX_CONCURRENT_SOURCE_REQUESTS)
     async with httpx.AsyncClient(
-        timeout=timeout, limits=limits,
+        timeout=timeout,
+        limits=limits,
         headers={"User-Agent": settings.default_user_agent},
         follow_redirects=False,
     ) as client:
@@ -206,9 +267,12 @@ async def fetch_official_fmhy_sources() -> tuple[dict[str, str], str]:
         validate_public_http_url(commit_url)
         commit_response = await client.get(commit_url)
         commit_response.raise_for_status()
+        if len(commit_response.content) > 1_000_000:
+            raise RuntimeError("FMHY commit metadata exceeded the size limit.")
         source_revision = commit_response.json().get("sha", "")
         if not re.fullmatch(r"[0-9a-f]{40}", source_revision):
             raise RuntimeError("FMHY API did not return a valid immutable source commit.")
+        validate_public_http_url(f"{FMHY_RAW_BASE}/{source_revision}/docs/video.md")
         results = await asyncio.gather(*(
             _fetch_source(client, semaphore, source_file, source_revision)
             for source_file in FMHY_SOURCE_FILES
