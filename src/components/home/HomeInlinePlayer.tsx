@@ -109,21 +109,36 @@ export function HomeInlinePlayer({
 
   useEffect(() => {
     if (!item || !detail) return;
-    void upsertHistory({
-      sourceKey: item.sourceKey,
-      sourceUrl: source?.url ?? item.sourceUrl,
-      vodId: item.vodId,
-      title: item.name,
-      pic: item.pic,
-      typeName: detail.videoInfo.typeName,
-      year: detail.videoInfo.year,
-      area: detail.videoInfo.area,
-      episodeIndex,
-      totalEpisodes: detail.episodes.length,
-      playbackPosition: 0,
-      duration: 0,
-      timestamp: Date.now(),
-    }).catch(() => {});
+    let cancelled = false;
+    void (async () => {
+      try {
+        // Preserve the last saved position while refreshing history metadata.
+        // Reset only when the user moves to a different episode.
+        const previous = await db.history.get(`${item.sourceKey}_${item.vodId}`);
+        if (cancelled) return;
+        const sameEpisode = previous?.episodeIndex === episodeIndex;
+        await upsertHistory({
+          sourceKey: item.sourceKey,
+          sourceUrl: source?.url ?? item.sourceUrl,
+          vodId: item.vodId,
+          title: item.name,
+          pic: item.pic,
+          typeName: detail.videoInfo.typeName,
+          year: detail.videoInfo.year,
+          area: detail.videoInfo.area,
+          episodeIndex,
+          totalEpisodes: detail.episodes.length,
+          playbackPosition: sameEpisode ? previous.playbackPosition : 0,
+          duration: sameEpisode ? previous.duration : 0,
+          timestamp: Date.now(),
+        });
+      } catch {
+        // History metadata is best-effort; playback must remain available.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [item, source, detail, episodeIndex]);
   const cancelAutoNext = useCallback(() => {
     if (autoNextTimer.current) clearTimeout(autoNextTimer.current);
