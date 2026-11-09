@@ -10,7 +10,11 @@ vi.mock("@/lib/api-guard", () => ({
   jsonError: (message: string, status: number) =>
     new Response(JSON.stringify({ error: message }), {
       status,
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        "cache-control": "no-store",
+        "x-content-type-options": "nosniff",
+      },
     }),
 }));
 
