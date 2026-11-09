@@ -49,7 +49,7 @@ class CollectorTests(unittest.TestCase):
             collector.public_https_url("https://internal.example/")
 
     def test_authorization_is_constant_time_checked(self):
-        collector.require_token("Bearer collector-test-token")
+        collector.require_token(f"Bearer {collector.TOKEN}")
         with self.assertRaises(collector.HTTPException):
             collector.require_token("Bearer wrong-token")
 
