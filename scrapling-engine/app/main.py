@@ -78,7 +78,10 @@ def _ensure_checkpoint_manifest(
         try:
             saved = json.loads(manifest.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
-            raise HTTPException(status_code=409, detail="Checkpoint manifest is unreadable.") from exc
+            raise HTTPException(
+                status_code=409,
+                detail="Checkpoint manifest is unreadable.",
+            ) from exc
         if saved.get("task_id") != task_id or saved.get("seeds") != seeds:
             raise HTTPException(
                 status_code=409,
