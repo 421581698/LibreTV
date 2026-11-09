@@ -111,7 +111,7 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
     expect(collectorSettings).toContain('CollectorPlayerShell');
     expect(collectorRoute).toContain('guardRequest(request)');
     expect(collectorRoute).toContain("action === 'tasks' ? '/v1/tasks' : '/v1/discover'");
-    expect(collectorRoute).toContain("relay('/v1/crawl'");
+    expect(collectorRoute).toContain("collectorRequest('/v1/crawl'");
   });
   it('keeps the four-item dock and all confirmed header utilities visible', () => {
     expect(collectorDock).toContain("href: '/me'");
