@@ -174,7 +174,7 @@ export function Drawer({
         aria-label={title}
         tabIndex={-1}
         className={cn(
-          'absolute right-0 top-0 h-full w-full bg-surface-raised border-l border-line flex flex-col outline-none',
+          'absolute right-0 top-0 h-full w-full glass-panel !rounded-none border-l border-line flex flex-col outline-none',
           'transition-transform duration-200 ease-out',
           width,
           !modal && 'pointer-events-auto shadow-2xl',
