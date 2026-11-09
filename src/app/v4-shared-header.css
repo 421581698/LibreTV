@@ -499,7 +499,7 @@
   .v4-header .v4-primary-nav .v4-nav-link[href="/overseas"],
   .v4-home .v4-header .v4-primary-nav .v4-nav-link[href="/overseas"] { order: 3 !important; }
   .v4-header .v4-primary-nav .v4-nav-link[href="/live"],
-  .v4-home .v4-header .v4-primary-nav .v4-nav-link[href="/live"] { order: 7 !important; }
+  .v4-home .v4-header .v4-primary-nav .v4-nav-link[href="/live"] { order: 6 !important; }
   .v4-header .v4-search,
   .v4-home .v4-header .v4-search,
   .v4-spatial-screen .v4-header .v4-search {
