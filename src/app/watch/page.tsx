@@ -136,8 +136,11 @@ function WatchContent() {
     [detailQuery.data]
   );
   const mediaType = detailQuery.data?.videoInfo?.typeName ?? '';
-  const isMovie = /电影|movie|film/i.test(mediaType) || episodes.length === 1;
+  const isMovie = /电影|movie|film/i.test(mediaType);
   const hasEpisodeNavigation = episodes.length > 1;
+  useEffect(() => {
+    if (!hasEpisodeNavigation && sidebarTab === 'episodes') setSidebarTab('sources');
+  }, [hasEpisodeNavigation, sidebarTab]);
   const videoTitle =
     titleParam || detailQuery.data?.videoInfo?.title || '未知视频';
   // 真实相关内容：使用用户已启用的点播源按当前片名搜索，不生成虚构推荐。
@@ -438,7 +441,7 @@ function WatchContent() {
             </h1>
             <p className="text-xs text-faint">
               {source.name}
-              {hasEpisodeNavigation ? ` · 第 ${currentIndex + 1}/${episodes.length} 集` : isMovie ? ' · 电影' : ''}
+              {hasEpisodeNavigation ? ` · 第 ${currentIndex + 1}/${episodes.length} 集` : isMovie ? ' · 电影' : ' · 单集内容'}
             </p>
           </div>
           <div className="ml-auto flex items-center gap-2">
@@ -516,7 +519,7 @@ function WatchContent() {
               <div className="min-w-0">
                 <h1 className="text-xl sm:text-2xl font-semibold text-content truncate">{videoTitle}</h1>
                 <p className="text-xs sm:text-sm text-muted mt-1">
-                  {source.name} · {hasEpisodeNavigation ? `第 ${currentIndex + 1} / ${episodes.length} 集` : isMovie ? '电影' : '正在播放'}
+                  {source.name} · {hasEpisodeNavigation ? `第 ${currentIndex + 1} / ${episodes.length} 集` : isMovie ? '电影' : '单集内容'}
                 </p>
               </div>
 
