@@ -571,7 +571,10 @@ async def sync_fmhy_directory() -> dict:
             logger.exception("FMHY catalog synchronization failed")
             raise HTTPException(
                 status_code=502,
-                detail="FMHY official catalog synchronization failed; previous snapshot was retained.",
+                detail=(
+                    "FMHY official catalog synchronization failed; "
+                    "previous snapshot was retained."
+                ),
             ) from exc
 
 
