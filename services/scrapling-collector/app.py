@@ -70,7 +70,8 @@ def text_of(element) -> str:
 
 
 def discover_sites() -> list[dict]:
-    page = Fetcher.get(FMHY_VIDEO_URL, timeout=20)
+    throttle('fmhy.net')
+    page = Fetcher.get(FMHY_VIDEO_URL, timeout=20, follow_redirects='safe')
     sites: list[dict] = []
     seen: set[str] = set()
     for anchor in page.css("a"):
@@ -119,7 +120,7 @@ def crawl(payload: CrawlRequest, authorization: str | None = Header(default=None
         raise HTTPException(status_code=403, detail="Target host was not discovered from the FMHY video directory")
     throttle(host)
     try:
-        page = Fetcher.get(raw_url, timeout=20)
+        page = Fetcher.get(raw_url, timeout=20, follow_redirects='safe')
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Scrapling fetch failed: {type(exc).__name__}")
 
@@ -143,6 +144,10 @@ def crawl(payload: CrawlRequest, authorization: str | None = Header(default=None
             if parsed.scheme != "https" or not parsed.hostname:
                 continue
             if kind == "linked-media" and not parsed.path.lower().endswith(media_extensions):
+                continue
+            try:
+                public_https_url(absolute)
+            except HTTPException:
                 continue
             if absolute in seen:
                 continue
