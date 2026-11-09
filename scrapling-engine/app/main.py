@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import json
 import logging
+import secrets
 import uuid
 from contextlib import asynccontextmanager
 from dataclasses import asdict
@@ -12,7 +14,7 @@ from typing import Any, Literal
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
@@ -25,6 +27,21 @@ from app.spider import ScraplingSpiderAdapter
 
 logging.basicConfig(level=settings.log_level.upper())
 logger = logging.getLogger("libretv.scrapling")
+
+
+def _is_loopback_host(host: str) -> bool:
+    if host.lower() == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
+if settings.api_key is None and not _is_loopback_host(settings.host):
+    raise RuntimeError(
+        "SCRAPLING_API_KEY is required when the service binds to a non-loopback host."
+    )
 
 app = FastAPI(
     title="LibreTV Scrapling Engine",
@@ -234,6 +251,19 @@ async def lifespan(_: FastAPI):
 
 
 app.router.lifespan_context = lifespan
+
+
+@app.middleware("http")
+async def require_api_key(request: Request, call_next):
+    if request.url.path.startswith("/v1/") and settings.api_key is not None:
+        supplied = request.headers.get("x-api-key", "")
+        expected = settings.api_key.get_secret_value()
+        if not secrets.compare_digest(supplied, expected):
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "A valid X-API-Key header is required."},
+            )
+    return await call_next(request)
 
 
 @app.get("/health")
