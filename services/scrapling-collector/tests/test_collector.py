@@ -388,6 +388,22 @@ segment-2.ts
         self.assertEqual(timeline[1]["url"], "https://cdn.example/video/v1/008-4.m4s")
         self.assertFalse(result["representations"][0]["segment_timeline_truncated"])
 
+    def test_mpd_negative_repeat_uses_each_period_duration_boundary(self):
+        body = b"""<MPD type="static" mediaPresentationDuration="PT20S"><Period start="PT0S">
+<AdaptationSet><SegmentTemplate timescale="1" media="p1-$Number$-$Time$.m4s">
+<SegmentTimeline><S t="0" d="4" r="-1"/></SegmentTimeline></SegmentTemplate>
+<Representation id="v1"/></AdaptationSet></Period><Period start="PT10S"><AdaptationSet>
+<SegmentTemplate timescale="1" media="p2-$Number$-$Time$.m4s">
+<SegmentTimeline><S t="0" d="4" r="-1"/></SegmentTimeline></SegmentTemplate>
+<Representation id="v2"/></AdaptationSet></Period></MPD>"""
+        result = collector.parse_mpd_manifest(body, "https://cdn.example/manifest.mpd")
+        self.assertEqual(len(result["representations"][0]["segment_timeline"]), 3)
+        self.assertEqual(len(result["representations"][1]["segment_timeline"]), 3)
+        self.assertEqual(
+            [item["time"] for item in result["representations"][1]["segment_timeline"]],
+            [0, 4, 8],
+        )
+
     def test_mpd_negative_repeat_stops_at_next_explicit_time(self):
         body = b"""<MPD type="static"><Period><AdaptationSet>
 <SegmentTemplate timescale="1" media="segment-$Number$-$Time$.m4s">
