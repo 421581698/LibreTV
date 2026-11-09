@@ -37,5 +37,10 @@ class RenderDeploymentConfigTests(unittest.TestCase):
         compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
         self.assertIn("SCRAPLING_EGRESS_FIREWALL_CONFIRMED=${SCRAPLING_EGRESS_FIREWALL_CONFIRMED:-0}", compose)
 
+    def test_firewall_installer_verifies_egress_rules(self):
+        script = (ROOT / "scripts/scrapling-egress-firewall.sh").read_text(encoding="utf-8")
+        self.assertIn('iptables -w -C DOCKER-USER -s "$COLLECTOR_CIDR" -j "$CHAIN"', script)
+        self.assertIn('iptables -w -C INPUT -s "$COLLECTOR_CIDR" -j DROP', script)
+
 if __name__ == "__main__":
     unittest.main()
