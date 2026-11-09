@@ -119,7 +119,8 @@ async def _run_job(task_id: str) -> None:
     if job is None:
         return
     spider = None
-    items: list[dict] = []
+    items: list[dict] = job_store.get_results(task_id)
+    seen_urls = {item.get("url") for item in items if item.get("url")}
     try:
         spider = ScraplingSpiderAdapter.create(
             job["seeds"],
@@ -128,13 +129,19 @@ async def _run_job(task_id: str) -> None:
         _active_spiders[task_id] = spider
         job_store.update(task_id, "running", started_at=_now())
         async for item in spider.stream():
+            item_url = item.get("url")
+            if item_url and item_url in seen_urls:
+                continue
+            job_store.add_result(task_id, item)
             items.append(item)
+            if item_url:
+                seen_urls.add(item_url)
             job_store.add_event(
                 task_id,
                 "item",
                 {
                     "count": len(items),
-                    "url": item.get("url"),
+                    "url": item_url,
                     "title": item.get("title"),
                 },
             )
@@ -389,6 +396,8 @@ async def get_job(task_id: str) -> dict:
     job = job_store.get(task_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Crawl job not found.")
+    if job["status"] != "completed":
+        job["partial_results"] = job_store.get_results(task_id)
     return {"ok": True, "job": job}
 
 
