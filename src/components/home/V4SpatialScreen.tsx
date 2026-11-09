@@ -220,14 +220,38 @@ function ResourcesScreen() {
 function MeScreen() {
   const history = useLiveQuery(() => db.history.orderBy('timestamp').reverse().limit(24).toArray(), []);
   return (
-    <section className="v4-spatial-panel">
-      <div className="v4-spatial-panel-head"><h2>继续观看</h2><span>{history?.length ?? 0} 条本机记录</span></div>
-      {!history ? <div className="v4-spatial-empty">正在读取本机观看记录…</div> : history.length === 0 ? (
-        <div className="v4-spatial-empty"><strong>还没有观看记录</strong><p>播放过的影片和进度会自动出现在这里。</p></div>
-      ) : (
-        <div className="v4-me-history-grid">{history.map((item) => <MeHistoryCard key={item.id} item={item} />)}</div>
-      )}
-    </section>
+    <div className="v4-me-layout">
+      <section className="v4-me-cover" aria-label="我的个人空间封面">
+        <div className="v4-me-cover-art" aria-hidden="true">
+          <span className="v4-me-cover-orbit v4-me-cover-orbit-one" />
+          <span className="v4-me-cover-orbit v4-me-cover-orbit-two" />
+          <span className="v4-me-cover-glow" />
+        </div>
+        <div className="v4-me-cover-profile">
+          <div className="v4-me-profile-avatar" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="8" r="3.5" />
+              <path d="M4.8 20c.7-3.4 3.1-5.2 7.2-5.2s6.5 1.8 7.2 5.2" />
+            </svg>
+          </div>
+          <div className="v4-me-cover-copy">
+            <span className="v4-me-cover-eyebrow">LIBRETV · PERSONAL SPACE</span>
+            <h2>我的空间</h2>
+            <p>收藏你的观影轨迹，接着上次的进度继续观看。</p>
+          </div>
+          <div className="v4-me-local-badge"><span />仅保存在本机</div>
+        </div>
+      </section>
+
+      <section className="v4-spatial-panel v4-me-history-panel">
+        <div className="v4-spatial-panel-head"><h2>继续观看</h2><span>{history?.length ?? 0} 条本机记录</span></div>
+        {!history ? <div className="v4-spatial-empty">正在读取本机观看记录…</div> : history.length === 0 ? (
+          <div className="v4-spatial-empty"><strong>还没有观看记录</strong><p>播放过的影片和进度会自动出现在这里。</p></div>
+        ) : (
+          <div className="v4-me-history-grid">{history.map((item) => <MeHistoryCard key={item.id} item={item} />)}</div>
+        )}
+      </section>
+    </div>
   );
 }
 
