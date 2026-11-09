@@ -84,7 +84,7 @@ function CatalogScreen({ category, onPick }: { category: CatalogCategory; onPick
   return (
     <section className="v4-spatial-panel" aria-label={`${COPY[category === 'movie' ? 'movies' : category].title}推荐`}>
       <div className="v4-spatial-panel-head"><h2>{COPY[category === 'movie' ? 'movies' : category].title}推荐</h2><span>豆瓣实时数据</span></div>
-      <div className="flex flex-wrap gap-2 mb-4">
+      <div className="v4-catalog-filters mb-4">
         {tags.map((item) => (
           <button key={item} type="button" aria-pressed={tag === item}
             className={tag === item ? 'px-3 py-1.5 rounded-full text-xs bg-accent text-on-accent' : 'px-3 py-1.5 rounded-full text-xs bg-chip text-muted hover:text-content'}
