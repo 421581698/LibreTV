@@ -53,7 +53,7 @@ const fridayPanel = source('src/components/friday/FridayPanel.tsx');
 describe('首页与播放页回归契约', () => {
   it('首页 FridayOrb 保持可见、可访问，并将点击交给唯一语音控制器', () => {
     expect(home).toContain('<V4HomepageHeader overlay={!urlQuery} />');
-    expect(v4Header).toContain('<AIFloatingBall showFab inlineMode={false} />');
+    expect(v4Header).toContain('<AIFloatingBall showFab inlineMode={false}/>');
     expect(assistant).toContain('onClick={openAndListen}');
     expect(assistant).toContain('startListening(false)');
     expect(orb).toContain('createFridayOrb(canvasRef.current');
@@ -369,7 +369,8 @@ describe('首页与播放页回归契约', () => {
   it('iPad 品牌图标固定尺寸，设置按钮直接打开设置抽屉', () => {
     expect(glassStyles).toContain('.v4-brand-mark');
     expect(glassStyles).toContain('width: 24px !important');
-    expect(v4Header).toContain('onClick={() => setSettingsOpen(true)}');
+    expect(settingsModule).toContain('onOpen');
+    expect(v4Header).toContain('<SettingsModule onOpen={()=>setSettingsOpen(true)}/>');
     expect(v4Header).not.toContain("else router.push('/settings')");
   });
 
