@@ -196,6 +196,50 @@ class CollectorTests(unittest.TestCase):
         self.assertFalse(result["reachable"])
         self.assertEqual(result["error"], "unsafe_or_invalid_redirect_target")
 
+    def test_hls_master_playlist_extracts_resolutions_and_bandwidth(self):
+        body = b"""#EXTM3U
+#EXT-X-STREAM-INF:BANDWIDTH=2800000,RESOLUTION=1920x1080
+1080/index.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=1200000,RESOLUTION=1280x720
+720/index.m3u8
+"""
+        result = collector.parse_hls_manifest(body)
+        self.assertTrue(result["manifest_valid"])
+        self.assertTrue(result["is_master_playlist"])
+        self.assertEqual(result["variant_count"], 2)
+        self.assertEqual(result["variants"][0]["height"], 1080)
+        self.assertEqual(result["variants"][0]["bandwidth"], 2800000)
+
+    def test_hls_media_playlist_counts_segments_and_duration(self):
+        body = b"""#EXTM3U
+#EXT-X-TARGETDURATION:6
+#EXTINF:5.5,
+segment-1.ts
+#EXTINF:4.5,
+segment-2.ts
+#EXT-X-ENDLIST
+"""
+        result = collector.parse_hls_manifest(body)
+        self.assertTrue(result["manifest_valid"])
+        self.assertFalse(result["is_master_playlist"])
+        self.assertEqual(result["segment_count"], 2)
+        self.assertEqual(result["duration_seconds"], 10.0)
+
+    def test_mpd_manifest_extracts_representation_quality(self):
+        body = b"""<?xml version="1.0"?>
+<MPD type="static"><Period><AdaptationSet>
+<Representation id="v1080" width="1920" height="1080" bandwidth="5000000" codecs="avc1"/>
+</AdaptationSet></Period></MPD>"""
+        result = collector.parse_mpd_manifest(body)
+        self.assertTrue(result["manifest_valid"])
+        self.assertEqual(result["manifest_type"], "dash")
+        self.assertEqual(result["representations"][0]["height"], 1080)
+        self.assertEqual(result["representations"][0]["bandwidth"], 5000000)
+
+    def test_invalid_manifest_is_rejected(self):
+        self.assertFalse(collector.parse_hls_manifest(b"not a playlist")["manifest_valid"])
+        self.assertFalse(collector.parse_mpd_manifest(b"<not-mpd/>")["manifest_valid"])
+
     def test_authorization_is_constant_time_checked(self):
         collector.require_token(f"Bearer {collector.TOKEN}")
         with self.assertRaises(collector.HTTPException):
