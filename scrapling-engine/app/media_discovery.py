@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import ipaddress
 import re
-from urllib.parse import urljoin, urlsplit, urlunsplit
 from typing import Any
+from urllib.parse import urljoin, urlsplit, urlunsplit
 
 
 _MEDIA_SUFFIXES = {
@@ -149,12 +149,6 @@ def extract_page_signals(page: Any, page_url: str) -> dict[str, Any]:
     ):
         for value in _values(page, selector)[:100]:
             add_candidate(value, via)
-
-    for value in _values(page, "source::attr(type)")[:100]:
-        if "mpegurl" in value.lower() or "dash+xml" in value.lower():
-            # The corresponding source URL is already captured above; this keeps
-            # MIME inference local and does not create a URL from an untrusted type.
-            continue
 
     for script in _values(page, "script::text")[:200]:
         for match in _MEDIA_URL_PATTERN.findall(script.replace("\\/", "/"))[:50]:
