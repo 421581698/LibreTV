@@ -61,7 +61,7 @@
 .v4-section-heading h2 { margin:0; color:#222832; font-size:22px; font-weight:760; letter-spacing:-.5px; }
 .v4-section-heading h2 span { margin-left:5px; color:#9aa3ae; font-size:25px; }
 .v4-section-heading a { color:#7c8795; text-decoration:none; font-size:13px; }
-body:has(.v4-home) .friday-fab { position:fixed !important; top:88px !important; right:24px !important; bottom:auto !important; left:auto !important; width:76px !important; height:76px !important; z-index:120 !important; }
+body:has(.v4-home) .friday-fab { position:fixed; top:42%; right:16px; bottom:auto; left:auto; width:68px; height:68px; z-index:160; touch-action:none; cursor:grab; }
 body:has(.v4-home) .friday-fab::before { content:""; position:absolute; right:8px; top:8px; width:9px; height:9px; border-radius:50%; background:#39c978; border:2px solid rgba(255,255,255,.95); box-shadow:0 0 10px rgba(57,201,120,.72); z-index:2; pointer-events:none; }
 body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"; position:absolute; right:82px; top:17px; width:max-content; padding:10px 14px; border:1px solid rgba(255,255,255,.42); border-radius:13px; color:#f6f7f9; background:rgba(35,39,45,.72); box-shadow:0 8px 24px rgba(0,0,0,.16); font-size:12px; font-weight:500; white-space:nowrap; backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); pointer-events:none; }
 @media (max-width: 1100px) {
@@ -90,7 +90,7 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
   .v4-hero-content p { font-size:15px; }
   .v4-hero-primary,.v4-hero-secondary { min-width:0; height:43px; padding:0 15px; font-size:12px; }
   .v4-section-heading h2 { font-size:19px; }
-  body:has(.v4-home) .friday-fab { top:auto !important; right:14px !important; bottom:20px !important; width:66px !important; height:66px !important; }
+  body:has(.v4-home) .friday-fab { top:42%; right:12px; bottom:auto; left:auto; width:60px; height:60px; }
   body:has(.v4-home) .friday-fab::after { display:none; }
 }
 
