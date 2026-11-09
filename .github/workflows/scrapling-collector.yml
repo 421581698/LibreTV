@@ -61,3 +61,68 @@ jobs:
         run: bash -n ../../scripts/scrapling-egress-firewall.sh
       - name: Build isolated collector image
         run: docker build --tag libretv-scrapling-collector:ci .
+      - name: Run isolated collector API smoke test
+        working-directory: .
+        run: |
+          set -euo pipefail
+          docker run -d --name libretv-scrapling-api-smoke \
+            --read-only \
+            --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+            --tmpfs /data:rw,nosuid,nodev,size=64m \
+            --shm-size 256m --pids-limit 128 --memory 1g --cpus 2.0 \
+            --cap-drop ALL --cap-add CHOWN --security-opt no-new-privileges \
+            -e SCRAPLING_API_TOKEN=collector-ci-token \
+            -e SCRAPLING_DB_PATH=/data/collector.sqlite3 \
+            -e PORT=8000 \
+            -p 127.0.0.1:18000:8000 \
+            libretv-scrapling-collector:ci
+          trap 'docker rm -f libretv-scrapling-api-smoke >/dev/null 2>&1 || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:18000/health >/dev/null; then break; fi
+            if [ "$attempt" -eq 30 ]; then
+              docker logs libretv-scrapling-api-smoke
+              exit 1
+            fi
+            sleep 2
+          done
+          python - <<'PY'
+          import json
+          import urllib.error
+          import urllib.request
+
+          base = "http://127.0.0.1:18000"
+
+          def request(path, method="GET", token=None, body=None):
+              headers = {}
+              if token:
+                  headers["Authorization"] = "Bearer " + token
+              data = json.dumps(body).encode() if body is not None else None
+              if data is not None:
+                  headers["Content-Type"] = "application/json"
+              req = urllib.request.Request(base + path, data=data, headers=headers, method=method)
+              try:
+                  with urllib.request.urlopen(req, timeout=5) as response:
+                      return response.status, response.read().decode()
+              except urllib.error.HTTPError as error:
+                  return error.code, error.read().decode()
+
+          status, body = request("/health")
+          assert status == 200 and json.loads(body)["ok"] is True, (status, body)
+
+          status, _ = request("/v1/discover")
+          assert status == 401, ("unauthenticated discovery must be rejected", status)
+
+          token = "collector-ci-token"
+          status, body = request("/v1/discover", token=token)
+          assert status == 503 and "egress filtering" in body, ("discovery must fail closed", status, body)
+
+          status, body = request("/v1/crawl", method="POST", token=token,
+                                 body={"url": "https://example.com", "mode": "http", "limit": 1})
+          assert status == 503 and "egress filtering" in body, ("crawl must fail closed", status, body)
+
+          status, body = request("/v1/candidates/" + ("a" * 32) + "/validate",
+                                 method="POST", token=token)
+          assert status == 503 and "egress filtering" in body, ("validation must fail closed", status, body)
+
+          print("Collector container API smoke passed: health, auth, and default-deny egress gate.")
+          PY
