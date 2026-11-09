@@ -56,7 +56,21 @@ Read the imported snapshot and index:
 
 The SQLite catalog keeps versioned snapshots, factual entry titles, section paths, FMHY markers, source file/line attribution links, original URLs, canonical URLs, and a normalized host index. It does not retain the source Markdown lines or copy FMHY's longer descriptive prose. Link roles distinguish primary resources, alternates, mirrors, repositories, communities, and references. The importer records FMHY's unsafe list as `flagged_unsafe`; unsafe entries and their domains are hidden by default and can only be included explicitly with `include_unsafe=true`. Other FMHY-listed resources remain `unverified`: a star or directory listing is not a security verdict, uptime check, or playback guarantee.
 
-Phase 2 only builds the directory and address library. It does not automatically visit, crawl, probe, or play any discovered site. Website crawling remains a separately controlled action using Phase 1's URL validation and robots policy. The FMHY source repository is used as the discovery source; third-party mirrors are not used as ingestion authorities.
+The catalog can now hand explicitly selected, non-unsafe primary entries to the persistent Scrapling job queue:
+
+```http
+POST /v1/catalog/crawl
+Content-Type: application/json
+
+{
+  "entry_ids": ["<entry-id>"],
+  "snapshot_id": "<optional-snapshot-id>"
+}
+```
+
+The endpoint resolves only selected primary links from the chosen snapshot, rejects unsafe or missing entries, validates each public HTTP(S) seed, and creates a normal persistent Scrapling job. The job event stream records the FMHY entry IDs, source file/line provenance, and seed URLs. Spider results now include same-host detail/playback page discoveries and candidate HLS (M3U8), MP4, DASH (MPD), and WebM URLs found in media elements or inline scripts. Candidate records remain `pending_fetch_validation`; discovering a URL does not establish that it is reachable, authorized, or playable.
+
+Recursive link following, dynamic-browser crawling, and network API capture remain gated. The service must validate every subsequent URL and redirect at fetch time and have deployment-level egress protection against DNS rebinding/private destinations before expanding beyond seed pages. The FMHY source repository remains the sole directory ingestion authority; third-party mirrors are not used as ingestion authorities.
 
 ## Safety boundary
 
