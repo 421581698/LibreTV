@@ -26,6 +26,7 @@ export function V4HomepageHeader() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const searchHistory = useSearchHistory(query);
 
   useEffect(() => {
@@ -38,6 +39,7 @@ export function V4HomepageHeader() {
     const q = value.trim().slice(0, 100);
     if (!q) return;
     searchHistory.close();
+    setMobileSearchOpen(false);
     searchHistory.record(q);
     router.push(`/?s=${encodeURIComponent(q)}`, { scroll: false });
   };
@@ -82,8 +84,17 @@ export function V4HomepageHeader() {
           </nav>
 
           <div className="v4-header-actions">
+            <button
+              type="button"
+              className="v4-mobile-search-toggle"
+              aria-label={mobileSearchOpen ? "关闭搜索" : "打开搜索"}
+              aria-expanded={mobileSearchOpen}
+              onClick={() => setMobileSearchOpen((open) => !open)}
+            >
+              <Icon name="search" />
+            </button>
             <form
-              className="v4-search"
+              className={mobileSearchOpen ? "v4-search is-open" : "v4-search"}
               role="search"
               onSubmit={(event) => {
                 event.preventDefault();
@@ -95,6 +106,7 @@ export function V4HomepageHeader() {
                 <input
                   aria-label="搜索电影、电视剧"
                   placeholder="搜索电影、电视剧..."
+                  autoFocus={mobileSearchOpen}
                   value={query}
                   maxLength={100}
                   onChange={(event) => {
