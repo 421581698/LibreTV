@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Icon } from '@/components/icon';
 import { GlassButton } from '@/components/ui/glass';
 import { SourceManagerDrawer } from '@/components/source-manager';
@@ -11,7 +11,7 @@ import AIFloatingBall from '@/components/AIFloatingBall';
 import { SearchHistoryDropdown, useSearchHistory } from '@/components/search-history';
 
 const NAV_ITEMS = [
-  { label: '首页', href: '/', active: true },
+  { label: '首页', href: '/' },
   { label: '影视', href: '/#today-recommendations' },
   { label: '动漫', href: '/#anime-recommendations' },
   { label: '直播', href: '/live' },
@@ -21,6 +21,7 @@ const NAV_ITEMS = [
 
 export function V4HomepageHeader() {
   const router = useRouter();
+  const pathname = usePathname();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -59,8 +60,8 @@ export function V4HomepageHeader() {
               <Link
                 key={item.label}
                 href={item.href}
-                className={item.active ? 'v4-nav-link is-active' : 'v4-nav-link'}
-                aria-current={item.active ? 'page' : undefined}
+                className={(pathname === '/' && item.href === '/') || (pathname === '/live' && item.href === '/live') ? 'v4-nav-link is-active' : 'v4-nav-link'}
+                aria-current={(pathname === '/' && item.href === '/') || (pathname === '/live' && item.href === '/live') ? 'page' : undefined}
               >
                 {item.label}
               </Link>
