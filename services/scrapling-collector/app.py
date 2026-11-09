@@ -338,6 +338,8 @@ def crawl_site(payload: CrawlRequest) -> dict:
                     VALUES(?,?,?,?,?,?,?,?)""",
                     (candidate_id, task_id, item["url"], item["host"], item["kind"], item.get("title", ""), "pending", now),
                 )
+                item["id"] = candidate_id
+                item["status"] = "pending"
             connection.execute(
                 "UPDATE tasks SET status=?,updated_at=?,error=?,result_count=? WHERE id=?",
                 ("completed" if not errors or candidates else "failed", now, "; ".join(errors) or None, len(candidates), task_id),
@@ -414,8 +416,13 @@ def validate_candidate(candidate_id: str, authorization: str | None = Header(def
             body = page.body
             parsed = json.loads(body.decode("utf-8", errors="replace"))
             data = parsed.get("data") if isinstance(parsed, dict) else None
+            cms_list = parsed.get("list") if isinstance(parsed, dict) else None
+            if not isinstance(cms_list, list) and isinstance(data, dict):
+                cms_list = data.get("list")
+            cms_shape = isinstance(cms_list, list) and isinstance(parsed, dict)
             validation.update({"reachable": True, "json": isinstance(parsed, dict),
-                               "cms_shape": isinstance(data, (dict, list)),
+                               "cms_shape": cms_shape,
+                               "sample_count": len(cms_list) if isinstance(cms_list, list) else 0,
                                "content_type": content_type, "http_status": page.status})
         except Exception as exc:
             validation.update({"reachable": False, "error": type(exc).__name__})
