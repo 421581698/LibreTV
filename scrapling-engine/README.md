@@ -1,4 +1,4 @@
-# LibreTV Scrapling Engine — Phase 1
+# LibreTV Scrapling Engine — Phases 1 and 2
 
 An independently runnable Python service that hosts the upstream Scrapling framework for LibreTV. This phase validates the crawler engine only; it does not modify the LibreTV UI, production deployment, or main branch.
 
@@ -50,6 +50,7 @@ POST /v1/catalog/fmhy/sync
 Read the imported snapshot and index:
 
 - `GET /v1/catalog/snapshot`
+- `GET /v1/catalog/categories`
 - `GET /v1/catalog/entries?category=video&q=movie`
 - `GET /v1/catalog/domains?q=example`
 
