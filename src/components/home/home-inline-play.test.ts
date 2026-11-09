@@ -19,6 +19,9 @@ describe('iPhone homepage inline playback and top search', () => {
     expect(player).toContain("import('@/components/player-shell')");
     expect(player).toContain('api.detail(item.vodId, source, controller.signal)');
     expect(player).toContain('<PlayerShell');
+    expect(player).toContain('upsertHistory');
+    expect(player).toContain('saveProgress');
+    expect(player).toContain('getRestorePosition={getRestorePosition}');
     expect(player).not.toContain('useRouter');
     expect(player).not.toContain('router.push');
   });
