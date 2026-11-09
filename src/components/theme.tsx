@@ -51,9 +51,17 @@ function persistTheme(choice: ThemeChoice): void {
 
 function apply(choice: ThemeChoice): 'light' | 'dark' {
   const resolved = choice === 'system' ? (systemPrefersDark() ? 'dark' : 'light') : choice;
-  document.documentElement.classList.toggle('dark', resolved === 'dark');
+  const root = document.documentElement;
+  const surface = resolved === 'dark' ? '#08080A' : '#F5F7FA';
+  root.classList.toggle('dark', resolved === 'dark');
+  // Set the safe-area paint color imperatively as well as through CSS so
+  // iOS Safari's separately composited home-indicator inset updates instantly.
+  root.style.setProperty('--page-chrome', surface);
+  root.style.setProperty('--safe-area-surface', surface);
+  root.style.backgroundColor = surface;
+  document.body?.style.setProperty('background-color', surface, 'important');
   // Keep Safari/iOS browser chrome aligned with the explicit app theme.
-  const themeColor = resolved === 'dark' ? '#08080A' : '#F5F7FA';
+  const themeColor = surface;
   let themeMeta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
   if (!themeMeta) {
     themeMeta = document.createElement('meta');
