@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import hashlib
+import http.client
 import hmac
 import ipaddress
 import json
 import os
 import socket
+import ssl
 import sqlite3
 import time
 import uuid
@@ -113,6 +115,68 @@ def public_https_url(raw_url: str) -> tuple[str, str]:
         if not ipaddress.ip_address(address).is_global:
             raise HTTPException(status_code=400, detail="Private or reserved network targets are blocked")
     return raw_url, host
+
+
+def probe_direct_media(raw_url: str, max_redirects: int = 5) -> dict:
+    """Probe media headers with a one-byte range request and safe manual redirects."""
+    current = raw_url
+    for redirect_count in range(max_redirects + 1):
+        normalized, host = public_https_url(current)
+        parsed = urlparse(normalized)
+        target = parsed.path or "/"
+        if parsed.query:
+            target += "?" + parsed.query
+        connection = http.client.HTTPSConnection(
+            host, 443, timeout=10, context=ssl.create_default_context()
+        )
+        try:
+            connection.request(
+                "GET",
+                target,
+                headers={
+                    "Range": "bytes=0-0",
+                    "Accept": "*/*",
+                    "User-Agent": "LibreTV-Resource-Validator/1.0",
+                    "Connection": "close",
+                },
+            )
+            response = connection.getresponse()
+            status = response.status
+            headers = {key.lower(): value for key, value in response.getheaders()}
+            if status in (301, 302, 303, 307, 308):
+                location = headers.get("location")
+                response.close()
+                if not location or redirect_count >= max_redirects:
+                    return {"reachable": False, "http_status": status, "error": "redirect_limit_or_missing_location"}
+                current = urljoin(normalized, location)
+                continue
+            content_type = headers.get("content-type", "").split(";", 1)[0].strip().lower()
+            media_type = (
+                content_type.startswith("video/")
+                or content_type in {
+                    "application/vnd.apple.mpegurl",
+                    "application/x-mpegurl",
+                    "application/dash+xml",
+                    "application/octet-stream",
+                }
+                or urlparse(normalized).path.lower().endswith(MEDIA_EXTENSIONS)
+            )
+            response.close()
+            reachable = 200 <= status < 300 and media_type
+            return {
+                "reachable": bool(reachable),
+                "http_status": status,
+                "content_type": content_type or None,
+                "content_length": headers.get("content-length"),
+                "range_supported": status == 206,
+                "final_url": normalized,
+                "note": "Range/header probe only; final playback must still be tested in PlayerShell.",
+            }
+        except (OSError, http.client.HTTPException, ssl.SSLError) as exc:
+            return {"reachable": False, "error": type(exc).__name__}
+        finally:
+            connection.close()
+    return {"reachable": False, "error": "redirect_limit_exceeded"}
 
 
 def throttle(host: str) -> None:
@@ -534,11 +598,20 @@ def validate_candidate(candidate_id: str, authorization: str | None = Header(def
         except Exception as exc:
             validation.update({"reachable": False, "error": type(exc).__name__})
             candidate_status = "rejected"
+    elif candidate["kind"] == "direct-media":
+        throttle(host)
+        probe = probe_direct_media(raw_url)
+        validation.update({
+            "playback_probe": "range_header_probe",
+            **probe,
+            "note": "HTTP/media headers were checked with a one-byte Range request. This does not guarantee full playback; verify in PlayerShell.",
+        })
+        candidate_status = "validated" if probe.get("reachable") else "rejected"
     else:
         validation.update({
             "reachable": None,
             "playback_probe": "not_performed",
-            "note": "Public URL and candidate type were checked. Actual playback must be verified in PlayerShell; this is not a CMS API source.",
+            "note": "Public URL and candidate type were checked. Embedded player content still requires manual playback verification; this is not a CMS API source.",
         })
     with db() as connection:
         connection.execute("UPDATE candidates SET status=?,validation=? WHERE id=?",
