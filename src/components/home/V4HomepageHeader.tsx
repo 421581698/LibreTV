@@ -20,7 +20,7 @@ const NAV_ITEMS = [
   { label: '直播', href: '/live' },
 ];
 
-export function V4HomepageHeader() {
+export function V4HomepageHeader({ overlay = false }: { overlay?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -28,7 +28,16 @@ export function V4HomepageHeader() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const searchHistory = useSearchHistory(query);
+
+  useEffect(() => {
+    if (!overlay) { setIsScrolled(false); return; }
+    const updateScrollState = () => setIsScrolled(window.scrollY > 48);
+    updateScrollState();
+    window.addEventListener('scroll', updateScrollState, { passive: true });
+    return () => window.removeEventListener('scroll', updateScrollState);
+  }, [overlay]);
 
   useEffect(() => {
     const openSourceManager = () => {
@@ -55,7 +64,7 @@ export function V4HomepageHeader() {
 
   return (
     <>
-      <header className="v4-header">
+      <header className={`v4-header${overlay ? " is-overlay" : ""}${overlay && isScrolled ? " is-scrolled" : ""}`}>
         <div className="v4-header-inner">
           <Link href="/" className="v4-brand" aria-label="LibreTV 首页">
             <svg className="v4-brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.4 5.6c0-1 1.1-1.6 2-1.1l9 6.4c.8.6.8 1.7 0 2.3l-9 6.4c-.9.6-2 0-2-1.1z" fill="#F1A63A" /></svg>
