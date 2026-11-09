@@ -456,3 +456,57 @@
     overflow: hidden !important;
   }
 }
+
+
+/* Routed iPhone screens must follow the same light/dark preference as the
+   homepage; the original spatial canvas is intentionally dark-only. */
+:root:not(.dark) .v4-spatial-screen {
+  color: #17171B !important;
+  background: var(--page-chrome, #F5F7FA) !important;
+}
+:root:not(.dark) .v4-spatial-screen .v4-spatial-heading h1,
+:root:not(.dark) .v4-spatial-screen .v4-spatial-panel-head h2,
+:root:not(.dark) .v4-spatial-screen .v4-source-card h3,
+:root:not(.dark) .v4-spatial-screen .v4-settings-card strong,
+:root:not(.dark) .v4-spatial-screen .v4-me-history-copy strong {
+  color: #17171B !important;
+}
+:root:not(.dark) .v4-spatial-screen .v4-spatial-heading p,
+:root:not(.dark) .v4-spatial-screen .v4-spatial-panel-head span,
+:root:not(.dark) .v4-spatial-screen .v4-spatial-empty,
+:root:not(.dark) .v4-spatial-screen .v4-spatial-empty p,
+:root:not(.dark) .v4-spatial-screen .v4-spatial-footnote,
+:root:not(.dark) .v4-spatial-screen .v4-source-status,
+:root:not(.dark) .v4-spatial-screen .v4-source-card p,
+:root:not(.dark) .v4-spatial-screen .v4-source-card > span,
+:root:not(.dark) .v4-spatial-screen .v4-settings-card p,
+:root:not(.dark) .v4-spatial-screen .v4-settings-card > b,
+:root:not(.dark) .v4-spatial-screen .v4-me-history-copy span {
+  color: rgba(23,23,27,.62) !important;
+}
+:root:not(.dark) .v4-spatial-screen .v4-settings-card,
+:root:not(.dark) .v4-spatial-screen .v4-source-card,
+:root:not(.dark) .v4-spatial-screen .v4-me-history-card {
+  color: #17171B !important;
+  border-color: rgba(23,31,44,.12) !important;
+  background: rgba(255,255,255,.76) !important;
+  box-shadow: 0 8px 24px rgba(35,48,66,.06) !important;
+}
+:root:not(.dark) .v4-spatial-screen .v4-resource-search input {
+  color: #17171B !important;
+  -webkit-text-fill-color: #17171B !important;
+  border-color: rgba(23,31,44,.16) !important;
+  background: rgba(255,255,255,.92) !important;
+}
+:root:not(.dark) .v4-spatial-screen .v4-resource-search input::placeholder {
+  color: rgba(23,31,44,.48) !important;
+  -webkit-text-fill-color: rgba(23,31,44,.48) !important;
+}
+:root:not(.dark) .v4-spatial-screen .v4-resource-result {
+  color: #17171B !important;
+  border-color: rgba(23,31,44,.12) !important;
+  background: rgba(255,255,255,.88) !important;
+}
+:root:not(.dark) .v4-spatial-screen .v4-me-cover {
+  color: #F5F6F8 !important;
+}
