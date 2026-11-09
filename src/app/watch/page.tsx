@@ -552,7 +552,7 @@ function WatchContent() {
                   <p>根据当前影片，从已启用的片源检索真实结果</p>
                 </div>
               </div>
-              {relatedQuery.isLoading ? (
+              {relatedQuery.isLoading || !watchedHistory ? (
                 <p className="text-sm text-faint py-4">正在查找相关影片…</p>
               ) : relatedItems.length > 0 ? (
                 <div className="netflix-related-rail">
