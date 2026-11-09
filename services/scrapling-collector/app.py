@@ -236,7 +236,7 @@ def _first_base_url(node) -> str | None:
     return (values[0].text or "").strip() or None
 
 
-def parse_mpd_manifest(body: bytes) -> dict:
+def parse_mpd_manifest(body: bytes, base_url: str = "") -> dict:
     try:
         root = ET.fromstring(body)
     except ET.ParseError:
@@ -311,10 +311,10 @@ def parse_mpd_manifest(body: bytes) -> dict:
                     "segment_list": segment_list_refs[:50],
                 })
 
-    mpd_base = ""
+    mpd_base = base_url
     root_base = _first_base_url(root)
     if root_base:
-        mpd_base = root_base
+        mpd_base = urljoin(base_url, root_base)
     root_templates = {}
     for node in _xml_children(root, "SegmentTemplate"):
         root_templates.update(node.attrib)
@@ -334,22 +334,20 @@ def parse_mpd_manifest(body: bytes) -> dict:
 
 
 def validate_manifest_references(manifest: dict, base_url: str) -> dict:
-    """Resolve and DNS-check HLS variant/segment URLs; never retain key URLs."""
-    dns_cache: dict[str, bool] = {}
+    """Resolve and DNS-check manifest references without fetching media or key URLs."""
     rejected = 0
 
     def safe_reference(reference: str) -> str | None:
         nonlocal rejected
         absolute = urljoin(base_url, reference)
         try:
-            _, host = public_https_url(absolute)
+            public_https_url(absolute)
         except HTTPException:
             rejected += 1
             return None
-        if host not in dns_cache:
-            dns_cache[host] = True
-        return absolute if dns_cache[host] else None
+        return absolute
 
+    result = dict(manifest)
     safe_variants = []
     for variant in manifest.get("variants", []):
         item = dict(variant)
@@ -358,20 +356,53 @@ def validate_manifest_references(manifest: dict, base_url: str) -> dict:
         if resolved:
             item["uri"] = resolved
             safe_variants.append(item)
-    safe_segments = []
-    for uri in manifest.get("segment_uris", []):
-        resolved = safe_reference(uri)
-        if resolved:
-            safe_segments.append(resolved)
-    result = dict(manifest)
     if "variants" in result:
         result["variants"] = safe_variants
         result["variant_count"] = len(safe_variants)
-    if "segment_uris" in result:
-        result["segment_uris"] = safe_segments
-        result["segment_count"] = len(safe_segments)
+
+    for source_key in ("segment_uris", "base_urls", "segment_template_urls", "segment_urls"):
+        safe_values = []
+        for reference in manifest.get(source_key, [])[:50]:
+            resolved = safe_reference(reference) if isinstance(reference, str) else None
+            if resolved:
+                safe_values.append(resolved)
+        if source_key in result:
+            result[source_key] = safe_values
+            if source_key == "segment_uris":
+                result["segment_count"] = len(safe_values)
+
+    safe_representations = []
+    for representation in manifest.get("representations", []):
+        item = dict(representation)
+        resolved_base = safe_reference(item.get("base_url", "")) if item.get("base_url") else None
+        if item.get("base_url") and not resolved_base:
+            continue
+        if resolved_base:
+            item["base_url"] = resolved_base
+        templates = {}
+        for key, reference in item.get("segment_template", {}).items():
+            resolved = safe_reference(reference)
+            if resolved:
+                templates[key] = resolved
+        if "segment_template" in item:
+            item["segment_template"] = templates
+        safe_list = []
+        for reference in item.get("segment_list", []):
+            resolved = safe_reference(reference)
+            if resolved:
+                safe_list.append(resolved)
+        if "segment_list" in item:
+            item["segment_list"] = safe_list
+        safe_representations.append(item)
+    if "representations" in result:
+        result["representations"] = safe_representations
+        result["representation_count"] = len(safe_representations)
+
     result["rejected_reference_count"] = rejected
-    result["safe_reference_count"] = len(safe_variants) + len(safe_segments)
+    result["safe_reference_count"] = (
+        len(safe_variants)
+        + sum(len(result.get(key, [])) for key in ("segment_uris", "base_urls", "segment_template_urls", "segment_urls"))
+    )
     return result
 
 
@@ -429,7 +460,9 @@ def probe_direct_media(raw_url: str, max_redirects: int = 5) -> dict:
                     if manifest.get("manifest_valid"):
                         manifest = validate_manifest_references(manifest, normalized)
                 else:
-                    manifest = parse_mpd_manifest(body)
+                    manifest = parse_mpd_manifest(body, normalized)
+                    if manifest.get("manifest_valid"):
+                        manifest = validate_manifest_references(manifest, normalized)
             response.close()
             reachable = 200 <= status < 300 and media_type
             manifest_valid = manifest.get("manifest_valid") if manifest else None
