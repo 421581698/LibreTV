@@ -246,6 +246,10 @@ def _first_base_url(node) -> str | None:
 
 
 def parse_mpd_manifest(body: bytes, base_url: str = "") -> dict:
+    # MPDs are untrusted input; reject DTD/entity declarations before XML parsing.
+    upper_body = body.upper()
+    if b"<!DOCTYPE" in upper_body or b"<!ENTITY" in upper_body:
+        return {"manifest_valid": False, "manifest_error": "doctype_or_entity_blocked"}
     try:
         root = ET.fromstring(body)
     except ET.ParseError:
@@ -590,6 +594,10 @@ def probe_hls_variant_tree(
                     else:
                         item["reachable"] = False
                         item["request_budget_exhausted"] = True
+                # A media playlist without any segment references is not a playable leaf.
+                if not declared_segments or not segment_urls:
+                    item["reachable"] = False
+                    item["empty_media_playlist"] = True
                 item["leaf_reachable"] = bool(item["reachable"])
                 if item["leaf_reachable"]:
                     state["leaf_successes"] += 1
