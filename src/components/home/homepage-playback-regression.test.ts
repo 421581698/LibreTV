@@ -148,25 +148,42 @@ describe('首页与播放页回归契约', () => {
     expect(sharedHeaderStyles).not.toContain('background: rgba(246, 248, 251, 0.88)');
   });
 
-  it('顶部导航紧邻 Logo，搜索位于电影与电视剧之间，首页白字、频道黑字', () => {
+  it('顶部导航完整顺序为 Logo、频道、搜索、历史、设置和头像，PC/iPad 共用', () => {
     const navStart = v4Header.indexOf('<nav');
     const navEnd = v4Header.indexOf('</nav>', navStart);
     const navMarkup = v4Header.slice(navStart, navEnd);
     const searchStart = v4Header.indexOf('id="v4-header-search"');
+    const actionsStart = v4Header.indexOf('className="v4-header-actions"');
     expect(navMarkup).not.toContain('id="v4-header-search"');
     expect(searchStart).toBeGreaterThan(navEnd);
-    expect(v4Header).toContain("{ label: '首页', href: '/' }");
-    expect(v4Header).toContain("{ label: '电影', href: '/movies' }");
-    expect(v4Header).toContain("{ label: '电视剧', href: '/tv' }");
-    expect(v4Header).toContain("{ label: '动漫', href: '/anime' }");
-    expect(v4Header).toContain("{ label: '综艺', href: '/variety' }");
-    expect(v4Header).toContain("{ label: '海外剧', href: '/overseas' }");
-    expect(v4Header).toContain("{ label: '直播', href: '/live' }");
+    expect(actionsStart).toBeGreaterThan(searchStart);
+
+    const navOrder = [
+      "{ label: '首页', href: '/' }",
+      "{ label: '电影', href: '/movies' }",
+      "{ label: '电视剧', href: '/tv' }",
+      "{ label: '海外剧', href: '/overseas' }",
+      "{ label: '动漫', href: '/anime' }",
+      "{ label: '综艺', href: '/variety' }",
+      "{ label: '直播', href: '/live' }",
+    ];
+    const navPositions = navOrder.map((item) => v4Header.indexOf(item));
+    expect(navPositions.every((position) => position >= 0)).toBe(true);
+    expect(navPositions).toEqual([...navPositions].sort((a, b) => a - b));
+
+    const actionsMarkup = v4Header.slice(actionsStart);
+    const historyPosition = actionsMarkup.indexOf('aria-label="观看历史"');
+    const settingsPosition = actionsMarkup.indexOf('aria-label="设置"');
+    const avatarPosition = actionsMarkup.indexOf('aria-label="打开我的个人空间"');
+    expect(historyPosition).toBeGreaterThan(-1);
+    expect(settingsPosition).toBeGreaterThan(historyPosition);
+    expect(avatarPosition).toBeGreaterThan(settingsPosition);
+
     expect(sharedHeaderStyles).toContain('@media screen and (min-width: 701px)');
     expect(sharedHeaderStyles).toContain('display: contents !important;');
-    expect(sharedHeaderStyles).toContain('order: 1 !important;');
-    expect(sharedHeaderStyles).toContain('order: 2 !important;');
-    expect(sharedHeaderStyles).toContain('order: 3 !important;');
+    for (const order of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      expect(sharedHeaderStyles).toContain(`order: ${order} !important;`);
+    }
     expect(sharedHeaderStyles).toContain('.v4-header .v4-primary-nav .v4-nav-link[href="/"]');
     expect(sharedHeaderStyles).toContain('color: #fff !important;');
     expect(sharedHeaderStyles).toContain('color: #17171B !important;');
