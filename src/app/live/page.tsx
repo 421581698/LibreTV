@@ -250,7 +250,7 @@ function LiveContent() {
 
             {/* 频道信息条 */}
             {currentChannel && (
-              <div className="bg-surface-raised border border-line rounded-lg p-3 mt-3 flex items-center gap-3">
+              <div className="glass-panel p-3 mt-3 flex items-center gap-3">
                 <div className="w-10 h-10 shrink-0 rounded bg-chip flex items-center justify-center overflow-hidden">
                   {logo && !logoFailed ? (
                     <SmartImage
@@ -380,7 +380,7 @@ function LiveContent() {
 
             {/* 节目单 */}
             {currentChannel && (
-              <section className="bg-surface-raised border border-line rounded-lg p-3 mt-3">
+              <section className="glass-panel p-3 mt-3">
                 <h2 className="text-sm font-semibold text-content mb-2.5">节目单</h2>
                 <LiveEpgPanel epgUrl={currentChannel.epg} tvgId={currentChannel.tvgId} />
               </section>
@@ -399,7 +399,7 @@ function LiveContent() {
           {/* 侧栏：桌面常驻 sticky；移动端底部抽屉 */}
           <aside
             className={cn(
-              'bg-surface-raised border border-line flex-col overflow-hidden',
+              'glass-panel flex-col overflow-hidden',
               'fixed inset-x-0 bottom-0 z-40 h-[75vh] rounded-t-2xl shadow-2xl',
               listOpen ? 'flex' : 'hidden',
               'lg:sticky lg:top-20 lg:flex lg:h-[calc(100vh-6.5rem)] lg:rounded-xl lg:shadow-none'
