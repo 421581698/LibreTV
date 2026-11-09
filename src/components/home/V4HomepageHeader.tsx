@@ -104,8 +104,12 @@ export function V4HomepageHeader({ overlay = false }: { overlay?: boolean }) {
                 >
                   {item.label}
                 </Link>
-                {item.href === '/movies' ? (
-                    <form
+
+              </React.Fragment>
+            ))}
+          </nav>
+
+<form
                 id="v4-header-search"
                 className={mobileSearchOpen ? "v4-search is-open" : "v4-search"}
                 role="search"
@@ -117,46 +121,42 @@ export function V4HomepageHeader({ overlay = false }: { overlay?: boolean }) {
                 <Icon name="search" />
                 <div className="v4-search-field" ref={searchHistory.containerRef}>
                   <input
-                    aria-label="搜索电影、电视剧"
-                    placeholder="搜索电影、电视剧..."
-                    autoFocus={mobileSearchOpen}
-                    value={query}
-                    maxLength={100}
-                    onChange={(event) => {
-                      setQuery(event.target.value);
-                      searchHistory.resetActive();
-                    }}
-                    onFocus={searchHistory.onFocus}
-                    onKeyDown={(event) => {
-                      if (event.key === "Escape" && mobileSearchOpen) {
-                        event.preventDefault();
-                        setMobileSearchOpen(false);
-                        event.currentTarget.blur();
-                        return;
-                      }
-                      searchHistory.onKeyDown(event, pickHistory);
-                    }}
-                    role="combobox"
-                    aria-expanded={searchHistory.visible}
-                    aria-controls="v4-header-search-history"
-                    aria-autocomplete="list"
+          aria-label="搜索电影、电视剧"
+          placeholder="搜索电影、电视剧..."
+          autoFocus={mobileSearchOpen}
+          value={query}
+          maxLength={100}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            searchHistory.resetActive();
+          }}
+          onFocus={searchHistory.onFocus}
+          onKeyDown={(event) => {
+            if (event.key === "Escape" && mobileSearchOpen) {
+              event.preventDefault();
+              setMobileSearchOpen(false);
+              event.currentTarget.blur();
+              return;
+            }
+            searchHistory.onKeyDown(event, pickHistory);
+          }}
+          role="combobox"
+          aria-expanded={searchHistory.visible}
+          aria-controls="v4-header-search-history"
+          aria-autocomplete="list"
                   />
                   {searchHistory.visible && (
-                    <SearchHistoryDropdown
-                      id="v4-header-search-history"
-                      matches={searchHistory.matches}
-                      activeIndex={searchHistory.activeIndex}
-                      onPick={pickHistory}
-                      onRemove={searchHistory.remove}
-                      onClearAll={searchHistory.clearAll}
-                    />
+          <SearchHistoryDropdown
+            id="v4-header-search-history"
+            matches={searchHistory.matches}
+            activeIndex={searchHistory.activeIndex}
+            onPick={pickHistory}
+            onRemove={searchHistory.remove}
+            onClearAll={searchHistory.clearAll}
+          />
                   )}
                 </div>
                   </form>
-                ) : null}
-              </React.Fragment>
-            ))}
-          </nav>
 
           <div className="v4-header-actions">
             <button
