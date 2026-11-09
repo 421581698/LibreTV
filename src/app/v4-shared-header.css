@@ -491,19 +491,19 @@
   .v4-spatial-screen .v4-header .v4-primary-nav .v4-nav-link[href="/movies"] { order: 1 !important; }
   .v4-header .v4-primary-nav .v4-nav-link[href="/tv"],
   .v4-home .v4-header .v4-primary-nav .v4-nav-link[href="/tv"],
-  .v4-spatial-screen .v4-header .v4-primary-nav .v4-nav-link[href="/tv"] { order: 3 !important; }
+  .v4-spatial-screen .v4-header .v4-primary-nav .v4-nav-link[href="/tv"] { order: 2 !important; }
   .v4-header .v4-primary-nav .v4-nav-link[href="/anime"],
   .v4-home .v4-header .v4-primary-nav .v4-nav-link[href="/anime"] { order: 4 !important; }
   .v4-header .v4-primary-nav .v4-nav-link[href="/variety"],
   .v4-home .v4-header .v4-primary-nav .v4-nav-link[href="/variety"] { order: 5 !important; }
   .v4-header .v4-primary-nav .v4-nav-link[href="/overseas"],
-  .v4-home .v4-header .v4-primary-nav .v4-nav-link[href="/overseas"] { order: 6 !important; }
+  .v4-home .v4-header .v4-primary-nav .v4-nav-link[href="/overseas"] { order: 3 !important; }
   .v4-header .v4-primary-nav .v4-nav-link[href="/live"],
   .v4-home .v4-header .v4-primary-nav .v4-nav-link[href="/live"] { order: 7 !important; }
   .v4-header .v4-search,
   .v4-home .v4-header .v4-search,
   .v4-spatial-screen .v4-header .v4-search {
-    order: 2 !important;
+    order: 7 !important;
     display: flex !important;
     flex: 0 1 clamp(140px, 17vw, 230px) !important;
     width: clamp(140px, 17vw, 230px) !important;
