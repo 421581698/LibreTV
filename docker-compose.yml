@@ -58,7 +58,7 @@ services:
     restart: unless-stopped
     networks:
       collector_net:
-        ipv4_address: 172.30.60.10
+        ipv4_address: ${SCRAPLING_COLLECTOR_IP:-172.30.60.10}
     read_only: true
     tmpfs:
       - /tmp:size=256m,noexec,nosuid
