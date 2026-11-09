@@ -76,11 +76,24 @@ const SETTINGS_PAGE_META: Record<Exclude<SettingsPage, 'index'>, { title: string
   cache: { title: '本机缓存', description: '查看并管理本机缓存数据。' },
 };
 
+const SETTINGS_OPEN_PAGE_KEY = 'libretv-settings-open-page';
+
 export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [activePage, setActivePage] = useState<SettingsPage>('index');
 
   useEffect(() => {
-    if (open) setActivePage('index');
+    if (!open) return;
+    let nextPage: SettingsPage = 'index';
+    try {
+      const requestedPage = window.localStorage.getItem(SETTINGS_OPEN_PAGE_KEY);
+      if (requestedPage && Object.prototype.hasOwnProperty.call(SETTINGS_PAGE_META, requestedPage)) {
+        nextPage = requestedPage as SettingsPage;
+      }
+      window.localStorage.removeItem(SETTINGS_OPEN_PAGE_KEY);
+    } catch {
+      // Storage may be unavailable in private browsing; keep the settings index usable.
+    }
+    setActivePage(nextPage);
   }, [open]);
 
   const pageTitle = activePage === 'index' ? '设置' : SETTINGS_PAGE_META[activePage].title;
@@ -1200,7 +1213,7 @@ function SourceSubscriptions() {
                       {paused ? (
                         <span className="text-warning">
                           已暂停：连续失败 {sub.failStreak} 次，手动同步成功即恢复
-                        </span>                      ) : remainingMs > 0 ? (
+                        </span>\n                      ) : remainingMs > 0 ? (
                         <span>约 {Math.max(1, Math.ceil(remainingMs / 86_400_000))} 天后刷新</span>
                       ) : sub.refreshDays ? (
                         <span>下次打开站点时刷新</span>
