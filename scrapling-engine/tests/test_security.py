@@ -18,7 +18,7 @@ from app.security import UnsafeTargetError, validate_public_http_url
         "https://user:pass@example.com/",
         "https://@example.com/",
         " https://example.com/",
-        "http://example.com:8080/",
+        "http://example.com:0/",
         "https://example.com:80/",
         "http://example.com\\@127.0.0.1/",
         "http://example.com/%0d%0aHost:localhost",
@@ -43,6 +43,26 @@ def test_accepts_public_http_urls_without_network_side_effects(
     assert validate_public_http_url(url) == url
 
 
+def test_accepts_public_non_default_https_port(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, int]] = []
+
+    def fake_getaddrinfo(host, port, **kwargs):
+        calls.append((host, port))
+        return [(2, 1, 6, "", ("93.184.216.34", port))]
+
+    monkeypatch.setattr("app.security.socket.getaddrinfo", fake_getaddrinfo)
+    url = "https://media.example:8443/live/index.m3u8"
+    assert validate_public_http_url(url) == url
+    assert calls == [("media.example", 8443)]
+
+
+def test_accepts_public_ipv6_literal_without_dns_lookup() -> None:
+    url = "https://[2606:4700:4700::1111]/stream"
+    assert validate_public_http_url(url) == url
+
+
 def test_rejects_non_http_scheme() -> None:
     with pytest.raises(UnsafeTargetError):
         validate_public_http_url("ftp://example.com/file")
@@ -50,8 +70,7 @@ def test_rejects_non_http_scheme() -> None:
 
 def test_rejects_control_characters() -> None:
     with pytest.raises(UnsafeTargetError):
-        validate_public_http_url("https://example.com/\nheader")
-
+        validate_public_http_url("https://example.com/\\nheader")
 
 
 def test_rejects_hostname_with_mixed_public_and_private_dns_answers(
