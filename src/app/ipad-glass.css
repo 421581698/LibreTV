@@ -184,8 +184,8 @@
   }
 
   .v4-settings-card {
-    min-height: 104px;
-    padding: 18px;
+    min-height: 76px;
+    padding: 13px 15px;
   }
 
   .v4-resource-search input,
