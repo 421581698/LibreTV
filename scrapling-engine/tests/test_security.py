@@ -10,6 +10,10 @@ from app.security import UnsafeTargetError, validate_public_http_url
         "http://localhost/admin",
         "http://127.0.0.1/",
         "http://10.0.0.2/",
+        "http://[::1]/",
+        "http://[fc00::1]/",
+        "http://0.0.0.0/",
+        "http://192.0.2.1/",
         "http://169.254.169.254/latest/meta-data/",
         "https://user:pass@example.com/",
         "http://example.com:8080/",
@@ -45,3 +49,18 @@ def test_rejects_non_http_scheme() -> None:
 def test_rejects_control_characters() -> None:
     with pytest.raises(UnsafeTargetError):
         validate_public_http_url("https://example.com/\nheader")
+
+
+
+def test_rejects_hostname_with_mixed_public_and_private_dns_answers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.security.socket.getaddrinfo",
+        lambda *args, **kwargs: [
+            (2, 1, 6, "", ("93.184.216.34", 443)),
+            (2, 1, 6, "", ("10.0.0.5", 443)),
+        ],
+    )
+    with pytest.raises(UnsafeTargetError):
+        validate_public_http_url("https://mixed-dns.example/")
