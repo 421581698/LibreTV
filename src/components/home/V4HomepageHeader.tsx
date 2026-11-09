@@ -155,17 +155,20 @@ export function V4HomepageHeader() {
             </GlassButton>
             <GlassButton
               className="v4-avatar"
-              aria-label="我的观看记录"
-              title="我的观看记录"
+              aria-label="打开我的个人空间"
+              title="我的个人空间"
               onClick={() => {
-                if (pathname === '/') {
-                  document.getElementById('my-library')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                if (pathname === '/me') {
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
                 } else {
                   router.push('/me');
                 }
               }}
             >
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5" /><path d="M4.8 20c.7-3.4 3.1-5.2 7.2-5.2s6.5 1.8 7.2 5.2" /></svg>
+              <svg className="v4-avatar-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="8" r="3.5" />
+                <path d="M4.8 20c.7-3.4 3.1-5.2 7.2-5.2s6.5 1.8 7.2 5.2" />
+              </svg>
             </GlassButton>
           </div>
         </div>
