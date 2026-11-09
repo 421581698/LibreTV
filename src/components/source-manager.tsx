@@ -259,6 +259,23 @@ function ResourceCollectorPanel() {
     }
   };
 
+  const retryTask = async (task: CollectorTask) => {
+    setBusy(true);
+    setError('');
+    try {
+      const response = await fetch(`/api/resource-collector/tasks/${task.id}/retry`, { method: 'POST' });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || '任务重试失败。');
+      setSelectedSite({ title: task.host, host: task.host, url: task.url, directory: 'FMHY / Movies-TV-Anime' });
+      setCandidates(Array.isArray(payload.candidates) ? payload.candidates : []);
+      await loadTasks();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '任务重试失败。');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const validateCandidate = async (candidate: CollectorCandidate) => {
     if (!candidate.id) {
       setError('采集服务没有返回候选资源 ID，请重新采集。');
@@ -345,6 +362,9 @@ function ResourceCollectorPanel() {
                 </div>
                 <p className="mt-1 truncate text-[10px] text-muted">{task.url}</p>
                 {task.error ? <p className="mt-1 text-[10px] text-warning">{task.error}</p> : null}
+                {['failed', 'interrupted', 'partial'].includes(task.status) ? (
+                  <button type="button" className="mt-2 btn-ghost btn-sm" disabled={busy} onClick={() => void retryTask(task)}>重试任务</button>
+                ) : null}
               </div>
             ))}
           </div>
