@@ -60,6 +60,73 @@ class CollectorTests(unittest.TestCase):
         with self.assertRaises(collector.HTTPException):
             collector.public_https_url("https://internal.example/")
 
+    def test_browser_request_guard_blocks_private_and_non_https_requests(self):
+        class Request:
+            def __init__(self, url):
+                self.url = url
+
+        class Route:
+            def __init__(self, url):
+                self.request = Request(url)
+                self.aborted = False
+                self.continued = False
+
+            def abort(self):
+                self.aborted = True
+
+            def continue_(self):
+                self.continued = True
+
+        class Page:
+            def route(self, pattern, handler):
+                self.pattern = pattern
+                self.handler = handler
+
+        page = Page()
+        collector.install_browser_request_guard(page)
+        self.assertEqual(page.pattern, "**/*")
+
+        private_route = Route("https://internal.example/admin")
+        with patch.object(collector.socket, "getaddrinfo", return_value=[
+            (None, None, None, None, ("10.0.0.8", 443))
+        ]):
+            page.handler(private_route)
+        self.assertTrue(private_route.aborted)
+        self.assertFalse(private_route.continued)
+
+        http_route = Route("http://public.example/video")
+        page.handler(http_route)
+        self.assertTrue(http_route.aborted)
+
+    def test_browser_request_guard_allows_public_https_requests(self):
+        class Request:
+            url = "https://media.example/video/master.m3u8"
+
+        class Route:
+            request = Request()
+            continued = False
+            aborted = False
+
+            def abort(self):
+                self.aborted = True
+
+            def continue_(self):
+                self.continued = True
+
+        class Page:
+            def route(self, pattern, handler):
+                self.handler = handler
+
+        page = Page()
+        collector.install_browser_request_guard(page)
+        route = Route()
+        with patch.object(collector.socket, "getaddrinfo", return_value=[
+            (None, None, None, None, ("8.8.8.8", 443))
+        ]):
+            page.handler(route)
+        self.assertTrue(route.continued)
+        self.assertFalse(route.aborted)
+
     def test_authorization_is_constant_time_checked(self):
         collector.require_token(f"Bearer {collector.TOKEN}")
         with self.assertRaises(collector.HTTPException):
