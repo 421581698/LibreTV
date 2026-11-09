@@ -191,7 +191,7 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
 
 
 type CollectorSite = { title: string; url: string; host: string; directory: string };
-type CollectorCandidate = { id?: string; url: string; kind: string; host: string; status?: string; validation?: { cms_shape?: boolean; reachable?: boolean; public_host?: boolean; note?: string } };
+type CollectorCandidate = { id?: string; url: string; kind: string; host: string; title?: string; status?: string; validation?: { cms_shape?: boolean; reachable?: boolean; public_host?: boolean; note?: string } };
 type CollectorTask = { id: string; url: string; host: string; status: string; created_at: number; updated_at: number; error?: string | null; result_count: number };
 
 function ResourceCollectorPanel() {
