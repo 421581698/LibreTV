@@ -5,6 +5,8 @@ from typing import Any, Literal
 
 from scrapling.fetchers import Fetcher
 
+from app.config import settings
+
 ExtractMode = Literal["text", "css", "xpath", "regex"]
 
 
@@ -24,11 +26,21 @@ class ScraplingAdapter:
         # Scrapling >=0.4.5 supports safe redirect handling, rejecting redirects
         # to internal/private destinations. Network egress policy is still required
         # to close the DNS-rebinding gap between validation and connection.
-        return Fetcher.get(
+        page = Fetcher.get(
             url,
             timeout=timeout,
             follow_redirects="safe",
+            headers={"User-Agent": settings.default_user_agent},
         )
+        headers = getattr(page, "headers", {}) or {}
+        content_length = headers.get("content-length") if hasattr(headers, "get") else None
+        if content_length and str(content_length).isdigit():
+            if int(content_length) > settings.max_response_bytes:
+                raise ValueError("Target response exceeds the configured size limit.")
+        body = getattr(page, "body", None)
+        if isinstance(body, (bytes, bytearray)) and len(body) > settings.max_response_bytes:
+            raise ValueError("Target response exceeds the configured size limit.")
+        return page
 
     @staticmethod
     def extract(
