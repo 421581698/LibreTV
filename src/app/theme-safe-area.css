@@ -1,0 +1,34 @@
+/* Theme chrome + iOS safe-area contract.
+ * Loaded after all presentation sheets so the selected theme owns the page
+ * canvas and the browser's bottom safe-area backdrop.
+ */
+html.dark {
+  color-scheme: dark !important;
+  background-color: #08080A !important;
+  overscroll-behavior-y: none;
+}
+html.dark body {
+  min-height: 100%;
+  color-scheme: dark !important;
+  background-color: #08080A !important;
+  background-image:
+    radial-gradient(860px 520px at 6% -12%, rgba(241,166,58,.10), transparent 62%),
+    radial-gradient(700px 420px at 98% -6%, rgba(241,166,58,.025), transparent 60%),
+    linear-gradient(180deg, #08080A 0%, #000000 100%) !important;
+  background-attachment: fixed !important;
+}
+html.dark body::after {
+  content: "";
+  position: fixed;
+  z-index: 0;
+  inset: auto 0 0;
+  height: env(safe-area-inset-bottom, 0px);
+  background: #08080A;
+  pointer-events: none;
+}
+html.dark body > * {
+  position: relative;
+}
+html.dark body > script {
+  position: static;
+}
