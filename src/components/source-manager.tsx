@@ -366,7 +366,8 @@ function VodSourcesPanel() {
                       const r = await api.testSource(source.url);
                       // 手动测试也写入健康度，与搜索 / 批量测活共用同一份模型（不再存在两套健康度）
                       useAppStore.getState().recordSourceHealth([
-                        { sourceKey: source.key, ok: r.ok, ms: r.ms, error: r.error, list: [] },                      ]);
+                        { sourceKey: source.key, ok: r.ok, ms: r.ms, error: r.error, list: [] },
+                      ]);
                       return r;
                     })
                   }
@@ -803,7 +804,8 @@ function VoiceSettingsPanel() {
     setWakeWordEnabled(value);
     try { window.localStorage.setItem("friday-wake-word", String(value)); } catch { /* Session-only preference. */ }
     window.dispatchEvent(new CustomEvent("friday-wake-word-preference-change", { detail: { enabled: value } }));
-  };  const updateVoiceStyle = (value: string) => {
+  };
+  const updateVoiceStyle = (value: string) => {
     const next = value === "jarvis" || value === "warm" || value === "clear" ? value : "auto";
     setVoiceStyle(next);
     try { window.localStorage.setItem("friday-voice-style", next); } catch { /* Session-only preference. */ }
