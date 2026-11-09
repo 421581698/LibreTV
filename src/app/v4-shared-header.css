@@ -349,3 +349,102 @@
 .v4-header:not(.is-overlay) .v4-search svg,
 .v4-header:not(.is-overlay) .v4-header-icon svg,
 .v4-header:not(.is-overlay) .v4-mobile-search-toggle svg { color: #F2F2F4 !important; stroke: currentColor !important; }
+
+
+/* Homepage keeps its cinematic overlay position, but not a different skin.
+ * The hero remains visible behind the same dark glass surface used by channels. */
+.v4-home .v4-header.is-overlay {
+  position: absolute !important;
+  inset: 0 0 auto 0 !important;
+  top: 0 !important;
+  width: 100% !important;
+  padding-top: env(safe-area-inset-top, 0px) !important;
+  color: #F2F2F4 !important;
+  background: rgba(10, 10, 13, .84) !important;
+  background-image: linear-gradient(180deg, rgba(20,20,24,.94), rgba(10,10,13,.84)) !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,.12) !important;
+  box-shadow: 0 10px 30px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.06) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(155%) !important;
+  backdrop-filter: blur(24px) saturate(155%) !important;
+}
+.v4-home .v4-header.is-overlay .v4-brand { color: #F1A63A !important; }
+.v4-home .v4-header.is-overlay .v4-nav-link,
+.v4-home .v4-header.is-overlay .v4-header-icon,
+.v4-home .v4-header.is-overlay .v4-mobile-search-toggle { color: rgba(255,255,255,.72) !important; }
+.v4-home .v4-header.is-overlay .v4-nav-link:not(.is-active) {
+  color: rgba(255,255,255,.72) !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+.v4-home .v4-header.is-overlay .v4-nav-link:hover {
+  color: #fff !important;
+  background: rgba(255,255,255,.09) !important;
+}
+.v4-home .v4-header.is-overlay .v4-nav-link.is-active {
+  color: #17171B !important;
+  background: linear-gradient(180deg,#fff,#e8e8ec) !important;
+  border: 1px solid rgba(255,255,255,.9) !important;
+  box-shadow: 0 4px 14px rgba(255,255,255,.10), inset 0 1px 0 #fff !important;
+}
+.v4-home .v4-header.is-overlay .v4-header-icon,
+.v4-home .v4-header.is-overlay .v4-avatar,
+.v4-home .v4-header.is-overlay .v4-mobile-search-toggle {
+  color: #F2F2F4 !important;
+  background: rgba(255,255,255,.075) !important;
+  border: 1px solid rgba(255,255,255,.15) !important;
+}
+.v4-home .v4-header.is-overlay .v4-search {
+  color: #F2F2F4 !important;
+  background: rgba(255,255,255,.075) !important;
+  border: 1px solid rgba(255,255,255,.16) !important;
+}
+.v4-home .v4-header.is-overlay .v4-search input {
+  color: #F2F2F4 !important;
+  -webkit-text-fill-color: #F2F2F4 !important;
+}
+.v4-home .v4-header.is-overlay .v4-search input::placeholder {
+  color: rgba(255,255,255,.48) !important;
+  -webkit-text-fill-color: rgba(255,255,255,.48) !important;
+}
+.v4-home .v4-header.is-overlay.is-scrolled {
+  position: fixed !important;
+  inset: max(10px, env(safe-area-inset-top)) 0 auto 0 !important;
+  width: min(calc(100% - 32px), 1360px) !important;
+  margin-inline: auto !important;
+  overflow: visible !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  border-radius: 20px !important;
+  background: rgba(10, 10, 13, .92) !important;
+  background-image: linear-gradient(180deg, rgba(20,20,24,.96), rgba(10,10,13,.92)) !important;
+  box-shadow: 0 10px 30px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.06) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(155%) !important;
+  backdrop-filter: blur(24px) saturate(155%) !important;
+}
+.v4-home .v4-header.is-overlay.is-scrolled .v4-header-inner {
+  min-height: 68px !important;
+  padding: 8px 0 !important;
+}
+.v4-home .v4-header.is-overlay.is-scrolled .v4-nav-link {
+  min-height: 40px !important;
+  padding: 0 13px !important;
+  font-size: 13px !important;
+}
+@media screen and (max-width: 700px) {
+  .v4-home .v4-header.is-overlay.is-scrolled {
+    inset: max(6px, env(safe-area-inset-top)) 0 auto 0 !important;
+    width: calc(100% - 16px) !important;
+    border-radius: 16px !important;
+  }
+  .v4-home .v4-header.is-overlay.is-scrolled .v4-header-inner {
+    min-height: 0 !important;
+    padding: calc(env(safe-area-inset-top) + 8px) 12px 0 !important;
+    gap: 8px !important;
+  }
+  .v4-home .v4-header.is-overlay.is-scrolled .v4-nav-link {
+    min-height: 40px !important;
+    padding: 0 13px !important;
+    font-size: 12px !important;
+  }
+}
