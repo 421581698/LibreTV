@@ -1716,3 +1716,59 @@ html.dark .netflix-watch-sidebar .netflix-sidebar-footer {
   visibility: visible !important;
   stroke: currentColor !important;
 }
+
+
+/* iPhone player ergonomics: preserve a true widescreen stage, keep controls
+   reachable above the home indicator, and stack the episode/source sidebar. */
+@media screen and (max-width: 640px) {
+  .artplayer,
+  .art-video-player {
+    width: 100% !important;
+    max-width: 100vw !important;
+    border-radius: 0 !important;
+    overflow: hidden !important;
+    touch-action: manipulation;
+  }
+  .artplayer .art-controls,
+  .art-video-player .art-controls {
+    min-height: 44px !important;
+    padding-bottom: max(5px, env(safe-area-inset-bottom, 0px)) !important;
+  }
+  .artplayer .art-control,
+  .art-video-player .art-control {
+    min-width: 36px !important;
+    min-height: 40px !important;
+  }
+  .artplayer .art-bottom,
+  .art-video-player .art-bottom {
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 0px)) !important;
+  }
+  .artplayer .art-progress,
+  .art-video-player .art-progress {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+  }
+  .artplayer .art-settings,
+  .artplayer .art-settings-panel,
+  .artplayer .art-setting-panel,
+  .art-settings,
+  .art-settings-panel,
+  .art-setting-panel {
+    max-width: min(82vw, 300px) !important;
+    max-height: min(58dvh, 420px) !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+  }
+  .netflix-watch-sidebar {
+    width: calc(100% - 16px) !important;
+    max-width: none !important;
+    margin: 10px 8px max(18px, env(safe-area-inset-bottom, 0px)) !important;
+    border-radius: 14px !important;
+    overflow: hidden;
+  }
+  .netflix-watch-sidebar button,
+  .netflix-watch-sidebar a {
+    min-height: 40px;
+    touch-action: manipulation;
+  }
+}
