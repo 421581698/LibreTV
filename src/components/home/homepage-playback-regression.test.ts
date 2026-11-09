@@ -286,6 +286,9 @@ describe('首页与播放页回归契约', () => {
     expect(theme).toContain("{ value: 'light', label: '浅色' }");
     expect(theme).toContain("{ value: 'dark', label: '深色' }");
     expect(theme).toContain("{ value: 'system', label: '跟随系统' }");
+    expect(settings).toContain('所有设备同步使用此主题');
+    expect(settings).toContain('<ThemeToggle />');
+    expect(settings.indexOf('<ThemeToggle />')).toBeLessThan(settings.indexOf('<TabRow tabs={PRIMARY_TABS}'));
     expect(glassStyles).toContain('html:not(.dark)');
     expect(glassStyles).toContain('linear-gradient(145deg,#f7f8fa 0%,#e9edf2 100%)');
   });
