@@ -296,8 +296,8 @@ async def spider(request: SpiderRequest) -> dict:
     try:
         checkpoint_dir = None
         if request.task_id:
-            checkpoint_dir = Path(settings.crawl_data_dir) / request.task_id
-            checkpoint_dir.mkdir(parents=True, exist_ok=True)
+            checkpoint_dir = Path(settings.crawl_data_dir).resolve() / request.task_id
+            _ensure_checkpoint_manifest(request.task_id, safe_urls, checkpoint_dir)
         result = await run_in_threadpool(
             ScraplingSpiderAdapter.crawl,
             safe_urls,
@@ -321,7 +321,7 @@ async def spider(request: SpiderRequest) -> dict:
 async def create_job(request: SpiderRequest) -> dict:
     safe_urls = _safe_seed_urls(request.urls)
     task_id = request.task_id or uuid.uuid4().hex
-    checkpoint_dir = Path(settings.crawl_data_dir) / task_id
+    checkpoint_dir = Path(settings.crawl_data_dir).resolve() / task_id
     _ensure_checkpoint_manifest(task_id, safe_urls, checkpoint_dir)
 
     created = job_store.create(task_id, safe_urls, str(checkpoint_dir))
