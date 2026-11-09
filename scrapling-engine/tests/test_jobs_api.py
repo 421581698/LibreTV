@@ -45,6 +45,10 @@ def test_job_pause_and_resume_controls(monkeypatch, tmp_path) -> None:
     checkpoint = tmp_path / "crawls" / "job_api_02"
     checkpoint.mkdir(parents=True)
     (checkpoint / "checkpoint.bin").write_bytes(b"checkpoint")
+    (checkpoint / "libretv-manifest.json").write_text(
+        '{"task_id": "job_api_02", "seeds": ["https://example.com/"]}',
+        encoding="utf-8",
+    )
 
     assert store.create(
         "job_api_02",
