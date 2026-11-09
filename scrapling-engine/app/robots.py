@@ -60,7 +60,9 @@ def ensure_robots_allowed(url: str, timeout: float | None = None) -> None:
             if not isinstance(body, (bytes, bytearray)):
                 body = str(body).encode("utf-8")
             if len(body) > settings.max_response_bytes:
-                raise RobotsUnavailableError("robots.txt exceeds the configured response size limit.")
+                raise RobotsUnavailableError(
+                    "robots.txt exceeds the configured response size limit."
+                )
             parser.parse(bytes(body).decode("utf-8", errors="replace").splitlines())
         with _cache_lock:
             _cache[origin] = (now, parser)
