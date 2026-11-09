@@ -69,6 +69,22 @@ describe('checkPassword', () => {
     expect(checkPassword('')).toBe(false);
   });
 
+  it('支持专用 Preview gate secret 作为 PASSWORD 的安全回退', () => {
+    const savedPassword = process.env.PASSWORD;
+    const savedGateKey = process.env.LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY;
+    try {
+      delete process.env.PASSWORD;
+      process.env.LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY = TEST_PASSWORD;
+      expect(checkPassword(TEST_PASSWORD)).toBe(true);
+      expect(checkPassword('wrong')).toBe(false);
+    } finally {
+      if (savedPassword === undefined) delete process.env.PASSWORD;
+      else process.env.PASSWORD = savedPassword;
+      if (savedGateKey === undefined) delete process.env.LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY;
+      else process.env.LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY = savedGateKey;
+    }
+  });
+
   it('未配置 PASSWORD 时一律拒绝', () => {
     const saved = process.env.PASSWORD;
     delete process.env.PASSWORD;
