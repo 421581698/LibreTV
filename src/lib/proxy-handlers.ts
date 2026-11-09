@@ -80,7 +80,8 @@ async function readM3u8Text(response: Response): Promise<string | null> {
 }
 
 function isValidM3u8(content: string): boolean {
-  return content.replace(/^\\uFEFF/, '').trimStart().startsWith('#EXTM3U');
+  const normalized = content.charCodeAt(0) === 0xfeff ? content.slice(1) : content;
+  return normalized.trimStart().startsWith('#EXTM3U');
 }
 
 /**
