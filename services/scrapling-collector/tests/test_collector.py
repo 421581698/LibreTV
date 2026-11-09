@@ -175,7 +175,7 @@ class CollectorTests(unittest.TestCase):
 
             def read(self, size):
                 self.read_size = size
-                return b"#EXTM3U\\n#EXTINF:5,\\nsegment.ts\\n"
+                return b"#EXTM3U\n#EXTINF:5,\nsegment.ts\n"
 
             def close(self):
                 pass
