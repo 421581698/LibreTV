@@ -309,6 +309,8 @@ async def spider(request: SpiderRequest) -> dict:
             "checkpoint_enabled": checkpoint_dir is not None,
             "result": result,
         }
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.exception("Scrapling spider failed for %d seed URLs", len(safe_urls))
         raise HTTPException(
