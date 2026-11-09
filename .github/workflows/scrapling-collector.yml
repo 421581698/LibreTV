@@ -40,3 +40,5 @@ jobs:
         run: python -m py_compile app.py
       - name: Run collector unit tests
         run: python -m unittest discover -s tests -v
+      - name: Build isolated collector image
+        run: docker build --tag libretv-scrapling-collector:ci .
