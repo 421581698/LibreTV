@@ -44,6 +44,7 @@ def ensure_robots_allowed(url: str, timeout: float | None = None) -> None:
                 robots_url,
                 timeout=timeout or settings.request_timeout_seconds,
                 follow_redirects="safe",
+                impersonate=None,
                 stealthy_headers=False,
                 headers={"User-Agent": settings.default_user_agent},
             )
