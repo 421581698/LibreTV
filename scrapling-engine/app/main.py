@@ -316,6 +316,7 @@ async def capabilities() -> dict:
             "fmhy_catalog_to_spider_jobs",
             "same_host_movie_page_discovery",
             "media_url_candidate_extraction",
+            "job_discovery_results_api",
         ],
         "planned": [
             "dynamic_browser",
@@ -485,6 +486,53 @@ async def get_job(task_id: str) -> dict:
     if job["status"] != "completed":
         job["partial_results"] = job_store.get_results(task_id)
     return {"ok": True, "job": job}
+
+
+@app.get("/v1/jobs/{task_id}/discovery")
+async def get_job_discovery(task_id: str) -> dict:
+    job = job_store.get(task_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Crawl job not found.")
+
+    discovered_pages: dict[str, dict[str, Any]] = {}
+    media_candidates: dict[str, dict[str, Any]] = {}
+    for result in job_store.get_results(task_id):
+        page_url = result.get("url")
+        page_title = result.get("title") or ""
+        for page in result.get("discovered_pages", []):
+            target_url = page.get("url")
+            if not target_url:
+                continue
+            discovered_pages.setdefault(
+                target_url,
+                {
+                    **page,
+                    "source_page_url": page_url,
+                    "source_page_title": page_title,
+                },
+            )
+        for candidate in result.get("media_candidates", []):
+            target_url = candidate.get("url")
+            if not target_url:
+                continue
+            media_candidates.setdefault(
+                target_url,
+                {
+                    **candidate,
+                    "source_page_url": page_url,
+                    "source_page_title": page_title,
+                },
+            )
+
+    return {
+        "ok": True,
+        "task_id": task_id,
+        "job_status": job["status"],
+        "page_count": len(discovered_pages),
+        "media_candidate_count": len(media_candidates),
+        "discovered_pages": list(discovered_pages.values()),
+        "media_candidates": list(media_candidates.values()),
+    }
 
 
 @app.post("/v1/jobs/{task_id}/pause")
