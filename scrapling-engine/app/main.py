@@ -9,8 +9,8 @@ from starlette.concurrency import run_in_threadpool
 
 from app.config import settings
 from app.scraper import ScraplingAdapter
-from app.spider import ScraplingSpiderAdapter
 from app.security import UnsafeTargetError, validate_public_http_url
+from app.spider import ScraplingSpiderAdapter
 
 logging.basicConfig(level=settings.log_level.upper())
 logger = logging.getLogger("libretv.scrapling")
