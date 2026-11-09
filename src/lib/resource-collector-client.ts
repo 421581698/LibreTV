@@ -51,8 +51,8 @@ export async function collectorRequest(
       method: init.method ?? 'GET',
       ...(init.body !== undefined ? { body: init.body } : {}),
       headers: {
-        Authorization: `Bearer ${config.token}`,
         ...(init.headers ?? {}),
+        Authorization: `Bearer ${config.token}`,
       },
       cache: 'no-store',
       signal: AbortSignal.timeout(timeoutMs),
