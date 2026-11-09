@@ -4,7 +4,6 @@ import './glass-system.css';
 import './eight-screen-glass.css';
 import './ipad-glass.css';
 import './iphone-glass.css';
-import './iphone-home-inline.css';
 // Shared by the homepage header and every V4 spatial channel route.
 import './v4-homepage.css';
 // Last-loaded contract: identical header surface and navigation on every route.
@@ -15,6 +14,8 @@ import './v4-header-theme.css';
 import './theme-safe-area.css';
 // Final global contrast layer: dark mode must remain legible on every device and route.
 import './theme-global-compat.css';
+// Final iPhone homepage overrides must win over shared header/theme layers.
+import './iphone-home-inline.css';
 import { Providers } from '@/components/providers';
 
 export const metadata: Metadata = {
