@@ -131,7 +131,7 @@ describe('首页与播放页回归契约', () => {
     expect(header).toContain('<SourceManagerDrawer');
     expect(header).toContain('<HistoryPanel');
     expect(theme).toContain("localStorage.setItem(STORAGE_KEY, t)");
-    expect(live).toContain('<Header');
+    expect(live).toContain('<V4HomepageHeader');
     expect(downloads).toContain("window.addEventListener(ADD_TASK_EVENT, onAdd)");
   });
 
