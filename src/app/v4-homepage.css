@@ -1095,3 +1095,258 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
     margin-bottom: 22px !important;
   }
 }
+
+
+/* iPhone-specific composition. This is intentionally isolated below 700px;
+   tablet and desktop layouts retain their own navigation and hero geometry. */
+@media screen and (max-width: 700px) {
+  .v4-home {
+    min-height: 100svh;
+    overflow-x: clip;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Two compact rows: brand + utilities, then a swipeable seven-item nav. */
+  .v4-home .v4-header-inner {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-areas:
+      "brand actions"
+      "nav nav" !important;
+    align-items: center !important;
+    width: calc(100% - 28px) !important;
+    min-height: 0 !important;
+    padding: max(8px, env(safe-area-inset-top)) 0 8px !important;
+    gap: 6px 10px !important;
+    flex-wrap: initial !important;
+  }
+  .v4-home .v4-brand { grid-area: brand; font-size: 18px !important; gap: 7px !important; }
+  .v4-home .v4-brand-mark { width: 25px !important; height: 25px !important; flex-basis: 25px !important; }
+  .v4-home .v4-primary-nav {
+    grid-area: nav;
+    display: flex !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    justify-content: flex-start !important;
+    gap: 5px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    padding: 1px 0 3px !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+  }
+  .v4-home .v4-primary-nav::-webkit-scrollbar { display: none !important; }
+  .v4-home .v4-primary-nav .v4-nav-link {
+    flex: 0 0 auto !important;
+    min-height: 34px !important;
+    padding: 7px 11px !important;
+    border-radius: 999px !important;
+    font-size: 12px !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+    scroll-snap-align: start;
+  }
+  .v4-home .v4-header-actions {
+    grid-area: actions;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 3px !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+  }
+  .v4-home .v4-search {
+    display: none !important;
+    position: absolute !important;
+    top: calc(100% - 2px) !important;
+    left: 14px !important;
+    right: 14px !important;
+    z-index: 150 !important;
+    width: auto !important;
+    min-width: 0 !important;
+    height: 44px !important;
+    padding: 0 14px !important;
+    border: 1px solid rgba(255,255,255,.42) !important;
+    border-radius: 16px !important;
+    background: rgba(22,25,31,.88) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(150%) !important;
+    backdrop-filter: blur(22px) saturate(150%) !important;
+  }
+  .v4-home .v4-search.is-open { display: flex !important; }
+  .v4-home .v4-search input {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    opacity: 1 !important;
+    color: #fff !important;
+    font-size: 14px !important;
+  }
+  .v4-home .v4-search input::placeholder { color: rgba(255,255,255,.68) !important; }
+  .v4-home .v4-mobile-search-toggle {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 0 34px !important;
+    width: 34px !important;
+    height: 34px !important;
+    padding: 0 !important;
+    color: #fff !important;
+    background: rgba(0,0,0,.20) !important;
+    border: 1px solid rgba(255,255,255,.24) !important;
+    border-radius: 50% !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    backdrop-filter: blur(12px) !important;
+  }
+  .v4-home .v4-header-icon,
+  .v4-home .v4-avatar {
+    display: inline-flex !important;
+    flex: 0 0 32px !important;
+    width: 32px !important;
+    min-width: 32px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0 !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .v4-home .v4-header-icon svg,
+  .v4-home .v4-avatar svg,
+  .v4-home .v4-mobile-search-toggle svg {
+    display: block !important;
+    width: 17px !important;
+    height: 17px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    stroke: currentColor !important;
+  }
+
+  /* On scroll, keep the same two-row hierarchy in the floating glass header. */
+  .v4-home .v4-header.is-overlay.is-scrolled {
+    top: max(5px, env(safe-area-inset-top)) !important;
+    width: calc(100% - 16px) !important;
+    padding: 0 7px !important;
+    border-radius: 17px !important;
+    background: rgba(25,28,34,.78) !important;
+    border: 1px solid rgba(255,255,255,.18) !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,.22) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(155%) !important;
+    backdrop-filter: blur(22px) saturate(155%) !important;
+  }
+  .v4-home .v4-header.is-overlay.is-scrolled .v4-header-inner {
+    min-height: 0 !important;
+    padding: 6px 0 !important;
+    gap: 4px 8px !important;
+  }
+
+  /* iPhone hero: cinematic portrait crop, enough title breathing room, and
+     the recommendation rail starts within the first screen where possible. */
+  .v4-home-main--cinema > .v4-hero {
+    height: 68svh !important;
+    min-height: 540px !important;
+    max-height: 680px !important;
+    overflow: hidden !important;
+  }
+  @supports not (height: 68svh) {
+    .v4-home-main--cinema > .v4-hero { height: 68vh !important; }
+  }
+  .v4-home .v4-hero-image img {
+    object-position: 58% center !important;
+  }
+  .v4-home .v4-hero-veil {
+    background:
+      linear-gradient(90deg, rgba(4,8,15,.62) 0%, rgba(4,8,15,.24) 58%, rgba(4,8,15,.08) 100%),
+      linear-gradient(0deg, rgba(4,8,15,.76) 0%, rgba(4,8,15,.22) 45%, rgba(4,8,15,.12) 100%) !important;
+  }
+  .v4-home .v4-hero-content {
+    left: 20px !important;
+    right: 20px !important;
+    bottom: max(86px, calc(env(safe-area-inset-bottom) + 68px)) !important;
+    width: auto !important;
+    max-width: none !important;
+    padding-top: 0 !important;
+  }
+  .v4-home .v4-hero-content h1 {
+    max-width: 100% !important;
+    margin: 0 0 20px !important;
+    font-size: clamp(36px, 10.5vw, 48px) !important;
+    line-height: 1.12 !important;
+    letter-spacing: -1.3px !important;
+    overflow-wrap: anywhere;
+  }
+  .v4-home .v4-hero-actions {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 9px !important;
+    width: 100% !important;
+  }
+  .v4-home .v4-hero-actions .v4-hero-primary,
+  .v4-home .v4-hero-actions .v4-hero-secondary {
+    display: inline-flex !important;
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    min-height: 44px !important;
+    padding: 0 10px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 7px !important;
+    border-radius: 999px !important;
+    font-size: 13px !important;
+    white-space: nowrap !important;
+  }
+  .v4-home .v4-hero-content .v4-hero-indicators {
+    margin-top: 20px !important;
+    gap: 7px !important;
+  }
+  .v4-home .v4-hero-content .v4-hero-indicators button {
+    min-width: 24px !important;
+    min-height: 18px !important;
+    padding: 5px 0 !important;
+  }
+
+  /* Recommendation cards are touch-first: show a useful partial next card,
+     preserve poster proportions and avoid hover-only affordances. */
+  .v4-home-main--cinema > .v4-content-section {
+    width: calc(100% - 32px) !important;
+    margin-inline: auto !important;
+  }
+  .v4-home-main--cinema > .v4-content-section:first-of-type {
+    margin-top: 22px !important;
+  }
+  .v4-home .v4-recommendation-section > section > .grid {
+    gap: 12px !important;
+    padding: 2px 2px 16px !important;
+    scroll-snap-type: x mandatory;
+  }
+  .v4-home .v4-recommendation-section > section > .grid > * {
+    flex: 0 0 41% !important;
+    width: 41% !important;
+    scroll-snap-align: start;
+  }
+  .v4-home .v4-recommendation-section .card {
+    border-radius: 13px !important;
+    box-shadow: 0 7px 20px rgba(20,30,45,.13) !important;
+  }
+  .v4-home .v4-recommendation-section .card img {
+    filter: brightness(1.12) contrast(1.07) saturate(1.10) !important;
+  }
+
+  /* Touch targets and safe-area spacing for the fixed Friday orb and dialogs. */
+  .v4-home button,
+  .v4-home a { -webkit-tap-highlight-color: transparent; }
+  .v4-home .v4-content-section { scroll-margin-top: 116px; }
+}
+
+@media screen and (max-width: 390px) {
+  .v4-home .v4-header-inner { width: calc(100% - 20px) !important; gap: 5px 7px !important; }
+  .v4-home .v4-brand { font-size: 16px !important; }
+  .v4-home .v4-header-actions { gap: 1px !important; }
+  .v4-home .v4-header-icon,
+  .v4-home .v4-avatar { flex-basis: 29px !important; width: 29px !important; min-width: 29px !important; height: 29px !important; min-height: 29px !important; }
+  .v4-home .v4-mobile-search-toggle { flex-basis: 31px !important; width: 31px !important; height: 31px !important; }
+  .v4-home .v4-hero-content { left: 16px !important; right: 16px !important; }
+  .v4-home .v4-hero-content h1 { font-size: clamp(34px, 10vw, 42px) !important; }
+  .v4-home .v4-hero-actions .v4-hero-primary,
+  .v4-home .v4-hero-actions .v4-hero-secondary { font-size: 12px !important; }
+}
