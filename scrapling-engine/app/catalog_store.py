@@ -36,10 +36,10 @@ class CatalogStore:
                 CREATE TABLE IF NOT EXISTS catalog_entries (
                     entry_id TEXT NOT NULL,
                     snapshot_id TEXT NOT NULL REFERENCES catalog_snapshots(snapshot_id),
-                    title TEXT NOT NULL, description TEXT NOT NULL, category TEXT NOT NULL,
+                    title TEXT NOT NULL, category TEXT NOT NULL,
                     section_path TEXT NOT NULL, source_file TEXT NOT NULL,
                     source_line INTEGER NOT NULL, marker TEXT, safety_status TEXT NOT NULL,
-                    raw_line TEXT NOT NULL, PRIMARY KEY (snapshot_id, entry_id)
+                    source_url TEXT NOT NULL, PRIMARY KEY (snapshot_id, entry_id)
                 );
                 CREATE TABLE IF NOT EXISTS catalog_domains (
                     domain TEXT PRIMARY KEY, first_seen_at TEXT NOT NULL, last_seen_at TEXT NOT NULL
@@ -75,11 +75,11 @@ class CatalogStore:
             )
             for entry in entries:
                 connection.execute(
-                    "INSERT INTO catalog_entries VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    (entry.entry_id, snapshot_id, entry.title, entry.description,
-                     entry.category, json.dumps(entry.section_path, ensure_ascii=False),
+                    "INSERT INTO catalog_entries VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (entry.entry_id, snapshot_id, entry.title, entry.category,
+                     json.dumps(entry.section_path, ensure_ascii=False),
                      entry.source_file, entry.source_line, entry.marker,
-                     entry.safety_status, entry.raw_line),
+                     entry.safety_status, entry.source_url),
                 )
                 for link in entry.links:
                     connection.execute("""
@@ -132,14 +132,15 @@ class CatalogStore:
             clauses.append("e.category = ?")
             parameters.append(category)
         if query:
-            clauses.append("(e.title LIKE ? OR e.description LIKE ? OR l.domain LIKE ?)")
+            clauses.append("(e.title LIKE ? OR l.domain LIKE ?)")
             needle = f"%{query}%"
-            parameters.extend([needle, needle, needle])
+            parameters.extend([needle, needle])
         if not include_unsafe:
             clauses.append("e.safety_status != 'flagged_unsafe'")
         sql = f"""
-            SELECT DISTINCT e.entry_id, e.title, e.description, e.category,
-                e.section_path, e.source_file, e.source_line, e.marker, e.safety_status
+            SELECT DISTINCT e.entry_id, e.title, e.category,
+                e.section_path, e.source_file, e.source_line, e.marker,
+                e.safety_status, e.source_url
             FROM catalog_entries e
             LEFT JOIN catalog_links l
               ON l.snapshot_id = e.snapshot_id AND l.entry_id = e.entry_id
