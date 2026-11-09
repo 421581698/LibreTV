@@ -164,6 +164,12 @@ def test_spider_task_id_enables_checkpoint_directory(monkeypatch, tmp_path) -> N
     assert captured["crawldir"].is_dir()
     assert (captured["crawldir"] / "libretv-manifest.json").is_file()
 
+    mismatch = client.post(
+        "/v1/spider",
+        json={"urls": ["https://different.example/"], "task_id": "weekly_scan_01"},
+    )
+    assert mismatch.status_code == 409
+
 
 def test_spider_rejects_unsafe_task_id() -> None:
     response = client.post(
