@@ -13,7 +13,7 @@ export const SESSION_COOKIE = 'ltv_session';
 const SESSION_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 天
 
 export function getPassword(): string {
-  return process.env.PASSWORD || '';
+  return process.env.PASSWORD || process.env.LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY || '';
 }
 
 export function isAuthDisabled(): boolean {
