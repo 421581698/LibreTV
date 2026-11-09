@@ -25,7 +25,7 @@ FMHY_SOURCE_FILES = (
     "social-media-tools.md", "storage.md", "system-tools.md", "text-tools.md",
     "torrenting.md", "unsafe.md", "video-tools.md", "video.md",
 )
-_LINK_RE = re.compile(r"(?<!!)\\[([^\\]]+)\\]\\(\\s*(https?://[^\\s)]+)", re.IGNORECASE)
+_LINK_RE = re.compile(r"(?<!!)\[([^\]]+)\]\(\s*(https?://[^\s)]+)", re.IGNORECASE)
 _MARKERS = ("🌟", "⭐", "🌐", "↪️")
 _REPOSITORY_HOSTS = {"github.com", "gitlab.com", "codeberg.org", "bitbucket.org"}
 _COMMUNITY_HOSTS = {"reddit.com", "www.reddit.com", "discord.com", "discord.gg", "t.me", "telegram.me"}
@@ -103,15 +103,15 @@ def _link_role(label: str, host: str, order: int) -> str:
         return "mirror"
     if normalized in _AUXILIARY_LABELS:
         return "reference"
-    return "resource" if order == 0 else "alternate"
+    return "resource"
 
 
 def _clean_description(line: str) -> str:
-    text = re.sub(r"^\\s*[*+-]\\s*", "", line)
-    text = re.sub(r"^[🌟⭐🌐↪️]\\s*", "", text)
+    text = re.sub(r"^\s*[*+-]\s*", "", line)
+    text = re.sub(r"^[🌟⭐🌐↪️]\s*", "", text)
     text = _LINK_RE.sub(lambda match: match.group(1), text)
     text = text.replace(chr(96), "").replace("**", "").replace("__", "")
-    return re.sub(r"\\s+", " ", text).strip(" -–—|")
+    return re.sub(r"\s+", " ", text).strip(" -–—|")
 
 
 def parse_fmhy_markdown(source_file: str, markdown: str) -> list[CatalogEntry]:
@@ -128,13 +128,13 @@ def parse_fmhy_markdown(source_file: str, markdown: str) -> list[CatalogEntry]:
             continue
         if in_code_fence:
             continue
-        heading = re.match(r"^(#{1,6})\\s+(.+?)\\s*#*\\s*$", stripped)
+        heading = re.match(r"^(#{1,6})\s+(.+?)\s*#*\s*$", stripped)
         if heading:
             level = len(heading.group(1))
             headings = headings[: level - 1]
             headings.append(heading.group(2).strip())
             continue
-        if not re.match(r"^\\s*[*+-]\\s+", raw_line):
+        if not re.match(r"^\s*[*+-]\s+", raw_line):
             continue
         links: list[CatalogLink] = []
         for index, match in enumerate(_LINK_RE.finditer(raw_line)):
@@ -150,7 +150,7 @@ def parse_fmhy_markdown(source_file: str, markdown: str) -> list[CatalogEntry]:
         if primary_index is not None:
             links = [
                 CatalogLink(link.label, link.original_url, link.canonical_url, link.domain,
-                            "primary" if i == primary_index else link.role,
+                            "primary" if i == primary_index else ("alternate" if link.role == "resource" else link.role),
                             i == primary_index, link.order)
                 for i, link in enumerate(links)
             ]
