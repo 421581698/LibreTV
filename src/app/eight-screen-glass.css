@@ -361,3 +361,27 @@ body:has(.v4-home) .friday-fab::after {
   outline: 2px solid #fff !important; outline-offset: 3px !important;
   box-shadow: 0 0 24px rgba(255,255,255,.20) !important;
 }
+
+/* The live screen shares the same glass frame as the homepage; video itself stays unfiltered. */
+html.dark main:has(.live-dot) .aspect-video.bg-black {
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 20px !important;
+  box-shadow: 0 24px 58px rgba(0,0,0,.40), inset 0 1px 0 rgba(255,255,255,.08);
+}
+html.dark main:has(.live-dot) .glass-panel {
+  border: 1px solid rgba(255,255,255,.13) !important;
+  border-radius: 18px !important;
+  background: linear-gradient(180deg,rgba(255,255,255,.095),rgba(255,255,255,.035)) !important;
+  box-shadow: 0 16px 42px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.09) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter: blur(24px) saturate(160%);
+}
+html.dark main:has(.live-dot) :is(button,a):focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+  box-shadow: 0 0 24px rgba(255,255,255,.20);
+}
+@media(min-width:1600px) {
+  .v4-header-inner { width: min(100% - 88px, 1600px); }
+  .v4-home-main { width: min(100% - 120px, 1600px); }
+}
