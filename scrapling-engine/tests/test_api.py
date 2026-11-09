@@ -11,11 +11,11 @@ from app.scraper import ScraplingAdapter
 client = TestClient(app)
 
 
-def test_health_reports_phase_one() -> None:
+def test_health_reports_phase_two_resource_discovery() -> None:
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json()["engine"] == "scrapling"
-    assert response.json()["phase"] == "1"
+    assert response.json()["phase"] == "2"
 
 
 def test_capabilities_distinguish_planned_features() -> None:
@@ -24,6 +24,8 @@ def test_capabilities_distinguish_planned_features() -> None:
     body = response.json()
     assert "http_fetch" in body["implemented"]
     assert "xpath_extraction" in body["implemented"]
+    assert "fmhy_catalog_to_spider_jobs" in body["implemented"]
+    assert "media_url_candidate_extraction" in body["implemented"]
     assert "recursive_link_crawling" in body["planned"]
 
 
