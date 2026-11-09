@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Icon } from '@/components/icon';
 import { GlassButton } from '@/components/ui/glass';
@@ -25,6 +25,12 @@ export function V4HomepageHeader() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [query, setQuery] = useState('');
   const searchHistory = useSearchHistory(query);
+
+  useEffect(() => {
+    const openSourceManager = () => setSettingsOpen(true);
+    window.addEventListener('libretv:open-source-manager', openSourceManager);
+    return () => window.removeEventListener('libretv:open-source-manager', openSourceManager);
+  }, []);
 
   const submitSearch = (value: string) => {
     const q = value.trim().slice(0, 100);
