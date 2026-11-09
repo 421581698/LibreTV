@@ -8,7 +8,7 @@
     min-width: 0 !important;
   }
 
-  /* Two-row tablet chrome: brand/actions above, all six destinations below. */
+  /* Two-row tablet chrome: brand/actions above, all seven destinations below. */
   .v4-header {
     position: sticky;
     top: 0;
