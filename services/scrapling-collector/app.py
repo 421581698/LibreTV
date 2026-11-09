@@ -7,6 +7,7 @@ import hmac
 import ipaddress
 import json
 import os
+import re
 import socket
 import ssl
 import sqlite3
@@ -245,6 +246,41 @@ def _first_base_url(node) -> str | None:
     return (values[0].text or "").strip() or None
 
 
+def parse_iso8601_duration_seconds(value: str | None) -> float | None:
+    """Parse the day/time subset of ISO-8601 durations used by DASH."""
+    if not value:
+        return None
+    match = re.fullmatch(
+        r"P(?:(\\d+(?:\\.\\d+)?)D)?(?:T(?:(\\d+(?:\\.\\d+)?)H)?(?:(\\d+(?:\\.\\d+)?)M)?(?:(\\d+(?:\\.\\d+)?)S)?)?",
+        value,
+    )
+    if not match:
+        return None
+    days, hours, minutes, seconds = (float(part or 0) for part in match.groups())
+    return days * 86400 + hours * 3600 + minutes * 60 + seconds
+
+
+def expand_dash_template(template: str, representation: dict, number: int, media_time: int) -> str:
+    """Expand the finite DASH template tokens needed for bounded timeline inspection."""
+    sentinel = "\\x00DASH_DOLLAR\\x00"
+    value = template.replace("$", sentinel)
+    replacements = {
+        "RepresentationID": str(representation.get("id") or ""),
+        "Bandwidth": str(representation.get("bandwidth") or ""),
+        "Number": str(number),
+        "Time": str(media_time),
+    }
+    pattern = re.compile(r"\\$(RepresentationID|Bandwidth|Number|Time)(%0(\\d+)d)?\\$")
+    def substitute(match):
+        token = match.group(1)
+        replacement = replacements[token]
+        width = match.group(3)
+        if width and token in ("Number", "Time") and replacement:
+            replacement = replacement.zfill(int(width))
+        return replacement
+    return pattern.sub(substitute, value).replace(sentinel, "$")
+
+
 def parse_mpd_manifest(body: bytes, base_url: str = "") -> dict:
     # MPDs are untrusted input; reject DTD/entity declarations before XML parsing.
     upper_body = body.upper()
@@ -261,19 +297,41 @@ def parse_mpd_manifest(body: bytes, base_url: str = "") -> dict:
     base_references: list[str] = []
     template_references: list[str] = []
     segment_references: list[str] = []
+    dynamic = root.attrib.get("type", "static").lower() == "dynamic"
+    time_shift_depth = parse_iso8601_duration_seconds(root.attrib.get("timeShiftBufferDepth"))
+    dynamic_metadata = {
+        key: root.attrib.get(key)
+        for key in (
+            "availabilityStartTime", "publishTime", "minimumUpdatePeriod",
+            "timeShiftBufferDepth", "suggestedPresentationDelay",
+        )
+        if root.attrib.get(key) is not None
+    }
+    dynamic_metadata["minimum_update_period_seconds"] = parse_iso8601_duration_seconds(root.attrib.get("minimumUpdatePeriod"))
+    dynamic_metadata["time_shift_buffer_depth_seconds"] = time_shift_depth
+    dynamic_metadata["suggested_presentation_delay_seconds"] = parse_iso8601_duration_seconds(root.attrib.get("suggestedPresentationDelay"))
 
-    def walk_period(period, mpd_base: str, inherited_template: dict):
+    def walk_period(period, mpd_base: str, inherited_template: dict, inherited_timeline=None):
         period_base = _first_base_url(period)
         current_base = urljoin(mpd_base, period_base) if period_base else mpd_base
         period_templates = dict(inherited_template)
+        period_timeline = inherited_timeline
         for node in _xml_children(period, "SegmentTemplate"):
             period_templates.update(node.attrib)
+            timelines = _xml_children(node, "SegmentTimeline")
+            if timelines:
+                period_timeline = timelines[0]
+        period_duration = parse_iso8601_duration_seconds(period.attrib.get("duration"))
         for adaptation in _xml_children(period, "AdaptationSet"):
             adaptation_base = _first_base_url(adaptation)
             adaptation_url = urljoin(current_base, adaptation_base) if adaptation_base else current_base
             adaptation_templates = dict(period_templates)
+            adaptation_timeline = period_timeline
             for node in _xml_children(adaptation, "SegmentTemplate"):
                 adaptation_templates.update(node.attrib)
+                timelines = _xml_children(node, "SegmentTimeline")
+                if timelines:
+                    adaptation_timeline = timelines[0]
             for representation in _xml_children(adaptation, "Representation"):
                 representation_base = _first_base_url(representation)
                 resolved_base = urljoin(adaptation_url, representation_base) if representation_base else adaptation_url
@@ -281,8 +339,12 @@ def parse_mpd_manifest(body: bytes, base_url: str = "") -> dict:
                     base_references.append(resolved_base)
 
                 template = dict(adaptation_templates)
+                timeline_node = adaptation_timeline
                 for node in _xml_children(representation, "SegmentTemplate"):
                     template.update(node.attrib)
+                    timelines = _xml_children(node, "SegmentTimeline")
+                    if timelines:
+                        timeline_node = timelines[0]
                 template_refs = {}
                 for key in ("media", "initialization"):
                     value = template.get(key)
@@ -292,10 +354,92 @@ def parse_mpd_manifest(body: bytes, base_url: str = "") -> dict:
                         if len(template_references) < 50:
                             template_references.append(resolved)
 
+                try:
+                    width = int(representation.attrib["width"]) if representation.attrib.get("width") else None
+                    height = int(representation.attrib["height"]) if representation.attrib.get("height") else None
+                    bandwidth = int(representation.attrib["bandwidth"]) if representation.attrib.get("bandwidth") else None
+                except ValueError:
+                    width = height = bandwidth = None
+                representation_info = {
+                    "id": representation.attrib.get("id"),
+                    "width": width,
+                    "height": height,
+                    "bandwidth": bandwidth,
+                    "codecs": representation.attrib.get("codecs") or adaptation.attrib.get("codecs"),
+                    "base_url": resolved_base,
+                    "segment_template": template_refs,
+                    "segment_list": [],
+                    "segment_timeline": [],
+                }
+
+                timeline_truncated = False
+                if timeline_node is not None and template.get("media"):
+                    try:
+                        timescale = max(1, int(template.get("timescale", "1")))
+                        start_number = max(0, int(template.get("startNumber", "1")))
+                    except ValueError:
+                        timescale, start_number = 1, 1
+                    cursor = 0
+                    segment_number = start_number
+                    entries = _xml_children(timeline_node, "S")
+                    for index, entry in enumerate(entries):
+                        try:
+                            duration = int(entry.attrib.get("d", "0"))
+                            if duration <= 0:
+                                continue
+                            start = int(entry.attrib["t"]) if entry.attrib.get("t") is not None else cursor
+                            repeat = int(entry.attrib.get("r", "0"))
+                        except ValueError:
+                            continue
+                        if repeat >= 0:
+                            count = repeat + 1
+                        else:
+                            next_start = None
+                            for following in entries[index + 1:]:
+                                if following.attrib.get("t") is not None:
+                                    try:
+                                        next_start = int(following.attrib["t"])
+                                    except ValueError:
+                                        pass
+                                    break
+                            if next_start is not None:
+                                count = max(0, (next_start - start + duration - 1) // duration)
+                            elif period_duration is not None:
+                                end_tick = int(period_duration * timescale)
+                                count = max(0, (end_tick - start + duration - 1) // duration)
+                            elif dynamic and time_shift_depth is not None:
+                                count = max(0, int(time_shift_depth * timescale + duration - 1) // duration)
+                            else:
+                                count = 50
+                                timeline_truncated = True
+                        for offset in range(count):
+                            if len(representation_info["segment_timeline"]) >= 50:
+                                timeline_truncated = True
+                                break
+                            media_time = start + offset * duration
+                            media_path = expand_dash_template(
+                                template["media"], representation_info,
+                                segment_number, media_time,
+                            )
+                            media_url = urljoin(resolved_base, media_path)
+                            representation_info["segment_timeline"].append({
+                                "number": segment_number, "time": media_time,
+                                "duration": duration, "url": media_url,
+                            })
+                            if len(segment_references) < 50:
+                                segment_references.append(media_url)
+                            segment_number += 1
+                        cursor = start + count * duration
+                        if len(representation_info["segment_timeline"]) >= 50:
+                            break
+                representation_info["segment_timeline_truncated"] = timeline_truncated
+
                 segment_list_refs = []
                 segment_lists = _xml_children(representation, "SegmentList")
                 if not segment_lists:
                     segment_lists = _xml_children(adaptation, "SegmentList")
+                if not segment_lists:
+                    segment_lists = _xml_children(period, "SegmentList")
                 for segment_list in segment_lists[:1]:
                     for initialization in _xml_children(segment_list, "Initialization"):
                         source = initialization.attrib.get("sourceURL")
@@ -305,34 +449,23 @@ def parse_mpd_manifest(body: bytes, base_url: str = "") -> dict:
                         media = segment.attrib.get("media")
                         if media and len(segment_list_refs) < 50:
                             segment_list_refs.append(urljoin(resolved_base, media))
+                representation_info["segment_list"] = segment_list_refs[:50]
                 segment_references.extend(segment_list_refs[: max(0, 50 - len(segment_references))])
-
-                try:
-                    width = int(representation.attrib["width"]) if representation.attrib.get("width") else None
-                    height = int(representation.attrib["height"]) if representation.attrib.get("height") else None
-                    bandwidth = int(representation.attrib["bandwidth"]) if representation.attrib.get("bandwidth") else None
-                except ValueError:
-                    width = height = bandwidth = None
-                representations.append({
-                    "id": representation.attrib.get("id"),
-                    "width": width,
-                    "height": height,
-                    "bandwidth": bandwidth,
-                    "codecs": representation.attrib.get("codecs") or adaptation.attrib.get("codecs"),
-                    "base_url": resolved_base,
-                    "segment_template": template_refs,
-                    "segment_list": segment_list_refs[:50],
-                })
+                representations.append(representation_info)
 
     mpd_base = base_url
     root_base = _first_base_url(root)
     if root_base:
         mpd_base = urljoin(base_url, root_base)
     root_templates = {}
+    root_timeline = None
     for node in _xml_children(root, "SegmentTemplate"):
         root_templates.update(node.attrib)
+        timelines = _xml_children(node, "SegmentTimeline")
+        if timelines:
+            root_timeline = timelines[0]
     for period in _xml_children(root, "Period"):
-        walk_period(period, mpd_base, root_templates)
+        walk_period(period, mpd_base, root_templates, root_timeline)
 
     if not representations:
         return {"manifest_valid": False, "manifest_error": "missing_representations"}
@@ -340,7 +473,8 @@ def parse_mpd_manifest(body: bytes, base_url: str = "") -> dict:
     return {
         "manifest_valid": True,
         "manifest_type": "dash",
-        "dynamic": root.attrib.get("type", "static").lower() == "dynamic",
+        "dynamic": dynamic,
+        "dynamic_metadata": dynamic_metadata,
         "representation_count": len(representations),
         "representations": representations[:20],
         "base_urls": base_references,
