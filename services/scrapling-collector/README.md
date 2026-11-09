@@ -51,3 +51,41 @@ SCRAPLING_API_TOKEN=test-token python -m unittest discover -s tests -v
 ```
 
 The GitHub Actions workflow runs Python compilation and the collector security/persistence unit tests on relevant changes.
+
+## Deploy to Render (PR #60 preview / manual opt-in)
+
+This repository includes a Render Blueprint at the repository root. It is configured for the PR #60 feature branch and creates one **paid** Docker web service only when the owner explicitly creates/syncs the Blueprint. It does not deploy automatically: `autoDeployTrigger: off`.
+
+### Render settings
+
+- Repository: `421581698/LibreTV`
+- Branch: `feat/iphone-inline-play-top-search-2026-11-09` (select this branch when connecting the Blueprint)
+- Blueprint file: `render.yaml` at repository root
+- Service root directory: `services/scrapling-collector`
+- Dockerfile: `services/scrapling-collector/Dockerfile`
+- Docker build context: `services/scrapling-collector`
+- Health check: `/health`
+- Persistent disk: `/data` (1 GB)
+- Runtime port: Render-provided `PORT` (defaults to 10000 on Render); Docker Compose explicitly sets `PORT=8000`.
+
+The Blueprint generates `SCRAPLING_API_TOKEN` as a secret. Do not commit a token or paste it into chat. After deployment, copy the generated value securely from the Render service environment into the **PR #60 Preview Worker Secret** with the same name. Set the Worker variable `SCRAPLING_API_BASE` to the service's HTTPS `onrender.com` URL (no trailing slash). The Worker must be configured separately; this repository does not publish a shared test token or public shared collector.
+
+### Important deployment and security limits
+
+- A persistent disk is required for SQLite. Render's free web services do not provide the persistent disk required by this service; this Blueprint deliberately selects a paid `2c-4g` web service and a 1 GB disk. Creating it may incur charges. Review the current Render price before confirming.
+- The container installs Scrapling's browser runtime during image build. Browser-based crawl requests can use significantly more memory than simple HTTP discovery; monitor memory and upgrade if needed.
+- The collector accepts authenticated crawl requests and fetches third-party URLs. Its application-level DNS/IP checks are defense in depth, not an egress firewall. The existing `DOCKER-USER` firewall script only applies to a Docker host and cannot be assumed to run on Render. **Do not treat a Render deployment as production-safe for arbitrary/untrusted crawl targets until equivalent outbound network restrictions are independently implemented and verified on that platform.**
+- The Render Blueprint is a reproducible deployment definition, not proof of a live deployment. No service, domain, token, or paid resource is created by CI.
+- Use Render's HTTPS `onrender.com` hostname; no custom domain is required for Preview testing.
+- Render may suspend free services, but this configuration is not a free-tier deployment because persistent SQLite storage is required.
+
+### Render deployment verification
+
+After the owner manually deploys the Blueprint, verify all of the following before connecting the Worker:
+
+1. `GET https://<service>.onrender.com/health` returns HTTP 200 and `{"ok":true,...}`.
+2. `GET /v1/discover` without a bearer token returns HTTP 401.
+3. `GET /v1/discover` with the configured token returns a real FMHY discovery response.
+4. Restart/redeploy the service and confirm task records remain available from the persistent `/data` disk.
+5. Set the Preview Worker's `SCRAPLING_API_BASE` and `SCRAPLING_API_TOKEN` secrets, then verify `/api/resource-collector` from the Preview app.
+6. Keep this service isolated from production. Do not reuse production secrets.
