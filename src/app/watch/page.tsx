@@ -683,6 +683,16 @@ function WatchContent() {
                   <span className="min-w-0 flex-1 text-left"><strong>第 {currentIndex + 2} 集</strong><small>{videoTitle}</small></span>
                   <span aria-hidden="true">›</span>
                 </button>
+                <label className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2 text-xs text-white/80">
+                  <span>播放结束后自动播放下一集</span>
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-[#3978ef]"
+                    checked={store.autoplayNext}
+                    onChange={(event) => store.updateSettings({ autoplayNext: event.target.checked })}
+                    aria-label="自动播放下一集"
+                  />
+                </label>
               </div>
             )}
             <div className="netflix-sidebar-footer">
