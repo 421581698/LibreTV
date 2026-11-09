@@ -826,3 +826,18 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
     color: #17191d !important;
   }
 }
+
+
+/* Compact desktop window widths: prevent the three-column header from
+ * overflowing between the full desktop and tablet breakpoints. */
+@media screen and (min-width: 1101px) and (max-width: 1180px) {
+  .v4-header-inner {
+    width: calc(100% - 40px);
+    grid-template-columns: minmax(150px, .7fr) auto minmax(300px, .9fr);
+    gap: 14px;
+  }
+  .v4-primary-nav { gap: 2px; }
+  .v4-nav-link { padding: 9px 12px; font-size: 13px; }
+  .v4-header-actions { gap: 8px; }
+  .v4-search { width: min(100%, 260px); }
+}
