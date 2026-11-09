@@ -28,6 +28,9 @@ def test_catalog_read_apis_return_entries_and_domains(tmp_path, monkeypatch) -> 
     assert {item["domain"] for item in domains.json()["domains"]} == {
         "example.com", "mirror.example",
     }
+    categories = client.get("/v1/catalog/categories")
+    assert categories.status_code == 200
+    assert categories.json()["categories"][0]["category"] == "video"
 
 
 def test_catalog_api_hides_unsafe_records_by_default(tmp_path, monkeypatch) -> None:
