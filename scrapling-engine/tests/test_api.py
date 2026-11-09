@@ -162,6 +162,7 @@ def test_spider_task_id_enables_checkpoint_directory(monkeypatch, tmp_path) -> N
     assert response.json()["checkpoint_enabled"] is True
     assert captured["crawldir"] == tmp_path / "weekly_scan_01"
     assert captured["crawldir"].is_dir()
+    assert (captured["crawldir"] / "libretv-manifest.json").is_file()
 
 
 def test_spider_rejects_unsafe_task_id() -> None:
