@@ -238,17 +238,18 @@ function WatchContent() {
     const urlPos =
       parseInt(searchParams.get('position') || '0', 10) || 0;
     if (urlPos > 0) return urlPos;
-    if (!vodId) return 0;
+    const progressId = vodId || currentUrl;
+    if (!progressId) return 0;
     const entry = await db.progress.get(
-      progressKeyOf(sourceKey, vodId, currentIndex)
+      progressKeyOf(sourceKey, progressId, currentIndex)
     );
     if (entry?.position && entry.position > 5) return entry.position;
     // 兼容旧版或进度表缺失：从本机观看历史恢复最后一次有效位置。
-    const history = await db.history.get(`${sourceKey}_${vodId}`);
+    const history = await db.history.get(`${sourceKey}_${progressId}`);
     return history && history.playbackPosition > 5
       ? history.playbackPosition
       : 0;
-  }, [searchParams, sourceKey, vodId, currentIndex]);
+  }, [searchParams, sourceKey, vodId, currentUrl, currentIndex]);
   // 写入观看历史（进入页面即记录，进度后续增量更新）
   useEffect(() => {
     if (!verified || !sourceKey || !currentUrl) return;
@@ -275,21 +276,21 @@ function WatchContent() {
   // 播放中与暂停时的进度落盘逻辑一致，共用同一回调
   const handleProgress = useCallback(
     (position: number, duration: number) => {
-      if (vodId) {
-        saveProgress(
-          sourceKey,
-          vodId,
-          currentIndex,
-          position,
-          duration
-        ).catch(() => {});
-        updateHistoryProgress(
-          sourceKey,
-          vodId || currentUrl,
-          position,
-          duration
-        ).catch(() => {});
-      }
+      const progressId = vodId || currentUrl;
+      if (!progressId) return;
+      saveProgress(
+        sourceKey,
+        progressId,
+        currentIndex,
+        position,
+        duration
+      ).catch(() => {});
+      updateHistoryProgress(
+        sourceKey,
+        progressId,
+        position,
+        duration
+      ).catch(() => {});
     },
     [sourceKey, vodId, currentIndex, currentUrl]
   );
@@ -309,9 +310,8 @@ function WatchContent() {
     setShowAutoNext(false);
   }, []);
   const handleEnded = useCallback(() => {
-    if (vodId) {
-      clearProgress(sourceKey, vodId, currentIndex).catch(() => {});
-    }
+    const progressId = vodId || currentUrl;
+    if (progressId) clearProgress(sourceKey, progressId, currentIndex).catch(() => {});
     if (store.autoplayNext && currentIndex < episodes.length - 1) {
       setShowAutoNext(true);
       autoNextTimer.current = setTimeout(() => {
@@ -326,6 +326,7 @@ function WatchContent() {
     goEpisode,
     sourceKey,
     vodId,
+    currentUrl,
   ]);
   useEffect(() => {
     if (!store.autoplayNext) cancelAutoNext();
