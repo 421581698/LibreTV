@@ -191,7 +191,7 @@ function HistoryItem({ item }: { item: HistoryEntry }) {
           // 点击即同步一次时间戳，置顶最近观看
           upsertHistory({ ...item, timestamp: Date.now() }).catch(() => {});
         }}
-        className="block bg-card hover:bg-hover rounded-lg p-3 pr-10 transition-colors"
+        className="glass-panel block hover:bg-hover/70 rounded-lg p-3 pr-10 transition-colors"
       >
         <div className="flex items-center gap-3">
           {item.pic && !imgFailed ? (
