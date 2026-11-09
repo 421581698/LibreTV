@@ -159,7 +159,7 @@ html.dark body {
   backdrop-filter: blur(24px) saturate(160%) !important;
 }
 .v4-brand { color: #F4F1EA !important; }
-.v4-brand img { border: 1px solid rgba(241,166,58,.36); box-shadow: 0 0 20px rgba(241,166,58,.12); }
+.v4-brand-mark { filter: drop-shadow(0 0 9px rgba(241,166,58,.20)); }
 .v4-nav-link { color: rgba(255,255,255,.60) !important; }
 .v4-nav-link:hover { color: #fff !important; background: rgba(255,255,255,.075) !important; }
 .v4-nav-link.is-active {
