@@ -70,3 +70,21 @@ def test_parser_ignores_code_fences_and_non_bullet_navigation() -> None:
 """
     entries = parse_fmhy_markdown("video.md", markdown)
     assert [entry.title for entry in entries] == ["Actual"]
+
+
+def test_fmhy_markers_are_not_misclassified_as_primary_sites() -> None:
+    markdown = """# Indexes
+
+* 🌐 [Third Party Index](https://index.example/)
+* ↪️ [Internal Section](https://www.reddit.com/r/example/wiki/section)
+"""
+    entries = parse_fmhy_markdown("video.md", markdown, "a" * 40)
+
+    assert entries[0].marker == "🌐"
+    assert entries[0].links[0].role == "index"
+    assert entries[0].links[0].is_primary is False
+    assert entries[1].marker == "↪️"
+    assert entries[1].links[0].role == "navigation"
+    assert entries[1].links[0].is_primary is False
+    assert entries[0].source_url.endswith("/docs/video.md#L3")
+    assert "a" * 40 in entries[0].source_url
