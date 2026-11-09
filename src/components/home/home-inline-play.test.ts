@@ -103,6 +103,7 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
   it('applies light-theme colors to routed iPhone screens and keeps safe-area paint below the dock', () => {
     expect(theme).toContain(':root:not(.dark) .v4-spatial-screen');
     expect(theme).toContain(':root:not(.dark) .v4-spatial-screen .v4-resource-search input');
+    expect(theme).toContain('html.dark .v4-mobile-tabbar');
     expect(safeArea).toContain('z-index: 1;');
     expect(safeArea).not.toContain('2147483000');
   });
