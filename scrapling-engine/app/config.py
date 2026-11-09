@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     api_key: SecretStr | None = Field(
         default=None,
         validation_alias="SCRAPLING_API_KEY",
+        min_length=32,
     )
     port: int = Field(default=8787, ge=1, le=65535)
     log_level: str = "INFO"
