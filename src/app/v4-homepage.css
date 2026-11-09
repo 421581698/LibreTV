@@ -162,3 +162,58 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
   .v4-header { -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
   .v4-history-card { -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 }
+
+
+/* V4 cinematic lobby pass: panoramic, edge-to-edge hero with floating glass navigation. */
+.v4-home { background:#090d16; color:#f7f8fb; }
+.v4-home .v4-header {
+  position:absolute; top:0; left:0; right:0; z-index:130;
+  background:linear-gradient(180deg,rgba(5,9,16,.62),rgba(5,9,16,.12));
+  border:0; box-shadow:none;
+  -webkit-backdrop-filter:blur(12px) saturate(130%);
+  backdrop-filter:blur(12px) saturate(130%);
+}
+.v4-home .v4-brand { color:#fff; }
+.v4-home .v4-nav-link { color:rgba(255,255,255,.82); }
+.v4-home .v4-nav-link:hover,
+.v4-home .v4-nav-link.is-active { color:#17191d; background:rgba(255,255,255,.94); }
+.v4-home .v4-header-icon,.v4-home .v4-avatar { color:#fff; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2); }
+.v4-home .v4-search { color:#fff; background:rgba(255,255,255,.13); border-color:rgba(255,255,255,.22); }
+.v4-home .v4-search input { color:#fff; }
+.v4-home .v4-search input::placeholder { color:rgba(255,255,255,.72); }
+.v4-home .v4-home-main { width:100%; max-width:none; padding:0 0 48px; }
+.v4-home .v4-hero {
+  width:100%; height: min(76vh, 820px); min-height:560px;
+  border-radius:0; box-shadow:none;
+}
+.v4-home .v4-hero-image {
+  background-position:center 42%;
+}
+.v4-home .v4-hero::after {
+  content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
+  background:linear-gradient(90deg,rgba(4,8,15,.78) 0%,rgba(4,8,15,.42) 34%,rgba(4,8,15,.04) 76%),
+    linear-gradient(0deg,#090d16 0%,rgba(9,13,22,.06) 38%,rgba(9,13,22,.2) 100%);
+}
+.v4-home .v4-hero-content { z-index:1; top:auto; bottom:clamp(72px,10vh,120px); transform:none; }
+.v4-home .v4-hero-indicators { z-index:2; bottom:34px; }
+.v4-home .v4-content-section { width:min(100% - 64px,1600px); margin:30px auto 0; }
+.v4-home .v4-section-heading h2 { color:#f4f6fa; }
+.v4-home .v4-section-heading a { color:rgba(235,240,248,.7); }
+.v4-home .v4-recommendation-section .card,
+.v4-home .v4-history-card { background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.13); color:#f7f8fb; }
+.v4-home .v4-history-copy strong { color:#fff; }
+.v4-home .v4-history-copy > span,.v4-home .v4-history-count { color:rgba(235,240,248,.64); }
+.v4-home .v4-history-empty { color:rgba(235,240,248,.68); border-color:rgba(255,255,255,.2); background:rgba(255,255,255,.06); }
+@media (max-width:1100px) {
+  .v4-home .v4-home-main { width:100%; }
+  .v4-home .v4-hero { height: min(68vh,700px); min-height:480px; }
+}
+@media (max-width:700px) {
+  .v4-home .v4-header { position:absolute; }
+  .v4-home .v4-home-main { padding-top:0; }
+  .v4-home .v4-hero { height: min(66svh,620px); min-height:430px; border-radius:0; }
+  .v4-home .v4-hero-content { left:22px; right:18px; bottom:66px; }
+  .v4-home .v4-hero-content h1 { font-size:clamp(34px,9vw,48px); }
+  .v4-home .v4-content-section { width:calc(100% - 28px); margin-top:24px; }
+  .v4-home .v4-hero-indicators { bottom:24px; }
+}
