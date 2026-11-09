@@ -14,6 +14,7 @@ vi.mock("@/lib/api-guard", () => ({
         "content-type": "application/json",
         "cache-control": "no-store",
         "x-content-type-options": "nosniff",
+        "content-security-policy": "sandbox",
       },
     }),
 }));
