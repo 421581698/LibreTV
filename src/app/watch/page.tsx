@@ -71,6 +71,9 @@ function WatchContent() {
     () => db.history.orderBy('timestamp').reverse().limit(8).toArray(),
     [sourceKey, vodId]
   );
+  // 全量观看索引用于推荐去重；不把已看过的影片重复包装成新推荐。
+  const watchedHistory = useLiveQuery(() => db.history.toArray(), []);
+
   const [switchOpen, setSwitchOpen] = useState(false);
   const [skipPanelOpen, setSkipPanelOpen] = useState(false);
   // 播放器对外暴露的精确时间读取接口（「记录当前」用），随播放器卸载置空
@@ -136,13 +139,22 @@ function WatchContent() {
     staleTime: 10 * 60_000,
     retry: 1,
   });
-  const relatedItems = useMemo(
-    () => (relatedQuery.data?.list ?? [])
+  const relatedItems = useMemo(() => {
+    const watchedIds = new Set((watchedHistory ?? []).map((item) => `${item.sourceKey}:${item.vodId}`));
+    const watchedTitles = new Set((watchedHistory ?? []).map((item) => item.title.trim().toLocaleLowerCase()).filter(Boolean));
+    const seen = new Set<string>();
+    return (relatedQuery.data?.list ?? [])
       .filter((item) => !(item.sourceKey === sourceKey && item.vodId === vodId))
-      .filter((item, index, all) => all.findIndex((candidate) => candidate.name.trim().toLowerCase() === item.name.trim().toLowerCase()) === index)
-      .slice(0, 8),
-    [relatedQuery.data, sourceKey, vodId]
-  );
+      .filter((item) => !watchedIds.has(`${item.sourceKey}:${item.vodId}`))
+      .filter((item) => !watchedTitles.has(item.name.trim().toLocaleLowerCase()))
+      .filter((item) => {
+        const title = item.name.trim().toLocaleLowerCase();
+        if (!title || seen.has(title)) return false;
+        seen.add(title);
+        return true;
+      })
+      .slice(0, 8);
+  }, [relatedQuery.data, sourceKey, vodId, watchedHistory]);
   // 当前播放地址：优先取剧集列表中的当前集，其次直连 URL 参数
   const currentUrl = useMemo(() => {
     if (episodes.length > 0) {
