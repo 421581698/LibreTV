@@ -30,14 +30,14 @@
 .dark {
   --c-page: 0 0 0;
   --c-surface: 26 26 26;
-  --c-surface-raised: 20 28 41;
+  --c-surface-raised: 28 28 30;
   --c-card: 26 26 26;
-  --c-chip: 22 32 46;
-  --c-hover: 29 42 61;
-  --c-line: 34 48 69;
-  --c-content: 230 242 255;
-  --c-muted: 133 153 178;
-  --c-faint: 122 140 166;
+  --c-chip: 38 38 40;
+  --c-hover: 48 48 50;
+  --c-line: 64 64 68;
+  --c-content: 242 242 244;
+  --c-muted: 161 161 166;
+  --c-faint: 125 125 130;
   --c-accent: 255 255 255;
   --c-accent-hover: 204 204 204;
   --c-on-accent: 0 0 0;
@@ -590,7 +590,7 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   backdrop-filter: blur(12px);
 }
 .dark .home-v2 .home-v2-ai-search {
-  background: rgba(20,27,41,.84);
+  background: rgba(24,24,27,.88);
   box-shadow: 0 8px 28px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.08);
 }
 .home-v2 .home-v2-search-leading {
@@ -630,8 +630,8 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   -webkit-tap-highlight-color: transparent;
 }
 .home-v2 .home-v2-mic-button {
-  color: #a9d9ff;
-  background: rgba(77,151,224,.15);
+  color: #FFD18A;
+  background: rgba(241,166,58,.14);
 }
 .home-v2 .home-v2-mic-button.is-listening {
   color: #fff;
@@ -640,16 +640,16 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   animation: home-v2-mic-pulse 1.25s ease-out infinite;
 }
 .home-v2 .home-v2-ai-search.is-listening {
-  border-color: rgba(72, 153, 226, .58);
-  box-shadow: 0 0 0 2px rgba(72, 153, 226, .10), 0 8px 28px rgba(30, 45, 75, .09);
+  border-color: rgba(241, 166, 58, .48);
+  box-shadow: 0 0 0 2px rgba(241, 166, 58, .10), 0 8px 28px rgba(0, 0, 0, .12);
 }
 .dark .home-v2 .home-v2-ai-search.is-listening {
-  border-color: rgba(109, 185, 242, .48);
-  box-shadow: 0 0 0 2px rgba(109, 185, 242, .12), 0 8px 28px rgba(0, 0, 0, .22);
+  border-color: rgba(241, 166, 58, .42);
+  box-shadow: 0 0 0 2px rgba(241, 166, 58, .10), 0 8px 28px rgba(0, 0, 0, .22);
 }
 .home-v2 .home-v2-search-submit {
   color: #fff;
-  background: #2469c8;
+  background: linear-gradient(135deg, #FFD18A, #EBA13A);
 }
 .home-v2 .home-v2-search-submit:active,
 .home-v2 .home-v2-mic-button:active { transform: scale(.92); }
@@ -666,19 +666,19 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   align-items: center;
   justify-content: center;
   gap: 7px;
-  color: #6db9f2;
+  color: #F1B45D;
 }
 .home-v2 .home-v2-voice-pulse {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #6db9f2;
-  box-shadow: 0 0 0 4px rgba(109,185,242,.14);
+  background: #F1B45D;
+  box-shadow: 0 0 0 4px rgba(241,166,58,.14);
   animation: home-v2-mic-pulse 1.25s ease-out infinite;
 }
 @keyframes home-v2-mic-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(109,185,242,.36); }
-  100% { box-shadow: 0 0 0 9px rgba(109,185,242,0); }
+  0% { box-shadow: 0 0 0 0 rgba(241,166,58,.30); }
+  100% { box-shadow: 0 0 0 9px rgba(241,166,58,0); }
 }
 .home-v2 .home-v2-quick-searches { margin-top: 8px; }
 .home-v2 .friday-hero-v2 + section { margin-top: 0 !important; margin-bottom: 12px !important; }
@@ -703,9 +703,9 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   width: min(100%, 560px);
   margin: 10px 0 14px;
   padding: 12px 14px;
-  border: 1px solid rgba(145, 160, 185, .24);
+  border: 1px solid rgba(180, 180, 180, .20);
   border-radius: 14px;
-  background: rgba(110, 125, 150, .07);
+  background: rgba(160, 160, 160, .055);
   color: inherit;
   font-size: 12px;
   line-height: 1.55;
@@ -785,7 +785,7 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   box-shadow: none !important;
 }
 .home-v2 .friday-hero-orb-button:focus-visible {
-  outline: 2px solid var(--c-accent, #78bfff);
+  outline: 2px solid var(--c-accent, #F1A63A);
   outline-offset: 8px;
   border-radius: 12px;
 }
@@ -821,7 +821,7 @@ button[class*="episode"].active, .episode-btn.active { background-color: #e63921
   min-height: 0 !important;
   flex: 0 0 auto !important;
   margin: 0 auto !important;
-  filter: drop-shadow(0 8px 30px rgba(91,151,255,.22));
+  filter: drop-shadow(0 8px 30px rgba(241,166,58,.16));
 }
 .home-v2 .friday-hero-orb .friday-orb,
 .home-v2 .friday-hero-orb .friday-orb__canvas {
