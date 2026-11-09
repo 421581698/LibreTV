@@ -35,10 +35,6 @@ export function HomeInlinePlayer({
   const autoNextTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
-  const requestKey = item && source ? `${item.sourceKey}:${item.vodId}:${source.url}` : null;
-  const visibleDetail = requestKey && detailKey === requestKey ? detail : null;
-  const episodes = visibleDetail?.episodes ?? [];
-
   const source = useMemo<SourceConfig | null>(() => {
     if (!item) return null;
     const local = resolveSource({ customAPIs, envSources }, item.sourceKey);
@@ -59,6 +55,10 @@ export function HomeInlinePlayer({
     }
     return null;
   }, [item, customAPIs, envSources]);
+
+  const requestKey = item && source ? `${item.sourceKey}:${item.vodId}:${source.url}` : null;
+  const visibleDetail = requestKey && detailKey === requestKey ? detail : null;
+  const episodes = visibleDetail?.episodes ?? [];
 
   useEffect(() => {
     if (!item) {
