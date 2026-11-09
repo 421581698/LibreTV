@@ -225,3 +225,38 @@
 @media (prefers-reduced-motion: reduce) {
   .v4-search { transition: none !important; }
 }
+
+
+/* iPhone search: keep the expanded search surface dark and high-contrast
+ * in both appearance modes; prevent the global light-theme glass rule
+ * from washing the field out. */
+@media screen and (max-width: 700px) {
+  .v4-search.is-open,
+  html:not(.dark) .v4-search.is-open {
+    color: #F7F8FA !important;
+    background: rgba(24, 25, 29, 0.98) !important;
+    border: 1px solid rgba(255, 255, 255, 0.24) !important;
+    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.42) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(150%) !important;
+    backdrop-filter: blur(20px) saturate(150%) !important;
+  }
+
+  .v4-search.is-open input,
+  html:not(.dark) .v4-search.is-open input {
+    color: #FFFFFF !important;
+    caret-color: #FFFFFF !important;
+    opacity: 1 !important;
+  }
+
+  .v4-search.is-open input::placeholder,
+  html:not(.dark) .v4-search.is-open input::placeholder {
+    color: rgba(255, 255, 255, 0.68) !important;
+    opacity: 1 !important;
+  }
+
+  .v4-mobile-search-toggle {
+    color: #FFFFFF !important;
+    background: rgba(28, 29, 34, 0.92) !important;
+    border-color: rgba(255, 255, 255, 0.24) !important;
+  }
+}
