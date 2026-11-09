@@ -108,6 +108,29 @@ def require_egress_firewall() -> None:
         )
 
 
+def resolve_public_addresses(host: str) -> list[str]:
+    """Resolve once, reject mixed/private answers, and return validated IP literals."""
+    try:
+        literal_address = ipaddress.ip_address(host)
+    except ValueError:
+        literal_address = None
+    if literal_address is not None:
+        addresses = {str(literal_address)}
+    else:
+        try:
+            addresses = {
+                str(ipaddress.ip_address(entry[4][0]))
+                for entry in socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
+            }
+        except (OSError, ValueError):
+            raise HTTPException(status_code=400, detail="Unable to resolve target host")
+    if not addresses:
+        raise HTTPException(status_code=400, detail="Target host has no address")
+    if any(not ipaddress.ip_address(address).is_global for address in addresses):
+        raise HTTPException(status_code=400, detail="Private or reserved network targets are blocked")
+    return sorted(addresses, key=lambda value: (ipaddress.ip_address(value).version, value))
+
+
 def public_https_url(raw_url: str) -> tuple[str, str]:
     parsed = urlparse(raw_url)
     try:
@@ -123,25 +146,35 @@ def public_https_url(raw_url: str) -> tuple[str, str]:
     ):
         raise HTTPException(status_code=400, detail="Only public HTTPS URLs on port 443 are allowed")
     host = parsed.hostname.lower().rstrip(".")
-    try:
-        literal_address = ipaddress.ip_address(host)
-    except ValueError:
-        literal_address = None
-    if literal_address is not None:
-        if not literal_address.is_global:
-            raise HTTPException(status_code=400, detail="Private or reserved network targets are blocked")
-        addresses = {str(literal_address)}
-    else:
-        try:
-            addresses = {entry[4][0] for entry in socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)}
-        except OSError:
-            raise HTTPException(status_code=400, detail="Unable to resolve target host")
-        if not addresses:
-            raise HTTPException(status_code=400, detail="Target host has no address")
-        for address in addresses:
-            if not ipaddress.ip_address(address).is_global:
-                raise HTTPException(status_code=400, detail="Private or reserved network targets are blocked")
+    resolve_public_addresses(host)
     return raw_url, host
+
+
+class PinnedHTTPSConnection(http.client.HTTPSConnection):
+    """HTTPS connection pinned to a previously validated public IP address.
+
+    The URL hostname remains the TLS SNI and certificate-verification name,
+    while TCP connects directly to the validated IP literal (no second DNS lookup).
+    """
+
+    def __init__(self, host: str, pinned_ip: str, *args, **kwargs):
+        self.pinned_ip = str(ipaddress.ip_address(pinned_ip))
+        super().__init__(host, *args, **kwargs)
+
+    def connect(self) -> None:
+        address = ipaddress.ip_address(self.pinned_ip)
+        family = socket.AF_INET6 if address.version == 6 else socket.AF_INET
+        sock = socket.socket(family, socket.SOCK_STREAM)
+        try:
+            if self.timeout is not socket._GLOBAL_DEFAULT_TIMEOUT:
+                sock.settimeout(self.timeout)
+            sock.connect((self.pinned_ip, self.port))
+            if self._tunnel_host is not None:
+                raise OSError("HTTPS proxy tunneling is not supported for pinned connections")
+            self.sock = self._context.wrap_socket(sock, server_hostname=self.host)
+        except BaseException:
+            sock.close()
+            raise
 
 
 MAX_MANIFEST_BYTES = 1024 * 1024
@@ -626,8 +659,14 @@ def probe_direct_media(raw_url: str, max_redirects: int = 5) -> dict:
         target = parsed.path or "/"
         if parsed.query:
             target += "?" + parsed.query
-        connection = http.client.HTTPSConnection(
-            host, 443, timeout=10, context=ssl.create_default_context()
+        # Pin the TCP destination to the exact address validated immediately
+        # before connect(). TLS still verifies/SNIs the original hostname.
+        try:
+            pinned_ip = resolve_public_addresses(host)[0]
+        except HTTPException:
+            return {"reachable": False, "error": "unsafe_or_invalid_redirect_target"}
+        connection = PinnedHTTPSConnection(
+            host, pinned_ip, 443, timeout=10, context=ssl.create_default_context()
         )
         try:
             request_headers = {
