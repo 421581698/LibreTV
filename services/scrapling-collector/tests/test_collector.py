@@ -63,6 +63,69 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(captured["session_id"], "default")
         self.assertIs(captured["session"], fetcher_session.return_value)
 
+    def test_run_spider_deduplicates_candidates_and_respects_result_limit(self):
+        items = [
+            {"url": "https://catalog.example/a.mp4", "kind": "direct-media", "host": "catalog.example"},
+            {"url": "https://catalog.example/a.mp4", "kind": "direct-media", "host": "catalog.example"},
+            {"url": "https://catalog.example/b.m3u8", "kind": "direct-media", "host": "catalog.example"},
+        ]
+        with patch.object(collector.SiteSpider, "start", return_value=type("Result", (), {"items": items})()):
+            result = collector.run_spider("https://catalog.example/start", limit=1)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["url"], "https://catalog.example/a.mp4")
+
+    def test_browser_capture_installs_request_guard_and_deduplicates_network_candidates(self):
+        page = object()
+        http_candidate = {"url": "https://media.example/a.mp4", "kind": "direct-media", "host": "media.example"}
+        duplicate = dict(http_candidate)
+        api_candidate = {"url": "https://catalog.example/api.php/provide/vod", "kind": "cms-api-candidate", "host": "catalog.example"}
+        class FakeSession:
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+            def fetch(self, url, **kwargs):
+                self.fetch_args = (url, kwargs)
+                return page
+        session = FakeSession()
+        with patch.object(collector, "StealthySession", return_value=session), \\
+             patch.object(collector, "extract_candidates", return_value=[http_candidate]), \\
+             patch.object(collector, "captured_api_candidates", return_value=[duplicate, api_candidate]):
+            captured_page, candidates = collector.run_browser_capture("https://catalog.example/", 5)
+        self.assertIs(captured_page, page)
+        self.assertEqual([item["url"] for item in candidates], [http_candidate["url"], api_candidate["url"]])
+        self.assertTrue(session.fetch_args[1]["network_idle"])
+        self.assertIs(session.fetch_args[1]["page_setup"], collector.install_browser_request_guard)
+
+    def test_retry_endpoint_replays_stored_url_and_mode_with_bounded_limit(self):
+        task_id = "c" * 32
+        with collector.db() as connection:
+            connection.execute(
+                "INSERT INTO tasks(id,url,host,status,mode,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                (task_id, "https://catalog.example/start", "catalog.example", "failed", "http", 1, 1),
+            )
+        expected = {"task_id": "d" * 32, "status": "completed"}
+        with patch.object(collector, "require_token"), patch.object(collector, "crawl_site", return_value=expected) as crawl:
+            result = collector.retry_task(task_id, "Bearer test")
+        self.assertEqual(result, expected)
+        request = crawl.call_args.args[0]
+        self.assertEqual(str(request.url), "https://catalog.example/start")
+        self.assertEqual(request.mode, "http")
+        self.assertEqual(request.limit, collector.MAX_CANDIDATES)
+
+    def test_retry_endpoint_rejects_non_retryable_task_state(self):
+        task_id = "e" * 32
+        with collector.db() as connection:
+            connection.execute(
+                "INSERT INTO tasks(id,url,host,status,mode,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                (task_id, "https://catalog.example/start", "catalog.example", "completed", "http", 1, 1),
+            )
+        with patch.object(collector, "require_token"), patch.object(collector, "crawl_site") as crawl:
+            with self.assertRaises(collector.HTTPException) as error:
+                collector.retry_task(task_id, "Bearer test")
+        self.assertEqual(error.exception.status_code, 409)
+        crawl.assert_not_called()
+
     def test_classifies_direct_media(self):
         self.assertEqual(
             collector.classify_url("https://media.example/video/master.m3u8"),
