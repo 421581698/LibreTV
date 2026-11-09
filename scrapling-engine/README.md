@@ -37,13 +37,33 @@ POST /v1/spider remains a synchronous compatibility endpoint. For managed work, 
 
 Browser-backed fetchers require the optional browser dependencies and browser installation described by the upstream Scrapling documentation. Run one Uvicorn worker for this phase; the SQLite registry is persistent, but active task orchestration and pause controls are process-local. Keep the service bound to localhost. When binding to a non-loopback host, set a `SCRAPLING_API_KEY` of at least 32 characters; all `/v1/*` routes then require the matching `X-API-Key` header. Terminate TLS at a trusted reverse proxy; do not send the API key over plain public HTTP. This is a single service key, not per-user tenant isolation. Before a multi-user remote deployment, add per-user authorization/quotas, audit retention, and network-level egress filtering that blocks private, loopback, link-local and metadata-service ranges even after DNS resolution and redirects.
 
+## Phase 2 — FMHY resource catalog
+
+The catalog importer reads the official `fmhy/edit` Markdown sources only. It resolves the current upstream commit first, then fetches the complete source set pinned to that immutable SHA so one snapshot cannot mix revisions. The importer follows the official source list used by FMHY's single-page export (25 Markdown files), limits each source to 2 MiB, uses at most three concurrent requests, and does not follow redirects.
+
+Run a sync from a trusted local/admin client:
+
+```http
+POST /v1/catalog/fmhy/sync
+```
+
+Read the imported snapshot and index:
+
+- `GET /v1/catalog/snapshot`
+- `GET /v1/catalog/entries?category=video&q=movie`
+- `GET /v1/catalog/domains?q=example`
+
+The SQLite catalog keeps versioned snapshots, entry titles/descriptions, section paths, FMHY markers, source file/line references, original URLs, canonical URLs, and a normalized host index. Link roles distinguish primary resources, alternates, mirrors, repositories, communities, and references. The importer records FMHY's unsafe list as `flagged_unsafe`; unsafe entries and their domains are hidden by default and can only be included explicitly with `include_unsafe=true`. Other FMHY-listed resources remain `unverified`: a star or directory listing is not a security verdict, uptime check, or playback guarantee.
+
+Phase 2 only builds the directory and address library. It does not automatically visit, crawl, probe, or play any discovered site. Website crawling remains a separately controlled action using Phase 1's URL validation and robots policy. The FMHY source repository is used as the discovery source; third-party mirrors are not used as ingestion authorities.
+
 ## Safety boundary
 
-- Phase 1 does not crawl FMHY yet; FMHY directory ingestion is Phase 2.
+- FMHY directory ingestion is isolated in Phase 2; it does not modify the upstream FMHY repository.
 - Only public HTTP(S) pages are in scope. No DRM, paywall, login or access-control circumvention.
 - Respect robots.txt, rate limits and site terms. Do not treat a discovered website URL as a playable source.
 - The service rejects localhost, private, link-local and reserved IP destinations to reduce SSRF risk.
 
 ## Verification
 
-Run `pytest` and `ruff check .`. CI verifies unit/API behavior without relying on arbitrary public targets. CI also runs a controlled public-site smoke test against example.com through both the HTTP Fetcher and async Spider; broader target-site acceptance remains a separate step.
+Run `pytest` and `ruff check .`. CI verifies unit/API behavior, a controlled public-site smoke test against example.com through both the HTTP Fetcher and async Spider, and a live import of all 25 official FMHY Markdown sources into a temporary SQLite catalog.
