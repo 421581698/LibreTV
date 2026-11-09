@@ -58,7 +58,7 @@ class CollectorSecurityTests(unittest.TestCase):
     def test_requires_bearer_token(self):
         with self.assertRaises(Exception):
             app.require_token("Bearer wrong-token")
-        app.require_token("Bearer collector-test-token")
+        app.require_token(f"Bearer {app.TOKEN}")
 
     def test_fmhy_discovery_only_returns_external_https_sites(self):
         with patch.object(app.Fetcher, "get", return_value=FakePage()):
