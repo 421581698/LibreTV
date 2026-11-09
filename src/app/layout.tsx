@@ -3,7 +3,6 @@ import './globals.css';
 import './glass-system.css';
 import './eight-screen-glass.css';
 import { Providers } from '@/components/providers';
-import { TVRemoteNavigation } from '@/components/tv/TVRemoteNavigation';
 
 export const metadata: Metadata = {
   title: {
@@ -48,7 +47,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <Providers>
-          <TVRemoteNavigation />
           {children}
         </Providers>
       </body>
