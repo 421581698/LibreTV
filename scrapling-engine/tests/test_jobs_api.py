@@ -146,7 +146,7 @@ def test_legacy_and_managed_apis_cannot_share_active_task_id(
     store = _use_test_store(monkeypatch, tmp_path)
     client = TestClient(main.app)
 
-    monkeypatch.setitem(main._legacy_task_ids, "legacy_busy")
+    monkeypatch.setattr(main, "_legacy_task_ids", {"legacy_busy"})
     managed = client.post(
         "/v1/jobs",
         json={"task_id": "legacy_busy", "urls": ["https://example.com/"]},
