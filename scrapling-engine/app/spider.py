@@ -8,6 +8,8 @@ from urllib.parse import urlsplit
 
 from scrapling.spiders import Response, Spider
 
+from app.config import settings
+
 
 class _SeedSpider(Spider):
     """A polite, seed-only Spider; link expansion stays disabled pending egress guards."""
@@ -26,6 +28,15 @@ class _SeedSpider(Spider):
         }
 
     async def parse(self, response: Response):
+        body = getattr(response, "body", b"")
+        if isinstance(body, (bytes, bytearray)) and len(body) > settings.max_response_bytes:
+            yield {
+                "url": str(response.url),
+                "status": getattr(response, "status", None),
+                "error": "response_too_large",
+                "bytes": len(body),
+            }
+            return
         title = response.css_first("title::text")
         yield {
             "url": str(response.url),
