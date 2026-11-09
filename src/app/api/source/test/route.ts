@@ -3,6 +3,7 @@ import { guardRequest } from '@/lib/api-guard';
 import { checkUpstreamAllowed } from '@/lib/ssrf';
 import { fetchUpstream } from '@/lib/fetch-utils';
 import { parseSearchList } from '@/lib/cms-parser';
+import { readJsonLimited, requestBodyErrorStatus } from '@/lib/request-body';
 
 export const runtime = 'nodejs';
 
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
     const body = (await req.json()) as { url?: string };
     url = (body.url || '').trim().replace(/\/+$/, '');
   } catch {
-    return NextResponse.json({ error: '请求格式错误' }, { status: 400 });
+    return NextResponse.json({ error: '请求格式错误' }, { status: requestBodyErrorStatus(err) });
   }
   if (!/^https?:\/\//.test(url)) {
     return NextResponse.json({ error: '无效的源地址' }, { status: 400 });
