@@ -291,7 +291,8 @@ describe('首页与播放页回归契约', () => {
     expect(theme).toContain("{ value: 'system', label: '跟随系统' }");
     expect(settings).toContain('浅色、深色或跟随系统');
     expect(settings).toContain('<ThemeToggle />');
-    expect(settings.indexOf('<ThemeToggle />')).toBeLessThan(settings.indexOf('tabs={SETTINGS_TABS}'));
+    expect(settings).toContain("activePage === 'appearance'");
+    expect(settings).toContain('浅色、深色，或跟随设备系统设置');
     expect(glassStyles).toContain('html:not(.dark)');
     expect(glassStyles).toContain('linear-gradient(145deg,#f7f8fa 0%,#e9edf2 100%)');
   });
