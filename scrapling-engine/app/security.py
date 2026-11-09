@@ -19,7 +19,12 @@ def validate_public_http_url(url: str) -> str:
     filtering. DNS can change between this check and the HTTP connection.
     """
     decoded_url = unquote(url)
-    if not url or len(url) > 2048 or any(ord(char) < 32 for char in decoded_url):
+    if (
+        not url
+        or url != url.strip()
+        or len(url) > 2048
+        or any(ord(char) < 32 for char in decoded_url)
+    ):
         raise UnsafeTargetError("Target URL is empty, too long or contains control characters.")
     if "\\" in decoded_url:
         raise UnsafeTargetError("Backslashes are not allowed in target URLs.")
@@ -32,7 +37,7 @@ def validate_public_http_url(url: str) -> str:
 
     if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname:
         raise UnsafeTargetError("Only absolute public HTTP(S) URLs are allowed.")
-    if parsed.username or parsed.password:
+    if parsed.username is not None or parsed.password is not None:
         raise UnsafeTargetError("Credentials in target URLs are not allowed.")
 
     expected_port = 443 if parsed.scheme.lower() == "https" else 80
