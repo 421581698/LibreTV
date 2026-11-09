@@ -32,6 +32,7 @@ const browserAsr = source('src/components/friday/browserAsr.ts');
 
 const spatialScreen = source('src/components/home/V4SpatialScreen.tsx');
 const channelStyles = source('src/app/eight-screen-glass.css');
+const ipadStyles = source('src/app/ipad-glass.css');
 const channelHeaderStyles = source('src/app/iphone-glass.css');
 const homepageHeroStyles = source('src/app/v4-homepage.css');
 const featuredHero = source('src/components/home/V4HomepageHero.tsx');
@@ -368,6 +369,13 @@ describe('首页与播放页回归契约', () => {
   it('页面允许用户缩放，避免移动端强制禁止放大', () => {
     expect(rootLayout).not.toContain('maximumScale: 1');
     expect(rootLayout).not.toContain('userScalable: false');
+  });
+
+
+  it('iPad 横屏资源页只对资源内容区应用双栏布局，不把页面标题塞进网格', () => {
+    expect(spatialScreen).toContain('className="v4-resources-layout space-y-5"');
+    expect(ipadStyles).toContain('.v4-spatial-screen[data-screen="resources"] .v4-resources-layout');
+    expect(ipadStyles).not.toContain('.v4-spatial-screen[data-screen="resources"] .v4-spatial-main > div');
   });
 
 });
