@@ -1105,14 +1105,31 @@ def install_browser_request_guard(page) -> None:
     page.route("**/*", guard)
 
 
+def merge_unique_candidates(existing: list[dict], incoming: list[dict], limit: int) -> list[dict]:
+    """Merge candidate batches without reintroducing duplicates from later batches."""
+    if limit <= 0:
+        return []
+    merged: list[dict] = []
+    seen: set[str] = set()
+    for item in (*existing, *incoming):
+        target = item.get("url")
+        if not isinstance(target, str) or not target or target in seen:
+            continue
+        seen.add(target)
+        merged.append(item)
+        if len(merged) >= limit:
+            break
+    return merged
+
+
 def run_browser_capture(url: str, limit: int) -> tuple[object, list[dict]]:
     # Browser rendering is a fallback for JavaScript-heavy pages. No CAPTCHA,
     # login, paywall, DRM or access-control bypass is attempted.
     with StealthySession(headless=True, record_requests=True, max_recorded_requests=300) as session:
         page = session.fetch(url, timeout=30, network_idle=True, page_setup=install_browser_request_guard)
         candidates = extract_candidates(page, url, limit)
-        candidates.extend(captured_api_candidates(session, url, limit - len(candidates)))
-        return page, candidates[:limit]
+        api_candidates = captured_api_candidates(session, url, max(0, limit - len(candidates)))
+        return page, merge_unique_candidates(candidates, api_candidates, limit)
 
 
 def persist_task(task_id: str, url: str, host: str, mode: str, status: str, error: str | None = None, count: int = 0) -> None:
@@ -1151,8 +1168,7 @@ def crawl_site(payload: CrawlRequest) -> dict:
         if payload.mode == "browser" or (payload.mode == "auto" and not candidates):
             try:
                 _, browser_candidates = run_browser_capture(raw_url, payload.limit)
-                known = {item["url"] for item in candidates}
-                candidates.extend(item for item in browser_candidates if item["url"] not in known)
+                candidates = merge_unique_candidates(candidates, browser_candidates, payload.limit)
             except Exception as exc:
                 errors.append(f"Browser: {type(exc).__name__}")
 
