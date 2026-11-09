@@ -33,6 +33,8 @@ import {
 /** 片段时间统一保留 1 位小数：与面板展示保持一致，避免浮点尾巴 */
 const round1 = (v: number) => Math.round(v * 10) / 10;
 
+type IOSFullscreenVideo = HTMLVideoElement & { webkitSupportsFullscreen?: boolean; webkitEnterFullscreen?: () => void; };
+
 // 用户选择的 HLS 最高分辨率；直链/单码率源不承诺可被此设置控制。
 const QUALITY_PREFERENCE_KEY = 'libretv-quality-preference';
 function applyHlsQualityPreference(hls: Hls): void {
@@ -568,6 +570,7 @@ export function PlayerShell({
     // 触屏没有 hover，自动隐藏会让按钮来不及点（issue #937）：改为常驻，
     // 由「点按视频 toggle」收起。CONTROL_HIDE_TIME 是 static，创建后修改立即生效。
     const touchPointer = prefersTouchPointer();
+    const isIPhone = /iPhone|iPod/i.test(navigator.userAgent);
     Artplayer.CONTROL_HIDE_TIME = touchPointer ? TOUCH_CONTROL_HIDE_MS : DESKTOP_CONTROL_HIDE_MS;
 
     // 初始化每集状态
@@ -595,8 +598,8 @@ export function PlayerShell({
       setting: true,
       playbackRate: true,
       aspectRatio: true,
-      fullscreen: true,
-      fullscreenWeb: true,
+      fullscreen: !isIPhone,
+      fullscreenWeb: !isIPhone,
       miniProgressBar: true,
       mutex: true,
       backdrop: true,
@@ -605,7 +608,7 @@ export function PlayerShell({
       hotkey: false,
       theme: '#2563eb',
       lang: navigator.language.toLowerCase().startsWith('zh') ? 'zh-cn' : 'en',
-      moreVideoAttr: { crossOrigin: 'anonymous', playsInline: true },
+      moreVideoAttr: { crossOrigin: 'anonymous', playsInline: true, playsinline: 'true', 'webkit-playsinline': 'true' },
       // 上/下集放在播放键右侧：换集是看剧最高频的动作，不该让用户滚回页面下方找按钮
       controls: [
         {
@@ -628,6 +631,27 @@ export function PlayerShell({
             if (propsRef.current.hasNextEpisode) propsRef.current.onNextEpisode?.();
           },
         },
+        ...(isIPhone ? [{
+          name: 'ios-native-fullscreen',
+          index: 13,
+          position: 'right' as const,
+          html: '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"><path fill="currentColor" d="M4 9V4h5v2H6v3H4zm11-5h5v5h-2V6h-3V4zM4 15h2v3h3v2H4v-5zm14 3v-3h2v3h-3v2h5v-5h-2z"/></svg>',
+          tooltip: '原生全屏',
+          click: () => {
+            const video = artRef.current?.video as IOSFullscreenVideo | undefined;
+            if (video?.webkitSupportsFullscreen && video.webkitEnterFullscreen) {
+              try {
+                const orientationLock = screen.orientation?.lock?.('landscape');
+                void orientationLock?.catch(() => {});
+                video.webkitEnterFullscreen();
+                return;
+              } catch {
+                // Embedded WebViews may reject native fullscreen; fall back to page fullscreen.
+              }
+            }
+            if (artRef.current) artRef.current.fullscreenWeb = !artRef.current.fullscreenWeb;
+          },
+        }] : []),
       ],
       customType: {
         m3u8: (video: HTMLVideoElement, mediaUrl: string) => {
@@ -636,6 +660,13 @@ export function PlayerShell({
       },
     });
     artRef.current = art;
+    const iosNativeVideo = art.video as IOSFullscreenVideo;
+    const onIOSNativeFullscreenEnd = () => {
+      try { screen.orientation?.unlock?.(); } catch { /* iOS may not expose orientation locking */ }
+      art.controls.show = true;
+      art.resize();
+    };
+    iosNativeVideo.addEventListener('webkitendfullscreen', onIOSNativeFullscreenEnd);
     window.dispatchEvent(new CustomEvent('friday-player-state', { detail: { active: true } }));
 
     // 进度条区间可视化：初始渲染一次，换集 duration 变化时重绘
@@ -997,6 +1028,8 @@ export function PlayerShell({
       el?.removeEventListener('touchmove', onTouchMove);
       el?.removeEventListener('contextmenu', onContextMenu);
       art.video?.removeEventListener('resize', reportVideoHeight);
+      iosNativeVideo.removeEventListener('webkitendfullscreen', onIOSNativeFullscreenEnd);
+      try { screen.orientation?.unlock?.(); } catch { /* ignore unsupported orientation API */ }
       el?.removeEventListener('mousemove', showControlsOnPointerMove);
       el?.removeEventListener('mouseleave', hideControlsOnMouseLeave);
       if (controlHideTimer) clearTimeout(controlHideTimer);
