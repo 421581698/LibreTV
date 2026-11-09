@@ -336,3 +336,59 @@
     padding: 0 13px !important;
   }
 }
+
+
+/* Routed channel header contrast: black controls on a light glass surface.
+ * Applies to Movies, TV, Anime, Variety, Overseas and Live on desktop,
+ * iPad and iPhone. Homepage cinematic overlay is intentionally excluded. */
+.v4-header:not(.is-overlay) {
+  color: #17191d !important;
+  background: rgba(255, 255, 255, 0.86) !important;
+  background-image: linear-gradient(180deg, rgba(255,255,255,.92), rgba(248,249,251,.82)) !important;
+  border-color: rgba(28, 35, 45, 0.12) !important;
+  box-shadow: 0 8px 28px rgba(25, 35, 50, 0.08), inset 0 1px 0 rgba(255,255,255,.95) !important;
+}
+.v4-header:not(.is-overlay) .v4-nav-link,
+.v4-header:not(.is-overlay) .v4-header-icon,
+.v4-header:not(.is-overlay) .v4-mobile-search-toggle {
+  color: #17191d !important;
+}
+.v4-header:not(.is-overlay) .v4-nav-link:hover {
+  color: #111318 !important;
+  background: rgba(20, 28, 40, 0.07) !important;
+}
+.v4-header:not(.is-overlay) .v4-nav-link.is-active {
+  color: #111318 !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(25, 35, 50, 0.12) !important;
+  box-shadow: 0 3px 12px rgba(25, 35, 50, 0.10), inset 0 1px 0 #fff !important;
+}
+.v4-header:not(.is-overlay) .v4-header-actions .v4-header-icon,
+.v4-header:not(.is-overlay) .v4-header-actions .v4-avatar,
+.v4-header:not(.is-overlay) .v4-mobile-search-toggle {
+  color: #17191d !important;
+  background: rgba(255,255,255,.82) !important;
+  border: 1px solid rgba(28,35,45,.16) !important;
+}
+.v4-header:not(.is-overlay) .v4-search {
+  color: #17191d !important;
+  background: rgba(255,255,255,.90) !important;
+  border: 1px solid rgba(28,35,45,.18) !important;
+  box-shadow: inset 0 1px 2px rgba(25,35,50,.04), 0 3px 12px rgba(25,35,50,.05) !important;
+}
+.v4-header:not(.is-overlay) .v4-search input,
+.v4-header:not(.is-overlay) .v4-search input::placeholder {
+  color: #17191d !important;
+  -webkit-text-fill-color: #17191d !important;
+  opacity: 1 !important;
+}
+.v4-header:not(.is-overlay) .v4-search input::placeholder {
+  color: #59616d !important;
+  -webkit-text-fill-color: #59616d !important;
+}
+.v4-header:not(.is-overlay) .v4-search svg,
+.v4-header:not(.is-overlay) .v4-header-icon svg,
+.v4-header:not(.is-overlay) .v4-mobile-search-toggle svg {
+  color: #17191d !important;
+  stroke: currentColor;
+}
