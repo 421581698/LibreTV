@@ -66,7 +66,7 @@ These are not bugs in the directory importer; they are the next controlled integ
 
 - Phase 1 Scrapling engine is treated as complete for its agreed scope.
 - Phase 2 FMHY directory importer and read APIs exist, but the quality/security acceptance items above remain open.
-- The current service does not crawl all FMHY websites, does not verify playable media, and does not yet feed resources into LibreTV.
+- The service does not crawl all FMHY websites; it only queues explicitly selected primary entries. It does not verify playable media or feed resources into LibreTV.
 - No main-branch merge or production deployment is part of this audit.
 
 
