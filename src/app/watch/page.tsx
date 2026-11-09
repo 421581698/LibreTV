@@ -339,7 +339,7 @@ function WatchContent() {
   }
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="sticky top-0 z-40 bg-surface/90 backdrop-blur border-b border-line">
+      <header className="glass-toolbar sticky top-0 z-40 !rounded-none border-x-0 border-t-0 px-0">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-3">
           <BackButton />
           <HomeButton />
@@ -546,7 +546,7 @@ function WatchContent() {
             />
           </div>
           {/* 剧集侧栏 */}
-          <aside className="bg-surface-raised rounded-lg p-3 h-fit">
+          <aside className="glass-panel p-3 h-fit">
             <div className="flex items-center justify-between gap-2 mb-2.5">
               <h2 className="text-sm font-semibold text-content">
                 剧集列表{episodes.length > 0 && `（${episodes.length}）`}
