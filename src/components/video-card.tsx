@@ -446,7 +446,7 @@ export function DoubanCard({
 
   return (
     <div
-      className="card cursor-pointer hover:scale-[1.03] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+      className="card group cursor-pointer overflow-hidden transition-[transform,box-shadow] duration-300 hover:scale-[1.05] hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
       role="button"
       tabIndex={0}
       onClick={onClick}
@@ -462,14 +462,14 @@ export function DoubanCard({
         {tmdbPoster ? (
           // TMDB 图片为 HTTPS 静态 CDN 地址；只在豆瓣原图候选链耗尽后显示
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={tmdbPoster} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
+          <img src={tmdbPoster} alt={item.title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
         ) : item.cover && !imgFailed ? (
           <SmartImage
             url={item.cover}
             mode={imageProxyMode}
             customProxy={customImageProxy}
             alt={item.title}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             onExhausted={loadTmdbFallback}
           />
         ) : (
