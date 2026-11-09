@@ -67,7 +67,7 @@ export function buildImageCandidates(
   if (!url) return [];
   // 豆瓣 API 常返回 s_ratio_poster 小图；优先请求 l_ratio_poster 高清版，
   // 同时保留原图作为回退，兼容非标准路径和图床不提供大图的情况。
-  const preferredUrl = url.replace(/\\/s_ratio_poster\\//g, '/l_ratio_poster/');
+  const preferredUrl = url.split('/s_ratio_poster/').join('/l_ratio_poster/');
   if (mode === 'custom') {
     const custom = buildImageUrl(url, mode, customTemplate);
     return custom ? [custom] : [];
@@ -76,8 +76,8 @@ export function buildImageCandidates(
   const urls = [...new Set([preferredUrl, url])];
   const mirrors = (source: string) => source.includes('doubanio.com')
     ? [
-        source.replace(/img\\d+\\.doubanio\\.com/g, 'img.doubanio.cmliussss.net'),
-        source.replace(/img\\d+\\.doubanio\\.com/g, 'img.doubanio.cmliussss.com'),
+        source.replace(new RegExp('img[0-9]+[.]doubanio[.]com', 'g'), 'img.doubanio.cmliussss.net'),
+        source.replace(new RegExp('img[0-9]+[.]doubanio[.]com', 'g'), 'img.doubanio.cmliussss.com'),
       ]
     : [];
   const variants = [...urls, ...urls.flatMap(mirrors)];
