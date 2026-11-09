@@ -13,6 +13,8 @@ on:
       - "package-lock.json"
       - "next.config.*"
       - "open-next.config.*"
+      - "services/scrapling-collector/**"
+      - "docker-compose.yml"
   workflow_dispatch:
 
 permissions:
