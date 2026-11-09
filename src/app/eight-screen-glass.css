@@ -1015,3 +1015,44 @@ html:not(.dark) .v4-me-cover-copy h2 { color:#fff !important; }
   background: transparent !important;
   box-shadow: none !important;
 }
+
+
+/* Channel-page layout contract: the header stays in normal document flow.
+ * No hero/banner is mounted on these routes, so content must never reserve
+ * a banner slot or compensate for a fixed header. */
+.v4-spatial-screen {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+.v4-spatial-screen > .v4-header {
+  position: -webkit-sticky !important;
+  position: sticky !important;
+  top: 0 !important;
+  inset-inline: auto !important;
+  flex: 0 0 auto !important;
+  width: 100% !important;
+  margin: 0 !important;
+  transform: none !important;
+}
+.v4-spatial-main {
+  flex: 1 0 auto !important;
+  margin-block-start: 0 !important;
+  padding-block-start: clamp(20px, 2.5vw, 32px) !important;
+}
+
+/* Safari without backdrop-filter receives an opaque fallback rather than
+ * transparent text laid over arbitrary page artwork. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .v4-spatial-screen > .v4-header {
+    background: rgba(248, 249, 251, 0.98) !important;
+    background-image: none !important;
+  }
+  .v4-spatial-panel {
+    background: rgba(20, 22, 28, 0.98) !important;
+  }
+}
