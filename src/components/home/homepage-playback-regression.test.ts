@@ -35,6 +35,9 @@ const channelStyles = source('src/app/eight-screen-glass.css');
 const channelHeaderStyles = source('src/app/iphone-glass.css');
 const homepageHeroStyles = source('src/app/v4-homepage.css');
 const featuredHero = source('src/components/home/V4HomepageHero.tsx');
+const previewConfig = source('wrangler.preview.toml');
+const previewWorkflow = source('.github/workflows/deploy-homepage-preview.yml');
+const rootLayout = source('src/app/layout.tsx');
 const glassStyles = source('src/app/eight-screen-glass.css');
 const chatSession = source('src/components/friday/useFridayChatSession.ts');
 const fridayPanel = source('src/components/friday/FridayPanel.tsx');
@@ -335,6 +338,36 @@ describe('首页与播放页回归契约', () => {
     expect(homepageHeroStyles).toContain('.v4-home .v4-hero-veil');
     expect(homepageHeroStyles).toContain('rgba(4, 8, 15, .94)');
     expect(homepageHeroStyles).toContain('-webkit-text-fill-color: #fff');
+  });
+
+
+  it('Preview 必须保留密码认证，且部署必须人工确认', () => {
+    expect(previewConfig).toContain('AUTH_DISABLED = "false"');
+    expect(previewConfig).not.toContain('AUTH_DISABLED = "true"');
+    expect(previewWorkflow).toContain('workflow_dispatch:');
+    expect(previewWorkflow).toContain("inputs.confirm_preview_deploy == 'yes'");
+    expect(previewWorkflow).toContain("status.passwordRequired !== true");
+    expect(previewWorkflow).toContain('authResponse.status !== 401');
+    expect(previewWorkflow).not.toContain('  push:');
+  });
+
+  it('设置页快捷入口会打开指定的真实设置面板', () => {
+    expect(spatialScreen).toContain("localStorage.setItem('libretv-settings-open-page', page)");
+    expect(settings).toContain("localStorage.getItem(SETTINGS_OPEN_PAGE_KEY)");
+    expect(settings).toContain('setActivePage(nextPage)');
+    expect(settings).toContain('removeItem(SETTINGS_OPEN_PAGE_KEY)');
+  });
+
+  it('移动端七项底部导航可横向滚动，不压缩或换行', () => {
+    expect(channelStyles).toContain('.v4-mobile-tabs {');
+    expect(channelStyles).toContain('overflow-x: auto !important');
+    expect(channelStyles).toContain('white-space: nowrap');
+    expect(channelStyles).toContain('flex: 0 0 auto !important');
+  });
+
+  it('页面允许用户缩放，避免移动端强制禁止放大', () => {
+    expect(rootLayout).not.toContain('maximumScale: 1');
+    expect(rootLayout).not.toContain('userScalable: false');
   });
 
 });
