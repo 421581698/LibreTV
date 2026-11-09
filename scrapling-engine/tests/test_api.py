@@ -53,7 +53,10 @@ def test_fetch_uses_adapter_and_returns_extraction(monkeypatch) -> None:
     )
     monkeypatch.setattr(
         "app.main.ScraplingAdapter.extract",
-        lambda page, selector, mode: {"title": "fixture", "text": ["real adapter fixture"]},
+        lambda page, selector, mode, adaptive_action=None: {
+            "title": "fixture",
+            "text": ["real adapter fixture"],
+        },
     )
     response = client.post(
         "/v1/fetch",
@@ -177,3 +180,44 @@ def test_spider_rejects_unsafe_task_id() -> None:
         json={"urls": ["https://example.com/"], "task_id": "../escape"},
     )
     assert response.status_code == 422
+
+
+
+def test_fetch_requires_action_for_adaptive_modes() -> None:
+    response = client.post(
+        "/v1/fetch",
+        json={
+            "url": "https://example.com/",
+            "mode": "adaptive_css",
+            "selector": ".headline",
+        },
+    )
+    assert response.status_code == 422
+
+
+def test_adapter_supports_adaptive_css_save_and_relocate() -> None:
+    heading = Mock()
+    heading.get_all_text.return_value = "Saved heading"
+    page = Mock()
+    page.get_all_text.return_value = "Saved heading"
+    page.css.return_value = [heading]
+    page.css_first.return_value = None
+    page.markdown.return_value = None
+
+    saved = ScraplingAdapter.extract(
+        page,
+        ".headline",
+        "adaptive_css",
+        adaptive_action="save",
+    )
+    page.css.assert_called_with(".headline", auto_save=True)
+    assert saved["text"] == ["Saved heading"]
+
+    relocated = ScraplingAdapter.extract(
+        page,
+        ".headline",
+        "adaptive_css",
+        adaptive_action="relocate",
+    )
+    page.css.assert_called_with(".headline", adaptive=True)
+    assert relocated["adaptive_action"] == "relocate"
