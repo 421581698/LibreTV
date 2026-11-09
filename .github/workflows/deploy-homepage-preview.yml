@@ -11,12 +11,12 @@ permissions:
 
 concurrency:
   group: libretv-homepage-preview
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy-preview:
     if: ${{ github.ref == 'refs/heads/feature/libretv-eight-screen-glass-2026-11-09' }}
-    name: Build and deploy isolated public preview Worker
+    name: Build and deploy protected isolated preview Worker
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: preview
@@ -43,6 +43,14 @@ jobs:
 
       - name: Unit tests
         run: npm test -- --reporter=dot
+
+      - name: Verify preview authentication remains enabled
+        run: |
+          grep -Eq '^[[:space:]]*AUTH_DISABLED[[:space:]]*=[[:space:]]*"false"' wrangler.preview.toml
+          if grep -Eq '^[[:space:]]*AUTH_DISABLED[[:space:]]*=[[:space:]]*"true"' wrangler.preview.toml; then
+            echo "Preview must remain password-protected"
+            exit 1
+          fi
 
       - name: Build eight-screen preview
         env:
