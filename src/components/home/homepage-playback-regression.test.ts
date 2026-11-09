@@ -116,15 +116,16 @@ describe('首页与播放页回归契约', () => {
     expect(searchHistory).toContain('role="listbox"');
   });
 
-  it('设置分类使用单行横向导航并切换对应面板', () => {
-    expect(settings).toContain("ariaLabel=\"设置分类\"");
-    expect(settings).toContain("const SETTINGS_TABS");
-    expect(settings).toContain("overflow-x-auto");
-    expect(settings).toContain("setSecondary((prev) => ({ ...prev, [group]: id }))");
+  it('设置首页采用 Apple 式纵向分组列表，分类进入独立详情页并可返回', () => {
+    expect(settings).toContain('const SETTINGS_SECTIONS');
+    expect(settings).toContain('rounded-2xl border border-line bg-card divide-y');
+    expect(settings).toContain("setActivePage(item.id)");
+    expect(settings).toContain("setActivePage('index')");
+    expect(settings).toContain("activePage === 'appearance'");
+    expect(settings).toContain("activePage === 'vod' && <VodSourcesPanel />");
+    expect(settings).toContain("activePage === 'live' && <LiveSourceManager />");
     expect(settings).toContain("type VodFilter = 'all' | 'enabled' | 'disabled' | 'sub' | 'manual'");
     expect(settings).toContain('const VOD_FILTERS');
-    expect(settings).toContain("current === 'vod' && <VodSourcesPanel />");
-    expect(settings).toContain("current === 'live' && <LiveSourceManager />");
   });
 
   it('顶部设置、主题、直播、下载和历史入口保持连接', () => {
