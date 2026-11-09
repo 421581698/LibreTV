@@ -309,6 +309,43 @@ function ResourceCollectorPanel() {
   return (
     <section className="space-y-4">
       <div className="rounded-2xl border border-line bg-card p-4">
+        <div className="mb-3">
+          <h3 className="text-sm font-semibold text-content">Scrapling 连接配置 · 变量名与配置要求</h3>
+          <p className="mt-1 text-xs leading-5 text-muted">
+            以下配置需要由部署者在 Cloudflare 对应 LibreTV Worker 的 Settings → Variables and Secrets 中添加。
+            本页面只展示配置说明，不会把访问令牌保存到浏览器、公开配置或代码仓库。
+          </p>
+        </div>
+        <div className="space-y-2">
+          <div className="rounded-xl bg-chip p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <code className="text-xs font-semibold text-content">SCRAPLING_API_BASE</code>
+              <span className="text-[10px] text-muted">Text / Variable</span>
+            </div>
+            <p className="mt-1 text-xs text-muted">必填。Scrapling Collector 的 HTTPS 服务根地址，例如 https://scrapling.example.com；不要填写 /v1 路径，建议不带末尾斜杠。</p>
+          </div>
+          <div className="rounded-xl bg-chip p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <code className="text-xs font-semibold text-content">SCRAPLING_API_TOKEN</code>
+              <span className="text-[10px] text-warning">Secret / 密钥</span>
+            </div>
+            <p className="mt-1 text-xs text-muted">必填。LibreTV Worker 与 Collector 必须配置完全相同的 Bearer Token。只使用 Cloudflare Secret，不要设为普通明文变量，也不要发到聊天或提交到 Git。</p>
+          </div>
+        </div>
+        <div className="mt-3 rounded-xl border border-line p-3">
+          <h4 className="text-xs font-semibold text-content">Scrapling Collector 主机额外要求</h4>
+          <p className="mt-1 text-xs leading-5 text-muted">
+            在 Collector 服务端设置同一个 SCRAPLING_API_TOKEN。只有在独立主机已实际安装并验证出站防火墙规则后，才可设置
+            <code className="mx-1 font-semibold text-content">SCRAPLING_EGRESS_FIREWALL_CONFIRMED=1</code>；
+            该值只是安全闸门声明，不会自动创建或验证防火墙。未完成防火墙验证时必须保持未设置，采集接口应继续拒绝执行。
+          </p>
+        </div>
+        <p className="mt-2 text-[11px] leading-5 text-muted">
+          保存位置：Cloudflare Worker 环境配置；Preview 与 Production 是独立环境，需分别配置。修改 Secret 后无需在本页面输入密码，重新部署/生效后点击“发现网站”测试连接。
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-line bg-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-content">FMHY · 唯一网站发现目录</h3>
