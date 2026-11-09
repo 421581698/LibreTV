@@ -119,3 +119,46 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
   .v4-recommendation-section > section > .grid > * { flex-basis:42%; width:42%; }
   .v4-history-card { flex-basis:82%; min-width:230px; }
 }
+
+
+/* V4 surfaces consume the shared global glass tokens. */
+.v4-header {
+  background: rgba(var(--glass-panel-rgb), var(--glass-fill-alpha));
+  border-color: rgba(var(--glass-border), var(--glass-border-alpha));
+  box-shadow: var(--glass-shadow-soft);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+}
+.v4-search {
+  background: rgba(var(--glass-panel-rgb), var(--glass-fill-alpha));
+  border-color: rgba(var(--glass-border), var(--glass-border-alpha));
+  box-shadow: var(--glass-shadow-soft);
+}
+.v4-nav-link:hover, .v4-header-icon:hover {
+  background: rgba(var(--glass-panel-rgb), var(--glass-fill-strong-alpha));
+}
+.v4-history-card {
+  background: rgba(var(--glass-panel-rgb), var(--glass-fill-alpha));
+  border: 1px solid rgba(var(--glass-border), var(--glass-border-alpha));
+  box-shadow: var(--glass-shadow-soft);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+}
+.v4-history-copy { background: transparent; }
+.v4-history-empty {
+  border-radius: var(--glass-radius-md);
+  border: 1px solid rgba(var(--glass-border), var(--glass-border-alpha));
+  background: rgba(var(--glass-panel-rgb), var(--glass-fill-alpha));
+  box-shadow: var(--glass-shadow-soft);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+}
+.v4-home .v4-header-icon.glass-button, .v4-home .v4-avatar.glass-button {
+  padding: 0;
+  min-height: 38px;
+  border-radius: 50%;
+}
+@media (max-width: 700px) {
+  .v4-header { -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+  .v4-history-card { -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+}
