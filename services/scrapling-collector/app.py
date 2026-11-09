@@ -230,6 +230,18 @@ def captured_api_candidates(session, page_url: str, limit: int) -> list[dict]:
         classified = classify_url(url)
         if classified:
             kind = classified[0]
+        if kind == "public-api-response":
+            try:
+                body = response.body
+                payload = json.loads(body.decode("utf-8", errors="replace")) if isinstance(body, bytes) else json.loads(str(body))
+                data = payload.get("data") if isinstance(payload, dict) else None
+                api_list = payload.get("list") if isinstance(payload, dict) else None
+                if not isinstance(api_list, list) and isinstance(data, dict):
+                    api_list = data.get("list")
+                if isinstance(api_list, list):
+                    kind = "cms-api-candidate"
+            except Exception:
+                pass
         if kind:
             seen.add(url)
             results.append({"url": url, "kind": kind, "host": parsed.hostname.lower(), "title": "Captured browser network request"})
