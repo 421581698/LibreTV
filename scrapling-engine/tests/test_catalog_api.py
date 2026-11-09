@@ -91,3 +91,59 @@ def test_failed_catalog_sync_keeps_previous_snapshot(tmp_path, monkeypatch) -> N
 
     assert response.status_code == 502
     assert store.latest_snapshot()["snapshot_id"] == original["snapshot_id"]
+
+
+def test_selected_fmhy_entry_creates_scrapling_job_with_provenance(
+    tmp_path, monkeypatch,
+) -> None:
+    catalog = CatalogStore(str(tmp_path / "catalog.sqlite3"))
+    catalog.initialize()
+    entries = parse_fmhy_markdown(
+        "video.md",
+        "* [Primary](https://primary.example/) or [Mirror](https://mirror.example/) - Movies\\n",
+    )
+    snapshot = catalog.import_snapshot(
+        entries, source_repository="fmhy/edit", source_branch="main",
+        source_revision="fixture", source_count=1,
+    )
+    jobs = main.JobStore(str(tmp_path / "jobs.sqlite3"))
+    jobs.initialize()
+    monkeypatch.setattr(main, "catalog_store", catalog)
+    monkeypatch.setattr(main, "job_store", jobs)
+    monkeypatch.setattr(main, "_safe_seed_urls", lambda urls: urls)
+
+    async def fake_create_job(request):
+        jobs.create("catalog-test-job", request.urls, str(tmp_path / "checkpoint"))
+        return {"ok": True, "job": jobs.get("catalog-test-job")}
+
+    monkeypatch.setattr(main, "create_job", fake_create_job)
+    response = TestClient(main.app).post(
+        "/v1/catalog/crawl",
+        json={"snapshot_id": snapshot["snapshot_id"], "entry_ids": [entries[0].entry_id]},
+    )
+
+    assert response.status_code == 202
+    assert response.json()["seed_count"] == 1
+    assert response.json()["job"]["seeds"] == ["https://primary.example/"]
+    events = jobs.events_after("catalog-test-job", 0)
+    selection = next(event for event in events if event["type"] == "catalog_selection")
+    assert selection["payload"]["entries"][0]["source_file"] == "video.md"
+
+
+def test_selected_unsafe_fmhy_entry_cannot_be_queued(tmp_path, monkeypatch) -> None:
+    catalog = CatalogStore(str(tmp_path / "catalog.sqlite3"))
+    catalog.initialize()
+    entries = parse_fmhy_markdown(
+        "unsafe.md", "* [Unsafe](https://unsafe.example/) - Reported malicious\\n",
+    )
+    snapshot = catalog.import_snapshot(
+        entries, source_repository="fmhy/edit", source_branch="main",
+        source_revision="fixture", source_count=1,
+    )
+    monkeypatch.setattr(main, "catalog_store", catalog)
+    response = TestClient(main.app).post(
+        "/v1/catalog/crawl",
+        json={"snapshot_id": snapshot["snapshot_id"], "entry_ids": [entries[0].entry_id]},
+    )
+
+    assert response.status_code == 422
