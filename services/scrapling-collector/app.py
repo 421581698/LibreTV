@@ -121,7 +121,10 @@ def probe_direct_media(raw_url: str, max_redirects: int = 5) -> dict:
     """Probe media headers with a one-byte range request and safe manual redirects."""
     current = raw_url
     for redirect_count in range(max_redirects + 1):
-        normalized, host = public_https_url(current)
+        try:
+            normalized, host = public_https_url(current)
+        except HTTPException:
+            return {"reachable": False, "error": "unsafe_or_invalid_redirect_target"}
         parsed = urlparse(normalized)
         target = parsed.path or "/"
         if parsed.query:
