@@ -923,3 +923,140 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
   .v4-home .v4-hero-image img,
   .v4-home .v4-recommendation-section .card img { transition: none !important; }
 }
+
+
+/* Final acceptance: lift the hero composition and keep its pagination directly
+   beneath the actions, rather than pinning it to the bottom edge of the banner. */
+.v4-home .v4-hero-content {
+  bottom: clamp(132px, 17vh, 196px) !important;
+  max-width: min(620px, calc(100% - 48px)) !important;
+}
+.v4-home .v4-hero-content .v4-hero-indicators {
+  position: static !important;
+  left: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  display: flex !important;
+  justify-content: flex-start !important;
+  width: fit-content !important;
+  margin-top: 26px !important;
+}
+@media (max-width: 700px) {
+  .v4-home .v4-hero-content {
+    left: 22px !important;
+    right: 18px !important;
+    bottom: 92px !important;
+    max-width: none !important;
+  }
+  .v4-home .v4-hero-content .v4-hero-indicators {
+    margin-top: 20px !important;
+  }
+}
+@media (min-width: 701px) and (max-width: 1200px) {
+  .v4-home .v4-hero-content {
+    bottom: clamp(112px, 14vh, 160px) !important;
+  }
+}
+
+/* Poster clarity: preserve source detail, remove any unintended dimming, and
+   keep hover feedback tactile without blurring the source image itself. */
+.v4-home .v4-recommendation-section .card {
+  transform-origin: center center;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.v4-home .v4-recommendation-section .card img {
+  filter: brightness(1.16) contrast(1.08) saturate(1.12) !important;
+  image-rendering: auto !important;
+  transform: translateZ(0);
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .v4-home .v4-recommendation-section .card:hover img {
+    transform: scale(1.045) translateZ(0);
+  }
+}
+
+/* Tablet one-line header guard: logo + seven destinations + search + utilities
+   remain in one flex row, including compact iPad widths. */
+@media screen and (min-width: 701px) and (max-width: 900px) {
+  .v4-home .v4-header-inner {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    width: calc(100% - 24px) !important;
+    gap: 5px !important;
+    min-width: 0 !important;
+  }
+  .v4-home .v4-brand {
+    flex: 0 0 auto !important;
+    font-size: 15px !important;
+    gap: 5px !important;
+  }
+  .v4-home .v4-brand-mark {
+    width: 22px !important;
+    height: 22px !important;
+    flex-basis: 22px !important;
+  }
+  .v4-home .v4-primary-nav {
+    display: contents !important;
+    min-width: 0 !important;
+  }
+  .v4-home .v4-primary-nav .v4-nav-link {
+    flex: 0 0 auto !important;
+    padding: 7px 4px !important;
+    font-size: 10.5px !important;
+    letter-spacing: 0 !important;
+    white-space: nowrap !important;
+  }
+  .v4-home .v4-header-actions {
+    display: flex !important;
+    flex: 0 1 auto !important;
+    min-width: 0 !important;
+    gap: 4px !important;
+    margin-left: 2px !important;
+  }
+  .v4-home .v4-search {
+    flex: 0 1 116px !important;
+    width: 116px !important;
+    min-width: 96px !important;
+    height: 30px !important;
+    padding: 0 7px !important;
+    gap: 5px !important;
+  }
+  .v4-home .v4-search svg {
+    display: block !important;
+    flex: 0 0 14px !important;
+    width: 14px !important;
+    height: 14px !important;
+    opacity: 1 !important;
+  }
+  .v4-home .v4-search input {
+    min-width: 0 !important;
+    width: 100% !important;
+    font-size: 10px !important;
+  }
+  .v4-home .v4-header-actions .v4-header-icon,
+  .v4-home .v4-header-actions .v4-avatar {
+    display: inline-flex !important;
+    flex: 0 0 26px !important;
+    width: 26px !important;
+    min-width: 26px !important;
+    height: 26px !important;
+    min-height: 26px !important;
+  }
+  .v4-home .v4-header-actions .v4-header-icon svg,
+  .v4-home .v4-header-actions .v4-avatar svg {
+    display: block !important;
+    width: 15px !important;
+    height: 15px !important;
+    opacity: 1 !important;
+    stroke: currentColor !important;
+  }
+}
+@media screen and (min-width: 901px) and (max-width: 1200px) {
+  .v4-home .v4-header-inner {
+    flex-wrap: nowrap !important;
+    min-width: 0 !important;
+  }
+  .v4-home .v4-primary-nav { display: contents !important; }
+  .v4-home .v4-search { flex: 0 1 190px !important; min-width: 145px !important; }
+}
