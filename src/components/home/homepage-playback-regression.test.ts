@@ -186,6 +186,8 @@ describe('首页与播放页回归契约', () => {
     for (const order of [1, 2, 3, 4, 5, 6, 7, 8]) {
       expect(sharedHeaderStyles).toContain(`order: ${order} !important;`);
     }
+    expect(sharedHeaderStyles).toContain('.v4-header .v4-header-actions .v4-search');
+    expect(sharedHeaderStyles).toContain('order: 0 !important;');
     expect(sharedHeaderStyles).toContain('.v4-header .v4-primary-nav .v4-nav-link[href="/"]');
     expect(sharedHeaderStyles).toContain('color: #fff !important;');
     expect(sharedHeaderStyles).toContain('color: #17171B !important;');

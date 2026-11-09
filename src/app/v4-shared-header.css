@@ -534,6 +534,12 @@
     flex: 0 0 auto !important;
     margin-left: auto !important;
   }
+  /* Search is now inside the action group; keep it before history/settings/avatar. */
+  .v4-header .v4-header-actions .v4-search,
+  .v4-home .v4-header .v4-header-actions .v4-search,
+  .v4-spatial-screen .v4-header .v4-header-actions .v4-search {
+    order: 0 !important;
+  }
   .v4-header .v4-nav-link.is-active,
   .v4-home .v4-header .v4-nav-link.is-active,
   .v4-spatial-screen .v4-header .v4-nav-link.is-active {
