@@ -25,6 +25,7 @@ export function jsonError(message: string, status: number): NextResponse {
       headers: {
         'Cache-Control': 'no-store',
         'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': 'sandbox',
       },
     },
   );
