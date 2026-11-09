@@ -1,5 +1,7 @@
 import pytest
 
+import app.fmhy_catalog as fmhy_catalog
+from app.catalog_store import CatalogStore
 from app.fmhy_catalog import parse_fmhy_markdown, parse_official_source_file_list
 
 
@@ -135,3 +137,20 @@ def test_official_source_manifest_parser_rejects_duplicate_or_unsafe_paths() -> 
         parse_official_source_file_list(duplicate)
     with pytest.raises(RuntimeError, match="unsupported"):
         parse_official_source_file_list(unsafe)
+
+
+
+async def test_empty_source_parse_does_not_create_a_catalog_snapshot(
+    tmp_path, monkeypatch,
+) -> None:
+    store = CatalogStore(str(tmp_path / "catalog.sqlite3"))
+    store.initialize()
+
+    async def empty_sources():
+        return {"video.md": "# no resource entries\\n"}, "a" * 40
+
+    monkeypatch.setattr(fmhy_catalog, "fetch_official_fmhy_sources", empty_sources)
+
+    with pytest.raises(RuntimeError, match="no linked resources"):
+        await fmhy_catalog.sync_fmhy_catalog(store)
+    assert store.latest_snapshot() is None
