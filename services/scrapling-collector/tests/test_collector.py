@@ -88,9 +88,11 @@ class CollectorTests(unittest.TestCase):
                 self.fetch_args = (url, kwargs)
                 return page
         session = FakeSession()
-        with patch.object(collector, "StealthySession", return_value=session), \\
-             patch.object(collector, "extract_candidates", return_value=[http_candidate]), \\
-             patch.object(collector, "captured_api_candidates", return_value=[duplicate, api_candidate]):
+        with (
+            patch.object(collector, "StealthySession", return_value=session),
+            patch.object(collector, "extract_candidates", return_value=[http_candidate]),
+            patch.object(collector, "captured_api_candidates", return_value=[duplicate, api_candidate]),
+        ):
             captured_page, candidates = collector.run_browser_capture("https://catalog.example/", 5)
         self.assertIs(captured_page, page)
         self.assertEqual([item["url"] for item in candidates], [http_candidate["url"], api_candidate["url"]])
