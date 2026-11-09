@@ -1,0 +1,21 @@
+# Manual opt-in only. Creating this Blueprint provisions paid infrastructure.
+services:
+  - type: web
+    name: libretv-pr60-scrapling-collector
+    runtime: docker
+    plan: 2c-4g
+    region: oregon
+    rootDir: services/scrapling-collector
+    dockerfilePath: services/scrapling-collector/Dockerfile
+    dockerContext: services/scrapling-collector
+    autoDeployTrigger: off
+    healthCheckPath: /health
+    disk:
+      name: scrapling-collector-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: SCRAPLING_API_TOKEN
+        generateValue: true
+      - key: SCRAPLING_DB_PATH
+        value: /data/collector.sqlite3
