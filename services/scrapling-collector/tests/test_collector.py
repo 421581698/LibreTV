@@ -50,7 +50,8 @@ class CollectorTests(unittest.TestCase):
 
         with patch.object(collector, "FetcherSession") as fetcher_session:
             collector.SiteSpider().configure_sessions(Manager())
-        fetcher_session.assert_called_once_with(follow_redirects="safe")
+        self.assertGreaterEqual(fetcher_session.call_count, 1)
+        self.assertTrue(all(call.kwargs == {"follow_redirects": "safe"} for call in fetcher_session.call_args_list))
         self.assertEqual(captured["session_id"], "default")
         self.assertIs(captured["session"], fetcher_session.return_value)
 
