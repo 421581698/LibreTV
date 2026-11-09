@@ -67,14 +67,13 @@ class CatalogLink:
 class CatalogEntry:
     entry_id: str
     title: str
-    description: str
     category: str
     section_path: tuple[str, ...]
     source_file: str
     source_line: int
     marker: str | None
     safety_status: str
-    raw_line: str
+    source_url: str
     links: tuple[CatalogLink, ...]
 
 
@@ -134,7 +133,11 @@ def _clean_description(line: str) -> str:
     return re.sub(r"\s+", " ", text).strip(" -–—|")
 
 
-def parse_fmhy_markdown(source_file: str, markdown: str) -> list[CatalogEntry]:
+def parse_fmhy_markdown(
+    source_file: str,
+    markdown: str,
+    source_revision: str = FMHY_BRANCH,
+) -> list[CatalogEntry]:
     category = source_file.removesuffix(".md")
     safety_status = "flagged_unsafe" if category == "unsafe" else "unverified"
     headings: list[str] = []
@@ -202,20 +205,24 @@ def parse_fmhy_markdown(source_file: str, markdown: str) -> list[CatalogEntry]:
             (link.label for link in links if link.is_primary),
             links[0].label if links else "",
         )
-        description = _clean_description(raw_line)
-        title = title or description[:160] or f"{category} entry {line_number}"
+        cleaned_text = _clean_description(raw_line)
+        plain_title = re.split(r"\s[-–—]\s", cleaned_text, maxsplit=1)[0]
+        title = title or plain_title[:160] or f"{category} entry {line_number}"
+        source_url = (
+            f"https://github.com/{FMHY_REPOSITORY}/blob/"
+            f"{source_revision}/docs/{source_file}#L{line_number}"
+        )
         entries.append(
             CatalogEntry(
                 _stable_id(f"{source_file}:{line_number}:{title}"),
                 title[:300],
-                description[:2000],
                 category,
                 tuple(headings),
                 source_file,
                 line_number,
                 marker,
                 safety_status,
-                raw_line[:4000],
+                source_url,
                 tuple(links),
             )
         )
@@ -285,7 +292,7 @@ async def sync_fmhy_catalog(store) -> dict:
     entries = [
         entry
         for source_file, markdown in sources.items()
-        for entry in parse_fmhy_markdown(source_file, markdown)
+        for entry in parse_fmhy_markdown(source_file, markdown, source_revision)
     ]
     result = store.import_snapshot(
         entries,
