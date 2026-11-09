@@ -308,3 +308,10 @@
     flex-shrink: 1 !important;
   }
 }
+
+/* Tablet hero copy already anchors from the bottom; retain that layout below desktop. */
+@media screen and (max-width: 1440px) {
+  .v4-home .v4-hero-content {
+    top: auto !important;
+  }
+}
