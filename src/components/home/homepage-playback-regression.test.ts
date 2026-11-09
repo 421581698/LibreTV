@@ -353,7 +353,7 @@ describe('首页与播放页回归契约', () => {
     expect(previewWorkflow).toContain('  push:');
     expect(previewWorkflow).toContain('feature/libretv-eight-screen-glass-2026-11-09');
     expect(previewWorkflow).toContain('run: npm test -- --reporter=dot');
-    expect(previewWorkflow).toContain('public Preview Worker');
+    expect(previewWorkflow).toContain('Deploy isolated public preview Worker');
     expect(previewWorkflow).not.toContain('password protection');
   });
 
