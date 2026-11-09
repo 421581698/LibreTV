@@ -426,11 +426,11 @@
 @media screen and (max-width: 700px) {
   .search-history-dropdown {
     max-height: calc(
-      100dvh - env(safe-area-inset-top, 0px) -
+      100vh - env(safe-area-inset-top, 0px) -
       env(safe-area-inset-bottom, 0px) - 132px
     ) !important;
     max-height: calc(
-      100vh - env(safe-area-inset-top, 0px) -
+      100dvh - env(safe-area-inset-top, 0px) -
       env(safe-area-inset-bottom, 0px) - 132px
     ) !important;
   }
