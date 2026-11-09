@@ -309,3 +309,21 @@ body:has(.v4-home) .friday-fab::after {
 @media (prefers-reduced-motion: reduce) {
   .v4-home *, .v4-home *::before, .v4-home *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+.v4-resource-entry {
+  display:flex; align-items:center; justify-content:space-between; gap:18px;
+  padding:20px 22px; border-radius:18px;
+  color:#F2F2F4;
+  background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.035)) !important;
+  border:1px solid rgba(255,255,255,.13) !important;
+  box-shadow:0 16px 42px rgba(0,0,0,.28) !important;
+  -webkit-backdrop-filter:blur(24px) saturate(160%);
+  backdrop-filter:blur(24px) saturate(160%);
+}
+.v4-resource-entry strong { display:block; font-size:15px; font-weight:650; color:#F2F2F4; }
+.v4-resource-entry p { margin-top:6px; color:rgba(255,255,255,.52); font-size:12px; }
+.v4-resource-entry .glass-button { min-height:48px; padding:0 22px; border-radius:24px; border-color:rgba(241,166,58,.35); background:rgba(241,166,58,.12); color:#FFD18A; }
+@media(max-width:560px) {
+  .v4-resource-entry { align-items:flex-start; flex-direction:column; padding:16px; }
+  .v4-resource-entry .glass-button { width:100%; }
+}
