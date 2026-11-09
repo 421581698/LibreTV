@@ -512,7 +512,7 @@ export async function POST(req: Request) {
   let body: { urls?: unknown };
   try {
     body = await readJsonLimited<{ urls?: unknown }>(req, 256 * 1024);
-  } catch {
+  } catch (err) {
     return jsonError('无效请求体', requestBodyErrorStatus(err));
   }
   if (!body || typeof body !== 'object' || !Array.isArray(body.urls)) return jsonError('urls 必须为字符串数组', 400);
