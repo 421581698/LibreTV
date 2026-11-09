@@ -23,12 +23,12 @@
 }
 .dark {
   color-scheme: dark;
-  --glass-page: 9 13 20;
-  --glass-panel: 24 31 42;
-  --glass-panel-rgb: 24, 31, 42;
-  --glass-text: 235 241 249;
-  --glass-muted: 157 171 190;
-  --glass-border: 210, 225, 245;
+  --glass-page: 8 8 10;
+  --glass-panel: 24 24 27;
+  --glass-panel-rgb: 24, 24, 27;
+  --glass-text: 242 242 244;
+  --glass-muted: 164 164 170;
+  --glass-border: 220, 220, 220;
   --glass-border-alpha: .15;
   --glass-fill-alpha: .48;
   --glass-fill-strong-alpha: .68;
