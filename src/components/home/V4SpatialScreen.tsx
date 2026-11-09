@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useRouter } from 'next/navigation';
 import { V4HomepageHeader } from '@/components/home/V4HomepageHeader';
@@ -127,7 +128,7 @@ function MeHistoryCard({ item }: { item: HistoryEntry }) {
   const href = buildWatchUrl({ sourceKey: item.sourceKey, vodId: item.vodId, index: item.episodeIndex, title: item.title, sourceUrl: source?.url ?? item.sourceUrl, detail: source?.detail });
   const percent = item.duration > 0 ? Math.max(0, Math.min(100, Math.round(item.playbackPosition / item.duration * 100))) : 0;
   return (
-    <a className="v4-me-history-card" href={href}>
+    <Link className="v4-me-history-card" href={href}>
       <div className="v4-me-history-image">
         {item.pic ? <SmartImage url={item.pic} mode={imageProxyMode} customProxy={customImageProxy} alt="" className="absolute inset-0 h-full w-full object-cover" /> : <span>▶</span>}
       </div>
@@ -162,7 +163,7 @@ function MobileScreenTabs({ active }: { active: Screen }) {
   const items = [{ href: '/', label: '首页' }, { href: '/movies', label: '影视' }, { href: '/anime', label: '动漫' }, { href: '/live', label: '直播' }, { href: '/me', label: '我的' }];
   return (
     <nav className="v4-mobile-tabs" aria-label="移动端导航">
-      {items.map((item) => <a key={item.href} href={item.href} className={(active === 'movies' && item.href === '/movies') || (active === 'anime' && item.href === '/anime') || (active === 'me' && item.href === '/me') ? 'is-active' : ''}>{item.label}</a>)}
+      {items.map((item) => <Link key={item.href} href={item.href} className={(active === 'movies' && item.href === '/movies') || (active === 'anime' && item.href === '/anime') || (active === 'me' && item.href === '/me') ? 'is-active' : ''} >{item.label}</Link>)}
     </nav>
   );
 }
