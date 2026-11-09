@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import uuid
+from urllib.parse import urlsplit
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from datetime import UTC, datetime
@@ -159,7 +160,12 @@ async def _run_job(task_id: str) -> None:
         raise
     except Exception as exc:
         logger.exception("Scrapling job %s failed", task_id)
-        job_store.update(task_id, "failed", finished_at=_now(), error=str(exc)[:1000])
+        job_store.update(
+            task_id,
+            "failed",
+            finished_at=_now(),
+            error=f"{type(exc).__name__}: crawl failed",
+        )
     finally:
         _active_spiders.pop(task_id, None)
         _job_tasks.pop(task_id, None)
@@ -283,7 +289,7 @@ async def fetch(request: FetchRequest) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
-        logger.exception("Scrapling fetch failed for %s", target)
+        logger.exception("Scrapling fetch failed for host %s", urlsplit(target).hostname)
         raise HTTPException(
             status_code=502,
             detail="Scrapling could not fetch the target.",
