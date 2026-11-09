@@ -66,7 +66,7 @@ class CatalogStore:
         snapshot_id = uuid.uuid4().hex
         imported_at = datetime.now(UTC).isoformat()
         link_count = sum(len(entry.links) for entry in entries)
-        with self._connect() as connection:
+        with closing(self._connect()) as connection, connection:
             connection.execute("BEGIN IMMEDIATE")
             connection.execute(
                 "INSERT INTO catalog_snapshots VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -101,7 +101,7 @@ class CatalogStore:
         }
 
     def latest_snapshot(self) -> dict | None:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection, connection:
             row = connection.execute("""
                 SELECT snapshot_id, source_repository, source_branch, source_revision,
                        imported_at, source_count, entry_count, link_count
@@ -110,7 +110,7 @@ class CatalogStore:
         return dict(row) if row else None
 
     def count_domains(self, snapshot_id: str | None = None) -> int:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection, connection:
             if snapshot_id:
                 row = connection.execute(
                     "SELECT COUNT(DISTINCT domain) AS total FROM catalog_links WHERE snapshot_id = ?",
@@ -146,7 +146,7 @@ class CatalogStore:
             ORDER BY e.category, e.source_file, e.source_line LIMIT ? OFFSET ?
         """
         parameters.extend([max(1, min(limit, 100)), max(0, offset)])
-        with self._connect() as connection:
+        with closing(self._connect()) as connection, connection:
             rows = connection.execute(sql, parameters).fetchall()
             results = []
             for row in rows:
@@ -185,6 +185,6 @@ class CatalogStore:
             LIMIT ? OFFSET ?
         """
         parameters.extend([max(1, min(limit, 500)), max(0, offset)])
-        with self._connect() as connection:
+        with closing(self._connect()) as connection, connection:
             rows = connection.execute(sql, parameters).fetchall()
         return [dict(row) for row in rows]
