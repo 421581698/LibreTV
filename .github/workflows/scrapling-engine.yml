@@ -35,3 +35,26 @@ jobs:
         run: ruff check .
       - name: Test
         run: pytest -q
+      - name: Public HTTP and Spider smoke test
+        run: |
+          python - <<'PY'
+          import asyncio
+
+          from app.robots import ensure_robots_allowed
+          from app.scraper import ScraplingAdapter
+          from app.security import validate_public_http_url
+          from app.spider import ScraplingSpiderAdapter
+
+          target = validate_public_http_url("https://example.com/")
+          ensure_robots_allowed(target, timeout=15)
+          page = ScraplingAdapter.fetch_page(target, timeout=15)
+          assert page.status == 200, f"Unexpected HTTP status: {page.status}"
+          assert "Example Domain" in page.get_all_text(strip=True)
+
+          spider_result = asyncio.run(
+              ScraplingSpiderAdapter.crawl_async([target])
+          )
+          assert spider_result["items"], "Spider returned no items"
+          assert "Example Domain" in spider_result["items"][0]["text"]
+          print("Public Fetcher and Spider smoke tests passed.")
+          PY
