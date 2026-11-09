@@ -117,7 +117,7 @@ def _link_role(label: str, host: str) -> str:
         return "repository"
     if host in _COMMUNITY_HOSTS or any(host.endswith(f".{item}") for item in _COMMUNITY_HOSTS):
         return "community"
-    if normalized.isdigit():
+    if normalized.isdigit() or normalized in {"mirror", "mirrors"}:
         return "mirror"
     if normalized in _AUXILIARY_LABELS:
         return "reference"
@@ -174,7 +174,7 @@ def _extract_markdown_links(line: str) -> list[tuple[str, str]]:
 
 
 def _clean_description(line: str) -> str:
-    text = re.sub(r"^\s*[*+-]\s*", "", line)
+    text = re.sub(r"^\s*(?:[*+-]|\d+\.)\s*", "", line)
     text = re.sub(r"^[🌟⭐🌐↪️]\s*", "", text)
     text = re.sub(r"\[[^\]]+\]\([^)]*\)", "", text)
     text = text.replace(chr(96), "").replace("**", "").replace("__", "")
@@ -205,7 +205,7 @@ def parse_fmhy_markdown(
             headings = headings[: level - 1]
             headings.append(heading.group(2).strip())
             continue
-        if not re.match(r"^\s*[*+-]\s+", raw_line):
+        if not re.match(r"^\s*(?:[*+-]|\d+\.)\s+", raw_line):
             continue
         marker = next((item for item in _MARKERS if item in raw_line), None)
         links: list[CatalogLink] = []
