@@ -458,6 +458,7 @@
 }
 
 
+@media screen and (max-width: 700px) {
 /* Routed iPhone screens must follow the same light/dark preference as the
    homepage; the original spatial canvas is intentionally dark-only. */
 :root:not(.dark) .v4-spatial-screen {
@@ -518,6 +519,8 @@
   cursor: pointer;
 }
 
+
+}
 
 /* The four-item iPhone dock is declared in the homepage stylesheet with
    light-only !important values; explicitly bind its surface to dark mode. */
