@@ -12,7 +12,7 @@ import { SearchHistoryDropdown, useSearchHistory } from '@/components/search-his
 
 const normalizePath = (value: string | null) => {
   if (!value || value === '/') return '/';
-  return value.replace(/\\/+$/, '');
+  return value.replace(/\/+$/, '');
 };
 
 const isNavItemActive = (pathname: string | null, href: string) => {
