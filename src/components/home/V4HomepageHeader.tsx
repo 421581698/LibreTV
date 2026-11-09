@@ -89,11 +89,13 @@ export function V4HomepageHeader() {
               className="v4-mobile-search-toggle"
               aria-label={mobileSearchOpen ? "关闭搜索" : "打开搜索"}
               aria-expanded={mobileSearchOpen}
+              aria-controls="v4-header-search"
               onClick={() => setMobileSearchOpen((open) => !open)}
             >
               <Icon name="search" />
             </button>
             <form
+              id="v4-header-search"
               className={mobileSearchOpen ? "v4-search is-open" : "v4-search"}
               role="search"
               onSubmit={(event) => {
@@ -114,7 +116,15 @@ export function V4HomepageHeader() {
                     searchHistory.resetActive();
                   }}
                   onFocus={searchHistory.onFocus}
-                  onKeyDown={(event) => searchHistory.onKeyDown(event, pickHistory)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape" && mobileSearchOpen) {
+                      event.preventDefault();
+                      setMobileSearchOpen(false);
+                      event.currentTarget.blur();
+                      return;
+                    }
+                    searchHistory.onKeyDown(event, pickHistory);
+                  }}
                   role="combobox"
                   aria-expanded={searchHistory.visible}
                   aria-controls="v4-header-search-history"
