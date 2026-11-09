@@ -2,7 +2,7 @@
  * Phase 2 only: tablet touch layouts. PC/Mac desktop rules remain unchanged;
  * the phone profile is intentionally excluded (max-width: 700px).
  */
-@media screen and (min-width: 701px) and (max-width: 1366px) and (any-pointer: coarse) {
+@media screen and (min-width: 701px) and (max-width: 1440px) and (any-pointer: coarse) {
   html,
   body {
     min-width: 0 !important;
@@ -210,7 +210,7 @@
   }
 }
 
-@media screen and (min-width: 701px) and (max-width: 1366px) and (any-pointer: coarse) and (orientation: portrait) {
+@media screen and (min-width: 701px) and (max-width: 1440px) and (any-pointer: coarse) and (orientation: portrait) {
   .v4-home-main {
     width: calc(100% - 40px) !important;
   }
@@ -256,7 +256,7 @@
 
  }
 
-@media screen and (min-width: 1024px) and (max-width: 1366px) and (any-pointer: coarse) and (orientation: landscape) {
+@media screen and (min-width: 1024px) and (max-width: 1440px) and (any-pointer: coarse) and (orientation: landscape) {
   .v4-home .v4-recommendation-section .grid.grid-cols-3,
   .v4-home .v4-anime-section .grid.grid-cols-3 {
     grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -296,7 +296,7 @@
 
 /* iPad Safari uses safe-area insets even when the device is in landscape. */
 @supports (padding: max(0px)) {
-  @media screen and (min-width: 701px) and (max-width: 1366px) and (any-pointer: coarse) {
+  @media screen and (min-width: 701px) and (max-width: 1440px) and (any-pointer: coarse) {
     .v4-spatial-main {
       padding-bottom: max(40px, env(safe-area-inset-bottom));
     }
@@ -306,7 +306,7 @@
 
 /* iPad Settings: use the whole canvas instead of a narrow right-side strip.
  * This removes the unused blank area beside the settings panel on tablet. */
-@media screen and (min-width: 701px) and (max-width: 1366px) and (any-pointer: coarse) {
+@media screen and (min-width: 701px) and (max-width: 1440px) and (any-pointer: coarse) {
   .ipad-settings-drawer {
     inset: 0 !important;
     top: 0 !important;
@@ -352,7 +352,7 @@
 
 
 /* iPad Safari: force a visible, correctly sized profile glyph inside the avatar control. */
-@media screen and (min-width: 701px) and (max-width: 1366px) and (any-pointer: coarse) {
+@media screen and (min-width: 701px) and (max-width: 1440px) and (any-pointer: coarse) {
   .v4-header-actions .v4-avatar {
     display: inline-flex !important;
     align-items: center !important;
