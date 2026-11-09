@@ -76,6 +76,7 @@ The first controlled FMHY-to-Scrapling collection slice is now implemented on th
 
 - `POST /v1/catalog/crawl` accepts up to 20 selected FMHY entry IDs and an optional snapshot ID.
 - The catalog store resolves only each selected entry's primary link, rejects unsafe entries and entries without a primary resource, and retains source-file/line/revision provenance in the job's `catalog_selection` event.
+- `GET /v1/jobs/{task_id}/discovery` exposes de-duplicated persisted detail/playback page discoveries and media candidates, with the source page URL/title.
 - Selected seeds enter the existing persistent Scrapling job queue; job status, result rows, pause/resume controls, and SSE events remain the existing managed-job contract.
 - Scrapling Spider results now include title, poster candidate, same-host detail/playback page links, and media candidates found in media elements, iframe player elements, and inline scripts.
 - Media candidate types include HLS/M3U8, MP4, DASH/MPD, WebM, generic video elements, and extensionless player embeds. Every candidate is explicitly marked `pending_fetch_validation`; discovery does not mean reachable, authorized, or playable.
