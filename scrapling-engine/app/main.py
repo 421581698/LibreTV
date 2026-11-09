@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
@@ -150,7 +150,7 @@ async def _run_job(task_id: str) -> None:
                 result_json=json.dumps(result, ensure_ascii=False),
             )
     except asyncio.CancelledError:
-        job_store.update(task_id, "paused", error="Task cancelled during service shutdown.")
+        job_store.update(task_id, "interrupted", error="Task cancelled before a checkpoint was confirmed.")
         raise
     except Exception as exc:
         logger.exception("Scrapling job %s failed", task_id)
@@ -158,6 +158,27 @@ async def _run_job(task_id: str) -> None:
     finally:
         _active_spiders.pop(task_id, None)
         _job_tasks.pop(task_id, None)
+
+
+@app.on_event("shutdown")
+async def stop_active_crawls() -> None:
+    for task_id, spider_instance in list(_active_spiders.items()):
+        job_store.update(task_id, "pausing")
+        try:
+            spider_instance.pause()
+        except RuntimeError:
+            job_store.update(
+                task_id,
+                "interrupted",
+                error="Service shutdown occurred before the crawler loop was ready.",
+            )
+    tasks = list(_job_tasks.values())
+    if tasks:
+        done, pending = await asyncio.wait(tasks, timeout=30)
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
 
 
 @app.get("/health")
@@ -352,12 +373,20 @@ async def resume_job(task_id: str) -> dict:
 
 
 @app.get("/v1/jobs/{task_id}/events")
-async def job_events(task_id: str, last_event_id: int = 0) -> StreamingResponse:
+async def job_events(
+    task_id: str,
+    request: Request,
+    last_event_id: int = 0,
+) -> StreamingResponse:
     if job_store.get(task_id) is None:
         raise HTTPException(status_code=404, detail="Crawl job not found.")
 
     async def stream_events():
-        cursor = max(last_event_id, 0)
+        header_cursor = request.headers.get("last-event-id", "0")
+        try:
+            cursor = max(last_event_id, int(header_cursor))
+        except ValueError:
+            cursor = max(last_event_id, 0)
         while True:
             events = job_store.events_after(task_id, cursor)
             for event in events:
