@@ -95,6 +95,11 @@ def test_job_runner_persists_results_and_item_events(monkeypatch, tmp_path) -> N
         "text": "already saved",
     }
     store.add_result("job_runner_01", previous_item)
+    store.update(
+        "job_runner_01",
+        "paused",
+        started_at="2026-11-08T12:00:00+00:00",
+    )
 
     @dataclass
     class FakeStats:
@@ -122,6 +127,7 @@ def test_job_runner_persists_results_and_item_events(monkeypatch, tmp_path) -> N
     job = store.get("job_runner_01")
     assert job is not None
     assert job["status"] == "completed"
+    assert job["started_at"] == "2026-11-08T12:00:00+00:00"
     assert [item["title"] for item in job["result"]["items"]] == [
         "previous",
         "fixture",
