@@ -84,10 +84,6 @@ def discover_sites() -> list[dict]:
         host = parsed.hostname.lower().rstrip(".")
         if host == "fmhy.net" or host.endswith(".fmhy.net") or host in seen:
             continue
-        try:
-            public_https_url(absolute)
-        except HTTPException:
-            continue
         title = text_of(anchor)[:160]
         if not title:
             continue
