@@ -24,13 +24,17 @@ export function V4HomepageHeader() {
   const router = useRouter();
   const pathname = usePathname();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsInstance, setSettingsInstance] = useState(0);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const searchHistory = useSearchHistory(query);
 
   useEffect(() => {
-    const openSourceManager = () => setSettingsOpen(true);
+    const openSourceManager = () => {
+      setSettingsInstance((value) => value + 1);
+      setSettingsOpen(true);
+    };
     window.addEventListener('libretv:open-source-manager', openSourceManager);
     return () => window.removeEventListener('libretv:open-source-manager', openSourceManager);
   }, []);
@@ -171,7 +175,7 @@ export function V4HomepageHeader() {
       </header>
 
       <AIFloatingBall showFab inlineMode={false} />
-      <SourceManagerDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SourceManagerDrawer key={settingsInstance} open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <HistoryPanel open={historyOpen} onClose={() => setHistoryOpen(false)} />
     </>
   );
