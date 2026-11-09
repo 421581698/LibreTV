@@ -3,9 +3,11 @@
 import Link from 'next/link';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState, type FormEvent } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { V4HomepageHeader } from '@/components/home/V4HomepageHeader';
 import { AnimeRecommendationSection, RecommendSection } from '@/components/douban-section';
+import { DoubanCard } from '@/components/video-card';
 import { GlassPanel } from '@/components/ui/glass';
 import { SmartImage } from '@/components/smart-image';
 import { db, type HistoryEntry } from '@/lib/db';
@@ -15,9 +17,12 @@ import { api } from '@/lib/client-api';
 import { validateSourceUrl } from '@/lib/utils';
 import { buildWatchUrl, formatTime } from '@/lib/utils';
 
-type Screen = 'movies' | 'anime' | 'resources' | 'me' | 'settings';
+type Screen = 'movies' | 'tv' | 'anime' | 'variety' | 'overseas' | 'resources' | 'me' | 'settings';
 const COPY: Record<Screen, { eyebrow: string; title: string; subtitle: string }> = {
-  movies: { eyebrow: 'LIBRARY / MOVIES', title: '影视', subtitle: '从真实推荐与已配置的点播源中发现电影、剧集和纪录片。' },
+  movies: { eyebrow: 'LIBRARY / MOVIES', title: '电影', subtitle: '发现热门、新片与高分电影。内容来自实时豆瓣推荐。' },
+  tv: { eyebrow: 'LIBRARY / TV SERIES', title: '电视剧', subtitle: '浏览热门电视剧与不同地区的剧集推荐。' },
+  variety: { eyebrow: 'LIBRARY / VARIETY', title: '综艺', subtitle: '浏览真实综艺推荐与热门节目。' },
+  overseas: { eyebrow: 'LIBRARY / OVERSEAS DRAMA', title: '海外剧', subtitle: '按美剧、英剧、韩剧、日剧等分类发现海外剧集。' },
   anime: { eyebrow: 'LIBRARY / ANIME', title: '动漫', subtitle: '按星期查看 Bangumi 当季放送，追踪正在更新的新番。' },
   resources: { eyebrow: 'LIBRARY / SOURCES', title: '资源', subtitle: '管理真实接入的点播源、订阅和源健康状态，不展示虚构网盘结果。' },
   me: { eyebrow: 'PERSONAL / LIBRARY', title: '我的', subtitle: '本机观看记录与播放进度保存在你的设备上。' },
@@ -44,7 +49,10 @@ export function V4SpatialScreen({ screen }: { screen: Screen }) {
           ) : null}
         </div>
 
-        {screen === 'movies' ? <MoviesScreen onPick={(item) => router.push(`/?s=${encodeURIComponent(item.title)}`)} /> : null}
+        {screen === 'movies' ? <CatalogScreen category="movie" onPick={(item) => router.push(`/?s=${encodeURIComponent(item.title)}`)} /> : null}
+        {screen === 'tv' ? <CatalogScreen category="tv" onPick={(item) => router.push(`/?s=${encodeURIComponent(item.title)}`)} /> : null}
+        {screen === 'variety' ? <CatalogScreen category="variety" onPick={(item) => router.push(`/?s=${encodeURIComponent(item.title)}`)} /> : null}
+        {screen === 'overseas' ? <CatalogScreen category="overseas" onPick={(item) => router.push(`/?s=${encodeURIComponent(item.title)}`)} /> : null}
         {screen === 'anime' ? <AnimeScreen onPick={(item) => router.push(`/?s=${encodeURIComponent(item.title)}`)} /> : null}
         {screen === 'resources' ? <ResourcesScreen /> : null}
         {screen === 'me' ? <MeScreen /> : null}
@@ -52,6 +60,49 @@ export function V4SpatialScreen({ screen }: { screen: Screen }) {
       </main>
       <MobileScreenTabs active={screen} />
     </div>
+  );
+}
+
+type CatalogCategory = 'movie' | 'tv' | 'variety' | 'overseas';
+
+const CATALOG_TAGS: Record<CatalogCategory, string[]> = {
+  movie: ['热门', '最新', '经典', '豆瓣高分', '冷门佳片', '华语', '欧美', '韩国', '日本'],
+  tv: ['热门', '国产剧', '美剧', '英剧', '韩剧', '日剧', '港剧'],
+  variety: ['综艺'],
+  overseas: ['热门', '美剧', '英剧', '韩剧', '日剧', '泰剧'],
+};
+
+function CatalogScreen({ category, onPick }: { category: CatalogCategory; onPick: (item: DoubanItem) => void }) {
+  const tags = CATALOG_TAGS[category];
+  const [tag, setTag] = useState(tags[0]);
+  const type = category === 'movie' ? 'movie' : 'tv';
+  const query = useQuery({
+    queryKey: ['catalog', category, tag],
+    queryFn: ({ signal }) => api.douban(type, tag, 0, 50, signal),
+  });
+  const items = query.data?.items ?? [];
+  return (
+    <section className="v4-spatial-panel" aria-label={`${COPY[category === 'movie' ? 'movies' : category].title}推荐`}>
+      <div className="v4-spatial-panel-head"><h2>{COPY[category === 'movie' ? 'movies' : category].title}推荐</h2><span>豆瓣实时数据</span></div>
+      <div className="flex flex-wrap gap-2 mb-4">
+        {tags.map((item) => (
+          <button key={item} type="button" aria-pressed={tag === item}
+            className={tag === item ? 'px-3 py-1.5 rounded-full text-xs bg-accent text-on-accent' : 'px-3 py-1.5 rounded-full text-xs bg-chip text-muted hover:text-content'}
+            onClick={() => setTag(item)}>{item}</button>
+        ))}
+      </div>
+      {query.isError ? (
+        <div className="v4-spatial-empty" role="alert">分类数据加载失败，请稍后重试。</div>
+      ) : query.isLoading ? (
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">{Array.from({ length: 12 }, (_, i) => <div key={i} className="aspect-[2/3] rounded-lg bg-chip animate-pulse" />)}</div>
+      ) : items.length === 0 ? (
+        <div className="v4-spatial-empty">该分类暂无推荐内容。</div>
+      ) : (
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
+          {items.map((item) => <DoubanCard key={item.id} item={item} isTv={type === 'tv'} enableTmdbFallback onClick={() => onPick(item)} />)}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -221,10 +272,10 @@ function SettingsScreen() {
 }
 
 function MobileScreenTabs({ active }: { active: Screen }) {
-  const items = [{ href: '/', label: '首页' }, { href: '/movies', label: '影视' }, { href: '/anime', label: '动漫' }, { href: '/live', label: '直播' }, { href: '/me', label: '我的' }];
+  const items = [{ href: '/', label: '首页' }, { href: '/movies', label: '电影' }, { href: '/tv', label: '电视剧' }, { href: '/anime', label: '动漫' }, { href: '/variety', label: '综艺' }, { href: '/overseas', label: '海外剧' }, { href: '/live', label: '直播' }];
   return (
     <nav className="v4-mobile-tabs" aria-label="移动端导航">
-      {items.map((item) => <Link key={item.href} href={item.href} className={(active === 'movies' && item.href === '/movies') || (active === 'anime' && item.href === '/anime') || (active === 'me' && item.href === '/me') ? 'is-active' : ''} >{item.label}</Link>)}
+      {items.map((item) => <Link key={item.href} href={item.href} className={(active === 'movies' && item.href === '/movies') || (active === 'tv' && item.href === '/tv') || (active === 'anime' && item.href === '/anime') || (active === 'variety' && item.href === '/variety') || (active === 'overseas' && item.href === '/overseas') ? 'is-active' : ''} >{item.label}</Link>)}
     </nav>
   );
 }
