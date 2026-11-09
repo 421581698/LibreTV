@@ -642,3 +642,97 @@ html.dark main:has(.live-dot) :is(button,a):focus-visible {
   outline-offset: 3px;
   box-shadow: 0 0 0 5px rgba(255,255,255,.13) !important;
 }
+
+/* Cross-device monochrome glass finish.
+   Keep the LibreTV wordmark gold; preserve Friday's own gold sigil renderer. */
+.v4-brand { color: #F1A63A !important; }
+
+/* White glass navigation selection on desktop, tablet and phone. */
+.v4-home .v4-nav-link.is-active,
+.v4-nav-link.is-active,
+.dark header nav a[aria-current="page"],
+.dark header nav a[aria-current="page"] span {
+  color: #17171B !important;
+  background: linear-gradient(135deg, #FFFFFF, #E7E7EB) !important;
+  border-color: rgba(255,255,255,.76) !important;
+  box-shadow: 0 5px 18px rgba(255,255,255,.10), inset 0 1px 0 rgba(255,255,255,.82) !important;
+}
+.v4-home .v4-nav-link:hover,
+.v4-nav-link:hover,
+.dark header nav a:hover,
+.dark header nav button:hover {
+  color: #FFFFFF !important;
+  background: rgba(255,255,255,.10) !important;
+}
+
+/* Neutral white primary actions; no amber button gradients outside Friday's sigil. */
+.btn-primary,
+.dark .btn-primary,
+.v4-home .v4-hero-primary,
+.v4-spatial-primary,
+.v4-resource-search button {
+  color: #17171B !important;
+  background: linear-gradient(135deg, #FFFFFF, #E7E7EB) !important;
+  border: 1px solid rgba(255,255,255,.76) !important;
+  box-shadow: 0 8px 24px rgba(255,255,255,.10) !important;
+}
+.btn-primary:hover,
+.v4-home .v4-hero-primary:hover,
+.v4-spatial-primary:hover,
+.v4-resource-search button:hover {
+  color: #111114 !important;
+  background: #FFFFFF !important;
+}
+
+/* Headings, labels, counts and links use white/grey rather than gold. */
+.v4-home :is(h1,h2,h3,h4,h5,h6),
+.v4-spatial-screen :is(h1,h2,h3,h4,h5,h6),
+.v4-home .v4-section-heading :is(span,a),
+.v4-home .v4-hero-eyebrow,
+.v4-history-count,
+.v4-resource-result > b,
+.v4-me-history-image,
+.v4-spatial-eyebrow {
+  color: #F2F2F4 !important;
+}
+.v4-progress-track span,
+.v4-me-history-copy > div i {
+  background: linear-gradient(90deg, #BFC0C6, #FFFFFF) !important;
+}
+
+/* Neutral avatar, search focus and result hover treatment. */
+.v4-avatar {
+  color: #17171B !important;
+  background: linear-gradient(145deg, #FFFFFF, #DCDDE2) !important;
+  border-color: rgba(255,255,255,.76) !important;
+  box-shadow: 0 3px 12px rgba(255,255,255,.08) !important;
+}
+.v4-resource-search input:focus {
+  border-color: rgba(255,255,255,.62) !important;
+  box-shadow: 0 0 0 3px rgba(255,255,255,.10) !important;
+}
+.v4-resource-result:hover {
+  border-color: rgba(255,255,255,.30) !important;
+  background: rgba(255,255,255,.07) !important;
+}
+.v4-settings-card strong { color: #F4F4F5 !important; }
+.v4-settings-card:hover {
+  border-color: rgba(255,255,255,.24) !important;
+  background: rgba(255,255,255,.065) !important;
+}
+
+/* White keyboard focus across all input-capable devices. */
+:is(a, button, input, select, textarea, [role="button"]):focus-visible {
+  outline: 2px solid rgba(255,255,255,.96) !important;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px rgba(255,255,255,.13) !important;
+}
+
+/* The former floating bottom navigation strip is removed on iPhone too;
+   navigation remains available in the responsive header. */
+@media (max-width: 760px) {
+  .v4-mobile-tabs { display: none !important; }
+  .v4-spatial-main {
+    padding-bottom: max(40px, env(safe-area-inset-bottom)) !important;
+  }
+}
