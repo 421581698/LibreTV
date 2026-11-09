@@ -1,11 +1,12 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/client-api';
 import { useAppStore, resolveSource } from '@/lib/store';
 import type { SearchResultItem, SourceConfig, VideoDetail } from '@/lib/types';
 import { validateSourceUrl } from '@/lib/utils';
+import { db, progressKeyOf, saveProgress, updateHistoryProgress, upsertHistory } from '@/lib/db';
 
 const PlayerShell = dynamic(
   () => import('@/components/player-shell').then((module) => module.PlayerShell),
@@ -87,6 +88,36 @@ export function HomeInlinePlayer({
     return () => controller.abort();
   }, [item, source]);
 
+  const handleProgress = useCallback((position: number, duration: number) => {
+    if (!item) return;
+    void saveProgress(item.sourceKey, item.vodId, episodeIndex, position, duration).catch(() => {});
+    void updateHistoryProgress(item.sourceKey, item.vodId, position, duration).catch(() => {});
+  }, [item, episodeIndex]);
+
+  const getRestorePosition = useCallback(async () => {
+    if (!item) return 0;
+    const progress = await db.progress.get(progressKeyOf(item.sourceKey, item.vodId, episodeIndex));
+    return progress?.position ?? 0;
+  }, [item, episodeIndex]);
+
+  useEffect(() => {
+    if (!item || !detail) return;
+    void upsertHistory({
+      sourceKey: item.sourceKey,
+      sourceUrl: source?.url ?? item.sourceUrl,
+      vodId: item.vodId,
+      title: item.name,
+      pic: item.pic,
+      typeName: detail.videoInfo.typeName,
+      year: detail.videoInfo.year,
+      area: detail.videoInfo.area,
+      episodeIndex,
+      totalEpisodes: detail.episodes.length,
+      playbackPosition: 0,
+      duration: 0,
+      timestamp: Date.now(),
+    }).catch(() => {});
+  }, [item, source, detail, episodeIndex]);
   useEffect(() => {
     if (!item) return;
     const previousOverflow = document.body.style.overflow;
@@ -152,6 +183,10 @@ export function HomeInlinePlayer({
               hasNextEpisode={episodeIndex < episodes.length - 1}
               onPrevEpisode={() => setEpisodeIndex((index) => Math.max(0, index - 1))}
               onNextEpisode={() => setEpisodeIndex((index) => Math.min(episodes.length - 1, index + 1))}
+              getRestorePosition={getRestorePosition}
+              onTimeUpdate={handleProgress}
+              onPause={handleProgress}
+              onEnded={() => setEpisodeIndex((index) => Math.min(episodes.length - 1, index + 1))}
             />
           </div>
         ) : (
