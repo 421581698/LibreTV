@@ -1056,3 +1056,24 @@ html:not(.dark) .v4-me-cover-copy h2 { color:#fff !important; }
     background: rgba(20, 22, 28, 0.98) !important;
   }
 }
+
+
+/* Seven mobile destinations remain reachable on narrow iPhones without
+ * squeezing or wrapping labels into unreadable multi-line tabs. */
+@media (max-width: 760px) {
+  .v4-mobile-tabs {
+    justify-content: flex-start !important;
+    gap: 4px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .v4-mobile-tabs::-webkit-scrollbar { display: none; }
+  .v4-mobile-tabs a {
+    flex: 0 0 auto !important;
+    min-width: max-content;
+    white-space: nowrap;
+  }
+}
