@@ -86,8 +86,14 @@ def require_token(authorization: str | None) -> None:
 
 def public_https_url(raw_url: str) -> tuple[str, str]:
     parsed = urlparse(raw_url)
-    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
-        raise HTTPException(status_code=400, detail="Only public HTTPS URLs are allowed")
+    if (
+        parsed.scheme != "https"
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+        or parsed.port not in (None, 443)
+    ):
+        raise HTTPException(status_code=400, detail="Only public HTTPS URLs on port 443 are allowed")
     host = parsed.hostname.lower().rstrip(".")
     try:
         addresses = {entry[4][0] for entry in socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)}
