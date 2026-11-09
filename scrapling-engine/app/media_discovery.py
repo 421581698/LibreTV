@@ -122,6 +122,10 @@ def extract_page_signals(page: Any, page_url: str) -> dict[str, Any]:
         if not normalized:
             return
         kind = _media_type(normalized, declared_type)
+        if kind is None and via == "iframe_player":
+            kind = "embed"
+        elif kind is None and via in {"video_src", "video_source", "source_element"}:
+            kind = "video"
         if not kind:
             return
         candidates.setdefault(
