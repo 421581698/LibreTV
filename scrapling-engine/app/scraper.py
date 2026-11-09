@@ -69,13 +69,18 @@ class ScraplingAdapter:
             if not selector:
                 raise ValueError("A CSS selector is required for css extraction.")
             if mode == "adaptive_css":
-                if adaptive_action == "save":
-                    nodes = page.css(selector, auto_save=True)
-                elif adaptive_action == "relocate":
-                    nodes = page.css(selector, adaptive=True)
-                else:
-                    raise ValueError("Adaptive CSS extraction requires save or relocate action.")
-                if adaptive_action in {"save", "relocate"} and not isinstance(nodes, list):
+                try:
+                    if adaptive_action == "save":
+                        nodes = page.css(selector, auto_save=True)
+                    elif adaptive_action == "relocate":
+                        nodes = page.css(selector, adaptive=True)
+                    else:
+                        raise ValueError(
+                            "Adaptive CSS extraction requires save or relocate action."
+                        )
+                except SelectorSyntaxError as exc:
+                    raise ValueError("Invalid adaptive CSS selector.") from exc
+                if not isinstance(nodes, list):
                     nodes = list(nodes)
             else:
                 try:
@@ -87,12 +92,17 @@ class ScraplingAdapter:
             if not selector:
                 raise ValueError("An XPath expression is required for xpath extraction.")
             if mode == "adaptive_xpath":
-                if adaptive_action == "save":
-                    nodes = page.xpath(selector, auto_save=True)
-                elif adaptive_action == "relocate":
-                    nodes = page.xpath(selector, adaptive=True)
-                else:
-                    raise ValueError("Adaptive XPath extraction requires save or relocate action.")
+                try:
+                    if adaptive_action == "save":
+                        nodes = page.xpath(selector, auto_save=True)
+                    elif adaptive_action == "relocate":
+                        nodes = page.xpath(selector, adaptive=True)
+                    else:
+                        raise ValueError(
+                            "Adaptive XPath extraction requires save or relocate action."
+                        )
+                except XPathError as exc:
+                    raise ValueError("Invalid adaptive XPath expression.") from exc
             else:
                 try:
                     nodes = page.xpath(selector)
