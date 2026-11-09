@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Any, Literal
 
 import regex as re
-
 from scrapling.fetchers import Fetcher
 
 from app.config import settings
