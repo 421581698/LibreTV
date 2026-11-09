@@ -535,3 +535,20 @@
     color: #F7F8FA !important;
   }
 }
+
+
+@media screen and (max-width: 700px) {
+  html.dark .v4-header:not(.is-overlay) .v4-search input,
+  html.dark .v4-home .v4-header:not(.is-overlay) .v4-search input,
+  html.dark .v4-spatial-screen .v4-header:not(.is-overlay) .v4-search input {
+    color: #F7F8FA !important;
+    -webkit-text-fill-color: #F7F8FA !important;
+    caret-color: #F7F8FA !important;
+  }
+  html.dark .v4-header:not(.is-overlay) .v4-search input::placeholder,
+  html.dark .v4-home .v4-header:not(.is-overlay) .v4-search input::placeholder,
+  html.dark .v4-spatial-screen .v4-header:not(.is-overlay) .v4-search input::placeholder {
+    color: rgba(247,248,250,.56) !important;
+    -webkit-text-fill-color: rgba(247,248,250,.56) !important;
+  }
+}
