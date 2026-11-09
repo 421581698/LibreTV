@@ -32,5 +32,6 @@ def test_job_store_recovers_interrupted_jobs_as_paused(tmp_path) -> None:
     assert store.recover_interrupted() == ["job_02"]
     job = store.get("job_02")
     assert job is not None
-    assert job["status"] == "paused"
+    assert job["status"] == "interrupted"
+    assert store.events_after("job_02", 0)[-1]["type"] == "interrupted"
     assert store.events_after("job_02", 0)[-1]["payload"]["reason"] == "service_restart"
