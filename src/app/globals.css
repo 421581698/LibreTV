@@ -1588,3 +1588,131 @@ html:not(.dark) .netflix-watch-sidebar .text-white,
 html:not(.dark) .netflix-watch-sidebar [class*="text-white/"] {
   color: #46515f !important;
 }
+
+
+/* Player immersion pass: ArtPlayer setting/context menus are dark glass in
+   every app theme so a fullscreen black frame never opens a white panel. */
+.artplayer .art-settings,
+.artplayer .art-settings-panel,
+.artplayer .art-setting-panel,
+.artplayer .art-contextmenus,
+.artplayer .art-contextmenu,
+.art-settings,
+.art-settings-panel,
+.art-setting-panel,
+.art-contextmenus,
+.art-contextmenu,
+.art-setting-panel,
+.art-notice {
+  color-scheme: dark !important;
+  color: #fff !important;
+  background: rgba(30, 30, 30, .92) !important;
+  border: 1px solid rgba(255, 255, 255, .14) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 14px 38px rgba(0, 0, 0, .42) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(140%) !important;
+  backdrop-filter: blur(18px) saturate(140%) !important;
+}
+.artplayer .art-settings *,
+.artplayer .art-settings-panel *,
+.artplayer .art-setting-panel *,
+.artplayer .art-contextmenus *,
+.artplayer .art-contextmenu *,
+.art-settings *,
+.art-settings-panel *,
+.art-setting-panel *,
+.art-contextmenus *,
+.art-contextmenu *,
+.art-notice {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+.artplayer .art-settings .art-settings-item:hover,
+.artplayer .art-settings .art-settings-item:focus-visible,
+.art-settings .art-settings-item:hover,
+.art-settings .art-settings-item:focus-visible {
+  background: rgba(255, 255, 255, .12) !important;
+}
+.artplayer .art-settings svg,
+.artplayer .art-settings-panel svg,
+.artplayer .art-setting-panel svg {
+  color: #fff !important;
+  stroke: currentColor !important;
+}
+
+/* Keep the complete bottom control area legible over bright scenes. */
+.art-video-player .art-bottom,
+.artplayer .art-bottom {
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, .94) 0%,
+    rgba(0, 0, 0, .78) 46%,
+    rgba(0, 0, 0, .34) 78%,
+    rgba(0, 0, 0, 0) 100%
+  ) !important;
+  border-radius: 0 !important;
+}
+.art-video-player .art-controls,
+.artplayer .art-controls {
+  background: transparent !important;
+}
+.art-video-player .art-control,
+.artplayer .art-control {
+  color: #fff !important;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .75));
+}
+.art-video-player .art-progress-bar,
+.artplayer .art-progress-bar {
+  height: 5px !important;
+  background: rgba(255, 255, 255, .28) !important;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, .55) !important;
+}
+
+/* Explicit root-scoped player sidebar themes: no dark tokens may leak into
+   light mode, and dark mode remains consistently black with white copy. */
+html:not(.dark) .netflix-watch-sidebar {
+  color-scheme: light !important;
+  color: #252b34 !important;
+  background: rgba(255, 255, 255, .97) !important;
+}
+html:not(.dark) .netflix-watch-sidebar * {
+  color-scheme: light !important;
+}
+html.dark .netflix-watch-sidebar {
+  color-scheme: dark !important;
+  color: #f4f6fa !important;
+  background: rgba(20, 22, 28, .97) !important;
+  border-color: rgba(255, 255, 255, .14) !important;
+}
+html.dark .netflix-watch-sidebar .text-content,
+html.dark .netflix-watch-sidebar h3,
+html.dark .netflix-watch-sidebar .netflix-episode-row,
+html.dark .netflix-watch-sidebar .netflix-next-card,
+html.dark .netflix-watch-sidebar .netflix-next-card strong,
+html.dark .netflix-watch-sidebar .netflix-source-card strong {
+  color: #f4f6fa !important;
+}
+html.dark .netflix-watch-sidebar .text-muted,
+html.dark .netflix-watch-sidebar .text-faint,
+html.dark .netflix-watch-sidebar small,
+html.dark .netflix-watch-sidebar .netflix-section-kicker,
+html.dark .netflix-watch-sidebar .netflix-sidebar-footer {
+  color: rgba(230, 235, 244, .68) !important;
+}
+
+/* Header icon visibility guard for narrow/zoomed desktop and tablet layouts. */
+.v4-home .v4-header-actions .v4-header-icon,
+.v4-home .v4-header-actions .v4-avatar {
+  flex-shrink: 0 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+.v4-home .v4-header-actions .v4-header-icon svg,
+.v4-home .v4-header-actions .v4-avatar svg,
+.v4-home .v4-search > svg {
+  display: block !important;
+  flex: 0 0 auto !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  stroke: currentColor !important;
+}
