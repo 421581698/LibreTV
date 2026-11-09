@@ -251,22 +251,35 @@ function MeHistoryCard({ item }: { item: HistoryEntry }) {
 
 function SettingsScreen() {
   const groups = [
-    ['播放与过滤', '默认清晰度、自动连播、片头片尾过滤'],
-    ['外观与封面', '主题、封面图代理与加载策略'],
-    ['网络与数据源', '点播源、直播源、订阅与健康检测'],
-    ['Friday 语音', '语音识别、播报声音与对话偏好'],
-    ['数据管理', '配置导入导出与本机缓存'],
-  ];
+    { title: '播放与过滤', description: '自动连播、片头片尾跳过、广告过滤与本机播放缓存', primary: 'prefs', secondary: 'playback' },
+    { title: '外观与封面', description: '封面图代理方式、自定义代理模板与显示主题', primary: 'prefs', secondary: 'image' },
+    { title: '网络与数据源', description: '点播源管理、直播源、订阅同步与源健康检测', primary: 'sources', secondary: 'vod' },
+    { title: 'Friday 语音', description: '助手角色、语音音色、唤醒词与对话语言偏好', primary: 'prefs', secondary: 'voice' },
+    { title: '数据管理', description: '配置导入导出；本机缓存可在播放与过滤面板管理', primary: 'data', secondary: 'io' },
+  ] as const;
+
+  const openCategory = (primary: 'sources' | 'prefs' | 'data', secondary: string) => {
+    try {
+      window.localStorage.setItem('libretv-settings-tab', JSON.stringify({
+        primary,
+        secondary: { sources: 'vod', prefs: 'playback', data: 'io', [primary]: secondary },
+      }));
+    } catch {
+      // 即使浏览器禁用本地存储，也仍然打开设置抽屉。
+    }
+    window.dispatchEvent(new CustomEvent('libretv:open-source-manager'));
+  };
+
   return (
     <section className="v4-spatial-panel">
       <div className="v4-settings-grid">
-        {groups.map(([title, description], index) => (
-          <button key={title} type="button" className="v4-settings-card" onClick={() => window.dispatchEvent(new CustomEvent('libretv:open-source-manager'))}>
-            <div><strong>{title}</strong><p>{description}</p></div><b aria-hidden="true">›</b>
+        {groups.map((group) => (
+          <button key={group.title} type="button" className="v4-settings-card" onClick={() => openCategory(group.primary, group.secondary)}>
+            <div><strong>{group.title}</strong><p>{group.description}</p></div><b aria-hidden="true">›</b>
           </button>
         ))}
       </div>
-      <p className="v4-spatial-footnote">设置项由现有设置抽屉执行和持久化；此页不创建第二套互相冲突的配置状态。</p>
+      <p className="v4-spatial-footnote">每个分类直接进入对应的实际设置面板；选项沿用 LibreTV 现有配置与本机持久化，不创建重复配置。</p>
     </section>
   );
 }
