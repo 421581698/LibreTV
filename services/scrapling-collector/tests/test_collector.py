@@ -308,11 +308,7 @@ segment-2.ts
 
     def test_hls_segment_probe_samples_only_bounded_number(self):
         urls = [f"https://media.example/segment-{i}.ts" for i in range(8)]
-        with patch.object(collector, "public_https_url", return_value=(urls[0], "media.example")), \\
-             patch.object(collector, "throttle"), \\
-             patch.object(collector, "probe_direct_media", return_value={
-                 "reachable": True, "http_status": 206, "content_type": "video/mp2t"
-             }) as probe:
+        with patch.object(collector, "public_https_url", return_value=(urls[0], "media.example")), patch.object(collector, "throttle"), patch.object(collector, "probe_direct_media", return_value={"reachable": True, "http_status": 206, "content_type": "video/mp2t"}) as probe:
             result = collector.probe_hls_segments(urls, max_segments=2)
         self.assertEqual(result["sampled"], 2)
         self.assertEqual(result["reachable"], 2)
