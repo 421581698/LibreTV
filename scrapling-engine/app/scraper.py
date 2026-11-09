@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import re
+import regex as re
 from typing import Any, Literal
 
 from scrapling.fetchers import Fetcher
@@ -8,6 +8,7 @@ from scrapling.fetchers import Fetcher
 from app.config import settings
 
 ExtractMode = Literal["text", "css", "xpath", "regex"]
+REGEX_TIMEOUT_SECONDS = 0.25
 
 
 def _element_text(element: Any) -> str:
@@ -62,7 +63,16 @@ class ScraplingAdapter:
         elif mode == "regex":
             if not selector:
                 raise ValueError("A regular expression is required for regex extraction.")
-            values = re.findall(selector, full_text)
+            try:
+                values = re.findall(
+                    selector,
+                    full_text,
+                    timeout=REGEX_TIMEOUT_SECONDS,
+                )
+            except TimeoutError as exc:
+                raise ValueError("Regex extraction exceeded its time limit.") from exc
+            except re.error as exc:
+                raise ValueError("Invalid regular expression.") from exc
             values = [item if isinstance(item, str) else "".join(item) for item in values]
         elif mode == "text":
             values = [full_text]
