@@ -302,3 +302,50 @@
     display: none !important;
   }
 }
+
+/* Outrank the legacy phone-only light-header selectors on routed pages. */
+.v4-header:not(.is-overlay) {
+  color: #F2F2F4 !important;
+  background: rgba(10, 10, 13, .84) !important;
+  background-image: linear-gradient(180deg, rgba(20,20,24,.94), rgba(10,10,13,.84)) !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,.12) !important;
+  box-shadow: 0 10px 30px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.06) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(155%) !important;
+  backdrop-filter: blur(24px) saturate(155%) !important;
+}
+.v4-header:not(.is-overlay) .v4-brand { color: #F1A63A !important; }
+.v4-header:not(.is-overlay) .v4-nav-link,
+.v4-header:not(.is-overlay) .v4-header-icon,
+.v4-header:not(.is-overlay) .v4-mobile-search-toggle { color: rgba(255,255,255,.72) !important; }
+.v4-header:not(.is-overlay) .v4-nav-link { background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
+.v4-header:not(.is-overlay) .v4-nav-link:hover { color: #fff !important; background: rgba(255,255,255,.09) !important; }
+.v4-header:not(.is-overlay) .v4-nav-link.is-active {
+  color: #17171B !important;
+  background: linear-gradient(180deg,#fff,#e8e8ec) !important;
+  border-color: rgba(255,255,255,.9) !important;
+  box-shadow: 0 4px 14px rgba(255,255,255,.10), inset 0 1px 0 #fff !important;
+}
+.v4-header:not(.is-overlay) .v4-header-actions .v4-header-icon,
+.v4-header:not(.is-overlay) .v4-header-actions .v4-avatar,
+.v4-header:not(.is-overlay) .v4-mobile-search-toggle {
+  color: #F2F2F4 !important;
+  background: rgba(255,255,255,.075) !important;
+  border: 1px solid rgba(255,255,255,.15) !important;
+}
+.v4-header:not(.is-overlay) .v4-search {
+  color: #F2F2F4 !important;
+  background: rgba(255,255,255,.075) !important;
+  border: 1px solid rgba(255,255,255,.16) !important;
+}
+.v4-header:not(.is-overlay) .v4-search input {
+  color: #F2F2F4 !important;
+  -webkit-text-fill-color: #F2F2F4 !important;
+}
+.v4-header:not(.is-overlay) .v4-search input::placeholder {
+  color: rgba(255,255,255,.48) !important;
+  -webkit-text-fill-color: rgba(255,255,255,.48) !important;
+}
+.v4-header:not(.is-overlay) .v4-search svg,
+.v4-header:not(.is-overlay) .v4-header-icon svg,
+.v4-header:not(.is-overlay) .v4-mobile-search-toggle svg { color: #F2F2F4 !important; stroke: currentColor !important; }
