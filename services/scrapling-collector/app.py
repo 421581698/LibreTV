@@ -10,6 +10,7 @@ import socket
 import ssl
 import sqlite3
 import time
+import xml.etree.ElementTree as ET
 import uuid
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
@@ -117,6 +118,95 @@ def public_https_url(raw_url: str) -> tuple[str, str]:
     return raw_url, host
 
 
+MAX_MANIFEST_BYTES = 1024 * 1024
+
+
+def parse_hls_manifest(body: bytes) -> dict:
+    text = body.decode("utf-8-sig", errors="replace")
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines or lines[0] != "#EXTM3U":
+        return {"manifest_valid": False, "manifest_error": "missing_extm3u"}
+    variants: list[dict] = []
+    segment_count = 0
+    durations: list[float] = []
+    pending_variant: dict | None = None
+    for line in lines[1:]:
+        if line.startswith("#EXT-X-STREAM-INF:"):
+            attrs = {}
+            raw_attrs = line.split(":", 1)[1]
+            for part in raw_attrs.split(","):
+                if "=" in part:
+                    key, value = part.split("=", 1)
+                    attrs[key.strip().upper()] = value.strip().strip('"')
+            resolution = attrs.get("RESOLUTION", "")
+            width = height = None
+            if "x" in resolution.lower():
+                try:
+                    width, height = (int(v) for v in resolution.lower().split("x", 1))
+                except ValueError:
+                    pass
+            pending_variant = {
+                "bandwidth": int(attrs["BANDWIDTH"]) if attrs.get("BANDWIDTH", "").isdigit() else None,
+                "average_bandwidth": int(attrs["AVERAGE-BANDWIDTH"]) if attrs.get("AVERAGE-BANDWIDTH", "").isdigit() else None,
+                "width": width,
+                "height": height,
+                "codecs": attrs.get("CODECS"),
+            }
+        elif line.startswith("#EXTINF:"):
+            try:
+                durations.append(float(line.split(":", 1)[1].split(",", 1)[0]))
+            except ValueError:
+                pass
+        elif not line.startswith("#"):
+            if pending_variant is not None:
+                variants.append(pending_variant)
+                pending_variant = None
+            else:
+                segment_count += 1
+    return {
+        "manifest_valid": True,
+        "manifest_type": "hls",
+        "is_master_playlist": bool(variants),
+        "variant_count": len(variants),
+        "variants": variants[:20],
+        "segment_count": segment_count,
+        "duration_seconds": round(sum(durations), 3) if durations else None,
+    }
+
+
+def parse_mpd_manifest(body: bytes) -> dict:
+    try:
+        root = ET.fromstring(body)
+    except ET.ParseError:
+        return {"manifest_valid": False, "manifest_error": "invalid_xml"}
+    if root.tag.split("}")[-1] != "MPD":
+        return {"manifest_valid": False, "manifest_error": "missing_mpd_root"}
+    representations = []
+    for node in root.iter():
+        if node.tag.split("}")[-1] != "Representation":
+            continue
+        try:
+            width = int(node.attrib["width"]) if node.attrib.get("width") else None
+            height = int(node.attrib["height"]) if node.attrib.get("height") else None
+            bandwidth = int(node.attrib["bandwidth"]) if node.attrib.get("bandwidth") else None
+        except ValueError:
+            width = height = bandwidth = None
+        representations.append({
+            "id": node.attrib.get("id"),
+            "width": width,
+            "height": height,
+            "bandwidth": bandwidth,
+            "codecs": node.attrib.get("codecs"),
+        })
+    return {
+        "manifest_valid": True,
+        "manifest_type": "dash",
+        "dynamic": root.attrib.get("type", "static").lower() == "dynamic",
+        "representation_count": len(representations),
+        "representations": representations[:20],
+    }
+
+
 def probe_direct_media(raw_url: str, max_redirects: int = 5) -> dict:
     """Probe media headers with a one-byte range request and safe manual redirects."""
     current = raw_url
@@ -154,18 +244,25 @@ def probe_direct_media(raw_url: str, max_redirects: int = 5) -> dict:
                 current = urljoin(normalized, location)
                 continue
             content_type = headers.get("content-type", "").split(";", 1)[0].strip().lower()
-            media_type = (
-                content_type.startswith("video/")
-                or content_type in {
-                    "application/vnd.apple.mpegurl",
-                    "application/x-mpegurl",
-                    "application/dash+xml",
-                    "application/octet-stream",
-                }
-                or urlparse(normalized).path.lower().endswith(MEDIA_EXTENSIONS)
-            )
+            path = urlparse(normalized).path.lower()
+            is_hls = path.endswith(".m3u8") or content_type in {
+                "application/vnd.apple.mpegurl", "application/x-mpegurl"
+            }
+            is_dash = path.endswith(".mpd") or content_type == "application/dash+xml"
+            is_video = content_type.startswith("video/") or path.endswith((".mp4", ".m4v", ".webm", ".mov"))
+            media_type = is_hls or is_dash or is_video
+            manifest = {}
+            if 200 <= status < 300 and (is_hls or is_dash):
+                body = response.read(MAX_MANIFEST_BYTES + 1)
+                if len(body) > MAX_MANIFEST_BYTES:
+                    manifest = {"manifest_valid": False, "manifest_error": "manifest_too_large"}
+                elif is_hls:
+                    manifest = parse_hls_manifest(body)
+                else:
+                    manifest = parse_mpd_manifest(body)
             response.close()
             reachable = 200 <= status < 300 and media_type
+            manifest_valid = manifest.get("manifest_valid") if manifest else None
             return {
                 "reachable": bool(reachable),
                 "http_status": status,
@@ -173,7 +270,9 @@ def probe_direct_media(raw_url: str, max_redirects: int = 5) -> dict:
                 "content_length": headers.get("content-length"),
                 "range_supported": status == 206,
                 "final_url": normalized,
-                "note": "Range/header probe only; final playback must still be tested in PlayerShell.",
+                "media_format": "hls" if is_hls else ("dash" if is_dash else ("progressive" if is_video else None)),
+                **manifest,
+                "note": "Manifest/header validation only; segment delivery and actual playback must still be tested in PlayerShell.",
             }
         except (OSError, http.client.HTTPException, ssl.SSLError) as exc:
             return {"reachable": False, "error": type(exc).__name__}
