@@ -13,6 +13,6 @@ NEXT_PUBLIC_HOME_V2 = "true"
 CMS_SEARCH_API = "https://caiji.dyttzyapi.com/api.php/provide/vod"
 API_60S_BASE = "https://60s.bggdbh.workers.dev"
 LLM_MODEL = "glm-4-flash"
-AUTH_DISABLED = "true"
+AUTH_DISABLED = "false"
 
-# 不要在此文件写入任何密钥。
+# PASSWORD 必须作为 Cloudflare Worker Secret 配置；不要写入此文件。
