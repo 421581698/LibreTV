@@ -392,3 +392,40 @@
   color: #17191d !important;
   stroke: currentColor;
 }
+
+
+/* Final channel-header treatment: restrained translucent surface, readable
+ * dark controls, and a quiet active state instead of a bright white pill. */
+.v4-header:not(.is-overlay) {
+  position: -webkit-sticky !important;
+  position: sticky !important;
+  top: 0 !important;
+  background: rgba(246, 248, 251, 0.88) !important;
+  background-image: linear-gradient(180deg, rgba(255,255,255,.92), rgba(242,245,249,.84)) !important;
+  color: #17191d !important;
+  border-color: rgba(28,35,45,.12) !important;
+  box-shadow: 0 6px 22px rgba(25,35,50,.07), inset 0 1px 0 rgba(255,255,255,.92) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(145%) !important;
+  backdrop-filter: blur(18px) saturate(145%) !important;
+}
+.v4-header:not(.is-overlay) .v4-nav-link.is-active {
+  color: #17191d !important;
+  background: rgba(35, 45, 60, 0.09) !important;
+  border: 1px solid rgba(35,45,60,.10) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.72) !important;
+}
+.v4-header:not(.is-overlay) .v4-nav-link:hover {
+  color: #111318 !important;
+  background: rgba(35,45,60,.06) !important;
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .v4-header:not(.is-overlay) {
+    background: rgba(246,248,251,.98) !important;
+    background-image: none !important;
+  }
+}
+@supports not (overflow: clip) {
+  @media screen and (max-width: 700px) {
+    html, body { overflow-x: hidden !important; }
+  }
+}
