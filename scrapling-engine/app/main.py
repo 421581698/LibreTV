@@ -296,7 +296,7 @@ async def spider(request: SpiderRequest) -> dict:
     try:
         checkpoint_dir = None
         if request.task_id:
-            checkpoint_dir = Path(settings.crawl_data_dir).resolve() / request.task_id
+            checkpoint_dir = Path(settings.crawl_data_dir).expanduser().resolve() / request.task_id
             _ensure_checkpoint_manifest(request.task_id, safe_urls, checkpoint_dir)
         result = await run_in_threadpool(
             ScraplingSpiderAdapter.crawl,
