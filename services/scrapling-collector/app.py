@@ -329,11 +329,47 @@ def run_spider(url: str, limit: int) -> list[dict]:
     return candidates
 
 
+def install_browser_request_guard(page) -> None:
+    """Reject browser requests that could reach non-public or non-HTTPS targets.
+
+    This is a per-request defense-in-depth check. Deployment-level egress
+    filtering is still required to eliminate DNS-rebinding/TOCTOU risk.
+    """
+    def guard(route) -> None:
+        raw_url = route.request.url
+        try:
+            parsed = urlparse(raw_url)
+            port = parsed.port
+            if (
+                parsed.scheme != "https"
+                or not parsed.hostname
+                or parsed.username
+                or parsed.password
+                or port not in (None, 443)
+            ):
+                route.abort()
+                return
+            host = parsed.hostname.lower().rstrip(".")
+            addresses = {
+                entry[4][0]
+                for entry in socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
+            }
+            if not addresses or any(not ipaddress.ip_address(address).is_global for address in addresses):
+                route.abort()
+                return
+        except (OSError, ValueError):
+            route.abort()
+            return
+        route.continue_()
+
+    page.route("**/*", guard)
+
+
 def run_browser_capture(url: str, limit: int) -> tuple[object, list[dict]]:
     # Browser rendering is a fallback for JavaScript-heavy pages. No CAPTCHA,
     # login, paywall, DRM or access-control bypass is attempted.
     with StealthySession(headless=True, record_requests=True, max_recorded_requests=300) as session:
-        page = session.fetch(url, timeout=30, network_idle=True)
+        page = session.fetch(url, timeout=30, network_idle=True, page_setup=install_browser_request_guard)
         candidates = extract_candidates(page, url, limit)
         candidates.extend(captured_api_candidates(session, url, limit - len(candidates)))
         return page, candidates[:limit]
