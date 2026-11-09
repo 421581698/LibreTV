@@ -10,6 +10,8 @@ import './v4-homepage.css';
 import './v4-shared-header.css';
 // Keep header text and controls contrasted with the active light/dark surface.
 import './v4-header-theme.css';
+// Final theme layer: keep iOS Safari's bottom safe area in sync with dark mode.
+import './theme-safe-area.css';
 import { Providers } from '@/components/providers';
 
 export const metadata: Metadata = {
