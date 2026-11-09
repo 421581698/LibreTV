@@ -35,9 +35,43 @@ describe('iPhone homepage inline playback and top search', () => {
     expect(mobileSearch).toContain('.v4-header .v4-header-actions {');
     expect(mobileSearch).toContain('display: contents !important;');
     expect(mobileSearch).toContain('display: flex !important;');
-    expect(mobileSearch).toContain('width: 100% !important;');
+    expect(mobileSearch).toContain('flex: 1 1 90px !important;');
+    expect(mobileSearch).not.toContain('flex: 0 0 100% !important;');
     expect(mobileSearch).toContain('.v4-header .v4-mobile-search-toggle');
     expect(mobileSearch).toContain('display: none !important;');
     expect(mobileSearch).toContain('.v4-header .v4-primary-nav');
+  });
+});
+
+describe('iPhone shared navigation, routed playback and runtime cleanup', () => {
+  const spatial = read('src/components/home/V4SpatialScreen.tsx');
+  const friday = read('src/components/AIFloatingBall.tsx');
+  const theme = read('src/app/v4-header-theme.css');
+  const safeArea = read('src/app/theme-safe-area.css');
+
+  it('renders only the shared four-item dock on routed screens', () => {
+    expect(spatial).not.toContain('MobileScreenTabs');
+    expect(spatial).toContain('<V4HomepageHeader />');
+  });
+
+  it('routes catalogue posters and resource results into the shared inline player', () => {
+    expect(spatial).toContain('const openRecommendation = async (movie: DoubanItem)');
+    expect(spatial).toContain('onPick={openRecommendation}');
+    expect(spatial).toContain('<HomeInlinePlayer item={quickPlayItem}');
+    expect(spatial).not.toContain('router.push');
+    expect(spatial).toContain('onClick={() => onPick(item)}');
+  });
+
+  it('releases voice capture, speech and active requests when Friday unmounts', () => {
+    expect(friday).toContain('stopAllVoice();');
+    expect(friday).toContain('cancelActiveRequest();');
+    expect(friday).toContain('window.speechSynthesis?.cancel();');
+  });
+
+  it('applies light-theme colors to routed iPhone screens and keeps safe-area paint below the dock', () => {
+    expect(theme).toContain(':root:not(.dark) .v4-spatial-screen');
+    expect(theme).toContain(':root:not(.dark) .v4-spatial-screen .v4-resource-search input');
+    expect(safeArea).toContain('z-index: 1;');
+    expect(safeArea).not.toContain('2147483000');
   });
 });
