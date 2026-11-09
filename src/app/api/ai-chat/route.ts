@@ -12,12 +12,20 @@ export async function POST(req: NextRequest) {
   const guarded = guardRequest(req);
   if (guarded) return guarded;
 
+  let body: { messages?: unknown };
+  try {
+    body = await readJsonLimited<{ messages?: unknown }>(req, 128 * 1024);
+  } catch (error) {
+    return NextResponse.json(
+      { error: '请求格式错误' },
+      { status: requestBodyErrorStatus(error) }
+    );
+  }
+
   const userId = 'libretv-authenticated-user';
   let requestId: string | undefined;
-  
+
   try {
-    const body = await readJsonLimited<{ messages?: unknown }>(req, 128 * 1024);
-    
     // 兼容 LibreTV 前端传来的格式： { messages: [...] }
     if (!body || typeof body !== 'object' || !Array.isArray(body.messages) ||
         body.messages.length === 0 || body.messages.length > 30) {
@@ -74,8 +82,8 @@ export async function POST(req: NextRequest) {
   } catch (err: unknown) {
     if (requestId) unregisterInflight(requestId);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : '请求格式错误' },
-      { status: requestBodyErrorStatus(err) }
+      { error: err instanceof Error ? err.message : '服务器内部错误' },
+      { status: 500 }
     );
   }
 }
