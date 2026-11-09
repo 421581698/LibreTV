@@ -139,6 +139,10 @@
     min-width: 0;
     padding: 14px 0 max(36px, env(safe-area-inset-bottom)) !important;
   }
+  /* Leave the full fixed four-item dock and iOS home-indicator inset clear. */
+  .v4-spatial-main {
+    padding-bottom: calc(92px + env(safe-area-inset-bottom)) !important;
+  }
   .v4-hero {
     width: 100%;
     min-width: 0;
