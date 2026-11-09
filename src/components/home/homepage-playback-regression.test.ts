@@ -157,7 +157,7 @@ describe('首页与播放页回归契约', () => {
     const navStart = v4Header.indexOf('<nav');
     const navEnd = v4Header.indexOf('</nav>', navStart);
     const navMarkup = v4Header.slice(navStart, navEnd);
-    const searchStart = v4Header.indexOf('id="v4-header-search"');
+    const searchStart = v4Header.indexOf('<SearchModule');
     const actionsStart = v4Header.indexOf('className="v4-header-actions"');
     expect(navMarkup).not.toContain('id="v4-header-search"');
     expect(searchStart).toBeGreaterThan(navEnd);
