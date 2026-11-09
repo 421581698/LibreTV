@@ -595,7 +595,7 @@ const ChannelRow = memo(function ChannelRow({
           键盘操作由外层列表容器的 ↑↓ 导航提供 */}
       <div
         className={cn(
-          'group flex items-center gap-2.5 px-2 py-2 rounded-md cursor-pointer transition-colors relative',
+          'glass-panel group flex items-center gap-2.5 px-2 py-2 rounded-md cursor-pointer transition-colors relative !shadow-none',,
           active ? 'bg-accent/10' : 'hover:bg-hover',
           cursor && 'ring-1 ring-accent/70'
         )}
