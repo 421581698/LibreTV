@@ -155,7 +155,7 @@
   .v4-spatial-main {
     width: calc(100% - 48px);
     max-width: 1360px;
-    padding: 32px 0 112px;
+    padding: 32px 0 40px;
   }
 
   .v4-spatial-heading {
@@ -198,39 +198,9 @@
     min-height: 64px;
   }
 
-  /* The routed-screen tab bar is tablet navigation, not the phone layout. */
+  /* Tablet navigation stays in the header; remove the floating bottom strip. */
   .v4-mobile-tabs {
-    position: fixed;
-    z-index: 60;
-    left: 50%;
-    right: auto;
-    bottom: max(14px, env(safe-area-inset-bottom));
-    display: flex !important;
-    width: min(620px, calc(100% - 48px));
-    min-height: 64px;
-    justify-content: space-around;
-    gap: 6px;
-    padding: 8px 10px;
-    transform: translateX(-50%);
-    border: 1px solid rgba(255,255,255,.14);
-    border-radius: 22px;
-    background: rgba(17,17,21,.88);
-    -webkit-backdrop-filter: blur(28px) saturate(160%);
-    backdrop-filter: blur(28px) saturate(160%);
-    box-shadow: 0 14px 40px rgba(0,0,0,.42);
-  }
-
-  .v4-mobile-tabs a {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 72px;
-    min-height: 44px;
-    padding: 8px 12px;
-    border-radius: 13px;
-    font-size: 13px;
-    white-space: nowrap;
-    -webkit-tap-highlight-color: transparent;
+    display: none !important;
   }
 
   /* Keep player media crisp; enlarge only the player chrome touch targets. */
@@ -284,15 +254,7 @@
     gap: 12px;
   }
 
-  .v4-mobile-tabs {
-    width: min(560px, calc(100% - 32px));
-  }
-
-  .v4-mobile-tabs a {
-    min-width: 60px;
-    padding-inline: 8px;
-  }
-}
+ }
 
 @media screen and (min-width: 1024px) and (max-width: 1366px) and (any-pointer: coarse) and (orientation: landscape) {
   .v4-home .v4-recommendation-section .grid.grid-cols-3,
@@ -336,7 +298,7 @@
 @supports (padding: max(0px)) {
   @media screen and (min-width: 701px) and (max-width: 1366px) and (any-pointer: coarse) {
     .v4-spatial-main {
-      padding-bottom: max(112px, calc(env(safe-area-inset-bottom) + 92px));
+      padding-bottom: max(40px, env(safe-area-inset-bottom));
     }
   }
 }
