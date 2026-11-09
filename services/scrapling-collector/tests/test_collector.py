@@ -134,8 +134,7 @@ class CollectorTests(unittest.TestCase):
         connection = collector.PinnedHTTPSConnection(
             "media.example", "8.8.8.8", timeout=5, context=context
         )
-        with patch.object(collector.socket, "socket", return_value=fake_socket), \\
-             patch.object(collector.socket, "getaddrinfo", side_effect=AssertionError("DNS lookup after pinning")):
+        with patch.object(collector.socket, "socket", return_value=fake_socket), patch.object(collector.socket, "getaddrinfo", side_effect=AssertionError("DNS lookup after pinning")):
             connection.connect()
         self.assertEqual(fake_socket.connected, ("8.8.8.8", 443))
         context.wrap_socket.assert_called_once_with(fake_socket, server_hostname="media.example")
