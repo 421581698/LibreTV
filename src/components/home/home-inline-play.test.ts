@@ -65,6 +65,7 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
   const collectorValidationRoute = read('src/app/api/resource-collector/candidates/[candidateId]/validate/route.ts');
   const collectorDock = read('src/components/home/header/MobileTabBar.tsx');
   const iphoneLayout = read('src/app/iphone-glass.css');
+  const mobileSearch = read('src/app/iphone-home-inline.css');
 
   it('renders only the shared four-item dock on routed screens', () => {
     expect(spatial).not.toContain('MobileScreenTabs');
