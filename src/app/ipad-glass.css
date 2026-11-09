@@ -21,7 +21,7 @@
     grid-template-columns: minmax(132px, auto) minmax(0, 1fr) !important;
     grid-template-rows: auto auto;
     gap: 10px 16px !important;
-    padding: 12px 0 4px;
+    padding: 12px 0 4px !important;
   }
 
   .v4-brand {
@@ -52,7 +52,7 @@
   .v4-nav-link {
     flex: 0 0 auto;
     min-height: 44px;
-    padding: 0 17px;
+    padding: 0 17px !important;
     font-size: 14px;
   }
 
@@ -65,17 +65,17 @@
 
   .v4-search {
     flex: 1 1 180px;
-    width: auto;
+    width: auto !important;
     min-width: 0;
     max-width: 360px;
-    height: 44px;
+    height: 44px !important;
   }
 
   .v4-header-icon,
   .v4-avatar {
-    width: 44px;
-    height: 44px;
-    flex: 0 0 44px;
+    width: 44px !important;
+    height: 44px !important;
+    flex: 0 0 44px !important;
   }
 
   /* Home: a balanced cinema hero, with enough space for real poster rows. */
@@ -86,23 +86,23 @@
   }
 
   .v4-hero {
-    height: clamp(330px, 47svh, 520px);
-    min-height: 330px;
+    height: clamp(330px, 47svh, 520px) !important;
+    min-height: 330px !important;
     border-radius: 22px !important;
   }
 
   .v4-hero-content {
-    left: 36px;
-    right: 32px;
-    bottom: 42px;
-    top: auto;
-    width: min(620px, 68%);
-    max-width: 68%;
-    transform: none;
+    left: 36px !important;
+    right: 32px !important;
+    bottom: 42px !important;
+    top: auto !important;
+    width: min(620px, 68%) !important;
+    max-width: 68% !important;
+    transform: none !important;
   }
 
   .v4-hero-content h1 {
-    font-size: clamp(34px, 4.2vw, 54px);
+    font-size: clamp(34px, 4.2vw, 54px) !important;
     line-height: 1.08;
   }
 
@@ -246,20 +246,20 @@
   }
 
   .v4-hero {
-    height: clamp(300px, 39svh, 420px);
-    min-height: 300px;
+    height: clamp(300px, 39svh, 420px) !important;
+    min-height: 300px !important;
   }
 
   .v4-hero-content {
-    left: 28px;
-    right: 24px;
-    bottom: 30px;
-    width: min(560px, 78%);
-    max-width: 78%;
+    left: 28px !important;
+    right: 24px !important;
+    bottom: 30px !important;
+    width: min(560px, 78%) !important;
+    max-width: 78% !important;
   }
 
   .v4-hero-content h1 {
-    font-size: clamp(30px, 5vw, 44px);
+    font-size: clamp(30px, 5vw, 44px) !important;
   }
 
   .v4-hero-content p {
