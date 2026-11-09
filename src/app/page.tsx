@@ -9,7 +9,6 @@ import { V4HomepageHeader } from '@/components/home/V4HomepageHeader';
 import { V4HomepageHero } from '@/components/home/V4HomepageHero';
 import { V4HomepageContent } from '@/components/home/V4HomepageContent';
 import './v4-homepage.css';
-import './eight-screen-glass.css';
 import { useFridayDetailBridge } from '@/components/friday/useFridayDetailBridge';
 import { useHomeSearchController } from '@/components/home/useHomeSearchController';
 import { DetailModal } from '@/components/detail-modal';
