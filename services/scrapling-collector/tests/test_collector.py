@@ -19,6 +19,14 @@ class CollectorTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
+    def test_crawl_egress_gate_fails_closed_until_firewall_is_confirmed(self):
+        with patch.dict(os.environ, {"SCRAPLING_EGRESS_FIREWALL_CONFIRMED": ""}):
+            with self.assertRaises(collector.HTTPException) as error:
+                collector.require_egress_firewall()
+            self.assertEqual(error.exception.status_code, 503)
+        with patch.dict(os.environ, {"SCRAPLING_EGRESS_FIREWALL_CONFIRMED": "1"}):
+            collector.require_egress_firewall()
+
     def test_classifies_direct_media(self):
         self.assertEqual(
             collector.classify_url("https://media.example/video/master.m3u8"),
