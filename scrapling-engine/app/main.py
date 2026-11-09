@@ -276,8 +276,15 @@ async def pause_job(task_id: str) -> dict:
     try:
         spider_instance.pause()
     except RuntimeError as exc:
-        job_store.update(task_id, "running", error="Pause request rejected before crawl loop started.")
-        raise HTTPException(status_code=409, detail="Spider has not started its crawl loop.") from exc
+        job_store.update(
+            task_id,
+            "running",
+            error="Pause request rejected before crawl loop started.",
+        )
+        raise HTTPException(
+            status_code=409,
+            detail="Spider has not started its crawl loop.",
+        ) from exc
     return {"ok": True, "task_id": task_id, "status": "pausing"}
 
 
@@ -307,7 +314,8 @@ async def job_events(task_id: str, last_event_id: int = 0) -> StreamingResponse:
             events = job_store.events_after(task_id, cursor)
             for event in events:
                 cursor = event["id"]
-                yield f"id: {cursor}\nevent: {event['type']}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
+                payload = json.dumps(event, ensure_ascii=False)
+                yield f"id: {cursor}\nevent: {event['type']}\ndata: {payload}\n\n"
             job = job_store.get(task_id)
             if job is None or job["status"] in {"completed", "paused", "failed"}:
                 break
