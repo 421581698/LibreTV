@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     request_timeout_seconds: float = 25.0
     max_response_bytes: int = 5 * 1024 * 1024
+    crawl_data_dir: str = "./crawl_data"
     default_user_agent: str = (
         "LibreTV-Scrapling-Engine/0.1 "
         "(+respectful public resource discovery)"
