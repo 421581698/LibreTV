@@ -1,0 +1,219 @@
+/* LibreTV iPhone Safari profile
+ * Phone-only layout refinements. Tablet and desktop profiles remain untouched.
+ * Preserve native scrolling, safe areas, Friday Canvas and player media.
+ */
+@media screen and (max-width: 700px) {
+  html, body {
+    min-width: 0 !important;
+    width: 100%;
+    overflow-x: clip;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .v4-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .v4-header-inner {
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: center;
+    width: 100% !important;
+    min-height: 0 !important;
+    gap: 8px !important;
+    padding: 9px 12px 0 !important;
+  }
+
+  .v4-brand {
+    flex: 0 0 auto;
+    min-height: 40px;
+    font-size: 17px !important;
+    gap: 7px;
+    white-space: nowrap;
+  }
+  .v4-brand-mark { width: 25px; height: 25px; flex-basis: 25px; }
+
+  .v4-header-actions {
+    display: flex;
+    flex: 1 1 auto;
+    justify-content: flex-end;
+    align-items: center;
+    min-width: 0;
+    gap: 6px !important;
+    margin-left: auto;
+  }
+
+  /* History remains available from the Me screen; retain search, settings and profile. */
+  .v4-header-actions .v4-header-icon[aria-label="观看历史"] {
+    display: none !important;
+  }
+  .v4-header-icon,
+  .v4-avatar {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px;
+    min-height: 38px;
+    flex: 0 0 38px !important;
+  }
+
+  /* The compact search icon opens a full-width, thumb-friendly search surface on focus. */
+  .v4-search {
+    position: relative;
+    width: 38px !important;
+    min-width: 38px;
+    height: 38px !important;
+    flex: 0 0 38px;
+    gap: 8px;
+    padding: 0 10px !important;
+    border-radius: 12px !important;
+    overflow: hidden;
+    transition: width .18s ease, background .18s ease;
+  }
+  .v4-search:focus-within {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 12px;
+    right: 12px;
+    z-index: 120;
+    width: auto !important;
+    height: 48px !important;
+    padding: 0 14px !important;
+    overflow: visible;
+    background: rgba(20,20,25,.96) !important;
+    border-color: rgba(255,255,255,.24) !important;
+    box-shadow: 0 16px 38px rgba(0,0,0,.42) !important;
+  }
+  .v4-search-field { min-width: 0; }
+  .v4-search input {
+    width: 100% !important;
+    min-width: 0;
+    height: 44px;
+    opacity: 0;
+    font-size: 16px !important;
+  }
+  .v4-search:focus-within input { opacity: 1; }
+
+  /* All seven destinations stay in the header and can be swiped horizontally. */
+  .v4-primary-nav {
+    order: 3;
+    display: flex !important;
+    flex: 0 0 calc(100% + 24px);
+    width: calc(100% + 24px) !important;
+    min-width: 0;
+    justify-content: flex-start !important;
+    gap: 5px !important;
+    margin: 0 -12px;
+    padding: 3px 12px 9px !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+  }
+  .v4-primary-nav::-webkit-scrollbar { display: none; }
+  .v4-nav-link {
+    flex: 0 0 auto;
+    min-height: 40px;
+    padding: 0 13px !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px !important;
+    border-radius: 999px;
+  }
+
+  .v4-home-main,
+  .v4-spatial-main {
+    width: calc(100% - 24px) !important;
+    max-width: none !important;
+    min-width: 0;
+    padding: 14px 0 max(36px, env(safe-area-inset-bottom)) !important;
+  }
+  .v4-hero {
+    width: 100%;
+    min-width: 0;
+    border-radius: 17px !important;
+  }
+  .v4-hero-content {
+    left: 20px !important;
+    right: 18px !important;
+    max-width: none;
+  }
+  .v4-hero-content h1 {
+    font-size: clamp(30px, 9vw, 42px) !important;
+    line-height: 1.08;
+  }
+  .v4-hero-content p {
+    font-size: 13px !important;
+    line-height: 1.55;
+  }
+  .v4-hero-actions { flex-wrap: wrap; gap: 8px; }
+  .v4-hero-primary,
+  .v4-hero-secondary {
+    min-height: 44px;
+    height: 44px;
+    padding: 0 14px;
+    font-size: 13px;
+  }
+
+  .v4-spatial-heading {
+    align-items: flex-start;
+    gap: 12px;
+    margin: 8px 0 18px;
+  }
+  .v4-spatial-heading h1 { font-size: clamp(28px, 8vw, 36px) !important; }
+  .v4-spatial-heading p { font-size: 13px; line-height: 1.6; }
+  .v4-spatial-panel {
+    min-width: 0;
+    padding: 14px !important;
+    border-radius: 17px !important;
+  }
+  .v4-settings-grid,
+  .v4-source-grid,
+  .v4-me-history-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 10px !important;
+  }
+  .v4-settings-card { min-height: 64px !important; padding: 12px 13px !important; }
+  .v4-resource-search { display: flex; flex-direction: column; gap: 9px; }
+  .v4-resource-search input,
+  .v4-resource-search button { width: 100%; min-height: 46px; }
+  .v4-resource-result { min-width: 0; overflow-wrap: anywhere; }
+
+  /* Remove the old floating bottom strip; preserve a safe-area-aware Friday entry. */
+  .v4-mobile-tabs { display: none !important; }
+  body:has(.v4-home) .friday-fab {
+    top: auto !important;
+    right: 12px !important;
+    bottom: max(14px, env(safe-area-inset-bottom)) !important;
+    left: auto !important;
+    width: 58px !important;
+    height: 58px !important;
+  }
+  body:has(.v4-home) .friday-fab::after { display: none !important; }
+
+  /* Never apply glass filters to video, poster artwork or the Friday canvas. */
+  .friday-orb__canvas,
+  .artplayer video,
+  .artplayer canvas,
+  .v4-hero-image,
+  .v4-recommendation-section img { filter: none !important; }
+}
+
+@media screen and (max-width: 390px) {
+  .v4-header-inner { padding-inline: 10px !important; }
+  .v4-brand { font-size: 16px !important; }
+  .v4-nav-link { padding-inline: 11px !important; font-size: 12px !important; }
+  .v4-home-main,
+  .v4-spatial-main { width: calc(100% - 20px) !important; }
+  .v4-hero-content { left: 16px !important; right: 14px !important; }
+  .v4-hero-content h1 { font-size: clamp(28px, 8.5vw, 36px) !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v4-search { transition: none !important; }
+}
