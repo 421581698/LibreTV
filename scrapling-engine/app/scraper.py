@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import regex as re
+from pathlib import Path
 from typing import Any, Literal
 
 from scrapling.fetchers import Fetcher
@@ -11,7 +12,12 @@ ExtractMode = Literal[
     "text", "css", "xpath", "regex", "adaptive_css", "adaptive_xpath"
 ]
 AdaptiveAction = Literal["save", "relocate"]
-Fetcher.configure(adaptive=True)
+_adaptive_storage = Path(settings.crawl_data_dir).expanduser().resolve() / "adaptive.sqlite3"
+_adaptive_storage.parent.mkdir(parents=True, exist_ok=True)
+Fetcher.configure(
+    adaptive=True,
+    storage_args={"storage_file": str(_adaptive_storage)},
+)
 REGEX_TIMEOUT_SECONDS = 0.25
 
 
