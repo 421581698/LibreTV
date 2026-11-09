@@ -156,7 +156,7 @@ export function Drawer({
 
   return (
     // 非模态时容器只用于定位：pointer-events-none 让抽屉以外的点击穿透到页面
-    <div className={cn('fixed inset-0 z-50', !modal && 'pointer-events-none')}>
+    <div className={cn('fixed inset-0 z-[100000]', !modal && 'pointer-events-none')}>
       {modal && (
         <div
           className={cn(
