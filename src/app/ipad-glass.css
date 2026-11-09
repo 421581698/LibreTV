@@ -248,7 +248,6 @@
     padding-top: 26px;
   }
 
-  .v4-spatial-screen[data-screen="movies"] .v4-spatial-panel > .grid.grid-cols-3,
   .v4-spatial-screen[data-screen="anime"] .v4-spatial-panel > section > .grid.grid-cols-3 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
@@ -272,7 +271,6 @@
     padding-top: 30px;
   }
 
-  .v4-spatial-screen[data-screen="movies"] .v4-spatial-panel > .grid.grid-cols-3,
   .v4-spatial-screen[data-screen="anime"] .v4-spatial-panel > section > .grid.grid-cols-3 {
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 14px;
