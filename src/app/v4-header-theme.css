@@ -510,3 +510,10 @@
 :root:not(.dark) .v4-spatial-screen .v4-me-cover {
   color: #F5F6F8 !important;
 }
+
+.v4-spatial-screen button.v4-resource-result {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
