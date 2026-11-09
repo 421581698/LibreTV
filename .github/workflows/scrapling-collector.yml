@@ -9,6 +9,7 @@ on:
       - "src/app/api/resource-collector/**"
       - "src/lib/resource-collector-client.ts"
       - "src/lib/resource-collector-client.test.ts"
+      - "src/components/home/home-inline-play.test.ts"
       - "docker-compose.yml"
       - "render.yaml"
       - "scripts/scrapling-egress-firewall.sh"
