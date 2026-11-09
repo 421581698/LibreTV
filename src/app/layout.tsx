@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import './glass-system.css';
+import './eight-screen-glass.css';
 import { Providers } from '@/components/providers';
 
 export const metadata: Metadata = {
