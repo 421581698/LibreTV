@@ -119,3 +119,20 @@ def test_job_runner_persists_results_and_item_events(monkeypatch, tmp_path) -> N
         event["type"] == "item"
         for event in store.events_after("job_runner_01", 0)
     )
+
+
+
+def test_job_event_stream_replays_persisted_events(monkeypatch, tmp_path) -> None:
+    store = _use_test_store(monkeypatch, tmp_path)
+    assert store.create(
+        "job_events_01",
+        ["https://example.com/"],
+        str(tmp_path / "job_events_01"),
+    )
+    store.update("job_events_01", "completed", finished_at="2026-11-09T00:00:00+00:00")
+
+    response = TestClient(main.app).get("/v1/jobs/job_events_01/events")
+
+    assert response.status_code == 200
+    assert "event: queued" in response.text
+    assert "event: completed" in response.text
