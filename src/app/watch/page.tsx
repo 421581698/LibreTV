@@ -248,6 +248,9 @@ function WatchContent() {
         vodId: vodId || currentUrl,
         title: videoTitle,
         pic: detailQuery.data?.videoInfo?.cover,
+        typeName: detailQuery.data?.videoInfo?.typeName,
+        year: detailQuery.data?.videoInfo?.year,
+        area: detailQuery.data?.videoInfo?.area,
         episodeIndex: currentIndex,
         totalEpisodes: episodes.length,
         playbackPosition: 0,
@@ -257,7 +260,7 @@ function WatchContent() {
     }, 2000);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [verified, sourceKey, vodId, currentIndex, videoTitle, currentUrl]);
+  }, [verified, sourceKey, vodId, currentIndex, videoTitle, currentUrl, detailQuery.data?.videoInfo?.cover, detailQuery.data?.videoInfo?.typeName, detailQuery.data?.videoInfo?.year, detailQuery.data?.videoInfo?.area]);
   // 播放中与暂停时的进度落盘逻辑一致，共用同一回调
   const handleProgress = useCallback(
     (position: number, duration: number) => {
