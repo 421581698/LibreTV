@@ -378,7 +378,18 @@ segment-2.ts
         self.assertEqual(timeline[1]["url"], "https://cdn.example/video/v1/008-4.m4s")
         self.assertFalse(result["representations"][0]["segment_timeline_truncated"])
 
-    def test_dynamic_mpd_bounds_negative_repeat_to_time_shift_window(self):
+    def test_mpd_negative_repeat_stops_at_next_explicit_time(self):
+        body = b"""<MPD type="static"><Period><AdaptationSet>
+<SegmentTemplate timescale="1" media="segment-$Number$-$Time$.m4s">
+<SegmentTimeline><S t="0" d="4" r="-1"/><S t="12" d="4"/></SegmentTimeline>
+</SegmentTemplate><Representation id="v1"/></AdaptationSet></Period></MPD>"""
+        result = collector.parse_mpd_manifest(body, "https://cdn.example/manifest.mpd")
+        timeline = result["representations"][0]["segment_timeline"]
+        self.assertEqual([item["time"] for item in timeline], [0, 4, 8, 12])
+        self.assertEqual([item["number"] for item in timeline], [1, 2, 3, 4])
+        self.assertFalse(result["representations"][0]["segment_timeline_truncated"])
+
+    def test_dynamic_mpd_defers_negative_repeat_until_live_edge_is_known(self):
         body = b"""<MPD type="dynamic" availabilityStartTime="2026-01-01T00:00:00Z"
  minimumUpdatePeriod="PT5S" timeShiftBufferDepth="PT12S"
  suggestedPresentationDelay="PT3S">
