@@ -1,0 +1,37 @@
+name: Scrapling Engine CI
+
+on:
+  push:
+    branches:
+      - feature/scrapling-engine-phase1
+    paths:
+      - "scrapling-engine/**"
+      - ".github/workflows/scrapling-engine.yml"
+  pull_request:
+    paths:
+      - "scrapling-engine/**"
+      - ".github/workflows/scrapling-engine.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: scrapling-engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scrapling-engine/pyproject.toml
+      - name: Install engine and development dependencies
+        run: python -m pip install -e ".[dev]"
+      - name: Lint
+        run: ruff check .
+      - name: Test
+        run: pytest -q
