@@ -13,12 +13,14 @@ from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import urlsplit
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
+from app.catalog_store import CatalogStore
 from app.config import settings
+from app.fmhy_catalog import sync_fmhy_catalog
 from app.job_store import JobStore
 from app.robots import RobotsPolicyError, RobotsUnavailableError, ensure_robots_allowed
 from app.scraper import ScraplingAdapter
@@ -49,6 +51,9 @@ app = FastAPI(
     description="Phase-one isolated crawler service built on upstream Scrapling.",
 )
 job_store = JobStore(settings.job_database_path)
+catalog_store = CatalogStore(settings.catalog_database_path)
+catalog_store.initialize()
+_catalog_sync_lock = asyncio.Lock()
 job_store.initialize()
 job_store.recover_interrupted()
 _active_spiders: dict[str, Any] = {}
@@ -299,6 +304,9 @@ async def capabilities() -> dict:
             "job_status_api",
             "job_event_stream",
             "api_pause_resume_controls",
+            "fmhy_official_markdown_import",
+            "versioned_resource_catalog",
+            "normalized_domain_index",
         ],
         "planned": [
             "dynamic_browser",
@@ -550,3 +558,76 @@ async def job_events(
                 await asyncio.sleep(1)
 
     return StreamingResponse(stream_events(), media_type="text/event-stream")
+
+
+
+@app.post("/v1/catalog/fmhy/sync")
+async def sync_fmhy_directory() -> dict:
+    async with _catalog_sync_lock:
+        try:
+            result = await sync_fmhy_catalog(catalog_store)
+            return {"ok": True, **result}
+        except Exception as exc:
+            logger.exception("FMHY catalog synchronization failed")
+            raise HTTPException(
+                status_code=502,
+                detail="FMHY official catalog synchronization failed; previous snapshot was retained.",
+            ) from exc
+
+
+@app.get("/v1/catalog/snapshot")
+async def get_catalog_snapshot() -> dict:
+    snapshot = catalog_store.latest_snapshot()
+    if snapshot is None:
+        raise HTTPException(status_code=404, detail="FMHY catalog has not been synchronized.")
+    return {"ok": True, "snapshot": snapshot}
+
+
+@app.get("/v1/catalog/entries")
+async def get_catalog_entries(
+    category: str | None = Query(default=None, max_length=80),
+    q: str | None = Query(default=None, max_length=120),
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    include_unsafe: bool = False,
+) -> dict:
+    snapshot = catalog_store.latest_snapshot()
+    if snapshot is None:
+        raise HTTPException(status_code=404, detail="FMHY catalog has not been synchronized.")
+    entries = catalog_store.list_entries(
+        snapshot_id=snapshot["snapshot_id"],
+        category=category,
+        query=q,
+        limit=limit,
+        offset=offset,
+        include_unsafe=include_unsafe,
+    )
+    return {
+        "ok": True,
+        "snapshot_id": snapshot["snapshot_id"],
+        "count": len(entries),
+        "entries": entries,
+    }
+
+
+@app.get("/v1/catalog/domains")
+async def get_catalog_domains(
+    q: str | None = Query(default=None, max_length=120),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> dict:
+    snapshot = catalog_store.latest_snapshot()
+    if snapshot is None:
+        raise HTTPException(status_code=404, detail="FMHY catalog has not been synchronized.")
+    domains = catalog_store.list_domains(
+        snapshot_id=snapshot["snapshot_id"],
+        query=q,
+        limit=limit,
+        offset=offset,
+    )
+    return {
+        "ok": True,
+        "snapshot_id": snapshot["snapshot_id"],
+        "count": len(domains),
+        "domains": domains,
+    }
