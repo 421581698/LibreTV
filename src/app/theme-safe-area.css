@@ -26,9 +26,3 @@ html.dark body::after {
   background: #08080A;
   pointer-events: none;
 }
-html.dark body > * {
-  position: relative;
-}
-html.dark body > script {
-  position: static;
-}
