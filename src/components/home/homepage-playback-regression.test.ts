@@ -330,7 +330,7 @@ describe('首页与播放页回归契约', () => {
     expect(channelStyles).toContain('padding-block-start: clamp(20px, 2.5vw, 32px)');
     expect(channelStyles).toContain('@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)))');
     expect(channelHeaderStyles).toContain('background: rgba(246, 248, 251, 0.88)');
-    expect(channelHeaderStyles).toContain('background: rgba(35, 45, 60, 0.09)');
+    expect(channelHeaderStyles).toContain('background: rgba(35,45,60,.09)');
   });
 
   it('首页精选 Banner 始终使用渐变遮罩与白色文案，并保留无数据占位高度', () => {
