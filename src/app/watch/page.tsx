@@ -73,6 +73,16 @@ function WatchContent() {
   );
   // 全量观看索引用于推荐去重；不把已看过的影片重复包装成新推荐。
   const watchedHistory = useLiveQuery(() => db.history.toArray(), []);
+  const sortedContinueHistory = useMemo(() => (recentHistory ?? [])
+    .filter((item) => !(item.sourceKey === sourceKey && item.vodId === vodId))
+    .map((item) => {
+      const percent = item.duration > 0 ? Math.min(100, Math.max(0, Math.round(item.playbackPosition / item.duration * 100))) : 0;
+      const hasNextEpisode = item.totalEpisodes > 0 && item.episodeIndex < item.totalEpisodes - 1;
+      const unfinished = hasNextEpisode || (item.duration > 0 && item.playbackPosition / item.duration < 0.95);
+      return { item, percent, unfinished };
+    })
+    .sort((a, b) => Number(b.unfinished) - Number(a.unfinished) || b.item.timestamp - a.item.timestamp)
+    .slice(0, 6), [recentHistory, sourceKey, vodId]);
 
   const [switchOpen, setSwitchOpen] = useState(false);
   const [skipPanelOpen, setSkipPanelOpen] = useState(false);
@@ -140,10 +150,16 @@ function WatchContent() {
     retry: 1,
   });
   const relatedItems = useMemo(() => {
-    const watchedIds = new Set((watchedHistory ?? []).map((item) => `${item.sourceKey}:${item.vodId}`));
+    const history = watchedHistory ?? [];
+    const watchedIds = new Set(history.map((item) => `${item.sourceKey}:${item.vodId}`));
     const normalize = (value?: string) => (value ?? '').trim().toLocaleLowerCase().replace(/[\\s\\p{P}\\p{S}]/gu, '');
-    const watchedTitles = new Set((watchedHistory ?? []).map((item) => normalize(item.title)).filter(Boolean));
+    const watchedTitles = new Set(history.map((item) => normalize(item.title)).filter(Boolean));
     const currentInfo = detailQuery.data?.videoInfo;
+    const recentGenreCounts = new Map<string, number>();
+    history.slice().sort((a, b) => b.timestamp - a.timestamp).slice(0, 8).forEach((entry, index) => {
+      const genre = normalize(entry.typeName);
+      if (genre) recentGenreCounts.set(genre, (recentGenreCounts.get(genre) ?? 0) + (8 - index));
+    });
     const seen = new Set<string>();
     const candidates = (relatedQuery.data?.list ?? [])
       .filter((item) => !(item.sourceKey === sourceKey && item.vodId === vodId))
@@ -155,16 +171,16 @@ function WatchContent() {
         seen.add(title);
         return true;
       });
-    // 只按真实详情元数据做轻量排序；缺失字段不猜测、不伪造相似度。
-    const score = (item: (typeof candidates)[number]) =>
-      (currentInfo?.typeName && item.typeName && normalize(currentInfo.typeName) === normalize(item.typeName) ? 4 : 0) +
-      (currentInfo?.year && item.year && currentInfo.year === item.year ? 2 : 0) +
-      (currentInfo?.area && item.area && normalize(currentInfo.area) === normalize(item.area) ? 1 : 0);
-    return candidates
-      .map((item, index) => ({ item, index, score: score(item) }))
+    const score = (item: (typeof candidates)[number]) => {
+      const genre = normalize(item.typeName);
+      return (currentInfo?.typeName && genre && normalize(currentInfo.typeName) === genre ? 6 : 0) +
+        (genre ? (recentGenreCounts.get(genre) ?? 0) : 0) +
+        (currentInfo?.year && item.year && currentInfo.year === item.year ? 2 : 0) +
+        (currentInfo?.area && item.area && normalize(currentInfo.area) === normalize(item.area) ? 1 : 0);
+    };
+    return candidates.map((item, index) => ({ item, index, score: score(item) }))
       .sort((a, b) => b.score - a.score || a.index - b.index)
-      .slice(0, 8)
-      .map(({ item }) => item);
+      .slice(0, 8).map(({ item }) => item);
   }, [relatedQuery.data, sourceKey, vodId, watchedHistory, detailQuery.data?.videoInfo]);
   // 当前播放地址：优先取剧集列表中的当前集，其次直连 URL 参数
   const currentUrl = useMemo(() => {
@@ -533,9 +549,8 @@ function WatchContent() {
                 <Link href="/me" className="text-sm text-muted hover:text-content">全部观看历史 →</Link>
               </div>
               <div className="netflix-history-rail">
-                {(recentHistory ?? []).filter((item) => !(item.sourceKey === sourceKey && item.vodId === vodId)).slice(0, 6).map((item) => {
+                {sortedContinueHistory.map(({ item, percent, unfinished }) => {
                   const href = buildWatchUrl({ sourceKey: item.sourceKey, vodId: item.vodId, index: item.episodeIndex, title: item.title, sourceUrl: item.sourceUrl });
-                  const percent = item.duration > 0 ? Math.min(100, Math.max(0, Math.round(item.playbackPosition / item.duration * 100))) : 0;
                   return (
                     <Link key={`${item.sourceKey}:${item.vodId}`} href={href} className="netflix-history-card">
                       <div className="netflix-history-art">
@@ -544,13 +559,13 @@ function WatchContent() {
                       </div>
                       <div className="netflix-history-meta">
                         <strong>{item.title}</strong>
-                        <span>{item.totalEpisodes > 0 ? `第 ${item.episodeIndex + 1} / ${item.totalEpisodes} 集` : '继续观看'}</span>
+                        <span>{item.totalEpisodes > 0 ? `第 ${item.episodeIndex + 1} / ${item.totalEpisodes} 集` : '继续观看'}{!unfinished ? ' · 已看完' : ''}</span>
                         <div className="netflix-history-progress"><i style={{ width: `${percent}%` }} /></div>
                       </div>
                     </Link>
                   );
                 })}
-                {(!recentHistory || recentHistory.filter((item) => !(item.sourceKey === sourceKey && item.vodId === vodId)).length === 0) && (
+                {(!recentHistory || sortedContinueHistory.length === 0) && (
                   <p className="text-sm text-faint py-5">还没有其他观看记录，之后观看的影片会显示在这里。</p>
                 )}
               </div>
