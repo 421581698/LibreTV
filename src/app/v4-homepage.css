@@ -547,3 +547,43 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
   .v4-home .v4-header-icon,
   .v4-home .v4-avatar { width: 29px !important; height: 29px !important; flex-basis: 29px !important; }
 }
+
+
+/* Exact request: remove the entire header strip; keep only controls visible over hero. */
+@media (min-width: 701px) and (max-width: 1200px) {
+  .v4-home .v4-header,
+  .v4-home .v4-header::before,
+  .v4-home .v4-header::after,
+  .v4-home .v4-header-inner {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    outline: 0 !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  .v4-home .v4-header {
+    border-radius: 0 !important;
+  }
+  .v4-home .v4-nav-link,
+  .v4-home .v4-nav-link:hover,
+  .v4-home .v4-nav-link:focus,
+  .v4-home .v4-nav-link.is-active,
+  .v4-home .v4-nav-link[aria-current="page"] {
+    color: #fff !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  .v4-home .v4-nav-link.is-active::before,
+  .v4-home .v4-nav-link.is-active::after,
+  .v4-home .v4-nav-link[aria-current="page"]::before,
+  .v4-home .v4-nav-link[aria-current="page"]::after {
+    display: none !important;
+    content: none !important;
+  }
+}
