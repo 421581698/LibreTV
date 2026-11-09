@@ -246,7 +246,7 @@ describe('首页与播放页回归契约', () => {
   });
 
   it('设置中可选择界面语言、助手角色和语音风格，顶部搜索默认收起', () => {
-    expect(settings).toContain("{ id: 'language', label: '语言设置' }");
+    expect(settings).toContain("{ id: 'language', label: '语言设置', detail: '界面语言与显示偏好'");
     expect(settings).toContain('function LanguageSettingsPanel()');
     expect(settings).toContain('label="界面语言"');
     expect(settings).toContain('label="助手角色"');
@@ -289,7 +289,7 @@ describe('首页与播放页回归契约', () => {
     expect(theme).toContain("{ value: 'light', label: '浅色' }");
     expect(theme).toContain("{ value: 'dark', label: '深色' }");
     expect(theme).toContain("{ value: 'system', label: '跟随系统' }");
-    expect(settings).toContain('浅色、深色或跟随系统');
+    expect(settings).toContain('浅色、深色与系统外观');
     expect(settings).toContain('<ThemeToggle />');
     expect(settings).toContain("activePage === 'appearance'");
     expect(settings).toContain('浅色、深色，或跟随设备系统设置');
