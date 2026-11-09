@@ -66,16 +66,16 @@ const SECONDARY_TABS: Record<PrimaryTab, { id: SecondaryTab; label: string }[]> 
 };
 
 const SETTINGS_TABS: { id: SecondaryTab; label: string; icon?: IconName }[] = [
-  { id: 'vod', label: '点播源', icon: 'play-square' },
-  { id: 'live', label: '直播源', icon: 'radio' },
-  { id: 'subs', label: '数据源订阅', icon: 'rss' },
-  { id: 'playback', label: '播放与过滤', icon: 'sliders' },
-  { id: 'image', label: '封面图加载', icon: 'image' },
-  { id: 'home', label: '首页与内容', icon: 'house' },
-  { id: 'voice', label: '语音设置', icon: 'mic' },
-  { id: 'language', label: '语言设置', icon: 'languages' },
-  { id: 'io', label: '配置导入导出', icon: 'folder-input' },
-  { id: 'cache', label: '本机缓存', icon: 'database' },
+  { id: 'vod', label: '点播源', icon: 'link' },
+  { id: 'live', label: '直播源', icon: 'home' },
+  { id: 'subs', label: '数据源订阅', icon: 'download' },
+  { id: 'playback', label: '播放与过滤', icon: 'filter' },
+  { id: 'image', label: '封面图加载', icon: 'search' },
+  { id: 'home', label: '首页与内容', icon: 'home' },
+  { id: 'voice', label: '语音设置', icon: 'microphone' },
+  { id: 'language', label: '语言设置', icon: 'gear' },
+  { id: 'io', label: '配置导入导出', icon: 'download' },
+  { id: 'cache', label: '本机缓存', icon: 'clock' },
 ];
 
 const TAB_STORAGE_KEY = 'libretv-settings-tab';
