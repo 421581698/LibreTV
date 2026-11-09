@@ -349,3 +349,28 @@
     border-radius: 15px;
   }
 }
+
+
+/* iPad Safari: force a visible, correctly sized profile glyph inside the avatar control. */
+@media screen and (min-width: 701px) and (max-width: 1366px) and (any-pointer: coarse) {
+  .v4-header-actions .v4-avatar {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    overflow: visible !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+  .v4-header-actions .v4-avatar .v4-avatar-icon {
+    display: block !important;
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    min-height: 24px !important;
+    fill: none !important;
+    stroke: currentColor !important;
+    stroke-width: 1.8 !important;
+  }
+}
