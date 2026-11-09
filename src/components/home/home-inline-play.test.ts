@@ -91,6 +91,7 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
     expect(collectorDock).toContain("href: '/me'");
     expect(iphoneLayout).not.toContain('[aria-label="观看历史"]');
     expect(iphoneLayout).toContain('v4-mobile-tabbar');
+    expect(iphoneLayout).toContain('padding-bottom: calc(92px + env(safe-area-inset-bottom)) !important;');
   });
 
   it('plays only direct media and imports a source only after CMS shape validation', () => {
