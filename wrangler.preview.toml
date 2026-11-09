@@ -4,15 +4,18 @@ compatibility_date = "2025-04-01"
 compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
 assets = { directory = ".open-next/assets" }
 
-# 独立公开 Preview Worker；无需 PASSWORD，不影响 Production。
+# Preview Worker 使用独立 workers.dev 地址；应用层仍必须通过 PASSWORD 登录。
+# 不配置 PASSWORD 时，登录接口拒绝服务，受保护 API 返回 503，不得绕过认证。
 workers_dev = true
 preview_urls = false
 
 [vars]
-NEXT_PUBLIC_HOME_V2 = "true"
+# HOME_V2 在构建时通过 GitHub Actions 环境变量注入；此处保留运行时配置。
 CMS_SEARCH_API = "https://caiji.dyttzyapi.com/api.php/provide/vod"
 API_60S_BASE = "https://60s.bggdbh.workers.dev"
 LLM_MODEL = "glm-4-flash"
-AUTH_DISABLED = "true"
+# Preview 与 Production 一样强制密码认证；PASSWORD 仅通过 Worker Secret 注入。
+AUTH_DISABLED = "false"
 
-# Preview intentionally remains public for hands-on testing; production auth is unchanged.
+# 不要在此文件写 PASSWORD、ZHIPU_API_KEY、METADATA_API_KEY 或其他密钥。
+# 请在 Cloudflare Worker 的 Secrets 中单独配置预览环境专用值。
