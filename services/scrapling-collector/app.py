@@ -268,7 +268,7 @@ def run_spider(url: str, limit: int) -> list[dict]:
         followed_urls: set[str] = set()
 
         async def parse(self, response: Response):
-            for item in await super().parse(response):
+            async for item in super().parse(response):
                 yield item
             # Crawl a small same-host sample so directory pages can lead to
             # catalogue/API pages without turning one click into an open crawl.
