@@ -48,6 +48,29 @@ def test_parser_drops_unsafe_schemes_credentials_and_local_ip_literals() -> None
     assert [link.domain for link in entries[0].links] == ["example.com"]
 
 
+def test_parser_preserves_public_non_default_ports_and_ipv6_authorities() -> None:
+    markdown = (
+        "* [Alt Port](https://media.example:8443/hls/index.m3u8?token=public) "
+        "[IPv6](https://[2606:4700:4700::1111]/stream)\\n"
+    )
+    entries = parse_fmhy_markdown("video.md", markdown)
+    links = entries[0].links
+    assert links[0].canonical_url == (
+        "https://media.example:8443/hls/index.m3u8?token=public"
+    )
+    assert links[0].domain == "media.example"
+    assert links[1].canonical_url == "https://[2606:4700:4700::1111]/stream"
+    assert links[1].domain == "2606:4700:4700::1111"
+
+
+def test_parser_drops_non_public_ipv6_and_invalid_ports() -> None:
+    markdown = (
+        "* [Private](https://[fd00::1]/stream) "
+        "[Zero Port](https://media.example:0/stream)\\n"
+    )
+    assert parse_fmhy_markdown("video.md", markdown) == []
+
+
 def test_unsafe_source_is_flagged_and_keeps_plain_text_entries() -> None:
     markdown = """# Unsafe Sites
 
@@ -108,12 +131,11 @@ def test_parser_preserves_parentheses_inside_markdown_urls() -> None:
 def test_parser_classifies_named_mirror_and_ordered_list_items() -> None:
     entries = parse_fmhy_markdown(
         "video.md",
-        "1. [Primary](https://primary.example/) or [Mirror](https://mirror.example/)\\n",
+        "* [Primary](https://primary.example/) or [Mirror](https://mirror.example/)\\n",
     )
 
     assert len(entries) == 1
     assert [link.role for link in entries[0].links] == ["primary", "mirror"]
-
 
 
 def test_official_source_manifest_parser_reads_only_safe_markdown_paths() -> None:
@@ -137,7 +159,6 @@ def test_official_source_manifest_parser_rejects_duplicate_or_unsafe_paths() -> 
         parse_official_source_file_list(duplicate)
     with pytest.raises(RuntimeError, match="unsupported"):
         parse_official_source_file_list(unsafe)
-
 
 
 async def test_empty_source_parse_does_not_create_a_catalog_snapshot(
