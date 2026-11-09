@@ -200,7 +200,7 @@ class CollectorTests(unittest.TestCase):
 
         with patch.object(collector.socket, "getaddrinfo", return_value=[
             (None, None, None, None, ("8.8.8.8", 443))
-        ]), patch.object(collector.http.client, "HTTPSConnection", Connection):
+        ]), patch.object(collector, "PinnedHTTPSConnection", Connection):
             result = collector.probe_direct_media("https://media.example/movie.mp4")
         self.assertTrue(result["reachable"])
         self.assertEqual(result["http_status"], 206)
@@ -239,7 +239,7 @@ class CollectorTests(unittest.TestCase):
 
         with patch.object(collector.socket, "getaddrinfo", return_value=[
             (None, None, None, None, ("8.8.8.8", 443))
-        ]), patch.object(collector.http.client, "HTTPSConnection", Connection):
+        ]), patch.object(collector, "PinnedHTTPSConnection", Connection):
             result = collector.probe_direct_media("https://media.example/master.m3u8")
         self.assertTrue(result["reachable"])
         self.assertEqual(result["media_format"], "hls")
@@ -270,7 +270,7 @@ class CollectorTests(unittest.TestCase):
 
         with patch.object(collector.socket, "getaddrinfo", return_value=[
             (None, None, None, None, ("8.8.8.8", 443))
-        ]), patch.object(collector.http.client, "HTTPSConnection", Connection):
+        ]), patch.object(collector, "PinnedHTTPSConnection", Connection):
             result = collector.probe_direct_media("https://media.example/movie.mp4")
         self.assertFalse(result["reachable"])
         self.assertEqual(result["error"], "unsafe_or_invalid_redirect_target")
