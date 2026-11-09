@@ -14,6 +14,9 @@ const CONTINUE_LIMIT = 8;
 
 export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => void }) {
   const doubanEnabled = useAppStore((s) => s.doubanEnabled);
+  const selectedKeys = useAppStore((s) => s.selectedKeys);
+  const customAPIs = useAppStore((s) => s.customAPIs);
+  const envSources = useAppStore((s) => s.envSources);
   const history = useLiveQuery(
     () => db.history.orderBy('timestamp').reverse().limit(CONTINUE_LIMIT).toArray(),
     [],
@@ -37,7 +40,26 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
         <AnimeRecommendationSection onPick={onPick} />
       </section>
 
-      <section className="v4-content-section v4-continue-section" id="continue-watching" aria-label="继续观看">
+      <section className="v4-content-section v4-resource-section" id="resources" aria-label="资源与播放源">
+        <div className="v4-section-heading">
+          <h2>资源与播放源 <span aria-hidden="true">›</span></h2>
+        </div>
+        <GlassPanel className="v4-resource-entry">
+          <div>
+            <strong>点播源管理</strong>
+            <p>当前已选择 {selectedKeys.length} 个来源 · 已配置 {customAPIs.length + envSources.length} 个来源</p>
+          </div>
+          <button
+            type="button"
+            className="glass-button"
+            onClick={() => window.dispatchEvent(new CustomEvent('libretv:open-source-manager'))}
+          >
+            管理播放源
+          </button>
+        </GlassPanel>
+      </section>
+
+      <section className="v4-content-section v4-continue-section" id="my-library" aria-label="我的观看记录">
         <div className="v4-section-heading">
           <h2>继续观看 <span aria-hidden="true">›</span></h2>
           {history && history.length > 0 ? <span className="v4-history-count">最近 {history.length} 部</span> : null}
