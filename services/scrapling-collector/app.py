@@ -122,6 +122,45 @@ def public_https_url(raw_url: str) -> tuple[str, str]:
 MAX_MANIFEST_BYTES = 1024 * 1024
 
 
+def parse_hls_attribute_list(raw: str) -> dict[str, str]:
+    """Parse HLS key=value attributes, preserving commas inside quoted values."""
+    attrs: dict[str, str] = {}
+    index = 0
+    length = len(raw)
+    while index < length:
+        while index < length and (raw[index].isspace() or raw[index] == ","):
+            index += 1
+        key_start = index
+        while index < length and raw[index] not in "=,":
+            index += 1
+        if index >= length or raw[index] != "=":
+            while index < length and raw[index] != ",":
+                index += 1
+            continue
+        key = raw[key_start:index].strip().upper()
+        index += 1
+        if index < length and raw[index] == '"':
+            index += 1
+            value_start = index
+            while index < length and raw[index] != '"':
+                index += 1
+            value = raw[value_start:index]
+            if index < length:
+                index += 1
+            while index < length and raw[index] != ",":
+                index += 1
+        else:
+            value_start = index
+            while index < length and raw[index] != ",":
+                index += 1
+            value = raw[value_start:index].strip()
+        if key:
+            attrs[key] = value
+        if index < length and raw[index] == ",":
+            index += 1
+    return attrs
+
+
 def parse_hls_manifest(body: bytes) -> dict:
     text = body.decode("utf-8-sig", errors="replace")
     lines = [line.strip() for line in text.splitlines() if line.strip()]
@@ -136,16 +175,7 @@ def parse_hls_manifest(body: bytes) -> dict:
     key_uri_present = False
     for line in lines[1:]:
         if line.startswith("#EXT-X-STREAM-INF:"):
-            attrs = {}
-            raw_attrs = line.split(":", 1)[1]
-            try:
-                parts = next(csv.reader([raw_attrs], skipinitialspace=True))
-            except (csv.Error, StopIteration):
-                parts = raw_attrs.split(",")
-            for part in parts:
-                if "=" in part:
-                    key, value = part.split("=", 1)
-                    attrs[key.strip().upper()] = value.strip().strip('"')
+            attrs = parse_hls_attribute_list(line.split(":", 1)[1])
             resolution = attrs.get("RESOLUTION", "")
             width = height = None
             if "x" in resolution.lower():
@@ -161,16 +191,7 @@ def parse_hls_manifest(body: bytes) -> dict:
                 "codecs": attrs.get("CODECS"),
             }
         elif line.startswith("#EXT-X-KEY:"):
-            attrs = {}
-            raw_attrs = line.split(":", 1)[1]
-            try:
-                parts = next(csv.reader([raw_attrs], skipinitialspace=True))
-            except (csv.Error, StopIteration):
-                parts = raw_attrs.split(",")
-            for part in parts:
-                if "=" in part:
-                    key, value = part.split("=", 1)
-                    attrs[key.strip().upper()] = value.strip().strip('"')
+            attrs = parse_hls_attribute_list(line.split(":", 1)[1])
             method = attrs.get("METHOD", "UNKNOWN")
             encryption_methods.add(method)
             key_uri_present = key_uri_present or "URI" in attrs
