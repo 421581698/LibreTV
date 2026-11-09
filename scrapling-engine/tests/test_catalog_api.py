@@ -1,7 +1,8 @@
+from fastapi.testclient import TestClient
+
 import app.main as main
 from app.catalog_store import CatalogStore
 from app.fmhy_catalog import parse_fmhy_markdown
-from fastapi.testclient import TestClient
 
 
 def test_catalog_read_apis_return_entries_and_domains(tmp_path, monkeypatch) -> None:
