@@ -27,6 +27,19 @@ class CollectorTests(unittest.TestCase):
         with patch.dict(os.environ, {"SCRAPLING_EGRESS_FIREWALL_CONFIRMED": "1"}):
             collector.require_egress_firewall()
 
+    def test_crawl_endpoint_path_fails_closed_before_network_access(self):
+        with patch.dict(os.environ, {"SCRAPLING_EGRESS_FIREWALL_CONFIRMED": ""}):
+            with self.assertRaises(collector.HTTPException) as error:
+                collector.crawl_site(collector.CrawlRequest(url="https://example.com"))
+            self.assertEqual(error.exception.status_code, 503)
+
+    def test_candidate_validation_fails_closed_before_database_lookup(self):
+        with patch.dict(os.environ, {"SCRAPLING_EGRESS_FIREWALL_CONFIRMED": ""}):
+            with patch.object(collector, "require_token"):
+                with self.assertRaises(collector.HTTPException) as error:
+                    collector.validate_candidate("candidate-does-not-exist")
+            self.assertEqual(error.exception.status_code, 503)
+
     def test_classifies_direct_media(self):
         self.assertEqual(
             collector.classify_url("https://media.example/video/master.m3u8"),
