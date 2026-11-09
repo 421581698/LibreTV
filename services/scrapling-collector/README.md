@@ -23,8 +23,12 @@ Create a strong token and add it to the LibreTV deployment's environment:
 ```sh
 export SCRAPLING_API_TOKEN="$(openssl rand -hex 32)"
 export SCRAPLING_API_BASE="http://scrapling-collector:8000"
+# Start with the egress gate disabled (the default).
 docker compose --profile collector up -d --build
+# Install and verify the host firewall before enabling any crawling.
 sudo bash scripts/scrapling-egress-firewall.sh
+export SCRAPLING_EGRESS_FIREWALL_CONFIRMED=1
+docker compose --profile collector up -d --force-recreate scrapling-collector
 ```
 
 The collector is internal to the Compose network and persists its SQLite database in the `scrapling_data` named volume. The LibreTV container receives the same token and internal service URL from Compose.
