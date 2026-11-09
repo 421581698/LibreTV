@@ -100,7 +100,7 @@ class JobStore:
         updates["status"] = status
         updates["updated_at"] = _now()
         assignments = ", ".join(f"{key} = ?" for key in updates)
-        with self._connect() as db:
+        with self._connection() as db:
             db.execute(
                 f"UPDATE crawl_jobs SET {assignments} WHERE task_id = ?",
                 (*updates.values(), task_id),
@@ -110,11 +110,11 @@ class JobStore:
             })
 
     def add_event(self, task_id: str, event_type: str, payload: dict[str, Any]) -> None:
-        with self._connect() as db:
+        with self._connection() as db:
             self._event(db, task_id, event_type, payload)
 
     def get(self, task_id: str) -> dict[str, Any] | None:
-        with self._connect() as db:
+        with self._connection() as db:
             row = db.execute(
                 "SELECT * FROM crawl_jobs WHERE task_id = ?", (task_id,)
             ).fetchone()
@@ -128,7 +128,7 @@ class JobStore:
         return item
 
     def events_after(self, task_id: str, last_id: int) -> list[dict[str, Any]]:
-        with self._connect() as db:
+        with self._connection() as db:
             rows = db.execute(
                 """
                 SELECT id, event_type, payload_json, created_at
@@ -147,8 +147,8 @@ class JobStore:
         ]
 
     def recover_interrupted(self) -> list[str]:
-        """Mark jobs left running by a process restart as resumable."""
-        with self._connect() as db:
+        """Mark jobs left running by a process restart as interrupted."""
+        with self._connection() as db:
             rows = db.execute(
                 "SELECT task_id FROM crawl_jobs WHERE status IN ('queued', 'running', 'pausing')"
             ).fetchall()
