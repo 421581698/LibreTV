@@ -139,6 +139,12 @@ describe('首页与播放页回归契约', () => {
     expect(sharedHeaderStyles).toContain('.v4-home .v4-header-inner');
     expect(sharedHeaderStyles).toContain('.v4-spatial-screen .v4-header-inner');
     expect(sharedHeaderStyles).toContain('@media screen and (max-width: 700px)');
+    expect(sharedHeaderStyles).toContain('.v4-home .v4-header.is-overlay {');
+    expect(sharedHeaderStyles).toContain('.v4-home .v4-header.is-overlay.is-scrolled {');
+    expect(sharedHeaderStyles).toContain('background: rgba(10, 10, 13, .84) !important;');
+    expect(sharedHeaderStyles).toContain('background: rgba(10, 10, 13, .92) !important;');
+    expect(sharedHeaderStyles).toContain('position: absolute !important;');
+    expect(sharedHeaderStyles).toContain('position: fixed !important;');
     expect(sharedHeaderStyles).not.toContain('background: rgba(246, 248, 251, 0.88)');
   });
 
