@@ -736,3 +736,183 @@ html.dark main:has(.live-dot) :is(button,a):focus-visible {
     padding-bottom: max(40px, env(safe-area-inset-bottom)) !important;
   }
 }
+
+
+/* LibreTV responsive brand mark: inline SVG must not fall back to the browser's
+   default 300 × 150 viewport on tablet or when the header grid reflows. */
+.v4-brand-mark {
+  display: block !important;
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+  flex: 0 0 24px !important;
+}
+
+/* Light glass theme. The dark theme above remains the default; these rules
+   activate only when the shared ThemeProvider removes html.dark. */
+html:not(.dark) {
+  color-scheme: light;
+  --glass-page: 246 247 249;
+  --glass-panel: 255 255 255;
+  --glass-panel-rgb: 255, 255, 255;
+  --glass-text: 28 30 34;
+  --glass-muted: 105 110 119;
+  --glass-border: 30, 35, 42;
+  --glass-border-alpha: .12;
+  --glass-fill-alpha: .58;
+  --glass-fill-strong-alpha: .78;
+  --glass-shadow: 0 22px 58px rgba(30,40,55,.10);
+  --glass-shadow-soft: 0 10px 30px rgba(30,40,55,.07);
+  background: #f6f7f9 !important;
+}
+html:not(.dark) body {
+  color: #24272d !important;
+  background:
+    radial-gradient(900px 540px at 8% -16%,rgba(255,255,255,.96),transparent 66%),
+    radial-gradient(760px 460px at 96% 0%,rgba(225,231,239,.58),transparent 62%),
+    linear-gradient(145deg,#f7f8fa 0%,#e9edf2 100%) !important;
+}
+html:not(.dark) .v4-home,
+html:not(.dark) .v4-spatial-screen {
+  color: #252830 !important;
+  background: transparent !important;
+}
+html:not(.dark) .v4-home :is(h1,h2,h3,h4,h5,h6),
+html:not(.dark) .v4-spatial-screen :is(h1,h2,h3,h4,h5,h6),
+html:not(.dark) .v4-home .v4-section-heading h2 span,
+html:not(.dark) .v4-spatial-screen .v4-spatial-panel-head h2 {
+  color: #20242b !important;
+}
+html:not(.dark) .v4-home :is(p,span),
+html:not(.dark) .v4-spatial-screen :is(.v4-spatial-heading p,.v4-spatial-footnote,.v4-settings-card p,.v4-spatial-panel-head span) {
+  color: #69717d;
+}
+html:not(.dark) .v4-header {
+  background: rgba(250,251,253,.78) !important;
+  border-color: rgba(35,42,52,.10) !important;
+  box-shadow: 0 8px 28px rgba(35,42,52,.06);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  backdrop-filter: blur(24px) saturate(150%);
+}
+html:not(.dark) .v4-brand { color: #D9902D !important; }
+html:not(.dark) .v4-nav-link { color: #59616d !important; }
+html:not(.dark) .v4-nav-link.is-active {
+  color: #20242b !important;
+  background: rgba(255,255,255,.88) !important;
+  border-color: rgba(40,48,60,.12) !important;
+  box-shadow: 0 4px 16px rgba(30,40,55,.08),inset 0 1px 0 #fff !important;
+}
+html:not(.dark) .v4-nav-link:hover,
+html:not(.dark) .v4-header-icon:hover,
+html:not(.dark) .v4-avatar:hover {
+  color: #20242b !important;
+  background: rgba(30,40,55,.06) !important;
+}
+html:not(.dark) .v4-search,
+html:not(.dark) .v4-resource-search input,
+html:not(.dark) .v4-spatial-screen .input {
+  color: #252830 !important;
+  background: rgba(255,255,255,.78) !important;
+  border-color: rgba(40,48,60,.14) !important;
+  box-shadow: inset 0 1px 2px rgba(30,40,55,.035);
+}
+html:not(.dark) .v4-search input,
+html:not(.dark) .v4-resource-search input::placeholder,
+html:not(.dark) .v4-search input::placeholder {
+  color: #69717d !important;
+}
+html:not(.dark) .v4-spatial-panel,
+html:not(.dark) .v4-settings-card,
+html:not(.dark) .v4-source-card,
+html:not(.dark) .v4-me-history-card,
+html:not(.dark) .v4-resource-result {
+  color: #252830 !important;
+  border-color: rgba(40,48,60,.11) !important;
+  background: rgba(255,255,255,.62) !important;
+  box-shadow: 0 10px 28px rgba(35,45,60,.045),inset 0 1px 0 rgba(255,255,255,.9);
+}
+html:not(.dark) .v4-settings-card strong,
+html:not(.dark) .v4-source-card h3,
+html:not(.dark) .v4-resource-result strong,
+html:not(.dark) .v4-me-history-copy strong {
+  color: #252830 !important;
+}
+html:not(.dark) .v4-settings-card p,
+html:not(.dark) .v4-source-card p,
+html:not(.dark) .v4-resource-result span,
+html:not(.dark) .v4-me-history-copy span {
+  color: #737b87 !important;
+}
+html:not(.dark) .v4-settings-card>b,
+html:not(.dark) .v4-resource-result>b {
+  color: #69717d !important;
+}
+html:not(.dark) .v4-spatial-primary,
+html:not(.dark) .v4-resource-search button,
+html:not(.dark) .v4-hero-primary {
+  color: #fff !important;
+  background: linear-gradient(135deg,#515966,#252a32) !important;
+  border: 1px solid rgba(30,35,42,.18) !important;
+  box-shadow: 0 8px 22px rgba(30,40,55,.12) !important;
+}
+html:not(.dark) .v4-spatial-screen .glass-panel,
+html:not(.dark) .glass-panel,
+html:not(.dark) .glass-popover,
+html:not(.dark) .glass-dialog,
+html:not(.dark) .glass-toolbar,
+html:not(.dark) .glass-button {
+  color: #252830 !important;
+  border-color: rgba(40,48,60,.13) !important;
+  background: linear-gradient(160deg,rgba(255,255,255,.94),rgba(245,247,250,.86)) !important;
+  box-shadow: 0 18px 48px rgba(35,45,60,.12),inset 0 1px 0 rgba(255,255,255,.96) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(145%);
+  backdrop-filter: blur(26px) saturate(145%);
+}
+html:not(.dark) .glass-panel .text-content,
+html:not(.dark) .glass-panel .text-primary,
+html:not(.dark) .glass-panel h1,
+html:not(.dark) .glass-panel h2,
+html:not(.dark) .glass-panel h3,
+html:not(.dark) .glass-panel label {
+  color: #252830 !important;
+}
+html:not(.dark) .glass-panel .text-muted,
+html:not(.dark) .glass-panel .text-faint {
+  color: #727a86 !important;
+}
+html:not(.dark) .glass-panel .border-line {
+  border-color: rgba(40,48,60,.12) !important;
+}
+html:not(.dark) .glass-panel .bg-surface,
+html:not(.dark) .glass-panel .bg-surface-raised,
+html:not(.dark) .glass-panel .bg-card {
+  background: rgba(235,238,243,.76) !important;
+}
+html:not(.dark) .glass-panel input,
+html:not(.dark) .glass-panel textarea,
+html:not(.dark) .glass-panel select {
+  color: #252830 !important;
+  background: rgba(255,255,255,.92) !important;
+  border-color: rgba(40,48,60,.17) !important;
+}
+html:not(.dark) .glass-panel input::placeholder,
+html:not(.dark) .glass-panel textarea::placeholder {
+  color: #9299a3 !important;
+}
+html:not(.dark) .glass-panel button:hover {
+  background-color: rgba(40,48,60,.07);
+}
+html:not(.dark) .v4-mobile-tabs {
+  color: #252830;
+  border-color: rgba(40,48,60,.12);
+  background: rgba(250,251,253,.88);
+  box-shadow: 0 12px 34px rgba(35,45,60,.12);
+}
+html:not(.dark) .v4-mobile-tabs a { color: #707985; }
+html:not(.dark) .v4-mobile-tabs a.is-active {
+  color: #252830;
+  background: rgba(40,48,60,.08);
+}
+
+/* The Friday Canvas keeps its own gold rendering in both themes. */
