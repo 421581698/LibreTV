@@ -6,6 +6,7 @@ on:
       - feat/iphone-inline-play-top-search-2026-11-09
     paths:
       - ".github/workflows/deploy-pr60-inline-preview.yml"
+      - ".github/workflows/scrapling-collector.yml"
       - "wrangler.pr60-inline-preview.toml"
       - "src/**"
       - "public/**"
