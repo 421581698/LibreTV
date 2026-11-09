@@ -12,11 +12,11 @@ import { SearchHistoryDropdown, useSearchHistory } from '@/components/search-his
 
 const NAV_ITEMS = [
   { label: '首页', href: '/' },
-  { label: '影视', href: '/#today-recommendations' },
-  { label: '动漫', href: '/#anime-recommendations' },
+  { label: '影视', href: '/movies' },
+  { label: '动漫', href: '/anime' },
   { label: '直播', href: '/live' },
-  { label: '资源', href: '/#resources' },
-  { label: '我的', href: '/#my-library' },
+  { label: '资源', href: '/resources' },
+  { label: '我的', href: '/me' },
 ];
 
 export function V4HomepageHeader() {
@@ -90,8 +90,8 @@ export function V4HomepageHeader() {
               <Link
                 key={item.label}
                 href={item.href}
-                className={(pathname === '/live' && item.href === '/live') || (pathname === '/' && item.href === activeNavHref) ? 'v4-nav-link is-active' : 'v4-nav-link'}
-                aria-current={(pathname === '/live' && item.href === '/live') || (pathname === '/' && item.href === activeNavHref) ? 'page' : undefined}
+                className={pathname === item.href ? 'v4-nav-link is-active' : 'v4-nav-link'}
+                aria-current={pathname === item.href ? 'page' : undefined}
               >
                 {item.label}
               </Link>
@@ -152,7 +152,7 @@ export function V4HomepageHeader() {
                 if (pathname === '/') {
                   document.getElementById('my-library')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 } else {
-                  router.push('/#my-library');
+                  router.push('/me');
                 }
               }}
             >
