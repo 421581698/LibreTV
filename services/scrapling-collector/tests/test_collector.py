@@ -350,7 +350,7 @@ segment-2.ts
         self.assertIsNone(collector.parse_iso8601_duration_seconds("PT"))
         self.assertEqual(collector.parse_iso8601_duration_seconds("P1DT2H3M4S"), 93784)
         expanded = collector.expand_dash_template(
-            "$/$RepresentationID$/$Bandwidth$/$Number%05d$/$Time%999999999d$",
+            "$/$RepresentationID$/$Bandwidth$/$Number%05d$/$Time%0999999999d$",
             {"id": "v1", "bandwidth": 800000}, 7, 12,
         )
         self.assertEqual(expanded, "$/v1/800000/00007/" + ("0" * 18) + "12")
