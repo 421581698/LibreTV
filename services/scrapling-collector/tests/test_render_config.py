@@ -10,7 +10,7 @@ class RenderDeploymentConfigTests(unittest.TestCase):
         self.assertIn("plan: 2c-4g", blueprint)
         self.assertIn("rootDir: services/scrapling-collector", blueprint)
         self.assertIn("dockerfilePath: services/scrapling-collector/Dockerfile", blueprint)
-        self.assertIn("autoDeployTrigger: off", blueprint)
+        self.assertIn('autoDeployTrigger: "off"', blueprint)
         self.assertIn("mountPath: /data", blueprint)
         self.assertIn("sizeGB: 1", blueprint)
         self.assertIn("generateValue: true", blueprint)
