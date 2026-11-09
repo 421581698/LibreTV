@@ -376,7 +376,7 @@ class CollectorTests(unittest.TestCase):
         private = [(None, None, None, None, ("10.0.0.7", 443))]
         with (
             patch.object(collector.socket, "getaddrinfo", side_effect=[public, public, private]),
-            patch.object(collector, "PinnedHTTPSConnection", Connection) as connection,
+            patch.object(collector, "PinnedHTTPSConnection", side_effect=Connection) as connection,
         ):
             result = collector.probe_direct_media("https://media.example/movie.mp4")
         self.assertFalse(result["reachable"])
