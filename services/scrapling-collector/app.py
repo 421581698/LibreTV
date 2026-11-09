@@ -108,14 +108,23 @@ def public_https_url(raw_url: str) -> tuple[str, str]:
         raise HTTPException(status_code=400, detail="Only public HTTPS URLs on port 443 are allowed")
     host = parsed.hostname.lower().rstrip(".")
     try:
-        addresses = {entry[4][0] for entry in socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)}
-    except OSError:
-        raise HTTPException(status_code=400, detail="Unable to resolve target host")
-    if not addresses:
-        raise HTTPException(status_code=400, detail="Target host has no address")
-    for address in addresses:
-        if not ipaddress.ip_address(address).is_global:
+        literal_address = ipaddress.ip_address(host)
+    except ValueError:
+        literal_address = None
+    if literal_address is not None:
+        if not literal_address.is_global:
             raise HTTPException(status_code=400, detail="Private or reserved network targets are blocked")
+        addresses = {str(literal_address)}
+    else:
+        try:
+            addresses = {entry[4][0] for entry in socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)}
+        except OSError:
+            raise HTTPException(status_code=400, detail="Unable to resolve target host")
+        if not addresses:
+            raise HTTPException(status_code=400, detail="Target host has no address")
+        for address in addresses:
+            if not ipaddress.ip_address(address).is_global:
+                raise HTTPException(status_code=400, detail="Private or reserved network targets are blocked")
     return raw_url, host
 
 
