@@ -22,6 +22,9 @@ describe('iPhone homepage inline playback and top search', () => {
     expect(player).toContain('upsertHistory');
     expect(player).toContain('saveProgress');
     expect(player).toContain('getRestorePosition={getRestorePosition}');
+    expect(player).toContain('clearProgress(item.sourceKey, item.vodId, episodeIndex)');
+    expect(player).toContain('}, 8000);');
+    expect(player).toContain('history?.episodeIndex === episodeIndex');
     expect(player).not.toContain('useRouter');
     expect(player).not.toContain('router.push');
   });
@@ -51,6 +54,8 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
   const friday = read('src/components/AIFloatingBall.tsx');
   const theme = read('src/app/v4-header-theme.css');
   const safeArea = read('src/app/theme-safe-area.css');
+  const collectorSettings = read('src/components/source-manager.tsx');
+  const collectorRoute = read('src/app/api/resource-collector/route.ts');
 
   it('renders only the shared four-item dock on routed screens', () => {
     expect(spatial).not.toContain('MobileScreenTabs');
@@ -71,6 +76,14 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
     expect(friday).toContain('window.speechSynthesis?.cancel();');
   });
 
+  it('exposes FMHY discovery and Scrapling media preview behind the authenticated API proxy', () => {
+    expect(collectorSettings).toContain("{ id: 'collector', label: '资源采集中心'");
+    expect(collectorSettings).toContain('ResourceCollectorPanel');
+    expect(collectorSettings).toContain('CollectorPlayerShell');
+    expect(collectorRoute).toContain('guardRequest(request)');
+    expect(collectorRoute).toContain("relay('/v1/discover')");
+    expect(collectorRoute).toContain("relay('/v1/crawl'");
+  });
   it('applies light-theme colors to routed iPhone screens and keeps safe-area paint below the dock', () => {
     expect(theme).toContain(':root:not(.dark) .v4-spatial-screen');
     expect(theme).toContain(':root:not(.dark) .v4-spatial-screen .v4-resource-search input');
