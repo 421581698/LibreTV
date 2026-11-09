@@ -486,8 +486,13 @@ def validate_candidate(candidate_id: str, authorization: str | None = Header(def
             cms_list = parsed.get("list") if isinstance(parsed, dict) else None
             if not isinstance(cms_list, list) and isinstance(data, dict):
                 cms_list = data.get("list")
-            cms_shape = isinstance(cms_list, list) and isinstance(parsed, dict)
-            validation.update({"reachable": True, "json": isinstance(parsed, dict),
+            cms_shape = (
+                isinstance(cms_list, list)
+                and isinstance(parsed, dict)
+                and 200 <= page.status < 300
+                and ("json" in content_type or content_type.endswith("+json"))
+            )
+            validation.update({"reachable": 200 <= page.status < 400, "json": isinstance(parsed, dict),
                                "cms_shape": cms_shape,
                                "sample_count": len(cms_list) if isinstance(cms_list, list) else 0,
                                "content_type": content_type, "http_status": page.status})
