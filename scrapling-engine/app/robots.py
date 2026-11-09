@@ -9,6 +9,7 @@ from scrapling.fetchers import Fetcher
 
 from app.config import settings
 
+
 class RobotsPolicyError(PermissionError):
     pass
 
@@ -44,7 +45,7 @@ def ensure_robots_allowed(url: str, timeout: float | None = None) -> None:
             headers={"User-Agent": settings.default_user_agent},
         )
         status = getattr(response, "status", 200)
-        if isinstance(status, int) and status >= 500:
+        if isinstance(status, int) and (status in {401, 403, 429} or status >= 500):
             raise RobotsUnavailableError("robots.txt could not be checked; refusing the fetch.")
         parser = RobotFileParser(robots_url)
         if isinstance(status, int) and 400 <= status < 500:
