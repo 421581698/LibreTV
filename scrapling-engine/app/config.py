@@ -1,9 +1,13 @@
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     host: str = "127.0.0.1"
+    api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias="SCRAPLING_API_KEY",
+    )
     port: int = Field(default=8787, ge=1, le=65535)
     log_level: str = "INFO"
     request_timeout_seconds: float = Field(default=25.0, gt=0, le=300)
