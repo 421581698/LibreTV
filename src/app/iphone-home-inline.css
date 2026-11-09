@@ -1,0 +1,89 @@
+/* iPhone homepage: always-visible search row above the channel navigation.
+   Keep desktop and iPad header layouts unchanged. */
+@media screen and (max-width: 700px) {
+  .v4-header .v4-header-inner {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  .v4-header .v4-header-actions {
+    display: contents !important;
+  }
+
+  .v4-header .v4-header-actions .v4-search,
+  .v4-home .v4-header .v4-header-actions .v4-search {
+    display: flex !important;
+    position: relative !important;
+    order: 2 !important;
+    flex: 0 0 100% !important;
+    width: 100% !important;
+    height: 44px !important;
+    min-width: 0 !important;
+    margin: 0 0 2px !important;
+    padding: 0 14px !important;
+    border-radius: 14px !important;
+    overflow: visible !important;
+    background: rgba(255,255,255,.09) !important;
+    border: 1px solid rgba(255,255,255,.18) !important;
+  }
+
+  .v4-header .v4-header-actions .v4-search input,
+  .v4-home .v4-header .v4-header-actions .v4-search input {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 40px !important;
+    opacity: 1 !important;
+    font-size: 16px !important;
+    color: #F7F8FA !important;
+    -webkit-text-fill-color: #F7F8FA !important;
+  }
+
+  .v4-header .v4-header-actions .v4-search input::placeholder {
+    color: rgba(255,255,255,.62) !important;
+    -webkit-text-fill-color: rgba(255,255,255,.62) !important;
+    opacity: 1 !important;
+  }
+
+  .v4-header .v4-mobile-search-toggle {
+    display: none !important;
+  }
+
+  .v4-header .v4-header-icon,
+  .v4-header .v4-avatar {
+    order: 1 !important;
+  }
+
+  .v4-header .v4-primary-nav {
+    order: 3 !important;
+    flex: 0 0 calc(100% + 24px) !important;
+  }
+
+  .v4-header .v4-search-field {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+
+  .v4-header .v4-search [role="listbox"] {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: -14px;
+    right: -14px;
+    z-index: 300;
+    max-height: min(48vh, 360px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body:has(.v4-home) .v4-home-main {
+    padding-top: 12px !important;
+  }
+}
+
+/* The inline player is intentionally above the fixed iPhone tab bar. */
+.home-inline-player {
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
