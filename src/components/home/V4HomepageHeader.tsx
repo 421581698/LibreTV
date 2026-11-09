@@ -10,6 +10,17 @@ import { HistoryPanel } from '@/components/history-panel';
 import AIFloatingBall from '@/components/AIFloatingBall';
 import { SearchHistoryDropdown, useSearchHistory } from '@/components/search-history';
 
+const normalizePath = (value: string | null) => {
+  if (!value || value === '/') return '/';
+  return value.replace(/\\/+$/, '');
+};
+
+const isNavItemActive = (pathname: string | null, href: string) => {
+  const current = normalizePath(pathname);
+  const target = normalizePath(href);
+  return target === '/' ? current === '/' : current === target || current.startsWith(`${target}/`);
+};
+
 const NAV_ITEMS = [
   { label: '首页', href: '/' },
   { label: '电影', href: '/movies' },
@@ -88,8 +99,8 @@ export function V4HomepageHeader({ overlay = false }: { overlay?: boolean }) {
               <Link
                 key={item.label}
                 href={item.href}
-                className={pathname === item.href ? 'v4-nav-link is-active' : 'v4-nav-link'}
-                aria-current={pathname === item.href ? 'page' : undefined}
+                className={isNavItemActive(pathname, item.href) ? 'v4-nav-link is-active' : 'v4-nav-link'}
+                aria-current={isNavItemActive(pathname, item.href) ? 'page' : undefined}
               >
                 {item.label}
               </Link>
