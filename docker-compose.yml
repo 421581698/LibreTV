@@ -14,6 +14,9 @@ services:
     environment:
       # 必填：访问密码（在 .env 中设置，缺失时 compose 启动即报错提醒）
       - PASSWORD=${PASSWORD:?请在 .env 中设置 PASSWORD}
+      # 可选：FMHY / Scrapling 采集服务（启用 collector profile 后使用）
+      - SCRAPLING_API_BASE=${SCRAPLING_API_BASE:-http://scrapling-collector:8000}
+      - SCRAPLING_API_TOKEN=${SCRAPLING_API_TOKEN:-}
       # 可选：会话/代理签名密钥（多实例部署建议显式设置：openssl rand -hex 32）
       # - PROXY_SECRET=your-secret
       # 可选：Cookie Secure 策略覆盖（true=强制开启 / false=强制关闭；不设置时按请求协议自动推导，HTTP 部署无需配置）
@@ -40,3 +43,23 @@ services:
       # - USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36
       # 可选：影视榜单推荐源（60s API）实例地址，官方公共实例有限流
       # - 60S_API_BASE=https://60s.crystelf.top
+
+
+  # Optional isolated Python runtime for FMHY discovery + Scrapling crawling.
+  # Start explicitly with: docker compose --profile collector up -d --build
+  scrapling-collector:
+    profiles: ["collector"]
+    build:
+      context: ./services/scrapling-collector
+    container_name: libretv-scrapling-collector
+    restart: unless-stopped
+    environment:
+      - SCRAPLING_API_TOKEN=${SCRAPLING_API_TOKEN:?请在 .env 中设置 SCRAPLING_API_TOKEN}
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
