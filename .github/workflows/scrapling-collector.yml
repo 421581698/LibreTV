@@ -70,7 +70,7 @@ jobs:
             --tmpfs /tmp:rw,noexec,nosuid,size=64m \
             --tmpfs /data:rw,nosuid,nodev,size=64m \
             --shm-size 256m --pids-limit 128 --memory 1g --cpus 2.0 \
-            --cap-drop ALL --cap-add CHOWN --security-opt no-new-privileges \
+            --cap-drop ALL --cap-add CHOWN --cap-add SETGID --cap-add SETUID --security-opt no-new-privileges \
             -e SCRAPLING_API_TOKEN=collector-ci-token \
             -e SCRAPLING_DB_PATH=/data/collector.sqlite3 \
             -e PORT=8000 \
