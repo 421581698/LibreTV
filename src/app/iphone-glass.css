@@ -1,3 +1,6 @@
+/* Hidden outside the phone breakpoint; desktop/tablet keep the full search field. */
+.v4-mobile-search-toggle { display: none; }
+
 /* LibreTV iPhone Safari profile
  * Phone-only layout refinements. Tablet and desktop profiles remain untouched.
  * Preserve native scrolling, safe areas, Friday Canvas and player media.
