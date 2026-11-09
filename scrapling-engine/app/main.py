@@ -130,7 +130,7 @@ async def _run_job(task_id: str) -> None:
             Path(job["checkpoint_dir"]),
         )
         _active_spiders[task_id] = spider
-        job_store.update(task_id, "running", started_at=_now())
+        job_store.update(task_id, "running", started_at=job["started_at"] or _now())
         async for item in spider.stream():
             item_url = item.get("url")
             if item_url and item_url in seen_urls:
