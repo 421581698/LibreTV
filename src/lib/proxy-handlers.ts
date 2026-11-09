@@ -22,6 +22,67 @@ const UA =
   process.env.USER_AGENT ||
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
+const MAX_M3U8_BYTES = 1024 * 1024;
+
+/** Reject active document/script payloads from an arbitrary upstream proxy target. */
+function isUnsafeProxyContentType(contentType: string): boolean {
+  const type = contentType.split(';')[0].trim().toLowerCase();
+  return (
+    type === 'text/html' ||
+    type === 'application/xhtml+xml' ||
+    type === 'image/svg+xml' ||
+    type === 'application/json' ||
+    type.endsWith('+json') ||
+    type === 'application/xml' ||
+    type.endsWith('+xml') ||
+    type === 'text/javascript' ||
+    type === 'application/javascript' ||
+    type === 'application/ecmascript' ||
+    type === 'text/ecmascript'
+  );
+}
+
+/** Read small HLS manifests only; never buffer an unbounded upstream response. */
+async function readM3u8Text(response: Response): Promise<string | null> {
+  const declaredLength = Number(response.headers.get('content-length') || 0);
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_M3U8_BYTES) {
+    try { await response.body?.cancel(); } catch { /* ignore */ }
+    return null;
+  }
+  if (!response.body) return null;
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      total += value.byteLength;
+      if (total > MAX_M3U8_BYTES) {
+        try { await reader.cancel(); } catch { /* ignore */ }
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    try { reader.releaseLock(); } catch { /* ignore */ }
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
+
+function isValidM3u8(content: string): boolean {
+  return content.replace(/^\\uFEFF/, '').trimStart().startsWith('#EXTM3U');
+}
+
 /**
  * 精确域名匹配：仅 `douban.com` 本身及其子域放行。
  * 不能用 endsWith('douban.com')——那样 `evil-douban.com` 也会命中，形成鉴权绕过。
@@ -120,18 +181,33 @@ export async function handleProxyRequest(req: Request, targetUrl: string): Promi
 
   // m3u8 文本：重写为代理地址（以重定向后的最终 URL 为 base 解析相对地址）
   if (isM3u8) {
-    const text = await response.text();
+    const text = await readM3u8Text(response);
+    if (text === null || !isValidM3u8(text)) {
+      return new NextResponse('上游播放列表无效或超过大小限制', {
+        status: 502,
+        headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
+      });
+    }
     return new NextResponse(rewriteM3u8(text, finalUrl), {
       status: response.status,
       headers: {
         'Content-Type': 'application/vnd.apple.mpegurl',
         'Cache-Control': 'no-store',
         'Access-Control-Allow-Origin': '*',
+        'X-Content-Type-Options': 'nosniff',
       },
     });
   }
 
-  // 其余（图片 / JSON / 分片 / key）流式透传
+  if (isUnsafeProxyContentType(contentType)) {
+    try { await response.body?.cancel(); } catch { /* ignore */ }
+    return new NextResponse('上游响应类型不允许通过媒体代理转发', {
+      status: 415,
+      headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
+    });
+  }
+
+  // 其余（图片 / 分片 / key / 字幕）流式透传
   const outHeaders = new Headers();
   for (const name of ['content-type', 'accept-ranges', 'content-range', 'etag', 'last-modified']) {
     const v = response.headers.get(name);
@@ -144,6 +220,7 @@ export async function handleProxyRequest(req: Request, targetUrl: string): Promi
     contentType.startsWith('image/') ? 'public, max-age=2592000' : 'public, max-age=3600'
   );
   outHeaders.set('Access-Control-Allow-Origin', '*');
+  outHeaders.set('X-Content-Type-Options', 'nosniff');
 
   return new NextResponse(response.body, {
     status: response.status,
@@ -218,14 +295,23 @@ export async function handleLiveStreamRequest(req: Request, targetUrl: string): 
   // HLS manifest：重写变体/分片地址指向本路由，保证后续请求同源同鉴权。
   // 关键：以重定向后的最终 URL 为 base 解析相对地址（gslb 调度源 302 后路径会变）
   if (isM3u8) {
-    const text = await response.text();
+    const text = await readM3u8Text(response);
+    if (text === null || !isValidM3u8(text)) {
+      return jsonError('上游播放列表无效或超过大小限制', 502);
+    }
     return new NextResponse(rewriteM3u8(text, finalUrl, 0, LIVE_STREAM_BASE), {
       status: response.status,
       headers: {
         'Content-Type': 'application/vnd.apple.mpegurl',
         'Cache-Control': 'no-store',
+        'X-Content-Type-Options': 'nosniff',
       },
     });
+  }
+
+  if (isUnsafeProxyContentType(contentType)) {
+    try { await response.body?.cancel(); } catch { /* ignore */ }
+    return jsonError('上游响应不是有效的媒体内容', 415);
   }
 
   // FLV / TS 等流媒体：纯流式透传（禁止缓冲与缓存）
@@ -234,6 +320,7 @@ export async function handleLiveStreamRequest(req: Request, targetUrl: string): 
   outHeaders.set('Content-Type', ct);
   outHeaders.set('Cache-Control', 'no-store, no-transform');
   outHeaders.set('X-Accel-Buffering', 'no');
+  outHeaders.set('X-Content-Type-Options', 'nosniff');
 
   return new NextResponse(response.body, {
     status: response.status,
