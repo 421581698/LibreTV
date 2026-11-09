@@ -21,6 +21,7 @@ class RobotsUnavailableError(RuntimeError):
 _CACHE_TTL_SECONDS = 3600
 _cache: dict[str, tuple[float, RobotFileParser]] = {}
 _cache_lock = Lock()
+_last_request_at: dict[str, float] = {}
 
 
 def ensure_robots_allowed(url: str, timeout: float | None = None) -> None:
@@ -78,3 +79,18 @@ def ensure_robots_allowed(url: str, timeout: float | None = None) -> None:
 
     if not parser.can_fetch(settings.default_user_agent, url):
         raise RobotsPolicyError("The target URL is disallowed by the site's robots.txt policy.")
+
+    crawl_delay = parser.crawl_delay(settings.default_user_agent) or 0
+    request_rate = parser.request_rate(settings.default_user_agent)
+    rate_delay = (
+        request_rate.seconds / request_rate.requests
+        if request_rate and request_rate.requests > 0
+        else 0
+    )
+    minimum_delay = max(1.0, float(crawl_delay), rate_delay)
+    with _cache_lock:
+        previous = _last_request_at.get(origin, 0.0)
+        wait = minimum_delay - (time.monotonic() - previous)
+        if wait > 0:
+            time.sleep(wait)
+        _last_request_at[origin] = time.monotonic()
