@@ -32,7 +32,7 @@ html.dark body {
   color: #F2F2F4;
   background:
     radial-gradient(860px 520px at 6% -12%, rgba(241,166,58,.10), transparent 62%),
-    radial-gradient(700px 420px at 98% -6%, rgba(86,116,214,.055), transparent 60%),
+    radial-gradient(700px 420px at 98% -6%, rgba(241,166,58,.025), transparent 60%),
     #08080A !important;
 }
 .dark {
@@ -148,7 +148,7 @@ html.dark body {
   color: #F2F2F4 !important;
   background:
     radial-gradient(900px 560px at 8% -16%,rgba(241,166,58,.11),transparent 64%),
-    radial-gradient(780px 500px at 96% 0%,rgba(80,105,180,.07),transparent 62%),
+    radial-gradient(780px 500px at 96% 0%,rgba(241,166,58,.03),transparent 62%),
     #08080A !important;
 }
 .v4-header {
