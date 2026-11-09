@@ -16,6 +16,8 @@ from app.security import UnsafeTargetError, validate_public_http_url
         "http://192.0.2.1/",
         "http://169.254.169.254/latest/meta-data/",
         "https://user:pass@example.com/",
+        "https://@example.com/",
+        " https://example.com/",
         "http://example.com:8080/",
         "https://example.com:80/",
         "http://example.com\\@127.0.0.1/",
