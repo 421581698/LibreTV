@@ -27,7 +27,7 @@ DB_PATH = Path(os.environ.get("SCRAPLING_DB_PATH", "/data/collector.sqlite3"))
 MAX_RESULTS = 100
 MAX_CANDIDATES = 100
 MIN_HOST_INTERVAL = 2.0
-MEDIA_EXTENSIONS = (".m3u8", ".mp4", ".m4v", ".webm", ".mpd", ".mov")
+MEDIA_EXTENSIONS = (".m3u8", ".mp4", ".m4v", ".webm", ".mpd", ".mov", ".ts", ".m4s", ".aac")
 CMS_PATH_MARKERS = ("/api.php/provide/vod", "/provide/vod", "/api/v1/vod")
 _last_request_by_host: dict[str, float] = {}
 
@@ -321,7 +321,7 @@ def probe_direct_media(raw_url: str, max_redirects: int = 5) -> dict:
                 "application/vnd.apple.mpegurl", "application/x-mpegurl"
             }
             is_dash = path.endswith(".mpd") or content_type == "application/dash+xml"
-            is_video = content_type.startswith("video/") or path.endswith((".mp4", ".m4v", ".webm", ".mov"))
+            is_video = content_type.startswith("video/") or path.endswith((".mp4", ".m4v", ".webm", ".mov", ".ts", ".m4s", ".aac"))
             media_type = is_hls or is_dash or is_video
             manifest = {}
             if 200 <= status < 300 and (is_hls or is_dash):
@@ -355,6 +355,31 @@ def probe_direct_media(raw_url: str, max_redirects: int = 5) -> dict:
         finally:
             connection.close()
     return {"reachable": False, "error": "redirect_limit_exceeded"}
+
+
+def probe_hls_segments(segment_urls: list[str], max_segments: int = 3) -> dict:
+    """Probe a tiny sample of HLS media segments without downloading their bodies."""
+    sample = segment_urls[:max_segments]
+    results = []
+    for url in sample:
+        try:
+            _, host = public_https_url(url)
+            throttle(host)
+            result = probe_direct_media(url)
+            results.append({
+                "reachable": bool(result.get("reachable")),
+                "http_status": result.get("http_status"),
+                "content_type": result.get("content_type"),
+            })
+        except HTTPException:
+            results.append({"reachable": False, "error": "unsafe_segment_url"})
+    return {
+        "sampled": len(results),
+        "reachable": sum(1 for item in results if item.get("reachable")),
+        "failed": sum(1 for item in results if not item.get("reachable")),
+        "results": results,
+        "note": "Only a small sample is probed with byte-range requests; this is not a full playback test.",
+    }
 
 
 def throttle(host: str) -> None:
@@ -782,9 +807,19 @@ def validate_candidate(candidate_id: str, authorization: str | None = Header(def
         validation.update({
             "playback_probe": "range_header_probe",
             **probe,
-            "note": "HTTP/media headers were checked with a one-byte Range request. This does not guarantee full playback; verify in PlayerShell.",
+            "note": "HTTP/media headers were checked with a bounded request. This does not guarantee full playback; verify in PlayerShell.",
         })
-        candidate_status = "validated" if probe.get("reachable") else "rejected"
+        segment_probe = None
+        if probe.get("media_format") == "hls" and probe.get("segment_uris"):
+            segment_probe = probe_hls_segments(probe["segment_uris"])
+            validation["segment_probe"] = segment_probe
+        candidate_status = (
+            "validated"
+            if probe.get("reachable") and (
+                not segment_probe or segment_probe.get("sampled", 0) == segment_probe.get("reachable", 0)
+            )
+            else "rejected"
+        )
     else:
         validation.update({
             "reachable": None,
