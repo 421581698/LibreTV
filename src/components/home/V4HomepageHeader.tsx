@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Icon } from '@/components/icon';
+import { GlassButton } from '@/components/ui/glass';
 import { SourceManagerDrawer } from '@/components/source-manager';
 import { HistoryPanel } from '@/components/history-panel';
 import AIFloatingBall from '@/components/AIFloatingBall';
@@ -100,15 +101,15 @@ export function V4HomepageHeader() {
               </div>
             </form>
 
-            <button className="v4-header-icon" type="button" aria-label="观看历史" title="观看历史" onClick={() => setHistoryOpen(true)}>
+            <GlassButton className="v4-header-icon" aria-label="观看历史" title="观看历史" onClick={() => setHistoryOpen(true)}>
               <Icon name="clock" />
-            </button>
-            <button className="v4-header-icon" type="button" aria-label="设置" title="设置" onClick={() => setSettingsOpen(true)}>
+            </GlassButton>
+            <GlassButton className="v4-header-icon" aria-label="设置" title="设置" onClick={() => setSettingsOpen(true)}>
               <Icon name="gear" />
-            </button>
-            <button className="v4-avatar" type="button" aria-label="个人账户" title="个人账户">
+            </GlassButton>
+            <GlassButton className="v4-avatar" aria-label="个人账户" title="个人账户">
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5" /><path d="M4.8 20c.7-3.4 3.1-5.2 7.2-5.2s6.5 1.8 7.2 5.2" /></svg>
-            </button>
+            </GlassButton>
           </div>
         </div>
       </header>
