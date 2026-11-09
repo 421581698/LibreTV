@@ -1,5 +1,6 @@
 'use client';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -35,7 +36,8 @@ import {
   upsertHistory,
   db,
 } from '@/lib/db';
-import { cn, validateSourceUrl } from '@/lib/utils';
+import { buildWatchUrl, cn, formatTime, validateSourceUrl } from '@/lib/utils';
+import { SmartImage } from '@/components/smart-image';
 /**
  * 播放页（唯一入口，替代旧版 watch.html → player.html 跳转链）。
  * 状态全部由 URL 驱动：/watch?source=xx&id=..&index=..&title=..
@@ -63,6 +65,11 @@ function WatchContent() {
   const titleParam = searchParams.get('title') || '';
   const indexParam = parseInt(searchParams.get('index') || '0', 10) || 0;
   const [reversed, setReversed] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<'episodes' | 'sources' | 'details'>('episodes');
+  const recentHistory = useLiveQuery(
+    () => db.history.orderBy('timestamp').reverse().limit(8).toArray(),
+    [sourceKey, vodId]
+  );
   const [switchOpen, setSwitchOpen] = useState(false);
   const [skipPanelOpen, setSkipPanelOpen] = useState(false);
   // 播放器对外暴露的精确时间读取接口（「记录当前」用），随播放器卸载置空
@@ -380,12 +387,12 @@ function WatchContent() {
           </div>
         </div>
       </header>
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-4">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-4">
-          <div>
+      <main className="flex-1 w-full max-w-[1600px] mx-auto px-3 sm:px-4 lg:px-6 py-4 netflix-watch">
+        <div className="netflix-watch-grid">
+          <section className="netflix-watch-primary min-w-0">
             <div
               ref={playerFrameRef}
-              className="aspect-video bg-black rounded-lg overflow-hidden"
+              className="netflix-player-frame aspect-video bg-black overflow-hidden"
             >
               {currentUrl ? (
                 <PlayerShell
@@ -397,50 +404,29 @@ function WatchContent() {
                   autoSkipSegments={store.autoSkipSegments}
                   pendingStart={pendingStart}
                   onPendingStart={setPendingStart}
-                  onPlayerApi={(api) => {
-                    playerApiRef.current = api;
-                  }}
+                  onPlayerApi={(api) => { playerApiRef.current = api; }}
                   onRecordSegment={handleRecordSegment}
                   episodeKey={`${sourceKey}:${vodId}:${currentIndex}`}
-                  nextUrl={
-                    currentIndex + 1 < episodes.length
-                      ? episodes[currentIndex + 1]
-                      : undefined
-                  }
-                  nextEpisodeKey={
-                    currentIndex + 1 < episodes.length
-                      ? `${sourceKey}:${vodId}:${currentIndex + 1}`
-                      : undefined
-                  }
+                  nextUrl={currentIndex + 1 < episodes.length ? episodes[currentIndex + 1] : undefined}
+                  nextEpisodeKey={currentIndex + 1 < episodes.length ? `${sourceKey}:${vodId}:${currentIndex + 1}` : undefined}
                   getRestorePosition={getRestorePosition}
                   onTimeUpdate={handleProgress}
                   onPause={handleProgress}
                   onEnded={handleEnded}
                   hasPrevEpisode={currentIndex > 0}
-                  hasNextEpisode={
-                    episodes.length > 0 &&
-                    currentIndex < episodes.length - 1
-                  }
+                  hasNextEpisode={episodes.length > 0 && currentIndex < episodes.length - 1}
                   onPrevEpisode={() => goEpisode(currentIndex - 1)}
                   onNextEpisode={() => goEpisode(currentIndex + 1)}
                   onQuality={(height) => {
-                    // 播放实测是最权威的画质来源；缓存合并器负责同阶段事件去重与样本累计
                     if (!sourceKey || !vodId) return;
                     const key = qualityKey(sourceKey, vodId);
                     const store = useAppStore.getState();
                     const previous = store.qualityMap[key];
                     const previousCount = previous?.from === 'play' ? previous.playbackSampleCount ?? 1 : 0;
-                    store.setQuality({
-                      [key]: {
-                        height,
-                        from: 'play',
-                        timestamp: Date.now(),
-                      },
-                    });
+                    store.setQuality({ [key]: { height, from: 'play', timestamp: Date.now() } });
                     const current = useAppStore.getState().qualityMap[key];
                     if (current?.from !== 'play') return;
                     const sampleCount = current.playbackSampleCount ?? 1;
-                    // loadedmetadata/canplay/playing 可能连续报告同一高度；只有新有效样本才进入 Agent 审计流
                     if (sampleCount <= previousCount) return;
                     window.dispatchEvent(new CustomEvent('friday-player-quality', {
                       detail: {
@@ -458,70 +444,71 @@ function WatchContent() {
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  {detailQuery.isLoading ? (
-                    <Spinner size="lg" />
-                  ) : (
+                  {detailQuery.isLoading ? <Spinner size="lg" /> : (
                     <p className="text-faint text-sm">
-                      {detailQuery.isError
-                        ? '视频加载失败，请尝试其他资源'
-                        : '无可用播放地址'}
+                      {detailQuery.isError ? '视频加载失败，请尝试其他资源' : '无可用播放地址'}
                     </p>
                   )}
                 </div>
               )}
             </div>
-            {/* 操作栏 */}
-            <div className="flex flex-wrap items-center gap-2 mt-3">
-              <button
-                className="btn-ghost btn-sm"
-                disabled={currentIndex <= 0}
-                onClick={() => goEpisode(currentIndex - 1)}
-              >
-                上一集
-              </button>
-              <button
-                className="btn-ghost btn-sm"
-                disabled={
-                  episodes.length === 0 ||
-                  currentIndex >= episodes.length - 1
-                }
-                onClick={() => goEpisode(currentIndex + 1)}
-              >
-                下一集
-              </button>
-              <button
-                className={cn(
-                  'btn-ghost btn-sm',
-                  skipPanelOpen && 'bg-chip text-content'
+
+            <div className="netflix-title-row">
+              <div className="min-w-0">
+                <h1 className="text-xl sm:text-2xl font-semibold text-content truncate">{videoTitle}</h1>
+                <p className="text-xs sm:text-sm text-muted mt-1">
+                  {source.name} · {episodes.length > 0 ? `第 ${currentIndex + 1} / ${episodes.length} 集` : '正在播放'}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <button className="btn-ghost btn-sm" onClick={() => setSwitchOpen(true)}>切换资源</button>
+                <button className="btn-ghost btn-sm" onClick={() => {
+                  if (!currentUrl) return;
+                  enqueueDownload({ url: currentUrl, title: `${videoTitle}${episodes.length > 1 ? ` 第${currentIndex + 1}集` : ''}`, format: 'MP4' });
+                }}>下载本集</button>
+              </div>
+            </div>
+
+            <div className="netflix-below-player">
+              <div className="netflix-section-heading">
+                <div>
+                  <h2>继续观看</h2>
+                  <p>根据本机观看记录，接着上次的进度继续</p>
+                </div>
+                <Link href="/me" className="text-sm text-muted hover:text-content">全部观看历史 →</Link>
+              </div>
+              <div className="netflix-history-rail">
+                {(recentHistory ?? []).filter((item) => !(item.sourceKey === sourceKey && item.vodId === vodId)).slice(0, 6).map((item) => {
+                  const href = buildWatchUrl({ sourceKey: item.sourceKey, vodId: item.vodId, index: item.episodeIndex, title: item.title, sourceUrl: item.sourceUrl });
+                  const percent = item.duration > 0 ? Math.min(100, Math.max(0, Math.round(item.playbackPosition / item.duration * 100))) : 0;
+                  return (
+                    <Link key={`${item.sourceKey}:${item.vodId}`} href={href} className="netflix-history-card">
+                      <div className="netflix-history-art">
+                        {item.pic ? <SmartImage url={item.pic} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-chip" />}
+                        <span className="netflix-history-play"><Icon name="play" className="w-5 h-5" /></span>
+                      </div>
+                      <div className="netflix-history-meta">
+                        <strong>{item.title}</strong>
+                        <span>{item.totalEpisodes > 0 ? `第 ${item.episodeIndex + 1} / ${item.totalEpisodes} 集` : '继续观看'}</span>
+                        <div className="netflix-history-progress"><i style={{ width: `${percent}%` }} /></div>
+                      </div>
+                    </Link>
+                  );
+                })}
+                {(!recentHistory || recentHistory.filter((item) => !(item.sourceKey === sourceKey && item.vodId === vodId)).length === 0) && (
+                  <p className="text-sm text-faint py-5">还没有其他观看记录，之后观看的影片会显示在这里。</p>
                 )}
-                aria-expanded={skipPanelOpen}
-                aria-haspopup="dialog"
-                onClick={() => setSkipPanelOpen((v) => !v)}
-                title={
-                  markedCount > 0
-                    ? `本剧已标记 ${markedCount} 段${skipMark?.enabled === false ? '（本剧跳过已关闭）' : ''}`
-                    : '标记片头 / 中段 / 片尾，供本剧各集自动跳过'
-                }
-              >
+              </div>
+            </div>
+
+            <div className="netflix-watch-tools">
+              <button className="btn-ghost btn-sm" disabled={currentIndex <= 0} onClick={() => goEpisode(currentIndex - 1)}>上一集</button>
+              <button className="btn-ghost btn-sm" disabled={episodes.length === 0 || currentIndex >= episodes.length - 1} onClick={() => goEpisode(currentIndex + 1)}>下一集</button>
+              <button className={cn('btn-ghost btn-sm', skipPanelOpen && 'bg-chip text-content')} aria-expanded={skipPanelOpen} aria-haspopup="dialog" onClick={() => setSkipPanelOpen((v) => !v)}>
                 跳过标记{markedCount > 0 ? ` (${markedCount})` : ''}
-                {markedCount > 0 && skipMark?.enabled === false && (
-                  <span
-                    className="ml-1 inline-block size-1.5 rounded-full bg-faint"
-                    aria-label="本剧跳过已关闭"
-                  />
-                )}
               </button>
               <label className="flex items-center gap-1.5 text-xs text-muted ml-auto cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="h-3.5 w-3.5 accent-[#2563eb]"
-                  checked={store.autoplayNext}
-                  onChange={(e) =>
-                    store.updateSettings({
-                      autoplayNext: e.target.checked,
-                    })
-                  }
-                />
+                <input type="checkbox" className="h-3.5 w-3.5 accent-[#2563eb]" checked={store.autoplayNext} onChange={(e) => store.updateSettings({ autoplayNext: e.target.checked })} />
                 自动连播
               </label>
             </div>
@@ -535,71 +522,75 @@ function WatchContent() {
               getPlayerClock={() => {
                 const api = playerApiRef.current;
                 if (!api) return null;
-                return {
-                  currentTime: api.getCurrentTime(),
-                  duration: api.getDuration(),
-                  seek: (s) => api.seek(s),
-                  pause: () => api.pause(),
-                  isPaused: () => api.isPaused(),
-                };
+                return { currentTime: api.getCurrentTime(), duration: api.getDuration(), seek: (s) => api.seek(s), pause: () => api.pause(), isPaused: () => api.isPaused() };
               }}
             />
-          </div>
-          {/* 剧集侧栏 */}
-          <aside className="glass-panel p-3 h-fit">
-            <div className="flex items-center justify-between gap-2 mb-2.5">
-              <h2 className="text-sm font-semibold text-content">
-                剧集列表{episodes.length > 0 && `（${episodes.length}）`}
-              </h2>
-              {/* 排列开关紧贴它所作用的列表：放在这里才看得出它管的是这一栏的顺序 */}
-              {episodes.length > 1 && (
-                <button
-                  className="btn-ghost btn-sm shrink-0"
-                  onClick={() => setReversed((v) => !v)}
-                  aria-label={
-                    reversed ? '切换为正序排列' : '切换为倒序排列'
-                  }
-                  title="调整剧集列表的排列顺序"
-                >
-                  <Icon
-                    name="arrowDown"
-                    className={cn(
-                      'w-3.5 h-3.5 transition-transform',
-                      reversed && 'rotate-180'
-                    )}
-                  />
-                  {reversed ? '正序排列' : '倒序排列'}
-                </button>
-              )}
+          </section>
+
+          <aside className="netflix-watch-sidebar">
+            <div className="netflix-sidebar-tabs" role="tablist" aria-label="播放内容">
+              <button role="tab" aria-selected={sidebarTab === 'episodes'} className={sidebarTab === 'episodes' ? 'active' : ''} onClick={() => setSidebarTab('episodes')}>选集 <span>{episodes.length}</span></button>
+              <button role="tab" aria-selected={sidebarTab === 'sources'} className={sidebarTab === 'sources' ? 'active' : ''} onClick={() => setSidebarTab('sources')}>播放源</button>
+              <button role="tab" aria-selected={sidebarTab === 'details'} className={sidebarTab === 'details' ? 'active' : ''} onClick={() => setSidebarTab('details')}>详情</button>
             </div>
-            {episodes.length === 0 ? (
-              detailQuery.isLoading ? (
-                <LoadingState />
-              ) : (
-                <EmptyState
-                  variant="plain"
-                  title={
-                    detailQuery.isError
-                      ? '获取剧集失败'
-                      : '暂无剧集信息'
-                  }
-                />
-              )
-            ) : (
-              <div className="grid grid-cols-5 lg:grid-cols-4 gap-1.5 max-h-[65vh] overflow-y-auto scrollbar-thin pr-1">
-                {orderedEpisodes.map((realIndex) => (
-                  <EpisodeButton
-                    key={realIndex}
-                    index={realIndex}
-                    active={realIndex === currentIndex}
-                    onClick={() => goEpisode(realIndex)}
-                  />
-                ))}
+
+            {sidebarTab === 'episodes' && (
+              <div className="netflix-sidebar-content">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="text-sm text-muted">正在播放 <strong className="text-content">第 {currentIndex + 1} 集</strong></div>
+                  {episodes.length > 1 && <button className="btn-ghost btn-sm" onClick={() => setReversed((v) => !v)}>{reversed ? '正序 ↑' : '倒序 ↓'}</button>}
+                </div>
+                {episodes.length === 0 ? (
+                  detailQuery.isLoading ? <LoadingState /> : <EmptyState variant="plain" title={detailQuery.isError ? '获取剧集失败' : '暂无剧集信息'} />
+                ) : (
+                  <div className="netflix-episode-list">
+                    {orderedEpisodes.map((realIndex) => (
+                      <EpisodeRow key={realIndex} index={realIndex} active={realIndex === currentIndex} onClick={() => goEpisode(realIndex)} />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
-            <p className="hidden md:block text-[10px] text-faint mt-3 leading-relaxed">
-              快捷键：空格 播放/暂停 · ←/→ 快退/快进 5s · ↑/↓ 音量 · F 全屏 · Alt+←/→ 切换集数
-            </p>
+
+            {sidebarTab === 'sources' && (
+              <div className="netflix-sidebar-content">
+                <h3 className="text-sm font-semibold text-content mb-2">当前播放资源</h3>
+                <div className="netflix-source-card">
+                  <span className="netflix-source-indicator" />
+                  <div className="min-w-0 flex-1"><strong>{source.name}</strong><span>当前使用 · 可切换其他可用资源</span></div>
+                  <button className="btn-primary btn-sm" onClick={() => setSwitchOpen(true)}>切换</button>
+                </div>
+                <p className="text-xs text-faint mt-3">播放源切换会保留当前影片和集数，具体进度按现有换源逻辑处理。</p>
+              </div>
+            )}
+
+            {sidebarTab === 'details' && (
+              <div className="netflix-sidebar-content">
+                <div className="netflix-detail-hero">
+                  {detailQuery.data?.videoInfo?.cover && <SmartImage url={detailQuery.data.videoInfo.cover} alt="" className="w-24 aspect-[2/3] object-cover rounded-lg" />}
+                  <div className="min-w-0"><h3 className="font-semibold text-content">{videoTitle}</h3><p className="text-xs text-muted mt-1">{source.name}</p><p className="text-xs text-faint mt-2">{episodes.length} 集</p></div>
+                </div>
+                <p className="text-sm text-muted leading-6 mt-4">{detailQuery.data?.videoInfo?.description || '暂无影片简介。'}</p>
+              </div>
+            )}
+
+            {currentIndex + 1 < episodes.length && (
+              <div className="netflix-next-preview">
+                <div className="netflix-section-kicker">接下来播放</div>
+                <button className="netflix-next-card" onClick={() => goEpisode(currentIndex + 1)}>
+                  <div className="netflix-next-thumb">
+                    {detailQuery.data?.videoInfo?.cover ? <SmartImage url={detailQuery.data.videoInfo.cover} alt="" className="w-full h-full object-cover" /> : <span>EP {currentIndex + 2}</span>}
+                    <span className="netflix-next-play"><Icon name="play" className="w-4 h-4" /></span>
+                  </div>
+                  <span className="min-w-0 flex-1 text-left"><strong>第 {currentIndex + 2} 集</strong><small>{videoTitle}</small></span>
+                  <Icon name="chevronRight" className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+            <div className="netflix-sidebar-footer">
+              <span>快捷键：空格播放/暂停 · ←/→ 快退/快进 · F 全屏</span>
+              <span>Alt + ←/→ 切换集数</span>
+            </div>
           </aside>
         </div>
       </main>
@@ -660,31 +651,14 @@ function FridayPlayerAssistantButton() {
 }
 
 /** 集数按钮：激活时自动滚动进可视区（长剧列表） */
-function EpisodeButton({
-  index,
-  active,
-  onClick,
-}: {
-  index: number;
-  active: boolean;
-  onClick: () => void;
-}) {
+function EpisodeRow({ index, active, onClick }: { index: number; active: boolean; onClick: () => void }) {
   const ref = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (active) {
-      ref.current?.scrollIntoView({ block: 'nearest' });
-    }
-  }, [active]);
+  useEffect(() => { if (active) ref.current?.scrollIntoView({ block: 'nearest' }); }, [active]);
   return (
-    <button
-      ref={ref}
-      className={cn(
-        'btn btn-sm !px-1',
-        active ? 'episode-active' : 'btn-ghost'
-      )}
-      onClick={onClick}
-    >
-      {index + 1}
+    <button ref={ref} className={cn('netflix-episode-row', active && 'active')} onClick={onClick} aria-current={active ? 'true' : undefined}>
+      <span className="netflix-episode-number">{index + 1}</span>
+      <span className="min-w-0 flex-1 text-left"><strong>第 {index + 1} 集</strong><small>{active ? '正在播放' : '点击播放'}</small></span>
+      {active ? <Icon name="volume2" className="w-4 h-4 text-accent" /> : <Icon name="play" className="w-4 h-4 opacity-60" />}
     </button>
   );
 }
