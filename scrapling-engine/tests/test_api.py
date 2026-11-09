@@ -1,5 +1,9 @@
 from unittest.mock import Mock
 
+import pytest
+from cssselect.parser import SelectorSyntaxError
+from lxml.etree import XPathError
+
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -242,3 +246,16 @@ def test_adapter_supports_adaptive_xpath_relocation() -> None:
 
     page.xpath.assert_called_with("//h2", adaptive=True)
     assert result["text"] == ["Adaptive result"]
+
+
+
+def test_adapter_converts_invalid_css_and_xpath_to_validation_errors() -> None:
+    page = Mock()
+    page.get_all_text.return_value = "fixture"
+    page.css.side_effect = SelectorSyntaxError("bad css")
+    page.xpath.side_effect = XPathError("bad xpath")
+
+    with pytest.raises(ValueError, match="Invalid CSS selector"):
+        ScraplingAdapter.extract(page, "???", "css")
+    with pytest.raises(ValueError, match="Invalid XPath expression"):
+        ScraplingAdapter.extract(page, "//*[", "xpath")
