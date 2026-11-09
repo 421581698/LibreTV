@@ -26,7 +26,7 @@ class RenderDeploymentConfigTests(unittest.TestCase):
         self.assertIn("chown -R collector:collector /data", entrypoint)
         self.assertIn("exec gosu collector", entrypoint)
         compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
-        self.assertIn("    cap_add:" + chr(10) + "      - CHOWN", compose)
+        self.assertIn("    cap_add:" + chr(10) + "      # Entrypoint needs CHOWN for the mounted volume and SETGID/SETUID for gosu." + chr(10) + "      - CHOWN" + chr(10) + "      - SETGID" + chr(10) + "      - SETUID", compose)
 
     def test_compose_keeps_internal_default_port(self):
         compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
