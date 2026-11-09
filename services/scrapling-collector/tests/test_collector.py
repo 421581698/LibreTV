@@ -33,6 +33,14 @@ class CollectorTests(unittest.TestCase):
                 collector.crawl_site(collector.CrawlRequest(url="https://example.com"))
             self.assertEqual(error.exception.status_code, 503)
 
+    def test_discovery_endpoint_fails_closed_before_network_access(self):
+        with patch.dict(os.environ, {"SCRAPLING_EGRESS_FIREWALL_CONFIRMED": ""}):
+            with patch.object(collector, "require_token"), patch.object(collector, "discover_sites") as discover_sites:
+                with self.assertRaises(collector.HTTPException) as error:
+                    collector.discover("Bearer test")
+        self.assertEqual(error.exception.status_code, 503)
+        discover_sites.assert_not_called()
+
     def test_candidate_validation_fails_closed_before_database_lookup(self):
         with patch.dict(os.environ, {"SCRAPLING_EGRESS_FIREWALL_CONFIRMED": ""}):
             with patch.object(collector, "require_token"):
