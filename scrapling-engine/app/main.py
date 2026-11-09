@@ -117,14 +117,15 @@ async def _run_job(task_id: str) -> None:
     job = job_store.get(task_id)
     if job is None:
         return
-    spider = ScraplingSpiderAdapter.create(
-        job["seeds"],
-        Path(job["checkpoint_dir"]),
-    )
-    _active_spiders[task_id] = spider
-    job_store.update(task_id, "running", started_at=_now())
+    spider = None
     items: list[dict] = []
     try:
+        spider = ScraplingSpiderAdapter.create(
+            job["seeds"],
+            Path(job["checkpoint_dir"]),
+        )
+        _active_spiders[task_id] = spider
+        job_store.update(task_id, "running", started_at=_now())
         async for item in spider.stream():
             items.append(item)
             job_store.add_event(
@@ -168,7 +169,12 @@ async def _run_job(task_id: str) -> None:
         )
     finally:
         _active_spiders.pop(task_id, None)
-        _job_tasks.pop(task_id, None)
+        current_task = asyncio.current_task()
+        if _job_tasks.get(task_id) is current_task:
+            _job_tasks.pop(task_id, None)
+        latest = job_store.get(task_id)
+        if latest is not None and latest["status"] == "queued":
+            _schedule_job(task_id)
 
 
 async def stop_active_crawls() -> None:
