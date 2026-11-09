@@ -1,0 +1,97 @@
+name: Deploy PR #60 iPhone Inline Playback Preview
+
+on:
+  push:
+    branches:
+      - feat/iphone-inline-play-top-search-2026-11-09
+    paths:
+      - ".github/workflows/deploy-pr60-inline-preview.yml"
+      - "wrangler.pr60-inline-preview.toml"
+      - "src/**"
+      - "public/**"
+      - "package.json"
+      - "package-lock.json"
+      - "next.config.*"
+      - "open-next.config.*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: libretv-pr60-inline-preview
+  cancel-in-progress: true
+
+jobs:
+  deploy-preview:
+    name: Build and deploy isolated public PR #60 preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment: preview
+    steps:
+      - name: Checkout exact PR #60 commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: TypeScript verification
+        run: npm run typecheck
+
+      - name: ESLint verification
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test -- --reporter=dot
+
+      - name: Verify isolated public preview configuration
+        run: |
+          grep -Eq '^[[:space:]]*name[[:space:]]*=[[:space:]]*"libretv-pr60-inline-preview"' wrangler.pr60-inline-preview.toml
+          grep -Eq '^[[:space:]]*AUTH_DISABLED[[:space:]]*=[[:space:]]*"true"' wrangler.pr60-inline-preview.toml
+
+      - name: Build isolated PR #60 preview
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npx opennextjs-cloudflare build
+
+      - name: Verify Cloudflare deployment credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing preview secret: CLOUDFLARE_API_TOKEN" && exit 1)
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "Missing preview secret: CLOUDFLARE_ACCOUNT_ID" && exit 1)
+
+      - name: Deploy isolated PR #60 Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --config wrangler.pr60-inline-preview.toml
+
+      - name: Verify public Preview homepage and authentication status
+        run: |
+          node --input-type=module <<'NODE'
+          const base = "https://libretv-pr60-inline-preview.bggdbh.workers.dev";
+          const home = await fetch(base + "/", {
+            redirect: "follow",
+            headers: { "cache-control": "no-cache" },
+          });
+          if (!home.ok || !(home.headers.get("content-type") || "").includes("text/html")) {
+            throw new Error("Preview homepage failed: HTTP " + home.status);
+          }
+          const statusResponse = await fetch(base + "/api/status", { cache: "no-store" });
+          if (!statusResponse.ok) throw new Error("Preview status endpoint returned " + statusResponse.status);
+          const status = await statusResponse.json();
+          if (status.passwordRequired !== false || status.verified !== true) {
+            throw new Error("Preview should be public: passwordRequired=" + status.passwordRequired + ", verified=" + status.verified);
+          }
+          console.log("PR #60 Preview verified: homepage is public and no password is required.");
+          NODE
