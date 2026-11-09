@@ -4,8 +4,10 @@ import { checkUpstreamAllowed } from '@/lib/ssrf';
 import { fetchUpstream } from '@/lib/fetch-utils';
 import { parseSearchList } from '@/lib/cms-parser';
 import { readJsonLimited, requestBodyErrorStatus } from '@/lib/request-body';
+import { readResponseJsonLimited } from '@/lib/response-body';
 
 export const runtime = 'nodejs';
+const MAX_SOURCE_TEST_RESPONSE_BYTES = 2 * 1024 * 1024;
 
 /** 点播源探活：以搜索 "test" 的响应耗时与结果量衡量可用性 */
 export async function POST(req: Request) {
@@ -41,7 +43,7 @@ export async function POST(req: Request) {
     if (!res.ok) {
       return NextResponse.json({ ok: false, ms, error: `HTTP ${res.status}` });
     }
-    const data = await res.json();
+    const data = await readResponseJsonLimited(res, MAX_SOURCE_TEST_RESPONSE_BYTES);
     const list = parseSearchList(data, { key: 'test', name: 'test', url });
     return NextResponse.json({ ok: true, ms, count: list.length });
   } catch (err) {
