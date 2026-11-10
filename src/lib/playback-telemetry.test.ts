@@ -44,6 +44,14 @@ describe('playback telemetry', () => {
     expect(health).toEqual({});
   });
 
+  it('expires stale per-resource playback samples with the same seven-day TTL', () => {
+    const now = 8 * 24 * 60 * 60 * 1000;
+    const health = mergePlaybackHealth({}, [
+      { sourceKey: 'source-a', resourceKey: 'source-a:movie-1:0', timestamp: 1, height: 2160 },
+    ], now, 'resource');
+    expect(health).toEqual({});
+  });
+
   it('requires enough playback evidence before scoring', () => {
     expect(scorePlaybackHealth({
       sampleCount: 1,
