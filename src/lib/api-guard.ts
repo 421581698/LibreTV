@@ -20,3 +20,14 @@ export function guardRequest(req: Request): NextResponse | null {
 export function jsonError(message: string, status: number): NextResponse {
   return NextResponse.json({ error: message }, { status });
 }
+
+
+/**
+ * Preview-only public access follows AUTH_DISABLED. Production configuration
+ * remains independent; costly collector routes still retain URL validation,
+ * outbound SSRF protections, upstream bearer-token checks and timeouts.
+ */
+export function guardPrivateFeatureRequest(req: Request): NextResponse | null {
+  if (isAuthDisabled()) return null;
+  return guardRequest(req);
+}

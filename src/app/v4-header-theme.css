@@ -456,3 +456,102 @@
     overflow: hidden !important;
   }
 }
+
+
+@media screen and (max-width: 700px) {
+/* Routed iPhone screens must follow the same light/dark preference as the
+   homepage; the original spatial canvas is intentionally dark-only. */
+:root:not(.dark) .v4-spatial-screen {
+  color: #17171B !important;
+  background: var(--page-chrome, #F5F7FA) !important;
+}
+:root:not(.dark) .v4-spatial-screen .v4-spatial-heading h1,
+:root:not(.dark) .v4-spatial-screen .v4-spatial-panel-head h2,
+:root:not(.dark) .v4-spatial-screen .v4-source-card h3,
+:root:not(.dark) .v4-spatial-screen .v4-settings-card strong,
+:root:not(.dark) .v4-spatial-screen .v4-me-history-copy strong {
+  color: #17171B !important;
+}
+:root:not(.dark) .v4-spatial-screen .v4-spatial-heading p,
+:root:not(.dark) .v4-spatial-screen .v4-spatial-panel-head span,
+:root:not(.dark) .v4-spatial-screen .v4-spatial-empty,
+:root:not(.dark) .v4-spatial-screen .v4-spatial-empty p,
+:root:not(.dark) .v4-spatial-screen .v4-spatial-footnote,
+:root:not(.dark) .v4-spatial-screen .v4-source-status,
+:root:not(.dark) .v4-spatial-screen .v4-source-card p,
+:root:not(.dark) .v4-spatial-screen .v4-source-card > span,
+:root:not(.dark) .v4-spatial-screen .v4-settings-card p,
+:root:not(.dark) .v4-spatial-screen .v4-settings-card > b,
+:root:not(.dark) .v4-spatial-screen .v4-me-history-copy span {
+  color: rgba(23,23,27,.62) !important;
+}
+:root:not(.dark) .v4-spatial-screen .v4-settings-card,
+:root:not(.dark) .v4-spatial-screen .v4-source-card,
+:root:not(.dark) .v4-spatial-screen .v4-me-history-card {
+  color: #17171B !important;
+  border-color: rgba(23,31,44,.12) !important;
+  background: rgba(255,255,255,.76) !important;
+  box-shadow: 0 8px 24px rgba(35,48,66,.06) !important;
+}
+:root:not(.dark) .v4-spatial-screen .v4-resource-search input {
+  color: #17171B !important;
+  -webkit-text-fill-color: #17171B !important;
+  border-color: rgba(23,31,44,.16) !important;
+  background: rgba(255,255,255,.92) !important;
+}
+:root:not(.dark) .v4-spatial-screen .v4-resource-search input::placeholder {
+  color: rgba(23,31,44,.48) !important;
+  -webkit-text-fill-color: rgba(23,31,44,.48) !important;
+}
+:root:not(.dark) .v4-spatial-screen .v4-resource-result {
+  color: #17171B !important;
+  border-color: rgba(23,31,44,.12) !important;
+  background: rgba(255,255,255,.88) !important;
+}
+:root:not(.dark) .v4-spatial-screen .v4-me-cover {
+  color: #F5F6F8 !important;
+}
+
+.v4-spatial-screen button.v4-resource-result {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+
+}
+
+/* The four-item iPhone dock is declared in the homepage stylesheet with
+   light-only !important values; explicitly bind its surface to dark mode. */
+@media screen and (max-width: 700px) {
+  html.dark .v4-mobile-tabbar {
+    color: #F2F2F4 !important;
+    border-color: rgba(255,255,255,.14) !important;
+    background: rgba(20,20,24,.92) !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,.42) !important;
+  }
+  html.dark .v4-mobile-tabbar a {
+    color: rgba(245,246,248,.58) !important;
+  }
+  html.dark .v4-mobile-tabbar a.is-active {
+    color: #F7F8FA !important;
+  }
+}
+
+
+@media screen and (max-width: 700px) {
+  html.dark .v4-header:not(.is-overlay) .v4-search input,
+  html.dark .v4-home .v4-header:not(.is-overlay) .v4-search input,
+  html.dark .v4-spatial-screen .v4-header:not(.is-overlay) .v4-search input {
+    color: #F7F8FA !important;
+    -webkit-text-fill-color: #F7F8FA !important;
+    caret-color: #F7F8FA !important;
+  }
+  html.dark .v4-header:not(.is-overlay) .v4-search input::placeholder,
+  html.dark .v4-home .v4-header:not(.is-overlay) .v4-search input::placeholder,
+  html.dark .v4-spatial-screen .v4-header:not(.is-overlay) .v4-search input::placeholder {
+    color: rgba(247,248,250,.56) !important;
+    -webkit-text-fill-color: rgba(247,248,250,.56) !important;
+  }
+}

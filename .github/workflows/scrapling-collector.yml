@@ -1,0 +1,138 @@
+name: Scrapling Collector
+
+on:
+  push:
+    branches:
+      - feat/iphone-inline-play-top-search-2026-11-09
+    paths:
+      - "services/scrapling-collector/**"
+      - "src/app/api/resource-collector/**"
+      - "src/lib/resource-collector-client.ts"
+      - "src/lib/resource-collector-client.test.ts"
+      - "src/lib/api-guard.ts"
+      - "src/lib/api-guard.test.ts"
+      - "src/components/home/home-inline-play.test.ts"
+      - "src/lib/resource-collector-client.ts"
+      - "src/lib/resource-collector-client.test.ts"
+      - "src/lib/api-guard.ts"
+      - "src/lib/api-guard.test.ts"
+      - "src/components/home/home-inline-play.test.ts"
+      - "docker-compose.yml"
+      - "render.yaml"
+      - "scripts/scrapling-egress-firewall.sh"
+      - ".github/workflows/scrapling-collector.yml"
+  pull_request:
+    paths:
+      - "services/scrapling-collector/**"
+      - "src/app/api/resource-collector/**"
+      - "src/components/source-manager.tsx"
+      - "docker-compose.yml"
+      - "render.yaml"
+      - "scripts/scrapling-egress-firewall.sh"
+      - ".github/workflows/scrapling-collector.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  collector-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/scrapling-collector
+    env:
+      SCRAPLING_API_TOKEN: collector-ci-token
+      SCRAPLING_DB_PATH: /tmp/libretv-scrapling-ci.sqlite3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: services/scrapling-collector/requirements.txt
+      - name: Install collector dependencies
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+      - name: Compile Python service
+        run: python -m py_compile app.py
+      - name: Run collector unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Validate Docker Compose collector profile
+        working-directory: .
+        env:
+          PASSWORD: collector-ci-password
+          SCRAPLING_API_TOKEN: collector-ci-token
+        run: docker compose -f docker-compose.yml --project-directory . --profile collector config --quiet
+      - name: Validate Render Blueprint YAML syntax
+        working-directory: .
+        run: |
+          ruby -e 'require "yaml"; YAML.safe_load_file("render.yaml", permitted_classes: [], aliases: false); puts "Render Blueprint YAML syntax passed"'
+      - name: Validate host firewall script syntax
+        run: bash -n ../../scripts/scrapling-egress-firewall.sh
+      - name: Build isolated collector image
+        run: docker build --tag libretv-scrapling-collector:ci .
+      - name: Run isolated collector API smoke test
+        working-directory: .
+        run: |
+          set -euo pipefail
+          docker run -d --name libretv-scrapling-api-smoke \
+            --read-only \
+            --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+            --tmpfs /data:rw,nosuid,nodev,size=64m \
+            --shm-size 256m --pids-limit 128 --memory 1g --cpus 2.0 \
+            --cap-drop ALL --cap-add CHOWN --cap-add SETGID --cap-add SETUID --security-opt no-new-privileges \
+            -e SCRAPLING_API_TOKEN=collector-ci-token \
+            -e SCRAPLING_DB_PATH=/data/collector.sqlite3 \
+            -e PORT=8000 \
+            -p 127.0.0.1:18000:8000 \
+            libretv-scrapling-collector:ci
+          trap 'docker rm -f libretv-scrapling-api-smoke >/dev/null 2>&1 || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:18000/health >/dev/null; then break; fi
+            if [ "$attempt" -eq 30 ]; then
+              docker logs libretv-scrapling-api-smoke
+              exit 1
+            fi
+            sleep 2
+          done
+          python - <<'PY'
+          import json
+          import urllib.error
+          import urllib.request
+
+          base = "http://127.0.0.1:18000"
+
+          def request(path, method="GET", token=None, body=None):
+              headers = {}
+              if token:
+                  headers["Authorization"] = "Bearer " + token
+              data = json.dumps(body).encode() if body is not None else None
+              if data is not None:
+                  headers["Content-Type"] = "application/json"
+              req = urllib.request.Request(base + path, data=data, headers=headers, method=method)
+              try:
+                  with urllib.request.urlopen(req, timeout=5) as response:
+                      return response.status, response.read().decode()
+              except urllib.error.HTTPError as error:
+                  return error.code, error.read().decode()
+
+          status, body = request("/health")
+          assert status == 200 and json.loads(body)["ok"] is True, (status, body)
+
+          status, _ = request("/v1/discover")
+          assert status == 401, ("unauthenticated discovery must be rejected", status)
+
+          token = "collector-ci-token"
+          status, body = request("/v1/discover", token=token)
+          assert status == 503 and "egress filtering" in body, ("discovery must fail closed", status, body)
+
+          status, body = request("/v1/crawl", method="POST", token=token,
+                                 body={"url": "https://example.com", "mode": "http", "limit": 1})
+          assert status == 503 and "egress filtering" in body, ("crawl must fail closed", status, body)
+
+          status, body = request("/v1/candidates/" + ("a" * 32) + "/validate",
+                                 method="POST", token=token)
+          assert status == 503 and "egress filtering" in body, ("validation must fail closed", status, body)
+
+          print("Collector container API smoke passed: health, auth, and default-deny egress gate.")
+          PY

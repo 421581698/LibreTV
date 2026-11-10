@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Drawer } from './drawer';
 import { ConfirmDialog } from './confirm-dialog';
 import { Dropdown, type DropdownOption } from './dropdown';
@@ -32,12 +33,20 @@ import { useAuth } from './auth';
 import { api } from '@/lib/client-api';
 import { AUTO_REFRESH_MAX_FAIL_STREAK, syncSourceSubscription } from '@/lib/subscription-sync';
 import { describeParseStats } from '@/lib/tvbox-parser';
+import { collectorFetch, clearScraplingConfig, normalizeScraplingBase, readScraplingConfig, saveScraplingConfig } from '@/lib/collector-browser-config';
+import { registerValidatedCmsSource } from '@/lib/resource-collector-workflow';
+
+
+const CollectorPlayerShell = dynamic(
+  () => import('@/components/player-shell').then((module) => module.PlayerShell),
+  { ssr: false, loading: () => <div className="aspect-video w-full animate-pulse bg-black" /> },
+);
 
 /**
  * Apple-inspired 设置抽屉：纵向分组首页 → 独立详情页。
  * 具体设置面板继续复用现有业务组件与持久化逻辑。
  */
-type SecondaryTab = 'vod' | 'live' | 'subs' | 'playback' | 'image' | 'home' | 'voice' | 'language' | 'io' | 'cache';
+type SecondaryTab = 'vod' | 'live' | 'subs' | 'playback' | 'image' | 'home' | 'voice' | 'language' | 'io' | 'cache' | 'collector';
 type SettingsPage = SecondaryTab | 'index' | 'appearance';
 
 const SETTINGS_SECTIONS: { title: string; items: { id: SettingsPage; label: string; detail: string; icon: IconName }[] }[] = [
@@ -51,6 +60,7 @@ const SETTINGS_SECTIONS: { title: string; items: { id: SettingsPage; label: stri
     { id: 'vod', label: '影视源管理', detail: '点播源、优先级与健康检测', icon: 'link' },
     { id: 'live', label: '直播设置', detail: '直播源与频道管理', icon: 'home' },
     { id: 'subs', label: '资源订阅', detail: '管理已配置的数据源订阅', icon: 'download' },
+    { id: 'collector', label: '资源采集中心', detail: 'FMHY 网站发现目录与 Scrapling 采集引擎', icon: 'search' },
     { id: 'home', label: '首页与内容', detail: '首页展示与内容偏好', icon: 'home' },
   ] },
   { title: 'Friday 助手', items: [
@@ -74,6 +84,7 @@ const SETTINGS_PAGE_META: Record<Exclude<SettingsPage, 'index'>, { title: string
   voice: { title: '语音与声音', description: '配置 Friday 的语音识别和声音偏好。' },
   io: { title: '配置导入与导出', description: '备份或恢复 LibreTV 本机配置。' },
   cache: { title: '本机缓存', description: '查看并管理本机缓存数据。' },
+  collector: { title: '资源采集中心', description: '从 FMHY 目录发现站点，并通过 Scrapling 检查公开媒体链接。' },
 };
 
 const SETTINGS_OPEN_PAGE_KEY = 'libretv-settings-open-page';
@@ -173,9 +184,434 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
           {activePage === 'subs' && <SourceSubscriptions />}
           {activePage === 'io' && <ConfigIoPanel />}
           {activePage === 'cache' && <VideoCachePanel />}
+          {activePage === 'collector' && <ResourceCollectorPanel />}
         </div>
       )}
     </Drawer>
+  );
+}
+
+
+type CollectorSite = { title: string; url: string; host: string; directory: string };
+type CollectorCandidate = { id?: string; url: string; kind: string; host: string; title?: string; status?: string; access_state?: 'PUBLIC' | 'AUTH_REQUIRED' | 'SUBSCRIPTION_REQUIRED' | 'DRM_PROTECTED' | 'ENCRYPTED_STREAM' | 'ACCESS_UNKNOWN'; reason?: string; next_action?: string; drm_systems?: string[]; validation?: { cms_shape?: boolean; reachable?: boolean; public_host?: boolean; source_url?: string | null; reason?: string; error?: string; note?: string; access?: { access_state?: string; reason?: string } } };
+type CollectorTask = { id: string; url: string; host: string; status: string; created_at: number; updated_at: number; error?: string | null; result_count: number };
+
+function ResourceCollectorPanel() {
+  const [sites, setSites] = useState<CollectorSite[]>([]);
+  const [selectedSite, setSelectedSite] = useState<CollectorSite | null>(null);
+  const [playingCandidate, setPlayingCandidate] = useState<CollectorCandidate | null>(null);
+  const [candidates, setCandidates] = useState<CollectorCandidate[]>([]);
+  const [tasks, setTasks] = useState<CollectorTask[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [resultMessage, setResultMessage] = useState('');
+  const [loaded, setLoaded] = useState(false);
+  const [collectorBase, setCollectorBase] = useState('');
+  const [collectorToken, setCollectorToken] = useState('');
+  const [showCollectorToken, setShowCollectorToken] = useState(false);
+  const [configSaved, setConfigSaved] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState('');
+  const [crawlDiagnostics, setCrawlDiagnostics] = useState<{
+    pageTitle?: string; finalUrl?: string; mode?: string; capturedRequestCount?: number;
+    httpSpider?: { status?: string; candidate_count?: number; error?: string | null };
+    browser?: { status?: string; candidate_count?: number; error?: string | null };
+    errors?: string[];
+  } | null>(null);
+
+  useEffect(() => {
+    const config = readScraplingConfig();
+    setCollectorBase(config.base);
+    setCollectorToken(config.token);
+    setConfigSaved(Boolean(config.base && config.token));
+  }, []);
+
+  const saveCollectorSettings = () => {
+    try {
+      const base = normalizeScraplingBase(collectorBase);
+      saveScraplingConfig({ base, token: collectorToken });
+      setCollectorBase(base);
+      setConfigSaved(true);
+      setConnectionStatus('配置已保存在当前浏览器。');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '配置保存失败。');
+    }
+  };
+
+  const clearCollectorSettings = () => {
+    clearScraplingConfig();
+    setCollectorBase('');
+    setCollectorToken('');
+    setConfigSaved(false);
+    setConnectionStatus('本机配置已清除，将回退到服务端环境变量（如已配置）。');
+  };
+
+  const testCollectorConnection = async () => {
+    setTestingConnection(true);
+    setConnectionStatus('正在测试 Collector 连接…');
+    setError('');
+    try {
+      const base = normalizeScraplingBase(collectorBase);
+      if (!collectorToken.trim()) throw new Error('请先填写 SCRAPLING_API_TOKEN。');
+      saveScraplingConfig({ base, token: collectorToken });
+      setCollectorBase(base);
+      setConfigSaved(true);
+      const response = await collectorFetch('/api/resource-collector/health');
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const detail = typeof payload.detail === 'string' ? payload.detail :
+          typeof payload.error === 'string' ? payload.error : '未提供错误详情';
+        const statusHint = response.status === 401 ? '请先登录 LibreTV。' :
+          response.status === 403 ? '当前 Preview 策略禁止访问资源采集功能。' :
+          response.status === 503 ? '检查 Collector 地址、Token 配置及服务端出口闸门。' :
+          response.status === 502 ? '检查 Collector 网络连通性、TLS 和响应格式。' : '';
+        throw new Error(`连接测试失败（HTTP ${response.status}）：${detail}${statusHint ? `。${statusHint}` : ''}`);
+      }
+      if (payload.ok !== true) throw new Error('Collector 已响应，但健康状态未确认（缺少 ok=true）。');
+
+      // /health is intentionally public and does not validate the configured bearer token.
+      // /v1/tasks is authenticated but read-only and does not trigger external crawling.
+      const authResponse = await collectorFetch('/api/resource-collector/tasks', { cache: 'no-store' });
+      const authPayload = await authResponse.json().catch(() => ({}));
+      if (!authResponse.ok) {
+        const detail = typeof authPayload.detail === 'string' ? authPayload.detail :
+          typeof authPayload.error === 'string' ? authPayload.error : '未提供错误详情';
+        const authHint = authResponse.status === 401 ? 'Collector 拒绝了 Token，请核对 SCRAPLING_API_TOKEN。' :
+          authResponse.status === 403 ? 'Preview 认证策略拒绝了资源采集请求，请确认已登录受保护 Preview。' :
+          authResponse.status === 503 ? 'Collector 服务端配置或安全出口闸门未就绪。' : '';
+        throw new Error(`健康检查通过，但 Token/采集 API 验证失败（HTTP ${authResponse.status}）：${detail}${authHint ? `。${authHint}` : ''}`);
+      }
+      if (!Array.isArray(authPayload.tasks)) throw new Error('Collector Token 已接受，但任务 API 返回格式不正确。');
+      setConnectionStatus('连接成功：Collector 健康检查和 Token 认证均通过。');
+    } catch (reason) {
+      setConnectionStatus('连接测试未通过。');
+      setError(reason instanceof Error ? reason.message : 'Collector 连接测试失败。');
+    } finally {
+      setTestingConnection(false);
+    }
+  };
+
+  const loadTasks = async () => {
+    try {
+      const response = await collectorFetch('/api/resource-collector/tasks', { cache: 'no-store' });
+      const payload = await response.json();
+      if (response.ok) setTasks(Array.isArray(payload.tasks) ? payload.tasks : []);
+    } catch {
+      // Keep the discovery and collection panel usable if task history is temporarily unavailable.
+    }
+  };
+
+  useEffect(() => { void loadTasks(); }, []);
+
+  const discover = async () => {
+    setBusy(true);
+    setError('');
+    setSelectedSite(null);
+    setCandidates([]);
+    try {
+      const response = await collectorFetch('/api/resource-collector', { cache: 'no-store' });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || payload.detail || 'FMHY 目录加载失败。');
+      setSites(Array.isArray(payload.sites) ? payload.sites : []);
+      setLoaded(true);
+      await loadTasks();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '无法连接资源采集服务。');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const crawl = async (site: CollectorSite) => {
+    setBusy(true);
+    setError('');
+    setResultMessage('');
+    setSelectedSite(site);
+    setCandidates([]);
+    try {
+      const response = await collectorFetch('/api/resource-collector', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: site.url }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || payload.detail || `Scrapling 采集失败（HTTP ${response.status}）。`);
+      const discoveredCandidates: CollectorCandidate[] = Array.isArray(payload.candidates) ? payload.candidates : [];
+      setCandidates(discoveredCandidates);
+      setCrawlDiagnostics({
+        pageTitle: payload.page_title, finalUrl: payload.final_url || payload.page_url,
+        mode: payload.mode, capturedRequestCount: payload.captured_request_count,
+        httpSpider: payload.diagnostics?.http_spider, browser: payload.diagnostics?.browser,
+        errors: Array.isArray(payload.errors) ? payload.errors : [],
+      });
+      await loadTasks();
+      const cmsCandidates = discoveredCandidates.filter((candidate) => candidate.kind === 'cms-api-candidate');
+      for (const candidate of cmsCandidates.slice(0, 10)) {
+        await validateCandidate(candidate, site.url, true);
+      }
+      if (cmsCandidates.length > 10) {
+        setResultMessage((current) => [current, `另有 ${cmsCandidates.length - 10} 个 CMS 候选未自动验证，可逐项手动验证。`].filter(Boolean).join(' '));
+      }
+      if (!payload.candidates?.length) setError(
+        Array.isArray(payload.errors) && payload.errors.length
+          ? `采集未提取到候选资源：${payload.errors.join('；')}`
+          : '采集已完成，但没有发现可识别的公开媒体或播放器地址。请查看下方诊断信息。'
+      );
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Scrapling 采集失败。');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const retryTask = async (task: CollectorTask) => {
+    setBusy(true);
+    setError('');
+    try {
+      const response = await collectorFetch(`/api/resource-collector/tasks/${task.id}/retry`, { method: 'POST' });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || payload.detail || `任务重试失败（HTTP ${response.status}）。`);
+      setSelectedSite({ title: task.host, host: task.host, url: task.url, directory: 'FMHY / Movies-TV-Anime' });
+      const retryCandidates: CollectorCandidate[] = Array.isArray(payload.candidates) ? payload.candidates : [];
+      setCandidates(retryCandidates);
+      await loadTasks();
+      const cmsCandidates = retryCandidates.filter((candidate) => candidate.kind === 'cms-api-candidate');
+      for (const candidate of cmsCandidates.slice(0, 10)) {
+        await validateCandidate(candidate, task.url, true);
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '任务重试失败。');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const validateCandidate = async (candidate: CollectorCandidate, detailUrl = selectedSite?.url, quiet = false) => {
+    if (!candidate.id) {
+      setError('采集服务没有返回候选资源 ID，请重新采集。');
+      return;
+    }
+    if (!quiet) setBusy(true);
+    if (!quiet) {
+      setError('');
+      setResultMessage('');
+    }
+    try {
+      const response = await collectorFetch(`/api/resource-collector/candidates/${candidate.id}/validate`, { method: 'POST' });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || payload.detail || `资源验证失败（HTTP ${response.status}）。`);
+      const validation = payload.validation ?? {};
+      const accessState = validation.access?.access_state ?? candidate.access_state ?? 'ACCESS_UNKNOWN';
+      const cmsVerified = candidate.kind === 'cms-api-candidate'
+        && validation.cms_shape === true && validation.reachable === true && accessState === 'PUBLIC';
+      const mediaVerified = candidate.kind === 'direct-media'
+        && validation.reachable === true && accessState === 'PUBLIC';
+      const nextStatus = cmsVerified ? 'validated' : mediaVerified ? 'checked' : ['embedded-player', 'public-api-response'].includes(candidate.kind) ? 'review' : 'rejected';
+      setCandidates((current) => current.map((item) => item.id === candidate.id
+        ? { ...item, status: nextStatus, access_state: accessState, validation }
+        : item));
+
+      if (cmsVerified) {
+        const registration = registerValidatedCmsSource(
+          useAppStore.getState(),
+          candidate,
+          validation,
+          detailUrl,
+        );
+        if (registration.registered) {
+          setResultMessage((current) => [current, `CMS 点播源已注册并默认启用：${registration.sourceUrl}`].filter(Boolean).join('；'));
+        } else if (registration.duplicate) {
+          setResultMessage((current) => [current, '该 CMS 点播源已经存在于影视源管理中，无需重复添加。'].filter(Boolean).join('；'));
+        } else {
+          setError(registration.reason || 'CMS 点播源注册失败。');
+        }
+      } else if (mediaVerified) {
+        setResultMessage((current) => [current, '直接媒体地址已通过公开访问检查，可在此独立播放；它不会被添加为 CMS 点播源。'].filter(Boolean).join('；'));
+      } else if (candidate.kind === 'cms-api-candidate') {
+        setError(validation.reason || validation.access?.reason || '该地址未通过 CMS API 结构及公开访问验证，没有加入点播源。');
+      } else if (['embedded-player', 'public-api-response'].includes(candidate.kind)) {
+        setResultMessage(validation.note || '已识别为网页播放器入口，不是 CMS 点播 API；只会提取其公开可访问的媒体请求。');
+      } else if (accessState !== 'PUBLIC') {
+        setError(validation.access?.reason || candidate.reason || `资源未确认可公开访问（${accessState}），已阻止注册或播放。`);
+      } else {
+        setResultMessage(validation.note || '这是网页/播放器入口，不是 CMS 点播 API；请在页面采集结果中查看其可公开提取的媒体请求。');
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '资源验证失败。');
+    } finally {
+      if (!quiet) setBusy(false);
+    }
+  };
+
+  return (
+    <section className="space-y-4">
+      <div className="rounded-2xl border border-line bg-card p-4 space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold text-content">Scrapling 连接配置 · 本机 Preview 测试</h3>
+          <p className="mt-1 text-xs leading-5 text-muted">填写 Zo Computer 部署的 Collector 地址与密钥。配置仅保存在当前浏览器 LocalStorage，通过已登录的 LibreTV Worker 代理转发；不会写入 Git 或 Cloudflare 环境变量。当前仅用于 PR #60 Preview 测试。</p>
+        </div>
+        <label className="block space-y-1">
+          <span className="text-xs font-semibold text-content">SCRAPLING_API_BASE · 采集服务地址</span>
+          <input className="input w-full" type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false}
+            placeholder="https://your-scrapling-collector.example.com" value={collectorBase}
+            onChange={(event) => { setCollectorBase(event.target.value); setConfigSaved(false); }} />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-xs font-semibold text-content">SCRAPLING_API_TOKEN · 采集服务密钥</span>
+          <div className="flex gap-2">
+            <input className="input min-w-0 flex-1" type={showCollectorToken ? 'text' : 'password'} autoComplete="off"
+              autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="粘贴 Collector Bearer Token"
+              value={collectorToken} onChange={(event) => { setCollectorToken(event.target.value); setConfigSaved(false); }} />
+            <button type="button" className="btn-ghost btn-sm shrink-0" onClick={() => setShowCollectorToken((value) => !value)}>{showCollectorToken ? '隐藏' : '显示'}</button>
+          </div>
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn-primary btn-sm" onClick={saveCollectorSettings}>保存到本机</button>
+          <button type="button" className="btn-ghost btn-sm" onClick={() => void testCollectorConnection()} disabled={testingConnection}>{testingConnection ? '测试中…' : '保存并测试连接'}</button>
+          <button type="button" className="btn-ghost btn-sm" onClick={clearCollectorSettings}>清除本机配置</button>
+        </div>
+        {configSaved ? <p className="text-[11px] text-success">已保存到此设备的浏览器</p> : null}
+        {connectionStatus ? <p className="text-xs text-muted" role="status">{connectionStatus}</p> : null}
+        <p className="text-[11px] leading-5 text-muted">仅接受公网 HTTPS 域名（443 端口）；Token 通过 HTTPS Header 发送给 LibreTV Worker，再由 Worker 转发给 Collector。清除后回退到服务端 SCRAPLING_API_BASE / SCRAPLING_API_TOKEN。LocalStorage 中的 Token 可被本机浏览器脚本读取，请只在可信设备的测试 Preview 使用。</p>
+      </div>
+
+      <div className="rounded-2xl border border-line bg-card p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-content">FMHY · 唯一网站发现目录</h3>
+            <p className="mt-1 text-xs text-muted">目录来源固定为 FMHY Movies / TV / Anime，不从其他目录扩展发现。</p>
+            <a className="mt-2 inline-flex text-xs text-accent underline" href="https://fmhy.net/video" target="_blank" rel="noreferrer">打开 FMHY 视频目录</a>
+          </div>
+          <button type="button" className="btn-primary btn-sm" onClick={() => void discover()} disabled={busy}>
+            {busy ? '处理中…' : loaded ? '刷新 FMHY 目录' : '发现网站'}
+          </button>
+        </div>
+      </div>
+
+      {error ? <p className="rounded-xl border border-line bg-card px-3 py-2 text-xs text-muted" role="status">{error}</p> : null}
+      {resultMessage ? <p className="rounded-xl border border-line bg-card px-3 py-2 text-xs text-muted" role="status">{resultMessage}</p> : null}
+
+      {sites.length > 0 ? (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-content">发现的网站</h3>
+            <span className="text-xs text-muted">{sites.length} 个候选站点</span>
+          </div>
+          <div className="max-h-80 space-y-2 overflow-y-auto">
+            {sites.map((site) => (
+              <div key={site.host} className="flex items-center gap-3 rounded-xl border border-line bg-card p-3">
+                <div className="min-w-0 flex-1">
+                  <strong className="block truncate text-sm text-content">{site.title}</strong>
+                  <span className="block truncate text-xs text-muted">{site.host}</span>
+                </div>
+                <button type="button" className="btn-ghost btn-sm shrink-0" onClick={() => void crawl(site)} disabled={busy}>
+                  {selectedSite?.host === site.host && busy ? '采集中…' : 'Scrapling 检查'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : loaded ? (
+        <p className="text-xs text-muted">FMHY 当前没有返回可用的外部站点链接。</p>
+      ) : null}
+
+      {tasks.length > 0 ? (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-content">采集任务记录</h3>
+            <button type="button" className="btn-ghost btn-sm" onClick={() => void loadTasks()}>刷新</button>
+          </div>
+          <div className="max-h-52 space-y-2 overflow-y-auto">
+            {tasks.map((task) => (
+              <div key={task.id} className="rounded-xl border border-line bg-card p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-xs text-content">{task.host}</span>
+                  <span className="shrink-0 text-[10px] text-muted">{task.status} · {task.result_count} 项</span>
+                </div>
+                <p className="mt-1 truncate text-[10px] text-muted">{task.url}</p>
+                {task.error ? <p className="mt-1 text-[10px] text-warning">{task.error}</p> : null}
+                {['failed', 'interrupted', 'partial'].includes(task.status) ? (
+                  <button type="button" className="mt-2 btn-ghost btn-sm" disabled={busy} onClick={() => void retryTask(task)}>重试任务</button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {selectedSite ? (
+        <div className="space-y-2 rounded-2xl border border-line bg-card p-4">
+          <div>
+            <h3 className="text-sm font-semibold text-content">采集结果 · {selectedSite.title}</h3>
+            <p className="mt-1 truncate text-xs text-muted">{selectedSite.url}</p>
+          </div>
+          {crawlDiagnostics ? (
+            <div className="rounded-lg border border-line bg-chip/60 p-3 text-[11px] text-muted space-y-1.5">
+              <p><strong className="text-content">页面标题：</strong>{crawlDiagnostics.pageTitle || '未获取（HTTP Spider 未提供页面元数据）'}</p>
+              <p className="break-all"><strong className="text-content">最终访问地址：</strong>{crawlDiagnostics.finalUrl || selectedSite.url}</p>
+              <p><strong className="text-content">采集模式：</strong>{crawlDiagnostics.mode || '未知'} · <strong className="text-content">捕获请求：</strong>{crawlDiagnostics.capturedRequestCount ?? 0}</p>
+              <p><strong className="text-content">HTTP Spider：</strong>{crawlDiagnostics.httpSpider?.status || '未运行'} · 候选 {crawlDiagnostics.httpSpider?.candidate_count ?? 0}{crawlDiagnostics.httpSpider?.error ? ` · ${crawlDiagnostics.httpSpider.error}` : ''}</p>
+              <p><strong className="text-content">浏览器采集：</strong>{crawlDiagnostics.browser?.status || '未运行'} · 候选 {crawlDiagnostics.browser?.candidate_count ?? 0}{crawlDiagnostics.browser?.error ? ` · ${crawlDiagnostics.browser.error}` : ''}</p>
+              {crawlDiagnostics.errors?.map((item, index) => <p key={index} className="text-warning">{item}</p>)}
+            </div>
+          ) : null}
+          {candidates.length > 0 ? candidates.map((candidate) => (
+            <div key={candidate.url} className="flex min-w-0 items-center gap-2 rounded-lg bg-chip p-2">
+              <div className="min-w-0 flex-1">
+                <span className="block text-[10px] text-muted">{candidate.kind} · {candidate.host} · {candidate.status === 'validated' ? 'CMS 结构与公开访问通过' : candidate.status === 'checked' ? '媒体地址检查通过' : candidate.status === 'rejected' ? '验证未通过' : candidate.status === 'review' ? '网页入口，需人工确认' : '待验证'}</span>
+                {candidate.access_state ? <span className="block text-[10px] font-semibold text-content">{candidate.access_state}{candidate.drm_systems?.length ? ` · ${candidate.drm_systems.join(', ')}` : ''}</span> : null}
+                {candidate.reason ? <span className="block text-[10px] text-muted">{candidate.reason}</span> : null}
+                {candidate.next_action ? <span className="block text-[10px] text-muted">{candidate.next_action}</span> : null}
+                {candidate.validation?.reason ? <span className="block text-[10px] text-muted">{candidate.validation.reason}</span> : null}
+                {candidate.validation?.note ? <span className="block text-[10px] text-muted">{candidate.validation.note}</span> : null}
+                <a className="block truncate text-xs text-content underline" href={candidate.url} target="_blank" rel="noreferrer">{candidate.url}</a>
+              </div>
+              <div className="flex shrink-0 flex-wrap gap-1">
+                {candidate.access_state === 'PUBLIC' && candidate.kind === 'direct-media' && candidate.status === 'checked' ? (
+                  <button type="button" className="btn-primary btn-sm" onClick={() => setPlayingCandidate(candidate)}>播放</button>
+                ) : null}
+                <button type="button" className="btn-ghost btn-sm" disabled={busy || !candidate.id || ['AUTH_REQUIRED', 'SUBSCRIPTION_REQUIRED', 'DRM_PROTECTED', 'ENCRYPTED_STREAM'].includes(candidate.access_state || '')} onClick={() => void validateCandidate(candidate)}>
+                  {candidate.status === 'validated' ? '已验证' : candidate.status === 'checked' ? '已检查' : candidate.status === 'rejected' ? '验证失败' : '验证'}
+                </button>
+                <button type="button" className="btn-ghost btn-sm" onClick={() => void copyToClipboard(candidate.url)}>复制</button>
+              </div>
+              {candidate.validation?.cms_shape ? <span className="text-[10px] text-success">CMS API 可用，已加入点播源</span> : null}
+            </div>
+          )) : <p className="text-xs text-muted">尚未发现可直接识别的媒体链接。</p>}
+        </div>
+      ) : null}
+
+      <p className="text-xs leading-6 text-muted">底层引擎：Scrapling Python 服务。仅提取公开可访问的媒体/播放器链接，不绕过登录、付费墙、DRM 或访问控制。可直接播放的媒体直链使用 LibreTV 原有 PlayerShell 预览；这类直链不会冒充 CMS 点播 API 源。</p>
+      {playingCandidate ? <CollectorDirectPlayer candidate={playingCandidate} onClose={() => setPlayingCandidate(null)} /> : null}
+    </section>
+  );
+}
+
+function CollectorDirectPlayer({ candidate, onClose }: { candidate: CollectorCandidate; onClose: () => void }) {
+  const adFilter = useAppStore((state) => state.adFilter);
+  const [pendingStart, setPendingStart] = useState<number | null>(null);
+  return (
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center overflow-y-auto bg-black/95 p-3 sm:p-6" role="presentation">
+      <section className="w-full max-w-5xl overflow-hidden rounded-2xl border border-white/15 bg-[#101014] text-white shadow-2xl" role="dialog" aria-modal="true" aria-label="资源采集结果预览">
+        <header className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold">资源预览</h3>
+            <p className="truncate text-xs text-white/55">{candidate.host} · {candidate.kind}</p>
+          </div>
+          <button type="button" className="h-10 w-10 rounded-full bg-white/10 text-xl" onClick={onClose} aria-label="关闭预览">×</button>
+        </header>
+        <CollectorPlayerShell
+          url={candidate.url}
+          title={candidate.host}
+          adFilter={adFilter}
+          autoplayNext={false}
+          autoSkipSegments={false}
+          pendingStart={pendingStart}
+          onPendingStart={setPendingStart}
+          episodeKey={`collector:${candidate.host}`}
+        />
+      </section>
+    </div>
   );
 }
 

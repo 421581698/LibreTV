@@ -169,6 +169,7 @@ export function PlayerShell({
   const [hint, setHint] = useState('');
   // 起播前的品牌占位图（沿用旧版 nomedia 素材），实际开始播放后隐藏
   const [showPoster, setShowPoster] = useState(true);
+  const [showPlayFallback, setShowPlayFallback] = useState(false);
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -447,7 +448,11 @@ export function PlayerShell({
         restoreCleanupRef.current?.();
         restoreCleanupRef.current = null;
         ensurePrefetch(mediaUrl, prefetchAnchor);
-        video.play().catch(() => {});
+        video.play().catch(() => {
+          // iOS Safari may reject autoplay after async detail/source loading.
+          // Keep the player inline and offer a user-activated retry instead of a silent poster.
+          setShowPlayFallback(true);
+        });
       } catch {
         // IndexedDB 读取失败时不阻塞播放，后续事件仍可再次尝试恢复。
       } finally {
@@ -555,6 +560,7 @@ export function PlayerShell({
     getVideoPrefetcher().stop();
     setError('');
     setShowPoster(true);
+    setShowPlayFallback(false);
     const art = artRef.current;
     if (!art) return;
     setupHls(art.video, targetUrl, true);
@@ -721,6 +727,7 @@ export function PlayerShell({
     art.on('video:playing', () => {
       playbackStartedRef.current = true;
       setShowPoster(false);
+      setShowPlayFallback(false);
       // 仅在媒体真正恢复（有分片进入 buffer）后清错误遮罩：
       // 否则「视频轨挂了、音频轨先播出来」时会清掉遮罩，留下黑屏假死态
       if (mediaHealthyRef.current) setError('');
@@ -1085,6 +1092,21 @@ export function PlayerShell({
             backgroundRepeat: 'no-repeat',
           }}
         />
+      )}
+      {showPlayFallback && showPoster && !error && (
+        <button
+          type="button"
+          className="absolute inset-x-0 bottom-5 z-20 mx-auto min-h-11 w-fit rounded-full bg-amber-400 px-6 py-3 text-sm font-semibold text-black shadow-lg"
+          onClick={() => {
+            const art = artRef.current;
+            if (!art) return;
+            void art.play().then(() => setShowPlayFallback(false)).catch(() => {
+              showHint('暂时无法播放，请检查视频源或轻点播放控件重试');
+            });
+          }}
+        >
+          轻点开始播放
+        </button>
       )}
       {!error && skipPrompt && (
         <button

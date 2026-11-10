@@ -34,7 +34,7 @@ html.dark body {
 html::after {
   content: "";
   position: fixed;
-  z-index: 2147483000;
+  z-index: 1;
   left: 0;
   right: 0;
   bottom: 0;
@@ -49,7 +49,7 @@ html::after {
 body::after {
   content: "";
   position: fixed;
-  z-index: 2147482999;
+  z-index: 1;
   left: 0;
   right: 0;
   bottom: 0;

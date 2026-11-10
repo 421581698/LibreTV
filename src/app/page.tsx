@@ -11,6 +11,7 @@ import { V4HomepageContent } from '@/components/home/V4HomepageContent';
 import { useFridayDetailBridge } from '@/components/friday/useFridayDetailBridge';
 import { useHomeSearchController } from '@/components/home/useHomeSearchController';
 import { DetailModal } from '@/components/detail-modal';
+import { HomeInlinePlayer } from '@/components/home/HomeInlinePlayer';
 import { AggregatedCard, aggregateResults } from '@/components/video-card';
 import {
   useAppStore,
@@ -55,6 +56,8 @@ function HomeContent() {
 
   const [detailItem, setDetailItem] =
     useState<SearchResultItem | null>(null);
+  const [quickPlayItem, setQuickPlayItem] =
+    useState<SearchResultItem | null>(null);
   const [streamedOutcomes, setStreamedOutcomes] =
     useState<SourceSearchOutcome[]>([]);
 
@@ -98,7 +101,7 @@ function HomeContent() {
         toast(`暂未在已启用的点播源中找到《${movie.title}》的准确详情，请更换点播源后重试`, 'warning');
         return;
       }
-      setDetailItem(matched);
+      setQuickPlayItem(matched);
     } catch (error) {
       toast(error instanceof Error ? error.message : '获取影片详情失败，请稍后重试', 'error');
     }
@@ -242,7 +245,7 @@ function HomeContent() {
                       key={group.key}
                       group={group}
                       sources={selectedSources}
-                      onOpen={(item) => setDetailItem(item)}
+                      onOpen={(item) => setQuickPlayItem(item)}
                     />
                   ))}
                 </div>
@@ -272,6 +275,7 @@ function HomeContent() {
         {!urlQuery && <V4HomepageContent onPick={openRecommendation} />}
       </main>
       <DetailModal item={detailItem} onClose={() => setDetailItem(null)} />
+      <HomeInlinePlayer item={quickPlayItem} onClose={() => setQuickPlayItem(null)} />
     </div>
   );
 }

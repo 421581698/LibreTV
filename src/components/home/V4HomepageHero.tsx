@@ -34,7 +34,13 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
             />
           </div>
           <div className="v4-hero-veil" aria-hidden="true" />
-          <div className="v4-hero-content">
+          <button
+            type="button"
+            className="absolute inset-0 z-[1] cursor-pointer"
+            aria-label={`立即播放：${slide.title}`}
+            onClick={() => onPick(slide)}
+          />
+          <div className="v4-hero-content" style={{ zIndex: 2 }}>
             <h1>{slide.title}</h1>
             <div className="v4-hero-actions">
               <button type="button" className="v4-hero-primary" onClick={() => onPick(slide)}>
