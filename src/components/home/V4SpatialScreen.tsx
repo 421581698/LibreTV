@@ -6,6 +6,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { V4HomepageHeader } from '@/components/home/V4HomepageHeader';
+import { requestShowDownloadManager } from '@/components/download-manager';
 import { AnimeRecommendationSection, RecommendSection } from '@/components/douban-section';
 import { DoubanCard } from '@/components/video-card';
 import { GlassPanel } from '@/components/ui/glass';
@@ -242,6 +243,7 @@ function ResourcesScreen() {
 
 function MeScreen() {
   const history = useLiveQuery(() => db.history.orderBy('timestamp').reverse().limit(24).toArray(), []);
+  const downloads = useLiveQuery(() => db.downloads.orderBy('createdAt').reverse().limit(20).toArray(), []);
   return (
     <div className="v4-me-layout">
       <section className="v4-me-cover" aria-label="我的个人空间封面">
@@ -273,6 +275,12 @@ function MeScreen() {
         ) : (
           <div className="v4-me-history-grid">{history.map((item) => <MeHistoryCard key={item.id} item={item} />)}</div>
         )}
+      </section>
+      <section className="v4-spatial-panel v4-me-library-actions">
+        <button type="button" className="v4-settings-card" onClick={() => requestShowDownloadManager()}>
+          <div><strong>下载管理</strong><p>{downloads?.length ?? 0} 个本机下载任务 · 查看进度与管理文件</p></div>
+          <b aria-hidden="true">›</b>
+        </button>
       </section>
       <section className="v4-spatial-panel v4-me-settings-entry">
         <Link href="/settings" className="v4-settings-card">
