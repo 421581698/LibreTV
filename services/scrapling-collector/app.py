@@ -1210,6 +1210,45 @@ def discover_sites() -> list[dict]:
     return sites
 
 
+def extract_cms_api_list(payload: object) -> list | None:
+    """Return a list only when the response has recognizable Apple/MacCMS VOD fields."""
+    if not isinstance(payload, dict):
+        return None
+    data = payload.get("data")
+    candidates = [payload.get("list")]
+    if isinstance(data, dict):
+        candidates.append(data.get("list"))
+    for items in candidates:
+        if not isinstance(items, list):
+            continue
+        # A non-empty list must contain actual CMS VOD records, not an arbitrary JSON array.
+        if items:
+            if any(
+                isinstance(item, dict)
+                and (
+                    ("vod_id" in item and "vod_name" in item)
+                    or ("vod_id" in item and "vod_name" in item and "vod_pic" in item)
+                )
+                for item in items[:20]
+            ):
+                return items
+            continue
+        # Empty results are valid only with the standard CMS response envelope.
+        if any(key in payload for key in ("code", "msg", "page", "pagecount", "limit", "total")):
+            return items
+        if isinstance(data, dict) and any(
+            key in data for key in ("code", "msg", "page", "pagecount", "limit", "total")
+        ):
+            return items
+    return None
+
+
+def cms_source_root(raw_url: str) -> str:
+    """Drop per-request query/fragment while retaining the provider's CMS API path."""
+    parsed = urlparse(raw_url)
+    return parsed._replace(query="", fragment="").geturl().rstrip("/")
+
+
 def classify_url(raw_url: str) -> tuple[str, str] | None:
     parsed = urlparse(raw_url)
     if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
@@ -1531,11 +1570,7 @@ def captured_api_candidates(session, page_url: str, limit: int) -> list[dict]:
                     url,
                 )
                 payload = json.loads(response_body)
-                data = payload.get("data") if isinstance(payload, dict) else None
-                api_list = payload.get("list") if isinstance(payload, dict) else None
-                if not isinstance(api_list, list) and isinstance(data, dict):
-                    api_list = data.get("list")
-                if isinstance(api_list, list):
+                if extract_cms_api_list(payload) is not None:
                     kind = "cms-api-candidate"
                 extracted_media = extract_public_urls_from_json(payload)
             except Exception:
@@ -2014,26 +2049,32 @@ def validate_candidate(candidate_id: str, authorization: str | None = Header(def
             body_text = body.decode("utf-8", errors="replace") if isinstance(body, bytes) else str(body)
             access = classify_access_state(page.status, page.headers, body_text, raw_url)
             parsed = json.loads(body_text)
-            data = parsed.get("data") if isinstance(parsed, dict) else None
-            cms_list = parsed.get("list") if isinstance(parsed, dict) else None
-            if not isinstance(cms_list, list) and isinstance(data, dict):
-                cms_list = data.get("list")
-            cms_shape = (
-                isinstance(cms_list, list)
-                and isinstance(parsed, dict)
-                and 200 <= page.status < 300
-                and ("json" in content_type or content_type.endswith("+json"))
-            )
-            validation.update({"reachable": 200 <= page.status < 400, "json": isinstance(parsed, dict),
-                               "cms_shape": cms_shape,
-                               "sample_count": len(cms_list) if isinstance(cms_list, list) else 0,
-                               "content_type": content_type, "http_status": page.status,
-                               "access": access})
+            cms_list = extract_cms_api_list(parsed)
+            cms_shape = cms_list is not None and 200 <= page.status < 300
+            validation.update({
+                "reachable": 200 <= page.status < 300,
+                "json": isinstance(parsed, dict),
+                "cms_shape": cms_shape,
+                "sample_count": len(cms_list) if isinstance(cms_list, list) else 0,
+                "content_type": content_type,
+                "http_status": page.status,
+                "source_url": cms_source_root(raw_url) if cms_shape else None,
+                "access": access,
+                "reason": (
+                    "Apple/MacCMS VOD JSON structure verified"
+                    if cms_shape else
+                    "Response is reachable JSON but does not contain a recognizable CMS VOD list (vod_id + vod_name)"
+                ),
+            })
             candidate_status = "validated" if cms_shape and access["access_state"] == "PUBLIC" else "rejected"
         except Exception as exc:
             if access:
                 validation["access"] = access
-            validation.update({"reachable": False, "error": type(exc).__name__})
+            validation.update({
+                "reachable": False,
+                "error": type(exc).__name__,
+                "reason": f"CMS API validation failed: {type(exc).__name__}",
+            })
             candidate_status = "rejected"
     elif candidate["kind"] == "direct-media":
         throttle(host)
