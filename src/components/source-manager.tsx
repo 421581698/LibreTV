@@ -327,17 +327,19 @@ function ResourceCollectorPanel() {
   const crawl = async (site: CollectorSite) => {
     setBusy(true);
     setError('');
+    setResultMessage('');
     setSelectedSite(site);
     setCandidates([]);
     try {
-      const response = await fetch('/api/resource-collector', {
+      const response = await collectorFetch('/api/resource-collector', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: site.url }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Scrapling 采集失败。');
-      setCandidates(Array.isArray(payload.candidates) ? payload.candidates : []);
+      if (!response.ok) throw new Error(payload.error || payload.detail || `Scrapling 采集失败（HTTP ${response.status}）。`);
+      const discoveredCandidates: CollectorCandidate[] = Array.isArray(payload.candidates) ? payload.candidates : [];
+      setCandidates(discoveredCandidates);
       setCrawlDiagnostics({
         pageTitle: payload.page_title, finalUrl: payload.final_url || payload.page_url,
         mode: payload.mode, capturedRequestCount: payload.captured_request_count,
@@ -345,7 +347,14 @@ function ResourceCollectorPanel() {
         errors: Array.isArray(payload.errors) ? payload.errors : [],
       });
       await loadTasks();
-      if (!payload.candidates?.length) setError(
+      const cmsCandidates = discoveredCandidates.filter((candidate) => candidate.kind === 'cms-api-candidate');
+      for (const candidate of cmsCandidates.slice(0, 10)) {
+        await validateCandidate(candidate, site.url, true);
+      }
+      if (cmsCandidates.length > 10) {
+        setResultMessage((current) => [current, `另有 ${cmsCandidates.length - 10} 个 CMS 候选未自动验证，可逐项手动验证。`].filter(Boolean).join(' '));
+      }
+      if (!discoveredCandidates.length) setError(
         Array.isArray(payload.errors) && payload.errors.length
           ? `采集未提取到候选资源：${payload.errors.join('；')}`
           : '采集已完成，但没有发现可识别的公开媒体或播放器地址。请查看下方诊断信息。'
@@ -360,13 +369,22 @@ function ResourceCollectorPanel() {
   const retryTask = async (task: CollectorTask) => {
     setBusy(true);
     setError('');
+    setResultMessage('');
     try {
       const response = await collectorFetch(`/api/resource-collector/tasks/${task.id}/retry`, { method: 'POST' });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || '任务重试失败。');
+      if (!response.ok) throw new Error(payload.error || payload.detail || '任务重试失败。');
       setSelectedSite({ title: task.host, host: task.host, url: task.url, directory: 'FMHY / Movies-TV-Anime' });
-      setCandidates(Array.isArray(payload.candidates) ? payload.candidates : []);
+      const retryCandidates: CollectorCandidate[] = Array.isArray(payload.candidates) ? payload.candidates : [];
+      setCandidates(retryCandidates);
       await loadTasks();
+      const cmsCandidates = retryCandidates.filter((candidate) => candidate.kind === 'cms-api-candidate');
+      for (const candidate of cmsCandidates.slice(0, 10)) {
+        await validateCandidate(candidate, task.url, true);
+      }
+      if (cmsCandidates.length > 10) {
+        setResultMessage((current) => [current, `另有 ${cmsCandidates.length - 10} 个 CMS 候选未自动验证，可逐项手动验证。`].filter(Boolean).join(' '));
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '任务重试失败。');
     } finally {
@@ -374,13 +392,16 @@ function ResourceCollectorPanel() {
     }
   };
 
-  const validateCandidate = async (candidate: CollectorCandidate) => {
+  const validateCandidate = async (candidate: CollectorCandidate, detailUrl = selectedSite?.url, quiet = false) => {
     if (!candidate.id) {
       setError('采集服务没有返回候选资源 ID，请重新采集。');
       return;
     }
-    setBusy(true);
-    setError('');
+    if (!quiet) setBusy(true);
+    if (!quiet) {
+      setError('');
+      setResultMessage('');
+    }
     try {
       const response = await collectorFetch(`/api/resource-collector/candidates/${candidate.id}/validate`, { method: 'POST' });
       const payload = await response.json();
@@ -411,7 +432,7 @@ function ResourceCollectorPanel() {
           useAppStore.getState(),
           candidate,
           validation,
-          selectedSite?.url,
+          detailUrl,
         );
         if (registration.registered) {
           setResultMessage((current) => [current, `CMS 点播源已注册并默认启用：${registration.sourceUrl}`].filter(Boolean).join('；'));
@@ -430,7 +451,7 @@ function ResourceCollectorPanel() {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '资源验证失败。');
     } finally {
-      setBusy(false);
+      if (!quiet) setBusy(false);
     }
   };
 
@@ -480,6 +501,7 @@ function ResourceCollectorPanel() {
       </div>
 
       {error ? <p className="rounded-xl border border-line bg-card px-3 py-2 text-xs text-muted" role="status">{error}</p> : null}
+      {resultMessage ? <p className="rounded-xl border border-line bg-card px-3 py-2 text-xs text-muted" role="status">{resultMessage}</p> : null}
 
       {sites.length > 0 ? (
         <div className="space-y-2">
