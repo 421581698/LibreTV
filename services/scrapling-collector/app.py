@@ -1767,6 +1767,7 @@ def validate_candidate(candidate_id: str, authorization: str | None = Header(def
     candidate_status = "review"
     if candidate["kind"] == "cms-api-candidate":
         throttle(host)
+        access = None
         try:
             page = Fetcher.get(raw_url, timeout=20, follow_redirects="safe")
             content_type = str(page.headers.get("content-type", "")).lower()
@@ -1791,6 +1792,8 @@ def validate_candidate(candidate_id: str, authorization: str | None = Header(def
                                "access": access})
             candidate_status = "validated" if cms_shape and access["access_state"] == "PUBLIC" else "rejected"
         except Exception as exc:
+            if access:
+                validation["access"] = access
             validation.update({"reachable": False, "error": type(exc).__name__})
             candidate_status = "rejected"
     elif candidate["kind"] == "direct-media":
