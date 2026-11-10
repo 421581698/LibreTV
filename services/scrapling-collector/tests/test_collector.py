@@ -1087,8 +1087,8 @@ segment-2.ts
             def css(self, selector, **kwargs):
                 if selector == "a":
                     return [
-                        Anchor("https://archive.org/details/movies", "Internet Archive"),
-                        Anchor("https://archive.org/details/another", "Internet Archive duplicate"),
+                        Anchor("https://loc.gov/collections/film-and-video/", "Library of Congress"),
+                        Anchor("https://loc.gov/item/another", "Library of Congress duplicate"),
                         Anchor("https://fmhy.net/video", "FMHY internal"),
                         Anchor("https://tubi.tv/category/movies", "Tubi"),
                         Anchor("http://insecure.example", "Insecure"),
@@ -1096,7 +1096,7 @@ segment-2.ts
                 return []
 
         sites = collector.fmhy_sites_from_page(Page())
-        self.assertEqual([site["host"] for site in sites], ["archive.org", "tubi.tv"])
+        self.assertEqual([site["host"] for site in sites], ["loc.gov", "tubi.tv"])
         self.assertTrue(all(site["directory"].startswith("FMHY / video") for site in sites))
         self.assertFalse(any(site["host"] == "insecure.example" for site in sites))
 
