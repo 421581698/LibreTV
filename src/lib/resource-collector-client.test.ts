@@ -9,6 +9,7 @@ afterEach(() => {
 describe('collectorRequest', () => {
   it.each([
     ['http://public.example', 'rejects non-TLS external collector endpoints'],
+    ['http://scrapling-collector:8000', 'rejects Docker Compose HTTP endpoints at the HTTPS-only proxy boundary'],
     ['https://user:pass@collector.example', 'rejects credentials in the collector URL'],
     ['https://collector.example/private-path', 'rejects collector URL path prefixes'],
     ['https://collector.example?token=leak', 'rejects query strings in the collector URL'],
@@ -50,17 +51,6 @@ describe('collectorRequest', () => {
 
     await collectorRequest('/v1/tasks', { headers: { Authorization: 'Bearer attacker-value' } });
     expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer server-only-token');
-  });
-
-  it('allows only the documented Docker Compose internal HTTP service', async () => {
-    vi.stubEnv('SCRAPLING_API_BASE', 'http://scrapling-collector:8000');
-    vi.stubEnv('SCRAPLING_API_TOKEN', 'server-only-token');
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
-    vi.stubGlobal('fetch', fetchMock);
-
-    const response = await collectorRequest('/v1/tasks');
-    expect(response.status).toBe(200);
-    expect(fetchMock).toHaveBeenCalledWith('http://scrapling-collector:8000/v1/tasks', expect.any(Object));
   });
 
   it('fails closed when either server-side setting is missing', async () => {
