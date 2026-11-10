@@ -1796,7 +1796,10 @@ def validate_candidate(candidate_id: str, authorization: str | None = Header(def
         probe = probe_direct_media(raw_url)
         hls_encryption_signal = ""
         if probe.get("media_format") == "hls":
-            methods = probe.get("encryption_methods") or []
+            methods = [
+                method for method in (probe.get("encryption_methods") or [])
+                if str(method).upper() != "NONE"
+            ]
             formats = probe.get("key_formats") or []
             signals = [f"#EXT-X-KEY:METHOD={method}" for method in methods]
             signals.extend(f"#EXT-X-KEY:KEYFORMAT={key_format}" for key_format in formats)
