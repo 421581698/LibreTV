@@ -93,3 +93,8 @@ After the owner manually deploys the Blueprint, verify all of the following befo
 4. Restart/redeploy the service and confirm task records remain available from the persistent `/data` disk.
 5. Set the Preview Worker's `SCRAPLING_API_BASE` and `SCRAPLING_API_TOKEN` secrets, then verify `/api/resource-collector` from the Preview app.
 6. Keep this service isolated from production. Do not reuse production secrets.
+
+
+## VPS deployment
+
+For a separately reachable HTTPS collector used by the Cloudflare-hosted PR #60 Preview, follow [VPS-DEPLOY.md](./VPS-DEPLOY.md). It adds a Caddy HTTPS ingress without publishing the collector's port 8000, and installs a systemd unit to re-apply the host egress firewall after Docker restarts. The Preview Worker must be configured with the VPS HTTPS base URL and the matching token; do not configure production.
