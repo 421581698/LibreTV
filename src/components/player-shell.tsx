@@ -695,6 +695,7 @@ export function PlayerShell({
       fullscreenWeb: true,
       miniProgressBar: true,
       mutex: true,
+      // Keep iOS Safari's video compositing stable without a frosted backdrop.
       backdrop: false,
       playsInline: true,
       airplay: true,
