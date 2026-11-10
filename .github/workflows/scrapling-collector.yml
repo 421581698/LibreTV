@@ -54,7 +54,7 @@ jobs:
       - name: Install collector dependencies
         run: python -m pip install --upgrade pip && pip install -r requirements.txt
       - name: Compile Python service
-        run: python -m py_compile app.py
+        run: python -m py_compile app.py registry_store.py worker.py
       - name: Run collector unit tests
         run: python -m unittest discover -s tests -v
       - name: Validate Docker Compose collector profile

@@ -94,6 +94,41 @@ services:
       retries: 3
       start_period: 20s
 
+  # Worker shares the API container's network namespace and pinned IP, so the
+  # host egress firewall covers both API and background crawling.
+  scrapling-worker:
+    profiles: ["collector"]
+    build:
+      context: ./services/scrapling-collector
+    container_name: libretv-scrapling-worker
+    restart: unless-stopped
+    network_mode: "service:scrapling-collector"
+    depends_on:
+      scrapling-collector:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,noexec,nosuid
+    shm_size: 256m
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 1g
+    cpus: 2.0
+    environment:
+      - SCRAPLING_API_TOKEN=${SCRAPLING_API_TOKEN:-}
+      - SCRAPLING_EGRESS_FIREWALL_CONFIRMED=${SCRAPLING_EGRESS_FIREWALL_CONFIRMED:-0}
+      - SCRAPLING_DB_PATH=${SCRAPLING_DB_PATH:-/data/collector.sqlite3}
+    volumes:
+      - scrapling_data:/data
+    command: ["python", "worker.py"]
+
 volumes:
   scrapling_data:
 

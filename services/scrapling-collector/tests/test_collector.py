@@ -8,12 +8,15 @@ os.environ.setdefault("SCRAPLING_API_TOKEN", "collector-test-token")
 os.environ.setdefault("SCRAPLING_DB_PATH", str(Path(tempfile.gettempdir()) / "libretv-scrapling-tests.sqlite3"))
 
 import app as collector
+import registry_store as registry
 
 
 class CollectorTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         collector.DB_PATH = Path(self.temp.name) / "collector.sqlite3"
+        registry.DB_PATH = collector.DB_PATH
+        registry.init()
         collector.init_db()
 
     def tearDown(self):
@@ -79,6 +82,9 @@ class CollectorTests(unittest.TestCase):
                 "Bearer test",
             )
         self.assertEqual(result["playback_verification"]["state"], "PLAYER_CONFIRMED")
+        registry_rows = registry.search_resources("Test movie")
+        self.assertEqual(len(registry_rows), 1)
+        self.assertEqual(registry_rows[0]["playback_state"], "PLAYER_CONFIRMED")
         with collector.db() as connection:
             stored = connection.execute(
                 "SELECT playback_verification FROM candidates WHERE id=?", (candidate_id,)
