@@ -246,7 +246,7 @@ def record_playback(resource_id: str, evidence: dict) -> dict | None:
             raise PermissionError("Resource must be validated and public")
         c.execute("""UPDATE registry_resources SET playback_state='PLAYER_CONFIRMED',
           updated_at=? WHERE id=?""", (now, resource_id))
-        c.execute("INSERT INTO registry_verifications VALUES(?,?,?,?,?)",
+        c.execute("INSERT INTO registry_verifications VALUES(?,?,?,?,?,?)",
                   (uuid.uuid4().hex, resource_id, "PLAYER", "PLAYER_CONFIRMED", _json(evidence), now))
         c.execute("INSERT INTO registry_history VALUES(?,?,?,?,?)",
                   (uuid.uuid4().hex, resource_id, "PLAYBACK_CONFIRMED", _json(evidence), now))
