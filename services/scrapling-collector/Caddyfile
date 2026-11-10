@@ -1,7 +1,3 @@
-{
-	email {$ACME_EMAIL:}
-}
-
 {$SCRAPLING_PUBLIC_HOST} {
 	encode zstd gzip
 	reverse_proxy scrapling-collector:8000
