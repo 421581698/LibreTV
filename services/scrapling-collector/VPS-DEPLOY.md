@@ -81,9 +81,12 @@ This flag is an operator attestation; it does not test the firewall. If the fire
 ## 5. Verify HTTPS, authentication, and readiness
 
 ```sh
-curl --fail https://${SCRAPLING_PUBLIC_HOST}/health
-curl -i https://${SCRAPLING_PUBLIC_HOST}/v1/discover
-curl --fail -H "Authorization: Bearer ${SCRAPLING_API_TOKEN}" https://${SCRAPLING_PUBLIC_HOST}/v1/discover
+set -a
+. ./.env
+set +a
+curl --fail "https://${SCRAPLING_PUBLIC_HOST}/health"
+curl -i "https://${SCRAPLING_PUBLIC_HOST}/v1/discover"
+curl --fail -H "Authorization: Bearer ${SCRAPLING_API_TOKEN}" "https://${SCRAPLING_PUBLIC_HOST}/v1/discover"
 ```
 
 Expected:
