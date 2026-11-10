@@ -1046,16 +1046,19 @@ def classify_access_state(status_code: int | None = None, headers=None, body: st
     hls_key_lines = re.findall(r"(?im)^#EXT-X-KEY\s*:\s*([^\r\n]+)", sample)
     if hls_key_lines:
         methods = sorted({
-            (parse_hls_attribute_list(line).get("METHOD") or "UNKNOWN")
+            method
             for line in hls_key_lines
+            for method in [(parse_hls_attribute_list(line).get("METHOD") or "UNKNOWN")]
+            if method.upper() != "NONE"
         })
-        return {
-            "access_state": "ENCRYPTED_STREAM",
-            "reason": "HLS encryption signaling detected; DRM system is not established",
-            "drm_systems": [],
-            "encryption_methods": methods,
-            "next_action": "Use an authorized provider playback path; do not retrieve keys or attempt decryption",
-        }
+        if methods:
+            return {
+                "access_state": "ENCRYPTED_STREAM",
+                "reason": "HLS encryption signaling detected; DRM system is not established",
+                "drm_systems": [],
+                "encryption_methods": methods,
+                "next_action": "Use an authorized provider playback path; do not retrieve keys or attempt decryption",
+            }
 
     auth_markers = (
         "login required", "sign in to continue", "please log in",
