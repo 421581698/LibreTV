@@ -19,7 +19,8 @@ class ResourceStatsTests(unittest.TestCase):
         self.db.execute("INSERT INTO candidates VALUES(?,?,?,?,?,?,?,?,?,?,?)", (
             "candidate-1","task-1","https://media.example/a.m3u8?token=secret","media.example",
             "direct-media","Film A","validated","PUBLIC",105,"{}",
-            json.dumps({"state":"PLAYER_CONFIRMED","decoded_width":3840,"decoded_height":2160})
+            json.dumps({"state":"PLAYER_CONFIRMED","decoded_width":3840,"decoded_height":2160,
+                        "observed_seconds":5,"progressed_seconds":4,"selected_rendition_bitrate_kbps":8500})
         ))
         self.db.execute("INSERT INTO candidates VALUES(?,?,?,?,?,?,?,?,?,?,?)", (
             "candidate-2","task-1","https://media.example/b.mp4","media.example",
