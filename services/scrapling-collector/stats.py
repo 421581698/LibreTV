@@ -119,10 +119,13 @@ def build_stats(connection: sqlite3.Connection, host=None):
         last_error = next((t["error"] for t in site_tasks if t.get("error")), None)
         preflight = sum(1 for item in unique_video.values()
                         if item.get("status") == "validated" and item.get("access_state") == "PUBLIC")
-        site_samples = playback_by_host.get(h, [])
-        sample_evidence = site_samples or [
-            _json(item.get("playback_verification")) for item in unique_confirmed.values()
-        ]
+        # Only real player-originated sessions represent end-user playback.
+        # Collector preview checks are useful diagnostics but must never inflate
+        # playback counts, resolution distributions, or site quality rankings.
+        all_site_samples = playback_by_host.get(h, [])
+        site_samples = [sample for sample in all_site_samples if sample.get("sample_source") == "player"]
+        preview_samples = [sample for sample in all_site_samples if sample.get("sample_source") == "collector_preview"]
+        sample_evidence = site_samples
         quality = _empty_quality()
         resolution_points = {"8K":100,"4K":95,"2K":90,"1080P":80,"720P":60,"480P":40,"SD":20,"未知":0}
         resolution_scores, progress_scores, bitrate_scores = [], [], []
@@ -177,7 +180,7 @@ def build_stats(connection: sqlite3.Connection, host=None):
             "episode_entries": int(registry.get("episode_entries") or 0),
             "registry_resources": int(registry.get("registry_resources") or 0),
             "health_status": health_status, "failure_streak": failure_streak,
-            "playback_samples": len(site_samples) if site_samples else len(unique_confirmed), "quality_score": quality_score,
+            "playback_samples": len(site_samples), "preview_samples": len(preview_samples), "quality_score": quality_score,
             "quality_score_state": "scored" if quality_score is not None else "insufficient_samples",
             "pages_visited": sum(int(t.get("pages_visited") or 0) for t in site_tasks),
             "pages_succeeded": sum(int(t.get("pages_visited") or 0) for t in site_tasks),
