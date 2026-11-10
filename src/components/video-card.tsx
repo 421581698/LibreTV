@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import type { SearchResultItem, SourceConfig } from '@/lib/types';
 import { useAppStore } from '@/lib/store';
@@ -141,7 +141,7 @@ export function AggregatedCard({
   const isFavorite = Boolean(favoriteCandidate && favorites?.some(
     (entry) => entry.sourceKey === favoriteCandidate.sourceKey && entry.vodId === favoriteCandidate.vodId
   ));
-  const toggleFavorite = async (event: React.MouseEvent<HTMLButtonElement>) => {
+  const toggleFavorite = async (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     if (!favoriteCandidate) return;
     if (isFavorite) {
