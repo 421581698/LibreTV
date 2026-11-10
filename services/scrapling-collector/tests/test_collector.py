@@ -308,7 +308,7 @@ class CollectorTests(unittest.TestCase):
                 return [
                     ("Content-Type", "video/mp4"),
                     ("Content-Length", "1024"),
-                    ("Content-Range", "bytes 0-0/1024"),
+                    ("Content-Range", "bytes 0-1023/1024"),
                 ]
 
             def close(self):
@@ -337,7 +337,7 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(result["http_status"], 206)
         self.assertTrue(result["range_supported"])
         self.assertEqual(Connection.last_request[0], "GET")
-        self.assertEqual(Connection.last_request[2]["Range"], "bytes=0-0")
+        self.assertEqual(Connection.last_request[2]["Range"], "bytes=0-1048575")
 
     def test_hls_probe_fetches_full_bounded_manifest_without_range(self):
         class Response:
