@@ -270,6 +270,18 @@ function HomeContent() {
               </>
             ) : isSearching ? (
               <ResultsSkeleton />
+            ) : searchQuery.isError ? (
+              <div className="flex flex-col items-center gap-3 py-8" role="alert">
+                <EmptyState
+                  icon="search"
+                  title="搜索暂时失败"
+                  description={searchQuery.error instanceof Error ? searchQuery.error.message : "请求点播源时发生错误，请稍后重试。"}
+                  className="!py-4"
+                />
+                <button type="button" className="btn-primary btn-sm" onClick={() => void searchQuery.refetch()}>
+                  重试搜索
+                </button>
+              </div>
             ) : (
               <EmptyState
                 icon="search"
