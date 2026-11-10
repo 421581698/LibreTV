@@ -19,6 +19,9 @@ on:
       - ".github/workflows/resource-playback-verification.yml"
   pull_request:
     paths:
+      - "services/scrapling-collector/**"
+      - "src/app/api/resource-collector/**"
+      - "docker-compose.yml"
       - "src/components/player-shell.tsx"
       - "src/components/source-manager.tsx"
       - "src/lib/media-playback.ts"
@@ -71,6 +74,6 @@ jobs:
       - name: Install collector dependencies
         run: python -m pip install --upgrade pip && pip install -r requirements.txt
       - name: Compile collector
-        run: python -m py_compile app.py
+        run: python -m py_compile app.py registry_store.py worker.py
       - name: Collector unit tests
         run: python -m unittest discover -s tests -v
