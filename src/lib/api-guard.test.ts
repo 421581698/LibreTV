@@ -37,4 +37,28 @@ describe('guardPrivateFeatureRequest', () => {
     }));
     expect(response).toBeNull();
   });
+  it('does not expose server-side Collector credentials through an unauthenticated public preview', async () => {
+    vi.stubEnv('AUTH_DISABLED', 'true');
+    vi.stubEnv('SCRAPLING_API_BASE', 'https://collector.example');
+    vi.stubEnv('SCRAPLING_API_TOKEN', 'server-only-token');
+
+    const response = guardPrivateFeatureRequest(new Request('https://preview.example/api/resource-collector'));
+    expect(response?.status).toBe(503);
+    await expect(response?.json()).resolves.toMatchObject({ code: 'COLLECTOR_NOT_CONFIGURED' });
+  });
+
+  it('allows a public preview caller to provide its own browser-local Collector credentials', () => {
+    vi.stubEnv('AUTH_DISABLED', 'true');
+    vi.stubEnv('SCRAPLING_API_BASE', 'https://collector.example');
+    vi.stubEnv('SCRAPLING_API_TOKEN', 'server-only-token');
+
+    const response = guardPrivateFeatureRequest(new Request('https://preview.example/api/resource-collector', {
+      headers: {
+        'x-scrapling-api-base': 'https://my-collector.example',
+        'x-scrapling-api-token': 'browser-local-token',
+      },
+    }));
+    expect(response).toBeNull();
+  });
+
 });

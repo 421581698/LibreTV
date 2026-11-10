@@ -34,9 +34,12 @@ export function guardPrivateFeatureRequest(req: Request): NextResponse | null {
   // its own HTTPS endpoint + bearer token (browser-local or server-side).
   const browserBase = req.headers.get('x-scrapling-api-base')?.trim() ?? '';
   const browserToken = req.headers.get('x-scrapling-api-token')?.trim() ?? '';
-  const serverBase = process.env.SCRAPLING_API_BASE?.trim() ?? '';
-  const serverToken = process.env.SCRAPLING_API_TOKEN?.trim() ?? '';
-  if ((browserBase && browserToken) || (serverBase && serverToken)) return null;
+
+  // In a public preview, server-side credentials must never make the proxy
+  // anonymously callable. Only a caller that supplies its own browser-local
+  // Collector credentials may use this route; the downstream client validates
+  // the HTTPS origin and the Collector verifies the bearer token.
+  if (browserBase && browserToken) return null;
 
   return NextResponse.json(
     { code: 'COLLECTOR_NOT_CONFIGURED', error: '网站无需访问密码。请先在「设置 → 资源采集中心」配置 Scrapling HTTPS 地址和访问 Token。' },
