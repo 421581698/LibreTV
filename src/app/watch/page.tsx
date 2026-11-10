@@ -36,7 +36,7 @@ import {
   upsertHistory,
   db,
 } from '@/lib/db';
-import { buildWatchUrl, cn, validateSourceUrl } from '@/lib/utils';
+import { buildWatchUrl, cn, formatTime, validateSourceUrl } from '@/lib/utils';
 import { SmartImage } from '@/components/smart-image';
 /**
  * 播放页（唯一入口，替代旧版 watch.html → player.html 跳转链）。
