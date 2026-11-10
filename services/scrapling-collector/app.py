@@ -1253,21 +1253,47 @@ def install_browser_request_guard(page) -> None:
     page.route("**/*", guard)
 
 
+def canonical_candidate_url(raw_url: str) -> str:
+    """Normalize URL identity without altering query parameters or access semantics."""
+    parsed = urlparse(raw_url)
+    host = (parsed.hostname or "").lower().rstrip(".")
+    port = parsed.port
+    netloc = host if port in (None, 443) else f"{host}:{port}"
+    return parsed._replace(scheme="https", netloc=netloc, fragment="").geturl()
+
+
 def merge_unique_candidates(existing: list[dict], incoming: list[dict], limit: int) -> list[dict]:
-    """Merge candidate batches without reintroducing duplicates from later batches."""
+    """Merge by canonical URL and retain provenance from every collector."""
     if limit <= 0:
         return []
-    merged: list[dict] = []
-    seen: set[str] = set()
-    for item in (*existing, *incoming):
-        target = item.get("url")
-        if not isinstance(target, str) or not target or target in seen:
-            continue
-        seen.add(target)
-        merged.append(item)
-        if len(merged) >= limit:
-            break
-    return merged
+    merged: dict[str, dict] = {}
+    for batch in (existing, incoming):
+        for source in batch:
+            item = dict(source)
+            target = item.get("url")
+            if not isinstance(target, str) or not target:
+                continue
+            key = canonical_candidate_url(target)
+            if key not in merged:
+                item["canonical_url"] = key
+                item.setdefault("access_state", "ACCESS_UNKNOWN")
+                item["collected_by"] = list(dict.fromkeys(item.get("collected_by", [])))
+                if item.get("collector"):
+                    item["collected_by"] = list(dict.fromkeys([*item["collected_by"], item["collector"]]))
+                merged[key] = item
+            else:
+                current = merged[key]
+                sources = [*current.get("collected_by", []), *item.get("collected_by", [])]
+                if item.get("collector"):
+                    sources.append(item["collector"])
+                current["collected_by"] = list(dict.fromkeys(sources))
+                if not current.get("title") and item.get("title"):
+                    current["title"] = item["title"]
+                if current.get("access_state") in (None, "ACCESS_UNKNOWN") and item.get("access_state") not in (None, "ACCESS_UNKNOWN"):
+                    for field in ("access_state", "reason", "next_action", "drm_systems"):
+                        if field in item:
+                            current[field] = item[field]
+    return list(merged.values())[:limit]
 
 
 def run_browser_capture(url: str, limit: int) -> tuple[object, list[dict], dict]:
@@ -1382,7 +1408,7 @@ def crawl_site(payload: CrawlRequest) -> dict:
                 captured_request_count = browser_meta["captured_request_count"]
             except Exception as exc:
                 browser_diagnostics.update({"status": "failed", "error": type(exc).__name__})
-                errors.append(f"Browser capture: {type(exc).__name__})
+                errors.append(f"Browser capture: {type(exc).__name__}")
 
         now = int(time.time())
         with db() as connection:
