@@ -47,6 +47,8 @@ done
 
 # Permit replies to collector-initiated public connections, then let Docker's
 # normal forwarding policy handle all other public destinations.
+# Keep this after the destination deny rules so pre-existing conntrack entries
+# cannot bypass newly installed private/reserved-network blocks.
 iptables -w -A "$CHAIN" -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
 iptables -w -A "$CHAIN" -j RETURN
 
