@@ -13,12 +13,14 @@ def resolution_bucket(width, height):
     except (TypeError, ValueError):
         return "未知"
     if w <= 0 or h <= 0: return "未知"
-    if h >= 4320 or w >= 7680: return "8K"
-    if h >= 2000 or w >= 3500: return "4K"
-    if h >= 1400 or w >= 2500: return "2K"
-    if h >= 1000 or w >= 1800: return "1080P"
-    if h >= 680 or w >= 1200: return "720P"
-    if h >= 400 or w >= 700: return "480P"
+    # Use decoded vertical resolution tiers. Width alone can misclassify ultrawide
+    # 1080p video (for example 3840x1080) as 4K.
+    if h >= 4320: return "8K"
+    if h >= 2000: return "4K"
+    if h >= 1400: return "2K"
+    if h >= 1000: return "1080P"
+    if h >= 680: return "720P"
+    if h >= 400: return "480P"
     return "SD"
 
 def _json(value):
