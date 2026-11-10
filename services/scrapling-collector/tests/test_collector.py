@@ -945,5 +945,14 @@ segment-2.ts
         )
         self.assertEqual(access["access_state"], "DRM_PROTECTED")
 
+
+    def test_hls_method_none_is_not_classified_as_encrypted(self):
+        result = collector.classify_access_state(
+            200,
+            {"content-type": "application/vnd.apple.mpegurl"},
+            "#EXT-X-KEY:METHOD=NONE",
+        )
+        self.assertEqual(result["access_state"], "PUBLIC")
+
 if __name__ == "__main__":
     unittest.main()
