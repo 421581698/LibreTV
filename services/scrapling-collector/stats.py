@@ -224,6 +224,7 @@ def build_stats(connection: sqlite3.Connection, host=None):
         "preflight_passed": sum(s["preflight_passed"] for s in site_summaries),
         "playback_confirmed": sum(s["playback_confirmed"] for s in site_summaries),
         "playback_samples": sum(s["playback_samples"] for s in site_summaries),
+        "preview_samples": sum(s["preview_samples"] for s in site_summaries),
         "actual_quality": quality_total,
         "movie_entries": sum(s["movie_entries"] for s in site_summaries),
         "episode_entries": sum(s["episode_entries"] for s in site_summaries)
