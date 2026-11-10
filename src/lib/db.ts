@@ -105,7 +105,8 @@ export interface FridayTaskEventEntry {
 }
 
 export const db = new Dexie('libretv') as Dexie & {
-  history: EntityTable<HistoryEntry, 'id'>;\n  favorites: EntityTable<FavoriteEntry, 'id'>;
+  history: EntityTable<HistoryEntry, 'id'>;
+  favorites: EntityTable<FavoriteEntry, 'id'>;
   progress: EntityTable<ProgressEntry, 'key'>;
   searchHistory: EntityTable<SearchHistoryEntry, 'text'>;
   liveProbe: EntityTable<LiveProbeEntry & { url: string }, 'url'>;
