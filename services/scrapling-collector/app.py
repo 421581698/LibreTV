@@ -1705,8 +1705,20 @@ class SpiderCandidateBatch(list):
         self.diagnostics = diagnostics or {}
 
 
+def page_fingerprint_changed(host: str, page_url: str, body: bytes) -> bool:
+    """Check whether a page changed without committing the fingerprint."""
+    page_key = hashlib.sha256(canonical_candidate_url(page_url).encode()).hexdigest()
+    fingerprint = hashlib.sha256(body or b"").hexdigest()
+    with db() as connection:
+        row = connection.execute(
+            "SELECT fingerprint FROM crawl_page_fingerprints WHERE host=? AND page_key=?",
+            (host, page_key),
+        ).fetchone()
+    return row is None or row["fingerprint"] != fingerprint
+
+
 def record_page_fingerprint(host: str, page_url: str, body: bytes) -> bool:
-    """Persist a page content fingerprint and return whether its content changed."""
+    """Persist a successfully processed page fingerprint and return whether it changed."""
     page_key = hashlib.sha256(canonical_candidate_url(page_url).encode()).hexdigest()
     fingerprint = hashlib.sha256(body or b"").hexdigest()
     now = int(time.time())
@@ -1741,12 +1753,19 @@ def run_spider(url: str, limit: int) -> list[dict]:
 
         async def parse(self, response: Response):
             body = getattr(response, "body", b"") or b""
-            changed = record_page_fingerprint(self.allowed_domains[0], response.url, body)
-            if changed:
-                type(self).changed_pages += 1
+            host = self.allowed_domains[0]
+            if page_fingerprint_changed(host, response.url, body):
+                # Commit only after extraction completes. If parsing raises midway,
+                # the next crawl must retry this changed page instead of skipping it.
+                extracted_items = []
                 async for item in super().parse(response):
+                    extracted_items.append(item)
+                record_page_fingerprint(host, response.url, body)
+                type(self).changed_pages += 1
+                for item in extracted_items:
                     yield item
             else:
+                record_page_fingerprint(host, response.url, body)
                 type(self).unchanged_pages += 1
             current = canonical_candidate_url(response.url)
             if current not in self.pages_processed:
