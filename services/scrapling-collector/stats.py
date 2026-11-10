@@ -13,16 +13,16 @@ def resolution_bucket(width, height):
     except (TypeError, ValueError):
         return "未知"
     if w <= 0 or h <= 0: return "未知"
-    # Classify by the shorter decoded edge so portrait and landscape video
-    # share the same tiers, while ultrawide 3840x1080 is not mislabeled as 4K.
-    short_edge = min(w, h)
-    if short_edge >= 4320: return "8K"
-    # Cinemascope 4K masters may be shorter than 2160px tall (e.g. 3840x1600).
-    if short_edge >= 1600: return "4K"
-    if short_edge >= 1440: return "2K"
-    if short_edge >= 1000: return "1080P"
-    if short_edge >= 680: return "720P"
-    if short_edge >= 400: return "480P"
+    # Use both edges: portrait video follows the same tiers, while 2560x1600
+    # cannot become 4K merely because its short edge exceeds the cinema-scope floor.
+    long_edge, short_edge = max(w, h), min(w, h)
+    if long_edge >= 7680 and short_edge >= 4320: return "8K"
+    # DCI/scope 4K can be 3840x1600; 3840x1080 remains 1080P.
+    if long_edge >= 3840 and short_edge >= 1600: return "4K"
+    if long_edge >= 2560 and short_edge >= 1440: return "2K"
+    if long_edge >= 1920 and short_edge >= 1000: return "1080P"
+    if long_edge >= 1280 and short_edge >= 680: return "720P"
+    if long_edge >= 720 and short_edge >= 400: return "480P"
     return "SD"
 
 def _json(value):
