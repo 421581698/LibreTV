@@ -12,5 +12,5 @@ export async function POST(request: Request, context: { params: Promise<{ candid
   if (!/^[a-f0-9]{32}$/i.test(candidateId)) {
     return NextResponse.json({ error: 'Invalid candidate ID.' }, { status: 400 });
   }
-  return collectorRequest(`/v1/candidates/${candidateId}/validate`, { method: 'POST' }, 20_000);
+  return collectorRequest(`/v1/candidates/${candidateId}/validate`, { method: 'POST' }, 20_000, request);
 }
