@@ -19,6 +19,9 @@ on:
       - "src/lib/api-guard.test.ts"
       - "src/components/home/home-inline-play.test.ts"
       - "docker-compose.yml"
+      - "docker-compose.vps.yml"
+      - "services/scrapling-collector/Caddyfile"
+      - "scripts/install-scrapling-egress-firewall-service.sh"
       - "render.yaml"
       - "scripts/scrapling-egress-firewall.sh"
       - ".github/workflows/scrapling-collector.yml"
@@ -28,6 +31,9 @@ on:
       - "src/app/api/resource-collector/**"
       - "src/components/source-manager.tsx"
       - "docker-compose.yml"
+      - "docker-compose.vps.yml"
+      - "services/scrapling-collector/Caddyfile"
+      - "scripts/install-scrapling-egress-firewall-service.sh"
       - "render.yaml"
       - "scripts/scrapling-egress-firewall.sh"
       - ".github/workflows/scrapling-collector.yml"
@@ -63,13 +69,17 @@ jobs:
         env:
           PASSWORD: collector-ci-password
           SCRAPLING_API_TOKEN: collector-ci-token
-        run: docker compose -f docker-compose.yml --project-directory . --profile collector config --quiet
+        run: |
+          docker compose -f docker-compose.yml --project-directory . --profile collector config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.vps.yml --project-directory . --profile collector config --quiet
       - name: Validate Render Blueprint YAML syntax
         working-directory: .
         run: |
           ruby -e 'require "yaml"; YAML.safe_load_file("render.yaml", permitted_classes: [], aliases: false); puts "Render Blueprint YAML syntax passed"'
-      - name: Validate host firewall script syntax
-        run: bash -n ../../scripts/scrapling-egress-firewall.sh
+      - name: Validate host firewall scripts
+        run: |
+          bash -n ../../scripts/scrapling-egress-firewall.sh
+          bash -n ../../scripts/install-scrapling-egress-firewall-service.sh
       - name: Build isolated collector image
         run: docker build --tag libretv-scrapling-collector:ci .
       - name: Run isolated collector API smoke test
