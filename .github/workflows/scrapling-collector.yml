@@ -69,9 +69,18 @@ jobs:
         env:
           PASSWORD: collector-ci-password
           SCRAPLING_API_TOKEN: collector-ci-token
+          SCRAPLING_PUBLIC_HOST: collector-ci.example.test
         run: |
           docker compose -f docker-compose.yml --project-directory . --profile collector config --quiet
           docker compose -f docker-compose.yml -f docker-compose.vps.yml --project-directory . --profile collector config --quiet
+      - name: Validate Caddy HTTPS proxy configuration
+        working-directory: .
+        env:
+          SCRAPLING_PUBLIC_HOST: collector-ci.example.test
+        run: |
+          docker run --rm -e SCRAPLING_PUBLIC_HOST="$SCRAPLING_PUBLIC_HOST" \
+            -v "$PWD/services/scrapling-collector/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
       - name: Validate Render Blueprint YAML syntax
         working-directory: .
         run: |
