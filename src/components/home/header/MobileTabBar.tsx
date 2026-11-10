@@ -17,9 +17,11 @@ function TabIcon({ name }: { name: (typeof tabs)[number]['icon'] }) {
 export function MobileTabBar() {
   const pathname = usePathname();
   const normalized = !pathname || pathname === '/' ? '/' : pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+  const categoryRoutes = ['/categories', '/movies', '/tv', '/anime', '/overseas', '/variety', '/live'];
+  const activeTab = normalized === '/' ? '/' : categoryRoutes.some((route) => normalized === route || normalized.startsWith(route + '/')) ? '/categories' : '/me';
   return <nav className="v4-mobile-tabbar" aria-label="底部导航">
     {tabs.map(tab => {
-      const active = tab.href === '/' ? normalized === '/' : normalized === tab.href || normalized.startsWith(tab.href + '/');
+      const active = tab.href === activeTab;
       return <Link key={tab.href} href={tab.href} className={active ? 'is-active' : ''} aria-current={active ? 'page' : undefined}>
         <TabIcon name={tab.icon} />
         <span>{tab.label}</span>
