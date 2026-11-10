@@ -23,16 +23,11 @@ export function jsonError(message: string, status: number): NextResponse {
 
 
 /**
- * Guard for costly/private features that must never inherit a public preview's
- * AUTH_DISABLED bypass. Public pages may remain accessible, but collector
- * operations always require a password-protected session.
+ * Preview-only public access follows AUTH_DISABLED. Production configuration
+ * remains independent; costly collector routes still retain URL validation,
+ * outbound SSRF protections, upstream bearer-token checks and timeouts.
  */
 export function guardPrivateFeatureRequest(req: Request): NextResponse | null {
-  if (isAuthDisabled()) {
-    return NextResponse.json(
-      { error: '该功能在公开预览环境中已禁用。请在启用密码保护的环境中使用。' },
-      { status: 403, headers: { 'Cache-Control': 'no-store' } }
-    );
-  }
+  if (isAuthDisabled()) return null;
   return guardRequest(req);
 }
