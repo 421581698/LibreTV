@@ -36,7 +36,7 @@ export default function SearchPage() {
     if (!text) { inputRef.current?.focus(); return; }
     history.record(text);
     history.close();
-    router.push('/?s=' + encodeURIComponent(text));
+    router.push('/search/results?q=' + encodeURIComponent(text));
   };
   const pick = (value: string) => { setQuery(value); submit(value); };
 
