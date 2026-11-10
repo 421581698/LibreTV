@@ -188,7 +188,8 @@ class PinnedHTTPSConnection(http.client.HTTPSConnection):
         try:
             if self.timeout is not socket._GLOBAL_DEFAULT_TIMEOUT:
                 sock.settimeout(self.timeout)
-            sock.connect((self.pinned_ip, self.port))
+            destination = (self.pinned_ip, self.port, 0, 0) if address.version == 6 else (self.pinned_ip, self.port)
+            sock.connect(destination)
             if self._tunnel_host is not None:
                 raise OSError("HTTPS proxy tunneling is not supported for pinned connections")
             self.sock = self._context.wrap_socket(sock, server_hostname=self.host)
@@ -1341,8 +1342,6 @@ def captured_api_candidates(session, page_url: str, limit: int) -> list[dict]:
                 })
         if len(results) >= limit:
             break
-            if len(results) >= limit:
-                break
     return results
 
 
@@ -1401,7 +1400,7 @@ def run_spider(url: str, limit: int) -> list[dict]:
     class TargetSiteSpider(SiteSpider):
         start_urls = [url]
         allowed_domains = [urlparse(url).hostname]
-        pages_scheduled: set[str] = {url}
+        pages_scheduled: set[str] = {canonical_candidate_url(url)}
         pages_processed: set[str] = set()
 
         async def parse(self, response: Response):
