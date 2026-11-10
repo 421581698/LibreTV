@@ -333,6 +333,10 @@ function SettingsScreen() {
           </button>
         ))}
       </div>
+      <Link href="/resources" className="v4-settings-card v4-settings-collector-entry">
+        <div><strong>资源采集中心</strong><p>FMHY 发现、Scrapling 采集、候选验证与资源登记</p></div>
+        <b aria-hidden="true">›</b>
+      </Link>
       <p className="v4-spatial-footnote">每个分类直接进入对应的实际设置面板；选项沿用 LibreTV 现有配置与本机持久化，不创建重复配置。</p>
     </section>
   );
