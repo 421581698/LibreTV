@@ -894,6 +894,7 @@ segment-2.ts
             collector.frontier_link_priority("https://catalog.example/about", "About"),
         )
         self.assertIsNone(collector.frontier_link_priority("https://cdn.example/movie.m3u8", "Stream"))
+        self.assertIsNone(collector.frontier_link_priority("https://catalog.example:8443/movie/123", "Movie"))
 
     def test_fmhy_category_discovery_only_returns_fmhy_owned_pages(self):
         class Anchor:
