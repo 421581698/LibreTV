@@ -799,8 +799,10 @@ export function PlayerShell({
       setting: true,
       playbackRate: true,
       aspectRatio: true,
-      fullscreen: true,
-      fullscreenWeb: true,
+      // Touch devices get one explicit fullscreen action: prefer iOS native video fullscreen,
+      // then fall back to ArtPlayer's page-level fullscreen implementation.
+      fullscreen: !touchPointer,
+      fullscreenWeb: !touchPointer,
       miniProgressBar: true,
       mutex: true,
       // Disable frosted-glass backdrop filters: avoid iOS Safari compositing
@@ -834,6 +836,25 @@ export function PlayerShell({
             if (propsRef.current.hasNextEpisode) propsRef.current.onNextEpisode?.();
           },
         },
+        ...(touchPointer ? [{
+          name: 'native-fullscreen',
+          index: 13,
+          position: 'right' as const,
+          html: '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"><path fill="currentColor" d="M4 9V4h5v2H6v3H4zm10-5h6v6h-2V6h-4V4zM4 15h2v3h3v2H4v-5zm14 3v-3h2v5h-6v-2h4z"/></svg>',
+          tooltip: '全屏播放',
+          click: () => {
+            const nativeVideo = art.video as HTMLVideoElement & { webkitEnterFullscreen?: () => void };
+            if (typeof nativeVideo.webkitEnterFullscreen === 'function') {
+              try {
+                nativeVideo.webkitEnterFullscreen();
+                return;
+              } catch {
+                // If native fullscreen is rejected, retain the in-page fallback.
+              }
+            }
+            art.fullscreenWeb = !art.fullscreenWeb;
+          },
+        }] : []),
       ],
       customType: {
         m3u8: (video: HTMLVideoElement, mediaUrl: string) => {
