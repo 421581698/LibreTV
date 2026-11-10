@@ -211,6 +211,12 @@ function ResourceCollectorPanel() {
   const [configSaved, setConfigSaved] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('');
+  const [crawlDiagnostics, setCrawlDiagnostics] = useState<{
+    pageTitle?: string; finalUrl?: string; mode?: string; capturedRequestCount?: number;
+    httpSpider?: { status?: string; candidate_count?: number; error?: string | null };
+    browser?: { status?: string; candidate_count?: number; error?: string | null };
+    errors?: string[];
+  } | null>(null);
 
   useEffect(() => {
     const config = readScraplingConfig();
@@ -306,8 +312,18 @@ function ResourceCollectorPanel() {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Scrapling 采集失败。');
       setCandidates(Array.isArray(payload.candidates) ? payload.candidates : []);
+      setCrawlDiagnostics({
+        pageTitle: payload.page_title, finalUrl: payload.final_url || payload.page_url,
+        mode: payload.mode, capturedRequestCount: payload.captured_request_count,
+        httpSpider: payload.diagnostics?.http_spider, browser: payload.diagnostics?.browser,
+        errors: Array.isArray(payload.errors) ? payload.errors : [],
+      });
       await loadTasks();
-      if (!payload.candidates?.length) setError('该页面没有发现可直接识别的公开媒体或播放器链接。');
+      if (!payload.candidates?.length) setError(
+        Array.isArray(payload.errors) && payload.errors.length
+          ? `采集未提取到候选资源：${payload.errors.join('；')}`
+          : '采集已完成，但没有发现可识别的公开媒体或播放器地址。请查看下方诊断信息。'
+      );
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Scrapling 采集失败。');
     } finally {
@@ -463,6 +479,16 @@ function ResourceCollectorPanel() {
             <h3 className="text-sm font-semibold text-content">采集结果 · {selectedSite.title}</h3>
             <p className="mt-1 truncate text-xs text-muted">{selectedSite.url}</p>
           </div>
+          {crawlDiagnostics ? (
+            <div className="rounded-lg border border-line bg-chip/60 p-3 text-[11px] text-muted space-y-1.5">
+              <p><strong className="text-content">页面标题：</strong>{crawlDiagnostics.pageTitle || '未获取（HTTP Spider 未提供页面元数据）'}</p>
+              <p className="break-all"><strong className="text-content">最终访问地址：</strong>{crawlDiagnostics.finalUrl || selectedSite.url}</p>
+              <p><strong className="text-content">采集模式：</strong>{crawlDiagnostics.mode || '未知'} · <strong className="text-content">捕获请求：</strong>{crawlDiagnostics.capturedRequestCount ?? 0}</p>
+              <p><strong className="text-content">HTTP Spider：</strong>{crawlDiagnostics.httpSpider?.status || '未运行'} · 候选 {crawlDiagnostics.httpSpider?.candidate_count ?? 0}{crawlDiagnostics.httpSpider?.error ? ` · ${crawlDiagnostics.httpSpider.error}` : ''}</p>
+              <p><strong className="text-content">浏览器采集：</strong>{crawlDiagnostics.browser?.status || '未运行'} · 候选 {crawlDiagnostics.browser?.candidate_count ?? 0}{crawlDiagnostics.browser?.error ? ` · ${crawlDiagnostics.browser.error}` : ''}</p>
+              {crawlDiagnostics.errors?.map((item, index) => <p key={index} className="text-warning">{item}</p>)}
+            </div>
+          ) : null}
           {candidates.length > 0 ? candidates.map((candidate) => (
             <div key={candidate.url} className="flex min-w-0 items-center gap-2 rounded-lg bg-chip p-2">
               <div className="min-w-0 flex-1">
