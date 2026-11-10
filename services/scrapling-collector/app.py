@@ -56,6 +56,12 @@ class CandidateValidation(BaseModel):
     candidate_id: str
 
 
+class PlaybackEvidence(BaseModel):
+    media_type: str = Field(pattern="^(hls|mp4|webm)$")
+    observed_seconds: int = Field(ge=1, le=60)
+    progressed_seconds: float = Field(ge=2, le=60)
+
+
 def db() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(DB_PATH, timeout=10)
@@ -95,6 +101,7 @@ def init_db() -> None:
             "probe_evidence": "TEXT NOT NULL DEFAULT '{}'",
             "media_identity": "TEXT NOT NULL DEFAULT '{}'",
             "quality_evidence": "TEXT NOT NULL DEFAULT '{}'",
+            "playback_verification": "TEXT NOT NULL DEFAULT '{}'",
         }
         for column, declaration in candidate_migrations.items():
             if column not in candidate_columns:
@@ -1277,6 +1284,19 @@ def classify_access_state(status_code: int | None = None, headers=None, body: st
                 "next_action": "Use an authorized provider playback path; do not retrieve keys or attempt decryption",
             }
 
+    challenge_markers = (
+        "cf-chl-", "challenge-platform", "captcha", "verify you are human",
+        "checking your browser", "attention required! | cloudflare",
+        "bot detection", "机器人验证", "安全验证", "人机验证",
+    )
+    if any(marker in sample for marker in challenge_markers):
+        return {
+            "access_state": "CHALLENGE",
+            "reason": "Provider presented an anti-bot or human-verification challenge",
+            "drm_systems": [],
+            "next_action": "Stop automated collection; use the provider's permitted access path",
+        }
+
     auth_markers = (
         "login required", "sign in to continue", "please log in",
         "authentication required", "unauthorized", "session expired",
@@ -1920,6 +1940,57 @@ def crawl_site(payload: CrawlRequest) -> dict:
         persist_task(task_id, raw_url, host, payload.mode, "failed", type(exc).__name__)
         raise HTTPException(status_code=502, detail=f"Scrapling crawl failed: {type(exc).__name__}")
 
+@app.post("/v1/candidates/{candidate_id}/playback")
+def record_playback_evidence(
+    candidate_id: str,
+    payload: PlaybackEvidence,
+    authorization: str | None = Header(default=None),
+):
+    """Persist browser-observed playback evidence after strict candidate preflight."""
+    require_token(authorization)
+    if not re.fullmatch(r"[a-f0-9]{32}", candidate_id, flags=re.IGNORECASE):
+        raise HTTPException(status_code=400, detail="Invalid candidate ID")
+    with db() as connection:
+        row = connection.execute(
+            "SELECT kind,status,access_state,validation FROM candidates WHERE id=?",
+            (candidate_id,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Candidate not found")
+        if row["kind"] != "direct-media" or row["status"] != "validated":
+            raise HTTPException(status_code=409, detail="Candidate has not passed media preflight")
+        if row["access_state"] != "PUBLIC":
+            raise HTTPException(status_code=409, detail="Candidate is not publicly accessible")
+        try:
+            validation = json.loads(row["validation"] or "{}")
+        except (TypeError, ValueError):
+            validation = {}
+        if validation.get("reachable") is not True:
+            raise HTTPException(status_code=409, detail="Candidate is not reachable")
+        access = validation.get("access") or {}
+        if access.get("access_state") != "PUBLIC":
+            raise HTTPException(status_code=409, detail="Candidate access state is not PUBLIC")
+        media_format = validation.get("media_format")
+        if (
+            (media_format == "hls" and payload.media_type != "hls")
+            or (media_format == "progressive" and payload.media_type not in ("mp4", "webm"))
+            or media_format not in ("hls", "progressive")
+        ):
+            raise HTTPException(status_code=409, detail="Playback evidence format does not match validated media")
+        evidence = {
+            "state": "PLAYER_CONFIRMED",
+            "media_type": payload.media_type,
+            "observed_seconds": payload.observed_seconds,
+            "progressed_seconds": payload.progressed_seconds,
+            "verified_at": int(time.time()),
+            "verification_scope": "browser_video_element_time_progression",
+        }
+        connection.execute(
+            "UPDATE candidates SET playback_verification=? WHERE id=?",
+            (json.dumps(evidence, ensure_ascii=False), candidate_id),
+        )
+    return {"candidate_id": candidate_id, "playback_verification": evidence}
+
 
 @app.get("/health")
 def health():
@@ -1979,7 +2050,7 @@ def task_candidates(task_id: str, authorization: str | None = Header(default=Non
         item = dict(row)
         for field, fallback in (
             ("collected_by", []), ("probe_evidence", {}),
-            ("media_identity", {}), ("quality_evidence", {}),
+            ("media_identity", {}), ("quality_evidence", {}), ("playback_verification", {}),
         ):
             try:
                 item[field] = json.loads(item.get(field) or json.dumps(fallback))
@@ -2083,10 +2154,18 @@ def validate_candidate(candidate_id: str, authorization: str | None = Header(def
             not variant_tree_probe
             or variant_tree_probe.get("reachable_leaf_count", 0) > 0
         )
+        # A reachable HLS manifest is not a playable media leaf. Require either
+        # a reachable variant leaf (master playlist) or a successful segment sample.
+        hls_leaf_verified = (
+            variants_passed if variant_tree_probe is not None
+            else bool(segment_probe and segment_probe.get("sampled", 0) > 0 and segment_probe.get("failed", 0) == 0)
+        ) if probe.get("media_format") == "hls" else True
+        if probe.get("media_format") == "hls" and not hls_leaf_verified:
+            validation["empty_or_unverified_hls_leaf"] = True
         candidate_status = (
             "validated"
             if probe.get("reachable") and access.get("access_state") == "PUBLIC"
-            and references_safe and samples_passed and variants_passed
+            and references_safe and samples_passed and variants_passed and hls_leaf_verified
             else "rejected"
         )
     else:

@@ -1,0 +1,76 @@
+name: Resource Playback Verification
+
+on:
+  push:
+    branches:
+      - feat/resource-playback-verification-v1
+    paths:
+      - "src/components/player-shell.tsx"
+      - "src/components/source-manager.tsx"
+      - "src/lib/media-playback.ts"
+      - "src/lib/media-playback.test.ts"
+      - "src/lib/collector-playback-eligibility.ts"
+      - "src/lib/collector-playback-eligibility.test.ts"
+      - "src/lib/playback-verification.ts"
+      - "src/lib/playback-verification.test.ts"
+      - "src/app/api/resource-collector/candidates/[candidateId]/playback/route.ts"
+      - "services/scrapling-collector/app.py"
+      - "services/scrapling-collector/tests/test_collector.py"
+      - ".github/workflows/resource-playback-verification.yml"
+  pull_request:
+    paths:
+      - "src/components/player-shell.tsx"
+      - "src/components/source-manager.tsx"
+      - "src/lib/media-playback.ts"
+      - "src/lib/media-playback.test.ts"
+      - "src/lib/collector-playback-eligibility.ts"
+      - "src/lib/collector-playback-eligibility.test.ts"
+      - ".github/workflows/resource-playback-verification.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  web-verification:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: TypeScript
+        run: npm run typecheck
+      - name: ESLint
+        run: npm run lint
+      - name: Unit tests
+        run: npm test
+      - name: Production build
+        env:
+          PASSWORD: ci-test-password
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npm run build
+
+  collector-verification:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/scrapling-collector
+    env:
+      SCRAPLING_API_TOKEN: collector-ci-token
+      SCRAPLING_DB_PATH: /tmp/libretv-scrapling-ci.sqlite3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: services/scrapling-collector/requirements.txt
+      - name: Install collector dependencies
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+      - name: Compile collector
+        run: python -m py_compile app.py
+      - name: Collector unit tests
+        run: python -m unittest discover -s tests -v

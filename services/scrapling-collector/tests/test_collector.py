@@ -48,6 +48,71 @@ class CollectorTests(unittest.TestCase):
                     collector.validate_candidate("candidate-does-not-exist")
             self.assertEqual(error.exception.status_code, 503)
 
+    def test_playback_evidence_is_persisted_only_after_public_media_preflight(self):
+        task_id = "a" * 32
+        candidate_id = "b" * 32
+        now = 1_800_000_000
+        validation = {
+            "reachable": True,
+            "media_format": "progressive",
+            "access": {"access_state": "PUBLIC"},
+        }
+        with collector.db() as connection:
+            connection.execute(
+                "INSERT INTO tasks(id,url,host,status,mode,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                (task_id, "https://media.example/movie.mp4", "media.example", "completed", "http", now, now),
+            )
+            connection.execute(
+                """INSERT INTO candidates
+                   (id,task_id,url,host,kind,title,status,created_at,access_state,validation)
+                   VALUES(?,?,?,?,?,?,?,?,?,?)""",
+                (candidate_id, task_id, "https://media.example/movie.mp4", "media.example",
+                 "direct-media", "Test movie", "validated", now, "PUBLIC",
+                 collector.json.dumps(validation)),
+            )
+        with patch.object(collector, "require_token"):
+            result = collector.record_playback_evidence(
+                candidate_id,
+                collector.PlaybackEvidence(
+                    media_type="mp4", observed_seconds=5, progressed_seconds=3.2
+                ),
+                "Bearer test",
+            )
+        self.assertEqual(result["playback_verification"]["state"], "PLAYER_CONFIRMED")
+        with collector.db() as connection:
+            stored = connection.execute(
+                "SELECT playback_verification FROM candidates WHERE id=?", (candidate_id,)
+            ).fetchone()["playback_verification"]
+        self.assertEqual(collector.json.loads(stored)["media_type"], "mp4")
+
+    def test_playback_evidence_rejects_candidates_without_preflight(self):
+        task_id = "c" * 32
+        candidate_id = "d" * 32
+        now = 1_800_000_000
+        with collector.db() as connection:
+            connection.execute(
+                "INSERT INTO tasks(id,url,host,status,mode,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                (task_id, "https://media.example/movie.mp4", "media.example", "completed", "http", now, now),
+            )
+            connection.execute(
+                """INSERT INTO candidates
+                   (id,task_id,url,host,kind,title,status,created_at,access_state,validation)
+                   VALUES(?,?,?,?,?,?,?,?,?,?)""",
+                (candidate_id, task_id, "https://media.example/movie.mp4", "media.example",
+                 "direct-media", "Test movie", "pending", now, "PUBLIC",
+                 collector.json.dumps({"reachable": True, "access": {"access_state": "PUBLIC"}})),
+            )
+        with patch.object(collector, "require_token"):
+            with self.assertRaises(collector.HTTPException) as error:
+                collector.record_playback_evidence(
+                    candidate_id,
+                    collector.PlaybackEvidence(
+                        media_type="mp4", observed_seconds=5, progressed_seconds=3.2
+                    ),
+                    "Bearer test",
+                )
+        self.assertEqual(error.exception.status_code, 409)
+
     def test_spider_http_session_uses_safe_redirect_policy(self):
         captured = {}
 
@@ -137,6 +202,11 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(
             collector.classify_access_state(402)["access_state"], "SUBSCRIPTION_REQUIRED"
         )
+        challenge = collector.classify_access_state(
+            403, {"content-type": "text/html"},
+            "<html>Checking your browser before accessing this site. cf-chl-123</html>",
+        )
+        self.assertEqual(challenge["access_state"], "CHALLENGE")
         drm = collector.classify_access_state(
             200, {"content-type": "application/vnd.apple.mpegurl"},
             "#EXTM3U\\n#EXT-X-KEY:METHOD=SAMPLE-AES,URI=\\\"skd://asset\\\"",
