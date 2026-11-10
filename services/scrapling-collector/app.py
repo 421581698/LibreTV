@@ -924,7 +924,7 @@ def probe_direct_media(raw_url: str, max_redirects: int = 5) -> dict:
                     )
             response.close()
             content_range = headers.get("content-range", "")
-            range_total = re.search(r"/(\\d+)$", content_range)
+            range_total = re.search(r"/(\d+)$", content_range)
             total_length = int(range_total.group(1)) if range_total else (
                 int(headers["content-length"]) if headers.get("content-length", "").isdigit() and status != 206 else None
             )
