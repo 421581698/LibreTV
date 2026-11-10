@@ -126,6 +126,18 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
     expect(collectorValidationRoute).toContain('guardPrivateFeatureRequest(request)');
     expect(collectorValidationRoute).toContain('/validate');
   });
+
+  it('keeps the shared player inline on iOS and preserves the fixed four-item dock', () => {
+    const playerShell = read('src/components/player-shell.tsx');
+    const mobileLayout = read('src/app/iphone-glass.css');
+    expect(playerShell).toContain('playsInline: true');
+    expect(playerShell).toContain('moreVideoAttr: { crossOrigin: \'anonymous\', playsInline: true }');
+    expect(mobileLayout).toContain('.v4-mobile-tabbar {');
+    expect(mobileLayout).toContain('position: fixed;');
+    expect(mobileLayout).toContain('bottom: 0;');
+    expect(mobileLayout).toContain('env(safe-area-inset-bottom, 0px)');
+  });
+
   it('applies light-theme colors to routed iPhone screens and keeps safe-area paint below the dock', () => {
     expect(theme).toContain(':root:not(.dark) .v4-spatial-screen');
     expect(theme).toContain(':root:not(.dark) .v4-spatial-screen .v4-resource-search input');
