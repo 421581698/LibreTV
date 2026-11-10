@@ -1628,7 +1628,8 @@ def crawl_site(payload: CrawlRequest) -> dict:
                     item["collector"] = "spider"
                     item["collected_by"] = ["spider"]
                 candidates = merge_unique_candidates(candidates, spider_candidates, payload.limit)
-                spider_diagnostics.update({"status": "completed", "candidate_count": len(spider_candidates)})
+                spider_diagnostics.update({"status": "completed", "candidate_count": len(spider_candidates),
+                                           **getattr(spider_candidates, "diagnostics", {})})
             except Exception as exc:
                 spider_diagnostics.update({"status": "failed", "error": type(exc).__name__})
                 errors.append(f"HTTP Spider: {type(exc).__name__}")
@@ -1770,7 +1771,9 @@ def validate_candidate(candidate_id: str, authorization: str | None = Header(def
             page = Fetcher.get(raw_url, timeout=20, follow_redirects="safe")
             content_type = str(page.headers.get("content-type", "")).lower()
             body = page.body
-            parsed = json.loads(body.decode("utf-8", errors="replace"))
+            body_text = body.decode("utf-8", errors="replace") if isinstance(body, bytes) else str(body)
+            access = classify_access_state(page.status, page.headers, body_text, raw_url)
+            parsed = json.loads(body_text)
             data = parsed.get("data") if isinstance(parsed, dict) else None
             cms_list = parsed.get("list") if isinstance(parsed, dict) else None
             if not isinstance(cms_list, list) and isinstance(data, dict):
@@ -1781,7 +1784,6 @@ def validate_candidate(candidate_id: str, authorization: str | None = Header(def
                 and 200 <= page.status < 300
                 and ("json" in content_type or content_type.endswith("+json"))
             )
-            access = classify_access_state(page.status, page.headers, body.decode("utf-8", errors="replace"), raw_url)
             validation.update({"reachable": 200 <= page.status < 400, "json": isinstance(parsed, dict),
                                "cms_shape": cms_shape,
                                "sample_count": len(cms_list) if isinstance(cms_list, list) else 0,
