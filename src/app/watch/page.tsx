@@ -572,7 +572,7 @@ function WatchContent() {
                       className="netflix-related-card"
                     >
                       <div className="netflix-related-art">
-                        {item.pic ? <SmartImage url={item.pic} mode="direct" alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-chip" />}
+                        {item.pic ? <SmartImage url={item.pic} mode={store.imageProxyMode} customProxy={store.customImageProxy} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-chip" />}
                       </div>
                       <strong>{item.name}</strong>
                       <span>{[item.year, item.typeName, item.remarks].filter(Boolean).join(' · ') || item.sourceName}</span>
@@ -632,7 +632,7 @@ function WatchContent() {
                   <div className="netflix-related-rail">
                     {relatedItems.map((item) => (
                       <Link key={`${item.sourceKey}:${item.vodId}`} href={buildWatchUrl({ sourceKey: item.sourceKey, vodId: item.vodId, index: 0, title: item.name, sourceUrl: item.sourceUrl })} className="netflix-related-card">
-                        <div className="netflix-related-art">{item.pic ? <SmartImage url={item.pic} mode="direct" alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-chip" />}</div>
+                        <div className="netflix-related-art">{item.pic ? <SmartImage url={item.pic} mode={store.imageProxyMode} customProxy={store.customImageProxy} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-chip" />}</div>
                         <strong>{item.name}</strong>
                         <span>{[item.year, item.typeName, item.remarks].filter(Boolean).join(' · ') || item.sourceName}</span>
                       </Link>
@@ -645,7 +645,7 @@ function WatchContent() {
             {sidebarTab === 'details' && (
               <div className="netflix-sidebar-content">
                 <div className="netflix-detail-hero">
-                  {detailQuery.data?.videoInfo?.cover && <SmartImage url={detailQuery.data.videoInfo.cover} mode="direct" alt="" className="w-24 aspect-[2/3] object-cover rounded-lg" />}
+                  {detailQuery.data?.videoInfo?.cover && <SmartImage url={detailQuery.data.videoInfo.cover} mode={store.imageProxyMode} customProxy={store.customImageProxy} alt="" className="w-24 aspect-[2/3] object-cover rounded-lg" />}
                   <div className="min-w-0"><h3 className="font-semibold text-content">{videoTitle}</h3><p className="text-xs text-muted mt-1">{source.name}</p><p className="text-xs text-faint mt-2">{episodes.length} 集</p></div>
                 </div>
                 <p className="text-sm text-muted leading-6 mt-4">{'影片详情可在影片资料页查看。'}</p>
@@ -667,7 +667,7 @@ function WatchContent() {
                 <div className="netflix-section-kicker">接下来播放</div>
                 <button className="netflix-next-card" onClick={() => goEpisode(currentIndex + 1)}>
                   <div className="netflix-next-thumb">
-                    {detailQuery.data?.videoInfo?.cover ? <SmartImage url={detailQuery.data.videoInfo.cover} mode="direct" alt="" className="w-full h-full object-cover" /> : <span>EP {currentIndex + 2}</span>}
+                    {detailQuery.data?.videoInfo?.cover ? <SmartImage url={detailQuery.data.videoInfo.cover} mode={store.imageProxyMode} customProxy={store.customImageProxy} alt="" className="w-full h-full object-cover" /> : <span>EP {currentIndex + 2}</span>}
                     <span className="netflix-next-play"><span aria-hidden="true">▶</span></span>
                   </div>
                   <span className="min-w-0 flex-1 text-left"><strong>第 {currentIndex + 2} 集</strong><small>{videoTitle}</small></span>
