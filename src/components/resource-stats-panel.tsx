@@ -122,7 +122,7 @@ export function ResourceStatsPanel() {
                 </div>
               ))}
             </div>
-            <p className="mt-2 text-[11px] leading-5 text-muted">仅按播放器实际解码宽高分类；网站宣传的 4K 不计入实际 4K。</p>
+            <p className="mt-2 text-[11px] leading-5 text-muted">仅按播放器实际解码宽高分类；网站宣传的 4K 不计入实际 4K。样本来自正常播放页和采集预览，未记录原始视频 URL、片名或用户身份。</p>
           </div>
           {summary.quality_ranking?.length ? (
             <div className="rounded-xl border border-line p-3 space-y-2">

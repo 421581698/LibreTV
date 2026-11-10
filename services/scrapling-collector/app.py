@@ -2149,6 +2149,7 @@ def record_playback_evidence(
 
 
 @app.post("/v1/playback-samples")
+# Persist host-level playback metrics only; no title, raw media URL, or user identifier is stored.
 def record_general_playback_sample(
     payload: PlaybackSampleEvidence,
     authorization: str | None = Header(default=None),
