@@ -390,7 +390,7 @@ function ResourceCollectorPanel() {
         && validation.cms_shape === true && validation.reachable === true && accessState === 'PUBLIC';
       const mediaVerified = candidate.kind === 'direct-media'
         && validation.reachable === true && accessState === 'PUBLIC';
-      const nextStatus = cmsVerified ? 'validated' : mediaVerified ? 'checked' : candidate.kind === 'embedded-player' ? 'review' : 'rejected';
+      const nextStatus = cmsVerified ? 'validated' : mediaVerified ? 'checked' : ['embedded-player', 'public-api-response'].includes(candidate.kind) ? 'review' : 'rejected';
       setCandidates((current) => current.map((item) => item.id === candidate.id
         ? { ...item, status: nextStatus, access_state: accessState, validation }
         : item));
@@ -413,7 +413,7 @@ function ResourceCollectorPanel() {
         setResultMessage('直接媒体地址已通过公开访问检查，可在此独立播放；它不会被添加为 CMS 点播源。');
       } else if (candidate.kind === 'cms-api-candidate') {
         setError(validation.reason || validation.access?.reason || '该地址未通过 CMS API 结构及公开访问验证，没有加入点播源。');
-      } else if (candidate.kind === 'embedded-player') {
+      } else if (['embedded-player', 'public-api-response'].includes(candidate.kind)) {
         setResultMessage(validation.note || '已识别为网页播放器入口，不是 CMS 点播 API；只会提取其公开可访问的媒体请求。');
       } else if (accessState !== 'PUBLIC') {
         setError(validation.access?.reason || candidate.reason || `资源未确认可公开访问（${accessState}），已阻止注册或播放。`);
