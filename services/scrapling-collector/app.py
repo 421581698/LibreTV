@@ -1925,7 +1925,18 @@ def crawl_site(payload: CrawlRequest) -> dict:
 def health():
     with db() as connection:
         tasks = connection.execute("SELECT COUNT(*) AS n FROM tasks").fetchone()["n"]
-    return {"ok": True, "engine": "Scrapling", "directory": "FMHY", "directory_url": FMHY_VIDEO_URL, "stored_tasks": tasks}
+    crawl_ready = os.environ.get("SCRAPLING_EGRESS_FIREWALL_CONFIRMED", "").strip() == "1"
+    return {
+        "ok": True,
+        "engine": "Scrapling",
+        "directory": "FMHY",
+        "directory_url": FMHY_VIDEO_URL,
+        "stored_tasks": tasks,
+        "crawl_ready": crawl_ready,
+        "crawl_blocked_reason": None if crawl_ready else (
+            "Crawling is disabled until host-level egress filtering is installed and verified"
+        ),
+    }
 
 
 @app.get("/v1/discover")
