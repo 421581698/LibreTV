@@ -426,7 +426,7 @@ function ResourceCollectorPanel() {
   const centerItems = [
     { id: 'overview', title: '数据总览', detail: '所有网站和影视资源统计', icon: 'search' as IconName },
     { id: 'directory', title: 'FMHY 网站目录', detail: '唯一网站发现入口', icon: 'home' as IconName },
-    { id: 'archives', title: '网站采集档案', detail: '每个网站独立抓取记录', icon: 'database' as IconName },
+    { id: 'archives', title: '网站采集档案', detail: '每个网站独立抓取记录', icon: 'download' as IconName },
     { id: 'library', title: '影视资源库', detail: '电影、电视剧、动漫及去重', icon: 'download' as IconName },
     { id: 'monitor', title: '实时任务监控', detail: 'Spider、浏览器和任务队列', icon: 'bolt' as IconName },
     { id: 'quality', title: '资源质量检测', detail: '预检、播放确认和质量评分', icon: 'check' as IconName },
