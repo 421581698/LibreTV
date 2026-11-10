@@ -936,6 +936,77 @@ def classify_url(raw_url: str) -> tuple[str, str] | None:
     return None
 
 
+def classify_access_state(status_code: int | None = None, headers=None, body: str = "", url: str = "") -> dict:
+    """Classify access requirements from observable public response signals only.
+
+    This never attempts authentication, paywall circumvention, DRM key discovery,
+    decryption, or access-control bypass.
+    """
+    header_map = {str(k).lower(): str(v).lower() for k, v in (headers or {}).items()}
+    sample = (body or "")[:256_000].lower()
+    url_lower = (url or "").lower()
+    protection = " ".join((sample, url_lower, header_map.get("content-type", "")))
+
+    drm_systems = []
+    for marker, name in (
+        ("com.widevine.alpha", "Widevine"),
+        ("com.microsoft.playready", "PlayReady"),
+        ("com.apple.fps", "FairPlay"),
+        ("urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed", "Widevine"),
+        ("urn:uuid:9a04f079-9840-4286-ab92-e65be0885f95", "PlayReady"),
+        ("skd://", "FairPlay"),
+        ("#ext-x-key", "HLS encrypted stream"),
+        ("contentprotection", "MPEG-DASH ContentProtection"),
+    ):
+        if marker in protection and name not in drm_systems:
+            drm_systems.append(name)
+    if drm_systems:
+        return {
+            "access_state": "DRM_PROTECTED",
+            "reason": "Detected DRM or encrypted-stream signaling",
+            "drm_systems": drm_systems,
+            "next_action": "Use the provider's official player or authorized playback integration",
+        }
+
+    auth_markers = (
+        "login required", "sign in to continue", "please log in",
+        "authentication required", "unauthorized", "session expired",
+        "请先登录", "登录后观看", "登录后继续",
+    )
+    subscription_markers = (
+        "subscription required", "subscribe to watch", "premium members only",
+        "upgrade your plan", "payment required", "订阅后观看", "会员专享",
+        "开通会员", "付费观看",
+    )
+    if status_code in (401, 407) or any(marker in sample for marker in auth_markers):
+        return {
+            "access_state": "AUTH_REQUIRED",
+            "reason": "Provider indicates authentication is required",
+            "drm_systems": [],
+            "next_action": "Ask the user to authenticate through the provider's official flow",
+        }
+    if status_code == 402 or any(marker in sample for marker in subscription_markers):
+        return {
+            "access_state": "SUBSCRIPTION_REQUIRED",
+            "reason": "Provider indicates a paid subscription or entitlement is required",
+            "drm_systems": [],
+            "next_action": "Check subscription entitlement through the provider's authorized API",
+        }
+    if status_code is not None and status_code >= 400:
+        return {
+            "access_state": "ACCESS_UNKNOWN",
+            "reason": f"Provider returned HTTP {status_code}; access requirement is not established",
+            "drm_systems": [],
+            "next_action": "Do not retry with bypass techniques; inspect provider documentation",
+        }
+    return {
+        "access_state": "PUBLIC",
+        "reason": "No authentication, subscription, or DRM signal detected in the observed response",
+        "drm_systems": [],
+        "next_action": "Validate the public HTTPS candidate before playback",
+    }
+
+
 def extract_candidates(page, page_url: str, limit: int) -> list[dict]:
     found: dict[str, dict] = {}
     title = (page.css("title::text").get() or "").strip()[:200]
@@ -950,7 +1021,8 @@ def extract_candidates(page, page_url: str, limit: int) -> list[dict]:
             if not classified:
                 continue
             kind, host = classified
-            found.setdefault(absolute, {"url": absolute, "kind": kind, "host": host, "title": title})
+            access = classify_access_state(url=absolute)
+            found.setdefault(absolute, {"url": absolute, "kind": kind, "host": host, "title": title, **access})
             if len(found) >= limit:
                 return list(found.values())
     # Public metadata and common player configuration attributes.
@@ -1029,10 +1101,24 @@ def captured_api_candidates(session, page_url: str, limit: int) -> list[dict]:
         if classified:
             kind = classified[0]
         extracted_media: list[str] = []
+        response_body = ""
+        access = classify_access_state(
+            getattr(response, "status", None),
+            getattr(response, "headers", {}),
+            "",
+            url,
+        )
         if kind == "public-api-response":
             try:
                 body = response.body
-                payload = json.loads(body.decode("utf-8", errors="replace")) if isinstance(body, bytes) else json.loads(str(body))
+                response_body = body.decode("utf-8", errors="replace") if isinstance(body, bytes) else str(body)
+                access = classify_access_state(
+                    getattr(response, "status", None),
+                    getattr(response, "headers", {}),
+                    response_body,
+                    url,
+                )
+                payload = json.loads(response_body)
                 data = payload.get("data") if isinstance(payload, dict) else None
                 api_list = payload.get("list") if isinstance(payload, dict) else None
                 if not isinstance(api_list, list) and isinstance(data, dict):
@@ -1042,15 +1128,25 @@ def captured_api_candidates(session, page_url: str, limit: int) -> list[dict]:
                 extracted_media = extract_public_urls_from_json(payload)
             except Exception:
                 pass
-        if kind:
+        if kind and access["access_state"] == "PUBLIC":
             seen.add(url)
-            results.append({"url": url, "kind": kind, "host": parsed.hostname.lower(), "title": "Captured browser network request"})
+            results.append({"url": url, "kind": kind, "host": parsed.hostname.lower(), "title": "Captured browser network request", **access})
+        elif access["access_state"] != "PUBLIC":
+            seen.add(url)
+            results.append({
+                "url": url, "kind": "access-gate", "host": parsed.hostname.lower(),
+                "title": "Provider access requirement detected", **access,
+            })
         for media_url in extracted_media:
             classified_media = classify_url(media_url)
             if classified_media and media_url not in seen:
                 media_kind, media_host = classified_media
                 seen.add(media_url)
-                results.append({"url": media_url, "kind": media_kind, "host": media_host, "title": "Extracted from public API player configuration"})
+                results.append({
+                    "url": media_url, "kind": media_kind, "host": media_host,
+                    "title": "Extracted from public API player configuration",
+                    **classify_access_state(url=media_url),
+                })
         if len(results) >= limit:
             break
             if len(results) >= limit:
