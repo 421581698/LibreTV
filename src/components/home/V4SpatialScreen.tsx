@@ -58,7 +58,6 @@ export function V4SpatialScreen({ screen }: { screen: Screen }) {
         {screen === 'me' ? <MeScreen /> : null}
         {screen === 'settings' ? <SettingsScreen /> : null}
       </main>
-      <MobileScreenTabs active={screen} />
     </div>
   );
 }
@@ -275,6 +274,12 @@ function MeScreen() {
           <div className="v4-me-history-grid">{history.map((item) => <MeHistoryCard key={item.id} item={item} />)}</div>
         )}
       </section>
+      <section className="v4-spatial-panel v4-me-settings-entry">
+        <Link href="/settings" className="v4-settings-card">
+          <div><strong>设置</strong><p>外观、播放、资源管理、采集中心与隐私设置</p></div>
+          <b aria-hidden="true">›</b>
+        </Link>
+      </section>
     </div>
   );
 }
@@ -330,36 +335,5 @@ function SettingsScreen() {
       </div>
       <p className="v4-spatial-footnote">每个分类直接进入对应的实际设置面板；选项沿用 LibreTV 现有配置与本机持久化，不创建重复配置。</p>
     </section>
-  );
-}
-
-function MobileScreenTabs({ active }: { active: Screen }) {
-  const activeHref: Record<Screen, string> = {
-    movies: '/movies',
-    tv: '/tv',
-    anime: '/anime',
-    variety: '/variety',
-    overseas: '/overseas',
-    resources: '/resources',
-    me: '/me',
-    settings: '/settings',
-  };
-  const items = [{ href: '/', label: '首页' }, { href: '/movies', label: '电影' }, { href: '/tv', label: '电视剧' }, { href: '/anime', label: '动漫' }, { href: '/variety', label: '综艺' }, { href: '/overseas', label: '海外剧' }, { href: '/live', label: '直播' }];
-  return (
-    <nav className="v4-mobile-tabs" aria-label="移动端导航">
-      {items.map((item) => {
-        const selected = activeHref[active] === item.href;
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={selected ? 'is-active' : ''}
-            aria-current={selected ? 'page' : undefined}
-          >
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
   );
 }
