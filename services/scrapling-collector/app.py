@@ -83,6 +83,22 @@ def init_db() -> None:
         CREATE INDEX IF NOT EXISTS idx_candidates_task ON candidates(task_id);
         CREATE INDEX IF NOT EXISTS idx_tasks_created ON tasks(created_at DESC);
         """)
+        # Forward-only, additive migrations keep existing collector volumes compatible.
+        candidate_columns = {row["name"] for row in connection.execute("PRAGMA table_info(candidates)").fetchall()}
+        candidate_migrations = {
+            "collected_by": "TEXT NOT NULL DEFAULT '[]'",
+            "access_state": "TEXT NOT NULL DEFAULT 'ACCESS_UNKNOWN'",
+            "access_reason": "TEXT",
+            "probe_evidence": "TEXT NOT NULL DEFAULT '{}'",
+            "media_identity": "TEXT NOT NULL DEFAULT '{}'",
+            "quality_evidence": "TEXT NOT NULL DEFAULT '{}'",
+        }
+        for column, declaration in candidate_migrations.items():
+            if column not in candidate_columns:
+                connection.execute(f"ALTER TABLE candidates ADD COLUMN {column} {declaration}")
+        connection.execute(
+            "UPDATE candidates SET access_state='ACCESS_UNKNOWN' WHERE access_state IS NULL OR access_state=''"
+        )
         connection.execute("UPDATE tasks SET status='interrupted',updated_at=? WHERE status='running'", (int(time.time()),))
 
 
@@ -1015,6 +1031,59 @@ def classify_access_state(status_code: int | None = None, headers=None, body: st
     }
 
 
+def infer_media_identity(title: str = "", url: str = "") -> dict:
+    """Conservative title/URL identity hints; never claim a match without evidence."""
+    source = f"{title or ''} {url or ''}"
+    year_match = re.search(r"(?<!\\d)((?:19|20)\\d{2})(?!\\d)", source)
+    season_match = re.search(r"(?i)(?:season\\s*|s)(\\d{1,2})", source)
+    episode_match = re.search(r"(?i)(?:episode\\s*|ep?)(\\d{1,3})", source)
+    cleaned = re.sub(r"(?i)\\.(m3u8|mp4|m4v|webm|mpd|mov|ts|m4s|aac)(?:$|\\?).*", "", source)
+    cleaned = re.sub(r"(?i)(?:season\\s*|s)\\d{1,2}|(?:episode\\s*|ep?)\\d{1,3}|(?<!\\d)(?:19|20)\\d{2}(?!\\d)", " ", cleaned)
+    cleaned = re.sub(r"[^\\w\\u4e00-\\u9fff]+", " ", cleaned, flags=re.UNICODE)
+    title_hint = " ".join(cleaned.split())[:160]
+    return {
+        "title_hint": title_hint or None,
+        "year_hint": int(year_match.group(1)) if year_match else None,
+        "season_hint": int(season_match.group(1)) if season_match else None,
+        "episode_hint": int(episode_match.group(1)) if episode_match else None,
+        "match_confidence": "hint_only",
+    }
+
+
+def build_quality_evidence(validation: dict | None = None) -> dict:
+    """Collect declared manifest dimensions separately from observed probe facts."""
+    validation = validation or {}
+    declared = []
+    manifest = validation.get("manifest") or validation.get("probe") or {}
+    for variant in manifest.get("variants", []) if isinstance(manifest, dict) else []:
+        if isinstance(variant, dict) and isinstance(variant.get("height"), int):
+            declared.append({"width": variant.get("width"), "height": variant["height"], "source": "hls_manifest"})
+    for representation in manifest.get("representations", []) if isinstance(manifest, dict) else []:
+        if isinstance(representation, dict) and isinstance(representation.get("height"), int):
+            declared.append({"width": representation.get("width"), "height": representation["height"], "source": "dash_manifest"})
+    return {
+        "declared_resolutions": declared[:50],
+        "observed_container_resolution": None,
+        "decode_verified": False,
+        "visual_quality_verified": False,
+        "evidence_scope": "manifest_metadata_only",
+    }
+
+
+def normalize_candidate(candidate: dict) -> dict:
+    item = dict(candidate)
+    item.setdefault("access_state", "ACCESS_UNKNOWN")
+    item.setdefault("reason", "No target response status or explicit public-access evidence was observed")
+    item["collected_by"] = list(dict.fromkeys(
+        source for source in item.get("collected_by", []) if source in ("spider", "browser", "fmhy")
+    ))
+    item["media_identity"] = item.get("media_identity") or infer_media_identity(
+        item.get("title", ""), item.get("url", "")
+    )
+    item["quality_evidence"] = item.get("quality_evidence") or build_quality_evidence(item.get("validation"))
+    return item
+
+
 def extract_candidates(page, page_url: str, limit: int) -> list[dict]:
     found: dict[str, dict] = {}
     title = (page.css("title::text").get() or "").strip()[:200]
@@ -1281,9 +1350,9 @@ def merge_unique_candidates(existing: list[dict], incoming: list[dict], limit: i
             if not isinstance(target, str) or not target:
                 continue
             key = canonical_candidate_url(target)
+            item = normalize_candidate(item)
             if key not in merged:
                 item["canonical_url"] = key
-                item.setdefault("access_state", "ACCESS_UNKNOWN")
                 item["collected_by"] = list(dict.fromkeys(item.get("collected_by", [])))
                 if item.get("collector"):
                     item["collected_by"] = list(dict.fromkeys([*item["collected_by"], item["collector"]]))
@@ -1423,9 +1492,14 @@ def crawl_site(payload: CrawlRequest) -> dict:
                 candidate_id = hashlib.sha256((task_id + item["url"]).encode()).hexdigest()[:32]
                 connection.execute(
                     """INSERT OR IGNORE INTO candidates
-                    (id,task_id,url,host,kind,title,status,created_at)
-                    VALUES(?,?,?,?,?,?,?,?)""",
-                    (candidate_id, task_id, item["url"], item["host"], item["kind"], item.get("title", ""), "pending", now),
+                    (id,task_id,url,host,kind,title,status,created_at,collected_by,access_state,access_reason,probe_evidence,media_identity,quality_evidence)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (candidate_id, task_id, item["url"], item["host"], item["kind"], item.get("title", ""), "pending", now,
+                     json.dumps(item.get("collected_by", []), ensure_ascii=False),
+                     item.get("access_state", "ACCESS_UNKNOWN"), item.get("reason"),
+                     json.dumps(item.get("probe_evidence", {}), ensure_ascii=False),
+                     json.dumps(item.get("media_identity", {}), ensure_ascii=False),
+                     json.dumps(item.get("quality_evidence", {}), ensure_ascii=False)),
                 )
                 item["id"] = candidate_id
                 item["status"] = "pending"
@@ -1499,7 +1573,20 @@ def task_candidates(task_id: str, authorization: str | None = Header(default=Non
         if not exists:
             raise HTTPException(status_code=404, detail="Task not found")
         rows = connection.execute("SELECT * FROM candidates WHERE task_id=? ORDER BY created_at DESC", (task_id,)).fetchall()
-    return {"candidates": [dict(row) for row in rows]}
+    candidates = []
+    for row in rows:
+        item = dict(row)
+        for field, fallback in (
+            ("collected_by", []), ("probe_evidence", {}),
+            ("media_identity", {}), ("quality_evidence", {}),
+        ):
+            try:
+                item[field] = json.loads(item.get(field) or json.dumps(fallback))
+            except (TypeError, ValueError):
+                item[field] = fallback
+        item["access_state"] = item.get("access_state") or "ACCESS_UNKNOWN"
+        candidates.append(item)
+    return {"candidates": candidates}
 
 
 @app.post("/v1/candidates/{candidate_id}/validate")
@@ -1578,7 +1665,15 @@ def validate_candidate(candidate_id: str, authorization: str | None = Header(def
             "playback_probe": "not_performed",
             "note": "Public URL and candidate type were checked. Embedded player content still requires manual playback verification; this is not a CMS API source.",
         })
+    quality_evidence = build_quality_evidence(validation)
     with db() as connection:
-        connection.execute("UPDATE candidates SET status=?,validation=? WHERE id=?",
-                           (candidate_status, json.dumps(validation, ensure_ascii=False), candidate_id))
+        connection.execute(
+            """UPDATE candidates SET status=?,validation=?,access_state=?,access_reason=?,
+               probe_evidence=?,quality_evidence=? WHERE id=?""",
+            (candidate_status, json.dumps(validation, ensure_ascii=False),
+             candidate.get("access_state") or "ACCESS_UNKNOWN",
+             candidate.get("access_reason"),
+             json.dumps(validation, ensure_ascii=False),
+             json.dumps(quality_evidence, ensure_ascii=False), candidate_id),
+        )
     return {"candidate_id": candidate_id, "validation": validation}
