@@ -1044,5 +1044,44 @@ segment-2.ts
         self.assertEqual(access["access_state"], "DRM_PROTECTED")
         self.assertIn("Widevine", access["drm_systems"])
 
+
+    def test_mp4_tkhd_dimensions_are_parsed_from_bounded_moov_box(self):
+        def box(kind, payload):
+            return (len(payload) + 8).to_bytes(4, "big") + kind + payload
+        tkhd = bytearray(84)
+        tkhd[0] = 0
+        tkhd[76:80] = (1920 << 16).to_bytes(4, "big")
+        tkhd[80:84] = (1080 << 16).to_bytes(4, "big")
+        sample = box(b"ftyp", b"isom0000") + box(b"moov", box(b"trak", box(b"tkhd", bytes(tkhd))))
+        self.assertEqual(
+            collector.parse_mp4_container_dimensions(sample),
+            {"width": 1920, "height": 1080, "source": "mp4_tkhd"},
+        )
+
+    def test_webm_ebml_video_dimensions_are_parsed(self):
+        def element(element_id, payload):
+            return element_id + bytes([0x80 | len(payload)]) + payload
+        pixel_width = element(b"\\xb0", (1920).to_bytes(2, "big"))
+        pixel_height = element(b"\\xba", (1080).to_bytes(2, "big"))
+        video = element(b"\\xe0", pixel_width + pixel_height)
+        track = element(b"\\xae", video)
+        tracks = element(b"\\x16\\x54\\xae\\x6b", track)
+        segment = element(b"\\x18\\x53\\x80\\x67", tracks)
+        self.assertEqual(
+            collector.parse_webm_container_dimensions(segment),
+            {"width": 1920, "height": 1080, "source": "webm_ebml_video"},
+        )
+
+    def test_observed_container_resolution_outranks_declared_manifest_hint(self):
+        evidence = collector.rank_quality_evidence(
+            {
+                "best_declared_resolution": {"width": 1280, "height": 720},
+                "observed_container_resolution": {"width": 1920, "height": 1080},
+            },
+            {"quality_hint": "2160p"},
+        )
+        self.assertEqual(evidence["quality_rank"], 1080)
+        self.assertEqual(evidence["quality_rank_source"], "container_observed")
+
 if __name__ == "__main__":
     unittest.main()
