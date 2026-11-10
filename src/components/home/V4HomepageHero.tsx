@@ -41,7 +41,7 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
                 <span aria-hidden="true">▶</span>
                 立即观看
               </button>
-              <a className="v4-hero-secondary" href="#today-recommendations"><span aria-hidden="true">ⓘ</span>更多详情</a>
+              <a className="v4-hero-secondary" href="#for-you"><span aria-hidden="true">ⓘ</span>更多详情</a>
             </div>
             <div className="v4-hero-indicators" role="group" aria-label="选择精选影片">
               {slides.map((item, index) => (
