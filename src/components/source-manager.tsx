@@ -267,6 +267,12 @@ function ResourceCollectorPanel() {
         throw new Error(`连接测试失败（HTTP ${response.status}）：${detail}${statusHint ? `。${statusHint}` : ''}`);
       }
       if (payload.ok !== true) throw new Error('Collector 已响应，但健康状态未确认（缺少 ok=true）。');
+      if (payload.crawl_ready !== true) {
+        const reason = typeof payload.crawl_blocked_reason === 'string'
+          ? payload.crawl_blocked_reason
+          : '采集服务尚未确认安全出口防火墙已安装并验证。';
+        throw new Error(`Collector 在线，但采集功能未就绪：${reason}。请先在 Collector 主机安装并验证出站防火墙；不要仅设置环境变量绕过安全检查。`);
+      }
 
       // /health is intentionally public and does not validate the configured bearer token.
       // /v1/tasks is authenticated but read-only and does not trigger external crawling.
@@ -310,7 +316,7 @@ function ResourceCollectorPanel() {
     try {
       const response = await collectorFetch('/api/resource-collector', { cache: 'no-store' });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'FMHY 目录加载失败。');
+      if (!response.ok) throw new Error(payload.error || payload.detail || `FMHY 目录加载失败（HTTP ${response.status}）。`);
       setSites(Array.isArray(payload.sites) ? payload.sites : []);
       setLoaded(true);
       await loadTasks();
@@ -333,7 +339,18 @@ function ResourceCollectorPanel() {
         body: JSON.stringify({ url: site.url }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Scrapling 采集失败。');
+      if (!response.ok) {
+        const detail = payload.error || payload.detail || payload.message || 'Collector 未提供错误详情';
+        const code = typeof payload.code === 'string' ? ` · ${payload.code}` : '';
+        const diagnostic = `HTTP ${response.status}${code}：${detail}`;
+        setCrawlDiagnostics({
+          pageTitle: '', finalUrl: site.url, mode: 'auto', capturedRequestCount: 0,
+          httpSpider: { status: 'not_started', candidate_count: 0 },
+          browser: { status: 'not_started', candidate_count: 0 },
+          errors: [diagnostic],
+        });
+        throw new Error(`Scrapling 采集失败：${diagnostic}`);
+      }
       setCandidates(Array.isArray(payload.candidates) ? payload.candidates : []);
       setCrawlDiagnostics({
         pageTitle: payload.page_title, finalUrl: payload.final_url || payload.page_url,
@@ -360,7 +377,7 @@ function ResourceCollectorPanel() {
     try {
       const response = await collectorFetch(`/api/resource-collector/tasks/${task.id}/retry`, { method: 'POST' });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || '任务重试失败。');
+      if (!response.ok) throw new Error(payload.error || payload.detail || `任务重试失败（HTTP ${response.status}）。`);
       setSelectedSite({ title: task.host, host: task.host, url: task.url, directory: 'FMHY / Movies-TV-Anime' });
       setCandidates(Array.isArray(payload.candidates) ? payload.candidates : []);
       await loadTasks();
@@ -381,7 +398,7 @@ function ResourceCollectorPanel() {
     try {
       const response = await collectorFetch(`/api/resource-collector/candidates/${candidate.id}/validate`, { method: 'POST' });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || '资源验证失败。');
+      if (!response.ok) throw new Error(payload.error || payload.detail || `资源验证失败（HTTP ${response.status}）。`);
       const validation = payload.validation ?? {};
       setCandidates((current) => current.map((item) => item.id === candidate.id
         ? { ...item, status: validation.cms_shape ? 'validated' : 'checked', validation }
