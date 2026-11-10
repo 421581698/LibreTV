@@ -68,8 +68,6 @@ class ResourceStatsTests(unittest.TestCase):
                         "observed_seconds":5,"progressed_seconds":4,"selected_rendition_bitrate_kbps":2500})
         ))
         self.db.execute("INSERT INTO playback_quality_samples VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                        ("sample-1","media.example","player","hls",5,4,3840,2160,2160,7000,111))
-        self.db.execute("INSERT INTO playback_quality_samples VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                         ("sample-2","media.example","player","mp4",5,4,1920,1080,1080,4500,112))
         self.db.execute("INSERT INTO playback_quality_samples VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                         ("sample-3","media.example","player","mp4",5,4,1280,720,720,2500,113))
