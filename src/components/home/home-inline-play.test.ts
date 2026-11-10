@@ -120,8 +120,9 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
   });
 
   it('plays only direct media and imports a source only after CMS shape validation', () => {
-    expect(collectorSettings).toContain("candidate.kind === 'direct-media' && candidate.status === 'checked'");
-    expect(collectorSettings).toContain('validation.cms_shape && validation.reachable');
+    expect(collectorSettings).toContain('isCandidatePreviewEligible(candidate)');
+    expect(collectorSettings).toContain('validation.cms_shape === true');
+    expect(collectorSettings).toContain("status: cmsValidated || directMediaValidated ? 'validated' : 'rejected'");
     expect(collectorSettings).toContain('store.addCustomApi');
     expect(collectorValidationRoute).toContain('guardPrivateFeatureRequest(request)');
     expect(collectorValidationRoute).toContain('/validate');

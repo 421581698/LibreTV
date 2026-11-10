@@ -54,7 +54,7 @@ jobs:
       - name: Install collector dependencies
         run: python -m pip install --upgrade pip && pip install -r requirements.txt
       - name: Compile Python service
-        run: python -m py_compile app.py
+        run: python -m py_compile app.py registry_queue.py worker.py
       - name: Run collector unit tests
         run: python -m unittest discover -s tests -v
       - name: Validate Docker Compose collector profile
@@ -71,6 +71,17 @@ jobs:
         run: bash -n ../../scripts/scrapling-egress-firewall.sh
       - name: Build isolated collector image
         run: docker build --tag libretv-scrapling-collector:ci .
+      - name: Smoke test durable worker startup
+        working-directory: .
+        run: |
+          docker run --rm --read-only \
+            --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+            --tmpfs /data:rw,nosuid,nodev,size=64m \
+            --shm-size 256m --pids-limit 128 --memory 1g --cpus 2.0 \
+            -e SCRAPLING_API_TOKEN=collector-ci-token \
+            -e SCRAPLING_DB_PATH=/data/worker-smoke.sqlite3 \
+            -e SCRAPLING_EGRESS_FIREWALL_CONFIRMED=0 \
+            libretv-scrapling-collector:ci python worker.py --once
       - name: Run isolated collector API smoke test
         working-directory: .
         run: |
@@ -118,6 +129,26 @@ jobs:
 
           status, body = request("/health")
           assert status == 200 and json.loads(body)["ok"] is True, (status, body)
+
+          status, _ = request("/v1/jobs")
+          assert status == 401, ("unauthenticated jobs must be rejected", status)
+          status, _ = request("/v1/registry/resources")
+          assert status == 401, ("unauthenticated Registry access must be rejected", status)
+
+          token = "collector-ci-token"
+          status, body = request("/v1/jobs", token=token)
+          assert status == 200 and json.loads(body)["jobs"] == [], (status, body)
+          status, body = request("/v1/registry/resources", token=token)
+          assert status == 200 and json.loads(body)["resources"] == [], (status, body)
+
+          payload = {"payload": {"url": "https://example.com", "mode": "http", "limit": 1},
+                     "idempotency_key": "ci:collector:smoke"}
+          status, first = request("/v1/tasks/submit", method="POST", token=token, body=payload)
+          status2, second = request("/v1/tasks/submit", method="POST", token=token, body=payload)
+          first_job, second_job = json.loads(first), json.loads(second)
+          assert status == status2 == 200 and first_job["id"] == second_job["id"], (status, first, status2, second)
+          status, body = request("/v1/jobs/" + first_job["id"] + "/cancel", method="POST", token=token)
+          assert status == 200 and json.loads(body)["status"] == "cancelled", (status, body)
 
           status, _ = request("/v1/discover")
           assert status == 401, ("unauthenticated discovery must be rejected", status)

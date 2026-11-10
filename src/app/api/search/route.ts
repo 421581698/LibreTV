@@ -3,8 +3,9 @@ import {
   searchSources,
   mergeSearchResults,
 } from '@/lib/search';
-import type { SearchResponse, SearchStreamEvent, SourceConfig, SourceSearchOutcome } from '@/lib/types';
+import type { RegistrySearchResource, SearchResponse, SearchStreamEvent, SourceConfig, SourceSearchOutcome } from '@/lib/types';
 import { guardRequest } from '@/lib/api-guard';
+import { collectorRequest } from '@/lib/resource-collector-client';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -240,6 +241,22 @@ function setCachedOutcomes(key: string, outcomes: SourceSearchOutcome[]): void {
   });
 }
 
+async function searchVerifiedRegistry(keyword: string): Promise<RegistrySearchResource[]> {
+  try {
+    const response = await collectorRequest(
+      `/v1/registry/search?q=${encodeURIComponent(keyword)}`,
+      {},
+      1_500,
+    );
+    if (!response.ok) return [];
+    const payload = await response.json() as { resources?: unknown };
+    return Array.isArray(payload.resources) ? payload.resources as RegistrySearchResource[] : [];
+  } catch {
+    // Registry is supplemental: a collector outage must never fail normal CMS search.
+    return [];
+  }
+}
+
 function toSearchResponse(outcomes: SourceSearchOutcome[]): SearchResponse {
   return {
     list: mergeSearchResults(outcomes),
@@ -284,6 +301,7 @@ function ndjsonResponse(
 
       void (async () => {
         try {
+          const registryPromise = searchVerifiedRegistry(keyword);
           const outcomes = cached ?? await searchSources(keyword, sources, {
             filterAdult,
             signal: abortController.signal,
@@ -295,8 +313,9 @@ function ndjsonResponse(
           }
 
           if (!abortController.signal.aborted) {
+            const [registryResources] = await Promise.all([registryPromise]);
             const result = toSearchResponse(outcomes);
-            send({ type: 'done', ...result });
+            send({ type: 'done', ...result, ...(registryResources.length ? { registryResources } : {}) });
           }
         } catch {
           if (!abortController.signal.aborted) {
@@ -394,6 +413,7 @@ export async function POST(req: Request) {
       return ndjsonResponse(req, keyword, sources, filterAdult, cacheKey, cached);
     }
 
+    const registryPromise = searchVerifiedRegistry(keyword);
     const outcomes = cached ?? await searchSources(keyword, sources, {
       filterAdult,
       signal: req.signal,
@@ -401,8 +421,9 @@ export async function POST(req: Request) {
 
     if (req.signal.aborted) return jsonError('请求已取消', 400);
     if (!cached) setCachedOutcomes(cacheKey, outcomes);
+    const [registryResources] = await Promise.all([registryPromise]);
 
-    return NextResponse.json(toSearchResponse(outcomes), {
+    return NextResponse.json({ ...toSearchResponse(outcomes), ...(registryResources.length ? { registryResources } : {}) }, {
       headers: { 'Cache-Control': 'no-store' },
     });
   } catch {

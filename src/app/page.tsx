@@ -12,6 +12,7 @@ import { useFridayDetailBridge } from '@/components/friday/useFridayDetailBridge
 import { useHomeSearchController } from '@/components/home/useHomeSearchController';
 import { DetailModal } from '@/components/detail-modal';
 import { HomeInlinePlayer } from '@/components/home/HomeInlinePlayer';
+import { RegistryInlinePlayer } from '@/components/home/RegistryInlinePlayer';
 import { AggregatedCard, aggregateResults } from '@/components/video-card';
 import {
   useAppStore,
@@ -24,6 +25,7 @@ import type {
   SearchResultItem,
   SourceSearchOutcome,
   DoubanItem,
+  RegistrySearchResource,
 } from '@/lib/types';
 import {
   formatDisableTtl,
@@ -58,6 +60,8 @@ function HomeContent() {
     useState<SearchResultItem | null>(null);
   const [quickPlayItem, setQuickPlayItem] =
     useState<SearchResultItem | null>(null);
+  const [registryPlayItem, setRegistryPlayItem] =
+    useState<RegistrySearchResource | null>(null);
   const [streamedOutcomes, setStreamedOutcomes] =
     useState<SourceSearchOutcome[]>([]);
 
@@ -83,7 +87,7 @@ function HomeContent() {
       .filter((s) => !isInDisabledSubscription({ subscriptions }, s.key));
   }, [customAPIs, envSources, selectedKeys, sourceHealth, subscriptions]);
 
-  const { activeQuery: urlQuery } = useHomeSearchController(routeQuery, selectedSources.length, toast);
+  const { activeQuery: urlQuery } = useHomeSearchController(routeQuery, toast);
 
   // 推荐卡片必须先用当前启用的采集源解析真实 vodId，不能把豆瓣 ID 当作资源站 ID。
   const openRecommendation = async (movie: DoubanItem) => {
@@ -146,7 +150,7 @@ function HomeContent() {
         }
       );
     },
-    enabled: Boolean(urlQuery) && selectedSources.length > 0,
+    enabled: Boolean(urlQuery),
     staleTime: 300_000,
   });
 
@@ -161,6 +165,8 @@ function HomeContent() {
     () => searchQuery.data?.list ?? (isSearching ? streamedList : []),
     [searchQuery.data, isSearching, streamedList]
   );
+
+  const registryResources = searchQuery.data?.registryResources ?? [];
 
   const failures =
     searchQuery.data?.failures ??
@@ -209,6 +215,30 @@ function HomeContent() {
                 )}
               </h2>
             </div>
+            {registryResources.length > 0 && (
+              <div className="mb-5" aria-label="已验证资源">
+                <div className="mb-2 flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-content">已验证可播放资源</h3>
+                  <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-600">Registry</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {registryResources.map((resource) => (
+                    <button
+                      key={resource.id}
+                      type="button"
+                      onClick={() => setRegistryPlayItem(resource)}
+                      className="flex min-h-16 items-center justify-between gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-left hover:bg-emerald-500/10"
+                    >
+                      <span className="min-w-0">
+                        <strong className="block truncate text-sm text-content">{resource.title}</strong>
+                        <span className="block truncate text-xs text-muted">{resource.source_name ?? 'LibreTV Registry'} · {resource.media_format?.toUpperCase() ?? 'MEDIA'}</span>
+                      </span>
+                      <span className="shrink-0 text-xs font-medium text-emerald-600">播放 ▶</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {failures.length > 0 && (
               <div className="mb-3 text-xs bg-chip rounded-lg px-3 py-2 flex flex-wrap gap-x-3 gap-y-1">
                 <span className="text-faint">
@@ -235,7 +265,7 @@ function HomeContent() {
                 {offSubscriptionSources.map((key) => sourceName(key)).join('、')}
               </div>
             )}
-            {selectedSources.length === 0 ? (
+            {selectedSources.length === 0 && registryResources.length === 0 ? (
               <NoSourceGuide hasSources={customAPIs.length > 0 || envSources.length > 0} />
             ) : list.length > 0 ? (
               <>
@@ -260,7 +290,7 @@ function HomeContent() {
                   </div>
                 )}
               </>
-            ) : isSearching ? (
+            ) : registryResources.length > 0 ? null : isSearching ? (
               <ResultsSkeleton />
             ) : (
               <EmptyState
@@ -276,6 +306,7 @@ function HomeContent() {
       </main>
       <DetailModal item={detailItem} onClose={() => setDetailItem(null)} />
       <HomeInlinePlayer item={quickPlayItem} onClose={() => setQuickPlayItem(null)} />
+      <RegistryInlinePlayer resource={registryPlayItem} onClose={() => setRegistryPlayItem(null)} />
     </div>
   );
 }

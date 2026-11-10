@@ -1,0 +1,137 @@
+import os
+import tempfile
+import unittest
+from unittest.mock import patch
+
+import registry_queue as queue
+
+
+class RegistryQueueTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.db = os.path.join(self.tmp.name, "collector.sqlite3")
+        self.patch = patch.object(queue, "DB_PATH", __import__("pathlib").Path(self.db))
+        self.patch.start()
+        queue.initialize()
+        with queue.connect() as c:
+            c.execute("CREATE TABLE IF NOT EXISTS sites (host TEXT PRIMARY KEY, title TEXT NOT NULL, url TEXT NOT NULL, directory TEXT NOT NULL, discovered_at INTEGER NOT NULL)")
+
+    def tearDown(self):
+        self.patch.stop()
+        self.tmp.cleanup()
+
+    def test_discovery_jobs_are_durable_and_idempotent(self):
+        first = queue.submit_job("discover", {"search_keyword": "sample"}, "discover:sample")
+        second = queue.submit_job("discover", {"search_keyword": "sample"}, "discover:sample")
+        self.assertEqual(first["id"], second["id"])
+        self.assertEqual(first["job_type"], "discover")
+
+    def test_idempotent_job_submit_and_atomic_claim(self):
+        first = queue.submit_job("crawl", {"url": "https://example.org"}, "crawl:example")
+        second = queue.submit_job("crawl", {"url": "https://example.org"}, "crawl:example")
+        self.assertEqual(first["id"], second["id"])
+        claimed = queue.claim_job("worker-a", lease_seconds=30)
+        self.assertEqual(claimed["attempt"], 1)
+        self.assertIsNone(queue.claim_job("worker-b"))
+
+    def test_lease_expiry_requeues_job(self):
+        job = queue.submit_job("crawl", {"url": "https://example.org"}, "lease:test")
+        queue.claim_job("worker-a", lease_seconds=10)
+        with queue.connect() as c:
+            c.execute("UPDATE collector_jobs SET lease_until=0 WHERE id=?", (job["id"],))
+        reclaimed = queue.claim_job("worker-b")
+        self.assertEqual(reclaimed["id"], job["id"])
+        self.assertEqual(reclaimed["attempt"], 2)
+        with queue.connect() as c:
+            recovered = c.execute("SELECT COUNT(*) AS n FROM collector_job_events WHERE job_id=? AND event='lease_expired_recovered'", (job["id"],)).fetchone()["n"]
+        self.assertEqual(recovered, 1)
+
+    def test_retry_backoff_then_dead_letter(self):
+        job = queue.submit_job("crawl", {"url": "https://example.org"}, "retry:test", max_attempts=2)
+        queue.claim_job("worker-a")
+        self.assertTrue(queue.fail_job(job["id"], "worker-a", "NetworkError"))
+        with queue.connect() as c:
+            row = c.execute("SELECT status,available_at FROM collector_jobs WHERE id=?", (job["id"],)).fetchone()
+            self.assertEqual(row["status"], "queued")
+            self.assertGreater(row["available_at"], int(__import__("time").time()))
+            c.execute("UPDATE collector_jobs SET available_at=0 WHERE id=?", (job["id"],))
+        queue.claim_job("worker-b")
+        self.assertTrue(queue.fail_job(job["id"], "worker-b", "NetworkError"))
+        with queue.connect() as c:
+            row = c.execute("SELECT status FROM collector_jobs WHERE id=?", (job["id"],)).fetchone()
+        self.assertEqual(row["status"], "failed")
+
+    def test_cancel_queued_job(self):
+        job = queue.submit_job("crawl", {"url": "https://example.org"}, "cancel:test")
+        self.assertTrue(queue.cancel_job(job["id"]))
+        self.assertIsNone(queue.claim_job("worker-a"))
+
+    def test_running_job_cancel_is_cooperative_and_recoverable(self):
+        job = queue.submit_job("crawl", {"url": "https://example.org"}, "cancel-running:test")
+        queue.claim_job("worker-a")
+        self.assertTrue(queue.cancel_job(job["id"]))
+        self.assertTrue(queue.job_cancelled(job["id"]))
+        self.assertTrue(queue.mark_cancelled(job["id"], "worker-a"))
+        with queue.connect() as c:
+            row = c.execute("SELECT status FROM collector_jobs WHERE id=?", (job["id"],)).fetchone()
+        self.assertEqual(row["status"], "cancelled")
+
+    def test_registry_search_miss_enqueues_fmhy_discovery(self):
+        with patch.object(queue, "require_auth"):
+            result = queue.api_registry_search(q="Missing film", authorization="Bearer test")
+        self.assertEqual(result["resources"], [])
+        self.assertEqual(len(result["queued"]), 1)
+        self.assertEqual(result["queued"][0]["stage"], "fmhy_discovery")
+        with queue.connect() as c:
+            job = c.execute("SELECT job_type,status FROM collector_jobs").fetchone()
+        self.assertEqual(job["job_type"], "discover")
+        self.assertEqual(job["status"], "queued")
+
+    def test_registry_upsert_is_idempotent_and_title_is_not_identity(self):
+        one = queue.upsert_resource({
+            "resource_key": "provider-a:movie-1", "source_key": "provider-a",
+            "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/a.mp4",
+            "title": "同名电影", "movie_external_key": "tmdb:100",
+        })
+        again = queue.upsert_resource({
+            "resource_key": "provider-a:movie-1", "source_key": "provider-a",
+            "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/a.mp4",
+            "title": "同名电影", "movie_external_key": "tmdb:100",
+        })
+        other = queue.upsert_resource({
+            "resource_key": "provider-a:movie-2", "source_key": "provider-a",
+            "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/b.mp4",
+            "title": "同名电影", "movie_external_key": "tmdb:200",
+        })
+        self.assertEqual(one["id"], again["id"])
+        self.assertNotEqual(one["movie_id"], other["movie_id"])
+
+    def test_playback_requires_public_preflight(self):
+        resource = queue.upsert_resource({
+            "resource_key": "resource:private", "source_key": "provider",
+            "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/a.mp4",
+            "title": "Private", "access_state": "AUTH_REQUIRED",
+        })
+        with self.assertRaises(ValueError):
+            queue.record_verification(resource["id"], "player", "passed", {"progressed_seconds": 3})
+
+    def test_verification_history_and_confirmed_registry_search(self):
+        resource = queue.upsert_resource({
+            "resource_key": "resource:public", "source_key": "provider",
+            "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/a.mp4",
+            "title": "Public Film", "access_state": "PUBLIC",
+        })
+        queue.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        queue.record_verification(resource["id"], "player", "passed", {"progressed_seconds": 3})
+        with queue.connect() as c:
+            row = c.execute("SELECT validation_state,playback_state FROM registry_resources WHERE id=?", (resource["id"],)).fetchone()
+            history = c.execute("SELECT COUNT(*) n FROM registry_history WHERE resource_id=?", (resource["id"],)).fetchone()["n"]
+            verifications = c.execute("SELECT COUNT(*) n FROM registry_verifications WHERE resource_id=?", (resource["id"],)).fetchone()["n"]
+        self.assertEqual(row["validation_state"], "validated")
+        self.assertEqual(row["playback_state"], "PLAYER_CONFIRMED")
+        self.assertGreaterEqual(history, 3)
+        self.assertEqual(verifications, 2)
+
+
+if __name__ == "__main__":
+    unittest.main()
