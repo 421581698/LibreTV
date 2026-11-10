@@ -30,6 +30,7 @@ import {
 } from '@/lib/utils';
 import { useToast } from '@/components/toast';
 import { EmptyState } from '@/components/states';
+import { rankSourcesByHealth } from '@/lib/source-ranking';
 
 const RESULT_PAGE_SIZE = 60;
 
@@ -67,7 +68,7 @@ function HomeContent() {
 
   const selectedSources = useMemo(() => {
     const seen = new Set<string>();
-    return selectedKeys
+    const sources = selectedKeys
       .map((key) => resolveSource({ customAPIs, envSources }, key))
       .filter((s): s is NonNullable<typeof s> => {
         if (!s || !validateSourceUrl(s.url) || seen.has(s.key)) {
@@ -78,6 +79,7 @@ function HomeContent() {
       })
       .filter((s) => !isSourceDisabled({ sourceHealth }, s.key))
       .filter((s) => !isInDisabledSubscription({ subscriptions }, s.key));
+    return rankSourcesByHealth(sources, sourceHealth);
   }, [customAPIs, envSources, selectedKeys, sourceHealth, subscriptions]);
 
   const { activeQuery: urlQuery } = useHomeSearchController(routeQuery, selectedSources.length, toast);
