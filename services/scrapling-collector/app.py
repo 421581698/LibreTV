@@ -23,6 +23,7 @@ from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field, HttpUrl
 from scrapling.fetchers import Fetcher, FetcherSession, StealthySession
 from scrapling.spiders import Response, Spider
+from registry_store import enqueue as enqueue_registry_job, get_job as get_registry_job, cancel as cancel_registry_job, upsert_resource as upsert_registry_resource, search_resources as search_registry_resources, record_playback as record_registry_playback
 
 FMHY_VIDEO_URL = "https://fmhy.net/video"
 TOKEN = os.environ.get("SCRAPLING_API_TOKEN", "").strip()
@@ -2192,3 +2193,95 @@ def validate_candidate(candidate_id: str, authorization: str | None = Header(def
              json.dumps(quality_evidence, ensure_ascii=False), candidate_id),
         )
     return {"candidate_id": candidate_id, "validation": validation}
+
+
+# Durable queue + central registry API. The separate worker process is started with
+# `python worker.py`; web requests only enqueue and never run long crawls inline.
+class RegistryJobRequest(BaseModel):
+    url: HttpUrl
+    mode: str = Field(default="auto", pattern="^(auto|http|browser)$")
+    idempotency_key: str | None = Field(default=None, min_length=8, max_length=160)
+
+
+class RegistryResourceRequest(BaseModel):
+    source_key: str = Field(min_length=1, max_length=120)
+    source_name: str = Field(min_length=1, max_length=120)
+    url: HttpUrl
+    resource_type: str = Field(pattern="^(CMS_VOD|DIRECT_MEDIA|EMBEDDED_PLAYER)$")
+    title: str = Field(default="", max_length=300)
+    external_id: str | None = Field(default=None, max_length=200)
+    access_state: str = Field(default="ACCESS_UNKNOWN")
+    validation_state: str = Field(default="unverified")
+    media_type: str | None = Field(default=None, max_length=20)
+    metadata: dict = Field(default_factory=dict)
+
+
+@app.post("/v1/jobs")
+def submit_registry_job(payload: RegistryJobRequest, authorization: str | None = Header(default=None)):
+    require_token(authorization)
+    require_egress_firewall()
+    try:
+        job = enqueue_registry_job(str(payload.url), payload.mode, payload.idempotency_key)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"job": job, "queued": job["status"] == "queued"}
+
+
+@app.get("/v1/jobs/{job_id}")
+def registry_job_status(job_id: str, authorization: str | None = Header(default=None)):
+    require_token(authorization)
+    job = get_registry_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return {"job": job}
+
+
+@app.post("/v1/jobs/{job_id}/cancel")
+def cancel_registry_job_route(job_id: str, authorization: str | None = Header(default=None)):
+    require_token(authorization)
+    job = cancel_registry_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return {"job": job}
+
+
+@app.post("/v1/registry/resources")
+def registry_upsert(payload: RegistryResourceRequest, authorization: str | None = Header(default=None)):
+    require_token(authorization)
+    try:
+        resource = upsert_registry_resource(
+            payload.source_key, payload.source_name, str(payload.url), payload.resource_type,
+            payload.title, payload.external_id, payload.access_state, payload.validation_state,
+            payload.media_type, payload.metadata,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"resource": resource}
+
+
+@app.get("/v1/registry/resources")
+def registry_search(q: str = "", limit: int = 20, authorization: str | None = Header(default=None)):
+    require_token(authorization)
+    if len(q) > 100:
+        raise HTTPException(status_code=400, detail="Search query is too long")
+    return {"resources": search_registry_resources(q, limit)}
+
+
+@app.post("/v1/registry/resources/{resource_id}/playback")
+def registry_playback_confirm(resource_id: str, payload: PlaybackEvidence,
+                               authorization: str | None = Header(default=None)):
+    require_token(authorization)
+    evidence = {
+        "state": "PLAYER_CONFIRMED", "media_type": payload.media_type,
+        "observed_seconds": payload.observed_seconds,
+        "progressed_seconds": payload.progressed_seconds,
+        "verification_scope": "browser_video_element_time_progression",
+        "verified_at": int(time.time()),
+    }
+    try:
+        resource = record_registry_playback(resource_id, evidence)
+    except (ValueError, PermissionError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    if not resource:
+        raise HTTPException(status_code=404, detail="Resource not found")
+    return {"resource": resource}
