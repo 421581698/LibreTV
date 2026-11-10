@@ -27,12 +27,13 @@ class WorkerPipelineTests(unittest.TestCase):
             patch.object(worker, "validate_candidate", side_effect=validation_results) as validate,
         ):
             result = worker.handle(
-                {"url": "https://catalog.example/", "mode": "auto", "limit": 10},
+                {"url": "https://catalog.example/", "mode": "auto", "limit": 10, "search_keyword": "Sample Film"},
                 checkpoints.append,
                 lambda: False,
             )
 
         crawl.assert_called_once()
+        self.assertEqual(crawl.call_args.args[0].search_keyword, "Sample Film")
         self.assertEqual([call.args[0] for call in validate.call_args_list], ["1" * 32, "2" * 32])
         self.assertEqual(result["preflight"], {
             "checked": 2, "validated": 1, "rejected": 1, "errors": [],
