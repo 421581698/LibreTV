@@ -32,6 +32,21 @@ export interface HistoryEntry {
   timestamp: number;
 }
 
+export interface FavoriteEntry {
+  /** 主键：sourceKey + vodId，确保跨源资源不会互相覆盖 */
+  id: string;
+  sourceKey: string;
+  sourceUrl?: string;
+  sourceName: string;
+  vodId: string;
+  title: string;
+  pic?: string;
+  typeName?: string;
+  year?: string;
+  remarks?: string;
+  addedAt: number;
+}
+
 export interface ProgressEntry {
   key: string; // `${sourceKey}_${vodId}_${episodeIndex}`
   position: number;
@@ -90,7 +105,7 @@ export interface FridayTaskEventEntry {
 }
 
 export const db = new Dexie('libretv') as Dexie & {
-  history: EntityTable<HistoryEntry, 'id'>;
+  history: EntityTable<HistoryEntry, 'id'>;\n  favorites: EntityTable<FavoriteEntry, 'id'>;
   progress: EntityTable<ProgressEntry, 'key'>;
   searchHistory: EntityTable<SearchHistoryEntry, 'text'>;
   liveProbe: EntityTable<LiveProbeEntry & { url: string }, 'url'>;
@@ -300,3 +315,24 @@ db.version(4).stores({
 db.version(5).stores({
   fridayTaskEvents: 'eventId, taskId, [taskId+sequence], occurredAt, type, [type+occurredAt]',
 });
+
+
+// v6: independent movie/series favorites; existing history and live-channel favorites are untouched.
+db.version(6).stores({
+  favorites: 'id, addedAt, sourceKey, title',
+});
+
+export async function addFavorite(entry: Omit<FavoriteEntry, 'id' | 'addedAt'>): Promise<void> {
+  const id = `${entry.sourceKey}_${entry.vodId}`;
+  const existing = await db.favorites.get(id);
+  await db.favorites.put({
+    ...existing,
+    ...entry,
+    id,
+    addedAt: existing?.addedAt ?? Date.now(),
+  });
+}
+
+export async function removeFavorite(sourceKey: string, vodId: string): Promise<void> {
+  await db.favorites.delete(`${sourceKey}_${vodId}`);
+}
