@@ -467,7 +467,9 @@ def api_retry_job(job_id: str, authorization: str | None = Header(default=None))
 def api_cancel_job(job_id: str, authorization: str | None = Header(default=None)):
     require_auth(authorization)
     if not cancel_job(job_id): raise HTTPException(status_code=409,detail="Job is not cancellable")
-    return {"job_id":job_id,"status":"cancelled"}
+    with connect() as c:
+        row = c.execute("SELECT status FROM collector_jobs WHERE id=?", (job_id,)).fetchone()
+    return {"job_id":job_id,"status":row["status"] if row else "unknown"}
 
 
 @router.get("/v1/registry/search")
