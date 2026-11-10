@@ -130,6 +130,24 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(error.exception.status_code, 409)
         crawl.assert_not_called()
 
+    def test_access_state_classifies_auth_subscription_and_drm_signals(self):
+        self.assertEqual(
+            collector.classify_access_state(401)["access_state"], "AUTH_REQUIRED"
+        )
+        self.assertEqual(
+            collector.classify_access_state(402)["access_state"], "SUBSCRIPTION_REQUIRED"
+        )
+        drm = collector.classify_access_state(
+            200, {"content-type": "application/vnd.apple.mpegurl"},
+            "#EXTM3U\\n#EXT-X-KEY:METHOD=SAMPLE-AES,URI=\\\"skd://asset\\\"",
+        )
+        self.assertEqual(drm["access_state"], "DRM_PROTECTED")
+        self.assertIn("FairPlay", drm["drm_systems"])
+
+    def test_access_state_defaults_to_public_without_protection_signals(self):
+        result = collector.classify_access_state(200, {"content-type": "video/mp4"}, "", "https://media.example/movie.mp4")
+        self.assertEqual(result["access_state"], "PUBLIC")
+
     def test_classifies_direct_media(self):
         self.assertEqual(
             collector.classify_url("https://media.example/video/master.m3u8"),
