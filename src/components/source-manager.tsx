@@ -336,7 +336,8 @@ function ResourceCollectorPanel() {
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || payload.detail || `Scrapling 采集失败（HTTP ${response.status}）。`);
-      setCandidates(Array.isArray(payload.candidates) ? payload.candidates : []);
+      const discoveredCandidates: CollectorCandidate[] = Array.isArray(payload.candidates) ? payload.candidates : [];
+      setCandidates(discoveredCandidates);
       setCrawlDiagnostics({
         pageTitle: payload.page_title, finalUrl: payload.final_url || payload.page_url,
         mode: payload.mode, capturedRequestCount: payload.captured_request_count,
@@ -344,6 +345,13 @@ function ResourceCollectorPanel() {
         errors: Array.isArray(payload.errors) ? payload.errors : [],
       });
       await loadTasks();
+      const cmsCandidates = discoveredCandidates.filter((candidate) => candidate.kind === 'cms-api-candidate');
+      for (const candidate of cmsCandidates.slice(0, 10)) {
+        await validateCandidate(candidate, site.url, true);
+      }
+      if (cmsCandidates.length > 10) {
+        setResultMessage((current) => [current, `另有 ${cmsCandidates.length - 10} 个 CMS 候选未自动验证，可逐项手动验证。`].filter(Boolean).join(' '));
+      }
       if (!payload.candidates?.length) setError(
         Array.isArray(payload.errors) && payload.errors.length
           ? `采集未提取到候选资源：${payload.errors.join('；')}`
@@ -364,8 +372,13 @@ function ResourceCollectorPanel() {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || payload.detail || `任务重试失败（HTTP ${response.status}）。`);
       setSelectedSite({ title: task.host, host: task.host, url: task.url, directory: 'FMHY / Movies-TV-Anime' });
-      setCandidates(Array.isArray(payload.candidates) ? payload.candidates : []);
+      const retryCandidates: CollectorCandidate[] = Array.isArray(payload.candidates) ? payload.candidates : [];
+      setCandidates(retryCandidates);
       await loadTasks();
+      const cmsCandidates = retryCandidates.filter((candidate) => candidate.kind === 'cms-api-candidate');
+      for (const candidate of cmsCandidates.slice(0, 10)) {
+        await validateCandidate(candidate, task.url, true);
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '任务重试失败。');
     } finally {
@@ -373,13 +386,16 @@ function ResourceCollectorPanel() {
     }
   };
 
-  const validateCandidate = async (candidate: CollectorCandidate) => {
+  const validateCandidate = async (candidate: CollectorCandidate, detailUrl = selectedSite?.url, quiet = false) => {
     if (!candidate.id) {
       setError('采集服务没有返回候选资源 ID，请重新采集。');
       return;
     }
     setBusy(true);
-    setError('');
+    if (!quiet) {
+      setError('');
+      setResultMessage('');
+    }
     try {
       const response = await collectorFetch(`/api/resource-collector/candidates/${candidate.id}/validate`, { method: 'POST' });
       const payload = await response.json();
@@ -400,17 +416,17 @@ function ResourceCollectorPanel() {
           useAppStore.getState(),
           candidate,
           validation,
-          selectedSite?.url,
+          detailUrl,
         );
         if (registration.registered) {
-          setResultMessage(`CMS 点播源已注册并默认启用：${registration.sourceUrl}`);
+          setResultMessage((current) => [current, `CMS 点播源已注册并默认启用：${registration.sourceUrl}`].filter(Boolean).join('；'));
         } else if (registration.duplicate) {
-          setResultMessage('该 CMS 点播源已经存在于影视源管理中，无需重复添加。');
+          setResultMessage((current) => [current, '该 CMS 点播源已经存在于影视源管理中，无需重复添加。'].filter(Boolean).join('；'));
         } else {
           setError(registration.reason || 'CMS 点播源注册失败。');
         }
       } else if (mediaVerified) {
-        setResultMessage('直接媒体地址已通过公开访问检查，可在此独立播放；它不会被添加为 CMS 点播源。');
+        setResultMessage((current) => [current, '直接媒体地址已通过公开访问检查，可在此独立播放；它不会被添加为 CMS 点播源。'].filter(Boolean).join('；'));
       } else if (candidate.kind === 'cms-api-candidate') {
         setError(validation.reason || validation.access?.reason || '该地址未通过 CMS API 结构及公开访问验证，没有加入点播源。');
       } else if (['embedded-player', 'public-api-response'].includes(candidate.kind)) {
