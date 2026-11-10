@@ -1990,12 +1990,15 @@ def record_playback_evidence(
             "UPDATE candidates SET playback_verification=? WHERE id=?",
             (json.dumps(evidence, ensure_ascii=False), candidate_id),
         )
-        registry_resource = upsert_registry_resource(
-            row["host"], row["host"], row["url"], "DIRECT_MEDIA",
-            row["title"] or "", None, "PUBLIC", "validated", payload.media_type,
-            {"candidate_id": candidate_id, "collector_validation": "passed"},
-        )
-        record_registry_playback(registry_resource["id"], evidence)
+        candidate = dict(row)
+    # Commit the candidate evidence before opening the registry transaction on
+    # the same SQLite file; nested write transactions would otherwise deadlock.
+    registry_resource = upsert_registry_resource(
+        candidate["host"], candidate["host"], candidate["url"], "DIRECT_MEDIA",
+        candidate["title"] or "", None, "PUBLIC", "validated", payload.media_type,
+        {"candidate_id": candidate_id, "collector_validation": "passed"},
+    )
+    record_registry_playback(registry_resource["id"], evidence)
     return {"candidate_id": candidate_id, "playback_verification": evidence}
 
 
