@@ -1128,7 +1128,10 @@ def fmhy_category_pages_from_page(page) -> list[str]:
             continue
         target = urljoin(FMHY_VIDEO_URL, href)
         parsed = urlparse(target)
-        if parsed.scheme != "https" or parsed.hostname != "fmhy.net":
+        try:
+            if parsed.scheme != "https" or parsed.hostname != "fmhy.net" or parsed.port not in (None, 443):
+                continue
+        except ValueError:
             continue
         path = parsed.path.rstrip("/") or "/"
         signal = f"{path} {text_of(anchor).lower()}"
@@ -1593,6 +1596,11 @@ def frontier_link_priority(target: str, anchor_text: str = "") -> int | None:
     """Rank same-site HTML navigation; return None for media/API/non-page targets."""
     parsed = urlparse(target)
     path = parsed.path.lower()
+    try:
+        if parsed.scheme != "https" or parsed.port not in (None, 443):
+            return None
+    except ValueError:
+        return None
     if classify_url(target) or path.endswith((".pdf", ".zip", ".jpg", ".jpeg", ".png", ".webp")):
         return None
     signal = f"{path} {anchor_text.lower()}"
@@ -1640,7 +1648,10 @@ def run_spider(url: str, limit: int) -> list[dict]:
                     continue
                 target = urljoin(response.url, href)
                 parsed = urlparse(target)
-                if parsed.scheme != "https" or parsed.hostname != self.allowed_domains[0]:
+                try:
+                    if parsed.scheme != "https" or parsed.hostname != self.allowed_domains[0] or parsed.port not in (None, 443):
+                        continue
+                except ValueError:
                     continue
                 target = canonical_candidate_url(target)
                 if target in self.pages_scheduled:
