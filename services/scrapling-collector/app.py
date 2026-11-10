@@ -1000,11 +1000,18 @@ def classify_access_state(status_code: int | None = None, headers=None, body: st
             "drm_systems": [],
             "next_action": "Do not retry with bypass techniques; inspect provider documentation",
         }
+    if status_code is not None and 200 <= status_code < 300:
+        return {
+            "access_state": "PUBLIC",
+            "reason": "No authentication, subscription, or DRM signal detected in the observed response",
+            "drm_systems": [],
+            "next_action": "Validate the public HTTPS candidate before playback",
+        }
     return {
-        "access_state": "PUBLIC",
-        "reason": "No authentication, subscription, or DRM signal detected in the observed response",
+        "access_state": "ACCESS_UNKNOWN",
+        "reason": "No target response status or explicit public-access evidence was observed",
         "drm_systems": [],
-        "next_action": "Validate the public HTTPS candidate before playback",
+        "next_action": "Keep candidate out of playback until its own response is verified",
     }
 
 
