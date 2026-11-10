@@ -1,0 +1,115 @@
+name: Deploy PR #60 to Existing Public Preview
+
+on:
+  push:
+    branches:
+      - feat/pr60-standalone-preview-2026-11-10
+    paths:
+      - ".github/workflows/deploy-pr60-existing-preview.yml"
+      - "wrangler.pr60-inline-preview.toml"
+      - "src/**"
+      - "public/**"
+      - "package.json"
+      - "package-lock.json"
+      - "next.config.*"
+      - "open-next.config.*"
+      - "services/scrapling-collector/**"
+      - "docker-compose.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: libretv-pr60-inline-preview
+  cancel-in-progress: true
+
+jobs:
+  deploy-preview:
+    name: Build and deploy to existing PR #60 Preview Worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment: preview
+    steps:
+      - name: Checkout exact feature commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: TypeScript verification
+        run: npm run typecheck
+
+      - name: ESLint verification
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test -- --reporter=dot
+
+      - name: Verify existing public Preview target
+        run: |
+          grep -Eq '^[[:space:]]*name[[:space:]]*=[[:space:]]*"libretv-pr60-inline-preview"' wrangler.pr60-inline-preview.toml
+          grep -Eq '^[[:space:]]*AUTH_DISABLED[[:space:]]*=[[:space:]]*"true"' wrangler.pr60-inline-preview.toml
+
+      - name: Build PR #60 Preview
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npx opennextjs-cloudflare build
+
+      - name: Verify Cloudflare deployment credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing preview secret: CLOUDFLARE_API_TOKEN" && exit 1)
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "Missing preview secret: CLOUDFLARE_ACCOUNT_ID" && exit 1)
+
+      - name: Deploy to existing PR #60 Preview Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --config wrangler.pr60-inline-preview.toml
+
+      - name: Verify existing public Preview
+        run: |
+          node --input-type=module <<'NODE'
+          const base = "https://libretv-pr60-inline-preview.bggdbh.workers.dev";
+          async function request(path) {
+            let last;
+            for (let attempt = 1; attempt <= 8; attempt++) {
+              try {
+                const response = await fetch(base + path, {
+                  redirect: "follow",
+                  headers: { "cache-control": "no-cache" },
+                  signal: AbortSignal.timeout(15000),
+                });
+                const body = await response.text();
+                console.log(path + " attempt " + attempt + ": HTTP " + response.status + " " + (response.headers.get("content-type") || ""));
+                if (response.ok) return { response, body };
+                last = new Error(path + " returned HTTP " + response.status + ": " + body.slice(0, 800));
+              } catch (error) {
+                last = error;
+                console.log(path + " attempt " + attempt + " failed: " + String(error));
+              }
+              if (attempt < 8) await new Promise((resolve) => setTimeout(resolve, 5000));
+            }
+            throw last;
+          }
+          const [home, statusResult] = await Promise.all([request("/"), request("/api/status")]);
+          if (!(home.response.headers.get("content-type") || "").includes("text/html")) {
+            throw new Error("Preview homepage is not HTML.");
+          }
+          const status = JSON.parse(statusResult.body);
+          if (status.passwordRequired !== false || status.verified !== true) {
+            throw new Error("Existing Preview must remain public: passwordRequired=" + status.passwordRequired + ", verified=" + status.verified);
+          }
+          console.log("Existing PR #60 Preview verified: public homepage and no password required.");
+          NODE
