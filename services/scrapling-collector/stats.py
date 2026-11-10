@@ -63,6 +63,19 @@ def build_stats(connection: sqlite3.Connection, host=None):
         ).fetchall()]
     except sqlite3.OperationalError:
         jobs = []
+    try:
+        playback_rows = [dict(r) for r in connection.execute(
+            """SELECT host,sample_source,media_type,observed_seconds,progressed_seconds,
+                      decoded_width,decoded_height,selected_rendition_height,
+                      selected_rendition_bitrate_kbps,created_at
+               FROM playback_quality_samples ORDER BY created_at DESC"""
+        ).fetchall()]
+    except sqlite3.OperationalError:
+        playback_rows = []
+
+    playback_by_host = {}
+    for sample in playback_rows:
+        playback_by_host.setdefault(sample["host"], []).append(sample)
 
     resources_by_host = {}
     try:
@@ -105,12 +118,17 @@ def build_stats(connection: sqlite3.Connection, host=None):
         last_error = next((t["error"] for t in site_tasks if t.get("error")), None)
         preflight = sum(1 for item in unique_video.values()
                         if item.get("status") == "validated" and item.get("access_state") == "PUBLIC")
+        site_samples = playback_by_host.get(h, [])
+        sample_evidence = site_samples or [
+            _json(item.get("playback_verification")) for item in unique_confirmed.values()
+        ]
+        quality = _empty_quality()
         resolution_points = {"8K":100,"4K":95,"2K":90,"1080P":80,"720P":60,"480P":40,"SD":20,"未知":0}
         resolution_scores, progress_scores, bitrate_scores = [], [], []
         observed_total = 0
-        for confirmed in unique_confirmed.values():
-            evidence = _json(confirmed.get("playback_verification"))
+        for evidence in sample_evidence:
             bucket = resolution_bucket(evidence.get("decoded_width"), evidence.get("decoded_height"))
+            quality[bucket] += 1
             resolution_scores.append(resolution_points[bucket])
             observed = float(evidence.get("observed_seconds") or 0)
             progressed = float(evidence.get("progressed_seconds") or 0)
@@ -121,7 +139,7 @@ def build_stats(connection: sqlite3.Connection, host=None):
             if bitrate > 0:
                 bitrate_scores.append(min(1.0, bitrate / 8000.0) * 100)
         quality_score = None
-        if len(unique_confirmed) >= 3 and observed_total >= 15 and progress_scores:
+        if len(sample_evidence) >= 3 and observed_total >= 15 and progress_scores:
             resolution_average = sum(resolution_scores) / len(resolution_scores)
             progress_average = sum(progress_scores) / len(progress_scores)
             if bitrate_scores:
@@ -158,7 +176,7 @@ def build_stats(connection: sqlite3.Connection, host=None):
             "episode_entries": int(registry.get("episode_entries") or 0),
             "registry_resources": int(registry.get("registry_resources") or 0),
             "health_status": health_status, "failure_streak": failure_streak,
-            "playback_samples": len(unique_confirmed), "quality_score": quality_score,
+            "playback_samples": len(site_samples) if site_samples else len(unique_confirmed), "quality_score": quality_score,
             "quality_score_state": "scored" if quality_score is not None else "insufficient_samples",
             "pages_visited": sum(int(t.get("pages_visited") or 0) for t in site_tasks),
             "pages_succeeded": sum(int(t.get("pages_visited") or 0) for t in site_tasks),
@@ -201,6 +219,7 @@ def build_stats(connection: sqlite3.Connection, host=None):
         "video_candidates": sum(s["video_candidates"] for s in site_summaries),
         "preflight_passed": sum(s["preflight_passed"] for s in site_summaries),
         "playback_confirmed": sum(s["playback_confirmed"] for s in site_summaries),
+        "playback_samples": sum(s["playback_samples"] for s in site_summaries),
         "actual_quality": quality_total,
         "movie_entries": sum(s["movie_entries"] for s in site_summaries),
         "episode_entries": sum(s["episode_entries"] for s in site_summaries)

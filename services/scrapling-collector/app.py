@@ -84,6 +84,17 @@ class PlaybackEvidence(BaseModel):
     selected_rendition_bitrate_kbps: float = Field(default=0, ge=0, le=1000000)
 
 
+class PlaybackSampleEvidence(BaseModel):
+    host: str = Field(min_length=1, max_length=253)
+    media_type: str = Field(pattern="^(hls|mp4|webm)$")
+    observed_seconds: int = Field(ge=1, le=60)
+    progressed_seconds: float = Field(ge=2, le=60)
+    decoded_width: int = Field(default=0, ge=0, le=16384)
+    decoded_height: int = Field(default=0, ge=0, le=16384)
+    selected_rendition_height: int = Field(default=0, ge=0, le=16384)
+    selected_rendition_bitrate_kbps: float = Field(default=0, ge=0, le=1000000)
+
+
 def db() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(DB_PATH, timeout=10)
@@ -119,6 +130,15 @@ def init_db() -> None:
           last_changed_at INTEGER NOT NULL, visit_count INTEGER NOT NULL DEFAULT 1,
           PRIMARY KEY(host,page_key)
         );
+        CREATE TABLE IF NOT EXISTS playback_quality_samples (
+          id TEXT PRIMARY KEY, host TEXT NOT NULL, sample_source TEXT NOT NULL,
+          media_type TEXT NOT NULL, observed_seconds INTEGER NOT NULL,
+          progressed_seconds REAL NOT NULL, decoded_width INTEGER NOT NULL DEFAULT 0,
+          decoded_height INTEGER NOT NULL DEFAULT 0, selected_rendition_height INTEGER NOT NULL DEFAULT 0,
+          selected_rendition_bitrate_kbps REAL NOT NULL DEFAULT 0, created_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_playback_samples_host_created
+          ON playback_quality_samples(host,created_at DESC);
         """)
         # Forward-only, additive migrations keep existing collector volumes compatible.
         candidate_columns = {row["name"] for row in connection.execute("PRAGMA table_info(candidates)").fetchall()}
@@ -2072,7 +2092,7 @@ def record_playback_evidence(
         raise HTTPException(status_code=400, detail="Invalid candidate ID")
     with db() as connection:
         row = connection.execute(
-            "SELECT kind,status,access_state,validation FROM candidates WHERE id=?",
+            "SELECT host,kind,status,access_state,validation FROM candidates WHERE id=?",
             (candidate_id,),
         ).fetchone()
         if not row:
@@ -2113,8 +2133,47 @@ def record_playback_evidence(
             "UPDATE candidates SET playback_verification=? WHERE id=?",
             (json.dumps(evidence, ensure_ascii=False), candidate_id),
         )
+        connection.execute(
+            """INSERT INTO playback_quality_samples
+               (id,host,sample_source,media_type,observed_seconds,progressed_seconds,
+                decoded_width,decoded_height,selected_rendition_height,
+                selected_rendition_bitrate_kbps,created_at)
+               VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+            (uuid.uuid4().hex, row["host"], "collector_preview", payload.media_type,
+             payload.observed_seconds, payload.progressed_seconds, payload.decoded_width,
+             payload.decoded_height, payload.selected_rendition_height,
+             payload.selected_rendition_bitrate_kbps, int(time.time())),
+        )
     registry_result = register_candidate_playback(candidate_id, evidence)
     return {"candidate_id": candidate_id, "playback_verification": evidence, **registry_result}
+
+
+@app.post("/v1/playback-samples")
+def record_general_playback_sample(
+    payload: PlaybackSampleEvidence,
+    authorization: str | None = Header(default=None),
+):
+    """Persist only aggregate-quality evidence for playback from discovered FMHY hosts."""
+    require_token(authorization)
+    host = payload.host.strip().lower().rstrip(".")
+    if not re.fullmatch(r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}", host):
+        raise HTTPException(status_code=400, detail="Invalid playback source host")
+    with db() as connection:
+        site = connection.execute("SELECT host FROM sites WHERE host=?", (host,)).fetchone()
+        if not site:
+            return {"recorded": False, "reason": "host_not_in_fmhy_directory"}
+        connection.execute(
+            """INSERT INTO playback_quality_samples
+               (id,host,sample_source,media_type,observed_seconds,progressed_seconds,
+                decoded_width,decoded_height,selected_rendition_height,
+                selected_rendition_bitrate_kbps,created_at)
+               VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+            (uuid.uuid4().hex, host, "player", payload.media_type,
+             payload.observed_seconds, payload.progressed_seconds, payload.decoded_width,
+             payload.decoded_height, payload.selected_rendition_height,
+             payload.selected_rendition_bitrate_kbps, int(time.time())),
+        )
+    return {"recorded": True, "host": host}
 
 
 @app.get("/v1/stats")
