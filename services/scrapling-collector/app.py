@@ -1107,11 +1107,12 @@ def infer_media_identity(title: str = "", url: str = "") -> dict:
     """Conservative title/URL identity hints; never claim a match without evidence."""
     fallback_name = urlparse(url).path.rsplit("/", 1)[-1] if url else ""
     source = title.strip() if isinstance(title, str) and title.strip() else fallback_name
+    release_source = f"{source} {fallback_name}"
     year_match = re.search(r"(?<!\d)((?:19|20)\d{2})(?!\d)", source)
     season_match = re.search(r"(?i)(?:season\s*|s)(\d{1,2})", source)
     episode_match = re.search(r"(?i)(?:episode\s*|ep?)(\d{1,3})", source)
-    quality_match = re.search(r"(?i)(2160p|4k|1080p|720p|480p)", source)
-    codec_match = re.search(r"(?i)(hevc|h\.265|h265|x265|av1|h\.264|h264|x264)", source)
+    quality_match = re.search(r"(?i)(2160p|4k|1080p|720p|480p)", release_source)
+    codec_match = re.search(r"(?i)(hevc|h\.265|h265|x265|av1|h\.264|h264|x264)", release_source)
     cleaned = re.sub(r"(?i)\.(m3u8|mp4|m4v|webm|mpd|mov|ts|m4s|aac)(?:$|\?).*", "", source)
     cleaned = re.sub(r"(?i)(?:season\s*|s)\d{1,2}|(?:episode\s*|ep?)\d{1,3}|(?<!\d)(?:19|20)\d{2}(?!\d)|2160p|4k|1080p|720p|480p|hevc|h\.?265|x265|av1|h\.?264|x264", " ", cleaned)
     cleaned = re.sub(r"[^\w\u4e00-\u9fff]+", " ", cleaned, flags=re.UNICODE)
@@ -1174,6 +1175,14 @@ def normalize_candidate(candidate: dict) -> dict:
         item.get("title", ""), item.get("url", "")
     )
     item["quality_evidence"] = item.get("quality_evidence") or build_quality_evidence(item.get("validation"))
+    declared = item["quality_evidence"].get("best_declared_resolution") or {}
+    declared_height = declared.get("height") if isinstance(declared, dict) else None
+    quality_hint = item["media_identity"].get("quality_hint")
+    quality_rank = declared_height or {"4k": 2160, "2160p": 2160, "1080p": 1080, "720p": 720, "480p": 480}.get(quality_hint)
+    item["quality_evidence"]["quality_rank"] = quality_rank
+    item["quality_evidence"]["quality_rank_source"] = (
+        "manifest_declared" if declared_height else ("filename_hint" if quality_hint else "unknown")
+    )
     return item
 
 
