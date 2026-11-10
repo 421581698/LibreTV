@@ -28,11 +28,18 @@ export function jsonError(message: string, status: number): NextResponse {
  * operations always require a password-protected session.
  */
 export function guardPrivateFeatureRequest(req: Request): NextResponse | null {
-  if (isAuthDisabled()) {
-    return NextResponse.json(
-      { error: '该功能在公开预览环境中已禁用。请在启用密码保护的环境中使用。' },
-      { status: 403, headers: { 'Cache-Control': 'no-store' } }
-    );
-  }
-  return guardRequest(req);
+  if (!isAuthDisabled()) return guardRequest(req);
+
+  // Public preview: website login is disabled, but Collector still requires
+  // its own HTTPS endpoint + bearer token (browser-local or server-side).
+  const browserBase = req.headers.get('x-scrapling-api-base')?.trim() ?? '';
+  const browserToken = req.headers.get('x-scrapling-api-token')?.trim() ?? '';
+  const serverBase = process.env.SCRAPLING_API_BASE?.trim() ?? '';
+  const serverToken = process.env.SCRAPLING_API_TOKEN?.trim() ?? '';
+  if ((browserBase && browserToken) || (serverBase && serverToken)) return null;
+
+  return NextResponse.json(
+    { code: 'COLLECTOR_NOT_CONFIGURED', error: '网站无需访问密码。请先在「设置 → 资源采集中心」配置 Scrapling HTTPS 地址和访问 Token。' },
+    { status: 503, headers: { 'Cache-Control': 'no-store' } }
+  );
 }
