@@ -1105,19 +1105,35 @@ def classify_access_state(status_code: int | None = None, headers=None, body: st
 
 def infer_media_identity(title: str = "", url: str = "") -> dict:
     """Conservative title/URL identity hints; never claim a match without evidence."""
-    source = f"{title or ''} {url or ''}"
+    fallback_name = urlparse(url).path.rsplit("/", 1)[-1] if url else ""
+    source = title.strip() if isinstance(title, str) and title.strip() else fallback_name
     year_match = re.search(r"(?<!\d)((?:19|20)\d{2})(?!\d)", source)
     season_match = re.search(r"(?i)(?:season\s*|s)(\d{1,2})", source)
     episode_match = re.search(r"(?i)(?:episode\s*|ep?)(\d{1,3})", source)
+    quality_match = re.search(r"(?i)(2160p|4k|1080p|720p|480p)", source)
+    codec_match = re.search(r"(?i)(hevc|h\.265|h265|x265|av1|h\.264|h264|x264)", source)
     cleaned = re.sub(r"(?i)\.(m3u8|mp4|m4v|webm|mpd|mov|ts|m4s|aac)(?:$|\?).*", "", source)
-    cleaned = re.sub(r"(?i)(?:season\s*|s)\d{1,2}|(?:episode\s*|ep?)\d{1,3}|(?<!\d)(?:19|20)\d{2}(?!\d)", " ", cleaned)
+    cleaned = re.sub(r"(?i)(?:season\s*|s)\d{1,2}|(?:episode\s*|ep?)\d{1,3}|(?<!\d)(?:19|20)\d{2}(?!\d)|2160p|4k|1080p|720p|480p|hevc|h\.?265|x265|av1|h\.?264|x264", " ", cleaned)
     cleaned = re.sub(r"[^\w\u4e00-\u9fff]+", " ", cleaned, flags=re.UNICODE)
     title_hint = " ".join(cleaned.split())[:160]
+    year = int(year_match.group(1)) if year_match else None
+    season = int(season_match.group(1)) if season_match else None
+    episode = int(episode_match.group(1)) if episode_match else None
+    quality_hint = quality_match.group(1).lower() if quality_match else None
+    codec_hint = codec_match.group(1).lower().replace(".", "") if codec_match else None
+    identity_material = "|".join((title_hint.lower(), str(year or ""), str(season or ""), str(episode or "")))
+    entity_key = hashlib.sha256(identity_material.encode()).hexdigest()[:24] if title_hint else None
+    version_material = "|".join((identity_material, quality_hint or "", codec_hint or ""))
+    version_key = hashlib.sha256(version_material.encode()).hexdigest()[:24] if title_hint else None
     return {
         "title_hint": title_hint or None,
-        "year_hint": int(year_match.group(1)) if year_match else None,
-        "season_hint": int(season_match.group(1)) if season_match else None,
-        "episode_hint": int(episode_match.group(1)) if episode_match else None,
+        "year_hint": year,
+        "season_hint": season,
+        "episode_hint": episode,
+        "quality_hint": quality_hint,
+        "codec_hint": codec_hint,
+        "entity_key": entity_key,
+        "version_key": version_key,
         "match_confidence": "hint_only",
     }
 
@@ -1352,6 +1368,13 @@ def frontier_link_priority(target: str, anchor_text: str = "") -> int | None:
     return 1
 
 
+class SpiderCandidateBatch(list):
+    """List-compatible candidate result with explicit crawl diagnostics."""
+    def __init__(self, values=(), diagnostics: dict | None = None):
+        super().__init__(values)
+        self.diagnostics = diagnostics or {}
+
+
 def run_spider(url: str, limit: int) -> list[dict]:
     class TargetSiteSpider(SiteSpider):
         start_urls = [url]
@@ -1409,7 +1432,16 @@ def run_spider(url: str, limit: int) -> list[dict]:
             candidates.append(item)
         if len(candidates) >= limit:
             break
-    return candidates
+    stats = getattr(result, "stats", None)
+    diagnostics = {
+        "frontier_max_depth": MAX_CRAWL_DEPTH,
+        "frontier_max_pages": MAX_CRAWL_PAGES,
+        "pages_scheduled": len(TargetSiteSpider.pages_scheduled),
+        "pages_processed": len(TargetSiteSpider.pages_processed),
+        "requests_count": getattr(stats, "requests_count", None),
+        "completed": getattr(result, "completed", None),
+    }
+    return SpiderCandidateBatch(candidates, diagnostics)
 
 
 def install_browser_request_guard(page) -> None:
@@ -1562,7 +1594,8 @@ def crawl_site(payload: CrawlRequest) -> dict:
                         item["collector"] = "spider"
                         item["collected_by"] = ["spider"]
                     candidates = merge_unique_candidates(candidates, spider_candidates, payload.limit)
-                    spider_diagnostics.update({"status": "completed", "candidate_count": len(spider_candidates)})
+                    spider_diagnostics.update({"status": "completed", "candidate_count": len(spider_candidates),
+                                               **getattr(spider_candidates, "diagnostics", {})})
                 except Exception as exc:
                     spider_diagnostics.update({"status": "failed", "error": type(exc).__name__})
                     errors.append(f"HTTP Spider: {type(exc).__name__}")
