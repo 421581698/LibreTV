@@ -12,6 +12,7 @@ type SiteStat = {
   actual_quality: Quality; pages_visited: number | null; pages_failed?: number;
   pages_changed?: number; pages_unchanged?: number;
   health_status?: string; failure_streak?: number; playback_samples?: number;
+  quality_score?: number | null; quality_score_state?: string;
 };
 type StatsPayload = {
   source: string; generated_at: number;
@@ -22,6 +23,7 @@ type StatsPayload = {
     actual_quality: Quality; movie_entries: number; episode_entries: number;
     pages_visited?: number; pages_failed?: number; pages_changed?: number; pages_unchanged?: number;
     queue_jobs?: Record<string, number>;
+    quality_ranking?: Array<{ host: string; title: string; score: number; samples: number }>;
   };
   sites: SiteStat[]; site?: SiteStat | null;
   recent_jobs?: Array<{ id: string; job_type: string; status: string; attempt: number; max_attempts: number; error?: string | null; created_at: number; updated_at: number }>;
@@ -109,6 +111,19 @@ export function ResourceStatsPanel() {
             </div>
             <p className="mt-2 text-[11px] leading-5 text-muted">仅按播放器实际解码宽高分类；网站宣传的 4K 不计入实际 4K。</p>
           </div>
+          {summary.quality_ranking?.length ? (
+            <div className="rounded-xl border border-line p-3 space-y-2">
+              <h4 className="text-xs font-semibold text-content">真实播放质量排行</h4>
+              {summary.quality_ranking.slice(0, 5).map((entry, index) => (
+                <div key={entry.host} className="flex items-center justify-between gap-2 text-xs">
+                  <span className="min-w-0 truncate text-content">{index + 1}. {entry.title || entry.host}</span>
+                  <span className="shrink-0 tabular-nums text-muted">{entry.score}/100 · {entry.samples} 个播放样本</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-xl bg-chip p-3 text-[11px] text-muted">质量排行暂不生成：每个网站至少需要 3 条真实播放样本及足够的播放时长。</p>
+          )}
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <h4 className="text-xs font-semibold text-content">逐网站采集档案</h4>
@@ -120,7 +135,7 @@ export function ResourceStatsPanel() {
                 <span className="min-w-0 flex-1">
                   <strong className="block truncate text-xs text-content">{site.title || site.host}</strong>
                   <span className="mt-1 block truncate text-[11px] text-muted">{site.host} · {site.directory}</span>
-                  <span className="mt-1 block text-[10px] text-muted">健康状态：{({healthy:'正常',degraded:'需关注',failing:'连续失败',unknown:'暂无样本'} as Record<string,string>)[site.health_status || 'unknown']}</span>
+                  <span className="mt-1 block text-[10px] text-muted">健康状态：{({healthy:'正常',degraded:'需关注',failing:'连续失败',unknown:'暂无样本'} as Record<string,string>)[site.health_status || 'unknown']} · 质量评分：{site.quality_score == null ? '样本不足' : site.quality_score + '/100'}</span>
                 </span>
                 <span className="grid grid-cols-3 gap-3 text-right text-[11px]">
                   <span><b className="block tabular-nums text-content">{fmt(site.video_candidates)}</b><i className="not-italic text-muted">候选</i></span>

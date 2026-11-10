@@ -49,6 +49,24 @@ class ResourceStatsTests(unittest.TestCase):
         self.assertEqual(summary["pages_changed"],1)
         self.assertEqual(result["sites"][0]["health_status"],"healthy")
 
+    def test_quality_score_requires_three_real_playback_samples(self):
+        self.db.execute(
+            "UPDATE candidates SET playback_verification=? WHERE id=?",
+            (json.dumps({"state":"PLAYER_CONFIRMED","decoded_width":1920,"decoded_height":1080,
+                         "observed_seconds":5,"progressed_seconds":4,"selected_rendition_bitrate_kbps":4500}),
+             "candidate-2")
+        )
+        self.db.execute("INSERT INTO candidates VALUES(?,?,?,?,?,?,?,?,?,?,?)", (
+            "candidate-3","task-1","https://media.example/c.mp4","media.example",
+            "direct-media","Film C","validated","PUBLIC",107,"{}",
+            json.dumps({"state":"PLAYER_CONFIRMED","decoded_width":1280,"decoded_height":720,
+                        "observed_seconds":5,"progressed_seconds":4,"selected_rendition_bitrate_kbps":2500})
+        ))
+        result = build_stats(self.db)
+        self.assertIsNotNone(result["sites"][0]["quality_score"])
+        self.assertEqual(result["sites"][0]["playback_samples"],3)
+        self.assertEqual(result["summary"]["quality_ranking"][0]["host"],"media.example")
+
     def test_site_detail_does_not_expose_media_urls_or_tokens(self):
         result = build_stats(self.db,"media.example")
         self.assertEqual(result["site"]["host"],"media.example")

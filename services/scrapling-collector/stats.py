@@ -105,6 +105,29 @@ def build_stats(connection: sqlite3.Connection, host=None):
         last_error = next((t["error"] for t in site_tasks if t.get("error")), None)
         preflight = sum(1 for item in unique_video.values()
                         if item.get("status") == "validated" and item.get("access_state") == "PUBLIC")
+        resolution_points = {"8K":100,"4K":95,"2K":90,"1080P":80,"720P":60,"480P":40,"SD":20,"未知":0}
+        resolution_scores, progress_scores, bitrate_scores = [], [], []
+        observed_total = 0
+        for confirmed in unique_confirmed.values():
+            evidence = _json(confirmed.get("playback_verification"))
+            bucket = resolution_bucket(evidence.get("decoded_width"), evidence.get("decoded_height"))
+            resolution_scores.append(resolution_points[bucket])
+            observed = float(evidence.get("observed_seconds") or 0)
+            progressed = float(evidence.get("progressed_seconds") or 0)
+            observed_total += observed
+            if observed > 0:
+                progress_scores.append(min(1.0, max(0.0, progressed / observed)) * 100)
+            bitrate = float(evidence.get("selected_rendition_bitrate_kbps") or 0)
+            if bitrate > 0:
+                bitrate_scores.append(min(1.0, bitrate / 8000.0) * 100)
+        quality_score = None
+        if len(unique_confirmed) >= 3 and observed_total >= 15 and progress_scores:
+            resolution_average = sum(resolution_scores) / len(resolution_scores)
+            progress_average = sum(progress_scores) / len(progress_scores)
+            if bitrate_scores:
+                quality_score = round(0.55 * resolution_average + 0.25 * (sum(bitrate_scores) / len(bitrate_scores)) + 0.20 * progress_average)
+            else:
+                quality_score = round(0.70 * resolution_average + 0.30 * progress_average)
         succeeded = sum(1 for t in site_tasks if t["status"] in ("completed", "succeeded"))
         failed = sum(1 for t in site_tasks if t["status"] == "failed")
         registry = resources_by_host.get(h, {})
@@ -135,7 +158,8 @@ def build_stats(connection: sqlite3.Connection, host=None):
             "episode_entries": int(registry.get("episode_entries") or 0),
             "registry_resources": int(registry.get("registry_resources") or 0),
             "health_status": health_status, "failure_streak": failure_streak,
-            "playback_samples": len(unique_confirmed),
+            "playback_samples": len(unique_confirmed), "quality_score": quality_score,
+            "quality_score_state": "scored" if quality_score is not None else "insufficient_samples",
             "pages_visited": sum(int(t.get("pages_visited") or 0) for t in site_tasks),
             "pages_succeeded": sum(int(t.get("pages_visited") or 0) for t in site_tasks),
             "pages_failed": sum(int(t.get("pages_failed") or 0) for t in site_tasks),
@@ -156,8 +180,15 @@ def build_stats(connection: sqlite3.Connection, host=None):
         for state in ("queued", "running", "succeeded", "failed", "cancelled", "cancel_requested")
     }
     queue_jobs["total"] = len(jobs)
+    quality_ranking = sorted(
+        [{"host": site["host"], "title": site["title"], "score": site["quality_score"],
+          "samples": site["playback_samples"]}
+         for site in site_summaries if site.get("quality_score") is not None],
+        key=lambda item: (-item["score"], -item["samples"], item["host"])
+    )
     summary = {
         "discovered_sites": len(sites), "visited_sites": len(visited_hosts),
+        "quality_ranking": quality_ranking,
         "queue_jobs": queue_jobs,
         "successful_sites": sum(1 for t in latest_by_host.values() if t["status"] in ("completed", "succeeded")),
         "failed_sites": sum(1 for t in latest_by_host.values() if t["status"] == "failed"),
