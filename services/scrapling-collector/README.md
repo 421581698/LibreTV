@@ -5,7 +5,7 @@ Scrapling is a Python crawling framework, so the collector runs as an isolated P
 ## End-to-end pipeline
 
 1. **Discover** — the only site directory is FMHY Movies / TV / Anime: https://fmhy.net/video. Discovered hosts are stored in SQLite.
-2. **Fetch** — Scrapling Spider crawls the selected FMHY-discovered host with a bounded same-host page budget, per-domain delay, robots.txt compliance, and a persistent crawl checkpoint. Pagination and category/catalogue links are prioritized within the crawl budget; `SCRAPLING_MAX_LINKS_PER_HOST` and `SCRAPLING_MAX_DEPTH` are bounded operator settings.
+2. **Fetch** — Scrapling Spider crawls the selected FMHY-discovered host with a bounded same-host page budget, per-domain delay, robots.txt compliance, and a persistent crawl checkpoint. Deep pagination and category prioritization remain a follow-up implementation item.
 3. **Adapt** — Scrapling adaptive selectors save element traits by domain and try to relocate matching elements after page markup changes.
 4. **Render / capture** — in `auto` mode, the HTTP Spider and StealthySession browser collector run independently in parallel even when either side finds candidates. Each side reports its own status, error, and candidate count; merged candidates retain `collected_by` provenance so dual hits remain visible. Explicit `http` and `browser` modes run only the selected collector. Browser capture records observed network responses; it does not bypass login, CAPTCHA, subscription, DRM, or other access controls.
 5. **Classify** — public HTTPS candidates are separated into direct media, embedded player, and CMS API candidates.
