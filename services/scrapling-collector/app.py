@@ -707,8 +707,11 @@ def parse_mp4_container_dimensions(data: bytes) -> dict | None:
     search_from = 0
     while True:
         marker = data.find(b"moov", search_from)
-        if marker < 4:
+        if marker == -1:
             return None
+        if marker < 4:
+            search_from = marker + 4
+            continue
         box_start = marker - 4
         box_size = int.from_bytes(data[box_start:marker], "big")
         header_size = 8
@@ -920,11 +923,14 @@ def probe_direct_media(raw_url: str, max_redirects: int = 5) -> dict:
                         if is_mp4 else parse_webm_container_dimensions(container_body)
                     )
             response.close()
-            if is_mp4 and container_resolution is None and headers.get("content-length", "").isdigit():
-                total_length = int(headers["content-length"])
-                if total_length > MAX_CONTAINER_PROBE_BYTES:
-                    tail_start = max(0, total_length - MAX_CONTAINER_PROBE_BYTES)
-                    tail = fetch_pinned_range(normalized, f"bytes={tail_start}-{total_length - 1}")
+            content_range = headers.get("content-range", "")
+            range_total = re.search(r"/(\\d+)$", content_range)
+            total_length = int(range_total.group(1)) if range_total else (
+                int(headers["content-length"]) if headers.get("content-length", "").isdigit() and status != 206 else None
+            )
+            if is_mp4 and container_resolution is None and total_length and total_length > MAX_CONTAINER_PROBE_BYTES:
+                tail_start = max(0, total_length - MAX_CONTAINER_PROBE_BYTES)
+                tail = fetch_pinned_range(normalized, f"bytes={tail_start}-{total_length - 1}")
                     if tail.get("http_status") == 206 and tail.get("body"):
                         container_resolution = parse_mp4_container_dimensions(tail["body"])
             reachable = 200 <= status < 300 and media_type
@@ -1360,6 +1366,26 @@ def build_quality_evidence(validation: dict | None = None) -> dict:
     }
 
 
+def rank_quality_evidence(evidence: dict, media_identity: dict | None = None) -> dict:
+    evidence = dict(evidence or {})
+    media_identity = media_identity if isinstance(media_identity, dict) else {}
+    declared = evidence.get("best_declared_resolution") or {}
+    declared_height = declared.get("height") if isinstance(declared, dict) else None
+    observed = evidence.get("observed_container_resolution") or {}
+    observed_height = observed.get("height") if isinstance(observed, dict) else None
+    quality_hint = media_identity.get("quality_hint")
+    quality_rank = observed_height or declared_height or {
+        "4k": 2160, "2160p": 2160, "1080p": 1080, "720p": 720, "480p": 480,
+    }.get(quality_hint)
+    evidence["quality_rank"] = quality_rank
+    evidence["quality_rank_source"] = (
+        "container_observed" if observed_height else (
+            "manifest_declared" if declared_height else ("filename_hint" if quality_hint else "unknown")
+        )
+    )
+    return evidence
+
+
 def normalize_candidate(candidate: dict) -> dict:
     item = dict(candidate)
     item.setdefault("access_state", "ACCESS_UNKNOWN")
@@ -1371,16 +1397,7 @@ def normalize_candidate(candidate: dict) -> dict:
         item.get("title", ""), item.get("url", "")
     )
     item["quality_evidence"] = item.get("quality_evidence") or build_quality_evidence(item.get("validation"))
-    declared = item["quality_evidence"].get("best_declared_resolution") or {}
-    declared_height = declared.get("height") if isinstance(declared, dict) else None
-    quality_hint = item["media_identity"].get("quality_hint")
-    observed = item["quality_evidence"].get("observed_container_resolution") or {}
-    observed_height = observed.get("height") if isinstance(observed, dict) else None
-    quality_rank = observed_height or declared_height or {"4k": 2160, "2160p": 2160, "1080p": 1080, "720p": 720, "480p": 480}.get(quality_hint)
-    item["quality_evidence"]["quality_rank"] = quality_rank
-    item["quality_evidence"]["quality_rank_source"] = (
-        "container_observed" if observed_height else ("manifest_declared" if declared_height else ("filename_hint" if quality_hint else "unknown"))
-    )
+    item["quality_evidence"] = rank_quality_evidence(item["quality_evidence"], item["media_identity"])
     return item
 
 
@@ -2052,7 +2069,11 @@ def validate_candidate(candidate_id: str, authorization: str | None = Header(def
             "playback_probe": "not_performed",
             "note": "Public URL and candidate type were checked. Embedded player content still requires manual playback verification; this is not a CMS API source.",
         })
-    quality_evidence = build_quality_evidence(validation)
+    try:
+        stored_identity = json.loads(candidate.get("media_identity") or "{}")
+    except (TypeError, ValueError):
+        stored_identity = {}
+    quality_evidence = rank_quality_evidence(build_quality_evidence(validation), stored_identity)
     observed_access = validation.get("access") or {}
     observed_state = observed_access.get("access_state") or candidate.get("access_state") or "ACCESS_UNKNOWN"
     observed_reason = observed_access.get("reason") or candidate.get("access_reason")
