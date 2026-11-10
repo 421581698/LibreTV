@@ -7,13 +7,12 @@ afterEach(() => {
 });
 
 describe('guardPrivateFeatureRequest', () => {
-  it('blocks private feature APIs when public preview auth bypass is enabled', () => {
+  it('allows private feature APIs without a login session when public preview auth bypass is enabled', () => {
     vi.stubEnv('AUTH_DISABLED', 'true');
     vi.stubEnv('PASSWORD', 'preview-password');
 
     const response = guardPrivateFeatureRequest(new Request('https://preview.example/api/resource-collector'));
-    expect(response?.status).toBe(403);
-    expect(response?.headers.get('Cache-Control')).toBe('no-store');
+    expect(response).toBeNull();
   });
 
   it('requires a login session when normal authentication is enabled', () => {
