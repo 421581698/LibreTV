@@ -57,7 +57,7 @@ def init() -> None:
           id TEXT PRIMARY KEY, source_id TEXT NOT NULL REFERENCES registry_sources(id),
           movie_id TEXT REFERENCES registry_movies(id),
           episode_id TEXT REFERENCES registry_episodes(id),
-          canonical_url TEXT NOT NULL, resource_type TEXT NOT NULL,
+          canonical_url TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', resource_type TEXT NOT NULL,
           access_state TEXT NOT NULL DEFAULT 'ACCESS_UNKNOWN',
           validation_state TEXT NOT NULL DEFAULT 'unverified',
           playback_state TEXT NOT NULL DEFAULT 'NOT_TESTED',
@@ -65,6 +65,9 @@ def init() -> None:
           created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
           UNIQUE(source_id, canonical_url)
         );
+        resource_columns = {row["name"] for row in c.execute("PRAGMA table_info(registry_resources)").fetchall()}
+        if "title" not in resource_columns:
+            c.execute("ALTER TABLE registry_resources ADD COLUMN title TEXT NOT NULL DEFAULT ''")
         CREATE INDEX IF NOT EXISTS idx_registry_resources_movie
           ON registry_resources(movie_id, episode_id);
         CREATE TABLE IF NOT EXISTS registry_verifications (
@@ -201,14 +204,15 @@ def upsert_resource(source_key: str, source_name: str, url: str, resource_type: 
               (id,external_id,title,metadata,created_at) VALUES(?,?,?,?,?)""",
               (movie_id, external_id[:200], title[:300] or "Untitled", _json(metadata or {}), now))
         c.execute("""INSERT INTO registry_resources
-          (id,source_id,movie_id,canonical_url,resource_type,access_state,validation_state,
+          (id,source_id,movie_id,canonical_url,title,resource_type,access_state,validation_state,
            media_type,metadata,created_at,updated_at)
-          VALUES(?,?,?,?,?,?,?,?,?,?,?)
+          VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
           ON CONFLICT(source_id,canonical_url) DO UPDATE SET
+          title=CASE WHEN excluded.title!='' THEN excluded.title ELSE registry_resources.title END,
           access_state=excluded.access_state, validation_state=excluded.validation_state,
           media_type=COALESCE(excluded.media_type,registry_resources.media_type),
           metadata=excluded.metadata, updated_at=excluded.updated_at""",
-          (resource_id, source_id, movie_id, canonical, resource_type, access_state,
+          (resource_id, source_id, movie_id, canonical, title[:300], resource_type, access_state,
            validation_state, media_type, _json(metadata or {}), now, now))
         row = c.execute("SELECT * FROM registry_resources WHERE id=?", (resource_id,)).fetchone()
         c.execute("INSERT INTO registry_history VALUES(?,?,?,?,?)",
@@ -221,10 +225,10 @@ def upsert_resource(source_key: str, source_name: str, url: str, resource_type: 
 def search_resources(query: str, limit: int = 20) -> list[dict]:
     needle = "%" + query.strip().replace("%", "\\%").replace("_", "\\_")[:100] + "%"
     with connect() as c:
-        rows = c.execute("""SELECT r.*,m.title,m.external_id,s.name AS source_name
+        rows = c.execute("""SELECT r.*,COALESCE(m.title,r.title) AS title,m.external_id,s.name AS source_name
           FROM registry_resources r JOIN registry_sources s ON s.id=r.source_id
           LEFT JOIN registry_movies m ON m.id=r.movie_id
-          WHERE (m.title LIKE ? ESCAPE '\\' OR r.canonical_url LIKE ? ESCAPE '\\')
+          WHERE (COALESCE(m.title,r.title) LIKE ? ESCAPE '\\' OR r.canonical_url LIKE ? ESCAPE '\\')
           ORDER BY CASE WHEN r.playback_state='PLAYER_CONFIRMED' THEN 0
                         WHEN r.validation_state='validated' THEN 1 ELSE 2 END,
                    r.updated_at DESC LIMIT ?""", (needle, needle, max(1, min(limit, 50)))).fetchall()
