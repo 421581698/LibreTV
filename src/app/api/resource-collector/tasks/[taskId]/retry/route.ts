@@ -12,5 +12,5 @@ export async function POST(request: Request, context: { params: Promise<{ taskId
   if (!/^[a-f0-9]{32}$/i.test(taskId)) {
     return NextResponse.json({ error: 'Invalid task ID.' }, { status: 400 });
   }
-  return collectorRequest(`/v1/tasks/${taskId}/retry`, { method: 'POST' }, 30_000);
+  return collectorRequest(`/v1/tasks/${taskId}/retry`, { method: 'POST' }, 30_000, request);
 }
