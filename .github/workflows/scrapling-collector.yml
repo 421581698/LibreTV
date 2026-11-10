@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feat/iphone-inline-play-top-search-2026-11-09
+      - integration/**
     paths:
       - "services/scrapling-collector/**"
       - "services/scrapling-collector/stats.py"
