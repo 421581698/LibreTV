@@ -1024,7 +1024,6 @@ def classify_access_state(status_code: int | None = None, headers=None, body: st
         ("urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed", "Widevine"),
         ("urn:uuid:9a04f079-9840-4286-ab92-e65be0885f95", "PlayReady"),
         ("skd://", "FairPlay"),
-        ("#ext-x-key", "HLS encrypted stream"),
         ("contentprotection", "MPEG-DASH ContentProtection"),
     ):
         if marker in protection and name not in drm_systems:
@@ -1032,9 +1031,25 @@ def classify_access_state(status_code: int | None = None, headers=None, body: st
     if drm_systems:
         return {
             "access_state": "DRM_PROTECTED",
-            "reason": "Detected DRM or encrypted-stream signaling",
+            "reason": "Detected an explicit DRM system or MPEG-DASH ContentProtection signal",
             "drm_systems": drm_systems,
             "next_action": "Use the provider's official player or authorized playback integration",
+        }
+
+    # HLS AES-128 / SAMPLE-AES encryption is not, by itself, proof of a DRM system.
+    # Preserve that distinction and never fetch or retain key URIs.
+    hls_key_lines = re.findall(r"(?im)^#EXT-X-KEY\\s*:\\s*([^\\r\\n]+)", sample)
+    if hls_key_lines:
+        methods = sorted({
+            (parse_hls_attribute_list(line).get("METHOD") or "UNKNOWN")
+            for line in hls_key_lines
+        })
+        return {
+            "access_state": "ENCRYPTED_STREAM",
+            "reason": "HLS encryption signaling detected; DRM system is not established",
+            "drm_systems": [],
+            "encryption_methods": methods,
+            "next_action": "Use an authorized provider playback path; do not retrieve keys or attempt decryption",
         }
 
     auth_markers = (
@@ -1106,15 +1121,20 @@ def build_quality_evidence(validation: dict | None = None) -> dict:
     """Collect declared manifest dimensions separately from observed probe facts."""
     validation = validation or {}
     declared = []
-    manifest = validation.get("manifest") or validation.get("probe") or {}
+    manifest = validation.get("manifest") or validation.get("probe") or validation
     for variant in manifest.get("variants", []) if isinstance(manifest, dict) else []:
         if isinstance(variant, dict) and isinstance(variant.get("height"), int):
             declared.append({"width": variant.get("width"), "height": variant["height"], "source": "hls_manifest"})
     for representation in manifest.get("representations", []) if isinstance(manifest, dict) else []:
         if isinstance(representation, dict) and isinstance(representation.get("height"), int):
             declared.append({"width": representation.get("width"), "height": representation["height"], "source": "dash_manifest"})
+    declared.sort(key=lambda item: (item.get("height") or 0, item.get("width") or 0), reverse=True)
+    best = declared[0] if declared else None
+    height = best.get("height") if best else None
     return {
         "declared_resolutions": declared[:50],
+        "best_declared_resolution": best,
+        "declared_quality_label": f"{height}p" if height else None,
         "observed_container_resolution": None,
         "decode_verified": False,
         "visual_quality_verified": False,
@@ -1727,10 +1747,17 @@ def validate_candidate(candidate_id: str, authorization: str | None = Header(def
     elif candidate["kind"] == "direct-media":
         throttle(host)
         probe = probe_direct_media(raw_url)
+        hls_encryption_signal = ""
+        if probe.get("media_format") == "hls":
+            methods = probe.get("encryption_methods") or []
+            if methods:
+                hls_encryption_signal = "\\n".join(
+                    f"#EXT-X-KEY:METHOD={method}" for method in methods
+                )
         access = classify_access_state(
             probe.get("http_status"),
             {"content-type": probe.get("content_type", "")},
-            probe.get("body_sample", ""),
+            hls_encryption_signal,
             raw_url,
         )
         validation.update({
@@ -1759,7 +1786,8 @@ def validate_candidate(candidate_id: str, authorization: str | None = Header(def
         )
         candidate_status = (
             "validated"
-            if probe.get("reachable") and references_safe and samples_passed and variants_passed
+            if probe.get("reachable") and access.get("access_state") == "PUBLIC"
+            and references_safe and samples_passed and variants_passed
             else "rejected"
         )
     else:
