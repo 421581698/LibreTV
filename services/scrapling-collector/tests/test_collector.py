@@ -954,5 +954,75 @@ segment-2.ts
         )
         self.assertEqual(result["access_state"], "PUBLIC")
 
+
+    def test_cms_validation_persists_auth_required_even_when_body_is_not_json(self):
+        task_id = "1" * 32
+        candidate_id = "2" * 32
+        with collector.db() as connection:
+            connection.execute(
+                "INSERT INTO tasks(id,url,host,status,mode,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                (task_id, "https://catalog.example", "catalog.example", "completed", "http", 1, 1),
+            )
+            connection.execute(
+                """INSERT INTO candidates(id,task_id,url,host,kind,created_at)
+                   VALUES(?,?,?,?,?,?)""",
+                (candidate_id, task_id, "https://catalog.example/api.php/provide/vod",
+                 "catalog.example", "cms-api-candidate", 1),
+            )
+        response = type("Response", (), {
+            "status": 401,
+            "headers": {"content-type": "text/html"},
+            "body": b"<html>Sign in to continue</html>",
+        })()
+        with (
+            patch.object(collector, "require_token"),
+            patch.object(collector, "require_egress_firewall"),
+            patch.object(collector, "public_https_url", return_value=("https://catalog.example/api.php/provide/vod", "catalog.example")),
+            patch.object(collector, "throttle"),
+            patch.object(collector.Fetcher, "get", return_value=response),
+        ):
+            result = collector.validate_candidate(candidate_id, "Bearer test")
+        self.assertEqual(result["validation"]["access"]["access_state"], "AUTH_REQUIRED")
+        with collector.db() as connection:
+            row = connection.execute(
+                "SELECT status,access_state FROM candidates WHERE id=?", (candidate_id,)
+            ).fetchone()
+        self.assertEqual(row["status"], "rejected")
+        self.assertEqual(row["access_state"], "AUTH_REQUIRED")
+
+    def test_encrypted_hls_candidate_is_not_approved_as_public_playback(self):
+        task_id = "3" * 32
+        candidate_id = "4" * 32
+        with collector.db() as connection:
+            connection.execute(
+                "INSERT INTO tasks(id,url,host,status,mode,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                (task_id, "https://catalog.example", "catalog.example", "completed", "http", 1, 1),
+            )
+            connection.execute(
+                """INSERT INTO candidates(id,task_id,url,host,kind,created_at)
+                   VALUES(?,?,?,?,?,?)""",
+                (candidate_id, task_id, "https://media.example/movie.m3u8",
+                 "media.example", "direct-media", 1),
+            )
+        probe = {
+            "reachable": True, "http_status": 200, "content_type": "application/vnd.apple.mpegurl",
+            "media_format": "hls", "encryption_methods": ["AES-128"],
+            "is_master_playlist": False, "segment_uris": [], "rejected_reference_count": 0,
+        }
+        with (
+            patch.object(collector, "require_token"),
+            patch.object(collector, "require_egress_firewall"),
+            patch.object(collector, "public_https_url", return_value=("https://media.example/movie.m3u8", "media.example")),
+            patch.object(collector, "throttle"),
+            patch.object(collector, "probe_direct_media", return_value=probe),
+        ):
+            collector.validate_candidate(candidate_id, "Bearer test")
+        with collector.db() as connection:
+            row = connection.execute(
+                "SELECT status,access_state FROM candidates WHERE id=?", (candidate_id,)
+            ).fetchone()
+        self.assertEqual(row["status"], "rejected")
+        self.assertEqual(row["access_state"], "ENCRYPTED_STREAM")
+
 if __name__ == "__main__":
     unittest.main()
