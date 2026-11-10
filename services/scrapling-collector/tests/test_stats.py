@@ -40,6 +40,8 @@ class ResourceStatsTests(unittest.TestCase):
         self.assertEqual(resolution_bucket(2160,3840),"4K")
         self.assertEqual(resolution_bucket(3840,2000),"4K")
         self.assertEqual(resolution_bucket(3840,1600),"4K")
+        self.assertEqual(resolution_bucket(4096,1716),"4K")
+        self.assertEqual(resolution_bucket(3200,1800),"2K")
         self.assertEqual(resolution_bucket(2560,1600),"2K")
         self.assertEqual(resolution_bucket(2560,1440),"2K")
         self.assertEqual(resolution_bucket(2160,3840),"4K")
