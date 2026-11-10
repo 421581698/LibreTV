@@ -164,5 +164,21 @@ class RegistryQueueTests(unittest.TestCase):
 
 
 
+    def test_registry_search_matches_preserved_search_keyword_metadata(self):
+        resource = queue.upsert_resource({
+            "resource_key": "candidate:keyword-match", "candidate_id": "b" * 32,
+            "source_key": "archive.org", "resource_type": "DIRECT_MEDIA",
+            "url": "https://archive.org/download/sample/film.mp4",
+            "title": "Internet Archive", "access_state": "PUBLIC", "media_format": "mp4",
+            "metadata": {"search_keyword": "The Sample Film"},
+        })
+        queue.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        with patch.object(queue, "require_auth"):
+            result = queue.api_registry_search(q="Sample Film", authorization="Bearer test")
+        self.assertEqual([item["candidate_id"] for item in result["resources"]], ["b" * 32])
+        self.assertEqual(result["queued"], [])
+
+
+
 if __name__ == "__main__":
     unittest.main()
