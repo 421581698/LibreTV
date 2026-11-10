@@ -43,5 +43,12 @@ export function collectorFetch(input: RequestInfo | URL, init: RequestInit = {})
     headers.set('X-Scrapling-Api-Base', config.base);
     headers.set('X-Scrapling-Api-Token', config.token);
   }
-  return fetch(input, { ...init, headers, cache: 'no-store', credentials: 'same-origin' });
+  return fetch(input, { ...init, headers, cache: 'no-store', credentials: 'same-origin' }).then((response) => {
+    if (response.status === 401) {
+      window.dispatchEvent(new CustomEvent('libretv:unauthorized'));
+    } else if (response.status === 503) {
+      window.dispatchEvent(new CustomEvent('libretv:unauthorized', { detail: 'setup' }));
+    }
+    return response;
+  });
 }
