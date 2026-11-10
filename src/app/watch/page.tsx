@@ -529,6 +529,31 @@ function WatchContent() {
 
             </div>
 
+            <div className="netflix-watch-tools">
+              {hasEpisodeNavigation && <><button className="btn-ghost btn-sm" disabled={currentIndex <= 0} onClick={() => goEpisode(currentIndex - 1)}>上一集</button>
+              <button className="btn-ghost btn-sm" disabled={currentIndex >= episodes.length - 1} onClick={() => goEpisode(currentIndex + 1)}>下一集</button></>}
+              <button className="btn-ghost btn-sm" onClick={() => { if (currentUrl) enqueueDownload({ url: currentUrl, title: `${videoTitle}${hasEpisodeNavigation ? ` 第${currentIndex + 1}集` : ''}`, format: 'MP4' }); }}>下载本集</button>
+              <button className={cn('btn-ghost btn-sm', skipPanelOpen && 'bg-chip text-content')} aria-expanded={skipPanelOpen} aria-haspopup="dialog" onClick={() => setSkipPanelOpen((v) => !v)}>
+                跳过标记{markedCount > 0 ? ` (${markedCount})` : ''}
+              </button>
+              <label className="flex items-center gap-1.5 text-xs text-muted ml-auto cursor-pointer">
+                <input type="checkbox" className="h-3.5 w-3.5 accent-[#2563eb]" checked={store.autoplayNext} onChange={(e) => store.updateSettings({ autoplayNext: e.target.checked })} />
+                自动连播
+              </label>
+            </div>
+            <SkipMarkPanel
+              open={skipPanelOpen}
+              onClose={() => setSkipPanelOpen(false)}
+              markKey={markKey}
+              pendingStart={pendingStart}
+              onPendingStart={setPendingStart}
+              mobileMaxHeight={sheetMaxHeight}
+              getPlayerClock={() => {
+                const api = playerApiRef.current;
+                if (!api) return null;
+                return { currentTime: api.getCurrentTime(), duration: api.getDuration(), seek: (s) => api.seek(s), pause: () => api.pause(), isPaused: () => api.isPaused() };
+              }}
+            />
             {(isMovie || !hasEpisodeNavigation) && <section className="netflix-related-section" aria-labelledby="netflix-related-heading">
               <div className="netflix-section-heading">
                 <div>
@@ -561,31 +586,6 @@ function WatchContent() {
               )}
             </section>}
 
-            <div className="netflix-watch-tools">
-              {hasEpisodeNavigation && <><button className="btn-ghost btn-sm" disabled={currentIndex <= 0} onClick={() => goEpisode(currentIndex - 1)}>上一集</button>
-              <button className="btn-ghost btn-sm" disabled={currentIndex >= episodes.length - 1} onClick={() => goEpisode(currentIndex + 1)}>下一集</button></>}
-              <button className="btn-ghost btn-sm" onClick={() => { if (currentUrl) enqueueDownload({ url: currentUrl, title: `${videoTitle}${hasEpisodeNavigation ? ` 第${currentIndex + 1}集` : ''}`, format: 'MP4' }); }}>下载本集</button>
-              <button className={cn('btn-ghost btn-sm', skipPanelOpen && 'bg-chip text-content')} aria-expanded={skipPanelOpen} aria-haspopup="dialog" onClick={() => setSkipPanelOpen((v) => !v)}>
-                跳过标记{markedCount > 0 ? ` (${markedCount})` : ''}
-              </button>
-              <label className="flex items-center gap-1.5 text-xs text-muted ml-auto cursor-pointer">
-                <input type="checkbox" className="h-3.5 w-3.5 accent-[#2563eb]" checked={store.autoplayNext} onChange={(e) => store.updateSettings({ autoplayNext: e.target.checked })} />
-                自动连播
-              </label>
-            </div>
-            <SkipMarkPanel
-              open={skipPanelOpen}
-              onClose={() => setSkipPanelOpen(false)}
-              markKey={markKey}
-              pendingStart={pendingStart}
-              onPendingStart={setPendingStart}
-              mobileMaxHeight={sheetMaxHeight}
-              getPlayerClock={() => {
-                const api = playerApiRef.current;
-                if (!api) return null;
-                return { currentTime: api.getCurrentTime(), duration: api.getDuration(), seek: (s) => api.seek(s), pause: () => api.pause(), isPaused: () => api.isPaused() };
-              }}
-            />
           </section>
 
           <aside className="netflix-watch-sidebar">
