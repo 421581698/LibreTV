@@ -199,6 +199,7 @@ type CollectorTask = { id: string; url: string; host: string; status: string; cr
 
 function ResourceCollectorPanel() {
   const store = useAppStore();
+  const [centerPage, setCenterPage] = useState<string>('index');
   const [sites, setSites] = useState<CollectorSite[]>([]);
   const [selectedSite, setSelectedSite] = useState<CollectorSite | null>(null);
   const [playingCandidate, setPlayingCandidate] = useState<CollectorCandidate | null>(null);
@@ -422,8 +423,69 @@ function ResourceCollectorPanel() {
     }
   };
 
+  const centerItems = [
+    { id: 'overview', title: '数据总览', detail: '所有网站和影视资源统计', icon: 'search' as IconName },
+    { id: 'directory', title: 'FMHY 网站目录', detail: '唯一网站发现入口', icon: 'home' as IconName },
+    { id: 'archives', title: '网站采集档案', detail: '每个网站独立抓取记录', icon: 'database' as IconName },
+    { id: 'library', title: '影视资源库', detail: '电影、电视剧、动漫及去重', icon: 'download' as IconName },
+    { id: 'monitor', title: '实时任务监控', detail: 'Spider、浏览器和任务队列', icon: 'bolt' as IconName },
+    { id: 'quality', title: '资源质量检测', detail: '预检、播放确认和质量评分', icon: 'check' as IconName },
+    { id: 'history', title: '采集历史', detail: '每次任务的完整审计记录', icon: 'clock' as IconName },
+    { id: 'strategy', title: '采集策略', detail: '增量抓取、频率、重试和限额', icon: 'filter' as IconName },
+    { id: 'connection', title: '连接配置', detail: 'Scrapling 地址、Token 和连接测试', icon: 'link' as IconName },
+  ];
+  const activeCenterItem = centerItems.find((item) => item.id === centerPage);
+
+  if (centerPage === 'index') {
+    return (
+      <section className="overflow-hidden rounded-2xl border border-line bg-card">
+        <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-4 sm:px-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-chip text-content">
+              <Icon name="search" className="h-6 w-6" />
+            </span>
+            <h3 className="truncate text-lg font-semibold tracking-tight text-content">资源采集中心</h3>
+          </div>
+          <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-600">V2.0</span>
+        </header>
+        <nav aria-label="资源采集中心功能导航" className="divide-y divide-line px-3 py-1 sm:px-4">
+          {centerItems.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setCenterPage(item.id)}
+              className="group flex min-h-[64px] w-full items-center gap-3 rounded-xl px-1 py-2 text-left transition-colors hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              aria-label={item.title}
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-chip text-content">
+                <Icon name={item.icon} className="h-5 w-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-content">{item.title}</span>
+                <span className="mt-0.5 block text-xs text-muted">{item.detail}</span>
+              </span>
+              <span aria-hidden="true" className="shrink-0 text-xl leading-none text-faint transition-transform group-hover:translate-x-0.5">›</span>
+            </button>
+          ))}
+        </nav>
+      </section>
+    );
+  }
+
   return (
     <section className="space-y-4">
+      <button
+        type="button"
+        onClick={() => setCenterPage('index')}
+        className="inline-flex min-h-9 items-center gap-2 rounded-lg pr-2 text-sm font-medium text-accent transition-colors hover:opacity-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      >
+        <span aria-hidden="true" className="text-lg leading-none">‹</span>
+        资源采集中心
+      </button>
+      <div className="border-b border-line pb-3">
+        <h3 className="text-lg font-semibold text-content">{activeCenterItem?.title}</h3>
+        <p className="mt-1 text-xs text-muted">{activeCenterItem?.detail}</p>
+      </div>
       <ResourceStatsPanel />
       <div className="rounded-2xl border border-line bg-card p-4 space-y-3">
         <div>
