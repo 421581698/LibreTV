@@ -17,20 +17,30 @@ export function guardRequest(req: Request): NextResponse | null {
   return null;
 }
 
-export function jsonError(message: string, status: number): NextResponse {
-  return NextResponse.json({ error: message }, { status });
-}
-
-
 /**
- * Guard for costly/private features that must never inherit a public preview's
- * AUTH_DISABLED bypass. Public pages may remain accessible, but collector
- * operations always require a password-protected session.
+ * Guard for costly/private features.
+ *
+ * In a password-free public Preview, Collector routes may be used only when
+ * the current browser explicitly supplies BOTH its own HTTPS service origin
+ * and bearer token. The proxy validates the origin and token before forwarding.
+ * This deliberately prevents anonymous callers from consuming server-side
+ * SCRAPLING_API_TOKEN credentials through a public open proxy.
+ *
+ * In password-protected deployments, the normal session gate remains required
+ * and server-side SCRAPLING_API_BASE / SCRAPLING_API_TOKEN fallback remains
+ * available.
  */
 export function guardPrivateFeatureRequest(req: Request): NextResponse | null {
   if (isAuthDisabled()) {
+    const browserBase = req.headers.get('x-scrapling-api-base')?.trim() ?? '';
+    const browserToken = req.headers.get('x-scrapling-api-token')?.trim() ?? '';
+    if (browserBase && browserToken) return null;
+
     return NextResponse.json(
-      { error: '该功能在公开预览环境中已禁用。请在启用密码保护的环境中使用。' },
+      {
+        error: '公开预览中的资源采集仅接受当前设备填写的 HTTPS 地址和 Token。请在本机设置中保存两项后重试；匿名请求不会使用服务端 Collector 密钥。',
+        code: 'BROWSER_COLLECTOR_CREDENTIALS_REQUIRED',
+      },
       { status: 403, headers: { 'Cache-Control': 'no-store' } }
     );
   }
