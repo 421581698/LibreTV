@@ -9,7 +9,8 @@ type SiteStat = {
   succeeded_tasks: number; failed_tasks: number; last_crawl_at: number | null;
   last_status: string; last_error: string | null; candidate_count: number;
   video_candidates: number; preflight_passed: number; playback_confirmed: number;
-  actual_quality: Quality; pages_visited: number | null;
+  actual_quality: Quality; pages_visited: number | null; pages_failed?: number;
+  pages_changed?: number; pages_unchanged?: number;
   health_status?: string; failure_streak?: number; playback_samples?: number;
 };
 type StatsPayload = {
@@ -19,6 +20,7 @@ type StatsPayload = {
     failed_sites: number; crawl_tasks: number; candidate_resources: number;
     video_candidates: number; preflight_passed: number; playback_confirmed: number;
     actual_quality: Quality; movie_entries: number; episode_entries: number;
+    pages_visited?: number; pages_failed?: number; pages_changed?: number; pages_unchanged?: number;
     queue_jobs?: Record<string, number>;
   };
   sites: SiteStat[]; site?: SiteStat | null;
@@ -141,7 +143,10 @@ export function ResourceStatsPanel() {
                 {QUALITY_ORDER.map((q) => <div key={q} className="rounded-lg bg-chip p-2 text-xs"><span className="text-muted">{q}</span><strong className="float-right tabular-nums text-content">{fmt(detail.site?.actual_quality?.[q] ?? 0)}</strong></div>)}
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="rounded-lg bg-chip p-2">页面访问：{detail.site.pages_visited ?? '未记录'}</div>
+                <div className="rounded-lg bg-chip p-2">页面访问：{fmt(detail.site.pages_visited ?? 0)}</div>
+                <div className="rounded-lg bg-chip p-2">页面失败：{fmt(detail.site.pages_failed ?? 0)}</div>
+                <div className="rounded-lg bg-chip p-2">内容变化：{fmt(detail.site.pages_changed ?? 0)}</div>
+                <div className="rounded-lg bg-chip p-2">内容未变：{fmt(detail.site.pages_unchanged ?? 0)}</div>
                 <div className="rounded-lg bg-chip p-2">采集任务：{fmt(detail.site.crawl_tasks)}</div>
                 <div className="rounded-lg bg-chip p-2">预检通过：{fmt(detail.site.preflight_passed)}</div>
                 <div className="rounded-lg bg-chip p-2">实际播放：{fmt(detail.site.playback_confirmed)}</div>
@@ -170,7 +175,7 @@ export function ResourceStatsPanel() {
               ) : null}
             </div>
           ) : null}
-          <p className="text-[10px] leading-5 text-muted">页面级访问次数尚未由 Collector 持久化，显示“未记录”，不会用任务次数冒充页面次数。</p>
+          <p className="text-[10px] leading-5 text-muted">页面访问按 Spider 已处理页面与浏览器采集入口页的真实访问次数统计；不同采集引擎访问同一 URL 时分别计次。内容指纹用于识别未变化页面并跳过重复提取。</p>
         </>
       ) : null}
     </section>

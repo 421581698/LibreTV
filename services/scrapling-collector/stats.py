@@ -47,7 +47,9 @@ def build_stats(connection: sqlite3.Connection, host=None):
         "SELECT host,title,url,directory,discovered_at FROM sites ORDER BY discovered_at DESC"
     ).fetchall()]
     tasks = [dict(r) for r in connection.execute(
-        "SELECT id,host,status,created_at,updated_at,error,result_count FROM tasks ORDER BY created_at DESC"
+        """SELECT id,host,status,created_at,updated_at,error,result_count,
+                  pages_scheduled,pages_visited,pages_failed,pages_changed,pages_unchanged
+           FROM tasks ORDER BY created_at DESC"""
     ).fetchall()]
     candidates = [dict(r) for r in connection.execute(
         """SELECT id,task_id,url,host,kind,title,status,access_state,created_at,
@@ -134,7 +136,11 @@ def build_stats(connection: sqlite3.Connection, host=None):
             "registry_resources": int(registry.get("registry_resources") or 0),
             "health_status": health_status, "failure_streak": failure_streak,
             "playback_samples": len(unique_confirmed),
-            "pages_visited": None, "pages_succeeded": None, "pages_failed": None
+            "pages_visited": sum(int(t.get("pages_visited") or 0) for t in site_tasks),
+            "pages_succeeded": sum(int(t.get("pages_visited") or 0) for t in site_tasks),
+            "pages_failed": sum(int(t.get("pages_failed") or 0) for t in site_tasks),
+            "pages_changed": sum(int(t.get("pages_changed") or 0) for t in site_tasks),
+            "pages_unchanged": sum(int(t.get("pages_unchanged") or 0) for t in site_tasks)
         })
 
     if host: site_summaries = [s for s in site_summaries if s["host"] == host]
@@ -156,6 +162,10 @@ def build_stats(connection: sqlite3.Connection, host=None):
         "successful_sites": sum(1 for t in latest_by_host.values() if t["status"] in ("completed", "succeeded")),
         "failed_sites": sum(1 for t in latest_by_host.values() if t["status"] == "failed"),
         "crawl_tasks": len(tasks),
+        "pages_visited": sum(int(t.get("pages_visited") or 0) for t in tasks),
+        "pages_failed": sum(int(t.get("pages_failed") or 0) for t in tasks),
+        "pages_changed": sum(int(t.get("pages_changed") or 0) for t in tasks),
+        "pages_unchanged": sum(int(t.get("pages_unchanged") or 0) for t in tasks),
         "candidate_resources": sum(s["candidate_count"] for s in site_summaries),
         "video_candidates": sum(s["video_candidates"] for s in site_summaries),
         "preflight_passed": sum(s["preflight_passed"] for s in site_summaries),
@@ -175,7 +185,8 @@ def build_stats(connection: sqlite3.Connection, host=None):
             "Counts are derived from persisted Collector SQLite records.",
             "Candidates, public preflight approvals, and player-confirmed playback are separate states.",
             "Actual quality uses decoded video dimensions only; missing dimensions are unknown.",
-            "Page-level visit events are not persisted by the current Collector schema."
+            "Page visit counts are persisted from Spider processed pages and browser top-level visits; counts are engine visits, not cross-engine deduplicated URLs.",
+            "Content fingerprints identify unchanged Spider pages; unchanged pages are not re-extracted."
         ]
     }
     if host:
