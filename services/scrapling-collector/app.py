@@ -1034,12 +1034,12 @@ def classify_access_state(status_code: int | None = None, headers=None, body: st
 def infer_media_identity(title: str = "", url: str = "") -> dict:
     """Conservative title/URL identity hints; never claim a match without evidence."""
     source = f"{title or ''} {url or ''}"
-    year_match = re.search(r"(?<!\\d)((?:19|20)\\d{2})(?!\\d)", source)
-    season_match = re.search(r"(?i)(?:season\\s*|s)(\\d{1,2})", source)
-    episode_match = re.search(r"(?i)(?:episode\\s*|ep?)(\\d{1,3})", source)
-    cleaned = re.sub(r"(?i)\\.(m3u8|mp4|m4v|webm|mpd|mov|ts|m4s|aac)(?:$|\\?).*", "", source)
-    cleaned = re.sub(r"(?i)(?:season\\s*|s)\\d{1,2}|(?:episode\\s*|ep?)\\d{1,3}|(?<!\\d)(?:19|20)\\d{2}(?!\\d)", " ", cleaned)
-    cleaned = re.sub(r"[^\\w\\u4e00-\\u9fff]+", " ", cleaned, flags=re.UNICODE)
+    year_match = re.search(r"(?<!\d)((?:19|20)\d{2})(?!\d)", source)
+    season_match = re.search(r"(?i)(?:season\s*|s)(\d{1,2})", source)
+    episode_match = re.search(r"(?i)(?:episode\s*|ep?)(\d{1,3})", source)
+    cleaned = re.sub(r"(?i)\.(m3u8|mp4|m4v|webm|mpd|mov|ts|m4s|aac)(?:$|\?).*", "", source)
+    cleaned = re.sub(r"(?i)(?:season\s*|s)\d{1,2}|(?:episode\s*|ep?)\d{1,3}|(?<!\d)(?:19|20)\d{2}(?!\d)", " ", cleaned)
+    cleaned = re.sub(r"[^\w\u4e00-\u9fff]+", " ", cleaned, flags=re.UNICODE)
     title_hint = " ".join(cleaned.split())[:160]
     return {
         "title_hint": title_hint or None,
@@ -1620,20 +1620,29 @@ def validate_candidate(candidate_id: str, authorization: str | None = Header(def
                 and 200 <= page.status < 300
                 and ("json" in content_type or content_type.endswith("+json"))
             )
+            access = classify_access_state(page.status, page.headers, body.decode("utf-8", errors="replace"), raw_url)
             validation.update({"reachable": 200 <= page.status < 400, "json": isinstance(parsed, dict),
                                "cms_shape": cms_shape,
                                "sample_count": len(cms_list) if isinstance(cms_list, list) else 0,
-                               "content_type": content_type, "http_status": page.status})
-            candidate_status = "validated" if cms_shape and isinstance(parsed, dict) else "rejected"
+                               "content_type": content_type, "http_status": page.status,
+                               "access": access})
+            candidate_status = "validated" if cms_shape and access["access_state"] == "PUBLIC" else "rejected"
         except Exception as exc:
             validation.update({"reachable": False, "error": type(exc).__name__})
             candidate_status = "rejected"
     elif candidate["kind"] == "direct-media":
         throttle(host)
         probe = probe_direct_media(raw_url)
+        access = classify_access_state(
+            probe.get("http_status"),
+            {"content-type": probe.get("content_type", "")},
+            probe.get("body_sample", ""),
+            raw_url,
+        )
         validation.update({
             "playback_probe": "range_header_probe",
             **probe,
+            "access": access,
             "note": "HTTP/media headers were checked with a bounded request. This does not guarantee full playback; verify in PlayerShell.",
         })
         segment_probe = None
@@ -1666,13 +1675,15 @@ def validate_candidate(candidate_id: str, authorization: str | None = Header(def
             "note": "Public URL and candidate type were checked. Embedded player content still requires manual playback verification; this is not a CMS API source.",
         })
     quality_evidence = build_quality_evidence(validation)
+    observed_access = validation.get("access") or {}
+    observed_state = observed_access.get("access_state") or candidate.get("access_state") or "ACCESS_UNKNOWN"
+    observed_reason = observed_access.get("reason") or candidate.get("access_reason")
     with db() as connection:
         connection.execute(
             """UPDATE candidates SET status=?,validation=?,access_state=?,access_reason=?,
                probe_evidence=?,quality_evidence=? WHERE id=?""",
             (candidate_status, json.dumps(validation, ensure_ascii=False),
-             candidate.get("access_state") or "ACCESS_UNKNOWN",
-             candidate.get("access_reason"),
+             observed_state, observed_reason,
              json.dumps(validation, ensure_ascii=False),
              json.dumps(quality_evidence, ensure_ascii=False), candidate_id),
         )
