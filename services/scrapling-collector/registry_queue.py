@@ -479,9 +479,13 @@ def api_registry_search(q: str = "", authorization: str | None = Header(default=
     with connect() as c:
         rows = c.execute("""SELECT r.*,s.name AS source_name,s.host AS source_host
           FROM registry_resources r LEFT JOIN registry_sources s ON s.id=r.source_id
-          WHERE r.validation_state='validated' AND r.playback_state='PLAYER_CONFIRMED'
-            AND r.access_state='PUBLIC' AND (r.title LIKE ? OR r.resource_key LIKE ?)
-          ORDER BY r.updated_at DESC LIMIT 30""", (f"%{term}%",f"%{term}%")).fetchall() if term else []
+          WHERE r.validation_state='validated'
+            AND r.access_state='PUBLIC'
+            AND r.resource_type='DIRECT_MEDIA'
+            AND r.media_format IN ('hls','mp4','webm')
+            AND (r.title LIKE ? OR r.resource_key LIKE ?)
+          ORDER BY CASE WHEN r.playback_state='PLAYER_CONFIRMED' THEN 0 ELSE 1 END,
+                   r.updated_at DESC LIMIT 30""", (f"%{term}%",f"%{term}%")).fetchall() if term else []
         sites = c.execute("SELECT host,url FROM sites ORDER BY discovered_at DESC LIMIT 5").fetchall() if term and not rows else []
 
     scheduled = []
@@ -495,7 +499,7 @@ def api_registry_search(q: str = "", authorization: str | None = Header(default=
             key = "registry-search:"+hashlib.sha256((term.lower()+"|"+site["host"]).encode()).hexdigest()
             job = submit_job("crawl", {"url":site["url"],"mode":"auto","limit":50,"search_keyword":term}, key)
             scheduled.append({"job_id":job["id"],"host":site["host"]})
-    return {"resources":[dict(row) for row in rows],"queued":scheduled,"search_mode":"verified_registry_first"}
+    return {"resources":[dict(row) for row in rows],"queued":scheduled,"search_mode":"playback_eligible_registry"}
 
 
 @router.post("/v1/registry/resources")
