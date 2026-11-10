@@ -250,10 +250,12 @@ export async function exportConfig(): Promise<string> {
   // 导出前 flush：把节流缓冲中的最新设置落盘，避免导出的是 800ms 前的旧快照
   flushPendingPersist();
   const history = await db.history.toArray();
+  const favorites = await db.favorites.toArray();
   const settings = localStorage.getItem(PERSIST_KEY);
 
   const data: Record<string, unknown> = {
     viewingHistory: JSON.stringify(history),
+    viewingFavorites: JSON.stringify(favorites),
   };
   if (settings) data[PERSIST_KEY] = settings;
 
@@ -278,6 +280,18 @@ export async function importConfig(content: string): Promise<void> {
     // 之后 flush 时用导入前的旧状态覆盖刚写入的配置（导入静默丢失）
     flushPendingPersist();
     localStorage.setItem(PERSIST_KEY, data[PERSIST_KEY]);
+  }
+
+  if (typeof data['viewingFavorites'] === 'string') {
+    const imported = JSON.parse(data['viewingFavorites']) as FavoriteEntry[];
+    const valid = imported.filter((item) =>
+      item && typeof item.id === 'string' &&
+      typeof item.sourceKey === 'string' &&
+      typeof item.vodId === 'string' &&
+      typeof item.title === 'string' &&
+      typeof item.sourceName === 'string'
+    );
+    if (valid.length > 0) await db.favorites.bulkPut(valid);
   }
 
   if (typeof data['viewingHistory'] === 'string') {
