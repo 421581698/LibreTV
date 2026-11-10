@@ -84,6 +84,41 @@ class CollectorTests(unittest.TestCase):
                 "SELECT playback_verification FROM candidates WHERE id=?", (candidate_id,)
             ).fetchone()["playback_verification"]
         self.assertEqual(collector.json.loads(stored)["media_type"], "mp4")
+        with collector.db() as connection:
+            sample = connection.execute(
+                "SELECT host,sample_source,decoded_width,decoded_height FROM playback_quality_samples"
+            ).fetchone()
+        self.assertEqual(sample["host"], "media.example")
+        self.assertEqual(sample["sample_source"], "collector_preview")
+        self.assertEqual(sample["decoded_width"], 0)
+
+    def test_general_playback_sample_only_records_fmhy_discovered_hosts(self):
+        now = 1_800_000_000
+        with collector.db() as connection:
+            connection.execute(
+                "INSERT INTO sites(host,title,url,directory,discovered_at) VALUES(?,?,?,?,?)",
+                ("media.example", "Media", "https://media.example", "FMHY / Movies", now),
+            )
+        payload = collector.PlaybackSampleEvidence(
+            host="media.example", media_type="hls", observed_seconds=5,
+            progressed_seconds=4, decoded_width=1920, decoded_height=1080,
+            selected_rendition_height=1080, selected_rendition_bitrate_kbps=5000,
+        )
+        with patch.object(collector, "require_token"):
+            result = collector.record_general_playback_sample(payload, "Bearer test")
+            ignored = collector.record_general_playback_sample(
+                payload.copy(update={"host": "not-listed.example"}), "Bearer test"
+            )
+        self.assertTrue(result["recorded"])
+        self.assertFalse(ignored["recorded"])
+        with collector.db() as connection:
+            samples = connection.execute(
+                "SELECT host,sample_source,decoded_height FROM playback_quality_samples"
+            ).fetchall()
+        self.assertEqual(len(samples), 1)
+        self.assertEqual(samples[0]["host"], "media.example")
+        self.assertEqual(samples[0]["sample_source"], "player")
+        self.assertEqual(samples[0]["decoded_height"], 1080)
 
     def test_playback_evidence_rejects_candidates_without_preflight(self):
         task_id = "c" * 32
