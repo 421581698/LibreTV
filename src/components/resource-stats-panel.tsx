@@ -10,6 +10,7 @@ type SiteStat = {
   last_status: string; last_error: string | null; candidate_count: number;
   video_candidates: number; preflight_passed: number; playback_confirmed: number;
   actual_quality: Quality; pages_visited: number | null; pages_failed?: number;
+  movie_entries?: number; episode_entries?: number; registry_resources?: number;
   pages_changed?: number; pages_unchanged?: number;
   health_status?: string; failure_streak?: number; playback_samples?: number; preview_samples?: number;
   quality_score?: number | null; quality_score_state?: string;
@@ -80,6 +81,7 @@ export function ResourceStatsPanel() {
               ['资源候选', summary.candidate_resources], ['视频候选', summary.video_candidates],
               ['媒体预检通过', summary.preflight_passed], ['采集预览确认资源', summary.playback_confirmed],
               ['真实播放样本', summary.playback_samples ?? 0], ['采集预览样本', summary.preview_samples ?? 0],
+              ['电影条目', summary.movie_entries], ['剧集条目', summary.episode_entries],
               ['采集任务', summary.crawl_tasks], ['失败网站', summary.failed_sites],
             ].map(([label, value]) => (
               <div key={String(label)} className="rounded-xl bg-chip p-3">
@@ -176,10 +178,13 @@ export function ResourceStatsPanel() {
                 <div className="rounded-lg bg-chip p-2">页面失败：{fmt(detail.site.pages_failed ?? 0)}</div>
                 <div className="rounded-lg bg-chip p-2">内容变化：{fmt(detail.site.pages_changed ?? 0)}</div>
                 <div className="rounded-lg bg-chip p-2">内容未变：{fmt(detail.site.pages_unchanged ?? 0)}</div>
+                <div className="rounded-lg bg-chip p-2">电影条目：{fmt(detail.site.movie_entries ?? 0)}</div>
+                <div className="rounded-lg bg-chip p-2">剧集条目：{fmt(detail.site.episode_entries ?? 0)}</div>
                 <div className="rounded-lg bg-chip p-2">采集任务：{fmt(detail.site.crawl_tasks)}</div>
                 <div className="rounded-lg bg-chip p-2">预检通过：{fmt(detail.site.preflight_passed)}</div>
                 <div className="rounded-lg bg-chip p-2">采集预览播放确认：{fmt(detail.site.playback_confirmed)}</div>
               </div>
+              <p className="text-[10px] text-muted">电影与剧集数量来自 Registry 去重条目；动漫未建立独立可靠类型字段时不单独推算。</p>
               {detail.recent_resources?.length ? (
                 <div className="space-y-2">
                   <h5 className="text-xs font-semibold text-content">最近发现的资源</h5>
