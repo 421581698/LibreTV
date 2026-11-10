@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { QualityEntry, SourceConfig, LiveSourceConfig, SourceSearchOutcome } from './types';
+import { mergePlaybackHealth, type PlaybackSample } from './playback-telemetry';
 import { migrateSkipMarks, type SkipMark, type SkipSegment } from './skip-marks';
 import { isQualityEntryFresh, mergeQualityEntries, qualityKey } from './quality';
 import { clearLiveProbeResultsDb, loadLiveProbeResults, saveLiveProbeResults } from './db';
@@ -214,6 +215,10 @@ interface AppState extends AppSettings {
   liveProbeResults: Record<string, LiveProbeEntry>;
   /** 点播源健康度（随搜索滚动更新，跨会话持久化） */
   sourceHealth: Record<string, SourceHealthEntry>;
+  /** 真实播放质量汇总；不与搜索健康度混用 */
+  playbackHealth: Record<string, import('./playback-telemetry').PlaybackHealthEntry>;
+  /** 按 sourceKey:vodId:episodeIndex 独立记录资源质量 */
+  playbackResourceHealth: Record<string, import('./playback-telemetry').PlaybackHealthEntry>;
   /** 画质缓存（按 `sourceKey:vodId`）：播放实测与搜索时懒探测共用一份 */
   qualityMap: Record<string, QualityEntry>;
   /** 已出现过的 env 预置订阅 URL（持久化：用户删除后不再被自动加回） */
@@ -281,6 +286,7 @@ interface AppState extends AppSettings {
    * 实测值优先级高于探测值：解析 m3u8 得到的只是源站声明的档位，
    * 播放时的 videoHeight 才是真实分辨率，实测一旦拿到就覆盖探测结果。
    */
+  recordPlaybackSample: (sample: PlaybackSample) => void;
   setQuality: (entries: Record<string, QualityEntry>) => void;
   /** 写入/更新一部剧的跳过片段（整体替换 segments，空数组表示清除） */
   setSkipMark: (key: string, segments: SkipSegment[]) => void;
@@ -326,6 +332,8 @@ export const useAppStore = create<AppState>()(
       liveRecent: [],
       liveProbeResults: {},
       sourceHealth: {},
+      playbackHealth: {},
+      playbackResourceHealth: {},
       qualityMap: {},
       envSubsSeen: [],
       selectedKeys: [],
@@ -769,6 +777,13 @@ export const useAppStore = create<AppState>()(
         set({ envSubsSeen: [...seen] });
       },
 
+      recordPlaybackSample: (sample) => {
+        set({
+          playbackHealth: mergePlaybackHealth(get().playbackHealth, [sample]),
+          playbackResourceHealth: mergePlaybackHealth(get().playbackResourceHealth, [sample], Date.now(), 'resource'),
+        });
+      },
+
       setQuality: (entries) => {
         // 合并与淘汰规则见 mergeQualityEntries（纯函数，单独覆盖了优先级与 TTL 的单测）
         set({ qualityMap: mergeQualityEntries(get().qualityMap, entries) });
@@ -854,10 +869,12 @@ export const useAppStore = create<AppState>()(
       // v8：订阅新增 refreshDays / failStreak——两者都缺省即「纯手动 + 无失败记录」，
       //     与旧行为完全一致，因此无需改写存量数据，仅借版本号让 migrate 跑一遍。
       // 此前未声明 version 的存量数据会被视为 v0 并走 migrate 补齐。
-      version: 8,
+      version: 9,
       migrate: (persisted, version) => {
         const state = { ...((persisted ?? {}) as Partial<AppState>) };
         if (!Array.isArray(state.liveRecent)) state.liveRecent = [];
+        if (!state.playbackHealth || typeof state.playbackHealth !== 'object') state.playbackHealth = {};
+        if (!state.playbackResourceHealth || typeof state.playbackResourceHealth !== 'object') state.playbackResourceHealth = {};
         if (!Array.isArray(state.liveSubscriptions)) state.liveSubscriptions = [];
 
         // v3 的片头/片尾双标记 → v4 的 segments（纯函数，脏数据在内部丢弃）
@@ -924,6 +941,8 @@ export const useAppStore = create<AppState>()(
         liveFavorites: s.liveFavorites,
         liveRecent: s.liveRecent,
         sourceHealth: s.sourceHealth,
+        playbackHealth: s.playbackHealth,
+        playbackResourceHealth: s.playbackResourceHealth,
         qualityMap: s.qualityMap,
         envSubsSeen: s.envSubsSeen,
         yellowFilter: s.yellowFilter,

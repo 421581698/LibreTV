@@ -357,9 +357,14 @@ describe('首页与播放页回归契约', () => {
   it('默认清晰度设置持久化并限制 HLS 自适应档位', () => {
     expect(settings).toContain('label="默认清晰度"');
     expect(settings).toContain('libretv-quality-preference');
-    expect(player).toContain('applyHlsQualityPreference(hls)');
+    expect(player).toContain('applyHlsQualityPreference(hls, readQualityPreference(), video)');
     expect(player).toContain('autoLevelCapping');
+    expect(player).toContain('hls.currentLevel = selection.selectedIndex');
     expect(player).toContain('libretv-quality-preference-change');
+    expect(player).toContain('video.videoHeight');
+    expect(player).toContain('networkQualityWarning');
+    expect(player).toContain('源站 4K：');
+    expect(player).toContain('Safari 会自行选择档位');
   });
 
   it('Friday 语音识别语言设置实际写入浏览器 ASR 实例', () => {

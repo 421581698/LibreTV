@@ -470,6 +470,9 @@ function WatchContent() {
                   onPlayerApi={(api) => { playerApiRef.current = api; }}
                   onRecordSegment={handleRecordSegment}
                   episodeKey={`${sourceKey}:${vodId}:${currentIndex}`}
+                  sourceKey={sourceKey}
+                  resourceKey={`${sourceKey}:${vodId}:${currentIndex}`}
+                  onPlaybackSample={(sample) => useAppStore.getState().recordPlaybackSample(sample)}
                   nextUrl={currentIndex + 1 < episodes.length ? episodes[currentIndex + 1] : undefined}
                   nextEpisodeKey={currentIndex + 1 < episodes.length ? `${sourceKey}:${vodId}:${currentIndex + 1}` : undefined}
                   getRestorePosition={getRestorePosition}

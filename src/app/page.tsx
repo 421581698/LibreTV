@@ -31,6 +31,7 @@ import {
 import { useToast } from '@/components/toast';
 import { EmptyState } from '@/components/states';
 import { rankSourcesByHealth } from '@/lib/source-ranking';
+import { rankMovieCandidatesByQuality, rankSourcesByPlaybackQuality } from '@/lib/playback-telemetry';
 
 const RESULT_PAGE_SIZE = 60;
 
@@ -52,6 +53,7 @@ function HomeContent() {
   const selectedKeys = useAppStore((s) => s.selectedKeys);
   const yellowFilter = useAppStore((s) => s.yellowFilter);
   const sourceHealth = useAppStore((s) => s.sourceHealth);
+  const playbackHealth = useAppStore((s) => s.playbackHealth);
   const subscriptions = useAppStore((s) => s.subscriptions);
 
   const [detailItem, setDetailItem] =
@@ -79,8 +81,9 @@ function HomeContent() {
       })
       .filter((s) => !isSourceDisabled({ sourceHealth }, s.key))
       .filter((s) => !isInDisabledSubscription({ subscriptions }, s.key));
-    return rankSourcesByHealth(sources, sourceHealth);
-  }, [customAPIs, envSources, selectedKeys, sourceHealth, subscriptions]);
+    const searchHealthy = rankSourcesByHealth(sources, sourceHealth);
+    return rankSourcesByPlaybackQuality(searchHealthy, playbackHealth);
+  }, [customAPIs, envSources, selectedKeys, sourceHealth, playbackHealth, subscriptions]);
 
   const { activeQuery: urlQuery } = useHomeSearchController(routeQuery, selectedSources.length, toast);
 
@@ -95,12 +98,18 @@ function HomeContent() {
       const normalizeTitle = (value: string) =>
         value.replace(/[\\s\\p{P}\\p{S}]/gu, '').toLocaleLowerCase();
       const normalizedTitle = normalizeTitle(movie.title);
-      const matched = result.list.find((entry) => normalizeTitle(entry.name) === normalizedTitle);
-      if (!matched) {
+      const matches = result.list.filter((entry) => normalizeTitle(entry.name) === normalizedTitle);
+      if (matches.length === 0) {
         toast(`暂未在已启用的点播源中找到《${movie.title}》的准确详情，请更换点播源后重试`, 'warning');
         return;
       }
-      setDetailItem(matched);
+      const currentStore = useAppStore.getState();
+      const rankedMatches = rankMovieCandidatesByQuality(
+        matches,
+        currentStore.qualityMap,
+        currentStore.playbackHealth,
+      );
+      setDetailItem(rankedMatches[0]);
     } catch (error) {
       toast(error instanceof Error ? error.message : '获取影片详情失败，请稍后重试', 'error');
     }
