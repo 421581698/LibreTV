@@ -162,6 +162,24 @@ class CollectorTests(unittest.TestCase):
             ).fetchone()
         self.assertEqual(row["visit_count"], 3)
 
+    def test_fingerprint_change_check_does_not_commit_before_extraction(self):
+        changed = collector.page_fingerprint_changed(
+            "catalog.example", "https://catalog.example/movies", b"<html>new</html>"
+        )
+        self.assertTrue(changed)
+        with collector.db() as connection:
+            row = connection.execute(
+                "SELECT fingerprint FROM crawl_page_fingerprints WHERE host=?",
+                ("catalog.example",),
+            ).fetchone()
+        self.assertIsNone(row)
+        collector.record_page_fingerprint(
+            "catalog.example", "https://catalog.example/movies", b"<html>new</html>"
+        )
+        self.assertFalse(collector.page_fingerprint_changed(
+            "catalog.example", "https://catalog.example/movies", b"<html>new</html>"
+        ))
+
     def test_spider_http_session_uses_safe_redirect_policy(self):
         captured = {}
 
