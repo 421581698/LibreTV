@@ -1,0 +1,26 @@
+# VPS-only overlay for a separately reachable, HTTPS Scrapling Collector.
+# Start only the collector and Caddy services; do not expose port 8000 on the host.
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: libretv-scrapling-caddy
+    restart: unless-stopped
+    depends_on:
+      scrapling-collector:
+        condition: service_healthy
+    environment:
+      - SCRAPLING_PUBLIC_HOST=${SCRAPLING_PUBLIC_HOST:?请在 .env 中设置 SCRAPLING_PUBLIC_HOST}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./services/scrapling-collector/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - collector_net
+
+volumes:
+  caddy_data:
+  caddy_config:
