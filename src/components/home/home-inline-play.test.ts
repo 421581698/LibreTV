@@ -135,6 +135,7 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
     const playerShell = read('src/components/player-shell.tsx');
     const mobileLayout = read('src/app/iphone-glass.css');
     expect(playerShell).toContain('playsInline: true');
+    expect(playerShell).toContain('backdrop: false');
     expect(playerShell).toContain('moreVideoAttr: { crossOrigin: \'anonymous\', playsInline: true }');
     expect(playerShell).toContain('setShowPlayFallback(true)');
     expect(playerShell).toContain('轻点开始播放');
