@@ -841,6 +841,11 @@ segment-2.ts
         self.assertEqual(candidate["media_identity"]["season_hint"], 2)
         self.assertEqual(candidate["media_identity"]["episode_hint"], 3)
         self.assertEqual(candidate["media_identity"]["match_confidence"], "hint_only")
+        self.assertEqual(candidate["media_identity"]["quality_hint"], "1080p")
+        self.assertEqual(candidate["media_identity"]["entity_key"] is not None, True)
+        self.assertEqual(candidate["media_identity"]["version_key"] is not None, True)
+        self.assertEqual(candidate["quality_evidence"]["quality_rank"], 1080)
+        self.assertEqual(candidate["quality_evidence"]["quality_rank_source"], "filename_hint")
 
     def test_task_candidate_endpoint_decodes_persisted_evidence(self):
         task_id = "f" * 32
