@@ -97,7 +97,7 @@ interface PlayerShellProps {
   title: string;
   /** Validated format hint for extensionless direct-media URLs. */
   mediaType?: 'hls' | 'mp4' | 'webm';
-  /** Called only after the video element advances during a sustained playing window. */
+  /** Called once per episode, only after the video element advances during a sustained playing window. */
   onPlaybackConfirmed?: (evidence: {
     mediaType: string; observedSeconds: number; progressedSeconds: number;
     decodedWidth: number; decodedHeight: number;
