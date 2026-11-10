@@ -15,7 +15,7 @@ class ResourceStatsTests(unittest.TestCase):
         """)
         self.db.execute("INSERT INTO collector_jobs VALUES(?,?,?,?,?,?,?,?)", ("job-1","crawl","queued",0,4,None,100,100))
         self.db.execute("INSERT INTO sites VALUES(?,?,?,?,?)", ("media.example","Media","https://media.example","FMHY / Movies",100))
-        self.db.execute("INSERT INTO tasks VALUES(?,?,?,?,?,?,?)", ("task-1","media.example","completed",100,110,None,2,3,2,1,1,1))
+        self.db.execute("INSERT INTO tasks VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", ("task-1","media.example","completed",100,110,None,2,3,2,1,1,1))
         self.db.execute("INSERT INTO candidates VALUES(?,?,?,?,?,?,?,?,?,?,?)", (
             "candidate-1","task-1","https://media.example/a.m3u8?token=secret","media.example",
             "direct-media","Film A","validated","PUBLIC",105,"{}",

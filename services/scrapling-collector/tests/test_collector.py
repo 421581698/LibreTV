@@ -113,6 +113,20 @@ class CollectorTests(unittest.TestCase):
                 )
         self.assertEqual(error.exception.status_code, 409)
 
+    def test_page_fingerprint_detects_first_change_and_skips_unchanged_content(self):
+        first = collector.record_page_fingerprint("catalog.example", "https://catalog.example/movies", b"<html>one</html>")
+        unchanged = collector.record_page_fingerprint("catalog.example", "https://catalog.example/movies", b"<html>one</html>")
+        changed = collector.record_page_fingerprint("catalog.example", "https://catalog.example/movies", b"<html>two</html>")
+        self.assertTrue(first)
+        self.assertFalse(unchanged)
+        self.assertTrue(changed)
+        with collector.db() as connection:
+            row = connection.execute(
+                "SELECT visit_count FROM crawl_page_fingerprints WHERE host=?",
+                ("catalog.example",),
+            ).fetchone()
+        self.assertEqual(row["visit_count"], 3)
+
     def test_spider_http_session_uses_safe_redirect_policy(self):
         captured = {}
 
