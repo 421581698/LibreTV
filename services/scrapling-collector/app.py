@@ -42,10 +42,10 @@ CMS_PATH_MARKERS = ("/api.php/provide/vod", "/provide/vod", "/api/v1/vod")
 # This is a conservative discovery allow-list, not a claim that every title on
 # a platform is public domain; access and media checks still run per candidate.
 LEGAL_MEDIA_HOST_SUFFIXES = (
-    "tubi.tv", "plex.tv", "pluto.tv", "primevideo.com", "fawesome.tv",
+    "tubi.tv", "tubitv.com", "plex.tv", "pluto.tv", "primevideo.com", "fawesome.tv",
     "filmzie.com", "arte.tv", "bbc.co.uk", "kanopy.com", "hoopladigital.com",
     "roku.com", "byutv.org", "playary.com", "shout-tv.com",
-    "archive.org", "loc.gov", "archives.gov", "nationalarchives.gov.uk",
+    "loc.gov", "archives.gov", "nationalarchives.gov.uk",
     "filmpreservation.org", "bfi.org.uk", "nfb.ca", "nfsa.gov.au",
     "europeanfilmgateway.eu", "yfanefa.com", "texasarchive.org",
     "chicagofilmarchives.org", "prelinger.com",
