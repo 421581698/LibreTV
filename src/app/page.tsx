@@ -228,6 +228,13 @@ function HomeContent() {
                     {f.timedOut ? ' 超时' : ''}
                   </span>
                 ))}
+                <button
+                  type="button"
+                  className="ml-auto text-accent underline underline-offset-2"
+                  onClick={() => void searchQuery.refetch()}
+                >
+                  重新搜索
+                </button>
               </div>
             )}
             {disabledSources.length > 0 && (
@@ -270,12 +277,12 @@ function HomeContent() {
               </>
             ) : isSearching ? (
               <ResultsSkeleton />
-            ) : searchQuery.isError ? (
+            ) : searchQuery.isError || failures.length > 0 ? (
               <div className="flex flex-col items-center gap-3 py-8" role="alert">
                 <EmptyState
                   icon="search"
-                  title="搜索暂时失败"
-                  description={searchQuery.error instanceof Error ? searchQuery.error.message : "请求点播源时发生错误，请稍后重试。"}
+                  title={failures.length > 0 ? "点播源暂时不可用" : "搜索暂时失败"}
+                  description={searchQuery.error instanceof Error ? searchQuery.error.message : failures.length > 0 ? `有 ${failures.length} 个点播源请求失败，请重试或在设置中检查数据源。` : "请求点播源时发生错误，请稍后重试。"}
                   className="!py-4"
                 />
                 <button type="button" className="btn-primary btn-sm" onClick={() => void searchQuery.refetch()}>
