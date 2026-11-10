@@ -391,7 +391,7 @@ function ResourceCollectorPanel() {
       setError('采集服务没有返回候选资源 ID，请重新采集。');
       return;
     }
-    setBusy(true);
+    if (!quiet) setBusy(true);
     if (!quiet) {
       setError('');
       setResultMessage('');
@@ -439,7 +439,7 @@ function ResourceCollectorPanel() {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '资源验证失败。');
     } finally {
-      setBusy(false);
+      if (!quiet) setBusy(false);
     }
   };
 
