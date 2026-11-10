@@ -295,3 +295,197 @@
   .dark .v4-home .v4-history-copy strong { color: #f5f5f7 !important; }
   .dark .v4-home .v4-history-empty { color: #a1a1aa !important; background: rgba(35,35,38,.72) !important; }
 }
+
+/* My / Settings screens: native grouped-list treatment on iPhone. */
+@media (max-width: 700px) {
+  .v4-spatial-screen[data-screen="me"] .v4-spatial-main {
+    padding-top: calc(66px + env(safe-area-inset-top)) !important;
+    padding-bottom: calc(94px + env(safe-area-inset-bottom)) !important;
+  }
+  .v4-spatial-screen[data-screen="me"] > .v4-spatial-main > .v4-spatial-heading {
+    display: none !important;
+  }
+  .v4-spatial-screen[data-screen="me"] .v4-me-cover {
+    min-height: 0 !important;
+    padding: 12px 0 18px !important;
+    overflow: visible !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    color: var(--foreground, #171719) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .v4-spatial-screen[data-screen="me"] .v4-me-cover-art,
+  .v4-spatial-screen[data-screen="me"] .v4-me-cover-eyebrow,
+  .v4-spatial-screen[data-screen="me"] .v4-me-local-badge {
+    display: none !important;
+  }
+  .v4-spatial-screen[data-screen="me"] .v4-me-cover-profile {
+    align-items: center !important;
+    gap: 12px !important;
+  }
+  .v4-spatial-screen[data-screen="me"] .v4-me-profile-avatar {
+    flex-basis: 48px !important;
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 50% !important;
+    border: 1px solid rgba(128,128,140,.18) !important;
+    color: #242428 !important;
+    background: rgba(128,128,140,.10) !important;
+    box-shadow: none !important;
+  }
+  .v4-spatial-screen[data-screen="me"] .v4-me-profile-avatar svg {
+    width: 24px !important;
+    height: 24px !important;
+  }
+  .v4-spatial-screen[data-screen="me"] .v4-me-cover-copy h2 {
+    font-size: 23px !important;
+    line-height: 1.2 !important;
+    font-weight: 730 !important;
+    letter-spacing: -.5px !important;
+  }
+  .v4-spatial-screen[data-screen="me"] .v4-me-cover-copy p {
+    margin-top: 3px !important;
+    color: #85858d !important;
+    font-size: 11px !important;
+  }
+  .v4-spatial-screen[data-screen="me"] .v4-me-history-panel,
+  .v4-spatial-screen[data-screen="me"] .v4-me-library-actions,
+  .v4-spatial-screen[data-screen="me"] .v4-me-settings-entry {
+    margin-top: 10px !important;
+    padding: 13px !important;
+    border: 1px solid rgba(128,128,140,.16) !important;
+    border-radius: 17px !important;
+    background: rgba(255,255,255,.70) !important;
+    box-shadow: 0 3px 14px rgba(0,0,0,.025) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    backdrop-filter: blur(18px) saturate(150%);
+  }
+  .v4-spatial-screen[data-screen="me"] .v4-spatial-panel-head {
+    margin-bottom: 10px !important;
+  }
+  .v4-spatial-screen[data-screen="me"] .v4-spatial-panel-head h2 {
+    color: #171719 !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+  }
+  .v4-spatial-screen[data-screen="me"] .v4-spatial-panel-head span {
+    color: #85858d !important;
+    font-size: 10px !important;
+  }
+  .v4-spatial-screen[data-screen="me"] .v4-me-history-grid {
+    grid-template-columns: minmax(0,1fr) !important;
+    gap: 8px !important;
+  }
+  .v4-spatial-screen[data-screen="me"] .v4-me-history-card {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding: 7px !important;
+    border-radius: 12px !important;
+    background: rgba(128,128,140,.07) !important;
+  }
+  .v4-spatial-screen[data-screen="me"] .v4-me-history-image {
+    flex: 0 0 48px !important;
+    width: 48px !important;
+    aspect-ratio: 2 / 3 !important;
+    border-radius: 7px !important;
+    overflow: hidden !important;
+  }
+  .v4-spatial-screen[data-screen="me"] .v4-me-history-copy strong { font-size: 12px !important; }
+  .v4-spatial-screen[data-screen="me"] .v4-me-history-copy span { font-size: 10px !important; }
+  .v4-spatial-screen[data-screen="me"] .v4-me-library-actions {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0 !important;
+  }
+  .v4-spatial-screen[data-screen="me"] .v4-me-library-actions .v4-settings-card,
+  .v4-spatial-screen[data-screen="me"] .v4-me-settings-entry .v4-settings-card {
+    min-height: 54px !important;
+    padding: 8px 3px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .v4-spatial-screen[data-screen="me"] .v4-me-library-actions .v4-settings-card + .v4-settings-card {
+    border-top: 1px solid rgba(128,128,140,.14) !important;
+  }
+  .v4-spatial-screen[data-screen="me"] .v4-settings-card strong { color: #171719 !important; font-size: 13px !important; }
+  .v4-spatial-screen[data-screen="me"] .v4-settings-card p { color: #85858d !important; font-size: 10px !important; }
+  .v4-spatial-screen[data-screen="me"] .v4-settings-card > b { color: #a1a1a8 !important; }
+
+  .v4-spatial-screen[data-screen="settings"] .v4-spatial-main {
+    padding-top: calc(76px + env(safe-area-inset-top)) !important;
+    padding-bottom: calc(94px + env(safe-area-inset-bottom)) !important;
+  }
+  .v4-spatial-screen[data-screen="settings"] .v4-spatial-heading {
+    margin: 6px 0 18px !important;
+  }
+  .v4-spatial-screen[data-screen="settings"] .v4-spatial-heading h1 {
+    color: #171719 !important;
+    font-size: 30px !important;
+    font-weight: 740 !important;
+  }
+  .v4-spatial-screen[data-screen="settings"] .v4-spatial-heading p {
+    color: #85858d !important;
+    font-size: 12px !important;
+  }
+  .v4-spatial-screen[data-screen="settings"] .v4-spatial-panel {
+    padding: 8px 14px !important;
+    border: 1px solid rgba(128,128,140,.16) !important;
+    border-radius: 17px !important;
+    background: rgba(255,255,255,.72) !important;
+    box-shadow: none !important;
+  }
+  .v4-spatial-screen[data-screen="settings"] .v4-settings-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0 !important;
+  }
+  .v4-spatial-screen[data-screen="settings"] .v4-settings-grid .v4-settings-card {
+    min-height: 55px !important;
+    padding: 9px 2px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .v4-spatial-screen[data-screen="settings"] .v4-settings-grid .v4-settings-card + .v4-settings-card {
+    border-top: 1px solid rgba(128,128,140,.14) !important;
+  }
+  .v4-spatial-screen[data-screen="settings"] .v4-settings-card strong { color: #171719 !important; font-size: 13px !important; }
+  .v4-spatial-screen[data-screen="settings"] .v4-settings-card p { color: #85858d !important; font-size: 10px !important; }
+  .v4-spatial-screen[data-screen="settings"] .v4-settings-collector-entry {
+    margin-top: 12px !important;
+    min-height: 58px !important;
+    padding: 8px 2px !important;
+    border: 0 !important;
+    border-top: 1px solid rgba(128,128,140,.14) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+  }
+  .dark .v4-spatial-screen[data-screen="me"] .v4-me-cover { color: #f5f5f7 !important; }
+  .dark .v4-spatial-screen[data-screen="me"] .v4-me-profile-avatar {
+    color: #f5f5f7 !important;
+    border-color: rgba(255,255,255,.12) !important;
+    background: rgba(255,255,255,.08) !important;
+  }
+  .dark .v4-spatial-screen[data-screen="me"] .v4-me-cover-copy p { color: #a1a1aa !important; }
+  .dark .v4-spatial-screen[data-screen="me"] .v4-me-history-panel,
+  .dark .v4-spatial-screen[data-screen="me"] .v4-me-library-actions,
+  .dark .v4-spatial-screen[data-screen="me"] .v4-me-settings-entry,
+  .dark .v4-spatial-screen[data-screen="settings"] .v4-spatial-panel {
+    border-color: rgba(255,255,255,.10) !important;
+    background: rgba(30,30,33,.78) !important;
+    box-shadow: none !important;
+  }
+  .dark .v4-spatial-screen[data-screen="me"] .v4-spatial-panel-head h2,
+  .dark .v4-spatial-screen[data-screen="me"] .v4-settings-card strong,
+  .dark .v4-spatial-screen[data-screen="settings"] .v4-spatial-heading h1,
+  .dark .v4-spatial-screen[data-screen="settings"] .v4-settings-card strong { color: #f5f5f7 !important; }
+  .dark .v4-spatial-screen[data-screen="me"] .v4-settings-card p,
+  .dark .v4-spatial-screen[data-screen="settings"] .v4-spatial-heading p,
+  .dark .v4-spatial-screen[data-screen="settings"] .v4-settings-card p { color: #a1a1aa !important; }
+  .dark .v4-spatial-screen[data-screen="me"] .v4-me-history-card { background: rgba(255,255,255,.06) !important; }
+}
