@@ -93,3 +93,22 @@ After the owner manually deploys the Blueprint, verify all of the following befo
 4. Restart/redeploy the service and confirm task records remain available from the persistent `/data` disk.
 5. Set the Preview Worker's `SCRAPLING_API_BASE` and `SCRAPLING_API_TOKEN` secrets, then verify `/api/resource-collector` from the Preview app.
 6. Keep this service isolated from production. Do not reuse production secrets.
+
+## Durable resource registry and background queue
+
+The registry and job queue are additive SQLite tables in the same persistent collector database. The registry identifies a resource by **source + canonical HTTPS URL**, not by title, and removes URL query strings before persistence so expiring credentials are not stored. Movie records are linked only when an explicit external ID is supplied; title similarity is never treated as identity. Resource access (PUBLIC, AUTH_REQUIRED, SUBSCRIPTION_REQUIRED, CHALLENGE, DRM_PROTECTED, ENCRYPTED_STREAM, ACCESS_UNKNOWN), preflight validation, and player-confirmed playback are separate fields.
+
+Authenticated endpoints:
+
+- POST /v1/jobs — idempotently enqueue a crawl; returns immediately.
+- GET /v1/jobs/{id} and POST /v1/jobs/{id}/cancel — inspect/cancel a queued or running job.
+- POST /v1/registry/resources and GET /v1/registry/resources?q=... — upsert/search registry records.
+- POST /v1/registry/resources/{id}/playback — record sustained PlayerShell time progression only for public, preflight-validated resources.
+
+The worker is a separate process (python worker.py). It claims jobs with a SQLite BEGIN IMMEDIATE lease, recovers expired leases, applies bounded exponential retry, and marks exhausted jobs failed. In Docker Compose, the scrapling-worker service shares the collector's network namespace, pinned IP, database volume, and egress boundary. Start both with:
+
+```sh
+docker compose --profile collector up -d --build
+```
+
+The existing synchronous POST /v1/crawl endpoint remains for backward compatibility. The new durable queue is opt-in through POST /v1/jobs; jobs are not automatically submitted by the existing LibreTV search UI yet. Registry search is exposed through the authenticated Next.js proxy at /api/resource-collector/registry?q=..., and job submission through /api/resource-collector/jobs. A registry record is not automatically promoted to a playable source: validate it, confirm PUBLIC access, and require actual video-element time progression. AUTH_REQUIRED, SUBSCRIPTION_REQUIRED, CHALLENGE, and DRM_PROTECTED remain blocked from preview promotion.
