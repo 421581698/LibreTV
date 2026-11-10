@@ -11,7 +11,7 @@ import { AnimeRecommendationSection, RecommendSection } from '@/components/douba
 import { DoubanCard } from '@/components/video-card';
 import { GlassPanel } from '@/components/ui/glass';
 import { SmartImage } from '@/components/smart-image';
-import { db, type HistoryEntry } from '@/lib/db';
+import { db, removeFavorite, type FavoriteEntry, type HistoryEntry } from '@/lib/db';
 import { isInDisabledSubscription, isSourceDisabled, resolveSource, useAppStore } from '@/lib/store';
 import type { DoubanItem, SearchResultItem, SourceConfig } from '@/lib/types';
 import { api } from '@/lib/client-api';
@@ -244,6 +244,7 @@ function ResourcesScreen() {
 function MeScreen() {
   const history = useLiveQuery(() => db.history.orderBy('timestamp').reverse().limit(24).toArray(), []);
   const downloads = useLiveQuery(() => db.downloads.orderBy('createdAt').reverse().limit(20).toArray(), []);
+  const favorites = useLiveQuery(() => db.favorites.orderBy('addedAt').reverse().toArray(), []);
   const liveFavorites = useAppStore((state) => state.liveFavorites);
   return (
     <div className="v4-me-layout">
@@ -275,6 +276,14 @@ function MeScreen() {
           <div className="v4-spatial-empty"><strong>还没有观看记录</strong><p>播放过的影片和进度会自动出现在这里。</p></div>
         ) : (
           <div className="v4-me-history-grid">{history.map((item) => <MeHistoryCard key={item.id} item={item} />)}</div>
+        )}
+      </section>
+      <section className="v4-spatial-panel v4-me-history-panel">
+        <div className="v4-spatial-panel-head"><h2>影视收藏</h2><span>{favorites?.length ?? 0} 部影片</span></div>
+        {!favorites ? <div className="v4-spatial-empty">正在读取影视收藏…</div> : favorites.length === 0 ? (
+          <div className="v4-spatial-empty"><strong>还没有收藏影视</strong><p>在电影或电视剧搜索结果卡片上点击心形按钮，即可保存到这里。</p></div>
+        ) : (
+          <div className="v4-me-history-grid">{favorites.map((item) => <MeFavoriteCard key={item.id} item={item} />)}</div>
         )}
       </section>
       <section className="v4-spatial-panel v4-me-library-actions">
@@ -320,6 +329,37 @@ function MeHistoryCard({ item }: { item: HistoryEntry }) {
       </div>
       <div className="v4-me-history-copy"><strong>{item.title}</strong><span>第 {item.episodeIndex + 1} 集 · {formatTime(item.playbackPosition)}</span><div><i style={{ width: `${percent}%` }} /></div></div>
     </Link>
+  );
+}
+
+function MeFavoriteCard({ item }: { item: FavoriteEntry }) {
+  const imageProxyMode = useAppStore((state) => state.imageProxyMode);
+  const customImageProxy = useAppStore((state) => state.customImageProxy);
+  const href = buildWatchUrl({
+    sourceKey: item.sourceKey,
+    vodId: item.vodId,
+    index: 0,
+    title: item.title,
+    sourceUrl: item.sourceUrl,
+  });
+  return (
+    <article className="v4-me-history-card relative">
+      <Link href={href} className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="v4-me-history-image">
+          {item.pic ? <SmartImage url={item.pic} mode={imageProxyMode} customProxy={customImageProxy} alt="" className="absolute inset-0 h-full w-full object-cover" /> : <span>▶</span>}
+        </div>
+        <div className="v4-me-history-copy min-w-0">
+          <strong>{item.title}</strong>
+          <span>{[item.year, item.typeName, item.sourceName].filter(Boolean).join(' · ')}</span>
+        </div>
+      </Link>
+      <button
+        type="button"
+        className="ml-2 shrink-0 rounded-lg px-3 py-2 text-xs text-muted hover:bg-chip"
+        aria-label={`取消收藏 ${item.title}`}
+        onClick={() => { void removeFavorite(item.sourceKey, item.vodId); }}
+      >取消收藏</button>
+    </article>
   );
 }
 
