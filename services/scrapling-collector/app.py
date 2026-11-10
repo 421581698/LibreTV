@@ -199,6 +199,7 @@ class PinnedHTTPSConnection(http.client.HTTPSConnection):
 
 
 MAX_MANIFEST_BYTES = 1024 * 1024
+MAX_CONTAINER_PROBE_BYTES = 1024 * 1024
 
 
 def parse_hls_attribute_list(raw: str) -> dict[str, str]:
@@ -682,6 +683,166 @@ def validate_manifest_references(manifest: dict, base_url: str) -> dict:
     return result
 
 
+def _mp4_boxes(data: bytes, start: int, end: int):
+    cursor = start
+    while cursor + 8 <= end:
+        size = int.from_bytes(data[cursor:cursor + 4], "big")
+        box_type = data[cursor + 4:cursor + 8]
+        header_size = 8
+        if size == 1:
+            if cursor + 16 > end:
+                break
+            size = int.from_bytes(data[cursor + 8:cursor + 16], "big")
+            header_size = 16
+        elif size == 0:
+            size = end - cursor
+        if size < header_size or cursor + size > end:
+            break
+        yield box_type, cursor + header_size, cursor + size
+        cursor += size
+
+
+def parse_mp4_container_dimensions(data: bytes) -> dict | None:
+    """Read tkhd fixed-point dimensions from a bounded MP4 moov box sample."""
+    search_from = 0
+    while True:
+        marker = data.find(b"moov", search_from)
+        if marker < 4:
+            return None
+        box_start = marker - 4
+        box_size = int.from_bytes(data[box_start:marker], "big")
+        header_size = 8
+        if box_size == 1:
+            if marker + 12 > len(data):
+                search_from = marker + 4
+                continue
+            box_size = int.from_bytes(data[marker + 4:marker + 12], "big")
+            header_size = 16
+        elif box_size == 0:
+            box_size = len(data) - box_start
+        box_end = box_start + box_size
+        if box_size >= header_size and box_end <= len(data):
+            moov_start = box_start + header_size
+            for box_type, payload_start, child_end in _mp4_boxes(data, moov_start, box_end):
+                if box_type != b"trak":
+                    continue
+                for track_type, track_payload, track_end in _mp4_boxes(data, payload_start, child_end):
+                    if track_type != b"tkhd" or track_payload >= track_end:
+                        continue
+                    version = data[track_payload]
+                    offset = 76 if version == 0 else (88 if version == 1 else None)
+                    if offset is None or track_payload + offset + 8 > track_end:
+                        continue
+                    width_fixed = int.from_bytes(data[track_payload + offset:track_payload + offset + 4], "big")
+                    height_fixed = int.from_bytes(data[track_payload + offset + 4:track_payload + offset + 8], "big")
+                    width, height = width_fixed >> 16, height_fixed >> 16
+                    if 0 < width <= 16384 and 0 < height <= 16384:
+                        return {"width": width, "height": height, "source": "mp4_tkhd"}
+        search_from = marker + 4
+
+
+def _read_ebml_vint(data: bytes, position: int, is_id: bool = False):
+    if position >= len(data):
+        return None
+    first = data[position]
+    mask = 0x80
+    length = 1
+    while length <= (4 if is_id else 8) and not (first & mask):
+        mask >>= 1
+        length += 1
+    if length > (4 if is_id else 8) or position + length > len(data):
+        return None
+    raw = int.from_bytes(data[position:position + length], "big")
+    if is_id:
+        return raw, length, False
+    value = raw & ((1 << (7 * length)) - 1)
+    unknown = value == (1 << (7 * length)) - 1
+    return value, length, unknown
+
+
+def _ebml_elements(data: bytes, start: int, end: int, depth: int = 0):
+    if depth > 8:
+        return
+    cursor = start
+    while cursor < end:
+        element_id = _read_ebml_vint(data, cursor, is_id=True)
+        if not element_id:
+            break
+        element_value, id_length, _ = element_id
+        size_info = _read_ebml_vint(data, cursor + id_length, is_id=False)
+        if not size_info:
+            break
+        size, size_length, unknown = size_info
+        payload_start = cursor + id_length + size_length
+        payload_end = end if unknown else min(end, payload_start + size)
+        if payload_end < payload_start:
+            break
+        yield element_value, payload_start, payload_end
+        if payload_end <= cursor:
+            break
+        cursor = payload_end
+        if unknown:
+            break
+
+
+def parse_webm_container_dimensions(data: bytes) -> dict | None:
+    """Read WebM TrackEntry/Video PixelWidth and PixelHeight from a bounded EBML sample."""
+    segment_id, tracks_id, track_entry_id, video_id = 0x18538067, 0x1654AE6B, 0xAE, 0xE0
+    width_id, height_id = 0xB0, 0xBA
+    for element_id, segment_start, segment_end in _ebml_elements(data, 0, len(data)):
+        if element_id != segment_id:
+            continue
+        for child_id, child_start, child_end in _ebml_elements(data, segment_start, segment_end, 1):
+            if child_id != tracks_id:
+                continue
+            for track_id, track_start, track_end in _ebml_elements(data, child_start, child_end, 2):
+                if track_id != track_entry_id:
+                    continue
+                for track_child_id, track_child_start, track_child_end in _ebml_elements(data, track_start, track_end, 3):
+                    if track_child_id != video_id:
+                        continue
+                    dimensions = {}
+                    for video_child_id, value_start, value_end in _ebml_elements(data, track_child_start, track_child_end, 4):
+                        if video_child_id in (width_id, height_id) and 0 < value_end - value_start <= 4:
+                            value = int.from_bytes(data[value_start:value_end], "big")
+                            dimensions["width" if video_child_id == width_id else "height"] = value
+                    width, height = dimensions.get("width"), dimensions.get("height")
+                    if width and height and width <= 16384 and height <= 16384:
+                        return {"width": width, "height": height, "source": "webm_ebml_video"}
+    return None
+
+
+def fetch_pinned_range(raw_url: str, range_header: str, max_bytes: int = MAX_CONTAINER_PROBE_BYTES) -> dict:
+    """Fetch one bounded byte range using the same validated-IP/TLS-pinned path."""
+    try:
+        normalized, host = public_https_url(raw_url)
+        pinned_ip = resolve_public_addresses(host)[0]
+        parsed = urlparse(normalized)
+        target = parsed.path or "/"
+        if parsed.query:
+            target += "?" + parsed.query
+        connection = PinnedHTTPSConnection(
+            host, pinned_ip, 443, timeout=10, context=ssl.create_default_context()
+        )
+        try:
+            connection.request("GET", target, headers={
+                "Accept": "*/*",
+                "User-Agent": "LibreTV-Resource-Validator/1.0",
+                "Connection": "close",
+                "Range": range_header,
+            })
+            response = connection.getresponse()
+            status = response.status
+            headers = {key.lower(): value for key, value in response.getheaders()}
+            body = response.read(max_bytes + 1) if status == 206 else b""
+            response.close()
+            return {"http_status": status, "headers": headers, "body": body[:max_bytes]}
+        finally:
+            connection.close()
+    except (HTTPException, OSError, http.client.HTTPException, ssl.SSLError, ValueError) as exc:
+        return {"http_status": None, "error": type(exc).__name__, "body": b""}
+
+
 def probe_direct_media(raw_url: str, max_redirects: int = 5) -> dict:
     """Probe media headers with a one-byte range request and safe manual redirects."""
     current = raw_url
@@ -711,8 +872,11 @@ def probe_direct_media(raw_url: str, max_redirects: int = 5) -> dict:
             }
             # Do not Range-truncate manifests: the parser needs the complete
             # bounded playlist/MPD document. Progressive files use a one-byte probe.
+            container_path = parsed.path.lower().endswith((".mp4", ".m4v", ".mov", ".webm"))
             if not parsed.path.lower().endswith((".m3u8", ".mpd")):
-                request_headers["Range"] = "bytes=0-0"
+                request_headers["Range"] = (
+                    f"bytes=0-{MAX_CONTAINER_PROBE_BYTES - 1}" if container_path else "bytes=0-0"
+                )
             connection.request("GET", target, headers=request_headers)
             response = connection.getresponse()
             status = response.status
@@ -731,8 +895,11 @@ def probe_direct_media(raw_url: str, max_redirects: int = 5) -> dict:
             }
             is_dash = path.endswith(".mpd") or content_type == "application/dash+xml"
             is_video = content_type.startswith("video/") or path.endswith((".mp4", ".m4v", ".webm", ".mov", ".ts", ".m4s", ".aac"))
+            is_mp4 = path.endswith((".mp4", ".m4v", ".mov")) or content_type in ("video/mp4", "video/quicktime")
+            is_webm = path.endswith(".webm") or content_type == "video/webm"
             media_type = is_hls or is_dash or is_video
             manifest = {}
+            container_resolution = None
             if 200 <= status < 300 and (is_hls or is_dash):
                 body = response.read(MAX_MANIFEST_BYTES + 1)
                 if len(body) > MAX_MANIFEST_BYTES:
@@ -745,7 +912,21 @@ def probe_direct_media(raw_url: str, max_redirects: int = 5) -> dict:
                     manifest = parse_mpd_manifest(body, normalized)
                     if manifest.get("manifest_valid"):
                         manifest = validate_manifest_references(manifest, normalized)
+            elif 200 <= status < 300 and (is_mp4 or is_webm):
+                container_body = response.read(MAX_CONTAINER_PROBE_BYTES + 1)
+                if len(container_body) <= MAX_CONTAINER_PROBE_BYTES:
+                    container_resolution = (
+                        parse_mp4_container_dimensions(container_body)
+                        if is_mp4 else parse_webm_container_dimensions(container_body)
+                    )
             response.close()
+            if is_mp4 and container_resolution is None and headers.get("content-length", "").isdigit():
+                total_length = int(headers["content-length"])
+                if total_length > MAX_CONTAINER_PROBE_BYTES:
+                    tail_start = max(0, total_length - MAX_CONTAINER_PROBE_BYTES)
+                    tail = fetch_pinned_range(normalized, f"bytes={tail_start}-{total_length - 1}")
+                    if tail.get("http_status") == 206 and tail.get("body"):
+                        container_resolution = parse_mp4_container_dimensions(tail["body"])
             reachable = 200 <= status < 300 and media_type
             manifest_valid = manifest.get("manifest_valid") if manifest else None
             if manifest_valid is False:
@@ -758,6 +939,7 @@ def probe_direct_media(raw_url: str, max_redirects: int = 5) -> dict:
                 "range_supported": status == 206,
                 "final_url": normalized,
                 "media_format": "hls" if is_hls else ("dash" if is_dash else ("progressive" if is_video else None)),
+                "container_resolution": container_resolution,
                 **manifest,
                 "note": "Manifest/header validation only; segment delivery and actual playback must still be tested in PlayerShell.",
             }
@@ -1171,7 +1353,7 @@ def build_quality_evidence(validation: dict | None = None) -> dict:
         "declared_resolutions": declared[:50],
         "best_declared_resolution": best,
         "declared_quality_label": f"{height}p" if height else None,
-        "observed_container_resolution": None,
+        "observed_container_resolution": validation.get("container_resolution"),
         "decode_verified": False,
         "visual_quality_verified": False,
         "evidence_scope": "manifest_metadata_only",
@@ -1192,10 +1374,12 @@ def normalize_candidate(candidate: dict) -> dict:
     declared = item["quality_evidence"].get("best_declared_resolution") or {}
     declared_height = declared.get("height") if isinstance(declared, dict) else None
     quality_hint = item["media_identity"].get("quality_hint")
-    quality_rank = declared_height or {"4k": 2160, "2160p": 2160, "1080p": 1080, "720p": 720, "480p": 480}.get(quality_hint)
+    observed = item["quality_evidence"].get("observed_container_resolution") or {}
+    observed_height = observed.get("height") if isinstance(observed, dict) else None
+    quality_rank = observed_height or declared_height or {"4k": 2160, "2160p": 2160, "1080p": 1080, "720p": 720, "480p": 480}.get(quality_hint)
     item["quality_evidence"]["quality_rank"] = quality_rank
     item["quality_evidence"]["quality_rank_source"] = (
-        "manifest_declared" if declared_height else ("filename_hint" if quality_hint else "unknown")
+        "container_observed" if observed_height else ("manifest_declared" if declared_height else ("filename_hint" if quality_hint else "unknown"))
     )
     return item
 
