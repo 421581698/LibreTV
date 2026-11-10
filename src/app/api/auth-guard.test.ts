@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { POST as legacyChatPost } from './ai-chat/route';
 import { POST as cancelChatPost } from './chat/cancel/route';
+import { guardPrivateFeatureRequest } from '@/lib/api-guard';
 
 function request(path: string, body: unknown): Request {
   return new Request(`https://local.test${path}`, {
@@ -55,5 +56,39 @@ describe('legacy AI endpoints require a session', () => {
       messages: [{ role: 'user', content: 'hello' }],
     }) as never);
     expect(response.status).toBe(503);
+  });
+});
+
+
+describe('public preview Collector access', () => {
+  beforeEach(() => {
+    process.env.AUTH_DISABLED = 'true';
+    delete process.env.SCRAPLING_API_BASE;
+    delete process.env.SCRAPLING_API_TOKEN;
+  });
+
+  it('does not require a website password when Collector credentials are configured in browser settings', () => {
+    const req = new Request('https://local.test/api/resource-collector', {
+      headers: {
+        'x-scrapling-api-base': 'https://collector.example',
+        'x-scrapling-api-token': 'collector-access-token',
+      },
+    });
+    expect(guardPrivateFeatureRequest(req)).toBeNull();
+  });
+
+  it('allows server-configured Collector credentials without enabling the website password', () => {
+    process.env.SCRAPLING_API_BASE = 'https://collector.example';
+    process.env.SCRAPLING_API_TOKEN = 'server-only-token';
+    expect(guardPrivateFeatureRequest(new Request('https://local.test/api/resource-collector'))).toBeNull();
+  });
+
+  it('returns a setup hint instead of a website-password warning when Collector is not configured', async () => {
+    const response = guardPrivateFeatureRequest(new Request('https://local.test/api/resource-collector'));
+    expect(response?.status).toBe(503);
+    await expect(response?.json()).resolves.toMatchObject({
+      code: 'COLLECTOR_NOT_CONFIGURED',
+      error: expect.stringContaining('网站无需访问密码'),
+    });
   });
 });
