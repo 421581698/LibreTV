@@ -13,14 +13,15 @@ def resolution_bucket(width, height):
     except (TypeError, ValueError):
         return "未知"
     if w <= 0 or h <= 0: return "未知"
-    # Use decoded vertical resolution tiers. Width alone can misclassify ultrawide
-    # 1080p video (for example 3840x1080) as 4K.
-    if h >= 4320: return "8K"
-    if h >= 2000: return "4K"
-    if h >= 1400: return "2K"
-    if h >= 1000: return "1080P"
-    if h >= 680: return "720P"
-    if h >= 400: return "480P"
+    # Classify by the shorter decoded edge so portrait and landscape video
+    # share the same tiers, while ultrawide 3840x1080 is not mislabeled as 4K.
+    short_edge = min(w, h)
+    if short_edge >= 4320: return "8K"
+    if short_edge >= 2160: return "4K"
+    if short_edge >= 1440: return "2K"
+    if short_edge >= 1000: return "1080P"
+    if short_edge >= 680: return "720P"
+    if short_edge >= 400: return "480P"
     return "SD"
 
 def _json(value):
