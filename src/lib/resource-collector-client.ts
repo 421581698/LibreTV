@@ -53,13 +53,20 @@ export async function collectorRequest(
       signal: AbortSignal.timeout(timeoutMs),
     });
     if (response.status >= 300 && response.status < 400) {
-      return NextResponse.json({ error: 'Collector 返回了重定向，已按安全策略拒绝。' }, { status: 502, headers: { 'Cache-Control': 'no-store' } });
+      return NextResponse.json({ code: 'COLLECTOR_REDIRECT_REJECTED', error: 'Collector 返回了重定向，已按安全策略拒绝。' }, { status: 502, headers: { 'Cache-Control': 'no-store' } });
     }
-    const payload = await response.json().catch(() => ({ error: 'Collector returned an invalid response.' }));
+    const payload = await response.json().catch(() => null);
+    if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) {
+      return NextResponse.json(
+        { code: 'COLLECTOR_INVALID_RESPONSE', error: 'Collector 返回了非 JSON 或无效响应。' },
+        { status: 502, headers: { 'Cache-Control': 'no-store' } },
+      );
+    }
     return NextResponse.json(payload, { status: response.status, headers: { 'Cache-Control': 'no-store' } });
-  } catch {
+  } catch (reason) {
+    const timedOut = reason instanceof Error && reason.name === 'TimeoutError';
     return NextResponse.json(
-      { error: '无法连接 Scrapling 采集服务，请检查地址、服务状态和网络配置。' },
+      { code: timedOut ? 'COLLECTOR_TIMEOUT' : 'COLLECTOR_UNREACHABLE', error: timedOut ? '连接 Scrapling 采集服务超时。请检查公网地址、网络出口和服务响应时间。' : '无法连接 Scrapling 采集服务。请检查公网地址、TLS 证书和网络出口。' },
       { status: 502, headers: { 'Cache-Control': 'no-store' } },
     );
   }
