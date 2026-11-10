@@ -43,6 +43,30 @@ describe('collectorRequest', () => {
     expect(response.headers.get('Cache-Control')).toBe('no-store');
   });
 
+  it('preserves upstream HTTP status and FastAPI detail for the connection diagnostic', async () => {
+    vi.stubEnv('SCRAPLING_API_BASE', 'https://collector.example');
+    vi.stubEnv('SCRAPLING_API_TOKEN', 'server-only-token');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      detail: 'Crawling is disabled until host-level egress filtering is installed and verified',
+    }), { status: 503, headers: { 'Content-Type': 'application/json' } })));
+
+    const response = await collectorRequest('/health');
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({
+      detail: 'Crawling is disabled until host-level egress filtering is installed and verified',
+    });
+  });
+
+  it('rejects non-JSON upstream health responses with a diagnostic code', async () => {
+    vi.stubEnv('SCRAPLING_API_BASE', 'https://collector.example');
+    vi.stubEnv('SCRAPLING_API_TOKEN', 'server-only-token');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('<html>proxy error</html>', { status: 200 })));
+
+    const response = await collectorRequest('/health');
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({ code: 'COLLECTOR_INVALID_RESPONSE' });
+  });
+
   it('does not allow caller-provided headers to override the collector bearer token', async () => {
     vi.stubEnv('SCRAPLING_API_BASE', 'https://collector.example');
     vi.stubEnv('SCRAPLING_API_TOKEN', 'server-only-token');
