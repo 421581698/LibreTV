@@ -242,7 +242,7 @@ function ResourceCollectorPanel() {
     setCollectorBase('');
     setCollectorToken('');
     setConfigSaved(false);
-    setConnectionStatus('本机配置已清除，将回退到服务端环境变量（如已配置）。');
+    setConnectionStatus('本机配置已清除。受保护环境可回退到服务端 SCRAPLING_API_BASE / SCRAPLING_API_TOKEN；公开 Preview 为避免匿名使用服务端密钥，需要重新填写本机配置。');
   };
 
   const testCollectorConnection = async () => {
@@ -261,7 +261,7 @@ function ResourceCollectorPanel() {
         const detail = typeof payload.detail === 'string' ? payload.detail :
           typeof payload.error === 'string' ? payload.error : '未提供错误详情';
         const statusHint = response.status === 401 ? '请先登录 LibreTV。' :
-          response.status === 403 ? '当前 Preview 策略禁止访问资源采集功能。' :
+          response.status === 403 ? (payload.code === 'BROWSER_COLLECTOR_CREDENTIALS_REQUIRED' ? '公开 Preview 需要先保存本机 HTTPS 地址和 Token；不会开放匿名服务端密钥代理。' : '当前 Preview 策略禁止访问资源采集功能。') :
           response.status === 503 ? '检查 Collector 地址、Token 配置及服务端出口闸门。' :
           response.status === 502 ? '检查 Collector 网络连通性、TLS 和响应格式。' : '';
         throw new Error(`连接测试失败（HTTP ${response.status}）：${detail}${statusHint ? `。${statusHint}` : ''}`);
@@ -430,7 +430,7 @@ function ResourceCollectorPanel() {
         </div>
         {configSaved ? <p className="text-[11px] text-success">已保存到此设备的浏览器</p> : null}
         {connectionStatus ? <p className="text-xs text-muted" role="status">{connectionStatus}</p> : null}
-        <p className="text-[11px] leading-5 text-muted">仅接受公网 HTTPS 域名（443 端口）；Token 通过 HTTPS Header 发送给 LibreTV Worker，再由 Worker 转发给 Collector。清除后回退到服务端 SCRAPLING_API_BASE / SCRAPLING_API_TOKEN。LocalStorage 中的 Token 可被本机浏览器脚本读取，请只在可信设备的测试 Preview 使用。</p>
+        <p className="text-[11px] leading-5 text-muted">仅接受公网 HTTPS 域名（443 端口）；Token 通过 HTTPS Header 发送给 LibreTV Worker，再由 Worker 转发给 Collector。受保护环境清除本机配置后可回退到服务端 SCRAPLING_API_BASE / SCRAPLING_API_TOKEN；公开 Preview 必须使用本机配置，避免匿名调用服务端密钥。LocalStorage 中的 Token 可被本机浏览器脚本读取，请只在可信设备的测试 Preview 使用。</p>
       </div>
 
       <div className="rounded-2xl border border-line bg-card p-4">
