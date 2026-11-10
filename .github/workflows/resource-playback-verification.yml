@@ -17,21 +17,11 @@ on:
       - "src/lib/resource-collector-client.ts"
       - "services/scrapling-collector/stats.py"
       - "services/scrapling-collector/tests/test_stats.py"
-      - "services/scrapling-collector/stats.py"
-      - "services/scrapling-collector/tests/test_stats.py"
       - "src/lib/playback-verification.ts"
       - "src/lib/playback-verification.test.ts"
       - "src/app/api/resource-collector/candidates/[candidateId]/playback/route.ts"
       - "services/scrapling-collector/app.py"
       - "services/scrapling-collector/tests/test_collector.py"
-      - "services/scrapling-collector/stats.py"
-      - "services/scrapling-collector/tests/test_stats.py"
-      - "src/components/resource-stats-panel.tsx"
-      - "src/app/watch/page.tsx"
-      - "src/app/api/resource-collector/playback-sample/route.ts"
-      - "src/lib/resource-collector-client.ts"
-      - "services/scrapling-collector/stats.py"
-      - "services/scrapling-collector/tests/test_stats.py"
       - ".github/workflows/resource-playback-verification.yml"
   workflow_dispatch:
 
@@ -44,6 +34,12 @@ on:
       - "src/lib/collector-playback-eligibility.ts"
       - "src/lib/collector-playback-eligibility.test.ts"
       - ".github/workflows/resource-playback-verification.yml"
+      - "src/components/resource-stats-panel.tsx"
+      - "src/app/watch/page.tsx"
+      - "src/app/api/resource-collector/playback-sample/route.ts"
+      - "src/lib/resource-collector-client.ts"
+      - "services/scrapling-collector/stats.py"
+      - "services/scrapling-collector/tests/test_stats.py"
 
 permissions:
   contents: read
