@@ -66,6 +66,7 @@ class CrawlRequest(BaseModel):
     url: HttpUrl
     mode: str = Field(default="auto", pattern="^(auto|http|browser)$")
     limit: int = Field(default=50, ge=1, le=MAX_CANDIDATES)
+    search_keyword: str = Field(default="", max_length=100)
 
 
 class CandidateValidation(BaseModel):
@@ -1935,6 +1936,8 @@ def crawl_site(payload: CrawlRequest, cancel_check=None) -> dict:
         now = int(time.time())
         with db() as connection:
             for item in candidates[:payload.limit]:
+                if payload.search_keyword:
+                    item["search_keyword"] = payload.search_keyword.strip()[:100]
                 candidate_id = hashlib.sha256((task_id + item["url"]).encode()).hexdigest()[:32]
                 connection.execute(
                     """INSERT OR IGNORE INTO candidates
