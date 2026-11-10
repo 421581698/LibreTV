@@ -226,3 +226,41 @@
   .v4-spatial-main { padding-bottom: calc(90px + env(safe-area-inset-bottom)) !important; }
   .v4-mobile-tabs { display: none !important; }
 }
+
+/* iPhone player layout: preserve ArtPlayer/HLS; only reorganize the page chrome. */
+@media (max-width: 700px) {
+  .netflix-watch { width: 100% !important; max-width: none !important; padding: 0 0 calc(28px + env(safe-area-inset-bottom)) !important; }
+  .watch-topbar { background: rgba(248,248,250,.86) !important; border: 0 !important; box-shadow: 0 1px 0 rgba(128,128,128,.12) !important; -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%); }
+  .dark .watch-topbar { background: rgba(18,18,20,.88) !important; }
+  .watch-topbar-inner { min-height: 52px !important; padding: 0 14px !important; }
+  .netflix-watch-grid { display: block !important; }
+  .netflix-watch-primary { display: contents !important; }
+  .netflix-player-frame { width: 100% !important; aspect-ratio: 16 / 9 !important; border-radius: 0 !important; }
+  .netflix-title-row { padding: 14px 16px 4px !important; }
+  .netflix-title-row h1 { font-size: 18px !important; }
+  .netflix-watch-tools { display: flex !important; flex-wrap: wrap !important; gap: 8px !important; padding: 10px 16px !important; }
+  .netflix-watch-tools button { min-height: 36px; border-radius: 999px !important; }
+  .netflix-watch-tools input[type="checkbox"] { accent-color: #111 !important; }
+  .dark .netflix-watch-tools input[type="checkbox"] { accent-color: #fff !important; }
+  .netflix-related-section { margin: 14px 16px 0 !important; padding: 0 !important; }
+  .netflix-related-section .netflix-section-heading { margin-bottom: 10px !important; }
+  .netflix-related-section .netflix-section-heading h2 { font-size: 18px !important; }
+  .netflix-related-rail { display: flex !important; gap: 10px !important; overflow-x: auto !important; padding: 2px 1px 10px !important; }
+  .netflix-related-card { flex: 0 0 30% !important; min-width: 0 !important; }
+  .netflix-related-art { aspect-ratio: 2 / 3 !important; border-radius: 11px !important; overflow: hidden !important; }
+  .netflix-related-card strong { display: block; overflow: hidden; margin-top: 6px; font-size: 12px !important; text-overflow: ellipsis; white-space: nowrap; }
+  .netflix-related-card span { display: block; overflow: hidden; font-size: 10px !important; text-overflow: ellipsis; white-space: nowrap; }
+  .netflix-watch-sidebar { display: block !important; margin: 16px 14px 0 !important; padding: 14px !important; border: 1px solid rgba(128,128,128,.16) !important; border-radius: 18px !important; background: rgba(255,255,255,.72) !important; }
+  .dark .netflix-watch-sidebar { border-color: rgba(255,255,255,.1) !important; background: rgba(28,28,30,.82) !important; }
+  .netflix-sidebar-tabs { display: flex !important; gap: 16px !important; overflow-x: auto !important; border-bottom: 1px solid rgba(128,128,128,.16) !important; padding-bottom: 10px !important; }
+  .netflix-sidebar-tabs button { flex: 0 0 auto; background: transparent !important; color: #777 !important; border: 0 !important; padding: 4px 0 !important; }
+  .netflix-sidebar-tabs button.active { color: #111 !important; border-bottom: 2px solid #111 !important; }
+  .dark .netflix-sidebar-tabs button.active { color: #fff !important; border-bottom-color: #fff !important; }
+  .netflix-sidebar-content { max-height: none !important; padding: 12px 0 0 !important; }
+  .netflix-episode-list { display: grid !important; grid-template-columns: repeat(5,minmax(0,1fr)) !important; gap: 8px !important; max-height: 300px !important; overflow-y: auto !important; }
+  .netflix-episode-row { min-height: 42px !important; justify-content: center !important; border-radius: 11px !important; background: rgba(128,128,128,.1) !important; }
+  .netflix-episode-row.active { color: #111 !important; background: #fff !important; border: 1px solid rgba(0,0,0,.18) !important; }
+  .dark .netflix-episode-row.active { color: #111 !important; background: #fff !important; }
+  .netflix-series-related { margin: 18px 0 0 !important; }
+  .netflix-sidebar-footer { display: none !important; }
+}
