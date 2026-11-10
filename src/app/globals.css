@@ -1643,13 +1643,9 @@ html:not(.dark) .netflix-watch-sidebar [class*="text-white/"] {
 /* Keep the complete bottom control area legible over bright scenes. */
 .art-video-player .art-bottom,
 .artplayer .art-bottom {
-  background: linear-gradient(
-    to top,
-    rgba(0, 0, 0, .94) 0%,
-    rgba(0, 0, 0, .78) 46%,
-    rgba(0, 0, 0, .34) 78%,
-    rgba(0, 0, 0, 0) 100%
-  ) !important;
+  /* Never tint the video image: keep the control bar fully transparent.
+     Individual icons retain their own text-shadow/drop-shadow for contrast. */
+  background: transparent !important;
   border-radius: 0 !important;
 }
 .art-video-player .art-controls,
