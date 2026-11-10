@@ -132,6 +132,9 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
     const mobileLayout = read('src/app/iphone-glass.css');
     expect(playerShell).toContain('playsInline: true');
     expect(playerShell).toContain('moreVideoAttr: { crossOrigin: \'anonymous\', playsInline: true }');
+    expect(playerShell).toContain('setShowPlayFallback(true)');
+    expect(playerShell).toContain('轻点开始播放');
+    expect(playerShell).toContain('void art.play().then(() => setShowPlayFallback(false))');
     expect(mobileLayout).toContain('.v4-mobile-tabbar {');
     expect(mobileLayout).toContain('position: fixed;');
     expect(mobileLayout).toContain('bottom: 0;');
