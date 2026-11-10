@@ -1,7 +1,7 @@
 # Manual opt-in only. Creating this Blueprint provisions paid infrastructure.
 services:
   - type: web
-    name: libretv-pr60-scrapling-collector
+    name: libretv-pr61-scrapling-collector
     runtime: docker
     plan: 2c-4g
     region: oregon
@@ -11,7 +11,7 @@ services:
     autoDeployTrigger: "off"
     healthCheckPath: /health
     disk:
-      name: scrapling-collector-data
+      name: scrapling-collector-pr61-data
       mountPath: /data
       sizeGB: 1
     envVars:
