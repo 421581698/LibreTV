@@ -924,10 +924,12 @@ def probe_direct_media(raw_url: str, max_redirects: int = 5) -> dict:
                     )
             response.close()
             container_headers = headers
+            container_status = status
             if (is_mp4 or is_webm) and not container_path:
                 head = fetch_pinned_range(normalized, f"bytes=0-{MAX_CONTAINER_PROBE_BYTES - 1}")
                 if head.get("http_status") == 206 and head.get("body"):
                     container_headers = head.get("headers", {})
+                    container_status = head.get("http_status")
                     container_body = head["body"]
                     container_resolution = (
                         parse_mp4_container_dimensions(container_body)
@@ -938,7 +940,7 @@ def probe_direct_media(raw_url: str, max_redirects: int = 5) -> dict:
             total_length = int(range_total.group(1)) if range_total else (
                 int(container_headers["content-length"])
                 if container_headers.get("content-length", "").isdigit()
-                and container_headers.get("status_code") != 206 else None
+                and container_status != 206 else None
             )
             if is_mp4 and container_resolution is None and total_length and total_length > MAX_CONTAINER_PROBE_BYTES:
                 tail_start = max(0, total_length - MAX_CONTAINER_PROBE_BYTES)
