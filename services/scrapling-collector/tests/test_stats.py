@@ -57,6 +57,17 @@ class ResourceStatsTests(unittest.TestCase):
         self.assertEqual(summary["pages_changed"],1)
         self.assertEqual(result["sites"][0]["health_status"],"healthy")
 
+    def test_collector_preview_samples_do_not_count_as_real_playback(self):
+        self.db.execute("INSERT INTO playback_quality_samples VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                        ("preview-1","media.example","collector_preview","hls",20,20,3840,2160,2160,12000,112))
+        result = build_stats(self.db)
+        site = result["sites"][0]
+        self.assertEqual(site["playback_samples"],1)
+        self.assertEqual(site["preview_samples"],1)
+        self.assertEqual(site["actual_quality"]["4K"],1)
+        self.assertIsNone(site["quality_score"])
+        self.assertEqual(result["summary"]["playback_samples"],1)
+
     def test_quality_score_requires_three_real_playback_samples(self):
         self.db.execute(
             "UPDATE candidates SET playback_verification=? WHERE id=?",
