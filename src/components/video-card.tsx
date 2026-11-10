@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import type { SearchResultItem, SourceConfig } from '@/lib/types';
 import { useAppStore } from '@/lib/store';
 import { qualityKey } from '@/lib/quality';
@@ -11,6 +12,7 @@ import { SmartImage } from './smart-image';
 import { QualityBadge } from './quality-badge';
 import { useQualityProbe } from './use-quality-probe';
 import { useInView } from './use-in-view';
+import { addFavorite, db, removeFavorite } from '@/lib/db';
 
 // —— 跨源同名聚合 ——
 
@@ -134,6 +136,30 @@ export function AggregatedCard({
     const qualityEvidence = { ...persistedQualityMap, ...qualities };
     return rankMovieCandidatesByQuality(group.items, qualityEvidence, playbackHealth, Date.now(), playbackResourceHealth);
   }, [group.items, persistedQualityMap, qualities, playbackHealth, playbackResourceHealth]);
+  const favorites = useLiveQuery(() => db.favorites.toArray(), []);
+  const favoriteCandidate = sortedItems[0];
+  const isFavorite = Boolean(favoriteCandidate && favorites?.some(
+    (entry) => entry.sourceKey === favoriteCandidate.sourceKey && entry.vodId === favoriteCandidate.vodId
+  ));
+  const toggleFavorite = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (!favoriteCandidate) return;
+    if (isFavorite) {
+      await removeFavorite(favoriteCandidate.sourceKey, favoriteCandidate.vodId);
+      return;
+    }
+    await addFavorite({
+      sourceKey: favoriteCandidate.sourceKey,
+      sourceUrl: favoriteCandidate.sourceUrl,
+      sourceName: favoriteCandidate.sourceName,
+      vodId: favoriteCandidate.vodId,
+      title: favoriteCandidate.name,
+      pic: favoriteCandidate.pic,
+      typeName: favoriteCandidate.typeName,
+      year: favoriteCandidate.year,
+      remarks: favoriteCandidate.remarks,
+    });
+  };
   const bestHeight = sortedItems.reduce((max, item) => Math.max(max, heightOf(item)), 0);
   // 并列最高时只强调排在第一的那一行：三个源里框两个等于没有推荐
   const firstBest = sortedItems.find((item) => bestHeight > 0 && heightOf(item) === bestHeight);
@@ -148,8 +174,19 @@ export function AggregatedCard({
   return (
     <div
       ref={inViewRef}
-      className={cn('card', !multi && 'hover:scale-[1.02] hover:shadow-md', multi && expanded && 'ring-1 ring-accent/40')}
+      className={cn('card relative', !multi && 'hover:scale-[1.02] hover:shadow-md', multi && expanded && 'ring-1 ring-accent/40')}
     >
+      <button
+        type="button"
+        className="absolute right-2 top-2 z-20 inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/65 text-white shadow"
+        aria-label={isFavorite ? `取消收藏 ${group.name}` : `收藏 ${group.name}`}
+        aria-pressed={isFavorite}
+        onClick={toggleFavorite}
+      >
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill={isFavorite ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M20.8 8.8c0 5.2-8.8 10-8.8 10s-8.8-4.8-8.8-10A4.8 4.8 0 0 1 12 6.5a4.8 4.8 0 0 1 8.8 2.3Z" />
+        </svg>
+      </button>
       {/* 不用 h-full：展开面板需要撑高卡片，等高裁切会让面板不可见 */}
       <div
         className="flex h-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60"
