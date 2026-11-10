@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   const guarded = guardPrivateFeatureRequest(request);
   if (guarded) return guarded;
   const action = new URL(request.url).searchParams.get('action');
-  return collectorRequest(action === 'tasks' ? '/v1/tasks' : '/v1/discover', {}, 20_000);
+  return collectorRequest(action === 'tasks' ? '/v1/tasks' : '/v1/discover', {}, 20_000, request);
 }
 
 export async function POST(request: NextRequest) {
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     if (!/^[a-f0-9]{32}$/i.test(body.candidateId)) {
       return NextResponse.json({ error: 'Invalid candidate ID.' }, { status: 400 });
     }
-    return collectorRequest(`/v1/candidates/${body.candidateId}/validate`, { method: 'POST' }, 20_000);
+    return collectorRequest(`/v1/candidates/${body.candidateId}/validate`, { method: 'POST' }, 20_000, request);
   }
   if (!('url' in body) || typeof body.url !== 'string' || body.url.length > 2_048) {
     return NextResponse.json({ error: 'A valid FMHY site URL is required.' }, { status: 400 });
@@ -59,5 +59,5 @@ export async function POST(request: NextRequest) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url: parsed.toString(), limit: 50 }),
-  }, 65_000);
+  }, 65_000, request);
 }
