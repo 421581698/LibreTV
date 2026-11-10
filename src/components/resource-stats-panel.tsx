@@ -78,7 +78,7 @@ export function ResourceStatsPanel() {
             {[
               ['发现网站', summary.discovered_sites], ['已采集网站', summary.visited_sites],
               ['资源候选', summary.candidate_resources], ['视频候选', summary.video_candidates],
-              ['媒体预检通过', summary.preflight_passed], ['播放确认资源', summary.playback_confirmed],
+              ['媒体预检通过', summary.preflight_passed], ['采集预览确认资源', summary.playback_confirmed],
               ['真实播放样本', summary.playback_samples ?? 0], ['采集预览样本', summary.preview_samples ?? 0],
               ['采集任务', summary.crawl_tasks], ['失败网站', summary.failed_sites],
             ].map(([label, value]) => (
@@ -153,7 +153,7 @@ export function ResourceStatsPanel() {
                 <span className="grid grid-cols-3 gap-3 text-right text-[11px]">
                   <span><b className="block tabular-nums text-content">{fmt(site.video_candidates)}</b><i className="not-italic text-muted">候选</i></span>
                   <span><b className="block tabular-nums text-content">{fmt(site.preflight_passed)}</b><i className="not-italic text-muted">预检</i></span>
-                  <span><b className="block tabular-nums text-content">{fmt(site.playback_confirmed)}</b><i className="not-italic text-muted">播放</i></span>
+                  <span><b className="block tabular-nums text-content">{fmt(site.playback_confirmed)}</b><i className="not-italic text-muted">预览确认</i></span>
                 </span>
               </button>
             )) : <p className="rounded-xl bg-chip p-3 text-xs text-muted">暂无网站记录。请先刷新 FMHY 目录。</p>}
@@ -178,7 +178,7 @@ export function ResourceStatsPanel() {
                 <div className="rounded-lg bg-chip p-2">内容未变：{fmt(detail.site.pages_unchanged ?? 0)}</div>
                 <div className="rounded-lg bg-chip p-2">采集任务：{fmt(detail.site.crawl_tasks)}</div>
                 <div className="rounded-lg bg-chip p-2">预检通过：{fmt(detail.site.preflight_passed)}</div>
-                <div className="rounded-lg bg-chip p-2">实际播放：{fmt(detail.site.playback_confirmed)}</div>
+                <div className="rounded-lg bg-chip p-2">采集预览播放确认：{fmt(detail.site.playback_confirmed)}</div>
               </div>
               {detail.recent_resources?.length ? (
                 <div className="space-y-2">
