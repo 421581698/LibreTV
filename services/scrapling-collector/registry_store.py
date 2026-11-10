@@ -65,9 +65,6 @@ def init() -> None:
           created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
           UNIQUE(source_id, canonical_url)
         );
-        resource_columns = {row["name"] for row in c.execute("PRAGMA table_info(registry_resources)").fetchall()}
-        if "title" not in resource_columns:
-            c.execute("ALTER TABLE registry_resources ADD COLUMN title TEXT NOT NULL DEFAULT ''")
         CREATE INDEX IF NOT EXISTS idx_registry_resources_movie
           ON registry_resources(movie_id, episode_id);
         CREATE TABLE IF NOT EXISTS registry_verifications (
@@ -90,6 +87,9 @@ def init() -> None:
         CREATE INDEX IF NOT EXISTS idx_collector_jobs_claim
           ON collector_jobs(status, available_at, lease_until);
         """)
+        resource_columns = {row["name"] for row in c.execute("PRAGMA table_info(registry_resources)").fetchall()}
+        if "title" not in resource_columns:
+            c.execute("ALTER TABLE registry_resources ADD COLUMN title TEXT NOT NULL DEFAULT ''")
 
 
 def _json(value: object) -> str:
