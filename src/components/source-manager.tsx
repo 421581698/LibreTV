@@ -256,8 +256,17 @@ function ResourceCollectorPanel() {
       setCollectorBase(base);
       setConfigSaved(true);
       const response = await collectorFetch('/api/resource-collector/health');
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Collector 连接测试失败。');
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const detail = typeof payload.detail === 'string' ? payload.detail :
+          typeof payload.error === 'string' ? payload.error : '未提供错误详情';
+        const statusHint = response.status === 401 ? '请先登录 LibreTV。' :
+          response.status === 403 ? '当前 Preview 策略禁止访问资源采集功能。' :
+          response.status === 503 ? '检查 Collector 地址、Token 配置及服务端出口闸门。' :
+          response.status === 502 ? '检查 Collector 网络连通性、TLS 和响应格式。' : '';
+        throw new Error(`连接测试失败（HTTP ${response.status}）：${detail}${statusHint ? `。${statusHint}` : ''}`);
+      }
+      if (payload.ok !== true) throw new Error('Collector 已响应，但健康状态未确认（缺少 ok=true）。');
       setConnectionStatus('连接成功：Collector Health 检查通过。');
     } catch (reason) {
       setConnectionStatus('连接测试未通过。');
