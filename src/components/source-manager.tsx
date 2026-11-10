@@ -34,6 +34,7 @@ import { api } from '@/lib/client-api';
 import { AUTO_REFRESH_MAX_FAIL_STREAK, syncSourceSubscription } from '@/lib/subscription-sync';
 import { describeParseStats } from '@/lib/tvbox-parser';
 import { collectorFetch, clearScraplingConfig, normalizeScraplingBase, readScraplingConfig, saveScraplingConfig } from '@/lib/collector-browser-config';
+import { registerValidatedCmsSource } from '@/lib/resource-collector-workflow';
 
 
 const CollectorPlayerShell = dynamic(
@@ -192,7 +193,7 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
 
 
 type CollectorSite = { title: string; url: string; host: string; directory: string };
-type CollectorCandidate = { id?: string; url: string; kind: string; host: string; title?: string; status?: string; access_state?: 'PUBLIC' | 'AUTH_REQUIRED' | 'SUBSCRIPTION_REQUIRED' | 'DRM_PROTECTED' | 'ACCESS_UNKNOWN'; reason?: string; next_action?: string; drm_systems?: string[]; validation?: { cms_shape?: boolean; reachable?: boolean; public_host?: boolean; note?: string } };
+type CollectorCandidate = { id?: string; url: string; kind: string; host: string; title?: string; status?: string; access_state?: 'PUBLIC' | 'AUTH_REQUIRED' | 'SUBSCRIPTION_REQUIRED' | 'DRM_PROTECTED' | 'ENCRYPTED_STREAM' | 'ACCESS_UNKNOWN'; reason?: string; next_action?: string; drm_systems?: string[]; validation?: { cms_shape?: boolean; reachable?: boolean; public_host?: boolean; source_url?: string | null; reason?: string; error?: string; note?: string; access?: { access_state?: string; reason?: string } } };
 type CollectorTask = { id: string; url: string; host: string; status: string; created_at: number; updated_at: number; error?: string | null; result_count: number };
 
 function ResourceCollectorPanel() {
@@ -204,6 +205,7 @@ function ResourceCollectorPanel() {
   const [tasks, setTasks] = useState<CollectorTask[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [resultMessage, setResultMessage] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [collectorBase, setCollectorBase] = useState('');
   const [collectorToken, setCollectorToken] = useState('');
@@ -310,7 +312,7 @@ function ResourceCollectorPanel() {
     try {
       const response = await collectorFetch('/api/resource-collector', { cache: 'no-store' });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'FMHY 目录加载失败。');
+      if (!response.ok) throw new Error(payload.error || payload.detail || 'FMHY 目录加载失败。');
       setSites(Array.isArray(payload.sites) ? payload.sites : []);
       setLoaded(true);
       await loadTasks();
@@ -324,6 +326,7 @@ function ResourceCollectorPanel() {
   const crawl = async (site: CollectorSite) => {
     setBusy(true);
     setError('');
+    setResultMessage('');
     setSelectedSite(site);
     setCandidates([]);
     try {
@@ -333,7 +336,7 @@ function ResourceCollectorPanel() {
         body: JSON.stringify({ url: site.url }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Scrapling 采集失败。');
+      if (!response.ok) throw new Error(payload.error || payload.detail || `Scrapling 采集失败（HTTP ${response.status}）。`);
       setCandidates(Array.isArray(payload.candidates) ? payload.candidates : []);
       setCrawlDiagnostics({
         pageTitle: payload.page_title, finalUrl: payload.final_url || payload.page_url,
@@ -360,7 +363,7 @@ function ResourceCollectorPanel() {
     try {
       const response = await collectorFetch(`/api/resource-collector/tasks/${task.id}/retry`, { method: 'POST' });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || '任务重试失败。');
+      if (!response.ok) throw new Error(payload.error || payload.detail || `任务重试失败（HTTP ${response.status}）。`);
       setSelectedSite({ title: task.host, host: task.host, url: task.url, directory: 'FMHY / Movies-TV-Anime' });
       setCandidates(Array.isArray(payload.candidates) ? payload.candidates : []);
       await loadTasks();
@@ -381,18 +384,40 @@ function ResourceCollectorPanel() {
     try {
       const response = await collectorFetch(`/api/resource-collector/candidates/${candidate.id}/validate`, { method: 'POST' });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || '资源验证失败。');
+      if (!response.ok) throw new Error(payload.error || payload.detail || `资源验证失败（HTTP ${response.status}）。`);
       const validation = payload.validation ?? {};
+      const accessState = validation.access?.access_state ?? candidate.access_state ?? 'ACCESS_UNKNOWN';
+      const cmsVerified = candidate.kind === 'cms-api-candidate'
+        && validation.cms_shape === true && validation.reachable === true && accessState === 'PUBLIC';
+      const mediaVerified = candidate.kind === 'direct-media'
+        && validation.reachable === true && accessState === 'PUBLIC';
+      const nextStatus = cmsVerified ? 'validated' : mediaVerified ? 'checked' : 'rejected';
       setCandidates((current) => current.map((item) => item.id === candidate.id
-        ? { ...item, status: validation.cms_shape ? 'validated' : 'checked', validation }
+        ? { ...item, status: nextStatus, access_state: accessState, validation }
         : item));
-      if (validation.cms_shape && validation.reachable && candidate.kind === 'cms-api-candidate') {
-        const duplicate = [...store.customAPIs, ...store.envSources].some((source) => source.url.replace(/\/$/, '') === candidate.url.replace(/\/$/, ''));
-        if (!duplicate) {
-          store.addCustomApi({ name: candidate.title || candidate.host, url: candidate.url, detail: selectedSite?.url });
+
+      if (cmsVerified) {
+        const registration = registerValidatedCmsSource(
+          useAppStore.getState(),
+          candidate,
+          validation,
+          selectedSite?.url,
+        );
+        if (registration.registered) {
+          setResultMessage(`CMS 点播源已注册并默认启用：${registration.sourceUrl}`);
+        } else if (registration.duplicate) {
+          setResultMessage('该 CMS 点播源已经存在于影视源管理中，无需重复添加。');
+        } else {
+          setError(registration.reason || 'CMS 点播源注册失败。');
         }
+      } else if (mediaVerified) {
+        setResultMessage('直接媒体地址已通过公开访问检查，可在此独立播放；它不会被添加为 CMS 点播源。');
       } else if (candidate.kind === 'cms-api-candidate') {
-        setError('该地址未通过 CMS API 结构验证，没有加入点播源。');
+        setError(validation.reason || validation.access?.reason || '该地址未通过 CMS API 结构及公开访问验证，没有加入点播源。');
+      } else if (accessState !== 'PUBLIC') {
+        setError(validation.access?.reason || candidate.reason || `资源未确认可公开访问（${accessState}），已阻止注册或播放。`);
+      } else {
+        setResultMessage(validation.note || '这是网页/播放器入口，不是 CMS 点播 API；请在页面采集结果中查看其可公开提取的媒体请求。');
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '资源验证失败。');
@@ -447,6 +472,7 @@ function ResourceCollectorPanel() {
       </div>
 
       {error ? <p className="rounded-xl border border-line bg-card px-3 py-2 text-xs text-muted" role="status">{error}</p> : null}
+      {resultMessage ? <p className="rounded-xl border border-line bg-card px-3 py-2 text-xs text-muted" role="status">{resultMessage}</p> : null}
 
       {sites.length > 0 ? (
         <div className="space-y-2">
@@ -515,7 +541,7 @@ function ResourceCollectorPanel() {
           {candidates.length > 0 ? candidates.map((candidate) => (
             <div key={candidate.url} className="flex min-w-0 items-center gap-2 rounded-lg bg-chip p-2">
               <div className="min-w-0 flex-1">
-                <span className="block text-[10px] text-muted">{candidate.kind} · {candidate.host} · {candidate.status === 'validated' ? 'CMS 结构通过' : candidate.status === 'checked' ? '地址已检查，待播放验证' : '待验证'}</span>
+                <span className="block text-[10px] text-muted">{candidate.kind} · {candidate.host} · {candidate.status === 'validated' ? 'CMS 结构与公开访问通过' : candidate.status === 'checked' ? '媒体地址检查通过' : candidate.status === 'rejected' ? '验证未通过' : candidate.status === 'review' ? '网页入口，需人工确认' : '待验证'}</span>
                 {candidate.access_state ? <span className="block text-[10px] font-semibold text-content">{candidate.access_state}{candidate.drm_systems?.length ? ` · ${candidate.drm_systems.join(', ')}` : ''}</span> : null}
                 {candidate.reason ? <span className="block text-[10px] text-muted">{candidate.reason}</span> : null}
                 {candidate.next_action ? <span className="block text-[10px] text-muted">{candidate.next_action}</span> : null}
@@ -526,8 +552,8 @@ function ResourceCollectorPanel() {
                 {candidate.access_state === 'PUBLIC' && candidate.kind === 'direct-media' && candidate.status === 'checked' ? (
                   <button type="button" className="btn-primary btn-sm" onClick={() => setPlayingCandidate(candidate)}>播放</button>
                 ) : null}
-                <button type="button" className="btn-ghost btn-sm" disabled={busy || !candidate.id || (candidate.access_state !== undefined && candidate.access_state !== 'PUBLIC')} onClick={() => void validateCandidate(candidate)}>
-                  {candidate.status === 'validated' ? '已验证' : candidate.status === 'checked' ? '已检查' : '验证'}
+                <button type="button" className="btn-ghost btn-sm" disabled={busy || !candidate.id || ['AUTH_REQUIRED', 'SUBSCRIPTION_REQUIRED', 'DRM_PROTECTED', 'ENCRYPTED_STREAM'].includes(candidate.access_state || '')} onClick={() => void validateCandidate(candidate)}>
+                  {candidate.status === 'validated' ? '已验证' : candidate.status === 'checked' ? '已检查' : candidate.status === 'rejected' ? '验证失败' : '验证'}
                 </button>
                 <button type="button" className="btn-ghost btn-sm" onClick={() => void copyToClipboard(candidate.url)}>复制</button>
               </div>
