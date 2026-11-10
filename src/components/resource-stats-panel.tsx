@@ -11,7 +11,7 @@ type SiteStat = {
   video_candidates: number; preflight_passed: number; playback_confirmed: number;
   actual_quality: Quality; pages_visited: number | null; pages_failed?: number;
   pages_changed?: number; pages_unchanged?: number;
-  health_status?: string; failure_streak?: number; playback_samples?: number;
+  health_status?: string; failure_streak?: number; playback_samples?: number; preview_samples?: number;
   quality_score?: number | null; quality_score_state?: string;
 };
 type StatsPayload = {
@@ -21,7 +21,7 @@ type StatsPayload = {
     failed_sites: number; crawl_tasks: number; candidate_resources: number;
     video_candidates: number; preflight_passed: number; playback_confirmed: number;
     actual_quality: Quality; movie_entries: number; episode_entries: number;
-    playback_samples?: number;
+    playback_samples?: number; preview_samples?: number;
     pages_visited?: number; pages_failed?: number; pages_changed?: number; pages_unchanged?: number;
     queue_jobs?: Record<string, number>;
     quality_ranking?: Array<{ host: string; title: string; score: number; samples: number }>;
@@ -79,7 +79,7 @@ export function ResourceStatsPanel() {
               ['发现网站', summary.discovered_sites], ['已采集网站', summary.visited_sites],
               ['资源候选', summary.candidate_resources], ['视频候选', summary.video_candidates],
               ['媒体预检通过', summary.preflight_passed], ['播放确认资源', summary.playback_confirmed],
-              ['真实播放样本', summary.playback_samples ?? 0],
+              ['真实播放样本', summary.playback_samples ?? 0], ['采集预览样本', summary.preview_samples ?? 0],
               ['采集任务', summary.crawl_tasks], ['失败网站', summary.failed_sites],
             ].map(([label, value]) => (
               <div key={String(label)} className="rounded-xl bg-chip p-3">
@@ -122,7 +122,7 @@ export function ResourceStatsPanel() {
                 </div>
               ))}
             </div>
-            <p className="mt-2 text-[11px] leading-5 text-muted">仅按播放器实际解码宽高分类；网站宣传的 4K 不计入实际 4K。样本来自正常播放页和采集预览，未记录原始视频 URL、片名或用户身份。</p>
+            <p className="mt-2 text-[11px] leading-5 text-muted">仅按播放器实际解码宽高分类；网站宣传的 4K 不计入实际 4K。质量统计仅使用正常播放页的真实样本；采集预览样本单独统计，不参与真实播放质量评分。未记录原始视频 URL、片名或用户身份。</p>
           </div>
           {summary.quality_ranking?.length ? (
             <div className="rounded-xl border border-line p-3 space-y-2">
