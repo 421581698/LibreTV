@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import http.client
 import hmac
@@ -1329,17 +1330,51 @@ def crawl_site(payload: CrawlRequest) -> dict:
         page_title = ""
         final_url = raw_url
         captured_request_count = 0
-        if payload.mode in ("auto", "http"):
+        if payload.mode == "auto":
+            # Run both collectors independently; one failure never suppresses the other.
+            with ThreadPoolExecutor(max_workers=2, thread_name_prefix="scrapling-collector") as pool:
+                spider_future = pool.submit(run_spider, raw_url, payload.limit)
+                browser_future = pool.submit(run_browser_capture, raw_url, payload.limit)
+                try:
+                    spider_candidates = spider_future.result()
+                    for item in spider_candidates:
+                        item["collector"] = "spider"
+                        item["collected_by"] = ["spider"]
+                    candidates = merge_unique_candidates(candidates, spider_candidates, payload.limit)
+                    spider_diagnostics.update({"status": "completed", "candidate_count": len(spider_candidates)})
+                except Exception as exc:
+                    spider_diagnostics.update({"status": "failed", "error": type(exc).__name__})
+                    errors.append(f"HTTP Spider: {type(exc).__name__}")
+                try:
+                    _, browser_candidates, browser_meta = browser_future.result()
+                    for item in browser_candidates:
+                        item["collector"] = "browser"
+                        item["collected_by"] = ["browser"]
+                    candidates = merge_unique_candidates(candidates, browser_candidates, payload.limit)
+                    browser_diagnostics.update({"status": "completed", "candidate_count": len(browser_candidates)})
+                    page_title = browser_meta["page_title"]
+                    final_url = browser_meta["final_url"]
+                    captured_request_count = browser_meta["captured_request_count"]
+                except Exception as exc:
+                    browser_diagnostics.update({"status": "failed", "error": type(exc).__name__})
+                    errors.append(f"Browser capture: {type(exc).__name__}")
+        elif payload.mode == "http":
             try:
                 spider_candidates = run_spider(raw_url, payload.limit)
+                for item in spider_candidates:
+                    item["collector"] = "spider"
+                    item["collected_by"] = ["spider"]
                 candidates = merge_unique_candidates(candidates, spider_candidates, payload.limit)
                 spider_diagnostics.update({"status": "completed", "candidate_count": len(spider_candidates)})
             except Exception as exc:
                 spider_diagnostics.update({"status": "failed", "error": type(exc).__name__})
                 errors.append(f"HTTP Spider: {type(exc).__name__}")
-        if payload.mode == "browser" or (payload.mode == "auto" and not candidates):
+        elif payload.mode == "browser":
             try:
                 _, browser_candidates, browser_meta = run_browser_capture(raw_url, payload.limit)
+                for item in browser_candidates:
+                    item["collector"] = "browser"
+                    item["collected_by"] = ["browser"]
                 candidates = merge_unique_candidates(candidates, browser_candidates, payload.limit)
                 browser_diagnostics.update({"status": "completed", "candidate_count": len(browser_candidates)})
                 page_title = browser_meta["page_title"]
@@ -1347,7 +1382,7 @@ def crawl_site(payload: CrawlRequest) -> dict:
                 captured_request_count = browser_meta["captured_request_count"]
             except Exception as exc:
                 browser_diagnostics.update({"status": "failed", "error": type(exc).__name__})
-                errors.append(f"Browser capture: {type(exc).__name__}")
+                errors.append(f"Browser capture: {type(exc).__name__})
 
         now = int(time.time())
         with db() as connection:
