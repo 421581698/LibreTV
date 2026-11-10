@@ -148,6 +148,42 @@ class CollectorTests(unittest.TestCase):
         result = collector.classify_access_state(200, {"content-type": "video/mp4"}, "", "https://media.example/movie.mp4")
         self.assertEqual(result["access_state"], "PUBLIC")
 
+    def test_cms_api_shape_requires_actual_vod_fields_not_any_json_list(self):
+        valid = {
+            "code": 1,
+            "msg": "ok",
+            "list": [{"vod_id": 12, "vod_name": "Example Movie", "vod_pic": "https://img.example/poster.jpg"}],
+        }
+        generic = {"list": [{"id": 12, "name": "Not a CMS record"}]}
+        self.assertEqual(collector.extract_cms_api_list(valid), valid["list"])
+        self.assertIsNone(collector.extract_cms_api_list(generic))
+        self.assertIsNone(collector.extract_cms_api_list({"data": {"items": []}}))
+
+    def test_captured_browser_network_identifies_cms_api_by_response_shape(self):
+        class CapturedResponse:
+            url = "https://catalog.example/api/vod/list"
+            status = 200
+            headers = {"content-type": "application/json"}
+            body = b'{"code":1,"msg":"ok","list":[{"vod_id":1,"vod_name":"Example"}]}'
+
+        class Network:
+            def search(self, limit=None):
+                return [CapturedResponse()]
+
+        class Session:
+            network = Network()
+
+        candidates = collector.captured_api_candidates(Session(), "https://catalog.example/", 10)
+        self.assertEqual(len(candidates), 1)
+        self.assertEqual(candidates[0]["kind"], "cms-api-candidate")
+        self.assertEqual(candidates[0]["access_state"], "PUBLIC")
+
+    def test_cms_source_root_removes_per_request_query_and_fragment(self):
+        self.assertEqual(
+            collector.cms_source_root("https://catalog.example/api.php/provide/vod/?ac=list&page=1#x"),
+            "https://catalog.example/api.php/provide/vod/",
+        )
+
     def test_classifies_direct_media(self):
         self.assertEqual(
             collector.classify_url("https://media.example/video/master.m3u8"),
