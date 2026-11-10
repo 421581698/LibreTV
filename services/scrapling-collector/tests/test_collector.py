@@ -878,5 +878,34 @@ segment-2.ts
         self.assertFalse(evidence["visual_quality_verified"])
         self.assertIsNone(evidence["observed_container_resolution"])
 
+
+    def test_frontier_prioritizes_pagination_and_catalogue_pages(self):
+        self.assertGreater(
+            collector.frontier_link_priority("https://catalog.example/page=2", "Next"),
+            collector.frontier_link_priority("https://catalog.example/movie/123", "Movie"),
+        )
+        self.assertGreater(
+            collector.frontier_link_priority("https://catalog.example/movie/123", "Movie"),
+            collector.frontier_link_priority("https://catalog.example/about", "About"),
+        )
+        self.assertIsNone(collector.frontier_link_priority("https://cdn.example/movie.m3u8", "Stream"))
+
+    def test_fmhy_category_discovery_only_returns_fmhy_owned_pages(self):
+        class Anchor:
+            def __init__(self, href, text):
+                self.attrib = {"href": href}
+                self._text = text
+            def css(self, selector):
+                return type("Selection", (), {"getall": lambda self: [self._text]})()
+        class Page:
+            def css(self, selector):
+                if selector == "a":
+                    return [Anchor("/video/anime", "Anime"), Anchor("/video/movies", "Movies"),
+                            Anchor("https://untrusted.example/video", "External video"),
+                            Anchor("/about", "About")]
+                return type("Selection", (), {"get": lambda self: ""})()
+        result = collector.fmhy_category_pages_from_page(Page())
+        self.assertEqual(result, ["https://fmhy.net/video/anime", "https://fmhy.net/video/movies"])
+
 if __name__ == "__main__":
     unittest.main()
