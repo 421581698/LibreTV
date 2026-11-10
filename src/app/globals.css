@@ -128,7 +128,19 @@ html, body, main { -webkit-text-size-adjust: 100% !important; text-size-adjust: 
 button[class*="episode"], .episode-btn { border-radius: 12px !important; padding: 8px 16px !important; font-weight: 500 !important; }
 button[class*="episode"]:hover, .episode-btn:hover { opacity: 0.72 !important; }
 button[class*="episode"].active, .episode-btn.active { background-color: #e63921 !important; color: #fff !important; opacity: 1 !important; }
-.art-video-player .art-bottom { background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 80%) !important; }
+/* Keep video pixels independent from player chrome and inherited page effects.
+   iOS Safari must not apply CSS dimming/blending to the decoded video surface. */
+.artplayer video,
+.art-video-player video {
+  -webkit-filter: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+  mix-blend-mode: normal !important;
+}
+.art-video-player .art-bottom,
+.artplayer .art-bottom {
+  background: transparent !important;
+}
 .art-video-player.art-fullscreen .art-bottom { border-radius: 0 !important; }
 .art-video-player .art-progress-bar { height: 6px !important; }
 .art-setting-panel, .art-notice { border-radius: 16px !important; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2) !important; border: 1px solid rgba(0, 0, 0, 0.1) !important; background-color: rgba(255, 255, 255, 0.9) !important; backdrop-filter: blur(16px) !important; }
