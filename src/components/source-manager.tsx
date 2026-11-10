@@ -33,6 +33,7 @@ import { useAuth } from './auth';
 import { api } from '@/lib/client-api';
 import { AUTO_REFRESH_MAX_FAIL_STREAK, syncSourceSubscription } from '@/lib/subscription-sync';
 import { describeParseStats } from '@/lib/tvbox-parser';
+import { collectorFetch, clearScraplingConfig, normalizeScraplingBase, readScraplingConfig, saveScraplingConfig } from '@/lib/collector-browser-config';
 
 
 const CollectorPlayerShell = dynamic(
@@ -204,10 +205,65 @@ function ResourceCollectorPanel() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [loaded, setLoaded] = useState(false);
+  const [collectorBase, setCollectorBase] = useState('');
+  const [collectorToken, setCollectorToken] = useState('');
+  const [showCollectorToken, setShowCollectorToken] = useState(false);
+  const [configSaved, setConfigSaved] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState('');
+
+  useEffect(() => {
+    const config = readScraplingConfig();
+    setCollectorBase(config.base);
+    setCollectorToken(config.token);
+    setConfigSaved(Boolean(config.base && config.token));
+  }, []);
+
+  const saveCollectorSettings = () => {
+    try {
+      const base = normalizeScraplingBase(collectorBase);
+      saveScraplingConfig({ base, token: collectorToken });
+      setCollectorBase(base);
+      setConfigSaved(true);
+      setConnectionStatus('配置已保存在当前浏览器。');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '配置保存失败。');
+    }
+  };
+
+  const clearCollectorSettings = () => {
+    clearScraplingConfig();
+    setCollectorBase('');
+    setCollectorToken('');
+    setConfigSaved(false);
+    setConnectionStatus('本机配置已清除，将回退到服务端环境变量（如已配置）。');
+  };
+
+  const testCollectorConnection = async () => {
+    setTestingConnection(true);
+    setConnectionStatus('正在测试 Collector 连接…');
+    setError('');
+    try {
+      const base = normalizeScraplingBase(collectorBase);
+      if (!collectorToken.trim()) throw new Error('请先填写 SCRAPLING_API_TOKEN。');
+      saveScraplingConfig({ base, token: collectorToken });
+      setCollectorBase(base);
+      setConfigSaved(true);
+      const response = await collectorFetch('/api/resource-collector/health');
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Collector 连接测试失败。');
+      setConnectionStatus('连接成功：Collector Health 检查通过。');
+    } catch (reason) {
+      setConnectionStatus('连接测试未通过。');
+      setError(reason instanceof Error ? reason.message : 'Collector 连接测试失败。');
+    } finally {
+      setTestingConnection(false);
+    }
+  };
 
   const loadTasks = async () => {
     try {
-      const response = await fetch('/api/resource-collector/tasks', { cache: 'no-store' });
+      const response = await collectorFetch('/api/resource-collector/tasks', { cache: 'no-store' });
       const payload = await response.json();
       if (response.ok) setTasks(Array.isArray(payload.tasks) ? payload.tasks : []);
     } catch {
@@ -223,7 +279,7 @@ function ResourceCollectorPanel() {
     setSelectedSite(null);
     setCandidates([]);
     try {
-      const response = await fetch('/api/resource-collector', { cache: 'no-store' });
+      const response = await collectorFetch('/api/resource-collector', { cache: 'no-store' });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'FMHY 目录加载失败。');
       setSites(Array.isArray(payload.sites) ? payload.sites : []);
@@ -263,7 +319,7 @@ function ResourceCollectorPanel() {
     setBusy(true);
     setError('');
     try {
-      const response = await fetch(`/api/resource-collector/tasks/${task.id}/retry`, { method: 'POST' });
+      const response = await collectorFetch(`/api/resource-collector/tasks/${task.id}/retry`, { method: 'POST' });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || '任务重试失败。');
       setSelectedSite({ title: task.host, host: task.host, url: task.url, directory: 'FMHY / Movies-TV-Anime' });
@@ -284,7 +340,7 @@ function ResourceCollectorPanel() {
     setBusy(true);
     setError('');
     try {
-      const response = await fetch(`/api/resource-collector/candidates/${candidate.id}/validate`, { method: 'POST' });
+      const response = await collectorFetch(`/api/resource-collector/candidates/${candidate.id}/validate`, { method: 'POST' });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || '资源验证失败。');
       const validation = payload.validation ?? {};
@@ -308,43 +364,34 @@ function ResourceCollectorPanel() {
 
   return (
     <section className="space-y-4">
-      <div className="rounded-2xl border border-line bg-card p-4">
-        <div className="mb-3">
-          <h3 className="text-sm font-semibold text-content">Scrapling 连接配置 · 变量名与配置要求</h3>
-          <p className="mt-1 text-xs leading-5 text-muted">
-            以下配置需要由部署者添加到 LibreTV 服务端环境。Cloudflare 部署使用 Worker Settings → Variables and Secrets；Docker 部署使用服务端环境变量或 .env（不要提交到 Git）。
-            本页面只展示配置说明，不会把访问令牌保存到浏览器、公开配置或代码仓库。
-          </p>
+      <div className="rounded-2xl border border-line bg-card p-4 space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold text-content">Scrapling 连接配置 · 本机 Preview 测试</h3>
+          <p className="mt-1 text-xs leading-5 text-muted">填写 Zo Computer 部署的 Collector 地址与密钥。配置仅保存在当前浏览器 LocalStorage，通过已登录的 LibreTV Worker 代理转发；不会写入 Git 或 Cloudflare 环境变量。当前仅用于 PR #60 Preview 测试。</p>
         </div>
-        <div className="space-y-2">
-          <div className="rounded-xl bg-chip p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <code className="text-xs font-semibold text-content">SCRAPLING_API_BASE</code>
-              <span className="text-[10px] text-muted">Text / Variable</span>
-            </div>
-            <p className="mt-1 text-xs text-muted">必填。填写 Scrapling Collector 服务根地址，不要填写 /v1 路径，建议不带末尾斜杠。独立部署必须使用 HTTPS（例如 https://scrapling.example.com）；仅在 LibreTV 与 Collector 位于同一受信任 Docker Compose 内部网络时，才使用 http://scrapling-collector:8000。</p>
+        <label className="block space-y-1">
+          <span className="text-xs font-semibold text-content">SCRAPLING_API_BASE · 采集服务地址</span>
+          <input className="input w-full" type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false}
+            placeholder="https://your-scrapling-collector.example.com" value={collectorBase}
+            onChange={(event) => { setCollectorBase(event.target.value); setConfigSaved(false); }} />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-xs font-semibold text-content">SCRAPLING_API_TOKEN · 采集服务密钥</span>
+          <div className="flex gap-2">
+            <input className="input min-w-0 flex-1" type={showCollectorToken ? 'text' : 'password'} autoComplete="off"
+              autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="粘贴 Collector Bearer Token"
+              value={collectorToken} onChange={(event) => { setCollectorToken(event.target.value); setConfigSaved(false); }} />
+            <button type="button" className="btn-ghost btn-sm shrink-0" onClick={() => setShowCollectorToken((value) => !value)}>{showCollectorToken ? '隐藏' : '显示'}</button>
           </div>
-          <div className="rounded-xl bg-chip p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <code className="text-xs font-semibold text-content">SCRAPLING_API_TOKEN</code>
-              <span className="text-[10px] text-warning">Secret / 密钥</span>
-            </div>
-            <p className="mt-1 text-xs text-muted">必填。LibreTV 服务端与 Collector 服务端必须配置完全相同的 Bearer Token。Cloudflare 端使用 Secret；Docker / Collector 端使用部署平台的 Secret 或受保护环境变量。不要写入前端、普通公开配置、聊天或 Git。</p>
-          </div>
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn-primary btn-sm" onClick={saveCollectorSettings}>保存到本机</button>
+          <button type="button" className="btn-ghost btn-sm" onClick={() => void testCollectorConnection()} disabled={testingConnection}>{testingConnection ? '测试中…' : '保存并测试连接'}</button>
+          <button type="button" className="btn-ghost btn-sm" onClick={clearCollectorSettings}>清除本机配置</button>
         </div>
-        <div className="mt-3 rounded-xl border border-line p-3">
-          <h4 className="text-xs font-semibold text-content">Scrapling Collector 主机额外要求</h4>
-          <p className="mt-1 text-xs leading-5 text-muted">
-            在 Collector 服务端设置同一个 SCRAPLING_API_TOKEN。仅在 Docker 持久化部署时，可选设置
-            <code className="mx-1 font-semibold text-content">SCRAPLING_DB_PATH</code>
-            （默认 /data/collector.sqlite3，必须映射到持久化卷）。只有在独立主机已实际安装并验证出站防火墙规则后，才可设置
-            <code className="mx-1 font-semibold text-content">SCRAPLING_EGRESS_FIREWALL_CONFIRMED=1</code>；
-            该值只是安全闸门声明，不会自动创建或验证防火墙。未完成防火墙验证时必须保持未设置，采集接口应继续拒绝执行。
-          </p>
-        </div>
-        <p className="mt-2 text-[11px] leading-5 text-muted">
-          配置位置：SCRAPLING_API_BASE 与 SCRAPLING_API_TOKEN 配置在 LibreTV 服务端；SCRAPLING_API_TOKEN、SCRAPLING_EGRESS_FIREWALL_CONFIRMED 与可选 SCRAPLING_DB_PATH 配置在 Collector 主机。Cloudflare Preview 与 Production 是独立环境，需分别配置。修改 Secret 后无需在本页面输入密码，重新部署/生效后点击“发现网站”测试连接。
-        </p>
+        {configSaved ? <p className="text-[11px] text-success">已保存到此设备的浏览器</p> : null}
+        {connectionStatus ? <p className="text-xs text-muted" role="status">{connectionStatus}</p> : null}
+        <p className="text-[11px] leading-5 text-muted">仅接受公网 HTTPS 域名（443 端口）；Token 通过 HTTPS Header 发送给 LibreTV Worker，再由 Worker 转发给 Collector。清除后回退到服务端 SCRAPLING_API_BASE / SCRAPLING_API_TOKEN。LocalStorage 中的 Token 可被本机浏览器脚本读取，请只在可信设备的测试 Preview 使用。</p>
       </div>
 
       <div className="rounded-2xl border border-line bg-card p-4">
