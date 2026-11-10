@@ -21,6 +21,7 @@ type StatsPayload = {
     failed_sites: number; crawl_tasks: number; candidate_resources: number;
     video_candidates: number; preflight_passed: number; playback_confirmed: number;
     actual_quality: Quality; movie_entries: number; episode_entries: number;
+    playback_samples?: number;
     pages_visited?: number; pages_failed?: number; pages_changed?: number; pages_unchanged?: number;
     queue_jobs?: Record<string, number>;
     quality_ranking?: Array<{ host: string; title: string; score: number; samples: number }>;
@@ -77,7 +78,8 @@ export function ResourceStatsPanel() {
             {[
               ['发现网站', summary.discovered_sites], ['已采集网站', summary.visited_sites],
               ['资源候选', summary.candidate_resources], ['视频候选', summary.video_candidates],
-              ['媒体预检通过', summary.preflight_passed], ['真实播放确认', summary.playback_confirmed],
+              ['媒体预检通过', summary.preflight_passed], ['播放确认资源', summary.playback_confirmed],
+              ['真实播放样本', summary.playback_samples ?? 0],
               ['采集任务', summary.crawl_tasks], ['失败网站', summary.failed_sites],
             ].map(([label, value]) => (
               <div key={String(label)} className="rounded-xl bg-chip p-3">
