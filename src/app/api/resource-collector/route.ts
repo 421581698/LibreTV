@@ -8,7 +8,13 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   const guarded = guardPrivateFeatureRequest(request);
   if (guarded) return guarded;
-  const action = new URL(request.url).searchParams.get('action');
+  const url = new URL(request.url);
+  const action = url.searchParams.get('action');
+  if (action === 'stats') {
+    const host = url.searchParams.get('host');
+    const query = host ? '?host=' + encodeURIComponent(host) : '';
+    return collectorRequest('/v1/stats' + query, {}, 10_000, request);
+  }
   return collectorRequest(action === 'tasks' ? '/v1/tasks' : '/v1/discover', {}, 20_000, request);
 }
 

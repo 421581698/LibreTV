@@ -25,6 +25,7 @@ from scrapling.fetchers import Fetcher, FetcherSession, StealthySession
 from scrapling.spiders import Response, Spider
 from registry_queue import JobCancelled, router as registry_router, register_candidate_playback, register_discovered_candidate, sync_candidate_validation
 import registry_queue as registry_store
+from stats import build_stats
 
 FMHY_VIDEO_URL = "https://fmhy.net/video"
 TOKEN = os.environ.get("SCRAPLING_API_TOKEN", "").strip()
@@ -77,6 +78,10 @@ class PlaybackEvidence(BaseModel):
     media_type: str = Field(pattern="^(hls|mp4|webm)$")
     observed_seconds: int = Field(ge=1, le=60)
     progressed_seconds: float = Field(ge=2, le=60)
+    decoded_width: int = Field(default=0, ge=0, le=16384)
+    decoded_height: int = Field(default=0, ge=0, le=16384)
+    selected_rendition_height: int = Field(default=0, ge=0, le=16384)
+    selected_rendition_bitrate_kbps: float = Field(default=0, ge=0, le=1000000)
 
 
 def db() -> sqlite3.Connection:
@@ -2015,6 +2020,10 @@ def record_playback_evidence(
             "media_type": payload.media_type,
             "observed_seconds": payload.observed_seconds,
             "progressed_seconds": payload.progressed_seconds,
+            "decoded_width": payload.decoded_width,
+            "decoded_height": payload.decoded_height,
+            "selected_rendition_height": payload.selected_rendition_height,
+            "selected_rendition_bitrate_kbps": payload.selected_rendition_bitrate_kbps,
             "verified_at": int(time.time()),
             "verification_scope": "browser_video_element_time_progression",
         }
@@ -2024,6 +2033,17 @@ def record_playback_evidence(
         )
     registry_result = register_candidate_playback(candidate_id, evidence)
     return {"candidate_id": candidate_id, "playback_verification": evidence, **registry_result}
+
+
+@app.get("/v1/stats")
+def collector_statistics(host: str | None = None, authorization: str | None = Header(default=None)):
+    """Read-only statistics derived from persisted Collector SQLite records."""
+    require_token(authorization)
+    normalized_host = (host or "").strip().lower().rstrip(".") or None
+    if normalized_host and (len(normalized_host) > 253 or "/" in normalized_host or "@" in normalized_host):
+        raise HTTPException(status_code=400, detail="Invalid site host")
+    with db() as connection:
+        return build_stats(connection, normalized_host)
 
 
 @app.get("/health")

@@ -98,7 +98,11 @@ interface PlayerShellProps {
   /** Validated format hint for extensionless direct-media URLs. */
   mediaType?: 'hls' | 'mp4' | 'webm';
   /** Called only after the video element advances during a sustained playing window. */
-  onPlaybackConfirmed?: (evidence: { mediaType: string; observedSeconds: number; progressedSeconds: number }) => void;
+  onPlaybackConfirmed?: (evidence: {
+    mediaType: string; observedSeconds: number; progressedSeconds: number;
+    decodedWidth: number; decodedHeight: number;
+    selectedRenditionHeight: number; selectedRenditionBitrateKbps: number;
+  }) => void;
   adFilter: boolean;
   autoplayNext: boolean;
   /** 当前剧的跳过片段标记（父级按归一化剧名查好后传入，换集/换源不变） */
@@ -849,6 +853,14 @@ export function PlayerShell({
               mediaType: getMediaPlaybackKind(currentMediaUrlRef.current, propsRef.current.mediaType),
               observedSeconds: Math.max(1, Math.round((Date.now() - startedAt) / 1000)),
               progressedSeconds,
+              decodedWidth: video.videoWidth || 0,
+              decodedHeight: video.videoHeight || 0,
+              selectedRenditionHeight: hlsRef.current && hlsRef.current.currentLevel >= 0
+                ? hlsRef.current.levels[hlsRef.current.currentLevel]?.height || 0
+                : 0,
+              selectedRenditionBitrateKbps: hlsRef.current && hlsRef.current.currentLevel >= 0
+                ? (hlsRef.current.levels[hlsRef.current.currentLevel]?.bitrate || 0) / 1000
+                : 0,
             });
           }
         }, 5_000);

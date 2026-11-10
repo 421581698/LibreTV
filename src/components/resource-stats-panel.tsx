@@ -1,0 +1,161 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import { collectorFetch } from '@/lib/collector-browser-config';
+
+type Quality = Record<string, number>;
+type SiteStat = {
+  host: string; title: string; directory: string; crawl_tasks: number;
+  succeeded_tasks: number; failed_tasks: number; last_crawl_at: number | null;
+  last_status: string; last_error: string | null; candidate_count: number;
+  video_candidates: number; preflight_passed: number; playback_confirmed: number;
+  actual_quality: Quality; pages_visited: number | null;
+};
+type StatsPayload = {
+  source: string; generated_at: number;
+  summary: {
+    discovered_sites: number; visited_sites: number; successful_sites: number;
+    failed_sites: number; crawl_tasks: number; candidate_resources: number;
+    video_candidates: number; preflight_passed: number; playback_confirmed: number;
+    actual_quality: Quality; movie_entries: number; episode_entries: number;
+  };
+  sites: SiteStat[]; site?: SiteStat | null;
+  recent_tasks?: Array<{ id: string; status: string; created_at: number; updated_at: number; error?: string | null; result_count: number }>;
+  recent_resources?: Array<{ title: string; kind: string; status: string; access_state: string; playback_confirmed: boolean; decoded_width: number; decoded_height: number; created_at: number }>;
+};
+const QUALITY_ORDER = ['8K', '4K', '2K', '1080P', '720P', '480P', 'SD', '未知'];
+const fmt = (v: number | null | undefined) => typeof v === 'number' ? v.toLocaleString() : '—';
+const date = (v: number | null | undefined) => v ? new Date(v * 1000).toLocaleString() : '暂无记录';
+
+export function ResourceStatsPanel() {
+  const [data, setData] = useState<StatsPayload | null>(null);
+  const [selectedHost, setSelectedHost] = useState('');
+  const [detail, setDetail] = useState<StatsPayload | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const load = useCallback(async (host?: string) => {
+    setLoading(true); setError('');
+    try {
+      const suffix = host ? '&host=' + encodeURIComponent(host) : '';
+      const response = await collectorFetch('/api/resource-collector?action=stats' + suffix, { cache: 'no-store' });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || payload.error || '读取真实采集统计失败。');
+      if (host) setDetail(payload as StatsPayload); else setData(payload as StatsPayload);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '读取采集统计失败。');
+    } finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { void load(); }, [load]);
+  const selectSite = (host: string) => { setSelectedHost(host); setDetail(null); void load(host); };
+  const summary = data?.summary;
+
+  return (
+    <section className="rounded-2xl border border-line bg-card p-4 space-y-4" aria-label="网站采集统计中心">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-semibold text-content">网站采集统计中心</h3>
+          <p className="mt-1 text-xs text-muted">真实 Collector SQLite 数据；不使用模拟进度或 CI 测试数据。</p>
+        </div>
+        <button type="button" className="btn-ghost btn-sm" disabled={loading} onClick={() => void load()}>
+          {loading ? '正在刷新…' : '刷新统计'}
+        </button>
+      </div>
+      {error ? <p role="alert" className="rounded-xl bg-red-500/10 px-3 py-2 text-xs text-red-600">{error}</p> : null}
+      {!data && !error ? <p className="text-xs text-muted">正在读取 Collector 数据…</p> : null}
+      {summary ? (
+        <>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {[
+              ['发现网站', summary.discovered_sites], ['已采集网站', summary.visited_sites],
+              ['资源候选', summary.candidate_resources], ['视频候选', summary.video_candidates],
+              ['媒体预检通过', summary.preflight_passed], ['真实播放确认', summary.playback_confirmed],
+              ['采集任务', summary.crawl_tasks], ['失败网站', summary.failed_sites],
+            ].map(([label, value]) => (
+              <div key={String(label)} className="rounded-xl bg-chip p-3">
+                <div className="text-[11px] text-muted">{label}</div>
+                <div className="mt-1 text-xl font-semibold tabular-nums text-content">{fmt(Number(value))}</div>
+              </div>
+            ))}
+          </div>
+          <div className="rounded-xl border border-line p-3">
+            <div className="mb-3 text-xs font-semibold text-content">实际播放解码清晰度</div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {QUALITY_ORDER.map((q) => (
+                <div key={q} className="flex items-center justify-between rounded-lg bg-chip px-3 py-2 text-xs">
+                  <span className="text-muted">{q}</span>
+                  <strong className="tabular-nums text-content">{fmt(summary.actual_quality?.[q] ?? 0)}</strong>
+                </div>
+              ))}
+            </div>
+            <p className="mt-2 text-[11px] leading-5 text-muted">仅按播放器实际解码宽高分类；网站宣传的 4K 不计入实际 4K。</p>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <h4 className="text-xs font-semibold text-content">逐网站采集档案</h4>
+              <span className="text-[10px] text-muted">更新于 {date(data.generated_at)}</span>
+            </div>
+            {data.sites.length ? data.sites.map((site) => (
+              <button key={site.host} type="button" onClick={() => selectSite(site.host)}
+                className="flex w-full flex-wrap items-center justify-between gap-3 rounded-xl border border-line p-3 text-left hover:bg-hover">
+                <span className="min-w-0 flex-1">
+                  <strong className="block truncate text-xs text-content">{site.title || site.host}</strong>
+                  <span className="mt-1 block truncate text-[11px] text-muted">{site.host} · {site.directory}</span>
+                </span>
+                <span className="grid grid-cols-3 gap-3 text-right text-[11px]">
+                  <span><b className="block tabular-nums text-content">{fmt(site.video_candidates)}</b><i className="not-italic text-muted">候选</i></span>
+                  <span><b className="block tabular-nums text-content">{fmt(site.preflight_passed)}</b><i className="not-italic text-muted">预检</i></span>
+                  <span><b className="block tabular-nums text-content">{fmt(site.playback_confirmed)}</b><i className="not-italic text-muted">播放</i></span>
+                </span>
+              </button>
+            )) : <p className="rounded-xl bg-chip p-3 text-xs text-muted">暂无网站记录。请先刷新 FMHY 目录。</p>}
+          </div>
+          {selectedHost && detail?.site ? (
+            <div className="space-y-3 rounded-xl border border-line p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <h4 className="truncate text-sm font-semibold text-content">{detail.site.title}</h4>
+                  <p className="text-xs text-muted">{detail.site.host} · 最近采集：{date(detail.site.last_crawl_at)}</p>
+                </div>
+                <button type="button" className="btn-ghost btn-sm" onClick={() => { setSelectedHost(''); setDetail(null); }}>关闭</button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {QUALITY_ORDER.map((q) => <div key={q} className="rounded-lg bg-chip p-2 text-xs"><span className="text-muted">{q}</span><strong className="float-right tabular-nums text-content">{fmt(detail.site?.actual_quality?.[q] ?? 0)}</strong></div>)}
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="rounded-lg bg-chip p-2">页面访问：{detail.site.pages_visited ?? '未记录'}</div>
+                <div className="rounded-lg bg-chip p-2">采集任务：{fmt(detail.site.crawl_tasks)}</div>
+                <div className="rounded-lg bg-chip p-2">预检通过：{fmt(detail.site.preflight_passed)}</div>
+                <div className="rounded-lg bg-chip p-2">实际播放：{fmt(detail.site.playback_confirmed)}</div>
+              </div>
+              {detail.recent_resources?.length ? (
+                <div className="space-y-2">
+                  <h5 className="text-xs font-semibold text-content">最近发现的资源</h5>
+                  {detail.recent_resources.map((resource, index) => (
+                    <div key={resource.title + '-' + index} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-chip p-2 text-xs">
+                      <span className="min-w-0 flex-1 truncate text-content">{resource.title}</span>
+                      <span className="text-muted">{resource.playback_confirmed && resource.decoded_height ? resource.decoded_width + '×' + resource.decoded_height : resource.status}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="text-xs text-muted">该网站暂无资源记录。</p>}
+              {detail.recent_tasks?.length ? (
+                <div className="space-y-1">
+                  <h5 className="text-xs font-semibold text-content">最近采集任务</h5>
+                  {detail.recent_tasks.map((task) => (
+                    <div key={task.id} className="flex flex-wrap justify-between gap-2 border-t border-line py-2 text-[11px]">
+                      <span className="text-content">{task.status} · {date(task.created_at)}</span>
+                      <span className="text-muted">{task.error || fmt(task.result_count) + ' 个候选'}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          <p className="text-[10px] leading-5 text-muted">页面级访问次数尚未由 Collector 持久化，显示“未记录”，不会用任务次数冒充页面次数。</p>
+        </>
+      ) : null}
+    </section>
+  );
+}

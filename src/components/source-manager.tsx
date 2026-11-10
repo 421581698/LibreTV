@@ -35,6 +35,7 @@ import { api } from '@/lib/client-api';
 import { AUTO_REFRESH_MAX_FAIL_STREAK, syncSourceSubscription } from '@/lib/subscription-sync';
 import { describeParseStats } from '@/lib/tvbox-parser';
 import { collectorFetch, clearScraplingConfig, normalizeScraplingBase, readScraplingConfig, saveScraplingConfig } from '@/lib/collector-browser-config';
+import { ResourceStatsPanel } from '@/components/resource-stats-panel';
 
 
 const CollectorPlayerShell = dynamic(
@@ -423,6 +424,7 @@ function ResourceCollectorPanel() {
 
   return (
     <section className="space-y-4">
+      <ResourceStatsPanel />
       <div className="rounded-2xl border border-line bg-card p-4 space-y-3">
         <div>
           <h3 className="text-sm font-semibold text-content">Scrapling 连接配置 · 本机 Preview 测试</h3>
@@ -566,10 +568,18 @@ function ResourceCollectorPanel() {
 function CollectorDirectPlayer({ candidate, onClose }: { candidate: CollectorCandidate; onClose: () => void }) {
   const adFilter = useAppStore((state) => state.adFilter);
   const [pendingStart, setPendingStart] = useState<number | null>(null);
-  const [playbackEvidence, setPlaybackEvidence] = useState<{ mediaType: string; observedSeconds: number; progressedSeconds: number } | null>(null);
+  const [playbackEvidence, setPlaybackEvidence] = useState<{
+    mediaType: string; observedSeconds: number; progressedSeconds: number;
+    decodedWidth?: number; decodedHeight?: number;
+    selectedRenditionHeight?: number; selectedRenditionBitrateKbps?: number;
+  } | null>(null);
   const [playbackEvidenceSaved, setPlaybackEvidenceSaved] = useState(false);
   const [playbackEvidenceError, setPlaybackEvidenceError] = useState('');
-  const handlePlaybackConfirmed = async (evidence: { mediaType: string; observedSeconds: number; progressedSeconds: number }) => {
+  const handlePlaybackConfirmed = async (evidence: {
+    mediaType: string; observedSeconds: number; progressedSeconds: number;
+    decodedWidth: number; decodedHeight: number;
+    selectedRenditionHeight: number; selectedRenditionBitrateKbps: number;
+  }) => {
     setPlaybackEvidence(evidence);
     setPlaybackEvidenceSaved(false);
     setPlaybackEvidenceError('');
@@ -618,6 +628,7 @@ function CollectorDirectPlayer({ candidate, onClose }: { candidate: CollectorCan
         {playbackEvidence ? (
           <div className="border-t border-white/10 px-4 py-3 text-xs text-emerald-300">
             <p>已确认真实播放：{playbackEvidence.mediaType}，观察 {playbackEvidence.observedSeconds}s，播放进度推进 {playbackEvidence.progressedSeconds.toFixed(1)}s</p>
+            <p>实际解码：{playbackEvidence.decodedWidth && playbackEvidence.decodedHeight ? playbackEvidence.decodedWidth + '×' + playbackEvidence.decodedHeight : '分辨率未知'} · HLS 档位：{playbackEvidence.selectedRenditionHeight ? playbackEvidence.selectedRenditionHeight + 'P' : '未知'}</p>
             {playbackEvidenceSaved ? <p className="mt-1 text-emerald-200">播放证据已写入 Scrapling 采集记录。</p> : null}
             {playbackEvidenceError ? <p className="mt-1 text-amber-300">{playbackEvidenceError}</p> : null}
             {!playbackEvidenceSaved && !playbackEvidenceError ? <p className="mt-1 text-white/55">正在保存播放证据…</p> : null}
