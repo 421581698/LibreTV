@@ -953,6 +953,11 @@ segment-2.ts
             "#EXT-X-KEY:METHOD=NONE",
         )
         self.assertEqual(result["access_state"], "PUBLIC")
+        manifest = collector.parse_hls_manifest(
+            b'#EXTM3U\\n#EXT-X-KEY:METHOD=NONE,KEYFORMAT="identity"'
+        )
+        self.assertEqual(manifest["key_formats"], [])
+        self.assertFalse(manifest["encrypted"])
 
 
     def test_cms_validation_persists_auth_required_even_when_body_is_not_json(self):
