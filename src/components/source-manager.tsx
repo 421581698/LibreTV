@@ -327,7 +327,7 @@ function ResourceCollectorPanel() {
     setSelectedSite(site);
     setCandidates([]);
     try {
-      const response = await fetch('/api/resource-collector', {
+      const response = await collectorFetch('/api/resource-collector', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: site.url }),
