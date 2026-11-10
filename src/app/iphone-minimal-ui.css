@@ -264,3 +264,34 @@
   .netflix-series-related { margin: 18px 0 0 !important; }
   .netflix-sidebar-footer { display: none !important; }
 }
+
+@media (max-width: 700px) {
+  .v4-category-page .v4-header .v4-brand,
+  .v4-category-page .v4-header-actions .v4-mobile-search-toggle,
+  .v4-category-page .v4-header-actions .v4-avatar {
+    color: #171719 !important;
+    border-color: rgba(30,30,35,.14) !important;
+    background: rgba(255,255,255,.76) !important;
+  }
+  .dark .v4-category-page .v4-header .v4-brand,
+  .dark .v4-category-page .v4-header-actions .v4-mobile-search-toggle,
+  .dark .v4-category-page .v4-header-actions .v4-avatar {
+    color: #f5f5f7 !important;
+    border-color: rgba(255,255,255,.12) !important;
+    background: rgba(30,30,32,.76) !important;
+  }
+  .dark .v4-home {
+    color-scheme: dark !important;
+    color: #f5f5f7 !important;
+    background: #08080a !important;
+  }
+  .dark .v4-home .v4-section-heading h2 { color: #f5f5f7 !important; }
+  .dark .v4-home .v4-recommendation-section .card,
+  .dark .v4-home .v4-history-card {
+    color: #f5f5f7 !important;
+    border-color: rgba(255,255,255,.1) !important;
+    background: rgba(35,35,38,.72) !important;
+  }
+  .dark .v4-home .v4-history-copy strong { color: #f5f5f7 !important; }
+  .dark .v4-home .v4-history-empty { color: #a1a1aa !important; background: rgba(35,35,38,.72) !important; }
+}
