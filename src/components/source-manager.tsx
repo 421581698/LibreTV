@@ -35,6 +35,7 @@ import { api } from '@/lib/client-api';
 import { AUTO_REFRESH_MAX_FAIL_STREAK, syncSourceSubscription } from '@/lib/subscription-sync';
 import { describeParseStats } from '@/lib/tvbox-parser';
 import { collectorFetch, clearScraplingConfig, normalizeScraplingBase, readScraplingConfig, saveScraplingConfig } from '@/lib/collector-browser-config';
+import { registerValidatedCmsSource } from '@/lib/resource-collector-workflow';
 
 
 const CollectorPlayerShell = dynamic(
@@ -193,7 +194,7 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
 
 
 type CollectorSite = { title: string; url: string; host: string; directory: string };
-type CollectorCandidate = { id?: string; url: string; kind: string; host: string; title?: string; status?: string; access_state?: string; reason?: string; next_action?: string; drm_systems?: string[]; validation?: { cms_shape?: boolean; reachable?: boolean | null; public_host?: boolean; note?: string; media_format?: string; content_type?: string; manifest_valid?: boolean; rejected_reference_count?: number; access?: { access_state?: string; reason?: string } } };
+type CollectorCandidate = { id?: string; url: string; kind: string; host: string; title?: string; status?: string; access_state?: string; reason?: string; next_action?: string; drm_systems?: string[]; validation?: { cms_shape?: boolean; reachable?: boolean | null; public_host?: boolean; source_url?: string | null; note?: string; media_format?: string; content_type?: string; manifest_valid?: boolean; rejected_reference_count?: number; access?: { access_state?: string; reason?: string } } };
 type CollectorTask = { id: string; url: string; host: string; status: string; created_at: number; updated_at: number; error?: string | null; result_count: number };
 
 function ResourceCollectorPanel() {
@@ -205,6 +206,7 @@ function ResourceCollectorPanel() {
   const [tasks, setTasks] = useState<CollectorTask[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [resultMessage, setResultMessage] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [collectorBase, setCollectorBase] = useState('');
   const [collectorToken, setCollectorToken] = useState('');
@@ -405,14 +407,25 @@ function ResourceCollectorPanel() {
           }
         : item));
       if (cmsValidated) {
-        const duplicate = [...store.customAPIs, ...store.envSources].some((source) => source.url.replace(/\/$/, '') === candidate.url.replace(/\/$/, ''));
-        if (!duplicate) {
-          store.addCustomApi({ name: candidate.title || candidate.host, url: candidate.url, detail: selectedSite?.url });
+        const registration = registerValidatedCmsSource(
+          useAppStore.getState(),
+          candidate,
+          validation,
+          selectedSite?.url,
+        );
+        if (registration.registered) {
+          setResultMessage((current) => [current, `CMS 点播源已注册并默认启用：${registration.sourceUrl}`].filter(Boolean).join('；'));
+        } else if (registration.duplicate) {
+          setResultMessage((current) => [current, '该 CMS 点播源已经存在于影视源管理中，无需重复添加。'].filter(Boolean).join('；'));
+        } else {
+          setError(registration.reason || 'CMS 点播源注册失败。');
         }
       } else if (candidate.kind === 'cms-api-candidate') {
-        setError('该地址未通过公开访问与 CMS API 结构验证，没有加入点播源。');
+        setError(validation.reason || validation.access?.reason || '该地址未通过公开访问与 CMS API 结构验证，没有加入点播源。');
       } else if (candidate.kind === 'direct-media' && !directMediaValidated) {
         setError(validation.note || '该媒体未通过访问权限、格式或媒体清单检查，不能预览。');
+      } else if (directMediaValidated) {
+        setResultMessage('直接媒体地址已通过公开访问检查；它不会被注册为 CMS 点播源。');
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '资源验证失败。');

@@ -61,6 +61,7 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
   const theme = read('src/app/v4-header-theme.css');
   const safeArea = read('src/app/theme-safe-area.css');
   const collectorSettings = read('src/components/source-manager.tsx');
+  const collectorWorkflow = read('src/lib/resource-collector-workflow.ts');
   const collectorRoute = read('src/app/api/resource-collector/route.ts');
   const collectorValidationRoute = read('src/app/api/resource-collector/candidates/[candidateId]/validate/route.ts');
   const collectorDock = read('src/components/home/header/MobileTabBar.tsx');
@@ -120,10 +121,10 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
   });
 
   it('plays only direct media and imports a source only after CMS shape validation', () => {
-    expect(collectorSettings).toContain('isCandidatePreviewEligible(candidate)');
-    expect(collectorSettings).toContain('validation.cms_shape === true');
-    expect(collectorSettings).toContain("status: cmsValidated || directMediaValidated ? 'validated' : 'rejected'");
-    expect(collectorSettings).toContain('store.addCustomApi');
+    expect(collectorSettings).toContain("candidate.kind === 'direct-media' && candidate.status === 'checked'");
+    expect(collectorSettings).toContain('registerValidatedCmsSource');
+    expect(collectorWorkflow).toContain('validation.cms_shape !== true || validation.reachable !== true');
+    expect(collectorWorkflow).toContain('store.addCustomApi');
     expect(collectorValidationRoute).toContain('guardPrivateFeatureRequest(request)');
     expect(collectorValidationRoute).toContain('/validate');
   });

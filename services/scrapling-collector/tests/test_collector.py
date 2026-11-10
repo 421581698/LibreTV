@@ -1102,5 +1102,85 @@ segment-2.ts
 
 
 
+    def test_cms_api_shape_requires_actual_vod_fields_not_any_json_list(self):
+        valid = {
+            "code": 1,
+            "msg": "ok",
+            "list": [{"vod_id": 12, "vod_name": "Example Movie", "vod_pic": "https://img.example/poster.jpg"}],
+        }
+        generic = {"list": [{"id": 12, "name": "Not a CMS record"}]}
+        self.assertEqual(collector.extract_cms_api_list(valid), valid["list"])
+        self.assertIsNone(collector.extract_cms_api_list(generic))
+        self.assertIsNone(collector.extract_cms_api_list({"data": {"items": []}}))
+
+    def test_captured_browser_network_identifies_cms_api_by_response_shape(self):
+        class CapturedResponse:
+            url = "https://catalog.example/api/vod/list"
+            status = 200
+            headers = {"content-type": "application/json"}
+            body = b'{"code":1,"msg":"ok","list":[{"vod_id":1,"vod_name":"Example"}]}'
+
+        class Network:
+            def search(self, limit=None):
+                return [CapturedResponse()]
+
+        class Session:
+            network = Network()
+
+        candidates = collector.captured_api_candidates(Session(), "https://catalog.example/", 10)
+        self.assertEqual(len(candidates), 1)
+        self.assertEqual(candidates[0]["kind"], "cms-api-candidate")
+        self.assertEqual(candidates[0]["access_state"], "PUBLIC")
+
+    def test_cms_source_root_removes_per_request_query_and_fragment(self):
+        self.assertEqual(
+            collector.cms_source_root("https://catalog.example/api.php/provide/vod/?ac=list&page=1#x"),
+            "https://catalog.example/api.php/provide/vod/",
+        )
+
+    def test_validate_candidate_accepts_real_cms_vod_json_without_requiring_content_type_header(self):
+        candidate_id = "f" * 32
+        task_id = "1" * 32
+        with collector.db() as connection:
+            connection.execute(
+                "INSERT INTO tasks(id,url,host,status,mode,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                (task_id, "https://catalog.example/", "catalog.example", "completed", "auto", 1, 1),
+            )
+            connection.execute(
+                "INSERT INTO candidates(id,task_id,url,host,kind,title,status,created_at) VALUES(?,?,?,?,?,?,?,?)",
+                (candidate_id, task_id,
+                 "https://catalog.example/api.php/provide/vod/?ac=list&page=1",
+                 "catalog.example", "cms-api-candidate", "Catalog", "pending", 1),
+            )
+
+        class Page:
+            status = 200
+            headers = {"content-type": "text/plain"}
+            body = b'{"code":1,"msg":"ok","page":1,"list":[{"vod_id":7,"vod_name":"Example Movie"}]}'
+
+        with (
+            patch.object(collector, "require_token"),
+            patch.object(collector, "require_egress_firewall"),
+            patch.object(collector, "public_https_url", return_value=(
+                "https://catalog.example/api.php/provide/vod/?ac=list&page=1", "catalog.example"
+            )),
+            patch.object(collector, "throttle"),
+            patch.object(collector.Fetcher, "get", return_value=Page()),
+        ):
+            result = collector.validate_candidate(candidate_id)
+
+        self.assertTrue(result["validation"]["cms_shape"])
+        self.assertEqual(result["validation"]["sample_count"], 1)
+        self.assertEqual(
+            result["validation"]["source_url"],
+            "https://catalog.example/api.php/provide/vod/",
+        )
+        with collector.db() as connection:
+            stored = connection.execute(
+                "SELECT status FROM candidates WHERE id=?", (candidate_id,)
+            ).fetchone()
+        self.assertEqual(stored["status"], "validated")
+
+
 if __name__ == "__main__":
     unittest.main()
