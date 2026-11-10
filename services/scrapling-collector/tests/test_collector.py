@@ -1088,7 +1088,7 @@ segment-2.ts
                 if selector == "a":
                     return [
                         Anchor("https://archive.org/details/movies", "Internet Archive"),
-                        Anchor("https://www.archive.org/details/another", "Internet Archive duplicate"),
+                        Anchor("https://archive.org/details/another", "Internet Archive duplicate"),
                         Anchor("https://fmhy.net/video", "FMHY internal"),
                         Anchor("https://tubi.tv/category/movies", "Tubi"),
                         Anchor("http://insecure.example", "Insecure"),
