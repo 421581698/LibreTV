@@ -192,7 +192,7 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
 
 
 type CollectorSite = { title: string; url: string; host: string; directory: string };
-type CollectorCandidate = { id?: string; url: string; kind: string; host: string; title?: string; status?: string; validation?: { cms_shape?: boolean; reachable?: boolean; public_host?: boolean; note?: string } };
+type CollectorCandidate = { id?: string; url: string; kind: string; host: string; title?: string; status?: string; access_state?: 'PUBLIC' | 'AUTH_REQUIRED' | 'SUBSCRIPTION_REQUIRED' | 'DRM_PROTECTED' | 'ACCESS_UNKNOWN'; reason?: string; next_action?: string; drm_systems?: string[]; validation?: { cms_shape?: boolean; reachable?: boolean; public_host?: boolean; note?: string } };
 type CollectorTask = { id: string; url: string; host: string; status: string; created_at: number; updated_at: number; error?: string | null; result_count: number };
 
 function ResourceCollectorPanel() {
@@ -493,14 +493,17 @@ function ResourceCollectorPanel() {
             <div key={candidate.url} className="flex min-w-0 items-center gap-2 rounded-lg bg-chip p-2">
               <div className="min-w-0 flex-1">
                 <span className="block text-[10px] text-muted">{candidate.kind} · {candidate.host} · {candidate.status === 'validated' ? 'CMS 结构通过' : candidate.status === 'checked' ? '地址已检查，待播放验证' : '待验证'}</span>
+                {candidate.access_state ? <span className="block text-[10px] font-semibold text-content">{candidate.access_state}{candidate.drm_systems?.length ? ` · ${candidate.drm_systems.join(', ')}` : ''}</span> : null}
+                {candidate.reason ? <span className="block text-[10px] text-muted">{candidate.reason}</span> : null}
+                {candidate.next_action ? <span className="block text-[10px] text-muted">{candidate.next_action}</span> : null}
                 {candidate.validation?.note ? <span className="block text-[10px] text-muted">{candidate.validation.note}</span> : null}
                 <a className="block truncate text-xs text-content underline" href={candidate.url} target="_blank" rel="noreferrer">{candidate.url}</a>
               </div>
               <div className="flex shrink-0 flex-wrap gap-1">
-                {candidate.kind === 'direct-media' && candidate.status === 'checked' ? (
+                {candidate.access_state === 'PUBLIC' && candidate.kind === 'direct-media' && candidate.status === 'checked' ? (
                   <button type="button" className="btn-primary btn-sm" onClick={() => setPlayingCandidate(candidate)}>播放</button>
                 ) : null}
-                <button type="button" className="btn-ghost btn-sm" disabled={busy || !candidate.id} onClick={() => void validateCandidate(candidate)}>
+                <button type="button" className="btn-ghost btn-sm" disabled={busy || !candidate.id || (candidate.access_state !== undefined && candidate.access_state !== 'PUBLIC')} onClick={() => void validateCandidate(candidate)}>
                   {candidate.status === 'validated' ? '已验证' : candidate.status === 'checked' ? '已检查' : '验证'}
                 </button>
                 <button type="button" className="btn-ghost btn-sm" onClick={() => void copyToClipboard(candidate.url)}>复制</button>
