@@ -1061,12 +1061,12 @@ segment-2.ts
     def test_webm_ebml_video_dimensions_are_parsed(self):
         def element(element_id, payload):
             return element_id + bytes([0x80 | len(payload)]) + payload
-        pixel_width = element(b"\\xb0", (1920).to_bytes(2, "big"))
-        pixel_height = element(b"\\xba", (1080).to_bytes(2, "big"))
-        video = element(b"\\xe0", pixel_width + pixel_height)
-        track = element(b"\\xae", video)
-        tracks = element(b"\\x16\\x54\\xae\\x6b", track)
-        segment = element(b"\\x18\\x53\\x80\\x67", tracks)
+        pixel_width = element(bytes([0xB0]), (1920).to_bytes(2, "big"))
+        pixel_height = element(bytes([0xBA]), (1080).to_bytes(2, "big"))
+        video = element(bytes([0xE0]), pixel_width + pixel_height)
+        track = element(bytes([0xAE]), video)
+        tracks = element(bytes([0x16, 0x54, 0xAE, 0x6B]), track)
+        segment = element(bytes([0x18, 0x53, 0x80, 0x67]), tracks)
         self.assertEqual(
             collector.parse_webm_container_dimensions(segment),
             {"width": 1920, "height": 1080, "source": "webm_ebml_video"},
