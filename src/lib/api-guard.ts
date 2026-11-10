@@ -30,6 +30,10 @@ export function guardRequest(req: Request): NextResponse | null {
  * and server-side SCRAPLING_API_BASE / SCRAPLING_API_TOKEN fallback remains
  * available.
  */
+export function jsonError(message: string, status: number): NextResponse {
+  return NextResponse.json({ error: message }, { status });
+}
+
 export function guardPrivateFeatureRequest(req: Request): NextResponse | null {
   if (isAuthDisabled()) {
     const browserBase = req.headers.get('x-scrapling-api-base')?.trim() ?? '';
