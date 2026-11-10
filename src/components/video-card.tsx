@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { SearchResultItem, SourceConfig } from '@/lib/types';
 import { useAppStore } from '@/lib/store';
 import { qualityKey } from '@/lib/quality';
+import { rankMovieCandidatesByQuality } from '@/lib/playback-telemetry';
 import { compactRemarks, formatRemarks, inferGroupRemarks } from '@/lib/remarks';
 import { cn } from '@/lib/utils';
 import { SmartImage } from './smart-image';
@@ -83,6 +84,9 @@ export function AggregatedCard({
 }) {
   const imageProxyMode = useAppStore((s) => s.imageProxyMode);
   const customImageProxy = useAppStore((s) => s.customImageProxy);
+  const playbackHealth = useAppStore((s) => s.playbackHealth);
+  const playbackResourceHealth = useAppStore((s) => s.playbackResourceHealth);
+  const persistedQualityMap = useAppStore((s) => s.qualityMap);
   const [expanded, setExpanded] = useState(false);
   const showImg = !!group.pic;
 
@@ -122,14 +126,14 @@ export function AggregatedCard({
 
   // 展开面板按画质降序（同级保持原有源顺序）：探到一个更好的就往上走，
   // 用户不必自己横向比较三行灰字。没探到 / 未探到的排在最后。
-  const heightOf = (item: SearchResultItem) => qualities[qualityKey(item.sourceKey, item.vodId)]?.height ?? 0;
+  const heightOf = (item: SearchResultItem) => {
+    const key = qualityKey(item.sourceKey, item.vodId);
+    return qualities[key]?.height ?? persistedQualityMap[key]?.height ?? 0;
+  };
   const sortedItems = useMemo(() => {
-    const height = (item: SearchResultItem) => qualities[qualityKey(item.sourceKey, item.vodId)]?.height ?? 0;
-    return group.items
-      .map((item, index) => ({ item, index }))
-      .sort((a, b) => height(b.item) - height(a.item) || a.index - b.index)
-      .map((entry) => entry.item);
-  }, [group.items, qualities]);
+    const qualityEvidence = { ...persistedQualityMap, ...qualities };
+    return rankMovieCandidatesByQuality(group.items, qualityEvidence, playbackHealth, Date.now(), playbackResourceHealth);
+  }, [group.items, persistedQualityMap, qualities, playbackHealth, playbackResourceHealth]);
   const bestHeight = sortedItems.reduce((max, item) => Math.max(max, heightOf(item)), 0);
   // 并列最高时只强调排在第一的那一行：三个源里框两个等于没有推荐
   const firstBest = sortedItems.find((item) => bestHeight > 0 && heightOf(item) === bestHeight);
