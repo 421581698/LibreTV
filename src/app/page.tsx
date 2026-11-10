@@ -216,9 +216,9 @@ function HomeContent() {
               </h2>
             </div>
             {registryResources.length > 0 && (
-              <div className="mb-5" aria-label="已验证资源">
+              <div className="mb-5" aria-label="公开媒体资源">
                 <div className="mb-2 flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-content">已验证可播放资源</h3>
+                  <h3 className="text-sm font-semibold text-content">公开媒体资源 · 已通过预检</h3>
                   <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-600">Registry</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
@@ -231,9 +231,9 @@ function HomeContent() {
                     >
                       <span className="min-w-0">
                         <strong className="block truncate text-sm text-content">{resource.title}</strong>
-                        <span className="block truncate text-xs text-muted">{resource.source_name ?? 'LibreTV Registry'} · {resource.media_format?.toUpperCase() ?? 'MEDIA'}</span>
+                        <span className="block truncate text-xs text-muted">{resource.source_name ?? 'LibreTV Registry'} · 公开访问预检通过 · {resource.media_format?.toUpperCase() ?? 'MEDIA'}</span>
                       </span>
-                      <span className="shrink-0 text-xs font-medium text-emerald-600">播放 ▶</span>
+                      <span className="shrink-0 text-xs font-medium text-emerald-600">尝试播放 ▶</span>
                     </button>
                   ))}
                 </div>
