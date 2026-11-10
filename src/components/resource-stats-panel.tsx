@@ -10,6 +10,7 @@ type SiteStat = {
   last_status: string; last_error: string | null; candidate_count: number;
   video_candidates: number; preflight_passed: number; playback_confirmed: number;
   actual_quality: Quality; pages_visited: number | null;
+  health_status?: string; failure_streak?: number; playback_samples?: number;
 };
 type StatsPayload = {
   source: string; generated_at: number;
@@ -18,8 +19,10 @@ type StatsPayload = {
     failed_sites: number; crawl_tasks: number; candidate_resources: number;
     video_candidates: number; preflight_passed: number; playback_confirmed: number;
     actual_quality: Quality; movie_entries: number; episode_entries: number;
+    queue_jobs?: Record<string, number>;
   };
   sites: SiteStat[]; site?: SiteStat | null;
+  recent_jobs?: Array<{ id: string; job_type: string; status: string; attempt: number; max_attempts: number; error?: string | null; created_at: number; updated_at: number }>;
   recent_tasks?: Array<{ id: string; status: string; created_at: number; updated_at: number; error?: string | null; result_count: number }>;
   recent_resources?: Array<{ title: string; kind: string; status: string; access_state: string; playback_confirmed: boolean; decoded_width: number; decoded_height: number; created_at: number }>;
 };
@@ -79,6 +82,19 @@ export function ResourceStatsPanel() {
               </div>
             ))}
           </div>
+          {summary.queue_jobs ? (
+            <div className="rounded-xl border border-line p-3">
+              <div className="mb-2 text-xs font-semibold text-content">持久任务队列</div>
+              <div className="grid grid-cols-3 gap-2 text-xs sm:grid-cols-6">
+                {['queued','running','succeeded','failed','cancelled','total'].map((key) => (
+                  <div key={key} className="rounded-lg bg-chip p-2">
+                    <span className="text-muted">{({queued:'排队',running:'运行中',succeeded:'成功',failed:'失败',cancelled:'取消',total:'总任务'} as Record<string,string>)[key]}</span>
+                    <strong className="mt-1 block tabular-nums text-content">{fmt(summary.queue_jobs?.[key] ?? 0)}</strong>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
           <div className="rounded-xl border border-line p-3">
             <div className="mb-3 text-xs font-semibold text-content">实际播放解码清晰度</div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -102,6 +118,7 @@ export function ResourceStatsPanel() {
                 <span className="min-w-0 flex-1">
                   <strong className="block truncate text-xs text-content">{site.title || site.host}</strong>
                   <span className="mt-1 block truncate text-[11px] text-muted">{site.host} · {site.directory}</span>
+                  <span className="mt-1 block text-[10px] text-muted">健康状态：{({healthy:'正常',degraded:'需关注',failing:'连续失败',unknown:'暂无样本'} as Record<string,string>)[site.health_status || 'unknown']}</span>
                 </span>
                 <span className="grid grid-cols-3 gap-3 text-right text-[11px]">
                   <span><b className="block tabular-nums text-content">{fmt(site.video_candidates)}</b><i className="not-italic text-muted">候选</i></span>

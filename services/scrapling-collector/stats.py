@@ -54,6 +54,13 @@ def build_stats(connection: sqlite3.Connection, host=None):
                   quality_evidence,playback_verification
            FROM candidates ORDER BY created_at DESC"""
     ).fetchall()]
+    try:
+        jobs = [dict(r) for r in connection.execute(
+            """SELECT id,job_type,status,attempt,max_attempts,error,created_at,updated_at
+               FROM collector_jobs ORDER BY created_at DESC"""
+        ).fetchall()]
+    except sqlite3.OperationalError:
+        jobs = []
 
     resources_by_host = {}
     try:
@@ -99,6 +106,20 @@ def build_stats(connection: sqlite3.Connection, host=None):
         succeeded = sum(1 for t in site_tasks if t["status"] in ("completed", "succeeded"))
         failed = sum(1 for t in site_tasks if t["status"] == "failed")
         registry = resources_by_host.get(h, {})
+        failure_streak = 0
+        for task in site_tasks:
+            if task["status"] in ("failed", "interrupted"):
+                failure_streak += 1
+            elif task["status"] in ("completed", "succeeded"):
+                break
+            else:
+                break
+        health_status = (
+            "unknown" if not site_tasks else
+            "failing" if failure_streak >= 3 else
+            "degraded" if latest and latest["status"] in ("failed", "interrupted", "partial") else
+            "healthy" if latest and latest["status"] in ("completed", "succeeded") else "unknown"
+        )
         site_summaries.append({
             "host": h, "title": site["title"], "url": site["url"], "directory": site["directory"],
             "discovered_at": site["discovered_at"], "crawl_tasks": len(site_tasks),
@@ -111,6 +132,8 @@ def build_stats(connection: sqlite3.Connection, host=None):
             "movie_entries": int(registry.get("movie_entries") or 0),
             "episode_entries": int(registry.get("episode_entries") or 0),
             "registry_resources": int(registry.get("registry_resources") or 0),
+            "health_status": health_status, "failure_streak": failure_streak,
+            "playback_samples": len(unique_confirmed),
             "pages_visited": None, "pages_succeeded": None, "pages_failed": None
         })
 
@@ -122,8 +145,14 @@ def build_stats(connection: sqlite3.Connection, host=None):
     visited_hosts = {t["host"] for t in tasks}
     latest_by_host = {}
     for task in tasks: latest_by_host.setdefault(task["host"], task)
+    queue_jobs = {
+        state: sum(1 for job in jobs if job["status"] == state)
+        for state in ("queued", "running", "succeeded", "failed", "cancelled", "cancel_requested")
+    }
+    queue_jobs["total"] = len(jobs)
     summary = {
         "discovered_sites": len(sites), "visited_sites": len(visited_hosts),
+        "queue_jobs": queue_jobs,
         "successful_sites": sum(1 for t in latest_by_host.values() if t["status"] in ("completed", "succeeded")),
         "failed_sites": sum(1 for t in latest_by_host.values() if t["status"] == "failed"),
         "crawl_tasks": len(tasks),
@@ -138,6 +167,10 @@ def build_stats(connection: sqlite3.Connection, host=None):
     response = {
         "source": "collector_sqlite", "generated_at": int(time.time()),
         "summary": summary, "sites": site_summaries,
+        "recent_jobs": [
+            {k: job.get(k) for k in ("id","job_type","status","attempt","max_attempts","error","created_at","updated_at")}
+            for job in jobs[:20]
+        ],
         "data_notes": [
             "Counts are derived from persisted Collector SQLite records.",
             "Candidates, public preflight approvals, and player-confirmed playback are separate states.",
