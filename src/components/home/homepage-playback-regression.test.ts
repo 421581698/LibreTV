@@ -21,6 +21,11 @@ const assistant = source('src/components/AIFloatingBall.tsx');
 const header = source('src/components/header.tsx');
 const detail = source('src/components/detail-modal.tsx');
 const player = source('src/components/player-shell.tsx');
+const database = source('src/lib/db.ts');
+const videoCards = source('src/components/video-card.tsx');
+const spatialScreenSource = source('src/components/home/V4SpatialScreen.tsx');
+const searchPageSource = source('src/app/search/page.tsx');
+const searchResultsSource = source('src/app/search/results/page.tsx');
 const history = source('src/components/history-panel.tsx');
 const settings = source('src/components/source-manager.tsx');
 const drawer = source('src/components/drawer.tsx');
@@ -266,6 +271,7 @@ describe('首页与播放页回归契约', () => {
     expect(player).toContain('fullscreenWeb: !touchPointer');
     expect(player).toContain('webkitEnterFullscreen');
     expect(player).toContain('art.fullscreenWeb = !art.fullscreenWeb');
+    expect(watch).toContain('netflix-continue-heading');
     expect(player).toContain('playbackRate: true');
     expect(player).toContain('art.on(\'video:ratechange\'');
     expect(player).toContain('art.on(\'video:loadedmetadata\'');
@@ -512,6 +518,25 @@ describe('首页与播放页回归契约', () => {
   });
 
 
+
+  it('影视收藏使用独立 IndexedDB 表，并贯通卡片、我的页面与本机备份', () => {
+    expect(database).toContain('favorites: EntityTable<FavoriteEntry, \'id\'>');
+    expect(database).toContain('db.version(6).stores({');
+    expect(database).toContain('export async function addFavorite');
+    expect(database).toContain('export async function removeFavorite');
+    expect(database).toContain('viewingFavorites: JSON.stringify(favorites)');
+    expect(videoCards).toContain('aria-pressed={isFavorite}');
+    expect(videoCards).toContain('addFavorite({');
+    expect(spatialScreenSource).toContain('影视收藏');
+    expect(spatialScreenSource).toContain('MeFavoriteCard');
+  });
+
+  it('搜索提交进入独立结果地址，并复用跨源聚合页面', () => {
+    expect(searchPageSource).toContain("/search/results?q=");
+    expect(searchResultsSource).toContain("import HomePage from '@/app/page'");
+    expect(home).toContain('const RESULT_PAGE_SIZE = 60');
+    expect(home).toContain('重试搜索');
+  });
 
   it('iPad 适配覆盖 1440px 宽屏触控设备，并分别定义横竖屏布局', () => {
     expect(ipadStyles).toContain('(min-width: 701px) and (max-width: 1440px) and (any-pointer: coarse)');
