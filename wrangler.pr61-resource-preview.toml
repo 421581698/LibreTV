@@ -1,0 +1,17 @@
+name = "libretv-pr61-resource-preview"
+main = ".open-next/worker.js"
+compatibility_date = "2025-04-01"
+compatibility_flags = ["nodejs_compat", "nodejs_compat_populate_process_env", "global_fetch_strictly_public"]
+assets = { directory = ".open-next/assets" }
+
+# Dedicated PR #61 preview. Never aliases PR #60 or production.
+workers_dev = true
+preview_urls = false
+
+[vars]
+CMS_SEARCH_API = "https://caiji.dyttzyapi.com/api.php/provide/vod"
+API_60S_BASE = "https://60s.bggdbh.workers.dev"
+LLM_MODEL = "glm-4-flash"
+AUTH_DISABLED = "true"
+
+# Public PR preview: site password gate is intentionally disabled here only.

@@ -547,13 +547,17 @@ export default function AIFloatingBall({
     }
 
     return () => {
+      // A route change must release the microphone, TTS, VAD interrupt capture,
+      // pending AI request and speech synthesis before this runtime disappears.
       openRef.current = false;
       closingRef.current = false;
-
+      stopAllVoice();
+      stop();
+      cancelActiveRequest();
+      window.speechSynthesis?.cancel();
       clearMovieCloseTimer();
-
     };
-  }, [clearMovieCloseTimer, openPanel]);
+  }, [clearMovieCloseTimer, openPanel, stopAllVoice, stop, cancelActiveRequest]);
 
   const clearConversation = useCallback(() => {
     interrupt();
