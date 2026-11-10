@@ -121,11 +121,13 @@ jobs:
           if (status.passwordRequired !== false || status.verified !== true) {
             throw new Error("PR #61 Preview must be public: passwordRequired=" + status.passwordRequired + ", verified=" + status.verified);
           }
-          let collectorError;
-          try { collectorError = JSON.parse(collector.body); }
-          catch { throw new Error("Collector proxy did not return a JSON denial response."); }
-          if (collector.response.status !== 403 || !String(collectorError.error || "").includes("公开预览环境中已禁用")) {
-            throw new Error("Public Preview must keep Collector disabled (HTTP 403), got " + collector.response.status + ": " + collector.body.slice(0, 300));
+          if (collector.response.status === 401 || collector.response.status === 403) {
+            throw new Error("Public Preview Collector must not require the website password; got HTTP " + collector.response.status + ": " + collector.body.slice(0, 300));
           }
-          console.log("PR #61 Preview verified: dedicated Worker homepage is public; Collector remains disabled in the public Preview.");
+          if (collector.response.status === 503 && collector.body.includes("COLLECTOR_NOT_CONFIGURED")) {
+            console.log("Collector route is reachable without a website password; Scrapling HTTPS URL and Token still need configuration.");
+          } else {
+            console.log("Collector route is reachable without a website password; upstream HTTP " + collector.response.status + ".");
+          }
+          console.log("PR #61 Preview verified: public homepage and password-independent Collector access.");
           NODE
