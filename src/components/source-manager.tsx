@@ -267,7 +267,21 @@ function ResourceCollectorPanel() {
         throw new Error(`连接测试失败（HTTP ${response.status}）：${detail}${statusHint ? `。${statusHint}` : ''}`);
       }
       if (payload.ok !== true) throw new Error('Collector 已响应，但健康状态未确认（缺少 ok=true）。');
-      setConnectionStatus('连接成功：Collector Health 检查通过。');
+
+      // /health is intentionally public and does not validate the configured bearer token.
+      // /v1/tasks is authenticated but read-only and does not trigger external crawling.
+      const authResponse = await collectorFetch('/api/resource-collector/tasks', { cache: 'no-store' });
+      const authPayload = await authResponse.json().catch(() => ({}));
+      if (!authResponse.ok) {
+        const detail = typeof authPayload.detail === 'string' ? authPayload.detail :
+          typeof authPayload.error === 'string' ? authPayload.error : '未提供错误详情';
+        const authHint = authResponse.status === 401 ? 'Collector 拒绝了 Token，请核对 SCRAPLING_API_TOKEN。' :
+          authResponse.status === 403 ? 'Preview 认证策略拒绝了资源采集请求，请确认已登录受保护 Preview。' :
+          authResponse.status === 503 ? 'Collector 服务端配置或安全出口闸门未就绪。' : '';
+        throw new Error(`健康检查通过，但 Token/采集 API 验证失败（HTTP ${authResponse.status}）：${detail}${authHint ? `。${authHint}` : ''}`);
+      }
+      if (!Array.isArray(authPayload.tasks)) throw new Error('Collector Token 已接受，但任务 API 返回格式不正确。');
+      setConnectionStatus('连接成功：Collector 健康检查和 Token 认证均通过。');
     } catch (reason) {
       setConnectionStatus('连接测试未通过。');
       setError(reason instanceof Error ? reason.message : 'Collector 连接测试失败。');
