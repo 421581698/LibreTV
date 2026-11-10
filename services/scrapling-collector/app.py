@@ -975,7 +975,7 @@ def extract_candidates(page, page_url: str, limit: int) -> list[dict]:
         script_text = (getattr(script, "text", "") or "").strip()
         if not script_text or len(script_text) > 512_000:
             continue
-        for match in re.findall(r"""(?i)(?:file|src|url|playurl|play_url|video_url|hls|dash)\\s*[:=]\\s*["'](https://[^"'\\s<>]+)["']""", script_text):
+        for match in re.findall(r"""(?i)(?:file|src|url|playurl|play_url|video_url|hls|dash)\s*[:=]\s*["'](https://[^"'\s<>]+)["']""", script_text):
             classified = classify_url(match)
             if classified:
                 kind, host = classified
