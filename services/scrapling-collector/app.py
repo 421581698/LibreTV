@@ -1246,7 +1246,7 @@ def extract_cms_api_list(payload: object) -> list | None:
 def cms_source_root(raw_url: str) -> str:
     """Drop per-request query/fragment while retaining the provider's CMS API path."""
     parsed = urlparse(raw_url)
-    return parsed._replace(query="", fragment="").geturl().rstrip("/")
+    return parsed._replace(query="", fragment="").geturl()
 
 
 def classify_url(raw_url: str) -> tuple[str, str] | None:
