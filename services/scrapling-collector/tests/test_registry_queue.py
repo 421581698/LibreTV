@@ -133,5 +133,36 @@ class RegistryQueueTests(unittest.TestCase):
         self.assertEqual(verifications, 2)
 
 
+    def test_registry_search_exposes_public_validated_media_before_first_playback(self):
+        resource = queue.upsert_resource({
+            "resource_key": "candidate:public-media", "source_key": "public-provider",
+            "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/film.m3u8",
+            "title": "Public Film", "access_state": "PUBLIC", "media_format": "hls",
+            "candidate_id": "a" * 32,
+        })
+        queue.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        with patch.object(queue, "require_auth"):
+            result = queue.api_registry_search(q="Public Film", authorization="Bearer test")
+        self.assertEqual(len(result["resources"]), 1)
+        self.assertEqual(result["resources"][0]["playback_state"], "unverified")
+        self.assertEqual(result["resources"][0]["candidate_id"], "a" * 32)
+        self.assertEqual(result["queued"], [])
+        self.assertEqual(result["search_mode"], "playback_eligible_registry")
+
+    def test_registry_search_does_not_expose_unvalidated_or_non_media_candidates(self):
+        resource = queue.upsert_resource({
+            "resource_key": "candidate:cms-api", "source_key": "public-provider",
+            "resource_type": "CMS_VOD", "url": "https://api.example.org/provide/vod",
+            "title": "Public Film", "access_state": "PUBLIC",
+        })
+        queue.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        with patch.object(queue, "require_auth"):
+            result = queue.api_registry_search(q="Public Film", authorization="Bearer test")
+        self.assertEqual(result["resources"], [])
+        self.assertEqual(len(result["queued"]), 1)
+        self.assertEqual(result["queued"][0]["stage"], "fmhy_discovery")
+
+
+
 if __name__ == "__main__":
     unittest.main()
