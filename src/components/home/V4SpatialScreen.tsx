@@ -244,6 +244,7 @@ function ResourcesScreen() {
 function MeScreen() {
   const history = useLiveQuery(() => db.history.orderBy('timestamp').reverse().limit(24).toArray(), []);
   const downloads = useLiveQuery(() => db.downloads.orderBy('createdAt').reverse().limit(20).toArray(), []);
+  const liveFavorites = useAppStore((state) => state.liveFavorites);
   return (
     <div className="v4-me-layout">
       <section className="v4-me-cover" aria-label="我的个人空间封面">
@@ -277,6 +278,10 @@ function MeScreen() {
         )}
       </section>
       <section className="v4-spatial-panel v4-me-library-actions">
+        <Link href="/live" className="v4-settings-card">
+          <div><strong>频道收藏</strong><p>{liveFavorites.length} 个已收藏频道</p></div>
+          <b aria-hidden="true">›</b>
+        </Link>
         <button type="button" className="v4-settings-card" onClick={() => requestShowDownloadManager()}>
           <div><strong>下载管理</strong><p>{downloads?.length ?? 0} 个本机下载任务 · 查看进度与管理文件</p></div>
           <b aria-hidden="true">›</b>
