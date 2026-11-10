@@ -900,14 +900,41 @@ def text_of(element) -> str:
         return ""
 
 
-def fmhy_sites_from_page(page) -> list[dict]:
+def fmhy_category_pages_from_page(page) -> list[str]:
+    """Find a small set of FMHY-owned video category pages; never follow external links here."""
+    pages: list[str] = []
+    seen: set[str] = set()
+    for anchor in adaptive_css(page, "a"):
+        href = (anchor.attrib.get("href") or "").strip()
+        if not href:
+            continue
+        target = urljoin(FMHY_VIDEO_URL, href)
+        parsed = urlparse(target)
+        if parsed.scheme != "https" or parsed.hostname != "fmhy.net":
+            continue
+        path = parsed.path.rstrip("/") or "/"
+        signal = f"{path} {text_of(anchor).lower()}"
+        if path == "/video" or not any(
+            marker in signal for marker in ("video", "movie", "film", "tv", "anime", "cartoon", "影视", "电影", "动漫")
+        ):
+            continue
+        canonical = parsed._replace(fragment="").geturl()
+        if canonical not in seen:
+            seen.add(canonical)
+            pages.append(canonical)
+        if len(pages) >= 8:
+            break
+    return pages
+
+
+def fmhy_sites_from_page(page, directory_url: str = FMHY_VIDEO_URL) -> list[dict]:
     sites: list[dict] = []
     seen: set[str] = set()
     for anchor in adaptive_css(page, "a"):
         href = (anchor.attrib.get("href") or "").strip()
         if not href:
             continue
-        absolute = urljoin(FMHY_VIDEO_URL, href)
+        absolute = urljoin(directory_url, href)
         parsed = urlparse(absolute)
         if parsed.scheme != "https" or not parsed.hostname:
             continue
@@ -918,7 +945,7 @@ def fmhy_sites_from_page(page) -> list[dict]:
         if not title:
             continue
         seen.add(host)
-        sites.append({"title": title, "url": absolute, "host": host, "directory": "FMHY / Movies-TV-Anime"})
+        sites.append({"title": title, "url": absolute, "host": host, "directory": f"FMHY / {urlparse(directory_url).path.strip('/') or 'Movies-TV-Anime'}"})
         if len(sites) >= MAX_RESULTS:
             break
     return sites
@@ -926,8 +953,30 @@ def fmhy_sites_from_page(page) -> list[dict]:
 
 def discover_sites() -> list[dict]:
     throttle("fmhy.net")
-    page = Fetcher.get(FMHY_VIDEO_URL, timeout=25, follow_redirects="safe")
-    sites = fmhy_sites_from_page(page)
+    root_page = Fetcher.get(FMHY_VIDEO_URL, timeout=25, follow_redirects="safe")
+    directory_pages = [FMHY_VIDEO_URL, *fmhy_category_pages_from_page(root_page)]
+    sites_by_host: dict[str, dict] = {}
+    for directory_url in directory_pages:
+        try:
+            if directory_url == FMHY_VIDEO_URL:
+                page = root_page
+            else:
+                throttle("fmhy.net")
+                page = Fetcher.get(directory_url, timeout=25, follow_redirects="safe")
+            for site in fmhy_sites_from_page(page, directory_url):
+                existing = sites_by_host.get(site["host"])
+                if existing:
+                    labels = set(existing["directory"].split(" | "))
+                    labels.add(site["directory"])
+                    existing["directory"] = " | ".join(sorted(labels))
+                else:
+                    sites_by_host[site["host"]] = site
+        except Exception:
+            # One unavailable FMHY category must not discard other successful pages.
+            continue
+        if len(sites_by_host) >= MAX_RESULTS:
+            break
+    sites = list(sites_by_host.values())[:MAX_RESULTS]
     now = int(time.time())
     with db() as connection:
         for site in sites:
