@@ -242,6 +242,7 @@ def build_stats(connection: sqlite3.Connection, host=None):
             "Candidates, public preflight approvals, and player-confirmed playback are separate states.",
             "Actual quality uses decoded video dimensions only; missing dimensions are unknown.",
             "Page visit counts are persisted from Spider processed pages and browser top-level visits; counts are engine visits, not cross-engine deduplicated URLs.",
+            "pages_failed is scheduled pages minus processed visits; it represents uncompleted visits and is not proof that every page returned an HTTP error.",
             "Content fingerprints identify unchanged Spider pages; unchanged pages are not re-extracted."
         ]
     }
