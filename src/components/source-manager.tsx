@@ -486,8 +486,8 @@ function ResourceCollectorPanel() {
         <h3 className="text-lg font-semibold text-content">{activeCenterItem?.title}</h3>
         <p className="mt-1 text-xs text-muted">{activeCenterItem?.detail}</p>
       </div>
-      <ResourceStatsPanel />
-      <div className="rounded-2xl border border-line bg-card p-4 space-y-3">
+      {['overview', 'archives', 'quality'].includes(centerPage) ? <ResourceStatsPanel /> : null}
+      <div hidden={centerPage !== 'connection'} className="rounded-2xl border border-line bg-card p-4 space-y-3">
         <div>
           <h3 className="text-sm font-semibold text-content">Scrapling 连接配置 · 本机 Preview 测试</h3>
           <p className="mt-1 text-xs leading-5 text-muted">填写 Zo Computer 部署的 Collector 地址与密钥。配置仅保存在当前浏览器 LocalStorage，通过已登录的 LibreTV Worker 代理转发；不会写入 Git 或 Cloudflare 环境变量。当前仅用于 PR #60 Preview 测试。</p>
@@ -517,7 +517,7 @@ function ResourceCollectorPanel() {
         <p className="text-[11px] leading-5 text-muted">仅接受公网 HTTPS 域名（443 端口）；Token 通过 HTTPS Header 发送给 LibreTV Worker，再由 Worker 转发给 Collector。清除后回退到服务端 SCRAPLING_API_BASE / SCRAPLING_API_TOKEN。LocalStorage 中的 Token 可被本机浏览器脚本读取，请只在可信设备的测试 Preview 使用。</p>
       </div>
 
-      <div className="rounded-2xl border border-line bg-card p-4">
+      <div hidden={centerPage !== 'directory'} className="rounded-2xl border border-line bg-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-content">FMHY · 唯一网站发现目录</h3>
@@ -533,7 +533,7 @@ function ResourceCollectorPanel() {
       {error ? <p className="rounded-xl border border-line bg-card px-3 py-2 text-xs text-muted" role="status">{error}</p> : null}
 
       {sites.length > 0 ? (
-        <div className="space-y-2">
+        <div hidden={centerPage !== 'directory'} className="space-y-2">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-content">发现的网站</h3>
             <span className="text-xs text-muted">{sites.length} 个候选站点</span>
@@ -557,9 +557,9 @@ function ResourceCollectorPanel() {
       ) : null}
 
       {tasks.length > 0 ? (
-        <div className="space-y-2">
+        <div hidden={centerPage !== 'monitor' && centerPage !== 'history'} className="space-y-2">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-content">采集任务记录</h3>
+            <h3 className="text-sm font-semibold text-content">{centerPage === 'monitor' ? '实时任务监控' : '采集历史'}</h3>
             <button type="button" className="btn-ghost btn-sm" onClick={() => void loadTasks()}>刷新</button>
           </div>
           <div className="max-h-52 space-y-2 overflow-y-auto">
@@ -581,7 +581,7 @@ function ResourceCollectorPanel() {
       ) : null}
 
       {selectedSite ? (
-        <div className="space-y-2 rounded-2xl border border-line bg-card p-4">
+        <div hidden={centerPage !== 'library'} className="space-y-2 rounded-2xl border border-line bg-card p-4">
           <div>
             <h3 className="text-sm font-semibold text-content">采集结果 · {selectedSite.title}</h3>
             <p className="mt-1 truncate text-xs text-muted">{selectedSite.url}</p>
@@ -621,6 +621,16 @@ function ResourceCollectorPanel() {
         </div>
       ) : null}
 
+      {centerPage === 'strategy' ? (
+        <section className="rounded-2xl border border-line bg-card p-4 space-y-2">
+          <h4 className="text-sm font-semibold text-content">采集策略</h4>
+          <p className="text-xs leading-5 text-muted">增量指纹、失败重试和任务限额由 Scrapling Collector 服务端策略执行。当前页面先展示已启用的策略说明，不提供浏览器端修改服务端安全限制的入口。</p>
+          <p className="text-xs leading-5 text-muted">现有采集链路记录页面内容指纹，内容未变化时跳过重复提取；任务重试沿用 Collector 持久队列的重试与租约机制。</p>
+        </section>
+      ) : null}
+      {centerPage === 'library' && !selectedSite ? (
+        <p className="rounded-xl border border-line bg-card p-4 text-xs text-muted">请先进入 FMHY 网站目录，选择一个已发现网站并启动 Scrapling 检查，采集到的电影、剧集和动漫候选会显示在这里。</p>
+      ) : null}
       <p className="text-xs leading-6 text-muted">底层引擎：Scrapling Python 服务。仅提取公开可访问的媒体/播放器链接，不绕过登录、付费墙、DRM 或访问控制。可直接播放的媒体直链使用 LibreTV 原有 PlayerShell 预览；这类直链不会冒充 CMS 点播 API 源。</p>
       {playingCandidate ? <CollectorDirectPlayer candidate={playingCandidate} onClose={() => setPlayingCandidate(null)} /> : null}
     </section>
