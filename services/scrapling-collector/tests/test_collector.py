@@ -896,7 +896,8 @@ segment-2.ts
                 self.attrib = {"href": href}
                 self._text = text
             def css(self, selector):
-                return type("Selection", (), {"getall": lambda self: [self._text]})()
+                value = self._text
+                return type("Selection", (), {"getall": lambda selection: [value]})()
         class Page:
             def css(self, selector):
                 if selector == "a":
@@ -926,6 +927,18 @@ segment-2.ts
         )
         self.assertEqual(result["access_state"], "DRM_PROTECTED")
         self.assertIn("FairPlay", result["drm_systems"])
+
+    def test_hls_keyformat_fairplay_is_detected_without_retaining_key_uri(self):
+        manifest = collector.parse_hls_manifest(
+            b'#EXTM3U\\n#EXT-X-KEY:METHOD=SAMPLE-AES,KEYFORMAT="com.apple.streamingkeydelivery",URI="skd://private-key-reference"'
+        )
+        self.assertEqual(manifest["key_formats"], ["com.apple.streamingkeydelivery"])
+        self.assertNotIn("private-key-reference", str(manifest))
+        access = collector.classify_access_state(
+            200, {"content-type": "application/vnd.apple.mpegurl"},
+            "#EXT-X-KEY:KEYFORMAT=com.apple.streamingkeydelivery",
+        )
+        self.assertEqual(access["access_state"], "DRM_PROTECTED")
 
 if __name__ == "__main__":
     unittest.main()
