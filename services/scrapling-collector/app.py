@@ -2216,8 +2216,6 @@ class RegistryResourceRequest(BaseModel):
     resource_type: str = Field(pattern="^(CMS_VOD|DIRECT_MEDIA|EMBEDDED_PLAYER)$")
     title: str = Field(default="", max_length=300)
     external_id: str | None = Field(default=None, max_length=200)
-    access_state: str = Field(default="ACCESS_UNKNOWN")
-    validation_state: str = Field(default="unverified")
     media_type: str | None = Field(default=None, max_length=20)
     metadata: dict = Field(default_factory=dict)
 
@@ -2257,7 +2255,7 @@ def registry_upsert(payload: RegistryResourceRequest, authorization: str | None 
     try:
         resource = upsert_registry_resource(
             payload.source_key, payload.source_name, str(payload.url), payload.resource_type,
-            payload.title, payload.external_id, payload.access_state, payload.validation_state,
+            payload.title, payload.external_id, "ACCESS_UNKNOWN", "unverified",
             payload.media_type, payload.metadata,
         )
     except ValueError as exc:
