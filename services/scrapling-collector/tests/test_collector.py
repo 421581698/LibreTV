@@ -786,5 +786,97 @@ segment-2.ts
         self.assertEqual(candidate["kind"], "cms-api-candidate")
 
 
+
+    def test_candidate_schema_migrates_legacy_rows_without_marking_public(self):
+        import sqlite3
+        legacy_path = Path(self.temp.name) / "legacy.sqlite3"
+        connection = sqlite3.connect(legacy_path)
+        connection.executescript("""
+            CREATE TABLE tasks (
+              id TEXT PRIMARY KEY, url TEXT NOT NULL, host TEXT NOT NULL,
+              status TEXT NOT NULL, mode TEXT NOT NULL, created_at INTEGER NOT NULL,
+              updated_at INTEGER NOT NULL, error TEXT, result_count INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE candidates (
+              id TEXT PRIMARY KEY, task_id TEXT NOT NULL, url TEXT NOT NULL,
+              host TEXT NOT NULL, kind TEXT NOT NULL, title TEXT NOT NULL DEFAULT '',
+              status TEXT NOT NULL DEFAULT 'pending', created_at INTEGER NOT NULL,
+              validation TEXT
+            );
+            INSERT INTO tasks(id,url,host,status,mode,created_at,updated_at)
+              VALUES('legacy-task','https://catalog.example','catalog.example','completed','http',1,1);
+            INSERT INTO candidates(id,task_id,url,host,kind,created_at)
+              VALUES('legacy-candidate','legacy-task','https://media.example/movie.mp4','media.example','direct-media',1);
+        """)
+        connection.commit()
+        connection.close()
+        previous_path = collector.DB_PATH
+        try:
+            collector.DB_PATH = legacy_path
+            collector.init_db()
+            with collector.db() as migrated:
+                row = migrated.execute(
+                    "SELECT collected_by,access_state,probe_evidence,media_identity,quality_evidence "
+                    "FROM candidates WHERE id='legacy-candidate'"
+                ).fetchone()
+            self.assertEqual(row["collected_by"], "[]")
+            self.assertEqual(row["access_state"], "ACCESS_UNKNOWN")
+            self.assertEqual(row["probe_evidence"], "{}")
+            self.assertEqual(row["media_identity"], "{}")
+            self.assertEqual(row["quality_evidence"], "{}")
+        finally:
+            collector.DB_PATH = previous_path
+
+    def test_candidate_merge_persists_provenance_identity_and_unknown_access(self):
+        candidate = collector.normalize_candidate({
+            "url": "https://media.example/Example.Movie.2024.S02E03.1080p.m3u8",
+            "host": "media.example",
+            "kind": "direct-media",
+            "title": "Example Movie 2024 S02E03",
+            "collected_by": ["spider", "browser", "unknown"],
+        })
+        self.assertEqual(candidate["access_state"], "ACCESS_UNKNOWN")
+        self.assertEqual(candidate["collected_by"], ["spider", "browser"])
+        self.assertEqual(candidate["media_identity"]["year_hint"], 2024)
+        self.assertEqual(candidate["media_identity"]["season_hint"], 2)
+        self.assertEqual(candidate["media_identity"]["episode_hint"], 3)
+        self.assertEqual(candidate["media_identity"]["match_confidence"], "hint_only")
+
+    def test_task_candidate_endpoint_decodes_persisted_evidence(self):
+        task_id = "f" * 32
+        candidate_id = "e" * 32
+        with collector.db() as connection:
+            connection.execute(
+                "INSERT INTO tasks(id,url,host,status,mode,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                (task_id, "https://catalog.example", "catalog.example", "completed", "http", 1, 1),
+            )
+            connection.execute(
+                """INSERT INTO candidates
+                   (id,task_id,url,host,kind,title,created_at,collected_by,access_state,
+                    media_identity,quality_evidence,probe_evidence)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (candidate_id, task_id, "https://media.example/movie.m3u8", "media.example",
+                 "direct-media", "Movie", 1, '["spider","browser"]', "ACCESS_UNKNOWN",
+                 '{"title_hint":"Movie","match_confidence":"hint_only"}',
+                 '{"evidence_scope":"manifest_metadata_only"}', '{"http_status":null}'),
+            )
+        with patch.object(collector, "require_token"):
+            result = collector.task_candidates(task_id, "Bearer test")
+        item = result["candidates"][0]
+        self.assertEqual(item["collected_by"], ["spider", "browser"])
+        self.assertEqual(item["access_state"], "ACCESS_UNKNOWN")
+        self.assertEqual(item["media_identity"]["title_hint"], "Movie")
+        self.assertEqual(item["quality_evidence"]["evidence_scope"], "manifest_metadata_only")
+        self.assertEqual(item["probe_evidence"]["http_status"], None)
+
+    def test_quality_evidence_never_claims_decode_or_visual_verification(self):
+        evidence = collector.build_quality_evidence({
+            "manifest": {"variants": [{"width": 1920, "height": 1080}]}
+        })
+        self.assertEqual(evidence["declared_resolutions"][0]["height"], 1080)
+        self.assertFalse(evidence["decode_verified"])
+        self.assertFalse(evidence["visual_quality_verified"])
+        self.assertIsNone(evidence["observed_container_resolution"])
+
 if __name__ == "__main__":
     unittest.main()
