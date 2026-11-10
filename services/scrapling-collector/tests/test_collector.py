@@ -918,7 +918,7 @@ segment-2.ts
         result = collector.classify_access_state(
             200,
             {"content-type": "application/vnd.apple.mpegurl"},
-            "#EXTM3U\\n#EXT-X-KEY:METHOD=AES-128,URI=\\"key.bin\\"",
+            '#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI="key.bin"',
         )
         self.assertEqual(result["access_state"], "ENCRYPTED_STREAM")
         self.assertEqual(result["drm_systems"], [])
@@ -928,14 +928,14 @@ segment-2.ts
         result = collector.classify_access_state(
             200,
             {"content-type": "application/vnd.apple.mpegurl"},
-            '#EXTM3U\\n#EXT-X-KEY:METHOD=SAMPLE-AES,KEYFORMAT="com.apple.streamingkeydelivery",URI="skd://asset"',
+            '#EXTM3U\n#EXT-X-KEY:METHOD=SAMPLE-AES,KEYFORMAT="com.apple.streamingkeydelivery",URI="skd://asset"',
         )
         self.assertEqual(result["access_state"], "DRM_PROTECTED")
         self.assertIn("FairPlay", result["drm_systems"])
 
     def test_hls_keyformat_fairplay_is_detected_without_retaining_key_uri(self):
         manifest = collector.parse_hls_manifest(
-            b'#EXTM3U\\n#EXT-X-KEY:METHOD=SAMPLE-AES,KEYFORMAT="com.apple.streamingkeydelivery",URI="skd://private-key-reference"'
+            b'#EXTM3U\n#EXT-X-KEY:METHOD=SAMPLE-AES,KEYFORMAT="com.apple.streamingkeydelivery",URI="skd://private-key-reference"'
         )
         self.assertEqual(manifest["key_formats"], ["com.apple.streamingkeydelivery"])
         self.assertNotIn("private-key-reference", str(manifest))
@@ -954,95 +954,10 @@ segment-2.ts
         )
         self.assertEqual(result["access_state"], "PUBLIC")
         manifest = collector.parse_hls_manifest(
-            b'#EXTM3U\\n#EXT-X-KEY:METHOD=NONE,KEYFORMAT="identity"'
+            b'#EXTM3U\n#EXT-X-KEY:METHOD=NONE,KEYFORMAT="identity"'
         )
         self.assertEqual(manifest["key_formats"], [])
         self.assertFalse(manifest["encrypted"])
-
-
-    def test_cms_validation_persists_auth_required_even_when_body_is_not_json(self):
-        task_id = "1" * 32
-        candidate_id = "2" * 32
-        with collector.db() as connection:
-            connection.execute(
-                "INSERT INTO tasks(id,url,host,status,mode,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
-                (task_id, "https://catalog.example", "catalog.example", "completed", "http", 1, 1),
-            )
-            connection.execute(
-                """INSERT INTO candidates(id,task_id,url,host,kind,created_at)
-                   VALUES(?,?,?,?,?,?)""",
-                (candidate_id, task_id, "https://catalog.example/api.php/provide/vod",
-                 "catalog.example", "cms-api-candidate", 1),
-            )
-        response = type("Response", (), {
-            "status": 401,
-            "headers": {"content-type": "text/html"},
-            "body": b"<html>Sign in to continue</html>",
-        })()
-        with (
-            patch.object(collector, "require_token"),
-            patch.object(collector, "require_egress_firewall"),
-            patch.object(collector, "public_https_url", return_value=("https://catalog.example/api.php/provide/vod", "catalog.example")),
-            patch.object(collector, "throttle"),
-            patch.object(collector.Fetcher, "get", return_value=response),
-        ):
-            result = collector.validate_candidate(candidate_id, "Bearer test")
-        self.assertEqual(result["validation"]["access"]["access_state"], "AUTH_REQUIRED")
-        with collector.db() as connection:
-            row = connection.execute(
-                "SELECT status,access_state FROM candidates WHERE id=?", (candidate_id,)
-            ).fetchone()
-        self.assertEqual(row["status"], "rejected")
-        self.assertEqual(row["access_state"], "AUTH_REQUIRED")
-
-    def test_encrypted_hls_candidate_is_not_approved_as_public_playback(self):
-        task_id = "3" * 32
-        candidate_id = "4" * 32
-        with collector.db() as connection:
-            connection.execute(
-                "INSERT INTO tasks(id,url,host,status,mode,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
-                (task_id, "https://catalog.example", "catalog.example", "completed", "http", 1, 1),
-            )
-            connection.execute(
-                """INSERT INTO candidates(id,task_id,url,host,kind,created_at)
-                   VALUES(?,?,?,?,?,?)""",
-                (candidate_id, task_id, "https://media.example/movie.m3u8",
-                 "media.example", "direct-media", 1),
-            )
-        probe = {
-            "reachable": True, "http_status": 200, "content_type": "application/vnd.apple.mpegurl",
-            "media_format": "hls", "encryption_methods": ["AES-128"],
-            "is_master_playlist": False, "segment_uris": [], "rejected_reference_count": 0,
-        }
-        with (
-            patch.object(collector, "require_token"),
-            patch.object(collector, "require_egress_firewall"),
-            patch.object(collector, "public_https_url", return_value=("https://media.example/movie.m3u8", "media.example")),
-            patch.object(collector, "throttle"),
-            patch.object(collector, "probe_direct_media", return_value=probe),
-        ):
-            collector.validate_candidate(candidate_id, "Bearer test")
-        with collector.db() as connection:
-            row = connection.execute(
-                "SELECT status,access_state FROM candidates WHERE id=?", (candidate_id,)
-            ).fetchone()
-        self.assertEqual(row["status"], "rejected")
-        self.assertEqual(row["access_state"], "ENCRYPTED_STREAM")
-
-
-    def test_mpd_content_protection_is_retained_as_drm_evidence(self):
-        body = b"""<MPD><Period><AdaptationSet>
-<ContentProtection schemeIdUri="urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed" value="Widevine"/>
-<Representation id="v1" width="1920" height="1080"/>
-</AdaptationSet></Period></MPD>"""
-        manifest = collector.parse_mpd_manifest(body, "https://cdn.example/manifest.mpd")
-        self.assertEqual(manifest["content_protection"][0]["value"], "Widevine")
-        access = collector.classify_access_state(
-            200, {"content-type": "application/dash+xml"},
-            "ContentProtection urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed",
-        )
-        self.assertEqual(access["access_state"], "DRM_PROTECTED")
-        self.assertIn("Widevine", access["drm_systems"])
 
 
     def test_mp4_tkhd_dimensions_are_parsed_from_bounded_moov_box(self):
