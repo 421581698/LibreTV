@@ -29,6 +29,9 @@ TOKEN = os.environ.get("SCRAPLING_API_TOKEN", "").strip()
 DB_PATH = Path(os.environ.get("SCRAPLING_DB_PATH", "/data/collector.sqlite3"))
 MAX_RESULTS = 100
 MAX_CANDIDATES = 100
+MAX_CRAWL_DEPTH = 2
+MAX_CRAWL_PAGES = 12
+MAX_CRAWL_LINKS_PER_PAGE = 8
 MIN_HOST_INTERVAL = 2.0
 MEDIA_EXTENSIONS = (".m3u8", ".mp4", ".m4v", ".webm", ".mpd", ".mov", ".ts", ".m4s", ".aac")
 CMS_PATH_MARKERS = ("/api.php/provide/vod", "/provide/vod", "/api/v1/vod")
@@ -1259,27 +1262,69 @@ class SiteSpider(Spider):
                 yield {"url": absolute, "kind": kind, "host": host, "title": title}
 
 
+def frontier_link_priority(target: str, anchor_text: str = "") -> int | None:
+    """Rank same-site HTML navigation; return None for media/API/non-page targets."""
+    parsed = urlparse(target)
+    path = parsed.path.lower()
+    if classify_url(target) or path.endswith((".pdf", ".zip", ".jpg", ".jpeg", ".png", ".webp")):
+        return None
+    signal = f"{path} {anchor_text.lower()}"
+    if any(token in signal for token in ("next", "page=", "分页", "下一页", "更多")):
+        return 20
+    if any(token in signal for token in ("movie", "film", "vod", "video", "tv", "series", "anime", "category", "genre", "电影", "剧集", "动漫", "分类")):
+        return 10
+    if path in ("", "/") or path.count("/") <= 2:
+        return 5
+    return 1
+
+
 def run_spider(url: str, limit: int) -> list[dict]:
     class TargetSiteSpider(SiteSpider):
         start_urls = [url]
         allowed_domains = [urlparse(url).hostname]
-        followed_urls: set[str] = set()
+        pages_scheduled: set[str] = {url}
+        pages_processed: set[str] = set()
 
         async def parse(self, response: Response):
             async for item in super().parse(response):
                 yield item
-            # Crawl a small same-host sample so directory pages can lead to
-            # catalogue/API pages without turning one click into an open crawl.
+            current = canonical_candidate_url(response.url)
+            if current not in self.pages_processed:
+                self.pages_processed.add(current)
+            meta = getattr(response, "meta", {}) or {}
+            try:
+                depth = max(0, int(meta.get("crawl_depth", 0)))
+            except (TypeError, ValueError):
+                depth = 0
+            if depth >= MAX_CRAWL_DEPTH or len(self.pages_scheduled) >= MAX_CRAWL_PAGES:
+                return
+
+            ranked: list[tuple[int, str]] = []
             for anchor in response.css("a"):
                 href = (anchor.attrib.get("href") or "").strip()
+                if not href:
+                    continue
                 target = urljoin(response.url, href)
                 parsed = urlparse(target)
                 if parsed.scheme != "https" or parsed.hostname != self.allowed_domains[0]:
                     continue
-                if target in self.followed_urls or len(self.followed_urls) >= 8:
+                target = canonical_candidate_url(target)
+                if target in self.pages_scheduled:
                     continue
-                self.followed_urls.add(target)
-                yield response.follow(target)
+                priority = frontier_link_priority(target, text_of(anchor))
+                if priority is not None:
+                    ranked.append((priority, target))
+
+            # Bounded priority frontier: pagination and catalogue/category links first.
+            ranked.sort(key=lambda item: (-item[0], item[1]))
+            page_budget = min(MAX_CRAWL_LINKS_PER_PAGE, MAX_CRAWL_PAGES - len(self.pages_scheduled))
+            for priority, target in ranked[:page_budget]:
+                self.pages_scheduled.add(target)
+                yield response.follow(
+                    target,
+                    priority=priority,
+                    meta={"crawl_depth": depth + 1},
+                )
     result = TargetSiteSpider(crawldir=str(DB_PATH.parent / "crawls" / hashlib.sha256(url.encode()).hexdigest()[:16])).start()
     candidates: list[dict] = []
     seen: set[str] = set()
