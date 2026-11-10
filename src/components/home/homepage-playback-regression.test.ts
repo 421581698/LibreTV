@@ -262,8 +262,10 @@ describe('首页与播放页回归契约', () => {
 
   it('点播播放器保留播放、进度、音量、全屏与 HLS 恢复配置', () => {
     expect(player).toContain('volume: 0.8');
-    expect(player).toContain('fullscreen: true');
-    expect(player).toContain('fullscreenWeb: true');
+    expect(player).toContain('fullscreen: !touchPointer');
+    expect(player).toContain('fullscreenWeb: !touchPointer');
+    expect(player).toContain('webkitEnterFullscreen');
+    expect(player).toContain('art.fullscreenWeb = !art.fullscreenWeb');
     expect(player).toContain('playbackRate: true');
     expect(player).toContain('art.on(\'video:ratechange\'');
     expect(player).toContain('art.on(\'video:loadedmetadata\'');
