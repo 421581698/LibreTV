@@ -536,6 +536,8 @@ describe('首页与播放页回归契约', () => {
     expect(searchResultsSource).toContain("import HomePage from '@/app/page'");
     expect(home).toContain('const RESULT_PAGE_SIZE = 60');
     expect(home).toContain('重试搜索');
+    expect(home).toContain('重新搜索');
+    expect(home).toContain('onClick={() => void searchQuery.refetch()}');
   });
 
   it('iPad 适配覆盖 1440px 宽屏触控设备，并分别定义横竖屏布局', () => {
