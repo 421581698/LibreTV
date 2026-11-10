@@ -599,7 +599,9 @@ export function PlayerShell({
       fullscreenWeb: true,
       miniProgressBar: true,
       mutex: true,
-      backdrop: true,
+      // Disable frosted-glass backdrop filters: avoid iOS Safari compositing
+      // artifacts over the lower video image while keeping menus fully usable.
+      backdrop: false,
       playsInline: true,
       airplay: true,
       hotkey: false,
