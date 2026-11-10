@@ -37,6 +37,19 @@ MAX_CRAWL_LINKS_PER_PAGE = 8
 MIN_HOST_INTERVAL = 2.0
 MEDIA_EXTENSIONS = (".m3u8", ".mp4", ".m4v", ".webm", ".mpd", ".mov", ".ts", ".m4s", ".aac")
 CMS_PATH_MARKERS = ("/api.php/provide/vod", "/provide/vod", "/api/v1/vod")
+# FMHY also lists unofficial aggregators, mirrors and torrent sources. Only
+# discover official ad-supported services and established public film archives.
+# This is a conservative discovery allow-list, not a claim that every title on
+# a platform is public domain; access and media checks still run per candidate.
+LEGAL_MEDIA_HOST_SUFFIXES = (
+    "tubi.tv", "plex.tv", "pluto.tv", "primevideo.com", "fawesome.tv",
+    "filmzie.com", "arte.tv", "bbc.co.uk", "kanopy.com", "hoopladigital.com",
+    "roku.com", "byutv.org", "playary.com", "shout-tv.com",
+    "archive.org", "loc.gov", "archives.gov", "nationalarchives.gov.uk",
+    "filmpreservation.org", "bfi.org.uk", "nfb.ca", "nfsa.gov.au",
+    "europeanfilmgateway.eu", "yfanefa.com", "texasarchive.org",
+    "chicagofilmarchives.org", "prelinger.com",
+)
 _last_request_by_host: dict[str, float] = {}
 
 if not TOKEN:
@@ -1175,6 +1188,8 @@ def fmhy_sites_from_page(page, directory_url: str = FMHY_VIDEO_URL) -> list[dict
             continue
         host = parsed.hostname.lower().rstrip(".")
         if host == "fmhy.net" or host.endswith(".fmhy.net") or host in seen:
+            continue
+        if not any(host == suffix or host.endswith("."+suffix) for suffix in LEGAL_MEDIA_HOST_SUFFIXES):
             continue
         title = text_of(anchor)[:160]
         if not title:
