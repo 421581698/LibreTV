@@ -11,11 +11,15 @@ on:
       - "src/lib/media-playback.test.ts"
       - "src/lib/collector-playback-eligibility.ts"
       - "src/lib/collector-playback-eligibility.test.ts"
+      - "services/scrapling-collector/stats.py"
+      - "services/scrapling-collector/tests/test_stats.py"
       - "src/lib/playback-verification.ts"
       - "src/lib/playback-verification.test.ts"
       - "src/app/api/resource-collector/candidates/[candidateId]/playback/route.ts"
       - "services/scrapling-collector/app.py"
       - "services/scrapling-collector/tests/test_collector.py"
+      - "services/scrapling-collector/stats.py"
+      - "services/scrapling-collector/tests/test_stats.py"
       - ".github/workflows/resource-playback-verification.yml"
   pull_request:
     paths:
