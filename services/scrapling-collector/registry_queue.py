@@ -375,7 +375,10 @@ def register_discovered_candidate(candidate: dict) -> dict | None:
         "url": candidate["url"],
         "title": candidate.get("title") or candidate.get("host") or "Untitled resource",
         "access_state": candidate.get("access_state") or "ACCESS_UNKNOWN",
-        "metadata": {"discovery_status": candidate.get("status", "pending")},
+        "metadata": {
+            "discovery_status": candidate.get("status", "pending"),
+            "search_keyword": str(candidate.get("search_keyword") or "")[:100],
+        },
     })
 
 
@@ -483,9 +486,9 @@ def api_registry_search(q: str = "", authorization: str | None = Header(default=
             AND r.access_state='PUBLIC'
             AND r.resource_type='DIRECT_MEDIA'
             AND r.media_format IN ('hls','mp4','webm')
-            AND (r.title LIKE ? OR r.resource_key LIKE ?)
+            AND (r.title LIKE ? OR r.resource_key LIKE ? OR r.metadata LIKE ?)
           ORDER BY CASE WHEN r.playback_state='PLAYER_CONFIRMED' THEN 0 ELSE 1 END,
-                   r.updated_at DESC LIMIT 30""", (f"%{term}%",f"%{term}%")).fetchall() if term else []
+                   r.updated_at DESC LIMIT 30""", (f"%{term}%",f"%{term}%",f"%{term}%")).fetchall() if term else []
         sites = c.execute("SELECT host,url FROM sites ORDER BY discovered_at DESC LIMIT 5").fetchall() if term and not rows else []
 
     scheduled = []
