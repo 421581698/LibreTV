@@ -450,7 +450,7 @@ function WatchContent() {
           </div>
         </div>
       </header>
-      <main className="flex-1 w-full max-w-[1600px] mx-auto px-3 sm:px-4 lg:px-6 py-4 netflix-watch">
+      <main className="flex-1 w-full max-w-[1600px] mx-auto px-3 sm:px-4 lg:px-6 py-4 netflix-watch" data-content-type={hasEpisodeNavigation ? "series" : "movie"}>
         <div className="netflix-watch-grid">
           <section className="netflix-watch-primary min-w-0">
             <div
@@ -529,38 +529,7 @@ function WatchContent() {
 
             </div>
 
-            <div className="netflix-below-player">
-              <div className="netflix-section-heading">
-                <div>
-                  <h2>继续观看</h2>
-                  <p>根据本机观看记录，接着上次的进度继续</p>
-                </div>
-                <Link href="/me" className="text-sm text-muted hover:text-content">全部观看历史 →</Link>
-              </div>
-              <div className="netflix-history-rail">
-                {sortedContinueHistory.map(({ item, percent, unfinished }) => {
-                  const href = buildWatchUrl({ sourceKey: item.sourceKey, vodId: item.vodId, index: item.episodeIndex, title: item.title, sourceUrl: item.sourceUrl });
-                  return (
-                    <Link key={`${item.sourceKey}:${item.vodId}`} href={href} className="netflix-history-card">
-                      <div className="netflix-history-art">
-                        {item.pic ? <SmartImage url={item.pic} mode="direct" alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-chip" />}
-                        <span className="netflix-history-play"><span aria-hidden="true">▶</span></span>
-                      </div>
-                      <div className="netflix-history-meta">
-                        <strong>{item.title}</strong>
-                        <span>{item.totalEpisodes > 0 ? `第 ${item.episodeIndex + 1} / ${item.totalEpisodes} 集` : '继续观看'}{!unfinished ? ' · 已看完' : ''}</span>
-                        <div className="netflix-history-progress"><i style={{ width: `${percent}%` }} /></div>
-                      </div>
-                    </Link>
-                  );
-                })}
-                {(!recentHistory || sortedContinueHistory.length === 0) && (
-                  <p className="text-sm text-faint py-5">还没有其他观看记录，之后观看的影片会显示在这里。</p>
-                )}
-              </div>
-            </div>
-
-            <section className="netflix-related-section" aria-labelledby="netflix-related-heading">
+            {(isMovie || !hasEpisodeNavigation) && <section className="netflix-related-section" aria-labelledby="netflix-related-heading">
               <div className="netflix-section-heading">
                 <div>
                   <h2 id="netflix-related-heading">相关影片</h2>
@@ -590,7 +559,7 @@ function WatchContent() {
                   {recommendationSources.length === 0 ? '请先启用至少一个点播资源，才能检索相关影片。' : relatedQuery.isError ? '相关影片暂时无法获取。' : '当前片源没有返回其他相关影片。'}
                 </p>
               )}
-            </section>
+            </section>}
 
             <div className="netflix-watch-tools">
               {hasEpisodeNavigation && <><button className="btn-ghost btn-sm" disabled={currentIndex <= 0} onClick={() => goEpisode(currentIndex - 1)}>上一集</button>
@@ -654,6 +623,23 @@ function WatchContent() {
                 </div>
                 <p className="text-xs text-faint mt-3">播放源切换会保留当前影片和集数，具体进度按现有换源逻辑处理。</p>
               </div>
+            )}
+
+            {!isMovie && hasEpisodeNavigation && (
+              <section className="netflix-related-section netflix-series-related" aria-label="相关推荐">
+                <div className="netflix-section-heading"><div><h2>相关推荐</h2></div></div>
+                {relatedItems.length > 0 ? (
+                  <div className="netflix-related-rail">
+                    {relatedItems.map((item) => (
+                      <Link key={`${item.sourceKey}:${item.vodId}`} href={buildWatchUrl({ sourceKey: item.sourceKey, vodId: item.vodId, index: 0, title: item.name, sourceUrl: item.sourceUrl })} className="netflix-related-card">
+                        <div className="netflix-related-art">{item.pic ? <SmartImage url={item.pic} mode="direct" alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-chip" />}</div>
+                        <strong>{item.name}</strong>
+                        <span>{[item.year, item.typeName, item.remarks].filter(Boolean).join(' · ') || item.sourceName}</span>
+                      </Link>
+                    ))}
+                  </div>
+                ) : <p className="text-sm text-faint py-4">暂时没有可展示的相关推荐。</p>}
+              </section>
             )}
 
             {sidebarTab === 'details' && (
