@@ -17,7 +17,8 @@ def resolution_bucket(width, height):
     # share the same tiers, while ultrawide 3840x1080 is not mislabeled as 4K.
     short_edge = min(w, h)
     if short_edge >= 4320: return "8K"
-    if short_edge >= 2160: return "4K"
+    # Cinemascope 4K masters may be shorter than 2160px tall (e.g. 3840x1600).
+    if short_edge >= 1600: return "4K"
     if short_edge >= 1440: return "2K"
     if short_edge >= 1000: return "1080P"
     if short_edge >= 680: return "720P"
