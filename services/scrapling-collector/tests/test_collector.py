@@ -1069,5 +1069,37 @@ segment-2.ts
         self.assertEqual(evidence["quality_rank"], 1080)
         self.assertEqual(evidence["quality_rank_source"], "container_observed")
 
+    def test_fmhy_video_directory_extracts_unique_external_sites(self):
+        class TextNode:
+            def __init__(self, value):
+                self.value = value
+            def getall(self):
+                return [self.value]
+
+        class Anchor:
+            def __init__(self, href, label):
+                self.attrib = {"href": href}
+                self.label = label
+            def css(self, selector):
+                return TextNode(self.label)
+
+        class Page:
+            def css(self, selector, **kwargs):
+                if selector == "a":
+                    return [
+                        Anchor("https://stream-one.example/catalog", "Stream One"),
+                        Anchor("https://stream-one.example/another", "Stream One duplicate"),
+                        Anchor("https://fmhy.net/video", "FMHY internal"),
+                        Anchor("https://stream-two.example/watch", "Stream Two"),
+                        Anchor("http://insecure.example", "Insecure"),
+                    ]
+                return []
+
+        sites = collector.fmhy_sites_from_page(Page())
+        self.assertEqual([site["host"] for site in sites], ["stream-one.example", "stream-two.example"])
+        self.assertTrue(all(site["directory"].startswith("FMHY / video") for site in sites))
+
+
+
 if __name__ == "__main__":
     unittest.main()
