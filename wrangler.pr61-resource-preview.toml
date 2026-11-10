@@ -12,6 +12,6 @@ preview_urls = false
 CMS_SEARCH_API = "https://caiji.dyttzyapi.com/api.php/provide/vod"
 API_60S_BASE = "https://60s.bggdbh.workers.dev"
 LLM_MODEL = "glm-4-flash"
-AUTH_DISABLED = "false"
+AUTH_DISABLED = "true"
 
-# PASSWORD is provisioned from the PR61_PREVIEW_PASSWORD GitHub environment secret.
+# Public PR preview: site password gate is intentionally disabled here only.
