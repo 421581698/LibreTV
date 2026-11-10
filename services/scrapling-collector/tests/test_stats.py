@@ -37,6 +37,9 @@ class ResourceStatsTests(unittest.TestCase):
         self.assertEqual(resolution_bucket(1920,1080),"1080P")
         self.assertEqual(resolution_bucket(3840,1080),"1080P")
         self.assertEqual(resolution_bucket(7680,2160),"4K")
+        self.assertEqual(resolution_bucket(2160,3840),"4K")
+        self.assertEqual(resolution_bucket(3840,2000),"2K")
+        self.assertEqual(resolution_bucket(7680,4320),"8K")
         self.assertEqual(resolution_bucket(0,0),"未知")
 
     def test_stats_distinguish_candidate_preflight_and_playback(self):
