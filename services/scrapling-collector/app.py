@@ -931,8 +931,8 @@ def probe_direct_media(raw_url: str, max_redirects: int = 5) -> dict:
             if is_mp4 and container_resolution is None and total_length and total_length > MAX_CONTAINER_PROBE_BYTES:
                 tail_start = max(0, total_length - MAX_CONTAINER_PROBE_BYTES)
                 tail = fetch_pinned_range(normalized, f"bytes={tail_start}-{total_length - 1}")
-                    if tail.get("http_status") == 206 and tail.get("body"):
-                        container_resolution = parse_mp4_container_dimensions(tail["body"])
+                if tail.get("http_status") == 206 and tail.get("body"):
+                    container_resolution = parse_mp4_container_dimensions(tail["body"])
             reachable = 200 <= status < 300 and media_type
             manifest_valid = manifest.get("manifest_valid") if manifest else None
             if manifest_valid is False:
