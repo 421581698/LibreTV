@@ -426,7 +426,7 @@ function ResourceCollectorPanel() {
   const centerItems = [
     { id: 'overview', title: '数据总览', detail: '所有网站和影视资源统计', icon: 'search' as IconName },
     { id: 'directory', title: 'FMHY 网站目录', detail: '唯一网站发现入口', icon: 'home' as IconName },
-    { id: 'archives', title: '网站采集档案', detail: '每个网站独立抓取记录', icon: 'download' as IconName },
+    { id: 'archives', title: '网站采集档案', detail: '每个网站独立抓取记录', icon: 'database' as IconName },
     { id: 'library', title: '影视资源库', detail: '电影、电视剧、动漫及去重', icon: 'download' as IconName },
     { id: 'monitor', title: '实时任务监控', detail: 'Spider、浏览器和任务队列', icon: 'bolt' as IconName },
     { id: 'quality', title: '资源质量检测', detail: '预检、播放确认和质量评分', icon: 'check' as IconName },
@@ -486,9 +486,8 @@ function ResourceCollectorPanel() {
         <h3 className="text-lg font-semibold text-content">{activeCenterItem?.title}</h3>
         <p className="mt-1 text-xs text-muted">{activeCenterItem?.detail}</p>
       </div>
-      {['overview', 'archives', 'quality'].includes(centerPage) ? <ResourceStatsPanel /> : null}
-            {centerPage === 'connection' && (
-<div className="rounded-2xl border border-line bg-card p-4 space-y-3">
+      <ResourceStatsPanel />
+      <div className="rounded-2xl border border-line bg-card p-4 space-y-3">
         <div>
           <h3 className="text-sm font-semibold text-content">Scrapling 连接配置 · 本机 Preview 测试</h3>
           <p className="mt-1 text-xs leading-5 text-muted">填写 Zo Computer 部署的 Collector 地址与密钥。配置仅保存在当前浏览器 LocalStorage，通过已登录的 LibreTV Worker 代理转发；不会写入 Git 或 Cloudflare 环境变量。当前仅用于 PR #60 Preview 测试。</p>
@@ -518,9 +517,6 @@ function ResourceCollectorPanel() {
         <p className="text-[11px] leading-5 text-muted">仅接受公网 HTTPS 域名（443 端口）；Token 通过 HTTPS Header 发送给 LibreTV Worker，再由 Worker 转发给 Collector。清除后回退到服务端 SCRAPLING_API_BASE / SCRAPLING_API_TOKEN。LocalStorage 中的 Token 可被本机浏览器脚本读取，请只在可信设备的测试 Preview 使用。</p>
       </div>
 
-            {centerPage === 'directory' && (
-
-      )}
       <div className="rounded-2xl border border-line bg-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
@@ -560,9 +556,6 @@ function ResourceCollectorPanel() {
         <p className="text-xs text-muted">FMHY 当前没有返回可用的外部站点链接。</p>
       ) : null}
 
-            {(centerPage === 'monitor' || centerPage === 'history') && (
-
-      )}
       {tasks.length > 0 ? (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
@@ -587,9 +580,6 @@ function ResourceCollectorPanel() {
         </div>
       ) : null}
 
-            {centerPage === 'library' && (
-
-      )}
       {selectedSite ? (
         <div className="space-y-2 rounded-2xl border border-line bg-card p-4">
           <div>
@@ -631,9 +621,7 @@ function ResourceCollectorPanel() {
         </div>
       ) : null}
 
-      <p className="text-xs leading-6 text-muted">
-      )}
-      底层引擎：Scrapling Python 服务。仅提取公开可访问的媒体/播放器链接，不绕过登录、付费墙、DRM 或访问控制。可直接播放的媒体直链使用 LibreTV 原有 PlayerShell 预览；这类直链不会冒充 CMS 点播 API 源。</p>
+      <p className="text-xs leading-6 text-muted">底层引擎：Scrapling Python 服务。仅提取公开可访问的媒体/播放器链接，不绕过登录、付费墙、DRM 或访问控制。可直接播放的媒体直链使用 LibreTV 原有 PlayerShell 预览；这类直链不会冒充 CMS 点播 API 源。</p>
       {playingCandidate ? <CollectorDirectPlayer candidate={playingCandidate} onClose={() => setPlayingCandidate(null)} /> : null}
     </section>
   );
