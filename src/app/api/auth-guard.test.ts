@@ -77,10 +77,12 @@ describe('public preview Collector access', () => {
     expect(guardPrivateFeatureRequest(req)).toBeNull();
   });
 
-  it('allows server-configured Collector credentials without enabling the website password', () => {
+  it('does not expose server-configured Collector credentials through a public preview', async () => {
     process.env.SCRAPLING_API_BASE = 'https://collector.example';
     process.env.SCRAPLING_API_TOKEN = 'server-only-token';
-    expect(guardPrivateFeatureRequest(new Request('https://local.test/api/resource-collector'))).toBeNull();
+    const response = guardPrivateFeatureRequest(new Request('https://local.test/api/resource-collector'));
+    expect(response?.status).toBe(503);
+    await expect(response?.json()).resolves.toMatchObject({ code: 'COLLECTOR_NOT_CONFIGURED' });
   });
 
   it('returns a setup hint instead of a website-password warning when Collector is not configured', async () => {
