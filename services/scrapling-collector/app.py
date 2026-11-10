@@ -1185,8 +1185,15 @@ def run_browser_capture(url: str, limit: int) -> tuple[object, list[dict], dict]
         except Exception:
             captured_request_count = 0
         api_candidates = captured_api_candidates(session, url, max(0, limit - len(candidates)))
+        page_title = ""
+        css = getattr(page, "css", None)
+        if callable(css):
+            try:
+                page_title = (css("title::text").get() or "").strip()[:200]
+            except Exception:
+                page_title = ""
         diagnostics = {
-            "page_title": (page.css("title::text").get() or "").strip()[:200],
+            "page_title": page_title,
             "final_url": str(getattr(page, "url", "") or url),
             "captured_request_count": captured_request_count,
         }
