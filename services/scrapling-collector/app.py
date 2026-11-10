@@ -273,7 +273,7 @@ def parse_hls_manifest(body: bytes) -> dict:
             attrs = parse_hls_attribute_list(line.split(":", 1)[1])
             method = attrs.get("METHOD", "UNKNOWN")
             encryption_methods.add(method)
-            if attrs.get("KEYFORMAT"):
+            if method.upper() != "NONE" and attrs.get("KEYFORMAT"):
                 key_formats.add(attrs["KEYFORMAT"])
             key_uri_present = key_uri_present or "URI" in attrs
             # Deliberately do not retain or fetch key URI values.
