@@ -6,10 +6,7 @@ import Hls, { type HlsConfig } from 'hls.js';
 
 import { PlaybackRecovery, describeHlsError } from '@/lib/playback-recovery';
 import { createHlsLoader } from '@/lib/hls-loader';
-import {
-  getVideoPrefetcher,
-  getNextEpisodePrefetcher,
-} from '@/lib/video-prefetcher';
+import { getVideoPrefetcher } from '@/lib/video-prefetcher';
 import { loadCacheSettings } from '@/lib/video-cache';
 import { formatTime } from '@/lib/utils';
 import { executeFridayPlayerCommand, parseFridayPlayerCommand } from '@/lib/friday/player-control';
@@ -256,18 +253,17 @@ export function PlayerShell({
     hintTimerRef.current = setTimeout(() => setHint(''), 2500);
   };
 
-  // 片段缓存开启时调大 hls.js 自身缓冲，缓冲之外的空窗由预取器补齐
+  // 流式播放：hls.js 按播放头顺序请求分片，不因缓存开关扩大到整集级内存缓冲。
+  // 30s 常规缓冲、60s 上限；网络抖动由 HLS 自身重试与 ABR 处理。
   const buildHlsConfig = (): Partial<HlsConfig> => {
     const p = propsRef.current;
-    const cacheSettings = loadCacheSettings();
-    const cacheEnabled = cacheSettings.enabled && !!p.episodeKey;
     return {
       debug: false,
       enableWorker: true,
-      backBufferLength: 90,
-      maxBufferLength: cacheEnabled ? 120 : 30,
-      maxMaxBufferLength: cacheEnabled ? 600 : 60,
-      maxBufferSize: (cacheEnabled ? 90 : 30) * 1000 * 1000,
+      backBufferLength: 30,
+      maxBufferLength: 30,
+      maxMaxBufferLength: 60,
+      maxBufferSize: 60 * 1000 * 1000,
       maxBufferHole: 0.5,
       fragLoadingMaxRetry: 6,
       fragLoadingRetryDelay: 1000,
@@ -276,32 +272,8 @@ export function PlayerShell({
       startLevel: -1,
       abrEwmaDefaultEstimate: 500_000,
       appendErrorMaxRetry: 5,
-      // 组合 loader：广告过滤（blockAd 随设置）+ 片段缓存命中（cacheEnabled）
       loader: createHlsLoader(Hls, { blockAd: p.adFilter }) as unknown as HlsConfig['loader'],
     };
-  };
-
-  // 当前集预取（episodeKey 缺省 = 关闭，见 ensure 内部 settings.enabled 判断）
-  const ensurePrefetch = (mediaUrl: string, currentTime: number, horizonSeconds?: number) => {
-    const p = propsRef.current;
-    if (!p.episodeKey) return;
-    getVideoPrefetcher().ensure({
-      m3u8Url: mediaUrl,
-      currentTime,
-      episodeKey: p.episodeKey,
-      horizonSeconds,
-      onProgress: (stats) => {
-        // 当前集预取完成且存在下一集：用独立预取器预热下一集前 7 分钟
-        if (stats.state === 'done' && p.nextUrl && p.nextEpisodeKey) {
-          getNextEpisodePrefetcher().ensure({
-            m3u8Url: p.nextUrl,
-            currentTime: 0,
-            episodeKey: p.nextEpisodeKey,
-            horizonSeconds: 420,
-          });
-        }
-      },
-    });
   };
 
   /** 切换提示状态；值相同直接返回，避免 timeupdate 高频 setState */
@@ -356,7 +328,6 @@ export function PlayerShell({
       return false;
     }
     lastSampleRef.current = seconds;
-    ensurePrefetch(currentMediaUrlRef.current, seconds);
     return true;
   };
 
@@ -444,7 +415,6 @@ export function PlayerShell({
         restoredRef.current = true;
         restoreCleanupRef.current?.();
         restoreCleanupRef.current = null;
-        ensurePrefetch(mediaUrl, prefetchAnchor);
         video.play().catch(() => {});
       } catch {
         // IndexedDB 读取失败时不阻塞播放，后续事件仍可再次尝试恢复。
@@ -792,7 +762,6 @@ export function PlayerShell({
       updateSkipPrompt(prompt);
     });
     art.on('video:seeked', () => {
-      ensurePrefetch(currentMediaUrlRef.current, art.currentTime);
       // seek 是用户主动行为：拉平采样基准，避免下一拍被误判为「连续越过片尾」。
       // 暂停中 seek 不会触发 timeupdate，这里也同步刷新按钮的显隐。
       const current = art.currentTime;
@@ -806,9 +775,6 @@ export function PlayerShell({
     art.on('video:pause', () => {
       // 跳过片尾会主动 pause：此时已按「看完」处理，不能再把片尾位置写回进度
       if (!endedRef.current) propsRef.current.onPause?.(art.currentTime, art.duration);
-      // 仅在暂停时预取一个有限窗口；播放期间不并发下载，避免与当前 HLS
-      // 分片争抢带宽。恢复播放时会在 video:playing 中立即停止预取。
-      ensurePrefetch(currentMediaUrlRef.current, art.currentTime);
     });
     art.on('video:waiting', () => {
       // 缓冲不足时彻底停止预取，释放所有并发请求给当前播放链路。
