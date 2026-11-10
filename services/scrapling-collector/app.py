@@ -929,6 +929,8 @@ def classify_url(raw_url: str) -> tuple[str, str] | None:
         return "direct-media", parsed.hostname.lower()
     if any(marker in path for marker in CMS_PATH_MARKERS):
         return "cms-api-candidate", parsed.hostname.lower()
+    if path.endswith((".json", ".json5")) or any(marker in path for marker in ("/api/", "/ajax/", "/graphql")):
+        return "public-api-response", parsed.hostname.lower()
     if any(marker in path for marker in ("/embed/", "/player/", "/watch/")):
         return "embedded-player", parsed.hostname.lower()
     return None
@@ -952,16 +954,55 @@ def extract_candidates(page, page_url: str, limit: int) -> list[dict]:
             if len(found) >= limit:
                 return list(found.values())
     # Public metadata and common player configuration attributes.
-    for element in adaptive_css(page, "[data-src], [data-url], [data-play], [content]"):
-        for attribute in ("data-src", "data-url", "data-play", "content"):
+    for element in adaptive_css(page, "[data-src], [data-url], [data-play], [content], [data-config], [data-player]"):
+        for attribute in ("data-src", "data-url", "data-play", "content", "data-config", "data-player"):
             value = (element.attrib.get(attribute) or "").strip()
-            if not value.startswith("https://"):
-                continue
-            classified = classify_url(value)
+            values = [value]
+            if value.startswith(("{", "[")):
+                try:
+                    values.extend(extract_public_urls_from_json(json.loads(value)))
+                except (ValueError, TypeError):
+                    pass
+            for candidate_url in values:
+                if not candidate_url.startswith("https://"):
+                    continue
+                classified = classify_url(candidate_url)
+                if classified:
+                    kind, host = classified
+                    found.setdefault(candidate_url, {"url": candidate_url, "kind": kind, "host": host, "title": title})
+    # Inspect inline public player configuration only; never execute scripts or bypass access controls.
+    for script in adaptive_css(page, "script"):
+        script_text = (getattr(script, "text", "") or "").strip()
+        if not script_text or len(script_text) > 512_000:
+            continue
+        for match in re.findall(r"""(?i)(?:file|src|url|playurl|play_url|video_url|hls|dash)\\s*[:=]\\s*["'](https://[^"'\\s<>]+)["']""", script_text):
+            classified = classify_url(match)
             if classified:
                 kind, host = classified
-                found.setdefault(value, {"url": value, "kind": kind, "host": host, "title": title})
+                found.setdefault(match, {"url": match, "kind": kind, "host": host, "title": title})
     return list(found.values())[:limit]
+
+
+def extract_public_urls_from_json(value, depth: int = 0) -> list[str]:
+    """Extract only explicit public HTTPS media/player URLs from bounded JSON data."""
+    if depth > 8:
+        return []
+    results: list[str] = []
+    if isinstance(value, dict):
+        for key, item in value.items():
+            key_name = str(key).lower()
+            if isinstance(item, str) and key_name in {
+                "url", "src", "file", "playurl", "play_url", "video_url",
+                "m3u8", "mp4", "hls", "dash", "player_url",
+            } and item.startswith("https://"):
+                results.append(item)
+            elif isinstance(item, (dict, list)):
+                results.extend(extract_public_urls_from_json(item, depth + 1))
+    elif isinstance(value, list):
+        for item in value[:500]:
+            if isinstance(item, (dict, list)):
+                results.extend(extract_public_urls_from_json(item, depth + 1))
+    return results[:100]
 
 
 def captured_api_candidates(session, page_url: str, limit: int) -> list[dict]:
@@ -987,6 +1028,7 @@ def captured_api_candidates(session, page_url: str, limit: int) -> list[dict]:
         classified = classify_url(url)
         if classified:
             kind = classified[0]
+        extracted_media: list[str] = []
         if kind == "public-api-response":
             try:
                 body = response.body
@@ -997,11 +1039,20 @@ def captured_api_candidates(session, page_url: str, limit: int) -> list[dict]:
                     api_list = data.get("list")
                 if isinstance(api_list, list):
                     kind = "cms-api-candidate"
+                extracted_media = extract_public_urls_from_json(payload)
             except Exception:
                 pass
         if kind:
             seen.add(url)
             results.append({"url": url, "kind": kind, "host": parsed.hostname.lower(), "title": "Captured browser network request"})
+        for media_url in extracted_media:
+            classified_media = classify_url(media_url)
+            if classified_media and media_url not in seen:
+                media_kind, media_host = classified_media
+                seen.add(media_url)
+                results.append({"url": media_url, "kind": media_kind, "host": media_host, "title": "Extracted from public API player configuration"})
+        if len(results) >= limit:
+            break
             if len(results) >= limit:
                 break
     return results
@@ -1122,14 +1173,24 @@ def merge_unique_candidates(existing: list[dict], incoming: list[dict], limit: i
     return merged
 
 
-def run_browser_capture(url: str, limit: int) -> tuple[object, list[dict]]:
+def run_browser_capture(url: str, limit: int) -> tuple[object, list[dict], dict]:
     # Browser rendering is a fallback for JavaScript-heavy pages. No CAPTCHA,
     # login, paywall, DRM or access-control bypass is attempted.
     with StealthySession(headless=True, record_requests=True, max_recorded_requests=300) as session:
         page = session.fetch(url, timeout=30, network_idle=True, page_setup=install_browser_request_guard)
         candidates = extract_candidates(page, url, limit)
+        try:
+            captured_requests = session.network.search(limit=None)
+            captured_request_count = len(captured_requests)
+        except Exception:
+            captured_request_count = 0
         api_candidates = captured_api_candidates(session, url, max(0, limit - len(candidates)))
-        return page, merge_unique_candidates(candidates, api_candidates, limit)
+        diagnostics = {
+            "page_title": (page.css("title::text").get() or "").strip()[:200],
+            "final_url": str(getattr(page, "url", "") or url),
+            "captured_request_count": captured_request_count,
+        }
+        return page, merge_unique_candidates(candidates, api_candidates, limit), diagnostics
 
 
 def persist_task(task_id: str, url: str, host: str, mode: str, status: str, error: str | None = None, count: int = 0) -> None:
@@ -1160,17 +1221,30 @@ def crawl_site(payload: CrawlRequest) -> dict:
         throttle(host)
         candidates: list[dict] = []
         errors: list[str] = []
+        spider_diagnostics = {"status": "skipped", "candidate_count": 0, "error": None}
+        browser_diagnostics = {"status": "skipped", "candidate_count": 0, "error": None}
+        page_title = ""
+        final_url = raw_url
+        captured_request_count = 0
         if payload.mode in ("auto", "http"):
             try:
-                candidates = run_spider(raw_url, payload.limit)
+                spider_candidates = run_spider(raw_url, payload.limit)
+                candidates = merge_unique_candidates(candidates, spider_candidates, payload.limit)
+                spider_diagnostics.update({"status": "completed", "candidate_count": len(spider_candidates)})
             except Exception as exc:
-                errors.append(f"Spider: {type(exc).__name__}")
+                spider_diagnostics.update({"status": "failed", "error": type(exc).__name__})
+                errors.append(f"HTTP Spider: {type(exc).__name__}")
         if payload.mode == "browser" or (payload.mode == "auto" and not candidates):
             try:
-                _, browser_candidates = run_browser_capture(raw_url, payload.limit)
+                _, browser_candidates, browser_meta = run_browser_capture(raw_url, payload.limit)
                 candidates = merge_unique_candidates(candidates, browser_candidates, payload.limit)
+                browser_diagnostics.update({"status": "completed", "candidate_count": len(browser_candidates)})
+                page_title = browser_meta["page_title"]
+                final_url = browser_meta["final_url"]
+                captured_request_count = browser_meta["captured_request_count"]
             except Exception as exc:
-                errors.append(f"Browser: {type(exc).__name__}")
+                browser_diagnostics.update({"status": "failed", "error": type(exc).__name__})
+                errors.append(f"Browser capture: {type(exc).__name__}")
 
         now = int(time.time())
         with db() as connection:
@@ -1190,7 +1264,10 @@ def crawl_site(payload: CrawlRequest) -> dict:
             )
         task_status = "partial" if errors and candidates else ("failed" if errors else "completed")
         return {"task_id": task_id, "status": task_status,
-                "page_url": raw_url, "engine": "Scrapling Spider + StealthySession", "count": len(candidates),
+                "page_url": raw_url, "final_url": final_url, "page_title": page_title,
+                "mode": payload.mode, "engine": "Scrapling Spider + StealthySession",
+                "count": len(candidates), "captured_request_count": captured_request_count,
+                "diagnostics": {"http_spider": spider_diagnostics, "browser": browser_diagnostics},
                 "candidates": candidates[:payload.limit], "errors": errors,
                 "note": "Collected public candidates only. Candidates are not yet trusted playback sources and require validation/approval."}
     except Exception as exc:
