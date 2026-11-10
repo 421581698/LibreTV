@@ -554,6 +554,40 @@ function WatchContent() {
                 return { currentTime: api.getCurrentTime(), duration: api.getDuration(), seek: (s) => api.seek(s), pause: () => api.pause(), isPaused: () => api.isPaused() };
               }}
             />
+            {sortedContinueHistory.length > 0 && (
+              <section className="netflix-related-section" aria-labelledby="netflix-continue-heading">
+                <div className="netflix-section-heading">
+                  <div>
+                    <h2 id="netflix-continue-heading">继续观看</h2>
+                    <p>从本机观看记录恢复上次的影片与剧集进度</p>
+                  </div>
+                </div>
+                <div className="netflix-related-rail">
+                  {sortedContinueHistory.map(({ item, percent }) => (
+                    <Link
+                      key={item.id}
+                      href={buildWatchUrl({
+                        sourceKey: item.sourceKey,
+                        vodId: item.vodId,
+                        index: item.episodeIndex,
+                        title: item.title,
+                        sourceUrl: item.sourceUrl,
+                      })}
+                      className="netflix-related-card"
+                    >
+                      <div className="netflix-related-art">
+                        {item.pic ? (
+                          <SmartImage url={item.pic} mode={store.imageProxyMode} customProxy={store.customImageProxy} alt="" className="w-full h-full object-cover" />
+                        ) : <div className="w-full h-full bg-chip" />}
+                      </div>
+                      <strong>{item.title}</strong>
+                      <span>第 {item.episodeIndex + 1} 集 · {formatTime(item.playbackPosition)} · {percent}%</span>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
+
             {(isMovie || !hasEpisodeNavigation) && <section className="netflix-related-section" aria-labelledby="netflix-related-heading">
               <div className="netflix-section-heading">
                 <div>
