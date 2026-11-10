@@ -1953,7 +1953,7 @@ def record_playback_evidence(
         raise HTTPException(status_code=400, detail="Invalid candidate ID")
     with db() as connection:
         row = connection.execute(
-            "SELECT kind,status,access_state,validation FROM candidates WHERE id=?",
+            "SELECT kind,status,access_state,validation,url,host,title FROM candidates WHERE id=?",
             (candidate_id,),
         ).fetchone()
         if not row:
@@ -1990,6 +1990,12 @@ def record_playback_evidence(
             "UPDATE candidates SET playback_verification=? WHERE id=?",
             (json.dumps(evidence, ensure_ascii=False), candidate_id),
         )
+        registry_resource = upsert_registry_resource(
+            row["host"], row["host"], row["url"], "DIRECT_MEDIA",
+            row["title"] or "", None, "PUBLIC", "validated", payload.media_type,
+            {"candidate_id": candidate_id, "collector_validation": "passed"},
+        )
+        record_registry_playback(registry_resource["id"], evidence)
     return {"candidate_id": candidate_id, "playback_verification": evidence}
 
 
