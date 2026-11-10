@@ -1038,7 +1038,7 @@ def classify_access_state(status_code: int | None = None, headers=None, body: st
 
     # HLS AES-128 / SAMPLE-AES encryption is not, by itself, proof of a DRM system.
     # Preserve that distinction and never fetch or retain key URIs.
-    hls_key_lines = re.findall(r"(?im)^#EXT-X-KEY\\s*:\\s*([^\\r\\n]+)", sample)
+    hls_key_lines = re.findall(r"(?im)^#EXT-X-KEY\s*:\s*([^\r\n]+)", sample)
     if hls_key_lines:
         methods = sorted({
             (parse_hls_attribute_list(line).get("METHOD") or "UNKNOWN")
