@@ -335,12 +335,16 @@ function MeHistoryCard({ item }: { item: HistoryEntry }) {
 function MeFavoriteCard({ item }: { item: FavoriteEntry }) {
   const imageProxyMode = useAppStore((state) => state.imageProxyMode);
   const customImageProxy = useAppStore((state) => state.customImageProxy);
+  const customAPIs = useAppStore((state) => state.customAPIs);
+  const envSources = useAppStore((state) => state.envSources);
+  const source = resolveSource({ customAPIs, envSources }, item.sourceKey);
   const href = buildWatchUrl({
     sourceKey: item.sourceKey,
     vodId: item.vodId,
     index: 0,
     title: item.title,
-    sourceUrl: item.sourceUrl,
+    sourceUrl: source?.url ?? item.sourceUrl,
+    detail: source?.detail,
   });
   return (
     <article className="v4-me-history-card relative">
