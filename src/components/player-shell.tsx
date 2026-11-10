@@ -231,8 +231,6 @@ export function PlayerShell({
   const restoredRef = useRef(false);
   // 某些 HLS 源在 MANIFEST_PARSED 时 duration 仍未就绪，延迟到媒体元数据可用后恢复
   const restoreCleanupRef = useRef<(() => void) | null>(null);
-  // timeupdate 续跑预取的游标：必须按集清零，否则会沿用上一集的时间戳推迟首次续跑
-  const lastPrefetchEnsureRef = useRef(0);
   // setupHls 可能改走代理形式，video:error 重试要用最近一次的地址
   const currentMediaUrlRef = useRef(url);
   // 本集的恢复策略实例：跨直连/代理两级重建共享计数
@@ -542,7 +540,6 @@ export function PlayerShell({
     playbackStartedRef.current = false;
     videoErrorRetryUsedRef.current = false;
     restoredRef.current = false;
-    lastPrefetchEnsureRef.current = 0;
     // 跳过片段按集重置：上一集已处理过不意味新一集也处理过
     handledSegmentsRef.current.clear();
     suppressedAutoRef.current.clear();
@@ -746,14 +743,6 @@ export function PlayerShell({
         lastSave = now;
         propsRef.current.onTimeUpdate?.(art.currentTime, art.duration);
       }
-      // 每 30s 续跑一次前向预取窗口（ensure 幂等，窗口未覆盖足够余量才会重建）
-      if (now - lastPrefetchEnsureRef.current > 30_000) {
-        lastPrefetchEnsureRef.current = now;
-        // 用 currentMediaUrlRef（代理回退后的实际地址）：否则预取的 key 与
-        // loader 读取的 key 不一致，缓存永不命中且直连 fetch 白耗流量
-        ensurePrefetch(currentMediaUrlRef.current, art.currentTime);
-      }
-
       // —— 跳过片段判定 ——
       const p = propsRef.current;
       const current = art.currentTime;
@@ -817,17 +806,17 @@ export function PlayerShell({
     art.on('video:pause', () => {
       // 跳过片尾会主动 pause：此时已按「看完」处理，不能再把片尾位置写回进度
       if (!endedRef.current) propsRef.current.onPause?.(art.currentTime, art.duration);
-      // 暂停 = 预取黄金窗口：解除限速并无限铺满整集（用户主动行为，带宽占用可接受）
-      // waiting 触发的限速在此解除，否则黄金窗口会被 500ms 轮询冻结
-      getVideoPrefetcher().setThrottled(false);
-      ensurePrefetch(currentMediaUrlRef.current, art.currentTime, 0);
+      // 仅在暂停时预取一个有限窗口；播放期间不并发下载，避免与当前 HLS
+      // 分片争抢带宽。恢复播放时会在 video:playing 中立即停止预取。
+      ensurePrefetch(currentMediaUrlRef.current, art.currentTime);
     });
     art.on('video:waiting', () => {
-      // 卡顿：预取临时让出带宽给播放
-      getVideoPrefetcher().setThrottled(true);
+      // 缓冲不足时彻底停止预取，释放所有并发请求给当前播放链路。
+      getVideoPrefetcher().stop();
     });
     art.on('video:playing', () => {
-      getVideoPrefetcher().setThrottled(false);
+      // 恢复播放后停止暂停期间的预取，避免后台请求持续抢占带宽。
+      getVideoPrefetcher().stop();
     });
     art.on('video:ended', () => {
       // finishBySkip 已经手动走过结束链路：这里不能重复触发 onEnded
