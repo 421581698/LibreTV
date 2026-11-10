@@ -250,6 +250,7 @@ def parse_hls_manifest(body: bytes) -> dict:
     durations: list[float] = []
     pending_variant: dict | None = None
     encryption_methods: set[str] = set()
+    key_formats: set[str] = set()
     key_uri_present = False
     for line in lines[1:]:
         if line.startswith("#EXT-X-STREAM-INF:"):
@@ -272,6 +273,8 @@ def parse_hls_manifest(body: bytes) -> dict:
             attrs = parse_hls_attribute_list(line.split(":", 1)[1])
             method = attrs.get("METHOD", "UNKNOWN")
             encryption_methods.add(method)
+            if attrs.get("KEYFORMAT"):
+                key_formats.add(attrs["KEYFORMAT"])
             key_uri_present = key_uri_present or "URI" in attrs
             # Deliberately do not retain or fetch key URI values.
         elif line.startswith("#EXTINF:"):
@@ -299,6 +302,7 @@ def parse_hls_manifest(body: bytes) -> dict:
         "duration_seconds": round(sum(durations), 3) if durations else None,
         "encrypted": bool(encryption_methods - {"NONE"}),
         "encryption_methods": sorted(encryption_methods),
+        "key_formats": sorted(key_formats),
         "key_uri_present": key_uri_present,
     }
 
@@ -1021,6 +1025,7 @@ def classify_access_state(status_code: int | None = None, headers=None, body: st
         ("com.widevine.alpha", "Widevine"),
         ("com.microsoft.playready", "PlayReady"),
         ("com.apple.fps", "FairPlay"),
+        ("com.apple.streamingkeydelivery", "FairPlay"),
         ("urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed", "Widevine"),
         ("urn:uuid:9a04f079-9840-4286-ab92-e65be0885f95", "PlayReady"),
         ("skd://", "FairPlay"),
@@ -1750,10 +1755,10 @@ def validate_candidate(candidate_id: str, authorization: str | None = Header(def
         hls_encryption_signal = ""
         if probe.get("media_format") == "hls":
             methods = probe.get("encryption_methods") or []
-            if methods:
-                hls_encryption_signal = "\\n".join(
-                    f"#EXT-X-KEY:METHOD={method}" for method in methods
-                )
+            formats = probe.get("key_formats") or []
+            signals = [f"#EXT-X-KEY:METHOD={method}" for method in methods]
+            signals.extend(f"#EXT-X-KEY:KEYFORMAT={key_format}" for key_format in formats)
+            hls_encryption_signal = "\\n".join(signals)
         access = classify_access_state(
             probe.get("http_status"),
             {"content-type": probe.get("content_type", "")},
