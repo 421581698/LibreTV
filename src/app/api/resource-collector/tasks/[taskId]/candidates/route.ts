@@ -12,5 +12,5 @@ export async function GET(request: Request, context: { params: Promise<{ taskId:
   if (!/^[a-f0-9]{32}$/i.test(taskId)) {
     return NextResponse.json({ error: 'Invalid task ID.' }, { status: 400 });
   }
-  return collectorRequest(`/v1/tasks/${taskId}/candidates`, {}, 10_000);
+  return collectorRequest(`/v1/tasks/${taskId}/candidates`, {}, 10_000, request);
 }
