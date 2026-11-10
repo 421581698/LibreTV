@@ -576,9 +576,19 @@ def parse_mpd_manifest(body: bytes, base_url: str = "") -> dict:
     if not representations:
         return {"manifest_valid": False, "manifest_error": "missing_representations"}
 
+    content_protection = []
+    for node in root.iter():
+        if node.tag.split("}")[-1] == "ContentProtection":
+            entry = {
+                "scheme_id_uri": node.attrib.get("schemeIdUri"),
+                "value": node.attrib.get("value"),
+            }
+            content_protection.append(entry)
+
     return {
         "manifest_valid": True,
         "manifest_type": "dash",
+        "content_protection": content_protection[:20],
         "dynamic": dynamic,
         "dynamic_metadata": dynamic_metadata,
         "representation_count": len(representations),
@@ -1812,6 +1822,11 @@ def validate_candidate(candidate_id: str, authorization: str | None = Header(def
             signals = [f"#EXT-X-KEY:METHOD={method}" for method in methods]
             signals.extend(f"#EXT-X-KEY:KEYFORMAT={key_format}" for key_format in formats)
             hls_encryption_signal = "\\n".join(signals)
+        elif probe.get("media_format") == "dash":
+            hls_encryption_signal = "\\n".join(
+                f"ContentProtection {item.get('scheme_id_uri') or ''} {item.get('value') or ''}"
+                for item in (probe.get("content_protection") or [])
+            )
         access = classify_access_state(
             probe.get("http_status"),
             {"content-type": probe.get("content_type", "")},
