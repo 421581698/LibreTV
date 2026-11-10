@@ -916,7 +916,8 @@ def probe_direct_media(raw_url: str, max_redirects: int = 5) -> dict:
                     if manifest.get("manifest_valid"):
                         manifest = validate_manifest_references(manifest, normalized)
             elif 200 <= status < 300 and (is_mp4 or is_webm):
-                container_body = response.read(MAX_CONTAINER_PROBE_BYTES + 1)
+                read_body = getattr(response, "read", None)
+                container_body = read_body(MAX_CONTAINER_PROBE_BYTES + 1) if callable(read_body) else b""
                 if len(container_body) <= MAX_CONTAINER_PROBE_BYTES:
                     container_resolution = (
                         parse_mp4_container_dimensions(container_body)
@@ -1261,8 +1262,8 @@ def classify_access_state(status_code: int | None = None, headers=None, body: st
         methods = sorted({
             method
             for line in hls_key_lines
-            for method in [(parse_hls_attribute_list(line).get("METHOD") or "UNKNOWN")]
-            if method.upper() != "NONE"
+            for method in [(parse_hls_attribute_list(line).get("METHOD") or "UNKNOWN").upper()]
+            if method != "NONE"
         })
         if methods:
             return {
