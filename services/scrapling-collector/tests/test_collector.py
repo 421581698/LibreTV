@@ -907,5 +907,25 @@ segment-2.ts
         result = collector.fmhy_category_pages_from_page(Page())
         self.assertEqual(result, ["https://fmhy.net/video/anime", "https://fmhy.net/video/movies"])
 
+
+    def test_hls_aes_encryption_is_not_misclassified_as_drm(self):
+        result = collector.classify_access_state(
+            200,
+            {"content-type": "application/vnd.apple.mpegurl"},
+            "#EXTM3U\\n#EXT-X-KEY:METHOD=AES-128,URI=\\"key.bin\\"",
+        )
+        self.assertEqual(result["access_state"], "ENCRYPTED_STREAM")
+        self.assertEqual(result["drm_systems"], [])
+        self.assertEqual(result["encryption_methods"], ["AES-128"])
+
+    def test_hls_fairplay_signal_remains_drm_protected(self):
+        result = collector.classify_access_state(
+            200,
+            {"content-type": "application/vnd.apple.mpegurl"},
+            '#EXTM3U\\n#EXT-X-KEY:METHOD=SAMPLE-AES,KEYFORMAT="com.apple.streamingkeydelivery",URI="skd://asset"',
+        )
+        self.assertEqual(result["access_state"], "DRM_PROTECTED")
+        self.assertIn("FairPlay", result["drm_systems"])
+
 if __name__ == "__main__":
     unittest.main()
