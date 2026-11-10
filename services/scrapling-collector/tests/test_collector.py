@@ -27,6 +27,17 @@ class CollectorTests(unittest.TestCase):
         with patch.dict(os.environ, {"SCRAPLING_EGRESS_FIREWALL_CONFIRMED": "1"}):
             collector.require_egress_firewall()
 
+    def test_health_reports_crawl_readiness_without_weakening_egress_gate(self):
+        with patch.dict(os.environ, {"SCRAPLING_EGRESS_FIREWALL_CONFIRMED": ""}):
+            status = collector.health()
+            self.assertTrue(status["ok"])
+            self.assertFalse(status["crawl_ready"])
+            self.assertIn("egress filtering", status["crawl_blocked_reason"])
+        with patch.dict(os.environ, {"SCRAPLING_EGRESS_FIREWALL_CONFIRMED": "1"}):
+            status = collector.health()
+            self.assertTrue(status["crawl_ready"])
+            self.assertIsNone(status["crawl_blocked_reason"])
+
     def test_crawl_endpoint_path_fails_closed_before_network_access(self):
         with patch.dict(os.environ, {"SCRAPLING_EGRESS_FIREWALL_CONFIRMED": ""}):
             with self.assertRaises(collector.HTTPException) as error:
