@@ -99,6 +99,17 @@ export function ResourceStatsPanel() {
               </div>
             </div>
           ) : null}
+          {data.recent_jobs?.length ? (
+            <div className="rounded-xl border border-line p-3 space-y-2">
+              <h4 className="text-xs font-semibold text-content">最近持久化任务</h4>
+              {data.recent_jobs.slice(0, 8).map((job) => (
+                <div key={job.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-2 text-[11px]">
+                  <span className="text-content">{job.job_type} · {job.status}</span>
+                  <span className="text-muted">尝试 {job.attempt}/{job.max_attempts} · {date(job.created_at)}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
           <div className="rounded-xl border border-line p-3">
             <div className="mb-3 text-xs font-semibold text-content">实际播放解码清晰度</div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -151,6 +162,7 @@ export function ResourceStatsPanel() {
                 <div className="min-w-0">
                   <h4 className="truncate text-sm font-semibold text-content">{detail.site.title}</h4>
                   <p className="text-xs text-muted">{detail.site.host} · 最近采集：{date(detail.site.last_crawl_at)}</p>
+                  <p className="text-xs text-muted">质量评分：{detail.site.quality_score == null ? '样本不足（至少 3 次播放）' : detail.site.quality_score + '/100'} · 健康状态：{detail.site.health_status}</p>
                 </div>
                 <button type="button" className="btn-ghost btn-sm" onClick={() => { setSelectedHost(''); setDetail(null); }}>关闭</button>
               </div>
