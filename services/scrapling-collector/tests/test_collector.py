@@ -93,8 +93,10 @@ class CollectorTests(unittest.TestCase):
             patch.object(collector, "extract_candidates", return_value=[http_candidate]),
             patch.object(collector, "captured_api_candidates", return_value=[duplicate, api_candidate]),
         ):
-            captured_page, candidates = collector.run_browser_capture("https://catalog.example/", 5)
+            captured_page, candidates, diagnostics = collector.run_browser_capture("https://catalog.example/", 5)
         self.assertIs(captured_page, page)
+        self.assertIn("final_url", diagnostics)
+        self.assertIn("captured_request_count", diagnostics)
         self.assertEqual([item["url"] for item in candidates], [http_candidate["url"], api_candidate["url"]])
         self.assertTrue(session.fetch_args[1]["network_idle"])
         self.assertIs(session.fetch_args[1]["page_setup"], collector.install_browser_request_guard)
