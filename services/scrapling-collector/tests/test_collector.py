@@ -16,6 +16,7 @@ class CollectorTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         collector.DB_PATH = Path(self.temp.name) / "collector.sqlite3"
         registry.DB_PATH = collector.DB_PATH
+        collector.init()
         collector.init_db()
 
     def tearDown(self):
