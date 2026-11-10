@@ -1720,15 +1720,14 @@ def run_spider(url: str, limit: int) -> list[dict]:
         unchanged_pages = 0
 
         async def parse(self, response: Response):
-            nonlocal changed_pages, unchanged_pages
             body = getattr(response, "body", b"") or b""
             changed = record_page_fingerprint(self.allowed_domains[0], response.url, body)
             if changed:
-                changed_pages += 1
+                type(self).changed_pages += 1
                 async for item in super().parse(response):
                     yield item
             else:
-                unchanged_pages += 1
+                type(self).unchanged_pages += 1
             current = canonical_candidate_url(response.url)
             if current not in self.pages_processed:
                 self.pages_processed.add(current)
