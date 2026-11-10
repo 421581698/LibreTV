@@ -1024,5 +1024,20 @@ segment-2.ts
         self.assertEqual(row["status"], "rejected")
         self.assertEqual(row["access_state"], "ENCRYPTED_STREAM")
 
+
+    def test_mpd_content_protection_is_retained_as_drm_evidence(self):
+        body = b"""<MPD><Period><AdaptationSet>
+<ContentProtection schemeIdUri="urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed" value="Widevine"/>
+<Representation id="v1" width="1920" height="1080"/>
+</AdaptationSet></Period></MPD>"""
+        manifest = collector.parse_mpd_manifest(body, "https://cdn.example/manifest.mpd")
+        self.assertEqual(manifest["content_protection"][0]["value"], "Widevine")
+        access = collector.classify_access_state(
+            200, {"content-type": "application/dash+xml"},
+            "ContentProtection urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed",
+        )
+        self.assertEqual(access["access_state"], "DRM_PROTECTED")
+        self.assertIn("Widevine", access["drm_systems"])
+
 if __name__ == "__main__":
     unittest.main()
