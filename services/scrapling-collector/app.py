@@ -25,6 +25,7 @@ from scrapling.fetchers import Fetcher, FetcherSession, StealthySession
 from scrapling.spiders import Response, Spider
 from registry_queue import JobCancelled, router as registry_router, register_candidate_playback, register_discovered_candidate, sync_candidate_validation
 import registry_queue as registry_store
+from stats import build_stats
 
 FMHY_VIDEO_URL = "https://fmhy.net/video"
 TOKEN = os.environ.get("SCRAPLING_API_TOKEN", "").strip()
@@ -77,6 +78,21 @@ class PlaybackEvidence(BaseModel):
     media_type: str = Field(pattern="^(hls|mp4|webm)$")
     observed_seconds: int = Field(ge=1, le=60)
     progressed_seconds: float = Field(ge=2, le=60)
+    decoded_width: int = Field(default=0, ge=0, le=16384)
+    decoded_height: int = Field(default=0, ge=0, le=16384)
+    selected_rendition_height: int = Field(default=0, ge=0, le=16384)
+    selected_rendition_bitrate_kbps: float = Field(default=0, ge=0, le=1000000)
+
+
+class PlaybackSampleEvidence(BaseModel):
+    host: str = Field(min_length=1, max_length=253)
+    media_type: str = Field(pattern="^(hls|mp4|webm)$")
+    observed_seconds: int = Field(ge=1, le=60)
+    progressed_seconds: float = Field(ge=2, le=60)
+    decoded_width: int = Field(default=0, ge=0, le=16384)
+    decoded_height: int = Field(default=0, ge=0, le=16384)
+    selected_rendition_height: int = Field(default=0, ge=0, le=16384)
+    selected_rendition_bitrate_kbps: float = Field(default=0, ge=0, le=1000000)
 
 
 def db() -> sqlite3.Connection:
@@ -108,6 +124,21 @@ def init_db() -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_candidates_task ON candidates(task_id);
         CREATE INDEX IF NOT EXISTS idx_tasks_created ON tasks(created_at DESC);
+        CREATE TABLE IF NOT EXISTS crawl_page_fingerprints (
+          host TEXT NOT NULL, page_key TEXT NOT NULL, fingerprint TEXT NOT NULL,
+          first_seen_at INTEGER NOT NULL, last_seen_at INTEGER NOT NULL,
+          last_changed_at INTEGER NOT NULL, visit_count INTEGER NOT NULL DEFAULT 1,
+          PRIMARY KEY(host,page_key)
+        );
+        CREATE TABLE IF NOT EXISTS playback_quality_samples (
+          id TEXT PRIMARY KEY, host TEXT NOT NULL, sample_source TEXT NOT NULL,
+          media_type TEXT NOT NULL, observed_seconds INTEGER NOT NULL,
+          progressed_seconds REAL NOT NULL, decoded_width INTEGER NOT NULL DEFAULT 0,
+          decoded_height INTEGER NOT NULL DEFAULT 0, selected_rendition_height INTEGER NOT NULL DEFAULT 0,
+          selected_rendition_bitrate_kbps REAL NOT NULL DEFAULT 0, created_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_playback_samples_host_created
+          ON playback_quality_samples(host,created_at DESC);
         """)
         # Forward-only, additive migrations keep existing collector volumes compatible.
         candidate_columns = {row["name"] for row in connection.execute("PRAGMA table_info(candidates)").fetchall()}
@@ -123,6 +154,17 @@ def init_db() -> None:
         for column, declaration in candidate_migrations.items():
             if column not in candidate_columns:
                 connection.execute(f"ALTER TABLE candidates ADD COLUMN {column} {declaration}")
+        task_columns = {row["name"] for row in connection.execute("PRAGMA table_info(tasks)").fetchall()}
+        task_migrations = {
+            "pages_scheduled": "INTEGER NOT NULL DEFAULT 0",
+            "pages_visited": "INTEGER NOT NULL DEFAULT 0",
+            "pages_failed": "INTEGER NOT NULL DEFAULT 0",
+            "pages_changed": "INTEGER NOT NULL DEFAULT 0",
+            "pages_unchanged": "INTEGER NOT NULL DEFAULT 0",
+        }
+        for column, declaration in task_migrations.items():
+            if column not in task_columns:
+                connection.execute(f"ALTER TABLE tasks ADD COLUMN {column} {declaration}")
         connection.execute(
             "UPDATE candidates SET access_state='ACCESS_UNKNOWN' WHERE access_state IS NULL OR access_state=''"
         )
@@ -1702,16 +1744,68 @@ class SpiderCandidateBatch(list):
         self.diagnostics = diagnostics or {}
 
 
+def page_fingerprint_changed(host: str, page_url: str, body: bytes) -> bool:
+    """Check whether a page changed without committing the fingerprint."""
+    page_key = hashlib.sha256(canonical_candidate_url(page_url).encode()).hexdigest()
+    fingerprint = hashlib.sha256(body or b"").hexdigest()
+    with db() as connection:
+        row = connection.execute(
+            "SELECT fingerprint FROM crawl_page_fingerprints WHERE host=? AND page_key=?",
+            (host, page_key),
+        ).fetchone()
+    return row is None or row["fingerprint"] != fingerprint
+
+
+def record_page_fingerprint(host: str, page_url: str, body: bytes) -> bool:
+    """Persist a successfully processed page fingerprint and return whether it changed."""
+    page_key = hashlib.sha256(canonical_candidate_url(page_url).encode()).hexdigest()
+    fingerprint = hashlib.sha256(body or b"").hexdigest()
+    now = int(time.time())
+    with db() as connection:
+        row = connection.execute(
+            "SELECT fingerprint FROM crawl_page_fingerprints WHERE host=? AND page_key=?",
+            (host, page_key),
+        ).fetchone()
+        changed = row is None or row["fingerprint"] != fingerprint
+        connection.execute(
+            """INSERT INTO crawl_page_fingerprints
+               (host,page_key,fingerprint,first_seen_at,last_seen_at,last_changed_at,visit_count)
+               VALUES(?,?,?,?,?,?,1)
+               ON CONFLICT(host,page_key) DO UPDATE SET
+                 fingerprint=excluded.fingerprint,last_seen_at=excluded.last_seen_at,
+                 last_changed_at=CASE WHEN crawl_page_fingerprints.fingerprint<>excluded.fingerprint
+                                      THEN excluded.last_changed_at ELSE crawl_page_fingerprints.last_changed_at END,
+                 visit_count=crawl_page_fingerprints.visit_count+1""",
+            (host,page_key,fingerprint,now,now,now),
+        )
+    return changed
+
+
 def run_spider(url: str, limit: int) -> list[dict]:
     class TargetSiteSpider(SiteSpider):
         start_urls = [url]
         allowed_domains = [urlparse(url).hostname]
         pages_scheduled: set[str] = {canonical_candidate_url(url)}
         pages_processed: set[str] = set()
+        changed_pages = 0
+        unchanged_pages = 0
 
         async def parse(self, response: Response):
-            async for item in super().parse(response):
-                yield item
+            body = getattr(response, "body", b"") or b""
+            host = self.allowed_domains[0]
+            if page_fingerprint_changed(host, response.url, body):
+                # Commit only after extraction completes. If parsing raises midway,
+                # the next crawl must retry this changed page instead of skipping it.
+                extracted_items = []
+                async for item in super().parse(response):
+                    extracted_items.append(item)
+                record_page_fingerprint(host, response.url, body)
+                type(self).changed_pages += 1
+                for item in extracted_items:
+                    yield item
+            else:
+                record_page_fingerprint(host, response.url, body)
+                type(self).unchanged_pages += 1
             current = canonical_candidate_url(response.url)
             if current not in self.pages_processed:
                 self.pages_processed.add(current)
@@ -1768,6 +1862,8 @@ def run_spider(url: str, limit: int) -> list[dict]:
         "frontier_max_pages": MAX_CRAWL_PAGES,
         "pages_scheduled": len(TargetSiteSpider.pages_scheduled),
         "pages_processed": len(TargetSiteSpider.pages_processed),
+        "changed_pages": TargetSiteSpider.changed_pages,
+        "unchanged_pages": TargetSiteSpider.unchanged_pages,
         "requests_count": getattr(stats, "requests_count", None),
         "completed": getattr(result, "completed", None),
     }
@@ -1880,11 +1976,19 @@ def run_browser_capture(url: str, limit: int) -> tuple[object, list[dict], dict]
         return page, merge_unique_candidates(candidates, api_candidates, limit), diagnostics
 
 
-def persist_task(task_id: str, url: str, host: str, mode: str, status: str, error: str | None = None, count: int = 0) -> None:
+def persist_task(
+    task_id: str, url: str, host: str, mode: str, status: str,
+    error: str | None = None, count: int = 0, pages_scheduled: int = 0,
+    pages_visited: int = 0, pages_failed: int = 0,
+    pages_changed: int = 0, pages_unchanged: int = 0,
+) -> None:
     with db() as connection:
         connection.execute(
-            "UPDATE tasks SET status=?,updated_at=?,error=?,result_count=? WHERE id=?",
-            (status, int(time.time()), error, count, task_id),
+            """UPDATE tasks SET status=?,updated_at=?,error=?,result_count=?,
+               pages_scheduled=?,pages_visited=?,pages_failed=?,pages_changed=?,pages_unchanged=?
+               WHERE id=?""",
+            (status, int(time.time()), error, count, pages_scheduled, pages_visited,
+             pages_failed, pages_changed, pages_unchanged, task_id),
         )
 
 
@@ -1904,6 +2008,7 @@ def crawl_site(payload: CrawlRequest, cancel_check=None) -> dict:
             (task_id, raw_url, host, "running", payload.mode, now, now),
         )
 
+    pages_scheduled = pages_visited = pages_failed = pages_changed = pages_unchanged = 0
     try:
         throttle(host)
         candidates: list[dict] = []
@@ -1969,6 +2074,17 @@ def crawl_site(payload: CrawlRequest, cancel_check=None) -> dict:
                 browser_diagnostics.update({"status": "failed", "error": type(exc).__name__})
                 errors.append(f"Browser capture: {type(exc).__name__}")
 
+        spider_attempted = payload.mode in ("auto", "http")
+        browser_attempted = payload.mode in ("auto", "browser")
+        spider_scheduled = int(spider_diagnostics.get("pages_scheduled") or (1 if spider_diagnostics.get("status") == "failed" else 0)) if spider_attempted else 0
+        spider_visited = int(spider_diagnostics.get("pages_processed") or 0) if spider_attempted else 0
+        browser_visited = 1 if browser_attempted and browser_diagnostics.get("status") == "completed" else 0
+        pages_scheduled = spider_scheduled + (1 if browser_attempted else 0)
+        pages_visited = spider_visited + browser_visited
+        pages_failed = max(0, pages_scheduled - pages_visited)
+        pages_changed = int(spider_diagnostics.get("changed_pages") or 0)
+        pages_unchanged = int(spider_diagnostics.get("unchanged_pages") or 0)
+
         if callable(cancel_check) and cancel_check():
             raise JobCancelled()
 
@@ -1992,8 +2108,11 @@ def crawl_site(payload: CrawlRequest, cancel_check=None) -> dict:
                 item["id"] = candidate_id
                 item["status"] = "pending"
             connection.execute(
-                "UPDATE tasks SET status=?,updated_at=?,error=?,result_count=? WHERE id=?",
-                ("partial" if errors and candidates else ("failed" if errors else "completed"), now, "; ".join(errors) or None, len(candidates), task_id),
+                """UPDATE tasks SET status=?,updated_at=?,error=?,result_count=?,
+                   pages_scheduled=?,pages_visited=?,pages_failed=?,pages_changed=?,pages_unchanged=? WHERE id=?""",
+                ("partial" if errors and candidates else ("failed" if errors else "completed"), now,
+                 "; ".join(errors) or None, len(candidates), pages_scheduled, pages_visited,
+                 pages_failed, pages_changed, pages_unchanged, task_id),
             )
         for item in candidates[:payload.limit]:
             register_discovered_candidate(item)
@@ -2002,14 +2121,21 @@ def crawl_site(payload: CrawlRequest, cancel_check=None) -> dict:
                 "page_url": raw_url, "final_url": final_url, "page_title": page_title,
                 "mode": payload.mode, "engine": "Scrapling Spider + StealthySession",
                 "count": len(candidates), "captured_request_count": captured_request_count,
+                "page_metrics": {"scheduled": pages_scheduled, "visited": pages_visited,
+                                 "failed": pages_failed, "changed": pages_changed,
+                                 "unchanged": pages_unchanged},
                 "diagnostics": {"http_spider": spider_diagnostics, "browser": browser_diagnostics},
                 "candidates": candidates[:payload.limit], "errors": errors,
                 "note": "Collected public candidates only. Candidates are not yet trusted playback sources and require validation/approval."}
     except JobCancelled:
-        persist_task(task_id, raw_url, host, payload.mode, "cancelled", "cancelled_by_request")
+        persist_task(task_id, raw_url, host, payload.mode, "cancelled", "cancelled_by_request",
+                     pages_scheduled=pages_scheduled, pages_visited=pages_visited,
+                     pages_failed=pages_failed, pages_changed=pages_changed, pages_unchanged=pages_unchanged)
         raise
     except Exception as exc:
-        persist_task(task_id, raw_url, host, payload.mode, "failed", type(exc).__name__)
+        persist_task(task_id, raw_url, host, payload.mode, "failed", type(exc).__name__,
+                     pages_scheduled=pages_scheduled, pages_visited=pages_visited,
+                     pages_failed=pages_failed, pages_changed=pages_changed, pages_unchanged=pages_unchanged)
         raise HTTPException(status_code=502, detail=f"Scrapling crawl failed: {type(exc).__name__}")
 
 @app.post("/v1/candidates/{candidate_id}/playback")
@@ -2024,7 +2150,7 @@ def record_playback_evidence(
         raise HTTPException(status_code=400, detail="Invalid candidate ID")
     with db() as connection:
         row = connection.execute(
-            "SELECT kind,status,access_state,validation FROM candidates WHERE id=?",
+            "SELECT host,kind,status,access_state,validation FROM candidates WHERE id=?",
             (candidate_id,),
         ).fetchone()
         if not row:
@@ -2054,6 +2180,10 @@ def record_playback_evidence(
             "media_type": payload.media_type,
             "observed_seconds": payload.observed_seconds,
             "progressed_seconds": payload.progressed_seconds,
+            "decoded_width": payload.decoded_width,
+            "decoded_height": payload.decoded_height,
+            "selected_rendition_height": payload.selected_rendition_height,
+            "selected_rendition_bitrate_kbps": payload.selected_rendition_bitrate_kbps,
             "verified_at": int(time.time()),
             "verification_scope": "browser_video_element_time_progression",
         }
@@ -2061,8 +2191,59 @@ def record_playback_evidence(
             "UPDATE candidates SET playback_verification=? WHERE id=?",
             (json.dumps(evidence, ensure_ascii=False), candidate_id),
         )
+        connection.execute(
+            """INSERT INTO playback_quality_samples
+               (id,host,sample_source,media_type,observed_seconds,progressed_seconds,
+                decoded_width,decoded_height,selected_rendition_height,
+                selected_rendition_bitrate_kbps,created_at)
+               VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+            (uuid.uuid4().hex, row["host"], "collector_preview", payload.media_type,
+             payload.observed_seconds, payload.progressed_seconds, payload.decoded_width,
+             payload.decoded_height, payload.selected_rendition_height,
+             payload.selected_rendition_bitrate_kbps, int(time.time())),
+        )
     registry_result = register_candidate_playback(candidate_id, evidence)
     return {"candidate_id": candidate_id, "playback_verification": evidence, **registry_result}
+
+
+@app.post("/v1/playback-samples")
+# Persist host-level playback metrics only; no title, raw media URL, or user identifier is stored.
+def record_general_playback_sample(
+    payload: PlaybackSampleEvidence,
+    authorization: str | None = Header(default=None),
+):
+    """Persist only aggregate-quality evidence for playback from discovered FMHY hosts."""
+    require_token(authorization)
+    host = payload.host.strip().lower().rstrip(".")
+    if not re.fullmatch(r"[a-z0-9.-]{1,253}", host) or "." not in host:
+        raise HTTPException(status_code=400, detail="Invalid playback source host")
+    with db() as connection:
+        site = connection.execute("SELECT host FROM sites WHERE host=?", (host,)).fetchone()
+        if not site:
+            return {"recorded": False, "reason": "host_not_in_fmhy_directory"}
+        connection.execute(
+            """INSERT INTO playback_quality_samples
+               (id,host,sample_source,media_type,observed_seconds,progressed_seconds,
+                decoded_width,decoded_height,selected_rendition_height,
+                selected_rendition_bitrate_kbps,created_at)
+               VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+            (uuid.uuid4().hex, host, "player", payload.media_type,
+             payload.observed_seconds, payload.progressed_seconds, payload.decoded_width,
+             payload.decoded_height, payload.selected_rendition_height,
+             payload.selected_rendition_bitrate_kbps, int(time.time())),
+        )
+    return {"recorded": True, "host": host}
+
+
+@app.get("/v1/stats")
+def collector_statistics(host: str | None = None, authorization: str | None = Header(default=None)):
+    """Read-only statistics derived from persisted Collector SQLite records."""
+    require_token(authorization)
+    normalized_host = (host or "").strip().lower().rstrip(".") or None
+    if normalized_host and (len(normalized_host) > 253 or "/" in normalized_host or "@" in normalized_host):
+        raise HTTPException(status_code=400, detail="Invalid site host")
+    with db() as connection:
+        return build_stats(connection, normalized_host)
 
 
 @app.get("/health")

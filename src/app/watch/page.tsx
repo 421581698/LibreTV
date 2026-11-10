@@ -476,6 +476,16 @@ function WatchContent() {
                   onTimeUpdate={handleProgress}
                   onPause={handleProgress}
                   onEnded={handleEnded}
+                  onPlaybackConfirmed={(evidence) => {
+                    let host = '';
+                    try { host = new URL(currentUrl).hostname.toLowerCase(); } catch { return; }
+                    void fetch('/api/resource-collector/playback-sample', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ host, ...evidence }),
+                      keepalive: true,
+                    }).catch(() => undefined);
+                  }}
                   hasPrevEpisode={currentIndex > 0}
                   hasNextEpisode={episodes.length > 0 && currentIndex < episodes.length - 1}
                   onPrevEpisode={() => goEpisode(currentIndex - 1)}

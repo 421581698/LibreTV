@@ -6,6 +6,8 @@ on:
       - feat/iphone-inline-play-top-search-2026-11-09
     paths:
       - "services/scrapling-collector/**"
+      - "services/scrapling-collector/stats.py"
+      - "services/scrapling-collector/tests/test_stats.py"
       - "src/app/api/resource-collector/**"
       - "src/lib/resource-collector-client.ts"
       - "src/lib/resource-collector-client.test.ts"
