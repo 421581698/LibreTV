@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feat/resource-playback-verification-v1
+      - feat/resource-intelligence-center-v2
       - integration/**
     paths:
       - "src/components/player-shell.tsx"
