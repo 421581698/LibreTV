@@ -175,7 +175,7 @@ export function ResourceStatsPanel() {
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="rounded-lg bg-chip p-2">页面访问：{fmt(detail.site.pages_visited ?? 0)}</div>
-                <div className="rounded-lg bg-chip p-2">页面失败：{fmt(detail.site.pages_failed ?? 0)}</div>
+                <div className="rounded-lg bg-chip p-2">未完成访问：{fmt(detail.site.pages_failed ?? 0)}</div>
                 <div className="rounded-lg bg-chip p-2">内容变化：{fmt(detail.site.pages_changed ?? 0)}</div>
                 <div className="rounded-lg bg-chip p-2">内容未变：{fmt(detail.site.pages_unchanged ?? 0)}</div>
                 <div className="rounded-lg bg-chip p-2">电影条目：{fmt(detail.site.movie_entries ?? 0)}</div>
@@ -184,7 +184,7 @@ export function ResourceStatsPanel() {
                 <div className="rounded-lg bg-chip p-2">预检通过：{fmt(detail.site.preflight_passed)}</div>
                 <div className="rounded-lg bg-chip p-2">采集预览播放确认：{fmt(detail.site.playback_confirmed)}</div>
               </div>
-              <p className="text-[10px] text-muted">电影与剧集数量来自 Registry 去重条目；动漫未建立独立可靠类型字段时不单独推算。</p>
+              <p className="text-[10px] text-muted">电影与剧集数量来自 Registry 去重条目；动漫未建立独立可靠类型字段时不单独推算。未完成访问按已调度页面减去已处理页面计算，包含请求失败、拦截或中断等未处理页面，不代表每条都已确认 HTTP 错误。</p>
               {detail.recent_resources?.length ? (
                 <div className="space-y-2">
                   <h5 className="text-xs font-semibold text-content">最近发现的资源</h5>
