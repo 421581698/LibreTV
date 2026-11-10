@@ -26,4 +26,14 @@ describe('rankSourcesByHealth', () => {
     rankSourcesByHealth(input, {}, 10_000);
     expect(input).toEqual(sources);
   });
+
+  it('accepts health exactly at the seven-day boundary and ignores future timestamps', () => {
+    const now = 8 * 24 * 60 * 60 * 1000;
+    const ranked = rankSourcesByHealth(sources, {
+      slow: { ok: true, ms: 800, failStreak: 0, timestamp: now - 7 * 24 * 60 * 60 * 1000 },
+      fast: { ok: true, ms: 50, failStreak: 0, timestamp: now + 1 },
+    }, now);
+    expect(ranked.map((source) => source.key)).toEqual(['slow', 'unknown', 'fast', 'failed']);
+  });
+
 });
