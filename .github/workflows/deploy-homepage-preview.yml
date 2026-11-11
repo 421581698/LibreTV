@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/libretv-eight-screen-glass-2026-11-09
+      - feature/settings-apple-minimal-2026-11-11
   workflow_dispatch:
 
 permissions:
@@ -15,7 +16,7 @@ concurrency:
 
 jobs:
   deploy-preview:
-    if: ${{ github.ref == 'refs/heads/feature/libretv-eight-screen-glass-2026-11-09' }}
+    if: ${{ github.ref == 'refs/heads/feature/libretv-eight-screen-glass-2026-11-09' || github.ref == 'refs/heads/feature/settings-apple-minimal-2026-11-11' }}
     name: Build and deploy protected isolated preview Worker
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -52,9 +53,8 @@ jobs:
             exit 1
           fi
 
-      - name: Build eight-screen preview
+      - name: Build PR preview
         env:
-          NEXT_PUBLIC_HOME_V2: "true"
           NEXT_TELEMETRY_DISABLED: "1"
         run: npx opennextjs-cloudflare build
 
