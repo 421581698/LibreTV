@@ -1988,3 +1988,60 @@ html:has(.v4-home) {
     margin-top: 24px !important;
   }
 }
+
+
+/* PR84 visual balance pass: lower the artwork focal point and center the copy. */
+@media screen and (max-width: 700px) {
+  /* Show more of the lower artwork instead of pinning the crop to its top edge. */
+  body:has(.v4-home) .v4-home .v4-hero-immersive .v4-hero-image img {
+    object-position: center 68% !important;
+  }
+
+  /* Give the hero a deliberate top breathing zone below the floating header. */
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive {
+    height: clamp(560px, 74svh, 640px) !important;
+    min-height: 560px !important;
+    max-height: 640px !important;
+  }
+
+  /* Keep the editorial copy as one centered stack, biased toward the lower half. */
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-immersive-copy {
+    top: 0 !important;
+    right: 22px !important;
+    bottom: 58px !important;
+    left: 22px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding-top: 112px !important;
+    padding-bottom: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-immersive-copy .v4-hero-actions {
+    margin-top: 8px !important;
+  }
+
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-immersive-copy .v4-hero-featured-title {
+    margin-top: 2px !important;
+  }
+
+  /* Keep the dots attached to the actual poster bottom, not the page black area. */
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-indicators {
+    bottom: 18px !important;
+  }
+
+  /* Extend the veil through the lower artwork so it fades smoothly into page black. */
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-veil {
+    background: linear-gradient(
+      180deg,
+      rgba(0,0,0,.02) 0%,
+      rgba(0,0,0,.02) 38%,
+      rgba(0,0,0,.22) 58%,
+      rgba(0,0,0,.68) 80%,
+      #000 100%
+    ) !important;
+  }
+}
