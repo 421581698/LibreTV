@@ -1773,19 +1773,19 @@ def run_spider(url: str, limit: int) -> list[dict]:
         async def parse(self, response: Response):
             body = getattr(response, "body", b"") or b""
             host = self.allowed_domains[0]
-            if page_fingerprint_changed(host, response.url, body):
-                # Commit only after extraction completes. If parsing raises midway,
-                # the next crawl must retry this changed page instead of skipping it.
-                extracted_items = []
-                async for item in super().parse(response):
-                    extracted_items.append(item)
-                record_page_fingerprint(host, response.url, body)
+            changed = page_fingerprint_changed(host, response.url, body)
+            # Always re-extract public candidates. Parser improvements must also
+            # apply to unchanged pages already seen by earlier collector versions.
+            extracted_items = []
+            async for item in super().parse(response):
+                extracted_items.append(item)
+            record_page_fingerprint(host, response.url, body)
+            if changed:
                 type(self).changed_pages += 1
-                for item in extracted_items:
-                    yield item
             else:
-                record_page_fingerprint(host, response.url, body)
                 type(self).unchanged_pages += 1
+            for item in extracted_items:
+                yield item
             current = canonical_candidate_url(response.url)
             if current not in self.pages_processed:
                 self.pages_processed.add(current)
