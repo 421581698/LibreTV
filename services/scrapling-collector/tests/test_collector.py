@@ -1158,12 +1158,13 @@ segment-2.ts
                         Anchor("https://loc.gov/item/another", "Library of Congress duplicate"),
                         Anchor("https://fmhy.net/video", "FMHY internal"),
                         Anchor("https://tubi.tv/category/movies", "Tubi"),
+                        Anchor("https://independent-catalog.example/movies", "Independent public catalogue"),
                         Anchor("http://insecure.example", "Insecure"),
                     ]
                 return []
 
         sites = collector.fmhy_sites_from_page(Page())
-        self.assertEqual([site["host"] for site in sites], ["loc.gov", "tubi.tv"])
+        self.assertEqual([site["host"] for site in sites], ["loc.gov", "tubi.tv", "independent-catalog.example"])
         self.assertTrue(all(site["directory"].startswith("FMHY / video") for site in sites))
         self.assertFalse(any(site["host"] == "insecure.example" for site in sites))
 
