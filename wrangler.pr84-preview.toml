@@ -12,6 +12,6 @@ preview_urls = false
 CMS_SEARCH_API = "https://caiji.dyttzyapi.com/api.php/provide/vod"
 API_60S_BASE = "https://60s.bggdbh.workers.dev"
 LLM_MODEL = "glm-4-flash"
-AUTH_DISABLED = "false"
+AUTH_DISABLED = "true"
 
-# PASSWORD 由 GitHub Actions 的 LIBRETV_PR84_PREVIEW_PASSWORD 注入为 Worker Secret。
+# 此 Preview 仅用于公开验收；不配置 PASSWORD Worker Secret。
