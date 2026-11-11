@@ -52,6 +52,8 @@ export function ResourceStatsPanel() {
   const [error, setError] = useState('');
   const [library, setLibrary] = useState<LibraryResource[]>([]);
   const [libraryError, setLibraryError] = useState('');
+  const [batchSubmitting, setBatchSubmitting] = useState(false);
+  const [batchMessage, setBatchMessage] = useState('');
 
   const load = useCallback(async (host?: string) => {
     setLoading(true); setError('');
@@ -79,6 +81,24 @@ export function ResourceStatsPanel() {
     }
   }, []);
 
+  const startBatch = useCallback(async () => {
+    setBatchSubmitting(true);
+    setBatchMessage('');
+    try {
+      const response = await collectorFetch('/api/resource-collector', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'batch' }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || payload.error || '批量采集任务提交失败。');
+      setBatchMessage('已提交跨站点采集任务：' + String(payload.job_id || '已排队') + '。目标至少 101 条唯一视频候选，最多尝试 25 个 FMHY 站点。');
+    } catch (reason) {
+      setBatchMessage(reason instanceof Error ? reason.message : '批量采集任务提交失败。');
+    } finally {
+      setBatchSubmitting(false);
+    }
+  }, []);
   useEffect(() => { void load(); void loadLibrary(); }, [load, loadLibrary]);
   const selectSite = (host: string) => { setSelectedHost(host); setDetail(null); void load(host); };
   const summary = data?.summary;
@@ -164,9 +184,13 @@ export function ResourceStatsPanel() {
           <div className="rounded-xl border border-line p-3 space-y-3">
             <div className="flex items-center justify-between gap-2">
               <h4 className="text-xs font-semibold text-content">本地影视库 · 已验证可播放</h4>
+              <button type="button" className="btn-primary btn-sm" disabled={batchSubmitting} onClick={() => void startBatch()}>
+                {batchSubmitting ? '正在提交…' : '启动 101+ 跨站点批量采集'}
+              </button>
               <button type="button" className="btn-ghost btn-sm" onClick={() => void loadLibrary()}>刷新</button>
             </div>
             {libraryError ? <p role="alert" className="text-xs text-red-600">{libraryError}</p> : null}
+            {batchMessage ? <p role="status" className="text-xs text-muted">{batchMessage}</p> : null}
             {library.length ? library.map((resource) => {
               let playHref = '';
               let mediaType = '待识别';
