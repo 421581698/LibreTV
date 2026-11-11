@@ -231,3 +231,350 @@ body .v4-home .v4-mobile-tabbar {
   padding: 6px !important;
   transform: translateX(-50%) !important;
 }
+
+
+/* Cinema lobby redesign: immersive full-bleed hero, horizontal featured rail,
+   compact continue-watching cards, frosted header controls and floating dock. */
+body .v4-home .v4-home-main--cinema {
+  padding-top: 0 !important;
+}
+body .v4-home .v4-hero-immersive {
+  position: relative !important;
+  width: 100% !important;
+  height: 100svh !important;
+  min-height: 620px !important;
+  max-height: 1000px !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: #080d16 !important;
+}
+body .v4-home .v4-hero-immersive .v4-hero-image {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  background-size: cover !important;
+  background-position: center 35% !important;
+}
+body .v4-home .v4-hero-immersive .v4-hero-image img {
+  object-fit: cover !important;
+  object-position: center 35% !important;
+}
+body .v4-home .v4-hero-immersive .v4-hero-veil {
+  z-index: 1 !important;
+  background:
+    linear-gradient(90deg,rgba(4,8,15,.62) 0%,rgba(4,8,15,.18) 58%,rgba(4,8,15,.04) 100%),
+    linear-gradient(0deg,rgba(4,8,15,.66) 0%,rgba(4,8,15,.04) 58%,rgba(4,8,15,.28) 100%) !important;
+}
+body .v4-home .v4-hero-hit-area {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 1 !important;
+  width: 100% !important;
+  height: 100% !important;
+  border: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  cursor: pointer !important;
+}
+body .v4-home .v4-hero-immersive-copy {
+  z-index: 2 !important;
+  top: auto !important;
+  bottom: clamp(112px,15vh,180px) !important;
+  left: clamp(24px,8vw,120px) !important;
+  right: 24px !important;
+  max-width: 720px !important;
+  transform: none !important;
+  pointer-events: none !important;
+}
+body .v4-home .v4-hero-immersive-copy .v4-hero-eyebrow {
+  display: block !important;
+  margin: 0 0 16px !important;
+  color: rgba(255,255,255,.76) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: .22em !important;
+}
+body .v4-home .v4-hero-immersive-copy h1 {
+  margin: 0 0 14px !important;
+  color: #fff !important;
+  font-size: clamp(42px,6.4vw,82px) !important;
+  line-height: 1.04 !important;
+  letter-spacing: -.045em !important;
+  text-shadow: 0 4px 28px rgba(0,0,0,.28) !important;
+}
+body .v4-home .v4-hero-immersive-copy p {
+  margin: 0 !important;
+  color: rgba(255,255,255,.86) !important;
+  font-size: clamp(14px,1.5vw,19px) !important;
+  line-height: 1.65 !important;
+}
+body .v4-home .v4-hero-featured-title {
+  display: block !important;
+  margin-top: 24px !important;
+  color: rgba(255,255,255,.68) !important;
+  font-size: 13px !important;
+  letter-spacing: .04em !important;
+}
+body .v4-home .v4-hero-dots {
+  position: absolute !important;
+  z-index: 4 !important;
+  left: 50% !important;
+  bottom: max(28px,env(safe-area-inset-bottom)) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  margin: 0 !important;
+  transform: translateX(-50%) !important;
+  pointer-events: auto !important;
+}
+body .v4-home .v4-hero-dots button {
+  width: 6px !important;
+  height: 6px !important;
+  min-width: 6px !important;
+  border-radius: 50% !important;
+  background: rgba(255,255,255,.48) !important;
+  transition: width .2s ease,background .2s ease !important;
+}
+body .v4-home .v4-hero-dots button.is-active {
+  width: 20px !important;
+  border-radius: 999px !important;
+  background: #fff !important;
+}
+body .v4-home .v4-header .v4-brand,
+body .v4-home .v4-header .v4-header-actions > .v4-search,
+body .v4-home .v4-header .v4-header-actions > .v4-avatar {
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,.24) !important;
+  background: rgba(255,255,255,.13) !important;
+  box-shadow: 0 8px 28px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.2) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(170%) !important;
+  backdrop-filter: blur(24px) saturate(170%) !important;
+}
+body .v4-home .v4-today-section,
+body .v4-home .v4-continue-section,
+body .v4-home .v4-recommendation-section {
+  width: min(calc(100% - 48px),1480px) !important;
+  margin: 38px auto 0 !important;
+}
+body .v4-home .v4-section-heading {
+  margin-bottom: 16px !important;
+}
+body .v4-home .v4-section-heading h2 {
+  color: var(--c-content,#202630) !important;
+  font-size: clamp(19px,2vw,24px) !important;
+  font-weight: 760 !important;
+}
+body .v4-home .v4-rail-hint {
+  color: var(--c-muted,#8792a0) !important;
+  font-size: 11px !important;
+}
+body .v4-home .v4-today-rail {
+  display: flex !important;
+  gap: 16px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  padding: 2px 2px 16px !important;
+  scroll-snap-type: x mandatory !important;
+  overscroll-behavior-inline: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+  scrollbar-width: thin !important;
+}
+body .v4-home .v4-today-card {
+  display: flex !important;
+  flex: 0 0 clamp(132px,15vw,184px) !important;
+  flex-direction: column !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  text-align: left !important;
+  border: 0 !important;
+  border-radius: 14px !important;
+  color: var(--c-content,#202630) !important;
+  background: transparent !important;
+  cursor: pointer !important;
+  scroll-snap-align: start !important;
+}
+body .v4-home .v4-today-card-poster {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  aspect-ratio: 2 / 3 !important;
+  overflow: hidden !important;
+  border-radius: 14px !important;
+  background: rgba(120,130,145,.12) !important;
+  box-shadow: 0 8px 24px rgba(20,30,45,.10) !important;
+}
+body .v4-home .v4-today-card-poster img {
+  transition: transform .28s ease !important;
+}
+body .v4-home .v4-today-card:hover .v4-today-card-poster img {
+  transform: scale(1.045) !important;
+}
+body .v4-home .v4-today-card > strong {
+  display: block !important;
+  width: 100% !important;
+  margin-top: 10px !important;
+  overflow: hidden !important;
+  color: var(--c-content,#202630) !important;
+  font-size: 13px !important;
+  font-weight: 650 !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+body .v4-home .v4-today-card-rating {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  margin-top: 5px !important;
+  color: var(--c-muted,#84909e) !important;
+  font-size: 11px !important;
+}
+body .v4-home .v4-today-card-rating > span {
+  color: #e2a83d !important;
+  font-size: 13px !important;
+}
+body .v4-home .v4-today-rail-status {
+  min-height: 120px !important;
+  display: flex !important;
+  align-items: center !important;
+  color: var(--c-muted,#8792a0) !important;
+  font-size: 13px !important;
+}
+body .v4-home .v4-history-card {
+  flex: 0 0 clamp(250px,28vw,360px) !important;
+  min-width: 0 !important;
+  border: 1px solid rgba(120,135,155,.13) !important;
+  border-radius: 15px !important;
+  background: rgba(var(--glass-panel-rgb,255,255,255),.72) !important;
+  box-shadow: 0 7px 22px rgba(20,30,45,.055) !important;
+}
+body .v4-home .v4-history-play {
+  opacity: 1 !important;
+  width: 40px !important;
+  height: 40px !important;
+}
+body .v4-home .v4-progress-meta {
+  display: flex !important;
+  align-items: center !important;
+  gap: 9px !important;
+}
+body .v4-home .v4-progress-meta .v4-progress-track {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+body .v4-home .v4-progress-percent {
+  flex: 0 0 auto !important;
+  color: var(--c-muted,#7b8795) !important;
+  font-size: 10px !important;
+  font-variant-numeric: tabular-nums !important;
+}
+body .v4-home .v4-mobile-tabbar {
+  position: fixed !important;
+  z-index: 500 !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: max(10px,env(safe-area-inset-bottom)) !important;
+  width: min(310px,calc(100% - 48px)) !important;
+  min-height: 62px !important;
+  padding: 6px 8px !important;
+  grid-template-columns: repeat(3,minmax(0,1fr)) !important;
+  border: 1px solid rgba(255,255,255,.58) !important;
+  border-radius: 999px !important;
+  background: rgba(245,248,252,.76) !important;
+  box-shadow: 0 12px 36px rgba(15,25,40,.18),inset 0 1px 0 rgba(255,255,255,.8) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(180%) !important;
+  backdrop-filter: blur(26px) saturate(180%) !important;
+  transform: translateX(-50%) !important;
+}
+body .v4-home .v4-mobile-tabbar a {
+  position: relative !important;
+  display: flex !important;
+  min-height: 48px !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 3px !important;
+  color: rgba(55,65,80,.72) !important;
+  text-decoration: none !important;
+}
+body .v4-home .v4-mobile-tabbar a.is-active {
+  color: #202630 !important;
+}
+body .v4-home .v4-mobile-tabbar svg {
+  width: 19px !important;
+  height: 19px !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 1.8 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+body .v4-home .v4-mobile-tabbar svg.is-filled path,
+body .v4-home .v4-mobile-tabbar svg.is-filled rect,
+body .v4-home .v4-mobile-tabbar svg.is-filled circle {
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+body .v4-home .v4-mobile-tabbar span {
+  font-size: 10px !important;
+  line-height: 1.1 !important;
+}
+body .v4-home .v4-mobile-tabbar a > i {
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 50% !important;
+  width: 4px !important;
+  height: 4px !important;
+  border-radius: 50% !important;
+  background: currentColor !important;
+  transform: translateX(-50%) !important;
+}
+@media (max-width: 700px) {
+  body .v4-home .v4-hero-immersive {
+    height: 100svh !important;
+    min-height: 580px !important;
+    max-height: none !important;
+  }
+  body .v4-home .v4-hero-immersive-copy {
+    left: 24px !important;
+    right: 24px !important;
+    bottom: max(112px,calc(env(safe-area-inset-bottom) + 100px)) !important;
+  }
+  body .v4-home .v4-hero-immersive-copy h1 {
+    font-size: clamp(38px,10vw,54px) !important;
+  }
+  body .v4-home .v4-hero-immersive-copy p {
+    max-width: 320px !important;
+    font-size: 13px !important;
+  }
+  body .v4-home .v4-hero-featured-title { margin-top: 18px !important; font-size: 11px !important; }
+  body .v4-home .v4-hero-dots { bottom: max(28px,env(safe-area-inset-bottom)) !important; }
+  body .v4-home .v4-today-section,
+  body .v4-home .v4-continue-section,
+  body .v4-home .v4-recommendation-section {
+    width: calc(100% - 32px) !important;
+    margin-top: 28px !important;
+  }
+  body .v4-home .v4-today-card { flex-basis: 126px !important; }
+  body .v4-home .v4-history-row { gap: 12px !important; }
+  body .v4-home .v4-history-card { flex-basis: min(82vw,320px) !important; }
+  body .v4-home .v4-mobile-tabbar {
+    width: min(292px,calc(100% - 52px)) !important;
+    bottom: max(10px,env(safe-area-inset-bottom)) !important;
+  }
+  body .v4-home { padding-bottom: calc(104px + env(safe-area-inset-bottom)) !important; }
+}
+@media (min-width: 701px) and (max-width: 1440px) and (orientation: landscape) {
+  body .v4-home .v4-hero-immersive { height: 100svh !important; min-height: 560px !important; }
+  body .v4-home .v4-hero-immersive-copy { bottom: 112px !important; }
+  body .v4-home .v4-today-section,
+  body .v4-home .v4-continue-section,
+  body .v4-home .v4-recommendation-section { width: calc(100% - 64px) !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body .v4-home .v4-today-card-poster img { transition: none !important; }
+}
