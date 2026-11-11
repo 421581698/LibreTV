@@ -1803,7 +1803,7 @@ html:has(.v4-home) {
 
   body:has(.v4-home) {
     min-height: 100vh !important;
-    min-height: 100svh !important;
+    min-height: calc(100svh) !important;
     margin: 0 !important;
     padding: 0 !important;
     background: #000 !important;
@@ -1813,7 +1813,7 @@ html:has(.v4-home) {
   body:has(.v4-home) .v4-home {
     position: relative !important;
     min-height: 100vh !important;
-    min-height: 100svh !important;
+    min-height: calc(100svh) !important;
     margin: 0 !important;
     padding: 0 !important;
     overflow-x: clip !important;
