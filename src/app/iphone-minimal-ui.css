@@ -102,7 +102,7 @@
   .v4-home .v4-hero {
     width: 100% !important;
     height: min(56svh, 540px) !important;
-    min-height: 360px !important;
+    min-height: min(360px, 42svh) !important;
     border-radius: 0 0 22px 22px !important;
     overflow: hidden;
   }
@@ -869,11 +869,11 @@
     gap: 9px !important;
     pointer-events: auto;
   }
-  /* SearchModule emits form + search button; then history, settings, avatar. */
+  /* Keep only search and profile visible; target controls by semantic classes, not DOM order. */
   .v4-header-actions > form.v4-search { display: none !important; }
   .v4-header-actions > .v4-mobile-search-toggle { display: inline-flex !important; order: 1 !important; }
-  .v4-header-actions > :nth-child(3),
-  .v4-header-actions > :nth-child(4) { display: none !important; }
+  .v4-header-actions > .v4-history-toggle,
+  .v4-header-actions > .v4-settings-toggle { display: none !important; }
   .v4-header-actions > .v4-avatar { display: inline-flex !important; order: 2 !important; }
   .v4-header-actions .v4-mobile-search-toggle,
   .v4-header-actions .v4-avatar {
