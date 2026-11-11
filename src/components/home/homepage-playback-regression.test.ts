@@ -203,8 +203,10 @@ describe('首页与播放页回归契约', () => {
     expect(sharedHeaderStyles).not.toContain('background: rgba(246, 248, 251, 0.88)');
   });
 
-  it('首页顶部仅保留 Logo、圆形搜索和圆形头像，旧频道导航已从 DOM 移除', () => {
-    expect(v4Header).toContain('<BrandModule />');
+  it('首页顶部移除品牌 Logo，仅保留圆形搜索和圆形头像，旧频道导航已从 DOM 移除', () => {
+    expect(v4Header).not.toContain('BrandModule');
+    expect(v4Header).not.toContain('<BrandModule />');
+    expect(v4Header).toContain('v4-header-inner--no-brand');
     expect(v4Header).toContain('<SearchModule />');
     expect(v4Header).toContain('<AvatarModule pathname={pathname} />');
     expect(v4Header).not.toContain('<nav');
