@@ -1083,7 +1083,7 @@ segment-2.ts
             ).fetchone()
         self.assertIsNotNone(resource["movie_id"])
         self.assertEqual(resource["playback_state"], "PLAYER_CONFIRMED")
-        self.assertEqual(json.loads(resource["metadata"])["media_identity"]["title_hint"], "Example Anime")
+        self.assertEqual(collector.json.loads(resource["metadata"])["media_identity"]["title_hint"], "Example Anime")
 
     def test_candidate_merge_persists_provenance_identity_and_unknown_access(self):
         candidate = collector.normalize_candidate({
