@@ -345,7 +345,7 @@ export function AggregatedCard({
                   role="button"
                   tabIndex={0}
                   className={cn(
-                    'group flex w-full min-w-0 items-center gap-2 rounded-lg border px-2.5 py-2',
+                    'group flex flex-1 min-w-0 items-center gap-2 rounded-lg border px-2.5 py-2',
                     'text-xs transition-all cursor-pointer',
                     'bg-chip hover:border-accent hover:bg-accent/10',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50',
