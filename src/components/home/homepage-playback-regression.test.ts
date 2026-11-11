@@ -519,12 +519,12 @@ describe('首页与播放页回归契约', () => {
     expect(featuredHero).toContain('loading="eager"');
     expect(featuredHero).toContain('className="v4-hero-indicators"');
     expect(featuredHero.indexOf('</div>\\n          <div className="v4-hero-indicators"')).toBeGreaterThan(-1);
-    expect(homepageHeroStyles).toContain('height: clamp(540px, 68svh, 680px) !important;');
+    expect(homepageHeroStyles).toContain('height: clamp(520px, 72svh, 660px) !important;');
     expect(homepageHeroStyles).toContain('.v4-home-main--cinema > .v4-hero > .v4-hero-image img');
     expect(homepageHeroStyles).toContain('object-fit: cover !important;');
     expect(homepageHeroStyles).toContain('.v4-home-main--cinema > .v4-hero > .v4-hero-indicators');
     expect(homepageHeroStyles).toContain('position: absolute !important;');
-    expect(homepageHeroStyles).toContain('bottom: max(24px, calc(env(safe-area-inset-bottom, 0px) + 16px)) !important;');
+    expect(homepageHeroStyles).toContain('bottom: max(22px, calc(env(safe-area-inset-bottom, 0px) + 14px)) !important;');
   });
 
 });
