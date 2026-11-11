@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
+import { favoriteIdFor } from './favorite-id';
 import type { SourceConfig } from './types';
 // 仅类型引入：store.ts 运行时会引用本模块，反向只取类型不会形成运行时循环
 import type { LiveProbeEntry } from './store';
@@ -30,6 +31,21 @@ export interface HistoryEntry {
   playbackPosition: number;
   duration: number;
   timestamp: number;
+}
+
+export interface FavoriteEntry {
+  /** 主键：sourceKey + vodId，确保跨源资源不会互相覆盖 */
+  id: string;
+  sourceKey: string;
+  sourceUrl?: string;
+  sourceName: string;
+  vodId: string;
+  title: string;
+  pic?: string;
+  typeName?: string;
+  year?: string;
+  remarks?: string;
+  addedAt: number;
 }
 
 export interface ProgressEntry {
@@ -91,6 +107,7 @@ export interface FridayTaskEventEntry {
 
 export const db = new Dexie('libretv') as Dexie & {
   history: EntityTable<HistoryEntry, 'id'>;
+  favorites: EntityTable<FavoriteEntry, 'id'>;
   progress: EntityTable<ProgressEntry, 'key'>;
   searchHistory: EntityTable<SearchHistoryEntry, 'text'>;
   liveProbe: EntityTable<LiveProbeEntry & { url: string }, 'url'>;
@@ -235,10 +252,12 @@ export async function exportConfig(): Promise<string> {
   // 导出前 flush：把节流缓冲中的最新设置落盘，避免导出的是 800ms 前的旧快照
   flushPendingPersist();
   const history = await db.history.toArray();
+  const favorites = await db.favorites.toArray();
   const settings = localStorage.getItem(PERSIST_KEY);
 
   const data: Record<string, unknown> = {
     viewingHistory: JSON.stringify(history),
+    viewingFavorites: JSON.stringify(favorites),
   };
   if (settings) data[PERSIST_KEY] = settings;
 
@@ -263,6 +282,18 @@ export async function importConfig(content: string): Promise<void> {
     // 之后 flush 时用导入前的旧状态覆盖刚写入的配置（导入静默丢失）
     flushPendingPersist();
     localStorage.setItem(PERSIST_KEY, data[PERSIST_KEY]);
+  }
+
+  if (typeof data['viewingFavorites'] === 'string') {
+    const imported = JSON.parse(data['viewingFavorites']) as FavoriteEntry[];
+    const valid = imported.filter((item) =>
+      item && typeof item.id === 'string' &&
+      typeof item.sourceKey === 'string' &&
+      typeof item.vodId === 'string' &&
+      typeof item.title === 'string' &&
+      typeof item.sourceName === 'string'
+    );
+    if (valid.length > 0) await db.favorites.bulkPut(valid.map((item) => ({ ...item, id: favoriteIdFor(item.sourceKey, item.vodId) })));
   }
 
   if (typeof data['viewingHistory'] === 'string') {
@@ -300,3 +331,39 @@ db.version(4).stores({
 db.version(5).stores({
   fridayTaskEvents: 'eventId, taskId, [taskId+sequence], occurredAt, type, [type+occurredAt]',
 });
+
+
+// v6: independent movie/series favorites; existing history and live-channel favorites are untouched.
+db.version(6).stores({
+  favorites: 'id, addedAt, sourceKey, title',
+});
+
+// v7: use an unambiguous composite identity and migrate existing v6 favorites.
+db.version(7).stores({
+  favorites: 'id, addedAt, sourceKey, title',
+}).upgrade(async (transaction) => {
+  const favorites = transaction.table('favorites');
+  const existing = await favorites.toArray();
+  await favorites.clear();
+  if (existing.length > 0) {
+    await favorites.bulkPut(existing.map((item: FavoriteEntry) => ({
+      ...item,
+      id: favoriteIdFor(item.sourceKey, item.vodId),
+    })));
+  }
+});
+
+export async function addFavorite(entry: Omit<FavoriteEntry, 'id' | 'addedAt'>): Promise<void> {
+  const id = favoriteIdFor(entry.sourceKey, entry.vodId);
+  const existing = await db.favorites.get(id);
+  await db.favorites.put({
+    ...existing,
+    ...entry,
+    id,
+    addedAt: existing?.addedAt ?? Date.now(),
+  });
+}
+
+export async function removeFavorite(sourceKey: string, vodId: string): Promise<void> {
+  await db.favorites.delete(favoriteIdFor(sourceKey, vodId));
+}
