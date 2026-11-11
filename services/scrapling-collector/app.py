@@ -1543,9 +1543,9 @@ def infer_media_identity(title: str = "", url: str = "", page_metadata: dict | N
     fallback_name = urlparse(url).path.rsplit("/", 1)[-1] if url else ""
     source = str(metadata.get("title") or title or fallback_name).strip()
     release_source = f"{source} {fallback_name}"
-    year_match = re.search(r"(?<!\d)((?:19|20)\d{2})(?!\d)", source)
-    season_match = re.search(r"(?i)\b(?:season\s*|s)(\d{1,2})", source)
-    episode_match = re.search(r"(?i)\b(?:episode\s*|ep?)(\d{1,3})", source)
+    year_match = re.search(r"(?<!\d)((?:19|20)\d{2})(?!\d)", release_source)
+    season_match = re.search(r"(?i)\b(?:season\s*|s)(\d{1,2})", release_source)
+    episode_match = re.search(r"(?i)\b(?:episode\s*|ep?)(\d{1,3})", release_source)
     quality_match = re.search(r"(?i)(2160p|4k|1080p|720p|480p)", release_source)
     codec_match = re.search(r"(?i)(hevc|h\.265|h265|x265|av1|h\.264|h264|x264)", release_source)
     cleaned = re.sub(r"(?i)\.(m3u8|mp4|m4v|webm|mpd|mov|ts|m4s|aac)(?:$|\?).*", "", source)
