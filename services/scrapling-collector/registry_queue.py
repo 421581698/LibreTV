@@ -483,6 +483,31 @@ def api_submit_job(payload: dict, authorization: str | None = Header(default=Non
         raise HTTPException(status_code=400,detail=str(exc))
 
 
+@router.post("/v1/batches/submit")
+def api_submit_batch(payload: dict, authorization: str | None = Header(default=None)):
+    require_auth(authorization)
+    try:
+        minimum = max(101, min(1000, int(payload.get("minimum", 101))))
+        target = max(minimum, min(1000, int(payload.get("target", 250))))
+        max_sites = max(1, min(50, int(payload.get("max_sites", 25))))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Invalid batch limits")
+    key = str(payload.get("idempotency_key") or (
+        "fmhy-batch:" + hashlib.sha256(
+            (str(minimum) + "|" + str(target) + "|" + str(max_sites) + "|" + str(time.time_ns())).encode()
+        ).hexdigest()
+    ))
+    try:
+        job = submit_job("batch_crawl", {
+            "minimum": minimum, "target": target, "max_sites": max_sites,
+        }, key)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"job_id": job["id"], "status": job["status"], "batch_target": {
+        "minimum": minimum, "target": target, "max_sites": max_sites,
+    }}
+
+
 @router.get("/v1/jobs")
 def api_jobs(authorization: str | None = Header(default=None), limit: int = Query(default=50,ge=1,le=100)):
     require_auth(authorization)
