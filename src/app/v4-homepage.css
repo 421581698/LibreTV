@@ -1746,3 +1746,317 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
 @media (min-width: 1101px) {
   .v4-home .v4-header-inner { width: min(calc(100% - 64px),1720px) !important; }
 }
+
+
+/* Apple TV-inspired black cinema surface: presentation-only, existing data and playback remain intact. */
+body:has(.v4-home) {
+  background: #000 !important;
+  color: #f5f5f7 !important;
+}
+.v4-home {
+  color-scheme: dark !important;
+  min-height: 100svh !important;
+  color: #f5f5f7 !important;
+  background: #000 !important;
+}
+.v4-home .v4-header { display: none !important; }
+.v4-home .v4-home-main,
+.v4-home .v4-home-main--cinema {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 0 calc(112px + env(safe-area-inset-bottom)) !important;
+}
+.v4-home-main--cinema > .v4-hero {
+  position: relative !important;
+  width: 100% !important;
+  height: clamp(640px, 94svh, 900px) !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #000 !important;
+  box-shadow: none !important;
+}
+.v4-home .v4-hero-image {
+  position: absolute !important;
+  inset: 0 0 auto !important;
+  width: 100% !important;
+  height: 58% !important;
+  overflow: hidden !important;
+  background: #000 !important;
+}
+.v4-home .v4-hero-image img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: center 28% !important;
+  filter: brightness(.9) saturate(1.04) !important;
+}
+.v4-home .v4-hero-veil {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+  background:
+    linear-gradient(180deg, rgba(0,0,0,.08) 0%, transparent 17%, rgba(0,0,0,.04) 42%, rgba(0,0,0,.82) 69%, #000 88%, #000 100%) !important;
+}
+.v4-home .v4-hero-content {
+  position: absolute !important;
+  z-index: 2 !important;
+  top: auto !important;
+  right: 20px !important;
+  bottom: 76px !important;
+  left: 20px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  width: auto !important;
+  max-width: 760px !important;
+  margin-inline: auto !important;
+  padding: 0 !important;
+  transform: none !important;
+  text-align: center !important;
+  color: #f5f5f7 !important;
+}
+.v4-home .v4-hero-eyebrow {
+  margin: 0 0 10px !important;
+  color: rgba(255,255,255,.7) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 2.4px !important;
+}
+.v4-home .v4-hero-content h1 {
+  margin: 0 0 8px !important;
+  color: #fff !important;
+  font-size: clamp(30px, 8vw, 48px) !important;
+  font-weight: 800 !important;
+  line-height: 1.08 !important;
+  letter-spacing: -.04em !important;
+  text-shadow: 0 3px 18px rgba(0,0,0,.35) !important;
+}
+.v4-home .v4-hero-content p {
+  max-width: 34em !important;
+  margin: 0 0 14px !important;
+  color: rgba(255,255,255,.72) !important;
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+}
+.v4-home .v4-hero-tags {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  margin: 0 0 18px !important;
+}
+.v4-home .v4-hero-tags span {
+  display: inline-flex !important;
+  align-items: center !important;
+  min-height: 25px !important;
+  padding: 4px 11px !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  border-radius: 999px !important;
+  color: rgba(255,255,255,.92) !important;
+  background: rgba(255,255,255,.2) !important;
+  font-size: 10px !important;
+  line-height: 1 !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  backdrop-filter: blur(12px) !important;
+}
+.v4-home .v4-hero-actions.v4-apple-actions {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 11px !important;
+  margin: 0 !important;
+}
+.v4-home .v4-hero-actions .v4-hero-primary {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 178px !important;
+  min-height: 46px !important;
+  padding: 0 25px !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  color: #080808 !important;
+  background: #fff !important;
+  box-shadow: 0 5px 24px rgba(255,255,255,.16) !important;
+  font-size: 14px !important;
+  font-weight: 750 !important;
+  cursor: pointer !important;
+}
+.v4-home .v4-hero-plus {
+  display: grid !important;
+  width: 46px !important;
+  height: 46px !important;
+  place-items: center !important;
+  border: 1px solid rgba(255,255,255,.24) !important;
+  border-radius: 50% !important;
+  color: #fff !important;
+  background: rgba(255,255,255,.14) !important;
+  font-size: 25px !important;
+  font-weight: 300 !important;
+  line-height: 1 !important;
+  -webkit-backdrop-filter: blur(20px) saturate(150%) !important;
+  backdrop-filter: blur(20px) saturate(150%) !important;
+}
+.v4-home .v4-hero-featured-title {
+  margin-top: 11px !important;
+  color: rgba(255,255,255,.52) !important;
+  font-size: 10px !important;
+}
+.v4-home .v4-hero-indicators {
+  position: absolute !important;
+  z-index: 3 !important;
+  right: 0 !important;
+  bottom: 35px !important;
+  left: 0 !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  margin: 0 auto !important;
+  transform: none !important;
+}
+.v4-home .v4-hero-indicators button {
+  width: 6px !important;
+  height: 6px !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,.35) !important;
+}
+.v4-home .v4-hero-indicators button.is-active {
+  width: 22px !important;
+  background: #fff !important;
+}
+.v4-home .v4-content-section {
+  width: calc(100% - 40px) !important;
+  max-width: 1500px !important;
+  margin: 26px auto 0 !important;
+}
+.v4-home .v4-section-heading { margin-bottom: 14px !important; }
+.v4-home .v4-section-heading h2 {
+  color: #f5f5f7 !important;
+  font-size: 18px !important;
+  font-weight: 720 !important;
+}
+.v4-home .v4-section-heading h2 span { color: rgba(255,255,255,.52) !important; }
+.v4-home .v4-rail-hint,
+.v4-home .v4-history-count { color: rgba(255,255,255,.48) !important; }
+.v4-home .v4-today-rail,
+.v4-home .v4-history-row,
+.v4-home #for-you .grid[class*="grid-cols-"] {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  gap: 13px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  padding: 2px 0 14px !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  overscroll-behavior-inline: contain !important;
+  scroll-snap-type: x proximity !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+.v4-home .v4-today-rail::-webkit-scrollbar,
+.v4-home .v4-history-row::-webkit-scrollbar,
+.v4-home #for-you .grid[class*="grid-cols-"]::-webkit-scrollbar { display: none !important; }
+.v4-home .v4-today-card {
+  flex: 0 0 126px !important;
+  min-width: 0 !important;
+  scroll-snap-align: start !important;
+  text-align: left !important;
+}
+.v4-home .v4-today-card-poster {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  aspect-ratio: 2 / 3 !important;
+  overflow: hidden !important;
+  border-radius: 16px !important;
+  background: #171717 !important;
+}
+.v4-home .v4-today-card strong {
+  display: block !important;
+  margin-top: 8px !important;
+  color: #f5f5f7 !important;
+  font-size: 12px !important;
+}
+.v4-home .v4-today-card-rating {
+  display: block !important;
+  margin-top: 4px !important;
+  color: rgba(255,255,255,.58) !important;
+  font-size: 10px !important;
+}
+.v4-home .v4-history-card {
+  flex: 0 0 260px !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(255,255,255,.1) !important;
+  border-radius: 16px !important;
+  color: #f5f5f7 !important;
+  background: #111 !important;
+  box-shadow: none !important;
+  scroll-snap-align: start !important;
+}
+.v4-home .v4-history-image { aspect-ratio: 16 / 9 !important; }
+.v4-home .v4-history-copy { padding: 10px 12px 12px !important; }
+.v4-home .v4-history-copy strong { color: #f5f5f7 !important; }
+.v4-home .v4-history-copy > span,
+.v4-home .v4-progress-percent { color: rgba(255,255,255,.55) !important; }
+.v4-home .v4-progress-track { background: rgba(255,255,255,.16) !important; }
+.v4-home .v4-progress-track span { background: #0a84ff !important; }
+.v4-home .v4-history-empty {
+  color: rgba(255,255,255,.62) !important;
+  border-color: rgba(255,255,255,.12) !important;
+  background: rgba(255,255,255,.05) !important;
+}
+.v4-mobile-tabbar {
+  position: fixed !important;
+  z-index: 500 !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: calc(8px + env(safe-area-inset-bottom)) !important;
+  width: min(360px, calc(100% - 32px)) !important;
+  min-height: 62px !important;
+  padding: 6px !important;
+  transform: translateX(-50%) !important;
+  border: 1px solid rgba(255,255,255,.16) !important;
+  border-radius: 22px !important;
+  background: rgba(18,18,20,.68) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.08) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(155%) !important;
+  backdrop-filter: blur(20px) saturate(155%) !important;
+}
+.v4-mobile-tabbar a {
+  color: rgba(235,235,245,.58) !important;
+  text-decoration: none !important;
+}
+.v4-mobile-tabbar a.is-active { color: #0a84ff !important; }
+.v4-mobile-tabbar a.is-active span { color: #0a84ff !important; }
+.v4-mobile-tabbar a.is-active svg { color: #0a84ff !important; }
+.v4-mobile-tabbar a svg { stroke: currentColor !important; }
+.v4-home { padding-bottom: calc(100px + env(safe-area-inset-bottom)) !important; }
+@media (max-width: 700px) {
+  .v4-home-main--cinema > .v4-hero {
+    height: clamp(640px, 94svh, 900px) !important;
+    min-height: 0 !important;
+  }
+  .v4-home .v4-hero-content {
+    right: 18px !important;
+    bottom: 78px !important;
+    left: 18px !important;
+  }
+  .v4-home .v4-hero-content h1 { font-size: clamp(32px, 8.5vw, 46px) !important; }
+  .v4-home .v4-content-section { width: calc(100% - 40px) !important; }
+  .v4-home .v4-today-card { flex-basis: 124px !important; }
+  .v4-home .v4-history-card { flex-basis: 252px !important; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .v4-home-main--cinema > .v4-hero {
+    height: 660px !important;
+    min-height: 0 !important;
+  }
+  .v4-home .v4-hero-image { height: 54% !important; }
+  .v4-home .v4-hero-content { bottom: 72px !important; }
+}
