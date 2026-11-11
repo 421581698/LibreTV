@@ -38,6 +38,10 @@ describe('PR #84 homepage blocking layout recovery', () => {
     expect(header).not.toContain('<MobileTabBar />');
     expect(layout).toContain("import './pr84-global-layout.css';");
     expect(globalLayout).toContain('height: 54px !important;');
+    expect(globalLayout).toContain('background: rgba(28,28,30,.70) !important;');
+    expect(globalLayout).toContain('-webkit-backdrop-filter: blur(20px) saturate(150%) !important;');
+    expect(globalLayout).toContain('backdrop-filter: blur(20px) saturate(150%) !important;');
+    expect(globalLayout).toContain('top: -18px !important;');
     expect(globalLayout).toContain('inset: auto auto calc(8px + env(safe-area-inset-bottom, 0px)) 50% !important;');
     expect(globalLayout).not.toContain('height: 64px !important;');
     expect(globalLayout).toContain('bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;');
@@ -49,6 +53,7 @@ describe('PR #84 homepage blocking layout recovery', () => {
   it('protects hero artwork from the iOS status and brand area', () => {
     expect(globalLayout).toContain('position: absolute !important;');
     expect(globalLayout).toContain('inset: 0 0 auto !important;');
+    expect(globalLayout).toContain('padding: calc(env(safe-area-inset-top, 0px) + 12px) 12px 0 !important;');
     expect(globalLayout).toContain('padding-top: 0 !important;');
     expect(globalLayout).toContain('height: 100% !important;');
     expect(globalLayout).toContain('object-position: center 30% !important;');
