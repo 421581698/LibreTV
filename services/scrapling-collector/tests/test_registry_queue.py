@@ -26,6 +26,17 @@ class RegistryQueueTests(unittest.TestCase):
         self.assertEqual(first["id"], second["id"])
         self.assertEqual(first["job_type"], "discover")
 
+    def test_batch_crawl_jobs_are_durable_and_claimable(self):
+        job = queue.submit_job(
+            "batch_crawl",
+            {"minimum": 101, "target": 250, "max_sites": 25},
+            "batch:101-plus",
+        )
+        claimed = queue.claim_job("batch-worker")
+        self.assertEqual(job["job_type"], "batch_crawl")
+        self.assertEqual(claimed["id"], job["id"])
+        self.assertEqual(claimed["job_type"], "batch_crawl")
+
     def test_idempotent_job_submit_and_atomic_claim(self):
         first = queue.submit_job("crawl", {"url": "https://example.org"}, "crawl:example")
         second = queue.submit_job("crawl", {"url": "https://example.org"}, "crawl:example")
