@@ -5,6 +5,8 @@ import Artplayer from 'artplayer';
 import Hls, { type HlsConfig } from 'hls.js';
 import type { PlaybackSample } from '@/lib/playback-telemetry';
 import { getAdvertised4kStatus, resolveQualitySelection, type QualityPreference } from '@/lib/player-quality';
+import { getMediaPlaybackKind } from '@/lib/media-playback';
+import { hasSustainedPlaybackProgress } from '@/lib/playback-verification';
 
 import { PlaybackRecovery, describeHlsError } from '@/lib/playback-recovery';
 import { createHlsLoader } from '@/lib/hls-loader';
@@ -113,6 +115,10 @@ export interface PlayerSkipApi {
 interface PlayerShellProps {
   url: string;
   title: string;
+  /** Validated format hint for extensionless direct-media URLs. */
+  mediaType?: 'hls' | 'mp4' | 'webm';
+  /** Called only after the video element advances during a sustained playing window. */
+  onPlaybackConfirmed?: (evidence: { mediaType: string; observedSeconds: number; progressedSeconds: number }) => void;
   adFilter: boolean;
   autoplayNext: boolean;
   /** 当前剧的跳过片段标记（父级按归一化剧名查好后传入，换集/换源不变） */
@@ -161,6 +167,8 @@ interface PlayerShellProps {
 export function PlayerShell({
   url,
   title,
+  mediaType,
+  onPlaybackConfirmed,
   adFilter,
   autoplayNext,
   skipMark,
@@ -210,6 +218,7 @@ export function PlayerShell({
   const [qualityControlMode, setQualityControlMode] = useState<'hls' | 'native' | 'single'>('single');
   const unsustainableFragmentsRef = useRef(0);
   const sustainableFragmentsRef = useRef(0);
+  const [showPlayFallback, setShowPlayFallback] = useState(false);
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -246,14 +255,14 @@ export function PlayerShell({
 
   // 始终持有最新 props/回调，避免重建播放器
   const propsRef = useRef({
-    url, title, adFilter, autoplayNext, skipMark, autoSkipSegments,
+    url, title, mediaType, onPlaybackConfirmed, adFilter, autoplayNext, skipMark, autoSkipSegments,
     pendingStart, onPendingStart, onPlayerApi, onRecordSegment,
     episodeKey, nextUrl, nextEpisodeKey,
     getRestorePosition, onTimeUpdate, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource,
     onPrevEpisode, onNextEpisode, hasPrevEpisode, hasNextEpisode,
   });
   propsRef.current = {
-    url, title, adFilter, autoplayNext, skipMark, autoSkipSegments,
+    url, title, mediaType, onPlaybackConfirmed, adFilter, autoplayNext, skipMark, autoSkipSegments,
     pendingStart, onPendingStart, onPlayerApi, onRecordSegment,
     episodeKey, nextUrl, nextEpisodeKey,
     getRestorePosition, onTimeUpdate, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource,
@@ -320,6 +329,8 @@ export function PlayerShell({
   // 仅当有分片真正进入 MSE buffer 后才视为恢复，错误遮罩才能被清除。
   const mediaHealthyRef = useRef(true);
   const playbackStartedRef = useRef(false);
+  const playbackConfirmedRef = useRef(false);
+  const playbackConfirmationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // 起播阶段的 video 元素级错误允许自愈重试一次（重建 hls/MSE）
   const videoErrorRetryUsedRef = useRef(false);
   // 进度恢复每集只执行一次（MANIFEST_PARSED 可能因代理回退再次触发）
@@ -471,6 +482,64 @@ export function PlayerShell({
     propsRef.current.onEnded?.();
   };
 
+  /** Native progressive media path for formats the existing HTMLVideoElement can play. */
+  const setupDirectMedia = (video: HTMLVideoElement, mediaUrl: string) => {
+    restoreCleanupRef.current?.();
+    restoreCleanupRef.current = null;
+    if (qualityPreferenceHandlerRef.current) {
+      window.removeEventListener('libretv-quality-preference-change', qualityPreferenceHandlerRef.current);
+      qualityPreferenceHandlerRef.current = null;
+    }
+    hlsRef.current?.destroy();
+    hlsRef.current = null;
+    const mediaKind = getMediaPlaybackKind(mediaUrl, propsRef.current.mediaType);
+    if (mediaKind === 'mp4' || mediaKind === 'webm') {
+      setupDirectMedia(video, mediaUrl);
+      return;
+    }
+    if (mediaKind === 'unsupported') {
+      setError('当前媒体格式尚未接入播放器，请选择 HLS、MP4 或 WebM 资源');
+      return;
+    }
+    currentMediaUrlRef.current = mediaUrl;
+    // Native progressive playback does not need fetch CORS; forcing crossorigin=anonymous
+    // can make otherwise public media fail when the host omits Access-Control-Allow-Origin.
+    video.removeAttribute('crossorigin');
+
+    let restoreInFlight = false;
+    const restoreAndStart = async () => {
+      if (restoredRef.current || restoreInFlight) return;
+      const duration = video.duration;
+      if (!Number.isFinite(duration) || duration <= 0) return;
+      restoreInFlight = true;
+      try {
+        const saved = (await propsRef.current.getRestorePosition?.()) ?? 0;
+        if (saved > 10 && saved < duration - 2) {
+          video.currentTime = saved;
+          showHint(`已从 ${formatTime(saved)} 继续播放`);
+        }
+        restoredRef.current = true;
+        restoreCleanupRef.current?.();
+        restoreCleanupRef.current = null;
+        video.play().catch(() => setShowPlayFallback(true));
+      } catch {
+        // A failed progress lookup must never prevent direct media playback.
+        restoredRef.current = true;
+        video.play().catch(() => setShowPlayFallback(true));
+      } finally {
+        restoreInFlight = false;
+      }
+    };
+    const events = ['loadedmetadata', 'durationchange', 'canplay'] as const;
+    const onReady = () => { void restoreAndStart(); };
+    events.forEach((event) => video.addEventListener(event, onReady));
+    restoreCleanupRef.current = () => {
+      events.forEach((event) => video.removeEventListener(event, onReady));
+    };
+    video.src = mediaUrl;
+    video.load();
+  };
+
   /**
    * 初始化/切换 HLS。allowProxyFallback：直连致命网络错误（CORS/防盗链/分片被拒）时，
    * 自动改走同源 cookie 鉴权的 /api/proxy 重试一次。
@@ -484,6 +553,7 @@ export function PlayerShell({
       qualityPreferenceHandlerRef.current = null;
     }
     hlsRef.current?.destroy();
+    hlsRef.current = null;
     currentMediaUrlRef.current = mediaUrl;
     if (!Hls.isSupported()) {
       if (!video.canPlayType('application/vnd.apple.mpegurl') && !video.canPlayType('application/x-mpegURL')) {
@@ -515,7 +585,7 @@ export function PlayerShell({
             setQualityNotice('当前使用原生 HLS，无法验证或强制限制 1080P；已暂停以避免超过所选上限，请选择自动继续播放。');
             return;
           }
-          video.play().catch(() => {});
+          video.play().catch(() => setShowPlayFallback(true));
         } catch {
           // IndexedDB failure must not block native-HLS playback.
         } finally {
@@ -532,7 +602,22 @@ export function PlayerShell({
       video.load();
       return;
     }
-    const hls = new Hls(buildHlsConfig());
+    const mediaKind = getMediaPlaybackKind(mediaUrl, propsRef.current.mediaType);
+    if (mediaKind === 'mp4' || mediaKind === 'webm') {
+      setupDirectMedia(video, mediaUrl);
+      return;
+    }
+    if (mediaKind === 'unsupported') {
+      setError('当前媒体格式尚未接入播放器，请选择 HLS、MP4 或 WebM 资源');
+      return;
+    }
+
+    const nativeHls = !Hls.isSupported();
+    if (nativeHls && !video.canPlayType('application/vnd.apple.mpegurl')) {
+      setError('当前浏览器既不支持 hls.js，也不支持原生 HLS 播放');
+      return;
+    }
+    const hls = nativeHls ? null : new Hls(buildHlsConfig());
     hlsRef.current = hls;
     setQualityControlMode('hls');
     const handleQualityPreferenceChange = () => {
@@ -545,8 +630,6 @@ export function PlayerShell({
       setAvailableQualityHeights(result.heights);
       setQualityNotice(result.notice ?? '');
     };
-    qualityPreferenceHandlerRef.current = handleQualityPreferenceChange;
-    window.addEventListener('libretv-quality-preference-change', handleQualityPreferenceChange);
 
     let restoreInFlight = false;
     const restoreAndStart = async () => {
@@ -570,7 +653,11 @@ export function PlayerShell({
         restoredRef.current = true;
         restoreCleanupRef.current?.();
         restoreCleanupRef.current = null;
-        video.play().catch(() => {});
+        video.play().catch(() => {
+          // iOS Safari may reject autoplay after async detail/source loading.
+          // Keep the player inline and offer a user-activated retry instead of a silent poster.
+          setShowPlayFallback(true);
+        });
       } catch {
         // IndexedDB 读取失败时不阻塞播放，后续事件仍可再次尝试恢复。
       } finally {
@@ -585,6 +672,14 @@ export function PlayerShell({
       restoreEvents.forEach((event) => video.removeEventListener(event, onRestoreEvent));
     };
 
+    if (!hls) {
+      // Safari/iOS native HLS path: hls.js is not MSE-supported on these devices.
+      // Let the browser's native media pipeline decide CORS for playback.
+      video.removeAttribute('crossorigin');
+      video.src = mediaUrl;
+      video.load();
+      return;
+    }
     hls.loadSource(mediaUrl);
     hls.attachMedia(video);
 
@@ -735,6 +830,11 @@ export function PlayerShell({
     resetPlaybackMetrics();
     mediaHealthyRef.current = true;
     playbackStartedRef.current = false;
+    playbackConfirmedRef.current = false;
+    if (playbackConfirmationTimerRef.current) {
+      clearTimeout(playbackConfirmationTimerRef.current);
+      playbackConfirmationTimerRef.current = null;
+    }
     videoErrorRetryUsedRef.current = false;
     restoredRef.current = false;
     // 跳过片段按集重置：上一集已处理过不意味新一集也处理过
@@ -758,6 +858,7 @@ export function PlayerShell({
     setNetworkQualityWarning('');
     unsustainableFragmentsRef.current = 0;
     sustainableFragmentsRef.current = 0;
+    setShowPlayFallback(false);
     const art = artRef.current;
     if (!art) return;
     setupHls(art.video, targetUrl, true);
@@ -790,7 +891,7 @@ export function PlayerShell({
     const art = new Artplayer({
       container: containerRef.current,
       url: initialUrl,
-      type: 'm3u8',
+      type: getMediaPlaybackKind(initialUrl, mediaType) === 'mp4' ? 'mp4' : getMediaPlaybackKind(initialUrl, mediaType) === 'webm' ? 'webm' : 'm3u8',
       volume: 0.8,
       autoplay: true,
       pip: true,
@@ -803,8 +904,7 @@ export function PlayerShell({
       fullscreenWeb: true,
       miniProgressBar: true,
       mutex: true,
-      // Disable frosted-glass backdrop filters: avoid iOS Safari compositing
-      // artifacts over the lower video image while keeping menus fully usable.
+      // Keep iOS Safari's video compositing stable without a frosted backdrop.
       backdrop: false,
       playsInline: true,
       airplay: true,
@@ -838,6 +938,12 @@ export function PlayerShell({
       customType: {
         m3u8: (video: HTMLVideoElement, mediaUrl: string) => {
           setupHls(video, mediaUrl, true);
+        },
+        mp4: (video: HTMLVideoElement, mediaUrl: string) => {
+          setupDirectMedia(video, mediaUrl);
+        },
+        webm: (video: HTMLVideoElement, mediaUrl: string) => {
+          setupDirectMedia(video, mediaUrl);
         },
       },
     });
@@ -944,10 +1050,36 @@ export function PlayerShell({
       metrics.height = Math.max(metrics.height, art.video?.videoHeight ?? 0);
       playbackStartedRef.current = true;
       setShowPoster(false);
+      setShowPlayFallback(false);
       // 仅在媒体真正恢复（有分片进入 buffer）后清错误遮罩：
       // 否则「视频轨挂了、音频轨先播出来」时会清掉遮罩，留下黑屏假死态
       if (mediaHealthyRef.current) setError('');
       reportVideoHeight();
+
+      // A "playing" event alone is not proof: require currentTime to advance
+      // while the element remains unpaused for a bounded observation window.
+      if (!playbackConfirmedRef.current && !playbackConfirmationTimerRef.current) {
+        const startTime = Number(art.currentTime) || 0;
+        const startedAt = Date.now();
+        playbackConfirmationTimerRef.current = setTimeout(() => {
+          playbackConfirmationTimerRef.current = null;
+          const video = art.video;
+          const progressedSeconds = video ? (Number(video.currentTime) - startTime) : 0;
+          if (video && hasSustainedPlaybackProgress({
+            paused: video.paused,
+            readyState: video.readyState,
+            startTime,
+            currentTime: Number(video.currentTime),
+          })) {
+            playbackConfirmedRef.current = true;
+            propsRef.current.onPlaybackConfirmed?.({
+              mediaType: getMediaPlaybackKind(currentMediaUrlRef.current, propsRef.current.mediaType),
+              observedSeconds: Math.max(1, Math.round((Date.now() - startedAt) / 1000)),
+              progressedSeconds,
+            });
+          }
+        }, 5_000);
+      }
     });
     art.on('video:error', () => {
       playbackMetricsRef.current.fatalErrors += 1;
@@ -1035,6 +1167,10 @@ export function PlayerShell({
       updateSkipPrompt(prompt);
     });
     art.on('video:pause', () => {
+      if (playbackConfirmationTimerRef.current) {
+        clearTimeout(playbackConfirmationTimerRef.current);
+        playbackConfirmationTimerRef.current = null;
+      }
       // 跳过片尾会主动 pause：此时已按「看完」处理，不能再把片尾位置写回进度
       if (!endedRef.current) propsRef.current.onPause?.(art.currentTime, art.duration);
     });
@@ -1213,6 +1349,7 @@ export function PlayerShell({
       document.removeEventListener('keydown', shortcuts);
       document.removeEventListener('visibilitychange', saveOnHide);
       if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+      if (playbackConfirmationTimerRef.current) clearTimeout(playbackConfirmationTimerRef.current);
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
       el?.removeEventListener('touchstart', onTouchStart);
       el?.removeEventListener('touchend', onTouchEnd);
@@ -1383,6 +1520,21 @@ export function PlayerShell({
             backgroundRepeat: 'no-repeat',
           }}
         />
+      )}
+      {showPlayFallback && showPoster && !error && (
+        <button
+          type="button"
+          className="absolute inset-x-0 bottom-5 z-20 mx-auto min-h-11 w-fit rounded-full bg-amber-400 px-6 py-3 text-sm font-semibold text-black shadow-lg"
+          onClick={() => {
+            const art = artRef.current;
+            if (!art) return;
+            void art.play().then(() => setShowPlayFallback(false)).catch(() => {
+              showHint('暂时无法播放，请检查视频源或轻点播放控件重试');
+            });
+          }}
+        >
+          轻点开始播放
+        </button>
       )}
       {!error && skipPrompt && (
         <button
