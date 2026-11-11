@@ -1518,12 +1518,26 @@ def extract_page_metadata(page, page_url: str = "") -> dict:
                 values["media_type_hint"] = "tv"
                 values["identity_source"] = "schema_org"
             elif normalized_types.intersection({"videoobject", "creativework"}):
-                genre = node.get("genre", "")
-                genre_text = " ".join(genre) if isinstance(genre, list) else str(genre)
-                probe = (schema_name + " " + genre_text).lower()
-                if any(word in probe for word in ("anime", "动画", "动漫", "番剧")):
-                    values["media_type_hint"] = "anime"
-                    values["identity_source"] = "schema_org"
+                values["identity_source"] = "schema_org"
+            if "tvepisode" in normalized_types:
+                series_ref = node.get("partOfSeries") or node.get("partOfSeason") or {}
+                if isinstance(series_ref, dict) and series_ref.get("name"):
+                    values["title"] = str(series_ref["name"])[:200]
+                if schema_name:
+                    values["episode_title"] = schema_name[:200]
+                season_ref = node.get("partOfSeason") or {}
+                if isinstance(season_ref, dict) and season_ref.get("seasonNumber") is not None:
+                    try: values["season_hint"] = int(season_ref["seasonNumber"])
+                    except (TypeError, ValueError): pass
+            genre = node.get("genre", "")
+            genre_text = " ".join(genre) if isinstance(genre, list) else str(genre)
+            genre_probe = (schema_name + " " + genre_text).lower()
+            if any(word in genre_probe for word in ("anime", "动画", "动漫", "番剧")):
+                values["media_type_hint"] = "anime"
+                values["identity_source"] = "schema_org"
+            elif any(word in genre_probe for word in ("documentary", "纪录片")):
+                values["media_type_hint"] = "documentary"
+                values["identity_source"] = "schema_org"
             date_value = str(node.get("datePublished") or node.get("dateCreated") or "")
             match = re.search(r"(?<!\d)((?:19|20)\d{2})(?!\d)", date_value)
             if match:
@@ -1575,8 +1589,8 @@ def infer_media_identity(title: str = "", url: str = "", page_metadata: dict | N
         "page_metadata" if metadata.get("identity_source") == "open_graph" else "hint_only"
     )
     return {
-        "title_hint": title_hint or None, "year_hint": year,
-        "season_hint": season, "episode_hint": episode,
+        "title_hint": title_hint or None, "episode_title": str(metadata.get("episode_title") or "")[:200] or None,
+        "year_hint": year, "season_hint": season, "episode_hint": episode,
         "media_type": media_type, "quality_hint": quality_hint,
         "codec_hint": codec_hint, "entity_key": entity_key,
         "version_key": version_key, "identity_source": metadata.get("identity_source", "filename_or_page_title"),
