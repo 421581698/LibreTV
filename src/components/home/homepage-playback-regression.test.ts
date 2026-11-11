@@ -21,6 +21,7 @@ const assistant = source('src/components/AIFloatingBall.tsx');
 const header = source('src/components/header.tsx');
 const detail = source('src/components/detail-modal.tsx');
 const player = source('src/components/player-shell.tsx');
+const fullscreenHelper = source('src/lib/player-fullscreen.ts');
 const database = source('src/lib/db.ts');
 const videoCards = source('src/components/video-card.tsx');
 const spatialScreenSource = source('src/components/home/V4SpatialScreen.tsx');
@@ -269,7 +270,8 @@ describe('首页与播放页回归契约', () => {
     expect(player).toContain('volume: 0.8');
     expect(player).toContain('fullscreen: !touchPointer');
     expect(player).toContain('fullscreenWeb: !touchPointer');
-    expect(player).toContain('webkitEnterFullscreen');
+    expect(player).toContain('requestNativeFullscreenWithFallback');
+    expect(fullscreenHelper).toContain('webkitEnterFullscreen');
     expect(player).toContain('art.fullscreenWeb = !art.fullscreenWeb');
     expect(watch).toContain('netflix-continue-heading');
     expect(player).toContain('playbackRate: true');
