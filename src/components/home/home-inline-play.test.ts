@@ -11,7 +11,8 @@ describe('iPhone homepage inline playback and top search', () => {
   const featuredHero = read('src/components/home/V4HomepageHero.tsx');
 
   it('homepage recommendation posters open the inline player instead of the detail route', () => {
-    expect(home).toContain('setQuickPlayItem(matched)');
+    expect(home).toContain('const rankedMatches = rankMovieCandidatesByQuality(');
+    expect(home).toContain('setQuickPlayItem(rankedMatches[0]);');
     expect(featuredHero).toContain('aria-label={`立即播放：${slide.title}`}');
     expect(featuredHero).toContain('onClick={() => onPick(slide)}');
     expect(home).toContain('onOpen={(item) => setQuickPlayItem(item)}');
