@@ -48,7 +48,7 @@ const CollectorPlayerShell = dynamic(
  * Apple-inspired 设置抽屉：纵向分组首页 → 独立详情页。
  * 具体设置面板继续复用现有业务组件与持久化逻辑。
  */
-type SecondaryTab = 'vod' | 'live' | 'subs' | 'playback' | 'image' | 'home' | 'voice' | 'language' | 'io' | 'cache' | 'collector';
+type SecondaryTab = 'vod' | 'live' | 'subs' | 'playback' | 'image' | 'home' | 'voice' | 'language' | 'io' | 'cache' | 'collector' | 'downloads';
 type SettingsPage = SecondaryTab | 'index' | 'appearance';
 
 const SETTINGS_SECTIONS: { title: string; items: { id: SettingsPage; label: string; detail: string; icon: IconName }[] }[] = [
@@ -63,6 +63,7 @@ const SETTINGS_SECTIONS: { title: string; items: { id: SettingsPage; label: stri
     { id: 'live', label: '直播设置', detail: '直播源与频道管理', icon: 'home' },
     { id: 'subs', label: '资源订阅', detail: '管理已配置的数据源订阅', icon: 'download' },
     { id: 'collector', label: '资源采集中心', detail: 'FMHY 网站发现目录与 Scrapling 采集引擎', icon: 'search' },
+    { id: 'downloads', label: '下载与离线观看', detail: '下载偏好、保存位置与本机离线空间', icon: 'download' },
     { id: 'home', label: '首页与内容', detail: '首页展示与内容偏好', icon: 'home' },
   ] },
   { title: 'Friday 助手', items: [
@@ -87,6 +88,7 @@ const SETTINGS_PAGE_META: Record<Exclude<SettingsPage, 'index'>, { title: string
   io: { title: '配置导入与导出', description: '备份或恢复 LibreTV 本机配置。' },
   cache: { title: '本机缓存', description: '查看并管理本机缓存数据。' },
   collector: { title: '资源采集中心', description: '从 FMHY 目录发现站点，并通过 Scrapling 检查公开媒体链接。' },
+  downloads: { title: '下载与离线观看', description: '管理手机视频下载偏好、保存方式与离线空间。' },
 };
 
 const SETTINGS_OPEN_PAGE_KEY = 'libretv-settings-open-page';
@@ -187,6 +189,7 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
           {activePage === 'io' && <ConfigIoPanel />}
           {activePage === 'cache' && <VideoCachePanel />}
           {activePage === 'collector' && <ResourceCollectorPanel />}
+          {activePage === 'downloads' && <DownloadsSettingsPanel />}
         </div>
       )}
     </Drawer>
@@ -197,6 +200,70 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
 type CollectorSite = { title: string; url: string; host: string; directory: string };
 type CollectorCandidate = { id?: string; url: string; kind: string; host: string; title?: string; status?: string; access_state?: string; reason?: string; next_action?: string; drm_systems?: string[]; validation?: { cms_shape?: boolean; reachable?: boolean | null; public_host?: boolean; source_url?: string | null; note?: string; media_format?: string; content_type?: string; manifest_valid?: boolean; rejected_reference_count?: number; access?: { access_state?: string; reason?: string } } };
 type CollectorTask = { id: string; url: string; host: string; status: string; created_at: number; updated_at: number; error?: string | null; result_count: number };
+
+const DOWNLOAD_SETTINGS_KEY = 'libretv-download-settings';
+type DownloadPreferences = { quality: 'source' | '1080p' | '720p'; wifiOnly: boolean; askLocation: boolean };
+const DEFAULT_DOWNLOAD_PREFERENCES: DownloadPreferences = { quality: '1080p', wifiOnly: true, askLocation: true };
+
+function DownloadsSettingsPanel() {
+  const [preferences, setPreferences] = useState<DownloadPreferences>(DEFAULT_DOWNLOAD_PREFERENCES);
+  const [saved, setSaved] = useState(false);
+  const [storage, setStorage] = useState<{ usage?: number; quota?: number } | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(DOWNLOAD_SETTINGS_KEY);
+      if (raw) setPreferences({ ...DEFAULT_DOWNLOAD_PREFERENCES, ...JSON.parse(raw) });
+    } catch { /* Keep safe defaults if local settings cannot be read. */ }
+    if (navigator.storage?.estimate) {
+      void navigator.storage.estimate().then((estimate) => {
+        setStorage({ usage: estimate.usage, quota: estimate.quota });
+      }).catch(() => setStorage(null));
+    }
+  }, []);
+
+  const save = (next: DownloadPreferences) => {
+    setPreferences(next);
+    try {
+      window.localStorage.setItem(DOWNLOAD_SETTINGS_KEY, JSON.stringify(next));
+      setSaved(true);
+    } catch {
+      setSaved(false);
+    }
+  };
+  const formatBytes = (value?: number) => {
+    if (typeof value !== 'number') return '暂不可读取';
+    if (value < 1024 ** 3) return (value / 1024 ** 2).toFixed(0) + ' MB';
+    return (value / 1024 ** 3).toFixed(2) + ' GB';
+  };
+
+  return (
+    <div className="space-y-4">
+      <section className="rounded-2xl border border-line bg-card p-4 space-y-4">
+        <div><h3 className="text-sm font-semibold text-content">下载偏好</h3><p className="mt-1 text-xs text-muted">设置将保存在当前设备。仅下载来源明确允许保存且可公开访问的媒体。</p></div>
+        <label className="block space-y-2"><span className="text-sm text-content">默认画质</span>
+          <select value={preferences.quality} onChange={(event) => save({ ...preferences, quality: event.target.value as DownloadPreferences['quality'] })} className="w-full rounded-xl border border-line bg-main px-3 py-2 text-sm text-content">
+            <option value="source">源站最高可用画质</option><option value="1080p">优先 1080P</option><option value="720p">优先 720P（节省空间）</option>
+          </select>
+        </label>
+        <label className="flex items-center justify-between gap-3 py-2"><span><strong className="block text-sm text-content">仅 Wi-Fi 下载</strong><small className="text-xs text-muted">避免使用蜂窝网络流量</small></span><input type="checkbox" checked={preferences.wifiOnly} onChange={(event) => save({ ...preferences, wifiOnly: event.target.checked })} /></label>
+        <label className="flex items-center justify-between gap-3 py-2"><span><strong className="block text-sm text-content">下载前确认保存位置</strong><small className="text-xs text-muted">优先使用 iOS「文件」保存流程</small></span><input type="checkbox" checked={preferences.askLocation} onChange={(event) => save({ ...preferences, askLocation: event.target.checked })} /></label>
+        <p className="text-[11px] text-muted" role="status">{saved ? '下载偏好已保存在本机。' : '当前使用默认偏好；修改后自动保存。'}</p>
+      </section>
+      <section className="rounded-2xl border border-line bg-card p-4 space-y-2">
+        <h3 className="text-sm font-semibold text-content">设备存储空间</h3>
+        <div className="flex justify-between text-xs text-muted"><span>浏览器已用空间</span><strong className="text-content">{formatBytes(storage?.usage)}</strong></div>
+        <div className="flex justify-between text-xs text-muted"><span>浏览器估算配额</span><strong className="text-content">{formatBytes(storage?.quota)}</strong></div>
+        <p className="text-[11px] text-muted">这是浏览器存储估算，不代表 iPhone 总剩余空间，也不代表已下载视频大小。</p>
+      </section>
+      <section className="rounded-2xl border border-line bg-card p-4 space-y-2">
+        <h3 className="text-sm font-semibold text-content">下载与离线观看状态</h3>
+        <p className="text-xs text-muted">下载中心入口和偏好设置已就位。完整视频文件下载队列、后台续传及离线播放器尚未接入；目前不会把资源索引缓存误报为视频文件下载。</p>
+        <p className="text-xs text-muted">iPhone Safari 对后台下载和大文件持久化有限制。正式下载功能将使用系统文件保存流程，并在支持的平台提供本地离线播放。</p>
+      </section>
+    </div>
+  );
+}
 
 function ResourceCollectorPanel() {
   const store = useAppStore();
