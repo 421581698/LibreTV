@@ -160,6 +160,27 @@ export function AggregatedCard({
       remarks: favoriteCandidate.remarks,
     });
   };
+  const isItemFavorite = (item: SearchResultItem) => Boolean(
+    favorites?.some((entry) => entry.sourceKey === item.sourceKey && entry.vodId === item.vodId)
+  );
+  const toggleItemFavorite = async (item: SearchResultItem, event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (isItemFavorite(item)) {
+      await removeFavorite(item.sourceKey, item.vodId);
+      return;
+    }
+    await addFavorite({
+      sourceKey: item.sourceKey,
+      sourceUrl: item.sourceUrl,
+      sourceName: item.sourceName,
+      vodId: item.vodId,
+      title: item.name,
+      pic: item.pic,
+      typeName: item.typeName,
+      year: item.year,
+      remarks: item.remarks,
+    });
+  };
   const bestHeight = sortedItems.reduce((max, item) => Math.max(max, heightOf(item)), 0);
   // 并列最高时只强调排在第一的那一行：三个源里框两个等于没有推荐
   const firstBest = sortedItems.find((item) => bestHeight > 0 && heightOf(item) === bestHeight);
@@ -317,9 +338,10 @@ export function AggregatedCard({
               const itemKey = qualityKey(item.sourceKey, item.vodId);
               const label = compactRemarks(item.remarks);
               const isBest = itemKey === bestKey;
+              const itemFavorite = isItemFavorite(item);
               return (
-                <div
-                  key={`${item.sourceKey}_${item.vodId}`}
+                <div key={`${item.sourceKey}_${item.vodId}`} className="flex min-w-0 items-stretch gap-1.5">
+                  <div
                   role="button"
                   tabIndex={0}
                   className={cn(
@@ -366,6 +388,18 @@ export function AggregatedCard({
                   >
                     <path d="M8 5v14l11-7z" />
                   </svg>
+                  </div>
+                  <button
+                    type="button"
+                    className="shrink-0 inline-flex w-10 items-center justify-center rounded-lg border border-line bg-chip text-content hover:border-accent"
+                    aria-label={itemFavorite ? `取消收藏 ${item.name}（${item.sourceName}）` : `收藏 ${item.name}（${item.sourceName}）`}
+                    aria-pressed={itemFavorite}
+                    onClick={(event) => void toggleItemFavorite(item, event)}
+                  >
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill={itemFavorite ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M20.8 8.8c0 5.2-8.8 10-8.8 10s-8.8-4.8-8.8-10A4.8 4.8 0 0 1 12 6.5a4.8 4.8 0 0 1 8.8 2.3Z" />
+                    </svg>
+                  </button>
                 </div>
               );
             })}
