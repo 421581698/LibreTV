@@ -1006,6 +1006,65 @@ segment-2.ts
         finally:
             collector.DB_PATH = previous_path
 
+    def test_media_identity_uses_structured_metadata_and_keeps_ambiguous_types_unknown(self):
+        identity = collector.infer_media_identity(
+            "Example Series S02E03 2024 1080p",
+            "https://cdn.example/video.m3u8",
+            {
+                "title": "Example Series S02E03 2024 1080p",
+                "media_type_hint": "anime",
+                "identity_source": "schema_org",
+                "year_hint": 2024,
+                "season_hint": 2,
+                "episode_hint": 3,
+                "description": "A public metadata description",
+            },
+        )
+        self.assertEqual(identity["title_hint"], "Example Series")
+        self.assertEqual(identity["media_type"], "anime")
+        self.assertEqual(identity["year_hint"], 2024)
+        self.assertEqual(identity["season_hint"], 2)
+        self.assertEqual(identity["episode_hint"], 3)
+        self.assertEqual(identity["match_confidence"], "structured_metadata")
+        ambiguous = collector.infer_media_identity(
+            "Watch now", "https://cdn.example/stream.m3u8"
+        )
+        self.assertEqual(ambiguous["media_type"], "unknown")
+        self.assertEqual(ambiguous["match_confidence"], "hint_only")
+
+    def test_registry_links_structured_episode_to_canonical_series(self):
+        base_identity = {
+            "title_hint": "Example Anime",
+            "year_hint": 2024,
+            "media_type": "anime",
+            "match_confidence": "structured_metadata",
+            "identity_source": "schema_org",
+            "entity_key": "not-used-for-series-key",
+            "poster": "https://images.example/poster.jpg",
+        }
+        first = {
+            "id": "a" * 32, "url": "https://cdn.example/episode-1.m3u8",
+            "host": "cdn.example", "kind": "direct-media", "title": "Example Anime",
+            "media_identity": {**base_identity, "season_hint": 1, "episode_hint": 1},
+            "page_metadata": {"identity_source": "schema_org"},
+        }
+        second = {
+            "id": "b" * 32, "url": "https://cdn.example/episode-2.m3u8",
+            "host": "cdn.example", "kind": "direct-media", "title": "Example Anime",
+            "media_identity": {**base_identity, "season_hint": 1, "episode_hint": 2},
+            "page_metadata": {"identity_source": "schema_org"},
+        }
+        collector.registry_store.register_discovered_candidate(first)
+        collector.registry_store.register_discovered_candidate(second)
+        with collector.registry_store.connect() as connection:
+            movies = connection.execute("SELECT id,title,year,metadata FROM registry_movies").fetchall()
+            episodes = connection.execute("SELECT movie_id,season,episode FROM registry_episodes ORDER BY episode").fetchall()
+        self.assertEqual(len(movies), 1)
+        self.assertEqual(movies[0]["title"], "Example Anime")
+        self.assertEqual(len(episodes), 2)
+        self.assertEqual(episodes[0]["movie_id"], episodes[1]["movie_id"])
+        self.assertEqual([row["episode"] for row in episodes], [1, 2])
+
     def test_candidate_merge_persists_provenance_identity_and_unknown_access(self):
         candidate = collector.normalize_candidate({
             "url": "https://media.example/Example.Movie.2024.S02E03.1080p.m3u8",
