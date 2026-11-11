@@ -239,7 +239,7 @@ export function ResourceStatsPanel() {
             <p className="text-[10px] text-muted">本设备 IndexedDB 缓存 {library.length} 条；采集服务关闭后仍可搜索已同步资料。只有公开验证且播放器确认的资源可以播放。</p>
 
             {batchMessage ? <p role="status" className="text-xs text-muted">{batchMessage}</p> : null}
-            {library.filter((resource) => {
+            {library.length ? library.filter((resource) => {
               const metadata = parseObject<MediaMetadata>(resource.metadata);
               const identity = metadata.media_identity || {};
               const evidence = parseObject<PlaybackEvidence>(resource.playback_evidence);
