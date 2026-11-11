@@ -97,6 +97,22 @@ const SETTINGS_PAGE_META: Record<Exclude<SettingsPage, 'index'>, { title: string
   about: { title: '关于 LibreTV', description: 'LibreTV 是一个以本机配置和个人观影体验为核心的影视浏览与播放界面。' },
 };
 
+const SETTINGS_PAGE_ICONS: Record<Exclude<SettingsPage, 'index'>, { icon: IconName; color: string }> = {
+  playback: { icon: 'play', color: '#32D7A0' },
+  vod: { icon: 'database', color: '#55A7FF' },
+  live: { icon: 'radio', color: '#55A7FF' },
+  subs: { icon: 'rss', color: '#55A7FF' },
+  appearance: { icon: 'palette', color: '#BF91FF' },
+  image: { icon: 'image', color: '#BF91FF' },
+  language: { icon: 'languages', color: '#BF91FF' },
+  home: { icon: 'house', color: '#BF91FF' },
+  voice: { icon: 'audio-lines', color: '#E7A0D7' },
+  io: { icon: 'shield-check', color: '#E8B45E' },
+  cache: { icon: 'database-backup', color: '#E8B45E' },
+  collector: { icon: 'network', color: '#62C8D5' },
+  about: { icon: 'info', color: '#A6ADB8' },
+};
+
 const SETTINGS_OPEN_PAGE_KEY = 'libretv-settings-open-page';
 
 export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -172,7 +188,12 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
             设置
           </button>
           <div className="space-y-1 border-b border-line pb-4">
-            <h2 className="text-2xl font-semibold tracking-tight text-content">{pageTitle}</h2>
+            <div className="settings-apple-page-title">
+              <span className="settings-apple-icon" style={{ color: SETTINGS_PAGE_ICONS[activePage].color }}>
+                <Icon name={SETTINGS_PAGE_ICONS[activePage].icon} className="h-5 w-5" />
+              </span>
+              <h2 className="text-2xl font-semibold tracking-tight text-content">{pageTitle}</h2>
+            </div>
             <p className="text-sm text-muted">{SETTINGS_PAGE_META[activePage].description}</p>
           </div>
           {activePage === 'appearance' && (
