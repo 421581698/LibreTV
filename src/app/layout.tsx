@@ -27,6 +27,8 @@ import './pr84-search-polish.css';
 import './pr84-dock-fix.css';
 // PR #84 unified dark settings detail pages, controls, switches and iOS sub-navigation.
 import './pr84-settings-detail.css';
+// PR #84 global iPhone layout contract: one dock, safe-area-aware hero and Large Titles.
+import './pr84-global-layout.css';
 import { Providers } from '@/components/providers';
 
 export const metadata: Metadata = {
