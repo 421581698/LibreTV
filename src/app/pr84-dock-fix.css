@@ -4,8 +4,8 @@
 
 @media (max-width: 700px) {
   /* One geometry contract shared by homepage and every routed page. */
-  body > .v4-mobile-tabbar[data-homepage-dock="true"],
-  body .v4-search-page .v4-mobile-tabbar {
+  body > .v4-mobile-tabbar,
+  body > .v4-mobile-tabbar {
     position: fixed !important;
     left: 50% !important;
     right: auto !important;
@@ -31,17 +31,17 @@
     transform: translate3d(-50%, 0, 0) !important;
   }
 
-  body > .v4-mobile-tabbar[data-homepage-dock="true"]::before,
-  body .v4-search-page .v4-mobile-tabbar::before,
-  body > .v4-mobile-tabbar[data-homepage-dock="true"]::after,
-  body .v4-search-page .v4-mobile-tabbar::after {
+  body > .v4-mobile-tabbar::before,
+  body > .v4-mobile-tabbar::before,
+  body > .v4-mobile-tabbar::after,
+  body > .v4-mobile-tabbar::after {
     display: none !important;
     content: none !important;
     opacity: 0 !important;
   }
 
-  body > .v4-mobile-tabbar[data-homepage-dock="true"] > a,
-  body .v4-search-page .v4-mobile-tabbar > a {
+  body > .v4-mobile-tabbar > a,
+  body > .v4-mobile-tabbar > a {
     box-sizing: border-box !important;
     display: flex !important;
     min-width: 0 !important;
@@ -63,8 +63,8 @@
     line-height: 1.1 !important;
   }
 
-  body > .v4-mobile-tabbar[data-homepage-dock="true"] > a svg,
-  body .v4-search-page .v4-mobile-tabbar > a svg {
+  body > .v4-mobile-tabbar > a svg,
+  body > .v4-mobile-tabbar > a svg {
     display: block !important;
     width: 18px !important;
     height: 18px !important;
@@ -72,8 +72,8 @@
     stroke-width: 1.8 !important;
   }
 
-  body > .v4-mobile-tabbar[data-homepage-dock="true"] > a span,
-  body .v4-search-page .v4-mobile-tabbar > a span {
+  body > .v4-mobile-tabbar > a span,
+  body > .v4-mobile-tabbar > a span {
     display: block !important;
     max-width: 100% !important;
     overflow: hidden !important;
@@ -83,15 +83,15 @@
     text-overflow: ellipsis !important;
   }
 
-  body > .v4-mobile-tabbar[data-homepage-dock="true"] > a.is-active,
-  body .v4-search-page .v4-mobile-tabbar > a.is-active {
+  body > .v4-mobile-tabbar > a.is-active,
+  body > .v4-mobile-tabbar > a.is-active {
     color: #39a9ff !important;
     background: rgba(0,0,0,.28) !important;
     box-shadow: none !important;
   }
 
-  body > .v4-mobile-tabbar[data-homepage-dock="true"] > a i,
-  body .v4-search-page .v4-mobile-tabbar > a i {
+  body > .v4-mobile-tabbar > a i,
+  body > .v4-mobile-tabbar > a i {
     display: none !important;
   }
 
