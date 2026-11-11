@@ -1655,3 +1655,26 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
 @media (max-width:700px) {
   .v4-home .v4-header-actions > .v4-avatar { min-width: 58px !important; padding: 0 9px !important; gap: 4px !important; font-size: 11px !important; }
 }
+
+/* The For You rail is a horizontal poster carousel, not the legacy grid. */
+.v4-home #for-you .grid[class*="grid-cols-"] {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  gap: 14px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  padding: 2px 2px 14px !important;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+.v4-home #for-you .grid[class*="grid-cols-"] > * {
+  flex: 0 0 clamp(116px, 15vw, 176px) !important;
+  min-width: 0 !important;
+  scroll-snap-align: start;
+}
+@media (max-width: 700px) {
+  .v4-home #for-you .grid[class*="grid-cols-"] { gap: 11px !important; }
+  .v4-home #for-you .grid[class*="grid-cols-"] > * { flex-basis: 112px !important; }
+}
