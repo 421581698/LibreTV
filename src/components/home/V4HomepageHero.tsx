@@ -35,7 +35,6 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
           </div>
           <div className="v4-hero-veil" aria-hidden="true" />
           <div className="v4-hero-content v4-hero-immersive-copy">
-            <span className="v4-hero-eyebrow">LIBRETV · 精选放映</span>
             <h1>发现好内容</h1>
             <p className="v4-hero-subtitle">从热门影片中，找到下一部值得看的作品</p>
             <div className="v4-hero-tags" aria-label="内容标签">
