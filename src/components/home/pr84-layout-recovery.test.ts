@@ -40,6 +40,8 @@ describe('PR #84 homepage blocking layout recovery', () => {
     expect(layout).toContain("import './pr84-global-layout.css';");
     expect(globalLayout).toContain('height: 64px !important;');
     expect(globalLayout).toContain('inset: auto auto calc(8px + env(safe-area-inset-bottom, 0px)) 50% !important;');
+    expect(globalLayout).toContain('.v4-spatial-screen[data-screen="me"] > .v4-spatial-main');
+    expect(globalLayout).toContain('scroll-padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;');
   });
 
   it('protects hero artwork from the iOS status and brand area', () => {
