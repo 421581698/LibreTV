@@ -279,58 +279,94 @@ function MeScreen() {
   const downloads = useLiveQuery(() => db.downloads.orderBy('createdAt').reverse().limit(20).toArray(), []);
   const favorites = useLiveQuery(() => db.favorites.orderBy('addedAt').reverse().toArray(), []);
   const liveFavorites = useAppStore((state) => state.liveFavorites);
+  const [showFavorites, setShowFavorites] = useState(false);
+
   return (
-    <div className="v4-me-layout">
-      <section className="v4-me-cover" aria-label="我的个人空间封面">
-        <div className="v4-me-cover-art" aria-hidden="true">
-          <span className="v4-me-cover-orbit v4-me-cover-orbit-one" />
-          <span className="v4-me-cover-orbit v4-me-cover-orbit-two" />
-          <span className="v4-me-cover-glow" />
+    <div className="v4-me-layout v52-me-layout">
+      <header className="v52-me-header">
+        <div className="v52-me-heading">
+          <h2>我的空间</h2>
+          <span>PERSONAL LIBRARY</span>
         </div>
-        <div className="v4-me-cover-profile">
-          <div className="v4-me-profile-avatar" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <circle cx="12" cy="8" r="3.5" />
-              <path d="M4.8 20c.7-3.4 3.1-5.2 7.2-5.2s6.5 1.8 7.2 5.2" />
-            </svg>
-          </div>
-          <div className="v4-me-cover-copy">
-            <span className="v4-me-cover-eyebrow">LIBRETV · PERSONAL SPACE</span>
-            <h2>我的空间</h2>
-            <p>收藏你的观影轨迹，接着上次的进度继续观看。</p>
-          </div>
-          <div className="v4-me-local-badge"><span />仅保存在本机</div>
+        <div className="v52-me-avatar" aria-label="个人空间">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="8" r="3.5" />
+            <path d="M4.8 20c.7-3.4 3.1-5.2 7.2-5.2s6.5 1.8 7.2 5.2" />
+          </svg>
         </div>
+      </header>
+
+      <section className="v52-me-section v52-me-continue" aria-label="继续观看">
+        <div className="v52-me-section-head">
+          <h3>继续观看</h3>
+          <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('libretv:open-history-panel'))}>
+            全部 <span aria-hidden="true">›</span>
+          </button>
+        </div>
+        {!history ? (
+          <p className="v52-me-empty">正在读取本机观看记录…</p>
+        ) : history.length === 0 ? (
+          <div className="v52-me-empty">
+            <strong>尚无继续观看</strong>
+            <span>开始播放影片后，播放进度会显示在这里。</span>
+          </div>
+        ) : (
+          <div className="v52-me-poster-rail">
+            {history.map((item) => <MeHistoryCard key={item.id} item={item} />)}
+          </div>
+        )}
       </section>
 
-      <section className="v4-spatial-panel v4-me-history-panel">
-        <div className="v4-spatial-panel-head"><h2>继续观看</h2><span>{history?.length ?? 0} 条本机记录</span></div>
-        {!history ? <div className="v4-spatial-empty">正在读取本机观看记录…</div> : history.length === 0 ? (
-          <div className="v4-spatial-empty"><strong>还没有观看记录</strong><p>播放过的影片和进度会自动出现在这里。</p></div>
-        ) : (
-          <div className="v4-me-history-grid">{history.map((item) => <MeHistoryCard key={item.id} item={item} />)}</div>
-        )}
+      <section className="v52-me-section v52-me-library" aria-label="媒体库">
+        <div className="v52-me-section-head"><h3>媒体库</h3></div>
+        <div className="v52-me-library-grid">
+          <button type="button" className="v52-me-library-tile" aria-expanded={showFavorites}
+            onClick={() => setShowFavorites((value) => !value)}>
+            <span className="v52-me-tile-icon v52-me-heart"><Icon name="heart" /></span>
+            <strong>影视收藏</strong>
+            <small>{favorites?.length ?? 0} 部收藏影片</small>
+            <span className="v52-me-tile-chevron" aria-hidden="true">›</span>
+          </button>
+          <button type="button" className="v52-me-library-tile" onClick={() => window.dispatchEvent(new CustomEvent('libretv:open-history-panel'))}>
+            <span className="v52-me-tile-icon v52-me-clock"><Icon name="clock" /></span>
+            <strong>观看历史</strong>
+            <small>{history?.length ?? 0} 条最近记录</small>
+            <span className="v52-me-tile-chevron" aria-hidden="true">›</span>
+          </button>
+        </div>
+        {showFavorites ? (
+          <div className="v52-me-favorites-content">
+            {!favorites ? <p className="v52-me-empty">正在读取影视收藏…</p> : favorites.length === 0 ? (
+              <p className="v52-me-empty">还没有收藏影片，收藏后会显示在这里。</p>
+            ) : (
+              <div className="v52-me-favorites-list">
+                {favorites.map((item) => <MeFavoriteCard key={item.id} item={item} />)}
+              </div>
+            )}
+          </div>
+        ) : null}
       </section>
-      <section className="v4-spatial-panel v4-me-history-panel">
-        <div className="v4-spatial-panel-head"><h2>影视收藏</h2><span>{favorites?.length ?? 0} 部影片</span></div>
-        {!favorites ? <div className="v4-spatial-empty">正在读取影视收藏…</div> : favorites.length === 0 ? (
-          <div className="v4-spatial-empty"><strong>还没有收藏影视</strong><p>在电影或电视剧搜索结果卡片上点击心形按钮，即可保存到这里。</p></div>
-        ) : (
-          <div className="v4-me-history-grid">{favorites.map((item) => <MeFavoriteCard key={item.id} item={item} />)}</div>
-        )}
-      </section>
-      <section className="v4-spatial-panel v4-me-library-actions">
-        <button type="button" className="v4-settings-card v4-settings-card--apple" onClick={() => window.dispatchEvent(new CustomEvent('libretv:open-history-panel'))}>
-          <span className="settings-apple-icon" style={{ color: '#55A7FF' }}><Icon name="clock" /></span><div><strong>全部观看历史</strong><p>{history?.length ?? 0} 条最近记录 · 搜索、删除与继续播放</p></div><b aria-hidden="true">›</b>
-        </button>
-        <Link href="/search" className="v4-settings-card v4-settings-card--apple"><span className="settings-apple-icon" style={{ color: '#BF91FF' }}><Icon name="search" /></span><div><strong>搜索记录</strong><p>查看最近搜索并快速重新搜索</p></div><b aria-hidden="true">›</b></Link>
-        <Link href="/live" className="v4-settings-card v4-settings-card--apple"><span className="settings-apple-icon" style={{ color: '#32D7A0' }}><Icon name="radio" /></span><div><strong>频道收藏</strong><p>{liveFavorites.length} 个已收藏频道</p></div><b aria-hidden="true">›</b></Link>
-        <button type="button" className="v4-settings-card v4-settings-card--apple" onClick={() => requestShowDownloadManager()}>
-          <span className="settings-apple-icon" style={{ color: '#E8B45E' }}><Icon name="download" /></span><div><strong>下载管理</strong><p>{downloads?.length ?? 0} 个本机下载任务 · 查看进度与管理文件</p></div><b aria-hidden="true">›</b>
-        </button>
-      </section>
-      <section className="v4-spatial-panel v4-me-settings-entry">
-        <Link href="/settings" className="v4-settings-card v4-settings-card--apple"><span className="settings-apple-icon" style={{ color: '#E7A0D7' }}><Icon name="gear" /></span><div><strong>设置</strong><p>外观、播放、资源管理、采集中心与隐私设置</p></div><b aria-hidden="true">›</b></Link>
+
+      <section className="v52-me-section v52-me-other" aria-label="其他功能">
+        <div className="v52-me-section-head"><h3>其他功能</h3></div>
+        <div className="v52-me-list">
+          <Link href="/search" className="v52-me-list-row">
+            <span className="v52-me-list-icon"><Icon name="search" /></span>
+            <strong>搜索记录</strong><span className="v52-me-chevron" aria-hidden="true">›</span>
+          </Link>
+          <Link href="/live" className="v52-me-list-row">
+            <span className="v52-me-list-icon"><Icon name="radio" /></span>
+            <strong>频道收藏</strong><small>{liveFavorites.length} 个</small><span className="v52-me-chevron" aria-hidden="true">›</span>
+          </Link>
+          <button type="button" className="v52-me-list-row" onClick={() => requestShowDownloadManager()}>
+            <span className="v52-me-list-icon"><Icon name="download" /></span>
+            <strong>下载管理</strong><small>{downloads?.length ?? 0} 个任务</small><span className="v52-me-chevron" aria-hidden="true">›</span>
+          </button>
+          <Link href="/settings" className="v52-me-list-row">
+            <span className="v52-me-list-icon"><Icon name="gear" /></span>
+            <strong>设置</strong><span className="v52-me-chevron" aria-hidden="true">›</span>
+          </Link>
+        </div>
       </section>
     </div>
   );
