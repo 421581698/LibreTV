@@ -95,6 +95,16 @@ class RegistryQueueTests(unittest.TestCase):
             row = c.execute("SELECT status FROM collector_jobs WHERE id=?", (job["id"],)).fetchone()
         self.assertEqual(row["status"], "failed")
 
+    def test_fail_job_does_not_overwrite_cancel_requested_job(self):
+        job = queue.submit_job("crawl", {"url": "https://example.org"}, "cancel-fail-race:test")
+        queue.claim_job("worker-a")
+        self.assertTrue(queue.cancel_job(job["id"]))
+        self.assertFalse(queue.fail_job(job["id"], "worker-a", "late worker error"))
+        with queue.connect() as c:
+            row = c.execute("SELECT status,lease_owner FROM collector_jobs WHERE id=?", (job["id"],)).fetchone()
+        self.assertEqual(row["status"], "cancel_requested")
+        self.assertEqual(row["lease_owner"], "worker-a")
+
     def test_cancel_queued_job(self):
         job = queue.submit_job("crawl", {"url": "https://example.org"}, "cancel:test")
         self.assertTrue(queue.cancel_job(job["id"]))
