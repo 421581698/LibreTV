@@ -169,8 +169,8 @@ export function allowLivePrivate(): boolean {
 
 /**
  * 直播地址专用校验：协议必须 http(s)，默认仍拒绝内网。
- * 私网自建 IPTV 需要同时设置 LIVE_ALLOW_PRIVATE=1，并将精确 hostname/IP
- * 写入 LIVE_PRIVATE_ORIGINS；不会因为一个全局开关而放行任意用户提交的内网 URL。
+ * 私网自建 IPTV 需要同时设置 LIVE_ALLOW_PRIVATE=1，并将完整 HTTP(S) origin
+ * （含协议、主机名和端口）写入 LIVE_PRIVATE_ORIGINS；不会全局放行任意内网 URL。
  */
 export async function checkLiveUrlAllowed(urlString: string): Promise<UpstreamVerdict> {
   try {
