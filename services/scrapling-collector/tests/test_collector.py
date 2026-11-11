@@ -1,4 +1,6 @@
 import os
+import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -19,6 +21,23 @@ class CollectorTests(unittest.TestCase):
 
     def tearDown(self):
         self.temp.cleanup()
+
+    def test_importing_app_does_not_create_or_migrate_database(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "must-not-exist.sqlite3"
+            environment = os.environ.copy()
+            environment["SCRAPLING_API_TOKEN"] = "collector-import-test-token"
+            environment["SCRAPLING_DB_PATH"] = str(database)
+            subprocess.run(
+                [sys.executable, "-c", "import app"],
+                cwd=Path(__file__).resolve().parents[1],
+                env=environment,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            self.assertFalse(database.exists())
 
     def test_database_initialization_does_not_interrupt_running_legacy_tasks(self):
         task_id = "e" * 32
