@@ -30,7 +30,7 @@ export const dynamic = 'force-dynamic';
  * - 校验 m3u8 的 #EXTM3U 前缀与直链的 content-type，剔除 200 的 HTML/JSON 错误页；
  * - master playlist 解析 CODECS 一并返回，前端据此提示 H.265 等浏览器无法解码的情况；
  * - 分片级通过后额外采样 128KB 实际吞吐（kbps），识别「可达但限速」的源；
- * - 走直播侧 SSRF 口径：私网源需同时启用 LIVE_ALLOW_PRIVATE=1 并命中 LIVE_PRIVATE_HOSTS；
+ * - 走直播侧 SSRF 口径：私网源需同时启用 LIVE_ALLOW_PRIVATE=1 并命中 LIVE_PRIVATE_ORIGINS；
  * - `?stream=1` 以 NDJSON 逐条推送结果（命中缓存的立即返回），前端状态点可边测边亮；
  *   不带该参数时仍返回整批 JSON，保持向后兼容。
  */
@@ -143,7 +143,7 @@ async function fetchHeadersOnly(
   if (range) headers.Range = 'bytes=0-1';
   if (referer) headers.Referer = referer;
 
-  // allowPrivate：与直播流代理同一把尺子；私网目标必须命中 LIVE_PRIVATE_HOSTS；
+  // allowPrivate：与直播流代理同一把尺子；私网目标必须命中 LIVE_PRIVATE_ORIGINS；
   // fetchUpstreamWithMeta 内部逐跳做 SSRF 校验，此处不再重复预检（省一次 DNS 解析）
   const { res, finalUrl } = await fetchUpstreamWithMeta(url, {
     timeoutMs,
