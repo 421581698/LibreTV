@@ -1342,3 +1342,59 @@ html:has(.v4-home) {
     transform: none !important;
   }
 }
+
+
+/* PR84 iPhone refinement — darker transparent glass, safe-area alignment,
+   edge inset for poster rails, and a four-destination bottom dock. */
+@media (max-width: 700px) {
+  body:has(.v4-home) .v4-home .v4-mobile-tabbar.liquid-glass {
+    bottom: max(8px, env(safe-area-inset-bottom, 0px)) !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    background: rgba(15, 15, 15, .4) !important;
+    -webkit-backdrop-filter: blur(30px) saturate(200%) contrast(110%) !important;
+    backdrop-filter: blur(30px) saturate(200%) contrast(110%) !important;
+    border: 1px solid rgba(255,255,255,.2) !important;
+    box-shadow:
+      0 8px 26px rgba(0,0,0,.2),
+      inset 0 1px 0 rgba(255,255,255,.22),
+      inset 0 -1px 0 rgba(255,255,255,.06) !important;
+  }
+
+  body:has(.v4-home) .v4-home .v4-mobile-tabbar.liquid-glass::before {
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.085), rgba(255,255,255,.018) 24%, transparent 55%) !important;
+    opacity: .58 !important;
+  }
+
+  body:has(.v4-home) .v4-home .v4-mobile-tabbar.liquid-glass::after {
+    opacity: .55 !important;
+  }
+
+  body:has(.v4-home) .v4-home .v4-home-main,
+  body:has(.v4-home) .v4-home .v4-home-main--cinema {
+    padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* Keep the first poster visibly inset from the physical screen edge. */
+  body:has(.v4-home) .v4-home .v4-today-rail,
+  body:has(.v4-home) .v4-home .v4-history-row {
+    width: 100% !important;
+    margin-left: 0 !important;
+    padding: 2px 24px 18px !important;
+    scroll-padding-inline: 24px !important;
+    box-sizing: border-box !important;
+  }
+
+  body:has(.v4-home) .v4-home .v4-hero-immersive-copy h1 {
+    font-size: 22px !important;
+    font-weight: 450 !important;
+    letter-spacing: 1.5px !important;
+  }
+
+  /* Extend the hero artwork into the iOS top safe-area instead of painting a
+     separate light strip above the cinematic image. */
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive {
+    margin-top: calc(-1 * env(safe-area-inset-top, 0px)) !important;
+    height: calc(clamp(640px, 94svh, 900px) + env(safe-area-inset-top, 0px)) !important;
+  }
+}
