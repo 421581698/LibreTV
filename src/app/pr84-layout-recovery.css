@@ -586,3 +586,60 @@ body:has(.v4-search-page) {
 @media (prefers-reduced-motion: reduce) {
   .v4-search-page .v4-search-category-card { transition: none; }
 }
+
+
+/* PR #84 Search refinement — portrait poster grid, restrained Apple TV hierarchy. */
+.v4-search-page { padding-bottom: calc(176px + env(safe-area-inset-bottom, 0px)) !important; }
+.v4-search-page .v4-search-main { padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)) !important; }
+.v4-search-page .v4-search-heading { margin-bottom: 16px !important; }
+.v4-search-page .v4-search-box { border: 0 !important; outline: 0 !important; background: #1c1c1e !important; box-shadow: none !important; border-radius: 18px !important; }
+.v4-search-page .v4-search-box form { min-height: 72px !important; padding: 0 20px !important; gap: 16px !important; }
+.v4-search-page .v4-search-box input { height: 72px !important; }
+.v4-search-page .v4-search-explore { margin-top: 22px !important; }
+.v4-search-page .v4-search-section-heading { justify-content: flex-start !important; margin-bottom: 14px !important; }
+.v4-search-page .v4-search-section-heading > span { display: none !important; }
+.v4-search-page .v4-search-category-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 12px !important; }
+.v4-search-page .v4-search-category-card {
+  aspect-ratio: 2 / 3 !important; min-height: 0 !important; height: auto !important;
+  padding: 0 !important; display: flex !important; align-items: flex-end !important;
+  justify-content: flex-start !important; overflow: hidden !important; border: 0 !important;
+  border-radius: 13px !important; background-color: #242428 !important;
+  background-image: linear-gradient(180deg, transparent 48%, rgba(0,0,0,.58) 100%) !important;
+  box-shadow: none !important;
+}
+.v4-search-page .v4-search-category-image {
+  position: absolute !important; inset: 0 !important; z-index: -2 !important;
+  display: block !important; width: 100% !important; height: 100% !important;
+  object-fit: cover !important; object-position: center !important;
+}
+.v4-search-page .v4-search-category-card::before { z-index: -1 !important; background: linear-gradient(180deg, transparent 42%, rgba(0,0,0,.62) 100%) !important; }
+.v4-search-page .v4-search-category-copy { display: block !important; width: 100% !important; padding: 0 12px 13px !important; }
+.v4-search-page .v4-search-category-copy strong {
+  display: block !important; color: #fff !important; font-size: clamp(17px, 2vw, 23px) !important;
+  line-height: 1.15 !important; font-weight: 760 !important; letter-spacing: -.35px !important;
+  text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 2px 10px rgba(0,0,0,.7) !important;
+}
+.v4-search-page .v4-search-category-copy small, .v4-search-page .v4-search-category-arrow { display: none !important; }
+@media (max-width: 700px) {
+  .v4-search-page { padding-bottom: calc(184px + env(safe-area-inset-bottom, 0px)) !important; }
+  .v4-search-page .v4-search-main {
+    width: calc(100% - 36px) !important;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 44px) !important;
+    padding-bottom: calc(108px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  .v4-search-page .v4-search-heading { margin-bottom: 15px !important; }
+  .v4-search-page .v4-search-heading h1 { font-size: 42px !important; }
+  .v4-search-page .v4-search-box { border-radius: 17px !important; }
+  .v4-search-page .v4-search-box form { min-height: 68px !important; padding: 0 15px !important; gap: 12px !important; }
+  .v4-search-page .v4-search-box input { height: 68px !important; }
+  .v4-search-page .v4-search-category-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 9px !important; }
+  .v4-search-page .v4-search-category-card { aspect-ratio: 2 / 3 !important; border-radius: 11px !important; }
+  .v4-search-page .v4-search-category-copy { padding: 0 9px 10px !important; }
+  .v4-search-page .v4-search-category-copy strong { font-size: 16px !important; }
+  .v4-search-page .v4-search-explore { margin-top: 19px !important; }
+  .v4-search-page .v4-search-section-heading { margin-bottom: 11px !important; }
+}
+@media (min-width: 701px) {
+  .v4-search-page { padding-bottom: 52px !important; }
+  .v4-search-page .v4-search-main { padding-bottom: 28px !important; }
+}
