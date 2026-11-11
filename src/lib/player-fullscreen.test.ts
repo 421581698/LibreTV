@@ -41,4 +41,39 @@ describe('requestNativeFullscreenWithFallback', () => {
     requestNativeFullscreenWithFallback(mockVideo(() => { throw new Error('denied'); }), fallbackThrow);
     expect(fallbackThrow).toHaveBeenCalledTimes(1);
   });
+
+  it('does not invoke the fallback after the caller disposes the pending request', () => {
+    vi.useFakeTimers();
+    const fallback = vi.fn();
+    const dispose = requestNativeFullscreenWithFallback(mockVideo(vi.fn()), fallback, 800);
+
+    dispose();
+    vi.advanceTimersByTime(1000);
+
+    expect(fallback).not.toHaveBeenCalled();
+  });
+
+  it('does not invoke the fallback if WebKit is already displaying native fullscreen at timeout', () => {
+    vi.useFakeTimers();
+    const fallback = vi.fn();
+    const video = mockVideo(vi.fn());
+    requestNativeFullscreenWithFallback(video, fallback, 800);
+
+    video.webkitDisplayingFullscreen = true;
+    vi.advanceTimersByTime(800);
+
+    expect(fallback).not.toHaveBeenCalled();
+  });
+
+  it('invokes the fallback at most once when timeout and a late WebKit event race', () => {
+    vi.useFakeTimers();
+    const fallback = vi.fn();
+    const video = mockVideo(vi.fn());
+    requestNativeFullscreenWithFallback(video, fallback, 800);
+
+    vi.advanceTimersByTime(800);
+    video.dispatchEvent(new Event('webkitbeginfullscreen'));
+
+    expect(fallback).toHaveBeenCalledTimes(1);
+  });
 });
