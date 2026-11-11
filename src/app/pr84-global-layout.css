@@ -93,23 +93,67 @@
     scroll-padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
-  /* Keep the hero's artwork/title band below the iOS status and brand controls. */
-  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive {
+  /* Full-bleed hero: artwork reaches the physical viewport top.
+     The header alone observes the iOS safe area; the image is never pushed down. */
+  body:has(.v4-home) .v4-home > .v4-header {
+    inset: 0 0 auto !important;
+    padding-top: env(safe-area-inset-top, 0px) !important;
+  }
+  body:has(.v4-home) .v4-home > .v4-header .v4-header-inner {
+    min-height: calc(64px + env(safe-area-inset-top, 0px)) !important;
+    padding: 8px 0 0 !important;
     box-sizing: border-box !important;
-    padding-top: calc(env(safe-area-inset-top, 0px) + 54px) !important;
   }
-  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-image {
-    inset: 0 !important;
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive {
+    padding-top: 0 !important;
   }
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-image,
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-image > *,
   body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-image img {
-    top: calc(env(safe-area-inset-top, 0px) + 54px) !important;
-    bottom: auto !important;
-    height: calc(100% - env(safe-area-inset-top, 0px) - 54px) !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
     object-fit: cover !important;
-    object-position: center 18% !important;
-    transform: scale(1.035) !important;
-    transform-origin: center top !important;
+    object-position: center 30% !important;
+    transform: none !important;
+    transform-origin: center center !important;
   }
+
+  /* Explicitly override the legacy homepage-only dock variant with the same
+     geometry used by Search, Settings and Me. The portal is a body child. */
+  body > .v4-mobile-tabbar[data-homepage-dock="true"] {
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+    width: min(324px, calc(100vw - 36px)) !important;
+    max-width: calc(100vw - 36px) !important;
+    height: 64px !important;
+    min-height: 64px !important;
+    padding: 5px !important;
+    border-radius: 999px !important;
+  }
+  body > .v4-mobile-tabbar {
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+    height: 64px !important;
+    min-height: 64px !important;
+    border-radius: 999px !important;
+  }
+  body > .v4-mobile-tabbar > a {
+    height: 52px !important;
+    min-height: 52px !important;
+    gap: 3px !important;
+  }
+  body > .v4-mobile-tabbar > a svg {
+    width: 20px !important;
+    height: 20px !important;
+    flex-basis: 20px !important;
+  }
+  body > .v4-mobile-tabbar > a span {
+    font-size: 10px !important;
+    line-height: 1.1 !important;
+  }
+
 
   /* Settings is a first-level destination: same left-aligned Large Title as Search. */
   .settings-large-title, .settings-embedded-root .settings-large-title {
