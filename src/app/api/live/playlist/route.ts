@@ -57,7 +57,7 @@ export async function GET(req: Request) {
   const format = sp.get('format') || 'json';
   const force = sp.get('force') === '1';
 
-  // 直播专用校验：私网自建 IPTV 还需 LIVE_PRIVATE_HOSTS 精确主机名白名单
+  // 直播专用校验：私网自建 IPTV 还需 LIVE_PRIVATE_ORIGINS 精确源站地址白名单
   const verdict = await checkLiveUrlAllowed(url);
   if (!verdict.ok) return jsonError(verdict.reason, 403);
 
@@ -66,7 +66,7 @@ export async function GET(req: Request) {
   if (!playlist) {
     let text: string;
     try {
-      // allowPrivate：与直播流代理共用校验；私网订阅需同时命中 LIVE_PRIVATE_HOSTS 白名单。
+      // allowPrivate：与直播流代理共用校验；私网订阅需同时命中 LIVE_PRIVATE_ORIGINS 白名单。
       // 此前漏传该参数，fetchUpstream 的逐跳校验会回落到点播侧 checkUpstreamAllowed，
       // 未列入白名单的内网订阅仍会在第一跳被拒绝。
       const res = await fetchUpstream(url, { timeoutMs: 15000, retries: 1, allowPrivate: true, signal: req.signal });
