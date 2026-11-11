@@ -65,6 +65,20 @@ class ResourceStatsTests(unittest.TestCase):
         self.assertEqual(summary["pages_changed"],1)
         self.assertEqual(result["sites"][0]["health_status"],"healthy")
 
+    def test_candidate_breakdown_reports_extractor_kind_and_access_state(self):
+        self.db.execute("ALTER TABLE candidates ADD COLUMN collected_by TEXT NOT NULL DEFAULT '[]'")
+        self.db.execute("UPDATE candidates SET collected_by=? WHERE id=?",
+                        (json.dumps(["spider", "browser"]), "candidate-1"))
+        self.db.execute("UPDATE candidates SET collected_by=? WHERE id=?",
+                        (json.dumps(["browser"]), "candidate-2"))
+        result = build_stats(self.db)["summary"]
+        self.assertEqual(result["candidate_records"], 2)
+        self.assertEqual(result["candidate_kinds"]["direct-media"], 2)
+        self.assertEqual(result["candidate_access_states"]["PUBLIC"], 2)
+        self.assertEqual(result["candidate_collectors"]["spider"], 1)
+        self.assertEqual(result["candidate_collectors"]["browser"], 2)
+        self.assertEqual(result["candidate_collectors"]["unknown"], 0)
+
     def test_collector_preview_samples_do_not_count_as_real_playback(self):
         self.db.execute("INSERT INTO playback_quality_samples VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                         ("preview-1","media.example","collector_preview","hls",20,20,3840,2160,2160,12000,112))
