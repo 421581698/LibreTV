@@ -40,13 +40,20 @@ describe('PR #84 homepage blocking layout recovery', () => {
     expect(layout).toContain("import './pr84-global-layout.css';");
     expect(globalLayout).toContain('height: 64px !important;');
     expect(globalLayout).toContain('inset: auto auto calc(8px + env(safe-area-inset-bottom, 0px)) 50% !important;');
+    expect(globalLayout).toContain('body > .v4-mobile-tabbar[data-homepage-dock="true"]');
+    expect(globalLayout).toContain('height: 64px !important;');
+    expect(globalLayout).toContain('bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;');
+    expect(globalLayout).toContain('width: 20px !important;');
     expect(globalLayout).toContain('.v4-spatial-screen[data-screen="me"] > .v4-spatial-main');
     expect(globalLayout).toContain('scroll-padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;');
   });
 
   it('protects hero artwork from the iOS status and brand area', () => {
-    expect(globalLayout).toContain('padding-top: calc(env(safe-area-inset-top, 0px) + 54px) !important;');
-    expect(globalLayout).toContain('object-position: center 18% !important;');
+    expect(globalLayout).toContain('inset: 0 0 auto !important;');
+    expect(globalLayout).toContain('padding-top: 0 !important;');
+    expect(globalLayout).toContain('height: 100% !important;');
+    expect(globalLayout).toContain('object-position: center 30% !important;');
+    expect(globalLayout).not.toContain('top: calc(env(safe-area-inset-top, 0px) + 54px) !important;');
   });
 
   it('uses the same left-aligned Large Title hierarchy on Settings and Search', () => {
