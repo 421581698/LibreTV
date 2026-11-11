@@ -138,6 +138,7 @@ export function SourceManagerDrawer({ open, onClose, embedded = false }: { open:
   const settingsContent = (
     <>
       {activePage === 'index' ? (
+        <>
         <header className="settings-nav-bar">
           <span className="settings-nav-title">设置</span>
         </header>
@@ -175,7 +176,9 @@ export function SourceManagerDrawer({ open, onClose, embedded = false }: { open:
           ))}
           <p className="px-1 text-center text-xs text-faint">LibreTV · 本机设置</p>
         </div>
+        </>
       ) : (
+        <>
         <header className="settings-nav-bar">
           <button type="button" className="settings-nav-back" onClick={() => setActivePage('index')} aria-label="返回设置">
             <span aria-hidden="true">‹</span><span>设置</span>
@@ -214,6 +217,7 @@ export function SourceManagerDrawer({ open, onClose, embedded = false }: { open:
           {activePage === 'collector' && <ResourceCollectorPanel />}
           {activePage === 'about' && <section className="settings-apple-about"><h3>LibreTV</h3><p>为个人观影而设计的开放式影视浏览与播放体验。</p><p className="settings-apple-about-note">播放记录、收藏与偏好设置按现有功能保存在当前设备；资源站和网络连接由你配置与管理。</p></section>}
         </div>
+        </>
       )}
     </>
   );
