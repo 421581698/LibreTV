@@ -170,16 +170,23 @@ def finish_job(job_id: str, worker_id: str, result: dict | None = None) -> bool:
 def fail_job(job_id: str, worker_id: str, error: str, retryable: bool = True) -> bool:
     now = int(time.time())
     with connect() as c:
+        # Keep the ownership check and transition atomic with cancel_job().
+        c.execute("BEGIN IMMEDIATE")
         row = c.execute("SELECT attempt,max_attempts FROM collector_jobs WHERE id=? AND status='running' AND lease_owner=?", (job_id,worker_id)).fetchone()
         if not row:
+            c.commit()
             return False
         retry = retryable and row["attempt"] < row["max_attempts"]
         delay = min(3600, 15 * (2 ** max(0,row["attempt"] - 1)))
         status = "queued" if retry else "failed"
-        c.execute("""UPDATE collector_jobs SET status=?,available_at=?,error=?,lease_owner=NULL,
-          lease_until=NULL,updated_at=? WHERE id=?""",
-          (status,now+delay if retry else now,str(error)[:500],now,job_id))
+        cur = c.execute("""UPDATE collector_jobs SET status=?,available_at=?,error=?,lease_owner=NULL,
+          lease_until=NULL,updated_at=? WHERE id=? AND status='running' AND lease_owner=?""",
+          (status,now+delay if retry else now,str(error)[:500],now,job_id,worker_id))
+        if cur.rowcount != 1:
+            c.commit()
+            return False
         event(c,job_id,"retry_scheduled" if retry else "dead_letter",{"error":str(error)[:500],"retry_at":now+delay if retry else None})
+        c.commit()
         return True
 
 
