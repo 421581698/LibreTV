@@ -2045,3 +2045,102 @@ html:has(.v4-home) {
     ) !important;
   }
 }
+
+
+/* PR84 final mobile composition: lower the focal crop and anchor controls to hero bounds. */
+@media screen and (max-width: 700px) {
+  /* Lower the crop focus; this moves the visible artwork, not the whole page. */
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-image img {
+    object-position: center 80% !important;
+  }
+
+  /* One bounded hero owns its image, veil, copy and pagination. */
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive {
+    position: relative !important;
+    inset: auto !important;
+    height: clamp(570px, 76svh, 660px) !important;
+    min-height: 570px !important;
+    max-height: 660px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    isolation: isolate !important;
+    background: #000 !important;
+  }
+
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-image {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 0 !important;
+  }
+
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-veil {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 1 !important;
+    pointer-events: none !important;
+    background: linear-gradient(
+      180deg,
+      rgba(0,0,0,.02) 0%,
+      rgba(0,0,0,.02) 42%,
+      rgba(0,0,0,.18) 58%,
+      rgba(0,0,0,.55) 74%,
+      rgba(0,0,0,.86) 90%,
+      #000 100%
+    ) !important;
+  }
+
+  /* Flex-end anchors the content stack low, while reserving room for pagination. */
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-immersive-copy {
+    position: absolute !important;
+    top: 0 !important;
+    right: 22px !important;
+    bottom: 78px !important;
+    left: 22px !important;
+    z-index: 3 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+    gap: 10px !important;
+    box-sizing: border-box !important;
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 0 0 !important;
+    transform: none !important;
+    text-align: center !important;
+  }
+
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-immersive-copy .v4-hero-actions {
+    margin-top: 10px !important;
+  }
+
+  /* Pagination is tied to the hero's bottom edge, not the following black section. */
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-indicators {
+    position: absolute !important;
+    top: auto !important;
+    right: 0 !important;
+    bottom: 20px !important;
+    left: 0 !important;
+    z-index: 4 !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    width: max-content !important;
+    margin: 0 auto !important;
+    padding: 6px 10px !important;
+    transform: none !important;
+  }
+
+  /* Remove the artificial black spacer so recommendations follow the hero fade. */
+  body:has(.v4-home) .v4-home-main--cinema {
+    padding-bottom: 0 !important;
+  }
+
+  body:has(.v4-home) .v4-home-main--cinema > .v4-content-section:first-of-type {
+    margin-top: 0 !important;
+  }
+}
