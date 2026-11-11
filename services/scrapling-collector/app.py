@@ -30,11 +30,11 @@ from stats import build_stats
 FMHY_VIDEO_URL = "https://fmhy.net/video"
 TOKEN = os.environ.get("SCRAPLING_API_TOKEN", "").strip()
 DB_PATH = Path(os.environ.get("SCRAPLING_DB_PATH", "/data/collector.sqlite3"))
-MAX_RESULTS = 500
-MAX_CANDIDATES = 250
-MAX_CRAWL_DEPTH = 3
-MAX_CRAWL_PAGES = 30
-MAX_CRAWL_LINKS_PER_PAGE = 16
+MAX_RESULTS = 1000
+MAX_CANDIDATES = 1000
+MAX_CRAWL_DEPTH = 5
+MAX_CRAWL_PAGES = 100
+MAX_CRAWL_LINKS_PER_PAGE = 32
 MIN_HOST_INTERVAL = 1.0
 MEDIA_EXTENSIONS = (".m3u8", ".mp4", ".m4v", ".webm", ".mpd", ".mov", ".ts", ".m4s", ".aac")
 CMS_PATH_MARKERS = ("/api.php/provide/vod", "/provide/vod", "/api/v1/vod")
@@ -53,7 +53,7 @@ Fetcher.adaptive = True
 class CrawlRequest(BaseModel):
     url: HttpUrl
     mode: str = Field(default="auto", pattern="^(auto|http|browser)$")
-    limit: int = Field(default=50, ge=1, le=MAX_CANDIDATES)
+    limit: int = Field(default=100, ge=1, le=MAX_CANDIDATES)
     search_keyword: str = Field(default="", max_length=100)
 
 
@@ -1200,7 +1200,7 @@ def fmhy_category_pages_from_page(page) -> list[str]:
         if canonical not in seen:
             seen.add(canonical)
             pages.append(canonical)
-        if len(pages) >= 8:
+        if len(pages) >= 20:
             break
     return pages
 
