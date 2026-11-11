@@ -535,9 +535,10 @@ body .v4-home .v4-mobile-tabbar a > i {
 }
 @media (max-width: 700px) {
   body .v4-home .v4-hero-immersive {
-    height: 100svh !important;
-    min-height: 580px !important;
-    max-height: none !important;
+    /* Keep the first recommendation rail partially visible on phone screens. */
+    height: clamp(360px,55svh,520px) !important;
+    min-height: 360px !important;
+    max-height: 520px !important;
   }
   body .v4-home .v4-hero-immersive-copy {
     left: 24px !important;
@@ -569,7 +570,7 @@ body .v4-home .v4-mobile-tabbar a > i {
   body .v4-home { padding-bottom: calc(104px + env(safe-area-inset-bottom)) !important; }
 }
 @media (min-width: 701px) and (max-width: 1440px) and (orientation: landscape) {
-  body .v4-home .v4-hero-immersive { height: 100svh !important; min-height: 560px !important; }
+  body .v4-home .v4-hero-immersive { height: clamp(380px,55svh,620px) !important; min-height: 380px !important; max-height: 620px !important; }
   body .v4-home .v4-hero-immersive-copy { bottom: 112px !important; }
   body .v4-home .v4-today-section,
   body .v4-home .v4-continue-section,
