@@ -451,23 +451,19 @@ def sync_candidate_validation(candidate_id: str, validation: dict, status: str) 
 
 
 def register_candidate_playback(candidate_id: str, evidence: dict) -> dict:
-    # Called by the existing candidate playback endpoint after its strict preflight checks.
+    # Preserve the canonical title/type linkage created at discovery time.
+    # Re-upserting a playback sample without movie_external_key would detach it.
     with connect() as c:
-        row = c.execute("SELECT * FROM candidates WHERE id=?", (candidate_id,)).fetchone()
+        row = c.execute(
+            "SELECT id,validation_state,access_state FROM registry_resources WHERE resource_key=?",
+            ("candidate:" + candidate_id,),
+        ).fetchone()
     if not row:
         raise KeyError(candidate_id)
-    validation = safe_json(row["validation"])
-    media_format = validation.get("media_format")
-    resource_type = "DIRECT_MEDIA" if row["kind"] == "direct-media" else "EMBEDDED_PLAYER"
-    resource = upsert_resource({
-        "resource_key": "candidate:"+candidate_id, "candidate_id": candidate_id,
-        "source_key": row["host"], "source_name": row["host"], "resource_type": resource_type,
-        "url": row["url"], "title": row["title"] or row["host"], "access_state": row["access_state"],
-        "media_format": evidence.get("media_type") or media_format,
-    })
-    record_verification(resource["id"],"preflight","passed",{"access_state":"PUBLIC","source":"candidate_validation"})
-    result = record_verification(resource["id"],"player","passed",evidence)
-    return {"resource":result}
+    if row["validation_state"] != "validated" or row["access_state"] != "PUBLIC":
+        raise ValueError("Player confirmation requires a validated PUBLIC resource")
+    result = record_verification(row["id"], "player", "passed", evidence)
+    return {"resource": result}
 
 
 @router.post("/v1/tasks/submit")
