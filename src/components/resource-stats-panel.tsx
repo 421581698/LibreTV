@@ -258,8 +258,15 @@ export function ResourceStatsPanel() {
                   <h5 className="text-xs font-semibold text-content">最近发现的资源</h5>
                   {detail.recent_resources.map((resource, index) => (
                     <div key={resource.title + '-' + index} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-chip p-2 text-xs">
-                      <span className="min-w-0 flex-1 truncate text-content">{resource.title}</span>
-                      <span className="text-muted">{resource.playback_confirmed && resource.decoded_height ? resource.decoded_width + '×' + resource.decoded_height : resource.status}</span>
+                      <span className="min-w-0 flex-1">
+                        <strong className="block truncate text-content">{resource.title}</strong>
+                        <span className="text-[10px] text-muted">
+                          {({movie:'电影',tv:'电视剧',anime:'动漫',documentary:'纪录片',variety:'综艺',short:'短片',unknown:'待识别'} as Record<string,string>)[resource.media_type || 'unknown']}
+                          {resource.year ? ' · ' + resource.year : ''}
+                          {resource.season != null && resource.episode != null ? ' · S' + resource.season + 'E' + resource.episode : ''}
+                        </span>
+                      </span>
+                      <span className="text-muted">{resource.playback_confirmed && resource.decoded_height ? (resource.actual_quality || resource.decoded_width + '×' + resource.decoded_height) + ' · 已播放' : (resource.declared_quality ? resource.declared_quality + ' 标称 · ' + resource.status : resource.status)}</span>
                     </div>
                   ))}
                 </div>
