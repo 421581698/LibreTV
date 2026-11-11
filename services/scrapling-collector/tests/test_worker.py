@@ -30,6 +30,7 @@ class WorkerPipelineTests(unittest.TestCase):
 
         with (
             patch.object(worker, "require_egress_firewall"),
+            patch.object(worker, "discover_sites", return_value=sites),
             patch.object(worker, "get_discovered_sites", return_value=sites),
             patch.object(worker, "crawl_site", side_effect=fake_crawl),
             patch.object(worker, "validate_candidate", return_value={
