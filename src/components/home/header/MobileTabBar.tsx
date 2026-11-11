@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { LiquidGlassSurface } from '@/components/ui/liquid-glass';
 import { usePathname } from 'next/navigation';
 
 const tabs = [
@@ -25,7 +26,7 @@ export function MobileTabBar() {
     normalized === '/resources' || normalized.startsWith('/resources/') ? '/me' : '';
 
   return (
-    <nav className="v4-mobile-tabbar" aria-label="底部导航">
+    <LiquidGlassSurface as="nav" interactive className="v4-mobile-tabbar" aria-label="底部导航">
       {tabs.map((tab) => {
         const active = tab.href === activeTab;
         return (
@@ -36,6 +37,6 @@ export function MobileTabBar() {
           </Link>
         );
       })}
-    </nav>
+    </LiquidGlassSurface>
   );
 }
