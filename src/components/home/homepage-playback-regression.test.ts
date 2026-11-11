@@ -518,7 +518,7 @@ describe('首页与播放页回归契约', () => {
   it('iPhone Safari hero keeps poster, copy and pagination inside one stable banner', () => {
     expect(featuredHero).toContain('loading="eager"');
     expect(featuredHero).toContain('className="v4-hero-indicators"');
-    expect(featuredHero.indexOf('</div>\\n          <div className="v4-hero-indicators"')).toBeGreaterThan(-1);
+    expect(featuredHero.indexOf('</div>\n          <div className="v4-hero-indicators"')).toBeGreaterThan(-1);
     expect(homepageHeroStyles).toContain('height: clamp(520px, 72svh, 660px) !important;');
     expect(homepageHeroStyles).toContain('.v4-home-main--cinema > .v4-hero > .v4-hero-image img');
     expect(homepageHeroStyles).toContain('object-fit: cover !important;');
