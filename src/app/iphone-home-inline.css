@@ -2545,3 +2545,12 @@ body .v4-home .v4-hero-immersive .v4-hero-image img {
 .settings-apple-about .settings-apple-about-note{color:#85858d;font-size:12px}
 @media(max-width:700px){.ipad-settings-content{padding-bottom:max(20px,env(safe-area-inset-bottom))!important}.settings-apple-detail{gap:16px!important}}
 @media(prefers-reduced-motion:reduce){.v4-settings-card--apple,.ipad-settings-content *{transition-duration:.01ms!important}}
+
+/* Dark Apple-native shell for the shared settings drawer and profile page. */
+.ipad-settings-drawer{background:#000!important;border-left-color:rgba(255,255,255,.1)!important;color:#f5f5f7!important}
+.ipad-settings-drawer>div:first-child{border-bottom-color:rgba(255,255,255,.1)!important;background:#000!important}
+.ipad-settings-drawer>div:first-child h2{color:#f5f5f7!important}
+.ipad-settings-drawer .settings-apple-detail .rounded-2xl{border-radius:15px!important}
+.v4-spatial-screen[data-screen="settings"],.v4-spatial-screen[data-screen="me"]{background:#000!important;color:#f5f5f7!important}
+.v4-spatial-screen[data-screen="me"] .v4-me-library-actions,.v4-spatial-screen[data-screen="me"] .v4-me-settings-entry{overflow:hidden;border:1px solid rgba(255,255,255,.08)!important;border-radius:15px!important;background:#1c1c1e!important}
+.v4-spatial-screen[data-screen="me"] .v4-me-library-actions .v4-settings-card--apple+.v4-settings-card--apple{border-top-color:rgba(255,255,255,.075)!important}
