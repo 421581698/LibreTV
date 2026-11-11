@@ -116,6 +116,12 @@ describe('首页与播放页回归契约', () => {
   it('V4 首页接入真实推荐接口与 IndexedDB 继续观看记录', () => {
     expect(home).toContain('<V4HomepageContent onPick={openRecommendation} />');
     expect(v4Content.indexOf('id="today-recommendations"')).toBeLessThan(v4Content.indexOf('id="my-library"'));
+    expect(v4Content).toContain('v4-today-rail');
+    expect(v4Content).toContain('v4-today-card-rating');
+    expect(v4Content).toContain('v4-progress-percent');
+    expect(featuredHero).toContain('发现好内容');
+    expect(featuredHero).not.toContain('v4-hero-primary');
+    expect(featuredHero).not.toContain('v4-hero-secondary');
     expect(v4Content.indexOf('id="my-library"')).toBeLessThan(v4Content.indexOf('id="for-you"'));
     expect(v4Content).toContain("api.douban('movie', '热门', 0, 8, signal)");
     expect(v4Content).toContain('db.history.orderBy(\'timestamp\').reverse().limit(CONTINUE_LIMIT)');
@@ -440,6 +446,12 @@ describe('首页与播放页回归契约', () => {
     expect(settings).toContain("localStorage.getItem(SETTINGS_OPEN_PAGE_KEY)");
     expect(settings).toContain('setActivePage(nextPage)');
     expect(settings).toContain('removeItem(SETTINGS_OPEN_PAGE_KEY)');
+  });
+
+  it('首页底部导航采用实心选中图标与圆点指示器', () => {
+    const tabBar = source('src/components/home/header/MobileTabBar.tsx');
+    expect(tabBar).toContain("className={active ? 'is-filled' : ''}");
+    expect(tabBar).toContain('{active && <i aria-hidden="true" />}');
   });
 
   it('移动端七项底部导航可横向滚动，不压缩或换行', () => {
