@@ -243,9 +243,10 @@ export function ResourceStatsPanel() {
               const metadata = parseObject<MediaMetadata>(resource.metadata);
               const identity = metadata.media_identity || {};
               const evidence = parseObject<PlaybackEvidence>(resource.playback_evidence);
+              const decodedHeight = evidence.decoded_height;
               const title = resource.movie_title || resource.episode_title || identity.title_hint || resource.title || '';
               const type = identity.media_type || 'unknown';
-              const quality = evidence.decoded_height >= 2160 ? '4K' : evidence.decoded_height >= 1080 ? '1080P' : evidence.decoded_height >= 720 ? '720P' : (metadata.quality_evidence?.declared_quality_label || identity.quality_hint || 'unknown');
+              const quality = typeof decodedHeight === 'number' && decodedHeight >= 2160 ? '4K' : typeof decodedHeight === 'number' && decodedHeight >= 1080 ? '1080P' : typeof decodedHeight === 'number' && decodedHeight >= 720 ? '720P' : (metadata.quality_evidence?.declared_quality_label || identity.quality_hint || 'unknown');
               const haystack = [title, resource.release_year, resource.source_name, resource.source_host, resource.url].join(' ').toLowerCase();
               return (!libraryQuery.trim() || haystack.includes(libraryQuery.trim().toLowerCase())) &&
                 (libraryType === 'all' || type === libraryType) &&
@@ -257,12 +258,14 @@ export function ResourceStatsPanel() {
               const metadata = parseObject<MediaMetadata>(resource.metadata);
               const identity = metadata.media_identity || {};
               const evidence = parseObject<PlaybackEvidence>(resource.playback_evidence);
+              const decodedWidth = evidence.decoded_width;
+              const decodedHeight = evidence.decoded_height;
               try {
                 const mediaUrl = new URL(resource.url);
                 const labels: Record<string, string> = { movie: '电影', tv: '电视剧', anime: '动漫', documentary: '纪录片', variety: '综艺', short: '短片' };
                 mediaType = labels[identity.media_type || ''] || '待识别';
-                if (evidence.decoded_width && evidence.decoded_height) {
-                  actualQuality = evidence.decoded_height >= 2160 ? '4K 实际解码' : evidence.decoded_height >= 1080 ? '1080P 实际解码' : evidence.decoded_height >= 720 ? '720P 实际解码' : evidence.decoded_width + '×' + evidence.decoded_height + ' 实际解码';
+                if (typeof decodedWidth === 'number' && decodedWidth > 0 && typeof decodedHeight === 'number' && decodedHeight > 0) {
+                  actualQuality = decodedHeight >= 2160 ? '4K 实际解码' : decodedHeight >= 1080 ? '1080P 实际解码' : decodedHeight >= 720 ? '720P 实际解码' : decodedWidth + '×' + decodedHeight + ' 实际解码';
                 } else {
                   const declared = metadata.quality_evidence?.declared_quality_label || identity.quality_hint;
                   if (declared) actualQuality = declared + ' 标称（未测解码）';
