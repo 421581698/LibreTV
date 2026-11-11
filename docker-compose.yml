@@ -10,10 +10,15 @@ services:
     restart: unless-stopped
     ports:
       - "8080:8080"
+    networks:
+      - collector_net
     # 无状态服务：观看历史在浏览器 IndexedDB、设置在 localStorage，无需挂载卷
     environment:
       # 必填：访问密码（在 .env 中设置，缺失时 compose 启动即报错提醒）
       - PASSWORD=${PASSWORD:?请在 .env 中设置 PASSWORD}
+      # 可选：FMHY / Scrapling 采集服务（启用 collector profile 后使用）
+      - SCRAPLING_API_BASE=${SCRAPLING_API_BASE:-http://scrapling-collector:8000}
+      - SCRAPLING_API_TOKEN=${SCRAPLING_API_TOKEN:-}
       # 可选：会话/代理签名密钥（多实例部署建议显式设置：openssl rand -hex 32）
       # - PROXY_SECRET=your-secret
       # 可选：Cookie Secure 策略覆盖（true=强制开启 / false=强制关闭；不设置时按请求协议自动推导，HTTP 部署无需配置）
@@ -40,3 +45,92 @@ services:
       # - USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36
       # 可选：影视榜单推荐源（60s API）实例地址，官方公共实例有限流
       # - 60S_API_BASE=https://60s.crystelf.top
+
+
+  # Optional isolated Python runtime for FMHY discovery + Scrapling crawling.
+  # Start explicitly with: docker compose --profile collector up -d --build
+  scrapling-collector:
+    profiles: ["collector"]
+    build:
+      context: ./services/scrapling-collector
+    container_name: libretv-scrapling-collector
+    restart: unless-stopped
+    networks:
+      collector_net:
+        ipv4_address: ${SCRAPLING_COLLECTOR_IP:-172.30.60.10}
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,noexec,nosuid
+    shm_size: 256m
+    cap_drop:
+      - ALL
+    cap_add:
+      # Entrypoint needs CHOWN for the mounted volume and SETGID/SETUID for gosu.
+      - CHOWN
+      - SETGID
+      - SETUID
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 1g
+    cpus: 2.0
+    sysctls:
+      net.ipv6.conf.all.disable_ipv6: "1"
+      net.ipv6.conf.default.disable_ipv6: "1"
+    environment:
+      - SCRAPLING_API_TOKEN=${SCRAPLING_API_TOKEN:-}
+      # Keep every outbound collector operation disabled until the host firewall has been installed and verified.
+      - SCRAPLING_EGRESS_FIREWALL_CONFIRMED=${SCRAPLING_EGRESS_FIREWALL_CONFIRMED:-0}
+      - SCRAPLING_DB_PATH=${SCRAPLING_DB_PATH:-/data/collector.sqlite3}
+      - PORT=8000
+    expose:
+      - "8000"
+    volumes:
+      - scrapling_data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  scrapling-worker:
+    profiles: ["collector"]
+    build:
+      context: ./services/scrapling-collector
+    container_name: libretv-scrapling-worker
+    restart: unless-stopped
+    command: ["python", "worker.py"]
+    networks:
+      - collector_net
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,noexec,nosuid
+    shm_size: 256m
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETGID, SETUID]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 1g
+    cpus: 2.0
+    environment:
+      - SCRAPLING_API_TOKEN=${SCRAPLING_API_TOKEN:-}
+      - SCRAPLING_EGRESS_FIREWALL_CONFIRMED=${SCRAPLING_EGRESS_FIREWALL_CONFIRMED:-0}
+      - SCRAPLING_DB_PATH=${SCRAPLING_DB_PATH:-/data/collector.sqlite3}
+    volumes:
+      - scrapling_data:/data
+    depends_on:
+      scrapling-collector:
+        condition: service_healthy
+
+volumes:
+  scrapling_data:
+
+networks:
+  collector_net:
+    name: libretv_scrapling_net
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${SCRAPLING_NETWORK_SUBNET:-172.30.60.0/24}

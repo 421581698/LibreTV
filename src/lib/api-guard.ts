@@ -20,3 +20,29 @@ export function guardRequest(req: Request): NextResponse | null {
 export function jsonError(message: string, status: number): NextResponse {
   return NextResponse.json({ error: message }, { status });
 }
+
+
+/**
+ * Guard for costly/private features that must never inherit a public preview's
+ * AUTH_DISABLED bypass. Public pages may remain accessible, but collector
+ * operations always require a password-protected session.
+ */
+export function guardPrivateFeatureRequest(req: Request): NextResponse | null {
+  if (!isAuthDisabled()) return guardRequest(req);
+
+  // Public preview: website login is disabled, but Collector still requires
+  // its own HTTPS endpoint + bearer token (browser-local or server-side).
+  const browserBase = req.headers.get('x-scrapling-api-base')?.trim() ?? '';
+  const browserToken = req.headers.get('x-scrapling-api-token')?.trim() ?? '';
+
+  // In a public preview, server-side credentials must never make the proxy
+  // anonymously callable. Only a caller that supplies its own browser-local
+  // Collector credentials may use this route; the downstream client validates
+  // the HTTPS origin and the Collector verifies the bearer token.
+  if (browserBase && browserToken) return null;
+
+  return NextResponse.json(
+    { code: 'COLLECTOR_NOT_CONFIGURED', error: '网站无需访问密码。请先在「设置 → 资源采集中心」配置 Scrapling HTTPS 地址和访问 Token。' },
+    { status: 503, headers: { 'Cache-Control': 'no-store' } }
+  );
+}

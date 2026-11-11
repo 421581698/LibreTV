@@ -1,0 +1,90 @@
+/* iPhone header: keep brand, search and utility actions on the first row,
+   with the seven channel links on the second row. Desktop/iPad stay unchanged. */
+@media screen and (max-width: 700px) {
+  .v4-header .v4-header-inner {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  .v4-header .v4-header-actions {
+    display: contents !important;
+  }
+
+  .v4-header .v4-header-actions .v4-search,
+  .v4-home .v4-header .v4-header-actions .v4-search {
+    display: flex !important;
+    position: relative !important;
+    order: 1 !important;
+    flex: 1 1 90px !important;
+    width: auto !important;
+    min-width: 84px !important;
+    max-width: 180px !important;
+    height: 38px !important;
+    margin: 0 !important;
+    padding: 0 10px !important;
+    border-radius: 14px !important;
+    overflow: visible !important;
+    background: rgba(255,255,255,.09) !important;
+    border: 1px solid rgba(255,255,255,.18) !important;
+  }
+
+  .v4-header .v4-header-actions .v4-search input,
+  .v4-home .v4-header .v4-header-actions .v4-search input {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 38px !important;
+    opacity: 1 !important;
+    font-size: 16px !important;
+  }
+
+  .v4-header .v4-header-actions .v4-search input::placeholder {
+    opacity: 1 !important;
+  }
+
+  .v4-header .v4-mobile-search-toggle {
+    display: none !important;
+  }
+
+  .v4-header .v4-header-icon,
+  .v4-header .v4-avatar {
+    order: 2 !important;
+    flex: 0 0 34px !important;
+    width: 34px !important;
+    min-width: 34px !important;
+    height: 34px !important;
+  }
+
+  .v4-header .v4-primary-nav {
+    order: 3 !important;
+    flex: 0 0 calc(100% + 24px) !important;
+  }
+
+  .v4-header .v4-search-field {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+
+  .v4-header .v4-search [role="listbox"] {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: -14px;
+    right: -14px;
+    z-index: 300;
+    max-height: min(48vh, 360px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body:has(.v4-home) .v4-home-main {
+    padding-top: 12px !important;
+  }
+}
+
+/* The inline player is intentionally above the fixed iPhone tab bar. */
+.home-inline-player {
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
