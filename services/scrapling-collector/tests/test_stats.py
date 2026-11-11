@@ -79,6 +79,22 @@ class ResourceStatsTests(unittest.TestCase):
         self.assertEqual(result["candidate_collectors"]["browser"], 2)
         self.assertEqual(result["candidate_collectors"]["unknown"], 0)
 
+    def test_media_type_breakdown_counts_only_explicitly_identified_titles(self):
+        self.db.execute("ALTER TABLE candidates ADD COLUMN media_identity TEXT NOT NULL DEFAULT '{}'")
+        self.db.execute(
+            "UPDATE candidates SET media_identity=? WHERE id=?",
+            (json.dumps({"media_type":"anime","title_hint":"Example Anime","match_confidence":"structured_metadata"}), "candidate-1")
+        )
+        self.db.execute(
+            "UPDATE candidates SET media_identity=? WHERE id=?",
+            (json.dumps({"media_type":"unknown","title_hint":"Watch now","match_confidence":"hint_only"}), "candidate-2")
+        )
+        summary = build_stats(self.db)["summary"]
+        self.assertEqual(summary["media_type_counts"]["anime"], 1)
+        self.assertEqual(summary["media_type_counts"]["unknown"], 1)
+        self.assertEqual(summary["identified_titles"], 1)
+        self.assertEqual(summary["unclassified_candidates"], 1)
+
     def test_collector_preview_samples_do_not_count_as_real_playback(self):
         self.db.execute("INSERT INTO playback_quality_samples VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                         ("preview-1","media.example","collector_preview","hls",20,20,3840,2160,2160,12000,112))
