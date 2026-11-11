@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation';
 import { SourceManagerDrawer } from '@/components/source-manager';
 import { HistoryPanel } from '@/components/history-panel';
 import AIFloatingBall from '@/components/AIFloatingBall';
-import { BrandModule } from './header/BrandModule';
 import { SearchModule } from './header/SearchModule';
 import { AvatarModule } from './header/AvatarModule';
 
@@ -32,8 +31,7 @@ export function V4HomepageHeader({ overlay = false }: { overlay?: boolean }) {
   return (
     <>
       <header className={'v4-header' + (overlay ? ' is-overlay' : '')}>
-        <div className="v4-header-inner">
-          <BrandModule />
+        <div className="v4-header-inner v4-header-inner--no-brand">
           <div className="v4-header-actions">
             <SearchModule />
             <AvatarModule pathname={pathname} />
