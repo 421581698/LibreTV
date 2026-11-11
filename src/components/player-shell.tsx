@@ -3,15 +3,14 @@
 import { useEffect, useRef, useState } from 'react';
 import Artplayer from 'artplayer';
 import Hls, { type HlsConfig } from 'hls.js';
+import type { PlaybackSample } from '@/lib/playback-telemetry';
+import { getAdvertised4kStatus, resolveQualitySelection, type QualityPreference } from '@/lib/player-quality';
 import { getMediaPlaybackKind } from '@/lib/media-playback';
 import { hasSustainedPlaybackProgress } from '@/lib/playback-verification';
 
 import { PlaybackRecovery, describeHlsError } from '@/lib/playback-recovery';
 import { createHlsLoader } from '@/lib/hls-loader';
-import {
-  getVideoPrefetcher,
-  getNextEpisodePrefetcher,
-} from '@/lib/video-prefetcher';
+import { getVideoPrefetcher } from '@/lib/video-prefetcher';
 import { loadCacheSettings } from '@/lib/video-cache';
 import { formatTime } from '@/lib/utils';
 import { executeFridayPlayerCommand, parseFridayPlayerCommand } from '@/lib/friday/player-control';
@@ -35,39 +34,60 @@ import {
 /** 片段时间统一保留 1 位小数：与面板展示保持一致，避免浮点尾巴 */
 const round1 = (v: number) => Math.round(v * 10) / 10;
 
-// 用户选择的 HLS 最高分辨率；直链/单码率源不承诺可被此设置控制。
 const QUALITY_PREFERENCE_KEY = 'libretv-quality-preference';
-function applyHlsQualityPreference(hls: Hls): void {
-  let maxHeight: number | null = null;
+function readQualityPreference(): QualityPreference {
   try {
     const saved = window.localStorage.getItem(QUALITY_PREFERENCE_KEY);
-    if (saved && saved !== 'auto') {
-      const parsed = Number(saved);
-      if ([480, 720, 1080, 2160].includes(parsed)) maxHeight = parsed;
-    }
+    if (saved === '1080' || saved === '2160') return saved === '2160' ? '4k' : '1080';
+    if (saved === '4k') return '4k';
   } catch {
-    // Storage unavailable: keep adaptive quality.
+    // Storage unavailable: default to adaptive playback.
   }
+  return 'auto';
+}
 
-  if (maxHeight === null) {
+function applyHlsQualityPreference(
+  hls: Hls,
+  preference: QualityPreference,
+  video: HTMLVideoElement,
+): { heights: number[]; selectedHeight?: number; notice?: string } {
+  const selection = resolveQualitySelection(
+    hls.levels.map((level, index) => ({ index, height: level.height, bitrate: level.bitrate })),
+    preference,
+  );
+
+  if (preference === 'auto') {
     hls.autoLevelCapping = -1;
     hls.currentLevel = -1;
-    return;
+    hls.startLoad();
+    return { heights: selection.heights };
   }
 
-  const levels = hls.levels
-    .map((level, index) => ({ index, height: level.height }))
-    .filter((level) => Number.isFinite(level.height) && level.height > 0);
-  if (levels.length === 0) return;
+  if (selection.selectedIndex === undefined && preference === '4k' && !selection.shouldPause) {
+    // 4K is a preference, not a hard ceiling. If the playlist omits rendition
+    // metadata, keep adaptive playback but clearly state that 4K cannot be verified.
+    hls.autoLevelCapping = -1;
+    hls.currentLevel = -1;
+    hls.startLoad();
+    return { heights: selection.heights, notice: selection.notice };
+  }
 
-  const withinLimit = levels.filter((level) => level.height <= maxHeight!);
-  const selected = withinLimit.length > 0
-    ? withinLimit.reduce((best, level) => level.height > best.height ? level : best)
-    : levels.reduce((best, level) => level.height < best.height ? level : best);
+  if (selection.shouldPause || selection.selectedIndex === undefined) {
+    hls.stopLoad();
+    video.pause();
+    return { heights: selection.heights, notice: selection.notice };
+  }
 
-  // 保持 ABR 自适应，但限制它不会超过用户选择的档位。
-  hls.autoLevelCapping = selected.index;
-  hls.currentLevel = -1;
+  // currentLevel pins the selected rendition. ABR cannot silently step down
+  // when bandwidth fluctuates; the UI warns instead and leaves the choice intact.
+  hls.autoLevelCapping = selection.selectedIndex;
+  hls.currentLevel = selection.selectedIndex;
+  hls.startLoad();
+  return {
+    heights: selection.heights,
+    selectedHeight: selection.selectedHeight,
+    notice: selection.notice,
+  };
 }
 
 /**
@@ -131,6 +151,9 @@ interface PlayerShellProps {
    * 单码率 m3u8 / 直链的分辨率只能等解码后才知道，播放一次后回写缓存，
    * 下次搜索同一部剧就能直接显示画质，不必再探测。
    */
+  sourceKey?: string;
+  resourceKey?: string;
+  onPlaybackSample?: (sample: PlaybackSample) => void;
   onQuality?: (height: number) => void;
   /** 恢复策略判源不可用（重试耗尽/格式硬失败）时回调：父级弹出换源面板 */
   onRequestSwitchSource?: (reason: string) => void;
@@ -162,6 +185,9 @@ export function PlayerShell({
   onEnded,
   onPause,
   onQuality,
+  sourceKey,
+  resourceKey,
+  onPlaybackSample,
   onRequestSwitchSource,
   onPrevEpisode,
   onNextEpisode,
@@ -177,8 +203,27 @@ export function PlayerShell({
   const [hint, setHint] = useState('');
   // 起播前的品牌占位图（沿用旧版 nomedia 素材），实际开始播放后隐藏
   const [showPoster, setShowPoster] = useState(true);
+  const [qualityPreference, setQualityPreference] = useState<QualityPreference>('auto');
+  const [qualityPanelOpen, setQualityPanelOpen] = useState(false);
+  const [availableQualityHeights, setAvailableQualityHeights] = useState<number[]>([]);
+  const [availableQualityLevelCount, setAvailableQualityLevelCount] = useState(0);
+  const [qualityMetadataComplete, setQualityMetadataComplete] = useState(false);
+  const [actualQualityHeight, setActualQualityHeight] = useState(0);
+  const [actualQualityWidth, setActualQualityWidth] = useState(0);
+  const [selectedHlsRendition, setSelectedHlsRendition] = useState<{ index: number; height: number; bitrate: number } | null>(null);
+  const [observedMediaBitrateKbps, setObservedMediaBitrateKbps] = useState(0);
+  const [observedThroughputKbps, setObservedThroughputKbps] = useState(0);
+  const [qualityNotice, setQualityNotice] = useState('');
+  const [networkQualityWarning, setNetworkQualityWarning] = useState('');
+  const [qualityControlMode, setQualityControlMode] = useState<'hls' | 'native' | 'single'>('single');
+  const unsustainableFragmentsRef = useRef(0);
+  const sustainableFragmentsRef = useRef(0);
   const [showPlayFallback, setShowPlayFallback] = useState(false);
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setQualityPreference(readQualityPreference());
+  }, []);
 
   useEffect(() => {
     const handleFridayPlayerCommand = (event: Event) => {
@@ -213,20 +258,70 @@ export function PlayerShell({
     url, title, mediaType, onPlaybackConfirmed, adFilter, autoplayNext, skipMark, autoSkipSegments,
     pendingStart, onPendingStart, onPlayerApi, onRecordSegment,
     episodeKey, nextUrl, nextEpisodeKey,
-    getRestorePosition, onTimeUpdate, onEnded, onPause, onQuality, onRequestSwitchSource,
+    getRestorePosition, onTimeUpdate, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource,
     onPrevEpisode, onNextEpisode, hasPrevEpisode, hasNextEpisode,
   });
   propsRef.current = {
     url, title, mediaType, onPlaybackConfirmed, adFilter, autoplayNext, skipMark, autoSkipSegments,
     pendingStart, onPendingStart, onPlayerApi, onRecordSegment,
     episodeKey, nextUrl, nextEpisodeKey,
-    getRestorePosition, onTimeUpdate, onEnded, onPause, onQuality, onRequestSwitchSource,
+    getRestorePosition, onTimeUpdate, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource,
     onPrevEpisode, onNextEpisode, hasPrevEpisode, hasNextEpisode,
   };
 
   /** 上报实测画质：多次上报取大值由调用方决定，这里只管把拿到的高度传出去 */
   const reportQuality = (height: number) => {
     if (height > 0) propsRef.current.onQuality?.(height);
+  };
+
+  const playbackIdentityRef = useRef({ sourceKey, resourceKey, onPlaybackSample });
+  const playbackMetricsRef = useRef({
+    startedAt: Date.now(), firstFragmentMs: undefined as number | undefined,
+    totalBytes: 0, totalDownloadMs: 0, totalMediaSeconds: 0,
+    videoBytes: 0, videoDownloadMs: 0, videoMediaSeconds: 0,
+    selectedRenditionIndex: undefined as number | undefined,
+    selectedRenditionHeight: undefined as number | undefined,
+    selectedRenditionBitrateKbps: undefined as number | undefined,
+    stalls: 0, fatalErrors: 0, recoveries: 0, playedSeconds: 0,
+    lastPosition: 0, lastTickAt: 0, height: 0, waiting: false, flushed: false,
+  });
+  const resetPlaybackMetrics = () => {
+    setSelectedHlsRendition(null);
+    setObservedMediaBitrateKbps(0);
+    setObservedThroughputKbps(0);
+    playbackIdentityRef.current = { sourceKey: propsRef.current.sourceKey, resourceKey: propsRef.current.resourceKey, onPlaybackSample: propsRef.current.onPlaybackSample };
+    playbackMetricsRef.current = {
+      startedAt: Date.now(), firstFragmentMs: undefined, totalBytes: 0,
+      totalDownloadMs: 0, totalMediaSeconds: 0, videoBytes: 0,
+      videoDownloadMs: 0, videoMediaSeconds: 0,
+      selectedRenditionIndex: undefined, selectedRenditionHeight: undefined,
+      selectedRenditionBitrateKbps: undefined, stalls: 0, fatalErrors: 0,
+      recoveries: 0, playedSeconds: 0, lastPosition: 0, lastTickAt: 0,
+      height: 0, waiting: false, flushed: false,
+    };
+  };
+  const flushPlaybackMetrics = () => {
+    const metrics = playbackMetricsRef.current;
+    if (metrics.flushed || (!metrics.playedSeconds && !metrics.totalBytes && !metrics.fatalErrors)) return;
+    metrics.flushed = true;
+    const identity = playbackIdentityRef.current;
+    if (!identity.sourceKey || !identity.resourceKey) return;
+    identity.onPlaybackSample?.({
+      sourceKey: identity.sourceKey,
+      resourceKey: identity.resourceKey,
+      timestamp: Date.now(),
+      startupMs: metrics.firstFragmentMs,
+      throughputKbps: metrics.videoDownloadMs > 0 ? metrics.videoBytes * 8 / metrics.videoDownloadMs : undefined,
+      mediaBitrateKbps: metrics.videoMediaSeconds > 0 ? metrics.videoBytes * 8 / metrics.videoMediaSeconds / 1000 : undefined,
+      selectedRenditionIndex: metrics.selectedRenditionIndex,
+      selectedRenditionHeight: metrics.selectedRenditionHeight,
+      selectedRenditionBitrateKbps: metrics.selectedRenditionBitrateKbps,
+      height: metrics.height || undefined,
+      stalls: metrics.stalls,
+      fatalErrors: metrics.fatalErrors,
+      recoveries: metrics.recoveries,
+      playedSeconds: metrics.playedSeconds,
+    });
   };
 
   // 跨集共享、每次换集重置的播放链路状态
@@ -242,8 +337,6 @@ export function PlayerShell({
   const restoredRef = useRef(false);
   // 某些 HLS 源在 MANIFEST_PARSED 时 duration 仍未就绪，延迟到媒体元数据可用后恢复
   const restoreCleanupRef = useRef<(() => void) | null>(null);
-  // timeupdate 续跑预取的游标：必须按集清零，否则会沿用上一集的时间戳推迟首次续跑
-  const lastPrefetchEnsureRef = useRef(0);
   // setupHls 可能改走代理形式，video:error 重试要用最近一次的地址
   const currentMediaUrlRef = useRef(url);
   // 本集的恢复策略实例：跨直连/代理两级重建共享计数
@@ -269,18 +362,17 @@ export function PlayerShell({
     hintTimerRef.current = setTimeout(() => setHint(''), 2500);
   };
 
-  // 片段缓存开启时调大 hls.js 自身缓冲，缓冲之外的空窗由预取器补齐
+  // 流式播放：hls.js 按播放头顺序请求分片，不因缓存开关扩大到整集级内存缓冲。
+  // 30s 常规缓冲、60s 上限；网络抖动由 HLS 自身重试与 ABR 处理。
   const buildHlsConfig = (): Partial<HlsConfig> => {
     const p = propsRef.current;
-    const cacheSettings = loadCacheSettings();
-    const cacheEnabled = cacheSettings.enabled && !!p.episodeKey;
     return {
       debug: false,
       enableWorker: true,
-      backBufferLength: 90,
-      maxBufferLength: cacheEnabled ? 120 : 30,
-      maxMaxBufferLength: cacheEnabled ? 600 : 60,
-      maxBufferSize: (cacheEnabled ? 90 : 30) * 1000 * 1000,
+      backBufferLength: 30,
+      maxBufferLength: 30,
+      maxMaxBufferLength: 60,
+      maxBufferSize: 60 * 1000 * 1000,
       maxBufferHole: 0.5,
       fragLoadingMaxRetry: 6,
       fragLoadingRetryDelay: 1000,
@@ -289,32 +381,8 @@ export function PlayerShell({
       startLevel: -1,
       abrEwmaDefaultEstimate: 500_000,
       appendErrorMaxRetry: 5,
-      // 组合 loader：广告过滤（blockAd 随设置）+ 片段缓存命中（cacheEnabled）
       loader: createHlsLoader(Hls, { blockAd: p.adFilter }) as unknown as HlsConfig['loader'],
     };
-  };
-
-  // 当前集预取（episodeKey 缺省 = 关闭，见 ensure 内部 settings.enabled 判断）
-  const ensurePrefetch = (mediaUrl: string, currentTime: number, horizonSeconds?: number) => {
-    const p = propsRef.current;
-    if (!p.episodeKey) return;
-    getVideoPrefetcher().ensure({
-      m3u8Url: mediaUrl,
-      currentTime,
-      episodeKey: p.episodeKey,
-      horizonSeconds,
-      onProgress: (stats) => {
-        // 当前集预取完成且存在下一集：用独立预取器预热下一集前 7 分钟
-        if (stats.state === 'done' && p.nextUrl && p.nextEpisodeKey) {
-          getNextEpisodePrefetcher().ensure({
-            m3u8Url: p.nextUrl,
-            currentTime: 0,
-            episodeKey: p.nextEpisodeKey,
-            horizonSeconds: 420,
-          });
-        }
-      },
-    });
   };
 
   /** 切换提示状态；值相同直接返回，避免 timeupdate 高频 setState */
@@ -369,7 +437,6 @@ export function PlayerShell({
       return false;
     }
     lastSampleRef.current = seconds;
-    ensurePrefetch(currentMediaUrlRef.current, seconds);
     return true;
   };
 
@@ -425,6 +492,15 @@ export function PlayerShell({
     }
     hlsRef.current?.destroy();
     hlsRef.current = null;
+    const mediaKind = getMediaPlaybackKind(mediaUrl, propsRef.current.mediaType);
+    if (mediaKind === 'mp4' || mediaKind === 'webm') {
+      setupDirectMedia(video, mediaUrl);
+      return;
+    }
+    if (mediaKind === 'unsupported') {
+      setError('当前媒体格式尚未接入播放器，请选择 HLS、MP4 或 WebM 资源');
+      return;
+    }
     currentMediaUrlRef.current = mediaUrl;
     // Native progressive playback does not need fetch CORS; forcing crossorigin=anonymous
     // can make otherwise public media fail when the host omits Access-Control-Allow-Origin.
@@ -479,6 +555,53 @@ export function PlayerShell({
     hlsRef.current?.destroy();
     hlsRef.current = null;
     currentMediaUrlRef.current = mediaUrl;
+    if (!Hls.isSupported()) {
+      if (!video.canPlayType('application/vnd.apple.mpegurl') && !video.canPlayType('application/x-mpegURL')) {
+        hlsRef.current = null;
+        setError('当前浏览器不支持 HLS 播放，请尝试其他视频源或浏览器');
+        return;
+      }
+      hlsRef.current = null;
+      setAvailableQualityHeights([]);
+      setQualityControlMode('native');
+      setQualityNotice('当前使用浏览器原生 HLS，Safari 会自行选择档位，网页无法强制锁定 1080P 或 4K。实际解码分辨率仍会显示。');
+      let nativeRestoreInFlight = false;
+      const restoreNativePosition = async () => {
+        if (restoredRef.current || nativeRestoreInFlight) return;
+        const duration = video.duration || 0;
+        if (!Number.isFinite(duration) || duration <= 0) return;
+        nativeRestoreInFlight = true;
+        try {
+          const saved = (await propsRef.current.getRestorePosition?.()) ?? 0;
+          if (saved > 10 && saved < duration - 2) {
+            video.currentTime = saved;
+            showHint(`已从 ${formatTime(saved)} 继续播放`);
+          }
+          restoredRef.current = true;
+          restoreCleanupRef.current?.();
+          restoreCleanupRef.current = null;
+          if (readQualityPreference() === '1080') {
+            video.pause();
+            setQualityNotice('当前使用原生 HLS，无法验证或强制限制 1080P；已暂停以避免超过所选上限，请选择自动继续播放。');
+            return;
+          }
+          video.play().catch(() => setShowPlayFallback(true));
+        } catch {
+          // IndexedDB failure must not block native-HLS playback.
+        } finally {
+          nativeRestoreInFlight = false;
+        }
+      };
+      const nativeRestoreEvents = ['loadedmetadata', 'durationchange', 'canplay'] as const;
+      const onNativeRestoreEvent = () => { void restoreNativePosition(); };
+      nativeRestoreEvents.forEach((event) => video.addEventListener(event, onNativeRestoreEvent));
+      restoreCleanupRef.current = () => {
+        nativeRestoreEvents.forEach((event) => video.removeEventListener(event, onNativeRestoreEvent));
+      };
+      video.src = mediaUrl;
+      video.load();
+      return;
+    }
     const mediaKind = getMediaPlaybackKind(mediaUrl, propsRef.current.mediaType);
     if (mediaKind === 'mp4' || mediaKind === 'webm') {
       setupDirectMedia(video, mediaUrl);
@@ -496,11 +619,17 @@ export function PlayerShell({
     }
     const hls = nativeHls ? null : new Hls(buildHlsConfig());
     hlsRef.current = hls;
-    if (hls) {
-      const handleQualityPreferenceChange = () => applyHlsQualityPreference(hls);
-      qualityPreferenceHandlerRef.current = handleQualityPreferenceChange;
-      window.addEventListener('libretv-quality-preference-change', handleQualityPreferenceChange);
-    }
+    setQualityControlMode('hls');
+    const handleQualityPreferenceChange = () => {
+      const preference = readQualityPreference();
+      setQualityPreference(preference);
+      unsustainableFragmentsRef.current = 0;
+      sustainableFragmentsRef.current = 0;
+      setNetworkQualityWarning('');
+      const result = applyHlsQualityPreference(hls, preference, video);
+      setAvailableQualityHeights(result.heights);
+      setQualityNotice(result.notice ?? '');
+    };
 
     let restoreInFlight = false;
     const restoreAndStart = async () => {
@@ -524,7 +653,6 @@ export function PlayerShell({
         restoredRef.current = true;
         restoreCleanupRef.current?.();
         restoreCleanupRef.current = null;
-        ensurePrefetch(mediaUrl, prefetchAnchor);
         video.play().catch(() => {
           // iOS Safari may reject autoplay after async detail/source loading.
           // Keep the player inline and offer a user-activated retry instead of a silent poster.
@@ -556,23 +684,91 @@ export function PlayerShell({
     hls.attachMedia(video);
 
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      applyHlsQualityPreference(hls);
+      const qualityResult = applyHlsQualityPreference(hls, readQualityPreference(), video);
+      setAvailableQualityHeights(qualityResult.heights);
+      setAvailableQualityLevelCount(hls.levels.length);
+      setQualityMetadataComplete(hls.levels.length > 0 && hls.levels.every((level) => Number.isFinite(level.height) && level.height > 0));
+      setQualityNotice(qualityResult.notice ?? '');
       recoveryRef.current?.markHealthy();
-      // master playlist 的档位高度：多码率源在这里就能拿到上限
-      const heights = hls.levels
-        .map((level) => level.height)
-        .filter((h): h is number => typeof h === 'number' && h > 0);
-      if (heights.length > 0) reportQuality(Math.max(...heights));
+      // 清单只描述“可提供的最高档”，不代表当前正在解码该画质。
+      // 实测画质只允许由 video.videoHeight 上报，避免把 4K 标称值误记成实际播放 4K。
       // 进度恢复改由 restoreAndStart 处理：duration 未就绪时不消费标记，挂事件重试
       void restoreAndStart();
     });
     // 播放链路恢复（FRAG_LOADED / MANIFEST_PARSED）：静默窗外清零连续失败计数
-    hls.on(Hls.Events.FRAG_LOADED, () => recoveryRef.current?.markHealthy());
-    // 单码率源在 MANIFEST 阶段拿不到 height（清单尚未解析），这里补一次。
-    // 注意 data.level 是档位下标，分辨率在 levelInfo 上
-    hls.on(Hls.Events.LEVEL_LOADED, (_evt, data) => {
-      const height = data.levelInfo?.height;
-      if (typeof height === 'number') reportQuality(height);
+    hls.on(Hls.Events.FRAG_LOADED, (_event, data) => {
+      recoveryRef.current?.markHealthy();
+      const metrics = playbackMetricsRef.current;
+      const stats = data.frag?.stats;
+      const bytes = typeof stats?.loaded === 'number' && stats.loaded > 0 ? stats.loaded : stats?.total;
+      const loadStart = stats?.loading?.start;
+      const loadEnd = stats?.loading?.end;
+      const loadMs = typeof loadStart === 'number' && typeof loadEnd === 'number' && loadEnd > loadStart ? loadEnd - loadStart : 0;
+      const mediaSeconds = data.frag?.duration;
+      if (typeof bytes === 'number' && Number.isFinite(bytes) && bytes > 0 && loadMs > 0) {
+        if (metrics.firstFragmentMs === undefined) metrics.firstFragmentMs = Date.now() - metrics.startedAt;
+        metrics.totalBytes += bytes;
+        metrics.totalDownloadMs += loadMs;
+        if (typeof mediaSeconds === 'number' && mediaSeconds > 0) {
+          metrics.totalMediaSeconds += mediaSeconds;
+          if (data.frag?.type === 'main') {
+            metrics.videoBytes += bytes;
+            metrics.videoDownloadMs += loadMs;
+            metrics.videoMediaSeconds += mediaSeconds;
+            setObservedMediaBitrateKbps(bytes * 8 / (mediaSeconds * 1000));
+            setObservedThroughputKbps(bytes * 8 / loadMs);
+          }
+          const preference = readQualityPreference();
+          // Only main video fragments represent the selected picture rendition; audio/subtitle
+          // fragments must not trigger a false warning about the chosen video bitrate.
+          if (data.frag?.type === 'main') {
+            const throughputKbps = bytes * 8 / loadMs;
+            const mediaBitrateKbps = bytes * 8 / (mediaSeconds * 1000);
+            if (mediaBitrateKbps > 0 && throughputKbps < mediaBitrateKbps * 1.25) {
+              unsustainableFragmentsRef.current += 1;
+              sustainableFragmentsRef.current = 0;
+            } else {
+              unsustainableFragmentsRef.current = 0;
+              sustainableFragmentsRef.current += 1;
+            }
+            if (unsustainableFragmentsRef.current >= 2) {
+              setNetworkQualityWarning(preference === 'auto'
+                ? `网络吞吐持续低于当前视频码率（本片段约 ${Math.round(throughputKbps)} Kbps），可能出现缓冲；自动模式将由 HLS 自适应调整档位。`
+                : `网络带宽不足以稳定维持手动选择的画质（本片段吞吐约 ${Math.round(throughputKbps)} Kbps）。已保留所选档位，不会自动降档，可能出现缓冲。`);
+            } else if (sustainableFragmentsRef.current >= 3) {
+              setNetworkQualityWarning('');
+            }
+          }
+        }
+      }
+    });
+    // LEVEL_LOADED / levelInfo 仍是播放列表声明值，不是当前视频解码分辨率。
+    // 实际分辨率统一由 video.videoHeight 的 loadedmetadata/canplay/playing/resize 事件记录。
+    hls.on(Hls.Events.LEVELS_UPDATED, () => {
+      // 部分动态清单会在初次解析后补齐档位；重新应用用户的最高画质限制。
+      const qualityResult = applyHlsQualityPreference(hls, readQualityPreference(), video);
+      setAvailableQualityHeights(qualityResult.heights);
+      setAvailableQualityLevelCount(hls.levels.length);
+      setQualityMetadataComplete(hls.levels.length > 0 && hls.levels.every((level) => Number.isFinite(level.height) && level.height > 0));
+      setQualityNotice(qualityResult.notice ?? '');
+    });
+    hls.on(Hls.Events.LEVEL_SWITCHED, (_event, data) => {
+      // The selected playlist rendition and decoded video dimensions are different observations.
+      // Track the HLS level in Auto as well as manual modes; never present it as decoded quality.
+      const level = hls.levels[data.level];
+      if (level) {
+        const selected = {
+          index: data.level,
+          height: level.height || 0,
+          bitrate: level.bitrate || 0,
+        };
+        setSelectedHlsRendition(selected);
+        playbackMetricsRef.current.selectedRenditionIndex = selected.index;
+        playbackMetricsRef.current.selectedRenditionHeight = selected.height || undefined;
+        playbackMetricsRef.current.selectedRenditionBitrateKbps = selected.bitrate > 0 ? selected.bitrate / 1000 : undefined;
+      }
+      const decodedHeight = video.videoHeight;
+      if (decodedHeight > 0) setActualQualityHeight(decodedHeight);
     });
     // 分片真正进入 MSE buffer 才算媒体恢复：此时视频轨可渲染，错误态可解除
     hls.on(Hls.Events.FRAG_BUFFERED, () => {
@@ -584,6 +780,8 @@ export function PlayerShell({
       const recovery = recoveryRef.current;
       if (!recovery) return;
       const decision = recovery.onFatal(data.type, data.details);
+      playbackMetricsRef.current.fatalErrors += 1;
+      if (decision.action === 'retry' || decision.action === 'recover-media') playbackMetricsRef.current.recoveries += 1;
       switch (decision.action) {
         case 'ignore':
           break;
@@ -628,6 +826,8 @@ export function PlayerShell({
   /** 换集：重置每集状态并切换到新 HLS 源（不重建 ArtPlayer）。 */
   const loadEpisode = (targetUrl: string) => {
     if (!targetUrl) return;
+    flushPlaybackMetrics();
+    resetPlaybackMetrics();
     mediaHealthyRef.current = true;
     playbackStartedRef.current = false;
     playbackConfirmedRef.current = false;
@@ -637,7 +837,6 @@ export function PlayerShell({
     }
     videoErrorRetryUsedRef.current = false;
     restoredRef.current = false;
-    lastPrefetchEnsureRef.current = 0;
     // 跳过片段按集重置：上一集已处理过不意味新一集也处理过
     handledSegmentsRef.current.clear();
     suppressedAutoRef.current.clear();
@@ -650,6 +849,15 @@ export function PlayerShell({
     getVideoPrefetcher().stop();
     setError('');
     setShowPoster(true);
+    setActualQualityHeight(0);
+    setActualQualityWidth(0);
+    setAvailableQualityHeights([]);
+    setAvailableQualityLevelCount(0);
+    setQualityMetadataComplete(false);
+    setQualityNotice('');
+    setNetworkQualityWarning('');
+    unsustainableFragmentsRef.current = 0;
+    sustainableFragmentsRef.current = 0;
     setShowPlayFallback(false);
     const art = artRef.current;
     if (!art) return;
@@ -667,6 +875,7 @@ export function PlayerShell({
     Artplayer.CONTROL_HIDE_TIME = touchPointer ? TOUCH_CONTROL_HIDE_MS : DESKTOP_CONTROL_HIDE_MS;
 
     // 初始化每集状态
+    resetPlaybackMetrics();
     mediaHealthyRef.current = true;
     playbackStartedRef.current = false;
     videoErrorRetryUsedRef.current = false;
@@ -805,8 +1014,20 @@ export function PlayerShell({
      * 各补一次机会，不能只赌单一事件时机。
      */
     const reportVideoHeight = () => {
-      const height = art.video?.videoHeight;
-      if (typeof height === 'number' && height > 0) reportQuality(height);
+      const video = art.video;
+      const height = video?.videoHeight ?? 0;
+      // A single-file/native source cannot be pinned by hls.js. If a persisted
+      // 1080P ceiling is active and decoded output exceeds it, stop rather than
+      // silently playing above the requested ceiling.
+      if (height > 1080 && !hlsRef.current && readQualityPreference() === '1080') {
+        video?.pause();
+        setQualityNotice('当前资源无法切换到 1080P，实际解码分辨率超过所选上限，已暂停播放。');
+      }
+      if (height > 0) {
+        setActualQualityHeight(height);
+        setActualQualityWidth(video?.videoWidth ?? 0);
+        reportQuality(height);
+      }
     };
     art.on('video:loadedmetadata', reportVideoHeight);
     art.on('video:canplay', reportVideoHeight);
@@ -822,6 +1043,11 @@ export function PlayerShell({
     });
 
     art.on('video:playing', () => {
+      const metrics = playbackMetricsRef.current;
+      if (metrics.firstFragmentMs === undefined) metrics.firstFragmentMs = Date.now() - metrics.startedAt;
+      if (metrics.waiting) metrics.recoveries += 1;
+      metrics.waiting = false;
+      metrics.height = Math.max(metrics.height, art.video?.videoHeight ?? 0);
       playbackStartedRef.current = true;
       setShowPoster(false);
       setShowPlayFallback(false);
@@ -856,11 +1082,13 @@ export function PlayerShell({
       }
     });
     art.on('video:error', () => {
+      playbackMetricsRef.current.fatalErrors += 1;
       mediaHealthyRef.current = false;
       // 起播阶段的 video 元素级错误（MSE/解码偶发失败）：重建一次播放链路自愈，
       // 而不是直接钉死错误遮罩——重建后视频轨重新 append，黑屏有声即可解除
       if (!playbackStartedRef.current && !videoErrorRetryUsedRef.current) {
         videoErrorRetryUsedRef.current = true;
+        playbackMetricsRef.current.recoveries += 1;
         showHint('播放异常，正在重试...');
         setupHls(art.video, currentMediaUrlRef.current, true);
         return;
@@ -868,19 +1096,17 @@ export function PlayerShell({
       setError('视频播放失败，请尝试其他视频源');
     });
     art.on('video:timeupdate', () => {
+      const metrics = playbackMetricsRef.current;
+      const position = art.currentTime;
+      if (metrics.lastTickAt > 0 && position > metrics.lastPosition && position - metrics.lastPosition <= 2.5) metrics.playedSeconds += position - metrics.lastPosition;
+      metrics.lastPosition = position;
+      metrics.lastTickAt = Date.now();
+      metrics.height = Math.max(metrics.height, art.video?.videoHeight ?? 0);
       const now = Date.now();
       if (now - lastSave > 5000) {
         lastSave = now;
         propsRef.current.onTimeUpdate?.(art.currentTime, art.duration);
       }
-      // 每 30s 续跑一次前向预取窗口（ensure 幂等，窗口未覆盖足够余量才会重建）
-      if (now - lastPrefetchEnsureRef.current > 30_000) {
-        lastPrefetchEnsureRef.current = now;
-        // 用 currentMediaUrlRef（代理回退后的实际地址）：否则预取的 key 与
-        // loader 读取的 key 不一致，缓存永不命中且直连 fetch 白耗流量
-        ensurePrefetch(currentMediaUrlRef.current, art.currentTime);
-      }
-
       // —— 跳过片段判定 ——
       const p = propsRef.current;
       const current = art.currentTime;
@@ -930,7 +1156,6 @@ export function PlayerShell({
       updateSkipPrompt(prompt);
     });
     art.on('video:seeked', () => {
-      ensurePrefetch(currentMediaUrlRef.current, art.currentTime);
       // seek 是用户主动行为：拉平采样基准，避免下一拍被误判为「连续越过片尾」。
       // 暂停中 seek 不会触发 timeupdate，这里也同步刷新按钮的显隐。
       const current = art.currentTime;
@@ -948,19 +1173,19 @@ export function PlayerShell({
       }
       // 跳过片尾会主动 pause：此时已按「看完」处理，不能再把片尾位置写回进度
       if (!endedRef.current) propsRef.current.onPause?.(art.currentTime, art.duration);
-      // 暂停 = 预取黄金窗口：解除限速并无限铺满整集（用户主动行为，带宽占用可接受）
-      // waiting 触发的限速在此解除，否则黄金窗口会被 500ms 轮询冻结
-      getVideoPrefetcher().setThrottled(false);
-      ensurePrefetch(currentMediaUrlRef.current, art.currentTime, 0);
     });
     art.on('video:waiting', () => {
-      // 卡顿：预取临时让出带宽给播放
-      getVideoPrefetcher().setThrottled(true);
+      const metrics = playbackMetricsRef.current;
+      if (!art.video?.paused && !metrics.waiting) { metrics.stalls += 1; metrics.waiting = true; }
+      // 缓冲不足时彻底停止预取，释放所有并发请求给当前播放链路。
+      getVideoPrefetcher().stop();
     });
     art.on('video:playing', () => {
-      getVideoPrefetcher().setThrottled(false);
+      // 恢复播放后停止暂停期间的预取，避免后台请求持续抢占带宽。
+      getVideoPrefetcher().stop();
     });
     art.on('video:ended', () => {
+      flushPlaybackMetrics();
       // finishBySkip 已经手动走过结束链路：这里不能重复触发 onEnded
       if (endedRef.current) return;
       endedRef.current = true;
@@ -1113,6 +1338,7 @@ export function PlayerShell({
     document.addEventListener('visibilitychange', saveOnHide);
 
     return () => {
+      flushPlaybackMetrics();
       // 卸载前刷一次最终进度，避免丢失最后几秒。
       // 已自然播完的集数不回写，避免覆盖 onEnded 里清除的「已看完」记录
       if (!endedRef.current) {
@@ -1209,6 +1435,81 @@ export function PlayerShell({
   return (
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" style={{ WebkitTouchCallout: 'none' }} />
+      <div className="absolute right-3 top-3 z-20 flex flex-col items-end gap-2">
+        <button
+          type="button"
+          className="rounded-full border border-white/20 bg-black/75 px-3 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur"
+          aria-expanded={qualityPanelOpen}
+          aria-label="画质设置"
+          onClick={() => setQualityPanelOpen((open) => !open)}
+        >
+          画质 · {qualityPreference === 'auto' ? '自动' : qualityPreference === '1080' ? '1080P' : '4K优先'}
+          <span className="ml-2 text-white/70">{actualQualityHeight > 0 ? `当前 ${actualQualityHeight}P` : '检测中'}</span>
+        </button>
+        {qualityPanelOpen && (
+          <div className="w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-white/15 bg-black/90 p-3 text-white shadow-2xl backdrop-blur-xl">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-sm font-semibold">播放画质</span>
+              <span className="text-[10px] text-white/55">{qualityControlMode === 'hls' ? 'HLS 档位控制' : qualityControlMode === 'native' ? '浏览器原生 HLS' : '单文件 / 直链'}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {([
+                ['auto', '自动'],
+                ['1080', '1080P'],
+                ['4k', '4K优先'],
+              ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={qualityPreference === value}
+                  className={`rounded-lg px-2 py-2 text-xs transition ${qualityPreference === value ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                  onClick={() => {
+                    try {
+                      window.localStorage.setItem(QUALITY_PREFERENCE_KEY, value === '4k' ? '2160' : value);
+                    } catch { /* Keep this session's selection even if storage is unavailable. */ }
+                    setQualityPreference(value);
+                    setQualityNotice('');
+                    unsustainableFragmentsRef.current = 0;
+                    sustainableFragmentsRef.current = 0;
+                    setNetworkQualityWarning('');
+                    window.dispatchEvent(new Event('libretv-quality-preference-change'));
+                    if (value === 'auto') {
+                      void artRef.current?.play?.();
+                    }
+                    if (qualityControlMode === 'native' && value !== 'auto') {
+                      if (value === '1080') artRef.current?.pause();
+                      if (value === '4k') void artRef.current?.play?.();
+                      setQualityNotice(value === '1080'
+                        ? '原生 HLS 无法强制限制在 1080P，已暂停以免播放超过所选上限；请选择自动继续播放。'
+                        : '原生 HLS 不支持强制锁定 4K；Safari 会自行选择档位，源站 4K 档位也无法在此路径验证。');
+                    } else if (qualityControlMode === 'single' && value !== 'auto') {
+                      if (value === '1080' && (actualQualityHeight === 0 || actualQualityHeight > 1080)) {
+                        artRef.current?.pause();
+                        setQualityNotice('当前是单文件直链，无法切换或限制分辨率；实际画质未确认在 1080P 以下，已暂停以免超过所选上限。');
+                      } else {
+                        void artRef.current?.play?.();
+                        setQualityNotice('当前资源是单文件直链，没有可切换的多档清晰度；显示值为实际解码画质。');
+                      }
+                    }
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="mt-3 space-y-1 text-xs text-white/75">
+              <p>源站 4K：{getAdvertised4kStatus(availableQualityHeights, availableQualityLevelCount, qualityMetadataComplete) === 'advertised' ? 'HLS 清单声明有 4K（不代表当前解码为 4K）' : getAdvertised4kStatus(availableQualityHeights, availableQualityLevelCount, qualityMetadataComplete) === 'not-advertised' ? 'HLS 清单未声明 4K' : '无法验证（档位分辨率元数据缺失）'}</p>
+              <p>可用档位：{availableQualityHeights.length ? availableQualityHeights.map((height) => `${height}P`).join(' / ') : availableQualityLevelCount > 0 ? `已读取 ${availableQualityLevelCount} 个 HLS 档位，但分辨率元数据缺失` : '暂不可读取'}</p>
+              <p>当前实际解码：{actualQualityHeight > 0 ? `${actualQualityWidth > 0 ? `${actualQualityWidth}×` : ''}${actualQualityHeight}（${actualQualityHeight}P）` : '等待视频解码'}</p>
+              <p>当前 HLS 档位：{qualityControlMode !== 'hls' ? '当前播放路径不支持档位读取' : selectedHlsRendition ? `Level ${selectedHlsRendition.index} · ${selectedHlsRendition.height > 0 ? `${selectedHlsRendition.height}P` : '分辨率未知'} · ${selectedHlsRendition.bitrate > 0 ? `${(selectedHlsRendition.bitrate / 1_000_000).toFixed(2)} Mbps` : '码率未知'}` : '等待 HLS 选择档位'}</p>
+              <p>实测视频片段码率：{observedMediaBitrateKbps > 0 ? `${(observedMediaBitrateKbps / 1000).toFixed(2)} Mbps` : '等待视频分片'}</p>
+              <p>最近分片下载吞吐：{observedThroughputKbps > 0 ? `${(observedThroughputKbps / 1000).toFixed(2)} Mbps` : '等待网络采样'}</p>
+              {qualityNotice && <p role="status" className="pt-1 text-amber-300">{qualityNotice}</p>}
+              {networkQualityWarning && <p role="alert" className="pt-1 text-amber-300">{networkQualityWarning}</p>}
+            </div>
+          </div>
+        )}
+      </div>
       {showPoster && !error && (
         <div
           className="absolute inset-0 bg-black pointer-events-none"
