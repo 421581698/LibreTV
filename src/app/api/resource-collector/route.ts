@@ -67,6 +67,6 @@ export async function POST(request: NextRequest) {
   return collectorRequest('/v1/crawl', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url: parsed.toString(), limit: 50 }),
+    body: JSON.stringify({ url: parsed.toString(), limit: 250 }),
   }, 65_000, request);
 }
