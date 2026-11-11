@@ -1476,3 +1476,114 @@ html:has(.v4-home) {
     z-index: 2 !important;
   }
 }
+
+
+/* PR84 hotfix: keep the dock as a direct viewport-fixed element.
+   Do not wrap it in the third-party LiquidGlass engine: its transformed
+   wrapper can establish a containing block and detach position:fixed. */
+@media (max-width: 700px) {
+  body:has(.v4-home) .v4-home > .v4-mobile-tabbar,
+  body:has(.v4-home) .v4-home .v4-mobile-tabbar {
+    position: fixed !important;
+    z-index: 1200 !important;
+    inset: auto 16px max(8px, env(safe-area-inset-bottom, 0px)) 16px !important;
+    width: auto !important;
+    max-width: 420px !important;
+    height: 58px !important;
+    min-height: 58px !important;
+    margin: 0 auto !important;
+    padding: 4px 7px !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    align-items: center !important;
+    gap: 4px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    transform: none !important;
+    border: 1px solid rgba(255,255,255,.22) !important;
+    border-radius: 999px !important;
+    background: rgba(15,15,15,.4) !important;
+    -webkit-backdrop-filter: blur(30px) saturate(200%) contrast(110%) !important;
+    backdrop-filter: blur(30px) saturate(200%) contrast(110%) !important;
+    box-shadow: 0 8px 26px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.22) !important;
+  }
+
+  body:has(.v4-home) .v4-home .v4-mobile-tabbar > a {
+    display: flex !important;
+    min-width: 0 !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 2px !important;
+    padding: 2px 4px !important;
+    border-radius: 999px !important;
+  }
+
+  body:has(.v4-home) .v4-home .v4-mobile-tabbar > a svg {
+    display: block !important;
+    width: 18px !important;
+    height: 18px !important;
+    flex: 0 0 18px !important;
+  }
+
+  body:has(.v4-home) .v4-home .v4-mobile-tabbar > a span {
+    display: block !important;
+    font-size: 10px !important;
+    line-height: 1.05 !important;
+    white-space: nowrap !important;
+  }
+
+  body:has(.v4-home) .v4-home .v4-home-main,
+  body:has(.v4-home) .v4-home .v4-home-main--cinema {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* Remove the phantom header panel; keep only its compact controls floating
+     over the top of the artwork. */
+  body:has(.v4-home) .v4-home > .v4-header {
+    position: absolute !important;
+    inset: 0 0 auto 0 !important;
+    z-index: 1100 !important;
+    display: block !important;
+    width: 100% !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    pointer-events: none !important;
+  }
+
+  body:has(.v4-home) .v4-home > .v4-header .v4-header-inner {
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Restore the compact cinema composition and expose the start of the poster rail. */
+  body:has(.v4-home) .v4-home .v4-home-main--cinema > .v4-hero-immersive {
+    height: clamp(380px, 55svh, 520px) !important;
+    min-height: 380px !important;
+    max-height: 520px !important;
+    margin-top: calc(-1 * env(safe-area-inset-top, 0px)) !important;
+  }
+
+  body:has(.v4-home) .v4-home .v4-hero-immersive-copy {
+    bottom: max(88px, calc(env(safe-area-inset-bottom, 0px) + 76px)) !important;
+  }
+}
+
+@media (min-width: 701px) {
+  body:has(.v4-home) .v4-home .v4-mobile-tabbar { display: none !important; }
+}
