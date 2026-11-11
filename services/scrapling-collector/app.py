@@ -2277,7 +2277,7 @@ def record_playback_evidence(
         raise HTTPException(status_code=400, detail="Invalid candidate ID")
     with db() as connection:
         row = connection.execute(
-            "SELECT host,kind,status,access_state,validation FROM candidates WHERE id=?",
+            "SELECT host,kind,status,access_state,validation,url,title,media_identity,quality_evidence FROM candidates WHERE id=?",
             (candidate_id,),
         ).fetchone()
         if not row:
@@ -2329,6 +2329,21 @@ def record_playback_evidence(
              payload.decoded_height, payload.selected_rendition_height,
              payload.selected_rendition_bitrate_kbps, int(time.time())),
         )
+    try:
+        media_identity = json.loads(row["media_identity"] or "{}")
+    except (TypeError, ValueError):
+        media_identity = {}
+    try:
+        quality_evidence = json.loads(row["quality_evidence"] or "{}")
+    except (TypeError, ValueError):
+        quality_evidence = {}
+    register_discovered_candidate({
+        "id": candidate_id, "url": row["url"], "host": row["host"],
+        "kind": row["kind"], "title": row["title"], "status": row["status"],
+        "access_state": row["access_state"], "media_identity": media_identity,
+        "quality_evidence": quality_evidence,
+    })
+    sync_candidate_validation(candidate_id, validation, row["status"])
     registry_result = register_candidate_playback(candidate_id, evidence)
     return {"candidate_id": candidate_id, "playback_verification": evidence, **registry_result}
 
