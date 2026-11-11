@@ -2354,3 +2354,62 @@ body .v4-home .v4-hero-immersive .v4-hero-dots {
   }
   body .v4-home .v4-hero-immersive .v4-hero-dots { bottom: 16px !important; }
 }
+
+
+/* PR84 final visual pass: keep the poster bright and anchor compact copy at the foot. */
+body .v4-home .v4-hero-immersive .v4-hero-image img {
+  filter: brightness(1.1) contrast(1.1) saturate(1.06) !important;
+}
+body .v4-home .v4-hero-immersive > .v4-hero-veil {
+  background: linear-gradient(
+    to bottom,
+    transparent 30%,
+    rgba(0,0,0,.10) 54%,
+    rgba(0,0,0,.48) 72%,
+    #000 90%
+  ) !important;
+}
+body .v4-home .v4-hero-immersive .v4-hero-immersive-copy {
+  inset: 0 !important;
+  justify-content: flex-end !important;
+  padding-bottom: 112px !important;
+}
+@media screen and (max-width: 700px) {
+  body .v4-home .v4-hero-immersive .v4-hero-image img {
+    filter: brightness(1.1) contrast(1.1) saturate(1.08) !important;
+    object-position: center 24% !important;
+  }
+  body .v4-home .v4-hero-immersive > .v4-hero-veil {
+    background: linear-gradient(
+      to bottom,
+      transparent 30%,
+      rgba(0,0,0,.06) 52%,
+      rgba(0,0,0,.42) 72%,
+      #000 90%
+    ) !important;
+  }
+  body .v4-home .v4-hero-immersive .v4-hero-immersive-copy {
+    inset: 0 !important;
+    justify-content: flex-end !important;
+    gap: 7px !important;
+    padding: 0 22px 112px !important;
+  }
+  /* Keep the human focal area unobstructed; the title and CTA carry the hierarchy. */
+  body .v4-home .v4-hero-immersive-copy > p {
+    display: none !important;
+  }
+  body .v4-home .v4-hero-immersive-copy h1 {
+    font-size: clamp(25px,6.8vw,32px) !important;
+    line-height: 1.08 !important;
+  }
+  body .v4-home .v4-hero-immersive .v4-hero-dots {
+    bottom: 18px !important;
+  }
+  /* Reserve room below the fixed floating tab bar in the actual page scroller. */
+  body .v4-home,
+  body .v4-home main,
+  body .v4-home-main--cinema {
+    padding-bottom: max(100px, calc(100px + env(safe-area-inset-bottom, 0px))) !important;
+    scroll-padding-bottom: 120px !important;
+  }
+}
