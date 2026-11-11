@@ -13,7 +13,7 @@ describe('iPhone homepage inline playback and top search', () => {
   it('homepage recommendation posters open the inline player instead of the detail route', () => {
     expect(home).toContain('const rankedMatches = rankMovieCandidatesByQuality(');
     expect(home).toContain('setQuickPlayItem(rankedMatches[0]);');
-    expect(featuredHero).toContain('aria-label={`立即播放：${slide.title}`}');
+    expect(featuredHero).toContain('aria-label={`播放精选影片：${slide.title}`}');
     expect(featuredHero).toContain('onClick={() => onPick(slide)}');
     expect(home).toContain('onOpen={(item) => setQuickPlayItem(item)}');
     expect(home).toContain('<HomeInlinePlayer item={quickPlayItem}');
