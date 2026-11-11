@@ -2132,3 +2132,15 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
   .v4-home .v4-header-inner { width: calc(100% - 32px) !important; }
   .v4-home-main--cinema > .v4-hero { height: clamp(460px, 66vh, 680px) !important; }
 }
+.v4-home .v4-header-actions > .v4-search .v4-search-label {
+  display: inline-block !important;
+  flex: 0 0 auto !important;
+  color: rgba(255,255,255,.96) !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+.v4-home .v4-header-actions > .v4-search:focus-within .v4-search-label {
+  display: none !important;
+}
