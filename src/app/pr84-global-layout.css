@@ -86,6 +86,13 @@
     padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
+
+  /* The fourth dock destination (Me) must also scroll clear of the fixed dock. */
+  body .v4-spatial-screen[data-screen="me"] > .v4-spatial-main {
+    padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
   /* Keep the hero's artwork/title band below the iOS status and brand controls. */
   body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive {
     box-sizing: border-box !important;
