@@ -120,7 +120,7 @@ describe('首页与播放页回归契约', () => {
     expect(v4Content).toContain("api.douban('movie', '热门', 0, 8, signal)");
     expect(v4Content).toContain('db.history.orderBy(\'timestamp\').reverse().limit(CONTINUE_LIMIT)');
     expect(v4Content).toContain('<RecommendSection onPick={onPick} />');
-    expect(v4Content).toContain('db.history.orderBy(\'timestamp\').reverse().limit(CONTINUE_LIMIT)');
+
     expect(v4Content).toContain('buildWatchUrl({');
     expect(v4Content).toContain('playbackPosition / item.duration');
     expect(v4Styles).toContain('.v4-history-row');
