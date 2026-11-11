@@ -93,3 +93,12 @@ After the owner manually deploys the Blueprint, verify all of the following befo
 4. Restart/redeploy the service and confirm task records remain available from the persistent `/data` disk.
 5. Set the Preview Worker's `SCRAPLING_API_BASE` and `SCRAPLING_API_TOKEN` secrets, then verify `/api/resource-collector` from the Preview app.
 6. Keep this service isolated from production. Do not reuse production secrets.
+
+
+## Daily collection and durable local library
+
+The container supervisor starts both the authenticated FastAPI service and the durable SQLite queue worker against the same `/data/collector.sqlite3` persistent disk. The worker schedules one idempotent FMHY refresh + batch crawl per local calendar day (default 03:00 in `America/Los_Angeles`; configurable with `COLLECTOR_TIMEZONE`, `COLLECTOR_DAILY_HOUR`, and `COLLECTOR_DAILY_MINUTE`). Each daily run refreshes the FMHY Movies / TV / Anime directory first, then visits all discovered FMHY entries (bounded by the 1,000-site directory ceiling), aggregates unique direct-media candidates, and continues through the directory rather than stopping at the first 250 candidates. It aims for at least 101 candidates and records the actual total, including a shortfall when fewer are available. Network validation remains bounded to 100 candidate preflights per batch; this does not imply that every candidate is publicly playable.
+
+The SQLite registry and queue live on the persistent `/data` disk and survive a container restart or a stopped web process as long as the disk is retained. LibreTV's resource-library UI also synchronizes the registry into browser IndexedDB so the saved metadata and resource URLs remain searchable on that device while the Collector API is unavailable. The browser cache is a catalogue/index, not a copy of video bytes. Playback still depends on the original public media URL remaining online; a removed or expired source cannot be made playable by caching its URL. Only resources with public validation and actual player confirmation expose the in-app playback action.
+
+Automatic crawling remains fail-closed until the operator has installed and independently verified an equivalent outbound egress firewall. The daily scheduler can enqueue the durable job, but it must not be used to bypass `SCRAPLING_EGRESS_FIREWALL_CONFIRMED` or the host network boundary. Keep the Collector service and queue worker running for scheduled collection; stopping the service pauses future runs, while the persistent disk and already synchronized browser catalogue remain intact.
