@@ -19,6 +19,8 @@ import './theme-global-compat.css';
 import './iphone-minimal-ui.css';
 // Final iPhone homepage overrides must win over shared header/theme layers.
 import './iphone-home-inline.css';
+// PR #84 final recovery layer: normalize document flow and isolate the homepage dock.
+import './pr84-layout-recovery.css';
 import { Providers } from '@/components/providers';
 
 export const metadata: Metadata = {
