@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -26,9 +28,19 @@ export function MobileTabBar() {
     normalized === '/settings' || normalized.startsWith('/settings/') ? '/settings' :
     normalized === '/me' || normalized.startsWith('/me/') ||
     normalized === '/resources' || normalized.startsWith('/resources/') ? '/me' : '';
+  const isHomepage = normalized === '/';
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
-  return (
-    <nav className="v4-mobile-tabbar liquid-glass" aria-label="底部导航">
+  useEffect(() => {
+    setPortalTarget(isHomepage ? document.body : null);
+  }, [isHomepage]);
+
+  const navigation = (
+    <nav
+      className="v4-mobile-tabbar liquid-glass"
+      aria-label="底部导航"
+      data-homepage-dock={isHomepage ? 'true' : undefined}
+    >
       {tabs.map((tab) => {
         const active = tab.href === activeTab;
         return (
@@ -41,4 +53,7 @@ export function MobileTabBar() {
       })}
     </nav>
   );
+
+  if (isHomepage) return portalTarget ? createPortal(navigation, portalTarget) : null;
+  return navigation;
 }
