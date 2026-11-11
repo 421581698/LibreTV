@@ -57,7 +57,8 @@ services:
       # - DEFAULT_LIVE_SOURCES=[{"name":"示例直播源","url":"https://example.com/list.m3u"}]
       # - DEFAULT_SUBSCRIPTIONS=["https://example.com/sources.json"]  # 预置订阅，自动导入点播源+直播源
       # - DEFAULT_RECOMMEND_SOURCE=douban  # 首页推荐数据源默认值（douban/bangumi/hot-list），仅对未主动选择过的用户生效
-      # - LIVE_ALLOW_PRIVATE=1              # 自建内网 IPTV 源时开启
+      # - LIVE_ALLOW_PRIVATE=1              # 仅开启私网直播源白名单功能（仍需配置下方 LIVE_PRIVATE_HOSTS）
+      # - LIVE_PRIVATE_HOSTS=192.168.1.20,media.lan  # 仅允许这些精确主机名/IP 访问私网；不支持通配符
 ```
 
 > 其余可选变量见下方[环境变量](#环境变量)表；仓库内的 `docker-compose.yml` 含完整注释版本（含 `build: .` 源码构建分支）。
@@ -119,7 +120,7 @@ PASSWORD=your-password npm start   # 监听 8080
 | `DEFAULT_LIVE_SOURCES` | 否 | 预置直播源（M3U 订阅），JSON 数组：`[{"name":"源名","url":"https://.../list.m3u","epg":"https://.../epg.xml.gz"}]`，`epg` 为可选的 XMLTV 节目单地址 |
 | `DEFAULT_SUBSCRIPTIONS` | 否 | 预置数据源订阅（LibreTV-SourceList JSON 链接，也接受 TVBOX 配置与接口目录地址），JSON 数组：`["https://.../sources.json", {"url":"https://.../list.json","name":"名称","refreshDays":10}]`。首次访问自动导入点播源与直播源，之后按 `refreshDays`（1-365，缺省 1 天）静默刷新；用户删除后不再自动加回。`refreshDays` 只是初始值，用户在源管理面板改过之后以面板设置为准 |
 | `DEFAULT_RECOMMEND_SOURCE` | 否 | 首页推荐数据源的默认值（`douban` / `bangumi` / `hot-list`，出厂默认 `hot-list`）；仅对未在设置中主动选择过的用户生效，用户的选择始终优先 |
-| `LIVE_ALLOW_PRIVATE` | 否 | 设为 `1` 时允许直播流代理访问内网/保留地址（自建 IPTV 场景），默认关闭以维持 SSRF 防护 |
+| `LIVE_ALLOW_PRIVATE` | 否 | 设为 `1` 才启用私网 IPTV 白名单功能；**单独设置不会放行任何私网地址**，还必须配置 `LIVE_PRIVATE_HOSTS` |\n| `LIVE_PRIVATE_HOSTS` | 否 | 逗号分隔的精确主机名或 IP 白名单（如 `192.168.1.20,media.lan`），仅允许匹配的私网直播源；不支持通配符或域名后缀匹配 |
 
 ## 使用说明
 
@@ -138,7 +139,7 @@ PASSWORD=your-password npm start   # 监听 8080
 
 完整说明见 [直播 / IPTV 文档](https://libretv.is-an.org/wiki/Live-IPTV.html)。
 
-> ⚠️ 项目不内置任何频道源，也不存储、不制作任何直播内容，仅提供第三方公开播放列表的解析与播放能力，内容的合法性由对应数据源负责。内网自建源默认被 SSRF 防护拦截，自部署者可显式设置 `LIVE_ALLOW_PRIVATE=1` 放行。
+> ⚠️ 项目不内置任何频道源，也不存储、不制作任何直播内容，仅提供第三方公开播放列表的解析与播放能力，内容的合法性由对应数据源负责。内网自建源默认被 SSRF 防护拦截；自部署者必须同时设置 `LIVE_ALLOW_PRIVATE=1` 和精确白名单 `LIVE_PRIVATE_HOSTS`（逗号分隔主机名/IP），不会全局放行任意私网地址。
 
 ## 数据源订阅 / 分享
 
@@ -189,7 +190,7 @@ PASSWORD=your-password npm start   # 监听 8080
 **兼容与限制**：
 
 - 只写 `sources` 的老订阅照常可用（纯点播），只写 `liveSources` 则是纯直播订阅；两者都缺时提示「订阅内容格式不正确」；裸数组 `[{ "name": "...", "url": "..." }]` 视为点播源；
-- 按 `url` 去重（先到先得）；非 http(s) 地址会被过滤；**点播源**另需为公网地址（内网/回环/保留地址会被静默过滤），**直播源**在部署者设置 `LIVE_ALLOW_PRIVATE=1` 时可使用内网自建源地址；
+- 按 `url` 去重（先到先得）；非 http(s) 地址会被过滤；**点播源**另需为公网地址（内网/回环/保留地址会被静默过滤），**直播源**仅在部署者同时设置 `LIVE_ALLOW_PRIVATE=1` 并将目标主机精确列入 `LIVE_PRIVATE_HOSTS` 时可使用内网自建源地址；
 - 订阅由**服务端**拉取（拉取前经过 SSRF 校验），因此订阅地址**无需配置 CORS**，Gist、对象存储、任意静态托管均可。
 
 ### 兼容 TVBOX 配置
