@@ -1322,7 +1322,7 @@ export function PlayerShell({
       <div className="absolute right-3 top-3 z-20 flex flex-col items-end gap-2">
         <button
           type="button"
-          className="rounded-full border border-white/20 bg-black/75 px-3 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur"
+          className="player-quality-trigger rounded-full border border-white/20 bg-black/75 px-3 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur"
           aria-expanded={qualityPanelOpen}
           aria-label="画质设置"
           onClick={() => setQualityPanelOpen((open) => !open)}
@@ -1331,7 +1331,7 @@ export function PlayerShell({
           <span className="ml-2 text-white/70">{actualQualityHeight > 0 ? `当前 ${actualQualityHeight}P` : '检测中'}</span>
         </button>
         {qualityPanelOpen && (
-          <div className="w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-white/15 bg-black/90 p-3 text-white shadow-2xl backdrop-blur-xl">
+          <div className="player-quality-panel w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-white/15 bg-black/90 p-3 text-white shadow-2xl backdrop-blur-xl" role="dialog" aria-label="播放画质设置">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-sm font-semibold">播放画质</span>
               <span className="text-[10px] text-white/55">{qualityControlMode === 'hls' ? 'HLS 档位控制' : qualityControlMode === 'native' ? '浏览器原生 HLS' : '单文件 / 直链'}</span>
