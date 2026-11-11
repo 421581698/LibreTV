@@ -18,7 +18,7 @@ class RenderDeploymentConfigTests(unittest.TestCase):
 
     def test_docker_image_uses_platform_port_and_healthcheck(self):
         dockerfile = (ROOT / "services/scrapling-collector/Dockerfile").read_text(encoding="utf-8")
-        self.assertIn("${PORT:-10000}", dockerfile)
+        self.assertIn("    PORT=10000", dockerfile)
         self.assertIn("os.environ.get('PORT', '10000')", dockerfile)
         self.assertIn("scrapling install", dockerfile)
         self.assertIn("PLAYWRIGHT_BROWSERS_PATH=/opt/collector-browsers", dockerfile)
