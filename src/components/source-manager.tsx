@@ -115,7 +115,7 @@ const SETTINGS_PAGE_ICONS: Record<Exclude<SettingsPage, 'index'>, { icon: IconNa
 
 const SETTINGS_OPEN_PAGE_KEY = 'libretv-settings-open-page';
 
-export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function SourceManagerDrawer({ open, onClose, embedded = false }: { open: boolean; onClose: () => void; embedded?: boolean }) {
   const [activePage, setActivePage] = useState<SettingsPage>('index');
 
   useEffect(() => {
@@ -135,20 +135,15 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
 
   const pageTitle = activePage === 'index' ? '设置' : SETTINGS_PAGE_META[activePage].title;
 
-  return (
-    <Drawer
-      open={open}
-      onClose={onClose}
-      title="设置"
-      width="max-w-2xl ipad-settings-drawer"
-      resetScrollKey={activePage}
-    >
+  const settingsContent = (
       {activePage === 'index' ? (
         <div className="ipad-settings-content mx-auto w-full max-w-2xl space-y-7 pb-3">
-          <div className="space-y-1">
-            <h2 className="text-3xl font-semibold tracking-tight text-content">设置</h2>
-            <p className="text-sm text-muted">管理 LibreTV 的外观、播放与资源偏好。</p>
-          </div>
+          {!embedded ? (
+            <div className="space-y-1">
+              <h2 className="text-3xl font-semibold tracking-tight text-content">设置</h2>
+              <p className="text-sm text-muted">管理 LibreTV 的外观、播放与资源偏好。</p>
+            </div>
+          ) : null}
           {SETTINGS_SECTIONS.map((section) => (
             <section key={section.title} className="space-y-2">
               <h3 className="px-1 text-xs font-semibold tracking-wide text-muted">{section.title}</h3>
@@ -219,6 +214,21 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
           {activePage === 'about' && <section className="settings-apple-about"><h3>LibreTV</h3><p>为个人观影而设计的开放式影视浏览与播放体验。</p><p className="settings-apple-about-note">播放记录、收藏与偏好设置按现有功能保存在当前设备；资源站和网络连接由你配置与管理。</p></section>}
         </div>
       )}
+  );
+
+  if (embedded) {
+    return <div className="settings-embedded-root" data-settings-embedded="true">{settingsContent}</div>;
+  }
+
+  return (
+    <Drawer
+      open={open}
+      onClose={onClose}
+      title="设置"
+      width="max-w-2xl ipad-settings-drawer"
+      resetScrollKey={activePage}
+    >
+      {settingsContent}
     </Drawer>
   );
 }
