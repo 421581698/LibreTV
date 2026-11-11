@@ -316,17 +316,19 @@ class CollectorTests(unittest.TestCase):
                 if selector == "[data-src], [data-url], [data-play], [content], [data-config], [data-player]":
                     return [
                         Element({"data-src": "https://cdn.example/movie/master.m3u8"}),
+                        Element({"data-src": "/movie/relative.m3u8"}),
                         Element({"data-config": '{"url":"https://cdn.example/movie/backup.mp4"}'}),
                     ]
                 if selector == "script":
-                    return [Element(text='const player = { file: "https://cdn.example/movie/inline.m3u8" };')]
+                    return [Element(text='const player = { file: "/movie/inline.m3u8" };')]
                 return []
 
         found = collector.extract_candidates(Page(), Page.url, 20)
         urls = {item["url"] for item in found}
         self.assertIn("https://cdn.example/movie/master.m3u8", urls)
         self.assertIn("https://cdn.example/movie/backup.mp4", urls)
-        self.assertIn("https://cdn.example/movie/inline.m3u8", urls)
+        self.assertIn("https://catalog.example/movie/inline.m3u8", urls)
+        self.assertIn("https://catalog.example/movie/relative.m3u8", urls)
         self.assertTrue(all(item["host"] == "cdn.example" for item in found))
 
     def test_rejects_non_https_and_credentials(self):
