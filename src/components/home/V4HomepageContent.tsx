@@ -13,6 +13,7 @@ import type { DoubanItem } from '@/lib/types';
 import { buildWatchUrl, formatTime } from '@/lib/utils';
 
 const CONTINUE_LIMIT = 8;
+const TODAY_LIMIT = 12;
 
 export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => void }) {
   const doubanEnabled = useAppStore((s) => s.doubanEnabled);
@@ -24,11 +25,11 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
   );
   const todayQuery = useQuery({
     queryKey: ['homepage-today-featured'],
-    queryFn: ({ signal }) => api.douban('movie', '热门', 0, 8, signal),
+    queryFn: ({ signal }) => api.douban('movie', '热门', 0, TODAY_LIMIT, signal),
     enabled: doubanEnabled,
     staleTime: 5 * 60_000,
   });
-  const todayPick = todayQuery.data?.items.find((item) => item.cover);
+  const todayItems = (todayQuery.data?.items ?? []).filter((item) => item.cover).slice(0, TODAY_LIMIT);
 
   return (
     <>
@@ -36,29 +37,32 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
         <section className="v4-content-section v4-today-section" id="today-recommendations" aria-label="今日推荐">
           <div className="v4-section-heading">
             <h2>今日推荐 <span aria-hidden="true">›</span></h2>
+            <span className="v4-rail-hint">左右滑动，发现更多</span>
           </div>
           {todayQuery.isLoading ? (
-            <div className="v4-today-featured-skeleton" role="status">正在载入今日推荐…</div>
+            <div className="v4-today-rail-status" role="status">正在载入今日推荐…</div>
           ) : todayQuery.isError ? (
             <GlassPanel className="v4-history-empty" role="status">今日推荐暂时无法加载，请稍后重试。</GlassPanel>
-          ) : todayPick ? (
-            <button type="button" className="v4-today-featured" onClick={() => onPick(todayPick)}>
-              <span className="v4-today-poster">
-                <SmartImage
-                  url={todayPick.cover}
-                  mode={imageProxyMode}
-                  customProxy={customImageProxy}
-                  alt={todayPick.title}
-                  className="absolute inset-0 h-full w-full object-cover"
-                />
-              </span>
-              <span className="v4-today-copy">
-                <span className="v4-today-eyebrow">TODAY&apos;S PICK</span>
-                <strong>{todayPick.title}</strong>
-                <span className="v4-today-meta">{[todayPick.rating ? `评分 ${todayPick.rating}` : ''].filter(Boolean).join(' · ')}</span>
-                <span className="v4-today-cta">▶ 立即观看</span>
-              </span>
-            </button>
+          ) : todayItems.length > 0 ? (
+            <div className="v4-today-rail" aria-label="今日推荐影片，可横向滑动">
+              {todayItems.map((item) => (
+                <button key={item.id} type="button" className="v4-today-card" onClick={() => onPick(item)}>
+                  <span className="v4-today-card-poster">
+                    <SmartImage
+                      url={item.cover}
+                      mode={imageProxyMode}
+                      customProxy={customImageProxy}
+                      alt={item.title}
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                  </span>
+                  <strong title={item.title}>{item.title}</strong>
+                  <span className="v4-today-card-rating" aria-label={item.rating ? `评分 ${item.rating}` : '暂无评分'}>
+                    <span aria-hidden="true">★</span> {item.rating || '暂无评分'}
+                  </span>
+                </button>
+              ))}
+            </div>
           ) : (
             <GlassPanel className="v4-history-empty">今日暂无可展示的推荐影片。</GlassPanel>
           )}
@@ -130,8 +134,11 @@ function V4ContinueCard({ item }: { item: HistoryEntry }) {
       <div className="v4-history-copy">
         <strong title={item.title}>{item.title}</strong>
         <span>第 {item.episodeIndex + 1} 集 · {formatTime(item.playbackPosition)}{item.duration > 0 ? ` / ${formatTime(item.duration)}` : ''}</span>
-        <div className="v4-progress-track" role="progressbar" aria-label={`${item.title} 播放进度`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
-          <span style={{ width: `${percent}%` }} />
+        <div className="v4-progress-meta">
+          <div className="v4-progress-track" role="progressbar" aria-label={`${item.title} 播放进度`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
+            <span style={{ width: `${percent}%` }} />
+          </div>
+          <span className="v4-progress-percent">{percent}%</span>
         </div>
       </div>
     </Link>
