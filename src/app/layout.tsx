@@ -23,6 +23,8 @@ import './iphone-home-inline.css';
 import './pr84-layout-recovery.css';
 // PR #84 search-page finishing pass: compact field, dock and safe scroll tail.
 import './pr84-search-polish.css';
+// PR #84 final iPhone fix: translucent four-tab dock, safe-area spacing and orb separation.
+import './pr84-dock-fix.css';
 import { Providers } from '@/components/providers';
 
 export const metadata: Metadata = {
