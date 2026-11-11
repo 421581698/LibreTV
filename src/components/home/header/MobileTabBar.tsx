@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation';
 const tabs = [
   { href: '/', label: '首页', icon: 'home' },
   { href: '/categories', label: '分类', icon: 'grid' },
-  { href: '/search', label: '搜索', icon: 'search' },
   { href: '/me', label: '我的', icon: 'user' },
 ] as const;
 
@@ -22,7 +21,6 @@ export function MobileTabBar() {
   const activeTab =
     normalized === '/' ? '/' :
     normalized === '/categories' || normalized.startsWith('/categories/') ? '/categories' :
-    normalized === '/search' || normalized.startsWith('/search/') ? '/search' :
     normalized === '/me' || normalized.startsWith('/me/') ||
     normalized === '/settings' || normalized.startsWith('/settings/') ||
     normalized === '/resources' || normalized.startsWith('/resources/') ? '/me' : '';
