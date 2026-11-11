@@ -55,9 +55,12 @@ def build_stats(connection: sqlite3.Connection, host=None):
     ).fetchall()]
     candidate_columns = {row["name"] for row in connection.execute("PRAGMA table_info(candidates)").fetchall()}
     collected_by_expr = "collected_by" if "collected_by" in candidate_columns else "'[]' AS collected_by"
+    media_identity_expr = "media_identity" if "media_identity" in candidate_columns else "'{}' AS media_identity"
+    quality_expr = "quality_evidence" if "quality_evidence" in candidate_columns else "'{}' AS quality_evidence"
+    playback_expr = "playback_verification" if "playback_verification" in candidate_columns else "'{}' AS playback_verification"
     candidates = [dict(r) for r in connection.execute(
         f"""SELECT id,task_id,url,host,kind,title,status,access_state,created_at,
-                   media_identity,quality_evidence,playback_verification,{collected_by_expr}
+                   {media_identity_expr},{quality_expr},{playback_expr},{collected_by_expr}
             FROM candidates ORDER BY created_at DESC"""
     ).fetchall()]
     try:
