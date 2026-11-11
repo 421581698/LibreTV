@@ -949,3 +949,35 @@
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   }
 }
+
+/* Keep the floating header over the hero only; internal pages need their own top offset. */
+@media (max-width: 700px) {
+  .v4-category-page .v4-header,
+  .v4-spatial-screen .v4-header {
+    position: relative !important;
+    inset: auto !important;
+    z-index: 30 !important;
+    pointer-events: auto !important;
+  }
+  .v4-category-page .v4-header-inner,
+  .v4-spatial-screen .v4-header-inner {
+    padding-top: calc(env(safe-area-inset-top) + 12px) !important;
+  }
+  .v4-category-main,
+  .v4-spatial-main {
+    padding-top: 12px !important;
+  }
+  .v4-category-page .v4-header-inner > .v4-brand,
+  .v4-spatial-screen .v4-header-inner > .v4-brand {
+    pointer-events: auto !important;
+  }
+  .v4-category-page .v4-header-actions,
+  .v4-spatial-screen .v4-header-actions {
+    pointer-events: auto !important;
+  }
+}
+
+/* Avoid a blank desktop navigation row on pages using the compact mobile header. */
+@media (max-width: 700px) {
+  .v4-header .v4-primary-nav { display: none !important; }
+}
