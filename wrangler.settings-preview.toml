@@ -1,0 +1,18 @@
+name = "libretv-settings-preview"
+main = ".open-next/worker.js"
+compatibility_date = "2025-04-01"
+compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
+assets = { directory = ".open-next/assets" }
+
+# Dedicated PR #85 preview. Never share the homepage preview Worker.
+workers_dev = true
+preview_urls = false
+
+[vars]
+CMS_SEARCH_API = "https://caiji.dyttzyapi.com/api.php/provide/vod"
+API_60S_BASE = "https://60s.bggdbh.workers.dev"
+LLM_MODEL = "glm-4-flash"
+AUTH_DISABLED = "false"
+
+# PASSWORD is injected as a Worker Secret by deploy-settings-preview.yml.
+# Never put credentials in this file.
