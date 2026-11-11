@@ -57,11 +57,18 @@
 }
 
 .liquid-glass--interactive:active {
-  transform: scale(.985);
-  filter: brightness(1.08);
+  filter: brightness(1.06);
   box-shadow:
     0 5px 18px rgba(0,0,0,.2),
     inset 0 1px 0 rgba(255,255,255,.3);
+}
+
+.liquid-glass--interactive > a {
+  transition: transform 140ms ease, color 140ms ease;
+}
+
+.liquid-glass--interactive > a:active {
+  transform: scale(.965);
 }
 
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
