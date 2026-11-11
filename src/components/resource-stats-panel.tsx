@@ -30,7 +30,7 @@ type StatsPayload = {
     quality_ranking?: Array<{ host: string; title: string; score: number; samples: number }>;
   };
   sites: SiteStat[]; site?: SiteStat | null;
-  recent_jobs?: Array<{ id: string; job_type: string; status: string; attempt: number; max_attempts: number; error?: string | null; created_at: number; updated_at: number }>;
+  recent_jobs?: Array<{ id: string; job_type: string; status: string; attempt: number; max_attempts: number; error?: string | null; created_at: number; updated_at: number; batch_target?: { minimum: number; target: number; collected: number; met: boolean; shortfall: number } | null; sites_scanned?: number | null; preflight?: { checked?: number; validated?: number; rejected?: number } | null }>;
   recent_tasks?: Array<{ id: string; status: string; created_at: number; updated_at: number; error?: string | null; result_count: number }>;
   recent_resources?: Array<{ title: string; media_type?: string; year?: number | null; season?: number | null; episode?: number | null; identity_confidence?: string; kind: string; status: string; access_state: string; playback_confirmed: boolean; decoded_width: number; decoded_height: number; actual_quality?: string; declared_quality?: string | null; poster?: string | null; created_at: number }>;
 };
@@ -151,7 +151,7 @@ export function ResourceStatsPanel() {
               <h4 className="text-xs font-semibold text-content">最近持久化任务</h4>
               {data.recent_jobs.slice(0, 8).map((job) => (
                 <div key={job.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-2 text-[11px]">
-                  <span className="text-content">{job.job_type} · {job.status}</span>
+                  <span className="text-content">{job.job_type} · {job.status}{job.batch_target ? ' · 视频候选 ' + job.batch_target.collected + '/' + job.batch_target.minimum + '（最低目标）' + (job.batch_target.met ? ' · 达标' : ' · 未达标') : ''}</span>
                   <span className="text-muted">尝试 {job.attempt}/{job.max_attempts} · {date(job.created_at)}</span>
                 </div>
               ))}
