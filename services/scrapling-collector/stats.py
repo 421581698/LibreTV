@@ -65,7 +65,7 @@ def build_stats(connection: sqlite3.Connection, host=None):
     ).fetchall()]
     try:
         jobs = [dict(r) for r in connection.execute(
-            """SELECT id,job_type,status,attempt,max_attempts,error,created_at,updated_at
+            """SELECT id,job_type,status,attempt,max_attempts,error,result,created_at,updated_at
                FROM collector_jobs ORDER BY created_at DESC"""
         ).fetchall()]
     except sqlite3.OperationalError:
@@ -276,7 +276,12 @@ def build_stats(connection: sqlite3.Connection, host=None):
         "source": "collector_sqlite", "generated_at": int(time.time()),
         "summary": summary, "sites": site_summaries,
         "recent_jobs": [
-            {k: job.get(k) for k in ("id","job_type","status","attempt","max_attempts","error","created_at","updated_at")}
+            {
+                **{k: job.get(k) for k in ("id","job_type","status","attempt","max_attempts","error","created_at","updated_at")},
+                "batch_target": _json(job.get("result")).get("batch_target"),
+                "sites_scanned": _json(job.get("result")).get("sites_scanned"),
+                "preflight": _json(job.get("result")).get("preflight"),
+            }
             for job in jobs[:20]
         ],
         "data_notes": [
