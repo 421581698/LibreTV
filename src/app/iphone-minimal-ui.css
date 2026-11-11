@@ -722,3 +722,94 @@
       env(safe-area-inset-left) !important;
   }
 }
+
+/* Player controls and quality selector — consistent compact glass treatment. */
+.player-quality-trigger {
+  min-height: 36px !important;
+  border-color: rgba(255,255,255,.22) !important;
+  background: rgba(12,12,14,.66) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  backdrop-filter: blur(22px) saturate(150%);
+  box-shadow: 0 5px 18px rgba(0,0,0,.22) !important;
+}
+.player-quality-panel {
+  border-color: rgba(255,255,255,.16) !important;
+  border-radius: 18px !important;
+  background: rgba(18,18,20,.86) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(155%);
+  backdrop-filter: blur(28px) saturate(155%);
+  box-shadow: 0 18px 54px rgba(0,0,0,.34) !important;
+}
+.player-quality-panel button {
+  min-height: 38px;
+  border-radius: 11px !important;
+  font-weight: 600;
+}
+.player-quality-panel button[aria-pressed="true"] {
+  background: #f5f5f5 !important;
+  color: #111 !important;
+}
+.player-quality-panel [role="status"],
+.player-quality-panel [role="alert"] {
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.netflix-watch-tools {
+  display: flex !important;
+  flex-wrap: wrap !important;
+}
+.netflix-watch-tools button,
+.netflix-watch-tools label {
+  border-radius: 999px !important;
+}
+.netflix-source-card {
+  border-radius: 14px !important;
+  border: 1px solid rgba(128,128,140,.16) !important;
+  background: rgba(128,128,140,.055) !important;
+  padding: 12px !important;
+}
+.netflix-episode-row {
+  border-radius: 11px !important;
+  transition: background-color .18s ease, border-color .18s ease, transform .18s ease;
+}
+.netflix-episode-row:active {
+  transform: scale(.98);
+}
+.netflix-episode-row.active {
+  background: rgba(128,128,140,.12) !important;
+  color: var(--foreground, #171719) !important;
+}
+.dark .netflix-episode-row.active {
+  background: rgba(255,255,255,.14) !important;
+  color: #fff !important;
+}
+.netflix-sidebar-tabs button[aria-selected="true"] {
+  color: var(--foreground, #171719) !important;
+  border-bottom-color: currentColor !important;
+}
+.dark .netflix-sidebar-tabs button[aria-selected="true"] {
+  color: #fff !important;
+}
+@media (max-width:700px) {
+  .player-quality-trigger {
+    min-height: 34px !important;
+    padding: 7px 10px !important;
+    font-size: 10px !important;
+  }
+  .player-quality-panel {
+    width: min(288px, calc(100vw - 24px)) !important;
+    padding: 12px !important;
+  }
+  .netflix-watch-tools {
+    gap: 7px !important;
+  }
+  .netflix-watch-tools label {
+    flex-basis: 100%;
+    justify-content: flex-end;
+    padding: 4px 2px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .netflix-episode-row { transition: none !important; }
+  .netflix-episode-row:active { transform: none !important; }
+}
