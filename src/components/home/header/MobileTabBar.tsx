@@ -39,7 +39,6 @@ export function MobileTabBar() {
     <nav
       className="v4-mobile-tabbar liquid-glass"
       aria-label="底部导航"
-      data-homepage-dock={isHomepage ? 'true' : undefined}
     >
       {tabs.map((tab) => {
         const active = tab.href === activeTab;
