@@ -146,3 +146,76 @@
     opacity: 1;
   }
 }
+
+/* P0: settings route final paint + interaction contract.
+   This stylesheet is loaded after all shared theme and mobile overrides. */
+html:has(body .v4-spatial-screen[data-screen="settings"]),
+body:has(.v4-spatial-screen[data-screen="settings"]),
+body:has(.v4-spatial-screen[data-screen="settings"])>div,
+body:has(.v4-spatial-screen[data-screen="settings"]) #__next {
+  min-height:100vh!important;
+  min-height:100svh!important;
+  background:#000!important;
+  background-color:#000!important;
+  background-image:none!important;
+  color:#f5f5f7!important;
+  color-scheme:dark!important;
+}
+html:has(body .v4-spatial-screen[data-screen="settings"])::after,
+body:has(.v4-spatial-screen[data-screen="settings"])::after {
+  background:#000!important;
+  background-color:#000!important;
+}
+.v4-spatial-screen[data-screen="settings"],
+.v4-spatial-screen[data-screen="settings"] .v4-spatial-main,
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root,
+.v4-spatial-screen[data-screen="settings"] .ipad-settings-content {
+  min-height:100vh;
+  min-height:100svh;
+  background:#000!important;
+  background-color:#000!important;
+  background-image:none!important;
+  color:#f5f5f7!important;
+}
+.v4-spatial-screen[data-screen="settings"] .v4-spatial-heading h1,
+.v4-spatial-screen[data-screen="settings"] .v4-spatial-heading h1 * {
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+  opacity:1!important;
+}
+/* The category rows are full-width buttons inside each rounded settings card. */
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content section > div > button,
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content section > div > button:hover,
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content section > div > button:active,
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content section > div > button:focus,
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content section > div > button:focus-visible {
+  background:#2c2c2e!important;
+  background-color:#2c2c2e!important;
+  background-image:none!important;
+  color:#f5f5f7!important;
+  -webkit-text-fill-color:#f5f5f7!important;
+  -webkit-tap-highlight-color:transparent!important;
+  box-shadow:none!important;
+}
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content section > div > button * {
+  -webkit-tap-highlight-color:transparent!important;
+}
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content section > div > button span,
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content section > div > button strong {
+  color:#f5f5f7!important;
+  -webkit-text-fill-color:#f5f5f7!important;
+}
+/* Ensure the final setting (including Friday voice) can scroll above the fixed dock. */
+.v4-spatial-screen[data-screen="settings"] {
+  padding-bottom:calc(112px + env(safe-area-inset-bottom,0px))!important;
+  scroll-padding-bottom:calc(112px + env(safe-area-inset-bottom,0px))!important;
+}
+.v4-spatial-screen[data-screen="settings"] .v4-spatial-main {
+  padding-bottom:calc(112px + env(safe-area-inset-bottom,0px))!important;
+  scroll-padding-bottom:calc(112px + env(safe-area-inset-bottom,0px))!important;
+}
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root,
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content {
+  padding-bottom:calc(112px + env(safe-area-inset-bottom,0px))!important;
+  scroll-padding-bottom:calc(112px + env(safe-area-inset-bottom,0px))!important;
+}
