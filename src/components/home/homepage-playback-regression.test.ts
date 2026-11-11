@@ -272,7 +272,7 @@ describe('首页与播放页回归契约', () => {
     expect(player).toContain('fullscreenWeb: !touchPointer');
     expect(player).toContain('requestNativeFullscreenWithFallback');
     expect(fullscreenHelper).toContain('webkitEnterFullscreen');
-    expect(player).toContain('art.fullscreenWeb = !art.fullscreenWeb');
+    expect(player).toContain('if (!art.fullscreenWeb) art.fullscreenWeb = true;');
     expect(watch).toContain('netflix-continue-heading');
     expect(player).toContain('playbackRate: true');
     expect(player).toContain('art.on(\'video:ratechange\'');
