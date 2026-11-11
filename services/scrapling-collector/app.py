@@ -1434,10 +1434,108 @@ def classify_access_state(status_code: int | None = None, headers=None, body: st
     }
 
 
-def infer_media_identity(title: str = "", url: str = "") -> dict:
-    """Conservative title/URL identity hints; never claim a match without evidence."""
+def extract_page_metadata(page, page_url: str = "") -> dict:
+    """Read public page metadata as data only; never execute scripts or fetch metadata URLs."""
+    values: dict = {"title": "", "media_type_hint": "unknown", "identity_source": "none"}
+    for selector in ("meta[property='og:title']", "meta[name='twitter:title']", "meta[name='title']"):
+        for element in adaptive_css(page, selector):
+            candidate = (element.attrib.get("content") or "").strip()
+            if candidate:
+                values["title"] = candidate[:200]
+                values["identity_source"] = "open_graph"
+                break
+        if values["title"]:
+            break
+    if not values["title"]:
+        for selector in ("h1", "title"):
+            candidate = (page.css(f"{selector}::text").get() or "").strip()
+            if candidate:
+                values["title"] = candidate[:200]
+                values["identity_source"] = "page_heading" if selector == "h1" else "page_title"
+                break
+    for element in adaptive_css(page, "meta[property='og:type'], meta[name='medium']"):
+        raw_type = (element.attrib.get("content") or "").strip().lower()
+        if raw_type in ("video.movie", "movie", "film"):
+            values["media_type_hint"] = "movie"
+            values["identity_source"] = "open_graph"
+        elif raw_type in ("video.episode", "tv_show", "tvseries", "series"):
+            values["media_type_hint"] = "tv"
+            values["identity_source"] = "open_graph"
+    for element in adaptive_css(page, "meta[property='article:published_time'], meta[name='date'], meta[itemprop='datePublished']"):
+        raw_date = (element.attrib.get("content") or element.attrib.get("datetime") or "").strip()
+        match = re.search(r"(?<!\d)((?:19|20)\d{2})(?!\d)", raw_date)
+        if match:
+            values["year_hint"] = int(match.group(1))
+            break
+    for element in adaptive_css(page, "meta[property='og:description'], meta[name='description']"):
+        description = (element.attrib.get("content") or "").strip()
+        if description:
+            values["description"] = description[:500]
+            break
+    for element in adaptive_css(page, "meta[property='og:image']"):
+        poster = (element.attrib.get("content") or "").strip()
+        if poster.startswith("https://"):
+            values["poster"] = poster[:2048]
+            break
+    # JSON-LD is parsed as bounded JSON data only.
+    for script in adaptive_css(page, "script[type='application/ld+json']"):
+        raw = (getattr(script, "text", "") or "").strip()
+        if not raw or len(raw) > 256_000:
+            continue
+        try:
+            parsed = json.loads(raw)
+        except (TypeError, ValueError):
+            continue
+        stack = parsed if isinstance(parsed, list) else [parsed]
+        while stack:
+            node = stack.pop()
+            if isinstance(node, list):
+                stack.extend(node[:100])
+                continue
+            if not isinstance(node, dict):
+                continue
+            graph = node.get("@graph")
+            if isinstance(graph, list):
+                stack.extend(graph[:100])
+            schema_type = node.get("@type", "")
+            schema_types = schema_type if isinstance(schema_type, list) else [schema_type]
+            normalized_types = {str(item).lower().rsplit("/", 1)[-1] for item in schema_types}
+            schema_name = str(node.get("name") or "").strip()
+            if schema_name and (not values["title"] or values["identity_source"] in ("page_title", "page_heading")):
+                values["title"] = schema_name[:200]
+                values["identity_source"] = "schema_org"
+            if "movie" in normalized_types:
+                values["media_type_hint"] = "movie"
+                values["identity_source"] = "schema_org"
+            elif normalized_types.intersection({"tvseries", "tvseason", "tvepisode"}):
+                values["media_type_hint"] = "tv"
+                values["identity_source"] = "schema_org"
+            elif normalized_types.intersection({"videoobject", "creativework"}):
+                genre = node.get("genre", "")
+                genre_text = " ".join(genre) if isinstance(genre, list) else str(genre)
+                probe = (schema_name + " " + genre_text).lower()
+                if any(word in probe for word in ("anime", "动画", "动漫", "番剧")):
+                    values["media_type_hint"] = "anime"
+                    values["identity_source"] = "schema_org"
+            date_value = str(node.get("datePublished") or node.get("dateCreated") or "")
+            match = re.search(r"(?<!\d)((?:19|20)\d{2})(?!\d)", date_value)
+            if match:
+                values["year_hint"] = int(match.group(1))
+            if node.get("seasonNumber") is not None:
+                try: values["season_hint"] = int(node["seasonNumber"])
+                except (TypeError, ValueError): pass
+            if node.get("episodeNumber") is not None:
+                try: values["episode_hint"] = int(node["episodeNumber"])
+                except (TypeError, ValueError): pass
+            break
+    return values
+
+
+def infer_media_identity(title: str = "", url: str = "", page_metadata: dict | None = None) -> dict:
+    """Infer hints conservatively; ambiguous resources remain unclassified."""
+    metadata = page_metadata if isinstance(page_metadata, dict) else {}
     fallback_name = urlparse(url).path.rsplit("/", 1)[-1] if url else ""
-    source = title.strip() if isinstance(title, str) and title.strip() else fallback_name
+    source = str(metadata.get("title") or title or fallback_name).strip()
     release_source = f"{source} {fallback_name}"
     year_match = re.search(r"(?<!\d)((?:19|20)\d{2})(?!\d)", source)
     season_match = re.search(r"(?i)(?:season\s*|s)(\d{1,2})", source)
@@ -1448,25 +1546,37 @@ def infer_media_identity(title: str = "", url: str = "") -> dict:
     cleaned = re.sub(r"(?i)(?:season\s*|s)\d{1,2}|(?:episode\s*|ep?)\d{1,3}|(?<!\d)(?:19|20)\d{2}(?!\d)|2160p|4k|1080p|720p|480p|hevc|h\.?265|x265|av1|h\.?264|x264", " ", cleaned)
     cleaned = re.sub(r"[^\w\u4e00-\u9fff]+", " ", cleaned, flags=re.UNICODE)
     title_hint = " ".join(cleaned.split())[:160]
-    year = int(year_match.group(1)) if year_match else None
-    season = int(season_match.group(1)) if season_match else None
-    episode = int(episode_match.group(1)) if episode_match else None
+    year = int(year_match.group(1)) if year_match else metadata.get("year_hint")
+    season = int(season_match.group(1)) if season_match else metadata.get("season_hint")
+    episode = int(episode_match.group(1)) if episode_match else metadata.get("episode_hint")
     quality_hint = quality_match.group(1).lower() if quality_match else None
     codec_hint = codec_match.group(1).lower().replace(".", "") if codec_match else None
+    media_type = str(metadata.get("media_type_hint") or "unknown").lower()
+    if media_type not in ("movie", "tv", "anime", "documentary", "variety", "short", "unknown"):
+        media_type = "unknown"
+    if media_type == "unknown":
+        probe = (source + " " + url).lower()
+        if any(word in probe for word in ("纪录片", "documentary")): media_type = "documentary"
+        elif any(word in probe for word in ("anime", "动画", "动漫", "番剧")): media_type = "anime"
+        elif any(word in probe for word in ("电视剧", "tv series", "tv show")): media_type = "tv"
+        elif any(word in probe for word in ("电影", "movie", "film")): media_type = "movie"
+        elif any(word in probe for word in ("综艺", "variety show")): media_type = "variety"
     identity_material = "|".join((title_hint.lower(), str(year or ""), str(season or ""), str(episode or "")))
     entity_key = hashlib.sha256(identity_material.encode()).hexdigest()[:24] if title_hint else None
     version_material = "|".join((identity_material, quality_hint or "", codec_hint or ""))
     version_key = hashlib.sha256(version_material.encode()).hexdigest()[:24] if title_hint else None
+    confidence = "structured_metadata" if metadata.get("identity_source") == "schema_org" else (
+        "page_metadata" if metadata.get("identity_source") == "open_graph" else "hint_only"
+    )
     return {
-        "title_hint": title_hint or None,
-        "year_hint": year,
-        "season_hint": season,
-        "episode_hint": episode,
-        "quality_hint": quality_hint,
-        "codec_hint": codec_hint,
-        "entity_key": entity_key,
-        "version_key": version_key,
-        "match_confidence": "hint_only",
+        "title_hint": title_hint or None, "year_hint": year,
+        "season_hint": season, "episode_hint": episode,
+        "media_type": media_type, "quality_hint": quality_hint,
+        "codec_hint": codec_hint, "entity_key": entity_key,
+        "version_key": version_key, "identity_source": metadata.get("identity_source", "filename_or_page_title"),
+        "description": str(metadata.get("description") or "")[:500],
+        "poster": str(metadata.get("poster") or "")[:2048],
+        "match_confidence": confidence,
     }
 
 
@@ -1523,7 +1633,7 @@ def normalize_candidate(candidate: dict) -> dict:
         source for source in item.get("collected_by", []) if source in ("spider", "browser", "fmhy")
     ))
     item["media_identity"] = item.get("media_identity") or infer_media_identity(
-        item.get("title", ""), item.get("url", "")
+        item.get("title", ""), item.get("url", ""), item.get("page_metadata")
     )
     item["quality_evidence"] = item.get("quality_evidence") or build_quality_evidence(item.get("validation"))
     item["quality_evidence"] = rank_quality_evidence(item["quality_evidence"], item["media_identity"])
@@ -1532,7 +1642,9 @@ def normalize_candidate(candidate: dict) -> dict:
 
 def extract_candidates(page, page_url: str, limit: int) -> list[dict]:
     found: dict[str, dict] = {}
-    title = (page.css("title::text").get() or "").strip()[:200]
+    page_metadata = extract_page_metadata(page, page_url)
+    title = str(page_metadata.get("title") or (page.css("title::text").get() or "").strip())[:200]
+    candidate_metadata = {"page_metadata": page_metadata, "media_identity": infer_media_identity(title, page_url, page_metadata)}
     selectors = [("video", "src"), ("source", "src"), ("iframe", "src"), ("a", "href"), ("script", "src")]
     for selector, attribute in selectors:
         for element in adaptive_css(page, selector):
@@ -1545,7 +1657,7 @@ def extract_candidates(page, page_url: str, limit: int) -> list[dict]:
                 continue
             kind, host = classified
             access = classify_access_state(url=absolute)
-            found.setdefault(absolute, {"url": absolute, "kind": kind, "host": host, "title": title, **access})
+            found.setdefault(absolute, {"url": absolute, "kind": kind, "host": host, "title": title, **candidate_metadata, **access})
             if len(found) >= limit:
                 return list(found.values())
     # Public metadata and common player configuration attributes.
@@ -1568,7 +1680,7 @@ def extract_candidates(page, page_url: str, limit: int) -> list[dict]:
                 classified = classify_url(candidate_url)
                 if classified:
                     kind, host = classified
-                    found.setdefault(candidate_url, {"url": candidate_url, "kind": kind, "host": host, "title": title})
+                    found.setdefault(candidate_url, {"url": candidate_url, "kind": kind, "host": host, "title": title, **candidate_metadata})
     # Inspect inline public player configuration only; never execute scripts or bypass access controls.
     for script in adaptive_css(page, "script"):
         script_text = (getattr(script, "text", "") or "").strip()
