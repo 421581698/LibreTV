@@ -1557,6 +1557,10 @@ def extract_candidates(page, page_url: str, limit: int) -> list[dict]:
                 except (ValueError, TypeError):
                     pass
             for candidate_url in values:
+                # Player configs commonly store same-site relative paths.
+                # Resolve them against the already fetched page, then apply the
+                # exact same HTTPS/credential/host classification as absolute URLs.
+                candidate_url = urljoin(page_url, candidate_url)
                 if not candidate_url.startswith("https://"):
                     continue
                 classified = classify_url(candidate_url)
@@ -1568,11 +1572,14 @@ def extract_candidates(page, page_url: str, limit: int) -> list[dict]:
         script_text = (getattr(script, "text", "") or "").strip()
         if not script_text or len(script_text) > 512_000:
             continue
-        for match in re.findall(r"""(?i)(?:file|src|url|playurl|play_url|video_url|hls|dash)\s*[:=]\s*["'](https://[^"'\s<>]+)["']""", script_text):
-            classified = classify_url(match)
+        for match in re.findall(r"""(?i)(?:file|src|url|playurl|play_url|video_url|hls|dash)\s*[:=]\s*(["'])([^"'\s<>]{1,4096})\1""", script_text):
+            candidate_url = urljoin(page_url, match[1])
+            if not candidate_url.startswith("https://"):
+                continue
+            classified = classify_url(candidate_url)
             if classified:
                 kind, host = classified
-                found.setdefault(match, {"url": match, "kind": kind, "host": host, "title": title})
+                found.setdefault(candidate_url, {"url": candidate_url, "kind": kind, "host": host, "title": title})
     return list(found.values())[:limit]
 
 
