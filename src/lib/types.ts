@@ -49,6 +49,8 @@ export interface DoubanItem {
   id: string;
   title: string;
   cover: string;
+  /** Optional native HDR / Ultra HDR image URL; SDR cover remains the universal fallback. */
+  coverHdr?: string;
   rating?: string;
   isTv?: boolean;
 }
