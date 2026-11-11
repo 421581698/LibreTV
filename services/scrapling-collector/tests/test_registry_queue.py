@@ -117,6 +117,22 @@ class RegistryQueueTests(unittest.TestCase):
         self.assertEqual(one["id"], again["id"])
         self.assertNotEqual(one["movie_id"], other["movie_id"])
 
+    def test_registry_library_paginates_all_resources_including_unverified(self):
+        for index in range(3):
+            queue.upsert_resource({
+                "resource_key": f"resource:library-{index}", "source_key": "fmhy",
+                "resource_type": "DIRECT_MEDIA", "url": f"https://media.example.org/{index}.m3u8",
+                "title": f"Library Film {index}", "access_state": "ACCESS_UNKNOWN",
+            })
+        with patch.object(queue, "require_auth"):
+            first = queue.api_search_resources(verified_only=False, limit=2, offset=0, authorization="Bearer test")
+            second = queue.api_search_resources(verified_only=False, limit=2, offset=2, authorization="Bearer test")
+        self.assertEqual(len(first["resources"]), 2)
+        self.assertTrue(first["has_more"])
+        self.assertEqual(len(second["resources"]), 1)
+        self.assertFalse(second["has_more"])
+        self.assertEqual(first["total"], 3)
+
     def test_playback_requires_public_preflight(self):
         resource = queue.upsert_resource({
             "resource_key": "resource:private", "source_key": "provider",
