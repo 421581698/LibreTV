@@ -64,9 +64,11 @@ def build_stats(connection: sqlite3.Connection, host=None):
             FROM candidates ORDER BY created_at DESC"""
     ).fetchall()]
     try:
+        job_columns = {row["name"] for row in connection.execute("PRAGMA table_info(collector_jobs)").fetchall()}
+        job_result_expr = "result" if "result" in job_columns else "NULL AS result"
         jobs = [dict(r) for r in connection.execute(
-            """SELECT id,job_type,status,attempt,max_attempts,error,result,created_at,updated_at
-               FROM collector_jobs ORDER BY created_at DESC"""
+            f"""SELECT id,job_type,status,attempt,max_attempts,error,{job_result_expr},created_at,updated_at
+                FROM collector_jobs ORDER BY created_at DESC"""
         ).fetchall()]
     except sqlite3.OperationalError:
         jobs = []
