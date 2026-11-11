@@ -1065,6 +1065,24 @@ segment-2.ts
         self.assertEqual(episodes[0]["movie_id"], episodes[1]["movie_id"])
         self.assertEqual([row["episode"] for row in episodes], [1, 2])
 
+        collector.registry_store.sync_candidate_validation(
+            first["id"],
+            {"reachable": True, "access": {"access_state": "PUBLIC"}, "media_format": "hls"},
+            "validated",
+        )
+        collector.registry_store.register_candidate_playback(first["id"], {
+            "media_type": "hls", "decoded_width": 1920, "decoded_height": 1080,
+            "observed_seconds": 8, "progressed_seconds": 7,
+        })
+        with collector.registry_store.connect() as connection:
+            resource = connection.execute(
+                "SELECT movie_id,metadata,playback_state FROM registry_resources WHERE candidate_id=?",
+                (first["id"],),
+            ).fetchone()
+        self.assertIsNotNone(resource["movie_id"])
+        self.assertEqual(resource["playback_state"], "PLAYER_CONFIRMED")
+        self.assertEqual(json.loads(resource["metadata"])["media_identity"]["title_hint"], "Example Anime")
+
     def test_candidate_merge_persists_provenance_identity_and_unknown_access(self):
         candidate = collector.normalize_candidate({
             "url": "https://media.example/Example.Movie.2024.S02E03.1080p.m3u8",
