@@ -241,9 +241,9 @@ body .v4-home .v4-home-main--cinema {
 body .v4-home .v4-hero-immersive {
   position: relative !important;
   width: 100% !important;
-  height: 100svh !important;
-  min-height: 620px !important;
-  max-height: 1000px !important;
+  height: clamp(640px,94svh,900px) !important;
+  min-height: 0 !important;
+  max-height: 900px !important;
   margin: 0 !important;
   overflow: hidden !important;
   border: 0 !important;
@@ -264,9 +264,7 @@ body .v4-home .v4-hero-immersive .v4-hero-image img {
 }
 body .v4-home .v4-hero-immersive .v4-hero-veil {
   z-index: 1 !important;
-  background:
-    linear-gradient(90deg,rgba(4,8,15,.62) 0%,rgba(4,8,15,.18) 58%,rgba(4,8,15,.04) 100%),
-    linear-gradient(0deg,rgba(4,8,15,.66) 0%,rgba(4,8,15,.04) 58%,rgba(4,8,15,.28) 100%) !important;
+  background: linear-gradient(180deg,rgba(0,0,0,.08) 0%,transparent 20%,rgba(0,0,0,.06) 42%,rgba(0,0,0,.82) 72%,#000 94%,#000 100%) !important;
 }
 body .v4-home .v4-hero-hit-area {
   position: absolute !important;
@@ -611,4 +609,49 @@ body .v4-home .v4-history-image > img {
   max-height: none !important;
   object-fit: cover !important;
   object-position: center center !important;
+}
+
+
+/* Final Apple TV visual overrides: keep legacy selectors from winning the cascade. */
+body .v4-home .v4-hero-immersive {
+  height: clamp(640px,94svh,900px) !important;
+  min-height: 0 !important;
+  max-height: 900px !important;
+  background: #000 !important;
+}
+body .v4-home .v4-hero-immersive .v4-hero-image {
+  inset: 0 0 auto !important;
+  height: 62% !important;
+  background: #000 !important;
+}
+body .v4-home .v4-hero-immersive .v4-hero-image img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: center 28% !important;
+}
+body .v4-home .v4-hero-immersive .v4-hero-veil {
+  background: linear-gradient(180deg,rgba(0,0,0,.08) 0%,transparent 20%,rgba(0,0,0,.06) 42%,rgba(0,0,0,.82) 72%,#000 94%,#000 100%) !important;
+}
+body .v4-home .v4-hero-immersive-copy {
+  left: 18px !important;
+  right: 18px !important;
+  bottom: 78px !important;
+  max-width: 760px !important;
+  margin-inline: auto !important;
+  pointer-events: auto !important;
+  text-align: center !important;
+  align-items: center !important;
+}
+body .v4-home .v4-hero-immersive-copy .v4-hero-primary {
+  color: #080808 !important;
+  background: #fff !important;
+}
+@media (max-width: 700px) {
+  body .v4-home .v4-hero-immersive {
+    height: clamp(640px,94svh,900px) !important;
+    min-height: 0 !important;
+    max-height: 900px !important;
+  }
+  body .v4-home .v4-hero-immersive .v4-hero-image { height: 58% !important; }
 }
