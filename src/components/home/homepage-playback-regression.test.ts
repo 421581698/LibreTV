@@ -161,9 +161,16 @@ describe('首页与播放页回归契约', () => {
     expect(v4Header).not.toContain('setIsScrolled');
     expect(v4Header).not.toContain('is-scrolled');
     expect(inlineHomeStyles).toContain('background: transparent !important;');
-    expect(inlineHomeStyles).toContain('rgba(20,20,20,.22)');
+    expect(inlineHomeStyles).toContain('rgba(20,20,20,.4)');
+    expect(inlineHomeStyles).toContain('top: 0 !important;');
+    expect(inlineHomeStyles).toContain('z-index: 50 !important;');
+    expect(inlineHomeStyles).toContain('position: absolute !important;');
+    expect(inlineHomeStyles).toContain('padding-top: clamp(380px, 60svh, 520px) !important;');
+    expect(inlineHomeStyles).toContain('border: 0 !important;');
     expect(inlineHomeStyles).toContain('padding-left: 20px !important;');
     expect(rootLayout).toContain("themeColor: '#000000'");
+    expect(rootLayout).toContain("viewportFit: 'cover'");
+    expect(rootLayout).toContain("statusBarStyle: 'black-translucent'");
     expect(v4Styles).toContain('.v4-home-main--cinema > .v4-hero');
     for (const label of ['首页', '电影', '电视剧', '海外剧', '动漫', '综艺', '直播']) {
       expect(navModules.some((module) => module.includes('label="' + label + '"'))).toBe(true);
