@@ -53,10 +53,12 @@ def build_stats(connection: sqlite3.Connection, host=None):
                   pages_scheduled,pages_visited,pages_failed,pages_changed,pages_unchanged
            FROM tasks ORDER BY created_at DESC"""
     ).fetchall()]
+    candidate_columns = {row["name"] for row in connection.execute("PRAGMA table_info(candidates)").fetchall()}
+    collected_by_expr = "collected_by" if "collected_by" in candidate_columns else "'[]' AS collected_by"
     candidates = [dict(r) for r in connection.execute(
-        """SELECT id,task_id,url,host,kind,title,status,access_state,created_at,
-                  quality_evidence,playback_verification
-           FROM candidates ORDER BY created_at DESC"""
+        f"""SELECT id,task_id,url,host,kind,title,status,access_state,created_at,
+                   quality_evidence,playback_verification,{collected_by_expr}
+            FROM candidates ORDER BY created_at DESC"""
     ).fetchall()]
     try:
         jobs = [dict(r) for r in connection.execute(
@@ -209,7 +211,32 @@ def build_stats(connection: sqlite3.Connection, host=None):
          for site in site_summaries if site.get("quality_score") is not None],
         key=lambda item: (-item["score"], -item["samples"], item["host"])
     )
+    candidate_kind_counts = {}
+    candidate_access_counts = {}
+    candidate_collector_counts = {"spider": 0, "browser": 0, "fmhy": 0, "unknown": 0}
+    for candidate in candidates:
+        kind = str(candidate.get("kind") or "unknown")
+        candidate_kind_counts[kind] = candidate_kind_counts.get(kind, 0) + 1
+        access_state = str(candidate.get("access_state") or "ACCESS_UNKNOWN")
+        candidate_access_counts[access_state] = candidate_access_counts.get(access_state, 0) + 1
+        try:
+            collectors = json.loads(candidate.get("collected_by") or "[]")
+        except (TypeError, ValueError):
+            collectors = []
+        if not isinstance(collectors, list):
+            collectors = []
+        recognized = {value for value in collectors if value in ("spider", "browser", "fmhy")}
+        if not recognized:
+            candidate_collector_counts["unknown"] += 1
+        else:
+            for source in recognized:
+                candidate_collector_counts[source] += 1
+
     summary = {
+        "candidate_records": len(candidates),
+        "candidate_kinds": candidate_kind_counts,
+        "candidate_access_states": candidate_access_counts,
+        "candidate_collectors": candidate_collector_counts,
         "discovered_sites": len(sites), "visited_sites": len(visited_hosts),
         "quality_ranking": quality_ranking,
         "queue_jobs": queue_jobs,
