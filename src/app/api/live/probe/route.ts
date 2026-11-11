@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { guardRequest, jsonError } from '@/lib/api-guard';
 import { fetchUpstreamWithMeta } from '@/lib/fetch-utils';
 import { withHostLimit } from '@/lib/host-gate';
+import { readJsonLimited, requestBodyErrorStatus } from '@/lib/request-body';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -510,9 +511,9 @@ export async function POST(req: Request) {
 
   let body: { urls?: unknown };
   try {
-    body = (await req.json()) as { urls?: unknown };
-  } catch {
-    return jsonError('无效请求体', 400);
+    body = await readJsonLimited<{ urls?: unknown }>(req, 32 * 1024);
+  } catch (error) {
+    return jsonError('无效请求体', requestBodyErrorStatus(error));
   }
   if (!Array.isArray(body.urls)) return jsonError('urls 必须为字符串数组', 400);
 
