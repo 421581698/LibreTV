@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { guardRequest, jsonError } from '@/lib/api-guard';
 import { fetchUpstreamWithMeta } from '@/lib/fetch-utils';
 import { withHostLimit } from '@/lib/host-gate';
+import { readResponseTextLimited } from '@/lib/response-body';
 import { readJsonLimited, requestBodyErrorStatus } from '@/lib/request-body';
 
 export const runtime = 'nodejs';
@@ -161,7 +162,7 @@ async function fetchHeadersOnly(
   let text: string | undefined;
   if (isM3u8) {
     // m3u8 是小文本，读取以供解析；分片则不读取
-    text = await res.text();
+    text = await readResponseTextLimited(res, 2 * 1024 * 1024);
   } else if (res.body) {
     try { await res.body.cancel(); } catch { /* 忽略 */ }
   }
