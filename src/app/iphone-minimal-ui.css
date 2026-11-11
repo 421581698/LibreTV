@@ -145,8 +145,13 @@
   .v4-mobile-tabbar {
     position: fixed !important;
     z-index: 1000 !important;
-    left: 12px !important;
-    right: 12px !important;
+    left: 50% !important;
+    right: auto !important;
+    width: min(292px, calc(100% - 52px)) !important;
+    max-width: calc(100vw - 32px) !important;
+    margin: 0 !important;
+    transform: translateX(-50%) !important;
+    box-sizing: border-box !important;
     bottom: calc(8px + env(safe-area-inset-bottom)) !important;
     min-height: 58px !important;
     display: grid !important;
