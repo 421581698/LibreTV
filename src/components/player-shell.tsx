@@ -626,7 +626,9 @@ export function PlayerShell({
       unsustainableFragmentsRef.current = 0;
       sustainableFragmentsRef.current = 0;
       setNetworkQualityWarning('');
-      const result = applyHlsQualityPreference(hls, preference, video);
+      const result = hls
+        ? applyHlsQualityPreference(hls, preference, video)
+        : { heights: [], notice: '当前使用浏览器原生 HLS，无法读取或锁定播放清晰度档位。' };
       setAvailableQualityHeights(result.heights);
       setQualityNotice(result.notice ?? '');
     };
