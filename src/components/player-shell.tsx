@@ -15,6 +15,7 @@ import { loadCacheSettings } from '@/lib/video-cache';
 import { formatTime } from '@/lib/utils';
 import { executeFridayPlayerCommand, parseFridayPlayerCommand } from '@/lib/friday/player-control';
 import { prefersTouchPointer } from '@/lib/touch-pointer';
+import { requestNativeFullscreenWithFallback, type NativeFullscreenVideo } from '@/lib/player-fullscreen';
 import {
   findActiveSegment,
   findCrossedEnding,
@@ -201,6 +202,7 @@ export function PlayerShell({
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const artRef = useRef<any>(null);
+  const nativeFullscreenCleanupRef = useRef<(() => void) | null>(null);
   const hlsRef = useRef<Hls | null>(null);
   const qualityPreferenceHandlerRef = useRef<(() => void) | null>(null);
   const [error, setError] = useState('');
@@ -906,8 +908,9 @@ export function PlayerShell({
       setting: true,
       playbackRate: true,
       aspectRatio: true,
-      fullscreen: true,
-      fullscreenWeb: true,
+      // Touch devices use native iOS video fullscreen first, with a web fullscreen fallback.
+      fullscreen: !touchPointer,
+      fullscreenWeb: !touchPointer,
       miniProgressBar: true,
       mutex: true,
       // Keep iOS Safari's video compositing stable without a frosted backdrop.
@@ -940,6 +943,23 @@ export function PlayerShell({
             if (propsRef.current.hasNextEpisode) propsRef.current.onNextEpisode?.();
           },
         },
+        ...(touchPointer ? [{
+          name: 'native-fullscreen',
+          index: 13,
+          position: 'right' as const,
+          html: '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"><path fill="currentColor" d="M4 9V4h5v2H6v3H4zm10-5h6v6h-2V6h-4V4zM4 15h2v3h3v2H4v-5zm14 3v-3h2v5h-6v-2h4z"/></svg>',
+          tooltip: '全屏播放',
+          click: () => {
+            const nativeVideo = art.video as NativeFullscreenVideo;
+            nativeFullscreenCleanupRef.current?.();
+            nativeFullscreenCleanupRef.current = requestNativeFullscreenWithFallback(
+              nativeVideo,
+              () => {
+                if (!art.fullscreenWeb) art.fullscreenWeb = true;
+              },
+            );
+          },
+        }] : []),
       ],
       customType: {
         m3u8: (video: HTMLVideoElement, mediaUrl: string) => {
@@ -1363,6 +1383,8 @@ export function PlayerShell({
       document.removeEventListener('keydown', shortcuts);
       document.removeEventListener('visibilitychange', saveOnHide);
       if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+      nativeFullscreenCleanupRef.current?.();
+      nativeFullscreenCleanupRef.current = null;
       if (playbackConfirmationTimerRef.current) clearTimeout(playbackConfirmationTimerRef.current);
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
       el?.removeEventListener('touchstart', onTouchStart);
