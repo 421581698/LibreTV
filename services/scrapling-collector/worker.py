@@ -218,9 +218,11 @@ def enqueue_daily_batch(now: datetime | None = None) -> dict:
     current = now.astimezone(timezone) if now else datetime.now(timezone)
     hour = max(0, min(23, int(os.environ.get("COLLECTOR_DAILY_HOUR", "3"))))
     minute = max(0, min(59, int(os.environ.get("COLLECTOR_DAILY_MINUTE", "0"))))
-    if current.time() < clock_time(hour, minute):
-        return {"status": "not_due", "date": current.date().isoformat()}
     date_key = current.date().isoformat()
+    if current.time() < clock_time(hour, minute):
+        return {"status": "not_due", "date": date_key}
+    if os.environ.get("SCRAPLING_EGRESS_FIREWALL_CONFIRMED") != "1":
+        return {"status": "blocked_egress_gate", "date": date_key}
     job = submit_job(
         "batch_crawl",
         {"minimum": 101, "target": 1000, "max_sites": 1000, "refresh_directory": True},
@@ -231,10 +233,15 @@ def enqueue_daily_batch(now: datetime | None = None) -> dict:
 
 def daily_scheduler():
     scheduled_date = None
+    blocked_logged_date = None
     while True:
         try:
             result = enqueue_daily_batch()
-            if result["status"] != "not_due" and result["date"] != scheduled_date:
+            if result["status"] == "blocked_egress_gate":
+                if result["date"] != blocked_logged_date:
+                    blocked_logged_date = result["date"]
+                    print("[daily-scheduler] daily crawl is paused until the host egress firewall is independently verified and enabled", flush=True)
+            elif result["status"] != "not_due" and result["date"] != scheduled_date:
                 scheduled_date = result["date"]
                 print(f"[daily-scheduler] queued {result.get('job_id', 'existing job')} for {scheduled_date}", flush=True)
         except Exception as exc:
