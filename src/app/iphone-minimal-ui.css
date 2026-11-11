@@ -813,3 +813,139 @@
   .netflix-episode-row { transition: none !important; }
   .netflix-episode-row:active { transform: none !important; }
 }
+
+/* V2 approved header: three separate floating pills (brand, search, me). */
+@media (max-width: 700px) {
+  .v4-header,
+  .v4-home .v4-header {
+    position: absolute !important;
+    inset: 0 0 auto !important;
+    z-index: 300 !important;
+    pointer-events: none;
+  }
+  .v4-header-inner,
+  .v4-home .v4-header-inner {
+    width: 100% !important;
+    min-height: 0 !important;
+    padding: calc(env(safe-area-inset-top) + 12px) 16px 8px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    pointer-events: none;
+  }
+  .v4-header-inner > .v4-brand,
+  .v4-header-inner > .v4-header-actions {
+    pointer-events: auto;
+  }
+  .v4-header-inner > .v4-brand {
+    min-height: 46px !important;
+    padding: 0 18px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0 !important;
+    border: 1px solid rgba(35,35,40,.13) !important;
+    border-radius: 999px !important;
+    color: #171719 !important;
+    background: rgba(255,255,255,.76) !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,.035) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(160%) !important;
+    backdrop-filter: blur(24px) saturate(160%) !important;
+    text-shadow: none !important;
+  }
+  .v4-header-inner > .v4-brand .v4-brand-mark { display: none !important; }
+  .v4-header-inner > .v4-brand span {
+    color: inherit !important;
+    font-size: 19px !important;
+    font-weight: 720 !important;
+    letter-spacing: -.55px !important;
+  }
+  .v4-header-actions {
+    margin-left: auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 9px !important;
+    pointer-events: auto;
+  }
+  /* SearchModule emits form + search button; then history, settings, avatar. */
+  .v4-header-actions > form.v4-search { display: none !important; }
+  .v4-header-actions > .v4-mobile-search-toggle { display: inline-flex !important; order: 1 !important; }
+  .v4-header-actions > :nth-child(3),
+  .v4-header-actions > :nth-child(4) { display: none !important; }
+  .v4-header-actions > .v4-avatar { display: inline-flex !important; order: 2 !important; }
+  .v4-header-actions .v4-mobile-search-toggle,
+  .v4-header-actions .v4-avatar {
+    width: 46px !important;
+    height: 46px !important;
+    min-width: 46px !important;
+    min-height: 46px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 1px solid rgba(35,35,40,.13) !important;
+    border-radius: 50% !important;
+    color: #171719 !important;
+    background: rgba(255,255,255,.76) !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,.035) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(160%) !important;
+    backdrop-filter: blur(24px) saturate(160%) !important;
+  }
+  .v4-header-actions .v4-mobile-search-toggle svg,
+  .v4-header-actions .v4-avatar svg {
+    width: 21px !important;
+    height: 21px !important;
+  }
+  .v4-header-actions > form.v4-search.is-open {
+    display: flex !important;
+    position: absolute !important;
+    top: calc(env(safe-area-inset-top) + 68px) !important;
+    left: 16px !important;
+    right: 16px !important;
+    width: auto !important;
+    height: 46px !important;
+    padding: 0 14px !important;
+    border: 1px solid rgba(35,35,40,.13) !important;
+    border-radius: 999px !important;
+    color: #171719 !important;
+    background: rgba(255,255,255,.92) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(160%) !important;
+    backdrop-filter: blur(24px) saturate(160%) !important;
+  }
+  .v4-header-actions > form.v4-search.is-open input {
+    width: 100% !important;
+    opacity: 1 !important;
+    color: #171719 !important;
+    -webkit-text-fill-color: #171719 !important;
+  }
+  .v4-header-actions > form.v4-search.is-open input::placeholder {
+    color: #77777e !important;
+    -webkit-text-fill-color: #77777e !important;
+  }
+  .dark .v4-header-inner > .v4-brand,
+  .dark .v4-header-actions .v4-mobile-search-toggle,
+  .dark .v4-header-actions .v4-avatar {
+    color: #f5f5f7 !important;
+    border-color: rgba(255,255,255,.16) !important;
+    background: rgba(24,24,27,.72) !important;
+    box-shadow: 0 2px 14px rgba(0,0,0,.16) !important;
+  }
+  .dark .v4-header-actions > form.v4-search.is-open {
+    color: #f5f5f7 !important;
+    border-color: rgba(255,255,255,.16) !important;
+    background: rgba(24,24,27,.92) !important;
+  }
+  .dark .v4-header-actions > form.v4-search.is-open input {
+    color: #f5f5f7 !important;
+    -webkit-text-fill-color: #f5f5f7 !important;
+  }
+  .dark .v4-header-actions > form.v4-search.is-open input::placeholder {
+    color: #a1a1aa !important;
+    -webkit-text-fill-color: #a1a1aa !important;
+  }
+  .v4-mobile-tabbar {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
