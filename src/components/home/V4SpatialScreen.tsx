@@ -5,6 +5,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { V4HomepageHeader } from '@/components/home/V4HomepageHeader';
+import { SourceManagerDrawer } from '@/components/source-manager';
 import { Icon } from '@/components/icon';
 import { HomeInlinePlayer } from '@/components/home/HomeInlinePlayer';
 import { requestShowDownloadManager } from '@/components/download-manager';
@@ -28,7 +29,7 @@ const COPY: Record<Screen, { eyebrow: string; title: string; subtitle: string }>
   anime: { eyebrow: 'LIBRARY / ANIME', title: '动漫', subtitle: '按星期查看 Bangumi 当季放送，追踪正在更新的新番。' },
   resources: { eyebrow: 'LIBRARY / SOURCES', title: '资源', subtitle: '管理真实接入的点播源、订阅和源健康状态，不展示虚构网盘结果。' },
   me: { eyebrow: 'PERSONAL / LIBRARY', title: '我的', subtitle: '本机观看记录与播放进度保存在你的设备上。' },
-  settings: { eyebrow: '', title: '设置', subtitle: '播放、外观、网络、语音与数据选项沿用现有设置模块。' },
+  settings: { eyebrow: '', title: '设置', subtitle: '' },
 };
 
 export function V4SpatialScreen({ screen }: { screen: Screen }) {
@@ -76,13 +77,8 @@ export function V4SpatialScreen({ screen }: { screen: Screen }) {
           <div>
             {copy.eyebrow ? <span className="v4-spatial-eyebrow">{copy.eyebrow}</span> : null}
             <h1>{copy.title}</h1>
-            <p>{copy.subtitle}</p>
+            {copy.subtitle ? <p>{copy.subtitle}</p> : null}
           </div>
-          {screen === 'settings' ? (
-            <button type="button" className="v4-spatial-primary" onClick={() => window.dispatchEvent(new CustomEvent('libretv:open-source-manager'))}>
-              打开完整设置
-            </button>
-          ) : null}
         </div>
 
         {screen === 'movies' ? <CatalogScreen category="movie" onPick={openRecommendation} /> : null}
@@ -377,36 +373,5 @@ function MeHistoryCard({ item }: { item: HistoryEntry }) {
 }
 
 function SettingsScreen() {
-  const groups = [
-    { title: '播放设置', description: '画质、自动连播、片段跳过与缓存', page: 'playback', icon: 'play' as const, color: '#32D7A0' },
-    { title: '资源站', description: '点播源、直播源、订阅与采集服务', page: 'vod', icon: 'database' as const, color: '#55A7FF' },
-    { title: '外观设置', description: '主题、封面图片、语言与首页偏好', page: 'appearance', icon: 'palette' as const, color: '#BF91FF' },
-    { title: 'Friday AI', description: '助手角色、语音识别与声音偏好', page: 'voice', icon: 'audio-lines' as const, color: '#E7A0D7' },
-    { title: '隐私与数据', description: '本机配置备份、缓存与数据管理', page: 'io', icon: 'shield-check' as const, color: '#E8B45E' },
-    { title: '网络连接', description: 'Collector 服务地址、认证与连接测试', page: 'collector', icon: 'network' as const, color: '#62C8D5' },
-    { title: '关于 LibreTV', description: '项目简介与应用信息', page: 'about', icon: 'info' as const, color: '#A6ADB8' },
-  ] as const;
-
-  const openCategory = (page: string) => {
-    try {
-      window.localStorage.setItem('libretv-settings-open-page', page);
-    } catch {
-      // 即使浏览器禁用本地存储，也仍然打开设置抽屉。
-    }
-    window.dispatchEvent(new CustomEvent('libretv:open-source-manager'));
-  };
-
-  return (
-    <section className="v4-spatial-panel">
-      <div className="v4-settings-grid">
-        {groups.map((group) => (
-          <button key={group.title} type="button" className="v4-settings-card v4-settings-card--apple" onClick={() => openCategory(group.page)}>
-            <span className="settings-apple-icon" style={{ color: group.color }}><Icon name={group.icon} className="h-5 w-5" /></span>
-            <div><strong>{group.title}</strong><p>{group.description}</p></div><b aria-hidden="true">›</b>
-          </button>
-        ))}
-      </div>
-      <p className="v4-spatial-footnote">分类入口按功能归组；二级页面继续使用现有设置面板与本机持久化，不重复创建配置。</p>
-    </section>
-  );
+  return <SourceManagerDrawer open embedded onClose={() => undefined} />;
 }
