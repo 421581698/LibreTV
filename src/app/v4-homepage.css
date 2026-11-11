@@ -1678,3 +1678,244 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
   .v4-home #for-you .grid[class*="grid-cols-"] { gap: 11px !important; }
   .v4-home #for-you .grid[class*="grid-cols-"] > * { flex-basis: 112px !important; }
 }
+
+/* Cinema lobby correction: the header is intentionally only brand, search and My.
+   Keep the hero image proportional and use one stable composition across breakpoints. */
+.v4-home .v4-header {
+  position: absolute !important;
+  top: max(10px, env(safe-area-inset-top)) !important;
+  left: 12px !important;
+  right: 12px !important;
+  z-index: 300 !important;
+  width: auto !important;
+  min-height: 58px !important;
+  border: 1px solid rgba(255,255,255,.2) !important;
+  border-radius: 999px !important;
+  background: rgba(12,16,24,.56) !important;
+  box-shadow: 0 8px 28px rgba(0,0,0,.16) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(150%) !important;
+  backdrop-filter: blur(22px) saturate(150%) !important;
+}
+.v4-home .v4-header-inner {
+  display: flex !important;
+  flex-flow: row nowrap !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: calc(100% - 24px) !important;
+  max-width: 1720px !important;
+  min-height: 56px !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  gap: 12px !important;
+}
+.v4-home .v4-primary-nav { display: none !important; }
+.v4-home .v4-brand {
+  display: inline-flex !important;
+  flex: 0 0 auto !important;
+  align-items: center !important;
+  min-width: 0 !important;
+  color: #fff !important;
+  font-size: 17px !important;
+  white-space: nowrap !important;
+}
+.v4-home .v4-header-actions {
+  display: flex !important;
+  flex: 0 1 auto !important;
+  flex-flow: row nowrap !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  gap: 9px !important;
+}
+.v4-home .v4-header-actions > .v4-search {
+  display: flex !important;
+  flex: 0 1 260px !important;
+  width: min(260px, 42vw) !important;
+  min-width: 120px !important;
+  height: 38px !important;
+  padding: 0 12px !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,.12) !important;
+  border: 1px solid rgba(255,255,255,.2) !important;
+}
+.v4-home .v4-header-actions > .v4-search input {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  opacity: 1 !important;
+  color: #fff !important;
+}
+.v4-home .v4-header-actions > .v4-avatar {
+  display: inline-flex !important;
+  flex: 0 0 auto !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: auto !important;
+  min-width: 68px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 12px !important;
+  gap: 6px !important;
+  border-radius: 999px !important;
+  color: #fff !important;
+  background: rgba(255,255,255,.12) !important;
+  border: 1px solid rgba(255,255,255,.2) !important;
+  font-size: 12px !important;
+  white-space: nowrap !important;
+}
+.v4-home .v4-header-actions > .v4-avatar svg { width: 17px !important; height: 17px !important; }
+
+.v4-home-main--cinema > .v4-hero {
+  position: relative !important;
+  isolation: isolate !important;
+  display: block !important;
+  width: 100% !important;
+  height: clamp(440px, 68vh, 720px) !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: hidden !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  aspect-ratio: auto !important;
+}
+.v4-home .v4-hero-image {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+.v4-home .v4-hero-image img {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: cover !important;
+  object-position: center 32% !important;
+  aspect-ratio: auto !important;
+  transform: none !important;
+  filter: brightness(.88) saturate(1.04) !important;
+}
+.v4-home .v4-hero-veil {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+  background:
+    linear-gradient(90deg, rgba(5,9,16,.72) 0%, rgba(5,9,16,.34) 42%, rgba(5,9,16,.04) 100%),
+    linear-gradient(0deg, rgba(5,9,16,.58) 0%, rgba(5,9,16,.08) 48%, rgba(5,9,16,.22) 100%) !important;
+}
+.v4-home .v4-hero-content {
+  position: absolute !important;
+  z-index: 2 !important;
+  top: auto !important;
+  bottom: 92px !important;
+  left: clamp(24px, 6vw, 92px) !important;
+  right: 28px !important;
+  width: auto !important;
+  max-width: min(680px, calc(100% - 48px)) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  transform: none !important;
+  color: #fff !important;
+}
+.v4-home .v4-hero-content h1 {
+  max-width: 100% !important;
+  margin: 0 0 18px !important;
+  font-size: clamp(38px, 5.2vw, 72px) !important;
+  line-height: 1.08 !important;
+  letter-spacing: -.035em !important;
+  overflow-wrap: break-word !important;
+}
+.v4-home .v4-hero-content p {
+  margin: 0 0 22px !important;
+  font-size: clamp(14px, 1.35vw, 18px) !important;
+  line-height: 1.5 !important;
+}
+.v4-home .v4-hero-actions {
+  display: flex !important;
+  flex-flow: row wrap !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+.v4-home .v4-hero-content .v4-hero-indicators {
+  position: static !important;
+  display: flex !important;
+  justify-content: flex-start !important;
+  width: fit-content !important;
+  margin: 20px 0 0 !important;
+  transform: none !important;
+}
+.v4-home .v4-hero-content .v4-hero-indicators button {
+  min-width: 24px !important;
+  min-height: 16px !important;
+  padding: 5px 0 !important;
+}
+@media (max-width: 700px) {
+  .v4-home .v4-header {
+    top: max(8px, env(safe-area-inset-top)) !important;
+    left: 10px !important;
+    right: 10px !important;
+    min-height: 50px !important;
+  }
+  .v4-home .v4-header-inner {
+    width: calc(100% - 18px) !important;
+    min-height: 48px !important;
+    gap: 7px !important;
+  }
+  .v4-home .v4-brand { font-size: 15px !important; gap: 5px !important; }
+  .v4-home .v4-brand-mark { width: 21px !important; height: 21px !important; flex-basis: 21px !important; }
+  .v4-home .v4-header-actions { flex: 1 1 auto !important; gap: 6px !important; }
+  .v4-home .v4-header-actions > .v4-search {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: 190px !important;
+    height: 34px !important;
+    padding: 0 9px !important;
+  }
+  .v4-home .v4-header-actions > .v4-search input { font-size: 11px !important; }
+  .v4-home .v4-header-actions > .v4-avatar {
+    min-width: 58px !important;
+    width: auto !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0 9px !important;
+    font-size: 11px !important;
+  }
+  .v4-home-main--cinema > .v4-hero {
+    height: clamp(360px, 55svh, 520px) !important;
+    min-height: 0 !important;
+  }
+  .v4-home .v4-hero-image img { object-position: center 28% !important; }
+  .v4-home .v4-hero-content {
+    left: 20px !important;
+    right: 18px !important;
+    bottom: max(76px, calc(env(safe-area-inset-bottom) + 62px)) !important;
+    max-width: none !important;
+  }
+  .v4-home .v4-hero-content h1 {
+    margin-bottom: 14px !important;
+    font-size: clamp(32px, 9vw, 44px) !important;
+    line-height: 1.12 !important;
+    letter-spacing: -.03em !important;
+  }
+  .v4-home .v4-hero-content p { margin-bottom: 16px !important; font-size: 14px !important; }
+  .v4-home .v4-hero-actions { flex-wrap: nowrap !important; gap: 8px !important; }
+  .v4-home .v4-hero-actions .v4-hero-primary,
+  .v4-home .v4-hero-actions .v4-hero-secondary {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    min-height: 42px !important;
+    padding: 0 9px !important;
+    font-size: 12px !important;
+  }
+  .v4-home .v4-hero-content .v4-hero-indicators { margin-top: 14px !important; }
+  .v4-home .v4-mobile-tabbar { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+}
