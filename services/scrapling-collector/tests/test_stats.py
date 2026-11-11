@@ -57,6 +57,8 @@ class ResourceStatsTests(unittest.TestCase):
         self.assertEqual(summary["playback_confirmed"],1)
         self.assertEqual(summary["actual_quality"]["4K"],1)
         self.assertEqual(summary["playback_samples"],1)
+        self.assertIsNotNone(result["sites"][0]["quality_score"])
+        self.assertEqual(result["sites"][0]["quality_score_state"],"preliminary")
         self.assertEqual(summary["queue_jobs"]["queued"],1)
         self.assertEqual(summary["pages_visited"],2)
         self.assertEqual(summary["pages_failed"],1)
@@ -71,7 +73,8 @@ class ResourceStatsTests(unittest.TestCase):
         self.assertEqual(site["playback_samples"],1)
         self.assertEqual(site["preview_samples"],1)
         self.assertEqual(site["actual_quality"]["4K"],1)
-        self.assertIsNone(site["quality_score"])
+        self.assertIsNotNone(site["quality_score"])
+        self.assertEqual(site["quality_score_state"],"preliminary")
         self.assertEqual(result["summary"]["playback_samples"],1)
 
     def test_quality_score_requires_three_real_playback_samples(self):
@@ -95,6 +98,7 @@ class ResourceStatsTests(unittest.TestCase):
         self.assertIsNotNone(result["sites"][0]["quality_score"])
         self.assertEqual(result["sites"][0]["playback_samples"],3)
         self.assertEqual(result["summary"]["quality_ranking"][0]["host"],"media.example")
+        self.assertEqual(result["sites"][0]["quality_score_state"],"scored")
 
     def test_site_detail_does_not_expose_media_urls_or_tokens(self):
         result = build_stats(self.db,"media.example")
