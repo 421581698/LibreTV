@@ -120,7 +120,7 @@ describe('首页与播放页回归契约', () => {
     expect(home).toContain('<V4HomepageContent onPick={openRecommendation} />');
     expect(v4Content.indexOf('id="today-recommendations"')).toBeLessThan(v4Content.indexOf('id="my-library"'));
     expect(v4Content).toContain('v4-today-rail');
-    expect(v4Content).toContain('v4-today-card-rating');
+    expect(v4Content).not.toContain('v4-today-card-rating');
     expect(v4Content).toContain('className="absolute inset-0 h-full w-full object-cover"');
     expect(inlineHomeStyles).toContain('aspect-ratio: 2 / 3 !important;');
     expect(inlineHomeStyles).toContain('object-fit: cover !important;');
@@ -165,6 +165,11 @@ describe('首页与播放页回归契约', () => {
     expect(inlineHomeStyles).toContain('top: 0 !important;');
     expect(inlineHomeStyles).toContain('z-index: 50 !important;');
     expect(inlineHomeStyles).toContain('position: absolute !important;');
+    expect(inlineHomeStyles).toContain('background-color: #000 !important;');
+    expect(inlineHomeStyles).toContain('padding-top: calc(env(safe-area-inset-top, 0px) + 12px) !important;');
+    expect(inlineHomeStyles).toContain('top: calc(env(safe-area-inset-top, 0px) + 104px) !important;');
+    expect(inlineHomeStyles).toContain('display: none !important;');
+
     expect(inlineHomeStyles).toContain('padding-top: clamp(380px, 60svh, 520px) !important;');
     expect(inlineHomeStyles).toContain('border: 0 !important;');
     expect(inlineHomeStyles).toContain('padding-left: 20px !important;');
