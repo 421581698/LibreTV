@@ -162,7 +162,7 @@ jobs:
           assert status == 503 and "egress filtering" in body, ("discovery must fail closed", status, body)
 
           status, body = request("/v1/crawl", method="POST", token=token,
-                                 body={"url": "https://example.com", "mode": "http", "limit": 1})
+                                 body={"url": "https://example.com", "mode": "http", "limit": 101})
           assert status == 503 and "egress filtering" in body, ("crawl must fail closed", status, body)
 
           status, body = request("/v1/candidates/" + ("a" * 32) + "/validate",
