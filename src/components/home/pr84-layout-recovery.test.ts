@@ -26,7 +26,6 @@ describe('PR #84 homepage blocking layout recovery', () => {
     expect(dock).toContain("{ href: '/settings', label: '设置', icon: 'settings' }");
     expect(dock).toContain("{ href: '/me', label: '我的', icon: 'user' }");
     expect(dock).toContain('createPortal(navigation, portalTarget)');
-    expect(dock).toContain("data-homepage-dock={isHomepage ? 'true' : undefined}");
     expect(recovery).toContain('grid-template-columns: repeat(4, minmax(0, 1fr)) !important;');
     expect(dock).toContain('setPortalTarget(document.body)');
     expect(recovery).toContain('position: fixed !important;');
@@ -38,12 +37,11 @@ describe('PR #84 homepage blocking layout recovery', () => {
     expect(layout).toContain('<MobileTabBar />');
     expect(header).not.toContain('<MobileTabBar />');
     expect(layout).toContain("import './pr84-global-layout.css';");
-    expect(globalLayout).toContain('height: 64px !important;');
+    expect(globalLayout).toContain('height: 54px !important;');
     expect(globalLayout).toContain('inset: auto auto calc(8px + env(safe-area-inset-bottom, 0px)) 50% !important;');
-    expect(globalLayout).toContain('body > .v4-mobile-tabbar[data-homepage-dock="true"]');
     expect(globalLayout).toContain('height: 64px !important;');
-    expect(globalLayout).toContain('bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;');
-    expect(globalLayout).toContain('width: 20px !important;');
+    expect(globalLayout).toContain('bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;');
+    expect(globalLayout).toContain('width: 18px !important;');
     expect(globalLayout).toContain('.v4-spatial-screen[data-screen="me"] > .v4-spatial-main');
     expect(globalLayout).toContain('scroll-padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;');
   });
@@ -79,6 +77,7 @@ describe('PR #84 homepage blocking layout recovery', () => {
   it('uses the same body-level viewport portal on homepage and routed catalogue screens', () => {
     expect(dock).toContain('return portalTarget ? createPortal(navigation, portalTarget) : null;');
     expect(dock).not.toContain('return navigation;');
-    expect(dock).toContain('data-homepage-dock={isHomepage ? \'true\' : undefined}');
+    expect(dock).not.toContain('data-homepage-dock');
+    expect(globalLayout).not.toContain('data-homepage-dock');
   });
 });
