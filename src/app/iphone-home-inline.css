@@ -655,3 +655,179 @@ body .v4-home .v4-hero-immersive-copy .v4-hero-primary {
   }
   body .v4-home .v4-hero-immersive .v4-hero-image { height: 58% !important; }
 }
+
+
+/* Apple TV refinement pass — black continuity, softer hero fade, restrained controls. */
+body:has(.v4-home),
+html:has(.v4-home) {
+  background: #000 !important;
+  color: #f5f5f7 !important;
+}
+body:has(.v4-home) #__next,
+body:has(.v4-home) main,
+body:has(.v4-home) .v4-home,
+body:has(.v4-home) .v4-home-main,
+body:has(.v4-home) .v4-content-section,
+body:has(.v4-home) .v4-today-section,
+body:has(.v4-home) .v4-continue-section,
+body:has(.v4-home) .v4-recommendation-section {
+  background: #000 !important;
+  color: #f5f5f7 !important;
+}
+body:has(.v4-home) .v4-home .v4-section-heading h2,
+body:has(.v4-home) .v4-home .v4-today-card > strong,
+body:has(.v4-home) .v4-home .v4-history-copy strong,
+body:has(.v4-home) .v4-home .v4-recommendation-section .card,
+body:has(.v4-home) .v4-home .v4-recommendation-section .card * {
+  color: #f5f5f7 !important;
+}
+body:has(.v4-home) .v4-home .v4-section-heading h2 span,
+body:has(.v4-home) .v4-home .v4-rail-hint,
+body:has(.v4-home) .v4-home .v4-history-count,
+body:has(.v4-home) .v4-home .v4-today-card-rating,
+body:has(.v4-home) .v4-home .v4-history-copy > span {
+  color: #a1a1a6 !important;
+}
+
+/* The final 40% of the artwork dissolves directly into pure black. */
+body:has(.v4-home) .v4-home .v4-hero-immersive .v4-hero-veil {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(0,0,0,0) 0%,
+      rgba(0,0,0,0) 34%,
+      rgba(0,0,0,.12) 41%,
+      rgba(0,0,0,.34) 48%,
+      rgba(0,0,0,.68) 55%,
+      #000 62%,
+      #000 100%
+    ) !important;
+}
+
+/* Tighter type scale and quieter glass tags. */
+body:has(.v4-home) .v4-home .v4-hero-immersive-copy h1 {
+  margin: 0 0 14px !important;
+  font-size: clamp(32px, 7.6vw, 46px) !important;
+  line-height: 1.08 !important;
+}
+body:has(.v4-home) .v4-home .v4-hero-immersive-copy p {
+  margin: 0 0 18px !important;
+}
+body:has(.v4-home) .v4-home .v4-hero-tags {
+  gap: 7px !important;
+  margin: 0 0 16px !important;
+}
+body:has(.v4-home) .v4-home .v4-hero-tags span {
+  min-height: 24px !important;
+  padding: 4px 10px !important;
+  border-color: rgba(255,255,255,.12) !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,.15) !important;
+  color: rgba(255,255,255,.9) !important;
+  font-size: 12px !important;
+}
+
+/* Compact centered playback control; the adjacent + stays quiet and non-glowing. */
+body:has(.v4-home) .v4-home .v4-hero-actions.v4-apple-actions {
+  gap: 10px !important;
+  width: auto !important;
+  max-width: 100% !important;
+  margin: 0 auto !important;
+}
+body:has(.v4-home) .v4-home .v4-hero-actions.v4-apple-actions .v4-hero-primary {
+  flex: 0 1 260px !important;
+  width: min(260px, calc(100vw - 112px)) !important;
+  max-width: 260px !important;
+  min-width: 0 !important;
+  height: 46px !important;
+  min-height: 46px !important;
+  max-height: 46px !important;
+  padding: 0 20px !important;
+  border-radius: 999px !important;
+  color: #000 !important;
+  background: #fff !important;
+  box-shadow: none !important;
+  font-size: 15px !important;
+  font-weight: 650 !important;
+}
+body:has(.v4-home) .v4-home .v4-hero-plus {
+  flex: 0 0 48px !important;
+  width: 48px !important;
+  height: 48px !important;
+  min-width: 48px !important;
+  min-height: 48px !important;
+  border: 1px solid rgba(255,255,255,.18) !important;
+  border-radius: 50% !important;
+  color: #fff !important;
+  background: rgba(255,255,255,.12) !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  font-size: 24px !important;
+  font-weight: 300 !important;
+}
+body:has(.v4-home) .v4-home .v4-hero-featured-title {
+  display: block !important;
+  margin: 10px 0 0 !important;
+  color: #a1a1a6 !important;
+  text-align: center !important;
+  font-size: 11px !important;
+}
+
+/* Pagination: dim inactive dots, retain the white active dash. */
+body:has(.v4-home) .v4-home .v4-hero-dots button {
+  background: rgba(255,255,255,.3) !important;
+}
+body:has(.v4-home) .v4-home .v4-hero-dots button.is-active {
+  background: #fff !important;
+}
+
+/* Feed cards sit directly on black; poster corners and captions stay readable. */
+body:has(.v4-home) .v4-home .v4-today-card,
+body:has(.v4-home) .v4-home .v4-history-card,
+body:has(.v4-home) .v4-home .v4-recommendation-section .card {
+  border-radius: 16px !important;
+  color: #f5f5f7 !important;
+  background: #000 !important;
+  box-shadow: none !important;
+}
+body:has(.v4-home) .v4-home .v4-today-card-poster,
+body:has(.v4-home) .v4-home .v4-recommendation-section .card img {
+  border-radius: 16px !important;
+}
+body:has(.v4-home) .v4-home .v4-today-card > strong,
+body:has(.v4-home) .v4-home .v4-history-copy strong,
+body:has(.v4-home) .v4-home .v4-recommendation-section .card h3,
+body:has(.v4-home) .v4-home .v4-recommendation-section .card p {
+  color: #f5f5f7 !important;
+}
+
+/* Floating navigation: dark glass with legible inactive tabs. */
+body:has(.v4-home) .v4-home .v4-mobile-tabbar {
+  background: rgba(20,20,20,.7) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(145%) !important;
+  backdrop-filter: blur(20px) saturate(145%) !important;
+}
+body:has(.v4-home) .v4-home .v4-mobile-tabbar a {
+  color: #a1a1a6 !important;
+}
+body:has(.v4-home) .v4-home .v4-mobile-tabbar a.is-active,
+body:has(.v4-home) .v4-home .v4-mobile-tabbar a.is-active span,
+body:has(.v4-home) .v4-home .v4-mobile-tabbar a.is-active svg {
+  color: #0a84ff !important;
+}
+
+@media (max-width: 700px) {
+  body:has(.v4-home) .v4-home .v4-hero-immersive-copy h1 {
+    font-size: clamp(30px, 8vw, 42px) !important;
+  }
+  body:has(.v4-home) .v4-home .v4-hero-actions.v4-apple-actions .v4-hero-primary {
+    width: min(260px, calc(100vw - 112px)) !important;
+    height: 46px !important;
+    min-height: 46px !important;
+  }
+  body:has(.v4-home) .v4-home .v4-hero-plus {
+    width: 48px !important;
+    height: 48px !important;
+    flex-basis: 48px !important;
+  }
+}
