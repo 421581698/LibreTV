@@ -1786,3 +1786,50 @@ html:has(.v4-home) {
     display: none !important;
   }
 }
+
+/* PR84 iOS Safari top-edge correction:
+   The global light-theme html background was still visible in the top safe area.
+   Keep the document canvas black and let the cinema hero paint behind the status area. */
+@media screen and (max-width: 700px) {
+  html:has(.v4-home),
+  html:has(body .v4-home) {
+    min-height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #000 !important;
+    background-color: #000 !important;
+    color-scheme: dark !important;
+  }
+
+  body:has(.v4-home) {
+    min-height: 100vh !important;
+    min-height: 100svh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #000 !important;
+    background-color: #000 !important;
+  }
+
+  body:has(.v4-home) .v4-home {
+    position: relative !important;
+    min-height: 100vh !important;
+    min-height: 100svh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow-x: clip !important;
+    background: #000 !important;
+    background-color: #000 !important;
+  }
+
+  body:has(.v4-home) .v4-home-main,
+  body:has(.v4-home) .v4-home-main--cinema {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive {
+    top: 0 !important;
+    margin-top: 0 !important;
+    background-color: #000 !important;
+  }
+}
