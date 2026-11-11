@@ -49,28 +49,35 @@ const CollectorPlayerShell = dynamic(
  * 具体设置面板继续复用现有业务组件与持久化逻辑。
  */
 type SecondaryTab = 'vod' | 'live' | 'subs' | 'playback' | 'image' | 'home' | 'voice' | 'language' | 'io' | 'cache' | 'collector';
-type SettingsPage = SecondaryTab | 'index' | 'appearance';
+type SettingsPage = SecondaryTab | 'index' | 'appearance' | 'about';
 
-const SETTINGS_SECTIONS: { title: string; items: { id: SettingsPage; label: string; detail: string; icon: IconName }[] }[] = [
-  { title: '偏好设置', items: [
-    { id: 'appearance', label: '外观', detail: '浅色、深色与系统外观', icon: 'gear' },
-    { id: 'playback', label: '播放设置', detail: '画质、自动连播与内容过滤', icon: 'filter' },
-    { id: 'image', label: '封面图加载', detail: '海报与图片加载偏好', icon: 'search' },
-    { id: 'language', label: '语言设置', detail: '界面语言与显示偏好', icon: 'gear' },
+const SETTINGS_SECTIONS: { title: string; color: string; items: { id: SettingsPage; label: string; detail: string; icon: IconName }[] }[] = [
+  { title: '播放设置', color: '#32D7A0', items: [
+    { id: 'playback', label: '播放与过滤', detail: '默认画质、自动连播、片段跳过与缓存', icon: 'play' },
   ] },
-  { title: '内容与资源', items: [
-    { id: 'vod', label: '影视源管理', detail: '点播源、优先级与健康检测', icon: 'link' },
-    { id: 'live', label: '直播设置', detail: '直播源与频道管理', icon: 'home' },
-    { id: 'subs', label: '资源订阅', detail: '管理已配置的数据源订阅', icon: 'download' },
-    { id: 'collector', label: '资源采集中心', detail: 'FMHY 网站发现目录与 Scrapling 采集引擎', icon: 'search' },
-    { id: 'home', label: '首页与内容', detail: '首页展示与内容偏好', icon: 'home' },
+  { title: '资源站', color: '#55A7FF', items: [
+    { id: 'vod', label: '点播源管理', detail: '资源站、优先级与健康检测', icon: 'database' },
+    { id: 'live', label: '直播源管理', detail: '直播源与频道管理', icon: 'radio' },
+    { id: 'subs', label: '资源订阅', detail: '管理已配置的数据源订阅', icon: 'rss' },
   ] },
-  { title: 'Friday 助手', items: [
-    { id: 'voice', label: '语音与声音', detail: '语音识别、助手角色与语音偏好', icon: 'microphone' },
+  { title: '外观设置', color: '#BF91FF', items: [
+    { id: 'appearance', label: '外观模式', detail: '浅色、深色与系统外观', icon: 'palette' },
+    { id: 'image', label: '封面图加载', detail: '海报与图片加载偏好', icon: 'image' },
+    { id: 'language', label: '语言设置', detail: '界面语言与显示偏好', icon: 'languages' },
+    { id: 'home', label: '首页与内容', detail: '首页展示与内容偏好', icon: 'house' },
   ] },
-  { title: '数据管理', items: [
-    { id: 'io', label: '配置导入与导出', detail: '备份或恢复本机配置', icon: 'download' },
-    { id: 'cache', label: '本机缓存', detail: '查看与管理本机视频缓存', icon: 'clock' },
+  { title: 'Friday AI', color: '#E7A0D7', items: [
+    { id: 'voice', label: 'Friday 语音', detail: '助手角色、语音音色与对话偏好', icon: 'audio-lines' },
+  ] },
+  { title: '隐私与数据', color: '#E8B45E', items: [
+    { id: 'io', label: '配置导入与导出', detail: '备份或恢复本机配置', icon: 'shield-check' },
+    { id: 'cache', label: '本机缓存', detail: '查看和管理本机视频缓存', icon: 'database-backup' },
+  ] },
+  { title: '网络连接', color: '#62C8D5', items: [
+    { id: 'collector', label: '采集服务连接', detail: 'Collector 地址、认证与连接测试', icon: 'network' },
+  ] },
+  { title: '关于 LibreTV', color: '#A6ADB8', items: [
+    { id: 'about', label: '关于 LibreTV', detail: '项目简介与版本信息', icon: 'info' },
   ] },
 ];
 
@@ -86,7 +93,8 @@ const SETTINGS_PAGE_META: Record<Exclude<SettingsPage, 'index'>, { title: string
   voice: { title: '语音与声音', description: '配置 Friday 的语音识别和声音偏好。' },
   io: { title: '配置导入与导出', description: '备份或恢复 LibreTV 本机配置。' },
   cache: { title: '本机缓存', description: '查看并管理本机缓存数据。' },
-  collector: { title: '资源采集中心', description: '从 FMHY 目录发现站点，并通过 Scrapling 检查公开媒体链接。' },
+  collector: { title: '采集服务连接', description: '配置 Collector 地址、认证信息并测试连接。' },
+  about: { title: '关于 LibreTV', description: 'LibreTV 是一个以本机配置和个人观影体验为核心的影视浏览与播放界面。' },
 };
 
 const SETTINGS_OPEN_PAGE_KEY = 'libretv-settings-open-page';
@@ -137,7 +145,7 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
                     onClick={() => setActivePage(item.id)}
                     aria-label={item.label}
                   >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-chip text-muted">
+                    <span className="settings-apple-icon" style={{ color: section.color }}>
                       <Icon name={item.icon} className="h-5 w-5" />
                     </span>
                     <span className="min-w-0 flex-1">
@@ -153,7 +161,7 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
           <p className="px-1 text-center text-xs text-faint">LibreTV · 本机设置</p>
         </div>
       ) : (
-        <div className="ipad-settings-content mx-auto w-full max-w-2xl space-y-5 pb-3">
+        <div className="ipad-settings-content settings-apple-detail mx-auto w-full max-w-2xl space-y-5 pb-3">
           <button
             type="button"
             onClick={() => setActivePage('index')}
@@ -187,6 +195,7 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
           {activePage === 'io' && <ConfigIoPanel />}
           {activePage === 'cache' && <VideoCachePanel />}
           {activePage === 'collector' && <ResourceCollectorPanel />}
+          {activePage === 'about' && <section className="settings-apple-about"><h3>LibreTV</h3><p>为个人观影而设计的开放式影视浏览与播放体验。</p><p className="settings-apple-about-note">播放记录、收藏与偏好设置按现有功能保存在当前设备；资源站和网络连接由你配置与管理。</p></section>}
         </div>
       )}
     </Drawer>
