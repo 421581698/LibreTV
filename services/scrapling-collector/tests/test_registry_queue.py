@@ -37,6 +37,18 @@ class RegistryQueueTests(unittest.TestCase):
         self.assertEqual(claimed["id"], job["id"])
         self.assertEqual(claimed["job_type"], "batch_crawl")
 
+    def test_batch_submit_accepts_full_fmhy_site_budget(self):
+        with patch.object(queue, "require_auth"):
+            result = queue.api_submit_batch(
+                {"minimum": 101, "target": 1000, "max_sites": 1000, "idempotency_key": "daily:full-budget"},
+                authorization="Bearer test",
+            )
+        self.assertEqual(result["batch_target"]["max_sites"], 1000)
+        with queue.connect() as c:
+            row = c.execute("SELECT payload FROM collector_jobs WHERE id=?", (result["job_id"],)).fetchone()
+        payload = __import__("json").loads(row["payload"])
+        self.assertEqual(payload["max_sites"], 1000)
+
     def test_idempotent_job_submit_and_atomic_claim(self):
         first = queue.submit_job("crawl", {"url": "https://example.org"}, "crawl:example")
         second = queue.submit_job("crawl", {"url": "https://example.org"}, "crawl:example")
