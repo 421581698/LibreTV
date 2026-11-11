@@ -24,8 +24,8 @@ export async function POST(req: Request) {
   try {
     const body = await readJsonLimited<{ password?: unknown }>(req, 4096);
     password = typeof body?.password === 'string' ? body.password : '';
-  } catch {
-    return NextResponse.json({ success: false, error: '请求格式错误' }, { status: 400 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: '请求格式错误' }, { status: requestBodyErrorStatus(error) });
   }
 
   if (!checkPassword(password)) {
