@@ -379,7 +379,7 @@ function SettingsScreen() {
   const groups = [
     { title: '播放与过滤', description: '自动连播、片头片尾跳过、广告过滤与播放缓存', page: 'playback' },
     { title: '语言设置', description: '界面语言与 Friday 对话语言', page: 'language' },
-    { title: '首页与内容', description: '首页推荐与内容偏好', page: 'home' }
+    { title: '首页与内容', description: '首页推荐与内容偏好', page: 'home' },
     { title: '外观模式', description: '浅色、深色与跟随系统主题', page: 'appearance' },
     { title: '封面图加载', description: '海报图片代理与加载偏好', page: 'image' },
     { title: '点播源管理', description: '管理点播来源、优先级与健康检测', page: 'vod' },
