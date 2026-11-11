@@ -115,6 +115,10 @@ describe('首页与播放页回归契约', () => {
 
   it('V4 首页接入真实推荐接口与 IndexedDB 继续观看记录', () => {
     expect(home).toContain('<V4HomepageContent onPick={openRecommendation} />');
+    expect(v4Content.indexOf('id="today-recommendations"')).toBeLessThan(v4Content.indexOf('id="my-library"'));
+    expect(v4Content.indexOf('id="my-library"')).toBeLessThan(v4Content.indexOf('id="for-you"'));
+    expect(v4Content).toContain("api.douban('movie', '热门', 0, 8, signal)");
+    expect(v4Content).toContain('db.history.orderBy(\'timestamp\').reverse().limit(CONTINUE_LIMIT)');
     expect(v4Content).toContain('<RecommendSection onPick={onPick} />');
     expect(v4Content).toContain('db.history.orderBy(\'timestamp\').reverse().limit(CONTINUE_LIMIT)');
     expect(v4Content).toContain('buildWatchUrl({');
