@@ -1687,18 +1687,12 @@ class SiteSpider(Spider):
         manager.add("default", FetcherSession(follow_redirects="safe"))
 
     async def parse(self, response: Response):
-        title = (response.css("title::text").get() or "").strip()[:200]
-        seen: set[str] = set()
-        for selector, attribute in (("video", "src"), ("source", "src"), ("iframe", "src"), ("a", "href"), ("script", "src")):
-            for element in adaptive_css(response, selector):
-                value = (element.attrib.get(attribute) or "").strip()
-                absolute = urljoin(response.url, value)
-                classified = classify_url(absolute)
-                if not classified or absolute in seen:
-                    continue
-                seen.add(absolute)
-                kind, host = classified
-                yield {"url": absolute, "kind": kind, "host": host, "title": title}
+        # Reuse the richer public-page extractor so HTTP Spider sees the same
+        # player attributes and inline public configuration as browser capture.
+        # This does not execute scripts or attempt to pass access controls.
+        candidate_limit = int(getattr(self, "candidate_limit", MAX_CANDIDATES))
+        for item in extract_candidates(response, response.url, candidate_limit):
+            yield item
 
 
 def frontier_link_priority(target: str, anchor_text: str = "") -> int | None:
@@ -1770,6 +1764,7 @@ def run_spider(url: str, limit: int) -> list[dict]:
     class TargetSiteSpider(SiteSpider):
         start_urls = [url]
         allowed_domains = [urlparse(url).hostname]
+        candidate_limit = limit
         pages_scheduled: set[str] = {canonical_candidate_url(url)}
         pages_processed: set[str] = set()
         changed_pages = 0
