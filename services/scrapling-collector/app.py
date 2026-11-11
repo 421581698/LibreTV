@@ -32,6 +32,8 @@ TOKEN = os.environ.get("SCRAPLING_API_TOKEN", "").strip()
 DB_PATH = Path(os.environ.get("SCRAPLING_DB_PATH", "/data/collector.sqlite3"))
 MAX_RESULTS = 1000
 MAX_CANDIDATES = 1000
+MIN_BATCH_CANDIDATES = 101
+DEFAULT_BATCH_CANDIDATES = 250
 MAX_CRAWL_DEPTH = 5
 MAX_CRAWL_PAGES = 100
 MAX_CRAWL_LINKS_PER_PAGE = 32
@@ -53,7 +55,7 @@ Fetcher.adaptive = True
 class CrawlRequest(BaseModel):
     url: HttpUrl
     mode: str = Field(default="auto", pattern="^(auto|http|browser)$")
-    limit: int = Field(default=100, ge=1, le=MAX_CANDIDATES)
+    limit: int = Field(default=DEFAULT_BATCH_CANDIDATES, ge=MIN_BATCH_CANDIDATES, le=MAX_CANDIDATES)
     search_keyword: str = Field(default="", max_length=100)
 
 
@@ -2075,6 +2077,9 @@ def crawl_site(payload: CrawlRequest, cancel_check=None) -> dict:
         if callable(cancel_check) and cancel_check():
             raise JobCancelled()
 
+        minimum_target_met = len(candidates) >= MIN_BATCH_CANDIDATES
+        if not minimum_target_met:
+            errors.append(f"Minimum single-task target not met: {len(candidates)}/{MIN_BATCH_CANDIDATES} unique candidates")
         now = int(time.time())
         with db() as connection:
             for item in candidates[:payload.limit]:
@@ -2105,6 +2110,9 @@ def crawl_site(payload: CrawlRequest, cancel_check=None) -> dict:
             register_discovered_candidate(item)
         task_status = "partial" if errors and candidates else ("failed" if errors else "completed")
         return {"task_id": task_id, "status": task_status,
+                 "batch_target": {"minimum": MIN_BATCH_CANDIDATES, "requested": payload.limit,
+                                  "collected": len(candidates), "met": minimum_target_met,
+                                  "shortfall": max(0, MIN_BATCH_CANDIDATES - len(candidates))},
                 "page_url": raw_url, "final_url": final_url, "page_title": page_title,
                 "mode": payload.mode, "engine": "Scrapling Spider + StealthySession",
                 "count": len(candidates), "captured_request_count": captured_request_count,
