@@ -118,6 +118,10 @@ describe('首页与播放页回归契约', () => {
     expect(v4Content.indexOf('id="today-recommendations"')).toBeLessThan(v4Content.indexOf('id="my-library"'));
     expect(v4Content).toContain('v4-today-rail');
     expect(v4Content).toContain('v4-today-card-rating');
+    expect(v4Content).toContain('className="absolute inset-0 h-full w-full object-cover"');
+    expect(homepageHeroStyles).toContain('aspect-ratio: 2 / 3 !important;');
+    expect(homepageHeroStyles).toContain('object-fit: cover !important;');
+    expect(homepageHeroStyles).toContain('.v4-history-image > img');
     expect(v4Content).toContain('v4-progress-percent');
     expect(featuredHero).toContain('发现好内容');
     expect(featuredHero).not.toContain('v4-hero-primary');
