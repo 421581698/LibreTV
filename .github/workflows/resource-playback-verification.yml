@@ -27,6 +27,8 @@ on:
       - "src/app/api/auth-guard.test.ts"
       - "src/lib/resource-collector-client.ts"
       - "src/lib/resource-collector-client.test.ts"
+  workflow_dispatch:
+
   pull_request:
     paths:
       - "src/components/player-shell.tsx"
