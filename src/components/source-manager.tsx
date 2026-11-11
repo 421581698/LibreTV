@@ -136,6 +136,7 @@ export function SourceManagerDrawer({ open, onClose, embedded = false }: { open:
   const pageTitle = activePage === 'index' ? '设置' : SETTINGS_PAGE_META[activePage].title;
 
   const settingsContent = (
+    <>
       {activePage === 'index' ? (
         <div className="ipad-settings-content mx-auto w-full max-w-2xl space-y-7 pb-3">
           {!embedded ? (
@@ -214,6 +215,7 @@ export function SourceManagerDrawer({ open, onClose, embedded = false }: { open:
           {activePage === 'about' && <section className="settings-apple-about"><h3>LibreTV</h3><p>为个人观影而设计的开放式影视浏览与播放体验。</p><p className="settings-apple-about-note">播放记录、收藏与偏好设置按现有功能保存在当前设备；资源站和网络连接由你配置与管理。</p></section>}
         </div>
       )}
+    </>
   );
 
   if (embedded) {
