@@ -137,7 +137,7 @@ export const MAX_HISTORY = 100;
 export const MAX_SEARCH_HISTORY = 10;
 
 export async function upsertHistory(entry: Omit<HistoryEntry, 'id'>): Promise<void> {
-  const id = favoriteIdFor(entry.sourceKey, entry.vodId);
+  const id = `${entry.sourceKey}_${entry.vodId}`;
   const existing = await db.history.get(id);
   const merged: HistoryEntry = {
     ...existing,
@@ -348,7 +348,7 @@ db.version(7).stores({
 });
 
 export async function addFavorite(entry: Omit<FavoriteEntry, 'id' | 'addedAt'>): Promise<void> {
-  const id = `${entry.sourceKey}_${entry.vodId}`;
+  const id = favoriteIdFor(entry.sourceKey, entry.vodId);
   const existing = await db.favorites.get(id);
   await db.favorites.put({
     ...existing,
