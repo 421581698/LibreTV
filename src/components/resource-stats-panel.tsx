@@ -104,7 +104,7 @@ export function ResourceStatsPanel() {
               ['资源候选', summary.candidate_resources], ['视频候选', summary.video_candidates],
               ['媒体预检通过', summary.preflight_passed], ['采集预览确认资源', summary.playback_confirmed],
               ['真实播放样本', summary.playback_samples ?? 0], ['采集预览样本', summary.preview_samples ?? 0],
-              ['电影条目', summary.movie_entries], ['剧集条目', summary.episode_entries],
+              ['影视条目', summary.movie_entries], ['剧集条目', summary.episode_entries],
               ['采集任务', summary.crawl_tasks], ['失败网站', summary.failed_sites],
             ].map(([label, value]) => (
               <div key={String(label)} className="rounded-xl bg-chip p-3">
