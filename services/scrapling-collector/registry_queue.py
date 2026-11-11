@@ -82,15 +82,6 @@ def initialize() -> None:
           event TEXT NOT NULL, detail TEXT NOT NULL DEFAULT '{}', created_at INTEGER NOT NULL
         );
         """)
-        now = int(time.time())
-        expired = c.execute("SELECT id FROM collector_jobs WHERE status='running' AND lease_until IS NOT NULL AND lease_until<=?", (now,)).fetchall()
-        c.execute("UPDATE collector_jobs SET status='queued',lease_owner=NULL,lease_until=NULL,updated_at=? WHERE status='running' AND lease_until IS NOT NULL AND lease_until<=?", (now, now))
-        for row in expired:
-            event(c, row["id"], "lease_expired_recovered", {"recovered_at_startup": True})
-        cancelled = c.execute("SELECT id FROM collector_jobs WHERE status='cancel_requested' AND lease_until IS NOT NULL AND lease_until<=?", (now,)).fetchall()
-        c.execute("UPDATE collector_jobs SET status='cancelled',lease_owner=NULL,lease_until=NULL,updated_at=? WHERE status='cancel_requested' AND lease_until IS NOT NULL AND lease_until<=?", (now, now))
-        for row in cancelled:
-            event(c, row["id"], "cancelled_after_worker_lease_expired", {})
 
 
 def require_auth(authorization: str | None) -> None:
