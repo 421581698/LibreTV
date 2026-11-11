@@ -19,3 +19,9 @@ services:
         generateValue: true
       - key: SCRAPLING_DB_PATH
         value: /data/collector.sqlite3
+      - key: COLLECTOR_TIMEZONE
+        value: America/Los_Angeles
+      - key: COLLECTOR_DAILY_HOUR
+        value: "3"
+      - key: COLLECTOR_DAILY_MINUTE
+        value: "0"
