@@ -49,6 +49,7 @@ describe('PR #84 homepage blocking layout recovery', () => {
   });
 
   it('protects hero artwork from the iOS status and brand area', () => {
+    expect(globalLayout).toContain('position: absolute !important;');
     expect(globalLayout).toContain('inset: 0 0 auto !important;');
     expect(globalLayout).toContain('padding-top: 0 !important;');
     expect(globalLayout).toContain('height: 100% !important;');
