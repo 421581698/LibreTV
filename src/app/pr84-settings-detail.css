@@ -391,3 +391,40 @@
   .settings-embedded-root button,
   .settings-embedded-root button[role="switch"] { transition: none !important; }
 }
+
+/* Final control sizing pass: chips and unclassified actions must still read as
+   deliberate dark controls; token input remains fluid beside its reveal button. */
+.settings-embedded-root button:not(.btn-primary):not(.btn-ghost):not(.settings-nav-back):not(.collector-subnav-back):not([role="switch"]) {
+  border: 1px solid rgba(255,255,255,.08) !important;
+  background-color: #1c1c1e !important;
+}
+.settings-embedded-root .ipad-settings-content section > div > button {
+  min-height: 64px !important;
+  border-color: rgba(255,255,255,.08) !important;
+  border-radius: 0 !important;
+  background: #2c2c2e !important;
+  color: #f5f5f7 !important;
+}
+.settings-embedded-root .ipad-settings-content section > div > button:active {
+  background: #3a3a3c !important;
+}
+.settings-embedded-root .chip {
+  border: 1px solid rgba(255,255,255,.10) !important;
+  border-radius: 999px !important;
+  color: #d1d1d6 !important;
+  background: #2c2c2e !important;
+}
+.settings-embedded-root .chip[aria-pressed="true"] {
+  color: #64aaff !important;
+  border-color: rgba(10,132,255,.34) !important;
+  background: rgba(10,132,255,.16) !important;
+}
+.settings-embedded-root .settings-apple-detail .flex > input.input {
+  width: auto !important;
+  flex: 1 1 0% !important;
+}
+@media (max-width: 700px) {
+  .settings-embedded-root .settings-apple-detail .settings-toggle-row {
+    align-items: center !important;
+  }
+}
