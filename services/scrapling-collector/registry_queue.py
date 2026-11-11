@@ -451,13 +451,32 @@ def sync_candidate_validation(candidate_id: str, validation: dict, status: str) 
 
 
 def register_candidate_playback(candidate_id: str, evidence: dict) -> dict:
-    # Preserve the canonical title/type linkage created at discovery time.
-    # Re-upserting a playback sample without movie_external_key would detach it.
+    # Preserve canonical title/type linkage. Older candidate rows may predate
+    # registry creation, so reconstruct their resource before recording playback.
     with connect() as c:
         row = c.execute(
             "SELECT id,validation_state,access_state FROM registry_resources WHERE resource_key=?",
             ("candidate:" + candidate_id,),
         ).fetchone()
+        candidate = c.execute(
+            "SELECT id,url,host,kind,title,status,access_state,media_identity,quality_evidence,validation FROM candidates WHERE id=?",
+            (candidate_id,),
+        ).fetchone()
+    if not row and candidate:
+        candidate_data = dict(candidate)
+        candidate_data["media_identity"] = safe_json(candidate_data.get("media_identity"))
+        candidate_data["quality_evidence"] = safe_json(candidate_data.get("quality_evidence"))
+        register_discovered_candidate(candidate_data)
+        sync_candidate_validation(
+            candidate_id,
+            safe_json(candidate_data.get("validation")),
+            candidate_data.get("status") or "pending",
+        )
+        with connect() as c:
+            row = c.execute(
+                "SELECT id,validation_state,access_state FROM registry_resources WHERE resource_key=?",
+                ("candidate:" + candidate_id,),
+            ).fetchone()
     if not row:
         raise KeyError(candidate_id)
     if row["validation_state"] != "validated" or row["access_state"] != "PUBLIC":
