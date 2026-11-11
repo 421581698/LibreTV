@@ -1,0 +1,279 @@
+/* PR #84 layout recovery: one final, scoped layout contract.
+   The homepage keeps natural document scrolling; its dock is portaled to body
+   so transformed/filtered visual wrappers cannot become its fixed-position containing block. */
+
+html:has(body .v4-home),
+body:has(.v4-home) {
+  height: auto !important;
+  min-height: 100% !important;
+  overflow-x: clip !important;
+  overflow-y: auto !important;
+}
+
+body:has(.v4-home) {
+  position: static !important;
+  transform: none !important;
+  filter: none !important;
+  perspective: none !important;
+  contain: none !important;
+}
+
+body:has(.v4-home) .v4-home {
+  position: relative !important;
+  display: flex !important;
+  flex: 0 0 auto !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 100vh !important;
+  min-height: 100svh !important;
+  margin: 0 !important;
+  padding: 0 0 calc(104px + env(safe-area-inset-bottom, 0px)) !important;
+  overflow: visible !important;
+  transform: none !important;
+  filter: none !important;
+  contain: none !important;
+}
+
+body:has(.v4-home) .v4-home > .v4-header {
+  position: absolute !important;
+  display: block !important;
+  visibility: visible !important;
+  inset: max(8px, env(safe-area-inset-top, 0px)) 0 auto !important;
+  z-index: 300 !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+body:has(.v4-home) .v4-home > .v4-header .v4-header-inner {
+  display: flex !important;
+  flex-flow: row nowrap !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: min(calc(100% - 32px), 1720px) !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+}
+
+body:has(.v4-home) .v4-home-main,
+body:has(.v4-home) .v4-home-main--cinema {
+  position: relative !important;
+  display: block !important;
+  flex: 0 0 auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 0 24px !important;
+  overflow: visible !important;
+  transform: none !important;
+}
+
+body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive {
+  position: relative !important;
+  inset: auto !important;
+  display: block !important;
+  flex: 0 0 auto !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  height: clamp(560px, 70svh, 780px) !important;
+  min-height: 520px !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  isolation: isolate !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #05070b !important;
+  transform: none !important;
+}
+
+body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-image {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  z-index: 0 !important;
+}
+
+body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-image > *,
+body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-image img {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  object-fit: cover !important;
+  object-position: center 32% !important;
+}
+
+body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-veil {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+}
+
+body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-immersive-copy {
+  position: absolute !important;
+  inset: auto 0 72px !important;
+  z-index: 2 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: flex-end !important;
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 clamp(24px, 6vw, 88px) !important;
+  box-sizing: border-box !important;
+  transform: none !important;
+  pointer-events: none !important;
+}
+
+body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-immersive-copy .v4-hero-actions,
+body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-immersive-copy .v4-hero-primary {
+  pointer-events: auto !important;
+}
+
+body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-indicators {
+  position: absolute !important;
+  inset: auto 0 20px !important;
+  z-index: 3 !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  width: max-content !important;
+  margin: 0 auto !important;
+  transform: none !important;
+}
+
+body:has(.v4-home) .v4-home-main--cinema > .v4-content-section:first-of-type {
+  margin-top: 24px !important;
+}
+
+body:has(.v4-home) .v4-home-main--cinema > .v4-content-section {
+  overflow: visible !important;
+}
+
+body > .v4-mobile-tabbar[data-homepage-dock="true"] {
+  position: fixed !important;
+  inset: auto auto calc(8px + env(safe-area-inset-bottom, 0px)) 50% !important;
+  z-index: 10000 !important;
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  align-items: center !important;
+  width: min(360px, calc(100vw - 32px)) !important;
+  max-width: calc(100vw - 24px) !important;
+  min-height: 64px !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 6px !important;
+  box-sizing: border-box !important;
+  border-radius: 22px !important;
+  transform: translate3d(-50%, 0, 0) !important;
+  isolation: isolate !important;
+}
+
+body > .v4-mobile-tabbar[data-homepage-dock="true"] > a {
+  display: flex !important;
+  min-width: 0 !important;
+  min-height: 52px !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 3px !important;
+  overflow: visible !important;
+  white-space: nowrap !important;
+  text-decoration: none !important;
+}
+
+body > .v4-mobile-tabbar[data-homepage-dock="true"] > a svg {
+  display: block !important;
+  flex: 0 0 20px !important;
+  width: 20px !important;
+  height: 20px !important;
+}
+
+body > .v4-mobile-tabbar[data-homepage-dock="true"] > a span {
+  display: block !important;
+  font-size: 10px !important;
+  line-height: 1.2 !important;
+}
+
+@media (max-width: 700px) {
+  body:has(.v4-home) .v4-home {
+    min-height: 100vh !important;
+    min-height: 100svh !important;
+    padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive {
+    height: clamp(500px, 68svh, 640px) !important;
+    min-height: 500px !important;
+    max-height: 640px !important;
+  }
+
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-immersive-copy {
+    inset: auto 0 76px !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 0 20px !important;
+    text-align: center !important;
+  }
+
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-immersive-copy h1 {
+    max-width: 100% !important;
+    font-size: clamp(28px, 8vw, 42px) !important;
+    line-height: 1.12 !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-indicators {
+    bottom: 20px !important;
+  }
+
+  body:has(.v4-home) .v4-home-main--cinema > .v4-content-section:first-of-type {
+    margin-top: 18px !important;
+  }
+
+  body:has(.v4-home) .v4-home .v4-content-section {
+    width: calc(100% - 32px) !important;
+    margin-right: auto !important;
+    margin-left: auto !important;
+  }
+
+  body > .v4-mobile-tabbar[data-homepage-dock="true"] {
+    width: min(360px, calc(100vw - 28px)) !important;
+    min-height: 62px !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+@media (min-width: 701px) {
+  body > .v4-mobile-tabbar[data-homepage-dock="true"] {
+    display: none !important;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) and (max-width: 900px) {
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive {
+    height: 520px !important;
+    min-height: 520px !important;
+  }
+}
