@@ -57,7 +57,7 @@ def build_stats(connection: sqlite3.Connection, host=None):
     collected_by_expr = "collected_by" if "collected_by" in candidate_columns else "'[]' AS collected_by"
     candidates = [dict(r) for r in connection.execute(
         f"""SELECT id,task_id,url,host,kind,title,status,access_state,created_at,
-                   quality_evidence,playback_verification,{collected_by_expr}
+                   media_identity,quality_evidence,playback_verification,{collected_by_expr}
             FROM candidates ORDER BY created_at DESC"""
     ).fetchall()]
     try:
@@ -213,6 +213,15 @@ def build_stats(connection: sqlite3.Connection, host=None):
     )
     candidate_kind_counts = {}
     candidate_access_counts = {}
+    media_type_counts = {"movie": 0, "tv": 0, "anime": 0, "documentary": 0, "variety": 0, "short": 0, "unknown": 0}
+    identified_title_count = 0
+    for candidate in candidates:
+        identity = _json(candidate.get("media_identity"))
+        media_type = str(identity.get("media_type") or "unknown")
+        if media_type not in media_type_counts: media_type = "unknown"
+        media_type_counts[media_type] += 1
+        if identity.get("title_hint") and identity.get("match_confidence") in ("structured_metadata", "page_metadata"):
+            identified_title_count += 1
     candidate_collector_counts = {"spider": 0, "browser": 0, "fmhy": 0, "unknown": 0}
     for candidate in candidates:
         kind = str(candidate.get("kind") or "unknown")
@@ -235,6 +244,9 @@ def build_stats(connection: sqlite3.Connection, host=None):
     summary = {
         "candidate_records": len(candidates),
         "candidate_kinds": candidate_kind_counts,
+        "media_type_counts": media_type_counts,
+        "identified_titles": identified_title_count,
+        "unclassified_candidates": media_type_counts["unknown"],
         "candidate_access_states": candidate_access_counts,
         "candidate_collectors": candidate_collector_counts,
         "discovered_sites": len(sites), "visited_sites": len(visited_hosts),
@@ -280,11 +292,26 @@ def build_stats(connection: sqlite3.Connection, host=None):
             for t in tasks_by_host.get(host, [])[:20]
         ]
         response["recent_resources"] = [{
-            "title": c.get("title") or c.get("host"), "kind": c.get("kind"),
-            "status": c.get("status"), "access_state": c.get("access_state"),
+            "title": (_json(c.get("media_identity")).get("title_hint")
+                      if _json(c.get("media_identity")).get("match_confidence") in ("structured_metadata", "page_metadata")
+                      else c.get("title")) or "待识别资源",
+            "media_type": _json(c.get("media_identity")).get("media_type", "unknown"),
+            "year": _json(c.get("media_identity")).get("year_hint"),
+            "season": _json(c.get("media_identity")).get("season_hint"),
+            "episode": _json(c.get("media_identity")).get("episode_hint"),
+            "identity_confidence": _json(c.get("media_identity")).get("match_confidence", "hint_only"),
+            "kind": c.get("kind"), "status": c.get("status"),
+            "access_state": c.get("access_state"),
             "playback_confirmed": _json(c.get("playback_verification")).get("state") == "PLAYER_CONFIRMED",
             "decoded_width": _json(c.get("playback_verification")).get("decoded_width", 0),
             "decoded_height": _json(c.get("playback_verification")).get("decoded_height", 0),
+            "actual_quality": resolution_bucket(
+                _json(c.get("playback_verification")).get("decoded_width"),
+                _json(c.get("playback_verification")).get("decoded_height")
+            ) if _json(c.get("playback_verification")).get("state") == "PLAYER_CONFIRMED" else "未知",
+            "declared_quality": (_json(c.get("quality_evidence")).get("declared_quality_label")
+                                 or _json(c.get("media_identity")).get("quality_hint")),
+            "poster": _json(c.get("media_identity")).get("poster"),
             "created_at": c.get("created_at")
         } for c in candidates_by_host.get(host, [])[:50]]
     return response
