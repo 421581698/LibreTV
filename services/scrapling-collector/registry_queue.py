@@ -366,19 +366,64 @@ def register_discovered_candidate(candidate: dict) -> dict | None:
     }.get(kind)
     if not resource_type:
         return None
+    identity = candidate.get("media_identity") if isinstance(candidate.get("media_identity"), dict) else {}
+    quality = candidate.get("quality_evidence") if isinstance(candidate.get("quality_evidence"), dict) else {}
+    media_type = str(identity.get("media_type") or "unknown")
+    title_hint = str(identity.get("title_hint") or "").strip()[:200]
+    confidence = str(identity.get("match_confidence") or "hint_only")
+    # Only structured page metadata may create a canonical title record.
+    # Filename/page-title hints remain searchable candidates, not asserted movie identities.
+    canonical_identity = (
+        media_type in {"movie", "tv", "anime", "documentary", "variety", "short"}
+        and bool(title_hint)
+        and confidence in {"structured_metadata", "page_metadata"}
+    )
+    movie_external_key = None
+    episode_external_key = None
+    if canonical_identity:
+        movie_external_key = "media:" + str(identity.get("entity_key") or hashlib.sha256(
+            (media_type + "|" + title_hint.casefold() + "|" + str(identity.get("year_hint") or "")).encode()
+        ).hexdigest()[:24])
+        if identity.get("season_hint") is not None and identity.get("episode_hint") is not None:
+            episode_external_key = movie_external_key + ":s" + str(identity["season_hint"]) + ":e" + str(identity["episode_hint"])
+    page_metadata = candidate.get("page_metadata") if isinstance(candidate.get("page_metadata"), dict) else {}
+    display_title = title_hint if canonical_identity else str(candidate.get("title") or candidate.get("host") or "待识别资源")
+    movie_metadata = {
+        "media_type": media_type,
+        "identity_confidence": confidence,
+        "identity_source": identity.get("identity_source"),
+        "description": identity.get("description") or page_metadata.get("description"),
+        "poster": identity.get("poster") or page_metadata.get("poster"),
+    }
+    resource_metadata = {
+        "discovery_status": candidate.get("status", "pending"),
+        "search_keyword": str(candidate.get("search_keyword") or "")[:100],
+        "media_identity": identity,
+        "page_metadata": {
+            "identity_source": page_metadata.get("identity_source"),
+            "description": str(page_metadata.get("description") or "")[:500],
+            "poster": str(page_metadata.get("poster") or "")[:2048],
+        },
+        "quality_evidence": quality,
+    }
     return upsert_resource({
-        "resource_key": "candidate:"+str(candidate["id"]),
+        "resource_key": "candidate:" + str(candidate["id"]),
         "candidate_id": candidate["id"],
         "source_key": candidate.get("host") or "unknown",
         "source_name": candidate.get("host") or "Unknown source",
         "resource_type": resource_type,
         "url": candidate["url"],
-        "title": candidate.get("title") or candidate.get("host") or "Untitled resource",
+        "title": display_title,
         "access_state": candidate.get("access_state") or "ACCESS_UNKNOWN",
-        "metadata": {
-            "discovery_status": candidate.get("status", "pending"),
-            "search_keyword": str(candidate.get("search_keyword") or "")[:100],
-        },
+        "movie_external_key": movie_external_key,
+        "episode_external_key": episode_external_key,
+        "movie_title": title_hint if canonical_identity else None,
+        "episode_title": display_title if episode_external_key else None,
+        "year": identity.get("year_hint") if canonical_identity else None,
+        "season": identity.get("season_hint") if episode_external_key else None,
+        "episode": identity.get("episode_hint") if episode_external_key else None,
+        "movie_metadata": movie_metadata if canonical_identity else {},
+        "metadata": resource_metadata,
     })
 
 
