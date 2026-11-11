@@ -160,9 +160,9 @@ describe('首页与播放页回归契约', () => {
     expect(v4Header).toContain('is-overlay');
     expect(v4Header).not.toContain('setIsScrolled');
     expect(v4Header).not.toContain('is-scrolled');
-    expect(homepageStyles).toContain('background: transparent !important;');
-    expect(homepageStyles).toContain('rgba(20,20,20,.22)');
-    expect(homepageStyles).toContain('padding-left: 20px !important;');
+    expect(inlineHomeStyles).toContain('background: transparent !important;');
+    expect(inlineHomeStyles).toContain('rgba(20,20,20,.22)');
+    expect(inlineHomeStyles).toContain('padding-left: 20px !important;');
     expect(rootLayout).toContain("themeColor: '#000000'");
     expect(v4Styles).toContain('.v4-home-main--cinema > .v4-hero');
     for (const label of ['首页', '电影', '电视剧', '海外剧', '动漫', '综艺', '直播']) {
