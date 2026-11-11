@@ -6,8 +6,13 @@ import subprocess
 import sys
 import time
 
+from app import init_db
+
 
 def main() -> int:
+    # Run schema initialization once in the supervisor before either child starts.
+    # Importing app.py and starting API/worker children must remain side-effect free.
+    init_db()
     port = os.environ.get("PORT", "10000")
     api = subprocess.Popen([
         sys.executable, "-m", "uvicorn", "app:app",
