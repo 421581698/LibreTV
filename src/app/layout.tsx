@@ -18,6 +18,8 @@ import './theme-global-compat.css';
 import './iphone-minimal-ui.css';
 // Final iPhone homepage overrides must win over shared header/theme layers.
 import './iphone-home-inline.css';
+// Apple-inspired minimal settings surface and multicolor outline category icons.
+import './settings-apple-minimal.css';
 import { Providers } from '@/components/providers';
 
 export const metadata: Metadata = {
