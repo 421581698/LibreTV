@@ -11,7 +11,7 @@ function normalizeOrigin(value: string): string | null {
     const url = new URL(value.trim());
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
     if (url.username || url.password || url.pathname !== '/' || url.search || url.hash) return null;
-    const hostname = url.hostname.replace(/^\\[|\\]$/g, '').replace(/\\.$/, '');
+    const hostname = url.hostname.replace(/^\[|\]$/g, '').replace(/\.$/, '');
     const host = hostname.includes(':') ? `[${hostname}]` : hostname;
     return `${url.protocol}//${host}${url.port ? `:${url.port}` : ''}`.toLowerCase();
   } catch {
