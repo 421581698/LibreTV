@@ -1587,3 +1587,58 @@ html:has(.v4-home) {
 @media (min-width: 701px) {
   body:has(.v4-home) .v4-home .v4-mobile-tabbar { display: none !important; }
 }
+
+/* PR84 visual polish: the homepage is immersive from first paint, not after scroll. */
+@media (max-width: 700px) {
+  :root:not(.dark) body:has(.v4-home) .v4-home > .v4-header,
+  :root:not(.dark) body:has(.v4-home) .v4-home > .v4-header.is-overlay,
+  :root:not(.dark) body:has(.v4-home) .v4-home > .v4-header.is-overlay.is-scrolled,
+  body:has(.v4-home) .v4-home > .v4-header,
+  body:has(.v4-home) .v4-home > .v4-header.is-overlay,
+  body:has(.v4-home) .v4-home > .v4-header.is-overlay.is-scrolled {
+    position: absolute !important;
+    inset: 0 0 auto 0 !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  :root:not(.dark) body:has(.v4-home) .v4-home > .v4-header .v4-header-inner,
+  body:has(.v4-home) .v4-home > .v4-header .v4-header-inner {
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Keep the iOS top safe-area and browser chrome on the same black canvas. */
+  html:has(.v4-home),
+  body:has(.v4-home),
+  body:has(.v4-home) .v4-home {
+    background: #000 !important;
+    background-color: #000 !important;
+  }
+
+  /* Let the actual poster artwork show through the floating dock. */
+  body:has(.v4-home) .v4-home .v4-mobile-tabbar {
+    background: rgba(20,20,20,.22) !important;
+    background-color: rgba(20,20,20,.22) !important;
+    border-color: rgba(255,255,255,.18) !important;
+    -webkit-backdrop-filter: blur(34px) saturate(190%) contrast(108%) !important;
+    backdrop-filter: blur(34px) saturate(190%) contrast(108%) !important;
+    box-shadow: 0 8px 26px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.16) !important;
+  }
+
+  /* The first poster must start 20px in from the viewport edge. */
+  body:has(.v4-home) .v4-home .v4-today-rail {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+    scroll-padding-left: 20px !important;
+    scroll-padding-right: 20px !important;
+  }
+}
