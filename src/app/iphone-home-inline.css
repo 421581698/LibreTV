@@ -2434,3 +2434,67 @@ body .v4-home .v4-hero-immersive .v4-hero-image img {
     ) !important;
   }
 }
+
+
+/* PR84 poster-first display pipeline: SDR enhancement + HDR-capable display path.
+   HDR output is available only when the source image itself contains HDR data. */
+body .v4-home .v4-hero-immersive .v4-hero-image {
+  overflow: hidden !important;
+  background: #000 !important;
+}
+body .v4-home .v4-hero-immersive .v4-hero-image img {
+  filter: brightness(1.22) contrast(1.12) saturate(1.14) !important;
+  -webkit-filter: brightness(1.22) contrast(1.12) saturate(1.14) !important;
+  opacity: 1 !important;
+}
+body .v4-home .v4-hero-immersive > .v4-hero-veil {
+  background: linear-gradient(
+    180deg,
+    rgba(0,0,0,0) 0%,
+    rgba(0,0,0,0) 42%,
+    rgba(0,0,0,.08) 58%,
+    rgba(0,0,0,.34) 74%,
+    rgba(0,0,0,.72) 86%,
+    #000 96%,
+    #000 100%
+  ) !important;
+}
+/* Let browsers with HDR displays use the full range of HDR-capable source images. */
+@media (dynamic-range: high) {
+  body .v4-home .v4-hero-immersive .v4-hero-image img {
+    dynamic-range-limit: no-limit;
+    filter: brightness(1.12) contrast(1.12) saturate(1.12) !important;
+    -webkit-filter: brightness(1.12) contrast(1.12) saturate(1.12) !important;
+  }
+}
+@media (color-gamut: p3) {
+  body .v4-home .v4-hero-immersive .v4-hero-image img {
+    color-gamut: p3;
+  }
+}
+@media screen and (max-width: 700px) {
+  body .v4-home .v4-hero-immersive .v4-hero-image img {
+    filter: brightness(1.25) contrast(1.13) saturate(1.16) !important;
+    -webkit-filter: brightness(1.25) contrast(1.13) saturate(1.16) !important;
+  }
+  @media (dynamic-range: high) {
+    body .v4-home .v4-hero-immersive .v4-hero-image img {
+      dynamic-range-limit: no-limit;
+      filter: brightness(1.14) contrast(1.12) saturate(1.14) !important;
+      -webkit-filter: brightness(1.14) contrast(1.12) saturate(1.14) !important;
+    }
+  }
+  body .v4-home .v4-hero-immersive-copy {
+    bottom: 0 !important;
+    padding: 0 22px 112px !important;
+    justify-content: flex-end !important;
+    gap: 7px !important;
+  }
+  body .v4-home .v4-hero-immersive-copy > p { display: none !important; }
+  body .v4-home .v4-hero-immersive .v4-hero-dots { bottom: 18px !important; }
+  body .v4-home .v4-home-main,
+  body .v4-home .v4-home-main--cinema {
+    padding-bottom: max(112px,calc(112px + env(safe-area-inset-bottom,0px))) !important;
+    scroll-padding-bottom: 128px !important;
+  }
+}
