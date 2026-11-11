@@ -297,6 +297,38 @@ class CollectorTests(unittest.TestCase):
             ("cms-api-candidate", "catalog.example"),
         )
 
+    def test_http_candidate_extractor_finds_public_player_attributes_and_inline_config(self):
+        class Element:
+            def __init__(self, attrib=None, text=""):
+                self.attrib = attrib or {}
+                self.text = text
+
+        class Title:
+            def get(self):
+                return "Public movie catalogue"
+
+        class Page:
+            url = "https://catalog.example/watch/123"
+
+            def css(self, selector, **kwargs):
+                if selector == "title::text":
+                    return Title()
+                if selector == "[data-src], [data-url], [data-play], [content], [data-config], [data-player]":
+                    return [
+                        Element({"data-src": "https://cdn.example/movie/master.m3u8"}),
+                        Element({"data-config": '{"url":"https://cdn.example/movie/backup.mp4"}'}),
+                    ]
+                if selector == "script":
+                    return [Element(text='const player = { file: "https://cdn.example/movie/inline.m3u8" };')]
+                return []
+
+        found = collector.extract_candidates(Page(), Page.url, 20)
+        urls = {item["url"] for item in found}
+        self.assertIn("https://cdn.example/movie/master.m3u8", urls)
+        self.assertIn("https://cdn.example/movie/backup.mp4", urls)
+        self.assertIn("https://cdn.example/movie/inline.m3u8", urls)
+        self.assertTrue(all(item["host"] == "cdn.example" for item in found))
+
     def test_rejects_non_https_and_credentials(self):
         self.assertIsNone(collector.classify_url("http://media.example/movie.mp4"))
         self.assertIsNone(collector.classify_url("https://user:pass@media.example/movie.mp4"))
