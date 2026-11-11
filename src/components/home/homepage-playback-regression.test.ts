@@ -127,9 +127,11 @@ describe('首页与播放页回归契约', () => {
     expect(inlineHomeStyles).toContain('.v4-history-image > img');
     expect(inlineHomeStyles).toContain('height: clamp(360px,55svh,520px) !important;');
     expect(inlineHomeStyles).not.toContain('height: 100svh !important;');
+    expect(inlineHomeStyles).toContain('height: clamp(640px,94svh,900px) !important;');
+    expect(inlineHomeStyles).toContain('linear-gradient(180deg,rgba(0,0,0,.08)');
     expect(v4Content).toContain('v4-progress-percent');
     expect(featuredHero).toContain('发现好内容');
-    expect(featuredHero).not.toContain('v4-hero-primary');
+    expect(featuredHero).toContain('v4-hero-primary');
     expect(featuredHero).not.toContain('v4-hero-secondary');
     expect(featuredHero).toContain('v4-hero-tags');
     expect(featuredHero).toContain('立即播放');
