@@ -1919,3 +1919,216 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
   .v4-home .v4-hero-content .v4-hero-indicators { margin-top: 14px !important; }
   .v4-home .v4-mobile-tabbar { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
 }
+
+/* Final compact-pill header: each control is its own small glass capsule.
+   The hero artwork starts at the very top edge and continues behind the header. */
+.v4-home .v4-header {
+  position: absolute !important;
+  inset: 0 0 auto 0 !important;
+  z-index: 300 !important;
+  width: 100% !important;
+  min-height: 0 !important;
+  padding: max(12px, env(safe-area-inset-top)) 0 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  pointer-events: none !important;
+}
+.v4-home .v4-header-inner {
+  display: flex !important;
+  flex-flow: row nowrap !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: calc(100% - 40px) !important;
+  max-width: 1720px !important;
+  min-height: 0 !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  gap: 10px !important;
+  pointer-events: none !important;
+}
+.v4-home .v4-brand,
+.v4-home .v4-header-actions > .v4-search,
+.v4-home .v4-header-actions > .v4-avatar {
+  display: inline-flex !important;
+  flex: 0 0 auto !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  border: 1px solid rgba(255,255,255,.28) !important;
+  border-radius: 999px !important;
+  background: rgba(12,17,27,.48) !important;
+  box-shadow: 0 3px 14px rgba(0,0,0,.12), inset 0 1px 0 rgba(255,255,255,.12) !important;
+  color: #fff !important;
+  -webkit-backdrop-filter: blur(18px) saturate(155%) !important;
+  backdrop-filter: blur(18px) saturate(155%) !important;
+  pointer-events: auto !important;
+}
+.v4-home .v4-brand {
+  gap: 6px !important;
+  width: auto !important;
+  min-width: 0 !important;
+  padding: 0 12px 0 9px !important;
+  font-size: 13px !important;
+  font-weight: 720 !important;
+  letter-spacing: -.2px !important;
+  text-decoration: none !important;
+  white-space: nowrap !important;
+}
+.v4-home .v4-brand-mark {
+  display: block !important;
+  width: 18px !important;
+  height: 18px !important;
+  flex: 0 0 18px !important;
+}
+.v4-home .v4-header-actions {
+  display: flex !important;
+  flex: 0 0 auto !important;
+  flex-flow: row nowrap !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  min-width: 0 !important;
+  margin: 0 0 0 auto !important;
+  gap: 7px !important;
+  pointer-events: none !important;
+}
+.v4-home .v4-header-actions > .v4-search {
+  width: 84px !important;
+  min-width: 84px !important;
+  max-width: 84px !important;
+  height: 34px !important;
+  padding: 0 10px !important;
+  gap: 7px !important;
+  overflow: hidden !important;
+  cursor: text !important;
+}
+.v4-home .v4-header-actions > .v4-search > svg {
+  width: 14px !important;
+  height: 14px !important;
+  flex: 0 0 14px !important;
+}
+.v4-home .v4-header-actions > .v4-search .v4-search-field {
+  flex: 0 0 0 !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+.v4-home .v4-header-actions > .v4-search input {
+  width: 0 !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  opacity: 0 !important;
+  color: #fff !important;
+}
+.v4-home .v4-header-actions > .v4-search:focus-within {
+  width: clamp(150px, 32vw, 240px) !important;
+  max-width: min(240px, 48vw) !important;
+}
+.v4-home .v4-header-actions > .v4-search:focus-within .v4-search-field {
+  flex: 1 1 auto !important;
+  width: auto !important;
+}
+.v4-home .v4-header-actions > .v4-search:focus-within input {
+  width: 100% !important;
+  opacity: 1 !important;
+}
+.v4-home .v4-header-actions > .v4-avatar {
+  width: auto !important;
+  min-width: 58px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  padding: 0 10px !important;
+  gap: 5px !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  white-space: nowrap !important;
+}
+.v4-home .v4-header-actions > .v4-avatar svg {
+  width: 14px !important;
+  height: 14px !important;
+}
+.v4-home .v4-mobile-search-toggle { display: none !important; }
+
+/* Remove any inherited top offset: poster artwork touches the top edge. */
+.v4-home .v4-home-main,
+.v4-home-main--cinema {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding-top: 0 !important;
+}
+.v4-home-main--cinema > .v4-hero,
+.v4-home .v4-hero {
+  width: 100% !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+.v4-home .v4-hero-image,
+.v4-home .v4-hero-image img {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  object-fit: cover !important;
+  object-position: center 24% !important;
+}
+@media (max-width: 700px) {
+  .v4-home .v4-header {
+    padding-top: max(8px, env(safe-area-inset-top)) !important;
+  }
+  .v4-home .v4-header-inner {
+    width: calc(100% - 24px) !important;
+    gap: 6px !important;
+  }
+  .v4-home .v4-brand,
+  .v4-home .v4-header-actions > .v4-search,
+  .v4-home .v4-header-actions > .v4-avatar {
+    height: 31px !important;
+    min-height: 31px !important;
+  }
+  .v4-home .v4-brand {
+    padding: 0 9px 0 7px !important;
+    gap: 5px !important;
+    font-size: 12px !important;
+  }
+  .v4-home .v4-brand-mark {
+    width: 16px !important;
+    height: 16px !important;
+    flex-basis: 16px !important;
+  }
+  .v4-home .v4-header-actions { gap: 5px !important; }
+  .v4-home .v4-header-actions > .v4-search {
+    width: 68px !important;
+    min-width: 68px !important;
+    max-width: 68px !important;
+    padding: 0 8px !important;
+  }
+  .v4-home .v4-header-actions > .v4-search:focus-within {
+    width: min(180px, 46vw) !important;
+    max-width: min(180px, 46vw) !important;
+  }
+  .v4-home .v4-header-actions > .v4-avatar {
+    min-width: 50px !important;
+    padding: 0 8px !important;
+    font-size: 10px !important;
+  }
+  .v4-home .v4-header-actions > .v4-avatar svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
+  .v4-home-main--cinema > .v4-hero {
+    height: clamp(380px, 62svh, 560px) !important;
+    min-height: 0 !important;
+  }
+  .v4-home .v4-hero-image img { object-position: center 22% !important; }
+}
+@media (min-width: 701px) and (max-width: 1100px) {
+  .v4-home .v4-header-inner { width: calc(100% - 32px) !important; }
+  .v4-home-main--cinema > .v4-hero { height: clamp(460px, 66vh, 680px) !important; }
+}
