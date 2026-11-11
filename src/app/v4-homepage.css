@@ -1483,3 +1483,158 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
 @media screen and (min-width: 701px) {
   .v4-mobile-tabbar { display: none !important; }
 }
+
+
+/* Homepage order refresh: compact floating top pill, Today Pick before
+   continue-watching, and a three-destination fixed bottom bar. */
+.v4-home .v4-header {
+  position: absolute !important;
+  top: max(10px, env(safe-area-inset-top)) !important;
+  left: 12px !important;
+  right: 12px !important;
+  width: auto !important;
+  border: 1px solid rgba(255,255,255,.2) !important;
+  border-radius: 999px !important;
+  background: rgba(12,16,24,.56) !important;
+  box-shadow: 0 8px 28px rgba(0,0,0,.16) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(150%) !important;
+  backdrop-filter: blur(22px) saturate(150%) !important;
+}
+.v4-home .v4-header-inner {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: calc(100% - 24px) !important;
+  min-height: 54px !important;
+  gap: 14px !important;
+}
+.v4-home .v4-primary-nav,
+.v4-home .v4-header-actions > .v4-header-icon {
+  display: none !important;
+}
+.v4-home .v4-brand {
+  flex: 0 0 auto !important;
+  font-size: 17px !important;
+  white-space: nowrap !important;
+}
+.v4-home .v4-header-actions {
+  display: flex !important;
+  flex: 1 1 auto !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  min-width: 0 !important;
+  gap: 10px !important;
+}
+.v4-home .v4-header-actions > .v4-search {
+  display: flex !important;
+  position: relative !important;
+  flex: 0 1 260px !important;
+  width: min(260px, 42vw) !important;
+  min-width: 110px !important;
+  height: 38px !important;
+  padding: 0 12px !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,.12) !important;
+  border: 1px solid rgba(255,255,255,.18) !important;
+}
+.v4-home .v4-header-actions > .v4-search input {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  opacity: 1 !important;
+  color: #fff !important;
+}
+.v4-home .v4-header-actions > .v4-mobile-search-toggle { display: none !important; }
+.v4-home .v4-header-actions > .v4-avatar {
+  display: inline-flex !important;
+  flex: 0 0 36px !important;
+  width: 36px !important;
+  min-width: 36px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+}
+.v4-home .v4-home-main { padding-top: 0 !important; }
+.v4-home .v4-hero {
+  width: 100% !important;
+  height: min(58vh, 700px) !important;
+  min-height: 390px !important;
+  border-radius: 0 !important;
+}
+.v4-home .v4-content-section { width: min(100% - 48px, 1480px) !important; }
+.v4-home .v4-today-section { margin-top: 26px !important; }
+.v4-today-featured {
+  display: flex;
+  align-items: stretch;
+  gap: clamp(18px, 3vw, 36px);
+  width: min(100%, 760px);
+  min-height: 280px;
+  padding: 14px;
+  overflow: hidden;
+  text-align: left;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 22px;
+  background: linear-gradient(120deg,rgba(255,255,255,.11),rgba(255,255,255,.045));
+  box-shadow: 0 12px 34px rgba(0,0,0,.18);
+  cursor: pointer;
+}
+.v4-today-poster {
+  position: relative;
+  display: block;
+  flex: 0 0 min(34%, 220px);
+  min-height: 260px;
+  overflow: hidden;
+  border-radius: 15px;
+  background: rgba(255,255,255,.08);
+}
+.v4-today-copy {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 0;
+  gap: 12px;
+  padding: 12px 8px;
+}
+.v4-today-eyebrow { color: #e6c27e; font-size: 10px; font-weight: 750; letter-spacing: 2px; }
+.v4-today-copy strong { color: #fff; font-size: clamp(22px,3vw,34px); line-height: 1.18; font-weight: 780; }
+.v4-today-meta { color: rgba(255,255,255,.68); font-size: 13px; }
+.v4-today-cta { display: inline-flex; align-items: center; margin-top: 8px; padding: 10px 18px; border-radius: 999px; color: #17191d; background: #f4e4bf; font-size: 13px; font-weight: 750; }
+.v4-today-featured-skeleton {
+  display: grid;
+  place-items: center;
+  width: min(100%,760px);
+  min-height: 280px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 22px;
+  color: rgba(255,255,255,.65);
+  background: rgba(255,255,255,.06);
+}
+.v4-mobile-tabbar {
+  grid-template-columns: repeat(3,minmax(0,1fr)) !important;
+}
+@media (max-width: 700px) {
+  .v4-home .v4-header { top: max(8px,env(safe-area-inset-top)) !important; left: 10px !important; right: 10px !important; }
+  .v4-home .v4-header-inner { width: calc(100% - 18px) !important; min-height: 48px !important; gap: 7px !important; }
+  .v4-home .v4-brand { font-size: 15px !important; gap: 5px !important; }
+  .v4-home .v4-brand-mark { width: 21px !important; height: 21px !important; flex-basis: 21px !important; }
+  .v4-home .v4-header-actions { gap: 6px !important; }
+  .v4-home .v4-header-actions > .v4-search { flex-basis: 0 !important; width: auto !important; min-width: 0 !important; height: 34px !important; padding: 0 9px !important; }
+  .v4-home .v4-header-actions > .v4-search input { font-size: 11px !important; }
+  .v4-home .v4-header-actions > .v4-avatar { flex-basis: 31px !important; width: 31px !important; min-width: 31px !important; height: 31px !important; min-height: 31px !important; }
+  .v4-home .v4-hero { height: 55svh !important; min-height: 360px !important; max-height: 520px !important; }
+  .v4-home .v4-hero-content { left: 20px !important; right: 18px !important; bottom: 48px !important; }
+  .v4-home .v4-hero-content h1 { font-size: clamp(32px,9vw,44px) !important; }
+  .v4-home .v4-content-section { width: calc(100% - 32px) !important; }
+  .v4-home .v4-today-section { margin-top: 20px !important; }
+  .v4-today-featured { width: 100%; min-height: 0; gap: 14px; padding: 9px; border-radius: 17px; }
+  .v4-today-poster { flex-basis: 43%; min-height: 220px; aspect-ratio: 2/3; }
+  .v4-today-copy { gap: 9px; padding: 8px 3px; }
+  .v4-today-copy strong { font-size: clamp(18px,5.2vw,25px); }
+  .v4-today-meta { font-size: 11px; }
+  .v4-today-cta { margin-top: 4px; padding: 8px 13px; font-size: 11px; }
+  .v4-today-featured-skeleton { min-height: 220px; }
+  .v4-mobile-tabbar { grid-template-columns: repeat(3,minmax(0,1fr)) !important; }
+  .v4-home { padding-bottom: calc(92px + env(safe-area-inset-bottom)) !important; }
+}
