@@ -55,7 +55,7 @@ export function V4HomepageHeader({ overlay = false }: { overlay?: boolean }) {
         </div>
       </header>
       <MobileTabBar />
-      <AIFloatingBall showFab inlineMode={false} />
+      <AIFloatingBall showFab inlineMode={false}/>
       <SourceManagerDrawer
         key={settingsInstance}
         open={settingsOpen}
