@@ -643,3 +643,8 @@ body:has(.v4-search-page) {
   .v4-search-page { padding-bottom: 52px !important; }
   .v4-search-page .v4-search-main { padding-bottom: 28px !important; }
 }
+
+/* Ensure poster image sits above the card background and below its title overlay. */
+.v4-search-page .v4-search-category-image { z-index: 0 !important; }
+.v4-search-page .v4-search-category-card::before { z-index: 1 !important; }
+.v4-search-page .v4-search-category-copy { position: relative !important; z-index: 2 !important; }
