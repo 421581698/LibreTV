@@ -610,11 +610,24 @@ def api_search_resources(q: str = "", verified_only: bool = True, limit: int = Q
                   LEFT JOIN registry_episodes e ON e.id=r.episode_id
                   LEFT JOIN registry_sources s ON s.id=r.source_id
                   WHERE 1=1"""
+        count_sql = """SELECT COUNT(*) AS n FROM registry_resources r
+                       LEFT JOIN registry_movies m ON m.id=r.movie_id
+                       WHERE 1=1"""
         args: list[Any] = []
-        if verified_only: sql += " AND r.validation_state='validated' AND r.playback_state='PLAYER_CONFIRMED' AND r.access_state='PUBLIC'"
-        if q.strip(): sql += " AND (r.title LIKE ? OR r.resource_key LIKE ? OR m.title LIKE ?)"; args.extend([f"%{q[:100]}%",f"%{q[:100]}%",f"%{q[:100]}%"])
+        count_args: list[Any] = []
+        if verified_only:
+            eligibility = " AND r.validation_state='validated' AND r.playback_state='PLAYER_CONFIRMED' AND r.access_state='PUBLIC'"
+            sql += eligibility
+            count_sql += eligibility
+        if q.strip():
+            pattern = f"%{q[:100]}%"
+            search_filter = " AND (r.title LIKE ? OR r.resource_key LIKE ? OR m.title LIKE ?)"
+            sql += search_filter
+            count_sql += search_filter
+            args.extend([pattern, pattern, pattern])
+            count_args.extend([pattern, pattern, pattern])
         rows=c.execute(sql+" ORDER BY r.updated_at DESC LIMIT ? OFFSET ?",(*args,limit,offset)).fetchall()
-        total=c.execute("SELECT COUNT(*) AS n FROM registry_resources").fetchone()["n"]
+        total=c.execute(count_sql,count_args).fetchone()["n"]
     return {"resources":[dict(r) for r in rows],"total":total,"limit":limit,"offset":offset,"has_more":offset+len(rows)<total}
 
 
