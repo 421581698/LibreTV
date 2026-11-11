@@ -1,0 +1,139 @@
+/* PR #84 — one global iPhone layout contract.
+   Loaded after all legacy/page-specific styles so no route can redefine the dock. */
+
+@media (max-width: 700px) {
+  /* The portal component is the only tab bar; geometry is identical on every route. */
+  body > .v4-mobile-tabbar {
+    position: fixed !important;
+    z-index: 10000 !important;
+    inset: auto auto calc(8px + env(safe-area-inset-bottom, 0px)) 50% !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    align-items: center !important;
+    gap: 2px !important;
+    box-sizing: border-box !important;
+    width: min(324px, calc(100vw - 36px)) !important;
+    max-width: calc(100vw - 36px) !important;
+    height: 64px !important;
+    min-height: 64px !important;
+    margin: 0 !important;
+    padding: 5px !important;
+    overflow: visible !important;
+    border: 1px solid rgba(255,255,255,.12) !important;
+    border-radius: 999px !important;
+    background: rgba(24,25,29,.76) !important;
+    box-shadow: 0 8px 26px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.08) !important;
+    -webkit-backdrop-filter: blur(26px) saturate(145%) !important;
+    backdrop-filter: blur(26px) saturate(145%) !important;
+    transform: translate3d(-50%,0,0) !important;
+  }
+  body > .v4-mobile-tabbar::before,
+  body > .v4-mobile-tabbar::after { display: none !important; content: none !important; }
+  body > .v4-mobile-tabbar > a {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 3px !important;
+    width: 100% !important;
+    height: 52px !important;
+    min-height: 52px !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    border-radius: 999px !important;
+    color: rgba(255,255,255,.72) !important;
+    background: transparent !important;
+    font-size: 10px !important;
+    font-weight: 550 !important;
+    line-height: 1.1 !important;
+    white-space: nowrap !important;
+    text-decoration: none !important;
+  }
+  body > .v4-mobile-tabbar > a svg {
+    display: block !important;
+    width: 20px !important;
+    height: 20px !important;
+    flex: 0 0 20px !important;
+    stroke: currentColor !important;
+    stroke-width: 1.9 !important;
+  }
+  body > .v4-mobile-tabbar > a span {
+    display: block !important;
+    color: inherit !important;
+    font-size: 10px !important;
+    line-height: 1.1 !important;
+  }
+  body > .v4-mobile-tabbar > a.is-active {
+    color: #39a9ff !important;
+    background: rgba(0,0,0,.34) !important;
+    box-shadow: none !important;
+  }
+  body > .v4-mobile-tabbar > a i { display: none !important; }
+
+  /* Content always scrolls completely above the same floating dock. */
+  body:has(.v4-home) .v4-home {
+    padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  body .v4-search-page {
+    padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  body .v4-search-page .v4-search-main { padding-bottom: 24px !important; }
+  body .v4-spatial-screen[data-screen="settings"] > .v4-spatial-main {
+    padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  body .v4-spatial-screen[data-screen="settings"] .settings-embedded-root {
+    padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* Keep the hero's artwork/title band below the iOS status and brand controls. */
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive {
+    box-sizing: border-box !important;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 54px) !important;
+  }
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-image {
+    inset: 0 !important;
+  }
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-image img {
+    top: calc(env(safe-area-inset-top, 0px) + 54px) !important;
+    bottom: auto !important;
+    height: calc(100% - env(safe-area-inset-top, 0px) - 54px) !important;
+    object-fit: cover !important;
+    object-position: center 18% !important;
+    transform: scale(1.035) !important;
+    transform-origin: center top !important;
+  }
+
+  /* Settings is a first-level destination: same left-aligned Large Title as Search. */
+  .settings-embedded-root .settings-large-title {
+    display: block !important;
+    margin: 0 auto 24px !important;
+    padding: 0 2px 4px !important;
+    text-align: left !important;
+  }
+  .settings-embedded-root .settings-large-title h1 {
+    margin: 0 !important;
+    color: #fff !important;
+    font-size: 42px !important;
+    line-height: 1.06 !important;
+    font-weight: 760 !important;
+    letter-spacing: -1.6px !important;
+    text-align: left !important;
+  }
+  .settings-embedded-root .settings-large-title p {
+    margin: 8px 0 0 !important;
+    color: #a1a1a6 !important;
+    font-size: 13px !important;
+    line-height: 1.5 !important;
+    text-align: left !important;
+  }
+  .v4-search-page .v4-search-heading h1 {
+    font-size: 42px !important;
+    line-height: 1.06 !important;
+    letter-spacing: -1.6px !important;
+  }
+}
+
+@media (min-width: 701px) {
+  body > .v4-mobile-tabbar { display: none !important; }
+}
