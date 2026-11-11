@@ -32,7 +32,7 @@ export function MobileTabBar() {
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
-    setPortalTarget(isHomepage ? document.body : null);
+    setPortalTarget(document.body);
   }, [isHomepage]);
 
   const navigation = (
@@ -54,6 +54,5 @@ export function MobileTabBar() {
     </nav>
   );
 
-  if (isHomepage) return portalTarget ? createPortal(navigation, portalTarget) : null;
-  return navigation;
+  return portalTarget ? createPortal(navigation, portalTarget) : null;
 }
