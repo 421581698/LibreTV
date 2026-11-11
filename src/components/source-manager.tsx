@@ -139,16 +139,11 @@ export function SourceManagerDrawer({ open, onClose, embedded = false }: { open:
     <>
       {activePage === 'index' ? (
         <>
-        <header className="settings-nav-bar">
-          <span className="settings-nav-title">设置</span>
+        <header className="settings-large-title">
+          <h1>设置</h1>
+          <p>管理 LibreTV 的外观、播放与资源偏好。</p>
         </header>
         <div className="ipad-settings-content mx-auto w-full max-w-2xl space-y-7 pb-3">
-          {!embedded ? (
-            <div className="space-y-1">
-              <h2 className="text-3xl font-semibold tracking-tight text-content">设置</h2>
-              <p className="text-sm text-muted">管理 LibreTV 的外观、播放与资源偏好。</p>
-            </div>
-          ) : null}
           {SETTINGS_SECTIONS.map((section) => (
             <section key={section.title} className="space-y-2">
               <h3 className="px-1 text-xs font-semibold tracking-wide text-muted">{section.title}</h3>
