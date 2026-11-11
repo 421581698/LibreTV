@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { collectorFetch } from '@/lib/collector-browser-config';
 
 type Quality = Record<string, number>;
@@ -30,7 +31,13 @@ type StatsPayload = {
   sites: SiteStat[]; site?: SiteStat | null;
   recent_jobs?: Array<{ id: string; job_type: string; status: string; attempt: number; max_attempts: number; error?: string | null; created_at: number; updated_at: number }>;
   recent_tasks?: Array<{ id: string; status: string; created_at: number; updated_at: number; error?: string | null; result_count: number }>;
-  recent_resources?: Array<{ title: string; kind: string; status: string; access_state: string; playback_confirmed: boolean; decoded_width: number; decoded_height: number; created_at: number }>;
+  recent_resources?: Array<{ title: string; media_type?: string; year?: number | null; season?: number | null; episode?: number | null; identity_confidence?: string; kind: string; status: string; access_state: string; playback_confirmed: boolean; decoded_width: number; decoded_height: number; actual_quality?: string; declared_quality?: string | null; poster?: string | null; created_at: number }>;
+};
+type LibraryResource = {
+  id: string; url: string; title: string; movie_title?: string | null; episode_title?: string | null;
+  release_year?: number | null; season?: number | null; episode?: number | null;
+  resource_type: string; media_format?: string | null; playback_state: string;
+  playback_evidence?: string | null; metadata?: string | null;
 };
 const QUALITY_ORDER = ['8K', '4K', '2K', '1080P', '720P', '480P', 'SD', '未知'];
 const fmt = (v: number | null | undefined) => typeof v === 'number' ? v.toLocaleString() : '—';
@@ -42,6 +49,8 @@ export function ResourceStatsPanel() {
   const [detail, setDetail] = useState<StatsPayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [library, setLibrary] = useState<LibraryResource[]>([]);
+  const [libraryError, setLibraryError] = useState('');
 
   const load = useCallback(async (host?: string) => {
     setLoading(true); setError('');
@@ -56,7 +65,20 @@ export function ResourceStatsPanel() {
     } finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  const loadLibrary = useCallback(async () => {
+    setLibraryError('');
+    try {
+      const response = await collectorFetch('/api/resource-collector?action=library', { cache: 'no-store' });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || payload.error || '读取已验证影视库失败。');
+      const resources = Array.isArray(payload.resources) ? payload.resources : [];
+      setLibrary(resources.filter((item: LibraryResource) => item.resource_type === 'DIRECT_MEDIA' && item.playback_state === 'PLAYER_CONFIRMED' && typeof item.url === 'string' && item.url.startsWith('https://')));
+    } catch (reason) {
+      setLibraryError(reason instanceof Error ? reason.message : '读取已验证影视库失败。');
+    }
+  }, []);
+
+  useEffect(() => { void load(); void loadLibrary(); }, [load, loadLibrary]);
   const selectSite = (host: string) => { setSelectedHost(host); setDetail(null); void load(host); };
   const summary = data?.summary;
 
@@ -125,6 +147,51 @@ export function ResourceStatsPanel() {
               ))}
             </div>
             <p className="mt-2 text-[11px] leading-5 text-muted">仅按播放器实际解码宽高分类；网站宣传的 4K 不计入实际 4K。质量统计仅使用正常播放页的真实样本；采集预览样本单独统计，不参与真实播放质量评分。未记录原始视频 URL、片名或用户身份。</p>
+          </div>
+          <div className="rounded-xl border border-line p-3 space-y-2">
+            <h4 className="text-xs font-semibold text-content">采集内容分类（含待识别候选）</h4>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {[['电影', 'movie'], ['电视剧', 'tv'], ['动漫', 'anime'], ['纪录片', 'documentary'], ['综艺', 'variety'], ['短片', 'short'], ['待识别', 'unknown']].map(([label, key]) => (
+                <div key={key} className="flex items-center justify-between rounded-lg bg-chip px-3 py-2 text-xs">
+                  <span className="text-muted">{label}</span>
+                  <strong className="tabular-nums text-content">{fmt(data.summary.media_type_counts?.[key] ?? 0)}</strong>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-muted">已识别片名 {fmt(data.summary.identified_titles ?? 0)} 条；只有结构化元数据或 Open Graph 明确提供的身份信息才进入已识别统计。</p>
+          </div>
+          <div className="rounded-xl border border-line p-3 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <h4 className="text-xs font-semibold text-content">本地影视库 · 已验证可播放</h4>
+              <button type="button" className="btn-ghost btn-sm" onClick={() => void loadLibrary()}>刷新</button>
+            </div>
+            {libraryError ? <p role="alert" className="text-xs text-red-600">{libraryError}</p> : null}
+            {library.length ? library.map((resource) => {
+              let playHref = '';
+              let mediaType = '待识别';
+              let actualQuality = '画质未知';
+              try {
+                const mediaUrl = new URL(resource.url);
+                const metadata = JSON.parse(resource.metadata || '{}');
+                const identity = metadata.media_identity || {};
+                const evidence = JSON.parse(resource.playback_evidence || '{}');
+                const labels: Record<string, string> = { movie: '电影', tv: '电视剧', anime: '动漫', documentary: '纪录片', variety: '综艺', short: '短片' };
+                mediaType = labels[identity.media_type || ''] || '待识别';
+                if (evidence.decoded_width && evidence.decoded_height) actualQuality = evidence.decoded_width + '×' + evidence.decoded_height;
+                const params = new URLSearchParams({ source: 'friday-cms', sourceUrl: mediaUrl.origin, url: resource.url, title: resource.movie_title || identity.title_hint || resource.title || '未知视频' });
+                playHref = '/watch?' + params.toString();
+              } catch { playHref = ''; }
+              const title = resource.movie_title || resource.episode_title || resource.title || '待识别资源';
+              return (
+                <div key={resource.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-chip p-3">
+                  <div className="min-w-0 flex-1">
+                    <strong className="block truncate text-xs text-content">{title}</strong>
+                    <span className="mt-1 block text-[11px] text-muted">{mediaType}{resource.release_year ? ' · ' + resource.release_year : ''}{resource.season != null && resource.episode != null ? ' · S' + resource.season + 'E' + resource.episode : ''}{' · '}{resource.media_format === 'hls' ? 'HLS' : resource.media_format || '媒体流'}{' · '}{actualQuality}</span>
+                  </div>
+                  {playHref ? <Link href={playHref} className="btn-primary btn-sm shrink-0">本地播放</Link> : <span className="text-[11px] text-muted">播放地址无效</span>}
+                </div>
+              );
+            }) : <p className="text-xs text-muted">{libraryError ? '暂时无法读取。' : '暂无通过公开访问及真实播放器确认的影视资源。候选和预检通过资源不会提前进入可播放库。'}</p>}
           </div>
           {summary.quality_ranking?.length ? (
             <div className="rounded-xl border border-line p-3 space-y-2">
