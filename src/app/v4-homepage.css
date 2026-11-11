@@ -1664,3 +1664,113 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
     backdrop-filter: blur(10px) saturate(160%) !important;
   }
 }
+
+
+/* PR61 follow-up: match the real nested hero DOM used by V4HomepageHero.
+   Keep the artwork covering the entire banner; keep pagination in the content
+   flow so it cannot drift into the page's black area on iOS Safari. */
+@media screen and (max-width: 700px) {
+  .v4-home .v4-home-main--cinema > .v4-hero {
+    position: relative !important;
+    display: block !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    height: clamp(560px, 78svh, 720px) !important;
+    min-height: 560px !important;
+    max-height: 720px !important;
+    aspect-ratio: auto !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    isolation: isolate !important;
+    background: #000 !important;
+  }
+
+  .v4-home .v4-home-main--cinema > .v4-hero > .v4-hero-image {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    background: linear-gradient(180deg, #172333 0%, #0b111b 72%, #000 100%) !important;
+  }
+
+  .v4-home .v4-home-main--cinema > .v4-hero > .v4-hero-image img {
+    position: absolute !important;
+    inset: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 100% !important;
+    min-height: 100% !important;
+    object-fit: cover !important;
+    object-position: center 38% !important;
+  }
+
+  .v4-home .v4-home-main--cinema > .v4-hero > .v4-hero-veil,
+  .v4-home .v4-home-main--cinema > .v4-hero::after {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 1 !important;
+    pointer-events: none !important;
+    background: linear-gradient(
+      180deg,
+      rgba(0,0,0,.04) 0%,
+      rgba(0,0,0,.08) 38%,
+      rgba(0,0,0,.40) 62%,
+      rgba(0,0,0,.84) 84%,
+      #000 100%
+    ) !important;
+  }
+
+  .v4-home .v4-home-main--cinema > .v4-hero > button[aria-label^="立即播放"] {
+    z-index: 2 !important;
+  }
+
+  .v4-home .v4-home-main--cinema > .v4-hero > .v4-hero-content {
+    position: absolute !important;
+    z-index: 3 !important;
+    top: auto !important;
+    left: 20px !important;
+    right: 20px !important;
+    bottom: max(30px, calc(env(safe-area-inset-bottom, 0px) + 24px)) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: none !important;
+  }
+
+  .v4-home .v4-home-main--cinema > .v4-hero > .v4-hero-content .v4-hero-indicators {
+    position: static !important;
+    inset: auto !important;
+    display: flex !important;
+    align-self: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    width: max-content !important;
+    margin: 18px auto 0 !important;
+    padding: 4px 8px !important;
+    transform: none !important;
+  }
+
+  .v4-home .v4-home-main--cinema > .v4-hero > .v4-hero-content .v4-hero-indicators button {
+    flex: 0 0 7px !important;
+    width: 7px !important;
+    min-width: 7px !important;
+    height: 7px !important;
+    min-height: 7px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+  }
+
+  .v4-home .v4-home-main--cinema > .v4-hero > .v4-hero-content .v4-hero-indicators button.is-active {
+    flex-basis: 24px !important;
+    width: 24px !important;
+    border-radius: 999px !important;
+  }
+}
