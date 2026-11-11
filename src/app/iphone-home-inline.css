@@ -2498,3 +2498,23 @@ body .v4-home .v4-hero-immersive > .v4-hero-veil {
     scroll-padding-bottom: 128px !important;
   }
 }
+
+
+/* HDR-safe poster output: never apply CSS filters to image pixels.
+   Native browser decoding preserves embedded Ultra HDR / gain-map metadata. */
+body .v4-home .v4-hero-immersive .v4-hero-image img {
+  filter: none !important;
+  -webkit-filter: none !important;
+  opacity: 1 !important;
+  image-rendering: auto !important;
+}
+@media (dynamic-range: high) {
+  body .v4-home .v4-hero-immersive .v4-hero-image img {
+    dynamic-range-limit: no-limit;
+  }
+}
+@media (color-gamut: p3) {
+  body .v4-home .v4-hero-immersive .v4-hero-image img {
+    color: inherit;
+  }
+}
