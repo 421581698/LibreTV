@@ -157,14 +157,11 @@ def init_db() -> None:
         connection.execute(
             "UPDATE candidates SET access_state='ACCESS_UNKNOWN' WHERE access_state IS NULL OR access_state=''"
         )
-        connection.execute("UPDATE tasks SET status='interrupted',updated_at=? WHERE status='running'", (int(time.time()),))
     # Keep the Registry on the same SQLite file as the legacy Collector tables,
     # including tests that override DB_PATH with a temporary database.
     registry_store.DB_PATH = DB_PATH
     registry_store.initialize()
 
-
-init_db()
 
 
 def require_token(authorization: str | None) -> None:
