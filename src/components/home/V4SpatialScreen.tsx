@@ -324,17 +324,17 @@ function MeScreen() {
         )}
       </section>
       <section className="v4-spatial-panel v4-me-library-actions">
-        <button type="button" className="v4-settings-card" onClick={() => window.dispatchEvent(new CustomEvent('libretv:open-history-panel'))}>
-          <div><strong>全部观看历史</strong><p>{history?.length ?? 0} 条最近记录 · 搜索、删除与继续播放</p></div><b aria-hidden="true">›</b>
+        <button type="button" className="v4-settings-card v4-settings-card--apple" onClick={() => window.dispatchEvent(new CustomEvent('libretv:open-history-panel'))}>
+          <span className="settings-apple-icon" style={{ color: '#55A7FF' }}><Icon name="clock" /></span><div><strong>全部观看历史</strong><p>{history?.length ?? 0} 条最近记录 · 搜索、删除与继续播放</p></div><b aria-hidden="true">›</b>
         </button>
-        <Link href="/search" className="v4-settings-card"><div><strong>搜索记录</strong><p>查看最近搜索并快速重新搜索</p></div><b aria-hidden="true">›</b></Link>
-        <Link href="/live" className="v4-settings-card"><div><strong>频道收藏</strong><p>{liveFavorites.length} 个已收藏频道</p></div><b aria-hidden="true">›</b></Link>
-        <button type="button" className="v4-settings-card" onClick={() => requestShowDownloadManager()}>
-          <div><strong>下载管理</strong><p>{downloads?.length ?? 0} 个本机下载任务 · 查看进度与管理文件</p></div><b aria-hidden="true">›</b>
+        <Link href="/search" className="v4-settings-card v4-settings-card--apple"><span className="settings-apple-icon" style={{ color: '#BF91FF' }}><Icon name="search" /></span><div><strong>搜索记录</strong><p>查看最近搜索并快速重新搜索</p></div><b aria-hidden="true">›</b></Link>
+        <Link href="/live" className="v4-settings-card v4-settings-card--apple"><span className="settings-apple-icon" style={{ color: '#32D7A0' }}><Icon name="radio" /></span><div><strong>频道收藏</strong><p>{liveFavorites.length} 个已收藏频道</p></div><b aria-hidden="true">›</b></Link>
+        <button type="button" className="v4-settings-card v4-settings-card--apple" onClick={() => requestShowDownloadManager()}>
+          <span className="settings-apple-icon" style={{ color: '#E8B45E' }}><Icon name="download" /></span><div><strong>下载管理</strong><p>{downloads?.length ?? 0} 个本机下载任务 · 查看进度与管理文件</p></div><b aria-hidden="true">›</b>
         </button>
       </section>
       <section className="v4-spatial-panel v4-me-settings-entry">
-        <Link href="/settings" className="v4-settings-card"><div><strong>设置</strong><p>外观、播放、资源管理、采集中心与隐私设置</p></div><b aria-hidden="true">›</b></Link>
+        <Link href="/settings" className="v4-settings-card v4-settings-card--apple"><span className="settings-apple-icon" style={{ color: '#E7A0D7' }}><Icon name="gear" /></span><div><strong>设置</strong><p>外观、播放、资源管理、采集中心与隐私设置</p></div><b aria-hidden="true">›</b></Link>
       </section>
     </div>
   );
