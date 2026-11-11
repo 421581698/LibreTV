@@ -3,7 +3,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import os
+import time
+import threading
 import uuid
+from datetime import datetime, time as clock_time
+from zoneinfo import ZoneInfo
 from urllib.parse import urlsplit, urlunsplit
 
 import registry_queue as registry_store
@@ -23,11 +27,11 @@ from registry_queue import JobCancelled, run_worker, submit_job
 MAX_AUTOMATIC_MEDIA_PREFLIGHTS = 100
 
 
-def get_discovered_sites(limit: int = 50) -> list[dict]:
+def get_discovered_sites(limit: int = 1000) -> list[dict]:
     with registry_store.connect() as connection:
         rows = connection.execute(
             "SELECT host,title,url,directory FROM sites WHERE directory LIKE 'FMHY / %' ORDER BY discovered_at DESC LIMIT ?",
-            (max(1, min(50, limit)),),
+            (max(1, min(1000, limit)),),
         ).fetchall()
     return [dict(row) for row in rows]
 
@@ -36,12 +40,11 @@ def run_batch_crawl(payload: dict, checkpoint, cancelled) -> dict:
     require_egress_firewall()
     minimum = max(101, min(1000, int(payload.get("minimum", 101))))
     target = max(minimum, min(1000, int(payload.get("target", 250))))
-    max_sites = max(1, min(50, int(payload.get("max_sites", 25))))
+    max_sites = max(1, min(1000, int(payload.get("max_sites", 1000))))
+    checkpoint({"stage": "fmhy_discovery_started"})
+    refreshed_sites = discover_sites()
+    checkpoint({"stage": "fmhy_directory_refreshed", "discovered": len(refreshed_sites)})
     sites = get_discovered_sites(max_sites)
-    if not sites:
-        checkpoint({"stage": "fmhy_discovery_started"})
-        discover_sites()
-        sites = get_discovered_sites(max_sites)
 
     unique_media: dict[str, dict] = {}
     preflight = {"checked": 0, "validated": 0, "rejected": 0, "errors": []}
@@ -116,9 +119,6 @@ def run_batch_crawl(payload: dict, checkpoint, cancelled) -> dict:
             "preflight_validated": preflight["validated"],
             "target": target,
         })
-        if len(unique_media) >= target:
-            break
-
     collected = len(unique_media)
     met = collected >= minimum
     return {
@@ -212,6 +212,36 @@ def handle(payload: dict, checkpoint, cancelled):
     return result
 
 
+def enqueue_daily_batch(now: datetime | None = None) -> dict:
+    timezone_name = os.environ.get("COLLECTOR_TIMEZONE", "America/Los_Angeles")
+    timezone = ZoneInfo(timezone_name)
+    current = now.astimezone(timezone) if now else datetime.now(timezone)
+    hour = max(0, min(23, int(os.environ.get("COLLECTOR_DAILY_HOUR", "3"))))
+    minute = max(0, min(59, int(os.environ.get("COLLECTOR_DAILY_MINUTE", "0"))))
+    if current.time() < clock_time(hour, minute):
+        return {"status": "not_due", "date": current.date().isoformat()}
+    date_key = current.date().isoformat()
+    job = submit_job(
+        "batch_crawl",
+        {"minimum": 101, "target": 1000, "max_sites": 1000, "refresh_directory": True},
+        f"daily-fmhy-batch:{date_key}",
+    )
+    return {"status": job["status"], "job_id": job["id"], "date": date_key}
+
+
+def daily_scheduler():
+    while True:
+        try:
+            result = enqueue_daily_batch()
+            if result["status"] not in {"not_due", "queued"}:
+                print(f"[daily-scheduler] {result}", flush=True)
+            elif result["status"] == "queued":
+                print(f"[daily-scheduler] queued {result['job_id']} for {result['date']}", flush=True)
+        except Exception as exc:
+            print(f"[daily-scheduler] scheduling failed: {type(exc).__name__}", flush=True)
+        time.sleep(60)
+
+
 def main():
     parser = argparse.ArgumentParser(description="LibreTV durable Scrapling job worker")
     parser.add_argument("--once", action="store_true", help="claim at most one job and exit")
@@ -219,6 +249,8 @@ def main():
     args = parser.parse_args()
     if not os.environ.get("SCRAPLING_API_TOKEN", "").strip():
         parser.error("SCRAPLING_API_TOKEN must be configured")
+    if not args.once:
+        threading.Thread(target=daily_scheduler, name="daily-fmhy-scheduler", daemon=True).start()
     run_worker(args.worker_id, handle, once=args.once)
 
 
