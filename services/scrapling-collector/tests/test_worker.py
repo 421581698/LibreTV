@@ -37,7 +37,7 @@ class WorkerPipelineTests(unittest.TestCase):
             }) as validate,
         ):
             result = worker.run_batch_crawl(
-                {"minimum": 101, "target": 250, "max_sites": 3},
+                {"minimum": 101, "target": 101, "max_sites": 3},
                 checkpoints.append,
                 lambda: False,
             )
