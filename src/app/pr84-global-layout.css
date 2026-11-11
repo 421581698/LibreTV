@@ -95,7 +95,15 @@
 
   /* Full-bleed hero: artwork reaches the physical viewport top.
      The header alone observes the iOS safe area; the image is never pushed down. */
+  body:has(.v4-home) .v4-home {
+    position: relative !important;
+  }
   body:has(.v4-home) .v4-home > .v4-header {
+    position: absolute !important;
+    z-index: 30 !important;
+    top: 0 !important;
+    right: 0 !important;
+    left: 0 !important;
     inset: 0 0 auto !important;
     padding-top: env(safe-area-inset-top, 0px) !important;
   }
