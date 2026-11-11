@@ -381,9 +381,8 @@ def register_discovered_candidate(candidate: dict) -> dict | None:
     movie_external_key = None
     episode_external_key = None
     if canonical_identity:
-        movie_external_key = "media:" + str(identity.get("entity_key") or hashlib.sha256(
-            (media_type + "|" + title_hint.casefold() + "|" + str(identity.get("year_hint") or "")).encode()
-        ).hexdigest()[:24])
+        movie_identity_material = "|".join((media_type, title_hint.casefold(), str(identity.get("year_hint") or "")))
+        movie_external_key = "media:" + hashlib.sha256(movie_identity_material.encode()).hexdigest()[:24]
         if identity.get("season_hint") is not None and identity.get("episode_hint") is not None:
             episode_external_key = movie_external_key + ":s" + str(identity["season_hint"]) + ":e" + str(identity["episode_hint"])
     page_metadata = candidate.get("page_metadata") if isinstance(candidate.get("page_metadata"), dict) else {}
