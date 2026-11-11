@@ -91,7 +91,7 @@ describe('isValidProxyUrl', () => {
 describe('private live host allowlist', () => {
   it('does not enable private targets from LIVE_ALLOW_PRIVATE alone', async () => {
     vi.stubEnv('LIVE_ALLOW_PRIVATE', '1');
-    vi.stubEnv('LIVE_PRIVATE_HOSTS', '');
+    vi.stubEnv('LIVE_PRIVATE_ORIGINS', '');
     await expect(checkLiveUrlAllowed('http://192.168.1.20:8080/list.m3u')).resolves.toEqual({
       ok: false,
       reason: '目标地址不在允许范围内（仅支持公网 http/https）',
@@ -100,29 +100,31 @@ describe('private live host allowlist', () => {
 
   it('allows an exact private IPv4 host only when both deployment settings match', async () => {
     vi.stubEnv('LIVE_ALLOW_PRIVATE', '1');
-    vi.stubEnv('LIVE_PRIVATE_HOSTS', '192.168.1.20, media.lan');
+    vi.stubEnv('LIVE_PRIVATE_ORIGINS', 'http://192.168.1.20:8080, http://media.lan:8080');
     await expect(checkLiveUrlAllowed('http://192.168.1.20:8080/list.m3u')).resolves.toEqual({ ok: true });
     expect(isLivePrivateHostAllowed('http://media.lan:8080/list.m3u')).toBe(true);
   });
 
-  it('uses exact hostname matching, not suffix or wildcard matching', () => {
+  it('uses exact origin matching, including scheme and port', () => {
     vi.stubEnv('LIVE_ALLOW_PRIVATE', '1');
-    vi.stubEnv('LIVE_PRIVATE_HOSTS', 'media.example.com');
-    expect(isLivePrivateHostAllowed('http://media.example.com/list.m3u')).toBe(true);
-    expect(isLivePrivateHostAllowed('http://evil-media.example.com/list.m3u')).toBe(false);
-    expect(isLivePrivateHostAllowed('http://sub.media.example.com/list.m3u')).toBe(false);
+    vi.stubEnv('LIVE_PRIVATE_ORIGINS', 'http://media.example.com:8080');
+    expect(isLivePrivateHostAllowed('http://media.example.com:8080/list.m3u')).toBe(true);
+    expect(isLivePrivateHostAllowed('https://media.example.com:8080/list.m3u')).toBe(false);
+    expect(isLivePrivateHostAllowed('http://media.example.com:8090/list.m3u')).toBe(false);
+    expect(isLivePrivateHostAllowed('http://evil-media.example.com:8080/list.m3u')).toBe(false);
+    expect(isLivePrivateHostAllowed('http://sub.media.example.com:8080/list.m3u')).toBe(false);
   });
 
   it('normalizes case, trailing dots, and IPv6 brackets', () => {
     vi.stubEnv('LIVE_ALLOW_PRIVATE', '1');
-    vi.stubEnv('LIVE_PRIVATE_HOSTS', 'MEDIA.LAN., [fd00::10]');
-    expect(isLivePrivateHostAllowed('http://media.lan/list.m3u')).toBe(true);
+    vi.stubEnv('LIVE_PRIVATE_ORIGINS', 'http://MEDIA.LAN.:80, http://[fd00::10]:8080');
+    expect(isLivePrivateHostAllowed('http://media.lan:80/list.m3u')).toBe(true);
     expect(isLivePrivateHostAllowed('http://[fd00::10]:8080/list.m3u')).toBe(true);
   });
 
   it('rejects non-http protocols and remains disabled without the opt-in switch', () => {
     vi.stubEnv('LIVE_ALLOW_PRIVATE', 'false');
-    vi.stubEnv('LIVE_PRIVATE_HOSTS', 'media.lan');
+    vi.stubEnv('LIVE_PRIVATE_ORIGINS', 'media.lan');
     expect(isLivePrivateHostAllowed('file:///etc/passwd')).toBe(false);
     expect(isLivePrivateHostAllowed('http://media.lan/list.m3u')).toBe(false);
   });
