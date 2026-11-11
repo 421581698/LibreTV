@@ -4,9 +4,12 @@ on:
   push:
     branches:
       - feat/iphone-inline-play-top-search-2026-11-09
+      - feat/resource-intelligence-center-v2
       - integration/**
     paths:
       - "services/scrapling-collector/**"
+      - "services/scrapling-collector/stats.py"
+      - "services/scrapling-collector/tests/test_stats.py"
       - "src/app/api/resource-collector/**"
       - "src/lib/resource-collector-client.ts"
       - "src/lib/resource-collector-client.test.ts"
@@ -55,7 +58,7 @@ jobs:
       - name: Install collector dependencies
         run: python -m pip install --upgrade pip && pip install -r requirements.txt
       - name: Compile Python service
-        run: python -m py_compile app.py registry_queue.py worker.py
+        run: python -m py_compile app.py registry_queue.py stats.py worker.py
       - name: Run collector unit tests
         run: python -m unittest discover -s tests -v
       - name: Validate Docker Compose collector profile

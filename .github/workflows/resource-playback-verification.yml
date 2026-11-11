@@ -4,15 +4,11 @@ on:
   push:
     branches:
       - feat/resource-playback-verification-v1
+      - feat/resource-intelligence-center-v2
       - integration/**
     paths:
       - "src/components/player-shell.tsx"
       - "src/components/source-manager.tsx"
-      - "src/lib/api-guard.ts"
-      - "src/lib/api-guard.test.ts"
-      - "src/app/api/auth-guard.test.ts"
-      - "src/lib/resource-collector-client.ts"
-      - "src/lib/resource-collector-client.test.ts"
       - "src/components/home/home-inline-play.test.ts"
       - "src/lib/resource-collector-workflow.ts"
       - "src/lib/resource-collector-workflow.test.ts"
@@ -26,20 +22,27 @@ on:
       - "services/scrapling-collector/app.py"
       - "services/scrapling-collector/tests/test_collector.py"
       - ".github/workflows/resource-playback-verification.yml"
-  pull_request:
-    paths:
-      - "src/components/player-shell.tsx"
-      - "src/components/source-manager.tsx"
       - "src/lib/api-guard.ts"
       - "src/lib/api-guard.test.ts"
       - "src/app/api/auth-guard.test.ts"
       - "src/lib/resource-collector-client.ts"
       - "src/lib/resource-collector-client.test.ts"
+  workflow_dispatch:
+
+  pull_request:
+    paths:
+      - "src/components/player-shell.tsx"
+      - "src/components/source-manager.tsx"
       - "src/lib/media-playback.ts"
       - "src/lib/media-playback.test.ts"
       - "src/lib/collector-playback-eligibility.ts"
       - "src/lib/collector-playback-eligibility.test.ts"
       - ".github/workflows/resource-playback-verification.yml"
+      - "src/lib/api-guard.ts"
+      - "src/lib/api-guard.test.ts"
+      - "src/app/api/auth-guard.test.ts"
+      - "src/lib/resource-collector-client.ts"
+      - "src/lib/resource-collector-client.test.ts"
 
 permissions:
   contents: read
