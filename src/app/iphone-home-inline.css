@@ -1842,3 +1842,11 @@ html:has(.v4-home) {
     background-color: #000 !important;
   }
 }
+
+
+/* PR84 mobile poster focal-point adjustment: shift the hero artwork downward. */
+@media screen and (max-width: 700px) {
+  body:has(.v4-home) .v4-home .v4-hero-immersive .v4-hero-image img {
+    object-position: center 0% !important;
+  }
+}
