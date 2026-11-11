@@ -1,14 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/client-api';
 import { SmartImage } from '@/components/smart-image';
 import { useAppStore } from '@/lib/store';
 import type { DoubanItem } from '@/lib/types';
 
+const AUTOPLAY_INTERVAL = 6_000;
+const MANUAL_PAUSE = 9_000;
+const SWIPE_THRESHOLD = 42;
+
 export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void }) {
   const [activeSlide, setActiveSlide] = useState(0);
+  const [manualPause, setManualPause] = useState(false);
+  const pointerStartX = useRef<number | null>(null);
   const imageProxyMode = useAppStore((s) => s.imageProxyMode);
   const customImageProxy = useAppStore((s) => s.customImageProxy);
   const featuredQuery = useQuery({
@@ -20,8 +26,58 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
   const normalizedActiveSlide = slides.length > 0 ? activeSlide % slides.length : 0;
   const slide = slides[normalizedActiveSlide];
 
+  useEffect(() => {
+    if (slides.length < 2 || manualPause) return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        setActiveSlide((current) => (current + 1) % slides.length);
+      }
+    }, AUTOPLAY_INTERVAL);
+    return () => window.clearInterval(timer);
+  }, [slides.length, manualPause]);
+
+  useEffect(() => {
+    if (!manualPause) return;
+    const timer = window.setTimeout(() => setManualPause(false), MANUAL_PAUSE);
+    return () => window.clearTimeout(timer);
+  }, [manualPause]);
+
+  const selectSlide = (index: number) => {
+    setActiveSlide(index);
+    setManualPause(true);
+  };
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLElement>) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    pointerStartX.current = event.clientX;
+  };
+
+  const handlePointerUp = (event: React.PointerEvent<HTMLElement>) => {
+    if (pointerStartX.current === null || slides.length < 2) return;
+    const delta = event.clientX - pointerStartX.current;
+    pointerStartX.current = null;
+    if (Math.abs(delta) < SWIPE_THRESHOLD) return;
+    selectSlide((normalizedActiveSlide + (delta < 0 ? 1 : -1) + slides.length) % slides.length);
+  };
+
   return (
-    <section className="v4-hero v4-hero-immersive" aria-label="精选影片">
+    <section
+      className="v4-hero v4-hero-immersive"
+      aria-label="精选影片轮播"
+      style={{ touchAction: 'pan-y' }}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={() => { pointerStartX.current = null; }}
+      onKeyDown={(event) => {
+        if (event.key === 'ArrowRight' && slides.length > 1) {
+          event.preventDefault();
+          selectSlide((normalizedActiveSlide + 1) % slides.length);
+        } else if (event.key === 'ArrowLeft' && slides.length > 1) {
+          event.preventDefault();
+          selectSlide((normalizedActiveSlide - 1 + slides.length) % slides.length);
+        }
+      }}
+    >
       {slide ? (
         <>
           <div className="v4-hero-image" aria-hidden="true">
@@ -49,7 +105,6 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
               </button>
               <span className="v4-hero-plus" aria-hidden="true">+</span>
             </div>
-            
           </div>
           <div className="v4-hero-indicators v4-hero-dots" role="group" aria-label="选择 Banner 图片">
             {slides.map((item, index) => (
@@ -59,7 +114,7 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
                 aria-label={`查看精选影片：${item.title}`}
                 aria-pressed={normalizedActiveSlide === index}
                 className={normalizedActiveSlide === index ? 'is-active' : ''}
-                onClick={() => setActiveSlide(index)}
+                onClick={() => selectSlide(index)}
               />
             ))}
           </div>
