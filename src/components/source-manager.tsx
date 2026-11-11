@@ -74,7 +74,7 @@ const SETTINGS_SECTIONS: { title: string; color: string; items: { id: SettingsPa
     { id: 'cache', label: '本机缓存', detail: '查看和管理本机视频缓存', icon: 'database-backup' },
   ] },
   { title: '网络连接', color: '#62C8D5', items: [
-    { id: 'collector', label: '采集服务连接', detail: 'Collector 地址、认证与连接测试', icon: 'network' },
+    { id: 'collector', label: '资源采集中心', detail: 'FMHY 目录、Collector 地址与连接测试', icon: 'network' },
   ] },
   { title: '关于 LibreTV', color: '#A6ADB8', items: [
     { id: 'about', label: '关于 LibreTV', detail: '项目简介与版本信息', icon: 'info' },
