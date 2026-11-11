@@ -70,7 +70,7 @@ def run_batch_crawl(payload: dict, checkpoint, cancelled) -> dict:
 
         site_media = 0
         for candidate in result.get("candidates", []):
-            if candidate.get("kind") not in ("direct-media", "embedded-player"):
+            if candidate.get("kind") != "direct-media":
                 continue
             raw_url = candidate.get("url") or ""
             try:
@@ -130,7 +130,7 @@ def run_batch_crawl(payload: dict, checkpoint, cancelled) -> dict:
         "sites_scanned": len(scanned),
         "site_results": scanned,
         "preflight": preflight,
-        "note": "Collected unique direct-media and embedded-player candidates across FMHY-discovered sites. Only validated PUBLIC direct media can enter the playable library.",
+        "note": "Collected unique direct-media candidates across FMHY-discovered sites. Only validated PUBLIC direct media with browser player confirmation can enter the playable library.",
     }
 
 
