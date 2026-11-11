@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import './liquid-glass.css';
 import './glass-system.css';
 import './eight-screen-glass.css';
 import './ipad-glass.css';
