@@ -39,7 +39,7 @@ describe('PR #84 homepage blocking layout recovery', () => {
     expect(header).not.toContain('<MobileTabBar />');
     expect(layout).toContain("import './pr84-global-layout.css';");
     expect(globalLayout).toContain('height: 64px !important;');
-    expect(globalLayout).toContain('bottom: calc(8px + env(safe-area-inset-bottom, 0px))');
+    expect(globalLayout).toContain('inset: auto auto calc(8px + env(safe-area-inset-bottom, 0px)) 50% !important;');
   });
 
   it('protects hero artwork from the iOS status and brand area', () => {
