@@ -57,6 +57,17 @@ class RegistryQueueTests(unittest.TestCase):
         self.assertEqual(claimed["attempt"], 1)
         self.assertIsNone(queue.claim_job("worker-b"))
 
+    def test_initialize_does_not_recover_expired_worker_leases(self):
+        job = queue.submit_job("crawl", {"url": "https://example.org"}, "lease:init-no-recovery")
+        queue.claim_job("worker-a", lease_seconds=10)
+        with queue.connect() as c:
+            c.execute("UPDATE collector_jobs SET lease_until=0 WHERE id=?", (job["id"],))
+        queue.initialize()
+        with queue.connect() as c:
+            row = c.execute("SELECT status,lease_owner FROM collector_jobs WHERE id=?", (job["id"],)).fetchone()
+        self.assertEqual(row["status"], "running")
+        self.assertEqual(row["lease_owner"], "worker-a")
+
     def test_lease_expiry_requeues_job(self):
         job = queue.submit_job("crawl", {"url": "https://example.org"}, "lease:test")
         queue.claim_job("worker-a", lease_seconds=10)
