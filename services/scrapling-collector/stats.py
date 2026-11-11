@@ -219,14 +219,15 @@ def build_stats(connection: sqlite3.Connection, host=None):
     candidate_kind_counts = {}
     candidate_access_counts = {}
     media_type_counts = {"movie": 0, "tv": 0, "anime": 0, "documentary": 0, "variety": 0, "short": 0, "unknown": 0}
-    identified_title_count = 0
+    identified_title_keys = set()
     for candidate in candidates:
         identity = _json(candidate.get("media_identity"))
         media_type = str(identity.get("media_type") or "unknown")
         if media_type not in media_type_counts: media_type = "unknown"
         media_type_counts[media_type] += 1
         if identity.get("title_hint") and identity.get("match_confidence") in ("structured_metadata", "page_metadata"):
-            identified_title_count += 1
+            identified_title_keys.add((media_type, str(identity.get("title_hint")).casefold(), identity.get("year_hint")))
+    identified_title_count = len(identified_title_keys)
     candidate_collector_counts = {"spider": 0, "browser": 0, "fmhy": 0, "unknown": 0}
     for candidate in candidates:
         kind = str(candidate.get("kind") or "unknown")
