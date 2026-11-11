@@ -2772,3 +2772,70 @@ body .friday-root .friday-fab {
     padding-bottom:calc(148px + env(safe-area-inset-bottom,0px))!important;
   }
 }
+
+/* PR84 settings polish: remove global chrome, prevent light interaction flashes,
+   keep Friday out of the settings canvas, and tighten the scroll tail. */
+.v4-spatial-screen[data-screen="settings"]>.v4-header,
+body:has(.v4-spatial-screen[data-screen="settings"]) .v4-header {
+  display:none!important;
+}
+.v4-spatial-screen[data-screen="settings"] .v4-spatial-main {
+  padding-top:calc(env(safe-area-inset-top,0px) + 12px)!important;
+  padding-bottom:calc(28px + env(safe-area-inset-bottom,0px))!important;
+}
+.v4-spatial-screen[data-screen="settings"] {
+  padding-top:0!important;
+  padding-bottom:calc(28px + env(safe-area-inset-bottom,0px))!important;
+}
+.v4-spatial-screen[data-screen="settings"] .v4-spatial-heading {
+  margin-top:0!important;
+  padding-top:0!important;
+  margin-bottom:14px!important;
+}
+.v4-spatial-screen[data-screen="settings"] .v4-spatial-heading h1 {
+  color:#fff!important;
+}
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root,
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content {
+  padding-bottom:24px!important;
+}
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content button,
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content a,
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content [role="button"],
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content .cursor-pointer {
+  color:#f5f5f7!important;
+  -webkit-tap-highlight-color:rgba(255,255,255,.08)!important;
+}
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content button:active,
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content button:focus,
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content button:focus-visible,
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content a:active,
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content a:focus,
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content a:focus-visible,
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content [role="button"]:active,
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content [role="button"]:focus,
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content [role="button"]:focus-visible,
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content .cursor-pointer:active,
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content .cursor-pointer:focus {
+  background-color:#1c1c1e!important;
+  color:#fff!important;
+  box-shadow:none!important;
+}
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content .v4-settings-card--apple:active,
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content .v4-settings-card--apple:focus,
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content .v4-settings-card--apple:focus-visible {
+  background:#1c1c1e!important;
+}
+body:has(.v4-spatial-screen[data-screen="settings"]) .friday-root .friday-fab {
+  display:none!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+@media(max-width:700px) {
+  .v4-spatial-screen[data-screen="settings"] .v4-spatial-main {
+    padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))!important;
+  }
+  .v4-spatial-screen[data-screen="settings"] .settings-embedded-root {
+    padding-bottom:20px!important;
+  }
+}
