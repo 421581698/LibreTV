@@ -6,6 +6,7 @@ import { runChat } from '@/lib/orchestrator';
 import { registerInflight, unregisterInflight } from '@/lib/infra/inflight';
 import { inspectInput } from '@/lib/infra/guard';
 import { guardRequest } from '@/lib/api-guard';
+import { readJsonLimited, requestBodyErrorStatus } from '@/lib/request-body';
 
 export async function POST(req: NextRequest) {
   const guarded = guardRequest(req);
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest) {
   let requestId: string | undefined;
   
   try {
-    const body = await req.json();
+    const body = await readJsonLimited<{ messages?: unknown }>(req, 128 * 1024);
     
     // 兼容 LibreTV 前端传来的格式： { messages: [...] }
     if (!body.messages || !Array.isArray(body.messages) || body.messages.length === 0) {
