@@ -47,7 +47,7 @@ describe('PR #84 homepage blocking layout recovery', () => {
     expect(globalLayout).toContain('bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;');
     expect(globalLayout).toContain('width: 18px !important;');
     expect(globalLayout).toContain('.v4-spatial-screen[data-screen="me"] > .v4-spatial-main');
-    expect(globalLayout).toContain('scroll-padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;');
+    expect(globalLayout).toContain('scroll-padding-bottom: calc(128px + env(safe-area-inset-bottom, 0px)) !important;');
   });
 
   it('protects hero artwork from the iOS status and brand area', () => {
