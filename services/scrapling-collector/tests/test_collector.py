@@ -1017,6 +1017,7 @@ segment-2.ts
                 "year_hint": 2024,
                 "season_hint": 2,
                 "episode_hint": 3,
+                "episode_title": "Episode 3",
                 "description": "A public metadata description",
             },
         )
@@ -1025,6 +1026,7 @@ segment-2.ts
         self.assertEqual(identity["year_hint"], 2024)
         self.assertEqual(identity["season_hint"], 2)
         self.assertEqual(identity["episode_hint"], 3)
+        self.assertEqual(identity["episode_title"], "Episode 3")
         self.assertEqual(identity["match_confidence"], "structured_metadata")
         ambiguous = collector.infer_media_identity(
             "Watch now", "https://cdn.example/stream.m3u8"
