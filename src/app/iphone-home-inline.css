@@ -941,3 +941,15 @@ body:has(.v4-home) .v4-home .v4-rail-hint {
     top: 0 !important;
   }
 }
+
+
+/* Keep the iOS safe-area canvas black on the homepage, even in light theme. */
+html:has(.v4-home) {
+  --page-chrome: #000 !important;
+  --safe-area-surface: #000 !important;
+  background: #000 !important;
+}
+body:has(.v4-home) {
+  background: #000 !important;
+  background-image: none !important;
+}
