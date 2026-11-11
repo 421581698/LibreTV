@@ -123,6 +123,8 @@ describe('首页与播放页回归契约', () => {
     expect(inlineHomeStyles).toContain('aspect-ratio: 2 / 3 !important;');
     expect(inlineHomeStyles).toContain('object-fit: cover !important;');
     expect(inlineHomeStyles).toContain('.v4-history-image > img');
+    expect(inlineHomeStyles).toContain('height: clamp(360px,55svh,520px) !important;');
+    expect(inlineHomeStyles).not.toContain('height: 100svh !important;');
     expect(v4Content).toContain('v4-progress-percent');
     expect(featuredHero).toContain('发现好内容');
     expect(featuredHero).not.toContain('v4-hero-primary');
