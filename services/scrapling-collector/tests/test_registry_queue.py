@@ -118,20 +118,29 @@ class RegistryQueueTests(unittest.TestCase):
         self.assertNotEqual(one["movie_id"], other["movie_id"])
 
     def test_registry_library_paginates_all_resources_including_unverified(self):
+        created = []
         for index in range(3):
-            queue.upsert_resource({
+            created.append(queue.upsert_resource({
                 "resource_key": f"resource:library-{index}", "source_key": "fmhy",
                 "resource_type": "DIRECT_MEDIA", "url": f"https://media.example.org/{index}.m3u8",
-                "title": f"Library Film {index}", "access_state": "ACCESS_UNKNOWN",
-            })
+                "title": f"Library Film {index}", "access_state": "PUBLIC" if index == 0 else "ACCESS_UNKNOWN",
+            }))
+        queue.record_verification(created[0]["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        queue.record_verification(created[0]["id"], "player", "passed", {"progressed_seconds": 3})
         with patch.object(queue, "require_auth"):
             first = queue.api_search_resources(verified_only=False, limit=2, offset=0, authorization="Bearer test")
             second = queue.api_search_resources(verified_only=False, limit=2, offset=2, authorization="Bearer test")
+            verified = queue.api_search_resources(verified_only=True, limit=2, offset=0, authorization="Bearer test")
+            searched = queue.api_search_resources(q="Library Film 1", verified_only=False, limit=2, offset=0, authorization="Bearer test")
         self.assertEqual(len(first["resources"]), 2)
         self.assertTrue(first["has_more"])
         self.assertEqual(len(second["resources"]), 1)
         self.assertFalse(second["has_more"])
         self.assertEqual(first["total"], 3)
+        self.assertEqual(verified["total"], 1)
+        self.assertFalse(verified["has_more"])
+        self.assertEqual(searched["total"], 1)
+        self.assertFalse(searched["has_more"])
 
     def test_playback_requires_public_preflight(self):
         resource = queue.upsert_resource({
