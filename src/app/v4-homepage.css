@@ -2144,3 +2144,63 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
 .v4-home .v4-header-actions > .v4-search:focus-within .v4-search-label {
   display: none !important;
 }
+/* Header controls: icon-only search and profile avatar pills. */
+.v4-home .v4-header-actions > .v4-search {
+  width: 34px !important;
+  min-width: 34px !important;
+  max-width: 34px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  justify-content: center !important;
+  border-radius: 50% !important;
+}
+.v4-home .v4-header-actions > .v4-search > svg {
+  width: 16px !important;
+  height: 16px !important;
+  flex: 0 0 16px !important;
+}
+.v4-home .v4-header-actions > .v4-search .v4-search-field,
+.v4-home .v4-header-actions > .v4-search input {
+  display: none !important;
+}
+.v4-home .v4-header-actions > .v4-search:focus-within {
+  width: 34px !important;
+  max-width: 34px !important;
+}
+.v4-home .v4-header-actions > .v4-avatar {
+  display: inline-flex !important;
+  width: 34px !important;
+  min-width: 34px !important;
+  max-width: 34px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  justify-content: center !important;
+  border-radius: 50% !important;
+}
+.v4-home .v4-header-actions > .v4-avatar span { display: none !important; }
+.v4-home .v4-header-actions > .v4-avatar .v4-avatar-icon {
+  display: block !important;
+  width: 18px !important;
+  height: 18px !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 1.7 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+@media (max-width: 700px) {
+  .v4-home .v4-header-actions > .v4-search,
+  .v4-home .v4-header-actions > .v4-avatar {
+    width: 32px !important;
+    min-width: 32px !important;
+    max-width: 32px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+  }
+  .v4-home .v4-header-actions > .v4-search > svg { width: 15px !important; height: 15px !important; }
+  .v4-home .v4-header-actions > .v4-avatar .v4-avatar-icon { width: 17px !important; height: 17px !important; }
+}
