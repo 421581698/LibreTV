@@ -25,6 +25,8 @@ import './pr84-layout-recovery.css';
 import './pr84-search-polish.css';
 // PR #84 final iPhone fix: translucent four-tab dock, safe-area spacing and orb separation.
 import './pr84-dock-fix.css';
+// PR #84 unified dark settings detail pages, controls, switches and iOS sub-navigation.
+import './pr84-settings-detail.css';
 import { Providers } from '@/components/providers';
 
 export const metadata: Metadata = {
