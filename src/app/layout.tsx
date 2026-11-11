@@ -30,6 +30,7 @@ import './pr84-settings-detail.css';
 // PR #84 global iPhone layout contract: one dock, safe-area-aware hero and Large Titles.
 import './pr84-global-layout.css';
 import { Providers } from '@/components/providers';
+import { MobileTabBar } from '@/components/home/header/MobileTabBar';
 
 export const metadata: Metadata = {
   title: {
@@ -75,6 +76,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <Providers>
           {children}
+          <MobileTabBar />
         </Providers>
       </body>
     </html>
