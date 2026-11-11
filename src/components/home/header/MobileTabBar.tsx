@@ -1,6 +1,6 @@
 'use client';
+
 import Link from 'next/link';
-import { LiquidGlassSurface } from '@/components/ui/liquid-glass';
 import { usePathname } from 'next/navigation';
 
 const tabs = [
@@ -12,9 +12,9 @@ const tabs = [
 
 function TabIcon({ name, active }: { name: (typeof tabs)[number]['icon']; active: boolean }) {
   if (name === 'home') return <svg className={active ? 'is-filled' : ''} viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" /></svg>;
-  if (name === 'search') return <svg className={active ? 'is-filled' : ''} viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.2 4.2"/></svg>;
-  if (name === 'settings') return <svg className={active ? 'is-filled' : ''} viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="m19.4 13.5 1.1.9-1.1 1.9-1.4-.5a7.7 7.7 0 0 1-1.4.8l-.2 1.5h-2.2l-.4-1.4a7.7 7.7 0 0 1-1.6 0l-.8 1.2-1.9-1.1.5-1.4a7.7 7.7 0 0 1-.8-1.4l-1.5-.2v-2.2l1.4-.4a7.7 7.7 0 0 1 0-1.6L7.9 8.8 9 6.9l1.4.5a7.7 7.7 0 0 1 1.4-.8l.2-1.5h2.2l.4 1.4a7.7 7.7 0 0 1 1.6 0l.8-1.2 1.9 1.1-.5 1.4a7.7 7.7 0 0 1 .8 1.4l1.5.2v2.2l-1.4.4a7.7 7.7 0 0 1 0 1.5Z"/></svg>;
-  return <svg className={active ? 'is-filled' : ''} viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5" /><path d="M4.5 21c.6-4 3.1-6 7.5-6s6.9 2 7.5 6" /></svg>;
+  if (name === 'search') return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.2 4.2"/></svg>;
+  if (name === 'settings') return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="m19.4 13.5 1.1.9-1.1 1.9-1.4-.5a7.7 7.7 0 0 1-1.4.8l-.2 1.5h-2.2l-.4-1.4a7.7 7.7 0 0 1-1.6 0l-.8 1.2-1.9-1.1.5-1.4a7.7 7.7 0 0 1-.8-1.4l-1.5-.2v-2.2l1.4-.4a7.7 7.7 0 0 1 0-1.6L7.9 8.8 9 6.9l1.4.5a7.7 7.7 0 0 1 1.4-.8l.2-1.5h2.2l.4 1.4a7.7 7.7 0 0 1 1.6 0l.8-1.2 1.9 1.1-.5 1.4a7.7 7.7 0 0 1 .8 1.4l1.5.2v2.2l-1.4.4a7.7 7.7 0 0 1 0 1.5Z"/></svg>;
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5" /><path d="M4.5 21c.6-4 3.1-6 7.5-6s6.9 2 7.5 6" /></svg>;
 }
 
 export function MobileTabBar() {
@@ -28,7 +28,7 @@ export function MobileTabBar() {
     normalized === '/resources' || normalized.startsWith('/resources/') ? '/me' : '';
 
   return (
-    <LiquidGlassSurface as="nav" interactive className="v4-mobile-tabbar" aria-label="底部导航">
+    <nav className="v4-mobile-tabbar liquid-glass" aria-label="底部导航">
       {tabs.map((tab) => {
         const active = tab.href === activeTab;
         return (
@@ -39,6 +39,6 @@ export function MobileTabBar() {
           </Link>
         );
       })}
-    </LiquidGlassSurface>
+    </nav>
   );
 }
