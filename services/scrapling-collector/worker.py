@@ -230,16 +230,16 @@ def enqueue_daily_batch(now: datetime | None = None) -> dict:
 
 
 def daily_scheduler():
+    scheduled_date = None
     while True:
         try:
             result = enqueue_daily_batch()
-            if result["status"] not in {"not_due", "queued"}:
-                print(f"[daily-scheduler] {result}", flush=True)
-            elif result["status"] == "queued":
-                print(f"[daily-scheduler] queued {result['job_id']} for {result['date']}", flush=True)
+            if result["status"] != "not_due" and result["date"] != scheduled_date:
+                scheduled_date = result["date"]
+                print(f"[daily-scheduler] queued {result.get('job_id', 'existing job')} for {scheduled_date}", flush=True)
         except Exception as exc:
             print(f"[daily-scheduler] scheduling failed: {type(exc).__name__}", flush=True)
-        time.sleep(60)
+        time.sleep(30)
 
 
 def main():
