@@ -6,7 +6,7 @@ import { runChat } from '@/lib/orchestrator';
 import { registerInflight, unregisterInflight } from '@/lib/infra/inflight';
 import { inspectInput } from '@/lib/infra/guard';
 import { guardRequest } from '@/lib/api-guard';
-import { readJsonLimited, requestBodyErrorStatus } from '@/lib/request-body';
+import { readJsonLimited, requestBodyErrorStatus, RequestBodyError } from '@/lib/request-body';
 
 export async function POST(req: NextRequest) {
   const guarded = guardRequest(req);
@@ -23,12 +23,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'messages 必须为非空数组' }, { status: 400 });
     }
 
+    if (body.messages.length > 30) {
+      return NextResponse.json({ error: '消息数量超出限制' }, { status: 400 });
+    }
     // 取最后一条作为当前消息，前面的作为历史记录
-    const userMessage = body.messages[body.messages.length - 1].content;
-    const history = body.messages.slice(0, -1).map((m: any) => ({
-      role: m.role === 'assistant' ? 'assistant' : 'user',
-      content: m.content
-    }));
+    const lastMessage = body.messages[body.messages.length - 1];
+    if (!lastMessage || typeof lastMessage !== 'object' ||
+        typeof (lastMessage as { content?: unknown }).content !== 'string') {
+      return NextResponse.json({ error: '最后一条消息内容无效' }, { status: 400 });
+    }
+    const userMessage = (lastMessage as { content: string }).content;
+    const history = body.messages.slice(0, -1)
+      .filter((message): message is { role?: unknown; content: string } =>
+        Boolean(message && typeof message === 'object' &&
+          typeof (message as { content?: unknown }).content === 'string'))
+      .map((message) => ({
+        role: message.role === 'assistant' ? 'assistant' as const : 'user' as const,
+        content: message.content.slice(0, 2000),
+      }));
 
     const input = inspectInput(userMessage);
     if (!input.ok) {
@@ -61,8 +73,11 @@ export async function POST(req: NextRequest) {
         'X-Accel-Buffering': 'no',
       },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (requestId) unregisterInflight(requestId);
-    return NextResponse.json({ error: err.message || '服务器内部错误' }, { status: 500 });
+    if (err instanceof RequestBodyError) {
+      return NextResponse.json({ error: '请求格式错误' }, { status: requestBodyErrorStatus(err) });
+    }
+    return NextResponse.json({ error: err instanceof Error ? err.message : '服务器内部错误' }, { status: 500 });
   }
 }
