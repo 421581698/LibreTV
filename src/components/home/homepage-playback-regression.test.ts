@@ -529,6 +529,8 @@ describe('首页与播放页回归契约', () => {
     expect(videoCards).toContain('addFavorite({');
     expect(videoCards).toContain('toggleItemFavorite(item, event)');
     expect(videoCards).toContain('aria-pressed={itemFavorite}');
+    expect(videoCards).toContain('const favoriteCandidate = multi ? group.items[0] : sortedItems[0]');
+    expect(videoCards).toContain('favoriteCandidate?.sourceName');
     expect(spatialScreenSource).toContain('影视收藏');
     expect(spatialScreenSource).toContain('MeFavoriteCard');
   });
