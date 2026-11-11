@@ -472,11 +472,18 @@ describe('首页与播放页回归契约', () => {
 
   it('设置页快捷入口会打开指定的真实设置面板', () => {
     expect(spatialScreen).toContain("localStorage.setItem('libretv-settings-open-page', page)");
-    expect(spatialScreen).toContain("title: '外观模式', description: '浅色、深色与跟随系统主题', page: 'appearance'");
-    expect(spatialScreen).toContain("title: '封面图加载', description: '海报图片代理与加载偏好', page: 'image'");
-    expect(spatialScreen).toContain("title: '直播设置', description: '管理直播源与频道', page: 'live'");
-    expect(spatialScreen).toContain("title: '资源订阅', description: '管理点播与直播资源订阅', page: 'subs'");
-    expect(spatialScreen).toContain("title: '本机缓存', description: '查看和管理本机视频缓存', page: 'cache'");
+    expect(spatialScreen).toContain("title: '播放设置', description: '画质、自动连播、片段跳过与缓存', page: 'playback'");
+    expect(spatialScreen).toContain("title: '资源站', description: '点播源、直播源、订阅与采集服务', page: 'vod'");
+    expect(spatialScreen).toContain("title: '外观设置', description: '主题、封面图片、语言与首页偏好', page: 'appearance'");
+    expect(spatialScreen).toContain("title: 'Friday AI', description: '助手角色、语音识别与声音偏好', page: 'voice'");
+    expect(spatialScreen).toContain("title: '隐私与数据', description: '本机配置备份、缓存与数据管理', page: 'io'");
+    expect(spatialScreen).toContain("title: '网络连接', description: 'Collector 服务地址、认证与连接测试', page: 'collector'");
+    expect(spatialScreen).toContain("title: '关于 LibreTV', description: '项目简介与应用信息', page: 'about'");
+    expect(settings).toContain("{ id: 'image', label: '封面图加载'");
+    expect(settings).toContain("{ id: 'live', label: '直播源管理'");
+    expect(settings).toContain("{ id: 'subs', label: '资源订阅'");
+    expect(settings).toContain("{ id: 'cache', label: '本机缓存'");
+    expect(settings).toContain("{ id: 'collector', label: '资源采集中心'");
     expect(settings).toContain("localStorage.getItem(SETTINGS_OPEN_PAGE_KEY)");
     expect(settings).toContain('setActivePage(nextPage)');
     expect(settings).toContain('removeItem(SETTINGS_OPEN_PAGE_KEY)');
