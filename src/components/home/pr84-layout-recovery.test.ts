@@ -25,7 +25,8 @@ describe('PR #84 homepage blocking layout recovery', () => {
     expect(dock).toContain('createPortal(navigation, portalTarget)');
     expect(dock).toContain("data-homepage-dock={isHomepage ? 'true' : undefined}");
     expect(recovery).toContain('grid-template-columns: repeat(4, minmax(0, 1fr)) !important;');
-    expect(recovery).toContain('body > .v4-mobile-tabbar[data-homepage-dock="true"]');
+    expect(dock).toContain('setPortalTarget(document.body)');
+    expect(recovery).toContain('position: fixed !important;');
     expect(recovery).toContain('position: fixed !important;');
   });
 
@@ -42,7 +43,8 @@ describe('PR #84 homepage blocking layout recovery', () => {
   });
 
   it('does not apply the homepage body portal to routed catalogue screens', () => {
-    expect(dock).toContain('if (isHomepage) return portalTarget ? createPortal(navigation, portalTarget) : null;');
-    expect(dock).toContain('return navigation;');
+    expect(dock).toContain('return portalTarget ? createPortal(navigation, portalTarget) : null;');
+    expect(dock).not.toContain('return navigation;');
+    expect(dock).toContain('data-homepage-dock={isHomepage ? \'true\' : undefined}');
   });
 });
