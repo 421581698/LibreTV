@@ -52,6 +52,8 @@ describe('normalizeImportedFavorites', () => {
 
     expect(result).toEqual([]);
     expect(normalizeImportedFavorites([])).toEqual([]);
+    expect(normalizeImportedFavorites(null)).toEqual([]);
+    expect(normalizeImportedFavorites({ favorites: [] })).toEqual([]);
   });
 
   it('keeps identical video IDs from different providers as separate records', () => {
