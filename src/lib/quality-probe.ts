@@ -8,6 +8,7 @@ import { cmsRequestHeaders, parseDetail, parseDetailPageHtml } from './cms-parse
 import { fetchUpstream } from './fetch-utils';
 import { inferHeightFromBitrate } from './quality';
 import { checkUpstreamAllowed } from './ssrf';
+import { readResponseJsonLimited, readResponseTextLimited } from './response-body';
 import type { QualityProbeItem, QualityProbeResult, SourceConfig } from './types';
 
 /**
@@ -143,7 +144,8 @@ function defaultIv(sequence: number): Uint8Array {
 
 /** 只读取响应体前 maxBytes 字节：分片动辄几十 MB，全量拉取纯属浪费 */
 async function readBytesPrefix(res: Response, maxBytes: number): Promise<Uint8Array> {
-  if (!res.body) return new Uint8Array(await res.arrayBuffer());
+  if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0) throw new TypeError('maxBytes must be positive');
+  if (!res.body) return new Uint8Array(await res.arrayBuffer()).subarray(0, maxBytes);
   const reader = res.body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
@@ -151,12 +153,16 @@ async function readBytesPrefix(res: Response, maxBytes: number): Promise<Uint8Ar
     while (total < maxBytes) {
       const { done, value } = await reader.read();
       if (done) break;
-      chunks.push(value);
-      total += value.byteLength;
+      const chunk = value.subarray(0, maxBytes - total);
+      if (chunk.byteLength > 0) {
+        chunks.push(chunk);
+        total += chunk.byteLength;
+      }
+      if (total >= maxBytes) break;
     }
   } finally {
     // 提前放弃剩余 body：不 cancel 会让连接挂着等上游写完
-    reader.cancel().catch(() => {});
+    try { await reader.cancel(); } catch { /* best effort */ }
   }
   const out = new Uint8Array(total);
   let offset = 0;
@@ -169,7 +175,8 @@ async function readBytesPrefix(res: Response, maxBytes: number): Promise<Uint8Ar
 
 /** 只读取响应体前 maxBytes 字符（m3u8 用） */
 async function readTextPrefix(res: Response, maxBytes: number): Promise<string> {
-  if (!res.body) return res.text();
+  if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0) throw new TypeError('maxBytes must be positive');
+  if (!res.body) return (await res.text()).slice(0, maxBytes);
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let text = '';
@@ -178,11 +185,13 @@ async function readTextPrefix(res: Response, maxBytes: number): Promise<string> 
     while (total < maxBytes) {
       const { done, value } = await reader.read();
       if (done) break;
-      total += value.byteLength;
-      text += decoder.decode(value, { stream: true });
+      const chunk = value.subarray(0, maxBytes - total);
+      total += chunk.byteLength;
+      text += decoder.decode(chunk, { stream: true });
+      if (total >= maxBytes) break;
     }
   } finally {
-    reader.cancel().catch(() => {});
+    try { await reader.cancel(); } catch { /* best effort */ }
   }
   return text + decoder.decode();
 }
@@ -308,7 +317,7 @@ async function fetchEpisodes(source: SourceConfig, id: string, signal: AbortSign
   const res = await fetchMeasuredUpstream(api, { timeoutMs: 6000, headers: cmsRequestHeaders(), signal }, metrics);
   if (res.ok) {
     try {
-      const detail = parseDetail(await res.json(), source);
+      const detail = parseDetail(await readResponseJsonLimited(res, 2 * 1024 * 1024), source);
       if (detail.episodes.length > 0) return detail.episodes;
     } catch {
       // 列表接口无内容 → 继续尝试详情页
@@ -326,7 +335,7 @@ async function fetchEpisodes(source: SourceConfig, id: string, signal: AbortSign
     signal,
   }, metrics);
   if (!detailRes.ok) return [];
-  return parseDetailPageHtml(await detailRes.text(), source).episodes;
+  return parseDetailPageHtml(await readResponseTextLimited(detailRes, 2 * 1024 * 1024), source).episodes;
 }
 
 /**
