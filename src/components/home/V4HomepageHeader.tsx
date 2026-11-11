@@ -15,19 +15,6 @@ export function V4HomepageHeader({ overlay = false }: { overlay?: boolean }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsInstance, setSettingsInstance] = useState(0);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
-
-  useEffect(() => {
-    if (!overlay) {
-      setIsScrolled(false);
-      return;
-    }
-    const update = () => setIsScrolled(window.scrollY > 48);
-    update();
-    window.addEventListener('scroll', update, { passive: true });
-    return () => window.removeEventListener('scroll', update);
-  }, [overlay]);
-
   useEffect(() => {
     const open = () => {
       setSettingsInstance((value) => value + 1);
@@ -45,7 +32,7 @@ export function V4HomepageHeader({ overlay = false }: { overlay?: boolean }) {
 
   return (
     <>
-      <header className={'v4-header' + (overlay ? ' is-overlay' : '') + (overlay && isScrolled ? ' is-scrolled' : '')}>
+      <header className={'v4-header' + (overlay ? ' is-overlay' : '')}>
         <div className="v4-header-inner">
           <BrandModule />
           <div className="v4-header-actions">
