@@ -1,5 +1,6 @@
 import os
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -18,6 +19,19 @@ class CollectorTests(unittest.TestCase):
 
     def tearDown(self):
         self.temp.cleanup()
+
+    def test_database_initialization_does_not_interrupt_running_legacy_tasks(self):
+        task_id = "e" * 32
+        now = int(time.time())
+        with collector.db() as connection:
+            connection.execute(
+                "INSERT INTO tasks(id,url,host,status,mode,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                (task_id, "https://catalog.example", "catalog.example", "running", "http", now, now),
+            )
+        collector.init_db()
+        with collector.db() as connection:
+            row = connection.execute("SELECT status FROM tasks WHERE id=?", (task_id,)).fetchone()
+        self.assertEqual(row["status"], "running")
 
     def test_crawl_batch_defaults_to_250_and_requires_at_least_101(self):
         request = collector.CrawlRequest(url="https://catalog.example/")
