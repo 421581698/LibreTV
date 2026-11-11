@@ -462,6 +462,15 @@ describe('首页与播放页回归契约', () => {
     expect(settings).toContain('removeItem(SETTINGS_OPEN_PAGE_KEY)');
   });
 
+  it('iPhone 底部导航保留首页、电影、电视剧、我的四个固定入口', () => {
+    const tabBar = source('src/components/home/header/MobileTabBar.tsx');
+    expect(tabBar).toContain("{ href: '/', label: '首页', icon: 'home' }");
+    expect(tabBar).toContain("{ href: '/movies', label: '电影', icon: 'film' }");
+    expect(tabBar).toContain("{ href: '/tv', label: '电视剧', icon: 'tv' }");
+    expect(tabBar).toContain("{ href: '/me', label: '我的', icon: 'user' }");
+    expect(tabBar).not.toContain("href: '/categories'");
+  });
+
   it('移动端七项底部导航可横向滚动，不压缩或换行', () => {
     expect(channelStyles).toContain('.v4-mobile-tabs {');
     expect(channelStyles).toContain('overflow-x: auto !important');
