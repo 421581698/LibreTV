@@ -930,7 +930,7 @@ body:has(.v4-home) .v4-home .v4-rail-hint {
   body:has(.v4-home),
   body:has(.v4-home) #__next,
   body:has(.v4-home) .v4-home {
-    min-height: 100svh !important;
+    min-height: 100dvh !important;
     background-color: #000 !important;
   }
   body:has(.v4-home) .v4-home .v4-hero-immersive {
