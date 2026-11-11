@@ -1,0 +1,17 @@
+name = "libretv-pr84-preview"
+main = ".open-next/worker.js"
+compatibility_date = "2025-04-01"
+compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
+assets = { directory = ".open-next/assets" }
+
+# PR #84 专属隔离 Preview；不复用其他功能分支的 Worker。
+workers_dev = true
+preview_urls = false
+
+[vars]
+CMS_SEARCH_API = "https://caiji.dyttzyapi.com/api.php/provide/vod"
+API_60S_BASE = "https://60s.bggdbh.workers.dev"
+LLM_MODEL = "glm-4-flash"
+AUTH_DISABLED = "false"
+
+# PASSWORD 由 GitHub Actions 的 LIBRETV_PR84_PREVIEW_PASSWORD 注入为 Worker Secret。
