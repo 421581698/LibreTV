@@ -24,7 +24,7 @@ export function requestNativeFullscreenWithFallback(
     settled = true;
     cleanup();
   };
-  const useFallback = () => {
+  const fallbackNow = () => {
     if (settled) return;
     settled = true;
     cleanup();
@@ -34,13 +34,13 @@ export function requestNativeFullscreenWithFallback(
   video.addEventListener('webkitbeginfullscreen', onBegin, { once: true });
   try {
     if (typeof video.webkitEnterFullscreen !== 'function') {
-      useFallback();
+      fallbackNow();
     } else {
       video.webkitEnterFullscreen();
-      if (!settled) timer = setTimeout(useFallback, timeoutMs);
+      if (!settled) timer = setTimeout(fallbackNow, timeoutMs);
     }
   } catch {
-    useFallback();
+    fallbackNow();
   }
 
   return () => {
