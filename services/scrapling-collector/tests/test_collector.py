@@ -329,7 +329,7 @@ class CollectorTests(unittest.TestCase):
         self.assertIn("https://cdn.example/movie/backup.mp4", urls)
         self.assertIn("https://catalog.example/movie/inline.m3u8", urls)
         self.assertIn("https://catalog.example/movie/relative.m3u8", urls)
-        self.assertTrue(all(item["host"] == "cdn.example" for item in found))
+        self.assertEqual({item["host"] for item in found}, {"cdn.example", "catalog.example"})
 
     def test_rejects_non_https_and_credentials(self):
         self.assertIsNone(collector.classify_url("http://media.example/movie.mp4"))
