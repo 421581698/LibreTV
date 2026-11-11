@@ -357,7 +357,7 @@ describe('首页与播放页回归契约', () => {
   it('默认清晰度设置持久化并限制 HLS 自适应档位', () => {
     expect(settings).toContain('label="默认清晰度"');
     expect(settings).toContain('libretv-quality-preference');
-    expect(player).toContain('applyHlsQualityPreference(hls, readQualityPreference(), video)');
+    expect(player).toContain('applyHlsQualityPreference(hls!, readQualityPreference(), video)');
     expect(player).toContain('autoLevelCapping');
     expect(player).toContain('hls.currentLevel = selection.selectedIndex');
     expect(player).toContain('libretv-quality-preference-change');
