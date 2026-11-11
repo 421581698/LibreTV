@@ -137,7 +137,10 @@ export function AggregatedCard({
     return rankMovieCandidatesByQuality(group.items, qualityEvidence, playbackHealth, Date.now(), playbackResourceHealth);
   }, [group.items, persistedQualityMap, qualities, playbackHealth, playbackResourceHealth]);
   const favorites = useLiveQuery(() => db.favorites.toArray(), []);
-  const favoriteCandidate = sortedItems[0];
+  // The collapsed-card shortcut must not drift when quality probing reorders sources.
+  // Multi-source cards use the first original result as a stable target; each expanded row
+  // still has its own source-specific favorite control.
+  const favoriteCandidate = multi ? group.items[0] : sortedItems[0];
   const isFavorite = Boolean(favoriteCandidate && favorites?.some(
     (entry) => entry.sourceKey === favoriteCandidate.sourceKey && entry.vodId === favoriteCandidate.vodId
   ));
@@ -200,7 +203,7 @@ export function AggregatedCard({
       <button
         type="button"
         className="absolute right-2 top-2 z-20 inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/65 text-white shadow"
-        aria-label={isFavorite ? `取消收藏 ${group.name}` : `收藏 ${group.name}`}
+        aria-label={isFavorite ? `取消收藏 ${group.name}（${favoriteCandidate?.sourceName ?? '当前来源'}）` : `收藏 ${group.name}（${favoriteCandidate?.sourceName ?? '当前来源'}）`}
         aria-pressed={isFavorite}
         onClick={toggleFavorite}
       >
