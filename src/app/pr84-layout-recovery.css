@@ -648,3 +648,11 @@ body:has(.v4-search-page) {
 .v4-search-page .v4-search-category-image { z-index: 0 !important; }
 .v4-search-page .v4-search-category-card::before { z-index: 1 !important; }
 .v4-search-page .v4-search-category-copy { position: relative !important; z-index: 2 !important; }
+
+/* Keep the scroll tail just larger than the floating dock; avoid excess blank space. */
+.v4-search-page { padding-bottom: calc(128px + env(safe-area-inset-bottom, 0px)) !important; }
+.v4-search-page .v4-search-main { padding-bottom: 32px !important; }
+@media (max-width: 700px) {
+  .v4-search-page { padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px)) !important; }
+  .v4-search-page .v4-search-main { padding-bottom: 28px !important; }
+}
