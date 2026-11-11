@@ -560,11 +560,19 @@ def api_upsert_resource(payload: dict, authorization: str | None = Header(defaul
 def api_search_resources(q: str = "", verified_only: bool = True, limit: int = Query(default=30,ge=1,le=100), authorization: str | None = Header(default=None)):
     require_auth(authorization)
     with connect() as c:
-        sql = "SELECT * FROM registry_resources WHERE 1=1"
+        sql = """SELECT r.*,m.title AS movie_title,m.year AS release_year,m.metadata AS movie_metadata,
+                         e.title AS episode_title,e.season,e.episode,
+                         (SELECT v.evidence FROM registry_verifications v
+                          WHERE v.resource_id=r.id AND v.verification_type='player'
+                          ORDER BY v.created_at DESC LIMIT 1) AS playback_evidence
+                  FROM registry_resources r
+                  LEFT JOIN registry_movies m ON m.id=r.movie_id
+                  LEFT JOIN registry_episodes e ON e.id=r.episode_id
+                  WHERE 1=1"""
         args: list[Any] = []
-        if verified_only: sql += " AND validation_state='validated' AND playback_state='PLAYER_CONFIRMED' AND access_state='PUBLIC'"
-        if q.strip(): sql += " AND (title LIKE ? OR resource_key LIKE ?)"; args.extend([f"%{q[:100]}%",f"%{q[:100]}%"])
-        rows=c.execute(sql+" ORDER BY updated_at DESC LIMIT ?",(*args,limit)).fetchall()
+        if verified_only: sql += " AND r.validation_state='validated' AND r.playback_state='PLAYER_CONFIRMED' AND r.access_state='PUBLIC'"
+        if q.strip(): sql += " AND (r.title LIKE ? OR r.resource_key LIKE ? OR m.title LIKE ?)"; args.extend([f"%{q[:100]}%",f"%{q[:100]}%",f"%{q[:100]}%"])
+        rows=c.execute(sql+" ORDER BY r.updated_at DESC LIMIT ?",(*args,limit)).fetchall()
     return {"resources":[dict(r) for r in rows]}
 
 
