@@ -1739,3 +1739,50 @@ html:has(.v4-home) {
     box-shadow: none !important;
   }
 }
+
+
+/* PR84 acceptance hotfix: black iOS safe-area, separated hero copy, clean poster cards. */
+@media (max-width: 700px) {
+  html:has(body .v4-home),
+  body:has(.v4-home),
+  body:has(.v4-home) .v4-home {
+    background: #000 !important;
+    background-color: #000 !important;
+  }
+
+  body:has(.v4-home) .v4-home > .v4-header,
+  body:has(.v4-home) .v4-home > .v4-header.is-overlay,
+  body:has(.v4-home) .v4-home > .v4-header.is-overlay.is-scrolled {
+    top: 0 !important;
+    inset: 0 0 auto 0 !important;
+    height: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+
+  body:has(.v4-home) .v4-home > .v4-header .v4-header-inner {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 12px) !important;
+  }
+
+  /* Hero copy begins below the floating brand/search controls, never behind them. */
+  body:has(.v4-home) .v4-home .v4-hero-immersive-copy {
+    top: calc(env(safe-area-inset-top, 0px) + 104px) !important;
+    bottom: auto !important;
+    left: 24px !important;
+    right: 24px !important;
+    padding-top: 0 !important;
+    transform: none !important;
+  }
+
+  /* The recommendation rail is poster + title only: no stars or numeric ratings. */
+  body:has(.v4-home) .v4-home .v4-today-card-rating {
+    display: none !important;
+  }
+}
+
+@media (min-width: 701px) {
+  body:has(.v4-home) .v4-home .v4-today-card-rating {
+    display: none !important;
+  }
+}
