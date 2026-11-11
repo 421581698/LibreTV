@@ -8,11 +8,11 @@ function validCollectorBase(rawBase: string): string | null {
   try {
     const parsed = new URL(rawBase.trim());
     const hostname = parsed.hostname.toLowerCase();
-    const isIpLiteral = /^\\d{1,3}(?:\\.\\d{1,3}){3}$/.test(hostname) || hostname.includes(':');
+    const isIpLiteral = /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname) || hostname.includes(':');
     if (parsed.protocol !== 'https:' || (parsed.port && parsed.port !== '443') ||
       parsed.username || parsed.password || (parsed.pathname !== '' && parsed.pathname !== '/') ||
       parsed.search || parsed.hash || isIpLiteral || hostname === 'localhost' ||
-      !hostname.includes('.') || /(^|\\.)(local|internal|localhost|test|invalid)$/.test(hostname)) return null;
+      !hostname.includes('.') || /(^|\.)(local|internal|localhost|test|invalid)$/.test(hostname)) return null;
     return parsed.origin;
   } catch { return null; }
 }
@@ -41,7 +41,7 @@ class CollectorResponseError extends Error {
 /** Enforce a byte ceiling while streaming; Content-Length is only an early-rejection hint. */
 async function readCollectorJson(response: Response): Promise<unknown> {
   const declared = response.headers.get('content-length');
-  if (declared !== null && /^\\d+$/.test(declared) && Number(declared) > MAX_COLLECTOR_RESPONSE_BYTES) {
+  if (declared !== null && /^\d+$/.test(declared) && Number(declared) > MAX_COLLECTOR_RESPONSE_BYTES) {
     await response.body?.cancel().catch(() => undefined);
     throw new CollectorResponseError('TOO_LARGE');
   }
