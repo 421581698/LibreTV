@@ -2518,3 +2518,30 @@ body .v4-home .v4-hero-immersive .v4-hero-image img {
     color: inherit;
   }
 }
+
+/* Apple-style settings language shared by settings index, profile shortcuts and second-level panels. */
+.settings-apple-icon{display:inline-flex;width:42px;height:42px;flex:0 0 42px;align-items:center;justify-content:center;border:0;border-radius:12px;background:transparent;color:var(--settings-icon-color,#9ca3af)}
+.settings-apple-icon svg{width:21px;height:21px;fill:none!important;stroke:currentColor!important;stroke-width:1.65!important;stroke-linecap:round;stroke-linejoin:round}
+.v4-settings-card--apple{display:flex!important;min-height:68px!important;align-items:center!important;gap:12px!important;padding:10px 14px!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important}
+.v4-settings-card--apple+.v4-settings-card--apple{border-top:1px solid rgba(255,255,255,.075)!important}
+.v4-settings-card--apple>div{min-width:0;flex:1}
+.v4-settings-card--apple strong{color:#f5f5f7!important;font-size:14px!important;font-weight:550!important}
+.v4-settings-card--apple p{color:#92929a!important;font-size:12px!important;line-height:1.45!important}
+.v4-settings-card--apple>b{color:#686870!important;font-size:20px!important;font-weight:400!important}
+.v4-settings-card--apple:focus-visible,.ipad-settings-content button:focus-visible,.ipad-settings-content a:focus-visible{outline:2px solid #0a84ff!important;outline-offset:-2px!important}
+.ipad-settings-content{color:#f5f5f7}
+.ipad-settings-content .bg-card,.ipad-settings-content .rounded-2xl.border{border-color:rgba(255,255,255,.09)!important;background:#1c1c1e!important}
+.ipad-settings-content .divide-y>*+*{border-color:rgba(255,255,255,.075)!important}
+.ipad-settings-content .settings-apple-icon{width:40px;height:40px;flex-basis:40px}
+.settings-apple-detail .border-line{border-color:rgba(255,255,255,.12)!important}
+.settings-apple-detail .text-content{color:#f5f5f7!important}
+.settings-apple-detail .text-muted,.settings-apple-detail .text-faint{color:#92929a!important}
+.settings-apple-detail .bg-card{background:#1c1c1e!important}
+.settings-apple-detail .bg-chip{background:#252527!important}
+.settings-apple-detail .text-accent{color:#0a84ff!important}
+.settings-apple-about{padding:22px;border:1px solid rgba(255,255,255,.09);border-radius:16px;background:#1c1c1e}
+.settings-apple-about h3{color:#f5f5f7;font-size:20px;font-weight:600}
+.settings-apple-about p{margin-top:8px;color:#b2b2b8;font-size:14px;line-height:1.65}
+.settings-apple-about .settings-apple-about-note{color:#85858d;font-size:12px}
+@media(max-width:700px){.ipad-settings-content{padding-bottom:max(20px,env(safe-area-inset-bottom))!important}.settings-apple-detail{gap:16px!important}}
+@media(prefers-reduced-motion:reduce){.v4-settings-card--apple,.ipad-settings-content *{transition-duration:.01ms!important}}
