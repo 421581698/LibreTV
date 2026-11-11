@@ -104,6 +104,11 @@ export interface FridayTaskEventEntry {
   error?: { code: string; message: string; retryable: boolean };
 }
 
+export function favoriteIdFor(sourceKey: string, vodId: string): string {
+  // JSON tuple encoding is unambiguous even when either field contains separators.
+  return JSON.stringify([sourceKey, vodId]);
+}
+
 export const db = new Dexie('libretv') as Dexie & {
   history: EntityTable<HistoryEntry, 'id'>;
   favorites: EntityTable<FavoriteEntry, 'id'>;
@@ -136,7 +141,7 @@ export const MAX_HISTORY = 100;
 export const MAX_SEARCH_HISTORY = 10;
 
 export async function upsertHistory(entry: Omit<HistoryEntry, 'id'>): Promise<void> {
-  const id = `${entry.sourceKey}_${entry.vodId}`;
+  const id = favoriteIdFor(entry.sourceKey, entry.vodId);
   const existing = await db.history.get(id);
   const merged: HistoryEntry = {
     ...existing,
@@ -292,7 +297,7 @@ export async function importConfig(content: string): Promise<void> {
       typeof item.title === 'string' &&
       typeof item.sourceName === 'string'
     );
-    if (valid.length > 0) await db.favorites.bulkPut(valid);
+    if (valid.length > 0) await db.favorites.bulkPut(valid.map((item) => ({ ...item, id: favoriteIdFor(item.sourceKey, item.vodId) })));
   }
 
   if (typeof data['viewingHistory'] === 'string') {
@@ -337,6 +342,15 @@ db.version(6).stores({
   favorites: 'id, addedAt, sourceKey, title',
 });
 
+// v7: use an unambiguous composite identity and migrate existing v6 favorites.
+db.version(7).stores({
+  favorites: 'id, addedAt, sourceKey, title',
+}).upgrade(async (transaction) => {
+  await transaction.table('favorites').toCollection().modify((item: FavoriteEntry) => {
+    item.id = favoriteIdFor(item.sourceKey, item.vodId);
+  });
+});
+
 export async function addFavorite(entry: Omit<FavoriteEntry, 'id' | 'addedAt'>): Promise<void> {
   const id = `${entry.sourceKey}_${entry.vodId}`;
   const existing = await db.favorites.get(id);
@@ -349,5 +363,5 @@ export async function addFavorite(entry: Omit<FavoriteEntry, 'id' | 'addedAt'>):
 }
 
 export async function removeFavorite(sourceKey: string, vodId: string): Promise<void> {
-  await db.favorites.delete(`${sourceKey}_${vodId}`);
+  await db.favorites.delete(favoriteIdFor(sourceKey, vodId));
 }
