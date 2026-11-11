@@ -1448,7 +1448,13 @@ def extract_page_metadata(page, page_url: str = "") -> dict:
             break
     if not values["title"]:
         for selector in ("h1", "title"):
-            candidate = (page.css(f"{selector}::text").get() or "").strip()
+            selection = page.css(f"{selector}::text")
+            if hasattr(selection, "get"):
+                candidate = str(selection.get() or "").strip()
+            elif isinstance(selection, (list, tuple)):
+                candidate = str(selection[0] if selection else "").strip()
+            else:
+                candidate = str(selection or "").strip()
             if candidate:
                 values["title"] = candidate[:200]
                 values["identity_source"] = "page_heading" if selector == "h1" else "page_title"
@@ -1643,7 +1649,7 @@ def normalize_candidate(candidate: dict) -> dict:
 def extract_candidates(page, page_url: str, limit: int) -> list[dict]:
     found: dict[str, dict] = {}
     page_metadata = extract_page_metadata(page, page_url)
-    title = str(page_metadata.get("title") or (page.css("title::text").get() or "").strip())[:200]
+    title = str(page_metadata.get("title") or "")[:200]
     candidate_metadata = {"page_metadata": page_metadata, "media_identity": infer_media_identity(title, page_url, page_metadata)}
     selectors = [("video", "src"), ("source", "src"), ("iframe", "src"), ("a", "href"), ("script", "src")]
     for selector, attribute in selectors:
