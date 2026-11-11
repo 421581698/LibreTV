@@ -197,3 +197,13 @@
 @media (min-width: 701px) {
   body > .v4-mobile-tabbar { display: none !important; }
 }
+
+
+/* PR84: homepage header intentionally has no brand/logo; keep utility actions at the right edge. */
+.v4-home .v4-header-inner--no-brand {
+  display: flex !important;
+  justify-content: flex-end !important;
+}
+.v4-home .v4-header-inner--no-brand .v4-header-actions {
+  margin-left: auto !important;
+}
