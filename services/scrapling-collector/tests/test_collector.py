@@ -19,6 +19,14 @@ class CollectorTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
+    def test_crawl_batch_defaults_to_250_and_requires_at_least_101(self):
+        request = collector.CrawlRequest(url="https://catalog.example/")
+        self.assertEqual(request.limit, 250)
+        with self.assertRaises(Exception):
+            collector.CrawlRequest(url="https://catalog.example/", limit=100)
+        accepted = collector.CrawlRequest(url="https://catalog.example/", limit=101)
+        self.assertEqual(accepted.limit, 101)
+
     def test_crawl_egress_gate_fails_closed_until_firewall_is_confirmed(self):
         with patch.dict(os.environ, {"SCRAPLING_EGRESS_FIREWALL_CONFIRMED": ""}):
             with self.assertRaises(collector.HTTPException) as error:
