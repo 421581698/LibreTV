@@ -627,7 +627,7 @@ export function PlayerShell({
       sustainableFragmentsRef.current = 0;
       setNetworkQualityWarning('');
       const result = hls
-        ? applyHlsQualityPreference(hls, preference, video)
+        ? applyHlsQualityPreference(hls!, preference, video)
         : { heights: [], notice: '当前使用浏览器原生 HLS，无法读取或锁定播放清晰度档位。' };
       setAvailableQualityHeights(result.heights);
       setQualityNotice(result.notice ?? '');
@@ -686,7 +686,7 @@ export function PlayerShell({
     hls.attachMedia(video);
 
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      const qualityResult = applyHlsQualityPreference(hls, readQualityPreference(), video);
+      const qualityResult = applyHlsQualityPreference(hls!, readQualityPreference(), video);
       setAvailableQualityHeights(qualityResult.heights);
       setAvailableQualityLevelCount(hls.levels.length);
       setQualityMetadataComplete(hls.levels.length > 0 && hls.levels.every((level) => Number.isFinite(level.height) && level.height > 0));
@@ -748,7 +748,7 @@ export function PlayerShell({
     // 实际分辨率统一由 video.videoHeight 的 loadedmetadata/canplay/playing/resize 事件记录。
     hls.on(Hls.Events.LEVELS_UPDATED, () => {
       // 部分动态清单会在初次解析后补齐档位；重新应用用户的最高画质限制。
-      const qualityResult = applyHlsQualityPreference(hls, readQualityPreference(), video);
+      const qualityResult = applyHlsQualityPreference(hls!, readQualityPreference(), video);
       setAvailableQualityHeights(qualityResult.heights);
       setAvailableQualityLevelCount(hls.levels.length);
       setQualityMetadataComplete(hls.levels.length > 0 && hls.levels.every((level) => Number.isFinite(level.height) && level.height > 0));
