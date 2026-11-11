@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
+import { favoriteIdFor } from './favorite-id';
 import type { SourceConfig } from './types';
 // 仅类型引入：store.ts 运行时会引用本模块，反向只取类型不会形成运行时循环
 import type { LiveProbeEntry } from './store';
@@ -102,11 +103,6 @@ export interface FridayTaskEventEntry {
   agent?: string;
   payload?: unknown;
   error?: { code: string; message: string; retryable: boolean };
-}
-
-export function favoriteIdFor(sourceKey: string, vodId: string): string {
-  // JSON tuple encoding is unambiguous even when either field contains separators.
-  return JSON.stringify([sourceKey, vodId]);
 }
 
 export const db = new Dexie('libretv') as Dexie & {
