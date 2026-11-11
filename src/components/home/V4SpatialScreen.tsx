@@ -344,6 +344,7 @@ function SettingsScreen() {
     { title: 'Friday 语音', description: '助手角色、语音音色、唤醒词与对话语言', page: 'voice' },
     { title: '配置导入与导出', description: '备份或恢复 LibreTV 本机配置', page: 'io' },
     { title: '本机缓存', description: '查看和管理本机视频缓存', page: 'cache' },
+    { title: '下载与离线观看', description: '下载画质、Wi-Fi 偏好与手机存储空间', page: 'downloads' },
   ] as const;
 
   const openCategory = (page: string) => {
