@@ -1226,3 +1226,86 @@ body:has(.v4-home) #__next {
 html:has(.v4-home) {
   --safe-area-surface: #000 !important;
 }
+
+
+/* PR84 follow-up — compact floating dock, visible poster captions, no duplicate footer space. */
+@media (max-width: 700px) {
+  html:has(.v4-home),
+  body:has(.v4-home),
+  body:has(.v4-home) #__next {
+    min-height: 100svh !important;
+    min-height: 100dvh !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #000 !important;
+  }
+
+  body:has(.v4-home) .v4-home {
+    min-height: 100svh !important;
+    min-height: 100dvh !important;
+    height: auto !important;
+    padding: 0 0 env(safe-area-inset-bottom, 0px) !important;
+  }
+
+  body:has(.v4-home) .v4-home .v4-mobile-tabbar {
+    position: fixed !important;
+    z-index: 700 !important;
+    left: 16px !important;
+    right: 16px !important;
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px)) !important;
+    width: auto !important;
+    max-width: 420px !important;
+    height: 58px !important;
+    min-height: 58px !important;
+    margin-inline: auto !important;
+    padding: 4px 7px !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    align-items: center !important;
+    gap: 4px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(255,255,255,.25) !important;
+    border-radius: 999px !important;
+    background:
+      linear-gradient(145deg, rgba(255,255,255,.16), rgba(255,255,255,.045) 48%, rgba(0,0,0,.10)),
+      rgba(30,30,34,.43) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(180%) contrast(108%) !important;
+    backdrop-filter: blur(24px) saturate(180%) contrast(108%) !important;
+    box-shadow:
+      0 8px 26px rgba(0,0,0,.24),
+      inset 0 1px 0 rgba(255,255,255,.30),
+      inset 0 -1px 0 rgba(255,255,255,.08) !important;
+    isolation: isolate !important;
+    transform: none !important;
+  }
+
+  body:has(.v4-home) .v4-home .v4-mobile-tabbar a {
+    height: 48px !important;
+    min-height: 48px !important;
+    padding: 2px 4px !important;
+    gap: 2px !important;
+    border-radius: 999px !important;
+  }
+
+  body:has(.v4-home) .v4-home .v4-mobile-tabbar a svg {
+    width: 18px !important;
+    height: 18px !important;
+    flex-basis: 18px !important;
+  }
+
+  body:has(.v4-home) .v4-home .v4-mobile-tabbar a span {
+    font-size: 10px !important;
+    line-height: 1.05 !important;
+  }
+
+  /* One scroll reserve only: enough to clear the floating dock and its safe-area offset. */
+  body:has(.v4-home) .v4-home {
+    padding-bottom: 0 !important;
+  }
+  body:has(.v4-home) .v4-home .v4-home-main,
+  body:has(.v4-home) .v4-home .v4-home-main--cinema {
+    padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
