@@ -47,7 +47,7 @@ describe('normalizeImportedFavorites', () => {
       null,
       {},
       { id: 'x', sourceKey: 'a', vodId: '1', title: 'Film' },
-      { id: 1, sourceKey: 'a', vodId: '2', title: 'Film', sourceName: 'A' },
+      { id: 1, sourceKey: '', vodId: '2', title: 'Film', sourceName: 'A' },
     ]);
 
     expect(result).toEqual([]);
