@@ -57,9 +57,6 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
                     />
                   </span>
                   <strong title={item.title}>{item.title}</strong>
-                  <span className="v4-today-card-rating" aria-label={item.rating ? `评分 ${item.rating}` : '暂无评分'}>
-                    <span aria-hidden="true">★</span> {item.rating || '暂无评分'}
-                  </span>
                 </button>
               ))}
             </div>
