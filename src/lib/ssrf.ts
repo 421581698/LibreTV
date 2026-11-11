@@ -1,5 +1,6 @@
 import { resolve4, resolve6 } from 'node:dns/promises';
 import { isIP } from 'node:net';
+import { isLivePrivateHostAllowed } from './live-private-hosts';
 
 /** 去掉 URL.hostname 对 IPv6 附加的方括号（"[::1]" → "::1"） */
 function stripBrackets(host: string): string {
@@ -161,17 +162,15 @@ export async function checkUpstreamAllowed(urlString: string): Promise<UpstreamV
   return { ok: true };
 }
 
-/** 直播场景是否放行内网地址（自建 IPTV）；由部署者显式开启 */
+/** 直播私网访问开关；还必须匹配 LIVE_PRIVATE_HOSTS 中的精确主机名。 */
 export function allowLivePrivate(): boolean {
   return process.env.LIVE_ALLOW_PRIVATE === '1';
 }
 
 /**
- * 直播地址专用校验：协议必须 http(s)，默认仍拒绝内网，但部署者可用
- * LIVE_ALLOW_PRIVATE=1 显式放行（自建 IPTV 常位于内网）。
- *
- * 与点播侧 checkUpstreamAllowed 的区别只在这一处开关：
- * 订阅/播放列表若沿用点播那把尺子，会静默过滤掉内网自建源。
+ * 直播地址专用校验：协议必须 http(s)，默认仍拒绝内网。
+ * 私网自建 IPTV 需要同时设置 LIVE_ALLOW_PRIVATE=1，并将精确 hostname/IP
+ * 写入 LIVE_PRIVATE_HOSTS；不会因为一个全局开关而放行任意用户提交的内网 URL。
  */
 export async function checkLiveUrlAllowed(urlString: string): Promise<UpstreamVerdict> {
   try {
@@ -182,6 +181,9 @@ export async function checkLiveUrlAllowed(urlString: string): Promise<UpstreamVe
   } catch {
     return { ok: false, reason: '无效的直播地址' };
   }
-  if (allowLivePrivate()) return { ok: true };
+  // Private IPTV targets are trusted only when both the opt-in switch and an
+  // exact deployment-owned hostname/IP allowlist entry match. The switch alone
+  // must never turn a user-controlled URL into an unrestricted SSRF primitive.
+  if (isLivePrivateHostAllowed(urlString)) return { ok: true };
   return checkUpstreamAllowed(urlString);
 }
