@@ -21,7 +21,7 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
   const slide = slides[normalizedActiveSlide];
 
   return (
-    <section className="v4-hero" aria-label="精选影片">
+    <section className="v4-hero v4-hero-immersive" aria-label="精选影片">
       {slide ? (
         <>
           <div className="v4-hero-image" aria-hidden="true">
@@ -36,46 +36,34 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
           <div className="v4-hero-veil" aria-hidden="true" />
           <button
             type="button"
-            className="absolute inset-0 z-[1] cursor-pointer"
-            aria-label={`立即播放：${slide.title}`}
+            className="v4-hero-hit-area"
+            aria-label={`播放精选影片：${slide.title}`}
             onClick={() => onPick(slide)}
           />
-          <div className="v4-hero-content" style={{ zIndex: 2 }}>
-            <h1>{slide.title}</h1>
-            <p className="v4-hero-subtitle">精选电影与剧集</p>
-            <div className="v4-hero-actions">
-              <button type="button" className="v4-hero-primary" onClick={() => onPick(slide)}>
-                <span aria-hidden="true">▶</span>
-                立即观看
-              </button>
-              <a className="v4-hero-secondary" href="#for-you"><span aria-hidden="true">ⓘ</span>更多详情</a>
-            </div>
-            <div className="v4-hero-indicators" role="group" aria-label="选择精选影片">
-              {slides.map((item, index) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  aria-label={`查看精选影片：${item.title}`}
-                  aria-pressed={normalizedActiveSlide === index}
-                  className={normalizedActiveSlide === index ? 'is-active' : ''}
-                  onClick={() => setActiveSlide(index)}
-                />
-              ))}
-            </div>
+          <div className="v4-hero-content v4-hero-immersive-copy">
+            <span className="v4-hero-eyebrow">LIBRETV · 精选放映</span>
+            <h1>发现好内容</h1>
+            <p className="v4-hero-subtitle">从热门电影到精彩剧集，找到下一部值得看的作品</p>
+            <span className="v4-hero-featured-title">{slide.title}</span>
+          </div>
+          <div className="v4-hero-indicators v4-hero-dots" role="group" aria-label="选择 Banner 图片">
+            {slides.map((item, index) => (
+              <button
+                key={item.id}
+                type="button"
+                aria-label={`查看精选影片：${item.title}`}
+                aria-pressed={normalizedActiveSlide === index}
+                className={normalizedActiveSlide === index ? 'is-active' : ''}
+                onClick={() => setActiveSlide(index)}
+              />
+            ))}
           </div>
         </>
       ) : (
-        <div className="v4-hero-content v4-hero-empty" role="status">
-          <h1>{featuredQuery.isLoading ? '正在载入精选内容' : '精选内容暂不可用'}</h1>
-          {featuredQuery.isError && <p>推荐接口暂时没有响应，请稍后重试。</p>}
-          <div className="v4-hero-actions">
-            <a className="v4-hero-primary" href="#today-recommendations">立即观看</a>
-            {featuredQuery.isError && (
-              <button type="button" className="v4-hero-secondary" onClick={() => void featuredQuery.refetch()}>
-                重试加载
-              </button>
-            )}
-          </div>
+        <div className="v4-hero-content v4-hero-empty v4-hero-immersive-copy" role="status">
+          <span className="v4-hero-eyebrow">LIBRETV</span>
+          <h1>{featuredQuery.isLoading ? '发现好内容' : '精选内容暂不可用'}</h1>
+          <p>{featuredQuery.isLoading ? '正在为你挑选精彩影片' : '推荐内容暂时无法加载，请稍后再试'}</p>
         </div>
       )}
     </section>
