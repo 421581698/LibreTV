@@ -39,7 +39,7 @@ describe('PR #84 homepage blocking layout recovery', () => {
     expect(layout).toContain("import './pr84-global-layout.css';");
     expect(globalLayout).toContain('height: 54px !important;');
     expect(globalLayout).toContain('inset: auto auto calc(8px + env(safe-area-inset-bottom, 0px)) 50% !important;');
-    expect(globalLayout).toContain('height: 64px !important;');
+    expect(globalLayout).not.toContain('height: 64px !important;');
     expect(globalLayout).toContain('bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;');
     expect(globalLayout).toContain('width: 18px !important;');
     expect(globalLayout).toContain('.v4-spatial-screen[data-screen="me"] > .v4-spatial-main');
