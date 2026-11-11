@@ -42,7 +42,7 @@ describe('PR #84 homepage blocking layout recovery', () => {
     expect(page).toContain('<V4HomepageContent onPick={openRecommendation} />');
   });
 
-  it('does not apply the homepage body portal to routed catalogue screens', () => {
+  it('uses the same body-level viewport portal on homepage and routed catalogue screens', () => {
     expect(dock).toContain('return portalTarget ? createPortal(navigation, portalTarget) : null;');
     expect(dock).not.toContain('return navigation;');
     expect(dock).toContain('data-homepage-dock={isHomepage ? \'true\' : undefined}');
