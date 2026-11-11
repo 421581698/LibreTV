@@ -1501,7 +1501,8 @@ def extract_page_metadata(page, page_url: str = "") -> dict:
             schema_types = schema_type if isinstance(schema_type, list) else [schema_type]
             normalized_types = {str(item).lower().rsplit("/", 1)[-1] for item in schema_types}
             schema_name = str(node.get("name") or "").strip()
-            if schema_name and (not values["title"] or values["identity_source"] in ("page_title", "page_heading")):
+            is_media_schema = bool(normalized_types.intersection({"movie", "tvseries", "tvseason", "tvepisode", "videoobject"}))
+            if schema_name and is_media_schema:
                 values["title"] = schema_name[:200]
                 values["identity_source"] = "schema_org"
             if "movie" in normalized_types:
@@ -1527,7 +1528,6 @@ def extract_page_metadata(page, page_url: str = "") -> dict:
             if node.get("episodeNumber") is not None:
                 try: values["episode_hint"] = int(node["episodeNumber"])
                 except (TypeError, ValueError): pass
-            break
     return values
 
 
