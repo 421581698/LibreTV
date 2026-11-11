@@ -3,6 +3,7 @@ import { guardRequest } from "@/lib/api-guard";
 import { createEdgeTtsStream } from "@/lib/friday/edgeTts";
 import { createPiperTtsResponse } from "@/lib/friday/piperTts";
 import { getFridayAssistantProfile } from "@/lib/friday/assistant-profiles";
+import { readJsonLimited } from "@/lib/request-body";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -94,7 +95,7 @@ export async function POST(request: Request) {
 
   let payload: z.infer<typeof requestSchema>;
   try {
-    const parsed = requestSchema.safeParse(await request.json());
+    const parsed = requestSchema.safeParse(await readJsonLimited<unknown>(request, 16 * 1024));
     if (!parsed.success) return jsonError("Invalid speech request.", 400);
     payload = parsed.data;
   } catch {
