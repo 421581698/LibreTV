@@ -123,7 +123,7 @@ describe('首页与播放页回归契约', () => {
     expect(featuredHero).not.toContain('v4-hero-primary');
     expect(featuredHero).not.toContain('v4-hero-secondary');
     expect(v4Content.indexOf('id="my-library"')).toBeLessThan(v4Content.indexOf('id="for-you"'));
-    expect(v4Content).toContain("api.douban('movie', '热门', 0, 8, signal)");
+    expect(v4Content).toContain("api.douban('movie', '热门', 0, TODAY_LIMIT, signal)");
     expect(v4Content).toContain('db.history.orderBy(\'timestamp\').reverse().limit(CONTINUE_LIMIT)');
     expect(v4Content).toContain('<RecommendSection onPick={onPick} />');
 
