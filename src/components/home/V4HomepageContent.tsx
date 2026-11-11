@@ -24,15 +24,6 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
 
   return (
     <>
-      {doubanEnabled ? (
-        <section className="v4-content-section v4-recommendation-section" id="for-you" aria-label="为你推荐">
-          <div className="v4-section-heading">
-            <h2>为你推荐 <span aria-hidden="true">›</span></h2>
-          </div>
-          <RecommendSection onPick={onPick} />
-        </section>
-      ) : null}
-
       <section className="v4-content-section v4-continue-section" id="my-library" aria-label="我的观看记录">
         <div className="v4-section-heading">
           <h2>继续观看 <span aria-hidden="true">›</span></h2>
@@ -50,6 +41,15 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
           </div>
         )}
       </section>
+
+      {doubanEnabled ? (
+        <section className="v4-content-section v4-recommendation-section" id="for-you" aria-label="为你推荐">
+          <div className="v4-section-heading">
+            <h2>为你推荐 <span aria-hidden="true">›</span></h2>
+          </div>
+          <RecommendSection onPick={onPick} />
+        </section>
+      ) : null}
     </>
   );
 }
