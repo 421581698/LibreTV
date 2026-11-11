@@ -48,8 +48,10 @@ if not TOKEN:
 app = FastAPI(title="LibreTV FMHY Scrapling Collector", docs_url=None, redoc_url=None)
 app.include_router(registry_router)
 
-# Scrapling stores adaptive selector fingerprints in its own SQLite storage.
-Fetcher.adaptive = True
+# Enable Scrapling's persistent adaptive selector storage only when a crawl starts.
+# Importing the ASGI app must not create or migrate any database files.
+def enable_adaptive_fetcher() -> None:
+    Fetcher.adaptive = True
 
 
 class CrawlRequest(BaseModel):
@@ -1229,6 +1231,7 @@ def fmhy_sites_from_page(page, directory_url: str = FMHY_VIDEO_URL) -> list[dict
 
 
 def discover_sites() -> list[dict]:
+    enable_adaptive_fetcher()
     throttle("fmhy.net")
     root_page = Fetcher.get(FMHY_VIDEO_URL, timeout=25, follow_redirects="safe")
     directory_pages = [FMHY_VIDEO_URL, *fmhy_category_pages_from_page(root_page)]
@@ -1899,6 +1902,7 @@ def record_page_fingerprint(host: str, page_url: str, body: bytes) -> bool:
 
 
 def run_spider(url: str, limit: int) -> list[dict]:
+    enable_adaptive_fetcher()
     class TargetSiteSpider(SiteSpider):
         start_urls = [url]
         allowed_domains = [urlparse(url).hostname]
@@ -2111,6 +2115,7 @@ def persist_task(
 
 
 def crawl_site(payload: CrawlRequest, cancel_check=None) -> dict:
+    enable_adaptive_fetcher()
     require_egress_firewall()
     raw_url, host = public_https_url(str(payload.url))
     with db() as connection:
@@ -2456,6 +2461,7 @@ def task_candidates(task_id: str, authorization: str | None = Header(default=Non
 
 @app.post("/v1/candidates/{candidate_id}/validate")
 def validate_candidate(candidate_id: str, authorization: str | None = Header(default=None)):
+    enable_adaptive_fetcher()
     require_token(authorization)
     require_egress_firewall()
     with db() as connection:
