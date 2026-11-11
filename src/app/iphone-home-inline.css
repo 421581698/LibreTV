@@ -1380,8 +1380,8 @@ html:has(.v4-home) {
   body:has(.v4-home) .v4-home .v4-history-row {
     width: 100% !important;
     margin-left: 0 !important;
-    padding: 2px 24px 18px !important;
-    scroll-padding-inline: 24px !important;
+    padding: 2px 0 18px !important;
+    scroll-padding-inline: 20px !important;
     box-sizing: border-box !important;
   }
 
