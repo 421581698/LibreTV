@@ -138,6 +138,9 @@ export function SourceManagerDrawer({ open, onClose, embedded = false }: { open:
   const settingsContent = (
     <>
       {activePage === 'index' ? (
+        <header className="settings-nav-bar">
+          <span className="settings-nav-title">设置</span>
+        </header>
         <div className="ipad-settings-content mx-auto w-full max-w-2xl space-y-7 pb-3">
           {!embedded ? (
             <div className="space-y-1">
@@ -173,17 +176,14 @@ export function SourceManagerDrawer({ open, onClose, embedded = false }: { open:
           <p className="px-1 text-center text-xs text-faint">LibreTV · 本机设置</p>
         </div>
       ) : (
-        <div className="ipad-settings-content settings-apple-detail mx-auto w-full max-w-2xl space-y-5 pb-3">
-          <button
-            type="button"
-            onClick={() => setActivePage('index')}
-            className="inline-flex min-h-9 items-center gap-1 rounded-lg pr-2 text-sm font-medium text-accent transition-colors hover:opacity-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-            aria-label="返回设置"
-          >
-            <span aria-hidden="true" className="text-lg leading-none">‹</span>
-            设置
+        <header className="settings-nav-bar">
+          <button type="button" className="settings-nav-back" onClick={() => setActivePage('index')} aria-label="返回设置">
+            <span aria-hidden="true">‹</span><span>设置</span>
           </button>
-          <div className="space-y-1 border-b border-line pb-4">
+          <span className="settings-nav-center">设置</span>
+        </header>
+        <div className="ipad-settings-content settings-apple-detail mx-auto w-full max-w-2xl space-y-5 pb-3">
+          <div className="settings-apple-detail-heading space-y-1 border-b border-line pb-4">
             <div className="settings-apple-page-title">
               <span className="settings-apple-icon" style={{ color: SETTINGS_PAGE_ICONS[activePage].color }}>
                 <Icon name={SETTINGS_PAGE_ICONS[activePage].icon} className="h-5 w-5" />
@@ -553,12 +553,12 @@ function ResourceCollectorPanel() {
       <button
         type="button"
         onClick={() => setCenterPage('index')}
-        className="inline-flex min-h-9 items-center gap-2 rounded-lg pr-2 text-sm font-medium text-accent transition-colors hover:opacity-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        className="collector-subnav-back"
       >
-        <span aria-hidden="true" className="text-lg leading-none">‹</span>
-        资源采集中心
+        <span aria-hidden="true">‹</span>
+        <span>资源采集中心</span>
       </button>
-      <div className="border-b border-line pb-3">
+      <div className="collector-subpage-heading border-b border-line pb-3">
         <h3 className="text-lg font-semibold text-content">{activeCenterItem?.title}</h3>
         <p className="mt-1 text-xs text-muted">{activeCenterItem?.detail}</p>
       </div>
