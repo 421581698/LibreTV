@@ -20,6 +20,7 @@ function mockFetch(handlers: Array<(url: string) => Response>) {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 describe('fetchUpstream 安全跳转', () => {
