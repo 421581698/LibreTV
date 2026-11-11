@@ -105,13 +105,13 @@
   }
 
   /* Settings is a first-level destination: same left-aligned Large Title as Search. */
-  .settings-embedded-root .settings-large-title {
+  .settings-large-title, .settings-embedded-root .settings-large-title {
     display: block !important;
     margin: 0 auto 24px !important;
     padding: 0 2px 4px !important;
     text-align: left !important;
   }
-  .settings-embedded-root .settings-large-title h1 {
+  .settings-large-title h1, .settings-embedded-root .settings-large-title h1 {
     margin: 0 !important;
     color: #fff !important;
     font-size: 42px !important;
@@ -120,7 +120,7 @@
     letter-spacing: -1.6px !important;
     text-align: left !important;
   }
-  .settings-embedded-root .settings-large-title p {
+  .settings-large-title p, .settings-embedded-root .settings-large-title p {
     margin: 8px 0 0 !important;
     color: #a1a1a6 !important;
     font-size: 13px !important;
