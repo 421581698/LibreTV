@@ -131,6 +131,15 @@ describe('首页与播放页回归契约', () => {
     expect(featuredHero).toContain('发现好内容');
     expect(featuredHero).not.toContain('v4-hero-primary');
     expect(featuredHero).not.toContain('v4-hero-secondary');
+    expect(featuredHero).toContain('v4-hero-tags');
+    expect(featuredHero).toContain('立即播放');
+    expect(featuredHero).toContain('v4-hero-plus');
+    expect(homepageHeroStyles).toContain('linear-gradient(180deg, rgba(0,0,0,.08)');
+    expect(homepageHeroStyles).toContain('backdrop-filter: blur(20px) saturate(155%) !important;');
+    expect(homepageHeroStyles).toContain('background: rgba(18,18,20,.68) !important;');
+    expect(homepageHeroStyles).toContain('color: #0a84ff !important;');
+    expect(homepageHeroStyles).toContain('overflow-x: auto !important;');
+
     expect(v4Content.indexOf('id="my-library"')).toBeLessThan(v4Content.indexOf('id="for-you"'));
     expect(v4Content).toContain("api.douban('movie', '热门', 0, TODAY_LIMIT, signal)");
     expect(v4Content).toContain('db.history.orderBy(\'timestamp\').reverse().limit(CONTINUE_LIMIT)');
