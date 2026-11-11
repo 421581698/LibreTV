@@ -40,7 +40,13 @@ def handle(payload: dict, checkpoint, cancelled):
         return {"status": "succeeded", "discovered": len(sites), "queued_jobs": queued}
 
     checkpoint({"stage": "crawl_started"})
-    result = crawl_site(CrawlRequest(**payload), cancel_check=cancelled)
+    crawl_payload = dict(payload)
+    try:
+        requested_limit = int(crawl_payload.get("limit") or 250)
+    except (TypeError, ValueError):
+        requested_limit = 250
+    crawl_payload["limit"] = max(101, min(1000, requested_limit))
+    result = crawl_site(CrawlRequest(**crawl_payload), cancel_check=cancelled)
     if cancelled():
         raise JobCancelled()
 
