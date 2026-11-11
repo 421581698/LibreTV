@@ -30,7 +30,8 @@ describe('PR #84 homepage blocking layout recovery', () => {
   });
 
   it('keeps the homepage and hero in natural document flow with a real scrollable page', () => {
-    expect(recovery).toContain('overflow-y: auto !important;');
+    expect(recovery).not.toContain('overflow-y: auto !important;');
+    expect(recovery).not.toContain('position: static !important;');
     expect(recovery).toContain('height: auto !important;');
     expect(recovery).toContain('flex: 0 0 auto !important;');
     expect(recovery).toContain('padding: 0 0 24px !important;');
