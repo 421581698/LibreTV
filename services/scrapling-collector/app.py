@@ -1545,16 +1545,16 @@ def infer_media_identity(title: str = "", url: str = "", page_metadata: dict | N
     release_source = f"{source} {fallback_name}"
     year_match = re.search(r"(?<!\d)((?:19|20)\d{2})(?!\d)", release_source)
     season_match = re.search(r"(?i)\b(?:season\s*|s)(\d{1,2})", release_source)
-    episode_match = re.search(r"(?i)\b(?:episode\s*|ep?)(\d{1,3})", release_source)
+    episode_match = re.search(r"(?i)(?:\b(?:episode\s*|ep?)(\d{1,3})|(?<=\d)e(\d{1,3}))", release_source)
     quality_match = re.search(r"(?i)(2160p|4k|1080p|720p|480p)", release_source)
     codec_match = re.search(r"(?i)(hevc|h\.265|h265|x265|av1|h\.264|h264|x264)", release_source)
     cleaned = re.sub(r"(?i)\.(m3u8|mp4|m4v|webm|mpd|mov|ts|m4s|aac)(?:$|\?).*", "", source)
-    cleaned = re.sub(r"(?i)\b(?:season\s*|s)\d{1,2}|\b(?:episode\s*|ep?)\d{1,3}|(?<!\d)(?:19|20)\d{2}(?!\d)|2160p|4k|1080p|720p|480p|hevc|h\.?265|x265|av1|h\.?264|x264", " ", cleaned)
+    cleaned = re.sub(r"(?i)\b(?:season\s*|s)\d{1,2}|\b(?:episode\s*|ep?)\d{1,3}|(?<=\d)e\d{1,3}|(?<!\d)(?:19|20)\d{2}(?!\d)|2160p|4k|1080p|720p|480p|hevc|h\.?265|x265|av1|h\.?264|x264", " ", cleaned)
     cleaned = re.sub(r"[^\w\u4e00-\u9fff]+", " ", cleaned, flags=re.UNICODE)
     title_hint = " ".join(cleaned.split())[:160]
     year = int(year_match.group(1)) if year_match else metadata.get("year_hint")
     season = int(season_match.group(1)) if season_match else metadata.get("season_hint")
-    episode = int(episode_match.group(1)) if episode_match else metadata.get("episode_hint")
+    episode = int(next(group for group in episode_match.groups() if group)) if episode_match else metadata.get("episode_hint")
     quality_hint = quality_match.group(1).lower() if quality_match else None
     codec_hint = codec_match.group(1).lower().replace(".", "") if codec_match else None
     media_type = str(metadata.get("media_type_hint") or "unknown").lower()
