@@ -831,3 +831,113 @@ body:has(.v4-home) .v4-home .v4-mobile-tabbar a.is-active svg {
     flex-basis: 48px !important;
   }
 }
+
+
+/* Apple TV polish pass 2 — centered hero controls and edge-to-edge iOS dock. */
+body:has(.v4-home),
+html:has(.v4-home) {
+  background: #000 !important;
+  color-scheme: dark !important;
+}
+body:has(.v4-home) .v4-home,
+body:has(.v4-home) .v4-home-main,
+body:has(.v4-home) .v4-hero-immersive {
+  background: #000 !important;
+}
+
+/* Keep the CTA and plus as one centered control group. */
+body:has(.v4-home) .v4-home .v4-hero-actions.v4-apple-actions {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 12px !important;
+  width: fit-content !important;
+  max-width: calc(100% - 24px) !important;
+  margin-inline: auto !important;
+  position: relative !important;
+  left: auto !important;
+  right: auto !important;
+  transform: none !important;
+}
+body:has(.v4-home) .v4-home .v4-hero-actions.v4-apple-actions .v4-hero-primary {
+  flex: 0 1 260px !important;
+}
+body:has(.v4-home) .v4-home .v4-hero-plus {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  padding: 0 !important;
+}
+
+/* Full-width bottom glass tab bar: flush to all three screen edges. */
+body:has(.v4-home) .v4-home .v4-mobile-tabbar {
+  position: fixed !important;
+  z-index: 500 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  transform: none !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-height: calc(62px + env(safe-area-inset-bottom)) !important;
+  box-sizing: border-box !important;
+  grid-template-columns: repeat(3,minmax(0,1fr)) !important;
+  padding: 6px 8px max(6px,env(safe-area-inset-bottom)) !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-top: 1px solid rgba(255,255,255,.12) !important;
+  border-radius: 0 !important;
+  background: rgba(30,30,30,.8) !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: blur(20px) saturate(145%) !important;
+  backdrop-filter: blur(20px) saturate(145%) !important;
+}
+body:has(.v4-home) .v4-home .v4-mobile-tabbar a {
+  min-height: 48px !important;
+}
+
+/* Subtle, editorial type hierarchy in the hero. */
+body:has(.v4-home) .v4-home .v4-hero-immersive-copy .v4-hero-eyebrow {
+  letter-spacing: .28em !important;
+}
+body:has(.v4-home) .v4-home .v4-hero-immersive-copy h1 {
+  font-weight: 600 !important;
+}
+body:has(.v4-home) .v4-home .v4-hero-immersive-copy .v4-hero-subtitle {
+  margin-top: 0 !important;
+  margin-bottom: 18px !important;
+  color: rgba(255,255,255,.7) !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+}
+body:has(.v4-home) .v4-home .v4-hero-tags {
+  gap: 8px !important;
+}
+body:has(.v4-home) .v4-home .v4-hero-tags span {
+  padding: 4px 10px !important;
+}
+body:has(.v4-home) .v4-home .v4-rail-hint {
+  color: #666 !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+}
+
+/* The hero artwork/background must extend behind the iOS status-bar safe area. */
+@media (max-width: 700px) {
+  html:has(.v4-home),
+  body:has(.v4-home),
+  body:has(.v4-home) #__next,
+  body:has(.v4-home) .v4-home {
+    min-height: 100svh !important;
+    background-color: #000 !important;
+  }
+  body:has(.v4-home) .v4-home .v4-hero-immersive {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+  }
+  body:has(.v4-home) .v4-home .v4-hero-immersive .v4-hero-image {
+    top: 0 !important;
+  }
+}
