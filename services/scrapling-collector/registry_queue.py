@@ -504,7 +504,7 @@ def api_submit_batch(payload: dict, authorization: str | None = Header(default=N
     try:
         minimum = max(101, min(1000, int(payload.get("minimum", 101))))
         target = max(minimum, min(1000, int(payload.get("target", 250))))
-        max_sites = max(1, min(50, int(payload.get("max_sites", 25))))
+        max_sites = max(1, min(1000, int(payload.get("max_sites", 1000))))
     except (TypeError, ValueError):
         raise HTTPException(status_code=400, detail="Invalid batch limits")
     key = str(payload.get("idempotency_key") or (
