@@ -2,16 +2,16 @@
    The homepage keeps natural document scrolling; its dock is portaled to body
    so transformed/filtered visual wrappers cannot become its fixed-position containing block. */
 
-html:has(body .v4-home),
-body:has(.v4-home) {
-  height: auto !important;
+html:has(body .v4-home) {
   min-height: 100% !important;
   overflow-x: clip !important;
-  overflow-y: auto !important;
 }
 
 body:has(.v4-home) {
-  position: static !important;
+  min-height: 100% !important;
+  overflow-x: clip !important;
+  /* Keep transform/filter from creating a fixed-position containing block.
+     Do not override body position/overflow: drawers use inline scroll locking. */
   transform: none !important;
   filter: none !important;
   perspective: none !important;
