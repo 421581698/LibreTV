@@ -44,6 +44,13 @@ export async function POST(request: NextRequest) {
   if (!body || typeof body !== 'object') {
     return NextResponse.json({ error: 'Invalid collector request.' }, { status: 400 });
   }
+  if ('action' in body && body.action === 'batch') {
+    return collectorRequest('/v1/batches/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ minimum: 101, target: 250, max_sites: 25 }),
+    }, 20_000, request);
+  }
   if ('candidateId' in body && typeof body.candidateId === 'string') {
     if (!/^[a-f0-9]{32}$/i.test(body.candidateId)) {
       return NextResponse.json({ error: 'Invalid candidate ID.' }, { status: 400 });
