@@ -8,7 +8,6 @@ import AIFloatingBall from '@/components/AIFloatingBall';
 import { BrandModule } from './header/BrandModule';
 import { SearchModule } from './header/SearchModule';
 import { AvatarModule } from './header/AvatarModule';
-import { MobileTabBar } from './header/MobileTabBar';
 
 export function V4HomepageHeader({ overlay = false }: { overlay?: boolean }) {
   const pathname = usePathname();
@@ -41,7 +40,6 @@ export function V4HomepageHeader({ overlay = false }: { overlay?: boolean }) {
           </div>
         </div>
       </header>
-      <MobileTabBar />
       <AIFloatingBall showFab inlineMode={false}/>
       <SourceManagerDrawer
         key={settingsInstance}
