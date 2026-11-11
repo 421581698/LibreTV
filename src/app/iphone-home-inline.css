@@ -2144,3 +2144,52 @@ html:has(.v4-home) {
     margin-top: 0 !important;
   }
 }
+
+
+/* PR84 visual cleanup: deconflict poster typography and close the lower dead zone. */
+@media screen and (max-width: 700px) {
+  /* The artwork already contains typography: remove the competing eyebrow. */
+  body:has(.v4-home) .v4-home .v4-hero-immersive-copy .v4-hero-eyebrow {
+    display: none !important;
+  }
+
+  /* Darken embedded poster lettering while preserving the foreground title. */
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-veil {
+    background:
+      linear-gradient(rgba(0,0,0,.38), rgba(0,0,0,.38)),
+      linear-gradient(
+        180deg,
+        rgba(0,0,0,.04) 0%,
+        rgba(0,0,0,.08) 40%,
+        rgba(0,0,0,.30) 60%,
+        rgba(0,0,0,.72) 82%,
+        #000 100%
+      ) !important;
+  }
+
+  /* Move the crop lower without scaling or translating the hero wrapper. */
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-image img {
+    object-position: center 85% !important;
+  }
+
+  /* Keep pagination physically attached to the bottom edge of this hero. */
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-indicators {
+    position: absolute !important;
+    top: auto !important;
+    bottom: 20px !important;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+    margin: 0 !important;
+  }
+
+  /* Remove the margin-created black strip between the hero and first rail. */
+  body:has(.v4-home) .v4-home-main--cinema > .v4-content-section {
+    margin-top: 0 !important;
+  }
+
+  /* Fixed glass tab bar overlays the page: reserve scrollable room beneath content. */
+  body:has(.v4-home) .v4-home {
+    padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
