@@ -9,6 +9,9 @@ describe('PR #84 homepage blocking layout recovery', () => {
   const recovery = read('src/app/pr84-layout-recovery.css');
   const dock = read('src/components/home/header/MobileTabBar.tsx');
   const page = read('src/app/page.tsx');
+  const globalLayout = read('src/app/pr84-global-layout.css');
+  const header = read('src/components/home/V4HomepageHeader.tsx');
+  const settings = read('src/components/source-manager.tsx');
 
   it('loads the recovery contract after all legacy homepage and mobile overrides', () => {
     expect(layout.indexOf("import './iphone-home-inline.css';")).toBeGreaterThan(-1);
@@ -28,6 +31,27 @@ describe('PR #84 homepage blocking layout recovery', () => {
     expect(dock).toContain('setPortalTarget(document.body)');
     expect(recovery).toContain('position: fixed !important;');
     expect(recovery).toContain('position: fixed !important;');
+  });
+
+  it('mounts exactly one shared mobile navigation from the root layout', () => {
+    expect(layout).toContain("import { MobileTabBar } from '@/components/home/header/MobileTabBar';");
+    expect(layout).toContain('<MobileTabBar />');
+    expect(header).not.toContain('<MobileTabBar />');
+    expect(layout).toContain("import './pr84-global-layout.css';");
+    expect(globalLayout).toContain('height: 64px !important;');
+    expect(globalLayout).toContain('bottom: calc(8px + env(safe-area-inset-bottom, 0px))');
+  });
+
+  it('protects hero artwork from the iOS status and brand area', () => {
+    expect(globalLayout).toContain('padding-top: calc(env(safe-area-inset-top, 0px) + 54px) !important;');
+    expect(globalLayout).toContain('object-position: center 18% !important;');
+  });
+
+  it('uses the same left-aligned Large Title hierarchy on Settings and Search', () => {
+    expect(settings).toContain('<header className="settings-large-title">');
+    expect(settings).toContain('<h1>设置</h1>');
+    expect(globalLayout).toContain('.settings-embedded-root .settings-large-title h1');
+    expect(globalLayout).toContain('.v4-search-page .v4-search-heading h1');
   });
 
   it('keeps the homepage and hero in natural document flow with a real scrollable page', () => {
