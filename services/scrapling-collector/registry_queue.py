@@ -417,7 +417,7 @@ def register_discovered_candidate(candidate: dict) -> dict | None:
         "movie_external_key": movie_external_key,
         "episode_external_key": episode_external_key,
         "movie_title": title_hint if canonical_identity else None,
-        "episode_title": display_title if episode_external_key else None,
+        "episode_title": str(identity.get("episode_title") or display_title)[:200] if episode_external_key else None,
         "year": identity.get("year_hint") if canonical_identity else None,
         "season": identity.get("season_hint") if episode_external_key else None,
         "episode": identity.get("episode_hint") if episode_external_key else None,
