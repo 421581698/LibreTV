@@ -2,15 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { favoriteIdFor } from './favorite-id';
 
 describe('favoriteIdFor', () => {
-  it('keeps identical IDs from different sources separate', () => {
-    expect(favoriteIdFor('source-a', '42')).not.toBe(favoriteIdFor('source-b', '42'));
+  it('returns the same stable identity for the same source and video', () => {
+    expect(favoriteIdFor('source-a', 'movie-1')).toBe(favoriteIdFor('source-a', 'movie-1'));
   });
 
-  it('does not collide when either field contains the legacy separator', () => {
-    expect(favoriteIdFor('a_b', 'c')).not.toBe(favoriteIdFor('a', 'b_c'));
+  it('keeps the same video ID from different sources independent', () => {
+    expect(favoriteIdFor('source-a', 'movie-1')).not.toBe(favoriteIdFor('source-b', 'movie-1'));
   });
 
-  it('is stable for the same source and resource', () => {
-    expect(favoriteIdFor('source-a', '42')).toBe(favoriteIdFor('source-a', '42'));
+  it('avoids delimiter collisions between source keys and video IDs', () => {
+    // A naive `${sourceKey}_${vodId}` key would collide for these pairs.
+    expect(favoriteIdFor('source_a', 'movie')).not.toBe(favoriteIdFor('source', 'a_movie'));
+  });
+
+  it('preserves exact Unicode and punctuation in both identity parts', () => {
+    expect(favoriteIdFor('资源站/一', '电影:2026')).not.toBe(favoriteIdFor('资源站', '一/电影:2026'));
   });
 });
