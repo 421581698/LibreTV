@@ -1638,3 +1638,20 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
   .v4-mobile-tabbar { grid-template-columns: repeat(3,minmax(0,1fr)) !important; }
   .v4-home { padding-bottom: calc(92px + env(safe-area-inset-bottom)) !important; }
 }
+
+.v4-home .v4-header-actions > .v4-avatar {
+  width: auto !important;
+  min-width: 72px !important;
+  padding: 0 13px !important;
+  gap: 6px !important;
+  border-radius: 999px !important;
+  color: #fff !important;
+  background: rgba(255,255,255,.12) !important;
+  border: 1px solid rgba(255,255,255,.2) !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+}
+.v4-home .v4-header-actions > .v4-avatar svg { width: 17px !important; height: 17px !important; }
+@media (max-width:700px) {
+  .v4-home .v4-header-actions > .v4-avatar { min-width: 58px !important; padding: 0 9px !important; gap: 4px !important; font-size: 11px !important; }
+}
