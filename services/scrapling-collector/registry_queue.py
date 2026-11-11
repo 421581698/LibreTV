@@ -106,7 +106,7 @@ def event(c: sqlite3.Connection, job_id: str, name: str, detail: dict | None = N
 
 
 def submit_job(job_type: str, payload: dict, idempotency_key: str, max_attempts: int = 4) -> dict:
-    if job_type not in {"crawl", "discover"}:
+    if job_type not in {"crawl", "discover", "batch_crawl"}:
         raise ValueError("Unsupported job type")
     if not idempotency_key or len(idempotency_key) > 200:
         raise ValueError("Invalid idempotency key")
