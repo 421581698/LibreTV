@@ -2060,3 +2060,54 @@ body:has(.v4-home) {
   .v4-home .v4-hero-image { height: 54% !important; }
   .v4-home .v4-hero-content { bottom: 72px !important; }
 }
+
+
+/* PR84 fix: let the hero artwork fill the full mobile canvas; fade it into black. */
+@media (max-width: 700px) {
+  body:has(.v4-home) .v4-home-main--cinema > .v4-hero {
+    position: relative !important;
+    height: clamp(500px, 62svh, 560px) !important;
+    min-height: 500px !important;
+    overflow: hidden !important;
+    background: #000 !important;
+  }
+
+  body:has(.v4-home) .v4-home .v4-hero-image {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    z-index: 0 !important;
+  }
+
+  body:has(.v4-home) .v4-home .v4-hero-image img {
+    position: absolute !important;
+    inset: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    object-position: center 34% !important;
+  }
+
+  body:has(.v4-home) .v4-home .v4-hero-veil {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 1 !important;
+    pointer-events: none !important;
+    background: linear-gradient(
+      180deg,
+      rgba(0, 0, 0, .04) 0%,
+      rgba(0, 0, 0, .06) 34%,
+      rgba(0, 0, 0, .28) 56%,
+      rgba(0, 0, 0, .78) 78%,
+      #000 100%
+    ) !important;
+  }
+
+  body:has(.v4-home) .v4-home .v4-hero-indicators {
+    z-index: 4 !important;
+    bottom: 18px !important;
+  }
+}
