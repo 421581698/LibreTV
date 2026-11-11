@@ -8,7 +8,7 @@ import { V4HomepageHeader } from '@/components/home/V4HomepageHeader';
 
 const categories = [
   { label: '动作', query: '动作电影', detail: '热血、冒险与强节奏', image: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=900&q=85', tone: 'action' },
-  { label: '剧情', query: '剧情电影', detail: '值得细细品味的故事', image: 'https://images.unsplash.com/photo-1489599849927-2ee91a7c7b4b?auto=format&fit=crop&w=900&q=85', tone: 'drama' },
+  { label: '剧情', query: '剧情电影', detail: '值得细细品味的故事', image: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=900&q=85', tone: 'drama' },
   { label: '喜剧', query: '喜剧电影', detail: '轻松时刻与快乐灵感', image: 'https://images.unsplash.com/photo-1527224857830-43a7acc85260?auto=format&fit=crop&w=900&q=85', tone: 'comedy' },
   { label: '科幻', query: '科幻电影', detail: '探索未知与未来世界', image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=900&q=85', tone: 'scifi' },
   { label: '悬疑', query: '悬疑电影', detail: '线索、反转与谜题', image: 'https://images.unsplash.com/photo-1519608487953-e999c86e7455?auto=format&fit=crop&w=900&q=85', tone: 'mystery' },
@@ -89,13 +89,12 @@ export default function SearchPage() {
         <section className="v4-search-explore" aria-labelledby="v4-search-explore-title">
           <div className="v4-search-section-heading">
             <h2 id="v4-search-explore-title">探索分类</h2>
-            <span>EXPLORE</span>
           </div>
           <div className="v4-search-category-grid">
             {categories.map(category => (
-              <button key={category.label} type="button" className={'v4-search-category-card tone-' + category.tone} onClick={() => submit(category.query)} style={{ backgroundImage: `linear-gradient(180deg, rgba(0,0,0,.02) 20%, rgba(0,0,0,.78) 100%), url("${category.image}")` }}>
-                <span className="v4-search-category-copy"><strong>{category.label}</strong><small>{category.detail}</small></span>
-                <span className="v4-search-category-arrow" aria-hidden="true">↗</span>
+              <button key={category.label} type="button" className={'v4-search-category-card tone-' + category.tone} onClick={() => submit(category.query)} style={{ backgroundImage: 'linear-gradient(180deg, transparent 35%, rgba(0,0,0,.48) 100%)' }}>
+                <img className="v4-search-category-image" src={category.image} alt="" loading="lazy" onError={event => { const image = event.currentTarget; if (!image.dataset.fallback) { image.dataset.fallback = 'true'; image.src = 'https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=900&q=80'; } else { image.style.display = 'none'; } }} />
+                <span className="v4-search-category-copy"><strong>{category.label}</strong></span>
               </button>
             ))}
           </div>
