@@ -14,8 +14,10 @@ export function normalizeImportedFavorites<T extends {
   vodId: string;
   title: string;
   sourceName: string;
-}>(items: unknown[]): T[] {
-  return items
+}>(input: unknown): T[] {
+  if (!Array.isArray(input)) return [];
+
+  return input
     .filter((item): item is T =>
       Boolean(item) &&
       typeof item === 'object' &&
