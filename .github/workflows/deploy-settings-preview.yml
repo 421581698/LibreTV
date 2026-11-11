@@ -48,11 +48,11 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          SETTINGS_PREVIEW_PASSWORD: ${{ secrets.SETTINGS_PREVIEW_PASSWORD }}
+          SETTINGS_PREVIEW_PASSWORD: ${{ secrets.SETTINGS_PREVIEW_PASSWORD || secrets.PREVIEW_PASSWORD || secrets.PASSWORD }}
         run: |
           test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing preview secret: CLOUDFLARE_API_TOKEN" && exit 1)
           test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "Missing preview secret: CLOUDFLARE_ACCOUNT_ID" && exit 1)
-          test -n "$SETTINGS_PREVIEW_PASSWORD" || (echo "Missing preview secret: SETTINGS_PREVIEW_PASSWORD" && exit 1)
+          test -n "$SETTINGS_PREVIEW_PASSWORD" || (echo "No existing password secret is available in the preview environment (checked SETTINGS_PREVIEW_PASSWORD, PREVIEW_PASSWORD, PASSWORD); refusing to deploy without authentication" && exit 1)
 
       - name: TypeScript verification
         run: npm run typecheck
