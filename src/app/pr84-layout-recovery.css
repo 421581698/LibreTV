@@ -277,3 +277,78 @@ body > .v4-mobile-tabbar[data-homepage-dock="true"] > a span {
     min-height: 520px !important;
   }
 }
+
+
+/* PR #84: approved iPhone dock treatment — one dark capsule, four original tabs. */
+@media (max-width: 700px) {
+  body > .v4-mobile-tabbar[data-homepage-dock="true"] {
+    width: min(360px, calc(100vw - 32px)) !important;
+    min-height: 76px !important;
+    height: 76px !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 2px !important;
+    padding: 6px 8px !important;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+    border: 1px solid rgba(255,255,255,.16) !important;
+    border-radius: 999px !important;
+    background: rgba(24,26,31,.72) !important;
+    box-shadow:
+      0 10px 34px rgba(0,0,0,.30),
+      inset 0 1px 0 rgba(255,255,255,.12) !important;
+    -webkit-backdrop-filter: blur(30px) saturate(155%) !important;
+    backdrop-filter: blur(30px) saturate(155%) !important;
+  }
+
+  body > .v4-mobile-tabbar[data-homepage-dock="true"]::before {
+    border-radius: inherit !important;
+    background: linear-gradient(180deg, rgba(255,255,255,.075), transparent 58%) !important;
+    opacity: 1 !important;
+  }
+
+  body > .v4-mobile-tabbar[data-homepage-dock="true"]::after {
+    display: none !important;
+  }
+
+  body > .v4-mobile-tabbar[data-homepage-dock="true"] > a {
+    min-height: 62px !important;
+    border-radius: 999px !important;
+    gap: 4px !important;
+    color: rgba(255,255,255,.76) !important;
+    font-size: 11px !important;
+    font-weight: 550 !important;
+    transition: background-color .18s ease, color .18s ease !important;
+  }
+
+  body > .v4-mobile-tabbar[data-homepage-dock="true"] > a.is-active {
+    color: #36A8FF !important;
+    background: rgba(0,0,0,.38) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.055) !important;
+  }
+
+  body > .v4-mobile-tabbar[data-homepage-dock="true"] > a svg {
+    width: 23px !important;
+    height: 23px !important;
+    flex-basis: 23px !important;
+    stroke-width: 1.9 !important;
+  }
+
+  body > .v4-mobile-tabbar[data-homepage-dock="true"] > a.is-active svg {
+    stroke-width: 2.2 !important;
+  }
+
+  body > .v4-mobile-tabbar[data-homepage-dock="true"] > a span {
+    font-size: 11px !important;
+    line-height: 1.15 !important;
+    color: inherit !important;
+  }
+
+  body > .v4-mobile-tabbar[data-homepage-dock="true"] > a i {
+    display: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body > .v4-mobile-tabbar[data-homepage-dock="true"] > a {
+    transition: none !important;
+  }
+}
