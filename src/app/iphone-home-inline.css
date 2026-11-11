@@ -2576,3 +2576,199 @@ body .v4-home .v4-hero-immersive .v4-hero-image img {
 .settings-apple-page-title{display:flex;align-items:center;gap:10px}
 .settings-apple-page-title .settings-apple-icon{width:38px;height:38px;flex-basis:38px}
 .settings-apple-page-title h2{margin:0}
+
+
+/* Settings emergency rebuild: native dark surface, inline settings, safe scrolling. */
+html:has(.v4-spatial-screen[data-screen="settings"]),
+body:has(.v4-spatial-screen[data-screen="settings"]) {
+  min-height:100%;
+  background:#000!important;
+  color:#f5f5f7!important;
+}
+.v4-spatial-screen[data-screen="settings"] {
+  min-height:100svh!important;
+  padding-bottom:calc(116px + env(safe-area-inset-bottom,0px))!important;
+  overflow:visible!important;
+  background:#000!important;
+  color:#f5f5f7!important;
+}
+.v4-spatial-screen[data-screen="settings"] .v4-spatial-main {
+  min-height:calc(100svh - 64px);
+  padding-bottom:calc(124px + env(safe-area-inset-bottom,0px))!important;
+  background:#000!important;
+}
+.v4-spatial-screen[data-screen="settings"] .v4-spatial-heading {
+  margin-bottom:18px!important;
+}
+.v4-spatial-screen[data-screen="settings"] .v4-spatial-heading h1 {
+  margin:0!important;
+  color:#fff!important;
+}
+.v4-spatial-screen[data-screen="settings"] .v4-spatial-heading p {
+  display:none!important;
+}
+.settings-embedded-root {
+  width:100%;
+  min-width:0;
+  padding:0 0 calc(132px + env(safe-area-inset-bottom,0px));
+  color:#f5f5f7!important;
+  background:#000!important;
+}
+.settings-embedded-root .ipad-settings-content {
+  width:100%!important;
+  max-width:100%!important;
+  margin:0!important;
+  padding:0 0 24px!important;
+  color:#f5f5f7!important;
+}
+.settings-embedded-root .ipad-settings-content>.space-y-1:first-child {
+  display:none!important;
+}
+.settings-embedded-root .ipad-settings-content section>h3 {
+  padding:0 4px!important;
+  color:#a1a1a8!important;
+  font-size:12px!important;
+  font-weight:600!important;
+  letter-spacing:.035em!important;
+}
+.settings-embedded-root .ipad-settings-content .rounded-2xl.border,
+.settings-embedded-root .ipad-settings-content .settings-apple-about,
+.settings-embedded-root .ipad-settings-content .bg-card {
+  border:1px solid rgba(255,255,255,.09)!important;
+  border-radius:16px!important;
+  background:#1c1c1e!important;
+  color:#f5f5f7!important;
+  box-shadow:none!important;
+}
+.settings-embedded-root .ipad-settings-content .text-content,
+.settings-embedded-root .ipad-settings-content h2,
+.settings-embedded-root .ipad-settings-content h3,
+.settings-embedded-root .ipad-settings-content strong {
+  color:#fff!important;
+}
+.settings-embedded-root .ipad-settings-content .text-muted,
+.settings-embedded-root .ipad-settings-content .text-faint,
+.settings-embedded-root .ipad-settings-content p {
+  color:#8e8e93!important;
+}
+.settings-embedded-root .ipad-settings-content .divide-y>*+* {
+  border-color:rgba(255,255,255,.08)!important;
+}
+.settings-embedded-root .ipad-settings-content button,
+.settings-embedded-root .ipad-settings-content a {
+  color:#f5f5f7;
+}
+.settings-embedded-root .ipad-settings-content input,
+.settings-embedded-root .ipad-settings-content select,
+.settings-embedded-root .ipad-settings-content textarea {
+  color:#f5f5f7!important;
+  border-color:rgba(255,255,255,.14)!important;
+  background:#2c2c2e!important;
+}
+.settings-embedded-root .settings-apple-detail {
+  padding-bottom:32px!important;
+}
+.settings-embedded-root .settings-apple-detail .border-b {
+  border-color:rgba(255,255,255,.12)!important;
+}
+.settings-embedded-root .settings-apple-detail .text-accent {
+  color:#0a84ff!important;
+}
+.settings-embedded-root .settings-apple-detail .rounded-2xl {
+  background:#1c1c1e!important;
+}
+.settings-embedded-root .settings-apple-detail .settings-apple-page-title {
+  min-height:42px;
+}
+.settings-embedded-root .settings-apple-detail .settings-apple-page-title h2 {
+  color:#fff!important;
+}
+.settings-embedded-root .settings-apple-detail .settings-apple-page-title+.text-sm {
+  color:#8e8e93!important;
+}
+.settings-embedded-root .settings-apple-detail .border-line {
+  border-color:rgba(255,255,255,.12)!important;
+}
+
+/* Shared four-item dock: black translucent glass, no bright active tile. */
+body .v4-mobile-tabbar,
+body .v4-mobile-tabbar.liquid-glass {
+  position:fixed!important;
+  z-index:600!important;
+  left:50%!important;
+  right:auto!important;
+  bottom:max(8px,env(safe-area-inset-bottom,0px))!important;
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  width:min(350px,calc(100% - 36px))!important;
+  min-height:62px!important;
+  padding:5px 8px!important;
+  border:1px solid rgba(255,255,255,.13)!important;
+  border-radius:999px!important;
+  background:rgba(18,18,20,.78)!important;
+  box-shadow:0 10px 34px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.07)!important;
+  -webkit-backdrop-filter:blur(28px) saturate(155%)!important;
+  backdrop-filter:blur(28px) saturate(155%)!important;
+  transform:translateX(-50%)!important;
+}
+body .v4-mobile-tabbar>a {
+  position:relative!important;
+  display:flex!important;
+  min-width:0!important;
+  min-height:50px!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:3px!important;
+  border:0!important;
+  border-radius:999px!important;
+  background:transparent!important;
+  color:#92929a!important;
+  text-decoration:none!important;
+  box-shadow:none!important;
+}
+body .v4-mobile-tabbar>a.is-active {
+  color:#0a84ff!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+body .v4-mobile-tabbar>a>i {
+  bottom:1px!important;
+  width:3px!important;
+  height:3px!important;
+  background:#0a84ff!important;
+}
+body .v4-mobile-tabbar svg {
+  width:19px!important;
+  height:19px!important;
+  fill:none!important;
+  stroke:currentColor!important;
+  stroke-width:1.65!important;
+}
+body .v4-mobile-tabbar span {
+  color:inherit!important;
+  font-size:10px!important;
+  line-height:1.1!important;
+}
+
+/* Friday remains a floating control and never participates in navigation layout. */
+body .friday-root .friday-fab {
+  position:fixed!important;
+  z-index:590!important;
+  right:16px!important;
+  left:auto!important;
+  top:auto!important;
+  bottom:calc(88px + env(safe-area-inset-bottom,0px))!important;
+  margin:0!important;
+  flex:none!important;
+  transform:none!important;
+}
+@media(max-width:700px) {
+  .v4-spatial-screen[data-screen="settings"] .v4-spatial-main {
+    padding-left:18px!important;
+    padding-right:18px!important;
+  }
+  .settings-embedded-root {
+    padding-bottom:calc(148px + env(safe-area-inset-bottom,0px))!important;
+  }
+}
