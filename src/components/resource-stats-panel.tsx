@@ -23,6 +23,7 @@ type StatsPayload = {
     failed_sites: number; crawl_tasks: number; candidate_resources: number;
     video_candidates: number; preflight_passed: number; playback_confirmed: number;
     actual_quality: Quality; movie_entries: number; episode_entries: number;
+    media_type_counts?: Record<string, number>; identified_titles?: number; unclassified_candidates?: number;
     playback_samples?: number; preview_samples?: number;
     pages_visited?: number; pages_failed?: number; pages_changed?: number; pages_unchanged?: number;
     queue_jobs?: Record<string, number>;
