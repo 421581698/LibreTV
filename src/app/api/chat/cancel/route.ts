@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { cancelInflight } from '@/lib/infra/inflight';
 import { guardRequest } from '@/lib/api-guard';
-import { readJsonLimited } from '@/lib/request-body';
+import { readJsonLimited, requestBodyErrorStatus, RequestBodyError } from '@/lib/request-body';
 
 const RID_RE = /^[A-Za-z0-9_:.-]{1,128}$/;
 
@@ -25,7 +25,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, state: r }, { status: 403 });
     }
     return NextResponse.json({ ok: r === 'ok' || r === 'pending', state: r });
-  } catch (err: any) {
-    return NextResponse.json({ ok: false, error: err.message }, { status: 500 });
+  } catch (err: unknown) {
+    if (err instanceof RequestBodyError) {
+      return NextResponse.json({ ok: false, message: '请求格式错误' }, { status: requestBodyErrorStatus(err) });
+    }
+    return NextResponse.json({ ok: false, error: err instanceof Error ? err.message : '服务器内部错误' }, { status: 500 });
   }
 }
