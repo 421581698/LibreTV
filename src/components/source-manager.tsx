@@ -163,7 +163,7 @@ export function SourceManagerDrawer({ open, onClose, embedded = false }: { open:
                       <span className="block text-sm font-medium text-content">{item.label}</span>
                       <span className="mt-0.5 block text-xs text-muted">{item.detail}</span>
                     </span>
-                    <span aria-hidden="true" className="shrink-0 text-xl leading-none text-faint transition-transform group-hover:translate-x-0.5">›</span>
+                    <span aria-hidden="true" className="shrink-0 text-xl leading-none text-[#8E8E93] transition-transform group-hover:translate-x-0.5">›</span>
                   </button>
                 ))}
               </div>
