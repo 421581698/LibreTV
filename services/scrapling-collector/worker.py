@@ -26,7 +26,7 @@ MAX_AUTOMATIC_MEDIA_PREFLIGHTS = 100
 def get_discovered_sites(limit: int = 50) -> list[dict]:
     with registry_store.connect() as connection:
         rows = connection.execute(
-            "SELECT host,title,url,directory FROM sites ORDER BY discovered_at DESC LIMIT ?",
+            "SELECT host,title,url,directory FROM sites WHERE directory LIKE 'FMHY / %' ORDER BY discovered_at DESC LIMIT ?",
             (max(1, min(50, limit)),),
         ).fetchall()
     return [dict(row) for row in rows]
