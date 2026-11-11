@@ -58,6 +58,7 @@ class WorkerPipelineTests(unittest.TestCase):
                 "COLLECTOR_TIMEZONE": "UTC",
                 "COLLECTOR_DAILY_HOUR": "3",
                 "COLLECTOR_DAILY_MINUTE": "0",
+                "SCRAPLING_EGRESS_FIREWALL_CONFIRMED": "1",
             }),
             patch.object(worker, "submit_job", return_value={"id": "daily-job", "status": "queued"}) as submit,
         ):
