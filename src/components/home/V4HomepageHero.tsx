@@ -34,17 +34,22 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
             />
           </div>
           <div className="v4-hero-veil" aria-hidden="true" />
-          <button
-            type="button"
-            className="v4-hero-hit-area"
-            aria-label={`播放精选影片：${slide.title}`}
-            onClick={() => onPick(slide)}
-          />
           <div className="v4-hero-content v4-hero-immersive-copy">
             <span className="v4-hero-eyebrow">LIBRETV · 精选放映</span>
             <h1>发现好内容</h1>
-            <p className="v4-hero-subtitle">从热门电影到精彩剧集，找到下一部值得看的作品</p>
-            <span className="v4-hero-featured-title">{slide.title}</span>
+            <p className="v4-hero-subtitle">从热门影片中，找到下一部值得看的作品</p>
+            <div className="v4-hero-tags" aria-label="内容标签">
+              <span>精选影片</span>
+              <span>豆瓣热门</span>
+              {slide.rating ? <span>★ {slide.rating}</span> : null}
+            </div>
+            <div className="v4-hero-actions v4-apple-actions">
+              <button type="button" className="v4-hero-primary" onClick={() => onPick(slide)}>
+                立即播放
+              </button>
+              <span className="v4-hero-plus" aria-hidden="true">+</span>
+            </div>
+            <span className="v4-hero-featured-title">本期精选 · {slide.title}</span>
           </div>
           <div className="v4-hero-indicators v4-hero-dots" role="group" aria-label="选择 Banner 图片">
             {slides.map((item, index) => (
