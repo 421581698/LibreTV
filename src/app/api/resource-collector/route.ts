@@ -16,7 +16,10 @@ export async function GET(request: Request) {
     return collectorRequest('/v1/stats' + query, {}, 10_000, request);
   }
   if (action === 'library') {
-    return collectorRequest('/v1/registry/resources?verified_only=true&limit=100', {}, 15_000, request);
+    const limit = Math.max(1, Math.min(100, Number(url.searchParams.get('limit') || 100)));
+    const offset = Math.max(0, Math.min(1_000_000, Number(url.searchParams.get('offset') || 0)));
+    const verifiedOnly = url.searchParams.get('verifiedOnly') !== 'false';
+    return collectorRequest('/v1/registry/resources?verified_only=' + String(verifiedOnly) + '&limit=' + limit + '&offset=' + offset, {}, 15_000, request);
   }
   return collectorRequest(action === 'tasks' ? '/v1/tasks' : '/v1/discover', {}, 20_000, request);
 }
@@ -48,7 +51,7 @@ export async function POST(request: NextRequest) {
     return collectorRequest('/v1/batches/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ minimum: 101, target: 250, max_sites: 25 }),
+      body: JSON.stringify({ minimum: 101, target: 1000, max_sites: 1000 }),
     }, 20_000, request);
   }
   if ('candidateId' in body && typeof body.candidateId === 'string') {
