@@ -103,7 +103,7 @@ export function ResourceStatsPanel() {
         offset += page.length;
         if (!page.length || page.length < 100) break;
       }
-      if (all.length || total === 0) {
+      if (all.length || (total === 0 && cached.length === 0)) {
         await replaceLocalMediaLibrary(all).catch(() => undefined);
         setLibrary(all);
       } else if (cached.length) {
@@ -129,7 +129,7 @@ export function ResourceStatsPanel() {
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.detail || payload.error || '批量采集任务提交失败。');
-      setBatchMessage('已提交跨站点采集任务：' + String(payload.job_id || '已排队') + '。目标至少 101 条唯一视频候选，最多尝试 25 个 FMHY 站点。');
+      setBatchMessage('已提交跨站点采集任务：' + String(payload.job_id || '已排队') + '。最低目标 101 条，遍历已发现的 FMHY 站点并保存全部候选。');
     } catch (reason) {
       setBatchMessage(reason instanceof Error ? reason.message : '批量采集任务提交失败。');
     } finally {
@@ -222,7 +222,7 @@ export function ResourceStatsPanel() {
             <div className="flex items-center justify-between gap-2">
               <h4 className="text-xs font-semibold text-content">本地影视库 · 已保存资源</h4>
               <button type="button" className="btn-primary btn-sm" disabled={batchSubmitting} onClick={() => void startBatch()}>
-                {batchSubmitting ? '正在提交…' : '启动 101+ 跨站点批量采集'}
+                {batchSubmitting ? '正在提交…' : '刷新目录并采集全部站点'}
               </button>
               <button type="button" className="btn-ghost btn-sm" onClick={() => void loadLibrary()}>刷新</button>
             </div>
