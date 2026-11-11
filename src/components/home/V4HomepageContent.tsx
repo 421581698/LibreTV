@@ -53,7 +53,7 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
                 />
               </span>
               <span className="v4-today-copy">
-                <span className="v4-today-eyebrow">TODAY'S PICK</span>
+                <span className="v4-today-eyebrow">TODAY&apos;S PICK</span>
                 <strong>{todayPick.title}</strong>
                 <span className="v4-today-meta">{[todayPick.rating ? `评分 ${todayPick.rating}` : ''].filter(Boolean).join(' · ')}</span>
                 <span className="v4-today-cta">▶ 立即观看</span>
