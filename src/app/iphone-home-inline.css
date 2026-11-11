@@ -2554,3 +2554,20 @@ body .v4-home .v4-hero-immersive .v4-hero-image img {
 .v4-spatial-screen[data-screen="settings"],.v4-spatial-screen[data-screen="me"]{background:#000!important;color:#f5f5f7!important}
 .v4-spatial-screen[data-screen="me"] .v4-me-library-actions,.v4-spatial-screen[data-screen="me"] .v4-me-settings-entry{overflow:hidden;border:1px solid rgba(255,255,255,.08)!important;border-radius:15px!important;background:#1c1c1e!important}
 .v4-spatial-screen[data-screen="me"] .v4-me-library-actions .v4-settings-card--apple+.v4-settings-card--apple{border-top-color:rgba(255,255,255,.075)!important}
+
+/* Higher-specificity overrides for the legacy iPhone light-theme settings rules. */
+.v4-spatial-screen[data-screen="settings"] .v4-settings-grid .v4-settings-card--apple,
+.v4-spatial-screen[data-screen="me"] .v4-me-library-actions .v4-settings-card--apple,
+.v4-spatial-screen[data-screen="me"] .v4-me-settings-entry .v4-settings-card--apple{
+  min-height:68px!important;padding:10px 14px!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;color:#f5f5f7!important
+}
+.v4-spatial-screen[data-screen="settings"] .v4-settings-grid .v4-settings-card--apple strong,
+.v4-spatial-screen[data-screen="me"] .v4-settings-card--apple strong{color:#f5f5f7!important;font-size:14px!important;font-weight:550!important}
+.v4-spatial-screen[data-screen="settings"] .v4-settings-grid .v4-settings-card--apple p,
+.v4-spatial-screen[data-screen="me"] .v4-settings-card--apple p{color:#92929a!important;font-size:12px!important}
+.v4-spatial-screen[data-screen="settings"] .v4-settings-grid .v4-settings-card--apple>b,
+.v4-spatial-screen[data-screen="me"] .v4-settings-card--apple>b{color:#686870!important}
+.v4-spatial-screen[data-screen="settings"] .v4-settings-grid .v4-settings-card--apple .settings-apple-icon,
+.v4-spatial-screen[data-screen="me"] .v4-settings-card--apple .settings-apple-icon{background:transparent!important}
+.v4-spatial-screen[data-screen="settings"] .v4-settings-grid .v4-settings-card--apple+.v4-settings-card--apple,
+.v4-spatial-screen[data-screen="me"] .v4-me-library-actions .v4-settings-card--apple+.v4-settings-card--apple{border-top:1px solid rgba(255,255,255,.075)!important}
