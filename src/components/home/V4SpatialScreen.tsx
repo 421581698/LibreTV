@@ -5,6 +5,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { V4HomepageHeader } from '@/components/home/V4HomepageHeader';
+import { Icon } from '@/components/icon';
 import { HomeInlinePlayer } from '@/components/home/HomeInlinePlayer';
 import { requestShowDownloadManager } from '@/components/download-manager';
 import { AnimeRecommendationSection, RecommendSection } from '@/components/douban-section';
@@ -377,18 +378,13 @@ function MeHistoryCard({ item }: { item: HistoryEntry }) {
 
 function SettingsScreen() {
   const groups = [
-    { title: '播放与过滤', description: '自动连播、片头片尾跳过、广告过滤与播放缓存', page: 'playback' },
-    { title: '语言设置', description: '界面语言与 Friday 对话语言', page: 'language' },
-    { title: '首页与内容', description: '首页推荐与内容偏好', page: 'home' },
-    { title: '外观模式', description: '浅色、深色与跟随系统主题', page: 'appearance' },
-    { title: '封面图加载', description: '海报图片代理与加载偏好', page: 'image' },
-    { title: '点播源管理', description: '管理点播来源、优先级与健康检测', page: 'vod' },
-    { title: '直播设置', description: '管理直播源与频道', page: 'live' },
-    { title: '资源订阅', description: '管理点播与直播资源订阅', page: 'subs' },
-    { title: '资源采集中心', description: 'FMHY 网站发现目录与 Scrapling 采集引擎', page: 'collector' },
-    { title: 'Friday 语音', description: '助手角色、语音音色、唤醒词与对话语言', page: 'voice' },
-    { title: '配置导入与导出', description: '备份或恢复 LibreTV 本机配置', page: 'io' },
-    { title: '本机缓存', description: '查看和管理本机视频缓存', page: 'cache' },
+    { title: '播放设置', description: '画质、自动连播、片段跳过与缓存', page: 'playback', icon: 'play' as const, color: '#32D7A0' },
+    { title: '资源站', description: '点播源、直播源、订阅与采集服务', page: 'vod', icon: 'database' as const, color: '#55A7FF' },
+    { title: '外观设置', description: '主题、封面图片、语言与首页偏好', page: 'appearance', icon: 'palette' as const, color: '#BF91FF' },
+    { title: 'Friday AI', description: '助手角色、语音识别与声音偏好', page: 'voice', icon: 'audio-lines' as const, color: '#E7A0D7' },
+    { title: '隐私与数据', description: '本机配置备份、缓存与数据管理', page: 'io', icon: 'shield-check' as const, color: '#E8B45E' },
+    { title: '网络连接', description: 'Collector 服务地址、认证与连接测试', page: 'collector', icon: 'network' as const, color: '#62C8D5' },
+    { title: '关于 LibreTV', description: '项目简介与应用信息', page: 'about', icon: 'info' as const, color: '#A6ADB8' },
   ] as const;
 
   const openCategory = (page: string) => {
@@ -404,12 +400,13 @@ function SettingsScreen() {
     <section className="v4-spatial-panel">
       <div className="v4-settings-grid">
         {groups.map((group) => (
-          <button key={group.title} type="button" className="v4-settings-card" onClick={() => openCategory(group.page)}>
+          <button key={group.title} type="button" className="v4-settings-card v4-settings-card--apple" onClick={() => openCategory(group.page)}>
+            <span className="settings-apple-icon" style={{ color: group.color }}><Icon name={group.icon} className="h-5 w-5" /></span>
             <div><strong>{group.title}</strong><p>{group.description}</p></div><b aria-hidden="true">›</b>
           </button>
         ))}
       </div>
-      <p className="v4-spatial-footnote">每个分类直接进入对应的实际设置面板；选项沿用 LibreTV 现有配置与本机持久化，不创建重复配置。</p>
+      <p className="v4-spatial-footnote">分类入口按功能归组；二级页面继续使用现有设置面板与本机持久化，不重复创建配置。</p>
     </section>
   );
 }
