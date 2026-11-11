@@ -15,6 +15,9 @@ export async function GET(request: Request) {
     const query = host ? '?host=' + encodeURIComponent(host) : '';
     return collectorRequest('/v1/stats' + query, {}, 10_000, request);
   }
+  if (action === 'library') {
+    return collectorRequest('/v1/registry/resources?verified_only=true&limit=100', {}, 15_000, request);
+  }
   return collectorRequest(action === 'tasks' ? '/v1/tasks' : '/v1/discover', {}, 20_000, request);
 }
 
