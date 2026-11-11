@@ -1032,3 +1032,86 @@ body:has(.v4-home) #__next {
   background-color: #000 !important;
   color-scheme: dark !important;
 }
+
+/* Final Apple-TV visual calibration: translucent dock, quieter type, glass pills. */
+body:has(.v4-home) .v4-home .v4-mobile-tabbar {
+  background: rgba(30,30,30,.6) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(165%) !important;
+  backdrop-filter: blur(20px) saturate(165%) !important;
+  border-top: 1px solid rgba(255,255,255,.14) !important;
+  box-shadow: 0 -8px 28px rgba(0,0,0,.12) !important;
+  isolation: isolate !important;
+}
+body:has(.v4-home) .v4-home .v4-hero-immersive-copy h1 {
+  font-size: 24px !important;
+  font-weight: 500 !important;
+  letter-spacing: 2px !important;
+  line-height: 1.25 !important;
+}
+body:has(.v4-home) .v4-home .v4-hero-immersive-copy .v4-hero-subtitle {
+  color: rgba(255,255,255,.6) !important;
+  font-size: 13px !important;
+}
+body:has(.v4-home) .v4-home .v4-section-heading h2 {
+  font-size: 18px !important;
+  font-weight: 500 !important;
+  letter-spacing: .01em !important;
+}
+body:has(.v4-home) .v4-home .v4-section-heading .v4-rail-hint {
+  display: none !important;
+}
+body:has(.v4-home) .v4-home .v4-hero-tags span {
+  min-height: 23px !important;
+  padding: 4px 10px !important;
+  border: 1px solid rgba(255,255,255,.2) !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,.08) !important;
+  color: rgba(255,255,255,.86) !important;
+  font-size: 11px !important;
+  -webkit-backdrop-filter: blur(14px) saturate(140%) !important;
+  backdrop-filter: blur(14px) saturate(140%) !important;
+}
+body:has(.v4-home) .v4-home .v4-hero-actions.v4-apple-actions {
+  gap: 8px !important;
+}
+body:has(.v4-home) .v4-home .v4-hero-actions.v4-apple-actions .v4-hero-primary {
+  flex: 0 0 200px !important;
+  width: 200px !important;
+  min-width: 180px !important;
+  max-width: 200px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  max-height: 40px !important;
+  border-radius: 999px !important;
+  padding: 0 12px !important;
+  font-size: 14px !important;
+}
+body:has(.v4-home) .v4-home .v4-hero-plus {
+  flex: 0 0 40px !important;
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  max-height: 40px !important;
+  font-size: 21px !important;
+  font-weight: 300 !important;
+  border-width: 1px !important;
+}
+body:has(.v4-home) .v4-home .v4-today-rail {
+  width: calc(100% + 40px) !important;
+  margin-left: -20px !important;
+  padding: 2px 20px 14px !important;
+  box-sizing: border-box !important;
+  scroll-padding-inline: 20px !important;
+}
+
+/* The homepage is edge-to-edge under iOS chrome; keep the root canvas black. */
+html:has(.v4-home),
+body:has(.v4-home),
+body:has(.v4-home) #__next {
+  margin: 0 !important;
+  padding-top: 0 !important;
+  background: #000 !important;
+  background-color: #000 !important;
+  color-scheme: dark !important;
+}
