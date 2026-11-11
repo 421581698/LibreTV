@@ -578,3 +578,36 @@ body .v4-home .v4-mobile-tabbar a > i {
 @media (prefers-reduced-motion: reduce) {
   body .v4-home .v4-today-card-poster img { transition: none !important; }
 }
+
+
+/* Real poster sources can have mixed dimensions: crop into fixed card frames,
+   never stretch source pixels to the card's aspect ratio. */
+body .v4-home .v4-today-card-poster {
+  aspect-ratio: 2 / 3 !important;
+}
+body .v4-home .v4-today-card-poster > img {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: cover !important;
+  object-position: center center !important;
+}
+body .v4-home .v4-history-image {
+  aspect-ratio: 16 / 9 !important;
+  overflow: hidden !important;
+}
+body .v4-home .v4-history-image > img {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: cover !important;
+  object-position: center center !important;
+}
