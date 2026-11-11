@@ -322,7 +322,7 @@ function MeScreen() {
         <div className="v52-me-library-grid">
           <button type="button" className="v52-me-library-tile" aria-expanded={showFavorites}
             onClick={() => setShowFavorites((value) => !value)}>
-            <span className="v52-me-tile-icon v52-me-heart"><Icon name="heart" /></span>
+            <span className="v52-me-tile-icon v52-me-heart"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 8.8c0 4.1-8.8 10-8.8 10s-8.8-5.9-8.8-10a4.7 4.7 0 0 1 8.8-2.3 4.7 4.7 0 0 1 8.8 2.3Z" /></svg></span>
             <strong>影视收藏</strong>
             <small>{favorites?.length ?? 0} 部收藏影片</small>
             <span className="v52-me-tile-chevron" aria-hidden="true">›</span>
