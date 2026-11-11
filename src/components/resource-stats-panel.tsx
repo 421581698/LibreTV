@@ -202,7 +202,9 @@ export function ResourceStatsPanel() {
                 const evidence = JSON.parse(resource.playback_evidence || '{}');
                 const labels: Record<string, string> = { movie: '电影', tv: '电视剧', anime: '动漫', documentary: '纪录片', variety: '综艺', short: '短片' };
                 mediaType = labels[identity.media_type || ''] || '待识别';
-                if (evidence.decoded_width && evidence.decoded_height) actualQuality = evidence.decoded_width + '×' + evidence.decoded_height;
+                if (evidence.decoded_width && evidence.decoded_height) {
+                  actualQuality = evidence.decoded_height >= 2160 ? '4K' : evidence.decoded_height >= 1080 ? '1080P' : evidence.decoded_height >= 720 ? '720P' : evidence.decoded_width + '×' + evidence.decoded_height;
+                }
                 const params = new URLSearchParams({ source: 'friday-cms', sourceUrl: mediaUrl.origin, url: resource.url, title: resource.movie_title || identity.title_hint || resource.title || '未知视频' });
                 playHref = '/watch?' + params.toString();
               } catch { playHref = ''; }
