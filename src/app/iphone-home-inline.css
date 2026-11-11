@@ -1309,3 +1309,36 @@ html:has(.v4-home) {
     padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
+
+
+/* PR84 — apply the shared Liquid Glass optical surface to the mobile dock. */
+@media (max-width: 700px) {
+  body:has(.v4-home) .v4-home .v4-mobile-tabbar.liquid-glass {
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.018) 34%, rgba(0,0,0,.045)),
+      rgba(30,30,34,.38) !important;
+    border: 1px solid rgba(255,255,255,.22) !important;
+    -webkit-backdrop-filter: blur(26px) saturate(190%) contrast(108%) !important;
+    backdrop-filter: blur(26px) saturate(190%) contrast(108%) !important;
+    box-shadow:
+      0 9px 28px rgba(0,0,0,.22),
+      inset 0 1px 0 rgba(255,255,255,.28),
+      inset 0 -1px 0 rgba(255,255,255,.08) !important;
+  }
+
+  body:has(.v4-home) .v4-home .v4-mobile-tabbar.liquid-glass::before {
+    opacity: .88 !important;
+  }
+
+  body:has(.v4-home) .v4-home .v4-mobile-tabbar.liquid-glass::after {
+    opacity: .82 !important;
+  }
+
+  /* The glass edge gets the optical treatment; glyphs and labels remain crisp. */
+  body:has(.v4-home) .v4-home .v4-mobile-tabbar a,
+  body:has(.v4-home) .v4-home .v4-mobile-tabbar a svg,
+  body:has(.v4-home) .v4-home .v4-mobile-tabbar a span {
+    filter: none !important;
+    transform: none !important;
+  }
+}
