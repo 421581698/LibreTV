@@ -99,8 +99,8 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
   });
 
   it('keeps the iPhone header search accessible and the orb tap independent of pointer capture', () => {
-    expect(searchModule).toContain('aria-label="搜索电影、电视剧"');
-    expect(searchModule).toContain('onSubmit');
+    expect(searchModule).toContain('aria-label="搜索"');
+    expect(searchModule).toContain("router.push('/search')");
     expect(mobileSearch).toContain('min-width: 84px !important;');
     expect(mobileSearch).toContain('.v4-header .v4-primary-nav');
     expect(fridayFab).not.toContain('setPointerCapture');
