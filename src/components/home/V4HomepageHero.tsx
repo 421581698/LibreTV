@@ -27,6 +27,7 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
           <div className="v4-hero-image" aria-hidden="true">
             <SmartImage
               url={slide.cover}
+              hdrUrl={slide.coverHdr}
               mode={imageProxyMode}
               customProxy={customImageProxy}
               alt=""
