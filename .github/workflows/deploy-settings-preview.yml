@@ -1,0 +1,102 @@
+name: Deploy LibreTV Settings PR #85 Preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_preview_deploy:
+        description: "确认部署 PR #85 到独立的密码保护 Preview Worker"
+        required: true
+        type: choice
+        options:
+          - "no"
+          - "yes"
+        default: "no"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: libretv-settings-pr85-preview
+  cancel-in-progress: false
+
+jobs:
+  deploy-preview:
+    if: ${{ inputs.confirm_preview_deploy == 'yes' && github.ref == 'refs/heads/feature/settings-apple-minimal-2026-11-11' }}
+    name: Build and deploy isolated settings preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment: preview
+    steps:
+      - name: Checkout exact PR #85 commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: TypeScript verification
+        run: npm run typecheck
+
+      - name: ESLint verification
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test -- --reporter=dot
+
+      - name: Verify isolated protected Preview configuration and credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PREVIEW_PASSWORD: ${{ secrets.LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY }}
+        run: |
+          grep -Eq '^[[:space:]]*name[[:space:]]*=[[:space:]]*"libretv-settings-preview"' wrangler.settings-preview.toml
+          grep -Eq '^[[:space:]]*AUTH_DISABLED[[:space:]]*=[[:space:]]*"false"' wrangler.settings-preview.toml
+          test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing preview secret: CLOUDFLARE_API_TOKEN" && exit 1)
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "Missing preview secret: CLOUDFLARE_ACCOUNT_ID" && exit 1)
+          test -n "$PREVIEW_PASSWORD" || (echo "Missing preview secret: LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY" && exit 1)
+          test "${#PREVIEW_PASSWORD}" -ge 24 || (echo "Preview password must contain at least 24 characters" && exit 1)
+
+      - name: Build isolated PR #85 Preview
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npx opennextjs-cloudflare build
+
+      - name: Deploy isolated settings Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --config wrangler.settings-preview.toml
+
+      - name: Set Worker PASSWORD secret without logging its value
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PREVIEW_PASSWORD: ${{ secrets.LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY }}
+        run: printf '%s' "$PREVIEW_PASSWORD" | npx wrangler secret put PASSWORD --config wrangler.settings-preview.toml
+
+      - name: Verify isolated Preview password gate
+        run: |
+          node --input-type=module <<'NODE'
+          const base = "https://libretv-settings-preview.bggdbh.workers.dev";
+          const statusResponse = await fetch(base + "/api/status", { signal: AbortSignal.timeout(20000) });
+          if (!statusResponse.ok) throw new Error("Preview status endpoint returned " + statusResponse.status);
+          const status = await statusResponse.json();
+          if (status.passwordRequired !== true || status.verified !== false) {
+            throw new Error("Settings Preview is not locked: passwordRequired=" + status.passwordRequired + ", verified=" + status.verified);
+          }
+          const authResponse = await fetch(base + "/api/auth", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ password: "__invalid_settings_preview_password__" }),
+            signal: AbortSignal.timeout(20000),
+          });
+          if (authResponse.status !== 401) throw new Error("Invalid password must return 401, got " + authResponse.status);
+          console.log("Settings Preview verified: isolated Worker is password-protected.");
+          NODE
