@@ -70,6 +70,21 @@ class WorkerPipelineTests(unittest.TestCase):
         self.assertEqual(args[1]["target"], 1000)
         self.assertEqual(args[2], "daily-fmhy-batch:2026-11-11")
 
+    def test_daily_scheduler_does_not_queue_without_verified_egress_gate(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        with (
+            patch.dict("os.environ", {
+                "COLLECTOR_TIMEZONE": "UTC",
+                "COLLECTOR_DAILY_HOUR": "3",
+                "COLLECTOR_DAILY_MINUTE": "0",
+            }, clear=True),
+            patch.object(worker, "submit_job") as submit,
+        ):
+            result = worker.enqueue_daily_batch(datetime(2026, 11, 11, 4, 0, tzinfo=ZoneInfo("UTC")))
+        self.assertEqual(result["status"], "blocked_egress_gate")
+        submit.assert_not_called()
+
     def test_crawl_job_preflights_pending_direct_media_into_registry(self):
         task_id = "a" * 32
         candidates = [
