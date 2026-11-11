@@ -64,6 +64,16 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
           <span className="v4-hero-eyebrow">LIBRETV</span>
           <h1>{featuredQuery.isLoading ? '发现好内容' : '精选内容暂不可用'}</h1>
           <p>{featuredQuery.isLoading ? '正在为你挑选精彩影片' : '推荐内容暂时无法加载，请稍后再试'}</p>
+          {!featuredQuery.isLoading && (
+            <button
+              type="button"
+              className="v4-hero-retry"
+              onClick={() => void featuredQuery.refetch()}
+              disabled={featuredQuery.isFetching}
+            >
+              {featuredQuery.isFetching ? '正在重试…' : '重试加载'}
+            </button>
+          )}
         </div>
       )}
     </section>
