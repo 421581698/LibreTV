@@ -21,6 +21,8 @@ import './iphone-minimal-ui.css';
 import './iphone-home-inline.css';
 // PR #84 final recovery layer: normalize document flow and isolate the homepage dock.
 import './pr84-layout-recovery.css';
+// PR #84 search-page finishing pass: compact field, dock and safe scroll tail.
+import './pr84-search-polish.css';
 import { Providers } from '@/components/providers';
 
 export const metadata: Metadata = {
