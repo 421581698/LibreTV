@@ -1693,7 +1693,7 @@ def extract_candidates(page, page_url: str, limit: int) -> list[dict]:
             classified = classify_url(candidate_url)
             if classified:
                 kind, host = classified
-                found.setdefault(candidate_url, {"url": candidate_url, "kind": kind, "host": host, "title": title})
+                found.setdefault(candidate_url, {"url": candidate_url, "kind": kind, "host": host, "title": title, **candidate_metadata})
     return list(found.values())[:limit]
 
 
