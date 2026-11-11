@@ -1821,14 +1821,23 @@ html:has(.v4-home) {
     background-color: #000 !important;
   }
 
-  body:has(.v4-home) .v4-home-main,
-  body:has(.v4-home) .v4-home-main--cinema {
+  /* The main shell begins below the iOS top inset. Pull the absolute hero
+     back to the physical viewport edge and extend its artwork by the same inset. */
+  body:has(.v4-home) .v4-home-main {
     margin-top: 0 !important;
-    padding-top: 0 !important;
+  }
+
+  body:has(.v4-home) .v4-home-main--cinema {
+    position: relative !important;
+    margin-top: 0 !important;
+    padding-top: clamp(380px, 60svh, 520px) !important;
   }
 
   body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive {
-    top: 0 !important;
+    top: calc(-1 * env(safe-area-inset-top, 0px)) !important;
+    height: calc(clamp(380px, 60svh, 520px) + env(safe-area-inset-top, 0px)) !important;
+    min-height: calc(380px + env(safe-area-inset-top, 0px)) !important;
+    max-height: none !important;
     margin-top: 0 !important;
     background-color: #000 !important;
   }
