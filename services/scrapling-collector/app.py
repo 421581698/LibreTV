@@ -1549,7 +1549,7 @@ def infer_media_identity(title: str = "", url: str = "", page_metadata: dict | N
     quality_match = re.search(r"(?i)(2160p|4k|1080p|720p|480p)", release_source)
     codec_match = re.search(r"(?i)(hevc|h\.265|h265|x265|av1|h\.264|h264|x264)", release_source)
     cleaned = re.sub(r"(?i)\.(m3u8|mp4|m4v|webm|mpd|mov|ts|m4s|aac)(?:$|\?).*", "", source)
-    cleaned = re.sub(r"(?i)\b(?:season\s*|s)\d{1,2}|\b(?:episode\s*|ep?)\d{1,3}|(?<=\d)e\d{1,3}|(?<!\d)(?:19|20)\d{2}(?!\d)|2160p|4k|1080p|720p|480p|hevc|h\.?265|x265|av1|h\.?264|x264", " ", cleaned)
+    cleaned = re.sub(r"(?i)\b(?:season\s*|s)\d{1,2}(?:e\d{1,3})?|\b(?:episode\s*|ep?)\d{1,3}|(?<!\d)(?:19|20)\d{2}(?!\d)|2160p|4k|1080p|720p|480p|hevc|h\.?265|x265|av1|h\.?264|x264", " ", cleaned)
     cleaned = re.sub(r"[^\w\u4e00-\u9fff]+", " ", cleaned, flags=re.UNICODE)
     title_hint = " ".join(cleaned.split())[:160]
     year = int(year_match.group(1)) if year_match else metadata.get("year_hint")
