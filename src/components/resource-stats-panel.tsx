@@ -35,6 +35,15 @@ type StatsPayload = {
   recent_tasks?: Array<{ id: string; status: string; created_at: number; updated_at: number; error?: string | null; result_count: number }>;
   recent_resources?: Array<{ title: string; media_type?: string; year?: number | null; season?: number | null; episode?: number | null; identity_confidence?: string; kind: string; status: string; access_state: string; playback_confirmed: boolean; decoded_width: number; decoded_height: number; actual_quality?: string; declared_quality?: string | null; poster?: string | null; created_at: number }>;
 };
+type MediaIdentity = { media_type?: string; title_hint?: string; quality_hint?: string };
+type MediaMetadata = { media_identity?: MediaIdentity; quality_evidence?: { declared_quality_label?: string } };
+type PlaybackEvidence = { decoded_width?: number; decoded_height?: number };
+function parseObject<T extends object>(value?: string | null): T {
+  try {
+    const parsed: unknown = JSON.parse(value || '{}');
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as T : {} as T;
+  } catch { return {} as T; }
+}
 type LibraryResource = {
   id: string; url: string; title: string; movie_title?: string | null; episode_title?: string | null;
   release_year?: number | null; season?: number | null; episode?: number | null;
@@ -231,8 +240,9 @@ export function ResourceStatsPanel() {
 
             {batchMessage ? <p role="status" className="text-xs text-muted">{batchMessage}</p> : null}
             {library.filter((resource) => {
-              let metadata: any = {}; let identity: any = {}; let evidence: any = {};
-              try { metadata = JSON.parse(resource.metadata || '{}'); identity = metadata.media_identity || {}; evidence = JSON.parse(resource.playback_evidence || '{}'); } catch { /* Keep unknown metadata searchable. */ }
+              const metadata = parseObject<MediaMetadata>(resource.metadata);
+              const identity = metadata.media_identity || {};
+              const evidence = parseObject<PlaybackEvidence>(resource.playback_evidence);
               const title = resource.movie_title || resource.episode_title || identity.title_hint || resource.title || '';
               const type = identity.media_type || 'unknown';
               const quality = evidence.decoded_height >= 2160 ? '4K' : evidence.decoded_height >= 1080 ? '1080P' : evidence.decoded_height >= 720 ? '720P' : (metadata.quality_evidence?.declared_quality_label || identity.quality_hint || 'unknown');
@@ -244,12 +254,11 @@ export function ResourceStatsPanel() {
               let playHref = '';
               let mediaType = '待识别';
               let actualQuality = '画质未知';
-              let identity: any = {}; let metadata: any = {}; let evidence: any = {};
+              const metadata = parseObject<MediaMetadata>(resource.metadata);
+              const identity = metadata.media_identity || {};
+              const evidence = parseObject<PlaybackEvidence>(resource.playback_evidence);
               try {
                 const mediaUrl = new URL(resource.url);
-                metadata = JSON.parse(resource.metadata || '{}');
-                identity = metadata.media_identity || {};
-                evidence = JSON.parse(resource.playback_evidence || '{}');
                 const labels: Record<string, string> = { movie: '电影', tv: '电视剧', anime: '动漫', documentary: '纪录片', variety: '综艺', short: '短片' };
                 mediaType = labels[identity.media_type || ''] || '待识别';
                 if (evidence.decoded_width && evidence.decoded_height) {
