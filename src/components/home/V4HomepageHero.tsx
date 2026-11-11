@@ -44,7 +44,7 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
               {slide.rating ? <span>★ {slide.rating}</span> : null}
             </div>
             <div className="v4-hero-actions v4-apple-actions">
-              <button type="button" className="v4-hero-primary" onClick={() => onPick(slide)}>
+              <button type="button" className="v4-hero-primary" aria-label={`播放精选影片：${slide.title}`} onClick={() => onPick(slide)}>
                 立即播放
               </button>
               <span className="v4-hero-plus" aria-hidden="true">+</span>
