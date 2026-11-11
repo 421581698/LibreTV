@@ -162,7 +162,7 @@ export async function checkUpstreamAllowed(urlString: string): Promise<UpstreamV
   return { ok: true };
 }
 
-/** 直播私网访问开关；还必须匹配 LIVE_PRIVATE_HOSTS 中的精确主机名。 */
+/** 直播私网访问开关；还必须匹配 LIVE_PRIVATE_ORIGINS 中的精确主机名。 */
 export function allowLivePrivate(): boolean {
   return process.env.LIVE_ALLOW_PRIVATE === '1';
 }
@@ -170,7 +170,7 @@ export function allowLivePrivate(): boolean {
 /**
  * 直播地址专用校验：协议必须 http(s)，默认仍拒绝内网。
  * 私网自建 IPTV 需要同时设置 LIVE_ALLOW_PRIVATE=1，并将精确 hostname/IP
- * 写入 LIVE_PRIVATE_HOSTS；不会因为一个全局开关而放行任意用户提交的内网 URL。
+ * 写入 LIVE_PRIVATE_ORIGINS；不会因为一个全局开关而放行任意用户提交的内网 URL。
  */
 export async function checkLiveUrlAllowed(urlString: string): Promise<UpstreamVerdict> {
   try {
