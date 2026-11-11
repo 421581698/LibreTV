@@ -159,58 +159,33 @@ describe('首页与播放页回归契约', () => {
     expect(sharedHeaderStyles).not.toContain('background: rgba(246, 248, 251, 0.88)');
   });
 
-  it('顶部导航完整顺序为 Logo、频道、搜索、历史、设置和头像，PC/iPad 共用', () => {
-    const navStart = v4Header.indexOf('<nav');
-    const navEnd = v4Header.indexOf('</nav>', navStart);
-    const navMarkup = v4Header.slice(navStart, navEnd);
-    const searchStart = v4Header.indexOf('<SearchModule');
-    const actionsStart = v4Header.indexOf('className="v4-header-actions"');
-    expect(navMarkup).not.toContain('id="v4-header-search"');
-    expect(searchStart).toBeGreaterThan(navEnd);
-    expect(actionsStart).toBeGreaterThan(navEnd);
-    expect(searchStart).toBeGreaterThan(actionsStart);
-    expect(v4Header.indexOf('<SearchModule')).toBeLessThan(v4Header.indexOf('<HistoryModule'));
-
-    const navLabels = ['首页', '电影', '电视剧', '海外剧', '动漫', '综艺', '直播'];
-    const navPositions = navLabels.map((label, index) => navModules[index].indexOf('label="' + label + '"'));
-    expect(navPositions.every((position) => position >= 0)).toBe(true);
-    expect(v4Header.indexOf('<HomeNavModule')).toBeLessThan(v4Header.indexOf('<MoviesNavModule'));
-    expect(v4Header.indexOf('<MoviesNavModule')).toBeLessThan(v4Header.indexOf('<TvNavModule'));
-    expect(v4Header.indexOf('<TvNavModule')).toBeLessThan(v4Header.indexOf('<OverseasNavModule'));
-    expect(v4Header.indexOf('<OverseasNavModule')).toBeLessThan(v4Header.indexOf('<AnimeNavModule'));
-    expect(v4Header.indexOf('<AnimeNavModule')).toBeLessThan(v4Header.indexOf('<VarietyNavModule'));
-    expect(v4Header.indexOf('<VarietyNavModule')).toBeLessThan(v4Header.indexOf('<LiveNavModule'));
-
-    expect(v4Header.indexOf('<HistoryModule')).toBeLessThan(v4Header.indexOf('<SettingsModule'));
-    expect(v4Header.indexOf('<SettingsModule')).toBeLessThan(v4Header.indexOf('<AvatarModule'));
-    expect(historyModule).toContain('aria-label="观看历史"');
-    expect(settingsModule).toContain('aria-label="设置"');
-    expect(avatarModule).toContain('aria-label="打开我的个人空间"');
-
-    expect(sharedHeaderStyles).toContain('@media screen and (min-width: 701px)');
-    expect(sharedHeaderStyles).toContain('display: contents !important;');
-    for (const order of [1, 2, 3, 4, 5, 6, 7, 8]) {
-      expect(sharedHeaderStyles).toContain(`order: ${order} !important;`);
+  it('首页顶部仅保留 Logo、圆形搜索和圆形头像，旧频道导航已从 DOM 移除', () => {
+    expect(v4Header).toContain('<BrandModule />');
+    expect(v4Header).toContain('<SearchModule />');
+    expect(v4Header).toContain('<AvatarModule pathname={pathname} />');
+    expect(v4Header).not.toContain('<nav');
+    for (const legacy of ['<HomeNavModule', '<MoviesNavModule', '<TvNavModule', '<OverseasNavModule', '<AnimeNavModule', '<VarietyNavModule', '<LiveNavModule', '<HistoryModule', '<SettingsModule']) {
+      expect(v4Header).not.toContain(legacy);
     }
-    expect(sharedHeaderStyles).toContain('.v4-header .v4-header-actions .v4-search');
-    expect(sharedHeaderStyles).toContain('order: 0 !important;');
-    expect(sharedHeaderStyles).toContain('.v4-header .v4-primary-nav .v4-nav-link[href="/"]');
-    expect(sharedHeaderStyles).toContain('color: #fff !important;');
-    expect(sharedHeaderStyles).toContain('color: #17171B !important;');
-    expect(sharedHeaderStyles).not.toContain('@media screen and (min-width: 1200px)');
+    expect(searchModule).toContain('aria-label="搜索"');
+    expect(searchModule).toContain("router.push('/search')");
+    expect(avatarModule).toContain('aria-label="打开我的个人空间"');
+    expect(avatarModule).toContain('<circle cx="12" cy="12" r="10.25"/>');
+    expect(sharedHeaderStyles).toContain('.v4-home .v4-header-inner');
+    expect(sharedHeaderStyles).toContain('.v4-home .v4-header.is-overlay');
+    expect(v4Styles).toContain('border-radius: 50% !important;');
+    expect(v4Styles).toContain('pointer-events: none !important;');
   });
 
-  it('V4 Header 搜索与最近搜索历史保留 URL、输入校验和回选链路', () => {
+  it('首页顶部搜索为可访问的图标按钮，进入独立搜索页', () => {
     expect(home).toContain('<V4HomepageHeader overlay={!urlQuery} />');
-    expect(searchModule).toContain('<SearchHistoryDropdown');
-    expect(searchModule).toContain("router.push('/?s='+encodeURIComponent(q)");
-    expect(searchModule).toContain('h.record(q)');
-    expect(searchModule).toContain('const pick=(v:string)');
+    expect(searchModule).toContain('aria-label="搜索"');
+    expect(searchModule).toContain('title="搜索"');
+    expect(searchModule).toContain("router.push('/search')");
+    expect(searchModule).toContain('<Icon name="search" />');
+    expect(searchModule).not.toContain('<SearchHistoryDropdown');
     expect(search).toContain('router.push(`/?q=${encodeURIComponent(query)}`');
-    expect(searchHistory).toContain('useQuery({');
     expect(searchHistory).toContain("queryKey: ['searchHistory']");
-    expect(searchHistory).toContain('history.refetch()');
-    expect(searchHistory).toContain('role="listbox"');
   });
 
   it('设置首页采用 Apple 式纵向分组列表，分类进入独立详情页并可返回', () => {
@@ -384,12 +359,13 @@ describe('首页与播放页回归契约', () => {
     expect(browserAsr).toContain('window.webkitSpeechRecognition');
   });
 
-  it('iPad 品牌图标固定尺寸，设置按钮直接打开设置抽屉', () => {
+  it('首页精简顶部不再渲染设置按钮，完整设置仍由设置页与抽屉提供', () => {
     expect(glassStyles).toContain('.v4-brand-mark');
-    expect(glassStyles).toContain('width: 24px !important');
     expect(settingsModule).toContain('onOpen');
-    expect(v4Header).toContain('<SettingsModule onOpen={()=>setSettingsOpen(true)}/>');
-    expect(v4Header).not.toContain("else router.push('/settings')");
+    expect(v4Header).not.toContain('<SettingsModule');
+    expect(v4Header).toContain('<SourceManagerDrawer');
+    expect(spatialScreenSource).toContain("screen === 'settings'");
+    expect(spatialScreenSource).toContain('打开完整设置');
   });
 
   it('浅色、深色与系统主题均有显式选择，并提供浅色毛玻璃表面', () => {
