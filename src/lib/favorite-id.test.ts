@@ -56,6 +56,18 @@ describe('normalizeImportedFavorites', () => {
     expect(normalizeImportedFavorites({ favorites: [] })).toEqual([]);
   });
 
+  it('accepts valid legacy records without an ID and rejects blank identity fields', () => {
+    const result = normalizeImportedFavorites([
+      { sourceKey: 'legacy-source', vodId: 'legacy-id', title: 'Legacy film', sourceName: 'Legacy' },
+      { id: 'x', sourceKey: ' ', vodId: 'id', title: 'Film', sourceName: 'A' },
+      { id: 'x', sourceKey: 'a', vodId: '', title: 'Film', sourceName: 'A' },
+      { id: 'x', sourceKey: 'a', vodId: '1', title: ' ', sourceName: 'A' },
+    ]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe(favoriteIdFor('legacy-source', 'legacy-id'));
+  });
+
   it('keeps identical video IDs from different providers as separate records', () => {
     const result = normalizeImportedFavorites([
       { id: 'same', sourceKey: 'a', vodId: '1', title: 'Film A', sourceName: 'A' },
