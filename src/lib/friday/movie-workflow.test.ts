@@ -24,6 +24,16 @@ describe("LibreTV movie workflow", () => {
     expect(first).toBe("friday-1234-00000000-0000-4000-8000-000000000001");
   });
 
+  it("falls back when crypto.randomUUID is unavailable in older browsers", () => {
+    const originalCrypto = globalThis.crypto;
+    try {
+      vi.stubGlobal("crypto", {});
+      expect(createMovieWorkflowTaskIdPrefix(1234)).toMatch(/^friday-1234-[a-z0-9-]+$/);
+    } finally {
+      vi.stubGlobal("crypto", originalCrypto);
+    }
+  });
+
   it("executes search, source probe, quality assessment and review as persisted DAG tasks", async () => {
     const store = new MemoryStore();
     const runtime = new TaskRuntime(store);

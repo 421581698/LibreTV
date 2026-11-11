@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { guardRequest } from '@/lib/api-guard';
 import { MAX_LIVE_SOURCES, MAX_VOD_SOURCES } from '@/lib/source-list';
 import { MAX_PUBLISH_BYTES, publishSourceList } from '@/lib/source-list-publish';
+import { readJsonLimited, requestBodyErrorStatus } from '@/lib/request-body';
 
 export const runtime = 'nodejs';
 
@@ -62,9 +63,12 @@ export async function POST(req: Request) {
 
   let raw: unknown;
   try {
-    raw = JSON.parse(await req.text());
-  } catch {
-    return NextResponse.json({ error: '请求内容不是合法 JSON' }, { status: 400 });
+    raw = await readJsonLimited(req, MAX_PUBLISH_BYTES);
+  } catch (err) {
+    return NextResponse.json(
+      { error: '请求内容不是合法 JSON' },
+      { status: requestBodyErrorStatus(err) }
+    );
   }
 
   const normalized = normalizePayload(raw);

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { SESSION_COOKIE, checkRateLimit, sessionFromCookieHeader, signSession, checkPassword, clearRateLimit, isPasswordConfigured } from '@/lib/auth';
+import { readJsonLimited, requestBodyErrorStatus } from '@/lib/request-body';
 
 export const runtime = 'nodejs';
 
@@ -21,10 +22,13 @@ export async function POST(req: Request) {
 
   let password = '';
   try {
-    const body = (await req.json()) as { password?: string };
-    password = String(body.password ?? '');
-  } catch {
-    return NextResponse.json({ success: false, error: '请求格式错误' }, { status: 400 });
+    const body = await readJsonLimited<{ password?: unknown }>(req, 4096);
+    password = typeof body?.password === 'string' ? body.password : '';
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, error: '请求格式错误' },
+      { status: requestBodyErrorStatus(error) }
+    );
   }
 
   if (!checkPassword(password)) {

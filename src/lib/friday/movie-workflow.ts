@@ -17,9 +17,20 @@ export type MovieWorkflowResult = {
  * Generates a per-request namespace. UUID entropy prevents two searches started
  * in the same millisecond (or across tabs) from sharing persisted task IDs.
  */
+function createWorkflowUniqueId(): string {
+  const cryptoApi = globalThis.crypto;
+  if (typeof cryptoApi?.randomUUID === "function") return cryptoApi.randomUUID();
+  if (typeof cryptoApi?.getRandomValues === "function") {
+    const bytes = cryptoApi.getRandomValues(new Uint8Array(16));
+    return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+  }
+  // Task IDs are collision-resistant namespaces, not authentication secrets.
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}`;
+}
+
 export function createMovieWorkflowTaskIdPrefix(
   now = Date.now(),
-  uniqueId = globalThis.crypto.randomUUID(),
+  uniqueId = createWorkflowUniqueId(),
 ): string {
   return `friday-${now}-${uniqueId}`;
 }

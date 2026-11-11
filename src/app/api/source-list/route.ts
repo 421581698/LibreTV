@@ -4,8 +4,10 @@ import { checkLiveUrlAllowed, checkUpstreamAllowed, isValidProxyUrl } from '@/li
 import { fetchUpstream } from '@/lib/fetch-utils';
 import { describeParseStats, parseSubscriptionJson, parseSubscriptionPayload, withSkipped } from '@/lib/tvbox-parser';
 import type { SourceListPayload } from '@/lib/types';
+import { readResponseTextLimited } from '@/lib/response-body';
 
 export const runtime = 'nodejs';
+const MAX_SUBSCRIPTION_BYTES = 1024 * 1024;
 
 /**
  * 拉取远程数据源订阅，自动识别两种格式：
@@ -37,7 +39,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: `订阅地址返回 HTTP ${res.status}` }, { status: 502 });
     }
     // 读文本而非 res.json()：部分配置带注释/尾随逗号，需要宽容解析
-    const text = await res.text();
+    const text = await readResponseTextLimited(res, MAX_SUBSCRIPTION_BYTES);
 
     let parsed;
     try {

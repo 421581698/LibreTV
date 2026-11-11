@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { readJsonLimited, requestBodyErrorStatus } from "@/lib/request-body";
 import { guardRequest } from "@/lib/api-guard";
 import { createEdgeTtsStream } from "@/lib/friday/edgeTts";
 import { createPiperTtsResponse } from "@/lib/friday/piperTts";
@@ -94,11 +95,11 @@ export async function POST(request: Request) {
 
   let payload: z.infer<typeof requestSchema>;
   try {
-    const parsed = requestSchema.safeParse(await request.json());
+    const parsed = requestSchema.safeParse(await readJsonLimited(request, 8192));
     if (!parsed.success) return jsonError("Invalid speech request.", 400);
     payload = parsed.data;
-  } catch {
-    return jsonError("Invalid request body.", 400);
+  } catch (error) {
+    return jsonError("Invalid request body.", requestBodyErrorStatus(error));
   }
 
   if (request.signal.aborted) return new Response(null, { status: 499 });

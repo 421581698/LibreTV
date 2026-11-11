@@ -24,16 +24,16 @@ concurrency:
 
 jobs:
   deploy-preview:
-    if: ${{ github.event_name == 'push' || inputs.confirm_preview_deploy == 'yes' }}
+    if: ${{ github.ref == 'refs/heads/feature/friday-v3-integrated-acceptance-2026-11-08' && (github.event_name == 'push' || inputs.confirm_preview_deploy == 'yes') }}
     name: Build and deploy isolated Friday V3 preview
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: preview
     steps:
-      - name: Checkout Friday V3 runtime branch
+      - name: Checkout exact triggering commit
         uses: actions/checkout@v4
         with:
-          ref: feature/friday-v3-integrated-acceptance-2026-11-08
+          ref: ${{ github.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -44,10 +44,22 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Build isolated preview
-        env:
-          NEXT_TELEMETRY_DISABLED: "1"
-        run: npx opennextjs-cloudflare build
+      - name: TypeScript verification
+        run: npm run typecheck
+
+      - name: ESLint verification
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test -- --reporter=dot
+
+      - name: Verify preview authentication configuration
+        run: |
+          grep -Eq '^[[:space:]]*AUTH_DISABLED[[:space:]]*=[[:space:]]*"false"' wrangler.preview.toml
+          if grep -Eq '^[[:space:]]*AUTH_DISABLED[[:space:]]*=[[:space:]]*"true"' wrangler.preview.toml; then
+            echo "Preview must remain password-protected"
+            exit 1
+          fi
 
       - name: Verify preview secrets
         env:
@@ -59,6 +71,11 @@ jobs:
           test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "Missing preview secret: CLOUDFLARE_ACCOUNT_ID" && exit 1)
           test -n "$PREVIEW_GATE_KEY" || (echo "Missing preview secret: LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY" && exit 1)
           test "${#PREVIEW_GATE_KEY}" -ge 24 || (echo "LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY must contain at least 24 characters" && exit 1)
+
+      - name: Build isolated preview
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npx opennextjs-cloudflare build
 
       - name: Deploy isolated Worker
         env:

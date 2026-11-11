@@ -4,12 +4,14 @@ import { checkLiveUrlAllowed } from '@/lib/ssrf';
 import { fetchUpstream } from '@/lib/fetch-utils';
 import { getLiveCache, setLiveCache } from '@/lib/live-cache';
 import { parseM3u } from '@/lib/m3u-parser';
+import { readResponseTextLimited } from '@/lib/response-body';
 import type { LivePlaylistResponse } from '@/lib/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
+const MAX_PLAYLIST_BYTES = 5 * 1024 * 1024;
 
 function cacheKey(url: string): string {
   return `live:playlist:${url}`;
@@ -73,7 +75,7 @@ export async function GET(req: Request) {
       if (!res.ok) {
         return jsonError(`订阅地址请求失败: ${res.status}`, 502);
       }
-      text = await res.text();
+      text = await readResponseTextLimited(res, MAX_PLAYLIST_BYTES);
     } catch (err) {
       return jsonError(`订阅地址请求失败: ${err instanceof Error ? err.message : '未知错误'}`, 502);
     }

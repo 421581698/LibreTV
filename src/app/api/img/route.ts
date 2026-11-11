@@ -1,11 +1,45 @@
-
 import { NextRequest, NextResponse } from 'next/server';
+import { guardRequest } from '@/lib/api-guard';
 import { fetchUpstream } from '@/lib/fetch-utils';
 
 export const runtime = 'nodejs';
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const IMAGE_TIMEOUT_MS = 8000;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_REQUESTS = 120;
+const requestTimes = new Map<string, number[]>();
+
+function isRateLimited(request: Request): boolean {
+  const key = request.headers.get('cf-connecting-ip')?.trim()
+    || request.headers.get('x-real-ip')?.trim()
+    || 'unknown-client';
+  const now = Date.now();
+  const recent = (requestTimes.get(key) || []).filter(
+    (time) => now - time < RATE_LIMIT_WINDOW_MS,
+  );
+  if (recent.length >= RATE_LIMIT_MAX_REQUESTS) {
+    requestTimes.set(key, recent);
+    return true;
+  }
+  recent.push(now);
+  requestTimes.set(key, recent);
+  if (requestTimes.size > 500) {
+    for (const [client, times] of requestTimes) {
+      if (!times.some((time) => now - time < RATE_LIMIT_WINDOW_MS)) {
+        requestTimes.delete(client);
+      }
+      if (requestTimes.size <= 400) break;
+    }
+    // Under sustained high-cardinality traffic, keep the isolate-local map bounded.
+    while (requestTimes.size > 500) {
+      const oldestClient = requestTimes.keys().next().value;
+      if (oldestClient === undefined) break;
+      requestTimes.delete(oldestClient);
+    }
+  }
+  return false;
+}
 
 const ALLOWED_IMAGE_TYPES = new Set([
   'image/jpeg',
@@ -27,6 +61,13 @@ function errorResponse(message: string, status: number) {
 }
 
 export async function GET(req: NextRequest) {
+  // This endpoint accepts an arbitrary public URL and acts as an image proxy.
+  // Keep it behind the same session gate as search/detail APIs to prevent
+  // unauthenticated third-party bandwidth abuse.
+  const guarded = guardRequest(req);
+  if (guarded) return guarded;
+  if (isRateLimited(req)) return errorResponse('too many image requests', 429);
+
   const raw = req.nextUrl.searchParams.get('url') || '';
 
   if (!raw || raw.length > 4096) {

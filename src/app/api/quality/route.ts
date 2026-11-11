@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { guardRequest } from '@/lib/api-guard';
+import { readJsonLimited, requestBodyErrorStatus } from '@/lib/request-body';
 import { getCache, setCache } from '@/lib/fetch-utils';
 import { withHostLimit } from '@/lib/host-gate';
 import { probeQuality } from '@/lib/quality-probe';
@@ -81,12 +82,12 @@ export async function POST(req: Request) {
 
   let body: QualityBody;
   try {
-    body = (await req.json()) as QualityBody;
-  } catch {
-    return NextResponse.json({ error: '请求格式错误' }, { status: 400 });
+    body = await readJsonLimited<QualityBody>(req, 256 * 1024);
+  } catch (err) {
+    return NextResponse.json({ error: '请求格式错误' }, { status: requestBodyErrorStatus(err) });
   }
 
-  if (!Array.isArray(body.items) || body.items.length === 0) {
+  if (!body || typeof body !== 'object' || !Array.isArray(body.items) || body.items.length === 0) {
     return NextResponse.json({ error: '请提供待探测的条目' }, { status: 400 });
   }
   const items = body.items.filter(isProbeItem).slice(0, MAX_ITEMS);
