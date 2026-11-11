@@ -163,7 +163,7 @@ export async function handleProxyRequest(req: Request, targetUrl: string): Promi
  * - 不重试（重试对直播无意义）；
  * - m3u8 manifest 仍需重写（变体/分片地址改指本路由），FLV 等纯透传；
  * - 每一跳都强制 SSRF 校验（不信任解析阶段的校验结果）；
- * - 内网自建源必须同时启用 LIVE_ALLOW_PRIVATE=1，并配置精确 LIVE_PRIVATE_HOSTS。
+ * - 内网自建源必须同时启用 LIVE_ALLOW_PRIVATE=1，并配置精确 LIVE_PRIVATE_ORIGINS。
  */
 export async function handleLiveStreamRequest(req: Request, targetUrl: string): Promise<Response> {
   const guarded = guardRequest(req);
