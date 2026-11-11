@@ -48,6 +48,8 @@ const ipadStyles = source('src/app/ipad-glass.css');
 const channelHeaderStyles = source('src/app/iphone-glass.css');
 const homepageHeroStyles = source('src/app/v4-homepage.css');
 const inlineHomeStyles = source('src/app/iphone-home-inline.css');
+const mobileUiStyles = source('src/app/iphone-minimal-ui.css');
+const categoryPage = source('src/app/categories/page.tsx');
 const featuredHero = source('src/components/home/V4HomepageHero.tsx');
 const previewConfig = source('wrangler.preview.toml');
 const previewWorkflow = source('.github/workflows/deploy-homepage-preview.yml');
@@ -455,8 +457,16 @@ describe('首页与播放页回归契约', () => {
     expect(settings).toContain('removeItem(SETTINGS_OPEN_PAGE_KEY)');
   });
 
-  it('首页底部导航采用实心选中图标与圆点指示器', () => {
+  it('首页与分类页底部导航固定在视口水平居中，并避开 iPhone 安全区域', () => {
     const tabBar = source('src/components/home/header/MobileTabBar.tsx');
+    expect(categoryPage).toContain('<V4HomepageHeader />');
+    expect(tabBar).toContain('className={active ? \'is-active\' : \'\'}');
+    expect(mobileUiStyles).toContain('left: 50% !important;');
+    expect(mobileUiStyles).toContain('right: auto !important;');
+    expect(mobileUiStyles).toContain('transform: translateX(-50%) !important;');
+    expect(mobileUiStyles).toContain('width: min(292px, calc(100% - 52px)) !important;');
+    expect(mobileUiStyles).toContain('bottom: calc(8px + env(safe-area-inset-bottom)) !important;');
+    expect(mobileUiStyles).not.toContain('left: 12px !important;\n    right: 12px !important;');
     expect(tabBar).toContain("className={active ? 'is-filled' : ''}");
     expect(tabBar).toContain('{active && <i aria-hidden="true" />}');
   });
