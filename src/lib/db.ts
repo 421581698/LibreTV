@@ -342,9 +342,15 @@ db.version(6).stores({
 db.version(7).stores({
   favorites: 'id, addedAt, sourceKey, title',
 }).upgrade(async (transaction) => {
-  await transaction.table('favorites').toCollection().modify((item: FavoriteEntry) => {
-    item.id = favoriteIdFor(item.sourceKey, item.vodId);
-  });
+  const favorites = transaction.table('favorites');
+  const existing = await favorites.toArray();
+  await favorites.clear();
+  if (existing.length > 0) {
+    await favorites.bulkPut(existing.map((item: FavoriteEntry) => ({
+      ...item,
+      id: favoriteIdFor(item.sourceKey, item.vodId),
+    })));
+  }
 });
 
 export async function addFavorite(entry: Omit<FavoriteEntry, 'id' | 'addedAt'>): Promise<void> {
