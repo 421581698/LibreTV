@@ -36,6 +36,7 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
           <div className="v4-hero-veil" aria-hidden="true" />
           <div className="v4-hero-content">
             <h1>{slide.title}</h1>
+            <p className="v4-hero-subtitle">精选电影与剧集</p>
             <div className="v4-hero-actions">
               <button type="button" className="v4-hero-primary" onClick={() => onPick(slide)}>
                 <span aria-hidden="true">▶</span>
