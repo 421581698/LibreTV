@@ -6,11 +6,12 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { V4HomepageHeader } from '@/components/home/V4HomepageHeader';
 import { HomeInlinePlayer } from '@/components/home/HomeInlinePlayer';
+import { requestShowDownloadManager } from '@/components/download-manager';
 import { AnimeRecommendationSection, RecommendSection } from '@/components/douban-section';
 import { DoubanCard } from '@/components/video-card';
 import { GlassPanel } from '@/components/ui/glass';
 import { SmartImage } from '@/components/smart-image';
-import { db, type HistoryEntry } from '@/lib/db';
+import { db, removeFavorite, type FavoriteEntry, type HistoryEntry } from '@/lib/db';
 import { isInDisabledSubscription, isSourceDisabled, resolveSource, useAppStore } from '@/lib/store';
 import type { DoubanItem, SearchResultItem, SourceConfig } from '@/lib/types';
 import { api } from '@/lib/client-api';
@@ -278,6 +279,9 @@ function ResourcesScreen({ onPick }: { onPick: (item: SearchResultItem) => void 
 
 function MeScreen() {
   const history = useLiveQuery(() => db.history.orderBy('timestamp').reverse().limit(24).toArray(), []);
+  const downloads = useLiveQuery(() => db.downloads.orderBy('createdAt').reverse().limit(20).toArray(), []);
+  const favorites = useLiveQuery(() => db.favorites.orderBy('addedAt').reverse().toArray(), []);
+  const liveFavorites = useAppStore((state) => state.liveFavorites);
   return (
     <div className="v4-me-layout">
       <section className="v4-me-cover" aria-label="我的个人空间封面">
@@ -310,7 +314,46 @@ function MeScreen() {
           <div className="v4-me-history-grid">{history.map((item) => <MeHistoryCard key={item.id} item={item} />)}</div>
         )}
       </section>
+      <section className="v4-spatial-panel v4-me-history-panel">
+        <div className="v4-spatial-panel-head"><h2>影视收藏</h2><span>{favorites?.length ?? 0} 部影片</span></div>
+        {!favorites ? <div className="v4-spatial-empty">正在读取影视收藏…</div> : favorites.length === 0 ? (
+          <div className="v4-spatial-empty"><strong>还没有收藏影视</strong><p>在电影或电视剧搜索结果卡片上点击心形按钮，即可保存到这里。</p></div>
+        ) : (
+          <div className="v4-me-history-grid">{favorites.map((item) => <MeFavoriteCard key={item.id} item={item} />)}</div>
+        )}
+      </section>
+      <section className="v4-spatial-panel v4-me-library-actions">
+        <button type="button" className="v4-settings-card" onClick={() => window.dispatchEvent(new CustomEvent('libretv:open-history-panel'))}>
+          <div><strong>全部观看历史</strong><p>{history?.length ?? 0} 条最近记录 · 搜索、删除与继续播放</p></div><b aria-hidden="true">›</b>
+        </button>
+        <Link href="/search" className="v4-settings-card"><div><strong>搜索记录</strong><p>查看最近搜索并快速重新搜索</p></div><b aria-hidden="true">›</b></Link>
+        <Link href="/live" className="v4-settings-card"><div><strong>频道收藏</strong><p>{liveFavorites.length} 个已收藏频道</p></div><b aria-hidden="true">›</b></Link>
+        <button type="button" className="v4-settings-card" onClick={() => requestShowDownloadManager()}>
+          <div><strong>下载管理</strong><p>{downloads?.length ?? 0} 个本机下载任务 · 查看进度与管理文件</p></div><b aria-hidden="true">›</b>
+        </button>
+      </section>
+      <section className="v4-spatial-panel v4-me-settings-entry">
+        <Link href="/settings" className="v4-settings-card"><div><strong>设置</strong><p>外观、播放、资源管理、采集中心与隐私设置</p></div><b aria-hidden="true">›</b></Link>
+      </section>
     </div>
+  );
+}
+
+function MeFavoriteCard({ item }: { item: FavoriteEntry }) {
+  const imageProxyMode = useAppStore((state) => state.imageProxyMode);
+  const customImageProxy = useAppStore((state) => state.customImageProxy);
+  const customAPIs = useAppStore((state) => state.customAPIs);
+  const envSources = useAppStore((state) => state.envSources);
+  const source = resolveSource({ customAPIs, envSources }, item.sourceKey);
+  const href = buildWatchUrl({ sourceKey: item.sourceKey, vodId: item.vodId, index: 0, title: item.title, sourceUrl: source?.url ?? item.sourceUrl, detail: source?.detail });
+  return (
+    <article className="v4-me-history-card relative">
+      <Link href={href} className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="v4-me-history-image">{item.pic ? <SmartImage url={item.pic} mode={imageProxyMode} customProxy={customImageProxy} alt="" className="absolute inset-0 h-full w-full object-cover" /> : <span>▶</span>}</div>
+        <div className="v4-me-history-copy min-w-0"><strong>{item.title}</strong><span>{[item.year, item.typeName, item.sourceName].filter(Boolean).join(' · ')}</span></div>
+      </Link>
+      <button type="button" className="ml-2 shrink-0 rounded-lg px-3 py-2 text-xs text-muted hover:bg-chip" aria-label={"取消收藏 " + item.title} onClick={() => { void removeFavorite(item.sourceKey, item.vodId); }}>取消收藏</button>
+    </article>
   );
 }
 
@@ -335,6 +378,8 @@ function MeHistoryCard({ item }: { item: HistoryEntry }) {
 function SettingsScreen() {
   const groups = [
     { title: '播放与过滤', description: '自动连播、片头片尾跳过、广告过滤与播放缓存', page: 'playback' },
+    { title: '语言设置', description: '界面语言与 Friday 对话语言', page: 'language' },
+    { title: '首页与内容', description: '首页推荐与内容偏好', page: 'home' },
     { title: '外观模式', description: '浅色、深色与跟随系统主题', page: 'appearance' },
     { title: '封面图加载', description: '海报图片代理与加载偏好', page: 'image' },
     { title: '点播源管理', description: '管理点播来源、优先级与健康检测', page: 'vod' },

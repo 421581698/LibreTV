@@ -14,6 +14,8 @@ import './v4-header-theme.css';
 import './theme-safe-area.css';
 // Final global contrast layer: dark mode must remain legible on every device and route.
 import './theme-global-compat.css';
+// Final mobile-only layout contract for LibreTV iPhone Minimal UI V1.0.
+import './iphone-minimal-ui.css';
 // Final iPhone homepage overrides must win over shared header/theme layers.
 import './iphone-home-inline.css';
 import { Providers } from '@/components/providers';

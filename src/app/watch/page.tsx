@@ -144,10 +144,14 @@ function WatchContent() {
   const videoTitle =
     titleParam || detailQuery.data?.videoInfo?.title || '未知视频';
   // 真实相关内容：使用用户已启用的点播源按当前片名搜索，不生成虚构推荐。
-  const recommendationSources = useMemo(
-    () => store.customAPIs.filter((item) => store.selectedKeys.includes(item.key) && (!item.isAdult || store.adFilter)),
-    [store.customAPIs, store.selectedKeys, store.adFilter]
-  );
+  const recommendationSources = useMemo(() => {
+    const seen = new Set<string>();
+    return [...store.envSources, ...store.customAPIs].filter((item) => {
+      if (!store.selectedKeys.includes(item.key) || seen.has(item.key)) return false;
+      seen.add(item.key);
+      return !item.isAdult || store.adFilter;
+    });
+  }, [store.envSources, store.customAPIs, store.selectedKeys, store.adFilter]);
   const relatedQuery = useQuery({
     queryKey: ['watch-related', videoTitle, recommendationSources.map((item) => item.key).join(',')],
     queryFn: () => api.search(videoTitle, recommendationSources, store.adFilter),
@@ -450,7 +454,7 @@ function WatchContent() {
           </div>
         </div>
       </header>
-      <main className="flex-1 w-full max-w-[1600px] mx-auto px-3 sm:px-4 lg:px-6 py-4 netflix-watch">
+      <main className="flex-1 w-full max-w-[1600px] mx-auto px-3 sm:px-4 lg:px-6 py-4 netflix-watch" data-content-type={hasEpisodeNavigation ? "series" : "movie"}>
         <div className="netflix-watch-grid">
           <section className="netflix-watch-primary min-w-0">
             <div

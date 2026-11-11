@@ -21,6 +21,12 @@ const assistant = source('src/components/AIFloatingBall.tsx');
 const header = source('src/components/header.tsx');
 const detail = source('src/components/detail-modal.tsx');
 const player = source('src/components/player-shell.tsx');
+const fullscreenHelper = source('src/lib/player-fullscreen.ts');
+const database = source('src/lib/db.ts');
+const videoCards = source('src/components/video-card.tsx');
+const spatialScreenSource = source('src/components/home/V4SpatialScreen.tsx');
+const searchPageSource = source('src/app/search/page.tsx');
+const searchResultsSource = source('src/app/search/results/page.tsx');
 const history = source('src/components/history-panel.tsx');
 const settings = source('src/components/source-manager.tsx');
 const drawer = source('src/components/drawer.tsx');
@@ -262,8 +268,11 @@ describe('首页与播放页回归契约', () => {
 
   it('点播播放器保留播放、进度、音量、全屏与 HLS 恢复配置', () => {
     expect(player).toContain('volume: 0.8');
-    expect(player).toContain('fullscreen: true');
-    expect(player).toContain('fullscreenWeb: true');
+    expect(player).toContain('fullscreen: !touchPointer');
+    expect(player).toContain('fullscreenWeb: !touchPointer');
+    expect(player).toContain('requestNativeFullscreenWithFallback');
+    expect(fullscreenHelper).toContain('webkitEnterFullscreen');
+    expect(player).toContain('if (!art.fullscreenWeb) art.fullscreenWeb = true;');
     expect(player).toContain('playbackRate: true');
     expect(player).toContain('art.on(\'video:ratechange\'');
     expect(player).toContain('art.on(\'video:loadedmetadata\'');
@@ -510,6 +519,28 @@ describe('首页与播放页回归契约', () => {
   });
 
 
+
+  it('影视收藏按资源站与影片 ID 独立存储，并连接卡片和个人中心', () => {
+    expect(database).toContain('favorites: EntityTable<FavoriteEntry, \'id\'>');
+    expect(database).toContain('db.version(6).stores({');
+    expect(database).toContain('export async function addFavorite');
+    expect(database).toContain('export async function removeFavorite');
+    expect(videoCards).toContain('aria-pressed={isFavorite}');
+    expect(videoCards).toContain('addFavorite({');
+    expect(videoCards).toContain('toggleItemFavorite(item, event)');
+    expect(videoCards).toContain('aria-pressed={itemFavorite}');
+    expect(videoCards).toContain('const favoriteCandidate = multi ? group.items[0] : sortedItems[0]');
+    expect(videoCards).toContain('favoriteCandidate?.sourceName');
+    expect(spatialScreenSource).toContain('影视收藏');
+    expect(spatialScreenSource).toContain('MeFavoriteCard');
+  });
+
+  it('搜索页面显示独立结果入口及可重试错误状态', () => {
+    expect(searchPageSource).toContain('/search/results?q=');
+    expect(searchResultsSource).toContain("import HomePage from '@/app/page'");
+    expect(home).toContain('searchQuery.isError || failures.length > 0');
+    expect(home).toContain('重试搜索');
+  });
 
   it('iPad 适配覆盖 1440px 宽屏触控设备，并分别定义横竖屏布局', () => {
     expect(ipadStyles).toContain('(min-width: 701px) and (max-width: 1440px) and (any-pointer: coarse)');

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { AnimeRecommendationSection, RecommendSection } from '@/components/douban-section';
+import { RecommendSection } from '@/components/douban-section';
 import { GlassPanel } from '@/components/ui/glass';
 import { SmartImage } from '@/components/smart-image';
 import { db, type HistoryEntry } from '@/lib/db';
@@ -24,41 +24,6 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
 
   return (
     <>
-      {doubanEnabled ? (
-        <section className="v4-content-section v4-recommendation-section" id="today-recommendations" aria-label="今日推荐">
-          <div className="v4-section-heading">
-            <h2>今日推荐 <span aria-hidden="true">›</span></h2>
-          </div>
-          <RecommendSection onPick={onPick} />
-        </section>
-      ) : null}
-
-      <section className="v4-content-section v4-anime-section" id="anime-recommendations" aria-label="动漫与新番">
-        <div className="v4-section-heading">
-          <h2>动漫 · 每日放送 <span aria-hidden="true">›</span></h2>
-        </div>
-        <AnimeRecommendationSection onPick={onPick} />
-      </section>
-
-      <section className="v4-content-section v4-resource-section" id="resources" aria-label="资源与播放源">
-        <div className="v4-section-heading">
-          <h2>资源与播放源 <span aria-hidden="true">›</span></h2>
-        </div>
-        <GlassPanel className="v4-resource-entry">
-          <div>
-            <strong>点播源管理</strong>
-            <p>当前已选择 {selectedKeys.length} 个来源 · 已配置 {customAPIs.length + envSources.length} 个来源</p>
-          </div>
-          <button
-            type="button"
-            className="glass-button"
-            onClick={() => window.dispatchEvent(new CustomEvent('libretv:open-source-manager'))}
-          >
-            管理播放源
-          </button>
-        </GlassPanel>
-      </section>
-
       <section className="v4-content-section v4-continue-section" id="my-library" aria-label="我的观看记录">
         <div className="v4-section-heading">
           <h2>继续观看 <span aria-hidden="true">›</span></h2>
@@ -76,6 +41,15 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
           </div>
         )}
       </section>
+
+      {doubanEnabled ? (
+        <section className="v4-content-section v4-recommendation-section" id="for-you" aria-label="为你推荐">
+          <div className="v4-section-heading">
+            <h2>为你推荐 <span aria-hidden="true">›</span></h2>
+          </div>
+          <RecommendSection onPick={onPick} />
+        </section>
+      ) : null}
     </>
   );
 }

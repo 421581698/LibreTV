@@ -42,12 +42,13 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
           />
           <div className="v4-hero-content" style={{ zIndex: 2 }}>
             <h1>{slide.title}</h1>
+            <p className="v4-hero-subtitle">精选电影与剧集</p>
             <div className="v4-hero-actions">
               <button type="button" className="v4-hero-primary" onClick={() => onPick(slide)}>
                 <span aria-hidden="true">▶</span>
                 立即观看
               </button>
-              <a className="v4-hero-secondary" href="#today-recommendations"><span aria-hidden="true">ⓘ</span>更多详情</a>
+              <a className="v4-hero-secondary" href="#for-you"><span aria-hidden="true">ⓘ</span>更多详情</a>
             </div>
             <div className="v4-hero-indicators" role="group" aria-label="选择精选影片">
               {slides.map((item, index) => (
