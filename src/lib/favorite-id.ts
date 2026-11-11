@@ -21,11 +21,10 @@ export function normalizeImportedFavorites<T extends {
     .filter((item): item is T =>
       Boolean(item) &&
       typeof item === 'object' &&
-      typeof (item as T).id === 'string' &&
-      typeof (item as T).sourceKey === 'string' &&
-      typeof (item as T).vodId === 'string' &&
-      typeof (item as T).title === 'string' &&
-      typeof (item as T).sourceName === 'string'
+      typeof (item as T).sourceKey === 'string' && (item as T).sourceKey.trim().length > 0 &&
+      typeof (item as T).vodId === 'string' && (item as T).vodId.trim().length > 0 &&
+      typeof (item as T).title === 'string' && (item as T).title.trim().length > 0 &&
+      typeof (item as T).sourceName === 'string' && (item as T).sourceName.trim().length > 0
     )
     .map((item) => ({
       ...item,
