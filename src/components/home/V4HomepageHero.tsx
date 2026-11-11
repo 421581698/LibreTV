@@ -35,7 +35,7 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
           </div>
           <div className="v4-hero-veil" aria-hidden="true" />
           <div className="v4-hero-content v4-hero-immersive-copy">
-            <h1>发现好内容</h1>
+            <h1>{slide.title}</h1>
             <p className="v4-hero-subtitle">从热门影片中，找到下一部值得看的作品</p>
             <div className="v4-hero-tags" aria-label="内容标签">
               <span>精选影片</span>
@@ -48,7 +48,7 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
               </button>
               <span className="v4-hero-plus" aria-hidden="true">+</span>
             </div>
-            <span className="v4-hero-featured-title">本期精选 · {slide.title}</span>
+            
           </div>
           <div className="v4-hero-indicators v4-hero-dots" role="group" aria-label="选择 Banner 图片">
             {slides.map((item, index) => (
