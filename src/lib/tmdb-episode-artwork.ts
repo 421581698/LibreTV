@@ -154,8 +154,8 @@ export async function enrichEpisodesWithTmdbArtwork(
     const artwork = new Map<string, TmdbArtworkMatch>();
     for (const season of seasonData) {
       for (const episode of season.episodes) {
-        const episodeNumber = episode.episode_number;
-        if (!Number.isSafeInteger(episodeNumber) || (episodeNumber ?? 0) <= 0 || !episode.still_path) continue;
+        const episodeNumber = parsePositiveInteger(String(episode.episode_number ?? ''));
+        if (!episodeNumber || !episode.still_path) continue;
         artwork.set(season.seasonNumber + ':' + episodeNumber, {
           image: TMDB_IMAGE + episode.still_path.replace(/^\/+/, ''),
           tmdbSeriesId: match.id,
