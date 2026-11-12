@@ -312,6 +312,22 @@ export function MovieDetailPage() {
                   {menuOpen && (
                     <div className="movie-detail-episode-menu" role="group" aria-label="剧集操作">
                       <button type="button" onClick={() => { setEpisodeMenuIndex(null); play(index); }}>播放本集</button>
+                      {item?.url && /\\.m3u8(?:$|[?#])/i.test(item.url) ? (
+                        <button type="button" onClick={() => {
+                          setEpisodeMenuIndex(null);
+                          if (navigator.clipboard) void navigator.clipboard.writeText(item.url);
+                        }}>复制下载地址（HLS）</button>
+                      ) : item?.url ? (
+                        <a
+                          href={item.url}
+                          download
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => setEpisodeMenuIndex(null)}
+                        >下载本集</a>
+                      ) : (
+                        <button type="button" disabled>暂无下载地址</button>
+                      )}
                       <button type="button" disabled={!item?.title?.trim()} onClick={() => {
                         setEpisodeMenuIndex(null);
                         if (item?.title?.trim() && navigator.clipboard) void navigator.clipboard.writeText(item.title.trim());
