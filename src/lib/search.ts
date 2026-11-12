@@ -303,7 +303,6 @@ async function fetchFromSource(
         cache: 'no-store',
         timeoutMs: SEARCH_TIMEOUT_MS,
         retries: 0,
-        allowPrivate: false,
       },
     );
 
