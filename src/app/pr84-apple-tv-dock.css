@@ -2,7 +2,7 @@
    This is a true bottom-anchored surface, not a floating capsule.
    Keep the four native links and their interaction semantics unchanged. */
 @media (max-width: 700px) {
-  body > .v4-mobile-tabbar {
+  body > .v4-mobile-tabbar[data-liquid-glass-engine] {
     position: fixed !important;
     z-index: 10000 !important;
     top: auto !important;
@@ -95,7 +95,7 @@
 }
 
 @media (prefers-reduced-transparency: reduce) and (max-width: 700px) {
-  body > .v4-mobile-tabbar {
+  body > .v4-mobile-tabbar[data-liquid-glass-engine] {
     background: rgba(25, 25, 25, .94) !important;
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
