@@ -65,13 +65,23 @@ export async function GET(req: Request) {
     if (res.ok) {
       const data = await res.json();
       try {
-        const detail = parseDetail(data, source);
-        if (detail.episodes.length > 0) {
-          resolved = detail;
+        // CMS 可能忽略 ids 参数并返回列表中的其他影片。
+        // 只有第一条记录的 vod_id 与请求 ID 精确匹配时，才允许作为当前详情。
+        const first = data && typeof data === 'object' && Array.isArray((data as { list?: unknown }).list)
+          ? (data as { list: Array<Record<string, unknown>> }).list[0]
+          : undefined;
+        const returnedId = first?.vod_id === undefined || first?.vod_id === null
+          ? ''
+          : String(first.vod_id).trim();
+        if (returnedId === id) {
+          const detail = parseDetail(data, source);
+          if (detail.episodes.length > 0) {
+            resolved = detail;
+          }
         }
-        // 有详情但无播放地址 → 继续尝试详情页
+        // ID 不匹配、无详情或无播放地址 → 继续尝试请求 ID 对应的详情页
       } catch {
-        // 列表接口无内容 → 继续尝试详情页
+        // 列表接口无内容或格式异常 → 继续尝试详情页
       }
     }
 
