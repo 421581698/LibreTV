@@ -6,6 +6,7 @@ import {
 import type { RegistrySearchResource, SearchResponse, SearchStreamEvent, SourceConfig, SourceSearchOutcome } from '@/lib/types';
 import { guardRequest } from '@/lib/api-guard';
 import { collectorRequest } from '@/lib/resource-collector-client';
+import { KKPHIM_API_ORIGIN, KKPHIM_SOURCE_KEY, KKPHIM_SOURCE_NAME } from '@/lib/kkphim';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -397,12 +398,19 @@ export async function POST(req: Request) {
       return jsonError('搜索关键词不能超过 50 个字符', 400);
     }
 
-    let sources: SourceConfig[];
+    let configuredSources: SourceConfig[];
     try {
-      sources = validateSources(body.sources);
+      configuredSources = validateSources(body.sources);
     } catch {
       return jsonError('资源站配置无效', 400);
     }
+
+    // KKPhim is a built-in provider. Ignore any client-supplied entry using
+    // its reserved key, then append the fixed-origin adapter to every search.
+    const sources: SourceConfig[] = [
+      ...configuredSources.filter((source) => source.key !== KKPHIM_SOURCE_KEY).slice(0, MAX_SOURCES - 1),
+      { key: KKPHIM_SOURCE_KEY, name: KKPHIM_SOURCE_NAME, url: KKPHIM_API_ORIGIN },
+    ];
 
     const filterAdult = body.filterAdult === true;
     const cacheKey = makeCacheKey(keyword, sources, filterAdult);
