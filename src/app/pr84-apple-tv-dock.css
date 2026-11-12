@@ -550,3 +550,297 @@
     display: none !important;
   }
 }
+
+
+/* PR #84 — detail page visual repair. The global dock was previously scoped
+   only to home/search/spatial routes, leaving /detail exposed to SVG defaults. */
+@media (max-width: 700px) {
+  html body:has(.movie-detail-page) > nav.v4-mobile-tabbar {
+    position: fixed !important;
+    inset: auto 0 0 0 !important;
+    z-index: 2147483000 !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    align-items: center !important;
+    justify-items: stretch !important;
+    gap: 0 !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
+    min-height: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
+    margin: 0 !important;
+    padding: 7px 12px calc(7px + env(safe-area-inset-bottom, 0px)) !important;
+    overflow: hidden !important;
+    border: 0 !important;
+    border-top: 1px solid rgba(255,255,255,.1) !important;
+    border-radius: 0 !important;
+    background: rgba(18,18,20,.62) !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: blur(30px) saturate(165%) !important;
+    backdrop-filter: blur(30px) saturate(165%) !important;
+    transform: none !important;
+  }
+
+  html body:has(.movie-detail-page) > nav.v4-mobile-tabbar > .liquid-glass-engine-slot,
+  html body:has(.movie-detail-page) > nav.v4-mobile-tabbar::before,
+  html body:has(.movie-detail-page) > nav.v4-mobile-tabbar::after {
+    display: none !important;
+    content: none !important;
+  }
+
+  html body:has(.movie-detail-page) > nav.v4-mobile-tabbar > a {
+    position: relative !important;
+    display: flex !important;
+    flex: 1 1 0 !important;
+    flex-shrink: 0 !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    justify-self: stretch !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: 52px !important;
+    min-height: 52px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 3px !important;
+    border: 0 !important;
+    border-radius: 18px !important;
+    color: rgba(255,255,255,.72) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-size: 10px !important;
+    line-height: 1.1 !important;
+    text-align: center !important;
+    text-decoration: none !important;
+  }
+
+  html body:has(.movie-detail-page) > nav.v4-mobile-tabbar > a.is-active {
+    color: #fff !important;
+    background: rgba(255,255,255,.15) !important;
+  }
+
+  html body:has(.movie-detail-page) > nav.v4-mobile-tabbar > a > svg {
+    display: block !important;
+    flex: 0 0 24px !important;
+    flex-shrink: 0 !important;
+    width: 24px !important;
+    min-width: 24px !important;
+    max-width: 24px !important;
+    height: 24px !important;
+    min-height: 24px !important;
+    max-height: 24px !important;
+    margin: 0 auto !important;
+    overflow: visible !important;
+    stroke: currentColor !important;
+  }
+
+  html body:has(.movie-detail-page) > nav.v4-mobile-tabbar > a > span {
+    display: block !important;
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: inherit !important;
+    font-size: 10px !important;
+    line-height: 1.1 !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+  }
+
+  html body:has(.movie-detail-page) > nav.v4-mobile-tabbar > a > i {
+    display: none !important;
+  }
+}
+
+/* Cinematic detail hero: long lower falloff makes copy and actions sit in black. */
+.movie-detail-page {
+  background: #000 !important;
+  color: #fff;
+}
+.movie-detail-hero {
+  min-height: 680px;
+  background: #000;
+}
+.movie-detail-hero__image {
+  opacity: .86 !important;
+  object-position: center 24%;
+}
+.movie-detail-hero__scrim {
+  background: linear-gradient(180deg,
+    rgba(0,0,0,.12) 0%,
+    rgba(0,0,0,.08) 30%,
+    rgba(0,0,0,.38) 52%,
+    rgba(0,0,0,.82) 76%,
+    #000 100%);
+}
+.movie-detail-hero__bottom-gradient {
+  height: 72%;
+  background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,.32) 28%, rgba(0,0,0,.88) 72%, #000 100%);
+}
+.movie-detail-hero__side-gradient {
+  background: linear-gradient(90deg, rgba(0,0,0,.46) 0%, transparent 75%);
+}
+.movie-detail-glass-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(255,255,255,.15);
+  -webkit-backdrop-filter: blur(10px) saturate(145%);
+  backdrop-filter: blur(10px) saturate(145%);
+  box-shadow: 0 2px 12px rgba(0,0,0,.12);
+}
+.movie-detail-glass-control > span {
+  font-size: 25px;
+  line-height: 1;
+}
+.movie-detail-source-pill {
+  width: auto;
+  min-width: 0;
+  height: 38px;
+  padding: 0 15px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: rgba(255,255,255,.9);
+}
+.movie-detail-source-pill > span { font-size: inherit; }
+.movie-detail-eyebrow {
+  letter-spacing: 1.5px !important;
+  color: rgba(255,255,255,.72) !important;
+}
+.movie-detail-title {
+  font-weight: 800 !important;
+  text-shadow: 0 2px 24px rgba(0,0,0,.24);
+}
+.movie-detail-description {
+  color: rgba(255,255,255,.82) !important;
+  text-shadow: 0 1px 12px rgba(0,0,0,.55);
+}
+.movie-detail-actions button:not(:first-child) {
+  border-color: rgba(255,255,255,.25) !important;
+  background: rgba(255,255,255,.14) !important;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+/* Episode artwork reuses the real title artwork when no episode still exists. */
+.movie-detail-episode-card {
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 16px !important;
+  background: #090909;
+  scroll-snap-align: start;
+  transition: border-color .2s ease, transform .2s ease;
+}
+.movie-detail-episode-card:hover {
+  border-color: rgba(255,255,255,.3);
+  transform: translateY(-2px);
+}
+.movie-detail-episode-art {
+  overflow: hidden;
+  border-radius: 15px 15px 0 0;
+  background: #171717;
+}
+.movie-detail-episode-image {
+  opacity: .94;
+  transition: transform .35s ease;
+}
+.movie-detail-episode-card:hover .movie-detail-episode-image {
+  transform: scale(1.04);
+}
+.movie-detail-episode-placeholder {
+  background: linear-gradient(135deg,#25252a,#09090b);
+}
+.movie-detail-episode-scrim {
+  background: linear-gradient(180deg, rgba(0,0,0,.10) 0%, transparent 35%, rgba(0,0,0,.42) 62%, rgba(0,0,0,.94) 100%);
+}
+.movie-detail-episode-number {
+  z-index: 2;
+  color: rgba(255,255,255,.88);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .12em;
+  text-shadow: 0 1px 8px #000;
+}
+.movie-detail-episode-play {
+  z-index: 2;
+  box-shadow: 0 2px 14px rgba(0,0,0,.35);
+}
+.movie-detail-episode-title {
+  z-index: 2;
+  padding: 0 13px 12px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-shadow: 0 1px 10px rgba(0,0,0,.95);
+}
+.movie-detail-episode-progress { z-index: 3; }
+.movie-detail-episode-copy {
+  padding: 9px 13px 11px;
+  color: rgba(255,255,255,.48);
+  font-size: 11px;
+}
+
+/* Metadata is editorial text on black, not a large bordered admin panel. */
+.movie-detail-info-grid {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+.movie-detail-info-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  min-width: 0;
+  margin: 0;
+  padding: 0 0 14px;
+  border-bottom: 1px solid rgba(255,255,255,.09);
+}
+.movie-detail-info-item > span {
+  color: rgba(255,255,255,.43);
+  font-size: 11px;
+  font-weight: 550;
+  letter-spacing: .04em;
+}
+.movie-detail-info-item > strong {
+  color: rgba(255,255,255,.92);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+  .movie-detail-hero { min-height: 660px; }
+  .movie-detail-hero__content {
+    min-height: 610px !important;
+    padding-top: 250px !important;
+    padding-bottom: 42px !important;
+  }
+  .movie-detail-hero__bottom-gradient { height: 78%; }
+  .movie-detail-title { font-size: clamp(34px, 10vw, 46px) !important; }
+  .movie-detail-description {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .movie-detail-episode-card { width: min(76vw, 270px) !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .movie-detail-episode-card,
+  .movie-detail-episode-image { transition: none !important; }
+}
