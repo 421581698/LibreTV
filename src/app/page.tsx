@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
 
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 
 import { V4HomepageHeader } from '@/components/home/V4HomepageHeader';
@@ -10,8 +10,6 @@ import { V4HomepageHero } from '@/components/home/V4HomepageHero';
 import { V4HomepageContent } from '@/components/home/V4HomepageContent';
 import { useFridayDetailBridge } from '@/components/friday/useFridayDetailBridge';
 import { useHomeSearchController } from '@/components/home/useHomeSearchController';
-import { DetailModal } from '@/components/detail-modal';
-import { HomeInlinePlayer } from '@/components/home/HomeInlinePlayer';
 import { RegistryInlinePlayer } from '@/components/home/RegistryInlinePlayer';
 import { AggregatedCard, aggregateResults } from '@/components/video-card';
 import {
@@ -48,6 +46,7 @@ export default function HomePage() {
 
 function HomeContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { toast } = useToast();
 
   const routeQuery = searchParams.get('q') ?? searchParams.get('s') ?? '';
@@ -61,14 +60,26 @@ function HomeContent() {
 
   const [detailItem, setDetailItem] =
     useState<SearchResultItem | null>(null);
-  const [quickPlayItem, setQuickPlayItem] =
-    useState<SearchResultItem | null>(null);
   const [registryPlayItem, setRegistryPlayItem] =
     useState<RegistrySearchResource | null>(null);
   const [streamedOutcomes, setStreamedOutcomes] =
     useState<SourceSearchOutcome[]>([]);
 
   useFridayDetailBridge(setDetailItem, toast);
+
+  const openDetail = (item: SearchResultItem) => {
+    const params = new URLSearchParams({ source: item.sourceKey, id: item.vodId, title: item.name, sourceName: item.sourceName });
+    if (item.pic) params.set('pic', item.pic);
+    if (item.sourceUrl) params.set('sourceUrl', item.sourceUrl);
+    router.push('/detail?' + params.toString());
+  };
+
+  useEffect(() => {
+    if (!detailItem) return;
+    openDetail(detailItem);
+    setDetailItem(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailItem]);
 
   const sourceName = (key: string) =>
     customAPIs.find((a) => a.key === key)?.name ??
@@ -116,7 +127,7 @@ function HomeContent() {
         currentStore.qualityMap,
         currentStore.playbackHealth,
       );
-      setQuickPlayItem(rankedMatches[0]);
+      openDetail(rankedMatches[0]);
     } catch (error) {
       toast(error instanceof Error ? error.message : '获取影片详情失败，请稍后重试', 'error');
     }
@@ -286,7 +297,7 @@ function HomeContent() {
                       key={group.key}
                       group={group}
                       sources={selectedSources}
-                      onOpen={(item) => setQuickPlayItem(item)}
+                      onOpen={openDetail}
                     />
                   ))}
                 </div>
@@ -327,8 +338,6 @@ function HomeContent() {
         )}
         {!urlQuery && <V4HomepageContent onPick={openRecommendation} />}
       </main>
-      <DetailModal item={detailItem} onClose={() => setDetailItem(null)} />
-      <HomeInlinePlayer item={quickPlayItem} onClose={() => setQuickPlayItem(null)} />
       <RegistryInlinePlayer resource={registryPlayItem} onClose={() => setRegistryPlayItem(null)} />
     </div>
   );
