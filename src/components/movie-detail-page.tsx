@@ -237,9 +237,9 @@ export function MovieDetailPage() {
               const percent = completedPercent(index);
               return (
                 <button key={index} type="button" onClick={() => play(index)} className="group w-[220px] shrink-0 snap-start overflow-hidden rounded-xl border border-white/10 bg-[#17171B] text-left transition hover:border-white/30 sm:w-[260px]">
-                  <div className="relative flex aspect-video items-center justify-center bg-gradient-to-br from-white/[.12] to-white/[.025]">
-                    <span className="text-4xl font-light text-white/25">{String(index + 1).padStart(2, '0')}</span>
-                    <span className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm text-black opacity-0 transition group-hover:opacity-100">▶</span>
+                  <div className="relative flex aspect-video items-center justify-center bg-[#222226]">
+                    <span className="text-[11px] font-semibold tracking-[.22em] text-white/30">{String(index + 1).padStart(2, '0')}</span>
+                    <span className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm text-black opacity-100">▶</span>
                     {percent > 0 && <span className="absolute inset-x-0 bottom-0 h-1 bg-white/15"><span className="block h-full bg-white" style={{ width: `${percent}%` }} /></span>}
                   </div>
                   <div className="p-3"><p className="text-sm font-medium">第 {index + 1} 集</p><p className="mt-1 text-[11px] text-white/45">{percent >= 95 ? '已观看' : percent > 0 ? `已观看 ${percent}%` : '选择播放'}</p></div>
