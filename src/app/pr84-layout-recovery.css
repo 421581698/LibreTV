@@ -177,12 +177,8 @@ body:has(.v4-home) .v4-home-main--cinema > .v4-content-section {
     padding-bottom: var(--tabbar-scroll-clearance) !important;
   }
 
-  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive {
-    /* Keep Friday visible while reserving the first viewport for hot posters. */
-    height: clamp(360px, 55svh, 520px) !important;
-    min-height: 360px !important;
-    max-height: 520px !important;
-  }
+  /* Hero height is owned by pr84-apple-tv-dock.css, loaded last.
+     This recovery layer owns copy, indicators and content spacing only. */
 
   body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-immersive-copy {
     inset: auto 0 76px !important;
