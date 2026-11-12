@@ -11,6 +11,18 @@ describe('PR #84 homepage blocking layout recovery', () => {
   const page = read('src/app/page.tsx');
   const globalLayout = read('src/app/pr84-global-layout.css');
   const dockFix = read('src/app/pr84-dock-fix.css');
+  const appleDock = read('src/app/pr84-apple-tv-dock.css');
+  const nonOwnerDockStyles = [
+    'src/app/iphone-home-inline.css',
+    'src/app/iphone-minimal-ui.css',
+    'src/app/iphone-glass.css',
+    'src/app/v4-homepage.css',
+    'src/app/pr84-layout-recovery.css',
+    'src/app/pr84-search-polish.css',
+    'src/app/pr84-dock-fix.css',
+    'src/app/pr84-global-layout.css',
+    'src/app/pr84-liquid-refraction.css',
+  ].map(read);
   const header = read('src/components/home/V4HomepageHeader.tsx');
   const settings = read('src/components/source-manager.tsx');
 
@@ -27,29 +39,36 @@ describe('PR #84 homepage blocking layout recovery', () => {
     expect(dock).toContain("{ href: '/settings', label: '设置', icon: 'settings' }");
     expect(dock).toContain("{ href: '/me', label: '我的', icon: 'user' }");
     expect(dock).toContain('createPortal(navigation, portalTarget)');
-    expect(recovery).toContain('grid-template-columns: repeat(4, minmax(0, 1fr)) !important;');
     expect(dock).toContain('setPortalTarget(document.body)');
-    expect(recovery).toContain('position: fixed !important;');
+    expect(appleDock).toContain('grid-template-columns: repeat(4, minmax(0, 1fr)) !important;');
+    expect(appleDock).toContain('position: fixed !important;');
     expect(recovery).not.toContain('[data-homepage-dock="true"]');
-    expect(recovery).toContain('position: fixed !important;');
+    expect(recovery).not.toContain('.v4-mobile-tabbar');
   });
 
-  it('mounts exactly one shared mobile navigation from the root layout', () => {
+  it('mounts exactly one shared mobile navigation and gives dock geometry one stylesheet owner', () => {
     expect(layout).toContain("import { MobileTabBar } from '@/components/home/header/MobileTabBar';");
     expect(layout).toContain('<MobileTabBar />');
     expect(header).not.toContain('<MobileTabBar />');
     expect(layout).toContain("import './pr84-global-layout.css';");
-    expect(globalLayout).toContain('height: 54px !important;');
-    expect(globalLayout).toContain('background: rgba(28,28,30,.70) !important;');
-    expect(globalLayout).toContain('-webkit-backdrop-filter: blur(20px) saturate(150%) !important;');
-    expect(globalLayout).toContain('backdrop-filter: blur(20px) saturate(150%) !important;');
-    expect(globalLayout).toContain('top: -18px !important;');
-    expect(globalLayout).toContain('inset: auto auto calc(8px + env(safe-area-inset-bottom, 0px)) 50% !important;');
-    expect(globalLayout).not.toContain('height: 64px !important;');
-    expect(globalLayout).toContain('bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;');
-    expect(globalLayout).toContain('width: 18px !important;');
+    expect(layout.indexOf("import './pr84-apple-tv-dock.css';")).toBeGreaterThan(
+      layout.indexOf("import './pr84-liquid-refraction.css';"),
+    );
+
+    expect(appleDock).toContain('--tabbar-height: 68px;');
+    expect(appleDock).toContain('--safe-area-bottom: env(safe-area-inset-bottom, 0px);');
+    expect(appleDock).toContain('height: calc(var(--tabbar-height) + var(--safe-area-bottom)) !important;');
+    expect(appleDock).toContain('padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;');
+    expect(appleDock).toContain('position: fixed !important;');
+
+    const hasDockGeometry = (css: string) =>
+      /\\.v4-mobile-tabbar(?:[.#:[\\s>+~]|$)[^{]*\\{[^}]*\\b(?:position|inset|width|height|min-height|max-height|left|right|top|bottom|transform)\\s*:/s.test(css);
+    for (const css of nonOwnerDockStyles) {
+      expect(hasDockGeometry(css)).toBe(false);
+    }
+    expect(globalLayout).not.toContain('position: fixed !important;');
+    expect(globalLayout).toContain('var(--tabbar-height)');
     expect(globalLayout).toContain('.v4-spatial-screen[data-screen="me"] > .v4-spatial-main');
-    expect(globalLayout).toContain('scroll-padding-bottom: calc(128px + env(safe-area-inset-bottom, 0px)) !important;');
   });
 
   it('does not repeat identical adjacent dock selectors in the dock fix stylesheet', () => {
