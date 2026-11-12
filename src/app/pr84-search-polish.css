@@ -106,4 +106,5 @@
     margin-top: 17px !important;
   }
 }
+@media (prefers-reduced-motion: reduce) {
 }
