@@ -123,6 +123,42 @@ describe('parseDetail', () => {
     expect(detail.videoInfo.sourceName).toBe('测试源');
   });
 
+  it('仅将按 URL 精确匹配的单集 still_path / 截图字段作为剧照', () => {
+    const data = {
+      list: [{
+        vod_name: '测试剧',
+        vod_pic: 'https://img.example.com/title-poster.jpg',
+        vod_play_url: '第1集$https://media.example.com/ep1.m3u8#第2集$https://media.example.com/ep2.m3u8',
+        vod_episode_list: [
+          {
+            url: 'https://media.example.com/ep1.m3u8',
+            still_path: 'https://img.example.com/ep1-still.jpg',
+            description: '<p>第一集简介</p>',
+            duration: '45分钟',
+          },
+          {
+            url: 'https://media.example.com/wrong-episode.m3u8',
+            still_path: 'https://img.example.com/wrong-still.jpg',
+            description: '不属于第二集',
+          },
+        ],
+      }],
+    };
+    const detail = parseDetail(data, source);
+    expect(detail.episodeItems?.[0]).toMatchObject({
+      title: '第1集',
+      url: 'https://media.example.com/ep1.m3u8',
+      image: 'https://img.example.com/ep1-still.jpg',
+      description: '第一集简介',
+      duration: '45分钟',
+    });
+    // A mismatched episode record and the title-level vod_pic must never become episode 2 artwork.
+    expect(detail.episodeItems?.[1]).toEqual({
+      title: '第2集',
+      url: 'https://media.example.com/ep2.m3u8',
+    });
+  });
+
   it('play_url 为空时从简介兜底', () => {
     const data = { list: [{ vod_name: 'X', vod_content: '$https://cdn/fall.m3u8' }] };
     const detail = parseDetail(data, source);
