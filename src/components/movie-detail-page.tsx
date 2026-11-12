@@ -270,18 +270,16 @@ export function MovieDetailPage() {
                   <span className="movie-detail-episode-placeholder" aria-hidden="true">
                     <span className="movie-detail-episode-placeholder-play">▶</span>
                   </span>
-                  {item?.image && (
-                    // Per-episode artwork only. Do not use the title poster or SmartImage's poster fallback.
-                    <img
-                      src={item.image}
-                      alt=""
-                      className="movie-detail-episode-image"
-                      loading="lazy"
-                      decoding="async"
-                      referrerPolicy="no-referrer"
-                      onError={(event) => { event.currentTarget.hidden = true; }}
-                    />
-                  )}
+                  <SmartImage
+                    // Prefer a real episode still; use the title artwork when the source has no per-episode image.
+                    url={item?.image}
+                    fallbackUrl={image || poster || undefined}
+                    mode={imageProxyMode}
+                    customProxy={customImageProxy}
+                    alt=""
+                    className="movie-detail-episode-image"
+                    loading="lazy"
+                  />
                   <span className="movie-detail-episode-card-gradient" aria-hidden="true" />
                   <button
                     type="button"
