@@ -290,14 +290,12 @@ export function MovieDetailPage() {
                   />
                   <span className="movie-detail-episode-card-content">
                     <span className="movie-detail-episode-card-number">{episodeNumberLabel(index)}</span>
-                    {titleText && <span className="movie-detail-episode-card-title">{titleText}</span>}
-                    {item?.description && <span className="movie-detail-episode-card-description">{item.description}</span>}
-                    {item?.duration && (
-                      <span className="movie-detail-episode-card-meta">
-                        <span className="movie-detail-episode-card-play" aria-hidden="true">▶</span>
-                        <span>{item.duration}</span>
-                      </span>
-                    )}
+                    {<span className="movie-detail-episode-card-title">{titleText || '剧集标题暂缺'}</span>}
+                    <span className="movie-detail-episode-card-description">{item?.description?.trim() || '剧集简介暂缺'}</span>
+                    <span className="movie-detail-episode-card-meta">
+                      <span className="movie-detail-episode-card-play" aria-hidden="true">▶</span>
+                      <span>{item?.duration?.trim() || '时长暂缺'}</span>
+                    </span>
                   </span>
                   <button
                     type="button"
