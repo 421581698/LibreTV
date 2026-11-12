@@ -187,6 +187,39 @@ function urls(): string[] {
   return mocks.fetchUpstream.mock.calls.map((call) => call[0] as string);
 }
 
+describe('KKPhim provider quality probe', () => {
+  it('loads KKPhim slug detail and probes the returned HLS stream, never the CMS endpoint', async () => {
+    const providerSource: SourceConfig = {
+      key: 'kkphim',
+      name: 'KKPhim',
+      url: 'https://phimapi.com',
+    };
+    mocks.fetchUpstream.mockImplementation((url: string) => {
+      if (url === 'https://phimapi.com/phim/sample-series') {
+        return Promise.resolve(new Response(JSON.stringify({
+          movie: { slug: 'sample-series', name: '示例剧集' },
+          episodes: [{
+            server_name: 'Vietsub',
+            server_data: [{
+              name: '第1集',
+              link_m3u8: PLAYLIST_URL,
+              link_embed: 'https://player.example/embed/1',
+            }],
+          }],
+        }), { status: 200, headers: { 'content-type': 'application/json' } }));
+      }
+      if (url === PLAYLIST_URL) return Promise.resolve(new Response(MASTER, { status: 200 }));
+      return Promise.resolve(new Response('not found', { status: 404 }));
+    });
+
+    const result = await probeQuality({ source: providerSource, id: 'sample-series' });
+    expect(result.height).toBe(1080);
+    expect(urls()).toContain('https://phimapi.com/phim/sample-series');
+    expect(urls()).toContain(PLAYLIST_URL);
+    expect(urls().some((url) => url.includes('ac=videolist'))).toBe(false);
+  });
+});
+
 describe('probeEpisodeOrder', () => {
   it('多集：中间集优先，最后一集作为换集重试的对象', () => {
     expect(probeEpisodeOrder(['a', 'b', 'c'])).toEqual(['b', 'c']);
