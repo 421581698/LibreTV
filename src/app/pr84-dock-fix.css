@@ -1,4 +1,7 @@
+/* PR #84 Friday launcher placement and page scroll clearance.
+   Dock position, dimensions and surface are owned by pr84-apple-tv-dock.css. */
 
+@media (max-width: 700px) {
 
   /* Keep the Friday 3D sigil outside the dock's rightmost navigation cell. */
   body .friday-root .friday-fab {
