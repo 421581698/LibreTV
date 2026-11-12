@@ -188,33 +188,20 @@ describe('首页与播放页回归契约', () => {
     expect(sharedHeaderStyles).not.toContain('background: rgba(246, 248, 251, 0.88)');
   });
 
-  it('首页顶部移除品牌 Logo，仅保留圆形搜索和圆形头像，旧频道导航已从 DOM 移除', () => {
+  it('首页顶部移除搜索与我的入口，非首页 Header 仍保留原入口组件', () => {
     expect(v4Header).not.toContain('BrandModule');
-    expect(v4Header).not.toContain('<BrandModule />');
-    expect(v4Header).toContain('v4-header-inner--no-brand');
+    expect(v4Header).not.toContain('<nav');
+    expect(v4Header).toContain('{!overlay && (');
     expect(v4Header).toContain('<SearchModule />');
     expect(v4Header).toContain('<AvatarModule pathname={pathname} />');
-    expect(v4Header).not.toContain('<nav');
-    for (const legacy of ['<HomeNavModule', '<MoviesNavModule', '<TvNavModule', '<OverseasNavModule', '<AnimeNavModule', '<VarietyNavModule', '<LiveNavModule', '<HistoryModule', '<SettingsModule']) {
-      expect(v4Header).not.toContain(legacy);
-    }
-    expect(searchModule).toContain('aria-label="搜索"');
-    expect(searchModule).toContain("router.push('/search')");
-    expect(avatarModule).toContain('aria-label="打开我的个人空间"');
-    expect(avatarModule).toContain('<circle cx="12" cy="12" r="10.25"/>');
     expect(sharedHeaderStyles).toContain('.v4-home .v4-header-inner');
     expect(sharedHeaderStyles).toContain('.v4-home .v4-header.is-overlay');
-    expect(v4Styles).toContain('border-radius: 50% !important;');
-    expect(v4Styles).toContain('pointer-events: none !important;');
   });
 
-  it('首页顶部搜索为可访问的图标按钮，进入独立搜索页', () => {
+  it('首页右上角不渲染搜索与我的入口，独立搜索页和搜索逻辑仍保留', () => {
     expect(home).toContain('<V4HomepageHeader overlay={!urlQuery} />');
-    expect(searchModule).toContain('aria-label="搜索"');
-    expect(searchModule).toContain('title="搜索"');
+    expect(v4Header).toContain('{!overlay && (');
     expect(searchModule).toContain("router.push('/search')");
-    expect(searchModule).toContain('<Icon name="search" />');
-    expect(searchModule).not.toContain('<SearchHistoryDropdown');
     expect(search).toContain('router.push(`/?q=${encodeURIComponent(query)}`');
     expect(searchHistory).toContain("queryKey: ['searchHistory']");
   });
