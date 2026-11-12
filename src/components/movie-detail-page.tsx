@@ -14,6 +14,7 @@ import { buildWatchUrl, validateSourceUrl } from '@/lib/utils';
 import { formatRemarks } from '@/lib/remarks';
 import { isMovieType } from '@/lib/cms-parser';
 import type { SourceConfig, VideoDetail } from '@/lib/types';
+import { enqueueDownload } from '@/components/download-manager';
 
 function detailSource(store: Pick<ReturnType<typeof useAppStore.getState>, 'customAPIs' | 'envSources'>, key: string, name: string, sourceUrl: string): SourceConfig | null {
   const local = resolveSource(store, key);
@@ -313,11 +314,18 @@ export function MovieDetailPage() {
                     <div className="movie-detail-episode-menu absolute right-3 top-12 z-30 flex min-w-40 flex-col gap-1 rounded-2xl border border-white/10 bg-[#171719]/95 p-2 text-sm text-white shadow-2xl backdrop-blur-2xl" role="group" aria-label="剧集操作">
                       <button type="button" className="min-h-10 rounded-xl px-3 text-left transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70" onClick={() => { setEpisodeMenuIndex(null); play(index); }}>播放本集</button>
                       {item?.url && /\.m3u8(?:$|[?#])/i.test(item.url) ? (
-                        <button type="button" className="min-h-10 rounded-xl px-3 text-left transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70" onClick={() => {
-                          setEpisodeMenuIndex(null);
-                          if (navigator.clipboard) void navigator.clipboard.writeText(item.url);
-                        }}>复制下载地址（HLS）</button>
-                      ) : item?.url ? (
+                        <button
+                          type="button"
+                          className="min-h-10 rounded-xl px-3 text-left transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                          onClick={() => {
+                            setEpisodeMenuIndex(null);
+                            enqueueDownload({
+                              url: item.url,
+                              title: [displayTitle, episodeTitle(index)].filter(Boolean).join(' - '),
+                              format: 'MP4',
+                            });
+                          }}
+                        >下载本集（MP4）</button>                      ) : item?.url ? (
                         <a
                           href={item.url}
                           download
