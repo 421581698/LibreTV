@@ -6,7 +6,6 @@ import {
 } from './codec-parse';
 import { cmsRequestHeaders, parseDetail, parseDetailPageHtml } from './cms-parser';
 import { fetchUpstream } from './fetch-utils';
-import { inferHeightFromBitrate } from './quality';
 import { checkUpstreamAllowed } from './ssrf';
 import { KKPHIM_API_ORIGIN, KKPHIM_SOURCE_KEY, parseKkphimDetail } from './kkphim';
 import type { QualityProbeItem, QualityProbeResult, SourceConfig } from './types';
@@ -59,12 +58,9 @@ export function parseBestHeight(text: string): number | undefined {
   for (const raw of text.split('\n')) {
     const line = raw.trim();
     if (line.startsWith('#EXT-X-STREAM-INF')) {
-      const bandwidth = parseInt(line.match(/BANDWIDTH=(\d+)/)?.[1] || '0', 10);
       const resolution = line.match(/RESOLUTION=(\d+)x(\d+)/);
-      // 取短边而非第二个数字：档位本就按短边定义（720P = 1280×720 的 720），
-      // 采集站常把宽高写反（如把 1280×720 写成 720x1280），按 height 取会得到 1280 → 标成 2K
+      // 只认播放列表明确声明的像素尺寸；码率不能单独证明分辨率。
       pending = {
-        bandwidth,
         height: resolution
           ? Math.min(parseInt(resolution[1], 10), parseInt(resolution[2], 10))
           : undefined,
@@ -72,8 +68,8 @@ export function parseBestHeight(text: string): number | undefined {
       continue;
     }
     if (!line || line.startsWith('#') || !pending) continue;
-    // 只有 BANDWIDTH 的源站按常见转码参数反推高度，与播放器的档位命名口径一致
-    const height = pending.height ?? (pending.bandwidth > 0 ? inferHeightFromBitrate(pending.bandwidth) : undefined);
+    // 没有 RESOLUTION 时保持未知；不能从码率猜测分辨率。
+    const height = pending.height;
     if (height && (best === undefined || height > best)) best = height;
     pending = undefined;
   }
@@ -303,10 +299,17 @@ async function probeSegmentResolution(
   return parseTsVideoResolution(buf)?.height;
 }
 
+/** Extract playable URLs from KKPhim's server/episode-labelled adapter strings. */
+export function extractKkphimEpisodeUrls(episodes: string[]): string[] {
+  return episodes.map((episode) => {
+    const separator = episode.indexOf(String.fromCharCode(36));
+    return separator >= 0 ? episode.slice(separator + 1) : episode;
+  }).filter((url) => /^https:\/\//i.test(url));
+}
+
 /** 取影片的播放地址列表（与 /api/detail 同逻辑：列表接口优先，拿不到再爬详情页） */
 async function fetchEpisodes(source: SourceConfig, id: string, signal: AbortSignal, metrics: ProbeMetrics): Promise<string[]> {
-  // KKPhim is a fixed-origin provider, not an Apple CMS source. Its slug must
-  // be resolved through /phim/{slug}; never append CMS query parameters.
+  // KKPhim is a fixed-origin provider, not an Apple CMS source.
   if (source.key === KKPHIM_SOURCE_KEY) {
     const endpoint = new URL(`/phim/${encodeURIComponent(id)}`, KKPHIM_API_ORIGIN).toString();
     const verdict = await checkUpstreamAllowed(KKPHIM_API_ORIGIN);
@@ -321,10 +324,8 @@ async function fetchEpisodes(source: SourceConfig, id: string, signal: AbortSign
     if (!response.ok) return [];
     const declaredLength = Number(response.headers.get('content-length') || 0);
     if (declaredLength > 4 * 1024 * 1024) return [];
-    const payload = await response.json();
-    const detail = parseKkphimDetail(payload);
-    return (detail?.episodes ?? []).map((episode) => {
-      const separator = episode.indexOf('
+    const detail = parseKkphimDetail(await response.json());
+    return extractKkphimEpisodeUrls(detail?.episodes ?? []);
   }
   const api = `${source.url.replace(/\/+$/, '')}?ac=videolist&ids=${encodeURIComponent(id)}`;
   const res = await fetchMeasuredUpstream(api, { timeoutMs: 6000, headers: cmsRequestHeaders(), signal }, metrics);
