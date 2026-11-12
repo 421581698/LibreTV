@@ -136,6 +136,35 @@ describe('GET /api/detail', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('uses the documented JSON ac=detail action for BaoFeng API sources', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      expect(url).toContain('?ac=detail&ids=171637');
+      expect(url).not.toContain('ac=videolist');
+      return new Response(JSON.stringify({
+        code: 1,
+        list: [{
+          vod_id: '171637',
+          vod_name: '今天是太阳雨',
+          vod_year: '2026',
+          vod_play_url: '第1集$https://media.example.com/episode-1.m3u8',
+        }],
+      }), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const response = await GET(makeRequest({
+      id: '171637',
+      source: source('https://bfzyapi.com/api.php/provide/vod/', 'storm-source'),
+    }));
+
+    expect(response.status).toBe(200);
+    const data = await response.json() as { episodes: string[]; videoInfo: { title?: string } };
+    expect(data.episodes).toEqual(['https://media.example.com/episode-1.m3u8']);
+    expect(data.videoInfo.title).toBe('今天是太阳雨');
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('does not attach playable episodes from a different CMS vod_id', async () => {
     const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
       if (String(input).includes('ac=videolist')) {
