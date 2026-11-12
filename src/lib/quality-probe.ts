@@ -481,35 +481,6 @@ async function withSegmentBudget(
     clearTimeout(timer);
   }
 }
-);
-      return separator >= 0 ? episode.slice(separator + 1) : episode;
-    }).filter((url) => /^https:\/\//i.test(url));
-  }
-  const api = `${source.url.replace(/\/+$/, '')}?ac=videolist&ids=${encodeURIComponent(id)}`;
-  const res = await fetchMeasuredUpstream(api, { timeoutMs: 6000, headers: cmsRequestHeaders(), signal }, metrics);
-  if (res.ok) {
-    try {
-      const detail = parseDetail(await res.json(), source);
-      if (detail.episodes.length > 0) return detail.episodes;
-    } catch {
-      // 列表接口无内容 → 继续尝试详情页
-    }
-  }
-
-  // detail 缺失时用接口地址的 origin 推导详情页根地址（与 /api/detail 的推导口径一致）
-  const detailRoot = (source.detail || originOf(source.url)).replace(/\/+$/, '');
-  if (!/^https?:\/\//.test(detailRoot)) return [];
-  const verdict = await checkUpstreamAllowed(detailRoot);
-  if (!verdict.ok) return [];
-  const detailRes = await fetchMeasuredUpstream(`${detailRoot}/index.php/vod/detail/id/${id}.html`, {
-    timeoutMs: 6000,
-    headers: { 'User-Agent': cmsRequestHeaders()['User-Agent'] },
-    signal,
-  }, metrics);
-  if (!detailRes.ok) return [];
-  return parseDetailPageHtml(await detailRes.text(), source).episodes;
-}
-
 /**
  * 探测顺序：中间集优先，探不出再退到最后一集。
  *
