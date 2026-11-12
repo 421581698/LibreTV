@@ -2,7 +2,7 @@
    Loaded after all legacy/page-specific styles so no route can redefine the dock. */
 
 @media (max-width: 700px) {
-  /* The portal component is the only tab bar;
+  /* The portal component is the only tab bar; */
   body > .v4-mobile-tabbar::before {
     content: '' !important;
     position: absolute !important;
