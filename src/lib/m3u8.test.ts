@@ -276,7 +276,7 @@ describe('parseM3u8Playlist · 片头广告剔除', () => {
       '#EXTINF:4,',
       'seg.ts',
       '#EXT-X-ENDLIST',
-    ].join('\\n'), { status: 200 })));
+    ].join('\n'), { status: 200 })));
     await expect(parseM3u8Playlist('https://cdn.example.com/a.m3u8'))
       .rejects.toThrow('暂不支持 HLS 加密方式：SAMPLE-AES');
   });
@@ -288,7 +288,7 @@ describe('parseM3u8Playlist · 片头广告剔除', () => {
       '#EXTINF:4,',
       'seg.m4s',
       '#EXT-X-ENDLIST',
-    ].join('\\n'), { status: 200 })));
+    ].join('\n'), { status: 200 })));
     await expect(parseM3u8Playlist('https://cdn.example.com/a.m3u8'))
       .rejects.toThrow('EXT-X-MAP 初始化分段');
   });
