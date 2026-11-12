@@ -1,8 +1,16 @@
 'use client';
 
-import { createElement, useEffect, useState, type ComponentType, type CSSProperties, type ElementType, type HTMLAttributes, type ReactNode } from 'react';
+import {
+  createElement,
+  useEffect,
+  useState,
+  type ComponentType,
+  type ElementType,
+  type HTMLAttributes,
+  type ReactNode,
+} from 'react';
 
-type LiquidGlassEngineProps = {
+type EngineProps = {
   children: ReactNode;
   displacementScale?: number;
   blurAmount?: number;
@@ -12,76 +20,105 @@ type LiquidGlassEngineProps = {
   cornerRadius?: number;
   className?: string;
   padding?: string;
-  style?: CSSProperties;
   overLight?: boolean;
   mode?: 'standard' | 'polar' | 'prominent' | 'shader';
 };
 
-type LiquidGlassSurfaceProps = HTMLAttributes<HTMLElement> & {
+type SurfaceVariant = 'dock' | 'control' | 'panel';
+type SurfaceProps = HTMLAttributes<HTMLElement> & {
   as?: ElementType;
   children: ReactNode;
   interactive?: boolean;
+  variant?: SurfaceVariant;
+};
+type EngineComponent = ComponentType<EngineProps>;
+
+const presets: Record<SurfaceVariant, Omit<EngineProps, 'children' | 'className'>> = {
+  dock: {
+    displacementScale: 18,
+    blurAmount: 0.08,
+    saturation: 165,
+    aberrationIntensity: 0.7,
+    elasticity: 0,
+    cornerRadius: 999,
+    padding: '0',
+    mode: 'standard',
+  },
+  control: {
+    displacementScale: 12,
+    blurAmount: 0.07,
+    saturation: 150,
+    aberrationIntensity: 0.45,
+    elasticity: 0,
+    cornerRadius: 999,
+    padding: '0',
+    mode: 'standard',
+  },
+  panel: {
+    displacementScale: 14,
+    blurAmount: 0.08,
+    saturation: 145,
+    aberrationIntensity: 0.5,
+    elasticity: 0,
+    cornerRadius: 20,
+    padding: '0',
+    mode: 'standard',
+  },
 };
 
-type LiquidGlassComponent = ComponentType<LiquidGlassEngineProps>;
-
 /**
- * Shared Liquid Glass adapter.
- * The upstream package reads navigator during render, so load it only after
- * mount to keep Next.js server rendering safe. The CSS surface remains the
- * immediate fallback and is also the Safari fallback for unsupported
- * displacement filters.
+ * LibreTV Liquid Glass v1.0 surface.
+ *
+ * The semantic/control element remains the real outer DOM node. The upstream
+ * engine is rendered as a non-interactive optical layer behind its children;
+ * this avoids letting the upstream demo component's centered positioning,
+ * transforms or internal wrapper replace the host component's layout.
  */
 export function LiquidGlassSurface({
   as = 'div',
   className = '',
   children,
   interactive = false,
+  variant = 'control',
   ...props
-}: LiquidGlassSurfaceProps) {
-  const [LiquidGlass, setLiquidGlass] = useState<LiquidGlassComponent | null>(null);
+}: SurfaceProps) {
+  const [Engine, setEngine] = useState<EngineComponent | null>(null);
 
   useEffect(() => {
-    let active = true;
+    let mounted = true;
     import('liquid-glass-react')
       .then((module) => {
-        if (active) setLiquidGlass(() => module.default as LiquidGlassComponent);
+        if (mounted) setEngine(() => module.default as EngineComponent);
       })
       .catch(() => {
-        // Keep the CSS-first surface if the optional optical engine cannot load.
+        // The surface remains usable; the minimal CSS treatment is the fallback.
       });
     return () => {
-      active = false;
+      mounted = false;
     };
   }, []);
 
-  const surface = createElement(
+  const opticalLayer = Engine ? (
+    <span className="liquid-glass-engine-slot" aria-hidden="true">
+      <Engine className="liquid-glass-engine-root" {...presets[variant]}>
+        <span aria-hidden="true" />
+      </Engine>
+    </span>
+  ) : null;
+
+  return createElement(
     as,
     {
       ...props,
-      className: ['liquid-glass', interactive ? 'liquid-glass--interactive' : '', className]
-        .filter(Boolean)
-        .join(' '),
+      className: [
+        'liquid-glass',
+        interactive ? 'liquid-glass--interactive' : '',
+        className,
+      ].filter(Boolean).join(' '),
       'data-liquid-glass': 'true',
+      'data-liquid-glass-engine': Engine ? 'ready' : 'fallback',
     },
+    opticalLayer,
     children,
-  );
-
-  if (!LiquidGlass) return surface;
-
-  return (
-    <LiquidGlass
-      className="v4-mobile-tabbar-engine"
-      displacementScale={18}
-      blurAmount={0.8125}
-      saturation={200}
-      aberrationIntensity={1}
-      elasticity={0.12}
-      cornerRadius={999}
-      padding="0"
-      mode="standard"
-    >
-      {surface}
-    </LiquidGlass>
   );
 }
