@@ -83,6 +83,8 @@ export function isValidProxyUrl(urlString: string): boolean {
   try {
     const parsed = new URL(urlString);
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+    // URL 中的 userinfo 容易造成鉴权混淆，也可能泄露凭据给重定向目标；上游地址不接受嵌入式账号密码。
+    if (parsed.username || parsed.password) return false;
     const host = stripBrackets(parsed.hostname); // "[::1]" 也要能被黑名单命中
     if (BLOCKED_HOSTNAMES.has(host)) return false;
     if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(':')) {
