@@ -1422,66 +1422,9 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
     border: 1px solid rgba(20,25,35,.12) !important;
     border-radius: 50% !important;
   }
-
-  .v4-mobile-tabbar {
-    position: fixed !important;
-    z-index: 500 !important;
-    left: 10px !important;
-    right: 10px !important;
-    bottom: max(7px, env(safe-area-inset-bottom)) !important;
-    display: grid !important;
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-    align-items: stretch !important;
-    min-height: 66px !important;
-    padding: 7px 5px 5px !important;
-    border: 1px solid rgba(255,255,255,.72) !important;
-    border-radius: 20px !important;
-    background: rgba(255,255,255,.86) !important;
-    box-shadow: 0 8px 28px rgba(18,24,36,.16) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(170%) !important;
-    backdrop-filter: blur(24px) saturate(170%) !important;
-  }
-  .v4-mobile-tabbar a {
-    position: relative !important;
-    display: flex !important;
-    min-width: 0 !important;
-    min-height: 52px !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 4px !important;
-    color: #9297a0 !important;
-    text-decoration: none !important;
-    font-size: 11px !important;
-    font-weight: 600 !important;
-    line-height: 1.1 !important;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .v4-mobile-tabbar a svg {
-    display: block !important;
-    width: 23px !important;
-    height: 23px !important;
-    fill: none !important;
-    stroke: currentColor !important;
-    stroke-width: 1.8 !important;
-    stroke-linecap: round !important;
-    stroke-linejoin: round !important;
-  }
-  .v4-mobile-tabbar a.is-active { color: #111318 !important; }
-  .v4-mobile-tabbar a.is-active span { font-weight: 750 !important; }
-  .v4-mobile-tabbar a i {
-    position: absolute !important;
-    bottom: -1px !important;
-    width: 5px !important;
-    height: 5px !important;
-    border-radius: 50% !important;
-    background: currentColor !important;
-  }
-  .v4-home { padding-bottom: calc(92px + env(safe-area-inset-bottom)) !important; }
-  body:has(.v4-mobile-tabbar) { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
+  .v4-home { padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important; }
+  body:has(.v4-mobile-tabbar) { padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px); }
 }
-@media screen and (min-width: 701px) {
-  .v4-mobile-tabbar { display: none !important; }
 }
 
 
@@ -1490,7 +1433,7 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
 .v4-home {
   position: relative;
   min-height: 100vh;
-  padding-bottom: calc(88px + env(safe-area-inset-bottom));
+  padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px);
 }
 .v4-home .v4-header {
   position: absolute !important;
@@ -1692,21 +1635,6 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
   -webkit-overflow-scrolling: touch;
 }
 .v4-home #for-you .grid[class*="grid-cols-"] > * { flex: 0 0 clamp(116px,15vw,176px) !important; min-width: 0 !important; scroll-snap-align: start; }
-
-/* Fixed three-destination dock is shared by phone, iPad and desktop. */
-.v4-mobile-tabbar {
-  position: fixed !important; z-index: 500 !important; left: 50% !important;
-  right: auto !important; bottom: max(8px,env(safe-area-inset-bottom)) !important;
-  display: grid !important; grid-template-columns: repeat(3,minmax(0,1fr)) !important;
-  width: min(360px,calc(100% - 32px)) !important; min-height: 64px !important;
-  padding: 6px !important; transform: translateX(-50%) !important;
-  border: 1px solid rgba(255,255,255,.72) !important; border-radius: 20px !important;
-  background: rgba(255,255,255,.88) !important; box-shadow: 0 8px 28px rgba(18,24,36,.18) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(170%) !important; backdrop-filter: blur(24px) saturate(170%) !important;
-}
-.v4-mobile-tabbar a { display: flex !important; min-width: 0 !important; min-height: 50px !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; gap: 3px !important; }
-.v4-mobile-tabbar svg { width: 19px !important; height: 19px !important; fill: none !important; stroke: currentColor !important; stroke-width: 1.7 !important; }
-.v4-mobile-tabbar span { font-size: 10px !important; line-height: 1.1 !important; }
 @media (max-width: 700px) {
   .v4-home .v4-header { inset-block-start: max(8px,env(safe-area-inset-top)) !important; }
   .v4-home .v4-header-inner { width: calc(100% - 24px) !important; gap: 6px !important; }
@@ -1736,7 +1664,7 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
   .v4-today-featured-skeleton { min-height: 210px; }
   .v4-home #for-you .grid[class*="grid-cols-"] { gap: 11px !important; }
   .v4-home #for-you .grid[class*="grid-cols-"] > * { flex-basis: 112px !important; }
-  .v4-home { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
+  .v4-home { padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px); }
 }
 @media (min-width: 701px) and (max-width: 1100px) {
   .v4-home .v4-header-inner { width: calc(100% - 40px) !important; }
@@ -2011,32 +1939,7 @@ body:has(.v4-home) {
   border-color: rgba(255,255,255,.12) !important;
   background: rgba(255,255,255,.05) !important;
 }
-.v4-mobile-tabbar {
-  position: fixed !important;
-  z-index: 500 !important;
-  left: 50% !important;
-  right: auto !important;
-  bottom: calc(8px + env(safe-area-inset-bottom)) !important;
-  width: min(360px, calc(100% - 32px)) !important;
-  min-height: 62px !important;
-  padding: 6px !important;
-  transform: translateX(-50%) !important;
-  border: 1px solid rgba(255,255,255,.16) !important;
-  border-radius: 22px !important;
-  background: rgba(18,18,20,.68) !important;
-  box-shadow: 0 8px 32px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.08) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(155%) !important;
-  backdrop-filter: blur(20px) saturate(155%) !important;
-}
-.v4-mobile-tabbar a {
-  color: rgba(235,235,245,.58) !important;
-  text-decoration: none !important;
-}
-.v4-mobile-tabbar a.is-active { color: #0a84ff !important; }
-.v4-mobile-tabbar a.is-active span { color: #0a84ff !important; }
-.v4-mobile-tabbar a.is-active svg { color: #0a84ff !important; }
-.v4-mobile-tabbar a svg { stroke: currentColor !important; }
-.v4-home { padding-bottom: calc(100px + env(safe-area-inset-bottom)) !important; }
+.v4-home { padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important; }
 @media (max-width: 700px) {
   .v4-home-main--cinema > .v4-hero {
     height: clamp(640px, 94svh, 900px) !important;
