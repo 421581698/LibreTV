@@ -1,6 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import { GlassButton, GlassDialog, GlassPanel, GlassPopover, GlassToolbar } from './glass';
 import { LiquidGlassSurface } from './liquid-glass';
 
 describe('LiquidGlassSurface v1.0', () => {
@@ -47,4 +48,29 @@ describe('LiquidGlassSurface v1.0', () => {
     expect(html).toContain('<a href="/search">搜索</a>');
     expect(html).toContain('data-liquid-glass-engine="fallback"');
   });
+
+  it('routes the shared glass primitives through the same engine adapter', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        'main',
+        null,
+        createElement(GlassPanel, null, 'Panel'),
+        createElement(GlassButton, { 'aria-label': 'Action' }, 'Action'),
+        createElement(GlassToolbar, null, 'Toolbar'),
+        createElement(GlassPopover, null, 'Popover'),
+        createElement(GlassDialog, null, 'Dialog'),
+      ),
+    );
+
+    expect(html).toContain('glass-panel');
+    expect(html).toContain('glass-button');
+    expect(html).toContain('glass-toolbar');
+    expect(html).toContain('glass-popover');
+    expect(html).toContain('glass-dialog');
+    expect(html.match(/data-liquid-glass="true"/g)).toHaveLength(5);
+    expect(html).toContain('<button');
+    expect(html).toContain('role="toolbar"');
+    expect(html).toContain('role="dialog"');
+  });
+
 });
