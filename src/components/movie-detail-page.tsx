@@ -49,6 +49,7 @@ export function MovieDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [sharing, setSharing] = useState(false);
+  const [episodeMenuIndex, setEpisodeMenuIndex] = useState<number | null>(null);
 
   const favoriteId = sourceKey && vodId ? favoriteIdFor(sourceKey, vodId) : '';
   const favorite = useLiveQuery(
@@ -106,6 +107,10 @@ export function MovieDetailPage() {
   const episodes = detail?.episodes ?? [];
   const episodeItems = detail?.episodeItems ?? [];
   const episodeTitle = (index: number) => episodeItems[index]?.title || '第 ' + (index + 1) + ' 集';
+  const episodeDisplayTitle = (index: number) => {
+    const value = episodeItems[index]?.title?.trim() ?? '';
+    return /^第\s*\d+\s*集$/u.test(value) ? '' : value;
+  };
   const isMovie = isMovieType(info?.typeName, episodes.length);
   const displayTitle = info?.title || title;
   const image = info?.cover || poster;
@@ -249,21 +254,63 @@ export function MovieDetailPage() {
             {episodes.map((_, index) => {
               const item = episodeItems[index];
               const percent = completedPercent(index);
-              const episodeArtwork = item?.image || image;
+              const titleText = episodeDisplayTitle(index);
+              const menuOpen = episodeMenuIndex === index;
               return (
-                <button key={index} type="button" onClick={() => play(index)} className="movie-detail-episode-card" aria-label={`${episodeTitle(index)}，播放`}>
-                  {episodeArtwork && <SmartImage url={episodeArtwork} mode={imageProxyMode} customProxy={customImageProxy} alt="" className="movie-detail-episode-image" loading="lazy" />}
+                <article key={index} className="movie-detail-episode-card" aria-label={episodeTitle(index)}>
+                  <span className="movie-detail-episode-placeholder" aria-hidden="true">
+                    <span className="movie-detail-episode-placeholder-play">▶</span>
+                  </span>
+                  {item?.image && (
+                    // Per-episode artwork only. Do not use the title poster or SmartImage's poster fallback.
+                    <img
+                      src={item.image}
+                      alt=""
+                      className="movie-detail-episode-image"
+                      loading="lazy"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
+                      onError={(event) => { event.currentTarget.hidden = true; }}
+                    />
+                  )}
+                  <span className="movie-detail-episode-card-gradient" aria-hidden="true" />
+                  <button
+                    type="button"
+                    className="movie-detail-episode-card-hit"
+                    onClick={() => play(index)}
+                    aria-label={'播放' + episodeTitle(index)}
+                  />
                   <span className="movie-detail-episode-card-content">
                     <span className="movie-detail-episode-card-number">第 {index + 1} 集</span>
-                    <span className="movie-detail-episode-card-title">{episodeTitle(index)}</span>
+                    {titleText && <span className="movie-detail-episode-card-title">{titleText}</span>}
                     {item?.description && <span className="movie-detail-episode-card-description">{item.description}</span>}
-                    <span className="movie-detail-episode-card-meta">
-                      <span className="movie-detail-episode-card-play" aria-hidden="true">▶</span>
-                      <span>{item?.duration || (percent >= 95 ? "已看完" : percent > 0 ? `已观看 ${percent}%` : "立即播放")}</span>
-                    </span>
+                    {item?.duration && (
+                      <span className="movie-detail-episode-card-meta">
+                        <span className="movie-detail-episode-card-play" aria-hidden="true">▶</span>
+                        <span>{item.duration}</span>
+                      </span>
+                    )}
                   </span>
-                  {percent > 0 && <span className="movie-detail-episode-card-progress" aria-hidden="true"><span style={{ width: `${percent}%` }} /></span>}
-                </button>
+                  <button
+                    type="button"
+                    className="movie-detail-episode-card-more"
+                    aria-label={episodeTitle(index) + '更多操作'}
+                    aria-expanded={menuOpen}
+                    onClick={() => setEpisodeMenuIndex(menuOpen ? null : index)}
+                  >
+                    <span aria-hidden="true">···</span>
+                  </button>
+                  {menuOpen && (
+                    <div className="movie-detail-episode-menu" role="group" aria-label="剧集操作">
+                      <button type="button" onClick={() => { setEpisodeMenuIndex(null); play(index); }}>播放本集</button>
+                      <button type="button" onClick={() => {
+                        setEpisodeMenuIndex(null);
+                        if (navigator.clipboard) void navigator.clipboard.writeText(episodeTitle(index));
+                      }}>复制剧集名称</button>
+                    </div>
+                  )}
+                  {percent > 0 && <span className="movie-detail-episode-card-progress" aria-hidden="true"><span style={{ width: percent + '%' }} /></span>}
+                </article>
               );
             })}
           </div>
