@@ -40,8 +40,16 @@ export interface VideoInfo {
   sourceUrl?: string;
 }
 
+export interface VideoEpisode {
+  /** 资源站 vod_play_url 中提供的真实分集名称；没有时为空字符串。 */
+  title: string;
+  url: string;
+}
+
 export interface VideoDetail {
   episodes: string[];
+  /** 可选的真实分集名称与地址；保留 episodes 以兼容现有播放器。 */
+  episodeItems?: VideoEpisode[];
   videoInfo: VideoInfo;
 }
 
