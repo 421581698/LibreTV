@@ -40,6 +40,7 @@ export function MobileTabBar() {
     <LiquidGlassSurface
       as="nav"
       interactive
+      variant="dock"
       className="v4-mobile-tabbar"
       aria-label="底部导航"
     >
