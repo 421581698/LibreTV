@@ -61,8 +61,18 @@ describe('PR #84 homepage blocking layout recovery', () => {
     expect(appleDock).toContain('padding-bottom: var(--tabbar-scroll-clearance) !important;');
     expect(appleDock).toContain('position: fixed !important;');
 
-    const hasDockGeometry = (css: string) =>
-      /\.v4-mobile-tabbar(?!::(?:before|after))(?:[.#:[\w="'-]+)*\s*\{[^}]*\b(?:position|inset|width|height|min-height|max-height|left|right|top|bottom|transform)\s*:/s.test(css);
+    const hasDockGeometry = (css: string) => {
+      const geometry = /\\b(?:position|inset|width|height|min-height|max-height|left|right|top|bottom|transform)\\s*:/;
+      return Array.from(css.matchAll(/([^{}]+)\\{([^{}]*)\\}/gs)).some(([, selector, declarations]) =>
+        geometry.test(declarations) &&
+        selector.split(',').some((part) => {
+          const dockIndex = part.indexOf('.v4-mobile-tabbar');
+          if (dockIndex < 0) return false;
+          const suffix = part.slice(dockIndex + '.v4-mobile-tabbar'.length).trim();
+          return suffix === '' || /^:(?:hover|focus|focus-visible|active)$/i.test(suffix);
+        }),
+      );
+    };
     for (const css of nonOwnerDockStyles) {
       expect(hasDockGeometry(css)).toBe(false);
     }
