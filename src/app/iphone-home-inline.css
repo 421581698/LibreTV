@@ -218,19 +218,6 @@ body .v4-home .v4-hero-image img { object-position: center 22% !important; }
   body .v4-home .v4-header .v4-header-actions > .v4-avatar .v4-avatar-icon { width: 19px !important; height: 19px !important; }
   body .v4-home .v4-home-main--cinema > .v4-hero { height: clamp(440px,66svh,720px) !important; }
 }
-body .v4-home .v4-mobile-tabbar {
-  position: fixed !important;
-  z-index: 500 !important;
-  left: 50% !important;
-  right: auto !important;
-  bottom: max(8px,env(safe-area-inset-bottom)) !important;
-  display: grid !important;
-  grid-template-columns: repeat(3,minmax(0,1fr)) !important;
-  width: min(360px,calc(100% - 32px)) !important;
-  min-height: 64px !important;
-  padding: 6px !important;
-  transform: translateX(-50%) !important;
-}
 
 
 /* Cinema lobby redesign: immersive full-bleed hero, horizontal featured rail,
@@ -470,67 +457,6 @@ body .v4-home .v4-progress-percent {
   font-size: 10px !important;
   font-variant-numeric: tabular-nums !important;
 }
-body .v4-home .v4-mobile-tabbar {
-  position: fixed !important;
-  z-index: 500 !important;
-  left: 50% !important;
-  right: auto !important;
-  bottom: max(10px,env(safe-area-inset-bottom)) !important;
-  width: min(310px,calc(100% - 48px)) !important;
-  min-height: 62px !important;
-  padding: 6px 8px !important;
-  grid-template-columns: repeat(3,minmax(0,1fr)) !important;
-  border: 1px solid rgba(255,255,255,.58) !important;
-  border-radius: 999px !important;
-  background: rgba(245,248,252,.76) !important;
-  box-shadow: 0 12px 36px rgba(15,25,40,.18),inset 0 1px 0 rgba(255,255,255,.8) !important;
-  -webkit-backdrop-filter: blur(26px) saturate(180%) !important;
-  backdrop-filter: blur(26px) saturate(180%) !important;
-  transform: translateX(-50%) !important;
-}
-body .v4-home .v4-mobile-tabbar a {
-  position: relative !important;
-  display: flex !important;
-  min-height: 48px !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 3px !important;
-  color: rgba(55,65,80,.72) !important;
-  text-decoration: none !important;
-}
-body .v4-home .v4-mobile-tabbar a.is-active {
-  color: #202630 !important;
-}
-body .v4-home .v4-mobile-tabbar svg {
-  width: 19px !important;
-  height: 19px !important;
-  fill: none !important;
-  stroke: currentColor !important;
-  stroke-width: 1.8 !important;
-  stroke-linecap: round !important;
-  stroke-linejoin: round !important;
-}
-body .v4-home .v4-mobile-tabbar svg.is-filled path,
-body .v4-home .v4-mobile-tabbar svg.is-filled rect,
-body .v4-home .v4-mobile-tabbar svg.is-filled circle {
-  fill: currentColor !important;
-  stroke: currentColor !important;
-}
-body .v4-home .v4-mobile-tabbar span {
-  font-size: 10px !important;
-  line-height: 1.1 !important;
-}
-body .v4-home .v4-mobile-tabbar a > i {
-  position: absolute !important;
-  bottom: 0 !important;
-  left: 50% !important;
-  width: 4px !important;
-  height: 4px !important;
-  border-radius: 50% !important;
-  background: currentColor !important;
-  transform: translateX(-50%) !important;
-}
 @media (max-width: 700px) {
   body .v4-home .v4-hero-immersive {
     /* Keep the first recommendation rail partially visible on phone screens. */
@@ -561,11 +487,7 @@ body .v4-home .v4-mobile-tabbar a > i {
   body .v4-home .v4-today-card { flex-basis: 126px !important; }
   body .v4-home .v4-history-row { gap: 12px !important; }
   body .v4-home .v4-history-card { flex-basis: min(82vw,320px) !important; }
-  body .v4-home .v4-mobile-tabbar {
-    width: min(292px,calc(100% - 52px)) !important;
-    bottom: max(10px,env(safe-area-inset-bottom)) !important;
-  }
-  body .v4-home { padding-bottom: calc(104px + env(safe-area-inset-bottom)) !important; }
+  body .v4-home { padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important; }
 }
 @media (min-width: 701px) and (max-width: 1440px) and (orientation: landscape) {
   body .v4-home .v4-hero-immersive { height: clamp(380px,55svh,620px) !important; min-height: 380px !important; max-height: 620px !important; }
@@ -801,21 +723,6 @@ body:has(.v4-home) .v4-home .v4-recommendation-section .card p {
   color: #f5f5f7 !important;
 }
 
-/* Floating navigation: dark glass with legible inactive tabs. */
-body:has(.v4-home) .v4-home .v4-mobile-tabbar {
-  background: rgba(20,20,20,.7) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(145%) !important;
-  backdrop-filter: blur(20px) saturate(145%) !important;
-}
-body:has(.v4-home) .v4-home .v4-mobile-tabbar a {
-  color: #a1a1a6 !important;
-}
-body:has(.v4-home) .v4-home .v4-mobile-tabbar a.is-active,
-body:has(.v4-home) .v4-home .v4-mobile-tabbar a.is-active span,
-body:has(.v4-home) .v4-home .v4-mobile-tabbar a.is-active svg {
-  color: #0a84ff !important;
-}
-
 @media (max-width: 700px) {
   body:has(.v4-home) .v4-home .v4-hero-immersive-copy h1 {
     font-size: clamp(30px, 8vw, 42px) !important;
@@ -869,33 +776,6 @@ body:has(.v4-home) .v4-home .v4-hero-plus {
   justify-content: center !important;
   line-height: 1 !important;
   padding: 0 !important;
-}
-
-/* Full-width bottom glass tab bar: flush to all three screen edges. */
-body:has(.v4-home) .v4-home .v4-mobile-tabbar {
-  position: fixed !important;
-  z-index: 500 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  transform: none !important;
-  width: 100% !important;
-  max-width: none !important;
-  min-height: calc(62px + env(safe-area-inset-bottom)) !important;
-  box-sizing: border-box !important;
-  grid-template-columns: repeat(3,minmax(0,1fr)) !important;
-  padding: 6px 8px max(6px,env(safe-area-inset-bottom)) !important;
-  margin: 0 !important;
-  border: 0 !important;
-  border-top: 1px solid rgba(255,255,255,.12) !important;
-  border-radius: 0 !important;
-  background: rgba(30,30,30,.8) !important;
-  box-shadow: none !important;
-  -webkit-backdrop-filter: blur(20px) saturate(145%) !important;
-  backdrop-filter: blur(20px) saturate(145%) !important;
-}
-body:has(.v4-home) .v4-home .v4-mobile-tabbar a {
-  min-height: 48px !important;
 }
 
 /* Subtle, editorial type hierarchy in the hero. */
@@ -1017,11 +897,11 @@ body:has(.v4-home) .friday-root .friday-fab {
 
 /* Let the final recommendation captions scroll completely above the fixed dock. */
 body:has(.v4-home) .v4-home {
-  padding-bottom: calc(128px + env(safe-area-inset-bottom)) !important;
+  padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
 }
 body:has(.v4-home) .v4-home-main,
 body:has(.v4-home) .v4-home-main--cinema {
-  padding-bottom: calc(128px + env(safe-area-inset-bottom)) !important;
+  padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
 }
 
 /* Preserve a black canvas behind the iOS status-bar and home-indicator regions. */
@@ -1031,16 +911,6 @@ body:has(.v4-home) #__next {
   min-height: 100dvh !important;
   background-color: #000 !important;
   color-scheme: dark !important;
-}
-
-/* Final Apple-TV visual calibration: translucent dock, quieter type, glass pills. */
-body:has(.v4-home) .v4-home .v4-mobile-tabbar {
-  background: rgba(30,30,30,.6) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(165%) !important;
-  backdrop-filter: blur(20px) saturate(165%) !important;
-  border-top: 1px solid rgba(255,255,255,.14) !important;
-  box-shadow: 0 -8px 28px rgba(0,0,0,.12) !important;
-  isolation: isolate !important;
 }
 body:has(.v4-home) .v4-home .v4-hero-immersive-copy h1 {
   font-size: 24px !important;
@@ -1116,101 +986,6 @@ body:has(.v4-home) #__next {
   color-scheme: dark !important;
 }
 
-
-/* PR84 — floating Liquid Glass dock.
-   CSS-first on purpose: liquid-glass-react notes Safari only partially supports
-   its displacement/refraction layer, so preserve a native backdrop-filter fallback. */
-@media (max-width: 700px) {
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar {
-    position: fixed !important;
-    z-index: 700 !important;
-    left: 50% !important;
-    right: auto !important;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 10px) !important;
-    transform: translateX(-50%) !important;
-    width: min(360px, calc(100vw - 32px)) !important;
-    max-width: 360px !important;
-    min-height: 0 !important;
-    height: 62px !important;
-    box-sizing: border-box !important;
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    align-items: center !important;
-    gap: 4px !important;
-    margin: 0 !important;
-    padding: 5px 7px !important;
-    overflow: hidden !important;
-    border: 1px solid rgba(255,255,255,.24) !important;
-    border-radius: 999px !important;
-    background:
-      linear-gradient(135deg, rgba(255,255,255,.15), rgba(255,255,255,.055) 42%, rgba(0,0,0,.16)),
-      rgba(34,34,40,.30) !important;
-    box-shadow:
-      0 10px 32px rgba(0,0,0,.28),
-      0 2px 8px rgba(0,0,0,.16),
-      inset 0 1px 0 rgba(255,255,255,.28),
-      inset 0 -1px 0 rgba(255,255,255,.07) !important;
-    -webkit-backdrop-filter: blur(28px) saturate(185%) contrast(108%) !important;
-    backdrop-filter: blur(28px) saturate(185%) contrast(108%) !important;
-    isolation: isolate !important;
-    contain: paint !important;
-  }
-
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar a {
-    position: relative !important;
-    z-index: 1 !important;
-    min-width: 0 !important;
-    min-height: 0 !important;
-    height: 50px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 3px !important;
-    padding: 3px 4px !important;
-    border: 0 !important;
-    border-radius: 999px !important;
-    color: rgba(255,255,255,.72) !important;
-    background: transparent !important;
-    text-decoration: none !important;
-    -webkit-tap-highlight-color: transparent !important;
-  }
-
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar a svg {
-    display: block !important;
-    width: 19px !important;
-    height: 19px !important;
-    flex: 0 0 19px !important;
-    fill: none !important;
-    stroke: currentColor !important;
-    stroke-width: 1.7 !important;
-    stroke-linecap: round !important;
-    stroke-linejoin: round !important;
-  }
-
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar a span {
-    display: block !important;
-    margin: 0 !important;
-    font-size: 10px !important;
-    line-height: 1.15 !important;
-    font-weight: 550 !important;
-    letter-spacing: .01em !important;
-  }
-
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar a.is-active {
-    color: #fff !important;
-    background: rgba(255,255,255,.14) !important;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.17), 0 1px 5px rgba(0,0,0,.12) !important;
-  }
-
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar a.is-active svg {
-    stroke-width: 2 !important;
-  }
-
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar a.is-active i {
-    display: none !important;
-  }
-
   /* Keep content scrollable behind the floating dock without a second blank
      128px footer after the home content. */
   body:has(.v4-home) .v4-home {
@@ -1248,131 +1023,20 @@ html:has(.v4-home) {
     padding: 0 0 env(safe-area-inset-bottom, 0px) !important;
   }
 
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar {
-    position: fixed !important;
-    z-index: 700 !important;
-    left: 16px !important;
-    right: 16px !important;
-    bottom: calc(14px + env(safe-area-inset-bottom, 0px)) !important;
-    width: auto !important;
-    max-width: 420px !important;
-    height: 58px !important;
-    min-height: 58px !important;
-    margin-inline: auto !important;
-    padding: 4px 7px !important;
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    align-items: center !important;
-    gap: 4px !important;
-    box-sizing: border-box !important;
-    overflow: hidden !important;
-    border: 1px solid rgba(255,255,255,.25) !important;
-    border-radius: 999px !important;
-    background:
-      linear-gradient(145deg, rgba(255,255,255,.16), rgba(255,255,255,.045) 48%, rgba(0,0,0,.10)),
-      rgba(30,30,34,.43) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(180%) contrast(108%) !important;
-    backdrop-filter: blur(24px) saturate(180%) contrast(108%) !important;
-    box-shadow:
-      0 8px 26px rgba(0,0,0,.24),
-      inset 0 1px 0 rgba(255,255,255,.30),
-      inset 0 -1px 0 rgba(255,255,255,.08) !important;
-    isolation: isolate !important;
-    transform: none !important;
-  }
-
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar a {
-    height: 48px !important;
-    min-height: 48px !important;
-    padding: 2px 4px !important;
-    gap: 2px !important;
-    border-radius: 999px !important;
-  }
-
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar a svg {
-    width: 18px !important;
-    height: 18px !important;
-    flex-basis: 18px !important;
-  }
-
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar a span {
-    font-size: 10px !important;
-    line-height: 1.05 !important;
-  }
-
   /* One scroll reserve only: enough to clear the floating dock and its safe-area offset. */
   body:has(.v4-home) .v4-home {
     padding-bottom: 0 !important;
   }
   body:has(.v4-home) .v4-home .v4-home-main,
   body:has(.v4-home) .v4-home .v4-home-main--cinema {
-    padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
   }
 }
-
-
-/* PR84 — apply the shared Liquid Glass optical surface to the mobile dock. */
-@media (max-width: 700px) {
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar.liquid-glass {
-    background:
-      linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.018) 34%, rgba(0,0,0,.045)),
-      rgba(30,30,34,.38) !important;
-    border: 1px solid rgba(255,255,255,.22) !important;
-    -webkit-backdrop-filter: blur(26px) saturate(190%) contrast(108%) !important;
-    backdrop-filter: blur(26px) saturate(190%) contrast(108%) !important;
-    box-shadow:
-      0 9px 28px rgba(0,0,0,.22),
-      inset 0 1px 0 rgba(255,255,255,.28),
-      inset 0 -1px 0 rgba(255,255,255,.08) !important;
-  }
-
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar.liquid-glass::before {
-    opacity: .88 !important;
-  }
-
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar.liquid-glass::after {
-    opacity: .82 !important;
-  }
-
-  /* The glass edge gets the optical treatment; glyphs and labels remain crisp. */
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar a,
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar a svg,
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar a span {
-    filter: none !important;
-    transform: none !important;
-  }
 }
-
-
-/* PR84 iPhone refinement — darker transparent glass, safe-area alignment,
-   edge inset for poster rails, and a four-destination bottom dock. */
-@media (max-width: 700px) {
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar.liquid-glass {
-    bottom: max(8px, env(safe-area-inset-bottom, 0px)) !important;
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-    background: rgba(15, 15, 15, .4) !important;
-    -webkit-backdrop-filter: blur(30px) saturate(200%) contrast(110%) !important;
-    backdrop-filter: blur(30px) saturate(200%) contrast(110%) !important;
-    border: 1px solid rgba(255,255,255,.2) !important;
-    box-shadow:
-      0 8px 26px rgba(0,0,0,.2),
-      inset 0 1px 0 rgba(255,255,255,.22),
-      inset 0 -1px 0 rgba(255,255,255,.06) !important;
-  }
-
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar.liquid-glass::before {
-    background:
-      linear-gradient(180deg, rgba(255,255,255,.085), rgba(255,255,255,.018) 24%, transparent 55%) !important;
-    opacity: .58 !important;
-  }
-
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar.liquid-glass::after {
-    opacity: .55 !important;
-  }
 
   body:has(.v4-home) .v4-home .v4-home-main,
   body:has(.v4-home) .v4-home .v4-home-main--cinema {
-    padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
   }
 
   /* Keep the first poster visibly inset from the physical screen edge. */
@@ -1438,106 +1102,11 @@ html:has(.v4-home) {
     -webkit-backdrop-filter: blur(30px) saturate(200%) contrast(110%) !important;
     backdrop-filter: blur(30px) saturate(200%) contrast(110%) !important;
   }
-
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar-engine .v4-mobile-tabbar {
-    position: relative !important;
-    z-index: 2 !important;
-    left: auto !important;
-    right: auto !important;
-    bottom: auto !important;
-    transform: none !important;
-    width: 100% !important;
-    max-width: none !important;
-    height: 100% !important;
-    min-height: 0 !important;
-    margin: 0 !important;
-    padding: 4px 7px !important;
-    display: grid !important;
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-    align-items: center !important;
-    gap: 4px !important;
-    box-sizing: border-box !important;
-    overflow: hidden !important;
-    border: 0 !important;
-    border-radius: 999px !important;
-    background: transparent !important;
-    -webkit-backdrop-filter: none !important;
-    backdrop-filter: none !important;
-    box-shadow: none !important;
-  }
-
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar-engine .v4-mobile-tabbar::before,
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar-engine .v4-mobile-tabbar::after {
-    content: none !important;
-  }
-
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar-engine .v4-mobile-tabbar > a {
-    position: relative !important;
-    z-index: 2 !important;
-  }
 }
-
-
-/* PR84 hotfix: keep the dock as a direct viewport-fixed element.
-   Do not wrap it in the third-party LiquidGlass engine: its transformed
-   wrapper can establish a containing block and detach position:fixed. */
-@media (max-width: 700px) {
-  body:has(.v4-home) .v4-home > .v4-mobile-tabbar,
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar {
-    position: fixed !important;
-    z-index: 1200 !important;
-    inset: auto 16px max(8px, env(safe-area-inset-bottom, 0px)) 16px !important;
-    width: auto !important;
-    max-width: 420px !important;
-    height: 58px !important;
-    min-height: 58px !important;
-    margin: 0 auto !important;
-    padding: 4px 7px !important;
-    display: grid !important;
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-    align-items: center !important;
-    gap: 4px !important;
-    box-sizing: border-box !important;
-    overflow: hidden !important;
-    transform: none !important;
-    border: 1px solid rgba(255,255,255,.22) !important;
-    border-radius: 999px !important;
-    background: rgba(15,15,15,.4) !important;
-    -webkit-backdrop-filter: blur(30px) saturate(200%) contrast(110%) !important;
-    backdrop-filter: blur(30px) saturate(200%) contrast(110%) !important;
-    box-shadow: 0 8px 26px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.22) !important;
-  }
-
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar > a {
-    display: flex !important;
-    min-width: 0 !important;
-    height: 48px !important;
-    min-height: 48px !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 2px !important;
-    padding: 2px 4px !important;
-    border-radius: 999px !important;
-  }
-
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar > a svg {
-    display: block !important;
-    width: 18px !important;
-    height: 18px !important;
-    flex: 0 0 18px !important;
-  }
-
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar > a span {
-    display: block !important;
-    font-size: 10px !important;
-    line-height: 1.05 !important;
-    white-space: nowrap !important;
-  }
 
   body:has(.v4-home) .v4-home .v4-home-main,
   body:has(.v4-home) .v4-home .v4-home-main--cinema {
-    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
   }
 
   /* Remove the phantom header panel; keep only its compact controls floating
@@ -1583,9 +1152,6 @@ html:has(.v4-home) {
     bottom: max(88px, calc(env(safe-area-inset-bottom, 0px) + 76px)) !important;
   }
 }
-
-@media (min-width: 701px) {
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar { display: none !important; }
 }
 
 /* PR84 visual polish: the homepage is immersive from first paint, not after scroll. */
@@ -1622,16 +1188,6 @@ html:has(.v4-home) {
   body:has(.v4-home) .v4-home {
     background: #000 !important;
     background-color: #000 !important;
-  }
-
-  /* Let the actual poster artwork show through the floating dock. */
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar {
-    background: rgba(20,20,20,.22) !important;
-    background-color: rgba(20,20,20,.22) !important;
-    border-color: rgba(255,255,255,.18) !important;
-    -webkit-backdrop-filter: blur(34px) saturate(190%) contrast(108%) !important;
-    backdrop-filter: blur(34px) saturate(190%) contrast(108%) !important;
-    box-shadow: 0 8px 26px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.16) !important;
   }
 
   /* The first poster must start 20px in from the viewport edge. */
@@ -1715,28 +1271,6 @@ html:has(.v4-home) {
     width: 100% !important;
     height: 100% !important;
     object-fit: cover !important;
-  }
-
-  /* Remove every opaque/outlined Liquid Glass layer from the dock. */
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar,
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar.liquid-glass {
-    background: rgba(20,20,20,.4) !important;
-    background-color: rgba(20,20,20,.4) !important;
-    background-image: none !important;
-    border: 0 !important;
-    outline: 0 !important;
-    box-shadow: none !important;
-    -webkit-backdrop-filter: blur(30px) saturate(190%) !important;
-    backdrop-filter: blur(30px) saturate(190%) !important;
-  }
-
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar::before,
-  body:has(.v4-home) .v4-home .v4-mobile-tabbar::after {
-    display: none !important;
-    content: none !important;
-    opacity: 0 !important;
-    border: 0 !important;
-    box-shadow: none !important;
   }
 }
 
@@ -2190,7 +1724,7 @@ html:has(.v4-home) {
 
   /* Fixed glass tab bar overlays the page: reserve scrollable room beneath content. */
   body:has(.v4-home) .v4-home {
-    padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
   }
 }
 
@@ -2587,14 +2121,14 @@ body:has(.v4-spatial-screen[data-screen="settings"]) {
 }
 .v4-spatial-screen[data-screen="settings"] {
   min-height:100svh!important;
-  padding-bottom:calc(116px + env(safe-area-inset-bottom,0px))!important;
+  padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px)!important;
   overflow:visible!important;
   background:#000!important;
   color:#f5f5f7!important;
 }
 .v4-spatial-screen[data-screen="settings"] .v4-spatial-main {
   min-height:calc(100svh - 64px);
-  padding-bottom:calc(124px + env(safe-area-inset-bottom,0px))!important;
+  padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px)!important;
   background:#000!important;
 }
 .v4-spatial-screen[data-screen="settings"] .v4-spatial-heading {
@@ -2690,67 +2224,6 @@ body:has(.v4-spatial-screen[data-screen="settings"]) {
   border-color:rgba(255,255,255,.12)!important;
 }
 
-/* Shared four-item dock: black translucent glass, no bright active tile. */
-body .v4-mobile-tabbar,
-body .v4-mobile-tabbar.liquid-glass {
-  position:fixed!important;
-  z-index:600!important;
-  left:50%!important;
-  right:auto!important;
-  bottom:max(8px,env(safe-area-inset-bottom,0px))!important;
-  display:grid!important;
-  grid-template-columns:repeat(4,minmax(0,1fr))!important;
-  width:min(350px,calc(100% - 36px))!important;
-  min-height:62px!important;
-  padding:5px 8px!important;
-  border:1px solid rgba(255,255,255,.13)!important;
-  border-radius:999px!important;
-  background:rgba(18,18,20,.78)!important;
-  box-shadow:0 10px 34px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.07)!important;
-  -webkit-backdrop-filter:blur(28px) saturate(155%)!important;
-  backdrop-filter:blur(28px) saturate(155%)!important;
-  transform:translateX(-50%)!important;
-}
-body .v4-mobile-tabbar>a {
-  position:relative!important;
-  display:flex!important;
-  min-width:0!important;
-  min-height:50px!important;
-  flex-direction:column!important;
-  align-items:center!important;
-  justify-content:center!important;
-  gap:3px!important;
-  border:0!important;
-  border-radius:999px!important;
-  background:transparent!important;
-  color:#92929a!important;
-  text-decoration:none!important;
-  box-shadow:none!important;
-}
-body .v4-mobile-tabbar>a.is-active {
-  color:#0a84ff!important;
-  background:transparent!important;
-  box-shadow:none!important;
-}
-body .v4-mobile-tabbar>a>i {
-  bottom:1px!important;
-  width:3px!important;
-  height:3px!important;
-  background:#0a84ff!important;
-}
-body .v4-mobile-tabbar svg {
-  width:19px!important;
-  height:19px!important;
-  fill:none!important;
-  stroke:currentColor!important;
-  stroke-width:1.65!important;
-}
-body .v4-mobile-tabbar span {
-  color:inherit!important;
-  font-size:10px!important;
-  line-height:1.1!important;
-}
-
 /* Friday remains a floating control and never participates in navigation layout. */
 body .friday-root .friday-fab {
   position:fixed!important;
@@ -2769,7 +2242,7 @@ body .friday-root .friday-fab {
     padding-right:18px!important;
   }
   .settings-embedded-root {
-    padding-bottom:calc(148px + env(safe-area-inset-bottom,0px))!important;
+    padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px)!important;
   }
 }
 
@@ -2781,11 +2254,11 @@ body:has(.v4-spatial-screen[data-screen="settings"]) .v4-header {
 }
 .v4-spatial-screen[data-screen="settings"] .v4-spatial-main {
   padding-top:calc(env(safe-area-inset-top,0px) + 12px)!important;
-  padding-bottom:calc(28px + env(safe-area-inset-bottom,0px))!important;
+  padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px)!important;
 }
 .v4-spatial-screen[data-screen="settings"] {
   padding-top:0!important;
-  padding-bottom:calc(28px + env(safe-area-inset-bottom,0px))!important;
+  padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px)!important;
 }
 .v4-spatial-screen[data-screen="settings"] .v4-spatial-heading {
   margin-top:0!important;
@@ -2833,7 +2306,7 @@ body:has(.v4-spatial-screen[data-screen="settings"]) .friday-root .friday-fab {
 }
 @media(max-width:700px) {
   .v4-spatial-screen[data-screen="settings"] .v4-spatial-main {
-    padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))!important;
+    padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px)!important;
   }
   .v4-spatial-screen[data-screen="settings"] .settings-embedded-root {
     padding-bottom:20px!important;
