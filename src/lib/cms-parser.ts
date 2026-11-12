@@ -131,13 +131,38 @@ export function parseDetail(
   }
   const vod = d.list[0];
   const episodeItems = extractEpisodeItemsFromPlayUrl(String(vod.vod_play_url ?? ''));
+  // Optional CMS extension: per-episode records can carry their own still and metadata.
+  // Match by the exact episode URL; never infer artwork from the title-level vod_pic or array position.
+  const rawEpisodeMetadata = Array.isArray(vod.vod_episode_list)
+    ? vod.vod_episode_list.filter(
+        (entry): entry is Record<string, unknown> =>
+          Boolean(entry) && typeof entry === 'object' && !Array.isArray(entry),
+      )
+    : [];
+  const episodeItemsWithMetadata = episodeItems.map((episode) => {
+    const metadata = rawEpisodeMetadata.find((entry) => {
+      const entryUrl = str(entry.url) || str(entry.play_url) || str(entry.vod_play_url);
+      return entryUrl === episode.url;
+    });
+    if (!metadata) return episode;
+    const rawStill = str(metadata.still_path) || str(metadata.screenshot) || str(metadata.image);
+    const image = rawStill && /^https?:\/\/[^\s]+$/i.test(rawStill) ? rawStill : undefined;
+    const description = cmsDescriptionToText(metadata.description ?? metadata.overview ?? metadata.vod_content);
+    const duration = str(metadata.duration) || str(metadata.runtime);
+    return {
+      ...episode,
+      ...(image ? { image } : {}),
+      ...(description ? { description } : {}),
+      ...(duration ? { duration } : {}),
+    };
+  });
   let episodes = episodeItems.map((episode) => episode.url);
   if (episodes.length === 0) {
     episodes = extractM3u8FromText(String(vod.vod_content ?? ''));
   }
   return {
     episodes,
-    ...(episodeItems.length > 0 ? { episodeItems } : {}),
+    ...(episodeItems.length > 0 ? { episodeItems: episodeItemsWithMetadata } : {}),
     videoInfo: {
       title: str(vod.vod_name),
       cover: str(vod.vod_pic),
