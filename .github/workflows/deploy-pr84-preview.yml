@@ -95,7 +95,17 @@ jobs:
             if (check.path === "/detail" && (!body.toLowerCase().includes("<html") || !body.includes("/_next/"))) {
               throw new Error("/detail did not return a Next.js HTML document");
             }
-            if (check.path === "/api/status") { try { JSON.parse(body); } catch { throw new Error("/api/status did not return valid JSON"); } }
+            if (check.path === "/api/status") {
+              let status;
+              try { status = JSON.parse(body); } catch { throw new Error("/api/status did not return valid JSON"); }
+              const sourceCount = Array.isArray(status.defaultSources) ? status.defaultSources.length : 0;
+              const subscriptionCount = Array.isArray(status.defaultSubscriptions) ? status.defaultSubscriptions.length : 0;
+              const liveSourceCount = Array.isArray(status.defaultLiveSources) ? status.defaultLiveSources.length : 0;
+              console.log("Preview runtime source inventory: defaultSources=" + sourceCount +
+                ", defaultSubscriptions=" + subscriptionCount +
+                ", defaultLiveSources=" + liveSourceCount +
+                ", verified=" + Boolean(status.verified));
+            }
             console.log("Verified " + check.path + ": HTTP " + response.status + " (" + type + ")");
           }
           NODE
