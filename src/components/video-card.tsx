@@ -536,7 +536,7 @@ export function DoubanCard({
         }
       }}
     >
-      <div className="relative aspect-[2/3] bg-chip">
+      <div className="lg-media-frame relative aspect-[2/3] bg-chip">
         {tmdbPoster ? (
           // TMDB 图片为 HTTPS 静态 CDN 地址；只在豆瓣原图候选链耗尽后显示
           // eslint-disable-next-line @next/next/no-img-element
