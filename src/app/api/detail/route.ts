@@ -4,6 +4,7 @@ import { cmsRequestHeaders, parseDetail, parseDetailPageHtml } from '@/lib/cms-p
 import { fetchUpstream, getCache, setCache } from '@/lib/fetch-utils';
 import { checkUpstreamAllowed } from '@/lib/ssrf';
 import type { SourceConfig, VideoDetail } from '@/lib/types';
+import { readResponseJsonLimited, readResponseTextLimited } from '@/lib/response-body';
 
 export const runtime = 'nodejs';
 
@@ -63,7 +64,7 @@ export async function GET(req: Request) {
     const api = `${source.url.replace(/\/+$/, '')}?ac=videolist&ids=${encodeURIComponent(id)}`;
     const res = await fetchUpstream(api, { timeoutMs: 10000, signal: req.signal, headers: cmsRequestHeaders() });
     if (res.ok) {
-      const data = await res.json();
+      const data = await readResponseJsonLimited(res, 2 * 1024 * 1024);
       try {
         const detail = parseDetail(data, source);
         if (detail.episodes.length > 0) {
@@ -88,7 +89,7 @@ export async function GET(req: Request) {
         headers: { 'User-Agent': cmsRequestHeaders()['User-Agent'] },
       });
       if (detailRes.ok) {
-        const html = await detailRes.text();
+        const html = await readResponseTextLimited(detailRes, 2 * 1024 * 1024);
         resolved = parseDetailPageHtml(html, source);
       }
     }

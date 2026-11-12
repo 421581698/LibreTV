@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { guardRequest, jsonError } from '@/lib/api-guard';
 import { fetchUpstreamWithMeta } from '@/lib/fetch-utils';
 import { withHostLimit } from '@/lib/host-gate';
+import { readResponseTextLimited } from '@/lib/response-body';
+import { readJsonLimited, requestBodyErrorStatus } from '@/lib/request-body';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -160,7 +162,7 @@ async function fetchHeadersOnly(
   let text: string | undefined;
   if (isM3u8) {
     // m3u8 是小文本，读取以供解析；分片则不读取
-    text = await res.text();
+    text = await readResponseTextLimited(res, 2 * 1024 * 1024);
   } else if (res.body) {
     try { await res.body.cancel(); } catch { /* 忽略 */ }
   }
@@ -510,9 +512,9 @@ export async function POST(req: Request) {
 
   let body: { urls?: unknown };
   try {
-    body = (await req.json()) as { urls?: unknown };
-  } catch {
-    return jsonError('无效请求体', 400);
+    body = await readJsonLimited<{ urls?: unknown }>(req, 32 * 1024);
+  } catch (error) {
+    return jsonError('无效请求体', requestBodyErrorStatus(error));
   }
   if (!Array.isArray(body.urls)) return jsonError('urls 必须为字符串数组', 400);
 

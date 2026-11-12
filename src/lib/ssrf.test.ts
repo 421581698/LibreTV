@@ -33,6 +33,10 @@ describe('isPrivateIP', () => {
     ['[fe90::1]', true],
     ['[ff02::1]', true],
     ['[2001:db8::1]', true],
+    ['[2001:0::1]', true],
+    ['[2002:7f00:1::1]', true],
+    ['[64:ff9b::7f00:1]', true],
+    ['[3fff::1]', true],
     ['[fc00::1]', true],
     // IPv4-mapped IPv6：十六进制形式与点分形式
     ['[::ffff:c0a8:164]', true], // ::ffff:192.168.1.100
@@ -45,6 +49,7 @@ describe('isPrivateIP', () => {
     ['::ffff:8.8.8.8', false],
     ['[::ffff:c0a8:164', true], // 单边括号（异常输入）仍要拦
     ['[2606:4700::1111]', false], // 公网 IPv6 不应被误杀
+    ['[2001:4860:4860::8888]', false],
   ])('%s → %s', (ip, expected) => {
     expect(isPrivateIP(ip)).toBe(expected);
   });

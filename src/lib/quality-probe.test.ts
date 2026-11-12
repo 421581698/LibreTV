@@ -325,6 +325,32 @@ seg0.ts
     expect(urls().filter((u) => u === PLAYLIST_URL)).toHaveLength(1);
   });
 
+  it('超大 CMS JSON 响应不会被完整读入内存', async () => {
+    mocks.fetchUpstream.mockImplementation((url: string) => {
+      if (url.includes('ac=videolist')) {
+        return Promise.resolve(new Response('{"list":[]}'+ ' '.repeat(2 * 1024 * 1024)));
+      }
+      return Promise.resolve(new Response('not found', { status: 404 }));
+    });
+
+    const result = await probeQuality({ source: SOURCE, id: '123' });
+    expect(result.height).toBeUndefined();
+    expect(result.error).toBe('未找到播放资源');
+  });
+
+  it('超大详情 HTML 响应会被硬性截断并作为探测错误返回', async () => {
+    const source = { ...SOURCE, detail: 'https://detail.test' };
+    mocks.fetchUpstream.mockImplementation((url: string) => {
+      if (url.includes('ac=videolist')) return Promise.resolve(new Response('{"list":[]}'));
+      return Promise.resolve(new Response('<html>'+ 'x'.repeat(2 * 1024 * 1024)));
+    });
+
+    const result = await probeQuality({ source, id: '123' });
+    expect(result.height).toBeUndefined();
+    expect(result.error).toBeDefined();
+    expect(result.error).not.toBe('未找到播放资源');
+  });
+
   it('无效的源地址：返回错误而不是静默「未知」', async () => {
     const result = await probeQuality({ source: { ...SOURCE, url: 'not-a-url' }, id: '123' });
     expect(result.error).toBeDefined();

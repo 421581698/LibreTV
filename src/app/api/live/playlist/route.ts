@@ -5,6 +5,7 @@ import { fetchUpstream } from '@/lib/fetch-utils';
 import { getLiveCache, setLiveCache } from '@/lib/live-cache';
 import { parseM3u } from '@/lib/m3u-parser';
 import type { LivePlaylistResponse } from '@/lib/types';
+import { readResponseTextLimited } from '@/lib/response-body';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -73,7 +74,7 @@ export async function GET(req: Request) {
       if (!res.ok) {
         return jsonError(`订阅地址请求失败: ${res.status}`, 502);
       }
-      text = await res.text();
+      text = await readResponseTextLimited(res, 8 * 1024 * 1024);
     } catch (err) {
       return jsonError(`订阅地址请求失败: ${err instanceof Error ? err.message : '未知错误'}`, 502);
     }

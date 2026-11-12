@@ -3,6 +3,7 @@ import { guardRequest, jsonError } from '@/lib/api-guard';
 import { checkLiveUrlAllowed, isBlockedByDNS, isValidProxyUrl } from '@/lib/ssrf';
 import { fetchWithSafeRedirects } from '@/lib/fetch-utils';
 import { rewriteM3u8, LIVE_STREAM_BASE } from '@/lib/m3u8';
+import { readResponseTextLimited } from '@/lib/response-body';
 
 /**
  * 代理目标地址的两种传入形式：
@@ -120,7 +121,7 @@ export async function handleProxyRequest(req: Request, targetUrl: string): Promi
 
   // m3u8 文本：重写为代理地址（以重定向后的最终 URL 为 base 解析相对地址）
   if (isM3u8) {
-    const text = await response.text();
+    const text = await readResponseTextLimited(response, 2 * 1024 * 1024);
     return new NextResponse(rewriteM3u8(text, finalUrl), {
       status: response.status,
       headers: {
@@ -218,7 +219,7 @@ export async function handleLiveStreamRequest(req: Request, targetUrl: string): 
   // HLS manifest：重写变体/分片地址指向本路由，保证后续请求同源同鉴权。
   // 关键：以重定向后的最终 URL 为 base 解析相对地址（gslb 调度源 302 后路径会变）
   if (isM3u8) {
-    const text = await response.text();
+    const text = await readResponseTextLimited(response, 2 * 1024 * 1024);
     return new NextResponse(rewriteM3u8(text, finalUrl, 0, LIVE_STREAM_BASE), {
       status: response.status,
       headers: {

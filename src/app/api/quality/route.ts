@@ -4,6 +4,7 @@ import { getCache, setCache } from '@/lib/fetch-utils';
 import { withHostLimit } from '@/lib/host-gate';
 import { probeQuality } from '@/lib/quality-probe';
 import type { QualityProbeItem, QualityProbeResult } from '@/lib/types';
+import { readJsonLimited, requestBodyErrorStatus } from '@/lib/request-body';
 
 export const runtime = 'nodejs';
 
@@ -81,9 +82,9 @@ export async function POST(req: Request) {
 
   let body: QualityBody;
   try {
-    body = (await req.json()) as QualityBody;
-  } catch {
-    return NextResponse.json({ error: '请求格式错误' }, { status: 400 });
+    body = await readJsonLimited<QualityBody>(req, 256 * 1024);
+  } catch (error) {
+    return NextResponse.json({ error: '请求格式错误' }, { status: requestBodyErrorStatus(error) });
   }
 
   if (!Array.isArray(body.items) || body.items.length === 0) {

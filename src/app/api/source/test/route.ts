@@ -3,6 +3,8 @@ import { guardRequest } from '@/lib/api-guard';
 import { checkUpstreamAllowed } from '@/lib/ssrf';
 import { fetchUpstream } from '@/lib/fetch-utils';
 import { parseSearchList } from '@/lib/cms-parser';
+import { readJsonLimited, requestBodyErrorStatus } from '@/lib/request-body';
+import { readResponseJsonLimited } from '@/lib/response-body';
 
 export const runtime = 'nodejs';
 
@@ -13,10 +15,10 @@ export async function POST(req: Request) {
 
   let url = '';
   try {
-    const body = (await req.json()) as { url?: string };
+    const body = await readJsonLimited<{ url?: string }>(req, 8 * 1024);
     url = (body.url || '').trim().replace(/\/+$/, '');
-  } catch {
-    return NextResponse.json({ error: '请求格式错误' }, { status: 400 });
+  } catch (error) {
+    return NextResponse.json({ error: '请求格式错误' }, { status: requestBodyErrorStatus(error) });
   }
   if (!/^https?:\/\//.test(url)) {
     return NextResponse.json({ error: '无效的源地址' }, { status: 400 });
@@ -37,7 +39,7 @@ export async function POST(req: Request) {
     if (!res.ok) {
       return NextResponse.json({ ok: false, ms, error: `HTTP ${res.status}` });
     }
-    const data = await res.json();
+    const data = await readResponseJsonLimited(res, 1024 * 1024);
     const list = parseSearchList(data, { key: 'test', name: 'test', url });
     return NextResponse.json({ ok: true, ms, count: list.length });
   } catch (err) {
