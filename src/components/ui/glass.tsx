@@ -21,18 +21,24 @@ export const GlassPanel = forwardRef<HTMLDivElement, DivProps>(function GlassPan
 });
 
 export const GlassButton = forwardRef<HTMLButtonElement, ButtonProps>(function GlassButton(
-  { className = '', type = 'button', ...props }, ref,
+  { className = '', type = 'button', children, ...props }, ref,
 ) {
   return (
     <LiquidGlassSurface
-      ref={ref as React.Ref<HTMLElement>}
-      as="button"
-      type={type}
+      as="div"
       variant="control"
       interactive
-      className={`glass-button ${className}`.trim()}
-      {...(props as React.HTMLAttributes<HTMLElement> & { disabled?: boolean; autoFocus?: boolean; name?: string; value?: string; form?: string })}
-    />
+      className={`glass-button liquid-glass-button-wrap ${className}`.trim()}
+    >
+      <button
+        ref={ref}
+        type={type}
+        className="liquid-glass-button-content"
+        {...props}
+      >
+        {children}
+      </button>
+    </LiquidGlassSurface>
   );
 });
 
