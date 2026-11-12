@@ -1065,7 +1065,6 @@ html:has(.v4-home) {
      separate light strip above the cinematic image. */
   body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive {
     margin-top: calc(-1 * env(safe-area-inset-top, 0px)) !important;
-    
   }
 }
 
@@ -1811,8 +1810,6 @@ body .v4-home .v4-hero-immersive .v4-hero-dots {
 }
 @media screen and (max-width: 700px) {
   /* Hero height is centralized in pr84-apple-tv-dock.css. */
-  body .v4-home .v4-hero-immersive .v4-hero-image img {
-  }
   body .v4-home .v4-hero-immersive .v4-hero-immersive-copy {
     inset: auto 0 54px !important;
     gap: 7px !important;
