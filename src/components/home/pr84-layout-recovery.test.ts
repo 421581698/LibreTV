@@ -62,8 +62,8 @@ describe('PR #84 homepage blocking layout recovery', () => {
     expect(appleDock).toContain('position: fixed !important;');
 
     const hasDockGeometry = (css: string) => {
-      const geometry = /\\b(?:position|inset|width|height|min-height|max-height|left|right|top|bottom|transform)\\s*:/;
-      return Array.from(css.matchAll(/([^{}]+)\\{([^{}]*)\\}/gs)).some(([, selector, declarations]) =>
+      const geometry = /\b(?:position|inset|width|height|min-height|max-height|left|right|top|bottom|transform)\s*:/;
+      return Array.from(css.matchAll(/([^{}]+)\{([^{}]*)\}/gs)).some(([, selector, declarations]) =>
         geometry.test(declarations) &&
         selector.split(',').some((part) => {
           const dockIndex = part.indexOf('.v4-mobile-tabbar');
