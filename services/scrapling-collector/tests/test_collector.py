@@ -1,5 +1,8 @@
 import os
+import subprocess
+import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -18,6 +21,44 @@ class CollectorTests(unittest.TestCase):
 
     def tearDown(self):
         self.temp.cleanup()
+
+    def test_importing_app_does_not_create_or_migrate_database(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "must-not-exist.sqlite3"
+            environment = os.environ.copy()
+            environment["SCRAPLING_API_TOKEN"] = "collector-import-test-token"
+            environment["SCRAPLING_DB_PATH"] = str(database)
+            subprocess.run(
+                [sys.executable, "-c", "import app"],
+                cwd=Path(__file__).resolve().parents[1],
+                env=environment,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            self.assertFalse(database.exists())
+
+    def test_database_initialization_does_not_interrupt_running_legacy_tasks(self):
+        task_id = "e" * 32
+        now = int(time.time())
+        with collector.db() as connection:
+            connection.execute(
+                "INSERT INTO tasks(id,url,host,status,mode,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                (task_id, "https://catalog.example", "catalog.example", "running", "http", now, now),
+            )
+        collector.init_db()
+        with collector.db() as connection:
+            row = connection.execute("SELECT status FROM tasks WHERE id=?", (task_id,)).fetchone()
+        self.assertEqual(row["status"], "running")
+
+    def test_crawl_batch_defaults_to_250_and_requires_at_least_101(self):
+        request = collector.CrawlRequest(url="https://catalog.example/")
+        self.assertEqual(request.limit, 250)
+        with self.assertRaises(Exception):
+            collector.CrawlRequest(url="https://catalog.example/", limit=100)
+        accepted = collector.CrawlRequest(url="https://catalog.example/", limit=101)
+        self.assertEqual(accepted.limit, 101)
 
     def test_crawl_egress_gate_fails_closed_until_firewall_is_confirmed(self):
         with patch.dict(os.environ, {"SCRAPLING_EGRESS_FIREWALL_CONFIRMED": ""}):
@@ -84,6 +125,41 @@ class CollectorTests(unittest.TestCase):
                 "SELECT playback_verification FROM candidates WHERE id=?", (candidate_id,)
             ).fetchone()["playback_verification"]
         self.assertEqual(collector.json.loads(stored)["media_type"], "mp4")
+        with collector.db() as connection:
+            sample = connection.execute(
+                "SELECT host,sample_source,decoded_width,decoded_height FROM playback_quality_samples"
+            ).fetchone()
+        self.assertEqual(sample["host"], "media.example")
+        self.assertEqual(sample["sample_source"], "collector_preview")
+        self.assertEqual(sample["decoded_width"], 0)
+
+    def test_general_playback_sample_only_records_fmhy_discovered_hosts(self):
+        now = 1_800_000_000
+        with collector.db() as connection:
+            connection.execute(
+                "INSERT INTO sites(host,title,url,directory,discovered_at) VALUES(?,?,?,?,?)",
+                ("media.example", "Media", "https://media.example", "FMHY / Movies", now),
+            )
+        payload = collector.PlaybackSampleEvidence(
+            host="media.example", media_type="hls", observed_seconds=5,
+            progressed_seconds=4, decoded_width=1920, decoded_height=1080,
+            selected_rendition_height=1080, selected_rendition_bitrate_kbps=5000,
+        )
+        with patch.object(collector, "require_token"):
+            result = collector.record_general_playback_sample(payload, "Bearer test")
+            ignored = collector.record_general_playback_sample(
+                payload.copy(update={"host": "not-listed.example"}), "Bearer test"
+            )
+        self.assertTrue(result["recorded"])
+        self.assertFalse(ignored["recorded"])
+        with collector.db() as connection:
+            samples = connection.execute(
+                "SELECT host,sample_source,decoded_height FROM playback_quality_samples"
+            ).fetchall()
+        self.assertEqual(len(samples), 1)
+        self.assertEqual(samples[0]["host"], "media.example")
+        self.assertEqual(samples[0]["sample_source"], "player")
+        self.assertEqual(samples[0]["decoded_height"], 1080)
 
     def test_playback_evidence_rejects_candidates_without_preflight(self):
         task_id = "c" * 32
@@ -112,6 +188,38 @@ class CollectorTests(unittest.TestCase):
                     "Bearer test",
                 )
         self.assertEqual(error.exception.status_code, 409)
+
+    def test_page_fingerprint_detects_first_change_and_skips_unchanged_content(self):
+        first = collector.record_page_fingerprint("catalog.example", "https://catalog.example/movies", b"<html>one</html>")
+        unchanged = collector.record_page_fingerprint("catalog.example", "https://catalog.example/movies", b"<html>one</html>")
+        changed = collector.record_page_fingerprint("catalog.example", "https://catalog.example/movies", b"<html>two</html>")
+        self.assertTrue(first)
+        self.assertFalse(unchanged)
+        self.assertTrue(changed)
+        with collector.db() as connection:
+            row = connection.execute(
+                "SELECT visit_count FROM crawl_page_fingerprints WHERE host=?",
+                ("catalog.example",),
+            ).fetchone()
+        self.assertEqual(row["visit_count"], 3)
+
+    def test_fingerprint_change_check_does_not_commit_before_extraction(self):
+        changed = collector.page_fingerprint_changed(
+            "catalog.example", "https://catalog.example/movies", b"<html>new</html>"
+        )
+        self.assertTrue(changed)
+        with collector.db() as connection:
+            row = connection.execute(
+                "SELECT fingerprint FROM crawl_page_fingerprints WHERE host=?",
+                ("catalog.example",),
+            ).fetchone()
+        self.assertIsNone(row)
+        collector.record_page_fingerprint(
+            "catalog.example", "https://catalog.example/movies", b"<html>new</html>"
+        )
+        self.assertFalse(collector.page_fingerprint_changed(
+            "catalog.example", "https://catalog.example/movies", b"<html>new</html>"
+        ))
 
     def test_spider_http_session_uses_safe_redirect_policy(self):
         captured = {}
@@ -229,6 +337,40 @@ class CollectorTests(unittest.TestCase):
             collector.classify_url("https://catalog.example/api.php/provide/vod"),
             ("cms-api-candidate", "catalog.example"),
         )
+
+    def test_http_candidate_extractor_finds_public_player_attributes_and_inline_config(self):
+        class Element:
+            def __init__(self, attrib=None, text=""):
+                self.attrib = attrib or {}
+                self.text = text
+
+        class Title:
+            def get(self):
+                return "Public movie catalogue"
+
+        class Page:
+            url = "https://catalog.example/watch/123"
+
+            def css(self, selector, **kwargs):
+                if selector == "title::text":
+                    return Title()
+                if selector == "[data-src], [data-url], [data-play], [content], [data-config], [data-player]":
+                    return [
+                        Element({"data-src": "https://cdn.example/movie/master.m3u8"}),
+                        Element({"data-src": "/movie/relative.m3u8"}),
+                        Element({"data-config": '{"url":"https://cdn.example/movie/backup.mp4"}'}),
+                    ]
+                if selector == "script":
+                    return [Element(text='const player = { file: "/movie/inline.m3u8" };')]
+                return []
+
+        found = collector.extract_candidates(Page(), Page.url, 20)
+        urls = {item["url"] for item in found}
+        self.assertIn("https://cdn.example/movie/master.m3u8", urls)
+        self.assertIn("https://cdn.example/movie/backup.mp4", urls)
+        self.assertIn("https://catalog.example/movie/inline.m3u8", urls)
+        self.assertIn("https://catalog.example/movie/relative.m3u8", urls)
+        self.assertEqual({item["host"] for item in found}, {"cdn.example", "catalog.example"})
 
     def test_rejects_non_https_and_credentials(self):
         self.assertIsNone(collector.classify_url("http://media.example/movie.mp4"))
@@ -897,6 +1039,85 @@ segment-2.ts
         finally:
             collector.DB_PATH = previous_path
 
+    def test_media_identity_uses_structured_metadata_and_keeps_ambiguous_types_unknown(self):
+        identity = collector.infer_media_identity(
+            "Example Series S02E03 2024 1080p",
+            "https://cdn.example/video.m3u8",
+            {
+                "title": "Example Series S02E03 2024 1080p",
+                "media_type_hint": "anime",
+                "identity_source": "schema_org",
+                "year_hint": 2024,
+                "season_hint": 2,
+                "episode_hint": 3,
+                "episode_title": "Episode 3",
+                "description": "A public metadata description",
+            },
+        )
+        self.assertEqual(identity["title_hint"], "Example Series")
+        self.assertEqual(identity["media_type"], "anime")
+        self.assertEqual(identity["year_hint"], 2024)
+        self.assertEqual(identity["season_hint"], 2)
+        self.assertEqual(identity["episode_hint"], 3)
+        self.assertEqual(identity["episode_title"], "Episode 3")
+        self.assertEqual(identity["match_confidence"], "structured_metadata")
+        ambiguous = collector.infer_media_identity(
+            "Watch now", "https://cdn.example/stream.m3u8"
+        )
+        self.assertEqual(ambiguous["media_type"], "unknown")
+        self.assertEqual(ambiguous["match_confidence"], "hint_only")
+
+    def test_registry_links_structured_episode_to_canonical_series(self):
+        base_identity = {
+            "title_hint": "Example Anime",
+            "year_hint": 2024,
+            "media_type": "anime",
+            "match_confidence": "structured_metadata",
+            "identity_source": "schema_org",
+            "entity_key": "not-used-for-series-key",
+            "poster": "https://images.example/poster.jpg",
+        }
+        first = {
+            "id": "a" * 32, "url": "https://cdn.example/episode-1.m3u8",
+            "host": "cdn.example", "kind": "direct-media", "title": "Example Anime",
+            "media_identity": {**base_identity, "season_hint": 1, "episode_hint": 1},
+            "page_metadata": {"identity_source": "schema_org"},
+        }
+        second = {
+            "id": "b" * 32, "url": "https://cdn.example/episode-2.m3u8",
+            "host": "cdn.example", "kind": "direct-media", "title": "Example Anime",
+            "media_identity": {**base_identity, "season_hint": 1, "episode_hint": 2},
+            "page_metadata": {"identity_source": "schema_org"},
+        }
+        collector.registry_store.register_discovered_candidate(first)
+        collector.registry_store.register_discovered_candidate(second)
+        with collector.registry_store.connect() as connection:
+            movies = connection.execute("SELECT id,title,year,metadata FROM registry_movies").fetchall()
+            episodes = connection.execute("SELECT movie_id,season,episode FROM registry_episodes ORDER BY episode").fetchall()
+        self.assertEqual(len(movies), 1)
+        self.assertEqual(movies[0]["title"], "Example Anime")
+        self.assertEqual(len(episodes), 2)
+        self.assertEqual(episodes[0]["movie_id"], episodes[1]["movie_id"])
+        self.assertEqual([row["episode"] for row in episodes], [1, 2])
+
+        collector.registry_store.sync_candidate_validation(
+            first["id"],
+            {"reachable": True, "access": {"access_state": "PUBLIC"}, "media_format": "hls"},
+            "validated",
+        )
+        collector.registry_store.register_candidate_playback(first["id"], {
+            "media_type": "hls", "decoded_width": 1920, "decoded_height": 1080,
+            "observed_seconds": 8, "progressed_seconds": 7,
+        })
+        with collector.registry_store.connect() as connection:
+            resource = connection.execute(
+                "SELECT movie_id,metadata,playback_state FROM registry_resources WHERE candidate_id=?",
+                (first["id"],),
+            ).fetchone()
+        self.assertIsNotNone(resource["movie_id"])
+        self.assertEqual(resource["playback_state"], "PLAYER_CONFIRMED")
+        self.assertEqual(collector.json.loads(resource["metadata"])["media_identity"]["title_hint"], "Example Anime")
+
     def test_candidate_merge_persists_provenance_identity_and_unknown_access(self):
         candidate = collector.normalize_candidate({
             "url": "https://media.example/Example.Movie.2024.S02E03.1080p.m3u8",
@@ -1091,12 +1312,13 @@ segment-2.ts
                         Anchor("https://loc.gov/item/another", "Library of Congress duplicate"),
                         Anchor("https://fmhy.net/video", "FMHY internal"),
                         Anchor("https://tubi.tv/category/movies", "Tubi"),
+                        Anchor("https://independent-catalog.example/movies", "Independent public catalogue"),
                         Anchor("http://insecure.example", "Insecure"),
                     ]
                 return []
 
         sites = collector.fmhy_sites_from_page(Page())
-        self.assertEqual([site["host"] for site in sites], ["loc.gov", "tubi.tv"])
+        self.assertEqual([site["host"] for site in sites], ["loc.gov", "tubi.tv", "independent-catalog.example"])
         self.assertTrue(all(site["directory"].startswith("FMHY / video") for site in sites))
         self.assertFalse(any(site["host"] == "insecure.example" for site in sites))
 

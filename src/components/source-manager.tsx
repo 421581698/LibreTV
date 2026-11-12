@@ -36,6 +36,7 @@ import { AUTO_REFRESH_MAX_FAIL_STREAK, syncSourceSubscription } from '@/lib/subs
 import { describeParseStats } from '@/lib/tvbox-parser';
 import { collectorFetch, clearScraplingConfig, normalizeScraplingBase, readScraplingConfig, saveScraplingConfig } from '@/lib/collector-browser-config';
 import { registerValidatedCmsSource } from '@/lib/resource-collector-workflow';
+import { ResourceStatsPanel } from '@/components/resource-stats-panel';
 
 
 const CollectorPlayerShell = dynamic(
@@ -47,7 +48,7 @@ const CollectorPlayerShell = dynamic(
  * Apple-inspired 设置抽屉：纵向分组首页 → 独立详情页。
  * 具体设置面板继续复用现有业务组件与持久化逻辑。
  */
-type SecondaryTab = 'vod' | 'live' | 'subs' | 'playback' | 'image' | 'home' | 'voice' | 'language' | 'io' | 'cache' | 'collector';
+type SecondaryTab = 'vod' | 'live' | 'subs' | 'playback' | 'image' | 'home' | 'voice' | 'language' | 'io' | 'cache' | 'collector' | 'downloads';
 type SettingsPage = SecondaryTab | 'index' | 'appearance';
 
 const SETTINGS_SECTIONS: { title: string; items: { id: SettingsPage; label: string; detail: string; icon: IconName }[] }[] = [
@@ -62,6 +63,7 @@ const SETTINGS_SECTIONS: { title: string; items: { id: SettingsPage; label: stri
     { id: 'live', label: '直播设置', detail: '直播源与频道管理', icon: 'home' },
     { id: 'subs', label: '资源订阅', detail: '管理已配置的数据源订阅', icon: 'download' },
     { id: 'collector', label: '资源采集中心', detail: 'FMHY 网站发现目录与 Scrapling 采集引擎', icon: 'search' },
+    { id: 'downloads', label: '下载与离线观看', detail: '下载偏好、保存位置与本机离线空间', icon: 'download' },
     { id: 'home', label: '首页与内容', detail: '首页展示与内容偏好', icon: 'home' },
   ] },
   { title: 'Friday 助手', items: [
@@ -86,6 +88,7 @@ const SETTINGS_PAGE_META: Record<Exclude<SettingsPage, 'index'>, { title: string
   io: { title: '配置导入与导出', description: '备份或恢复 LibreTV 本机配置。' },
   cache: { title: '本机缓存', description: '查看并管理本机缓存数据。' },
   collector: { title: '资源采集中心', description: '从 FMHY 目录发现站点，并通过 Scrapling 检查公开媒体链接。' },
+  downloads: { title: '下载与离线观看', description: '管理手机视频下载偏好、保存方式与离线空间。' },
 };
 
 const SETTINGS_OPEN_PAGE_KEY = 'libretv-settings-open-page';
@@ -186,6 +189,7 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
           {activePage === 'io' && <ConfigIoPanel />}
           {activePage === 'cache' && <VideoCachePanel />}
           {activePage === 'collector' && <ResourceCollectorPanel />}
+          {activePage === 'downloads' && <DownloadsSettingsPanel />}
         </div>
       )}
     </Drawer>
@@ -197,8 +201,73 @@ type CollectorSite = { title: string; url: string; host: string; directory: stri
 type CollectorCandidate = { id?: string; url: string; kind: string; host: string; title?: string; status?: string; access_state?: string; reason?: string; next_action?: string; drm_systems?: string[]; validation?: { cms_shape?: boolean; reachable?: boolean | null; public_host?: boolean; source_url?: string | null; note?: string; media_format?: string; content_type?: string; manifest_valid?: boolean; rejected_reference_count?: number; access?: { access_state?: string; reason?: string } } };
 type CollectorTask = { id: string; url: string; host: string; status: string; created_at: number; updated_at: number; error?: string | null; result_count: number };
 
+const DOWNLOAD_SETTINGS_KEY = 'libretv-download-settings';
+type DownloadPreferences = { quality: 'source' | '1080p' | '720p'; wifiOnly: boolean; askLocation: boolean };
+const DEFAULT_DOWNLOAD_PREFERENCES: DownloadPreferences = { quality: '1080p', wifiOnly: true, askLocation: true };
+
+function DownloadsSettingsPanel() {
+  const [preferences, setPreferences] = useState<DownloadPreferences>(DEFAULT_DOWNLOAD_PREFERENCES);
+  const [saved, setSaved] = useState(false);
+  const [storage, setStorage] = useState<{ usage?: number; quota?: number } | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(DOWNLOAD_SETTINGS_KEY);
+      if (raw) setPreferences({ ...DEFAULT_DOWNLOAD_PREFERENCES, ...JSON.parse(raw) });
+    } catch { /* Keep safe defaults if local settings cannot be read. */ }
+    if (navigator.storage?.estimate) {
+      void navigator.storage.estimate().then((estimate) => {
+        setStorage({ usage: estimate.usage, quota: estimate.quota });
+      }).catch(() => setStorage(null));
+    }
+  }, []);
+
+  const save = (next: DownloadPreferences) => {
+    setPreferences(next);
+    try {
+      window.localStorage.setItem(DOWNLOAD_SETTINGS_KEY, JSON.stringify(next));
+      setSaved(true);
+    } catch {
+      setSaved(false);
+    }
+  };
+  const formatBytes = (value?: number) => {
+    if (typeof value !== 'number') return '暂不可读取';
+    if (value < 1024 ** 3) return (value / 1024 ** 2).toFixed(0) + ' MB';
+    return (value / 1024 ** 3).toFixed(2) + ' GB';
+  };
+
+  return (
+    <div className="space-y-4">
+      <section className="rounded-2xl border border-line bg-card p-4 space-y-4">
+        <div><h3 className="text-sm font-semibold text-content">下载偏好</h3><p className="mt-1 text-xs text-muted">设置将保存在当前设备。仅下载来源明确允许保存且可公开访问的媒体。</p></div>
+        <label className="block space-y-2"><span className="text-sm text-content">默认画质</span>
+          <select value={preferences.quality} onChange={(event) => save({ ...preferences, quality: event.target.value as DownloadPreferences['quality'] })} className="w-full rounded-xl border border-line bg-main px-3 py-2 text-sm text-content">
+            <option value="source">源站最高可用画质</option><option value="1080p">优先 1080P</option><option value="720p">优先 720P（节省空间）</option>
+          </select>
+        </label>
+        <label className="flex items-center justify-between gap-3 py-2"><span><strong className="block text-sm text-content">仅 Wi-Fi 下载</strong><small className="text-xs text-muted">避免使用蜂窝网络流量</small></span><input type="checkbox" checked={preferences.wifiOnly} onChange={(event) => save({ ...preferences, wifiOnly: event.target.checked })} /></label>
+        <label className="flex items-center justify-between gap-3 py-2"><span><strong className="block text-sm text-content">下载前确认保存位置</strong><small className="text-xs text-muted">优先使用 iOS「文件」保存流程</small></span><input type="checkbox" checked={preferences.askLocation} onChange={(event) => save({ ...preferences, askLocation: event.target.checked })} /></label>
+        <p className="text-[11px] text-muted" role="status">{saved ? '下载偏好已保存在本机。' : '当前使用默认偏好；修改后自动保存。'}</p>
+      </section>
+      <section className="rounded-2xl border border-line bg-card p-4 space-y-2">
+        <h3 className="text-sm font-semibold text-content">设备存储空间</h3>
+        <div className="flex justify-between text-xs text-muted"><span>浏览器已用空间</span><strong className="text-content">{formatBytes(storage?.usage)}</strong></div>
+        <div className="flex justify-between text-xs text-muted"><span>浏览器估算配额</span><strong className="text-content">{formatBytes(storage?.quota)}</strong></div>
+        <p className="text-[11px] text-muted">这是浏览器存储估算，不代表 iPhone 总剩余空间，也不代表已下载视频大小。</p>
+      </section>
+      <section className="rounded-2xl border border-line bg-card p-4 space-y-2">
+        <h3 className="text-sm font-semibold text-content">下载与离线观看状态</h3>
+        <p className="text-xs text-muted">下载中心入口和偏好设置已就位。完整视频文件下载队列、后台续传及离线播放器尚未接入；目前不会把资源索引缓存误报为视频文件下载。</p>
+        <p className="text-xs text-muted">iPhone Safari 对后台下载和大文件持久化有限制。正式下载功能将使用系统文件保存流程，并在支持的平台提供本地离线播放。</p>
+      </section>
+    </div>
+  );
+}
+
 function ResourceCollectorPanel() {
   const store = useAppStore();
+  const [centerPage, setCenterPage] = useState<string>('index');
   const [sites, setSites] = useState<CollectorSite[]>([]);
   const [selectedSite, setSelectedSite] = useState<CollectorSite | null>(null);
   const [playingCandidate, setPlayingCandidate] = useState<CollectorCandidate | null>(null);
@@ -455,12 +524,74 @@ function ResourceCollectorPanel() {
     }
   };
 
+  const centerItems = [
+    { id: 'overview', title: '数据总览', detail: '所有网站和影视资源统计', icon: 'search' as IconName },
+    { id: 'directory', title: 'FMHY 网站目录', detail: '唯一网站发现入口', icon: 'home' as IconName },
+    { id: 'archives', title: '网站采集档案', detail: '每个网站独立抓取记录', icon: 'database' as IconName },
+    { id: 'library', title: '影视资源库', detail: '电影、电视剧、动漫及去重', icon: 'download' as IconName },
+    { id: 'monitor', title: '实时任务监控', detail: 'Spider、浏览器和任务队列', icon: 'bolt' as IconName },
+    { id: 'quality', title: '资源质量检测', detail: '预检、播放确认和质量评分', icon: 'check' as IconName },
+    { id: 'history', title: '采集历史', detail: '每次任务的完整审计记录', icon: 'clock' as IconName },
+    { id: 'strategy', title: '采集策略', detail: '增量抓取、频率、重试和限额', icon: 'filter' as IconName },
+    { id: 'connection', title: '连接配置', detail: 'Scrapling 地址、Token 和连接测试', icon: 'link' as IconName },
+  ];
+  const activeCenterItem = centerItems.find((item) => item.id === centerPage);
+
+  if (centerPage === 'index') {
+    return (
+      <section className="overflow-hidden rounded-2xl border border-line bg-card">
+        <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-4 sm:px-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-chip text-content">
+              <Icon name="search" className="h-6 w-6" />
+            </span>
+            <h3 className="truncate text-lg font-semibold tracking-tight text-content">资源采集中心</h3>
+          </div>
+          <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-600">V2.0</span>
+        </header>
+        <nav aria-label="资源采集中心功能导航" className="divide-y divide-line px-3 py-1 sm:px-4">
+          {centerItems.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setCenterPage(item.id)}
+              className="group flex min-h-[64px] w-full items-center gap-3 rounded-xl px-1 py-2 text-left transition-colors hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              aria-label={item.title}
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-chip text-content">
+                <Icon name={item.icon} className="h-5 w-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-content">{item.title}</span>
+                <span className="mt-0.5 block text-xs text-muted">{item.detail}</span>
+              </span>
+              <span aria-hidden="true" className="shrink-0 text-xl leading-none text-faint transition-transform group-hover:translate-x-0.5">›</span>
+            </button>
+          ))}
+        </nav>
+      </section>
+    );
+  }
+
   return (
     <section className="space-y-4">
-      <div className="rounded-2xl border border-line bg-card p-4 space-y-3">
+      <button
+        type="button"
+        onClick={() => setCenterPage('index')}
+        className="inline-flex min-h-9 items-center gap-2 rounded-lg pr-2 text-sm font-medium text-accent transition-colors hover:opacity-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      >
+        <span aria-hidden="true" className="text-lg leading-none">‹</span>
+        资源采集中心
+      </button>
+      <div className="border-b border-line pb-3">
+        <h3 className="text-lg font-semibold text-content">{activeCenterItem?.title}</h3>
+        <p className="mt-1 text-xs text-muted">{activeCenterItem?.detail}</p>
+      </div>
+      {['overview', 'archives', 'quality'].includes(centerPage) ? <ResourceStatsPanel /> : null}
+      <div hidden={centerPage !== 'connection'} className="rounded-2xl border border-line bg-card p-4 space-y-3">
         <div>
           <h3 className="text-sm font-semibold text-content">Scrapling 连接配置 · 本机 Preview 测试</h3>
-          <p className="mt-1 text-xs leading-5 text-muted">填写 Zo Computer 部署的 Collector 地址与密钥。配置仅保存在当前浏览器 LocalStorage，通过已登录的 LibreTV Worker 代理转发；不会写入 Git 或 Cloudflare 环境变量。当前仅用于 PR #60 Preview 测试。</p>
+          <p className="mt-1 text-xs leading-5 text-muted">填写 Zo Computer 部署的 Collector 地址与密钥。配置仅保存在当前浏览器 LocalStorage，通过已登录的 LibreTV Worker 代理转发；不会写入 Git 或 Cloudflare 环境变量。当前仅用于独立 Preview 测试。</p>
         </div>
         <label className="block space-y-1">
           <span className="text-xs font-semibold text-content">SCRAPLING_API_BASE · 采集服务地址</span>
@@ -487,7 +618,7 @@ function ResourceCollectorPanel() {
         <p className="text-[11px] leading-5 text-muted">仅接受公网 HTTPS 域名（443 端口）；Token 通过 HTTPS Header 发送给 LibreTV Worker，再由 Worker 转发给 Collector。清除后回退到服务端 SCRAPLING_API_BASE / SCRAPLING_API_TOKEN。LocalStorage 中的 Token 可被本机浏览器脚本读取，请只在可信设备的测试 Preview 使用。</p>
       </div>
 
-      <div className="rounded-2xl border border-line bg-card p-4">
+      <div hidden={centerPage !== 'directory'} className="rounded-2xl border border-line bg-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-content">FMHY · 唯一网站发现目录</h3>
@@ -504,7 +635,7 @@ function ResourceCollectorPanel() {
       {resultMessage ? <p className="rounded-xl border border-line bg-card px-3 py-2 text-xs text-muted" role="status">{resultMessage}</p> : null}
 
       {sites.length > 0 ? (
-        <div className="space-y-2">
+        <div hidden={centerPage !== 'directory'} className="space-y-2">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-content">发现的网站</h3>
             <span className="text-xs text-muted">{sites.length} 个候选站点</span>
@@ -528,9 +659,9 @@ function ResourceCollectorPanel() {
       ) : null}
 
       {tasks.length > 0 ? (
-        <div className="space-y-2">
+        <div hidden={centerPage !== 'monitor' && centerPage !== 'history'} className="space-y-2">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-content">采集任务记录</h3>
+            <h3 className="text-sm font-semibold text-content">{centerPage === 'monitor' ? '实时任务监控' : '采集历史'}</h3>
             <button type="button" className="btn-ghost btn-sm" onClick={() => void loadTasks()}>刷新</button>
           </div>
           <div className="max-h-52 space-y-2 overflow-y-auto">
@@ -552,7 +683,7 @@ function ResourceCollectorPanel() {
       ) : null}
 
       {selectedSite ? (
-        <div className="space-y-2 rounded-2xl border border-line bg-card p-4">
+        <div hidden={centerPage !== 'library'} className="space-y-2 rounded-2xl border border-line bg-card p-4">
           <div>
             <h3 className="text-sm font-semibold text-content">采集结果 · {selectedSite.title}</h3>
             <p className="mt-1 truncate text-xs text-muted">{selectedSite.url}</p>
@@ -592,6 +723,16 @@ function ResourceCollectorPanel() {
         </div>
       ) : null}
 
+      {centerPage === 'strategy' ? (
+        <section className="rounded-2xl border border-line bg-card p-4 space-y-2">
+          <h4 className="text-sm font-semibold text-content">采集策略</h4>
+          <p className="text-xs leading-5 text-muted">增量指纹、失败重试和任务限额由 Scrapling Collector 服务端策略执行。当前页面先展示已启用的策略说明，不提供浏览器端修改服务端安全限制的入口。</p>
+          <p className="text-xs leading-5 text-muted">现有采集链路记录页面内容指纹，内容未变化时跳过重复提取；任务重试沿用 Collector 持久队列的重试与租约机制。</p>
+        </section>
+      ) : null}
+      {centerPage === 'library' && !selectedSite ? (
+        <p className="rounded-xl border border-line bg-card p-4 text-xs text-muted">请先进入 FMHY 网站目录，选择一个已发现网站并启动 Scrapling 检查，采集到的电影、剧集和动漫候选会显示在这里。</p>
+      ) : null}
       <p className="text-xs leading-6 text-muted">底层引擎：Scrapling Python 服务。仅提取公开可访问的媒体/播放器链接，不绕过登录、付费墙、DRM 或访问控制。可直接播放的媒体直链使用 LibreTV 原有 PlayerShell 预览；这类直链不会冒充 CMS 点播 API 源。</p>
       {playingCandidate ? <CollectorDirectPlayer candidate={playingCandidate} onClose={() => setPlayingCandidate(null)} /> : null}
     </section>
@@ -601,10 +742,18 @@ function ResourceCollectorPanel() {
 function CollectorDirectPlayer({ candidate, onClose }: { candidate: CollectorCandidate; onClose: () => void }) {
   const adFilter = useAppStore((state) => state.adFilter);
   const [pendingStart, setPendingStart] = useState<number | null>(null);
-  const [playbackEvidence, setPlaybackEvidence] = useState<{ mediaType: string; observedSeconds: number; progressedSeconds: number } | null>(null);
+  const [playbackEvidence, setPlaybackEvidence] = useState<{
+    mediaType: string; observedSeconds: number; progressedSeconds: number;
+    decodedWidth?: number; decodedHeight?: number;
+    selectedRenditionHeight?: number; selectedRenditionBitrateKbps?: number;
+  } | null>(null);
   const [playbackEvidenceSaved, setPlaybackEvidenceSaved] = useState(false);
   const [playbackEvidenceError, setPlaybackEvidenceError] = useState('');
-  const handlePlaybackConfirmed = async (evidence: { mediaType: string; observedSeconds: number; progressedSeconds: number }) => {
+  const handlePlaybackConfirmed = async (evidence: {
+    mediaType: string; observedSeconds: number; progressedSeconds: number;
+    decodedWidth: number; decodedHeight: number;
+    selectedRenditionHeight: number; selectedRenditionBitrateKbps: number;
+  }) => {
     setPlaybackEvidence(evidence);
     setPlaybackEvidenceSaved(false);
     setPlaybackEvidenceError('');
@@ -653,6 +802,7 @@ function CollectorDirectPlayer({ candidate, onClose }: { candidate: CollectorCan
         {playbackEvidence ? (
           <div className="border-t border-white/10 px-4 py-3 text-xs text-emerald-300">
             <p>已确认真实播放：{playbackEvidence.mediaType}，观察 {playbackEvidence.observedSeconds}s，播放进度推进 {playbackEvidence.progressedSeconds.toFixed(1)}s</p>
+            <p>实际解码：{playbackEvidence.decodedWidth && playbackEvidence.decodedHeight ? playbackEvidence.decodedWidth + '×' + playbackEvidence.decodedHeight : '分辨率未知'} · HLS 档位：{playbackEvidence.selectedRenditionHeight ? playbackEvidence.selectedRenditionHeight + 'P' : '未知'}</p>
             {playbackEvidenceSaved ? <p className="mt-1 text-emerald-200">播放证据已写入 Scrapling 采集记录。</p> : null}
             {playbackEvidenceError ? <p className="mt-1 text-amber-300">{playbackEvidenceError}</p> : null}
             {!playbackEvidenceSaved && !playbackEvidenceError ? <p className="mt-1 text-white/55">正在保存播放证据…</p> : null}

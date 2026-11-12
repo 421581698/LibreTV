@@ -16,10 +16,10 @@ RUN pip install --no-cache-dir -r requirements.txt \
     && useradd --create-home --uid 10001 collector \
     && chown -R collector:collector /data \
     && scrapling install
-COPY app.py registry_queue.py worker.py ./
+COPY app.py registry_queue.py stats.py worker.py run_services.py ./
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod 755 /usr/local/bin/docker-entrypoint.sh
 EXPOSE 10000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 CMD python -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('PORT', '10000') + '/health', timeout=3)"
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["sh", "-c", "exec uvicorn app:app --host 0.0.0.0 --port \"${PORT:-10000}\" --workers 1"]
+CMD ["python", "run_services.py"]

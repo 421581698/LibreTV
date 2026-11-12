@@ -26,6 +26,29 @@ class RegistryQueueTests(unittest.TestCase):
         self.assertEqual(first["id"], second["id"])
         self.assertEqual(first["job_type"], "discover")
 
+    def test_batch_crawl_jobs_are_durable_and_claimable(self):
+        job = queue.submit_job(
+            "batch_crawl",
+            {"minimum": 101, "target": 250, "max_sites": 25},
+            "batch:101-plus",
+        )
+        claimed = queue.claim_job("batch-worker")
+        self.assertEqual(job["job_type"], "batch_crawl")
+        self.assertEqual(claimed["id"], job["id"])
+        self.assertEqual(claimed["job_type"], "batch_crawl")
+
+    def test_batch_submit_accepts_full_fmhy_site_budget(self):
+        with patch.object(queue, "require_auth"):
+            result = queue.api_submit_batch(
+                {"minimum": 101, "target": 1000, "max_sites": 1000, "idempotency_key": "daily:full-budget"},
+                authorization="Bearer test",
+            )
+        self.assertEqual(result["batch_target"]["max_sites"], 1000)
+        with queue.connect() as c:
+            row = c.execute("SELECT payload FROM collector_jobs WHERE id=?", (result["job_id"],)).fetchone()
+        payload = __import__("json").loads(row["payload"])
+        self.assertEqual(payload["max_sites"], 1000)
+
     def test_idempotent_job_submit_and_atomic_claim(self):
         first = queue.submit_job("crawl", {"url": "https://example.org"}, "crawl:example")
         second = queue.submit_job("crawl", {"url": "https://example.org"}, "crawl:example")
@@ -33,6 +56,17 @@ class RegistryQueueTests(unittest.TestCase):
         claimed = queue.claim_job("worker-a", lease_seconds=30)
         self.assertEqual(claimed["attempt"], 1)
         self.assertIsNone(queue.claim_job("worker-b"))
+
+    def test_initialize_does_not_recover_expired_worker_leases(self):
+        job = queue.submit_job("crawl", {"url": "https://example.org"}, "lease:init-no-recovery")
+        queue.claim_job("worker-a", lease_seconds=10)
+        with queue.connect() as c:
+            c.execute("UPDATE collector_jobs SET lease_until=0 WHERE id=?", (job["id"],))
+        queue.initialize()
+        with queue.connect() as c:
+            row = c.execute("SELECT status,lease_owner FROM collector_jobs WHERE id=?", (job["id"],)).fetchone()
+        self.assertEqual(row["status"], "running")
+        self.assertEqual(row["lease_owner"], "worker-a")
 
     def test_lease_expiry_requeues_job(self):
         job = queue.submit_job("crawl", {"url": "https://example.org"}, "lease:test")
@@ -60,6 +94,16 @@ class RegistryQueueTests(unittest.TestCase):
         with queue.connect() as c:
             row = c.execute("SELECT status FROM collector_jobs WHERE id=?", (job["id"],)).fetchone()
         self.assertEqual(row["status"], "failed")
+
+    def test_fail_job_does_not_overwrite_cancel_requested_job(self):
+        job = queue.submit_job("crawl", {"url": "https://example.org"}, "cancel-fail-race:test")
+        queue.claim_job("worker-a")
+        self.assertTrue(queue.cancel_job(job["id"]))
+        self.assertFalse(queue.fail_job(job["id"], "worker-a", "late worker error"))
+        with queue.connect() as c:
+            row = c.execute("SELECT status,lease_owner FROM collector_jobs WHERE id=?", (job["id"],)).fetchone()
+        self.assertEqual(row["status"], "cancel_requested")
+        self.assertEqual(row["lease_owner"], "worker-a")
 
     def test_cancel_queued_job(self):
         job = queue.submit_job("crawl", {"url": "https://example.org"}, "cancel:test")
@@ -105,6 +149,31 @@ class RegistryQueueTests(unittest.TestCase):
         })
         self.assertEqual(one["id"], again["id"])
         self.assertNotEqual(one["movie_id"], other["movie_id"])
+
+    def test_registry_library_paginates_all_resources_including_unverified(self):
+        created = []
+        for index in range(3):
+            created.append(queue.upsert_resource({
+                "resource_key": f"resource:library-{index}", "source_key": "fmhy",
+                "resource_type": "DIRECT_MEDIA", "url": f"https://media.example.org/{index}.m3u8",
+                "title": f"Library Film {index}", "access_state": "PUBLIC" if index == 0 else "ACCESS_UNKNOWN",
+            }))
+        queue.record_verification(created[0]["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        queue.record_verification(created[0]["id"], "player", "passed", {"progressed_seconds": 3})
+        with patch.object(queue, "require_auth"):
+            first = queue.api_search_resources(verified_only=False, limit=2, offset=0, authorization="Bearer test")
+            second = queue.api_search_resources(verified_only=False, limit=2, offset=2, authorization="Bearer test")
+            verified = queue.api_search_resources(verified_only=True, limit=2, offset=0, authorization="Bearer test")
+            searched = queue.api_search_resources(q="Library Film 1", verified_only=False, limit=2, offset=0, authorization="Bearer test")
+        self.assertEqual(len(first["resources"]), 2)
+        self.assertTrue(first["has_more"])
+        self.assertEqual(len(second["resources"]), 1)
+        self.assertFalse(second["has_more"])
+        self.assertEqual(first["total"], 3)
+        self.assertEqual(verified["total"], 1)
+        self.assertFalse(verified["has_more"])
+        self.assertEqual(searched["total"], 1)
+        self.assertFalse(searched["has_more"])
 
     def test_playback_requires_public_preflight(self):
         resource = queue.upsert_resource({

@@ -5,6 +5,86 @@ import worker
 
 
 class WorkerPipelineTests(unittest.TestCase):
+    def test_batch_job_aggregates_unique_media_across_fmhy_sites_until_minimum(self):
+        sites = [
+            {"host": "catalog-one.example", "url": "https://catalog-one.example/video", "title": "One"},
+            {"host": "catalog-two.example", "url": "https://catalog-two.example/video", "title": "Two"},
+            {"host": "catalog-three.example", "url": "https://catalog-three.example/video", "title": "Three"},
+        ]
+        checkpoints = []
+        calls = []
+
+        def fake_crawl(request, cancel_check=None):
+            site_index = len(calls)
+            calls.append(str(request.url))
+            candidates = [
+                {
+                    "id": f"{site_index * 60 + index + 1:032x}",
+                    "url": f"https://media-{site_index}.example/{index}.m3u8",
+                    "kind": "direct-media",
+                    "status": "pending",
+                }
+                for index in range(60)
+            ]
+            return {"status": "partial", "task_id": f"{site_index + 1:032x}", "candidates": candidates}
+
+        with (
+            patch.object(worker, "require_egress_firewall"),
+            patch.object(worker, "discover_sites", return_value=sites),
+            patch.object(worker, "get_discovered_sites", return_value=sites),
+            patch.object(worker, "crawl_site", side_effect=fake_crawl),
+            patch.object(worker, "validate_candidate", return_value={
+                "validation": {"reachable": True, "access": {"access_state": "PUBLIC"}}
+            }) as validate,
+        ):
+            result = worker.run_batch_crawl(
+                {"minimum": 101, "target": 101, "max_sites": 3},
+                checkpoints.append,
+                lambda: False,
+            )
+
+        self.assertTrue(result["batch_target"]["met"])
+        self.assertEqual(result["batch_target"]["collected"], 180)
+        self.assertEqual(result["sites_scanned"], 3)
+        self.assertEqual(len(calls), 3)
+        self.assertEqual(validate.call_count, 100)
+        self.assertIn("batch_site_completed", [item["stage"] for item in checkpoints])
+
+    def test_daily_scheduler_queues_one_full_directory_batch(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        with (
+            patch.dict("os.environ", {
+                "COLLECTOR_TIMEZONE": "UTC",
+                "COLLECTOR_DAILY_HOUR": "3",
+                "COLLECTOR_DAILY_MINUTE": "0",
+                "SCRAPLING_EGRESS_FIREWALL_CONFIRMED": "1",
+            }),
+            patch.object(worker, "submit_job", return_value={"id": "daily-job", "status": "queued"}) as submit,
+        ):
+            result = worker.enqueue_daily_batch(datetime(2026, 11, 11, 4, 0, tzinfo=ZoneInfo("UTC")))
+        self.assertEqual(result["job_id"], "daily-job")
+        args = submit.call_args.args
+        self.assertEqual(args[0], "batch_crawl")
+        self.assertEqual(args[1]["max_sites"], 1000)
+        self.assertEqual(args[1]["target"], 1000)
+        self.assertEqual(args[2], "daily-fmhy-batch:2026-11-11")
+
+    def test_daily_scheduler_does_not_queue_without_verified_egress_gate(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        with (
+            patch.dict("os.environ", {
+                "COLLECTOR_TIMEZONE": "UTC",
+                "COLLECTOR_DAILY_HOUR": "3",
+                "COLLECTOR_DAILY_MINUTE": "0",
+            }, clear=True),
+            patch.object(worker, "submit_job") as submit,
+        ):
+            result = worker.enqueue_daily_batch(datetime(2026, 11, 11, 4, 0, tzinfo=ZoneInfo("UTC")))
+        self.assertEqual(result["status"], "blocked_egress_gate")
+        submit.assert_not_called()
+
     def test_crawl_job_preflights_pending_direct_media_into_registry(self):
         task_id = "a" * 32
         candidates = [

@@ -4,8 +4,12 @@ on:
   push:
     branches:
       - feat/iphone-inline-play-top-search-2026-11-09
+      - feat/resource-intelligence-center-v2
+      - integration/**
     paths:
       - "services/scrapling-collector/**"
+      - "services/scrapling-collector/stats.py"
+      - "services/scrapling-collector/tests/test_stats.py"
       - "src/app/api/resource-collector/**"
       - "src/lib/resource-collector-client.ts"
       - "src/lib/resource-collector-client.test.ts"
@@ -158,7 +162,7 @@ jobs:
           assert status == 503 and "egress filtering" in body, ("discovery must fail closed", status, body)
 
           status, body = request("/v1/crawl", method="POST", token=token,
-                                 body={"url": "https://example.com", "mode": "http", "limit": 1})
+                                 body={"url": "https://example.com", "mode": "http", "limit": 101})
           assert status == 503 and "egress filtering" in body, ("crawl must fail closed", status, body)
 
           status, body = request("/v1/candidates/" + ("a" * 32) + "/validate",

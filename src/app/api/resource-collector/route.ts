@@ -8,7 +8,19 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   const guarded = guardPrivateFeatureRequest(request);
   if (guarded) return guarded;
-  const action = new URL(request.url).searchParams.get('action');
+  const url = new URL(request.url);
+  const action = url.searchParams.get('action');
+  if (action === 'stats') {
+    const host = url.searchParams.get('host');
+    const query = host ? '?host=' + encodeURIComponent(host) : '';
+    return collectorRequest('/v1/stats' + query, {}, 10_000, request);
+  }
+  if (action === 'library') {
+    const limit = Math.max(1, Math.min(100, Number(url.searchParams.get('limit') || 100)));
+    const offset = Math.max(0, Math.min(1_000_000, Number(url.searchParams.get('offset') || 0)));
+    const verifiedOnly = url.searchParams.get('verifiedOnly') !== 'false';
+    return collectorRequest('/v1/registry/resources?verified_only=' + String(verifiedOnly) + '&limit=' + limit + '&offset=' + offset, {}, 15_000, request);
+  }
   return collectorRequest(action === 'tasks' ? '/v1/tasks' : '/v1/discover', {}, 20_000, request);
 }
 
@@ -35,6 +47,13 @@ export async function POST(request: NextRequest) {
   if (!body || typeof body !== 'object') {
     return NextResponse.json({ error: 'Invalid collector request.' }, { status: 400 });
   }
+  if ('action' in body && body.action === 'batch') {
+    return collectorRequest('/v1/batches/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ minimum: 101, target: 1000, max_sites: 1000 }),
+    }, 20_000, request);
+  }
   if ('candidateId' in body && typeof body.candidateId === 'string') {
     if (!/^[a-f0-9]{32}$/i.test(body.candidateId)) {
       return NextResponse.json({ error: 'Invalid candidate ID.' }, { status: 400 });
@@ -58,6 +77,6 @@ export async function POST(request: NextRequest) {
   return collectorRequest('/v1/crawl', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url: parsed.toString(), limit: 50 }),
+    body: JSON.stringify({ url: parsed.toString(), limit: 250 }),
   }, 65_000, request);
 }

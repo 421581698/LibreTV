@@ -25,31 +25,21 @@ from scrapling.fetchers import Fetcher, FetcherSession, StealthySession
 from scrapling.spiders import Response, Spider
 from registry_queue import JobCancelled, router as registry_router, register_candidate_playback, register_discovered_candidate, sync_candidate_validation
 import registry_queue as registry_store
+from stats import build_stats
 
 FMHY_VIDEO_URL = "https://fmhy.net/video"
 TOKEN = os.environ.get("SCRAPLING_API_TOKEN", "").strip()
 DB_PATH = Path(os.environ.get("SCRAPLING_DB_PATH", "/data/collector.sqlite3"))
-MAX_RESULTS = 100
-MAX_CANDIDATES = 100
-MAX_CRAWL_DEPTH = 2
-MAX_CRAWL_PAGES = 12
-MAX_CRAWL_LINKS_PER_PAGE = 8
-MIN_HOST_INTERVAL = 2.0
+MAX_RESULTS = 1000
+MAX_CANDIDATES = 1000
+MIN_BATCH_CANDIDATES = 101
+DEFAULT_BATCH_CANDIDATES = 250
+MAX_CRAWL_DEPTH = 5
+MAX_CRAWL_PAGES = 100
+MAX_CRAWL_LINKS_PER_PAGE = 32
+MIN_HOST_INTERVAL = 1.0
 MEDIA_EXTENSIONS = (".m3u8", ".mp4", ".m4v", ".webm", ".mpd", ".mov", ".ts", ".m4s", ".aac")
 CMS_PATH_MARKERS = ("/api.php/provide/vod", "/provide/vod", "/api/v1/vod")
-# FMHY also lists unofficial aggregators, mirrors and torrent sources. Only
-# discover official ad-supported services and established public film archives.
-# This is a conservative discovery allow-list, not a claim that every title on
-# a platform is public domain; access and media checks still run per candidate.
-LEGAL_MEDIA_HOST_SUFFIXES = (
-    "tubi.tv", "tubitv.com", "plex.tv", "pluto.tv", "primevideo.com", "fawesome.tv",
-    "filmzie.com", "arte.tv", "bbc.co.uk", "kanopy.com", "hoopladigital.com",
-    "roku.com", "byutv.org", "playary.com", "shout-tv.com",
-    "loc.gov", "archives.gov", "nationalarchives.gov.uk",
-    "filmpreservation.org", "bfi.org.uk", "nfb.ca", "nfsa.gov.au",
-    "europeanfilmgateway.eu", "yfanefa.com", "texasarchive.org",
-    "chicagofilmarchives.org", "prelinger.com",
-)
 _last_request_by_host: dict[str, float] = {}
 
 if not TOKEN:
@@ -58,14 +48,16 @@ if not TOKEN:
 app = FastAPI(title="LibreTV FMHY Scrapling Collector", docs_url=None, redoc_url=None)
 app.include_router(registry_router)
 
-# Scrapling stores adaptive selector fingerprints in its own SQLite storage.
-Fetcher.adaptive = True
+# Enable Scrapling's persistent adaptive selector storage only when a crawl starts.
+# Importing the ASGI app must not create or migrate any database files.
+def enable_adaptive_fetcher() -> None:
+    Fetcher.adaptive = True
 
 
 class CrawlRequest(BaseModel):
     url: HttpUrl
     mode: str = Field(default="auto", pattern="^(auto|http|browser)$")
-    limit: int = Field(default=50, ge=1, le=MAX_CANDIDATES)
+    limit: int = Field(default=DEFAULT_BATCH_CANDIDATES, ge=MIN_BATCH_CANDIDATES, le=MAX_CANDIDATES)
     search_keyword: str = Field(default="", max_length=100)
 
 
@@ -77,6 +69,21 @@ class PlaybackEvidence(BaseModel):
     media_type: str = Field(pattern="^(hls|mp4|webm)$")
     observed_seconds: int = Field(ge=1, le=60)
     progressed_seconds: float = Field(ge=2, le=60)
+    decoded_width: int = Field(default=0, ge=0, le=16384)
+    decoded_height: int = Field(default=0, ge=0, le=16384)
+    selected_rendition_height: int = Field(default=0, ge=0, le=16384)
+    selected_rendition_bitrate_kbps: float = Field(default=0, ge=0, le=1000000)
+
+
+class PlaybackSampleEvidence(BaseModel):
+    host: str = Field(min_length=1, max_length=253)
+    media_type: str = Field(pattern="^(hls|mp4|webm)$")
+    observed_seconds: int = Field(ge=1, le=60)
+    progressed_seconds: float = Field(ge=2, le=60)
+    decoded_width: int = Field(default=0, ge=0, le=16384)
+    decoded_height: int = Field(default=0, ge=0, le=16384)
+    selected_rendition_height: int = Field(default=0, ge=0, le=16384)
+    selected_rendition_bitrate_kbps: float = Field(default=0, ge=0, le=1000000)
 
 
 def db() -> sqlite3.Connection:
@@ -108,6 +115,21 @@ def init_db() -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_candidates_task ON candidates(task_id);
         CREATE INDEX IF NOT EXISTS idx_tasks_created ON tasks(created_at DESC);
+        CREATE TABLE IF NOT EXISTS crawl_page_fingerprints (
+          host TEXT NOT NULL, page_key TEXT NOT NULL, fingerprint TEXT NOT NULL,
+          first_seen_at INTEGER NOT NULL, last_seen_at INTEGER NOT NULL,
+          last_changed_at INTEGER NOT NULL, visit_count INTEGER NOT NULL DEFAULT 1,
+          PRIMARY KEY(host,page_key)
+        );
+        CREATE TABLE IF NOT EXISTS playback_quality_samples (
+          id TEXT PRIMARY KEY, host TEXT NOT NULL, sample_source TEXT NOT NULL,
+          media_type TEXT NOT NULL, observed_seconds INTEGER NOT NULL,
+          progressed_seconds REAL NOT NULL, decoded_width INTEGER NOT NULL DEFAULT 0,
+          decoded_height INTEGER NOT NULL DEFAULT 0, selected_rendition_height INTEGER NOT NULL DEFAULT 0,
+          selected_rendition_bitrate_kbps REAL NOT NULL DEFAULT 0, created_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_playback_samples_host_created
+          ON playback_quality_samples(host,created_at DESC);
         """)
         # Forward-only, additive migrations keep existing collector volumes compatible.
         candidate_columns = {row["name"] for row in connection.execute("PRAGMA table_info(candidates)").fetchall()}
@@ -123,17 +145,25 @@ def init_db() -> None:
         for column, declaration in candidate_migrations.items():
             if column not in candidate_columns:
                 connection.execute(f"ALTER TABLE candidates ADD COLUMN {column} {declaration}")
+        task_columns = {row["name"] for row in connection.execute("PRAGMA table_info(tasks)").fetchall()}
+        task_migrations = {
+            "pages_scheduled": "INTEGER NOT NULL DEFAULT 0",
+            "pages_visited": "INTEGER NOT NULL DEFAULT 0",
+            "pages_failed": "INTEGER NOT NULL DEFAULT 0",
+            "pages_changed": "INTEGER NOT NULL DEFAULT 0",
+            "pages_unchanged": "INTEGER NOT NULL DEFAULT 0",
+        }
+        for column, declaration in task_migrations.items():
+            if column not in task_columns:
+                connection.execute(f"ALTER TABLE tasks ADD COLUMN {column} {declaration}")
         connection.execute(
             "UPDATE candidates SET access_state='ACCESS_UNKNOWN' WHERE access_state IS NULL OR access_state=''"
         )
-        connection.execute("UPDATE tasks SET status='interrupted',updated_at=? WHERE status='running'", (int(time.time()),))
     # Keep the Registry on the same SQLite file as the legacy Collector tables,
     # including tests that override DB_PATH with a temporary database.
     registry_store.DB_PATH = DB_PATH
     registry_store.initialize()
 
-
-init_db()
 
 
 def require_token(authorization: str | None) -> None:
@@ -1171,7 +1201,7 @@ def fmhy_category_pages_from_page(page) -> list[str]:
         if canonical not in seen:
             seen.add(canonical)
             pages.append(canonical)
-        if len(pages) >= 8:
+        if len(pages) >= 20:
             break
     return pages
 
@@ -1190,8 +1220,6 @@ def fmhy_sites_from_page(page, directory_url: str = FMHY_VIDEO_URL) -> list[dict
         host = parsed.hostname.lower().rstrip(".")
         if host == "fmhy.net" or host.endswith(".fmhy.net") or host in seen:
             continue
-        if not any(host == suffix or host.endswith("."+suffix) for suffix in LEGAL_MEDIA_HOST_SUFFIXES):
-            continue
         title = text_of(anchor)[:160]
         if not title:
             continue
@@ -1203,6 +1231,7 @@ def fmhy_sites_from_page(page, directory_url: str = FMHY_VIDEO_URL) -> list[dict
 
 
 def discover_sites() -> list[dict]:
+    enable_adaptive_fetcher()
     throttle("fmhy.net")
     root_page = Fetcher.get(FMHY_VIDEO_URL, timeout=25, follow_redirects="safe")
     directory_pages = [FMHY_VIDEO_URL, *fmhy_category_pages_from_page(root_page)]
@@ -1405,39 +1434,169 @@ def classify_access_state(status_code: int | None = None, headers=None, body: st
     }
 
 
-def infer_media_identity(title: str = "", url: str = "") -> dict:
-    """Conservative title/URL identity hints; never claim a match without evidence."""
+def extract_page_metadata(page, page_url: str = "") -> dict:
+    """Read public page metadata as data only; never execute scripts or fetch metadata URLs."""
+    values: dict = {"title": "", "media_type_hint": "unknown", "identity_source": "none"}
+    for selector in ("meta[property='og:title']", "meta[name='twitter:title']", "meta[name='title']"):
+        for element in adaptive_css(page, selector):
+            candidate = (element.attrib.get("content") or "").strip()
+            if candidate:
+                values["title"] = candidate[:200]
+                values["identity_source"] = "open_graph"
+                break
+        if values["title"]:
+            break
+    if not values["title"]:
+        for selector in ("h1", "title"):
+            selection = page.css(f"{selector}::text")
+            if hasattr(selection, "get"):
+                candidate = str(selection.get() or "").strip()
+            elif isinstance(selection, (list, tuple)):
+                candidate = str(selection[0] if selection else "").strip()
+            else:
+                candidate = str(selection or "").strip()
+            if candidate:
+                values["title"] = candidate[:200]
+                values["identity_source"] = "page_heading" if selector == "h1" else "page_title"
+                break
+    for element in adaptive_css(page, "meta[property='og:type'], meta[name='medium']"):
+        raw_type = (element.attrib.get("content") or "").strip().lower()
+        if raw_type in ("video.movie", "movie", "film"):
+            values["media_type_hint"] = "movie"
+            values["identity_source"] = "open_graph"
+        elif raw_type in ("video.episode", "tv_show", "tvseries", "series"):
+            values["media_type_hint"] = "tv"
+            values["identity_source"] = "open_graph"
+    for element in adaptive_css(page, "meta[property='article:published_time'], meta[name='date'], meta[itemprop='datePublished']"):
+        raw_date = (element.attrib.get("content") or element.attrib.get("datetime") or "").strip()
+        match = re.search(r"(?<!\d)((?:19|20)\d{2})(?!\d)", raw_date)
+        if match:
+            values["year_hint"] = int(match.group(1))
+            break
+    for element in adaptive_css(page, "meta[property='og:description'], meta[name='description']"):
+        description = (element.attrib.get("content") or "").strip()
+        if description:
+            values["description"] = description[:500]
+            break
+    for element in adaptive_css(page, "meta[property='og:image']"):
+        poster = (element.attrib.get("content") or "").strip()
+        if poster.startswith("https://"):
+            values["poster"] = poster[:2048]
+            break
+    # JSON-LD is parsed as bounded JSON data only.
+    for script in adaptive_css(page, "script[type='application/ld+json']"):
+        raw = (getattr(script, "text", "") or "").strip()
+        if not raw or len(raw) > 256_000:
+            continue
+        try:
+            parsed = json.loads(raw)
+        except (TypeError, ValueError):
+            continue
+        stack = parsed if isinstance(parsed, list) else [parsed]
+        while stack:
+            node = stack.pop()
+            if isinstance(node, list):
+                stack.extend(node[:100])
+                continue
+            if not isinstance(node, dict):
+                continue
+            graph = node.get("@graph")
+            if isinstance(graph, list):
+                stack.extend(graph[:100])
+            schema_type = node.get("@type", "")
+            schema_types = schema_type if isinstance(schema_type, list) else [schema_type]
+            normalized_types = {str(item).lower().rsplit("/", 1)[-1] for item in schema_types}
+            schema_name = str(node.get("name") or "").strip()
+            is_media_schema = bool(normalized_types.intersection({"movie", "tvseries", "tvseason", "tvepisode", "videoobject"}))
+            if schema_name and is_media_schema:
+                values["title"] = schema_name[:200]
+                values["identity_source"] = "schema_org"
+            if "movie" in normalized_types:
+                values["media_type_hint"] = "movie"
+                values["identity_source"] = "schema_org"
+            elif normalized_types.intersection({"tvseries", "tvseason", "tvepisode"}):
+                values["media_type_hint"] = "tv"
+                values["identity_source"] = "schema_org"
+            elif normalized_types.intersection({"videoobject", "creativework"}):
+                values["identity_source"] = "schema_org"
+            if "tvepisode" in normalized_types:
+                series_ref = node.get("partOfSeries") or node.get("partOfSeason") or {}
+                if isinstance(series_ref, dict) and series_ref.get("name"):
+                    values["title"] = str(series_ref["name"])[:200]
+                if schema_name:
+                    values["episode_title"] = schema_name[:200]
+                season_ref = node.get("partOfSeason") or {}
+                if isinstance(season_ref, dict) and season_ref.get("seasonNumber") is not None:
+                    try: values["season_hint"] = int(season_ref["seasonNumber"])
+                    except (TypeError, ValueError): pass
+            genre = node.get("genre", "")
+            genre_text = " ".join(genre) if isinstance(genre, list) else str(genre)
+            genre_probe = (schema_name + " " + genre_text).lower()
+            if any(word in genre_probe for word in ("anime", "动画", "动漫", "番剧")):
+                values["media_type_hint"] = "anime"
+                values["identity_source"] = "schema_org"
+            elif any(word in genre_probe for word in ("documentary", "纪录片")):
+                values["media_type_hint"] = "documentary"
+                values["identity_source"] = "schema_org"
+            date_value = str(node.get("datePublished") or node.get("dateCreated") or "")
+            match = re.search(r"(?<!\d)((?:19|20)\d{2})(?!\d)", date_value)
+            if match:
+                values["year_hint"] = int(match.group(1))
+            if node.get("seasonNumber") is not None:
+                try: values["season_hint"] = int(node["seasonNumber"])
+                except (TypeError, ValueError): pass
+            if node.get("episodeNumber") is not None:
+                try: values["episode_hint"] = int(node["episodeNumber"])
+                except (TypeError, ValueError): pass
+    return values
+
+
+def infer_media_identity(title: str = "", url: str = "", page_metadata: dict | None = None) -> dict:
+    """Infer hints conservatively; ambiguous resources remain unclassified."""
+    metadata = page_metadata if isinstance(page_metadata, dict) else {}
     fallback_name = urlparse(url).path.rsplit("/", 1)[-1] if url else ""
-    source = title.strip() if isinstance(title, str) and title.strip() else fallback_name
+    source = str(metadata.get("title") or title or fallback_name).strip()
     release_source = f"{source} {fallback_name}"
-    year_match = re.search(r"(?<!\d)((?:19|20)\d{2})(?!\d)", source)
-    season_match = re.search(r"(?i)(?:season\s*|s)(\d{1,2})", source)
-    episode_match = re.search(r"(?i)(?:episode\s*|ep?)(\d{1,3})", source)
+    year_match = re.search(r"(?<!\d)((?:19|20)\d{2})(?!\d)", release_source)
+    season_match = re.search(r"(?i)\b(?:season\s*|s)(\d{1,2})", release_source)
+    episode_match = re.search(r"(?i)(?:\b(?:episode\s*|ep?)(\d{1,3})|(?<=\d)e(\d{1,3}))", release_source)
     quality_match = re.search(r"(?i)(2160p|4k|1080p|720p|480p)", release_source)
     codec_match = re.search(r"(?i)(hevc|h\.265|h265|x265|av1|h\.264|h264|x264)", release_source)
     cleaned = re.sub(r"(?i)\.(m3u8|mp4|m4v|webm|mpd|mov|ts|m4s|aac)(?:$|\?).*", "", source)
-    cleaned = re.sub(r"(?i)(?:season\s*|s)\d{1,2}|(?:episode\s*|ep?)\d{1,3}|(?<!\d)(?:19|20)\d{2}(?!\d)|2160p|4k|1080p|720p|480p|hevc|h\.?265|x265|av1|h\.?264|x264", " ", cleaned)
+    cleaned = re.sub(r"(?i)\b(?:season\s*|s)\d{1,2}(?:e\d{1,3})?|\b(?:episode\s*|ep?)\d{1,3}|(?<!\d)(?:19|20)\d{2}(?!\d)|2160p|4k|1080p|720p|480p|hevc|h\.?265|x265|av1|h\.?264|x264", " ", cleaned)
     cleaned = re.sub(r"[^\w\u4e00-\u9fff]+", " ", cleaned, flags=re.UNICODE)
     title_hint = " ".join(cleaned.split())[:160]
-    year = int(year_match.group(1)) if year_match else None
-    season = int(season_match.group(1)) if season_match else None
-    episode = int(episode_match.group(1)) if episode_match else None
+    year = int(year_match.group(1)) if year_match else metadata.get("year_hint")
+    season = int(season_match.group(1)) if season_match else metadata.get("season_hint")
+    episode = int(next(group for group in episode_match.groups() if group)) if episode_match else metadata.get("episode_hint")
     quality_hint = quality_match.group(1).lower() if quality_match else None
     codec_hint = codec_match.group(1).lower().replace(".", "") if codec_match else None
+    media_type = str(metadata.get("media_type_hint") or "unknown").lower()
+    if media_type not in ("movie", "tv", "anime", "documentary", "variety", "short", "unknown"):
+        media_type = "unknown"
+    if media_type == "unknown":
+        probe = (source + " " + url).lower()
+        if any(word in probe for word in ("纪录片", "documentary")): media_type = "documentary"
+        elif any(word in probe for word in ("anime", "动画", "动漫", "番剧")): media_type = "anime"
+        elif any(word in probe for word in ("电视剧", "tv series", "tv show")): media_type = "tv"
+        elif any(word in probe for word in ("电影", "movie", "film")): media_type = "movie"
+        elif any(word in probe for word in ("综艺", "variety show")): media_type = "variety"
     identity_material = "|".join((title_hint.lower(), str(year or ""), str(season or ""), str(episode or "")))
     entity_key = hashlib.sha256(identity_material.encode()).hexdigest()[:24] if title_hint else None
     version_material = "|".join((identity_material, quality_hint or "", codec_hint or ""))
     version_key = hashlib.sha256(version_material.encode()).hexdigest()[:24] if title_hint else None
+    confidence = "structured_metadata" if metadata.get("identity_source") == "schema_org" else (
+        "page_metadata" if metadata.get("identity_source") == "open_graph" else "hint_only"
+    )
     return {
-        "title_hint": title_hint or None,
-        "year_hint": year,
-        "season_hint": season,
-        "episode_hint": episode,
-        "quality_hint": quality_hint,
-        "codec_hint": codec_hint,
-        "entity_key": entity_key,
-        "version_key": version_key,
-        "match_confidence": "hint_only",
+        "title_hint": title_hint or None, "episode_title": str(metadata.get("episode_title") or "")[:200] or None,
+        "year_hint": year, "season_hint": season, "episode_hint": episode,
+        "media_type": media_type, "quality_hint": quality_hint,
+        "codec_hint": codec_hint, "entity_key": entity_key,
+        "version_key": version_key, "identity_source": metadata.get("identity_source", "filename_or_page_title"),
+        "description": str(metadata.get("description") or "")[:500],
+        "poster": str(metadata.get("poster") or "")[:2048],
+        "match_confidence": confidence,
     }
 
 
@@ -1494,7 +1653,7 @@ def normalize_candidate(candidate: dict) -> dict:
         source for source in item.get("collected_by", []) if source in ("spider", "browser", "fmhy")
     ))
     item["media_identity"] = item.get("media_identity") or infer_media_identity(
-        item.get("title", ""), item.get("url", "")
+        item.get("title", ""), item.get("url", ""), item.get("page_metadata")
     )
     item["quality_evidence"] = item.get("quality_evidence") or build_quality_evidence(item.get("validation"))
     item["quality_evidence"] = rank_quality_evidence(item["quality_evidence"], item["media_identity"])
@@ -1503,7 +1662,9 @@ def normalize_candidate(candidate: dict) -> dict:
 
 def extract_candidates(page, page_url: str, limit: int) -> list[dict]:
     found: dict[str, dict] = {}
-    title = (page.css("title::text").get() or "").strip()[:200]
+    page_metadata = extract_page_metadata(page, page_url)
+    title = str(page_metadata.get("title") or "")[:200]
+    candidate_metadata = {"page_metadata": page_metadata, "media_identity": infer_media_identity(title, page_url, page_metadata)}
     selectors = [("video", "src"), ("source", "src"), ("iframe", "src"), ("a", "href"), ("script", "src")]
     for selector, attribute in selectors:
         for element in adaptive_css(page, selector):
@@ -1516,7 +1677,7 @@ def extract_candidates(page, page_url: str, limit: int) -> list[dict]:
                 continue
             kind, host = classified
             access = classify_access_state(url=absolute)
-            found.setdefault(absolute, {"url": absolute, "kind": kind, "host": host, "title": title, **access})
+            found.setdefault(absolute, {"url": absolute, "kind": kind, "host": host, "title": title, **candidate_metadata, **access})
             if len(found) >= limit:
                 return list(found.values())
     # Public metadata and common player configuration attributes.
@@ -1530,22 +1691,29 @@ def extract_candidates(page, page_url: str, limit: int) -> list[dict]:
                 except (ValueError, TypeError):
                     pass
             for candidate_url in values:
+                # Player configs commonly store same-site relative paths.
+                # Resolve them against the already fetched page, then apply the
+                # exact same HTTPS/credential/host classification as absolute URLs.
+                candidate_url = urljoin(page_url, candidate_url)
                 if not candidate_url.startswith("https://"):
                     continue
                 classified = classify_url(candidate_url)
                 if classified:
                     kind, host = classified
-                    found.setdefault(candidate_url, {"url": candidate_url, "kind": kind, "host": host, "title": title})
+                    found.setdefault(candidate_url, {"url": candidate_url, "kind": kind, "host": host, "title": title, **candidate_metadata})
     # Inspect inline public player configuration only; never execute scripts or bypass access controls.
     for script in adaptive_css(page, "script"):
         script_text = (getattr(script, "text", "") or "").strip()
         if not script_text or len(script_text) > 512_000:
             continue
-        for match in re.findall(r"""(?i)(?:file|src|url|playurl|play_url|video_url|hls|dash)\s*[:=]\s*["'](https://[^"'\s<>]+)["']""", script_text):
-            classified = classify_url(match)
+        for match in re.findall(r"""(?i)(?:file|src|url|playurl|play_url|video_url|hls|dash)\s*[:=]\s*(["'])([^"'\s<>]{1,4096})\1""", script_text):
+            candidate_url = urljoin(page_url, match[1])
+            if not candidate_url.startswith("https://"):
+                continue
+            classified = classify_url(candidate_url)
             if classified:
                 kind, host = classified
-                found.setdefault(match, {"url": match, "kind": kind, "host": host, "title": title})
+                found.setdefault(candidate_url, {"url": candidate_url, "kind": kind, "host": host, "title": title, **candidate_metadata})
     return list(found.values())[:limit]
 
 
@@ -1660,18 +1828,12 @@ class SiteSpider(Spider):
         manager.add("default", FetcherSession(follow_redirects="safe"))
 
     async def parse(self, response: Response):
-        title = (response.css("title::text").get() or "").strip()[:200]
-        seen: set[str] = set()
-        for selector, attribute in (("video", "src"), ("source", "src"), ("iframe", "src"), ("a", "href"), ("script", "src")):
-            for element in adaptive_css(response, selector):
-                value = (element.attrib.get(attribute) or "").strip()
-                absolute = urljoin(response.url, value)
-                classified = classify_url(absolute)
-                if not classified or absolute in seen:
-                    continue
-                seen.add(absolute)
-                kind, host = classified
-                yield {"url": absolute, "kind": kind, "host": host, "title": title}
+        # Reuse the richer public-page extractor so HTTP Spider sees the same
+        # player attributes and inline public configuration as browser capture.
+        # This does not execute scripts or attempt to pass access controls.
+        candidate_limit = int(getattr(self, "candidate_limit", MAX_CANDIDATES))
+        for item in extract_candidates(response, response.url, candidate_limit):
+            yield item
 
 
 def frontier_link_priority(target: str, anchor_text: str = "") -> int | None:
@@ -1702,15 +1864,69 @@ class SpiderCandidateBatch(list):
         self.diagnostics = diagnostics or {}
 
 
+def page_fingerprint_changed(host: str, page_url: str, body: bytes) -> bool:
+    """Check whether a page changed without committing the fingerprint."""
+    page_key = hashlib.sha256(canonical_candidate_url(page_url).encode()).hexdigest()
+    fingerprint = hashlib.sha256(body or b"").hexdigest()
+    with db() as connection:
+        row = connection.execute(
+            "SELECT fingerprint FROM crawl_page_fingerprints WHERE host=? AND page_key=?",
+            (host, page_key),
+        ).fetchone()
+    return row is None or row["fingerprint"] != fingerprint
+
+
+def record_page_fingerprint(host: str, page_url: str, body: bytes) -> bool:
+    """Persist a successfully processed page fingerprint and return whether it changed."""
+    page_key = hashlib.sha256(canonical_candidate_url(page_url).encode()).hexdigest()
+    fingerprint = hashlib.sha256(body or b"").hexdigest()
+    now = int(time.time())
+    with db() as connection:
+        row = connection.execute(
+            "SELECT fingerprint FROM crawl_page_fingerprints WHERE host=? AND page_key=?",
+            (host, page_key),
+        ).fetchone()
+        changed = row is None or row["fingerprint"] != fingerprint
+        connection.execute(
+            """INSERT INTO crawl_page_fingerprints
+               (host,page_key,fingerprint,first_seen_at,last_seen_at,last_changed_at,visit_count)
+               VALUES(?,?,?,?,?,?,1)
+               ON CONFLICT(host,page_key) DO UPDATE SET
+                 fingerprint=excluded.fingerprint,last_seen_at=excluded.last_seen_at,
+                 last_changed_at=CASE WHEN crawl_page_fingerprints.fingerprint<>excluded.fingerprint
+                                      THEN excluded.last_changed_at ELSE crawl_page_fingerprints.last_changed_at END,
+                 visit_count=crawl_page_fingerprints.visit_count+1""",
+            (host,page_key,fingerprint,now,now,now),
+        )
+    return changed
+
+
 def run_spider(url: str, limit: int) -> list[dict]:
+    enable_adaptive_fetcher()
     class TargetSiteSpider(SiteSpider):
         start_urls = [url]
         allowed_domains = [urlparse(url).hostname]
+        candidate_limit = limit
         pages_scheduled: set[str] = {canonical_candidate_url(url)}
         pages_processed: set[str] = set()
+        changed_pages = 0
+        unchanged_pages = 0
 
         async def parse(self, response: Response):
+            body = getattr(response, "body", b"") or b""
+            host = self.allowed_domains[0]
+            changed = page_fingerprint_changed(host, response.url, body)
+            # Always re-extract public candidates. Parser improvements must also
+            # apply to unchanged pages already seen by earlier collector versions.
+            extracted_items = []
             async for item in super().parse(response):
+                extracted_items.append(item)
+            record_page_fingerprint(host, response.url, body)
+            if changed:
+                type(self).changed_pages += 1
+            else:
+                type(self).unchanged_pages += 1
+            for item in extracted_items:
                 yield item
             current = canonical_candidate_url(response.url)
             if current not in self.pages_processed:
@@ -1768,6 +1984,8 @@ def run_spider(url: str, limit: int) -> list[dict]:
         "frontier_max_pages": MAX_CRAWL_PAGES,
         "pages_scheduled": len(TargetSiteSpider.pages_scheduled),
         "pages_processed": len(TargetSiteSpider.pages_processed),
+        "changed_pages": TargetSiteSpider.changed_pages,
+        "unchanged_pages": TargetSiteSpider.unchanged_pages,
         "requests_count": getattr(stats, "requests_count", None),
         "completed": getattr(result, "completed", None),
     }
@@ -1880,15 +2098,24 @@ def run_browser_capture(url: str, limit: int) -> tuple[object, list[dict], dict]
         return page, merge_unique_candidates(candidates, api_candidates, limit), diagnostics
 
 
-def persist_task(task_id: str, url: str, host: str, mode: str, status: str, error: str | None = None, count: int = 0) -> None:
+def persist_task(
+    task_id: str, url: str, host: str, mode: str, status: str,
+    error: str | None = None, count: int = 0, pages_scheduled: int = 0,
+    pages_visited: int = 0, pages_failed: int = 0,
+    pages_changed: int = 0, pages_unchanged: int = 0,
+) -> None:
     with db() as connection:
         connection.execute(
-            "UPDATE tasks SET status=?,updated_at=?,error=?,result_count=? WHERE id=?",
-            (status, int(time.time()), error, count, task_id),
+            """UPDATE tasks SET status=?,updated_at=?,error=?,result_count=?,
+               pages_scheduled=?,pages_visited=?,pages_failed=?,pages_changed=?,pages_unchanged=?
+               WHERE id=?""",
+            (status, int(time.time()), error, count, pages_scheduled, pages_visited,
+             pages_failed, pages_changed, pages_unchanged, task_id),
         )
 
 
 def crawl_site(payload: CrawlRequest, cancel_check=None) -> dict:
+    enable_adaptive_fetcher()
     require_egress_firewall()
     raw_url, host = public_https_url(str(payload.url))
     with db() as connection:
@@ -1904,6 +2131,7 @@ def crawl_site(payload: CrawlRequest, cancel_check=None) -> dict:
             (task_id, raw_url, host, "running", payload.mode, now, now),
         )
 
+    pages_scheduled = pages_visited = pages_failed = pages_changed = pages_unchanged = 0
     try:
         throttle(host)
         candidates: list[dict] = []
@@ -1969,9 +2197,23 @@ def crawl_site(payload: CrawlRequest, cancel_check=None) -> dict:
                 browser_diagnostics.update({"status": "failed", "error": type(exc).__name__})
                 errors.append(f"Browser capture: {type(exc).__name__}")
 
+        spider_attempted = payload.mode in ("auto", "http")
+        browser_attempted = payload.mode in ("auto", "browser")
+        spider_scheduled = int(spider_diagnostics.get("pages_scheduled") or (1 if spider_diagnostics.get("status") == "failed" else 0)) if spider_attempted else 0
+        spider_visited = int(spider_diagnostics.get("pages_processed") or 0) if spider_attempted else 0
+        browser_visited = 1 if browser_attempted and browser_diagnostics.get("status") == "completed" else 0
+        pages_scheduled = spider_scheduled + (1 if browser_attempted else 0)
+        pages_visited = spider_visited + browser_visited
+        pages_failed = max(0, pages_scheduled - pages_visited)
+        pages_changed = int(spider_diagnostics.get("changed_pages") or 0)
+        pages_unchanged = int(spider_diagnostics.get("unchanged_pages") or 0)
+
         if callable(cancel_check) and cancel_check():
             raise JobCancelled()
 
+        minimum_target_met = len(candidates) >= MIN_BATCH_CANDIDATES
+        if not minimum_target_met:
+            errors.append(f"Minimum single-task target not met: {len(candidates)}/{MIN_BATCH_CANDIDATES} unique candidates")
         now = int(time.time())
         with db() as connection:
             for item in candidates[:payload.limit]:
@@ -1992,24 +2234,37 @@ def crawl_site(payload: CrawlRequest, cancel_check=None) -> dict:
                 item["id"] = candidate_id
                 item["status"] = "pending"
             connection.execute(
-                "UPDATE tasks SET status=?,updated_at=?,error=?,result_count=? WHERE id=?",
-                ("partial" if errors and candidates else ("failed" if errors else "completed"), now, "; ".join(errors) or None, len(candidates), task_id),
+                """UPDATE tasks SET status=?,updated_at=?,error=?,result_count=?,
+                   pages_scheduled=?,pages_visited=?,pages_failed=?,pages_changed=?,pages_unchanged=? WHERE id=?""",
+                ("partial" if errors and candidates else ("failed" if errors else "completed"), now,
+                 "; ".join(errors) or None, len(candidates), pages_scheduled, pages_visited,
+                 pages_failed, pages_changed, pages_unchanged, task_id),
             )
         for item in candidates[:payload.limit]:
             register_discovered_candidate(item)
         task_status = "partial" if errors and candidates else ("failed" if errors else "completed")
         return {"task_id": task_id, "status": task_status,
+                 "batch_target": {"minimum": MIN_BATCH_CANDIDATES, "requested": payload.limit,
+                                  "collected": len(candidates), "met": minimum_target_met,
+                                  "shortfall": max(0, MIN_BATCH_CANDIDATES - len(candidates))},
                 "page_url": raw_url, "final_url": final_url, "page_title": page_title,
                 "mode": payload.mode, "engine": "Scrapling Spider + StealthySession",
                 "count": len(candidates), "captured_request_count": captured_request_count,
+                "page_metrics": {"scheduled": pages_scheduled, "visited": pages_visited,
+                                 "failed": pages_failed, "changed": pages_changed,
+                                 "unchanged": pages_unchanged},
                 "diagnostics": {"http_spider": spider_diagnostics, "browser": browser_diagnostics},
                 "candidates": candidates[:payload.limit], "errors": errors,
                 "note": "Collected public candidates only. Candidates are not yet trusted playback sources and require validation/approval."}
     except JobCancelled:
-        persist_task(task_id, raw_url, host, payload.mode, "cancelled", "cancelled_by_request")
+        persist_task(task_id, raw_url, host, payload.mode, "cancelled", "cancelled_by_request",
+                     pages_scheduled=pages_scheduled, pages_visited=pages_visited,
+                     pages_failed=pages_failed, pages_changed=pages_changed, pages_unchanged=pages_unchanged)
         raise
     except Exception as exc:
-        persist_task(task_id, raw_url, host, payload.mode, "failed", type(exc).__name__)
+        persist_task(task_id, raw_url, host, payload.mode, "failed", type(exc).__name__,
+                     pages_scheduled=pages_scheduled, pages_visited=pages_visited,
+                     pages_failed=pages_failed, pages_changed=pages_changed, pages_unchanged=pages_unchanged)
         raise HTTPException(status_code=502, detail=f"Scrapling crawl failed: {type(exc).__name__}")
 
 @app.post("/v1/candidates/{candidate_id}/playback")
@@ -2024,7 +2279,7 @@ def record_playback_evidence(
         raise HTTPException(status_code=400, detail="Invalid candidate ID")
     with db() as connection:
         row = connection.execute(
-            "SELECT kind,status,access_state,validation FROM candidates WHERE id=?",
+            "SELECT host,kind,status,access_state,validation,url,title,media_identity,quality_evidence FROM candidates WHERE id=?",
             (candidate_id,),
         ).fetchone()
         if not row:
@@ -2054,6 +2309,10 @@ def record_playback_evidence(
             "media_type": payload.media_type,
             "observed_seconds": payload.observed_seconds,
             "progressed_seconds": payload.progressed_seconds,
+            "decoded_width": payload.decoded_width,
+            "decoded_height": payload.decoded_height,
+            "selected_rendition_height": payload.selected_rendition_height,
+            "selected_rendition_bitrate_kbps": payload.selected_rendition_bitrate_kbps,
             "verified_at": int(time.time()),
             "verification_scope": "browser_video_element_time_progression",
         }
@@ -2061,8 +2320,74 @@ def record_playback_evidence(
             "UPDATE candidates SET playback_verification=? WHERE id=?",
             (json.dumps(evidence, ensure_ascii=False), candidate_id),
         )
+        connection.execute(
+            """INSERT INTO playback_quality_samples
+               (id,host,sample_source,media_type,observed_seconds,progressed_seconds,
+                decoded_width,decoded_height,selected_rendition_height,
+                selected_rendition_bitrate_kbps,created_at)
+               VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+            (uuid.uuid4().hex, row["host"], "collector_preview", payload.media_type,
+             payload.observed_seconds, payload.progressed_seconds, payload.decoded_width,
+             payload.decoded_height, payload.selected_rendition_height,
+             payload.selected_rendition_bitrate_kbps, int(time.time())),
+        )
+    try:
+        media_identity = json.loads(row["media_identity"] or "{}")
+    except (TypeError, ValueError):
+        media_identity = {}
+    try:
+        quality_evidence = json.loads(row["quality_evidence"] or "{}")
+    except (TypeError, ValueError):
+        quality_evidence = {}
+    register_discovered_candidate({
+        "id": candidate_id, "url": row["url"], "host": row["host"],
+        "kind": row["kind"], "title": row["title"], "status": row["status"],
+        "access_state": row["access_state"], "media_identity": media_identity,
+        "quality_evidence": quality_evidence,
+    })
+    sync_candidate_validation(candidate_id, validation, row["status"])
     registry_result = register_candidate_playback(candidate_id, evidence)
     return {"candidate_id": candidate_id, "playback_verification": evidence, **registry_result}
+
+
+@app.post("/v1/playback-samples")
+# Persist host-level playback metrics only; no title, raw media URL, or user identifier is stored.
+def record_general_playback_sample(
+    payload: PlaybackSampleEvidence,
+    authorization: str | None = Header(default=None),
+):
+    """Persist only aggregate-quality evidence for playback from discovered FMHY hosts."""
+    require_token(authorization)
+    host = payload.host.strip().lower().rstrip(".")
+    if not re.fullmatch(r"[a-z0-9.-]{1,253}", host) or "." not in host:
+        raise HTTPException(status_code=400, detail="Invalid playback source host")
+    with db() as connection:
+        site = connection.execute("SELECT host FROM sites WHERE host=?", (host,)).fetchone()
+        if not site:
+            return {"recorded": False, "reason": "host_not_in_fmhy_directory"}
+        connection.execute(
+            """INSERT INTO playback_quality_samples
+               (id,host,sample_source,media_type,observed_seconds,progressed_seconds,
+                decoded_width,decoded_height,selected_rendition_height,
+                selected_rendition_bitrate_kbps,created_at)
+               VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+            (uuid.uuid4().hex, host, "player", payload.media_type,
+             payload.observed_seconds, payload.progressed_seconds, payload.decoded_width,
+             payload.decoded_height, payload.selected_rendition_height,
+             payload.selected_rendition_bitrate_kbps, int(time.time())),
+        )
+    return {"recorded": True, "host": host}
+
+
+@app.get("/v1/stats")
+def collector_statistics(host: str | None = None, authorization: str | None = Header(default=None)):
+    """Read-only statistics derived from persisted Collector SQLite records."""
+    require_token(authorization)
+    normalized_host = (host or "").strip().lower().rstrip(".") or None
+    if normalized_host and (len(normalized_host) > 253 or "/" in normalized_host or "@" in normalized_host):
+        raise HTTPException(status_code=400, detail="Invalid site host")
+    with db() as connection:
+        return build_stats(connection, normalized_host)
 
 
 @app.get("/health")
@@ -2136,6 +2461,7 @@ def task_candidates(task_id: str, authorization: str | None = Header(default=Non
 
 @app.post("/v1/candidates/{candidate_id}/validate")
 def validate_candidate(candidate_id: str, authorization: str | None = Header(default=None)):
+    enable_adaptive_fetcher()
     require_token(authorization)
     require_egress_firewall()
     with db() as connection:

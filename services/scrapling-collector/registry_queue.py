@@ -82,15 +82,6 @@ def initialize() -> None:
           event TEXT NOT NULL, detail TEXT NOT NULL DEFAULT '{}', created_at INTEGER NOT NULL
         );
         """)
-        now = int(time.time())
-        expired = c.execute("SELECT id FROM collector_jobs WHERE status='running' AND lease_until IS NOT NULL AND lease_until<=?", (now,)).fetchall()
-        c.execute("UPDATE collector_jobs SET status='queued',lease_owner=NULL,lease_until=NULL,updated_at=? WHERE status='running' AND lease_until IS NOT NULL AND lease_until<=?", (now, now))
-        for row in expired:
-            event(c, row["id"], "lease_expired_recovered", {"recovered_at_startup": True})
-        cancelled = c.execute("SELECT id FROM collector_jobs WHERE status='cancel_requested' AND lease_until IS NOT NULL AND lease_until<=?", (now,)).fetchall()
-        c.execute("UPDATE collector_jobs SET status='cancelled',lease_owner=NULL,lease_until=NULL,updated_at=? WHERE status='cancel_requested' AND lease_until IS NOT NULL AND lease_until<=?", (now, now))
-        for row in cancelled:
-            event(c, row["id"], "cancelled_after_worker_lease_expired", {})
 
 
 def require_auth(authorization: str | None) -> None:
@@ -106,7 +97,7 @@ def event(c: sqlite3.Connection, job_id: str, name: str, detail: dict | None = N
 
 
 def submit_job(job_type: str, payload: dict, idempotency_key: str, max_attempts: int = 4) -> dict:
-    if job_type not in {"crawl", "discover"}:
+    if job_type not in {"crawl", "discover", "batch_crawl"}:
         raise ValueError("Unsupported job type")
     if not idempotency_key or len(idempotency_key) > 200:
         raise ValueError("Invalid idempotency key")
@@ -179,16 +170,23 @@ def finish_job(job_id: str, worker_id: str, result: dict | None = None) -> bool:
 def fail_job(job_id: str, worker_id: str, error: str, retryable: bool = True) -> bool:
     now = int(time.time())
     with connect() as c:
+        # Keep the ownership check and transition atomic with cancel_job().
+        c.execute("BEGIN IMMEDIATE")
         row = c.execute("SELECT attempt,max_attempts FROM collector_jobs WHERE id=? AND status='running' AND lease_owner=?", (job_id,worker_id)).fetchone()
         if not row:
+            c.commit()
             return False
         retry = retryable and row["attempt"] < row["max_attempts"]
         delay = min(3600, 15 * (2 ** max(0,row["attempt"] - 1)))
         status = "queued" if retry else "failed"
-        c.execute("""UPDATE collector_jobs SET status=?,available_at=?,error=?,lease_owner=NULL,
-          lease_until=NULL,updated_at=? WHERE id=?""",
-          (status,now+delay if retry else now,str(error)[:500],now,job_id))
+        cur = c.execute("""UPDATE collector_jobs SET status=?,available_at=?,error=?,lease_owner=NULL,
+          lease_until=NULL,updated_at=? WHERE id=? AND status='running' AND lease_owner=?""",
+          (status,now+delay if retry else now,str(error)[:500],now,job_id,worker_id))
+        if cur.rowcount != 1:
+            c.commit()
+            return False
         event(c,job_id,"retry_scheduled" if retry else "dead_letter",{"error":str(error)[:500],"retry_at":now+delay if retry else None})
+        c.commit()
         return True
 
 
@@ -366,19 +364,63 @@ def register_discovered_candidate(candidate: dict) -> dict | None:
     }.get(kind)
     if not resource_type:
         return None
+    identity = candidate.get("media_identity") if isinstance(candidate.get("media_identity"), dict) else {}
+    quality = candidate.get("quality_evidence") if isinstance(candidate.get("quality_evidence"), dict) else {}
+    media_type = str(identity.get("media_type") or "unknown")
+    title_hint = str(identity.get("title_hint") or "").strip()[:200]
+    confidence = str(identity.get("match_confidence") or "hint_only")
+    # Only structured page metadata may create a canonical title record.
+    # Filename/page-title hints remain searchable candidates, not asserted movie identities.
+    canonical_identity = (
+        media_type in {"movie", "tv", "anime", "documentary", "variety", "short"}
+        and bool(title_hint)
+        and confidence in {"structured_metadata", "page_metadata"}
+    )
+    movie_external_key = None
+    episode_external_key = None
+    if canonical_identity:
+        movie_identity_material = "|".join((media_type, title_hint.casefold(), str(identity.get("year_hint") or "")))
+        movie_external_key = "media:" + hashlib.sha256(movie_identity_material.encode()).hexdigest()[:24]
+        if identity.get("season_hint") is not None and identity.get("episode_hint") is not None:
+            episode_external_key = movie_external_key + ":s" + str(identity["season_hint"]) + ":e" + str(identity["episode_hint"])
+    page_metadata = candidate.get("page_metadata") if isinstance(candidate.get("page_metadata"), dict) else {}
+    display_title = title_hint if canonical_identity else str(candidate.get("title") or candidate.get("host") or "待识别资源")
+    movie_metadata = {
+        "media_type": media_type,
+        "identity_confidence": confidence,
+        "identity_source": identity.get("identity_source"),
+        "description": identity.get("description") or page_metadata.get("description"),
+        "poster": identity.get("poster") or page_metadata.get("poster"),
+    }
+    resource_metadata = {
+        "discovery_status": candidate.get("status", "pending"),
+        "search_keyword": str(candidate.get("search_keyword") or "")[:100],
+        "media_identity": identity,
+        "page_metadata": {
+            "identity_source": page_metadata.get("identity_source"),
+            "description": str(page_metadata.get("description") or "")[:500],
+            "poster": str(page_metadata.get("poster") or "")[:2048],
+        },
+        "quality_evidence": quality,
+    }
     return upsert_resource({
-        "resource_key": "candidate:"+str(candidate["id"]),
+        "resource_key": "candidate:" + str(candidate["id"]),
         "candidate_id": candidate["id"],
         "source_key": candidate.get("host") or "unknown",
         "source_name": candidate.get("host") or "Unknown source",
         "resource_type": resource_type,
         "url": candidate["url"],
-        "title": candidate.get("title") or candidate.get("host") or "Untitled resource",
+        "title": display_title,
         "access_state": candidate.get("access_state") or "ACCESS_UNKNOWN",
-        "metadata": {
-            "discovery_status": candidate.get("status", "pending"),
-            "search_keyword": str(candidate.get("search_keyword") or "")[:100],
-        },
+        "movie_external_key": movie_external_key,
+        "episode_external_key": episode_external_key,
+        "movie_title": title_hint if canonical_identity else None,
+        "episode_title": str(identity.get("episode_title") or display_title)[:200] if episode_external_key else None,
+        "year": identity.get("year_hint") if canonical_identity else None,
+        "season": identity.get("season_hint") if episode_external_key else None,
+        "episode": identity.get("episode_hint") if episode_external_key else None,
+        "movie_metadata": movie_metadata if canonical_identity else {},
+        "metadata": resource_metadata,
     })
 
 
@@ -407,23 +449,38 @@ def sync_candidate_validation(candidate_id: str, validation: dict, status: str) 
 
 
 def register_candidate_playback(candidate_id: str, evidence: dict) -> dict:
-    # Called by the existing candidate playback endpoint after its strict preflight checks.
+    # Preserve canonical title/type linkage. Older candidate rows may predate
+    # registry creation, so reconstruct their resource before recording playback.
     with connect() as c:
-        row = c.execute("SELECT * FROM candidates WHERE id=?", (candidate_id,)).fetchone()
+        row = c.execute(
+            "SELECT id,validation_state,access_state FROM registry_resources WHERE resource_key=?",
+            ("candidate:" + candidate_id,),
+        ).fetchone()
+        candidate = c.execute(
+            "SELECT id,url,host,kind,title,status,access_state,media_identity,quality_evidence,validation FROM candidates WHERE id=?",
+            (candidate_id,),
+        ).fetchone()
+    if not row and candidate:
+        candidate_data = dict(candidate)
+        candidate_data["media_identity"] = safe_json(candidate_data.get("media_identity"))
+        candidate_data["quality_evidence"] = safe_json(candidate_data.get("quality_evidence"))
+        register_discovered_candidate(candidate_data)
+        sync_candidate_validation(
+            candidate_id,
+            safe_json(candidate_data.get("validation")),
+            candidate_data.get("status") or "pending",
+        )
+        with connect() as c:
+            row = c.execute(
+                "SELECT id,validation_state,access_state FROM registry_resources WHERE resource_key=?",
+                ("candidate:" + candidate_id,),
+            ).fetchone()
     if not row:
         raise KeyError(candidate_id)
-    validation = safe_json(row["validation"])
-    media_format = validation.get("media_format")
-    resource_type = "DIRECT_MEDIA" if row["kind"] == "direct-media" else "EMBEDDED_PLAYER"
-    resource = upsert_resource({
-        "resource_key": "candidate:"+candidate_id, "candidate_id": candidate_id,
-        "source_key": row["host"], "source_name": row["host"], "resource_type": resource_type,
-        "url": row["url"], "title": row["title"] or row["host"], "access_state": row["access_state"],
-        "media_format": evidence.get("media_type") or media_format,
-    })
-    record_verification(resource["id"],"preflight","passed",{"access_state":"PUBLIC","source":"candidate_validation"})
-    result = record_verification(resource["id"],"player","passed",evidence)
-    return {"resource":result}
+    if row["validation_state"] != "validated" or row["access_state"] != "PUBLIC":
+        raise ValueError("Player confirmation requires a validated PUBLIC resource")
+    result = record_verification(row["id"], "player", "passed", evidence)
+    return {"resource": result}
 
 
 @router.post("/v1/tasks/submit")
@@ -437,6 +494,31 @@ def api_submit_job(payload: dict, authorization: str | None = Header(default=Non
         return submit_job("crawl",request,key)
     except ValueError as exc:
         raise HTTPException(status_code=400,detail=str(exc))
+
+
+@router.post("/v1/batches/submit")
+def api_submit_batch(payload: dict, authorization: str | None = Header(default=None)):
+    require_auth(authorization)
+    try:
+        minimum = max(101, min(1000, int(payload.get("minimum", 101))))
+        target = max(minimum, min(1000, int(payload.get("target", 250))))
+        max_sites = max(1, min(1000, int(payload.get("max_sites", 1000))))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Invalid batch limits")
+    key = str(payload.get("idempotency_key") or (
+        "fmhy-batch:" + hashlib.sha256(
+            (str(minimum) + "|" + str(target) + "|" + str(max_sites) + "|" + str(time.time_ns())).encode()
+        ).hexdigest()
+    ))
+    try:
+        job = submit_job("batch_crawl", {
+            "minimum": minimum, "target": target, "max_sites": max_sites,
+        }, key)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"job_id": job["id"], "status": job["status"], "batch_target": {
+        "minimum": minimum, "target": target, "max_sites": max_sites,
+    }}
 
 
 @router.get("/v1/jobs")
@@ -513,15 +595,38 @@ def api_upsert_resource(payload: dict, authorization: str | None = Header(defaul
 
 
 @router.get("/v1/registry/resources")
-def api_search_resources(q: str = "", verified_only: bool = True, limit: int = Query(default=30,ge=1,le=100), authorization: str | None = Header(default=None)):
+def api_search_resources(q: str = "", verified_only: bool = True, limit: int = Query(default=100,ge=1,le=100), offset: int = Query(default=0,ge=0,le=1000000), authorization: str | None = Header(default=None)):
     require_auth(authorization)
     with connect() as c:
-        sql = "SELECT * FROM registry_resources WHERE 1=1"
+        sql = """SELECT r.*,m.title AS movie_title,m.year AS release_year,m.metadata AS movie_metadata,
+                         e.title AS episode_title,e.season,e.episode,s.name AS source_name,s.host AS source_host,
+                         (SELECT v.evidence FROM registry_verifications v
+                          WHERE v.resource_id=r.id AND v.verification_type='player'
+                          ORDER BY v.created_at DESC LIMIT 1) AS playback_evidence
+                  FROM registry_resources r
+                  LEFT JOIN registry_movies m ON m.id=r.movie_id
+                  LEFT JOIN registry_episodes e ON e.id=r.episode_id
+                  LEFT JOIN registry_sources s ON s.id=r.source_id
+                  WHERE 1=1"""
+        count_sql = """SELECT COUNT(*) AS n FROM registry_resources r
+                       LEFT JOIN registry_movies m ON m.id=r.movie_id
+                       WHERE 1=1"""
         args: list[Any] = []
-        if verified_only: sql += " AND validation_state='validated' AND playback_state='PLAYER_CONFIRMED' AND access_state='PUBLIC'"
-        if q.strip(): sql += " AND (title LIKE ? OR resource_key LIKE ?)"; args.extend([f"%{q[:100]}%",f"%{q[:100]}%"])
-        rows=c.execute(sql+" ORDER BY updated_at DESC LIMIT ?",(*args,limit)).fetchall()
-    return {"resources":[dict(r) for r in rows]}
+        count_args: list[Any] = []
+        if verified_only:
+            eligibility = " AND r.validation_state='validated' AND r.playback_state='PLAYER_CONFIRMED' AND r.access_state='PUBLIC'"
+            sql += eligibility
+            count_sql += eligibility
+        if q.strip():
+            pattern = f"%{q[:100]}%"
+            search_filter = " AND (r.title LIKE ? OR r.resource_key LIKE ? OR m.title LIKE ?)"
+            sql += search_filter
+            count_sql += search_filter
+            args.extend([pattern, pattern, pattern])
+            count_args.extend([pattern, pattern, pattern])
+        rows=c.execute(sql+" ORDER BY r.updated_at DESC LIMIT ? OFFSET ?",(*args,limit,offset)).fetchall()
+        total=c.execute(count_sql,count_args).fetchone()["n"]
+    return {"resources":[dict(r) for r in rows],"total":total,"limit":limit,"offset":offset,"has_more":offset+len(rows)<total}
 
 
 @router.get("/v1/registry/resources/{resource_id}")
