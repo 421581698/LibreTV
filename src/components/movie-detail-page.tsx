@@ -181,7 +181,7 @@ export function MovieDetailPage() {
   }
 
   return (
-    <main className="movie-detail-page min-h-screen overflow-x-hidden bg-[#08080A] pb-[max(40px,env(safe-area-inset-bottom))] text-white">
+    <main className="movie-detail-page min-h-screen overflow-x-hidden bg-[#08080A] pb-[calc(96px+env(safe-area-inset-bottom))] text-white">
       <V4HomepageHeader />
       <section className="relative isolate min-h-[650px] overflow-hidden sm:min-h-[720px]">
         {image ? (
