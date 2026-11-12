@@ -39,7 +39,10 @@ const BLOCKED_IPV4_CIDRS: Array<[string, number]> = [
   ['127.0.0.0', 8],     // 回环
   ['169.254.0.0', 16],  // 链路本地 / 云元数据
   ['172.16.0.0', 12],   // 私有
-  ['192.0.0.0', 24],    // IETF 协议分配
+  ['192.0.0.0', 24],    // IETF 协议分配（含全球可达例外地址，按保守策略整体拒绝）
+  ['192.31.196.0', 24], // AS112 特殊用途
+  ['192.52.193.0', 24], // AMT 特殊用途
+  ['192.175.48.0', 24], // AS112 特殊用途
   ['192.0.2.0', 24],    // 文档示例
   ['192.88.99.0', 24],  // 6to4 中继（已弃用）
   ['192.168.0.0', 16],  // 私有
@@ -66,12 +69,22 @@ export function isPrivateIP(ip: string): boolean {
 
   if (isIP(value) !== 6) return true;
 
-  // IPv6 未指定、回环、唯一本地、链路本地、多播及文档示例网段。
+  // IPv6 仅接受全球单播空间 2000::/3；其余空间均按非公网地址拒绝。
+  // 这样同时封闭未列全的 IANA 特殊用途、兼容/过渡及未来保留网段。
+  const firstHextet = parseInt(value.split(':')[0] || '0', 16);
+  if (!Number.isFinite(firstHextet) || firstHextet < 0x2000 || firstHextet > 0x3fff) return true;
+  // 以下为全球单播空间内部仍需拒绝的特殊用途范围。
   if (value === '::' || value === '::1') return true;
   if (/^(fc|fd)/i.test(value)) return true;       // fc00::/7
   if (/^fe[89ab]/i.test(value)) return true;      // fe80::/10
   if (/^ff/i.test(value)) return true;            // ff00::/8
-  if (/^2001:db8:/i.test(value)) return true;     // 2001:db8::/32
+  if (/^2001:db8:/i.test(value)) return true;     // 2001:db8::/32 文档示例
+  if (/^2001:/i.test(value)) {
+    const secondHextet = parseInt(value.split(':')[1] || '0', 16);
+    if (Number.isFinite(secondHextet) && secondHextet <= 0x01ff) return true; // 2001::/23 特殊用途
+  }
+  if (/^2002:/i.test(value)) return true;          // 2002::/16 6to4
+  if (/^3fff:/i.test(value)) return true;          // 3fff::/20 文档示例
   return false;
 }
 
