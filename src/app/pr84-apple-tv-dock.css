@@ -250,13 +250,15 @@
   }
 
   /* Keep the last content row fully reachable above the full-width dock. */
-  body:has(.v4-home) .v4-home,
+  body:has(.v4-home) .v4-home {
+    padding-bottom: 0 !important;
+  }
   body:has(.v4-home) .v4-home-main,
   body:has(.v4-home) .v4-home-main--cinema {
     padding-bottom: 100px !important;
   }
   body .v4-search-page {
-    padding-bottom: 100px !important;
+    padding-bottom: 0 !important;
     scroll-padding-bottom: 100px !important;
   }
   body .v4-search-page .v4-search-main {
@@ -264,7 +266,7 @@
     scroll-padding-bottom: 100px !important;
   }
   body .v4-spatial-screen {
-    padding-bottom: 100px !important;
+    padding-bottom: 0 !important;
     scroll-padding-bottom: 100px !important;
   }
   body .v4-spatial-screen > .v4-spatial-main {
