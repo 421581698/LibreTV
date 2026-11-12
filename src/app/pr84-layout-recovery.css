@@ -223,9 +223,10 @@ body > .v4-mobile-tabbar[data-homepage-dock="true"] > a span {
   }
 
   body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive {
-    height: clamp(500px, 68svh, 640px) !important;
-    min-height: 500px !important;
-    max-height: 640px !important;
+    /* Keep Friday visible while reserving the first viewport for hot posters. */
+    height: clamp(360px, 55svh, 520px) !important;
+    min-height: 360px !important;
+    max-height: 520px !important;
   }
 
   body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-immersive-copy {
