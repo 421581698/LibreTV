@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isPrivateIP, isValidProxyUrl } from './ssrf';
+import { checkLiveUrlAllowed, isPrivateIP, isValidProxyUrl } from './ssrf';
 
 describe('isPrivateIP', () => {
   it.each([
@@ -91,5 +91,21 @@ describe('isValidProxyUrl', () => {
     expect(isValidProxyUrl('file:///etc/passwd')).toBe(false);
     expect(isValidProxyUrl('ftp://x.com/a')).toBe(false);
     expect(isValidProxyUrl('not a url')).toBe(false);
+  });
+});
+
+
+describe('checkLiveUrlAllowed', () => {
+  it('即使启用内网 IPTV，也拒绝嵌入用户名或密码的 URL', async () => {
+    const previous = process.env.LIVE_ALLOW_PRIVATE;
+    process.env.LIVE_ALLOW_PRIVATE = '1';
+    try {
+      await expect(checkLiveUrlAllowed('http://user:pass@192.168.1.10:8080/live.m3u8')).resolves.toMatchObject({ ok: false });
+      await expect(checkLiveUrlAllowed('http://user@router.local/live.m3u8')).resolves.toMatchObject({ ok: false });
+      await expect(checkLiveUrlAllowed('http://192.168.1.10:8080/live.m3u8')).resolves.toEqual({ ok: true });
+    } finally {
+      if (previous === undefined) delete process.env.LIVE_ALLOW_PRIVATE;
+      else process.env.LIVE_ALLOW_PRIVATE = previous;
+    }
   });
 });
