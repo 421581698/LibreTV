@@ -2,6 +2,7 @@ import type { VideoDetail } from './types';
 
 const TMDB_API = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE = 'https://image.tmdb.org/t/p/w780';
+const TMDB_BACKDROP = 'https://image.tmdb.org/t/p/w1280';
 const REQUEST_TIMEOUT_MS = 5000;
 
 type TmdbTvSearchResult = {
@@ -9,6 +10,7 @@ type TmdbTvSearchResult = {
   name?: string;
   original_name?: string;
   first_air_date?: string;
+  backdrop_path?: string | null;
 };
 
 type TmdbSeasonEpisode = {
@@ -172,6 +174,10 @@ export async function enrichEpisodesWithTmdbArtwork(
       const still = tmdbEpisode.still_path
         ? TMDB_IMAGE + '/' + tmdbEpisode.still_path.replace(/^\/+/, '')
         : undefined;
+      // A series backdrop is an allowed non-poster fallback when the exact episode has no still.
+      const artworkImage = still || (match.backdrop_path
+        ? TMDB_BACKDROP + '/' + match.backdrop_path.replace(/^\/+/, '')
+        : undefined);
       const episodeName = typeof tmdbEpisode.name === 'string' ? tmdbEpisode.name.trim() : '';
       const overview = typeof tmdbEpisode.overview === 'string' ? tmdbEpisode.overview.trim() : '';
       const runtime = Number.isSafeInteger(tmdbEpisode.runtime) && (tmdbEpisode.runtime ?? 0) > 0
@@ -179,15 +185,16 @@ export async function enrichEpisodesWithTmdbArtwork(
         : undefined;
       const next = {
         ...item,
-        ...(!item.image && still ? {
-          image: still,
-          imageSourceUrl: still,
+        ...(!item.image && artworkImage ? {
+          image: artworkImage,
+          imageSourceUrl: artworkImage,
           imageSourceEpisodeUrl: item.url,
           tmdbSeriesId: match.id,
           ...(Number.isSafeInteger(tmdbEpisode.id) ? { tmdbEpisodeId: tmdbEpisode.id } : {}),
           seasonNumber: coordinates.seasonNumber,
           episodeNumber: coordinates.episodeNumber,
           imageSource: 'tmdb' as const,
+          imageKind: still ? 'episode-still' as const : 'series-backdrop' as const,
         } : {}),
         ...(!item.episodeName && episodeName ? { episodeName } : {}),
         ...(!item.description && overview ? { description: overview } : {}),
