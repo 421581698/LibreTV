@@ -276,3 +276,60 @@
     backdrop-filter: blur(12px) !important;
   }
 }
+
+
+/* PR84 — iPhone SF typography pass.
+   Keep this global font stack, while title and metadata refinements stay scoped
+   to the Me and Settings destinations. */
+html,
+body,
+button,
+input,
+textarea,
+select {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+}
+
+.v4-spatial-screen[data-screen="me"] .v52-me-heading h2 {
+  font-size: 34px !important;
+  line-height: 1.08 !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.5px !important;
+}
+
+.v4-spatial-screen[data-screen="me"] .v52-me-heading > span {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 1.2px !important;
+  text-transform: uppercase !important;
+  color: #77777f !important;
+}
+
+.v4-spatial-screen[data-screen="settings"] .settings-large-title h1,
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .settings-large-title h1 {
+  font-size: 34px !important;
+  line-height: 1.08 !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.5px !important;
+}
+
+/* Secondary card descriptions: quieter, consistent iOS secondary-label tone. */
+.v4-spatial-screen[data-screen="me"] .v52-me-library-tile small,
+.v4-spatial-screen[data-screen="me"] .v52-me-list-row small,
+.v4-spatial-screen[data-screen="me"] .v52-me-empty,
+.v4-spatial-screen[data-screen="me"] .v52-me-empty span,
+.v4-spatial-screen[data-screen="me"] .v4-me-history-copy > span {
+  color: #8e8e93 !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+}
+
+/* Stable-width counters prevent visual jitter when live counts change. */
+.v4-spatial-screen[data-screen="me"] .v52-me-library-tile small,
+.v4-spatial-screen[data-screen="me"] .v52-me-list-row small {
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" 1 !important;
+}
