@@ -384,6 +384,14 @@ describe('首页与播放页回归契约', () => {
     expect(browserAsr).toContain('window.webkitSpeechRecognition');
   });
 
+  it('iPhone 搜索历史下拉为顶部与 Home Indicator 安全区域预留空间', () => {
+    expect(searchHistory).toContain('search-history-dropdown');
+    expect(channelHeaderStyles).toContain('.search-history-dropdown');
+    expect(channelHeaderStyles).toContain('env(safe-area-inset-bottom, 0px)');
+    expect(channelHeaderStyles).toContain('100dvh');
+    expect(channelHeaderStyles).toContain('-webkit-overflow-scrolling: touch');
+  });
+
   it('iPad 品牌图标固定尺寸，设置按钮直接打开设置抽屉', () => {
     expect(glassStyles).toContain('.v4-brand-mark');
     expect(glassStyles).toContain('width: 24px !important');
