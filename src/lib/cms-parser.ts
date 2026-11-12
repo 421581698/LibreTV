@@ -145,13 +145,23 @@ export function parseDetail(
       return entryUrl === episode.url;
     });
     if (!metadata) return episode;
-    const rawStill = str(metadata.still_path) || str(metadata.screenshot) || str(metadata.image);
+    const rawStill = str(metadata.still_path)
+      || str(metadata.screenshot_url)
+      || str(metadata.screenshot)
+      || str(metadata.image_url)
+      || str(metadata.image);
     const image = rawStill && /^https?:\/\/[^\s]+$/i.test(rawStill) ? rawStill : undefined;
     const description = cmsDescriptionToText(metadata.description ?? metadata.overview ?? metadata.vod_content);
     const duration = str(metadata.duration) || str(metadata.runtime);
+    const capturedAt = str(metadata.image_captured_at) || str(metadata.captured_at) || str(metadata.extracted_at);
     return {
       ...episode,
-      ...(image ? { image } : {}),
+      ...(image ? {
+        image,
+        imageSourceUrl: image,
+        imageSourceEpisodeUrl: episode.url,
+        ...(capturedAt ? { imageCapturedAt: capturedAt } : {}),
+      } : {}),
       ...(description ? { description } : {}),
       ...(duration ? { duration } : {}),
     };
