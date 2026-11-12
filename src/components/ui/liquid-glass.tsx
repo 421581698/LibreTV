@@ -2,6 +2,7 @@
 
 import {
   createElement,
+  forwardRef,
   useEffect,
   useState,
   type ComponentType,
@@ -31,6 +32,11 @@ type SurfaceProps = HTMLAttributes<HTMLElement> & {
   interactive?: boolean;
   variant?: SurfaceVariant;
   type?: 'button' | 'submit' | 'reset';
+  disabled?: boolean;
+  autoFocus?: boolean;
+  name?: string;
+  value?: string;
+  form?: string;
 };
 type EngineComponent = ComponentType<EngineProps>;
 
@@ -75,7 +81,7 @@ const presets: Record<SurfaceVariant, Omit<EngineProps, 'children' | 'className'
  * this avoids letting the upstream demo component's centered positioning,
  * transforms or internal wrapper replace the host component's layout.
  */
-export function LiquidGlassSurface({
+export const LiquidGlassSurface = forwardRef<HTMLElement, SurfaceProps>(function LiquidGlassSurface({
   as = 'div',
   className = '',
   children,
@@ -111,6 +117,7 @@ export function LiquidGlassSurface({
     as,
     {
       ...props,
+      ref,
       className: [
         'liquid-glass',
         interactive ? 'liquid-glass--interactive' : '',
@@ -122,4 +129,4 @@ export function LiquidGlassSurface({
     opticalLayer,
     children,
   );
-}
+});
