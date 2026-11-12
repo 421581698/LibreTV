@@ -118,7 +118,7 @@ export function MovieDetailPage() {
   const episodeDisplayTitle = (index: number) => {
     const item = episodeItems[index];
     const value = item?.title?.trim() ?? '';
-    return (/^第\\s*[\\d一二两三四五六七八九十]+\\s*[集话期]$/u.test(value) ? '' : value)
+    return (/^第\s*[\d一二两三四五六七八九十]+\s*[集话期]$/u.test(value) ? '' : value)
       || item?.episodeName?.trim()
       || '';
   };
