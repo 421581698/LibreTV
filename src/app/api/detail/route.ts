@@ -112,6 +112,7 @@ export async function GET(req: Request) {
     resolved = await enrichEpisodesWithTmdbArtwork(resolved, {
       token: process.env.TMDB_READ_ACCESS_TOKEN,
       title: resolved.videoInfo.title,
+      originalTitle: resolved.videoInfo.originalTitle,
       year: resolved.videoInfo.year,
     });
     setCache(cacheKey, resolved, DETAIL_CACHE_TTL);
