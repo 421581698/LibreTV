@@ -198,8 +198,21 @@ jobs:
                   path: target.pathname + target.search,
                   headers: { Range: "bytes=0-1023", Accept: "*/*", "User-Agent": "LibreTV-Preview-Probe/1.0" },
                   timeout: 8000,
-                  lookup: (_host, _options, callback) =>
-                    callback(null, pinned.address, pinned.family),
+                  lookup: (_host, options, callback) => {
+                    // Node 20/24 may request all-address results when
+                    // autoSelectFamily is enabled. Match the callback shape
+                    // expected by net.connect instead of returning a scalar.
+                    const done = typeof options === "function" ? options : callback;
+                    const lookupOptions = typeof options === "object" && options ? options : {};
+                    if (!pinned || typeof pinned.address !== "string" ||
+                        ![4, 6].includes(pinned.family)) {
+                      return done(new Error("Validated media address is unavailable"));
+                    }
+                    if (lookupOptions.all) {
+                      return done(null, [{ address: pinned.address, family: pinned.family }]);
+                    }
+                    return done(null, pinned.address, pinned.family);
+                  },
                 }, (response) => {
                   const status = response.statusCode ?? 0;
                   const type = String(response.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();
