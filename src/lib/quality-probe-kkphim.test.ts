@@ -20,7 +20,7 @@ describe('KKPhim quality probe integration', () => {
       '4k/index.m3u8',
       '#EXT-X-STREAM-INF:BANDWIDTH=5000000,RESOLUTION=1920x1080',
       '1080/index.m3u8',
-    ].join('\\n'))).toBe(2160);
+    ].join(String.fromCharCode(10)))).toBe(2160);
   });
 
   it('does not infer 4K from bitrate without a resolution field', () => {
@@ -28,6 +28,6 @@ describe('KKPhim quality probe integration', () => {
       '#EXTM3U',
       '#EXT-X-STREAM-INF:BANDWIDTH=20000000',
       'high/index.m3u8',
-    ].join('\\n'))).toBeUndefined();
+    ].join(String.fromCharCode(10)))).toBeUndefined();
   });
 });
