@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { guardRequest, jsonError } from '@/lib/api-guard';
-import { fetchUpstreamWithMeta } from '@/lib/fetch-utils';
+import { fetchLiveUpstreamWithMeta } from '@/lib/fetch-utils';
 import { withHostLimit } from '@/lib/host-gate';
 
 export const runtime = 'nodejs';
@@ -145,11 +145,10 @@ async function fetchHeadersOnly(
 
   // allowPrivate：与直播流代理同一把尺子，LIVE_ALLOW_PRIVATE=1 时自建内网 IPTV 才能测通；
   // fetchUpstreamWithMeta 内部逐跳做 SSRF 校验，此处不再重复预检（省一次 DNS 解析）
-  const { res, finalUrl } = await fetchUpstreamWithMeta(url, {
+  const { res, finalUrl } = await fetchLiveUpstreamWithMeta(url, {
     timeoutMs,
     retries: 0,
     headers,
-    allowPrivate: true,
     signal: requestSignal,
   });
   const contentType = res.headers.get('content-type') || '';
@@ -227,7 +226,7 @@ function elapsed(start: number): number {
 async function measureThroughput(segmentUrl: string, referer?: string, requestSignal?: AbortSignal): Promise<number | undefined> {
   const start = performance.now();
   try {
-    const { res } = await fetchUpstreamWithMeta(segmentUrl, {
+    const { res } = await fetchLiveUpstreamWithMeta(segmentUrl, {
       timeoutMs: 3000,
       retries: 0,
       headers: {
@@ -236,7 +235,6 @@ async function measureThroughput(segmentUrl: string, referer?: string, requestSi
         Range: `bytes=0-${THROUGHPUT_BYTES - 1}`,
         ...(referer ? { Referer: referer } : {}),
       },
-      allowPrivate: true,
       signal: requestSignal,
     });
     if (!res.ok || !res.body) return undefined;
