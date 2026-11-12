@@ -134,17 +134,17 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
 
   it('keeps the shared player inline on iOS and preserves the fixed four-item dock', () => {
     const playerShell = read('src/components/player-shell.tsx');
-    const mobileLayout = read('src/app/iphone-glass.css');
+    const dockStyles = read('src/app/pr84-apple-tv-dock.css');
     expect(playerShell).toContain('playsInline: true');
     expect(playerShell).toContain('backdrop: false');
     expect(playerShell).toContain('moreVideoAttr: { crossOrigin: \'anonymous\', playsInline: true }');
     expect(playerShell).toContain('setShowPlayFallback(true)');
     expect(playerShell).toContain('轻点开始播放');
     expect(playerShell).toContain('void art.play().then(() => setShowPlayFallback(false))');
-    expect(mobileLayout).toContain('.v4-mobile-tabbar {');
-    expect(mobileLayout).toContain('position: fixed;');
-    expect(mobileLayout).toContain('bottom: 0;');
-    expect(mobileLayout).toContain('env(safe-area-inset-bottom, 0px)');
+    expect(dockStyles).toContain('> nav.v4-mobile-tabbar {');
+    expect(dockStyles).toContain('position: fixed !important;');
+    expect(dockStyles).toContain('bottom: 0 !important;');
+    expect(dockStyles).toContain('height: calc(var(--tabbar-height) + var(--safe-area-bottom)) !important;');
   });
 
   it('applies light-theme colors to routed iPhone screens and keeps safe-area paint below the dock', () => {
