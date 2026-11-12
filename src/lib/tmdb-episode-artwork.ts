@@ -16,6 +16,9 @@ type TmdbSeasonEpisode = {
   episode_number?: number;
   season_number?: number;
   still_path?: string | null;
+  name?: string;
+  overview?: string;
+  runtime?: number | null;
 };
 
 type TmdbSeasonResponse = {
