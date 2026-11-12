@@ -416,10 +416,14 @@ export async function probeQuality(item: QualityProbeItem, signal?: AbortSignal)
     ...(metrics.originTtfbMs === undefined ? {} : { originTtfbMs: metrics.originTtfbMs }),
   });
 
-  if (!/^https?:\/\//.test(source.url || '') || !/^[\w-]+$/.test(id)) {
+  const probeOrigin = source.key === KKPHIM_SOURCE_KEY ? KKPHIM_API_ORIGIN : source.url;
+  const validId = source.key === KKPHIM_SOURCE_KEY
+    ? /^[\p{L}\p{N}._-]{1,180}$/u.test(id)
+    : /^[\w-]+$/.test(id);
+  if (!/^https?:\/\//.test(probeOrigin || '') || !validId) {
     return withMetrics({ ...base, error: '无效的源或影片 ID' });
   }
-  const verdict = await checkUpstreamAllowed(source.url);
+  const verdict = await checkUpstreamAllowed(probeOrigin);
   if (!verdict.ok) return withMetrics({ ...base, error: verdict.reason });
 
   const controller = new AbortController();
