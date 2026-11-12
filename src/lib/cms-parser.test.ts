@@ -148,7 +148,7 @@ describe('电影类型识别与 CMS 简介清理', () => {
 
   it('移除简介中的 HTML、脚本和样式，并解码常见实体', () => {
     expect(cmsDescriptionToText('<p>简介&nbsp;内容</p><script>alert(1)</script><b>科幻&amp;冒险</b>'))
-      .toBe('简介 内容\\n科幻&冒险');
+      .toBe('简介 内容\n科幻&冒险');
     expect(cmsDescriptionToText('普通文本')).toBe('普通文本');
   });
 });
