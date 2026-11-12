@@ -309,3 +309,169 @@
     text-shadow: none !important;
   }
 }
+
+
+/* PR84 P0 regression repair — remove the legacy floating-dock cascade and
+   restore WebKit backdrop sampling from the page behind the viewport dock. */
+@media (max-width: 700px) {
+  /* Safari backdrop-filter must not be trapped by a clipped/transformed root.
+     The dock is portaled directly to body; keep both root ancestors neutral. */
+  html:has(body .v4-home, body .v4-search-page, body .v4-spatial-screen),
+  body:has(.v4-home, .v4-search-page, .v4-spatial-screen) {
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+    transform: none !important;
+    filter: none !important;
+    perspective: none !important;
+    contain: none !important;
+  }
+
+  /* This selector intentionally outranks every older body > dock capsule rule. */
+  html body:has(.v4-home, .v4-search-page, .v4-spatial-screen) > nav.v4-mobile-tabbar.liquid-glass[data-liquid-glass="true"] {
+    position: fixed !important;
+    inset: auto 0 0 0 !important;
+    top: auto !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    z-index: 2147483000 !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    align-items: center !important;
+    gap: 0 !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: none !important;
+    height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+    min-height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+    margin: 0 !important;
+    padding: 7px 12px calc(7px + env(safe-area-inset-bottom, 0px)) !important;
+    overflow: hidden !important;
+    border: 0 !important;
+    border-top: 1px solid rgba(255,255,255,.10) !important;
+    border-radius: 0 !important;
+    outline: 0 !important;
+    background: rgba(18,18,20,.48) !important;
+    background-color: rgba(18,18,20,.48) !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: blur(30px) saturate(165%) !important;
+    backdrop-filter: blur(30px) saturate(165%) !important;
+    transform: none !important;
+    isolation: auto !important;
+  }
+
+  html body:has(.v4-home, .v4-search-page, .v4-spatial-screen) > nav.v4-mobile-tabbar.liquid-glass[data-liquid-glass="true"] > .liquid-glass-engine-slot,
+  html body:has(.v4-home, .v4-search-page, .v4-spatial-screen) > nav.v4-mobile-tabbar.liquid-glass[data-liquid-glass="true"]::before,
+  html body:has(.v4-home, .v4-search-page, .v4-spatial-screen) > nav.v4-mobile-tabbar.liquid-glass[data-liquid-glass="true"]::after {
+    display: none !important;
+    content: none !important;
+    background: none !important;
+    box-shadow: none !important;
+  }
+
+  html body:has(.v4-home, .v4-search-page, .v4-spatial-screen) > nav.v4-mobile-tabbar.liquid-glass[data-liquid-glass="true"] > a {
+    position: relative !important;
+    display: flex !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 50px !important;
+    min-height: 50px !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 3px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 18px !important;
+    color: rgba(255,255,255,.76) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  html body:has(.v4-home, .v4-search-page, .v4-spatial-screen) > nav.v4-mobile-tabbar.liquid-glass[data-liquid-glass="true"] > a.is-active {
+    color: #fff !important;
+    background: rgba(255,255,255,.14) !important;
+    box-shadow: none !important;
+  }
+
+  html body:has(.v4-home, .v4-search-page, .v4-spatial-screen) > nav.v4-mobile-tabbar.liquid-glass[data-liquid-glass="true"] > a svg {
+    color: #fff !important;
+    stroke: #fff !important;
+    fill: none !important;
+    filter: none !important;
+  }
+
+  /* Kill the white GlassButton wrapper, native button paint and optical layer. */
+  html body:has(.v4-home) .v4-header .v4-header-actions > .v4-search,
+  html body:has(.v4-home) .v4-header .v4-header-actions > .v4-search:hover,
+  html body:has(.v4-home) .v4-header .v4-header-actions > .v4-search:focus,
+  html body:has(.v4-home) .v4-header .v4-header-actions > .v4-search:active {
+    display: inline-flex !important;
+    flex: 0 0 36px !important;
+    width: 36px !important;
+    min-width: 36px !important;
+    max-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 50% !important;
+    outline: 0 !important;
+    color: #fff !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  html body:has(.v4-home) .v4-header .v4-header-actions > .v4-search::before,
+  html body:has(.v4-home) .v4-header .v4-header-actions > .v4-search::after,
+  html body:has(.v4-home) .v4-header .v4-header-actions > .v4-search > .liquid-glass-engine-slot {
+    display: none !important;
+    content: none !important;
+    background: none !important;
+    box-shadow: none !important;
+  }
+
+  html body:has(.v4-home) .v4-header .v4-header-actions > .v4-search > .liquid-glass-button-content,
+  html body:has(.v4-home) .v4-header .v4-header-actions > .v4-search > .liquid-glass-button-content:hover,
+  html body:has(.v4-home) .v4-header .v4-header-actions > .v4-search > .liquid-glass-button-content:focus,
+  html body:has(.v4-home) .v4-header .v4-header-actions > .v4-search > .liquid-glass-button-content:active {
+    display: inline-flex !important;
+    width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 50% !important;
+    outline: 0 !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    color: #fff !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+
+  html body:has(.v4-home) .v4-header .v4-header-actions > .v4-search svg {
+    width: 18px !important;
+    height: 18px !important;
+    color: #fff !important;
+    stroke: #fff !important;
+    fill: none !important;
+  }
+
+  /* The full-width dock covers only its safe-area band; reserve scroll tail. */
+  body:has(.v4-home) .v4-home-main,
+  body:has(.v4-home) .v4-home-main--cinema,
+  body .v4-search-page .v4-search-main,
+  body .v4-spatial-screen > .v4-spatial-main {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
