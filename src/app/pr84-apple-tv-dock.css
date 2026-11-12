@@ -666,7 +666,7 @@
   color: #fff;
 }
 .movie-detail-hero {
-  min-height: 680px;
+  min-height: 620px;
   background: #000;
 }
 .movie-detail-hero__image {
@@ -736,64 +736,68 @@
   backdrop-filter: blur(14px);
 }
 
-/* Episode artwork reuses the real title artwork when no episode still exists. */
-.movie-detail-episode-card {
-  border: 1px solid rgba(255,255,255,.10);
-  border-radius: 16px !important;
-  background: #090909;
-  scroll-snap-align: start;
-  transition: border-color .2s ease, transform .2s ease;
+/* Compact episode picker: real episode titles and progress, no duplicated poster art. */
+.movie-detail-episode-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
 }
-.movie-detail-episode-card:hover {
-  border-color: rgba(255,255,255,.3);
-  transform: translateY(-2px);
-}
-.movie-detail-episode-art {
+.movie-detail-episode-tile {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 76px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 7px;
   overflow: hidden;
-  border-radius: 15px 15px 0 0;
-  background: #171717;
+  padding: 12px 13px 14px;
+  border: 1px solid rgba(255,255,255,.11);
+  border-radius: 14px;
+  color: #fff;
+  background: rgba(255,255,255,.055);
+  text-align: left;
+  transition: background .18s ease, border-color .18s ease;
 }
-.movie-detail-episode-image {
-  opacity: .94;
-  transition: transform .35s ease;
+.movie-detail-episode-tile:active {
+  background: rgba(255,255,255,.13);
 }
-.movie-detail-episode-card:hover .movie-detail-episode-image {
-  transform: scale(1.04);
-}
-.movie-detail-episode-placeholder {
-  background: linear-gradient(135deg,#25252a,#09090b);
-}
-.movie-detail-episode-scrim {
-  background: linear-gradient(180deg, rgba(0,0,0,.10) 0%, transparent 35%, rgba(0,0,0,.42) 62%, rgba(0,0,0,.94) 100%);
-}
-.movie-detail-episode-number {
-  z-index: 2;
-  color: rgba(255,255,255,.88);
-  font-size: 11px;
+.movie-detail-episode-tile-number {
+  color: rgba(255,255,255,.48);
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: .12em;
-  text-shadow: 0 1px 8px #000;
+  font-variant-numeric: tabular-nums;
 }
-.movie-detail-episode-play {
-  z-index: 2;
-  box-shadow: 0 2px 14px rgba(0,0,0,.35);
+.movie-detail-episode-tile-title {
+  width: 100%;
+  overflow: hidden;
+  color: rgba(255,255,255,.96);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.movie-detail-episode-title {
-  z-index: 2;
-  padding: 0 13px 12px;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.25;
-  text-shadow: 0 1px 10px rgba(0,0,0,.95);
-}
-.movie-detail-episode-progress { z-index: 3; }
-.movie-detail-episode-copy {
-  padding: 9px 13px 11px;
+.movie-detail-episode-tile-status {
   color: rgba(255,255,255,.48);
-  font-size: 11px;
+  font-size: 10px;
+  line-height: 1.2;
 }
-
+.movie-detail-episode-tile-progress {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: rgba(255,255,255,.12);
+}
+.movie-detail-episode-tile-progress > span {
+  display: block;
+  height: 100%;
+  background: #fff;
+}
 /* Metadata is editorial text on black, not a large bordered admin panel. */
 .movie-detail-info-grid {
   padding: 0 !important;
@@ -826,11 +830,11 @@
 }
 
 @media (max-width: 700px) {
-  .movie-detail-hero { min-height: 660px; }
+  .movie-detail-hero { min-height: 560px; }
   .movie-detail-hero__content {
-    min-height: 610px !important;
-    padding-top: 250px !important;
-    padding-bottom: 42px !important;
+    min-height: 520px !important;
+    padding-top: max(132px, calc(env(safe-area-inset-top, 0px) + 112px)) !important;
+    padding-bottom: 34px !important;
   }
   .movie-detail-hero__bottom-gradient { height: 78%; }
   .movie-detail-title { font-size: clamp(34px, 10vw, 46px) !important; }
@@ -840,7 +844,9 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
-  .movie-detail-episode-card { width: min(76vw, 270px) !important; }
+  .movie-detail-episode-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .movie-detail-episode-tile { min-height: 72px; padding: 10px 9px 12px; border-radius: 12px; }
+  .movie-detail-episode-tile-title { font-size: 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .movie-detail-episode-card,
