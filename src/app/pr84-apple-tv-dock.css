@@ -347,15 +347,15 @@
     padding: 7px 12px calc(7px + var(--safe-area-bottom)) !important;
     overflow: hidden !important;
     border: 0 !important;
-    border-top: 1px solid rgba(255,255,255,.10) !important;
+    border-top: 0 !important;
     border-radius: 0 !important;
     outline: 0 !important;
-    background: rgba(18,18,20,.48) !important;
-    background-color: rgba(18,18,20,.48) !important;
+    background: rgba(25,25,25,.70) !important;
+    background-color: rgba(25,25,25,.70) !important;
     background-image: none !important;
     box-shadow: none !important;
-    -webkit-backdrop-filter: blur(30px) saturate(165%) !important;
-    backdrop-filter: blur(30px) saturate(165%) !important;
+    -webkit-backdrop-filter: blur(40px) saturate(165%) !important;
+    backdrop-filter: blur(40px) saturate(165%) !important;
     transform: none !important;
     isolation: auto !important;
   }
@@ -382,7 +382,7 @@
     gap: 3px !important;
     padding: 0 !important;
     border: 0 !important;
-    border-radius: 18px !important;
+    border-radius: 16px !important;
     color: rgba(255,255,255,.76) !important;
     background: transparent !important;
     box-shadow: none !important;
