@@ -60,8 +60,11 @@ export async function GET(req: Request) {
 
     let resolved: VideoDetail | null = null;
 
-    // 1) 标准列表接口
-    const api = `${source.url.replace(/\/+$/, '')}?ac=videolist&ids=${encodeURIComponent(id)}`;
+    // 1) 标准 CMS 详情接口。暴风官方 JSON 文档指定 ac=detail；
+    // 其它 Apple CMS 源继续使用兼容性更广的 ac=videolist。
+    const sourceHost = new URL(source.url).hostname.toLowerCase();
+    const action = sourceHost === 'bfzyapi.com' ? 'detail' : 'videolist';
+    const api = `${source.url.replace(/\/+$/, '')}?ac=${action}&ids=${encodeURIComponent(id)}`;
     const res = await fetchUpstream(api, { timeoutMs: 10000, signal: req.signal, headers: cmsRequestHeaders() });
     if (res.ok) {
       const data = await res.json();
