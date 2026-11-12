@@ -67,7 +67,7 @@ describe('PR #84 homepage blocking layout recovery', () => {
       expect(hasDockGeometry(css)).toBe(false);
     }
     expect(globalLayout).not.toContain('position: fixed !important;');
-    expect(globalLayout).toContain('var(--tabbar-height)');
+    expect(globalLayout).toContain('var(--tabbar-scroll-clearance)');
     expect(globalLayout).toContain('.v4-spatial-screen[data-screen="me"] > .v4-spatial-main');
   });
 
