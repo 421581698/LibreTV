@@ -61,15 +61,56 @@ describe('PR #84 homepage blocking layout recovery', () => {
     expect(appleDock).toContain('padding-bottom: var(--tabbar-scroll-clearance) !important;');
     expect(appleDock).toContain('position: fixed !important;');
 
+    const splitTopLevel = (value: string, delimiter: string) => {
+      const parts: string[] = [];
+      let depth = 0;
+      let quote = '';
+      let start = 0;
+      for (let index = 0; index < value.length; index += 1) {
+        const char = value[index];
+        if (quote) {
+          if (char === quote && value[index - 1] !== '\\') quote = '';
+          continue;
+        }
+        if (char === '"' || char === "'") quote = char;
+        else if (char === '(') depth += 1;
+        else if (char === ')') depth = Math.max(0, depth - 1);
+        else if (char === delimiter && depth === 0) {
+          parts.push(value.slice(start, index));
+          start = index + 1;
+        }
+      }
+      parts.push(value.slice(start));
+      return parts;
+    };
+    const selectorSubject = (selector: string) => {
+      let depth = 0;
+      let quote = '';
+      let start = 0;
+      for (let index = 0; index < selector.length; index += 1) {
+        const char = selector[index];
+        if (quote) {
+          if (char === quote && selector[index - 1] !== '\\') quote = '';
+          continue;
+        }
+        if (char === '"' || char === "'") quote = char;
+        else if (char === '(') depth += 1;
+        else if (char === ')') depth = Math.max(0, depth - 1);
+        else if (depth === 0 && (char === '>' || char === '+' || char === '~' || /\s/.test(char))) {
+          start = index + 1;
+        }
+      }
+      return selector.slice(start).trim();
+    };
     const hasDockGeometry = (css: string) => {
       const geometry = /\b(?:position|inset|width|height|min-height|max-height|left|right|top|bottom|transform)\s*:/;
       return Array.from(css.matchAll(/([^{}]+)\{([^{}]*)\}/gs)).some(([, selector, declarations]) =>
         geometry.test(declarations) &&
-        selector.split(',').some((part) => {
-          const dockIndex = part.indexOf('.v4-mobile-tabbar');
-          if (dockIndex < 0) return false;
-          const suffix = part.slice(dockIndex + '.v4-mobile-tabbar'.length).trim();
-          return suffix === '' || /^:(?:hover|focus|focus-visible|active)$/i.test(suffix);
+        splitTopLevel(selector, ',').some((part) => {
+          const subject = selectorSubject(part);
+          return subject.includes('.v4-mobile-tabbar') &&
+            !subject.includes('::before') &&
+            !subject.includes('::after');
         }),
       );
     };
