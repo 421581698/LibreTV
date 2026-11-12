@@ -193,3 +193,30 @@ body > .v4-mobile-tabbar::after {
     animation: none !important;
   }
 }
+
+
+/* Media-frame optics: border/rim only. The poster/HDR/video pixels underneath
+   are untouched; the overlay is transparent and does not intercept gestures. */
+.lg-media-frame {
+  isolation: isolate;
+}
+.lg-media-frame::after {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  pointer-events: none;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: inherit;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.16), transparent 18%, transparent 72%, rgba(255,255,255,.08));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.20),
+    inset 0 -1px 0 rgba(255,255,255,.07);
+}
+@media (prefers-reduced-transparency: reduce) {
+  .lg-media-frame::after {
+    background: none;
+    border-color: rgba(255,255,255,.22);
+  }
+}
