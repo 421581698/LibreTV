@@ -609,7 +609,28 @@ function WatchContent() {
             <div className="netflix-watch-tools">
               {hasEpisodeNavigation && <><button className="btn-ghost btn-sm" disabled={currentIndex <= 0} onClick={() => goEpisode(currentIndex - 1)}>上一集</button>
               <button className="btn-ghost btn-sm" disabled={currentIndex >= episodes.length - 1} onClick={() => goEpisode(currentIndex + 1)}>下一集</button></>}
-              <button className="btn-ghost btn-sm" onClick={() => { if (currentUrl) enqueueDownload({ url: currentUrl, title: `${videoTitle}${hasEpisodeNavigation ? ` 第${currentIndex + 1}集` : ''}`, format: 'MP4' }); }}>下载本集</button>
+              <button className="btn-ghost btn-sm" onClick={() => {
+                if (!currentUrl) return;
+                const downloadTitle = `${videoTitle}${hasEpisodeNavigation ? ` 第${currentIndex + 1}集` : ''}`;
+                if (/\\.m3u8(?:$|[?#])/i.test(currentUrl)) {
+                  // HLS is parsed and transmuxed by the existing task engine; MP4
+                  // here means the output container, never a renamed playlist.
+                  enqueueDownload({ url: currentUrl, title: downloadTitle, format: 'MP4' });
+                  return;
+                }
+                // A non-HLS URL is a direct media/file URL, not an M3U8 playlist.
+                // Do not enqueue it into the playlist parser. Cross-origin download
+                // attributes are advisory only, so open the actual URL as a fallback.
+                const anchor = document.createElement('a');
+                anchor.href = currentUrl;
+                anchor.download = `${downloadTitle}.mp4`;
+                anchor.target = '_blank';
+                anchor.rel = 'noopener noreferrer';
+                document.body.appendChild(anchor);
+                anchor.click();
+                anchor.remove();
+                toast('已打开直链。若 Safari 未保存文件，请在打开的视频页面使用分享菜单保存；跨域站点不保证网页可强制下载。', 'info');
+              }}>下载本集</button>
               <button className={cn('btn-ghost btn-sm', skipPanelOpen && 'bg-chip text-content')} aria-expanded={skipPanelOpen} aria-haspopup="dialog" onClick={() => setSkipPanelOpen((v) => !v)}>
                 跳过标记{markedCount > 0 ? ` (${markedCount})` : ''}
               </button>
