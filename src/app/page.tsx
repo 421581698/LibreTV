@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -74,8 +74,15 @@ function HomeContent() {
     router.push('/detail?' + params.toString());
   };
 
+  const openedFridayDetailRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!detailItem) return;
+    if (!detailItem) {
+      openedFridayDetailRef.current = null;
+      return;
+    }
+    const key = detailItem.sourceKey + ':' + detailItem.vodId;
+    if (openedFridayDetailRef.current === key) return;
+    openedFridayDetailRef.current = key;
     openDetail(detailItem);
     setDetailItem(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
