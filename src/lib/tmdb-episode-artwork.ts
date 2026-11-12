@@ -62,6 +62,7 @@ export function parseEpisodeCoordinates(
     /第\s*(\d+|[一二两三四五六七八九十]+)\s*[集话期]/u,
     /\bS(\d{1,2})\s*E(\d{1,3})\b/i,
     /\b(?:episode|ep)\s*0*(\d{1,3})\b/i,
+    /^\s*0*(\d{1,3})\s*$/,
   ];
   let episodeNumber: number | undefined;
   const chinese = episodeTitle.match(patterns[0]);
