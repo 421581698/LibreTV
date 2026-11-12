@@ -12,7 +12,7 @@ import { LoadingState, ErrorState } from '@/components/states';
 import { addFavorite, addSearchHistory, db, removeFavorite } from '@/lib/db';
 import { favoriteIdFor } from '@/lib/favorite-id';
 import { buildWatchUrl, validateSourceUrl } from '@/lib/utils';
-import { formatRemarks } from '@/lib/remarks';
+import { formatRemarks } from '@/lib/remarks';\nimport { isMovieType } from '@/lib/cms-parser';
 import type { SourceConfig, VideoDetail } from '@/lib/types';
 
 function detailSource(store: Pick<ReturnType<typeof useAppStore.getState>, 'customAPIs' | 'envSources'>, key: string, name: string, sourceUrl: string): SourceConfig | null {
@@ -104,7 +104,7 @@ export function MovieDetailPage() {
   const episodes = detail?.episodes ?? [];
   const episodeItems = detail?.episodeItems ?? [];
   const episodeTitle = (index: number) => episodeItems[index]?.title || '第 ' + (index + 1) + ' 集';
-  const isMovie = /电影|movie|film/i.test(info?.typeName ?? '');
+  const isMovie = isMovieType(info?.typeName, episodes.length);
   const displayTitle = info?.title || title;
   const image = info?.cover || poster;
   const metadata = [
