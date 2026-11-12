@@ -130,6 +130,8 @@ describe('PR #84 homepage blocking layout recovery', () => {
       'height: clamp(360px,55svh,520px) !important;',
       'height: clamp(640px,94svh,900px) !important;',
       'height: clamp(380px, 55svh, 520px) !important;',
+      'height: clamp(380px, 60svh, 520px) !important;',
+      'height: clamp(520px, 68svh, 620px) !important;',
       'height: clamp(560px, 74svh, 640px) !important;',
       'height: clamp(570px, 76svh, 660px) !important;',
       'height: min(88svh,780px) !important;',
