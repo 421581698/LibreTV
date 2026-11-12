@@ -128,7 +128,7 @@ describe('parseDetail', () => {
       list: [{
         vod_name: '测试剧',
         vod_pic: 'https://img.example.com/title-poster.jpg',
-        vod_play_url: '第1集$https://media.example.com/ep1.m3u8#第2集$https://media.example.com/ep2.m3u8',
+        vod_play_url: '第1集$https://media.example.com/ep1.m3u8#第2集$https://media.example.com/ep2.m3u8#第3集$https://media.example.com/ep3.m3u8',
         vod_episode_list: [
           {
             url: 'https://media.example.com/ep1.m3u8',
@@ -138,9 +138,14 @@ describe('parseDetail', () => {
             duration: '45分钟',
           },
           {
+            url: 'https://media.example.com/ep2.m3u8',
+            still_path: '/episode-2-still.jpg',
+            description: '第二集简介',
+          },
+          {
             url: 'https://media.example.com/wrong-episode.m3u8',
             still_path: 'https://img.example.com/wrong-still.jpg',
-            description: '不属于第二集',
+            description: '不属于第三集',
           },
         ],
       }],
@@ -156,10 +161,18 @@ describe('parseDetail', () => {
       duration: '45分钟',
       imageCapturedAt: '2026-11-12T09:30:00Z',
     });
-    // A mismatched episode record and the title-level vod_pic must never become episode 2 artwork.
-    expect(detail.episodeItems?.[1]).toEqual({
+    expect(detail.episodeItems?.[1]).toMatchObject({
       title: '第2集',
       url: 'https://media.example.com/ep2.m3u8',
+      image: 'https://image.tmdb.org/t/p/w500/episode-2-still.jpg',
+      imageSourceUrl: 'https://image.tmdb.org/t/p/w500/episode-2-still.jpg',
+      imageSourceEpisodeUrl: 'https://media.example.com/ep2.m3u8',
+      description: '第二集简介',
+    });
+    // A mismatched episode record and the title-level vod_pic must never become episode 3 artwork.
+    expect(detail.episodeItems?.[2]).toEqual({
+      title: '第3集',
+      url: 'https://media.example.com/ep3.m3u8',
     });
   });
 
