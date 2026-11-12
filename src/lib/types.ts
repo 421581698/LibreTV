@@ -44,8 +44,13 @@ export interface VideoEpisode {
   /** 资源站 vod_play_url 中提供的真实分集名称；没有时为空字符串。 */
   title: string;
   url: string;
-  /** Optional real episode still, synopsis and runtime when the CMS provides them. */
+  /** Optional original still URL, only when explicitly supplied for this episode. */
   image?: string;
+  /** Original image URL and exact episode stream URL retained for provenance. */
+  imageSourceUrl?: string;
+  imageSourceEpisodeUrl?: string;
+  /** Capture/extraction timestamp supplied by the source; never synthesized. */
+  imageCapturedAt?: string;
   description?: string;
   duration?: string;
 }
