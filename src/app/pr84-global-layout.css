@@ -333,3 +333,34 @@ select {
   font-variant-numeric: tabular-nums !important;
   font-feature-settings: "tnum" 1 !important;
 }
+
+
+/* PR84 visual contrast correction — neutral iOS dark hierarchy.
+   Keep semantic per-feature icon colors and existing interaction accents untouched. */
+.v4-spatial-screen[data-screen="me"] .v52-me-heading h2 {
+  color: #f5f5f7 !important;
+}
+.v4-spatial-screen[data-screen="me"] .v52-me-heading > span {
+  color: #8e8e93 !important;
+}
+.v4-spatial-screen[data-screen="me"] h3,
+.v4-spatial-screen[data-screen="me"] [class*="section-title"] {
+  color: #d1d1d6 !important;
+}
+.v4-spatial-screen[data-screen="settings"] .settings-large-title h1,
+.v4-spatial-screen[data-screen="settings"] .settings-embedded-root .settings-large-title h1 {
+  color: #f5f5f7 !important;
+}
+.v4-spatial-screen[data-screen="settings"] .ipad-settings-content > section > h3 {
+  color: #d1d1d6 !important;
+}
+/* Settings index needs enough scroll runway for the fixed dock and Safari chrome. */
+@media (max-width: 700px) {
+  body .v4-spatial-screen[data-screen="settings"] > .v4-spatial-main {
+    padding-bottom: calc(184px + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(184px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  body .v4-spatial-screen[data-screen="settings"] .settings-embedded-root {
+    padding-bottom: calc(184px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
