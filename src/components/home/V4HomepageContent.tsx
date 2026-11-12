@@ -69,7 +69,7 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
         <>
           <HomepagePosterRail
             id="apple-tv-top10"
-            title="Apple TV 10 大热门电视剧"
+            title="热门电视剧"
             items={tvItems}
             loading={tvQuery.isLoading}
             error={tvQuery.isError}
@@ -79,7 +79,7 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
           />
           <HomepagePosterRail
             id="apple-movie-top10"
-            title="Apple TV 10 大热门电影"
+            title="热门电影"
             items={movieItems}
             loading={movieQuery.isLoading}
             error={movieQuery.isError}
@@ -89,7 +89,7 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
           />
           <HomepagePosterRail
             id="apple-new-releases"
-            title="Apple TV 新上架"
+            title="新上架"
             items={newItems}
             loading={newQuery.isLoading}
             error={newQuery.isError}
