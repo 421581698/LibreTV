@@ -12,7 +12,6 @@ describe('PR #84 homepage blocking layout recovery', () => {
   const globalLayout = read('src/app/pr84-global-layout.css');
   const dockFix = read('src/app/pr84-dock-fix.css');
   const appleDock = read('src/app/pr84-apple-tv-dock.css');
-  const appleDock = read('src/app/pr84-apple-tv-dock.css');
   const nonOwnerDockStyles = [
     'src/app/iphone-home-inline.css',
     'src/app/iphone-minimal-ui.css',
@@ -59,7 +58,7 @@ describe('PR #84 homepage blocking layout recovery', () => {
     expect(appleDock).toContain('--tabbar-height: 68px;');
     expect(appleDock).toContain('--safe-area-bottom: env(safe-area-inset-bottom, 0px);');
     expect(appleDock).toContain('height: calc(var(--tabbar-height) + var(--safe-area-bottom)) !important;');
-    expect(appleDock).toContain('padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;');
+    expect(appleDock).toContain('padding-bottom: var(--tabbar-scroll-clearance) !important;');
     expect(appleDock).toContain('position: fixed !important;');
 
     const hasDockGeometry = (css: string) =>
