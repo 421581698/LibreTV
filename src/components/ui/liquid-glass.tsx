@@ -105,12 +105,16 @@ export const LiquidGlassSurface = forwardRef<HTMLElement, SurfaceProps>(function
     };
   }, []);
 
-  const opticalLayer = Engine ? (
-    <span className="liquid-glass-engine-slot" aria-hidden="true">
+  // The upstream engine renders block-level div layers. Do not nest those
+  // inside phrasing-only hosts such as button/a/span; keep those controls on
+  // the minimal fallback until an inline-safe engine surface exists.
+  const canHostEngine = as !== 'button' && as !== 'a' && as !== 'span';
+  const opticalLayer = Engine && canHostEngine ? (
+    <div className="liquid-glass-engine-slot" aria-hidden="true">
       <Engine className="liquid-glass-engine-root" {...presets[variant]}>
         <span aria-hidden="true" />
       </Engine>
-    </span>
+    </div>
   ) : null;
 
   return createElement(
@@ -124,7 +128,7 @@ export const LiquidGlassSurface = forwardRef<HTMLElement, SurfaceProps>(function
         className,
       ].filter(Boolean).join(' '),
       'data-liquid-glass': 'true',
-      'data-liquid-glass-engine': Engine ? 'ready' : 'fallback',
+      'data-liquid-glass-engine': Engine && canHostEngine ? 'ready' : 'fallback',
     },
     opticalLayer,
     children,
