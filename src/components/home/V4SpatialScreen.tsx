@@ -299,9 +299,11 @@ function MeScreen() {
       <section className="v52-me-section v52-me-continue" aria-label="继续观看">
         <div className="v52-me-section-head">
           <h3>继续观看</h3>
-          <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('libretv:open-history-panel'))}>
-            全部 <span aria-hidden="true">›</span>
-          </button>
+          {history && history.length > 0 ? (
+            <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('libretv:open-history-panel'))}>
+              全部 <span aria-hidden="true">›</span>
+            </button>
+          ) : null}
         </div>
         {!history ? (
           <p className="v52-me-empty">正在读取本机观看记录…</p>
