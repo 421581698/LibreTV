@@ -462,3 +462,57 @@ body > .v4-mobile-tabbar.liquid-glass::after {
     backdrop-filter: none !important;
   }
 }
+
+
+/* Do not stack legacy pseudo-glass styling over the upstream engine. */
+:where(
+  .glass-panel,
+  .glass-popover,
+  .glass-dialog,
+  .glass-toolbar,
+  .glass-button,
+  .liquid-glass,
+  .v4-mobile-tabbar,
+  .ai-chat-panel,
+  .v4-search,
+  .home-v2-ai-search,
+  .v4-header-icon,
+  .v4-avatar
+)[data-liquid-glass-engine="ready"] {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+:where(
+  .glass-panel,
+  .glass-popover,
+  .glass-dialog,
+  .glass-toolbar,
+  .glass-button,
+  .liquid-glass,
+  .v4-mobile-tabbar,
+  .ai-chat-panel,
+  .v4-search,
+  .home-v2-ai-search,
+  .v4-header-icon,
+  .v4-avatar
+)[data-liquid-glass-engine="ready"]::before,
+:where(
+  .glass-panel,
+  .glass-popover,
+  .glass-dialog,
+  .glass-toolbar,
+  .glass-button,
+  .liquid-glass,
+  .v4-mobile-tabbar,
+  .ai-chat-panel,
+  .v4-search,
+  .home-v2-ai-search,
+  .v4-header-icon,
+  .v4-avatar
+)[data-liquid-glass-engine="ready"]::after {
+  display: none !important;
+}
