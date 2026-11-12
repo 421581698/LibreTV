@@ -189,10 +189,15 @@ export function allowLivePrivate(): boolean {
  * 订阅/播放列表若沿用点播那把尺子，会静默过滤掉内网自建源。
  */
 export async function checkLiveUrlAllowed(urlString: string): Promise<UpstreamVerdict> {
+  let parsed: URL;
   try {
-    const parsed = new URL(urlString);
+    parsed = new URL(urlString);
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
       return { ok: false, reason: '直播地址仅支持 http/https 协议' };
+    }
+    // 内网例外只放宽目标 IP 范围，不放宽 URL 结构与凭据校验。
+    if (parsed.username || parsed.password || !parsed.hostname) {
+      return { ok: false, reason: '直播地址格式不安全' };
     }
   } catch {
     return { ok: false, reason: '无效的直播地址' };
