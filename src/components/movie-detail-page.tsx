@@ -274,7 +274,7 @@ export function MovieDetailPage() {
                     // Episode cards must never disguise the title poster as episode-specific artwork.
                     // Without a verified still for this exact episode, keep the dedicated placeholder visible.
                     url={item?.image}
-                    mode={imageProxyMode}
+                    mode={item?.imageSource === 'tmdb' ? 'direct' : imageProxyMode}
                     customProxy={customImageProxy}
                     alt=""
                     className="movie-detail-episode-image"
