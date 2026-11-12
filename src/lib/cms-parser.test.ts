@@ -49,7 +49,8 @@ describe('parseSearchList', () => {
 
 describe('extractEpisodeItemsFromPlayUrl', () => {
   it('保留 CMS 提供的真实集数名称，并与播放器 URL 列表保持一致', () => {
-    const play = '第01集$https://cdn/a1.m3u8#特别篇$https://cdn/a2.m3u8$$备用$https://x/b.m3u8';
+    const dollar = String.fromCharCode(36);
+    const play = '第01集' + dollar + 'https://cdn/a1.m3u8#特别篇' + dollar + 'https://cdn/a2.m3u8' + dollar.repeat(3) + '备用' + dollar + 'https://x/b.m3u8';
     expect(extractEpisodeItemsFromPlayUrl(play)).toEqual([
       { title: '第01集', url: 'https://cdn/a1.m3u8' },
       { title: '特别篇', url: 'https://cdn/a2.m3u8' },
