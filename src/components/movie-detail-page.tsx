@@ -102,6 +102,8 @@ export function MovieDetailPage() {
 
   const info = detail?.videoInfo;
   const episodes = detail?.episodes ?? [];
+  const episodeItems = detail?.episodeItems ?? [];
+  const episodeTitle = (index: number) => episodeItems[index]?.title || '第 ' + (index + 1) + ' 集';
   const isMovie = /电影|movie|film/i.test(info?.typeName ?? '');
   const displayTitle = info?.title || title;
   const image = info?.cover || poster;
@@ -250,7 +252,7 @@ export function MovieDetailPage() {
                     <span className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm text-black opacity-100">▶</span>
                     {percent > 0 && <span className="absolute inset-x-0 bottom-0 h-1 bg-white/15"><span className="block h-full bg-white" style={{ width: `${percent}%` }} /></span>}
                   </div>
-                  <div className="p-3"><p className="text-sm font-medium">第 {index + 1} 集</p><p className="mt-1 text-[11px] text-white/45">{percent >= 95 ? '已观看' : percent > 0 ? `已观看 ${percent}%` : '选择播放'}</p></div>
+                  <div className="p-3"><p className="text-sm font-medium">{episodeTitle(index)}</p><p className="mt-1 text-[11px] text-white/45">{percent >= 95 ? '已观看' : percent > 0 ? `已观看 ${percent}%` : '选择播放'}</p></div>
                 </button>
               );
             })}
