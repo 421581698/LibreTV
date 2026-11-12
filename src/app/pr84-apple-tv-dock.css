@@ -1163,3 +1163,48 @@
     box-shadow: none !important;
   }
 }
+
+
+/* PR84 final dock material override — black edge-to-edge glass on every mobile route. */
+@media (max-width: 700px) {
+  html body:has(.movie-detail-page, .v4-home, .v4-search-page, .v4-spatial-screen)
+    > nav.v4-mobile-tabbar.liquid-glass[data-liquid-glass="true"] {
+    position: fixed !important;
+    inset: auto 0 0 0 !important;
+    top: auto !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    border: 0 !important;
+    border-top: 0 !important;
+    border-right: 0 !important;
+    border-bottom: 0 !important;
+    border-left: 0 !important;
+    outline: 0 !important;
+    border-radius: 0 !important;
+    background: rgba(0, 0, 0, .86) !important;
+    background-color: rgba(0, 0, 0, .86) !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: blur(40px) saturate(140%) !important;
+    backdrop-filter: blur(40px) saturate(140%) !important;
+    transform: none !important;
+  }
+
+  html body:has(.movie-detail-page, .v4-home, .v4-search-page, .v4-spatial-screen)
+    > nav.v4-mobile-tabbar.liquid-glass[data-liquid-glass="true"]::before,
+  html body:has(.movie-detail-page, .v4-home, .v4-search-page, .v4-spatial-screen)
+    > nav.v4-mobile-tabbar.liquid-glass[data-liquid-glass="true"]::after {
+    content: none !important;
+    display: none !important;
+    border: 0 !important;
+    outline: 0 !important;
+    background: none !important;
+    box-shadow: none !important;
+  }
+}
