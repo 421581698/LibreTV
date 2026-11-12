@@ -475,3 +475,56 @@
     scroll-padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
+
+
+/* PR84 material pass — darker, heavier Apple-style glass + guaranteed scroll tail.
+   Use the real project selectors; the generic .bottom-nav/.search-btn names in
+   the design note are placeholders, not classes present in this app. */
+@media (max-width: 700px) {
+  html body:has(.v4-home, .v4-search-page, .v4-spatial-screen)
+    > nav.v4-mobile-tabbar.liquid-glass[data-liquid-glass="true"] {
+    background: rgba(15, 15, 15, 0.85) !important;
+    background-color: rgba(15, 15, 15, 0.85) !important;
+    background-image: none !important;
+    -webkit-backdrop-filter: blur(40px) saturate(150%) !important;
+    backdrop-filter: blur(40px) saturate(150%) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    border-bottom: 0 !important;
+    box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5) !important;
+    padding-bottom: calc(7px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* Strip native button paint as well as every GlassButton wrapper layer. */
+  html body:has(.v4-home) .v4-header .v4-header-actions > .v4-search,
+  html body:has(.v4-home) .v4-header .v4-header-actions > .v4-search button,
+  html body:has(.v4-home) .v4-header .v4-header-actions > .v4-search .liquid-glass-button-content {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    outline: 0 !important;
+    box-shadow: none !important;
+  }
+
+  html body:has(.v4-home) .v4-header .v4-header-actions > .v4-search *,
+  html body:has(.v4-home) .v4-header .v4-header-actions > .v4-search *::before,
+  html body:has(.v4-home) .v4-header .v4-header-actions > .v4-search *::after {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Keep the final poster row scrollable above the fixed dock. */
+  body:has(.v4-home) .v4-home-main,
+  body:has(.v4-home) .v4-home-main--cinema,
+  body .v4-search-page .v4-search-main,
+  body .v4-spatial-screen > .v4-spatial-main {
+    padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
