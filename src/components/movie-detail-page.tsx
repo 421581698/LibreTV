@@ -230,7 +230,7 @@ export function MovieDetailPage() {
       {history?.playbackPosition ? (
         <section className="mx-auto -mt-2 max-w-6xl px-5 sm:px-10">
           <button type="button" onClick={() => play(history.episodeIndex)} className="flex w-full items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[.06] p-4 text-left backdrop-blur-xl">
-            <span><span className="block text-sm font-medium">继续观看</span><span className="mt-1 block text-xs text-white/55">从上次进度继续 · 第 {history.episodeIndex + 1} 集</span></span>
+            <span><span className="block text-sm font-medium">继续观看</span><span className="mt-1 block text-xs text-white/55">从上次进度继续 · {episodeTitle(history.episodeIndex)}</span></span>
             <span className="text-sm text-white/70">继续播放 →</span>
           </button>
         </section>
