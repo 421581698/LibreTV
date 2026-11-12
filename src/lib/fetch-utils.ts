@@ -19,11 +19,6 @@ export interface FetchResult {
 
 export interface SafeRedirectOptions {
   /**
-   * 直播场景放行内网地址（自建 IPTV）：仅在部署者设置 LIVE_ALLOW_PRIVATE=1 时生效。
-   * 校验复用 checkLiveUrlAllowed，与直播流代理使用同一把尺子。
-   */
-  allowPrivate?: boolean;
-  /**
    * 仅对「响应头等待」限时（直播流专用）：对整个 body 限时会切断
    * HTTP-FLV 单一无限长连接，故拿到响应头后立即清除计时器，body 不再受限。
    * 超时触发即整链失败（内部 controller 已 abort，对齐直播路由原行为）。
@@ -36,12 +31,13 @@ export interface SafeRedirectOptions {
  * 不能用 redirect:'follow'——预检之后 fetch 自动跟随的 3xx 可把请求
  * 带进内网/元数据地址，绕过对首跳的校验。
  */
-export async function fetchWithSafeRedirects(
+async function fetchWithPolicy(
   url: string,
   init: Omit<RequestInit, 'redirect'> = {},
-  options: SafeRedirectOptions = {}
+  options: SafeRedirectOptions = {},
+  allowPrivate = false
 ): Promise<FetchResult> {
-  const { allowPrivate = false, headerTimeoutMs } = options;
+  const { headerTimeoutMs } = options;
   let current = url;
   const controller = new AbortController();
   const externalSignal = init.signal;
@@ -112,6 +108,16 @@ export async function fetchLiveUpstreamWithMeta(url: string, options: FetchOptio
   return fetchWithMetaPolicy(url, options, true);
 }
 
+/** 普通公网代理：调用者不能启用内网例外。 */
+export async function fetchWithSafeRedirects(url: string, init: Omit<RequestInit, 'redirect'> = {}, options: SafeRedirectOptions = {}): Promise<FetchResult> {
+  return fetchWithPolicy(url, init, options, false);
+}
+
+/** 直播专用代理：内网放行仍受 LIVE_ALLOW_PRIVATE=1 约束。 */
+export async function fetchLiveWithSafeRedirects(url: string, init: Omit<RequestInit, 'redirect'> = {}, options: SafeRedirectOptions = {}): Promise<FetchResult> {
+  return fetchWithPolicy(url, init, options, true);
+}
+
 export async function fetchUpstream(url: string, options: FetchOptions = {}): Promise<Response> {
   return (await fetchUpstreamWithMeta(url, options)).res;
 }
@@ -132,7 +138,7 @@ async function fetchWithMetaPolicy(url: string, options: FetchOptions, allowPriv
       : timeoutSignal;
 
     try {
-      return await fetchWithSafeRedirects(url, { ...init, signal }, { allowPrivate });
+      return await fetchWithPolicy(url, { ...init, signal }, {}, allowPrivate);
     } catch (err) {
       lastError = err;
       if (init.signal?.aborted) throw err;
