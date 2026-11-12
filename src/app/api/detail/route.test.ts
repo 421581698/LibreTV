@@ -95,6 +95,27 @@ describe('GET /api/detail', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  it('blocks a private explicit detail-page origin after the public CMS list fallback', async () => {
+    const fetchSpy = vi.fn(async () => new Response(JSON.stringify(cmsDetail('')), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    }));
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const response = await GET(makeRequest({
+      id: 'movie-private-detail',
+      source: {
+        ...source('https://cms-detail-root.example/api.php', 'private-detail-root'),
+        detail: 'http://127.0.0.1:8080/internal',
+      },
+    }));
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: expect.stringContaining('允许范围') });
+    // The public CMS list may be queried, but the private detail-page origin must never be fetched.
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('returns parsed episode details from the CMS list endpoint', async () => {
     const fetchSpy = vi.fn(async () => new Response(
       JSON.stringify(cmsDetail('第1集$https://media.example.com/episode-1.m3u8')),
