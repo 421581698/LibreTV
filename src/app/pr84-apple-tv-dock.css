@@ -483,16 +483,16 @@
 @media (max-width: 700px) {
   html body:has(.v4-home, .v4-search-page, .v4-spatial-screen)
     > nav.v4-mobile-tabbar.liquid-glass[data-liquid-glass="true"] {
-    background: rgba(15, 15, 15, 0.85) !important;
-    background-color: rgba(15, 15, 15, 0.85) !important;
+    background: rgba(20, 20, 20, 0.62) !important;
+    background-color: rgba(20, 20, 20, 0.62) !important;
     background-image: none !important;
-    -webkit-backdrop-filter: blur(40px) saturate(150%) !important;
-    backdrop-filter: blur(40px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(40px) saturate(155%) !important;
+    backdrop-filter: blur(40px) saturate(155%) !important;
     border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
     border-left: 0 !important;
     border-right: 0 !important;
     border-bottom: 0 !important;
-    box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5) !important;
+    box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.4) !important;
     padding-bottom: calc(7px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
