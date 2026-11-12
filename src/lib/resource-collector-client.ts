@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
+import { checkUpstreamAllowed } from './ssrf';
 
 const DEFAULT_TIMEOUT_MS = 20_000;
+const MAX_COLLECTOR_RESPONSE_BYTES = 4 * 1024 * 1024;
 
 function validCollectorBase(rawBase: string): string | null {
   try {
@@ -29,7 +31,66 @@ function collectorConfig(request?: Request) {
   return base && token ? { base, token } : null;
 }
 
-/** Server-side proxy. Browser overrides are accepted only after the route's private-feature auth guard. */
+class CollectorResponseError extends Error {
+  constructor(public readonly code: 'TOO_LARGE' | 'INVALID_JSON' | 'INVALID_UTF8') {
+    super(code);
+    this.name = 'CollectorResponseError';
+  }
+}
+
+/** Enforce a byte ceiling while streaming; Content-Length is only an early-rejection hint. */
+async function readCollectorJson(response: Response): Promise<unknown> {
+  const declared = response.headers.get('content-length');
+  if (declared !== null && /^\d+$/.test(declared) && Number(declared) > MAX_COLLECTOR_RESPONSE_BYTES) {
+    await response.body?.cancel().catch(() => undefined);
+    throw new CollectorResponseError('TOO_LARGE');
+  }
+  if (!response.body) throw new CollectorResponseError('INVALID_JSON');
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      total += value.byteLength;
+      if (total > MAX_COLLECTOR_RESPONSE_BYTES) {
+        await reader.cancel().catch(() => undefined);
+        throw new CollectorResponseError('TOO_LARGE');
+      }
+      chunks.push(value);
+    }
+  } finally {
+    try { reader.releaseLock(); } catch { /* stream already cancelled */ }
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  let text: string;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    throw new CollectorResponseError('INVALID_UTF8');
+  }
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    throw new CollectorResponseError('INVALID_JSON');
+  }
+}
+
+/**
+ * Server-side proxy. Browser overrides are accepted only after the route's private-feature auth guard.
+ * DNS validation blocks known private/reserved answers, but does not pin the resolved IP to fetch's socket;
+ * DNS-rebinding resistance still requires the dedicated egress gateway.
+ */
 export async function collectorRequest(
   path: string,
   init: Pick<RequestInit, 'method' | 'body' | 'headers'> = {},
@@ -44,6 +105,14 @@ export async function collectorRequest(
     );
   }
   try {
+    const verdict = await checkUpstreamAllowed(config.base);
+    if (!verdict.ok) {
+      return NextResponse.json(
+        { code: 'COLLECTOR_TARGET_REJECTED', error: 'Collector 地址未通过公网目标安全校验。' },
+        { status: 502, headers: { 'Cache-Control': 'no-store' } },
+      );
+    }
+
     const response = await fetch(config.base + path, {
       method: init.method ?? 'GET',
       ...(init.body !== undefined ? { body: init.body } : {}),
@@ -53,9 +122,24 @@ export async function collectorRequest(
       signal: AbortSignal.timeout(timeoutMs),
     });
     if (response.status >= 300 && response.status < 400) {
+      await response.body?.cancel().catch(() => undefined);
       return NextResponse.json({ code: 'COLLECTOR_REDIRECT_REJECTED', error: 'Collector 返回了重定向，已按安全策略拒绝。' }, { status: 502, headers: { 'Cache-Control': 'no-store' } });
     }
-    const payload = await response.json().catch(() => null);
+
+    let payload: unknown;
+    try {
+      payload = await readCollectorJson(response);
+    } catch (error) {
+      const code = error instanceof CollectorResponseError ? error.code : 'INVALID_JSON';
+      const tooLarge = code === 'TOO_LARGE';
+      return NextResponse.json(
+        {
+          code: tooLarge ? 'COLLECTOR_RESPONSE_TOO_LARGE' : 'COLLECTOR_INVALID_RESPONSE',
+          error: tooLarge ? 'Collector 响应超过 4 MB 上限。' : 'Collector 返回了非 JSON 或无效响应。',
+        },
+        { status: 502, headers: { 'Cache-Control': 'no-store' } },
+      );
+    }
     if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) {
       return NextResponse.json(
         { code: 'COLLECTOR_INVALID_RESPONSE', error: 'Collector 返回了非 JSON 或无效响应。' },
