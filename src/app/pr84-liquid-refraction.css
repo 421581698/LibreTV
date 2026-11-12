@@ -331,3 +331,33 @@ body > .v4-mobile-tabbar::after {
 @media (prefers-reduced-motion: reduce) {
   body > .v4-mobile-tabbar::before { animation: none !important; }
 }
+
+/* PR84 dock fallback: CSS is intentionally the lowest visual layer.
+ * The Liquid Glass engine owns the optical treatment when available; this
+ * keeps unsupported browsers readable without turning the dock into a frosted slab.
+ */
+body > .v4-mobile-tabbar.liquid-glass {
+  background: rgba(12,14,19,.10) !important;
+  border-color: rgba(255,255,255,.14) !important;
+  box-shadow:
+    0 4px 14px rgba(0,0,0,.12),
+    inset 0 1px 0 rgba(255,255,255,.12) !important;
+  -webkit-backdrop-filter: blur(2px) saturate(108%) !important;
+  backdrop-filter: blur(2px) saturate(108%) !important;
+}
+body > .v4-mobile-tabbar.liquid-glass::before {
+  background: linear-gradient(180deg, rgba(255,255,255,.09), transparent 58%) !important;
+  opacity: .32 !important;
+  animation: none !important;
+}
+body > .v4-mobile-tabbar.liquid-glass::after {
+  border-color: rgba(255,255,255,.055) !important;
+  background: none !important;
+  opacity: .5 !important;
+}
+@media (hover: none), (pointer: coarse) {
+  body > .v4-mobile-tabbar.liquid-glass {
+    -webkit-backdrop-filter: blur(2px) saturate(108%) !important;
+    backdrop-filter: blur(2px) saturate(108%) !important;
+  }
+}
