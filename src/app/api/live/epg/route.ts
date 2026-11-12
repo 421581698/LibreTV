@@ -13,6 +13,31 @@ const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 /** XMLTV 文件较大，放宽抓取超时 */
 const FETCH_TIMEOUT_MS = 30_000;
 const WINDOW_MS = 24 * 60 * 60 * 1000;
+const MAX_XMLTV_BYTES = 32 * 1024 * 1024;
+
+async function readBodyLimited(res: Response, maxBytes: number): Promise<Buffer> {
+  const declared = Number(res.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > maxBytes) throw new Error('XMLTV 文件超过 32MB 限制');
+  if (!res.body) return Buffer.alloc(0);
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        throw new Error('XMLTV 文件超过 32MB 限制');
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return Buffer.concat(chunks, total);
+}
 
 /**
  * 拉取并解析 XMLTV 节目单（支持 gzip）。
@@ -42,7 +67,7 @@ export async function GET(req: Request) {
         return jsonError(`节目单地址请求失败: ${res.status}`, 502);
       }
       // gzip 由 parseXmltv 内识别（fetch 对 .gz 不会自动解压）
-      const buf = Buffer.from(await res.arrayBuffer());
+      const buf = await readBodyLimited(res, MAX_XMLTV_BYTES);
       programMap = parseXmltv(buf, WINDOW_MS);
       setLiveCache(key, programMap, CACHE_TTL_MS, buf.byteLength * 2);
     } catch (err) {
