@@ -135,6 +135,32 @@ describe('GET /api/detail', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('does not attach playable episodes from a different CMS vod_id', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes('ac=videolist')) {
+        // The CMS ignores ids=movie-requested and returns movie-1 with playable media.
+        return new Response(JSON.stringify(cmsDetail('第1集$https://media.example.com/wrong-movie.m3u8')), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      return new Response('<html><h1>未匹配到请求影片</h1></html>', {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+      });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const response = await GET(makeRequest({
+      id: 'movie-requested',
+      source: source('https://cms-detail-mismatch.example/api.php', 'detail-mismatch'),
+    }));
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ error: '未找到播放资源' });
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
   it('falls back to the detail HTML page when the CMS list has no playable episodes', async () => {
     const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
