@@ -304,7 +304,7 @@
 /* My / Settings screens: native grouped-list treatment on iPhone. */
 @media (max-width: 700px) {
   .v4-spatial-screen[data-screen="me"] .v4-spatial-main {
-    padding-top: calc(66px + env(safe-area-inset-top)) !important;
+    padding-top: calc(30px + env(safe-area-inset-top)) !important;
     padding-bottom: calc(94px + env(safe-area-inset-bottom)) !important;
   }
   .v4-spatial-screen[data-screen="me"] > .v4-spatial-main > .v4-spatial-heading {
@@ -1052,7 +1052,7 @@
 .v4-spatial-screen[data-screen="me"] .v52-me-layout {
   display: flex;
   flex-direction: column;
-  gap: 25px;
+  gap: 19px;
   width: 100%;
 }
 .v4-spatial-screen[data-screen="me"] .v52-me-header {
@@ -1180,8 +1180,8 @@
   align-items: flex-start;
   justify-content: center;
   gap: 5px;
-  padding: 13px;
-  border: 1px solid rgba(255,255,255,.065);
+  padding: 16px;
+  border: 1px solid rgba(255,255,255,.055);
   border-radius: 13px;
   color: #f5f5f7;
   background: #111114;
@@ -1195,7 +1195,14 @@
   margin-bottom: 2px;
 }
 .v4-spatial-screen[data-screen="me"] .v52-me-tile-icon svg { width: 19px; height: 19px; }
-.v4-spatial-screen[data-screen="me"] .v52-me-heart { color: #6daaff; }
+.v4-spatial-screen[data-screen="me"] .v52-me-heart { color: #70aaff; }
+.v4-spatial-screen[data-screen="me"] .v52-me-heart svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 .v4-spatial-screen[data-screen="me"] .v52-me-clock { color: #6daaff; }
 .v4-spatial-screen[data-screen="me"] .v52-me-library-tile strong { font-size: 13px; font-weight: 620; }
 .v4-spatial-screen[data-screen="me"] .v52-me-library-tile small { color: #85858d; font-size: 10px; }
@@ -1229,11 +1236,22 @@
   gap: 12px;
   padding: 7px 2px;
   border: 0;
-  border-bottom: 1px solid rgba(255,255,255,.075);
+  border-bottom: 0;
   color: #ededf0;
   background: transparent;
   text-align: left;
   text-decoration: none;
+}
+.v4-spatial-screen[data-screen="me"] .v52-me-list-row { position: relative; }
+.v4-spatial-screen[data-screen="me"] .v52-me-list-row::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 39px;
+  height: 1px;
+  background: rgba(255,255,255,.065);
+  content: "";
+  pointer-events: none;
 }
 .v4-spatial-screen[data-screen="me"] .v52-me-list-icon {
   display: grid;
@@ -1263,5 +1281,7 @@
   .v4-spatial-screen[data-screen="me"] .v4-spatial-main {
     padding-top: calc(66px + env(safe-area-inset-top)) !important;
   }
-  .v4-spatial-screen[data-screen="me"] .v52-me-layout { gap: 23px; }
+  .v4-spatial-screen[data-screen="me"] .v52-me-layout { gap: 19px; }
+  .v4-spatial-screen[data-screen="me"] .v52-me-empty { padding: 11px 13px; }
+  .v4-spatial-screen[data-screen="me"] .v52-me-library-tile { min-height: 98px; }
 }
