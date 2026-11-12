@@ -91,8 +91,12 @@ function parseExtInf(line: string): number {
 function parseAesConf(line: string): AesConf | undefined {
   const method = line.match(/METHOD=([^,]+)/)?.[1];
   if (!method || method === 'NONE') return undefined;
+  // Only identity AES-128-CBC is implemented; fail closed for DRM/SAMPLE-AES.
+  if (method !== 'AES-128') throw new Error(`暂不支持 HLS 加密方式：${method}`);
+  const keyFormat = line.match(/KEYFORMAT="([^"]+)"/)?.[1];
+  if (keyFormat && keyFormat !== 'identity') throw new Error(`暂不支持 HLS KEYFORMAT：${keyFormat}`);
   const uri = line.match(/URI="([^"]+)"/)?.[1];
-  if (!uri) return undefined;
+  if (!uri) throw new Error('HLS AES-128 密钥缺少 URI');
   const iv = line.match(/IV=0[xX]([0-9a-fA-F]+)/)?.[1];
   return { method, uri, iv };
 }
@@ -159,6 +163,11 @@ export async function parseM3u8Playlist(
   const mediaSequence = parseInt(text.match(/^#EXT-X-MEDIA-SEQUENCE:(\d+)/m)?.[1] || '0', 10) || 0;
   for (const raw of text.split('\n')) {
     const line = raw.trim();
+    if (line.startsWith('#EXT-X-MAP')) {
+      // fMP4 playlists need their initialization section prepended. This
+      // downloader currently writes media segments only, so fail closed.
+      throw new Error('该 HLS 使用 EXT-X-MAP 初始化分段，当前下载器暂不支持');
+    }
     if (line.startsWith('#EXT-X-KEY')) {
       // 取最后一次出现的 KEY（逐段换 key 的源不在支持范围）
       const conf = parseAesConf(line);
