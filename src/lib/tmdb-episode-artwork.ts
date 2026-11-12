@@ -154,41 +154,48 @@ export async function enrichEpisodesWithTmdbArtwork(
       );
       return { seasonNumber, episodes: response?.episodes ?? [] };
     }));
-    const artwork = new Map<string, TmdbArtworkMatch>();
+    const episodeMetadata = new Map<string, TmdbSeasonEpisode>();
     for (const season of seasonData) {
       for (const episode of season.episodes) {
         const episodeNumber = parsePositiveInteger(String(episode.episode_number ?? ''));
-        if (episodeNumber === undefined || !episode.still_path) continue;
-        artwork.set(season.seasonNumber + ':' + episodeNumber, {
-          image: TMDB_IMAGE + '/' + episode.still_path.replace(/^\/+/, ''),
-          tmdbSeriesId: match.id,
-          ...(Number.isSafeInteger(episode.id) ? { tmdbEpisodeId: episode.id } : {}),
-          seasonNumber: season.seasonNumber,
-          episodeNumber,
-          imageSource: 'tmdb',
-        });
+        if (episodeNumber === undefined) continue;
+        episodeMetadata.set(season.seasonNumber + ':' + episodeNumber, episode);
       }
     }
 
     let changed = false;
     const episodeItems = detail.episodeItems.map((item) => {
-      if (item.image) return item;
       const coordinates = parseEpisodeCoordinates(item.title, displayTitle);
       if (!coordinates) return item;
-      const matchArtwork = artwork.get(coordinates.seasonNumber + ':' + coordinates.episodeNumber);
-      if (!matchArtwork) return item;
-      changed = true;
-      return {
+      const tmdbEpisode = episodeMetadata.get(coordinates.seasonNumber + ':' + coordinates.episodeNumber);
+      if (!tmdbEpisode) return item;
+      const still = tmdbEpisode.still_path
+        ? TMDB_IMAGE + '/' + tmdbEpisode.still_path.replace(/^\\/+/, '')
+        : undefined;
+      const episodeName = typeof tmdbEpisode.name === 'string' ? tmdbEpisode.name.trim() : '';
+      const overview = typeof tmdbEpisode.overview === 'string' ? tmdbEpisode.overview.trim() : '';
+      const runtime = Number.isSafeInteger(tmdbEpisode.runtime) && (tmdbEpisode.runtime ?? 0) > 0
+        ? String(tmdbEpisode.runtime) + '分钟'
+        : undefined;
+      const next = {
         ...item,
-        image: matchArtwork.image,
-        imageSourceUrl: matchArtwork.image,
-        imageSourceEpisodeUrl: item.url,
-        tmdbSeriesId: matchArtwork.tmdbSeriesId,
-        tmdbEpisodeId: matchArtwork.tmdbEpisodeId,
-        seasonNumber: matchArtwork.seasonNumber,
-        episodeNumber: matchArtwork.episodeNumber,
-        imageSource: matchArtwork.imageSource,
+        ...(!item.image && still ? {
+          image: still,
+          imageSourceUrl: still,
+          imageSourceEpisodeUrl: item.url,
+          tmdbSeriesId: match.id,
+          ...(Number.isSafeInteger(tmdbEpisode.id) ? { tmdbEpisodeId: tmdbEpisode.id } : {}),
+          seasonNumber: coordinates.seasonNumber,
+          episodeNumber: coordinates.episodeNumber,
+          imageSource: 'tmdb' as const,
+        } : {}),
+        ...(!item.episodeName && episodeName ? { episodeName } : {}),
+        ...(!item.description && overview ? { description: overview } : {}),
+        ...(!item.duration && runtime ? { duration: runtime } : {}),
       };
+      if (next.image !== item.image || next.episodeName !== item.episodeName ||
+          next.description !== item.description || next.duration !== item.duration) changed = true;
+      return next;
     });
     return changed ? { ...detail, episodeItems } : detail;
   } catch {
