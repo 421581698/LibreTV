@@ -67,9 +67,10 @@ function HomeContent() {
 
   useFridayDetailBridge(setDetailItem, toast);
 
-  const openDetail = (item: SearchResultItem) => {
+  const openDetail = (item: SearchResultItem, extra?: { rating?: string; poster?: string }) => {
     const params = new URLSearchParams({ source: item.sourceKey, id: item.vodId, title: item.name, sourceName: item.sourceName });
-    if (item.pic) params.set('pic', item.pic);
+    if (item.pic || extra?.poster) params.set('pic', item.pic || extra.poster || '');
+    if (extra?.rating) params.set('rating', extra.rating);
     if (item.sourceUrl) params.set('sourceUrl', item.sourceUrl);
     router.push('/detail?' + params.toString());
   };
@@ -134,7 +135,7 @@ function HomeContent() {
         currentStore.qualityMap,
         currentStore.playbackHealth,
       );
-      openDetail(rankedMatches[0]);
+      openDetail(rankedMatches[0], { rating: movie.rating, poster: movie.cover });
     } catch (error) {
       toast(error instanceof Error ? error.message : '获取影片详情失败，请稍后重试', 'error');
     }
