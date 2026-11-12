@@ -60,6 +60,18 @@ describe('PR #84 homepage blocking layout recovery', () => {
     expect(globalLayout).not.toContain('top: calc(env(safe-area-inset-top, 0px) + 54px) !important;');
   });
 
+  it('prioritizes live hot poster rails before local watch history on the cinema lobby', () => {
+    const content = read('src/components/home/V4HomepageContent.tsx');
+    const hotTv = content.indexOf('id="apple-tv-top10"');
+    const hotMovies = content.indexOf('id="apple-movie-top10"');
+    const newReleases = content.indexOf('id="apple-new-releases"');
+    const continueWatching = content.indexOf('className="v4-content-section v4-continue-section"');
+    expect(hotTv).toBeGreaterThan(-1);
+    expect(hotMovies).toBeGreaterThan(hotTv);
+    expect(newReleases).toBeGreaterThan(hotMovies);
+    expect(continueWatching).toBeGreaterThan(newReleases);
+  });
+
   it('uses the same left-aligned Large Title hierarchy on Settings and Search', () => {
     expect(settings).toContain('<header className="settings-large-title">');
     expect(settings).toContain('<h1>设置</h1>');
