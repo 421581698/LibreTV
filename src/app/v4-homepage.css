@@ -1422,9 +1422,65 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
     border: 1px solid rgba(20,25,35,.12) !important;
     border-radius: 50% !important;
   }
+
+  .v4-mobile-tabbar {
+    position: fixed !important;
+    z-index: 500 !important;
+    left: 10px !important;
+    right: 10px !important;
+    bottom: max(7px, env(safe-area-inset-bottom)) !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    align-items: stretch !important;
+    min-height: 66px !important;
+    padding: 7px 5px 5px !important;
+    border: 1px solid rgba(255,255,255,.72) !important;
+    border-radius: 20px !important;
+    background: rgba(255,255,255,.86) !important;
+    box-shadow: 0 8px 28px rgba(18,24,36,.16) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(170%) !important;
+    backdrop-filter: blur(24px) saturate(170%) !important;
+  }
+  .v4-mobile-tabbar a {
+    position: relative !important;
+    display: flex !important;
+    min-width: 0 !important;
+    min-height: 52px !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    color: #9297a0 !important;
+    text-decoration: none !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    line-height: 1.1 !important;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .v4-mobile-tabbar a svg {
+    display: block !important;
+    width: 23px !important;
+    height: 23px !important;
+    fill: none !important;
+    stroke: currentColor !important;
+    stroke-width: 1.8 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+  }
+  .v4-mobile-tabbar a.is-active { color: #111318 !important; }
+  .v4-mobile-tabbar a.is-active span { font-weight: 750 !important; }
+  .v4-mobile-tabbar a i {
+    position: absolute !important;
+    bottom: -1px !important;
+    width: 5px !important;
+    height: 5px !important;
+    border-radius: 50% !important;
+    background: currentColor !important;
+  }
   .v4-home { padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important; }
   body:has(.v4-mobile-tabbar) { padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px); }
 }
+@media screen and (min-width: 701px) {
 }
 
 
