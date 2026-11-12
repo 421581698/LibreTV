@@ -29,8 +29,7 @@ export async function GET(req: Request) {
   if (!url || !channel) return jsonError('缺少 url 或 channel 参数', 400);
   const force = sp.get('force') === '1';
 
-  // 直播专用校验 + allowPrivate：与 playlist/stream/probe 同一把尺子，
-  // LIVE_ALLOW_PRIVATE=1 时内网自建 IPTV 的 XMLTV 节目单才能拉取
+  // 直播专用校验：内网 XMLTV 仅对 LIVE_PRIVATE_ORIGINS 中精确列出的源站地址放行
   const verdict = await checkLiveUrlAllowed(url);
   if (!verdict.ok) return jsonError(verdict.reason, 403);
 

@@ -277,14 +277,16 @@ describe('POST /api/live/probe', () => {
   it('未开启 LIVE_ALLOW_PRIVATE 时拒绝内网地址', async () => {
     mockUpstream();
     delete process.env.LIVE_ALLOW_PRIVATE;
+    delete process.env.LIVE_PRIVATE_ORIGINS;
     const res = await POST(makeRequest(['http://127.0.0.1:8080/live.m3u8'], true));
     const [line] = await readNdjson(res);
     expect(line.ok).toBe(false);
     expect(String(line.error)).toContain('允许范围');
   });
 
-  it('开启 LIVE_ALLOW_PRIVATE 后自建内网源可正常探测（与直播代理口径一致）', async () => {
+  it('配置私网直播源站白名单后自建内网源可正常探测', async () => {
     process.env.LIVE_ALLOW_PRIVATE = '1';
+    process.env.LIVE_PRIVATE_ORIGINS = 'http://192.168.1.10:8080';
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => jsonRes(MASTER, 'application/vnd.apple.mpegurl'))
@@ -295,6 +297,7 @@ describe('POST /api/live/probe', () => {
       expect(line.ok).toBe(true);
     } finally {
       delete process.env.LIVE_ALLOW_PRIVATE;
+      delete process.env.LIVE_PRIVATE_ORIGINS;
     }
   });
 });

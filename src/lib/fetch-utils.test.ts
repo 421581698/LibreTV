@@ -20,6 +20,7 @@ function mockFetch(handlers: Array<(url: string) => Response>) {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 describe('fetchUpstream 安全跳转', () => {
@@ -45,6 +46,19 @@ describe('fetchUpstream 安全跳转', () => {
     const spy = mockFetch([() => new Response('direct', { status: 200 })]);
     const res = await fetchUpstream(PUBLIC_URL);
     expect(await res.text()).toBe('direct');
+    expect(spy.mock.calls.length).toBe(1);
+  });
+
+
+  it('私网 IPTV 白名单不允许重定向到未列入白名单的内网 origin', async () => {
+    vi.stubEnv('LIVE_ALLOW_PRIVATE', '1');
+    vi.stubEnv('LIVE_PRIVATE_ORIGINS', 'http://192.168.1.10:8080');
+    const spy = mockFetch([
+      () => new Response(null, { status: 302, headers: { location: 'http://127.0.0.1:8080/secret' } }),
+    ]);
+    await expect(
+      fetchUpstream('http://192.168.1.10:8080/list.m3u', { allowPrivate: true }),
+    ).rejects.toThrow(/跳转目标被拒绝/);
     expect(spy.mock.calls.length).toBe(1);
   });
 
