@@ -226,7 +226,7 @@ export function AggregatedCard({
         }}
       >
         {showImg ? (
-          <div className="relative flex-shrink-0 w-[105px] sm:w-[120px] aspect-[2/3] bg-chip">
+          <div className="lg-media-frame relative flex-shrink-0 w-[105px] sm:w-[120px] aspect-[2/3] bg-chip">
             <SmartImage
               url={group.pic}
               mode={imageProxyMode}
