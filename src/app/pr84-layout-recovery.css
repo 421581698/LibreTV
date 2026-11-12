@@ -413,6 +413,7 @@ body:has(.v4-search-page) {
   .v4-search-page .v4-search-category-copy strong { font-size: 18px; }
   .v4-search-page .v4-search-explore { margin-top: 28px; }
 }
+@media (min-width: 701px) {
   .v4-search-page { padding-bottom: 36px; }
 }
 @media (prefers-reduced-motion: reduce) {
