@@ -219,3 +219,43 @@ body:has(.v4-spatial-screen[data-screen="settings"])::after {
   padding-bottom:calc(112px + env(safe-area-inset-bottom,0px))!important;
   scroll-padding-bottom:calc(112px + env(safe-area-inset-bottom,0px))!important;
 }
+
+
+/* PR84 /me-only interaction repair.
+   Reuse the existing Friday voice orb as the header action instead of letting
+   the fixed launcher float over the settings row. The shared dock geometry
+   and every other route remain unchanged. */
+@media (max-width: 700px) {
+  body:has(.v4-spatial-screen[data-screen="me"]) .friday-root .friday-fab {
+    top: calc(30px + env(safe-area-inset-top, 0px)) !important;
+    right: 18px !important;
+    bottom: auto !important;
+    left: auto !important;
+    width: 40px !important;
+    height: 40px !important;
+    z-index: 2147483647 !important;
+    opacity: 1 !important;
+    touch-action: manipulation !important;
+  }
+
+  body:has(.v4-spatial-screen[data-screen="me"]) .friday-root .friday-fab .friday-orb {
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  body:has(.v4-spatial-screen[data-screen="me"]) .v52-me-avatar {
+    visibility: hidden !important;
+  }
+
+  body:has(.v4-spatial-screen[data-screen="me"]) > .v4-mobile-tabbar {
+    z-index: 10000 !important;
+    pointer-events: auto !important;
+  }
+
+  body:has(.v4-spatial-screen[data-screen="me"]) > .v4-mobile-tabbar > a {
+    min-height: 48px !important;
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+}
