@@ -5,10 +5,10 @@ import {
   extractM3u8FromText,
   filterAdultResults,
   filterRelevantResults,
-  isAdultContent,
+  isAdultContent,\n  isMovieType,
   isRelevant,
   normalizeTitle,
-  parseDetail,
+  parseDetail,\n  cmsDescriptionToText,
   parseDetailPageHtml,
   parseSearchList,
 } from './cms-parser';
@@ -129,6 +129,27 @@ describe('parseDetail', () => {
 
   it('空列表抛错', () => {
     expect(() => parseDetail({ list: [] }, source)).toThrow();
+  });
+});
+
+describe('电影类型识别与 CMS 简介清理', () => {
+  it.each(['动作片', '喜剧片', '科幻片', '爱情片', '恐怖片', '剧情片'])('把 %s 等 Apple CMS 电影分类识别为电影', (typeName) => {
+    expect(isMovieType(typeName, 1)).toBe(true);
+  });
+
+  it.each(['电视剧', '连续剧', '动漫', '番剧', '综艺'])('保留 %s 的分集展示', (typeName) => {
+    expect(isMovieType(typeName, 12)).toBe(false);
+  });
+
+  it('未知分类根据播放地址数量安全回退', () => {
+    expect(isMovieType('其他分类', 1)).toBe(true);
+    expect(isMovieType('其他分类', 8)).toBe(false);
+  });
+
+  it('移除简介中的 HTML、脚本和样式，并解码常见实体', () => {
+    expect(cmsDescriptionToText('<p>简介&nbsp;内容</p><script>alert(1)</script><b>科幻&amp;冒险</b>'))
+      .toBe('简介 内容\\n科幻&冒险');
+    expect(cmsDescriptionToText('普通文本')).toBe('普通文本');
   });
 });
 
