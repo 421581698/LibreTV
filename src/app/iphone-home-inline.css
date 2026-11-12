@@ -986,6 +986,12 @@ body:has(.v4-home) #__next {
   color-scheme: dark !important;
 }
 
+
+/* PR84 — floating Liquid Glass dock.
+   CSS-first on purpose: liquid-glass-react notes Safari only partially supports
+   its displacement/refraction layer, so preserve a native backdrop-filter fallback. */
+@media (max-width: 700px) {
+
   /* Keep content scrollable behind the floating dock without a second blank
      128px footer after the home content. */
   body:has(.v4-home) .v4-home {
@@ -1032,7 +1038,18 @@ html:has(.v4-home) {
     padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
   }
 }
+
+
+/* PR84 — apply the shared Liquid Glass optical surface to the mobile dock. */
+@media (max-width: 700px) {
+
+  /* The glass edge gets the optical treatment;
 }
+
+
+/* PR84 iPhone refinement — darker transparent glass, safe-area alignment,
+   edge inset for poster rails, and a four-destination bottom dock. */
+@media (max-width: 700px) {
 
   body:has(.v4-home) .v4-home .v4-home-main,
   body:has(.v4-home) .v4-home .v4-home-main--cinema {
@@ -1062,7 +1079,19 @@ html:has(.v4-home) {
     height: calc(clamp(640px, 94svh, 900px) + env(safe-area-inset-top, 0px)) !important;
   }
 }
+
+
+/* rdev/liquid-glass-react integration.
+   The upstream SVG displacement is progressive enhancement; iOS Safari keeps
+   the native 30px backdrop-filter path when displacement is unsupported. */
+@media (max-width: 700px) {
 }
+
+
+/* PR84 hotfix: keep the dock as a direct viewport-fixed element.
+   Do not wrap it in the third-party LiquidGlass engine: its transformed
+   wrapper can establish a containing block and detach position:fixed. */
+@media (max-width: 700px) {
 
   body:has(.v4-home) .v4-home .v4-home-main,
   body:has(.v4-home) .v4-home .v4-home-main--cinema {
@@ -1112,6 +1141,8 @@ html:has(.v4-home) {
     bottom: max(88px, calc(env(safe-area-inset-bottom, 0px) + 76px)) !important;
   }
 }
+
+@media (min-width: 701px) {
 }
 
 /* PR84 visual polish: the homepage is immersive from first paint, not after scroll. */
