@@ -3,6 +3,7 @@ import { guardRequest } from '@/lib/api-guard';
 import { cmsRequestHeaders, parseDetail, parseDetailPageHtml } from '@/lib/cms-parser';
 import { fetchUpstream, getCache, setCache } from '@/lib/fetch-utils';
 import { checkUpstreamAllowed } from '@/lib/ssrf';
+import { enrichEpisodesWithTmdbArtwork } from '@/lib/tmdb-episode-artwork';
 import type { SourceConfig, VideoDetail } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -106,6 +107,13 @@ export async function GET(req: Request) {
     if (!resolved || resolved.episodes.length === 0) {
       return NextResponse.json({ error: '未找到播放资源' }, { status: 404 });
     }
+    // TMDB is an optional metadata provider. Missing credentials, unmatched titles,
+    // or upstream outages leave the CMS episode list and playback URLs untouched.
+    resolved = await enrichEpisodesWithTmdbArtwork(resolved, {
+      token: process.env.TMDB_READ_ACCESS_TOKEN,
+      title: resolved.videoInfo.title,
+      year: resolved.videoInfo.year,
+    });
     setCache(cacheKey, resolved, DETAIL_CACHE_TTL);
     return NextResponse.json(resolved);
   } catch (err) {
