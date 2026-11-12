@@ -2,7 +2,7 @@
 :root {
   --tabbar-height: 68px;
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
-  --tabbar-scroll-clearance: var(--tabbar-scroll-clearance);
+  --tabbar-scroll-clearance: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px);
 }
 
 /* PR #84 — Apple TV edge-to-edge iPhone dock and cinematic poster finishing.
