@@ -218,11 +218,15 @@ jobs:
                   const type = String(response.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();
                   if ([301, 302, 303, 307, 308].includes(status)) {
                     response.destroy();
-                    return finish(null, new Error("Media endpoint attempted a redirect"));
+                    const error = new Error("Media endpoint attempted a redirect");
+                    error.statusCode = status;
+                    return finish(null, error);
                   }
                   if (![200, 206].includes(status)) {
                     response.destroy();
-                    return finish(null, new Error("Media endpoint returned HTTP " + status));
+                    const error = new Error("Media endpoint returned HTTP " + status);
+                    error.statusCode = status;
+                    return finish(null, error);
                   }
                   const chunks = [];
                   let size = 0;
@@ -250,9 +254,11 @@ jobs:
             try {
               mediaProbe = await probeMedia(urls[0]);
             } catch (error) {
+              const status = Number.isInteger(error?.statusCode) ? error.statusCode : null;
               console.warn("CMS media endpoint safety/reachability probe failed: " +
-                (error instanceof Error ? error.message : "unknown error"));
-              mediaProbe = { passed: false };
+                (status ? "HTTP " + status : "no HTTP response; " +
+                  (typeof error?.code === "string" ? error.code : "transport_or_safety_error")));
+              mediaProbe = { passed: false, status };
             }
             const isHls = /mpegurl|vnd\.apple\.mpegurl/.test(mediaProbe.type ?? "") ||
               /\.m3u8(?:$|[?#])/i.test(urls[0]);
