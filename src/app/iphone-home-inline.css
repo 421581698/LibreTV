@@ -1522,9 +1522,6 @@ html:has(.v4-home) {
 
   /* Give the hero a deliberate top breathing zone below the floating header. */
   body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive {
-    height: clamp(560px, 74svh, 640px) !important;
-    min-height: 560px !important;
-    max-height: 640px !important;
   }
 
   /* Keep the editorial copy as one centered stack, biased toward the lower half. */
@@ -1581,9 +1578,6 @@ html:has(.v4-home) {
   body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive {
     position: relative !important;
     inset: auto !important;
-    height: clamp(570px, 76svh, 660px) !important;
-    min-height: 570px !important;
-    max-height: 660px !important;
     margin: 0 !important;
     padding: 0 !important;
     overflow: hidden !important;
@@ -1690,10 +1684,7 @@ html:has(.v4-home) {
       ) !important;
   }
 
-  /* Move the crop lower without scaling or translating the hero wrapper. */
-  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-image img {
-    object-position: center 85% !important;
-  }
+  /* Mobile crop is owned by pr84-apple-tv-dock.css. */
 
   /* Keep pagination physically attached to the bottom edge of this hero. */
   body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-indicators {
@@ -1848,9 +1839,6 @@ body .v4-home .v4-hero-immersive .v4-hero-dots {
 }
 @media screen and (max-width: 700px) {
   body .v4-home .v4-hero-immersive {
-    height: min(88svh,780px) !important;
-    min-height: 590px !important;
-    max-height: 780px !important;
   }
   body .v4-home .v4-hero-immersive .v4-hero-image img {
     object-position: center 28% !important;
