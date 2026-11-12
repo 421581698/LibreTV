@@ -54,7 +54,7 @@ const SEGMENT_BUDGET_MS = 4000;
 export function parseBestHeight(text: string): number | undefined {
   if (!text.includes('#EXT-X-STREAM-INF')) return undefined;
   let best: number | undefined;
-  let pending: { bandwidth: number; height?: number } | undefined;
+  let pending: { height?: number } | undefined;
   for (const raw of text.split('\n')) {
     const line = raw.trim();
     if (line.startsWith('#EXT-X-STREAM-INF')) {
