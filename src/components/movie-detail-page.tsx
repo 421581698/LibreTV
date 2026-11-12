@@ -34,7 +34,7 @@ export function MovieDetailPage() {
   const envSources = useAppStore((state) => state.envSources);
   const imageProxyMode = useAppStore((state) => state.imageProxyMode);
   const customImageProxy = useAppStore((state) => state.customImageProxy);
-  const { verified } = useAuth();
+  const { checked } = useAuth();
   const sourceKey = params.get('source') ?? '';
   const vodId = params.get('id') ?? '';
   const title = params.get('title') ?? '未知影片';
@@ -77,7 +77,9 @@ export function MovieDetailPage() {
       setLoading(false);
       return;
     }
-    if (!verified) return;
+    // Wait for the shared auth status check, then let the API's 401/503
+    // handling open the existing login/setup dialog when access is required.
+    if (!checked) return;
     if (!source) {
       setError('点播源不存在或地址未通过安全校验，请检查设置中的数据源');
       setLoading(false);
@@ -99,7 +101,7 @@ export function MovieDetailPage() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [sourceKey, vodId, source, verified]);
+  }, [sourceKey, vodId, source, checked]);
 
   const info = detail?.videoInfo;
   const episodes = detail?.episodes ?? [];
