@@ -73,7 +73,9 @@ describe('PR #84 homepage blocking layout recovery', () => {
     expect(recovery).toContain('height: auto !important;');
     expect(recovery).toContain('flex: 0 0 auto !important;');
     expect(recovery).toContain('padding: 0 0 24px !important;');
-    expect(recovery).toContain('height: clamp(500px, 68svh, 640px) !important;');
+    expect(recovery).toContain('height: clamp(360px, 55svh, 520px) !important;');
+    expect(recovery).toContain('min-height: 360px !important;');
+    expect(recovery).toContain('max-height: 520px !important;');
     expect(recovery).toContain('overflow: visible !important;');
     expect(page).toContain('<V4HomepageHero onPick={openRecommendation} />');
     expect(page).toContain('<V4HomepageContent onPick={openRecommendation} />');
