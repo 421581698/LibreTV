@@ -149,7 +149,7 @@ export function parseDetail(
     const stillPathUrl = stillPath
       ? (/^https?:\/\//i.test(stillPath)
         ? stillPath
-        : /^\/[^^?#\s]+$/.test(stillPath)
+        : /^\/[^?#\s]+$/.test(stillPath)
           ? `https://image.tmdb.org/t/p/w500${stillPath}`
           : undefined)
       : undefined;
