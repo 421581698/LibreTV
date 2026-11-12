@@ -18,6 +18,8 @@ interface SmartImageProps {
   alt: string;
   className?: string;
   loading?: 'lazy' | 'eager';
+  /** 是否在所有图片候选失败后显示通用海报占位；剧集卡片应关闭并显示自身占位 */
+  showDefaultFallback?: boolean;
   /** 候选链耗尽后回调，调用方切换占位图等兜底 UI */
   onExhausted?: () => void;
 }
@@ -38,6 +40,7 @@ export function SmartImage({
   alt,
   className,
   loading = 'lazy',
+  showDefaultFallback = true,
   onExhausted,
 }: SmartImageProps) {
   const candidates = [...new Set([
@@ -51,7 +54,9 @@ export function SmartImage({
   const [fallback, setFallback] = useState(false);
   const useHdrSource = supportsHdr && hdrCandidates.length > 0 && !hdrFailed;
   const activeCandidates = useHdrSource ? hdrCandidates : candidates;
-  const src = fallback ? DEFAULT_POSTER_SRC : activeCandidates[idx];
+  const src = fallback
+    ? (showDefaultFallback ? DEFAULT_POSTER_SRC : undefined)
+    : activeCandidates[idx];
 
   useEffect(() => {
     const query = window.matchMedia('(dynamic-range: high)');
