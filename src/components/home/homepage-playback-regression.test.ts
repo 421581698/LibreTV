@@ -62,7 +62,8 @@ const fridayPanel = source('src/components/friday/FridayPanel.tsx');
 describe('首页与播放页回归契约', () => {
   it('首页 FridayOrb 保持可见、可访问，并将点击交给唯一语音控制器', () => {
     expect(home).toContain('<V4HomepageHeader overlay={!urlQuery} />');
-    expect(v4Header).toContain('<AIFloatingBall showFab inlineMode={false}/>');
+    expect(v4Header).toContain("pathname !== '/detail'");
+    expect(v4Header).toContain('<AIFloatingBall showFab inlineMode={false} />');
     expect(assistant).toContain('onClick={openAndListen}');
     expect(assistant).toContain('startListening(false)');
     expect(orb).toContain('createFridayOrb(canvasRef.current');
