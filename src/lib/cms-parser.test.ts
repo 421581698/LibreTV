@@ -133,6 +133,7 @@ describe('parseDetail', () => {
           {
             url: 'https://media.example.com/ep1.m3u8',
             still_path: 'https://img.example.com/ep1-still.jpg',
+            image_captured_at: '2026-11-12T09:30:00Z',
             description: '<p>第一集简介</p>',
             duration: '45分钟',
           },
@@ -149,8 +150,11 @@ describe('parseDetail', () => {
       title: '第1集',
       url: 'https://media.example.com/ep1.m3u8',
       image: 'https://img.example.com/ep1-still.jpg',
+      imageSourceUrl: 'https://img.example.com/ep1-still.jpg',
+      imageSourceEpisodeUrl: 'https://media.example.com/ep1.m3u8',
       description: '第一集简介',
       duration: '45分钟',
+      imageCapturedAt: '2026-11-12T09:30:00Z',
     });
     // A mismatched episode record and the title-level vod_pic must never become episode 2 artwork.
     expect(detail.episodeItems?.[1]).toEqual({
