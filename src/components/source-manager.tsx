@@ -1288,13 +1288,13 @@ function ImagePanel() {
   const store = useAppStore();
   const mode = store.imageProxyMode;
   const description: Record<'direct' | 'proxy' | 'custom', string> = {
-    direct: '原站直连；豆瓣封面自动换公共镜像，仍失败回退内置代理。最省服务器流量',
-    proxy: '封面优先经本站服务器转发并伪装来源，失败自动回退公共镜像/直连。最稳定，消耗服务器流量',
-    custom: '使用你填写的模板转发封面图',
+    direct: '封面与逐集剧照原站直连；豆瓣封面自动换公共镜像，仍失败回退内置代理。最省服务器流量',
+    proxy: '封面与逐集剧照优先经本站服务器转发并伪装来源，失败自动回退公共镜像/直连。最稳定，消耗服务器流量',
+    custom: '使用你填写的模板转发封面与逐集剧照，包括风暴等资源站的剧集图片',
   };
   return (
     <section>
-      <SectionTitle title="外观与封面" hint="主题和封面图片加载策略" />
+      <SectionTitle title="外观与封面" hint="主题、封面与剧集图片加载策略" />
       <div className="space-y-2">
         <SelectRow
           label="加载方式"
