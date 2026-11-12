@@ -34,7 +34,7 @@ export function MovieDetailPage() {
   const envSources = useAppStore((state) => state.envSources);
   const imageProxyMode = useAppStore((state) => state.imageProxyMode);
   const customImageProxy = useAppStore((state) => state.customImageProxy);
-  const { checked } = useAuth();
+  const { checked, verified } = useAuth();
   const sourceKey = params.get('source') ?? '';
   const vodId = params.get('id') ?? '';
   const title = params.get('title') ?? '未知影片';
@@ -101,7 +101,7 @@ export function MovieDetailPage() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [sourceKey, vodId, source, checked]);
+  }, [sourceKey, vodId, source, checked, verified]);
 
   const info = detail?.videoInfo;
   const episodes = detail?.episodes ?? [];
