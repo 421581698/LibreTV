@@ -897,9 +897,10 @@
 }
 
 
-/* PR84 cinematic episode shelf: native horizontal streaming-service rail. */
+/* PR84 cinematic episode shelf — fixed layout, dynamic episode data, verified stills. */
 .movie-detail-episode-list {
   display: flex !important;
+  flex-wrap: nowrap !important;
   gap: 16px !important;
   width: calc(100% + 40px);
   margin: 0 -20px;
@@ -916,9 +917,9 @@
   position: relative !important;
   display: block !important;
   flex: 0 0 85vw !important;
+  flex-shrink: 0 !important;
   width: 85vw !important;
-  max-width: 440px;
-  min-width: 0 !important;
+  min-width: 85vw !important;
   aspect-ratio: 16 / 9 !important;
   padding: 0 !important;
   overflow: hidden !important;
@@ -926,9 +927,9 @@
   scroll-snap-stop: always;
   isolation: isolate;
   border: 1px solid rgba(255,255,255,.12) !important;
-  border-radius: 18px !important;
+  border-radius: 12px !important;
   color: #fff !important;
-  background: #171717 !important;
+  background: #000 !important;
   text-align: left !important;
   box-shadow: 0 12px 32px rgba(0,0,0,.28);
 }
@@ -940,21 +941,51 @@
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
-  object-position: center 35% !important;
-  opacity: .9;
-  transition: transform .35s ease, opacity .25s ease;
+  object-position: center !important;
 }
-.movie-detail-episode-card::after {
-  content: "";
+.movie-detail-episode-placeholder {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+}
+.movie-detail-episode-placeholder-play {
+  display: flex;
+  width: 54px;
+  height: 54px;
+  align-items: center;
+  justify-content: center;
+  padding-left: 3px;
+  border: 1px solid rgba(255,255,255,.32);
+  border-radius: 50%;
+  color: rgba(255,255,255,.82);
+  background: rgba(255,255,255,.08);
+  font-size: 18px;
+}
+.movie-detail-episode-card-gradient {
   position: absolute;
   z-index: 1;
-  inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,.95) 0%, rgba(0,0,0,.6) 40%, transparent 80%);
+  inset: 34% 0 0;
+  background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,.48) 35%, rgba(0,0,0,.96) 100%);
   pointer-events: none;
+}
+.movie-detail-episode-card-hit {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
 }
 .movie-detail-episode-card-content {
   position: absolute !important;
-  z-index: 2 !important;
+  z-index: 3 !important;
   right: 0 !important;
   bottom: 0 !important;
   left: 0 !important;
@@ -967,19 +998,19 @@
   pointer-events: none;
 }
 .movie-detail-episode-card-number {
-  color: rgba(255,255,255,.62);
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: .12em;
+  color: #A1A1A6;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.25;
 }
 .movie-detail-episode-card-title {
   display: block;
   max-width: 100%;
   overflow: hidden;
   color: #fff;
-  font-size: clamp(17px, 4vw, 22px);
-  font-weight: 760;
-  line-height: 1.2;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
   text-shadow: 0 2px 12px rgba(0,0,0,.5);
@@ -988,8 +1019,8 @@
   display: -webkit-box;
   max-width: 100%;
   overflow: hidden;
-  color: rgba(255,255,255,.78);
-  font-size: 11px;
+  color: #A1A1A6;
+  font-size: 13px;
   line-height: 1.45;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -999,24 +1030,68 @@
   align-items: center;
   gap: 7px;
   margin-top: 2px;
-  color: rgba(255,255,255,.76);
-  font-size: 10px;
+  color: #A1A1A6;
+  font-size: 11px;
   line-height: 1.2;
 }
 .movie-detail-episode-card-play {
   display: inline-flex;
-  width: 17px;
-  height: 17px;
+  width: 15px;
+  height: 15px;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  color: #111;
-  background: rgba(255,255,255,.92);
-  font-size: 8px;
+  color: #A1A1A6;
+  font-size: 9px;
 }
+.movie-detail-episode-card-more {
+  position: absolute;
+  z-index: 5;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(0,0,0,.38);
+  font-size: 20px;
+  line-height: 1;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.movie-detail-episode-menu {
+  position: absolute;
+  z-index: 6;
+  right: 10px;
+  bottom: 50px;
+  display: flex;
+  min-width: 132px;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 12px;
+  background: rgba(24,24,26,.94);
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+.movie-detail-episode-menu button {
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 7px;
+  color: #fff;
+  background: transparent;
+  text-align: left;
+  font-size: 12px;
+}
+.movie-detail-episode-menu button:active { background: rgba(255,255,255,.12); }
 .movie-detail-episode-card-progress {
   position: absolute;
-  z-index: 3;
+  z-index: 4;
   right: 0;
   bottom: 0;
   left: 0;
@@ -1028,24 +1103,8 @@
   height: 100%;
   background: #fff;
 }
-.movie-detail-episode-card:active .movie-detail-episode-image {
-  transform: scale(1.025);
-}
-@media (min-width: 701px) {
-  .movie-detail-episode-list {
-    width: 100%;
-    margin: 0;
-    padding-right: 0 !important;
-    padding-left: 0 !important;
-  }
-  .movie-detail-episode-card {
-    flex-basis: 360px !important;
-    width: 360px !important;
-  }
-}
 @media (max-width: 380px) {
   .movie-detail-episode-card-content { padding: 13px !important; }
-  .movie-detail-episode-card-description { font-size: 10px; }
 }
 
 /* Detail-route dock: full-bleed translucent glass, including the home active pill. */
