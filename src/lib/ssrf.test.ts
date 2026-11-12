@@ -75,6 +75,11 @@ describe('isValidProxyUrl', () => {
     expect(isValidProxyUrl('http://[2606:4700::1111]/x')).toBe(true);
   });
 
+  it('拒绝 URL 内嵌用户名或密码', () => {
+    expect(isValidProxyUrl('https://user:pass@cdn.example.com/video.m3u8')).toBe(false);
+    expect(isValidProxyUrl('https://user@cdn.example.com/video.m3u8')).toBe(false);
+  });
+
   it('拦截非 http 协议', () => {
     expect(isValidProxyUrl('file:///etc/passwd')).toBe(false);
     expect(isValidProxyUrl('ftp://x.com/a')).toBe(false);
