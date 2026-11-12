@@ -17,6 +17,7 @@ const TITLE_RE = /<title(?:\s[^>]*)?>([\s\S]*?)<\/title>/i;
 const DESC_RE = /<desc(?:\s[^>]*)?>([\s\S]*?)<\/desc>/i;
 
 const DEFAULT_WINDOW_MS = 24 * 60 * 60 * 1000;
+const MAX_GZIP_OUTPUT_BYTES = 64 * 1024 * 1024;
 
 /** 安全解码码点：畸形实体（越界/NaN）返回空串而非抛 RangeError，避免单条脏数据毁掉整份 EPG */
 function safeCodePoint(n: number): string {
@@ -81,7 +82,7 @@ export function parseXmltv(
   if (Buffer.isBuffer(content)) {
     text =
       content.length >= 2 && content[0] === 0x1f && content[1] === 0x8b
-        ? gunzipSync(content).toString('utf8')
+        ? gunzipSync(content, { maxOutputLength: MAX_GZIP_OUTPUT_BYTES }).toString('utf8')
         : content.toString('utf8');
   } else {
     text = content;
