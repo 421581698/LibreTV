@@ -150,12 +150,8 @@ body > .v4-mobile-tabbar::after {
   to { background-position: 100% 100%; opacity: 1; }
 }
 
-/* Interaction refraction is local to compact glass surfaces, not media or cards. */
-@media (hover: hover) and (pointer: fine) {
-  :where(.glass-panel,.glass-popover,.glass-dialog,.glass-toolbar,.glass-button,.liquid-glass,.ai-chat-panel,.v4-search,.home-v2-ai-search,.v4-header-icon,.v4-avatar):not(:has(img, video, canvas)):hover {
-    filter: url("#libretv-liquid-displacement");
-  }
-}
+/* Hover refraction is handled by the upstream engine layer.
+   Never apply a filter to the semantic host: that would blur its text and icons. */
 :where(.glass-panel,.glass-popover,.glass-dialog,.glass-toolbar,.glass-button,.liquid-glass,.v4-mobile-tabbar,.ai-chat-panel,.v4-search,.home-v2-ai-search,.v4-header-icon,.v4-avatar,.v52-me-library-tile,.v52-me-list-row):focus-within {
   --lg-specular: rgba(255,255,255,.34);
 }
