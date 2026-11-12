@@ -4,6 +4,7 @@ import { cmsRequestHeaders, parseDetail, parseDetailPageHtml } from '@/lib/cms-p
 import { fetchUpstream, getCache, setCache } from '@/lib/fetch-utils';
 import { checkUpstreamAllowed } from '@/lib/ssrf';
 import type { SourceConfig, VideoDetail } from '@/lib/types';
+import { KKPHIM_API_ORIGIN, KKPHIM_SOURCE_KEY, parseKkphimDetail } from '@/lib/kkphim';
 
 export const runtime = 'nodejs';
 
@@ -49,6 +50,35 @@ export async function GET(req: Request) {
     const cached = getCache<VideoDetail>(cacheKey);
     if (cached) {
       return NextResponse.json(cached);
+    }
+
+    if (source.key === KKPHIM_SOURCE_KEY) {
+      // KKPhim slugs are resolved only against the fixed provider origin.
+      const providerVerdict = await checkUpstreamAllowed(KKPHIM_API_ORIGIN);
+      if (!providerVerdict.ok) {
+        return NextResponse.json({ error: providerVerdict.reason }, { status: 400 });
+      }
+      const providerUrl = new URL(`/phim/${encodeURIComponent(id)}`, KKPHIM_API_ORIGIN);
+      const providerResponse = await fetchUpstream(providerUrl.toString(), {
+        timeoutMs: 10000,
+        signal: req.signal,
+        headers: { Accept: 'application/json', 'User-Agent': 'LibreTV-KKPhim-Detail/1.0' },
+        safeRedirects: true,
+        allowPrivate: false,
+      });
+      if (!providerResponse.ok) {
+        return NextResponse.json({ error: `KKPhim 上游返回 HTTP ${providerResponse.status}` }, { status: 502 });
+      }
+      const contentLength = Number(providerResponse.headers.get('content-length') || 0);
+      if (contentLength > 4 * 1024 * 1024) {
+        return NextResponse.json({ error: 'KKPhim 详情响应超过安全上限' }, { status: 502 });
+      }
+      const detail = parseKkphimDetail(await providerResponse.json());
+      if (!detail || detail.episodes.length === 0) {
+        return NextResponse.json({ error: 'KKPhim 未提供可用分集地址' }, { status: 404 });
+      }
+      setCache(cacheKey, detail, DETAIL_CACHE_TTL);
+      return NextResponse.json(detail, { headers: { 'Cache-Control': 'no-store' } });
     }
 
     // 用户可控地址发起服务端请求，先过 SSRF 校验（协议白名单 + 内网/保留地址）
