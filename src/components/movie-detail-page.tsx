@@ -116,8 +116,11 @@ export function MovieDetailPage() {
       : '';
   };
   const episodeDisplayTitle = (index: number) => {
-    const value = episodeItems[index]?.title?.trim() ?? '';
-    return /^第\s*[\d一二两三四五六七八九十]+\s*[集话期]$/u.test(value) ? '' : value;
+    const item = episodeItems[index];
+    const value = item?.title?.trim() ?? '';
+    return (/^第\\s*[\\d一二两三四五六七八九十]+\\s*[集话期]$/u.test(value) ? '' : value)
+      || item?.episodeName?.trim()
+      || '';
   };
   const isMovie = isMovieType(info?.typeName, episodes.length);
   const displayTitle = info?.title || title;
