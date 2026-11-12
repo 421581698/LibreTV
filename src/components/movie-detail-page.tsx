@@ -12,7 +12,8 @@ import { LoadingState, ErrorState } from '@/components/states';
 import { addFavorite, addSearchHistory, db, removeFavorite } from '@/lib/db';
 import { favoriteIdFor } from '@/lib/favorite-id';
 import { buildWatchUrl, validateSourceUrl } from '@/lib/utils';
-import { formatRemarks } from '@/lib/remarks';\nimport { isMovieType } from '@/lib/cms-parser';
+import { formatRemarks } from '@/lib/remarks';
+import { isMovieType } from '@/lib/cms-parser';
 import type { SourceConfig, VideoDetail } from '@/lib/types';
 
 function detailSource(store: Pick<ReturnType<typeof useAppStore.getState>, 'customAPIs' | 'envSources'>, key: string, name: string, sourceUrl: string): SourceConfig | null {
