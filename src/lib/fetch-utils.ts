@@ -6,11 +6,6 @@ export interface FetchOptions extends RequestInit {
   timeoutMs?: number;
   retries?: number;
   /**
-   * 安全跳转（默认开启）：禁用 fetch 的自动跟随，改为手动逐跳跟随，
-   * 每一跳重新执行 SSRF 校验——否则公网 URL 可 302 跳转到内网地址绕过预检。
-   */
-  safeRedirects?: boolean;
-  /**
    * 直播场景放行内网地址（自建 IPTV）：仅在部署者设置 LIVE_ALLOW_PRIVATE=1 时生效。
    * 校验复用 checkLiveUrlAllowed，与直播流代理使用同一把尺子。
    */
@@ -120,7 +115,7 @@ export async function fetchUpstream(url: string, options: FetchOptions = {}): Pr
 
 /** 同 fetchUpstream，额外返回重定向后的最终 URL */
 export async function fetchUpstreamWithMeta(url: string, options: FetchOptions = {}): Promise<FetchResult> {
-  const { timeoutMs = 8000, retries = 0, safeRedirects = true, allowPrivate = false, ...init } = options;
+  const { timeoutMs = 8000, retries = 0, allowPrivate = false, ...init } = options;
   let lastError: unknown;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -130,14 +125,6 @@ export async function fetchUpstreamWithMeta(url: string, options: FetchOptions =
       : timeoutSignal;
 
     try {
-      if (!safeRedirects) {
-        const res = await fetch(url, {
-          ...init,
-          signal,
-          redirect: init.redirect ?? 'follow',
-        });
-        return { res, finalUrl: res.url || url };
-      }
       return await fetchWithSafeRedirects(url, { ...init, signal }, { allowPrivate });
     } catch (err) {
       lastError = err;
