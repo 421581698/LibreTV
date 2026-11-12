@@ -519,3 +519,23 @@
     scroll-padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
+
+
+/* PR84 P0 follow-up: the earlier inline Hero selector is more specific than
+   pr84-layout-recovery.css. Reassert the agreed compact first-viewport budget
+   in this final stylesheet so the older 560px rule cannot win. */
+@media (max-width: 700px) {
+  html body:has(.v4-home) .v4-home .v4-home-main--cinema > .v4-hero-immersive {
+    height: clamp(360px, 55svh, 520px) !important;
+    min-height: 360px !important;
+    max-height: 520px !important;
+  }
+}
+
+/* MobileTabBar is portaled to body on every route. The older desktop hide
+   selector targeted a non-existent data-homepage-dock attribute. */
+@media (min-width: 701px) {
+  html body > nav.v4-mobile-tabbar {
+    display: none !important;
+  }
+}
