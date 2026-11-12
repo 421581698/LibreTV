@@ -29,6 +29,7 @@ describe('PR #84 homepage blocking layout recovery', () => {
     expect(recovery).toContain('grid-template-columns: repeat(4, minmax(0, 1fr)) !important;');
     expect(dock).toContain('setPortalTarget(document.body)');
     expect(recovery).toContain('position: fixed !important;');
+    expect(recovery).not.toContain('[data-homepage-dock="true"]');
     expect(recovery).toContain('position: fixed !important;');
   });
 
