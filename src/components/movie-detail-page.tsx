@@ -271,9 +271,9 @@ export function MovieDetailPage() {
                     <span className="movie-detail-episode-placeholder-play">▶</span>
                   </span>
                   <SmartImage
-                    // Prefer a real episode still; use the title artwork when the source has no per-episode image.
+                    // Episode cards must never disguise the title poster as episode-specific artwork.
+                    // Without a verified still for this exact episode, keep the dedicated placeholder visible.
                     url={item?.image}
-                    fallbackUrl={image || poster || undefined}
                     mode={imageProxyMode}
                     customProxy={customImageProxy}
                     alt=""
