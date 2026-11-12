@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { guardRequest, jsonError } from '@/lib/api-guard';
 import { checkLiveUrlAllowed, isBlockedByDNS, isValidProxyUrl } from '@/lib/ssrf';
-import { fetchWithSafeRedirects } from '@/lib/fetch-utils';
+import { fetchLiveWithSafeRedirects, fetchWithSafeRedirects } from '@/lib/fetch-utils';
 import { rewriteM3u8, LIVE_STREAM_BASE } from '@/lib/m3u8';
 
 /**
@@ -183,10 +183,10 @@ export async function handleLiveStreamRequest(req: Request, targetUrl: string): 
   let finalUrl: string;
   try {
     // 客户端断开（切台/关页）时经 controller.signal 终止上游连接，防止连接泄漏
-    const result = await fetchWithSafeRedirects(
+    const result = await fetchLiveWithSafeRedirects(
       targetUrl,
       { headers, signal: controller.signal },
-      { allowPrivate: true, headerTimeoutMs: HEADER_TIMEOUT_MS }
+      { headerTimeoutMs: HEADER_TIMEOUT_MS }
     );
     response = result.res;
     finalUrl = result.finalUrl;
