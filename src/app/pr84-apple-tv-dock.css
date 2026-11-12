@@ -1080,7 +1080,7 @@
   -webkit-backdrop-filter: blur(18px);
   backdrop-filter: blur(18px);
 }
-.movie-detail-episode-menu button {
+.movie-detail-episode-menu :is(button, a) {
   padding: 9px 10px;
   border: 0;
   border-radius: 7px;
