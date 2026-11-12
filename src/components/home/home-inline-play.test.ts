@@ -12,7 +12,7 @@ describe('iPhone homepage detail navigation and top search', () => {
 
   it('homepage recommendation posters open the dedicated detail route before playback', () => {
     expect(home).toContain('const rankedMatches = rankMovieCandidatesByQuality(');
-    expect(home).toContain('openDetail(rankedMatches[0]);');
+    expect(home).toContain('openDetail(rankedMatches[0], { rating: movie.rating, poster: movie.cover });');
     expect(featuredHero).toContain('aria-label={`查看详情：${slide.title}`}');
     expect(featuredHero).toContain('onClick={() => onPick(slide)}');
     expect(home).toContain('onOpen={openDetail}');
