@@ -51,6 +51,12 @@ export interface VideoEpisode {
   imageSourceEpisodeUrl?: string;
   /** Capture/extraction timestamp supplied by the source; never synthesized. */
   imageCapturedAt?: string;
+  /** External episode-artwork provenance; populated only after an exact season/episode match. */
+  tmdbSeriesId?: number;
+  tmdbEpisodeId?: number;
+  seasonNumber?: number;
+  episodeNumber?: number;
+  imageSource?: 'tmdb';
   description?: string;
   duration?: string;
 }
