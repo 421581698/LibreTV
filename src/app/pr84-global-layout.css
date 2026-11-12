@@ -1,4 +1,7 @@
+/* PR #84 — global iPhone page layout. Dock geometry is owned by pr84-apple-tv-dock.css. */
 
+@media (max-width: 700px) {
+  /* The portal component is the only tab bar;
 
   /* Content always scrolls completely above the same floating dock. */
   body:has(.v4-home) .v4-home {
@@ -90,6 +93,8 @@
     letter-spacing: -1.6px !important;
   }
 }
+
+@media (min-width: 701px) {
 }
 
 
@@ -101,7 +106,14 @@
 .v4-home .v4-header-inner--no-brand .v4-header-actions {
   margin-left: auto !important;
 }
+
+
+/* PR84 — iPhone Liquid Glass dock: translucent optical surface, specular rim,
+   and a soft glass selection lens. Geometry and tab interactions stay unchanged. */
+@media (max-width: 700px) {
 }
+
+@media (prefers-reduced-transparency: reduce) and (max-width: 700px) {
 }
 
 
@@ -265,9 +277,14 @@ select {
   background-color: var(--interaction-press) !important;
   transition: background-color 80ms ease-out !important;
 }
+
+/* iPhone Liquid Glass dock: optical depth, visible refraction cues and moving specular light.
+   SVG displacement remains a progressive enhancement; CSS glass is the Safari fallback. */
+@media (max-width: 700px) {
 }
 @keyframes pr84-liquid-dock-glint {
   0% { background-position: 0 0, 110% 0; }
   100% { background-position: 0 0, -110% 0; }
 }
+@media (prefers-reduced-motion: reduce) {
 }
