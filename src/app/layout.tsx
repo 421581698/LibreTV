@@ -76,21 +76,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        {/* Shared SVG displacement map. Applied only to small glass UI surfaces on pointer hover. */}
-        <svg
-          aria-hidden="true"
-          focusable="false"
-          width="0"
-          height="0"
-          style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}
-        >
-          <defs>
-            <filter id="libretv-liquid-displacement" x="-8%" y="-8%" width="116%" height="116%" colorInterpolationFilters="sRGB">
-              <feTurbulence type="fractalNoise" baseFrequency="0.014 0.02" numOctaves="2" seed="11" result="glassNoise" />
-              <feDisplacementMap in="SourceGraphic" in2="glassNoise" scale="5" xChannelSelector="R" yChannelSelector="G" />
-            </filter>
-          </defs>
-        </svg>
         <Providers>
           {children}
           <MobileTabBar />
