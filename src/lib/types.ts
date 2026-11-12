@@ -27,6 +27,8 @@ export interface SearchResultItem {
 
 export interface VideoInfo {
   title?: string;
+  /** Original-language title supplied by the CMS when available. */
+  originalTitle?: string;
   cover?: string;
   desc?: string;
   typeName?: string;
