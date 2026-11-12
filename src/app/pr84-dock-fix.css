@@ -30,21 +30,21 @@
 
   /* Reserve real scroll space so the dock cannot cut through the last row. */
   body:has(.v4-home) .v4-home {
-    padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
+    padding-bottom: var(--tabbar-scroll-clearance) !important;
   }
 
   body:has(.v4-home) .v4-home-main,
   body:has(.v4-home) .v4-home-main--cinema {
-    padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
+    padding-bottom: var(--tabbar-scroll-clearance) !important;
   }
 
   body .v4-search-page {
-    padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
-    scroll-padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
+    padding-bottom: var(--tabbar-scroll-clearance) !important;
+    scroll-padding-bottom: var(--tabbar-scroll-clearance) !important;
   }
 
   body .v4-search-page .v4-search-main {
-    padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
+    padding-bottom: var(--tabbar-scroll-clearance) !important;
   }
 }
 
@@ -115,17 +115,17 @@ body:has(.v4-spatial-screen[data-screen="settings"])::after {
 }
 /* Ensure the final setting (including Friday voice) can scroll above the fixed dock. */
 .v4-spatial-screen[data-screen="settings"] {
-  padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px)!important;
-  scroll-padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px)!important;
+  padding-bottom: var(--tabbar-scroll-clearance)!important;
+  scroll-padding-bottom: var(--tabbar-scroll-clearance)!important;
 }
 .v4-spatial-screen[data-screen="settings"] .v4-spatial-main {
-  padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px)!important;
-  scroll-padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px)!important;
+  padding-bottom: var(--tabbar-scroll-clearance)!important;
+  scroll-padding-bottom: var(--tabbar-scroll-clearance)!important;
 }
 .v4-spatial-screen[data-screen="settings"] .settings-embedded-root,
 .v4-spatial-screen[data-screen="settings"] .settings-embedded-root .ipad-settings-content {
-  padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px)!important;
-  scroll-padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px)!important;
+  padding-bottom: var(--tabbar-scroll-clearance)!important;
+  scroll-padding-bottom: var(--tabbar-scroll-clearance)!important;
 }
 
 
