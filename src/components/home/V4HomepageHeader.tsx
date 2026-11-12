@@ -40,7 +40,7 @@ export function V4HomepageHeader({ overlay = false }: { overlay?: boolean }) {
           )}
         </div>
       </header>
-      <AIFloatingBall showFab inlineMode={false}/>
+      <AIFloatingBall showFab={pathname !== '/detail'} inlineMode={false}/>
       <SourceManagerDrawer
         key={settingsInstance}
         open={settingsOpen}
