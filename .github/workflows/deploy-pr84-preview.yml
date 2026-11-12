@@ -124,11 +124,140 @@ jobs:
                 } catch { return false; }
               });
             const hlsCount = urls.filter((value) => /\.m3u8(?:$|[?#])/i.test(value)).length;
+            if (urls.length === 0) throw new Error("Matched detail contained no HTTP(S) play URLs");
+
+            // Treat CMS playback URLs as untrusted. Resolve every address, reject
+            // non-public ranges, pin the request to a validated address, forbid
+            // redirects, and read only a small byte range.
+            const { lookup } = await import("node:dns/promises");
+            const net = await import("node:net");
+            const http = await import("node:http");
+            const https = await import("node:https");
+
+            function isPublicAddress(address) {
+              const family = net.isIP(address);
+              if (family === 4) {
+                const octets = address.split(".").map(Number);
+                const n = (((octets[0] * 256 + octets[1]) * 256 + octets[2]) * 256 + octets[3]) >>> 0;
+                const blocked = [
+                  ["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10],
+                  ["127.0.0.0", 8], ["169.254.0.0", 16], ["172.16.0.0", 12],
+                  ["192.0.0.0", 24], ["192.0.2.0", 24], ["192.168.0.0", 16],
+                  ["198.18.0.0", 15], ["198.51.100.0", 24], ["203.0.113.0", 24],
+                  ["224.0.0.0", 4], ["240.0.0.0", 4],
+                ];
+                return !blocked.some(([base, bits]) => {
+                  const b = base.split(".").map(Number);
+                  const baseN = (((b[0] * 256 + b[1]) * 256 + b[2]) * 256 + b[3]) >>> 0;
+                  const mask = bits === 0 ? 0 : (0xffffffff << (32 - bits)) >>> 0;
+                  return (n & mask) === (baseN & mask);
+                });
+              }
+              if (family === 6) {
+                const value = address.toLowerCase();
+                // Only global-unicast 2000::/3 is accepted. Explicitly reject
+                // mapped, documentation, transition and special-use prefixes.
+                return /^[23]/.test(value) &&
+                  !value.startsWith("2001:db8:") &&
+                  !value.startsWith("2001:10:") &&
+                  !value.startsWith("2002:") &&
+                  !value.startsWith("::ffff:");
+              }
+              return false;
+            }
+
+            async function probeMedia(rawUrl) {
+              const target = new URL(rawUrl);
+              if (!["http:", "https:"].includes(target.protocol) ||
+                  target.username || target.password ||
+                  (target.port && !["80", "443"].includes(target.port))) {
+                throw new Error("Media URL uses a disallowed protocol, credentials, or port");
+              }
+              const hostname = target.hostname.replace(/^\[|\]$/g, "");
+              const addresses = net.isIP(hostname)
+                ? [{ address: hostname, family: net.isIP(hostname) }]
+                : await lookup(hostname, { all: true, verbatim: true });
+              if (!addresses.length || addresses.some((entry) => !isPublicAddress(entry.address))) {
+                throw new Error("Media host resolved to a non-public or unsupported address");
+              }
+              const pinned = addresses[0];
+              const transport = target.protocol === "https:" ? https : http;
+              return await new Promise((resolve, reject) => {
+                let settled = false;
+                const finish = (value, error) => {
+                  if (settled) return;
+                  settled = true;
+                  if (error) reject(error);
+                  else resolve(value);
+                };
+                const request = transport.request({
+                  protocol: target.protocol,
+                  hostname,
+                  port: target.port || (target.protocol === "https:" ? 443 : 80),
+                  method: "GET",
+                  path: target.pathname + target.search,
+                  headers: { Range: "bytes=0-1023", Accept: "*/*", "User-Agent": "LibreTV-Preview-Probe/1.0" },
+                  timeout: 8000,
+                  lookup: (_host, _options, callback) =>
+                    callback(null, pinned.address, pinned.family),
+                }, (response) => {
+                  const status = response.statusCode ?? 0;
+                  const type = String(response.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();
+                  if ([301, 302, 303, 307, 308].includes(status)) {
+                    response.destroy();
+                    return finish(null, new Error("Media endpoint attempted a redirect"));
+                  }
+                  if (![200, 206].includes(status)) {
+                    response.destroy();
+                    return finish(null, new Error("Media endpoint returned HTTP " + status));
+                  }
+                  const chunks = [];
+                  let size = 0;
+                  response.on("data", (chunk) => {
+                    size += chunk.length;
+                    if (size <= 65536) chunks.push(chunk);
+                    else {
+                      response.destroy();
+                      finish({ status, type, bytes: size, truncated: true, sample: Buffer.concat(chunks).toString("hex").slice(0, 32) });
+                    }
+                  });
+                  response.on("end", () => finish({
+                    status, type, bytes: size, truncated: false,
+                    sample: Buffer.concat(chunks).subarray(0, 16).toString("hex"),
+                  }));
+                  response.on("error", (error) => finish(null, error));
+                });
+                request.on("timeout", () => request.destroy(new Error("Media probe timed out")));
+                request.on("error", (error) => finish(null, error));
+                request.end();
+              });
+            }
+
+            let mediaProbe;
+            try {
+              mediaProbe = await probeMedia(urls[0]);
+            } catch (error) {
+              console.warn("CMS media endpoint safety/reachability probe failed: " +
+                (error instanceof Error ? error.message : "unknown error"));
+              mediaProbe = { passed: false };
+            }
+            const isHls = /mpegurl|vnd\.apple\.mpegurl/.test(mediaProbe.type ?? "") ||
+              /\.m3u8(?:$|[?#])/i.test(urls[0]);
+            const isMp4 = mediaProbe.type === "video/mp4" ||
+              (mediaProbe.sample ?? "").includes("66747970");
+            const mediaPassed = mediaProbe.passed !== false &&
+              (mediaProbe.status === 200 || mediaProbe.status === 206) &&
+              (isHls || isMp4 || (mediaProbe.type ?? "").startsWith("video/"));
             console.log("CMS candidate probe: searchItems=" + search.list.length +
               ", exactDetailMatch=true, playableHttpUrls=" + urls.length +
               ", hlsUrls=" + hlsCount +
+              ", mediaHttpStatus=" + (mediaProbe.status ?? "unverified") +
+              ", mediaType=" + (mediaProbe.type || "unknown") +
+              ", mediaBytesRead=" + (mediaProbe.bytes ?? 0) +
+              ", mediaFormat=" + (isHls ? "hls" : isMp4 ? "mp4" : "other") +
+              ", mediaPassed=" + mediaPassed +
               ", sourceEnabled=false");
-            if (urls.length === 0) throw new Error("Matched detail contained no HTTP(S) play URLs");
+            if (!mediaPassed) throw new Error("CMS media URL did not pass the bounded media probe");
           } catch (error) {
             console.warn("CMS candidate probe did not pass; source remains disabled: " +
               (error instanceof Error ? error.message : "unknown error"));
