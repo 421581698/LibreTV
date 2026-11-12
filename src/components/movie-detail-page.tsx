@@ -184,38 +184,39 @@ export function MovieDetailPage() {
   return (
     <main className="movie-detail-page min-h-screen overflow-x-hidden bg-[#08080A] pb-[calc(96px+env(safe-area-inset-bottom))] text-white">
       <V4HomepageHeader />
-      <section className="relative isolate min-h-[650px] overflow-hidden sm:min-h-[720px]">
+      <section className="movie-detail-hero relative isolate min-h-[650px] overflow-hidden sm:min-h-[720px]">
         {image ? (
           <SmartImage
             url={image}
             mode={imageProxyMode}
             customProxy={customImageProxy}
             alt={displayTitle}
-            className="absolute inset-0 -z-20 h-full w-full object-cover object-center opacity-80"
+            className="movie-detail-hero__image absolute inset-0 -z-20 h-full w-full object-cover object-center"
             loading="eager"
           />
         ) : null}
-        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-black/25 via-black/35 to-[#08080A]" />
-        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/55 via-black/10 to-transparent" />
+        <div className="movie-detail-hero__scrim absolute inset-0 -z-10" />
+        <div className="movie-detail-hero__bottom-gradient absolute inset-x-0 bottom-0 -z-10" />
+        <div className="movie-detail-hero__side-gradient absolute inset-0 -z-10" />
 
-        <header className="relative z-10 flex items-center justify-between px-5 pt-[max(18px,env(safe-area-inset-top))] sm:px-10">
-          <button type="button" onClick={() => router.back()} className="flex h-10 items-center gap-2 rounded-full bg-black/35 px-4 text-sm text-white backdrop-blur-xl" aria-label="返回上一页">
-            <span aria-hidden="true">‹</span><span>返回</span>
+        <header className="movie-detail-hero__header relative z-10 flex items-center justify-between px-5 pt-[max(18px,env(safe-area-inset-top))] sm:px-10">
+          <button type="button" onClick={() => router.back()} className="movie-detail-glass-control" aria-label="返回上一页">
+            <span aria-hidden="true">‹</span>
           </button>
-          <span className="rounded-full border border-white/15 bg-black/25 px-3 py-1 text-[11px] text-white/75 backdrop-blur-xl">{sourceName}</span>
+          <span className="movie-detail-glass-control movie-detail-source-pill">{sourceName}</span>
         </header>
 
-        <div className="relative z-10 mx-auto flex min-h-[590px] max-w-6xl flex-col justify-end px-5 pb-12 pt-40 sm:min-h-[650px] sm:px-10 sm:pb-16">
+        <div className="movie-detail-hero__content relative z-10 mx-auto flex min-h-[590px] max-w-6xl flex-col justify-end px-5 pb-12 pt-40 sm:min-h-[650px] sm:px-10 sm:pb-16">
           <div className="max-w-2xl">
-            <p className="mb-3 text-[10px] font-semibold uppercase tracking-[.28em] text-white/65">LIBRETV · TITLE DETAILS</p>
-            <h1 className="max-w-3xl text-4xl font-semibold leading-[1.05] tracking-[-.045em] sm:text-6xl">{displayTitle}</h1>
+            <p className="movie-detail-eyebrow mb-3 text-[10px] font-semibold uppercase text-white/65">LIBRETV · TITLE DETAILS</p>
+            <h1 className="movie-detail-title max-w-3xl text-4xl leading-[1.05] tracking-[-.045em] sm:text-6xl">{displayTitle}</h1>
             {metadata.length > 0 && (
               <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs font-medium text-white/75 sm:text-sm">
                 {metadata.map((value) => <span key={value}>{value}</span>)}
               </div>
             )}
-            {info?.desc && <p className="mt-5 max-w-xl text-sm leading-7 text-white/80 sm:text-base">{info.desc}</p>}
-            <div className="mt-7 flex flex-wrap items-center gap-3">
+            {info?.desc && <p className="movie-detail-description mt-5 max-w-xl text-sm leading-7 text-white/80 sm:text-base">{info.desc}</p>}
+            <div className="movie-detail-actions mt-7 flex flex-wrap items-center gap-3">
               <button type="button" onClick={() => play(0)} disabled={episodes.length === 0} className="inline-flex min-h-12 items-center gap-3 rounded-full bg-white px-7 text-sm font-semibold text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-40">
                 <span aria-hidden="true">▶</span>{isMovie ? '立即播放' : '开始观看'}
               </button>
@@ -247,13 +248,18 @@ export function MovieDetailPage() {
             {episodes.map((_, index) => {
               const percent = completedPercent(index);
               return (
-                <button key={index} type="button" onClick={() => play(index)} className="group w-[220px] shrink-0 snap-start overflow-hidden rounded-xl border border-white/10 bg-[#17171B] text-left transition hover:border-white/30 sm:w-[260px]">
-                  <div className="relative flex aspect-video items-center justify-center bg-[#222226]">
-                    <span className="text-[11px] font-semibold tracking-[.22em] text-white/30">{String(index + 1).padStart(2, '0')}</span>
-                    <span className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm text-black opacity-100">▶</span>
-                    {percent > 0 && <span className="absolute inset-x-0 bottom-0 h-1 bg-white/15"><span className="block h-full bg-white" style={{ width: `${percent}%` }} /></span>}
+                <button key={index} type="button" onClick={() => play(index)} className="movie-detail-episode-card group w-[220px] shrink-0 snap-start overflow-hidden text-left sm:w-[260px]">
+                  <div className="movie-detail-episode-art relative flex aspect-video items-center justify-center">
+                    {image ? (
+                      <SmartImage url={image} mode={imageProxyMode} customProxy={customImageProxy} alt={displayTitle + ' - ' + episodeTitle(index)} className="movie-detail-episode-image absolute inset-0 h-full w-full object-cover" />
+                    ) : <div className="movie-detail-episode-placeholder absolute inset-0" />}
+                    <div className="movie-detail-episode-scrim absolute inset-0" />
+                    <span className="movie-detail-episode-number absolute left-3 top-3">{String(index + 1).padStart(2, '0')}</span>
+                    <span className="movie-detail-episode-play absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm text-black">▶</span>
+                    {percent > 0 && <span className="movie-detail-episode-progress absolute inset-x-0 bottom-0 h-1 bg-white/20"><span className="block h-full bg-white" style={{ width: `${percent}%` }} /></span>}
+                    <span className="movie-detail-episode-title absolute inset-x-0 bottom-0">{episodeTitle(index)}</span>
                   </div>
-                  <div className="p-3"><p className="text-sm font-medium">{episodeTitle(index)}</p><p className="mt-1 text-[11px] text-white/45">{percent >= 95 ? '已观看' : percent > 0 ? `已观看 ${percent}%` : '选择播放'}</p></div>
+                  <div className="movie-detail-episode-copy"><p>{percent >= 95 ? '已观看' : percent > 0 ? `已观看 ${percent}%` : '选择播放'}</p></div>
                 </button>
               );
             })}
@@ -263,13 +269,13 @@ export function MovieDetailPage() {
 
       <section className="mx-auto mt-12 max-w-6xl px-5 sm:px-10">
         <div className="mb-4"><p className="text-[10px] font-semibold uppercase tracking-[.24em] text-white/40">ABOUT THIS TITLE</p><h2 className="mt-1 text-xl font-semibold tracking-tight">影片信息</h2></div>
-        <div className="grid gap-4 rounded-2xl border border-white/10 bg-white/[.035] p-5 sm:grid-cols-2">
-          {info?.director && <p className="text-sm"><span className="text-white/40">导演</span><span className="ml-3 text-white/85">{info.director}</span></p>}
-          {info?.actor && <p className="text-sm"><span className="text-white/40">主演</span><span className="ml-3 text-white/85">{info.actor}</span></p>}
-          {info?.area && <p className="text-sm"><span className="text-white/40">地区</span><span className="ml-3 text-white/85">{info.area}</span></p>}
-          {info?.year && <p className="text-sm"><span className="text-white/40">年份</span><span className="ml-3 text-white/85">{info.year}</span></p>}
-          <p className="text-sm"><span className="text-white/40">资源线路</span><span className="ml-3 text-white/85">{sourceName}</span></p>
-          {info?.remarks && <p className="text-sm"><span className="text-white/40">更新状态</span><span className="ml-3 text-white/85">{formatRemarks(info.remarks)}</span></p>}
+        <div className="movie-detail-info-grid grid gap-5 sm:grid-cols-2">
+          {info?.director && <p className="movie-detail-info-item"><span>导演</span><strong>{info.director}</strong></p>}
+          {info?.actor && <p className="movie-detail-info-item"><span>主演</span><strong>{info.actor}</strong></p>}
+          {info?.area && <p className="movie-detail-info-item"><span>地区</span><strong>{info.area}</strong></p>}
+          {info?.year && <p className="movie-detail-info-item"><span>年份</span><strong>{info.year}</strong></p>}
+          <p className="movie-detail-info-item"><span>资源线路</span><strong>{sourceName}</strong></p>
+          {info?.remarks && <p className="movie-detail-info-item"><span>更新状态</span><strong>{formatRemarks(info.remarks)}</strong></p>}
         </div>
       </section>
     </main>
