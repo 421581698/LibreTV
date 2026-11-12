@@ -4,6 +4,16 @@ import { describe, expect, it } from 'vitest';
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
+describe('movie detail authentication retry', () => {
+  const detailPage = read('src/components/movie-detail-page.tsx');
+
+  it('retries the pending detail request after the shared login state becomes verified', () => {
+    expect(detailPage).toContain('const { checked, verified } = useAuth();');
+    expect(detailPage).toContain('if (!checked) return;');
+    expect(detailPage).toContain('[sourceKey, vodId, source, checked, verified]');
+  });
+});
+
 describe('iPhone homepage detail navigation and top search', () => {
   const home = read('src/app/page.tsx');
   const player = read('src/components/home/HomeInlinePlayer.tsx');
