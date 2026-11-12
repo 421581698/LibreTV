@@ -82,8 +82,7 @@ describe('LiquidGlassSurface v1.0', () => {
         open: true,
         onClose: () => undefined,
         title: 'Settings',
-        children: 'Settings content',
-      }),
+      }, 'Settings content'),
     );
     const confirmHtml = renderToStaticMarkup(
       createElement(ConfirmDialog, {
