@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { guardRequest, jsonError } from '@/lib/api-guard';
 import { checkLiveUrlAllowed } from '@/lib/ssrf';
-import { fetchUpstream } from '@/lib/fetch-utils';
+import { fetchLiveUpstream } from '@/lib/fetch-utils';
 import { getLiveCache, setLiveCache } from '@/lib/live-cache';
 import { currentAndNext, parseXmltv } from '@/lib/xmltv';
 import type { EpgProgram } from '@/lib/types';
@@ -29,8 +29,7 @@ export async function GET(req: Request) {
   if (!url || !channel) return jsonError('缺少 url 或 channel 参数', 400);
   const force = sp.get('force') === '1';
 
-  // 直播专用校验 + allowPrivate：与 playlist/stream/probe 同一把尺子，
-  // LIVE_ALLOW_PRIVATE=1 时内网自建 IPTV 的 XMLTV 节目单才能拉取
+  // 直播专用校验：LIVE_ALLOW_PRIVATE=1 时才允许内网自建 IPTV 的 XMLTV 节目单。
   const verdict = await checkLiveUrlAllowed(url);
   if (!verdict.ok) return jsonError(verdict.reason, 403);
 
@@ -38,7 +37,7 @@ export async function GET(req: Request) {
   let programMap: Map<string, EpgProgram[]> | undefined = force ? undefined : getLiveCache(key);
   if (!programMap) {
     try {
-      const res = await fetchUpstream(url, { timeoutMs: FETCH_TIMEOUT_MS, retries: 0, allowPrivate: true, signal: req.signal });
+      const res = await fetchLiveUpstream(url, { timeoutMs: FETCH_TIMEOUT_MS, retries: 0, signal: req.signal });
       if (!res.ok) {
         return jsonError(`节目单地址请求失败: ${res.status}`, 502);
       }
