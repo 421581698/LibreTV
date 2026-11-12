@@ -361,3 +361,104 @@ body > .v4-mobile-tabbar.liquid-glass::after {
     backdrop-filter: blur(2px) saturate(108%) !important;
   }
 }
+
+
+/* Liquid Glass v1.0 — final cascade contract.
+ * Engine-ready surfaces use the upstream optical layer; all other glass-like
+ * controls retain only a quiet 2px compatibility fallback.
+ */
+:where(
+  .glass-panel,
+  .glass-popover,
+  .glass-dialog,
+  .glass-toolbar,
+  .glass-button,
+  .liquid-glass,
+  .v4-mobile-tabbar,
+  .ai-chat-panel,
+  .v4-search,
+  .home-v2-ai-search,
+  .v4-header-icon,
+  .v4-avatar,
+  .v52-me-library-tile,
+  .v52-me-list-row,
+  .v4-spatial-screen[data-screen="settings"] .ipad-settings-content > section
+):not([data-liquid-glass-engine="ready"]):not(:has(img, video, canvas)) {
+  -webkit-backdrop-filter: blur(2px) saturate(108%) !important;
+  backdrop-filter: blur(2px) saturate(108%) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.10) !important;
+}
+
+:where(
+  .glass-panel,
+  .glass-popover,
+  .glass-dialog,
+  .glass-toolbar,
+  .glass-button,
+  .liquid-glass,
+  .v4-mobile-tabbar,
+  .ai-chat-panel,
+  .v4-search,
+  .home-v2-ai-search,
+  .v4-header-icon,
+  .v4-avatar,
+  .v52-me-library-tile,
+  .v52-me-list-row,
+  .v4-spatial-screen[data-screen="settings"] .ipad-settings-content > section
+):not([data-liquid-glass-engine="ready"])::before {
+  opacity: .28 !important;
+  animation: none !important;
+}
+
+:where(
+  .glass-panel,
+  .glass-popover,
+  .glass-dialog,
+  .glass-toolbar,
+  .glass-button,
+  .liquid-glass,
+  .v4-mobile-tabbar,
+  .ai-chat-panel,
+  .v4-search,
+  .home-v2-ai-search,
+  .v4-header-icon,
+  .v4-avatar
+)[data-liquid-glass-engine="ready"] {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.liquid-glass[data-liquid-glass-engine="ready"]::before,
+.liquid-glass[data-liquid-glass-engine="ready"]::after {
+  display: none !important;
+}
+
+@media (hover: none), (pointer: coarse) {
+  :where(
+    .glass-panel,
+    .glass-popover,
+    .glass-dialog,
+    .glass-toolbar,
+    .glass-button,
+    .liquid-glass,
+    .v4-mobile-tabbar,
+    .ai-chat-panel,
+    .v4-search,
+    .home-v2-ai-search,
+    .v4-header-icon,
+    .v4-avatar,
+    .v52-me-library-tile,
+    .v52-me-list-row
+  ):not([data-liquid-glass-engine="ready"]) {
+    -webkit-backdrop-filter: blur(2px) saturate(108%) !important;
+    backdrop-filter: blur(2px) saturate(108%) !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .liquid-glass:not([data-liquid-glass-engine="ready"]) {
+    background: rgba(24,24,28,.94) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
