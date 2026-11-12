@@ -5,11 +5,6 @@ import { checkLiveUrlAllowed, checkUpstreamAllowed } from './ssrf';
 export interface FetchOptions extends RequestInit {
   timeoutMs?: number;
   retries?: number;
-  /**
-   * 直播场景放行内网地址（自建 IPTV）：仅在部署者设置 LIVE_ALLOW_PRIVATE=1 时生效。
-   * 校验复用 checkLiveUrlAllowed，与直播流代理使用同一把尺子。
-   */
-  allowPrivate?: boolean;
 }
 
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
@@ -109,13 +104,25 @@ export async function fetchWithSafeRedirects(
   }
 }
 
+export async function fetchUpstreamWithMeta(url: string, options: FetchOptions = {}): Promise<FetchResult> {
+  return fetchWithMetaPolicy(url, options, false);
+}
+
+export async function fetchLiveUpstreamWithMeta(url: string, options: FetchOptions = {}): Promise<FetchResult> {
+  return fetchWithMetaPolicy(url, options, true);
+}
+
 export async function fetchUpstream(url: string, options: FetchOptions = {}): Promise<Response> {
   return (await fetchUpstreamWithMeta(url, options)).res;
 }
 
+export async function fetchLiveUpstream(url: string, options: FetchOptions = {}): Promise<Response> {
+  return (await fetchLiveUpstreamWithMeta(url, options)).res;
+}
+
 /** 同 fetchUpstream，额外返回重定向后的最终 URL */
-export async function fetchUpstreamWithMeta(url: string, options: FetchOptions = {}): Promise<FetchResult> {
-  const { timeoutMs = 8000, retries = 0, allowPrivate = false, ...init } = options;
+async function fetchWithMetaPolicy(url: string, options: FetchOptions, allowPrivate: boolean): Promise<FetchResult> {
+  const { timeoutMs = 8000, retries = 0, ...init } = options;
   let lastError: unknown;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
