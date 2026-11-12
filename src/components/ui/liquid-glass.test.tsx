@@ -78,11 +78,9 @@ describe('LiquidGlassSurface v1.0', () => {
 
   it('keeps shared drawer and alert-dialog semantics while using the glass adapter', () => {
     const drawerHtml = renderToStaticMarkup(
-      createElement(Drawer, {
-        open: true,
-        onClose: () => undefined,
-        title: 'Settings',
-      }, 'Settings content'),
+      <Drawer open onClose={() => undefined} title="Settings">
+        Settings content
+      </Drawer>,
     );
     const confirmHtml = renderToStaticMarkup(
       createElement(ConfirmDialog, {
