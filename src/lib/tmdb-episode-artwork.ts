@@ -104,25 +104,29 @@ async function tmdbGet<T>(path: string, token: string, query?: Record<string, st
 
 export async function enrichEpisodesWithTmdbArtwork(
   detail: VideoDetail,
-  options: { token?: string; title?: string; year?: string },
+  options: { token?: string; title?: string; originalTitle?: string; year?: string },
 ): Promise<VideoDetail> {
   const token = options.token?.trim();
   if (!token || !detail.episodeItems?.length) return detail;
 
   const displayTitle = options.title?.trim() || detail.videoInfo.title?.trim() || '';
   const queryTitle = extractSeriesTitle(displayTitle);
-  if (!queryTitle) return detail;
+  const aliases = [...new Set([queryTitle, options.originalTitle?.trim()].filter((value): value is string => Boolean(value)))];
+  if (aliases.length === 0) return detail;
 
   try {
-    const searchQuery: Record<string, string> = { query: queryTitle, include_adult: 'false' };
     const year = options.year?.match(/\b(19\d{2}|20\d{2})\b/)?.[1];
-    if (year) searchQuery.first_air_date_year = year;
-    const search = await tmdbGet<{ results?: TmdbTvSearchResult[] }>('/search/tv', token, searchQuery);
-    const normalizedQuery = normalizeTitle(queryTitle);
-    const match = search?.results?.find((item) => {
+    const searches = await Promise.all(aliases.map(async (alias) => {
+      const searchQuery: Record<string, string> = { query: extractSeriesTitle(alias), include_adult: 'false' };
+      if (year) searchQuery.first_air_date_year = year;
+      const response = await tmdbGet<{ results?: TmdbTvSearchResult[] }>('/search/tv', token, searchQuery);
+      return response?.results ?? [];
+    }));
+    const normalizedAliases = new Set(aliases.map((alias) => normalizeTitle(extractSeriesTitle(alias))));
+    const match = searches.flat().find((item) => {
       if (!Number.isSafeInteger(item.id) || (item.id ?? 0) <= 0) return false;
       const titleMatches = [item.name, item.original_name]
-        .some((candidate) => typeof candidate === 'string' && normalizeTitle(candidate) === normalizedQuery);
+        .some((candidate) => typeof candidate === 'string' && normalizedAliases.has(normalizeTitle(candidate)));
       if (!titleMatches) return false;
       if (!year) return true;
       return typeof item.first_air_date === 'string' && item.first_air_date.startsWith(year + '-');
