@@ -188,7 +188,7 @@
   .v4-resource-search input,
   .v4-resource-search button { width: 100%; min-height: 46px; }
   .v4-resource-result { min-width: 0; overflow-wrap: anywhere; }
-  body:has(.v4-mobile-tabbar) { padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px); }
+  body:has(.v4-mobile-tabbar) { padding-bottom: var(--tabbar-scroll-clearance); }
   body:has(.v4-home) .friday-fab {
     top: 42%;
     right: 12px;
