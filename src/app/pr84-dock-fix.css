@@ -227,7 +227,7 @@ body:has(.v4-spatial-screen[data-screen="settings"])::after {
    and every other route remain unchanged. */
 @media (max-width: 700px) {
   body:has(.v4-spatial-screen[data-screen="me"]) .friday-root .friday-fab {
-    top: calc(30px + env(safe-area-inset-top, 0px)) !important;
+    top: calc(62px + env(safe-area-inset-top, 0px)) !important;
     right: 18px !important;
     bottom: auto !important;
     left: auto !important;
