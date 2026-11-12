@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   extractEpisodesFromPlayUrl,
+  extractEpisodeItemsFromPlayUrl,
   extractM3u8FromText,
   filterAdultResults,
   filterRelevantResults,
@@ -43,6 +44,18 @@ describe('parseSearchList', () => {
     // 部分源站无结果时返回 list: null（或缺失），按空结果兼容
     expect(parseSearchList({ list: null }, source)).toEqual([]);
     expect(parseSearchList({}, source)).toEqual([]);
+  });
+});
+
+describe('extractEpisodeItemsFromPlayUrl', () => {
+  it('保留 CMS 提供的真实集数名称，并与播放器 URL 列表保持一致', () => {
+    const dollar = String.fromCharCode(36);
+    const play = '第01集' + dollar + 'https://cdn/a1.m3u8#特别篇' + dollar + 'https://cdn/a2.m3u8' + dollar.repeat(3) + '备用' + dollar + 'https://x/b.m3u8';
+    expect(extractEpisodeItemsFromPlayUrl(play)).toEqual([
+      { title: '第01集', url: 'https://cdn/a1.m3u8' },
+      { title: '特别篇', url: 'https://cdn/a2.m3u8' },
+    ]);
+    expect(extractEpisodesFromPlayUrl(play)).toEqual(extractEpisodeItemsFromPlayUrl(play).map((item) => item.url));
   });
 });
 
@@ -100,6 +113,10 @@ describe('parseDetail', () => {
     };
     const detail = parseDetail(data, source);
     expect(detail.episodes).toHaveLength(2);
+    expect(detail.episodeItems).toEqual([
+      { title: '第1集', url: 'https://cdn/1.m3u8' },
+      { title: '第2集', url: 'https://cdn/2.m3u8' },
+    ]);
     expect(detail.videoInfo.title).toBe('三体');
     expect(detail.videoInfo.sourceName).toBe('测试源');
   });
