@@ -14,7 +14,7 @@ import { buildWatchUrl, validateSourceUrl } from '@/lib/utils';
 import { formatRemarks } from '@/lib/remarks';
 import type { SourceConfig, VideoDetail } from '@/lib/types';
 
-function detailSource(store: ReturnType<typeof useAppStore.getState>, key: string, name: string, sourceUrl: string): SourceConfig | null {
+function detailSource(store: Pick<ReturnType<typeof useAppStore.getState>, 'customAPIs' | 'envSources'>, key: string, name: string, sourceUrl: string): SourceConfig | null {
   const local = resolveSource(store, key);
   if (key === 'friday-cms' && sourceUrl) {
     if (!validateSourceUrl(sourceUrl)) return null;
@@ -28,7 +28,10 @@ function detailSource(store: ReturnType<typeof useAppStore.getState>, key: strin
 export function MovieDetailPage() {
   const router = useRouter();
   const params = useSearchParams();
-  const store = useAppStore();
+  const customAPIs = useAppStore((state) => state.customAPIs);
+  const envSources = useAppStore((state) => state.envSources);
+  const imageProxyMode = useAppStore((state) => state.imageProxyMode);
+  const customImageProxy = useAppStore((state) => state.customImageProxy);
   const { verified } = useAuth();
   const sourceKey = params.get('source') ?? '';
   const vodId = params.get('id') ?? '';
@@ -37,8 +40,8 @@ export function MovieDetailPage() {
   const sourceName = params.get('sourceName') ?? sourceKey;
   const sourceUrl = params.get('sourceUrl') ?? '';
   const source = useMemo(
-    () => detailSource(store, sourceKey, sourceName, sourceUrl),
-    [store, sourceKey, sourceName, sourceUrl],
+    () => detailSource({ customAPIs, envSources }, sourceKey, sourceName, sourceUrl),
+    [customAPIs, envSources, sourceKey, sourceName, sourceUrl],
   );
   const [detail, setDetail] = useState<VideoDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -177,8 +180,8 @@ export function MovieDetailPage() {
         {image ? (
           <SmartImage
             url={image}
-            mode={store.imageProxyMode}
-            customProxy={store.customImageProxy}
+            mode={imageProxyMode}
+            customProxy={customImageProxy}
             alt={displayTitle}
             className="absolute inset-0 -z-20 h-full w-full object-cover object-center opacity-80"
             loading="eager"
