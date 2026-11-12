@@ -159,6 +159,7 @@ export function parseDetail(
       || str(metadata.image_url)
       || str(metadata.image);
     const image = rawStill && /^https?:\/\/[^\s]+$/i.test(rawStill) ? rawStill : undefined;
+    const episodeName = str(metadata.episode_name) || str(metadata.name) || str(metadata.title);
     const description = cmsDescriptionToText(metadata.description ?? metadata.overview ?? metadata.vod_content);
     const duration = str(metadata.duration) || str(metadata.runtime);
     const capturedAt = str(metadata.image_captured_at) || str(metadata.captured_at) || str(metadata.extracted_at);
@@ -170,6 +171,7 @@ export function parseDetail(
         imageSourceEpisodeUrl: episode.url,
         ...(capturedAt ? { imageCapturedAt: capturedAt } : {}),
       } : {}),
+      ...(episodeName ? { episodeName } : {}),
       ...(description ? { description } : {}),
       ...(duration ? { duration } : {}),
     };
