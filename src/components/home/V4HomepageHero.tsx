@@ -37,7 +37,7 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
           <button
             type="button"
             className="absolute inset-0 z-[1] cursor-pointer"
-            aria-label={`立即播放：${slide.title}`}
+            aria-label={`查看详情：${slide.title}`}
             onClick={() => onPick(slide)}
           />
           <div className="v4-hero-content" style={{ zIndex: 2 }}>
@@ -46,7 +46,7 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
             <div className="v4-hero-actions">
               <button type="button" className="v4-hero-primary" onClick={() => onPick(slide)}>
                 <span aria-hidden="true">▶</span>
-                立即观看
+                查看详情
               </button>
               <a className="v4-hero-secondary" href="#for-you"><span aria-hidden="true">ⓘ</span>更多详情</a>
             </div>
