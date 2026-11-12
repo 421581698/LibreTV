@@ -2,6 +2,8 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { GlassButton, GlassDialog, GlassPanel, GlassPopover, GlassToolbar } from './glass';
+import { ConfirmDialog } from '@/components/confirm-dialog';
+import { Drawer } from '@/components/drawer';
 import { LiquidGlassSurface } from './liquid-glass';
 
 describe('LiquidGlassSurface v1.0', () => {
@@ -71,6 +73,33 @@ describe('LiquidGlassSurface v1.0', () => {
     expect(html).toContain('<button');
     expect(html).toContain('role="toolbar"');
     expect(html).toContain('role="dialog"');
+  });
+
+
+  it('keeps shared drawer and alert-dialog semantics while using the glass adapter', () => {
+    const drawerHtml = renderToStaticMarkup(
+      createElement(Drawer, {
+        open: true,
+        onClose: () => undefined,
+        title: 'Settings',
+      }, 'Settings content'),
+    );
+    const confirmHtml = renderToStaticMarkup(
+      createElement(ConfirmDialog, {
+        open: true,
+        title: 'Confirm',
+        message: 'Continue?',
+        onConfirm: () => undefined,
+        onCancel: () => undefined,
+      }),
+    );
+
+    expect(drawerHtml).toContain('role="dialog"');
+    expect(drawerHtml).toContain('data-liquid-glass="true"');
+    expect(drawerHtml).toContain('Settings content');
+    expect(confirmHtml).toContain('role="alertdialog"');
+    expect(confirmHtml).toContain('data-liquid-glass="true"');
+    expect(confirmHtml).toContain('Confirm');
   });
 
 });
