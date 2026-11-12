@@ -170,7 +170,7 @@ export async function enrichEpisodesWithTmdbArtwork(
       const tmdbEpisode = episodeMetadata.get(coordinates.seasonNumber + ':' + coordinates.episodeNumber);
       if (!tmdbEpisode) return item;
       const still = tmdbEpisode.still_path
-        ? TMDB_IMAGE + '/' + tmdbEpisode.still_path.replace(/^\\/+/, '')
+        ? TMDB_IMAGE + '/' + tmdbEpisode.still_path.replace(/^\/+/, '')
         : undefined;
       const episodeName = typeof tmdbEpisode.name === 'string' ? tmdbEpisode.name.trim() : '';
       const overview = typeof tmdbEpisode.overview === 'string' ? tmdbEpisode.overview.trim() : '';
