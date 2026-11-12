@@ -183,6 +183,7 @@ export function parseDetail(
     ...(episodeItems.length > 0 ? { episodeItems: episodeItemsWithMetadata } : {}),
     videoInfo: {
       title: str(vod.vod_name),
+      originalTitle: str(vod.vod_en),
       cover: str(vod.vod_pic),
       desc: cmsDescriptionToText(vod.vod_content),
       typeName: str(vod.type_name),
