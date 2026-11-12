@@ -844,3 +844,46 @@
   .movie-detail-episode-card,
   .movie-detail-episode-image { transition: none !important; }
 }
+
+
+/* PR84 CSS rescue: compact metadata rows with fixed labels and inset dividers. */
+.movie-detail-info-grid {
+  row-gap: 12px !important;
+  column-gap: 20px !important;
+}
+.movie-detail-info-item {
+  position: relative !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start !important;
+  gap: 12px !important;
+  min-width: 0 !important;
+  padding: 0 0 10px !important;
+  border-bottom: 0 !important;
+}
+.movie-detail-info-item::after {
+  content: "" !important;
+  position: absolute !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 20px !important;
+  height: 1px !important;
+  background: rgba(255,255,255,.09) !important;
+  pointer-events: none !important;
+}
+.movie-detail-info-item:last-child::after {
+  display: none !important;
+}
+.movie-detail-info-item > span {
+  flex: 0 0 56px !important;
+  width: 56px !important;
+  white-space: nowrap !important;
+  padding-top: 2px !important;
+}
+.movie-detail-info-item > strong {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  line-height: 1.5 !important;
+}
