@@ -64,7 +64,6 @@ jobs:
         run: npx wrangler deploy --config wrangler.pr84-preview.toml
 
       - name: Probe configured CMS candidate without enabling it as a default source
-        continue-on-error: true
         env:
           CANDIDATE_CMS_API: https://caiji.dyttzyapi.com/api.php/provide/vod
         run: |
@@ -285,6 +284,7 @@ jobs:
           NODE
 
       - name: Verify deployed PR84 homepage and status endpoint
+        if: always()
         run: |
           node --input-type=module <<'NODE'
           const base = "https://libretv-pr84-preview.bggdbh.workers.dev";
