@@ -116,42 +116,27 @@ describe('首页与播放页回归契约', () => {
     expect(fridayConversation).toContain("播放器解码实测");
   });
 
-  it('V4 首页接入真实推荐接口与 IndexedDB 继续观看记录', () => {
+  it('V4 首页展示继续观看与真实影视内容栏目，并保留 IndexedDB 播放进度', () => {
     expect(home).toContain('<V4HomepageContent onPick={openRecommendation} />');
-    expect(v4Content.indexOf('id="today-recommendations"')).toBeLessThan(v4Content.indexOf('id="my-library"'));
-    expect(v4Content).toContain('v4-today-rail');
-    expect(v4Content).not.toContain('v4-today-card-rating');
+    expect(v4Content.indexOf('id="my-library"')).toBeGreaterThanOrEqual(0);
+    expect(v4Content).toContain('v4-continue-section');
+    expect(v4Content).toContain('v4-apple-rail-section');
+    expect(v4Content).toContain('热门电视剧');
+    expect(v4Content).toContain('热门电影');
+    expect(v4Content).toContain('新上架');
+    expect(v4Content).toContain("api.douban('tv', '热门', 0, RAIL_LIMIT, signal)");
+    expect(v4Content).toContain("api.douban('movie', '热门', 0, RAIL_LIMIT, signal)");
+    expect(v4Content).toContain("api.douban('movie', '最新', 0, RAIL_LIMIT, signal)");
+    expect(v4Content).not.toContain('为你推荐');
+    expect(v4Content).not.toContain('id="for-you"');
     expect(v4Content).toContain('className="absolute inset-0 h-full w-full object-cover"');
-    expect(inlineHomeStyles).toContain('aspect-ratio: 2 / 3 !important;');
-    expect(inlineHomeStyles).toContain('object-fit: cover !important;');
-    expect(inlineHomeStyles).toContain('.v4-history-image > img');
-    expect(inlineHomeStyles).toContain('height: clamp(360px,55svh,520px) !important;');
-    expect(inlineHomeStyles).not.toContain('height: 100svh !important;');
-    expect(inlineHomeStyles).toContain('height: clamp(640px,94svh,900px) !important;');
-    expect(inlineHomeStyles).toContain('linear-gradient(180deg,rgba(0,0,0,.08)');
-    expect(v4Content).toContain('v4-progress-percent');
-    expect(featuredHero).toContain('发现好内容');
-    expect(featuredHero).toContain('v4-hero-primary');
-    expect(featuredHero).not.toContain('v4-hero-secondary');
-    expect(featuredHero).toContain('v4-hero-tags');
-    expect(featuredHero).toContain('立即播放');
-    expect(featuredHero).toContain('v4-hero-plus');
-    expect(homepageHeroStyles).toContain('linear-gradient(180deg, rgba(0,0,0,.08)');
-    expect(homepageHeroStyles).toContain('backdrop-filter: blur(20px) saturate(155%) !important;');
-    expect(homepageHeroStyles).toContain('background: rgba(18,18,20,.68) !important;');
-    expect(homepageHeroStyles).toContain('color: #0a84ff !important;');
-    expect(homepageHeroStyles).toContain('overflow-x: auto !important;');
-
-    expect(v4Content.indexOf('id="my-library"')).toBeLessThan(v4Content.indexOf('id="for-you"'));
-    expect(v4Content).toContain("api.douban('movie', '热门', 0, TODAY_LIMIT, signal)");
     expect(v4Content).toContain('db.history.orderBy(\'timestamp\').reverse().limit(CONTINUE_LIMIT)');
-    expect(v4Content).toContain('<RecommendSection onPick={onPick} />');
-
+    expect(v4Content).toContain('v4-progress-percent');
     expect(v4Content).toContain('buildWatchUrl({');
     expect(v4Content).toContain('playbackPosition / item.duration');
     expect(v4Styles).toContain('.v4-history-row');
-    expect(v4Styles).not.toContain('v4-poster-skeleton');
-    expect(v4Styles).not.toContain('v4-landscape-skeleton');
+    expect(v4Styles).toContain('.v4-apple-rail');
+    expect(v4Styles).toContain('.v4-apple-poster-card');
     expect(home).toContain('<DetailModal item={detailItem}');
   });
 
