@@ -23,6 +23,14 @@ afterEach(() => {
 });
 
 describe('fetchUpstream 安全跳转', () => {
+  it('普通上游 API 忽略调用者注入的 allowPrivate 参数', async () => {
+    const spy = mockFetch([]);
+    await expect(
+      fetchUpstream('http://127.0.0.1:8080/private', { allowPrivate: true } as never)
+    ).rejects.toThrow(/跳转目标被拒绝/);
+    expect(spy.mock.calls.length).toBe(0);
+  });
+
   it('302 跳转到内网地址时拒绝，且不发起第二跳请求', async () => {
     const spy = mockFetch([
       () => new Response(null, { status: 302, headers: { location: 'http://127.0.0.1:8080/secret' } }),
