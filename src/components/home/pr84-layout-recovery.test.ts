@@ -126,10 +126,17 @@ describe('PR #84 homepage blocking layout recovery', () => {
   it('keeps mobile hero height and crop ownership in the final Apple Dock stylesheet', () => {
     expect(appleDock).toContain('height: clamp(360px, 55svh, 520px) !important;');
     expect(appleDock).toContain('object-position: center 85% !important;');
-    expect(inlineHome).not.toContain('height: clamp(560px, 74svh, 640px) !important;');
-    expect(inlineHome).not.toContain('height: clamp(570px, 76svh, 660px) !important;');
-    expect(inlineHome).not.toContain('height: min(88svh,780px) !important;');
-    expect(inlineHome).not.toContain('object-position: center 85% !important;');
+    for (const staleHeight of [
+      'height: clamp(360px,55svh,520px) !important;',
+      'height: clamp(640px,94svh,900px) !important;',
+      'height: clamp(380px, 55svh, 520px) !important;',
+      'height: clamp(560px, 74svh, 640px) !important;',
+      'height: clamp(570px, 76svh, 660px) !important;',
+      'height: min(88svh,780px) !important;',
+    ]) expect(inlineHome).not.toContain(staleHeight);
+    for (const staleCrop of ['center 0%', 'center 68%', 'center 80%', 'center 85%', 'center 24%']) {
+      expect(inlineHome).not.toContain(`object-position: ${staleCrop} !important;`);
+    }
   });
 
   it('keeps dock scroll clearance in one shared CSS token', () => {
