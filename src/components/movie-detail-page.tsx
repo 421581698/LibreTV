@@ -245,27 +245,24 @@ export function MovieDetailPage() {
             <div><p className="text-[10px] font-semibold uppercase tracking-[.24em] text-white/40">EPISODES</p><h2 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">剧集</h2></div>
             <span className="text-xs text-white/50">共 {episodes.length} 集</span>
           </div>
-          <div className="movie-detail-episode-grid">
+          <div className="movie-detail-episode-list" aria-label="横向滑动选择剧集">
             {episodes.map((_, index) => {
+              const item = episodeItems[index];
               const percent = completedPercent(index);
+              const episodeArtwork = item?.image || image;
               return (
-                <button
-                  key={index}
-                  type="button"
-                  onClick={() => play(index)}
-                  className="movie-detail-episode-tile"
-                  aria-label={`${episodeTitle(index)}，播放`}
-                >
-                  <span className="movie-detail-episode-tile-number">{String(index + 1).padStart(2, '0')}</span>
-                  <span className="movie-detail-episode-tile-title">{episodeTitle(index)}</span>
-                  <span className="movie-detail-episode-tile-status">
-                    {percent >= 95 ? '已看完' : percent > 0 ? `已观看 ${percent}%` : '播放'}
-                  </span>
-                  {percent > 0 && (
-                    <span className="movie-detail-episode-tile-progress">
-                      <span style={{ width: `${percent}%` }} />
+                <button key={index} type="button" onClick={() => play(index)} className="movie-detail-episode-card" aria-label={`${episodeTitle(index)}，播放`}>
+                  {episodeArtwork && <SmartImage url={episodeArtwork} mode={imageProxyMode} customProxy={customImageProxy} alt="" className="movie-detail-episode-image" loading="lazy" />}
+                  <span className="movie-detail-episode-card-content">
+                    <span className="movie-detail-episode-card-number">第 {index + 1} 集</span>
+                    <span className="movie-detail-episode-card-title">{episodeTitle(index)}</span>
+                    {item?.description && <span className="movie-detail-episode-card-description">{item.description}</span>}
+                    <span className="movie-detail-episode-card-meta">
+                      <span className="movie-detail-episode-card-play" aria-hidden="true">▶</span>
+                      <span>{item?.duration || (percent >= 95 ? "已看完" : percent > 0 ? `已观看 ${percent}%` : "立即播放")}</span>
                     </span>
-                  )}
+                  </span>
+                  {percent > 0 && <span className="movie-detail-episode-card-progress" aria-hidden="true"><span style={{ width: `${percent}%` }} /></span>}
                 </button>
               );
             })}
