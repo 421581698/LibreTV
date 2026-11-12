@@ -1285,3 +1285,29 @@
   .v4-spatial-screen[data-screen="me"] .v52-me-empty { padding: 11px 13px; }
   .v4-spatial-screen[data-screen="me"] .v52-me-library-tile { min-height: 98px; }
 }
+
+
+/* PR84 /me minimal top + safe-area + scroll clearance. Scoped to this route only. */
+@media (max-width: 700px) {
+  html:has(body .v4-spatial-screen[data-screen="me"]),
+  body:has(.v4-spatial-screen[data-screen="me"]) {
+    min-height: 100%;
+    background: #000000 !important;
+    background-color: #000000 !important;
+    color-scheme: dark;
+  }
+  body:has(.v4-spatial-screen[data-screen="me"]) .v4-spatial-screen[data-screen="me"] {
+    min-height: 100svh;
+    padding-top: env(safe-area-inset-top, 0px);
+    background: #000000 !important;
+    background-color: #000000 !important;
+  }
+  body:has(.v4-spatial-screen[data-screen="me"]) .v4-spatial-screen[data-screen="me"] .v4-spatial-main {
+    padding-top: 18px !important;
+    padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  body:has(.v4-spatial-screen[data-screen="me"]) .v52-me-library-tile {
+    padding: 20px !important;
+  }
+}
