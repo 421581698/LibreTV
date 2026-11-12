@@ -512,3 +512,80 @@ body > .v4-mobile-tabbar.liquid-glass::after {
 )[data-liquid-glass-engine="ready"]::after {
   display: none !important;
 }
+
+
+/* PR84 Apple TV reference dock — full-bleed, heavy dark glass.
+ * Keep this surface native CSS so Safari gets the same frosted treatment
+ * even when the optional WebGL displacement engine is unavailable.
+ */
+@media (max-width: 700px) {
+  body > .v4-mobile-tabbar {
+    position: fixed !important;
+    z-index: 1000 !important;
+    inset-inline: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-height: calc(66px + env(safe-area-inset-bottom, 0px)) !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-around !important;
+    gap: 4px !important;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: rgba(25, 25, 25, .65) !important;
+    -webkit-backdrop-filter: blur(40px) saturate(150%) !important;
+    backdrop-filter: blur(40px) saturate(150%) !important;
+    box-shadow:
+      inset 0 1px 0 0 rgba(255,255,255,.15),
+      inset 0 -1px 0 0 rgba(255,255,255,.035) !important;
+    overflow: hidden !important;
+    isolation: isolate !important;
+  }
+
+  body > .v4-mobile-tabbar::before {
+    content: "" !important;
+    position: absolute !important;
+    z-index: 0 !important;
+    inset: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    pointer-events: none !important;
+    opacity: 1 !important;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.075), transparent 34%),
+      linear-gradient(90deg, rgba(255,255,255,.025), transparent 18%, transparent 82%, rgba(255,255,255,.025)) !important;
+    animation: none !important;
+  }
+
+  body > .v4-mobile-tabbar::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  body > .v4-mobile-tabbar > a {
+    position: relative !important;
+    z-index: 1 !important;
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    border-radius: 18px !important;
+  }
+
+  body > .v4-mobile-tabbar > a.is-active {
+    background: rgba(255,255,255,.085) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.13) !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  @media (max-width: 700px) {
+    body > .v4-mobile-tabbar {
+      background: rgba(25,25,25,.96) !important;
+      -webkit-backdrop-filter: none !important;
+      backdrop-filter: none !important;
+    }
+  }
+}
