@@ -532,6 +532,10 @@
    pr84-layout-recovery.css. Reassert the agreed compact first-viewport budget
    in this final stylesheet so the older 560px rule cannot win. */
 @media (max-width: 700px) {
+  html body:has(.v4-home) .v4-home .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-image img {
+    object-position: center 85% !important;
+  }
+
   html body:has(.v4-home) .v4-home .v4-home-main--cinema > .v4-hero-immersive {
     height: clamp(360px, 55svh, 520px) !important;
     min-height: 360px !important;
