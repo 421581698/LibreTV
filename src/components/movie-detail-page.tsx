@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/client-api';
 import { useAppStore, resolveSource } from '@/lib/store';
 import { useAuth } from '@/components/auth';
+import { V4HomepageHeader } from '@/components/home/V4HomepageHeader';
 import { SmartImage } from '@/components/smart-image';
 import { LoadingState, ErrorState } from '@/components/states';
 import { addFavorite, addSearchHistory, db, removeFavorite } from '@/lib/db';
@@ -163,11 +164,12 @@ export function MovieDetailPage() {
   };
 
   if (loading) {
-    return <main className="movie-detail-page min-h-screen bg-[#08080A] px-5 pt-24 text-white"><LoadingState label="正在整理影片详情…" /></main>;
+    return <main className="movie-detail-page min-h-screen bg-[#08080A] px-5 pt-8 text-white"><V4HomepageHeader /><div className="pt-16"><LoadingState label="正在整理影片详情…" /></div></main>;
   }
   if (error || !detail) {
     return (
       <main className="movie-detail-page min-h-screen bg-[#08080A] px-5 pt-8 text-white">
+        <V4HomepageHeader />
         <button type="button" onClick={() => router.back()} className="mb-8 rounded-full bg-white/10 px-4 py-2 text-sm">‹ 返回</button>
         <ErrorState message={error || '暂时无法获取影片详情'} />
       </main>
@@ -176,6 +178,7 @@ export function MovieDetailPage() {
 
   return (
     <main className="movie-detail-page min-h-screen overflow-x-hidden bg-[#08080A] pb-[max(40px,env(safe-area-inset-bottom))] text-white">
+      <V4HomepageHeader />
       <section className="relative isolate min-h-[650px] overflow-hidden sm:min-h-[720px]">
         {image ? (
           <SmartImage
