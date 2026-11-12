@@ -350,12 +350,12 @@ export function MovieDetailPage() {
                         >下载本集（MP4）</button>                      ) : item?.url ? (
                         <a
                           href={item.url}
-                          download
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex min-h-10 items-center rounded-xl px-3 text-left text-white no-underline transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
                           onClick={() => setEpisodeMenuIndex(null)}
-                        >下载本集</a>
+                          aria-label={episodeTitle(index) + '打开原始媒体地址'}
+                        >打开下载地址</a>
                       ) : (
                         <button type="button" className="min-h-10 rounded-xl px-3 text-left text-white/40" disabled>暂无下载地址</button>
                       )}
