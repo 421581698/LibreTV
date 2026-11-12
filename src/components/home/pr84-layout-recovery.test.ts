@@ -12,6 +12,7 @@ describe('PR #84 homepage blocking layout recovery', () => {
   const globalLayout = read('src/app/pr84-global-layout.css');
   const dockFix = read('src/app/pr84-dock-fix.css');
   const appleDock = read('src/app/pr84-apple-tv-dock.css');
+  const appleDock = read('src/app/pr84-apple-tv-dock.css');
   const nonOwnerDockStyles = [
     'src/app/iphone-home-inline.css',
     'src/app/iphone-minimal-ui.css',
@@ -69,6 +70,16 @@ describe('PR #84 homepage blocking layout recovery', () => {
     expect(globalLayout).not.toContain('position: fixed !important;');
     expect(globalLayout).toContain('var(--tabbar-height)');
     expect(globalLayout).toContain('.v4-spatial-screen[data-screen="me"] > .v4-spatial-main');
+  });
+
+  it('keeps dock scroll clearance in one shared CSS token', () => {
+    expect(appleDock).toContain('--tabbar-scroll-clearance: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px);');
+    for (const stylesheet of [globalLayout, dockFix, recovery, appleDock]) {
+      expect(stylesheet).not.toContain('calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important');
+    }
+    expect(globalLayout).toContain('var(--tabbar-scroll-clearance)');
+    expect(dockFix).toContain('var(--tabbar-scroll-clearance)');
+    expect(recovery).toContain('var(--tabbar-scroll-clearance)');
   });
 
   it('does not repeat identical adjacent dock selectors in the dock fix stylesheet', () => {
