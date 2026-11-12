@@ -19,7 +19,7 @@ const canvas = source('src/components/home/HomeIntentCanvas.tsx');
 const orb = source('src/components/friday/FridayOrb.tsx');
 const assistant = source('src/components/AIFloatingBall.tsx');
 const header = source('src/components/header.tsx');
-const detail = source('src/components/detail-modal.tsx');
+const movieDetail = source('src/components/movie-detail-page.tsx');
 const player = source('src/components/player-shell.tsx');
 const fullscreenHelper = source('src/lib/player-fullscreen.ts');
 const database = source('src/lib/db.ts');
@@ -122,7 +122,8 @@ describe('首页与播放页回归契约', () => {
     expect(v4Styles).toContain('.v4-history-row');
     expect(v4Styles).not.toContain('v4-poster-skeleton');
     expect(v4Styles).not.toContain('v4-landscape-skeleton');
-    expect(home).toContain('<DetailModal item={detailItem}');
+    expect(home).toContain("router.push('/detail?' + params.toString())");
+    expect(movieDetail).toContain('export function MovieDetailPage()');
   });
 
   it('V4 首页 Header 使用双层动态导航，首屏叠加 Hero，滚动后转为轻量悬浮栏', () => {
@@ -240,11 +241,11 @@ describe('首页与播放页回归契约', () => {
   });
 
   it('影片详情请求成功后通过标准 watch URL 进入播放页', () => {
-    expect(detail).toContain('.detail(item.vodId, source, controller.signal)');
-    expect(detail).toContain('.then((result) => {');
-    expect(detail).toContain('buildWatchUrl({');
-    expect(detail).toContain('router.push(');
-    expect(detail).toContain('sourceUrl: item.sourceUrl');
+    expect(movieDetail).toContain('api.detail(vodId, source, controller.signal)');
+    expect(movieDetail).toContain('.then((result) => {');
+    expect(movieDetail).toContain('buildWatchUrl({');
+    expect(movieDetail).toContain('router.push(');
+    expect(movieDetail).toContain('sourceUrl: source?.url || sourceUrl || undefined');
   });
 
   it('播放页装载播放器、换源弹窗、进度恢复和下载入口', () => {
@@ -301,7 +302,7 @@ describe('首页与播放页回归契约', () => {
     expect(watch).toContain('router.back()');
     expect(watch).toContain("router.push('/')");
   });
-  it('shows evidence-ranked playback recommendations and routes the exact candidate through the existing detail modal', () => {
+  it('shows evidence-ranked playback recommendations and routes the exact candidate through the dedicated detail center', () => {
     expect(movieWorkflow).toContain('playback: `${prefix}.playback`');
     expect(movieWorkflow).toContain('agent: "playback-agent"');
     expect(movieAgents).toContain('id: "playback-agent"');
