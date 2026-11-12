@@ -28,7 +28,7 @@ type EngineProps = {
 type SurfaceVariant = 'dock' | 'control' | 'panel';
 type SurfaceProps = HTMLAttributes<HTMLElement> & {
   as?: ElementType;
-  children: ReactNode;
+  children?: ReactNode;
   interactive?: boolean;
   variant?: SurfaceVariant;
   type?: 'button' | 'submit' | 'reset';
