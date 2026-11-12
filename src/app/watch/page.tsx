@@ -612,7 +612,7 @@ function WatchContent() {
               <button className="btn-ghost btn-sm" onClick={() => {
                 if (!currentUrl) return;
                 const downloadTitle = `${videoTitle}${hasEpisodeNavigation ? ` 第${currentIndex + 1}集` : ''}`;
-                if (/\\.m3u8(?:$|[?#])/i.test(currentUrl)) {
+                if (/\.m3u8(?:$|[?#])/i.test(currentUrl)) {
                   // HLS is parsed and transmuxed by the existing task engine; MP4
                   // here means the output container, never a renamed playlist.
                   enqueueDownload({ url: currentUrl, title: downloadTitle, format: 'MP4' });
@@ -623,7 +623,7 @@ function WatchContent() {
                 // attributes are advisory only, so open the actual URL as a fallback.
                 const anchor = document.createElement('a');
                 anchor.href = currentUrl;
-                anchor.download = `${downloadTitle}.mp4`;
+                anchor.download = downloadTitle;
                 anchor.target = '_blank';
                 anchor.rel = 'noopener noreferrer';
                 document.body.appendChild(anchor);
