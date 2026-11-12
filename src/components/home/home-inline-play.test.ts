@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
-describe('iPhone homepage inline playback and top search', () => {
+describe('iPhone homepage detail navigation and top search', () => {
   const home = read('src/app/page.tsx');
   const player = read('src/components/home/HomeInlinePlayer.tsx');
   const mobileSearch = read('src/app/iphone-home-inline.css');
@@ -12,11 +12,11 @@ describe('iPhone homepage inline playback and top search', () => {
 
   it('homepage recommendation posters open the inline player instead of the detail route', () => {
     expect(home).toContain('const rankedMatches = rankMovieCandidatesByQuality(');
-    expect(home).toContain('setQuickPlayItem(rankedMatches[0]);');
-    expect(featuredHero).toContain('aria-label={`播放精选影片：${slide.title}`}');
+    expect(home).toContain('openDetail(rankedMatches[0], { rating: movie.rating, poster: movie.cover });');
+    expect(featuredHero).toContain('aria-label={`查看详情：${slide.title}`}');
     expect(featuredHero).toContain('onClick={() => onPick(slide)}');
-    expect(home).toContain('onOpen={(item) => setQuickPlayItem(item)}');
-    expect(home).toContain('<HomeInlinePlayer item={quickPlayItem}');
+    expect(home).toContain('onOpen={openDetail}');
+    expect(home).toContain("router.push('/detail?' + params.toString())");
     expect(player).toContain("import('@/components/player-shell')");
     expect(player).toContain('api.detail(item.vodId, source, controller.signal)');
     expect(player).toContain('<PlayerShell');
@@ -74,11 +74,12 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
     expect(spatial).toContain('<V4HomepageHeader />');
   });
 
-  it('routes catalogue posters and resource results into the shared inline player', () => {
+  it('routes catalogue posters, resource results and personal library entries into the detail center', () => {
     expect(spatial).toContain('const openRecommendation = async (movie: DoubanItem)');
     expect(spatial).toContain('onPick={openRecommendation}');
-    expect(spatial).toContain('<HomeInlinePlayer item={quickPlayItem}');
-    expect(spatial).not.toContain('router.push');
+    expect(spatial).toContain('onPick={openDetail}');
+    expect(spatial).toContain("router.push('/detail?' + params.toString())");
+    expect(spatial).toContain("const href = '/detail?' + params.toString()");
     expect(spatial).toContain('onClick={() => onPick(item)}');
   });
 
