@@ -52,6 +52,7 @@ describe('GET /api/detail', () => {
     process.env.PASSWORD = PASSWORD;
     delete process.env.PROXY_SECRET;
     delete process.env.AUTH_DISABLED;
+    delete process.env.TMDB_READ_ACCESS_TOKEN;
   });
 
   afterEach(() => {
