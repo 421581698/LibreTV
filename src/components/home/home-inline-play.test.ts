@@ -9,6 +9,8 @@ describe('iPhone homepage detail navigation and top search', () => {
   const player = read('src/components/home/HomeInlinePlayer.tsx');
   const mobileSearch = read('src/app/iphone-home-inline.css');
   const featuredHero = read('src/components/home/V4HomepageHero.tsx');
+  const movieDetail = read('src/components/movie-detail-page.tsx');
+  const cmsParser = read('src/lib/cms-parser.ts');
 
   it('homepage recommendation posters open the dedicated detail route before playback', () => {
     expect(home).toContain('const rankedMatches = rankMovieCandidatesByQuality(');
@@ -28,6 +30,14 @@ describe('iPhone homepage detail navigation and top search', () => {
     expect(player).toContain('history?.episodeIndex === episodeIndex');
     expect(player).not.toContain('useRouter');
     expect(player).not.toContain('router.push');
+  });
+
+  it('detail page uses real CMS episode names and existing playback progress without fabricating stills', () => {
+    expect(cmsParser).toContain('extractEpisodeItemsFromPlayUrl');
+    expect(movieDetail).toContain('detail?.episodeItems ?? []');
+    expect(movieDetail).toContain('episodeItems[index]?.title');
+    expect(movieDetail).toContain('completedPercent(index)');
+    expect(movieDetail).toContain('rating ? \'豆瓣 \' + rating : undefined');
   });
 
   it('inline player aborts pending detail requests and supports closing without route navigation', () => {
