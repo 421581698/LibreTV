@@ -269,6 +269,30 @@ describe('stripAdGroups · 长片间超短中插（phimgood 结构）', () => {
 });
 
 describe('parseM3u8Playlist · 片头广告剔除', () => {
+  it('拒绝 SAMPLE-AES 等未实现的加密方式，避免输出损坏文件', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response([
+      '#EXTM3U',
+      '#EXT-X-KEY:METHOD=SAMPLE-AES,URI="key.bin"',
+      '#EXTINF:4,',
+      'seg.ts',
+      '#EXT-X-ENDLIST',
+    ].join('\\n'), { status: 200 })));
+    await expect(parseM3u8Playlist('https://cdn.example.com/a.m3u8'))
+      .rejects.toThrow('暂不支持 HLS 加密方式：SAMPLE-AES');
+  });
+
+  it('拒绝尚未实现初始化段写入的 fMP4 EXT-X-MAP 播放列表', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response([
+      '#EXTM3U',
+      '#EXT-X-MAP:URI="init.mp4"',
+      '#EXTINF:4,',
+      'seg.m4s',
+      '#EXT-X-ENDLIST',
+    ].join('\\n'), { status: 200 })));
+    await expect(parseM3u8Playlist('https://cdn.example.com/a.m3u8'))
+      .rejects.toThrow('EXT-X-MAP 初始化分段');
+  });
+
   it('默认剔除广告段：分片与 totalDuration 均不含广告', async () => {
     const lines = ['#EXTM3U', '#EXT-X-DISCONTINUITY'];
     for (let i = 0; i < 3; i++) lines.push('#EXTINF:5,', `ad${i}.ts`);
