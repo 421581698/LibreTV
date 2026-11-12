@@ -30,6 +30,7 @@ type SurfaceProps = HTMLAttributes<HTMLElement> & {
   children: ReactNode;
   interactive?: boolean;
   variant?: SurfaceVariant;
+  type?: 'button' | 'submit' | 'reset';
 };
 type EngineComponent = ComponentType<EngineProps>;
 
