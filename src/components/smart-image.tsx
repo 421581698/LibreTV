@@ -9,6 +9,8 @@ const DEFAULT_POSTER_SRC =
 interface SmartImageProps {
   /** SDR 图片地址；HDR 不可用或加载失败时的可靠回退 */
   url?: string;
+  /** 主图候选全部失败后继续尝试的备用图片地址 */
+  fallbackUrl?: string;
   /** 可选的独立 HDR / gain-map 图片地址。只有高动态范围显示设备会优先尝试 */
   hdrUrl?: string;
   mode: 'direct' | 'proxy' | 'custom';
@@ -29,6 +31,7 @@ interface SmartImageProps {
  */
 export function SmartImage({
   url,
+  fallbackUrl,
   hdrUrl,
   mode,
   customProxy = '',
@@ -37,7 +40,10 @@ export function SmartImage({
   loading = 'lazy',
   onExhausted,
 }: SmartImageProps) {
-  const candidates = buildImageCandidates(url, mode, customProxy);
+  const candidates = [...new Set([
+    ...buildImageCandidates(url, mode, customProxy),
+    ...buildImageCandidates(fallbackUrl, mode, customProxy),
+  ])];
   const hdrCandidates = buildImageCandidates(hdrUrl, mode, customProxy);
   const [supportsHdr, setSupportsHdr] = useState(false);
   const [hdrFailed, setHdrFailed] = useState(false);
@@ -60,7 +66,7 @@ export function SmartImage({
     setIdx(0);
     setHdrFailed(false);
     setFallback(false);
-  }, [url, hdrUrl, mode, customProxy]);
+  }, [url, fallbackUrl, hdrUrl, mode, customProxy]);
 
   if (!src) return null;
   return (
