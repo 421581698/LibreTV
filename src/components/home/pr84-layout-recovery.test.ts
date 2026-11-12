@@ -10,6 +10,7 @@ describe('PR #84 homepage blocking layout recovery', () => {
   const dock = read('src/components/home/header/MobileTabBar.tsx');
   const page = read('src/app/page.tsx');
   const globalLayout = read('src/app/pr84-global-layout.css');
+  const dockFix = read('src/app/pr84-dock-fix.css');
   const header = read('src/components/home/V4HomepageHeader.tsx');
   const settings = read('src/components/source-manager.tsx');
 
@@ -49,6 +50,15 @@ describe('PR #84 homepage blocking layout recovery', () => {
     expect(globalLayout).toContain('width: 18px !important;');
     expect(globalLayout).toContain('.v4-spatial-screen[data-screen="me"] > .v4-spatial-main');
     expect(globalLayout).toContain('scroll-padding-bottom: calc(128px + env(safe-area-inset-bottom, 0px)) !important;');
+  });
+
+  it('does not repeat identical adjacent dock selectors in the dock fix stylesheet', () => {
+    const lines = dockFix.split('\\n').map((line) => line.trim());
+    const hasDuplicateSelectorPair = lines.some(
+      (line, index) =>
+        line.endsWith(',') && line.slice(0, -1) === lines[index + 1],
+    );
+    expect(hasDuplicateSelectorPair).toBe(false);
   });
 
   it('protects hero artwork from the iOS status and brand area', () => {
