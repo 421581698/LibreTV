@@ -87,6 +87,39 @@ export function extractM3u8FromText(text: string): string[] {
   return matches.map((link) => link.replace(/^\$/, ''));
 }
 
+/** 根据 CMS 分类识别电影；不能只依赖「电影」二字，因为 Apple CMS 常用「动作片/科幻片」等类型名。 */
+export function isMovieType(typeName: string | undefined, episodeCount = 0): boolean {
+  const type = (typeName ?? '').trim().toLowerCase();
+  if (/电视剧|连续剧|剧集|番剧|动漫|动画番剧|综艺|纪录剧|tv\\s*series|series|anime|variety/.test(type)) return false;
+  if (/电影|movie|film|动作片|喜剧片|爱情片|科幻片|恐怖片|剧情片|战争片|犯罪片|悬疑片|惊悚片|动画电影|短片|院线/.test(type)) return true;
+  // 分类缺失或第三方自定义分类时，只有单条播放地址才按单片处理；
+  // 多集资源默认展示分集，避免把未知类型的剧集隐藏掉。
+  return episodeCount <= 1;
+}
+
+/** 将 CMS 简介中的 HTML 转为纯文本，不把不可信标记交给 React 渲染。 */
+export function cmsDescriptionToText(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const text = value
+    .replace(/<\\s*(script|style)\\b[^>]*>[\\s\\S]*?<\\s*\\/\\s*\\1\\s*>/gi, ' ')
+    .replace(/<\\s*br\\s*\\/?\\s*>/gi, '\\n')
+    .replace(/<\\s*\\/(?:p|div|li|h[1-6])\\s*>/gi, '\\n')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;|&#160;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&#(\\d+);/g, (_, code: string) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([\\da-f]+);/gi, (_, code: string) => String.fromCodePoint(parseInt(code, 16)))
+    .replace(/[ \\t]+/g, ' ')
+    .replace(/ *\\n */g, '\\n')
+    .replace(/\\n{3,}/g, '\\n\\n')
+    .trim();
+  return text || undefined;
+}
+
 /** 详情 JSON 响应 → 统一详情 */
 export function parseDetail(
   data: unknown,
@@ -108,7 +141,7 @@ export function parseDetail(
     videoInfo: {
       title: str(vod.vod_name),
       cover: str(vod.vod_pic),
-      desc: str(vod.vod_content),
+      desc: cmsDescriptionToText(vod.vod_content),
       typeName: str(vod.type_name),
       year: str(vod.vod_year),
       area: str(vod.vod_area),
