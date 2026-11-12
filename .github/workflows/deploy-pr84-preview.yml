@@ -69,6 +69,7 @@ jobs:
           const base = "https://libretv-pr84-preview.bggdbh.workers.dev";
           const checks = [
             { path: "/", expected: 200, contentType: "text/html" },
+            { path: "/detail", expected: 200, contentType: "text/html" },
             { path: "/api/status", expected: 200, contentType: "application/json" },
           ];
           for (const check of checks) {
@@ -91,6 +92,9 @@ jobs:
             if (!type.includes(check.contentType)) throw new Error(check.path + " unexpected content-type: " + type);
             const body = await response.text();
             if (check.path === "/" && !body.toLowerCase().includes("libretv")) throw new Error("Homepage did not contain LibreTV markup");
+            if (check.path === "/detail" && (!body.toLowerCase().includes("<html") || !body.includes("/_next/"))) {
+              throw new Error("/detail did not return a Next.js HTML document");
+            }
             if (check.path === "/api/status") { try { JSON.parse(body); } catch { throw new Error("/api/status did not return valid JSON"); } }
             console.log("Verified " + check.path + ": HTTP " + response.status + " (" + type + ")");
           }
