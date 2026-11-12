@@ -12,6 +12,7 @@ describe('PR #84 homepage blocking layout recovery', () => {
   const globalLayout = read('src/app/pr84-global-layout.css');
   const dockFix = read('src/app/pr84-dock-fix.css');
   const appleDock = read('src/app/pr84-apple-tv-dock.css');
+  const inlineHome = read('src/app/iphone-home-inline.css');
   const nonOwnerDockStyles = [
     'src/app/iphone-home-inline.css',
     'src/app/iphone-minimal-ui.css',
@@ -120,6 +121,15 @@ describe('PR #84 homepage blocking layout recovery', () => {
     expect(globalLayout).not.toContain('position: fixed !important;');
     expect(globalLayout).toContain('var(--tabbar-scroll-clearance)');
     expect(globalLayout).toContain('.v4-spatial-screen[data-screen="me"] > .v4-spatial-main');
+  });
+
+  it('keeps mobile hero height and crop ownership in the final Apple Dock stylesheet', () => {
+    expect(appleDock).toContain('height: clamp(360px, 55svh, 520px) !important;');
+    expect(appleDock).toContain('object-position: center 85% !important;');
+    expect(inlineHome).not.toContain('height: clamp(560px, 74svh, 640px) !important;');
+    expect(inlineHome).not.toContain('height: clamp(570px, 76svh, 660px) !important;');
+    expect(inlineHome).not.toContain('height: min(88svh,780px) !important;');
+    expect(inlineHome).not.toContain('object-position: center 85% !important;');
   });
 
   it('keeps dock scroll clearance in one shared CSS token', () => {
