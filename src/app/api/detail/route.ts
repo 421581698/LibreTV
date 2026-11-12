@@ -35,7 +35,10 @@ export async function GET(req: Request) {
   const source = parseSource(url.searchParams.get('source'));
   const baseUrl = (url.searchParams.get('baseUrl') || '').trim(); // 可选：详情页根地址
 
-  if (!id || !/^[\w-]+$/.test(id)) {
+  const validId = source?.key === KKPHIM_SOURCE_KEY
+    ? /^[\p{L}\p{N}._-]{1,180}$/u.test(id)
+    : /^[\w-]+$/.test(id);
+  if (!id || !validId) {
     return NextResponse.json({ error: '无效的视频ID' }, { status: 400 });
   }
   if (!source) {
