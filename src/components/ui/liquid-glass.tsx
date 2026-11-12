@@ -88,7 +88,7 @@ export const LiquidGlassSurface = forwardRef<HTMLElement, SurfaceProps>(function
   interactive = false,
   variant = 'control',
   ...props
-}: SurfaceProps) {
+}: SurfaceProps, ref) {
   const [Engine, setEngine] = useState<EngineComponent | null>(null);
 
   useEffect(() => {
