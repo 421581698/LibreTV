@@ -342,3 +342,46 @@ select {
 }
 @media (prefers-reduced-motion: reduce) {
 }
+
+
+/* PR84 CSS rescue: route-scoped black canvas and persistent dark glass header. */
+/* Next.js App Router has no #root mount node; scope the real document canvas
+   to the cinema homepage and movie-detail route instead of inventing one. */
+html:has(body .v4-home),
+body:has(.v4-home),
+body:has(.movie-detail-page) {
+  min-height: 100%;
+  background: #000 !important;
+  background-color: #000 !important;
+  background-image: none !important;
+  color: #fff;
+}
+.v4-home {
+  background: #000 !important;
+  color: #fff !important;
+}
+
+/* Keep the homepage utility header legible while preserving the existing
+   absolute/fixed positioning and scroll-state geometry. */
+body .v4-home > .v4-header,
+body .v4-home > .v4-header.is-scrolled,
+body .v4-home > .v4-header.is-overlay,
+body .v4-home > .v4-header.is-overlay.is-scrolled {
+  background: rgba(0, 0, 0, 0.6) !important;
+  background-color: rgba(0, 0, 0, 0.6) !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  backdrop-filter: blur(20px) !important;
+}
+
+/* Safe opaque fallback only for browsers without backdrop-filter support. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  body .v4-home > .v4-header,
+  body .v4-home > .v4-header.is-scrolled,
+  body .v4-home > .v4-header.is-overlay,
+  body .v4-home > .v4-header.is-overlay.is-scrolled {
+    background: rgba(0, 0, 0, 0.94) !important;
+  }
+}
