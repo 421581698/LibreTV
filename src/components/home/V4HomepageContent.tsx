@@ -47,23 +47,6 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
 
   return (
     <>
-      <section className="v4-content-section v4-continue-section" id="my-library" aria-label="继续观看">
-        <div className="v4-section-heading">
-          <h2>继续观看 <span aria-hidden="true">›</span></h2>
-          {history && history.length > 0 ? <span className="v4-history-count">最近 {history.length} 部</span> : null}
-        </div>
-        {!history ? (
-          <div className="v4-history-empty" role="status">正在读取本机观看记录…</div>
-        ) : history.length === 0 ? (
-          <div className="v4-history-empty">还没有观看记录，开始播放后会显示在这里。</div>
-        ) : (
-          <div className="v4-history-row">
-            {history.map((item) => (
-              <V4ContinueCard key={item.id} item={item} />
-            ))}
-          </div>
-        )}
-      </section>
 
       {doubanEnabled ? (
         <>
@@ -99,6 +82,24 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
           />
         </>
       ) : null}
+
+      <section className="v4-content-section v4-continue-section" id="my-library" aria-label="继续观看">
+        <div className="v4-section-heading">
+          <h2>继续观看 <span aria-hidden="true">›</span></h2>
+          {history && history.length > 0 ? <span className="v4-history-count">最近 {history.length} 部</span> : null}
+        </div>
+        {!history ? (
+          <div className="v4-history-empty" role="status">正在读取本机观看记录…</div>
+        ) : history.length === 0 ? (
+          <div className="v4-history-empty">还没有观看记录，开始播放后会显示在这里。</div>
+        ) : (
+          <div className="v4-history-row">
+            {history.map((item) => (
+              <V4ContinueCard key={item.id} item={item} />
+            ))}
+          </div>
+        )}
+      </section>
     </>
   );
 }
