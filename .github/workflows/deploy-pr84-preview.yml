@@ -47,6 +47,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TMDB_READ_ACCESS_TOKEN: ${{ secrets.TMDB_READ_ACCESS_TOKEN }}
         run: |
           grep -Eq '^[[:space:]]*AUTH_DISABLED[[:space:]]*=[[:space:]]*"true"' wrangler.pr84-preview.toml
           test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing preview secret: CLOUDFLARE_API_TOKEN" && exit 1)
@@ -62,6 +63,24 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler deploy --config wrangler.pr84-preview.toml
+
+      - name: Report TMDB credential availability without exposing its value
+        env:
+          TMDB_READ_ACCESS_TOKEN: ${{ secrets.TMDB_READ_ACCESS_TOKEN }}
+        run: |
+          if [ -n "$TMDB_READ_ACCESS_TOKEN" ]; then
+            echo "TMDB_READ_ACCESS_TOKEN is configured."
+          else
+            echo "TMDB_READ_ACCESS_TOKEN is not configured; episode playback remains unaffected and external still matching is skipped."
+          fi
+
+      - name: Configure optional TMDB credential on isolated Preview Worker
+        if: ${{ env.TMDB_READ_ACCESS_TOKEN != '' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TMDB_READ_ACCESS_TOKEN: ${{ secrets.TMDB_READ_ACCESS_TOKEN }}
+        run: printf '%s' "$TMDB_READ_ACCESS_TOKEN" | npx wrangler secret put TMDB_READ_ACCESS_TOKEN --config wrangler.pr84-preview.toml
 
       - name: Probe configured CMS candidate without enabling it as a default source
         env:
