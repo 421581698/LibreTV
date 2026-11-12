@@ -48,7 +48,7 @@ body::before {
   .glass-toolbar,
   .glass-button,
   .liquid-glass,
-  
+  .v4-mobile-tabbar,
   .ai-chat-panel,
   .v4-search,
   .home-v2-ai-search,
@@ -112,7 +112,7 @@ body::before {
   .glass-toolbar,
   .glass-button,
   .liquid-glass,
-  
+  .v4-mobile-tabbar,
   .ai-chat-panel,
   .v4-search,
   .home-v2-ai-search,
@@ -132,10 +132,10 @@ body::before {
 
 /* Hover refraction is handled by the upstream engine layer.
    Never apply a filter to the semantic host: that would blur its text and icons. */
-:where(.glass-panel,.glass-popover,.glass-dialog,.glass-toolbar,.glass-button,.liquid-glass,.ai-chat-panel,.v4-search,.home-v2-ai-search,.v4-header-icon,.v4-avatar,.v52-me-library-tile,.v52-me-list-row):focus-within {
+:where(.glass-panel,.glass-popover,.glass-dialog,.glass-toolbar,.glass-button,.liquid-glass,.v4-mobile-tabbar,.ai-chat-panel,.v4-search,.home-v2-ai-search,.v4-header-icon,.v4-avatar,.v52-me-library-tile,.v52-me-list-row):focus-within {
   --lg-specular: rgba(255,255,255,.34);
 }
-:where(.glass-panel,.glass-popover,.glass-dialog,.glass-toolbar,.glass-button,.liquid-glass,.ai-chat-panel,.v4-search,.home-v2-ai-search,.v4-header-icon,.v4-avatar,.v52-me-library-tile,.v52-me-list-row):active {
+:where(.glass-panel,.glass-popover,.glass-dialog,.glass-toolbar,.glass-button,.liquid-glass,.v4-mobile-tabbar,.ai-chat-panel,.v4-search,.home-v2-ai-search,.v4-header-icon,.v4-avatar,.v52-me-library-tile,.v52-me-list-row):active {
   border-color: rgba(255,255,255,.30);
   box-shadow: inset 0 1px 0 var(--lg-specular), 0 8px 24px rgba(0,0,0,.20);
 }
@@ -144,24 +144,25 @@ body::before {
    animation are applied to posters, HDR artwork, video or canvas surfaces. */
 /* iPhone Safari: lighter compositing budget, same clear content and rim light. */
 @media (hover: none), (pointer: coarse) {
-  :where(.glass-panel,.glass-popover,.glass-dialog,.glass-toolbar,.glass-button,.liquid-glass,.ai-chat-panel,.v4-search,.home-v2-ai-search,.v4-header-icon,.v4-avatar,.v52-me-library-tile,.v52-me-list-row) {
+  :where(.glass-panel,.glass-popover,.glass-dialog,.glass-toolbar,.glass-button,.liquid-glass,.v4-mobile-tabbar,.ai-chat-panel,.v4-search,.home-v2-ai-search,.v4-header-icon,.v4-avatar,.v52-me-library-tile,.v52-me-list-row) {
     -webkit-backdrop-filter: blur(15px) saturate(145%);
     backdrop-filter: blur(15px) saturate(145%);
   }
 }
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
-  :where(.glass-panel,.glass-popover,.glass-dialog,.glass-toolbar,.glass-button,.liquid-glass,.ai-chat-panel,.v4-search,.home-v2-ai-search,.v4-header-icon,.v4-avatar,.v52-me-library-tile,.v52-me-list-row) {
+  :where(.glass-panel,.glass-popover,.glass-dialog,.glass-toolbar,.glass-button,.liquid-glass,.v4-mobile-tabbar,.ai-chat-panel,.v4-search,.home-v2-ai-search,.v4-header-icon,.v4-avatar,.v52-me-library-tile,.v52-me-list-row) {
     background-color: rgba(24,24,28,.92);
   }
 }
 @media (prefers-reduced-transparency: reduce) {
   body::before { opacity: .12; animation: none; }
-  :where(.glass-panel,.glass-popover,.glass-dialog,.glass-toolbar,.glass-button,.liquid-glass,.ai-chat-panel,.v4-search,.home-v2-ai-search,.v4-header-icon,.v4-avatar,.v52-me-library-tile,.v52-me-list-row) {
+  :where(.glass-panel,.glass-popover,.glass-dialog,.glass-toolbar,.glass-button,.liquid-glass,.v4-mobile-tabbar,.ai-chat-panel,.v4-search,.home-v2-ai-search,.v4-header-icon,.v4-avatar,.v52-me-library-tile,.v52-me-list-row) {
     background-color: rgba(24,24,28,.94);
     -webkit-backdrop-filter: blur(6px);
     backdrop-filter: blur(6px);
   }
 }
+@media (prefers-reduced-motion: reduce) {
 }
 
 
@@ -190,6 +191,12 @@ body::before {
     border-color: rgba(255,255,255,.22);
   }
 }
+
+
+/* PR84 iPhone Liquid Glass refinement — reference-matched dock and readable Me surface. */
+/* The dock is optical glass, not a frosted grey slab: preserve scene detail
+   beneath it, keep labels crisp, and let only the specular highlight move. */
+@media (max-width: 700px) {
 
   /* Keep the complete final settings row scrollable above the dock. */
   body .v4-spatial-screen[data-screen="settings"] > .v4-spatial-main,
@@ -237,7 +244,9 @@ body::before {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }
+@media (prefers-reduced-motion: reduce) {
 }
+@media (hover: none), (pointer: coarse) {
 }
 
 
@@ -252,7 +261,7 @@ body::before {
   .glass-toolbar,
   .glass-button,
   .liquid-glass,
-  
+  .v4-mobile-tabbar,
   .ai-chat-panel,
   .v4-search,
   .home-v2-ai-search,
@@ -274,7 +283,7 @@ body::before {
   .glass-toolbar,
   .glass-button,
   .liquid-glass,
-  
+  .v4-mobile-tabbar,
   .ai-chat-panel,
   .v4-search,
   .home-v2-ai-search,
@@ -295,7 +304,7 @@ body::before {
   .glass-toolbar,
   .glass-button,
   .liquid-glass,
-  
+  .v4-mobile-tabbar,
   .ai-chat-panel,
   .v4-search,
   .home-v2-ai-search,
@@ -319,7 +328,7 @@ body::before {
     .glass-toolbar,
     .glass-button,
     .liquid-glass,
-    
+    .v4-mobile-tabbar,
     .ai-chat-panel,
     .v4-search,
     .home-v2-ai-search,
@@ -350,7 +359,7 @@ body::before {
   .glass-toolbar,
   .glass-button,
   .liquid-glass,
-  
+  .v4-mobile-tabbar,
   .ai-chat-panel,
   .v4-search,
   .home-v2-ai-search,
@@ -371,7 +380,7 @@ body::before {
   .glass-toolbar,
   .glass-button,
   .liquid-glass,
-  
+  .v4-mobile-tabbar,
   .ai-chat-panel,
   .v4-search,
   .home-v2-ai-search,
@@ -385,7 +394,7 @@ body::before {
   .glass-toolbar,
   .glass-button,
   .liquid-glass,
-  
+  .v4-mobile-tabbar,
   .ai-chat-panel,
   .v4-search,
   .home-v2-ai-search,
@@ -394,5 +403,14 @@ body::before {
 )[data-liquid-glass-engine="ready"]::after {
   display: none !important;
 }
+
+
+/* PR84 Apple TV reference dock — full-bleed, heavy dark glass.
+ * Keep this surface native CSS so Safari gets the same frosted treatment
+ * even when the optional WebGL displacement engine is unavailable.
+ */
+@media (max-width: 700px) {
 }
+
+@media (prefers-reduced-transparency: reduce) and (max-width: 700px) {
 }
