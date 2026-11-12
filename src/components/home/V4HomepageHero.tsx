@@ -80,7 +80,7 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
     >
       {slide ? (
         <>
-          <div className="v4-hero-image" aria-hidden="true">
+          <div className="v4-hero-image lg-media-frame" aria-hidden="true">
             <SmartImage
               url={slide.cover}
               hdrUrl={slide.coverHdr}
