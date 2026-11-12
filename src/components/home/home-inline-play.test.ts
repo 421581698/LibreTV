@@ -90,7 +90,8 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
   });
 
   it('wires the homepage Friday orb tap to the existing synchronous voice start path', () => {
-    expect(homepageHeader).toContain('<AIFloatingBall showFab inlineMode={false}/>');
+    expect(homepageHeader).toContain("pathname !== '/detail'");
+    expect(homepageHeader).toContain('<AIFloatingBall showFab inlineMode={false} />');
     expect(friday).toContain('onOpen: openAndListen');
     expect(friday).toContain('onClick={handleFabClick}');
     expect(friday).toContain('const openAndListen = useCallback(() => {');
