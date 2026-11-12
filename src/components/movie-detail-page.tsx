@@ -310,10 +310,10 @@ export function MovieDetailPage() {
                     <span aria-hidden="true">···</span>
                   </button>
                   {menuOpen && (
-                    <div className="movie-detail-episode-menu" role="group" aria-label="剧集操作">
-                      <button type="button" onClick={() => { setEpisodeMenuIndex(null); play(index); }}>播放本集</button>
-                      {item?.url && /\\.m3u8(?:$|[?#])/i.test(item.url) ? (
-                        <button type="button" onClick={() => {
+                    <div className="movie-detail-episode-menu absolute right-3 top-12 z-30 flex min-w-40 flex-col gap-1 rounded-2xl border border-white/10 bg-[#171719]/95 p-2 text-sm text-white shadow-2xl backdrop-blur-2xl" role="group" aria-label="剧集操作">
+                      <button type="button" className="min-h-10 rounded-xl px-3 text-left transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70" onClick={() => { setEpisodeMenuIndex(null); play(index); }}>播放本集</button>
+                      {item?.url && /\.m3u8(?:$|[?#])/i.test(item.url) ? (
+                        <button type="button" className="min-h-10 rounded-xl px-3 text-left transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70" onClick={() => {
                           setEpisodeMenuIndex(null);
                           if (navigator.clipboard) void navigator.clipboard.writeText(item.url);
                         }}>复制下载地址（HLS）</button>
@@ -323,12 +323,13 @@ export function MovieDetailPage() {
                           download
                           target="_blank"
                           rel="noopener noreferrer"
+                          className="flex min-h-10 items-center rounded-xl px-3 text-left text-white no-underline transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
                           onClick={() => setEpisodeMenuIndex(null)}
                         >下载本集</a>
                       ) : (
-                        <button type="button" disabled>暂无下载地址</button>
+                        <button type="button" className="min-h-10 rounded-xl px-3 text-left text-white/40" disabled>暂无下载地址</button>
                       )}
-                      <button type="button" disabled={!item?.title?.trim()} onClick={() => {
+                      <button type="button" className="min-h-10 rounded-xl px-3 text-left transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:cursor-not-allowed disabled:opacity-40" disabled={!item?.title?.trim()} onClick={() => {
                         setEpisodeMenuIndex(null);
                         if (item?.title?.trim() && navigator.clipboard) void navigator.clipboard.writeText(item.title.trim());
                       }}>复制剧集名称</button>
