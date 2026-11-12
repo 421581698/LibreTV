@@ -31,6 +31,8 @@ import './pr84-settings-detail.css';
 import './pr84-global-layout.css';
 // PR #84 progressive Liquid Glass: static canvas, dynamic surfaces and opt-in SVG refraction.
 import './pr84-liquid-refraction.css';
+// Final Apple TV-style edge-to-edge dock: 40px blur, dark glass and safe-area fill.
+import './pr84-apple-tv-dock.css';
 import { Providers } from '@/components/providers';
 import { MobileTabBar } from '@/components/home/header/MobileTabBar';
 
@@ -71,7 +73,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "(function(){try{var t=localStorage.getItem('libretv-theme')||'system';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);var r=d?'dark':'light';document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=r;var m=document.querySelector('meta[name=\"theme-color\"]');if(m)m.content=window.location.pathname==='/'?'#000000':(d?'#08080A':'#F5F7FA');}catch(e){}})()",
+              "(function(){try{var t=localStorage.getItem('libretv-theme')||'system';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);var r=d?'dark':'light';document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=r;var m=document.querySelector('meta[name=\\\"theme-color\\\"]');if(m)m.content=window.location.pathname==='/'?'#000000':(d?'#08080A':'#F5F7FA');}catch(e){}})()",
           }}
         />
       </head>
