@@ -4,25 +4,25 @@
 
   /* Content always scrolls completely above the same floating dock. */
   body:has(.v4-home) .v4-home {
-    padding-bottom: var(--tabbar-scroll-clearance) !important;
+    padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
   }
   body .v4-search-page {
-    padding-bottom: var(--tabbar-scroll-clearance) !important;
-    scroll-padding-bottom: var(--tabbar-scroll-clearance) !important;
+    padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
+    scroll-padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
   }
   body .v4-search-page .v4-search-main { padding-bottom: 24px !important; }
   body .v4-spatial-screen[data-screen="settings"] > .v4-spatial-main {
-    padding-bottom: var(--tabbar-scroll-clearance) !important;
+    padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
   }
   body .v4-spatial-screen[data-screen="settings"] .settings-embedded-root {
-    padding-bottom: var(--tabbar-scroll-clearance) !important;
+    padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
   }
 
 
   /* The fourth dock destination (Me) must also scroll clear of the fixed dock. */
   body .v4-spatial-screen[data-screen="me"] > .v4-spatial-main {
-    padding-bottom: var(--tabbar-scroll-clearance) !important;
-    scroll-padding-bottom: var(--tabbar-scroll-clearance) !important;
+    padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
+    scroll-padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
   }
 
   /* Full-bleed hero: artwork reaches the physical viewport top.
@@ -195,11 +195,11 @@ select {
 /* Settings index needs enough scroll runway for the fixed dock and Safari chrome. */
 @media (max-width: 700px) {
   body .v4-spatial-screen[data-screen="settings"] > .v4-spatial-main {
-    padding-bottom: var(--tabbar-scroll-clearance) !important;
-    scroll-padding-bottom: var(--tabbar-scroll-clearance) !important;
+    padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
+    scroll-padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
   }
   body .v4-spatial-screen[data-screen="settings"] .settings-embedded-root {
-    padding-bottom: var(--tabbar-scroll-clearance) !important;
+    padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
   }
 }
 
