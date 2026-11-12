@@ -174,6 +174,38 @@ describe('TMDB episode artwork matching', () => {
     expect(parseEpisodeCoordinates('特别篇', '示例剧')).toBeNull();
   });
 
+  it('uses a TMDB series backdrop, never the title poster, when an episode still is unavailable', async () => {
+    const detail = makeDetail(1);
+    detail.videoInfo.cover = 'https://source.example.com/title-poster.jpg';
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      if (url.pathname === '/3/search/tv') {
+        return Response.json({
+          results: [{
+            id: 307853,
+            name: '今天是太阳雨',
+            original_name: 'Sunshine Through the Rain',
+            first_air_date: '2026-01-01',
+            backdrop_path: '/series-backdrop.jpg',
+          }],
+        });
+      }
+      return Response.json({ episodes: [{ id: 1, episode_number: 1, still_path: null }] });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await enrichEpisodesWithTmdbArtwork(detail, {
+      token: 'test-read-token',
+      title: '今天是太阳雨',
+      year: '2026',
+    });
+    expect(result.episodeItems?.[0]).toMatchObject({
+      image: 'https://image.tmdb.org/t/p/w1280/series-backdrop.jpg',
+      imageKind: 'series-backdrop',
+    });
+    expect(result.episodeItems?.[0].image).not.toBe(detail.videoInfo.cover);
+  });
+
   it('keeps CMS-provided stills and never falls back to the title poster', async () => {
     const detail = makeDetail(1);
     detail.videoInfo.cover = 'https://source.example.com/title-poster.jpg';
