@@ -279,6 +279,7 @@ export function MovieDetailPage() {
                     alt=""
                     className="movie-detail-episode-image"
                     loading="lazy"
+                    showDefaultFallback={false}
                   />
                   <span className="movie-detail-episode-card-gradient" aria-hidden="true" />
                   <button
