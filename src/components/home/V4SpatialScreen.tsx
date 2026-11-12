@@ -71,15 +71,17 @@ export function V4SpatialScreen({ screen }: { screen: Screen }) {
   };
   return (
     <div className="v4-spatial-screen min-h-screen" data-screen={screen}>
-      <V4HomepageHeader />
+      {screen !== 'me' ? <V4HomepageHeader /> : null}
       <main className="v4-spatial-main">
-        <div className="v4-spatial-heading">
-          <div>
-            {copy.eyebrow ? <span className="v4-spatial-eyebrow">{copy.eyebrow}</span> : null}
-            <h1>{copy.title}</h1>
-            {copy.subtitle ? <p>{copy.subtitle}</p> : null}
+        {screen !== 'me' ? (
+          <div className="v4-spatial-heading">
+            <div>
+              {copy.eyebrow ? <span className="v4-spatial-eyebrow">{copy.eyebrow}</span> : null}
+              <h1>{copy.title}</h1>
+              {copy.subtitle ? <p>{copy.subtitle}</p> : null}
+            </div>
           </div>
-        </div>
+        ) : null}
 
         {screen === 'movies' ? <CatalogScreen category="movie" onPick={openRecommendation} /> : null}
         {screen === 'tv' ? <CatalogScreen category="tv" onPick={openRecommendation} /> : null}
@@ -287,12 +289,6 @@ function MeScreen() {
         <div className="v52-me-heading">
           <h2>我的空间</h2>
           <span>PERSONAL LIBRARY</span>
-        </div>
-        <div className="v52-me-avatar" aria-label="个人空间">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="12" cy="8" r="3.5" />
-            <path d="M4.8 20c.7-3.4 3.1-5.2 7.2-5.2s6.5 1.8 7.2 5.2" />
-          </svg>
         </div>
       </header>
 
