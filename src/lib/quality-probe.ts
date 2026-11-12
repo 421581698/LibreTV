@@ -351,3 +351,133 @@ async function fetchEpisodes(source: SourceConfig, id: string, signal: AbortSign
   if (!detailRes.ok) return [];
   return parseDetailPageHtml(await detailRes.text(), source).episodes;
 }
+
+/**
+ * 探测顺序：中间集优先，探不出再退到最后一集。
+ *
+ * 取中间集是因为部分源第一集是预告/广告片；但采集站常有个别集的分片缺失、加密或换过编码，
+ * 中间集恰好命中这种集，整部剧就一直是「未知」——用户不点进播放器的话没有实测回填的机会，
+ * 一次探不出等于永久未知，所以电视剧（多集）补一次最后一集。
+ * 单集影片（电影）无集可换，直接返回唯一那一集。
+ */
+export function probeEpisodeOrder(episodes: string[]): string[] {
+  if (episodes.length < 2) return episodes.slice(0, 1);
+  const mid = episodes[Math.floor(episodes.length / 2)] ?? episodes[0];
+  const last = episodes[episodes.length - 1];
+  return mid === last ? [mid] : [mid, last];
+}
+
+/** 探测单集地址：m3u8 走清单 → 分片两级，mp4 直链直接读 moov */
+async function probeEpisode(
+  target: string,
+  source: SourceConfig,
+  merged: AbortSignal,
+  signal: AbortSignal | undefined,
+  metrics: ProbeMetrics,
+): Promise<{ height?: number; error?: string }> {
+  // 末尾允许 ?query / #fragment：不少源在 .m3u8 后挂鉴权参数或分片锚点
+  const isM3u8 = /\.m3u8([?#]|$)/i.test(target);
+
+  if (!isM3u8) {
+    // mp4 直链：moov 里有分辨率。未 faststart 的文件 moov 在尾部，前缀拿不到 → 仍未知
+    if (!/\.mp4([?#]|$)/i.test(target)) return {};
+    const buf = await fetchBytesPrefix(target, SEGMENT_PREFIX_BYTES, source, merged, metrics);
+    return { height: buf ? parseMp4VideoResolution(buf)?.height : undefined };
+  }
+
+  const res = await fetchMeasuredUpstream(target, {
+    timeoutMs: 6000,
+    headers: probeHeaders(source),
+    signal: merged,
+  }, metrics, true);
+  if (!res.ok) return { error: `HTTP ${res.status}` };
+  const text = await readTextPrefix(res, M3U8_MAX_BYTES);
+
+  const height = parseBestHeight(text);
+  if (height !== undefined) return { height };
+
+  // 单码率媒体列表：m3u8 里没有档位信息，下沉到分片挖分辨率
+  return { height: await withSegmentBudget(target, text, source, merged, signal, metrics) };
+}
+
+/**
+ * 探测单条「源 + 影片」的画质。
+ * 返回的 height 为 undefined 表示「测不出」（单码率 / 直链 / 被拒），而非请求失败——
+ * 失败时带 error，前端据此区分「未知」与「探测失败」两种状态。
+ */
+export async function probeQuality(item: QualityProbeItem, signal?: AbortSignal): Promise<QualityProbeResult> {
+  const { source, id } = item;
+  const base: QualityProbeResult = { sourceKey: source.key, vodId: id };
+  const metrics: ProbeMetrics = { upstreamRequestMs: 0, upstreamRequestCount: 0 };
+  const withMetrics = (result: QualityProbeResult): QualityProbeResult => ({
+    ...result,
+    upstreamRequestMs: metrics.upstreamRequestMs,
+    upstreamRequestCount: metrics.upstreamRequestCount,
+    ...(metrics.originTtfbMs === undefined ? {} : { originTtfbMs: metrics.originTtfbMs }),
+  });
+
+  const probeOrigin = source.key === KKPHIM_SOURCE_KEY ? KKPHIM_API_ORIGIN : source.url;
+  const validId = source.key === KKPHIM_SOURCE_KEY
+    ? /^[\p{L}\p{N}._-]{1,180}$/u.test(id)
+    : /^[\w-]+$/.test(id);
+  if (!/^https?:\/\//.test(probeOrigin || '') || !validId) {
+    return withMetrics({ ...base, error: '无效的源或影片 ID' });
+  }
+  const verdict = await checkUpstreamAllowed(probeOrigin);
+  if (!verdict.ok) return withMetrics({ ...base, error: verdict.reason });
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(new DOMException('画质探测超时', 'TimeoutError')), QUALITY_PROBE_TIMEOUT_MS);
+  // 客户端断开（关闭面板/切页）与单条死线合并为一个 signal
+  const signals = signal ? [signal, controller.signal] : [controller.signal];
+  const merged = AbortSignal.any(signals);
+
+  try {
+    const episodes = await fetchEpisodes(source, id, merged, metrics);
+    if (episodes.length === 0) return withMetrics({ ...base, error: '未找到播放资源' });
+
+    const startedAt = Date.now();
+    let lastError: string | undefined;
+    for (const target of probeEpisodeOrder(episodes)) {
+      const r = await probeEpisode(target, source, merged, signal, metrics);
+      if (r.height !== undefined) return withMetrics({ ...base, height: r.height });
+      if (r.error) lastError = r.error;
+      // 源站级拒绝（401/403）换集也不会变，不必再耗一轮超时
+      if (lastError && /^HTTP (401|403)$/.test(lastError)) break;
+      // 慢源换集重试会把 8s 总死线打穿，反而把「未知」变成「探测失败」：时间过半就不再换集
+      if (Date.now() - startedAt > QUALITY_PROBE_TIMEOUT_MS / 2) break;
+    }
+    return withMetrics(lastError ? { ...base, error: lastError } : base);
+  } catch (err) {
+    // 客户端主动中止：不算失败，也不该污染缓存
+    if (signal?.aborted) throw err;
+    return withMetrics({ ...base, error: err instanceof Error ? err.message : '探测失败' });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * 分片解析阶段的独立预算。
+ * 走到这里说明 m3u8 已经拿到、源是通的，所以这一阶段的失败只当作「没探出画质」，
+ * 不能升级成探测失败——否则前端会把一个好源标成「未探到」。
+ */
+async function withSegmentBudget(
+  playlistUrl: string,
+  text: string,
+  source: SourceConfig,
+  merged: AbortSignal,
+  clientSignal: AbortSignal | undefined,
+  metrics: ProbeMetrics,
+): Promise<number | undefined> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(new DOMException('分片解析超时', 'TimeoutError')), SEGMENT_BUDGET_MS);
+  try {
+    return await probeSegmentResolution(text, playlistUrl, source, AbortSignal.any([merged, controller.signal]), metrics);
+  } catch {
+    if (clientSignal?.aborted) throw new DOMException('已取消', 'AbortError');
+    return undefined;
+  } finally {
+    clearTimeout(timer);
+  }
+}
