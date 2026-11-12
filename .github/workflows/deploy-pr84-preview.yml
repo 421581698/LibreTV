@@ -63,6 +63,79 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler deploy --config wrangler.pr84-preview.toml
 
+      - name: Probe configured CMS candidate without enabling it as a default source
+        continue-on-error: true
+        env:
+          CANDIDATE_CMS_API: https://caiji.dyttzyapi.com/api.php/provide/vod
+        run: |
+          node --input-type=module <<'NODE'
+          const raw = process.env.CANDIDATE_CMS_API ?? "";
+          const api = new URL(raw);
+          if (api.protocol !== "https:" || api.hostname !== "caiji.dyttzyapi.com" ||
+              api.username || api.password || api.port) {
+            throw new Error("CMS candidate URL is outside the fixed HTTPS allowlist");
+          }
+
+          async function readJson(params) {
+            const url = new URL(api);
+            for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
+            const response = await fetch(url, {
+              redirect: "error",
+              signal: AbortSignal.timeout(10000),
+              headers: { Accept: "application/json", "cache-control": "no-cache" },
+            });
+            if (!response.ok) throw new Error("CMS endpoint returned HTTP " + response.status);
+            const text = await response.text();
+            if (Buffer.byteLength(text, "utf8") > 2 * 1024 * 1024) {
+              throw new Error("CMS response exceeded 2 MiB limit");
+            }
+            let payload;
+            try { payload = JSON.parse(text); } catch { throw new Error("CMS response was not valid JSON"); }
+            if (!payload || typeof payload !== "object" || !Array.isArray(payload.list)) {
+              throw new Error("CMS response did not contain a list array");
+            }
+            return payload;
+          }
+
+          try {
+            const search = await readJson({ ac: "videolist", wd: "流浪地球" });
+            const candidate = search.list.find((item) =>
+              item && (typeof item.vod_id === "string" || typeof item.vod_id === "number") &&
+              String(item.vod_id).trim()
+            );
+            if (!candidate) throw new Error("Search response contained no item with vod_id");
+            const requestedId = String(candidate.vod_id).trim();
+            const detail = await readJson({ ac: "detail", ids: requestedId });
+            const matched = detail.list.find((item) =>
+              item && String(item.vod_id ?? "").trim() === requestedId
+            );
+            if (!matched) throw new Error("Detail response did not return the exact requested vod_id");
+
+            const playText = typeof matched.vod_play_url === "string" ? matched.vod_play_url : "";
+            const urls = playText.split("$$").flatMap((group) => group.split("#"))
+              .map((episode) => {
+                const separator = episode.indexOf("$");
+                return separator < 0 ? "" : episode.slice(separator + 1).trim();
+              })
+              .filter((value) => {
+                try {
+                  const parsed = new URL(value);
+                  return parsed.protocol === "https:" || parsed.protocol === "http:";
+                } catch { return false; }
+              });
+            const hlsCount = urls.filter((value) => /\.m3u8(?:$|[?#])/i.test(value)).length;
+            console.log("CMS candidate probe: searchItems=" + search.list.length +
+              ", exactDetailMatch=true, playableHttpUrls=" + urls.length +
+              ", hlsUrls=" + hlsCount +
+              ", sourceEnabled=false");
+            if (urls.length === 0) throw new Error("Matched detail contained no HTTP(S) play URLs");
+          } catch (error) {
+            console.warn("CMS candidate probe did not pass; source remains disabled: " +
+              (error instanceof Error ? error.message : "unknown error"));
+            process.exitCode = 1;
+          }
+          NODE
+
       - name: Verify deployed PR84 homepage and status endpoint
         run: |
           node --input-type=module <<'NODE'
