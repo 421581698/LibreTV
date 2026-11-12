@@ -36,6 +36,35 @@ export const dynamic = 'force-dynamic';
  */
 
 const MAX_URLS = 50;
+const MAX_PROBE_BODY_BYTES = 64 * 1024;
+const MAX_MANIFEST_BYTES = 1024 * 1024;
+
+async function readTextLimited(res: Response, maxBytes: number): Promise<string> {
+  const declared = Number(res.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > maxBytes) throw new Error('播放列表超过 1MB 限制');
+  if (!res.body) return '';
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        throw new Error('播放列表超过 1MB 限制');
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) { merged.set(chunk, offset); offset += chunk.byteLength; }
+  return new TextDecoder().decode(merged);
+}
 const CONCURRENCY = 16;
 /**
  * 单个频道三级探测的总预算（含各级请求）。
@@ -159,7 +188,7 @@ async function fetchHeadersOnly(
   let text: string | undefined;
   if (isM3u8) {
     // m3u8 是小文本，读取以供解析；分片则不读取
-    text = await res.text();
+    text = await readTextLimited(res, MAX_MANIFEST_BYTES);
   } else if (res.body) {
     try { await res.body.cancel(); } catch { /* 忽略 */ }
   }
@@ -508,7 +537,15 @@ export async function POST(req: Request) {
 
   let body: { urls?: unknown };
   try {
-    body = (await req.json()) as { urls?: unknown };
+    const declared = Number(req.headers.get('content-length'));
+    if (Number.isFinite(declared) && declared > MAX_PROBE_BODY_BYTES) {
+      return jsonError('请求体超过 64KB 限制', 413);
+    }
+    const raw = await req.text();
+    if (new TextEncoder().encode(raw).byteLength > MAX_PROBE_BODY_BYTES) {
+      return jsonError('请求体超过 64KB 限制', 413);
+    }
+    body = JSON.parse(raw) as { urls?: unknown };
   } catch {
     return jsonError('无效请求体', 400);
   }
