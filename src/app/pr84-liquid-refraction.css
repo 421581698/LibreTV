@@ -1,0 +1,177 @@
+/* PR84 — progressive Liquid Glass refraction system.
+ * Static page canvas; animated glass optics; displacement only on explicit interaction.
+ * Media pixels (posters, video, canvas and Friday artwork) are intentionally excluded.
+ */
+:root {
+  --lg-page-canvas: #000;
+  --lg-surface-tint: rgba(30, 30, 34, .42);
+  --lg-rim: rgba(255, 255, 255, .18);
+  --lg-specular: rgba(255, 255, 255, .22);
+}
+
+/* 1) Page background stays still: no animated body backgrounds or page-wide filters. */
+html,
+body {
+  background-color: var(--lg-page-canvas);
+}
+
+/* 2) Lightly animated optical surface on actual UI glass, never on media cards. */
+:where(
+  .glass-panel,
+  .glass-popover,
+  .glass-dialog,
+  .glass-toolbar,
+  .glass-button,
+  .liquid-glass,
+  .v4-mobile-tabbar,
+  .ai-chat-panel,
+  .v4-search,
+  .home-v2-ai-search,
+  .v4-header-icon,
+  .v4-avatar
+):not(:has(img, video, canvas)) {
+  position: relative;
+  isolation: isolate;
+  border-color: var(--lg-rim);
+  background-color: var(--lg-surface-tint);
+  -webkit-backdrop-filter: blur(22px) saturate(165%);
+  backdrop-filter: blur(22px) saturate(165%);
+}
+
+:where(
+  .glass-panel,
+  .glass-popover,
+  .glass-dialog,
+  .glass-toolbar,
+  .glass-button,
+  .liquid-glass,
+  .v4-mobile-tabbar,
+  .ai-chat-panel,
+  .v4-search,
+  .home-v2-ai-search,
+  .v4-header-icon,
+  .v4-avatar
+):not(:has(img, video, canvas))::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: .58;
+  background:
+    radial-gradient(115% 90% at 50% -35%, rgba(255,255,255,.25), transparent 66%),
+    linear-gradient(118deg, rgba(255,255,255,.10), transparent 32%, transparent 70%, rgba(255,255,255,.07));
+  background-size: 150% 150%;
+  animation: libre-glass-drift 12s ease-in-out infinite alternate;
+}
+
+:where(
+  .glass-panel,
+  .glass-popover,
+  .glass-dialog,
+  .glass-toolbar,
+  .glass-button,
+  .liquid-glass,
+  .v4-mobile-tabbar,
+  .ai-chat-panel,
+  .v4-search,
+  .home-v2-ai-search,
+  .v4-header-icon,
+  .v4-avatar
+):not(:has(img, video, canvas)) > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes libre-glass-drift {
+  0% { background-position: 0% 0%; opacity: .42; }
+  100% { background-position: 100% 100%; opacity: .72; }
+}
+
+/* 3) SVG displacement is opt-in by interaction, limited to small glass surfaces.
+ * Desktop gets true displacement; touch Safari keeps the stable optical fallback.
+ */
+@media (hover: hover) and (pointer: fine) {
+  :where(
+    .glass-panel,
+    .glass-popover,
+    .glass-dialog,
+    .glass-toolbar,
+    .glass-button,
+    .liquid-glass,
+    .v4-mobile-tabbar,
+    .ai-chat-panel,
+    .v4-search,
+    .home-v2-ai-search,
+    .v4-header-icon,
+    .v4-avatar
+  ):not(:has(img, video, canvas)):hover {
+    filter: url("#libretv-liquid-displacement");
+  }
+}
+
+:where(
+  .glass-panel,
+  .glass-popover,
+  .glass-dialog,
+  .glass-toolbar,
+  .glass-button,
+  .liquid-glass,
+  .v4-mobile-tabbar,
+  .ai-chat-panel,
+  .v4-search,
+  .home-v2-ai-search,
+  .v4-header-icon,
+  .v4-avatar
+):not(:has(img, video, canvas)):focus-within {
+  --lg-specular: rgba(255,255,255,.34);
+}
+
+/* 4) Specular highlight follows focus/press state without moving page content. */
+:where(
+  .glass-panel,
+  .glass-popover,
+  .glass-dialog,
+  .glass-toolbar,
+  .glass-button,
+  .liquid-glass,
+  .v4-mobile-tabbar,
+  .ai-chat-panel,
+  .v4-search,
+  .home-v2-ai-search,
+  .v4-header-icon,
+  .v4-avatar
+):not(:has(img, video, canvas)):active {
+  border-color: rgba(255,255,255,.30);
+  box-shadow:
+    inset 0 1px 0 var(--lg-specular),
+    0 8px 24px rgba(0,0,0,.24);
+}
+
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  :where(.glass-panel,.glass-popover,.glass-dialog,.glass-toolbar,.glass-button,.liquid-glass,.v4-mobile-tabbar,.ai-chat-panel,.v4-search,.home-v2-ai-search,.v4-header-icon,.v4-avatar) {
+    background-color: rgba(24,24,28,.92);
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  :where(.glass-panel,.glass-popover,.glass-dialog,.glass-toolbar,.glass-button,.liquid-glass,.v4-mobile-tabbar,.ai-chat-panel,.v4-search,.home-v2-ai-search,.v4-header-icon,.v4-avatar) {
+    -webkit-backdrop-filter: blur(16px) saturate(145%);
+    backdrop-filter: blur(16px) saturate(145%);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :where(.glass-panel,.glass-popover,.glass-dialog,.glass-toolbar,.glass-button,.liquid-glass,.v4-mobile-tabbar,.ai-chat-panel,.v4-search,.home-v2-ai-search,.v4-header-icon,.v4-avatar) {
+    background-color: rgba(24,24,28,.94);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(.glass-panel,.glass-popover,.glass-dialog,.glass-toolbar,.glass-button,.liquid-glass,.v4-mobile-tabbar,.ai-chat-panel,.v4-search,.home-v2-ai-search,.v4-header-icon,.v4-avatar)::before {
+    animation: none !important;
+  }
+}
