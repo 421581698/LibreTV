@@ -2,6 +2,7 @@
 :root {
   --tabbar-height: 68px;
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --tabbar-scroll-clearance: var(--tabbar-scroll-clearance);
 }
 
 /* PR #84 — Apple TV edge-to-edge iPhone dock and cinematic poster finishing.
@@ -468,8 +469,8 @@
   body:has(.v4-home) .v4-home-main--cinema,
   body .v4-search-page .v4-search-main,
   body .v4-spatial-screen > .v4-spatial-main {
-    padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
-    scroll-padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
+    padding-bottom: var(--tabbar-scroll-clearance) !important;
+    scroll-padding-bottom: var(--tabbar-scroll-clearance) !important;
   }
 }
 
@@ -521,8 +522,8 @@
   body:has(.v4-home) .v4-home-main--cinema,
   body .v4-search-page .v4-search-main,
   body .v4-spatial-screen > .v4-spatial-main {
-    padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
-    scroll-padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
+    padding-bottom: var(--tabbar-scroll-clearance) !important;
+    scroll-padding-bottom: var(--tabbar-scroll-clearance) !important;
   }
 }
 
