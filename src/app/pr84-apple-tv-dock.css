@@ -1,3 +1,9 @@
+/* Shared dock geometry tokens. Only this stylesheet owns dock position and dimensions. */
+:root {
+  --tabbar-height: 68px;
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 /* PR #84 — Apple TV edge-to-edge iPhone dock and cinematic poster finishing.
    High-specificity route-scoped selectors intentionally override the legacy capsule rules. */
 @media (max-width: 700px) {
@@ -17,10 +23,10 @@
     width: 100% !important;
     min-width: 0 !important;
     max-width: none !important;
-    height: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
-    min-height: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
+    height: calc(var(--tabbar-height) + var(--safe-area-bottom)) !important;
+    min-height: calc(var(--tabbar-height) + var(--safe-area-bottom)) !important;
     margin: 0 !important;
-    padding: 8px max(12px, env(safe-area-inset-left, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-right, 0px)) !important;
+    padding: 8px max(12px, env(safe-area-inset-left, 0px)) calc(8px + var(--safe-area-bottom)) max(12px, env(safe-area-inset-right, 0px)) !important;
     overflow: hidden !important;
     border: 0 !important;
     outline: 0 !important;
@@ -181,10 +187,10 @@
     width: 100% !important;
     min-width: 0 !important;
     max-width: none !important;
-    height: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
-    min-height: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
+    height: calc(var(--tabbar-height) + var(--safe-area-bottom)) !important;
+    min-height: calc(var(--tabbar-height) + var(--safe-area-bottom)) !important;
     margin: 0 !important;
-    padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 8px 12px calc(8px + var(--safe-area-bottom)) !important;
     overflow: hidden !important;
     border: 0 !important;
     border-top: 1px solid rgba(255,255,255,.1) !important;
@@ -334,10 +340,10 @@
     width: 100% !important;
     min-width: 100% !important;
     max-width: none !important;
-    height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
-    min-height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+    height: calc(var(--tabbar-height) + var(--safe-area-bottom)) !important;
+    min-height: calc(var(--tabbar-height) + var(--safe-area-bottom)) !important;
     margin: 0 !important;
-    padding: 7px 12px calc(7px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 7px 12px calc(7px + var(--safe-area-bottom)) !important;
     overflow: hidden !important;
     border: 0 !important;
     border-top: 1px solid rgba(255,255,255,.10) !important;
@@ -462,8 +468,8 @@
   body:has(.v4-home) .v4-home-main--cinema,
   body .v4-search-page .v4-search-main,
   body .v4-spatial-screen > .v4-spatial-main {
-    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
-    scroll-padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
+    scroll-padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
   }
 }
 
@@ -484,7 +490,7 @@
     border-right: 0 !important;
     border-bottom: 0 !important;
     box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.4) !important;
-    padding-bottom: calc(7px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(7px + var(--safe-area-bottom)) !important;
   }
 
   /* Strip native button paint as well as every GlassButton wrapper layer. */
@@ -515,8 +521,8 @@
   body:has(.v4-home) .v4-home-main--cinema,
   body .v4-search-page .v4-search-main,
   body .v4-spatial-screen > .v4-spatial-main {
-    padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)) !important;
-    scroll-padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
+    scroll-padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important;
   }
 }
 
