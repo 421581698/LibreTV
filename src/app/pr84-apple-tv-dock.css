@@ -1105,7 +1105,7 @@
   background: #fff;
 }
 @media (max-width: 380px) {
-  .movie-detail-episode-card-content { padding: 13px !important; }
+  .movie-detail-episode-card-content { padding: 13px 52px 13px 13px !important; }
 }
 
 /* Detail-route dock: full-bleed translucent glass, including the home active pill. */
