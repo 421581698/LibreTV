@@ -52,6 +52,27 @@ export function MovieDetailPage() {
   const [sharing, setSharing] = useState(false);
   const [episodeMenuIndex, setEpisodeMenuIndex] = useState<number | null>(null);
 
+  // Episode actions are a real popover: dismiss on outside tap or Escape so the
+  // menu never remains stranded over the horizontal episode shelf on mobile.
+  useEffect(() => {
+    if (episodeMenuIndex === null) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const card = target.closest(`[data-episode-menu-index="${episodeMenuIndex}"]`);
+      if (!card) setEpisodeMenuIndex(null);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setEpisodeMenuIndex(null);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [episodeMenuIndex]);
+
   const favoriteId = sourceKey && vodId ? favoriteIdFor(sourceKey, vodId) : '';
   const favorite = useLiveQuery(
     () => favoriteId ? db.favorites.get(favoriteId) : undefined,
@@ -270,7 +291,7 @@ export function MovieDetailPage() {
               const titleText = episodeDisplayTitle(index);
               const menuOpen = episodeMenuIndex === index;
               return (
-                <article key={index} className="movie-detail-episode-card" aria-label={episodeTitle(index)}>
+                <article key={index} data-episode-menu-index={index} className="movie-detail-episode-card" aria-label={episodeTitle(index)}>
                   <span className="movie-detail-episode-placeholder" aria-hidden="true">
                     <span className="movie-detail-episode-placeholder-play">▶</span>
                   </span>
@@ -304,14 +325,15 @@ export function MovieDetailPage() {
                   <button
                     type="button"
                     className="movie-detail-episode-card-more"
-                    aria-label={episodeTitle(index) + '更多操作'}
+                    aria-label={episodeTitle(index) + '播放与下载选项'}
                     aria-expanded={menuOpen}
+                    aria-controls={`movie-detail-episode-menu-${index}`}
                     onClick={() => setEpisodeMenuIndex(menuOpen ? null : index)}
                   >
                     <span aria-hidden="true">···</span>
                   </button>
                   {menuOpen && (
-                    <div className="movie-detail-episode-menu absolute right-3 top-12 z-30 flex min-w-40 flex-col gap-1 rounded-2xl border border-white/10 bg-[#171719]/95 p-2 text-sm text-white shadow-2xl backdrop-blur-2xl" role="group" aria-label="剧集操作">
+                    <div id={`movie-detail-episode-menu-${index}`} className="movie-detail-episode-menu absolute right-3 top-12 z-30 flex min-w-40 flex-col gap-1 rounded-2xl border border-white/10 bg-[#171719]/95 p-2 text-sm text-white shadow-2xl backdrop-blur-2xl" role="group" aria-label="剧集操作">
                       <button type="button" className="min-h-10 rounded-xl px-3 text-left transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70" onClick={() => { setEpisodeMenuIndex(null); play(index); }}>播放本集</button>
                       {item?.url && /\.m3u8(?:$|[?#])/i.test(item.url) ? (
                         <button
