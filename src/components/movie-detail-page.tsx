@@ -38,6 +38,7 @@ export function MovieDetailPage() {
   const vodId = params.get('id') ?? '';
   const title = params.get('title') ?? '未知影片';
   const poster = params.get('pic') ?? '';
+  const rating = params.get('rating') ?? '';
   const sourceName = params.get('sourceName') ?? sourceKey;
   const sourceUrl = params.get('sourceUrl') ?? '';
   const source = useMemo(
@@ -108,6 +109,7 @@ export function MovieDetailPage() {
     info?.year,
     info?.area,
     info?.typeName,
+    rating ? '豆瓣 ' + rating : undefined,
     formatRemarks(info?.remarks),
   ].filter((value): value is string => Boolean(value));
 
