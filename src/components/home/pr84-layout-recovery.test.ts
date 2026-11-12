@@ -53,7 +53,7 @@ describe('PR #84 homepage blocking layout recovery', () => {
   });
 
   it('does not repeat identical adjacent dock selectors in the dock fix stylesheet', () => {
-    const lines = dockFix.split('\\n').map((line) => line.trim());
+    const lines = dockFix.split('\n').map((line) => line.trim());
     const hasDuplicateSelectorPair = lines.some(
       (line, index) =>
         line.endsWith(',') && line.slice(0, -1) === lines[index + 1],
