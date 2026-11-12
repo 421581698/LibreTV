@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/client-api';
 import { useAppStore, resolveSource } from '@/lib/store';
 import { useAuth } from '@/components/auth';
-import { V4HomepageHeader } from '@/components/home/V4HomepageHeader';
 import { SmartImage } from '@/components/smart-image';
 import { LoadingState, ErrorState } from '@/components/states';
 import { addFavorite, addSearchHistory, db, removeFavorite } from '@/lib/db';
@@ -171,12 +170,12 @@ export function MovieDetailPage() {
   };
 
   if (loading) {
-    return <main className="movie-detail-page min-h-screen bg-[#08080A] px-5 pt-8 text-white"><V4HomepageHeader /><div className="pt-16"><LoadingState label="正在整理影片详情…" /></div></main>;
+    return <main className="movie-detail-page min-h-screen bg-[#08080A] px-5 pt-8 text-white"><div className="pt-16"><LoadingState label="正在整理影片详情…" /></div></main>;
   }
   if (error || !detail) {
     return (
       <main className="movie-detail-page min-h-screen bg-[#08080A] px-5 pt-8 text-white">
-        <V4HomepageHeader />
+        
         <button type="button" onClick={() => router.back()} className="mb-8 rounded-full bg-white/10 px-4 py-2 text-sm">‹ 返回</button>
         <ErrorState message={error || '暂时无法获取影片详情'} />
       </main>
@@ -185,8 +184,8 @@ export function MovieDetailPage() {
 
   return (
     <main className="movie-detail-page min-h-screen overflow-x-hidden bg-[#08080A] pb-[calc(96px+env(safe-area-inset-bottom))] text-white">
-      <V4HomepageHeader />
-      <section className="movie-detail-hero relative isolate min-h-[650px] overflow-hidden sm:min-h-[720px]">
+      
+      <section className="movie-detail-hero relative isolate min-h-[560px] overflow-hidden sm:min-h-[640px]">
         {image ? (
           <SmartImage
             url={image}
@@ -208,7 +207,7 @@ export function MovieDetailPage() {
           <span className="movie-detail-glass-control movie-detail-source-pill">{sourceName}</span>
         </header>
 
-        <div className="movie-detail-hero__content relative z-10 mx-auto flex min-h-[590px] max-w-6xl flex-col justify-end px-5 pb-12 pt-40 sm:min-h-[650px] sm:px-10 sm:pb-16">
+        <div className="movie-detail-hero__content relative z-10 mx-auto flex min-h-[520px] max-w-6xl flex-col justify-end px-5 pb-10 pt-32 sm:min-h-[580px] sm:px-10 sm:pb-14">
           <div className="max-w-2xl">
             <p className="movie-detail-eyebrow mb-3 text-[10px] font-semibold uppercase text-white/65">LIBRETV · TITLE DETAILS</p>
             <h1 className="movie-detail-title max-w-3xl text-4xl leading-[1.05] tracking-[-.045em] sm:text-6xl">{displayTitle}</h1>
@@ -246,22 +245,27 @@ export function MovieDetailPage() {
             <div><p className="text-[10px] font-semibold uppercase tracking-[.24em] text-white/40">EPISODES</p><h2 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">剧集</h2></div>
             <span className="text-xs text-white/50">共 {episodes.length} 集</span>
           </div>
-          <div className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-4 sm:-mx-10 sm:px-10">
+          <div className="movie-detail-episode-grid">
             {episodes.map((_, index) => {
               const percent = completedPercent(index);
               return (
-                <button key={index} type="button" onClick={() => play(index)} className="movie-detail-episode-card group w-[220px] shrink-0 snap-start overflow-hidden text-left sm:w-[260px]">
-                  <div className="movie-detail-episode-art relative flex aspect-video items-center justify-center">
-                    {image ? (
-                      <SmartImage url={image} mode={imageProxyMode} customProxy={customImageProxy} alt={displayTitle + ' - ' + episodeTitle(index)} className="movie-detail-episode-image absolute inset-0 h-full w-full object-cover" />
-                    ) : <div className="movie-detail-episode-placeholder absolute inset-0" />}
-                    <div className="movie-detail-episode-scrim absolute inset-0" />
-                    <span className="movie-detail-episode-number absolute left-3 top-3">{String(index + 1).padStart(2, '0')}</span>
-                    <span className="movie-detail-episode-play absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm text-black">▶</span>
-                    {percent > 0 && <span className="movie-detail-episode-progress absolute inset-x-0 bottom-0 h-1 bg-white/20"><span className="block h-full bg-white" style={{ width: `${percent}%` }} /></span>}
-                    <span className="movie-detail-episode-title absolute inset-x-0 bottom-0">{episodeTitle(index)}</span>
-                  </div>
-                  <div className="movie-detail-episode-copy"><p>{percent >= 95 ? '已观看' : percent > 0 ? `已观看 ${percent}%` : '选择播放'}</p></div>
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => play(index)}
+                  className="movie-detail-episode-tile"
+                  aria-label={`${episodeTitle(index)}，播放`}
+                >
+                  <span className="movie-detail-episode-tile-number">{String(index + 1).padStart(2, '0')}</span>
+                  <span className="movie-detail-episode-tile-title">{episodeTitle(index)}</span>
+                  <span className="movie-detail-episode-tile-status">
+                    {percent >= 95 ? '已看完' : percent > 0 ? `已观看 ${percent}%` : '播放'}
+                  </span>
+                  {percent > 0 && (
+                    <span className="movie-detail-episode-tile-progress">
+                      <span style={{ width: `${percent}%` }} />
+                    </span>
+                  )}
                 </button>
               );
             })}
