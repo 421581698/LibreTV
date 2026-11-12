@@ -51,22 +51,33 @@ export function parseSearchList(
  * 部分源（如量子 lziapi、非凡 ffzy）第一条线路是网页中转页（…/share/xxx，不可播），
  * 真实 m3u8 在后面的线路里，因此优先取包含 m3u8 直链的线路；均无 m3u8 时回退第一条。
  */
-export function extractEpisodesFromPlayUrl(playUrl: string): string[] {
+export function extractEpisodeItemsFromPlayUrl(playUrl: string): { title: string; url: string }[] {
   if (!playUrl) return [];
+  const separatorChar = String.fromCharCode(36);
   const groups = playUrl
-    .split('$$$')
+    .split(separatorChar.repeat(3))
     .map((group) =>
       group
         .split('#')
-        .map((ep) => {
-          const parts = ep.split('$');
-          return parts.length > 1 ? parts[1] : '';
+        .map((episode) => {
+          const separator = episode.indexOf(separatorChar);
+          if (separator < 0) return null;
+          const title = episode.slice(0, separator).trim();
+          const url = episode.slice(separator + 1).trim();
+          return url.startsWith('http://') || url.startsWith('https://')
+            ? { title, url }
+            : null;
         })
-        .filter((url) => url.startsWith('http://') || url.startsWith('https://'))
+        .filter((episode): episode is { title: string; url: string } => episode !== null)
     )
-    .filter((eps) => eps.length > 0);
+    .filter((episodes) => episodes.length > 0);
   if (groups.length === 0) return [];
-  return groups.find((eps) => eps.some((url) => url.includes('.m3u8'))) ?? groups[0];
+  return groups.find((episodes) => episodes.some((episode) => episode.url.includes('.m3u8'))) ?? groups[0];
+}
+
+/** 兼容旧播放器的 URL 列表接口；分集名称通过 VideoDetail.episodeItems 作为可选字段提供。 */
+export function extractEpisodesFromPlayUrl(playUrl: string): string[] {
+  return extractEpisodeItemsFromPlayUrl(playUrl).map((episode) => episode.url);
 }
 
 /** 从简介文本中兜底提取 m3u8 链接 */
@@ -86,12 +97,14 @@ export function parseDetail(
     throw new Error('获取到的详情内容无效');
   }
   const vod = d.list[0];
-  let episodes = extractEpisodesFromPlayUrl(String(vod.vod_play_url ?? ''));
+  const episodeItems = extractEpisodeItemsFromPlayUrl(String(vod.vod_play_url ?? ''));
+  let episodes = episodeItems.map((episode) => episode.url);
   if (episodes.length === 0) {
     episodes = extractM3u8FromText(String(vod.vod_content ?? ''));
   }
   return {
     episodes,
+    ...(episodeItems.length > 0 ? { episodeItems } : {}),
     videoInfo: {
       title: str(vod.vod_name),
       cover: str(vod.vod_pic),
