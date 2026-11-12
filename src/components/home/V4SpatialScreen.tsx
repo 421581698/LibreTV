@@ -1,13 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { V4HomepageHeader } from '@/components/home/V4HomepageHeader';
 import { SourceManagerDrawer } from '@/components/source-manager';
 import { Icon } from '@/components/icon';
-import { HomeInlinePlayer } from '@/components/home/HomeInlinePlayer';
 import { requestShowDownloadManager } from '@/components/download-manager';
 import { AnimeRecommendationSection, RecommendSection } from '@/components/douban-section';
 import { DoubanCard } from '@/components/video-card';
@@ -18,7 +18,7 @@ import { isInDisabledSubscription, isSourceDisabled, resolveSource, useAppStore 
 import type { DoubanItem, SearchResultItem, SourceConfig } from '@/lib/types';
 import { api } from '@/lib/client-api';
 import { validateSourceUrl } from '@/lib/utils';
-import { buildWatchUrl, formatTime } from '@/lib/utils';
+import { formatTime } from '@/lib/utils';
 
 type Screen = 'movies' | 'tv' | 'anime' | 'variety' | 'overseas' | 'resources' | 'me' | 'settings';
 const COPY: Record<Screen, { eyebrow: string; title: string; subtitle: string }> = {
@@ -34,14 +34,21 @@ const COPY: Record<Screen, { eyebrow: string; title: string; subtitle: string }>
 
 export function V4SpatialScreen({ screen }: { screen: Screen }) {
   const copy = COPY[screen];
+  const router = useRouter();
   const selectedKeys = useAppStore((s) => s.selectedKeys);
   const customAPIs = useAppStore((s) => s.customAPIs);
   const envSources = useAppStore((s) => s.envSources);
   const yellowFilter = useAppStore((s) => s.yellowFilter);
   const sourceHealth = useAppStore((s) => s.sourceHealth);
   const subscriptions = useAppStore((s) => s.subscriptions);
-  const [quickPlayItem, setQuickPlayItem] = useState<SearchResultItem | null>(null);
   const [playbackError, setPlaybackError] = useState('');
+  const openDetail = (item: SearchResultItem, extra?: { rating?: string; poster?: string }) => {
+    const params = new URLSearchParams({ source: item.sourceKey, id: item.vodId, title: item.name, sourceName: item.sourceName });
+    if (item.pic || extra?.poster) params.set('pic', item.pic || extra?.poster || '');
+    if (extra?.rating) params.set('rating', extra.rating);
+    if (item.sourceUrl) params.set('sourceUrl', item.sourceUrl);
+    router.push('/detail?' + params.toString());
+  };
   const selectedSources = selectedKeys
     .map((key) => resolveSource({ customAPIs, envSources }, key))
     .filter((source): source is SourceConfig => Boolean(
@@ -64,7 +71,7 @@ export function V4SpatialScreen({ screen }: { screen: Screen }) {
         setPlaybackError('暂未在已启用的点播源中找到《' + movie.title + '》的准确资源，请更换点播源后重试。');
         return;
       }
-      setQuickPlayItem(match);
+      openDetail(match, { rating: movie.rating, poster: movie.cover });
     } catch (error) {
       setPlaybackError(error instanceof Error ? error.message : '获取影片详情失败，请稍后重试。');
     }
@@ -88,12 +95,11 @@ export function V4SpatialScreen({ screen }: { screen: Screen }) {
         {screen === 'variety' ? <CatalogScreen category="variety" onPick={openRecommendation} /> : null}
         {screen === 'overseas' ? <CatalogScreen category="overseas" onPick={openRecommendation} /> : null}
         {screen === 'anime' ? <AnimeScreen onPick={openRecommendation} /> : null}
-        {screen === 'resources' ? <ResourcesScreen onPick={setQuickPlayItem} /> : null}
+        {screen === 'resources' ? <ResourcesScreen onPick={openDetail} /> : null}
         {screen === 'me' ? <MeScreen /> : null}
         {screen === 'settings' ? <SettingsScreen /> : null}
       </main>
       {playbackError ? <p className="v4-spatial-footnote" role="status">{playbackError}</p> : null}
-      <HomeInlinePlayer item={quickPlayItem} onClose={() => setQuickPlayItem(null)} />
     </div>
   );
 }
@@ -376,7 +382,11 @@ function MeFavoriteCard({ item }: { item: FavoriteEntry }) {
   const customAPIs = useAppStore((state) => state.customAPIs);
   const envSources = useAppStore((state) => state.envSources);
   const source = resolveSource({ customAPIs, envSources }, item.sourceKey);
-  const href = buildWatchUrl({ sourceKey: item.sourceKey, vodId: item.vodId, index: 0, title: item.title, sourceUrl: source?.url ?? item.sourceUrl, detail: source?.detail });
+  const params = new URLSearchParams({ source: item.sourceKey, id: item.vodId, title: item.title, sourceName: item.sourceName });
+  if (item.pic) params.set('pic', item.pic);
+  const sourceUrl = source?.url ?? item.sourceUrl;
+  if (sourceUrl) params.set('sourceUrl', sourceUrl);
+  const href = '/detail?' + params.toString();
   return (
     <article className="v4-me-history-card relative">
       <Link href={href} className="flex min-w-0 flex-1 items-center gap-3">
@@ -394,7 +404,11 @@ function MeHistoryCard({ item }: { item: HistoryEntry }) {
   const customAPIs = useAppStore((s) => s.customAPIs);
   const envSources = useAppStore((s) => s.envSources);
   const source = resolveSource({ customAPIs, envSources }, item.sourceKey);
-  const href = buildWatchUrl({ sourceKey: item.sourceKey, vodId: item.vodId, index: item.episodeIndex, title: item.title, sourceUrl: source?.url ?? item.sourceUrl, detail: source?.detail });
+  const params = new URLSearchParams({ source: item.sourceKey, id: item.vodId, title: item.title, sourceName: source?.name ?? item.sourceKey });
+  if (item.pic) params.set('pic', item.pic);
+  const sourceUrl = source?.url ?? item.sourceUrl;
+  if (sourceUrl) params.set('sourceUrl', sourceUrl);
+  const href = '/detail?' + params.toString();
   const percent = item.duration > 0 ? Math.max(0, Math.min(100, Math.round(item.playbackPosition / item.duration * 100))) : 0;
   return (
     <Link className="v4-me-history-card" href={href}>
