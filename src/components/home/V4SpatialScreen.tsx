@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -31,6 +32,7 @@ const COPY: Record<Screen, { eyebrow: string; title: string; subtitle: string }>
 
 export function V4SpatialScreen({ screen }: { screen: Screen }) {
   const copy = COPY[screen];
+  const router = useRouter();
   const selectedKeys = useAppStore((s) => s.selectedKeys);
   const customAPIs = useAppStore((s) => s.customAPIs);
   const envSources = useAppStore((s) => s.envSources);
@@ -42,7 +44,7 @@ export function V4SpatialScreen({ screen }: { screen: Screen }) {
     const params = new URLSearchParams({ source: item.sourceKey, id: item.vodId, title: item.name, sourceName: item.sourceName });
     if (item.pic) params.set('pic', item.pic);
     if (item.sourceUrl) params.set('sourceUrl', item.sourceUrl);
-    window.location.assign('/detail?' + params.toString());
+    router.push('/detail?' + params.toString());
   };
   const selectedSources = selectedKeys
     .map((key) => resolveSource({ customAPIs, envSources }, key))
