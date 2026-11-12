@@ -78,6 +78,10 @@ export function parseEpisodeCoordinates(
     const english = episodeTitle.match(patterns[2]);
     if (english) episodeNumber = parsePositiveInteger(english[1]);
   }
+  if (!episodeNumber) {
+    const numeric = episodeTitle.match(patterns[3]);
+    if (numeric) episodeNumber = parsePositiveInteger(numeric[1]);
+  }
   if (!seasonNumber || !episodeNumber) return null;
   return { seasonNumber, episodeNumber };
 }
