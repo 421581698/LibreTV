@@ -67,6 +67,41 @@ describe('TMDB episode artwork matching', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it('fills missing episode title, overview and runtime even when TMDB has no still image', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      if (url.pathname === '/3/search/tv') {
+        return Response.json({
+          results: [{ id: 307853, name: '今天是太阳雨', original_name: 'Sunshine Through the Rain', first_air_date: '2026-01-01' }],
+        });
+      }
+      return Response.json({
+        episodes: [{
+          id: 9001,
+          episode_number: 1,
+          still_path: null,
+          name: '試播集',
+          overview: '普萊斯的運氣跌到谷底，而一次在練習場的偶遇，讓他決心把握住這個難得的機會。',
+          runtime: 45,
+        }],
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await enrichEpisodesWithTmdbArtwork(makeDetail(1), {
+      token: 'test-read-token',
+      title: '今天是太阳雨',
+      year: '2026',
+    });
+
+    expect(result.episodeItems?.[0]).toMatchObject({
+      episodeName: '試播集',
+      description: '普萊斯的運氣跌到谷底，而一次在練習場的偶遇，讓他決心把握住這個難得的機會。',
+      duration: '45分钟',
+    });
+    expect(result.episodeItems?.[0].image).toBeUndefined();
+  });
+
   it('does not match a different title or a different release year', async () => {
     const fetchMock = vi.fn(async () => Response.json({
       results: [{ id: 307853, name: '另一部剧', original_name: 'Another Show', first_air_date: '2026-01-01' }],
