@@ -275,7 +275,11 @@ jobs:
               ", mediaFormat=" + (isHls ? "hls" : isMp4 ? "mp4" : "other") +
               ", mediaPassed=" + mediaPassed +
               ", sourceEnabled=false");
-            if (!mediaPassed) throw new Error("CMS media URL did not pass the bounded media probe");
+            if (!mediaPassed) {
+              console.warn("CMS media probe did not pass; candidate remains unverified and disabled. This does not block isolated Preview deployment or UI acceptance.");
+            } else {
+              console.log("CMS media probe passed; candidate remains disabled pending explicit source approval.");
+            }
           } catch (error) {
             console.warn("CMS candidate probe did not pass; source remains disabled: " +
               (error instanceof Error ? error.message : "unknown error"));
