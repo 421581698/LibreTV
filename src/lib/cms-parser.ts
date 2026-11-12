@@ -145,7 +145,15 @@ export function parseDetail(
       return entryUrl === episode.url;
     });
     if (!metadata) return episode;
-    const rawStill = str(metadata.still_path)
+    const stillPath = str(metadata.still_path);
+    const stillPathUrl = stillPath
+      ? (/^https?:\/\//i.test(stillPath)
+        ? stillPath
+        : /^\/[^^?#\s]+$/.test(stillPath)
+          ? `https://image.tmdb.org/t/p/w500${stillPath}`
+          : undefined)
+      : undefined;
+    const rawStill = stillPathUrl
       || str(metadata.screenshot_url)
       || str(metadata.screenshot)
       || str(metadata.image_url)
