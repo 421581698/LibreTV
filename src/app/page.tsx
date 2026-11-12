@@ -69,7 +69,7 @@ function HomeContent() {
 
   const openDetail = (item: SearchResultItem, extra?: { rating?: string; poster?: string }) => {
     const params = new URLSearchParams({ source: item.sourceKey, id: item.vodId, title: item.name, sourceName: item.sourceName });
-    if (item.pic || extra?.poster) params.set('pic', item.pic || extra.poster || '');
+    if (item.pic || extra?.poster) params.set('pic', item.pic || extra?.poster || '');
     if (extra?.rating) params.set('rating', extra.rating);
     if (item.sourceUrl) params.set('sourceUrl', item.sourceUrl);
     router.push('/detail?' + params.toString());
