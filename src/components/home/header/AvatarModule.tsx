@@ -1,18 +1,14 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { LiquidGlassSurface } from '@/components/ui/liquid-glass';
+import { GlassButton } from '@/components/ui/glass';
 import styles from './Avatar.module.css';
 
 export function AvatarModule({ pathname }: { pathname: string | null }) {
   const router = useRouter();
 
   return (
-    <LiquidGlassSurface
-      as="button"
-      type="button"
-      variant="control"
-      interactive
+    <GlassButton
       className={'v4-avatar ' + styles.root}
       aria-label="打开我的个人空间"
       title="我的"
@@ -25,6 +21,6 @@ export function AvatarModule({ pathname }: { pathname: string | null }) {
         <circle cx="12" cy="9" r="3.1" />
         <path d="M5.8 19.2c.8-2.9 3-4.5 6.2-4.5s5.4 1.6 6.2 4.5" />
       </svg>
-    </LiquidGlassSurface>
+    </GlassButton>
   );
 }
