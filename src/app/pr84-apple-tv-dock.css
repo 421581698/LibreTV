@@ -1130,3 +1130,36 @@
     color: #fff !important;
   }
 }
+
+
+/* PR84: true edge-to-edge black glass dock. Remove legacy hairlines on every mobile route. */
+@media (max-width: 700px) {
+  html body > nav.v4-mobile-tabbar {
+    position: fixed !important;
+    inset: auto 0 0 0 !important;
+    top: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    max-width: none !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    border: 0 !important;
+    outline: 0 !important;
+    border-radius: 0 !important;
+    background: rgba(0, 0, 0, .86) !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: blur(40px) saturate(140%) !important;
+    backdrop-filter: blur(40px) saturate(140%) !important;
+    transform: none !important;
+  }
+  html body > nav.v4-mobile-tabbar::before,
+  html body > nav.v4-mobile-tabbar::after {
+    content: none !important;
+    display: none !important;
+    border: 0 !important;
+    outline: 0 !important;
+    box-shadow: none !important;
+  }
+}
