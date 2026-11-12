@@ -59,6 +59,8 @@ export interface VideoEpisode {
   seasonNumber?: number;
   episodeNumber?: number;
   imageSource?: 'tmdb';
+  /** Localized episode title from CMS/TMDB; separate from the source's episode index label. */
+  episodeName?: string;
   description?: string;
   duration?: string;
 }
