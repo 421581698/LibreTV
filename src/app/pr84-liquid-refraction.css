@@ -48,7 +48,6 @@ body::before {
   .glass-toolbar,
   .glass-button,
   .liquid-glass,
-  .v4-mobile-tabbar,
   .ai-chat-panel,
   .v4-search,
   .home-v2-ai-search,
@@ -57,7 +56,7 @@ body::before {
   .v52-me-library-tile,
   .v52-me-list-row,
   .v4-spatial-screen[data-screen="settings"] .ipad-settings-content > section
-):not(:has(img, video, canvas)) {
+):not(:has(img, video, canvas)):not(.v4-mobile-tabbar) {
   position: relative;
   isolation: isolate;
   border-color: var(--lg-rim);
