@@ -106,12 +106,14 @@ export function MovieDetailPage() {
   const info = detail?.videoInfo;
   const episodes = detail?.episodes ?? [];
   const episodeItems = detail?.episodeItems ?? [];
-  const episodeTitle = (index: number) => episodeItems[index]?.title || '第 ' + (index + 1) + ' 集';
+  // Keep source-provided episode names authoritative. Positional fallback text is
+  // explicitly described as a playback item, never fabricated as an episode number.
+  const episodeTitle = (index: number) => episodeItems[index]?.title?.trim() || '第 ' + (index + 1) + ' 个播放条目';
   const episodeNumberLabel = (index: number) => {
     const value = episodeItems[index]?.title?.trim() ?? '';
     return /^第\s*[\d一二两三四五六七八九十]+\s*[集话期]$/u.test(value)
       ? value.replace(/\s+/g, '')
-      : '第' + (index + 1) + '集';
+      : '';
   };
   const episodeDisplayTitle = (index: number) => {
     const value = episodeItems[index]?.title?.trim() ?? '';
@@ -309,9 +311,9 @@ export function MovieDetailPage() {
                   {menuOpen && (
                     <div className="movie-detail-episode-menu" role="group" aria-label="剧集操作">
                       <button type="button" onClick={() => { setEpisodeMenuIndex(null); play(index); }}>播放本集</button>
-                      <button type="button" onClick={() => {
+                      <button type="button" disabled={!item?.title?.trim()} onClick={() => {
                         setEpisodeMenuIndex(null);
-                        if (navigator.clipboard) void navigator.clipboard.writeText(episodeTitle(index));
+                        if (item?.title?.trim() && navigator.clipboard) void navigator.clipboard.writeText(item.title.trim());
                       }}>复制剧集名称</button>
                     </div>
                   )}
