@@ -895,3 +895,178 @@
   word-break: break-word !important;
   line-height: 1.5 !important;
 }
+
+
+/* PR84 cinematic episode shelf: native horizontal streaming-service rail. */
+.movie-detail-episode-list {
+  display: flex !important;
+  gap: 16px !important;
+  width: calc(100% + 40px);
+  margin: 0 -20px;
+  padding: 0 20px 24px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+.movie-detail-episode-list::-webkit-scrollbar { display: none !important; }
+.movie-detail-episode-card {
+  position: relative !important;
+  display: block !important;
+  flex: 0 0 85vw !important;
+  width: 85vw !important;
+  max-width: 440px;
+  min-width: 0 !important;
+  aspect-ratio: 16 / 9 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  isolation: isolate;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  border-radius: 18px !important;
+  color: #fff !important;
+  background: #171717 !important;
+  text-align: left !important;
+  box-shadow: 0 12px 32px rgba(0,0,0,.28);
+}
+.movie-detail-episode-image {
+  position: absolute !important;
+  z-index: 0 !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: center 35% !important;
+  opacity: .9;
+  transition: transform .35s ease, opacity .25s ease;
+}
+.movie-detail-episode-card::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,.95) 0%, rgba(0,0,0,.6) 40%, transparent 80%);
+  pointer-events: none;
+}
+.movie-detail-episode-card-content {
+  position: absolute !important;
+  z-index: 2 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 5px !important;
+  padding: 16px !important;
+  color: #fff !important;
+  pointer-events: none;
+}
+.movie-detail-episode-card-number {
+  color: rgba(255,255,255,.62);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: .12em;
+}
+.movie-detail-episode-card-title {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  color: #fff;
+  font-size: clamp(17px, 4vw, 22px);
+  font-weight: 760;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 2px 12px rgba(0,0,0,.5);
+}
+.movie-detail-episode-card-description {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  color: rgba(255,255,255,.78);
+  font-size: 11px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.movie-detail-episode-card-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 2px;
+  color: rgba(255,255,255,.76);
+  font-size: 10px;
+  line-height: 1.2;
+}
+.movie-detail-episode-card-play {
+  display: inline-flex;
+  width: 17px;
+  height: 17px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #111;
+  background: rgba(255,255,255,.92);
+  font-size: 8px;
+}
+.movie-detail-episode-card-progress {
+  position: absolute;
+  z-index: 3;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: rgba(255,255,255,.2);
+}
+.movie-detail-episode-card-progress > span {
+  display: block;
+  height: 100%;
+  background: #fff;
+}
+.movie-detail-episode-card:active .movie-detail-episode-image {
+  transform: scale(1.025);
+}
+@media (min-width: 701px) {
+  .movie-detail-episode-list {
+    width: 100%;
+    margin: 0;
+    padding-right: 0 !important;
+    padding-left: 0 !important;
+  }
+  .movie-detail-episode-card {
+    flex-basis: 360px !important;
+    width: 360px !important;
+  }
+}
+@media (max-width: 380px) {
+  .movie-detail-episode-card-content { padding: 13px !important; }
+  .movie-detail-episode-card-description { font-size: 10px; }
+}
+
+/* Detail-route dock: full-bleed translucent glass, including the home active pill. */
+@media (max-width: 700px) {
+  html body:has(.movie-detail-page) > nav.v4-mobile-tabbar {
+    position: fixed !important;
+    top: auto !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    border-radius: 0 !important;
+    background: rgba(25,25,25,0.7) !important;
+    background-color: rgba(25,25,25,0.7) !important;
+    -webkit-backdrop-filter: blur(40px) !important;
+    backdrop-filter: blur(40px) !important;
+  }
+  html body:has(.movie-detail-page) > nav.v4-mobile-tabbar > a.is-active {
+    border-radius: 16px !important;
+    background: rgba(255,255,255,.14) !important;
+    color: #fff !important;
+  }
+}
