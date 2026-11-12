@@ -107,9 +107,15 @@ export function MovieDetailPage() {
   const episodes = detail?.episodes ?? [];
   const episodeItems = detail?.episodeItems ?? [];
   const episodeTitle = (index: number) => episodeItems[index]?.title || '第 ' + (index + 1) + ' 集';
+  const episodeNumberLabel = (index: number) => {
+    const value = episodeItems[index]?.title?.trim() ?? '';
+    return /^第\s*[\d一二两三四五六七八九十]+\s*[集话期]$/u.test(value)
+      ? value.replace(/\s+/g, '')
+      : '第' + (index + 1) + '集';
+  };
   const episodeDisplayTitle = (index: number) => {
     const value = episodeItems[index]?.title?.trim() ?? '';
-    return /^第\s*\d+\s*集$/u.test(value) ? '' : value;
+    return /^第\s*[\d一二两三四五六七八九十]+\s*[集话期]$/u.test(value) ? '' : value;
   };
   const isMovie = isMovieType(info?.typeName, episodes.length);
   const displayTitle = info?.title || title;
@@ -281,7 +287,7 @@ export function MovieDetailPage() {
                     aria-label={'播放' + episodeTitle(index)}
                   />
                   <span className="movie-detail-episode-card-content">
-                    <span className="movie-detail-episode-card-number">第 {index + 1} 集</span>
+                    <span className="movie-detail-episode-card-number">{episodeNumberLabel(index)}</span>
                     {titleText && <span className="movie-detail-episode-card-title">{titleText}</span>}
                     {item?.description && <span className="movie-detail-episode-card-description">{item.description}</span>}
                     {item?.duration && (
