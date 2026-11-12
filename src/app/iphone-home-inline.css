@@ -1227,9 +1227,6 @@ html:has(.v4-home) {
     left: 0 !important;
     right: auto !important;
     width: 100% !important;
-    height: clamp(380px, 60svh, 520px) !important;
-    min-height: 380px !important;
-    max-height: 520px !important;
     margin: 0 !important;
     z-index: 10 !important;
     overflow: hidden !important;
@@ -1400,9 +1397,6 @@ html:has(.v4-home) {
     display: block !important;
     box-sizing: border-box !important;
     width: 100% !important;
-    height: clamp(520px, 68svh, 620px) !important;
-    min-height: 520px !important;
-    max-height: 620px !important;
     margin: 0 !important;
     padding: 0 !important;
     overflow: hidden !important;
@@ -1431,7 +1425,6 @@ html:has(.v4-home) {
     width: 100% !important;
     height: 100% !important;
     object-fit: cover !important;
-    object-position: center 28% !important;
   }
 
   body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-veil {
