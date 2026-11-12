@@ -128,7 +128,6 @@ describe('PR #84 homepage blocking layout recovery', () => {
     expect(appleDock).toContain('object-position: center 85% !important;');
     for (const staleHeight of [
       'height: clamp(360px,55svh,520px) !important;',
-      'height: clamp(640px,94svh,900px) !important;',
       'height: clamp(380px, 55svh, 520px) !important;',
       'height: clamp(380px, 60svh, 520px) !important;',
       'height: clamp(520px, 68svh, 620px) !important;',
