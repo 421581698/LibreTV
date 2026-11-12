@@ -40,9 +40,10 @@ export function V4SpatialScreen({ screen }: { screen: Screen }) {
   const sourceHealth = useAppStore((s) => s.sourceHealth);
   const subscriptions = useAppStore((s) => s.subscriptions);
   const [playbackError, setPlaybackError] = useState('');
-  const openDetail = (item: SearchResultItem) => {
+  const openDetail = (item: SearchResultItem, extra?: { rating?: string; poster?: string }) => {
     const params = new URLSearchParams({ source: item.sourceKey, id: item.vodId, title: item.name, sourceName: item.sourceName });
-    if (item.pic) params.set('pic', item.pic);
+    if (item.pic || extra?.poster) params.set('pic', item.pic || extra.poster || '');
+    if (extra?.rating) params.set('rating', extra.rating);
     if (item.sourceUrl) params.set('sourceUrl', item.sourceUrl);
     router.push('/detail?' + params.toString());
   };
@@ -68,7 +69,7 @@ export function V4SpatialScreen({ screen }: { screen: Screen }) {
         setPlaybackError('暂未在已启用的点播源中找到《' + movie.title + '》的准确资源，请更换点播源后重试。');
         return;
       }
-      openDetail(match);
+      openDetail(match, { rating: movie.rating, poster: movie.cover });
     } catch (error) {
       setPlaybackError(error instanceof Error ? error.message : '获取影片详情失败，请稍后重试。');
     }
