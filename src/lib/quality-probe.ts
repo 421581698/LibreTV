@@ -8,6 +8,7 @@ import { cmsRequestHeaders, parseDetail, parseDetailPageHtml } from './cms-parse
 import { fetchUpstream } from './fetch-utils';
 import { inferHeightFromBitrate } from './quality';
 import { checkUpstreamAllowed } from './ssrf';
+import { KKPHIM_API_ORIGIN, KKPHIM_SOURCE_KEY, parseKkphimDetail } from './kkphim';
 import type { QualityProbeItem, QualityProbeResult, SourceConfig } from './types';
 
 /**
@@ -304,6 +305,26 @@ async function probeSegmentResolution(
 
 /** 取影片的播放地址列表（与 /api/detail 同逻辑：列表接口优先，拿不到再爬详情页） */
 async function fetchEpisodes(source: SourceConfig, id: string, signal: AbortSignal, metrics: ProbeMetrics): Promise<string[]> {
+  // KKPhim is a fixed-origin provider, not an Apple CMS source. Its slug must
+  // be resolved through /phim/{slug}; never append CMS query parameters.
+  if (source.key === KKPHIM_SOURCE_KEY) {
+    const endpoint = new URL(`/phim/${encodeURIComponent(id)}`, KKPHIM_API_ORIGIN).toString();
+    const verdict = await checkUpstreamAllowed(KKPHIM_API_ORIGIN);
+    if (!verdict.ok) return [];
+    const response = await fetchMeasuredUpstream(endpoint, {
+      timeoutMs: 6000,
+      headers: { Accept: 'application/json', 'User-Agent': 'LibreTV-Quality-Probe/1.0' },
+      signal,
+      safeRedirects: true,
+      allowPrivate: false,
+    }, metrics);
+    if (!response.ok) return [];
+    const declaredLength = Number(response.headers.get('content-length') || 0);
+    if (declaredLength > 4 * 1024 * 1024) return [];
+    const payload = await response.json();
+    const detail = parseKkphimDetail(payload);
+    return detail?.episodes ?? [];
+  }
   const api = `${source.url.replace(/\/+$/, '')}?ac=videolist&ids=${encodeURIComponent(id)}`;
   const res = await fetchMeasuredUpstream(api, { timeoutMs: 6000, headers: cmsRequestHeaders(), signal }, metrics);
   if (res.ok) {
