@@ -131,15 +131,6 @@
     font-weight: 900 !important;
     text-shadow: none !important;
   }
-  body:has(.v4-home) .v4-apple-poster-art::after {
-    background: linear-gradient(
-      to top,
-      rgba(0,0,0,.82) 0%,
-      rgba(0,0,0,.48) 26%,
-      rgba(0,0,0,.12) 48%,
-      transparent 68%
-    ) !important;
-  }
   body:has(.v4-home) .v4-apple-poster-caption {
     z-index: 2 !important;
   }
@@ -303,8 +294,8 @@
 
   /* Ranking numbers are quiet translucent-white watermarks. */
   body:has(.v4-home) .v4-apple-poster-rank {
-    color: rgba(255,255,255,.3) !important;
-    -webkit-text-fill-color: rgba(255,255,255,.3) !important;
+    color: rgba(255,255,255,.25) !important;
+    -webkit-text-fill-color: rgba(255,255,255,.25) !important;
     font-weight: 900 !important;
     text-shadow: none !important;
   }
