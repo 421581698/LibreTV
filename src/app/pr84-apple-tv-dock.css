@@ -943,6 +943,7 @@
   object-fit: cover !important;
   object-position: center !important;
 }
+.movie-detail-episode-image[hidden] { display: none !important; }
 .movie-detail-episode-placeholder {
   position: absolute;
   z-index: 0;
@@ -993,7 +994,7 @@
   flex-direction: column !important;
   align-items: flex-start !important;
   gap: 5px !important;
-  padding: 16px !important;
+  padding: 16px 54px 16px 16px !important;
   color: #fff !important;
   pointer-events: none;
 }
