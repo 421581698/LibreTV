@@ -146,7 +146,7 @@ describe('首页与播放页回归契约', () => {
     expect(v4Header).not.toContain('setIsScrolled');
     expect(v4Header).not.toContain('is-scrolled');
     expect(inlineHomeStyles).toContain('background: transparent !important;');
-    expect(inlineHomeStyles).toContain('rgba(20,20,20,.4)');
+    expect(inlineHomeStyles).toContain('body .v4-home .v4-header.is-overlay');
     expect(inlineHomeStyles).toContain('top: 0 !important;');
     expect(inlineHomeStyles).toContain('z-index: 50 !important;');
     expect(inlineHomeStyles).toContain('position: absolute !important;');
