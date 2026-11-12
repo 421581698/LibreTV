@@ -157,7 +157,7 @@ export async function enrichEpisodesWithTmdbArtwork(
         const episodeNumber = parsePositiveInteger(String(episode.episode_number ?? ''));
         if (!episodeNumber || !episode.still_path) continue;
         artwork.set(season.seasonNumber + ':' + episodeNumber, {
-          image: TMDB_IMAGE + episode.still_path.replace(/^\/+/, ''),
+          image: TMDB_IMAGE + '/' + episode.still_path.replace(/^\/+/, ''),
           tmdbSeriesId: match.id,
           ...(Number.isSafeInteger(episode.id) ? { tmdbEpisodeId: episode.id } : {}),
           seasonNumber: season.seasonNumber,
