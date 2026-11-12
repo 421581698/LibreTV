@@ -44,6 +44,10 @@ export interface VideoEpisode {
   /** 资源站 vod_play_url 中提供的真实分集名称；没有时为空字符串。 */
   title: string;
   url: string;
+  /** Optional real episode still, synopsis and runtime when the CMS provides them. */
+  image?: string;
+  description?: string;
+  duration?: string;
 }
 
 export interface VideoDetail {
