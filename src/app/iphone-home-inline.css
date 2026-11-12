@@ -458,12 +458,7 @@ body .v4-home .v4-progress-percent {
   font-variant-numeric: tabular-nums !important;
 }
 @media (max-width: 700px) {
-  body .v4-home .v4-hero-immersive {
-    /* Keep the first recommendation rail partially visible on phone screens. */
-    height: clamp(360px,55svh,520px) !important;
-    min-height: 360px !important;
-    max-height: 520px !important;
-  }
+  /* Mobile Hero height is owned by pr84-apple-tv-dock.css. */
   body .v4-home .v4-hero-immersive-copy {
     left: 24px !important;
     right: 24px !important;
@@ -570,11 +565,7 @@ body .v4-home .v4-hero-immersive-copy .v4-hero-primary {
   background: #fff !important;
 }
 @media (max-width: 700px) {
-  body .v4-home .v4-hero-immersive {
-    height: clamp(640px,94svh,900px) !important;
-    min-height: 0 !important;
-    max-height: 900px !important;
-  }
+  /* Legacy mobile Hero sizing removed; see pr84-apple-tv-dock.css. */
   body .v4-home .v4-hero-immersive .v4-hero-image { height: 58% !important; }
 }
 
@@ -1074,7 +1065,7 @@ html:has(.v4-home) {
      separate light strip above the cinematic image. */
   body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive {
     margin-top: calc(-1 * env(safe-area-inset-top, 0px)) !important;
-    height: calc(clamp(640px, 94svh, 900px) + env(safe-area-inset-top, 0px)) !important;
+    
   }
 }
 
@@ -1129,9 +1120,6 @@ html:has(.v4-home) {
 
   /* Restore the compact cinema composition and expose the start of the poster rail. */
   body:has(.v4-home) .v4-home .v4-home-main--cinema > .v4-hero-immersive {
-    height: clamp(380px, 55svh, 520px) !important;
-    min-height: 380px !important;
-    max-height: 520px !important;
     margin-top: calc(-1 * env(safe-area-inset-top, 0px)) !important;
   }
 
@@ -1358,21 +1346,13 @@ html:has(.v4-home) {
 
   body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive {
     top: calc(-1 * env(safe-area-inset-top, 0px)) !important;
-    height: calc(clamp(380px, 60svh, 520px) + env(safe-area-inset-top, 0px)) !important;
-    min-height: calc(380px + env(safe-area-inset-top, 0px)) !important;
-    max-height: none !important;
     margin-top: 0 !important;
     background-color: #000 !important;
   }
 }
 
 
-/* PR84 mobile poster focal-point adjustment: shift the hero artwork downward. */
-@media screen and (max-width: 700px) {
-  body:has(.v4-home) .v4-home .v4-hero-immersive .v4-hero-image img {
-    object-position: center 0% !important;
-  }
-}
+/* Mobile poster crop is owned by pr84-apple-tv-dock.css. */
 
 
 /* PR84 blocking layout correction: keep the hero in normal document flow. */
@@ -1515,14 +1495,9 @@ html:has(.v4-home) {
 
 /* PR84 visual balance pass: lower the artwork focal point and center the copy. */
 @media screen and (max-width: 700px) {
-  /* Show more of the lower artwork instead of pinning the crop to its top edge. */
-  body:has(.v4-home) .v4-home .v4-hero-immersive .v4-hero-image img {
-    object-position: center 68% !important;
-  }
+  /* Mobile poster crop is owned by pr84-apple-tv-dock.css. */
 
-  /* Give the hero a deliberate top breathing zone below the floating header. */
-  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive {
-  }
+  /* Hero height is centralized in pr84-apple-tv-dock.css. */
 
   /* Keep the editorial copy as one centered stack, biased toward the lower half. */
   body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-immersive-copy {
@@ -1569,10 +1544,7 @@ html:has(.v4-home) {
 
 /* PR84 final mobile composition: lower the focal crop and anchor controls to hero bounds. */
 @media screen and (max-width: 700px) {
-  /* Lower the crop focus; this moves the visible artwork, not the whole page. */
-  body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-image img {
-    object-position: center 80% !important;
-  }
+  /* Mobile poster crop is owned by pr84-apple-tv-dock.css. */
 
   /* One bounded hero owns its image, veil, copy and pagination. */
   body:has(.v4-home) .v4-home-main--cinema > .v4-hero-immersive {
@@ -1838,10 +1810,8 @@ body .v4-home .v4-hero-immersive .v4-hero-dots {
   transform: translateX(-50%) !important;
 }
 @media screen and (max-width: 700px) {
-  body .v4-home .v4-hero-immersive {
-  }
+  /* Hero height is centralized in pr84-apple-tv-dock.css. */
   body .v4-home .v4-hero-immersive .v4-hero-image img {
-    object-position: center 28% !important;
   }
   body .v4-home .v4-hero-immersive .v4-hero-immersive-copy {
     inset: auto 0 54px !important;
@@ -1888,7 +1858,6 @@ body .v4-home .v4-hero-immersive .v4-hero-immersive-copy {
 @media screen and (max-width: 700px) {
   body .v4-home .v4-hero-immersive .v4-hero-image img {
     filter: brightness(1.1) contrast(1.1) saturate(1.08) !important;
-    object-position: center 24% !important;
   }
   body .v4-home .v4-hero-immersive > .v4-hero-veil {
     background: linear-gradient(
