@@ -1422,8 +1422,8 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
     border: 1px solid rgba(20,25,35,.12) !important;
     border-radius: 50% !important;
   }
-  .v4-home { padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important; }
-  body:has(.v4-mobile-tabbar) { padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px); }
+  .v4-home { padding-bottom: var(--tabbar-scroll-clearance) !important; }
+  body:has(.v4-mobile-tabbar) { padding-bottom: var(--tabbar-scroll-clearance); }
 }
 @media screen and (min-width: 701px) {
 }
@@ -1434,7 +1434,7 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
 .v4-home {
   position: relative;
   min-height: 100vh;
-  padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px);
+  padding-bottom: var(--tabbar-scroll-clearance);
 }
 .v4-home .v4-header {
   position: absolute !important;
@@ -1665,7 +1665,7 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
   .v4-today-featured-skeleton { min-height: 210px; }
   .v4-home #for-you .grid[class*="grid-cols-"] { gap: 11px !important; }
   .v4-home #for-you .grid[class*="grid-cols-"] > * { flex-basis: 112px !important; }
-  .v4-home { padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px); }
+  .v4-home { padding-bottom: var(--tabbar-scroll-clearance); }
 }
 @media (min-width: 701px) and (max-width: 1100px) {
   .v4-home .v4-header-inner { width: calc(100% - 40px) !important; }
@@ -1940,7 +1940,7 @@ body:has(.v4-home) {
   border-color: rgba(255,255,255,.12) !important;
   background: rgba(255,255,255,.05) !important;
 }
-.v4-home { padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom) + 52px) !important; }
+.v4-home { padding-bottom: var(--tabbar-scroll-clearance) !important; }
 @media (max-width: 700px) {
   .v4-home-main--cinema > .v4-hero {
     height: clamp(640px, 94svh, 900px) !important;
