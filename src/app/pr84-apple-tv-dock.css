@@ -140,11 +140,11 @@
       transparent 68%
     ) !important;
   }
-  body:has(.v4-home) .v4-apple-poster-caption,
+  body:has(.v4-home) .v4-apple-poster-caption {
+    z-index: 2 !important;
+  }
   body:has(.v4-home) .v4-apple-poster-caption strong,
   body:has(.v4-home) .v4-apple-poster-caption small {
-    position: relative;
-    z-index: 2 !important;
     text-shadow: 0 1px 8px rgba(0,0,0,.9) !important;
   }
 
