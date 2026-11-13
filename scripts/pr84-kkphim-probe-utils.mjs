@@ -58,9 +58,7 @@ export function summarizeMediaUrl(rawUrl) {
     const url = new URL(rawUrl);
     const pathname = url.pathname || "/";
     const segments = pathname.split("/").filter(Boolean);
-    const dateSegment = segments.find((part) =>
-      /^(?:20\\d{2}[-/]?\\d{2}[-/]?\\d{2}|20\\d{2}[-/]\\d{2})$/.test(part)
-    ) || null;
+    const dateSegment = pathname.match(/(?:^|\\/)(20\\d{2}(?:[-/]\\d{2}){1,2})(?:\\/|$)/)?.[1] || null;
     const extension = pathname.match(/\\.([a-z0-9]{2,6})$/i)?.[1]?.toLowerCase() || "none";
     const pathFingerprint = createHash("sha256").update(pathname).digest("hex").slice(0, 12);
     return {
