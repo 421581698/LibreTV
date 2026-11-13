@@ -188,14 +188,39 @@ function urls(): string[] {
 }
 
 describe('KKPhim provider quality probe', () => {
+  it('reuses one KKPhim detail lookup for multiple episode probes', async () => {
+    mocks.fetchUpstream.mockClear();
+    const providerSource: SourceConfig = { key: 'kkphim', name: 'KKPhim', url: 'https://phimapi.com' };
+    const slug = 'sample-series-shared-cache';
+    const secondPlaylist = 'https://cdn.test/shared/episode-2/index.m3u8';
+    mocks.fetchUpstream.mockImplementation((url: string) => {
+      if (url === `https://phimapi.com/phim/${slug}`) {
+        return Promise.resolve(new Response(JSON.stringify({
+          movie: { slug, name: '共享详情测试' },
+          episodes: [{ server_name: 'Vietsub', server_data: [
+            { name: '第1集', link_m3u8: PLAYLIST_URL },
+            { name: '第2集', link_m3u8: secondPlaylist },
+          ] }],
+        }), { status: 200, headers: { 'content-type': 'application/json' } }));
+      }
+      if (url === PLAYLIST_URL || url === secondPlaylist) return Promise.resolve(new Response(MASTER, { status: 200 }));
+      return Promise.resolve(new Response('not found', { status: 404 }));
+    });
+    await probeQuality({ source: providerSource, id: slug, episodeIndex: 0 });
+    await probeQuality({ source: providerSource, id: slug, episodeIndex: 1 });
+    expect(urls().filter((url) => url === `https://phimapi.com/phim/${slug}`)).toHaveLength(1);
+    expect(urls()).toContain(PLAYLIST_URL);
+    expect(urls()).toContain(secondPlaylist);
+  });
+
   it('probes the exact requested KKPhim episode', async () => {
     mocks.fetchUpstream.mockClear();
     const providerSource: SourceConfig = { key: 'kkphim', name: 'KKPhim', url: 'https://phimapi.com' };
     const secondPlaylist = 'https://cdn.test/series/episode-2/index.m3u8';
     mocks.fetchUpstream.mockImplementation((url: string) => {
-      if (url === 'https://phimapi.com/phim/sample-series') {
+      if (url === 'https://phimapi.com/phim/sample-series-exact-index') {
         return Promise.resolve(new Response(JSON.stringify({
-          movie: { slug: 'sample-series', name: '示例剧集' },
+          movie: { slug: 'sample-series-exact-index', name: '示例剧集' },
           episodes: [{ server_name: 'Vietsub', server_data: [
             { name: '第1集', link_m3u8: PLAYLIST_URL },
             { name: '第2集', link_m3u8: secondPlaylist },
@@ -205,7 +230,7 @@ describe('KKPhim provider quality probe', () => {
       if (url === secondPlaylist) return Promise.resolve(new Response(MASTER, { status: 200 }));
       return Promise.resolve(new Response('not found', { status: 404 }));
     });
-    const result = await probeQuality({ source: providerSource, id: 'sample-series', episodeIndex: 1 });
+    const result = await probeQuality({ source: providerSource, id: 'sample-series-exact-index', episodeIndex: 1 });
     expect(result.episodeIndex).toBe(1);
     expect(result.height).toBe(1080);
     expect(urls()).toContain(secondPlaylist);
