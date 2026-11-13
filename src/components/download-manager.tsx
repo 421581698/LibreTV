@@ -9,11 +9,12 @@ import {
   PauseResumeController,
   clearDownloadChunks,
   runDownloadJob,
+  runDirectDownloadJob,
   supportsChunkCache,
   type DownloadProgress,
 } from '@/lib/m3u8-downloader';
 import { loadDownloadSettings, saveDownloadSettings } from '@/lib/download-settings';
-import { detectSavingCapability, pickSaveTarget } from '@/lib/download-saver';
+import { detectSavingCapability, pickSaveTarget, suggestDownloadFilename } from '@/lib/download-saver';
 import { detectDownloadSourceFormat, recoverInterruptedDownloadStatus } from '@/lib/download-task-state';
 import { Switch } from './settings-shared';
 
@@ -119,25 +120,27 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
         void db.downloads.update(entry.id, { finished: p.current, total: p.total, status, errorMessage: p.message, updatedAt: now });
       };
 
-      const job = runDownloadJob({
+      const jobOptions = {
         taskId: entry.id,
         url: entry.url,
         title: entry.title,
         format: entry.format,
         signal: abort.signal,
         pause,
-        // 中转开关在任务启动时取当前值：切换只影响之后开始的任务，
-        // 已在跑的任务保持原有链路，不会下到一半换源
+        // 中转开关只作用于 HLS；直链下载遵循浏览器 CORS 策略，不伪造跨域代理能力
         proxy,
         onProgress,
-        // hasTarget=false（刷新恢复/排队恢复）时目标已在手势内由「继续」按钮选好
+        // 刷新恢复后必须由用户重新选择保存位置
         target: saveTargetRegistry().get(entry.id) ?? {
-          kind: 'memory',
+          kind: 'memory' as const,
           write: async () => { throw new Error('保存位置已失效，请点击「继续」重新选择'); },
           close: async () => {},
           abort: async () => {},
         },
-      });
+      };
+      const job = entry.sourceFormat === 'HLS'
+        ? runDownloadJob(jobOptions)
+        : runDirectDownloadJob(jobOptions);
 
       void job
         .then(async () => {
@@ -215,7 +218,7 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
         };
         // 用户手势内预选保存目标（FS Access 弹窗必须在手势内）
         try {
-          const target = await pickSaveTarget(`${detail.title}.${format.toLowerCase()}`);
+          const target = await pickSaveTarget(suggestDownloadFilename(detail.title, detail.url));
           saveTargetRegistry().set(id, target);
         } catch (err) {
           if (err instanceof Error && err.message.includes('取消')) {
@@ -282,7 +285,7 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
     if (entry.status === 'paused' || entry.status === 'queued' || entry.status === 'waiting' || entry.status === 'failed' || entry.status === 'error') {
       // 恢复：需要用户手势内重选保存目标（浏览器限制）
       try {
-        const target = await pickSaveTarget(`${entry.title}.${entry.format.toLowerCase()}`);
+        const target = await pickSaveTarget(suggestDownloadFilename(entry.title, entry.url));
         saveTargetRegistry().set(entry.id, target);
         if (running.current.has(entry.id)) return;
         await updateEntry(entry.id, { status: 'queued', errorMessage: undefined });
@@ -362,7 +365,13 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
                 <p className="text-sm text-content truncate">{t.title}</p>
                 <p className="text-xs text-faint">
                   {t.sourceFormat ?? 'MEDIA'} → {t.format.toUpperCase()} · {statusLabel[t.status]}
-                  {(t.status === 'downloading' || t.status === 'merging') && t.total > 0 ? ` · ${t.finished}/${t.total} 分片` : ''}
+                  {(t.status === 'downloading' || t.status === 'merging') && t.total > 0
+                    ? t.sourceFormat === 'HLS'
+                      ? ` · ${t.finished}/${t.total} 分片`
+                      : ` · ${(t.finished / 1024 / 1024).toFixed(1)}/${(t.total / 1024 / 1024).toFixed(1)} MB`
+                    : t.status === 'downloading' && t.sourceFormat !== 'HLS' && t.finished > 0
+                      ? ` · 已接收 ${(t.finished / 1024 / 1024).toFixed(1)} MB`
+                      : ''}
                 </p>
               </div>
               <div className="flex items-center gap-1 shrink-0">
