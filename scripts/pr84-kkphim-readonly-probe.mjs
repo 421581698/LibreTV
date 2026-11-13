@@ -22,7 +22,7 @@ const MAX_HTML_BYTES = 512 * 1024;
 const MAX_MANIFEST_BYTES = 512 * 1024;
 const MAX_SEGMENT_BYTES = 1024 * 1024;
 const MAX_HOME_PAGES = 4;
-const MAX_MOVIES = 24;
+const MAX_MOVIES = 48;
 const MAX_LINKS = 144;
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36";
 
@@ -333,14 +333,22 @@ for (const item of items) {
     if (!byServerAndKind.has(key)) byServerAndKind.set(key, []);
     byServerAndKind.get(key).push(link);
   }
-  for (const groupedLinks of byServerAndKind.values()) {
-    for (const index of sampleIndexes(groupedLinks.length)) {
-      candidates.push({ item, detail: getMovieDetail(payload), detailFormat, link: groupedLinks[index] });
-      if (candidates.length >= MAX_LINKS) break;
+  // Spread the probe across more titles instead of exhausting many episodes
+  // from the first few movies. Round-robin server/kind groups, sampling up to
+  // three episode positions per title (first, middle, last).
+  const movieCandidates = [];
+  const linkGroups = [...byServerAndKind.values()];
+  for (let sampleSlot = 0; sampleSlot < 3; sampleSlot++) {
+    for (const groupedLinks of linkGroups) {
+      const index = sampleIndexes(groupedLinks.length)[sampleSlot];
+      if (index === undefined) continue;
+      movieCandidates.push({ item, detail: getMovieDetail(payload), detailFormat, link: groupedLinks[index] });
+      if (movieCandidates.length >= 3) break;
     }
-    if (candidates.length >= MAX_LINKS) break;
+    if (movieCandidates.length >= 3) break;
   }
-  diagnostics.push({ slug, detailFormat, servers: new Set(links.map((link) => link.server)).size, playbackKinds: [...new Set(links.map((link) => link.kind))], episodeLinks: links.length });
+  candidates.push(...movieCandidates);
+  diagnostics.push({ slug, detailFormat, servers: new Set(links.map((link) => link.server)).size, playbackKinds: [...new Set(links.map((link) => link.kind))], episodeLinks: links.length, sampledCandidates: movieCandidates.length });
   if (candidates.length >= MAX_LINKS) break;
 }
 if (!candidates.length) throw new Error("No playback candidates found across sampled KKPhim details");
