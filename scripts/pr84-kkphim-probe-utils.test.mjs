@@ -66,3 +66,22 @@ test("summarizes host and path shape for embed and direct URLs without query val
   assert.equal(summary.hasQuery, true);
   assert.equal(JSON.stringify(summary).includes("hidden"), false);
 });
+
+test("summarizes upstream response headers without request identifiers", async () => {
+  const { summarizeResponseHeaders } = await import("./pr84-kkphim-probe-utils.mjs");
+  const headers = new Headers({
+    "server": "nginx",
+    "via": "edge-cache",
+    "cf-cache-status": "DYNAMIC",
+    "content-length": "123",
+    "x-request-id": "private-request-id",
+  });
+  const summary = summarizeResponseHeaders(headers);
+  assert.deepEqual(summary, {
+    responseServer: "nginx",
+    responseVia: "edge-cache",
+    responseCache: "DYNAMIC",
+    responseContentLength: "123",
+  });
+  assert.equal(JSON.stringify(summary).includes("private-request-id"), false);
+});
