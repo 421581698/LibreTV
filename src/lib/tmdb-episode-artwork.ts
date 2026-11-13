@@ -126,21 +126,35 @@ export async function enrichEpisodesWithTmdbArtwork(
 
   try {
     const year = options.year?.match(/\b(19\d{2}|20\d{2})\b/)?.[1];
-    const searches = await Promise.all(aliases.map(async (alias) => {
-      const searchQuery: Record<string, string> = { query: extractSeriesTitle(alias), include_adult: 'false' };
-      if (year) searchQuery.first_air_date_year = year;
+    const normalizedAliases = new Set(aliases.map((alias) => normalizeTitle(extractSeriesTitle(alias))));
+    const search = async (alias: string, includeYear: boolean) => {
+      const searchQuery: Record<string, string> = {
+        query: extractSeriesTitle(alias),
+        include_adult: 'false',
+        language: 'zh-CN',
+      };
+      if (includeYear && year) searchQuery.first_air_date_year = year;
       const response = await tmdbGet<{ results?: TmdbTvSearchResult[] }>('/search/tv', token, searchQuery);
       return response?.results ?? [];
-    }));
-    const normalizedAliases = new Set(aliases.map((alias) => normalizeTitle(extractSeriesTitle(alias))));
-    const match = searches.flat().find((item) => {
-      if (!Number.isSafeInteger(item.id) || (item.id ?? 0) <= 0) return false;
-      const titleMatches = [item.name, item.original_name]
-        .some((candidate) => typeof candidate === 'string' && normalizedAliases.has(normalizeTitle(candidate)));
-      if (!titleMatches) return false;
-      if (!year) return true;
-      return typeof item.first_air_date === 'string' && item.first_air_date.startsWith(year + '-');
-    });
+    };
+    // First try the exact year. If the CMS year is a release/update year rather
+    // than the original broadcast year, retry without it; still require an exact
+    // normalized Chinese/original title match to avoid attaching another series' stills.
+    const strictResults = (await Promise.all(aliases.map((alias) => search(alias, true)))).flat();
+    const titleMatches = (items: TmdbTvSearchResult[]) => items.filter((item) =>
+      Number.isSafeInteger(item.id) && (item.id ?? 0) > 0 &&
+      [item.name, item.original_name].some((candidate) =>
+        typeof candidate === 'string' && normalizedAliases.has(normalizeTitle(candidate))),
+    );
+    let candidates = titleMatches(strictResults);
+    if (candidates.length === 0 && year) {
+      candidates = titleMatches((await Promise.all(aliases.map((alias) => search(alias, false)))).flat());
+    }
+    const match = candidates.sort((a, b) => {
+      const aYear = year && a.first_air_date?.startsWith(year + '-') ? 1 : 0;
+      const bYear = year && b.first_air_date?.startsWith(year + '-') ? 1 : 0;
+      return bYear - aYear;
+    })[0];
     if (!match?.id) return detail;
 
     const seasonNumbers = [...new Set(detail.episodeItems
