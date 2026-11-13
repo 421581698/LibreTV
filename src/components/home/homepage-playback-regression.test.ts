@@ -288,12 +288,13 @@ describe('首页与播放页回归契约', () => {
     expect(styles).toContain('pointer-events: none');
   });
 
-  it('观看历史可恢复播放，播放页提供明确的回首页与返回兜底', () => {
+  it('观看历史可恢复播放，播放页使用唯一返回按钮并提供首页兜底', () => {
     expect(history).toContain('buildWatchUrl({');
     expect(history).toContain('const href = buildWatchUrl({');
     expect(history).toContain('href={href}');
-    expect(watch).toContain('aria-label="回首页"');
-    expect(watch).toContain('href="/"');
+    expect(watch).toContain('aria-label="返回"');
+    expect(watch).not.toContain('aria-label="回首页"');
+    expect(watch).toContain('if (window.history.length > 1)');
     expect(watch).toContain('router.back()');
     expect(watch).toContain("router.push('/')");
   });
