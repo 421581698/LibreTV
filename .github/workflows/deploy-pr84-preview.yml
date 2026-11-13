@@ -314,7 +314,19 @@ jobs:
       
       - name: Probe KKPhim playback candidate after deploying this exact Preview commit
         id: kkphim-probe
+        continue-on-error: true
         run: node scripts/pr84-kkphim-readonly-probe.mjs
+
+      - name: Report KKPhim verification outcome
+        if: always()
+        env:
+          PROBE_OUTCOME: ${{ steps.kkphim-probe.outcome }}
+        run: |
+          if [ "$PROBE_OUTCOME" = "success" ]; then
+            echo "KKPhim returned a fresh HLS candidate with a verified manifest and segment; PlayerShell decode is included below."
+          else
+            echo "::warning::KKPhim has no freshly verified HLS candidate in this run. The source remains disabled; general Preview acceptance continues."
+          fi
 
       - name: Install Playwright WebKit for mobile-layout acceptance
         id: install-webkit
