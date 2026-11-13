@@ -344,6 +344,7 @@ jobs:
           name: pr84-preview-browser-acceptance
           path: |
             /tmp/pr84-preview-webkit.png
+            /tmp/pr84-preview-watch-webkit.png
             /tmp/pr84-preview-player.png
           if-no-files-found: ignore
 
