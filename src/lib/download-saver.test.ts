@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { sanitizeDownloadFilename, suggestDownloadFilename } from './download-saver';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { pickSaveTarget, sanitizeDownloadFilename, suggestDownloadFilename, UserCancelledError } from './download-saver';
 
 describe('download filename safety', () => {
   it('removes path separators and reserved filename characters', () => {
@@ -30,10 +30,6 @@ describe('download filename safety', () => {
       .toBe('Episode 1.mp4');
   });
 });
-
-
-import { afterEach, vi } from 'vitest';
-import { pickSaveTarget, UserCancelledError } from './download-saver';
 
 afterEach(() => {
   vi.useRealTimers();
