@@ -124,7 +124,7 @@ export function parseKkphimDetail(payload: unknown): VideoDetail | null {
       // Keep display labels in a parallel optional array rather than leaking CMS delimiters into the player.
       episodes.push(playableUrl);
       episodeLabels.push(`${serverName} · ${label}`);
-      episodeImages.push(safeHttpsUrl(item?.still_url ?? item?.still ?? item?.image ?? item?.thumb_url));
+      episodeImages.push(safeHttpsUrl(item?.still_url) ?? safeHttpsUrl(item?.still) ?? safeHttpsUrl(item?.image) ?? safeHttpsUrl(item?.thumb_url));
     }
   }
 
