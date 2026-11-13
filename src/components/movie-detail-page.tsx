@@ -131,7 +131,7 @@ export function MovieDetailPage() {
   const backdrop = info?.backdrop?.trim() ?? '';
   const knownSeasonNumbers = episodeItems
     .map((item) => item.seasonNumber)
-    .filter((value): value is number => Number.isInteger(value) && value > 0);
+    .filter((value): value is number => typeof value === 'number' && Number.isInteger(value) && value > 0);
   const seasonNumber = knownSeasonNumbers.length === episodes.length
     && knownSeasonNumbers.length > 0
     && knownSeasonNumbers.every((value) => value === knownSeasonNumbers[0])
