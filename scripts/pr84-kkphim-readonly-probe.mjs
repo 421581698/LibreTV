@@ -8,6 +8,7 @@ import {
   getPlaybackLinks,
   sampleIndexes,
   summarizeMediaUrl,
+  summarizeResponseHeaders,
 } from "./pr84-kkphim-probe-utils.mjs";
 
 const API_ORIGIN = "https://phimapi.com";
@@ -59,6 +60,7 @@ function probeError(message, stage, rawUrl, response = null, cause = null) {
     ...summarizeMediaUrl(rawUrl),
     httpStatus: response?.status ?? null,
     contentType: response?.headers?.get("content-type")?.split(";")[0]?.trim() || null,
+    ...(response ? summarizeResponseHeaders(response.headers) : {}),
     networkCode: cause?.cause?.code || cause?.code || null,
   };
   return error;
