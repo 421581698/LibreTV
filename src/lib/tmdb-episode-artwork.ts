@@ -189,7 +189,7 @@ export async function enrichEpisodesWithTmdbArtwork(
 
     let changed = false;
     const seriesBackdrop = match.backdrop_path
-      ? TMDB_IMAGE.replace('/w780', '/w1280') + '/' + match.backdrop_path.replace(/^\\/+/, '')
+      ? TMDB_IMAGE.replace('/w780', '/w1280') + '/' + match.backdrop_path.replace(/^\/+/, '')
       : undefined;
     const videoInfo = !detail.videoInfo.backdrop && seriesBackdrop
       ? { ...detail.videoInfo, backdrop: seriesBackdrop }
