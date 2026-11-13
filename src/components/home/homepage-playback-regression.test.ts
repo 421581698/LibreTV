@@ -276,8 +276,8 @@ describe('首页与播放页回归契约', () => {
     expect(player).toContain('artRef.current?.pause()');
   });
 
-  it('播放页显示独立 Friday Orb 入口，不增加重复顶部按钮或聊天面板', () => {
-    expect(watch).toContain('<AIFloatingBall inlineMode />');
+  it('播放页不显示 Friday 悬浮入口，但保留语音运行时且不增加聊天面板', () => {
+    expect(watch).toContain('<AIFloatingBall inlineMode showFab={false} />');
     expect(watch).not.toContain('FridayPlayerAssistantButton');
     expect(watch).not.toContain('friday-home-orb-toggle');
     expect(watch).not.toContain("from '@/components/header'");
@@ -323,7 +323,7 @@ describe('首页与播放页回归契约', () => {
 
   it('V3 首页采用 Jarvis 式单圆球入口：回复与语音状态回到圆球，不挂载独立 AI 面板', () => {
     expect(header).toContain('<AIFloatingBall showFab={showFridayFab} inlineMode />');
-    expect(watch).toContain('<AIFloatingBall inlineMode />');
+    expect(watch).toContain('<AIFloatingBall inlineMode showFab={false} />');
     expect(watch).not.toContain('FridayPlayerAssistantButton');
     expect(assistant).toContain('if (inlineMode) {');
     expect(assistant).toContain('if (!showFab) return null;');
