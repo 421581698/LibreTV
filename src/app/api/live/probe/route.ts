@@ -39,6 +39,35 @@ const MAX_URLS = 50;
 const MAX_PROBE_BODY_BYTES = 64 * 1024;
 const MAX_MANIFEST_BYTES = 1024 * 1024;
 
+/** 流式读取客户端请求体，超限时立即取消，不把任意大的 body 先读入内存。 */
+async function readRequestTextLimited(req: Request, maxBytes: number): Promise<string> {
+  if (!req.body) return '';
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        throw new Error('REQUEST_BODY_TOO_LARGE');
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(merged);
+}
+
 async function readTextLimited(res: Response, maxBytes: number): Promise<string> {
   const declared = Number(res.headers.get('content-length'));
   if (Number.isFinite(declared) && declared > maxBytes) throw new Error('播放列表超过 1MB 限制');
@@ -541,12 +570,12 @@ export async function POST(req: Request) {
     if (Number.isFinite(declared) && declared > MAX_PROBE_BODY_BYTES) {
       return jsonError('请求体超过 64KB 限制', 413);
     }
-    const raw = await req.text();
-    if (new TextEncoder().encode(raw).byteLength > MAX_PROBE_BODY_BYTES) {
+    const raw = await readRequestTextLimited(req, MAX_PROBE_BODY_BYTES);
+    body = JSON.parse(raw) as { urls?: unknown };
+  } catch (error) {
+    if (error instanceof Error && error.message === 'REQUEST_BODY_TOO_LARGE') {
       return jsonError('请求体超过 64KB 限制', 413);
     }
-    body = JSON.parse(raw) as { urls?: unknown };
-  } catch {
     return jsonError('无效请求体', 400);
   }
   if (!Array.isArray(body.urls)) return jsonError('urls 必须为字符串数组', 400);
