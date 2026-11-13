@@ -902,8 +902,9 @@ export function PlayerShell({
       type: getMediaPlaybackKind(initialUrl, mediaType) === 'mp4' ? 'mp4' : getMediaPlaybackKind(initialUrl, mediaType) === 'webm' ? 'webm' : 'm3u8',
       volume: 0.8,
       autoplay: true,
-      pip: true,
-      autoMini: true,
+      // PR84 mobile watch: never spawn floating PiP/mini-player windows over the page.
+      pip: false,
+      autoMini: false,
       screenshot: true,
       setting: true,
       playbackRate: true,
@@ -911,7 +912,7 @@ export function PlayerShell({
       // Touch devices use native iOS video fullscreen first, with a web fullscreen fallback.
       fullscreen: !touchPointer,
       fullscreenWeb: !touchPointer,
-      miniProgressBar: true,
+      miniProgressBar: false,
       mutex: true,
       // Keep iOS Safari's video compositing stable without a frosted backdrop.
       backdrop: false,
