@@ -13,7 +13,7 @@ import { resolve } from 'node:path';
 
 const streams = {
   fmp4: 'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8',
-  aes128: 'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel-aes.ism/.m3u8',
+  aes128: 'https://test-streams.mux.dev/dai-discontinuity-deltatre/manifest.m3u8',
 };
 const timeoutMs = 45_000;
 const browser = await chromium.launch({
@@ -25,6 +25,8 @@ let failed = false;
 
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  page.on('requestfailed', (request) => console.error('HLS request failed:', request.url(), request.failure()?.errorText));
+  page.on('response', (response) => { if (response.status() >= 400) console.error('HLS HTTP error:', response.status(), response.url()); });
   page.setDefaultTimeout(timeoutMs);
   await page.setContent('<!doctype html><html><body style="margin:0;background:#000"><video id="video" muted playsinline controls style="width:960px;height:540px"></video></body></html>');
   await page.addScriptTag({ path: resolve('node_modules/hls.js/dist/hls.min.js') });
