@@ -352,15 +352,15 @@ export function PlayerShell({
     clearMetadataWatchdog();
     metadataWatchdogRef.current = setTimeout(() => {
       metadataWatchdogRef.current = null;
-      if (video.readyState >= HTMLMediaElement.HAVE_METADATA) return;
+      if (video.readyState >= 1) return;
       const mediaError = video.error;
-      const errorMessage = mediaError?.code === MediaError.MEDIA_ERR_NETWORK
+      const errorMessage = mediaError?.code === 2
         ? '视频地址或媒体分片请求失败，请更换播放源'
-        : mediaError?.code === MediaError.MEDIA_ERR_DECODE
+        : mediaError?.code === 3
           ? '媒体解码失败，请尝试其他播放源或格式'
-          : mediaError?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED
+          : mediaError?.code === 4
             ? '播放源无效或格式不受支持，请更换播放源'
-            : video.networkState === HTMLMediaElement.NETWORK_NO_SOURCE
+            : video.networkState === 3
               ? '没有取得有效媒体地址，请更换播放源'
               : '媒体元数据加载超时，请检查播放源或网络后重试';
       setError(errorMessage);
@@ -649,12 +649,7 @@ export function PlayerShell({
       return;
     }
     armMetadataWatchdog(video, mediaUrl);
-    const nativeHls = !Hls.isSupported();
-    if (nativeHls && !video.canPlayType('application/vnd.apple.mpegurl')) {
-      setError('当前浏览器既不支持 hls.js，也不支持原生 HLS 播放');
-      return;
-    }
-    const hls = nativeHls ? null : new Hls(buildHlsConfig());
+    const hls = new Hls(buildHlsConfig());
     hlsRef.current = hls;
     setQualityControlMode('hls');
     const handleQualityPreferenceChange = () => {
@@ -1166,7 +1161,7 @@ export function PlayerShell({
         return;
       }
       const mediaError = art.video?.error;
-      const errorMessage = mediaError?.code === MediaError.MEDIA_ERR_ABORTED
+      const errorMessage = mediaError?.code === 1
         ? '播放请求已取消，请重新点击播放'
         : mediaError?.code === MediaError.MEDIA_ERR_NETWORK
           ? '视频地址或媒体分片请求失败，请更换播放源'
