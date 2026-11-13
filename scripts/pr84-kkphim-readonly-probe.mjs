@@ -3,6 +3,7 @@ import net from "node:net";
 import { appendFileSync } from "node:fs";
 import {
   getEmbedMediaUrls,
+  getSameOriginScriptUrls,
   inspectEmbedPage,
   getItems,
   getMovieDetail,
@@ -117,14 +118,48 @@ async function getManifest(rawUrl) {
   return { url, status: response.status, contentType: response.headers.get("content-type") || "", text };
 }
 
+async function inspectSameOriginEmbedScripts(rawUrl, html) {
+  const reports = [];
+  for (const scriptUrl of getSameOriginScriptUrls(rawUrl, html)) {
+    try {
+      const { response } = await getResponse(scriptUrl, {
+        allowedHost: PLAYER_HOST,
+        accept: "application/javascript,text/javascript,*/*",
+        stage: "embed-script",
+      });
+      const source = (await readLimited(response, MAX_HTML_BYTES, { stage: "embed-script", url: scriptUrl })).toString("utf8");
+      const markers = ["atob(", "base64", "fetch(", "XMLHttpRequest", "jwplayer", "m3u8", "file:", "source:", "url:"]
+        .filter((marker) => source.toLowerCase().includes(marker.toLowerCase()));
+      reports.push({
+        script: summarizeMediaUrl(scriptUrl),
+        httpStatus: response.status,
+        contentType: response.headers.get("content-type")?.split(";")[0]?.trim() || null,
+        bytes: Buffer.byteLength(source, "utf8"),
+        markers,
+        directMediaCandidates: getEmbedMediaUrls(scriptUrl, source).map(summarizeMediaUrl).slice(0, 12),
+      });
+    } catch (error) {
+      reports.push({
+        script: summarizeMediaUrl(scriptUrl),
+        httpStatus: error?.diagnostic?.httpStatus ?? null,
+        contentType: error?.diagnostic?.contentType ?? null,
+        error: String(error?.message || error).slice(0, 120),
+      });
+    }
+  }
+  return reports;
+}
+
 async function getEmbedPageMedia(rawUrl) {
   const { response } = await getResponse(rawUrl, { allowedHost: PLAYER_HOST, accept: "text/html,application/xhtml+xml", stage: "embed-page" });
   const html = (await readLimited(response, MAX_HTML_BYTES, { stage: "embed-page", url: rawUrl })).toString("utf8");
   const mediaUrls = getEmbedMediaUrls(rawUrl, html);
+  const scriptDiagnostics = await inspectSameOriginEmbedScripts(rawUrl, html);
   if (embedPageDiagnostics.length < 8) embedPageDiagnostics.push({
     httpStatus: response.status,
     contentType: response.headers.get("content-type")?.split(";")[0]?.trim() || null,
     ...inspectEmbedPage(rawUrl, html),
+    sameOriginScriptDiagnostics: scriptDiagnostics,
   });
   return mediaUrls;
 }
