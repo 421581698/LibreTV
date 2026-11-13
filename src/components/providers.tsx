@@ -38,7 +38,25 @@ export function Providers({ children }: { children: ReactNode }) {
         // 预置数据（DEFAULT_SOURCES / DEFAULT_LIVE_SOURCES / DEFAULT_SUBSCRIPTIONS）
         // 预置订阅要经鉴权接口拉取，首屏这次可能发生在登录之前而 401 静默失败；
         // 登录成功后由 AuthProvider 再调一次 applyEnvPresets 补齐（函数幂等）
-        if (d) return applyEnvPresets(d);
+        if (d) {
+          // 部署默认值只补齐尚未由用户主动选择的设置；不覆盖持久化的个人选择。
+          // /api/status 在服务端读取 Wrangler 运行时变量，客户端不能直接读取 Worker vars。
+          const current = useAppStore.getState();
+          const deploymentDefaults: {
+            recommendSource?: typeof current.recommendSource;
+            imageProxyMode?: typeof current.imageProxyMode;
+          } = {};
+          if (d.defaultRecommendSource && !current.recommendSourceTouched) {
+            deploymentDefaults.recommendSource = d.defaultRecommendSource;
+          }
+          if (d.defaultImageMode && !current.imageProxyModeTouched) {
+            deploymentDefaults.imageProxyMode = d.defaultImageMode;
+          }
+          if (Object.keys(deploymentDefaults).length > 0) {
+            useAppStore.setState(deploymentDefaults);
+          }
+          return applyEnvPresets(d);
+        }
       })
       .catch(() => {});
   }, [queryClient]);
