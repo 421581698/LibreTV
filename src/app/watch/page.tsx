@@ -38,7 +38,6 @@ import {
 import { buildWatchUrl, cn, validateSourceUrl } from '@/lib/utils';
 import { SmartImage } from '@/components/smart-image';
 import type { VideoEpisode } from '@/lib/types';
-import { buildRelatedSearchTerms } from '@/lib/related-movies';
 /**
  * 播放页（唯一入口，替代旧版 watch.html → player.html 跳转链）。
  * 状态全部由 URL 驱动：/watch?source=xx&id=..&index=..&title=..
@@ -72,148 +71,6 @@ function WatchContent() {
     () => db.history.orderBy('timestamp').reverse().limit(8).toArray(),
     [sourceKey, vodId]
   );
-  // 全量观看索引用于推荐去重；不把已看过的影片重复包装成新推荐。
-  const watchedHistory = useLiveQuery(() => db.history.toArray(), []);
-  const sortedContinueHistory = useMemo(() => (recentHistory ?? [])
-    .filter((item) => !(item.sourceKey === sourceKey && item.vodId === vodId))
-    .map((item) => {
-      const percent = item.duration > 0 ? Math.min(100, Math.max(0, Math.round(item.playbackPosition / item.duration * 100))) : 0;
-      const hasNextEpisode = item.totalEpisodes > 0 && item.episodeIndex < item.totalEpisodes - 1;
-      const unfinished = hasNextEpisode || (item.duration > 0 && item.playbackPosition / item.duration < 0.95);
-      return { item, percent, unfinished };
-    })
-    .sort((a, b) => Number(b.unfinished) - Number(a.unfinished) || b.item.timestamp - a.item.timestamp)
-    .slice(0, 6), [recentHistory, sourceKey, vodId]);
-
-  const [switchOpen, setSwitchOpen] = useState(false);
-  const [skipPanelOpen, setSkipPanelOpen] = useState(false);
-  // 播放器对外暴露的精确时间读取接口（「记录当前」用），随播放器卸载置空
-  const playerApiRef = useRef<PlayerSkipApi | null>(null);
-  // 播放框：小屏「跳过标记」抽屉要按它的底边算剩余高度，避免压住画面
-  const playerFrameRef = useRef<HTMLDivElement | null>(null);
-  const [sheetMaxHeight, setSheetMaxHeight] = useState<number | undefined>(undefined);
-  /**
-   * 数据源解析：
-   * 1. Friday CMS 如果 URL 携带 sourceUrl，优先使用本次搜索传来的地址。
-   * 2. 普通数据源仍然优先使用本地配置。
-   * 3. 本地配置不存在时，才使用 URL 携带的 fallback 地址。
-   *
-   * 注意：Friday CMS 不继承本地旧配置中的 detail 地址，
-   * 避免详情接口请求被导向旧站点。
-   */
-  const suppliedSourceUrl = (searchParams.get('sourceUrl') || '').trim();
-  const localSource = resolveSource(store, sourceKey);
-  const source = useMemo(() => {
-    if (sourceKey === 'friday-cms' && suppliedSourceUrl) {
-      return {
-        ...(localSource ?? {}),
-        key: sourceKey,
-        name: localSource?.name || 'Friday CMS',
-        url: suppliedSourceUrl,
-        detail: undefined,
-      };
-    }
-    if (localSource) {
-      return localSource;
-    }
-    return resolveSource(store, sourceKey, {
-      url: suppliedSourceUrl || undefined,
-      detail: searchParams.get('detail') || undefined,
-    });
-  }, [store, sourceKey, suppliedSourceUrl, searchParams]);
-  // 来源地址安全校验：无效地址不发起详情请求。
-  const sourceUrlInvalid = Boolean(
-    source?.url && !validateSourceUrl(source.url)
-  );
-  // 详情查询：无 id（纯直连链接）时跳过
-  const detailQuery = useQuery({
-    queryKey: ['detail', sourceKey, vodId, source?.url],
-    queryFn: ({ signal }) => api.detail(vodId, source!, signal),
-    enabled: Boolean(source && !sourceUrlInvalid && vodId && verified),
-    staleTime: 5 * 60_000,
-  });
-  const episodes = useMemo(
-    () => detailQuery.data?.episodes ?? [],
-    [detailQuery.data]
-  );
-  const mediaType = detailQuery.data?.videoInfo?.typeName ?? '';
-  const isMovie = /电影|movie|film/i.test(mediaType);
-  const hasEpisodeNavigation = episodes.length > 1;
-  useEffect(() => {
-    if (!hasEpisodeNavigation && sidebarTab === 'episodes') setSidebarTab('sources');
-  }, [hasEpisodeNavigation, sidebarTab]);
-  const videoTitle =
-    titleParam || detailQuery.data?.videoInfo?.title || '未知视频';
-  // 仅从用户已启用的点播源检索；过滤成人源时绝不把成人源重新加入候选。
-  const recommendationSources = useMemo(() => {
-    const seen = new Set<string>();
-    return [...store.envSources, ...store.customAPIs].filter((item) => {
-      if (!store.selectedKeys.includes(item.key) || seen.has(item.key)) return false;
-      seen.add(item.key);
-      return !store.adFilter || !item.isAdult;
-    });
-  }, [store.envSources, store.customAPIs, store.selectedKeys, store.adFilter]);
-  // 优先用真实主演/导演作为检索词，避免只搜当前剧名而把同一部剧的跨源副本误当成相关影片。
-  const relatedSearchTerms = useMemo(
-    () => buildRelatedSearchTerms(detailQuery.data?.videoInfo, videoTitle),
-    [detailQuery.data?.videoInfo, videoTitle],
-  );
-  const relatedQuery = useQuery({
-    queryKey: ['watch-related', relatedSearchTerms, recommendationSources.map((item) => item.key).join(','), store.adFilter],
-    queryFn: async ({ signal }) => {
-      const responses = await Promise.all(relatedSearchTerms.map((keyword) =>
-        api.search(keyword, recommendationSources, store.adFilter, { signal }),
-      ));
-      const unique = new Map<string, (typeof responses)[number]['list'][number]>();
-      for (const response of responses) {
-        for (const item of response.list) {
-          const key = `${item.sourceKey}:${item.vodId}`;
-          if (!unique.has(key)) unique.set(key, item);
-        }
-      }
-      return {
-        list: Array.from(unique.values()),
-        failures: responses.flatMap((response) => response.failures),
-      };
-    },
-    enabled: verified && (detailQuery.isFetched || !vodId) && relatedSearchTerms.length > 0 && recommendationSources.length > 0,
-    staleTime: 10 * 60_000,
-    retry: 1,
-  });
-  const relatedItems = useMemo(() => {
-    const history = watchedHistory ?? [];
-    const watchedIds = new Set(history.map((item) => `${item.sourceKey}:${item.vodId}`));
-    const normalize = (value?: string) => (value ?? '').trim().toLocaleLowerCase().replace(/[\\s\\p{P}\\p{S}]/gu, '');
-    const watchedTitles = new Set(history.map((item) => normalize(item.title)).filter(Boolean));
-    const currentInfo = detailQuery.data?.videoInfo;
-    const recentGenreCounts = new Map<string, number>();
-    history.slice().sort((a, b) => b.timestamp - a.timestamp).slice(0, 8).forEach((entry, index) => {
-      const genre = normalize(entry.typeName);
-      if (genre) recentGenreCounts.set(genre, (recentGenreCounts.get(genre) ?? 0) + (8 - index));
-    });
-    const seen = new Set<string>();
-    const candidates = (relatedQuery.data?.list ?? [])
-      .filter((item) => !(item.sourceKey === sourceKey && item.vodId === vodId))
-      .filter((item) => normalize(item.name) !== normalize(videoTitle))
-      .filter((item) => !watchedIds.has(`${item.sourceKey}:${item.vodId}`))
-      .filter((item) => !watchedTitles.has(normalize(item.name)))
-      .filter((item) => {
-        const title = normalize(item.name);
-        if (!title || seen.has(title)) return false;
-        seen.add(title);
-        return true;
-      });
-    const score = (item: (typeof candidates)[number]) => {
-      const genre = normalize(item.typeName);
-      return (currentInfo?.typeName && genre && normalize(currentInfo.typeName) === genre ? 6 : 0) +
-        (genre ? (recentGenreCounts.get(genre) ?? 0) : 0) +
-        (currentInfo?.year && item.year && currentInfo.year === item.year ? 2 : 0) +
-        (currentInfo?.area && item.area && normalize(currentInfo.area) === normalize(item.area) ? 1 : 0);
-    };
-    return candidates.map((item, index) => ({ item, index, score: score(item) }))
-      .sort((a, b) => b.score - a.score || a.index - b.index)
-      .slice(0, 8).map(({ item }) => item);
-  }, [relatedQuery.data, sourceKey, vodId, watchedHistory, detailQuery.data?.videoInfo]);
   // 当前播放地址：优先取剧集列表中的当前集，其次直连 URL 参数
   const currentUrl = useMemo(() => {
     if (episodes.length > 0) {
@@ -591,43 +448,6 @@ function WatchContent() {
                 )}
               </div>
             </div>
-
-            <section className="netflix-related-section" aria-labelledby="netflix-related-heading">
-              <div className="netflix-section-heading">
-                <div>
-                  <h2 id="netflix-related-heading">相关影片</h2>
-                  <p>按当前影片的主演、导演资料，从已启用点播源检索</p>
-                </div>
-              </div>
-              {relatedQuery.isLoading || !watchedHistory ? (
-                <p className="text-sm text-faint py-4">正在查找相关影片…</p>
-              ) : relatedItems.length > 0 ? (
-                <div className="netflix-related-rail">
-                  {relatedItems.map((item) => (
-                    <Link
-                      key={`${item.sourceKey}:${item.vodId}`}
-                      href={(() => {
-                        const params = new URLSearchParams({ source: item.sourceKey, id: item.vodId, title: item.name, sourceName: item.sourceName });
-                        if (item.pic) params.set('pic', item.pic);
-                        if (item.sourceUrl) params.set('sourceUrl', item.sourceUrl);
-                        return `/detail?${params.toString()}`;
-                      })()}
-                      className="netflix-related-card"
-                    >
-                      <div className="netflix-related-art">
-                        {item.pic ? <SmartImage url={item.pic} mode="direct" alt="" className="w-full h-full object-cover" showDefaultFallback={false} /> : <div className="w-full h-full bg-chip" />}
-                      </div>
-                      <strong>{item.name}</strong>
-                      <span>{[item.year, item.typeName, item.remarks].filter(Boolean).join(' · ') || item.sourceName}</span>
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-faint py-4">
-                  {recommendationSources.length === 0 ? '请先启用至少一个点播资源，才能检索相关影片。' : relatedQuery.isError ? '相关影片暂时无法获取。' : relatedSearchTerms.length === 1 && relatedSearchTerms[0] === videoTitle ? '当前片源没有可用的导演或主演资料，暂时只能按片名检索；没有匹配结果。' : '已检索启用片源，但暂时没有找到未观看的相关影片。'}
-                </p>
-              )}
-            </section>
 
             <div className="netflix-watch-tools">
               {hasEpisodeNavigation && <><button className="btn-ghost btn-sm" disabled={currentIndex <= 0} onClick={() => goEpisode(currentIndex - 1)}>上一集</button>
