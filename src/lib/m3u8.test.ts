@@ -302,7 +302,7 @@ describe('parseM3u8Playlist · 片头广告剔除', () => {
       .rejects.toThrow('暂不支持 HLS 加密方式：SAMPLE-AES');
   });
 
-  it('拒绝尚未实现初始化段写入的 fMP4 EXT-X-MAP 播放列表', async () => {
+  it('解析 fMP4 EXT-X-MAP 初始化段并保留媒体分片顺序', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response([
       '#EXTM3U',
       '#EXT-X-MAP:URI="init.mp4"',
@@ -310,8 +310,9 @@ describe('parseM3u8Playlist · 片头广告剔除', () => {
       'seg.m4s',
       '#EXT-X-ENDLIST',
     ].join('\n'), { status: 200 })));
-    await expect(parseM3u8Playlist('https://cdn.example.com/a.m3u8'))
-      .rejects.toThrow('EXT-X-MAP 初始化分段');
+    const parsed = await parseM3u8Playlist('https://cdn.example.com/a.m3u8');
+    expect(parsed.initSegment).toBe('https://cdn.example.com/init.mp4');
+    expect(parsed.segments.map((segment) => segment.url)).toEqual(['https://cdn.example.com/seg.m4s']);
   });
 
   it('默认剔除广告段：分片与 totalDuration 均不含广告', async () => {
