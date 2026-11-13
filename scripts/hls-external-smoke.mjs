@@ -80,8 +80,8 @@ async function verifyApple() {
   pass('Apple BipBop fMP4', 'Master/Variant, EXT-X-MAP, audio/subtitle declarations, init and media segment reachable');
 }
 async function verifyAes() {
-  const master = await playlist(streams.unifiedAes128);
-  const media = await resolveMedia(streams.unifiedAes128);
+  const master = await playlist(streams.muxAes128);
+  const media = await resolveMedia(streams.muxAes128);
   const keyLine = media.text.split(/\r?\n/).find((line) => line.startsWith('#EXT-X-KEY:') && line.includes('METHOD=AES-128'));
   if (!keyLine) throw new Error('No METHOD=AES-128 key declaration found in selected media playlist');
   const keyUri = uriAttrs(keyLine)[0];
