@@ -401,7 +401,17 @@ export function DetailModal({
                           className="btn-ghost btn-sm !px-1 text-center"
                           onClick={() => play(realIndex)}
                         >
-                          <span className="block truncate">{detail.episodeLabels?.[realIndex] || `第 ${realIndex + 1} 集`}</span>
+                          <span className="flex flex-col gap-1">
+                            <span className="block aspect-video w-full overflow-hidden rounded-md bg-black/10">
+                              <SmartImage
+                                url={detail.episodeImages?.[realIndex] || info?.cover || item.pic || ''}
+                                mode="direct"
+                                alt=""
+                                className="w-full h-full object-cover"
+                              />
+                            </span>
+                            <span className="block truncate">{detail.episodeLabels?.[realIndex] || `第 ${realIndex + 1} 集`}</span>
+                          </span>
                         </button>
                       );
                     })}
