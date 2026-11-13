@@ -440,6 +440,10 @@ function WatchContent() {
         <div className="watch-topbar-inner">
           <div className="watch-topbar-left">
             <BackButton />
+            <Link href="/" className="watch-topbar-back" aria-label="回首页" title="回首页">
+              <span aria-hidden="true">⌂</span>
+            </Link>
+            <FridayPlayerAssistantButton />
             <div className="watch-topbar-title min-w-0 text-left">
               <h1 className="text-sm font-semibold text-content truncate">{videoTitle}</h1>
               <p className="text-xs text-faint truncate">
@@ -737,7 +741,7 @@ function WatchContent() {
           </aside>
         </div>
       </main>
-      <AIFloatingBall showFab={false} inlineMode />
+      <AIFloatingBall showFab={false} />
       {switchOpen && (
         <SwitchSourceModal
           currentTitle={videoTitle}
@@ -788,6 +792,20 @@ function EpisodeRow({ index, active, episode, onClick }: EpisodeRowProps) {
       <span aria-hidden="true" className={cn('shrink-0 text-sm', active ? 'text-white' : 'text-white/45')}>
         {active ? '正在播放' : '▶'}
       </span>
+    </button>
+  );
+}
+
+function FridayPlayerAssistantButton() {
+  return (
+    <button
+      type="button"
+      className="watch-topbar-back"
+      aria-label="打开 Friday 助手"
+      title="打开 Friday 助手"
+      onClick={() => window.dispatchEvent(new CustomEvent('friday-home-orb-toggle'))}
+    >
+      <span aria-hidden="true">✦</span>
     </button>
   );
 }
