@@ -226,8 +226,8 @@ export function MovieDetailPage() {
       <section className="movie-detail-hero relative isolate min-h-[560px] overflow-hidden sm:min-h-[640px]">
         {image ? (
           <SmartImage
-            url={info?.cover || poster}
-            fallbackUrl={info?.cover && poster && info.cover !== poster ? poster : undefined}
+            url={info?.backdrop || info?.cover || poster}
+            fallbackUrl={info?.backdrop ? (info?.cover || poster || undefined) : undefined}
             mode={imageProxyMode}
             customProxy={customImageProxy}
             alt={displayTitle}
