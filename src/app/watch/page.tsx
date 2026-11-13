@@ -651,7 +651,7 @@ function WatchContent() {
                 ) : (
                   <div className="netflix-episode-list">
                     {orderedEpisodes.map((realIndex) => (
-                      <EpisodeRow key={realIndex} index={realIndex} active={realIndex === currentIndex} onClick={() => goEpisode(realIndex)} />
+                      <EpisodeRow key={realIndex} index={realIndex} label={detailQuery.data?.episodeLabels?.[realIndex]} active={realIndex === currentIndex} onClick={() => goEpisode(realIndex)} />
                     ))}
                   </div>
                 )}
@@ -777,13 +777,13 @@ function FridayPlayerAssistantButton() {
 }
 
 /** 集数按钮：激活时自动滚动进可视区（长剧列表） */
-function EpisodeRow({ index, active, onClick }: { index: number; active: boolean; onClick: () => void }) {
+function EpisodeRow({ index, label, active, onClick }: { index: number; label?: string; active: boolean; onClick: () => void }) {
   const ref = useRef<HTMLButtonElement>(null);
   useEffect(() => { if (active) ref.current?.scrollIntoView({ block: 'nearest' }); }, [active]);
   return (
     <button ref={ref} className={cn('netflix-episode-row', active && 'active')} onClick={onClick} aria-current={active ? 'true' : undefined}>
       <span className="netflix-episode-number">{index + 1}</span>
-      <span className="min-w-0 flex-1 text-left"><strong>第 {index + 1} 集</strong><small>{active ? '正在播放' : '点击播放'}</small></span>
+      <span className="min-w-0 flex-1 text-left"><strong className="block truncate">{label || `第 ${index + 1} 集`}</strong><small>{active ? '正在播放' : '点击播放'}</small></span>
       {active ? <span className="text-accent" aria-hidden="true">●</span> : <span className="opacity-60" aria-hidden="true">▶</span>}
     </button>
   );
