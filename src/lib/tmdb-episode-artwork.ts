@@ -193,10 +193,8 @@ export async function enrichEpisodesWithTmdbArtwork(
       const still = tmdbEpisode.still_path
         ? TMDB_IMAGE + '/' + tmdbEpisode.still_path.replace(/^\/+/, '')
         : undefined;
-      // A series backdrop is an allowed non-poster fallback when the exact episode has no still.
-      const artworkImage = still || (match.backdrop_path
-        ? TMDB_BACKDROP + '/' + match.backdrop_path.replace(/^\/+/, '')
-        : undefined);
+      // Never reuse a series-level backdrop as an episode still: missing stills stay missing.
+      const artworkImage = still;
       const episodeName = typeof tmdbEpisode.name === 'string' ? tmdbEpisode.name.trim() : '';
       const overview = typeof tmdbEpisode.overview === 'string' ? tmdbEpisode.overview.trim() : '';
       const runtime = Number.isSafeInteger(tmdbEpisode.runtime) && (tmdbEpisode.runtime ?? 0) > 0
