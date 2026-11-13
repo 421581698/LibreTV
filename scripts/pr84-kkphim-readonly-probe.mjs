@@ -108,7 +108,9 @@ async function getManifest(rawUrl) {
   const { url, response } = await getResponse(rawUrl, { accept: "application/vnd.apple.mpegurl, application/x-mpegURL, */*", stage: "manifest" });
   const bytes = await readLimited(response, MAX_MANIFEST_BYTES, { stage: "manifest", url: rawUrl });
   const text = bytes.toString("utf8");
-  if (!text.trimStart().startsWith("#EXTM3U")) throw new Error("Response is not an HLS manifest");
+  if (!text.trimStart().startsWith("#EXTM3U")) {
+    throw probeError("Response is not an HLS manifest", "manifest-content", rawUrl, response);
+  }
   return { url, status: response.status, contentType: response.headers.get("content-type") || "", text };
 }
 
@@ -135,7 +137,7 @@ async function verifyManifestAndSegment(rawUrl) {
   const segmentUrl = new URL(segmentLine.trim(), manifest.url).toString();
   const { response } = await getResponse(segmentUrl, { range: "bytes=0-65535", stage: "segment" });
   const bytes = await readLimited(response, MAX_SEGMENT_BYTES, { stage: "segment", url: segmentUrl });
-  if (!bytes.length) throw new Error("HLS segment response was empty");
+  if (!bytes.length) throw probeError("HLS segment response was empty", "segment-content", segmentUrl, response);
   return {
     manifestStatus: manifest.status,
     manifestContentType: manifest.contentType,
