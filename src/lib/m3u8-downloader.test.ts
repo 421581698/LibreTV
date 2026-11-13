@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { decryptSegment, PauseResumeController, runDownloadJob, type DownloadJobOptions, type DownloadProgress } from './m3u8-downloader';
+import { decryptSegment, PauseResumeController, runDirectDownloadJob, runDownloadJob, type DownloadJobOptions, type DownloadProgress } from './m3u8-downloader';
 import { parseM3u8Playlist } from './m3u8-parse';
 
 const KEY = crypto.getRandomValues(new Uint8Array(16));
@@ -140,6 +140,89 @@ function jobOptions(overrides: Partial<DownloadJobOptions> = {}): DownloadJobOpt
     ...overrides,
   };
 }
+
+
+describe('runDirectDownloadJob · progressive media', () => {
+  it('按真实响应流分块写入并报告字节进度', async () => {
+    const chunks: number[] = [];
+    const progress: DownloadProgress[] = [];
+    const close = vi.fn(async () => {});
+    const target = {
+      kind: 'memory' as const,
+      write: vi.fn(async (data: Uint8Array) => { chunks.push(data.byteLength); }),
+      close,
+      abort: vi.fn(async () => {}),
+    };
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array([1, 2, 3]));
+        controller.enqueue(new Uint8Array([4, 5]));
+        controller.close();
+      },
+    });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(body, {
+      status: 200,
+      headers: { 'content-type': 'video/mp4', 'content-length': '5' },
+    })));
+    await runDirectDownloadJob(jobOptions({
+      url: 'https://cdn.example.com/episode.mp4',
+      format: 'MP4',
+      target,
+      onProgress: (entry) => progress.push(entry),
+    }));
+    expect(chunks).toEqual([3, 2]);
+    expect(close).toHaveBeenCalledOnce();
+    expect(progress.at(-1)).toMatchObject({ current: 5, total: 5, status: 'done', percentage: 100 });
+  });
+
+  it('Content-Length 缺失时仍报告已接收字节，不伪造百分比', async () => {
+    const progress: DownloadProgress[] = [];
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(new Uint8Array([1, 2, 3]), {
+      headers: { 'content-type': 'video/mp4' },
+    })));
+    await runDirectDownloadJob(jobOptions({
+      url: 'https://cdn.example.com/episode.mp4',
+      format: 'MP4',
+      onProgress: (entry) => progress.push(entry),
+    }));
+    expect(progress.some((entry) => entry.current === 3 && entry.total === 0 && entry.status === 'downloading')).toBe(true);
+    expect(progress.at(-1)).toMatchObject({ current: 3, total: 3, status: 'done', percentage: 100 });
+  });
+
+  it.each([403, 404])('HTTP %s 记录为下载失败', async (status) => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status })));
+    await expect(runDirectDownloadJob(jobOptions({
+      url: 'https://cdn.example.com/episode.mp4',
+      format: 'MP4',
+    }))).rejects.toThrow(`视频源返回 HTTP ${status}`);
+  });
+
+  it('拒绝 HTML 错误页，不把它保存成视频', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('<html>blocked</html>', {
+      headers: { 'content-type': 'text/html' },
+    })));
+    await expect(runDirectDownloadJob(jobOptions({
+      url: 'https://cdn.example.com/episode.mp4',
+      format: 'MP4',
+    }))).rejects.toThrow('来源返回的不是视频文件');
+  });
+
+  it('响应流网络中断时失败并清理 reader', async () => {
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array([1, 2]));
+        controller.error(new TypeError('network interrupted'));
+      },
+    });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(body, {
+      headers: { 'content-type': 'video/mp4' },
+    })));
+    await expect(runDirectDownloadJob(jobOptions({
+      url: 'https://cdn.example.com/episode.mp4',
+      format: 'MP4',
+    }))).rejects.toThrow('network interrupted');
+  });
+});
 
 describe('runDownloadJob · 源站缺片与存储错误', () => {
   it('分片 404 视为确定性缺失：不重试、立即失败并提示换源', async () => {
