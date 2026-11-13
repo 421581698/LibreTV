@@ -269,15 +269,6 @@ export function MovieDetailPage() {
         </div>
       </section>
 
-      {history?.playbackPosition ? (
-        <section className="mx-auto -mt-2 max-w-6xl px-5 sm:px-10">
-          <button type="button" onClick={() => play(history.episodeIndex)} className="flex w-full items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[.06] p-4 text-left backdrop-blur-xl">
-            <span><span className="block text-sm font-medium">继续观看</span><span className="mt-1 block text-xs text-white/55">从上次进度继续 · {episodeTitle(history.episodeIndex)}</span></span>
-            <span className="text-sm text-white/70">继续播放 →</span>
-          </button>
-        </section>
-      ) : null}
-
       {!isMovie && episodes.length > 0 && (
         <section className="mx-auto max-w-6xl px-5 pb-12 pt-10 sm:px-10" aria-labelledby="movie-episode-heading">
           <div className="mb-5 flex items-end justify-between gap-4">
@@ -287,7 +278,7 @@ export function MovieDetailPage() {
             </div>
             <span className="text-xs text-white/50">共 {episodes.length} 集</span>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="flex flex-col gap-3">
             {episodes.map((episodeUrl, index) => {
               const item = episodeItems[index];
               const titleText = episodeDisplayTitle(index) || episodeNumberLabel(index) || episodeTitle(index);
@@ -297,10 +288,10 @@ export function MovieDetailPage() {
                   key={item?.url || episodeUrl || index}
                   type="button"
                   onClick={() => play(index)}
-                  className="group overflow-hidden rounded-2xl border border-white/10 bg-white/[.045] text-left transition hover:border-white/25 hover:bg-white/[.075]"
+                  className="group flex w-full flex-row items-stretch overflow-hidden rounded-2xl border border-white/10 bg-white/[.045] text-left transition hover:border-white/25 hover:bg-white/[.075]"
                   aria-label={`播放${titleText}`}
                 >
-                  <div className="relative aspect-video overflow-hidden bg-white/[.06]">
+                  <div className="relative aspect-video w-[38%] min-w-[118px] max-w-[220px] shrink-0 self-center overflow-hidden bg-white/[.06]">
                     {item?.image ? (
                       <SmartImage
                         url={item.image}
@@ -322,7 +313,7 @@ export function MovieDetailPage() {
                     )}
                     <span className="absolute right-3 top-3 rounded-full bg-black/65 px-2 py-1 text-[10px] text-white/85">{episodeNumberLabel(index) || `第 ${index + 1} 集`}</span>
                   </div>
-                  <div className="p-4">
+                  <div className="min-w-0 flex-1 self-center p-3 sm:p-4">
                     <h3 className="truncate text-sm font-semibold text-white">{titleText}</h3>
                     {detailText ? (
                       <p className="mt-2 line-clamp-2 text-xs leading-5 text-white/55">{detailText}</p>
