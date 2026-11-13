@@ -24,7 +24,8 @@ export function MobileTabBar() {
   const pathname = usePathname();
   const normalized = !pathname || pathname === '/' ? '/' : pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
   const activeTab =
-    normalized === '/' || normalized === '/detail' || normalized.startsWith('/detail/') ? '/' :
+    normalized === '/' || normalized === '/detail' || normalized.startsWith('/detail/') ||
+    normalized === '/watch' || normalized.startsWith('/watch/') ? '/' :
     normalized === '/search' || normalized.startsWith('/search/') ? '/search' :
     normalized === '/settings' || normalized.startsWith('/settings/') ? '/settings' :
     normalized === '/me' || normalized.startsWith('/me/') ||
