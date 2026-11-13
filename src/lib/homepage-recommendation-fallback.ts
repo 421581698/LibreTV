@@ -12,7 +12,8 @@ export async function fetchHomepageWithFallback(
   let primaryError: unknown;
   try {
     const result = await primary();
-    if (result.items.length > 0) return result;
+    const visibleItems = result.items.filter((item) => item.title?.trim() && item.cover?.trim());
+    if (visibleItems.length > 0) return { ...result, items: visibleItems };
   } catch (error) {
     if (signal?.aborted) throw error;
     primaryError = error;
@@ -20,7 +21,8 @@ export async function fetchHomepageWithFallback(
 
   try {
     const result = await fallback();
-    if (result.items.length > 0) return result;
+    const visibleItems = result.items.filter((item) => item.title?.trim() && item.cover?.trim());
+    if (visibleItems.length > 0) return { ...result, items: visibleItems };
   } catch (error) {
     if (signal?.aborted) throw error;
     const detail = error instanceof Error ? error.message : String(error);
