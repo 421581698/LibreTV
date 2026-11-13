@@ -21,9 +21,9 @@ const MAX_JSON_BYTES = 2 * 1024 * 1024;
 const MAX_HTML_BYTES = 512 * 1024;
 const MAX_MANIFEST_BYTES = 512 * 1024;
 const MAX_SEGMENT_BYTES = 1024 * 1024;
-const MAX_HOME_PAGES = 2;
-const MAX_MOVIES = 12;
-const MAX_LINKS = 72;
+const MAX_HOME_PAGES = 4;
+const MAX_MOVIES = 24;
+const MAX_LINKS = 144;
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36";
 
 function isPublicAddress(address) {
@@ -202,7 +202,7 @@ async function captureDynamicEmbedMedia(rawUrl) {
   // requests. Never solve challenges, authenticate, fetch DRM keys, or decrypt.
   const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
   const captured = new Set();
-  const pageDiagnostics = { requestCount: 0, playControlClicked: false, title: null, blockedByAccessGate: false };
+  const pageDiagnostics = { requestCount: 0, playControlClicked: false, title: null, blockedByAccessGate: false, mediaResponses: [] };
   try {
     const page = await browser.newPage({ userAgent: UA });
     await page.route("**/*", async (route) => {
@@ -223,7 +223,16 @@ async function captureDynamicEmbedMedia(rawUrl) {
       pageDiagnostics.requestCount++;
       record(request.url());
     });
-    page.on("response", (response) => record(response.url()));
+    page.on("response", (response) => {
+      record(response.url());
+      if (/\.(?:m3u8|mpd)(?:$|\?)/i.test(response.url())) {
+        pageDiagnostics.mediaResponses.push({
+          url: summarizeMediaUrl(response.url()),
+          status: response.status(),
+          contentType: response.headers()["content-type"]?.split(";")[0]?.trim() || null,
+        });
+      }
+    });
     await page.goto(rawUrl, { waitUntil: "domcontentloaded", timeout: 20000 });
     await page.waitForTimeout(5000);
     pageDiagnostics.title = await page.title().catch(() => null);
@@ -388,7 +397,7 @@ async function verifyCandidate(candidate) {
     if (pageResult) return pageResult;
     // Static HTML often contains an expired or stale m3u8. Execute the player
     // and capture the media URL it actually requests at runtime instead.
-    if (link.url && dynamicEmbedAttempts < 12) {
+    if (link.url && dynamicEmbedAttempts < 24) {
       dynamicEmbedAttempts++;
       try {
         const dynamic = await captureDynamicEmbedMedia(link.url);
