@@ -60,7 +60,8 @@ describe('KKPhim adapter', () => {
         }],
       }],
     });
-    expect(detail?.episodes).toEqual(['Vietsub · 第1集$https://media.example/1.m3u8']);
+    expect(detail?.episodes).toEqual(['https://media.example/1.m3u8']);
+    expect(detail?.episodeLabels).toEqual(['Vietsub · 第1集']);
     expect(detail?.videoInfo).toMatchObject({
       sourceKey: 'kkphim',
       title: '示例剧集',
@@ -80,6 +81,7 @@ describe('KKPhim adapter', () => {
         ],
       }],
     });
-    expect(detail?.episodes).toEqual(['KKPhim · 第1集$https://player.example/1']);
+    expect(detail?.episodes).toEqual(['https://player.example/1']);
+    expect(detail?.episodeLabels).toEqual(['KKPhim · 第1集']);
   });
 });
