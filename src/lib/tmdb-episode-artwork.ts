@@ -147,6 +147,11 @@ export async function enrichEpisodesWithTmdbArtwork(
         typeof candidate === 'string' && normalizedAliases.has(normalizeTitle(candidate))),
     );
     let candidates = titleMatches(strictResults);
+    if (year) {
+      candidates = candidates.filter((item) =>
+        typeof item.first_air_date === 'string' && item.first_air_date.startsWith(year + '-'),
+      );
+    }
     if (candidates.length === 0 && year) {
       candidates = titleMatches((await Promise.all(aliases.map((alias) => search(alias, false)))).flat());
     }
