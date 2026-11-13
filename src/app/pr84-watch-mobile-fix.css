@@ -206,6 +206,8 @@
 }
 
 /* Thin streaming-style timeline with a clear white playhead. */
+.netflix-player-frame .artplayer .art-progress,
+.netflix-player-frame .art-video-player .art-progress,
 .netflix-player-frame .artplayer .art-progress-bar,
 .netflix-player-frame .art-video-player .art-progress-bar {
   height: 2px !important;
@@ -314,6 +316,8 @@ html:has(.netflix-watch) .player-quality-badge {
   -webkit-backdrop-filter: blur(10px) !important;
   backdrop-filter: blur(10px) !important;
 }
+html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress,
+html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress,
 html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress-bar,
 html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress-bar {
   height: 2px !important;
