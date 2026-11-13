@@ -30,6 +30,8 @@ export interface VideoInfo {
   /** Original-language title supplied by the CMS when available. */
   originalTitle?: string;
   cover?: string;
+  /** Wide cinematic artwork, distinct from the vertical title poster. */
+  backdrop?: string;
   desc?: string;
   typeName?: string;
   year?: string;
