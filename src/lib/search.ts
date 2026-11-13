@@ -5,6 +5,7 @@ import type {
   SourceConfig,
   SourceSearchOutcome,
 } from '@/lib/types';
+import { KKPHIM_API_ORIGIN, KKPHIM_SOURCE_KEY, parseKkphimSearch } from '@/lib/kkphim';
 
 const MAX_KEYWORD_LENGTH = 50;
 const MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
@@ -284,6 +285,39 @@ async function fetchFromSource(
   }, SEARCH_TIMEOUT_MS);
 
   try {
+    if (source.key === KKPHIM_SOURCE_KEY) {
+      const targetUrl = new URL('/v1/api/tim-kiem', KKPHIM_API_ORIGIN);
+      targetUrl.searchParams.set('keyword', keyword);
+      const response = await fetchUpstream(targetUrl.toString(), {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+          'User-Agent': 'LibreTV-KKPhim-Search/1.0',
+        },
+        signal: controller.signal,
+        cache: 'no-store',
+        timeoutMs: SEARCH_TIMEOUT_MS,
+        retries: 0,
+        safeRedirects: true,
+        allowPrivate: false,
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const text = await readLimitedResponse(response, controller.signal);
+      let payload: unknown;
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        throw new Error('KKPhim 返回的不是有效 JSON');
+      }
+      const list = parseKkphimSearch(payload).slice(0, MAX_RESULTS_PER_SOURCE);
+      return {
+        sourceKey: source.key,
+        ok: true,
+        list,
+        ms: Date.now() - startedAt,
+      };
+    }
+
     const targetUrl = buildSearchUrl(
       source.url,
       keyword,

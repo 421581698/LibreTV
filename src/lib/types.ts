@@ -42,6 +42,10 @@ export interface VideoInfo {
 
 export interface VideoDetail {
   episodes: string[];
+  /** Optional provider-supplied episode names aligned with episodes; playback entries remain plain URLs. */
+  episodeLabels?: string[];
+  /** Optional per-episode still URLs; absent entries use the title poster as a visual fallback. */
+  episodeImages?: Array<string | undefined>;
   videoInfo: VideoInfo;
 }
 
@@ -98,12 +102,16 @@ export interface QualityEntry {
 export interface QualityProbeItem {
   source: SourceConfig;
   id: string;
+  /** Optional zero-based episode index for per-episode quality checks. */
+  episodeIndex?: number;
 }
 
 /** 画质探测结果；height 缺失代表「测不出」而非失败失败（error 有值时才是失败） */
 export interface QualityProbeResult {
   sourceKey: string;
   vodId: string;
+  /** Present when the result belongs to one specific episode. */
+  episodeIndex?: number;
   height?: number;
   error?: string;
   /** Server-side per-item duration, including host-gate wait and probe work. */

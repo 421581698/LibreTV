@@ -5,7 +5,6 @@ import {
   compareQualityEvidence,
   describeQualityBadge,
   failureReasonLabel,
-  inferHeightFromBitrate,
   isQualityEntryFresh,
   isRetryableTimeout,
   mergeQualityEntries,
@@ -94,12 +93,12 @@ describe('parseBestHeight', () => {
     expect(parseBestHeight(MASTER)).toBe(1080);
   });
 
-  it('只有 BANDWIDTH 的档位按转码参数反推高度', () => {
+  it('只有 BANDWIDTH 的档位保持未知：码率不能证明分辨率', () => {
     const text = `#EXTM3U
 #EXT-X-STREAM-INF:BANDWIDTH=6000000
 only-bandwidth.m3u8
 `;
-    expect(parseBestHeight(text)).toBe(inferHeightFromBitrate(6_000_000));
+    expect(parseBestHeight(text)).toBeUndefined();
   });
 
   it('单码率媒体列表没有 STREAM-INF，返回 undefined 而非猜一个档位', () => {

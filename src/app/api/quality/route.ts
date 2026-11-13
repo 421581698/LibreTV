@@ -42,15 +42,21 @@ function isTransientProbeError(error?: string): boolean {
 
 function isProbeItem(v: unknown): v is QualityProbeItem {
   if (!v || typeof v !== 'object') return false;
-  const item = v as { source?: unknown; id?: unknown };
+  const item = v as { source?: unknown; id?: unknown; episodeIndex?: unknown };
   if (!item.source || typeof item.source !== 'object') return false;
   const source = item.source as Record<string, unknown>;
   if (typeof source.key !== 'string' || typeof source.url !== 'string') return false;
-  return typeof item.id === 'string' && item.id.length > 0 && item.id.length <= 64;
+  const validId = typeof item.id === 'string' && item.id.length > 0 &&
+    (source.key === 'kkphim'
+      ? item.id.length <= 180 && /^[\p{L}\p{N}._-]+$/u.test(item.id)
+      : item.id.length <= 64);
+  const validEpisode = item.episodeIndex === undefined ||
+    (Number.isInteger(item.episodeIndex) && (item.episodeIndex as number) >= 0 && (item.episodeIndex as number) < 500);
+  return validId && validEpisode;
 }
 
 function cacheKey(item: QualityProbeItem): string {
-  return `quality:${item.source.url.replace(/\/+$/, '')}|${item.source.detail ?? ''}|${item.id}`;
+  return `quality:${item.source.url.replace(/\/+$/, '')}|${item.source.detail ?? ''}|${item.id}|episode:${item.episodeIndex ?? 'sample'}`;
 }
 
 /** 定长并发池：逐个取任务，worker 内部自行兜住异常 */

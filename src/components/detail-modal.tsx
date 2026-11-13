@@ -394,6 +394,7 @@ export function DetailModal({
                       const realIndex = reversed
                         ? detail.episodes.length - 1 - index
                         : index;
+                      const episodeImage = detail.episodeImages?.[realIndex] || info?.cover || item.pic;
 
                       return (
                         <button
@@ -401,7 +402,16 @@ export function DetailModal({
                           className="btn-ghost btn-sm !px-1 text-center"
                           onClick={() => play(realIndex)}
                         >
-                          {realIndex + 1}
+                          <span className="flex flex-col gap-1">
+                            <span className="block aspect-video w-full overflow-hidden rounded-md bg-black/10">
+                              {episodeImage ? (
+                                <SmartImage url={episodeImage} mode="direct" alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="flex h-full items-center justify-center text-[10px] text-faint">暂无剧照</span>
+                              )}
+                            </span>
+                            <span className="block truncate">{detail.episodeLabels?.[realIndex] || `第 ${realIndex + 1} 集`}</span>
+                          </span>
                         </button>
                       );
                     })}

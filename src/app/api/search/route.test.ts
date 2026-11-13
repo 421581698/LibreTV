@@ -41,6 +41,9 @@ function mockUpstream(): void {
     if (url.includes('cms-b.example')) {
       return new Response('server error', { status: 500 });
     }
+    if (url.includes('phimapi.com/v1/api/tim-kiem')) {
+      return new Response(JSON.stringify({ data: { items: [] } }), { status: 200, headers: { 'content-type': 'application/json' } });
+    }
     return new Response('not found', { status: 404 });
   });
   vi.stubGlobal('fetch', fn);
@@ -100,7 +103,13 @@ describe('POST /api/search', () => {
   });
 
   it('内网字面量地址在发起请求前被 SSRF 校验拒绝', async () => {
-    const fetchSpy = vi.fn();
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      const target = String(input);
+      if (target.includes('phimapi.com/v1/api/tim-kiem')) {
+        return new Response(JSON.stringify({ data: { items: [] } }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+      return new Response('blocked', { status: 500 });
+    });
     vi.stubGlobal('fetch', fetchSpy);
     const res = await POST(
       makeRequest({
@@ -111,8 +120,8 @@ describe('POST /api/search', () => {
     );
     const data = (await res.json()) as { failures: Array<{ sourceKey: string; error: string }> };
     expect(data.failures[0]?.sourceKey).toBe('evil');
-    // 上游一次请求都不应发生
-    expect(fetchSpy).not.toHaveBeenCalled();
+    // 固定 KKPhim 公共源可以请求；恶意内网地址绝不能被请求。
+    expect(fetchSpy.mock.calls.some(([input]) => String(input).includes('192.168.1.100'))).toBe(false);
   });
 
   it('stream=1 以 NDJSON 逐源推送并以 done 事件收尾', async () => {
@@ -130,7 +139,7 @@ describe('POST /api/search', () => {
     const sources = lines.filter((l) => l.type === 'source');
     const done = lines.filter((l) => l.type === 'done');
     // 每个源恰好一条 source 事件（含失败的源B），最后一条是 done
-    expect(sources.map((l) => l.sourceKey).sort()).toEqual(['a', 'b']);
+    expect(sources.map((l) => l.sourceKey).sort()).toEqual(['a', 'b', 'kkphim']);
     expect(done).toHaveLength(1);
     expect(lines[lines.length - 1].type).toBe('done');
   });
@@ -141,6 +150,7 @@ describe('POST /api/search', () => {
       { key: 'bad', name: '失败源', url: `https://cms.example.com/failed-${filterAdult}` },
     ];
     const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes('phimapi.com/v1/api/tim-kiem')) return new Response(JSON.stringify({ data: { items: [] } }), { headers: { 'content-type': 'application/json' } });
       if (String(input).includes('/failed-')) return new Response('unavailable', { status: 500 });
       return new Response(cmsList([
         { vod_id: 1, vod_name: '赛博朋克：边缘行者第二季', type_name: '动漫' },
@@ -181,20 +191,24 @@ describe('POST /api/search', () => {
   });
 
   it('没有相关结果时，各响应模式均保留空列表', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(cmsList([
-      { vod_id: 1, vod_name: '10月17日德甲联赛', type_name: '足球' },
-      { vod_id: 2, vod_name: '', type_name: '动漫' },
-    ]))));
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes('phimapi.com/v1/api/tim-kiem')) return new Response(JSON.stringify({ data: { items: [] } }), { headers: { 'content-type': 'application/json' } });
+      return new Response(cmsList([
+        { vod_id: 1, vod_name: '10月17日德甲联赛', type_name: '足球' },
+        { vod_id: 2, vod_name: '', type_name: '动漫' },
+      ]));
+    }));
     const body = {
       wd: '赛博朋克：边缘行者 2',
       sources: [{ key: 'empty', name: '不相关源', url: 'https://cms.example.com/no-relevant-results' }],
     };
     const res = await POST(makeRequest(body, true));
     const events = (await res.text()).trim().split('\n').map((line) => JSON.parse(line) as SearchStreamEvent);
-    expect(events).toHaveLength(2);
+    expect(events).toHaveLength(3);
     for (const event of events) expect(event.list).toEqual([]);
+    expect(events.filter((event) => event.type === 'source')).toHaveLength(2);
     expect(events[0]).toMatchObject({ type: 'source', ok: true });
-    expect(events[1]).toMatchObject({ type: 'done', failures: [] });
+    expect(events[2]).toMatchObject({ type: 'done', failures: [] });
     const cached = await POST(makeRequest(body));
     expect(await cached.json()).toEqual({ list: [], failures: [] });
     const cachedStream = await POST(makeRequest(body, true));

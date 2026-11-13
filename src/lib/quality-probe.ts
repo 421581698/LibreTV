@@ -6,8 +6,8 @@ import {
 } from './codec-parse';
 import { cmsRequestHeaders, parseDetail, parseDetailPageHtml } from './cms-parser';
 import { fetchUpstream } from './fetch-utils';
-import { inferHeightFromBitrate } from './quality';
 import { checkUpstreamAllowed } from './ssrf';
+import { KKPHIM_API_ORIGIN, KKPHIM_SOURCE_KEY, parseKkphimDetail } from './kkphim';
 import type { QualityProbeItem, QualityProbeResult, SourceConfig } from './types';
 
 /**
@@ -54,16 +54,13 @@ const SEGMENT_BUDGET_MS = 4000;
 export function parseBestHeight(text: string): number | undefined {
   if (!text.includes('#EXT-X-STREAM-INF')) return undefined;
   let best: number | undefined;
-  let pending: { bandwidth: number; height?: number } | undefined;
+  let pending: { height?: number } | undefined;
   for (const raw of text.split('\n')) {
     const line = raw.trim();
     if (line.startsWith('#EXT-X-STREAM-INF')) {
-      const bandwidth = parseInt(line.match(/BANDWIDTH=(\d+)/)?.[1] || '0', 10);
       const resolution = line.match(/RESOLUTION=(\d+)x(\d+)/);
-      // 取短边而非第二个数字：档位本就按短边定义（720P = 1280×720 的 720），
-      // 采集站常把宽高写反（如把 1280×720 写成 720x1280），按 height 取会得到 1280 → 标成 2K
+      // 只认播放列表明确声明的像素尺寸；码率不能单独证明分辨率。
       pending = {
-        bandwidth,
         height: resolution
           ? Math.min(parseInt(resolution[1], 10), parseInt(resolution[2], 10))
           : undefined,
@@ -71,8 +68,8 @@ export function parseBestHeight(text: string): number | undefined {
       continue;
     }
     if (!line || line.startsWith('#') || !pending) continue;
-    // 只有 BANDWIDTH 的源站按常见转码参数反推高度，与播放器的档位命名口径一致
-    const height = pending.height ?? (pending.bandwidth > 0 ? inferHeightFromBitrate(pending.bandwidth) : undefined);
+    // 没有 RESOLUTION 时保持未知；不能从码率猜测分辨率。
+    const height = pending.height;
     if (height && (best === undefined || height > best)) best = height;
     pending = undefined;
   }
@@ -302,8 +299,76 @@ async function probeSegmentResolution(
   return parseTsVideoResolution(buf)?.height;
 }
 
+/** Read provider JSON under a hard streamed byte limit; Content-Length is not trusted alone. */
+async function readLimitedProviderJson(response: Response, maxBytes: number): Promise<unknown> {
+  if (!response.body) throw new Error('KKPhim 详情响应为空');
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let bytes = 0;
+  let text = '';
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        throw new Error('KKPhim 详情响应超过安全上限');
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+    text += decoder.decode();
+    return JSON.parse(text) as unknown;
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+/** Extract playable URLs from KKPhim's server/episode-labelled adapter strings. */
+export function extractKkphimEpisodeUrls(episodes: string[]): string[] {
+  return episodes.map((episode) => {
+    const separator = episode.indexOf(String.fromCharCode(36));
+    return separator >= 0 ? episode.slice(separator + 1) : episode;
+  }).filter((url) => /^https:\/\//i.test(url));
+}
+
+/** KKPhim per-episode probing shares one detail lookup across the episode batch. */
+const KKPHIM_EPISODE_CACHE_TTL_MS = 60_000;
+const KKPHIM_EPISODE_CACHE_MAX = 100;
+const kkphimEpisodeCache = new Map<string, { episodes: string[]; expiresAt: number }>();
+
 /** 取影片的播放地址列表（与 /api/detail 同逻辑：列表接口优先，拿不到再爬详情页） */
 async function fetchEpisodes(source: SourceConfig, id: string, signal: AbortSignal, metrics: ProbeMetrics): Promise<string[]> {
+  // KKPhim is a fixed-origin provider, not an Apple CMS source.
+  if (source.key === KKPHIM_SOURCE_KEY) {
+    const cached = kkphimEpisodeCache.get(id);
+    if (cached && cached.expiresAt > Date.now()) return cached.episodes;
+    if (cached) kkphimEpisodeCache.delete(id);
+    const endpoint = new URL(`/phim/${encodeURIComponent(id)}`, KKPHIM_API_ORIGIN).toString();
+    const verdict = await checkUpstreamAllowed(KKPHIM_API_ORIGIN);
+    if (!verdict.ok) return [];
+    const response = await fetchMeasuredUpstream(endpoint, {
+      timeoutMs: 6000,
+      headers: { Accept: 'application/json', 'User-Agent': 'LibreTV-Quality-Probe/1.0' },
+      signal,
+      safeRedirects: true,
+      allowPrivate: false,
+    }, metrics);
+    if (!response.ok) return [];
+    const declaredLength = Number(response.headers.get('content-length') || 0);
+    if (declaredLength > 4 * 1024 * 1024) return [];
+    const detail = parseKkphimDetail(await readLimitedProviderJson(response, 4 * 1024 * 1024));
+    const episodes = extractKkphimEpisodeUrls(detail?.episodes ?? []);
+    if (episodes.length > 0) {
+      kkphimEpisodeCache.set(id, { episodes, expiresAt: Date.now() + KKPHIM_EPISODE_CACHE_TTL_MS });
+      while (kkphimEpisodeCache.size > KKPHIM_EPISODE_CACHE_MAX) {
+        const oldest = kkphimEpisodeCache.keys().next().value;
+        if (oldest === undefined) break;
+        kkphimEpisodeCache.delete(oldest);
+      }
+    }
+    return episodes;
+  }
   const api = `${source.url.replace(/\/+$/, '')}?ac=videolist&ids=${encodeURIComponent(id)}`;
   const res = await fetchMeasuredUpstream(api, { timeoutMs: 6000, headers: cmsRequestHeaders(), signal }, metrics);
   if (res.ok) {
@@ -383,8 +448,8 @@ async function probeEpisode(
  * 失败时带 error，前端据此区分「未知」与「探测失败」两种状态。
  */
 export async function probeQuality(item: QualityProbeItem, signal?: AbortSignal): Promise<QualityProbeResult> {
-  const { source, id } = item;
-  const base: QualityProbeResult = { sourceKey: source.key, vodId: id };
+  const { source, id, episodeIndex } = item;
+  const base: QualityProbeResult = { sourceKey: source.key, vodId: id, ...(episodeIndex === undefined ? {} : { episodeIndex }) };
   const metrics: ProbeMetrics = { upstreamRequestMs: 0, upstreamRequestCount: 0 };
   const withMetrics = (result: QualityProbeResult): QualityProbeResult => ({
     ...result,
@@ -393,10 +458,14 @@ export async function probeQuality(item: QualityProbeItem, signal?: AbortSignal)
     ...(metrics.originTtfbMs === undefined ? {} : { originTtfbMs: metrics.originTtfbMs }),
   });
 
-  if (!/^https?:\/\//.test(source.url || '') || !/^[\w-]+$/.test(id)) {
+  const probeOrigin = source.key === KKPHIM_SOURCE_KEY ? KKPHIM_API_ORIGIN : source.url;
+  const validId = source.key === KKPHIM_SOURCE_KEY
+    ? /^[\p{L}\p{N}._-]{1,180}$/u.test(id)
+    : /^[\w-]+$/.test(id);
+  if (!/^https?:\/\//.test(probeOrigin || '') || !validId) {
     return withMetrics({ ...base, error: '无效的源或影片 ID' });
   }
-  const verdict = await checkUpstreamAllowed(source.url);
+  const verdict = await checkUpstreamAllowed(probeOrigin);
   if (!verdict.ok) return withMetrics({ ...base, error: verdict.reason });
 
   const controller = new AbortController();
@@ -409,9 +478,13 @@ export async function probeQuality(item: QualityProbeItem, signal?: AbortSignal)
     const episodes = await fetchEpisodes(source, id, merged, metrics);
     if (episodes.length === 0) return withMetrics({ ...base, error: '未找到播放资源' });
 
+    if (episodeIndex !== undefined && (!Number.isInteger(episodeIndex) || episodeIndex < 0 || episodeIndex >= episodes.length)) {
+      return withMetrics({ ...base, error: '指定分集不存在' });
+    }
+    const targets = episodeIndex === undefined ? probeEpisodeOrder(episodes) : [episodes[episodeIndex]];
     const startedAt = Date.now();
     let lastError: string | undefined;
-    for (const target of probeEpisodeOrder(episodes)) {
+    for (const target of targets) {
       const r = await probeEpisode(target, source, merged, signal, metrics);
       if (r.height !== undefined) return withMetrics({ ...base, height: r.height });
       if (r.error) lastError = r.error;
