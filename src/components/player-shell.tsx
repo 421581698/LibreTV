@@ -343,6 +343,37 @@ export function PlayerShell({
   const restoredRef = useRef(false);
   // 某些 HLS 源在 MANIFEST_PARSED 时 duration 仍未就绪，延迟到媒体元数据可用后恢复
   const restoreCleanupRef = useRef<(() => void) | null>(null);
+  const metadataWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearMetadataWatchdog = () => {
+    if (metadataWatchdogRef.current) clearTimeout(metadataWatchdogRef.current);
+    metadataWatchdogRef.current = null;
+  };
+  const armMetadataWatchdog = (video: HTMLVideoElement, mediaUrl: string) => {
+    clearMetadataWatchdog();
+    metadataWatchdogRef.current = setTimeout(() => {
+      metadataWatchdogRef.current = null;
+      if (video.readyState >= HTMLMediaElement.HAVE_METADATA) return;
+      const mediaError = video.error;
+      const errorMessage = mediaError?.code === MediaError.MEDIA_ERR_NETWORK
+        ? '视频地址或媒体分片请求失败，请更换播放源'
+        : mediaError?.code === MediaError.MEDIA_ERR_DECODE
+          ? '媒体解码失败，请尝试其他播放源或格式'
+          : mediaError?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED
+            ? '播放源无效或格式不受支持，请更换播放源'
+            : video.networkState === HTMLMediaElement.NETWORK_NO_SOURCE
+              ? '没有取得有效媒体地址，请更换播放源'
+              : '媒体元数据加载超时，请检查播放源或网络后重试';
+      setError(errorMessage);
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('[LibreTV player] metadata timeout', {
+          mediaUrl,
+          readyState: video.readyState,
+          networkState: video.networkState,
+          errorCode: mediaError?.code ?? null,
+        });
+      }
+    }, 30_000);
+  };
   // setupHls 可能改走代理形式，video:error 重试要用最近一次的地址
   const currentMediaUrlRef = useRef(url);
   // 本集的恢复策略实例：跨直连/代理两级重建共享计数
@@ -499,15 +530,12 @@ export function PlayerShell({
     hlsRef.current?.destroy();
     hlsRef.current = null;
     const mediaKind = getMediaPlaybackKind(mediaUrl, propsRef.current.mediaType);
-    if (mediaKind === 'mp4' || mediaKind === 'webm') {
-      setupDirectMedia(video, mediaUrl);
-      return;
-    }
-    if (mediaKind === 'unsupported') {
-      setError('当前媒体格式尚未接入播放器，请选择 HLS、MP4 或 WebM 资源');
+    if (mediaKind !== 'mp4' && mediaKind !== 'webm') {
+      setError('当前直链格式无效，请选择 HLS、MP4 或 WebM 资源');
       return;
     }
     currentMediaUrlRef.current = mediaUrl;
+    armMetadataWatchdog(video, mediaUrl);
     // Native progressive playback does not need fetch CORS; forcing crossorigin=anonymous
     // can make otherwise public media fail when the host omits Access-Control-Allow-Origin.
     video.removeAttribute('crossorigin');
@@ -618,6 +646,7 @@ export function PlayerShell({
       return;
     }
 
+    armMetadataWatchdog(video, mediaUrl);
     const nativeHls = !Hls.isSupported();
     if (nativeHls && !video.canPlayType('application/vnd.apple.mpegurl')) {
       setError('当前浏览器既不支持 hls.js，也不支持原生 HLS 播放');
@@ -1056,8 +1085,14 @@ export function PlayerShell({
         reportQuality(height);
       }
     };
-    art.on('video:loadedmetadata', reportVideoHeight);
-    art.on('video:canplay', reportVideoHeight);
+    art.on('video:loadedmetadata', () => {
+      clearMetadataWatchdog();
+      reportVideoHeight();
+    });
+    art.on('video:canplay', () => {
+      clearMetadataWatchdog();
+      reportVideoHeight();
+    });
     // resize 不在 ArtPlayer 的视频事件转发表里，直接挂原生事件
     art.video?.addEventListener('resize', reportVideoHeight);
 
@@ -1387,6 +1422,7 @@ export function PlayerShell({
       nativeFullscreenCleanupRef.current?.();
       nativeFullscreenCleanupRef.current = null;
       if (playbackConfirmationTimerRef.current) clearTimeout(playbackConfirmationTimerRef.current);
+      clearMetadataWatchdog();
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
       el?.removeEventListener('touchstart', onTouchStart);
       el?.removeEventListener('touchend', onTouchEnd);
