@@ -251,6 +251,87 @@ function isMixedContentBlocked(target: string): boolean {
 }
 
 /**
+ * Download a single progressive media file (MP4/WebM/MKV, etc.) through the same
+ * task lifecycle as HLS. Progress is measured in bytes; when Content-Length is
+ * absent the UI still receives the number of bytes written without inventing a
+ * percentage. Browser CORS policy remains authoritative.
+ */
+export async function runDirectDownloadJob(opts: DownloadJobOptions): Promise<void> {
+  const { url, signal, pause, onProgress, target } = opts;
+  const report = (current: number, total: number, status: DownloadProgress['status'], message?: string) => {
+    onProgress({ current, total, percentage: total > 0 ? Math.min(100, Math.round((current / total) * 100)) : 0, status, message });
+  };
+
+  report(0, 0, 'validating');
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url, typeof location === 'undefined' ? 'https://libretv.invalid' : location.href);
+  } catch {
+    throw new Error('下载地址无效');
+  }
+  if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') {
+    throw new Error('仅支持 HTTP(S) 视频地址');
+  }
+  if (typeof location !== 'undefined' && location.protocol === 'https:' && parsedUrl.protocol === 'http:') {
+    throw new Error('该来源是 HTTP 地址，HTTPS 页面无法直连下载（混合内容被拦截），请更换 HTTPS 来源');
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(parsedUrl.href, {
+      signal: AbortSignal.any([signal, AbortSignal.timeout(60_000)]),
+      headers: { Accept: 'video/*,application/octet-stream,application/mp4,*/*;q=0.5' },
+    });
+  } catch (error) {
+    if (signal.aborted) throw error;
+    if (error instanceof DOMException && error.name === 'TimeoutError') {
+      throw new Error('视频下载请求超时，请重试或更换来源');
+    }
+    throw new Error('无法直连该视频来源（可能是跨域 CORS 限制或域名不可达），请更换来源或使用支持跨域的媒体源');
+  }
+  if (!response.ok) throw new Error(`视频源返回 HTTP ${response.status}`);
+  if (!response.body) throw new Error('浏览器未提供可读取的视频数据流');
+
+  const contentType = (response.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
+  const allowedType = !contentType || contentType.startsWith('video/') ||
+    contentType === 'application/octet-stream' || contentType === 'application/mp4' ||
+    contentType === 'application/x-matroska' || contentType === 'binary/octet-stream';
+  if (!allowedType) throw new Error(`来源返回的不是视频文件（${contentType}）`);
+
+  const lengthHeader = response.headers.get('content-length');
+  const parsedLength = lengthHeader ? Number(lengthHeader) : 0;
+  const total = Number.isSafeInteger(parsedLength) && parsedLength > 0 ? parsedLength : 0;
+  let current = 0;
+  const reader = response.body.getReader();
+  report(0, total, 'downloading');
+  try {
+    while (true) {
+      if (signal.aborted) {
+        await reader.cancel().catch(() => undefined);
+        return;
+      }
+      await pause.waitIfPaused();
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value?.byteLength) continue;
+      await target.write(value);
+      current += value.byteLength;
+      report(current, total, 'downloading');
+    }
+    if (total > 0 && current !== total) {
+      throw new Error(`视频下载不完整：预期 ${total} 字节，实际收到 ${current} 字节`);
+    }
+    await target.close();
+    report(current, total || current, 'done');
+  } catch (error) {
+    await reader.cancel().catch(() => undefined);
+    throw error;
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+/**
  * 执行一次整集下载。调用方（DownloadManager）负责：
  * 在用户手势内 pickSaveTarget、构造 AbortSignal/PauseResumeController、
  * 更新 Dexie 任务状态；本函数只负责解析 → 并发下载 → 顺序写出。
