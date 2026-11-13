@@ -202,7 +202,11 @@ async function captureDynamicEmbedMedia(rawUrl) {
   // requests. Never solve challenges, authenticate, fetch DRM keys, or decrypt.
   const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
   const captured = new Set();
-  const pageDiagnostics = { requestCount: 0, playControlClicked: false, title: null, blockedByAccessGate: false, mediaResponses: [] };
+  const pageDiagnostics = {
+    requestCount: 0, requestHosts: [], failedRequests: [], scriptResponses: [],
+    playControlClicked: false, playTrigger: null, title: null,
+    blockedByAccessGate: false, mediaResponses: [], playerRuntime: null,
+  };
   try {
     const page = await browser.newPage({ userAgent: UA });
     await page.route("**/*", async (route) => {
@@ -221,11 +225,31 @@ async function captureDynamicEmbedMedia(rawUrl) {
     };
     page.on("request", (request) => {
       pageDiagnostics.requestCount++;
+      try {
+        const host = new URL(request.url()).hostname;
+        if (!pageDiagnostics.requestHosts.includes(host) && pageDiagnostics.requestHosts.length < 30) pageDiagnostics.requestHosts.push(host);
+      } catch {}
       record(request.url());
+    });
+    page.on("requestfailed", (request) => {
+      if (pageDiagnostics.failedRequests.length < 40) {
+        pageDiagnostics.failedRequests.push({
+          host: (() => { try { return new URL(request.url()).hostname; } catch { return "invalid"; } })(),
+          resourceType: request.resourceType(),
+          error: request.failure()?.errorText || "request failed",
+        });
+      }
     });
     page.on("response", (response) => {
       record(response.url());
-      if (/\.(?:m3u8|mpd)(?:$|\?)/i.test(response.url())) {
+      if (response.request().resourceType() === "script" && pageDiagnostics.scriptResponses.length < 30) {
+        pageDiagnostics.scriptResponses.push({
+          host: (() => { try { return new URL(response.url()).hostname; } catch { return "invalid"; } })(),
+          status: response.status(),
+          contentType: response.headers()["content-type"]?.split(";")[0]?.trim() || null,
+        });
+      }
+      if (/\\.(?:m3u8|mpd)(?:$|\\?)/i.test(response.url())) {
         pageDiagnostics.mediaResponses.push({
           url: summarizeMediaUrl(response.url()),
           status: response.status(),
@@ -236,12 +260,26 @@ async function captureDynamicEmbedMedia(rawUrl) {
     await page.goto(rawUrl, { waitUntil: "domcontentloaded", timeout: 20000 });
     await page.waitForTimeout(5000);
     pageDiagnostics.title = await page.title().catch(() => null);
+    pageDiagnostics.playerRuntime = await page.evaluate(() => {
+      const api = typeof window.jwplayer === "function" ? window.jwplayer() : null;
+      return {
+        jwplayerAvailable: typeof window.jwplayer === "function",
+        playerReady: Boolean(api && typeof api.getState === "function"),
+        playerState: api && typeof api.getState === "function" ? api.getState() : null,
+        videoElements: document.querySelectorAll("video").length,
+        playerElements: document.querySelectorAll(".jwplayer, [id^='jwplayer']").length,
+        playControls: [...document.querySelectorAll(".jw-display-icon-container, .jw-icon-playback, [aria-label*='Play'], video")].slice(0, 8).map((element) => ({
+          tag: element.tagName, className: String(element.className || "").slice(0, 100),
+          visible: Boolean(element.getClientRects().length),
+        })),
+      };
+    }).catch((error) => ({ probeError: String(error?.message || error).slice(0, 160) }));
     const visibleText = (await page.locator("body").innerText({ timeout: 3000 }).catch(() => "")).slice(0, 12000).toLowerCase();
     pageDiagnostics.blockedByAccessGate = /captcha|verify you are human|checking your browser|sign in|log in|subscribe to continue|机器人验证|安全验证/.test(visibleText);
     if (!pageDiagnostics.blockedByAccessGate) {
       for (const selector of [
-        "button.jw-icon-playback",
         ".jw-display-icon-container",
+        ".jw-icon-playback",
         'button[aria-label="Play"]',
         '[aria-label="Play video"]',
       ]) {
@@ -249,6 +287,7 @@ async function captureDynamicEmbedMedia(rawUrl) {
         if (await control.isVisible().catch(() => false)) {
           await control.click({ timeout: 1500 }).catch(() => {});
           pageDiagnostics.playControlClicked = true;
+          pageDiagnostics.playTrigger = selector;
           break;
         }
       }
