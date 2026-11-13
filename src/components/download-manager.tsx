@@ -132,6 +132,8 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
           toast(`《${entry.title}》下载失败：${message}`, 'error');
         })
         .finally(() => {
+          const saveTargetState = globalThis as unknown as { __dlSaveTarget?: { id: string; target: import('@/lib/download-saver').SaveTarget } };
+          if (saveTargetState.__dlSaveTarget?.id === entry.id) delete saveTargetState.__dlSaveTarget;
           running.current.delete(entry.id);
           scheduleNext();
         });
@@ -147,7 +149,10 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
       const runningCount = running.current.size;
       if (runningCount >= MAX_CONCURRENT_DOWNLOADS) return;
       const all = await db.downloads.orderBy('createdAt').toArray();
-      const waiting = all.filter((t) => (t.status === 'queued' || t.status === 'waiting') && !running.current.has(t.id));
+      const saveTargetId = (globalThis as { __dlSaveTarget?: { id: string } }).__dlSaveTarget?.id;
+      // A file handle cannot survive refresh. Do not auto-run a recovered task into
+      // the intentionally failing placeholder target; wait for the user's re-pick gesture.
+      const waiting = all.filter((t) => (t.status === 'queued' || t.status === 'waiting') && !running.current.has(t.id) && saveTargetId === t.id);
       for (const t of waiting.slice(0, MAX_CONCURRENT_DOWNLOADS - runningCount)) {
         const entry = t;
         // 队列恢复的任务没有保存目标：以内存目标启动（分片已在本地，写出快）
@@ -174,9 +179,9 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
       }
       void (async () => {
         const format = detail.format ?? 'MP4';
-        const sourceFormat: DownloadTaskEntry['sourceFormat'] = /\\.m3u8(?:$|[?#])/i.test(detail.url)
+        const sourceFormat: DownloadTaskEntry['sourceFormat'] = /\.m3u8(?:$|[?#])/i.test(detail.url)
           ? 'HLS'
-          : /\\.mp4(?:$|[?#])/i.test(detail.url) ? 'MP4' : 'OTHER';
+          : /\.mp4(?:$|[?#])/i.test(detail.url) ? 'MP4' : 'OTHER';
         const id = `dl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         const entry: DownloadTaskEntry = {
           id,
@@ -279,7 +284,7 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
       __dlSaveTarget?: { id: string; target: import('@/lib/download-saver').SaveTarget };
     };
     if (globalTarget.__dlSaveTarget?.id === entry.id) {
-      await globalTarget.__dlSaveTarget.target.abort();
+      try { await globalTarget.__dlSaveTarget.target.abort(); } catch { /* already closed or unavailable */ }
       delete globalTarget.__dlSaveTarget;
     }
     await clearDownloadChunks(entry.id);
