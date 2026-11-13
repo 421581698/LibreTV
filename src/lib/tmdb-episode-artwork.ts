@@ -188,6 +188,13 @@ export async function enrichEpisodesWithTmdbArtwork(
     }
 
     let changed = false;
+    const seriesBackdrop = match.backdrop_path
+      ? TMDB_IMAGE.replace('/w780', '/w1280') + '/' + match.backdrop_path.replace(/^\\/+/, '')
+      : undefined;
+    const videoInfo = !detail.videoInfo.backdrop && seriesBackdrop
+      ? { ...detail.videoInfo, backdrop: seriesBackdrop }
+      : detail.videoInfo;
+    if (videoInfo !== detail.videoInfo) changed = true;
     const canMatchByExactCount = seasonData.length === 1 &&
       seasonData[0].episodes.length === detail.episodeItems.length;
     const positionalSeason = canMatchByExactCount ? seasonData[0].seasonNumber : undefined;
@@ -229,7 +236,7 @@ export async function enrichEpisodesWithTmdbArtwork(
           next.description !== item.description || next.duration !== item.duration) changed = true;
       return next;
     });
-    return changed ? { ...detail, episodeItems } : detail;
+    return changed ? { ...detail, videoInfo, episodeItems } : detail;
   } catch {
     // Metadata is optional: TMDB outages, missing credentials, or unmatched titles
     // must never interrupt episode selection or playback.
