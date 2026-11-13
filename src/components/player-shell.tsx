@@ -1082,14 +1082,10 @@ export function PlayerShell({
         reportQuality(height);
       }
     };
-    art.on('video:loadedmetadata', () => {
-      clearMetadataWatchdog();
-      reportVideoHeight();
-    });
-    art.on('video:canplay', () => {
-      clearMetadataWatchdog();
-      reportVideoHeight();
-    });
+    art.on('video:loadedmetadata', reportVideoHeight);
+    art.on('video:canplay', reportVideoHeight);
+    art.on('video:loadedmetadata', clearMetadataWatchdog);
+    art.on('video:canplay', clearMetadataWatchdog);
     // resize 不在 ArtPlayer 的视频事件转发表里，直接挂原生事件
     art.video?.addEventListener('resize', reportVideoHeight);
 
