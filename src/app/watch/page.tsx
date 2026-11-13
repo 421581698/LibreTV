@@ -194,6 +194,7 @@ function WatchContent() {
     const seen = new Set<string>();
     const candidates = (relatedQuery.data?.list ?? [])
       .filter((item) => !(item.sourceKey === sourceKey && item.vodId === vodId))
+      .filter((item) => normalize(item.name) !== normalize(videoTitle))
       .filter((item) => !watchedIds.has(`${item.sourceKey}:${item.vodId}`))
       .filter((item) => !watchedTitles.has(normalize(item.name)))
       .filter((item) => {
