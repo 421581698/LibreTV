@@ -204,7 +204,7 @@ async function captureDynamicEmbedMedia(rawUrl) {
   const captured = new Set();
   const pageDiagnostics = {
     requestCount: 0, requestHosts: [], failedRequests: [], scriptResponses: [],
-    pageErrors: [], consoleErrors: [],
+    pageErrors: [], consoleErrors: [], safetyRouteBlocks: [],
     playControlClicked: false, playTrigger: null, playAttempt: null, title: null,
     blockedByAccessGate: false, mediaResponses: [], playerRuntime: null,
   };
@@ -214,7 +214,14 @@ async function captureDynamicEmbedMedia(rawUrl) {
       try {
         await assertPublicHttps(route.request().url());
         await route.continue();
-      } catch {
+      } catch (error) {
+        if (pageDiagnostics.safetyRouteBlocks.length < 40) {
+          pageDiagnostics.safetyRouteBlocks.push({
+            url: summarizeMediaUrl(route.request().url()),
+            resourceType: route.request().resourceType(),
+            reason: String(error?.message || error).slice(0, 140),
+          });
+        }
         await route.abort();
       }
     });
