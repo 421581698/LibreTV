@@ -473,7 +473,9 @@ html:has(.netflix-watch) .netflix-sidebar-content {
   max-height: min(72vh, 720px);
   overflow-y: auto !important;
   overscroll-behavior: contain;
-  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  /* The fixed mobile dock sits above page content; reserve its full height
+     inside the scrollable panel so the final source/episode row can scroll clear. */
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
 }
 html:has(.netflix-watch) .netflix-player-frame video {
   -webkit-appearance: none;
