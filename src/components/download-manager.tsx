@@ -364,7 +364,7 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
               <div className="min-w-0">
                 <p className="text-sm text-content truncate">{t.title}</p>
                 <p className="text-xs text-faint">
-                  {t.sourceFormat ?? 'MEDIA'} → {t.format.toUpperCase()} · {statusLabel[t.status]}
+                  {t.sourceFormat ?? 'MEDIA'} → {t.sourceFormat === 'HLS' ? t.format.toUpperCase() : '原文件'} · {statusLabel[t.status]}
                   {(t.status === 'downloading' || t.status === 'merging') && t.total > 0
                     ? t.sourceFormat === 'HLS'
                       ? ` · ${t.finished}/${t.total} 分片`
