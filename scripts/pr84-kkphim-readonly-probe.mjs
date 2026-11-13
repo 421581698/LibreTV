@@ -1,4 +1,5 @@
 import { lookup } from "node:dns/promises";
+import { chromium } from "playwright";
 import net from "node:net";
 import { appendFileSync } from "node:fs";
 import {
@@ -196,6 +197,60 @@ async function getEmbedPageMedia(rawUrl) {
   return mediaUrls;
 }
 
+async function captureDynamicEmbedMedia(rawUrl) {
+  // Execute the public embed page in a real browser and observe its own player
+  // requests. Never solve challenges, authenticate, fetch DRM keys, or decrypt.
+  const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
+  const captured = new Set();
+  const pageDiagnostics = { requestCount: 0, playControlClicked: false, title: null, blockedByAccessGate: false };
+  try {
+    const page = await browser.newPage({ userAgent: UA });
+    await page.route("**/*", async (route) => {
+      try {
+        await assertPublicHttps(route.request().url());
+        await route.continue();
+      } catch {
+        await route.abort();
+      }
+    });
+    const record = (raw) => {
+      try {
+        const url = new URL(raw);
+        if (url.protocol === "https:" && /\.(?:m3u8|mpd)(?:$|\?)/i.test(url.href)) captured.add(url.href);
+      } catch {}
+    };
+    page.on("request", (request) => {
+      pageDiagnostics.requestCount++;
+      record(request.url());
+    });
+    page.on("response", (response) => record(response.url()));
+    await page.goto(rawUrl, { waitUntil: "domcontentloaded", timeout: 20000 });
+    await page.waitForTimeout(5000);
+    pageDiagnostics.title = await page.title().catch(() => null);
+    const visibleText = (await page.locator("body").innerText({ timeout: 3000 }).catch(() => "")).slice(0, 12000).toLowerCase();
+    pageDiagnostics.blockedByAccessGate = /captcha|verify you are human|checking your browser|sign in|log in|subscribe to continue|机器人验证|安全验证/.test(visibleText);
+    if (!pageDiagnostics.blockedByAccessGate) {
+      for (const selector of [
+        "button.jw-icon-playback",
+        ".jw-display-icon-container",
+        'button[aria-label="Play"]',
+        '[aria-label="Play video"]',
+      ]) {
+        const control = page.locator(selector).first();
+        if (await control.isVisible().catch(() => false)) {
+          await control.click({ timeout: 1500 }).catch(() => {});
+          pageDiagnostics.playControlClicked = true;
+          break;
+        }
+      }
+      await page.waitForTimeout(7000);
+    }
+    return { urls: [...captured].slice(0, 12), diagnostics: pageDiagnostics };
+  } finally {
+    await browser.close();
+  }
+}
+
 async function verifyManifestAndSegment(rawUrl) {
   let manifest = await getManifest(rawUrl);
   const masterLines = manifest.text.split(/\r?\n/);
@@ -238,6 +293,8 @@ if (!items.length) throw new Error("KKPhim home API returned no movie items acro
 
 const diagnostics = [];
 const embedPageDiagnostics = [];
+const dynamicEmbedDiagnostics = [];
+let dynamicEmbedAttempts = 0;
 const candidates = [];
 let detailV1Count = 0;
 let detailLegacyCount = 0;
@@ -329,9 +386,31 @@ async function verifyCandidate(candidate) {
     }
     const pageResult = await testMediaUrls(pageMediaUrls);
     if (pageResult) return pageResult;
+    // Static HTML often contains an expired or stale m3u8. Execute the player
+    // and capture the media URL it actually requests at runtime instead.
+    if (link.url && dynamicEmbedAttempts < 12) {
+      dynamicEmbedAttempts++;
+      try {
+        const dynamic = await captureDynamicEmbedMedia(link.url);
+        dynamicEmbedDiagnostics.push({
+          url: summarizeMediaUrl(link.url),
+          ...dynamic.diagnostics,
+          mediaCandidates: dynamic.urls.map(summarizeMediaUrl),
+        });
+        const dynamicResult = await testMediaUrls(dynamic.urls);
+        if (dynamicResult) return { ...dynamicResult, capturedDynamically: true };
+      } catch (error) {
+        lastError = error;
+        attempts.push({
+          url: summarizeMediaUrl(link.url),
+          stage: "dynamic-embed-browser",
+          error: String(error?.message || error).slice(0, 140),
+        });
+      }
+    }
     if (!pageMediaUrls.length && !lastError) {
       const pageDiagnostic = embedPageDiagnostics.at(-1);
-      lastError = new Error("Embed page exposed no direct HLS URL; embed HTTP response alone is not playback proof");
+      lastError = new Error("Embed page exposed no direct HLS URL; static and dynamic browser capture did not confirm playback");
       lastError.diagnostic = {
         stage: "embed-page-no-media",
         httpStatus: pageDiagnostic?.httpStatus ?? null,
@@ -453,6 +532,8 @@ const report = {
   sourceEnabled: false,
   diagnostics: diagnostics.slice(0, 12),
   embedPageDiagnostics,
+  dynamicEmbedAttempts,
+  dynamicEmbedDiagnostics,
   failureByStage,
   failureSamples: failures.slice(0, 12),
 };
