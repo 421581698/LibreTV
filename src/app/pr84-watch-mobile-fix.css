@@ -326,3 +326,40 @@ html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress-i
   width: 8px !important;
   height: 8px !important;
 }
+
+
+/* PR84 watch acceptance follow-up: keep the final related-poster row above the
+   fixed dock, remove the floating Friday sigil from the viewing canvas, and
+   keep playback feedback visually quiet. */
+@media (max-width: 700px) {
+  html:has(.netflix-watch) body main.netflix-watch,
+  html:has(.netflix-watch) body .page-container:has(.netflix-watch) {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  html:has(.netflix-watch) body .friday-root .friday-fab,
+  html:has(.netflix-watch) body .friday-root .friday-restore {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+  html body:has(.netflix-watch) > nav.v4-mobile-tabbar > a.is-active {
+    color: #fff !important;
+    background: rgba(255,255,255,.15) !important;
+  }
+}
+html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress-indicator,
+html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress-indicator {
+  width: 6px !important;
+  height: 6px !important;
+}
+html:has(.netflix-watch) .netflix-player-frame .artplayer .art-controls .art-control,
+html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-controls .art-control {
+  min-width: 40px !important;
+  min-height: 40px !important;
+}
+html:has(.netflix-watch) .netflix-player-frame .artplayer .art-controls .art-control svg,
+html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-controls .art-control svg {
+  width: 22px !important;
+  height: 22px !important;
+}
