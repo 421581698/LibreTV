@@ -16,6 +16,37 @@ try {
   });
   const page = await context.newPage();
   page.setDefaultTimeout(45_000);
+
+  // Attach diagnostics BEFORE navigation so fast API responses are not missed.
+  const apiResponses = [];
+  const imageProxyResponses = [];
+  const pageErrors = [];
+  const failedRequests = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  page.on('requestfailed', (request) => failedRequests.push({
+    url: request.url(),
+    error: request.failure()?.errorText ?? 'request failed',
+  }));
+  page.on('response', (response) => {
+    let url;
+    try { url = new URL(response.url()); } catch { return; }
+    if (url.pathname.startsWith('/api/douban') ||
+        url.pathname.startsWith('/api/hot-list') ||
+        url.pathname.startsWith('/api/bangumi/calendar')) {
+      const record = { path: url.pathname + url.search, status: response.status(), itemCount: null };
+      apiResponses.push(record);
+      void response.clone().json().then((payload) => {
+        if (Array.isArray(payload?.items)) record.itemCount = payload.items.length;
+        else if (Array.isArray(payload?.days)) {
+          record.itemCount = payload.days.reduce((sum, day) => sum + (Array.isArray(day.items) ? day.items.length : 0), 0);
+        }
+      }).catch(() => {});
+    }
+    if (url.pathname === '/api/proxy') {
+      imageProxyResponses.push({ status: response.status(), contentType: response.headers()['content-type'] ?? '' });
+    }
+  });
+
   const response = await page.goto(base, { waitUntil: 'domcontentloaded', timeout: 60_000 });
   if (!response || response.status() !== 200) {
     throw new Error('Preview homepage returned HTTP ' + (response?.status() ?? 'no response'));
@@ -24,35 +55,65 @@ try {
   await page.waitForSelector('.v4-home-main--cinema > .v4-hero-immersive', { timeout: 45_000 });
   await page.waitForSelector('body > nav.v4-mobile-tabbar', { timeout: 45_000 });
 
-  const apiResponses = [];
-  page.on('response', (response) => {
-    const url = new URL(response.url());
-    if (url.pathname.startsWith('/api/douban') || url.pathname.startsWith('/api/hot-list')) {
-      apiResponses.push({ path: url.pathname + url.search, status: response.status() });
-    }
-  });
-  // Wait for actual data or explicit empty/error states; DOM shells alone are not acceptance.
-  await page.waitForFunction(() => {
-    const heroReady = Boolean(document.querySelector('.v4-hero-image, .v4-hero-retry'));
-    const rails = Array.from(document.querySelectorAll('.v4-apple-rail-section'));
-    return heroReady && rails.length >= 3 && rails.every((section) =>
-      section.querySelector('.v4-apple-poster-card, .v4-apple-rail-message')
-    );
-  }, { timeout: 45_000 });
-  const contentState = await page.evaluate(() => ({
-    heroHasArtwork: Boolean(document.querySelector('.v4-hero-image img')),
-    posterCards: document.querySelectorAll('.v4-apple-poster-card').length,
-    railMessages: Array.from(document.querySelectorAll('.v4-apple-rail-message')).map((node) => node.textContent?.trim()),
-    heroMessage: document.querySelector('.v4-hero-empty h1')?.textContent?.trim() ?? null,
-  }));
-  if (!contentState.heroHasArtwork || contentState.posterCards < 1) {
-    throw new Error('Homepage real content did not load: ' + JSON.stringify({ contentState, apiResponses }));
+  // Wait for settled content, not merely skeleton shells. A timeout is reported
+  // with the API/page diagnostics below rather than being mistaken for success.
+  try {
+    await page.waitForFunction(() => {
+      const heroSettled = Boolean(
+        document.querySelector('.v4-hero-image img') ||
+        document.querySelector('.v4-hero-empty')
+      );
+      const rails = Array.from(document.querySelectorAll('.v4-apple-rail-section'));
+      return heroSettled && rails.length >= 3 && rails.every((section) =>
+        section.querySelector('.v4-apple-poster-card, .v4-apple-rail-message')
+      );
+    }, { timeout: 45_000 });
+  } catch {
+    const pending = await page.evaluate(() => ({
+      hero: document.querySelector('.v4-hero-empty')?.textContent?.trim() ??
+        (document.querySelector('.v4-hero-image') ? 'image element present' : 'missing'),
+      rails: Array.from(document.querySelectorAll('.v4-apple-rail-section')).map((section) => ({
+        title: section.getAttribute('aria-label'),
+        cards: section.querySelectorAll('.v4-apple-poster-card').length,
+        skeletons: section.querySelectorAll('.v4-apple-poster-skeleton').length,
+        message: section.querySelector('.v4-apple-rail-message')?.textContent?.trim() ?? null,
+      })),
+    }));
+    throw new Error('Homepage data did not settle: ' + JSON.stringify({
+      pending, apiResponses, imageProxyResponses, pageErrors, failedRequests,
+    }));
   }
-  await page.waitForFunction(() => {
-    const images = Array.from(document.querySelectorAll('.v4-hero-image img, .v4-apple-poster-card img'));
-    return images.some((img) => img.complete && img.naturalWidth > 0);
-  }, { timeout: 20_000 });
 
+  const contentState = await page.evaluate(() => {
+    const heroImg = document.querySelector('.v4-hero-image img');
+    const posterImages = Array.from(document.querySelectorAll('.v4-apple-poster-card img'));
+    const realImages = [heroImg, ...posterImages].filter((img) =>
+      img instanceof HTMLImageElement &&
+      !img.currentSrc.startsWith('data:') &&
+      img.complete && img.naturalWidth > 0
+    );
+    return {
+      heroTitle: document.querySelector('.v4-hero-content h1')?.textContent?.trim() ?? null,
+      heroHasRemoteArtwork: Boolean(heroImg instanceof HTMLImageElement &&
+        !heroImg.currentSrc.startsWith('data:') && heroImg.complete && heroImg.naturalWidth > 0),
+      posterCards: document.querySelectorAll('.v4-apple-poster-card').length,
+      loadedRemoteImages: realImages.length,
+      railStates: Array.from(document.querySelectorAll('.v4-apple-rail-section')).map((section) => ({
+        title: section.getAttribute('aria-label'),
+        cards: section.querySelectorAll('.v4-apple-poster-card').length,
+        message: section.querySelector('.v4-apple-rail-message')?.textContent?.trim() ?? null,
+      })),
+    };
+  });
+  const successfulFeed = apiResponses.some((entry) => entry.status === 200 && (entry.itemCount ?? 0) > 0);
+  if (!successfulFeed || contentState.posterCards < 1 || contentState.loadedRemoteImages < 1) {
+    throw new Error('Homepage real data/artwork acceptance failed: ' + JSON.stringify({
+      contentState, apiResponses, imageProxyResponses, pageErrors, failedRequests,
+    }));
+  }
+  if (pageErrors.length > 0) {
+    throw new Error('Homepage JavaScript errors: ' + JSON.stringify(pageErrors));
+  }
 
   const before = await page.evaluate(() => {
     const header = document.querySelector('.v4-home > .v4-header');
@@ -78,7 +139,7 @@ try {
       documentHeight: document.documentElement.scrollHeight,
     };
   });
-  if (!/rgba?\(0, 0, 0, 0\)/.test(before.headerBackground)) {
+  if (!/rgba?\\(0, 0, 0, 0\\)/.test(before.headerBackground)) {
     throw new Error('Homepage header still paints a background surface: ' + before.headerBackground);
   }
   if (before.headerBackdrop && before.headerBackdrop !== 'none') {
@@ -111,7 +172,9 @@ try {
   }
 
   await page.screenshot({ path: '/tmp/pr84-preview-webkit.png', fullPage: true });
-  console.log('PASS PR84 Preview WebKit mobile layout + real content:', JSON.stringify({ before, after, contentState, apiResponses }));
+  console.log('PASS PR84 Preview WebKit mobile layout + real data + remote artwork:', JSON.stringify({
+    before, after, contentState, apiResponses, imageProxyResponses,
+  }));
 } finally {
   await browser.close();
 }
