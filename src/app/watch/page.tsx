@@ -65,6 +65,7 @@ function WatchContent() {
   const indexParam = parseInt(searchParams.get('index') || '0', 10) || 0;
   const [reversed, setReversed] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<'episodes' | 'sources' | 'details'>('episodes');
+  const [showPlayerPanel, setShowPlayerPanel] = useState(false);
   const [showAutoNext, setShowAutoNext] = useState(false);
   const [switchOpen, setSwitchOpen] = useState(false);
   const [skipPanelOpen, setSkipPanelOpen] = useState(false);
@@ -354,8 +355,8 @@ function WatchContent() {
     );
   }
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="watch-topbar sticky top-0 z-40">
+    <div className="min-h-screen flex flex-col netflix-watch-shell">
+      <header className="watch-topbar netflix-watch-overlay-topbar">
         <div className="watch-topbar-inner">
           <div className="watch-topbar-left">
             <BackButton />
@@ -366,6 +367,11 @@ function WatchContent() {
                 {hasEpisodeNavigation ? ` · 第 ${currentIndex + 1}/${episodes.length} 集` : isMovie ? ' · 电影' : ' · 单集内容'}
               </p>
             </div>
+          </div>
+          <div className="watch-topbar-right">
+            <button type="button" className="btn-ghost btn-sm" aria-expanded={showPlayerPanel} aria-controls="netflix-watch-utility-panel" onClick={() => setShowPlayerPanel((value) => !value)}>
+              {showPlayerPanel ? '关闭面板' : '选集 / 换源'}
+            </button>
           </div>
         </div>
       </header>
@@ -506,7 +512,7 @@ function WatchContent() {
             />
           </section>
 
-          <aside className="netflix-watch-sidebar">
+          <aside id="netflix-watch-utility-panel" className={cn('netflix-watch-sidebar netflix-watch-utility-panel', showPlayerPanel && 'is-open')} aria-hidden={!showPlayerPanel}>
             <div className="netflix-sidebar-tabs" role="tablist" aria-label="播放内容">
               {hasEpisodeNavigation && <button role="tab" aria-selected={sidebarTab === 'episodes'} className={sidebarTab === 'episodes' ? 'active' : ''} onClick={() => setSidebarTab('episodes')}>选集 <span>{episodes.length}</span></button>}
               <button role="tab" aria-selected={sidebarTab === 'sources'} className={sidebarTab === 'sources' ? 'active' : ''} onClick={() => setSidebarTab('sources')}>播放源</button>
