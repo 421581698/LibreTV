@@ -312,6 +312,10 @@ jobs:
           NODE
 
       
+      - name: Probe KKPhim playback candidate after deploying this exact Preview commit
+        id: kkphim-probe
+        run: node scripts/pr84-kkphim-readonly-probe.mjs
+
       - name: Install Playwright WebKit for mobile-layout acceptance
         id: install-webkit
         if: always() && steps.deploy-preview.outcome == 'success'
@@ -335,6 +339,7 @@ jobs:
         if: always() && steps.deploy-preview.outcome == 'success' && steps.install-chrome.outcome == 'success'
         env:
           PR84_PREVIEW_URL: https://libretv-pr84-preview.bggdbh.workers.dev
+          PR84_KKPHIM_M3U8: ${{ steps.kkphim-probe.outputs.kkphim_m3u8 }}
         run: node scripts/pr84-preview-player-smoke.mjs
 
       - name: Upload mobile WebKit and player screenshots
