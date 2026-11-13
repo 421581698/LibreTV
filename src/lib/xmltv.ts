@@ -18,6 +18,11 @@ const DESC_RE = /<desc(?:\s[^>]*)?>([\s\S]*?)<\/desc>/i;
 
 const DEFAULT_WINDOW_MS = 24 * 60 * 60 * 1000;
 const MAX_GZIP_OUTPUT_BYTES = 64 * 1024 * 1024;
+const MAX_PROGRAMME_NODES = 150_000;
+const MAX_PROGRAMMES_PER_CHANNEL = 5_000;
+const MAX_CHANNEL_ID_CHARS = 256;
+const MAX_TITLE_CHARS = 500;
+const MAX_DESCRIPTION_CHARS = 4_000;
 
 /** 安全解码码点：畸形实体（越界/NaN）返回空串而非抛 RangeError，避免单条脏数据毁掉整份 EPG */
 function safeCodePoint(n: number): string {
@@ -93,12 +98,17 @@ export function parseXmltv(
 
   PROGRAMME_RE.lastIndex = 0;
   let m: RegExpExecArray | null;
+  let programmeNodes = 0;
   while ((m = PROGRAMME_RE.exec(text))) {
+    programmeNodes += 1;
+    if (programmeNodes > MAX_PROGRAMME_NODES) {
+      throw new Error('XMLTV 节目条目超过 150000 条限制');
+    }
     const attrText = m[1] ?? m[2] ?? '';
     const inner = m[3] ?? '';
     const attrs = extractAttrs(attrText);
     const channelId = attrs['channel']?.trim();
-    if (!channelId) continue;
+    if (!channelId || channelId.length > MAX_CHANNEL_ID_CHARS) continue;
     const start = parseXmltvTime(attrs['start'] || '');
     const stop = parseXmltvTime(attrs['stop'] || '');
     if (!Number.isFinite(start) || !Number.isFinite(stop)) continue;
@@ -111,7 +121,7 @@ export function parseXmltv(
       channelId,
       start,
       stop,
-      title: titleMatch ? decodeXmlText(titleMatch[1]) : '',
+      title: titleMatch ? decodeXmlText(titleMatch[1]).slice(0, MAX_TITLE_CHARS) : '',
     };
     if (descMatch) program.desc = decodeXmlText(descMatch[1]);
     if (!program.title) continue;
