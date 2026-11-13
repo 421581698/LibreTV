@@ -126,6 +126,11 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
         })
         .catch(async (err: Error) => {
           if (abort.signal.aborted) return; // 用户取消：状态已在取消处理里写好
+          // 任一下载/解密/合并/写盘失败都要中止保存流，不能遗留半开文件或部分文件。
+          const target = saveTargetRegistry().get(entry.id);
+          if (target) {
+            try { await target.abort(); } catch { /* ignore secondary abort failure */ }
+          }
           const latest = await db.downloads.get(entry.id);
           const message = err instanceof Error ? err.message : String(err);
           await updateEntry(entry.id, { status: 'failed', errorMessage: message, errorNum: (latest?.errorNum ?? entry.errorNum) + 1 });
