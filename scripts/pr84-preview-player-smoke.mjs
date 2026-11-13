@@ -134,6 +134,65 @@ try {
     };
   });
   if (!second.sameVideoElement) throw new Error('PlayerShell replaced the video element during source switching');
+
+  const encodedKkphimUrl = process.env.PR84_KKPHIM_M3U8;
+  if (encodedKkphimUrl) {
+    const kkphimUrl = decodeURIComponent(encodedKkphimUrl);
+    await page.evaluate((url) => {
+      const video = document.querySelector('video');
+      if (!video) throw new Error('PlayerShell video disappeared before KKPhim source switch');
+      window.__pr84KkphimEvents = [];
+      for (const name of ['emptied', 'loadstart', 'loadedmetadata', 'playing']) {
+        video.addEventListener(name, () => window.__pr84KkphimEvents.push(name));
+      }
+      const next = new URL(window.location.href);
+      next.searchParams.set('url', url);
+      window.history.pushState({}, '', next.toString());
+    }, kkphimUrl);
+
+    try {
+      await page.waitForFunction(() => {
+        const video = document.querySelector('video');
+        return Boolean(video && video === window.__pr84PlayerVideo &&
+          window.__pr84KkphimEvents?.includes('loadstart') &&
+          video.readyState >= 2 && video.currentTime >= 1.5 &&
+          video.videoWidth > 0 && video.videoHeight > 0);
+      }, null, { timeout: 60_000 });
+    } catch (error) {
+      const state = await page.evaluate(() => {
+        const video = document.querySelector('video');
+        return {
+          sameVideoElement: video === window.__pr84PlayerVideo,
+          switchEvents: window.__pr84KkphimEvents ?? [],
+          currentSrc: video?.currentSrc ?? '',
+          currentTime: video?.currentTime ?? 0,
+          readyState: video?.readyState ?? 0,
+          networkState: video?.networkState ?? 0,
+          videoWidth: video?.videoWidth ?? 0,
+          videoHeight: video?.videoHeight ?? 0,
+          mediaError: video?.error ? { code: video.error.code, message: video.error.message } : null,
+        };
+      });
+      throw new Error('KKPhim HLS did not reach decoded frames in LibreTV PlayerShell: ' +
+        JSON.stringify({ state, pageErrors: errors.slice(0, 8), cause: error instanceof Error ? error.message : String(error) }));
+    }
+
+    const third = await page.evaluate(() => {
+      const video = document.querySelector('video');
+      return {
+        sameVideoElement: video === window.__pr84PlayerVideo,
+        switchEvents: window.__pr84KkphimEvents,
+        currentTime: video?.currentTime ?? 0,
+        readyState: video?.readyState ?? 0,
+        width: video?.videoWidth ?? 0,
+        height: video?.videoHeight ?? 0,
+        currentSrc: video?.currentSrc ?? '',
+      };
+    });
+    if (!third.sameVideoElement) throw new Error('PlayerShell replaced the video element during KKPhim source switching');
+    console.log('PASS LibreTV PlayerShell KKPhim HLS decoded playback:', JSON.stringify(third));
+  }
+
   if (errors.length > 0) throw new Error('Player console errors: ' + errors.slice(0, 8).join(' | '));
 
   await page.screenshot({ path: '/tmp/pr84-preview-player.png', fullPage: false });

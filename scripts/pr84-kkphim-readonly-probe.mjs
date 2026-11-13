@@ -1,5 +1,6 @@
 import { lookup } from "node:dns/promises";
 import net from "node:net";
+import { appendFileSync } from "node:fs";
 import {
   getEmbedMediaUrls,
   getItems,
@@ -252,5 +253,8 @@ const report = {
   failureSamples: failures.slice(0, 12),
 };
 console.log("KKPhim read-only probe report:", JSON.stringify(report));
+if (success && process.env.GITHUB_OUTPUT) {
+  appendFileSync(process.env.GITHUB_OUTPUT, "kkphim_m3u8=" + encodeURIComponent(success.mediaUrl) + "\n");
+}
 if (!success) throw new Error("KKPhim had no candidate with a valid HLS manifest and non-empty segment after " + tested + " candidates");
 console.log("PASS KKPhim API + HLS manifest + segment read-only probe; default source remains disabled pending browser decode verification.");
