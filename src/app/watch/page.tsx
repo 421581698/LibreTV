@@ -27,7 +27,7 @@ import { enqueueDownload } from '@/components/download-manager';
 import { Icon } from '@/components/icon';
 import { useAuth } from '@/components/auth';
 import { resolveSource, useAppStore } from '@/lib/store';
-import { qualityKey } from '@/lib/quality';
+import { qualityKey, qualityLabel } from '@/lib/quality';
 import {
   clearProgress,
   progressKeyOf,
@@ -38,6 +38,7 @@ import {
 } from '@/lib/db';
 import { buildWatchUrl, cn, validateSourceUrl } from '@/lib/utils';
 import { SmartImage } from '@/components/smart-image';
+import type { QualityProbeResult } from '@/lib/types';
 /**
  * 播放页（唯一入口，替代旧版 watch.html → player.html 跳转链）。
  * 状态全部由 URL 驱动：/watch?source=xx&id=..&index=..&title=..
@@ -67,6 +68,7 @@ function WatchContent() {
   const [reversed, setReversed] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<'episodes' | 'sources' | 'details'>('episodes');
   const [showAutoNext, setShowAutoNext] = useState(false);
+  const [episodeQuality, setEpisodeQuality] = useState<Record<number, QualityProbeResult>>({});
   const recentHistory = useLiveQuery(
     () => db.history.orderBy('timestamp').reverse().limit(8).toArray(),
     [sourceKey, vodId]
@@ -135,6 +137,34 @@ function WatchContent() {
     () => detailQuery.data?.episodes ?? [],
     [detailQuery.data]
   );
+  useEffect(() => {
+    if (sourceKey !== 'kkphim' || !source || !vodId || episodes.length === 0 || !detailQuery.data) {
+      setEpisodeQuality({});
+      return;
+    }
+    const controller = new AbortController();
+    setEpisodeQuality({});
+    const run = async () => {
+      // Probe in bounded batches. The server limits each request to 50 entries and
+      // applies its own per-host concurrency gate.
+      for (let start = 0; start < episodes.length; start += 50) {
+        const items = episodes.slice(start, start + 50).map((_, offset) => ({
+          source,
+          id: vodId,
+          episodeIndex: start + offset,
+        }));
+        await api.qualityProbeStream(items, (result) => {
+          if (result.episodeIndex === undefined) return;
+          setEpisodeQuality((current) => ({ ...current, [result.episodeIndex!]: result }));
+        }, controller.signal);
+      }
+    };
+    void run().catch(() => {
+      // Individual probe outcomes are streamed; transport interruption leaves
+      // remaining episodes unlabelled rather than inventing a quality tier.
+    });
+    return () => controller.abort();
+  }, [sourceKey, source, vodId, detailQuery.data, episodes]);
   const mediaType = detailQuery.data?.videoInfo?.typeName ?? '';
   const isMovie = /电影|movie|film/i.test(mediaType);
   const hasEpisodeNavigation = episodes.length > 1;
@@ -651,7 +681,7 @@ function WatchContent() {
                 ) : (
                   <div className="netflix-episode-list">
                     {orderedEpisodes.map((realIndex) => (
-                      <EpisodeRow key={realIndex} index={realIndex} label={detailQuery.data?.episodeLabels?.[realIndex]} active={realIndex === currentIndex} onClick={() => goEpisode(realIndex)} />
+                      <EpisodeRow key={realIndex} index={realIndex} label={detailQuery.data?.episodeLabels?.[realIndex]} quality={sourceKey === 'kkphim' ? (episodeQuality[realIndex] ? (qualityLabel(episodeQuality[realIndex].height) ? `探测 · ${qualityLabel(episodeQuality[realIndex].height)}` : episodeQuality[realIndex].error ? '探测失败' : '未知') : '检测中') : undefined} active={realIndex === currentIndex} onClick={() => goEpisode(realIndex)} />
                     ))}
                   </div>
                 )}
@@ -777,13 +807,13 @@ function FridayPlayerAssistantButton() {
 }
 
 /** 集数按钮：激活时自动滚动进可视区（长剧列表） */
-function EpisodeRow({ index, label, active, onClick }: { index: number; label?: string; active: boolean; onClick: () => void }) {
+function EpisodeRow({ index, label, quality, active, onClick }: { index: number; label?: string; quality?: string; active: boolean; onClick: () => void }) {
   const ref = useRef<HTMLButtonElement>(null);
   useEffect(() => { if (active) ref.current?.scrollIntoView({ block: 'nearest' }); }, [active]);
   return (
     <button ref={ref} className={cn('netflix-episode-row', active && 'active')} onClick={onClick} aria-current={active ? 'true' : undefined}>
       <span className="netflix-episode-number">{index + 1}</span>
-      <span className="min-w-0 flex-1 text-left"><strong className="block truncate">{label || `第 ${index + 1} 集`}</strong><small>{active ? '正在播放' : '点击播放'}</small></span>
+      <span className="min-w-0 flex-1 text-left"><strong className="block truncate">{label || `第 ${index + 1} 集`}</strong><small>{active ? '正在播放' : '点击播放'}</small>{quality && <small className="text-accent">{quality}</small>}</span>
       {active ? <span className="text-accent" aria-hidden="true">●</span> : <span className="opacity-60" aria-hidden="true">▶</span>}
     </button>
   );
