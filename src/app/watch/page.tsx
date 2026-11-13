@@ -38,6 +38,7 @@ import {
 import { buildWatchUrl, cn, validateSourceUrl } from '@/lib/utils';
 import { SmartImage } from '@/components/smart-image';
 import type { VideoEpisode } from '@/lib/types';
+import { buildRelatedSearchTerms } from '@/lib/related-movies';
 /**
  * 播放页（唯一入口，替代旧版 watch.html → player.html 跳转链）。
  * 状态全部由 URL 驱动：/watch?source=xx&id=..&index=..&title=..
@@ -143,26 +144,46 @@ function WatchContent() {
   }, [hasEpisodeNavigation, sidebarTab]);
   const videoTitle =
     titleParam || detailQuery.data?.videoInfo?.title || '未知视频';
-  // 真实相关内容：使用用户已启用的点播源按当前片名搜索，不生成虚构推荐。
+  // 仅从用户已启用的点播源检索；过滤成人源时绝不把成人源重新加入候选。
   const recommendationSources = useMemo(() => {
     const seen = new Set<string>();
     return [...store.envSources, ...store.customAPIs].filter((item) => {
       if (!store.selectedKeys.includes(item.key) || seen.has(item.key)) return false;
       seen.add(item.key);
-      return !item.isAdult || store.adFilter;
+      return !store.adFilter || !item.isAdult;
     });
   }, [store.envSources, store.customAPIs, store.selectedKeys, store.adFilter]);
+  // 优先用真实主演/导演作为检索词，避免只搜当前剧名而把同一部剧的跨源副本误当成相关影片。
+  const relatedSearchTerms = useMemo(
+    () => buildRelatedSearchTerms(detailQuery.data?.videoInfo, videoTitle),
+    [detailQuery.data?.videoInfo, videoTitle],
+  );
   const relatedQuery = useQuery({
-    queryKey: ['watch-related', videoTitle, recommendationSources.map((item) => item.key).join(',')],
-    queryFn: () => api.search(videoTitle, recommendationSources, store.adFilter),
-    enabled: verified && videoTitle !== '未知视频' && recommendationSources.length > 0,
+    queryKey: ['watch-related', relatedSearchTerms, recommendationSources.map((item) => item.key).join(','), store.adFilter],
+    queryFn: async ({ signal }) => {
+      const responses = await Promise.all(relatedSearchTerms.map((keyword) =>
+        api.search(keyword, recommendationSources, store.adFilter, { signal }),
+      ));
+      const unique = new Map<string, (typeof responses)[number]['list'][number]>();
+      for (const response of responses) {
+        for (const item of response.list) {
+          const key = `${item.sourceKey}:${item.vodId}`;
+          if (!unique.has(key)) unique.set(key, item);
+        }
+      }
+      return {
+        list: Array.from(unique.values()),
+        failures: responses.flatMap((response) => response.failures),
+      };
+    },
+    enabled: verified && (detailQuery.isFetched || !vodId) && relatedSearchTerms.length > 0 && recommendationSources.length > 0,
     staleTime: 10 * 60_000,
     retry: 1,
   });
   const relatedItems = useMemo(() => {
     const history = watchedHistory ?? [];
     const watchedIds = new Set(history.map((item) => `${item.sourceKey}:${item.vodId}`));
-    const normalize = (value?: string) => (value ?? '').trim().toLocaleLowerCase().replace(/[\s\p{P}\p{S}]/gu, '');
+    const normalize = (value?: string) => (value ?? '').trim().toLocaleLowerCase().replace(/[\\s\\p{P}\\p{S}]/gu, '');
     const watchedTitles = new Set(history.map((item) => normalize(item.title)).filter(Boolean));
     const currentInfo = detailQuery.data?.videoInfo;
     const recentGenreCounts = new Map<string, number>();
@@ -574,7 +595,7 @@ function WatchContent() {
               <div className="netflix-section-heading">
                 <div>
                   <h2 id="netflix-related-heading">相关影片</h2>
-                  <p>根据当前影片，从已启用的片源检索真实结果</p>
+                  <p>按当前影片的主演、导演资料，从已启用点播源检索</p>
                 </div>
               </div>
               {relatedQuery.isLoading || !watchedHistory ? (
@@ -584,7 +605,12 @@ function WatchContent() {
                   {relatedItems.map((item) => (
                     <Link
                       key={`${item.sourceKey}:${item.vodId}`}
-                      href={buildWatchUrl({ sourceKey: item.sourceKey, vodId: item.vodId, index: 0, title: item.name, sourceUrl: item.sourceUrl })}
+                      href={(() => {
+                        const params = new URLSearchParams({ source: item.sourceKey, id: item.vodId, title: item.name, sourceName: item.sourceName });
+                        if (item.pic) params.set('pic', item.pic);
+                        if (item.sourceUrl) params.set('sourceUrl', item.sourceUrl);
+                        return `/detail?${params.toString()}`;
+                      })()}
                       className="netflix-related-card"
                     >
                       <div className="netflix-related-art">
@@ -597,7 +623,7 @@ function WatchContent() {
                 </div>
               ) : (
                 <p className="text-sm text-faint py-4">
-                  {recommendationSources.length === 0 ? '请先启用至少一个点播资源，才能检索相关影片。' : relatedQuery.isError ? '相关影片暂时无法获取。' : '当前片源没有返回其他相关影片。'}
+                  {recommendationSources.length === 0 ? '请先启用至少一个点播资源，才能检索相关影片。' : relatedQuery.isError ? '相关影片暂时无法获取。' : relatedSearchTerms.length === 1 && relatedSearchTerms[0] === videoTitle ? '当前片源没有可用的导演或主演资料，暂时只能按片名检索；没有匹配结果。' : '已检索启用片源，但暂时没有找到未观看的相关影片。'}
                 </p>
               )}
             </section>
