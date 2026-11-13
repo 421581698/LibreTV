@@ -51,6 +51,9 @@ try {
   if (!/rgba?\(0, 0, 0, 0\)/.test(before.headerBackground)) {
     throw new Error('Homepage header still paints a background surface: ' + before.headerBackground);
   }
+  if (before.headerBackdrop && before.headerBackdrop !== 'none') {
+    throw new Error('Homepage header still applies a backdrop surface: ' + before.headerBackdrop);
+  }
   if (before.dockPosition !== 'fixed') throw new Error('Mobile dock is not fixed: ' + before.dockPosition);
   if (Math.abs(before.dockLeft) > 1 || Math.abs(before.dockWidth - 390) > 2) {
     throw new Error('Mobile dock drifted horizontally: ' + JSON.stringify({ left: before.dockLeft, width: before.dockWidth }));

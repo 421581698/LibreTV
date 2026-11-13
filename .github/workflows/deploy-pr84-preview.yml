@@ -313,13 +313,14 @@ jobs:
 
       
       - name: Install Playwright WebKit for mobile-layout acceptance
-        if: steps.deploy-preview.outcome == 'success'
+        id: install-webkit
+        if: always() && steps.deploy-preview.outcome == 'success'
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
           npx playwright install --with-deps webkit
 
       - name: Verify current PR84 Preview in mobile WebKit
-        if: steps.deploy-preview.outcome == 'success'
+        if: always() && steps.deploy-preview.outcome == 'success' && steps.install-webkit.outcome == 'success'
         env:
           PR84_PREVIEW_URL: https://libretv-pr84-preview.bggdbh.workers.dev
         run: node scripts/pr84-preview-webkit-smoke.mjs
