@@ -218,6 +218,20 @@ try {
   await page.waitForSelector('body > nav.v4-mobile-tabbar', { timeout: 45_000 });
   await page.waitForSelector('.player-quality-badge', { timeout: 45_000 });
 
+  // Do not measure the timeline while ArtPlayer is still in its loading shell.
+  // The earlier check could pass with a 0x0 playhead because it only enforced
+  // an upper bound. Require a genuinely decoded, advancing video first.
+  await page.waitForFunction(() => {
+    const video = document.querySelector('.netflix-player-frame video');
+    return video instanceof HTMLVideoElement &&
+      video.readyState >= 2 &&
+      video.videoWidth > 0 &&
+      video.videoHeight > 0 &&
+      video.currentTime >= 1.5 &&
+      Number.isFinite(video.duration) &&
+      video.duration > 0;
+  }, { timeout: 60_000 });
+
   const watchLayout = await page.evaluate(() => {
     const header = document.querySelector('.watch-topbar');
     const title = document.querySelector('.watch-topbar-title');
@@ -310,10 +324,12 @@ try {
   }
   if (!watchLayout.progressHitAreaRect || watchLayout.progressHitAreaRect.height < 12 ||
       watchLayout.progressHitAreaRect.height > 20 ||
-      !watchLayout.progressTrackRect || watchLayout.progressTrackRect.height < 1 ||
+      !watchLayout.progressTrackRect || watchLayout.progressTrackRect.width <= 0 ||
+      watchLayout.progressTrackRect.height < 1 ||
       watchLayout.progressTrackRect.height > 3 ||
-      !watchLayout.progressDotRect || watchLayout.progressDotRect.width > 8 ||
-      watchLayout.progressDotRect.height > 8 ||
+      !watchLayout.progressDotRect ||
+      watchLayout.progressDotRect.width < 4 || watchLayout.progressDotRect.width > 8 ||
+      watchLayout.progressDotRect.height < 4 || watchLayout.progressDotRect.height > 8 ||
       watchLayout.progressPointerEvents === 'none') {
     throw new Error('Real mobile ArtPlayer timeline geometry is invalid (target 12–20px, rail 1–3px, playhead <=8px, pointer events enabled): ' + JSON.stringify(watchLayout));
   }
