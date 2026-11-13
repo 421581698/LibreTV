@@ -42,7 +42,7 @@ export function getEmbedMediaUrls(rawUrl, html = "") {
     if (nested) urls.push(nested);
   } catch {}
   const normalized = String(html).replaceAll("\\/", "/").replaceAll("\\u0026", "&");
-  const matches = normalized.match(/https?:[^\\s"'<>\\\\]+?\\.m3u8(?:\\?[^\\s"'<>\\\\]*)?/gi) || [];
+  const matches = normalized.match(/https?:[^\s"'<>\\]+?\.m3u8(?:\?[^\s"'<>\\]*)?/gi) || [];
   urls.push(...matches.map((value) => value.replace(/[),;]+$/, "")));
   return [...new Set(urls)];
 }
@@ -58,8 +58,8 @@ export function summarizeMediaUrl(rawUrl) {
     const url = new URL(rawUrl);
     const pathname = url.pathname || "/";
     const segments = pathname.split("/").filter(Boolean);
-    const dateSegment = pathname.match(/(?:^|\\/)(20\\d{2}(?:[-/]\\d{2}){1,2})(?:\\/|$)/)?.[1] || null;
-    const extension = pathname.match(/\\.([a-z0-9]{2,6})$/i)?.[1]?.toLowerCase() || "none";
+    const dateSegment = pathname.match(/(?:^|[/])(20\d{2}(?:[-/]\d{2}){1,2})(?:[/]|$)/)?.[1] || null;
+    const extension = pathname.match(/\.([a-z0-9]{2,6})$/i)?.[1]?.toLowerCase() || "none";
     const pathFingerprint = createHash("sha256").update(pathname).digest("hex").slice(0, 12);
     return {
       hostname: url.hostname,
