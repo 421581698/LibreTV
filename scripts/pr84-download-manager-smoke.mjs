@@ -12,32 +12,35 @@ const errors = [];
 
 async function waitForTask(page, title, state) {
   try {
-    await page.waitForFunction(({ title, state }) => {
+    const snapshot = await page.waitForFunction(({ title, state }) => {
       const titleNode = Array.from(document.querySelectorAll('p')).find((node) => node.textContent?.trim() === title);
       let card = titleNode;
       while (card && !card.classList?.contains('card')) card = card.parentElement;
-      const text = card?.textContent ?? '';
-      return state === 'completed'
+      const text = card?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+      const ready = state === 'completed'
         ? text.includes('MP4') && text.includes('已完成')
         : text.includes('失败') && text.includes('HTTP 503') && Boolean(card?.querySelector('[role="alert"]'));
+      return ready ? {
+        text,
+        progress: card?.querySelector('.h-1\\.5 > div')?.getAttribute('style') ?? null,
+        alert: card?.querySelector('[role="alert"]')?.textContent?.trim() ?? null,
+      } : false;
     }, { title, state }, { timeout: 30000 });
+    return await snapshot.jsonValue();
   } catch (error) {
     const diagnostic = await page.evaluate(async (title) => {
       const titleNode = Array.from(document.querySelectorAll('p')).find((node) => node.textContent?.trim() === title);
       const ancestors = [];
       let node = titleNode;
       for (let depth = 0; node && depth < 7; depth += 1, node = node.parentElement) {
-        ancestors.push({ tag: node.tagName, className: typeof node.className === 'string' ? node.className : '', text: (node.textContent ?? '').replace(/\\s+/g, ' ').trim().slice(0, 1200) });
+        ancestors.push({ tag: node.tagName, className: typeof node.className === 'string' ? node.className : '', text: (node.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 1200) });
       }
       const tasks = await new Promise((resolve) => {
         const request = indexedDB.open('libretv');
         request.onerror = () => resolve({ error: request.error?.message ?? 'IndexedDB open failed' });
         request.onsuccess = () => {
           const db = request.result;
-          if (!db.objectStoreNames.contains('downloads')) {
-            db.close();
-            return resolve({ error: 'downloads object store missing', stores: Array.from(db.objectStoreNames) });
-          }
+          if (!db.objectStoreNames.contains('downloads')) { db.close(); return resolve({ error: 'downloads object store missing', stores: Array.from(db.objectStoreNames) }); }
           const tx = db.transaction('downloads', 'readonly');
           const get = tx.objectStore('downloads').getAll();
           get.onsuccess = () => resolve(get.result);
@@ -100,18 +103,7 @@ try {
   await download.saveAs(output);
   const actual = await readFile(output);
   if (!actual.equals(expected)) throw new Error('Saved bytes did not match fixture');
-  await waitForTask(page, title, 'completed');
-
-  const successState = await page.evaluate((title) => {
-    const titleNode = Array.from(document.querySelectorAll('p')).find((node) => node.textContent?.trim() === title);
-    let card = titleNode;
-    while (card && !card.classList?.contains('card')) card = card.parentElement;
-    return {
-      text: card?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
-      progress: card?.querySelector('.h-1\\.5 > div')?.getAttribute('style') ?? null,
-    };
-  }, title);
-  if (!successState.text.includes('已完成')) throw new Error('Task did not reach completed state');
+  const successState = await waitForTask(page, title, 'completed');
   if (successState.progress && !successState.progress.includes('100%')) throw new Error('Progress bar did not reach 100%');
   console.log('PASS PR84 download file output', JSON.stringify({
     filename: download.suggestedFilename(),
@@ -124,16 +116,7 @@ try {
   await page.evaluate(({ url, title }) => {
     window.dispatchEvent(new CustomEvent('libretv:add-download', { detail: { url, title, format: 'MP4' } }));
   }, { url: failureUrl, title: failedTitle });
-  await waitForTask(page, failedTitle, 'failed');
-  const failureState = await page.evaluate((title) => {
-    const titleNode = Array.from(document.querySelectorAll('p')).find((node) => node.textContent?.trim() === title);
-    let card = titleNode;
-    while (card && !card.classList?.contains('card')) card = card.parentElement;
-    return {
-      text: card?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
-      alert: card?.querySelector('[role="alert"]')?.textContent?.trim() ?? null,
-    };
-  }, failedTitle);
+  const failureState = await waitForTask(page, failedTitle, 'failed');
   if (!failureState.alert?.includes('HTTP 503')) throw new Error('HTTP 503 failure was not shown to the user');
   if (errors.length) throw new Error('Preview page errors: ' + errors.join(' | '));
   console.log('PASS PR84 download failure feedback', JSON.stringify(failureState));
