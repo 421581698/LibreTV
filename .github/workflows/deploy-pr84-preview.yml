@@ -249,6 +249,14 @@ jobs:
                     response.destroy();
                     const error = new Error("Media endpoint returned HTTP " + status);
                     error.statusCode = status;
+                    error.mediaHost = hostname;
+                    error.mediaHeaders = {
+                      contentType: type || null,
+                      server: String(response.headers["server"] || "").slice(0, 80) || null,
+                      via: String(response.headers["via"] || "").slice(0, 80) || null,
+                      cfRay: String(response.headers["cf-ray"] || "").slice(0, 80) || null,
+                      cache: String(response.headers["cf-cache-status"] || response.headers["x-cache"] || "").slice(0, 80) || null,
+                    };
                     return finish(null, error);
                   }
                   const chunks = [];
@@ -280,8 +288,10 @@ jobs:
               const status = Number.isInteger(error?.statusCode) ? error.statusCode : null;
               console.warn("CMS media endpoint safety/reachability probe failed: " +
                 (status ? "HTTP " + status : "no HTTP response; " +
-                  (typeof error?.code === "string" ? error.code : "transport_or_safety_error")));
-              mediaProbe = { passed: false, status };
+                  (typeof error?.code === "string" ? error.code : "transport_or_safety_error")) +
+                ", host=" + (typeof error?.mediaHost === "string" ? error.mediaHost : "unknown") +
+                ", headers=" + JSON.stringify(error?.mediaHeaders ?? {}));
+              mediaProbe = { passed: false, status, host: error?.mediaHost ?? null, headers: error?.mediaHeaders ?? null };
             }
             const isHls = /mpegurl|vnd\.apple\.mpegurl/.test(mediaProbe.type ?? "") ||
               /\.m3u8(?:$|[?#])/i.test(urls[0]);
@@ -311,6 +321,13 @@ jobs:
           NODE
 
       
+      - name: Install Playwright Chromium for KKPhim dynamic player probe
+        if: always() && steps.deploy-preview.outcome == 'success'
+        timeout-minutes: 8
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
       - name: Probe KKPhim playback candidate after deploying this exact Preview commit
         id: kkphim-probe
         continue-on-error: true
