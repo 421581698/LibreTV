@@ -64,6 +64,15 @@ function isDoubanHost(host: string): boolean {
   );
 }
 
+/** KKPhim's public HLS CDN hosts require the same Referer as its official API client. */
+function isKkPhimMediaHost(host: string): boolean {
+  const h = host.toLowerCase();
+  return (
+    h === 'kkphimplayer6.com' || h.endsWith('.kkphimplayer6.com') ||
+    h === 'cdn-player.com' || h.endsWith('.cdn-player.com')
+  );
+}
+
 /**
  * 未登录即可代理的图片域白名单（精确后缀匹配，防 `evil-bgm.tv` 类绕过）：
  * 豆瓣封面需要 Referer 伪装；热榜 cover_proxy 镜像与 Bangumi 封面
@@ -111,8 +120,11 @@ export async function handleProxyRequest(req: Request, targetUrl: string): Promi
 
   const headers: Record<string, string> = { 'User-Agent': UA, Accept: '*/*' };
   try {
-    if (isDoubanHost(new URL(targetUrl).hostname)) {
+    const targetHost = new URL(targetUrl).hostname;
+    if (isDoubanHost(targetHost)) {
       headers.Referer = 'https://movie.douban.com/';
+    } else if (isKkPhimMediaHost(targetHost)) {
+      headers.Referer = 'https://phimapi.com/';
     }
   } catch { /* 忽略非法 URL */ }
 

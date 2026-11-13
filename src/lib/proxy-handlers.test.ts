@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   fetchLiveWithSafeRedirects: vi.fn(),
+  fetchWithSafeRedirects: vi.fn(),
   checkLiveUrlAllowed: vi.fn(),
+  isBlockedByDNS: mocks.isBlockedByDNS,
+  isValidProxyUrl: mocks.isValidProxyUrl,
   guardRequest: vi.fn(),
   rewriteM3u8: vi.fn((text: string) => text),
 }));
@@ -18,20 +21,69 @@ vi.mock('@/lib/ssrf', () => ({
 }));
 vi.mock('@/lib/fetch-utils', () => ({
   fetchLiveWithSafeRedirects: mocks.fetchLiveWithSafeRedirects,
-  fetchWithSafeRedirects: vi.fn(),
+  fetchWithSafeRedirects: mocks.fetchWithSafeRedirects,
 }));
 vi.mock('@/lib/m3u8', () => ({
   rewriteM3u8: mocks.rewriteM3u8,
   LIVE_STREAM_BASE: '/api/live/stream?url=',
 }));
 
-import { handleLiveStreamRequest } from './proxy-handlers';
+import { handleLiveStreamRequest, handleProxyRequest } from './proxy-handlers';
 
 const TARGET = 'https://media.example.test/live/index.m3u8';
 
 function request() {
   return new Request('https://libretv.example/api/live/stream?url=x');
 }
+
+describe('handleProxyRequest source-specific headers', () => {
+  beforeEach(() => {
+    mocks.guardRequest.mockReturnValue(null);
+    mocks.isValidProxyUrl.mockReturnValue(true);
+    mocks.isBlockedByDNS.mockResolvedValue(false);
+  });
+
+  afterEach(() => vi.clearAllMocks());
+
+  it('adds the official KKPhim Referer to allowlisted KKPhim CDN hosts', async () => {
+    const target = 'https://s6.kkphimplayer6.com/path/index.m3u8';
+    mocks.fetchWithSafeRedirects.mockResolvedValue({
+      res: new Response('#EXTM3U\\n#EXT-X-ENDLIST', {
+        status: 200,
+        headers: { 'content-type': 'application/vnd.apple.mpegurl' },
+      }),
+      finalUrl: target,
+    });
+
+    const response = await handleProxyRequest(request(), target);
+    expect(response.status).toBe(200);
+    expect(mocks.fetchWithSafeRedirects).toHaveBeenCalledWith(
+      target,
+      expect.objectContaining({
+        headers: expect.objectContaining({ Referer: 'https://phimapi.com/' }),
+      }),
+    );
+  });
+
+  it('does not add KKPhim Referer to unrelated media hosts', async () => {
+    const target = 'https://unrelated.example.test/path/index.m3u8';
+    mocks.fetchWithSafeRedirects.mockResolvedValue({
+      res: new Response('#EXTM3U\\n#EXT-X-ENDLIST', {
+        status: 200,
+        headers: { 'content-type': 'application/vnd.apple.mpegurl' },
+      }),
+      finalUrl: target,
+    });
+
+    await handleProxyRequest(request(), target);
+    expect(mocks.fetchWithSafeRedirects).toHaveBeenCalledWith(
+      target,
+      expect.objectContaining({
+        headers: expect.not.objectContaining({ Referer: 'https://phimapi.com/' }),
+      }),
+    );
+  });
+});
 
 describe('handleLiveStreamRequest HLS route regression', () => {
   beforeEach(() => {
