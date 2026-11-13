@@ -6,7 +6,7 @@ describe('buildRelatedSearchTerms', () => {
     expect(buildRelatedSearchTerms({
       actor: '张三 / 李四 / 王五',
       director: '赵六',
-    }, '今天是太阳雨')).toEqual(['张三', '李四']);
+    }, '今天是太阳雨')).toEqual(['张三', '赵六']);
   });
 
   it('deduplicates people and tolerates missing credits', () => {
