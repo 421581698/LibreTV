@@ -19,6 +19,7 @@ try {
 
   // Attach diagnostics BEFORE navigation so fast API responses are not missed.
   const apiResponses = [];
+  const apiReads = [];
   const imageProxyResponses = [];
   const pageErrors = [];
   const failedRequests = [];
@@ -35,12 +36,12 @@ try {
         url.pathname.startsWith('/api/bangumi/calendar')) {
       const record = { path: url.pathname + url.search, status: response.status(), itemCount: null };
       apiResponses.push(record);
-      void response.clone().json().then((payload) => {
+      apiReads.push(response.json().then((payload) => {
         if (Array.isArray(payload?.items)) record.itemCount = payload.items.length;
         else if (Array.isArray(payload?.days)) {
           record.itemCount = payload.days.reduce((sum, day) => sum + (Array.isArray(day.items) ? day.items.length : 0), 0);
         }
-      }).catch(() => {});
+      }).catch(() => {}));
     }
     if (url.pathname === '/api/proxy') {
       imageProxyResponses.push({ status: response.status(), contentType: response.headers()['content-type'] ?? '' });
@@ -105,6 +106,7 @@ try {
       })),
     };
   });
+  await Promise.all(apiReads);
   const successfulFeed = apiResponses.some((entry) => entry.status === 200 && (entry.itemCount ?? 0) > 0);
   if (!successfulFeed || contentState.posterCards < 1 || contentState.loadedRemoteImages < 1) {
     throw new Error('Homepage real data/artwork acceptance failed: ' + JSON.stringify({
