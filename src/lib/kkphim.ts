@@ -106,6 +106,7 @@ export function parseKkphimDetail(payload: unknown): VideoDetail | null {
   if (!title || !slug) return null;
 
   const episodes: string[] = [];
+  const episodeLabels: string[] = [];
   for (const server of array(root?.episodes)) {
     const serverRecord = record(server);
     const serverName = text(serverRecord?.server_name, 80) || 'KKPhim';
@@ -118,7 +119,10 @@ export function parseKkphimDetail(payload: unknown): VideoDetail | null {
       if (!label || !playableUrl) continue;
       // Preserve the source's server and episode labels; the detail API exposes
       // both direct HLS and embed URLs, neither of which is treated as verified.
-      episodes.push(`${serverName} · ${label}$${playableUrl}`);
+      // VideoDetail.episodes is the existing player contract: each entry is a playable URL.
+      // Keep display labels in a parallel optional array rather than leaking CMS delimiters into the player.
+      episodes.push(playableUrl);
+      episodeLabels.push(`${serverName} · ${label}`);
     }
   }
 
@@ -130,6 +134,7 @@ export function parseKkphimDetail(payload: unknown): VideoDetail | null {
 
   return {
     episodes,
+    episodeLabels,
     videoInfo: {
       title,
       cover,
