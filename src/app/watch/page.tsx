@@ -553,7 +553,7 @@ function WatchContent() {
                   return (
                     <Link key={`${item.sourceKey}:${item.vodId}`} href={href} className="netflix-history-card">
                       <div className="netflix-history-art">
-                        {item.pic ? <SmartImage url={item.pic} mode="direct" alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-chip" />}
+                        {item.pic ? <SmartImage url={item.pic} mode="direct" alt="" className="w-full h-full object-cover" showDefaultFallback={false} /> : <div className="w-full h-full bg-chip" />}
                         <span className="netflix-history-play"><span aria-hidden="true">▶</span></span>
                       </div>
                       <div className="netflix-history-meta">
