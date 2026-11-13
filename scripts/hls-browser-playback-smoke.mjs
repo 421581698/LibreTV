@@ -12,7 +12,7 @@ import { chromium } from 'playwright';
 import { resolve } from 'node:path';
 
 const streams = {
-  fmp4: 'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel-avc1.ism/.m3u8',
+  fmp4: 'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8',
   aes128: 'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel-aes.ism/.m3u8',
 };
 const timeoutMs = 45_000;
