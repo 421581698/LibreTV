@@ -431,26 +431,46 @@ html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-controls .
 }
 
 
-/* PR84 mobile acceptance: constrain the full progress hit-area, not only its
-   visible fill, so Safari/ArtPlayer cannot render a thick grey timeline. */
+/* PR84 mobile acceptance: retain a generous 16px seek hit-area while
+   drawing only a 2px rail. Never collapse the entire touch target to 3px. */
 html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress,
-html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress,
-html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress-bar,
-html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress-bar,
-html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress-hover,
-html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress-hover {
-  height: 3px !important;
-  min-height: 3px !important;
-  max-height: 3px !important;
+html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress {
+  position: relative !important;
+  height: 16px !important;
+  min-height: 16px !important;
+  max-height: 16px !important;
   padding: 0 !important;
   border: 0 !important;
+  background: linear-gradient(
+    to bottom,
+    transparent calc(50% - 1px),
+    rgba(255,255,255,.42) calc(50% - 1px),
+    rgba(255,255,255,.42) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  ) !important;
+  box-shadow: none !important;
+}
+html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress-bar,
+html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress-bar {
+  height: 2px !important;
+  min-height: 2px !important;
+  max-height: 2px !important;
+  top: 50% !important;
+  bottom: auto !important;
+  transform: translateY(-50%) !important;
+  background: transparent !important;
   box-shadow: none !important;
 }
 html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress .art-progress-loaded,
 html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress .art-progress-loaded,
 html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress .art-progress-played,
 html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress .art-progress-played {
-  height: 3px !important;
+  height: 2px !important;
+  min-height: 2px !important;
+  max-height: 2px !important;
+  top: 50% !important;
+  bottom: auto !important;
+  transform: translateY(-50%) !important;
 }
 
 
