@@ -11,14 +11,44 @@ const expected = Buffer.from(Array.from({ length: 128 * 1024 }, (_, i) => (i * 3
 const errors = [];
 
 async function waitForTask(page, title, state) {
-  await page.waitForFunction(({ title, state }) => {
-    const titleNode = Array.from(document.querySelectorAll('p')).find((node) => node.textContent?.trim() === title);
-    const card = titleNode?.closest('.card');
-    const text = card?.textContent ?? '';
-    return state === 'completed'
-      ? text.includes('MP4') && text.includes('已完成')
-      : text.includes('失败') && text.includes('HTTP 503') && Boolean(card?.querySelector('[role="alert"]'));
-  }, { title, state }, { timeout: 30000 });
+  try {
+    await page.waitForFunction(({ title, state }) => {
+      const titleNode = Array.from(document.querySelectorAll('p')).find((node) => node.textContent?.trim() === title);
+      let card = titleNode;
+      while (card && !card.classList?.contains('card')) card = card.parentElement;
+      const text = card?.textContent ?? '';
+      return state === 'completed'
+        ? text.includes('MP4') && text.includes('已完成')
+        : text.includes('失败') && text.includes('HTTP 503') && Boolean(card?.querySelector('[role="alert"]'));
+    }, { title, state }, { timeout: 30000 });
+  } catch (error) {
+    const diagnostic = await page.evaluate(async (title) => {
+      const titleNode = Array.from(document.querySelectorAll('p')).find((node) => node.textContent?.trim() === title);
+      const ancestors = [];
+      let node = titleNode;
+      for (let depth = 0; node && depth < 7; depth += 1, node = node.parentElement) {
+        ancestors.push({ tag: node.tagName, className: typeof node.className === 'string' ? node.className : '', text: (node.textContent ?? '').replace(/\\s+/g, ' ').trim().slice(0, 1200) });
+      }
+      const tasks = await new Promise((resolve) => {
+        const request = indexedDB.open('libretv');
+        request.onerror = () => resolve({ error: request.error?.message ?? 'IndexedDB open failed' });
+        request.onsuccess = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains('downloads')) {
+            db.close();
+            return resolve({ error: 'downloads object store missing', stores: Array.from(db.objectStoreNames) });
+          }
+          const tx = db.transaction('downloads', 'readonly');
+          const get = tx.objectStore('downloads').getAll();
+          get.onsuccess = () => resolve(get.result);
+          get.onerror = () => resolve({ error: get.error?.message ?? 'IndexedDB read failed' });
+          tx.oncomplete = () => db.close();
+        };
+      });
+      return { bodyText: document.body.innerText.slice(-5000), ancestors, tasks };
+    }, title);
+    throw new Error('Download task did not reach ' + state + ': ' + JSON.stringify(diagnostic) + '; ' + (error instanceof Error ? error.message : String(error)));
+  }
 }
 
 try {
