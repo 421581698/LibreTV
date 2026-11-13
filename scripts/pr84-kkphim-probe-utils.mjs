@@ -73,3 +73,16 @@ export function summarizeMediaUrl(rawUrl) {
     return { hostname: "invalid-url", pathDepth: 0, dateSegment: null, extension: "unknown", pathFingerprint: null, hasQuery: false };
   }
 }
+
+export function summarizeResponseHeaders(headers) {
+  const get = (name) => {
+    const value = headers?.get?.(name);
+    return value ? String(value).slice(0, 120) : null;
+  };
+  return {
+    responseServer: get("server"),
+    responseVia: get("via"),
+    responseCache: get("cf-cache-status") || get("x-cache"),
+    responseContentLength: get("content-length"),
+  };
+}
