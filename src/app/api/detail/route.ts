@@ -58,11 +58,12 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: listVerdict.reason }, { status: 400 });
     }
 
+    const sourceHost = new URL(source.url).hostname.toLowerCase();
     let resolved: VideoDetail | null = null;
 
-    if (sourceHost === 'phimapi.com') {
+    if (source.key === 'kkphim' || sourceHost === 'phimapi.com') {
       const sourceUrl = new URL(source.url);
-      if (sourceUrl.origin !== 'https://phimapi.com' || sourceUrl.pathname !== '/') {
+      if (sourceHost !== 'phimapi.com' || sourceUrl.origin !== 'https://phimapi.com' || sourceUrl.pathname !== '/') {
         return NextResponse.json({ error: 'KKPhim 仅允许 https://phimapi.com 根地址' }, { status: 400 });
       }
 
@@ -85,9 +86,8 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: 'KKPhim 返回的影片与请求 ID 不匹配' }, { status: 404 });
       }
 
-      const rawEpisodes: Array<{ server: string; name: string; url: string }> = [];
+      const rawEpisodes: Array<{ name: string; url: string }> = [];
       for (const server of Array.isArray(payload.episodes) ? payload.episodes : []) {
-        const serverName = typeof server.server_name === 'string' ? server.server_name.trim() : '';
         const serverData = Array.isArray(server.server_data) ? server.server_data : [];
         for (const entry of serverData) {
           if (!entry || typeof entry !== 'object') continue;
@@ -98,7 +98,7 @@ export async function GET(req: Request) {
           try {
             const mediaUrl = new URL(rawUrl);
             if (mediaUrl.protocol !== 'https:' || mediaUrl.username || mediaUrl.password) continue;
-            rawEpisodes.push({ server: serverName, name, url: mediaUrl.toString() });
+            rawEpisodes.push({ name, url: mediaUrl.toString() });
           } catch {
             // Ignore malformed third-party stream URLs.
           }
@@ -120,7 +120,6 @@ export async function GET(req: Request) {
           safeEpisodes.push({
             title: episode.name,
             url: episode.url,
-            ...(episode.server ? { episodeName: episode.server } : {}),
           });
         }
       }
@@ -161,7 +160,6 @@ export async function GET(req: Request) {
     } else {
     // 1) 标准 CMS 详情接口。暴风官方 JSON 文档指定 ac=detail；
     // 其它 Apple CMS 源继续使用兼容性更广的 ac=videolist。
-    const sourceHost = new URL(source.url).hostname.toLowerCase();
     const action = sourceHost === 'bfzyapi.com' ? 'detail' : 'videolist';
     const api = `${source.url.replace(/\/+$/, '')}?ac=${action}&ids=${encodeURIComponent(id)}`;
     const res = await fetchUpstream(api, { timeoutMs: 10000, signal: req.signal, headers: cmsRequestHeaders() });

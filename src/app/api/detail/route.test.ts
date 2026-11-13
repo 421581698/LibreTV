@@ -155,14 +155,14 @@ describe('GET /api/detail', () => {
     expect(response.status).toBe(200);
     const data = await response.json() as {
       episodes: string[];
-      episodeItems: Array<{ title: string; url: string; episodeName?: string }>;
+      episodeItems: Array<{ title: string; url: string }>;
       videoInfo: { title?: string; originalTitle?: string; typeName?: string; year?: string; remarks?: string };
     };
     expect(data.episodes).toEqual([
       'https://media.example.com/ep1/index.m3u8',
       'https://media.example.com/ep2/index.m3u8',
     ]);
-    expect(data.episodeItems[0]).toMatchObject({ title: '第 1 集', episodeName: 'Vietsub' });
+    expect(data.episodeItems[0]).toMatchObject({ title: '第 1 集', url: 'https://media.example.com/ep1/index.m3u8' });
     expect(data.videoInfo).toMatchObject({
       title: 'KKPhim 测试影片',
       originalTitle: 'Test Movie',

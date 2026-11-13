@@ -152,6 +152,7 @@ async function readLimitedResponse(
 function buildSearchUrl(
   sourceUrl: string,
   keyword: string,
+  sourceKey: string,
 ): URL {
   if (
     typeof sourceUrl !== 'string' ||
@@ -174,8 +175,8 @@ function buildSearchUrl(
   }
 
   // KKPhim 是独立 REST API，不是 Apple CMS；只允许其固定 HTTPS 主机。
-  if (url.hostname.toLowerCase() === 'phimapi.com') {
-    if (url.origin !== 'https://phimapi.com' || url.pathname !== '/') {
+  if (sourceKey === 'kkphim' || url.hostname.toLowerCase() === 'phimapi.com') {
+    if (url.hostname.toLowerCase() !== 'phimapi.com' || url.origin !== 'https://phimapi.com' || url.pathname !== '/') {
       throw new Error('KKPhim 仅允许 https://phimapi.com 根地址');
     }
     const target = new URL('/v1/api/tim-kiem', url.origin);
@@ -323,6 +324,7 @@ async function fetchFromSource(
     const targetUrl = buildSearchUrl(
       source.url,
       keyword,
+      source.key,
     );
 
     // 所有用户配置的上游请求必须经过项目安全请求层。
