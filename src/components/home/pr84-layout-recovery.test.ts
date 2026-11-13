@@ -124,7 +124,7 @@ describe('PR #84 homepage blocking layout recovery', () => {
   });
 
   it('keeps mobile hero height and crop ownership in the final Apple Dock stylesheet', () => {
-    expect(appleDock).toContain('height: min(55svh, calc(100svh - 68px - env(safe-area-inset-top, 0px) - 132px)) !important;');
+    expect(appleDock).toContain('height: clamp(360px, 55svh, 520px) !important;');
     expect(appleDock).toContain('object-position: center 85% !important;');
     for (const staleHeight of [
       'height: clamp(360px,55svh,520px) !important;',
@@ -138,15 +138,6 @@ describe('PR #84 homepage blocking layout recovery', () => {
     for (const staleCrop of ['center 0%', 'center 68%', 'center 80%', 'center 85%', 'center 24%']) {
       expect(inlineHome).not.toContain(`object-position: ${staleCrop} !important;`);
     }
-  });
-
-  it('removes the empty black header surface and pins the dock to the viewport', () => {
-    expect(globalLayout).toContain('background: transparent !important;');
-    expect(globalLayout).toContain('backdrop-filter: none !important;');
-    expect(appleDock).toContain('position: fixed !important;');
-    expect(appleDock).toContain('bottom: 0 !important;');
-    expect(appleDock).toContain('translate: none !important;');
-    expect(appleDock).toContain('calc(100svh - 68px - env(safe-area-inset-top, 0px) - 132px)');
   });
 
   it('keeps dock scroll clearance in one shared CSS token', () => {

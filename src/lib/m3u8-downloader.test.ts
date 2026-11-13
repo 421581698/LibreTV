@@ -281,3 +281,57 @@ describe('runDownloadJob · 源站缺片与存储错误', () => {
     );
   });
 });
+
+
+describe('runDownloadJob · fMP4 初始化段与 AES Key 校验', () => {
+  it('按 init.mp4 → m4s 分片顺序输出原生 fragmented MP4', async () => {
+    stubCaches();
+    const init = new Uint8Array([0, 0, 0, 16, 0x66, 0x74, 0x79, 0x70]);
+    const fragment = new Uint8Array([0, 0, 0, 8, 0x6d, 0x6f, 0x6f, 0x66]);
+    const playlist = ['#EXTM3U', '#EXT-X-MAP:URI="init.mp4"', '#EXTINF:4,', 'seg-1.m4s', '#EXT-X-ENDLIST'].join('\n');
+    const written: number[][] = [];
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('index.m3u8')) return new Response(playlist);
+      if (url.endsWith('init.mp4')) return new Response(init);
+      if (url.endsWith('seg-1.m4s')) return new Response(fragment);
+      return new Response('', { status: 404 });
+    }));
+
+    await runDownloadJob(jobOptions({
+      format: 'MP4',
+      target: {
+        kind: 'memory',
+        write: async (data) => { written.push(Array.from(data)); },
+        close: async () => {},
+        abort: async () => {},
+      },
+    }));
+
+    expect(written).toEqual([Array.from(init), Array.from(fragment)]);
+  });
+
+  it('AES-128 Key 必须恰好为 16 字节', async () => {
+    stubCaches();
+    const playlist = ['#EXTM3U', '#EXT-X-KEY:METHOD=AES-128,URI="key.bin"', '#EXTINF:4,', 'seg.ts'].join('\n');
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('index.m3u8')) return new Response(playlist);
+      if (url.endsWith('key.bin')) return new Response(new Uint8Array(15));
+      return new Response(new Uint8Array([0x47]));
+    }));
+    await expect(runDownloadJob(jobOptions())).rejects.toThrow('AES-128 密钥长度异常');
+  });
+
+  it('AES-128 Key 请求超时返回明确失败原因', async () => {
+    stubCaches();
+    const playlist = ['#EXTM3U', '#EXT-X-KEY:METHOD=AES-128,URI="key.bin"', '#EXTINF:4,', 'seg.ts'].join('\n');
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('index.m3u8')) return new Response(playlist);
+      if (url.endsWith('key.bin')) throw new DOMException('The operation timed out', 'TimeoutError');
+      return new Response(new Uint8Array([0x47]));
+    }));
+    await expect(runDownloadJob(jobOptions())).rejects.toThrow('解密密钥请求超时');
+  });
+});

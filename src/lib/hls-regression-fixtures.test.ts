@@ -84,7 +84,7 @@ describe('HLS fixture regression matrix', () => {
     }
   });
 
-  it('明确拒绝尚未实现 init segment 写入的 fMP4 下载，不伪报支持', async () => {
+  it('解析 fMP4 初始化段与相对媒体分片 URI', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response([
       '#EXTM3U',
       '#EXT-X-MAP:URI="init.mp4"',
@@ -93,8 +93,29 @@ describe('HLS fixture regression matrix', () => {
       '#EXT-X-ENDLIST',
     ].join('\n'))));
 
-    await expect(parseM3u8Playlist(`${ORIGIN}/fmp4/index.m3u8`))
-      .rejects.toThrow('EXT-X-MAP 初始化分段');
+    const parsed = await parseM3u8Playlist(`${ORIGIN}/fmp4/index.m3u8`);
+    expect(parsed.initSegment).toBe(`${ORIGIN}/fmp4/init.mp4`);
+    expect(parsed.segments.map((segment) => segment.url)).toEqual([`${ORIGIN}/fmp4/segment.m4s`]);
+  });
+
+  it('拒绝缺少 URI 或使用 BYTERANGE 的 fMP4 初始化段', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response([
+      '#EXTM3U',
+      '#EXT-X-MAP:BYTERANGE="100@0"',
+      '#EXTINF:4,',
+      'segment.m4s',
+    ].join('\n'))));
+    await expect(parseM3u8Playlist(`${ORIGIN}/fmp4/no-uri.m3u8`))
+      .rejects.toThrow('缺少初始化分段 URI');
+
+    vi.stubGlobal('fetch', vi.fn(async () => new Response([
+      '#EXTM3U',
+      '#EXT-X-MAP:URI="init.mp4",BYTERANGE="100@0"',
+      '#EXTINF:4,',
+      'segment.m4s',
+    ].join('\n'))));
+    await expect(parseM3u8Playlist(`${ORIGIN}/fmp4/range.m3u8`))
+      .rejects.toThrow('初始化分段 BYTERANGE 暂不支持');
   });
 
   it('明确拒绝 SAMPLE-AES DRM/加密变体', async () => {
