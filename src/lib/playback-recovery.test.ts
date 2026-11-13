@@ -124,7 +124,8 @@ describe('schedule', () => {
 describe('describeHlsError', () => {
   it('常见 details 映射中文文案', () => {
     expect(describeHlsError('networkError', 'manifestLoadError')).toBe('播放列表加载失败');
-    expect(describeHlsError('networkError', 'fragLoadError')).toBe('视频分片加载失败');\n    expect(describeHlsError('networkError', 'keyLoadError')).toBe('解密密钥加载失败');
+    expect(describeHlsError('networkError', 'fragLoadError')).toBe('视频分片加载失败');
+    expect(describeHlsError('networkError', 'keyLoadError')).toBe('解密密钥加载失败');
     expect(describeHlsError('mediaError', '')).toBe('媒体解码错误');
     expect(describeHlsError('otherError', 'xyz')).toBe('播放错误（xyz）');
   });
