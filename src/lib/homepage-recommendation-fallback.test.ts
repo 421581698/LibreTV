@@ -30,6 +30,26 @@ describe('fetchHomepageWithFallback', () => {
     )).resolves.toEqual(response([item]));
   });
 
+
+  it('uses the fallback when Douban returns records without usable poster URLs', async () => {
+    const fallback = vi.fn().mockResolvedValue(response([item]));
+    await expect(fetchHomepageWithFallback(
+      vi.fn().mockResolvedValue(response([
+        { id: 'broken', title: 'No poster', cover: '' },
+      ])),
+      fallback
+    )).resolves.toEqual(response([item]));
+    expect(fallback).toHaveBeenCalledOnce();
+  });
+
+  it('removes incomplete records when a source returns a mixed list', async () => {
+    const primary = vi.fn().mockResolvedValue(response([
+      item,
+      { id: 'broken', title: 'Missing artwork', cover: '' },
+    ]));
+    await expect(fetchHomepageWithFallback(primary, vi.fn())).resolves.toEqual(response([item]));
+  });
+
   it('does not hide an abort behind a fallback request', async () => {
     const controller = new AbortController();
     controller.abort();
