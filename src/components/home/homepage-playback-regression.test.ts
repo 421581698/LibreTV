@@ -501,12 +501,13 @@ describe('首页与播放页回归契约', () => {
   });
 
 
-  it('播放页进度条保持纤细外观，同时保留完整拖动热区', () => {
-    expect(watchStyles).toContain('margin-block: -4px !important;');
+  it('播放页进度条使用唯一的 16px seek 热区、2px 轨道和 6px 播放头', () => {
+    expect(watchStyles).toContain('PR84 single source of truth for ArtPlayer timeline geometry');
     expect(watchStyles).toContain('height: 16px !important;');
+    expect(watchStyles).toContain('height: 2px !important;');
     expect(watchStyles).toContain('rgba(255,255,255,.42)');
     expect(watchStyles).toContain('width: 6px !important;');
-    expect(watchStyles).toContain('height: 6px !important;');
+    expect(watchStyles).not.toContain('margin-block: -4px !important;');
   });
 
   it('无 vodId 的直连视频也能保存、恢复和清理播放进度', () => {
