@@ -185,7 +185,7 @@ describe('TMDB episode artwork matching', () => {
     expect(parseEpisodeCoordinates('特别篇', '示例剧')).toBeNull();
   });
 
-  it('uses a TMDB series backdrop, never the title poster, when an episode still is unavailable', async () => {
+  it('does not reuse a series backdrop when an exact episode still is unavailable', async () => {
     const detail = makeDetail(1);
     detail.videoInfo.cover = 'https://source.example.com/title-poster.jpg';
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
@@ -210,10 +210,8 @@ describe('TMDB episode artwork matching', () => {
       title: '今天是太阳雨',
       year: '2026',
     });
-    expect(result.episodeItems?.[0]).toMatchObject({
-      image: 'https://image.tmdb.org/t/p/w1280/series-backdrop.jpg',
-      imageKind: 'series-backdrop',
-    });
+    expect(result.episodeItems?.[0].image).toBeUndefined();
+    expect(result.episodeItems?.[0].image).not.toBe('https://image.tmdb.org/t/p/w1280/series-backdrop.jpg');
     expect(result.episodeItems?.[0].image).not.toBe(detail.videoInfo.cover);
   });
 
