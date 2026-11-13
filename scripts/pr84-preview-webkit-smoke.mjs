@@ -226,6 +226,12 @@ try {
     const bottom = frame?.querySelector('.artplayer .art-bottom, .art-video-player .art-bottom');
     const quality = frame?.querySelector('.player-quality-badge');
     const relatedHeading = document.querySelector('.netflix-related-section .netflix-section-heading');
+    const watchMain = document.querySelector('main.netflix-watch');
+    const activeDockItem = dock.querySelector('a.is-active');
+    const fridayLauncher = document.querySelector('.friday-root .friday-fab, .friday-root .friday-restore');
+    const progressBar = frame?.querySelector('.artplayer .art-progress-bar, .art-video-player .art-progress-bar');
+    const progressDot = frame?.querySelector('.artplayer .art-progress-indicator, .art-video-player .art-progress-indicator');
+    const relatedDataFallbacks = document.querySelectorAll('.netflix-related-art img[src^="data:"]').length;
     const emptyHistory = Array.from(document.querySelectorAll('.netflix-history-rail p'))
       .some((node) => node.textContent?.includes('还没有其他观看记录'));
     if (!header || !title || !dock || !frame) throw new Error('Watch page layout elements are missing');
@@ -252,6 +258,13 @@ try {
       playerBottomGradient: gradient,
       qualityFontSize: quality ? getComputedStyle(quality).fontSize : null,
       relatedHeadingMarginBottom: relatedHeading ? getComputedStyle(relatedHeading).marginBottom : null,
+      watchMainPaddingBottom: watchMain ? getComputedStyle(watchMain).paddingBottom : null,
+      activeDockColor: activeDockItem ? getComputedStyle(activeDockItem).color : null,
+      activeDockBackground: activeDockItem ? getComputedStyle(activeDockItem).backgroundColor : null,
+      fridayLauncherDisplay: fridayLauncher ? getComputedStyle(fridayLauncher).display : 'absent',
+      progressBarHeight: progressBar ? getComputedStyle(progressBar).height : null,
+      progressDotWidth: progressDot ? getComputedStyle(progressDot).width : null,
+      relatedDataFallbacks,
     };
   });
   if (!watchLayout.title.includes('PR84 Watch Layout Acceptance') || watchLayout.titleAlign !== 'left') {
@@ -278,6 +291,22 @@ try {
   }
   if (Number.parseFloat(watchLayout.relatedHeadingMarginBottom ?? '0') < 20) {
     throw new Error('Related-movies heading has insufficient spacing: ' + JSON.stringify(watchLayout));
+  }
+  if (Number.parseFloat(watchLayout.watchMainPaddingBottom ?? '0') < 80) {
+    throw new Error('Watch page does not reserve enough scroll tail above the fixed dock: ' + JSON.stringify(watchLayout));
+  }
+  if (watchLayout.activeDockColor !== 'rgb(255, 255, 255)' ||
+      watchLayout.activeDockBackground !== 'rgba(255, 255, 255, 0.15)') {
+    throw new Error('Selected dock item is not the neutral white Apple TV pill: ' + JSON.stringify(watchLayout));
+  }
+  if (watchLayout.fridayLauncherDisplay !== 'none') {
+    throw new Error('Floating Friday starfield launcher still overlaps the watch page: ' + JSON.stringify(watchLayout));
+  }
+  if (watchLayout.progressBarHeight !== '2px' || Number.parseFloat(watchLayout.progressDotWidth ?? '99') > 6) {
+    throw new Error('Player timeline is not the fine Apple TV 2px/6px treatment: ' + JSON.stringify(watchLayout));
+  }
+  if (watchLayout.relatedDataFallbacks !== 0) {
+    throw new Error('Related posters are still using decorative data-URI fallbacks: ' + JSON.stringify(watchLayout));
   }
   await page.screenshot({ path: '/tmp/pr84-preview-watch-webkit.png', fullPage: true });
   console.log('PASS PR84 Preview WebKit watch-page header + player controls + horizontal dock:', JSON.stringify(watchLayout));
