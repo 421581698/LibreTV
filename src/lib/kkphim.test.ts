@@ -55,6 +55,7 @@ describe('KKPhim adapter', () => {
         server_name: 'Vietsub',
         server_data: [{
           name: '第1集',
+          still_url: 'https://images.example/episode-1.jpg',
           link_embed: 'https://player.example/embed/1',
           link_m3u8: 'https://media.example/1.m3u8',
         }],
@@ -62,6 +63,7 @@ describe('KKPhim adapter', () => {
     });
     expect(detail?.episodes).toEqual(['https://media.example/1.m3u8']);
     expect(detail?.episodeLabels).toEqual(['Vietsub · 第1集']);
+    expect(detail?.episodeImages).toEqual(['https://images.example/episode-1.jpg']);
     expect(detail?.videoInfo).toMatchObject({
       sourceKey: 'kkphim',
       title: '示例剧集',
