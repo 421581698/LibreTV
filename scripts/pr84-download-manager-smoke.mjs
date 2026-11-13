@@ -76,12 +76,18 @@ try {
 
   const response = await page.goto(base, { waitUntil: 'domcontentloaded', timeout: 60000 });
   if (!response || response.status() !== 200) throw new Error('Preview homepage did not return HTTP 200');
-  // Wait for the hydrated header control, then open the manager through the same
-  // real click path a user uses. Dispatching the global event immediately after
-  // DOMContentLoaded can race the root layout's React effect registration.
-  const managerButton = page.getByRole('button', { name: '下载管理' });
-  await managerButton.waitFor({ state: 'visible', timeout: 30000 });
-  await managerButton.click();
+  // The manager is a global root-layout feature; wait until its listener is
+  // mounted before dispatching the same event used by the app's header action.
+  await page.evaluate(() => new Promise((resolve, reject) => {
+    if (window.__LIBRETV_DOWNLOAD_MANAGER_READY__) return resolve();
+    const timeout = setTimeout(() => reject(new Error('Global download manager did not mount')), 30000);
+    window.addEventListener('libretv:download-manager-ready', () => {
+      clearTimeout(timeout);
+      window.__LIBRETV_DOWNLOAD_MANAGER_READY__ = true;
+      resolve();
+    }, { once: true });
+  }));
+  await page.evaluate(() => window.dispatchEvent(new Event('libretv:show-download-manager')));
   await page.getByText('下载管理', { exact: true }).last().waitFor({ state: 'visible', timeout: 30000 });
 
   const title = 'PR84 下载文件输出验收';
