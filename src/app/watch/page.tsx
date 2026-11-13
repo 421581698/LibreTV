@@ -1,6 +1,5 @@
 'use client';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -67,10 +66,6 @@ function WatchContent() {
   const [reversed, setReversed] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<'episodes' | 'sources' | 'details'>('episodes');
   const [showAutoNext, setShowAutoNext] = useState(false);
-  const recentHistory = useLiveQuery(
-    () => db.history.orderBy('timestamp').reverse().limit(8).toArray(),
-    [sourceKey, vodId]
-  );
   // 当前播放地址：优先取剧集列表中的当前集，其次直连 URL 参数
   const currentUrl = useMemo(() => {
     if (episodes.length > 0) {
@@ -418,37 +413,6 @@ function WatchContent() {
 
             </div>
 
-            <div className="netflix-below-player">
-              <div className="netflix-section-heading">
-                <div>
-                  <h2>继续观看</h2>
-                  <p>根据本机观看记录，接着上次的进度继续</p>
-                </div>
-                {sortedContinueHistory.length > 0 && <Link href="/me" className="text-sm text-muted hover:text-content">全部观看历史 →</Link>}
-              </div>
-              <div className="netflix-history-rail">
-                {sortedContinueHistory.map(({ item, percent, unfinished }) => {
-                  const href = buildWatchUrl({ sourceKey: item.sourceKey, vodId: item.vodId, index: item.episodeIndex, title: item.title, sourceUrl: item.sourceUrl });
-                  return (
-                    <Link key={`${item.sourceKey}:${item.vodId}`} href={href} className="netflix-history-card">
-                      <div className="netflix-history-art">
-                        {item.pic ? <SmartImage url={item.pic} mode="direct" alt="" className="w-full h-full object-cover" showDefaultFallback={false} /> : <div className="w-full h-full bg-chip" />}
-                        <span className="netflix-history-play"><span aria-hidden="true">▶</span></span>
-                      </div>
-                      <div className="netflix-history-meta">
-                        <strong>{item.title}</strong>
-                        <span>{item.totalEpisodes > 0 ? `第 ${item.episodeIndex + 1} / ${item.totalEpisodes} 集` : '继续观看'}{!unfinished ? ' · 已看完' : ''}</span>
-                        <div className="netflix-history-progress"><i style={{ width: `${percent}%` }} /></div>
-                      </div>
-                    </Link>
-                  );
-                })}
-                {(!recentHistory || sortedContinueHistory.length === 0) && (
-                  <p className="text-sm text-faint py-5">还没有其他观看记录，之后观看的影片会显示在这里。</p>
-                )}
-              </div>
-            </div>
-
             <div className="netflix-watch-tools">
               {hasEpisodeNavigation && <><button className="btn-ghost btn-sm" disabled={currentIndex <= 0} onClick={() => goEpisode(currentIndex - 1)}>上一集</button>
               <button className="btn-ghost btn-sm" disabled={currentIndex >= episodes.length - 1} onClick={() => goEpisode(currentIndex + 1)}>下一集</button></>}
@@ -552,29 +516,6 @@ function WatchContent() {
                 </div>
                 <button className="btn-primary btn-sm" onClick={() => { cancelAutoNext(); goEpisode(currentIndex + 1); }}>立即播放</button>
                 <button className="btn-ghost btn-sm" onClick={cancelAutoNext}>取消</button>
-              </div>
-            )}
-            {currentIndex + 1 < episodes.length && (
-              <div className="netflix-next-preview">
-                <div className="netflix-section-kicker">接下来播放</div>
-                <button className="netflix-next-card" onClick={() => goEpisode(currentIndex + 1)}>
-                  <div className="netflix-next-thumb">
-                    {detailQuery.data?.videoInfo?.cover ? <SmartImage url={detailQuery.data.videoInfo.cover} mode="direct" alt="" className="w-full h-full object-cover" /> : <span>EP {currentIndex + 2}</span>}
-                    <span className="netflix-next-play"><span aria-hidden="true">▶</span></span>
-                  </div>
-                  <span className="min-w-0 flex-1 text-left"><strong>第 {currentIndex + 2} 集</strong><small>{videoTitle}</small></span>
-                  <span aria-hidden="true">›</span>
-                </button>
-                <label className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2 text-xs text-white/80">
-                  <span>播放结束后自动播放下一集</span>
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-[#3978ef]"
-                    checked={store.autoplayNext}
-                    onChange={(event) => store.updateSettings({ autoplayNext: event.target.checked })}
-                    aria-label="自动播放下一集"
-                  />
-                </label>
               </div>
             )}
             <div className="netflix-sidebar-footer">
