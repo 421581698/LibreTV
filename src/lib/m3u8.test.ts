@@ -36,7 +36,7 @@ describe('rewriteM3u8', () => {
       '#EXT-X-I-FRAME-STREAM-INF:BANDWIDTH=86000,URI="../iframe/low.m3u8"',
       '#EXT-X-SESSION-KEY:METHOD=AES-128,URI="keys/session.key"',
       '#EXT-X-KEY:METHOD=AES-128,URI="/keys/media.key"',
-    ].join('\\n');
+    ].join('\n');
     const out = rewriteM3u8(input, BASE);
     for (const target of [
       'https://cdn.example.com/live/audio/index.m3u8',
