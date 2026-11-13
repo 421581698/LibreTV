@@ -323,9 +323,9 @@ jobs:
           PROBE_OUTCOME: ${{ steps.kkphim-probe.outcome }}
         run: |
           if [ "$PROBE_OUTCOME" = "success" ]; then
-            echo "KKPhim returned a fresh HLS candidate with a verified manifest and segment; PlayerShell decode is included below."
+            echo "KKPhim returned a fresh HLS candidate with a verified manifest and segment. The PlayerShell step will attempt real browser decode; only its explicit PASS log proves playback."
           else
-            echo "::warning::KKPhim has no freshly verified HLS candidate in this run. The source remains disabled; general Preview acceptance continues."
+            echo "::warning::KKPhim has no freshly verified HLS candidate in this run. KKPhim PlayerShell decode is skipped; the source remains disabled and general Preview acceptance continues."
           fi
 
       - name: Install Playwright WebKit for mobile-layout acceptance
