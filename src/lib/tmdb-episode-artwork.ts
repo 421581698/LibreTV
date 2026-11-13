@@ -161,12 +161,16 @@ export async function enrichEpisodesWithTmdbArtwork(
     })[0];
     if (!match?.id) return detail;
 
-    const seasonNumbers = [...new Set(detail.episodeItems
-      .map((item) => parseEpisodeCoordinates(item.title, displayTitle)?.seasonNumber)
+    const parsedCoordinates = detail.episodeItems.map((item) => parseEpisodeCoordinates(item.title, displayTitle));
+    const seasonNumbers = [...new Set(parsedCoordinates
+      .map((coordinates) => coordinates?.seasonNumber)
       .filter((value): value is number => Boolean(value)))];
-    if (seasonNumbers.length === 0) return detail;
+    // Some CMS feeds expose episode URLs but leave their labels blank or use
+    // non-standard text. Try season 1, then permit positional matching only
+    // when the CMS item count exactly equals TMDB's season episode count.
+    const lookupSeasonNumbers = seasonNumbers.length > 0 ? seasonNumbers : [1];
 
-    const seasonData = await Promise.all(seasonNumbers.map(async (seasonNumber) => {
+    const seasonData = await Promise.all(lookupSeasonNumbers.map(async (seasonNumber) => {
       const response = await tmdbGet<TmdbSeasonResponse>(
         '/tv/' + match.id + '/season/' + seasonNumber,
         token,
@@ -184,8 +188,13 @@ export async function enrichEpisodesWithTmdbArtwork(
     }
 
     let changed = false;
-    const episodeItems = detail.episodeItems.map((item) => {
-      const coordinates = parseEpisodeCoordinates(item.title, displayTitle);
+    const canMatchByExactCount = seasonData.length === 1 &&
+      seasonData[0].episodes.length === detail.episodeItems.length;
+    const positionalSeason = canMatchByExactCount ? seasonData[0].seasonNumber : undefined;
+    const episodeItems = detail.episodeItems.map((item, index) => {
+      const coordinates = parsedCoordinates[index] ?? (
+        positionalSeason ? { seasonNumber: positionalSeason, episodeNumber: index + 1 } : null
+      );
       if (!coordinates) return item;
       const tmdbEpisode = episodeMetadata.get(coordinates.seasonNumber + ':' + coordinates.episodeNumber);
       if (!tmdbEpisode) return item;

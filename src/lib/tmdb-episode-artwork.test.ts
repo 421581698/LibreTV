@@ -167,6 +167,49 @@ describe('TMDB episode artwork matching', () => {
     expect(result.episodeItems?.[0].image).toBe('https://source.example.com/episode-1.jpg');
   });
 
+  it('matches generic or blank CMS episode labels by position only when the season count matches exactly', async () => {
+    const detail = makeDetail(16);
+    detail.episodeItems = detail.episodeItems?.map((item, index) => ({
+      ...item,
+      title: index % 2 === 0 ? '' : '高清中字',
+    }));
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      if (url.pathname === '/3/search/tv') {
+        return Response.json({
+          results: [{ id: 307853, name: '今天是太阳雨', original_name: 'Sunshine Through the Rain', first_air_date: '2026-01-01' }],
+        });
+      }
+      return Response.json({
+        episodes: Array.from({ length: 16 }, (_, index) => ({
+          id: 9100 + index,
+          episode_number: index + 1,
+          still_path: '/matched-' + (index + 1) + '.jpg',
+          name: '第' + (index + 1) + '集',
+          runtime: 45,
+        })),
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await enrichEpisodesWithTmdbArtwork(detail, {
+      token: 'test-read-token',
+      title: '今天是太阳雨',
+      year: '2026',
+    });
+
+    expect(result.episodeItems).toHaveLength(16);
+    for (let index = 0; index < 16; index += 1) {
+      expect(result.episodeItems?.[index]).toMatchObject({
+        image: 'https://image.tmdb.org/t/p/w780/matched-' + (index + 1) + '.jpg',
+        episodeNumber: index + 1,
+        imageSource: 'tmdb',
+        episodeName: '第' + (index + 1) + '集',
+        duration: '45分钟',
+      });
+    }
+  });
+
   it('does nothing without credentials and keeps the playback data intact', async () => {
     const detail = makeDetail(2);
     const fetchMock = vi.fn();

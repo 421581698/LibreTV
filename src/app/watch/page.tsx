@@ -570,7 +570,7 @@ function WatchContent() {
           </aside>
         </div>
       </main>
-      <AIFloatingBall inlineMode />
+      <AIFloatingBall inlineMode showFab={false} />
       {switchOpen && (
         <SwitchSourceModal
           currentTitle={videoTitle}
