@@ -258,7 +258,7 @@ try {
       title: title.textContent?.replace(/\\s+/g, ' ').trim() ?? '',
       titleAlign: titleStyle.textAlign,
       headerButtons: header.querySelectorAll('button').length,
-      hasHeaderAssistant: Boolean(header.querySelector('.friday-orb, .friday-fab, .watch-topbar-right')),
+      hasHeaderAssistant: Boolean(header.querySelector('.friday-orb, .friday-fab, .friday-restore')),
       shellPosition: shellStyle.position,
       shellWidth: shellRect.width,
       shellHeight: shellRect.height,
@@ -282,8 +282,8 @@ try {
   if (!watchLayout.title.includes('PR84 Watch Layout Acceptance') || watchLayout.titleAlign !== 'left') {
     throw new Error('Watch header title is not aligned with the back control: ' + JSON.stringify(watchLayout));
   }
-  if (watchLayout.headerButtons !== 1 || watchLayout.hasHeaderAssistant) {
-    throw new Error('Watch header still contains extra round/starfield controls: ' + JSON.stringify(watchLayout));
+  if (watchLayout.headerButtons !== 2 || watchLayout.hasHeaderAssistant) {
+    throw new Error('Watch header must contain only the back and episode/source panel controls: ' + JSON.stringify(watchLayout));
   }
   if (watchLayout.shellPosition !== 'fixed' || Math.abs(watchLayout.shellWidth - 390) > 2 ||
       Math.abs(watchLayout.shellHeight - 844) > 2) {
