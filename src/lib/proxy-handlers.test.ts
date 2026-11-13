@@ -85,7 +85,7 @@ describe('handleLiveStreamRequest HLS route regression', () => {
 
     const response = await handleLiveStreamRequest(request(), 'https://media.example.test/keys/slow.key');
     expect(response.status).toBe(502);
-    expect(await response.json()).toMatchObject({ error: expect.stringContaining('TimeoutError') });
+    expect(await response.json()).toMatchObject({ error: expect.stringContaining('upstream timeout') });
   });
 
   it('每次请求直播清单都重新读取并重写最新滑动窗口，不复用旧清单', async () => {
