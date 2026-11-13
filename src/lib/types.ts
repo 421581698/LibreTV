@@ -42,6 +42,8 @@ export interface VideoInfo {
 
 export interface VideoDetail {
   episodes: string[];
+  /** Optional provider-supplied episode names aligned with episodes; playback entries remain plain URLs. */
+  episodeLabels?: string[];
   videoInfo: VideoInfo;
 }
 
