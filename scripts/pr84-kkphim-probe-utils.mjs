@@ -52,8 +52,8 @@ export function getSameOriginScriptUrls(rawUrl, html) {
   const urls = [];
   let page;
   try { page = new URL(rawUrl); } catch { return urls; }
-  const source = String(html).replaceAll("\\\\/", "/").replaceAll("\\\\u0026", "&");
-  const expression = /<script\\b[^>]*\\bsrc\\s*=\\s*(["'])(.*?)\\1/gi;
+  const source = String(html).replaceAll("\\/", "/").replaceAll("\\u0026", "&");
+  const expression = /<script\b[^>]*\bsrc\s*=\s*(["'])(.*?)\1/gi;
   for (const match of source.matchAll(expression)) {
     try {
       const url = new URL(match[2], page);
