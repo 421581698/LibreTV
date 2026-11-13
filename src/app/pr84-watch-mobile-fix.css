@@ -202,7 +202,7 @@
   color: rgba(255,255,255,.62) !important;
 }
 @media (max-width: 700px) {
-  .player-quality-badge { padding: 3px 7px !important; font-size: 11px !important; }
+  .player-quality-badge { padding: 3px 7px !important; font-size: 12px !important; }
 }
 
 /* Thin streaming-style timeline with a clear white playhead. */
