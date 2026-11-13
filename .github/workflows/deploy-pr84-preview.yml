@@ -59,6 +59,7 @@ jobs:
         run: npx opennextjs-cloudflare build
 
       - name: Deploy isolated PR84 Worker
+        id: deploy-preview
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -309,6 +310,27 @@ jobs:
             process.exitCode = 1;
           }
           NODE
+
+      
+      - name: Install Playwright WebKit for mobile-layout acceptance
+        if: steps.deploy-preview.outcome == 'success'
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps webkit
+
+      - name: Verify current PR84 Preview in mobile WebKit
+        if: steps.deploy-preview.outcome == 'success'
+        env:
+          PR84_PREVIEW_URL: https://libretv-pr84-preview.bggdbh.workers.dev
+        run: node scripts/pr84-preview-webkit-smoke.mjs
+
+      - name: Upload mobile WebKit Preview screenshot
+        if: always() && steps.deploy-preview.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr84-preview-webkit-mobile
+          path: /tmp/pr84-preview-webkit.png
+          if-no-files-found: ignore
 
       - name: Verify deployed PR84 homepage and status endpoint
         if: always()
