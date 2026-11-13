@@ -91,8 +91,6 @@ try {
     const next = new URL(window.location.href);
     next.searchParams.set('url', url);
     window.history.pushState({}, '', next.toString());
-    // Native pushState does not notify Next.js route state; emit the navigation event.
-    window.dispatchEvent(new PopStateEvent('popstate', { state: {} }));
   }, streams.aes128);
 
   try {
