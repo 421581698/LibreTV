@@ -149,7 +149,7 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
     const dockStyles = read('src/app/pr84-apple-tv-dock.css');
     expect(playerShell).toContain('playsInline: true');
     expect(playerShell).toContain('backdrop: false');
-    expect(playerShell).toContain('moreVideoAttr: { crossOrigin: \'anonymous\', playsInline: true }');
+    expect(playerShell).toContain('moreVideoAttr: { crossOrigin: \'anonymous\', playsInline: true,');
     expect(playerShell).toContain('setShowPlayFallback(true)');
     expect(playerShell).toContain('轻点开始播放');
     expect(playerShell).toContain('void art.play().then(() => setShowPlayFallback(false))');
