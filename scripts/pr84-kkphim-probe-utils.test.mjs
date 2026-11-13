@@ -85,3 +85,22 @@ test("summarizes upstream response headers without request identifiers", async (
   });
   assert.equal(JSON.stringify(summary).includes("private-request-id"), false);
 });
+
+
+test("inspects embed page script and iframe references without leaking URL tokens", async () => {
+  const { inspectEmbedPage } = await import("./pr84-kkphim-probe-utils.mjs");
+  const html = '<title>KK Player</title><script src="/assets/player.js?token=private"></script>' +
+    '<iframe src="https://frame.example/embed/one?sig=secret"></iframe>' +
+    '<script>fetch("/api/stream"); const source="https://cdn.example/video.m3u8?key=hidden";</script>';
+  const report = inspectEmbedPage("https://player.example/player/?url=https%3A%2F%2Fcdn.example%2Fold.m3u8", html);
+  assert.equal(report.title, "KK Player");
+  assert.equal(report.scriptCount, 2);
+  assert.equal(report.iframeCount, 1);
+  assert.equal(report.scriptReferences[0].hostname, "player.example");
+  assert.equal(report.iframeReferences[0].hostname, "frame.example");
+  assert.ok(report.markers.includes("fetch("));
+  assert.ok(report.markers.includes("m3u8"));
+  assert.equal(JSON.stringify(report).includes("private"), false);
+  assert.equal(JSON.stringify(report).includes("secret"), false);
+  assert.equal(JSON.stringify(report).includes("hidden"), false);
+});

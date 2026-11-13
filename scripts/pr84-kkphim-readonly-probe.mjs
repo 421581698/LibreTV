@@ -3,6 +3,7 @@ import net from "node:net";
 import { appendFileSync } from "node:fs";
 import {
   getEmbedMediaUrls,
+  inspectEmbedPage,
   getItems,
   getMovieDetail,
   getPlaybackLinks,
@@ -119,7 +120,13 @@ async function getManifest(rawUrl) {
 async function getEmbedPageMedia(rawUrl) {
   const { response } = await getResponse(rawUrl, { allowedHost: PLAYER_HOST, accept: "text/html,application/xhtml+xml", stage: "embed-page" });
   const html = (await readLimited(response, MAX_HTML_BYTES, { stage: "embed-page", url: rawUrl })).toString("utf8");
-  return getEmbedMediaUrls(rawUrl, html);
+  const mediaUrls = getEmbedMediaUrls(rawUrl, html);
+  if (embedPageDiagnostics.length < 8) embedPageDiagnostics.push({
+    httpStatus: response.status,
+    contentType: response.headers.get("content-type")?.split(";")[0]?.trim() || null,
+    ...inspectEmbedPage(rawUrl, html),
+  });
+  return mediaUrls;
 }
 
 async function verifyManifestAndSegment(rawUrl) {
@@ -163,6 +170,7 @@ const items = [...homeItems.values()].slice(0, MAX_MOVIES);
 if (!items.length) throw new Error("KKPhim home API returned no movie items across sampled pages");
 
 const diagnostics = [];
+const embedPageDiagnostics = [];
 const candidates = [];
 let detailV1Count = 0;
 let detailLegacyCount = 0;
