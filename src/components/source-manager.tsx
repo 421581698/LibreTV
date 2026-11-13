@@ -37,6 +37,7 @@ import { describeParseStats } from '@/lib/tvbox-parser';
 import { collectorFetch, clearScraplingConfig, normalizeScraplingBase, readScraplingConfig, saveScraplingConfig } from '@/lib/collector-browser-config';
 import { registerValidatedCmsSource } from '@/lib/resource-collector-workflow';
 import { ResourceStatsPanel } from '@/components/resource-stats-panel';
+import { requestShowDownloadManager } from '@/components/download-manager';
 
 
 const CollectorPlayerShell = dynamic(
@@ -48,12 +49,13 @@ const CollectorPlayerShell = dynamic(
  * Apple-inspired 设置抽屉：纵向分组首页 → 独立详情页。
  * 具体设置面板继续复用现有业务组件与持久化逻辑。
  */
-type SecondaryTab = 'vod' | 'live' | 'subs' | 'playback' | 'image' | 'home' | 'voice' | 'language' | 'io' | 'cache' | 'collector';
+type SecondaryTab = 'vod' | 'live' | 'subs' | 'playback' | 'image' | 'home' | 'voice' | 'language' | 'io' | 'cache' | 'collector' | 'downloads';
 type SettingsPage = SecondaryTab | 'index' | 'appearance' | 'about';
 
 const SETTINGS_SECTIONS: { title: string; color: string; items: { id: SettingsPage; label: string; detail: string; icon: IconName }[] }[] = [
   { title: '播放设置', color: '#32D7A0', items: [
     { id: 'playback', label: '播放与过滤', detail: '默认画质、自动连播、片段跳过与缓存', icon: 'play' },
+    { id: 'downloads', label: '下载管理', detail: '查看下载任务、真实进度与保存状态', icon: 'download' },
   ] },
   { title: '资源站', color: '#55A7FF', items: [
     { id: 'vod', label: '点播源管理', detail: '资源站、优先级与健康检测', icon: 'database' },
@@ -84,6 +86,7 @@ const SETTINGS_SECTIONS: { title: string; color: string; items: { id: SettingsPa
 const SETTINGS_PAGE_META: Record<Exclude<SettingsPage, 'index'>, { title: string; description: string }> = {
   appearance: { title: '外观', description: '自定义 LibreTV 的显示方式。' },
   playback: { title: '播放设置', description: '管理播放体验、画质与内容过滤。' },
+  downloads: { title: '下载管理', description: '查看下载任务、进度、失败原因与文件保存状态。' },
   image: { title: '封面图加载', description: '管理海报和图片的加载行为。' },
   language: { title: '语言设置', description: '选择界面与助手使用的语言。' },
   vod: { title: '影视源管理', description: '管理点播来源及其可用状态。' },
@@ -99,6 +102,7 @@ const SETTINGS_PAGE_META: Record<Exclude<SettingsPage, 'index'>, { title: string
 
 const SETTINGS_PAGE_ICONS: Record<Exclude<SettingsPage, 'index'>, { icon: IconName; color: string }> = {
   playback: { icon: 'play', color: '#32D7A0' },
+  downloads: { icon: 'download', color: '#32D7A0' },
   vod: { icon: 'database', color: '#55A7FF' },
   live: { icon: 'radio', color: '#55A7FF' },
   subs: { icon: 'rss', color: '#55A7FF' },
@@ -153,7 +157,7 @@ export function SourceManagerDrawer({ open, onClose, embedded = false }: { open:
                     key={item.id}
                     type="button"
                     className="group flex min-h-[68px] w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
-                    onClick={() => setActivePage(item.id)}
+                    onClick={() => item.id === 'downloads' ? requestShowDownloadManager() : setActivePage(item.id)}
                     aria-label={item.label}
                   >
                     <span className="settings-apple-icon" style={{ color: section.color }}>
