@@ -241,8 +241,6 @@ try {
     const bottom = frame?.querySelector('.artplayer .art-bottom, .art-video-player .art-bottom');
     const quality = frame?.querySelector('.player-quality-badge');
     const relatedSectionCount = document.querySelectorAll('.netflix-related-section').length;
-    const watchMain = document.querySelector('main.netflix-watch');
-    const activeDockItem = dock.querySelector('a[aria-current="page"], a.is-active');
     const fridayLauncher = document.querySelector('.friday-root .friday-fab, .friday-root .friday-restore');
     const progressBar = frame?.querySelector('.artplayer .art-progress, .art-video-player .art-progress, .artplayer .art-progress-bar, .art-video-player .art-progress-bar');
     const progressTrack = frame?.querySelector('.artplayer .art-progress-loaded, .art-video-player .art-progress-loaded, .artplayer .art-progress-played, .art-video-player .art-progress-played');
@@ -270,7 +268,6 @@ try {
       playerBottomGradient: gradient,
       qualityFontSize: quality ? getComputedStyle(quality).fontSize : null,
       relatedSectionCount,
-      watchMainPaddingBottom: watchMain ? getComputedStyle(watchMain).paddingBottom : null,
       fridayLauncherDisplay: fridayLauncher ? getComputedStyle(fridayLauncher).display : 'absent',
       progressHitAreaHeight: progressBar ? getComputedStyle(progressBar).height : null,
       progressHitAreaRect: progressBar ? (() => { const r = progressBar.getBoundingClientRect(); return { width: r.width, height: r.height, x: r.x, y: r.y }; })() : null,
