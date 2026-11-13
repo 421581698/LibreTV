@@ -276,27 +276,49 @@ export async function runDirectDownloadJob(opts: DownloadJobOptions): Promise<vo
     throw new Error('该来源是 HTTP 地址，HTTPS 页面无法直连下载（混合内容被拦截），请更换 HTTPS 来源');
   }
 
+  // 只对响应头设置连接超时；不能把 60 秒总时限套在整个文件流上，
+  // 否则大电影/慢速网络会在下载 60 秒后被误杀。
+  const requestController = new AbortController();
+  const abortRequest = () => requestController.abort(signal.reason);
+  if (signal.aborted) abortRequest();
+  else signal.addEventListener('abort', abortRequest, { once: true });
+  const headerTimeout = setTimeout(
+    () => requestController.abort(new DOMException('Request timed out', 'TimeoutError')),
+    60_000,
+  );
   let response: Response;
   try {
     response = await fetch(parsedUrl.href, {
-      signal: AbortSignal.any([signal, AbortSignal.timeout(60_000)]),
+      signal: requestController.signal,
       headers: { Accept: 'video/*,application/octet-stream,application/mp4,*/*;q=0.5' },
     });
   } catch (error) {
+    signal.removeEventListener('abort', abortRequest);
     if (signal.aborted) throw error;
-    if (error instanceof DOMException && error.name === 'TimeoutError') {
+    if (requestController.signal.reason instanceof DOMException && requestController.signal.reason.name === 'TimeoutError') {
       throw new Error('视频下载请求超时，请重试或更换来源');
     }
     throw new Error('无法直连该视频来源（可能是跨域 CORS 限制或域名不可达），请更换来源或使用支持跨域的媒体源');
+  } finally {
+    clearTimeout(headerTimeout);
   }
-  if (!response.ok) throw new Error(`视频源返回 HTTP ${response.status}`);
-  if (!response.body) throw new Error('浏览器未提供可读取的视频数据流');
+  if (!response.ok) {
+    signal.removeEventListener('abort', abortRequest);
+    throw new Error(`视频源返回 HTTP ${response.status}`);
+  }
+  if (!response.body) {
+    signal.removeEventListener('abort', abortRequest);
+    throw new Error('浏览器未提供可读取的视频数据流');
+  }
 
   const contentType = (response.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
   const allowedType = !contentType || contentType.startsWith('video/') ||
     contentType === 'application/octet-stream' || contentType === 'application/mp4' ||
     contentType === 'application/x-matroska' || contentType === 'binary/octet-stream';
-  if (!allowedType) throw new Error(`来源返回的不是视频文件（${contentType}）`);
+  if (!allowedType) {
+    signal.removeEventListener('abort', abortRequest);
+    throw new Error(`来源返回的不是视频文件（${contentType}）`);
+  }
 
   const lengthHeader = response.headers.get('content-length');
   const parsedLength = lengthHeader ? Number(lengthHeader) : 0;
@@ -311,11 +333,31 @@ export async function runDirectDownloadJob(opts: DownloadJobOptions): Promise<vo
         return;
       }
       await pause.waitIfPaused();
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (!value?.byteLength) continue;
-      await target.write(value);
-      current += value.byteLength;
+      let readTimer: ReturnType<typeof setTimeout> | undefined;
+      let next: ReadableStreamReadResult<Uint8Array>;
+      try {
+        next = await Promise.race([
+          reader.read(),
+          new Promise<never>((_, reject) => {
+            readTimer = setTimeout(() => {
+              const timeout = new DOMException('No media data received for 60 seconds', 'TimeoutError');
+              requestController.abort(timeout);
+              reject(timeout);
+            }, 60_000);
+          }),
+        ]);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'TimeoutError') {
+          throw new Error('视频下载已连续 60 秒没有收到新数据，请检查网络或更换来源');
+        }
+        throw error;
+      } finally {
+        if (readTimer) clearTimeout(readTimer);
+      }
+      if (next.done) break;
+      if (!next.value?.byteLength) continue;
+      await target.write(next.value);
+      current += next.value.byteLength;
       report(current, total, 'downloading');
     }
     if (total > 0 && current !== total) {
@@ -328,6 +370,7 @@ export async function runDirectDownloadJob(opts: DownloadJobOptions): Promise<vo
     throw error;
   } finally {
     reader.releaseLock();
+    signal.removeEventListener('abort', abortRequest);
   }
 }
 
