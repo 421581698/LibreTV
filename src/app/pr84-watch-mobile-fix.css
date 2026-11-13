@@ -452,3 +452,29 @@ html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress .art-pro
 html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress .art-progress-played {
   height: 3px !important;
 }
+
+
+/* PR84 playback surface: recommendations/history do not belong on /watch;
+   keep the fixed dock below normal source/episode panels instead of covering them. */
+html:has(.netflix-watch) .netflix-related-section,
+html:has(.netflix-watch) .netflix-below-player,
+html:has(.netflix-watch) .netflix-next-preview {
+  display: none !important;
+}
+html:has(.netflix-watch) .netflix-watch-sidebar {
+  position: relative !important;
+  z-index: 2 !important;
+  min-width: 0 !important;
+  isolation: isolate !important;
+}
+html:has(.netflix-watch) .netflix-sidebar-content {
+  position: relative !important;
+  z-index: 2 !important;
+  max-height: min(72vh, 720px);
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+}
+html:has(.netflix-watch) .netflix-player-frame video {
+  -webkit-appearance: none;
+}
