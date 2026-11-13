@@ -7,6 +7,7 @@ import {
   getMovieDetail,
   getPlaybackLinks,
   sampleIndexes,
+  summarizeMediaUrl,
 } from "./pr84-kkphim-probe-utils.mjs";
 
 const API_ORIGIN = "https://phimapi.com";
@@ -51,8 +52,20 @@ async function assertPublicHttps(raw, allowedHost) {
   return url;
 }
 
-async function readLimited(response, limit) {
-  if (!response.ok) throw new Error("HTTP " + response.status);
+function probeError(message, stage, rawUrl, response = null, cause = null) {
+  const error = new Error(message);
+  error.diagnostic = {
+    stage,
+    ...summarizeMediaUrl(rawUrl),
+    httpStatus: response?.status ?? null,
+    contentType: response?.headers?.get("content-type")?.split(";")[0]?.trim() || null,
+    networkCode: cause?.cause?.code || cause?.code || null,
+  };
+  return error;
+}
+
+async function readLimited(response, limit, context = {}) {
+  if (!response.ok) throw probeError("HTTP " + response.status, context.stage || "response", context.url, response);
   const reader = response.body?.getReader();
   if (!reader) throw new Error("Empty upstream response");
   const chunks = [];
@@ -78,25 +91,30 @@ async function getResponse(rawUrl, { allowedHost, accept, range } = {}) {
   const url = await assertPublicHttps(rawUrl, allowedHost);
   const headers = { accept: accept || "*/*", "user-agent": UA, referer: "https://phimapi.com/", origin: "https://phimapi.com" };
   if (range) headers.range = range;
-  return { url, response: await fetch(url, { redirect: "error", signal: AbortSignal.timeout(TIMEOUT_MS), headers }) };
+  try {
+    const response = await fetch(url, { redirect: "error", signal: AbortSignal.timeout(TIMEOUT_MS), headers });
+    return { url, response };
+  } catch (error) {
+    throw probeError("Network request failed", arguments[1]?.stage || "request", url, null, error);
+  }
 }
 
 async function getJson(rawUrl) {
-  const { response } = await getResponse(rawUrl, { allowedHost: "phimapi.com", accept: "application/json" });
-  return JSON.parse((await readLimited(response, MAX_JSON_BYTES)).toString("utf8"));
+  const { response } = await getResponse(rawUrl, { allowedHost: "phimapi.com", accept: "application/json", stage: "api-json" });
+  return JSON.parse((await readLimited(response, MAX_JSON_BYTES, { stage: "api-json", url: rawUrl })).toString("utf8"));
 }
 
 async function getManifest(rawUrl) {
-  const { url, response } = await getResponse(rawUrl, { accept: "application/vnd.apple.mpegurl, application/x-mpegURL, */*" });
-  const bytes = await readLimited(response, MAX_MANIFEST_BYTES);
+  const { url, response } = await getResponse(rawUrl, { accept: "application/vnd.apple.mpegurl, application/x-mpegURL, */*", stage: "manifest" });
+  const bytes = await readLimited(response, MAX_MANIFEST_BYTES, { stage: "manifest", url: rawUrl });
   const text = bytes.toString("utf8");
   if (!text.trimStart().startsWith("#EXTM3U")) throw new Error("Response is not an HLS manifest");
   return { url, status: response.status, contentType: response.headers.get("content-type") || "", text };
 }
 
 async function getEmbedPageMedia(rawUrl) {
-  const { response } = await getResponse(rawUrl, { allowedHost: PLAYER_HOST, accept: "text/html,application/xhtml+xml" });
-  const html = (await readLimited(response, MAX_HTML_BYTES)).toString("utf8");
+  const { response } = await getResponse(rawUrl, { allowedHost: PLAYER_HOST, accept: "text/html,application/xhtml+xml", stage: "embed-page" });
+  const html = (await readLimited(response, MAX_HTML_BYTES, { stage: "embed-page", url: rawUrl })).toString("utf8");
   return getEmbedMediaUrls(rawUrl, html);
 }
 
@@ -115,8 +133,8 @@ async function verifyManifestAndSegment(rawUrl) {
   const segmentLine = manifest.text.split(/\r?\n/).find((line) => line.trim() && !line.startsWith("#"));
   if (!segmentLine) throw new Error("HLS media playlist contains no segment URI");
   const segmentUrl = new URL(segmentLine.trim(), manifest.url).toString();
-  const { response } = await getResponse(segmentUrl, { range: "bytes=0-65535" });
-  const bytes = await readLimited(response, MAX_SEGMENT_BYTES);
+  const { response } = await getResponse(segmentUrl, { range: "bytes=0-65535", stage: "segment" });
+  const bytes = await readLimited(response, MAX_SEGMENT_BYTES, { stage: "segment", url: segmentUrl });
   if (!bytes.length) throw new Error("HLS segment response was empty");
   return {
     manifestStatus: manifest.status,
@@ -192,15 +210,21 @@ async function verifyCandidate(candidate) {
   const link = candidate.link;
   const attemptedMediaUrls = new Set();
   let lastError = null;
+  const attempts = [];
   const testMediaUrls = async (mediaUrls) => {
     for (const mediaUrl of mediaUrls) {
       if (attemptedMediaUrls.has(mediaUrl)) continue;
       attemptedMediaUrls.add(mediaUrl);
       try {
         const verified = await verifyManifestAndSegment(mediaUrl);
-        return { mediaUrl, verified };
+        return { mediaUrl, verified, attempts };
       } catch (error) {
         lastError = error;
+        attempts.push({
+          url: summarizeMediaUrl(mediaUrl),
+          ...(error?.diagnostic || { stage: "manifest-or-segment", httpStatus: null, contentType: null, networkCode: error?.cause?.code || error?.code || null }),
+          error: String(error?.message || error).slice(0, 120),
+        });
       }
     }
     return null;
@@ -213,14 +237,26 @@ async function verifyCandidate(candidate) {
     const nestedResult = await testMediaUrls(getEmbedMediaUrls(link.url));
     if (nestedResult) return nestedResult;
     // A stale nested URL can 404 while the player page still resolves a fresh media URL.
-    const pageMediaUrls = await getEmbedPageMedia(link.url);
+    let pageMediaUrls = [];
+    try {
+      pageMediaUrls = await getEmbedPageMedia(link.url);
+    } catch (error) {
+      lastError = error;
+      attempts.push({
+        url: summarizeMediaUrl(link.url),
+        ...(error?.diagnostic || { stage: "embed-page", httpStatus: null, contentType: null, networkCode: error?.cause?.code || error?.code || null }),
+        error: String(error?.message || error).slice(0, 120),
+      });
+    }
     const pageResult = await testMediaUrls(pageMediaUrls);
     if (pageResult) return pageResult;
     if (!pageMediaUrls.length && !lastError) {
       lastError = new Error("Embed page exposed no direct HLS URL; embed HTTP response alone is not playback proof");
     }
   }
-  throw lastError || new Error("No extracted HLS media URL passed verification");
+  const failure = lastError || new Error("No extracted HLS media URL passed verification");
+  failure.attempts = attempts;
+  throw failure;
 }
 
 async function getFreshDetail(slug) {
@@ -240,12 +276,16 @@ async function getFreshDetail(slug) {
 for (const candidate of candidates) {
   tested++;
   let lastError = null;
+  let originalFailure = null;
+  let refreshedLink = null;
+  let refreshedFailure = null;
   try {
     const result = await verifyCandidate(candidate);
     success = { ...candidate, ...result };
     break;
   } catch (error) {
     lastError = error;
+    originalFailure = error;
   }
 
   // API media links can expire between metadata collection and playback verification.
@@ -257,6 +297,7 @@ for (const candidate of candidates) {
       link.episode === candidate.link.episode &&
       link.kind === candidate.link.kind
     );
+    refreshedLink = freshLink || null;
     if (freshLink && freshLink.url !== candidate.link.url) {
       const refreshedCandidate = { ...candidate, detail: fresh.detail, link: freshLink };
       try {
@@ -264,8 +305,10 @@ for (const candidate of candidates) {
         success = { ...refreshedCandidate, ...result, refreshed: true };
         break;
       } catch (error) {
+        refreshedFailure = error;
+        const originalMessage = String(lastError?.message || lastError).slice(0, 100);
         lastError = new Error(String(error?.message || error).slice(0, 100) +
-          "; refreshed URL also failed after original: " + String(lastError?.message || lastError).slice(0, 100));
+          "; refreshed URL also failed after original: " + originalMessage);
       }
     }
   } catch (refreshError) {
@@ -279,8 +322,22 @@ for (const candidate of candidates) {
     episode: candidate.link.episode,
     kind: candidate.link.kind,
     refreshed: refreshedDetails.has(candidate.item.slug),
+    originalUrl: summarizeMediaUrl(candidate.link.url),
+    refreshedUrl: refreshedLink ? summarizeMediaUrl(refreshedLink.url) : null,
+    refreshedUrlChanged: Boolean(refreshedLink && refreshedLink.url !== candidate.link.url),
+    attempts: [
+      ...(originalFailure?.attempts || []),
+      ...(refreshedFailure?.attempts || []),
+    ],
     error: String(lastError?.message || lastError).slice(0, 180),
   });
+}
+const failureByStage = {};
+for (const failure of failures) {
+  for (const attempt of failure.attempts || []) {
+    const key = [failure.kind, attempt.stage, attempt.httpStatus ? "HTTP " + attempt.httpStatus : "no-http"].join(" / ");
+    failureByStage[key] = (failureByStage[key] || 0) + 1;
+  }
 }
 const report = {
   homePagesChecked,
@@ -309,6 +366,7 @@ const report = {
   declaredQuality: success?.detail?.quality || success?.item.quality || null,
   sourceEnabled: false,
   diagnostics: diagnostics.slice(0, 12),
+  failureByStage,
   failureSamples: failures.slice(0, 12),
 };
 console.log("KKPhim read-only probe report:", JSON.stringify(report));
