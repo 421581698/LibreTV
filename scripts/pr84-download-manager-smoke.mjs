@@ -29,17 +29,24 @@ const errors = [];
 async function waitForTask(page, title, state) {
   try {
     const snapshot = await page.waitForFunction(({ title, state }) => {
-      const titleNode = Array.from(document.querySelectorAll('p')).find((node) => node.textContent?.trim() === title);
-      let card = titleNode;
-      while (card && !card.classList?.contains('card')) card = card.parentElement;
-      const text = card?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+      const titleNodes = Array.from(document.querySelectorAll('p'))
+        .filter((node) => node.textContent?.trim() === title);
+      const cards = titleNodes.map((titleNode) => {
+        let card = titleNode;
+        while (card && !card.classList?.contains('card')) card = card.parentElement;
+        return card;
+      }).filter(Boolean);
+      // A single add-download event must persist exactly one task.
+      if (cards.length !== 1) return false;
+      const card = cards[0];
+      const text = card.textContent?.replace(/\\s+/g, ' ').trim() ?? '';
       const ready = state === 'completed'
         ? text.includes('MP4') && text.includes('已完成')
-        : text.includes('失败') && text.includes('HTTP 503') && Boolean(card?.querySelector('[role="alert"]'));
+        : text.includes('失败') && text.includes('HTTP 503') && Boolean(card.querySelector('[role="alert"]'));
       return ready ? {
         text,
-        progress: card?.querySelector('.h-1\\.5 > div')?.getAttribute('style') ?? null,
-        alert: card?.querySelector('[role="alert"]')?.textContent?.trim() ?? null,
+        progress: card.querySelector('.h-1\\.5 > div')?.getAttribute('style') ?? null,
+        alert: card.querySelector('[role="alert"]')?.textContent?.trim() ?? null,
       } : false;
     }, { title, state }, { timeout: 30000 });
     return await snapshot.jsonValue();
