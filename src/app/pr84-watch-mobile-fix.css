@@ -225,3 +225,104 @@
   background: #fff !important;
   box-shadow: 0 0 0 1px rgba(0,0,0,.18), 0 1px 4px rgba(0,0,0,.42) !important;
 }
+
+
+/* PR #84 — Apple TV dark watch canvas.
+   The watch route is intentionally dark regardless of the user's global theme;
+   this prevents the light-theme root/body gradient from exposing a white lower canvas. */
+html:has(.netflix-watch) {
+  color-scheme: dark !important;
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+html:has(.netflix-watch) body,
+html:has(.netflix-watch) body > #root,
+html:has(.netflix-watch) body > #__next,
+html:has(.netflix-watch) body .page-container,
+html:has(.netflix-watch) body .min-h-screen:has(.netflix-watch),
+html:has(.netflix-watch) body .netflix-watch {
+  background: #000000 !important;
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+html:has(.netflix-watch) body {
+  background-image: none !important;
+}
+html:has(.netflix-watch) .watch-topbar {
+  background: rgba(0, 0, 0, .92) !important;
+  border-bottom-color: rgba(255, 255, 255, .10) !important;
+}
+html:has(.netflix-watch) .watch-topbar-left > a.watch-topbar-back,
+html:has(.netflix-watch) .watch-topbar-right {
+  display: none !important;
+}
+html:has(.netflix-watch) .watch-topbar-left .watch-topbar-back {
+  color: #ffffff !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html:has(.netflix-watch) .watch-topbar-left .watch-topbar-back svg {
+  stroke: #ffffff !important;
+  stroke-width: 1.6 !important;
+}
+html:has(.netflix-watch) .watch-topbar-title h1,
+html:has(.netflix-watch) .netflix-title-row h1,
+html:has(.netflix-watch) .netflix-section-heading h2 {
+  color: #ffffff !important;
+}
+html:has(.netflix-watch) .watch-topbar-title p,
+html:has(.netflix-watch) .netflix-title-row p,
+html:has(.netflix-watch) .netflix-section-heading p,
+html:has(.netflix-watch) .netflix-section-heading a,
+html:has(.netflix-watch) .netflix-watch .text-muted,
+html:has(.netflix-watch) .netflix-watch .text-faint {
+  color: #a1a1a6 !important;
+}
+html:has(.netflix-watch) .netflix-watch,
+html:has(.netflix-watch) .netflix-watch main,
+html:has(.netflix-watch) .netflix-below-player,
+html:has(.netflix-watch) .netflix-related-section {
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+html:has(.netflix-watch) .netflix-history-card {
+  overflow: hidden !important;
+  border: 1px solid rgba(255, 255, 255, .08) !important;
+  border-radius: 18px !important;
+  background: #1c1c1e !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .28) !important;
+}
+html:has(.netflix-watch) .netflix-history-meta {
+  background: #1c1c1e !important;
+}
+html:has(.netflix-watch) .netflix-history-meta strong {
+  color: #ffffff !important;
+}
+html:has(.netflix-watch) .netflix-history-meta span {
+  color: #a1a1a6 !important;
+}
+html:has(.netflix-watch) .netflix-history-progress {
+  background: rgba(255, 255, 255, .16) !important;
+}
+html:has(.netflix-watch) .player-quality-badge {
+  border: 0 !important;
+  border-color: transparent !important;
+  border-radius: 999px !important;
+  background: rgba(0, 0, 0, .5) !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  backdrop-filter: blur(10px) !important;
+}
+html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress-bar,
+html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress-bar {
+  height: 2px !important;
+  min-height: 2px !important;
+  background: rgba(255, 255, 255, .42) !important;
+  box-shadow: none !important;
+}
+html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress-indicator,
+html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress-indicator {
+  width: 8px !important;
+  height: 8px !important;
+}
