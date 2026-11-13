@@ -1606,7 +1606,7 @@ export function PlayerShell({
         </div>
       )}
       {(hint || undoSkip) && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full bg-black/70 px-3 py-1.5 text-sm text-white animate-fade-in">
+        <div role="status" className="absolute top-3 left-3 z-30 flex max-w-[min(72%,360px)] items-center gap-1.5 rounded-full border border-white/10 bg-black/55 px-2.5 py-1 text-[10px] leading-tight text-white/90 shadow-sm backdrop-blur-xl animate-fade-in">
           {/* 撤销窗口比普通提示长：hint 已淡出时仍要让用户知道刚才跳过了什么 */}
           <span className="pointer-events-none">
             {hint || (undoSkip ? `已跳过${SEGMENT_LABELS[undoSkip.segment.type]}` : '')}
@@ -1623,9 +1623,6 @@ export function PlayerShell({
         </div>
       )}
       {autoplayNext && !error && (
-        <div className="absolute bottom-16 right-3 text-[10px] text-muted bg-black/50 px-2 py-0.5 rounded pointer-events-none">
-          自动连播已开启
-        </div>
       )}
     </div>
   );
