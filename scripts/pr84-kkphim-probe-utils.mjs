@@ -47,6 +47,22 @@ export function getEmbedMediaUrls(rawUrl, html = "") {
   return [...new Set(urls)];
 }
 
+/** Return only HTTPS script assets served by the embed page's own origin. */
+export function getSameOriginScriptUrls(rawUrl, html) {
+  const urls = [];
+  let page;
+  try { page = new URL(rawUrl); } catch { return urls; }
+  const source = String(html).replaceAll("\\\\/", "/").replaceAll("\\\\u0026", "&");
+  const expression = /<script\\b[^>]*\\bsrc\\s*=\\s*(["'])(.*?)\\1/gi;
+  for (const match of source.matchAll(expression)) {
+    try {
+      const url = new URL(match[2], page);
+      if (url.protocol === "https:" && url.origin === page.origin && !url.username && !url.password) urls.push(url.toString());
+    } catch {}
+  }
+  return [...new Set(urls)].slice(0, 4);
+}
+
 export function sampleIndexes(length) {
   if (!length) return [];
   return [...new Set([0, Math.floor((length - 1) / 2), length - 1])];
