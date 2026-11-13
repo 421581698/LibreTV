@@ -87,7 +87,7 @@ async function readLimited(response, limit, context = {}) {
   return Buffer.concat(chunks, size);
 }
 
-async function getResponse(rawUrl, { allowedHost, accept, range } = {}) {
+async function getResponse(rawUrl, { allowedHost, accept, range, stage } = {}) {
   const url = await assertPublicHttps(rawUrl, allowedHost);
   const headers = { accept: accept || "*/*", "user-agent": UA, referer: "https://phimapi.com/", origin: "https://phimapi.com" };
   if (range) headers.range = range;
@@ -95,7 +95,7 @@ async function getResponse(rawUrl, { allowedHost, accept, range } = {}) {
     const response = await fetch(url, { redirect: "error", signal: AbortSignal.timeout(TIMEOUT_MS), headers });
     return { url, response };
   } catch (error) {
-    throw probeError("Network request failed", arguments[1]?.stage || "request", url, null, error);
+    throw probeError("Network request failed", stage || "request", url, null, error);
   }
 }
 
