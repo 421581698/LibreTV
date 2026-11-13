@@ -356,8 +356,20 @@ jobs:
           PR84_KKPHIM_M3U8: ${{ steps.kkphim-probe.outputs.kkphim_m3u8 }}
         run: node scripts/pr84-preview-player-smoke.mjs
 
-      - name: Verify PR84 download manager file output and failure feedback
+      - name: Install FFmpeg for real MP4 download fixture
+        id: install-ffmpeg
         if: always() && steps.deploy-preview.outcome == 'success' && steps.install-chrome.outcome == 'success'
+        timeout-minutes: 5
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+          ffmpeg -version
+          ffprobe -version
+
+      - name: Verify PR84 download manager file output and failure feedback
+        if: always() && steps.deploy-preview.outcome == 'success' && steps.install-chrome.outcome == 'success' && steps.install-ffmpeg.outcome == 'success'
         env:
           PR84_PREVIEW_URL: https://libretv-pr84-preview.bggdbh.workers.dev
         run: node scripts/pr84-download-manager-smoke.mjs
