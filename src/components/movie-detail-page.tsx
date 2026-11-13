@@ -128,6 +128,15 @@ export function MovieDetailPage() {
   const info = detail?.videoInfo;
   const episodes = detail?.episodes ?? [];
   const episodeItems = detail?.episodeItems ?? [];
+  const backdrop = info?.backdrop?.trim() ?? '';
+  const knownSeasonNumbers = episodeItems
+    .map((item) => item.seasonNumber)
+    .filter((value): value is number => Number.isInteger(value) && value > 0);
+  const seasonNumber = knownSeasonNumbers.length === episodes.length
+    && knownSeasonNumbers.length > 0
+    && knownSeasonNumbers.every((value) => value === knownSeasonNumbers[0])
+    ? knownSeasonNumbers[0]
+    : undefined;
   // Keep source-provided episode names authoritative. Positional fallback text is
   // explicitly described as a playback item, never fabricated as an episode number.
   const episodeTitle = (index: number) => episodeItems[index]?.title?.trim() || '第 ' + (index + 1) + ' 个播放条目';
@@ -224,17 +233,18 @@ export function MovieDetailPage() {
     <main className="movie-detail-page min-h-screen overflow-x-hidden bg-[#08080A] pb-[calc(96px+env(safe-area-inset-bottom))] text-white">
       
       <section className="movie-detail-hero relative isolate min-h-[560px] overflow-hidden sm:min-h-[640px]">
-        {image ? (
+        {backdrop ? (
           <SmartImage
-            url={info?.backdrop || info?.cover || poster}
-            fallbackUrl={info?.backdrop ? (info?.cover || poster || undefined) : undefined}
+            url={backdrop}
             mode={imageProxyMode}
             customProxy={customImageProxy}
             alt={displayTitle}
             className="movie-detail-hero__image absolute inset-0 -z-20 h-full w-full object-cover object-center"
             loading="eager"
           />
-        ) : null}
+        ) : (
+          <div className="absolute inset-0 -z-20 bg-[#08080A]" aria-hidden="true" />
+        )}
         <div className="movie-detail-hero__scrim absolute inset-0 -z-10" />
         <div className="movie-detail-hero__bottom-gradient absolute inset-x-0 bottom-0 -z-10" />
         <div className="movie-detail-hero__side-gradient absolute inset-0 -z-10" />
@@ -274,7 +284,7 @@ export function MovieDetailPage() {
           <div className="mb-5 flex items-end justify-between gap-4">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[.22em] text-white/45">EPISODES</p>
-              <h2 id="movie-episode-heading" className="mt-1 text-2xl font-semibold tracking-tight text-white">剧集</h2>
+              <h2 id="movie-episode-heading" className="mt-1 text-2xl font-semibold tracking-tight text-white">{seasonNumber ? `第 ${seasonNumber} 季` : '剧集'}</h2>
             </div>
             <span className="text-xs text-white/50">共 {episodes.length} 集</span>
           </div>
