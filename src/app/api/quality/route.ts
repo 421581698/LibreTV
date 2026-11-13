@@ -56,7 +56,7 @@ function isProbeItem(v: unknown): v is QualityProbeItem {
 }
 
 function cacheKey(item: QualityProbeItem): string {
-  return `quality:${item.source.url.replace(/\/+$/, '')}|${item.source.detail ?? ''}|${item.id}`;
+  return `quality:${item.source.url.replace(/\/+$/, '')}|${item.source.detail ?? ''}|${item.id}|episode:${item.episodeIndex ?? 'sample'}`;
 }
 
 /** 定长并发池：逐个取任务，worker 内部自行兜住异常 */
