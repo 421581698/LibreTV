@@ -194,12 +194,8 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
     const onAdd = (e: Event) => {
       const detail = (e as CustomEvent<AddDownloadPayload>).detail;
       if (!detail?.url || !detail?.title) return;
-      // 无 Cache Storage（HTTP 访问 / 老浏览器）时下载必然失败——分片无处暂存。
-      // 在入队这一步就讲清楚，别让用户等到任务跑到一半才看到报错
-      if (!supportsChunkCache()) {
-        toast('当前环境不支持下载缓存（需通过 HTTPS 访问），无法下载', 'error');
-        return;
-      }
+      // 无 Cache Storage 时 runDownloadJob 会自动退化为串行边下边写：
+      // 不支持断点缓存，但仍可完成下载；不要在入队阶段错误拦截。
       void (async () => {
         const format = detail.format ?? 'MP4';
         const sourceFormat = detectDownloadSourceFormat(detail.url);
