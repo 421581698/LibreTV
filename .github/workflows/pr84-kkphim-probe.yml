@@ -1,0 +1,31 @@
+name: PR84 KKPhim Read-only Source Probe
+
+on:
+  push:
+    branches:
+      - feature/homepage-cinema-lobby-order-2026-11-11
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: libretv-pr84-kkphim-probe
+  cancel-in-progress: true
+
+jobs:
+  kkphim-probe:
+    name: Verify KKPhim API, episode metadata and HLS manifest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact PR84 feature commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Probe KKPhim metadata and HLS manifest (read-only)
+        run: node scripts/pr84-kkphim-readonly-probe.mjs
