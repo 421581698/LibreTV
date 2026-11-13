@@ -92,7 +92,8 @@ function parseExtInf(line: string): number {
 
 function parseAesConf(line: string): AesConf | undefined {
   const method = line.match(/METHOD=([^,]+)/)?.[1];
-  if (!method || method === 'NONE') return undefined;
+  if (!method) throw new Error('HLS EXT-X-KEY 缺少 METHOD');
+  if (method === 'NONE') return undefined;
   // Only identity AES-128-CBC is implemented; fail closed for DRM/SAMPLE-AES.
   if (method !== 'AES-128') throw new Error(`暂不支持 HLS 加密方式：${method}`);
   const keyFormat = line.match(/KEYFORMAT="([^"]+)"/)?.[1];
@@ -160,6 +161,7 @@ export async function parseM3u8Playlist(
   // —— media：分片 / 时长 / AES / BYTERANGE ——
   const segments: ParsedSegment[] = [];
   let aesConf: AesConf | undefined;
+  let encryptionIdentity: string | undefined;
   let initSegment: string | undefined;
   let byterange = false;
   let pendingDuration = 0;
@@ -178,9 +180,17 @@ export async function parseM3u8Playlist(
       continue;
     }
     if (line.startsWith('#EXT-X-KEY')) {
-      // 取最后一次出现的 KEY（逐段换 key 的源不在支持范围）
       const conf = parseAesConf(line);
-      if (conf) aesConf = { ...conf, uri: makeAbsolute(conf.uri, base) };
+      const nextConf = conf ? { ...conf, uri: makeAbsolute(conf.uri, base) } : undefined;
+      const nextIdentity = nextConf ? nextConf.method + '|' + nextConf.uri + '|' + (nextConf.iv ?? '') : 'NONE';
+      const previousIdentity = encryptionIdentity ?? 'NONE';
+      // ParsedPlaylist carries one key for the whole media playlist. Fail closed
+      // instead of applying the last key to segments that used a different key.
+      if (segments.length > 0 && previousIdentity !== nextIdentity) {
+        throw new Error('暂不支持 HLS 分片级密钥轮换或加密状态切换');
+      }
+      encryptionIdentity = nextIdentity;
+      aesConf = nextConf;
       continue;
     }
     if (line.startsWith('#EXT-X-BYTERANGE')) {

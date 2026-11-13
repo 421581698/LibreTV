@@ -24,6 +24,7 @@ import { skipMarkKey, validateSegment, type SkipSegment } from '@/lib/skip-marks
 import type { PlayerSkipApi } from '@/components/player-shell';
 import { useToast } from '@/components/toast';
 import { enqueueDownload } from '@/components/download-manager';
+import { suggestDownloadFilename } from '@/lib/download-saver';
 import { Icon } from '@/components/icon';
 import { useAuth } from '@/components/auth';
 import { resolveSource, useAppStore } from '@/lib/store';
@@ -623,8 +624,7 @@ function WatchContent() {
                 // attributes are advisory only, so open the actual URL as a fallback.
                 const anchor = document.createElement('a');
                 anchor.href = currentUrl;
-                const mediaExtension = new URL(currentUrl, window.location.href).pathname.match(/\.([a-z0-9]{2,5})$/i)?.[1];
-                anchor.download = mediaExtension ? `${downloadTitle}.${mediaExtension}` : downloadTitle;
+                anchor.download = suggestDownloadFilename(downloadTitle, currentUrl);
                 anchor.target = '_blank';
                 anchor.rel = 'noopener noreferrer';
                 document.body.appendChild(anchor);

@@ -118,6 +118,47 @@ describe('HLS fixture regression matrix', () => {
       .rejects.toThrow('初始化分段 BYTERANGE 暂不支持');
   });
 
+  it('允许首个媒体分片前重置 METHOD=NONE 并启用单一 AES-128 Key', async () => {
+    const playlist = [
+      '#EXTM3U',
+      '#EXT-X-KEY:METHOD=NONE',
+      '#EXT-X-KEY:METHOD=AES-128,URI="key.bin"',
+      '#EXTINF:4,',
+      'segment.ts',
+    ].join('\n');
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(playlist)));
+    const parsed = await parseM3u8Playlist(ORIGIN + '/encryption-state/index.m3u8');
+    expect(parsed.aesConf).toEqual({ method: 'AES-128', uri: ORIGIN + '/encryption-state/key.bin' });
+  });
+
+  it('拒绝媒体分片开始后的 AES Key 轮换或 METHOD=NONE 切换', async () => {
+    const keyRotation = [
+      '#EXTM3U',
+      '#EXT-X-KEY:METHOD=AES-128,URI="key-a.bin"',
+      '#EXTINF:4,',
+      'segment-1.ts',
+      '#EXT-X-KEY:METHOD=AES-128,URI="key-b.bin"',
+      '#EXTINF:4,',
+      'segment-2.ts',
+    ].join('\n');
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(keyRotation)));
+    await expect(parseM3u8Playlist(ORIGIN + '/rotation/index.m3u8'))
+      .rejects.toThrow('暂不支持 HLS 分片级密钥轮换或加密状态切换');
+
+    const clearSwitch = [
+      '#EXTM3U',
+      '#EXT-X-KEY:METHOD=AES-128,URI="key.bin"',
+      '#EXTINF:4,',
+      'encrypted.ts',
+      '#EXT-X-KEY:METHOD=NONE',
+      '#EXTINF:4,',
+      'clear.ts',
+    ].join('\n');
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(clearSwitch)));
+    await expect(parseM3u8Playlist(ORIGIN + '/mixed/index.m3u8'))
+      .rejects.toThrow('暂不支持 HLS 分片级密钥轮换或加密状态切换');
+  });
+
   it('明确拒绝 SAMPLE-AES DRM/加密变体', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response([
       '#EXTM3U',
