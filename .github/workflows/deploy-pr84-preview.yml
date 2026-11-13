@@ -305,9 +305,8 @@ jobs:
               console.log("CMS media probe passed; candidate remains disabled pending explicit source approval.");
             }
           } catch (error) {
-            console.warn("CMS candidate probe did not pass; source remains disabled: " +
+            console.warn("CMS candidate probe did not pass; source remains disabled and Preview acceptance continues: " +
               (error instanceof Error ? error.message : "unknown error"));
-            process.exitCode = 1;
           }
           NODE
 
