@@ -66,6 +66,51 @@ function WatchContent() {
   const [reversed, setReversed] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<'episodes' | 'sources' | 'details'>('episodes');
   const [showAutoNext, setShowAutoNext] = useState(false);
+  const [switchOpen, setSwitchOpen] = useState(false);
+  const [skipPanelOpen, setSkipPanelOpen] = useState(false);
+  const playerApiRef = useRef<PlayerSkipApi | null>(null);
+  const playerFrameRef = useRef<HTMLDivElement | null>(null);
+  const [sheetMaxHeight] = useState<number | undefined>(undefined);
+
+  // 优先使用本次播放 URL 传入的数据源地址，普通源仍以本机配置为准。
+  const suppliedSourceUrl = (searchParams.get('sourceUrl') || '').trim();
+  const localSource = resolveSource(store, sourceKey);
+  const source = useMemo(() => {
+    if (sourceKey === 'friday-cms' && suppliedSourceUrl) {
+      return {
+        ...(localSource ?? {}),
+        key: sourceKey,
+        name: localSource?.name || 'Friday CMS',
+        url: suppliedSourceUrl,
+        detail: undefined,
+      };
+    }
+    if (localSource) return localSource;
+    return resolveSource(store, sourceKey, {
+      url: suppliedSourceUrl || undefined,
+      detail: searchParams.get('detail') || undefined,
+    });
+  }, [store, sourceKey, suppliedSourceUrl, searchParams]);
+  const sourceUrlInvalid = Boolean(source?.url && !validateSourceUrl(source.url));
+  const detailQuery = useQuery({
+    queryKey: ['detail', sourceKey, vodId, source?.url],
+    queryFn: ({ signal }) => api.detail(vodId, source!, signal),
+    enabled: Boolean(source && !sourceUrlInvalid && vodId && verified),
+    staleTime: 5 * 60_000,
+  });
+  const episodes = useMemo(
+    () => detailQuery.data?.episodes ?? [],
+    [detailQuery.data]
+  );
+  const mediaType = detailQuery.data?.videoInfo?.typeName ?? '';
+  const isMovie = /电影|movie|film/i.test(mediaType);
+  const hasEpisodeNavigation = episodes.length > 1;
+  const videoTitle = titleParam || detailQuery.data?.videoInfo?.title || '未知视频';
+
+  useEffect(() => {
+    if (!hasEpisodeNavigation && sidebarTab === 'episodes') setSidebarTab('sources');
+  }, [hasEpisodeNavigation, sidebarTab]);
+
   // 当前播放地址：优先取剧集列表中的当前集，其次直连 URL 参数
   const currentUrl = useMemo(() => {
     if (episodes.length > 0) {
