@@ -623,7 +623,8 @@ function WatchContent() {
                 // attributes are advisory only, so open the actual URL as a fallback.
                 const anchor = document.createElement('a');
                 anchor.href = currentUrl;
-                anchor.download = downloadTitle;
+                const mediaExtension = new URL(currentUrl, window.location.href).pathname.match(/\\.([a-z0-9]{2,5})$/i)?.[1];
+                anchor.download = mediaExtension ? `${downloadTitle}.${mediaExtension}` : downloadTitle;
                 anchor.target = '_blank';
                 anchor.rel = 'noopener noreferrer';
                 document.body.appendChild(anchor);

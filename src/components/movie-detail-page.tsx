@@ -350,6 +350,7 @@ export function MovieDetailPage() {
                         >下载本集（MP4）</button>                      ) : item?.url ? (
                         <a
                           href={item.url}
+                          download
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex min-h-10 items-center rounded-xl px-3 text-left text-white no-underline transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"

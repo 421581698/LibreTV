@@ -75,20 +75,20 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
       const abort = new AbortController();
       const pause = new PauseResumeController();
       running.current.set(entry.id, { abort, pause, hasTarget });
-      await updateEntry(entry.id, { status: 'downloading' });
+      await updateEntry(entry.id, { status: 'validating', errorMessage: undefined });
 
       // 进度：UI 走本地 state 实时刷新，落库按固定间隔节流。整集动辄上千分片，
       // 逐片 updateEntry（写库 + 全量查询 + setState）会让页面越下越卡，
       // 极端情况下长任务被浏览器判定为无响应
       let lastPersistAt = 0;
       const onProgress = (p: DownloadProgress) => {
-        const status = p.status === 'done' ? 'completed' : p.status === 'error' ? 'error' : 'downloading';
-        setTasks((prev) => prev.map((t) => (t.id === entry.id ? { ...t, finished: p.current, total: p.total, status } : t)));
+        const status = p.status === 'done' ? 'completed' : p.status === 'error' ? 'failed' : p.status;
+        setTasks((prev) => prev.map((t) => (t.id === entry.id ? { ...t, finished: p.current, total: p.total, status, errorMessage: p.message } : t)));
         const now = Date.now();
         // 状态切换（完成/失败/处理中）必须立刻持久化，纯进度才节流
         if (p.status === 'downloading' && now - lastPersistAt < PROGRESS_PERSIST_INTERVAL_MS) return;
         lastPersistAt = now;
-        void db.downloads.update(entry.id, { finished: p.current, total: p.total, status, updatedAt: now });
+        void db.downloads.update(entry.id, { finished: p.current, total: p.total, status, errorMessage: p.message, updatedAt: now });
       };
 
       const job = runDownloadJob({
@@ -119,14 +119,17 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
 
       void job
         .then(async () => {
-          await updateEntry(entry.id, { status: 'completed' });
+          if (abort.signal.aborted) return;
+          await updateEntry(entry.id, { status: 'completed', errorMessage: undefined });
           void clearDownloadChunks(entry.id);
           toast(`《${entry.title}》下载完成`, 'success');
         })
         .catch(async (err: Error) => {
           if (abort.signal.aborted) return; // 用户取消：状态已在取消处理里写好
-          await updateEntry(entry.id, { status: 'error' });
-          toast(`《${entry.title}》下载失败：${err.message}`, 'error');
+          const latest = await db.downloads.get(entry.id);
+          const message = err instanceof Error ? err.message : String(err);
+          await updateEntry(entry.id, { status: 'failed', errorMessage: message, errorNum: (latest?.errorNum ?? entry.errorNum) + 1 });
+          toast(`《${entry.title}》下载失败：${message}`, 'error');
         })
         .finally(() => {
           running.current.delete(entry.id);
@@ -144,7 +147,7 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
       const runningCount = running.current.size;
       if (runningCount >= MAX_CONCURRENT_DOWNLOADS) return;
       const all = await db.downloads.orderBy('createdAt').toArray();
-      const waiting = all.filter((t) => t.status === 'waiting' && !running.current.has(t.id));
+      const waiting = all.filter((t) => (t.status === 'queued' || t.status === 'waiting') && !running.current.has(t.id));
       for (const t of waiting.slice(0, MAX_CONCURRENT_DOWNLOADS - runningCount)) {
         const entry = t;
         // 队列恢复的任务没有保存目标：以内存目标启动（分片已在本地，写出快）
@@ -171,13 +174,17 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
       }
       void (async () => {
         const format = detail.format ?? 'MP4';
+        const sourceFormat: DownloadTaskEntry['sourceFormat'] = /\\.m3u8(?:$|[?#])/i.test(detail.url)
+          ? 'HLS'
+          : /\\.mp4(?:$|[?#])/i.test(detail.url) ? 'MP4' : 'OTHER';
         const id = `dl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         const entry: DownloadTaskEntry = {
           id,
           url: detail.url,
           title: detail.title,
           format,
-          status: 'waiting',
+          sourceFormat,
+          status: 'queued',
           finished: 0,
           total: 0,
           errorNum: 0,
@@ -237,7 +244,12 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
       await updateEntry(entry.id, { status: 'paused' });
       return;
     }
-    if (entry.status === 'paused' || entry.status === 'waiting' || entry.status === 'error') {
+    if (handle && entry.status === 'paused') {
+      handle.pause.resume();
+      await updateEntry(entry.id, { status: 'downloading' });
+      return;
+    }
+    if (entry.status === 'paused' || entry.status === 'queued' || entry.status === 'waiting' || entry.status === 'failed' || entry.status === 'error') {
       // 恢复：需要用户手势内重选保存目标（浏览器限制）
       try {
         const target = await pickSaveTarget(`${entry.title}.${entry.format.toLowerCase()}`);
@@ -246,7 +258,7 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
           target,
         };
         if (running.current.has(entry.id)) return;
-        await updateEntry(entry.id, { status: 'waiting' });
+        await updateEntry(entry.id, { status: 'queued', errorMessage: undefined });
         scheduleNext();
       } catch (err) {
         if (err instanceof Error && err.message.includes('取消')) toast('已取消', 'info');
@@ -257,25 +269,41 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
   };
 
   const onCancel = async (entry: DownloadTaskEntry) => {
-    running.current.get(entry.id)?.abort.abort();
-    running.current.delete(entry.id);
+    const handle = running.current.get(entry.id);
+    if (handle) {
+      handle.abort.abort();
+      handle.pause.destroy();
+      running.current.delete(entry.id);
+    }
+    const globalTarget = globalThis as unknown as {
+      __dlSaveTarget?: { id: string; target: import('@/lib/download-saver').SaveTarget };
+    };
+    if (globalTarget.__dlSaveTarget?.id === entry.id) {
+      await globalTarget.__dlSaveTarget.target.abort();
+      delete globalTarget.__dlSaveTarget;
+    }
     await clearDownloadChunks(entry.id);
-    await db.downloads.delete(entry.id);
+    if (entry.status === 'completed' || entry.status === 'failed' || entry.status === 'error' || entry.status === 'cancelled') {
+      await db.downloads.delete(entry.id);
+      toast(`《${entry.title}》已删除下载记录`, 'info');
+    } else {
+      await updateEntry(entry.id, { status: 'cancelled', errorMessage: undefined });
+      toast(`《${entry.title}》已取消下载`, 'info');
+    }
     refresh();
-    // 终态（已完成/失败）删的是记录而非终止任务；文件已保存在用户选择的位置，不受影响
-    toast(
-      entry.status === 'completed' || entry.status === 'error'
-        ? `《${entry.title}》已删除下载记录`
-        : `《${entry.title}》已取消下载`,
-      'info'
-    );
+    scheduleNext();
   };
 
   const statusLabel: Record<DownloadTaskEntry['status'], string> = {
+    queued: '排队中',
     waiting: '排队中',
+    validating: '校验资源中',
     downloading: '下载中',
+    merging: '合并文件中',
     paused: '已暂停',
     completed: '已完成',
+    failed: '失败',
+    cancelled: '已取消',
     error: '失败',
   };
 
@@ -308,8 +336,8 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
               <div className="min-w-0">
                 <p className="text-sm text-content truncate">{t.title}</p>
                 <p className="text-xs text-faint">
-                  {t.format.toUpperCase()} · {statusLabel[t.status]}
-                  {t.status === 'downloading' && t.total > 0 ? ` · ${t.finished}/${t.total} 分片` : ''}
+                  {t.sourceFormat ?? 'MEDIA'} → {t.format.toUpperCase()} · {statusLabel[t.status]}
+                  {(t.status === 'downloading' || t.status === 'merging') && t.total > 0 ? ` · ${t.finished}/${t.total} 分片` : ''}
                 </p>
               </div>
               <div className="flex items-center gap-1 shrink-0">
@@ -322,7 +350,7 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
                     暂停
                   </button>
                 )}
-                {(t.status === 'paused' || t.status === 'waiting' || t.status === 'error') && (
+                {(t.status === 'paused' || t.status === 'queued' || t.status === 'waiting' || t.status === 'failed' || t.status === 'error') && (
                   <button
                     type="button"
                     className="px-2 py-1 rounded bg-chip hover:bg-hover text-xs text-content transition-colors"
@@ -333,15 +361,18 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
                 )}
                 <button
                   type="button"
-                  aria-label="删除下载任务"
+                  aria-label={t.status === 'completed' || t.status === 'failed' || t.status === 'error' || t.status === 'cancelled' ? '删除下载任务' : '取消下载任务'}
                   className="p-1.5 rounded bg-chip hover:bg-hover text-content transition-colors"
                   onClick={() => void onCancel(t)}
                 >
-                  <Icon name="close" className="w-4 h-4" />
+                  {t.status === 'completed' || t.status === 'failed' || t.status === 'error' || t.status === 'cancelled' ? '删除' : '取消'}
                 </button>
               </div>
             </div>
-            {(t.status === 'downloading' || t.status === 'paused' || t.status === 'completed') && t.total > 0 && (
+            {t.errorMessage && (t.status === 'failed' || t.status === 'error') && (
+              <p className="text-xs text-red-400" role="alert">{t.errorMessage}</p>
+            )}
+            {(t.status === 'downloading' || t.status === 'merging' || t.status === 'paused' || t.status === 'completed') && t.total > 0 && (
               <div className="h-1.5 rounded-full bg-chip overflow-hidden">
                 <div
                   className="h-full bg-accent transition-all"
