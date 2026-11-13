@@ -104,7 +104,8 @@ try {
 
   const successState = await page.evaluate((title) => {
     const titleNode = Array.from(document.querySelectorAll('p')).find((node) => node.textContent?.trim() === title);
-    const card = titleNode?.closest('.card');
+    let card = titleNode;
+    while (card && !card.classList?.contains('card')) card = card.parentElement;
     return {
       text: card?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
       progress: card?.querySelector('.h-1\\.5 > div')?.getAttribute('style') ?? null,
@@ -126,7 +127,8 @@ try {
   await waitForTask(page, failedTitle, 'failed');
   const failureState = await page.evaluate((title) => {
     const titleNode = Array.from(document.querySelectorAll('p')).find((node) => node.textContent?.trim() === title);
-    const card = titleNode?.closest('.card');
+    let card = titleNode;
+    while (card && !card.classList?.contains('card')) card = card.parentElement;
     return {
       text: card?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
       alert: card?.querySelector('[role="alert"]')?.textContent?.trim() ?? null,
