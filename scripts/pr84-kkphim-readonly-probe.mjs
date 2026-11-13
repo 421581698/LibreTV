@@ -119,7 +119,7 @@ async function getManifest(rawUrl) {
 }
 
 function inspectScriptConfiguration(source) {
-  const text = String(source).replaceAll("\\\\/", "/").replaceAll("\\\\u0026", "&");
+  const text = String(source).replaceAll("\\/", "/").replaceAll("\\u0026", "&");
   const urlSummaries = (values) => [...new Set(values)].slice(0, 12).map((value) => {
     try {
       const url = new URL(value);
@@ -128,20 +128,20 @@ function inspectScriptConfiguration(source) {
       return null;
     }
   }).filter(Boolean);
-  const literalUrls = [...text.matchAll(/https?:\\/\\/[^\\s"'<>\\\\]+/gi)].map((match) => match[0].replace(/[),;]+$/, ""));
-  const requestTargets = [...text.matchAll(/(?:fetch|open|send|ajax)\\s*\\(\\s*(['"])(.*?)\\1/gi)].map((match) => match[2]);
-  const atobPayloads = [...text.matchAll(/atob\\s*\\(\\s*(['"])([A-Za-z0-9+/_=-]{16,})\\1\\s*\\)/gi)].slice(0, 12);
+  const literalUrls = [...text.matchAll(/https?:\/\/[^\s"'<>\\]+/gi)].map((match) => match[0].replace(/[),;]+$/, ""));
+  const requestTargets = [...text.matchAll(/(?:fetch|open|send|ajax)\s*\(\s*(['"])(.*?)\1/gi)].map((match) => match[2]);
+  const atobPayloads = [...text.matchAll(/atob\s*\(\s*(['"])([A-Za-z0-9+/_=-]{16,})\1\s*\)/gi)].slice(0, 12);
   const decodedUrls = [];
   for (const match of atobPayloads) {
     try {
       const encoded = match[2].replace(/-/g, "+").replace(/_/g, "/");
       const decoded = Buffer.from(encoded, "base64").toString("utf8");
-      decodedUrls.push(...[...decoded.matchAll(/https?:\\/\\/[^\\s"'<>\\\\]+/gi)].map((item) => item[0].replace(/[),;]+$/, "")));
+      decodedUrls.push(...[...decoded.matchAll(/https?:\/\/[^\s"'<>\\]+/gi)].map((item) => item[0].replace(/[),;]+$/, "")));
     } catch {}
   }
   return {
     literalUrlCandidates: urlSummaries(literalUrls),
-    requestTargetCandidates: urlSummaries(requestTargets.filter((value) => /^https?:\\/\\//i.test(value))),
+    requestTargetCandidates: urlSummaries(requestTargets.filter((value) => /^https?:\/\//i.test(value))),
     atobLiteralCount: atobPayloads.length,
     decodedAtobUrlCandidates: urlSummaries(decodedUrls),
     apiMarkers: ["api/", "ajax", "getVideo", "getLink", "player?", "url=", "source", "token", "signature"]
