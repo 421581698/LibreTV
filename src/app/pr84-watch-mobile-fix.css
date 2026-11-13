@@ -205,30 +205,6 @@
   .player-quality-badge { padding: 3px 7px !important; font-size: 12px !important; }
 }
 
-/* Thin streaming-style timeline with a clear white playhead. */
-.netflix-player-frame .artplayer .art-progress,
-.netflix-player-frame .art-video-player .art-progress,
-.netflix-player-frame .artplayer .art-progress-bar,
-.netflix-player-frame .art-video-player .art-progress-bar {
-  height: 2px !important;
-  background: rgba(255,255,255,.46) !important;
-  box-shadow: none !important;
-}
-.netflix-player-frame .artplayer .art-progress-played,
-.netflix-player-frame .art-video-player .art-progress-played {
-  background: #fff !important;
-}
-.netflix-player-frame .artplayer .art-progress-indicator,
-.netflix-player-frame .art-video-player .art-progress-indicator {
-  width: 10px !important;
-  height: 10px !important;
-  border: 0 !important;
-  border-radius: 50% !important;
-  background: #fff !important;
-  box-shadow: 0 0 0 1px rgba(0,0,0,.18), 0 1px 4px rgba(0,0,0,.42) !important;
-}
-
-
 /* PR #84 — Apple TV dark watch canvas.
    The watch route is intentionally dark regardless of the user's global theme;
    this prevents the light-theme root/body gradient from exposing a white lower canvas. */
@@ -316,22 +292,6 @@ html:has(.netflix-watch) .player-quality-badge {
   -webkit-backdrop-filter: blur(10px) !important;
   backdrop-filter: blur(10px) !important;
 }
-html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress,
-html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress,
-html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress-bar,
-html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress-bar {
-  height: 2px !important;
-  min-height: 2px !important;
-  background: rgba(255, 255, 255, .42) !important;
-  box-shadow: none !important;
-}
-html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress-indicator,
-html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress-indicator {
-  width: 8px !important;
-  height: 8px !important;
-}
-
-
 /* PR84 watch acceptance follow-up: keep the final related-poster row above the
    fixed dock, remove the floating Friday sigil from the viewing canvas, and
    keep playback feedback visually quiet. */
@@ -388,92 +348,6 @@ html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-controls .
   background-position: center center !important;
 }
 
-/* Apple TV-like fine timeline with generous, invisible touch targets. */
-.netflix-player-frame .artplayer .art-progress-indicator,
-.netflix-player-frame .art-video-player .art-progress-indicator {
-  width: 6px !important;
-  height: 6px !important;
-}
-.netflix-player-frame .artplayer .art-bottom .art-control,
-.netflix-player-frame .art-video-player .art-bottom .art-control {
-  min-width: 40px !important;
-  min-height: 40px !important;
-}
-.netflix-player-frame .artplayer .art-bottom .art-control svg,
-.netflix-player-frame .art-video-player .art-bottom .art-control svg {
-  width: 19px !important;
-  height: 19px !important;
-}
-
-
-/* PR84 acceptance fix: preserve the 16px seek target while drawing a 2px rail. */
-.netflix-player-frame .artplayer .art-progress,
-.netflix-player-frame .art-video-player .art-progress {
-  height: 16px !important;
-  min-height: 16px !important;
-  background: linear-gradient(
-    to bottom,
-    transparent calc(50% - 1px),
-    rgba(255, 255, 255, .42) calc(50% - 1px),
-    rgba(255, 255, 255, .42) calc(50% + 1px),
-    transparent calc(50% + 1px)
-  ) !important;
-}
-.netflix-player-frame .artplayer .art-progress-loaded,
-.netflix-player-frame .art-video-player .art-progress-loaded,
-.netflix-player-frame .artplayer .art-progress-played,
-.netflix-player-frame .art-video-player .art-progress-played {
-  height: 2px !important;
-  min-height: 2px !important;
-  top: 50% !important;
-  bottom: auto !important;
-  transform: translateY(-50%) !important;
-}
-
-
-/* PR84 mobile acceptance: retain a generous 16px seek hit-area while
-   drawing only a 2px rail. Never collapse the entire touch target to 3px. */
-html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress,
-html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress {
-  position: relative !important;
-  height: 16px !important;
-  min-height: 16px !important;
-  max-height: 16px !important;
-  padding: 0 !important;
-  border: 0 !important;
-  background: linear-gradient(
-    to bottom,
-    transparent calc(50% - 1px),
-    rgba(255,255,255,.42) calc(50% - 1px),
-    rgba(255,255,255,.42) calc(50% + 1px),
-    transparent calc(50% + 1px)
-  ) !important;
-  box-shadow: none !important;
-}
-html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress-bar,
-html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress-bar {
-  height: 2px !important;
-  min-height: 2px !important;
-  max-height: 2px !important;
-  top: 50% !important;
-  bottom: auto !important;
-  transform: translateY(-50%) !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress .art-progress-loaded,
-html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress .art-progress-loaded,
-html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress .art-progress-played,
-html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress .art-progress-played {
-  height: 2px !important;
-  min-height: 2px !important;
-  max-height: 2px !important;
-  top: 50% !important;
-  bottom: auto !important;
-  transform: translateY(-50%) !important;
-}
-
-
 /* PR84 playback surface: recommendations/history do not belong on /watch;
    keep the fixed dock below normal source/episode panels instead of covering them. */
 html:has(.netflix-watch) .netflix-related-section,
@@ -502,7 +376,7 @@ html:has(.netflix-watch) .netflix-player-frame video {
 }
 
 
-/* PR84 progress control refinement: keep the full 16px seek hit target,
+
    but reclaim the transparent vertical slack so the timeline no longer
    makes the control stack look oversized. The visible rail remains 2px. */
 html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress,
@@ -523,4 +397,70 @@ html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress-indicato
 html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress-indicator {
   width: 6px !important;
   height: 6px !important;
+}
+
+
+/* PR84 single source of truth for ArtPlayer timeline geometry.
+   The 16px element is the seek target; its centered rail is only 2px.
+   Keep these rules after the watch-theme rules so they cannot be overwritten. */
+.netflix-player-frame .artplayer .art-progress,
+.netflix-player-frame .art-video-player .art-progress,
+html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress,
+html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress {
+  position: relative !important;
+  box-sizing: border-box !important;
+  height: 16px !important;
+  min-height: 16px !important;
+  max-height: 16px !important;
+  margin-block: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: linear-gradient(
+    to bottom,
+    transparent calc(50% - 1px),
+    rgba(255,255,255,.42) calc(50% - 1px),
+    rgba(255,255,255,.42) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  ) !important;
+  box-shadow: none !important;
+}
+.netflix-player-frame .artplayer .art-progress-bar,
+.netflix-player-frame .art-video-player .art-progress-bar,
+html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress-bar,
+html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress-bar {
+  height: 2px !important;
+  min-height: 2px !important;
+  max-height: 2px !important;
+  top: 50% !important;
+  bottom: auto !important;
+  transform: translateY(-50%) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.netflix-player-frame .artplayer .art-progress-loaded,
+.netflix-player-frame .art-video-player .art-progress-loaded,
+.netflix-player-frame .artplayer .art-progress-played,
+.netflix-player-frame .art-video-player .art-progress-played,
+html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress-loaded,
+html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress-loaded,
+html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress-played,
+html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress-played {
+  height: 2px !important;
+  min-height: 2px !important;
+  max-height: 2px !important;
+  top: 50% !important;
+  bottom: auto !important;
+  transform: translateY(-50%) !important;
+}
+.netflix-player-frame .artplayer .art-progress-indicator,
+.netflix-player-frame .art-video-player .art-progress-indicator,
+html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress-indicator,
+html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress-indicator {
+  width: 6px !important;
+  height: 6px !important;
+  min-width: 6px !important;
+  min-height: 6px !important;
+  border: 0 !important;
+  border-radius: 50% !important;
+  background: #fff !important;
 }
