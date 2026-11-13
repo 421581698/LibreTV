@@ -436,3 +436,83 @@ html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress-i
   border-radius: 50% !important;
   background: #fff !important;
 }
+
+
+/* PR84 viewing flow: /watch is a clean player surface, not a second detail page.
+   Keep the compact topbar and the actual player; remove all below-player
+   metadata, episode/source/detail shelves, history/recommendations and promos. */
+html:has(.netflix-watch) .netflix-watch {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 0 calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+}
+html:has(.netflix-watch) .netflix-watch-grid {
+  display: block !important;
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+}
+html:has(.netflix-watch) .netflix-watch-primary {
+  display: block !important;
+  width: 100% !important;
+  max-width: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+html:has(.netflix-watch) .netflix-player-frame {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+}
+html:has(.netflix-watch) .netflix-title-row,
+html:has(.netflix-watch) .netflix-watch-tools,
+html:has(.netflix-watch) .netflix-watch-sidebar,
+html:has(.netflix-watch) .netflix-related-section,
+html:has(.netflix-watch) .netflix-below-player,
+html:has(.netflix-watch) .netflix-next-preview,
+html:has(.netflix-watch) .netflix-autonext-banner,
+html:has(.netflix-watch) .netflix-sidebar-footer,
+html:has(.netflix-watch) .friday-root .friday-fab,
+html:has(.netflix-watch) .friday-root .friday-restore {
+  display: none !important;
+}
+@media (max-width: 700px) {
+  html:has(.netflix-watch) .netflix-watch {
+    padding: 0 0 calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  html:has(.netflix-watch) .netflix-player-frame {
+    aspect-ratio: 16 / 9 !important;
+    height: auto !important;
+  }
+}
+
+/* Detail page episode shelf: compact horizontal rows with genuine stills. */
+.movie-detail-page [aria-labelledby="movie-episode-heading"] > .flex.flex-col {
+  gap: 12px !important;
+}
+.movie-detail-page [aria-labelledby="movie-episode-heading"] > .flex.flex-col > button {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: stretch !important;
+  min-height: 104px !important;
+}
+.movie-detail-page [aria-labelledby="movie-episode-heading"] > .flex.flex-col > button > div:first-child {
+  align-self: center !important;
+  width: 38% !important;
+  min-width: 118px !important;
+  max-width: 220px !important;
+  flex: 0 0 38% !important;
+  aspect-ratio: 16 / 9 !important;
+}
+.movie-detail-page [aria-labelledby="movie-episode-heading"] > .flex.flex-col > button > div:last-child {
+  align-self: center !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+@media (max-width: 420px) {
+  .movie-detail-page [aria-labelledby="movie-episode-heading"] > .flex.flex-col > button > div:first-child {
+    min-width: 108px !important;
+  }
+}
