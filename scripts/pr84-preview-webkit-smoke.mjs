@@ -225,7 +225,7 @@ try {
     const frame = document.querySelector('.netflix-player-frame');
     const bottom = frame?.querySelector('.artplayer .art-bottom, .art-video-player .art-bottom');
     const quality = frame?.querySelector('.player-quality-badge');
-    const relatedHeading = document.querySelector('.netflix-related-section .netflix-section-heading');
+    const relatedSectionCount = document.querySelectorAll('.netflix-related-section').length;
     const watchMain = document.querySelector('main.netflix-watch');
     const activeDockItem = dock.querySelector('a[aria-current="page"], a.is-active');
     const fridayLauncher = document.querySelector('.friday-root .friday-fab, .friday-root .friday-restore');
@@ -258,7 +258,7 @@ try {
       historyLinkCount: document.querySelectorAll('.netflix-section-heading a[href="/me"]').length,
       playerBottomGradient: gradient,
       qualityFontSize: quality ? getComputedStyle(quality).fontSize : null,
-      relatedHeadingMarginBottom: relatedHeading ? getComputedStyle(relatedHeading).marginBottom : null,
+      relatedSectionCount,
       watchMainPaddingBottom: watchMain ? getComputedStyle(watchMain).paddingBottom : null,
       activeDockColor: activeDockItem ? getComputedStyle(activeDockItem).color : null,
       activeDockBackground: activeDockItem ? getComputedStyle(activeDockItem).backgroundColor : null,
@@ -291,8 +291,8 @@ try {
   if (watchLayout.qualityFontSize !== '12px') {
     throw new Error('Player quality badge is not compact 12px text: ' + JSON.stringify(watchLayout));
   }
-  if (Number.parseFloat(watchLayout.relatedHeadingMarginBottom ?? '0') < 20) {
-    throw new Error('Related-movies heading has insufficient spacing: ' + JSON.stringify(watchLayout));
+  if (watchLayout.relatedSectionCount !== 0) {
+    throw new Error('The removed related-movies section is still present on the watch page: ' + JSON.stringify(watchLayout));
   }
   if (Number.parseFloat(watchLayout.watchMainPaddingBottom ?? '0') < 80) {
     throw new Error('Watch page does not reserve enough scroll tail above the fixed dock: ' + JSON.stringify(watchLayout));
