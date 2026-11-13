@@ -2,7 +2,6 @@ import type { VideoDetail } from './types';
 
 const TMDB_API = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE = 'https://image.tmdb.org/t/p/w780';
-const TMDB_BACKDROP = 'https://image.tmdb.org/t/p/w1280';
 const REQUEST_TIMEOUT_MS = 5000;
 
 type TmdbTvSearchResult = {
