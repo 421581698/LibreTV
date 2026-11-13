@@ -153,7 +153,7 @@ export async function handleProxyRequest(req: Request, targetUrl: string): Promi
     let text: string;
     try { text = await readManifestLimited(response); }
     catch (err) { return jsonError(err instanceof Error ? err.message : 'HLS Manifest 读取失败', 502); }
-    return new NextResponse(rewriteM3u8(text, finalUrl),
+    return new NextResponse(rewriteM3u8(text, finalUrl), {
       status: response.status,
       headers: {
         'Content-Type': 'application/vnd.apple.mpegurl',
