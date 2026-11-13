@@ -588,7 +588,7 @@ function WatchContent() {
                       className="netflix-related-card"
                     >
                       <div className="netflix-related-art">
-                        {item.pic ? <SmartImage url={item.pic} mode="direct" alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-chip" />}
+                        {item.pic ? <SmartImage url={item.pic} mode="direct" alt="" className="w-full h-full object-cover" showDefaultFallback={false} /> : <div className="w-full h-full bg-chip" />}
                       </div>
                       <strong>{item.name}</strong>
                       <span>{[item.year, item.typeName, item.remarks].filter(Boolean).join(' · ') || item.sourceName}</span>
