@@ -5,7 +5,6 @@ import {
   compareQualityEvidence,
   describeQualityBadge,
   failureReasonLabel,
-  inferHeightFromBitrate,
   isQualityEntryFresh,
   isRetryableTimeout,
   mergeQualityEntries,
