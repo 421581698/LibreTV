@@ -538,7 +538,8 @@
   }
 
   html body:has(.v4-home) .v4-home .v4-home-main--cinema > .v4-hero-immersive {
-    height: clamp(360px, 55svh, 520px) !important;
+    height: min(55vh, calc(100vh - 68px - env(safe-area-inset-top, 0px) - 132px)) !important;
+    height: min(55svh, calc(100svh - 68px - env(safe-area-inset-top, 0px) - 132px)) !important;
     min-height: 360px !important;
     max-height: 520px !important;
   }
@@ -1206,5 +1207,40 @@
     outline: 0 !important;
     background: none !important;
     box-shadow: none !important;
+  }
+}
+
+
+/* Final viewport geometry owner for iOS/WebKit: no transformed containing
+   block may capture the fixed dock; the dock is anchored to the screen edge. */
+@media (max-width: 700px) {
+  html:has(body .v4-home, body .v4-search-page, body .v4-spatial-screen),
+  body:has(.v4-home, .v4-search-page, .v4-spatial-screen) {
+    transform: none !important;
+    filter: none !important;
+    perspective: none !important;
+    contain: none !important;
+  }
+
+  html body:has(.v4-home, .v4-search-page, .v4-spatial-screen) > nav.v4-mobile-tabbar.liquid-glass[data-liquid-glass="true"] {
+    position: fixed !important;
+    inset: auto 0 0 0 !important;
+    top: auto !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    translate: none !important;
+    transform: none !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    z-index: 2147483000 !important;
+  }
+
+  html body:has(.v4-home) .v4-home .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-image,
+  html body:has(.v4-home) .v4-home .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-image > *,
+  html body:has(.v4-home) .v4-home .v4-home-main--cinema > .v4-hero-immersive > .v4-hero-image img {
+    height: 100% !important;
+    max-height: none !important;
   }
 }
