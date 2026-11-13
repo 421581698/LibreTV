@@ -197,6 +197,90 @@ try {
   console.log('PASS PR84 Preview WebKit mobile layout + real data + remote artwork:', JSON.stringify({
     before, after, contentState, apiResponses, imageProxyResponses,
   }));
+
+  // Exercise the watch route separately: its body-portaled dock previously
+  // missed the home/search/spatial selectors and collapsed into a vertical capsule.
+  const watchParams = new URLSearchParams({
+    source: 'preview-smoke',
+    sourceUrl: 'https://example.com/api.php/provide/vod',
+    url: 'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8',
+    title: 'PR84 Watch Layout Acceptance',
+  });
+  const watchResponse = await page.goto(base + '/watch?' + watchParams.toString(), {
+    waitUntil: 'domcontentloaded',
+    timeout: 60_000,
+  });
+  if (!watchResponse || watchResponse.status() !== 200) {
+    throw new Error('WatchPage returned HTTP ' + (watchResponse?.status() ?? 'no response'));
+  }
+  await page.waitForSelector('.watch-topbar', { timeout: 45_000 });
+  await page.waitForSelector('.netflix-player-frame', { timeout: 45_000 });
+  await page.waitForSelector('body > nav.v4-mobile-tabbar', { timeout: 45_000 });
+  await page.waitForSelector('.player-quality-badge', { timeout: 45_000 });
+
+  const watchLayout = await page.evaluate(() => {
+    const header = document.querySelector('.watch-topbar');
+    const title = document.querySelector('.watch-topbar-title');
+    const dock = document.querySelector('body > nav.v4-mobile-tabbar');
+    const frame = document.querySelector('.netflix-player-frame');
+    const bottom = frame?.querySelector('.artplayer .art-bottom, .art-video-player .art-bottom');
+    const quality = frame?.querySelector('.player-quality-badge');
+    const relatedHeading = document.querySelector('.netflix-related-section .netflix-section-heading');
+    const emptyHistory = Array.from(document.querySelectorAll('.netflix-history-rail p'))
+      .some((node) => node.textContent?.includes('还没有其他观看记录'));
+    if (!header || !title || !dock || !frame) throw new Error('Watch page layout elements are missing');
+    const dockStyle = getComputedStyle(dock);
+    const dockRect = dock.getBoundingClientRect();
+    const titleStyle = getComputedStyle(title);
+    const gradient = bottom ? getComputedStyle(bottom).backgroundImage : '';
+    return {
+      title: title.textContent?.replace(/\\s+/g, ' ').trim() ?? '',
+      titleAlign: titleStyle.textAlign,
+      headerButtons: header.querySelectorAll('button').length,
+      hasHeaderAssistant: Boolean(header.querySelector('.friday-orb, .friday-fab, .watch-topbar-right')),
+      dockPosition: dockStyle.position,
+      dockDisplay: dockStyle.display,
+      dockDirection: dockStyle.flexDirection,
+      dockJustify: dockStyle.justifyContent,
+      dockLeft: dockRect.left,
+      dockWidth: dockRect.width,
+      dockBottomGap: window.innerHeight - dockRect.bottom,
+      dockItems: dock.querySelectorAll(':scope > a').length,
+      dockScrollWidth: dock.scrollWidth,
+      emptyHistory,
+      historyLinkCount: document.querySelectorAll('.netflix-section-heading a[href="/me"]').length,
+      playerBottomGradient: gradient,
+      qualityFontSize: quality ? getComputedStyle(quality).fontSize : null,
+      relatedHeadingMarginBottom: relatedHeading ? getComputedStyle(relatedHeading).marginBottom : null,
+    };
+  });
+  if (!watchLayout.title.includes('PR84 Watch Layout Acceptance') || watchLayout.titleAlign !== 'left') {
+    throw new Error('Watch header title is not aligned with the back control: ' + JSON.stringify(watchLayout));
+  }
+  if (watchLayout.headerButtons !== 1 || watchLayout.hasHeaderAssistant) {
+    throw new Error('Watch header still contains extra round/starfield controls: ' + JSON.stringify(watchLayout));
+  }
+  if (watchLayout.dockPosition !== 'fixed' || watchLayout.dockDisplay !== 'flex' ||
+      watchLayout.dockDirection !== 'row' || watchLayout.dockJustify !== 'space-around' ||
+      watchLayout.dockItems !== 4 || Math.abs(watchLayout.dockLeft) > 1 ||
+      Math.abs(watchLayout.dockWidth - 390) > 2 || Math.abs(watchLayout.dockBottomGap) > 2 ||
+      watchLayout.dockScrollWidth > watchLayout.dockWidth + 1) {
+    throw new Error('Watch mobile dock is not a full-width horizontal bottom bar: ' + JSON.stringify(watchLayout));
+  }
+  if (watchLayout.emptyHistory && watchLayout.historyLinkCount !== 0) {
+    throw new Error('Empty continue-watching state still shows the all-history link');
+  }
+  if (!watchLayout.playerBottomGradient.includes('linear-gradient')) {
+    throw new Error('Player bottom controls are missing their dark gradient protection: ' + JSON.stringify(watchLayout));
+  }
+  if (watchLayout.qualityFontSize !== '12px') {
+    throw new Error('Player quality badge is not compact 12px text: ' + JSON.stringify(watchLayout));
+  }
+  if (Number.parseFloat(watchLayout.relatedHeadingMarginBottom ?? '0') < 20) {
+    throw new Error('Related-movies heading has insufficient spacing: ' + JSON.stringify(watchLayout));
+  }
+  await page.screenshot({ path: '/tmp/pr84-preview-watch-webkit.png', fullPage: true });
+  console.log('PASS PR84 Preview WebKit watch-page header + player controls + horizontal dock:', JSON.stringify(watchLayout));
 } finally {
   await browser.close();
 }
