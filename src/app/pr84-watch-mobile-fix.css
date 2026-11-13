@@ -363,3 +363,40 @@ html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-controls .
   width: 22px !important;
   height: 22px !important;
 }
+
+
+/* PR84 follow-up: keep the last related-poster row fully scrollable above the fixed dock. */
+@media (max-width: 700px) {
+  html body:has(.netflix-watch) .netflix-watch {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  html body:has(.netflix-watch) > nav.v4-mobile-tabbar > a.is-active {
+    color: #fff !important;
+    background: rgba(255,255,255,.15) !important;
+    box-shadow: none !important;
+  }
+}
+
+/* Keep the brand mark centered while cropping the obsolete slogan beneath it. */
+.netflix-player-frame > .absolute.inset-0.bg-black.pointer-events-none[style*="player-poster.png"] {
+  clip-path: inset(0 0 43% 0) !important;
+  background-position: center center !important;
+}
+
+/* Apple TV-like fine timeline with generous, invisible touch targets. */
+.netflix-player-frame .artplayer .art-progress-indicator,
+.netflix-player-frame .art-video-player .art-progress-indicator {
+  width: 6px !important;
+  height: 6px !important;
+}
+.netflix-player-frame .artplayer .art-bottom .art-control,
+.netflix-player-frame .art-video-player .art-bottom .art-control {
+  min-width: 40px !important;
+  min-height: 40px !important;
+}
+.netflix-player-frame .artplayer .art-bottom .art-control svg,
+.netflix-player-frame .art-video-player .art-bottom .art-control svg {
+  width: 19px !important;
+  height: 19px !important;
+}
