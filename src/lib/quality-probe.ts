@@ -332,10 +332,18 @@ export function extractKkphimEpisodeUrls(episodes: string[]): string[] {
   }).filter((url) => /^https:\/\//i.test(url));
 }
 
+/** KKPhim per-episode probing shares one detail lookup across the episode batch. */
+const KKPHIM_EPISODE_CACHE_TTL_MS = 60_000;
+const KKPHIM_EPISODE_CACHE_MAX = 100;
+const kkphimEpisodeCache = new Map<string, { episodes: string[]; expiresAt: number }>();
+
 /** 取影片的播放地址列表（与 /api/detail 同逻辑：列表接口优先，拿不到再爬详情页） */
 async function fetchEpisodes(source: SourceConfig, id: string, signal: AbortSignal, metrics: ProbeMetrics): Promise<string[]> {
   // KKPhim is a fixed-origin provider, not an Apple CMS source.
   if (source.key === KKPHIM_SOURCE_KEY) {
+    const cached = kkphimEpisodeCache.get(id);
+    if (cached && cached.expiresAt > Date.now()) return cached.episodes;
+    if (cached) kkphimEpisodeCache.delete(id);
     const endpoint = new URL(`/phim/${encodeURIComponent(id)}`, KKPHIM_API_ORIGIN).toString();
     const verdict = await checkUpstreamAllowed(KKPHIM_API_ORIGIN);
     if (!verdict.ok) return [];
@@ -350,7 +358,16 @@ async function fetchEpisodes(source: SourceConfig, id: string, signal: AbortSign
     const declaredLength = Number(response.headers.get('content-length') || 0);
     if (declaredLength > 4 * 1024 * 1024) return [];
     const detail = parseKkphimDetail(await readLimitedProviderJson(response, 4 * 1024 * 1024));
-    return extractKkphimEpisodeUrls(detail?.episodes ?? []);
+    const episodes = extractKkphimEpisodeUrls(detail?.episodes ?? []);
+    if (episodes.length > 0) {
+      kkphimEpisodeCache.set(id, { episodes, expiresAt: Date.now() + KKPHIM_EPISODE_CACHE_TTL_MS });
+      while (kkphimEpisodeCache.size > KKPHIM_EPISODE_CACHE_MAX) {
+        const oldest = kkphimEpisodeCache.keys().next().value;
+        if (oldest === undefined) break;
+        kkphimEpisodeCache.delete(oldest);
+      }
+    }
+    return episodes;
   }
   const api = `${source.url.replace(/\/+$/, '')}?ac=videolist&ids=${encodeURIComponent(id)}`;
   const res = await fetchMeasuredUpstream(api, { timeoutMs: 6000, headers: cmsRequestHeaders(), signal }, metrics);
