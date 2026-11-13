@@ -163,19 +163,20 @@ for (const item of items) {
     }
   }
   const links = getPlaybackLinks(payload);
-  const byServer = new Map();
+  const byServerAndKind = new Map();
   for (const link of links) {
-    if (!byServer.has(link.server)) byServer.set(link.server, []);
-    byServer.get(link.server).push(link);
+    const key = link.server + "::" + link.kind;
+    if (!byServerAndKind.has(key)) byServerAndKind.set(key, []);
+    byServerAndKind.get(key).push(link);
   }
-  for (const serverLinks of byServer.values()) {
-    for (const index of sampleIndexes(serverLinks.length)) {
-      candidates.push({ item, detail: getMovieDetail(payload), detailFormat, link: serverLinks[index] });
+  for (const groupedLinks of byServerAndKind.values()) {
+    for (const index of sampleIndexes(groupedLinks.length)) {
+      candidates.push({ item, detail: getMovieDetail(payload), detailFormat, link: groupedLinks[index] });
       if (candidates.length >= MAX_LINKS) break;
     }
     if (candidates.length >= MAX_LINKS) break;
   }
-  diagnostics.push({ slug, detailFormat, servers: byServer.size, episodeLinks: links.length });
+  diagnostics.push({ slug, detailFormat, servers: new Set(links.map((link) => link.server)).size, playbackKinds: [...new Set(links.map((link) => link.kind))], episodeLinks: links.length });
   if (candidates.length >= MAX_LINKS) break;
 }
 if (!candidates.length) throw new Error("No playback candidates found across sampled KKPhim details");
@@ -187,17 +188,33 @@ for (const candidate of candidates) {
   tested++;
   const link = candidate.link;
   try {
-    let mediaUrls = link.kind === "hls" ? [link.url] : getEmbedMediaUrls(link.url);
-    if (!mediaUrls.length) mediaUrls = await getEmbedPageMedia(link.url);
-    if (!mediaUrls.length) throw new Error("Embed page exposed no direct HLS URL; embed HTTP response alone is not playback proof");
+    const attemptedMediaUrls = new Set();
     let lastError = null;
-    for (const mediaUrl of mediaUrls) {
-      try {
-        const verified = await verifyManifestAndSegment(mediaUrl);
-        success = { ...candidate, mediaUrl, verified };
-        break;
-      } catch (error) {
-        lastError = error;
+    const testMediaUrls = async (mediaUrls) => {
+      for (const mediaUrl of mediaUrls) {
+        if (attemptedMediaUrls.has(mediaUrl)) continue;
+        attemptedMediaUrls.add(mediaUrl);
+        try {
+          const verified = await verifyManifestAndSegment(mediaUrl);
+          success = { ...candidate, mediaUrl, verified };
+          return;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+    };
+
+    if (link.kind === "hls") {
+      await testMediaUrls([link.url]);
+    } else {
+      await testMediaUrls(getEmbedMediaUrls(link.url));
+      // A stale nested URL can 404 while the player page still resolves a fresh media URL.
+      if (!success) {
+        const pageMediaUrls = await getEmbedPageMedia(link.url);
+        await testMediaUrls(pageMediaUrls);
+        if (!pageMediaUrls.length && !lastError) {
+          lastError = new Error("Embed page exposed no direct HLS URL; embed HTTP response alone is not playback proof");
+        }
       }
     }
     if (success) break;
