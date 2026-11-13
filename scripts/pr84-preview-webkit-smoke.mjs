@@ -230,6 +230,7 @@ try {
     const activeDockItem = dock.querySelector('a[aria-current="page"], a.is-active');
     const fridayLauncher = document.querySelector('.friday-root .friday-fab, .friday-root .friday-restore');
     const progressBar = frame?.querySelector('.artplayer .art-progress, .art-video-player .art-progress, .artplayer .art-progress-bar, .art-video-player .art-progress-bar');
+    const progressTrack = frame?.querySelector('.artplayer .art-progress-loaded, .art-video-player .art-progress-loaded, .artplayer .art-progress-played, .art-video-player .art-progress-played');
     const progressDot = frame?.querySelector('.artplayer .art-progress-indicator, .art-video-player .art-progress-indicator');
     const relatedDataFallbacks = document.querySelectorAll('.netflix-related-art img[src^="data:"]').length;
     const emptyHistory = Array.from(document.querySelectorAll('.netflix-history-rail p'))
@@ -262,7 +263,8 @@ try {
       activeDockColor: activeDockItem ? getComputedStyle(activeDockItem).color : null,
       activeDockBackground: activeDockItem ? getComputedStyle(activeDockItem).backgroundColor : null,
       fridayLauncherDisplay: fridayLauncher ? getComputedStyle(fridayLauncher).display : 'absent',
-      progressBarHeight: progressBar ? getComputedStyle(progressBar).height : null,
+      progressHitAreaHeight: progressBar ? getComputedStyle(progressBar).height : null,
+      progressTrackHeight: progressTrack ? getComputedStyle(progressTrack).height : null,
       progressDotWidth: progressDot ? getComputedStyle(progressDot).width : null,
       relatedDataFallbacks,
     };
@@ -302,8 +304,9 @@ try {
   if (watchLayout.fridayLauncherDisplay !== 'none') {
     throw new Error('Floating Friday starfield launcher still overlaps the watch page: ' + JSON.stringify(watchLayout));
   }
-  if (watchLayout.progressBarHeight !== '2px' || Number.parseFloat(watchLayout.progressDotWidth ?? '99') > 6) {
-    throw new Error('Player timeline is not the fine Apple TV 2px/6px treatment: ' + JSON.stringify(watchLayout));
+  if (watchLayout.progressTrackHeight !== '2px' || Number.parseFloat(watchLayout.progressDotWidth ?? '99') > 6 ||
+      Number.parseFloat(watchLayout.progressHitAreaHeight ?? '0') < 16) {
+    throw new Error('Player timeline does not preserve a 2px visual rail, 6px playhead, and usable 16px hit area: ' + JSON.stringify(watchLayout));
   }
   if (watchLayout.relatedDataFallbacks !== 0) {
     throw new Error('Related posters are still using decorative data-URI fallbacks: ' + JSON.stringify(watchLayout));
