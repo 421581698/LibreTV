@@ -11,6 +11,31 @@ export const runtime = 'nodejs';
 /** 详情结果短缓存：换源测速/多人观看同一影片时避免重复打上游 */
 const DETAIL_CACHE_TTL = 60 * 1000;
 
+/** Read JSON with a hard streamed byte limit; Content-Length is only an early hint. */
+async function readLimitedJson(response: Response, maxBytes: number): Promise<unknown> {
+  if (!response.body) throw new Error('KKPhim 详情响应为空');
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let bytes = 0;
+  let text = '';
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        throw new Error('KKPhim 详情响应超过安全上限');
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+    text += decoder.decode();
+    return JSON.parse(text) as unknown;
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 function parseSource(raw: string | null): SourceConfig | null {
   if (!raw) return null;
   try {
@@ -76,7 +101,7 @@ export async function GET(req: Request) {
       if (contentLength > 4 * 1024 * 1024) {
         return NextResponse.json({ error: 'KKPhim 详情响应超过安全上限' }, { status: 502 });
       }
-      const detail = parseKkphimDetail(await providerResponse.json());
+      const detail = parseKkphimDetail(await readLimitedJson(providerResponse, 4 * 1024 * 1024));
       if (!detail || detail.episodes.length === 0) {
         return NextResponse.json({ error: 'KKPhim 未提供可用分集地址' }, { status: 404 });
       }
