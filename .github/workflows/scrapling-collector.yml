@@ -71,8 +71,18 @@ jobs:
         working-directory: .
         run: |
           ruby -e 'require "yaml"; YAML.safe_load_file("render.yaml", permitted_classes: [], aliases: false); puts "Render Blueprint YAML syntax passed"'
-      - name: Validate host firewall script syntax
-        run: bash -n ../../scripts/scrapling-egress-firewall.sh
+      - name: Validate host firewall script and cover both collector containers
+        run: |
+          bash -n ../../scripts/scrapling-egress-firewall.sh
+          grep -Fq 'COLLECTOR_CIDR:-172.30.60.10/31' ../../scripts/scrapling-egress-firewall.sh
+          grep -Fq 'ipv4_address: ${SCRAPLING_WORKER_IP:-172.30.60.11}' docker-compose.yml
+          python - <<'PY'
+          import ipaddress
+          network = ipaddress.ip_network('172.30.60.10/31')
+          assert ipaddress.ip_address('172.30.60.10') in network
+          assert ipaddress.ip_address('172.30.60.11') in network
+          print(f'Collector egress CIDR {network} covers API .10 and worker .11')
+          PY
       - name: Build isolated collector image
         run: docker build --tag libretv-scrapling-collector:ci .
       - name: Smoke test durable worker startup
