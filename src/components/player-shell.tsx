@@ -608,6 +608,10 @@ export function PlayerShell({
       }
       hlsRef.current = null;
       armMetadataWatchdog(video, mediaUrl);
+      // Safari's native HLS pipeline does not need CORS-readable media bytes.
+      // Keeping crossorigin="anonymous" here can make otherwise playable
+      // cross-origin HLS streams fail when the source omits ACAO headers.
+      video.removeAttribute('crossorigin');
       setAvailableQualityHeights([]);
       setQualityControlMode('native');
       setQualityNotice('当前使用浏览器原生 HLS，Safari 会自行选择档位，网页无法强制锁定 1080P 或 4K。实际解码分辨率仍会显示。');
