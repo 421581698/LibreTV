@@ -24,6 +24,36 @@ try {
   await page.waitForSelector('.v4-home-main--cinema > .v4-hero-immersive', { timeout: 45_000 });
   await page.waitForSelector('body > nav.v4-mobile-tabbar', { timeout: 45_000 });
 
+  const apiResponses = [];
+  page.on('response', (response) => {
+    const url = new URL(response.url());
+    if (url.pathname.startsWith('/api/douban') || url.pathname.startsWith('/api/hot-list')) {
+      apiResponses.push({ path: url.pathname + url.search, status: response.status() });
+    }
+  });
+  // Wait for actual data or explicit empty/error states; DOM shells alone are not acceptance.
+  await page.waitForFunction(() => {
+    const heroReady = Boolean(document.querySelector('.v4-hero-image, .v4-hero-retry'));
+    const rails = Array.from(document.querySelectorAll('.v4-apple-rail-section'));
+    return heroReady && rails.length >= 3 && rails.every((section) =>
+      section.querySelector('.v4-apple-poster-card, .v4-apple-rail-message')
+    );
+  }, { timeout: 45_000 });
+  const contentState = await page.evaluate(() => ({
+    heroHasArtwork: Boolean(document.querySelector('.v4-hero-image img')),
+    posterCards: document.querySelectorAll('.v4-apple-poster-card').length,
+    railMessages: Array.from(document.querySelectorAll('.v4-apple-rail-message')).map((node) => node.textContent?.trim()),
+    heroMessage: document.querySelector('.v4-hero-empty h1')?.textContent?.trim() ?? null,
+  }));
+  if (!contentState.heroHasArtwork || contentState.posterCards < 1) {
+    throw new Error('Homepage real content did not load: ' + JSON.stringify({ contentState, apiResponses }));
+  }
+  await page.waitForFunction(() => {
+    const images = Array.from(document.querySelectorAll('.v4-hero-image img, .v4-apple-poster-card img'));
+    return images.some((img) => img.complete && img.naturalWidth > 0);
+  }, { timeout: 20_000 });
+
+
   const before = await page.evaluate(() => {
     const header = document.querySelector('.v4-home > .v4-header');
     const headerInner = header?.querySelector('.v4-header-inner');
@@ -81,7 +111,7 @@ try {
   }
 
   await page.screenshot({ path: '/tmp/pr84-preview-webkit.png', fullPage: true });
-  console.log('PASS PR84 Preview WebKit mobile layout:', JSON.stringify({ before, after }));
+  console.log('PASS PR84 Preview WebKit mobile layout + real content:', JSON.stringify({ before, after, contentState, apiResponses }));
 } finally {
   await browser.close();
 }

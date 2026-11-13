@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/client-api';
+import { fetchHomepageWithFallback } from '@/lib/homepage-recommendation-fallback';
 import { SmartImage } from '@/components/smart-image';
 import { useAppStore } from '@/lib/store';
 import type { DoubanItem } from '@/lib/types';
@@ -19,7 +20,11 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
   const customImageProxy = useAppStore((s) => s.customImageProxy);
   const featuredQuery = useQuery({
     queryKey: ['v4-featured-movies'],
-    queryFn: ({ signal }) => api.douban('movie', '热门', 0, 8, signal),
+    queryFn: ({ signal }) => fetchHomepageWithFallback(
+      () => api.douban('movie', '热门', 0, 8, signal),
+      () => api.hotList('douban_movie_weekly', signal),
+      signal
+    ),
     staleTime: 5 * 60_000,
   });
   const slides = (featuredQuery.data?.items ?? []).filter((item) => item.cover).slice(0, 5);

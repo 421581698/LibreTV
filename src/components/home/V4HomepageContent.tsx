@@ -5,6 +5,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useQuery } from '@tanstack/react-query';
 import { SmartImage } from '@/components/smart-image';
 import { api } from '@/lib/client-api';
+import { fetchHomepageWithFallback } from '@/lib/homepage-recommendation-fallback';
 import { db, type HistoryEntry } from '@/lib/db';
 import { resolveSource, useAppStore } from '@/lib/store';
 import type { DoubanItem } from '@/lib/types';
@@ -24,13 +25,21 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
 
   const tvQuery = useQuery({
     queryKey: ['homepage-apple-tv-top10'],
-    queryFn: ({ signal }) => api.douban('tv', '热门', 0, RAIL_LIMIT, signal),
+    queryFn: ({ signal }) => fetchHomepageWithFallback(
+      () => api.douban('tv', '热门', 0, RAIL_LIMIT, signal),
+      () => api.hotList('douban_tv_chinese', signal),
+      signal
+    ),
     enabled: doubanEnabled,
     staleTime: 5 * 60_000,
   });
   const movieQuery = useQuery({
     queryKey: ['homepage-apple-movie-top10'],
-    queryFn: ({ signal }) => api.douban('movie', '热门', 0, RAIL_LIMIT, signal),
+    queryFn: ({ signal }) => fetchHomepageWithFallback(
+      () => api.douban('movie', '热门', 0, RAIL_LIMIT, signal),
+      () => api.hotList('douban_movie_weekly', signal),
+      signal
+    ),
     enabled: doubanEnabled,
     staleTime: 5 * 60_000,
   });
