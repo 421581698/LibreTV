@@ -29,10 +29,10 @@ jobs:
           node-version: 22
       - name: Test KKPhim probe response parsers
         run: node --test scripts/pr84-kkphim-probe-utils.test.mjs
-      - name: Install Chrome for dynamic KKPhim embed inspection and PlayerShell playback
+      - name: Install Playwright Chromium for dynamic KKPhim embed inspection and PlayerShell playback
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
-          npx playwright install --with-deps chrome
+          npx playwright install --with-deps chromium
       - name: Probe KKPhim metadata, embed/HLS paths, dynamic player requests, manifest and segment (read-only)
         id: probe
         run: node scripts/pr84-kkphim-readonly-probe.mjs
