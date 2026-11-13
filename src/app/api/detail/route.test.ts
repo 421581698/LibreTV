@@ -117,6 +117,73 @@ describe('GET /api/detail', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('parses KKPhim REST detail and only returns DNS-validated direct HLS episodes', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      expect(String(input)).toBe('https://phimapi.com/phim/kkphim-test-title');
+      return new Response(JSON.stringify({
+        movie: {
+          slug: 'kkphim-test-title',
+          name: 'KKPhim 测试影片',
+          origin_name: 'Test Movie',
+          poster_url: 'https://images.example.com/poster.jpg',
+          content: '<p>测试简介</p>',
+          type: 'series',
+          year: 2026,
+          quality: 'FHD',
+          lang: 'Vietsub',
+          episode_current: '第 2 集',
+          country: [{ name: '越南' }],
+          actor: ['演员甲'],
+          director: ['导演乙'],
+        },
+        episodes: [{
+          server_name: 'Vietsub',
+          server_data: [
+            { name: '第 1 集', link_m3u8: 'https://media.example.com/ep1/index.m3u8' },
+            { name: '第 2 集', link_m3u8: 'https://media.example.com/ep2/index.m3u8' },
+          ],
+        }],
+      }), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const response = await GET(makeRequest({
+      id: 'kkphim-test-title',
+      source: source('https://phimapi.com', 'kkphim'),
+    }));
+
+    expect(response.status).toBe(200);
+    const data = await response.json() as {
+      episodes: string[];
+      episodeItems: Array<{ title: string; url: string; episodeName?: string }>;
+      videoInfo: { title?: string; originalTitle?: string; typeName?: string; year?: string; remarks?: string };
+    };
+    expect(data.episodes).toEqual([
+      'https://media.example.com/ep1/index.m3u8',
+      'https://media.example.com/ep2/index.m3u8',
+    ]);
+    expect(data.episodeItems[0]).toMatchObject({ title: '第 1 集', episodeName: 'Vietsub' });
+    expect(data.videoInfo).toMatchObject({
+      title: 'KKPhim 测试影片',
+      originalTitle: 'Test Movie',
+      typeName: '电视剧',
+      year: '2026',
+      remarks: 'FHD · Vietsub · 第 2 集',
+    });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a spoofed KKPhim host before requesting details', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    const response = await GET(makeRequest({
+      id: 'kkphim-test-title',
+      source: source('https://phimapi.com.attacker.example', 'kkphim'),
+    }));
+    expect(response.status).toBe(400);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it('returns parsed episode details from the CMS list endpoint', async () => {
     const fetchSpy = vi.fn(async () => new Response(
       JSON.stringify(cmsDetail('第1集$https://media.example.com/episode-1.m3u8')),

@@ -92,6 +92,51 @@ describe('POST /api/search', () => {
     expect(data.failures[0].error).toContain('500');
   });
 
+  it('searches KKPhim REST API and maps its slug, artwork, type and quality fields', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      expect(String(input)).toContain('https://phimapi.com/v1/api/tim-kiem?');
+      expect(String(input)).toContain('keyword=' + encodeURIComponent('流浪地球'));
+      return new Response(JSON.stringify({
+        status: 'success',
+        data: {
+          items: [{
+            slug: 'wandering-earth',
+            name: '流浪地球',
+            origin_name: 'The Wandering Earth',
+            poster_url: 'https://images.example.com/wandering-earth.jpg',
+            thumb_url: 'https://images.example.com/wandering-earth-thumb.jpg',
+            type: 'single',
+            year: 2019,
+            quality: 'FHD',
+            lang: 'Vietsub',
+            episode_current: 'Full',
+            country: [{ name: '中国' }],
+          }],
+        },
+      }), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const response = await POST(makeRequest({
+      wd: '流浪地球',
+      sources: [{ key: 'kkphim', name: 'KKPhim', url: 'https://phimapi.com' }],
+    }));
+    expect(response.status).toBe(200);
+    const data = await response.json() as SearchResponse;
+    expect(data.list).toHaveLength(1);
+    expect(data.list[0]).toMatchObject({
+      sourceKey: 'kkphim',
+      vodId: 'wandering-earth',
+      name: '流浪地球',
+      typeName: '电影',
+      year: '2019',
+      area: '中国',
+      remarks: 'FHD · Vietsub · Full',
+      pic: '/api/img?url=' + encodeURIComponent('https://images.example.com/wandering-earth.jpg'),
+    });
+    expect(data.failures).toEqual([]);
+  });
+
   it('精确命中（忽略标点差异）排在最前', async () => {
     mockUpstream();
     const res = await POST(makeRequest({ wd: '测试剧', sources: [SOURCES[0]], filterAdult: true }));

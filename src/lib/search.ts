@@ -74,6 +74,10 @@ function extractMovieArray(data: unknown): unknown[] {
     return record.list;
   }
 
+  if (Array.isArray(record.items)) {
+    return record.items;
+  }
+
   if (Array.isArray(record.data)) {
     return record.data;
   }
@@ -86,6 +90,9 @@ function extractMovieArray(data: unknown): unknown[] {
 
     if (Array.isArray(nested.list)) {
       return nested.list;
+    }
+    if (Array.isArray(nested.items)) {
+      return nested.items;
     }
   }
 
@@ -166,6 +173,17 @@ function buildSearchUrl(
     throw new Error('接口地址不能包含登录凭据');
   }
 
+  // KKPhim 是独立 REST API，不是 Apple CMS；只允许其固定 HTTPS 主机。
+  if (url.hostname.toLowerCase() === 'phimapi.com') {
+    if (url.origin !== 'https://phimapi.com' || url.pathname !== '/') {
+      throw new Error('KKPhim 仅允许 https://phimapi.com 根地址');
+    }
+    const target = new URL('/v1/api/tim-kiem', url.origin);
+    target.searchParams.set('keyword', keyword);
+    target.searchParams.set('limit', String(MAX_RESULTS_PER_SOURCE));
+    return target;
+  }
+
   // 已经包含 PHP 接口路径时，不重复拼接。
   if (!/\.php(?:\/|$)/i.test(url.pathname)) {
     const basePath = url.pathname.replace(/\/+$/, '');
@@ -189,8 +207,14 @@ function normalizeMovie(
 
   const item = raw as Record<string, unknown>;
 
+  const isKkPhim = (() => {
+    try { return new URL(source.url).hostname.toLowerCase() === 'phimapi.com'; }
+    catch { return false; }
+  })();
+
   const vodId = safeString(
-    item.vod_id ??
+    (isKkPhim ? item.slug : undefined) ??
+      item.vod_id ??
       item.id ??
       item.vodId ??
       item.vid,
@@ -210,12 +234,19 @@ function normalizeMovie(
 
   const score = safeString(item.vod_score, 12);
 
-  const remarks = score
+  const kkRemarks = isKkPhim
+    ? [item.quality, item.lang, item.episode_current]
+        .map((value) => safeString(value, 24))
+        .filter(Boolean)
+        .join(' · ')
+    : '';
+
+  const remarks = kkRemarks || (score
     ? `⭐ ${score}`
     : safeString(
         item.vod_remarks ?? item.remarks,
         50,
-      );
+      ));
 
   return {
     sourceKey: source.key,
@@ -224,14 +255,17 @@ function normalizeMovie(
     vodId,
     name,
     pic: normalizePoster(
-      item.vod_pic ??
+      (isKkPhim ? item.poster_url ?? item.thumb_url : undefined) ??
+        item.vod_pic ??
         item.pic ??
         item.poster ??
         item.img,
       source.url,
     ),
     typeName: safeString(
-      item.type_name ?? item.typeName,
+      (isKkPhim
+        ? (item.type === 'single' ? '电影' : item.type === 'series' ? '电视剧' : item.type)
+        : undefined) ?? item.type_name ?? item.typeName,
       40,
     ),
     year: safeString(
@@ -239,7 +273,9 @@ function normalizeMovie(
       12,
     ),
     area: safeString(
-      item.vod_area ?? item.area,
+      (isKkPhim && Array.isArray(item.country)
+        ? item.country.map((entry) => entry && typeof entry === 'object' ? safeString((entry as Record<string, unknown>).name, 30) : '').filter(Boolean).join(' / ')
+        : undefined) ?? item.vod_area ?? item.area,
       30,
     ),
     remarks,
