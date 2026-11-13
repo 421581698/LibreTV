@@ -107,6 +107,7 @@ export function parseKkphimDetail(payload: unknown): VideoDetail | null {
 
   const episodes: string[] = [];
   const episodeLabels: string[] = [];
+  const episodeImages: Array<string | undefined> = [];
   for (const server of array(root?.episodes)) {
     const serverRecord = record(server);
     const serverName = text(serverRecord?.server_name, 80) || 'KKPhim';
@@ -123,6 +124,7 @@ export function parseKkphimDetail(payload: unknown): VideoDetail | null {
       // Keep display labels in a parallel optional array rather than leaking CMS delimiters into the player.
       episodes.push(playableUrl);
       episodeLabels.push(`${serverName} · ${label}`);
+      episodeImages.push(safeHttpsUrl(item?.still_url ?? item?.still ?? item?.image ?? item?.thumb_url));
     }
   }
 
@@ -135,6 +137,7 @@ export function parseKkphimDetail(payload: unknown): VideoDetail | null {
   return {
     episodes,
     episodeLabels,
+    episodeImages,
     videoInfo: {
       title,
       cover,
