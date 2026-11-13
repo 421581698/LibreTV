@@ -29,6 +29,25 @@ describe('rewriteM3u8', () => {
     expect(out).toContain('#EXT-X-ENDLIST');
   });
 
+  it('改写 MEDIA、I-FRAME-STREAM-INF、SESSION-KEY 等标签中的 URI 属性', () => {
+    const input = [
+      '#EXTM3U',
+      '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="中文",URI="audio/index.m3u8"',
+      '#EXT-X-I-FRAME-STREAM-INF:BANDWIDTH=86000,URI="../iframe/low.m3u8"',
+      '#EXT-X-SESSION-KEY:METHOD=AES-128,URI="keys/session.key"',
+      '#EXT-X-KEY:METHOD=AES-128,URI="/keys/media.key"',
+    ].join('\\n');
+    const out = rewriteM3u8(input, BASE);
+    for (const target of [
+      'https://cdn.example.com/live/audio/index.m3u8',
+      'https://cdn.example.com/iframe/low.m3u8',
+      'https://cdn.example.com/live/keys/session.key',
+      'https://cdn.example.com/keys/media.key',
+    ]) {
+      expect(out).toContain('URI="' + '/api/proxy?url=' + encodeURIComponent(target) + '"');
+    }
+  });
+
   it('直播前缀改写为 /api/live/stream?url= 形式', () => {
     const out = rewriteM3u8('https://cdn.example.com/live/seg1.ts', BASE, 0, '/api/live/stream?url=');
     expect(out).toBe('/api/live/stream?url=' + encodeURIComponent('https://cdn.example.com/live/seg1.ts'));
@@ -52,7 +71,7 @@ describe('rewriteM3u8', () => {
 describe('isProxiedUri', () => {
   it('新旧两种代理形式均识别', () => {
     expect(isProxiedUri('/api/proxy/' + encodeURIComponent('https://x.com/a.ts'))).toBe(true);
-    expect(isProxiedUri('/api/proxy?url=' + encodeURIComponent('https://x.com/a.ts'))).toBe(true);
+    expect(isProxiedUri('/api/proxy?url=' + encodeURIComponent('https://x.com/a.ts'))).toBe(true);\n    expect(isProxiedUri('/api/proxyevil?url=' + encodeURIComponent('https://x.com/a.ts'))).toBe(false);\n    expect(isProxiedUri('/api/live/streaming?url=' + encodeURIComponent('https://x.com/a.ts'))).toBe(false);
     expect(isProxiedUri('/api/live/stream?url=' + encodeURIComponent('https://x.com/live.m3u8'))).toBe(true);
     expect(isProxiedUri('https://cdn.example.com/seg1.ts')).toBe(false);
     expect(isProxiedUri('/relative/seg1.ts')).toBe(false);
