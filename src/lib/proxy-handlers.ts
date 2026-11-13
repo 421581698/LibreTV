@@ -253,7 +253,7 @@ export async function handleLiveStreamRequest(req: Request, targetUrl: string): 
     let text: string;
     try { text = await readManifestLimited(response); }
     catch (err) { return jsonError(err instanceof Error ? err.message : 'HLS Manifest 读取失败', 502); }
-    return new NextResponse(rewriteM3u8(text, finalUrl, 0, LIVE_STREAM_BASE),
+    return new NextResponse(rewriteM3u8(text, finalUrl, 0, LIVE_STREAM_BASE), {
       status: response.status,
       headers: {
         'Content-Type': 'application/vnd.apple.mpegurl',
