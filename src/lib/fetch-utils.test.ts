@@ -57,6 +57,23 @@ describe('fetchUpstream 安全跳转', () => {
     expect(await res.text()).toBe('ok');
   });
 
+  it('客户端中断请求时，将 abort 传递到正在进行的上游请求', async () => {
+    const controller = new AbortController();
+    let upstreamSignal: AbortSignal | undefined;
+    vi.stubGlobal('fetch', vi.fn((_url: string | URL, init?: RequestInit) => {
+      upstreamSignal = init?.signal ?? undefined;
+      return new Promise<Response>((_resolve, reject) => {
+        upstreamSignal?.addEventListener('abort', () => reject(upstreamSignal?.reason), { once: true });
+      });
+    }));
+
+    const pending = fetchWithSafeRedirects(PUBLIC_URL, { signal: controller.signal });
+    await vi.waitFor(() => expect(upstreamSignal).toBeDefined());
+    controller.abort(new DOMException('客户端已断开', 'AbortError'));
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
   it('无跳转时直接返回响应', async () => {
     const spy = mockFetch([() => new Response('direct', { status: 200 })]);
     const res = await fetchUpstream(PUBLIC_URL);
