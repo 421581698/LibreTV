@@ -175,6 +175,10 @@ export function LivePlayer({ url, title, onPrevChannel, onNextChannel }: LivePla
         }
         video.play().catch(() => {});
       });
+      hls.on(Hls.Events.FRAG_LOADED, () => {
+        // 分片成功才代表直播链路真正恢复，清零连续网络错误计数。
+        liveNetRetryCount = 0;
+      });
       hls.on(Hls.Events.ERROR, (_evt, data) => {
         if (disposed || destroyed) return;
         const httpCode = data.response?.code;
@@ -207,7 +211,7 @@ export function LivePlayer({ url, title, onPrevChannel, onNextChannel }: LivePla
           return;
         }
         if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-          // 播放中网络抖动：尝试恢复拉流；连续失败达到阈值则报错退出
+          // 播放中网络抖动：成功收到媒体分片后计数归零；连续失败达到阈值才退出
           liveNetRetryCount++;
           if (liveNetRetryCount > 5) {
             setError(`直播流中断${codeHint}，该源可能已失效，请尝试其他频道`);
