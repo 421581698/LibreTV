@@ -1163,11 +1163,11 @@ export function PlayerShell({
       const mediaError = art.video?.error;
       const errorMessage = mediaError?.code === 1
         ? '播放请求已取消，请重新点击播放'
-        : mediaError?.code === MediaError.MEDIA_ERR_NETWORK
+        : mediaError?.code === 2
           ? '视频地址或媒体分片请求失败，请更换播放源'
-          : mediaError?.code === MediaError.MEDIA_ERR_DECODE
+          : mediaError?.code === 3
             ? '媒体解码失败，请尝试其他播放源或格式'
-            : mediaError?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED
+            : mediaError?.code === 4
               ? '播放源无效或格式不受支持，请更换播放源'
               : '视频播放失败，请尝试其他视频源';
       clearMetadataWatchdog();
