@@ -264,8 +264,12 @@ try {
       activeDockBackground: activeDockItem ? getComputedStyle(activeDockItem).backgroundColor : null,
       fridayLauncherDisplay: fridayLauncher ? getComputedStyle(fridayLauncher).display : 'absent',
       progressHitAreaHeight: progressBar ? getComputedStyle(progressBar).height : null,
+      progressHitAreaRect: progressBar ? (() => { const r = progressBar.getBoundingClientRect(); return { width: r.width, height: r.height, x: r.x, y: r.y }; })() : null,
       progressTrackHeight: progressTrack ? getComputedStyle(progressTrack).height : null,
+      progressTrackRect: progressTrack ? (() => { const r = progressTrack.getBoundingClientRect(); return { width: r.width, height: r.height, x: r.x, y: r.y }; })() : null,
       progressDotWidth: progressDot ? getComputedStyle(progressDot).width : null,
+      progressDotRect: progressDot ? (() => { const r = progressDot.getBoundingClientRect(); return { width: r.width, height: r.height }; })() : null,
+      progressPointerEvents: progressBar ? getComputedStyle(progressBar).pointerEvents : null,
       relatedDataFallbacks,
     };
   });
@@ -304,9 +308,14 @@ try {
   if (watchLayout.fridayLauncherDisplay !== 'none' && watchLayout.fridayLauncherDisplay !== 'absent') {
     throw new Error('Floating Friday starfield launcher still overlaps the watch page: ' + JSON.stringify(watchLayout));
   }
-  if (watchLayout.progressTrackHeight !== '2px' || Number.parseFloat(watchLayout.progressDotWidth ?? '99') > 6 ||
-      Number.parseFloat(watchLayout.progressHitAreaHeight ?? '0') < 16) {
-    throw new Error('Player timeline does not preserve a 2px visual rail, 6px playhead, and usable 16px hit area: ' + JSON.stringify(watchLayout));
+  if (!watchLayout.progressHitAreaRect || watchLayout.progressHitAreaRect.height < 12 ||
+      watchLayout.progressHitAreaRect.height > 20 ||
+      !watchLayout.progressTrackRect || watchLayout.progressTrackRect.height < 1 ||
+      watchLayout.progressTrackRect.height > 3 ||
+      !watchLayout.progressDotRect || watchLayout.progressDotRect.width > 8 ||
+      watchLayout.progressDotRect.height > 8 ||
+      watchLayout.progressPointerEvents === 'none') {
+    throw new Error('Real mobile ArtPlayer timeline geometry is invalid (target 12–20px, rail 1–3px, playhead <=8px, pointer events enabled): ' + JSON.stringify(watchLayout));
   }
   if (watchLayout.relatedDataFallbacks !== 0) {
     throw new Error('Related posters are still using decorative data-URI fallbacks: ' + JSON.stringify(watchLayout));
