@@ -1,0 +1,227 @@
+/* PR #84 — mobile watch page repair.
+   Scoped to /watch so the home, search, settings and detail layouts remain unchanged. */
+@media (max-width: 700px) {
+  /* Compact title-first header: one unboxed back glyph, then the title and episode. */
+  .watch-topbar {
+    min-height: calc(56px + env(safe-area-inset-top, 0px)) !important;
+    padding-top: env(safe-area-inset-top, 0px) !important;
+    background: rgba(8, 8, 10, .92) !important;
+    border-bottom: 1px solid rgba(255,255,255,.08) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(140%) !important;
+    backdrop-filter: blur(18px) saturate(140%) !important;
+  }
+  .watch-topbar-inner {
+    width: 100% !important;
+    min-height: 56px !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+    padding: 0 14px !important;
+    box-sizing: border-box !important;
+  }
+  .watch-topbar-left {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+  .watch-topbar-left .watch-topbar-back {
+    display: inline-flex !important;
+    flex: 0 0 28px !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    width: 28px !important;
+    height: 42px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    color: #fff !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .watch-topbar-left .watch-topbar-back svg {
+    width: 23px !important;
+    height: 23px !important;
+    stroke: currentColor !important;
+    stroke-width: 1.8 !important;
+  }
+  .watch-topbar-title {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    text-align: left !important;
+  }
+  .watch-topbar-title h1 {
+    color: #fff !important;
+    font-size: 14px !important;
+    line-height: 1.25 !important;
+    text-align: left !important;
+  }
+  .watch-topbar-title p {
+    margin-top: 2px !important;
+    color: rgba(255,255,255,.54) !important;
+    font-size: 10px !important;
+    line-height: 1.25 !important;
+    text-align: left !important;
+  }
+  .watch-topbar-right { display: none !important; }
+
+  /* A real four-column dock on the watch route; do not inherit LiquidGlass's
+     floating vertical demo layout. It is portaled directly under body. */
+  html body:has(.netflix-watch) {
+    overflow-x: clip !important;
+  }
+  html body:has(.netflix-watch) > nav.v4-mobile-tabbar {
+    position: fixed !important;
+    inset: auto 0 0 0 !important;
+    top: auto !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    z-index: 2147483000 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    justify-content: space-around !important;
+    align-items: center !important;
+    gap: 0 !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: none !important;
+    height: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
+    min-height: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
+    margin: 0 !important;
+    padding: 7px 10px calc(7px + env(safe-area-inset-bottom, 0px)) !important;
+    overflow: hidden !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: rgba(18,18,20,.82) !important;
+    box-shadow: 0 -8px 28px rgba(0,0,0,.22) !important;
+    -webkit-backdrop-filter: blur(32px) saturate(155%) !important;
+    backdrop-filter: blur(32px) saturate(155%) !important;
+    transform: none !important;
+  }
+  html body:has(.netflix-watch) > nav.v4-mobile-tabbar::before,
+  html body:has(.netflix-watch) > nav.v4-mobile-tabbar::after,
+  html body:has(.netflix-watch) > nav.v4-mobile-tabbar > .liquid-glass-engine-slot {
+    display: none !important;
+    content: none !important;
+  }
+  html body:has(.netflix-watch) > nav.v4-mobile-tabbar > a {
+    display: flex !important;
+    flex: 1 1 0 !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 3px !important;
+    width: 25% !important;
+    min-width: 0 !important;
+    max-width: 25% !important;
+    height: 50px !important;
+    min-height: 50px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 14px !important;
+    color: rgba(255,255,255,.72) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-size: 10px !important;
+    line-height: 1.1 !important;
+    text-decoration: none !important;
+  }
+  html body:has(.netflix-watch) > nav.v4-mobile-tabbar > a.is-active {
+    color: #fff !important;
+    background: rgba(255,255,255,.12) !important;
+  }
+  html body:has(.netflix-watch) > nav.v4-mobile-tabbar > a > svg {
+    display: block !important;
+    flex: 0 0 20px !important;
+    width: 20px !important;
+    height: 20px !important;
+    stroke: currentColor !important;
+    fill: none !important;
+  }
+  html body:has(.netflix-watch) > nav.v4-mobile-tabbar > a > span {
+    display: block !important;
+    width: auto !important;
+    color: inherit !important;
+    font-size: 10px !important;
+    white-space: nowrap !important;
+  }
+
+  .netflix-watch {
+    padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  .netflix-title-row p {
+    margin-top: 3px !important;
+    color: rgba(255,255,255,.48) !important;
+    font-size: 10px !important;
+    line-height: 1.35 !important;
+  }
+  .netflix-related-section {
+    margin-top: 24px !important;
+    margin-bottom: 24px !important;
+  }
+  .netflix-related-section .netflix-section-heading {
+    margin-bottom: 20px !important;
+  }
+}
+
+/* The gradient belongs to ArtPlayer's real bottom control surface, so it
+   follows its controls in normal and fullscreen playback without tinting video. */
+.netflix-player-frame .artplayer .art-bottom,
+.netflix-player-frame .art-video-player .art-bottom {
+  background: linear-gradient(to top, rgba(0,0,0,.8) 0%, rgba(0,0,0,.38) 48%, transparent 100%) !important;
+  border-radius: 0 !important;
+}
+
+/* Compact quality indicator; the detailed menu remains unchanged. */
+.player-quality-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  max-width: calc(100vw - 24px) !important;
+  padding: 4px 8px !important;
+  border: 1px solid rgba(255,255,255,.13) !important;
+  border-radius: 999px !important;
+  color: rgba(255,255,255,.9) !important;
+  background: rgba(0,0,0,.42) !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  backdrop-filter: blur(12px) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  line-height: 1.2 !important;
+}
+.player-quality-badge > span {
+  margin-left: 2px !important;
+  color: rgba(255,255,255,.62) !important;
+}
+@media (max-width: 700px) {
+  .player-quality-badge { padding: 3px 7px !important; font-size: 11px !important; }
+}
+
+/* Thin streaming-style timeline with a clear white playhead. */
+.netflix-player-frame .artplayer .art-progress-bar,
+.netflix-player-frame .art-video-player .art-progress-bar {
+  height: 2px !important;
+  background: rgba(255,255,255,.46) !important;
+  box-shadow: none !important;
+}
+.netflix-player-frame .artplayer .art-progress-played,
+.netflix-player-frame .art-video-player .art-progress-played {
+  background: #fff !important;
+}
+.netflix-player-frame .artplayer .art-progress-indicator,
+.netflix-player-frame .art-video-player .art-progress-indicator {
+  width: 10px !important;
+  height: 10px !important;
+  border: 0 !important;
+  border-radius: 50% !important;
+  background: #fff !important;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.18), 0 1px 4px rgba(0,0,0,.42) !important;
+}
