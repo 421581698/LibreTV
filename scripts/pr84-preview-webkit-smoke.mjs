@@ -85,6 +85,26 @@ try {
     }));
   }
 
+  try {
+    await page.waitForFunction(() => {
+      const images = Array.from(document.querySelectorAll('.v4-hero-image img, .v4-apple-poster-card img'));
+      return images.some((img) => img instanceof HTMLImageElement &&
+        !img.currentSrc.startsWith('data:') && img.complete && img.naturalWidth > 0);
+    }, { timeout: 20_000 });
+  } catch {
+    const imageState = await page.evaluate(() => Array.from(
+      document.querySelectorAll('.v4-hero-image img, .v4-apple-poster-card img')
+    ).map((img) => ({
+      src: img.currentSrc || img.getAttribute('src') || '',
+      complete: img.complete,
+      naturalWidth: img.naturalWidth,
+    })));
+    await Promise.all(apiReads);
+    throw new Error('Remote poster images did not load: ' + JSON.stringify({
+      imageState, apiResponses, imageProxyResponses, pageErrors, failedRequests,
+    }));
+  }
+
   const contentState = await page.evaluate(() => {
     const heroImg = document.querySelector('.v4-hero-image img');
     const posterImages = Array.from(document.querySelectorAll('.v4-apple-poster-card img'));
