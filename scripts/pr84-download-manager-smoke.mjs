@@ -2,12 +2,28 @@
 import { chromium } from 'playwright';
 import { createHash } from 'node:crypto';
 import { readFile, unlink } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
 
 const base = process.env.PR84_PREVIEW_URL || 'https://libretv-pr84-preview.bggdbh.workers.dev';
 const origin = new URL(base);
-const browser = await chromium.launch({ channel: 'chrome', headless: true });
+const fixture = '/tmp/pr84-download-fixture.mp4';
 const output = '/tmp/pr84-download-acceptance.mp4';
-const expected = Buffer.from(Array.from({ length: 128 * 1024 }, (_, i) => (i * 31 + 17) & 255));
+// Generate a real, decodable MP4 instead of labeling arbitrary bytes as video/mp4.
+execFileSync('ffmpeg', [
+  '-hide_banner', '-loglevel', 'error', '-y',
+  '-f', 'lavfi', '-i', 'color=c=black:s=32x32:d=0.2:r=5',
+  '-frames:v', '1', '-an', '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
+  '-movflags', '+faststart', '-f', 'mp4', fixture,
+]);
+const expected = await readFile(fixture);
+if (expected.length < 16 || expected.subarray(4, 8).toString('ascii') !== 'ftyp') {
+  throw new Error('Generated download fixture is not an ISO BMFF/MP4 file');
+}
+const fixtureFormat = execFileSync('ffprobe', [
+  '-v', 'error', '-show_entries', 'format=format_name', '-of', 'default=noprint_wrappers=1:nokey=1', fixture,
+], { encoding: 'utf8' }).trim();
+if (!fixtureFormat.split(',').includes('mp4')) throw new Error('Generated fixture is not recognized as MP4: ' + fixtureFormat);
+const browser = await chromium.launch({ channel: 'chrome', headless: true });
 const errors = [];
 
 async function waitForTask(page, title, state) {
@@ -103,11 +119,17 @@ try {
   await download.saveAs(output);
   const actual = await readFile(output);
   if (!actual.equals(expected)) throw new Error('Saved bytes did not match fixture');
+  if (actual.subarray(4, 8).toString('ascii') !== 'ftyp') throw new Error('Saved file is missing the MP4 ftyp box');
+  const savedFormat = execFileSync('ffprobe', [
+    '-v', 'error', '-show_entries', 'format=format_name', '-of', 'default=noprint_wrappers=1:nokey=1', output,
+  ], { encoding: 'utf8' }).trim();
+  if (!savedFormat.split(',').includes('mp4')) throw new Error('Saved output is not recognized as MP4: ' + savedFormat);
   const successState = await waitForTask(page, title, 'completed');
   if (successState.progress && !successState.progress.includes('100%')) throw new Error('Progress bar did not reach 100%');
   console.log('PASS PR84 download file output', JSON.stringify({
     filename: download.suggestedFilename(),
     bytes: actual.length,
+    container: savedFormat,
     sha256: createHash('sha256').update(actual).digest('hex'),
     task: successState,
   }));
@@ -122,5 +144,6 @@ try {
   console.log('PASS PR84 download failure feedback', JSON.stringify(failureState));
 } finally {
   await unlink(output).catch(() => undefined);
+  await unlink(fixture).catch(() => undefined);
   await browser.close();
 }
