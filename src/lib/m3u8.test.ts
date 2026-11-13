@@ -71,7 +71,9 @@ describe('rewriteM3u8', () => {
 describe('isProxiedUri', () => {
   it('新旧两种代理形式均识别', () => {
     expect(isProxiedUri('/api/proxy/' + encodeURIComponent('https://x.com/a.ts'))).toBe(true);
-    expect(isProxiedUri('/api/proxy?url=' + encodeURIComponent('https://x.com/a.ts'))).toBe(true);\n    expect(isProxiedUri('/api/proxyevil?url=' + encodeURIComponent('https://x.com/a.ts'))).toBe(false);\n    expect(isProxiedUri('/api/live/streaming?url=' + encodeURIComponent('https://x.com/a.ts'))).toBe(false);
+    expect(isProxiedUri('/api/proxy?url=' + encodeURIComponent('https://x.com/a.ts'))).toBe(true);
+    expect(isProxiedUri('/api/proxyevil?url=' + encodeURIComponent('https://x.com/a.ts'))).toBe(false);
+    expect(isProxiedUri('/api/live/streaming?url=' + encodeURIComponent('https://x.com/a.ts'))).toBe(false);
     expect(isProxiedUri('/api/live/stream?url=' + encodeURIComponent('https://x.com/live.m3u8'))).toBe(true);
     expect(isProxiedUri('https://cdn.example.com/seg1.ts')).toBe(false);
     expect(isProxiedUri('/relative/seg1.ts')).toBe(false);
