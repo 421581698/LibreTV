@@ -301,7 +301,7 @@ try {
       watchLayout.activeDockBackground !== 'rgba(255, 255, 255, 0.15)') {
     throw new Error('Selected dock item is not the neutral white Apple TV pill: ' + JSON.stringify(watchLayout));
   }
-  if (watchLayout.fridayLauncherDisplay !== 'none') {
+  if (watchLayout.fridayLauncherDisplay !== 'none' && watchLayout.fridayLauncherDisplay !== 'absent') {
     throw new Error('Floating Friday starfield launcher still overlaps the watch page: ' + JSON.stringify(watchLayout));
   }
   if (watchLayout.progressTrackHeight !== '2px' || Number.parseFloat(watchLayout.progressDotWidth ?? '99') > 6 ||
