@@ -60,7 +60,10 @@ describe('handleProxyRequest source-specific headers', () => {
     expect(mocks.fetchWithSafeRedirects).toHaveBeenCalledWith(
       target,
       expect.objectContaining({
-        headers: expect.objectContaining({ Referer: 'https://phimapi.com/' }),
+        headers: expect.objectContaining({
+          Referer: 'https://phimapi.com/',
+          'User-Agent': expect.stringContaining('Chrome/131.0.0.0'),
+        }),
       }),
     );
   });

@@ -89,7 +89,7 @@ async function getManifest(rawUrl) {
       accept: "application/vnd.apple.mpegurl, application/x-mpegURL, */*",
       referer: "https://phimapi.com/",
       origin: "https://phimapi.com",
-      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36",
     },
   });
   const bytes = await readLimited(response, MAX_MANIFEST_BYTES);
