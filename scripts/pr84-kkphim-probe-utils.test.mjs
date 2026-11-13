@@ -41,3 +41,28 @@ test("samples first, middle and last episode without duplicates", () => {
   assert.deepEqual(sampleIndexes(4), [0, 1, 3]);
   assert.deepEqual(sampleIndexes(0), []);
 });
+
+test("summarizes media URLs without leaking signed query strings or full paths", async () => {
+  const { summarizeMediaUrl } = await import("./pr84-kkphim-probe-utils.mjs");
+  const summary = summarizeMediaUrl("https://cdn.example.com/2026/11/13/movie/episode.m3u8?token=secret&expires=123");
+  assert.deepEqual(summary, {
+    hostname: "cdn.example.com",
+    pathDepth: 5,
+    dateSegment: "2026/11/13",
+    extension: "m3u8",
+    pathFingerprint: summary.pathFingerprint,
+    hasQuery: true,
+  });
+  assert.match(summary.pathFingerprint, /^[a-f0-9]{12}$/);
+  assert.equal(JSON.stringify(summary).includes("secret"), false);
+  assert.equal(JSON.stringify(summary).includes("episode.m3u8"), false);
+});
+
+test("summarizes host and path shape for embed and direct URLs without query values", async () => {
+  const { summarizeMediaUrl } = await import("./pr84-kkphim-probe-utils.mjs");
+  const summary = summarizeMediaUrl("https://player.phimapi.com/embed?id=123&token=hidden");
+  assert.equal(summary.hostname, "player.phimapi.com");
+  assert.equal(summary.extension, "none");
+  assert.equal(summary.hasQuery, true);
+  assert.equal(JSON.stringify(summary).includes("hidden"), false);
+});
