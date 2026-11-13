@@ -14,6 +14,7 @@ import {
 } from '@/lib/m3u8-downloader';
 import { loadDownloadSettings, saveDownloadSettings } from '@/lib/download-settings';
 import { detectSavingCapability, pickSaveTarget } from '@/lib/download-saver';
+import { detectDownloadSourceFormat, recoverInterruptedDownloadStatus } from '@/lib/download-task-state';
 import { Switch } from './settings-shared';
 
 /**
@@ -67,6 +68,27 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
     await db.downloads.update(id, { ...patch, updatedAt: Date.now() });
     refresh();
   }, [refresh]);
+
+  // A reload destroys browser file handles and in-memory controllers. Mark stale active
+  // tasks as paused so the user can explicitly reselect an output target and resume.
+  useEffect(() => {
+    let active = true;
+    void db.downloads.toArray().then(async (entries) => {
+      if (!active) return;
+      const interrupted = entries.filter((entry) =>
+        recoverInterruptedDownloadStatus(entry.status) === 'paused' && entry.status !== 'paused'
+      );
+      await Promise.all(interrupted.map((entry) => db.downloads.update(entry.id, {
+        status: 'paused',
+        errorMessage: '页面重新加载导致下载中断，请点击「继续」重新选择保存位置',
+        updatedAt: Date.now(),
+      })));
+      if (active) refresh();
+    }).catch((error) => {
+      if (active) toast('恢复下载任务失败：' + (error instanceof Error ? error.message : String(error)), 'error');
+    });
+    return () => { active = false; };
+  }, [refresh, toast]);
 
   // 下载设置在挂载时读取：抽屉关闭时 header / 播放页也会派发入队事件，
   // 若只在打开抽屉时才读，关闭状态下加入的任务会漏掉用户的中转偏好
@@ -180,9 +202,7 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
       }
       void (async () => {
         const format = detail.format ?? 'MP4';
-        const sourceFormat: DownloadTaskEntry['sourceFormat'] = /\.m3u8(?:$|[?#])/i.test(detail.url)
-          ? 'HLS'
-          : /\.mp4(?:$|[?#])/i.test(detail.url) ? 'MP4' : 'OTHER';
+        const sourceFormat = detectDownloadSourceFormat(detail.url);
         const id = `dl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         const entry: DownloadTaskEntry = {
           id,
@@ -204,13 +224,24 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
         } catch (err) {
           if (err instanceof Error && err.message.includes('取消')) {
             toast('已取消下载', 'info');
-            return;
+          } else {
+            toast('无法创建下载文件：' + (err instanceof Error ? err.message : String(err)), 'error');
           }
+          return;
         }
-        await db.downloads.put(entry);
-        refresh();
-        scheduleNext();
-        toast(`《${detail.title}》已加入下载队列`, 'success');
+        try {
+          await db.downloads.put(entry);
+          refresh();
+          scheduleNext();
+          toast(`《${detail.title}》已加入下载队列`, 'success');
+        } catch (err) {
+          const target = saveTargetRegistry().get(id);
+          if (target) {
+            try { await target.abort(); } catch { /* ignore cleanup failure */ }
+            saveTargetRegistry().delete(id);
+          }
+          toast('无法创建下载任务：' + (err instanceof Error ? err.message : String(err)), 'error');
+        }
       })();
     };
 
