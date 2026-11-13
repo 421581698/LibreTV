@@ -243,7 +243,7 @@ export function MovieDetailPage() {
           <button type="button" onClick={() => router.back()} className="movie-detail-glass-control" aria-label="返回上一页">
             <span aria-hidden="true">‹</span>
           </button>
-          <span className="movie-detail-glass-control movie-detail-source-pill">{sourceName}</span>
+          <button type="button" onClick={() => void share()} disabled={sharing} className="movie-detail-glass-control" aria-label="分享影片">↗</button>
         </header>
 
         <div className="movie-detail-hero__content relative z-10 mx-auto flex min-h-[520px] max-w-6xl flex-col justify-end px-5 pb-10 pt-32 sm:min-h-[580px] sm:px-10 sm:pb-14">
@@ -278,7 +278,7 @@ export function MovieDetailPage() {
             </div>
             <span className="text-xs text-white/50">共 {episodes.length} 集</span>
           </div>
-          <div className="flex flex-col gap-3">
+          <div className="movie-episode-carousel -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-5 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-10 sm:px-10">
             {episodes.map((episodeUrl, index) => {
               const item = episodeItems[index];
               const titleText = episodeDisplayTitle(index) || episodeNumberLabel(index) || episodeTitle(index);
@@ -288,10 +288,10 @@ export function MovieDetailPage() {
                   key={item?.url || episodeUrl || index}
                   type="button"
                   onClick={() => play(index)}
-                  className="group flex w-full flex-row items-stretch overflow-hidden rounded-2xl border border-white/10 bg-white/[.045] text-left transition hover:border-white/25 hover:bg-white/[.075]"
+                  className="movie-episode-card group flex w-[72vw] max-w-[420px] min-w-[260px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[.055] text-left transition hover:border-white/25 hover:bg-white/[.085]"
                   aria-label={`播放${titleText}`}
                 >
-                  <div className="relative aspect-video w-[38%] min-w-[118px] max-w-[220px] shrink-0 self-center overflow-hidden bg-white/[.06]">
+                  <div className="relative aspect-video w-full shrink-0 overflow-hidden bg-white/[.06]">
                     {item?.image ? (
                       <SmartImage
                         url={item.image}
@@ -302,25 +302,19 @@ export function MovieDetailPage() {
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-xs text-white/40">
-                        剧照暂缺 · 不使用主海报代替
+                        本集剧照暂缺
                       </div>
                     )}
-                    {item?.imageKind === 'series-backdrop' && (
-                      <span className="absolute bottom-2 left-2 rounded-full bg-black/75 px-2 py-1 text-[10px] text-white/80">剧集背景备用图</span>
-                    )}
-                    {item?.imageKind === 'episode-still' && (
-                      <span className="absolute bottom-2 left-2 rounded-full bg-black/65 px-2 py-1 text-[10px] text-white/80">TMDB 分集剧照</span>
-                    )}
-                    <span className="absolute right-3 top-3 rounded-full bg-black/65 px-2 py-1 text-[10px] text-white/85">{episodeNumberLabel(index) || `第 ${index + 1} 集`}</span>
+                    <span className="absolute left-3 top-3 rounded-full bg-black/70 px-2.5 py-1 text-[11px] font-medium text-white/90">{episodeNumberLabel(index) || `第 ${index + 1} 集`}</span>
                   </div>
-                  <div className="min-w-0 flex-1 self-center p-3 sm:p-4">
+                  <div className="min-w-0 flex-1 p-3 sm:p-4">
                     <h3 className="truncate text-sm font-semibold text-white">{titleText}</h3>
                     {detailText ? (
-                      <p className="mt-2 line-clamp-2 text-xs leading-5 text-white/55">{detailText}</p>
+                      <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-white/55">{detailText}</p>
                     ) : (
-                      <p className="mt-2 text-xs text-white/35">分集简介或时长暂缺</p>
+                      <p className="mt-1.5 text-xs text-white/35">分集简介或时长暂缺</p>
                     )}
-                    <span className="mt-3 inline-flex items-center gap-2 text-xs font-medium text-white/75">▶ 播放本集</span>
+                    <span className="mt-2 inline-flex items-center gap-2 text-xs font-medium text-white/75">▶ 播放本集</span>
                   </div>
                 </button>
               );
