@@ -14,6 +14,7 @@ const navModules = ['HomeNavModule', 'MoviesNavModule', 'TvNavModule', 'Overseas
 const v4Content = source('src/components/home/V4HomepageContent.tsx');
 const v4Styles = source('src/app/v4-homepage.css');
 const watch = source('src/app/watch/page.tsx');
+const watchStyles = source('src/app/pr84-watch-mobile-fix.css');
 const hero = source('src/components/friday/FridayHero.tsx');
 const canvas = source('src/components/home/HomeIntentCanvas.tsx');
 const orb = source('src/components/friday/FridayOrb.tsx');
@@ -499,6 +500,14 @@ describe('首页与播放页回归契约', () => {
     expect(ipadStyles.match(/\.v4-spatial-screen\[data-screen="movies"\] \.v4-spatial-panel > \.grid\.grid-cols-3/g)).toHaveLength(2);
   });
 
+
+  it('播放页进度条保持纤细外观，同时保留完整拖动热区', () => {
+    expect(watchStyles).toContain('margin-block: -4px !important;');
+    expect(watchStyles).toContain('height: 16px !important;');
+    expect(watchStyles).toContain('rgba(255,255,255,.42)');
+    expect(watchStyles).toContain('width: 6px !important;');
+    expect(watchStyles).toContain('height: 6px !important;');
+  });
 
   it('无 vodId 的直连视频也能保存、恢复和清理播放进度', () => {
     expect(watch).toContain('const progressId = vodId || currentUrl');

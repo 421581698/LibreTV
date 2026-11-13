@@ -500,3 +500,27 @@ html:has(.netflix-watch) .netflix-sidebar-content {
 html:has(.netflix-watch) .netflix-player-frame video {
   -webkit-appearance: none;
 }
+
+
+/* PR84 progress control refinement: keep the full 16px seek hit target,
+   but reclaim the transparent vertical slack so the timeline no longer
+   makes the control stack look oversized. The visible rail remains 2px. */
+html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress,
+html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress {
+  margin-block: -4px !important;
+  height: 16px !important;
+  min-height: 16px !important;
+  max-height: 16px !important;
+  background: linear-gradient(
+    to bottom,
+    transparent calc(50% - 1px),
+    rgba(255,255,255,.42) calc(50% - 1px),
+    rgba(255,255,255,.42) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  ) !important;
+}
+html:has(.netflix-watch) .netflix-player-frame .artplayer .art-progress-indicator,
+html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-progress-indicator {
+  width: 6px !important;
+  height: 6px !important;
+}
