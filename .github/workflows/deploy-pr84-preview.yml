@@ -17,7 +17,7 @@ jobs:
   deploy-preview:
     if: ${{ github.ref == 'refs/heads/feature/homepage-cinema-lobby-order-2026-11-11' }}
     name: Build and deploy public PR84 preview Worker
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - name: Checkout exact PR84 feature commit

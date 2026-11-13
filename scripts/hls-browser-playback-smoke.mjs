@@ -17,6 +17,7 @@ const streams = {
 };
 const timeoutMs = 45_000;
 const browser = await chromium.launch({
+  channel: 'chrome',
   headless: true,
   args: ['--autoplay-policy=no-user-gesture-required'],
 });
@@ -27,6 +28,12 @@ try {
   page.setDefaultTimeout(timeoutMs);
   await page.setContent('<!doctype html><html><body style="margin:0;background:#000"><video id="video" muted playsinline controls style="width:960px;height:540px"></video></body></html>');
   await page.addScriptTag({ path: resolve('node_modules/hls.js/dist/hls.min.js') });
+  const codecSupport = await page.evaluate(() => ({
+    h264: MediaSource.isTypeSupported('video/mp4; codecs="avc1.64001e"'),
+    aac: MediaSource.isTypeSupported('audio/mp4; codecs="mp4a.40.2"'),
+  }));
+  console.log('Browser codec support:', JSON.stringify(codecSupport));
+  if (!codecSupport.h264 || !codecSupport.aac) throw new Error('Chrome runtime lacks baseline H.264/AAC MSE codec support');
   await page.evaluate(() => {
     const Hls = window.Hls;
     if (!Hls || !Hls.isSupported()) throw new Error('hls.js MediaSource is not supported in this browser');
@@ -53,7 +60,7 @@ try {
         else resolve(value);
       };
       const onError = (_event, data) => {
-        if (data.fatal) finish(new Error('Fatal HLS error: ' + data.type + ' / ' + data.details));
+        if (data.fatal) finish(new Error('Fatal HLS error: ' + data.type + ' / ' + data.details + (data.reason ? ' / ' + data.reason : '')));
       };
       const timeout = setTimeout(() => finish(new Error('Playback progress timeout; currentTime=' + video.currentTime)), 45000);
       const progressTimer = setInterval(() => {
@@ -71,6 +78,9 @@ try {
       }, 250);
       hls.on(Hls.Events.ERROR, onError);
       hls.on(Hls.Events.MANIFEST_PARSED, async () => {
+        // Select the lowest rendition first to avoid high-profile codec variants
+        // masking whether the baseline H.264/AAC path is playable in Chrome.
+        hls.currentLevel = 0;
         try { await video.play(); } catch (error) { finish(error); }
       });
       hls.loadSource(url);

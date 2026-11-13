@@ -40,7 +40,7 @@ jobs:
         run: npm ci
       - name: Install isolated Playwright runner
         run: npm install --no-save --package-lock=false playwright@1.55.0
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Google Chrome with proprietary media codecs
+        run: npx playwright install --with-deps chrome
       - name: Verify real browser HLS playback
         run: node scripts/hls-browser-playback-smoke.mjs
