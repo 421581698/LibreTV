@@ -41,8 +41,14 @@ export interface AddDownloadPayload {
 interface RunningHandle {
   abort: AbortController;
   pause: PauseResumeController;
-  /** 恢复后需要用户重选保存位置时置 false */
-  hasTarget: boolean;
+}
+
+type SaveTarget = import('@/lib/download-saver').SaveTarget;
+
+function saveTargetRegistry(): Map<string, SaveTarget> {
+  const host = globalThis as unknown as { __dlSaveTargets?: Map<string, SaveTarget> };
+  if (!host.__dlSaveTargets) host.__dlSaveTargets = new Map();
+  return host.__dlSaveTargets;
 }
 
 export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
@@ -70,11 +76,11 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
 
   // —— 任务启动：选目标 → runDownloadJob ——
   const startTask = useCallback(
-    async (entry: DownloadTaskEntry, hasTarget: boolean) => {
+    async (entry: DownloadTaskEntry) => {
       if (running.current.has(entry.id)) return;
       const abort = new AbortController();
       const pause = new PauseResumeController();
-      running.current.set(entry.id, { abort, pause, hasTarget });
+      running.current.set(entry.id, { abort, pause });
       await updateEntry(entry.id, { status: 'validating', errorMessage: undefined });
 
       // 进度：UI 走本地 state 实时刷新，落库按固定间隔节流。整集动辄上千分片，
@@ -103,18 +109,12 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
         proxy,
         onProgress,
         // hasTarget=false（刷新恢复/排队恢复）时目标已在手势内由「继续」按钮选好
-        target: (globalThis as unknown as { __dlSaveTarget?: { id: string; target: import('@/lib/download-saver').SaveTarget } }).__dlSaveTarget?.id === entry.id
-          ? (globalThis as unknown as { __dlSaveTarget: { target: import('@/lib/download-saver').SaveTarget } }).__dlSaveTarget.target
-          : {
-              // 目标已失效（页面刷新后句柄消亡）：显式报错引导用户点「继续」重选，
-              // 绝不能静默空写——否则任务会显示完成却产出空文件
-              kind: 'memory',
-              write: async () => {
-                throw new Error('保存位置已失效，请点击「继续」重新选择');
-              },
-              close: async () => {},
-              abort: async () => {},
-            },
+        target: saveTargetRegistry().get(entry.id) ?? {
+          kind: 'memory',
+          write: async () => { throw new Error('保存位置已失效，请点击「继续」重新选择'); },
+          close: async () => {},
+          abort: async () => {},
+        },
       });
 
       void job
@@ -132,8 +132,7 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
           toast(`《${entry.title}》下载失败：${message}`, 'error');
         })
         .finally(() => {
-          const saveTargetState = globalThis as unknown as { __dlSaveTarget?: { id: string; target: import('@/lib/download-saver').SaveTarget } };
-          if (saveTargetState.__dlSaveTarget?.id === entry.id) delete saveTargetState.__dlSaveTarget;
+          saveTargetRegistry().delete(entry.id);
           running.current.delete(entry.id);
           scheduleNext();
         });
@@ -149,17 +148,14 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
       const runningCount = running.current.size;
       if (runningCount >= MAX_CONCURRENT_DOWNLOADS) return;
       const all = await db.downloads.orderBy('createdAt').toArray();
-      const saveTargetId = (globalThis as { __dlSaveTarget?: { id: string } }).__dlSaveTarget?.id;
+      const targets = saveTargetRegistry();
       // A file handle cannot survive refresh. Do not auto-run a recovered task into
       // the intentionally failing placeholder target; wait for the user's re-pick gesture.
-      const waiting = all.filter((t) => (t.status === 'queued' || t.status === 'waiting') && !running.current.has(t.id) && saveTargetId === t.id);
+      const waiting = all.filter((t) => (t.status === 'queued' || t.status === 'waiting') && !running.current.has(t.id) && targets.has(t.id));
       for (const t of waiting.slice(0, MAX_CONCURRENT_DOWNLOADS - runningCount)) {
         const entry = t;
         // 队列恢复的任务没有保存目标：以内存目标启动（分片已在本地，写出快）
-        void startTask(
-          { ...entry, format: entry.format },
-          (globalThis as { __dlSaveTarget?: { id: string } }).__dlSaveTarget?.id === entry.id
-        );
+        void startTask({ ...entry, format: entry.format });
       }
     })();
   }, [startTask]);
@@ -199,10 +195,7 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
         // 用户手势内预选保存目标（FS Access 弹窗必须在手势内）
         try {
           const target = await pickSaveTarget(`${detail.title}.${format.toLowerCase()}`);
-          (globalThis as unknown as { __dlSaveTarget?: { id: string; target: import('@/lib/download-saver').SaveTarget } }).__dlSaveTarget = {
-            id,
-            target,
-          };
+          saveTargetRegistry().set(id, target);
         } catch (err) {
           if (err instanceof Error && err.message.includes('取消')) {
             toast('已取消下载', 'info');
@@ -258,10 +251,7 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
       // 恢复：需要用户手势内重选保存目标（浏览器限制）
       try {
         const target = await pickSaveTarget(`${entry.title}.${entry.format.toLowerCase()}`);
-        (globalThis as unknown as { __dlSaveTarget?: { id: string; target: import('@/lib/download-saver').SaveTarget } }).__dlSaveTarget = {
-          id: entry.id,
-          target,
-        };
+        saveTargetRegistry().set(entry.id, target);
         if (running.current.has(entry.id)) return;
         await updateEntry(entry.id, { status: 'queued', errorMessage: undefined });
         scheduleNext();
@@ -280,12 +270,10 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
       handle.pause.destroy();
       running.current.delete(entry.id);
     }
-    const globalTarget = globalThis as unknown as {
-      __dlSaveTarget?: { id: string; target: import('@/lib/download-saver').SaveTarget };
-    };
-    if (globalTarget.__dlSaveTarget?.id === entry.id) {
-      try { await globalTarget.__dlSaveTarget.target.abort(); } catch { /* already closed or unavailable */ }
-      delete globalTarget.__dlSaveTarget;
+    const target = saveTargetRegistry().get(entry.id);
+    if (target) {
+      try { await target.abort(); } catch { /* already closed or unavailable */ }
+      saveTargetRegistry().delete(entry.id);
     }
     await clearDownloadChunks(entry.id);
     if (entry.status === 'completed' || entry.status === 'failed' || entry.status === 'error' || entry.status === 'cancelled') {
