@@ -263,7 +263,14 @@ async function verifyCandidate(candidate) {
     const pageResult = await testMediaUrls(pageMediaUrls);
     if (pageResult) return pageResult;
     if (!pageMediaUrls.length && !lastError) {
+      const pageDiagnostic = embedPageDiagnostics.at(-1);
       lastError = new Error("Embed page exposed no direct HLS URL; embed HTTP response alone is not playback proof");
+      lastError.diagnostic = {
+        stage: "embed-page-no-media",
+        httpStatus: pageDiagnostic?.httpStatus ?? null,
+        contentType: pageDiagnostic?.contentType ?? null,
+        networkCode: null,
+      };
     }
   }
   const failure = lastError || new Error("No extracted HLS media URL passed verification");
@@ -378,6 +385,7 @@ const report = {
   declaredQuality: success?.detail?.quality || success?.item.quality || null,
   sourceEnabled: false,
   diagnostics: diagnostics.slice(0, 12),
+  embedPageDiagnostics,
   failureByStage,
   failureSamples: failures.slice(0, 12),
 };
