@@ -49,7 +49,7 @@ export function rewriteM3u8(
     if (line.startsWith('#')) {
       // URI 属性也出现在 MEDIA、I-FRAME-STREAM-INF、SESSION-KEY 等标签，
       // 不仅是 KEY/MAP；统一改写，避免播放器绕过本站直播 SSRF 校验。
-      return line.replace(/(\\bURI\\s*=\\s*")([^"]+)(")/gi, (match, before: string, uri: string, after: string) => {
+      return line.replace(/(\bURI\s*=\s*")([^"]+)(")/gi, (match, before: string, uri: string, after: string) => {
         if (isProxiedUri(uri)) return match;
         return before + prefix + encodeURIComponent(makeAbsolute(uri, baseUrl)) + after;
       });
