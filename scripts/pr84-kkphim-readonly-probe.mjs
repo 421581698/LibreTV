@@ -121,9 +121,7 @@ const home = await getJson(new URL("/v1/api/home", API_ORIGIN).toString());
 const items = getItems(home);
 if (!items.length) throw new Error("KKPhim home API returned no items");
 
-let selected = null;
-let detail = null;
-let links = [];
+const candidates = [];
 let detailCount = 0;
 for (const item of items.slice(0, 8)) {
   if (typeof item?.slug !== "string" || !item.slug.trim()) continue;
@@ -132,30 +130,39 @@ for (const item of items.slice(0, 8)) {
     const candidateLinks = getPlaybackLinks(candidate);
     detailCount++;
     if (candidateLinks.length) {
-      selected = item;
-      detail = candidate;
-      links = candidateLinks;
-      break;
+      const sampleIndexes = [...new Set([0, Math.floor(candidateLinks.length / 2), candidateLinks.length - 1])];
+      for (const index of sampleIndexes) {
+        candidates.push({ item, detail: candidate, link: candidateLinks[index] });
+      }
     }
   } catch (error) {
     console.warn("KKPhim detail candidate unavailable:", String(error?.message || error).slice(0, 140));
   }
 }
-if (!selected || !detail || !links.length) {
+if (!candidates.length) {
   throw new Error("No tested KKPhim detail among the first eight home items exposed an HLS URL");
 }
 
+let selected = null;
+let detail = null;
+let testedLink = null;
 let manifestResult = null;
 let manifestError = null;
-for (const link of links.slice(0, 6)) {
+for (const candidate of candidates) {
   try {
-    manifestResult = await getManifest(link.url);
+    manifestResult = await getManifest(candidate.link.url);
+    selected = candidate.item;
+    detail = candidate.detail;
+    testedLink = candidate.link;
     break;
   } catch (error) {
     manifestError = error;
+    console.warn("KKPhim HLS candidate unavailable:", String(error?.message || error).slice(0, 140));
   }
 }
-if (!manifestResult) throw new Error("KKPhim HLS manifest probe failed: " + String(manifestError?.message || manifestError));
+if (!manifestResult || !selected || !detail || !testedLink) {
+  throw new Error("KKPhim HLS manifest probe failed after " + candidates.length + " sampled links: " + String(manifestError?.message || manifestError));
+}
 
 const lines = manifestResult.text.split(/\r?\n/);
 const variants = [];
@@ -166,20 +173,32 @@ for (let i = 0; i < lines.length; i++) {
   if (next) variants.push({ resolution, url: new URL(next.trim(), manifestResult.url).toString() });
 }
 
+let variantManifest = null;
+let variantError = null;
+if (variants.length) {
+  try {
+    variantManifest = await getManifest(variants[0].url);
+  } catch (error) {
+    variantError = String(error?.message || error).slice(0, 140);
+  }
+}
+
 console.log("PASS KKPhim read-only API probe:", JSON.stringify({
   homeItems: items.length,
   detailItemsChecked: detailCount,
-  matchedMovie: String(selected.name || "").slice(0, 80),
+  testedMovie: String(selected.name || "").slice(0, 80),
   year: selected.year ?? detail?.movie?.year ?? null,
   declaredQuality: detail?.movie?.quality ?? null,
   episodeServers: Array.isArray(detail?.episodes) ? detail.episodes.length : 0,
-  hlsLinksFound: links.length,
-  testedServer: links[0]?.server ?? null,
-  testedEpisode: links[0]?.episode ?? null,
-  manifestHttpStatus: manifestResult.status,
-  manifestContentType: manifestResult.contentType,
-  manifestType: variants.length ? "master" : "media",
-  declaredResolutions: variants.map((variant) => variant.resolution),
+  sampledHlsLinks: candidates.length,
+  testedServer: testedLink.server,
+  testedEpisode: testedLink.episode,
+  masterManifestHttpStatus: manifestResult.status,
+  masterManifestContentType: manifestResult.contentType,
+  masterResolutions: variants.map((variant) => variant.resolution),
+  variantManifestHttpStatus: variantManifest?.status ?? null,
+  variantManifestValid: Boolean(variantManifest),
+  variantManifestError: variantError,
   playbackHost: new URL(manifestResult.url).hostname,
   defaultSourceEnabled: false,
 }));
