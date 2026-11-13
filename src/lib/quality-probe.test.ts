@@ -189,6 +189,7 @@ function urls(): string[] {
 
 describe('KKPhim provider quality probe', () => {
   it('probes the exact requested KKPhim episode', async () => {
+    mocks.fetchUpstream.mockClear();
     const providerSource: SourceConfig = { key: 'kkphim', name: 'KKPhim', url: 'https://phimapi.com' };
     const secondPlaylist = 'https://cdn.test/series/episode-2/index.m3u8';
     mocks.fetchUpstream.mockImplementation((url: string) => {
