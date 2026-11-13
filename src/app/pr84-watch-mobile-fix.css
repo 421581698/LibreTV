@@ -404,3 +404,28 @@ html:has(.netflix-watch) .netflix-player-frame .art-video-player .art-controls .
   width: 19px !important;
   height: 19px !important;
 }
+
+
+/* PR84 acceptance fix: preserve the 16px seek target while drawing a 2px rail. */
+.netflix-player-frame .artplayer .art-progress,
+.netflix-player-frame .art-video-player .art-progress {
+  height: 16px !important;
+  min-height: 16px !important;
+  background: linear-gradient(
+    to bottom,
+    transparent calc(50% - 1px),
+    rgba(255, 255, 255, .42) calc(50% - 1px),
+    rgba(255, 255, 255, .42) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  ) !important;
+}
+.netflix-player-frame .artplayer .art-progress-loaded,
+.netflix-player-frame .art-video-player .art-progress-loaded,
+.netflix-player-frame .artplayer .art-progress-played,
+.netflix-player-frame .art-video-player .art-progress-played {
+  height: 2px !important;
+  min-height: 2px !important;
+  top: 50% !important;
+  bottom: auto !important;
+  transform: translateY(-50%) !important;
+}
