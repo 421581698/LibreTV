@@ -37,6 +37,7 @@ import {
 } from '@/lib/db';
 import { buildWatchUrl, cn, validateSourceUrl } from '@/lib/utils';
 import { SmartImage } from '@/components/smart-image';
+import type { VideoEpisode } from '@/lib/types';
 /**
  * 播放页（唯一入口，替代旧版 watch.html → player.html 跳转链）。
  * 状态全部由 URL 驱动：/watch?source=xx&id=..&index=..&title=..
@@ -667,7 +668,7 @@ function WatchContent() {
                 ) : (
                   <div className="netflix-episode-list">
                     {orderedEpisodes.map((realIndex) => (
-                      <EpisodeRow key={realIndex} index={realIndex} active={realIndex === currentIndex} onClick={() => goEpisode(realIndex)} />
+                      <EpisodeRow key={realIndex} index={realIndex} active={realIndex === currentIndex} episode={detailQuery.data?.episodeItems?.[realIndex]} onClick={() => goEpisode(realIndex)} />
                     ))}
                   </div>
                 )}
@@ -749,6 +750,48 @@ function WatchContent() {
     </div>
   );
 }
+type EpisodeRowProps = {
+  index: number;
+  active: boolean;
+  episode?: VideoEpisode;
+  onClick: () => void;
+};
+
+function EpisodeRow({ index, active, episode, onClick }: EpisodeRowProps) {
+  const title = episode?.episodeName?.trim() || episode?.title?.trim() || `第 ${index + 1} 集`;
+  const subtitle = [episode?.description?.trim(), episode?.duration?.trim()].filter(Boolean).join(' · ');
+
+  return (
+    <button
+      type="button"
+      className={cn(
+        'flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors',
+        active ? 'bg-white/10 ring-1 ring-white/20' : 'hover:bg-white/[0.06]'
+      )}
+      onClick={onClick}
+      aria-current={active ? 'true' : undefined}
+      aria-label={`播放${title}`}
+    >
+      <span className="relative h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-white/10">
+        {episode?.image ? (
+          <SmartImage url={episode.image} mode="direct" alt={title} className="h-full w-full object-cover" />
+        ) : (
+          <span className="flex h-full w-full items-center justify-center text-sm font-semibold text-white/55">
+            {String(index + 1).padStart(2, '0')}
+          </span>
+        )}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium text-content">{title}</span>
+        {subtitle && <span className="mt-1 block truncate text-xs text-faint">{subtitle}</span>}
+      </span>
+      <span aria-hidden="true" className={cn('shrink-0 text-sm', active ? 'text-white' : 'text-white/45')}>
+        {active ? '正在播放' : '▶'}
+      </span>
+    </button>
+  );
+}
+
 function BackButton() {
   const router = useRouter();
   return (
