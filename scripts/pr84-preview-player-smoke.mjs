@@ -24,6 +24,18 @@ try {
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text());
   });
+  page.on('requestfailed', (request) => {
+    const url = new URL(request.url());
+    if (url.hostname.includes('apple.com') || url.hostname.includes('unified-streaming.com')) {
+      failedRequests.push({ url: url.origin + url.pathname, error: request.failure()?.errorText ?? 'request failed' });
+    }
+  });
+  page.on('response', (response) => {
+    const url = new URL(response.url());
+    if (url.hostname.includes('apple.com') || url.hostname.includes('unified-streaming.com')) {
+      mediaResponses.push({ url: url.origin + url.pathname, status: response.status(), contentType: response.headers()['content-type'] ?? '' });
+    }
+  });
 
   const params = new URLSearchParams({
     source: 'preview-smoke',
@@ -79,13 +91,33 @@ try {
     window.history.pushState({}, '', next.toString());
   }, streams.aes128);
 
-  await page.waitForFunction(() => {
-    const video = document.querySelector('video');
-    return Boolean(video && video === window.__pr84PlayerVideo &&
-      window.__pr84SwitchEvents?.includes('loadstart') &&
-      video.readyState >= 2 && video.currentTime >= 1.5 &&
-      video.videoWidth > 0 && video.videoHeight > 0);
-  }, null, { timeout: 60_000 });
+  try {
+    await page.waitForFunction(() => {
+      const video = document.querySelector('video');
+      return Boolean(video && video === window.__pr84PlayerVideo &&
+        window.__pr84SwitchEvents?.includes('loadstart') &&
+        video.readyState >= 2 && video.currentTime >= 1.5 &&
+        video.videoWidth > 0 && video.videoHeight > 0);
+    }, null, { timeout: 60_000 });
+  } catch (error) {
+    const state = await page.evaluate(() => {
+      const video = document.querySelector('video');
+      return {
+        sameVideoElement: video === window.__pr84PlayerVideo,
+        locationSearch: window.location.search,
+        switchEvents: window.__pr84SwitchEvents ?? [],
+        currentSrc: video?.currentSrc ?? '',
+        currentTime: video?.currentTime ?? 0,
+        readyState: video?.readyState ?? 0,
+        networkState: video?.networkState ?? 0,
+        videoWidth: video?.videoWidth ?? 0,
+        videoHeight: video?.videoHeight ?? 0,
+        mediaError: video?.error ? { code: video.error.code, message: video.error.message } : null,
+      };
+    });
+    throw new Error('AES-128 source-switch playback did not reach decoded frames: ' +
+      JSON.stringify({ state, mediaResponses, failedRequests, pageErrors: errors.slice(0, 8), cause: error instanceof Error ? error.message : String(error) }));
+  }
 
   const second = await page.evaluate(() => {
     const video = document.querySelector('video');
