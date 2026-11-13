@@ -12,6 +12,7 @@ async function encryptForIv(plaintext: BufferSource, iv: Uint8Array): Promise<Ar
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -173,6 +174,37 @@ describe('runDirectDownloadJob · progressive media', () => {
     expect(chunks).toEqual([3, 2]);
     expect(close).toHaveBeenCalledOnce();
     expect(progress.at(-1)).toMatchObject({ current: 5, total: 5, status: 'done', percentage: 100 });
+  });
+
+  it('持续有数据的大文件下载超过 60 秒不会被固定总时限中断', async () => {
+    vi.useFakeTimers();
+    let controller!: ReadableStreamDefaultController<Uint8Array>;
+    const body = new ReadableStream<Uint8Array>({
+      start(value) { controller = value; },
+    });
+    const written: number[] = [];
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(body, {
+      headers: { 'content-type': 'video/mp4', 'content-length': '2' },
+    })));
+    const job = runDirectDownloadJob(jobOptions({
+      url: 'https://cdn.example.com/long-feature.mp4',
+      format: 'MP4',
+      target: {
+        kind: 'memory',
+        write: async (chunk) => { written.push(chunk.byteLength); },
+        close: async () => {},
+        abort: async () => {},
+      },
+    }));
+
+    await vi.advanceTimersByTimeAsync(59_000);
+    controller.enqueue(new Uint8Array([1]));
+    await vi.advanceTimersByTimeAsync(59_000);
+    controller.enqueue(new Uint8Array([2]));
+    controller.close();
+    await job;
+
+    expect(written).toEqual([1, 1]);
   });
 
   it('Content-Length 缺失时仍报告已接收字节，不伪造百分比', async () => {
