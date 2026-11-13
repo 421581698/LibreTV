@@ -161,7 +161,7 @@ try {
       documentHeight: document.documentElement.scrollHeight,
     };
   });
-  if (!/rgba?\\(0, 0, 0, 0\\)/.test(before.headerBackground)) {
+  if (!/^rgba?\(0,\s*0,\s*0,\s*0\)$/.test(before.headerBackground.replace(/\s+/g, ' ').trim())) {
     throw new Error('Homepage header still paints a background surface: ' + before.headerBackground);
   }
   if (before.headerBackdrop && before.headerBackdrop !== 'none') {
