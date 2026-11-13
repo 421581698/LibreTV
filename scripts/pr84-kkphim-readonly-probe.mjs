@@ -184,47 +184,104 @@ if (!candidates.length) throw new Error("No playback candidates found across sam
 
 let success = null;
 let tested = 0;
+let refreshedDetailsCount = 0;
+const refreshedDetails = new Map();
 const failures = [];
-for (const candidate of candidates) {
-  tested++;
-  const link = candidate.link;
-  try {
-    const attemptedMediaUrls = new Set();
-    let lastError = null;
-    const testMediaUrls = async (mediaUrls) => {
-      for (const mediaUrl of mediaUrls) {
-        if (attemptedMediaUrls.has(mediaUrl)) continue;
-        attemptedMediaUrls.add(mediaUrl);
-        try {
-          const verified = await verifyManifestAndSegment(mediaUrl);
-          success = { ...candidate, mediaUrl, verified };
-          return;
-        } catch (error) {
-          lastError = error;
-        }
-      }
-    };
 
-    if (link.kind === "hls") {
-      await testMediaUrls([link.url]);
-    } else {
-      await testMediaUrls(getEmbedMediaUrls(link.url));
-      // A stale nested URL can 404 while the player page still resolves a fresh media URL.
-      if (!success) {
-        const pageMediaUrls = await getEmbedPageMedia(link.url);
-        await testMediaUrls(pageMediaUrls);
-        if (!pageMediaUrls.length && !lastError) {
-          lastError = new Error("Embed page exposed no direct HLS URL; embed HTTP response alone is not playback proof");
-        }
+async function verifyCandidate(candidate) {
+  const link = candidate.link;
+  const attemptedMediaUrls = new Set();
+  let lastError = null;
+  const testMediaUrls = async (mediaUrls) => {
+    for (const mediaUrl of mediaUrls) {
+      if (attemptedMediaUrls.has(mediaUrl)) continue;
+      attemptedMediaUrls.add(mediaUrl);
+      try {
+        const verified = await verifyManifestAndSegment(mediaUrl);
+        return { mediaUrl, verified };
+      } catch (error) {
+        lastError = error;
       }
     }
-    if (success) break;
-    throw lastError || new Error("No extracted HLS media URL passed verification");
-  } catch (error) {
-    failures.push({ slug: candidate.item.slug, server: link.server, episode: link.episode, kind: link.kind, error: String(error?.message || error).slice(0, 140) });
+    return null;
+  };
+
+  if (link.kind === "hls") {
+    const result = await testMediaUrls([link.url]);
+    if (result) return result;
+  } else {
+    const nestedResult = await testMediaUrls(getEmbedMediaUrls(link.url));
+    if (nestedResult) return nestedResult;
+    // A stale nested URL can 404 while the player page still resolves a fresh media URL.
+    const pageMediaUrls = await getEmbedPageMedia(link.url);
+    const pageResult = await testMediaUrls(pageMediaUrls);
+    if (pageResult) return pageResult;
+    if (!pageMediaUrls.length && !lastError) {
+      lastError = new Error("Embed page exposed no direct HLS URL; embed HTTP response alone is not playback proof");
+    }
   }
+  throw lastError || new Error("No extracted HLS media URL passed verification");
 }
 
+async function getFreshDetail(slug) {
+  if (refreshedDetails.has(slug)) return refreshedDetails.get(slug);
+  let payload;
+  try {
+    payload = await getJson(new URL("/v1/api/phim/" + encodeURIComponent(slug), API_ORIGIN).toString());
+  } catch {
+    payload = await getJson(new URL("/phim/" + encodeURIComponent(slug), API_ORIGIN).toString());
+  }
+  refreshedDetailsCount++;
+  const fresh = { payload, detail: getMovieDetail(payload), links: getPlaybackLinks(payload) };
+  refreshedDetails.set(slug, fresh);
+  return fresh;
+}
+
+for (const candidate of candidates) {
+  tested++;
+  let lastError = null;
+  try {
+    const result = await verifyCandidate(candidate);
+    success = { ...candidate, ...result };
+    break;
+  } catch (error) {
+    lastError = error;
+  }
+
+  // API media links can expire between metadata collection and playback verification.
+  // Refresh a title's detail once, then retry the exact same server/episode/path tuple.
+  try {
+    const fresh = await getFreshDetail(candidate.item.slug);
+    const freshLink = fresh.links.find((link) =>
+      link.server === candidate.link.server &&
+      link.episode === candidate.link.episode &&
+      link.kind === candidate.link.kind
+    );
+    if (freshLink && freshLink.url !== candidate.link.url) {
+      const refreshedCandidate = { ...candidate, detail: fresh.detail, link: freshLink };
+      try {
+        const result = await verifyCandidate(refreshedCandidate);
+        success = { ...refreshedCandidate, ...result, refreshed: true };
+        break;
+      } catch (error) {
+        lastError = new Error(String(error?.message || error).slice(0, 100) +
+          "; refreshed URL also failed after original: " + String(lastError?.message || lastError).slice(0, 100));
+      }
+    }
+  } catch (refreshError) {
+    lastError = new Error(String(lastError?.message || lastError).slice(0, 100) +
+      "; detail refresh failed: " + String(refreshError?.message || refreshError).slice(0, 100));
+  }
+
+  failures.push({
+    slug: candidate.item.slug,
+    server: candidate.link.server,
+    episode: candidate.link.episode,
+    kind: candidate.link.kind,
+    refreshed: refreshedDetails.has(candidate.item.slug),
+    error: String(lastError?.message || lastError).slice(0, 180),
+  });
+}
 const report = {
   homePagesChecked,
   uniqueHomeItems: homeItems.size,
@@ -234,6 +291,7 @@ const report = {
   candidatesFound: candidates.length,
   uniqueCandidateMovies: new Set(candidates.map((candidate) => candidate.item.slug)).size,
   candidatesTested: tested,
+  refreshedMovieDetails: refreshedDetailsCount,
   failedCandidates: failures.length,
   successfulPlayback: Boolean(success),
   testedMovie: success?.item.name || null,
@@ -242,6 +300,7 @@ const report = {
   testedServer: success?.link.server || null,
   testedEpisode: success?.link.episode || null,
   playbackPath: success?.link.kind || null,
+  mediaUrlRefreshedBeforeSuccess: Boolean(success?.refreshed),
   manifestHttpStatus: success?.verified.manifestStatus || null,
   manifestContentType: success?.verified.manifestContentType || null,
   segmentHttpStatus: success?.verified.segmentStatus || null,
