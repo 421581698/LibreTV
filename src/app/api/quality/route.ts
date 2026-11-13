@@ -48,7 +48,7 @@ function isProbeItem(v: unknown): v is QualityProbeItem {
   if (typeof source.key !== 'string' || typeof source.url !== 'string') return false;
   const validId = typeof item.id === 'string' && item.id.length > 0 &&
     (source.key === 'kkphim'
-      ? item.id.length <= 180 && /^[\\p{L}\\p{N}._-]+$/u.test(item.id)
+      ? item.id.length <= 180 && /^[\p{L}\p{N}._-]+$/u.test(item.id)
       : item.id.length <= 64);
   const validEpisode = item.episodeIndex === undefined ||
     (Number.isInteger(item.episodeIndex) && (item.episodeIndex as number) >= 0 && (item.episodeIndex as number) < 500);
