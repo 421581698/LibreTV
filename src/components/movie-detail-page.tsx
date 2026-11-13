@@ -302,9 +302,9 @@ export function MovieDetailPage() {
                   aria-label={`播放${titleText}`}
                 >
                   <div className="relative aspect-video w-full shrink-0 overflow-hidden bg-white/[.06]">
-                    {item?.image ? (
+                    {(item?.image || image) ? (
                       <SmartImage
-                        url={item.image}
+                        url={item?.image || image}
                         mode={imageProxyMode}
                         customProxy={customImageProxy}
                         alt={titleText}
@@ -312,7 +312,7 @@ export function MovieDetailPage() {
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-xs text-white/40">
-                        本集剧照暂缺
+                        暂无可用图片
                       </div>
                     )}
                     <span className="absolute left-3 top-3 rounded-full bg-black/70 px-2.5 py-1 text-[11px] font-medium text-white/90">{episodeNumberLabel(index) || `第 ${index + 1} 集`}</span>
