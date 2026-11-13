@@ -30,6 +30,8 @@ const MAX_CONCURRENT_DOWNLOADS = 3;
 const PROGRESS_PERSIST_INTERVAL_MS = 1000;
 const ADD_TASK_EVENT = 'libretv:add-download';
 const SHOW_MANAGER_EVENT = 'libretv:show-download-manager';
+// De-duplicate the same browser event across overlapping manager mounts.
+const handledAddEvents = new WeakSet<Event>();
 export const DOWNLOADS_UPDATED_EVENT = 'libretv:downloads-updated';
 
 export interface AddDownloadPayload {
@@ -194,6 +196,11 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
   // 若仅 isOpen 时注册，事件会凭空丢失——toast 提示了入队，实际什么都没发生
   useEffect(() => {
     const onAdd = (e: Event) => {
+      // The global manager can be mounted twice briefly during React/route
+      // lifecycle transitions. One dispatched Event must create exactly one
+      // persistent task even if more than one listener observes it.
+      if (handledAddEvents.has(e)) return;
+      handledAddEvents.add(e);
       const detail = (e as CustomEvent<AddDownloadPayload>).detail;
       if (!detail?.url || !detail?.title) return;
       // 无 Cache Storage 时 runDownloadJob 会自动退化为串行边下边写：
