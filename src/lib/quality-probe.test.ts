@@ -188,6 +188,29 @@ function urls(): string[] {
 }
 
 describe('KKPhim provider quality probe', () => {
+  it('probes the exact requested KKPhim episode', async () => {
+    const providerSource: SourceConfig = { key: 'kkphim', name: 'KKPhim', url: 'https://phimapi.com' };
+    const secondPlaylist = 'https://cdn.test/series/episode-2/index.m3u8';
+    mocks.fetchUpstream.mockImplementation((url: string) => {
+      if (url === 'https://phimapi.com/phim/sample-series') {
+        return Promise.resolve(new Response(JSON.stringify({
+          movie: { slug: 'sample-series', name: '示例剧集' },
+          episodes: [{ server_name: 'Vietsub', server_data: [
+            { name: '第1集', link_m3u8: PLAYLIST_URL },
+            { name: '第2集', link_m3u8: secondPlaylist },
+          ] }],
+        }), { status: 200, headers: { 'content-type': 'application/json' } }));
+      }
+      if (url === secondPlaylist) return Promise.resolve(new Response(MASTER, { status: 200 }));
+      return Promise.resolve(new Response('not found', { status: 404 }));
+    });
+    const result = await probeQuality({ source: providerSource, id: 'sample-series', episodeIndex: 1 });
+    expect(result.episodeIndex).toBe(1);
+    expect(result.height).toBe(1080);
+    expect(urls()).toContain(secondPlaylist);
+    expect(urls()).not.toContain(PLAYLIST_URL);
+  });
+
   it('loads KKPhim slug detail and probes the returned HLS stream, never the CMS endpoint', async () => {
     const providerSource: SourceConfig = {
       key: 'kkphim',
