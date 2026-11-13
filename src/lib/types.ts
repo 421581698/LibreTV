@@ -44,6 +44,8 @@ export interface VideoDetail {
   episodes: string[];
   /** Optional provider-supplied episode names aligned with episodes; playback entries remain plain URLs. */
   episodeLabels?: string[];
+  /** Optional per-episode still URLs; absent entries use the title poster as a visual fallback. */
+  episodeImages?: Array<string | undefined>;
   videoInfo: VideoInfo;
 }
 
