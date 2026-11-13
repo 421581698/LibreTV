@@ -51,9 +51,15 @@
     line-height: 1.1 !important;
   }
   body > .v4-mobile-tabbar > a.is-active {
-    color: #39a9ff !important;
-    background: rgba(0,0,0,.34) !important;
+    color: #fff !important;
+    background: rgba(255,255,255,.15) !important;
     box-shadow: none !important;
+  }
+  body > .v4-mobile-tabbar > a.is-active svg,
+  body > .v4-mobile-tabbar > a.is-active span {
+    color: #fff !important;
+    stroke: #fff !important;
+    fill: none !important;
   }
   body > .v4-mobile-tabbar > a i { display: none !important; }
 
