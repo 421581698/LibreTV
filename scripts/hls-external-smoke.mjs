@@ -5,7 +5,7 @@
  */
 const streams = {
   appleFmp4: 'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8',
-  unifiedAes128: 'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel-aes.ism/.m3u8',
+  muxAes128: 'https://test-streams.mux.dev/dai-discontinuity-deltatre/manifest.m3u8',
   unifiedLive: 'https://demo.unified-streaming.com/k8s/live/stable/live.isml/.m3u8',
 };
 
@@ -16,13 +16,22 @@ const pass = (name, message) => { report.push({ name, ok: true, message }); };
 
 async function get(url, range = false) {
   const headers = range ? { Range: 'bytes=0-1' } : {};
-  const response = await fetch(url, {
-    headers,
-    redirect: 'follow',
-    signal: AbortSignal.timeout(timeoutMs),
-  });
-  if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`);
-  return response;
+  let lastStatus = 0;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const response = await fetch(url, {
+      headers,
+      redirect: 'follow',
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (response.ok) return response;
+    lastStatus = response.status;
+    await response.body?.cancel().catch(() => {});
+    if (response.status < 500 || attempt === 2) {
+      throw new Error(`HTTP ${response.status} for ${url}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 300 * (attempt + 1)));
+  }
+  throw new Error(`HTTP ${lastStatus} for ${url} after retries`);
 }
 async function playlist(url) {
   const response = await get(url);
@@ -84,7 +93,7 @@ async function verifyAes() {
   if (!segment) throw new Error('No encrypted media segment');
   const seg = await get(segment, true);
   await seg.body?.cancel();
-  pass('Unified Streaming AES-128', 'AES-128 declaration, 16-byte key and encrypted media segment reachable (decryption is not asserted)');
+  pass('Mux DAI AES-128', 'AES-128 declaration, 16-byte key and encrypted media segment reachable (decryption is not asserted)');
 }
 async function verifyLive() {
   const media = await resolveMedia(streams.unifiedLive);
@@ -98,7 +107,7 @@ async function verifyLive() {
   pass('Unified Streaming Live', 'Sliding window and latest segment reachable');
 }
 
-for (const [name, run] of Object.entries({ appleFmp4: verifyApple, unifiedAes128: verifyAes, unifiedLive: verifyLive })) {
+for (const [name, run] of Object.entries({ appleFmp4: verifyApple, muxAes128: verifyAes, unifiedLive: verifyLive })) {
   try { await run(); } catch (error) { fail(name, error instanceof Error ? error.message : String(error)); }
 }
 for (const item of report) console.log(`${item.ok ? 'PASS' : 'FAIL'} ${item.name}: ${item.message}`);
