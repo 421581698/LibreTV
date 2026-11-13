@@ -11,10 +11,9 @@ export function buildRelatedSearchTerms(info?: Pick<VideoInfo, 'actor' | 'direct
     .map((name) => name.trim())
     .filter((name) => name.length >= 2);
 
-  const people = [
-    ...splitPeople(info?.actor).slice(0, 2),
-    ...splitPeople(info?.director).slice(0, 1),
-  ];
+  const actors = splitPeople(info?.actor);
+  const directors = splitPeople(info?.director);
+  const people = [actors[0], directors[0], actors[1]].filter((name): name is string => Boolean(name));
   const seen = new Set<string>();
   const terms = people.filter((name) => {
     const key = name.toLocaleLowerCase().replace(/[\s\p{P}\p{S}]/gu, '');
