@@ -637,7 +637,11 @@ export function PlayerShell({
           }
           video.play().catch(() => setShowPlayFallback(true));
         } catch {
-          // IndexedDB failure must not block native-HLS playback.
+          // A failed progress lookup must never block native-HLS playback.
+          restoredRef.current = true;
+          restoreCleanupRef.current?.();
+          restoreCleanupRef.current = null;
+          video.play().catch(() => setShowPlayFallback(true));
         } finally {
           nativeRestoreInFlight = false;
         }
