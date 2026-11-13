@@ -88,10 +88,11 @@ export function summarizeResponseHeaders(headers) {
 }
 
 
+
 /** Inspect embed markup without executing untrusted JavaScript or exposing signed URLs. */
 export function inspectEmbedPage(rawUrl, html) {
   const source = String(html);
-  const normalized = source.replaceAll("\\\\/", "/").replaceAll("\\\\u0026", "&");
+  const normalized = source.replaceAll("\\/", "/").replaceAll("\\u0026", "&");
   const summarizeReferences = (tag, attribute) => {
     const expression = new RegExp("<" + tag + "\\b[^>]*\\b" + attribute + "\\s*=\\s*([\"'])(.*?)\\1", "gi");
     const refs = [];
@@ -103,21 +104,23 @@ export function inspectEmbedPage(rawUrl, html) {
     }
     return refs;
   };
-  const title = normalized.match(/<title\\b[^>]*>([\\s\\S]*?)<\\/title>/i)?.[1]
-    ?.replace(/<[^>]+>/g, " ").replace(/\\s+/g, " ").trim().slice(0, 120) || null;
+  const title = normalized.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1]
+    ?.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 120) || null;
   const markers = ["stream-bootstrap", "atob(", "base64", "fetch(", "XMLHttpRequest",
     "postMessage", "iframe", "video", "source", "m3u8", "jwplayer", "artplayer",
     "hls.js", "file:", "url:"];
   const lower = normalized.toLowerCase();
   return {
-    embedPage: summarizeMediaUrl(rawUrl), title, htmlBytes: Buffer.byteLength(source, "utf8"),
-    scriptCount: (normalized.match(/<script\\b/gi) || []).length,
+    embedPage: summarizeMediaUrl(rawUrl),
+    title,
+    htmlBytes: Buffer.byteLength(source, "utf8"),
+    scriptCount: (normalized.match(/<script\b/gi) || []).length,
     scriptReferences: summarizeReferences("script", "src").slice(0, 8),
-    iframeCount: (normalized.match(/<iframe\\b/gi) || []).length,
+    iframeCount: (normalized.match(/<iframe\b/gi) || []).length,
     iframeReferences: summarizeReferences("iframe", "src").slice(0, 8),
-    videoElementCount: (normalized.match(/<video\\b/gi) || []).length,
-    sourceElementCount: (normalized.match(/<source\\b/gi) || []).length,
-    inlineM3u8References: (normalized.match(/\\.m3u8/gi) || []).length,
+    videoElementCount: (normalized.match(/<video\b/gi) || []).length,
+    sourceElementCount: (normalized.match(/<source\b/gi) || []).length,
+    inlineM3u8References: (normalized.match(/\.m3u8/gi) || []).length,
     markers: markers.filter((marker) => lower.includes(marker.toLowerCase())),
     directMediaCandidates: getEmbedMediaUrls(rawUrl, source).map(summarizeMediaUrl).slice(0, 12),
   };
