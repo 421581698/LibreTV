@@ -15,6 +15,6 @@ LLM_MODEL = "glm-4-flash"
 AUTH_DISABLED = "true"
 DEFAULT_IMAGE_MODE = "proxy"
 DEFAULT_RECOMMEND_SOURCE = "hot-list"
-DEFAULT_SOURCES = '[{"key":"kkphim","name":"KKPhim","url":"https://phimapi.com"}]'
+DEFAULT_SOURCES = '[]'
 
 # 此 Preview 仅用于公开验收；不配置 PASSWORD Worker Secret。
