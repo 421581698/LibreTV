@@ -421,5 +421,42 @@ function MeHistoryCard({ item }: { item: HistoryEntry }) {
 }
 
 function SettingsScreen() {
-  return <SourceManagerDrawer open embedded onClose={() => undefined} />;
+  const downloads = useLiveQuery(
+    () => db.downloads.orderBy('createdAt').reverse().toArray(),
+    [],
+  );
+  const activeCount = (downloads ?? []).filter((task) =>
+    ['queued', 'waiting', 'validating', 'downloading', 'merging', 'paused'].includes(task.status),
+  ).length;
+
+  return (
+    <div className="mx-auto w-full max-w-5xl space-y-5 px-4 pb-12 sm:px-6">
+      <section className="card p-4 sm:p-5" aria-labelledby="settings-downloads-title">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent/10 text-accent">
+              <Icon name="download" />
+            </span>
+            <div className="min-w-0">
+              <h2 id="settings-downloads-title" className="text-base font-semibold text-content">下载管理</h2>
+              <p className="mt-1 text-xs text-faint">
+                {downloads ? `共 ${downloads.length} 个任务 · ${activeCount} 个进行中或待处理` : '正在读取下载任务…'}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="shrink-0 rounded-full bg-accent px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+            onClick={() => requestShowDownloadManager()}
+          >
+            管理任务
+          </button>
+        </div>
+        <p className="mt-3 text-xs leading-5 text-faint">
+          查看下载进度与状态，暂停、继续、取消、重试或删除任务。下载完成状态以实际文件保存结果为准。
+        </p>
+      </section>
+      <SourceManagerDrawer open embedded onClose={() => undefined} />
+    </div>
+  );
 }
