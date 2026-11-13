@@ -123,12 +123,15 @@ export function parseXmltv(
       stop,
       title: titleMatch ? decodeXmlText(titleMatch[1]).slice(0, MAX_TITLE_CHARS) : '',
     };
-    if (descMatch) program.desc = decodeXmlText(descMatch[1]);
+    if (descMatch) program.desc = decodeXmlText(descMatch[1]).slice(0, MAX_DESCRIPTION_CHARS);
     if (!program.title) continue;
 
     const list = result.get(channelId);
-    if (list) list.push(program);
-    else result.set(channelId, [program]);
+    if (list) {
+      if (list.length < MAX_PROGRAMMES_PER_CHANNEL) list.push(program);
+    } else {
+      result.set(channelId, [program]);
+    }
   }
 
   // 按开播时间排序（XMLTV 不保证顺序）
