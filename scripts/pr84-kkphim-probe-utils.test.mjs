@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getItems, getMovieDetail, getPlaybackLinks, getEmbedMediaUrls, sampleIndexes } from "./pr84-kkphim-probe-utils.mjs";
+import { getItems, getMovieDetail, getPlaybackLinks, getEmbedMediaUrls, getSameOriginScriptUrls, sampleIndexes } from "./pr84-kkphim-probe-utils.mjs";
 
 test("reads legacy and v1 home list shapes", () => {
   assert.equal(getItems({ items: [{ slug: "old" }] })[0].slug, "old");
@@ -34,6 +34,18 @@ test("extracts nested and page-embedded m3u8 candidates", () => {
   const input = "https://player.phimapi.com/player/?url=https%3A%2F%2Fcdn.test%2Fmain.m3u8";
   const urls = getEmbedMediaUrls(input, 'const source="https://cdn.test/variant.m3u8?token=x";');
   assert.deepEqual(urls, ["https://cdn.test/main.m3u8", "https://cdn.test/variant.m3u8?token=x"]);
+});
+
+test("limits static embed script inspection to same-origin HTTPS assets", () => {
+  const html = '<script src="/assets/player.js?token=private"></script>' +
+    '<script src="https://player.example/config.js"></script>' +
+    '<script src="https://third-party.example/player.js"></script>' +
+    '<script src="http://player.example/insecure.js"></script>';
+  const urls = getSameOriginScriptUrls("https://player.example/player/?id=1", html);
+  assert.deepEqual(urls, [
+    "https://player.example/assets/player.js?token=private",
+    "https://player.example/config.js",
+  ]);
 });
 
 test("samples first, middle and last episode without duplicates", () => {
