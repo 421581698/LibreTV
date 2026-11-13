@@ -320,17 +320,31 @@ jobs:
           npx playwright install --with-deps webkit
 
       - name: Verify current PR84 Preview in mobile WebKit
+        id: verify-webkit
         if: always() && steps.deploy-preview.outcome == 'success' && steps.install-webkit.outcome == 'success'
         env:
           PR84_PREVIEW_URL: https://libretv-pr84-preview.bggdbh.workers.dev
         run: node scripts/pr84-preview-webkit-smoke.mjs
 
-      - name: Upload mobile WebKit Preview screenshot
+      - name: Install Chrome for actual LibreTV player acceptance
+        id: install-chrome
+        if: always() && steps.deploy-preview.outcome == 'success' && steps.install-webkit.outcome == 'success'
+        run: npx playwright install --with-deps chrome
+
+      - name: Verify real LibreTV PlayerShell playback and source switching
+        if: always() && steps.deploy-preview.outcome == 'success' && steps.install-chrome.outcome == 'success'
+        env:
+          PR84_PREVIEW_URL: https://libretv-pr84-preview.bggdbh.workers.dev
+        run: node scripts/pr84-preview-player-smoke.mjs
+
+      - name: Upload mobile WebKit and player screenshots
         if: always() && steps.deploy-preview.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: pr84-preview-webkit-mobile
-          path: /tmp/pr84-preview-webkit.png
+          name: pr84-preview-browser-acceptance
+          path: |
+            /tmp/pr84-preview-webkit.png
+            /tmp/pr84-preview-player.png
           if-no-files-found: ignore
 
       - name: Verify deployed PR84 homepage and status endpoint
