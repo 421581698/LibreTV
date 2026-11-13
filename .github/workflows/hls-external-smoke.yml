@@ -3,6 +3,13 @@ on:
   push:
     branches:
       - feature/hls-playback-regression-suite-2026-11-13
+      - feature/homepage-cinema-lobby-order-2026-11-11
+    paths:
+      - 'scripts/hls-external-smoke.mjs'
+      - '.github/workflows/hls-external-smoke.yml'
+  pull_request:
+    branches:
+      - main
     paths:
       - 'scripts/hls-external-smoke.mjs'
       - '.github/workflows/hls-external-smoke.yml'
