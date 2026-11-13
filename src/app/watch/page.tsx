@@ -5,7 +5,6 @@ import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import FridayOrb from '@/components/friday/FridayOrb';
 import AIFloatingBall from '@/components/AIFloatingBall';
 import { api } from '@/lib/client-api';
 // 播放器（artplayer + hls.js）按需加载：拆出独立 chunk，不占首屏 First Load JS
@@ -25,7 +24,6 @@ import type { PlayerSkipApi } from '@/components/player-shell';
 import { useToast } from '@/components/toast';
 import { enqueueDownload } from '@/components/download-manager';
 import { suggestDownloadFilename } from '@/lib/download-saver';
-import { Icon } from '@/components/icon';
 import { useAuth } from '@/components/auth';
 import { resolveSource, useAppStore } from '@/lib/store';
 import { qualityKey } from '@/lib/quality';
@@ -441,17 +439,13 @@ function WatchContent() {
         <div className="watch-topbar-inner">
           <div className="watch-topbar-left">
             <BackButton />
-            <HomeButton />
-          </div>
-          <div className="watch-topbar-right">
-            <div className="watch-topbar-title min-w-0 text-right">
+            <div className="watch-topbar-title min-w-0 text-left">
               <h1 className="text-sm font-semibold text-content truncate">{videoTitle}</h1>
               <p className="text-xs text-faint truncate">
                 {source.name}
                 {hasEpisodeNavigation ? ` · 第 ${currentIndex + 1}/${episodes.length} 集` : isMovie ? ' · 电影' : ' · 单集内容'}
               </p>
             </div>
-            <FridayPlayerAssistantButton />
           </div>
         </div>
       </header>
@@ -550,7 +544,7 @@ function WatchContent() {
                   <h2>继续观看</h2>
                   <p>根据本机观看记录，接着上次的进度继续</p>
                 </div>
-                <Link href="/me" className="text-sm text-muted hover:text-content">全部观看历史 →</Link>
+                {sortedContinueHistory.length > 0 && <Link href="/me" className="text-sm text-muted hover:text-content">全部观看历史 →</Link>}
               </div>
               <div className="netflix-history-rail">
                 {sortedContinueHistory.map(({ item, percent, unfinished }) => {
@@ -755,66 +749,11 @@ function WatchContent() {
     </div>
   );
 }
-/** 播放页专用圆球入口：放在页面工具栏，不覆盖播放器控制区。 */
-function FridayPlayerAssistantButton() {
-  const [voiceState, setVoiceState] = useState<'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING'>('IDLE');
-  const [audioLevel, setAudioLevel] = useState(0);
-
-  useEffect(() => {
-    const onState = (event: Event) => {
-      const state = (event as CustomEvent<{ state?: string }>).detail?.state;
-      if (state === 'IDLE' || state === 'LISTENING' || state === 'THINKING' || state === 'SPEAKING') {
-        setVoiceState(state);
-      }
-    };
-    const onAudio = (event: Event) => {
-      const level = (event as CustomEvent<{ level?: number }>).detail?.level;
-      setAudioLevel(typeof level === 'number' && Number.isFinite(level) ? Math.max(0, Math.min(1, level)) : 0);
-    };
-    window.addEventListener('friday-home-voice-state', onState);
-    window.addEventListener('friday-audio-level', onAudio);
-    return () => {
-      window.removeEventListener('friday-home-voice-state', onState);
-      window.removeEventListener('friday-audio-level', onAudio);
-    };
-  }, []);
-
-  const label = voiceState === 'LISTENING' ? 'Friday 正在聆听'
-    : voiceState === 'THINKING' ? 'Friday 正在思考'
-    : voiceState === 'SPEAKING' ? 'Friday 正在回答'
-    : '打开 Friday 语音助手';
-
-  return (
-    <button
-      type="button"
-      className="h-10 w-10 shrink-0 rounded-full border border-line bg-surface/80 p-1 shadow-sm transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-      aria-label={label}
-      title={label}
-      aria-pressed={voiceState === 'LISTENING'}
-      onClick={() => window.dispatchEvent(new CustomEvent('friday-home-orb-toggle'))}
-    >
-      <FridayOrb state={voiceState} audioLevel={audioLevel * 100} showHud={false} interactive={false} quality={0} ariaLabel="Friday 全息语音助手" />
-    </button>
-  );
-}
-
-/** 集数按钮：激活时自动滚动进可视区（长剧列表） */
-function EpisodeRow({ index, active, onClick }: { index: number; active: boolean; onClick: () => void }) {
-  const ref = useRef<HTMLButtonElement>(null);
-  useEffect(() => { if (active) ref.current?.scrollIntoView({ block: 'nearest' }); }, [active]);
-  return (
-    <button ref={ref} className={cn('netflix-episode-row', active && 'active')} onClick={onClick} aria-current={active ? 'true' : undefined}>
-      <span className="netflix-episode-number">{index + 1}</span>
-      <span className="min-w-0 flex-1 text-left"><strong>第 {index + 1} 集</strong><small>{active ? '正在播放' : '点击播放'}</small></span>
-      {active ? <span className="text-accent" aria-hidden="true">●</span> : <span className="opacity-60" aria-hidden="true">▶</span>}
-    </button>
-  );
-}
 function BackButton() {
   const router = useRouter();
   return (
     <button
-      className="p-2 -ml-2 rounded-md text-muted hover:text-content hover:bg-hover transition-colors"
+      className="watch-topbar-back"
       onClick={() => {
         if (window.history.length > 1) {
           router.back();
@@ -838,18 +777,5 @@ function BackButton() {
         />
       </svg>
     </button>
-  );
-}
-/** 首页按钮：直达首页，避免从外链进入时逐级 back */
-function HomeButton() {
-  return (
-    <Link
-      href="/"
-      className="p-2 rounded-md text-muted hover:text-content hover:bg-hover transition-colors"
-      aria-label="回首页"
-      title="回首页"
-    >
-      <Icon name="home" className="w-5 h-5" />
-    </Link>
   );
 }
