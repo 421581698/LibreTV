@@ -102,7 +102,7 @@ describe('TMDB episode artwork matching', () => {
     expect(result.episodeItems?.[0].image).toBeUndefined();
   });
 
-  it('does not match a different title or a different release year', async () => {
+  it('does not match a different title', async () => {
     const fetchMock = vi.fn(async () => Response.json({
       results: [{ id: 307853, name: '另一部剧', original_name: 'Another Show', first_air_date: '2026-01-01' }],
     }));
@@ -115,13 +115,19 @@ describe('TMDB episode artwork matching', () => {
     });
 
     expect(result.episodeItems?.[0].image).toBeUndefined();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it('rejects a matching title when the first-air year differs', async () => {
-    const fetchMock = vi.fn(async () => Response.json({
-      results: [{ id: 307853, name: '今天是太阳雨', original_name: 'Sunshine Through the Rain', first_air_date: '2025-01-01' }],
-    }));
+  it('matches an exact title when the CMS release year differs from the TMDB first-air year', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      if (url.pathname === '/3/search/tv') {
+        return Response.json({
+          results: [{ id: 307853, name: '今天是太阳雨', original_name: 'Sunshine Through the Rain', first_air_date: '2025-01-01' }],
+        });
+      }
+      return Response.json({ episodes: [{ id: 9001, episode_number: 1, still_path: '/correct-still.jpg' }] });
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await enrichEpisodesWithTmdbArtwork(makeDetail(1), {
@@ -130,8 +136,12 @@ describe('TMDB episode artwork matching', () => {
       year: '2026',
     });
 
-    expect(result.episodeItems?.[0].image).toBeUndefined();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result.episodeItems?.[0]).toMatchObject({
+      image: 'https://image.tmdb.org/t/p/w780/correct-still.jpg',
+      tmdbSeriesId: 307853,
+      episodeNumber: 1,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('preserves source-provided episode stills instead of overwriting them', async () => {
