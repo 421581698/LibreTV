@@ -401,7 +401,7 @@ export function DetailModal({
                           className="btn-ghost btn-sm !px-1 text-center"
                           onClick={() => play(realIndex)}
                         >
-                          {realIndex + 1}
+                          <span className="block truncate">{detail.episodeLabels?.[realIndex] || `第 ${realIndex + 1} 集`}</span>
                         </button>
                       );
                     })}
