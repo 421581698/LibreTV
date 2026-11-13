@@ -331,6 +331,7 @@ jobs:
       - name: Install Playwright WebKit for mobile-layout acceptance
         id: install-webkit
         if: always() && steps.deploy-preview.outcome == 'success'
+        timeout-minutes: 8
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
           npx playwright install --with-deps webkit
@@ -344,7 +345,8 @@ jobs:
 
       - name: Install Chrome for actual LibreTV player acceptance
         id: install-chrome
-        if: always() && steps.deploy-preview.outcome == 'success' && steps.install-webkit.outcome == 'success'
+        if: always() && steps.deploy-preview.outcome == 'success'
+        timeout-minutes: 10
         run: npx playwright install --with-deps chrome
 
       - name: Verify real LibreTV PlayerShell playback and source switching
