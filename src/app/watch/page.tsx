@@ -440,9 +440,6 @@ function WatchContent() {
         <div className="watch-topbar-inner">
           <div className="watch-topbar-left">
             <BackButton />
-            <Link href="/" className="watch-topbar-back" aria-label="回首页" title="回首页">
-              <span aria-hidden="true">⌂</span>
-            </Link>
             <div className="watch-topbar-title min-w-0 text-left">
               <h1 className="text-sm font-semibold text-content truncate">{videoTitle}</h1>
               <p className="text-xs text-faint truncate">
