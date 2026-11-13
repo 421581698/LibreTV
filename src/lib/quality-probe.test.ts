@@ -238,6 +238,7 @@ describe('probeEpisodeOrder', () => {
 
 describe('probeQuality 降级到分片解析', () => {
   it('多码率 master playlist 直接解析档位，不再下载分片', async () => {
+    mocks.fetchUpstream.mockClear();
     currentPlaylist = MASTER;
     mocks.fetchUpstream.mockImplementation((url: string) => Promise.resolve(route(url)));
 
