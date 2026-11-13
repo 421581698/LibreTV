@@ -193,6 +193,10 @@ try {
     console.log('PASS LibreTV PlayerShell KKPhim HLS decoded playback:', JSON.stringify(third));
   }
 
+  if (!process.env.PR84_KKPHIM_M3U8) {
+    console.log('SKIP KKPhim PlayerShell decode: no freshly verified HLS candidate was produced by this run.');
+  }
+
   if (errors.length > 0) throw new Error('Player console errors: ' + errors.slice(0, 8).join(' | '));
 
   await page.screenshot({ path: '/tmp/pr84-preview-player.png', fullPage: false });
