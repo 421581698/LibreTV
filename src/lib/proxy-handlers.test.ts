@@ -4,8 +4,8 @@ const mocks = vi.hoisted(() => ({
   fetchLiveWithSafeRedirects: vi.fn(),
   fetchWithSafeRedirects: vi.fn(),
   checkLiveUrlAllowed: vi.fn(),
-  isBlockedByDNS: mocks.isBlockedByDNS,
-  isValidProxyUrl: mocks.isValidProxyUrl,
+  isBlockedByDNS: vi.fn(),
+  isValidProxyUrl: vi.fn(),
   guardRequest: vi.fn(),
   rewriteM3u8: vi.fn((text: string) => text),
 }));
@@ -16,8 +16,8 @@ vi.mock('@/lib/api-guard', () => ({
 }));
 vi.mock('@/lib/ssrf', () => ({
   checkLiveUrlAllowed: mocks.checkLiveUrlAllowed,
-  isBlockedByDNS: vi.fn(),
-  isValidProxyUrl: vi.fn(),
+  isBlockedByDNS: mocks.isBlockedByDNS,
+  isValidProxyUrl: mocks.isValidProxyUrl,
 }));
 vi.mock('@/lib/fetch-utils', () => ({
   fetchLiveWithSafeRedirects: mocks.fetchLiveWithSafeRedirects,
