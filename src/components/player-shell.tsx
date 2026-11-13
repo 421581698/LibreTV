@@ -1474,7 +1474,7 @@ export function PlayerShell({
       <div className="absolute right-3 top-3 z-20 flex flex-col items-end gap-2">
         <button
           type="button"
-          className="rounded-full border border-white/20 bg-black/75 px-3 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur"
+          className="player-quality-badge"
           aria-expanded={qualityPanelOpen}
           aria-label="画质设置"
           onClick={() => setQualityPanelOpen((open) => !open)}
