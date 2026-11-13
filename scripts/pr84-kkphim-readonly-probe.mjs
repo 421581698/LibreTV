@@ -204,7 +204,8 @@ async function captureDynamicEmbedMedia(rawUrl) {
   const captured = new Set();
   const pageDiagnostics = {
     requestCount: 0, requestHosts: [], failedRequests: [], scriptResponses: [],
-    playControlClicked: false, playTrigger: null, title: null,
+    pageErrors: [], consoleErrors: [],
+    playControlClicked: false, playTrigger: null, playAttempt: null, title: null,
     blockedByAccessGate: false, mediaResponses: [], playerRuntime: null,
   };
   try {
@@ -223,6 +224,14 @@ async function captureDynamicEmbedMedia(rawUrl) {
         if (url.protocol === "https:" && /\.(?:m3u8|mpd)(?:$|\?)/i.test(url.href)) captured.add(url.href);
       } catch {}
     };
+    page.on("pageerror", (error) => {
+      if (pageDiagnostics.pageErrors.length < 20) pageDiagnostics.pageErrors.push(String(error?.message || error).slice(0, 180));
+    });
+    page.on("console", (message) => {
+      if (message.type() === "error" && pageDiagnostics.consoleErrors.length < 20) {
+        pageDiagnostics.consoleErrors.push(message.text().slice(0, 180));
+      }
+    });
     page.on("request", (request) => {
       pageDiagnostics.requestCount++;
       try {
@@ -272,8 +281,22 @@ async function captureDynamicEmbedMedia(rawUrl) {
           tag: element.tagName, className: String(element.className || "").slice(0, 100),
           visible: Boolean(element.getClientRects().length),
         })),
+        playerApiMethods: api ? ["getConfig", "getPlaylist", "getPlaylistItem", "getState", "getContainer"].filter((name) => typeof api[name] === "function") : [],
+        playlistSources: (() => {
+          try {
+            const item = api && typeof api.getPlaylistItem === "function" ? api.getPlaylistItem() : null;
+            return Array.isArray(item?.sources) ? item.sources.slice(0, 8).map((source) => source.file || source.src).filter((value) => typeof value === "string") : [];
+          } catch { return []; }
+        })(),
+        videoState: (() => {
+          const video = document.querySelector("video");
+          return video ? { srcAttribute: video.getAttribute("src"), currentSrc: video.currentSrc, paused: video.paused, readyState: video.readyState, networkState: video.networkState, controls: video.controls } : null;
+        })(),
       };
     }).catch((error) => ({ probeError: String(error?.message || error).slice(0, 160) }));
+    for (const source of pageDiagnostics.playerRuntime?.playlistSources || []) record(source);
+    const initialVideoSrc = pageDiagnostics.playerRuntime?.videoState?.currentSrc;
+    if (initialVideoSrc) record(initialVideoSrc);
     const visibleText = (await page.locator("body").innerText({ timeout: 3000 }).catch(() => "")).slice(0, 12000).toLowerCase();
     pageDiagnostics.blockedByAccessGate = /captcha|verify you are human|checking your browser|sign in|log in|subscribe to continue|机器人验证|安全验证/.test(visibleText);
     if (!pageDiagnostics.blockedByAccessGate) {
@@ -298,13 +321,27 @@ async function captureDynamicEmbedMedia(rawUrl) {
         }
       }
       await page.waitForTimeout(7000);
+      pageDiagnostics.playAttempt = await page.evaluate(async () => {
+        const video = document.querySelector("video");
+        if (!video) return { attempted: false, reason: "no-video-element" };
+        try {
+          await video.play();
+          return { attempted: true, accepted: true };
+        } catch (error) {
+          return { attempted: true, accepted: false, errorName: error?.name || null, error: String(error?.message || error).slice(0, 160) };
+        }
+      }).catch((error) => ({ attempted: true, accepted: false, error: String(error?.message || error).slice(0, 160) }));
       pageDiagnostics.playerRuntimeAfterPlay = await page.evaluate(() => {
         const api = typeof window.jwplayer === "function" ? window.jwplayer() : null;
         const video = document.querySelector("video");
+        const item = api && typeof api.getPlaylistItem === "function" ? api.getPlaylistItem() : null;
         return {
           jwplayerAvailable: typeof window.jwplayer === "function",
+          playerReady: Boolean(api && typeof api.getState === "function"),
           playerState: api && typeof api.getState === "function" ? api.getState() : null,
+          playlistSources: Array.isArray(item?.sources) ? item.sources.slice(0, 8).map((source) => source.file || source.src).filter((value) => typeof value === "string") : [],
           videoElements: document.querySelectorAll("video").length,
+          currentSrc: video ? video.currentSrc : null,
           paused: video ? video.paused : null,
           currentTime: video ? video.currentTime : null,
           readyState: video ? video.readyState : null,
@@ -313,6 +350,8 @@ async function captureDynamicEmbedMedia(rawUrl) {
           videoHeight: video ? video.videoHeight : null,
         };
       }).catch((error) => ({ probeError: String(error?.message || error).slice(0, 160) }));
+      for (const source of pageDiagnostics.playerRuntimeAfterPlay?.playlistSources || []) record(source);
+      if (pageDiagnostics.playerRuntimeAfterPlay?.currentSrc) record(pageDiagnostics.playerRuntimeAfterPlay.currentSrc);
     }
     return { urls: [...captured].slice(0, 12), diagnostics: pageDiagnostics };
   } finally {
