@@ -37,6 +37,7 @@ import './pr84-apple-tv-dock.css';
 import './pr84-watch-mobile-fix.css';
 import { Providers } from '@/components/providers';
 import { MobileTabBar } from '@/components/home/header/MobileTabBar';
+import { GlobalDownloadManager } from '@/components/download-manager';
 
 export const metadata: Metadata = {
   title: {
@@ -83,6 +84,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           {children}
           <MobileTabBar />
+          <GlobalDownloadManager />
         </Providers>
       </body>
     </html>
