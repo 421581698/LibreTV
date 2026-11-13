@@ -921,7 +921,7 @@ export function PlayerShell({
       hotkey: false,
       theme: '#ffffff',
       lang: navigator.language.toLowerCase().startsWith('zh') ? 'zh-cn' : 'en',
-      moreVideoAttr: { crossOrigin: 'anonymous', playsInline: true },
+      moreVideoAttr: { crossOrigin: 'anonymous', playsInline: true, disablePictureInPicture: true, disableRemotePlayback: true },
       // 上/下集放在播放键右侧：换集是看剧最高频的动作，不该让用户滚回页面下方找按钮
       controls: [
         {
