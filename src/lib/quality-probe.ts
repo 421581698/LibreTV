@@ -431,8 +431,8 @@ async function probeEpisode(
  * 失败时带 error，前端据此区分「未知」与「探测失败」两种状态。
  */
 export async function probeQuality(item: QualityProbeItem, signal?: AbortSignal): Promise<QualityProbeResult> {
-  const { source, id } = item;
-  const base: QualityProbeResult = { sourceKey: source.key, vodId: id };
+  const { source, id, episodeIndex } = item;
+  const base: QualityProbeResult = { sourceKey: source.key, vodId: id, ...(episodeIndex === undefined ? {} : { episodeIndex }) };
   const metrics: ProbeMetrics = { upstreamRequestMs: 0, upstreamRequestCount: 0 };
   const withMetrics = (result: QualityProbeResult): QualityProbeResult => ({
     ...result,
@@ -461,9 +461,13 @@ export async function probeQuality(item: QualityProbeItem, signal?: AbortSignal)
     const episodes = await fetchEpisodes(source, id, merged, metrics);
     if (episodes.length === 0) return withMetrics({ ...base, error: '未找到播放资源' });
 
+    if (episodeIndex !== undefined && (!Number.isInteger(episodeIndex) || episodeIndex < 0 || episodeIndex >= episodes.length)) {
+      return withMetrics({ ...base, error: '指定分集不存在' });
+    }
+    const targets = episodeIndex === undefined ? probeEpisodeOrder(episodes) : [episodes[episodeIndex]];
     const startedAt = Date.now();
     let lastError: string | undefined;
-    for (const target of probeEpisodeOrder(episodes)) {
+    for (const target of targets) {
       const r = await probeEpisode(target, source, merged, signal, metrics);
       if (r.height !== undefined) return withMetrics({ ...base, height: r.height });
       if (r.error) lastError = r.error;
