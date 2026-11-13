@@ -240,9 +240,9 @@ try {
     const relatedSectionCount = document.querySelectorAll('.netflix-related-section').length;
     const fridayLauncher = document.querySelector('.friday-root .friday-fab, .friday-root .friday-restore');
     const progressBar = frame?.querySelector('.artplayer .art-progress, .art-video-player .art-progress, .artplayer .art-progress-bar, .art-video-player .art-progress-bar');
-    // .art-progress is the 16px touch target; .art-progress-bar is the visible 2px rail.
-    // Keep these measurements separate so WebKit does not mistake the hit area for the rail.
-    const progressTrack = frame?.querySelector('.artplayer .art-progress-bar, .art-video-player .art-progress-bar');
+    // The 16px .art-progress element paints its 2px rail with a centered CSS gradient.
+    // ArtPlayer may omit .art-progress-bar in WebKit, so verify the actual painted gradient.
+    const progressTrack = frame?.querySelector('.artplayer .art-progress, .art-video-player .art-progress');
     const progressDot = frame?.querySelector('.artplayer .art-progress-indicator, .art-video-player .art-progress-indicator');
     const relatedDataFallbacks = document.querySelectorAll('.netflix-related-art img[src^="data:"]').length;
     const emptyHistory = Array.from(document.querySelectorAll('.netflix-history-rail p'))
@@ -271,6 +271,7 @@ try {
       progressHitAreaHeight: progressBar ? getComputedStyle(progressBar).height : null,
       progressHitAreaRect: progressBar ? (() => { const r = progressBar.getBoundingClientRect(); return { width: r.width, height: r.height, x: r.x, y: r.y }; })() : null,
       progressTrackHeight: progressTrack ? getComputedStyle(progressTrack).height : null,
+      progressTrackBackground: progressTrack ? getComputedStyle(progressTrack).backgroundImage : null,
       progressTrackRect: progressTrack ? (() => { const r = progressTrack.getBoundingClientRect(); return { width: r.width, height: r.height, x: r.x, y: r.y }; })() : null,
       progressDotWidth: progressDot ? getComputedStyle(progressDot).width : null,
       progressDotHeight: progressDot ? getComputedStyle(progressDot).height : null,
@@ -310,8 +311,10 @@ try {
   if (!watchLayout.progressHitAreaRect || watchLayout.progressHitAreaRect.height < 12 ||
       watchLayout.progressHitAreaRect.height > 20 ||
       !watchLayout.progressTrackRect || watchLayout.progressTrackRect.width <= 0 ||
-      watchLayout.progressTrackRect.height < 1 ||
-      watchLayout.progressTrackRect.height > 3 ||
+      watchLayout.progressTrackRect.height !== 16 ||
+      !watchLayout.progressTrackBackground?.includes('linear-gradient') ||
+      !watchLayout.progressTrackBackground.includes('50% - 1px') ||
+      !watchLayout.progressTrackBackground.includes('50% + 1px') ||
       !watchLayout.progressDotRect ||
       Number.parseFloat(watchLayout.progressDotWidth) < 4 || Number.parseFloat(watchLayout.progressDotWidth) > 8 ||
       Number.parseFloat(watchLayout.progressDotHeight) < 4 || Number.parseFloat(watchLayout.progressDotHeight) > 8 ||
