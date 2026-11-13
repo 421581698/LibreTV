@@ -249,7 +249,7 @@ async function captureDynamicEmbedMedia(rawUrl) {
           contentType: response.headers()["content-type"]?.split(";")[0]?.trim() || null,
         });
       }
-      if (/\\.(?:m3u8|mpd)(?:$|\\?)/i.test(response.url())) {
+      if (/\.(?:m3u8|mpd)(?:$|\?)/i.test(response.url())) {
         pageDiagnostics.mediaResponses.push({
           url: summarizeMediaUrl(response.url()),
           status: response.status(),
@@ -282,16 +282,37 @@ async function captureDynamicEmbedMedia(rawUrl) {
         ".jw-icon-playback",
         'button[aria-label="Play"]',
         '[aria-label="Play video"]',
+        ".jwplayer video",
+        "video",
       ]) {
         const control = page.locator(selector).first();
         if (await control.isVisible().catch(() => false)) {
-          await control.click({ timeout: 1500 }).catch(() => {});
-          pageDiagnostics.playControlClicked = true;
-          pageDiagnostics.playTrigger = selector;
-          break;
+          try {
+            await control.click({ timeout: 1500 });
+            pageDiagnostics.playControlClicked = true;
+            pageDiagnostics.playTrigger = selector;
+            break;
+          } catch {
+            // Keep trying the next visible playback control; never report a failed click as success.
+          }
         }
       }
       await page.waitForTimeout(7000);
+      pageDiagnostics.playerRuntimeAfterPlay = await page.evaluate(() => {
+        const api = typeof window.jwplayer === "function" ? window.jwplayer() : null;
+        const video = document.querySelector("video");
+        return {
+          jwplayerAvailable: typeof window.jwplayer === "function",
+          playerState: api && typeof api.getState === "function" ? api.getState() : null,
+          videoElements: document.querySelectorAll("video").length,
+          paused: video ? video.paused : null,
+          currentTime: video ? video.currentTime : null,
+          readyState: video ? video.readyState : null,
+          networkState: video ? video.networkState : null,
+          videoWidth: video ? video.videoWidth : null,
+          videoHeight: video ? video.videoHeight : null,
+        };
+      }).catch((error) => ({ probeError: String(error?.message || error).slice(0, 160) }));
     }
     return { urls: [...captured].slice(0, 12), diagnostics: pageDiagnostics };
   } finally {
