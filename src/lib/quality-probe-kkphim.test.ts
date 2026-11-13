@@ -4,11 +4,15 @@ import { extractKkphimEpisodeUrls, parseBestHeight } from './quality-probe';
 describe('KKPhim quality probe integration', () => {
   it('extracts HLS and embed URLs from KKPhim episode labels', () => {
     expect(extractKkphimEpisodeUrls([
-      'Vietsub · 第1集' + String.fromCharCode(36) + 'https://media.example/1.m3u8',
+      'https://media.example/1.m3u8',
+      'https://media.example/2.m3u8',
+      'Vietsub · 第1集' + String.fromCharCode(36) + 'https://media.example/3.m3u8',
       'KKPhim · 第2集' + String.fromCharCode(36) + 'https://player.example/embed/2',
       'bad' + String.fromCharCode(36) + 'javascript:alert(1)',
     ])).toEqual([
       'https://media.example/1.m3u8',
+      'https://media.example/2.m3u8',
+      'https://media.example/3.m3u8',
       'https://player.example/embed/2',
     ]);
   });
