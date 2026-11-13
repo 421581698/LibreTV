@@ -232,7 +232,7 @@ try {
       video.duration > 0;
   }, { timeout: 60_000 });
 
-  const watchLayout = await page.evaluate(() => {
+  // Reveal ArtPlayer's touch seek affordance before measuring its playhead.\n  await page.locator('.netflix-player-frame .art-progress').hover({ force: true });\n  await page.waitForTimeout(120);\n\n  const watchLayout = await page.evaluate(() => {
     const header = document.querySelector('.watch-topbar');
     const title = document.querySelector('.watch-topbar-title');
     const dock = document.querySelector('body > nav.v4-mobile-tabbar');
@@ -243,7 +243,7 @@ try {
     const relatedSectionCount = document.querySelectorAll('.netflix-related-section').length;
     const fridayLauncher = document.querySelector('.friday-root .friday-fab, .friday-root .friday-restore');
     const progressBar = frame?.querySelector('.artplayer .art-progress, .art-video-player .art-progress, .artplayer .art-progress-bar, .art-video-player .art-progress-bar');
-    const progressTrack = frame?.querySelector('.artplayer .art-progress-loaded, .art-video-player .art-progress-loaded, .artplayer .art-progress-played, .art-video-player .art-progress-played');
+    // The visible 2px rail is painted by the .art-progress background gradient;\n    // loaded/played children are variable-width overlays and may legitimately be 0px.\n    const progressTrack = frame?.querySelector('.artplayer .art-progress, .art-video-player .art-progress');
     const progressDot = frame?.querySelector('.artplayer .art-progress-indicator, .art-video-player .art-progress-indicator');
     const relatedDataFallbacks = document.querySelectorAll('.netflix-related-art img[src^="data:"]').length;
     const emptyHistory = Array.from(document.querySelectorAll('.netflix-history-rail p'))
