@@ -141,7 +141,8 @@ describe('TMDB episode artwork matching', () => {
       tmdbSeriesId: 307853,
       episodeNumber: 1,
     });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // One year-constrained search, one title-only fallback, and one season lookup.
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it('preserves source-provided episode stills instead of overwriting them', async () => {
