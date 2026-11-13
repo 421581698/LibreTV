@@ -299,6 +299,31 @@ async function probeSegmentResolution(
   return parseTsVideoResolution(buf)?.height;
 }
 
+/** Read provider JSON under a hard streamed byte limit; Content-Length is not trusted alone. */
+async function readLimitedProviderJson(response: Response, maxBytes: number): Promise<unknown> {
+  if (!response.body) throw new Error('KKPhim 详情响应为空');
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let bytes = 0;
+  let text = '';
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        throw new Error('KKPhim 详情响应超过安全上限');
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+    text += decoder.decode();
+    return JSON.parse(text) as unknown;
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 /** Extract playable URLs from KKPhim's server/episode-labelled adapter strings. */
 export function extractKkphimEpisodeUrls(episodes: string[]): string[] {
   return episodes.map((episode) => {
@@ -324,7 +349,7 @@ async function fetchEpisodes(source: SourceConfig, id: string, signal: AbortSign
     if (!response.ok) return [];
     const declaredLength = Number(response.headers.get('content-length') || 0);
     if (declaredLength > 4 * 1024 * 1024) return [];
-    const detail = parseKkphimDetail(await response.json());
+    const detail = parseKkphimDetail(await readLimitedProviderJson(response, 4 * 1024 * 1024));
     return extractKkphimEpisodeUrls(detail?.episodes ?? []);
   }
   const api = `${source.url.replace(/\/+$/, '')}?ac=videolist&ids=${encodeURIComponent(id)}`;
