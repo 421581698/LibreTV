@@ -552,7 +552,13 @@ export async function POST(req: Request) {
   if (!Array.isArray(body.urls)) return jsonError('urls 必须为字符串数组', 400);
 
   const urls = [...new Set(
-    body.urls.filter((u): u is string => typeof u === 'string' && /^https?:\/\//.test(u))
+    body.urls.filter((u): u is string => {
+      if (typeof u !== 'string' || u.length > 4096) return false;
+      try {
+        const parsed = new URL(u);
+        return (parsed.protocol === 'http:' || parsed.protocol === 'https:') && !parsed.username && !parsed.password;
+      } catch { return false; }
+    })
   )].slice(0, MAX_URLS);
   const stream = new URL(req.url).searchParams.get('stream') === '1';
   if (urls.length === 0) {
