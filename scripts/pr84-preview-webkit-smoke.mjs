@@ -240,9 +240,9 @@ try {
     const relatedSectionCount = document.querySelectorAll('.netflix-related-section').length;
     const fridayLauncher = document.querySelector('.friday-root .friday-fab, .friday-root .friday-restore');
     const progressBar = frame?.querySelector('.artplayer .art-progress, .art-video-player .art-progress, .artplayer .art-progress-bar, .art-video-player .art-progress-bar');
-    // The visible 2px rail is painted by the .art-progress background gradient;
-    // loaded/played children are variable-width overlays and may legitimately be 0px.
-    const progressTrack = frame?.querySelector('.artplayer .art-progress, .art-video-player .art-progress');
+    // .art-progress is the 16px touch target; .art-progress-bar is the visible 2px rail.
+    // Keep these measurements separate so WebKit does not mistake the hit area for the rail.
+    const progressTrack = frame?.querySelector('.artplayer .art-progress-bar, .art-video-player .art-progress-bar');
     const progressDot = frame?.querySelector('.artplayer .art-progress-indicator, .art-video-player .art-progress-indicator');
     const relatedDataFallbacks = document.querySelectorAll('.netflix-related-art img[src^="data:"]').length;
     const emptyHistory = Array.from(document.querySelectorAll('.netflix-history-rail p'))
@@ -273,6 +273,7 @@ try {
       progressTrackHeight: progressTrack ? getComputedStyle(progressTrack).height : null,
       progressTrackRect: progressTrack ? (() => { const r = progressTrack.getBoundingClientRect(); return { width: r.width, height: r.height, x: r.x, y: r.y }; })() : null,
       progressDotWidth: progressDot ? getComputedStyle(progressDot).width : null,
+      progressDotHeight: progressDot ? getComputedStyle(progressDot).height : null,
       progressDotRect: progressDot ? (() => { const r = progressDot.getBoundingClientRect(); return { width: r.width, height: r.height }; })() : null,
       progressPointerEvents: progressBar ? getComputedStyle(progressBar).pointerEvents : null,
       relatedDataFallbacks,
@@ -312,8 +313,8 @@ try {
       watchLayout.progressTrackRect.height < 1 ||
       watchLayout.progressTrackRect.height > 3 ||
       !watchLayout.progressDotRect ||
-      watchLayout.progressDotRect.width < 4 || watchLayout.progressDotRect.width > 8 ||
-      watchLayout.progressDotRect.height < 4 || watchLayout.progressDotRect.height > 8 ||
+      Number.parseFloat(watchLayout.progressDotWidth) < 4 || Number.parseFloat(watchLayout.progressDotWidth) > 8 ||
+      Number.parseFloat(watchLayout.progressDotHeight) < 4 || Number.parseFloat(watchLayout.progressDotHeight) > 8 ||
       watchLayout.progressPointerEvents === 'none') {
     throw new Error('Real mobile ArtPlayer timeline geometry is invalid (target 12–20px, rail 1–3px, playhead <=8px, pointer events enabled): ' + JSON.stringify(watchLayout));
   }
