@@ -17,7 +17,7 @@ const MAX_MANIFEST_BYTES = 512 * 1024;
 const MAX_SEGMENT_BYTES = 1024 * 1024;
 const MAX_HOME_PAGES = 2;
 const MAX_MOVIES = 12;
-const MAX_LINKS = 36;
+const MAX_LINKS = 72;
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36";
 
 function isPublicAddress(address) {
@@ -231,6 +231,7 @@ const report = {
   detailV1Count,
   detailLegacyCount,
   candidatesFound: candidates.length,
+  uniqueCandidateMovies: new Set(candidates.map((candidate) => candidate.item.slug)).size,
   candidatesTested: tested,
   failedCandidates: failures.length,
   successfulPlayback: Boolean(success),
