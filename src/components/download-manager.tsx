@@ -436,7 +436,10 @@ export function GlobalDownloadManager() {
   useEffect(() => {
     const onShow = () => setOpen(true);
     window.addEventListener(SHOW_MANAGER_EVENT, onShow);
-    return () => window.removeEventListener(SHOW_MANAGER_EVENT, onShow);
+    window.dispatchEvent(new Event('libretv:download-manager-ready'));
+    return () => {
+      window.removeEventListener(SHOW_MANAGER_EVENT, onShow);
+    };
   }, []);
   return <DownloadManager isOpen={open} onClose={() => setOpen(false)} />;
 }
