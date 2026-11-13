@@ -521,6 +521,7 @@ export function PlayerShell({
 
   /** Native progressive media path for formats the existing HTMLVideoElement can play. */
   const setupDirectMedia = (video: HTMLVideoElement, mediaUrl: string) => {
+    clearMetadataWatchdog();
     restoreCleanupRef.current?.();
     restoreCleanupRef.current = null;
     if (qualityPreferenceHandlerRef.current) {
@@ -580,6 +581,7 @@ export function PlayerShell({
    * 注意：不销毁 ArtPlayer，只销毁并重建 hls，从而保留网页全屏等播放器状态。
    */
   const setupHls = (video: HTMLVideoElement, mediaUrl: string, allowProxyFallback: boolean) => {
+    clearMetadataWatchdog();
     restoreCleanupRef.current?.();
     restoreCleanupRef.current = null;
     if (qualityPreferenceHandlerRef.current) {
@@ -589,6 +591,15 @@ export function PlayerShell({
     hlsRef.current?.destroy();
     hlsRef.current = null;
     currentMediaUrlRef.current = mediaUrl;
+    const mediaKind = getMediaPlaybackKind(mediaUrl, propsRef.current.mediaType);
+    if (mediaKind === 'mp4' || mediaKind === 'webm') {
+      setupDirectMedia(video, mediaUrl);
+      return;
+    }
+    if (mediaKind === 'unsupported') {
+      setError('当前媒体格式尚未接入播放器，请选择 HLS、MP4 或 WebM 资源');
+      return;
+    }
     if (!Hls.isSupported()) {
       if (!video.canPlayType('application/vnd.apple.mpegurl') && !video.canPlayType('application/x-mpegURL')) {
         hlsRef.current = null;
@@ -596,6 +607,7 @@ export function PlayerShell({
         return;
       }
       hlsRef.current = null;
+      armMetadataWatchdog(video, mediaUrl);
       setAvailableQualityHeights([]);
       setQualityControlMode('native');
       setQualityNotice('当前使用浏览器原生 HLS，Safari 会自行选择档位，网页无法强制锁定 1080P 或 4K。实际解码分辨率仍会显示。');
@@ -636,16 +648,6 @@ export function PlayerShell({
       video.load();
       return;
     }
-    const mediaKind = getMediaPlaybackKind(mediaUrl, propsRef.current.mediaType);
-    if (mediaKind === 'mp4' || mediaKind === 'webm') {
-      setupDirectMedia(video, mediaUrl);
-      return;
-    }
-    if (mediaKind === 'unsupported') {
-      setError('当前媒体格式尚未接入播放器，请选择 HLS、MP4 或 WebM 资源');
-      return;
-    }
-
     armMetadataWatchdog(video, mediaUrl);
     const nativeHls = !Hls.isSupported();
     if (nativeHls && !video.canPlayType('application/vnd.apple.mpegurl')) {
@@ -1163,7 +1165,18 @@ export function PlayerShell({
         setupHls(art.video, currentMediaUrlRef.current, true);
         return;
       }
-      setError('视频播放失败，请尝试其他视频源');
+      const mediaError = art.video?.error;
+      const errorMessage = mediaError?.code === MediaError.MEDIA_ERR_ABORTED
+        ? '播放请求已取消，请重新点击播放'
+        : mediaError?.code === MediaError.MEDIA_ERR_NETWORK
+          ? '视频地址或媒体分片请求失败，请更换播放源'
+          : mediaError?.code === MediaError.MEDIA_ERR_DECODE
+            ? '媒体解码失败，请尝试其他播放源或格式'
+            : mediaError?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED
+              ? '播放源无效或格式不受支持，请更换播放源'
+              : '视频播放失败，请尝试其他视频源';
+      clearMetadataWatchdog();
+      setError(errorMessage);
     });
     art.on('video:timeupdate', () => {
       const metrics = playbackMetricsRef.current;
