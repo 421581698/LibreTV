@@ -215,7 +215,7 @@ try {
   }
   await page.waitForSelector('.watch-topbar', { timeout: 45_000 });
   await page.waitForSelector('.netflix-player-frame', { timeout: 45_000 });
-  await page.waitForSelector('body > nav.v4-mobile-tabbar', { timeout: 45_000 });
+  await page.waitForSelector('body > nav.v4-mobile-tabbar', { state: 'attached', timeout: 45_000 });
   await page.waitForSelector('.player-quality-badge', { timeout: 45_000 });
 
   // Do not measure the timeline while ArtPlayer is still in its loading shell.
@@ -236,6 +236,7 @@ try {
     const header = document.querySelector('.watch-topbar');
     const title = document.querySelector('.watch-topbar-title');
     const dock = document.querySelector('body > nav.v4-mobile-tabbar');
+    const watchShell = document.querySelector('.netflix-watch-shell');
     const frame = document.querySelector('.netflix-player-frame');
     const bottom = frame?.querySelector('.artplayer .art-bottom, .art-video-player .art-bottom');
     const quality = frame?.querySelector('.player-quality-badge');
@@ -249,9 +250,10 @@ try {
     const relatedDataFallbacks = document.querySelectorAll('.netflix-related-art img[src^="data:"]').length;
     const emptyHistory = Array.from(document.querySelectorAll('.netflix-history-rail p'))
       .some((node) => node.textContent?.includes('还没有其他观看记录'));
-    if (!header || !title || !dock || !frame) throw new Error('Watch page layout elements are missing');
+    if (!header || !title || !dock || !watchShell || !frame) throw new Error('Watch page layout elements are missing');
     const dockStyle = getComputedStyle(dock);
-    const dockRect = dock.getBoundingClientRect();
+    const shellStyle = getComputedStyle(watchShell);
+    const shellRect = watchShell.getBoundingClientRect();
     const titleStyle = getComputedStyle(title);
     const gradient = bottom ? getComputedStyle(bottom).backgroundImage : '';
     return {
@@ -259,23 +261,16 @@ try {
       titleAlign: titleStyle.textAlign,
       headerButtons: header.querySelectorAll('button').length,
       hasHeaderAssistant: Boolean(header.querySelector('.friday-orb, .friday-fab, .watch-topbar-right')),
-      dockPosition: dockStyle.position,
+      shellPosition: shellStyle.position,
+      shellWidth: shellRect.width,
+      shellHeight: shellRect.height,
       dockDisplay: dockStyle.display,
-      dockDirection: dockStyle.flexDirection,
-      dockJustify: dockStyle.justifyContent,
-      dockLeft: dockRect.left,
-      dockWidth: dockRect.width,
-      dockBottomGap: window.innerHeight - dockRect.bottom,
-      dockItems: dock.querySelectorAll(':scope > a').length,
-      dockScrollWidth: dock.scrollWidth,
       emptyHistory,
       historyLinkCount: document.querySelectorAll('.netflix-section-heading a[href="/me"]').length,
       playerBottomGradient: gradient,
       qualityFontSize: quality ? getComputedStyle(quality).fontSize : null,
       relatedSectionCount,
       watchMainPaddingBottom: watchMain ? getComputedStyle(watchMain).paddingBottom : null,
-      activeDockColor: activeDockItem ? getComputedStyle(activeDockItem).color : null,
-      activeDockBackground: activeDockItem ? getComputedStyle(activeDockItem).backgroundColor : null,
       fridayLauncherDisplay: fridayLauncher ? getComputedStyle(fridayLauncher).display : 'absent',
       progressHitAreaHeight: progressBar ? getComputedStyle(progressBar).height : null,
       progressHitAreaRect: progressBar ? (() => { const r = progressBar.getBoundingClientRect(); return { width: r.width, height: r.height, x: r.x, y: r.y }; })() : null,
@@ -293,12 +288,12 @@ try {
   if (watchLayout.headerButtons !== 1 || watchLayout.hasHeaderAssistant) {
     throw new Error('Watch header still contains extra round/starfield controls: ' + JSON.stringify(watchLayout));
   }
-  if (watchLayout.dockPosition !== 'fixed' || watchLayout.dockDisplay !== 'flex' ||
-      watchLayout.dockDirection !== 'row' || watchLayout.dockJustify !== 'space-around' ||
-      watchLayout.dockItems !== 4 || Math.abs(watchLayout.dockLeft) > 1 ||
-      Math.abs(watchLayout.dockWidth - 390) > 2 || Math.abs(watchLayout.dockBottomGap) > 2 ||
-      watchLayout.dockScrollWidth > watchLayout.dockWidth + 1) {
-    throw new Error('Watch mobile dock is not a full-width horizontal bottom bar: ' + JSON.stringify(watchLayout));
+  if (watchLayout.shellPosition !== 'fixed' || Math.abs(watchLayout.shellWidth - 390) > 2 ||
+      Math.abs(watchLayout.shellHeight - 844) > 2) {
+    throw new Error('Watch player shell is not filling the mobile viewport: ' + JSON.stringify(watchLayout));
+  }
+  if (watchLayout.dockDisplay !== 'none') {
+    throw new Error('Immersive watch mode must hide the global mobile navigation dock: ' + JSON.stringify(watchLayout));
   }
   if (watchLayout.emptyHistory && watchLayout.historyLinkCount !== 0) {
     throw new Error('Empty continue-watching state still shows the all-history link');
@@ -311,13 +306,6 @@ try {
   }
   if (watchLayout.relatedSectionCount !== 0) {
     throw new Error('The removed related-movies section is still present on the watch page: ' + JSON.stringify(watchLayout));
-  }
-  if (Number.parseFloat(watchLayout.watchMainPaddingBottom ?? '0') < 80) {
-    throw new Error('Watch page does not reserve enough scroll tail above the fixed dock: ' + JSON.stringify(watchLayout));
-  }
-  if (watchLayout.activeDockColor !== 'rgb(255, 255, 255)' ||
-      watchLayout.activeDockBackground !== 'rgba(255, 255, 255, 0.15)') {
-    throw new Error('Selected dock item is not the neutral white Apple TV pill: ' + JSON.stringify(watchLayout));
   }
   if (watchLayout.fridayLauncherDisplay !== 'none' && watchLayout.fridayLauncherDisplay !== 'absent') {
     throw new Error('Floating Friday starfield launcher still overlaps the watch page: ' + JSON.stringify(watchLayout));
