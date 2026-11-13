@@ -227,9 +227,9 @@ try {
     const quality = frame?.querySelector('.player-quality-badge');
     const relatedHeading = document.querySelector('.netflix-related-section .netflix-section-heading');
     const watchMain = document.querySelector('main.netflix-watch');
-    const activeDockItem = dock.querySelector('a.is-active');
+    const activeDockItem = dock.querySelector('a[aria-current="page"], a.is-active');
     const fridayLauncher = document.querySelector('.friday-root .friday-fab, .friday-root .friday-restore');
-    const progressBar = frame?.querySelector('.artplayer .art-progress-bar, .art-video-player .art-progress-bar');
+    const progressBar = frame?.querySelector('.artplayer .art-progress, .art-video-player .art-progress, .artplayer .art-progress-bar, .art-video-player .art-progress-bar');
     const progressDot = frame?.querySelector('.artplayer .art-progress-indicator, .art-video-player .art-progress-indicator');
     const relatedDataFallbacks = document.querySelectorAll('.netflix-related-art img[src^="data:"]').length;
     const emptyHistory = Array.from(document.querySelectorAll('.netflix-history-rail p'))
