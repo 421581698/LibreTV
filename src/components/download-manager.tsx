@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Drawer } from './drawer';
-import { Icon } from './icon';
 import { useToast } from './toast';
 import { db, type DownloadTaskEntry } from '@/lib/db';
 import {
