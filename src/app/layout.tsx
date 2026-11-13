@@ -33,6 +33,8 @@ import './pr84-global-layout.css';
 import './pr84-liquid-refraction.css';
 // Final Apple TV-style edge-to-edge dock: 40px blur, dark glass and safe-area fill.
 import './pr84-apple-tv-dock.css';
+// PR #84 watch-page mobile polish: clean header, readable player controls and fixed horizontal dock.
+import './pr84-watch-mobile-fix.css';
 import { Providers } from '@/components/providers';
 import { MobileTabBar } from '@/components/home/header/MobileTabBar';
 
