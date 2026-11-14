@@ -371,19 +371,18 @@ function WatchContent() {
       <header className="watch-topbar netflix-watch-overlay-topbar">
         <div className="watch-topbar-inner">
           <div className="watch-topbar-left">
-            <BackButton />
-            <div className="watch-topbar-title min-w-0 text-left">
-              <h1 className="text-sm font-semibold text-content truncate">{videoTitle}</h1>
-              <p className="text-xs text-faint truncate">
-                {source.name}
-                {hasEpisodeNavigation ? ` · 第 ${currentIndex + 1}/${episodes.length} 集` : isMovie ? ' · 电影' : ' · 单集内容'}
-              </p>
-            </div>
+            <button type="button" className="cinema-glass-control cinema-close-control" aria-label="关闭播放器" onClick={() => { if (window.history.length > 1) router.back(); else router.push('/'); }}>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" /></svg>
+            </button>
           </div>
           <div className="watch-topbar-right">
-            <button type="button" className="btn-ghost btn-sm" aria-expanded={showPlayerPanel} aria-controls="netflix-watch-utility-panel" onClick={() => setShowPlayerPanel((value) => !value)}>
-              {showPlayerPanel ? '关闭面板' : '选集 / 换源'}
+            <button type="button" className="cinema-glass-control" aria-label="AirPlay" title="AirPlay" onClick={() => {
+              const video = playerFrameRef.current?.querySelector('video') as (HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => void }) | null;
+              video?.webkitShowPlaybackTargetPicker?.();
+            }}>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v11H4zM8 20l4-5 4 5" /></svg>
             </button>
+            <button type="button" className="cinema-glass-control cinema-utility-control" aria-expanded={showPlayerPanel} aria-controls="netflix-watch-utility-panel" aria-label="选集与换源" onClick={() => setShowPlayerPanel((value) => !value)}>•••</button>
           </div>
         </div>
       </header>
@@ -470,6 +469,27 @@ function WatchContent() {
                   )}
                 </div>
               )}
+            </div>
+            <div className="cinema-center-controls" aria-label="播放控制">
+              <button type="button" className="cinema-glass-control cinema-skip-control" aria-label="后退 10 秒" onClick={() => {
+                const video = playerFrameRef.current?.querySelector('video');
+                if (video) video.currentTime = Math.max(0, video.currentTime - 10);
+              }}>
+                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M18 8L8 16l10 8M10 17a17 17 0 1 0 8-8" /><text x="24" y="29">10</text></svg>
+              </button>
+              <button type="button" className="cinema-glass-control cinema-play-control" aria-label="播放或暂停" onClick={() => {
+                const video = playerFrameRef.current?.querySelector('video');
+                if (!video) return;
+                if (video.paused) void video.play().catch(() => undefined); else video.pause();
+              }}>
+                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M16 11v26M32 11v26" /></svg>
+              </button>
+              <button type="button" className="cinema-glass-control cinema-skip-control" aria-label="前进 10 秒" onClick={() => {
+                const video = playerFrameRef.current?.querySelector('video');
+                if (video) video.currentTime = Math.min(video.duration || Infinity, video.currentTime + 10);
+              }}>
+                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M30 8l10 8-10 8M38 17a17 17 0 1 1-8-8" /><text x="24" y="29">10</text></svg>
+              </button>
             </div>
 
             <div className="netflix-title-row">
