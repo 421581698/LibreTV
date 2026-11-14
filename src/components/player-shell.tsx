@@ -16,6 +16,7 @@ import { formatTime } from '@/lib/utils';
 import { executeFridayPlayerCommand, parseFridayPlayerCommand } from '@/lib/friday/player-control';
 import { prefersTouchPointer } from '@/lib/touch-pointer';
 import { requestNativeFullscreenWithFallback, type NativeFullscreenVideo } from '@/lib/player-fullscreen';
+import { bindPlaybackUiEvents } from '@/lib/player-playback-ui';
 import {
   findActiveSegment,
   findCrossedEnding,
@@ -953,6 +954,9 @@ export function PlayerShell({
       // Keep iOS Safari's video compositing stable without a frosted backdrop.
       backdrop: false,
       playsInline: true,
+      // ArtPlayer rotates its web-fullscreen surface to match video orientation on
+      // touch devices. iOS native fullscreen remains controlled by WebKit/system rotation.
+      autoOrientation: touchPointer,
       airplay: true,
       hotkey: false,
       theme: '#ffffff',
@@ -1011,6 +1015,10 @@ export function PlayerShell({
       },
     });
     artRef.current = art;
+    // Native media events are the source of truth. Bridge them into ArtPlayer's
+    // public play/pause event bus so its center and bottom controls stay in sync,
+    // including pauses initiated by iOS media controls or external callers.
+    const cleanupPlaybackUi = bindPlaybackUiEvents(art.video, (event) => art.emit(event));
     window.dispatchEvent(new CustomEvent('friday-player-state', { detail: { active: true } }));
 
     // 进度条区间可视化：初始渲染一次，换集 duration 变化时重绘
@@ -1446,6 +1454,7 @@ export function PlayerShell({
       if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
       nativeFullscreenCleanupRef.current?.();
       nativeFullscreenCleanupRef.current = null;
+      cleanupPlaybackUi();
       if (playbackConfirmationTimerRef.current) clearTimeout(playbackConfirmationTimerRef.current);
       clearMetadataWatchdog();
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
