@@ -326,6 +326,24 @@ try {
   }
   await page.screenshot({ path: '/tmp/pr84-preview-watch-webkit.png', fullPage: true });
   console.log('PASS PR84 Preview WebKit watch-page header + player controls + horizontal dock:', JSON.stringify(watchLayout));
+
+  // Verify the new dedicated SeedHub detail route is included in the deployed build.
+  // No collector credentials are assumed here: the empty-URL state must render
+  // safely without issuing a request to the external Scrapling service.
+  const seedHubResponse = await page.goto(base + '/seedhub', {
+    waitUntil: 'domcontentloaded',
+    timeout: 60_000,
+  });
+  if (!seedHubResponse || seedHubResponse.status() !== 200) {
+    throw new Error('SeedHub detail route returned HTTP ' + (seedHubResponse?.status() ?? 'no response'));
+  }
+  await page.getByText('无法读取 SeedHub 详情', { exact: true }).waitFor({ timeout: 30_000 });
+  await page.getByText('缺少 SeedHub 影片地址。', { exact: true }).waitFor({ timeout: 30_000 });
+  if (pageErrors.length > 0) {
+    throw new Error('SeedHub detail route JavaScript errors: ' + JSON.stringify(pageErrors));
+  }
+  await page.screenshot({ path: '/tmp/pr84-preview-seedhub-detail-webkit.png', fullPage: true });
+  console.log('PASS PR84 Preview SeedHub dedicated detail route + safe missing-URL state');
 } finally {
   await browser.close();
 }
