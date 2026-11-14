@@ -399,7 +399,7 @@ class SeedHubCatalogueSearchTests(unittest.TestCase):
                         (source_url, "生化危机：爆发夜", "movies",
                          "https://www.seedhub.cc/poster.jpg", 123, json.dumps(detail, ensure_ascii=False)),
                     )
-                result = seedhub.seedhub_search("生化危机", authorization="Bearer test")
+                result = seedhub.seedhub_search(q="生化危机", authorization="Bearer test")
         self.assertEqual(len(result["items"]), 1)
         self.assertEqual(result["items"][0]["source_url"], source_url)
         self.assertEqual(result["items"][0]["detail"]["mode"], "metadata-only")
