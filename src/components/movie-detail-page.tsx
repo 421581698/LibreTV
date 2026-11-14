@@ -128,7 +128,10 @@ export function MovieDetailPage() {
   const info = detail?.videoInfo;
   const episodes = detail?.episodes ?? [];
   const episodeItems = detail?.episodeItems ?? [];
-  const backdrop = info?.backdrop?.trim() ?? '';
+  // Detail feeds often omit a dedicated backdrop even when the search result
+  // already supplied a valid poster. Keep the hero artwork populated by falling
+  // back through the detail cover to the original poster URL.
+  const backdrop = info?.backdrop?.trim() || info?.cover?.trim() || poster.trim();
   const knownSeasonNumbers = episodeItems
     .map((item) => item.seasonNumber)
     .filter((value): value is number => typeof value === 'number' && Number.isInteger(value) && value > 0);
