@@ -260,8 +260,6 @@ export function AnimeRecommendationSection({ onPick }: { onPick: (item: DoubanIt
             <DoubanCard
               key={item.id}
               item={item}
-              isTv={item.isTv ?? true}
-              enableTmdbFallback
               onClick={() => onPick(item)}
             />
           ))}
