@@ -269,6 +269,7 @@ try {
     const dock = document.querySelector('body > nav.v4-mobile-tabbar');
     const watchShell = document.querySelector('.netflix-watch-shell');
     const frame = document.querySelector('.netflix-player-frame');
+    const video = frame?.querySelector('video');
     const bottom = frame?.querySelector('.artplayer .art-bottom, .art-video-player .art-bottom');
     const quality = frame?.querySelector('.player-quality-badge');
     const relatedSectionCount = document.querySelectorAll('.netflix-related-section').length;
@@ -283,6 +284,14 @@ try {
     const dockStyle = getComputedStyle(dock);
     const shellStyle = getComputedStyle(watchShell);
     const shellRect = watchShell.getBoundingClientRect();
+    const frameRect = frame.getBoundingClientRect();
+    const videoRect = video?.getBoundingClientRect();
+    const controlsRect = document.querySelector('.cinema-center-controls').getBoundingClientRect();
+    const videoRatio = video?.videoWidth && video?.videoHeight ? video.videoWidth / video.videoHeight : 0;
+    const frameRatio = frameRect.width / frameRect.height;
+    const fittedWidth = videoRatio > 0 ? (videoRatio > frameRatio ? frameRect.width : frameRect.height * videoRatio) : 0;
+    const fittedHeight = videoRatio > 0 ? (videoRatio > frameRatio ? frameRect.width / videoRatio : frameRect.height) : 0;
+    const fittedVideoCenter = { x: frameRect.left + frameRect.width / 2, y: frameRect.top + frameRect.height / 2 };
     const infoStyle = getComputedStyle(info);
     const centerStyle = getComputedStyle(document.querySelector('.cinema-center-controls'));
     const gradient = bottom ? getComputedStyle(bottom).backgroundImage : '';
@@ -302,6 +311,12 @@ try {
       shellPosition: shellStyle.position,
       shellWidth: shellRect.width,
       shellHeight: shellRect.height,
+      frameRect: { x: frameRect.x, y: frameRect.y, width: frameRect.width, height: frameRect.height },
+      videoReady: Boolean(video && video.readyState >= 1 && videoRatio > 0),
+      videoIntrinsicSize: video ? { width: video.videoWidth, height: video.videoHeight } : null,
+      fittedVideoRect: { x: fittedVideoCenter.x - fittedWidth / 2, y: fittedVideoCenter.y - fittedHeight / 2, width: fittedWidth, height: fittedHeight },
+      fittedVideoCenter,
+      centerControlsCenter: { x: controlsRect.left + controlsRect.width / 2, y: controlsRect.top + controlsRect.height / 2 },
       dockDisplay: dockStyle.display,
       emptyHistory,
       historyLinkCount: document.querySelectorAll('.netflix-section-heading a[href="/me"]').length,
@@ -333,6 +348,13 @@ try {
   if (watchLayout.shellPosition !== 'fixed' || Math.abs(watchLayout.shellWidth - 390) > 2 ||
       Math.abs(watchLayout.shellHeight - 844) > 2) {
     throw new Error('Watch player shell is not filling the mobile viewport: ' + JSON.stringify(watchLayout));
+  }
+  if (!watchLayout.videoReady ||
+      Math.abs(watchLayout.fittedVideoCenter.x - (watchLayout.frameRect.x + watchLayout.frameRect.width / 2)) > 1 ||
+      Math.abs(watchLayout.fittedVideoCenter.y - (watchLayout.frameRect.y + watchLayout.frameRect.height / 2)) > 1 ||
+      Math.abs(watchLayout.centerControlsCenter.x - watchLayout.fittedVideoCenter.x) > 2 ||
+      Math.abs(watchLayout.centerControlsCenter.y - watchLayout.fittedVideoCenter.y) > 2) {
+    throw new Error('Actual fitted video image and transport controls are not centered in the cinema stage: ' + JSON.stringify(watchLayout));
   }
   if (watchLayout.dockDisplay !== 'none') {
     throw new Error('Immersive watch mode must hide the global mobile navigation dock: ' + JSON.stringify(watchLayout));
