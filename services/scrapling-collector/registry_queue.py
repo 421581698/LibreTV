@@ -455,6 +455,24 @@ def api_submit_job(payload: dict, authorization: str | None = Header(default=Non
         raise HTTPException(status_code=400,detail=str(exc))
 
 
+@router.get("/v1/sites")
+def api_sites(
+    authorization: str | None = Header(default=None),
+    limit: int = Query(default=30, ge=1, le=100),
+):
+    """Return only the persisted public-site discovery allowlist for bounded Agent selection."""
+    require_auth(authorization)
+    with connect() as conn:
+        table = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='sites'").fetchone()
+        if not table:
+            return {"sites": []}
+        rows = conn.execute(
+            "SELECT host,title,url,directory,discovered_at FROM sites ORDER BY discovered_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+    return {"sites": [dict(row) for row in rows]}
+
+
 @router.get("/v1/jobs")
 def api_jobs(authorization: str | None = Header(default=None), limit: int = Query(default=50,ge=1,le=100)):
     require_auth(authorization)
