@@ -903,3 +903,9 @@ html:has(.netflix-watch-shell) body > nav.v4-mobile-tabbar {
   .cinema-play-control { width:88px !important; height:88px !important; }
   .cinema-skip-control { width:64px !important; height:64px !important; }
 }
+
+/* The native ArtPlayer toolbar is replaced by the reference-style glass controls. */
+.netflix-watch-shell .netflix-player-frame .artplayer .art-bottom,
+.netflix-watch-shell .netflix-player-frame .art-video-player .art-bottom {
+  display:none !important;
+}
