@@ -343,7 +343,7 @@ async function searchStream(
       if (event.type === 'source') {
         onSource(event);
       } else if (event.type === 'done') {
-        final = { list: event.list, failures: event.failures, ...(event.registryResources?.length ? { registryResources: event.registryResources } : {}) };
+        final = { list: event.list, failures: event.failures, ...(event.registryResources?.length ? { registryResources: event.registryResources } : {}), ...(event.seedhubItems?.length ? { seedhubItems: event.seedhubItems } : {}) };
       }
     });
     return final;
