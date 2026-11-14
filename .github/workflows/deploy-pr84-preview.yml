@@ -158,13 +158,15 @@ jobs:
           set -euo pipefail
           SMOKE_TOKEN="$(openssl rand -hex 32)"
           echo "::add-mask::$SMOKE_TOKEN"
-          printf '%s' "$SMOKE_TOKEN" | npx wrangler secret put RESOURCE_AGENT_SMOKE_TOKEN --config wrangler.pr84-preview.toml
-          # Allow the new Worker version carrying the one-time secret to propagate before probing.
-          sleep 5
           cleanup() {
+            # Remove the temporary variable and any legacy test secret after the probe.
+            npx wrangler deploy --config wrangler.pr84-preview.toml --var "RESOURCE_AGENT_SMOKE_TOKEN:" --keep-vars >/dev/null 2>&1 || true
             npx wrangler secret delete RESOURCE_AGENT_SMOKE_TOKEN --config wrangler.pr84-preview.toml --force >/dev/null 2>&1 || true
           }
           trap cleanup EXIT
+          # Inject the one-time token as a Worker binding; secret propagation was not visible to this Node.js route.
+          npx wrangler deploy --config wrangler.pr84-preview.toml --var "RESOURCE_AGENT_SMOKE_TOKEN:$SMOKE_TOKEN" --keep-vars
+          sleep 5
           export RESOURCE_AGENT_SMOKE_TOKEN="$SMOKE_TOKEN"
           node --input-type=module <<'NODE'
           const base = process.env.PR84_PREVIEW_URL;
