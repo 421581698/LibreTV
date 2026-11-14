@@ -33,14 +33,14 @@ const CATEGORIES: Array<{ id: SeedHubCategory; title: string }> = [
 
 async function fetchSeedHubCatalog(category: SeedHubCategory): Promise<SeedHubCatalogResponse> {
   const response = await collectorFetch(
-    \`/api/resource-collector?action=seedhub-catalog&category=\${category}&limit=12&offset=0\`
+    `/api/resource-collector?action=seedhub-catalog&category=${category}&limit=12&offset=0`
   );
   const payload = await response.json() as SeedHubCatalogResponse & { error?: string; detail?: string };
   if (!response.ok) {
     throw new Error(payload.error || payload.detail || (
       response.status === 503
         ? '尚未配置 Collector 地址和访问 Token，或 SeedHub 目录尚未同步。'
-        : \`SeedHub 目录读取失败（HTTP \${response.status}）\`
+        : `SeedHub 目录读取失败（HTTP ${response.status}）`
     ));
   }
   if (payload.source !== 'SeedHub' || !Array.isArray(payload.items)) {
@@ -142,10 +142,10 @@ export function SeedHubHomepage() {
         const query = id === 'movies' ? movieQuery : id === 'series' ? seriesQuery : animeQuery;
         const items = query.data?.items ?? [];
         return (
-          <section className="v4-content-section v4-apple-rail-section" id={\`seedhub-\${id}\`} aria-label={title} key={id}>
+          <section className="v4-content-section v4-apple-rail-section" id={`seedhub-${id}`} aria-label={title} key={id}>
             <div className="v4-section-heading"><h2>{title} <span aria-hidden="true">›</span></h2></div>
             {query.isLoading ? (
-              <div className="v4-apple-rail" aria-label={\`\${title}加载中\`}>
+              <div className="v4-apple-rail" aria-label={`${title}加载中`}>
                 {Array.from({ length: 4 }).map((_, index) => <div className="v4-apple-poster-skeleton" key={index} />)}
               </div>
             ) : query.isError ? (
@@ -154,7 +154,7 @@ export function SeedHubHomepage() {
                 <button type="button" className="ml-2 underline" onClick={() => void query.refetch()}>重试</button>
               </div>
             ) : items.length ? (
-              <div className="v4-apple-rail" aria-label={\`\${title}，可横向滑动\`}>
+              <div className="v4-apple-rail" aria-label={`${title}，可横向滑动`}>
                 {items.map((item, index) => (
                   <button className="v4-apple-poster-card" key={item.source_url} type="button" onClick={() => openSeedHubDetail(item)}>
                     <span className="v4-apple-poster-art">
@@ -225,10 +225,10 @@ function V4ContinueCard({ item }: { item: HistoryEntry }) {
       </div>
       <div className="v4-history-copy">
         <strong title={item.title}>{item.title}</strong>
-        <span>第 {item.episodeIndex + 1} 集 · {formatTime(item.playbackPosition)}{item.duration > 0 ? \` / \${formatTime(item.duration)}\` : ''}</span>
+        <span>第 {item.episodeIndex + 1} 集 · {formatTime(item.playbackPosition)}{item.duration > 0 ? ` / ${formatTime(item.duration)}` : ''}</span>
         <div className="v4-progress-meta">
-          <div className="v4-progress-track" role="progressbar" aria-label={\`\${item.title} 播放进度\`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
-            <span style={{ width: \`\${percent}%\` }} />
+          <div className="v4-progress-track" role="progressbar" aria-label={`${item.title} 播放进度`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
+            <span style={{ width: `${percent}%` }} />
           </div>
           <span className="v4-progress-percent">{percent}%</span>
         </div>
