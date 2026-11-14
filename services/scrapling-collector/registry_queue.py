@@ -534,7 +534,7 @@ def api_search_resources(q: str = "", verified_only: bool = True, limit: int = Q
     with connect() as c:
         sql = "SELECT r.*,s.name AS source_name,s.host AS source_host FROM registry_resources r LEFT JOIN registry_sources s ON s.id=r.source_id WHERE 1=1"
         args: list[Any] = []
-        if verified_only: sql += " AND r.validation_state='validated' AND r.playback_state='PLAYER_CONFIRMED' AND r.access_state='PUBLIC'"
+        if verified_only: sql += " AND r.validation_state='validated' AND r.playback_state='PLAYER_CONFIRMED' AND r.access_state='PUBLIC' AND r.resource_type='DIRECT_MEDIA' AND r.media_format IN ('hls','mp4','webm')"
         if q.strip(): sql += " AND (r.title LIKE ? OR r.resource_key LIKE ?)"; args.extend([f"%{q[:100]}%",f"%{q[:100]}%"])
         rows=c.execute(sql+" ORDER BY r.updated_at DESC LIMIT ?",(*args,limit)).fetchall()
     return {"resources":[dict(r) for r in rows]}
