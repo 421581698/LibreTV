@@ -146,6 +146,38 @@ class SeedHubDetailSyncTests(unittest.TestCase):
         self.assertEqual(saved["poster_url"], "https://sh1.pcie.pppoe.top/poster.jpg")
 
 
+class SeedHubDetailCacheTests(unittest.TestCase):
+    def test_cached_detail_is_served_without_network_or_egress_access(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        import seedhub
+
+        source_url = "https://www.seedhub.cc/movies/127423/"
+        cached = {
+            "source_name": "SeedHub", "source_url": source_url, "title": "谷雨",
+            "category": "series", "description": "已缓存的真实详情",
+            "metadata": {"episode_count": "30"}, "poster_url": "https://sh1.pcie.pppoe.top/poster.jpg",
+            "still_urls": [], "mode": "metadata-only",
+            "external_resource_links_extracted": False,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(seedhub, "DB_PATH", Path(directory) / "catalog.sqlite3"), \
+                 patch.object(seedhub, "_require_auth"), \
+                 patch.object(seedhub.Fetcher, "get", side_effect=AssertionError("cached detail must not fetch")):
+                seedhub._initialize()
+                with seedhub._connect() as conn:
+                    conn.execute(
+                        "INSERT INTO seedhub_catalog(source_url,title,category,poster_url,discovered_at,detail_json) VALUES(?,?,?,?,?,?)",
+                        (source_url, "谷雨", "series", cached["poster_url"], 1, json.dumps(cached, ensure_ascii=False)),
+                    )
+                result = seedhub.seedhub_detail(source_url, authorization="Bearer test")
+
+        self.assertEqual(result["category"], "series")
+        self.assertEqual(result["description"], "已缓存的真实详情")
+
+
 class SeedHubDetailPersistenceTests(unittest.TestCase):
     def test_detail_endpoint_persists_full_metadata_for_catalogue_reads(self):
         import tempfile
