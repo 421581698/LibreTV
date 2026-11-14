@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import os
 import uuid
 
@@ -15,7 +14,6 @@ from app import (
     validate_candidate,
 )
 from registry_queue import JobCancelled, run_worker, submit_job
-from seedhub import sync_seedhub_details, sync_seedhub_pages
 
 # Bound automatic network validation per crawl so one discovered site cannot
 # trigger an unbounded number of outbound media probes.
@@ -25,52 +23,6 @@ MAX_AUTOMATIC_MEDIA_PREFLIGHTS = 20
 def handle(payload: dict, checkpoint, cancelled):
     if cancelled():
         raise JobCancelled()
-    if payload.get("_job_type") == "seedhub_sync":
-        category = str(payload.get("category") or "movies")
-        start_page = int(payload.get("start_page") or 1)
-        pages = int(payload.get("pages") or 1)
-        checkpoint({"stage": "seedhub_sync_started", "category": category, "start_page": start_page, "pages": pages})
-        result = sync_seedhub_pages(
-            category, start_page, pages, checkpoint=checkpoint, cancelled=cancelled,
-        )
-        if not cancelled() and result.get("records_indexed", 0):
-            detail_job = submit_job(
-                "seedhub_detail_sync",
-                {"category": category, "limit": 10},
-                f"seedhub-detail:{category}:catalog:{start_page}:{pages}",
-            )
-            result["detail_enrichment_job_id"] = detail_job["id"]
-        next_page = result.get("next_page")
-        if (not cancelled() and result.get("status") == "succeeded" and
-                isinstance(next_page, int) and next_page > start_page):
-            remaining = max(1, int(result.get("total_pages", next_page)) - next_page + 1)
-            next_pages = min(50, remaining)
-            next_catalog_job = submit_job(
-                "seedhub_sync",
-                {"category": category, "start_page": next_page, "pages": next_pages},
-                f"seedhub-catalog:{category}:page:{next_page}",
-            )
-            result["next_catalog_job_id"] = next_catalog_job["id"]
-        return result
-
-    if payload.get("_job_type") == "seedhub_detail_sync":
-        category = str(payload.get("category") or "movies")
-        limit = int(payload.get("limit") or 10)
-        checkpoint({"stage": "seedhub_detail_sync_started", "category": category, "limit": limit})
-        result = sync_seedhub_details(
-            category, limit=limit, checkpoint=checkpoint, cancelled=cancelled,
-        )
-        if not cancelled() and result.get("details_remaining", 0) and result.get("last_source_url"):
-            cursor_value = result["last_source_url"] + ":" + str(result.get("detail_retry_round", 1))
-            cursor_hash = hashlib.sha256(cursor_value.encode()).hexdigest()[:32]
-            next_job = submit_job(
-                "seedhub_detail_sync",
-                {"category": category, "limit": 10},
-                f"seedhub-detail:{category}:after:{cursor_hash}",
-            )
-            result["next_detail_job_id"] = next_job["id"]
-        return result
-
     if payload.get("_job_type") == "discover":
         require_egress_firewall()
         checkpoint({"stage": "fmhy_discovery_started"})
