@@ -17,6 +17,7 @@ import { db, removeFavorite, type FavoriteEntry, type HistoryEntry } from '@/lib
 import { isInDisabledSubscription, isSourceDisabled, resolveSource, useAppStore } from '@/lib/store';
 import type { DoubanItem, SearchResultItem, SourceConfig } from '@/lib/types';
 import { api } from '@/lib/client-api';
+import { collectorFetch } from '@/lib/collector-browser-config';
 import { validateSourceUrl } from '@/lib/utils';
 import { formatTime } from '@/lib/utils';
 
@@ -90,11 +91,11 @@ export function V4SpatialScreen({ screen }: { screen: Screen }) {
           </div>
         ) : null}
 
-        {screen === 'movies' ? <CatalogScreen category="movie" onPick={openRecommendation} /> : null}
-        {screen === 'tv' ? <CatalogScreen category="tv" onPick={openRecommendation} /> : null}
+        {screen === 'movies' ? <><CatalogScreen category="movie" onPick={openRecommendation} /><SeedHubCatalogSection category="movies" /></> : null}
+        {screen === 'tv' ? <><CatalogScreen category="tv" onPick={openRecommendation} /><SeedHubCatalogSection category="series" /></> : null}
         {screen === 'variety' ? <CatalogScreen category="variety" onPick={openRecommendation} /> : null}
         {screen === 'overseas' ? <CatalogScreen category="overseas" onPick={openRecommendation} /> : null}
-        {screen === 'anime' ? <AnimeScreen onPick={openRecommendation} /> : null}
+        {screen === 'anime' ? <><AnimeScreen onPick={openRecommendation} /><SeedHubCatalogSection category="anime" /></> : null}
         {screen === 'resources' ? <ResourcesScreen onPick={openDetail} /> : null}
         {screen === 'me' ? <MeScreen /> : null}
         {screen === 'settings' ? <SettingsScreen /> : null}
@@ -104,6 +105,55 @@ export function V4SpatialScreen({ screen }: { screen: Screen }) {
   );
 }
 
+type SeedHubCategory = 'movies' | 'series' | 'anime';
+type SeedHubDetail = { title?: string; description?: string; poster_url?: string | null; still_urls?: string[]; metadata?: Record<string, string>; source_url?: string; mode?: string };
+type SeedHubCatalogItem = { source_url: string; title: string; category: SeedHubCategory; poster_url?: string | null; detail?: SeedHubDetail | null };
+const SEEDHUB_LABEL: Record<SeedHubCategory, string> = { movies: '电影', series: '剧集', anime: '动漫' };
+
+function SeedHubCatalogSection({ category }: { category: SeedHubCategory }) {
+  const [selected, setSelected] = useState<SeedHubCatalogItem | null>(null);
+  const [detail, setDetail] = useState<SeedHubDetail | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [error, setError] = useState('');
+  const imageProxyMode = useAppStore((s) => s.imageProxyMode);
+  const customImageProxy = useAppStore((s) => s.customImageProxy);
+  const catalog = useQuery({
+    queryKey: ['seedhub-catalog', category],
+    queryFn: async () => {
+      const response = await collectorFetch('/api/resource-collector?action=seedhub-catalog&category=' + category + '&limit=24&offset=0');
+      const payload = await response.json() as { items?: SeedHubCatalogItem[]; total?: number; error?: string };
+      if (!response.ok) throw new Error(payload.error || 'SeedHub 采集库暂不可用。');
+      return { items: Array.isArray(payload.items) ? payload.items : [], total: Number(payload.total) || 0 };
+    },
+    staleTime: 60_000,
+    retry: false,
+  });
+  const openItem = async (item: SeedHubCatalogItem) => {
+    setSelected(item); setDetail(item.detail ?? null); setError('');
+    if (item.detail) return;
+    setLoadingDetail(true);
+    try {
+      const response = await collectorFetch('/api/resource-collector?action=seedhub-detail&url=' + encodeURIComponent(item.source_url));
+      const payload = await response.json() as SeedHubDetail & { error?: string };
+      if (!response.ok) throw new Error(payload.error || '影片详情读取失败。');
+      setDetail(payload); void catalog.refetch();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : '影片详情读取失败。'); }
+    finally { setLoadingDetail(false); }
+  };
+  return (
+    <section className="v4-spatial-panel" aria-label={'SeedHub ' + SEEDHUB_LABEL[category] + '采集库'}>
+      <div className="v4-spatial-panel-head"><h2>SeedHub {SEEDHUB_LABEL[category]}</h2><span>{catalog.data ? '已采集 ' + catalog.data.total + ' 条' : '独立采集目录'}</span></div>
+      {catalog.isError ? <div className="v4-spatial-empty" role="status"><strong>SeedHub 采集库暂不可用</strong><p>{catalog.error instanceof Error ? catalog.error.message : '请检查设置中的 Scrapling HTTPS 地址和 Token，并确认采集服务已部署。'}</p></div>
+      : catalog.isLoading ? <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3" aria-busy="true">{Array.from({ length: 6 }, (_, index) => <div key={index} className="aspect-[2/3] rounded-lg bg-chip animate-pulse" />)}</div>
+      : !catalog.data?.items.length ? <div className="v4-spatial-empty">SeedHub 目录还没有采集记录。请先到设置中的 SeedHub 内容采集提交采集任务。</div>
+      : <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">{catalog.data.items.map((item) => <button key={item.source_url} type="button" onClick={() => void openItem(item)} className="group min-w-0 overflow-hidden rounded-xl text-left" aria-label={'查看 ' + item.title + ' 的 SeedHub 详情'}><div className="relative aspect-[2/3] overflow-hidden rounded-lg bg-chip">{item.poster_url ? <SmartImage url={item.poster_url} mode={imageProxyMode} customProxy={customImageProxy} alt="" className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105" /> : <div className="flex h-full items-center justify-center px-2 text-center text-xs text-faint">暂无真实海报</div>}</div><strong className="mt-2 block line-clamp-2 text-xs text-content">{item.title}</strong><span className="mt-1 block text-[10px] text-faint">SeedHub · 详情资料</span></button>)}</div>}
+      {selected ? <div className="mt-5 rounded-2xl border border-subtle bg-surface/70 p-4" aria-live="polite"><div className="flex items-start justify-between gap-3"><div><h3 className="text-base font-semibold text-content">{detail?.title || selected.title}</h3><p className="mt-1 text-xs text-faint">SeedHub 元数据 · 不代表已验证可播放</p></div><button type="button" className="rounded-lg px-3 py-1.5 text-xs text-muted hover:bg-chip" onClick={() => { setSelected(null); setDetail(null); setError(''); }}>关闭</button></div>
+        {loadingDetail ? <p className="mt-3 text-sm text-muted">正在读取真实详情与剧照…</p> : null}{error ? <p className="mt-3 text-sm text-amber-600" role="alert">{error}</p> : null}
+        {detail ? <>{detail.description ? <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted">{detail.description}</p> : null}{detail.metadata && Object.entries(detail.metadata).length ? <dl className="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">{Object.entries(detail.metadata).map(([key, value]) => <div key={key} className="flex gap-2"><dt className="shrink-0 text-faint">{({ director: '导演', writers: '编剧', cast: '主演', genres: '类型', countries: '地区', languages: '语言', premiere: '首播', episode_count: '集数', runtime: '片长', aliases: '又名' } as Record<string, string>)[key] || key}</dt><dd className="text-content">{value}</dd></div>)}</dl> : null}{detail.still_urls?.length ? <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">{detail.still_urls.slice(0, 9).map((url) => <SmartImage key={url} url={url} mode={imageProxyMode} customProxy={customImageProxy} alt="影片剧照" className="aspect-video w-full rounded-lg object-cover" />)}</div> : null}<a className="mt-4 inline-flex text-xs text-accent underline" href={detail.source_url || selected.source_url} target="_blank" rel="noopener noreferrer">查看 SeedHub 原始详情页</a></> : null}
+      </div> : null}
+    </section>
+  );
+}
 type CatalogCategory = 'movie' | 'tv' | 'variety' | 'overseas';
 
 const CATALOG_TAGS: Record<CatalogCategory, string[]> = {
