@@ -195,7 +195,7 @@ function CatalogScreen({ category, onPick }: { category: CatalogCategory; onPick
         <div className="v4-spatial-empty">该分类暂无推荐内容。</div>
       ) : (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
-          {items.map((item) => <DoubanCard key={item.id} item={item} isTv={type === 'tv'} enableTmdbFallback onClick={() => onPick(item)} />)}
+          {items.map((item) => <DoubanCard key={item.id} item={item} onClick={() => onPick(item)} />)}
         </div>
       )}
     </section>
