@@ -126,10 +126,16 @@ class SeedHubDetailPersistenceTests(unittest.TestCase):
             stack.enter_context(patch.object(seedhub, "_require_public_seedhub_host"))
             stack.enter_context(patch.object(seedhub, "_require_auth"))
             stack.enter_context(patch.object(seedhub.Fetcher, "get", return_value=Response()))
-            detail = seedhub.seedhub_detail("https://www.seedhub.cc/movies/130096/", authorization="Bearer test")
-            catalog = seedhub.seedhub_catalog("movies", 50, 0, "Bearer test")
+            detail = seedhub.seedhub_detail(
+                "https://www.seedhub.cc/movies/130096/",
+                category="series",
+                authorization="Bearer test",
+            )
+            catalog = seedhub.seedhub_catalog("series", 50, 0, "Bearer test")
 
         self.assertEqual(detail["metadata"]["director"], "测试导演")
+        self.assertEqual(detail["category"], "series")
+        self.assertEqual(catalog["category"], "series")
         self.assertEqual(catalog["total"], 1)
         saved = catalog["items"][0]["detail"]
         self.assertEqual(saved["description"], "这是用于验证详情持久化的简介。")
