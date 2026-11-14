@@ -104,7 +104,7 @@ def _require_egress_firewall():
 
 def _catalog_path(category: str, page: int) -> str:
     category_id = {"movies": 1, "series": 3, "anime": 2}[category]
-    section = {"movies": "movies", "series": "series", "anime": "anime"}[category]
+    section = "movies"
     suffix = "" if page == 1 else f"?page={page}"
     return f"/categories/{category_id}/{section}/{suffix}"
 
