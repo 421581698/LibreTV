@@ -1,6 +1,13 @@
 name: SeedHub Live Read-only Smoke
 
 on:
+  push:
+    branches:
+      - feature/homepage-cinema-lobby-order-2026-11-11
+    paths:
+      - 'services/scrapling-collector/seedhub.py'
+      - 'services/scrapling-collector/seedhub_live_smoke.py'
+      - '.github/workflows/seedhub-live-readonly-smoke.yml'
   workflow_dispatch:
 
 permissions:
