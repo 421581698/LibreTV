@@ -45,9 +45,10 @@ def main() -> int:
         items = parse_catalog_html(html, url, category)
         if len(items) < 10:
             raise RuntimeError(f"{category}: expected at least 10 catalogue records, got {len(items)}")
-        expected_prefix = f"/{category}/"
-        if any(not urlparse(item["source_url"]).path.startswith(expected_prefix) for item in items):
-            raise RuntimeError(f"{category}: parser returned a detail URL outside its category")
+        # SeedHub uses the /movies/<id>/ detail route for all three catalogues.
+        allowed_detail_prefixes = ("/movies/", "/series/", "/anime/")
+        if any(not urlparse(item["source_url"]).path.startswith(allowed_detail_prefixes) for item in items):
+            raise RuntimeError(f"{category}: parser returned a URL outside supported detail routes")
         unique_urls = {item["source_url"] for item in items}
         if len(unique_urls) != len(items):
             raise RuntimeError(f"{category}: duplicate detail URLs in one catalogue page")
