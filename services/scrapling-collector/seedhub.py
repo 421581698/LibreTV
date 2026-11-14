@@ -129,7 +129,7 @@ class _DetailParser(HTMLParser):
     def handle_data(self, data):
         if self.skip_text or not data.strip():
             return
-        value = re.sub(r"\\s+", " ", data).strip()
+        value = re.sub(r"\s+", " ", data).strip()
         if self.in_heading:
             self.current_section = value
             self.section_text.setdefault(value, [])
@@ -186,7 +186,7 @@ def parse_detail_html(html: str, page_url: str) -> dict:
     fields_blob = clean(parser.all_text)
     def extract_field(label: str, stops: tuple[str, ...]) -> str | None:
         stop_pattern = "|".join(re.escape(item) for item in stops)
-        match = re.search(rf"{re.escape(label)}[:：]\\s*(.+?)(?=(?:{stop_pattern})[:：]|$)", fields_blob)
+        match = re.search(rf"{re.escape(label)}[:：]\s*(.+?)(?=(?:{stop_pattern})[:：]|$)", fields_blob)
         return match.group(1).strip(" /|")[:1000] if match else None
     metadata = {
         "director": extract_field("导演", ("编剧", "主演", "类型")),
