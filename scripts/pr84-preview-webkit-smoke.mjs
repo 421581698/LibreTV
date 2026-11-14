@@ -309,6 +309,10 @@ try {
     const close = header?.querySelector('.cinema-close-control');
     const airplay = header?.querySelector('[aria-label="AirPlay"]');
     const centerControls = document.querySelectorAll('.cinema-center-controls button');
+    const centerControlSizes = Array.from(centerControls).map((button) => {
+      const rect = button.getBoundingClientRect();
+      return { className: button.className, width: rect.width, height: rect.height };
+    });
     const info = document.querySelector('.watch-cinema-info');
     const tabs = document.querySelector('.watch-cinema-tabs');
     const dock = document.querySelector('body > nav.v4-mobile-tabbar');
@@ -345,6 +349,7 @@ try {
       hasAirPlayControl: Boolean(airplay),
       centerControlCount: centerControls.length,
       centerControlDisplay: centerStyle.display,
+      centerControlSizes,
       infoPosition: infoStyle.position,
       infoBottom: info.getBoundingClientRect().bottom,
       infoTop: info.getBoundingClientRect().top,
@@ -385,7 +390,13 @@ try {
       watchLayout.headerButtons !== 3 || watchLayout.hasHeaderAssistant) {
     throw new Error('Immersive header must contain close, AirPlay and utility controls without a page title: ' + JSON.stringify(watchLayout));
   }
+  const oversizedTransportControl = watchLayout.centerControlSizes.some((control) =>
+    control.className.includes('cinema-play-control')
+      ? control.width > 68 || control.height > 68
+      : control.width > 48 || control.height > 48
+  );
   if (watchLayout.centerControlCount !== 3 || watchLayout.centerControlDisplay !== 'flex' ||
+      oversizedTransportControl ||
       watchLayout.infoPosition !== 'fixed' || watchLayout.tabCount !== 3 ||
       watchLayout.infoTop <= 0 || watchLayout.infoBottom > 844) {
     throw new Error('Reference-matched center controls or fixed bottom information panel are missing: ' + JSON.stringify(watchLayout));
