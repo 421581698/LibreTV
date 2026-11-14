@@ -11,7 +11,6 @@ from seedhub import parse_catalog_html, parse_detail_html
 
 ORIGIN = "https://www.seedhub.cc"
 CATEGORY_PATHS = {"movies": 1, "series": 3, "anime": 2}
-DETAIL_SAMPLE = ORIGIN + "/movies/130096/"
 REQUEST_HEADERS = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
@@ -38,6 +37,7 @@ def fetch_html(url: str) -> str:
 
 def main() -> int:
     totals: dict[str, int] = {}
+    detail_samples: dict[str, dict] = {}
     for category, category_id in CATEGORY_PATHS.items():
         # SeedHub currently exposes the three public catalogues under these fixed paths.
         url = f"{ORIGIN}/categories/{category_id}/movies/"
@@ -62,26 +62,32 @@ def main() -> int:
             print("SEEDHUB_LIVE_DIAGNOSTIC image_context=" + repr(excerpt), flush=True)
             raise RuntimeError(f"{category}: no real poster URLs were extracted")
         totals[category] = len(items)
+        detail_samples[category] = items[0]
         print(f"PASS catalogue {category}: {len(items)} records, {posters} poster URLs, unique detail URLs")
         time.sleep(1)
 
-    detail_html = fetch_html(DETAIL_SAMPLE)
-    detail = parse_detail_html(detail_html, DETAIL_SAMPLE)
-    if "生化危机" not in detail.get("title", ""):
-        raise RuntimeError("Detail sample title did not match the expected SeedHub page")
-    if not detail.get("description"):
-        raise RuntimeError("Detail sample has no extracted synopsis")
-    if not detail.get("poster_url"):
-        raise RuntimeError("Detail sample has no extracted poster")
-    if not detail.get("still_urls"):
-        raise RuntimeError("Detail sample has no extracted still images")
-    if detail.get("external_resource_links_extracted") is not False:
-        raise RuntimeError("The live probe must never extract external share/download links")
-    print(
-        "PASS detail sample: "
-        f"title={detail['title']!r}, poster=yes, stills={len(detail['still_urls'])}, "
-        "metadata_only=yes, external_share_links=not_extracted"
-    )
+    # Every SeedHub content type currently shares /movies/<id>/ detail URLs.
+    # Carry the catalogue category explicitly and verify it survives live parsing.
+    for category, item in detail_samples.items():
+        detail_url = item["source_url"]
+        detail_html = fetch_html(detail_url)
+        detail = parse_detail_html(detail_html, detail_url, category)
+        if detail.get("category") != category:
+            raise RuntimeError(f"{category}: detail category was not preserved from its catalogue")
+        if not detail.get("title") or not detail.get("description"):
+            raise RuntimeError(f"{category}: live detail is missing title or synopsis")
+        if not detail.get("poster_url"):
+            raise RuntimeError(f"{category}: live detail has no extracted poster")
+        if not detail.get("still_urls"):
+            raise RuntimeError(f"{category}: live detail has no extracted still images")
+        if detail.get("external_resource_links_extracted") is not False:
+            raise RuntimeError("The live probe must never extract external share/download links")
+        print(
+            f"PASS detail {category}: title={detail['title']!r}, "
+            f"poster=yes, stills={len(detail['still_urls'])}, category_preserved=yes"
+        )
+        time.sleep(1)
+
     print("SEEDHUB_LIVE_SMOKE_OK " + " ".join(f"{key}={value}" for key, value in totals.items()))
     return 0
 
