@@ -353,7 +353,7 @@ jobs:
 
       - name: Install FFmpeg for real MP4 download fixture
         id: install-ffmpeg
-        if: always() && steps.deploy-preview.outcome == 'success' && steps.install-chrome.outcome == 'success'
+        if: always() && steps.deploy-preview.outcome == 'success' && steps.install-chromium.outcome == 'success'
         timeout-minutes: 5
         run: |
           if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
