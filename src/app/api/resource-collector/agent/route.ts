@@ -19,8 +19,6 @@ const planSchema = z.object({
     site_host: z.string().trim().min(1).max(253).optional(),
     mode: z.enum(['auto', 'http', 'browser']).optional(),
     limit: z.number().int().min(1).max(50).optional(),
-    category: z.enum(['movies', 'series', 'anime']).optional(),
-    pages: z.number().int().min(1).max(20).optional(),
     rationale: z.string().trim().max(240),
   }).strict()).min(1).max(4),
 }).strict();
