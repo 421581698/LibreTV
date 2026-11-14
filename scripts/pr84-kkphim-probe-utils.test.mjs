@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getItems, getMovieDetail, getPlaybackLinks, getEmbedMediaUrls, getSameOriginScriptUrls, sampleIndexes, rankHomeItems } from "./pr84-kkphim-probe-utils.mjs";
+import { getItems, getMovieDetail, getPlaybackLinks, getEmbedMediaUrls, getSameOriginScriptUrls, sampleIndexes, rankHomeItems, selectPlaybackCandidates } from "./pr84-kkphim-probe-utils.mjs";
 
 test("reads legacy and v1 home list shapes", () => {
   assert.equal(getItems({ items: [{ slug: "old" }] })[0].slug, "old");
@@ -127,4 +127,19 @@ test("ranks a small homepage sample by quality, rating and popularity with stabl
   ];
   assert.deepEqual(rankHomeItems(items, 3).map((item) => item.slug), ["4k", "middle", "popular"]);
   assert.deepEqual(rankHomeItems([{ slug: "a" }, { slug: "b" }], 2).map((item) => item.slug), ["a", "b"]);
+});
+
+test("retains an embed fallback when the preferred direct HLS URL is stale", () => {
+  const hls = { server: "A", episode: "E1", kind: "hls", url: "https://cdn.test/dead.m3u8" };
+  const matchingEmbed = { server: "A", episode: "E1", kind: "embed", url: "https://player.test/embed/e1" };
+  const otherEmbed = { server: "B", episode: "E2", kind: "embed", url: "https://player.test/embed/e2" };
+  const selected = selectPlaybackCandidates([hls, matchingEmbed, otherEmbed]);
+  assert.equal(selected.length, 1);
+  assert.equal(selected[0].link, hls);
+  assert.equal(selected[0].fallbackLink, matchingEmbed);
+});
+
+test("uses embed candidates when a title has no direct HLS link", () => {
+  const embed = { server: "A", episode: "E1", kind: "embed", url: "https://player.test/embed/e1" };
+  assert.deepEqual(selectPlaybackCandidates([embed]), [{ link: embed, fallbackLink: null }]);
 });

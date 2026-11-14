@@ -12,6 +12,7 @@ import {
   summarizeMediaUrl,
   summarizeResponseHeaders,
   rankHomeItems,
+  selectPlaybackCandidates,
 } from "./pr84-kkphim-probe-utils.mjs";
 
 const API_ORIGIN = "https://phimapi.com";
@@ -484,9 +485,12 @@ for (const [itemIndex, item] of items.entries()) {
     }
   }
   const links = getPlaybackLinks(payload);
-  // One candidate per title; prefer direct HLS over an embed indirection.
-  const preferred = [...links].sort((a, b) => (a.kind === "hls" ? 0 : 1) - (b.kind === "hls" ? 0 : 1));
-  const movieCandidates = preferred.length ? [{ item, detail: getMovieDetail(payload), detailFormat, link: preferred[0] }] : [];
+  // Keep one primary candidate per title, but preserve the corresponding embed
+  // URL so a stale direct HLS address does not prevent player-page inspection.
+  const preferred = selectPlaybackCandidates(links);
+  const movieCandidates = preferred.length
+    ? [{ item, detail: getMovieDetail(payload), detailFormat, ...preferred[0] }]
+    : [];
   candidates.push(...movieCandidates);
   diagnostics.push({ slug, detailFormat, apiFallbackFailure, servers: new Set(links.map((link) => link.server)).size, playbackKinds: [...new Set(links.map((link) => link.kind))], episodeLinks: links.length, sampledCandidates: movieCandidates.length });
   if (candidates.length >= MAX_LINKS) break;
@@ -604,6 +608,7 @@ for (const candidate of candidates) {
   let originalFailure = null;
   let refreshedLink = null;
   let refreshedFailure = null;
+  let fallbackFailure = null;
   try {
     const result = await verifyCandidate(candidate);
     success = { ...candidate, ...result };
@@ -611,6 +616,19 @@ for (const candidate of candidates) {
   } catch (error) {
     lastError = error;
     originalFailure = error;
+  }
+
+  if (candidate.fallbackLink) {
+    console.log("KKPhim probe: trying embed fallback for " + candidate.item.slug + " / " + candidate.fallbackLink.server + " / " + candidate.fallbackLink.episode);
+    try {
+      const fallbackCandidate = { ...candidate, link: candidate.fallbackLink };
+      const result = await verifyCandidate(fallbackCandidate);
+      success = { ...fallbackCandidate, ...result, fallbackUsed: true };
+      break;
+    } catch (error) {
+      fallbackFailure = error;
+      lastError = error;
+    }
   }
 
   // API media links can expire between metadata collection and playback verification.
@@ -650,8 +668,11 @@ for (const candidate of candidates) {
     originalUrl: summarizeMediaUrl(candidate.link.url),
     refreshedUrl: refreshedLink ? summarizeMediaUrl(refreshedLink.url) : null,
     refreshedUrlChanged: Boolean(refreshedLink && refreshedLink.url !== candidate.link.url),
+    fallbackKind: candidate.fallbackLink?.kind || null,
+    fallbackUrl: candidate.fallbackLink ? summarizeMediaUrl(candidate.fallbackLink.url) : null,
     attempts: [
       ...(originalFailure?.attempts || []),
+      ...(fallbackFailure?.attempts || []),
       ...(refreshedFailure?.attempts || []),
     ],
     error: String(lastError?.message || lastError).slice(0, 180),

@@ -63,6 +63,21 @@ export function getSameOriginScriptUrls(rawUrl, html) {
   return [...new Set(urls)].slice(0, 4);
 }
 
+/** Keep direct HLS first, but retain an embed fallback for the same episode. */
+export function selectPlaybackCandidates(links) {
+  const hlsLinks = links.filter((link) => link.kind === "hls");
+  const embedLinks = links.filter((link) => link.kind === "embed");
+  if (hlsLinks.length) {
+    return hlsLinks.map((link) => ({
+      link,
+      fallbackLink: embedLinks.find((candidate) =>
+        candidate.server === link.server && candidate.episode === link.episode
+      ) || embedLinks.find((candidate) => candidate.server === link.server) || embedLinks[0] || null,
+    }));
+  }
+  return embedLinks.map((link) => ({ link, fallbackLink: null }));
+}
+
 export function sampleIndexes(length) {
   if (!length) return [];
   return [...new Set([0, Math.floor((length - 1) / 2), length - 1])];
