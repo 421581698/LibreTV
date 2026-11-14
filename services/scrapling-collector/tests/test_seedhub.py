@@ -344,7 +344,16 @@ class SeedHubSnapshotPurgeTests(unittest.TestCase):
                     seedhub._initialize()
                 with seedhub._connect() as conn:
                     count = conn.execute("SELECT COUNT(*) AS n FROM seedhub_catalog").fetchone()["n"]
+                    conn.execute(
+                        "INSERT INTO seedhub_catalog(source_url,title,category,discovered_at) VALUES(?,?,?,?)",
+                        (source_url, "新写入的详情缓存", "movies", 2),
+                    )
+                with patch.dict(os.environ, {"SEEDHUB_PURGE_LEGACY_CATALOG": "1"}):
+                    seedhub._initialize()
+                with seedhub._connect() as conn:
+                    retained = conn.execute("SELECT COUNT(*) AS n FROM seedhub_catalog").fetchone()["n"]
         self.assertEqual(count, 0)
+        self.assertEqual(retained, 1)
 
 
 class SeedHubCacheOnlyTests(unittest.TestCase):
