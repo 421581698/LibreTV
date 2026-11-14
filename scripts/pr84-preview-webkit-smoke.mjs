@@ -349,12 +349,23 @@ try {
       Math.abs(watchLayout.shellHeight - 844) > 2) {
     throw new Error('Watch player shell is not filling the mobile viewport: ' + JSON.stringify(watchLayout));
   }
-  if (!watchLayout.videoReady ||
-      Math.abs(watchLayout.fittedVideoCenter.x - (watchLayout.frameRect.x + watchLayout.frameRect.width / 2)) > 1 ||
-      Math.abs(watchLayout.fittedVideoCenter.y - (watchLayout.frameRect.y + watchLayout.frameRect.height / 2)) > 1 ||
-      Math.abs(watchLayout.centerControlsCenter.x - watchLayout.fittedVideoCenter.x) > 2 ||
-      Math.abs(watchLayout.centerControlsCenter.y - watchLayout.fittedVideoCenter.y) > 2) {
-    throw new Error('Actual fitted video image and transport controls are not centered in the cinema stage: ' + JSON.stringify(watchLayout));
+  const stageCenter = {
+    x: watchLayout.shellWidth / 2,
+    y: watchLayout.shellHeight / 2,
+  };
+  const frameCoversStage =
+    Math.abs(watchLayout.frameRect.x) <= 1 &&
+    Math.abs(watchLayout.frameRect.y) <= 1 &&
+    Math.abs(watchLayout.frameRect.width - watchLayout.shellWidth) <= 1 &&
+    Math.abs(watchLayout.frameRect.height - watchLayout.shellHeight) <= 2;
+  const fittedImageCentered = !watchLayout.videoReady || (
+    Math.abs(watchLayout.fittedVideoCenter.x - stageCenter.x) <= 1 &&
+    Math.abs(watchLayout.fittedVideoCenter.y - stageCenter.y) <= 1
+  );
+  if (!frameCoversStage || !fittedImageCentered ||
+      Math.abs(watchLayout.centerControlsCenter.x - stageCenter.x) > 2 ||
+      Math.abs(watchLayout.centerControlsCenter.y - stageCenter.y) > 2) {
+    throw new Error('Cinema video stage or transport controls are not centered in the full viewport: ' + JSON.stringify(watchLayout));
   }
   if (watchLayout.dockDisplay !== 'none') {
     throw new Error('Immersive watch mode must hide the global mobile navigation dock: ' + JSON.stringify(watchLayout));
