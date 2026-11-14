@@ -328,6 +328,8 @@ try {
   console.log('PASS PR84 Preview WebKit watch-page header + player controls + horizontal dock:', JSON.stringify(watchLayout));
 
   // Verify the new dedicated SeedHub detail route is included in the deployed build.
+  // Isolate SeedHub diagnostics from late player/media errors emitted by the prior watch-page test.
+  pageErrors.length = 0;
   // No collector credentials are assumed here: the empty-URL state must render
   // safely without issuing a request to the external Scrapling service.
   const seedHubResponse = await page.goto(base + '/seedhub', {
