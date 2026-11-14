@@ -120,7 +120,7 @@ function WatchContent() {
       observer.disconnect();
       detach();
     };
-  }, [currentUrl]);
+  }, [sourceKey, vodId, indexParam, directUrl]);
   const [sheetMaxHeight] = useState<number | undefined>(undefined);
 
   // 优先使用本次播放 URL 传入的数据源地址，普通源仍以本机配置为准。
