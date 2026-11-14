@@ -563,6 +563,49 @@ def seedhub_detail(
         raise HTTPException(status_code=502, detail=f"SeedHub detail fetch failed: {type(exc).__name__}")
 
 
+@router.get("/v1/seedhub/search")
+def seedhub_search(
+    q: str = Query(..., min_length=1, max_length=100),
+    category: str | None = Query(default=None, pattern="^(movies|series|anime)$"),
+    limit: int = Query(default=20, ge=1, le=50),
+    authorization: str | None = Header(default=None),
+):
+    """Search imported public catalogue metadata; no playback/share URLs are extracted."""
+    _require_auth(authorization)
+    term = q.strip()
+    if not term:
+        return {"source": "SeedHub", "query": "", "items": []}
+    _initialize()
+    pattern = "%" + term.replace("%", "\\%").replace("_", "\\_") + "%"
+    with _connect() as conn:
+        if category:
+            rows = conn.execute(
+                """SELECT source_url,title,category,poster_url,discovered_at,detail_json
+                   FROM seedhub_catalog
+                   WHERE category=? AND (title LIKE ? ESCAPE '\\\\' OR detail_json LIKE ? ESCAPE '\\\\')
+                   ORDER BY discovered_at DESC LIMIT ?""",
+                (category, pattern, pattern, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """SELECT source_url,title,category,poster_url,discovered_at,detail_json
+                   FROM seedhub_catalog
+                   WHERE title LIKE ? ESCAPE '\\\\' OR detail_json LIKE ? ESCAPE '\\\\'
+                   ORDER BY discovered_at DESC LIMIT ?""",
+                (pattern, pattern, limit),
+            ).fetchall()
+    items = []
+    for row in rows:
+        item = dict(row)
+        raw_detail = item.pop("detail_json", None)
+        try:
+            item["detail"] = json.loads(raw_detail) if raw_detail else None
+        except (TypeError, json.JSONDecodeError):
+            item["detail"] = None
+        items.append(item)
+    return {"source": "SeedHub", "query": term, "items": items}
+
+
 @router.get("/v1/seedhub/catalog")
 def seedhub_catalog(
     category: str = Query(default="movies", pattern="^(movies|series|anime)$"),
