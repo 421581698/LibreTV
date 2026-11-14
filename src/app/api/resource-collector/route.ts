@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { guardPrivateFeatureRequest } from '@/lib/api-guard';
 import { collectorRequest } from '@/lib/resource-collector-client';
+import moviesSnapshot from '@/data/seedhub/movies.json';
+import seriesSnapshot from '@/data/seedhub/series.json';
+import animeSnapshot from '@/data/seedhub/anime.json';
+
+const seedhubSnapshots = { movies: moviesSnapshot, series: seriesSnapshot, anime: animeSnapshot };
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -43,10 +48,17 @@ export async function GET(request: Request) {
       request.headers.get('x-scrapling-api-token')?.trim()
     );
     const cacheOnlyQuery = hasBrowserCollectorCredentials ? '' : '&cache_only=true';
-    return collectorRequest(
+    const collectorResponse = await collectorRequest(
       '/v1/seedhub/detail?url=' + encodeURIComponent(parsed.toString()) + categoryQuery + cacheOnlyQuery,
       {}, 30_000, request,
     );
+    if (collectorResponse.status !== 503) return collectorResponse;
+    const snapshotCategory = (category ?? 'movies') as keyof typeof seedhubSnapshots;
+    const snapshotItem = seedhubSnapshots[snapshotCategory].items.find((item) => item.source_url === parsed.toString());
+    if (snapshotItem?.detail && typeof snapshotItem.detail === 'object') {
+      return NextResponse.json(snapshotItem.detail, { headers: { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=3600' } });
+    }
+    return collectorResponse;
   }
   if (action === 'seedhub-catalog') {
     const category = url.searchParams.get('category') ?? 'movies';
@@ -55,7 +67,24 @@ export async function GET(request: Request) {
     if (!/^(movies|series|anime)$/.test(category) || !/^\d{1,3}$/.test(limit) || !/^\d{1,7}$/.test(offset)) {
       return NextResponse.json({ error: 'Invalid SeedHub catalogue query.' }, { status: 400 });
     }
-    return collectorRequest(`/v1/seedhub/catalog?category=${category}&limit=${limit}&offset=${offset}`, {}, 10_000, request);
+    const collectorResponse = await collectorRequest(
+      `/v1/seedhub/catalog?category=${category}&limit=${limit}&offset=${offset}`,
+      {}, 10_000, request,
+    );
+    if (collectorResponse.status !== 503) return collectorResponse;
+    const snapshot = seedhubSnapshots[category as keyof typeof seedhubSnapshots];
+    const start = Number(offset);
+    const count = Number(limit);
+    return NextResponse.json({
+      source: 'SeedHub',
+      category,
+      total: snapshot.total,
+      items: snapshot.items.slice(start, start + count).map(({ source_url, title, category: itemCategory, poster_url, discovered_at }) => ({
+        source_url, title, category: itemCategory, poster_url, discovered_at,
+      })),
+      snapshot: true,
+      updated_at: snapshot.updated_at,
+    }, { headers: { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=3600' } });
   }
   return collectorRequest(action === 'tasks' ? '/v1/tasks' : '/v1/discover', {}, 20_000, request);
 }
