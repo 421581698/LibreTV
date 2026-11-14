@@ -9,6 +9,7 @@ describe('PR #84 homepage blocking layout recovery', () => {
   const recovery = read('src/app/pr84-layout-recovery.css');
   const dock = read('src/components/home/header/MobileTabBar.tsx');
   const page = read('src/app/page.tsx');
+  const seedHubHome = read('src/components/home/SeedHubHomepage.tsx');
   const globalLayout = read('src/app/pr84-global-layout.css');
   const dockFix = read('src/app/pr84-dock-fix.css');
   const appleDock = read('src/app/pr84-apple-tv-dock.css');
@@ -210,8 +211,9 @@ describe('PR #84 homepage blocking layout recovery', () => {
     expect(appleDock).toContain('min-height: 360px !important;');
     expect(appleDock).toContain('max-height: 520px !important;');
     expect(recovery).toContain('overflow: visible !important;');
-    expect(page).toContain('<V4HomepageHero onPick={openRecommendation} />');
-    expect(page).toContain('<V4HomepageContent onPick={openRecommendation} />');
+    expect(page).toContain('<SeedHubHomepage />');
+    expect(seedHubHome).toContain('<section className="v4-hero v4-hero-immersive"');
+    expect(seedHubHome).toContain('v4-apple-rail-section');
   });
 
   it('uses the same body-level viewport portal on homepage and routed catalogue screens', () => {
