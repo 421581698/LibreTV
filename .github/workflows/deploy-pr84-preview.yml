@@ -159,6 +159,8 @@ jobs:
           SMOKE_TOKEN="$(openssl rand -hex 32)"
           echo "::add-mask::$SMOKE_TOKEN"
           printf '%s' "$SMOKE_TOKEN" | npx wrangler secret put RESOURCE_AGENT_SMOKE_TOKEN --config wrangler.pr84-preview.toml
+          # Allow the new Worker version carrying the one-time secret to propagate before probing.
+          sleep 5
           cleanup() {
             npx wrangler secret delete RESOURCE_AGENT_SMOKE_TOKEN --config wrangler.pr84-preview.toml --force >/dev/null 2>&1 || true
           }
