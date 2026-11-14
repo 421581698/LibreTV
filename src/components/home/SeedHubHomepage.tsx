@@ -123,6 +123,9 @@ export function SeedHubHomepage() {
                 <button type="button" className="v4-hero-primary" onClick={() => openSeedHubDetail(featured)}>
                   查看详情
                 </button>
+                <Link href="/resource-studio" className="v4-hero-secondary">
+                  资源管理中心
+                </Link>
               </div>
             </div>
           </>
@@ -132,7 +135,10 @@ export function SeedHubHomepage() {
             <h1>{anyLoading ? '正在读取 SeedHub 片库' : '等待 SeedHub 目录'}</h1>
             <p>{anyLoading ? '正在读取真实海报与影片目录' : '配置 Collector 并同步 SeedHub 目录后，这里会显示真实海报。'}</p>
             {!anyLoading ? (
-              <button type="button" className="v4-hero-primary" onClick={openSettings}>配置资源采集中心</button>
+              <div className="flex flex-wrap gap-3">
+                <button type="button" className="v4-hero-primary" onClick={openSettings}>配置资源采集中心</button>
+                <Link href="/resource-studio" className="v4-hero-secondary">打开资源管理中心</Link>
+              </div>
             ) : null}
           </div>
         )}
