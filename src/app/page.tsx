@@ -6,7 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 
 import { V4HomepageHeader } from '@/components/home/V4HomepageHeader';
-import { SeedHubHomepage } from '@/components/home/SeedHubHomepage';
+import { V4HomepageHero } from '@/components/home/V4HomepageHero';
+import { V4HomepageContent } from '@/components/home/V4HomepageContent';
 import { useFridayDetailBridge } from '@/components/friday/useFridayDetailBridge';
 import { useHomeSearchController } from '@/components/home/useHomeSearchController';
 import { RegistryInlinePlayer } from '@/components/home/RegistryInlinePlayer';
@@ -75,6 +76,26 @@ function HomeContent() {
     if (extra?.rating) params.set('rating', extra.rating);
     if (item.sourceUrl) params.set('sourceUrl', item.sourceUrl);
     router.push('/detail?' + params.toString());
+  };
+  
+  const handleHomepagePick = async (movie: import('@/lib/types').DoubanItem) => {
+    if (selectedSources.length === 0) {
+      toast('请先在设置中启用至少一个可用点播源。', 'warning');
+      return;
+    }
+    try {
+      const response = await api.search(movie.title, selectedSources, yellowFilter);
+      const normalize = (value: string) => value.replace(/[\\s\\p{P}\\p{S}]/gu, '').toLocaleLowerCase();
+      const target = normalize(movie.title);
+      const match = response.list.find((entry) => normalize(entry.name) === target);
+      if (!match) {
+        toast('暂未在已启用的点播源中找到《' + movie.title + '》的准确资源。', 'warning');
+        return;
+      }
+      openDetail(match, { rating: movie.rating, poster: movie.cover });
+    } catch (error) {
+      toast(error instanceof Error ? error.message : '获取影片详情失败，请稍后重试。', 'error');
+    }
   };
 
   const openedFridayDetailRef = useRef<string | null>(null);
@@ -201,7 +222,7 @@ function HomeContent() {
     <div className="v4-home min-h-screen flex flex-col">
       <V4HomepageHeader overlay={!urlQuery} />
       <main className={urlQuery ? "v4-home-main" : "v4-home-main v4-home-main--cinema"}>
-        {!urlQuery && <SeedHubHomepage />}
+        {!urlQuery && <><V4HomepageHero onPick={handleHomepagePick} /><V4HomepageContent onPick={handleHomepagePick} /></>}
         {urlQuery && (
           <section aria-label="搜索结果" className="mb-10">
             <div className="flex items-center justify-between mb-3">
