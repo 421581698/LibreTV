@@ -11,7 +11,11 @@ const streams = {
   fmp4: 'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8',
   aes128: 'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel-aes.ism/.m3u8',
 };
-const browser = await chromium.launch({ headless: true });
+const browserChannel = process.env.PR84_BROWSER_CHANNEL?.trim();
+const browser = await chromium.launch({
+  ...(browserChannel ? { channel: browserChannel } : {}),
+  headless: true,
+});
 const errors = [];
 const mediaResponses = [];
 const failedRequests = [];
@@ -61,11 +65,31 @@ try {
     video.volume = 0;
     void video.play().catch(() => undefined);
   });
-  await page.waitForFunction(() => {
-    const video = document.querySelector('video');
-    return Boolean(video && video.readyState >= 2 && video.currentTime >= 1.5 &&
-      video.videoWidth > 0 && video.videoHeight > 0);
-  }, null, { timeout: 45_000 });
+  try {
+    await page.waitForFunction(() => {
+      const video = document.querySelector('video');
+      return Boolean(video && video.readyState >= 2 && video.currentTime >= 1.5 &&
+        video.videoWidth > 0 && video.videoHeight > 0);
+    }, null, { timeout: 45_000 });
+  } catch (error) {
+    const state = await page.evaluate(() => {
+      const video = document.querySelector('video');
+      return video ? {
+        currentTime: video.currentTime,
+        readyState: video.readyState,
+        networkState: video.networkState,
+        width: video.videoWidth,
+        height: video.videoHeight,
+        paused: video.paused,
+        currentSrc: video.currentSrc,
+        mediaError: video.error ? { code: video.error.code, message: video.error.message } : null,
+      } : null;
+    });
+    throw new Error('PlayerShell fMP4 fixture did not reach decoded frames: ' + JSON.stringify({
+      state, mediaResponses, failedRequests, pageErrors: errors.slice(0, 8),
+      cause: error instanceof Error ? error.message : String(error),
+    }));
+  }
 
   const first = await page.evaluate(() => {
     const video = document.querySelector('video');

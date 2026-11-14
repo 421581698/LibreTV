@@ -217,7 +217,12 @@ async function getEmbedPageMedia(rawUrl) {
 async function captureDynamicEmbedMedia(rawUrl) {
   // Execute the public embed page in a real browser and observe its own player
   // requests. Never solve challenges, authenticate, fetch DRM keys, or decrypt.
-  const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
+  const browserChannel = process.env.PR84_BROWSER_CHANNEL?.trim();
+  const browser = await chromium.launch({
+    ...(browserChannel ? { channel: browserChannel } : {}),
+    headless: true,
+    args: ["--no-sandbox"],
+  });
   const captured = new Set();
   const pageDiagnostics = {
     requestCount: 0, requestHosts: [], failedRequests: [], scriptResponses: [],
