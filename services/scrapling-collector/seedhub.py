@@ -491,7 +491,7 @@ def sync_seedhub(
 def seedhub_detail(
     url: str = Query(..., min_length=1, max_length=2048),
     category: str | None = Query(default=None, pattern="^(movies|series|anime)$"),
-    cache_only: bool = Query(default=False),
+    cache_only: bool = False,
     authorization: str | None = Header(default=None),
 ):
     _require_auth(authorization)
