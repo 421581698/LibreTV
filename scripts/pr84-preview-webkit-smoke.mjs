@@ -162,7 +162,7 @@ try {
 
   await page.screenshot({ path: '/tmp/pr84-preview-webkit.png', fullPage: true });
   console.log('PASS PR84 Preview WebKit mobile layout + retired SeedHub snapshot empty-state:', JSON.stringify({
-    before, after, contentState, collectorResponses, seedHubDetailResponses, imageProxyResponses, contentAcceptance: 'all legacy catalogue reads return zero snapshot items; no stale SeedHub content is served',
+    before, after, contentState, collectorResponses, imageProxyResponses, contentAcceptance: 'homepage contains no retired SeedHub empty-state UI or collector catalogue requests',
   }));
 
   // Resource Studio regression: this route has its own page scope and must
