@@ -51,7 +51,7 @@ The API exposes only whether a provider is configured, never credentials. The Su
 ## API
 
 - `GET /health` — service health and stored task count.
-- `GET /v1/discover` — refresh the separate FMHY video directory and persist discovered sites.
+- `GET /v1/discover` — refresh the separate FMHY video directory and persist discovered sites.\n- `GET /v1/sites?limit=30` — return the persisted discovered-site allowlist for AI Supervisor selection; arbitrary model-generated URLs are not accepted.
 - `POST /v1/seedhub/sync?category=movies|series|anime&pages=1` — small synchronous SeedHub metadata batch (maximum five pages).
 - Submit `{ "job_type":"seedhub_sync", "payload":{"category":"movies","start_page":1,"pages":20}, "idempotency_key":"seedhub:movies:1:20" }` to `POST /v1/tasks/submit` for a durable, checkpointed batch; the worker pauses two seconds between pages and records per-page progress. Queue successive batches to cover the full catalogue without long HTTP requests.
 - `GET /v1/seedhub/catalog?category=movies|series|anime&limit=50&offset=0` — read the SeedHub catalogue.
