@@ -163,7 +163,6 @@ function WatchContent() {
       clearHideTimer();
       showControls();
       if (video && !video.paused && !video.ended) {
-        const activeVideo = video;
         controlsHideTimerRef.current = window.setTimeout(hideControls, 3000);
       }
     };
@@ -177,8 +176,7 @@ function WatchContent() {
         showControls();
         return;
       }
-      const activeVideo = video;
-      controlsHideTimerRef.current = window.setTimeout(() => hideControls(activeVideo), 3000);
+      controlsHideTimerRef.current = window.setTimeout(hideControls, 3000);
     };
     const onPlay = () => { setControlsVisible(true); scheduleHide(); };
     const onPause = keepControlsVisible;
