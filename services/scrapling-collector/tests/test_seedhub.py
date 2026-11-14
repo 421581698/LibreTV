@@ -17,6 +17,20 @@ class SeedHubCatalogParserTests(unittest.TestCase):
         self.assertEqual(items[0]["poster_url"], "https://www.seedhub.cc/posters/a.jpg")
         self.assertNotIn("magnet", items[0]["source_url"])
 
+    def test_catalog_keeps_poster_when_detail_anchor_is_nested(self):
+        html = """
+        <div class="cover">
+          <a class="image" href="/movies/130096/" title="生化危机：爆发夜">
+            <img src="https://sh1.pcie.pppoe.top/static/pics/poster.webp" alt="生化危机：爆发夜">
+          </a>
+          <ul><li><h2><a href="/movies/130096/" aria-hidden="true">#</a> 生化危机：爆发夜</h2></li></ul>
+        </div>
+        """
+        items = parse_catalog_html(html, "https://www.seedhub.cc/categories/1/movies/", "movies")
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["poster_url"], "https://sh1.pcie.pppoe.top/static/pics/poster.webp")
+        self.assertIn("生化危机", items[0]["title"])
+
     def test_rejects_untrusted_page_origin(self):
         with self.assertRaises(ValueError):
             parse_catalog_html('<a href="/movies/1/">Title</a>', "https://evil.example/", "movies")
