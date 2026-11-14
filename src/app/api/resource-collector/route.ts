@@ -39,6 +39,13 @@ export async function GET(request: Request) {
     const query = host ? '?host=' + encodeURIComponent(host) : '';
     return collectorRequest('/v1/stats' + query, {}, 10_000, request);
   }
+  if (action === 'resources') {
+    const limit = url.searchParams.get('limit') ?? '100';
+    if (!/^[0-9]{1,3}$/.test(limit) || Number(limit) < 1 || Number(limit) > 100) {
+      return NextResponse.json({ error: 'Invalid resource limit.' }, { status: 400 });
+    }
+    return collectorRequest('/v1/registry/resources?verified_only=true&limit=' + limit, {}, 10_000, request);
+  }
   if (action === 'jobs') {
     const limit = url.searchParams.get('limit') ?? '50';
     if (!/^[0-9]{1,3}$/.test(limit) || Number(limit) < 1 || Number(limit) > 100) {
