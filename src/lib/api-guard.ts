@@ -40,6 +40,12 @@ export function guardPrivateFeatureRequest(req: Request): NextResponse | null {
   // anonymously; mutations, discovery, task inspection, and crawling stay closed.
   if (browserBase && browserToken) return null;
   const action = new URL(req.url).searchParams.get('action');
+  // SeedHub catalogue/detail GETs have a repository-backed, read-only snapshot
+  // fallback. They must remain readable when the optional live Collector is
+  // not provisioned; all mutations and other Collector operations stay gated.
+  if (req.method === 'GET' &&
+      (action === 'seedhub-catalog' || action === 'seedhub-detail')) return null;
+
   const serverCollectorConfigured = Boolean(
     process.env.SCRAPLING_API_BASE?.trim() && process.env.SCRAPLING_API_TOKEN?.trim()
   );
