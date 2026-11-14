@@ -183,7 +183,9 @@ def parse_detail_html(html: str, page_url: str) -> dict:
         text_blob = clean(parser.all_text)
         match = re.search(r"(?:简介|剧情简介)[:：]?(.+?)(?=图片|剧照|推荐|资源下载|字幕|$)", text_blob)
         description = match.group(1).strip()[:4000] if match else ""
-    fields_blob = clean(parser.all_text)
+    # Keep field extraction inside the metadata block; later section headings and
+    # synopsis text must not be swallowed into the final field (e.g. runtime).
+    fields_blob = clean(parser.all_text).split("简介", 1)[0]
     def extract_field(label: str, stops: tuple[str, ...]) -> str | None:
         stop_pattern = "|".join(re.escape(item) for item in stops)
         match = re.search(rf"{re.escape(label)}[:：]\s*(.+?)(?=(?:{stop_pattern})[:：]|$)", fields_blob)
