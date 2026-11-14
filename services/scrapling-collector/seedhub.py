@@ -576,13 +576,13 @@ def seedhub_search(
     if not term:
         return {"source": "SeedHub", "query": "", "items": []}
     _initialize()
-    pattern = "%" + term.replace("%", "\\%").replace("_", "\\_") + "%"
+    pattern = "%" + term + "%"
     with _connect() as conn:
         if category:
             rows = conn.execute(
                 """SELECT source_url,title,category,poster_url,discovered_at,detail_json
                    FROM seedhub_catalog
-                   WHERE category=? AND (title LIKE ? ESCAPE '\\\\' OR detail_json LIKE ? ESCAPE '\\\\')
+                   WHERE category=? AND (title LIKE ? OR detail_json LIKE ? ESCAPE '\\\\')
                    ORDER BY discovered_at DESC LIMIT ?""",
                 (category, pattern, pattern, limit),
             ).fetchall()
