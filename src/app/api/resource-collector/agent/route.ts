@@ -107,7 +107,7 @@ export async function POST(request: Request) {
 
   let env: Env = {};
   try { env = cloudflareEnv(); } catch { /* resolveResourceAgent below returns the bounded unavailable response */ }
-  const smokeToken = read(env, 'RESOURCE_AGENT_SMOKE_TOKEN');
+  const smokeToken = read(env, 'RESOURCE_AGENT_SMOKE_TOKEN') || read(process.env as Env, 'RESOURCE_AGENT_SMOKE_TOKEN');
   const smokeAuthorized = parsedBody.data.dryRun === true &&
     smokeToken.length >= 32 &&
     request.headers.get('x-resource-agent-smoke-token') === smokeToken;
