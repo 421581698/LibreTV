@@ -145,10 +145,16 @@ function WatchContent() {
       shell.classList.remove('cinema-controls-hidden');
       setControlsVisible(true);
     };
-    const hideControls = (scheduledVideo: HTMLVideoElement) => {
-      if (video !== scheduledVideo || scheduledVideo.paused || scheduledVideo.ended) return;
-      // Apply the class immediately as well as updating React state. This keeps the
-      // overlay transition deterministic across ArtPlayer source reloads and React commits.
+    const hideControls = () => {
+      // Resolve the active media element at timer-fire time. PlayerShell may keep
+      // the same element or replace it during an HLS recovery/source transition;
+      // a stale captured element must never silently cancel the hide deadline.
+      const activeVideo = frame.querySelector('video');
+      if (!activeVideo || activeVideo.paused || activeVideo.ended) {
+        controlsHideTimerRef.current = null;
+        return;
+      }
+      // Apply the class immediately as well as updating React state.
       shell.classList.add('cinema-controls-hidden');
       setControlsVisible(false);
       controlsHideTimerRef.current = null;
@@ -158,7 +164,7 @@ function WatchContent() {
       showControls();
       if (video && !video.paused && !video.ended) {
         const activeVideo = video;
-        controlsHideTimerRef.current = window.setTimeout(() => hideControls(activeVideo), 3000);
+        controlsHideTimerRef.current = window.setTimeout(hideControls, 3000);
       }
     };
     const keepControlsVisible = () => {
