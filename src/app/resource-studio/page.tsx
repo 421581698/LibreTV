@@ -142,9 +142,9 @@ export default function ResourceStudioPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold">AI 资源 Supervisor</h2>
-              <p className="mt-1 text-sm text-[var(--muted)]">由模型从已发现站点白名单中选择爬取目标，并规划目录同步；任务交给持久化 Worker 执行，AI 不能自行宣布资源可播放。</p>
+              <p className="mt-1 text-sm text-[var(--muted)]">由 Cloudflare Workers AI 自动规划公开资源站发现与目录同步；无需外部模型 API Key。任务交给持久化 Worker 执行，AI 不能自行宣布资源可播放。</p>
             </div>
-            <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs">{agentConfigured ? '模型已配置 · ' + agentProvider : '模型未配置'}</span>
+            <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs">{agentConfigured ? '模型已配置 · ' + agentProvider : 'Cloudflare AI 未就绪'}</span>
           </div>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             <input value={agentGoal} onChange={(event) => setAgentGoal(event.target.value.slice(0, 200))} maxLength={200}
@@ -155,7 +155,7 @@ export default function ResourceStudioPage() {
               {busy === 'agent' ? 'AI 正在规划…' : '让 AI 规划并提交任务'}
             </button>
           </div>
-          {!agentConfigured ? <p className="mt-3 text-xs leading-5 text-[var(--muted)]">需要在 Preview Worker 配置 RESOURCE_AGENT_API_KEY（也可复用 ZHIPU_API_KEY），或配置专用 OpenClaw Agent：RESOURCE_OPENCLAW_AGENT_ID、RESOURCE_OPENCLAW_GATEWAY_TOKEN/URL 与 RESOURCE_OPENCLAW_ACCESS_CLIENT_ID/SECRET。密钥只保存在服务器环境中。</p> : null}
+          {!agentConfigured ? <p className="mt-3 text-xs leading-5 text-[var(--muted)]">默认使用 PR84 Preview 的 Cloudflare Workers AI，无需填写模型 API Key。只有需要切换到外部模型或专用 OpenClaw Gateway 时，才需要额外凭据；资源站本身只采集公开可访问内容。</p> : null}
         </section>
 
         <section className="mb-8 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
