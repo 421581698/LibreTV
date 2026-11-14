@@ -24,7 +24,7 @@ function SeedHubDetailContent() {
   const params = useSearchParams();
   const router = useRouter();
   const sourceUrl = params.get('url') ?? '';
-  const sourceCategory = params.get('category') ?? 'movies';
+  const sourceCategory = params.get('category');
   const [detail, setDetail] = useState<SeedHubDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -40,7 +40,8 @@ function SeedHubDetailContent() {
     }
     setLoading(true);
     setError('');
-    collectorFetch('/api/resource-collector?action=seedhub-detail&category=' + encodeURIComponent(sourceCategory) + '&url=' + encodeURIComponent(sourceUrl))
+    const categoryQuery = sourceCategory ? '&category=' + encodeURIComponent(sourceCategory) : '';
+    collectorFetch('/api/resource-collector?action=seedhub-detail&url=' + encodeURIComponent(sourceUrl) + categoryQuery)
       .then(async (response) => {
         const payload = await response.json() as SeedHubDetail & { error?: string };
         if (!response.ok) throw new Error(payload.error || 'SeedHub 详情读取失败。');
