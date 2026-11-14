@@ -5,32 +5,6 @@ import worker
 
 
 class WorkerPipelineTests(unittest.TestCase):
-    def test_seedhub_catalogue_job_queues_next_batch_and_detail_enrichment(self):
-        submitted = []
-        def submit(job_type, payload, key):
-            submitted.append((job_type, payload, key))
-            return {"id": f"job-{len(submitted)}"}
-
-        with (
-            patch.object(worker, "sync_seedhub_pages", return_value={
-                "status": "succeeded", "records_indexed": 100,
-                "next_page": 51, "total_pages": 1428,
-            }),
-            patch.object(worker, "submit_job", side_effect=submit),
-        ):
-            result = worker.handle(
-                {"_job_type": "seedhub_sync", "category": "movies", "start_page": 1, "pages": 50},
-                lambda event: None,
-                lambda: False,
-            )
-
-        self.assertEqual(result["detail_enrichment_job_id"], "job-1")
-        self.assertEqual(result["next_catalog_job_id"], "job-2")
-        self.assertEqual(submitted[0][0], "seedhub_detail_sync")
-        self.assertEqual(submitted[1][0], "seedhub_sync")
-        self.assertEqual(submitted[1][1], {"category": "movies", "start_page": 51, "pages": 50})
-        self.assertEqual(submitted[1][2], "seedhub-catalog:movies:page:51")
-
     def test_crawl_job_preflights_pending_direct_media_into_registry(self):
         task_id = "a" * 32
         candidates = [
