@@ -407,20 +407,13 @@ def sync_seedhub_details(category: str, limit: int = 10, checkpoint=None, cancel
             detail = parse_detail_html(html, source_url, category)
             with _connect() as conn:
                 conn.execute(
-                    """UPDATE seedhub_catalog SET title=?,poster_url=COALESCE(?,poster_url),detail_json=?
+                    """UPDATE seedhub_catalog SET title=?,poster_url=COALESCE(?,poster_url),detail_json=?,detail_last_error=NULL
                        WHERE source_url=? AND category=?""",
                     (detail["title"] or row["title"], detail["poster_url"],
                      json.dumps(detail, ensure_ascii=False), source_url, category),
                 )
         except Exception as exc:
             failed += 1
-            failure_detail = {
-                "source_name": "SeedHub", "source_url": source_url,
-                "title": row["title"], "category": category,
-                "mode": "metadata-only", "detail_status": "failed",
-                "error_code": type(exc).__name__,
-                "external_resource_links_extracted": False,
-            }
             with _connect() as conn:
                 conn.execute(
                     """UPDATE seedhub_catalog
