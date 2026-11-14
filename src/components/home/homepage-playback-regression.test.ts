@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -485,6 +485,11 @@ describe('首页与播放页回归契约', () => {
     expect(resourceStudio).not.toContain('SeedHub');
     expect(resourceAgentRoute).not.toContain('seedhub_sync');
     expect(resourceCollectorRoute).not.toContain('seedhubSync');
+    expect(resourceCollectorRoute).not.toContain('data/seedhub/');
+    expect(resourceCollectorRoute).not.toContain('seedhubSnapshots');
+    expect(existsSync(resolve(process.cwd(), 'data/seedhub/movies.json'))).toBe(false);
+    expect(existsSync(resolve(process.cwd(), 'data/seedhub/series.json'))).toBe(false);
+    expect(existsSync(resolve(process.cwd(), 'data/seedhub/anime.json'))).toBe(false);
     expect(collectorWorker).not.toContain('seedhub_sync');
     expect(collectorWorker).not.toContain('seedhub_detail_sync');
     expect(seedhubCollector).not.toContain('sync_seedhub_pages');
