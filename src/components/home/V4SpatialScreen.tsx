@@ -451,125 +451,6 @@ function MeHistoryCard({ item }: { item: HistoryEntry }) {
   );
 }
 
-type SeedHubJob = {
-  id: string;
-  job_type: string;
-  status: string;
-  payload: string;
-  checkpoint: string;
-  result?: string | null;
-  error?: string | null;
-  created_at: number;
-  updated_at: number;
-};
-
-function SeedHubCollectorPanel() {
-  const [category, setCategory] = useState<'movies' | 'series' | 'anime'>('movies');
-  const [startPage, setStartPage] = useState(1);
-  const [pages, setPages] = useState(20);
-  const [jobs, setJobs] = useState<SeedHubJob[]>([]);
-  const [submitting, setSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState('');
-
-  const refresh = useCallback(async () => {
-    try {
-      const response = await fetch('/api/resource-collector/jobs?limit=30', { cache: 'no-store' });
-      if (!response.ok) return;
-      const payload = await response.json() as { jobs?: SeedHubJob[] };
-      setJobs((payload.jobs ?? []).filter((job) => job.job_type === 'seedhub_sync').slice(0, 8));
-    } catch {
-      // Keep the last known job state visible during temporary collector outages.
-    }
-  }, []);
-
-  useEffect(() => {
-    void refresh();
-    const timer = window.setInterval(() => { void refresh(); }, 5000);
-    return () => window.clearInterval(timer);
-  }, [refresh]);
-
-  const submit = async () => {
-    setSubmitting(true);
-    setFeedback('');
-    try {
-      const response = await fetch('/api/resource-collector', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seedhubSync: true, category, startPage, pages }),
-      });
-      const payload = await response.json() as { id?: string; status?: string; error?: string };
-      if (!response.ok) throw new Error(payload.error || '提交 SeedHub 采集任务失败。');
-      setFeedback('采集任务已进入后台队列。任务 ID：' + (payload.id || '已提交'));
-      void refresh();
-    } catch (error) {
-      setFeedback(error instanceof Error ? error.message : '提交失败，请检查采集器连接。');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const statusLabel: Record<string, string> = {
-    queued: '排队中', running: '采集中', succeeded: '已完成',
-    partial: '部分完成', failed: '失败', cancelled: '已取消',
-  };
-
-  return (
-    <section className="card space-y-4 p-4 sm:p-5" aria-labelledby="settings-seedhub-title">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h2 id="settings-seedhub-title" className="text-base font-semibold text-content">SeedHub 内容采集</h2>
-          <p className="mt-1 text-xs leading-5 text-faint">独立采集 SeedHub 电影、剧集与动漫目录；不经过 FMHY 站点发现。按分页批次执行，进度保存在后台任务队列。</p>
-        </div>
-        <span className="shrink-0 rounded-full bg-accent/10 px-3 py-1 text-xs text-accent">独立来源</span>
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
-        <label className="space-y-1 text-xs text-muted">
-          <span>内容分类</span>
-          <select className="w-full rounded-xl border border-subtle bg-surface px-3 py-2 text-sm text-content" value={category}
-            onChange={(event) => setCategory(event.target.value as 'movies' | 'series' | 'anime')}>
-            <option value="movies">电影</option><option value="series">剧集</option><option value="anime">动漫</option>
-          </select>
-        </label>
-        <label className="space-y-1 text-xs text-muted">
-          <span>起始页</span>
-          <input className="w-full rounded-xl border border-subtle bg-surface px-3 py-2 text-sm text-content" type="number" min={1} max={100000}
-            value={startPage} onChange={(event) => setStartPage(Math.max(1, Math.min(100000, Number(event.target.value) || 1)))} />
-        </label>
-        <label className="space-y-1 text-xs text-muted">
-          <span>采集页数（每批最多 50）</span>
-          <input className="w-full rounded-xl border border-subtle bg-surface px-3 py-2 text-sm text-content" type="number" min={1} max={50}
-            value={pages} onChange={(event) => setPages(Math.max(1, Math.min(50, Number(event.target.value) || 1)))} />
-        </label>
-        <div className="flex items-end">
-          <button type="button" className="w-full rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-            disabled={submitting} onClick={() => void submit()}>{submitting ? '提交中…' : '开始采集'}</button>
-        </div>
-      </div>
-      {feedback ? <p className="text-xs text-muted" role="status">{feedback}</p> : null}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between"><h3 className="text-sm font-medium text-content">最近采集任务</h3><button type="button" className="text-xs text-accent" onClick={() => void refresh()}>刷新</button></div>
-        {jobs.length === 0 ? <p className="rounded-xl bg-chip/50 p-3 text-xs text-faint">暂无 SeedHub 采集任务。</p> : jobs.map((job) => {
-          let checkpoint: Record<string, unknown> = {};
-          try { checkpoint = JSON.parse(job.checkpoint || '{}') as Record<string, unknown>; } catch { /* Ignore malformed legacy checkpoint. */ }
-          const completed = typeof checkpoint.pages_completed === 'number' ? checkpoint.pages_completed : 0;
-          const requested = typeof checkpoint.pages_requested === 'number' ? checkpoint.pages_requested : 0;
-          const page = typeof checkpoint.page === 'number' ? checkpoint.page : null;
-          return (
-            <div key={job.id} className="rounded-xl border border-subtle p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <strong className="text-xs text-content">{job.payload.includes('anime') ? '动漫' : job.payload.includes('series') ? '剧集' : '电影'} · {statusLabel[job.status] || job.status}</strong>
-                <span className="text-[11px] text-faint">{page ? `当前第 ${page} 页` : '等待工作进程'}</span>
-              </div>
-              {requested > 0 ? <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-chip"><div className="h-full rounded-full bg-accent" style={{ width: `${Math.min(100, completed / requested * 100)}%` }} /></div> : null}
-              <p className="mt-1 text-[11px] text-faint">{completed}/{requested || '—'} 页 · {job.error || ''}</p>
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
 function SettingsScreen() {
   const downloads = useLiveQuery(
     () => db.downloads.orderBy('createdAt').reverse().toArray(),
@@ -581,7 +462,8 @@ function SettingsScreen() {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-5 px-4 pb-12 sm:px-6">
-      <SeedHubCollectorPanel />
+
+      <SourceManagerDrawer open embedded onClose={() => undefined} />
       <section className="card p-4 sm:p-5" aria-labelledby="settings-downloads-title">
         <div className="flex items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
@@ -607,7 +489,6 @@ function SettingsScreen() {
           查看下载进度与状态，暂停、继续、取消、重试或删除任务。下载完成状态以实际文件保存结果为准。
         </p>
       </section>
-      <SourceManagerDrawer open embedded onClose={() => undefined} />
     </div>
   );
 }
