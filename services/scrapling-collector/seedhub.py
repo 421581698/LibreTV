@@ -389,7 +389,8 @@ def seedhub_detail(
             existing = conn.execute(
                 "SELECT category FROM seedhub_catalog WHERE source_url=?", (page_url,)
             ).fetchone()
-        resolved_category = category or (existing["category"] if existing else "movies")
+        requested_category = category if isinstance(category, str) else None
+        resolved_category = requested_category or (existing["category"] if existing else "movies")
         detail = parse_detail_html(html, page_url, resolved_category)
         with _connect() as conn:
             conn.execute(
