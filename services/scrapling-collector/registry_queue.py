@@ -106,7 +106,7 @@ def event(c: sqlite3.Connection, job_id: str, name: str, detail: dict | None = N
 
 
 def submit_job(job_type: str, payload: dict, idempotency_key: str, max_attempts: int = 4) -> dict:
-    if job_type not in {"crawl", "discover", "seedhub_sync"}:
+    if job_type not in {"crawl", "discover", "seedhub_sync", "seedhub_detail_sync"}:
         raise ValueError("Unsupported job type")
     if not idempotency_key or len(idempotency_key) > 200:
         raise ValueError("Invalid idempotency key")
@@ -440,6 +440,12 @@ def api_submit_job(payload: dict, authorization: str | None = Header(default=Non
         pages = request.get("pages", 20)
         if not isinstance(start_page, int) or isinstance(start_page, bool) or start_page < 1 or not isinstance(pages, int) or isinstance(pages, bool) or pages < 1 or pages > 50:
             raise HTTPException(status_code=400,detail="SeedHub batches must contain 1 to 50 pages and a positive start page")
+    elif job_type == "seedhub_detail_sync":
+        if request.get("category") not in {"movies", "series", "anime"}:
+            raise HTTPException(status_code=400,detail="A valid SeedHub category is required")
+        limit = request.get("limit", 10)
+        if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1 or limit > 20:
+            raise HTTPException(status_code=400,detail="SeedHub detail batches must contain 1 to 20 records")
     elif not isinstance(request.get("url"),str):
         raise HTTPException(status_code=400,detail="A crawl payload with URL is required")
     key = str(payload.get("idempotency_key") or "")
