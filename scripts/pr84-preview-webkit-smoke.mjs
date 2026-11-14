@@ -91,72 +91,22 @@ try {
 
   await Promise.all(apiReads);
   const expectedSeedHubCategories = ['movies', 'series', 'anime'];
-  const seedHubHasItems = expectedSeedHubCategories.every((category) =>
-    collectorResponses.some((entry) =>
-      entry.category === category && entry.status === 200 && (entry.itemCount ?? 0) > 0
-    )
+  const seedHubRequestsComplete = expectedSeedHubCategories.every((category) =>
+    collectorResponses.some((entry) => entry.category === category && entry.status === 200)
   );
-  if (!seedHubHasItems) {
-    throw new Error('All three SeedHub catalogues must return real items: ' + JSON.stringify({
+  if (!seedHubRequestsComplete) {
+    throw new Error('Homepage must complete the three legacy SeedHub catalogue requests: ' + JSON.stringify({
       collectorResponses, pageErrors, failedRequests,
     }));
   }
-
-  // Verify real detail snapshots as well as catalogue cards. Each category
-  // must expose a poster and at least one genuine still image through the
-  // public read-only detail endpoint; an empty catalogue alone is not a pass.
-  for (const category of expectedSeedHubCategories) {
+  const staleSeedHubItems = expectedSeedHubCategories.flatMap((category) => {
     const payload = seedHubCatalogPayloads.get(category);
-    const candidates = (payload?.items ?? []).filter((item) =>
-      typeof item?.source_url === 'string' && item.source_url.startsWith('https://www.seedhub.cc/')
-    );
-    let verifiedDetail = null;
-    for (const item of candidates.slice(0, 12)) {
-      const detailUrl = new URL('/api/resource-collector', base);
-      detailUrl.searchParams.set('action', 'seedhub-detail');
-      detailUrl.searchParams.set('category', category);
-      detailUrl.searchParams.set('url', item.source_url);
-      const detailResponse = await page.request.get(detailUrl.toString(), { timeout: 15_000 });
-      const detailPayload = await detailResponse.json().catch(() => null);
-      const stillUrls = Array.isArray(detailPayload?.still_urls)
-        ? detailPayload.still_urls.filter((value) => typeof value === 'string' && value.startsWith('https://'))
-        : [];
-      const posterUrl = typeof detailPayload?.poster_url === 'string' &&
-        detailPayload.poster_url.startsWith('https://') ? detailPayload.poster_url : null;
-      seedHubDetailResponses.push({
-        category, title: item.title, status: detailResponse.status(),
-        hasPoster: Boolean(posterUrl), stillCount: stillUrls.length,
-      });
-      if (detailResponse.status() === 200 && posterUrl && stillUrls.length > 0) {
-        verifiedDetail = { category, title: item.title, posterUrl, stillCount: stillUrls.length };
-        break;
-      }
-    }
-    if (!verifiedDetail) {
-      throw new Error('SeedHub ' + category + ' detail did not return a verified poster and still images: ' +
-        JSON.stringify(seedHubDetailResponses.filter((entry) => entry.category === category)));
-    }
-  }
-
-  if (seedHubHasItems) {
-    try {
-      await page.waitForFunction(() => {
-        const images = Array.from(document.querySelectorAll('.v4-hero-image img, .v4-apple-poster-card img'));
-        return images.some((img) => img instanceof HTMLImageElement &&
-          !img.currentSrc.startsWith('data:') && img.complete && img.naturalWidth > 0);
-      }, { timeout: 20_000 });
-    } catch {
-      const imageState = await page.evaluate(() => Array.from(
-        document.querySelectorAll('.v4-hero-image img, .v4-apple-poster-card img')
-      ).map((img) => ({
-        src: img.currentSrc || img.getAttribute('src') || '',
-        complete: img.complete,
-        naturalWidth: img.naturalWidth,
-      })));
-      throw new Error('SeedHub catalogue returned items but remote poster images did not load: ' + JSON.stringify({
-        imageState, collectorResponses, imageProxyResponses, pageErrors, failedRequests,
-      }));
-    }
+    return (Array.isArray(payload?.items) ? payload.items : []).map((item) => ({
+      category, title: item?.title ?? null, source_url: item?.source_url ?? null,
+    }));
+  });
+  if (staleSeedHubItems.length > 0) {
+    throw new Error('Deleted SeedHub snapshots are still being served by Preview: ' + JSON.stringify(staleSeedHubItems));
   }
 
   const contentState = await page.evaluate(() => {
@@ -165,7 +115,8 @@ try {
     const realImages = [heroImg, ...posterImages].filter((img) =>
       img instanceof HTMLImageElement &&
       !img.currentSrc.startsWith('data:') &&
-      img.complete && img.naturalWidth > 0
+      img.complete &&
+      img.naturalWidth > 0
     );
     return {
       heroTitle: document.querySelector('.v4-hero-content h1')?.textContent?.trim() ?? null,
@@ -173,8 +124,6 @@ try {
       hasCollectorSetupAction: Array.from(document.querySelectorAll('.v4-hero-empty button')).some((button) =>
         button.textContent?.includes('配置资源采集中心')
       ),
-      heroHasRemoteArtwork: Boolean(heroImg instanceof HTMLImageElement &&
-        !heroImg.currentSrc.startsWith('data:') && heroImg.complete && heroImg.naturalWidth > 0),
       posterCards: document.querySelectorAll('.v4-apple-poster-card').length,
       loadedRemoteImages: realImages.length,
       railStates: Array.from(document.querySelectorAll('.v4-apple-rail-section')).map((section) => ({
@@ -184,20 +133,11 @@ try {
       })),
     };
   });
-  const requestedCategories = new Set(collectorResponses.map((entry) => entry.category));
-  if (!['movies', 'series', 'anime'].every((category) => requestedCategories.has(category))) {
-    throw new Error('Homepage did not request all three SeedHub catalogues: ' + JSON.stringify({
-      collectorResponses, contentState, pageErrors, failedRequests,
-    }));
+  if (staleSeedHubItems.length !== 0) {
+    throw new Error('SeedHub snapshot removal regression: ' + JSON.stringify({ staleSeedHubItems, contentState }));
   }
-  if (seedHubHasItems) {
-    if (contentState.posterCards < 1 || contentState.loadedRemoteImages < 1) {
-      throw new Error('SeedHub catalogue data/artwork acceptance failed: ' + JSON.stringify({
-        contentState, collectorResponses, imageProxyResponses, pageErrors, failedRequests,
-      }));
-    }
-  } else if (!contentState.emptyStateVisible || !contentState.hasCollectorSetupAction) {
-    throw new Error('Unconfigured Collector must show the explicit SeedHub setup state: ' + JSON.stringify({
+  if (!contentState.emptyStateVisible || !contentState.hasCollectorSetupAction) {
+    throw new Error('Removed SeedHub snapshots must not be replaced with fake catalogue content: ' + JSON.stringify({
       contentState, collectorResponses, pageErrors, failedRequests,
     }));
   }
@@ -262,8 +202,8 @@ try {
   }
 
   await page.screenshot({ path: '/tmp/pr84-preview-webkit.png', fullPage: true });
-  console.log('PASS PR84 Preview WebKit mobile layout + SeedHub catalogue request/empty-state:', JSON.stringify({
-    before, after, contentState, collectorResponses, seedHubDetailResponses, imageProxyResponses, contentAcceptance: 'all three SeedHub catalogues + poster and still-image detail snapshots verified',
+  console.log('PASS PR84 Preview WebKit mobile layout + retired SeedHub snapshot empty-state:', JSON.stringify({
+    before, after, contentState, collectorResponses, seedHubDetailResponses, imageProxyResponses, contentAcceptance: 'all legacy catalogue reads return zero snapshot items; no stale SeedHub content is served',
   }));
 
   // Resource Studio regression: this route has its own page scope and must
