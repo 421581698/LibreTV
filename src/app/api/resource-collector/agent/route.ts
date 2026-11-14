@@ -52,8 +52,8 @@ function resolveResourceAgent(env: Env) {
   if (!apiKey) throw new Error('Configure RESOURCE_AGENT_API_KEY or a dedicated OpenClaw Resource Supervisor agent');
   const baseURL = read(env, 'RESOURCE_AGENT_BASE_URL') || 'https://open.bigmodel.cn/api/paas/v4';
   const parsed = new URL(baseURL);
-  if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.search || parsed.hash ||
-      parsed.hostname === 'localhost' || parsed.hostname.includes(':') ||
+  if (parsed.protocol !== 'https:' || (parsed.port && parsed.port !== '443') || parsed.username || parsed.password || parsed.search || parsed.hash ||
+      parsed.hostname === 'localhost' || parsed.hostname.endsWith('.local') || parsed.hostname.endsWith('.internal') || parsed.hostname.endsWith('.test') || parsed.hostname.includes(':') ||
       /^(?:\d{1,3}\.){3}\d{1,3}$/.test(parsed.hostname) || !parsed.hostname.includes('.')) {
     throw new Error('RESOURCE_AGENT_BASE_URL must be a public HTTPS origin');
   }
