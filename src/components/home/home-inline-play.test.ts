@@ -27,7 +27,7 @@ describe('iPhone homepage detail navigation and top search', () => {
     expect(seedHubHomepage).toContain("fetchSeedHubCatalog('anime')");
     expect(seedHubHomepage).toContain('item.poster_url');
     expect(seedHubHomepage).toContain('onClick={() => openSeedHubDetail(item)}');
-    expect(seedHubHomepage).toContain("router.push('/seedhub?url=' + encodeURIComponent(item.source_url))");
+    expect(seedHubHomepage).toContain("router.push('/seedhub?url=' + encodeURIComponent(item.source_url) + '&category=' + item.category)");
     expect(seedHubHomepage).not.toContain('douban');
     expect(seedHubHomepage).not.toContain('hot-list');
     expect(home).toContain('onOpen={openDetail}');
