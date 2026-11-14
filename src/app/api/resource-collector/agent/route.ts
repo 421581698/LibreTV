@@ -136,8 +136,8 @@ export async function POST(request: Request) {
       if (dedupe.has(key)) continue;
       dedupe.add(key);
       const payload = task.job_type === 'discover'
-        ? { search_keyword: parsedBody.data.goal.slice(0, 50) }
-        : { category, start_page: 1, pages: Math.min(20, task.pages || 10) };
+        ? { search_keyword: parsedBody.data.goal.slice(0, 50), agent_goal: parsedBody.data.goal, agent_rationale: task.rationale, plan_summary: normalized.summary }
+        : { category, start_page: 1, pages: Math.min(20, task.pages || 10), agent_goal: parsedBody.data.goal, agent_rationale: task.rationale, plan_summary: normalized.summary };
       const idempotencyKey = 'resource-agent:' + goalHash + ':' + key;
       const response = await collectorRequest('/v1/tasks/submit', {
         method: 'POST',
