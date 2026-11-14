@@ -52,6 +52,15 @@ export default function WatchPage() {
     </Suspense>
   );
 }
+function formatWatchTime(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds < 0) return '--:--';
+  const total = Math.floor(seconds);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const remainder = total % 60;
+  return hours > 0 ? `${hours}:${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}` : `${minutes}:${String(remainder).padStart(2, '0')}`;
+}
+
 function WatchContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -66,6 +75,8 @@ function WatchContent() {
   const [reversed, setReversed] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<'episodes' | 'sources' | 'details'>('episodes');
   const [watchInfoTab, setWatchInfoTab] = useState<'overview' | 'insights' | 'more'>('overview');
+  const [watchClock, setWatchClock] = useState({ position: 0, duration: 0 });
+  const [watchRate, setWatchRate] = useState(1);
   const [showPlayerPanel, setShowPlayerPanel] = useState(false);
   const [showAutoNext, setShowAutoNext] = useState(false);
   const [switchOpen, setSwitchOpen] = useState(false);
@@ -402,8 +413,14 @@ function WatchContent() {
                   nextUrl={currentIndex + 1 < episodes.length ? episodes[currentIndex + 1] : undefined}
                   nextEpisodeKey={currentIndex + 1 < episodes.length ? `${sourceKey}:${vodId}:${currentIndex + 1}` : undefined}
                   getRestorePosition={getRestorePosition}
-                  onTimeUpdate={handleProgress}
-                  onPause={handleProgress}
+                  onTimeUpdate={(position, duration) => {
+                    setWatchClock({ position, duration });
+                    handleProgress(position, duration);
+                  }}
+                  onPause={(position, duration) => {
+                    setWatchClock({ position, duration });
+                    handleProgress(position, duration);
+                  }}
                   onEnded={handleEnded}
                   onPlaybackConfirmed={(evidence) => {
                     let host = '';
@@ -466,6 +483,36 @@ function WatchContent() {
             </div>
 
             <section className="watch-cinema-info" aria-label="影片信息">
+              <div className="watch-cinema-playback">
+                <div className="watch-cinema-time">
+                  <span>{formatWatchTime(watchClock.position)}</span>
+                  <span>{watchClock.duration > 0 ? `-${formatWatchTime(Math.max(0, watchClock.duration - watchClock.position))}` : '--:--'}</span>
+                </div>
+                <input
+                  className="watch-cinema-progress"
+                  type="range"
+                  min={0}
+                  max={Math.max(1, watchClock.duration)}
+                  step={1}
+                  value={Math.min(watchClock.position, watchClock.duration || watchClock.position)}
+                  aria-label="播放进度"
+                  onChange={(event) => playerApiRef.current?.seek(Number(event.target.value))}
+                  disabled={!watchClock.duration}
+                />
+                <button
+                  type="button"
+                  className="watch-cinema-rate"
+                  aria-label={`播放速度 ${watchRate} 倍`}
+                  title="切换播放速度"
+                  onClick={() => {
+                    const rates = [1, 1.25, 1.5, 2, 0.75];
+                    const current = playerApiRef.current?.getPlaybackRate() ?? watchRate;
+                    const next = rates[(rates.indexOf(current) + 1 + rates.length) % rates.length];
+                    playerApiRef.current?.setPlaybackRate(next);
+                    setWatchRate(next);
+                  }}
+                >{watchRate}×</button>
+              </div>
               <div className="watch-cinema-meta">
                 <div className="min-w-0">
                   {detailQuery.data?.videoInfo?.originalTitle && (
