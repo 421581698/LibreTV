@@ -186,7 +186,8 @@ jobs:
           if (!response.ok || payload.dryRun !== true ||
               payload.provider !== "cloudflare-workers-ai" ||
               !Number.isInteger(payload.planned) || payload.planned < 1 ||
-              !Array.isArray(payload.tasks) || payload.tasks.length < 1) {
+              !Array.isArray(payload.tasks) || payload.tasks.length < 1 ||
+              payload.tasks.some((task) => !["discover", "crawl"].includes(task?.job_type))) {
             throw new Error("Cloudflare Workers AI inference smoke test failed: HTTP " +
               response.status + " " + JSON.stringify(payload).slice(0, 800));
           }
