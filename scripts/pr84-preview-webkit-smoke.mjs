@@ -358,6 +358,7 @@ try {
     const header = document.querySelector('.watch-topbar');
     const close = header?.querySelector('.cinema-close-control');
     const airplay = header?.querySelector('[aria-label="投屏"]');
+    const fullscreen = header?.querySelector('[aria-label="全屏播放"]');
     const centerControls = document.querySelectorAll('.cinema-center-controls button');
     const centerControlSizes = Array.from(centerControls).map((button) => {
       const rect = button.getBoundingClientRect();
@@ -379,7 +380,7 @@ try {
     const relatedDataFallbacks = document.querySelectorAll('.netflix-related-art img[src^="data:"]').length;
     const emptyHistory = Array.from(document.querySelectorAll('.netflix-history-rail p'))
       .some((node) => node.textContent?.includes('还没有其他观看记录'));
-    if (!header || !close || !airplay || !dock || !watchShell || !frame || !info || !tabs) throw new Error('Immersive watch page elements are missing');
+    if (!header || !close || !airplay || !fullscreen || !dock || !watchShell || !frame || !info || !tabs) throw new Error('Immersive watch page elements or dedicated fullscreen/cast controls are missing');
     const dockStyle = getComputedStyle(dock);
     const shellStyle = getComputedStyle(watchShell);
     const shellRect = watchShell.getBoundingClientRect();
@@ -397,6 +398,7 @@ try {
     return {
       hasCloseControl: Boolean(close),
       hasAirPlayControl: Boolean(airplay),
+      hasFullscreenControl: Boolean(fullscreen),
       centerControlCount: centerControls.length,
       centerControlDisplay: centerStyle.display,
       centerControlSizes,
