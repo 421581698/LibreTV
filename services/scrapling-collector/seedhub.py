@@ -292,7 +292,7 @@ def _catalog_path(category: str, page: int) -> str:
 
 def _catalog_total_pages(html: str, fallback: int = 1) -> int:
     """Read the highest public pagination link advertised by a SeedHub catalogue page."""
-    page_numbers = [int(value) for value in re.findall(r"[?&]page=(\\d+)", html, flags=re.IGNORECASE)]
+    page_numbers = [int(value) for value in re.findall(r"[?&]page=(\d+)", html, flags=re.IGNORECASE)]
     return max([fallback, *page_numbers])
 
 
