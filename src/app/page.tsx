@@ -6,8 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 
 import { V4HomepageHeader } from '@/components/home/V4HomepageHeader';
-import { V4HomepageHero } from '@/components/home/V4HomepageHero';
-import { V4HomepageContent } from '@/components/home/V4HomepageContent';
+import { SeedHubHomepage } from '@/components/home/SeedHubHomepage';
 import { useFridayDetailBridge } from '@/components/friday/useFridayDetailBridge';
 import { useHomeSearchController } from '@/components/home/useHomeSearchController';
 import { RegistryInlinePlayer } from '@/components/home/RegistryInlinePlayer';
@@ -225,7 +224,7 @@ function HomeContent() {
     <div className="v4-home min-h-screen flex flex-col">
       <V4HomepageHeader overlay={!urlQuery} />
       <main className={urlQuery ? "v4-home-main" : "v4-home-main v4-home-main--cinema"}>
-        {!urlQuery && <V4HomepageHero onPick={openRecommendation} />}
+        {!urlQuery && <SeedHubHomepage />}
         {urlQuery && (
           <section aria-label="搜索结果" className="mb-10">
             <div className="flex items-center justify-between mb-3">
@@ -344,7 +343,7 @@ function HomeContent() {
             )}
           </section>
         )}
-        {!urlQuery && <V4HomepageContent onPick={openRecommendation} />}
+
       </main>
       <RegistryInlinePlayer resource={registryPlayItem} onClose={() => setRegistryPlayItem(null)} />
     </div>
