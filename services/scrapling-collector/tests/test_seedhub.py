@@ -86,6 +86,23 @@ class SeedHubDetailParserTests(unittest.TestCase):
         self.assertFalse(result["external_resource_links_extracted"])
         self.assertNotIn("files.example", str(result))
 
+    def test_ignores_favicon_as_poster_and_keeps_real_artwork(self):
+        html = """
+        <html><head>
+          <meta property="og:title" content="真实海报测试 - SeedHub">
+          <meta property="og:image" content="https://sh1.pcie.pppoe.top/static/img/favicon.ico">
+        </head><body>
+          <h1>真实海报测试</h1>
+          <img alt="网站图标" src="https://sh1.pcie.pppoe.top/static/img/favicon.ico">
+          <img alt="真实海报" src="https://sh1.pcie.pppoe.top/static/pics/poster.webp">
+          <img alt="剧照" src="https://sh1.pcie.pppoe.top/static/pics/still.webp">
+        </body></html>
+        """
+        result = parse_detail_html(html, "https://www.seedhub.cc/movies/130096/")
+        self.assertEqual(result["poster_url"], "https://sh1.pcie.pppoe.top/static/pics/poster.webp")
+        self.assertEqual(result["still_urls"], ["https://sh1.pcie.pppoe.top/static/pics/still.webp"])
+        self.assertNotIn("favicon.ico", str(result))
+
     def test_strips_decorative_hash_from_live_style_open_graph_title(self):
         html = '<html><head><meta property="og:title" content="# 生化危机：爆发夜 Resident Evil - SeedHub"></head><body><h1>生化危机：爆发夜</h1></body></html>'
         result = parse_detail_html(html, "https://www.seedhub.cc/movies/130096/")
