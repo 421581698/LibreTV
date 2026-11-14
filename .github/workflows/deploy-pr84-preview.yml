@@ -321,28 +321,8 @@ jobs:
           NODE
 
       
-      - name: Install Playwright Chromium for KKPhim dynamic player probe
-        if: always() && steps.deploy-preview.outcome == 'success'
-        timeout-minutes: 8
-        run: |
-          npm install --no-save --package-lock=false playwright@1.55.0
-          npx playwright install --with-deps chromium
-
-      - name: Probe KKPhim playback candidate after deploying this exact Preview commit
-        id: kkphim-probe
-        continue-on-error: true
-        run: node scripts/pr84-kkphim-readonly-probe.mjs
-
-      - name: Report KKPhim verification outcome
-        if: always()
-        env:
-          PROBE_OUTCOME: ${{ steps.kkphim-probe.outcome }}
-        run: |
-          if [ "$PROBE_OUTCOME" = "success" ]; then
-            echo "KKPhim returned a fresh HLS candidate with a verified manifest and segment. The PlayerShell step will attempt real browser decode; only its explicit PASS log proves playback."
-          else
-            echo "::warning::KKPhim has no freshly verified HLS candidate in this run. KKPhim PlayerShell decode is skipped; the source remains disabled and general Preview acceptance continues."
-          fi
+      # KKPhim is probed and decoded by the dedicated pr84-kkphim-probe.yml workflow.
+      # Keep this deployment workflow focused on general Preview UI/player/download acceptance.
 
       - name: Install Playwright WebKit for mobile-layout acceptance
         id: install-webkit
@@ -369,7 +349,6 @@ jobs:
         if: always() && steps.deploy-preview.outcome == 'success' && steps.install-chrome.outcome == 'success'
         env:
           PR84_PREVIEW_URL: https://libretv-pr84-preview.bggdbh.workers.dev
-          PR84_KKPHIM_M3U8: ${{ steps.kkphim-probe.outputs.kkphim_m3u8 }}
         run: node scripts/pr84-preview-player-smoke.mjs
 
       - name: Install FFmpeg for real MP4 download fixture
