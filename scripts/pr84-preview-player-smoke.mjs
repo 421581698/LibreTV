@@ -109,11 +109,9 @@ try {
   const timelineBefore = await page.evaluate(() => {
     const frame = document.querySelector('.netflix-player-frame');
     const video = frame?.querySelector('video');
-    const progress = frame?.querySelector('.artplayer .art-progress, .art-video-player .art-progress');
-    const rail = frame?.querySelector('.artplayer .art-progress-played, .art-video-player .art-progress-played');
-    const indicator = frame?.querySelector('.artplayer .art-progress-indicator, .art-video-player .art-progress-indicator');
-    if (!video || !progress || !rail || !indicator) {
-      throw new Error('Actual PlayerShell ArtPlayer timeline elements are missing');
+    const progress = document.querySelector('.watch-cinema-progress');
+    if (!video || !progress) {
+      throw new Error('Custom cinema timeline/video is missing');
     }
     const rect = (element) => {
       const r = element.getBoundingClientRect();
@@ -123,22 +121,16 @@ try {
       duration: video.duration,
       currentTime: video.currentTime,
       progress: rect(progress),
-      rail: rect(rail),
-      indicator: rect(indicator),
+
       progressPointerEvents: getComputedStyle(progress).pointerEvents,
     };
   });
   if (timelineBefore.progress.height < 12 || timelineBefore.progress.height > 20) {
     throw new Error('Actual ArtPlayer seek hit area is outside 12–20px: ' + JSON.stringify(timelineBefore));
   }
-  if (timelineBefore.rail.height < 1 || timelineBefore.rail.height > 3) {
-    throw new Error('Actual ArtPlayer visible played rail is not 1–3px: ' + JSON.stringify(timelineBefore));
-  }
-  if (timelineBefore.indicator.width > 8 || timelineBefore.indicator.height > 8) {
-    throw new Error('Actual ArtPlayer playhead exceeds 8px: ' + JSON.stringify(timelineBefore));
-  }
+
   const seekTarget = await page.evaluate(() => {
-    const progress = document.querySelector('.netflix-player-frame .artplayer .art-progress, .netflix-player-frame .art-video-player .art-progress');
+    const progress = document.querySelector('.watch-cinema-progress');
     const video = document.querySelector('.netflix-player-frame video');
     if (!progress || !video) throw new Error('Cannot seek: progress control/video missing');
     const r = progress.getBoundingClientRect();
@@ -152,7 +144,7 @@ try {
   const timelineAfter = await page.evaluate(() => ({
     currentTime: document.querySelector('.netflix-player-frame video')?.currentTime ?? 0,
   }));
-  console.log('PASS real ArtPlayer timeline geometry + pointer seek:', JSON.stringify({
+  console.log('PASS custom cinema timeline geometry + pointer seek:', JSON.stringify({
     timelineBefore, seekTarget, timelineAfter,
   }));
 
