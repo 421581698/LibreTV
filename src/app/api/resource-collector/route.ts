@@ -117,7 +117,8 @@ export async function GET(request: Request) {
       updated_at: snapshot.updated_at,
     }, { headers: { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=3600' } });
   }
-  if (action === 'discover') return collectorRequest('/v1/discover', {}, 20_000, request);\n  return collectorRequest(action === 'tasks' ? '/v1/tasks' : '/v1/discover', {}, 20_000, request);
+  if (action === 'discover') return collectorRequest('/v1/discover', {}, 20_000, request);
+  return collectorRequest(action === 'tasks' ? '/v1/tasks' : '/v1/discover', {}, 20_000, request);
 }
 
 export async function POST(request: NextRequest) {
