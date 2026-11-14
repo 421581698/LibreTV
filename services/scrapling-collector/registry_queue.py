@@ -91,6 +91,18 @@ def initialize() -> None:
         c.execute("UPDATE collector_jobs SET status='cancelled',lease_owner=NULL,lease_until=NULL,updated_at=? WHERE status='cancel_requested' AND lease_until IS NOT NULL AND lease_until<=?", (now, now))
         for row in cancelled:
             event(c, row["id"], "cancelled_after_worker_lease_expired", {})
+        retired = c.execute(
+            "SELECT id,job_type FROM collector_jobs WHERE job_type IN ('seedhub_sync','seedhub_detail_sync') AND status NOT IN ('succeeded','partial','failed','cancelled')"
+        ).fetchall()
+        c.execute(
+            """UPDATE collector_jobs SET status='cancelled',lease_owner=NULL,lease_until=NULL,
+               cancelled_at=COALESCE(cancelled_at,?),updated_at=?
+               WHERE job_type IN ('seedhub_sync','seedhub_detail_sync')
+               AND status NOT IN ('succeeded','partial','failed','cancelled')""",
+            (now, now),
+        )
+        for row in retired:
+            event(c, row["id"], "seedhub_collection_retired", {"job_type": row["job_type"]})
 
 
 def require_auth(authorization: str | None) -> None:
@@ -106,7 +118,7 @@ def event(c: sqlite3.Connection, job_id: str, name: str, detail: dict | None = N
 
 
 def submit_job(job_type: str, payload: dict, idempotency_key: str, max_attempts: int = 4) -> dict:
-    if job_type not in {"crawl", "discover", "seedhub_sync", "seedhub_detail_sync"}:
+    if job_type not in {"crawl", "discover"}:
         raise ValueError("Unsupported job type")
     if not idempotency_key or len(idempotency_key) > 200:
         raise ValueError("Invalid idempotency key")
@@ -433,21 +445,14 @@ def api_submit_job(payload: dict, authorization: str | None = Header(default=Non
     job_type = str(payload.get("job_type") or "crawl")
     if not isinstance(request,dict):
         raise HTTPException(status_code=400,detail="A job payload is required")
-    if job_type == "seedhub_sync":
-        if request.get("category") not in {"movies", "series", "anime"}:
-            raise HTTPException(status_code=400,detail="A valid SeedHub category is required")
-        start_page = request.get("start_page", 1)
-        pages = request.get("pages", 20)
-        if not isinstance(start_page, int) or isinstance(start_page, bool) or start_page < 1 or not isinstance(pages, int) or isinstance(pages, bool) or pages < 1 or pages > 50:
-            raise HTTPException(status_code=400,detail="SeedHub batches must contain 1 to 50 pages and a positive start page")
-    elif job_type == "seedhub_detail_sync":
-        if request.get("category") not in {"movies", "series", "anime"}:
-            raise HTTPException(status_code=400,detail="A valid SeedHub category is required")
-        limit = request.get("limit", 10)
-        if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1 or limit > 20:
-            raise HTTPException(status_code=400,detail="SeedHub detail batches must contain 1 to 20 records")
-    elif not isinstance(request.get("url"),str):
-        raise HTTPException(status_code=400,detail="A crawl payload with URL is required")
+    if job_type == "discover":
+        if "url" in request:
+            raise HTTPException(status_code=400,detail="Discovery jobs use the fixed system directory")
+    elif job_type == "crawl":
+        if not isinstance(request.get("url"),str):
+            raise HTTPException(status_code=400,detail="A crawl payload with URL is required")
+    else:
+        raise HTTPException(status_code=400,detail="Unsupported job type; SeedHub collection has been retired")
     key = str(payload.get("idempotency_key") or "")
     try:
         return submit_job(job_type,request,key)
