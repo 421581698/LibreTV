@@ -22,8 +22,8 @@ const MAX_HTML_BYTES = 512 * 1024;
 const MAX_MANIFEST_BYTES = 512 * 1024;
 const MAX_SEGMENT_BYTES = 1024 * 1024;
 const MAX_HOME_PAGES = 4;
-const MAX_MOVIES = 48;
-const MAX_LINKS = 144;
+const MAX_MOVIES = 24;
+const MAX_LINKS = 36;
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36";
 
 function isPublicAddress(address) {
@@ -511,7 +511,7 @@ async function verifyCandidate(candidate) {
     if (pageResult) return pageResult;
     // Static HTML often contains an expired or stale m3u8. Execute the player
     // and capture the media URL it actually requests at runtime instead.
-    if (link.url && dynamicEmbedAttempts < 24) {
+    if (link.url && dynamicEmbedAttempts < 6) {
       dynamicEmbedAttempts++;
       try {
         const dynamic = await captureDynamicEmbedMedia(link.url);
