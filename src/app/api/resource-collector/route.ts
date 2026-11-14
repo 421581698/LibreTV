@@ -24,8 +24,8 @@ export async function GET(request: Request) {
   }
   if (action === 'seedhub-detail') {
     const detailUrl = url.searchParams.get('url') ?? '';
-    const category = url.searchParams.get('category') ?? 'movies';
-    if (!/^(movies|series|anime)$/.test(category)) {
+    const category = url.searchParams.get('category');
+    if (category && !/^(movies|series|anime)$/.test(category)) {
       return NextResponse.json({ error: 'Invalid SeedHub category.' }, { status: 400 });
     }
     let parsed: URL;
@@ -37,7 +37,8 @@ export async function GET(request: Request) {
         !/^\/(movies|series|anime)\/\d+\/?$/.test(parsed.pathname)) {
       return NextResponse.json({ error: 'Only SeedHub detail pages are accepted.' }, { status: 400 });
     }
-    return collectorRequest('/v1/seedhub/detail?category=' + category + '&url=' + encodeURIComponent(parsed.toString()), {}, 30_000, request);
+    const categoryQuery = category ? '&category=' + category : '';
+    return collectorRequest('/v1/seedhub/detail?url=' + encodeURIComponent(parsed.toString()) + categoryQuery, {}, 30_000, request);
   }
   if (action === 'seedhub-catalog') {
     const category = url.searchParams.get('category') ?? 'movies';
