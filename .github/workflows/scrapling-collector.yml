@@ -152,6 +152,8 @@ jobs:
           token = "collector-ci-token"
           status, body = request("/v1/jobs", token=token)
           assert status == 200 and json.loads(body)["jobs"] == [], (status, body)
+          status, body = request("/v1/sites?limit=10", token=token)
+          assert status == 200 and json.loads(body)["sites"] == [], (status, body)
           status, body = request("/v1/registry/resources", token=token)
           assert status == 200 and json.loads(body)["resources"] == [], (status, body)
 
