@@ -141,3 +141,21 @@ export function inspectEmbedPage(rawUrl, html) {
     directMediaCandidates: getEmbedMediaUrls(rawUrl, source).map(summarizeMediaUrl).slice(0, 12),
   };
 }
+
+
+/** Rank a small homepage sample using public metadata; stable order breaks ties. */
+export function rankHomeItems(items, limit = 4) {
+  const score = (item) => {
+    const numeric = (...values) => values.map(Number).find((value) => Number.isFinite(value) && value > 0) || 0;
+    const quality = String(item?.quality || item?.resolution || item?.video_quality || "").toLowerCase();
+    const qualityScore = /2160|4k|uhd/.test(quality) ? 300 : /1080|fhd/.test(quality) ? 200 : /720|hd/.test(quality) ? 100 : 0;
+    const rating = numeric(item?.rating, item?.score, item?.douban_score, item?.tmdb_rating);
+    const popularity = numeric(item?.view, item?.views, item?.hits, item?.hot, item?.popularity);
+    const hasPoster = Boolean(item?.poster || item?.cover || item?.thumb || item?.vod_pic || item?.pic);
+    return qualityScore + Math.min(rating, 10) * 10 + Math.log10(popularity + 1) + (hasPoster ? 1 : 0);
+  };
+  return items.map((item, index) => ({ item, index, score: score(item) }))
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .slice(0, Math.max(0, limit))
+    .map(({ item }) => item);
+}

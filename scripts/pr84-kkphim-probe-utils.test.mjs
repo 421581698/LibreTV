@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getItems, getMovieDetail, getPlaybackLinks, getEmbedMediaUrls, getSameOriginScriptUrls, sampleIndexes } from "./pr84-kkphim-probe-utils.mjs";
+import { getItems, getMovieDetail, getPlaybackLinks, getEmbedMediaUrls, getSameOriginScriptUrls, sampleIndexes, rankHomeItems } from "./pr84-kkphim-probe-utils.mjs";
 
 test("reads legacy and v1 home list shapes", () => {
   assert.equal(getItems({ items: [{ slug: "old" }] })[0].slug, "old");
@@ -115,4 +115,16 @@ test("inspects embed page script and iframe references without leaking URL token
   assert.equal(JSON.stringify(report).includes("private"), false);
   assert.equal(JSON.stringify(report).includes("secret"), false);
   assert.equal(JSON.stringify(report).includes("hidden"), false);
+});
+
+
+test("ranks a small homepage sample by quality, rating and popularity with stable ties", () => {
+  const items = [
+    { slug: "ordinary", rating: 6.8, views: 100 },
+    { slug: "4k", quality: "4K", rating: 7.2 },
+    { slug: "popular", rating: 9.1, views: 100000 },
+    { slug: "middle", quality: "1080p", rating: 8.2 },
+  ];
+  assert.deepEqual(rankHomeItems(items, 3).map((item) => item.slug), ["4k", "middle", "popular"]);
+  assert.deepEqual(rankHomeItems([{ slug: "a" }, { slug: "b" }], 2).map((item) => item.slug), ["a", "b"]);
 });

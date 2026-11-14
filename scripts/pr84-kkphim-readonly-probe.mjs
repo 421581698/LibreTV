@@ -12,18 +12,27 @@ import {
   sampleIndexes,
   summarizeMediaUrl,
   summarizeResponseHeaders,
+  rankHomeItems,
 } from "./pr84-kkphim-probe-utils.mjs";
 
 const API_ORIGIN = "https://phimapi.com";
 const PLAYER_HOST = "player.phimapi.com";
-const TIMEOUT_MS = 5_000;
+const TIMEOUT_MS = 3_500;
+const TOTAL_BUDGET_MS = 8 * 60_000;
+const PER_TITLE_BUDGET_MS = 25_000;
+const PER_CANDIDATE_BUDGET_MS = 55_000;
+const TOTAL_DEADLINE = Date.now() + TOTAL_BUDGET_MS;
+let activeDeadline = TOTAL_DEADLINE;
+function remainingBudgetMs() { return Math.max(0, Math.min(activeDeadline, TOTAL_DEADLINE) - Date.now()); }
+function setBudget(ms) { activeDeadline = Math.min(TOTAL_DEADLINE, Date.now() + ms); }
+function assertBudget(stage) { if (remainingBudgetMs() <= 0) { const error = new Error("Time budget exceeded at " + stage); error.diagnostic = { stage: "budget-" + stage, httpStatus: null, networkCode: "BUDGET_EXCEEDED" }; throw error; } }
 const MAX_JSON_BYTES = 2 * 1024 * 1024;
 const MAX_HTML_BYTES = 512 * 1024;
 const MAX_MANIFEST_BYTES = 512 * 1024;
 const MAX_SEGMENT_BYTES = 1024 * 1024;
-const MAX_HOME_PAGES = 2;
-const MAX_MOVIES = 12;
-const MAX_LINKS = 8;
+const MAX_HOME_PAGES = 1;
+const MAX_MOVIES = 4;
+const MAX_LINKS = 4;
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36";
 
 function isPublicAddress(address) {
@@ -109,11 +118,13 @@ async function readLimited(response, limit, context = {}) {
 }
 
 async function getResponse(rawUrl, { allowedHost, accept, range, stage } = {}) {
+  assertBudget(stage || "request");
   const url = await assertPublicHttps(rawUrl, allowedHost);
   const headers = { accept: accept || "*/*", "user-agent": UA, referer: "https://phimapi.com/", origin: "https://phimapi.com" };
   if (range) headers.range = range;
   try {
-    const response = await fetch(url, { redirect: "error", signal: AbortSignal.timeout(TIMEOUT_MS), headers });
+    const timeoutMs = Math.max(1, Math.min(TIMEOUT_MS, remainingBudgetMs()));
+    const response = await fetch(url, { redirect: "error", signal: AbortSignal.timeout(timeoutMs), headers });
     return { url, response };
   } catch (error) {
     throw probeError("Network request failed", stage || "request", url, null, error);
@@ -295,8 +306,9 @@ async function captureDynamicEmbedMedia(rawUrl) {
         });
       }
     });
-    await page.goto(rawUrl, { waitUntil: "domcontentloaded", timeout: 12000 });
-    await page.waitForTimeout(1500);
+    assertBudget("dynamic-embed");
+    await page.goto(rawUrl, { waitUntil: "domcontentloaded", timeout: Math.min(12000, remainingBudgetMs()) });
+    await page.waitForTimeout(Math.min(1000, remainingBudgetMs()));
     pageDiagnostics.title = await page.title().catch(() => null);
     pageDiagnostics.playerRuntime = await page.evaluate(() => {
       const api = typeof window.jwplayer === "function" ? window.jwplayer() : null;
@@ -349,7 +361,7 @@ async function captureDynamicEmbedMedia(rawUrl) {
           }
         }
       }
-      await page.waitForTimeout(2500);
+      await page.waitForTimeout(Math.min(1500, remainingBudgetMs()));
       pageDiagnostics.playAttempt = await page.evaluate(async () => {
         const video = document.querySelector("video");
         if (!video) return { attempted: false, reason: "no-video-element" };
@@ -427,7 +439,7 @@ for (let page = 1; page <= MAX_HOME_PAGES; page++) {
     if (typeof item?.slug === "string" && item.slug.trim()) homeItems.set(item.slug, item);
   }
 }
-const items = [...homeItems.values()].slice(0, MAX_MOVIES);
+const items = rankHomeItems([...homeItems.values()], MAX_MOVIES);
 console.log(`KKPhim probe: ${homeItems.size} unique homepage item(s); checking up to ${items.length} details`);
 if (!items.length) throw new Error("KKPhim home API returned no movie items across sampled pages");
 
@@ -440,7 +452,8 @@ let detailV1Count = 0;
 let detailLegacyCount = 0;
 for (const [itemIndex, item] of items.entries()) {
   const slug = item.slug;
-  console.log(`KKPhim probe: detail ${itemIndex + 1}/${items.length}: ${slug}`);
+  setBudget(PER_TITLE_BUDGET_MS);
+  console.log(`KKPhim probe: detail ${itemIndex + 1}/${items.length}: ${slug} (budget ${Math.round(remainingBudgetMs()/1000)}s)`);
   let payload = null;
   let detailFormat = "v1";
   try {
@@ -459,26 +472,9 @@ for (const [itemIndex, item] of items.entries()) {
     }
   }
   const links = getPlaybackLinks(payload);
-  const byServerAndKind = new Map();
-  for (const link of links) {
-    const key = link.server + "::" + link.kind;
-    if (!byServerAndKind.has(key)) byServerAndKind.set(key, []);
-    byServerAndKind.get(key).push(link);
-  }
-  // Spread the probe across more titles instead of exhausting many episodes
-  // from the first few movies. Round-robin server/kind groups, sampling up to
-  // three episode positions per title (first, middle, last).
-  const movieCandidates = [];
-  const linkGroups = [...byServerAndKind.values()];
-  for (let sampleSlot = 0; sampleSlot < 3; sampleSlot++) {
-    for (const groupedLinks of linkGroups) {
-      const index = sampleIndexes(groupedLinks.length)[sampleSlot];
-      if (index === undefined) continue;
-      movieCandidates.push({ item, detail: getMovieDetail(payload), detailFormat, link: groupedLinks[index] });
-      if (movieCandidates.length >= 3) break;
-    }
-    if (movieCandidates.length >= 3) break;
-  }
+  // One candidate per title; prefer direct HLS over an embed indirection.
+  const preferred = [...links].sort((a, b) => (a.kind === "hls" ? 0 : 1) - (b.kind === "hls" ? 0 : 1));
+  const movieCandidates = preferred.length ? [{ item, detail: getMovieDetail(payload), detailFormat, link: preferred[0] }] : [];
   candidates.push(...movieCandidates);
   diagnostics.push({ slug, detailFormat, servers: new Set(links.map((link) => link.server)).size, playbackKinds: [...new Set(links.map((link) => link.kind))], episodeLinks: links.length, sampledCandidates: movieCandidates.length });
   if (candidates.length >= MAX_LINKS) break;
@@ -589,6 +585,7 @@ async function getFreshDetail(slug) {
 }
 
 for (const candidate of candidates) {
+  setBudget(PER_CANDIDATE_BUDGET_MS);
   tested++;
   console.log(`KKPhim probe: playback candidate ${tested}/${candidates.length}: ${candidate.item.slug} / ${candidate.link.server} / ${candidate.link.episode} (${candidate.link.kind})`);
   let lastError = null;
@@ -656,6 +653,9 @@ for (const failure of failures) {
   }
 }
 const report = {
+  totalBudgetMs: TOTAL_BUDGET_MS,
+  elapsedMs: Date.now() - (TOTAL_DEADLINE - TOTAL_BUDGET_MS),
+  remainingBudgetMs: remainingBudgetMs(),
   homePagesChecked,
   uniqueHomeItems: homeItems.size,
   detailItemsChecked: diagnostics.filter((entry) => entry.detailFormat).length,
