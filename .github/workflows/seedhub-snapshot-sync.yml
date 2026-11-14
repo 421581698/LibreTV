@@ -61,14 +61,31 @@ jobs:
             git push origin HEAD:feature/homepage-cinema-lobby-order-2026-11-11
           fi
 
-      - name: Trigger isolated PR84 Preview deployment with persisted snapshots
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Set up Node.js for isolated Preview build
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install application dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify application types and tests
         run: |
-          curl --fail --silent --show-error \
-            -X POST \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/421581698/LibreTV/actions/workflows/deploy-pr84-preview.yml/dispatches \
-            -d '{"ref":"feature/homepage-cinema-lobby-order-2026-11-11"}'
+          npm run typecheck
+          npm run lint
+          npm test -- --reporter=dot
+
+      - name: Build isolated PR84 Preview with the newly persisted snapshots
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npx opennextjs-cloudflare build
+
+      - name: Deploy snapshot-backed PR84 Preview Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing preview secret: CLOUDFLARE_API_TOKEN" && exit 1)
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "Missing preview secret: CLOUDFLARE_ACCOUNT_ID" && exit 1)
+          npx wrangler deploy --config wrangler.pr84-preview.toml
