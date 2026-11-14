@@ -146,7 +146,7 @@ jobs:
             fi
             echo "Resource Supervisor model configured on isolated Preview Worker."
           else
-            echo "Resource Supervisor model absent; AI planning remains disabled until a Preview secret is provided."
+            echo "No external model secret supplied; the Preview uses its Cloudflare Workers AI binding by default."
           fi
 
       - name: Probe configured CMS candidate without enabling it as a default source
