@@ -909,3 +909,39 @@ html:has(.netflix-watch-shell) body > nav.v4-mobile-tabbar {
 .netflix-watch-shell .netflix-player-frame .art-video-player .art-bottom {
   display:none !important;
 }
+
+
+/* PR84: center the actual video viewport inside the full-screen cinema stage.
+   ArtPlayer can retain its intrinsic 16:9 wrapper at the top even when its
+   outer frame is 100dvh; stretch the player layers to the stage so object-fit
+   contain centers the picture instead of pinning it to the top edge. */
+.netflix-watch-shell .netflix-player-frame {
+  display:block !important;
+  overflow:hidden !important;
+}
+.netflix-watch-shell .netflix-player-frame > .artplayer,
+.netflix-watch-shell .netflix-player-frame > .art-video-player,
+.netflix-watch-shell .netflix-player-frame .artplayer,
+.netflix-watch-shell .netflix-player-frame .art-video-player {
+  position:absolute !important;
+  inset:0 !important;
+  width:100% !important;
+  height:100% !important;
+  min-height:100% !important;
+  max-height:none !important;
+  aspect-ratio:auto !important;
+  margin:0 !important;
+}
+.netflix-watch-shell .netflix-player-frame video,
+.netflix-watch-shell .netflix-player-frame .art-video-player video {
+  position:absolute !important;
+  inset:0 !important;
+  display:block !important;
+  width:100% !important;
+  height:100% !important;
+  max-width:100% !important;
+  max-height:100% !important;
+  object-fit:contain !important;
+  object-position:center center !important;
+  margin:auto !important;
+}
