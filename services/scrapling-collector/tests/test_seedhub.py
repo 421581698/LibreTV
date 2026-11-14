@@ -82,6 +82,14 @@ class SeedHubDetailParserTests(unittest.TestCase):
         result = parse_detail_html(html, "https://www.seedhub.cc/movies/130096/")
         self.assertEqual(result["title"], "生化危机：爆发夜 Resident Evil")
 
+    def test_detail_category_comes_from_catalogue_not_shared_movies_url(self):
+        html = '<html><head><meta property="og:title" content="谷雨 - SeedHub"></head><body><h1>谷雨</h1></body></html>'
+        url = "https://www.seedhub.cc/movies/127423/"
+        self.assertEqual(parse_detail_html(html, url, "series")["category"], "series")
+        self.assertEqual(parse_detail_html(html, url, "anime")["category"], "anime")
+        with self.assertRaises(ValueError):
+            parse_detail_html(html, url, "unknown")
+
     def test_rejects_non_seedhub_or_non_detail_urls(self):
         for url in (
             "https://evil.example/movies/130096/",
@@ -118,7 +126,7 @@ class SeedHubDetailPersistenceTests(unittest.TestCase):
             stack.enter_context(patch.object(seedhub, "_require_public_seedhub_host"))
             stack.enter_context(patch.object(seedhub, "_require_auth"))
             stack.enter_context(patch.object(seedhub.Fetcher, "get", return_value=Response()))
-            detail = seedhub.seedhub_detail("https://www.seedhub.cc/movies/130096/", "Bearer test")
+            detail = seedhub.seedhub_detail("https://www.seedhub.cc/movies/130096/", authorization="Bearer test")
             catalog = seedhub.seedhub_catalog("movies", 50, 0, "Bearer test")
 
         self.assertEqual(detail["metadata"]["director"], "测试导演")
