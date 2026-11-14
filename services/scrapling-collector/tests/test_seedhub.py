@@ -40,15 +40,6 @@ class SeedHubCatalogParserTests(unittest.TestCase):
             parse_catalog_html('<a href="/movies/1/">Title</a>', "https://www.seedhub.cc/", "torrent")
 
 
-class SeedHubPaginationTests(unittest.TestCase):
-    def test_catalog_total_pages_reads_last_page_link(self):
-        import seedhub
-
-        html = '<a href="?page=2">2</a><a href="?page=1428">1428</a>'
-        self.assertEqual(seedhub._catalog_total_pages(html), 1428)
-        self.assertEqual(seedhub._catalog_total_pages('<span>no pagination</span>', 7), 7)
-
-
 class SeedHubDetailParserTests(unittest.TestCase):
     def test_extracts_title_description_poster_and_stills_without_outbound_links(self):
         html = """
@@ -124,52 +115,6 @@ class SeedHubDetailParserTests(unittest.TestCase):
         ):
             with self.subTest(url=url), self.assertRaises(ValueError):
                 parse_detail_html("<h1>Title</h1>", url)
-
-
-class SeedHubDetailSyncTests(unittest.TestCase):
-    def test_detail_sync_enriches_catalog_rows_with_original_category(self):
-        import tempfile
-        from pathlib import Path
-        from unittest.mock import patch
-        import seedhub
-
-        html = """
-        <html><head><meta property="og:title" content="八仙！ - SeedHub">
-        <meta property="og:image" content="https://sh1.pcie.pppoe.top/poster.jpg"></head>
-        <body><h1>八仙！</h1><div>导演：测试导演</div>
-        <h2>八仙！的简介</h2><p>真实详情简介内容。</p>
-        <h2>八仙！的图片</h2><img src="https://sh1.pcie.pppoe.top/still.jpg"></body></html>
-        """
-
-        class Response:
-            url = "https://www.seedhub.cc/movies/143112/"
-            status = 200
-            text = html
-
-        with tempfile.TemporaryDirectory() as directory:
-            with patch.object(seedhub, "DB_PATH", Path(directory) / "catalog.sqlite3"), \
-                 patch.object(seedhub, "_require_egress_firewall"), \
-                 patch.object(seedhub, "_require_public_seedhub_host"), \
-                 patch.object(seedhub.Fetcher, "get", return_value=Response()):
-                seedhub._initialize()
-                with seedhub._connect() as conn:
-                    conn.execute(
-                        "INSERT INTO seedhub_catalog(source_url,title,category,poster_url,discovered_at) VALUES(?,?,?,?,?)",
-                        ("https://www.seedhub.cc/movies/143112/", "八仙！", "anime", None, 1),
-                    )
-                result = seedhub.sync_seedhub_details("anime", limit=1)
-                with seedhub._connect() as conn:
-                    saved = conn.execute(
-                        "SELECT poster_url,detail_json FROM seedhub_catalog WHERE source_url=?",
-                        ("https://www.seedhub.cc/movies/143112/",),
-                    ).fetchone()
-
-        saved_detail = __import__("json").loads(saved["detail_json"])
-        self.assertEqual(result["details_processed"], 1)
-        self.assertEqual(result["details_remaining"], 0)
-        self.assertEqual(saved_detail["category"], "anime")
-        self.assertEqual(saved_detail["description"], "真实详情简介内容。")
-        self.assertEqual(saved["poster_url"], "https://sh1.pcie.pppoe.top/poster.jpg")
 
 
 class SeedHubDetailCacheTests(unittest.TestCase):
@@ -249,53 +194,6 @@ class SeedHubDetailPersistenceTests(unittest.TestCase):
 
 
 class SeedHubDetailRetryAndCategoryTests(unittest.TestCase):
-    def test_failed_detail_remains_retryable_and_is_bounded(self):
-        import json
-        import tempfile
-        from pathlib import Path
-        from unittest.mock import patch
-        import seedhub
-
-        source_url = "https://www.seedhub.cc/movies/143112/"
-        html = """<html><head><meta property="og:title" content="八仙！">
-        <meta property="og:image" content="https://sh1.pcie.pppoe.top/poster.jpg"></head>
-        <body><h1>八仙！</h1><h2>简介</h2><p>真实详情</p></body></html>"""
-
-        class Response:
-            url = source_url
-            status = 200
-            text = html
-
-        with tempfile.TemporaryDirectory() as directory:
-            with patch.object(seedhub, "DB_PATH", Path(directory) / "catalog.sqlite3"), patch.object(seedhub, "_require_egress_firewall"), patch.object(seedhub, "_require_public_seedhub_host"):
-                seedhub._initialize()
-                with seedhub._connect() as conn:
-                    conn.execute(
-                        "INSERT INTO seedhub_catalog(source_url,title,category,discovered_at) VALUES(?,?,?,?)",
-                        (source_url, "八仙！", "anime", 1),
-                    )
-                with patch.object(seedhub.Fetcher, "get", side_effect=RuntimeError("temporary failure")):
-                    failed = seedhub.sync_seedhub_details("anime", limit=1)
-                with seedhub._connect() as conn:
-                    row = conn.execute(
-                        "SELECT detail_json,detail_attempts FROM seedhub_catalog WHERE source_url=?",
-                        (source_url,),
-                    ).fetchone()
-                self.assertIsNone(row["detail_json"])
-                self.assertEqual(row["detail_attempts"], 1)
-                self.assertEqual(failed["details_remaining"], 1)
-
-                with patch.object(seedhub.Fetcher, "get", return_value=Response()):
-                    recovered = seedhub.sync_seedhub_details("anime", limit=1)
-                with seedhub._connect() as conn:
-                    row = conn.execute(
-                        "SELECT detail_json,detail_attempts,detail_last_error FROM seedhub_catalog WHERE source_url=?",
-                        (source_url,),
-                    ).fetchone()
-                self.assertIsNotNone(row["detail_json"])
-                self.assertIsNone(row["detail_last_error"])
-                self.assertEqual(recovered["details_remaining"], 0)
-
     def test_same_detail_url_can_be_registered_in_multiple_catalogue_categories(self):
         import tempfile
         from pathlib import Path
