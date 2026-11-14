@@ -456,8 +456,8 @@ export async function POST(req: Request) {
       return ndjsonResponse(req, keyword, sources, filterAdult, cacheKey, cached);
     }
 
-    const registryPromise = searchVerifiedRegistry(keyword);
-    const seedhubPromise = searchSeedHubCatalog(keyword);
+    const registryPromise = searchVerifiedRegistry(keyword, req);
+    const seedhubPromise = searchSeedHubCatalog(keyword, req);
     const outcomes = cached ?? await searchSources(keyword, sources, {
       filterAdult,
       signal: req.signal,
