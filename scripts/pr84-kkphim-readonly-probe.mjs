@@ -466,7 +466,14 @@ for (const [itemIndex, item] of items.entries()) {
       if (!getPlaybackLinks(payload).length) throw new Error("Legacy detail returned no episode playback links");
       detailLegacyCount++;
     } catch (legacyError) {
-      diagnostics.push({ slug, detail: "unavailable", v1Error: String(v1Error?.message || v1Error).slice(0, 100), legacyError: String(legacyError?.message || legacyError).slice(0, 100) });
+      diagnostics.push({
+        slug,
+        detail: "unavailable",
+        apiFailures: [
+          { stage: "api-v1-detail", error: String(v1Error?.message || v1Error).slice(0, 100), ...(v1Error?.diagnostic || {}) },
+          { stage: "api-legacy-detail", error: String(legacyError?.message || legacyError).slice(0, 100), ...(legacyError?.diagnostic || {}) },
+        ],
+      });
       continue;
     }
   }
@@ -645,9 +652,15 @@ for (const candidate of candidates) {
   });
 }
 const failureByStage = {};
+for (const diagnostic of diagnostics) {
+  for (const failure of diagnostic.apiFailures || []) {
+    const key = ["api", failure.stage, failure.httpStatus ? "HTTP " + failure.httpStatus : failure.networkCode || "no-http"].join(" / ");
+    failureByStage[key] = (failureByStage[key] || 0) + 1;
+  }
+}
 for (const failure of failures) {
   for (const attempt of failure.attempts || []) {
-    const key = [failure.kind, attempt.stage, attempt.httpStatus ? "HTTP " + attempt.httpStatus : "no-http"].join(" / ");
+    const key = [failure.kind, attempt.stage, attempt.httpStatus ? "HTTP " + attempt.httpStatus : attempt.networkCode || "no-http"].join(" / ");
     failureByStage[key] = (failureByStage[key] || 0) + 1;
   }
 }
