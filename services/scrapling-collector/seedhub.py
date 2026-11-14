@@ -71,7 +71,7 @@ class _CatalogParser(HTMLParser):
         if tag == "a" and self.current is not None:
             self.anchor_depth -= 1
             if self.anchor_depth <= 0:
-                title = re.sub(r"\s+", " ", self.current["title"]).strip()[:240]
+    title = re.sub(r"^[#\s]+", "", title).strip()
                 if title and not any(item["source_url"] == self.current["source_url"] for item in self.items):
                     self.current["title"] = title
                     self.items.append(self.current)
