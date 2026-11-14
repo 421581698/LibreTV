@@ -9,7 +9,7 @@ from scrapling.fetchers import Fetcher
 from seedhub import parse_catalog_html, parse_detail_html
 
 ORIGIN = "https://www.seedhub.cc"
-CATEGORIES = ("movies", "series", "anime")
+CATEGORY_PATHS = {"movies": 1, "series": 3, "anime": 2}
 DETAIL_SAMPLE = ORIGIN + "/movies/130096/"
 
 
@@ -31,7 +31,7 @@ def fetch_html(url: str) -> str:
 
 def main() -> int:
     totals: dict[str, int] = {}
-    for category_id, category in enumerate(CATEGORIES, start=1):
+    for category, category_id in CATEGORY_PATHS.items():
         # SeedHub currently exposes the three public catalogues under these fixed paths.
         url = f"{ORIGIN}/categories/{category_id}/movies/"
         html = fetch_html(url)
