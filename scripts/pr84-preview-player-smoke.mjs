@@ -351,6 +351,37 @@ try {
   if (errors.length > 0) throw new Error('Player console errors: ' + errors.slice(0, 8).join(' | '));
 
   await page.screenshot({ path: '/tmp/pr84-preview-player.png', fullPage: false });
+  // A source reload must rebind media lifecycle listeners and restart the same overlay timer.
+  await page.waitForFunction(() => {
+    const video = document.querySelector('video');
+    return Boolean(video && !video.paused && video.readyState >= 2 && video.currentTime >= 1.5);
+  }, null, { timeout: 8_000 });
+  await page.waitForTimeout(3_500);
+  const switchedHidden = await page.evaluate(() => {
+    const shell = document.querySelector('.netflix-watch-shell');
+    const video = document.querySelector('video');
+    const selectors = ['.watch-topbar', '.cinema-center-controls', '.watch-cinema-info', '.player-quality-controls'];
+    return { hiddenClass: Boolean(shell?.classList.contains('cinema-controls-hidden')), paused: video?.paused ?? true,
+      controls: selectors.map((selector) => { const element = document.querySelector(selector); const style = element ? getComputedStyle(element) : null; return { selector, visibility: style?.visibility, opacity: style ? Number.parseFloat(style.opacity) : 1 }; }) };
+  });
+  if (!switchedHidden.hiddenClass || switchedHidden.paused || switchedHidden.controls.some((item) => item.visibility !== 'hidden' || item.opacity > 0.05)) {
+    throw new Error('Cinema controls lifecycle did not restart after source switch: ' + JSON.stringify(switchedHidden));
+  }
+  await page.mouse.move(722, 452);
+  await page.waitForFunction(() => !document.querySelector('.netflix-watch-shell')?.classList.contains('cinema-controls-hidden'), null, { timeout: 3_000 });
+  await page.evaluate(() => document.querySelector('video')?.pause());
+  await page.waitForFunction(() => document.querySelector('video')?.paused === true, null, { timeout: 3_000 });
+  const switchedPausedVisible = await page.evaluate(() => ({
+    hiddenClass: Boolean(document.querySelector('.netflix-watch-shell')?.classList.contains('cinema-controls-hidden')),
+    controlsVisible: ['.watch-topbar', '.cinema-center-controls', '.watch-cinema-info', '.player-quality-controls'].every((selector) => {
+      const element = document.querySelector(selector); return Boolean(element && getComputedStyle(element).visibility === 'visible');
+    }),
+  }));
+  if (switchedPausedVisible.hiddenClass || !switchedPausedVisible.controlsVisible) {
+    throw new Error('Controls did not remain visible after pausing the switched source: ' + JSON.stringify(switchedPausedVisible));
+  }
+  console.log('PASS cinema controls lifecycle after source switch:', JSON.stringify({ switchedHidden, switchedPausedVisible }));
+
   console.log('PASS LibreTV PlayerShell alternate HLS rendition source switch on the same video element:', JSON.stringify(second));
 } finally {
   await browser.close();

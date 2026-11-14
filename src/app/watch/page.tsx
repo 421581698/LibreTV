@@ -138,27 +138,41 @@ function WatchContent() {
     if (!shell || !frame) return;
     let video: HTMLVideoElement | null = null;
     const clearHideTimer = () => {
-      if (controlsHideTimerRef.current) clearTimeout(controlsHideTimerRef.current);
+      if (controlsHideTimerRef.current !== null) window.clearTimeout(controlsHideTimerRef.current);
+      controlsHideTimerRef.current = null;
+    };
+    const showControls = () => {
+      shell.classList.remove('cinema-controls-hidden');
+      setControlsVisible(true);
+    };
+    const hideControls = (scheduledVideo: HTMLVideoElement) => {
+      if (video !== scheduledVideo || scheduledVideo.paused || scheduledVideo.ended) return;
+      // Apply the class immediately as well as updating React state. This keeps the
+      // overlay transition deterministic across ArtPlayer source reloads and React commits.
+      shell.classList.add('cinema-controls-hidden');
+      setControlsVisible(false);
       controlsHideTimerRef.current = null;
     };
     const revealControls = () => {
       clearHideTimer();
-      setControlsVisible(true);
+      showControls();
       if (video && !video.paused && !video.ended) {
-        controlsHideTimerRef.current = setTimeout(() => setControlsVisible(false), 3000);
+        const activeVideo = video;
+        controlsHideTimerRef.current = window.setTimeout(() => hideControls(activeVideo), 3000);
       }
     };
     const keepControlsVisible = () => {
       clearHideTimer();
-      setControlsVisible(true);
+      showControls();
     };
     const scheduleHide = () => {
       clearHideTimer();
       if (!video || video.paused || video.ended) {
-        setControlsVisible(true);
+        showControls();
         return;
       }
-      controlsHideTimerRef.current = setTimeout(() => setControlsVisible(false), 3000);
+      const activeVideo = video;
+      controlsHideTimerRef.current = window.setTimeout(() => hideControls(activeVideo), 3000);
     };
     const onPlay = () => { setControlsVisible(true); scheduleHide(); };
     const onPause = keepControlsVisible;
