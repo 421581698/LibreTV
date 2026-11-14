@@ -15,6 +15,13 @@ export async function GET(request: Request) {
     const query = host ? '?host=' + encodeURIComponent(host) : '';
     return collectorRequest('/v1/stats' + query, {}, 10_000, request);
   }
+  if (action === 'jobs') {
+    const limit = url.searchParams.get('limit') ?? '50';
+    if (!/^\\d{1,3}$/.test(limit) || Number(limit) < 1 || Number(limit) > 100) {
+      return NextResponse.json({ error: 'Invalid collector job limit.' }, { status: 400 });
+    }
+    return collectorRequest('/v1/jobs?limit=' + limit, {}, 10_000, request);
+  }
   if (action === 'seedhub-detail') {
     const detailUrl = url.searchParams.get('url') ?? '';
     let parsed: URL;
