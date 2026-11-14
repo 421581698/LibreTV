@@ -75,7 +75,12 @@ export async function GET(request: Request) {
     const snapshotCategory = (category ?? 'movies') as keyof typeof seedhubSnapshots;
     const snapshotItem = seedhubSnapshots[snapshotCategory].items.find((item) => item.source_url === parsed.toString());
     if (snapshotItem?.detail && typeof snapshotItem.detail === 'object') {
-      return NextResponse.json(snapshotItem.detail, { headers: { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=3600' } });
+      return NextResponse.json({
+        ...snapshotItem.detail,
+        // Detail parser can mistake the site favicon for a poster. Prefer the
+        // validated catalogue poster URL while retaining real still images.
+        poster_url: snapshotItem.poster_url ?? snapshotItem.detail.poster_url,
+      }, { headers: { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=3600' } });
     }
     return collectorResponse;
   }
