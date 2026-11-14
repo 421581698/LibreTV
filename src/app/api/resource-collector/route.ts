@@ -38,7 +38,15 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Only SeedHub detail pages are accepted.' }, { status: 400 });
     }
     const categoryQuery = category ? '&category=' + category : '';
-    return collectorRequest('/v1/seedhub/detail?url=' + encodeURIComponent(parsed.toString()) + categoryQuery, {}, 30_000, request);
+    const hasBrowserCollectorCredentials = Boolean(
+      request.headers.get('x-scrapling-api-base')?.trim() &&
+      request.headers.get('x-scrapling-api-token')?.trim()
+    );
+    const cacheOnlyQuery = hasBrowserCollectorCredentials ? '' : '&cache_only=true';
+    return collectorRequest(
+      '/v1/seedhub/detail?url=' + encodeURIComponent(parsed.toString()) + categoryQuery + cacheOnlyQuery,
+      {}, 30_000, request,
+    );
   }
   if (action === 'seedhub-catalog') {
     const category = url.searchParams.get('category') ?? 'movies';
