@@ -22,6 +22,10 @@ const TOTAL_BUDGET_MS = 8 * 60_000;
 const PER_TITLE_BUDGET_MS = 25_000;
 const PER_CANDIDATE_BUDGET_MS = 55_000;
 const TOTAL_DEADLINE = Date.now() + TOTAL_BUDGET_MS;
+const hardDeadlineTimer = setTimeout(() => {
+  console.error("KKPhim read-only probe exceeded its 8-minute hard deadline; terminating stuck browser/network work.");
+  process.exit(124);
+}, TOTAL_BUDGET_MS);
 let activeDeadline = TOTAL_DEADLINE;
 function remainingBudgetMs() { return Math.max(0, Math.min(activeDeadline, TOTAL_DEADLINE) - Date.now()); }
 function setBudget(ms) { activeDeadline = Math.min(TOTAL_DEADLINE, Date.now() + ms); }
@@ -756,5 +760,6 @@ console.log("KKPhim read-only probe report:", JSON.stringify(report));
 if (success && process.env.GITHUB_OUTPUT) {
   appendFileSync(process.env.GITHUB_OUTPUT, "kkphim_m3u8=" + encodeURIComponent(success.mediaUrl) + "\n");
 }
+clearTimeout(hardDeadlineTimer);
 if (!success) throw new Error("KKPhim had no candidate with a valid HLS manifest and non-empty segment after " + tested + " candidates");
 console.log("PASS KKPhim API + HLS manifest + segment read-only probe; default source remains disabled pending browser decode verification.");
