@@ -15,6 +15,15 @@ export async function GET(request: Request) {
     const query = host ? '?host=' + encodeURIComponent(host) : '';
     return collectorRequest('/v1/stats' + query, {}, 10_000, request);
   }
+  if (action === 'seedhub-catalog') {
+    const category = url.searchParams.get('category') ?? 'movies';
+    const limit = url.searchParams.get('limit') ?? '50';
+    const offset = url.searchParams.get('offset') ?? '0';
+    if (!/^(movies|series|anime)$/.test(category) || !/^\\d{1,3}$/.test(limit) || !/^\\d{1,7}$/.test(offset)) {
+      return NextResponse.json({ error: 'Invalid SeedHub catalogue query.' }, { status: 400 });
+    }
+    return collectorRequest(`/v1/seedhub/catalog?category=${category}&limit=${limit}&offset=${offset}`, {}, 10_000, request);
+  }
   return collectorRequest(action === 'tasks' ? '/v1/tasks' : '/v1/discover', {}, 20_000, request);
 }
 
@@ -41,6 +50,15 @@ export async function POST(request: NextRequest) {
   if (!body || typeof body !== 'object') {
     return NextResponse.json({ error: 'Invalid collector request.' }, { status: 400 });
   }
+  if ('seedhubSync' in body && body.seedhubSync === true) {
+    const category = typeof body.category === 'string' ? body.category : 'movies';
+    const pages = typeof body.pages === 'number' ? body.pages : 1;
+    if (!/^(movies|series|anime)$/.test(category) || !Number.isInteger(pages) || pages < 1 || pages > 5) {
+      return NextResponse.json({ error: 'Invalid SeedHub sync request.' }, { status: 400 });
+    }
+    return collectorRequest(`/v1/seedhub/sync?category=${category}&pages=${pages}`, { method: 'POST' }, 65_000, request);
+  }
+
   if ('candidateId' in body && typeof body.candidateId === 'string') {
     if (!/^[a-f0-9]{32}$/i.test(body.candidateId)) {
       return NextResponse.json({ error: 'Invalid candidate ID.' }, { status: 400 });
