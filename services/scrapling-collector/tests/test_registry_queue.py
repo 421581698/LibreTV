@@ -20,6 +20,19 @@ class RegistryQueueTests(unittest.TestCase):
         self.patch.stop()
         self.tmp.cleanup()
 
+    def test_discovered_site_allowlist_is_read_only_and_bounded(self):
+        with queue.connect() as c:
+            c.execute(
+                "INSERT INTO sites(host,title,url,directory,discovered_at) VALUES(?,?,?,?,?)",
+                ("catalog.example.org", "Catalog", "https://catalog.example.org/", "FMHY", 123),
+            )
+        with patch.object(queue, "require_auth"):
+            result = queue.api_sites(authorization="Bearer test", limit=10)
+        self.assertEqual(len(result["sites"]), 1)
+        self.assertEqual(result["sites"][0]["host"], "catalog.example.org")
+        self.assertEqual(result["sites"][0]["url"], "https://catalog.example.org/")
+
+
     def test_discovery_jobs_are_durable_and_idempotent(self):
         first = queue.submit_job("discover", {"search_keyword": "sample"}, "discover:sample")
         second = queue.submit_job("discover", {"search_keyword": "sample"}, "discover:sample")
