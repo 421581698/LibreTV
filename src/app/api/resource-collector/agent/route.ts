@@ -11,7 +11,7 @@ import { validateOpenClawGatewayUrl } from '@/lib/friday/model-provider';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const requestSchema = z.object({ goal: z.string().trim().min(3).max(200) }).strict();
+const requestSchema = z.object({ goal: z.string().trim().min(3).max(200), dryRun: z.boolean().optional() }).strict();
 const planSchema = z.object({
   summary: z.string().trim().min(1).max(300),
   tasks: z.array(z.object({
@@ -180,6 +180,29 @@ export async function POST(request: Request) {
         prompt: plannerPrompt,
       });
       normalized = planSchema.parse(result.object);
+    }
+
+    if (parsedBody.data.dryRun) {
+      const tasks = normalized.tasks.flatMap((task) => {
+        const selectedSite = task.job_type === 'crawl'
+          ? sites.find((site) => site.host === String(task.site_host || '').toLowerCase())
+          : undefined;
+        if (task.job_type === 'crawl' && !selectedSite) return [];
+        return [{
+          job_type: task.job_type,
+          ...(task.job_type === 'seedhub_sync' ? { category: task.category || 'movies', pages: Math.min(20, task.pages || 10) } : {}),
+          ...(selectedSite ? { site_host: selectedSite.host, mode: task.mode || 'auto', limit: Math.min(50, task.limit || 30) } : {}),
+          rationale: task.rationale,
+        }];
+      });
+      return NextResponse.json({
+        dryRun: true,
+        provider: config.provider,
+        model: config.modelName,
+        summary: normalized.summary,
+        planned: tasks.length,
+        tasks,
+      });
     }
 
     const dedupe = new Set<string>();
