@@ -37,10 +37,16 @@ class _CatalogParser(HTMLParser):
         if tag == "a":
             href = values.get("href", "")
             parsed = urlparse(urljoin(self.base_url, href))
-            if parsed.scheme == "https" and parsed.hostname == SEEDHUB_HOST and re.match(r"^/(?:movies|series|anime)/[^/?#]+/?$", parsed.path):
+            if (
+                self.current is None
+                and parsed.scheme == "https"
+                and parsed.hostname == SEEDHUB_HOST
+                and re.match(r"^/(?:movies|series|anime)/[^/?#]+/?$", parsed.path)
+            ):
                 self.current = {"source_url": parsed._replace(query="", fragment="").geturl(), "title": "", "poster_url": None}
                 self.anchor_depth = 1
             elif self.current is not None:
+                # Nested title anchors must not replace the active card or erase its poster.
                 self.anchor_depth += 1
         elif tag == "img" and self.current is not None:
             raw = values.get("data-src") or values.get("data-original") or values.get("src") or ""
