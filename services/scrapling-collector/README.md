@@ -39,14 +39,14 @@ For Cloudflare-hosted LibreTV, the collector must run as a separately reachable 
 
 ## AI Resource Supervisor
 
-The Next.js Preview API exposes `POST /api/resource-collector/agent`. It uses a dedicated OpenClaw agent when configured, or an OpenAI-compatible model otherwise, to produce a strict bounded plan. The model can only schedule `discover`, `seedhub_sync`, and `crawl` jobs. A crawl must select an exact host from the persisted discovered-site allowlist; it cannot emit arbitrary URLs or claim that media is playable.
+The Next.js Preview API exposes `POST /api/resource-collector/agent`. The isolated PR84 Preview binds Cloudflare Workers AI as its default planner (`@cf/meta/llama-3.1-8b-instruct`), so no external model-provider API key is required. A dedicated OpenClaw agent or OpenAI-compatible provider can optionally override it. The model can only schedule `discover`, `seedhub_sync`, and `crawl` jobs. A crawl must select an exact host from the persisted discovered-site allowlist; it cannot emit arbitrary URLs or claim that media is playable.
 
-Configure one of these server-side options on the isolated Preview Worker. The PR84 preview deployment workflow reads the optional GitHub Actions secrets `PR84_RESOURCE_AGENT_API_KEY` (plus optional `PR84_RESOURCE_AGENT_BASE_URL` / `PR84_RESOURCE_AGENT_MODEL`), or the complete `PR84_RESOURCE_OPENCLAW_*` secret set, and writes them only to the isolated Preview Worker:
+Cloudflare Workers AI is enabled through the `[ai] binding = "AI"` section in `wrangler.pr84-preview.toml`; it does not require a provider API key. The PR84 preview deployment workflow can optionally override this default by reading the GitHub Actions secrets `PR84_RESOURCE_AGENT_API_KEY` (plus optional `PR84_RESOURCE_AGENT_BASE_URL` / `PR84_RESOURCE_AGENT_MODEL`), or the complete `PR84_RESOURCE_OPENCLAW_*` secret set, and writes them only to the isolated Preview Worker:
 
 - Direct model: `RESOURCE_AGENT_API_KEY`, optionally `RESOURCE_AGENT_BASE_URL` and `RESOURCE_AGENT_MODEL`. If omitted, the direct provider defaults to the Zhipu endpoint and `glm-4-air`.
 - OpenClaw: `RESOURCE_OPENCLAW_GATEWAY_URL`, `RESOURCE_OPENCLAW_GATEWAY_TOKEN`, `RESOURCE_OPENCLAW_AGENT_ID`, `RESOURCE_OPENCLAW_ACCESS_CLIENT_ID`, and `RESOURCE_OPENCLAW_ACCESS_CLIENT_SECRET`.
 
-The API exposes only whether a provider is configured, never credentials. The Supervisor caps plans at four tasks and SeedHub batches at twenty pages. Collector jobs still enforce their own idempotency, retries, egress firewall gate, and validation rules. This is the first bounded planning agent; autonomous site research, generated Connector sandboxing, graph-based repair, and continuous media QA remain separate implementation milestones and must not be represented as live until independently built and tested.
+The API exposes only whether a provider is configured, never credentials. The Cloudflare AI binding is the no-provider-key default; account-level Cloudflare Workers AI availability, quota, and billing still apply. The Supervisor caps plans at four tasks and SeedHub batches at twenty pages. Collector jobs still enforce their own idempotency, retries, egress firewall gate, and validation rules. This is the first bounded planning agent; autonomous site research, generated Connector sandboxing, graph-based repair, and continuous media QA remain separate implementation milestones and must not be represented as live until independently built and tested.
 
 ## API
 
