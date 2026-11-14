@@ -180,6 +180,8 @@ export interface SearchResponse {
   failures: { sourceKey: string; error: string; timedOut?: boolean }[];
   /** Verified playable resources are supplemental; never coerce direct media into CMS VOD results. */
   registryResources?: RegistrySearchResource[];
+  /** Public SeedHub catalogue metadata; not a playable-source assertion. */
+  seedhubItems?: SeedHubSearchItem[];
 }
 
 /** /api/search?stream=1 的 NDJSON 事件：逐源推送 + 最终聚合 */
