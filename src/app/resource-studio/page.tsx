@@ -39,7 +39,7 @@ export default function ResourceStudioPage() {
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [agentGoal, setAgentGoal] = useState('同步 SeedHub 电影、电视剧和动漫目录，并发现可公开访问的资源站');
+  const [agentGoal, setAgentGoal] = useState('发现并验证可公开访问的影视资源站与目录');
   const [agentConfigured, setAgentConfigured] = useState(false);
   const [agentProvider, setAgentProvider] = useState('');
 
@@ -98,11 +98,6 @@ export default function ResourceStudioPage() {
       body: JSON.stringify({ goal: agentGoal }),
     }), 'AI Supervisor 已完成规划并提交任务。请在下方任务列表查看实际执行状态。');
 
-  const syncSeedHub = (category: 'movies' | 'series' | 'anime') => runAction(category,
-    () => collectorFetch('/api/resource-collector', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ seedhubSync: true, category, startPage: 1, pages: 20 }),
-    }), 'SeedHub 目录同步任务已提交。');
 
   const jobAction = (job: Job, action: 'retry' | 'cancel') => runAction(job.id + ':' + action,
     () => collectorFetch('/api/resource-collector', {
@@ -166,11 +161,6 @@ export default function ResourceStudioPage() {
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
             {(['movies', 'series', 'anime'] as const).map((category) => <button key={category} onClick={() => void syncSeedHub(category)} disabled={Boolean(busy)} className="rounded-xl border border-[var(--border)] px-4 py-3 text-left text-sm disabled:opacity-50"><span className="block font-semibold">{category === 'movies' ? '采集电影目录' : category === 'series' ? '采集电视剧目录' : '采集动漫目录'}</span><span className="mt-1 block text-xs text-[var(--muted)]">SeedHub · 最多 20 页/批次</span></button>)}
           </div>
-        </section>
-
-        <section className="mb-8 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
-          <div className="mb-4 flex items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">已验证资源 · LibreTV 出口</h2><p className="mt-1 text-sm text-[var(--muted)]">只列出 PUBLIC + validated + PLAYER_CONFIRMED 的直接媒体资源。</p></div><span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs text-emerald-700">严格筛选</span></div>
-          {loading ? <p className="py-8 text-center text-sm text-[var(--muted)]">正在读取资源…</p> : resources.length === 0 ? <div className="rounded-xl border border-dashed border-[var(--border)] p-8 text-center text-sm text-[var(--muted)]">目前没有通过真实播放器验收的资源。目录资料或 HTTP 可访问不等于可播放。</div> : <div className="divide-y divide-[var(--border)]">{resources.map((item) => <article key={item.id} className="grid gap-2 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"><div className="min-w-0"><h3 className="truncate font-medium">{item.title}</h3><p className="mt-1 truncate text-xs text-[var(--muted)]">{item.source_name || item.source_host || '未知来源'} · {(item.media_format || '未知格式').toUpperCase()} · 更新于 {formatTime(item.updated_at)}</p><a href={item.url} target="_blank" rel="noreferrer" className="mt-1 block truncate text-xs text-[var(--accent)] underline">{item.url}</a></div><span className="w-fit rounded-full bg-emerald-500/10 px-3 py-1 text-xs text-emerald-700">播放器已确认</span></article>)}</div>}
         </section>
 
         <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
