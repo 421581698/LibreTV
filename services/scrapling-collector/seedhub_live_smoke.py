@@ -80,11 +80,15 @@ def main() -> int:
         page_two_posters = sum(bool(item.get("poster_url")) for item in page_two_items)
         if page_two_posters == 0:
             raise RuntimeError(f"{category}: page 2 has no extracted poster URLs")
-        totals[category] = len(items) + len(page_two_items)
+        page_two_urls = {item["source_url"] for item in page_two_items}
+        unique_across_pages = unique_urls | page_two_urls
+        duplicate_across_pages = len(items) + len(page_two_items) - len(unique_across_pages)
+        totals[category] = len(unique_across_pages)
         detail_samples[category] = items[0]
         print(
             f"PASS catalogue {category}: page1={len(items)} posters={posters}, "
-            f"page2={len(page_two_items)} posters={page_two_posters}, unique detail URLs"
+            f"page2={len(page_two_items)} posters={page_two_posters}, "
+            f"unique_across_pages={len(unique_across_pages)}, duplicates={duplicate_across_pages}"
         )
         time.sleep(1)
 
