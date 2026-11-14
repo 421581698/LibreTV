@@ -39,6 +39,15 @@ class RegistryQueueTests(unittest.TestCase):
         self.assertEqual(first["id"], second["id"])
         self.assertEqual(first["job_type"], "discover")
 
+    def test_seedhub_collection_job_types_are_rejected_by_api(self):
+        from fastapi import HTTPException
+        for job_type in ("seedhub_sync", "seedhub_detail_sync"):
+            with self.subTest(job_type=job_type), patch.object(queue, "require_auth"), self.assertRaises(HTTPException):
+                queue.api_submit_job(
+                    {"job_type": job_type, "payload": {"category": "movies"}, "idempotency_key": "retired:" + job_type},
+                    authorization="Bearer test",
+                )
+
     def test_idempotent_job_submit_and_atomic_claim(self):
         first = queue.submit_job("crawl", {"url": "https://example.org"}, "crawl:example")
         second = queue.submit_job("crawl", {"url": "https://example.org"}, "crawl:example")
