@@ -536,7 +536,7 @@ def api_search_resources(q: str = "", verified_only: bool = True, limit: int = Q
         args: list[Any] = []
         if verified_only: sql += " AND r.validation_state='validated' AND r.playback_state='PLAYER_CONFIRMED' AND r.access_state='PUBLIC'"
         if q.strip(): sql += " AND (r.title LIKE ? OR r.resource_key LIKE ?)"; args.extend([f"%{q[:100]}%",f"%{q[:100]}%"])
-        rows=c.execute(sql+" ORDER BY updated_at DESC LIMIT ?",(*args,limit)).fetchall()
+        rows=c.execute(sql+" ORDER BY r.updated_at DESC LIMIT ?",(*args,limit)).fetchall()
     return {"resources":[dict(r) for r in rows]}
 
 
