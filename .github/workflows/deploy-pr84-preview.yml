@@ -151,13 +151,27 @@ jobs:
 
       - name: Verify default Cloudflare Workers AI inference without enqueuing jobs
         env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           PR84_PREVIEW_URL: https://libretv-pr84-preview.bggdbh.workers.dev
         run: |
+          set -euo pipefail
+          SMOKE_TOKEN="$(openssl rand -hex 32)"
+          echo "::add-mask::$SMOKE_TOKEN"
+          printf '%s' "$SMOKE_TOKEN" | npx wrangler secret put RESOURCE_AGENT_SMOKE_TOKEN --config wrangler.pr84-preview.toml
+          cleanup() {
+            npx wrangler secret delete RESOURCE_AGENT_SMOKE_TOKEN --config wrangler.pr84-preview.toml --force >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          export RESOURCE_AGENT_SMOKE_TOKEN="$SMOKE_TOKEN"
           node --input-type=module <<'NODE'
           const base = process.env.PR84_PREVIEW_URL;
           const response = await fetch(new URL("/api/resource-collector/agent", base), {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              "x-resource-agent-smoke-token": process.env.RESOURCE_AGENT_SMOKE_TOKEN,
+            },
             body: JSON.stringify({
               goal: "只规划发现公开资源站，不要执行爬取或播放任务",
               dryRun: true
