@@ -339,14 +339,14 @@ jobs:
           PR84_PREVIEW_URL: https://libretv-pr84-preview.bggdbh.workers.dev
         run: node scripts/pr84-preview-webkit-smoke.mjs
 
-      - name: Install Chrome for actual LibreTV player acceptance
-        id: install-chrome
+      - name: Install Playwright Chromium for actual LibreTV player acceptance
+        id: install-chromium
         if: always() && steps.deploy-preview.outcome == 'success'
         timeout-minutes: 10
-        run: npx playwright install --with-deps chrome
+        run: npx playwright install --with-deps chromium
 
       - name: Verify real LibreTV PlayerShell playback and source switching
-        if: always() && steps.deploy-preview.outcome == 'success' && steps.install-chrome.outcome == 'success'
+        if: always() && steps.deploy-preview.outcome == 'success' && steps.install-chromium.outcome == 'success'
         env:
           PR84_PREVIEW_URL: https://libretv-pr84-preview.bggdbh.workers.dev
         run: node scripts/pr84-preview-player-smoke.mjs
@@ -364,7 +364,7 @@ jobs:
           ffprobe -version
 
       - name: Verify PR84 download manager file output and failure feedback
-        if: always() && steps.deploy-preview.outcome == 'success' && steps.install-chrome.outcome == 'success' && steps.install-ffmpeg.outcome == 'success'
+        if: always() && steps.deploy-preview.outcome == 'success' && steps.install-chromium.outcome == 'success' && steps.install-ffmpeg.outcome == 'success'
         env:
           PR84_PREVIEW_URL: https://libretv-pr84-preview.bggdbh.workers.dev
         run: node scripts/pr84-download-manager-smoke.mjs
