@@ -95,7 +95,7 @@ export function SeedHubHomepage() {
   const anyLoading = queries.some((query) => query.isLoading);
   const anyError = queries.some((query) => query.isError);
   const openSeedHubDetail = (item: SeedHubCatalogItem) => {
-    router.push('/seedhub?url=' + encodeURIComponent(item.source_url));
+    router.push('/seedhub?url=' + encodeURIComponent(item.source_url) + '&category=' + item.category);
   };
   const openSettings = () => window.dispatchEvent(new CustomEvent('libretv:open-source-manager'));
 
