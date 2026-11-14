@@ -166,6 +166,15 @@ export interface RegistrySearchResource {
   source_name?: string;
 }
 
+export interface SeedHubSearchItem {
+  source_url: string;
+  title: string;
+  category: 'movies' | 'series' | 'anime';
+  poster_url: string | null;
+  discovered_at: number;
+  detail?: Record<string, unknown> | null;
+}
+
 export interface SearchResponse {
   list: SearchResultItem[];
   failures: { sourceKey: string; error: string; timedOut?: boolean }[];
@@ -176,7 +185,7 @@ export interface SearchResponse {
 /** /api/search?stream=1 的 NDJSON 事件：逐源推送 + 最终聚合 */
 export type SearchStreamEvent =
   | ({ type: 'source' } & SourceSearchOutcome)
-  | { type: 'done'; list: SearchResultItem[]; failures: SearchResponse['failures']; registryResources?: RegistrySearchResource[] };
+  | { type: 'done'; list: SearchResultItem[]; failures: SearchResponse['failures']; registryResources?: RegistrySearchResource[]; seedhubItems?: SeedHubSearchItem[] };
 
 export interface DoubanResponse {
   items: DoubanItem[];
