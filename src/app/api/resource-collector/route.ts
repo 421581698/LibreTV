@@ -5,7 +5,26 @@ import moviesSnapshot from '@/data/seedhub/movies.json';
 import seriesSnapshot from '@/data/seedhub/series.json';
 import animeSnapshot from '@/data/seedhub/anime.json';
 
-const seedhubSnapshots = { movies: moviesSnapshot, series: seriesSnapshot, anime: animeSnapshot };
+type SeedHubSnapshotItem = {
+  source_url: string;
+  title: string;
+  category: 'movies' | 'series' | 'anime';
+  poster_url: string | null;
+  discovered_at: number;
+  detail?: Record<string, unknown> | null;
+};
+type SeedHubSnapshot = {
+  source: 'SeedHub';
+  category: 'movies' | 'series' | 'anime';
+  updated_at: string | null;
+  total: number;
+  items: SeedHubSnapshotItem[];
+};
+const seedhubSnapshots: Record<'movies' | 'series' | 'anime', SeedHubSnapshot> = {
+  movies: moviesSnapshot as SeedHubSnapshot,
+  series: seriesSnapshot as SeedHubSnapshot,
+  anime: animeSnapshot as SeedHubSnapshot,
+};
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
