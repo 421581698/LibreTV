@@ -186,13 +186,23 @@ def parse_detail_html(html: str, page_url: str, category: str = "movies") -> dic
     title = re.sub(r"^[#\s]+", "", title).strip()
     if " - SeedHub" in title:
         title = title.split(" - SeedHub", 1)[0].strip()
-    image_urls = list(dict.fromkeys(item["url"] for item in parser.images))
-    og_image = parser.og_image
-    og_parsed = urlparse(og_image)
-    if not (og_parsed.scheme == "https" and og_parsed.hostname in SEEDHUB_IMAGE_HOSTS):
-        og_image = ""
+    def is_artwork_url(raw: str) -> bool:
+        candidate = urlparse(raw)
+        return (
+            candidate.scheme == "https"
+            and candidate.hostname in SEEDHUB_IMAGE_HOSTS
+            and candidate.path.lower().endswith((".avif", ".jpg", ".jpeg", ".png", ".webp"))
+            and not re.search(r"/(?:favicon|icon|logo)(?:[-_.][^/]*)?$", candidate.path, re.IGNORECASE)
+        )
+
+    # SeedHub may publish a favicon as og:image. It is not a poster and must
+    # never displace the real catalogue poster or detail stills.
+    image_urls = list(dict.fromkeys(
+        item["url"] for item in parser.images if is_artwork_url(item["url"])
+    ))
+    og_image = parser.og_image if is_artwork_url(parser.og_image) else ""
     poster = og_image or next(
-        (item["url"] for item in parser.images if "海报" in item["alt"]),
+        (item["url"] for item in parser.images if "海报" in item["alt"] and is_artwork_url(item["url"])),
         image_urls[0] if image_urls else None,
     )
     stills = [url for url in image_urls if url != poster]
