@@ -52,7 +52,7 @@ function SeedHubDetailContent() {
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [sourceUrl]);
+  }, [sourceUrl, sourceCategory]);
 
   const category = detail?.category === 'series' ? '电视剧' : detail?.category === 'anime' ? '动漫' : '电影';
   const metadataLabels: Record<string, string> = {
