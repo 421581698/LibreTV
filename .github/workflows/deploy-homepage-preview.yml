@@ -54,7 +54,6 @@ jobs:
 
       - name: Build eight-screen preview
         env:
-          NEXT_PUBLIC_HOME_V2: "true"
           NEXT_TELEMETRY_DISABLED: "1"
         run: npx opennextjs-cloudflare build
 

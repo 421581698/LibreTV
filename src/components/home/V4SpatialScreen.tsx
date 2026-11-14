@@ -77,11 +77,7 @@ export function V4SpatialScreen({ screen }: { screen: Screen }) {
             <h1>{copy.title}</h1>
             <p>{copy.subtitle}</p>
           </div>
-          {screen === 'settings' ? (
-            <button type="button" className="v4-spatial-primary" onClick={() => window.dispatchEvent(new CustomEvent('libretv:open-source-manager'))}>
-              打开完整设置
-            </button>
-          ) : null}
+
         </div>
 
         {screen === 'movies' ? <CatalogScreen category="movie" onPick={openRecommendation} /> : null}
@@ -375,41 +371,77 @@ function MeHistoryCard({ item }: { item: HistoryEntry }) {
   );
 }
 
+const SETTINGS_GROUPS = [
+  { title: '播放与过滤', description: '自动连播、片头片尾跳过与播放缓存', page: 'playback', icon: 'play', tone: '#0A84FF' },
+  { title: '语言设置', description: '界面语言与 Friday 对话语言', page: 'language', icon: 'globe', tone: '#64D2FF' },
+  { title: '首页与内容', description: '首页推荐与内容偏好', page: 'home', icon: 'house', tone: '#30D158' },
+  { title: '外观模式', description: '浅色、深色与跟随系统主题', page: 'appearance', icon: 'sun', tone: '#FF9F0A' },
+  { title: '封面图加载', description: '海报图片代理与加载偏好', page: 'image', icon: 'image', tone: '#BF5AF2' },
+  { title: '点播源管理', description: '点播来源、优先级与健康检测', page: 'vod', icon: 'server', tone: '#5E5CE6' },
+  { title: '直播设置', description: '管理直播源与频道', page: 'live', icon: 'radio', tone: '#FF375F' },
+  { title: '资源订阅', description: '管理点播与直播资源订阅', page: 'subs', icon: 'bookmark', tone: '#30D158' },
+  { title: '资源采集中心', description: 'FMHY 目录与 Scrapling 采集引擎', page: 'collector', icon: 'layers', tone: '#0A84FF' },
+  { title: 'Friday 语音', description: '助手角色、语音音色与唤醒方式', page: 'voice', icon: 'audio', tone: '#FF9F0A' },
+  { title: '配置导入与导出', description: '备份或恢复本机配置', page: 'io', icon: 'arrow', tone: '#64D2FF' },
+  { title: '本机缓存', description: '查看和管理本机视频缓存', page: 'cache', icon: 'storage', tone: '#8E8E93' },
+] as const;
+
+function SettingsCategoryIcon({ name }: { name: (typeof SETTINGS_GROUPS)[number]['icon'] }) {
+  const common = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+  return (
+    <svg viewBox="0 0 24 24" width="23" height="23" aria-hidden="true" {...common}>
+      {name === 'play' ? <><path d="M5 4.8a1.5 1.5 0 0 1 2.2-1.3l12 7a1.7 1.7 0 0 1 0 3l-12 7A1.5 1.5 0 0 1 5 19.2z" /></> : null}
+      {name === 'globe' ? <><circle cx="12" cy="12" r="9" /><path d="M3.5 12h17M12 3c2.3 2.5 3.4 5.5 3.4 9S14.3 18.5 12 21c-2.3-2.5-3.4-5.5-3.4-9S9.7 5.5 12 3z" /></> : null}
+      {name === 'house' ? <><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" /></> : null}
+      {name === 'sun' ? <><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" /></> : null}
+      {name === 'image' ? <><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="8.5" cy="9" r="1.5" /><path d="m21 15-5-5L5 20" /></> : null}
+      {name === 'server' ? <><rect x="3" y="4" width="18" height="7" rx="2" /><rect x="3" y="13" width="18" height="7" rx="2" /><path d="M7 7.5h.01M7 16.5h.01M11 7.5h6M11 16.5h6" /></> : null}
+      {name === 'radio' ? <><path d="M4 9a12 12 0 0 1 16 0M7 12a7.5 7.5 0 0 1 10 0m-7 3a3 3 0 0 1 4 0" /><circle cx="12" cy="19" r="1" /></> : null}
+      {name === 'bookmark' ? <><path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4z" /></> : null}
+      {name === 'layers' ? <><path d="m12 3 9 5-9 5-9-5zM3 12l9 5 9-5M3 16l9 5 9-5" /></> : null}
+      {name === 'audio' ? <><path d="M3 10v4m4-7v10m4-13v16m4-13v10m4-7v4" /></> : null}
+      {name === 'arrow' ? <><path d="M12 3v12m-4-4 4 4 4-4M5 17v4h14v-4" /></> : null}
+      {name === 'storage' ? <><ellipse cx="12" cy="5" rx="8.5" ry="3" /><path d="M3.5 5v7c0 1.7 3.8 3 8.5 3s8.5-1.3 8.5-3V5M3.5 12v7c0 1.7 3.8 3 8.5 3s8.5-1.3 8.5-3v-7" /></> : null}
+    </svg>
+  );
+}
+
 function SettingsScreen() {
-  const groups = [
-    { title: '播放与过滤', description: '自动连播、片头片尾跳过、广告过滤与播放缓存', page: 'playback' },
-    { title: '语言设置', description: '界面语言与 Friday 对话语言', page: 'language' },
-    { title: '首页与内容', description: '首页推荐与内容偏好', page: 'home' },
-    { title: '外观模式', description: '浅色、深色与跟随系统主题', page: 'appearance' },
-    { title: '封面图加载', description: '海报图片代理与加载偏好', page: 'image' },
-    { title: '点播源管理', description: '管理点播来源、优先级与健康检测', page: 'vod' },
-    { title: '直播设置', description: '管理直播源与频道', page: 'live' },
-    { title: '资源订阅', description: '管理点播与直播资源订阅', page: 'subs' },
-    { title: '资源采集中心', description: 'FMHY 网站发现目录与 Scrapling 采集引擎', page: 'collector' },
-    { title: 'Friday 语音', description: '助手角色、语音音色、唤醒词与对话语言', page: 'voice' },
-    { title: '配置导入与导出', description: '备份或恢复 LibreTV 本机配置', page: 'io' },
-    { title: '本机缓存', description: '查看和管理本机视频缓存', page: 'cache' },
-  ] as const;
+  const [query, setQuery] = useState('');
+  const filteredGroups = SETTINGS_GROUPS.filter((group) =>
+    `${group.title} ${group.description}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
+  );
 
   const openCategory = (page: string) => {
     try {
       window.localStorage.setItem('libretv-settings-open-page', page);
     } catch {
-      // 即使浏览器禁用本地存储，也仍然打开设置抽屉。
+      // 即使浏览器禁用本地存储，也仍然打开现有设置抽屉。
     }
     window.dispatchEvent(new CustomEvent('libretv:open-source-manager'));
   };
 
   return (
-    <section className="v4-spatial-panel">
-      <div className="v4-settings-grid">
-        {groups.map((group) => (
-          <button key={group.title} type="button" className="v4-settings-card" onClick={() => openCategory(group.page)}>
-            <div><strong>{group.title}</strong><p>{group.description}</p></div><b aria-hidden="true">›</b>
+    <section className="v4-settings-apple" aria-label="设置分类">
+      <label className="v4-settings-search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 5 5" /></svg>
+        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索设置" aria-label="搜索设置" />
+        {query ? <button type="button" onClick={() => setQuery('')} aria-label="清除搜索">×</button> : null}
+      </label>
+      <div className="v4-settings-apple-list">
+        {filteredGroups.length ? filteredGroups.map((group, index) => (
+          <button key={group.page} type="button" className="v4-settings-apple-row" onClick={() => openCategory(group.page)}>
+            <span className="v4-settings-apple-icon" style={{ color: group.tone }}><SettingsCategoryIcon name={group.icon} /></span>
+            <span className="v4-settings-apple-copy">
+              <strong>{group.title}</strong>
+              <small>{group.description}</small>
+            </span>
+            <svg className="v4-settings-apple-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5" /></svg>
+            {index < filteredGroups.length - 1 ? <span className="v4-settings-apple-divider" aria-hidden="true" /> : null}
           </button>
-        ))}
+        )) : <p className="v4-settings-apple-empty">没有找到相关设置</p>}
       </div>
-      <p className="v4-spatial-footnote">每个分类直接进入对应的实际设置面板；选项沿用 LibreTV 现有配置与本机持久化，不创建重复配置。</p>
+      <p className="v4-settings-apple-footnote">设置保存在本机；打开分类后继续使用现有配置面板。</p>
     </section>
   );
 }

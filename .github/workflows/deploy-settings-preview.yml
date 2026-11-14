@@ -1,0 +1,119 @@
+name: Deploy LibreTV Settings PR Preview
+
+on:
+  push:
+    branches:
+      - feature/settings-apple-minimal-2026-11-11
+    paths:
+      - ".github/workflows/deploy-settings-preview.yml"
+      - "wrangler.settings-preview.toml"
+      - "src/**"
+      - "public/**"
+      - "package.json"
+      - "package-lock.json"
+      - "next.config.*"
+      - "open-next.config.*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: libretv-settings-preview
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: ${{ github.ref == 'refs/heads/feature/settings-apple-minimal-2026-11-11' }}
+    name: Build and deploy isolated settings preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: preview
+    steps:
+      - name: Checkout exact PR commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify required preview secrets exist
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SETTINGS_PREVIEW_PASSWORD: ${{ secrets.SETTINGS_PREVIEW_PASSWORD || secrets.PREVIEW_PASSWORD || secrets.PASSWORD }}
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing preview secret: CLOUDFLARE_API_TOKEN" && exit 1)
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "Missing preview secret: CLOUDFLARE_ACCOUNT_ID" && exit 1)
+          test -n "$SETTINGS_PREVIEW_PASSWORD" || (echo "No existing password secret is available in the preview environment (checked SETTINGS_PREVIEW_PASSWORD, PREVIEW_PASSWORD, PASSWORD); refusing to deploy without authentication" && exit 1)
+
+      - name: TypeScript verification
+        run: npm run typecheck
+
+      - name: ESLint verification
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test -- --reporter=dot
+
+      - name: Verify preview authentication is enabled
+        run: |
+          grep -Eq '^[[:space:]]*AUTH_DISABLED[[:space:]]*=[[:space:]]*"false"' wrangler.settings-preview.toml
+          ! grep -Eq '^[[:space:]]*AUTH_DISABLED[[:space:]]*=[[:space:]]*"true"' wrangler.settings-preview.toml
+
+      - name: Build isolated settings preview
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npx opennextjs-cloudflare build
+
+      - name: Deploy dedicated settings preview Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --config wrangler.settings-preview.toml
+
+      - name: Set dedicated preview password
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SETTINGS_PREVIEW_PASSWORD: ${{ secrets.SETTINGS_PREVIEW_PASSWORD }}
+        run: printf '%s' "$SETTINGS_PREVIEW_PASSWORD" | npx wrangler secret put PASSWORD --config wrangler.settings-preview.toml
+
+      - name: Verify isolated preview endpoints
+        run: |
+          node --input-type=module <<'NODE'
+          const base = "https://libretv-settings-preview.bggdbh.workers.dev";
+          const checks = [
+            { path: "/", type: "text/html" },
+            { path: "/api/status", type: "application/json" },
+          ];
+          for (const check of checks) {
+            const response = await fetch(base + check.path, {
+              redirect: "follow",
+              headers: { "cache-control": "no-cache" },
+            });
+            if (!response.ok) {
+              const body = (await response.text()).slice(0, 500);
+              throw new Error(check.path + " returned HTTP " + response.status + ": " + body);
+            }
+            const contentType = response.headers.get("content-type") || "";
+            if (!contentType.includes(check.type)) {
+              throw new Error(check.path + " unexpected content-type: " + contentType);
+            }
+            if (check.path === "/api/status") {
+              const body = await response.text();
+              JSON.parse(body);
+            } else {
+              const body = await response.text();
+              if (!body.toLowerCase().includes("libretv")) throw new Error("Homepage markup missing LibreTV");
+            }
+            console.log("Verified " + check.path + " (" + response.status + ")");
+          }
+          NODE
