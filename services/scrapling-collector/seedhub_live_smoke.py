@@ -61,9 +61,22 @@ def main() -> int:
             print("SEEDHUB_LIVE_DIAGNOSTIC image_tags=" + repr(image_tags[:12]), flush=True)
             print("SEEDHUB_LIVE_DIAGNOSTIC image_context=" + repr(excerpt), flush=True)
             raise RuntimeError(f"{category}: no real poster URLs were extracted")
-        totals[category] = len(items)
+        page_two_url = url + "?page=2"
+        page_two_html = fetch_html(page_two_url)
+        page_two_items = parse_catalog_html(page_two_html, page_two_url, category)
+        if len(page_two_items) < 10:
+            raise RuntimeError(f"{category}: expected at least 10 records on page 2, got {len(page_two_items)}")
+        if {item["source_url"] for item in items} & {item["source_url"] for item in page_two_items}:
+            raise RuntimeError(f"{category}: page 1 and page 2 contain duplicate detail URLs")
+        page_two_posters = sum(bool(item.get("poster_url")) for item in page_two_items)
+        if page_two_posters == 0:
+            raise RuntimeError(f"{category}: page 2 has no extracted poster URLs")
+        totals[category] = len(items) + len(page_two_items)
         detail_samples[category] = items[0]
-        print(f"PASS catalogue {category}: {len(items)} records, {posters} poster URLs, unique detail URLs")
+        print(
+            f"PASS catalogue {category}: page1={len(items)} posters={posters}, "
+            f"page2={len(page_two_items)} posters={page_two_posters}, unique detail URLs"
+        )
         time.sleep(1)
 
     # Every SeedHub content type currently shares /movies/<id>/ detail URLs.
@@ -80,11 +93,14 @@ def main() -> int:
             raise RuntimeError(f"{category}: live detail has no extracted poster")
         if not detail.get("still_urls"):
             raise RuntimeError(f"{category}: live detail has no extracted still images")
+        if not detail.get("metadata"):
+            raise RuntimeError(f"{category}: live detail has no extracted metadata fields")
         if detail.get("external_resource_links_extracted") is not False:
             raise RuntimeError("The live probe must never extract external share/download links")
         print(
             f"PASS detail {category}: title={detail['title']!r}, "
-            f"poster=yes, stills={len(detail['still_urls'])}, category_preserved=yes"
+            f"poster=yes, stills={len(detail['still_urls'])}, "
+            f"metadata_fields={','.join(sorted(detail['metadata']))}, category_preserved=yes"
         )
         time.sleep(1)
 
