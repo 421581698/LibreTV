@@ -158,9 +158,7 @@ export default function ResourceStudioPage() {
             <div><h2 className="text-lg font-semibold">资源站发现与目录采集</h2><p className="mt-1 text-sm text-[var(--muted)]">任务会进入现有持久化队列；服务未配置或安全出口未启用时，操作会明确失败，不会伪装成已启动。</p></div>
             <button onClick={() => void discover()} disabled={Boolean(busy)} className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{busy === 'discover' ? '正在提交…' : '发现公开资源站'}</button>
           </div>
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
-            {(['movies', 'series', 'anime'] as const).map((category) => <button key={category} onClick={() => void syncSeedHub(category)} disabled={Boolean(busy)} className="rounded-xl border border-[var(--border)] px-4 py-3 text-left text-sm disabled:opacity-50"><span className="block font-semibold">{category === 'movies' ? '采集电影目录' : category === 'series' ? '采集电视剧目录' : '采集动漫目录'}</span><span className="mt-1 block text-xs text-[var(--muted)]">SeedHub · 最多 20 页/批次</span></button>)}
-          </div>
+
         </section>
 
         <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
