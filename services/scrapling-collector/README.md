@@ -39,7 +39,7 @@ For Cloudflare-hosted LibreTV, the collector must run as a separately reachable 
 
 ## AI Resource Supervisor
 
-The Next.js Preview API exposes `POST /api/resource-collector/agent`. It uses a dedicated OpenClaw agent when configured, or an OpenAI-compatible model otherwise, to produce a strict bounded plan. The model can only schedule the existing `discover` and `seedhub_sync` job types; it cannot emit arbitrary URLs or claim that media is playable.
+The Next.js Preview API exposes `POST /api/resource-collector/agent`. It uses a dedicated OpenClaw agent when configured, or an OpenAI-compatible model otherwise, to produce a strict bounded plan. The model can only schedule `discover`, `seedhub_sync`, and `crawl` jobs. A crawl must select an exact host from the persisted discovered-site allowlist; it cannot emit arbitrary URLs or claim that media is playable.
 
 Configure one of these server-side options on the isolated Preview Worker. The PR84 preview deployment workflow reads the optional GitHub Actions secrets `PR84_RESOURCE_AGENT_API_KEY` (plus optional `PR84_RESOURCE_AGENT_BASE_URL` / `PR84_RESOURCE_AGENT_MODEL`), or the complete `PR84_RESOURCE_OPENCLAW_*` secret set, and writes them only to the isolated Preview Worker:
 
