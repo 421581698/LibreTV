@@ -1160,12 +1160,12 @@ html:has(.netflix-watch-shell) .netflix-watch-shell .netflix-player-frame {
   .netflix-watch-shell .watch-cinema-playback { grid-template-rows: auto 16px !important; }
   .netflix-watch-shell .cinema-center-controls { gap: clamp(18px, 5vw, 30px) !important; }
   .netflix-watch-shell .cinema-skip-control {
-    width: clamp(50px, 13vw, 62px) !important;
-    height: clamp(50px, 13vw, 62px) !important;
+    width: clamp(44px, 12vw, 48px) !important;
+    height: clamp(44px, 12vw, 48px) !important;
   }
   .netflix-watch-shell .cinema-play-control {
-    width: clamp(70px, 18vw, 84px) !important;
-    height: clamp(70px, 18vw, 84px) !important;
+    width: clamp(62px, 16vw, 68px) !important;
+    height: clamp(62px, 16vw, 68px) !important;
   }
 }
 @media (max-height: 700px) and (orientation: landscape) {
@@ -1175,6 +1175,6 @@ html:has(.netflix-watch-shell) .netflix-watch-shell .netflix-player-frame {
     right: 20px !important;
   }
   .netflix-watch-shell .watch-cinema-copy { max-height: 58px !important; }
-  .netflix-watch-shell .cinema-skip-control { width: 46px !important; height: 46px !important; }
-  .netflix-watch-shell .cinema-play-control { width: 66px !important; height: 66px !important; }
+  .netflix-watch-shell .cinema-skip-control { width: 42px !important; height: 42px !important; }
+  .netflix-watch-shell .cinema-play-control { width: 60px !important; height: 60px !important; }
 }
