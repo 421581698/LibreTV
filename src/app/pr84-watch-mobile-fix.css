@@ -716,3 +716,79 @@ html:has(.netflix-watch-shell) body > nav.v4-mobile-tabbar {
     border-radius: 18px !important;
   }
 }
+
+
+/* PR84 cinematic information panel, matching the reference beneath the player. */
+.watch-cinema-info {
+  display: grid;
+  gap: 14px;
+  margin: 18px 0 8px;
+  padding: 18px 20px;
+  border: 1px solid var(--border, rgba(255,255,255,.1));
+  border-radius: 18px;
+  background: var(--surface, rgba(255,255,255,.035));
+}
+.watch-cinema-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+.watch-cinema-source {
+  flex: 0 0 auto;
+  max-width: 36%;
+  overflow: hidden;
+  color: var(--text-muted, #999);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.watch-cinema-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.watch-cinema-tabs button {
+  min-height: 34px;
+  padding: 0 16px;
+  border: 1px solid var(--border, rgba(255,255,255,.12));
+  border-radius: 999px;
+  color: var(--text-muted, #aaa);
+  background: transparent;
+  font-size: 12px;
+  transition: background .18s ease, color .18s ease, border-color .18s ease;
+}
+.watch-cinema-tabs button.active {
+  color: var(--text-primary, #fff);
+  border-color: transparent;
+  background: var(--surface-hover, rgba(255,255,255,.13));
+}
+.watch-cinema-copy {
+  min-height: 44px;
+  color: var(--text-muted, #aaa);
+  font-size: 13px;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+.watch-cinema-copy dl {
+  display: grid;
+  gap: 8px;
+}
+.watch-cinema-copy dl > div {
+  display: grid;
+  grid-template-columns: 48px minmax(0,1fr);
+  gap: 10px;
+}
+.watch-cinema-copy dt { color: var(--text-faint, #777); }
+.watch-cinema-copy dd { color: var(--text-muted, #aaa); }
+@media (max-width: 640px) {
+  .watch-cinema-info {
+    gap: 12px;
+    margin-top: 14px;
+    padding: 15px;
+    border-radius: 16px;
+  }
+  .watch-cinema-source { max-width: 32%; }
+  .watch-cinema-tabs { gap: 7px; }
+  .watch-cinema-tabs button { min-height: 32px; padding: 0 14px; }
+}
