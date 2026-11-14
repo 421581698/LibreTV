@@ -60,7 +60,7 @@ function resolveResourceAgent(env: Env) {
   return {
     provider: 'openai-compatible',
     apiKey,
-    baseURL: parsed.origin + parsed.pathname.replace(/\\/+$/, ''),
+    baseURL: parsed.origin + (parsed.pathname.endsWith('/') ? parsed.pathname.slice(0, -1) : parsed.pathname),
     modelName: read(env, 'RESOURCE_AGENT_MODEL') || 'glm-4-air',
   };
 }
@@ -129,7 +129,7 @@ export async function POST(request: Request) {
     const normalized = planSchema.parse(result.object);
     const dedupe = new Set<string>();
     const queued: Array<{ id: string; job_type: string; status: string }> = [];
-    const goalHash = createHash('sha256').update(parsedBody.data.goal.toLowerCase()).digest('hex').slice(0, 24);
+    const goalHash = createHash('sha256').update(parsedBody.data.goal.toLowerCase() + ':' + Date.now()).digest('hex').slice(0, 24);
     for (const task of normalized.tasks) {
       const category = task.job_type === 'seedhub_sync' ? (task.category || 'movies') : undefined;
       const key = task.job_type + ':' + (category || 'all');
