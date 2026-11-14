@@ -485,6 +485,7 @@ jobs:
           name: pr84-preview-browser-acceptance
           path: |
             /tmp/pr84-preview-webkit.png
+            /tmp/pr84-resource-studio-webkit.png
             /tmp/pr84-preview-watch-webkit.png
             /tmp/pr84-preview-player.png
             /tmp/pr84-preview-seedhub-detail-webkit.png
