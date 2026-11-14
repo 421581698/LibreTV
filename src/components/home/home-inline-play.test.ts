@@ -18,13 +18,18 @@ describe('iPhone homepage detail navigation and top search', () => {
   const home = read('src/app/page.tsx');
   const player = read('src/components/home/HomeInlinePlayer.tsx');
   const mobileSearch = read('src/app/iphone-home-inline.css');
-  const featuredHero = read('src/components/home/V4HomepageHero.tsx');
+  const seedHubHomepage = read('src/components/home/SeedHubHomepage.tsx');
 
-  it('homepage recommendation posters open the inline player instead of the detail route', () => {
-    expect(home).toContain('const rankedMatches = rankMovieCandidatesByQuality(');
-    expect(home).toContain('openDetail(rankedMatches[0], { rating: movie.rating, poster: movie.cover });');
-    expect(featuredHero).toContain('aria-label={`查看详情：${slide.title}`}');
-    expect(featuredHero).toContain('onClick={() => onPick(slide)}');
+  it('homepage posters use SeedHub catalogue artwork and open the matching SeedHub detail page', () => {
+    expect(home).toContain('<SeedHubHomepage />');
+    expect(seedHubHomepage).toContain("fetchSeedHubCatalog('movies')");
+    expect(seedHubHomepage).toContain("fetchSeedHubCatalog('series')");
+    expect(seedHubHomepage).toContain("fetchSeedHubCatalog('anime')");
+    expect(seedHubHomepage).toContain('item.poster_url');
+    expect(seedHubHomepage).toContain('onClick={() => openSeedHubDetail(item)}');
+    expect(seedHubHomepage).toContain("router.push('/seedhub?url=' + encodeURIComponent(item.source_url))");
+    expect(seedHubHomepage).not.toContain('douban');
+    expect(seedHubHomepage).not.toContain('hot-list');
     expect(home).toContain('onOpen={openDetail}');
     expect(home).toContain("router.push('/detail?' + params.toString())");
     expect(player).toContain("import('@/components/player-shell')");
