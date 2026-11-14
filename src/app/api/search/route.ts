@@ -266,7 +266,25 @@ async function searchSeedHubCatalog(keyword: string): Promise<import('@/lib/type
     );
     if (!response.ok) return [];
     const payload = await response.json() as { items?: unknown };
-    return Array.isArray(payload.items) ? payload.items as import('@/lib/types').SeedHubSearchItem[] : [];
+    if (!Array.isArray(payload.items)) return [];
+    return payload.items.filter((raw): raw is import('@/lib/types').SeedHubSearchItem => {
+      if (!raw || typeof raw !== 'object') return false;
+      const item = raw as Record<string, unknown>;
+      if (typeof item.source_url !== 'string' || typeof item.title !== 'string' ||
+          !['movies', 'series', 'anime'].includes(String(item.category))) return false;
+      try {
+        const source = new URL(item.source_url);
+        if (source.protocol !== 'https:' || source.hostname !== 'www.seedhub.cc' ||
+            !/^\\/(movies|series|anime)\\/[0-9]+\\/?$/.test(source.pathname)) return false;
+        if (item.poster_url == null) return true;
+        if (typeof item.poster_url !== 'string') return false;
+        const poster = new URL(item.poster_url);
+        return poster.protocol === 'https:' &&
+          ['www.seedhub.cc', 'img.seedhub.cc', 'sh1.pcie.pppoe.top'].includes(poster.hostname);
+      } catch {
+        return false;
+      }
+    }) as import('@/lib/types').SeedHubSearchItem[];
   } catch {
     // SeedHub catalogue is supplemental and never blocks the regular CMS search.
     return [];
