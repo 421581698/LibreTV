@@ -9,7 +9,7 @@ import { V4HomepageHeader } from '@/components/home/V4HomepageHeader';
 import { SeedHubHomepage } from '@/components/home/SeedHubHomepage';
 import { useFridayDetailBridge } from '@/components/friday/useFridayDetailBridge';
 import { useHomeSearchController } from '@/components/home/useHomeSearchController';
-import { RegistryInlinePlayer } from '@/components/home/RegistryInlinePlayer';
+import { RegistryInlinePlayer } from '@/components/home/RegistryInlinePlayer';\nimport { SmartImage } from '@/components/smart-image';
 import { AggregatedCard, aggregateResults } from '@/components/video-card';
 import {
   useAppStore,
@@ -54,7 +54,7 @@ function HomeContent() {
   const yellowFilter = useAppStore((s) => s.yellowFilter);
   const sourceHealth = useAppStore((s) => s.sourceHealth);
   const playbackHealth = useAppStore((s) => s.playbackHealth);
-  const subscriptions = useAppStore((s) => s.subscriptions);
+  const subscriptions = useAppStore((s) => s.subscriptions);\n  const imageProxyMode = useAppStore((s) => s.imageProxyMode);\n  const customImageProxy = useAppStore((s) => s.customImageProxy);
 
   const [detailItem, setDetailItem] =
     useState<SearchResultItem | null>(null);
@@ -167,7 +167,7 @@ function HomeContent() {
     [searchQuery.data, isSearching, streamedList]
   );
 
-  const registryResources = searchQuery.data?.registryResources ?? [];
+  const registryResources = searchQuery.data?.registryResources ?? [];\n  const seedhubItems: SeedHubSearchItem[] = searchQuery.data?.seedhubItems ?? [];
 
   const failures =
     searchQuery.data?.failures ??
@@ -216,6 +216,27 @@ function HomeContent() {
                 )}
               </h2>
             </div>
+            {seedhubItems.length > 0 && (
+              <div className="mb-5" aria-label="SeedHub 已采集目录">
+                <div className="mb-2 flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-content">已采集影片资料 · SeedHub</h3>
+                  <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[11px] text-sky-600">目录资料</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                  {seedhubItems.map((item) => (
+                    <button key={item.source_url + ':' + item.category} type="button"
+                      onClick={() => router.push('/seedhub?url=' + encodeURIComponent(item.source_url) + '&category=' + item.category)}
+                      className="overflow-hidden rounded-xl border border-line bg-card text-left transition hover:border-accent">
+                      <span className="relative block aspect-video bg-chip">
+                        {item.poster_url ? <SmartImage url={item.poster_url} mode={imageProxyMode} customProxy={customImageProxy} alt={item.title} className="absolute inset-0 h-full w-full object-cover" /> : null}
+                      </span>
+                      <span className="block truncate px-3 py-2 text-sm font-medium text-content">{item.title}</span>
+                      <span className="block px-3 pb-3 text-xs text-muted">{item.category === 'movies' ? '电影' : item.category === 'series' ? '电视剧' : '动漫'} · SeedHub 目录</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {registryResources.length > 0 && (
               <div className="mb-5" aria-label="公开媒体资源">
                 <div className="mb-2 flex items-center gap-2">
@@ -266,7 +287,7 @@ function HomeContent() {
                 {offSubscriptionSources.map((key) => sourceName(key)).join('、')}
               </div>
             )}
-            {selectedSources.length === 0 && registryResources.length === 0 ? (
+            {selectedSources.length === 0 && registryResources.length === 0 && seedhubItems.length === 0 ? (
               <NoSourceGuide hasSources={customAPIs.length > 0 || envSources.length > 0} />
             ) : list.length > 0 ? (
               <>
@@ -291,7 +312,7 @@ function HomeContent() {
                   </div>
                 )}
               </>
-            ) : registryResources.length > 0 ? null : isSearching ? (
+            ) : registryResources.length > 0 || seedhubItems.length > 0 ? null : isSearching ? (
               <ResultsSkeleton />
             ) : searchQuery.isError || failures.length > 0 ? (
               <div className="flex flex-col items-center gap-3 py-8" role="alert">
