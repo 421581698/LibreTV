@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
-import { favoriteIdFor } from './favorite-id';
+import { favoriteIdFor, normalizeImportedFavorites } from './favorite-id';
 import type { SourceConfig } from './types';
 // 仅类型引入：store.ts 运行时会引用本模块，反向只取类型不会形成运行时循环
 import type { LiveProbeEntry } from './store';
@@ -286,14 +286,9 @@ export async function importConfig(content: string): Promise<void> {
 
   if (typeof data['viewingFavorites'] === 'string') {
     const imported = JSON.parse(data['viewingFavorites']) as FavoriteEntry[];
-    const valid = imported.filter((item) =>
-      item && typeof item.id === 'string' &&
-      typeof item.sourceKey === 'string' &&
-      typeof item.vodId === 'string' &&
-      typeof item.title === 'string' &&
-      typeof item.sourceName === 'string'
-    );
-    if (valid.length > 0) await db.favorites.bulkPut(valid.map((item) => ({ ...item, id: favoriteIdFor(item.sourceKey, item.vodId) })));
+    const valid = normalizeImportedFavorites<FavoriteEntry>(imported);
+    // Merge only valid non-empty imports; an empty/invalid export must never erase local favorites.
+    if (valid.length > 0) await db.favorites.bulkPut(valid);
   }
 
   if (typeof data['viewingHistory'] === 'string') {
