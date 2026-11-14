@@ -81,8 +81,8 @@ export default function ResourceStudioPage() {
   };
 
   const discover = () => runAction('discover',
-    () => collectorFetch('/api/resource-collector?action=discover'),
-    '已提交资源站发现请求。发现结果会进入采集队列。');
+    () => collectorFetch('/api/resource-collector', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ discover: true }) }),
+    '已提交资源站发现任务。任务由后台 Worker 执行；出口防火墙未确认时会安全失败。');
   const syncSeedHub = (category: 'movies' | 'series' | 'anime') => runAction(category,
     () => collectorFetch('/api/resource-collector', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
