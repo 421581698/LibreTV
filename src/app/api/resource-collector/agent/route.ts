@@ -58,7 +58,7 @@ function resolveResourceAgent(env: Env): ResourceAgentConfig {
   const apiKey = read(env, 'RESOURCE_AGENT_API_KEY') || read(env, 'ZHIPU_API_KEY');
   if (!apiKey) {
     const ai = env.AI as WorkersAI | undefined;
-    if (ai && typeof ai.run === 'function') return { provider: 'cloudflare-workers-ai', ai, modelName: '@cf/meta/llama-3.1-8b-instruct' };
+    if (ai && typeof ai.run === 'function') return { provider: 'cloudflare-workers-ai', ai, modelName: '@cf/meta/llama-3.1-8b-instruct-fast' };
     throw new Error('Cloudflare Workers AI binding is unavailable');
   }
   const baseURL = read(env, 'RESOURCE_AGENT_BASE_URL') || 'https://open.bigmodel.cn/api/paas/v4';
