@@ -121,6 +121,7 @@ export default function ResourceStudioPage() {
             <p className="mt-2 max-w-2xl text-sm text-[var(--muted)]">资源站发现、目录采集、任务监控与已验证资源出口。LibreTV 只读取通过公开访问检查和播放器验收的资源。</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <button onClick={() => window.dispatchEvent(new CustomEvent('libretv:open-source-manager'))} className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm">配置采集服务</button>
             <Link href="/" className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm">返回 LibreTV</Link>
             <button onClick={() => void refresh()} disabled={loading} className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm disabled:opacity-50">刷新数据</button>
           </div>
