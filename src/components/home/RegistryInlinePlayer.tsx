@@ -22,7 +22,7 @@ export function RegistryInlinePlayer({
   const autoplayNext = useAppStore((state) => state.autoplayNext);
   const [pendingStart, setPendingStart] = useState<number | null>(null);
 
-  const confirmPlayback = useCallback((evidence: { mediaType: string; observedSeconds: number; progressedSeconds: number }) => {
+  const confirmPlayback = useCallback((evidence: { mediaType: string; observedSeconds: number; progressedSeconds: number; decodedWidth: number; decodedHeight: number; selectedRenditionHeight: number; selectedRenditionBitrateKbps: number }) => {
     if (!resource?.candidate_id) return;
     void fetch(`/api/resource-collector/candidates/${resource.candidate_id}/playback`, {
       method: 'POST',
@@ -30,7 +30,7 @@ export function RegistryInlinePlayer({
       body: JSON.stringify({
         media_type: evidence.mediaType,
         observed_seconds: evidence.observedSeconds,
-        progressed_seconds: evidence.progressedSeconds,
+        progressed_seconds: evidence.progressedSeconds,\n        decoded_width: evidence.decodedWidth,\n        decoded_height: evidence.decodedHeight,\n        selected_rendition_height: evidence.selectedRenditionHeight,\n        selected_rendition_bitrate_kbps: evidence.selectedRenditionBitrateKbps,
       }),
     }).catch(() => {
       // Playback remains available if the audit writeback service is temporarily offline.
