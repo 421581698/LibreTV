@@ -250,9 +250,7 @@ class SeedHubDetailRetryAndCategoryTests(unittest.TestCase):
             text = html
 
         with tempfile.TemporaryDirectory() as directory:
-            with patch.object(seedhub, "DB_PATH", Path(directory) / "catalog.sqlite3"), \\
-                 patch.object(seedhub, "_require_egress_firewall"), \\
-                 patch.object(seedhub, "_require_public_seedhub_host"):
+            with patch.object(seedhub, "DB_PATH", Path(directory) / "catalog.sqlite3"), patch.object(seedhub, "_require_egress_firewall"), patch.object(seedhub, "_require_public_seedhub_host"):
                 seedhub._initialize()
                 with seedhub._connect() as conn:
                     conn.execute(
@@ -298,11 +296,7 @@ class SeedHubDetailRetryAndCategoryTests(unittest.TestCase):
             text = html
 
         with tempfile.TemporaryDirectory() as directory:
-            with patch.object(seedhub, "DB_PATH", Path(directory) / "catalog.sqlite3"), \\
-                 patch.object(seedhub, "_require_auth"), \\
-                 patch.object(seedhub, "_require_egress_firewall"), \\
-                 patch.object(seedhub, "_require_public_seedhub_host"), \\
-                 patch.object(seedhub.Fetcher, "get", return_value=Response()):
+            with patch.object(seedhub, "DB_PATH", Path(directory) / "catalog.sqlite3"), patch.object(seedhub, "_require_auth"), patch.object(seedhub, "_require_egress_firewall"), patch.object(seedhub, "_require_public_seedhub_host"), patch.object(seedhub.Fetcher, "get", return_value=Response()):
                 seedhub._initialize()
                 with seedhub._connect() as conn:
                     conn.execute(
