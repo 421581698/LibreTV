@@ -242,6 +242,7 @@ export function SourceManagerDrawer({ open, onClose, embedded = false }: { open:
 type CollectorSite = { title: string; url: string; host: string; directory: string };
 type CollectorCandidate = { id?: string; url: string; kind: string; host: string; title?: string; status?: string; access_state?: string; reason?: string; next_action?: string; drm_systems?: string[]; validation?: { cms_shape?: boolean; reachable?: boolean | null; public_host?: boolean; source_url?: string | null; note?: string; media_format?: string; content_type?: string; manifest_valid?: boolean; rejected_reference_count?: number; access?: { access_state?: string; reason?: string } } };
 type CollectorTask = { id: string; url: string; host: string; status: string; created_at: number; updated_at: number; error?: string | null; result_count: number };
+type CollectorJob = { id: string; job_type: string; status: string; error?: string | null; created_at: number; updated_at: number };
 
 function ResourceCollectorPanel() {
   const store = useAppStore();
@@ -251,6 +252,8 @@ function ResourceCollectorPanel() {
   const [playingCandidate, setPlayingCandidate] = useState<CollectorCandidate | null>(null);
   const [candidates, setCandidates] = useState<CollectorCandidate[]>([]);
   const [tasks, setTasks] = useState<CollectorTask[]>([]);
+  const [seedHubJobs, setSeedHubJobs] = useState<CollectorJob[]>([]);
+  const [seedHubPages, setSeedHubPages] = useState(5);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [resultMessage, setResultMessage] = useState('');
@@ -337,6 +340,46 @@ function ResourceCollectorPanel() {
       setError(reason instanceof Error ? reason.message : 'Collector 连接测试失败。');
     } finally {
       setTestingConnection(false);
+    }
+  };
+
+  const loadSeedHubJobs = async () => {
+    try {
+      const response = await collectorFetch('/api/resource-collector?action=jobs&limit=50', { cache: 'no-store' });
+      const payload = await response.json();
+      if (response.ok) setSeedHubJobs(Array.isArray(payload.jobs)
+        ? payload.jobs.filter((job: CollectorJob) => job.job_type === 'seedhub_sync').slice(0, 8)
+        : []);
+    } catch {
+      // Job history is optional; a failed refresh must not hide the collection controls.
+    }
+  };
+
+  const syncSeedHub = async (category: 'movies' | 'series' | 'anime') => {
+    setBusy(true);
+    setError('');
+    setResultMessage('正在提交 SeedHub 目录采集任务…');
+    try {
+      const response = await collectorFetch('/api/resource-collector', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          seedhubSync: true,
+          category,
+          startPage: 1,
+          pages: seedHubPages,
+          idempotencyKey: `seedhub:${category}:${Date.now()}`,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || payload.detail || `SeedHub 任务提交失败（HTTP ${response.status}）。`);
+      setResultMessage(`SeedHub ${category === 'movies' ? '电影' : category === 'series' ? '电视剧' : '动漫'}目录采集任务已提交（${payload.id || payload.job_id || '已排队'}）。请在下方刷新任务状态。`);
+      await loadSeedHubJobs();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'SeedHub 目录采集任务提交失败。');
+      setResultMessage('');
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -504,7 +547,8 @@ function ResourceCollectorPanel() {
 
   const centerItems = [
     { id: 'overview', title: '数据总览', detail: '所有网站和影视资源统计', icon: 'search' as IconName },
-    { id: 'directory', title: 'FMHY 网站目录', detail: '唯一网站发现入口', icon: 'home' as IconName },
+    { id: 'directory', title: 'FMHY 网站目录', detail: '公开资源站网站发现入口', icon: 'home' as IconName },
+    { id: 'seedhub', title: 'SeedHub 内容采集', detail: '同步电影、电视剧、动漫目录与真实元数据', icon: 'database' as IconName },
     { id: 'archives', title: '网站采集档案', detail: '每个网站独立抓取记录', icon: 'database' as IconName },
     { id: 'library', title: '影视资源库', detail: '电影、电视剧、动漫及去重', icon: 'download' as IconName },
     { id: 'monitor', title: '实时任务监控', detail: 'Spider、浏览器和任务队列', icon: 'bolt' as IconName },
@@ -532,7 +576,7 @@ function ResourceCollectorPanel() {
             <button
               key={item.id}
               type="button"
-              onClick={() => setCenterPage(item.id)}
+              onClick={() => { setCenterPage(item.id); if (item.id === 'seedhub') void loadSeedHubJobs(); }}
               className="group flex min-h-[64px] w-full items-center gap-3 rounded-xl px-1 py-2 text-left transition-colors hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               aria-label={item.title}
             >
@@ -594,6 +638,36 @@ function ResourceCollectorPanel() {
         {configSaved ? <p className="text-[11px] text-success">已保存到此设备的浏览器</p> : null}
         {connectionStatus ? <p className="text-xs text-muted" role="status">{connectionStatus}</p> : null}
         <p className="text-[11px] leading-5 text-muted">仅接受公网 HTTPS 域名（443 端口）；Token 通过 HTTPS Header 发送给 LibreTV Worker，再由 Worker 转发给 Collector。清除后回退到服务端 SCRAPLING_API_BASE / SCRAPLING_API_TOKEN。LocalStorage 中的 Token 可被本机浏览器脚本读取，请只在可信设备的测试 Preview 使用。</p>
+      </div>
+
+      <div hidden={centerPage !== 'seedhub'} className="rounded-2xl border border-line bg-card p-4 space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-content">SeedHub 公开目录采集</h3>
+            <p className="mt-1 text-xs leading-5 text-muted">仅采集电影、电视剧和动漫的名称、海报及详情元数据；不提取下载地址，不把下载地址当作在线播放源。</p>
+          </div>
+          <a className="text-xs text-accent underline" href="https://www.seedhub.cc" target="_blank" rel="noreferrer">打开 SeedHub</a>
+        </div>
+        <label className="flex items-center gap-3 text-xs text-muted">
+          每类采集页数
+          <select className="input w-24" value={seedHubPages} onChange={(event) => setSeedHubPages(Math.max(1, Math.min(50, Number(event.target.value) || 1)))}>
+            {[1, 3, 5, 10, 20, 50].map((count) => <option key={count} value={count}>{count} 页</option>)}
+          </select>
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn-primary btn-sm" disabled={busy} onClick={() => void syncSeedHub('movies')}>采集电影目录</button>
+          <button type="button" className="btn-primary btn-sm" disabled={busy} onClick={() => void syncSeedHub('series')}>采集电视剧目录</button>
+          <button type="button" className="btn-primary btn-sm" disabled={busy} onClick={() => void syncSeedHub('anime')}>采集动漫目录</button>
+          <button type="button" className="btn-ghost btn-sm" disabled={busy} onClick={() => void loadSeedHubJobs()}>刷新任务</button>
+        </div>
+        <p className="text-[11px] leading-5 text-muted">采集需要已部署的 Scrapling Collector、有效 Token、持续运行的 Worker，以及服务端出口防火墙确认。出口安全闸门未通过时任务会拒绝访问 SeedHub，不会绕过限制。</p>
+        {seedHubJobs.length ? <div className="space-y-2">
+          <h4 className="text-xs font-semibold text-content">最近 SeedHub 采集任务</h4>
+          {seedHubJobs.map((job) => <div key={job.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-chip p-3">
+            <div className="min-w-0"><span className="block truncate text-xs text-content">任务 {job.id.slice(0, 12)}</span>{job.error ? <span className="mt-1 block text-[10px] text-warning">{job.error}</span> : null}</div>
+            <span className={'shrink-0 text-[10px] font-semibold ' + (job.status === 'succeeded' ? 'text-success' : job.status === 'failed' || job.status === 'partial' ? 'text-warning' : 'text-muted')}>{job.status}</span>
+          </div>)}
+        </div> : <p className="text-xs text-muted">暂无 SeedHub 采集任务记录。</p>}
       </div>
 
       <div hidden={centerPage !== 'directory'} className="rounded-2xl border border-line bg-card p-4">
