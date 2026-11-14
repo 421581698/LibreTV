@@ -11,7 +11,6 @@ const historyModule = source('src/components/home/header/HistoryModule.tsx');
 const settingsModule = source('src/components/home/header/SettingsModule.tsx');
 const avatarModule = source('src/components/home/header/AvatarModule.tsx');
 const navModules = ['HomeNavModule', 'MoviesNavModule', 'TvNavModule', 'OverseasNavModule', 'AnimeNavModule', 'VarietyNavModule', 'LiveNavModule'].map((name) => source('src/components/home/header/' + name + '.tsx'));
-const seedHubHome = source('src/components/home/SeedHubHomepage.tsx');
 const v4Styles = source('src/app/v4-homepage.css');
 const watch = source('src/app/watch/page.tsx');
 const watchStyles = source('src/app/pr84-watch-mobile-fix.css');
@@ -125,26 +124,27 @@ describe('首页与播放页回归契约', () => {
     expect(fridayConversation).toContain("播放器解码实测");
   });
 
-  it('V4 首页展示继续观看与真实影视内容栏目，并保留 IndexedDB 播放进度', () => {
-    expect(home).toContain('<SeedHubHomepage />');
-    expect(home).not.toContain('<V4HomepageContent');
-    expect(seedHubHome).toContain("fetchSeedHubCatalog('movies')");
-    expect(seedHubHome).toContain("fetchSeedHubCatalog('series')");
-    expect(seedHubHome).toContain("fetchSeedHubCatalog('anime')");
-    expect(seedHubHome).toContain('item.poster_url');
-    expect(seedHubHome).toContain("source: 'SeedHub'");
-    expect(seedHubHome).toContain("router.push('/seedhub?url=' + encodeURIComponent(item.source_url) + '&category=' + item.category)");
-    expect(seedHubHome).toContain('v4-continue-section');
-    expect(seedHubHome).toContain('v4-apple-rail-section');
-    expect(seedHubHome).toContain('v4-progress-percent');
-    expect(seedHubHome).toContain('buildWatchUrl({');
-    expect(seedHubHome).toContain('playbackPosition / item.duration');
-    expect(seedHubHome).not.toContain('douban');
-    expect(seedHubHome).not.toContain('hot-list');
+  it('首页以豆瓣精选主视觉和真实推荐海报为主，并保留 IndexedDB 继续观看进度', () => {
+    const homepageHero = source('src/components/home/V4HomepageHero.tsx');
+    const homepageContent = source('src/components/home/V4HomepageContent.tsx');
+    expect(home).toContain('<V4HomepageHero onPick={handleHomepagePick} />');
+    expect(home).toContain('<V4HomepageContent onPick={handleHomepagePick} />');
+    expect(home).not.toContain('SeedHubHomepage');
+    expect(homepageHero).toContain("api.douban('movie', '热门'");
+    expect(homepageHero).toContain('slide.cover');
+    expect(homepageContent).toContain("api.douban('tv', '热门'");
+    expect(homepageContent).toContain("api.douban('movie', '热门'");
+    expect(homepageContent).toContain("api.hotList('douban_movie_weekly'");
+    expect(homepageContent).toContain('url={item.cover}');
+    expect(homepageContent).toContain('v4-continue-section');
+    expect(homepageContent).toContain('v4-progress-percent');
+    expect(homepageContent).toContain('buildWatchUrl({');
+    expect(homepageContent).toContain('playbackPosition / item.duration');
     expect(v4Styles).toContain('.v4-history-row');
     expect(v4Styles).toContain('.v4-apple-rail');
     expect(v4Styles).toContain('.v4-apple-poster-card');
     expect(home).toContain("router.push('/detail?' + params.toString())");
+    expect(home).toContain('api.search(movie.title, selectedSources, yellowFilter)');
     expect(movieDetail).toContain('export function MovieDetailPage()');
   });
 
