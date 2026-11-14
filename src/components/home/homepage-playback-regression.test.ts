@@ -126,7 +126,7 @@ describe('首页与播放页回归契约', () => {
     expect(seedHubHome).toContain("fetchSeedHubCatalog('anime')");
     expect(seedHubHome).toContain('item.poster_url');
     expect(seedHubHome).toContain("source: 'SeedHub'");
-    expect(seedHubHome).toContain("router.push('/seedhub?url=' + encodeURIComponent(item.source_url))");
+    expect(seedHubHome).toContain("router.push('/seedhub?url=' + encodeURIComponent(item.source_url) + '&category=' + item.category)");
     expect(seedHubHome).toContain('v4-continue-section');
     expect(seedHubHome).toContain('v4-apple-rail-section');
     expect(seedHubHome).toContain('v4-progress-percent');
