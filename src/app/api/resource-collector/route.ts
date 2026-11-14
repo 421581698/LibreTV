@@ -356,27 +356,6 @@ export async function POST(request: NextRequest) {
     }, 5_000, request);
   }
 
-  if (payload.seedhubSync === true) {
-    const category = typeof payload.category === 'string' ? payload.category : 'movies';
-    const startPage = typeof payload.startPage === 'number' ? payload.startPage : 1;
-    const pages = typeof payload.pages === 'number' ? payload.pages : 20;
-    if (!/^(movies|series|anime)$/.test(category) || !Number.isInteger(startPage) || startPage < 1 ||
-        !Number.isInteger(pages) || pages < 1 || pages > 50) {
-      return NextResponse.json({ error: 'Invalid SeedHub sync batch.' }, { status: 400 });
-    }
-    const idempotencyKey = typeof payload.idempotencyKey === 'string' && payload.idempotencyKey.length <= 200
-      ? payload.idempotencyKey
-      : `seedhub:${category}:${startPage}:${pages}`;
-    return collectorRequest('/v1/tasks/submit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        job_type: 'seedhub_sync',
-        payload: { category, start_page: startPage, pages },
-        idempotency_key: idempotencyKey,
-      }),
-    }, 5_000, request);
-  }
 
   if (typeof payload.candidateId === 'string') {
     if (!/^[a-f0-9]{32}$/i.test(payload.candidateId)) {
