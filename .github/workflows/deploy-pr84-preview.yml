@@ -149,6 +149,34 @@ jobs:
             echo "No external model secret supplied; the Preview uses its Cloudflare Workers AI binding by default."
           fi
 
+      - name: Verify default Cloudflare Workers AI inference without enqueuing jobs
+        env:
+          PR84_PREVIEW_URL: https://libretv-pr84-preview.bggdbh.workers.dev
+        run: |
+          node --input-type=module <<'NODE'
+          const base = process.env.PR84_PREVIEW_URL;
+          const response = await fetch(new URL("/api/resource-collector/agent", base), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              goal: "只规划发现公开资源站，不要执行爬取或播放任务",
+              dryRun: true
+            }),
+            signal: AbortSignal.timeout(90000),
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok || payload.dryRun !== true ||
+              payload.provider !== "cloudflare-workers-ai" ||
+              !Number.isInteger(payload.planned) || payload.planned < 1 ||
+              !Array.isArray(payload.tasks) || payload.tasks.length < 1) {
+            throw new Error("Cloudflare Workers AI inference smoke test failed: HTTP " +
+              response.status + " " + JSON.stringify(payload).slice(0, 800));
+          }
+          console.log("PASS default Cloudflare Workers AI inference (no provider API key, no Collector jobs enqueued): " +
+            JSON.stringify({ provider: payload.provider, model: payload.model,
+              planned: payload.planned, taskTypes: payload.tasks.map((task) => task.job_type) }));
+          NODE
+
       - name: Probe configured CMS candidate without enabling it as a default source
         env:
           CANDIDATE_CMS_API: https://caiji.dyttzyapi.com/api.php/provide/vod
