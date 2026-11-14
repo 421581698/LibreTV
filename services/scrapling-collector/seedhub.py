@@ -4,6 +4,8 @@ import os
 import re
 import sqlite3
 import time
+import ipaddress
+import socket
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
@@ -13,6 +15,7 @@ from scrapling.fetchers import Fetcher
 
 SEEDHUB_ORIGIN = "https://www.seedhub.cc"
 SEEDHUB_HOST = "www.seedhub.cc"
+SEEDHUB_IMAGE_HOSTS = {SEEDHUB_HOST, "img.seedhub.cc", "sh1.pcie.pppoe.top"}
 DB_PATH = Path(os.environ.get("SCRAPLING_DB_PATH", "/data/collector.sqlite3"))
 TOKEN = os.environ.get("SCRAPLING_API_TOKEN", "").strip()
 router = APIRouter()
@@ -42,7 +45,7 @@ class _CatalogParser(HTMLParser):
             raw = values.get("data-src") or values.get("data-original") or values.get("src") or ""
             image_url = urljoin(self.base_url, raw)
             image = urlparse(image_url)
-            if image.scheme == "https" and image.hostname in {SEEDHUB_HOST, "img.seedhub.cc"}:
+            if image.scheme == "https" and image.hostname in SEEDHUB_IMAGE_HOSTS:
                 self.current["poster_url"] = image_url
         elif tag == "br" and self.current is not None:
             self.current["title"] += " "
@@ -71,6 +74,107 @@ def parse_catalog_html(html: str, page_url: str, category: str = "movies") -> li
     parser = _CatalogParser(page_url)
     parser.feed(html)
     return [{**item, "category": category, "source_name": "SeedHub"} for item in parser.items]
+
+
+
+class _DetailParser(HTMLParser):
+    """Extract SeedHub-owned detail metadata and images, never outbound share links."""
+
+    def __init__(self, page_url: str):
+        super().__init__(convert_charrefs=True)
+        self.page_url = page_url
+        self.title_parts: list[str] = []
+        self.h1_parts: list[str] = []
+        self.description = ""
+        self.og_title = ""
+        self.og_image = ""
+        self.images: list[dict] = []
+        self.in_title = False
+        self.in_h1 = False
+
+    def handle_starttag(self, tag: str, attrs):
+        values = dict(attrs)
+        if tag == "title":
+            self.in_title = True
+        elif tag == "h1":
+            self.in_h1 = True
+        elif tag == "meta":
+            key = (values.get("property") or values.get("name") or "").lower()
+            content = (values.get("content") or "").strip()
+            if key == "og:title":
+                self.og_title = content
+            elif key in {"og:description", "description"} and content and not self.description:
+                self.description = content
+            elif key == "og:image":
+                self.og_image = urljoin(self.page_url, content)
+        elif tag == "img":
+            raw = values.get("data-src") or values.get("data-original") or values.get("src") or ""
+            image_url = urljoin(self.page_url, raw)
+            parsed = urlparse(image_url)
+            if parsed.scheme == "https" and parsed.hostname in SEEDHUB_IMAGE_HOSTS:
+                self.images.append({
+                    "url": parsed._replace(query="", fragment="").geturl(),
+                    "alt": (values.get("alt") or "").strip()[:160],
+                })
+
+    def handle_data(self, data):
+        if self.in_title:
+            self.title_parts.append(data)
+        if self.in_h1:
+            self.h1_parts.append(data)
+
+    def handle_endtag(self, tag):
+        if tag == "title":
+            self.in_title = False
+        elif tag == "h1":
+            self.in_h1 = False
+
+
+def parse_detail_html(html: str, page_url: str) -> dict:
+    parsed = urlparse(page_url)
+    if (parsed.scheme != "https" or parsed.hostname != SEEDHUB_HOST or
+            not re.fullmatch(r"/(?:movies|series|anime)/[0-9]+/?", parsed.path)):
+        raise ValueError("SeedHub detail URL is outside the fixed detail-page scope")
+    parser = _DetailParser(page_url)
+    parser.feed(html)
+    clean = lambda parts: re.sub(r"\s+", " ", " ".join(parts)).strip()[:500]
+    title = (parser.og_title or clean(parser.h1_parts) or clean(parser.title_parts)).strip()
+    if " - SeedHub" in title:
+        title = title.split(" - SeedHub", 1)[0].strip()
+    image_urls = list(dict.fromkeys(item["url"] for item in parser.images))
+    og_image = parser.og_image
+    og_parsed = urlparse(og_image)
+    if not (og_parsed.scheme == "https" and og_parsed.hostname in SEEDHUB_IMAGE_HOSTS):
+        og_image = ""
+    poster = og_image or next(
+        (item["url"] for item in parser.images if "海报" in item["alt"]),
+        image_urls[0] if image_urls else None,
+    )
+    stills = [url for url in image_urls if url != poster]
+    category = parsed.path.split("/", 2)[1]
+    return {
+        "source_name": "SeedHub",
+        "source_url": parsed._replace(query="", fragment="").geturl(),
+        "title": title,
+        "category": category,
+        "description": parser.description[:4000],
+        "poster_url": poster,
+        "still_urls": stills[:30],
+        "mode": "metadata-only",
+        "external_resource_links_extracted": False,
+    }
+
+
+def _require_public_seedhub_host():
+    try:
+        addresses = {
+            ipaddress.ip_address(item[4][0])
+            for item in socket.getaddrinfo(SEEDHUB_HOST, 443, type=socket.SOCK_STREAM)
+        }
+    except (OSError, ValueError):
+        raise HTTPException(status_code=502, detail="SeedHub host resolution failed")
+    if not addresses or any(not address.is_global for address in addresses):
+        raise HTTPException(status_code=503, detail="SeedHub resolved to a non-public network address")
 
 
 def _connect():
@@ -153,6 +257,36 @@ def sync_seedhub(
     return {"source": "SeedHub", "category": category, "pages_requested": pages,
             "records_seen": collected, "records_indexed": total, "failures": failures,
             "mode": "metadata-only", "share_links_extracted": False}
+
+
+@router.get("/v1/seedhub/detail")
+def seedhub_detail(
+    url: str = Query(..., min_length=1, max_length=2048),
+    authorization: str | None = Header(default=None),
+):
+    _require_auth(authorization)
+    _require_egress_firewall()
+    parsed = urlparse(url)
+    if (parsed.scheme != "https" or parsed.hostname != SEEDHUB_HOST or parsed.username or parsed.password or
+            parsed.port not in (None, 443) or
+            not re.fullmatch(r"/(?:movies|series|anime)/[0-9]+/?", parsed.path)):
+        raise HTTPException(status_code=400, detail="Only SeedHub movie, series, and anime detail pages are accepted")
+    _require_public_seedhub_host()
+    page_url = parsed._replace(query="", fragment="").geturl()
+    try:
+        response = Fetcher.get(page_url, timeout=25, follow_redirects="safe")
+        final_url = str(getattr(response, "url", page_url))
+        final = urlparse(final_url)
+        if final.scheme != "https" or final.hostname != SEEDHUB_HOST:
+            raise ValueError("Unexpected redirect outside SeedHub origin")
+        html = getattr(response, "text", None)
+        if not isinstance(html, str) or not html:
+            html = getattr(response, "html_content", None)
+        if not isinstance(html, str) or not html:
+            raise ValueError("SeedHub returned an empty HTML document")
+        return parse_detail_html(html, page_url)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"SeedHub detail fetch failed: {type(exc).__name__}")
 
 
 @router.get("/v1/seedhub/catalog")

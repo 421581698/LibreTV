@@ -15,6 +15,19 @@ export async function GET(request: Request) {
     const query = host ? '?host=' + encodeURIComponent(host) : '';
     return collectorRequest('/v1/stats' + query, {}, 10_000, request);
   }
+  if (action === 'seedhub-detail') {
+    const detailUrl = url.searchParams.get('url') ?? '';
+    let parsed: URL;
+    try { parsed = new URL(detailUrl); } catch {
+      return NextResponse.json({ error: 'Invalid SeedHub detail URL.' }, { status: 400 });
+    }
+    if (parsed.protocol !== 'https:' || parsed.hostname !== 'www.seedhub.cc' ||
+        parsed.username || parsed.password || (parsed.port && parsed.port !== '443') ||
+        !/^\/(movies|series|anime)\/\d+\/?$/.test(parsed.pathname)) {
+      return NextResponse.json({ error: 'Only SeedHub detail pages are accepted.' }, { status: 400 });
+    }
+    return collectorRequest('/v1/seedhub/detail?url=' + encodeURIComponent(parsed.toString()), {}, 30_000, request);
+  }
   if (action === 'seedhub-catalog') {
     const category = url.searchParams.get('category') ?? 'movies';
     const limit = url.searchParams.get('limit') ?? '50';
