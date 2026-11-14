@@ -281,7 +281,10 @@ try {
     // A fixture may already have reached its end before this synthetic play event.
     // Keep ended=false so the production state predicate sees a playing video.
     Object.defineProperty(video, 'ended', { configurable: true, get: () => false });
+    // The production UI intentionally syncs its playing state from the
+    // native "playing" event (not the earlier "play" intent event).
     video.dispatchEvent(new Event('play'));
+    video.dispatchEvent(new Event('playing'));
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     const playing = {
       ariaLabel: button.getAttribute('aria-label'),
