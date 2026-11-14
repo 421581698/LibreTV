@@ -26,9 +26,9 @@ type SeedHubCatalogResponse = {
 };
 
 const CATEGORIES: Array<{ id: SeedHubCategory; title: string }> = [
-  { id: 'movies', title: 'SeedHub 热门电影' },
-  { id: 'series', title: 'SeedHub 热门剧集' },
-  { id: 'anime', title: 'SeedHub 动漫' },
+  { id: 'movies', title: 'SeedHub 电影目录' },
+  { id: 'series', title: 'SeedHub 电视剧目录' },
+  { id: 'anime', title: 'SeedHub 动漫目录' },
 ];
 
 async function fetchSeedHubCatalog(category: SeedHubCategory): Promise<SeedHubCatalogResponse> {
@@ -115,10 +115,10 @@ export function SeedHubHomepage() {
             </div>
             <div className="v4-hero-veil" aria-hidden="true" />
             <div className="v4-hero-content v4-hero-immersive-copy">
-              <span className="v4-hero-eyebrow">SEEDHUB / 真实资源站海报</span>
+              <span className="v4-hero-eyebrow">SEEDHUB / 最新采集</span>
               <h1>{featured.title}</h1>
-              <p className="v4-hero-subtitle">海报、影片资料与剧照均来自 SeedHub 采集目录</p>
-              <div className="v4-hero-tags"><span>SeedHub 原始海报</span><span>资料待播放验证</span></div>
+              <p className="v4-hero-subtitle">真实海报与影片资料来自 SeedHub 公开目录</p>
+              <div className="v4-hero-tags"><span>SeedHub 原始海报</span><span>播放状态未验证</span></div>
               <div className="v4-hero-actions v4-apple-actions">
                 <button type="button" className="v4-hero-primary" onClick={() => openSeedHubDetail(featured)}>
                   查看详情
