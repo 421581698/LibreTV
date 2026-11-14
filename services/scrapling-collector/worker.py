@@ -40,6 +40,17 @@ def handle(payload: dict, checkpoint, cancelled):
                 f"seedhub-detail:{category}:catalog:{start_page}:{pages}",
             )
             result["detail_enrichment_job_id"] = detail_job["id"]
+        next_page = result.get("next_page")
+        if (not cancelled() and result.get("status") == "succeeded" and
+                isinstance(next_page, int) and next_page > start_page):
+            remaining = max(1, int(result.get("total_pages", next_page)) - next_page + 1)
+            next_pages = min(50, remaining)
+            next_catalog_job = submit_job(
+                "seedhub_sync",
+                {"category": category, "start_page": next_page, "pages": next_pages},
+                f"seedhub-catalog:{category}:page:{next_page}",
+            )
+            result["next_catalog_job_id"] = next_catalog_job["id"]
         return result
 
     if payload.get("_job_type") == "seedhub_detail_sync":
