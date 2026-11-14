@@ -15,6 +15,7 @@ from app import (
     validate_candidate,
 )
 from registry_queue import JobCancelled, run_worker, submit_job
+from seedhub import sync_seedhub_pages
 
 # Bound automatic network validation per crawl so one discovered site cannot
 # trigger an unbounded number of outbound media probes.
@@ -24,6 +25,17 @@ MAX_AUTOMATIC_MEDIA_PREFLIGHTS = 20
 def handle(payload: dict, checkpoint, cancelled):
     if cancelled():
         raise JobCancelled()
+    if payload.get("_job_type") == "seedhub_sync":
+        checkpoint({"stage": "seedhub_sync_started", "category": payload.get("category"), "start_page": payload.get("start_page"), "pages": payload.get("pages")})
+        result = sync_seedhub_pages(
+            str(payload.get("category") or "movies"),
+            int(payload.get("start_page") or 1),
+            int(payload.get("pages") or 1),
+            checkpoint=checkpoint,
+            cancelled=cancelled,
+        )
+        return result
+
     if payload.get("_job_type") == "discover":
         require_egress_firewall()
         checkpoint({"stage": "fmhy_discovery_started"})

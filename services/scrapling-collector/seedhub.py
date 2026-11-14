@@ -262,19 +262,24 @@ def _catalog_path(category: str, page: int) -> str:
     return f"/categories/{category_id}/{section}/{suffix}"
 
 
-@router.post("/v1/seedhub/sync")
-def sync_seedhub(
-    category: str = Query(default="movies", pattern="^(movies|series|anime)$"),
-    pages: int = Query(default=1, ge=1, le=5),
-    authorization: str | None = Header(default=None),
-):
-    _require_auth(authorization)
+def sync_seedhub_pages(category: str, start_page: int, pages: int, checkpoint=None, cancelled=None) -> dict:
+    if category not in {"movies", "series", "anime"}:
+        raise ValueError("Unsupported SeedHub category")
+    if start_page < 1 or pages < 1 or pages > 50:
+        raise ValueError("SeedHub page batch must be between 1 and 50 pages")
     _require_egress_firewall()
     _require_public_seedhub_host()
     _initialize()
+    checkpoint = checkpoint or (lambda detail: None)
+    cancelled = cancelled or (lambda: False)
     collected = 0
     failures = []
-    for page_number in range(1, pages + 1):
+    completed = 0
+    for page_number in range(start_page, start_page + pages):
+        if cancelled():
+            break
+        if completed:
+            time.sleep(2.0)
         page_url = SEEDHUB_ORIGIN + _catalog_path(category, page_number)
         try:
             response = Fetcher.get(page_url, timeout=25, follow_redirects="safe")
@@ -302,11 +307,27 @@ def sync_seedhub(
             collected += len(records)
         except Exception as exc:
             failures.append({"page": page_number, "error": type(exc).__name__})
+        completed += 1
+        checkpoint({"stage": "seedhub_catalog_page", "category": category, "page": page_number,
+                    "pages_completed": completed, "pages_requested": pages,
+                    "records_seen": collected, "failures": len(failures)})
     with _connect() as conn:
         total = conn.execute("SELECT COUNT(*) AS n FROM seedhub_catalog WHERE category=?", (category,)).fetchone()["n"]
-    return {"source": "SeedHub", "category": category, "pages_requested": pages,
+    return {"status": "partial" if failures or completed < pages else "succeeded",
+            "source": "SeedHub", "category": category, "start_page": start_page,
+            "pages_requested": pages, "pages_completed": completed,
             "records_seen": collected, "records_indexed": total, "failures": failures,
             "mode": "metadata-only", "share_links_extracted": False}
+
+
+@router.post("/v1/seedhub/sync")
+def sync_seedhub(
+    category: str = Query(default="movies", pattern="^(movies|series|anime)$"),
+    pages: int = Query(default=1, ge=1, le=5),
+    authorization: str | None = Header(default=None),
+):
+    _require_auth(authorization)
+    return sync_seedhub_pages(category, 1, pages)
 
 
 @router.get("/v1/seedhub/detail")

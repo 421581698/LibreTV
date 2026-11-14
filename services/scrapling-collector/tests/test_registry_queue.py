@@ -191,3 +191,10 @@ class RegistryQueueTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SeedHubSyncQueueTests(unittest.TestCase):
+    def test_accepts_seedhub_sync_job_type(self):
+        job = submit_job("seedhub_sync", {"category": "movies", "start_page": 1, "pages": 20}, "seedhub:movies:1:20")
+        self.assertEqual(job["job_type"], "seedhub_sync")
+        self.assertEqual(job["status"], "queued")
