@@ -9,7 +9,6 @@ import {
   getItems,
   getMovieDetail,
   getPlaybackLinks,
-  sampleIndexes,
   summarizeMediaUrl,
   summarizeResponseHeaders,
   rankHomeItems,
