@@ -132,13 +132,18 @@ class SeedHubDetailSyncTests(unittest.TestCase):
                         ("https://www.seedhub.cc/movies/143112/", "八仙！", "anime", None, 1),
                     )
                 result = seedhub.sync_seedhub_details("anime", limit=1)
-                catalog = seedhub.seedhub_catalog("anime", 10, 0, "Bearer test")
+                with seedhub._connect() as conn:
+                    saved = conn.execute(
+                        "SELECT poster_url,detail_json FROM seedhub_catalog WHERE source_url=?",
+                        ("https://www.seedhub.cc/movies/143112/",),
+                    ).fetchone()
 
+        saved_detail = __import__("json").loads(saved["detail_json"])
         self.assertEqual(result["details_processed"], 1)
         self.assertEqual(result["details_remaining"], 0)
-        self.assertEqual(catalog["items"][0]["detail"]["category"], "anime")
-        self.assertEqual(catalog["items"][0]["detail"]["description"], "真实详情简介内容。")
-        self.assertEqual(catalog["items"][0]["poster_url"], "https://sh1.pcie.pppoe.top/poster.jpg")
+        self.assertEqual(saved_detail["category"], "anime")
+        self.assertEqual(saved_detail["description"], "真实详情简介内容。")
+        self.assertEqual(saved["poster_url"], "https://sh1.pcie.pppoe.top/poster.jpg")
 
 
 class SeedHubDetailPersistenceTests(unittest.TestCase):
