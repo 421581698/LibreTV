@@ -11,7 +11,6 @@ const historyModule = source('src/components/home/header/HistoryModule.tsx');
 const settingsModule = source('src/components/home/header/SettingsModule.tsx');
 const avatarModule = source('src/components/home/header/AvatarModule.tsx');
 const navModules = ['HomeNavModule', 'MoviesNavModule', 'TvNavModule', 'OverseasNavModule', 'AnimeNavModule', 'VarietyNavModule', 'LiveNavModule'].map((name) => source('src/components/home/header/' + name + '.tsx'));
-const v4Content = source('src/components/home/V4HomepageContent.tsx');
 const seedHubHome = source('src/components/home/SeedHubHomepage.tsx');
 const v4Styles = source('src/app/v4-homepage.css');
 const watch = source('src/app/watch/page.tsx');
