@@ -953,3 +953,57 @@ html:has(.netflix-watch-shell) .netflix-watch-shell .netflix-player-frame {
   object-position:center center !important;
   margin:auto !important;
 }
+
+
+/* PR84 visual polish from the latest iPhone screenshot:
+   keep transport controls readable without covering actors' faces, and make
+   the range thumb visually proportional to its thin timeline. */
+@media (max-width:700px) {
+  .cinema-center-controls {
+    gap:clamp(22px,6vw,42px) !important;
+  }
+  .cinema-skip-control {
+    width:clamp(64px,12vw,82px) !important;
+    height:clamp(64px,12vw,82px) !important;
+  }
+  .cinema-play-control {
+    width:clamp(96px,18vw,120px) !important;
+    height:clamp(96px,18vw,120px) !important;
+  }
+  .cinema-skip-control svg { width:48% !important; height:48% !important; }
+  .cinema-play-control svg { width:48% !important; height:48% !important; }
+  .netflix-watch-shell .watch-cinema-progress {
+    height:12px !important;
+    min-height:12px !important;
+    appearance:none !important;
+    -webkit-appearance:none !important;
+    background:transparent !important;
+  }
+  .netflix-watch-shell .watch-cinema-progress::-webkit-slider-runnable-track {
+    height:4px !important;
+    border-radius:999px !important;
+    background:rgba(255,255,255,.28) !important;
+  }
+  .netflix-watch-shell .watch-cinema-progress::-webkit-slider-thumb {
+    width:12px !important;
+    height:12px !important;
+    margin-top:-4px !important;
+    border:0 !important;
+    border-radius:50% !important;
+    background:#fff !important;
+    -webkit-appearance:none !important;
+    appearance:none !important;
+  }
+  .netflix-watch-shell .watch-cinema-progress::-moz-range-track {
+    height:4px !important;
+    border-radius:999px !important;
+    background:rgba(255,255,255,.28) !important;
+  }
+  .netflix-watch-shell .watch-cinema-progress::-moz-range-thumb {
+    width:12px !important;
+    height:12px !important;
+    border:0 !important;
+    border-radius:50% !important;
+    background:#fff !important;
+  }
+}
