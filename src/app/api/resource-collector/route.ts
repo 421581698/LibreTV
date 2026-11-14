@@ -50,28 +50,29 @@ export async function POST(request: NextRequest) {
   if (!body || typeof body !== 'object') {
     return NextResponse.json({ error: 'Invalid collector request.' }, { status: 400 });
   }
-  if ('seedhubSync' in body && body.seedhubSync === true) {
-    const category = typeof body.category === 'string' ? body.category : 'movies';
-    const pages = typeof body.pages === 'number' ? body.pages : 1;
+  const payload = body as Record<string, unknown>;
+  if (payload.seedhubSync === true) {
+    const category = typeof payload.category === 'string' ? payload.category : 'movies';
+    const pages = typeof payload.pages === 'number' ? payload.pages : 1;
     if (!/^(movies|series|anime)$/.test(category) || !Number.isInteger(pages) || pages < 1 || pages > 5) {
       return NextResponse.json({ error: 'Invalid SeedHub sync request.' }, { status: 400 });
     }
     return collectorRequest(`/v1/seedhub/sync?category=${category}&pages=${pages}`, { method: 'POST' }, 65_000, request);
   }
 
-  if ('candidateId' in body && typeof body.candidateId === 'string') {
-    if (!/^[a-f0-9]{32}$/i.test(body.candidateId)) {
+  if (typeof payload.candidateId === 'string') {
+    if (!/^[a-f0-9]{32}$/i.test(payload.candidateId)) {
       return NextResponse.json({ error: 'Invalid candidate ID.' }, { status: 400 });
     }
-    return collectorRequest(`/v1/candidates/${body.candidateId}/validate`, { method: 'POST' }, 20_000, request);
+    return collectorRequest(`/v1/candidates/${payload.candidateId}/validate`, { method: 'POST' }, 20_000, request);
   }
-  if (!('url' in body) || typeof body.url !== 'string' || body.url.length > 2_048) {
+  if (typeof payload.url !== 'string' || payload.url.length > 2_048) {
     return NextResponse.json({ error: 'A valid FMHY site URL is required.' }, { status: 400 });
   }
 
   let parsed: URL;
   try {
-    parsed = new URL(body.url);
+    parsed = new URL(payload.url);
   } catch {
     return NextResponse.json({ error: 'Invalid URL.' }, { status: 400 });
   }
