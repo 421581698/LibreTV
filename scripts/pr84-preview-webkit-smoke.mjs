@@ -359,6 +359,24 @@ try {
     const close = header?.querySelector('.cinema-close-control');
     const airplay = header?.querySelector('[aria-label="投屏"]');
     const fullscreen = header?.querySelector('[aria-label="全屏播放"]');
+    const rightToolbar = header?.querySelector('.watch-topbar-right');
+    const visibleGeometry = (element) => {
+      if (!(element instanceof HTMLElement)) return null;
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return {
+        display: style.display,
+        visibility: style.visibility,
+        opacity: Number.parseFloat(style.opacity),
+        width: rect.width,
+        height: rect.height,
+        x: rect.x,
+        y: rect.y,
+      };
+    };
+    const rightToolbarGeometry = visibleGeometry(rightToolbar);
+    const airplayGeometry = visibleGeometry(airplay);
+    const fullscreenGeometry = visibleGeometry(fullscreen);
     const centerControls = document.querySelectorAll('.cinema-center-controls button');
     const centerControlSizes = Array.from(centerControls).map((button) => {
       const rect = button.getBoundingClientRect();
@@ -399,6 +417,9 @@ try {
       hasCloseControl: Boolean(close),
       hasAirPlayControl: Boolean(airplay),
       hasFullscreenControl: Boolean(fullscreen),
+      rightToolbarGeometry,
+      airplayGeometry,
+      fullscreenGeometry,
       centerControlCount: centerControls.length,
       centerControlDisplay: centerStyle.display,
       centerControlSizes,
@@ -438,9 +459,20 @@ try {
       relatedDataFallbacks,
     };
   });
-  if (!watchLayout.hasCloseControl || !watchLayout.hasAirPlayControl || watchLayout.hasLegacyHeaderTitle ||
-      watchLayout.headerButtons !== 3 || watchLayout.hasHeaderAssistant) {
-    throw new Error('Immersive header must contain close, AirPlay and utility controls without a page title: ' + JSON.stringify(watchLayout));
+  const controlIsVisible = (geometry) => Boolean(
+    geometry &&
+    geometry.display !== 'none' &&
+    geometry.visibility === 'visible' &&
+    geometry.opacity > 0 &&
+    geometry.width > 0 &&
+    geometry.height > 0
+  );
+  if (!watchLayout.hasCloseControl || !watchLayout.hasAirPlayControl || !watchLayout.hasFullscreenControl ||
+      !controlIsVisible(watchLayout.rightToolbarGeometry) ||
+      !controlIsVisible(watchLayout.airplayGeometry) ||
+      !controlIsVisible(watchLayout.fullscreenGeometry) ||
+      watchLayout.hasLegacyHeaderTitle || watchLayout.headerButtons !== 3 || watchLayout.hasHeaderAssistant) {
+    throw new Error('Immersive header must visibly render close, AirPlay and fullscreen controls without a page title: ' + JSON.stringify(watchLayout));
   }
   const oversizedTransportControl = watchLayout.centerControlSizes.some((control) =>
     control.className.includes('cinema-play-control')
