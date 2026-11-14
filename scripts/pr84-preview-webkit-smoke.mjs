@@ -312,6 +312,51 @@ try {
   });
   console.log('PASS PR84 cinema play/pause icon follows native media events:', JSON.stringify(playbackIconAcceptance));
 
+  // Exercise the real cinema-control inactivity lifecycle on the deployed
+  // page. Media events are synthetic because this WebKit pass validates UI
+  // state/visibility, while codec playback is covered by the Chromium smoke.
+  const autoHideAcceptance = await page.evaluate(async () => {
+    const shell = document.querySelector('.watch-page, .watch-shell, main');
+    const video = document.querySelector('.netflix-player-frame video');
+    const root = document.querySelector('[class*="cinema-controls-hidden"]')?.parentElement ??
+      document.querySelector('.watch-topbar')?.closest('div');
+    const topbar = document.querySelector('.watch-topbar');
+    const center = document.querySelector('.cinema-center-controls');
+    const info = document.querySelector('.watch-cinema-info');
+    if (!(video instanceof HTMLVideoElement) || !topbar || !center || !info) {
+      throw new Error('Auto-hide acceptance could not locate video and cinema overlays');
+    }
+    const pageRoot = document.querySelector('.cinema-controls-hidden')?.parentElement ??
+      topbar.closest('[class*="watch"]') ?? document.body;
+    Object.defineProperty(video, 'paused', { configurable: true, get: () => false });
+    Object.defineProperty(video, 'ended', { configurable: true, get: () => false });
+    video.dispatchEvent(new Event('play'));
+    video.dispatchEvent(new Event('playing'));
+    await new Promise((resolve) => setTimeout(resolve, 3300));
+    const hidden = pageRoot.classList.contains('cinema-controls-hidden');
+    const hiddenStyles = [topbar, center, info].map((node) => {
+      const style = getComputedStyle(node);
+      return { opacity: style.opacity, visibility: style.visibility, pointerEvents: style.pointerEvents };
+    });
+    if (!hidden || hiddenStyles.some((style) => style.visibility !== 'hidden' || style.pointerEvents !== 'none')) {
+      throw new Error('Cinema controls did not auto-hide after 3 seconds: ' + JSON.stringify({ classes: pageRoot.className, hiddenStyles }));
+    }
+    const interactionTarget = document.querySelector('.netflix-player-frame') ?? pageRoot;
+    interactionTarget.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'touch' }));
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const restored = !pageRoot.classList.contains('cinema-controls-hidden') &&
+      [topbar, center, info].every((node) => getComputedStyle(node).visibility === 'visible');
+    if (!restored) throw new Error('Touch interaction did not restore cinema controls');
+    video.dispatchEvent(new Event('pause'));
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const pausedVisible = !pageRoot.classList.contains('cinema-controls-hidden') &&
+      [topbar, center, info].every((node) => getComputedStyle(node).visibility === 'visible');
+    if (!pausedVisible) throw new Error('Paused playback did not keep cinema controls visible');
+    return { hiddenAfterInactivity: hidden, restoredAfterTouch: restored, visibleWhilePaused: pausedVisible, hiddenStyles };
+  });
+  console.log('PASS PR84 cinema controls auto-hide + touch restore + paused visibility:', JSON.stringify(autoHideAcceptance));
+
+
   // Confirm the three tabs reveal content rather than leaving a coachmark over them.
   await page.waitForSelector('.watch-cinema-copy', { state: 'visible', timeout: 20_000 });
   const tabPanelAcceptance = await page.evaluate(async () => {
