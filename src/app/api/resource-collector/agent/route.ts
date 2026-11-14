@@ -126,8 +126,9 @@ export async function POST(request: Request) {
             if (url.protocol !== 'https:' || url.hostname.toLowerCase() !== host ||
                 url.username || url.password || (url.port && url.port !== '443') ||
                 host === 'localhost' || host.endsWith('.local') || host.endsWith('.internal') ||
-                host.endsWith('.test') || host.endsWith('.invalid') || host.includes(':') ||
-                /^(?:\\d{1,3}\\.){3}\\d{1,3}$/.test(host) || !host.includes('.')) return [];
+                host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal') ||
+                host.endsWith('.test') || host.endsWith('.invalid') || host.endsWith('.example') || host.includes(':') ||
+                ipLiteral || !host.includes('.')) return [];
             return [{ host, url: url.toString(), title: String(item.title || host).slice(0, 120), directory: String(item.directory || '').slice(0, 120) }];
           } catch {
             return [];
