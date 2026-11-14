@@ -16,14 +16,14 @@ import {
 
 const API_ORIGIN = "https://phimapi.com";
 const PLAYER_HOST = "player.phimapi.com";
-const TIMEOUT_MS = 8_000;
+const TIMEOUT_MS = 5_000;
 const MAX_JSON_BYTES = 2 * 1024 * 1024;
 const MAX_HTML_BYTES = 512 * 1024;
 const MAX_MANIFEST_BYTES = 512 * 1024;
 const MAX_SEGMENT_BYTES = 1024 * 1024;
-const MAX_HOME_PAGES = 4;
-const MAX_MOVIES = 24;
-const MAX_LINKS = 36;
+const MAX_HOME_PAGES = 2;
+const MAX_MOVIES = 12;
+const MAX_LINKS = 8;
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36";
 
 function isPublicAddress(address) {
@@ -273,8 +273,8 @@ async function captureDynamicEmbedMedia(rawUrl) {
         });
       }
     });
-    await page.goto(rawUrl, { waitUntil: "domcontentloaded", timeout: 20000 });
-    await page.waitForTimeout(5000);
+    await page.goto(rawUrl, { waitUntil: "domcontentloaded", timeout: 12000 });
+    await page.waitForTimeout(1500);
     pageDiagnostics.title = await page.title().catch(() => null);
     pageDiagnostics.playerRuntime = await page.evaluate(() => {
       const api = typeof window.jwplayer === "function" ? window.jwplayer() : null;
@@ -327,7 +327,7 @@ async function captureDynamicEmbedMedia(rawUrl) {
           }
         }
       }
-      await page.waitForTimeout(7000);
+      await page.waitForTimeout(2500);
       pageDiagnostics.playAttempt = await page.evaluate(async () => {
         const video = document.querySelector("video");
         if (!video) return { attempted: false, reason: "no-video-element" };
@@ -511,7 +511,7 @@ async function verifyCandidate(candidate) {
     if (pageResult) return pageResult;
     // Static HTML often contains an expired or stale m3u8. Execute the player
     // and capture the media URL it actually requests at runtime instead.
-    if (link.url && dynamicEmbedAttempts < 6) {
+    if (link.url && dynamicEmbedAttempts < 1) {
       dynamicEmbedAttempts++;
       try {
         const dynamic = await captureDynamicEmbedMedia(link.url);
