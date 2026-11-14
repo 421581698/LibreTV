@@ -95,6 +95,8 @@ class _DetailParser(HTMLParser):
         self.current_section = ""
         self.section_text: dict[str, list[str]] = {}
         self.all_text: list[str] = []
+        self.header_text: list[str] = []
+        self.in_header = True
         self.skip_text = 0
 
     def handle_starttag(self, tag: str, attrs):
@@ -107,6 +109,7 @@ class _DetailParser(HTMLParser):
             self.in_h1 = True
         elif tag in {"h2", "h3"}:
             self.in_heading = True
+            self.in_header = False
         elif tag == "meta":
             key = (values.get("property") or values.get("name") or "").lower()
             content = (values.get("content") or "").strip()
@@ -134,6 +137,8 @@ class _DetailParser(HTMLParser):
             self.current_section = value
             self.section_text.setdefault(value, [])
         self.all_text.append(value)
+        if self.in_header:
+            self.header_text.append(value)
         if self.in_title:
             self.title_parts.append(value)
         if self.in_h1:
@@ -185,7 +190,7 @@ def parse_detail_html(html: str, page_url: str) -> dict:
         description = match.group(1).strip()[:4000] if match else ""
     # Keep field extraction inside the metadata block; later section headings and
     # synopsis text must not be swallowed into the final field (e.g. runtime).
-    fields_blob = clean(parser.all_text).split("简介", 1)[0]
+    fields_blob = clean(parser.header_text)
     def extract_field(label: str, stops: tuple[str, ...]) -> str | None:
         stop_pattern = "|".join(re.escape(item) for item in stops)
         match = re.search(rf"{re.escape(label)}[:：]\s*(.+?)(?=(?:{stop_pattern})[:：]|$)", fields_blob)
