@@ -379,6 +379,34 @@ class SeedHubCatalogueSchemaMigrationTests(unittest.TestCase):
         self.assertEqual(count, 2)
 
 
+class SeedHubCatalogueSearchTests(unittest.TestCase):
+    def test_search_returns_imported_metadata_and_never_marks_it_as_playable(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        import seedhub
+
+        source_url = "https://www.seedhub.cc/movies/130096/"
+        detail = {"title": "生化危机：爆发夜", "description": "公开目录简介", "mode": "metadata-only"}
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(seedhub, "DB_PATH", Path(directory) / "catalog.sqlite3"), patch.object(seedhub, "_require_auth"):
+                seedhub._initialize()
+                with seedhub._connect() as conn:
+                    conn.execute(
+                        """INSERT INTO seedhub_catalog(source_url,title,category,poster_url,discovered_at,detail_json)
+                           VALUES(?,?,?,?,?,?)""",
+                        (source_url, "生化危机：爆发夜", "movies",
+                         "https://www.seedhub.cc/poster.jpg", 123, json.dumps(detail, ensure_ascii=False)),
+                    )
+                result = seedhub.seedhub_search("生化危机", authorization="Bearer test")
+        self.assertEqual(len(result["items"]), 1)
+        self.assertEqual(result["items"][0]["source_url"], source_url)
+        self.assertEqual(result["items"][0]["detail"]["mode"], "metadata-only")
+        self.assertNotIn("play_url", result["items"][0])
+        self.assertNotIn("resource_url", result["items"][0])
+
+
 class SeedHubCacheOnlyTests(unittest.TestCase):
     def test_cache_only_detail_does_not_trigger_live_fetch_when_not_enriched(self):
         import tempfile
