@@ -54,7 +54,8 @@ The API exposes only whether a provider is configured, never credentials. The Su
 - `GET /v1/discover` — refresh the separate FMHY video directory and persist discovered sites.
 - `POST /v1/seedhub/sync?category=movies|series|anime&pages=1` — small synchronous SeedHub metadata batch (maximum five pages).
 - Submit `{ "job_type":"seedhub_sync", "payload":{"category":"movies","start_page":1,"pages":20}, "idempotency_key":"seedhub:movies:1:20" }` to `POST /v1/tasks/submit` for a durable, checkpointed batch; the worker pauses two seconds between pages and records per-page progress. Queue successive batches to cover the full catalogue without long HTTP requests.
-- `GET /v1/seedhub/catalog?category=movies|series|anime&limit=50&offset=0` — read the SeedHub catalogue.\n- `GET /v1/seedhub/search?q=title&limit=20` — search imported SeedHub catalogue metadata for LibreTV search; no playback/share URLs are exposed.\n- `GET /v1/seedhub/search?q=title&limit=20` — search imported SeedHub catalogue titles and cached metadata for LibreTV search; this is metadata only and does not expose playback/share URLs.
+- `GET /v1/seedhub/catalog?category=movies|series|anime&limit=50&offset=0` — read the SeedHub catalogue.
+- `GET /v1/seedhub/search?q=title&limit=20` — search imported SeedHub catalogue metadata for LibreTV search; no playback/share URLs are exposed.
 - `GET /v1/seedhub/detail?url=https://www.seedhub.cc/movies/130096/` — read title, description, poster, and still-image metadata from one SeedHub detail page; outbound resource/share links are intentionally excluded.
 - `POST /v1/crawl` — crawl one previously discovered host. Body: `{"url":"https://...","mode":"auto|http|browser","limit":50}`.
 - `GET /v1/tasks` — recent persistent task history.
