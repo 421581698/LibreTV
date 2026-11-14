@@ -26,12 +26,12 @@ type Env = Record<string, unknown>;
 const read = (env: Env, key: string) => typeof env[key] === 'string' ? String(env[key]).trim() : '';
 
 function resolveResourceAgent(env: Env) {
-  const gatewayUrl = read(env, 'OPENCLAW_GATEWAY_URL');
-  const gatewayToken = read(env, 'OPENCLAW_GATEWAY_TOKEN');
-  const agentId = read(env, 'OPENCLAW_AGENT_RESOURCE_SUPERVISOR');
+  const gatewayUrl = read(env, 'RESOURCE_OPENCLAW_GATEWAY_URL');
+  const gatewayToken = read(env, 'RESOURCE_OPENCLAW_GATEWAY_TOKEN');
+  const agentId = read(env, 'RESOURCE_OPENCLAW_AGENT_ID');
   if (gatewayUrl || gatewayToken || agentId) {
-    const accessId = read(env, 'OPENCLAW_ACCESS_CLIENT_ID');
-    const accessSecret = read(env, 'OPENCLAW_ACCESS_CLIENT_SECRET');
+    const accessId = read(env, 'RESOURCE_OPENCLAW_ACCESS_CLIENT_ID');
+    const accessSecret = read(env, 'RESOURCE_OPENCLAW_ACCESS_CLIENT_SECRET');
     if (!gatewayUrl || !gatewayToken || !agentId || !accessId || !accessSecret ||
         !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(agentId)) {
       throw new Error('Resource Supervisor OpenClaw Gateway configuration is incomplete');
@@ -101,7 +101,7 @@ export async function POST(request: Request) {
     config = resolveResourceAgent(cloudflareEnv());
   } catch {
     return NextResponse.json({
-      error: '资源 AI Supervisor 尚未配置。请设置 RESOURCE_AGENT_API_KEY，或配置 OPENCLAW_GATEWAY_URL、OPENCLAW_GATEWAY_TOKEN、OPENCLAW_AGENT_RESOURCE_SUPERVISOR 和 Cloudflare Access 服务令牌。',
+      error: '资源 AI Supervisor 尚未配置。请设置 RESOURCE_AGENT_API_KEY，或配置 RESOURCE_OPENCLAW_GATEWAY_URL、RESOURCE_OPENCLAW_GATEWAY_TOKEN、RESOURCE_OPENCLAW_AGENT_ID 和 Cloudflare Access 服务令牌。',
     }, { status: 503 });
   }
 
