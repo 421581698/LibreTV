@@ -463,6 +463,7 @@ def sync_seedhub(
 def seedhub_detail(
     url: str = Query(..., min_length=1, max_length=2048),
     category: str | None = Query(default=None, pattern="^(movies|series|anime)$"),
+    cache_only: bool = Query(default=False),
     authorization: str | None = Header(default=None),
 ):
     _require_auth(authorization)
@@ -489,6 +490,11 @@ def seedhub_detail(
         if (isinstance(cached, dict) and cached.get("detail_status") != "failed" and
                 cached.get("category") == resolved_category):
             return cached
+    if cache_only:
+        raise HTTPException(
+            status_code=503,
+            detail="SeedHub detail is waiting for the background enrichment queue.",
+        )
     _require_egress_firewall()
     _require_public_seedhub_host()
     try:
