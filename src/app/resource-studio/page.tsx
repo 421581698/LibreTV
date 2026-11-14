@@ -47,9 +47,10 @@ export default function ResourceStudioPage() {
     setLoading(true);
     setError('');
     try {
-      const [resourceResponse, jobResponse] = await Promise.all([
+      const [resourceResponse, jobResponse, agentResponse] = await Promise.all([
         collectorFetch('/api/resource-collector?action=resources&limit=100'),
         collectorFetch('/api/resource-collector?action=jobs&limit=30'),
+        collectorFetch('/api/resource-collector/agent'),
       ]);
       const resourcePayload = await resourceResponse.json();
       const jobPayload = await jobResponse.json();
