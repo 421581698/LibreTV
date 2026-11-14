@@ -125,7 +125,6 @@ export async function POST(request: Request) {
             const ipLiteral = hostParts.length === 4 && hostParts.every((part) => part.length > 0 && [...part].every((character) => character >= '0' && character <= '9'));
             if (url.protocol !== 'https:' || url.hostname.toLowerCase() !== host ||
                 url.username || url.password || (url.port && url.port !== '443') ||
-                host === 'localhost' || host.endsWith('.local') || host.endsWith('.internal') ||
                 host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal') ||
                 host.endsWith('.test') || host.endsWith('.invalid') || host.endsWith('.example') || host.includes(':') ||
                 ipLiteral || !host.includes('.')) return [];
