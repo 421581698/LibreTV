@@ -61,7 +61,8 @@ def handle(payload: dict, checkpoint, cancelled):
             category, limit=limit, checkpoint=checkpoint, cancelled=cancelled,
         )
         if not cancelled() and result.get("details_remaining", 0) and result.get("last_source_url"):
-            cursor_hash = hashlib.sha256(result["last_source_url"].encode()).hexdigest()[:32]
+            cursor_value = result["last_source_url"] + ":" + str(result.get("detail_retry_round", 1))
+            cursor_hash = hashlib.sha256(cursor_value.encode()).hexdigest()[:32]
             next_job = submit_job(
                 "seedhub_detail_sync",
                 {"category": category, "limit": 10},
