@@ -153,7 +153,7 @@ export default function ResourceStudioPage() {
               {busy === 'agent' ? 'AI 正在规划…' : '让 AI 规划并提交任务'}
             </button>
           </div>
-          {!agentConfigured ? <p className="mt-3 text-xs leading-5 text-[var(--muted)]">需要在 Preview Worker 配置 RESOURCE_AGENT_API_KEY（也可复用 ZHIPU_API_KEY），或配置专用 OpenClaw Agent：OPENCLAW_AGENT_RESOURCE_SUPERVISOR、Gateway Token/URL 与 Cloudflare Access 服务令牌。密钥只保存在服务器环境中。</p> : null}
+          {!agentConfigured ? <p className="mt-3 text-xs leading-5 text-[var(--muted)]">需要在 Preview Worker 配置 RESOURCE_AGENT_API_KEY（也可复用 ZHIPU_API_KEY），或配置专用 OpenClaw Agent：RESOURCE_OPENCLAW_AGENT_ID、RESOURCE_OPENCLAW_GATEWAY_TOKEN/URL 与 RESOURCE_OPENCLAW_ACCESS_CLIENT_ID/SECRET。密钥只保存在服务器环境中。</p> : null}
         </section>
 
         <section className="mb-8 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
