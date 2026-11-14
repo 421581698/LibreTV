@@ -229,5 +229,93 @@ class SeedHubDetailPersistenceTests(unittest.TestCase):
         self.assertEqual(saved["still_urls"], ["https://sh1.pcie.pppoe.top/still.jpg"])
 
 
+
+
+class SeedHubDetailRetryAndCategoryTests(unittest.TestCase):
+    def test_failed_detail_remains_retryable_and_is_bounded(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        import seedhub
+
+        source_url = "https://www.seedhub.cc/movies/143112/"
+        html = """<html><head><meta property="og:title" content="八仙！">
+        <meta property="og:image" content="https://sh1.pcie.pppoe.top/poster.jpg"></head>
+        <body><h1>八仙！</h1><h2>简介</h2><p>真实详情</p></body></html>"""
+
+        class Response:
+            url = source_url
+            status = 200
+            text = html
+
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(seedhub, "DB_PATH", Path(directory) / "catalog.sqlite3"), \\
+                 patch.object(seedhub, "_require_egress_firewall"), \\
+                 patch.object(seedhub, "_require_public_seedhub_host"):
+                seedhub._initialize()
+                with seedhub._connect() as conn:
+                    conn.execute(
+                        "INSERT INTO seedhub_catalog(source_url,title,category,discovered_at) VALUES(?,?,?,?)",
+                        (source_url, "八仙！", "anime", 1),
+                    )
+                with patch.object(seedhub.Fetcher, "get", side_effect=RuntimeError("temporary failure")):
+                    failed = seedhub.sync_seedhub_details("anime", limit=1)
+                with seedhub._connect() as conn:
+                    row = conn.execute(
+                        "SELECT detail_json,detail_attempts FROM seedhub_catalog WHERE source_url=?",
+                        (source_url,),
+                    ).fetchone()
+                self.assertIsNone(row["detail_json"])
+                self.assertEqual(row["detail_attempts"], 1)
+                self.assertEqual(failed["details_remaining"], 1)
+
+                with patch.object(seedhub.Fetcher, "get", return_value=Response()):
+                    recovered = seedhub.sync_seedhub_details("anime", limit=1)
+                with seedhub._connect() as conn:
+                    row = conn.execute(
+                        "SELECT detail_json,detail_attempts,detail_last_error FROM seedhub_catalog WHERE source_url=?",
+                        (source_url,),
+                    ).fetchone()
+                self.assertIsNotNone(row["detail_json"])
+                self.assertIsNone(row["detail_last_error"])
+                self.assertEqual(recovered["details_remaining"], 0)
+
+    def test_registered_catalogue_category_wins_over_detail_query_category(self):
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        import seedhub
+
+        source_url = "https://www.seedhub.cc/movies/130096/"
+        html = """<html><head><meta property="og:title" content="谷雨">
+        <meta property="og:image" content="https://sh1.pcie.pppoe.top/poster.jpg"></head>
+        <body><h1>谷雨</h1></body></html>"""
+
+        class Response:
+            url = source_url
+            status = 200
+            text = html
+
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(seedhub, "DB_PATH", Path(directory) / "catalog.sqlite3"), \\
+                 patch.object(seedhub, "_require_auth"), \\
+                 patch.object(seedhub, "_require_egress_firewall"), \\
+                 patch.object(seedhub, "_require_public_seedhub_host"), \\
+                 patch.object(seedhub.Fetcher, "get", return_value=Response()):
+                seedhub._initialize()
+                with seedhub._connect() as conn:
+                    conn.execute(
+                        "INSERT INTO seedhub_catalog(source_url,title,category,discovered_at) VALUES(?,?,?,?)",
+                        (source_url, "谷雨", "series", 1),
+                    )
+                detail = seedhub.seedhub_detail(source_url, category="anime", authorization="Bearer test")
+                with seedhub._connect() as conn:
+                    saved = conn.execute(
+                        "SELECT category FROM seedhub_catalog WHERE source_url=?", (source_url,)
+                    ).fetchone()
+        self.assertEqual(detail["category"], "series")
+        self.assertEqual(saved["category"], "series")
+
 if __name__ == "__main__":
     unittest.main()
