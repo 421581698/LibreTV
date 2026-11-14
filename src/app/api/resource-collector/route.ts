@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     const category = url.searchParams.get('category') ?? 'movies';
     const limit = url.searchParams.get('limit') ?? '50';
     const offset = url.searchParams.get('offset') ?? '0';
-    if (!/^(movies|series|anime)$/.test(category) || !/^\\d{1,3}$/.test(limit) || !/^\\d{1,7}$/.test(offset)) {
+    if (!/^(movies|series|anime)$/.test(category) || !/^\d{1,3}$/.test(limit) || !/^\d{1,7}$/.test(offset)) {
       return NextResponse.json({ error: 'Invalid SeedHub catalogue query.' }, { status: 400 });
     }
     return collectorRequest(`/v1/seedhub/catalog?category=${category}&limit=${limit}&offset=${offset}`, {}, 10_000, request);
