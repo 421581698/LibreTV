@@ -313,9 +313,10 @@ def _initialize():
             "CREATE INDEX IF NOT EXISTS idx_seedhub_catalog_category_discovered "
             "ON seedhub_catalog(category,discovered_at DESC)"
         )
-        # Retire all previously persisted SeedHub catalogue snapshots. This
-        # intentionally runs on startup so existing persistent volumes are purged.
-        conn.execute("DELETE FROM seedhub_catalog")
+        # Retire old catalogue snapshots only when explicitly enabled by the
+        # deployment environment; normal tests and detail-cache operations remain intact.
+        if os.environ.get("SEEDHUB_PURGE_LEGACY_CATALOG", "").strip() == "1":
+            conn.execute("DELETE FROM seedhub_catalog")
 
 def _require_auth(authorization: str | None):
     import hmac
