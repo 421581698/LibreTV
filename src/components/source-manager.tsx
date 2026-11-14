@@ -253,7 +253,7 @@ function ResourceCollectorPanel() {
   const [candidates, setCandidates] = useState<CollectorCandidate[]>([]);
   const [tasks, setTasks] = useState<CollectorTask[]>([]);
   const [seedHubJobs, setSeedHubJobs] = useState<CollectorJob[]>([]);
-  const [seedHubPages, setSeedHubPages] = useState(5);
+  const [seedHubPages, setSeedHubPages] = useState(50);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [resultMessage, setResultMessage] = useState('');
@@ -348,7 +348,7 @@ function ResourceCollectorPanel() {
       const response = await collectorFetch('/api/resource-collector?action=jobs&limit=50', { cache: 'no-store' });
       const payload = await response.json();
       if (response.ok) setSeedHubJobs(Array.isArray(payload.jobs)
-        ? payload.jobs.filter((job: CollectorJob) => job.job_type === 'seedhub_sync').slice(0, 8)
+        ? payload.jobs.filter((job: CollectorJob) => job.job_type === 'seedhub_sync' || job.job_type === 'seedhub_detail_sync').slice(0, 8)
         : []);
     } catch {
       // Job history is optional; a failed refresh must not hide the collection controls.
@@ -644,12 +644,12 @@ function ResourceCollectorPanel() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3 className="text-sm font-semibold text-content">SeedHub 公开目录采集</h3>
-            <p className="mt-1 text-xs leading-5 text-muted">仅采集电影、电视剧和动漫的名称、海报及详情元数据；不提取下载地址，不把下载地址当作在线播放源。</p>
+            <p className="mt-1 text-xs leading-5 text-muted">自动分页采集电影、电视剧和动漫的名称、真实海报、详情简介、剧照与元数据；按批次持续推进到目录末页。不提取下载地址，不把下载地址当作在线播放源。</p>
           </div>
           <a className="text-xs text-accent underline" href="https://www.seedhub.cc" target="_blank" rel="noreferrer">打开 SeedHub</a>
         </div>
         <label className="flex items-center gap-3 text-xs text-muted">
-          每类采集页数
+          每批采集页数
           <select className="input w-24" value={seedHubPages} onChange={(event) => setSeedHubPages(Math.max(1, Math.min(50, Number(event.target.value) || 1)))}>
             {[1, 3, 5, 10, 20, 50].map((count) => <option key={count} value={count}>{count} 页</option>)}
           </select>
