@@ -71,7 +71,7 @@ class _CatalogParser(HTMLParser):
         if tag == "a" and self.current is not None:
             self.anchor_depth -= 1
             if self.anchor_depth <= 0:
-    title = re.sub(r"^[#\s]+", "", title).strip()
+                title = re.sub(r"\s+", " ", self.current["title"]).strip()[:240]
                 if title and not any(item["source_url"] == self.current["source_url"] for item in self.items):
                     self.current["title"] = title
                     self.items.append(self.current)
@@ -181,9 +181,7 @@ def parse_detail_html(html: str, page_url: str) -> dict:
     clean = lambda parts: re.sub(r"\s+", " ", " ".join(parts)).strip()[:500]
     title = (parser.og_title or clean(parser.h1_parts) or clean(parser.title_parts)).strip()
     # Strip the decorative hash used by some SeedHub Open Graph titles.
-    title = re.sub(r"^[#\\s]+", "", title).strip()
-    # SeedHub prepends a decorative "#" to some Open Graph titles; it is not part of the title.
-    title = re.sub(r"^[#\\s]+", "", title).strip()
+    title = re.sub(r"^[#\s]+", "", title).strip()
     if " - SeedHub" in title:
         title = title.split(" - SeedHub", 1)[0].strip()
     image_urls = list(dict.fromkeys(item["url"] for item in parser.images))
