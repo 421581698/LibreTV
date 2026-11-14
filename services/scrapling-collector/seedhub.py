@@ -290,6 +290,12 @@ def _catalog_path(category: str, page: int) -> str:
     return f"/categories/{category_id}/{section}/{suffix}"
 
 
+def _catalog_total_pages(html: str, fallback: int = 1) -> int:
+    """Read the highest public pagination link advertised by a SeedHub catalogue page."""
+    page_numbers = [int(value) for value in re.findall(r"[?&]page=(\\d+)", html, flags=re.IGNORECASE)]
+    return max([fallback, *page_numbers])
+
+
 def sync_seedhub_pages(category: str, start_page: int, pages: int, checkpoint=None, cancelled=None) -> dict:
     if category not in {"movies", "series", "anime"}:
         raise ValueError("Unsupported SeedHub category")
@@ -303,6 +309,7 @@ def sync_seedhub_pages(category: str, start_page: int, pages: int, checkpoint=No
     collected = 0
     failures = []
     completed = 0
+    total_pages = start_page
     for page_number in range(start_page, start_page + pages):
         if cancelled():
             break
@@ -320,6 +327,7 @@ def sync_seedhub_pages(category: str, start_page: int, pages: int, checkpoint=No
                 html = getattr(response, "html_content", None)
             if not isinstance(html, str) or not html:
                 raise ValueError("SeedHub returned an empty HTML document")
+            total_pages = max(total_pages, _catalog_total_pages(html, page_number))
             records = parse_catalog_html(html, page_url, category)
             now = int(time.time())
             with _connect() as conn:
@@ -344,6 +352,8 @@ def sync_seedhub_pages(category: str, start_page: int, pages: int, checkpoint=No
     return {"status": "partial" if failures or completed < pages else "succeeded",
             "source": "SeedHub", "category": category, "start_page": start_page,
             "pages_requested": pages, "pages_completed": completed,
+            "total_pages": total_pages,
+            "next_page": start_page + completed if start_page + completed <= total_pages else None,
             "records_seen": collected, "records_indexed": total, "failures": failures,
             "mode": "metadata-only", "share_links_extracted": False}
 
