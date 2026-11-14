@@ -316,18 +316,17 @@ try {
   // page. Media events are synthetic because this WebKit pass validates UI
   // state/visibility, while codec playback is covered by the Chromium smoke.
   const autoHideAcceptance = await page.evaluate(async () => {
-    const shell = document.querySelector('.watch-page, .watch-shell, main');
+    const shell = document.querySelector('.netflix-watch-shell');
     const video = document.querySelector('.netflix-player-frame video');
-    const root = document.querySelector('[class*="cinema-controls-hidden"]')?.parentElement ??
-      document.querySelector('.watch-topbar')?.closest('div');
+    const root = document.querySelector('.netflix-watch-shell');
     const topbar = document.querySelector('.watch-topbar');
     const center = document.querySelector('.cinema-center-controls');
     const info = document.querySelector('.watch-cinema-info');
     if (!(video instanceof HTMLVideoElement) || !topbar || !center || !info) {
       throw new Error('Auto-hide acceptance could not locate video and cinema overlays');
     }
-    const pageRoot = document.querySelector('.cinema-controls-hidden')?.parentElement ??
-      topbar.closest('[class*="watch"]') ?? document.body;
+    const pageRoot = document.querySelector('.netflix-watch-shell');
+    if (!pageRoot) throw new Error('Watch shell root is missing');
     Object.defineProperty(video, 'paused', { configurable: true, get: () => false });
     Object.defineProperty(video, 'ended', { configurable: true, get: () => false });
     video.dispatchEvent(new Event('play'));
