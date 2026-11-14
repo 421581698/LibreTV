@@ -357,7 +357,7 @@ try {
   const watchLayout = await page.evaluate(() => {
     const header = document.querySelector('.watch-topbar');
     const close = header?.querySelector('.cinema-close-control');
-    const airplay = header?.querySelector('[aria-label="AirPlay"]');
+    const airplay = header?.querySelector('[aria-label="投屏"]');
     const centerControls = document.querySelectorAll('.cinema-center-controls button');
     const centerControlSizes = Array.from(centerControls).map((button) => {
       const rect = button.getBoundingClientRect();
