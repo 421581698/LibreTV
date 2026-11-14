@@ -128,7 +128,7 @@ def sync_seedhub(
             final = urlparse(final_url)
             if final.scheme != "https" or final.hostname != SEEDHUB_HOST:
                 raise ValueError("Unexpected redirect outside SeedHub origin")
-            records = parse_catalog_html(str(response), page_url, category)
+            html = getattr(response, "text", None)\n            if not isinstance(html, str) or not html:\n                html = getattr(response, "html_content", None)\n            if not isinstance(html, str) or not html:\n                raise ValueError("SeedHub returned an empty HTML document")\n            records = parse_catalog_html(html, page_url, category)
             now = int(time.time())
             with _connect() as conn:
                 for item in records:
