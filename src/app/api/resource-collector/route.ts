@@ -1,31 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { guardPrivateFeatureRequest } from '@/lib/api-guard';
 import { collectorRequest } from '@/lib/resource-collector-client';
-import moviesSnapshot from '../../../../data/seedhub/movies.json';
-import seriesSnapshot from '../../../../data/seedhub/series.json';
-import animeSnapshot from '../../../../data/seedhub/anime.json';
-
-type SeedHubSnapshotItem = {
-  source_url: string;
-  title: string;
-  category: 'movies' | 'series' | 'anime';
-  poster_url: string | null;
-  discovered_at: number;
-  detail?: Record<string, unknown> | null;
-};
-type SeedHubSnapshot = {
-  source: 'SeedHub';
-  category: 'movies' | 'series' | 'anime';
-  updated_at: string | null;
-  total: number;
-  items: SeedHubSnapshotItem[];
-};
-const seedhubSnapshots: Record<'movies' | 'series' | 'anime', SeedHubSnapshot> = {
-  movies: moviesSnapshot as SeedHubSnapshot,
-  series: seriesSnapshot as SeedHubSnapshot,
-  anime: animeSnapshot as SeedHubSnapshot,
-};
-
 const SEEDHUB_IMAGE_HOSTS = new Set(['www.seedhub.cc', 'img.seedhub.cc', 'sh1.pcie.pppoe.top']);
 
 function decodeSeedHubEntities(value: string): string {
@@ -240,17 +215,7 @@ export async function GET(request: Request) {
       {}, 30_000, request,
     );
     if (collectorResponse.status !== 503) return collectorResponse;
-    const snapshotCategory = (category ?? 'movies') as keyof typeof seedhubSnapshots;
-    const snapshotItem = seedhubSnapshots[snapshotCategory].items.find((item) => item.source_url === parsed.toString());
-    if (snapshotItem?.detail && typeof snapshotItem.detail === 'object') {
-      return NextResponse.json({
-        ...snapshotItem.detail,
-        // Detail parser can mistake the site favicon for a poster. Prefer the
-        // validated catalogue poster URL while retaining real still images.
-        poster_url: snapshotItem.poster_url ?? snapshotItem.detail.poster_url,
-      }, { headers: { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=3600' } });
-    }
-
+    const detailCategory = (category ?? 'movies') as 'movies' | 'series' | 'anime';
     // Public SeedHub detail pages contain metadata and still images. When the
     // persistent Scrapling Collector is not provisioned, fetch only this fixed
     // public origin as a metadata-only fallback; never parse or return share URLs.
@@ -265,7 +230,7 @@ export async function GET(request: Request) {
       if (directResponse.ok && contentType.toLowerCase().includes('text/html') &&
           (!declaredLength || declaredLength <= 512 * 1024)) {
         const html = await readSeedHubHtmlLimited(directResponse, 512 * 1024);
-        const detail = parseSeedHubDetailHtml(html, parsed.toString(), snapshotCategory, snapshotItem?.poster_url ?? null);
+        const detail = parseSeedHubDetailHtml(html, parsed.toString(), detailCategory, null);
         if (typeof detail.title === 'string' && detail.title.trim()) {
           return NextResponse.json(detail, {
             headers: { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=3600' },
@@ -289,19 +254,14 @@ export async function GET(request: Request) {
       {}, 10_000, request,
     );
     if (collectorResponse.status !== 503) return collectorResponse;
-    const snapshot = seedhubSnapshots[category as keyof typeof seedhubSnapshots];
-    const start = Number(offset);
-    const count = Number(limit);
     return NextResponse.json({
       source: 'SeedHub',
       category,
-      total: snapshot.total,
-      items: snapshot.items.slice(start, start + count).map(({ source_url, title, category: itemCategory, poster_url, discovered_at }) => ({
-        source_url, title, category: itemCategory, poster_url, discovered_at,
-      })),
-      snapshot: true,
-      updated_at: snapshot.updated_at,
-    }, { headers: { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=3600' } });
+      total: 0,
+      items: [],
+      snapshot: false,
+      updated_at: null,
+    }, { headers: { 'Cache-Control': 'no-store' } });
   }
   if (action === 'discover') return collectorRequest('/v1/discover', {}, 20_000, request);
   return collectorRequest(action === 'tasks' ? '/v1/tasks' : '/v1/discover', {}, 20_000, request);
