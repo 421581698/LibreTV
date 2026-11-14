@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import sys
 import time
 from urllib.parse import urlparse
@@ -52,6 +53,11 @@ def main() -> int:
             raise RuntimeError(f"{category}: duplicate detail URLs in one catalogue page")
         posters = sum(bool(item.get("poster_url")) for item in items)
         if posters == 0:
+            image_tags = re.findall(r"<img[^>]{0,500}>", html, flags=re.IGNORECASE)
+            image_index = html.lower().find("<img")
+            excerpt = html[max(0, image_index - 1800):image_index + 2200] if image_index >= 0 else html[:3000]
+            print("SEEDHUB_LIVE_DIAGNOSTIC image_tags=" + repr(image_tags[:12]), flush=True)
+            print("SEEDHUB_LIVE_DIAGNOSTIC image_context=" + repr(excerpt), flush=True)
             raise RuntimeError(f"{category}: no real poster URLs were extracted")
         totals[category] = len(items)
         print(f"PASS catalogue {category}: {len(items)} records, {posters} poster URLs, unique detail URLs")
