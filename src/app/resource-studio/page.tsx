@@ -58,7 +58,7 @@ export default function ResourceStudioPage() {
       if (!resourceResponse.ok) throw new Error(resourcePayload.error || '读取已验证资源失败');
       if (!jobResponse.ok) throw new Error(jobPayload.error || '读取采集任务失败');
       setResources(Array.isArray(resourcePayload.resources) ? resourcePayload.resources : []);
-      setJobs(Array.isArray(jobPayload.jobs) ? jobPayload.jobs : []);
+      setJobs(Array.isArray(jobPayload.jobs) ? jobPayload.jobs.filter((job: Job) => !['seedhub_sync', 'seedhub_detail_sync'].includes(job.job_type)) : []);
       setAgentConfigured(agentPayload.configured === true);
       setAgentProvider(typeof agentPayload.provider === 'string' ? agentPayload.provider : '');
     } catch (reason) {
