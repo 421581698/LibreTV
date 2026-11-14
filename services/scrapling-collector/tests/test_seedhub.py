@@ -77,6 +77,11 @@ class SeedHubDetailParserTests(unittest.TestCase):
         self.assertFalse(result["external_resource_links_extracted"])
         self.assertNotIn("files.example", str(result))
 
+    def test_strips_decorative_hash_from_live_style_open_graph_title(self):
+        html = '<html><head><meta property="og:title" content="# 生化危机：爆发夜 Resident Evil - SeedHub"></head><body><h1>生化危机：爆发夜</h1></body></html>'
+        result = parse_detail_html(html, "https://www.seedhub.cc/movies/130096/")
+        self.assertEqual(result["title"], "生化危机：爆发夜 Resident Evil")
+
     def test_rejects_non_seedhub_or_non_detail_urls(self):
         for url in (
             "https://evil.example/movies/130096/",
