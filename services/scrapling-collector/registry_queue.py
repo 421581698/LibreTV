@@ -532,10 +532,10 @@ def api_upsert_resource(payload: dict, authorization: str | None = Header(defaul
 def api_search_resources(q: str = "", verified_only: bool = True, limit: int = Query(default=30,ge=1,le=100), authorization: str | None = Header(default=None)):
     require_auth(authorization)
     with connect() as c:
-        sql = "SELECT * FROM registry_resources WHERE 1=1"
+        sql = "SELECT r.*,s.name AS source_name,s.host AS source_host FROM registry_resources r LEFT JOIN registry_sources s ON s.id=r.source_id WHERE 1=1"
         args: list[Any] = []
-        if verified_only: sql += " AND validation_state='validated' AND playback_state='PLAYER_CONFIRMED' AND access_state='PUBLIC'"
-        if q.strip(): sql += " AND (title LIKE ? OR resource_key LIKE ?)"; args.extend([f"%{q[:100]}%",f"%{q[:100]}%"])
+        if verified_only: sql += " AND r.validation_state='validated' AND r.playback_state='PLAYER_CONFIRMED' AND r.access_state='PUBLIC'"
+        if q.strip(): sql += " AND (r.title LIKE ? OR r.resource_key LIKE ?)"; args.extend([f"%{q[:100]}%",f"%{q[:100]}%"])
         rows=c.execute(sql+" ORDER BY updated_at DESC LIMIT ?",(*args,limit)).fetchall()
     return {"resources":[dict(r) for r in rows]}
 
