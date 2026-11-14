@@ -327,24 +327,29 @@ try {
   await page.screenshot({ path: '/tmp/pr84-preview-watch-webkit.png', fullPage: true });
   console.log('PASS PR84 Preview WebKit watch-page header + player controls + horizontal dock:', JSON.stringify(watchLayout));
 
-  // Verify the new dedicated SeedHub detail route is included in the deployed build.
-  // Isolate SeedHub diagnostics from late player/media errors emitted by the prior watch-page test.
-  pageErrors.length = 0;
+  // Verify the new dedicated SeedHub detail route in a fresh page.
+  // Player/HLS media requests can emit delayed WebKit access-control errors
+  // after the watch page has navigated away; a separate page gives this route
+  // an independent JavaScript-error scope instead of racing late media events.
+  const seedHubPage = await context.newPage();
+  seedHubPage.setDefaultTimeout(45_000);
+  const seedHubPageErrors = [];
+  seedHubPage.on('pageerror', (error) => seedHubPageErrors.push(error.message));
   // No collector credentials are assumed here: the empty-URL state must render
   // safely without issuing a request to the external Scrapling service.
-  const seedHubResponse = await page.goto(base + '/seedhub', {
+  const seedHubResponse = await seedHubPage.goto(base + '/seedhub', {
     waitUntil: 'domcontentloaded',
     timeout: 60_000,
   });
   if (!seedHubResponse || seedHubResponse.status() !== 200) {
     throw new Error('SeedHub detail route returned HTTP ' + (seedHubResponse?.status() ?? 'no response'));
   }
-  await page.getByText('无法读取 SeedHub 详情', { exact: true }).waitFor({ timeout: 30_000 });
-  await page.getByText('缺少 SeedHub 影片地址。', { exact: true }).waitFor({ timeout: 30_000 });
-  if (pageErrors.length > 0) {
-    throw new Error('SeedHub detail route JavaScript errors: ' + JSON.stringify(pageErrors));
+  await seedHubPage.getByText('无法读取 SeedHub 详情', { exact: true }).waitFor({ timeout: 30_000 });
+  await seedHubPage.getByText('缺少 SeedHub 影片地址。', { exact: true }).waitFor({ timeout: 30_000 });
+  if (seedHubPageErrors.length > 0) {
+    throw new Error('SeedHub detail route JavaScript errors: ' + JSON.stringify(seedHubPageErrors));
   }
-  await page.screenshot({ path: '/tmp/pr84-preview-seedhub-detail-webkit.png', fullPage: true });
+  await seedHubPage.screenshot({ path: '/tmp/pr84-preview-seedhub-detail-webkit.png', fullPage: true });
   console.log('PASS PR84 Preview SeedHub dedicated detail route + safe missing-URL state');
 } finally {
   await browser.close();
