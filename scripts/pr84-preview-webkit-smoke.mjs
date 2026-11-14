@@ -265,7 +265,11 @@ try {
 
   const watchLayout = await page.evaluate(() => {
     const header = document.querySelector('.watch-topbar');
-    const title = document.querySelector('.watch-topbar-title');
+    const close = header?.querySelector('.cinema-close-control');
+    const airplay = header?.querySelector('[aria-label="AirPlay"]');
+    const centerControls = document.querySelectorAll('.cinema-center-controls button');
+    const info = document.querySelector('.watch-cinema-info');
+    const tabs = document.querySelector('.watch-cinema-tabs');
     const dock = document.querySelector('body > nav.v4-mobile-tabbar');
     const watchShell = document.querySelector('.netflix-watch-shell');
     const frame = document.querySelector('.netflix-player-frame');
@@ -281,15 +285,24 @@ try {
     const relatedDataFallbacks = document.querySelectorAll('.netflix-related-art img[src^="data:"]').length;
     const emptyHistory = Array.from(document.querySelectorAll('.netflix-history-rail p'))
       .some((node) => node.textContent?.includes('还没有其他观看记录'));
-    if (!header || !title || !dock || !watchShell || !frame) throw new Error('Watch page layout elements are missing');
+    if (!header || !close || !airplay || !dock || !watchShell || !frame || !info || !tabs) throw new Error('Immersive watch page elements are missing');
     const dockStyle = getComputedStyle(dock);
     const shellStyle = getComputedStyle(watchShell);
     const shellRect = watchShell.getBoundingClientRect();
-    const titleStyle = getComputedStyle(title);
+    const infoStyle = getComputedStyle(info);
+    const centerStyle = getComputedStyle(document.querySelector('.cinema-center-controls'));
     const gradient = bottom ? getComputedStyle(bottom).backgroundImage : '';
     return {
-      title: title.textContent?.replace(/\\s+/g, ' ').trim() ?? '',
-      titleAlign: titleStyle.textAlign,
+      hasCloseControl: Boolean(close),
+      hasAirPlayControl: Boolean(airplay),
+      centerControlCount: centerControls.length,
+      centerControlDisplay: centerStyle.display,
+      infoPosition: infoStyle.position,
+      infoBottom: info.getBoundingClientRect().bottom,
+      infoTop: info.getBoundingClientRect().top,
+      infoViewportHeight: window.innerHeight,
+      tabCount: tabs.querySelectorAll('button').length,
+      hasLegacyHeaderTitle: Boolean(header.querySelector('.watch-topbar-title')),
       headerButtons: header.querySelectorAll('button').length,
       hasHeaderAssistant: Boolean(header.querySelector('.friday-orb, .friday-fab, .friday-restore')),
       shellPosition: shellStyle.position,
@@ -314,11 +327,14 @@ try {
       relatedDataFallbacks,
     };
   });
-  if (!watchLayout.title.includes('PR84 Watch Layout Acceptance') || watchLayout.titleAlign !== 'left') {
-    throw new Error('Watch header title is not aligned with the back control: ' + JSON.stringify(watchLayout));
+  if (!watchLayout.hasCloseControl || !watchLayout.hasAirPlayControl || watchLayout.hasLegacyHeaderTitle ||
+      watchLayout.headerButtons !== 3 || watchLayout.hasHeaderAssistant) {
+    throw new Error('Immersive header must contain close, AirPlay and utility controls without a page title: ' + JSON.stringify(watchLayout));
   }
-  if (watchLayout.headerButtons !== 2 || watchLayout.hasHeaderAssistant) {
-    throw new Error('Watch header must contain only the back and episode/source panel controls: ' + JSON.stringify(watchLayout));
+  if (watchLayout.centerControlCount !== 3 || watchLayout.centerControlDisplay !== 'flex' ||
+      watchLayout.infoPosition !== 'fixed' || watchLayout.tabCount !== 3 ||
+      watchLayout.infoTop <= 0 || watchLayout.infoBottom > 844) {
+    throw new Error('Reference-matched center controls or fixed bottom information panel are missing: ' + JSON.stringify(watchLayout));
   }
   if (watchLayout.shellPosition !== 'fixed' || Math.abs(watchLayout.shellWidth - 390) > 2 ||
       Math.abs(watchLayout.shellHeight - 844) > 2) {
@@ -329,9 +345,6 @@ try {
   }
   if (watchLayout.emptyHistory && watchLayout.historyLinkCount !== 0) {
     throw new Error('Empty continue-watching state still shows the all-history link');
-  }
-  if (!watchLayout.playerBottomGradient.includes('linear-gradient')) {
-    throw new Error('Player bottom controls are missing their dark gradient protection: ' + JSON.stringify(watchLayout));
   }
   if (watchLayout.qualityFontSize !== '12px') {
     throw new Error('Player quality badge is not compact 12px text: ' + JSON.stringify(watchLayout));
@@ -359,7 +372,7 @@ try {
     throw new Error('Related posters are still using decorative data-URI fallbacks: ' + JSON.stringify(watchLayout));
   }
   await page.screenshot({ path: '/tmp/pr84-preview-watch-webkit.png', fullPage: true });
-  console.log('PASS PR84 Preview WebKit watch-page header + player controls + horizontal dock:', JSON.stringify(watchLayout));
+  console.log('PASS PR84 Preview WebKit immersive cinema player + fixed bottom information + horizontal dock:', JSON.stringify(watchLayout));
 
   // Verify the new dedicated SeedHub detail route in a fresh page.
   // Player/HLS media requests can emit delayed WebKit access-control errors
