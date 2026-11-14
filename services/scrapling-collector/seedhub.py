@@ -348,6 +348,89 @@ def sync_seedhub_pages(category: str, start_page: int, pages: int, checkpoint=No
             "mode": "metadata-only", "share_links_extracted": False}
 
 
+def sync_seedhub_details(category: str, limit: int = 10, checkpoint=None, cancelled=None) -> dict:
+    """Enrich catalog rows with same-site detail metadata in bounded durable batches."""
+    if category not in {"movies", "series", "anime"}:
+        raise ValueError("Unsupported SeedHub category")
+    if limit < 1 or limit > 20:
+        raise ValueError("SeedHub detail batch must be between 1 and 20 records")
+    _require_egress_firewall()
+    _require_public_seedhub_host()
+    _initialize()
+    checkpoint = checkpoint or (lambda detail: None)
+    cancelled = cancelled or (lambda: False)
+    with _connect() as conn:
+        rows = conn.execute(
+            """SELECT source_url,title FROM seedhub_catalog
+               WHERE category=? AND detail_json IS NULL
+               ORDER BY discovered_at ASC,source_url ASC LIMIT ?""",
+            (category, limit),
+        ).fetchall()
+    processed = 0
+    failed = 0
+    last_source_url = None
+    for row in rows:
+        if cancelled():
+            break
+        if processed:
+            time.sleep(1.5)
+        source_url = row["source_url"]
+        try:
+            response = Fetcher.get(source_url, timeout=25, follow_redirects="safe")
+            final_url = str(getattr(response, "url", source_url))
+            final = urlparse(final_url)
+            if final.scheme != "https" or final.hostname != SEEDHUB_HOST:
+                raise ValueError("Unexpected redirect outside SeedHub origin")
+            status = getattr(response, "status", getattr(response, "status_code", 200))
+            if isinstance(status, int) and status >= 400:
+                raise ValueError(f"SeedHub detail returned HTTP {status}")
+            html = getattr(response, "text", None)
+            if not isinstance(html, str) or not html:
+                html = getattr(response, "html_content", None)
+            if not isinstance(html, str) or not html:
+                raise ValueError("SeedHub returned an empty detail document")
+            detail = parse_detail_html(html, source_url, category)
+            with _connect() as conn:
+                conn.execute(
+                    """UPDATE seedhub_catalog SET title=?,poster_url=COALESCE(?,poster_url),detail_json=?
+                       WHERE source_url=? AND category=?""",
+                    (detail["title"] or row["title"], detail["poster_url"],
+                     json.dumps(detail, ensure_ascii=False), source_url, category),
+                )
+        except Exception as exc:
+            failed += 1
+            failure_detail = {
+                "source_name": "SeedHub", "source_url": source_url,
+                "title": row["title"], "category": category,
+                "mode": "metadata-only", "detail_status": "failed",
+                "error_code": type(exc).__name__,
+                "external_resource_links_extracted": False,
+            }
+            with _connect() as conn:
+                conn.execute(
+                    "UPDATE seedhub_catalog SET detail_json=? WHERE source_url=? AND category=?",
+                    (json.dumps(failure_detail, ensure_ascii=False), source_url, category),
+                )
+        processed += 1
+        last_source_url = source_url
+        checkpoint({
+            "stage": "seedhub_detail_record", "category": category,
+            "processed": processed, "failed": failed, "source_url": source_url,
+        })
+    with _connect() as conn:
+        remaining = conn.execute(
+            "SELECT COUNT(*) AS n FROM seedhub_catalog WHERE category=? AND detail_json IS NULL",
+            (category,),
+        ).fetchone()["n"]
+    return {
+        "status": "partial" if failed or processed < len(rows) else "succeeded",
+        "source": "SeedHub", "category": category,
+        "details_processed": processed, "details_failed": failed,
+        "details_remaining": remaining, "last_source_url": last_source_url,
+        "mode": "metadata-only", "share_links_extracted": False,
+    }
+
+
 @router.post("/v1/seedhub/sync")
 def sync_seedhub(
     category: str = Query(default="movies", pattern="^(movies|series|anime)$"),
