@@ -84,43 +84,6 @@ function WatchContent() {
   const [skipPanelOpen, setSkipPanelOpen] = useState(false);
   const playerApiRef = useRef<PlayerSkipApi | null>(null);
   const playerFrameRef = useRef<HTMLDivElement | null>(null);
-  // The cinema transport icon is driven by the real media element state,
-  // not by the button click. MutationObserver handles PlayerShell's async mount
-  // and any video element replacement during source recovery.
-  useEffect(() => {
-    const frame = playerFrameRef.current;
-    if (!frame) return;
-    let video: HTMLVideoElement | null = null;
-    const sync = () => setIsPlaying(Boolean(video && !video.paused && !video.ended));
-    const detach = () => {
-      if (!video) return;
-      video.removeEventListener('play', sync);
-      video.removeEventListener('playing', sync);
-      video.removeEventListener('pause', sync);
-      video.removeEventListener('ended', sync);
-      video = null;
-      setIsPlaying(false);
-    };
-    const attach = () => {
-      const next = frame.querySelector('video');
-      if (next === video) return;
-      detach();
-      if (!next) return;
-      video = next;
-      video.addEventListener('play', sync);
-      video.addEventListener('playing', sync);
-      video.addEventListener('pause', sync);
-      video.addEventListener('ended', sync);
-      sync();
-    };
-    const observer = new MutationObserver(attach);
-    observer.observe(frame, { childList: true, subtree: true });
-    attach();
-    return () => {
-      observer.disconnect();
-      detach();
-    };
-  }, [sourceKey, vodId, indexParam, directUrl]);
   const [sheetMaxHeight] = useState<number | undefined>(undefined);
 
   // 优先使用本次播放 URL 传入的数据源地址，普通源仍以本机配置为准。
@@ -174,7 +137,44 @@ function WatchContent() {
       return episodes[idx] || directUrl;
     }
     return directUrl;
-  }, [episodes, indexParam, directUrl]);
+  }, [episodes, indexParam, directUrl]);  // The cinema transport icon is driven by the real media element state,
+  // not by the button click. MutationObserver handles PlayerShell's async mount
+  // and any video element replacement during source recovery.
+  useEffect(() => {
+    const frame = playerFrameRef.current;
+    if (!frame) return;
+    let video: HTMLVideoElement | null = null;
+    const sync = () => setIsPlaying(Boolean(video && !video.paused && !video.ended));
+    const detach = () => {
+      if (!video) return;
+      video.removeEventListener('play', sync);
+      video.removeEventListener('playing', sync);
+      video.removeEventListener('pause', sync);
+      video.removeEventListener('ended', sync);
+      video = null;
+      setIsPlaying(false);
+    };
+    const attach = () => {
+      const next = frame.querySelector('video');
+      if (next === video) return;
+      detach();
+      if (!next) return;
+      video = next;
+      video.addEventListener('play', sync);
+      video.addEventListener('playing', sync);
+      video.addEventListener('pause', sync);
+      video.addEventListener('ended', sync);
+      sync();
+    };
+    const observer = new MutationObserver(attach);
+    observer.observe(frame, { childList: true, subtree: true });
+    attach();
+    return () => {
+      observer.disconnect();
+      detach();
+    };
+  }, [sourceKey, vodId, indexParam, directUrl]);
+
   const currentIndex = useMemo(() => {
     if (episodes.length > 0) {
       return Math.min(
