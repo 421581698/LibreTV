@@ -114,7 +114,7 @@ export default function ResourceStudioPage() {
   const runningCount = jobs.filter((job) => job.status === 'running' || job.status === 'queued').length;
 
   return (
-    <main className="min-h-screen bg-[var(--background)] px-4 pb-16 pt-8 text-[var(--foreground)] sm:px-8">
+    <main className="resource-studio-page min-h-screen bg-[var(--background)] px-4 pb-16 pt-8 text-[var(--foreground)] sm:px-8">
       <div className="mx-auto max-w-7xl">
         <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
           <div>
