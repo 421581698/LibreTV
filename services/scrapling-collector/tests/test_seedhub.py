@@ -86,14 +86,15 @@ class SeedHubDetailPersistenceTests(unittest.TestCase):
             url = "https://www.seedhub.cc/movies/130096/"
             text = html
 
-        with tempfile.TemporaryDirectory() as directory:
-            with patch.object(seedhub, "DB_PATH", Path(directory) / "catalog.sqlite3"), \
-                 patch.object(seedhub, "_require_egress_firewall"), \\
-                 patch.object(seedhub, "_require_public_seedhub_host"), \\
-                 patch.object(seedhub, "_require_auth"), \\
-                 patch.object(seedhub.Fetcher, "get", return_value=Response()):
-                detail = seedhub.seedhub_detail("https://www.seedhub.cc/movies/130096/", "Bearer test")
-                catalog = seedhub.seedhub_catalog("movies", 50, 0, "Bearer test")
+        from contextlib import ExitStack
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+            stack.enter_context(patch.object(seedhub, "DB_PATH", Path(directory) / "catalog.sqlite3"))
+            stack.enter_context(patch.object(seedhub, "_require_egress_firewall"))
+            stack.enter_context(patch.object(seedhub, "_require_public_seedhub_host"))
+            stack.enter_context(patch.object(seedhub, "_require_auth"))
+            stack.enter_context(patch.object(seedhub.Fetcher, "get", return_value=Response()))
+            detail = seedhub.seedhub_detail("https://www.seedhub.cc/movies/130096/", "Bearer test")
+            catalog = seedhub.seedhub_catalog("movies", 50, 0, "Bearer test")
 
         self.assertEqual(detail["metadata"]["director"], "测试导演")
         self.assertEqual(catalog["total"], 1)
