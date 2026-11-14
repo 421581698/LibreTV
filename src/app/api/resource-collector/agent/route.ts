@@ -173,8 +173,14 @@ export async function POST(request: Request) {
         temperature: 0.1,
         max_tokens: 1400,
       }) as { response?: unknown };
-      if (typeof aiResult?.response !== 'string') throw new Error('Cloudflare Workers AI returned no JSON response');
-      normalized = planSchema.parse(JSON.parse(aiResult.response));
+      const aiResponse = aiResult?.response;
+      const planCandidate = typeof aiResponse === 'string'
+        ? JSON.parse(aiResponse)
+        : aiResponse && typeof aiResponse === 'object' && !Array.isArray(aiResponse)
+          ? aiResponse
+          : null;
+      if (!planCandidate) throw new Error('Cloudflare Workers AI returned no JSON object response');
+      normalized = planSchema.parse(planCandidate);
     } else {
       const provider = createOpenAICompatible({
         name: config.provider,
