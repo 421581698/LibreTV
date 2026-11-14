@@ -317,7 +317,8 @@ function ndjsonResponse(
 
       void (async () => {
         try {
-          const registryPromise = searchVerifiedRegistry(keyword);\n          const seedhubPromise = searchSeedHubCatalog(keyword);
+          const registryPromise = searchVerifiedRegistry(keyword);
+          const seedhubPromise = searchSeedHubCatalog(keyword);
           const outcomes = cached ?? await searchSources(keyword, sources, {
             filterAdult,
             signal: abortController.signal,
