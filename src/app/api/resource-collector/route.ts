@@ -117,7 +117,7 @@ export async function GET(request: Request) {
       updated_at: snapshot.updated_at,
     }, { headers: { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=3600' } });
   }
-  return collectorRequest(action === 'tasks' ? '/v1/tasks' : '/v1/discover', {}, 20_000, request);
+  if (action === 'discover') return collectorRequest('/v1/discover', {}, 20_000, request);\n  return collectorRequest(action === 'tasks' ? '/v1/tasks' : '/v1/discover', {}, 20_000, request);
 }
 
 export async function POST(request: NextRequest) {
@@ -144,6 +144,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid collector request.' }, { status: 400 });
   }
   const payload = body as Record<string, unknown>;
+  if (payload.jobAction === 'retry' || payload.jobAction === 'cancel') {
+    const jobId = typeof payload.jobId === 'string' ? payload.jobId : '';
+    if (!/^[a-f0-9]{32}$/i.test(jobId)) {
+      return NextResponse.json({ error: 'Invalid collector job ID.' }, { status: 400 });
+    }
+    const action = payload.jobAction;
+    return collectorRequest(`/v1/jobs/${jobId}/${action}`, { method: 'POST' }, 10_000, request);
+  }
+
+  if (payload.discover === true) {
+    const searchKeyword = typeof payload.searchKeyword === 'string' ? payload.searchKeyword.trim().slice(0, 50) : '';
+    const idempotencyKey = typeof payload.idempotencyKey === 'string' && payload.idempotencyKey.length <= 200
+      ? payload.idempotencyKey
+      : 'resource-discover:' + (searchKeyword || 'all');
+    return collectorRequest('/v1/tasks/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        job_type: 'discover',
+        payload: { ...(searchKeyword ? { search_keyword: searchKeyword } : {}) },
+        idempotency_key: idempotencyKey,
+      }),
+    }, 5_000, request);
+  }
+
   if (payload.seedhubSync === true) {
     const category = typeof payload.category === 'string' ? payload.category : 'movies';
     const startPage = typeof payload.startPage === 'number' ? payload.startPage : 1;
