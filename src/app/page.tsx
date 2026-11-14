@@ -21,6 +21,7 @@ import {
 } from '@/lib/store';
 import { api } from '@/lib/client-api';
 import type {
+  DoubanItem,
   SearchResultItem,
   SourceSearchOutcome,
   RegistrySearchResource,
@@ -78,7 +79,7 @@ function HomeContent() {
     router.push('/detail?' + params.toString());
   };
   
-  const handleHomepagePick = async (movie: import('@/lib/types').DoubanItem) => {
+  const handleHomepagePick = async (movie: DoubanItem) => {
     if (selectedSources.length === 0) {
       toast('请先在设置中启用至少一个可用点播源。', 'warning');
       return;
