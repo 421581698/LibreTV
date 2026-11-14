@@ -256,12 +256,8 @@ try {
   // The same Apple HLS fixture is decoded and time-advanced in the dedicated
   // Chromium PlayerShell smoke test. Requiring videoWidth/currentTime here made
   // WebKit fail on HLS codec differences before it could validate the UI.
-  // Wait for the real ArtPlayer seek control to mount, then inspect its geometry.
-  await page.waitForSelector('.netflix-player-frame .art-progress', { timeout: 20_000 });
-
-  // Reveal ArtPlayer's touch seek affordance before measuring its hit area.
-  await page.locator('.netflix-player-frame .art-progress').hover({ force: true });
-  await page.waitForTimeout(120);
+  // The cinema UI owns the timeline now; the native ArtPlayer toolbar is hidden.
+  await page.waitForSelector('.watch-cinema-progress', { state: 'visible', timeout: 20_000 });
 
   const watchLayout = await page.evaluate(() => {
     const header = document.querySelector('.watch-topbar');
@@ -277,11 +273,9 @@ try {
     const quality = frame?.querySelector('.player-quality-badge');
     const relatedSectionCount = document.querySelectorAll('.netflix-related-section').length;
     const fridayLauncher = document.querySelector('.friday-root .friday-fab, .friday-root .friday-restore');
-    const progressBar = frame?.querySelector('.artplayer .art-progress, .art-video-player .art-progress, .artplayer .art-progress-bar, .art-video-player .art-progress-bar');
-    // The 16px .art-progress element paints its 2px rail with a centered CSS gradient.
-    // ArtPlayer may omit .art-progress-bar in WebKit, so verify the actual painted gradient.
-    const progressTrack = frame?.querySelector('.artplayer .art-progress, .art-video-player .art-progress');
-    const progressDot = frame?.querySelector('.artplayer .art-progress-indicator, .art-video-player .art-progress-indicator');
+    const progressBar = document.querySelector('.watch-cinema-progress');
+    const progressTrack = progressBar;
+    const progressDot = null;
     const relatedDataFallbacks = document.querySelectorAll('.netflix-related-art img[src^="data:"]').length;
     const emptyHistory = Array.from(document.querySelectorAll('.netflix-history-rail p'))
       .some((node) => node.textContent?.includes('还没有其他观看记录'));
@@ -320,9 +314,9 @@ try {
       progressTrackHeight: progressTrack ? getComputedStyle(progressTrack).height : null,
       progressTrackBackground: progressTrack ? getComputedStyle(progressTrack).backgroundImage : null,
       progressTrackRect: progressTrack ? (() => { const r = progressTrack.getBoundingClientRect(); return { width: r.width, height: r.height, x: r.x, y: r.y }; })() : null,
-      progressDotWidth: progressDot ? getComputedStyle(progressDot).width : null,
-      progressDotHeight: progressDot ? getComputedStyle(progressDot).height : null,
-      progressDotRect: progressDot ? (() => { const r = progressDot.getBoundingClientRect(); return { width: r.width, height: r.height }; })() : null,
+      progressDotWidth: null,
+      progressDotHeight: null,
+      progressDotRect: null,
       progressPointerEvents: progressBar ? getComputedStyle(progressBar).pointerEvents : null,
       relatedDataFallbacks,
     };
@@ -358,15 +352,9 @@ try {
   if (!watchLayout.progressHitAreaRect || watchLayout.progressHitAreaRect.height < 12 ||
       watchLayout.progressHitAreaRect.height > 20 ||
       !watchLayout.progressTrackRect || watchLayout.progressTrackRect.width <= 0 ||
-      watchLayout.progressTrackRect.height !== 16 ||
-      !watchLayout.progressTrackBackground?.includes('linear-gradient') ||
-      !watchLayout.progressTrackBackground.includes('50% - 1px') ||
-      !watchLayout.progressTrackBackground.includes('50% + 1px') ||
-      !watchLayout.progressDotRect ||
-      Number.parseFloat(watchLayout.progressDotWidth) < 4 || Number.parseFloat(watchLayout.progressDotWidth) > 8 ||
-      Number.parseFloat(watchLayout.progressDotHeight) < 4 || Number.parseFloat(watchLayout.progressDotHeight) > 8 ||
+      watchLayout.progressTrackRect.height < 14 || watchLayout.progressTrackRect.height > 20 ||
       watchLayout.progressPointerEvents === 'none') {
-    throw new Error('Real mobile ArtPlayer timeline geometry is invalid (target 12–20px, rail 1–3px, playhead <=8px, pointer events enabled): ' + JSON.stringify(watchLayout));
+    throw new Error('Custom cinema timeline hit area is invalid (target 14–20px with pointer events enabled): ' + JSON.stringify(watchLayout));
   }
   if (watchLayout.relatedDataFallbacks !== 0) {
     throw new Error('Related posters are still using decorative data-URI fallbacks: ' + JSON.stringify(watchLayout));
