@@ -54,7 +54,8 @@ def main() -> int:
         posters = sum(bool(item.get("poster_url")) for item in items)
         if posters == 0:
             image_tags = re.findall(r"<img[^>]{0,500}>", html, flags=re.IGNORECASE)
-            image_index = html.lower().find("<img")
+            image_indexes = [match.start() for match in re.finditer(r"<img", html, flags=re.IGNORECASE)]
+            image_index = image_indexes[1] if len(image_indexes) > 1 else (image_indexes[0] if image_indexes else -1)
             excerpt = html[max(0, image_index - 1800):image_index + 2200] if image_index >= 0 else html[:3000]
             print("SEEDHUB_LIVE_DIAGNOSTIC image_tags=" + repr(image_tags[:12]), flush=True)
             print("SEEDHUB_LIVE_DIAGNOSTIC image_context=" + repr(excerpt), flush=True)
