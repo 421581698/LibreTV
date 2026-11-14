@@ -13,6 +13,7 @@ import { QualityBadge } from './quality-badge';
 import { useQualityProbe } from './use-quality-probe';
 import { useInView } from './use-in-view';
 import { addFavorite, db, removeFavorite } from '@/lib/db';
+import doubanPosters from '@/data/douban-posters.json';
 
 // —— 跨源同名聚合 ——
 
@@ -471,16 +472,12 @@ export function VideoCard({ item, onClick }: { item: SearchResultItem; onClick: 
 }
 
 /** 豆瓣推荐卡片：优先使用豆瓣实时封面，失败时回退到同步的豆瓣海报索引。 */
-import doubanPosters from '@/data/douban-posters.json';
-
 export function DoubanCard({
   item,
   onClick,
-  isTv = false,
 }: {
   item: { id: string; title: string; cover: string; rating?: string };
   onClick: () => void;
-  isTv?: boolean;
 }) {
   const imageProxyMode = useAppStore((s) => s.imageProxyMode);
   const customImageProxy = useAppStore((s) => s.customImageProxy);
