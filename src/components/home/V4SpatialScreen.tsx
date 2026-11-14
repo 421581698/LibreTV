@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { V4HomepageHeader } from '@/components/home/V4HomepageHeader';
 import { SourceManagerDrawer } from '@/components/source-manager';
@@ -440,7 +440,7 @@ function SeedHubCollectorPanel() {
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState('');
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     try {
       const response = await fetch('/api/resource-collector/jobs?limit=30', { cache: 'no-store' });
       if (!response.ok) return;
@@ -449,13 +449,13 @@ function SeedHubCollectorPanel() {
     } catch {
       // Keep the last known job state visible during temporary collector outages.
     }
-  };
+  }, []);
 
   useEffect(() => {
     void refresh();
     const timer = window.setInterval(() => { void refresh(); }, 5000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [refresh]);
 
   const submit = async () => {
     setSubmitting(true);
