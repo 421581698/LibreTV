@@ -20,6 +20,8 @@ try {
   // Attach diagnostics BEFORE navigation so fast API responses are not missed.
   const collectorResponses = [];
   const apiReads = [];
+  const seedHubCatalogPayloads = new Map();
+  const seedHubDetailResponses = [];
   const imageProxyResponses = [];
   const pageErrors = [];
   const failedRequests = [];
@@ -42,6 +44,7 @@ try {
       collectorResponses.push(record);
       apiReads.push(response.json().then((payload) => {
         if (Array.isArray(payload?.items)) record.itemCount = payload.items.length;
+        seedHubCatalogPayloads.set(record.category, payload);
       }).catch(() => {}));
     }
     if (url.pathname === '/api/img' || url.pathname === '/api/proxy') {
@@ -87,9 +90,53 @@ try {
   }
 
   await Promise.all(apiReads);
-  const seedHubHasItems = collectorResponses.some((entry) =>
-    entry.status === 200 && (entry.itemCount ?? 0) > 0
+  const expectedSeedHubCategories = ['movies', 'series', 'anime'];
+  const seedHubHasItems = expectedSeedHubCategories.every((category) =>
+    collectorResponses.some((entry) =>
+      entry.category === category && entry.status === 200 && (entry.itemCount ?? 0) > 0
+    )
   );
+  if (!seedHubHasItems) {
+    throw new Error('All three SeedHub catalogues must return real items: ' + JSON.stringify({
+      collectorResponses, pageErrors, failedRequests,
+    }));
+  }
+
+  // Verify real detail snapshots as well as catalogue cards. Each category
+  // must expose a poster and at least one genuine still image through the
+  // public read-only detail endpoint; an empty catalogue alone is not a pass.
+  for (const category of expectedSeedHubCategories) {
+    const payload = seedHubCatalogPayloads.get(category);
+    const candidates = (payload?.items ?? []).filter((item) =>
+      typeof item?.source_url === 'string' && item.source_url.startsWith('https://www.seedhub.cc/')
+    );
+    let verifiedDetail = null;
+    for (const item of candidates.slice(0, 12)) {
+      const detailUrl = new URL('/api/resource-collector', base);
+      detailUrl.searchParams.set('action', 'seedhub-detail');
+      detailUrl.searchParams.set('category', category);
+      detailUrl.searchParams.set('url', item.source_url);
+      const detailResponse = await page.request.get(detailUrl.toString(), { timeout: 15_000 });
+      const detailPayload = await detailResponse.json().catch(() => null);
+      const stillUrls = Array.isArray(detailPayload?.still_urls)
+        ? detailPayload.still_urls.filter((value) => typeof value === 'string' && value.startsWith('https://'))
+        : [];
+      const posterUrl = typeof detailPayload?.poster_url === 'string' &&
+        detailPayload.poster_url.startsWith('https://') ? detailPayload.poster_url : null;
+      seedHubDetailResponses.push({
+        category, title: item.title, status: detailResponse.status(),
+        hasPoster: Boolean(posterUrl), stillCount: stillUrls.length,
+      });
+      if (detailResponse.status() === 200 && posterUrl && stillUrls.length > 0) {
+        verifiedDetail = { category, title: item.title, posterUrl, stillCount: stillUrls.length };
+        break;
+      }
+    }
+    if (!verifiedDetail) {
+      throw new Error('SeedHub ' + category + ' detail did not return a verified poster and still images: ' +
+        JSON.stringify(seedHubDetailResponses.filter((entry) => entry.category === category)));
+    }
+  }
 
   if (seedHubHasItems) {
     try {
@@ -216,7 +263,7 @@ try {
 
   await page.screenshot({ path: '/tmp/pr84-preview-webkit.png', fullPage: true });
   console.log('PASS PR84 Preview WebKit mobile layout + SeedHub catalogue request/empty-state:', JSON.stringify({
-    before, after, contentState, collectorResponses, imageProxyResponses, contentAcceptance: seedHubHasItems ? 'real SeedHub posters loaded' : 'BLOCKED: Collector has no synchronized catalogue; real poster acceptance remains pending',
+    before, after, contentState, collectorResponses, seedHubDetailResponses, imageProxyResponses, contentAcceptance: 'all three SeedHub catalogues + poster and still-image detail snapshots verified',
   }));
 
   // Exercise the watch route separately: its body-portaled dock previously
