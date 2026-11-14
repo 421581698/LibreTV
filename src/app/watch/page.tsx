@@ -535,8 +535,9 @@ function WatchContent() {
               </div>
               <div className="watch-cinema-meta">
                 <div className="min-w-0">
-                  {detailQuery.data?.videoInfo?.originalTitle && (
-                    <p className="text-xs text-muted truncate">{detailQuery.data.videoInfo.originalTitle}</p>
+                  {detailQuery.data?.videoInfo?.originalTitle?.trim() &&
+                    !/^[a-z0-9_-]+$/i.test(detailQuery.data.videoInfo.originalTitle.trim()) && (
+                    <p className="text-xs text-muted truncate">{detailQuery.data.videoInfo.originalTitle.trim()}</p>
                   )}
                   <h2 className="text-base sm:text-lg font-semibold text-content truncate">{videoTitle}</h2>
                   <p className="text-xs text-faint mt-1">
@@ -565,7 +566,7 @@ function WatchContent() {
                   </dl>
                 )}
                 {watchInfoTab === 'more' && (
-                  <p>{detailQuery.data?.videoInfo?.desc?.trim() || '暂无更多内容。'}{detailQuery.data?.videoInfo?.originalTitle ? ` 原名：${detailQuery.data.videoInfo.originalTitle}` : ''}</p>
+                  <p>{detailQuery.data?.videoInfo?.desc?.trim() || '暂无更多内容。'}{detailQuery.data?.videoInfo?.originalTitle?.trim() && !/^[a-z0-9_-]+$/i.test(detailQuery.data.videoInfo.originalTitle.trim()) ? ` 原名：${detailQuery.data.videoInfo.originalTitle.trim()}` : ''}</p>
                 )}
               </div>
             </section>
