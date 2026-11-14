@@ -105,9 +105,35 @@ try {
   });
   console.log('PASS LibreTV PlayerShell fMP4 playback:', JSON.stringify(first));
 
-  // Exercise the real media-event-driven overlay lifecycle while decoded playback
-  // is running: controls must disappear after 3s, return on interaction, and stay
-  // visible after pause. This specifically guards the reported stuck-overlay bug.
+  // Record actual media and pointer events, then use the same pause/resume gesture
+  // a viewer would perform before leaving the screen untouched.
+  await page.evaluate(() => {
+    const shell = document.querySelector('.netflix-watch-shell');
+    const video = document.querySelector('video');
+    window.__pr84OverlayEventLog = [];
+    const record = (event) => window.__pr84OverlayEventLog.push({
+      type: event.type,
+      target: event.target instanceof Element ? event.target.className?.toString?.() || event.target.tagName : 'unknown',
+      at: Math.round(performance.now()),
+      paused: video?.paused ?? null,
+    });
+    for (const name of ['pointerdown', 'pointermove', 'touchstart', 'click', 'keydown']) {
+      shell?.addEventListener(name, record, true);
+    }
+    for (const name of ['play', 'playing', 'pause', 'waiting', 'stalled', 'ended']) {
+      video?.addEventListener(name, record);
+    }
+  });
+  const transportButton = page.locator('.cinema-play-control');
+  await transportButton.click();
+  await page.waitForFunction(() => document.querySelector('video')?.paused === true, null, { timeout: 3_000 });
+  await transportButton.click();
+  await page.waitForFunction((start) => {
+    const video = document.querySelector('video');
+    return Boolean(video && !video.paused && video.currentTime >= start + 0.5);
+  }, first.currentTime, { timeout: 8_000 });
+  // Move once, then leave the pointer completely still for the full hide interval.
+  await page.mouse.move(720, 450);
   await page.waitForTimeout(3_600);
   const hiddenOverlay = await page.evaluate(() => {
     const shell = document.querySelector('.netflix-watch-shell');
@@ -124,6 +150,8 @@ try {
       hiddenClass: Boolean(shell?.classList.contains('cinema-controls-hidden')),
       paused: document.querySelector('video')?.paused ?? true,
       topbar: state(topbar), center: state(center), info: state(info), qualityControls: state(qualityControls),
+      currentTime: document.querySelector('video')?.currentTime ?? 0,
+      eventLog: window.__pr84OverlayEventLog ?? [],
     };
   });
   if (!hiddenOverlay.hiddenClass || hiddenOverlay.paused ||
