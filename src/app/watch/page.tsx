@@ -85,7 +85,7 @@ function WatchContent() {
   const playerApiRef = useRef<PlayerSkipApi | null>(null);
   const playerFrameRef = useRef<HTMLDivElement | null>(null);
   const watchShellRef = useRef<HTMLDivElement | null>(null);
-  const controlsHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const controlsHideTimerRef = useRef<number | null>(null);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [sheetMaxHeight] = useState<number | undefined>(undefined);
 
