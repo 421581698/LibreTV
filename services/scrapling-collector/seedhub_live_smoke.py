@@ -11,10 +11,16 @@ from seedhub import parse_catalog_html, parse_detail_html
 ORIGIN = "https://www.seedhub.cc"
 CATEGORY_PATHS = {"movies": 1, "series": 3, "anime": 2}
 DETAIL_SAMPLE = ORIGIN + "/movies/130096/"
+REQUEST_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+    "Referer": ORIGIN + "/",
+}
 
 
 def fetch_html(url: str) -> str:
-    response = Fetcher.get(url, timeout=25, follow_redirects="safe")
+    response = Fetcher.get(url, headers=REQUEST_HEADERS, timeout=25, follow_redirects="safe")
     final_url = urlparse(str(getattr(response, "url", url)))
     if final_url.scheme != "https" or final_url.hostname != "www.seedhub.cc":
         raise RuntimeError(f"Unexpected redirect while reading fixed SeedHub URL: {url}")
