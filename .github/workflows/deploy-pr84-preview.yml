@@ -99,11 +99,11 @@ jobs:
             const value = process.env.PR84_SCRAPLING_API_BASE ?? "";
             const url = new URL(value);
             const hostname = url.hostname.toLowerCase();
-            const ipLiteral = /^\\d{1,3}(?:\\.\\d{1,3}){3}$/.test(hostname) || hostname.includes(":");
+            const ipLiteral = /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname) || hostname.includes(":");
             if (url.protocol !== "https:" || url.username || url.password ||
                 (url.port && url.port !== "443") || url.pathname !== "/" ||
                 url.search || url.hash || ipLiteral || hostname === "localhost" ||
-                !hostname.includes(".") || /(^|\\.)(local|internal|localhost|test|invalid)$/.test(hostname)) {
+                !hostname.includes(".") || /(^|\.)(local|internal|localhost|test|invalid)$/.test(hostname)) {
               throw new Error("PR84 Collector endpoint must be a public HTTPS hostname without path or credentials");
             }
           NODE
