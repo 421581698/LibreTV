@@ -413,7 +413,9 @@ async function verifyManifestAndSegment(rawUrl) {
 
 const homeItems = new Map();
 let homePagesChecked = 0;
+console.log(`KKPhim probe: loading ${MAX_HOME_PAGES} homepage page(s)`);
 for (let page = 1; page <= MAX_HOME_PAGES; page++) {
+  console.log(`KKPhim probe: homepage page ${page}/${MAX_HOME_PAGES}`);
   const payload = await getJson(new URL("/v1/api/home?page=" + page, API_ORIGIN).toString());
   homePagesChecked++;
   for (const item of getItems(payload)) {
@@ -421,6 +423,7 @@ for (let page = 1; page <= MAX_HOME_PAGES; page++) {
   }
 }
 const items = [...homeItems.values()].slice(0, MAX_MOVIES);
+console.log(`KKPhim probe: ${homeItems.size} unique homepage item(s); checking up to ${items.length} details`);
 if (!items.length) throw new Error("KKPhim home API returned no movie items across sampled pages");
 
 const diagnostics = [];
@@ -430,8 +433,9 @@ let dynamicEmbedAttempts = 0;
 const candidates = [];
 let detailV1Count = 0;
 let detailLegacyCount = 0;
-for (const item of items) {
+for (const [itemIndex, item] of items.entries()) {
   const slug = item.slug;
+  console.log(`KKPhim probe: detail ${itemIndex + 1}/${items.length}: ${slug}`);
   let payload = null;
   let detailFormat = "v1";
   try {
@@ -475,6 +479,7 @@ for (const item of items) {
   if (candidates.length >= MAX_LINKS) break;
 }
 if (!candidates.length) throw new Error("No playback candidates found across sampled KKPhim details");
+console.log(`KKPhim probe: ${candidates.length} playback candidate(s) across ${new Set(candidates.map((candidate) => candidate.item.slug)).size} title(s)`);
 
 let success = null;
 let tested = 0;
@@ -580,6 +585,7 @@ async function getFreshDetail(slug) {
 
 for (const candidate of candidates) {
   tested++;
+  console.log(`KKPhim probe: playback candidate ${tested}/${candidates.length}: ${candidate.item.slug} / ${candidate.link.server} / ${candidate.link.episode} (${candidate.link.kind})`);
   let lastError = null;
   let originalFailure = null;
   let refreshedLink = null;
