@@ -257,6 +257,22 @@ async function searchVerifiedRegistry(keyword: string): Promise<RegistrySearchRe
   }
 }
 
+async function searchSeedHubCatalog(keyword: string): Promise<import('@/lib/types').SeedHubSearchItem[]> {
+  try {
+    const response = await collectorRequest(
+      `/v1/seedhub/search?q=${encodeURIComponent(keyword)}&limit=20`,
+      {},
+      1_500,
+    );
+    if (!response.ok) return [];
+    const payload = await response.json() as { items?: unknown };
+    return Array.isArray(payload.items) ? payload.items as import('@/lib/types').SeedHubSearchItem[] : [];
+  } catch {
+    // SeedHub catalogue is supplemental and never blocks the regular CMS search.
+    return [];
+  }
+}
+
 function toSearchResponse(outcomes: SourceSearchOutcome[]): SearchResponse {
   return {
     list: mergeSearchResults(outcomes),
@@ -301,7 +317,7 @@ function ndjsonResponse(
 
       void (async () => {
         try {
-          const registryPromise = searchVerifiedRegistry(keyword);
+          const registryPromise = searchVerifiedRegistry(keyword);\n          const seedhubPromise = searchSeedHubCatalog(keyword);
           const outcomes = cached ?? await searchSources(keyword, sources, {
             filterAdult,
             signal: abortController.signal,
@@ -313,9 +329,9 @@ function ndjsonResponse(
           }
 
           if (!abortController.signal.aborted) {
-            const [registryResources] = await Promise.all([registryPromise]);
+            const [registryResources, seedhubItems] = await Promise.all([registryPromise, seedhubPromise]);
             const result = toSearchResponse(outcomes);
-            send({ type: 'done', ...result, ...(registryResources.length ? { registryResources } : {}) });
+            send({ type: 'done', ...result, ...(registryResources.length ? { registryResources } : {}), ...(seedhubItems.length ? { seedhubItems } : {}) });
           }
         } catch {
           if (!abortController.signal.aborted) {
