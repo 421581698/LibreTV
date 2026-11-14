@@ -263,9 +263,10 @@ def _initialize():
     with _connect() as conn:
         conn.execute("""
           CREATE TABLE IF NOT EXISTS seedhub_catalog (
-            source_url TEXT PRIMARY KEY, title TEXT NOT NULL, category TEXT NOT NULL,
+            source_url TEXT NOT NULL, title TEXT NOT NULL, category TEXT NOT NULL,
             poster_url TEXT, discovered_at INTEGER NOT NULL, detail_json TEXT,
-            detail_attempts INTEGER NOT NULL DEFAULT 0, detail_last_error TEXT
+            detail_attempts INTEGER NOT NULL DEFAULT 0, detail_last_error TEXT,
+            PRIMARY KEY(source_url, category)
           )
         """)
         columns = {row["name"] for row in conn.execute("PRAGMA table_info(seedhub_catalog)")}
@@ -275,6 +276,33 @@ def _initialize():
             conn.execute("ALTER TABLE seedhub_catalog ADD COLUMN detail_attempts INTEGER NOT NULL DEFAULT 0")
         if "detail_last_error" not in columns:
             conn.execute("ALTER TABLE seedhub_catalog ADD COLUMN detail_last_error TEXT")
+        primary_key_columns = [
+            row["name"] for row in sorted(
+                (row for row in conn.execute("PRAGMA table_info(seedhub_catalog)") if row["pk"]),
+                key=lambda row: row["pk"],
+            )
+        ]
+        if primary_key_columns == ["source_url"]:
+            conn.execute("""
+              CREATE TABLE seedhub_catalog_v2 (
+                source_url TEXT NOT NULL, title TEXT NOT NULL, category TEXT NOT NULL,
+                poster_url TEXT, discovered_at INTEGER NOT NULL, detail_json TEXT,
+                detail_attempts INTEGER NOT NULL DEFAULT 0, detail_last_error TEXT,
+                PRIMARY KEY(source_url, category)
+              )
+            """)
+            conn.execute("""
+              INSERT OR REPLACE INTO seedhub_catalog_v2
+                (source_url,title,category,poster_url,discovered_at,detail_json,detail_attempts,detail_last_error)
+              SELECT source_url,title,category,poster_url,discovered_at,detail_json,detail_attempts,detail_last_error
+              FROM seedhub_catalog
+            """)
+            conn.execute("DROP TABLE seedhub_catalog")
+            conn.execute("ALTER TABLE seedhub_catalog_v2 RENAME TO seedhub_catalog")
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_seedhub_catalog_category_discovered "
+            "ON seedhub_catalog(category,discovered_at DESC)"
+        )
 
 def _require_auth(authorization: str | None):
     import hmac
@@ -339,7 +367,7 @@ def sync_seedhub_pages(category: str, start_page: int, pages: int, checkpoint=No
                 for item in records:
                     conn.execute(
                         """INSERT INTO seedhub_catalog(source_url,title,category,poster_url,discovered_at)
-                           VALUES(?,?,?,?,?) ON CONFLICT(source_url) DO UPDATE SET
+                           VALUES(?,?,?,?,?) ON CONFLICT(source_url,category) DO UPDATE SET
                            title=excluded.title,
                            poster_url=COALESCE(excluded.poster_url,seedhub_catalog.poster_url),
                            discovered_at=excluded.discovered_at""",
@@ -474,13 +502,20 @@ def seedhub_detail(
         raise HTTPException(status_code=400, detail="Only SeedHub movie, series, and anime detail pages are accepted")
     page_url = parsed._replace(query="", fragment="").geturl()
     _initialize()
-    with _connect() as conn:
-        existing = conn.execute(
-            "SELECT category,detail_json FROM seedhub_catalog WHERE source_url=?", (page_url,)
-        ).fetchone()
     requested_category = category if isinstance(category, str) else None
-    # The catalogue row is authoritative: a shared /movies/<id>/ URL cannot
-    # override the category recorded when the item was discovered in its directory.
+    with _connect() as conn:
+        existing_rows = conn.execute(
+            "SELECT category,detail_json FROM seedhub_catalog WHERE source_url=? ORDER BY discovered_at DESC",
+            (page_url,),
+        ).fetchall()
+    # Prefer the category carried from the directory. If this URL has only one
+    # stored row, preserve that category even when a stale caller passes another.
+    existing = next(
+        (row for row in existing_rows if row["category"] == requested_category),
+        None,
+    ) if requested_category else (existing_rows[0] if existing_rows else None)
+    if existing is None and len(existing_rows) == 1:
+        existing = existing_rows[0]
     resolved_category = existing["category"] if existing else (requested_category or "movies")
     if existing and existing["detail_json"]:
         try:
@@ -515,7 +550,7 @@ def seedhub_detail(
         with _connect() as conn:
             conn.execute(
                 """INSERT INTO seedhub_catalog(source_url,title,category,poster_url,discovered_at,detail_json)
-                   VALUES(?,?,?,?,?,?) ON CONFLICT(source_url) DO UPDATE SET
+                   VALUES(?,?,?,?,?,?) ON CONFLICT(source_url,category) DO UPDATE SET
                    title=excluded.title,
                    poster_url=COALESCE(excluded.poster_url,seedhub_catalog.poster_url),
                    detail_json=excluded.detail_json""",
