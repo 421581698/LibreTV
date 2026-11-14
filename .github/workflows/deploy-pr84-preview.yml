@@ -106,7 +106,7 @@ jobs:
                 !hostname.includes(".") || /(^|\\.)(local|internal|localhost|test|invalid)$/.test(hostname)) {
               throw new Error("PR84 Collector endpoint must be a public HTTPS hostname without path or credentials");
             }
-            NODE
+          NODE
             printf '%s' "$PR84_SCRAPLING_API_BASE" | npx wrangler secret put SCRAPLING_API_BASE --config wrangler.pr84-preview.toml
             printf '%s' "$PR84_SCRAPLING_API_TOKEN" | npx wrangler secret put SCRAPLING_API_TOKEN --config wrangler.pr84-preview.toml
             echo "Persistent Collector credentials configured on the isolated PR84 Preview Worker."
