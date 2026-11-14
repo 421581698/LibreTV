@@ -84,6 +84,9 @@ function WatchContent() {
   const [skipPanelOpen, setSkipPanelOpen] = useState(false);
   const playerApiRef = useRef<PlayerSkipApi | null>(null);
   const playerFrameRef = useRef<HTMLDivElement | null>(null);
+  const watchShellRef = useRef<HTMLDivElement | null>(null);
+  const controlsHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [controlsVisible, setControlsVisible] = useState(true);
   const [sheetMaxHeight] = useState<number | undefined>(undefined);
 
   // 优先使用本次播放 URL 传入的数据源地址，普通源仍以本机配置为准。
@@ -126,6 +129,80 @@ function WatchContent() {
   useEffect(() => {
     if (!hasEpisodeNavigation && sidebarTab === 'episodes') setSidebarTab('sources');
   }, [hasEpisodeNavigation, sidebarTab]);
+
+  // Playback controls remain visible while paused and auto-hide three seconds after playback starts.
+  // Any pointer/touch interaction reveals them; media events, not button clicks, own playback state.
+  useEffect(() => {
+    const shell = watchShellRef.current;
+    const frame = playerFrameRef.current;
+    if (!shell || !frame) return;
+    let video: HTMLVideoElement | null = null;
+    const clearHideTimer = () => {
+      if (controlsHideTimerRef.current) clearTimeout(controlsHideTimerRef.current);
+      controlsHideTimerRef.current = null;
+    };
+    const revealControls = () => {
+      clearHideTimer();
+      setControlsVisible(true);
+      if (video && !video.paused && !video.ended) {
+        controlsHideTimerRef.current = setTimeout(() => setControlsVisible(false), 3000);
+      }
+    };
+    const keepControlsVisible = () => {
+      clearHideTimer();
+      setControlsVisible(true);
+    };
+    const scheduleHide = () => {
+      clearHideTimer();
+      if (!video || video.paused || video.ended) {
+        setControlsVisible(true);
+        return;
+      }
+      controlsHideTimerRef.current = setTimeout(() => setControlsVisible(false), 3000);
+    };
+    const onPlay = () => { setControlsVisible(true); scheduleHide(); };
+    const onPause = keepControlsVisible;
+    const onEnded = keepControlsVisible;
+    const detachVideo = () => {
+      if (!video) return;
+      video.removeEventListener('play', onPlay);
+      video.removeEventListener('playing', scheduleHide);
+      video.removeEventListener('pause', onPause);
+      video.removeEventListener('ended', onEnded);
+      video = null;
+    };
+    const attachVideo = () => {
+      const next = frame.querySelector('video');
+      if (next === video) return;
+      detachVideo();
+      if (!next) return;
+      video = next;
+      video.addEventListener('play', onPlay);
+      video.addEventListener('playing', scheduleHide);
+      video.addEventListener('pause', onPause);
+      video.addEventListener('ended', onEnded);
+      if (!video.paused && !video.ended) scheduleHide();
+      else keepControlsVisible();
+    };
+    shell.addEventListener('pointerdown', revealControls, true);
+    shell.addEventListener('pointermove', revealControls, { passive: true });
+    shell.addEventListener('touchstart', revealControls, { passive: true, capture: true });
+    shell.addEventListener('click', revealControls, true);
+    shell.addEventListener('keydown', revealControls, true);
+    const observer = new MutationObserver(attachVideo);
+    observer.observe(frame, { childList: true, subtree: true });
+    attachVideo();
+    return () => {
+      clearHideTimer();
+      observer.disconnect();
+      detachVideo();
+      shell.removeEventListener('pointerdown', revealControls, true);
+      shell.removeEventListener('pointermove', revealControls);
+      shell.removeEventListener('touchstart', revealControls, true);
+      shell.removeEventListener('click', revealControls, true);
+      shell.removeEventListener('keydown', revealControls, true);
+    };
+  }, [sourceKey, vodId, indexParam, directUrl]);
 
   // 当前播放地址：优先取剧集列表中的当前集，其次直连 URL 参数
   const currentUrl = useMemo(() => {
@@ -407,7 +484,7 @@ function WatchContent() {
     );
   }
   return (
-    <div className="min-h-screen flex flex-col netflix-watch-shell">
+    <div ref={watchShellRef} className={`min-h-screen flex flex-col netflix-watch-shell${controlsVisible ? '' : ' cinema-controls-hidden'}`}>
       <header className="watch-topbar netflix-watch-overlay-topbar">
         <div className="watch-topbar-inner">
           <div className="watch-topbar-left">
