@@ -792,3 +792,44 @@ html:has(.netflix-watch-shell) body > nav.v4-mobile-tabbar {
   .watch-cinema-tabs { gap: 7px; }
   .watch-cinema-tabs button { min-height: 32px; padding: 0 14px; }
 }
+
+.watch-cinema-playback {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: center;
+  column-gap: 14px;
+  row-gap: 7px;
+}
+.watch-cinema-time {
+  grid-column: 1;
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted, #aaa);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.watch-cinema-progress {
+  grid-column: 1;
+  width: 100%;
+  height: 4px;
+  margin: 0;
+  accent-color: var(--text-primary, #fff);
+  cursor: pointer;
+}
+.watch-cinema-rate {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--border, rgba(255,255,255,.16));
+  border-radius: 50%;
+  color: var(--text-primary, #fff);
+  background: var(--surface-hover, rgba(255,255,255,.08));
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.watch-cinema-rate:focus-visible, .watch-cinema-progress:focus-visible {
+  outline: 2px solid var(--text-primary, #fff);
+  outline-offset: 3px;
+}
