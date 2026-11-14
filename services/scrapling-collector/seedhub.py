@@ -448,32 +448,43 @@ def seedhub_detail(
     authorization: str | None = Header(default=None),
 ):
     _require_auth(authorization)
-    _require_egress_firewall()
     parsed = urlparse(url)
     if (parsed.scheme != "https" or parsed.hostname != SEEDHUB_HOST or parsed.username or parsed.password or
             parsed.port not in (None, 443) or
             not re.fullmatch(r"/(?:movies|series|anime)/[0-9]+/?", parsed.path)):
         raise HTTPException(status_code=400, detail="Only SeedHub movie, series, and anime detail pages are accepted")
-    _require_public_seedhub_host()
     page_url = parsed._replace(query="", fragment="").geturl()
+    _initialize()
+    with _connect() as conn:
+        existing = conn.execute(
+            "SELECT category,detail_json FROM seedhub_catalog WHERE source_url=?", (page_url,)
+        ).fetchone()
+    requested_category = category if isinstance(category, str) else None
+    resolved_category = requested_category or (existing["category"] if existing else "movies")
+    if existing and existing["detail_json"]:
+        try:
+            cached = json.loads(existing["detail_json"])
+        except (TypeError, json.JSONDecodeError):
+            cached = None
+        if (isinstance(cached, dict) and cached.get("detail_status") != "failed" and
+                cached.get("category") == resolved_category):
+            return cached
+    _require_egress_firewall()
+    _require_public_seedhub_host()
     try:
         response = Fetcher.get(page_url, timeout=25, follow_redirects="safe")
         final_url = str(getattr(response, "url", page_url))
         final = urlparse(final_url)
         if final.scheme != "https" or final.hostname != SEEDHUB_HOST:
             raise ValueError("Unexpected redirect outside SeedHub origin")
+        status = getattr(response, "status", getattr(response, "status_code", 200))
+        if isinstance(status, int) and status >= 400:
+            raise ValueError(f"SeedHub detail returned HTTP {status}")
         html = getattr(response, "text", None)
         if not isinstance(html, str) or not html:
             html = getattr(response, "html_content", None)
         if not isinstance(html, str) or not html:
             raise ValueError("SeedHub returned an empty HTML document")
-        _initialize()
-        with _connect() as conn:
-            existing = conn.execute(
-                "SELECT category FROM seedhub_catalog WHERE source_url=?", (page_url,)
-            ).fetchone()
-        requested_category = category if isinstance(category, str) else None
-        resolved_category = requested_category or (existing["category"] if existing else "movies")
         detail = parse_detail_html(html, page_url, resolved_category)
         with _connect() as conn:
             conn.execute(
