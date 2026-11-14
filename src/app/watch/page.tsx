@@ -118,7 +118,9 @@ function WatchContent() {
   const mediaType = detailQuery.data?.videoInfo?.typeName ?? '';
   const isMovie = /电影|movie|film/i.test(mediaType);
   const hasEpisodeNavigation = episodes.length > 1;
-  const videoTitle = titleParam || detailQuery.data?.videoInfo?.title || '未知视频';
+  const isReadableTitle = (value: string) => Boolean(value.trim()) && !/^[a-z0-9_-]+$/i.test(value.trim());
+  const detailTitle = detailQuery.data?.videoInfo?.title?.trim() || '';
+  const videoTitle = isReadableTitle(titleParam) ? titleParam.trim() : isReadableTitle(detailTitle) ? detailTitle : '未知视频';
 
   useEffect(() => {
     if (!hasEpisodeNavigation && sidebarTab === 'episodes') setSidebarTab('sources');
