@@ -430,6 +430,7 @@ export async function POST(req: Request) {
     }
 
     const registryPromise = searchVerifiedRegistry(keyword);
+    const seedhubPromise = searchSeedHubCatalog(keyword);
     const outcomes = cached ?? await searchSources(keyword, sources, {
       filterAdult,
       signal: req.signal,
@@ -437,9 +438,9 @@ export async function POST(req: Request) {
 
     if (req.signal.aborted) return jsonError('请求已取消', 400);
     if (!cached) setCachedOutcomes(cacheKey, outcomes);
-    const [registryResources] = await Promise.all([registryPromise]);
+    const [registryResources, seedhubItems] = await Promise.all([registryPromise, seedhubPromise]);
 
-    return NextResponse.json({ ...toSearchResponse(outcomes), ...(registryResources.length ? { registryResources } : {}) }, {
+    return NextResponse.json({ ...toSearchResponse(outcomes), ...(registryResources.length ? { registryResources } : {}), ...(seedhubItems.length ? { seedhubItems } : {}) }, {
       headers: { 'Cache-Control': 'no-store' },
     });
   } catch {
