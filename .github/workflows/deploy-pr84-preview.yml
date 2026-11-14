@@ -87,6 +87,33 @@ jobs:
             echo "TMDB credential absent; skipping Worker secret configuration."
           fi
 
+      - name: Configure optional persistent Collector on isolated Preview Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PR84_SCRAPLING_API_BASE: ${{ secrets.PR84_SCRAPLING_API_BASE }}
+          PR84_SCRAPLING_API_TOKEN: ${{ secrets.PR84_SCRAPLING_API_TOKEN }}
+        run: |
+          if [ -n "$PR84_SCRAPLING_API_BASE" ] && [ -n "$PR84_SCRAPLING_API_TOKEN" ]; then
+            node --input-type=module <<'NODE'
+            const value = process.env.PR84_SCRAPLING_API_BASE ?? "";
+            const url = new URL(value);
+            const hostname = url.hostname.toLowerCase();
+            const ipLiteral = /^\\d{1,3}(?:\\.\\d{1,3}){3}$/.test(hostname) || hostname.includes(":");
+            if (url.protocol !== "https:" || url.username || url.password ||
+                (url.port && url.port !== "443") || url.pathname !== "/" ||
+                url.search || url.hash || ipLiteral || hostname === "localhost" ||
+                !hostname.includes(".") || /(^|\\.)(local|internal|localhost|test|invalid)$/.test(hostname)) {
+              throw new Error("PR84 Collector endpoint must be a public HTTPS hostname without path or credentials");
+            }
+            NODE
+            printf '%s' "$PR84_SCRAPLING_API_BASE" | npx wrangler secret put SCRAPLING_API_BASE --config wrangler.pr84-preview.toml
+            printf '%s' "$PR84_SCRAPLING_API_TOKEN" | npx wrangler secret put SCRAPLING_API_TOKEN --config wrangler.pr84-preview.toml
+            echo "Persistent Collector credentials configured on the isolated PR84 Preview Worker."
+          else
+            echo "Persistent Collector not provisioned; SeedHub catalogue remains in explicit empty state."
+          fi
+
       - name: Probe configured CMS candidate without enabling it as a default source
         env:
           CANDIDATE_CMS_API: https://caiji.dyttzyapi.com/api.php/provide/vod
