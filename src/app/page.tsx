@@ -21,7 +21,6 @@ import { api } from '@/lib/client-api';
 import type {
   SearchResultItem,
   SourceSearchOutcome,
-  DoubanItem,
   RegistrySearchResource,
 } from '@/lib/types';
 import {
@@ -31,7 +30,7 @@ import {
 import { useToast } from '@/components/toast';
 import { EmptyState } from '@/components/states';
 import { rankSourcesByHealth } from '@/lib/source-ranking';
-import { rankMovieCandidatesByQuality, rankSourcesByPlaybackQuality } from '@/lib/playback-telemetry';
+import { rankSourcesByPlaybackQuality } from '@/lib/playback-telemetry';
 
 const RESULT_PAGE_SIZE = 60;
 
@@ -112,33 +111,6 @@ function HomeContent() {
 
   const { activeQuery: urlQuery } = useHomeSearchController(routeQuery, toast);
 
-  // 推荐卡片必须先用当前启用的采集源解析真实 vodId，不能把豆瓣 ID 当作资源站 ID。
-  const openRecommendation = async (movie: DoubanItem) => {
-    if (selectedSources.length === 0) {
-      toast('请先在设置中启用至少一个点播源，才能查看影片详情', 'warning');
-      return;
-    }
-    try {
-      const result = await api.search(movie.title, selectedSources, yellowFilter);
-      const normalizeTitle = (value: string) =>
-        value.replace(/[\\s\\p{P}\\p{S}]/gu, '').toLocaleLowerCase();
-      const normalizedTitle = normalizeTitle(movie.title);
-      const matches = result.list.filter((entry) => normalizeTitle(entry.name) === normalizedTitle);
-      if (matches.length === 0) {
-        toast(`暂未在已启用的点播源中找到《${movie.title}》的准确详情，请更换点播源后重试`, 'warning');
-        return;
-      }
-      const currentStore = useAppStore.getState();
-      const rankedMatches = rankMovieCandidatesByQuality(
-        matches,
-        currentStore.qualityMap,
-        currentStore.playbackHealth,
-      );
-      openDetail(rankedMatches[0], { rating: movie.rating, poster: movie.cover });
-    } catch (error) {
-      toast(error instanceof Error ? error.message : '获取影片详情失败，请稍后重试', 'error');
-    }
-  };
 
   const disabledSources = useMemo(
     () => selectedKeys.filter((key) => isSourceDisabled({ sourceHealth }, key)),
