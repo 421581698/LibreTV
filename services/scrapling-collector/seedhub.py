@@ -180,6 +180,8 @@ def parse_detail_html(html: str, page_url: str) -> dict:
     parser.feed(html)
     clean = lambda parts: re.sub(r"\s+", " ", " ".join(parts)).strip()[:500]
     title = (parser.og_title or clean(parser.h1_parts) or clean(parser.title_parts)).strip()
+    # SeedHub prepends a decorative "#" to some Open Graph titles; it is not part of the title.
+    title = re.sub(r"^[#\\s]+", "", title).strip()
     if " - SeedHub" in title:
         title = title.split(" - SeedHub", 1)[0].strip()
     image_urls = list(dict.fromkeys(item["url"] for item in parser.images))
