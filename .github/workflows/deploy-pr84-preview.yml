@@ -379,6 +379,7 @@ jobs:
             /tmp/pr84-preview-webkit.png
             /tmp/pr84-preview-watch-webkit.png
             /tmp/pr84-preview-player.png
+            /tmp/pr84-preview-seedhub-detail-webkit.png
           if-no-files-found: ignore
 
       - name: Verify deployed PR84 homepage and status endpoint
