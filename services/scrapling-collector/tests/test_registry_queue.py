@@ -211,6 +211,30 @@ class RegistryQueueTests(unittest.TestCase):
 
 
 
+    def test_initialize_cancels_legacy_seedhub_collection_jobs(self):
+        now = int(__import__("time").time())
+        legacy = ("seedhub_sync", "seedhub_detail_sync")
+        with queue.connect() as c:
+            for index, job_type in enumerate(legacy):
+                c.execute(
+                    """INSERT INTO collector_jobs
+                       (id,idempotency_key,job_type,payload,status,available_at,created_at,updated_at)
+                       VALUES(?,?,?,?,?,?,?,?)""",
+                    (f"legacy-{index}", f"legacy:{job_type}", job_type, "{}", "queued", now, now, now),
+                )
+        queue.initialize()
+        with queue.connect() as c:
+            rows = c.execute(
+                "SELECT id,status,lease_owner,lease_until,cancelled_at FROM collector_jobs WHERE id LIKE 'legacy-%' ORDER BY id"
+            ).fetchall()
+            events = c.execute(
+                "SELECT COUNT(*) AS n FROM collector_job_events WHERE event='seedhub_collection_retired'"
+            ).fetchone()["n"]
+        self.assertEqual([row["status"] for row in rows], ["cancelled", "cancelled"])
+        self.assertTrue(all(row["lease_owner"] is None and row["lease_until"] is None for row in rows))
+        self.assertTrue(all(row["cancelled_at"] is not None for row in rows))
+        self.assertEqual(events, 2)
+
     def test_seedhub_collection_job_types_are_rejected(self):
         for job_type in ("seedhub_sync", "seedhub_detail_sync"):
             with self.subTest(job_type=job_type), self.assertRaises(ValueError):
