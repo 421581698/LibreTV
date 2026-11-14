@@ -66,7 +66,6 @@
     line-height: 1.25 !important;
     text-align: left !important;
   }
-  .watch-topbar-right { display: none !important; }
 
   /* A real four-column dock on the watch route; do not inherit LiquidGlass's
      floating vertical demo layout. It is portaled directly under body. */
@@ -230,8 +229,7 @@ html:has(.netflix-watch) .watch-topbar {
   background: rgba(0, 0, 0, .92) !important;
   border-bottom-color: rgba(255, 255, 255, .10) !important;
 }
-html:has(.netflix-watch) .watch-topbar-left > a.watch-topbar-back,
-html:has(.netflix-watch) .watch-topbar-right {
+html:has(.netflix-watch) .watch-topbar-left > a.watch-topbar-back {
   display: none !important;
 }
 html:has(.netflix-watch) .watch-topbar-left .watch-topbar-back {
@@ -1177,4 +1175,23 @@ html:has(.netflix-watch-shell) .netflix-watch-shell .netflix-player-frame {
   .netflix-watch-shell .watch-cinema-copy { max-height: 58px !important; }
   .netflix-watch-shell .cinema-skip-control { width: 42px !important; height: 42px !important; }
   .netflix-watch-shell .cinema-play-control { width: 60px !important; height: 60px !important; }
+}
+
+
+/* Keep the dedicated fullscreen and AirPlay controls visible on the watch page.
+   Older mobile cleanup rules hid the entire right-hand toolbar. */
+html:has(.netflix-watch) .netflix-watch-shell .watch-topbar-right {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  align-items: center !important;
+  margin-left: auto !important;
+  gap: 8px !important;
+}
+html:has(.netflix-watch) .netflix-watch-shell .watch-topbar-right > button {
+  display: grid !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  flex: 0 0 auto !important;
 }
