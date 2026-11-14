@@ -550,7 +550,7 @@ async function verifyCandidate(candidate) {
     if (pageResult) return pageResult;
     // Static HTML often contains an expired or stale m3u8. Execute the player
     // and capture the media URL it actually requests at runtime instead.
-    if (link.url && dynamicEmbedAttempts < 1) {
+    if (link.url && dynamicEmbedAttempts < MAX_LINKS) {
       dynamicEmbedAttempts++;
       try {
         const dynamic = await captureDynamicEmbedMedia(link.url);
@@ -608,6 +608,8 @@ for (const candidate of candidates) {
   let originalFailure = null;
   let refreshedLink = null;
   let refreshedFailure = null;
+  let refreshedFallbackLink = null;
+  let refreshedFallbackFailure = null;
   let fallbackFailure = null;
   try {
     const result = await verifyCandidate(candidate);
@@ -654,6 +656,26 @@ for (const candidate of candidates) {
           "; refreshed URL also failed after original: " + originalMessage);
       }
     }
+    // If the direct HLS URL is stale, refresh and retry the paired Embed URL too.
+    if (candidate.fallbackLink) {
+      const freshFallback = fresh.links.find((link) =>
+        link.server === candidate.fallbackLink.server &&
+        link.episode === candidate.fallbackLink.episode &&
+        link.kind === "embed"
+      );
+      refreshedFallbackLink = freshFallback || null;
+      if (freshFallback && freshFallback.url !== candidate.fallbackLink.url) {
+        const refreshedFallbackCandidate = { ...candidate, link: freshFallback, fallbackLink: null };
+        try {
+          const result = await verifyCandidate(refreshedFallbackCandidate);
+          success = { ...refreshedFallbackCandidate, ...result, fallbackUsed: true, refreshed: true };
+          break;
+        } catch (error) {
+          refreshedFallbackFailure = error;
+          lastError = error;
+        }
+      }
+    }
   } catch (refreshError) {
     lastError = new Error(String(lastError?.message || lastError).slice(0, 100) +
       "; detail refresh failed: " + String(refreshError?.message || refreshError).slice(0, 100));
@@ -668,12 +690,15 @@ for (const candidate of candidates) {
     originalUrl: summarizeMediaUrl(candidate.link.url),
     refreshedUrl: refreshedLink ? summarizeMediaUrl(refreshedLink.url) : null,
     refreshedUrlChanged: Boolean(refreshedLink && refreshedLink.url !== candidate.link.url),
+    refreshedFallbackUrl: refreshedFallbackLink ? summarizeMediaUrl(refreshedFallbackLink.url) : null,
+    refreshedFallbackUrlChanged: Boolean(refreshedFallbackLink && candidate.fallbackLink && refreshedFallbackLink.url !== candidate.fallbackLink.url),
     fallbackKind: candidate.fallbackLink?.kind || null,
     fallbackUrl: candidate.fallbackLink ? summarizeMediaUrl(candidate.fallbackLink.url) : null,
     attempts: [
       ...(originalFailure?.attempts || []),
       ...(fallbackFailure?.attempts || []),
       ...(refreshedFailure?.attempts || []),
+      ...(refreshedFallbackFailure?.attempts || []),
     ],
     error: String(lastError?.message || lastError).slice(0, 180),
   });
