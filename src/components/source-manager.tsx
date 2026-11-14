@@ -613,7 +613,7 @@ function ResourceCollectorPanel() {
       <div hidden={centerPage !== 'connection'} className="rounded-2xl border border-line bg-card p-4 space-y-3">
         <div>
           <h3 className="text-sm font-semibold text-content">Scrapling 连接配置 · 本机 Preview 测试</h3>
-          <p className="mt-1 text-xs leading-5 text-muted">填写 Zo Computer 部署的 Collector 地址与密钥。配置仅保存在当前浏览器 LocalStorage，通过已登录的 LibreTV Worker 代理转发；不会写入 Git 或 Cloudflare 环境变量。当前仅用于独立 Preview 测试。</p>
+          <p className="mt-1 text-xs leading-5 text-muted">填写已经部署并启用 HTTPS 的 Scrapling Collector 公网地址与访问 Token。SeedHub 是公开目录，不需要 SeedHub 账号或密码；这里的 Token 只用于 LibreTV 与你自己的 Collector 服务认证。配置仅保存在当前浏览器 LocalStorage，通过已登录的 LibreTV Worker 代理转发；不会写入 Git 或 Cloudflare 环境变量。当前仅用于独立 Preview 测试。</p>
         </div>
         <label className="block space-y-1">
           <span className="text-xs font-semibold text-content">SCRAPLING_API_BASE · 采集服务地址</span>
