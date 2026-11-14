@@ -92,8 +92,6 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const guarded = guardPrivateFeatureRequest(request);
-  if (guarded) return guarded;
   let body: unknown;
   try {
     const raw = await request.text();
@@ -107,9 +105,20 @@ export async function POST(request: Request) {
   const parsedBody = requestSchema.safeParse(body);
   if (!parsedBody.success) return NextResponse.json({ error: '请输入 3–200 字的采集目标。' }, { status: 400 });
 
+  let env: Env = {};
+  try { env = cloudflareEnv(); } catch { /* resolveResourceAgent below returns the bounded unavailable response */ }
+  const smokeToken = read(env, 'RESOURCE_AGENT_SMOKE_TOKEN');
+  const smokeAuthorized = parsedBody.data.dryRun === true &&
+    smokeToken.length >= 32 &&
+    request.headers.get('x-resource-agent-smoke-token') === smokeToken;
+  if (!smokeAuthorized) {
+    const guarded = guardPrivateFeatureRequest(request);
+    if (guarded) return guarded;
+  }
+
   let config: ReturnType<typeof resolveResourceAgent>;
   try {
-    config = resolveResourceAgent(cloudflareEnv());
+    config = resolveResourceAgent(env);
   } catch {
     return NextResponse.json({
       error: 'Cloudflare Workers AI 当前不可用。请检查 Preview 的 AI Binding、账号可用性与额度；不需要配置外部模型 API Key。',
