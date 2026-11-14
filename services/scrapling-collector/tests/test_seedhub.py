@@ -31,17 +31,27 @@ class SeedHubDetailParserTests(unittest.TestCase):
         html = """
         <html><head>
           <meta property="og:title" content="生化危机：爆发夜 Resident Evil - SeedHub">
-          <meta property="og:description" content="电影简介">
           <meta property="og:image" content="https://sh1.pcie.pppoe.top/poster.jpg">
         </head><body>
           <h1>生化危机：爆发夜</h1>
+          <div>导演：扎克·克雷格</div><div>编剧：谢伊·哈顿</div>
+          <div>主演：奥斯汀·艾布拉姆斯 / 保罗·沃尔特·豪泽</div>
+          <div>类型：恐怖 / 惊悚 / 科幻</div>
+          <div>制片国家/地区：美国</div><div>语言：英语</div>
+          <div>首播：2026-09-16</div><div>集数：1</div><div>单集片长：90分钟</div>
+          <h2>生化危机：爆发夜的简介</h2><p>故事聚焦医疗速递员布莱恩，意外深陷病毒浩劫。</p>
+          <h2>生化危机：爆发夜的图片</h2>
           <img alt="点击查看图片" src="https://sh1.pcie.pppoe.top/still-1.jpg">
           <a href="https://files.example/share/secret">外部资源链接</a>
         </body></html>
         """
         result = parse_detail_html(html, "https://www.seedhub.cc/movies/130096/")
         self.assertEqual(result["title"], "生化危机：爆发夜 Resident Evil")
-        self.assertEqual(result["description"], "电影简介")
+        self.assertIn("医疗速递员布莱恩", result["description"])
+        self.assertEqual(result["metadata"]["director"], "扎克·克雷格")
+        self.assertEqual(result["metadata"]["writers"], "谢伊·哈顿")
+        self.assertEqual(result["metadata"]["episode_count"], "1")
+        self.assertEqual(result["metadata"]["runtime"], "90分钟")
         self.assertEqual(result["poster_url"], "https://sh1.pcie.pppoe.top/poster.jpg")
         self.assertEqual(result["still_urls"], ["https://sh1.pcie.pppoe.top/still-1.jpg"])
         self.assertFalse(result["external_resource_links_extracted"])

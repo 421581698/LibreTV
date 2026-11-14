@@ -91,13 +91,22 @@ class _DetailParser(HTMLParser):
         self.images: list[dict] = []
         self.in_title = False
         self.in_h1 = False
+        self.in_heading = False
+        self.current_section = ""
+        self.section_text: dict[str, list[str]] = {}
+        self.all_text: list[str] = []
+        self.skip_text = 0
 
     def handle_starttag(self, tag: str, attrs):
         values = dict(attrs)
-        if tag == "title":
+        if tag in {"script", "style", "noscript"}:
+            self.skip_text += 1
+        elif tag == "title":
             self.in_title = True
         elif tag == "h1":
             self.in_h1 = True
+        elif tag in {"h2", "h3"}:
+            self.in_heading = True
         elif tag == "meta":
             key = (values.get("property") or values.get("name") or "").lower()
             content = (values.get("content") or "").strip()
@@ -118,16 +127,29 @@ class _DetailParser(HTMLParser):
                 })
 
     def handle_data(self, data):
+        if self.skip_text or not data.strip():
+            return
+        value = re.sub(r"\\s+", " ", data).strip()
+        if self.in_heading:
+            self.current_section = value
+            self.section_text.setdefault(value, [])
+        self.all_text.append(value)
         if self.in_title:
-            self.title_parts.append(data)
+            self.title_parts.append(value)
         if self.in_h1:
-            self.h1_parts.append(data)
+            self.h1_parts.append(value)
+        if self.current_section:
+            self.section_text.setdefault(self.current_section, []).append(value)
 
     def handle_endtag(self, tag):
-        if tag == "title":
+        if tag in {"script", "style", "noscript"} and self.skip_text:
+            self.skip_text -= 1
+        elif tag == "title":
             self.in_title = False
         elif tag == "h1":
             self.in_h1 = False
+        elif tag in {"h2", "h3"}:
+            self.in_heading = False
 
 
 def parse_detail_html(html: str, page_url: str) -> dict:
@@ -152,12 +174,39 @@ def parse_detail_html(html: str, page_url: str) -> dict:
     )
     stills = [url for url in image_urls if url != poster]
     category = parsed.path.split("/", 2)[1]
+    description_section = next(
+        (parts for heading, parts in parser.section_text.items() if "简介" in heading),
+        [],
+    )
+    description = parser.description or clean(description_section)
+    if not description:
+        text_blob = clean(parser.all_text)
+        match = re.search(r"(?:简介|剧情简介)[:：]?(.+?)(?=图片|剧照|推荐|资源下载|字幕|$)", text_blob)
+        description = match.group(1).strip()[:4000] if match else ""
+    fields_blob = clean(parser.all_text)
+    def extract_field(label: str, stops: tuple[str, ...]) -> str | None:
+        stop_pattern = "|".join(re.escape(item) for item in stops)
+        match = re.search(rf"{re.escape(label)}[:：]\\s*(.+?)(?=(?:{stop_pattern})[:：]|$)", fields_blob)
+        return match.group(1).strip(" /|")[:1000] if match else None
+    metadata = {
+        "director": extract_field("导演", ("编剧", "主演", "类型")),
+        "writers": extract_field("编剧", ("主演", "类型")),
+        "cast": extract_field("主演", ("类型", "制片国家/地区")),
+        "genres": extract_field("类型", ("制片国家/地区", "语言")),
+        "countries": extract_field("制片国家/地区", ("语言", "首播", "集数")),
+        "languages": extract_field("语言", ("首播", "集数", "单集片长")),
+        "premiere": extract_field("首播", ("集数", "单集片长", "又名")),
+        "episode_count": extract_field("集数", ("单集片长", "又名", "豆瓣评分")),
+        "runtime": extract_field("单集片长", ("又名", "豆瓣评分")),
+        "aliases": extract_field("又名", ("豆瓣评分", "常用标签")),
+    }
     return {
         "source_name": "SeedHub",
         "source_url": parsed._replace(query="", fragment="").geturl(),
         "title": title,
         "category": category,
-        "description": parser.description[:4000],
+        "description": description[:4000],
+        "metadata": {key: value for key, value in metadata.items() if value},
         "poster_url": poster,
         "still_urls": stills[:30],
         "mode": "metadata-only",
@@ -221,6 +270,7 @@ def sync_seedhub(
 ):
     _require_auth(authorization)
     _require_egress_firewall()
+    _require_public_seedhub_host()
     _initialize()
     collected = 0
     failures = []
