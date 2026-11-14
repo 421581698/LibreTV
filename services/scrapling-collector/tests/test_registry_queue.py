@@ -39,21 +39,6 @@ class RegistryQueueTests(unittest.TestCase):
         self.assertEqual(first["id"], second["id"])
         self.assertEqual(first["job_type"], "discover")
 
-    def test_seedhub_detail_sync_jobs_are_durable_and_idempotent(self):
-        first = queue.submit_job(
-            "seedhub_detail_sync",
-            {"category": "anime", "limit": 10},
-            "seedhub-detail:anime:catalog:1:5",
-        )
-        second = queue.submit_job(
-            "seedhub_detail_sync",
-            {"category": "anime", "limit": 10},
-            "seedhub-detail:anime:catalog:1:5",
-        )
-        self.assertEqual(first["id"], second["id"])
-        self.assertEqual(first["job_type"], "seedhub_detail_sync")
-        self.assertEqual(first["status"], "queued")
-
     def test_idempotent_job_submit_and_atomic_claim(self):
         first = queue.submit_job("crawl", {"url": "https://example.org"}, "crawl:example")
         second = queue.submit_job("crawl", {"url": "https://example.org"}, "crawl:example")
@@ -217,12 +202,11 @@ class RegistryQueueTests(unittest.TestCase):
 
 
 
-    def test_seedhub_sync_jobs_are_durable_and_idempotent(self):
-        first = queue.submit_job("seedhub_sync", {"category": "movies", "start_page": 1, "pages": 20}, "seedhub:movies:1:20")
-        second = queue.submit_job("seedhub_sync", {"category": "movies", "start_page": 1, "pages": 20}, "seedhub:movies:1:20")
-        self.assertEqual(first["id"], second["id"])
-        self.assertEqual(first["job_type"], "seedhub_sync")
-        self.assertEqual(first["status"], "queued")
+    def test_seedhub_collection_job_types_are_rejected(self):
+        for job_type in ("seedhub_sync", "seedhub_detail_sync"):
+            with self.subTest(job_type=job_type), self.assertRaises(ValueError):
+                queue.submit_job(job_type, {"category": "movies"}, "retired:" + job_type)
+
 
 
 if __name__ == "__main__":
