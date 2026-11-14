@@ -6,6 +6,7 @@ import sqlite3
 import time
 import ipaddress
 import socket
+import json
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
@@ -245,10 +246,12 @@ def _initialize():
         conn.execute("""
           CREATE TABLE IF NOT EXISTS seedhub_catalog (
             source_url TEXT PRIMARY KEY, title TEXT NOT NULL, category TEXT NOT NULL,
-            poster_url TEXT, discovered_at INTEGER NOT NULL
+            poster_url TEXT, discovered_at INTEGER NOT NULL, detail_json TEXT
           )
         """)
-
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(seedhub_catalog)")}
+        if "detail_json" not in columns:
+            conn.execute("ALTER TABLE seedhub_catalog ADD COLUMN detail_json TEXT")
 
 def _require_auth(authorization: str | None):
     import hmac
@@ -362,7 +365,20 @@ def seedhub_detail(
             html = getattr(response, "html_content", None)
         if not isinstance(html, str) or not html:
             raise ValueError("SeedHub returned an empty HTML document")
-        return parse_detail_html(html, page_url)
+        detail = parse_detail_html(html, page_url)
+        _initialize()
+        with _connect() as conn:
+            conn.execute(
+                """INSERT INTO seedhub_catalog(source_url,title,category,poster_url,discovered_at,detail_json)
+                   VALUES(?,?,?,?,?,?) ON CONFLICT(source_url) DO UPDATE SET
+                   title=excluded.title,category=excluded.category,
+                   poster_url=COALESCE(excluded.poster_url,seedhub_catalog.poster_url),
+                   detail_json=excluded.detail_json""",
+                (detail["source_url"], detail["title"] or detail["source_url"],
+                 detail["category"], detail["poster_url"], int(time.time()),
+                 json.dumps(detail, ensure_ascii=False)),
+            )
+        return detail
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"SeedHub detail fetch failed: {type(exc).__name__}")
 
@@ -378,8 +394,17 @@ def seedhub_catalog(
     _initialize()
     with _connect() as conn:
         rows = conn.execute(
-            "SELECT source_url,title,category,poster_url,discovered_at FROM seedhub_catalog WHERE category=? ORDER BY discovered_at DESC LIMIT ? OFFSET ?",
+            "SELECT source_url,title,category,poster_url,discovered_at,detail_json FROM seedhub_catalog WHERE category=? ORDER BY discovered_at DESC LIMIT ? OFFSET ?",
             (category, limit, offset),
         ).fetchall()
         total = conn.execute("SELECT COUNT(*) AS n FROM seedhub_catalog WHERE category=?", (category,)).fetchone()["n"]
-    return {"source": "SeedHub", "category": category, "total": total, "items": [dict(row) for row in rows]}
+    items = []
+    for row in rows:
+        item = dict(row)
+        raw_detail = item.pop("detail_json", None)
+        try:
+            item["detail"] = json.loads(raw_detail) if raw_detail else None
+        except (TypeError, json.JSONDecodeError):
+            item["detail"] = None
+        items.append(item)
+    return {"source": "SeedHub", "category": category, "total": total, "items": items}
