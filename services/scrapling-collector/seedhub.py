@@ -144,7 +144,8 @@ class _DetailParser(HTMLParser):
             self.title_parts.append(value)
         if self.in_h1:
             self.h1_parts.append(value)
-        if self.current_section:
+        # The heading label identifies the section; it is not synopsis content.
+        if self.current_section and not self.in_heading:
             self.section_text.setdefault(self.current_section, []).append(value)
 
     def handle_endtag(self, tag):
