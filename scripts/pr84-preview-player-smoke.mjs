@@ -9,7 +9,7 @@ import { chromium } from 'playwright';
 const base = process.env.PR84_PREVIEW_URL || 'https://libretv-pr84-preview.bggdbh.workers.dev';
 const streams = {
   fmp4: 'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8',
-  aes128: 'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel-aes.ism/.m3u8',
+  alternateRendition: 'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/v9/prog_index.m3u8',
 };
 const browserChannel = process.env.PR84_BROWSER_CHANNEL?.trim();
 const browser = await chromium.launch({
@@ -158,7 +158,7 @@ try {
     const next = new URL(window.location.href);
     next.searchParams.set('url', url);
     window.history.pushState({}, '', next.toString());
-  }, streams.aes128);
+  }, streams.alternateRendition);
 
   try {
     await page.waitForFunction(() => {
@@ -184,7 +184,7 @@ try {
         mediaError: video?.error ? { code: video.error.code, message: video.error.message } : null,
       };
     });
-    throw new Error('AES-128 source-switch playback did not reach decoded frames: ' +
+    throw new Error('Alternate HLS rendition source-switch playback did not reach decoded frames: ' +
       JSON.stringify({ state, mediaResponses, failedRequests, pageErrors: errors.slice(0, 8), cause: error instanceof Error ? error.message : String(error) }));
   }
 
@@ -267,7 +267,7 @@ try {
   if (errors.length > 0) throw new Error('Player console errors: ' + errors.slice(0, 8).join(' | '));
 
   await page.screenshot({ path: '/tmp/pr84-preview-player.png', fullPage: false });
-  console.log('PASS LibreTV PlayerShell AES-128 source switch on the same video element:', JSON.stringify(second));
+  console.log('PASS LibreTV PlayerShell alternate HLS rendition source switch on the same video element:', JSON.stringify(second));
 } finally {
   await browser.close();
 }
