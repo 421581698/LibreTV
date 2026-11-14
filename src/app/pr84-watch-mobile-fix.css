@@ -878,7 +878,7 @@ html:has(.netflix-watch-shell) body > nav.v4-mobile-tabbar {
 .netflix-watch-shell .watch-cinema-source { display:none !important; }
 .netflix-watch-shell .watch-cinema-playback { grid-area:progress !important; display:grid !important; grid-template-columns:auto minmax(0,1fr) auto !important; align-items:center !important; gap:12px !important; }
 .netflix-watch-shell .watch-cinema-time { display:contents !important; color:rgba(255,255,255,.72) !important; font-size:13px !important; font-variant-numeric:tabular-nums !important; }
-.netflix-watch-shell .watch-cinema-progress { grid-column:2 !important; grid-row:1 !important; width:100% !important; height:4px !important; margin:0 !important; accent-color:#fff !important; }
+.netflix-watch-shell .watch-cinema-progress { grid-column:2 !important; grid-row:1 !important; width:100% !important; height:16px !important; min-height:16px !important; margin:0 !important; padding:0 !important; accent-color:#fff !important; cursor:pointer !important; touch-action:pan-x !important; }
 .netflix-watch-shell .watch-cinema-time span:first-child { grid-column:1 !important; grid-row:1 !important; }
 .netflix-watch-shell .watch-cinema-time span:last-child { grid-column:3 !important; grid-row:1 !important; }
 .netflix-watch-shell .watch-cinema-rate { position:fixed !important; right:40px !important; bottom:calc(126px + env(safe-area-inset-bottom,0px)) !important; width:58px !important; height:58px !important; border:1px solid rgba(255,255,255,.14) !important; border-radius:50% !important; color:#fff !important; background:rgba(43,43,45,.68) !important; font-size:15px !important; }
