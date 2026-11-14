@@ -30,7 +30,11 @@ export function RegistryInlinePlayer({
       body: JSON.stringify({
         media_type: evidence.mediaType,
         observed_seconds: evidence.observedSeconds,
-        progressed_seconds: evidence.progressedSeconds,\n        decoded_width: evidence.decodedWidth,\n        decoded_height: evidence.decodedHeight,\n        selected_rendition_height: evidence.selectedRenditionHeight,\n        selected_rendition_bitrate_kbps: evidence.selectedRenditionBitrateKbps,
+        progressed_seconds: evidence.progressedSeconds,
+        decoded_width: evidence.decodedWidth,
+        decoded_height: evidence.decodedHeight,
+        selected_rendition_height: evidence.selectedRenditionHeight,
+        selected_rendition_bitrate_kbps: evidence.selectedRenditionBitrateKbps,
       }),
     }).catch(() => {
       // Playback remains available if the audit writeback service is temporarily offline.
