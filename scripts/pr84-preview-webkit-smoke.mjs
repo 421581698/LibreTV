@@ -266,6 +266,73 @@ try {
     before, after, contentState, collectorResponses, seedHubDetailResponses, imageProxyResponses, contentAcceptance: 'all three SeedHub catalogues + poster and still-image detail snapshots verified',
   }));
 
+  // Resource Studio regression: this route has its own page scope and must
+  // receive the shared navigation geometry instead of the LiquidGlass fallback.
+  await page.route('**/api/resource-collector*', async (route) => {
+    await route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: 'Preview smoke: collector intentionally unavailable' }),
+    });
+  });
+  const studioResponse = await page.goto(new URL('/resource-studio', base).toString(), {
+    waitUntil: 'domcontentloaded',
+    timeout: 60_000,
+  });
+  if (!studioResponse || studioResponse.status() !== 200) {
+    throw new Error('Resource Studio returned HTTP ' + (studioResponse?.status() ?? 'no response'));
+  }
+  await page.waitForSelector('.resource-studio-page', { timeout: 30_000 });
+  await page.waitForSelector('body > nav.v4-mobile-tabbar', { timeout: 30_000 });
+  await page.waitForSelector('.resource-studio-page [role="alert"]', { timeout: 30_000 });
+  const studioLayout = await page.evaluate(() => {
+    const root = document.querySelector('.resource-studio-page');
+    const dock = document.querySelector('body > nav.v4-mobile-tabbar');
+    const links = Array.from(dock?.querySelectorAll(':scope > a') ?? []);
+    const dockStyle = dock ? getComputedStyle(dock) : null;
+    const dockRect = dock?.getBoundingClientRect();
+    const alert = root?.querySelector('[role="alert"]');
+    const card = root?.querySelector('section.rounded-2xl');
+    return {
+      dockDirection: dockStyle?.flexDirection ?? null,
+      dockDisplay: dockStyle?.display ?? null,
+      dockHeight: dockRect?.height ?? 0,
+      dockWidth: dockRect?.width ?? 0,
+      dockLeft: dockRect?.left ?? 0,
+      dockBottomGap: dockRect ? window.innerHeight - dockRect.bottom : 0,
+      navItems: links.length,
+      navItemWidths: links.map((link) => Math.round(link.getBoundingClientRect().width)),
+      pageBackground: getComputedStyle(root).backgroundColor,
+      pagePaddingBottom: Number.parseFloat(getComputedStyle(root).paddingBottom),
+      cardBackground: card ? getComputedStyle(card).backgroundColor : null,
+      alertBackground: alert ? getComputedStyle(alert).backgroundColor : null,
+      alertColor: alert ? getComputedStyle(alert).color : null,
+      documentHeight: document.documentElement.scrollHeight,
+      viewportHeight: window.innerHeight,
+    };
+  });
+  if (studioLayout.dockDirection !== 'row' || studioLayout.dockDisplay !== 'flex') {
+    throw new Error('Resource Studio dock is not a horizontal flex row: ' + JSON.stringify(studioLayout));
+  }
+  if (Math.abs(studioLayout.dockHeight - 68) > 1 || studioLayout.dockWidth < 340 ||
+      studioLayout.dockWidth > 365 || Math.abs(studioLayout.dockLeft - (390 - studioLayout.dockWidth) / 2) > 2) {
+    throw new Error('Resource Studio dock geometry is not the bounded capsule: ' + JSON.stringify(studioLayout));
+  }
+  if (Math.abs(studioLayout.dockBottomGap - 12) > 2 || studioLayout.navItems !== 4) {
+    throw new Error('Resource Studio dock safe-area or tab count regression: ' + JSON.stringify(studioLayout));
+  }
+  if (studioLayout.pagePaddingBottom < 132 || studioLayout.documentHeight <= studioLayout.viewportHeight) {
+    throw new Error('Resource Studio scroll clearance is missing: ' + JSON.stringify(studioLayout));
+  }
+  if (!studioLayout.alertBackground?.includes('127, 29, 29') ||
+      !studioLayout.alertColor?.includes('252, 165, 165')) {
+    throw new Error('Resource Studio warning is not using the dark warning palette: ' + JSON.stringify(studioLayout));
+  }
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await page.waitForTimeout(250);
+  await page.screenshot({ path: '/tmp/pr84-resource-studio-webkit.png', fullPage: true });
+  console.log('PASS PR84 Resource Studio dark theme + horizontal capsule dock + scroll clearance:', JSON.stringify(studioLayout));
+
   // Exercise the watch route separately: its body-portaled dock previously
   // missed the home/search/spatial selectors and collapsed into a vertical capsule.
   const watchParams = new URLSearchParams({
