@@ -362,6 +362,7 @@ try {
     const close = header?.querySelector('.cinema-close-control');
     const airplay = header?.querySelector('[aria-label="投屏"]');
     const fullscreen = header?.querySelector('[aria-label="全屏播放"]');
+    const utility = header?.querySelector('[aria-label="选集与换源"]');
     const rightToolbar = header?.querySelector('.watch-topbar-right');
     const visibleGeometry = (element) => {
       if (!(element instanceof HTMLElement)) return null;
@@ -401,7 +402,7 @@ try {
     const relatedDataFallbacks = document.querySelectorAll('.netflix-related-art img[src^="data:"]').length;
     const emptyHistory = Array.from(document.querySelectorAll('.netflix-history-rail p'))
       .some((node) => node.textContent?.includes('还没有其他观看记录'));
-    if (!header || !close || !airplay || !fullscreen || !dock || !watchShell || !frame || !info || !tabs) throw new Error('Immersive watch page elements or dedicated fullscreen/cast controls are missing');
+    if (!header || !close || !airplay || !fullscreen || !utility || !dock || !watchShell || !frame || !info || !tabs) throw new Error('Immersive watch page elements or dedicated fullscreen/cast/utility controls are missing');
     const dockStyle = getComputedStyle(dock);
     const shellStyle = getComputedStyle(watchShell);
     const shellRect = watchShell.getBoundingClientRect();
@@ -420,6 +421,7 @@ try {
       hasCloseControl: Boolean(close),
       hasAirPlayControl: Boolean(airplay),
       hasFullscreenControl: Boolean(fullscreen),
+      hasUtilityControl: Boolean(utility),
       rightToolbarGeometry,
       airplayGeometry,
       fullscreenGeometry,
@@ -474,8 +476,8 @@ try {
       !controlIsVisible(watchLayout.rightToolbarGeometry) ||
       !controlIsVisible(watchLayout.airplayGeometry) ||
       !controlIsVisible(watchLayout.fullscreenGeometry) ||
-      watchLayout.hasLegacyHeaderTitle || watchLayout.headerButtons !== 3 || watchLayout.hasHeaderAssistant) {
-    throw new Error('Immersive header must visibly render close, AirPlay and fullscreen controls without a page title: ' + JSON.stringify(watchLayout));
+      !watchLayout.hasUtilityControl || watchLayout.hasLegacyHeaderTitle || watchLayout.headerButtons !== 4 || watchLayout.hasHeaderAssistant) {
+    throw new Error('Immersive header must visibly render close, AirPlay, fullscreen and utility controls without a page title: ' + JSON.stringify(watchLayout));
   }
   const oversizedTransportControl = watchLayout.centerControlSizes.some((control) =>
     control.className.includes('cinema-play-control')
