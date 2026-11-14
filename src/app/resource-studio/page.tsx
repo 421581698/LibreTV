@@ -142,7 +142,7 @@ export default function ResourceStudioPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold">AI 资源 Supervisor</h2>
-              <p className="mt-1 text-sm text-[var(--muted)]">由模型生成受限采集计划，再交给持久化 Worker 执行；AI 不能自行宣布资源可播放。</p>
+              <p className="mt-1 text-sm text-[var(--muted)]">由模型从已发现站点白名单中选择爬取目标，并规划目录同步；任务交给持久化 Worker 执行，AI 不能自行宣布资源可播放。</p>
             </div>
             <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs">{agentConfigured ? '模型已配置 · ' + agentProvider : '模型未配置'}</span>
           </div>
