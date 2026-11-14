@@ -137,7 +137,8 @@ try {
       })),
     };
   });
-  if (collectorResponses.length !== 3) {
+  const requestedCategories = new Set(collectorResponses.map((entry) => entry.category));
+  if (!['movies', 'series', 'anime'].every((category) => requestedCategories.has(category))) {
     throw new Error('Homepage did not request all three SeedHub catalogues: ' + JSON.stringify({
       collectorResponses, contentState, pageErrors, failedRequests,
     }));
