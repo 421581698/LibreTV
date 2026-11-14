@@ -11,7 +11,8 @@ permissions:
 
 concurrency:
   group: libretv-pr84-kkphim-probe
-  cancel-in-progress: true
+  # Preserve a live real-source probe when a later commit is pushed.
+  cancel-in-progress: false
 
 jobs:
   kkphim-probe:
