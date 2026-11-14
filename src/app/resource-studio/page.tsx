@@ -78,7 +78,9 @@ export default function ResourceStudioPage() {
       const response = await action();
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || payload.detail || '操作失败');
-      setNotice(key === 'agent' && typeof payload.summary === 'string'\n        ? payload.summary + '（已提交 ' + (Array.isArray(payload.queued) ? payload.queued.length : 0) + ' 个后台任务）'\n        : success);
+      setNotice(key === 'agent' && typeof payload.summary === 'string'
+        ? payload.summary + '（已提交 ' + (Array.isArray(payload.queued) ? payload.queued.length : 0) + ' 个后台任务）'
+        : success);
       await refresh();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '操作失败');
