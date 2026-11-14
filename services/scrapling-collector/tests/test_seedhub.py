@@ -337,5 +337,72 @@ class SeedHubDetailRetryAndCategoryTests(unittest.TestCase):
         self.assertEqual(detail["category"], "series")
         self.assertEqual(saved["category"], "series")
 
+class SeedHubCatalogueSchemaMigrationTests(unittest.TestCase):
+    def test_legacy_source_url_primary_key_migrates_to_source_and_category_key(self):
+        import sqlite3
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        import seedhub
+
+        source_url = "https://www.seedhub.cc/movies/130096/"
+        with tempfile.TemporaryDirectory() as directory:
+            db_path = Path(directory) / "catalog.sqlite3"
+            with sqlite3.connect(db_path) as conn:
+                conn.execute("""
+                    CREATE TABLE seedhub_catalog (
+                      source_url TEXT PRIMARY KEY, title TEXT NOT NULL, category TEXT NOT NULL,
+                      poster_url TEXT, discovered_at INTEGER NOT NULL, detail_json TEXT
+                    )
+                """)
+                conn.execute(
+                    "INSERT INTO seedhub_catalog(source_url,title,category,discovered_at) VALUES(?,?,?,?)",
+                    (source_url, "谷雨", "series", 1),
+                )
+            with patch.object(seedhub, "DB_PATH", db_path):
+                seedhub._initialize()
+                with seedhub._connect() as conn:
+                    primary_key = [
+                        row["name"] for row in sorted(
+                            (row for row in conn.execute("PRAGMA table_info(seedhub_catalog)") if row["pk"]),
+                            key=lambda row: row["pk"],
+                        )
+                    ]
+                    conn.execute(
+                        "INSERT INTO seedhub_catalog(source_url,title,category,discovered_at) VALUES(?,?,?,?)",
+                        (source_url, "八仙！", "anime", 2),
+                    )
+                    count = conn.execute(
+                        "SELECT COUNT(*) AS n FROM seedhub_catalog WHERE source_url=?", (source_url,)
+                    ).fetchone()["n"]
+        self.assertEqual(primary_key, ["source_url", "category"])
+        self.assertEqual(count, 2)
+
+
+class SeedHubCacheOnlyTests(unittest.TestCase):
+    def test_cache_only_detail_does_not_trigger_live_fetch_when_not_enriched(self):
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        from fastapi import HTTPException
+        import seedhub
+
+        source_url = "https://www.seedhub.cc/movies/130096/"
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(seedhub, "DB_PATH", Path(directory) / "catalog.sqlite3"), patch.object(seedhub, "_require_auth"):
+                seedhub._initialize()
+                with seedhub._connect() as conn:
+                    conn.execute(
+                        "INSERT INTO seedhub_catalog(source_url,title,category,discovered_at) VALUES(?,?,?,?)",
+                        (source_url, "谷雨", "series", 1),
+                    )
+                with patch.object(seedhub.Fetcher, "get", side_effect=AssertionError("cache-only must not crawl")):
+                    with self.assertRaises(HTTPException) as raised:
+                        seedhub.seedhub_detail(
+                            source_url, category="series", cache_only=True, authorization="Bearer test"
+                        )
+        self.assertEqual(raised.exception.status_code, 503)
+
+
 if __name__ == "__main__":
     unittest.main()
