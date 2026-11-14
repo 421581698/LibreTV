@@ -123,7 +123,7 @@ export function SeedHubHomepage() {
                 <button type="button" className="v4-hero-primary" onClick={() => openSeedHubDetail(featured)}>
                   查看详情
                 </button>
-                <Link href="/resource-studio" className="v4-hero-secondary">
+                <Link href="/resource-studio" className="v4-hero-primary">
                   资源管理中心
                 </Link>
               </div>
@@ -137,7 +137,7 @@ export function SeedHubHomepage() {
             {!anyLoading ? (
               <div className="flex flex-wrap gap-3">
                 <button type="button" className="v4-hero-primary" onClick={openSettings}>配置资源采集中心</button>
-                <Link href="/resource-studio" className="v4-hero-secondary">打开资源管理中心</Link>
+                <Link href="/resource-studio" className="v4-hero-primary">打开资源管理中心</Link>
               </div>
             ) : null}
           </div>
