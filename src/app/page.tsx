@@ -9,7 +9,8 @@ import { V4HomepageHeader } from '@/components/home/V4HomepageHeader';
 import { SeedHubHomepage } from '@/components/home/SeedHubHomepage';
 import { useFridayDetailBridge } from '@/components/friday/useFridayDetailBridge';
 import { useHomeSearchController } from '@/components/home/useHomeSearchController';
-import { RegistryInlinePlayer } from '@/components/home/RegistryInlinePlayer';\nimport { SmartImage } from '@/components/smart-image';
+import { RegistryInlinePlayer } from '@/components/home/RegistryInlinePlayer';
+import { SmartImage } from '@/components/smart-image';
 import { AggregatedCard, aggregateResults } from '@/components/video-card';
 import {
   useAppStore,
@@ -22,6 +23,7 @@ import type {
   SearchResultItem,
   SourceSearchOutcome,
   RegistrySearchResource,
+  SeedHubSearchItem,
 } from '@/lib/types';
 import {
   formatDisableTtl,
@@ -54,7 +56,8 @@ function HomeContent() {
   const yellowFilter = useAppStore((s) => s.yellowFilter);
   const sourceHealth = useAppStore((s) => s.sourceHealth);
   const playbackHealth = useAppStore((s) => s.playbackHealth);
-  const subscriptions = useAppStore((s) => s.subscriptions);\n  const imageProxyMode = useAppStore((s) => s.imageProxyMode);\n  const customImageProxy = useAppStore((s) => s.customImageProxy);
+  const subscriptions = useAppStore((s) => s.subscriptions);
+  const imageProxyMode = useAppStore((s) => s.imageProxyMode);\n  const customImageProxy = useAppStore((s) => s.customImageProxy);
 
   const [detailItem, setDetailItem] =
     useState<SearchResultItem | null>(null);
