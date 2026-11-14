@@ -278,6 +278,9 @@ try {
       path: iconPath(),
     };
     Object.defineProperty(video, 'paused', { configurable: true, get: () => false });
+    // A fixture may already have reached its end before this synthetic play event.
+    // Keep ended=false so the production state predicate sees a playing video.
+    Object.defineProperty(video, 'ended', { configurable: true, get: () => false });
     video.dispatchEvent(new Event('play'));
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     const playing = {
