@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: libretv-pr84-kkphim-probe
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   kkphim-probe:
@@ -36,10 +36,12 @@ jobs:
           npx playwright install --with-deps chrome
       - name: Probe KKPhim metadata, embed/HLS paths, dynamic player requests, manifest and segment (read-only)
         id: probe
+        timeout-minutes: 12
         env:
           PR84_BROWSER_CHANNEL: chrome
         run: node scripts/pr84-kkphim-readonly-probe.mjs
       - name: Verify KKPhim stream in LibreTV PlayerShell
+        timeout-minutes: 10
         env:
           PR84_PREVIEW_URL: https://libretv-pr84-preview.bggdbh.workers.dev
           PR84_BROWSER_CHANNEL: chrome
