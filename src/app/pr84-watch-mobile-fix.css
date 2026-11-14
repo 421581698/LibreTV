@@ -1195,3 +1195,29 @@ html:has(.netflix-watch) .netflix-watch-shell .watch-topbar-right > button {
   opacity: 1 !important;
   flex: 0 0 auto !important;
 }
+
+
+/* PR84 immersive playback: auto-hide the complete cinema overlay after 3s of playback.
+   The page-level class is driven by real media events and any user interaction. */
+.netflix-watch-shell .watch-topbar,
+.netflix-watch-shell .cinema-center-controls,
+.netflix-watch-shell .watch-cinema-info {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 240ms ease, visibility 240ms step-start;
+}
+.netflix-watch-shell.cinema-controls-hidden .watch-topbar,
+.netflix-watch-shell.cinema-controls-hidden .cinema-center-controls,
+.netflix-watch-shell.cinema-controls-hidden .watch-cinema-info {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transition: opacity 240ms ease, visibility 240ms step-end !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .netflix-watch-shell .watch-topbar,
+  .netflix-watch-shell .cinema-center-controls,
+  .netflix-watch-shell .watch-cinema-info {
+    transition: none !important;
+  }
+}
