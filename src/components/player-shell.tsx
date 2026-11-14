@@ -1542,7 +1542,7 @@ export function PlayerShell({
   return (
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" style={{ WebkitTouchCallout: 'none' }} />
-      <div className="absolute right-3 top-3 z-20 flex flex-col items-end gap-2">
+      <div className="player-quality-controls absolute right-3 top-3 z-20 flex flex-col items-end gap-2">
         <button
           type="button"
           className="player-quality-badge"

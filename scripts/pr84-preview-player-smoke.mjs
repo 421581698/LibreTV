@@ -114,6 +114,7 @@ try {
     const topbar = document.querySelector('.watch-topbar');
     const center = document.querySelector('.cinema-center-controls');
     const info = document.querySelector('.watch-cinema-info');
+    const qualityControls = document.querySelector('.player-quality-controls');
     const state = (element) => {
       if (!(element instanceof HTMLElement)) return null;
       const style = getComputedStyle(element);
@@ -122,11 +123,11 @@ try {
     return {
       hiddenClass: Boolean(shell?.classList.contains('cinema-controls-hidden')),
       paused: document.querySelector('video')?.paused ?? true,
-      topbar: state(topbar), center: state(center), info: state(info),
+      topbar: state(topbar), center: state(center), info: state(info), qualityControls: state(qualityControls),
     };
   });
   if (!hiddenOverlay.hiddenClass || hiddenOverlay.paused ||
-      [hiddenOverlay.topbar, hiddenOverlay.center, hiddenOverlay.info].some((item) =>
+      [hiddenOverlay.topbar, hiddenOverlay.center, hiddenOverlay.info, hiddenOverlay.qualityControls].some((item) =>
         !item || item.visibility !== 'hidden' || item.opacity > 0.05)) {
     throw new Error('Cinema controls did not auto-hide after 3s of uninterrupted playback: ' + JSON.stringify(hiddenOverlay));
   }
@@ -137,9 +138,11 @@ try {
     topbarVisibility: getComputedStyle(document.querySelector('.watch-topbar')).visibility,
     centerVisibility: getComputedStyle(document.querySelector('.cinema-center-controls')).visibility,
     infoVisibility: getComputedStyle(document.querySelector('.watch-cinema-info')).visibility,
+    qualityVisibility: getComputedStyle(document.querySelector('.player-quality-controls')).visibility,
   }));
   if (revealedOverlay.hiddenClass || revealedOverlay.topbarVisibility !== 'visible' ||
-      revealedOverlay.centerVisibility !== 'visible' || revealedOverlay.infoVisibility !== 'visible') {
+      revealedOverlay.centerVisibility !== 'visible' || revealedOverlay.infoVisibility !== 'visible' ||
+      revealedOverlay.qualityVisibility !== 'visible') {
     throw new Error('Cinema controls did not return after pointer interaction: ' + JSON.stringify(revealedOverlay));
   }
   await page.evaluate(() => document.querySelector('video')?.pause());
@@ -149,9 +152,11 @@ try {
     topbarVisibility: getComputedStyle(document.querySelector('.watch-topbar')).visibility,
     centerVisibility: getComputedStyle(document.querySelector('.cinema-center-controls')).visibility,
     infoVisibility: getComputedStyle(document.querySelector('.watch-cinema-info')).visibility,
+    qualityVisibility: getComputedStyle(document.querySelector('.player-quality-controls')).visibility,
   }));
   if (pausedOverlay.hiddenClass || pausedOverlay.topbarVisibility !== 'visible' ||
-      pausedOverlay.centerVisibility !== 'visible' || pausedOverlay.infoVisibility !== 'visible') {
+      pausedOverlay.centerVisibility !== 'visible' || pausedOverlay.infoVisibility !== 'visible' ||
+      pausedOverlay.qualityVisibility !== 'visible') {
     throw new Error('Cinema controls did not remain visible after pause: ' + JSON.stringify(pausedOverlay));
   }
   console.log('PASS cinema controls auto-hide / interaction reveal / pause visibility:', JSON.stringify({ hiddenOverlay, revealedOverlay, pausedOverlay }));

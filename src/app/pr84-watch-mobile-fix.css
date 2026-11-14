@@ -1201,14 +1201,16 @@ html:has(.netflix-watch) .netflix-watch-shell .watch-topbar-right > button {
    The page-level class is driven by real media events and any user interaction. */
 .netflix-watch-shell .watch-topbar,
 .netflix-watch-shell .cinema-center-controls,
-.netflix-watch-shell .watch-cinema-info {
+.netflix-watch-shell .watch-cinema-info,
+.netflix-watch-shell .player-quality-controls {
   opacity: 1;
   visibility: visible;
   transition: opacity 240ms ease, visibility 240ms step-start;
 }
 .netflix-watch-shell.cinema-controls-hidden .watch-topbar,
 .netflix-watch-shell.cinema-controls-hidden .cinema-center-controls,
-.netflix-watch-shell.cinema-controls-hidden .watch-cinema-info {
+.netflix-watch-shell.cinema-controls-hidden .watch-cinema-info,
+.netflix-watch-shell.cinema-controls-hidden .player-quality-controls {
   opacity: 0 !important;
   visibility: hidden !important;
   pointer-events: none !important;
@@ -1217,7 +1219,8 @@ html:has(.netflix-watch) .netflix-watch-shell .watch-topbar-right > button {
 @media (prefers-reduced-motion: reduce) {
   .netflix-watch-shell .watch-topbar,
   .netflix-watch-shell .cinema-center-controls,
-  .netflix-watch-shell .watch-cinema-info {
+  .netflix-watch-shell .watch-cinema-info,
+  .netflix-watch-shell .player-quality-controls {
     transition: none !important;
   }
 }
