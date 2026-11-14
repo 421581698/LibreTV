@@ -582,7 +582,7 @@ def seedhub_search(
             rows = conn.execute(
                 """SELECT source_url,title,category,poster_url,discovered_at,detail_json
                    FROM seedhub_catalog
-                   WHERE category=? AND (title LIKE ? OR detail_json LIKE ? ESCAPE '\\\\')
+                   WHERE category=? AND (title LIKE ? OR detail_json LIKE ?)
                    ORDER BY discovered_at DESC LIMIT ?""",
                 (category, pattern, pattern, limit),
             ).fetchall()
@@ -590,7 +590,7 @@ def seedhub_search(
             rows = conn.execute(
                 """SELECT source_url,title,category,poster_url,discovered_at,detail_json
                    FROM seedhub_catalog
-                   WHERE title LIKE ? ESCAPE '\\\\' OR detail_json LIKE ? ESCAPE '\\\\'
+                   WHERE title LIKE ? OR detail_json LIKE ?
                    ORDER BY discovered_at DESC LIMIT ?""",
                 (pattern, pattern, limit),
             ).fetchall()
