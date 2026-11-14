@@ -455,11 +455,17 @@ for (const [itemIndex, item] of items.entries()) {
   console.log(`KKPhim probe: detail ${itemIndex + 1}/${items.length}: ${slug} (budget ${Math.round(remainingBudgetMs()/1000)}s)`);
   let payload = null;
   let detailFormat = "v1";
+  let apiFallbackFailure = null;
   try {
     payload = await getJson(new URL("/v1/api/phim/" + encodeURIComponent(slug), API_ORIGIN).toString());
     if (!getPlaybackLinks(payload).length) throw new Error("V1 detail returned no episode playback links");
     detailV1Count++;
   } catch (v1Error) {
+    apiFallbackFailure = {
+      stage: "api-v1-detail",
+      error: String(v1Error?.message || v1Error).slice(0, 100),
+      ...(v1Error?.diagnostic || {}),
+    };
     try {
       payload = await getJson(new URL("/phim/" + encodeURIComponent(slug), API_ORIGIN).toString());
       detailFormat = "legacy";
@@ -482,7 +488,7 @@ for (const [itemIndex, item] of items.entries()) {
   const preferred = [...links].sort((a, b) => (a.kind === "hls" ? 0 : 1) - (b.kind === "hls" ? 0 : 1));
   const movieCandidates = preferred.length ? [{ item, detail: getMovieDetail(payload), detailFormat, link: preferred[0] }] : [];
   candidates.push(...movieCandidates);
-  diagnostics.push({ slug, detailFormat, servers: new Set(links.map((link) => link.server)).size, playbackKinds: [...new Set(links.map((link) => link.kind))], episodeLinks: links.length, sampledCandidates: movieCandidates.length });
+  diagnostics.push({ slug, detailFormat, apiFallbackFailure, servers: new Set(links.map((link) => link.server)).size, playbackKinds: [...new Set(links.map((link) => link.kind))], episodeLinks: links.length, sampledCandidates: movieCandidates.length });
   if (candidates.length >= MAX_LINKS) break;
 }
 if (!candidates.length) throw new Error("No playback candidates found across sampled KKPhim details");
@@ -653,7 +659,7 @@ for (const candidate of candidates) {
 }
 const failureByStage = {};
 for (const diagnostic of diagnostics) {
-  for (const failure of diagnostic.apiFailures || []) {
+  for (const failure of [...(diagnostic.apiFailures || []), ...(diagnostic.apiFallbackFailure ? [diagnostic.apiFallbackFailure] : [])]) {
     const key = ["api", failure.stage, failure.httpStatus ? "HTTP " + failure.httpStatus : failure.networkCode || "no-http"].join(" / ");
     failureByStage[key] = (failureByStage[key] || 0) + 1;
   }
