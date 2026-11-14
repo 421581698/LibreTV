@@ -322,6 +322,31 @@ class SeedHubCatalogueSearchTests(unittest.TestCase):
         self.assertNotIn("resource_url", result["items"][0])
 
 
+class SeedHubSnapshotPurgeTests(unittest.TestCase):
+    def test_legacy_catalogue_is_purged_only_when_deployment_flag_is_enabled(self):
+        import os
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        import seedhub
+
+        source_url = "https://www.seedhub.cc/movies/130096/"
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(seedhub, "DB_PATH", Path(directory) / "catalog.sqlite3"):
+                with patch.dict(os.environ, {"SEEDHUB_PURGE_LEGACY_CATALOG": "0"}):
+                    seedhub._initialize()
+                with seedhub._connect() as conn:
+                    conn.execute(
+                        "INSERT INTO seedhub_catalog(source_url,title,category,discovered_at) VALUES(?,?,?,?)",
+                        (source_url, "旧目录快照", "movies", 1),
+                    )
+                with patch.dict(os.environ, {"SEEDHUB_PURGE_LEGACY_CATALOG": "1"}):
+                    seedhub._initialize()
+                with seedhub._connect() as conn:
+                    count = conn.execute("SELECT COUNT(*) AS n FROM seedhub_catalog").fetchone()["n"]
+        self.assertEqual(count, 0)
+
+
 class SeedHubCacheOnlyTests(unittest.TestCase):
     def test_cache_only_detail_does_not_trigger_live_fetch_when_not_enriched(self):
         import tempfile
