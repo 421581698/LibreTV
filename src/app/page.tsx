@@ -57,7 +57,8 @@ function HomeContent() {
   const sourceHealth = useAppStore((s) => s.sourceHealth);
   const playbackHealth = useAppStore((s) => s.playbackHealth);
   const subscriptions = useAppStore((s) => s.subscriptions);
-  const imageProxyMode = useAppStore((s) => s.imageProxyMode);\n  const customImageProxy = useAppStore((s) => s.customImageProxy);
+  const imageProxyMode = useAppStore((s) => s.imageProxyMode);
+  const customImageProxy = useAppStore((s) => s.customImageProxy);
 
   const [detailItem, setDetailItem] =
     useState<SearchResultItem | null>(null);
@@ -170,7 +171,8 @@ function HomeContent() {
     [searchQuery.data, isSearching, streamedList]
   );
 
-  const registryResources = searchQuery.data?.registryResources ?? [];\n  const seedhubItems: SeedHubSearchItem[] = searchQuery.data?.seedhubItems ?? [];
+  const registryResources = searchQuery.data?.registryResources ?? [];
+  const seedhubItems: SeedHubSearchItem[] = searchQuery.data?.seedhubItems ?? [];
 
   const failures =
     searchQuery.data?.failures ??
