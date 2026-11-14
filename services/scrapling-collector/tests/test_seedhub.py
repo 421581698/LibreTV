@@ -69,3 +69,38 @@ class SeedHubDetailParserTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SeedHubDetailPersistenceTests(unittest.TestCase):
+    def test_detail_endpoint_persists_full_metadata_for_catalogue_reads(self):
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        import seedhub
+
+        html = """
+        <html><head><meta property="og:title" content="持久化测试影片">
+        <meta property="og:image" content="https://sh1.pcie.pppoe.top/poster.jpg"></head>
+        <body><h1>持久化测试影片</h1><div>导演：测试导演</div>
+        <h2>持久化测试影片的简介</h2><p>这是用于验证详情持久化的简介。</p>
+        <h2>剧照</h2><img src="https://sh1.pcie.pppoe.top/still.jpg"></body></html>
+        """
+
+        class Response:
+            url = "https://www.seedhub.cc/movies/130096/"
+            text = html
+
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(seedhub, "DB_PATH", Path(directory) / "catalog.sqlite3"), \\
+                 patch.object(seedhub, "_require_egress_firewall"), \\
+                 patch.object(seedhub, "_require_public_seedhub_host"), \\
+                 patch.object(seedhub, "_require_auth"), \\
+                 patch.object(seedhub.Fetcher, "get", return_value=Response()):
+                detail = seedhub.seedhub_detail("https://www.seedhub.cc/movies/130096/", "Bearer test")
+                catalog = seedhub.seedhub_catalog("movies", 50, 0, "Bearer test")
+
+        self.assertEqual(detail["metadata"]["director"], "测试导演")
+        self.assertEqual(catalog["total"], 1)
+        saved = catalog["items"][0]["detail"]
+        self.assertEqual(saved["description"], "这是用于验证详情持久化的简介。")
+        self.assertEqual(saved["still_urls"], ["https://sh1.pcie.pppoe.top/still.jpg"])
