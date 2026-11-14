@@ -45,6 +45,7 @@ const browserAsr = source('src/components/friday/browserAsr.ts');
 
 const spatialScreen = source('src/components/home/V4SpatialScreen.tsx');
 const resourceStudio = source('src/app/resource-studio/page.tsx');
+const spatialScreenSource = source('src/components/home/V4SpatialScreen.tsx');
 const resourceAgentRoute = source('src/app/api/resource-collector/agent/route.ts');
 const resourceCollectorRoute = source('src/app/api/resource-collector/route.ts');
 const collectorWorker = source('services/scrapling-collector/worker.py');
@@ -481,6 +482,7 @@ describe('首页与播放页回归契约', () => {
     );
 
     expect(resourceStudio).not.toContain('syncSeedHub');
+    expect(spatialScreenSource).not.toContain('请先到设置中的 SeedHub 内容采集');
     expect(resourceStudio).not.toContain('SeedHub');
     expect(resourceAgentRoute).not.toContain('seedhub_sync');
     expect(resourceCollectorRoute).not.toContain('seedhubSync');
