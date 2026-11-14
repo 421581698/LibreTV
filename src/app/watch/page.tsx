@@ -77,12 +77,50 @@ function WatchContent() {
   const [watchInfoTab, setWatchInfoTab] = useState<'overview' | 'insights' | 'more'>('overview');
   const [watchClock, setWatchClock] = useState({ position: 0, duration: 0 });
   const [watchRate, setWatchRate] = useState(1);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [showPlayerPanel, setShowPlayerPanel] = useState(false);
   const [showAutoNext, setShowAutoNext] = useState(false);
   const [switchOpen, setSwitchOpen] = useState(false);
   const [skipPanelOpen, setSkipPanelOpen] = useState(false);
   const playerApiRef = useRef<PlayerSkipApi | null>(null);
   const playerFrameRef = useRef<HTMLDivElement | null>(null);
+  // The cinema transport icon is driven by the real media element state,
+  // not by the button click. MutationObserver handles PlayerShell's async mount
+  // and any video element replacement during source recovery.
+  useEffect(() => {
+    const frame = playerFrameRef.current;
+    if (!frame) return;
+    let video: HTMLVideoElement | null = null;
+    const sync = () => setIsPlaying(Boolean(video && !video.paused && !video.ended));
+    const detach = () => {
+      if (!video) return;
+      video.removeEventListener('play', sync);
+      video.removeEventListener('playing', sync);
+      video.removeEventListener('pause', sync);
+      video.removeEventListener('ended', sync);
+      video = null;
+      setIsPlaying(false);
+    };
+    const attach = () => {
+      const next = frame.querySelector('video');
+      if (next === video) return;
+      detach();
+      if (!next) return;
+      video = next;
+      video.addEventListener('play', sync);
+      video.addEventListener('playing', sync);
+      video.addEventListener('pause', sync);
+      video.addEventListener('ended', sync);
+      sync();
+    };
+    const observer = new MutationObserver(attach);
+    observer.observe(frame, { childList: true, subtree: true });
+    attach();
+    return () => {
+      observer.disconnect();
+      detach();
+    };
+  }, [currentUrl]);
   const [sheetMaxHeight] = useState<number | undefined>(undefined);
 
   // 优先使用本次播放 URL 传入的数据源地址，普通源仍以本机配置为准。
@@ -479,12 +517,14 @@ function WatchContent() {
               }}>
                 <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M18 8L8 16l10 8M10 17a17 17 0 1 0 8-8" /><text x="24" y="29">10</text></svg>
               </button>
-              <button type="button" className="cinema-glass-control cinema-play-control" aria-label="播放或暂停" onClick={() => {
+              <button type="button" className="cinema-glass-control cinema-play-control" aria-label={isPlaying ? '暂停' : '播放'} aria-pressed={isPlaying} onClick={() => {
                 const video = playerFrameRef.current?.querySelector('video');
                 if (!video) return;
-                if (video.paused) void video.play().catch(() => undefined); else video.pause();
+                if (video.paused || video.ended) void video.play().catch(() => undefined); else video.pause();
               }}>
-                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M16 11v26M32 11v26" /></svg>
+                {isPlaying
+                  ? <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M16 11v26M32 11v26" /></svg>
+                  : <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M18 11l20 13-20 13z" /></svg>}
               </button>
               <button type="button" className="cinema-glass-control cinema-skip-control" aria-label="前进 10 秒" onClick={() => {
                 const video = playerFrameRef.current?.querySelector('video');
