@@ -30,7 +30,7 @@ const read = (env: Env, key: string) => typeof env[key] === 'string' ? String(en
 type WorkersAI = { run: (model: string, input: Record<string, unknown>) => Promise<unknown> };
 type ResourceAgentConfig =
   | { provider: 'cloudflare-workers-ai'; ai: WorkersAI; modelName: string }
-  | { provider: string; apiKey: string; baseURL: string; modelName: string; headers?: Record<string, string> };
+  | { provider: 'openclaw' | 'openai-compatible'; apiKey: string; baseURL: string; modelName: string; headers?: Record<string, string> };
 
 function resolveResourceAgent(env: Env): ResourceAgentConfig {
   const gatewayUrl = read(env, 'RESOURCE_OPENCLAW_GATEWAY_URL');
