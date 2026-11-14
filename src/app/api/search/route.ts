@@ -4,7 +4,7 @@ import {
   mergeSearchResults,
 } from '@/lib/search';
 import type { RegistrySearchResource, SearchResponse, SearchStreamEvent, SourceConfig, SourceSearchOutcome } from '@/lib/types';
-import { guardRequest } from '@/lib/api-guard';
+import { guardPrivateFeatureRequest, guardRequest } from '@/lib/api-guard';
 import { collectorRequest } from '@/lib/resource-collector-client';
 
 export const runtime = 'nodejs';
@@ -241,12 +241,13 @@ function setCachedOutcomes(key: string, outcomes: SourceSearchOutcome[]): void {
   });
 }
 
-async function searchVerifiedRegistry(keyword: string): Promise<RegistrySearchResource[]> {
+async function searchVerifiedRegistry(keyword: string, request?: Request): Promise<RegistrySearchResource[]> {
   try {
     const response = await collectorRequest(
       `/v1/registry/search?q=${encodeURIComponent(keyword)}`,
       {},
       1_500,
+      request,
     );
     if (!response.ok) return [];
     const payload = await response.json() as { resources?: unknown };
@@ -257,12 +258,13 @@ async function searchVerifiedRegistry(keyword: string): Promise<RegistrySearchRe
   }
 }
 
-async function searchSeedHubCatalog(keyword: string): Promise<import('@/lib/types').SeedHubSearchItem[]> {
+async function searchSeedHubCatalog(keyword: string, request?: Request): Promise<import('@/lib/types').SeedHubSearchItem[]> {
   try {
     const response = await collectorRequest(
       `/v1/seedhub/search?q=${encodeURIComponent(keyword)}&limit=20`,
       {},
       1_500,
+      request,
     );
     if (!response.ok) return [];
     const payload = await response.json() as { items?: unknown };
@@ -337,8 +339,8 @@ function ndjsonResponse(
 
       void (async () => {
         try {
-          const registryPromise = searchVerifiedRegistry(keyword);
-          const seedhubPromise = searchSeedHubCatalog(keyword);
+          const registryPromise = searchVerifiedRegistry(keyword, req);
+          const seedhubPromise = searchSeedHubCatalog(keyword, req);
           const outcomes = cached ?? await searchSources(keyword, sources, {
             filterAdult,
             signal: abortController.signal,
@@ -393,6 +395,10 @@ function ndjsonResponse(
 export async function POST(req: Request) {
   const guarded = guardRequest(req);
   if (guarded) return guarded;
+  if (req.headers.has('x-scrapling-api-base') || req.headers.has('x-scrapling-api-token')) {
+    const collectorGuard = guardPrivateFeatureRequest(req);
+    if (collectorGuard) return collectorGuard;
+  }
 
   try {
     if (req.signal.aborted) {
