@@ -37,13 +37,24 @@ The collector is internal to the Compose network and persists its SQLite databas
 
 For Cloudflare-hosted LibreTV, the collector must run as a separately reachable HTTPS service. Configure `SCRAPLING_API_BASE` and `SCRAPLING_API_TOKEN` as Worker environment values/secrets. Do not expose the collector without a strong token and HTTPS.
 
+## AI Resource Supervisor
+
+The Next.js Preview API exposes `POST /api/resource-collector/agent`. It uses a dedicated OpenClaw agent when configured, or an OpenAI-compatible model otherwise, to produce a strict bounded plan. The model can only schedule the existing `discover` and `seedhub_sync` job types; it cannot emit arbitrary URLs or claim that media is playable.
+
+Configure one of these server-side options on the isolated Preview Worker:
+
+- Direct model: `RESOURCE_AGENT_API_KEY`, optionally `RESOURCE_AGENT_BASE_URL` and `RESOURCE_AGENT_MODEL`. If omitted, the direct provider defaults to the Zhipu endpoint and `glm-4-air`.
+- OpenClaw: `OPENCLAW_GATEWAY_URL`, `OPENCLAW_GATEWAY_TOKEN`, `OPENCLAW_AGENT_RESOURCE_SUPERVISOR`, `OPENCLAW_ACCESS_CLIENT_ID`, and `OPENCLAW_ACCESS_CLIENT_SECRET`.
+
+The API exposes only whether a provider is configured, never credentials. The Supervisor caps plans at four tasks and SeedHub batches at twenty pages. Collector jobs still enforce their own idempotency, retries, egress firewall gate, and validation rules. This is the first bounded planning agent; autonomous site research, generated Connector sandboxing, graph-based repair, and continuous media QA remain separate implementation milestones and must not be represented as live until independently built and tested.
+
 ## API
 
 - `GET /health` — service health and stored task count.
 - `GET /v1/discover` — refresh the separate FMHY video directory and persist discovered sites.
 - `POST /v1/seedhub/sync?category=movies|series|anime&pages=1` — small synchronous SeedHub metadata batch (maximum five pages).
 - Submit `{ "job_type":"seedhub_sync", "payload":{"category":"movies","start_page":1,"pages":20}, "idempotency_key":"seedhub:movies:1:20" }` to `POST /v1/tasks/submit` for a durable, checkpointed batch; the worker pauses two seconds between pages and records per-page progress. Queue successive batches to cover the full catalogue without long HTTP requests.
-- `GET /v1/seedhub/catalog?category=movies|series|anime&limit=50&offset=0` — read the SeedHub catalogue.\n- `GET /v1/seedhub/search?q=title&limit=20` — search imported SeedHub catalogue titles and cached metadata for LibreTV search; this is metadata only and does not expose playback/share URLs.
+- `GET /v1/seedhub/catalog?category=movies|series|anime&limit=50&offset=0` — read the SeedHub catalogue.\n- `GET /v1/seedhub/search?q=title&limit=20` — search imported SeedHub catalogue metadata for LibreTV search; no playback/share URLs are exposed.\n- `GET /v1/seedhub/search?q=title&limit=20` — search imported SeedHub catalogue titles and cached metadata for LibreTV search; this is metadata only and does not expose playback/share URLs.
 - `GET /v1/seedhub/detail?url=https://www.seedhub.cc/movies/130096/` — read title, description, poster, and still-image metadata from one SeedHub detail page; outbound resource/share links are intentionally excluded.
 - `POST /v1/crawl` — crawl one previously discovered host. Body: `{"url":"https://...","mode":"auto|http|browser","limit":50}`.
 - `GET /v1/tasks` — recent persistent task history.
