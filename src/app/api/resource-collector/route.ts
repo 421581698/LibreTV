@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { guardPrivateFeatureRequest } from '@/lib/api-guard';
 import { collectorRequest } from '@/lib/resource-collector-client';
-import moviesSnapshot from '@/data/seedhub/movies.json';
-import seriesSnapshot from '@/data/seedhub/series.json';
-import animeSnapshot from '@/data/seedhub/anime.json';
+import moviesSnapshot from '../../../../data/seedhub/movies.json';
+import seriesSnapshot from '../../../../data/seedhub/series.json';
+import animeSnapshot from '../../../../data/seedhub/anime.json';
 
 type SeedHubSnapshotItem = {
   source_url: string;
