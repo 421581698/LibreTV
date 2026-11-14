@@ -316,7 +316,20 @@ def _initialize():
         # Retire old catalogue snapshots only when explicitly enabled by the
         # deployment environment; normal tests and detail-cache operations remain intact.
         if os.environ.get("SEEDHUB_PURGE_LEGACY_CATALOG", "").strip() == "1":
-            conn.execute("DELETE FROM seedhub_catalog")
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS collector_migrations ("
+                "migration_id TEXT PRIMARY KEY, applied_at INTEGER NOT NULL)"
+            )
+            applied = conn.execute(
+                "SELECT 1 FROM collector_migrations WHERE migration_id=?",
+                ("seedhub_snapshot_purge_v1",),
+            ).fetchone()
+            if not applied:
+                conn.execute("DELETE FROM seedhub_catalog")
+                conn.execute(
+                    "INSERT INTO collector_migrations(migration_id,applied_at) VALUES(?,?)",
+                    ("seedhub_snapshot_purge_v1", int(time.time())),
+                )
 
 def _require_auth(authorization: str | None):
     import hmac
