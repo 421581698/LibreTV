@@ -111,6 +111,8 @@ export interface PlayerSkipApi {
   pause(): void;
   /** 当前是否处于暂停状态 */
   isPaused(): boolean;
+  getPlaybackRate(): number;
+  setPlaybackRate(rate: number): void;
 }
 
 interface PlayerShellProps {
@@ -1065,6 +1067,17 @@ export function PlayerShell({
         }
       },
       isPaused: () => artRef.current?.video?.paused ?? true,
+      getPlaybackRate: () => {
+        const rate = artRef.current?.video?.playbackRate;
+        return typeof rate === 'number' && Number.isFinite(rate) ? rate : 1;
+      },
+      setPlaybackRate: (rate) => {
+        if (!Number.isFinite(rate) || rate < 0.25 || rate > 4) return;
+        const video = artRef.current?.video;
+        if (!video) return;
+        video.playbackRate = rate;
+        video.defaultPlaybackRate = rate;
+      },
     });
 
     /**
