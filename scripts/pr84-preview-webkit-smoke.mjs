@@ -18,7 +18,7 @@ try {
   page.setDefaultTimeout(45_000);
 
   // Attach diagnostics BEFORE navigation so fast API responses are not missed.
-  const apiResponses = [];
+  const collectorResponses = [];
   const apiReads = [];
   const imageProxyResponses = [];
   const pageErrors = [];
@@ -31,19 +31,20 @@ try {
   page.on('response', (response) => {
     let url;
     try { url = new URL(response.url()); } catch { return; }
-    if (url.pathname.startsWith('/api/douban') ||
-        url.pathname.startsWith('/api/hot-list') ||
-        url.pathname.startsWith('/api/bangumi/calendar')) {
-      const record = { path: url.pathname + url.search, status: response.status(), itemCount: null };
-      apiResponses.push(record);
+    if (url.pathname === '/api/resource-collector' &&
+        url.searchParams.get('action') === 'seedhub-catalog') {
+      const record = {
+        path: url.pathname + url.search,
+        category: url.searchParams.get('category'),
+        status: response.status(),
+        itemCount: null,
+      };
+      collectorResponses.push(record);
       apiReads.push(response.json().then((payload) => {
         if (Array.isArray(payload?.items)) record.itemCount = payload.items.length;
-        else if (Array.isArray(payload?.days)) {
-          record.itemCount = payload.days.reduce((sum, day) => sum + (Array.isArray(day.items) ? day.items.length : 0), 0);
-        }
       }).catch(() => {}));
     }
-    if (url.pathname === '/api/proxy') {
+    if (url.pathname === '/api/img' || url.pathname === '/api/proxy') {
       imageProxyResponses.push({ status: response.status(), contentType: response.headers()['content-type'] ?? '' });
     }
   });
@@ -81,28 +82,34 @@ try {
       })),
     }));
     throw new Error('Homepage data did not settle: ' + JSON.stringify({
-      pending, apiResponses, imageProxyResponses, pageErrors, failedRequests,
+      pending, collectorResponses, imageProxyResponses, pageErrors, failedRequests,
     }));
   }
 
-  try {
-    await page.waitForFunction(() => {
-      const images = Array.from(document.querySelectorAll('.v4-hero-image img, .v4-apple-poster-card img'));
-      return images.some((img) => img instanceof HTMLImageElement &&
-        !img.currentSrc.startsWith('data:') && img.complete && img.naturalWidth > 0);
-    }, { timeout: 20_000 });
-  } catch {
-    const imageState = await page.evaluate(() => Array.from(
-      document.querySelectorAll('.v4-hero-image img, .v4-apple-poster-card img')
-    ).map((img) => ({
-      src: img.currentSrc || img.getAttribute('src') || '',
-      complete: img.complete,
-      naturalWidth: img.naturalWidth,
-    })));
-    await Promise.all(apiReads);
-    throw new Error('Remote poster images did not load: ' + JSON.stringify({
-      imageState, apiResponses, imageProxyResponses, pageErrors, failedRequests,
-    }));
+  await Promise.all(apiReads);
+  const seedHubHasItems = collectorResponses.some((entry) =>
+    entry.status === 200 && (entry.itemCount ?? 0) > 0
+  );
+
+  if (seedHubHasItems) {
+    try {
+      await page.waitForFunction(() => {
+        const images = Array.from(document.querySelectorAll('.v4-hero-image img, .v4-apple-poster-card img'));
+        return images.some((img) => img instanceof HTMLImageElement &&
+          !img.currentSrc.startsWith('data:') && img.complete && img.naturalWidth > 0);
+      }, { timeout: 20_000 });
+    } catch {
+      const imageState = await page.evaluate(() => Array.from(
+        document.querySelectorAll('.v4-hero-image img, .v4-apple-poster-card img')
+      ).map((img) => ({
+        src: img.currentSrc || img.getAttribute('src') || '',
+        complete: img.complete,
+        naturalWidth: img.naturalWidth,
+      })));
+      throw new Error('SeedHub catalogue returned items but remote poster images did not load: ' + JSON.stringify({
+        imageState, collectorResponses, imageProxyResponses, pageErrors, failedRequests,
+      }));
+    }
   }
 
   const contentState = await page.evaluate(() => {
@@ -115,6 +122,10 @@ try {
     );
     return {
       heroTitle: document.querySelector('.v4-hero-content h1')?.textContent?.trim() ?? null,
+      emptyStateVisible: document.querySelector('.v4-hero-empty')?.textContent?.includes('等待 SeedHub 目录') ?? false,
+      hasCollectorSetupAction: Array.from(document.querySelectorAll('.v4-hero-empty button')).some((button) =>
+        button.textContent?.includes('配置资源采集中心')
+      ),
       heroHasRemoteArtwork: Boolean(heroImg instanceof HTMLImageElement &&
         !heroImg.currentSrc.startsWith('data:') && heroImg.complete && heroImg.naturalWidth > 0),
       posterCards: document.querySelectorAll('.v4-apple-poster-card').length,
@@ -126,11 +137,20 @@ try {
       })),
     };
   });
-  await Promise.all(apiReads);
-  const successfulFeed = apiResponses.some((entry) => entry.status === 200 && (entry.itemCount ?? 0) > 0);
-  if (!successfulFeed || contentState.posterCards < 1 || contentState.loadedRemoteImages < 1) {
-    throw new Error('Homepage real data/artwork acceptance failed: ' + JSON.stringify({
-      contentState, apiResponses, imageProxyResponses, pageErrors, failedRequests,
+  if (collectorResponses.length !== 3) {
+    throw new Error('Homepage did not request all three SeedHub catalogues: ' + JSON.stringify({
+      collectorResponses, contentState, pageErrors, failedRequests,
+    }));
+  }
+  if (seedHubHasItems) {
+    if (contentState.posterCards < 1 || contentState.loadedRemoteImages < 1) {
+      throw new Error('SeedHub catalogue data/artwork acceptance failed: ' + JSON.stringify({
+        contentState, collectorResponses, imageProxyResponses, pageErrors, failedRequests,
+      }));
+    }
+  } else if (!contentState.emptyStateVisible || !contentState.hasCollectorSetupAction) {
+    throw new Error('Unconfigured Collector must show the explicit SeedHub setup state: ' + JSON.stringify({
+      contentState, collectorResponses, pageErrors, failedRequests,
     }));
   }
   if (pageErrors.length > 0) {
@@ -194,8 +214,8 @@ try {
   }
 
   await page.screenshot({ path: '/tmp/pr84-preview-webkit.png', fullPage: true });
-  console.log('PASS PR84 Preview WebKit mobile layout + real data + remote artwork:', JSON.stringify({
-    before, after, contentState, apiResponses, imageProxyResponses,
+  console.log('PASS PR84 Preview WebKit mobile layout + SeedHub catalogue request/empty-state:', JSON.stringify({
+    before, after, contentState, collectorResponses, imageProxyResponses, contentAcceptance: seedHubHasItems ? 'real SeedHub posters loaded' : 'BLOCKED: Collector has no synchronized catalogue; real poster acceptance remains pending',
   }));
 
   // Exercise the watch route separately: its body-portaled dock previously
