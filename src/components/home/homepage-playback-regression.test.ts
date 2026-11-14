@@ -44,6 +44,13 @@ const voiceController = source('src/components/friday/useFridayVoiceController.t
 const browserAsr = source('src/components/friday/browserAsr.ts');
 
 const spatialScreen = source('src/components/home/V4SpatialScreen.tsx');
+const resourceStudio = source('src/app/resource-studio/page.tsx');
+const resourceAgentRoute = source('src/app/api/resource-collector/agent/route.ts');
+const resourceCollectorRoute = source('src/app/api/resource-collector/route.ts');
+const collectorWorker = source('services/scrapling-collector/worker.py');
+const collectorQueue = source('services/scrapling-collector/registry_queue.py');
+const seedhubCollector = source('services/scrapling-collector/seedhub.py');
+
 const channelStyles = source('src/app/eight-screen-glass.css');
 const ipadStyles = source('src/app/ipad-glass.css');
 const channelHeaderStyles = source('src/app/iphone-glass.css');
@@ -460,6 +467,30 @@ describe('首页与播放页回归契约', () => {
     expect(settings).toContain("{ id: 'collector', label: '资源采集中心'");
     expect(settings).toContain("activePage === 'voice' && <VoiceSettingsPanel />");
     expect(settings).toContain("activePage === 'about'");
+  });
+
+  it('彻底下线 SeedHub 批量采集，并将下载管理固定在设置页最底部', () => {
+    const settingsScreen = spatialScreen.slice(spatialScreen.indexOf('function SettingsScreen()'));
+    expect(settingsScreen).not.toContain('SeedHubCollectorPanel');
+    expect(settingsScreen).not.toContain('seedhubSync');
+    expect(settingsScreen.indexOf('<SourceManagerDrawer open embedded')).toBeLessThan(
+      settingsScreen.indexOf('settings-downloads-title'),
+    );
+    expect(settingsScreen.lastIndexOf('settings-downloads-title')).toBeGreaterThan(
+      settingsScreen.lastIndexOf('<section'),
+    );
+
+    expect(resourceStudio).not.toContain('syncSeedHub');
+    expect(resourceStudio).not.toContain('SeedHub');
+    expect(resourceAgentRoute).not.toContain('seedhub_sync');
+    expect(resourceCollectorRoute).not.toContain('seedhubSync');
+    expect(collectorWorker).not.toContain('seedhub_sync');
+    expect(collectorWorker).not.toContain('seedhub_detail_sync');
+    expect(seedhubCollector).not.toContain('sync_seedhub_pages');
+    expect(seedhubCollector).not.toContain('sync_seedhub_details');
+    expect(seedhubCollector).not.toContain('/v1/seedhub/sync');
+    expect(collectorQueue).toContain('seedhub_collection_retired');
+    expect(collectorQueue).toContain('job_type not in {"crawl", "discover"}');
   });
 
   it('首页与分类页底部导航固定在视口水平居中，并避开 iPhone 安全区域', () => {
