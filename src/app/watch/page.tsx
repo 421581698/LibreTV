@@ -65,6 +65,7 @@ function WatchContent() {
   const indexParam = parseInt(searchParams.get('index') || '0', 10) || 0;
   const [reversed, setReversed] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<'episodes' | 'sources' | 'details'>('episodes');
+  const [watchInfoTab, setWatchInfoTab] = useState<'overview' | 'insights' | 'more'>('overview');
   const [showPlayerPanel, setShowPlayerPanel] = useState(false);
   const [showAutoNext, setShowAutoNext] = useState(false);
   const [switchOpen, setSwitchOpen] = useState(false);
@@ -463,6 +464,44 @@ function WatchContent() {
               </div>
 
             </div>
+
+            <section className="watch-cinema-info" aria-label="影片信息">
+              <div className="watch-cinema-meta">
+                <div className="min-w-0">
+                  {detailQuery.data?.videoInfo?.originalTitle && (
+                    <p className="text-xs text-muted truncate">{detailQuery.data.videoInfo.originalTitle}</p>
+                  )}
+                  <h2 className="text-base sm:text-lg font-semibold text-content truncate">{videoTitle}</h2>
+                  <p className="text-xs text-faint mt-1">
+                    {[detailQuery.data?.videoInfo?.year, detailQuery.data?.videoInfo?.area, detailQuery.data?.videoInfo?.typeName]
+                      .filter(Boolean).join(' · ') || source.name}
+                    {hasEpisodeNavigation ? ` · 第 ${currentIndex + 1} / ${episodes.length} 集` : ''}
+                  </p>
+                </div>
+                <span className="watch-cinema-source">{source.name}</span>
+              </div>
+              <nav className="watch-cinema-tabs" aria-label="影片内容">
+                <button type="button" className={watchInfoTab === 'overview' ? 'active' : ''} aria-pressed={watchInfoTab === 'overview'} onClick={() => setWatchInfoTab('overview')}>简介</button>
+                <button type="button" className={watchInfoTab === 'insights' ? 'active' : ''} aria-pressed={watchInfoTab === 'insights'} onClick={() => setWatchInfoTab('insights')}>洞察</button>
+                <button type="button" className={watchInfoTab === 'more' ? 'active' : ''} aria-pressed={watchInfoTab === 'more'} onClick={() => setWatchInfoTab('more')}>继续阅读</button>
+              </nav>
+              <div className="watch-cinema-copy" role="tabpanel">
+                {watchInfoTab === 'overview' && (
+                  <p>{detailQuery.data?.videoInfo?.desc?.trim() || '资源站暂未提供影片简介。'}</p>
+                )}
+                {watchInfoTab === 'insights' && (
+                  <dl>
+                    {detailQuery.data?.videoInfo?.director && <div><dt>导演</dt><dd>{detailQuery.data.videoInfo.director}</dd></div>}
+                    {detailQuery.data?.videoInfo?.actor && <div><dt>主演</dt><dd>{detailQuery.data.videoInfo.actor}</dd></div>}
+                    {detailQuery.data?.videoInfo?.remarks && <div><dt>备注</dt><dd>{detailQuery.data.videoInfo.remarks}</dd></div>}
+                    {!detailQuery.data?.videoInfo?.director && !detailQuery.data?.videoInfo?.actor && !detailQuery.data?.videoInfo?.remarks && <p>暂无更多影片资料。</p>}
+                  </dl>
+                )}
+                {watchInfoTab === 'more' && (
+                  <p>{detailQuery.data?.videoInfo?.desc?.trim() || '暂无更多内容。'}{detailQuery.data?.videoInfo?.originalTitle ? ` 原名：${detailQuery.data.videoInfo.originalTitle}` : ''}</p>
+                )}
+              </div>
+            </section>
 
             <div className="netflix-watch-tools">
               {hasEpisodeNavigation && <><button className="btn-ghost btn-sm" disabled={currentIndex <= 0} onClick={() => goEpisode(currentIndex - 1)}>上一集</button>
