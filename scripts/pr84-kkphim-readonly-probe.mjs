@@ -43,13 +43,29 @@ function isPublicAddress(address) {
   return false;
 }
 
+const dnsValidationCache = new Map();
+async function resolvePublicAddresses(hostname) {
+  if (!dnsValidationCache.has(hostname)) {
+    let timer;
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error("DNS validation timed out")), 2000);
+    });
+    const pending = Promise.race([
+      lookup(hostname, { all: true, verbatim: true }),
+      timeout,
+    ]).finally(() => clearTimeout(timer));
+    dnsValidationCache.set(hostname, pending);
+  }
+  return dnsValidationCache.get(hostname);
+}
+
 async function assertPublicHttps(raw, allowedHost) {
   const url = new URL(raw);
   if (url.protocol !== "https:" || url.username || url.password || url.port) {
     throw new Error("URL must be HTTPS without credentials or a custom port");
   }
   if (allowedHost && url.hostname !== allowedHost) throw new Error("Unexpected host");
-  const addresses = await lookup(url.hostname, { all: true, verbatim: true });
+  const addresses = await resolvePublicAddresses(url.hostname);
   if (!addresses.length || addresses.some((entry) => !isPublicAddress(entry.address))) {
     throw new Error("Host did not resolve exclusively to public addresses");
   }
@@ -152,7 +168,8 @@ function inspectScriptConfiguration(source) {
 
 async function inspectSameOriginEmbedScripts(rawUrl, html) {
   const reports = [];
-  for (const scriptUrl of getSameOriginScriptUrls(rawUrl, html)) {
+  // Ignore analytics/vendor bundles; inspect only the first two same-origin player scripts.
+  for (const scriptUrl of getSameOriginScriptUrls(rawUrl, html).slice(0, 2)) {
     try {
       const { response } = await getResponse(scriptUrl, {
         allowedHost: PLAYER_HOST,
