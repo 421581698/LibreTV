@@ -35,6 +35,8 @@ import './pr84-liquid-refraction.css';
 import './pr84-apple-tv-dock.css';
 // PR #84 watch-page mobile polish: clean header, readable player controls and fixed horizontal dock.
 import './pr84-watch-mobile-fix.css';
+// PR #84 Resource Studio: route-scoped dark theme and isolated mobile dock.
+import './resource-studio.css';
 import { Providers } from '@/components/providers';
 import { MobileTabBar } from '@/components/home/header/MobileTabBar';
 import { GlobalDownloadManager } from '@/components/download-manager';
