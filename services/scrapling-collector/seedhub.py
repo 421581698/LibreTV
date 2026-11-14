@@ -171,11 +171,13 @@ class _DetailParser(HTMLParser):
             self.in_heading = False
 
 
-def parse_detail_html(html: str, page_url: str) -> dict:
+def parse_detail_html(html: str, page_url: str, category: str = "movies") -> dict:
     parsed = urlparse(page_url)
     if (parsed.scheme != "https" or parsed.hostname != SEEDHUB_HOST or
             not re.fullmatch(r"/(?:movies|series|anime)/[0-9]+/?", parsed.path)):
         raise ValueError("SeedHub detail URL is outside the fixed detail-page scope")
+    if category not in {"movies", "series", "anime"}:
+        raise ValueError("Unsupported SeedHub category")
     parser = _DetailParser(page_url)
     parser.feed(html)
     clean = lambda parts: re.sub(r"\s+", " ", " ".join(parts)).strip()[:500]
@@ -194,7 +196,8 @@ def parse_detail_html(html: str, page_url: str) -> dict:
         image_urls[0] if image_urls else None,
     )
     stills = [url for url in image_urls if url != poster]
-    category = parsed.path.split("/", 2)[1]
+    # SeedHub routes every content type through /movies/<id>/; category must
+    # come from the originating catalogue, never from the detail URL segment.
     description_section = next(
         (parts for heading, parts in parser.section_text.items() if "简介" in heading),
         [],
@@ -358,6 +361,7 @@ def sync_seedhub(
 @router.get("/v1/seedhub/detail")
 def seedhub_detail(
     url: str = Query(..., min_length=1, max_length=2048),
+    category: str | None = Query(default=None, pattern="^(movies|series|anime)$"),
     authorization: str | None = Header(default=None),
 ):
     _require_auth(authorization)
@@ -380,8 +384,13 @@ def seedhub_detail(
             html = getattr(response, "html_content", None)
         if not isinstance(html, str) or not html:
             raise ValueError("SeedHub returned an empty HTML document")
-        detail = parse_detail_html(html, page_url)
         _initialize()
+        with _connect() as conn:
+            existing = conn.execute(
+                "SELECT category FROM seedhub_catalog WHERE source_url=?", (page_url,)
+            ).fetchone()
+        resolved_category = category or (existing["category"] if existing else "movies")
+        detail = parse_detail_html(html, page_url, resolved_category)
         with _connect() as conn:
             conn.execute(
                 """INSERT INTO seedhub_catalog(source_url,title,category,poster_url,discovered_at,detail_json)
