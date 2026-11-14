@@ -17,7 +17,7 @@ export async function GET(request: Request) {
   }
   if (action === 'jobs') {
     const limit = url.searchParams.get('limit') ?? '50';
-    if (!/^\\d{1,3}$/.test(limit) || Number(limit) < 1 || Number(limit) > 100) {
+    if (!/^[0-9]{1,3}$/.test(limit) || Number(limit) < 1 || Number(limit) > 100) {
       return NextResponse.json({ error: 'Invalid collector job limit.' }, { status: 400 });
     }
     return collectorRequest('/v1/jobs?limit=' + limit, {}, 10_000, request);
