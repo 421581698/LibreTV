@@ -383,6 +383,38 @@ function ResourceCollectorPanel() {
     }
   };
 
+  const syncAllSeedHub = async () => {
+    setBusy(true);
+    setError('');
+    setResultMessage('正在提交电影、电视剧和动漫三个目录的全量分页采集任务…');
+    try {
+      const categories = ['movies', 'series', 'anime'] as const;
+      const results = await Promise.all(categories.map(async (category) => {
+        const response = await collectorFetch('/api/resource-collector', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            seedhubSync: true,
+            category,
+            startPage: 1,
+            pages: seedHubPages,
+            idempotencyKey: `seedhub:${category}:all:${Date.now()}`,
+          }),
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || payload.detail || `SeedHub ${category} 任务提交失败（HTTP ${response.status}）。`);
+        return payload;
+      }));
+      setResultMessage(`已提交三个分类的采集任务（${results.map((item) => item.id || item.job_id || '已排队').join('、')}）。后台将自动分页推进至目录末页，并持续补全详情。`);
+      await loadSeedHubJobs();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'SeedHub 全分类任务提交失败。');
+      setResultMessage('');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const loadTasks = async () => {
     try {
       const response = await collectorFetch('/api/resource-collector/tasks', { cache: 'no-store' });
@@ -655,6 +687,7 @@ function ResourceCollectorPanel() {
           </select>
         </label>
         <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn-primary btn-sm" disabled={busy} onClick={() => void syncAllSeedHub()}>采集全部分类</button>
           <button type="button" className="btn-primary btn-sm" disabled={busy} onClick={() => void syncSeedHub('movies')}>采集电影目录</button>
           <button type="button" className="btn-primary btn-sm" disabled={busy} onClick={() => void syncSeedHub('series')}>采集电视剧目录</button>
           <button type="button" className="btn-primary btn-sm" disabled={busy} onClick={() => void syncSeedHub('anime')}>采集动漫目录</button>
