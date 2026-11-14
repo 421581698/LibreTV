@@ -4,6 +4,10 @@ compatibility_date = "2025-04-01"
 compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
 assets = { directory = ".open-next/assets" }
 
+# Cloudflare-hosted model binding; no external provider API key is required.
+[ai]
+binding = "AI"
+
 # PR #84 专属隔离 Preview；不复用其他功能分支的 Worker。
 workers_dev = true
 preview_urls = false
