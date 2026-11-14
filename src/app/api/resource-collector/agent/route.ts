@@ -87,7 +87,7 @@ export async function GET(request: Request) {
     const config = resolveResourceAgent(cloudflareEnv());
     return NextResponse.json({ configured: true, provider: config.provider });
   } catch {
-    return NextResponse.json({ configured: false, provider: null, message: '尚未配置资源 Supervisor 模型或专用 OpenClaw Agent。' });
+    return NextResponse.json({ configured: false, provider: null, message: 'Cloudflare Workers AI 当前不可用。请检查 Preview 的 AI Binding、账号可用性与额度；无需配置外部模型 API Key。' });
   }
 }
 
