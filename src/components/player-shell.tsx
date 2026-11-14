@@ -1622,7 +1622,7 @@ export function PlayerShell({
       {showPlayFallback && showPoster && !error && (
         <button
           type="button"
-          className="absolute inset-x-0 bottom-5 z-20 mx-auto min-h-11 w-fit rounded-full bg-amber-400 px-6 py-3 text-sm font-semibold text-black shadow-lg"
+          className="absolute inset-x-0 top-1/2 z-20 mx-auto min-h-11 w-fit -translate-y-1/2 rounded-full border border-white/20 bg-black/75 px-6 py-3 text-sm font-semibold text-white shadow-lg backdrop-blur-xl"
           onClick={() => {
             const art = artRef.current;
             if (!art) return;
