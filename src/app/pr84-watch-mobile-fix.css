@@ -833,3 +833,73 @@ html:has(.netflix-watch-shell) body > nav.v4-mobile-tabbar {
   outline: 2px solid var(--text-primary, #fff);
   outline-offset: 3px;
 }
+
+
+/* Reference-matched iPhone cinema player: native video remains mounted while
+   every visible control is owned by this page overlay. */
+.netflix-watch-shell .watch-topbar-inner {
+  display:flex !important; align-items:center !important; justify-content:space-between !important;
+}
+.netflix-watch-shell .watch-topbar-left,
+.netflix-watch-shell .watch-topbar-right { display:flex !important; align-items:center !important; gap:12px !important; }
+.cinema-glass-control {
+  display:grid !important; place-items:center !important; flex:0 0 auto !important;
+  width:58px !important; height:58px !important; padding:0 !important;
+  color:#fff !important; border:1px solid rgba(255,255,255,.13) !important;
+  border-radius:50% !important; background:rgba(43,43,45,.68) !important;
+  box-shadow:inset 0 1px 1px rgba(255,255,255,.14),0 5px 18px rgba(0,0,0,.22) !important;
+  -webkit-backdrop-filter:blur(22px) saturate(125%) !important; backdrop-filter:blur(22px) saturate(125%) !important;
+}
+.cinema-glass-control svg { width:28px !important; height:28px !important; fill:none !important; stroke:currentColor !important; stroke-width:2.4 !important; stroke-linecap:round !important; stroke-linejoin:round !important; }
+.cinema-close-control { width:58px !important; height:58px !important; }
+.cinema-utility-control { width:44px !important; height:44px !important; font-size:18px !important; letter-spacing:2px !important; }
+.cinema-center-controls {
+  position:fixed !important; z-index:48 !important; left:50% !important; top:50% !important;
+  transform:translate(-50%,-50%) !important; display:flex !important; align-items:center !important;
+  justify-content:center !important; gap:clamp(34px,8vw,76px) !important; pointer-events:none !important;
+}
+.cinema-center-controls button { pointer-events:auto !important; }
+.cinema-skip-control { width:clamp(76px,15vw,112px) !important; height:clamp(76px,15vw,112px) !important; }
+.cinema-skip-control svg { width:52% !important; height:52% !important; }
+.cinema-skip-control svg text { fill:currentColor !important; stroke:none !important; font-size:15px !important; font-weight:600 !important; text-anchor:middle !important; }
+.cinema-play-control { width:clamp(112px,21vw,150px) !important; height:clamp(112px,21vw,150px) !important; }
+.cinema-play-control svg { width:54% !important; height:54% !important; stroke-width:7 !important; }
+.netflix-watch-shell .watch-cinema-info {
+  position:fixed !important; z-index:50 !important; left:24px !important; right:24px !important;
+  bottom:calc(22px + env(safe-area-inset-bottom,0px)) !important;
+  display:grid !important; grid-template-columns:minmax(0,1fr) 58px !important;
+  grid-template-areas:"meta rate" "progress progress" "tabs tabs" "copy copy" !important;
+  gap:12px !important; margin:0 !important; padding:0 !important; border:0 !important;
+  border-radius:0 !important; background:transparent !important; box-shadow:none !important;
+}
+.netflix-watch-shell .watch-cinema-meta { grid-area:meta !important; display:block !important; align-self:end !important; }
+.netflix-watch-shell .watch-cinema-meta h2 { color:#fff !important; font-size:clamp(20px,5vw,28px) !important; line-height:1.2 !important; }
+.netflix-watch-shell .watch-cinema-meta p { color:rgba(255,255,255,.74) !important; }
+.netflix-watch-shell .watch-cinema-source { display:none !important; }
+.netflix-watch-shell .watch-cinema-playback { grid-area:progress !important; display:grid !important; grid-template-columns:auto minmax(0,1fr) auto !important; align-items:center !important; gap:12px !important; }
+.netflix-watch-shell .watch-cinema-time { display:contents !important; color:rgba(255,255,255,.72) !important; font-size:13px !important; font-variant-numeric:tabular-nums !important; }
+.netflix-watch-shell .watch-cinema-progress { grid-column:2 !important; grid-row:1 !important; width:100% !important; height:4px !important; margin:0 !important; accent-color:#fff !important; }
+.netflix-watch-shell .watch-cinema-time span:first-child { grid-column:1 !important; grid-row:1 !important; }
+.netflix-watch-shell .watch-cinema-time span:last-child { grid-column:3 !important; grid-row:1 !important; }
+.netflix-watch-shell .watch-cinema-rate { grid-area:rate !important; align-self:end !important; width:58px !important; height:58px !important; border:1px solid rgba(255,255,255,.14) !important; border-radius:50% !important; color:#fff !important; background:rgba(43,43,45,.68) !important; font-size:15px !important; }
+.netflix-watch-shell .watch-cinema-tabs { grid-area:tabs !important; display:flex !important; flex-wrap:nowrap !important; gap:9px !important; }
+.netflix-watch-shell .watch-cinema-tabs button { min-height:44px !important; padding:0 17px !important; border:1px solid rgba(255,255,255,.12) !important; border-radius:999px !important; color:rgba(255,255,255,.72) !important; background:rgba(43,43,45,.68) !important; font-size:14px !important; white-space:nowrap !important; }
+.netflix-watch-shell .watch-cinema-tabs button.active { color:#fff !important; background:rgba(80,80,84,.78) !important; }
+.netflix-watch-shell .watch-cinema-copy { grid-area:copy !important; display:none !important; }
+.netflix-watch-shell .netflix-title-row,
+.netflix-watch-shell .netflix-watch-tools { display:none !important; }
+.netflix-watch-shell .netflix-watch-utility-panel.is-open { z-index:70 !important; }
+@media (max-width:700px) {
+  .netflix-watch-shell .watch-topbar-inner { padding-inline:40px !important; }
+  .netflix-watch-shell .watch-topbar-right { margin-left:auto !important; }
+  .cinema-center-controls { gap:clamp(30px,9vw,76px) !important; }
+  .netflix-watch-shell .watch-cinema-info { left:40px !important; right:40px !important; bottom:calc(22px + env(safe-area-inset-bottom,0px)) !important; }
+  .netflix-watch-shell .watch-cinema-meta h2 { font-size:24px !important; }
+  .netflix-watch-shell .watch-cinema-tabs button { min-height:44px !important; padding-inline:17px !important; font-size:14px !important; }
+}
+@media (max-height:700px) and (orientation:landscape) {
+  .netflix-watch-shell .watch-cinema-info { left:28px !important; right:28px !important; bottom:calc(12px + env(safe-area-inset-bottom,0px)) !important; gap:7px !important; }
+  .cinema-glass-control { width:46px !important; height:46px !important; }
+  .cinema-play-control { width:88px !important; height:88px !important; }
+  .cinema-skip-control { width:64px !important; height:64px !important; }
+}
