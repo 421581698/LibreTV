@@ -274,8 +274,7 @@ async function searchSeedHubCatalog(keyword: string): Promise<import('@/lib/type
           !['movies', 'series', 'anime'].includes(String(item.category))) return false;
       try {
         const source = new URL(item.source_url);
-        if (source.protocol !== 'https:' || source.hostname !== 'www.seedhub.cc' ||
-            !/^\\/(movies|series|anime)\\/[0-9]+\\/?$/.test(source.pathname)) return false;
+        const sourcePath = source.pathname.split('/').filter(Boolean);,        if (source.protocol !== 'https:' || source.hostname !== 'www.seedhub.cc' ||,            sourcePath.length !== 2 || !['movies', 'series', 'anime'].includes(sourcePath[0]) ||,            !/^\\d+$/.test(sourcePath[1])) return false;
         if (item.poster_url == null) return true;
         if (typeof item.poster_url !== 'string') return false;
         const poster = new URL(item.poster_url);
