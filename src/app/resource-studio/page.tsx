@@ -39,6 +39,9 @@ export default function ResourceStudioPage() {
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [agentGoal, setAgentGoal] = useState('同步 SeedHub 电影、电视剧和动漫目录，并发现可公开访问的资源站');
+  const [agentConfigured, setAgentConfigured] = useState(false);
+  const [agentProvider, setAgentProvider] = useState('');
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -50,10 +53,13 @@ export default function ResourceStudioPage() {
       ]);
       const resourcePayload = await resourceResponse.json();
       const jobPayload = await jobResponse.json();
+      const agentPayload = await agentResponse.json().catch(() => ({}));
       if (!resourceResponse.ok) throw new Error(resourcePayload.error || '读取已验证资源失败');
       if (!jobResponse.ok) throw new Error(jobPayload.error || '读取采集任务失败');
       setResources(Array.isArray(resourcePayload.resources) ? resourcePayload.resources : []);
       setJobs(Array.isArray(jobPayload.jobs) ? jobPayload.jobs : []);
+      setAgentConfigured(agentPayload.configured === true);
+      setAgentProvider(typeof agentPayload.provider === 'string' ? agentPayload.provider : '');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '资源中心暂时不可用');
     } finally {
@@ -83,6 +89,12 @@ export default function ResourceStudioPage() {
   const discover = () => runAction('discover',
     () => collectorFetch('/api/resource-collector', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ discover: true }) }),
     '已提交资源站发现任务。任务由后台 Worker 执行；出口防火墙未确认时会安全失败。');
+  const runAgentSupervisor = () => runAction('agent',
+    () => collectorFetch('/api/resource-collector/agent', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ goal: agentGoal }),
+    }), 'AI Supervisor 已完成规划并提交任务。请在下方任务列表查看实际执行状态。');
+
   const syncSeedHub = (category: 'movies' | 'series' | 'anime') => runAction(category,
     () => collectorFetch('/api/resource-collector', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -120,6 +132,26 @@ export default function ResourceStudioPage() {
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5"><p className="text-sm text-[var(--muted)]">已通过播放器验收</p><p className="mt-2 text-3xl font-semibold">{loading ? '…' : verifiedCount}</p><p className="mt-1 text-xs text-[var(--muted)]">当前出口仅展示已确认资源</p></div>
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5"><p className="text-sm text-[var(--muted)]">可用资源记录</p><p className="mt-2 text-3xl font-semibold">{loading ? '…' : resources.length}</p><p className="mt-1 text-xs text-[var(--muted)]">来自独立 Collector 注册表</p></div>
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5"><p className="text-sm text-[var(--muted)]">待处理任务</p><p className="mt-2 text-3xl font-semibold">{loading ? '…' : runningCount}</p><p className="mt-1 text-xs text-[var(--muted)]">排队中与运行中的任务</p></div>
+        </section>
+
+        <section className="mb-8 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">AI 资源 Supervisor</h2>
+              <p className="mt-1 text-sm text-[var(--muted)]">由模型生成受限采集计划，再交给持久化 Worker 执行；AI 不能自行宣布资源可播放。</p>
+            </div>
+            <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs">{agentConfigured ? '模型已配置 · ' + agentProvider : '模型未配置'}</span>
+          </div>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <input value={agentGoal} onChange={(event) => setAgentGoal(event.target.value.slice(0, 200))} maxLength={200}
+              aria-label="AI 采集目标" placeholder="告诉 AI 需要发现或同步什么公开资源"
+              className="min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-transparent px-3 py-3 text-sm" />
+            <button type="button" onClick={() => void runAgentSupervisor()} disabled={!agentConfigured || Boolean(busy) || agentGoal.trim().length < 3}
+              className="rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">
+              {busy === 'agent' ? 'AI 正在规划…' : '让 AI 规划并提交任务'}
+            </button>
+          </div>
+          {!agentConfigured ? <p className="mt-3 text-xs leading-5 text-[var(--muted)]">需要在 Preview Worker 配置 RESOURCE_AGENT_API_KEY，或配置专用 OpenClaw Agent：OPENCLAW_AGENT_RESOURCE_SUPERVISOR、Gateway Token/URL 与 Cloudflare Access 服务令牌。密钥只保存在服务器环境中。</p> : null}
         </section>
 
         <section className="mb-8 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
