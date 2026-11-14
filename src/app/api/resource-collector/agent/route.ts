@@ -60,7 +60,7 @@ function resolveResourceAgent(env: Env) {
   return {
     provider: 'openai-compatible',
     apiKey,
-    baseURL: parsed.origin,
+    baseURL: parsed.origin + parsed.pathname.replace(/\\/+$/, ''),
     modelName: read(env, 'RESOURCE_AGENT_MODEL') || 'glm-4-air',
   };
 }
