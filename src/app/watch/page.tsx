@@ -184,8 +184,14 @@ function WatchContent() {
       if (!video.paused && !video.ended) scheduleHide();
       else keepControlsVisible();
     };
+    // Hover/mouse tracking can emit pointermove while the player is already visible.
+    // Do not keep restarting the hide deadline for incidental movement; once hidden,
+    // the first real pointer movement restores the controls.
+    const onPointerMove = () => {
+      if (shell.classList.contains('cinema-controls-hidden')) revealControls();
+    };
     shell.addEventListener('pointerdown', revealControls, true);
-    shell.addEventListener('pointermove', revealControls, { passive: true });
+    shell.addEventListener('pointermove', onPointerMove, { passive: true });
     shell.addEventListener('touchstart', revealControls, { passive: true, capture: true });
     shell.addEventListener('click', revealControls, true);
     shell.addEventListener('keydown', revealControls, true);
@@ -197,7 +203,7 @@ function WatchContent() {
       observer.disconnect();
       detachVideo();
       shell.removeEventListener('pointerdown', revealControls, true);
-      shell.removeEventListener('pointermove', revealControls);
+      shell.removeEventListener('pointermove', onPointerMove);
       shell.removeEventListener('touchstart', revealControls, true);
       shell.removeEventListener('click', revealControls, true);
       shell.removeEventListener('keydown', revealControls, true);

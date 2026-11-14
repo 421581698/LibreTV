@@ -159,7 +159,7 @@ try {
         !item || item.visibility !== 'hidden' || item.opacity > 0.05)) {
     throw new Error('Cinema controls did not auto-hide after 3s of uninterrupted playback: ' + JSON.stringify(hiddenOverlay));
   }
-  await page.mouse.move(720, 450);
+  await page.mouse.move(721, 451);
   await page.waitForFunction(() => !document.querySelector('.netflix-watch-shell')?.classList.contains('cinema-controls-hidden'), null, { timeout: 3_000 });
   const revealedOverlay = await page.evaluate(() => ({
     hiddenClass: Boolean(document.querySelector('.netflix-watch-shell')?.classList.contains('cinema-controls-hidden')),
