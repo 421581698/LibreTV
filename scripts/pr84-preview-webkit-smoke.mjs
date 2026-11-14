@@ -259,6 +259,53 @@ try {
   // The cinema UI owns the timeline now; the native ArtPlayer toolbar is hidden.
   await page.waitForSelector('.watch-cinema-progress', { state: 'visible', timeout: 20_000 });
 
+  // The center transport icon must reflect the native video state, not merely
+  // the last button click. Override the read-only paused property to exercise
+  // both native event paths without depending on WebKit HLS codec support.
+  const playbackIconAcceptance = await page.evaluate(async () => {
+    const video = document.querySelector('.netflix-player-frame video');
+    const button = document.querySelector('.cinema-play-control');
+    if (!(video instanceof HTMLVideoElement) || !(button instanceof HTMLButtonElement)) {
+      throw new Error('Cinema playback button or native video element is missing');
+    }
+    const iconPath = () => button.querySelector('svg path')?.getAttribute('d') ?? '';
+    Object.defineProperty(video, 'paused', { configurable: true, get: () => true });
+    video.dispatchEvent(new Event('pause'));
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const paused = {
+      ariaLabel: button.getAttribute('aria-label'),
+      ariaPressed: button.getAttribute('aria-pressed'),
+      path: iconPath(),
+    };
+    Object.defineProperty(video, 'paused', { configurable: true, get: () => false });
+    video.dispatchEvent(new Event('play'));
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const playing = {
+      ariaLabel: button.getAttribute('aria-label'),
+      ariaPressed: button.getAttribute('aria-pressed'),
+      path: iconPath(),
+    };
+    Object.defineProperty(video, 'paused', { configurable: true, get: () => true });
+    video.dispatchEvent(new Event('pause'));
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const pausedAgain = {
+      ariaLabel: button.getAttribute('aria-label'),
+      ariaPressed: button.getAttribute('aria-pressed'),
+      path: iconPath(),
+    };
+    if (paused.ariaLabel !== '播放' || paused.ariaPressed !== 'false' || !paused.path.includes('18 11l20 13')) {
+      throw new Error('Paused state does not show the play triangle: ' + JSON.stringify(paused));
+    }
+    if (playing.ariaLabel !== '暂停' || playing.ariaPressed !== 'true' || !playing.path.includes('16 11v26M32 11v26')) {
+      throw new Error('Playing state does not show the pause bars: ' + JSON.stringify(playing));
+    }
+    if (pausedAgain.ariaLabel !== '播放' || pausedAgain.ariaPressed !== 'false' || !pausedAgain.path.includes('18 11l20 13')) {
+      throw new Error('Pause after playback does not restore the play triangle: ' + JSON.stringify(pausedAgain));
+    }
+    return { paused, playing, pausedAgain };
+  });
+  console.log('PASS PR84 cinema play/pause icon follows native media events:', JSON.stringify(playbackIconAcceptance));
+
   // Confirm the three tabs reveal content rather than leaving a coachmark over them.
   await page.waitForSelector('.watch-cinema-copy', { state: 'visible', timeout: 20_000 });
   const tabPanelAcceptance = await page.evaluate(async () => {
