@@ -40,6 +40,15 @@ class SeedHubCatalogParserTests(unittest.TestCase):
             parse_catalog_html('<a href="/movies/1/">Title</a>', "https://www.seedhub.cc/", "torrent")
 
 
+class SeedHubPaginationTests(unittest.TestCase):
+    def test_catalog_total_pages_reads_last_page_link(self):
+        import seedhub
+
+        html = '<a href="?page=2">2</a><a href="?page=1428">1428</a>'
+        self.assertEqual(seedhub._catalog_total_pages(html), 1428)
+        self.assertEqual(seedhub._catalog_total_pages('<span>no pagination</span>', 7), 7)
+
+
 class SeedHubDetailParserTests(unittest.TestCase):
     def test_extracts_title_description_poster_and_stills_without_outbound_links(self):
         html = """
