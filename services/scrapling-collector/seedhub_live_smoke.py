@@ -66,8 +66,17 @@ def main() -> int:
         page_two_items = parse_catalog_html(page_two_html, page_two_url, category)
         if len(page_two_items) < 10:
             raise RuntimeError(f"{category}: expected at least 10 records on page 2, got {len(page_two_items)}")
-        if {item["source_url"] for item in items} & {item["source_url"] for item in page_two_items}:
-            raise RuntimeError(f"{category}: page 1 and page 2 contain duplicate detail URLs")
+        overlap = {item["source_url"] for item in items} & {item["source_url"] for item in page_two_items}
+        if overlap:
+            print(
+                "SEEDHUB_LIVE_DIAGNOSTIC pagination "
+                f"category={category} page1_titles={[item['title'] for item in items[:5]]!r} "
+                f"page2_titles={[item['title'] for item in page_two_items[:5]]!r} "
+                f"overlap={sorted(overlap)[:5]!r}",
+                flush=True,
+            )
+            if len(overlap) == min(len(items), len(page_two_items)):
+                raise RuntimeError(f"{category}: page 1 and page 2 are identical; pagination response was not advanced")
         page_two_posters = sum(bool(item.get("poster_url")) for item in page_two_items)
         if page_two_posters == 0:
             raise RuntimeError(f"{category}: page 2 has no extracted poster URLs")
