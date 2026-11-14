@@ -43,7 +43,11 @@ class _CatalogParser(HTMLParser):
                 and parsed.hostname == SEEDHUB_HOST
                 and re.match(r"^/(?:movies|series|anime)/[^/?#]+/?$", parsed.path)
             ):
-                self.current = {"source_url": parsed._replace(query="", fragment="").geturl(), "title": "", "poster_url": None}
+                self.current = {
+                    "source_url": parsed._replace(query="", fragment="").geturl(),
+                    "title": (values.get("title") or "").strip(),
+                    "poster_url": None,
+                }
                 self.anchor_depth = 1
             elif self.current is not None:
                 # Nested title anchors must not replace the active card or erase its poster.
@@ -54,6 +58,8 @@ class _CatalogParser(HTMLParser):
             image = urlparse(image_url)
             if image.scheme == "https" and image.hostname in SEEDHUB_IMAGE_HOSTS:
                 self.current["poster_url"] = image_url
+                if not self.current["title"]:
+                    self.current["title"] = (values.get("alt") or "").strip()
         elif tag == "br" and self.current is not None:
             self.current["title"] += " "
 
