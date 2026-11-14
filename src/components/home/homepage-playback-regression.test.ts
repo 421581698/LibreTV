@@ -45,7 +45,6 @@ const browserAsr = source('src/components/friday/browserAsr.ts');
 
 const spatialScreen = source('src/components/home/V4SpatialScreen.tsx');
 const resourceStudio = source('src/app/resource-studio/page.tsx');
-const spatialScreenSource = source('src/components/home/V4SpatialScreen.tsx');
 const resourceAgentRoute = source('src/app/api/resource-collector/agent/route.ts');
 const resourceCollectorRoute = source('src/app/api/resource-collector/route.ts');
 const collectorWorker = source('services/scrapling-collector/worker.py');
