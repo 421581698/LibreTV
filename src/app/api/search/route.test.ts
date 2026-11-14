@@ -92,6 +92,32 @@ describe('POST /api/search', () => {
     expect(data.failures[0].error).toContain('500');
   });
 
+  it('uses browser-local Collector credentials only on an authenticated search request', async () => {
+    const { token } = signSession();
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      expect(url.startsWith('https://collector.example.com/')).toBe(true);
+      expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer browser-collector-token');
+      if (url.includes('/v1/registry/search')) return Response.json({ resources: [] });
+      if (url.includes('/v1/seedhub/search')) return Response.json({ items: [] });
+      return Response.json({});
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const request = new NextRequest('https://local.test/api/search', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        cookie: `${SESSION_COOKIE}=${token}`,
+        'x-scrapling-api-base': 'https://collector.example.com',
+        'x-scrapling-api-token': 'browser-collector-token',
+      },
+      body: JSON.stringify({ wd: '测试影片', sources: [] }),
+    });
+    const response = await POST(request);
+    expect(response.status).toBe(200);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
   it('returns imported SeedHub catalogue metadata as separate non-playable search results', async () => {
     const previousBase = process.env.SCRAPLING_API_BASE;
     const previousToken = process.env.SCRAPLING_API_TOKEN;
