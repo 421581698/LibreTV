@@ -72,6 +72,28 @@ try {
     }));
   }
 
+  // The hero is part of the first-screen experience: wait for an actual decoded image,
+  // not just an <img> node or a successful proxy HTTP response.
+  try {
+    await page.waitForFunction(() => {
+      const image = document.querySelector('.v4-hero-image img');
+      return image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0;
+    }, null, { timeout: 15_000 });
+  } catch {
+    const imageState = await page.evaluate(() => {
+      const image = document.querySelector('.v4-hero-image img');
+      return image instanceof HTMLImageElement ? {
+        currentSrc: image.currentSrc,
+        complete: image.complete,
+        naturalWidth: image.naturalWidth,
+        naturalHeight: image.naturalHeight,
+      } : null;
+    });
+    throw new Error('Homepage hero artwork did not decode in the first-screen viewport: ' + JSON.stringify({
+      imageState, imageProxyResponses, failedRequests, pageErrors,
+    }));
+  }
+
   const contentState = await page.evaluate(() => {
     const heroImg = document.querySelector('.v4-hero-image img');
     const posterImages = Array.from(document.querySelectorAll('.v4-apple-poster-card img'));
@@ -95,6 +117,9 @@ try {
       })),
     };
   });
+  if (contentState.loadedRemoteImages < 1) {
+    throw new Error('Homepage has no successfully decoded remote hero/poster image: ' + JSON.stringify({ contentState, imageProxyResponses, failedRequests }));
+  }
   if (contentState.seedHubEmptyStateVisible || collectorResponses.length > 0) {
     throw new Error('Retired SeedHub catalogue UI or requests are still present on the homepage: ' + JSON.stringify({
       contentState, collectorResponses, pageErrors, failedRequests,

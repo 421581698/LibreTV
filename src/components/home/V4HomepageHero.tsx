@@ -92,6 +92,7 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
               mode={imageProxyMode}
               customProxy={customImageProxy}
               alt=""
+              loading="eager"
               className="absolute inset-0 h-full w-full object-cover"
             />
           </div>

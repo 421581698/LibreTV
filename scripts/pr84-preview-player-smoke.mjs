@@ -105,6 +105,57 @@ try {
   });
   console.log('PASS LibreTV PlayerShell fMP4 playback:', JSON.stringify(first));
 
+  // Exercise the real media-event-driven overlay lifecycle while decoded playback
+  // is running: controls must disappear after 3s, return on interaction, and stay
+  // visible after pause. This specifically guards the reported stuck-overlay bug.
+  await page.waitForTimeout(3_600);
+  const hiddenOverlay = await page.evaluate(() => {
+    const shell = document.querySelector('.netflix-watch-shell');
+    const topbar = document.querySelector('.watch-topbar');
+    const center = document.querySelector('.cinema-center-controls');
+    const info = document.querySelector('.watch-cinema-info');
+    const state = (element) => {
+      if (!(element instanceof HTMLElement)) return null;
+      const style = getComputedStyle(element);
+      return { opacity: Number.parseFloat(style.opacity), visibility: style.visibility };
+    };
+    return {
+      hiddenClass: Boolean(shell?.classList.contains('cinema-controls-hidden')),
+      paused: document.querySelector('video')?.paused ?? true,
+      topbar: state(topbar), center: state(center), info: state(info),
+    };
+  });
+  if (!hiddenOverlay.hiddenClass || hiddenOverlay.paused ||
+      [hiddenOverlay.topbar, hiddenOverlay.center, hiddenOverlay.info].some((item) =>
+        !item || item.visibility !== 'hidden' || item.opacity > 0.05)) {
+    throw new Error('Cinema controls did not auto-hide after 3s of uninterrupted playback: ' + JSON.stringify(hiddenOverlay));
+  }
+  await page.mouse.move(720, 450);
+  await page.waitForFunction(() => !document.querySelector('.netflix-watch-shell')?.classList.contains('cinema-controls-hidden'), null, { timeout: 3_000 });
+  const revealedOverlay = await page.evaluate(() => ({
+    hiddenClass: Boolean(document.querySelector('.netflix-watch-shell')?.classList.contains('cinema-controls-hidden')),
+    topbarVisibility: getComputedStyle(document.querySelector('.watch-topbar')).visibility,
+    centerVisibility: getComputedStyle(document.querySelector('.cinema-center-controls')).visibility,
+    infoVisibility: getComputedStyle(document.querySelector('.watch-cinema-info')).visibility,
+  }));
+  if (revealedOverlay.hiddenClass || revealedOverlay.topbarVisibility !== 'visible' ||
+      revealedOverlay.centerVisibility !== 'visible' || revealedOverlay.infoVisibility !== 'visible') {
+    throw new Error('Cinema controls did not return after pointer interaction: ' + JSON.stringify(revealedOverlay));
+  }
+  await page.evaluate(() => document.querySelector('video')?.pause());
+  await page.waitForFunction(() => document.querySelector('video')?.paused === true, null, { timeout: 3_000 });
+  const pausedOverlay = await page.evaluate(() => ({
+    hiddenClass: Boolean(document.querySelector('.netflix-watch-shell')?.classList.contains('cinema-controls-hidden')),
+    topbarVisibility: getComputedStyle(document.querySelector('.watch-topbar')).visibility,
+    centerVisibility: getComputedStyle(document.querySelector('.cinema-center-controls')).visibility,
+    infoVisibility: getComputedStyle(document.querySelector('.watch-cinema-info')).visibility,
+  }));
+  if (pausedOverlay.hiddenClass || pausedOverlay.topbarVisibility !== 'visible' ||
+      pausedOverlay.centerVisibility !== 'visible' || pausedOverlay.infoVisibility !== 'visible') {
+    throw new Error('Cinema controls did not remain visible after pause: ' + JSON.stringify(pausedOverlay));
+  }
+  console.log('PASS cinema controls auto-hide / interaction reveal / pause visibility:', JSON.stringify({ hiddenOverlay, revealedOverlay, pausedOverlay }));
+
   // Measure the real ArtPlayer timeline, then seek through its actual control.
   const timelineBefore = await page.evaluate(() => {
     const frame = document.querySelector('.netflix-player-frame');
