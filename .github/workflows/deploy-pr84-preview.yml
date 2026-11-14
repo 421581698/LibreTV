@@ -114,6 +114,41 @@ jobs:
             echo "Persistent Collector not provisioned; SeedHub catalogue remains in explicit empty state."
           fi
 
+      - name: Configure optional Resource Supervisor on isolated Preview Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PR84_RESOURCE_AGENT_API_KEY: ${{ secrets.PR84_RESOURCE_AGENT_API_KEY }}
+          PR84_RESOURCE_AGENT_BASE_URL: ${{ secrets.PR84_RESOURCE_AGENT_BASE_URL }}
+          PR84_RESOURCE_AGENT_MODEL: ${{ secrets.PR84_RESOURCE_AGENT_MODEL }}
+          PR84_OPENCLAW_GATEWAY_URL: ${{ secrets.PR84_OPENCLAW_GATEWAY_URL }}
+          PR84_OPENCLAW_GATEWAY_TOKEN: ${{ secrets.PR84_OPENCLAW_GATEWAY_TOKEN }}
+          PR84_OPENCLAW_AGENT_RESOURCE_SUPERVISOR: ${{ secrets.PR84_OPENCLAW_AGENT_RESOURCE_SUPERVISOR }}
+          PR84_OPENCLAW_ACCESS_CLIENT_ID: ${{ secrets.PR84_OPENCLAW_ACCESS_CLIENT_ID }}
+          PR84_OPENCLAW_ACCESS_CLIENT_SECRET: ${{ secrets.PR84_OPENCLAW_ACCESS_CLIENT_SECRET }}
+        run: |
+          if [ -n "$PR84_OPENCLAW_GATEWAY_URL" ] && [ -n "$PR84_OPENCLAW_GATEWAY_TOKEN" ] &&
+             [ -n "$PR84_OPENCLAW_AGENT_RESOURCE_SUPERVISOR" ] && [ -n "$PR84_OPENCLAW_ACCESS_CLIENT_ID" ] &&
+             [ -n "$PR84_OPENCLAW_ACCESS_CLIENT_SECRET" ]; then
+            printf '%s' "$PR84_OPENCLAW_GATEWAY_URL" | npx wrangler secret put OPENCLAW_GATEWAY_URL --config wrangler.pr84-preview.toml
+            printf '%s' "$PR84_OPENCLAW_GATEWAY_TOKEN" | npx wrangler secret put OPENCLAW_GATEWAY_TOKEN --config wrangler.pr84-preview.toml
+            printf '%s' "$PR84_OPENCLAW_AGENT_RESOURCE_SUPERVISOR" | npx wrangler secret put OPENCLAW_AGENT_RESOURCE_SUPERVISOR --config wrangler.pr84-preview.toml
+            printf '%s' "$PR84_OPENCLAW_ACCESS_CLIENT_ID" | npx wrangler secret put OPENCLAW_ACCESS_CLIENT_ID --config wrangler.pr84-preview.toml
+            printf '%s' "$PR84_OPENCLAW_ACCESS_CLIENT_SECRET" | npx wrangler secret put OPENCLAW_ACCESS_CLIENT_SECRET --config wrangler.pr84-preview.toml
+            echo "Dedicated OpenClaw Resource Supervisor configured on isolated Preview Worker."
+          elif [ -n "$PR84_RESOURCE_AGENT_API_KEY" ]; then
+            printf '%s' "$PR84_RESOURCE_AGENT_API_KEY" | npx wrangler secret put RESOURCE_AGENT_API_KEY --config wrangler.pr84-preview.toml
+            if [ -n "$PR84_RESOURCE_AGENT_BASE_URL" ]; then
+              printf '%s' "$PR84_RESOURCE_AGENT_BASE_URL" | npx wrangler secret put RESOURCE_AGENT_BASE_URL --config wrangler.pr84-preview.toml
+            fi
+            if [ -n "$PR84_RESOURCE_AGENT_MODEL" ]; then
+              printf '%s' "$PR84_RESOURCE_AGENT_MODEL" | npx wrangler secret put RESOURCE_AGENT_MODEL --config wrangler.pr84-preview.toml
+            fi
+            echo "Resource Supervisor model configured on isolated Preview Worker."
+          else
+            echo "Resource Supervisor model absent; AI planning remains disabled until a Preview secret is provided."
+          fi
+
       - name: Probe configured CMS candidate without enabling it as a default source
         env:
           CANDIDATE_CMS_API: https://caiji.dyttzyapi.com/api.php/provide/vod
