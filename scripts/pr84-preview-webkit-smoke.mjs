@@ -238,7 +238,7 @@ try {
     source: 'preview-smoke',
     sourceUrl: 'https://example.com/api.php/provide/vod',
     url: 'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8',
-    title: 'PR84 Watch Layout Acceptance',
+    title: 'jintianshitaiyangyu',
   });
   const watchResponse = await page.goto(base + '/watch?' + watchParams.toString(), {
     waitUntil: 'domcontentloaded',
@@ -258,6 +258,51 @@ try {
   // WebKit fail on HLS codec differences before it could validate the UI.
   // The cinema UI owns the timeline now; the native ArtPlayer toolbar is hidden.
   await page.waitForSelector('.watch-cinema-progress', { state: 'visible', timeout: 20_000 });
+
+  // Confirm the three tabs reveal content rather than leaving a coachmark over them.
+  await page.waitForSelector('.watch-cinema-copy', { state: 'visible', timeout: 20_000 });
+  const tabPanelAcceptance = await page.evaluate(async () => {
+    const tabs = Array.from(document.querySelectorAll('.watch-cinema-tabs button'));
+    const panel = document.querySelector('.watch-cinema-info');
+    const copy = document.querySelector('.watch-cinema-copy');
+    const heading = document.querySelector('.watch-cinema-meta h2');
+    if (tabs.length !== 3 || !panel || !copy || !heading) throw new Error('Cinema information panel is incomplete');
+    for (const label of ['洞察', '继续阅读', '简介']) {
+      const tab = tabs.find((node) => node.textContent?.trim() === label);
+      if (!tab) throw new Error('Missing cinema tab: ' + label);
+      tab.click();
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      if (tab.getAttribute('aria-pressed') !== 'true') throw new Error('Cinema tab did not activate: ' + label);
+      if (getComputedStyle(copy).display === 'none' || copy.getBoundingClientRect().height <= 0) {
+        throw new Error('Cinema tab content is hidden: ' + label);
+      }
+    }
+    const tabRow = document.querySelector('.watch-cinema-tabs').getBoundingClientRect();
+    const copyRect = copy.getBoundingClientRect();
+    const infoRect = panel.getBoundingClientRect();
+    if (tabRow.bottom > copyRect.top + 1) throw new Error('Cinema tab row overlaps its content panel');
+    const yellowCoachmarks = Array.from(document.querySelectorAll('body *')).filter((node) => {
+      if (node.children.length || node.textContent?.trim() !== '轻点继续阅读' || node.closest('.watch-cinema-tabs')) return false;
+      const style = getComputedStyle(node);
+      const rect = node.getBoundingClientRect();
+      const rgb = style.backgroundColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+      const yellow = Boolean(rgb && Number(rgb[1]) > 170 && Number(rgb[2]) > 120 && Number(rgb[3]) < 150);
+      const visible = style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+      return visible && yellow && rect.right > tabRow.left && rect.left < tabRow.right &&
+        rect.bottom > tabRow.top && rect.top < tabRow.bottom;
+    });
+    if (yellowCoachmarks.length) throw new Error('Yellow "tap to continue reading" coachmark overlaps the tabs');
+    const titleText = heading.textContent?.trim() ?? '';
+    if (titleText.toLowerCase().includes('jintianshitaiyangyu')) throw new Error('Machine slug is rendered as the title');
+    if (infoRect.top < 0 || infoRect.bottom > window.innerHeight + 1) throw new Error('Cinema panel exceeds viewport');
+    const result = {
+      titleText, copyDisplay: getComputedStyle(copy).display, copyHeight: copyRect.height,
+      tabBottom: tabRow.bottom, copyTop: copyRect.top, panelTop: infoRect.top,
+      panelBottom: infoRect.bottom, yellowCoachmarkCount: yellowCoachmarks.length,
+    };
+    tabs.find((node) => node.textContent?.trim() === '简介')?.click();
+    return result;
+  });
 
   const watchLayout = await page.evaluate(() => {
     const header = document.querySelector('.watch-topbar');
@@ -393,6 +438,7 @@ try {
     throw new Error('Related posters are still using decorative data-URI fallbacks: ' + JSON.stringify(watchLayout));
   }
   await page.screenshot({ path: '/tmp/pr84-preview-watch-webkit.png', fullPage: true });
+  console.log('PASS PR84 Preview WebKit cinema tabs + content clearance + slug filtering:', JSON.stringify(tabPanelAcceptance));
   console.log('PASS PR84 Preview WebKit immersive cinema player + fixed bottom information + horizontal dock:', JSON.stringify(watchLayout));
 
   // Verify the new dedicated SeedHub detail route in a fresh page.
