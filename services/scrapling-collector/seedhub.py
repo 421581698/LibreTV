@@ -264,12 +264,17 @@ def _initialize():
         conn.execute("""
           CREATE TABLE IF NOT EXISTS seedhub_catalog (
             source_url TEXT PRIMARY KEY, title TEXT NOT NULL, category TEXT NOT NULL,
-            poster_url TEXT, discovered_at INTEGER NOT NULL, detail_json TEXT
+            poster_url TEXT, discovered_at INTEGER NOT NULL, detail_json TEXT,
+            detail_attempts INTEGER NOT NULL DEFAULT 0, detail_last_error TEXT
           )
         """)
         columns = {row["name"] for row in conn.execute("PRAGMA table_info(seedhub_catalog)")}
         if "detail_json" not in columns:
             conn.execute("ALTER TABLE seedhub_catalog ADD COLUMN detail_json TEXT")
+        if "detail_attempts" not in columns:
+            conn.execute("ALTER TABLE seedhub_catalog ADD COLUMN detail_attempts INTEGER NOT NULL DEFAULT 0")
+        if "detail_last_error" not in columns:
+            conn.execute("ALTER TABLE seedhub_catalog ADD COLUMN detail_last_error TEXT")
 
 def _require_auth(authorization: str | None):
     import hmac
@@ -335,7 +340,7 @@ def sync_seedhub_pages(category: str, start_page: int, pages: int, checkpoint=No
                     conn.execute(
                         """INSERT INTO seedhub_catalog(source_url,title,category,poster_url,discovered_at)
                            VALUES(?,?,?,?,?) ON CONFLICT(source_url) DO UPDATE SET
-                           title=excluded.title,category=excluded.category,
+                           title=excluded.title,
                            poster_url=COALESCE(excluded.poster_url,seedhub_catalog.poster_url),
                            discovered_at=excluded.discovered_at""",
                         (item["source_url"], item["title"], item["category"], item["poster_url"], now),
@@ -371,9 +376,9 @@ def sync_seedhub_details(category: str, limit: int = 10, checkpoint=None, cancel
     cancelled = cancelled or (lambda: False)
     with _connect() as conn:
         rows = conn.execute(
-            """SELECT source_url,title FROM seedhub_catalog
-               WHERE category=? AND detail_json IS NULL
-               ORDER BY discovered_at ASC,source_url ASC LIMIT ?""",
+            """SELECT source_url,title,detail_attempts FROM seedhub_catalog
+               WHERE category=? AND detail_json IS NULL AND detail_attempts < 3
+               ORDER BY detail_attempts ASC,discovered_at ASC,source_url ASC LIMIT ?""",
             (category, limit),
         ).fetchall()
     processed = 0
@@ -418,8 +423,10 @@ def sync_seedhub_details(category: str, limit: int = 10, checkpoint=None, cancel
             }
             with _connect() as conn:
                 conn.execute(
-                    "UPDATE seedhub_catalog SET detail_json=? WHERE source_url=? AND category=?",
-                    (json.dumps(failure_detail, ensure_ascii=False), source_url, category),
+                    """UPDATE seedhub_catalog
+                       SET detail_attempts=detail_attempts+1,detail_last_error=?
+                       WHERE source_url=? AND category=?""",
+                    (type(exc).__name__, source_url, category),
                 )
         processed += 1
         last_source_url = source_url
@@ -429,14 +436,22 @@ def sync_seedhub_details(category: str, limit: int = 10, checkpoint=None, cancel
         })
     with _connect() as conn:
         remaining = conn.execute(
-            "SELECT COUNT(*) AS n FROM seedhub_catalog WHERE category=? AND detail_json IS NULL",
+            """SELECT COUNT(*) AS n FROM seedhub_catalog
+               WHERE category=? AND detail_json IS NULL AND detail_attempts < 3""",
+            (category,),
+        ).fetchone()["n"]
+        exhausted = conn.execute(
+            """SELECT COUNT(*) AS n FROM seedhub_catalog
+               WHERE category=? AND detail_json IS NULL AND detail_attempts >= 3""",
             (category,),
         ).fetchone()["n"]
     return {
         "status": "partial" if failed or processed < len(rows) else "succeeded",
         "source": "SeedHub", "category": category,
         "details_processed": processed, "details_failed": failed,
-        "details_remaining": remaining, "last_source_url": last_source_url,
+        "details_remaining": remaining, "details_exhausted": exhausted,
+        "last_source_url": last_source_url,
+        "detail_retry_round": max((int(row["detail_attempts"]) for row in rows), default=0) + 1,
         "mode": "metadata-only", "share_links_extracted": False,
     }
 
@@ -470,7 +485,9 @@ def seedhub_detail(
             "SELECT category,detail_json FROM seedhub_catalog WHERE source_url=?", (page_url,)
         ).fetchone()
     requested_category = category if isinstance(category, str) else None
-    resolved_category = requested_category or (existing["category"] if existing else "movies")
+    # The catalogue row is authoritative: a shared /movies/<id>/ URL cannot
+    # override the category recorded when the item was discovered in its directory.
+    resolved_category = existing["category"] if existing else (requested_category or "movies")
     if existing and existing["detail_json"]:
         try:
             cached = json.loads(existing["detail_json"])
@@ -500,7 +517,7 @@ def seedhub_detail(
             conn.execute(
                 """INSERT INTO seedhub_catalog(source_url,title,category,poster_url,discovered_at,detail_json)
                    VALUES(?,?,?,?,?,?) ON CONFLICT(source_url) DO UPDATE SET
-                   title=excluded.title,category=excluded.category,
+                   title=excluded.title,
                    poster_url=COALESCE(excluded.poster_url,seedhub_catalog.poster_url),
                    detail_json=excluded.detail_json""",
                 (detail["source_url"], detail["title"] or detail["source_url"],
