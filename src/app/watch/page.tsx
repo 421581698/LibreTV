@@ -416,11 +416,57 @@ function WatchContent() {
             </button>
           </div>
           <div className="watch-topbar-right">
-            <button type="button" className="cinema-glass-control" aria-label="AirPlay" title="AirPlay" onClick={() => {
-              const video = playerFrameRef.current?.querySelector('video') as (HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => void }) | null;
-              video?.webkitShowPlaybackTargetPicker?.();
+            <button type="button" className="cinema-glass-control" aria-label="全屏播放" title="全屏播放" onClick={() => {
+              const video = playerFrameRef.current?.querySelector('video') as (HTMLVideoElement & {
+                webkitEnterFullscreen?: () => void;
+                webkitExitFullscreen?: () => void;
+                webkitDisplayingFullscreen?: boolean;
+              }) | null;
+              if (video?.webkitDisplayingFullscreen && video.webkitExitFullscreen) {
+                video.webkitExitFullscreen();
+                return;
+              }
+              if (document.fullscreenElement) {
+                void document.exitFullscreen().catch(() => toast('退出全屏失败，请重试', 'info'));
+                return;
+              }
+              if (typeof video?.webkitEnterFullscreen === 'function') {
+                try {
+                  video.webkitEnterFullscreen();
+                  return;
+                } catch {
+                  // Fall through to the standard element fullscreen API.
+                }
+              }
+              const frame = playerFrameRef.current;
+              if (frame?.requestFullscreen) {
+                void frame.requestFullscreen().catch(() => toast('当前浏览器无法进入全屏', 'info'));
+              } else {
+                toast('当前浏览器不支持全屏播放', 'info');
+              }
             }}>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v11H4zM8 20l4-5 4 5" /></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" /></svg>
+            </button>
+            <button type="button" className="cinema-glass-control" aria-label="投屏" title="投屏 / AirPlay" onClick={() => {
+              const video = playerFrameRef.current?.querySelector('video') as (HTMLVideoElement & {
+                webkitShowPlaybackTargetPicker?: () => void;
+                remote?: { prompt?: () => Promise<void> };
+              }) | null;
+              if (!video) {
+                toast('视频尚未准备好，暂时无法投屏', 'info');
+                return;
+              }
+              if (typeof video.webkitShowPlaybackTargetPicker === 'function') {
+                video.webkitShowPlaybackTargetPicker();
+                return;
+              }
+              if (typeof video.remote?.prompt === 'function') {
+                void video.remote.prompt().catch(() => toast('未能打开投屏设备选择器', 'info'));
+                return;
+              }
+              toast('当前浏览器不支持 AirPlay 或远程播放投屏', 'info');
+            }}>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v12H3zM8 20l4-4 4 4M8 9h8" /></svg>
             </button>
             <button type="button" className="cinema-glass-control cinema-utility-control" aria-expanded={showPlayerPanel} aria-controls="netflix-watch-utility-panel" aria-label="选集与换源" onClick={() => setShowPlayerPanel((value) => !value)}>•••</button>
           </div>
