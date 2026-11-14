@@ -279,6 +279,32 @@ class SeedHubDetailRetryAndCategoryTests(unittest.TestCase):
                 self.assertIsNone(row["detail_last_error"])
                 self.assertEqual(recovered["details_remaining"], 0)
 
+    def test_same_detail_url_can_be_registered_in_multiple_catalogue_categories(self):
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        import seedhub
+
+        source_url = "https://www.seedhub.cc/movies/130096/"
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(seedhub, "DB_PATH", Path(directory) / "catalog.sqlite3"):
+                seedhub._initialize()
+                with seedhub._connect() as conn:
+                    conn.execute(
+                        "INSERT INTO seedhub_catalog(source_url,title,category,discovered_at) VALUES(?,?,?,?)",
+                        (source_url, "同一详情路径", "series", 1),
+                    )
+                    conn.execute(
+                        "INSERT INTO seedhub_catalog(source_url,title,category,discovered_at) VALUES(?,?,?,?)",
+                        (source_url, "同一详情路径", "anime", 2),
+                    )
+                    categories = {
+                        row["category"] for row in conn.execute(
+                            "SELECT category FROM seedhub_catalog WHERE source_url=?", (source_url,)
+                        )
+                    }
+        self.assertEqual(categories, {"series", "anime"})
+
     def test_registered_catalogue_category_wins_over_detail_query_category(self):
         import tempfile
         from pathlib import Path
