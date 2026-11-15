@@ -137,8 +137,20 @@ function WatchContent() {
     const frame = playerFrameRef.current;
     if (!shell || !frame) return;
     let video: HTMLVideoElement | null = null;
-    const clearHideTimer = () => {
-      if (controlsHideTimerRef.current !== null) window.clearTimeout(controlsHideTimerRef.current);
+    const recordControlsDebug = (event: string, detail = '') => {
+      try {
+        const entries = JSON.parse(shell.dataset.controlsHideDebug || '[]') as string[];
+        entries.push(`${Math.round(performance.now())}:${event}${detail ? ':' + detail : ''}`);
+        shell.dataset.controlsHideDebug = JSON.stringify(entries.slice(-24));
+      } catch {
+        shell.dataset.controlsHideDebug = event;
+      }
+    };
+    const clearHideTimer = (reason = 'unspecified') => {
+      if (controlsHideTimerRef.current !== null) {
+        window.clearTimeout(controlsHideTimerRef.current);
+        recordControlsDebug('timer-clear', reason);
+      }
       controlsHideTimerRef.current = null;
     };
     const showControls = () => {
@@ -146,15 +158,15 @@ function WatchContent() {
       setControlsVisible(true);
     };
     const hideControls = () => {
-      // Resolve the active media element at timer-fire time. PlayerShell may keep
-      // the same element or replace it during an HLS recovery/source transition;
-      // a stale captured element must never silently cancel the hide deadline.
+      // Always inspect the currently mounted media element when the deadline fires.
       const activeVideo = frame.querySelector('video');
+      recordControlsDebug('timer-fire', activeVideo
+        ? `paused=${activeVideo.paused},ended=${activeVideo.ended},time=${activeVideo.currentTime.toFixed(2)}`
+        : 'video-missing');
       if (!activeVideo || activeVideo.paused || activeVideo.ended) {
         controlsHideTimerRef.current = null;
         return;
       }
-      // Apply the class immediately as well as updating React state.
       shell.classList.add('cinema-controls-hidden');
       setControlsVisible(false);
       controlsHideTimerRef.current = null;
@@ -163,7 +175,9 @@ function WatchContent() {
       clearHideTimer();
       showControls();
       if (video && !video.paused && !video.ended) {
-        controlsHideTimerRef.current = window.setTimeout(hideControls, 3000);
+        recordControlsDebug('timer-schedule', 'reveal');
+        recordControlsDebug('timer-schedule', 'playback');
+      controlsHideTimerRef.current = window.setTimeout(hideControls, 3000);
       }
     };
     const keepControlsVisible = () => {
@@ -206,7 +220,13 @@ function WatchContent() {
     // Do not keep restarting the hide deadline for incidental movement; once hidden,
     // the first real pointer movement restores the controls.
     const onPointerMove = () => {
-      if (shell.classList.contains('cinema-controls-hidden')) revealControls();
+      if (shell.classList.contains('cinema-controls-hidden')) {
+        revealControls();
+      } else if (video && !video.paused && !video.ended) {
+        // Pointer movement is the last user activity signal on desktop. Restart
+        // the deadline so controls disappear three seconds after that activity.
+        scheduleHide();
+      }
     };
     shell.addEventListener('pointerdown', revealControls, true);
     shell.addEventListener('pointermove', onPointerMove, { passive: true });
