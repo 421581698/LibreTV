@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import ipaddress
 import json
 import logging
 import secrets
@@ -18,7 +17,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from app.config import settings
+from app.config import settings, validate_bind_security
 from app.job_store import JobStore
 from app.robots import RobotsPolicyError, RobotsUnavailableError, ensure_robots_allowed
 from app.scraper import ScraplingAdapter
@@ -29,19 +28,8 @@ logging.basicConfig(level=settings.log_level.upper())
 logger = logging.getLogger("libretv.scrapling")
 
 
-def _is_loopback_host(host: str) -> bool:
-    if host.lower() == "localhost":
-        return True
-    try:
-        return ipaddress.ip_address(host).is_loopback
-    except ValueError:
-        return False
 
-
-if settings.api_key is None and not _is_loopback_host(settings.host):
-    raise RuntimeError(
-        "SCRAPLING_API_KEY is required when the service binds to a non-loopback host."
-    )
+validate_bind_security(settings.host, settings.api_key)
 
 app = FastAPI(
     title="LibreTV Scrapling Engine",
