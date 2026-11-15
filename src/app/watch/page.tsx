@@ -147,10 +147,9 @@ function WatchContent() {
       }
     };
     const clearHideTimer = (reason = 'unspecified') => {
-      if (controlsHideTimerRef.current !== null) {
-        window.clearTimeout(controlsHideTimerRef.current);
-        recordControlsDebug('timer-clear', reason);
-      }
+      const hadTimer = controlsHideTimerRef.current !== null;
+      if (hadTimer) window.clearTimeout(controlsHideTimerRef.current);
+      recordControlsDebug('timer-clear', `${reason},hadTimer=${hadTimer}`);
       controlsHideTimerRef.current = null;
     };
     const showControls = () => {
@@ -172,12 +171,11 @@ function WatchContent() {
       controlsHideTimerRef.current = null;
     };
     const revealControls = () => {
-      clearHideTimer();
+      clearHideTimer('reveal');
       showControls();
       if (video && !video.paused && !video.ended) {
-        recordControlsDebug('timer-schedule', 'reveal');
-        recordControlsDebug('timer-schedule', 'playback');
-      controlsHideTimerRef.current = window.setTimeout(hideControls, 3000);
+        recordControlsDebug('timer-schedule', `reveal,paused=${video.paused},ended=${video.ended},time=${video.currentTime.toFixed(2)},delay=3000`);
+        controlsHideTimerRef.current = window.setTimeout(hideControls, 3000);
       }
     };
     const keepControlsVisible = () => {
@@ -185,11 +183,13 @@ function WatchContent() {
       showControls();
     };
     const scheduleHide = () => {
-      clearHideTimer();
+      clearHideTimer('reschedule');
       if (!video || video.paused || video.ended) {
+        recordControlsDebug('timer-skip', !video ? 'video-missing' : `paused=${video.paused},ended=${video.ended}`);
         showControls();
         return;
       }
+      recordControlsDebug('timer-schedule', `playback,paused=${video.paused},ended=${video.ended},time=${video.currentTime.toFixed(2)},delay=3000`);
       controlsHideTimerRef.current = window.setTimeout(hideControls, 3000);
     };
     const onPlay = () => { setControlsVisible(true); scheduleHide(); };

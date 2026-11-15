@@ -132,9 +132,19 @@ try {
     const video = document.querySelector('video');
     return Boolean(video && !video.paused && video.currentTime >= start + 0.5);
   }, first.currentTime, { timeout: 8_000 });
-  // Move once, then leave the pointer completely still for the full hide interval.
+  // Move once, then wait for the real 3s hide deadline (with scheduling slack).
+  // A predicate wait avoids asserting at an arbitrary point before the deadline.
   await page.mouse.move(720, 450);
-  await page.waitForTimeout(3_600);
+  let hideWaitError = null;
+  try {
+    await page.waitForFunction(() => {
+      const shell = document.querySelector('.netflix-watch-shell');
+      const video = document.querySelector('video');
+      return Boolean(shell?.classList.contains('cinema-controls-hidden') && video && !video.paused);
+    }, null, { timeout: 8_000, polling: 100 });
+  } catch (error) {
+    hideWaitError = error instanceof Error ? error.message : String(error);
+  }
   const hiddenOverlay = await page.evaluate(() => {
     const shell = document.querySelector('.netflix-watch-shell');
     const topbar = document.querySelector('.watch-topbar');
@@ -155,10 +165,13 @@ try {
       eventLog: window.__pr84OverlayEventLog ?? [],
     };
   });
-  if (!hiddenOverlay.hiddenClass || hiddenOverlay.paused ||
+  if (hideWaitError || !hiddenOverlay.hiddenClass || hiddenOverlay.paused ||
       [hiddenOverlay.topbar, hiddenOverlay.center, hiddenOverlay.info, hiddenOverlay.qualityControls].some((item) =>
         !item || item.visibility !== 'hidden' || item.opacity > 0.05)) {
-    throw new Error('Cinema controls did not auto-hide after 3s of uninterrupted playback: ' + JSON.stringify(hiddenOverlay));
+    throw new Error('Cinema controls did not auto-hide after 3s of uninterrupted playback: ' + JSON.stringify({
+      waitError: hideWaitError,
+      ...hiddenOverlay,
+    }));
   }
   await page.mouse.move(721, 451);
   await page.waitForFunction(() => !document.querySelector('.netflix-watch-shell')?.classList.contains('cinema-controls-hidden'), null, { timeout: 3_000 });
