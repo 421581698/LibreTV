@@ -151,6 +151,7 @@ try {
       paused: document.querySelector('video')?.paused ?? true,
       topbar: state(topbar), center: state(center), info: state(info), qualityControls: state(qualityControls),
       currentTime: document.querySelector('video')?.currentTime ?? 0,
+      controlsDebug: shell?.dataset.controlsHideDebug ?? 'missing',
       eventLog: window.__pr84OverlayEventLog ?? [],
     };
   });
