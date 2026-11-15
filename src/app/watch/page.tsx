@@ -147,8 +147,9 @@ function WatchContent() {
       }
     };
     const clearHideTimer = (reason = 'unspecified') => {
-      const hadTimer = controlsHideTimerRef.current !== null;
-      if (hadTimer) window.clearTimeout(controlsHideTimerRef.current);
+      const timer = controlsHideTimerRef.current;
+      const hadTimer = timer !== null;
+      if (timer !== null) window.clearTimeout(timer);
       recordControlsDebug('timer-clear', `${reason},hadTimer=${hadTimer}`);
       controlsHideTimerRef.current = null;
     };
