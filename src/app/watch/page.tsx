@@ -247,7 +247,7 @@ function WatchContent() {
       shell.removeEventListener('click', revealControls, true);
       shell.removeEventListener('keydown', revealControls, true);
     };
-  }, [sourceKey, vodId, indexParam, directUrl, verified, detailQuery.data]);
+  }, [sourceKey, vodId, indexParam, directUrl, source, verified, detailQuery.data]);
 
   // 当前播放地址：优先取剧集列表中的当前集，其次直连 URL 参数
   const currentUrl = useMemo(() => {
