@@ -165,7 +165,8 @@ try {
       eventLog: window.__pr84OverlayEventLog ?? [],
     };
   });
-  if (hideWaitError || !hiddenOverlay.hiddenClass || hiddenOverlay.paused ||
+  if (hideWaitError || hiddenOverlay.controlsDebug === 'missing' ||
+      !hiddenOverlay.hiddenClass || hiddenOverlay.paused ||
       [hiddenOverlay.topbar, hiddenOverlay.center, hiddenOverlay.info, hiddenOverlay.qualityControls].some((item) =>
         !item || item.visibility !== 'hidden' || item.opacity > 0.05)) {
     throw new Error('Cinema controls did not auto-hide after 3s of uninterrupted playback: ' + JSON.stringify({
