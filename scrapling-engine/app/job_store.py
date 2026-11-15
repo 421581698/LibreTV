@@ -181,11 +181,20 @@ class JobStore:
             for row in rows
         ]
 
-    def recover_interrupted(self) -> list[str]:
-        """Mark jobs left running by a process restart as interrupted."""
+    def list_queued(self) -> list[dict[str, Any]]:
+        """Return queued jobs in creation order for startup scheduling."""
         with self._connection() as db:
             rows = db.execute(
-                "SELECT task_id FROM crawl_jobs WHERE status IN ('queued', 'running', 'pausing')"
+                "SELECT task_id FROM crawl_jobs WHERE status = 'queued' ORDER BY created_at, task_id"
+            ).fetchall()
+        jobs = [self.get(row["task_id"]) for row in rows]
+        return [job for job in jobs if job is not None]
+
+    def recover_interrupted(self) -> list[str]:
+        """Mark only actively running jobs interrupted; queued jobs remain schedulable."""
+        with self._connection() as db:
+            rows = db.execute(
+                "SELECT task_id FROM crawl_jobs WHERE status IN ('running', 'pausing')"
             ).fetchall()
             task_ids = [row["task_id"] for row in rows]
             for task_id in task_ids:
