@@ -1,0 +1,70 @@
+/* iPhone edge-to-edge canvas repair.
+   These V4 destinations are intentionally dark; keep the document canvas and
+   both iOS safe-area insets on the same black surface as the page content. */
+@media (max-width: 700px) {
+  html:has(body .v4-home),
+  html:has(body .v4-search-page),
+  html:has(body .v4-spatial-screen[data-screen="me"]),
+  html:has(body .v4-spatial-screen[data-screen="settings"]) {
+    min-height: 100%;
+    min-height: 100dvh;
+    color-scheme: dark !important;
+    background: #000 !important;
+    background-color: #000 !important;
+  }
+
+  html:has(body .v4-home) body,
+  html:has(body .v4-search-page) body,
+  html:has(body .v4-spatial-screen[data-screen="me"]) body,
+  html:has(body .v4-spatial-screen[data-screen="settings"]) body {
+    min-height: 100%;
+    min-height: 100dvh;
+    color-scheme: dark !important;
+    background: #000 !important;
+    background-color: #000 !important;
+    background-image: none !important;
+  }
+
+  html:has(body .v4-home)::after,
+  html:has(body .v4-search-page)::after,
+  html:has(body .v4-spatial-screen[data-screen="me"])::after,
+  html:has(body .v4-spatial-screen[data-screen="settings"])::after,
+  body:has(.v4-home)::after,
+  body:has(.v4-search-page)::after,
+  body:has(.v4-spatial-screen[data-screen="me"])::after,
+  body:has(.v4-spatial-screen[data-screen="settings"])::after {
+    background: #000 !important;
+    background-color: #000 !important;
+  }
+
+  html:has(body .v4-home),
+  html:has(body .v4-search-page),
+  html:has(body .v4-spatial-screen[data-screen="me"]),
+  html:has(body .v4-spatial-screen[data-screen="settings"]) {
+    overscroll-behavior-y: none;
+  }
+
+  .v4-search-page .search-history-dropdown {
+    color: #f5f5f7 !important;
+    background: rgba(28, 28, 30, .96) !important;
+    background-color: rgba(28, 28, 30, .96) !important;
+    border-color: rgba(255, 255, 255, .12) !important;
+    box-shadow: 0 18px 44px rgba(0, 0, 0, .48) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(160%) !important;
+    backdrop-filter: blur(28px) saturate(160%) !important;
+  }
+
+  .v4-search-page .search-history-dropdown .glass-toolbar {
+    background: rgba(255, 255, 255, .06) !important;
+    border-color: rgba(255, 255, 255, .08) !important;
+  }
+
+  .v4-search-page .search-history-dropdown button {
+    color: #d1d1d6 !important;
+  }
+
+  .v4-search-page .search-history-dropdown li:hover,
+  .v4-search-page .search-history-dropdown li[aria-selected="true"] {
+    background: rgba(255, 255, 255, .08) !important;
+  }
+}
