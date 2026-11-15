@@ -9,6 +9,8 @@
     min-height: 100%;
     min-height: 100dvh;
     color-scheme: dark !important;
+    --page-chrome: #000;
+    --safe-area-surface: #000;
     background: #000 !important;
     background-color: #000 !important;
   }
