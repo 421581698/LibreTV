@@ -37,6 +37,8 @@ import './pr84-apple-tv-dock.css';
 import './pr84-watch-mobile-fix.css';
 // PR #84 Resource Studio: route-scoped dark theme and isolated mobile dock.
 import './resource-studio.css';
+// Final iPhone edge-to-edge contract: route canvas and safe areas stay black.
+import './iphone-edge-to-edge-fix.css';
 import { Providers } from '@/components/providers';
 import { MobileTabBar } from '@/components/home/header/MobileTabBar';
 import { GlobalDownloadManager } from '@/components/download-manager';
