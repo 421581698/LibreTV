@@ -174,6 +174,106 @@ class PostgresRuleStore:
             )
         return rule_id
 
+    def record_execution(
+        self,
+        rule_id: str,
+        *,
+        passed: bool,
+        match_count: int,
+        sample_values: list[str],
+        workflow_id: str,
+        page_url: str,
+        error: str | None = None,
+    ) -> dict[str, Any]:
+        if match_count < 0:
+            raise ValueError("Rule execution match_count cannot be negative")
+        safe_url = validate_public_http_url(page_url)
+        now = _now()
+        test_result = {
+            "passed": bool(passed),
+            "match_count": match_count,
+            "sample_values": sample_values[:5],
+            "workflow_id": workflow_id[:128],
+            "page_url": safe_url,
+            "error": error[:200] if error else None,
+            "verification_level": "live_page_rule_execution",
+        }
+        with psycopg.connect(self.database_url, row_factory=dict_row) as db:
+            rule = db.execute(
+                "SELECT status FROM scraping_rules WHERE rule_id = %s FOR UPDATE",
+                (rule_id,),
+            ).fetchone()
+            if rule is None:
+                return {"recorded": False, "failure_streak": 0, "auto_disabled": False}
+            db.execute(
+                """
+                INSERT INTO scraping_rule_tests
+                    (rule_id, passed, match_count, test_json, created_at)
+                VALUES (%s, %s, %s, %s::jsonb, %s)
+                """,
+                (
+                    rule_id,
+                    bool(passed),
+                    match_count,
+                    json.dumps(test_result, ensure_ascii=False),
+                    now,
+                ),
+            )
+            action = "rule_execution_passed" if passed else "rule_execution_failed"
+            db.execute(
+                """
+                INSERT INTO scraping_rule_events
+                    (rule_id, actor_id, action, note, created_at)
+                VALUES (%s, 'ai-supervisor', %s, %s, %s)
+                """,
+                (
+                    rule_id,
+                    action,
+                    (error or f"Matched {match_count} elements.")[:1000],
+                    now,
+                ),
+            )
+            recent = db.execute(
+                """
+                SELECT passed FROM scraping_rule_tests
+                WHERE rule_id = %s ORDER BY test_id DESC LIMIT 3
+                """,
+                (rule_id,),
+            ).fetchall()
+            failure_streak = 0
+            for item in recent:
+                if item["passed"]:
+                    break
+                failure_streak += 1
+            auto_disabled = False
+            if rule["status"] == "active" and failure_streak >= 3:
+                cursor = db.execute(
+                    """
+                    UPDATE scraping_rules SET status = 'disabled', updated_at = %s
+                    WHERE rule_id = %s AND status = 'active'
+                    """,
+                    (now, rule_id),
+                )
+                auto_disabled = cursor.rowcount == 1
+                if auto_disabled:
+                    db.execute(
+                        """
+                        INSERT INTO scraping_rule_events
+                            (rule_id, actor_id, action, note, created_at)
+                        VALUES (%s, 'ai-supervisor', 'auto_disabled', %s, %s)
+                        """,
+                        (
+                            rule_id,
+                            "Disabled after three consecutive live-page extraction failures.",
+                            now,
+                        ),
+                    )
+            return {
+                "recorded": True,
+                "failure_streak": failure_streak,
+                "auto_disabled": auto_disabled,
+            }
+
     def set_status(
         self,
         rule_id: str,
