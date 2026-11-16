@@ -156,6 +156,9 @@ export default function CrawlerControlCenterPage() {
       setWorkflowEvents([]);
       return;
     }
+    if (activeWorkflowStatus === 'completed' || activeWorkflowStatus === 'failed') {
+      return;
+    }
     const stream = new EventSource(
       `/api/crawler/workflows/${activeWorkflowId}/events`,
     );
@@ -189,7 +192,7 @@ export default function CrawlerControlCenterPage() {
       }
       stream.close();
     };
-  }, [activeWorkflowId]);
+  }, [activeWorkflowId, activeWorkflowStatus]);
 
   useEffect(() => {
     if (
