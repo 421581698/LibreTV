@@ -132,6 +132,13 @@ def init_db() -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_playback_samples_host_created
           ON playback_quality_samples(host,created_at DESC);
+        CREATE TABLE IF NOT EXISTS crawl_page_samples (
+          task_id TEXT NOT NULL, host TEXT NOT NULL, page_url TEXT NOT NULL,
+          html_sample TEXT NOT NULL, captured_at INTEGER NOT NULL,
+          PRIMARY KEY(task_id,page_url)
+        );
+        CREATE INDEX IF NOT EXISTS idx_crawl_page_samples_host
+          ON crawl_page_samples(host,captured_at DESC);
         """)
         # Forward-only, additive migrations keep existing collector volumes compatible.
         candidate_columns = {row["name"] for row in connection.execute("PRAGMA table_info(candidates)").fetchall()}
@@ -1901,6 +1908,38 @@ class SpiderCandidateBatch(list):
         self.diagnostics = diagnostics or {}
 
 
+def record_page_sample(task_id: str, host: str, page_url: str, body: bytes) -> None:
+    if not task_id or not body:
+        return
+    sample = ai_rules.sanitize_html_sample(body[:256 * 1024].decode("utf-8", errors="replace"))
+    if not sample:
+        return
+    with db() as connection:
+        connection.execute(
+            """INSERT INTO crawl_page_samples(task_id,host,page_url,html_sample,captured_at)
+               VALUES(?,?,?,?,?) ON CONFLICT(task_id,page_url) DO UPDATE SET
+               html_sample=excluded.html_sample,captured_at=excluded.captured_at""",
+            (task_id, host, canonical_candidate_url(page_url), sample, int(time.time())),
+        )
+
+
+def task_page_sample(task_id: str | None = None, host: str | None = None) -> str | None:
+    if not task_id and not host:
+        return None
+    with db() as connection:
+        if task_id:
+            row = connection.execute(
+                "SELECT html_sample FROM crawl_page_samples WHERE task_id=? ORDER BY captured_at DESC LIMIT 1",
+                (task_id,),
+            ).fetchone()
+        else:
+            row = connection.execute(
+                "SELECT html_sample FROM crawl_page_samples WHERE host=? ORDER BY captured_at DESC LIMIT 1",
+                (host,),
+            ).fetchone()
+    return row["html_sample"] if row else None
+
+
 def page_fingerprint_changed(host: str, page_url: str, body: bytes) -> bool:
     """Check whether a page changed without committing the fingerprint."""
     page_key = hashlib.sha256(canonical_candidate_url(page_url).encode()).hexdigest()
@@ -1938,7 +1977,7 @@ def record_page_fingerprint(host: str, page_url: str, body: bytes) -> bool:
     return changed
 
 
-def run_spider(url: str, limit: int) -> list[dict]:
+def run_spider(url: str, limit: int, task_id: str | None = None) -> list[dict]:
     enable_adaptive_fetcher()
     class TargetSiteSpider(SiteSpider):
         start_urls = [url]
@@ -1952,6 +1991,8 @@ def run_spider(url: str, limit: int) -> list[dict]:
         async def parse(self, response: Response):
             body = getattr(response, "body", b"") or b""
             host = self.allowed_domains[0]
+            if task_id:
+                record_page_sample(task_id, host, response.url, body)
             changed = page_fingerprint_changed(host, response.url, body)
             # Always re-extract public candidates. Parser improvements must also
             # apply to unchanged pages already seen by earlier collector versions.
@@ -2181,7 +2222,7 @@ def crawl_site(payload: CrawlRequest, cancel_check=None) -> dict:
         if payload.mode == "auto":
             # Run both collectors independently; one failure never suppresses the other.
             with ThreadPoolExecutor(max_workers=2, thread_name_prefix="scrapling-collector") as pool:
-                spider_future = pool.submit(run_spider, raw_url, payload.limit)
+                spider_future = pool.submit(run_spider, raw_url, payload.limit, task_id)
                 browser_future = pool.submit(run_browser_capture, raw_url, payload.limit)
                 try:
                     spider_candidates = spider_future.result()
@@ -2209,7 +2250,7 @@ def crawl_site(payload: CrawlRequest, cancel_check=None) -> dict:
                     errors.append(f"Browser capture: {type(exc).__name__}")
         elif payload.mode == "http":
             try:
-                spider_candidates = run_spider(raw_url, payload.limit)
+                spider_candidates = run_spider(raw_url, payload.limit, task_id)
                 for item in spider_candidates:
                     item["collector"] = "spider"
                     item["collected_by"] = ["spider"]
