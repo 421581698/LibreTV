@@ -151,7 +151,7 @@ if "${compose[@]}" exec -T scrapling-workflow-worker sh -c 'command -v ffprobe >
   exit 1
 fi
 # Exercise the complete file handoff: generate a tiny local clip inside the
-# no-network sidecar, stage it in the worker's tmpfs, and request a real probe.
+# no-network sidecar, stage it in the worker-only volume, and request a real probe.
 echo "[runtime] Generate a probe fixture in the isolated sidecar"
 timeout 30s "${compose[@]}" exec -T scrapling-media-probe ffmpeg -hide_banner -loglevel error \
   -f lavfi -i color=c=black:s=320x240:r=1:d=1 -frames:v 1 \
