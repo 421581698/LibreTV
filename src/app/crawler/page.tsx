@@ -1,6 +1,7 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
 
 type Candidate = {
   candidate_id: string;
@@ -66,6 +67,7 @@ function statusLabel(status: string): string {
     pending_review: '待人工审核',
     paused: '已暂停',
     cancelled: '已取消',
+    cancelling: '正在取消',
   };
   return labels[status] || status;
 }
@@ -104,13 +106,20 @@ export default function CrawlerControlCenterPage() {
     void refresh();
   }, [refresh]);
 
+  const activeWorkflowId = activeWorkflow?.workflow_id;
+  const activeWorkflowStatus = activeWorkflow?.status;
+
   useEffect(() => {
-    if (!activeWorkflow?.workflow_id) return;
+    if (
+      !activeWorkflowId ||
+      activeWorkflowStatus === 'completed' ||
+      activeWorkflowStatus === 'failed'
+    ) return;
     let disposed = false;
     const poll = async () => {
       try {
         const data = await api<{ workflow: WorkflowDetail }>(
-          `workflows/${activeWorkflow.workflow_id}`,
+          `workflows/${activeWorkflowId}`,
         );
         if (!disposed) setActiveWorkflow(data.workflow);
         if (data.workflow.status === 'completed' || data.workflow.status === 'failed') {
@@ -125,7 +134,7 @@ export default function CrawlerControlCenterPage() {
       disposed = true;
       window.clearInterval(timer);
     };
-  }, [activeWorkflow?.workflow_id, refresh]);
+  }, [activeWorkflowId, activeWorkflowStatus, refresh]);
 
   async function startWorkflow(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
