@@ -67,6 +67,8 @@ def probe_media_file(
         deadline = time.monotonic() + timeout_seconds + 20
         while time.monotonic() < deadline:
             if result_path.is_file() and not result_path.is_symlink():
+                if result_path.stat().st_size > 2 * 1024 * 1024:
+                    raise MediaProbeError("Probe sidecar response exceeds the 2 MiB limit")
                 try:
                     payload = json.loads(result_path.read_text(encoding="utf-8"))
                 except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
