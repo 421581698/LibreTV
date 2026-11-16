@@ -20,6 +20,17 @@ class RegistryQueueTests(unittest.TestCase):
         self.patch.stop()
         self.tmp.cleanup()
 
+    def test_bulk_job_status_returns_bounded_status_for_live_scale_harness(self):
+        job = queue.submit_job("crawl", {"url": "https://example.com"}, "bulk-status:one")
+        with patch.object(queue, "require_auth"):
+            result = queue.api_bulk_job_status(
+                {"ids": [job["id"]]}, authorization="Bearer test"
+            )
+            self.assertEqual(result["jobs"][0]["id"], job["id"])
+            self.assertEqual(result["jobs"][0]["status"], "queued")
+            with self.assertRaises(Exception):
+                queue.api_bulk_job_status({"ids": ["invalid"]}, authorization="Bearer test")
+
     def test_discovery_jobs_are_durable_and_idempotent(self):
         first = queue.submit_job("discover", {"search_keyword": "sample"}, "discover:sample")
         second = queue.submit_job("discover", {"search_keyword": "sample"}, "discover:sample")
