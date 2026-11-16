@@ -75,7 +75,16 @@ while iptables -w -C DOCKER-USER -s "$COLLECTOR_CIDR" -j "$CHAIN" 2>/dev/null; d
 done
 iptables -w -I DOCKER-USER 1 -s "$COLLECTOR_CIDR" -j "$CHAIN"
 
-# DOCKER-USER only sees forwarded packets. Block direct access from the
+# Same-bridge traffic may be accepted by Docker's bridge rules without
+# traversing DOCKER-USER on every supported host/kernel combination. Add a
+# source-scoped FORWARD hook as defense in depth so private destinations are
+# checked before Docker's per-bridge ACCEPT rules.
+while iptables -w -C FORWARD -s "$COLLECTOR_CIDR" -j "$CHAIN" 2>/dev/null; do
+  iptables -w -D FORWARD -s "$COLLECTOR_CIDR" -j "$CHAIN"
+done
+iptables -w -I FORWARD 1 -s "$COLLECTOR_CIDR" -j "$CHAIN"
+
+# DOCKER-USER/FORWARD only see forwarded packets. Block direct access from the
 # collector to host-local services as well (bridge gateway / host interfaces).
 while iptables -w -C INPUT -s "$COLLECTOR_CIDR" -j DROP 2>/dev/null; do
   iptables -w -D INPUT -s "$COLLECTOR_CIDR" -j DROP
@@ -84,6 +93,7 @@ iptables -w -I INPUT 1 -s "$COLLECTOR_CIDR" -j DROP
 
 # Fail the installer if either enforcement hook is not actually present.
 iptables -w -C DOCKER-USER -s "$COLLECTOR_CIDR" -j "$CHAIN"
+iptables -w -C FORWARD -s "$COLLECTOR_CIDR" -j "$CHAIN"
 iptables -w -C INPUT -s "$COLLECTOR_CIDR" -j DROP
 
 echo "Verified IPv4 egress restrictions for Scrapling collector $COLLECTOR_CIDR."
