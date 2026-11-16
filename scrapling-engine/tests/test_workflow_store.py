@@ -90,6 +90,7 @@ def test_postgres_workflow_dag_claims_dependencies_and_retries_durably() -> None
         assert event_types == [
             "workflow_created",
             "node_claimed",
+            "node_claimed",
             "node_completed",
             "node_claimed",
             "node_retry_scheduled",
