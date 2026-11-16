@@ -56,6 +56,7 @@ class WorkflowWorker:
             "validate_public_urls": self._validate_public_urls,
             "crawl_seed_urls": self._crawl_seed_urls,
             "discover_site_links": self._discover_site_links,
+            "autonomous_site_discovery": self._autonomous_site_discovery,
             "ai_supervisor_discover": self._ai_supervisor_discover,
             "generate_extraction_rule": self._generate_extraction_rule,
             "register_candidates": self._register_candidates,
@@ -295,6 +296,84 @@ class WorkflowWorker:
             "max_pages": max_pages,
             "scope": "same_origin_only",
             "errors": errors[:100],
+        }
+
+    async def _autonomous_site_discovery(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Discover public sites from approved public directories and build candidate resources."""
+        catalog_urls = payload.get("catalog_urls")
+        if not isinstance(catalog_urls, list) or not 1 <= len(catalog_urls) <= 5:
+            raise ValueError("autonomous_site_discovery requires 1 to 5 catalog URLs")
+        max_sites = payload.get("max_sites", 10)
+        if not isinstance(max_sites, int) or isinstance(max_sites, bool) or not 1 <= max_sites <= 20:
+            raise ValueError("max_sites must be an integer from 1 to 20")
+        goal = str(payload.get("goal", "Discover public movie, series and animation resources."))
+        if not goal.strip() or len(goal) > 1000:
+            raise ValueError("Discovery goal must contain 1 to 1000 characters")
+
+        catalog_pages: list[tuple[str, object]] = []
+        discovered_origins: dict[str, str] = {}
+        catalog_errors: list[dict[str, str]] = []
+        for raw_catalog_url in catalog_urls:
+            if not isinstance(raw_catalog_url, str):
+                continue
+            catalog_url = validate_public_http_url(raw_catalog_url)
+            try:
+                await asyncio.to_thread(ensure_robots_allowed, catalog_url, settings.request_timeout_seconds)
+                page = await asyncio.to_thread(ScraplingAdapter.fetch_page, catalog_url, settings.request_timeout_seconds)
+                final_url = validate_public_http_url(str(getattr(page, "url", None) or catalog_url))
+                if not is_same_origin(final_url, catalog_url):
+                    raise ValueError("catalog_redirect_outside_origin")
+                content_type = (getattr(page, "headers", {}) or {}).get("content-type", "")
+                if content_type and "html" not in str(content_type).lower():
+                    raise ValueError("catalog_not_html")
+                catalog_pages.append((final_url, page))
+                for link in extract_discovery_links(page, final_url, max_links=100, same_origin_only=False):
+                    parsed = urlsplit(link)
+                    origin = f"{parsed.scheme.lower()}://{parsed.netloc.lower()}"
+                    if origin != f"{urlsplit(final_url).scheme.lower()}://{urlsplit(final_url).netloc.lower()}":
+                        discovered_origins.setdefault(origin, f"{origin}/")
+            except Exception as exc:
+                catalog_errors.append({"url": catalog_url, "error": type(exc).__name__})
+
+        site_results: list[dict[str, Any]] = []
+        workflow_id = str(payload.get("_workflow_id") or "manual")
+        for site_url in list(discovered_origins.values())[:max_sites]:
+            site_result: dict[str, Any] = {"site_url": site_url, "status": "discovered", "review_status": "candidate_only"}
+            try:
+                discovery = await self._ai_supervisor_discover({"urls": [site_url], "goal": goal})
+                site_result["pages_discovered"] = discovery.get("count", 0)
+                site_result["discovery_errors"] = discovery.get("errors", [])[:10]
+                items = discovery.get("items", [])
+                if items:
+                    try:
+                        rule_result = await self._generate_extraction_rule({
+                            "page_url": items[0].get("url"), "goal": goal, "_workflow_id": workflow_id
+                        })
+                        site_result["rule"] = rule_result
+                    except Exception as exc:
+                        site_result["rule_repair_status"] = "needs_review"
+                        site_result["rule_error"] = type(exc).__name__
+                    registered = await self._register_candidates({
+                        "_workflow_id": workflow_id, "items": items
+                    })
+                    site_result["candidate_count"] = registered["count"]
+                    site_result["candidate_ids"] = registered["candidate_ids"]
+                    site_result["status"] = "candidates_registered"
+                else:
+                    site_result["status"] = "no_public_resources_found"
+            except Exception as exc:
+                site_result["status"] = "site_scan_failed"
+                site_result["error"] = type(exc).__name__
+            site_results.append(site_result)
+
+        return {
+            "catalog_count": len(catalog_pages),
+            "discovered_site_count": len(discovered_origins),
+            "scanned_site_count": len(site_results),
+            "candidate_count": sum(int(site.get("candidate_count", 0)) for site in site_results),
+            "sites": site_results,
+            "catalog_errors": catalog_errors[:20],
+            "review_gate": "resources_remain_pending_human_review; no formal publishing",
         }
 
     async def _ai_supervisor_discover(self, payload: dict[str, Any]) -> dict[str, Any]:
