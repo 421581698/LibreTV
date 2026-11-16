@@ -41,6 +41,33 @@ class WorkerPipelineTests(unittest.TestCase):
         self.assertEqual(result["registry_ready"], 1)
         self.assertIn("media_preflight_completed", [item["stage"] for item in checkpoints])
 
+    def test_discovery_queues_every_discovered_site_not_only_first_five(self):
+        sites = [
+            {"host": f"site-{index}.example", "url": f"https://site-{index}.example/"}
+            for index in range(8)
+        ]
+        queued = []
+        with (
+            patch.object(worker, "require_egress_firewall"),
+            patch.object(worker, "discover_sites", return_value=sites),
+            patch.object(worker, "submit_job", side_effect=lambda kind, payload, key: queued.append(payload) or {"id": str(len(queued))}),
+        ):
+            result = worker.handle(
+                {"_job_type": "discover", "search_keyword": "sample"},
+                lambda event: None,
+                lambda: False,
+            )
+        self.assertEqual(result["discovered"], 8)
+        self.assertEqual(len(result["queued_jobs"]), 8)
+        self.assertEqual(len(queued), 8)
+        self.assertTrue(all(item["limit"] == 100 for item in queued))
+
+    def test_candidate_and_discovery_limits_support_at_least_one_thousand(self):
+        import app
+        self.assertGreaterEqual(app.MAX_RESULTS, 1000)
+        self.assertGreaterEqual(app.MAX_CANDIDATES, 1000)
+        self.assertGreaterEqual(worker.MAX_AUTOMATIC_MEDIA_PREFLIGHTS, 1000)
+
     def test_crawl_job_does_not_preflight_non_media_candidates(self):
         with (
             patch.object(worker, "crawl_site", return_value={"task_id": "b" * 32, "count": 1}),
