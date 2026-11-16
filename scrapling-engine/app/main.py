@@ -43,7 +43,8 @@ job_store = (
     else JobStore(settings.job_database_path)
 )
 job_store.initialize()
-job_store.recover_interrupted()
+if not settings.database_url:
+    job_store.recover_interrupted()
 _active_spiders: dict[str, Any] = {}
 _legacy_task_ids: set[str] = set()
 _job_tasks: dict[str, asyncio.Task] = {}
@@ -120,6 +121,9 @@ def _ensure_checkpoint_manifest(
 
 
 def _schedule_job(task_id: str) -> None:
+    # PostgreSQL-backed jobs are claimed only by independent Worker processes.
+    if settings.database_url:
+        return
     existing = _job_tasks.get(task_id)
     if existing and not existing.done():
         return
