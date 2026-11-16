@@ -109,3 +109,14 @@ async def test_download_rejects_html_document(tmp_path: Path) -> None:
             transport=httpx.MockTransport(handler),
         )
     assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.asyncio
+async def test_live_media_download_requires_egress_proxy(tmp_path: Path) -> None:
+    with pytest.raises(MediaDownloadError, match="egress proxy is required"):
+        await download_candidate_media(
+            "https://93.184.216.34/video.mp4",
+            tmp_path,
+            proxy=None,
+        )
+    assert list(tmp_path.iterdir()) == []

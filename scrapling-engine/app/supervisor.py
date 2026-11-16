@@ -54,6 +54,8 @@ class SupervisorClient:
         self.api_base = api_base.rstrip("/")
         self.api_key = api_key
         self.model = model
+        if transport is None and not proxy:
+            raise ValueError("A configured egress proxy is required for live supervisor requests.")
         self.timeout_seconds = timeout_seconds
         self.transport = transport
         self.proxy = proxy

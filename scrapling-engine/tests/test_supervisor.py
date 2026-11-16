@@ -217,3 +217,12 @@ async def test_supervisor_planning_uses_configured_egress_proxy(monkeypatch) -> 
     assert captured["proxy"] == "http://scrapling-egress-proxy:8080"
     assert captured["trust_env"] is False
     assert captured["follow_redirects"] is False
+
+
+def test_live_supervisor_requests_require_egress_proxy() -> None:
+    with pytest.raises(ValueError, match="egress proxy is required"):
+        SupervisorClient(
+            "https://model.example/v1",
+            "test-secret",
+            "test-model",
+        )

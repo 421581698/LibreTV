@@ -33,6 +33,8 @@ async def download_candidate_media(
         raise MediaDownloadError("Media download limit must be between 1 byte and 2 GiB")
     if not 1 <= timeout_seconds <= 300:
         raise MediaDownloadError("Media download timeout must be between 1 and 300 seconds")
+    if transport is None and not proxy:
+        raise MediaDownloadError("A configured egress proxy is required for media downloads")
 
     current_url = await asyncio.to_thread(validate_public_http_url, url)
     initial_scheme = urlsplit(current_url).scheme.lower()
