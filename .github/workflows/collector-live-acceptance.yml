@@ -1,6 +1,15 @@
 name: Collector Live Acceptance
 
 on:
+  pull_request:
+    branches:
+      - integration/collector-quality-evidence-fix-2026-11-16
+    paths:
+      - ".github/workflows/collector-live-acceptance.yml"
+      - "services/scrapling-collector/**"
+      - "scripts/scrapling-egress-firewall.sh"
+      - "scripts/test-scrapling-egress-firewall.sh"
+      - "docker-compose.yml"
   workflow_dispatch:
     inputs:
       crawl_target:
@@ -27,6 +36,7 @@ permissions:
 
 jobs:
   live-acceptance:
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.COLLECTOR_LIVE_ACCEPTANCE_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 360
     environment: collector-acceptance
@@ -43,7 +53,7 @@ jobs:
       MEDIA_ACCEPTANCE_ALLOWED_HOSTS: ${{ secrets.MEDIA_ACCEPTANCE_ALLOWED_HOSTS }}
       BROWSER_MEDIA_ACCEPTANCE_URL: ${{ secrets.BROWSER_MEDIA_ACCEPTANCE_URL }}
       BROWSER_MEDIA_ACCEPTANCE_ALLOWED_HOSTS: ${{ secrets.BROWSER_MEDIA_ACCEPTANCE_ALLOWED_HOSTS }}
-      MEDIA_ACCEPTANCE_SECONDS: ${{ inputs.media_seconds }}
+      MEDIA_ACCEPTANCE_SECONDS: ${{ inputs.media_seconds || '60' }}
       LIVE_CRAWL_ALLOWED_HOSTS: ${{ secrets.LIVE_CRAWL_ALLOWED_HOSTS }}
       LIVE_CRAWL_URLS: ${{ secrets.LIVE_CRAWL_URLS }}
     steps:
@@ -104,7 +114,7 @@ jobs:
             -e SCRAPLING_API_TOKEN="$SCRAPLING_API_TOKEN" \
             -e LIVE_CRAWL_ALLOWED_HOSTS="$LIVE_CRAWL_ALLOWED_HOSTS" \
             libretv-scrapling-collector python /tmp/live_crawl_scale.py \
-              --urls /tmp/approved-live-urls.txt --target "${{ inputs.crawl_target }}"
+              --urls /tmp/approved-live-urls.txt --target "${{ inputs.crawl_target || '1000' }}"
       - name: Collect isolated stack diagnostics
         if: always()
         run: |
