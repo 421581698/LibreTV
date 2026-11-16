@@ -5,6 +5,12 @@ import worker
 
 
 class WorkerPipelineTests(unittest.TestCase):
+    def test_worker_reads_fmhy_sites_from_canonical_registry(self):
+        expected = [{"host": "catalog.example", "url": "https://catalog.example/video"}]
+        with patch.object(worker.registry_queue, "list_discovered_sites", return_value=expected) as list_sites:
+            self.assertEqual(worker.get_discovered_sites(25), expected)
+        list_sites.assert_called_once_with(25)
+
     def test_batch_job_aggregates_unique_media_across_fmhy_sites_until_minimum(self):
         sites = [
             {"host": "catalog-one.example", "url": "https://catalog-one.example/video", "title": "One"},
