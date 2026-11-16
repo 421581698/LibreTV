@@ -92,7 +92,7 @@ async def test_worker_tests_ai_generated_rule_on_fetched_page(
     class FakePlanner:
         model = "test-model"
 
-        def __init__(self, *_args: object) -> None:
+        def __init__(self, *_args: object, **_kwargs: object) -> None:
             pass
 
         async def generate_extraction_rule(
