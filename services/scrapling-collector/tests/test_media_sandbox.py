@@ -13,6 +13,19 @@ class MediaSandboxPolicyTests(unittest.TestCase):
         self.assertNotIn('os.environ.get("MEDIA_ACCEPTANCE_URL"', harness)
         self.assertNotIn('os.environ.get("MEDIA_ACCEPTANCE_ALLOWED_HOSTS"', harness)
 
+    def test_workflows_pass_dedicated_browser_fixture_environment(self):
+        repository_root = Path(__file__).resolve().parents[2]
+        workflow_paths = [
+            repository_root / ".github/workflows/scrapling-collector.yml",
+            repository_root / ".github/workflows/collector-live-acceptance.yml",
+        ]
+        for workflow_path in workflow_paths:
+            workflow = workflow_path.read_text(encoding="utf-8")
+            self.assertIn('BROWSER_MEDIA_ACCEPTANCE_URL="$BROWSER_MEDIA_ACCEPTANCE_URL"', workflow)
+            self.assertIn('BROWSER_MEDIA_ACCEPTANCE_ALLOWED_HOSTS="$BROWSER_MEDIA_ACCEPTANCE_ALLOWED_HOSTS"', workflow)
+            self.assertNotIn('MEDIA_ACCEPTANCE_URL="$BROWSER_MEDIA_ACCEPTANCE_URL"', workflow)
+            self.assertNotIn('MEDIA_ACCEPTANCE_ALLOWED_HOSTS="$BROWSER_MEDIA_ACCEPTANCE_ALLOWED_HOSTS"', workflow)
+
     def test_probe_seccomp_profile_denies_socket_creation_and_io(self):
         profile_path = Path(__file__).resolve().parents[1] / "seccomp-no-socket.json"
         profile = json.loads(profile_path.read_text(encoding="utf-8"))
