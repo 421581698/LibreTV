@@ -312,8 +312,16 @@ class PostgresWorkflowStore:
                 SET lease_expires_at = %s, updated_at = %s
                 WHERE workflow_id = %s AND node_id = %s
                   AND status = 'running' AND lease_owner = %s
+                  AND lease_expires_at > %s
                 """,
-                (now + timedelta(seconds=lease_seconds), now, workflow_id, node_id, worker_id),
+                (
+                    now + timedelta(seconds=lease_seconds),
+                    now,
+                    workflow_id,
+                    node_id,
+                    worker_id,
+                    now,
+                ),
             )
             return cursor.rowcount == 1
 
