@@ -38,7 +38,7 @@ validate_bind_security(settings.host, settings.api_key)
 app = FastAPI(
     title="LibreTV Scrapling Engine",
     version="0.3.0",
-    description="Phase-one isolated crawler service built on upstream Scrapling.",
+    description="Phase-two autonomous discovery and isolated crawler service built on upstream Scrapling.",
 )
 job_store = (
     PostgresJobStore(settings.database_url)
@@ -347,7 +347,7 @@ async def require_api_key(request: Request, call_next):
 
 @app.get("/health")
 async def health() -> dict[str, str]:
-    return {"status": "ok", "engine": "scrapling", "phase": "1"}
+    return {"status": "ok", "engine": "scrapling", "phase": "2"}
 
 
 @app.get("/capabilities")
