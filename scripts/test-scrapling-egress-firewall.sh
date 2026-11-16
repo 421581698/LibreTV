@@ -10,6 +10,7 @@ COLLECTOR_CIDR="172.30.60.0/24"
 TARGET_IP="172.30.60.13"
 GATEWAY_IP="172.30.60.1"
 CHAIN="LIBRETV-SCRAPLING-EGRESS"
+MARKER_DIR="$(mktemp -d /tmp/libretv-scrapling-egress-proof.XXXXXX)"
 HOST_SERVER_PID=""
 
 cleanup() {
@@ -21,6 +22,7 @@ cleanup() {
   sudo iptables -w -D INPUT -s "$COLLECTOR_CIDR" -j DROP >/dev/null 2>&1 || true
   sudo iptables -w -F "$CHAIN" >/dev/null 2>&1 || true
   sudo iptables -w -X "$CHAIN" >/dev/null 2>&1 || true
+  rm -rf "$MARKER_DIR"
 }
 trap cleanup EXIT
 
@@ -74,7 +76,21 @@ probe_container "$APP_IP" "$COLLECTOR_IP:8000"
 probe_container "$WORKER_IP" "$TARGET_IP:8001"
 probe_container "$APP_IP" "$GATEWAY_IP:18080"
 
-sudo env COLLECTOR_CIDR="$COLLECTOR_CIDR" LIBRETV_APP_IP="$APP_IP" SCRAPLING_API_IP="$COLLECTOR_IP" bash scripts/scrapling-egress-firewall.sh
+sudo env COLLECTOR_CIDR="$COLLECTOR_CIDR" LIBRETV_APP_IP="$APP_IP" SCRAPLING_API_IP="$COLLECTOR_IP" SCRAPLING_EGRESS_MARKER_DIR="$MARKER_DIR" bash scripts/scrapling-egress-firewall.sh
+python3 - "$MARKER_DIR/confirmed.json" "$COLLECTOR_CIDR" "$APP_IP" "$COLLECTOR_IP" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+marker = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert marker["policy_version"] == 1
+assert marker["boot_id"] == Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+assert marker["collector_cidr"] == sys.argv[2]
+assert marker["app_ip"] == sys.argv[3]
+assert marker["api_ip"] == sys.argv[4]
+assert marker["api_port"] == "8000"
+print("PASS: current-boot firewall proof marker matches the enforced policy.")
+PY
 sudo iptables -w -C DOCKER-USER -s "$COLLECTOR_CIDR" -j "$CHAIN"
 sudo iptables -w -C FORWARD -s "$COLLECTOR_CIDR" -j "$CHAIN"
 sudo iptables -w -C INPUT -s "$COLLECTOR_CIDR" -j DROP
