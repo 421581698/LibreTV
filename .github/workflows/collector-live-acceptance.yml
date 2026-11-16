@@ -112,12 +112,12 @@ jobs:
         run: sudo bash scripts/scrapling-egress-firewall.sh
       - name: Copy real acceptance harnesses into isolated Collector
         run: |
-          docker cp services/scrapling-collector/tests/ai_rules_acceptance.py libretv-scrapling-collector:/tmp/ai_rules_acceptance.py
-          docker cp services/scrapling-collector/tests/media_download.py libretv-scrapling-collector:/tmp/media_download.py
-          docker cp services/scrapling-collector/tests/browser_playback_acceptance.py libretv-scrapling-collector:/tmp/browser_playback_acceptance.py
-          docker cp services/scrapling-collector/tests/live_crawl_scale.py libretv-scrapling-collector:/tmp/live_crawl_scale.py
+          docker exec -i libretv-scrapling-collector sh -c 'cat > /tmp/ai_rules_acceptance.py' < services/scrapling-collector/tests/ai_rules_acceptance.py
+          docker exec -i libretv-scrapling-collector sh -c 'cat > /tmp/media_download.py' < services/scrapling-collector/tests/media_download.py
+          docker exec -i libretv-scrapling-collector sh -c 'cat > /tmp/browser_playback_acceptance.py' < services/scrapling-collector/tests/browser_playback_acceptance.py
+          docker exec -i libretv-scrapling-collector sh -c 'cat > /tmp/live_crawl_scale.py' < services/scrapling-collector/tests/live_crawl_scale.py
           printf '%s\n' "$LIVE_CRAWL_URLS" "$LIVE_CRAWL_URLS_2" "$LIVE_CRAWL_URLS_3" "$LIVE_CRAWL_URLS_4" "$LIVE_CRAWL_URLS_5" "$LIVE_CRAWL_URLS_6" "$LIVE_CRAWL_URLS_7" "$LIVE_CRAWL_URLS_8" "$LIVE_CRAWL_URLS_9" "$LIVE_CRAWL_URLS_10" "$LIVE_CRAWL_URLS_11" "$LIVE_CRAWL_URLS_12" "$LIVE_CRAWL_URLS_13" "$LIVE_CRAWL_URLS_14" "$LIVE_CRAWL_URLS_15" "$LIVE_CRAWL_URLS_16" "$LIVE_CRAWL_URLS_17" "$LIVE_CRAWL_URLS_18" "$LIVE_CRAWL_URLS_19" "$LIVE_CRAWL_URLS_20" "$LIVE_CRAWL_URLS_21" "$LIVE_CRAWL_URLS_22" "$LIVE_CRAWL_URLS_23" "$LIVE_CRAWL_URLS_24" "$LIVE_CRAWL_URLS_25" "$LIVE_CRAWL_URLS_26" "$LIVE_CRAWL_URLS_27" "$LIVE_CRAWL_URLS_28" "$LIVE_CRAWL_URLS_29" "$LIVE_CRAWL_URLS_30" > /tmp/collector-approved-live-urls.txt
-          docker cp /tmp/collector-approved-live-urls.txt libretv-scrapling-collector:/tmp/approved-live-urls.txt
+          docker exec -i libretv-scrapling-collector sh -c 'cat > /tmp/approved-live-urls.txt' < /tmp/collector-approved-live-urls.txt
       - name: Verify AI rule generation, versioning and automatic repair
         run: |
           docker exec \
