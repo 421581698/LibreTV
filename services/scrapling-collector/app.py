@@ -32,6 +32,7 @@ TOKEN = os.environ.get("SCRAPLING_API_TOKEN", "").strip()
 DB_PATH = Path(os.environ.get("SCRAPLING_DB_PATH", "/data/collector.sqlite3"))
 MAX_RESULTS = 1000
 MAX_CANDIDATES = 1000
+MAX_PAGE_SAMPLE_BYTES = 128 * 1024
 MIN_BATCH_CANDIDATES = 101
 DEFAULT_BATCH_CANDIDATES = 250
 MAX_CRAWL_DEPTH = 5
@@ -1911,14 +1912,15 @@ class SpiderCandidateBatch(list):
 def record_page_sample(task_id: str, host: str, page_url: str, body: bytes) -> None:
     if not task_id or not body:
         return
-    sample = ai_rules.sanitize_html_sample(body[:256 * 1024].decode("utf-8", errors="replace"))
+    sample = ai_rules.sanitize_html_sample(body[:MAX_PAGE_SAMPLE_BYTES].decode("utf-8", errors="replace"))
     if not sample:
         return
     with db() as connection:
+        # Keep one bounded, sanitized sample per host; avoid unbounded HTML retention.
+        connection.execute("DELETE FROM crawl_page_samples WHERE host=?", (host,))
         connection.execute(
             """INSERT INTO crawl_page_samples(task_id,host,page_url,html_sample,captured_at)
-               VALUES(?,?,?,?,?) ON CONFLICT(task_id,page_url) DO UPDATE SET
-               html_sample=excluded.html_sample,captured_at=excluded.captured_at""",
+               VALUES(?,?,?,?,?)""",
             (task_id, host, canonical_candidate_url(page_url), sample, int(time.time())),
         )
 
