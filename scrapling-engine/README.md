@@ -58,14 +58,14 @@ Example workflow:
     {
       "node_id": "crawl",
       "node_type": "crawl_seed_urls",
-      "input": {"urls": ["https://example.com/"]}
+      "input": {}
     }
   ],
   "edges": [["validate", "crawl"]]
 }
 ```
 
-The DAG engine is now a real durable orchestration primitive, not yet the complete AI Supervisor. Autonomous recursive site discovery, model-driven rule generation, media analysis, candidate review, and the user-approved publish gate remain later integrations. The current DAG worker does not infer outputs into downstream node inputs automatically; downstream nodes receive their declared inputs, so data handoff contracts are still to be added.
+The DAG engine is now a real durable orchestration primitive, not yet the complete AI Supervisor. Completed parent outputs are injected into each dependent node under its `dependencies` input, and the built-in crawl node can consume validated URLs from its predecessor. Autonomous recursive site discovery, model-driven rule generation, media analysis, candidate review, and the user-approved publish gate remain later integrations.
 
 ## Safety boundary
 
