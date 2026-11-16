@@ -164,3 +164,67 @@ async def test_http_proxy_rewrites_absolute_target_and_closes_connection(monkeyp
         target_server.close()
         await proxy_server.wait_closed()
         await target_server.wait_closed()
+
+
+@pytest.mark.asyncio
+async def test_http_redirect_to_metadata_is_revalidated_by_proxy(monkeypatch):
+    from app import egress_proxy
+    from scrapling.fetchers import Fetcher
+
+    async def redirect_to_metadata(reader, writer):
+        await reader.readuntil(b"\r\n\r\n")
+        writer.write(
+            b"HTTP/1.1 302 Found\r\n"
+            b"Location: http://169.254.169.254/latest/meta-data/\r\n"
+            b"Content-Length: 0\r\n"
+            b"Connection: close\r\n\r\n"
+        )
+        await writer.drain()
+        writer.close()
+        await writer.wait_closed()
+
+    target_server = await asyncio.start_server(
+        redirect_to_metadata,
+        "127.0.0.1",
+        0,
+    )
+    target_port = target_server.sockets[0].getsockname()[1]
+    real_resolve = egress_proxy.resolve_public_addresses
+
+    async def fake_resolve(host, port):
+        if host == "redirect.test":
+            return [ipaddress.ip_address("127.0.0.1")]
+        return await real_resolve(host, port)
+
+    monkeypatch.setattr(egress_proxy, "resolve_public_addresses", fake_resolve)
+
+    async def fake_open_pinned_connection(host, port):
+        addresses = await egress_proxy.resolve_public_addresses(host, port)
+        if host == "redirect.test":
+            reader, writer = await asyncio.open_connection("127.0.0.1", target_port)
+            return reader, writer, addresses[0]
+        raise egress_proxy.EgressDenied("non-public redirect denied")
+
+    monkeypatch.setattr(
+        egress_proxy,
+        "open_pinned_connection",
+        fake_open_pinned_connection,
+    )
+    proxy_server = await asyncio.start_server(egress_proxy.handle_client, "127.0.0.1", 0)
+    proxy_port = proxy_server.sockets[0].getsockname()[1]
+    try:
+        page = await asyncio.to_thread(
+            Fetcher.get,
+            "http://redirect.test/",
+            timeout=5,
+            follow_redirects=True,
+            proxy=f"http://127.0.0.1:{proxy_port}",
+            impersonate=None,
+            stealthy_headers=False,
+        )
+        assert page.status == 403
+    finally:
+        proxy_server.close()
+        target_server.close()
+        await proxy_server.wait_closed()
+        await target_server.wait_closed()
