@@ -52,6 +52,13 @@ jobs:
         run: ruff check .
       - name: Test
         run: pytest -q
+      - name: Validate opt-in crawler Compose profile
+        working-directory: .
+        env:
+          PASSWORD: ci-password
+          SCRAPLING_API_KEY: ci-scrapling-api-key-0123456789abcdef
+          SCRAPLING_DB_PASSWORD: ci-db-password
+        run: docker compose --profile crawler config --quiet
       - name: Public HTTP and Spider smoke test
         run: |
           python - <<'PY'
