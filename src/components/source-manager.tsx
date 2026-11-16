@@ -313,7 +313,7 @@ function ResourceCollectorPanel() {
   useEffect(() => { void loadTasks(); }, []);
 
   useEffect(() => {
-    if (!batch?.id || ['target_reached', 'exhausted', 'partial', 'failed'].includes(batch.status)) return;
+    if (!batch?.id || ['completed', 'partial', 'failed'].includes(batch.status)) return;
     let active = true;
     const refresh = async () => {
       try {
@@ -545,7 +545,7 @@ function ResourceCollectorPanel() {
             <button type="button" className="btn-ghost btn-sm" onClick={() => void discover()} disabled={busy || batchStarting}>
               {busy ? '处理中…' : loaded ? '刷新目录' : '发现网站'}
             </button>
-            <button type="button" className="btn-primary btn-sm" onClick={() => void startOneClickCollection()} disabled={busy || batchStarting || (batch !== null && !['target_reached', 'exhausted', 'partial', 'failed'].includes(batch.status))}>
+            <button type="button" className="btn-primary btn-sm" onClick={() => void startOneClickCollection()} disabled={busy || batchStarting || (batch !== null && !['completed', 'partial', 'failed'].includes(batch.status))}>
               {batchStarting ? '正在启动…' : '一键采集'}
             </button>
           </div>
@@ -555,15 +555,15 @@ function ResourceCollectorPanel() {
       {batch ? (
         <section className="rounded-2xl border border-line bg-card p-4 space-y-3" aria-live="polite">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-sm font-semibold text-content">一键采集进度</h3>
+            <h3 className="text-sm font-semibold text-content">批量采集进度</h3>
             <span className="text-xs text-muted">{batch.status}</span>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-xl bg-surface p-3"><strong className="block text-lg text-content tabular-nums">{batch.candidate_count} / {batch.target_candidates}</strong><span className="text-xs text-muted">去重候选资源</span></div>
             <div className="rounded-xl bg-surface p-3"><strong className="block text-lg text-content tabular-nums">{batch.collected_count} / {batch.target_collected}</strong><span className="text-xs text-muted">成功采集记录</span></div>
           </div>
-          <p className="text-xs text-muted">FMHY 网站 {batch.discovered_sites} 个 · 已排队任务 {batch.queued_jobs} 个</p>
-          <p className="text-[11px] leading-5 text-muted">采集记录按成功写入的站点采集记录计数；候选资源按 URL 去重计数。达到两个目标后停止该批次后续采集。正式资源库仍需人工审核。</p>
+          <p className="text-xs text-muted">FMHY 网站 {batch.discovered_sites} 个 · 已提交采集任务 {batch.queued_jobs} 个</p>
+          <p className="text-[11px] leading-5 text-muted">采集记录按成功写入的站点采集记录计数；候选资源按 URL 去重计数。本次批量任务全部完成后结束；候选数量与采集记录数量分别统计。正式资源库仍需人工审核。</p>
         </section>
       ) : null}
       {error ? <p className="rounded-xl border border-line bg-card px-3 py-2 text-xs text-muted" role="status">{error}</p> : null}
