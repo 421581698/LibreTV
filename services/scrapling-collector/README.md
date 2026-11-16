@@ -102,3 +102,37 @@ The container supervisor starts both the authenticated FastAPI service and the d
 The SQLite registry and queue live on the persistent `/data` disk and survive a container restart or a stopped web process as long as the disk is retained. LibreTV's resource-library UI also synchronizes the registry into browser IndexedDB so the saved metadata and resource URLs remain searchable on that device while the Collector API is unavailable. The browser cache is a catalogue/index, not a copy of video bytes. Playback still depends on the original public media URL remaining online; a removed or expired source cannot be made playable by caching its URL. Only resources with public validation and actual player confirmation expose the in-app playback action.
 
 Automatic crawling remains fail-closed until the operator has installed and independently verified an equivalent outbound egress firewall. The daily scheduler can enqueue the durable job, but it must not be used to bypass `SCRAPLING_EGRESS_FIREWALL_CONFIRMED` or the host network boundary. Keep the Collector service and queue worker running for scheduled collection; stopping the service pauses future runs, while the persistent disk and already synchronized browser catalogue remain intact.
+
+
+## Durable bulk jobs, URL credential handling, and load verification
+
+The authenticated `POST /v1/jobs/bulk` endpoint accepts between 1 and 1,000 independent job objects in one SQLite transaction:
+
+```json
+{
+  "jobs": [
+    {
+      "job_type": "crawl",
+      "payload": {
+        "url": "https://public.example.org/catalog",
+        "mode": "http",
+        "limit": 100
+      },
+      "idempotency_key": "catalog-crawl:public-example:2026-11-16"
+    },
+    {
+      "job_type": "discover",
+      "payload": {
+        "search_keyword": "documentary"
+      },
+      "idempotency_key": "fmhy-discovery:documentary:2026-11-16"
+    }
+  ]
+}
+```
+
+Every job remains an independent durable queue row with its own idempotency key, lease, retry state, checkpoint, and audit events. Repeating the same key with the same job type and payload returns the existing job; reusing a key with a different payload rejects the whole transaction. The endpoint requires the Collector bearer token and rejects batches larger than 1,000.
+
+Durable crawl payloads and formal Registry resources accept only credential-free HTTPS URLs on port 443. Query parameters required for ordinary public media variants are preserved. URLs containing token, signature, authorization, expiry, or cloud-provider signing parameters are rejected from durable queue/Registry storage; signed candidate URLs remain outside the formal reusable Registry rather than persisting bearer credentials or silently stripping parameters that may be required for playback.
+
+The CI queue load harness `python tests/load_queue.py --target 10000 --workers 4` uses an isolated temporary SQLite database and `example.invalid` URLs. It makes no external network requests. The Collector workflow runs separate 1,000 / 2,000 / 5,000 / 10,000 independent-job tiers and checks that all submitted jobs are durable, all claims are unique, and no rows or idempotency keys are lost. These results measure queue persistence and concurrent claiming, not end-to-end site crawling throughput or playable-media yield.
