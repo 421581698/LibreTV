@@ -27,7 +27,7 @@ def fetch_real_sample() -> tuple[str, str]:
     normalized, host = public_https_url(TARGET_URL)
     allowed = {
         item.strip().lower().rstrip(".")
-        for item in os.environ.get("COLLECTOR_AI_ALLOWED_HOSTS", "").split(",")
+        for item in os.environ.get("AI_RULE_ACCEPTANCE_ALLOWED_HOSTS", "").split(",")
         if item.strip()
     }
     if host not in allowed:
