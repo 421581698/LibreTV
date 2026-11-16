@@ -45,7 +45,8 @@ class PostgresJobStore:
                     lease_owner TEXT,
                     lease_expires_at TIMESTAMPTZ,
                     heartbeat_at TIMESTAMPTZ,
-                    attempt_count INTEGER NOT NULL DEFAULT 0
+                    attempt_count INTEGER NOT NULL DEFAULT 0,
+                    control_request TEXT
                 )
                 """
             )
@@ -81,6 +82,9 @@ class PostgresJobStore:
             db.execute(
                 "ALTER TABLE crawl_jobs ADD COLUMN IF NOT EXISTS "
                 "attempt_count INTEGER NOT NULL DEFAULT 0"
+            )
+            db.execute(
+                "ALTER TABLE crawl_jobs ADD COLUMN IF NOT EXISTS control_request TEXT"
             )
             db.execute(
                 """
@@ -306,6 +310,49 @@ class PostgresJobStore:
                     "lease_released",
                     {"worker_id": worker_id, "status": next_status},
                 )
+            return cursor.rowcount == 1
+
+    def request_control(self, task_id: str, control: str) -> bool:
+        if control not in {"pause", "cancel"}:
+            raise ValueError("Unsupported worker control request")
+        status = "pausing" if control == "pause" else "cancelling"
+        now = _now()
+        with self._connection() as db:
+            cursor = db.execute(
+                """
+                UPDATE crawl_jobs
+                SET status = %s, control_request = %s, updated_at = %s
+                WHERE task_id = %s AND status = 'running' AND lease_owner IS NOT NULL
+                """,
+                (status, control, now, task_id),
+            )
+            if cursor.rowcount == 1:
+                self._event(db, task_id, f"{control}_requested", {"requested_at": now})
+            return cursor.rowcount == 1
+
+    def get_control(self, task_id: str, worker_id: str) -> str | None:
+        with self._connection() as db:
+            row = db.execute(
+                "SELECT control_request FROM crawl_jobs "
+                "WHERE task_id = %s AND lease_owner = %s",
+                (task_id, worker_id),
+            ).fetchone()
+        return row["control_request"] if row else None
+
+    def resume(self, task_id: str) -> bool:
+        now = _now()
+        with self._connection() as db:
+            cursor = db.execute(
+                """
+                UPDATE crawl_jobs
+                SET status = 'queued', control_request = NULL, finished_at = NULL,
+                    error = NULL, updated_at = %s
+                WHERE task_id = %s AND status IN ('paused', 'interrupted')
+                """,
+                (now, task_id),
+            )
+            if cursor.rowcount == 1:
+                self._event(db, task_id, "resumed", {"queued_at": now})
             return cursor.rowcount == 1
 
     def recover_interrupted(self) -> list[str]:
