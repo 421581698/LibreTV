@@ -360,7 +360,8 @@ class PostgresJobStore:
     def recover_interrupted(self) -> list[str]:
         with self._connection() as db:
             rows = db.execute(
-                "SELECT task_id FROM crawl_jobs WHERE status IN ('running', 'pausing', 'cancelling') "
+                "SELECT task_id FROM crawl_jobs "
+                "WHERE status IN ('running', 'pausing', 'cancelling') "
                 "AND (lease_expires_at IS NULL OR lease_expires_at < %s) FOR UPDATE",
                 (datetime.now(UTC),),
             ).fetchall()
