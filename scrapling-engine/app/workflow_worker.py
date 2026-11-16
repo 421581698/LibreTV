@@ -10,6 +10,7 @@ from typing import Any, Awaitable, Callable
 
 from app.candidate_store import PostgresCandidateStore
 from app.media_analyzer import analyze_hls_manifest, analyze_mpd_manifest
+from app.robots import ensure_robots_allowed
 from app.scraper import ScraplingAdapter
 from app.config import settings
 from app.security import validate_public_http_url
@@ -164,6 +165,11 @@ class WorkflowWorker:
                 )
                 continue
             media_url = validate_public_http_url(candidate["media_url"])
+            await asyncio.to_thread(
+                ensure_robots_allowed,
+                media_url,
+                settings.request_timeout_seconds,
+            )
             page = await asyncio.to_thread(
                 ScraplingAdapter.fetch_page,
                 media_url,
