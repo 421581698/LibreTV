@@ -262,3 +262,25 @@ def test_adapter_converts_invalid_css_and_xpath_to_validation_errors() -> None:
         ScraplingAdapter.extract(page, "???", "css")
     with pytest.raises(ValueError, match="Invalid XPath expression"):
         ScraplingAdapter.extract(page, "//*[", "xpath")
+
+
+def test_rule_activation_records_human_actor(monkeypatch) -> None:
+    class FakeRuleStore:
+        def __init__(self) -> None:
+            self.action = None
+
+        def set_status(self, rule_id, status, actor_id, note):
+            self.action = (rule_id, status, actor_id, note)
+            return True
+
+        def get_rule(self, rule_id):
+            return {"rule_id": rule_id, "status": "active"}
+
+    store = FakeRuleStore()
+    monkeypatch.setattr("app.main.rule_store", store)
+    response = client.post(
+        "/v1/rules/rule-123/activate",
+        json={"reviewer_id": "site-admin", "note": "Selector reviewed"},
+    )
+    assert response.status_code == 200
+    assert store.action == ("rule-123", "active", "site-admin", "Selector reviewed")
