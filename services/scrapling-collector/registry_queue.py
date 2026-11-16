@@ -42,6 +42,12 @@ def initialize() -> None:
         # instead of taking a journal-mode lock on every queue operation.
         c.execute("PRAGMA journal_mode=WAL")
         c.executescript("""
+        CREATE TABLE IF NOT EXISTS sites (
+          host TEXT PRIMARY KEY, title TEXT NOT NULL, url TEXT NOT NULL,
+          directory TEXT NOT NULL, discovered_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_sites_directory_discovered
+          ON sites(directory,discovered_at DESC);
         CREATE TABLE IF NOT EXISTS registry_movies (
           id TEXT PRIMARY KEY, external_key TEXT UNIQUE, title TEXT NOT NULL,
           year INTEGER, metadata TEXT NOT NULL DEFAULT '{}', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
@@ -100,6 +106,62 @@ def initialize() -> None:
           event TEXT NOT NULL, detail TEXT NOT NULL DEFAULT '{}', created_at INTEGER NOT NULL
         );
         """)
+
+
+def upsert_discovered_sites(sites: list[dict], discovered_at: int | None = None) -> int:
+    """Persist FMHY-discovered site entries through the canonical Registry."""
+    now = int(discovered_at or time.time())
+    normalized = []
+    for site in sites:
+        if not isinstance(site, dict):
+            continue
+        host = str(site.get("host") or "").strip().rstrip(".").lower()
+        title = str(site.get("title") or "").strip()[:240]
+        url = str(site.get("url") or "").strip()
+        directory = str(site.get("directory") or "").strip()[:240]
+        from urllib.parse import urlsplit
+        try:
+            parsed = urlsplit(url)
+            port = parsed.port
+        except ValueError:
+            continue
+        if (
+            not host or not re.fullmatch(r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*", host)
+            or parsed.scheme.lower() != "https" or parsed.hostname != host
+            or parsed.username is not None or parsed.password is not None
+            or port not in (None, 443) or not title or not directory.startswith("FMHY /")
+        ):
+            continue
+        normalized.append((host, title, url, directory, now))
+    if not normalized:
+        return 0
+    with connect() as c:
+        c.executemany(
+            """INSERT INTO sites(host,title,url,directory,discovered_at) VALUES(?,?,?,?,?)
+               ON CONFLICT(host) DO UPDATE SET title=excluded.title,url=excluded.url,
+               directory=excluded.directory,discovered_at=excluded.discovered_at""",
+            normalized,
+        )
+    return len(normalized)
+
+
+def list_discovered_sites(limit: int = 1000) -> list[dict]:
+    limit = max(1, min(1000, int(limit)))
+    with connect() as c:
+        rows = c.execute(
+            """SELECT host,title,url,directory FROM sites
+               WHERE directory LIKE 'FMHY / %'
+               ORDER BY discovered_at DESC LIMIT ?""",
+            (limit,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def is_discovered_host(host: str) -> bool:
+    normalized = host.strip().rstrip(".").lower()
+    with connect() as c:
+        row = c.execute("SELECT 1 FROM sites WHERE host=?", (normalized,)).fetchone()
+    return row is not None
 
 
 def require_auth(authorization: str | None) -> None:
