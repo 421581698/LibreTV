@@ -185,7 +185,7 @@ class PostgresRuleStore:
                 """
                 INSERT INTO scraping_rule_events
                     (rule_id, actor_id, action, note, created_at)
-                VALUES (%s, 'ai-supervisor', 'rule_tested', %s, %s)
+                VALUES (%s, 'ai-supervisor', 'rule_auto_activated', %s, %s)
                 """,
                 (rule_id, rationale[:500], now),
             )
