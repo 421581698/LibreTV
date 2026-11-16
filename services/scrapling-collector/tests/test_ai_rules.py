@@ -101,6 +101,9 @@ class AIRuleTests(unittest.TestCase):
         self.assertEqual([item["version"] for item in history], [2, 1])
         restored = ai_rules.activate_version("rollback.example", first["version"])
         self.assertEqual(restored["version"], first["version"])
+        history_after_rollback = ai_rules.list_versions("rollback.example")
+        self.assertTrue(next(item for item in history_after_rollback if item["version"] == first["version"])["is_active"])
+        self.assertFalse(next(item for item in history_after_rollback if item["version"] == second["version"])["is_active"])
         with ai_rules.connect() as connection:
             event = connection.execute(
                 "SELECT action,version FROM collector_rule_events WHERE host=? ORDER BY created_at DESC LIMIT 1",
