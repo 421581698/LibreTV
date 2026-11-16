@@ -54,6 +54,11 @@ jobs:
         run: python -m pip install -e ".[dev]"
       - name: Lint
         run: ruff check .
+      - name: Check formatting
+        run: ruff format --check .
+      - name: Enforce outbound client import boundary
+        working-directory: .
+        run: python scripts/check-egress-client-boundary.py
       - name: Test
         run: pytest -q
       - name: Real crawler container runtime acceptance
