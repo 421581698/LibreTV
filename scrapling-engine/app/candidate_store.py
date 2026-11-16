@@ -125,7 +125,9 @@ class PostgresCandidateStore:
                                 WHEN resource_candidates.title = resource_candidates.source_url
                                 THEN EXCLUDED.title ELSE resource_candidates.title END,
                             media_url = COALESCE(resource_candidates.media_url, EXCLUDED.media_url),
-                            media_type = COALESCE(resource_candidates.media_type, EXCLUDED.media_type),
+                            media_type = COALESCE(
+                                resource_candidates.media_type, EXCLUDED.media_type
+                            ),
                             updated_at = EXCLUDED.updated_at
                         RETURNING candidate_id
                         """,
