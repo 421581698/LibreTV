@@ -734,6 +734,23 @@ def api_jobs(authorization: str | None = Header(default=None), limit: int = Quer
     return {"jobs":[dict(r) for r in rows]}
 
 
+@router.post("/v1/jobs/status/bulk")
+def api_bulk_job_status(payload: dict, authorization: str | None = Header(default=None)):
+    require_auth(authorization)
+    ids = payload.get("ids")
+    if not isinstance(ids, list) or not 1 <= len(ids) <= 1000:
+        raise HTTPException(status_code=400, detail="Bulk status requires 1 to 1000 job IDs")
+    if any(not isinstance(item, str) or not re.fullmatch(r"[a-f0-9]{32}", item) for item in ids):
+        raise HTTPException(status_code=400, detail="Invalid job ID")
+    placeholders = ",".join("?" for _ in ids)
+    with connect() as c:
+        rows = c.execute(
+            f"SELECT id,status,result,error,updated_at,checkpoint FROM collector_jobs WHERE id IN ({placeholders})",
+            ids,
+        ).fetchall()
+    return {"jobs": [dict(row) for row in rows]}
+
+
 @router.get("/v1/jobs/{job_id}")
 def api_job(job_id: str, authorization: str | None = Header(default=None)):
     require_auth(authorization)
