@@ -76,11 +76,16 @@ def analyze_local_media_file(
     media_path = _safe_media_path(path)
     command = [
         "ffprobe",
-        "-v", "error",
-        "-protocol_whitelist", "file",
-        "-max_alloc", str(64 * 1024 * 1024),
-        "-probesize", str(10 * 1024 * 1024),
-        "-analyzeduration", str(10 * 1000 * 1000),
+        "-v",
+        "error",
+        "-protocol_whitelist",
+        "file",
+        "-max_alloc",
+        str(64 * 1024 * 1024),
+        "-probesize",
+        str(10 * 1024 * 1024),
+        "-analyzeduration",
+        str(10 * 1000 * 1000),
         "-show_entries",
         "format=format_name,duration,size,bit_rate:"
         "stream=index,codec_type,codec_name,profile,width,height,pix_fmt,"
@@ -90,7 +95,8 @@ def analyze_local_media_file(
         "stream_tags=language,title:"
         "stream_disposition=default,forced:"
         "stream_side_data=side_data_type,dv_profile,dv_level,rpu_present,el_present,bl_present",
-        "-of", "json",
+        "-of",
+        "json",
         str(media_path),
     ]
     stdout = bytearray()
@@ -113,8 +119,10 @@ def analyze_local_media_file(
         raise MediaProbeError("ffprobe is not installed in the worker image") from exc
 
     assert process.stdout is not None and process.stderr is not None
-    streams = {process.stdout: (stdout, MAX_PROBE_OUTPUT_BYTES, "stdout"),
-               process.stderr: (stderr, 64 * 1024, "stderr")}
+    streams = {
+        process.stdout: (stdout, MAX_PROBE_OUTPUT_BYTES, "stdout"),
+        process.stderr: (stderr, 64 * 1024, "stderr"),
+    }
     selector = selectors.DefaultSelector()
     try:
         for stream in streams:
@@ -200,7 +208,8 @@ def analyze_local_media_file(
     ]
     dolby_vision_data = next(
         (
-            item for item in side_data_items
+            item
+            for item in side_data_items
             if "dovi" in str(item.get("side_data_type") or "").lower()
             or "dolby vision" in str(item.get("side_data_type") or "").lower()
             or item.get("dv_profile") is not None
@@ -269,8 +278,7 @@ def analyze_local_media_file(
             "pixel_format": pixel_format,
             "bit_depth": encoded_bit_depth,
             "frame_rate_fps": (
-                _ratio(video.get("avg_frame_rate"))
-                or _ratio(video.get("r_frame_rate"))
+                _ratio(video.get("avg_frame_rate")) or _ratio(video.get("r_frame_rate"))
             ),
             "bitrate_bps": _safe_int(video.get("bit_rate")),
             "color_range": video.get("color_range"),
