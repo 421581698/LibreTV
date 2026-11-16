@@ -159,15 +159,16 @@ def upsert_discovered_sites(sites: list[dict], discovered_at: int | None = None)
     return len(normalized)
 
 
-def list_discovered_sites(limit: int = 1000) -> list[dict]:
+def list_discovered_sites(limit: int = 1000, connection=None) -> list[dict]:
     limit = max(1, min(1000, int(limit)))
-    with connect() as c:
-        rows = c.execute(
-            """SELECT host,title,url,directory FROM sites
+    query = """SELECT host,title,url,directory,discovered_at FROM sites
                WHERE directory LIKE 'FMHY / %'
-               ORDER BY discovered_at DESC LIMIT ?""",
-            (limit,),
-        ).fetchall()
+               ORDER BY discovered_at DESC LIMIT ?"""
+    if connection is not None:
+        rows = connection.execute(query, (limit,)).fetchall()
+    else:
+        with connect() as c:
+            rows = c.execute(query, (limit,)).fetchall()
     return [dict(row) for row in rows]
 
 
