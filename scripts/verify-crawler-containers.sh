@@ -158,18 +158,14 @@ timeout 30s "${compose[@]}" exec -T scrapling-media-probe ffmpeg -hide_banner -l
   -c:v mpeg4 -threads 1 -y /probe/outbox/probe-smoke.mp4
 "${compose[@]}" exec -T scrapling-media-probe test -s /probe/outbox/probe-smoke.mp4
 worker_container=$("${compose[@]}" ps -q scrapling-workflow-worker)
-"${compose[@]}" exec -T scrapling-workflow-worker mkdir -p /probe/staging
-probe_smoke_dir=$(mktemp -d)
-echo "[runtime] Copy the isolated probe fixture to the worker staging area"
-timeout 15s docker cp "$probe_container:/probe/outbox/probe-smoke.mp4" "$probe_smoke_dir/probe-smoke.mp4"
-timeout 15s docker cp "$probe_smoke_dir/probe-smoke.mp4" "$worker_container:/probe/staging/probe-smoke.mp4"
-rm -rf "$probe_smoke_dir"
+echo "[runtime] Stage the media fixture into the worker-only writable volume"
+"${compose[@]}" exec -T scrapling-workflow-worker cp /probe/outbox/probe-smoke.mp4 /probe/staging/probe-smoke.mp4
 echo "[runtime] Exercise the real sidecar handoff and ffprobe analysis"
 timeout 45s "${compose[@]}" exec -T scrapling-workflow-worker python - <<'PY'
 from app.probe_client import probe_media_file
 
 report = probe_media_file(
-    "/tmp/libretv-media-probe/probe-smoke.mp4",
+    "/probe/staging/probe-smoke.mp4",
     timeout_seconds=10,
 )
 assert report["video"]["width"] == 320, report
@@ -180,7 +176,7 @@ PY
 "${compose[@]}" exec -T scrapling-media-probe rm -f /probe/outbox/probe-smoke.mp4
 grep -q 'no-new-privileges' <<<"$(docker inspect --format '{{json .HostConfig.SecurityOpt}}' "$probe_container")"
 probe_mounts=$(docker inspect --format '{{json .Mounts}}' "$probe_container")
-python3 -c 'import json,sys; mounts=json.loads(sys.argv[1]); by_target={m["Destination"]:m for m in mounts}; assert by_target["/probe/inbox"]["RW"] is False; assert by_target["/probe/outbox"]["RW"] is True' "$probe_mounts"
+python3 -c 'import json,sys; mounts=json.loads(sys.argv[1]); by_target={m["Destination"]:m for m in mounts}; assert by_target["/probe/staging"]["RW"] is False; assert by_target["/probe/inbox"]["RW"] is False; assert by_target["/probe/outbox"]["RW"] is True' "$probe_mounts"
 "${compose[@]}" exec -T scrapling-media-probe python -c 'import socket; s=socket.socket(); s.settimeout(1); 
 try:
  s.connect(("1.1.1.1", 53))
@@ -189,6 +185,8 @@ except OSError:
  pass
 finally:
  s.close()'
+worker_mounts=$(docker inspect --format '{{json .Mounts}}' "$worker_container")
+python3 -c 'import json,sys; mounts=json.loads(sys.argv[1]); by_target={m["Destination"]:m for m in mounts}; assert by_target["/probe/staging"]["RW"] is True' "$worker_mounts"
 echo "scrapling-media-probe: no network, read-only input mount and writable result mount passed"
 
 
