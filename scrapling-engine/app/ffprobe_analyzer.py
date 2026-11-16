@@ -77,7 +77,7 @@ def analyze_local_media_file(
     command = [
         "ffprobe",
         "-v", "error",
-        "-protocol_whitelist", "file,pipe",
+        "-protocol_whitelist", "file",
         "-max_alloc", str(64 * 1024 * 1024),
         "-probesize", str(10 * 1024 * 1024),
         "-analyzeduration", str(10 * 1000 * 1000),
