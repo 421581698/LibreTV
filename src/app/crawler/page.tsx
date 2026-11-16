@@ -726,7 +726,11 @@ export default function CrawlerControlCenterPage() {
                                 {candidate.quality_json.video.width && candidate.quality_json.video.height
                                   ? `${candidate.quality_json.video.width} × ${candidate.quality_json.video.height}`
                                   : '分辨率未知'}
-                                {candidate.quality_json.is_4k_bitstream ? ' · 4K 码流' : ' · 非4K码流'}
+                                {candidate.quality_json.video.width && candidate.quality_json.video.height
+                                  ? candidate.quality_json.is_4k_bitstream
+                                    ? ' · 4K 码流'
+                                    : ' · 非4K码流'
+                                  : ''}
                               </p>
                               <p className="mt-1 text-xs text-slate-500">
                                 {candidate.quality_json.video.codec || '编码未知'}
