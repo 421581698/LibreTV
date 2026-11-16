@@ -223,15 +223,15 @@ def handle(payload: dict, checkpoint, cancelled):
                     "task_id": task_id, "diagnostic_id": diagnostic_id,
                     "failure_code": "spider_candidate_miss" if spider_failed else "initial_rule_generation",
                 }
-            queued_rule = submit_job(
-                rule_job_type, rule_payload,
-                f"ai-rule:auto:{rule_job_type}:{task_id}", max_attempts=2,
-            )
-            checkpoint({
-                "stage": "ai_rule_job_enqueued",
-                "host": host, "job_id": queued_rule["id"],
-                "job_type": rule_job_type,
-            })
+                queued_rule = submit_job(
+                    rule_job_type, rule_payload,
+                    f"ai-rule:auto:{rule_job_type}:{task_id}", max_attempts=2,
+                )
+                checkpoint({
+                    "stage": "ai_rule_job_enqueued",
+                    "host": host, "job_id": queued_rule["id"],
+                    "job_type": rule_job_type,
+                })
     media_candidates = [
         item for item in candidates
         if item.get("kind") == "direct-media" and item.get("status") == "pending"
