@@ -54,7 +54,7 @@ def test_rejects_direct_network_client_imports_outside_adapters(
     [
         '__import__("requests")',
         '__import__("urllib.request")',
-        'importlib.import_module("aiohttp")',
+        'import importlib; importlib.import_module("aiohttp")',
         'from importlib import import_module as load; load("httpx")',
         'import importlib as il; il.import_module("urllib.request")',
     ],
