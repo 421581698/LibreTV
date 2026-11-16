@@ -89,6 +89,21 @@ class RegistryQueueTests(unittest.TestCase):
             with self.assertRaises(Exception):
                 queue.api_bulk_job_status({"ids": ["invalid"]}, authorization="Bearer test")
 
+    def test_fmhy_site_upsert_is_idempotent_by_normalized_host(self):
+        queue.upsert_discovered_sites([{
+            "host": "CATALOG.EXAMPLE", "title": "Old title",
+            "url": "https://catalog.example/old", "directory": "FMHY / video",
+        }], discovered_at=100)
+        queue.upsert_discovered_sites([{
+            "host": "catalog.example", "title": "New title",
+            "url": "https://catalog.example/new", "directory": "FMHY / movies",
+        }], discovered_at=200)
+        sites = queue.list_discovered_sites(10)
+        self.assertEqual(len(sites), 1)
+        self.assertEqual(sites[0]["title"], "New title")
+        self.assertEqual(sites[0]["url"], "https://catalog.example/new")
+        self.assertEqual(sites[0]["directory"], "FMHY / movies")
+
     def test_ai_rule_jobs_preserve_bounded_failure_diagnostic_link(self):
         job = queue.submit_job(
             "rule_repair",
