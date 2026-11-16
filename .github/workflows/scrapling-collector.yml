@@ -156,6 +156,19 @@ jobs:
           status, body = request("/v1/jobs/" + first_job["id"] + "/cancel", method="POST", token=token)
           assert status == 200 and json.loads(body)["status"] == "cancelled", (status, body)
 
+          bulk_payload = {"jobs": [
+              {"job_type": "crawl", "payload": {"url": "https://example.com/a", "mode": "http", "limit": 1},
+               "idempotency_key": "ci:collector:bulk:a"},
+              {"job_type": "crawl", "payload": {"url": "https://example.com/b", "mode": "http", "limit": 1},
+               "idempotency_key": "ci:collector:bulk:b"},
+          ]}
+          status, bulk_body = request("/v1/jobs/bulk", method="POST", token=token, body=bulk_payload)
+          bulk_jobs = json.loads(bulk_body)["jobs"]
+          assert status == 200 and len(bulk_jobs) == 2 and bulk_jobs[0]["id"] != bulk_jobs[1]["id"], (status, bulk_body)
+          status, repeated_body = request("/v1/jobs/bulk", method="POST", token=token, body=bulk_payload)
+          repeated_jobs = json.loads(repeated_body)["jobs"]
+          assert status == 200 and [job["id"] for job in repeated_jobs] == [job["id"] for job in bulk_jobs], (status, repeated_body)
+
           status, _ = request("/v1/discover")
           assert status == 401, ("unauthenticated discovery must be rejected", status)
 
