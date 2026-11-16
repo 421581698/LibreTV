@@ -203,8 +203,9 @@ services:
       EGRESS_PROXY_HOST: 0.0.0.0
       EGRESS_PROXY_PORT: 8080
     networks:
-      - crawler-clients
-      - crawler-egress
+      crawler-clients: {}
+      crawler-egress:
+        gw_priority: 1
     healthcheck:
       test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(1); raise SystemExit(s.connect_ex(('127.0.0.1',8080)) != 0)"]
       interval: 10s
