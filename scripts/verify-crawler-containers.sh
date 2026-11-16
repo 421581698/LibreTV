@@ -154,11 +154,12 @@ fi
 # no-network sidecar, stage it in the worker's tmpfs, and request a real probe.
 "${compose[@]}" exec -T scrapling-media-probe ffmpeg -hide_banner -loglevel error \
   -f lavfi -i color=c=black:s=320x240:r=1:d=1 -frames:v 1 \
-  -c:v mpeg4 -threads 1 -y /tmp/probe-smoke.mp4
+  -c:v mpeg4 -threads 1 -y /probe/outbox/probe-smoke.mp4
+"${compose[@]}" exec -T scrapling-media-probe test -s /probe/outbox/probe-smoke.mp4
 worker_container=$("${compose[@]}" ps -q scrapling-workflow-worker)
 "${compose[@]}" exec -T scrapling-workflow-worker mkdir -p /tmp/libretv-media-probe
 probe_smoke_dir=$(mktemp -d)
-docker cp "$probe_container:/tmp/probe-smoke.mp4" "$probe_smoke_dir/probe-smoke.mp4"
+docker cp "$probe_container:/probe/outbox/probe-smoke.mp4" "$probe_smoke_dir/probe-smoke.mp4"
 docker cp "$probe_smoke_dir/probe-smoke.mp4" "$worker_container:/tmp/libretv-media-probe/probe-smoke.mp4"
 rm -rf "$probe_smoke_dir"
 "${compose[@]}" exec -T scrapling-workflow-worker python - <<'PY'
