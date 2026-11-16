@@ -14,6 +14,7 @@ from app.candidate_store import PostgresCandidateStore
 from app.config import settings
 from app.discovery import extract_discovery_links, is_same_origin
 from app.media_analyzer import analyze_hls_manifest, analyze_mpd_manifest
+from app.ffprobe_analyzer import analyze_local_media_file
 from app.robots import ensure_robots_allowed
 from app.rule_store import PostgresRuleStore
 from app.scraper import ScraplingAdapter
@@ -53,6 +54,7 @@ class WorkflowWorker:
             "ai_supervisor_discover": self._ai_supervisor_discover,
             "generate_extraction_rule": self._generate_extraction_rule,
             "register_candidates": self._register_candidates,
+            "probe_local_media_file": self._probe_local_media_file,
             "analyze_media_manifest": self._analyze_media_manifest,
             "analyze_media_candidates": self._analyze_media_candidates,
         }
@@ -387,6 +389,46 @@ class WorkflowWorker:
             "candidate_ids": candidate_ids,
             "count": len(candidate_ids),
             "review_status": "pending_review",
+        }
+
+    async def _probe_local_media_file(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Probe only a file already staged inside MEDIA_PROBE_ROOT; never accept a URL."""
+        local_path = payload.get("local_path")
+        if not isinstance(local_path, str) or not local_path:
+            raise ValueError("probe_local_media_file requires a staged local_path")
+        timeout_seconds = payload.get("timeout_seconds", 20)
+        if (
+            not isinstance(timeout_seconds, int)
+            or isinstance(timeout_seconds, bool)
+            or not 1 <= timeout_seconds <= 60
+        ):
+            raise ValueError("timeout_seconds must be an integer from 1 to 60")
+        report = await asyncio.to_thread(
+            analyze_local_media_file,
+            local_path,
+            timeout_seconds=timeout_seconds,
+        )
+        candidate_id = payload.get("candidate_id")
+        if candidate_id is not None:
+            if not isinstance(candidate_id, str) or not candidate_id:
+                raise ValueError("candidate_id must be a non-empty string")
+            saved = await asyncio.to_thread(
+                self.candidates.save_quality_report,
+                candidate_id,
+                report,
+            )
+            if not saved:
+                raise ValueError("Media probe candidate does not exist")
+        return {
+            "candidate_id": candidate_id,
+            "status": "probed",
+            "width": report["video"]["width"],
+            "height": report["video"]["height"],
+            "is_4k_bitstream": report["is_4k_bitstream"],
+            "hdr_bitstream_claim": report["hdr_bitstream_claim"],
+            "native_4k_verified": False,
+            "verification_level": report["verification_level"],
+            "report": report,
         }
 
     async def _analyze_media_manifest(
