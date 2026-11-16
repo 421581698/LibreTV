@@ -336,6 +336,7 @@ class WorkflowWorker:
             api_key,
             settings.supervisor_model,
             settings.supervisor_timeout_seconds,
+            proxy=settings.egress_proxy_url,
         )
         goal = payload.get("goal", "Extract the primary movie, series or animation entries.")
         rule = await planner.generate_extraction_rule(str(goal), final_url, html_sample)
