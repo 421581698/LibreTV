@@ -64,3 +64,46 @@ def test_postgres_job_store_persists_jobs_results_and_ordered_events() -> None:
     finally:
         with psycopg.connect(database_url) as db:
             db.execute("DELETE FROM crawl_jobs WHERE task_id = %s", (task_id,))
+
+@pytest.mark.skipif(
+    not os.getenv("DATABASE_URL"),
+    reason="PostgreSQL integration database is not configured",
+)
+def test_postgres_worker_control_requests_pause_cancel_and_resume() -> None:
+    database_url = os.environ["DATABASE_URL"]
+    store = PostgresJobStore(database_url)
+    store.initialize()
+    task_id = "pg_control_" + uuid.uuid4().hex
+
+    try:
+        assert store.create(task_id, ["https://example.com/"], "/tmp/" + task_id)
+        assert store.claim_next("worker-control", lease_seconds=30) is not None
+        assert store.request_control(task_id, "pause")
+        job = store.get(task_id)
+        assert job is not None
+        assert job["status"] == "pausing"
+        assert job["control_request"] == "pause"
+        assert store.get_control(task_id, "worker-control") == "pause"
+        assert store.heartbeat(task_id, "worker-control", lease_seconds=30)
+        assert store.release_lease(task_id, "worker-control", "paused")
+        assert store.resume(task_id)
+        job = store.get(task_id)
+        assert job is not None
+        assert job["status"] == "queued"
+        assert job["control_request"] is None
+        assert store.claim_next("worker-control-2", lease_seconds=30) is not None
+        assert store.request_control(task_id, "cancel")
+        assert store.get_control(task_id, "worker-control-2") == "cancel"
+        events = store.events_after(task_id, 0)
+        assert [event["type"] for event in events] == [
+            "queued",
+            "claimed",
+            "pause_requested",
+            "lease_released",
+            "resumed",
+            "claimed",
+            "cancel_requested",
+        ]
+    finally:
+        with psycopg.connect(database_url) as db:
+            db.execute("DELETE FROM crawl_jobs WHERE task_id = %s", (task_id,))
