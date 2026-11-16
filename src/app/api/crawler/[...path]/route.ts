@@ -34,6 +34,7 @@ function isAllowedPath(path: string[], method: string): boolean {
     return (
       joined === 'workflows' ||
       joined === 'jobs' ||
+      (path[0] === 'candidates' && path.length === 3 && path[2] === 'review') ||
       (path[0] === 'jobs' &&
         path.length === 3 &&
         ['pause', 'resume', 'cancel'].includes(path[2]))
@@ -47,6 +48,15 @@ async function proxy(
   context: RouteContext,
   method: 'GET' | 'POST',
 ) {
+  const { path } = await context.params;
+  const isCandidateReview =
+    method === 'POST' &&
+    path[0] === 'candidates' &&
+    path.length === 3 &&
+    path[2] === 'review';
+  if (isCandidateReview && isAuthDisabled()) {
+    return errorResponse('候选审核必须启用登录验证。', 403);
+  }
   if (!isAuthDisabled()) {
     if (!isPasswordConfigured()) {
       return errorResponse('服务端尚未配置访问密码。', 503);
@@ -110,6 +120,21 @@ async function proxy(
     body = await request.text();
     if (body.length > 1024 * 1024) {
       return errorResponse('请求体不能超过 1 MiB。', 413);
+    }
+    if (isCandidateReview) {
+      try {
+        const submitted = JSON.parse(body) as { decision?: string; note?: string };
+        if (!['approved', 'rejected'].includes(submitted.decision || '')) {
+          return errorResponse('审核决定无效。', 400);
+        }
+        body = JSON.stringify({
+          decision: submitted.decision,
+          note: typeof submitted.note === 'string' ? submitted.note.slice(0, 1000) : '',
+          reviewer_id: 'site_admin',
+        });
+      } catch {
+        return errorResponse('审核请求格式无效。', 400);
+      }
     }
     headers.set('Content-Type', 'application/json');
   }
