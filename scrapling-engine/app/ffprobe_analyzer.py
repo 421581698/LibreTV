@@ -97,8 +97,7 @@ def analyze_local_media_file(
     stderr = bytearray()
     deadline = time.monotonic() + timeout_seconds
     try:
-        process = subprocess.Popen(
-            command,
+        # Fixed argv, validated local path, and shell=False; no user-controlled command.\n        process = subprocess.Popen(  # noqa: S603\n            command,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
