@@ -87,11 +87,13 @@ def test_postgres_workflow_dag_claims_dependencies_and_retries_durably() -> None
         assert workflow is not None
         assert workflow["status"] == "failed"
         assert store.claim_ready_node("worker-e", lease_seconds=30) is None
-        assert [node["status"] for node in workflow["nodes"]] == [
-            "completed",
-            "failed",
-            "pending",
-        ]
+        assert {
+            node["node_id"]: node["status"] for node in workflow["nodes"]
+        } == {
+            "discover": "completed",
+            "analyze": "failed",
+            "candidate": "pending",
+        }
         event_types = [event["type"] for event in store.events_after(workflow_id)]
         assert event_types == [
             "workflow_created",
