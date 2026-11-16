@@ -120,11 +120,20 @@ def claim_job(worker_id: str, lease_seconds: int = 90) -> dict | None:
     now = int(time.time())
     with connect() as c:
         c.execute("BEGIN IMMEDIATE")
-        expired = c.execute("SELECT id FROM collector_jobs WHERE status='running' AND lease_until IS NOT NULL AND lease_until<=?", (now,)).fetchall()
+        expired = c.execute(
+            "SELECT id,attempt,max_attempts FROM collector_jobs WHERE status='running' AND lease_until IS NOT NULL AND lease_until<=?",
+            (now,),
+        ).fetchall()
         c.execute("""UPDATE collector_jobs SET status='queued',lease_owner=NULL,lease_until=NULL,updated_at=?
-          WHERE status='running' AND lease_until IS NOT NULL AND lease_until<=?""", (now,now))
+          WHERE status='running' AND lease_until IS NOT NULL AND lease_until<=? AND attempt<max_attempts""", (now,now))
+        c.execute("""UPDATE collector_jobs SET status='failed',error=COALESCE(error,'lease_expired_max_attempts'),
+          lease_owner=NULL,lease_until=NULL,updated_at=?
+          WHERE status='running' AND lease_until IS NOT NULL AND lease_until<=? AND attempt>=max_attempts""", (now,now))
         for item in expired:
-            event(c, item["id"], "lease_expired_recovered", {"recovered_by_worker": worker_id})
+            if item["attempt"] >= item["max_attempts"]:
+                event(c, item["id"], "dead_letter", {"reason": "lease_expired_max_attempts", "attempt": item["attempt"]})
+            else:
+                event(c, item["id"], "lease_expired_recovered", {"recovered_by_worker": worker_id, "attempt": item["attempt"]})
         cancelled = c.execute("SELECT id FROM collector_jobs WHERE status='cancel_requested' AND lease_until IS NOT NULL AND lease_until<=?", (now,)).fetchall()
         c.execute("""UPDATE collector_jobs SET status='cancelled',lease_owner=NULL,lease_until=NULL,updated_at=?
           WHERE status='cancel_requested' AND lease_until IS NOT NULL AND lease_until<=?""", (now,now))
