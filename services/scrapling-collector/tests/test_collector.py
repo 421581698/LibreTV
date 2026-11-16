@@ -12,7 +12,7 @@ os.environ.setdefault("SCRAPLING_API_TOKEN", "collector-test-token")
 os.environ.setdefault("SCRAPLING_DB_PATH", str(Path(tempfile.gettempdir()) / "libretv-scrapling-tests.sqlite3"))
 
 import app as collector
-import registry_queue as registry_store
+import registry_queue
 
 
 class CollectorTests(unittest.TestCase):
@@ -25,10 +25,10 @@ class CollectorTests(unittest.TestCase):
         self.temp.cleanup()
 
     def test_registry_queue_and_collector_share_one_canonical_database(self):
-        job = registry_store.submit_job(
+        job = registry_queue.submit_job(
             "crawl", {"url": "https://example.org/"}, "shared-database:job"
         )
-        resource = registry_store.upsert_resource({
+        resource = registry_queue.upsert_resource({
             "resource_type": "DIRECT_MEDIA",
             "url": "https://example.org/video.mp4",
             "title": "Sample video",
@@ -52,8 +52,10 @@ class CollectorTests(unittest.TestCase):
         self.assertIsNotNone(stored_resource)
         self.assertIsNotNone(stored_rule)
         self.assertEqual(rule["status"], "active")
-        self.assertEqual(registry_store.DB_PATH, collector.DB_PATH)
+        self.assertEqual(registry_queue.DB_PATH, collector.DB_PATH)
         self.assertEqual(Path(collector.ai_rules.DB_PATH), collector.DB_PATH)
+        self.assertIs(worker.registry_queue, collector.registry_queue)
+        self.assertEqual(worker.registry_queue.DB_PATH, collector.DB_PATH)
 
     def test_fixture_validated_ai_media_selector_is_used_by_candidate_extractor(self):
         collector.ai_rules.save_version(
@@ -1197,9 +1199,9 @@ segment-2.ts
             "media_identity": {**base_identity, "season_hint": 1, "episode_hint": 2},
             "page_metadata": {"identity_source": "schema_org"},
         }
-        collector.registry_store.register_discovered_candidate(first)
-        collector.registry_store.register_discovered_candidate(second)
-        with collector.registry_store.connect() as connection:
+        collector.registry_queue.register_discovered_candidate(first)
+        collector.registry_queue.register_discovered_candidate(second)
+        with collector.registry_queue.connect() as connection:
             movies = connection.execute("SELECT id,title,year,metadata FROM registry_movies").fetchall()
             episodes = connection.execute("SELECT movie_id,season,episode FROM registry_episodes ORDER BY episode").fetchall()
         self.assertEqual(len(movies), 1)
@@ -1208,16 +1210,16 @@ segment-2.ts
         self.assertEqual(episodes[0]["movie_id"], episodes[1]["movie_id"])
         self.assertEqual([row["episode"] for row in episodes], [1, 2])
 
-        collector.registry_store.sync_candidate_validation(
+        collector.registry_queue.sync_candidate_validation(
             first["id"],
             {"reachable": True, "access": {"access_state": "PUBLIC"}, "media_format": "hls"},
             "validated",
         )
-        collector.registry_store.register_candidate_playback(first["id"], {
+        collector.registry_queue.register_candidate_playback(first["id"], {
             "media_type": "hls", "decoded_width": 1920, "decoded_height": 1080,
             "observed_seconds": 8, "progressed_seconds": 7,
         })
-        with collector.registry_store.connect() as connection:
+        with collector.registry_queue.connect() as connection:
             resource = connection.execute(
                 "SELECT movie_id,metadata,playback_state FROM registry_resources WHERE candidate_id=?",
                 (first["id"],),
