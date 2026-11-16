@@ -20,10 +20,10 @@ ACCESS_BLOCKED = {"AUTH_REQUIRED", "SUBSCRIPTION_REQUIRED", "CHALLENGE", "DRM_PR
 
 def connect() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH, timeout=15, isolation_level=None)
+    conn = sqlite3.connect(DB_PATH, timeout=60, isolation_level=None)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
-    conn.execute("PRAGMA busy_timeout=15000")
+    conn.execute("PRAGMA busy_timeout=60000")
     return conn
 
 
