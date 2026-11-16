@@ -81,12 +81,18 @@ Example workflow:
       "node_id": "media-analysis",
       "node_type": "analyze_media_candidates",
       "input": {}
+    },
+    {
+      "node_id": "bitstream-probe",
+      "node_type": "probe_media_candidates",
+      "input": {}
     }
   ],
   "edges": [
     ["validate", "crawl"],
     ["crawl", "candidate-review"],
-    ["candidate-review", "media-analysis"]
+    ["candidate-review", "media-analysis"],
+    ["candidate-review", "bitstream-probe"]
   ]
 }
 ```
