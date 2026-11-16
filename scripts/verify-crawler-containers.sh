@@ -15,7 +15,7 @@ cleanup() {
 trap cleanup EXIT
 
 "${compose[@]}" config --quiet
-"${compose[@]}" up -d --build scrapling-postgres scrapling-engine scrapling-job-worker scrapling-workflow-worker
+"${compose[@]}" up -d --build scrapling-postgres scrapling-engine scrapling-job-worker scrapling-workflow-worker scrapling-media-probe
 
 ready=0
 for attempt in $(seq 1 60); do
@@ -65,5 +65,29 @@ for service in scrapling-engine scrapling-job-worker scrapling-workflow-worker; 
   "${compose[@]}" exec -T "$service" sh -ec 'f="/data/.runtime-acceptance-$$"; : > "$f"; rm "$f"'
   echo "$service: uid, read-only rootfs, tmpfs, resource limits and /data write passed"
 done
+
+
+probe_container=$("${compose[@]}" ps -q scrapling-media-probe)
+test -n "$probe_container"
+[[ "$(docker inspect --format '{{.State.Running}}' "$probe_container")" == "true" ]]
+[[ "$(docker inspect --format '{{.Config.User}}' "$probe_container")" == "10001:10001" ]]
+[[ "$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "$probe_container")" == "true" ]]
+[[ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$probe_container")" == "none" ]]
+[[ "$(docker inspect --format '{{.HostConfig.PidsLimit}}' "$probe_container")" -le 64 ]]
+[[ "$(docker inspect --format '{{.HostConfig.Memory}}' "$probe_container")" -gt 0 ]]
+[[ "$(docker inspect --format '{{.HostConfig.NanoCpus}}' "$probe_container")" -gt 0 ]]
+grep -q '"ALL"' <<<"$(docker inspect --format '{{json .HostConfig.CapDrop}}' "$probe_container")"
+grep -q 'no-new-privileges' <<<"$(docker inspect --format '{{json .HostConfig.SecurityOpt}}' "$probe_container")"
+probe_mounts=$(docker inspect --format '{{json .Mounts}}' "$probe_container")
+python3 -c 'import json,sys; mounts=json.loads(sys.argv[1]); by_target={m["Destination"]:m for m in mounts}; assert by_target["/probe/inbox"]["RW"] is False; assert by_target["/probe/outbox"]["RW"] is True' "$probe_mounts"
+"${compose[@]}" exec -T scrapling-media-probe python -c 'import socket; s=socket.socket(); s.settimeout(1); 
+try:
+ s.connect(("1.1.1.1", 53))
+ raise SystemExit("probe sidecar unexpectedly reached the network")
+except OSError:
+ pass
+finally:
+ s.close()'
+echo "scrapling-media-probe: no network, read-only input mount and writable result mount passed"
 
 echo "Crawler container runtime acceptance passed."
