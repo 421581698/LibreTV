@@ -63,6 +63,8 @@ class RegistryQueueTests(unittest.TestCase):
         for url in (
             "https://example.org/watch?token=secret",
             "https://example.org/watch?X-Amz-Signature=secret",
+            "https://example.org/watch path",
+            r"https://example.org\\@127.0.0.1/watch",
             "https://user:password@example.org/watch",
             "http://example.org/watch",
             "https://example.org:8443/watch",
