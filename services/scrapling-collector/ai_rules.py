@@ -17,11 +17,14 @@ import sqlite3
 import time
 import urllib.error
 import urllib.request
+from fastapi import APIRouter, Header, HTTPException
+from pydantic import BaseModel, Field
 import uuid
 from html.parser import HTMLParser
 from urllib.parse import urlparse
 
 DB_PATH = os.environ.get("SCRAPLING_DB_PATH", "/data/collector.sqlite3")
+router = APIRouter()
 MAX_HTML_BYTES = 256 * 1024
 MAX_RULE_BYTES = 16 * 1024
 MAX_MODEL_RESPONSE = 32 * 1024
@@ -123,7 +126,7 @@ def _model_endpoint() -> tuple[str, str, str]:
     api_key = os.environ.get("COLLECTOR_AI_API_KEY", "").strip()
     model = os.environ.get("COLLECTOR_AI_MODEL", "").strip()
     parsed = urlparse(endpoint)
-    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.path not in ("", "/"):
         raise RuntimeError("COLLECTOR_AI_GATEWAY_URL must be an operator-configured HTTPS gateway")
     allowed = {item.strip().lower() for item in os.environ.get("COLLECTOR_AI_ALLOWED_HOSTS", "").split(",") if item.strip()}
     if parsed.hostname.lower() not in allowed:
@@ -160,10 +163,16 @@ def generate_rules(host: str, page_html: str, diagnostics: dict | None = None) -
         "Authorization": "Bearer " + key,
         "Content-Type": "application/json",
     }, method="POST")
+    class _NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            return None
+    opener = urllib.request.build_opener(_NoRedirect)
     try:
-        with urllib.request.urlopen(request, timeout=12) as response:
+        with opener.open(request, timeout=12) as response:
+            if response.status != 200:
+                raise RuntimeError("AI gateway returned a non-success status")
             raw = response.read(MAX_MODEL_RESPONSE + 1)
-    except (urllib.error.URLError, TimeoutError) as exc:
+    except (urllib.error.URLError, TimeoutError, urllib.error.HTTPError) as exc:
         raise RuntimeError("AI gateway request failed") from exc
     if len(raw) > MAX_MODEL_RESPONSE:
         raise ValueError("AI gateway response exceeded limit")
@@ -233,3 +242,63 @@ def get_active_rule(host: str) -> dict | None:
     return {"host": host, "version": row["version"], "rules": json.loads(row["rules_json"]),
             "status": row["status"], "fixture_passes": row["fixture_passes"],
             "fixture_total": row["fixture_total"]}
+
+
+class RuleJobRequest(BaseModel):
+    host: str = Field(min_length=1, max_length=253)
+    page_html: str = Field(min_length=1, max_length=MAX_HTML_BYTES)
+    fixtures: list[str] = Field(default_factory=list, max_length=20)
+    task_id: str | None = Field(default=None, max_length=80)
+    failure_code: str | None = Field(default=None, max_length=80)
+
+
+def _validate_host(host: str) -> str:
+    host = host.strip().rstrip(".").lower()
+    if not re.fullmatch(r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*", host):
+        raise HTTPException(status_code=400, detail="A canonical DNS hostname is required")
+    return host
+
+
+def _enqueue_rule_job(job_type: str, request: RuleJobRequest, authorization: str | None):
+    from registry_queue import require_auth, submit_job
+    require_auth(authorization)
+    host = _validate_host(request.host)
+    fixtures = []
+    for fixture in request.fixtures:
+        if len(fixture.encode("utf-8")) > MAX_HTML_BYTES:
+            raise HTTPException(status_code=413, detail="Fixture exceeds the bounded sample size")
+        fixtures.append(fixture)
+    payload = {
+        "host": host, "page_html": request.page_html,
+        "fixtures": fixtures, "task_id": request.task_id,
+        "failure_code": request.failure_code or "selector_miss",
+    }
+    key = "ai-rule:" + job_type + ":" + hashlib.sha256(
+        (host + "|" + (request.task_id or "") + "|" + hashlib.sha256(request.page_html.encode()).hexdigest()).encode()
+    ).hexdigest()
+    try:
+        return submit_job(job_type, payload, key, max_attempts=2)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/v1/rules/generate")
+def enqueue_rule_generation(request: RuleJobRequest, authorization: str | None = Header(default=None)):
+    job = _enqueue_rule_job("rule_generate", request, authorization)
+    return {"job_id": job["id"], "status": job["status"], "host": request.host}
+
+
+@router.post("/v1/rules/repair")
+def enqueue_rule_repair(request: RuleJobRequest, authorization: str | None = Header(default=None)):
+    job = _enqueue_rule_job("rule_repair", request, authorization)
+    return {"job_id": job["id"], "status": job["status"], "host": request.host}
+
+
+@router.get("/v1/rules/{host}")
+def read_active_rule(host: str, authorization: str | None = Header(default=None)):
+    from registry_queue import require_auth
+    require_auth(authorization)
+    rule = get_active_rule(_validate_host(host))
+    if rule is None:
+        raise HTTPException(status_code=404, detail="No fixture-validated active rule")
+    return rule
