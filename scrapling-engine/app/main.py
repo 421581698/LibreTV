@@ -749,20 +749,14 @@ async def job_events(
             for event in events:
                 cursor = event["id"]
                 payload = json.dumps(event, ensure_ascii=False)
-                yield f"id: {cursor}
-event: {event['type']}
-data: {payload}
-
-"
+                yield f"id: {cursor}\nevent: {event['type']}\ndata: {payload}\n\n"
             job = job_store.get(task_id)
             if job is None or job["status"] in {
                 "completed", "paused", "failed", "interrupted", "cancelled"
             }:
                 break
             if not events:
-                yield ": keep-alive
-
-"
+                yield ": keep-alive\n\n"
                 await asyncio.sleep(1)
 
     return StreamingResponse(stream_events(), media_type="text/event-stream")
