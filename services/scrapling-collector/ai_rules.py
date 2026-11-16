@@ -290,15 +290,22 @@ def record_failure(host: str, task_id: str | None, failure_code: str, detail: di
     return identifier
 
 
+def link_diagnostic_version(diagnostic_id: str, version: int) -> None:
+    with connect() as c:
+        c.execute(
+            "UPDATE collector_rule_diagnostics SET repair_version=? WHERE id=?",
+            (version, diagnostic_id),
+        )
+        c.commit()
+
+
 def diagnose_and_repair(host: str, page_html: str, failure_code: str,
-                        task_id: str | None = None, fixtures: list[str] | None = None) -> dict:
-    diagnostic_id = record_failure(host, task_id, failure_code)
+                        task_id: str | None = None, fixtures: list[str] | None = None,
+                        diagnostic_id: str | None = None) -> dict:
+    diagnostic_id = diagnostic_id or record_failure(host, task_id, failure_code)
     proposal = generate_rules(host, page_html, {"failure_code": failure_code})
     version = save_version(host, proposal, "ai_repair", fixtures or [])
-    with connect() as c:
-        c.execute("UPDATE collector_rule_diagnostics SET repair_version=? WHERE id=?",
-                  (version["version"], diagnostic_id))
-        c.commit()
+    link_diagnostic_version(diagnostic_id, version["version"])
     return {"diagnostic_id": diagnostic_id, "repair": version}
 
 
