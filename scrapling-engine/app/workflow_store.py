@@ -353,6 +353,11 @@ class PostgresWorkflowStore:
                 "node_completed",
                 {"result_keys": sorted(result), "count": result.get("count")},
             )
+            self._finish_control_if_idle(db, workflow_id, now)
+            workflow_status = db.execute(
+                "SELECT status FROM resource_workflows WHERE workflow_id = %s",
+                (workflow_id,),
+            ).fetchone()["status"]
             remaining = db.execute(
                 """
                 SELECT COUNT(*) AS count FROM resource_workflow_nodes
@@ -360,7 +365,7 @@ class PostgresWorkflowStore:
                 """,
                 (workflow_id,),
             ).fetchone()["count"]
-            if remaining == 0:
+            if remaining == 0 and workflow_status == "running":
                 db.execute(
                     "UPDATE resource_workflows SET status = 'completed', updated_at = %s "
                     "WHERE workflow_id = %s",
@@ -413,10 +418,112 @@ class PostgresWorkflowStore:
             if not retry:
                 db.execute(
                     "UPDATE resource_workflows SET status = 'failed', updated_at = %s "
-                    "WHERE workflow_id = %s",
+                    "WHERE workflow_id = %s AND status = 'running'",
                     (now, workflow_id),
                 )
+            self._finish_control_if_idle(db, workflow_id, now)
             return status
+
+    def _finish_control_if_idle(
+        self,
+        db: psycopg.Connection,
+        workflow_id: str,
+        now: datetime,
+    ) -> None:
+        workflow = db.execute(
+            "SELECT status FROM resource_workflows WHERE workflow_id = %s FOR UPDATE",
+            (workflow_id,),
+        ).fetchone()
+        if workflow is None or workflow["status"] not in {"pausing", "cancelling"}:
+            return
+        target = workflow["status"]
+        expired_status = "pending" if target == "pausing" else "cancelled"
+        db.execute(
+            """
+            UPDATE resource_workflow_nodes
+            SET status = %s, lease_owner = NULL, lease_expires_at = NULL,
+                updated_at = %s
+            WHERE workflow_id = %s AND status = 'running'
+              AND (lease_expires_at IS NULL OR lease_expires_at <= %s)
+            """,
+            (expired_status, now, workflow_id, now),
+        )
+        active = db.execute(
+            """
+            SELECT COUNT(*) AS count FROM resource_workflow_nodes
+            WHERE workflow_id = %s AND status = 'running'
+              AND lease_expires_at > %s
+            """,
+            (workflow_id, now),
+        ).fetchone()["count"]
+        if active:
+            return
+        final_status = "paused" if target == "pausing" else "cancelled"
+        if final_status == "cancelled":
+            db.execute(
+                """
+                UPDATE resource_workflow_nodes
+                SET status = 'cancelled', updated_at = %s
+                WHERE workflow_id = %s AND status IN ('pending', 'retry_wait')
+                """,
+                (now, workflow_id),
+            )
+        db.execute(
+            "UPDATE resource_workflows SET status = %s, updated_at = %s "
+            "WHERE workflow_id = %s",
+            (final_status, now, workflow_id),
+        )
+        self._event(db, workflow_id, None, f"workflow_{final_status}", {})
+
+    def request_control(self, workflow_id: str, action: str) -> bool:
+        if action not in {"pause", "resume", "cancel"}:
+            raise ValueError("Workflow action must be pause, resume or cancel")
+        transitions = {
+            "pause": ("running", "pausing"),
+            "resume": ("paused", "running"),
+            "cancel": (("running", "pausing", "paused"), "cancelling"),
+        }
+        expected, target = transitions[action]
+        now = _now()
+        with psycopg.connect(self.database_url, row_factory=dict_row) as db:
+            row = db.execute(
+                "SELECT status FROM resource_workflows WHERE workflow_id = %s FOR UPDATE",
+                (workflow_id,),
+            ).fetchone()
+            if row is None:
+                return False
+            allowed = expected if isinstance(expected, tuple) else (expected,)
+            if row["status"] not in allowed:
+                return False
+            db.execute(
+                "UPDATE resource_workflows SET status = %s, updated_at = %s "
+                "WHERE workflow_id = %s",
+                (target, now, workflow_id),
+            )
+            self._event(
+                db,
+                workflow_id,
+                None,
+                "workflow_control_requested",
+                {"action": action},
+            )
+            self._finish_control_if_idle(db, workflow_id, now)
+            return True
+
+    def reconcile_controls(self) -> int:
+        now = _now()
+        with psycopg.connect(self.database_url, row_factory=dict_row) as db:
+            rows = db.execute(
+                """
+                SELECT workflow_id FROM resource_workflows
+                WHERE status IN ('pausing', 'cancelling')
+                ORDER BY updated_at
+                LIMIT 200
+                """
+            ).fetchall()
+            for row in rows:
+                self._finish_control_if_idle(db, row["workflow_id"], now)
+        return len(rows)
 
     def list_workflows(self, limit: int = 50) -> list[dict[str, Any]]:
         safe_limit = min(max(limit, 1), 200)
