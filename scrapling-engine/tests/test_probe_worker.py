@@ -9,12 +9,14 @@ def test_probe_worker_processes_request_without_database_or_network_client(
     tmp_path,
     monkeypatch,
 ):
+    staging = tmp_path / "staging"
     inbox = tmp_path / "inbox"
     outbox = tmp_path / "outbox"
+    staging.mkdir()
     inbox.mkdir()
     outbox.mkdir()
     job_id = "a" * 32
-    media = inbox / f"{job_id}.media"
+    media = staging / f"{job_id}.media"
     media.write_bytes(b"media")
     request = inbox / f"{job_id}.json"
     request.write_text(
@@ -38,14 +40,16 @@ def test_probe_worker_processes_request_without_database_or_network_client(
         lambda path, timeout_seconds: expected,
     )
 
-    assert probe_worker.process_request(request, inbox, outbox) is True
+    assert probe_worker.process_request(request, inbox, outbox, staging) is True
     result = json.loads((outbox / f"{job_id}.json").read_text())
     assert result == {"ok": True, "report": expected}
 
 
 def test_probe_worker_rejects_path_traversal_filename(tmp_path, monkeypatch):
+    staging = tmp_path / "staging"
     inbox = tmp_path / "inbox"
     outbox = tmp_path / "outbox"
+    staging.mkdir()
     inbox.mkdir()
     outbox.mkdir()
     job_id = "b" * 32
@@ -66,6 +70,6 @@ def test_probe_worker_rejects_path_traversal_filename(tmp_path, monkeypatch):
         raise AssertionError("unsafe path must not reach ffprobe")
 
     monkeypatch.setattr(probe_worker, "analyze_local_media_file", unexpected_probe)
-    assert probe_worker.process_request(request, inbox, outbox) is False
+    assert probe_worker.process_request(request, inbox, outbox, staging) is False
     assert called is False
     assert list(outbox.iterdir()) == []
