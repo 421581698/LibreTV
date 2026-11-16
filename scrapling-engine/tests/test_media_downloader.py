@@ -75,7 +75,9 @@ async def test_download_rejects_https_downgrade(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_download_enforces_streaming_size_limit_and_removes_partial_file(tmp_path: Path) -> None:
+async def test_download_enforces_streaming_size_limit_and_removes_partial_file(
+    tmp_path: Path,
+) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
             200,
