@@ -440,8 +440,20 @@ class WorkflowWorker:
     async def _probe_media_candidates(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Download bounded direct-media candidates and inspect them in the no-network sidecar."""
         candidate_ids = payload.get("candidate_ids")
-        if not isinstance(candidate_ids, list) or not candidate_ids or len(candidate_ids) > 5:
-            raise ValueError("probe_media_candidates requires 1 to 5 candidate IDs")
+        if not isinstance(candidate_ids, list):
+            candidate_ids = []
+            for result in payload.get("dependencies", {}).values():
+                if isinstance(result, dict) and isinstance(
+                    result.get("candidate_ids"), list
+                ):
+                    candidate_ids.extend(result["candidate_ids"])
+        candidate_ids = list(dict.fromkeys(candidate_ids))
+        if not candidate_ids:
+            return {"count": 0, "reports": []}
+        if len(candidate_ids) > 5:
+            raise ValueError(
+                "probe_media_candidates accepts at most 5 candidates per workflow node"
+            )
         timeout_seconds = payload.get("timeout_seconds", 20)
         if (
             not isinstance(timeout_seconds, int)
