@@ -10,7 +10,6 @@ from app import (
     CrawlRequest,
     crawl_site,
     discover_sites,
-    init_db,
     require_egress_firewall,
     refresh_collection_batch,
     task_candidates,
@@ -27,7 +26,6 @@ def handle(payload: dict, checkpoint, cancelled):
     if cancelled():
         raise JobCancelled()
     if payload.get("_job_type") == "discover":
-        init_db()
         require_egress_firewall()
         checkpoint({"stage": "fmhy_discovery_started"})
         sites = discover_sites()
@@ -43,6 +41,20 @@ def handle(payload: dict, checkpoint, cancelled):
         from app import db
         import time
         with db() as connection:
+            connection.execute(
+                """CREATE TABLE IF NOT EXISTS collection_batches (
+                  id TEXT PRIMARY KEY, directory_source TEXT NOT NULL DEFAULT 'FMHY',
+                  target_candidates INTEGER NOT NULL DEFAULT 1000,
+                  target_collected INTEGER NOT NULL DEFAULT 1000,
+                  status TEXT NOT NULL DEFAULT 'queued',
+                  discovered_sites INTEGER NOT NULL DEFAULT 0,
+                  queued_jobs INTEGER NOT NULL DEFAULT 0,
+                  candidate_count INTEGER NOT NULL DEFAULT 0,
+                  collected_count INTEGER NOT NULL DEFAULT 0,
+                  failure_summary TEXT NOT NULL DEFAULT '{}',
+                  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+                )"""
+            )
             connection.execute(
                 "UPDATE collection_batches SET discovered_sites=?,queued_jobs=?,status='running',updated_at=? WHERE id=?",
                 (len(sites), len(queued), int(time.time()), batch_id),
