@@ -117,7 +117,7 @@ jobs:
           MEDIA_ACCEPTANCE_SECONDS: "60"
         run: |
           set -euo pipefail
-          docker compose --profile collector up -d --build
+          docker compose --profile collector up -d --build scrapling-collector
           trap 'docker compose --profile collector down -v >/dev/null 2>&1 || true' EXIT
           sudo bash scripts/scrapling-egress-firewall.sh
           docker cp services/scrapling-collector/tests/media_acceptance.py libretv-scrapling-collector:/tmp/media_acceptance.py
