@@ -229,3 +229,18 @@ async def test_http_redirect_to_metadata_is_revalidated_by_proxy(monkeypatch):
         target_server.close()
         await proxy_server.wait_closed()
         await target_server.wait_closed()
+
+
+
+@pytest.mark.asyncio
+async def test_public_ipv4_mapped_ipv6_literal_is_pinned_as_ipv4():
+    addresses = await resolve_public_addresses("::ffff:93.184.216.34", 443)
+    assert len(addresses) == 1
+    assert addresses[0].version == 4
+    assert str(addresses[0]) == "93.184.216.34"
+
+
+@pytest.mark.asyncio
+async def test_private_ipv4_mapped_ipv6_literal_is_rejected():
+    with pytest.raises(EgressDenied):
+        await resolve_public_addresses("::ffff:127.0.0.1", 443)
