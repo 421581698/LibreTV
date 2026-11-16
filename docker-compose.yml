@@ -43,12 +43,17 @@ services:
       # 可选：启用 --profile crawler 后，LibreTV 通过内部网络连接 Scrapling Engine
       - SCRAPLING_ENGINE_URL=${SCRAPLING_ENGINE_URL:-http://scrapling-engine:8787}
       - SCRAPLING_ENGINE_API_KEY=${SCRAPLING_API_KEY:-}
+    networks:
+      - default
+      - crawler-app
 
   # 以下三个服务仅在 docker compose --profile crawler up 时启动。
   # 请在 .env 中设置至少 32 位随机 SCRAPLING_API_KEY 和独立 SCRAPLING_DB_PASSWORD。
   scrapling-postgres:
     profiles: ["crawler"]
     image: postgres:16
+    networks:
+      - crawler-db
     restart: unless-stopped
     environment:
       POSTGRES_DB: libretv_scrapling
@@ -87,11 +92,18 @@ services:
       SUPERVISOR_API_KEY: ${SUPERVISOR_API_KEY:-}
       SUPERVISOR_MODEL: ${SUPERVISOR_MODEL:-}
       SUPERVISOR_TIMEOUT_SECONDS: ${SUPERVISOR_TIMEOUT_SECONDS:-45}
+      SCRAPLING_EGRESS_PROXY: http://scrapling-egress-proxy:8080
+    networks:
+      - crawler-app
+      - crawler-clients
+      - crawler-db
     volumes:
       - scrapling-crawl-data:/data
     depends_on:
       scrapling-postgres:
         condition: service_healthy
+      scrapling-egress-proxy:
+        condition: service_started
     expose:
       - "8787"
 
@@ -115,11 +127,17 @@ services:
       SCRAPLING_API_KEY: ${SCRAPLING_API_KEY:-}
       DATABASE_URL: postgresql://libretv_scrapling:${SCRAPLING_DB_PASSWORD:-local-dev-only-change-me}@scrapling-postgres:5432/libretv_scrapling
       CRAWL_DATA_DIR: /data
+      SCRAPLING_EGRESS_PROXY: http://scrapling-egress-proxy:8080
+    networks:
+      - crawler-clients
+      - crawler-db
     volumes:
       - scrapling-crawl-data:/data
     depends_on:
       scrapling-postgres:
         condition: service_healthy
+      scrapling-egress-proxy:
+        condition: service_started
 
   scrapling-workflow-worker:
     profiles: ["crawler"]
@@ -156,7 +174,37 @@ services:
     depends_on:
       scrapling-postgres:
         condition: service_healthy
-      scrapling-media-probe:
+      scrapling-egress-proxy:
+    profiles: ["crawler"]
+    build:
+      context: ./scrapling-engine
+      dockerfile: Dockerfile.proxy
+    restart: unless-stopped
+    user: "10001:10001"
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    mem_limit: 256m
+    cpus: 0.5
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    environment:
+      EGRESS_PROXY_HOST: 0.0.0.0
+      EGRESS_PROXY_PORT: 8080
+    networks:
+      - crawler-clients
+      - crawler-egress
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(1); raise SystemExit(s.connect_ex(('127.0.0.1',8080)) != 0)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  scrapling-media-probe:
+        condition: service_started
+      scrapling-egress-proxy:
         condition: service_started
 
   scrapling-media-probe:
@@ -194,3 +242,13 @@ volumes:
   scrapling-crawl-data:
   scrapling-probe-inbox:
   scrapling-probe-outbox:
+
+networks:
+  crawler-app:
+    internal: true
+  crawler-clients:
+    internal: true
+  crawler-db:
+    internal: true
+  crawler-egress:
+    driver: bridge
