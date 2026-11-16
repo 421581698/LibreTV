@@ -601,7 +601,7 @@ def register_discovered_candidate(candidate: dict) -> dict | None:
         "quality_evidence": quality,
     }
     try:
-        return upsert_resource({
+        resource = upsert_resource({
             "candidate_id": candidate["id"],
             "source_key": candidate.get("host") or "unknown",
             "source_name": candidate.get("host") or "Unknown source",
