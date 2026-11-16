@@ -52,6 +52,7 @@ jobs:
       COLLECTOR_AI_API_KEY: ${{ secrets.COLLECTOR_AI_API_KEY }}
       COLLECTOR_AI_MODEL: ${{ secrets.COLLECTOR_AI_MODEL }}
       COLLECTOR_AI_ALLOWED_HOSTS: ${{ secrets.COLLECTOR_AI_ALLOWED_HOSTS }}
+      AI_RULE_ACCEPTANCE_URL: ${{ secrets.AI_RULE_ACCEPTANCE_URL }}
       MEDIA_ACCEPTANCE_URL: ${{ secrets.MEDIA_ACCEPTANCE_URL }}
       MEDIA_ACCEPTANCE_ALLOWED_HOSTS: ${{ secrets.MEDIA_ACCEPTANCE_ALLOWED_HOSTS }}
       BROWSER_MEDIA_ACCEPTANCE_URL: ${{ secrets.BROWSER_MEDIA_ACCEPTANCE_URL }}
@@ -106,6 +107,7 @@ jobs:
           test -n "$COLLECTOR_AI_API_KEY"
           test -n "$COLLECTOR_AI_MODEL"
           test -n "$COLLECTOR_AI_ALLOWED_HOSTS"
+          test -n "$AI_RULE_ACCEPTANCE_URL"
       - name: Build isolated stack
         run: docker compose --profile collector up -d --build
       - name: Install and verify current-boot host firewall
