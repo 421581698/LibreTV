@@ -75,6 +75,12 @@ def analyze_local_media_file(
         raise MediaProbeError("Probe timeout must be between 1 and 60 seconds")
     media_path = _safe_media_path(path)
     command = [
+        "prlimit",
+        f"--cpu={timeout_seconds}:{timeout_seconds + 5}",
+        "--as=402653184",
+        "--core=0:0",
+        "--nofile=64:64",
+        "--",
         "ffprobe",
         "-v",
         "error",
