@@ -9,12 +9,14 @@ on:
       - "scrapling-engine/**"
       - "docker-compose.yml"
       - "scripts/verify-crawler-containers.sh"
+      - "scripts/check-egress-client-boundary.py"
       - ".github/workflows/scrapling-engine.yml"
   pull_request:
     paths:
       - "scrapling-engine/**"
       - "docker-compose.yml"
       - "scripts/verify-crawler-containers.sh"
+      - "scripts/check-egress-client-boundary.py"
       - ".github/workflows/scrapling-engine.yml"
   workflow_dispatch:
 
