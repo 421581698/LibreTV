@@ -171,6 +171,52 @@ class AIRuleTests(unittest.TestCase):
         self.assertEqual(result["diagnostic_id"], diagnostic)
         self.assertEqual(row["repair_version"], result["repair"]["version"])
 
+    def test_generate_rules_sends_sanitized_json_contract_to_gateway(self):
+        response_body = json.dumps({
+            "choices": [{"message": {"content": json.dumps({
+                "selectors": {"media": "a.media-card"},
+                "notes": "fixture matched",
+            })}}],
+        }).encode("utf-8")
+
+        class FakeResponse:
+            status = 200
+            def __enter__(self):
+                return self
+            def __exit__(self, *_args):
+                return False
+            def read(self, _limit):
+                return response_body
+
+        class FakeOpener:
+            request = None
+            def open(self, request, timeout):
+                self.request = request
+                self.timeout = timeout
+                return FakeResponse()
+
+        opener = FakeOpener()
+        with patch.object(
+            ai_rules, "_model_endpoint",
+            return_value=("https://llm.example/v1/chat/completions", "secret-key", "test-model"),
+        ), patch.object(ai_rules.urllib.request, "build_opener", return_value=opener):
+            result = ai_rules.generate_rules(
+                "catalog.example",
+                '<script>do-not-send()</script><a class="media-card" href="https://x/?token=secret">Watch</a>',
+                {"failure_code": "selector_miss"},
+            )
+
+        self.assertEqual(result["selectors"]["media"], "a.media-card")
+        self.assertEqual(opener.timeout, 12)
+        self.assertEqual(opener.request.get_header("Authorization"), "Bearer secret-key")
+        sent = json.loads(opener.request.data)
+        self.assertEqual(sent["model"], "test-model")
+        self.assertEqual(sent["response_format"], {"type": "json_object"})
+        prompt = json.loads(sent["messages"][1]["content"])
+        self.assertNotIn("do-not-send", prompt["html_sample"])
+        self.assertNotIn("token=secret", prompt["html_sample"])
+        self.assertEqual(prompt["diagnostics"]["failure_code"], "selector_miss")
+
     def test_model_gateway_requires_explicit_https_host_allowlist(self):
         with patch.dict(os.environ, {
             "COLLECTOR_AI_GATEWAY_URL": "https://llm.example",
