@@ -186,6 +186,23 @@ export default function CrawlerControlCenterPage() {
     }
   }
 
+  async function reviewCandidate(candidateId: string, decision: 'approved' | 'rejected') {
+    const action = decision === 'approved' ? '批准候选' : '拒绝候选';
+    if (!window.confirm(`确定要${action}吗？此操作只记录审核结论，不会发布到正式资源库。`)) {
+      return;
+    }
+    try {
+      await api(`candidates/${candidateId}/review`, {
+        method: 'POST',
+        body: JSON.stringify({ decision }),
+      });
+      setNotice(`${action}已记录；正式资源库未发生变化。`);
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : `${action}失败`);
+    }
+  }
+
   const runningCount = workflows.filter((item) => item.status === 'running').length;
   const pendingReviewCount = candidates.filter(
     (item) => item.status === 'pending_review',
@@ -412,9 +429,29 @@ export default function CrawlerControlCenterPage() {
                       )}
                     </td>
                     <td className="px-4 py-4">
-                      <span className="rounded-full border border-amber-300/20 bg-amber-300/[0.07] px-2.5 py-1 text-xs text-amber-200">
-                        {statusLabel(candidate.status)}
-                      </span>
+                      <div className="flex flex-col items-start gap-2">
+                        <span className="rounded-full border border-amber-300/20 bg-amber-300/[0.07] px-2.5 py-1 text-xs text-amber-200">
+                          {statusLabel(candidate.status)}
+                        </span>
+                        {candidate.status === 'pending_review' && (
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => void reviewCandidate(candidate.candidate_id, 'approved')}
+                              className="rounded-lg border border-emerald-300/30 px-2.5 py-1 text-xs text-emerald-200 hover:bg-emerald-300/10"
+                            >
+                              批准
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void reviewCandidate(candidate.candidate_id, 'rejected')}
+                              className="rounded-lg border border-rose-300/30 px-2.5 py-1 text-xs text-rose-200 hover:bg-rose-300/10"
+                            >
+                              拒绝
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-5 py-4 text-xs text-slate-500">
                       {formatDate(candidate.updated_at)}
