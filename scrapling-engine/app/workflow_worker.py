@@ -265,6 +265,7 @@ class WorkflowWorker:
             api_key,
             settings.supervisor_model,
             settings.supervisor_timeout_seconds,
+            proxy=settings.egress_proxy_url,
         )
         goal = payload.get(
             "goal",
