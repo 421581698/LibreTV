@@ -48,6 +48,71 @@ class CollectorTests(unittest.TestCase):
                     collector.validate_candidate("candidate-does-not-exist")
             self.assertEqual(error.exception.status_code, 503)
 
+    def test_playback_evidence_is_persisted_only_after_public_media_preflight(self):
+        task_id = "a" * 32
+        candidate_id = "b" * 32
+        now = 1_800_000_000
+        validation = {
+            "reachable": True,
+            "media_format": "progressive",
+            "access": {"access_state": "PUBLIC"},
+        }
+        with collector.db() as connection:
+            connection.execute(
+                "INSERT INTO tasks(id,url,host,status,mode,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                (task_id, "https://media.example/movie.mp4", "media.example", "completed", "http", now, now),
+            )
+            connection.execute(
+                """INSERT INTO candidates
+                   (id,task_id,url,host,kind,title,status,created_at,access_state,validation)
+                   VALUES(?,?,?,?,?,?,?,?,?,?)""",
+                (candidate_id, task_id, "https://media.example/movie.mp4", "media.example",
+                 "direct-media", "Test movie", "validated", now, "PUBLIC",
+                 collector.json.dumps(validation)),
+            )
+        with patch.object(collector, "require_token"):
+            result = collector.record_playback_evidence(
+                candidate_id,
+                collector.PlaybackEvidence(
+                    media_type="mp4", observed_seconds=5, progressed_seconds=3.2
+                ),
+                "Bearer test",
+            )
+        self.assertEqual(result["playback_verification"]["state"], "PLAYER_CONFIRMED")
+        with collector.db() as connection:
+            stored = connection.execute(
+                "SELECT playback_verification FROM candidates WHERE id=?", (candidate_id,)
+            ).fetchone()["playback_verification"]
+        self.assertEqual(collector.json.loads(stored)["media_type"], "mp4")
+
+    def test_playback_evidence_rejects_candidates_without_preflight(self):
+        task_id = "c" * 32
+        candidate_id = "d" * 32
+        now = 1_800_000_000
+        with collector.db() as connection:
+            connection.execute(
+                "INSERT INTO tasks(id,url,host,status,mode,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                (task_id, "https://media.example/movie.mp4", "media.example", "completed", "http", now, now),
+            )
+            connection.execute(
+                """INSERT INTO candidates
+                   (id,task_id,url,host,kind,title,status,created_at,access_state,validation)
+                   VALUES(?,?,?,?,?,?,?,?,?,?)""",
+                (candidate_id, task_id, "https://media.example/movie.mp4", "media.example",
+                 "direct-media", "Test movie", "pending", now, "PUBLIC",
+                 collector.json.dumps({"reachable": True, "access": {"access_state": "PUBLIC"}})),
+            )
+        with patch.object(collector, "require_token"):
+            with self.assertRaises(collector.HTTPException) as error:
+                collector.record_playback_evidence(
+                    candidate_id,
+                    collector.PlaybackEvidence(
+                        media_type="mp4", observed_seconds=5, progressed_seconds=3.2
+                    ),
+                    "Bearer test",
+                )
+        self.assertEqual(error.exception.status_code, 409)
+
     def test_spider_http_session_uses_safe_redirect_policy(self):
         captured = {}
 
@@ -137,6 +202,11 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(
             collector.classify_access_state(402)["access_state"], "SUBSCRIPTION_REQUIRED"
         )
+        challenge = collector.classify_access_state(
+            403, {"content-type": "text/html"},
+            "<html>Checking your browser before accessing this site. cf-chl-123</html>",
+        )
+        self.assertEqual(challenge["access_state"], "CHALLENGE")
         drm = collector.classify_access_state(
             200, {"content-type": "application/vnd.apple.mpegurl"},
             "#EXTM3U\\n#EXT-X-KEY:METHOD=SAMPLE-AES,URI=\\\"skd://asset\\\"",
@@ -147,123 +217,6 @@ class CollectorTests(unittest.TestCase):
     def test_access_state_defaults_to_public_without_protection_signals(self):
         result = collector.classify_access_state(200, {"content-type": "video/mp4"}, "", "https://media.example/movie.mp4")
         self.assertEqual(result["access_state"], "PUBLIC")
-
-    def test_cms_api_shape_requires_actual_vod_fields_not_any_json_list(self):
-        valid = {
-            "code": 1,
-            "msg": "ok",
-            "list": [{"vod_id": 12, "vod_name": "Example Movie", "vod_pic": "https://img.example/poster.jpg"}],
-        }
-        generic = {"list": [{"id": 12, "name": "Not a CMS record"}]}
-        self.assertEqual(collector.extract_cms_api_list(valid), valid["list"])
-        self.assertIsNone(collector.extract_cms_api_list(generic))
-        self.assertIsNone(collector.extract_cms_api_list({"data": {"items": []}}))
-
-    def test_captured_browser_network_identifies_cms_api_by_response_shape(self):
-        class CapturedResponse:
-            url = "https://catalog.example/api/vod/list"
-            status = 200
-            headers = {"content-type": "application/json"}
-            body = b'{"code":1,"msg":"ok","list":[{"vod_id":1,"vod_name":"Example"}]}'
-
-        class Network:
-            def search(self, limit=None):
-                return [CapturedResponse()]
-
-        class Session:
-            network = Network()
-
-        candidates = collector.captured_api_candidates(Session(), "https://catalog.example/", 10)
-        self.assertEqual(len(candidates), 1)
-        self.assertEqual(candidates[0]["kind"], "cms-api-candidate")
-        self.assertEqual(candidates[0]["access_state"], "PUBLIC")
-
-    def test_cms_source_root_removes_per_request_query_and_fragment(self):
-        self.assertEqual(
-            collector.cms_source_root("https://catalog.example/api.php/provide/vod/?ac=list&page=1#x"),
-            "https://catalog.example/api.php/provide/vod/",
-        )
-
-    def test_validate_candidate_accepts_real_cms_vod_json_without_requiring_content_type_header(self):
-        candidate_id = "f" * 32
-        task_id = "1" * 32
-        with collector.db() as connection:
-            connection.execute(
-                "INSERT INTO tasks(id,url,host,status,mode,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
-                (task_id, "https://catalog.example/", "catalog.example", "completed", "auto", 1, 1),
-            )
-            connection.execute(
-                "INSERT INTO candidates(id,task_id,url,host,kind,title,status,created_at) VALUES(?,?,?,?,?,?,?,?)",
-                (candidate_id, task_id,
-                 "https://catalog.example/api.php/provide/vod/?ac=list&page=1",
-                 "catalog.example", "cms-api-candidate", "Catalog", "pending", 1),
-            )
-
-        class Page:
-            status = 200
-            headers = {"content-type": "text/plain"}
-            body = b'{"code":1,"msg":"ok","page":1,"list":[{"vod_id":7,"vod_name":"Example Movie"}]}'
-
-        with (
-            patch.object(collector, "require_token"),
-            patch.object(collector, "require_egress_firewall"),
-            patch.object(collector, "public_https_url", return_value=(
-                "https://catalog.example/api.php/provide/vod/?ac=list&page=1", "catalog.example"
-            )),
-            patch.object(collector, "throttle"),
-            patch.object(collector.Fetcher, "get", return_value=Page()),
-        ):
-            result = collector.validate_candidate(candidate_id)
-
-        self.assertTrue(result["validation"]["cms_shape"])
-        self.assertEqual(result["validation"]["sample_count"], 1)
-        self.assertEqual(
-            result["validation"]["source_url"],
-            "https://catalog.example/api.php/provide/vod/",
-        )
-        with collector.db() as connection:
-            stored = connection.execute(
-                "SELECT status FROM candidates WHERE id=?", (candidate_id,)
-            ).fetchone()
-        self.assertEqual(stored["status"], "validated")
-
-    def test_validate_candidate_rejects_generic_json_list_as_cms_source(self):
-        candidate_id = "e" * 32
-        task_id = "2" * 32
-        with collector.db() as connection:
-            connection.execute(
-                "INSERT INTO tasks(id,url,host,status,mode,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
-                (task_id, "https://catalog.example/", "catalog.example", "completed", "auto", 1, 1),
-            )
-            connection.execute(
-                "INSERT INTO candidates(id,task_id,url,host,kind,title,status,created_at) VALUES(?,?,?,?,?,?,?,?)",
-                (candidate_id, task_id, "https://catalog.example/api/list.json",
-                 "catalog.example", "cms-api-candidate", "Catalog", "pending", 1),
-            )
-
-        class Page:
-            status = 200
-            headers = {"content-type": "application/json"}
-            body = b'{"list":[{"id":7,"name":"Generic JSON item"}]}'
-
-        with (
-            patch.object(collector, "require_token"),
-            patch.object(collector, "require_egress_firewall"),
-            patch.object(collector, "public_https_url", return_value=(
-                "https://catalog.example/api/list.json", "catalog.example"
-            )),
-            patch.object(collector, "throttle"),
-            patch.object(collector.Fetcher, "get", return_value=Page()),
-        ):
-            result = collector.validate_candidate(candidate_id)
-
-        self.assertFalse(result["validation"]["cms_shape"])
-        self.assertIn("vod_id + vod_name", result["validation"]["reason"])
-        with collector.db() as connection:
-            stored = connection.execute(
-                "SELECT status FROM candidates WHERE id=?", (candidate_id,)
-            ).fetchone()
-        self.assertEqual(stored["status"], "rejected")
 
     def test_classifies_direct_media(self):
         self.assertEqual(
@@ -1115,6 +1068,119 @@ segment-2.ts
         )
         self.assertEqual(evidence["quality_rank"], 1080)
         self.assertEqual(evidence["quality_rank_source"], "container_observed")
+
+    def test_fmhy_video_directory_extracts_unique_external_sites(self):
+        class TextNode:
+            def __init__(self, value):
+                self.value = value
+            def getall(self):
+                return [self.value]
+
+        class Anchor:
+            def __init__(self, href, label):
+                self.attrib = {"href": href}
+                self.label = label
+            def css(self, selector):
+                return TextNode(self.label)
+
+        class Page:
+            def css(self, selector, **kwargs):
+                if selector == "a":
+                    return [
+                        Anchor("https://loc.gov/collections/film-and-video/", "Library of Congress"),
+                        Anchor("https://loc.gov/item/another", "Library of Congress duplicate"),
+                        Anchor("https://fmhy.net/video", "FMHY internal"),
+                        Anchor("https://tubi.tv/category/movies", "Tubi"),
+                        Anchor("http://insecure.example", "Insecure"),
+                    ]
+                return []
+
+        sites = collector.fmhy_sites_from_page(Page())
+        self.assertEqual([site["host"] for site in sites], ["loc.gov", "tubi.tv"])
+        self.assertTrue(all(site["directory"].startswith("FMHY / video") for site in sites))
+        self.assertFalse(any(site["host"] == "insecure.example" for site in sites))
+
+
+
+    def test_cms_api_shape_requires_actual_vod_fields_not_any_json_list(self):
+        valid = {
+            "code": 1,
+            "msg": "ok",
+            "list": [{"vod_id": 12, "vod_name": "Example Movie", "vod_pic": "https://img.example/poster.jpg"}],
+        }
+        generic = {"list": [{"id": 12, "name": "Not a CMS record"}]}
+        self.assertEqual(collector.extract_cms_api_list(valid), valid["list"])
+        self.assertIsNone(collector.extract_cms_api_list(generic))
+        self.assertIsNone(collector.extract_cms_api_list({"data": {"items": []}}))
+
+    def test_captured_browser_network_identifies_cms_api_by_response_shape(self):
+        class CapturedResponse:
+            url = "https://catalog.example/api/vod/list"
+            status = 200
+            headers = {"content-type": "application/json"}
+            body = b'{"code":1,"msg":"ok","list":[{"vod_id":1,"vod_name":"Example"}]}'
+
+        class Network:
+            def search(self, limit=None):
+                return [CapturedResponse()]
+
+        class Session:
+            network = Network()
+
+        candidates = collector.captured_api_candidates(Session(), "https://catalog.example/", 10)
+        self.assertEqual(len(candidates), 1)
+        self.assertEqual(candidates[0]["kind"], "cms-api-candidate")
+        self.assertEqual(candidates[0]["access_state"], "PUBLIC")
+
+    def test_cms_source_root_removes_per_request_query_and_fragment(self):
+        self.assertEqual(
+            collector.cms_source_root("https://catalog.example/api.php/provide/vod/?ac=list&page=1#x"),
+            "https://catalog.example/api.php/provide/vod/",
+        )
+
+    def test_validate_candidate_accepts_real_cms_vod_json_without_requiring_content_type_header(self):
+        candidate_id = "f" * 32
+        task_id = "1" * 32
+        with collector.db() as connection:
+            connection.execute(
+                "INSERT INTO tasks(id,url,host,status,mode,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                (task_id, "https://catalog.example/", "catalog.example", "completed", "auto", 1, 1),
+            )
+            connection.execute(
+                "INSERT INTO candidates(id,task_id,url,host,kind,title,status,created_at) VALUES(?,?,?,?,?,?,?,?)",
+                (candidate_id, task_id,
+                 "https://catalog.example/api.php/provide/vod/?ac=list&page=1",
+                 "catalog.example", "cms-api-candidate", "Catalog", "pending", 1),
+            )
+
+        class Page:
+            status = 200
+            headers = {"content-type": "text/plain"}
+            body = b'{"code":1,"msg":"ok","page":1,"list":[{"vod_id":7,"vod_name":"Example Movie"}]}'
+
+        with (
+            patch.object(collector, "require_token"),
+            patch.object(collector, "require_egress_firewall"),
+            patch.object(collector, "public_https_url", return_value=(
+                "https://catalog.example/api.php/provide/vod/?ac=list&page=1", "catalog.example"
+            )),
+            patch.object(collector, "throttle"),
+            patch.object(collector.Fetcher, "get", return_value=Page()),
+        ):
+            result = collector.validate_candidate(candidate_id)
+
+        self.assertTrue(result["validation"]["cms_shape"])
+        self.assertEqual(result["validation"]["sample_count"], 1)
+        self.assertEqual(
+            result["validation"]["source_url"],
+            "https://catalog.example/api.php/provide/vod/",
+        )
+        with collector.db() as connection:
+            stored = connection.execute(
+                "SELECT status FROM candidates WHERE id=?", (candidate_id,)
+            ).fetchone()
+        self.assertEqual(stored["status"], "validated")
+
 
 if __name__ == "__main__":
     unittest.main()

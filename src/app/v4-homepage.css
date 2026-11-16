@@ -1483,3 +1483,384 @@ body:has(.v4-home) .friday-fab::after { content:"有什么我可以帮忙的？"
 @media screen and (min-width: 701px) {
   .v4-mobile-tabbar { display: none !important; }
 }
+
+/* PR61 iPhone Safari hero hardening:
+   keep the poster layer filling a deterministic banner box and anchor pagination
+   to the banner itself, not to the variable-height title/action content group. */
+@media screen and (max-width: 700px) {
+  .v4-home-main--cinema > .v4-hero {
+    position: relative !important;
+    display: block !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    height: clamp(540px, 68svh, 680px) !important;
+    min-height: 540px !important;
+    max-height: 680px !important;
+    aspect-ratio: auto !important;
+    overflow: hidden !important;
+    isolation: isolate !important;
+    background: #101722 !important;
+  }
+
+  .v4-home-main--cinema > .v4-hero > .v4-hero-image {
+    position: absolute !important;
+    inset: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 0 !important;
+    overflow: hidden !important;
+    background: #101722 !important;
+  }
+
+  .v4-home-main--cinema > .v4-hero > .v4-hero-image img {
+    position: absolute !important;
+    inset: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 100% !important;
+    min-height: 100% !important;
+    object-fit: cover !important;
+    object-position: 58% center !important;
+  }
+
+  .v4-home-main--cinema > .v4-hero > .v4-hero-veil {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 1 !important;
+    pointer-events: none !important;
+  }
+
+  .v4-home-main--cinema > .v4-hero > button[aria-label^="立即播放"] {
+    z-index: 2 !important;
+  }
+
+  .v4-home-main--cinema > .v4-hero > .v4-hero-content {
+    z-index: 3 !important;
+    bottom: max(96px, calc(env(safe-area-inset-bottom, 0px) + 76px)) !important;
+  }
+
+  .v4-home-main--cinema > .v4-hero > .v4-hero-indicators {
+    position: absolute !important;
+    z-index: 4 !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: max(24px, calc(env(safe-area-inset-bottom, 0px) + 16px)) !important;
+    top: auto !important;
+    display: flex !important;
+    width: max-content !important;
+    margin: 0 !important;
+    padding: 8px 12px !important;
+    transform: translateX(-50%) !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+  }
+
+  .v4-home-main--cinema > .v4-hero > .v4-hero-indicators button {
+    flex: 0 0 24px !important;
+    min-width: 24px !important;
+    min-height: 6px !important;
+    height: 6px !important;
+    padding: 0 !important;
+  }
+
+  .v4-home-main--cinema > .v4-hero > .v4-hero-indicators button.is-active {
+    flex-basis: 36px !important;
+    width: 36px !important;
+  }
+}
+
+/* PR61 mobile hero acceptance fix: reserve poster space before image load,
+   blend the artwork into the page, and keep controls anchored to that box. */
+@media screen and (max-width: 700px) {
+  .v4-home-main--cinema > .v4-hero {
+    position: relative !important;
+    display: block !important;
+    width: 100% !important;
+    height: clamp(520px, 72svh, 660px) !important;
+    min-height: 520px !important;
+    max-height: 660px !important;
+    aspect-ratio: 3 / 4 !important;
+    overflow: hidden !important;
+    isolation: isolate !important;
+    background:
+      radial-gradient(ellipse at 72% 28%, rgba(65, 83, 110, .34), transparent 54%),
+      linear-gradient(180deg, #172333 0%, #0b111b 66%, #000 100%) !important;
+  }
+
+  .v4-home-main--cinema > .v4-hero > .v4-hero-image {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 0 !important;
+    background: linear-gradient(180deg, #172333 0%, #0b111b 72%, #000 100%) !important;
+  }
+
+  .v4-home-main--cinema > .v4-hero > .v4-hero-image img {
+    position: absolute !important;
+    inset: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    object-position: center 32% !important;
+  }
+
+  .v4-home-main--cinema > .v4-hero > .v4-hero-veil {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 1 !important;
+    pointer-events: none !important;
+    background:
+      linear-gradient(180deg, rgba(0,0,0,.08) 0%, rgba(0,0,0,.02) 34%, rgba(0,0,0,.36) 58%, rgba(0,0,0,.82) 82%, #000 100%),
+      linear-gradient(90deg, rgba(0,0,0,.42) 0%, rgba(0,0,0,.08) 100%) !important;
+  }
+
+  .v4-home-main--cinema > .v4-hero > button[aria-label^="立即播放"] {
+    z-index: 2 !important;
+  }
+
+  .v4-home-main--cinema > .v4-hero > .v4-hero-content {
+    position: absolute !important;
+    z-index: 3 !important;
+    left: 20px !important;
+    right: 20px !important;
+    bottom: max(88px, calc(env(safe-area-inset-bottom, 0px) + 68px)) !important;
+    top: auto !important;
+    transform: none !important;
+    padding: 0 !important;
+  }
+
+  .v4-home-main--cinema > .v4-hero > .v4-hero-indicators {
+    position: absolute !important;
+    z-index: 4 !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: max(22px, calc(env(safe-area-inset-bottom, 0px) + 14px)) !important;
+    top: auto !important;
+    display: flex !important;
+    width: max-content !important;
+    margin: 0 !important;
+    padding: 8px 12px !important;
+    transform: translateX(-50%) !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+  }
+
+  .v4-home-main--cinema > .v4-hero > .v4-hero-empty {
+    top: auto !important;
+    bottom: max(88px, calc(env(safe-area-inset-bottom, 0px) + 68px)) !important;
+  }
+
+  .v4-mobile-tabbar {
+    background: rgba(18, 21, 27, .72) !important;
+    border: 1px solid rgba(255, 255, 255, .12) !important;
+    box-shadow: 0 10px 32px rgba(0, 0, 0, .34) !important;
+    -webkit-backdrop-filter: blur(10px) saturate(160%) !important;
+    backdrop-filter: blur(10px) saturate(160%) !important;
+  }
+}
+
+
+/* PR61 follow-up: match the real nested hero DOM used by V4HomepageHero.
+   Keep the artwork covering the entire banner; keep pagination in the content
+   flow so it cannot drift into the page's black area on iOS Safari. */
+@media screen and (max-width: 700px) {
+  .v4-home .v4-home-main--cinema > .v4-hero {
+    position: relative !important;
+    display: block !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    height: clamp(560px, 78svh, 720px) !important;
+    min-height: 560px !important;
+    max-height: 720px !important;
+    aspect-ratio: auto !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    isolation: isolate !important;
+    background: #000 !important;
+  }
+
+  .v4-home .v4-home-main--cinema > .v4-hero > .v4-hero-image {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    background: linear-gradient(180deg, #172333 0%, #0b111b 72%, #000 100%) !important;
+  }
+
+  .v4-home .v4-home-main--cinema > .v4-hero > .v4-hero-image img {
+    position: absolute !important;
+    inset: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 100% !important;
+    min-height: 100% !important;
+    object-fit: cover !important;
+    object-position: center 38% !important;
+  }
+
+  .v4-home .v4-home-main--cinema > .v4-hero > .v4-hero-veil,
+  .v4-home .v4-home-main--cinema > .v4-hero::after {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 1 !important;
+    pointer-events: none !important;
+    background: linear-gradient(
+      180deg,
+      rgba(0,0,0,.04) 0%,
+      rgba(0,0,0,.08) 38%,
+      rgba(0,0,0,.40) 62%,
+      rgba(0,0,0,.84) 84%,
+      #000 100%
+    ) !important;
+  }
+
+  .v4-home .v4-home-main--cinema > .v4-hero > button[aria-label^="立即播放"] {
+    z-index: 2 !important;
+  }
+
+  .v4-home .v4-home-main--cinema > .v4-hero > .v4-hero-content {
+    position: absolute !important;
+    z-index: 3 !important;
+    top: auto !important;
+    left: 20px !important;
+    right: 20px !important;
+    bottom: max(30px, calc(env(safe-area-inset-bottom, 0px) + 24px)) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: none !important;
+  }
+
+  .v4-home .v4-home-main--cinema > .v4-hero > .v4-hero-content .v4-hero-indicators {
+    position: static !important;
+    inset: auto !important;
+    display: flex !important;
+    align-self: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    width: max-content !important;
+    margin: 18px auto 0 !important;
+    padding: 4px 8px !important;
+    transform: none !important;
+  }
+
+  .v4-home .v4-home-main--cinema > .v4-hero > .v4-hero-content .v4-hero-indicators button {
+    flex: 0 0 7px !important;
+    width: 7px !important;
+    min-width: 7px !important;
+    height: 7px !important;
+    min-height: 7px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+  }
+
+  .v4-home .v4-home-main--cinema > .v4-hero > .v4-hero-content .v4-hero-indicators button.is-active {
+    flex-basis: 24px !important;
+    width: 24px !important;
+    border-radius: 999px !important;
+  }
+}
+
+
+/* PR61 final correction: indicators are a sibling of .v4-hero-content, not its child. */
+@media screen and (max-width: 700px) {
+  .v4-home .v4-home-main--cinema > .v4-hero {
+    height: clamp(540px, 74svh, 660px) !important;
+    min-height: 540px !important;
+    max-height: 660px !important;
+    overflow: hidden !important;
+  }
+
+  .v4-home .v4-home-main--cinema > .v4-hero > .v4-hero-image {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 0 !important;
+  }
+
+  .v4-home .v4-home-main--cinema > .v4-hero > .v4-hero-image img {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    object-position: center 38% !important;
+  }
+
+  .v4-home .v4-home-main--cinema > .v4-hero > .v4-hero-veil {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 1 !important;
+    pointer-events: none !important;
+    background: linear-gradient(
+      180deg,
+      rgba(0, 0, 0, .04) 0%,
+      rgba(0, 0, 0, .12) 42%,
+      rgba(0, 0, 0, .48) 68%,
+      rgba(0, 0, 0, .88) 88%,
+      #000 100%
+    ) !important;
+  }
+
+  .v4-home .v4-home-main--cinema > .v4-hero > .v4-hero-content {
+    position: absolute !important;
+    z-index: 3 !important;
+    left: 20px !important;
+    right: 20px !important;
+    top: auto !important;
+    bottom: 76px !important;
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: none !important;
+  }
+
+  /* Correct DOM: .v4-hero-indicators is a direct child of .v4-hero. */
+  .v4-home .v4-home-main--cinema > .v4-hero > .v4-hero-indicators {
+    position: absolute !important;
+    z-index: 4 !important;
+    left: 50% !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: 18px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    width: max-content !important;
+    margin: 0 !important;
+    padding: 6px 10px !important;
+    transform: translateX(-50%) !important;
+  }
+
+  .v4-home .v4-home-main--cinema > .v4-hero > .v4-hero-indicators button {
+    flex: 0 0 7px !important;
+    width: 7px !important;
+    min-width: 7px !important;
+    height: 7px !important;
+    min-height: 7px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+  }
+
+  .v4-home .v4-home-main--cinema > .v4-hero > .v4-hero-indicators button.is-active {
+    flex-basis: 24px !important;
+    width: 24px !important;
+    border-radius: 999px !important;
+  }
+}

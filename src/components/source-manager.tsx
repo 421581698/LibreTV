@@ -20,6 +20,7 @@ import {
   type TestState,
 } from './settings-shared';
 import { loadCacheSettings, saveCacheSettings, getCacheSummary, clearVideoCache, type CacheSummary } from '@/lib/video-cache';
+import { isCandidatePreviewEligible } from '@/lib/collector-playback-eligibility';
 import { EmptyState, Spinner } from './states';
 import { useSourceProbe } from './use-source-probe';
 import { allLiveSources, isSourceDisabled, keyBelongsToSubscription, resolveSource, subKeyPrefix, useAppStore } from '@/lib/store';
@@ -193,15 +194,23 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
 
 
 type CollectorSite = { title: string; url: string; host: string; directory: string };
-type CollectorCandidate = { id?: string; url: string; kind: string; host: string; title?: string; status?: string; access_state?: 'PUBLIC' | 'AUTH_REQUIRED' | 'SUBSCRIPTION_REQUIRED' | 'DRM_PROTECTED' | 'ENCRYPTED_STREAM' | 'ACCESS_UNKNOWN'; reason?: string; next_action?: string; drm_systems?: string[]; validation?: { cms_shape?: boolean; reachable?: boolean; public_host?: boolean; source_url?: string | null; reason?: string; error?: string; note?: string; access?: { access_state?: string; reason?: string } } };
+type CollectorCandidate = { id?: string; url: string; kind: string; host: string; title?: string; status?: string; access_state?: string; reason?: string; next_action?: string; drm_systems?: string[]; validation?: { cms_shape?: boolean; reachable?: boolean | null; public_host?: boolean; source_url?: string | null; note?: string; media_format?: string; content_type?: string; manifest_valid?: boolean; rejected_reference_count?: number; access?: { access_state?: string; reason?: string } } };
 type CollectorTask = { id: string; url: string; host: string; status: string; created_at: number; updated_at: number; error?: string | null; result_count: number };
+type CollectionBatch = {
+  id: string; status: string; target_candidates: number; target_collected: number;
+  candidate_count: number; collected_count: number; discovered_sites: number; queued_jobs: number;
+  job_counts?: Record<string, number>;
+};
 
 function ResourceCollectorPanel() {
+  const store = useAppStore();
   const [sites, setSites] = useState<CollectorSite[]>([]);
   const [selectedSite, setSelectedSite] = useState<CollectorSite | null>(null);
   const [playingCandidate, setPlayingCandidate] = useState<CollectorCandidate | null>(null);
   const [candidates, setCandidates] = useState<CollectorCandidate[]>([]);
   const [tasks, setTasks] = useState<CollectorTask[]>([]);
+  const [batch, setBatch] = useState<CollectionBatch | null>(null);
+  const [batchStarting, setBatchStarting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [resultMessage, setResultMessage] = useState('');
@@ -303,6 +312,46 @@ function ResourceCollectorPanel() {
 
   useEffect(() => { void loadTasks(); }, []);
 
+  useEffect(() => {
+    if (!batch?.id || ['completed', 'partial', 'failed'].includes(batch.status)) return;
+    let active = true;
+    const refresh = async () => {
+      try {
+        const response = await collectorFetch(`/api/resource-collector?action=batch&id=${encodeURIComponent(batch.id)}`, { cache: 'no-store' });
+        const payload = await response.json();
+        if (active && response.ok) setBatch(payload as CollectionBatch);
+      } catch { /* Keep the last durable batch snapshot visible during temporary network failures. */ }
+    };
+    void refresh();
+    const timer = window.setInterval(() => { void refresh(); }, 4000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [batch?.id, batch?.status]);
+
+  const startOneClickCollection = async () => {
+    setBatchStarting(true);
+    setError('');
+    setResultMessage('');
+    try {
+      const response = await collectorFetch('/api/resource-collector', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'collect' }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || payload.detail || `一键采集启动失败（HTTP ${response.status}）。`);
+      setBatch({
+        id: payload.batch_id, status: payload.status || 'queued',
+        target_candidates: 0, target_collected: 0,
+        candidate_count: 0, collected_count: 0, discovered_sites: 0, queued_jobs: 0,
+      });
+      setResultMessage('已创建一次性 FMHY 批量采集批次。目录发现完成后，最多 1,000 个网站任务会进入队列，由后台并发 Worker 执行；候选资源仍需你人工审核。');
+      await loadTasks();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '一键采集启动失败。');
+    } finally {
+      setBatchStarting(false);
+    }
+  };
+
   const discover = async () => {
     setBusy(true);
     setError('');
@@ -311,7 +360,7 @@ function ResourceCollectorPanel() {
     try {
       const response = await collectorFetch('/api/resource-collector', { cache: 'no-store' });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || payload.detail || 'FMHY 目录加载失败。');
+      if (!response.ok) throw new Error(payload.error || 'FMHY 目录加载失败。');
       setSites(Array.isArray(payload.sites) ? payload.sites : []);
       setLoaded(true);
       await loadTasks();
@@ -352,7 +401,7 @@ function ResourceCollectorPanel() {
       if (cmsCandidates.length > 10) {
         setResultMessage((current) => [current, `另有 ${cmsCandidates.length - 10} 个 CMS 候选未自动验证，可逐项手动验证。`].filter(Boolean).join(' '));
       }
-      if (!payload.candidates?.length) setError(
+      if (!discoveredCandidates.length) setError(
         Array.isArray(payload.errors) && payload.errors.length
           ? `采集未提取到候选资源：${payload.errors.join('；')}`
           : '采集已完成，但没有发现可识别的公开媒体或播放器地址。请查看下方诊断信息。'
@@ -367,10 +416,11 @@ function ResourceCollectorPanel() {
   const retryTask = async (task: CollectorTask) => {
     setBusy(true);
     setError('');
+    setResultMessage('');
     try {
       const response = await collectorFetch(`/api/resource-collector/tasks/${task.id}/retry`, { method: 'POST' });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || payload.detail || `任务重试失败（HTTP ${response.status}）。`);
+      if (!response.ok) throw new Error(payload.error || payload.detail || '任务重试失败。');
       setSelectedSite({ title: task.host, host: task.host, url: task.url, directory: 'FMHY / Movies-TV-Anime' });
       const retryCandidates: CollectorCandidate[] = Array.isArray(payload.candidates) ? payload.candidates : [];
       setCandidates(retryCandidates);
@@ -378,6 +428,9 @@ function ResourceCollectorPanel() {
       const cmsCandidates = retryCandidates.filter((candidate) => candidate.kind === 'cms-api-candidate');
       for (const candidate of cmsCandidates.slice(0, 10)) {
         await validateCandidate(candidate, task.url, true);
+      }
+      if (cmsCandidates.length > 10) {
+        setResultMessage((current) => [current, `另有 ${cmsCandidates.length - 10} 个 CMS 候选未自动验证，可逐项手动验证。`].filter(Boolean).join(' '));
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '任务重试失败。');
@@ -399,19 +452,29 @@ function ResourceCollectorPanel() {
     try {
       const response = await collectorFetch(`/api/resource-collector/candidates/${candidate.id}/validate`, { method: 'POST' });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || payload.detail || `资源验证失败（HTTP ${response.status}）。`);
+      if (!response.ok) throw new Error(payload.error || '资源验证失败。');
       const validation = payload.validation ?? {};
       const accessState = validation.access?.access_state ?? candidate.access_state ?? 'ACCESS_UNKNOWN';
-      const cmsVerified = candidate.kind === 'cms-api-candidate'
-        && validation.cms_shape === true && validation.reachable === true && accessState === 'PUBLIC';
-      const mediaVerified = candidate.kind === 'direct-media'
-        && validation.reachable === true && accessState === 'PUBLIC';
-      const nextStatus = cmsVerified ? 'validated' : mediaVerified ? 'checked' : ['embedded-player', 'public-api-response'].includes(candidate.kind) ? 'review' : 'rejected';
+      const cmsValidated = candidate.kind === 'cms-api-candidate'
+        && validation.cms_shape === true
+        && validation.reachable === true
+        && accessState === 'PUBLIC';
+      const directMediaValidated = isCandidatePreviewEligible({
+        ...candidate,
+        status: 'validated',
+        access_state: accessState,
+        validation,
+      });
       setCandidates((current) => current.map((item) => item.id === candidate.id
-        ? { ...item, status: nextStatus, access_state: accessState, validation }
+        ? {
+            ...item,
+            status: cmsValidated || directMediaValidated ? 'validated' : 'rejected',
+            access_state: accessState,
+            reason: validation.access?.reason || item.reason,
+            validation,
+          }
         : item));
-
-      if (cmsVerified) {
+      if (cmsValidated) {
         const registration = registerValidatedCmsSource(
           useAppStore.getState(),
           candidate,
@@ -425,16 +488,12 @@ function ResourceCollectorPanel() {
         } else {
           setError(registration.reason || 'CMS 点播源注册失败。');
         }
-      } else if (mediaVerified) {
-        setResultMessage((current) => [current, '直接媒体地址已通过公开访问检查，可在此独立播放；它不会被添加为 CMS 点播源。'].filter(Boolean).join('；'));
       } else if (candidate.kind === 'cms-api-candidate') {
-        setError(validation.reason || validation.access?.reason || '该地址未通过 CMS API 结构及公开访问验证，没有加入点播源。');
-      } else if (['embedded-player', 'public-api-response'].includes(candidate.kind)) {
-        setResultMessage(validation.note || '已识别为网页播放器入口，不是 CMS 点播 API；只会提取其公开可访问的媒体请求。');
-      } else if (accessState !== 'PUBLIC') {
-        setError(validation.access?.reason || candidate.reason || `资源未确认可公开访问（${accessState}），已阻止注册或播放。`);
-      } else {
-        setResultMessage(validation.note || '这是网页/播放器入口，不是 CMS 点播 API；请在页面采集结果中查看其可公开提取的媒体请求。');
+        setError(validation.reason || validation.access?.reason || '该地址未通过公开访问与 CMS API 结构验证，没有加入点播源。');
+      } else if (candidate.kind === 'direct-media' && !directMediaValidated) {
+        setError(validation.note || '该媒体未通过访问权限、格式或媒体清单检查，不能预览。');
+      } else if (directMediaValidated) {
+        setResultMessage('直接媒体地址已通过公开访问检查；它不会被注册为 CMS 点播源。');
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '资源验证失败。');
@@ -448,7 +507,7 @@ function ResourceCollectorPanel() {
       <div className="rounded-2xl border border-line bg-card p-4 space-y-3">
         <div>
           <h3 className="text-sm font-semibold text-content">Scrapling 连接配置 · 本机 Preview 测试</h3>
-          <p className="mt-1 text-xs leading-5 text-muted">填写 Zo Computer 部署的 Collector 地址与密钥。配置仅保存在当前浏览器 LocalStorage，通过已登录的 LibreTV Worker 代理转发；不会写入 Git 或 Cloudflare 环境变量。当前仅用于 PR #60 Preview 测试。</p>
+          <p className="mt-1 text-xs leading-5 text-muted">填写 Zo Computer 部署的 Collector 地址与密钥。配置仅保存在当前浏览器 LocalStorage，通过已登录的 LibreTV Worker 代理转发；不会写入 Git 或 Cloudflare 环境变量。当前用于 PR #61 隔离 Preview 测试。</p>
         </div>
         <label className="block space-y-1">
           <span className="text-xs font-semibold text-content">SCRAPLING_API_BASE · 采集服务地址</span>
@@ -482,12 +541,31 @@ function ResourceCollectorPanel() {
             <p className="mt-1 text-xs text-muted">目录来源固定为 FMHY Movies / TV / Anime，不从其他目录扩展发现。</p>
             <a className="mt-2 inline-flex text-xs text-accent underline" href="https://fmhy.net/video" target="_blank" rel="noreferrer">打开 FMHY 视频目录</a>
           </div>
-          <button type="button" className="btn-primary btn-sm" onClick={() => void discover()} disabled={busy}>
-            {busy ? '处理中…' : loaded ? '刷新 FMHY 目录' : '发现网站'}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="btn-ghost btn-sm" onClick={() => void discover()} disabled={busy || batchStarting}>
+              {busy ? '处理中…' : loaded ? '刷新目录' : '发现网站'}
+            </button>
+            <button type="button" className="btn-primary btn-sm" onClick={() => void startOneClickCollection()} disabled={busy || batchStarting || (batch !== null && !['completed', 'partial', 'failed'].includes(batch.status))}>
+              {batchStarting ? '正在启动…' : '一键采集'}
+            </button>
+          </div>
         </div>
       </div>
 
+      {batch ? (
+        <section className="rounded-2xl border border-line bg-card p-4 space-y-3" aria-live="polite">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-sm font-semibold text-content">批量采集进度</h3>
+            <span className="text-xs text-muted">{batch.status}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-surface p-3"><strong className="block text-lg text-content tabular-nums">{batch.candidate_count}</strong><span className="text-xs text-muted">去重候选资源</span></div>
+            <div className="rounded-xl bg-surface p-3"><strong className="block text-lg text-content tabular-nums">{batch.collected_count}</strong><span className="text-xs text-muted">成功采集记录</span></div>
+          </div>
+          <p className="text-xs text-muted">FMHY 网站 {batch.discovered_sites} 个 · 已提交采集任务 {batch.queued_jobs} 个</p>
+          <p className="text-[11px] leading-5 text-muted">采集记录按成功写入的站点采集记录计数；候选资源按 URL 去重计数。最多提交 1,000 个网站任务，实际数量取决于 FMHY 当前可发现的网站数；后台并发执行，全部任务结束后关闭批次。候选数与采集记录数分别统计。正式资源库仍需人工审核。</p>
+        </section>
+      ) : null}
       {error ? <p className="rounded-xl border border-line bg-card px-3 py-2 text-xs text-muted" role="status">{error}</p> : null}
       {resultMessage ? <p className="rounded-xl border border-line bg-card px-3 py-2 text-xs text-muted" role="status">{resultMessage}</p> : null}
 
@@ -558,20 +636,19 @@ function ResourceCollectorPanel() {
           {candidates.length > 0 ? candidates.map((candidate) => (
             <div key={candidate.url} className="flex min-w-0 items-center gap-2 rounded-lg bg-chip p-2">
               <div className="min-w-0 flex-1">
-                <span className="block text-[10px] text-muted">{candidate.kind} · {candidate.host} · {candidate.status === 'validated' ? 'CMS 结构与公开访问通过' : candidate.status === 'checked' ? '媒体地址检查通过' : candidate.status === 'rejected' ? '验证未通过' : candidate.status === 'review' ? '网页入口，需人工确认' : '待验证'}</span>
+                <span className="block text-[10px] text-muted">{candidate.kind} · {candidate.host} · {candidate.status === 'validated' ? (candidate.kind === 'cms-api-candidate' ? 'CMS 结构通过' : '媒体预检通过，待实际播放验证') : candidate.status === 'rejected' ? '验证失败 / 不可预览' : '待验证'}</span>
                 {candidate.access_state ? <span className="block text-[10px] font-semibold text-content">{candidate.access_state}{candidate.drm_systems?.length ? ` · ${candidate.drm_systems.join(', ')}` : ''}</span> : null}
                 {candidate.reason ? <span className="block text-[10px] text-muted">{candidate.reason}</span> : null}
                 {candidate.next_action ? <span className="block text-[10px] text-muted">{candidate.next_action}</span> : null}
-                {candidate.validation?.reason ? <span className="block text-[10px] text-muted">{candidate.validation.reason}</span> : null}
                 {candidate.validation?.note ? <span className="block text-[10px] text-muted">{candidate.validation.note}</span> : null}
                 <a className="block truncate text-xs text-content underline" href={candidate.url} target="_blank" rel="noreferrer">{candidate.url}</a>
               </div>
               <div className="flex shrink-0 flex-wrap gap-1">
-                {candidate.access_state === 'PUBLIC' && candidate.kind === 'direct-media' && candidate.status === 'checked' ? (
+                {isCandidatePreviewEligible(candidate) ? (
                   <button type="button" className="btn-primary btn-sm" onClick={() => setPlayingCandidate(candidate)}>播放</button>
                 ) : null}
-                <button type="button" className="btn-ghost btn-sm" disabled={busy || !candidate.id || ['AUTH_REQUIRED', 'SUBSCRIPTION_REQUIRED', 'DRM_PROTECTED', 'ENCRYPTED_STREAM'].includes(candidate.access_state || '')} onClick={() => void validateCandidate(candidate)}>
-                  {candidate.status === 'validated' ? '已验证' : candidate.status === 'checked' ? '已检查' : candidate.status === 'rejected' ? '验证失败' : '验证'}
+                <button type="button" className="btn-ghost btn-sm" disabled={busy || !candidate.id || ['AUTH_REQUIRED', 'SUBSCRIPTION_REQUIRED', 'DRM_PROTECTED', 'ENCRYPTED_STREAM', 'CHALLENGE'].includes(candidate.access_state || '')} onClick={() => void validateCandidate(candidate)}>
+                  {candidate.status === 'validated' ? '已验证' : candidate.status === 'checked' ? '已检查' : '验证'}
                 </button>
                 <button type="button" className="btn-ghost btn-sm" onClick={() => void copyToClipboard(candidate.url)}>复制</button>
               </div>
@@ -590,6 +667,33 @@ function ResourceCollectorPanel() {
 function CollectorDirectPlayer({ candidate, onClose }: { candidate: CollectorCandidate; onClose: () => void }) {
   const adFilter = useAppStore((state) => state.adFilter);
   const [pendingStart, setPendingStart] = useState<number | null>(null);
+  const [playbackEvidence, setPlaybackEvidence] = useState<{ mediaType: string; observedSeconds: number; progressedSeconds: number } | null>(null);
+  const [playbackEvidenceSaved, setPlaybackEvidenceSaved] = useState(false);
+  const [playbackEvidenceError, setPlaybackEvidenceError] = useState('');
+  const handlePlaybackConfirmed = async (evidence: { mediaType: string; observedSeconds: number; progressedSeconds: number }) => {
+    setPlaybackEvidence(evidence);
+    setPlaybackEvidenceSaved(false);
+    setPlaybackEvidenceError('');
+    if (!candidate.id) {
+      setPlaybackEvidenceError('本次播放已确认，但候选记录缺少 ID，无法写入采集记录。');
+      return;
+    }
+    try {
+      const response = await collectorFetch(
+        `/api/resource-collector/candidates/${candidate.id}/playback`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(evidence),
+        },
+      );
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || payload.error || '播放证据写入失败。');
+      setPlaybackEvidenceSaved(true);
+    } catch (reason) {
+      setPlaybackEvidenceError(reason instanceof Error ? reason.message : '播放证据写入失败。');
+    }
+  };
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center overflow-y-auto bg-black/95 p-3 sm:p-6" role="presentation">
       <section className="w-full max-w-5xl overflow-hidden rounded-2xl border border-white/15 bg-[#101014] text-white shadow-2xl" role="dialog" aria-modal="true" aria-label="资源采集结果预览">
@@ -603,6 +707,8 @@ function CollectorDirectPlayer({ candidate, onClose }: { candidate: CollectorCan
         <CollectorPlayerShell
           url={candidate.url}
           title={candidate.host}
+          mediaType={candidate.validation?.media_format === 'hls' ? 'hls' : (candidate.validation?.content_type || '').includes('webm') || /\.webm(?:$|\?)/i.test(candidate.url) ? 'webm' : 'mp4'}
+          onPlaybackConfirmed={handlePlaybackConfirmed}
           adFilter={adFilter}
           autoplayNext={false}
           autoSkipSegments={false}
@@ -610,6 +716,18 @@ function CollectorDirectPlayer({ candidate, onClose }: { candidate: CollectorCan
           onPendingStart={setPendingStart}
           episodeKey={`collector:${candidate.host}`}
         />
+        {playbackEvidence ? (
+          <div className="border-t border-white/10 px-4 py-3 text-xs text-emerald-300">
+            <p>已确认真实播放：{playbackEvidence.mediaType}，观察 {playbackEvidence.observedSeconds}s，播放进度推进 {playbackEvidence.progressedSeconds.toFixed(1)}s</p>
+            {playbackEvidenceSaved ? <p className="mt-1 text-emerald-200">播放证据已写入 Scrapling 采集记录。</p> : null}
+            {playbackEvidenceError ? <p className="mt-1 text-amber-300">{playbackEvidenceError}</p> : null}
+            {!playbackEvidenceSaved && !playbackEvidenceError ? <p className="mt-1 text-white/55">正在保存播放证据…</p> : null}
+          </div>
+        ) : (
+          <p className="border-t border-white/10 px-4 py-3 text-xs text-white/55">
+            正在等待真实播放验证：播放器必须保持播放并持续推进进度，单纯 HTTP 200 不算成功。
+          </p>
+        )}
       </section>
     </div>
   );

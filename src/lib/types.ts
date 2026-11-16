@@ -121,15 +121,30 @@ export interface QualityProbeResult {
 
 // —— API 响应结构 ——
 
+export interface RegistrySearchResource {
+  id: string;
+  title: string;
+  resource_type: 'CMS_VOD' | 'DIRECT_MEDIA' | 'EMBEDDED_PLAYER';
+  url: string;
+  candidate_id?: string;
+  media_format?: 'hls' | 'mp4' | 'webm' | null;
+  access_state: string;
+  validation_state: string;
+  playback_state: string;
+  source_name?: string;
+}
+
 export interface SearchResponse {
   list: SearchResultItem[];
   failures: { sourceKey: string; error: string; timedOut?: boolean }[];
+  /** Verified playable resources are supplemental; never coerce direct media into CMS VOD results. */
+  registryResources?: RegistrySearchResource[];
 }
 
 /** /api/search?stream=1 的 NDJSON 事件：逐源推送 + 最终聚合 */
 export type SearchStreamEvent =
   | ({ type: 'source' } & SourceSearchOutcome)
-  | { type: 'done'; list: SearchResultItem[]; failures: SearchResponse['failures'] };
+  | { type: 'done'; list: SearchResultItem[]; failures: SearchResponse['failures']; registryResources?: RegistrySearchResource[] };
 
 export interface DoubanResponse {
   items: DoubanItem[];

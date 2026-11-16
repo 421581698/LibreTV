@@ -30,7 +30,8 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
               mode={imageProxyMode}
               customProxy={customImageProxy}
               alt=""
-              className="absolute inset-0 h-full w-full object-cover"
+              loading="eager"
+              className="absolute inset-0 block h-full w-full object-cover"
             />
           </div>
           <div className="v4-hero-veil" aria-hidden="true" />
@@ -49,18 +50,18 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
               </button>
               <a className="v4-hero-secondary" href="#today-recommendations"><span aria-hidden="true">ⓘ</span>更多详情</a>
             </div>
-            <div className="v4-hero-indicators" role="group" aria-label="选择精选影片">
-              {slides.map((item, index) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  aria-label={`查看精选影片：${item.title}`}
-                  aria-pressed={normalizedActiveSlide === index}
-                  className={normalizedActiveSlide === index ? 'is-active' : ''}
-                  onClick={() => setActiveSlide(index)}
-                />
-              ))}
-            </div>
+          </div>
+          <div className="v4-hero-indicators" role="group" aria-label="选择精选影片">
+            {slides.map((item, index) => (
+              <button
+                key={item.id}
+                type="button"
+                aria-label={`查看精选影片：${item.title}`}
+                aria-pressed={normalizedActiveSlide === index}
+                className={normalizedActiveSlide === index ? 'is-active' : ''}
+                onClick={() => setActiveSlide(index)}
+              />
+            ))}
           </div>
         </>
       ) : (
