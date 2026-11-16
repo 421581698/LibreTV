@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import sys
@@ -60,13 +61,43 @@ class CollectorTests(unittest.TestCase):
         accepted = collector.CrawlRequest(url="https://catalog.example/", limit=101)
         self.assertEqual(accepted.limit, 101)
 
-    def test_crawl_egress_gate_fails_closed_until_firewall_is_confirmed(self):
+    def test_crawl_egress_gate_requires_current_boot_firewall_marker(self):
         with patch.dict(os.environ, {"SCRAPLING_EGRESS_FIREWALL_CONFIRMED": ""}):
             with self.assertRaises(collector.HTTPException) as error:
                 collector.require_egress_firewall()
             self.assertEqual(error.exception.status_code, 503)
         with patch.dict(os.environ, {"SCRAPLING_EGRESS_FIREWALL_CONFIRMED": "1"}):
-            collector.require_egress_firewall()
+            with patch.object(collector, "egress_firewall_ready", return_value=False):
+                with self.assertRaises(collector.HTTPException) as error:
+                    collector.require_egress_firewall()
+                self.assertEqual(error.exception.status_code, 503)
+            with patch.object(collector, "egress_firewall_ready", return_value=True):
+                collector.require_egress_firewall()
+
+    def test_firewall_marker_must_match_host_boot_and_network_policy(self):
+        marker_path = Path(self.temp.name) / "egress-proof.json"
+        marker = {
+            "policy_version": 1,
+            "boot_id": "boot-current",
+            "collector_cidr": "172.30.60.0/24",
+            "app_ip": "172.30.60.2",
+            "api_ip": "172.30.60.10",
+            "api_port": "8000",
+        }
+        marker_path.write_text(json.dumps(marker), encoding="utf-8")
+        env = {
+            "SCRAPLING_EGRESS_FIREWALL_CONFIRMED": "1",
+            "SCRAPLING_EGRESS_MARKER_PATH": str(marker_path),
+            "SCRAPLING_EGRESS_COLLECTOR_CIDR": "172.30.60.0/24",
+            "SCRAPLING_EGRESS_APP_IP": "172.30.60.2",
+            "SCRAPLING_EGRESS_API_IP": "172.30.60.10",
+            "SCRAPLING_EGRESS_API_PORT": "8000",
+        }
+        with patch.dict(os.environ, env), patch.object(collector, "current_host_boot_id", return_value="boot-current"):
+            self.assertTrue(collector.egress_firewall_ready())
+            marker["boot_id"] = "previous-boot"
+            marker_path.write_text(json.dumps(marker), encoding="utf-8")
+            self.assertFalse(collector.egress_firewall_ready())
 
     def test_crawl_endpoint_path_fails_closed_before_network_access(self):
         with patch.dict(os.environ, {"SCRAPLING_EGRESS_FIREWALL_CONFIRMED": ""}):

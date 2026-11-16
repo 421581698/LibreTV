@@ -57,13 +57,14 @@ class ResourceStatsTests(unittest.TestCase):
         self.assertEqual(summary["playback_confirmed"],1)
         self.assertEqual(summary["actual_quality"]["4K"],1)
         self.assertEqual(summary["playback_samples"],1)
-        self.assertIsNotNone(result["sites"][0]["quality_score"])
-        self.assertEqual(result["sites"][0]["quality_score_state"],"preliminary")
+        self.assertIsNone(result["sites"][0]["quality_score"])
+        self.assertEqual(result["sites"][0]["quality_score_state"],"insufficient_samples")
         self.assertEqual(summary["queue_jobs"]["queued"],1)
         self.assertEqual(summary["pages_visited"],2)
         self.assertEqual(summary["pages_failed"],1)
         self.assertEqual(summary["pages_changed"],1)
         self.assertEqual(result["sites"][0]["health_status"],"healthy")
+        self.assertEqual(result["sites"][0]["pages_succeeded"],1)
 
     def test_candidate_breakdown_reports_extractor_kind_and_access_state(self):
         self.db.execute("ALTER TABLE candidates ADD COLUMN collected_by TEXT NOT NULL DEFAULT '[]'")
@@ -103,8 +104,8 @@ class ResourceStatsTests(unittest.TestCase):
         self.assertEqual(site["playback_samples"],1)
         self.assertEqual(site["preview_samples"],1)
         self.assertEqual(site["actual_quality"]["4K"],1)
-        self.assertIsNotNone(site["quality_score"])
-        self.assertEqual(site["quality_score_state"],"preliminary")
+        self.assertIsNone(site["quality_score"])
+        self.assertEqual(site["quality_score_state"],"insufficient_samples")
         self.assertEqual(result["summary"]["playback_samples"],1)
 
     def test_quality_score_requires_three_real_playback_samples(self):
@@ -129,6 +130,28 @@ class ResourceStatsTests(unittest.TestCase):
         self.assertEqual(result["sites"][0]["playback_samples"],3)
         self.assertEqual(result["summary"]["quality_ranking"][0]["host"],"media.example")
         self.assertEqual(result["sites"][0]["quality_score_state"],"scored")
+
+    def test_quality_score_requires_fifteen_seconds_of_observed_playback(self):
+        self.db.execute(
+            "UPDATE candidates SET playback_verification=? WHERE id=?",
+            (json.dumps({"state":"PLAYER_CONFIRMED","decoded_width":1920,"decoded_height":1080,
+                         "observed_seconds":4,"progressed_seconds":3,"selected_rendition_bitrate_kbps":4500}),
+             "candidate-2")
+        )
+        self.db.execute("INSERT INTO candidates VALUES(?,?,?,?,?,?,?,?,?,?,?)", (
+            "candidate-3","task-1","https://media.example/c.mp4","media.example",
+            "direct-media","Film C","validated","PUBLIC",107,"{}",
+            json.dumps({"state":"PLAYER_CONFIRMED","decoded_width":1280,"decoded_height":720,
+                        "observed_seconds":4,"progressed_seconds":3,"selected_rendition_bitrate_kbps":2500})
+        ))
+        self.db.execute("INSERT OR REPLACE INTO playback_quality_samples VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                        ("quality-sample-2","media.example","player","mp4",4,3,1920,1080,1080,4500,112))
+        self.db.execute("INSERT OR REPLACE INTO playback_quality_samples VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                        ("quality-sample-3","media.example","player","mp4",4,3,1280,720,720,2500,113))
+        result = build_stats(self.db)
+        self.assertEqual(result["sites"][0]["playback_samples"],3)
+        self.assertIsNone(result["sites"][0]["quality_score"])
+        self.assertEqual(result["sites"][0]["quality_score_state"],"insufficient_samples")
 
     def test_site_detail_does_not_expose_media_urls_or_tokens(self):
         result = build_stats(self.db,"media.example")

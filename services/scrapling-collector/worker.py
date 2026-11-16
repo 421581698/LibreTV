@@ -16,6 +16,7 @@ from app import (
     CrawlRequest,
     crawl_site,
     discover_sites,
+    egress_firewall_ready,
     require_egress_firewall,
     task_candidates,
     validate_candidate,
@@ -221,7 +222,7 @@ def enqueue_daily_batch(now: datetime | None = None) -> dict:
     date_key = current.date().isoformat()
     if current.time() < clock_time(hour, minute):
         return {"status": "not_due", "date": date_key}
-    if os.environ.get("SCRAPLING_EGRESS_FIREWALL_CONFIRMED") != "1":
+    if not egress_firewall_ready():
         return {"status": "blocked_egress_gate", "date": date_key}
     job = submit_job(
         "batch_crawl",
@@ -259,9 +260,23 @@ def main():
     # The worker is also an executable entrypoint (including --once smoke tests).
     # Initialize here rather than at module import so imports remain side-effect free.
     registry_store.initialize()
-    if not args.once:
-        threading.Thread(target=daily_scheduler, name="daily-fmhy-scheduler", daemon=True).start()
-    run_worker(args.worker_id, handle, once=args.once)
+    if args.once:
+        if not egress_firewall_ready():
+            print("[worker] refusing to claim a job without current-boot firewall proof", flush=True)
+            return
+        run_worker(args.worker_id, handle, once=True)
+        return
+
+    threading.Thread(target=daily_scheduler, name="daily-fmhy-scheduler", daemon=True).start()
+    while True:
+        # Do not claim already-queued work while the host firewall proof is
+        # absent or stale (for example, after a host reboot).
+        if not egress_firewall_ready():
+            time.sleep(5)
+            continue
+        processed = run_worker(args.worker_id, handle, once=True)
+        if not processed:
+            time.sleep(1)
 
 
 if __name__ == "__main__":

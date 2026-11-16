@@ -49,6 +49,94 @@ class RegistryQueueTests(unittest.TestCase):
         payload = __import__("json").loads(row["payload"])
         self.assertEqual(payload["max_sites"], 1000)
 
+    def test_durable_crawl_queue_rejects_signed_urls_but_keeps_public_query_params(self):
+        public = queue.submit_job(
+            "crawl",
+            {"url": "https://Example.org:443/watch?quality=1080p&format=hls#client-secret"},
+            "crawl:public-query",
+        )
+        self.assertEqual(public["status"], "queued")
+        self.assertEqual(
+            __import__("json").loads(public["payload"])["url"],
+            "https://example.org:443/watch?quality=1080p&format=hls",
+        )
+        for url in (
+            "https://example.org/watch?token=secret",
+            "https://example.org/watch?X-Amz-Signature=secret",
+            "https://example.org/watch path",
+            r"https://example.org\\@127.0.0.1/watch",
+            "https://user:password@example.org/watch",
+            "http://example.org/watch",
+            "https://example.org:8443/watch",
+            "https://127.0.0.1/admin",
+            "https://10.0.0.8/internal",
+            "https://169.254.169.254/latest/meta-data/",
+            "https://[::1]/admin",
+            "https://[fc00::1]/internal",
+        ):
+            with self.subTest(url=url):
+                with self.assertRaises(ValueError):
+                    queue.submit_job("crawl", {"url": url}, "crawl:unsafe:" + str(abs(hash(url))))
+
+        with self.assertRaises(ValueError):
+            queue.submit_jobs([{
+                "job_type": "crawl",
+                "payload": {"url": "https://example.org/watch?access_token=secret"},
+                "idempotency_key": "bulk:signed-url",
+            }])
+        with queue.connect() as c:
+            rows = c.execute("SELECT idempotency_key FROM collector_jobs ORDER BY idempotency_key").fetchall()
+        self.assertEqual([row["idempotency_key"] for row in rows], ["crawl:public-query"])
+
+    def test_bulk_submission_is_atomic_and_idempotent(self):
+        jobs = [
+            {"job_type": "crawl", "payload": {"url": "https://example.org/a"},
+             "idempotency_key": "bulk:a"},
+            {"job_type": "discover", "payload": {"search_keyword": "film"},
+             "idempotency_key": "bulk:b"},
+        ]
+        first = queue.submit_jobs(jobs)
+        second = queue.submit_jobs(jobs)
+        self.assertEqual([item["id"] for item in first], [item["id"] for item in second])
+        with queue.connect() as c:
+            self.assertEqual(c.execute("SELECT COUNT(*) FROM collector_jobs").fetchone()[0], 2)
+            self.assertEqual(c.execute("SELECT COUNT(*) FROM collector_job_events WHERE event='queued'").fetchone()[0], 2)
+
+        conflicting = [
+            {"job_type": "crawl", "payload": {"url": "https://example.org/c"},
+             "idempotency_key": "bulk:c"},
+            {"job_type": "crawl", "payload": {"url": "https://example.org/changed"},
+             "idempotency_key": "bulk:a"},
+        ]
+        with self.assertRaisesRegex(ValueError, "different job payload"):
+            queue.submit_jobs(conflicting)
+        with queue.connect() as c:
+            self.assertEqual(c.execute("SELECT COUNT(*) FROM collector_jobs").fetchone()[0], 2)
+
+    def test_bulk_submission_endpoint_requires_auth_and_bounds_batch_size(self):
+        with self.assertRaises(Exception):
+            queue.api_submit_jobs({"jobs": []}, authorization=None)
+        with patch.object(queue, "require_auth"):
+            with self.assertRaisesRegex(Exception, "1 to 1000"):
+                queue.api_submit_jobs({"jobs": [{}] * 1001}, authorization="Bearer test")
+            result = queue.api_submit_jobs({
+                "jobs": [{"job_type": "crawl", "payload": {"url": "https://example.org"},
+                          "idempotency_key": "bulk:api"}]
+            }, authorization="Bearer test")
+        self.assertEqual(len(result["jobs"]), 1)
+
+    def test_idempotency_key_cannot_be_reused_for_different_payload(self):
+        queue.submit_job("crawl", {"url": "https://example.org/a"}, "idempotency:collision")
+        with self.assertRaisesRegex(ValueError, "different job payload"):
+            queue.submit_job("crawl", {"url": "https://example.org/b"}, "idempotency:collision")
+        with self.assertRaisesRegex(ValueError, "different job payload"):
+            queue.submit_job("discover", {"search_keyword": "other"}, "idempotency:collision")
+        with queue.connect() as c:
+            rows = c.execute("SELECT job_type,payload FROM collector_jobs WHERE idempotency_key=?", ("idempotency:collision",)).fetchall()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["job_type"], "crawl")
+        self.assertEqual(__import__("json").loads(rows[0]["payload"]), {"url": "https://example.org/a"})
+
     def test_idempotent_job_submit_and_atomic_claim(self):
         first = queue.submit_job("crawl", {"url": "https://example.org"}, "crawl:example")
         second = queue.submit_job("crawl", {"url": "https://example.org"}, "crawl:example")
@@ -80,6 +168,24 @@ class RegistryQueueTests(unittest.TestCase):
             recovered = c.execute("SELECT COUNT(*) AS n FROM collector_job_events WHERE job_id=? AND event='lease_expired_recovered'", (job["id"],)).fetchone()["n"]
         self.assertEqual(recovered, 1)
 
+    def test_expired_lease_at_max_attempts_moves_to_dead_letter(self):
+        job = queue.submit_job("crawl", {"url": "https://example.org"}, "lease:dead-letter", max_attempts=1)
+        queue.claim_job("worker-a")
+        with queue.connect() as c:
+            c.execute("UPDATE collector_jobs SET lease_until=0 WHERE id=?", (job["id"],))
+        self.assertIsNone(queue.claim_job("worker-b"))
+        with queue.connect() as c:
+            row = c.execute("SELECT status,error,lease_owner FROM collector_jobs WHERE id=?", (job["id"],)).fetchone()
+            event_row = c.execute(
+                "SELECT event,detail FROM collector_job_events WHERE job_id=? AND event='dead_letter' LIMIT 1",
+                (job["id"],),
+            ).fetchone()
+        self.assertEqual(row["status"], "failed")
+        self.assertEqual(row["error"], "lease_expired_max_attempts")
+        self.assertIsNone(row["lease_owner"])
+        self.assertEqual(event_row["event"], "dead_letter")
+        self.assertIn("lease_expired_max_attempts", event_row["detail"])
+
     def test_retry_backoff_then_dead_letter(self):
         job = queue.submit_job("crawl", {"url": "https://example.org"}, "retry:test", max_attempts=2)
         queue.claim_job("worker-a")
@@ -94,6 +200,13 @@ class RegistryQueueTests(unittest.TestCase):
         with queue.connect() as c:
             row = c.execute("SELECT status FROM collector_jobs WHERE id=?", (job["id"],)).fetchone()
         self.assertEqual(row["status"], "failed")
+        with queue.connect() as c:
+            events = [row["event"] for row in c.execute(
+                "SELECT event FROM collector_job_events WHERE job_id=? ORDER BY created_at,id",
+                (job["id"],),
+            ).fetchall()]
+        self.assertIn("retry_scheduled", events)
+        self.assertIn("dead_letter", events)
 
     def test_fail_job_does_not_overwrite_cancel_requested_job(self):
         job = queue.submit_job("crawl", {"url": "https://example.org"}, "cancel-fail-race:test")
@@ -119,6 +232,13 @@ class RegistryQueueTests(unittest.TestCase):
         with queue.connect() as c:
             row = c.execute("SELECT status FROM collector_jobs WHERE id=?", (job["id"],)).fetchone()
         self.assertEqual(row["status"], "cancelled")
+        with queue.connect() as c:
+            events = [row["event"] for row in c.execute(
+                "SELECT event FROM collector_job_events WHERE job_id=? ORDER BY created_at,id",
+                (job["id"],),
+            ).fetchall()]
+        self.assertIn("cancel_requested", events)
+        self.assertGreaterEqual(events.count("cancelled"), 1)
 
     def test_registry_search_miss_enqueues_fmhy_discovery(self):
         with patch.object(queue, "require_auth"):
@@ -174,6 +294,29 @@ class RegistryQueueTests(unittest.TestCase):
         self.assertFalse(verified["has_more"])
         self.assertEqual(searched["total"], 1)
         self.assertFalse(searched["has_more"])
+
+    def test_registry_preserves_public_query_but_rejects_signed_urls(self):
+        resource = queue.upsert_resource({
+            "resource_key": "resource:public-query", "source_key": "provider",
+            "resource_type": "DIRECT_MEDIA",
+            "url": "https://Media.Example.org/movie.m3u8?quality=1080p&format=hls#player",
+            "title": "Example Film",
+        })
+        self.assertEqual(resource["url"], "https://media.example.org/movie.m3u8?quality=1080p&format=hls")
+        for unsafe_url in (
+            "http://media.example.org/movie.mp4",
+            "https://user:password@media.example.org/movie.mp4",
+            "https://media.example.org:8443/movie.mp4",
+            "https://media.example.org/movie.m3u8?token=secret",
+            "https://media.example.org/movie.m3u8?X-Amz-Signature=secret",
+        ):
+            with self.subTest(url=unsafe_url):
+                with self.assertRaises(ValueError):
+                    queue.upsert_resource({
+                        "resource_key": "unsafe:" + str(abs(hash(unsafe_url))),
+                        "source_key": "provider", "resource_type": "DIRECT_MEDIA",
+                        "url": unsafe_url, "title": "Unsafe",
+                    })
 
     def test_playback_requires_public_preflight(self):
         resource = queue.upsert_resource({
@@ -232,6 +375,25 @@ class RegistryQueueTests(unittest.TestCase):
         self.assertEqual(result["queued"][0]["stage"], "fmhy_discovery")
 
 
+
+    def test_signed_candidate_is_not_promoted_into_durable_registry(self):
+        candidate_id = "c" * 32
+        result = queue.register_discovered_candidate({
+            "id": candidate_id,
+            "kind": "direct-media",
+            "host": "media.example.org",
+            "url": "https://media.example.org/movie.m3u8?token=ephemeral-secret",
+            "title": "Signed Film",
+            "status": "pending",
+            "access_state": "ACCESS_UNKNOWN",
+        })
+        self.assertIsNone(result)
+        with queue.connect() as c:
+            stored = c.execute(
+                "SELECT id FROM registry_resources WHERE candidate_id=?",
+                (candidate_id,),
+            ).fetchone()
+        self.assertIsNone(stored)
 
     def test_registry_search_matches_preserved_search_keyword_metadata(self):
         candidate_id = "b" * 32

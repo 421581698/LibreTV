@@ -172,17 +172,52 @@ def require_token(authorization: str | None) -> None:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
-def require_egress_firewall() -> None:
-    """Fail closed unless the operator confirms an enforced host-level egress boundary.
+def current_host_boot_id() -> str:
+    return Path("/proc/sys/kernel/random/boot_id").read_text(encoding="utf-8").strip()
 
-    DNS checks in application code cannot prevent rebinding between resolution
-    and connection. This opt-in flag is an operator assertion, not an automatic
-    firewall installer or a substitute for verifying the actual host rules.
-    """
+
+def egress_firewall_ready() -> bool:
+    """Require a root-owned host marker created after rules were installed this boot."""
     if os.environ.get("SCRAPLING_EGRESS_FIREWALL_CONFIRMED", "").strip() != "1":
+        return False
+    marker_path = Path(os.environ.get(
+        "SCRAPLING_EGRESS_MARKER_PATH",
+        "/run/libretv-scrapling-egress/confirmed.json",
+    ))
+    try:
+        marker = json.loads(marker_path.read_text(encoding="utf-8"))
+        if not isinstance(marker, dict):
+            return False
+        return (
+            marker.get("policy_version") == 1
+            and marker.get("boot_id") == current_host_boot_id()
+            and marker.get("collector_cidr") == os.environ.get(
+                "SCRAPLING_EGRESS_COLLECTOR_CIDR", "172.30.60.0/24"
+            )
+            and marker.get("app_ip") == os.environ.get(
+                "SCRAPLING_EGRESS_APP_IP", "172.30.60.2"
+            )
+            and marker.get("api_ip") == os.environ.get(
+                "SCRAPLING_EGRESS_API_IP", "172.30.60.10"
+            )
+            and str(marker.get("api_port")) == os.environ.get(
+                "SCRAPLING_EGRESS_API_PORT", "8000"
+            )
+        )
+    except (OSError, TypeError, ValueError):
+        return False
+
+
+def require_egress_firewall() -> None:
+    """Fail closed unless the current host boot has a matching verified-rule marker.
+
+    The marker lives under /run, which is cleared on reboot. The operator must
+    rerun the host firewall installer before crawling can resume after a reboot.
+    """
+    if not egress_firewall_ready():
         raise HTTPException(
             status_code=503,
-            detail="Crawling is disabled until host-level egress filtering is installed and verified",
+            detail="Crawling is disabled until current-boot host egress rules are installed and verified",
         )
 
 

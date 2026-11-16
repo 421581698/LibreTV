@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
 import os
 import sqlite3
 import time
 import uuid
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Callable
 
@@ -18,18 +20,25 @@ TERMINAL = {"succeeded", "partial", "failed", "cancelled"}
 ACCESS_BLOCKED = {"AUTH_REQUIRED", "SUBSCRIPTION_REQUIRED", "CHALLENGE", "DRM_PROTECTED", "ENCRYPTED_STREAM"}
 
 
-def connect() -> sqlite3.Connection:
+@contextmanager
+def connect():
+    """Yield a configured SQLite connection and always release it on exit."""
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH, timeout=15, isolation_level=None)
+    conn = sqlite3.connect(DB_PATH, timeout=60, isolation_level=None)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
-    conn.execute("PRAGMA busy_timeout=15000")
-    return conn
+    conn.execute("PRAGMA busy_timeout=60000")
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 def initialize() -> None:
     with connect() as c:
+        # WAL mode is persistent for the database; configure it once at startup
+        # instead of taking a journal-mode lock on every queue operation.
+        c.execute("PRAGMA journal_mode=WAL")
         c.executescript("""
         CREATE TABLE IF NOT EXISTS registry_movies (
           id TEXT PRIMARY KEY, external_key TEXT UNIQUE, title TEXT NOT NULL,
@@ -96,9 +105,59 @@ def event(c: sqlite3.Connection, job_id: str, name: str, detail: dict | None = N
               (uuid.uuid4().hex, job_id, name, json.dumps(detail or {}, ensure_ascii=False), int(time.time())))
 
 
+def validate_durable_job_payload(job_type: str, payload: dict) -> dict:
+    if not isinstance(payload, dict):
+        raise ValueError("Job payload must be an object")
+    if job_type != "crawl":
+        return payload
+    from urllib.parse import parse_qsl, urlsplit, urlunsplit
+    url = payload.get("url")
+    if not isinstance(url, str) or len(url) > 4096:
+        raise ValueError("Crawl jobs require a bounded HTTPS URL")
+    try:
+        parsed = urlsplit(url)
+        port = parsed.port
+    except ValueError as exc:
+        raise ValueError("Invalid crawl URL") from exc
+    if (
+        parsed.scheme.lower() != "https"
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or port not in (None, 443)
+        or "\\" in url
+        or any(char.isspace() or ord(char) < 32 or ord(char) == 127 for char in url)
+    ):
+        raise ValueError("Only credential-free HTTPS crawl URLs on port 443 are accepted")
+    sensitive_keys = {
+        "token", "access_token", "auth_token", "auth", "authorization", "api_key", "apikey",
+        "key", "signature", "sig", "jwt", "expires", "expires_at", "policy", "hdnts",
+        "hdnea", "session", "sessionid", "password", "secret", "credential", "credentials",
+        "bearer", "x-amz-signature", "x-amz-credential", "x-goog-signature",
+    }
+    query_keys = {key.casefold() for key, _ in parse_qsl(parsed.query, keep_blank_values=True)}
+    if any(key in sensitive_keys or key.startswith(("x-amz-", "x-goog-", "x-ms-")) for key in query_keys):
+        raise ValueError("Signed or credential-bearing crawl URLs cannot be persisted in the durable queue")
+    raw_host = parsed.hostname
+    try:
+        literal_ip = ipaddress.ip_address(raw_host)
+    except ValueError:
+        literal_ip = None
+    if literal_ip is not None and not literal_ip.is_global:
+        raise ValueError("Private or reserved IP literals cannot be persisted in the durable crawl queue")
+    host = raw_host.encode("idna").decode("ascii").lower()
+    if ":" in host and not host.startswith("["):
+        host = "[" + host + "]"
+    netloc = host if port is None else f"{host}:{port}"
+    normalized = dict(payload)
+    normalized["url"] = urlunsplit(("https", netloc, parsed.path or "/", parsed.query, ""))
+    return normalized
+
+
 def submit_job(job_type: str, payload: dict, idempotency_key: str, max_attempts: int = 4) -> dict:
     if job_type not in {"crawl", "discover", "batch_crawl"}:
         raise ValueError("Unsupported job type")
+    payload = validate_durable_job_payload(job_type, payload)
     if not idempotency_key or len(idempotency_key) > 200:
         raise ValueError("Invalid idempotency key")
     now = int(time.time())
@@ -110,21 +169,81 @@ def submit_job(job_type: str, payload: dict, idempotency_key: str, max_attempts:
           VALUES(?,?,?,?,?,?,?,?,?)""",
           (job_id,idempotency_key,job_type,json.dumps(payload,ensure_ascii=False),"queued",max(1,min(max_attempts,8)),now,now,now))
         row = c.execute("SELECT * FROM collector_jobs WHERE idempotency_key=?", (idempotency_key,)).fetchone()
+        if row["job_type"] != job_type or json.loads(row["payload"]) != payload:
+            c.rollback()
+            raise ValueError("Idempotency key was already used for a different job payload")
         if c.execute("SELECT changes()").fetchone()[0]:
             event(c, row["id"], "queued", {"job_type": job_type})
         c.commit()
     return dict(row)
 
 
+def submit_jobs(jobs: list[dict]) -> list[dict]:
+    """Atomically enqueue up to 1,000 independent jobs in one durable transaction."""
+    if not isinstance(jobs, list) or not 1 <= len(jobs) <= 1000:
+        raise ValueError("Bulk submission requires between 1 and 1000 jobs")
+    now = int(time.time())
+    results = []
+    with connect() as c:
+        c.execute("BEGIN IMMEDIATE")
+        for item in jobs:
+            if not isinstance(item, dict):
+                c.rollback()
+                raise ValueError("Each bulk job must be an object")
+            job_type = item.get("job_type")
+            payload = item.get("payload")
+            idempotency_key = item.get("idempotency_key")
+            if job_type not in {"crawl", "discover", "batch_crawl"}:
+                c.rollback()
+                raise ValueError("Unsupported job type")
+            try:
+                payload = validate_durable_job_payload(job_type, payload)
+            except ValueError:
+                c.rollback()
+                raise
+            if not isinstance(idempotency_key, str) or not idempotency_key or len(idempotency_key) > 200:
+                c.rollback()
+                raise ValueError("Invalid idempotency key")
+            try:
+                max_attempts = max(1, min(int(item.get("max_attempts", 4)), 8))
+            except (TypeError, ValueError):
+                c.rollback()
+                raise ValueError("Invalid max_attempts")
+            job_id = hashlib.sha256(idempotency_key.encode()).hexdigest()[:32]
+            cursor = c.execute("""INSERT OR IGNORE INTO collector_jobs
+              (id,idempotency_key,job_type,payload,status,max_attempts,available_at,created_at,updated_at)
+              VALUES(?,?,?,?,?,?,?,?,?)""",
+              (job_id,idempotency_key,job_type,json.dumps(payload,ensure_ascii=False),
+               "queued",max_attempts,now,now,now))
+            row = c.execute("SELECT * FROM collector_jobs WHERE idempotency_key=?", (idempotency_key,)).fetchone()
+            if row["job_type"] != job_type or json.loads(row["payload"]) != payload:
+                c.rollback()
+                raise ValueError("Idempotency key was already used for a different job payload")
+            if cursor.rowcount:
+                event(c, row["id"], "queued", {"job_type": job_type, "submission": "bulk"})
+            results.append(dict(row))
+        c.commit()
+    return results
+
+
 def claim_job(worker_id: str, lease_seconds: int = 90) -> dict | None:
     now = int(time.time())
     with connect() as c:
         c.execute("BEGIN IMMEDIATE")
-        expired = c.execute("SELECT id FROM collector_jobs WHERE status='running' AND lease_until IS NOT NULL AND lease_until<=?", (now,)).fetchall()
+        expired = c.execute(
+            "SELECT id,attempt,max_attempts FROM collector_jobs WHERE status='running' AND lease_until IS NOT NULL AND lease_until<=?",
+            (now,),
+        ).fetchall()
         c.execute("""UPDATE collector_jobs SET status='queued',lease_owner=NULL,lease_until=NULL,updated_at=?
-          WHERE status='running' AND lease_until IS NOT NULL AND lease_until<=?""", (now,now))
+          WHERE status='running' AND lease_until IS NOT NULL AND lease_until<=? AND attempt<max_attempts""", (now,now))
+        c.execute("""UPDATE collector_jobs SET status='failed',error=COALESCE(error,'lease_expired_max_attempts'),
+          lease_owner=NULL,lease_until=NULL,updated_at=?
+          WHERE status='running' AND lease_until IS NOT NULL AND lease_until<=? AND attempt>=max_attempts""", (now,now))
         for item in expired:
-            event(c, item["id"], "lease_expired_recovered", {"recovered_by_worker": worker_id})
+            if item["attempt"] >= item["max_attempts"]:
+                event(c, item["id"], "dead_letter", {"reason": "lease_expired_max_attempts", "attempt": item["attempt"]})
+            else:
+                event(c, item["id"], "lease_expired_recovered", {"recovered_by_worker": worker_id, "attempt": item["attempt"]})
         cancelled = c.execute("SELECT id FROM collector_jobs WHERE status='cancel_requested' AND lease_until IS NOT NULL AND lease_until<=?", (now,)).fetchall()
         c.execute("""UPDATE collector_jobs SET status='cancelled',lease_owner=NULL,lease_until=NULL,updated_at=?
           WHERE status='cancel_requested' AND lease_until IS NOT NULL AND lease_until<=?""", (now,now))
@@ -146,12 +265,14 @@ def claim_job(worker_id: str, lease_seconds: int = 90) -> dict | None:
 
 def checkpoint_job(job_id: str, worker_id: str, checkpoint: dict) -> bool:
     with connect() as c:
+        c.execute("BEGIN IMMEDIATE")
         now = int(time.time())
         cur = c.execute("""UPDATE collector_jobs SET checkpoint=?,updated_at=?,lease_until=?
           WHERE id=? AND status='running' AND lease_owner=?""",
           (json.dumps(checkpoint,ensure_ascii=False),now,now+900,job_id,worker_id))
         if cur.rowcount:
             event(c,job_id,"checkpoint",checkpoint)
+        c.commit()
         return cur.rowcount == 1
 
 
@@ -159,11 +280,13 @@ def finish_job(job_id: str, worker_id: str, result: dict | None = None) -> bool:
     result = result or {}
     outcome = result.get("status") if result.get("status") in {"partial", "failed"} else "succeeded"
     with connect() as c:
+        c.execute("BEGIN IMMEDIATE")
         cur = c.execute("""UPDATE collector_jobs SET status=?,result=?,lease_owner=NULL,
           lease_until=NULL,error=?,updated_at=? WHERE id=? AND status='running' AND lease_owner=?""",
           (outcome,json.dumps(result,ensure_ascii=False),result.get("error"),int(time.time()),job_id,worker_id))
         if cur.rowcount:
             event(c,job_id,outcome,{})
+        c.commit()
         return cur.rowcount == 1
 
 
@@ -193,19 +316,23 @@ def fail_job(job_id: str, worker_id: str, error: str, retryable: bool = True) ->
 def retry_job(job_id: str) -> bool:
     now = int(time.time())
     with connect() as c:
+        c.execute("BEGIN IMMEDIATE")
         cur = c.execute("""UPDATE collector_jobs SET status='queued',attempt=0,available_at=?,lease_owner=NULL,
           lease_until=NULL,error=NULL,result=NULL,cancelled_at=NULL,updated_at=?
           WHERE id=? AND status IN ('failed','partial')""", (now,now,job_id))
         if cur.rowcount:
             event(c,job_id,"manual_retry",{})
+        c.commit()
         return cur.rowcount == 1
 
 
 def cancel_job(job_id: str) -> bool:
     now = int(time.time())
     with connect() as c:
+        c.execute("BEGIN IMMEDIATE")
         row = c.execute("SELECT status FROM collector_jobs WHERE id=?", (job_id,)).fetchone()
         if not row or row["status"] not in {"queued", "running"}:
+            c.commit()
             return False
         target = "cancelled" if row["status"] == "queued" else "cancel_requested"
         cur = c.execute("""UPDATE collector_jobs SET status=?,cancelled_at=?,lease_owner=CASE WHEN ?='cancelled' THEN NULL ELSE lease_owner END,
@@ -213,6 +340,7 @@ def cancel_job(job_id: str) -> bool:
           (target,now,target,target,now,job_id,row["status"]))
         if cur.rowcount:
             event(c,job_id,"cancelled" if target == "cancelled" else "cancel_requested",{})
+        c.commit()
         return cur.rowcount == 1
 
 
@@ -225,10 +353,12 @@ def job_cancelled(job_id: str) -> bool:
 def mark_cancelled(job_id: str, worker_id: str) -> bool:
     now = int(time.time())
     with connect() as c:
+        c.execute("BEGIN IMMEDIATE")
         cur = c.execute("""UPDATE collector_jobs SET status='cancelled',lease_owner=NULL,lease_until=NULL,updated_at=?
           WHERE id=? AND lease_owner=? AND status IN ('running','cancel_requested')""", (now,job_id,worker_id))
         if cur.rowcount:
             event(c,job_id,"cancelled",{})
+        c.commit()
         return cur.rowcount == 1
 
 
@@ -236,12 +366,12 @@ class JobCancelled(Exception):
     pass
 
 
-def run_worker(worker_id: str, handler: Callable[[dict, Callable[[dict], bool]], dict], once: bool = False, idle_seconds: float = 2.0) -> None:
+def run_worker(worker_id: str, handler: Callable[[dict, Callable[[dict], bool]], dict], once: bool = False, idle_seconds: float = 2.0) -> bool:
     while True:
         job = claim_job(worker_id, lease_seconds=900)
         if not job:
             if once:
-                return
+                return False
             time.sleep(idle_seconds)
             continue
         try:
@@ -261,7 +391,7 @@ def run_worker(worker_id: str, handler: Callable[[dict, Callable[[dict], bool]],
         except Exception as exc:
             fail_job(job["id"],worker_id,type(exc).__name__)
         if once:
-            return
+            return True
 
 
 def safe_json(value: str | None) -> dict:
@@ -277,8 +407,43 @@ def upsert_resource(payload: dict) -> dict:
     if resource_type not in {"CMS_VOD","DIRECT_MEDIA","EMBEDDED_PLAYER"}:
         raise ValueError("Invalid resource_type")
     url = payload.get("url")
-    if not isinstance(url,str) or not url.startswith("https://") or len(url)>4096:
+    if not isinstance(url, str) or len(url) > 4096:
         raise ValueError("Only bounded HTTPS resource URLs are accepted")
+    from urllib.parse import parse_qsl, urlsplit, urlunsplit
+    try:
+        parsed_url = urlsplit(url)
+        port = parsed_url.port
+    except ValueError as exc:
+        raise ValueError("Invalid resource URL") from exc
+    if (
+        parsed_url.scheme.lower() != "https"
+        or not parsed_url.hostname
+        or parsed_url.username is not None
+        or parsed_url.password is not None
+        or port not in (None, 443)
+        or "\\" in url
+        or any(char.isspace() or ord(char) < 32 or ord(char) == 127 for char in url)
+    ):
+        raise ValueError("Only credential-free HTTPS URLs on port 443 are accepted")
+    sensitive_query_keys = {
+        "token", "access_token", "auth_token", "auth", "authorization", "api_key", "apikey",
+        "key", "signature", "sig", "jwt", "expires", "expires_at", "policy", "hdnts",
+        "hdnea", "session", "sessionid", "password", "secret", "credential", "credentials",
+        "bearer", "x-amz-signature", "x-amz-credential", "x-goog-signature",
+    }
+    query_keys = {key.casefold() for key, _ in parse_qsl(parsed_url.query, keep_blank_values=True)}
+    if any(
+        key in sensitive_query_keys or key.startswith(("x-amz-", "x-goog-", "x-ms-"))
+        for key in query_keys
+    ):
+        raise ValueError("Signed or credential-bearing URLs cannot be persisted in the resource registry")
+    # Keep non-secret query parameters needed by public media endpoints, but never
+    # persist fragments (which are client-side state and may contain credentials).
+    host = parsed_url.hostname.encode("idna").decode("ascii").lower()
+    if ":" in host and not host.startswith("["):
+        host = "[" + host + "]"
+    netloc = host if port is None else f"{host}:{port}"
+    url = urlunsplit(("https", netloc, parsed_url.path or "/", parsed_url.query, ""))
     source_key = str(payload.get("source_key") or "unknown")[:200]
     external_movie = payload.get("movie_external_key")
     external_episode = payload.get("episode_external_key")
@@ -403,25 +568,32 @@ def register_discovered_candidate(candidate: dict) -> dict | None:
         },
         "quality_evidence": quality,
     }
-    return upsert_resource({
-        "resource_key": "candidate:" + str(candidate["id"]),
-        "candidate_id": candidate["id"],
-        "source_key": candidate.get("host") or "unknown",
-        "source_name": candidate.get("host") or "Unknown source",
-        "resource_type": resource_type,
-        "url": candidate["url"],
-        "title": display_title,
-        "access_state": candidate.get("access_state") or "ACCESS_UNKNOWN",
-        "movie_external_key": movie_external_key,
-        "episode_external_key": episode_external_key,
-        "movie_title": title_hint if canonical_identity else None,
-        "episode_title": str(identity.get("episode_title") or display_title)[:200] if episode_external_key else None,
-        "year": identity.get("year_hint") if canonical_identity else None,
-        "season": identity.get("season_hint") if episode_external_key else None,
-        "episode": identity.get("episode_hint") if episode_external_key else None,
-        "movie_metadata": movie_metadata if canonical_identity else {},
-        "metadata": resource_metadata,
-    })
+    try:
+        return upsert_resource({
+            "resource_key": "candidate:" + str(candidate["id"]),
+            "candidate_id": candidate["id"],
+            "source_key": candidate.get("host") or "unknown",
+            "source_name": candidate.get("host") or "Unknown source",
+            "resource_type": resource_type,
+            "url": candidate["url"],
+            "title": display_title,
+            "access_state": candidate.get("access_state") or "ACCESS_UNKNOWN",
+            "movie_external_key": movie_external_key,
+            "episode_external_key": episode_external_key,
+            "movie_title": title_hint if canonical_identity else None,
+            "episode_title": str(identity.get("episode_title") or display_title)[:200] if episode_external_key else None,
+            "year": identity.get("year_hint") if canonical_identity else None,
+            "season": identity.get("season_hint") if episode_external_key else None,
+            "episode": identity.get("episode_hint") if episode_external_key else None,
+            "movie_metadata": movie_metadata if canonical_identity else {},
+            "metadata": resource_metadata,
+        })
+    except ValueError as exc:
+        if "Signed or credential-bearing URLs" in str(exc):
+            # Keep ephemeral signed candidates in the candidate workflow only;
+            # they are not durable, reusable Registry resources.
+            return None
+        raise
 
 
 def sync_candidate_validation(candidate_id: str, validation: dict, status: str) -> None:
@@ -519,6 +691,18 @@ def api_submit_batch(payload: dict, authorization: str | None = Header(default=N
     return {"job_id": job["id"], "status": job["status"], "batch_target": {
         "minimum": minimum, "target": target, "max_sites": max_sites,
     }}
+
+
+@router.post("/v1/jobs/bulk")
+def api_submit_jobs(payload: dict, authorization: str | None = Header(default=None)):
+    require_auth(authorization)
+    jobs = payload.get("jobs")
+    if not isinstance(jobs, list) or not 1 <= len(jobs) <= 1000:
+        raise HTTPException(status_code=400, detail="Bulk submission requires 1 to 1000 jobs")
+    try:
+        return {"jobs": submit_jobs(jobs)}
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @router.get("/v1/jobs")
