@@ -36,11 +36,6 @@ on:
       - ".github/workflows/scrapling-collector.yml"
   workflow_dispatch:
     inputs:
-      run_live_acceptance:
-        description: Run operator-approved AI, real 4K playback and live crawl acceptance
-        required: true
-        default: false
-        type: boolean
       crawl_target:
         description: Number of approved live crawl jobs
         required: true
@@ -217,7 +212,7 @@ jobs:
 
   live-acceptance:
     needs: collector-tests
-    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.run_live_acceptance == true) || ((github.event_name == 'push' || github.event_name == 'pull_request') && vars.COLLECTOR_LIVE_ACCEPTANCE_ENABLED == 'true' && (github.ref == 'refs/heads/integration/collector-ai-rules-4k-scale-2026-11-16' || (github.event_name == 'pull_request' && github.event.pull_request.number == 92))) }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && vars.COLLECTOR_LIVE_ACCEPTANCE_ENABLED == 'true') || ((github.event_name == 'push' || github.event_name == 'pull_request') && vars.COLLECTOR_LIVE_ACCEPTANCE_ENABLED == 'true' && (github.ref == 'refs/heads/integration/collector-ai-rules-4k-scale-2026-11-16' || (github.event_name == 'pull_request' && github.event.pull_request.number == 92))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 360
     environment: collector-acceptance
