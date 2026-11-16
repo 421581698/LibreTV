@@ -286,8 +286,25 @@ def upsert_resource(payload: dict) -> dict:
     if resource_type not in {"CMS_VOD","DIRECT_MEDIA","EMBEDDED_PLAYER"}:
         raise ValueError("Invalid resource_type")
     url = payload.get("url")
-    if not isinstance(url,str) or not url.startswith("https://") or len(url)>4096:
+    if not isinstance(url, str) or len(url) > 4096:
         raise ValueError("Only bounded HTTPS resource URLs are accepted")
+    from urllib.parse import urlsplit, urlunsplit
+    try:
+        parsed_url = urlsplit(url)
+        port = parsed_url.port
+    except ValueError as exc:
+        raise ValueError("Invalid resource URL") from exc
+    if (
+        parsed_url.scheme.lower() != "https"
+        or not parsed_url.hostname
+        or parsed_url.username is not None
+        or parsed_url.password is not None
+        or port not in (None, 443)
+    ):
+        raise ValueError("Only credential-free HTTPS URLs on port 443 are accepted")
+    # Signed query strings and fragments may contain bearer credentials. Do not
+    # persist them in the durable registry; only the canonical resource path is stored.
+    url = urlunsplit(("https", parsed_url.netloc.lower(), parsed_url.path or "/", "", ""))
     source_key = str(payload.get("source_key") or "unknown")[:200]
     external_movie = payload.get("movie_external_key")
     external_episode = payload.get("episode_external_key")
