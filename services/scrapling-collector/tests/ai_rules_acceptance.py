@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import time
 import uuid
 import urllib.request
 
+sys.path.insert(0, "/app")
 from app import Fetcher, public_https_url, require_egress_firewall
 import ai_rules
 
