@@ -142,16 +142,55 @@ services:
       SCRAPLING_API_KEY: ${SCRAPLING_API_KEY:-}
       DATABASE_URL: postgresql://libretv_scrapling:${SCRAPLING_DB_PASSWORD:-local-dev-only-change-me}@scrapling-postgres:5432/libretv_scrapling
       CRAWL_DATA_DIR: /data
+      MEDIA_PROBE_ROOT: /tmp/libretv-media-probe
+      MEDIA_PROBE_INBOX: /probe/inbox
+      MEDIA_PROBE_OUTBOX: /probe/outbox
       SUPERVISOR_API_BASE: ${SUPERVISOR_API_BASE:-https://api.openai.com/v1}
       SUPERVISOR_API_KEY: ${SUPERVISOR_API_KEY:-}
       SUPERVISOR_MODEL: ${SUPERVISOR_MODEL:-}
       SUPERVISOR_TIMEOUT_SECONDS: ${SUPERVISOR_TIMEOUT_SECONDS:-45}
     volumes:
       - scrapling-crawl-data:/data
+      - scrapling-probe-inbox:/probe/inbox
+      - scrapling-probe-outbox:/probe/outbox:ro
     depends_on:
       scrapling-postgres:
         condition: service_healthy
+      scrapling-media-probe:
+        condition: service_started
+
+  scrapling-media-probe:
+    profiles: ["crawler"]
+    build:
+      context: ./scrapling-engine
+      dockerfile: Dockerfile.probe
+    restart: unless-stopped
+    user: "10001:10001"
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    mem_limit: 512m
+    cpus: 1.0
+    network_mode: none
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+    environment:
+      MEDIA_PROBE_ROOT: /probe/inbox
+      MEDIA_PROBE_INBOX: /probe/inbox
+      MEDIA_PROBE_OUTBOX: /probe/outbox
+    volumes:
+      - scrapling-probe-inbox:/probe/inbox:ro
+      - scrapling-probe-outbox:/probe/outbox
+    healthcheck:
+      test: ["CMD", "python", "-c", "from pathlib import Path; raise SystemExit(0 if Path('/probe/inbox').is_dir() and Path('/probe/outbox').is_dir() else 1)"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
 
 volumes:
   scrapling-postgres-data:
   scrapling-crawl-data:
+  scrapling-probe-inbox:
+  scrapling-probe-outbox:
