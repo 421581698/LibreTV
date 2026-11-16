@@ -91,6 +91,21 @@ finally:
 echo "scrapling-media-probe: no network, read-only input mount and writable result mount passed"
 
 
+# Network membership is the actual no-bypass control: every worker and
+# PostgreSQL must be attached only to Docker networks marked Internal.
+for service in scrapling-engine scrapling-job-worker scrapling-workflow-worker scrapling-postgres; do
+  container=$("${compose[@]}" ps -q "$service")
+  networks=$(docker inspect --format '{{range $name, $value := .NetworkSettings.Networks}}{{$name}} {{end}}' "$container")
+  [[ -n "$networks" ]] || { echo "$service has no isolated network"; exit 1; }
+  for network in $networks; do
+    internal=$(docker network inspect --format '{{.Internal}}' "$network")
+    [[ "$internal" == "true" ]] || {
+      echo "$service is attached to non-internal network $network"
+      exit 1
+    }
+  done
+done
+
 proxy_container=$("${compose[@]}" ps -q scrapling-egress-proxy)
 test -n "$proxy_container"
 [[ "$(docker inspect --format '{{.State.Running}}' "$proxy_container")" == "true" ]]
