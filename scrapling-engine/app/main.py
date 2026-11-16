@@ -90,6 +90,7 @@ class WorkflowNodeRequest(BaseModel):
         "validate_public_urls",
         "crawl_seed_urls",
         "discover_site_links",
+        "ai_supervisor_discover",
         "register_candidates",
         "analyze_media_manifest",
         "analyze_media_candidates",
