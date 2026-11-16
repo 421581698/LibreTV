@@ -391,7 +391,11 @@ async def capabilities() -> dict:
                 else "in_process_pause_resume"
             ),
             "server_side_dag_runtime" if settings.database_url else "dag_requires_postgresql",
-            "autonomous_public_site_discovery_to_pending_candidates" if settings.database_url else "autonomous_discovery_requires_postgresql",
+            (
+                "autonomous_public_site_discovery_to_pending_candidates"
+                if settings.database_url
+                else "autonomous_discovery_requires_postgresql"
+            ),
             "workflow_node_leases_and_retries" if settings.database_url else "no_workflow_worker",
             (
                 "model_planned_discovery"
