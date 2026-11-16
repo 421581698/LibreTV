@@ -80,6 +80,7 @@ jobs:
       - name: Verify AI rule generation, versioning and automatic repair
         run: |
           docker exec \
+            -e SCRAPLING_API_BASE="http://127.0.0.1:10000" \
             -e SCRAPLING_API_TOKEN="$SCRAPLING_API_TOKEN" \
             libretv-scrapling-collector python /tmp/ai_rules_acceptance.py
       - name: Verify real UHD 4K sustained decode
@@ -99,6 +100,7 @@ jobs:
       - name: Verify live network crawl scale
         run: |
           docker exec \
+            -e SCRAPLING_API_BASE="http://127.0.0.1:10000" \
             -e SCRAPLING_API_TOKEN="$SCRAPLING_API_TOKEN" \
             -e LIVE_CRAWL_ALLOWED_HOSTS="$LIVE_CRAWL_ALLOWED_HOSTS" \
             libretv-scrapling-collector python /tmp/live_crawl_scale.py \
