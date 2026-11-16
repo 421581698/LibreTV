@@ -35,6 +35,7 @@ class SupervisorClient:
         model: str,
         timeout_seconds: float = 45.0,
         transport: httpx.AsyncBaseTransport | None = None,
+        proxy: str | None = None,
     ) -> None:
         parsed = urlsplit(api_base)
         if (
@@ -55,6 +56,7 @@ class SupervisorClient:
         self.model = model
         self.timeout_seconds = timeout_seconds
         self.transport = transport
+        self.proxy = proxy
 
 
     async def generate_extraction_rule(
@@ -104,6 +106,7 @@ class SupervisorClient:
             follow_redirects=False,
             trust_env=False,
             transport=self.transport,
+            proxy=self.proxy,
         ) as client:
             try:
                 response = await client.post(
