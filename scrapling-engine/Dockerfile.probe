@@ -11,7 +11,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /service
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg \
+    && apt-get install -y --no-install-recommends ffmpeg util-linux \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 libretv \
     && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin libretv \
