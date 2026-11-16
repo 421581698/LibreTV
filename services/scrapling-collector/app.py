@@ -173,6 +173,8 @@ def init_db() -> None:
     # including tests that override DB_PATH with a temporary database.
     registry_store.DB_PATH = DB_PATH
     registry_store.initialize()
+    ai_rules.DB_PATH = str(DB_PATH)
+    ai_rules.initialize()
 
 
 
