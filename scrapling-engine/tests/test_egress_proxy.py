@@ -77,7 +77,7 @@ async def test_connect_proxy_tunnels_tls_bytes_to_pinned_peer(monkeypatch):
     from app import egress_proxy
 
     async def echo(reader, writer):
-        payload = await reader.read(64)
+        payload = await reader.readexactly(16)
         writer.write(payload)
         await writer.drain()
         writer.close()
