@@ -39,6 +39,8 @@ class RenderDeploymentConfigTests(unittest.TestCase):
         self.assertIn("${SCRAPLING_COLLECTOR_IP:-172.30.60.10}", compose)
         self.assertIn("${SCRAPLING_WORKER_IP:-172.30.60.11}", compose)
         self.assertIn("${SCRAPLING_NETWORK_SUBNET:-172.30.60.0/24}", compose)
+        self.assertGreaterEqual(compose.count("net.ipv6.conf.all.disable_ipv6"), 3)
+        self.assertGreaterEqual(compose.count("net.ipv6.conf.default.disable_ipv6"), 3)
 
     def test_firewall_only_allows_app_to_collector_api_and_blocks_private_traffic(self):
         script = (ROOT / "scripts/scrapling-egress-firewall.sh").read_text(encoding="utf-8")
