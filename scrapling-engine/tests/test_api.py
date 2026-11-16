@@ -3,8 +3,8 @@ from unittest.mock import Mock
 import pytest
 from cssselect.parser import SelectorSyntaxError
 from fastapi.testclient import TestClient
-from pydantic import SecretStr
 from lxml.etree import XPathError
+from pydantic import SecretStr
 
 from app.main import WorkflowNodeRequest, app
 from app.scraper import ScraplingAdapter
