@@ -18,8 +18,11 @@ dependencies = [
   "psycopg[binary]>=3.2,<4",
 ]
 
-[project.scripts]\nlibretv-scrapling-worker = "app.worker:main"
-libretv-workflow-worker = "app.workflow_worker:main"\n\n[project.optional-dependencies]
+[project.scripts]
+libretv-scrapling-worker = "app.worker:main"
+libretv-workflow-worker = "app.workflow_worker:main"
+
+[project.optional-dependencies]
 dev = [
   "pytest>=8,<9",
   "pytest-asyncio>=0.24,<2",
