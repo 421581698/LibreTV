@@ -375,6 +375,11 @@ async def capabilities() -> dict:
                 else "supervisor_requires_model_configuration"
             ),
             (
+                "ai_selector_generation_and_live_test"
+                if settings.supervisor_api_key is not None and settings.supervisor_model
+                else "selector_generation_requires_model_configuration"
+            ),
+            (
                 "candidate_evidence_registry"
                 if settings.database_url
                 else "candidate_store_requires_postgresql"
