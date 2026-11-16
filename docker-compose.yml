@@ -152,7 +152,7 @@ services:
     volumes:
       - scrapling-crawl-data:/data
       - scrapling-probe-inbox:/probe/inbox
-      - scrapling-probe-outbox:/probe/outbox:ro
+      - scrapling-probe-outbox:/probe/outbox
     depends_on:
       scrapling-postgres:
         condition: service_healthy
