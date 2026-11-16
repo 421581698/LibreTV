@@ -109,3 +109,57 @@ def test_postgres_workflow_dag_claims_dependencies_and_retries_durably() -> None
                 "DELETE FROM resource_workflows WHERE workflow_id = %s",
                 (workflow_id,),
             )
+
+
+@pytest.mark.skipif(
+    not os.getenv("DATABASE_URL"),
+    reason="PostgreSQL integration database is not configured",
+)
+def test_workflow_pause_resume_and_cancel_are_durable_node_boundary_controls() -> None:
+    database_url = os.environ["DATABASE_URL"]
+    store = PostgresWorkflowStore(database_url)
+    store.initialize()
+    workflow_id = "dag_control_" + uuid.uuid4().hex
+    nodes = [
+        {"node_id": "first", "node_type": "discover"},
+        {"node_id": "second", "node_type": "crawl"},
+    ]
+    edges = [("first", "second")]
+
+    try:
+        assert store.create_workflow(workflow_id, nodes, edges)
+        first = store.claim_ready_node("worker-control", lease_seconds=30)
+        assert first is not None and first["node_id"] == "first"
+        assert store.request_control(workflow_id, "pause")
+        assert store.get_workflow(workflow_id)["status"] == "pausing"
+        assert store.complete_node(
+            workflow_id, "first", "worker-control", {"ok": True}
+        )
+        assert store.get_workflow(workflow_id)["status"] == "paused"
+        assert store.claim_ready_node("worker-control-2", lease_seconds=30) is None
+
+        assert store.request_control(workflow_id, "resume")
+        second = store.claim_ready_node("worker-control-2", lease_seconds=30)
+        assert second is not None and second["node_id"] == "second"
+        assert store.request_control(workflow_id, "cancel")
+        assert store.get_workflow(workflow_id)["status"] == "cancelling"
+        assert store.complete_node(
+            workflow_id, "second", "worker-control-2", {"ok": True}
+        )
+        workflow = store.get_workflow(workflow_id)
+        assert workflow is not None
+        assert workflow["status"] == "cancelled"
+        assert [node["status"] for node in workflow["nodes"]] == [
+            "completed",
+            "completed",
+        ]
+        event_types = [event["type"] for event in store.events_after(workflow_id)]
+        assert "workflow_paused" in event_types
+        assert "workflow_control_requested" in event_types
+        assert "workflow_cancelled" in event_types
+    finally:
+        with psycopg.connect(database_url) as db:
+            db.execute(
+                "DELETE FROM resource_workflows WHERE workflow_id = %s",
+                (workflow_id,),
+            )
