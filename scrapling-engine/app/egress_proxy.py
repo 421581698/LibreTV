@@ -12,7 +12,8 @@ MAX_HEADER_BYTES = 64 * 1024
 CONNECT_TIMEOUT_SECONDS = 10
 DNS_TIMEOUT_SECONDS = 8
 IDLE_TIMEOUT_SECONDS = 60
-ALLOWED_PORTS = {80, 443}
+MAX_ACTIVE_CONNECTIONS = 64
+_active_connections = 0
 IPAddress = ipaddress.IPv4Address | ipaddress.IPv6Address
 
 
@@ -97,7 +98,10 @@ async def _copy_stream(
     destination: asyncio.StreamWriter,
 ) -> None:
     while True:
-        chunk = await source.read(64 * 1024)
+        chunk = await asyncio.wait_for(
+            source.read(64 * 1024),
+            timeout=IDLE_TIMEOUT_SECONDS,
+        )
         if not chunk:
             return
         destination.write(chunk)
@@ -242,6 +246,12 @@ async def handle_client(
     reader: asyncio.StreamReader,
     writer: asyncio.StreamWriter,
 ) -> None:
+    global _active_connections
+    if _active_connections >= MAX_ACTIVE_CONNECTIONS:
+        await _write_error(writer, 503, "Service Unavailable")
+        writer.close()
+        return
+    _active_connections += 1
     try:
         header = await asyncio.wait_for(
             reader.readuntil(b"\r\n\r\n"),
@@ -270,6 +280,7 @@ async def handle_client(
         logger.warning("Egress proxy request failed: %s", type(exc).__name__)
         await _write_error(writer, 502, "Bad Gateway")
     finally:
+        _active_connections -= 1
         writer.close()
         try:
             await writer.wait_closed()
