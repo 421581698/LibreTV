@@ -23,7 +23,7 @@ def test_worker_fences_result_and_completion_writes_to_current_lease_owner() -> 
 
     try:
         assert store.create(task_id, ["https://example.com/"], "/tmp/" + task_id)
-        claimed = store.claim_next("worker-one", lease_seconds=30)
+        claimed = store.claim_next(worker.worker_id, lease_seconds=30)
         assert claimed is not None and claimed["task_id"] == task_id
 
         worker._fenced_result(
@@ -72,7 +72,7 @@ def test_expired_worker_lease_is_reclaimed_and_old_worker_is_fenced() -> None:
 
     try:
         assert store.create(task_id, ["https://example.com/"], "/tmp/" + task_id)
-        claimed = store.claim_next("worker-one", lease_seconds=30)
+        claimed = store.claim_next(first.worker_id, lease_seconds=30)
         assert claimed is not None and claimed["lease_owner"] == "worker-one"
         with psycopg.connect(database_url) as db:
             db.execute(
@@ -81,7 +81,7 @@ def test_expired_worker_lease_is_reclaimed_and_old_worker_is_fenced() -> None:
                 (task_id,),
             )
 
-        reclaimed = store.claim_next("worker-two", lease_seconds=30)
+        reclaimed = store.claim_next(second.worker_id, lease_seconds=30)
         assert reclaimed is not None and reclaimed["lease_owner"] == "worker-two"
         with pytest.raises(LeaseLost):
             first._fenced_result(task_id, {"url": "https://example.com/old"})
@@ -106,7 +106,7 @@ def test_worker_stops_persisting_results_after_pause_is_requested() -> None:
 
     try:
         assert store.create(task_id, ["https://example.com/"], "/tmp/" + task_id)
-        assert store.claim_next("worker-pause", lease_seconds=30) is not None
+        assert store.claim_next(worker.worker_id, lease_seconds=30) is not None
         assert store.request_control(task_id, "pause")
         persisted = worker._fenced_result(
             task_id,
@@ -123,3 +123,12 @@ def test_worker_stops_persisting_results_after_pause_is_requested() -> None:
     finally:
         with psycopg.connect(database_url) as db:
             db.execute("DELETE FROM crawl_jobs WHERE task_id = %s", (task_id,))
+
+
+def test_crawl_worker_uses_unique_lease_identity_per_process() -> None:
+    first = CrawlWorker("postgresql://unused", "crawl-worker-1")
+    second = CrawlWorker("postgresql://unused", "crawl-worker-1")
+
+    assert first.worker_id.startswith("crawl-worker-1:")
+    assert second.worker_id.startswith("crawl-worker-1:")
+    assert first.worker_id != second.worker_id
