@@ -157,10 +157,10 @@ fi
   -c:v mpeg4 -threads 1 -y /tmp/probe-smoke.mp4
 worker_container=$("${compose[@]}" ps -q scrapling-workflow-worker)
 "${compose[@]}" exec -T scrapling-workflow-worker mkdir -p /tmp/libretv-media-probe
-probe_smoke_host=$(mktemp)
-docker cp "$probe_container:/tmp/probe-smoke.mp4" "$probe_smoke_host"
-docker cp "$probe_smoke_host" "$worker_container:/tmp/libretv-media-probe/probe-smoke.mp4"
-rm -f "$probe_smoke_host"
+probe_smoke_dir=$(mktemp -d)
+docker cp "$probe_container:/tmp/probe-smoke.mp4" "$probe_smoke_dir/probe-smoke.mp4"
+docker cp "$probe_smoke_dir/probe-smoke.mp4" "$worker_container:/tmp/libretv-media-probe/probe-smoke.mp4"
+rm -rf "$probe_smoke_dir"
 "${compose[@]}" exec -T scrapling-workflow-worker python - <<'PY'
 from app.probe_client import probe_media_file
 
