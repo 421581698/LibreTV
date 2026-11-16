@@ -73,7 +73,7 @@ def test_expired_worker_lease_is_reclaimed_and_old_worker_is_fenced() -> None:
     try:
         assert store.create(task_id, ["https://example.com/"], "/tmp/" + task_id)
         claimed = store.claim_next(first.worker_id, lease_seconds=30)
-        assert claimed is not None and claimed["lease_owner"] == "worker-one"
+        assert claimed is not None and claimed["lease_owner"] == first.worker_id
         with psycopg.connect(database_url) as db:
             db.execute(
                 "UPDATE crawl_jobs SET lease_expires_at = NOW() - INTERVAL '1 second' "
@@ -82,7 +82,7 @@ def test_expired_worker_lease_is_reclaimed_and_old_worker_is_fenced() -> None:
             )
 
         reclaimed = store.claim_next(second.worker_id, lease_seconds=30)
-        assert reclaimed is not None and reclaimed["lease_owner"] == "worker-two"
+        assert reclaimed is not None and reclaimed["lease_owner"] == second.worker_id
         with pytest.raises(LeaseLost):
             first._fenced_result(task_id, {"url": "https://example.com/old"})
         second._fenced_result(task_id, {"url": "https://example.com/new"})
