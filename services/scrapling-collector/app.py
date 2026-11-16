@@ -67,6 +67,7 @@ class CrawlRequest(BaseModel):
     mode: str = Field(default="auto", pattern="^(auto|http|browser)$")
     limit: int = Field(default=50, ge=1, le=MAX_CANDIDATES)
     search_keyword: str = Field(default="", max_length=100)
+    batch_id: str | None = Field(default=None, pattern="^[a-f0-9]{32}$")
 
 
 class CandidateValidation(BaseModel):
@@ -95,22 +96,42 @@ def init_db() -> None:
           host TEXT PRIMARY KEY, title TEXT NOT NULL, url TEXT NOT NULL,
           directory TEXT NOT NULL, discovered_at INTEGER NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS collection_batches (
+          id TEXT PRIMARY KEY, directory_source TEXT NOT NULL DEFAULT 'FMHY',
+          target_candidates INTEGER NOT NULL DEFAULT 1000,
+          target_collected INTEGER NOT NULL DEFAULT 1000,
+          status TEXT NOT NULL DEFAULT 'queued',
+          discovered_sites INTEGER NOT NULL DEFAULT 0,
+          queued_jobs INTEGER NOT NULL DEFAULT 0,
+          candidate_count INTEGER NOT NULL DEFAULT 0,
+          collected_count INTEGER NOT NULL DEFAULT 0,
+          failure_summary TEXT NOT NULL DEFAULT '{}',
+          created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+        );
         CREATE TABLE IF NOT EXISTS tasks (
           id TEXT PRIMARY KEY, url TEXT NOT NULL, host TEXT NOT NULL,
           status TEXT NOT NULL, mode TEXT NOT NULL, created_at INTEGER NOT NULL,
-          updated_at INTEGER NOT NULL, error TEXT, result_count INTEGER NOT NULL DEFAULT 0
+          updated_at INTEGER NOT NULL, error TEXT, result_count INTEGER NOT NULL DEFAULT 0,
+          batch_id TEXT
         );
         CREATE TABLE IF NOT EXISTS candidates (
           id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
           url TEXT NOT NULL, host TEXT NOT NULL, kind TEXT NOT NULL,
           title TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'pending',
-          created_at INTEGER NOT NULL, validation TEXT
+          created_at INTEGER NOT NULL, validation TEXT, batch_id TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_candidates_task ON candidates(task_id);
         CREATE INDEX IF NOT EXISTS idx_tasks_created ON tasks(created_at DESC);
         """)
         # Forward-only, additive migrations keep existing collector volumes compatible.
+        task_columns = {row["name"] for row in connection.execute("PRAGMA table_info(tasks)").fetchall()}
+        if "batch_id" not in task_columns:
+            connection.execute("ALTER TABLE tasks ADD COLUMN batch_id TEXT")
         candidate_columns = {row["name"] for row in connection.execute("PRAGMA table_info(candidates)").fetchall()}
+        if "batch_id" not in candidate_columns:
+            connection.execute("ALTER TABLE candidates ADD COLUMN batch_id TEXT")
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_tasks_batch ON tasks(batch_id,status)")
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_candidates_batch ON candidates(batch_id,url)")
         candidate_migrations = {
             "collected_by": "TEXT NOT NULL DEFAULT '[]'",
             "access_state": "TEXT NOT NULL DEFAULT 'ACCESS_UNKNOWN'",
@@ -134,6 +155,41 @@ def init_db() -> None:
 
 
 init_db()
+
+
+def refresh_collection_batch(batch_id: str) -> dict | None:
+    with db() as connection:
+        batch = connection.execute("SELECT * FROM collection_batches WHERE id=?", (batch_id,)).fetchone()
+        if not batch:
+            return None
+        candidate_count = connection.execute(
+            "SELECT COUNT(DISTINCT lower(trim(url))) AS n FROM candidates WHERE batch_id=?", (batch_id,)
+        ).fetchone()["n"]
+        collected_count = connection.execute(
+            "SELECT COUNT(*) AS n FROM candidates WHERE batch_id=?", (batch_id,)
+        ).fetchone()["n"]
+        jobs = connection.execute(
+            "SELECT status,COUNT(*) AS n FROM collector_jobs WHERE json_extract(payload,'$.batch_id')=? GROUP BY status",
+            (batch_id,),
+        ).fetchall()
+        job_counts = {row["status"]: row["n"] for row in jobs}
+        pending = job_counts.get("queued", 0) + job_counts.get("running", 0)
+        if candidate_count >= batch["target_candidates"] and collected_count >= batch["target_collected"]:
+            status = "target_reached"
+        elif pending:
+            status = "running"
+        elif job_counts.get("failed", 0) or job_counts.get("partial", 0):
+            status = "partial"
+        else:
+            status = "exhausted"
+        connection.execute(
+            "UPDATE collection_batches SET candidate_count=?,collected_count=?,status=?,updated_at=? WHERE id=?",
+            (candidate_count, collected_count, status, int(time.time()), batch_id),
+        )
+        updated = connection.execute("SELECT * FROM collection_batches WHERE id=?", (batch_id,)).fetchone()
+    result = dict(updated)
+    result["job_counts"] = job_counts
+    return result
 
 
 def require_token(authorization: str | None) -> None:
@@ -1900,8 +1956,8 @@ def crawl_site(payload: CrawlRequest, cancel_check=None) -> dict:
     now = int(time.time())
     with db() as connection:
         connection.execute(
-            "INSERT INTO tasks(id,url,host,status,mode,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
-            (task_id, raw_url, host, "running", payload.mode, now, now),
+            "INSERT INTO tasks(id,url,host,status,mode,created_at,updated_at,batch_id) VALUES(?,?,?,?,?,?,?,?)",
+            (task_id, raw_url, host, "running", payload.mode, now, now, payload.batch_id),
         )
 
     try:
@@ -1980,14 +2036,14 @@ def crawl_site(payload: CrawlRequest, cancel_check=None) -> dict:
                 candidate_id = hashlib.sha256((task_id + item["url"]).encode()).hexdigest()[:32]
                 connection.execute(
                     """INSERT OR IGNORE INTO candidates
-                    (id,task_id,url,host,kind,title,status,created_at,collected_by,access_state,access_reason,probe_evidence,media_identity,quality_evidence)
-                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (id,task_id,url,host,kind,title,status,created_at,collected_by,access_state,access_reason,probe_evidence,media_identity,quality_evidence,batch_id)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                     (candidate_id, task_id, item["url"], item["host"], item["kind"], item.get("title", ""), "pending", now,
                      json.dumps(item.get("collected_by", []), ensure_ascii=False),
                      item.get("access_state", "ACCESS_UNKNOWN"), item.get("reason"),
                      json.dumps(item.get("probe_evidence", {}), ensure_ascii=False),
                      json.dumps(item.get("media_identity", {}), ensure_ascii=False),
-                     json.dumps(item.get("quality_evidence", {}), ensure_ascii=False)),
+                     json.dumps(item.get("quality_evidence", {}), ensure_ascii=False), payload.batch_id),
                 )
                 item["id"] = candidate_id
                 item["status"] = "pending"
@@ -1997,6 +2053,8 @@ def crawl_site(payload: CrawlRequest, cancel_check=None) -> dict:
             )
         for item in candidates[:payload.limit]:
             register_discovered_candidate(item)
+        if payload.batch_id:
+            refresh_collection_batch(payload.batch_id)
         task_status = "partial" if errors and candidates else ("failed" if errors else "completed")
         return {"task_id": task_id, "status": task_status,
                 "page_url": raw_url, "final_url": final_url, "page_title": page_title,
@@ -2070,6 +2128,40 @@ def health():
     with db() as connection:
         tasks = connection.execute("SELECT COUNT(*) AS n FROM tasks").fetchone()["n"]
     return {"ok": True, "engine": "Scrapling", "directory": "FMHY", "directory_url": FMHY_VIDEO_URL, "stored_tasks": tasks}
+
+
+@app.post("/v1/collect")
+def start_one_click_collection(authorization: str | None = Header(default=None)):
+    require_token(authorization)
+    require_egress_firewall()
+    batch_id = uuid.uuid4().hex
+    now = int(time.time())
+    with db() as connection:
+        connection.execute(
+            """INSERT INTO collection_batches(id,directory_source,target_candidates,target_collected,status,created_at,updated_at)
+               VALUES(?,'FMHY',1000,1000,'queued',?,?)""",
+            (batch_id, now, now),
+        )
+    try:
+        job = registry_store.submit_job(
+            "discover", {"search_keyword": "", "batch_id": batch_id},
+            f"fmhy-one-click:{batch_id}",
+        )
+    except Exception:
+        with db() as connection:
+            connection.execute("UPDATE collection_batches SET status='failed',updated_at=? WHERE id=?", (int(time.time()), batch_id))
+        raise
+    return {"batch_id": batch_id, "job_id": job["id"], "status": "queued",
+            "target_candidates": 1000, "target_collected": 1000, "directory": FMHY_VIDEO_URL}
+
+
+@app.get("/v1/collect/{batch_id}")
+def collection_batch_status(batch_id: str, authorization: str | None = Header(default=None)):
+    require_token(authorization)
+    batch = refresh_collection_batch(batch_id)
+    if not batch:
+        raise HTTPException(status_code=404, detail="Collection batch not found")
+    return batch
 
 
 @app.get("/v1/discover")
