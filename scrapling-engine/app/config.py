@@ -39,6 +39,22 @@ class Settings(BaseSettings):
         validation_alias="CRAWL_JOB_DATABASE_PATH",
     )
     database_url: str | None = Field(default=None, validation_alias="DATABASE_URL")
+    supervisor_api_base: str = Field(
+        default="https://api.openai.com/v1",
+        validation_alias="SUPERVISOR_API_BASE",
+    )
+    supervisor_api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias="SUPERVISOR_API_KEY",
+        min_length=1,
+    )
+    supervisor_model: str = Field(default="", validation_alias="SUPERVISOR_MODEL")
+    supervisor_timeout_seconds: float = Field(
+        default=45.0,
+        gt=0,
+        le=120,
+        validation_alias="SUPERVISOR_TIMEOUT_SECONDS",
+    )
     default_user_agent: str = (
         "LibreTV-Scrapling-Engine/0.1 "
         "(+respectful public resource discovery)"
