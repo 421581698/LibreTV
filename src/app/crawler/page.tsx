@@ -325,6 +325,35 @@ export default function CrawlerControlCenterPage() {
     }
   }
 
+  async function probeCandidate(candidateId: string) {
+    setError('');
+    setNotice('');
+    try {
+      const workflowId = `probe_${crypto.randomUUID().replaceAll('-', '').slice(0, 20)}`;
+      await api('workflows', {
+        method: 'POST',
+        body: JSON.stringify({
+          workflow_id: workflowId,
+          input: { initiated_from: 'candidate_quality_probe', candidate_id: candidateId },
+          nodes: [
+            {
+              node_id: 'bitstream',
+              node_type: 'probe_media_candidates',
+              input: { candidate_ids: [candidateId] },
+            },
+          ],
+          edges: [],
+        }),
+      });
+      const detail = await api<{ workflow: WorkflowDetail }>(`workflows/${workflowId}`);
+      setActiveWorkflow(detail.workflow);
+      setNotice('码流探测任务已提交，将通过无网络 ffprobe 沙箱执行。');
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : '码流探测任务提交失败');
+    }
+  }
+
   async function reviewCandidate(candidateId: string, decision: 'approved' | 'rejected') {
     const action = decision === 'approved' ? '批准候选' : '拒绝候选';
     if (!window.confirm(`确定要${action}吗？此操作只记录审核结论，不会发布到正式资源库。`)) {
@@ -738,6 +767,17 @@ export default function CrawlerControlCenterPage() {
                         </>
                       ) : (
                         <span className="text-xs text-slate-500">尚无报告</span>
+                      )}
+                      {candidate.media_type === 'file' && (
+                        <button
+                          type="button"
+                          onClick={() => void probeCandidate(candidate.candidate_id)}
+                          className="mt-2 rounded-lg border border-cyan-300/25 px-2.5 py-1 text-xs text-cyan-200 hover:bg-cyan-300/10"
+                        >
+                          {candidate.quality_json?.verification_level === 'local_bitstream_probe'
+                            ? '重新探测码流'
+                            : '探测真实码流'}
+                        </button>
                       )}
                     </td>
                     <td className="px-4 py-4">
