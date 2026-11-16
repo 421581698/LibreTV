@@ -122,6 +122,10 @@ async function proxy(
     'X-API-Key': engineKey,
     Accept: request.headers.get('accept') || 'application/json',
   });
+  const lastEventId = request.headers.get('last-event-id');
+  if (method === 'GET' && lastEventId && /^\\d+$/.test(lastEventId)) {
+    headers.set('Last-Event-ID', lastEventId);
+  }
   let body: string | undefined;
   if (method === 'POST') {
     const length = Number(request.headers.get('content-length') || 0);
