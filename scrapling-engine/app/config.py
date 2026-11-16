@@ -64,6 +64,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="", extra="ignore")
 
 
+def validate_egress_proxy_policy(required: bool, proxy_url: str | None) -> None:
+    if required and not proxy_url:
+        raise RuntimeError("SCRAPLING_EGRESS_PROXY is required by the crawler network policy.")
+
+
 settings = Settings()
-if settings.require_egress_proxy and not settings.egress_proxy_url:
-    raise RuntimeError("SCRAPLING_EGRESS_PROXY is required by the crawler network policy.")
+validate_egress_proxy_policy(settings.require_egress_proxy, settings.egress_proxy_url)
