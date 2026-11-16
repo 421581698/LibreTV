@@ -24,13 +24,15 @@ def test_candidate_ingestion_deduplicates_and_preserves_evidence_without_publish
             workflow_id,
             [
                 {
-                    "url": f"https://example.com/catalog/{workflow_id}#first",
+                    "url": f"https://example.com/catalog/{workflow_id}",
+                    "media_urls": [f"https://cdn.example.com/movie-{workflow_id}.m3u8#first"],
                     "title": "Example Catalogue",
                     "status": 200,
                     "text": "First observed page",
                 },
                 {
-                    "url": f"https://example.com/catalog/{workflow_id}#second",
+                    "url": f"https://example.com/catalog/{workflow_id}",
+                    "media_urls": [f"https://cdn.example.com/movie-{workflow_id}.m3u8#second"],
                     "title": "Updated title",
                     "status": 200,
                     "text": "Second observation",
@@ -45,7 +47,7 @@ def test_candidate_ingestion_deduplicates_and_preserves_evidence_without_publish
         assert candidate["status"] == "pending_review"
         assert candidate["title"] == "Example Catalogue"
         assert len(candidate["evidence"]) == 2
-        assert candidate["source_url"] == f"https://example.com/catalog/{workflow_id}"
+        assert candidate["source_url"] == f"https://cdn.example.com/movie-{workflow_id}.m3u8"
         assert any(
             item["candidate_id"] == ids[0]
             for item in store.list_candidates(status="pending_review", limit=200)
