@@ -18,6 +18,7 @@ TOKEN = os.environ.get("SCRAPLING_API_TOKEN", "").strip()
 router = APIRouter()
 TERMINAL = {"succeeded", "partial", "failed", "cancelled"}
 ACCESS_BLOCKED = {"AUTH_REQUIRED", "SUBSCRIPTION_REQUIRED", "CHALLENGE", "DRM_PROTECTED", "ENCRYPTED_STREAM"}
+SUPPORTED_JOB_TYPES = {"crawl", "discover", "batch_crawl", "rule_generate", "rule_repair"}
 
 
 @contextmanager
@@ -108,6 +109,19 @@ def event(c: sqlite3.Connection, job_id: str, name: str, detail: dict | None = N
 def validate_durable_job_payload(job_type: str, payload: dict) -> dict:
     if not isinstance(payload, dict):
         raise ValueError("Job payload must be an object")
+    if job_type in {"rule_generate", "rule_repair"}:
+        if not isinstance(payload, dict):
+            raise ValueError("AI rule jobs require an object payload")
+        host = payload.get("host")
+        sample = payload.get("page_html")
+        fixtures = payload.get("fixtures", [])
+        if not isinstance(host, str) or not host or len(host) > 253:
+            raise ValueError("AI rule jobs require a bounded hostname")
+        if not isinstance(sample, str) or not sample or len(sample.encode("utf-8")) > 256 * 1024:
+            raise ValueError("AI rule jobs require a bounded HTML sample")
+        if not isinstance(fixtures, list) or len(fixtures) > 20 or any(not isinstance(item, str) or len(item.encode("utf-8")) > 256 * 1024 for item in fixtures):
+            raise ValueError("AI rule fixtures exceed the bounded limit")
+        return payload
     if job_type != "crawl":
         return payload
     from urllib.parse import parse_qsl, urlsplit, urlunsplit
@@ -155,7 +169,7 @@ def validate_durable_job_payload(job_type: str, payload: dict) -> dict:
 
 
 def submit_job(job_type: str, payload: dict, idempotency_key: str, max_attempts: int = 4) -> dict:
-    if job_type not in {"crawl", "discover", "batch_crawl"}:
+    if job_type not in SUPPORTED_JOB_TYPES:
         raise ValueError("Unsupported job type")
     payload = validate_durable_job_payload(job_type, payload)
     if not idempotency_key or len(idempotency_key) > 200:
@@ -193,7 +207,7 @@ def submit_jobs(jobs: list[dict]) -> list[dict]:
             job_type = item.get("job_type")
             payload = item.get("payload")
             idempotency_key = item.get("idempotency_key")
-            if job_type not in {"crawl", "discover", "batch_crawl"}:
+            if job_type not in SUPPORTED_JOB_TYPES:
                 c.rollback()
                 raise ValueError("Unsupported job type")
             try:
