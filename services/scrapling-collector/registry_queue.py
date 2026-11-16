@@ -78,6 +78,13 @@ def initialize() -> None:
           id TEXT PRIMARY KEY, resource_id TEXT NOT NULL REFERENCES registry_resources(id),
           action TEXT NOT NULL, before_state TEXT NOT NULL, after_state TEXT NOT NULL, created_at INTEGER NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS registry_candidate_links (
+          candidate_id TEXT PRIMARY KEY,
+          resource_id TEXT NOT NULL REFERENCES registry_resources(id),
+          created_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_registry_candidate_links_resource
+          ON registry_candidate_links(resource_id);
         CREATE INDEX IF NOT EXISTS idx_registry_history_resource ON registry_history(resource_id,created_at DESC);
         CREATE TABLE IF NOT EXISTS collector_jobs (
           id TEXT PRIMARY KEY, idempotency_key TEXT NOT NULL UNIQUE, job_type TEXT NOT NULL,
@@ -595,7 +602,6 @@ def register_discovered_candidate(candidate: dict) -> dict | None:
     }
     try:
         return upsert_resource({
-            "resource_key": "candidate:" + str(candidate["id"]),
             "candidate_id": candidate["id"],
             "source_key": candidate.get("host") or "unknown",
             "source_name": candidate.get("host") or "Unknown source",
@@ -613,6 +619,14 @@ def register_discovered_candidate(candidate: dict) -> dict | None:
             "movie_metadata": movie_metadata if canonical_identity else {},
             "metadata": resource_metadata,
         })
+        with connect() as c:
+            c.execute(
+                """INSERT INTO registry_candidate_links(candidate_id,resource_id,created_at)
+                   VALUES(?,?,?) ON CONFLICT(candidate_id) DO UPDATE SET
+                   resource_id=excluded.resource_id""",
+                (str(candidate["id"]), resource["id"], int(time.time())),
+            )
+        return resource
     except ValueError as exc:
         if "Signed or credential-bearing URLs" in str(exc):
             # Keep ephemeral signed candidates in the candidate workflow only;
@@ -621,9 +635,27 @@ def register_discovered_candidate(candidate: dict) -> dict | None:
         raise
 
 
-def sync_candidate_validation(candidate_id: str, validation: dict, status: str) -> None:
+def _candidate_resource(candidate_id: str):
     with connect() as c:
-        row = c.execute("SELECT id FROM registry_resources WHERE resource_key=?", ("candidate:"+candidate_id,)).fetchone()
+        row = c.execute(
+            """SELECT r.id,r.validation_state,r.access_state
+               FROM registry_candidate_links l
+               JOIN registry_resources r ON r.id=l.resource_id
+               WHERE l.candidate_id=?""",
+            (candidate_id,),
+        ).fetchone()
+        if not row:
+            # Read-only compatibility for records written before candidate links existed.
+            row = c.execute(
+                """SELECT id,validation_state,access_state FROM registry_resources
+                   WHERE resource_key=? OR candidate_id=? ORDER BY updated_at DESC LIMIT 1""",
+                ("candidate:" + candidate_id, candidate_id),
+            ).fetchone()
+    return row
+
+
+def sync_candidate_validation(candidate_id: str, validation: dict, status: str) -> None:
+    row = _candidate_resource(candidate_id)
     if not row:
         return
     access = validation.get("access") or {}
@@ -648,11 +680,8 @@ def sync_candidate_validation(candidate_id: str, validation: dict, status: str) 
 def register_candidate_playback(candidate_id: str, evidence: dict) -> dict:
     # Preserve canonical title/type linkage. Older candidate rows may predate
     # registry creation, so reconstruct their resource before recording playback.
+    row = _candidate_resource(candidate_id)
     with connect() as c:
-        row = c.execute(
-            "SELECT id,validation_state,access_state FROM registry_resources WHERE resource_key=?",
-            ("candidate:" + candidate_id,),
-        ).fetchone()
         candidate = c.execute(
             "SELECT id,url,host,kind,title,status,access_state,media_identity,quality_evidence,validation FROM candidates WHERE id=?",
             (candidate_id,),
@@ -667,11 +696,7 @@ def register_candidate_playback(candidate_id: str, evidence: dict) -> dict:
             safe_json(candidate_data.get("validation")),
             candidate_data.get("status") or "pending",
         )
-        with connect() as c:
-            row = c.execute(
-                "SELECT id,validation_state,access_state FROM registry_resources WHERE resource_key=?",
-                ("candidate:" + candidate_id,),
-            ).fetchone()
+        row = _candidate_resource(candidate_id)
     if not row:
         raise KeyError(candidate_id)
     if row["validation_state"] != "validated" or row["access_state"] != "PUBLIC":
