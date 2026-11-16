@@ -170,7 +170,8 @@ services:
       SCRAPLING_API_KEY: ${SCRAPLING_API_KEY:-}
       DATABASE_URL: postgresql://libretv_scrapling:${SCRAPLING_DB_PASSWORD:-local-dev-only-change-me}@scrapling-postgres:5432/libretv_scrapling
       CRAWL_DATA_DIR: /data
-      MEDIA_PROBE_ROOT: /tmp/libretv-media-probe
+      MEDIA_PROBE_ROOT: /probe/staging
+      MEDIA_PROBE_STAGING: /probe/staging
       MEDIA_PROBE_INBOX: /probe/inbox
       MEDIA_PROBE_OUTBOX: /probe/outbox
       SUPERVISOR_API_BASE: ${SUPERVISOR_API_BASE:-https://api.openai.com/v1}
@@ -184,6 +185,7 @@ services:
       - crawler-db
     volumes:
       - scrapling-crawl-data:/data
+      - scrapling-probe-staging:/probe/staging
       - scrapling-probe-inbox:/probe/inbox
       - scrapling-probe-outbox:/probe/outbox
     depends_on:
@@ -243,14 +245,16 @@ services:
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=64m
     environment:
-      MEDIA_PROBE_ROOT: /probe/inbox
+      MEDIA_PROBE_ROOT: /probe/staging
+      MEDIA_PROBE_STAGING: /probe/staging
       MEDIA_PROBE_INBOX: /probe/inbox
       MEDIA_PROBE_OUTBOX: /probe/outbox
     volumes:
+      - scrapling-probe-staging:/probe/staging:ro
       - scrapling-probe-inbox:/probe/inbox:ro
       - scrapling-probe-outbox:/probe/outbox
     healthcheck:
-      test: ["CMD", "python", "-c", "from pathlib import Path; raise SystemExit(0 if Path('/probe/inbox').is_dir() and Path('/probe/outbox').is_dir() else 1)"]
+      test: ["CMD", "python", "-c", "from pathlib import Path; raise SystemExit(0 if Path('/probe/staging').is_dir() and Path('/probe/inbox').is_dir() and Path('/probe/outbox').is_dir() else 1)"]
       interval: 10s
       timeout: 3s
       retries: 3
@@ -258,6 +262,7 @@ services:
 volumes:
   scrapling-postgres-data:
   scrapling-crawl-data:
+  scrapling-probe-staging:
   scrapling-probe-inbox:
   scrapling-probe-outbox:
 
