@@ -101,6 +101,7 @@ class WorkflowNodeRequest(BaseModel):
         "validate_public_urls",
         "crawl_seed_urls",
         "discover_site_links",
+        "autonomous_site_discovery",
         "ai_supervisor_discover",
         "generate_extraction_rule",
         "register_candidates",
@@ -111,6 +112,15 @@ class WorkflowNodeRequest(BaseModel):
     input: dict[str, Any] = Field(default_factory=dict)
     max_attempts: int = Field(default=3, ge=1, le=5)
 
+
+class AutonomousDiscoveryRequest(BaseModel):
+    catalog_urls: list[str] = Field(min_length=1, max_length=5)
+    goal: str = Field(
+        default="Discover public movie, series and animation resources.",
+        min_length=1,
+        max_length=1000,
+    )
+    max_sites: int = Field(default=10, ge=1, le=20)
 
 class WorkflowRequest(BaseModel):
     workflow_id: str | None = Field(
@@ -380,6 +390,7 @@ async def capabilities() -> dict:
                 else "in_process_pause_resume"
             ),
             "server_side_dag_runtime" if settings.database_url else "dag_requires_postgresql",
+            "autonomous_public_site_discovery_to_pending_candidates" if settings.database_url else "autonomous_discovery_requires_postgresql",
             "workflow_node_leases_and_retries" if settings.database_url else "no_workflow_worker",
             (
                 "model_planned_discovery"
@@ -581,6 +592,51 @@ async def create_job(request: SpiderRequest) -> dict:
         return {"ok": True, "created": True, "job": job_store.get(task_id)}
 
 
+
+@app.post("/v1/autonomous/discover", status_code=202)
+async def start_autonomous_discovery(request: AutonomousDiscoveryRequest) -> dict:
+    """Start a durable autonomous discovery-to-candidate workflow."""
+    if workflow_store is None:
+        raise HTTPException(
+            status_code=501,
+            detail="Autonomous discovery requires PostgreSQL worker mode.",
+        )
+    try:
+        catalog_urls = _safe_seed_urls(request.catalog_urls)
+    except HTTPException:
+        raise
+    workflow_id = uuid.uuid4().hex
+    nodes = [
+        {
+            "node_id": "discover_sites",
+            "node_type": "autonomous_site_discovery",
+            "input": {
+                "catalog_urls": catalog_urls,
+                "goal": request.goal,
+                "max_sites": request.max_sites,
+            },
+            "max_attempts": 2,
+        }
+    ]
+    try:
+        created = workflow_store.create_workflow(workflow_id, nodes, [], {
+            "kind": "autonomous_public_site_discovery",
+            "catalog_urls": catalog_urls,
+            "goal": request.goal,
+            "max_sites": request.max_sites,
+        })
+    except WorkflowDefinitionError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if not created:
+        raise HTTPException(status_code=409, detail="Workflow ID collision; retry.")
+    return {
+        "ok": True,
+        "workflow_id": workflow_id,
+        "status": "running",
+        "catalog_count": len(catalog_urls),
+        "max_sites": request.max_sites,
+        "review_gate": "all resource candidates remain pending human review",
+    }
 
 @app.post("/v1/workflows", status_code=202)
 async def create_workflow(request: WorkflowRequest) -> dict:
