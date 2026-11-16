@@ -80,6 +80,24 @@ class RegistryQueueTests(unittest.TestCase):
             recovered = c.execute("SELECT COUNT(*) AS n FROM collector_job_events WHERE job_id=? AND event='lease_expired_recovered'", (job["id"],)).fetchone()["n"]
         self.assertEqual(recovered, 1)
 
+    def test_expired_lease_at_max_attempts_moves_to_dead_letter(self):
+        job = queue.submit_job("crawl", {"url": "https://example.org"}, "lease:dead-letter", max_attempts=1)
+        queue.claim_job("worker-a")
+        with queue.connect() as c:
+            c.execute("UPDATE collector_jobs SET lease_until=0 WHERE id=?", (job["id"],))
+        self.assertIsNone(queue.claim_job("worker-b"))
+        with queue.connect() as c:
+            row = c.execute("SELECT status,error,lease_owner FROM collector_jobs WHERE id=?", (job["id"],)).fetchone()
+            event_row = c.execute(
+                "SELECT event,detail FROM collector_job_events WHERE job_id=? ORDER BY created_at DESC,id DESC LIMIT 1",
+                (job["id"],),
+            ).fetchone()
+        self.assertEqual(row["status"], "failed")
+        self.assertEqual(row["error"], "lease_expired_max_attempts")
+        self.assertIsNone(row["lease_owner"])
+        self.assertEqual(event_row["event"], "dead_letter")
+        self.assertIn("lease_expired_max_attempts", event_row["detail"])
+
     def test_retry_backoff_then_dead_letter(self):
         job = queue.submit_job("crawl", {"url": "https://example.org"}, "retry:test", max_attempts=2)
         queue.claim_job("worker-a")
