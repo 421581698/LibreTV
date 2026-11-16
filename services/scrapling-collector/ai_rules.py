@@ -354,6 +354,20 @@ def list_diagnostics(host: str, limit: int = 50) -> list[dict]:
     } for row in rows]
 
 
+def list_rule_events(host: str, limit: int = 50) -> list[dict]:
+    limit = max(1, min(100, int(limit)))
+    with connect() as c:
+        rows = c.execute(
+            """SELECT id,host,version,action,created_at FROM collector_rule_events
+               WHERE host=? ORDER BY created_at DESC LIMIT ?""",
+            (host, limit),
+        ).fetchall()
+    return [{
+        "id": row["id"], "host": row["host"], "version": row["version"],
+        "action": row["action"], "created_at": row["created_at"],
+    } for row in rows]
+
+
 def activate_version(host: str, version: int) -> dict:
     now = int(time.time())
     with connect() as c:
@@ -481,6 +495,13 @@ def read_rule_diagnostics(host: str, authorization: str | None = Header(default=
     from registry_queue import require_auth
     require_auth(authorization)
     return {"host": _validate_host(host), "diagnostics": list_diagnostics(_validate_host(host), limit)}
+
+
+@router.get("/v1/rules/{host}/events")
+def read_rule_events(host: str, authorization: str | None = Header(default=None), limit: int = 50):
+    from registry_queue import require_auth
+    require_auth(authorization)
+    return {"host": _validate_host(host), "events": list_rule_events(_validate_host(host), limit)}
 
 
 @router.post("/v1/rules/{host}/versions/{version}/activate")
