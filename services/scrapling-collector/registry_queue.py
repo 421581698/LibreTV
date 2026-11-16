@@ -148,12 +148,14 @@ def upsert_discovered_sites(sites: list[dict], discovered_at: int | None = None)
     if not normalized:
         return 0
     with connect() as c:
+        c.execute("BEGIN IMMEDIATE")
         c.executemany(
             """INSERT INTO sites(host,title,url,directory,discovered_at) VALUES(?,?,?,?,?)
                ON CONFLICT(host) DO UPDATE SET title=excluded.title,url=excluded.url,
                directory=excluded.directory,discovered_at=excluded.discovered_at""",
             normalized,
         )
+        c.commit()
     return len(normalized)
 
 
