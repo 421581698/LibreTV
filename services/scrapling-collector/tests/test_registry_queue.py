@@ -13,12 +13,36 @@ class RegistryQueueTests(unittest.TestCase):
         self.patch = patch.object(queue, "DB_PATH", __import__("pathlib").Path(self.db))
         self.patch.start()
         queue.initialize()
-        with queue.connect() as c:
-            c.execute("CREATE TABLE IF NOT EXISTS sites (host TEXT PRIMARY KEY, title TEXT NOT NULL, url TEXT NOT NULL, directory TEXT NOT NULL, discovered_at INTEGER NOT NULL)")
 
     def tearDown(self):
         self.patch.stop()
         self.tmp.cleanup()
+
+    def test_fmhy_site_registry_is_owned_by_canonical_registry_module(self):
+        inserted = queue.upsert_discovered_sites([
+            {
+                "host": "catalog.example",
+                "title": "Catalog",
+                "url": "https://catalog.example/video",
+                "directory": "FMHY / Video",
+            },
+            {
+                "host": "private.example",
+                "title": "Private",
+                "url": "http://private.example/",
+                "directory": "FMHY / Video",
+            },
+        ], discovered_at=123)
+        self.assertEqual(inserted, 1)
+        self.assertTrue(queue.is_discovered_host("CATALOG.EXAMPLE"))
+        self.assertFalse(queue.is_discovered_host("private.example"))
+        sites = queue.list_discovered_sites(10)
+        self.assertEqual([item["host"] for item in sites], ["catalog.example"])
+        with queue.connect() as connection:
+            self.assertEqual(
+                connection.execute("SELECT COUNT(*) FROM sites").fetchone()[0],
+                1,
+            )
 
     def test_bulk_job_status_returns_bounded_status_for_live_scale_harness(self):
         job = queue.submit_job("crawl", {"url": "https://example.com"}, "bulk-status:one")
