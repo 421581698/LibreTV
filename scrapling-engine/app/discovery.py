@@ -12,6 +12,13 @@ def _origin(url: str) -> tuple[str, str, int]:
     return scheme, (parsed.hostname or "").lower().rstrip("."), port
 
 
+def is_same_origin(left: str, right: str) -> bool:
+    try:
+        return _origin(left) == _origin(right)
+    except ValueError:
+        return False
+
+
 def normalize_discovery_link(
     base_url: str,
     raw_href: str,
