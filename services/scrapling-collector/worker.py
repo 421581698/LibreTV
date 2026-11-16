@@ -10,6 +10,7 @@ from app import (
     CrawlRequest,
     crawl_site,
     discover_sites,
+    init_db,
     require_egress_firewall,
     refresh_collection_batch,
     task_candidates,
@@ -26,6 +27,7 @@ def handle(payload: dict, checkpoint, cancelled):
     if cancelled():
         raise JobCancelled()
     if payload.get("_job_type") == "discover":
+        init_db()
         require_egress_firewall()
         checkpoint({"stage": "fmhy_discovery_started"})
         sites = discover_sites()
