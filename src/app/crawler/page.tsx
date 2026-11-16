@@ -15,6 +15,19 @@ type Candidate = {
     max_bitrate_bps?: number | null;
     hdr_claim?: boolean;
     verification_level?: string;
+    is_4k_bitstream?: boolean;
+    hdr_bitstream_claim?: boolean;
+    native_4k_verified?: boolean;
+    file_size_bytes?: number;
+    duration_seconds?: number;
+    video?: {
+      width?: number;
+      height?: number;
+      codec?: string;
+      frame_rate_fps?: number;
+      bitrate_bps?: number;
+      color_transfer?: string;
+    };
   } | null;
   updated_at: string;
 };
@@ -113,6 +126,8 @@ function eventLabel(type: string): string {
     node_retry_scheduled: '节点安排重试',
     node_failed: '节点执行失败',
     workflow_control_requested: '收到控制指令',
+    workflow_paused: '工作流已暂停',
+    workflow_cancelled: '工作流已取消',
   };
   return labels[type] || type;
 }
@@ -282,8 +297,13 @@ export default function CrawlerControlCenterPage() {
       nodes.push(
         { node_id: 'candidates', node_type: 'register_candidates', input: {} },
         { node_id: 'media', node_type: 'analyze_media_candidates', input: {} },
+        { node_id: 'bitstream', node_type: 'probe_media_candidates', input: {} },
       );
-      edges.push(['crawl', 'candidates'], ['candidates', 'media']);
+      edges.push(
+        ['crawl', 'candidates'],
+        ['candidates', 'media'],
+        ['candidates', 'bitstream'],
+      );
       await api('workflows', {
         method: 'POST',
         body: JSON.stringify({
@@ -402,7 +422,7 @@ export default function CrawlerControlCenterPage() {
           {[
             { label: '运行中的工作流', value: runningCount, detail: '独立 Worker 实时执行' },
             { label: '待人工审核候选', value: pendingReviewCount, detail: '不会自动进入正式资源库' },
-            { label: '已有质量报告', value: analyzedCount, detail: 'HLS / DASH 清单分析' },
+            { label: '已有质量报告', value: analyzedCount, detail: '清单声明与媒体码流实测' },
           ].map((item) => (
             <article key={item.label} className="rounded-2xl border border-white/10 bg-white/[0.035] p-5">
               <p className="text-sm text-slate-400">{item.label}</p>
@@ -421,7 +441,7 @@ export default function CrawlerControlCenterPage() {
               <p className="text-xs font-semibold tracking-[0.2em] text-cyan-200">NEW DISCOVERY</p>
               <h2 className="mt-2 text-xl font-semibold">启动自主采集</h2>
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                输入公开网站起始地址。系统会验证地址、进行同源递归发现、提取媒体链接、建立候选并分析 HLS/DASH 清单。AI 模型已配置时，还会生成并实测一条采集规则。
+                输入公开网站起始地址。系统会验证地址、进行同源递归发现、提取媒体链接、建立候选、分析 HLS/DASH 清单，并通过无网络 ffprobe 沙箱探测直链媒体。AI 模型已配置时，还会生成并实测采集规则。
               </p>
             </div>
             <label className="block text-sm text-slate-300" htmlFor="crawler-seeds">
@@ -571,7 +591,7 @@ export default function CrawlerControlCenterPage() {
               <p className="text-xs font-semibold tracking-[0.2em] text-cyan-200">RULE INTELLIGENCE</p>
               <h2 className="mt-2 text-xl font-semibold">采集规则库</h2>
               <p className="mt-1 text-sm text-slate-400">
-                AI 生成的 CSS / XPath 规则必须先通过真实页面匹配测试，通过后自动启用并替换旧版本；管理员可随时停用或恢复。
+                AI 生成的 CSS / XPath 规则必须先通过真实页面匹配测试；测试通过后仍需管理员人工启用。已启用规则连续三次执行失败会自动停用。
               </p>
             </div>
             <span className="text-xs text-slate-500">
@@ -620,7 +640,7 @@ export default function CrawlerControlCenterPage() {
             ))}
             {!loading && rules.length === 0 && (
               <p className="px-5 py-10 text-center text-sm text-slate-500">
-                暂无采集规则。配置 SUPERVISOR_API_KEY 和 SUPERVISOR_MODEL 后，工作流会自动生成、实测并启用规则。
+                暂无采集规则。配置 SUPERVISOR_API_KEY 和 SUPERVISOR_MODEL 后，工作流可自动生成并实测规则；管理员确认后才会启用。
               </p>
             )}
           </div>
@@ -671,19 +691,49 @@ export default function CrawlerControlCenterPage() {
                     <td className="px-4 py-4">
                       {candidate.quality_json ? (
                         <>
-                          <p className="font-medium text-slate-200">
-                            {candidate.quality_json.quality_label || '待确认'}
-                          </p>
-                          <p className="mt-1 text-xs text-slate-500">
-                            {candidate.quality_json.max_height
-                              ? `${candidate.quality_json.max_height}p`
-                              : '分辨率未知'}
-                            {candidate.quality_json.hdr_claim ? ' · HDR 声明' : ''}
-                          </p>
+                          {candidate.quality_json.video ? (
+                            <>
+                              <p className="font-medium text-slate-200">
+                                {candidate.quality_json.video.width && candidate.quality_json.video.height
+                                  ? `${candidate.quality_json.video.width} × ${candidate.quality_json.video.height}`
+                                  : '分辨率未知'}
+                                {candidate.quality_json.is_4k_bitstream ? ' · 4K 码流' : ''}
+                              </p>
+                              <p className="mt-1 text-xs text-slate-500">
+                                {candidate.quality_json.video.codec || '编码未知'}
+                                {candidate.quality_json.video.frame_rate_fps
+                                  ? ` · ${candidate.quality_json.video.frame_rate_fps.toFixed(2)} fps`
+                                  : ''}
+                                {candidate.quality_json.video.bitrate_bps
+                                  ? ` · ${Math.round(candidate.quality_json.video.bitrate_bps / 1_000_000)} Mbps`
+                                  : ''}
+                              </p>
+                              <p className="mt-1 text-xs text-slate-500">
+                                {candidate.quality_json.hdr_bitstream_claim ? 'HDR 元数据声明' : '未检测到 HDR 元数据'}
+                                {candidate.quality_json.native_4k_verified
+                                  ? ' · 原生 4K 已验证'
+                                  : ' · 不代表原生 4K 母版'}
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="font-medium text-slate-200">
+                                {candidate.quality_json.quality_label || '待确认'}
+                              </p>
+                              <p className="mt-1 text-xs text-slate-500">
+                                {candidate.quality_json.max_height
+                                  ? `${candidate.quality_json.max_height}p`
+                                  : '分辨率未知'}
+                                {candidate.quality_json.hdr_claim ? ' · HDR 声明' : ''}
+                              </p>
+                            </>
+                          )}
                           <p className="mt-1 text-[10px] text-amber-300/80">
                             {candidate.quality_json.verification_level === 'manifest_claim_only'
                               ? '清单声明，非码流实测'
-                              : candidate.quality_json.verification_level || '未验证'}
+                              : candidate.quality_json.verification_level === 'local_bitstream_probe'
+                                ? '隔离 ffprobe 码流实测；不证明原生母版'
+                                : candidate.quality_json.verification_level || '未验证'}
                           </p>
                         </>
                       ) : (
