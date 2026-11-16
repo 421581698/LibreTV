@@ -147,8 +147,8 @@ jobs:
       - name: Verify real Chromium 4K continuous playback
         run: |
           docker exec \
-            -e MEDIA_ACCEPTANCE_URL="$BROWSER_MEDIA_ACCEPTANCE_URL" \
-            -e MEDIA_ACCEPTANCE_ALLOWED_HOSTS="$BROWSER_MEDIA_ACCEPTANCE_ALLOWED_HOSTS" \
+            -e BROWSER_MEDIA_ACCEPTANCE_URL="$BROWSER_MEDIA_ACCEPTANCE_URL" \
+            -e BROWSER_MEDIA_ACCEPTANCE_ALLOWED_HOSTS="$BROWSER_MEDIA_ACCEPTANCE_ALLOWED_HOSTS" \
             -e MEDIA_ACCEPTANCE_SECONDS="$MEDIA_ACCEPTANCE_SECONDS" \
             libretv-scrapling-collector python /tmp/browser_playback_acceptance.py
       - name: Verify live network crawl scale
