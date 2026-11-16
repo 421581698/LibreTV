@@ -68,6 +68,11 @@ function statusLabel(status: string): string {
     paused: '已暂停',
     cancelled: '已取消',
     cancelling: '正在取消',
+    pausing: '正在暂停',
+    paused: '已暂停',
+    cancelled: '已取消',
+    approved: '已批准',
+    rejected: '已拒绝',
   };
   return labels[status] || status;
 }
@@ -203,7 +208,27 @@ export default function CrawlerControlCenterPage() {
     }
   }
 
-  const runningCount = workflows.filter((item) => item.status === 'running').length;
+  async function controlWorkflow(action: 'pause' | 'resume' | 'cancel') {
+    if (!activeWorkflow) return;
+    const labels = { pause: '暂停', resume: '恢复', cancel: '取消' };
+    if (
+      action === 'cancel' &&
+      !window.confirm('确定取消此工作流吗？尚未执行的节点将被取消。')
+    ) return;
+    try {
+      const data = await api<{ workflow: WorkflowDetail }>(
+        `workflows/${activeWorkflow.workflow_id}/control`,
+        { method: 'POST', body: JSON.stringify({ action }) },
+      );
+      setActiveWorkflow(data.workflow);
+      setNotice(`工作流${labels[action]}指令已记录。`);
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : `工作流${labels[action]}失败`);
+    }
+  }
+
+  const runningCount = workflows.filter((item) => ['running', 'pausing', 'cancelling'].includes(item.status)).length;
   const pendingReviewCount = candidates.filter(
     (item) => item.status === 'pending_review',
   ).length;
@@ -307,7 +332,21 @@ export default function CrawlerControlCenterPage() {
               <div className="mt-4 rounded-xl border border-cyan-300/20 bg-cyan-300/[0.06] p-4">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-sm font-medium">当前工作流</span>
-                  <span className="text-xs text-cyan-200">{statusLabel(activeWorkflow.status)}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-cyan-200">{statusLabel(activeWorkflow.status)}</span>
+                    {activeWorkflow.status === 'running' && (
+                      <>
+                        <button type="button" onClick={() => void controlWorkflow('pause')} className="rounded-lg border border-white/15 px-2 py-1 text-xs text-slate-300 hover:bg-white/5">暂停</button>
+                        <button type="button" onClick={() => void controlWorkflow('cancel')} className="rounded-lg border border-rose-300/25 px-2 py-1 text-xs text-rose-200 hover:bg-rose-300/10">取消</button>
+                      </>
+                    )}
+                    {activeWorkflow.status === 'paused' && (
+                      <>
+                        <button type="button" onClick={() => void controlWorkflow('resume')} className="rounded-lg border border-cyan-300/30 px-2 py-1 text-xs text-cyan-200 hover:bg-cyan-300/10">恢复</button>
+                        <button type="button" onClick={() => void controlWorkflow('cancel')} className="rounded-lg border border-rose-300/25 px-2 py-1 text-xs text-rose-200 hover:bg-rose-300/10">取消</button>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <p className="mt-2 break-all font-mono text-xs text-slate-400">
                   {activeWorkflow.workflow_id}
