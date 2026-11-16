@@ -76,11 +76,12 @@ class _SafeHTMLSample(HTMLParser):
     def handle_starttag(self, tag, attrs):
         tag = tag.lower()
         if self.skip:
-            if tag in self.OMIT:
+            if tag in self.OMIT and tag not in self.VOID:
                 self.skip += 1
             return
         if tag in self.OMIT:
-            self.skip = 1
+            if tag not in self.VOID:
+                self.skip = 1
             return
         safe_attrs = []
         values = dict(attrs)
@@ -99,7 +100,7 @@ class _SafeHTMLSample(HTMLParser):
     def handle_endtag(self, tag):
         tag = tag.lower()
         if self.skip:
-            if tag in self.OMIT:
+            if tag in self.OMIT and tag not in self.VOID:
                 self.skip = max(0, self.skip - 1)
             return
         if tag not in self.VOID:
