@@ -14,11 +14,15 @@ COPY app ./app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ffmpeg \
     && rm -rf /var/lib/apt/lists/* \
-    && mkdir -p /tmp/libretv-media-probe \
+    && groupadd --gid 10001 libretv \
+    && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin libretv \
+    && mkdir -p /tmp/libretv-media-probe /data \
+    && chown -R 10001:10001 /tmp/libretv-media-probe /data \
     && chmod 700 /tmp/libretv-media-probe \
     && pip install --upgrade pip \
     && pip install .
 
+USER 10001:10001
 EXPOSE 8787
 # HOST and PORT are shared with app.config; a non-loopback bind requires SCRAPLING_API_KEY.
 CMD ["sh", "-c", "uvicorn app.main:app --host \"$HOST\" --port \"$PORT\""]
