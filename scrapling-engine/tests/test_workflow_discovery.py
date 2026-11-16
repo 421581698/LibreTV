@@ -195,3 +195,54 @@ async def test_discovery_applies_only_explicitly_active_origin_rules(
             "auto_disabled": False,
         }
     ]
+
+
+@pytest.mark.asyncio
+async def test_autonomous_discovery_finds_public_sites_and_registers_candidates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    catalog = "https://93.184.216.34/catalog"
+    page = _Page(
+        catalog,
+        [
+            "https://93.184.216.35/",
+            "https://93.184.216.36/watch",
+            "http://169.254.169.254/latest/meta-data/",
+            "javascript:alert(1)",
+        ],
+    )
+    monkeypatch.setattr("app.workflow_worker.ensure_robots_allowed", lambda *_a, **_k: None)
+    monkeypatch.setattr("app.workflow_worker.ScraplingAdapter.fetch_page", lambda *_a, **_k: page)
+
+    worker = WorkflowWorker("postgresql://unused", "test-worker")
+    async def discover(payload: dict[str, object]) -> dict[str, object]:
+        url = payload["urls"][0]
+        return {
+            "count": 1,
+            "errors": [],
+            "items": [{"url": url, "title": "Public film", "media_urls": ["https://93.184.216.35/movie.m3u8"]}],
+        }
+
+    async def generate(payload: dict[str, object]) -> dict[str, object]:
+        return {"rule_id": "tested-rule", "rule_status": "tested", "test_passed": True}
+
+    async def register(payload: dict[str, object]) -> dict[str, object]:
+        assert payload["_workflow_id"] == "workflow-test"
+        return {"candidate_ids": ["candidate-1"], "count": 1}
+
+    monkeypatch.setattr(worker, "_ai_supervisor_discover", discover)
+    monkeypatch.setattr(worker, "_generate_extraction_rule", generate)
+    monkeypatch.setattr(worker, "_register_candidates", register)
+
+    result = await worker._autonomous_site_discovery({
+        "catalog_urls": [catalog],
+        "max_sites": 5,
+        "_workflow_id": "workflow-test",
+    })
+
+    assert result["discovered_site_count"] == 2
+    assert result["scanned_site_count"] == 2
+    assert result["candidate_count"] == 2
+    assert result["review_gate"].startswith("resources_remain_pending_human_review")
+    assert all(site["status"] == "candidates_registered" for site in result["sites"])
+    assert all(site["review_status"] == "candidate_only" for site in result["sites"])
