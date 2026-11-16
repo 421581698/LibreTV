@@ -31,7 +31,7 @@ def fetch_real_sample() -> tuple[str, str]:
         if item.strip()
     }
     if host not in allowed:
-        raise SystemExit("FAIL: AI acceptance target host is not in COLLECTOR_AI_ALLOWED_HOSTS")
+        raise SystemExit("FAIL: AI acceptance target host is not in AI_RULE_ACCEPTANCE_ALLOWED_HOSTS")
 
     current = normalized
     response_body = b""
