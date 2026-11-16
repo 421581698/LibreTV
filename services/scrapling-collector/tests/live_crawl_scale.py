@@ -100,6 +100,7 @@ def main():
         time.sleep(5)
     completed = [item for item in results if item.get("status") in {"succeeded", "partial"}]
     failed = [item for item in results if item.get("status") in {"failed", "cancelled"}]
+    terminal_count = sum(1 for item in results if item.get("status") in terminal)
     pages = candidates = 0
     for item in completed:
         try:
@@ -111,11 +112,11 @@ def main():
         candidates += int(result.get("count") or result.get("candidate_count") or 0)
     report = {
         "target_jobs": args.target, "submitted_jobs": len(jobs),
-        "terminal_jobs": len(results), "successful_or_partial_jobs": len(completed),
-        "failed_or_cancelled_jobs": len(failed), "unfinished_jobs": len(jobs) - len(results),
+        "terminal_jobs": terminal_count, "successful_or_partial_jobs": len(completed),
+        "failed_or_cancelled_jobs": len(failed), "unfinished_jobs": len(jobs) - terminal_count,
         "observed_pages_visited": pages, "observed_candidates": candidates,
         "success_rate": round(len(completed) / len(jobs), 4) if jobs else 0,
-        "status": "passed" if len(results) == len(jobs) and not failed else "incomplete_or_failed",
+        "status": "passed" if terminal_count == len(jobs) and len(results) == len(jobs) and not failed else "incomplete_or_failed",
     }
     print(json.dumps(report, ensure_ascii=False, indent=2))
     if report["status"] != "passed":
