@@ -3,10 +3,12 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
+import os
 import socket
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import asdict
+from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin, urlsplit
 
@@ -14,6 +16,7 @@ from app.candidate_store import PostgresCandidateStore
 from app.config import settings
 from app.discovery import extract_discovery_links, is_same_origin
 from app.media_analyzer import analyze_hls_manifest, analyze_mpd_manifest
+from app.media_downloader import download_candidate_media
 from app.probe_client import probe_media_file
 from app.robots import ensure_robots_allowed
 from app.rule_store import PostgresRuleStore
@@ -55,6 +58,7 @@ class WorkflowWorker:
             "generate_extraction_rule": self._generate_extraction_rule,
             "register_candidates": self._register_candidates,
             "probe_local_media_file": self._probe_local_media_file,
+            "probe_media_candidates": self._probe_media_candidates,
             "analyze_media_manifest": self._analyze_media_manifest,
             "analyze_media_candidates": self._analyze_media_candidates,
         }
@@ -432,6 +436,87 @@ class WorkflowWorker:
             "verification_level": report["verification_level"],
             "report": report,
         }
+
+    async def _probe_media_candidates(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Download bounded direct-media candidates and inspect them in the no-network sidecar."""
+        candidate_ids = payload.get("candidate_ids")
+        if not isinstance(candidate_ids, list) or not candidate_ids or len(candidate_ids) > 5:
+            raise ValueError("probe_media_candidates requires 1 to 5 candidate IDs")
+        timeout_seconds = payload.get("timeout_seconds", 20)
+        if (
+            not isinstance(timeout_seconds, int)
+            or isinstance(timeout_seconds, bool)
+            or not 1 <= timeout_seconds <= 60
+        ):
+            raise ValueError("timeout_seconds must be an integer from 1 to 60")
+
+        staging = Path(os.environ.get("MEDIA_PROBE_STAGING", "/tmp/libretv-media-probe"))
+        reports: list[dict[str, Any]] = []
+        for candidate_id in dict.fromkeys(candidate_ids):
+            if not isinstance(candidate_id, str) or not candidate_id:
+                reports.append({"candidate_id": str(candidate_id)[:128], "status": "invalid_id"})
+                continue
+            candidate = await asyncio.to_thread(self.candidates.get_candidate, candidate_id)
+            if candidate is None:
+                reports.append({"candidate_id": candidate_id, "status": "not_found"})
+                continue
+            if candidate.get("media_type") != "file":
+                reports.append(
+                    {
+                        "candidate_id": candidate_id,
+                        "status": "manifest_candidate",
+                        "verification_level": "manifest_analysis_required",
+                    }
+                )
+                continue
+
+            staged_path: Path | None = None
+            try:
+                media_url = validate_public_http_url(candidate["media_url"])
+                staged_path = await download_candidate_media(
+                    media_url,
+                    staging,
+                    proxy=settings.egress_proxy_url,
+                )
+                report = await asyncio.to_thread(
+                    probe_media_file,
+                    staged_path,
+                    timeout_seconds=timeout_seconds,
+                )
+                saved = await asyncio.to_thread(
+                    self.candidates.save_quality_report,
+                    candidate_id,
+                    report,
+                )
+                reports.append(
+                    {
+                        "candidate_id": candidate_id,
+                        "status": "probed" if saved else "not_found",
+                        "width": report["video"]["width"],
+                        "height": report["video"]["height"],
+                        "is_4k_bitstream": report["is_4k_bitstream"],
+                        "hdr_bitstream_claim": report["hdr_bitstream_claim"],
+                        "native_4k_verified": False,
+                        "verification_level": report["verification_level"],
+                    }
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Media candidate probe failed for %s: %s",
+                    candidate_id,
+                    type(exc).__name__,
+                )
+                reports.append(
+                    {
+                        "candidate_id": candidate_id,
+                        "status": "failed",
+                        "error": type(exc).__name__,
+                    }
+                )
+            finally:
+                if staged_path is not None:
+                    staged_path.unlink(missing_ok=True)
+        return {"count": len(reports), "reports": reports}
 
     async def _analyze_media_manifest(
         self,
