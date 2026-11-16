@@ -12,7 +12,7 @@ compose=(docker compose --profile crawler)
 cleanup() {
   status=$?
   if [[ "$status" -ne 0 ]]; then
-    "${compose[@]}" logs --no-color --tail=100 scrapling-egress-proxy scrapling-workflow-worker scrapling-media-probe || true
+    "${compose[@]}" logs --no-color --tail=100 scrapling-engine scrapling-job-worker scrapling-egress-proxy scrapling-workflow-worker scrapling-media-probe || true
   fi
   "${compose[@]}" down --volumes --remove-orphans
 }
