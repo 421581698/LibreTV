@@ -459,8 +459,9 @@ def register_discovered_candidate(candidate: dict) -> dict | None:
         },
         "quality_evidence": quality,
     }
-    return upsert_resource({
-        "resource_key": "candidate:" + str(candidate["id"]),
+    try:
+        return upsert_resource({
+            "resource_key": "candidate:" + str(candidate["id"]),
         "candidate_id": candidate["id"],
         "source_key": candidate.get("host") or "unknown",
         "source_name": candidate.get("host") or "Unknown source",
@@ -476,8 +477,14 @@ def register_discovered_candidate(candidate: dict) -> dict | None:
         "season": identity.get("season_hint") if episode_external_key else None,
         "episode": identity.get("episode_hint") if episode_external_key else None,
         "movie_metadata": movie_metadata if canonical_identity else {},
-        "metadata": resource_metadata,
-    })
+            "metadata": resource_metadata,
+        })
+    except ValueError as exc:
+        if "Signed or credential-bearing URLs" in str(exc):
+            # Keep ephemeral signed candidates in the candidate workflow only;
+            # they are not durable, reusable Registry resources.
+            return None
+        raise
 
 
 def sync_candidate_validation(candidate_id: str, validation: dict, status: str) -> None:
