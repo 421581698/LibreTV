@@ -418,8 +418,10 @@ async def capabilities() -> dict:
         "planned": [
             "dynamic_browser",
             "stealth_browser",
-            "model_driven_extraction_rule_generation",
-            "extraction_rule_testing_and_self_repair",
+            "automatic_extraction_rule_self_repair",
+            "rule_rollback",
+            "dynamic_browser_rendering",
+            "network_api_capture",
             "unrestricted_cross_origin_discovery",
             "network_api_capture",
             "mcp_agent_integration",
