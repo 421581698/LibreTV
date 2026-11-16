@@ -32,6 +32,10 @@ def test_candidate_and_rule_approval_routes_require_api_key(monkeypatch) -> None
             "/v1/rules/rule-123/disable",
             {"reviewer_id": "reviewer", "note": "disabled"},
         ),
+        (
+            "/v1/autonomous/discover",
+            {"catalog_urls": ["https://example.com/directory"], "max_sites": 2},
+        ),
     ]
 
     for path, payload in protected_routes:
@@ -51,11 +55,11 @@ def test_candidate_and_rule_approval_routes_require_api_key(monkeypatch) -> None
         # then return 404/409/501 depending on the configured test database.
         assert authorized.status_code != 401
 
-def test_health_reports_phase_one() -> None:
+def test_health_reports_phase_two() -> None:
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json()["engine"] == "scrapling"
-    assert response.json()["phase"] == "1"
+    assert response.json()["phase"] == "2"
 
 
 def test_capabilities_distinguish_planned_features() -> None:
@@ -334,3 +338,17 @@ def test_workflow_schema_exposes_isolated_media_probe_node() -> None:
         input={"local_path": "/tmp/libretv-media-probe/movie.mp4"},
     )
     assert node.node_type == "probe_local_media_file"
+
+
+def test_workflow_schema_accepts_autonomous_discovery_and_media_probe_nodes() -> None:
+    autonomous = WorkflowNodeRequest(
+        node_id="discover-sites",
+        node_type="autonomous_site_discovery",
+        input={"catalog_urls": ["https://example.com/directory"]},
+    )
+    probe = WorkflowNodeRequest(
+        node_id="probe-media",
+        node_type="probe_media_candidates",
+    )
+    assert autonomous.node_type == "autonomous_site_discovery"
+    assert probe.node_type == "probe_media_candidates"
