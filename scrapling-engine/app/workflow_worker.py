@@ -6,9 +6,9 @@ import logging
 import socket
 import uuid
 from collections.abc import Awaitable, Callable
-from urllib.parse import urljoin
 from dataclasses import asdict
 from typing import Any
+from urllib.parse import urljoin, urlsplit
 
 from app.candidate_store import PostgresCandidateStore
 from app.config import settings
