@@ -40,6 +40,8 @@ jobs:
       COLLECTOR_AI_ALLOWED_HOSTS: ${{ secrets.COLLECTOR_AI_ALLOWED_HOSTS }}
       MEDIA_ACCEPTANCE_URL: ${{ secrets.MEDIA_ACCEPTANCE_URL }}
       MEDIA_ACCEPTANCE_ALLOWED_HOSTS: ${{ secrets.MEDIA_ACCEPTANCE_ALLOWED_HOSTS }}
+      BROWSER_MEDIA_ACCEPTANCE_URL: ${{ secrets.BROWSER_MEDIA_ACCEPTANCE_URL }}
+      BROWSER_MEDIA_ACCEPTANCE_ALLOWED_HOSTS: ${{ secrets.BROWSER_MEDIA_ACCEPTANCE_ALLOWED_HOSTS }}
       MEDIA_ACCEPTANCE_SECONDS: ${{ inputs.media_seconds }}
       LIVE_CRAWL_ALLOWED_HOSTS: ${{ secrets.LIVE_CRAWL_ALLOWED_HOSTS }}
       LIVE_CRAWL_URLS: ${{ secrets.LIVE_CRAWL_URLS }}
@@ -54,6 +56,8 @@ jobs:
           test -n "$SCRAPLING_API_TOKEN"
           test -n "$MEDIA_ACCEPTANCE_URL"
           test -n "$MEDIA_ACCEPTANCE_ALLOWED_HOSTS"
+          test -n "$BROWSER_MEDIA_ACCEPTANCE_URL"
+          test -n "$BROWSER_MEDIA_ACCEPTANCE_ALLOWED_HOSTS"
           test -n "$LIVE_CRAWL_ALLOWED_HOSTS"
           test -n "$LIVE_CRAWL_URLS"
           test -n "$COLLECTOR_AI_GATEWAY_URL"
@@ -68,6 +72,7 @@ jobs:
         run: |
           docker cp services/scrapling-collector/tests/ai_rules_acceptance.py libretv-scrapling-collector:/tmp/ai_rules_acceptance.py
           docker cp services/scrapling-collector/tests/media_acceptance.py libretv-scrapling-collector:/tmp/media_acceptance.py
+          docker cp services/scrapling-collector/tests/browser_playback_acceptance.py libretv-scrapling-collector:/tmp/browser_playback_acceptance.py
           docker cp services/scrapling-collector/tests/live_crawl_scale.py libretv-scrapling-collector:/tmp/live_crawl_scale.py
           printf '%s' "$LIVE_CRAWL_URLS" > /tmp/collector-approved-live-urls.txt
           docker cp /tmp/collector-approved-live-urls.txt libretv-scrapling-collector:/tmp/approved-live-urls.txt
@@ -83,6 +88,13 @@ jobs:
             -e MEDIA_ACCEPTANCE_ALLOWED_HOSTS="$MEDIA_ACCEPTANCE_ALLOWED_HOSTS" \
             -e MEDIA_ACCEPTANCE_SECONDS="$MEDIA_ACCEPTANCE_SECONDS" \
             libretv-scrapling-collector python /tmp/media_acceptance.py
+      - name: Verify real Chromium 4K continuous playback
+        run: |
+          docker exec \
+            -e MEDIA_ACCEPTANCE_URL="$BROWSER_MEDIA_ACCEPTANCE_URL" \
+            -e MEDIA_ACCEPTANCE_ALLOWED_HOSTS="$BROWSER_MEDIA_ACCEPTANCE_ALLOWED_HOSTS" \
+            -e MEDIA_ACCEPTANCE_SECONDS="$MEDIA_ACCEPTANCE_SECONDS" \
+            libretv-scrapling-collector python /tmp/browser_playback_acceptance.py
       - name: Verify live network crawl scale
         run: |
           docker exec \
