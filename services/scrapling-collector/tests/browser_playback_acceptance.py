@@ -12,8 +12,8 @@ import ipaddress
 
 
 def main():
-    url = os.environ.get("MEDIA_ACCEPTANCE_URL", "").strip()
-    allowed = {x.strip().lower() for x in os.environ.get("MEDIA_ACCEPTANCE_ALLOWED_HOSTS", "").split(",") if x.strip()}
+    url = os.environ.get("BROWSER_MEDIA_ACCEPTANCE_URL", "").strip()
+    allowed = {x.strip().lower() for x in os.environ.get("BROWSER_MEDIA_ACCEPTANCE_ALLOWED_HOSTS", "").split(",") if x.strip()}
     parsed = urlparse(url)
     if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.hostname.lower().rstrip(".") not in allowed or parsed.port not in (None, 443):
         raise SystemExit("FAIL: browser media fixture must be an allowlisted HTTPS URL")
