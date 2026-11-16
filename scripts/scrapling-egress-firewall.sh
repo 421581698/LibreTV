@@ -118,7 +118,7 @@ if [[ ! "$SCRAPLING_API_PORT" =~ ^[0-9]{1,5}$ ]] || (( SCRAPLING_API_PORT < 1 ||
   exit 1
 fi
 BOOT_ID="$(cat /proc/sys/kernel/random/boot_id)"
-MARKER_TMP="$MARKER_FILE.tmp"
+MARKER_TMP="$MARKER_FILE.tmp.${BASHPID}"
 printf '{"policy_version":1,"boot_id":"%s","collector_cidr":"%s","app_ip":"%s","api_ip":"%s","api_port":"%s","installed_at":"%s"}\n' \
   "$BOOT_ID" "$COLLECTOR_CIDR" "$LIBRETV_APP_IP" "$SCRAPLING_API_IP" "$SCRAPLING_API_PORT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$MARKER_TMP"
 chmod 0644 "$MARKER_TMP"
