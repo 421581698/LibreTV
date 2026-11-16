@@ -66,7 +66,7 @@ def initialize(connection=None):
 
 class _SafeHTMLSample(HTMLParser):
     OMIT = {"script", "style", "noscript", "form", "input", "button", "textarea", "select", "option", "iframe"}
-    VOID = {"area", "base", "br", "col", "embed", "hr", "img", "link", "meta", "param", "source", "track", "wbr"}
+    VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
