@@ -341,7 +341,8 @@ def main():
         run_worker(args.worker_id, handle, once=True)
         return
 
-    threading.Thread(target=daily_scheduler, name="daily-fmhy-scheduler", daemon=True).start()
+    if os.environ.get("COLLECTOR_DAILY_SCHEDULER_ENABLED", "true").strip().lower() not in {"0", "false", "no", "off"}:
+        threading.Thread(target=daily_scheduler, name="daily-fmhy-scheduler", daemon=True).start()
     try:
         concurrency = max(1, min(8, int(os.environ.get("COLLECTOR_WORKER_CONCURRENCY", "1"))))
     except ValueError:
