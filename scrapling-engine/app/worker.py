@@ -41,7 +41,8 @@ class CrawlWorker:
         if poll_seconds <= 0:
             raise ValueError("poll_seconds must be positive")
         self.database_url = database_url
-        self.worker_id = worker_id
+        # A stable Compose service name is not a safe lease owner across restarts.
+        self.worker_id = f"{worker_id}:{uuid.uuid4().hex}"
         self.lease_seconds = lease_seconds
         self.poll_seconds = poll_seconds
         self.store = PostgresJobStore(database_url)
