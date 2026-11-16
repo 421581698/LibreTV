@@ -158,12 +158,14 @@ def claim_job(worker_id: str, lease_seconds: int = 90) -> dict | None:
 
 def checkpoint_job(job_id: str, worker_id: str, checkpoint: dict) -> bool:
     with connect() as c:
+        c.execute("BEGIN IMMEDIATE")
         now = int(time.time())
         cur = c.execute("""UPDATE collector_jobs SET checkpoint=?,updated_at=?,lease_until=?
           WHERE id=? AND status='running' AND lease_owner=?""",
           (json.dumps(checkpoint,ensure_ascii=False),now,now+900,job_id,worker_id))
         if cur.rowcount:
             event(c,job_id,"checkpoint",checkpoint)
+        c.commit()
         return cur.rowcount == 1
 
 
@@ -171,11 +173,13 @@ def finish_job(job_id: str, worker_id: str, result: dict | None = None) -> bool:
     result = result or {}
     outcome = result.get("status") if result.get("status") in {"partial", "failed"} else "succeeded"
     with connect() as c:
+        c.execute("BEGIN IMMEDIATE")
         cur = c.execute("""UPDATE collector_jobs SET status=?,result=?,lease_owner=NULL,
           lease_until=NULL,error=?,updated_at=? WHERE id=? AND status='running' AND lease_owner=?""",
           (outcome,json.dumps(result,ensure_ascii=False),result.get("error"),int(time.time()),job_id,worker_id))
         if cur.rowcount:
             event(c,job_id,outcome,{})
+        c.commit()
         return cur.rowcount == 1
 
 
@@ -205,19 +209,23 @@ def fail_job(job_id: str, worker_id: str, error: str, retryable: bool = True) ->
 def retry_job(job_id: str) -> bool:
     now = int(time.time())
     with connect() as c:
+        c.execute("BEGIN IMMEDIATE")
         cur = c.execute("""UPDATE collector_jobs SET status='queued',attempt=0,available_at=?,lease_owner=NULL,
           lease_until=NULL,error=NULL,result=NULL,cancelled_at=NULL,updated_at=?
           WHERE id=? AND status IN ('failed','partial')""", (now,now,job_id))
         if cur.rowcount:
             event(c,job_id,"manual_retry",{})
+        c.commit()
         return cur.rowcount == 1
 
 
 def cancel_job(job_id: str) -> bool:
     now = int(time.time())
     with connect() as c:
+        c.execute("BEGIN IMMEDIATE")
         row = c.execute("SELECT status FROM collector_jobs WHERE id=?", (job_id,)).fetchone()
         if not row or row["status"] not in {"queued", "running"}:
+            c.commit()
             return False
         target = "cancelled" if row["status"] == "queued" else "cancel_requested"
         cur = c.execute("""UPDATE collector_jobs SET status=?,cancelled_at=?,lease_owner=CASE WHEN ?='cancelled' THEN NULL ELSE lease_owner END,
@@ -225,6 +233,7 @@ def cancel_job(job_id: str) -> bool:
           (target,now,target,target,now,job_id,row["status"]))
         if cur.rowcount:
             event(c,job_id,"cancelled" if target == "cancelled" else "cancel_requested",{})
+        c.commit()
         return cur.rowcount == 1
 
 
@@ -237,10 +246,12 @@ def job_cancelled(job_id: str) -> bool:
 def mark_cancelled(job_id: str, worker_id: str) -> bool:
     now = int(time.time())
     with connect() as c:
+        c.execute("BEGIN IMMEDIATE")
         cur = c.execute("""UPDATE collector_jobs SET status='cancelled',lease_owner=NULL,lease_until=NULL,updated_at=?
           WHERE id=? AND lease_owner=? AND status IN ('running','cancel_requested')""", (now,job_id,worker_id))
         if cur.rowcount:
             event(c,job_id,"cancelled",{})
+        c.commit()
         return cur.rowcount == 1
 
 
