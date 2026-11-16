@@ -91,6 +91,7 @@ class WorkflowNodeRequest(BaseModel):
         "crawl_seed_urls",
         "discover_site_links",
         "ai_supervisor_discover",
+        "generate_extraction_rule",
         "register_candidates",
         "analyze_media_manifest",
         "analyze_media_candidates",
