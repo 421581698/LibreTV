@@ -80,6 +80,7 @@ class WorkflowNodeRequest(BaseModel):
         "crawl_seed_urls",
         "register_candidates",
         "analyze_media_manifest",
+        "analyze_media_candidates",
     ]
     input: dict[str, Any] = Field(default_factory=dict)
     max_attempts: int = Field(default=3, ge=1, le=5)
