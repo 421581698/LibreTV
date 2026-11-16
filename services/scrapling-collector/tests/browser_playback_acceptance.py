@@ -59,7 +59,7 @@ def main():
 
         page.route("**/*", enforce_media_host_allowlist)
         page.set_content('<video id="acceptance-video" muted autoplay playsinline controls></video>')
-        page.locator("#acceptance-video").evaluate("(video, url) => { video.src = url; video.load(); }", url)
+        page.locator("#acceptance-video").evaluate("(video, url) => { video.loop = true; video.src = url; video.load(); }", url)
         page.wait_for_function(
             "() => { const v=document.querySelector('#acceptance-video'); return v && v.readyState >= 2 && v.videoWidth > 0; }",
             timeout=90000,
@@ -73,11 +73,16 @@ def main():
         page.locator("#acceptance-video").evaluate("v => v.play()")
         start = time.monotonic()
         initial = page.locator("#acceptance-video").evaluate(
-            "v => ({time:v.currentTime,frames:(v.getVideoPlaybackQuality ? v.getVideoPlaybackQuality().totalVideoFrames : 0)})"
+            "v => ({time:v.currentTime,duration:v.duration,frames:(v.getVideoPlaybackQuality ? v.getVideoPlaybackQuality().totalVideoFrames : 0)})"
         )
         start_time = initial["time"]
+        media_duration = initial["duration"]
+        if not media_duration or media_duration <= 0:
+            browser.close()
+            raise SystemExit("FAIL: browser media fixture has no finite duration")
         initial_frames = initial["frames"]
         last_time = start_time
+        progressed_total = 0.0
         last_progress = time.monotonic()
         stalls = 0
         paused_samples = 0
@@ -88,7 +93,13 @@ def main():
             )
             if state["paused"] and not state["ended"]:
                 paused_samples += 1
-            if state["time"] > last_time + 0.05:
+            if state["time"] >= last_time:
+                step_progress = state["time"] - last_time
+            else:
+                # The short CC0 fixture loops to provide a full-duration playback test.
+                step_progress = (media_duration - last_time) + state["time"]
+            if step_progress > 0.01:
+                progressed_total += step_progress
                 last_time = state["time"]
                 last_progress = time.monotonic()
             elif time.monotonic() - last_progress > 5:
@@ -101,7 +112,7 @@ def main():
         )
         browser.close()
 
-    progressed = final["time"] - start_time
+    progressed = progressed_total
     decoded_frame_delta = final["frames"] - initial_frames
     if (
         progressed < duration * 0.9
@@ -118,6 +129,7 @@ def main():
             "paused_samples": paused_samples,
             "ended": final["ended"],
             "final_time": round(final["time"], 2),
+            "fixture_duration_seconds": round(media_duration, 2),
             "dimensions": [final["width"], final["height"]],
         }
         raise SystemExit(
@@ -134,6 +146,8 @@ def main():
         "stall_windows": stalls,
         "paused_samples": paused_samples,
         "acceptance_seconds": duration,
+        "fixture_duration_seconds": round(media_duration, 2),
+        "looped_fixture": True,
         "evidence": "Chromium HTMLVideoElement decoded dimensions, presented frames and sustained currentTime progression",
     }, ensure_ascii=False, indent=2))
 
