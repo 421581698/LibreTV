@@ -36,7 +36,7 @@ class RenderDeploymentConfigTests(unittest.TestCase):
     def test_compose_api_and_worker_are_separate_processes(self):
         compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
         api_block = compose.split("  scrapling-collector:", 1)[1].split("  scrapling-worker:", 1)[0]
-        worker_block = compose.split("  scrapling-worker:", 1)[1].split("\\nvolumes:", 1)[0]
+        worker_block = compose.split("  scrapling-worker:", 1)[1].split("\nvolumes:", 1)[0]
         self.assertIn('command: ["python", "-m", "uvicorn", "app:app"', api_block)
         self.assertNotIn('command: ["python", "worker.py"]', api_block)
         self.assertIn('command: ["python", "worker.py"]', worker_block)
