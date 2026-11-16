@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
+from app.candidate_store import PostgresCandidateStore
 from app.config import settings, validate_bind_security
 from app.job_store import JobStore
 from app.postgres_job_store import PostgresJobStore
@@ -47,8 +48,13 @@ job_store.initialize()
 workflow_store = (
     PostgresWorkflowStore(settings.database_url) if settings.database_url else None
 )
+candidate_store = (
+    PostgresCandidateStore(settings.database_url) if settings.database_url else None
+)
 if workflow_store is not None:
     workflow_store.initialize()
+if candidate_store is not None:
+    candidate_store.initialize()
 if not settings.database_url:
     job_store.recover_interrupted()
 _active_spiders: dict[str, Any] = {}
@@ -531,6 +537,31 @@ async def create_workflow(request: WorkflowRequest) -> dict:
         "status": "running",
         "node_count": len(nodes),
     }
+
+
+
+@app.get("/v1/candidates")
+async def list_candidates(status: str | None = None, limit: int = 50) -> dict:
+    if candidate_store is None:
+        raise HTTPException(
+            status_code=501,
+            detail="Resource candidates require PostgreSQL mode.",
+        )
+    candidates = candidate_store.list_candidates(status=status, limit=limit)
+    return {"ok": True, "count": len(candidates), "candidates": candidates}
+
+
+@app.get("/v1/candidates/{candidate_id}")
+async def get_candidate(candidate_id: str) -> dict:
+    if candidate_store is None:
+        raise HTTPException(
+            status_code=501,
+            detail="Resource candidates require PostgreSQL mode.",
+        )
+    candidate = candidate_store.get_candidate(candidate_id)
+    if candidate is None:
+        raise HTTPException(status_code=404, detail="Resource candidate not found.")
+    return {"ok": True, "candidate": candidate}
 
 
 @app.get("/v1/workflows/{workflow_id}")
