@@ -9,6 +9,8 @@ from urllib.parse import urlsplit, urlunsplit
 import psycopg
 from psycopg.rows import dict_row
 
+from app.security import UnsafeTargetError, validate_public_http_url
+
 
 def _now() -> datetime:
     return datetime.now(UTC)
@@ -81,9 +83,12 @@ class PostgresCandidateStore:
         with psycopg.connect(self.database_url, row_factory=dict_row) as db:
             for item in items:
                 raw_url = item.get("url")
-                if not isinstance(raw_url, str) or not raw_url.startswith(("http://", "https://")):
+                if not isinstance(raw_url, str):
                     continue
-                source_url = _canonical_url(raw_url)
+                try:
+                    source_url = _canonical_url(validate_public_http_url(raw_url))
+                except UnsafeTargetError:
+                    continue
                 candidate_id = hashlib.sha256(source_url.encode("utf-8")).hexdigest()[:24]
                 title = str(item.get("title") or source_url)[:300]
                 media_url = item.get("media_url")
@@ -92,7 +97,7 @@ class PostgresCandidateStore:
                 media_type = item.get("media_type")
                 if not isinstance(media_type, str):
                     media_type = None
-                db.execute(
+                row = db.execute(
                     """
                     INSERT INTO resource_candidates
                         (candidate_id, source_url, title, media_url, media_type,
@@ -117,10 +122,6 @@ class PostgresCandidateStore:
                         now,
                         now,
                     ),
-                )
-                row = db.execute(
-                    "SELECT candidate_id FROM resource_candidates WHERE source_url = %s",
-                    (source_url,),
                 ).fetchone()
                 if row is None:
                     continue
