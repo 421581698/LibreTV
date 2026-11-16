@@ -80,6 +80,10 @@ class CandidateReviewRequest(BaseModel):
     note: str = Field(default="", max_length=1000)
 
 
+class WorkflowControlRequest(BaseModel):
+    action: Literal["pause", "resume", "cancel"]
+
+
 class WorkflowNodeRequest(BaseModel):
     node_id: str = Field(min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
     node_type: Literal[
@@ -625,6 +629,33 @@ async def list_workflows(limit: int = 50) -> dict:
         )
     workflows = workflow_store.list_workflows(limit=limit)
     return {"ok": True, "count": len(workflows), "workflows": workflows}
+
+
+
+@app.post("/v1/workflows/{workflow_id}/control")
+async def control_workflow(
+    workflow_id: str,
+    request: WorkflowControlRequest,
+) -> dict:
+    if workflow_store is None:
+        raise HTTPException(
+            status_code=501,
+            detail="Durable DAG workflow controls require PostgreSQL mode.",
+        )
+    changed = workflow_store.request_control(workflow_id, request.action)
+    if not changed:
+        workflow = workflow_store.get_workflow(workflow_id)
+        if workflow is None:
+            raise HTTPException(status_code=404, detail="Workflow not found.")
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot {request.action} workflow in state {workflow['status']}.",
+        )
+    workflow_store.reconcile_controls()
+    return {
+        "ok": True,
+        "workflow": workflow_store.get_workflow(workflow_id),
+    }
 
 
 @app.get("/v1/workflows/{workflow_id}")
