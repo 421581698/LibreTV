@@ -43,6 +43,7 @@ class ScraplingAdapter:
             url,
             timeout=timeout,
             follow_redirects="safe",
+            proxy=settings.egress_proxy_url,
             impersonate=None,
             stealthy_headers=False,
             headers={"User-Agent": settings.default_user_agent},
