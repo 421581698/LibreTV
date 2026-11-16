@@ -189,14 +189,24 @@ else:
 PY
 probe_mounts=$(docker inspect --format '{{json .Mounts}}' "$probe_container")
 python3 -c 'import json,sys; mounts=json.loads(sys.argv[1]); by_target={m["Destination"]:m for m in mounts}; assert by_target["/probe/staging"]["RW"] is False; assert by_target["/probe/inbox"]["RW"] is False; assert by_target["/probe/outbox"]["RW"] is True' "$probe_mounts"
-"${compose[@]}" exec -T scrapling-media-probe python -c 'import socket; s=socket.socket(); s.settimeout(1); 
+"${compose[@]}" exec -T scrapling-media-probe python - <<'PY'
+import socket
+
 try:
- s.connect(("1.1.1.1", 53))
- raise SystemExit("probe sidecar unexpectedly reached the network")
-except OSError:
- pass
-finally:
- s.close()'
+    sock = socket.socket()
+except PermissionError:
+    print("Probe seccomp denied socket creation; direct network access is impossible.")
+else:
+    try:
+        sock.settimeout(1)
+        sock.connect(("1.1.1.1", 53))
+    except OSError:
+        pass
+    else:
+        raise SystemExit("probe sidecar unexpectedly reached the network")
+    finally:
+        sock.close()
+PY
 worker_mounts=$(docker inspect --format '{{json .Mounts}}' "$worker_container")
 python3 -c 'import json,sys; mounts=json.loads(sys.argv[1]); by_target={m["Destination"]:m for m in mounts}; assert by_target["/probe/staging"]["RW"] is True; assert by_target["/probe/inbox"]["RW"] is True; assert by_target["/probe/outbox"]["RW"] is False' "$worker_mounts"
 timeout 5s "${compose[@]}" exec -T scrapling-workflow-worker python - <<'PY'
