@@ -55,6 +55,35 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(registry_store.DB_PATH, collector.DB_PATH)
         self.assertEqual(Path(collector.ai_rules.DB_PATH), collector.DB_PATH)
 
+    def test_fixture_validated_ai_media_selector_is_used_by_candidate_extractor(self):
+        collector.ai_rules.save_version(
+            "catalog.example",
+            {"selectors": {"media": ".ai-media"}},
+            "test",
+            ['<a class="ai-media" href="/video.mp4">Watch</a>'],
+        )
+
+        class Element:
+            attrib = {"href": "/video.mp4"}
+
+            def css(self, selector):
+                return []
+
+        class Page:
+            def css(self, selector):
+                return [Element()] if selector == ".ai-media" else []
+
+        with patch.object(collector, "extract_page_metadata", return_value={"title": "Sample"}), \
+             patch.object(collector, "infer_media_identity", return_value={}), \
+             patch.object(collector, "adaptive_css", return_value=[]):
+            candidates = collector.extract_candidates(
+                Page(), "https://catalog.example/watch", 10
+            )
+        self.assertEqual([item["url"] for item in candidates], [
+            "https://catalog.example/video.mp4"
+        ])
+        self.assertEqual(candidates[0]["ai_rule_version"], 1)
+
     def test_importing_app_does_not_create_or_migrate_database(self):
         with tempfile.TemporaryDirectory() as directory:
             database = Path(directory) / "must-not-exist.sqlite3"
