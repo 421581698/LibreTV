@@ -88,7 +88,13 @@ def main():
     terminal = {"succeeded", "partial", "failed", "cancelled"}
     results = []
     while time.monotonic() < deadline:
-        results = [api(base, token, "/v1/jobs/" + job_id) for job_id in jobs]
+        results = []
+        for offset in range(0, len(jobs), 1000):
+            batch = api(
+                base, token, "/v1/jobs/status/bulk", "POST",
+                {"ids": jobs[offset:offset + 1000]},
+            )
+            results.extend(batch["jobs"])
         if all(item["status"] in terminal for item in results):
             break
         time.sleep(5)
