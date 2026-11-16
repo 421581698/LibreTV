@@ -57,3 +57,38 @@ def test_worker_fences_result_and_completion_writes_to_current_lease_owner() -> 
     finally:
         with psycopg.connect(database_url) as db:
             db.execute("DELETE FROM crawl_jobs WHERE task_id = %s", (task_id,))
+
+@pytest.mark.skipif(
+    not os.getenv("DATABASE_URL"),
+    reason="PostgreSQL integration database is not configured",
+)
+def test_expired_worker_lease_is_reclaimed_and_old_worker_is_fenced() -> None:
+    database_url = os.environ["DATABASE_URL"]
+    store = PostgresJobStore(database_url)
+    store.initialize()
+    task_id = "worker_reclaim_" + uuid.uuid4().hex
+    first = CrawlWorker(database_url, "worker-one", lease_seconds=30)
+    second = CrawlWorker(database_url, "worker-two", lease_seconds=30)
+
+    try:
+        assert store.create(task_id, ["https://example.com/"], "/tmp/" + task_id)
+        claimed = store.claim_next("worker-one", lease_seconds=30)
+        assert claimed is not None and claimed["lease_owner"] == "worker-one"
+        with psycopg.connect(database_url) as db:
+            db.execute(
+                "UPDATE crawl_jobs SET lease_expires_at = NOW() - INTERVAL '1 second' "
+                "WHERE task_id = %s",
+                (task_id,),
+            )
+
+        reclaimed = store.claim_next("worker-two", lease_seconds=30)
+        assert reclaimed is not None and reclaimed["lease_owner"] == "worker-two"
+        with pytest.raises(LeaseLost):
+            first._fenced_result(task_id, {"url": "https://example.com/old"})
+        second._fenced_result(task_id, {"url": "https://example.com/new"})
+        assert [item["url"] for item in store.get_results(task_id)] == [
+            "https://example.com/new"
+        ]
+    finally:
+        with psycopg.connect(database_url) as db:
+            db.execute("DELETE FROM crawl_jobs WHERE task_id = %s", (task_id,))
