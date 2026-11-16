@@ -31,6 +31,22 @@ class RegistryQueueTests(unittest.TestCase):
             with self.assertRaises(Exception):
                 queue.api_bulk_job_status({"ids": ["invalid"]}, authorization="Bearer test")
 
+    def test_ai_rule_jobs_preserve_bounded_failure_diagnostic_link(self):
+        job = queue.submit_job(
+            "rule_repair",
+            {
+                "host": "catalog.example",
+                "page_html": "<a class='media'></a>",
+                "fixtures": ["<a class='media'></a>"],
+                "task_id": "task-1",
+                "failure_code": "selector_miss",
+                "diagnostic_id": "diagnostic-123",
+            },
+            "rule-repair:task-1",
+        )
+        payload = queue.safe_json(job["payload"])
+        self.assertEqual(payload["diagnostic_id"], "diagnostic-123")
+
     def test_discovery_jobs_are_durable_and_idempotent(self):
         first = queue.submit_job("discover", {"search_keyword": "sample"}, "discover:sample")
         second = queue.submit_job("discover", {"search_keyword": "sample"}, "discover:sample")
