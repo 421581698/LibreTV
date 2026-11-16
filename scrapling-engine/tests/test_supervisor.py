@@ -1,0 +1,93 @@
+from __future__ import annotations
+
+import json
+
+import httpx
+import pytest
+
+from app.supervisor import SupervisorClient
+
+
+@pytest.mark.asyncio
+async def test_supervisor_uses_typed_bounded_plan_and_auth_header() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["authorization"] == "Bearer test-secret"
+        body = json.loads(request.content)
+        assert body["response_format"] == {"type": "json_object"}
+        assert body["temperature"] == 0
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "max_pages": 40,
+                                    "max_depth": 2,
+                                    "max_links_per_page": 20,
+                                    "rationale": "Keep discovery focused on the seed site.",
+                                }
+                            )
+                        }
+                    }
+                ]
+            },
+        )
+
+    client = SupervisorClient(
+        "https://model.example/v1",
+        "test-secret",
+        "test-model",
+        transport=httpx.MockTransport(handler),
+    )
+    plan = await client.plan_discovery(
+        "Find public movie pages",
+        ["https://93.184.216.34/"],
+    )
+    assert plan.max_pages == 40
+    assert plan.max_depth == 2
+    assert plan.max_links_per_page == 20
+
+
+@pytest.mark.asyncio
+async def test_supervisor_rejects_out_of_bounds_or_extra_plan_fields() -> None:
+    async def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "max_pages": 10000,
+                                    "max_depth": 2,
+                                    "max_links_per_page": 20,
+                                    "rationale": "Too broad.",
+                                    "shell": "not permitted",
+                                }
+                            )
+                        }
+                    }
+                ]
+            },
+        )
+
+    client = SupervisorClient(
+        "https://model.example/v1",
+        "test-secret",
+        "test-model",
+        transport=httpx.MockTransport(handler),
+    )
+    with pytest.raises(ValueError, match="invalid discovery plan"):
+        await client.plan_discovery("Find public movie pages", ["https://93.184.216.34/"])
+
+
+def test_supervisor_requires_https_for_non_loopback_endpoints() -> None:
+    with pytest.raises(ValueError, match="must use HTTPS"):
+        SupervisorClient(
+            "http://model.example/v1",
+            "test-secret",
+            "test-model",
+        )
