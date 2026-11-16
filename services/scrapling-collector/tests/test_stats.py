@@ -104,8 +104,8 @@ class ResourceStatsTests(unittest.TestCase):
         self.assertEqual(site["playback_samples"],1)
         self.assertEqual(site["preview_samples"],1)
         self.assertEqual(site["actual_quality"]["4K"],1)
-        self.assertIsNotNone(site["quality_score"])
-        self.assertEqual(site["quality_score_state"],"preliminary")
+        self.assertIsNone(site["quality_score"])
+        self.assertEqual(site["quality_score_state"],"insufficient_samples")
         self.assertEqual(result["summary"]["playback_samples"],1)
 
     def test_quality_score_requires_three_real_playback_samples(self):
