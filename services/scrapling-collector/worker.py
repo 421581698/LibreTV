@@ -32,12 +32,7 @@ MAX_AUTOMATIC_MEDIA_PREFLIGHTS = 100
 
 
 def get_discovered_sites(limit: int = 1000) -> list[dict]:
-    with registry_queue.connect() as connection:
-        rows = connection.execute(
-            "SELECT host,title,url,directory FROM sites WHERE directory LIKE 'FMHY / %' ORDER BY discovered_at DESC LIMIT ?",
-            (max(1, min(1000, limit)),),
-        ).fetchall()
-    return [dict(row) for row in rows]
+    return registry_queue.list_discovered_sites(limit)
 
 
 def run_batch_crawl(payload: dict, checkpoint, cancelled) -> dict:
