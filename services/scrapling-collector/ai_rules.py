@@ -63,10 +63,10 @@ def initialize(connection=None):
         );
         CREATE INDEX IF NOT EXISTS idx_collector_rule_events_host
           ON collector_rule_events(host,created_at DESC);
+        """)
         event_columns = {row[1] for row in c.execute("PRAGMA table_info(collector_rule_events)")}
         if "previous_version" not in event_columns:
             c.execute("ALTER TABLE collector_rule_events ADD COLUMN previous_version INTEGER")
-        """)
         c.commit()
     finally:
         if own:
