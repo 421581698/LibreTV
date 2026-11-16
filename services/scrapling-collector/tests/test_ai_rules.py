@@ -88,6 +88,51 @@ class AIRuleTests(unittest.TestCase):
         self.assertEqual(row["failure_code"], "selector_miss")
         self.assertEqual(json.loads(row["detail_json"]), {"count": 0})
 
+    def test_rule_version_history_and_validated_rollback_are_audited(self):
+        first = ai_rules.save_version(
+            "rollback.example", {"selectors": {"media": "a.old"}}, "manual",
+            ['<a class="old"></a>'],
+        )
+        second = ai_rules.save_version(
+            "rollback.example", {"selectors": {"media": "a.new"}}, "ai",
+            ['<a class="new"></a>'],
+        )
+        history = ai_rules.list_versions("rollback.example")
+        self.assertEqual([item["version"] for item in history], [2, 1])
+        restored = ai_rules.activate_version("rollback.example", first["version"])
+        self.assertEqual(restored["version"], first["version"])
+        with ai_rules.connect() as connection:
+            event = connection.execute(
+                "SELECT action,version FROM collector_rule_events WHERE host=? ORDER BY created_at DESC LIMIT 1",
+                ("rollback.example",),
+            ).fetchone()
+        self.assertEqual(event["action"], "rollback")
+        self.assertEqual(event["version"], first["version"])
+        self.assertEqual(second["status"], "active")
+
+    def test_draft_rule_version_cannot_be_activated(self):
+        draft = ai_rules.save_version(
+            "draft-rollback.example", {"selectors": {"media": "video.missing"}}, "ai",
+            ["<div>no media selector</div>"],
+        )
+        self.assertEqual(draft["status"], "draft")
+        with self.assertRaises(ValueError):
+            ai_rules.activate_version("draft-rollback.example", draft["version"])
+
+    def test_failure_diagnostics_are_queryable_with_repair_link(self):
+        diagnostic = ai_rules.record_failure(
+            "diagnostics.example", "task-9", "selector_miss", {"candidate_count": 0}
+        )
+        repaired = ai_rules.save_version(
+            "diagnostics.example", {"selectors": {"media": "a.media"}}, "ai",
+            ['<a class="media"></a>'],
+        )
+        ai_rules.link_diagnostic_version(diagnostic, repaired["version"])
+        records = ai_rules.list_diagnostics("diagnostics.example")
+        self.assertEqual(records[0]["id"], diagnostic)
+        self.assertEqual(records[0]["detail"], {"candidate_count": 0})
+        self.assertEqual(records[0]["repair_version"], repaired["version"])
+
     def test_html_sanitizer_removes_scripts_forms_and_sensitive_attributes(self):
         source = '<html><script>secret()</script><form><input value="private"></form><a id="play" class="media" href="https://x/?token=secret" onclick="run()">Watch</a></html>'
         cleaned = ai_rules.sanitize_html_sample(source)
