@@ -12,6 +12,7 @@ os.environ.setdefault("SCRAPLING_API_TOKEN", "collector-test-token")
 os.environ.setdefault("SCRAPLING_DB_PATH", str(Path(tempfile.gettempdir()) / "libretv-scrapling-tests.sqlite3"))
 
 import app as collector
+import registry_queue as registry_store
 
 
 class CollectorTests(unittest.TestCase):
@@ -22,6 +23,27 @@ class CollectorTests(unittest.TestCase):
 
     def tearDown(self):
         self.temp.cleanup()
+
+    def test_registry_queue_and_collector_share_one_canonical_database(self):
+        job = registry_store.submit_job(
+            "crawl", {"url": "https://example.org/"}, "shared-database:job"
+        )
+        resource = registry_store.upsert_resource({
+            "resource_type": "DIRECT_MEDIA",
+            "url": "https://example.org/video.mp4",
+            "title": "Sample video",
+            "source_key": "example-org",
+        })
+        with collector.db() as connection:
+            stored_job = connection.execute(
+                "SELECT id FROM collector_jobs WHERE id=?", (job["id"],)
+            ).fetchone()
+            stored_resource = connection.execute(
+                "SELECT id FROM registry_resources WHERE id=?", (resource["id"],)
+            ).fetchone()
+        self.assertIsNotNone(stored_job)
+        self.assertIsNotNone(stored_resource)
+        self.assertEqual(registry_store.DB_PATH, collector.DB_PATH)
 
     def test_importing_app_does_not_create_or_migrate_database(self):
         with tempfile.TemporaryDirectory() as directory:
