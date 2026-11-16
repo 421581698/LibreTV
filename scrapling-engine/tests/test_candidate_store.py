@@ -67,13 +67,13 @@ def test_candidate_ingestion_deduplicates_and_preserves_evidence_without_publish
         assert reviewed is not None
         assert reviewed["status"] == "approved"
         assert any(
-            evidence["evidence_type"] == "human_review"
-            and evidence["evidence_json"]["reviewer_id"] == "test-reviewer"
+            evidence["type"] == "human_review"
+            and evidence["data"]["reviewer_id"] == "test-reviewer"
             for evidence in reviewed["evidence"]
         )
         assert not store.review_candidate(ids[0], "rejected", "test-reviewer")
         assert not any(
-            evidence["evidence_type"] == "formal_resource_publish"
+            evidence["type"] == "formal_resource_publish"
             for evidence in reviewed["evidence"]
         )
     finally:
