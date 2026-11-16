@@ -13,6 +13,7 @@ import json
 import os
 import socket
 import time
+import uuid
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -72,6 +73,8 @@ def main():
     if not token:
         raise SystemExit("Set SCRAPLING_API_TOKEN in the environment")
     urls = load_targets(args.urls, args.target)
+    # Each invocation must create fresh work instead of reusing completed jobs.
+    run_id = uuid.uuid4().hex
     jobs = []
     for offset in range(0, len(urls), 1000):
         batch = []
@@ -79,7 +82,7 @@ def main():
             batch.append({
                 "job_type": "crawl",
                 "payload": {"url": url, "mode": "auto", "limit": 101},
-                "idempotency_key": f"live-crawl-scale:{args.target}:{index}",
+                "idempotency_key": f"live-crawl-scale:{args.target}:{run_id}:{index}",
                 "max_attempts": 2,
             })
         result = api(base, token, "/v1/jobs/bulk", "POST", {"jobs": batch})
@@ -110,13 +113,16 @@ def main():
         page_metrics = result.get("page_metrics") or {}
         pages += int(result.get("pages_visited") or page_metrics.get("visited") or 0)
         candidates += int(result.get("count") or result.get("candidate_count") or 0)
+    page_coverage_ok = len(completed) > 0 and pages >= len(completed)
     report = {
+        "run_id": run_id,
         "target_jobs": args.target, "submitted_jobs": len(jobs),
         "terminal_jobs": terminal_count, "successful_or_partial_jobs": len(completed),
         "failed_or_cancelled_jobs": len(failed), "unfinished_jobs": len(jobs) - terminal_count,
         "observed_pages_visited": pages, "observed_candidates": candidates,
+        "page_coverage_ok": page_coverage_ok,
         "success_rate": round(len(completed) / len(jobs), 4) if jobs else 0,
-        "status": "passed" if terminal_count == len(jobs) and len(results) == len(jobs) and not failed else "incomplete_or_failed",
+        "status": "passed" if terminal_count == len(jobs) and len(results) == len(jobs) and not failed and page_coverage_ok else "incomplete_or_failed",
     }
     print(json.dumps(report, ensure_ascii=False, indent=2))
     if report["status"] != "passed":
