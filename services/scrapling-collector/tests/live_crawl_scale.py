@@ -81,7 +81,7 @@ def main():
         for index, url in enumerate(urls[offset:offset + 1000], start=offset):
             batch.append({
                 "job_type": "crawl",
-                "payload": {"url": url, "mode": "auto", "limit": 101},
+                "payload": {"url": url, "mode": "http", "limit": 101, "max_pages": 1},
                 "idempotency_key": f"live-crawl-scale:{args.target}:{run_id}:{index}",
                 "max_attempts": 2,
             })
