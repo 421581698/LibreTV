@@ -336,6 +336,8 @@ async def capabilities() -> dict:
                 if settings.database_url
                 else "in_process_pause_resume"
             ),
+            "server_side_dag_runtime" if settings.database_url else "dag_requires_postgresql",
+            "workflow_node_leases_and_retries" if settings.database_url else "no_workflow_worker",
         ],
         "planned": [
             "dynamic_browser",
