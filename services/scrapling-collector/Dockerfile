@@ -8,7 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PORT=10000
 
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends gosu libatomic1 \
+RUN apt-get update && apt-get install -y --no-install-recommends gosu libatomic1 ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt \
@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt \
     && useradd --create-home --uid 10001 collector \
     && chown -R collector:collector /data \
     && scrapling install
-COPY app.py registry_queue.py stats.py worker.py run_services.py ./
+COPY app.py registry_queue.py stats.py worker.py run_services.py ai_rules.py ./
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod 755 /usr/local/bin/docker-entrypoint.sh
 EXPOSE 10000
