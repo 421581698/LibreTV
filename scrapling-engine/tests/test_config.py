@@ -2,6 +2,7 @@ import pytest
 from pydantic import SecretStr
 
 from app.config import (
+    Settings,
     is_loopback_host,
     validate_bind_security,
     validate_egress_proxy_policy,
@@ -44,3 +45,15 @@ def test_local_development_may_omit_egress_proxy() -> None:
 def test_invalid_api_key_is_rejected(secret: str) -> None:
     with pytest.raises(RuntimeError, match="SCRAPLING_API_KEY must contain"):
         validate_bind_security("0.0.0.0", SecretStr(secret))
+
+
+
+def test_settings_load_secret_api_key_and_required_proxy(monkeypatch) -> None:
+    monkeypatch.setenv("SCRAPLING_API_KEY", "x" * 32)
+    monkeypatch.setenv("SCRAPLING_EGRESS_PROXY", "http://scrapling-egress-proxy:8080")
+    monkeypatch.setenv("SCRAPLING_REQUIRE_EGRESS_PROXY", "true")
+    settings = Settings()
+    assert settings.api_key is not None
+    assert settings.api_key.get_secret_value() == "x" * 32
+    assert settings.egress_proxy_url == "http://scrapling-egress-proxy:8080"
+    assert settings.require_egress_proxy is True
