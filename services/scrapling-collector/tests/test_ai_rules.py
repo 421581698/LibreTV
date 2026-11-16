@@ -67,6 +67,16 @@ class AIRuleTests(unittest.TestCase):
         self.assertEqual(row["failure_code"], "selector_miss")
         self.assertEqual(json.loads(row["detail_json"]), {"count": 0})
 
+    def test_html_sanitizer_removes_scripts_forms_and_sensitive_attributes(self):
+        source = '<html><script>secret()</script><form><input value="private"></form><a id="play" class="media" href="https://x/?token=secret" onclick="run()">Watch</a></html>'
+        cleaned = ai_rules.sanitize_html_sample(source)
+        self.assertNotIn("secret", cleaned)
+        self.assertNotIn("onclick", cleaned)
+        self.assertNotIn("href=", cleaned)
+        self.assertIn('class="media"', cleaned)
+        self.assertIn('id="play"', cleaned)
+        self.assertIn("Watch", cleaned)
+
     def test_model_gateway_requires_explicit_https_host_allowlist(self):
         with patch.dict(os.environ, {
             "COLLECTOR_AI_GATEWAY_URL": "https://llm.example",
