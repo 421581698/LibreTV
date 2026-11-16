@@ -238,6 +238,20 @@ services:
     cap_drop: ["ALL"]
     security_opt:
       - no-new-privileges:true
+      - seccomp:./scrapling-engine/seccomp-ffprobe.json
+    ulimits:
+      cpu:
+        soft: 20
+        hard: 25
+      core:
+        soft: 0
+        hard: 0
+      nofile:
+        soft: 64
+        hard: 64
+      nproc:
+        soft: 64
+        hard: 64
     pids_limit: 64
     mem_limit: 512m
     cpus: 1.0
