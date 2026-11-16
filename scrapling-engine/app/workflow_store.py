@@ -1,0 +1,430 @@
+from __future__ import annotations
+
+import json
+from collections import defaultdict, deque
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+import psycopg
+from psycopg.rows import dict_row
+
+
+def _now() -> datetime:
+    return datetime.now(UTC)
+
+
+class WorkflowDefinitionError(ValueError):
+    """Raised when a workflow graph is invalid."""
+
+
+class PostgresWorkflowStore:
+    """Durable server-side DAG definitions, node leases, retries, and audit events."""
+
+    def __init__(self, database_url: str) -> None:
+        if not database_url.startswith(("postgres://", "postgresql://")):
+            raise ValueError("DATABASE_URL must use PostgreSQL")
+        self.database_url = database_url
+
+    def initialize(self) -> None:
+        with psycopg.connect(self.database_url, row_factory=dict_row) as db:
+            db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS resource_workflows (
+                    workflow_id TEXT PRIMARY KEY,
+                    status TEXT NOT NULL,
+                    input_json JSONB NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL,
+                    updated_at TIMESTAMPTZ NOT NULL
+                )
+                """
+            )
+            db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS resource_workflow_nodes (
+                    workflow_id TEXT NOT NULL REFERENCES resource_workflows(workflow_id)
+                        ON DELETE CASCADE,
+                    node_id TEXT NOT NULL,
+                    node_type TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    input_json JSONB NOT NULL,
+                    result_json JSONB,
+                    error TEXT,
+                    attempt_count INTEGER NOT NULL DEFAULT 0,
+                    max_attempts INTEGER NOT NULL DEFAULT 3,
+                    available_at TIMESTAMPTZ NOT NULL,
+                    lease_owner TEXT,
+                    lease_expires_at TIMESTAMPTZ,
+                    created_at TIMESTAMPTZ NOT NULL,
+                    updated_at TIMESTAMPTZ NOT NULL,
+                    PRIMARY KEY (workflow_id, node_id)
+                )
+                """
+            )
+            db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS resource_workflow_edges (
+                    workflow_id TEXT NOT NULL,
+                    parent_node_id TEXT NOT NULL,
+                    child_node_id TEXT NOT NULL,
+                    PRIMARY KEY (workflow_id, parent_node_id, child_node_id),
+                    FOREIGN KEY (workflow_id, parent_node_id)
+                        REFERENCES resource_workflow_nodes(workflow_id, node_id)
+                        ON DELETE CASCADE,
+                    FOREIGN KEY (workflow_id, child_node_id)
+                        REFERENCES resource_workflow_nodes(workflow_id, node_id)
+                        ON DELETE CASCADE,
+                    CHECK (parent_node_id <> child_node_id)
+                )
+                """
+            )
+            db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS resource_workflow_events (
+                    id BIGSERIAL PRIMARY KEY,
+                    workflow_id TEXT NOT NULL REFERENCES resource_workflows(workflow_id)
+                        ON DELETE CASCADE,
+                    node_id TEXT,
+                    event_type TEXT NOT NULL,
+                    payload_json JSONB NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL
+                )
+                """
+            )
+            db.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_workflow_nodes_ready
+                ON resource_workflow_nodes(status, available_at, created_at)
+                """
+            )
+            db.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_workflow_events_cursor
+                ON resource_workflow_events(workflow_id, id)
+                """
+            )
+
+    @staticmethod
+    def _validate_graph(nodes: list[dict[str, Any]], edges: list[tuple[str, str]]) -> None:
+        ids = [str(node.get("node_id", "")) for node in nodes]
+        if not ids or any(not node_id for node_id in ids) or len(set(ids)) != len(ids):
+            raise WorkflowDefinitionError("Workflow requires unique non-empty node IDs.")
+        known = set(ids)
+        indegree = dict.fromkeys(known, 0)
+        children: dict[str, list[str]] = defaultdict(list)
+        for parent, child in edges:
+            if parent not in known or child not in known or parent == child:
+                raise WorkflowDefinitionError("Workflow edge references an invalid node.")
+            children[parent].append(child)
+            indegree[child] += 1
+        ready = deque(node_id for node_id, degree in indegree.items() if degree == 0)
+        visited = 0
+        while ready:
+            current = ready.popleft()
+            visited += 1
+            for child in children[current]:
+                indegree[child] -= 1
+                if indegree[child] == 0:
+                    ready.append(child)
+        if visited != len(known):
+            raise WorkflowDefinitionError("Workflow graph must be acyclic.")
+
+    @staticmethod
+    def _event(
+        db: psycopg.Connection,
+        workflow_id: str,
+        node_id: str | None,
+        event_type: str,
+        payload: dict[str, Any],
+    ) -> None:
+        db.execute(
+            """
+            INSERT INTO resource_workflow_events
+                (workflow_id, node_id, event_type, payload_json, created_at)
+            VALUES (%s, %s, %s, %s::jsonb, %s)
+            """,
+            (
+                workflow_id,
+                node_id,
+                event_type,
+                json.dumps(payload, ensure_ascii=False),
+                _now(),
+            ),
+        )
+
+    def create_workflow(
+        self,
+        workflow_id: str,
+        nodes: list[dict[str, Any]],
+        edges: list[tuple[str, str]],
+        input_data: dict[str, Any] | None = None,
+    ) -> bool:
+        self._validate_graph(nodes, edges)
+        now = _now()
+        with psycopg.connect(self.database_url, row_factory=dict_row) as db:
+            cursor = db.execute(
+                """
+                INSERT INTO resource_workflows
+                    (workflow_id, status, input_json, created_at, updated_at)
+                VALUES (%s, 'running', %s::jsonb, %s, %s)
+                ON CONFLICT (workflow_id) DO NOTHING
+                """,
+                (
+                    workflow_id,
+                    json.dumps(input_data or {}, ensure_ascii=False),
+                    now,
+                    now,
+                ),
+            )
+            if cursor.rowcount != 1:
+                return False
+            for node in nodes:
+                db.execute(
+                    """
+                    INSERT INTO resource_workflow_nodes
+                        (workflow_id, node_id, node_type, status, input_json,
+                         max_attempts, available_at, created_at, updated_at)
+                    VALUES (%s, %s, %s, 'pending', %s::jsonb, %s, %s, %s, %s)
+                    """,
+                    (
+                        workflow_id,
+                        node["node_id"],
+                        node["node_type"],
+                        json.dumps(node.get("input", {}), ensure_ascii=False),
+                        max(1, int(node.get("max_attempts", 3))),
+                        now,
+                        now,
+                        now,
+                    ),
+                )
+            for parent, child in edges:
+                db.execute(
+                    """
+                    INSERT INTO resource_workflow_edges
+                        (workflow_id, parent_node_id, child_node_id)
+                    VALUES (%s, %s, %s)
+                    """,
+                    (workflow_id, parent, child),
+                )
+            self._event(
+                db,
+                workflow_id,
+                None,
+                "workflow_created",
+                {"nodes": [node["node_id"] for node in nodes], "edges": edges},
+            )
+            return True
+
+    def claim_ready_node(self, worker_id: str, lease_seconds: int = 60) -> dict[str, Any] | None:
+        now = _now()
+        lease_until = now + timedelta(seconds=lease_seconds)
+        with psycopg.connect(self.database_url, row_factory=dict_row) as db:
+            row = db.execute(
+                """
+                WITH candidate AS (
+                    SELECT node.workflow_id, node.node_id
+                    FROM resource_workflow_nodes AS node
+                    WHERE (
+                        node.status IN ('pending', 'retry_wait')
+                        AND node.available_at <= %s
+                    ) OR (
+                        node.status = 'running'
+                        AND node.lease_expires_at < %s
+                    )
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM resource_workflow_edges AS edge
+                        JOIN resource_workflow_nodes AS parent
+                          ON parent.workflow_id = edge.workflow_id
+                         AND parent.node_id = edge.parent_node_id
+                        WHERE edge.workflow_id = node.workflow_id
+                          AND edge.child_node_id = node.node_id
+                          AND parent.status <> 'completed'
+                    )
+                    ORDER BY node.created_at, node.workflow_id, node.node_id
+                    LIMIT 1
+                    FOR UPDATE OF node SKIP LOCKED
+                )
+                UPDATE resource_workflow_nodes AS node
+                SET status = 'running',
+                    lease_owner = %s,
+                    lease_expires_at = %s,
+                    attempt_count = node.attempt_count + 1,
+                    updated_at = %s
+                FROM candidate
+                WHERE node.workflow_id = candidate.workflow_id
+                  AND node.node_id = candidate.node_id
+                RETURNING node.*
+                """,
+                (now, now, worker_id, lease_until, now),
+            ).fetchone()
+            if row is None:
+                return None
+            self._event(
+                db,
+                row["workflow_id"],
+                row["node_id"],
+                "node_claimed",
+                {"worker_id": worker_id, "attempt": row["attempt_count"]},
+            )
+            result = dict(row)
+            result["input"] = result.pop("input_json")
+            return result
+
+    def heartbeat_node(self, workflow_id: str, node_id: str, worker_id: str, lease_seconds: int = 60) -> bool:
+        now = _now()
+        with psycopg.connect(self.database_url, row_factory=dict_row) as db:
+            cursor = db.execute(
+                """
+                UPDATE resource_workflow_nodes
+                SET lease_expires_at = %s, updated_at = %s
+                WHERE workflow_id = %s AND node_id = %s
+                  AND status = 'running' AND lease_owner = %s
+                """,
+                (now + timedelta(seconds=lease_seconds), now, workflow_id, node_id, worker_id),
+            )
+            return cursor.rowcount == 1
+
+    def complete_node(
+        self,
+        workflow_id: str,
+        node_id: str,
+        worker_id: str,
+        result: dict[str, Any],
+    ) -> bool:
+        now = _now()
+        with psycopg.connect(self.database_url, row_factory=dict_row) as db:
+            cursor = db.execute(
+                """
+                UPDATE resource_workflow_nodes
+                SET status = 'completed', result_json = %s::jsonb, error = NULL,
+                    lease_owner = NULL, lease_expires_at = NULL, updated_at = %s
+                WHERE workflow_id = %s AND node_id = %s
+                  AND status = 'running' AND lease_owner = %s
+                  AND lease_expires_at > %s
+                """,
+                (
+                    json.dumps(result, ensure_ascii=False),
+                    now,
+                    workflow_id,
+                    node_id,
+                    worker_id,
+                    now,
+                ),
+            )
+            if cursor.rowcount != 1:
+                return False
+            self._event(db, workflow_id, node_id, "node_completed", {"result": result})
+            remaining = db.execute(
+                """
+                SELECT COUNT(*) AS count FROM resource_workflow_nodes
+                WHERE workflow_id = %s AND status <> 'completed'
+                """,
+                (workflow_id,),
+            ).fetchone()["count"]
+            if remaining == 0:
+                db.execute(
+                    "UPDATE resource_workflows SET status = 'completed', updated_at = %s "
+                    "WHERE workflow_id = %s",
+                    (now, workflow_id),
+                )
+                self._event(db, workflow_id, None, "workflow_completed", {})
+            return True
+
+    def fail_node(
+        self,
+        workflow_id: str,
+        node_id: str,
+        worker_id: str,
+        error: str,
+        retry_delay_seconds: int = 10,
+    ) -> str | None:
+        now = _now()
+        with psycopg.connect(self.database_url, row_factory=dict_row) as db:
+            row = db.execute(
+                """
+                SELECT attempt_count, max_attempts FROM resource_workflow_nodes
+                WHERE workflow_id = %s AND node_id = %s
+                  AND status = 'running' AND lease_owner = %s
+                  AND lease_expires_at > %s
+                FOR UPDATE
+                """,
+                (workflow_id, node_id, worker_id, now),
+            ).fetchone()
+            if row is None:
+                return None
+            retry = row["attempt_count"] < row["max_attempts"]
+            status = "retry_wait" if retry else "failed"
+            available_at = now + timedelta(seconds=max(0, retry_delay_seconds))
+            db.execute(
+                """
+                UPDATE resource_workflow_nodes
+                SET status = %s, error = %s, available_at = %s,
+                    lease_owner = NULL, lease_expires_at = NULL, updated_at = %s
+                WHERE workflow_id = %s AND node_id = %s
+                """,
+                (status, error[:500], available_at, now, workflow_id, node_id),
+            )
+            self._event(
+                db,
+                workflow_id,
+                node_id,
+                "node_retry_scheduled" if retry else "node_failed",
+                {"attempt": row["attempt_count"], "error": error[:500]},
+            )
+            if not retry:
+                db.execute(
+                    "UPDATE resource_workflows SET status = 'failed', updated_at = %s "
+                    "WHERE workflow_id = %s",
+                    (now, workflow_id),
+                )
+            return status
+
+    def get_workflow(self, workflow_id: str) -> dict[str, Any] | None:
+        with psycopg.connect(self.database_url, row_factory=dict_row) as db:
+            workflow = db.execute(
+                "SELECT * FROM resource_workflows WHERE workflow_id = %s",
+                (workflow_id,),
+            ).fetchone()
+            if workflow is None:
+                return None
+            nodes = db.execute(
+                "SELECT * FROM resource_workflow_nodes WHERE workflow_id = %s "
+                "ORDER BY created_at, node_id",
+                (workflow_id,),
+            ).fetchall()
+            edges = db.execute(
+                "SELECT parent_node_id, child_node_id FROM resource_workflow_edges "
+                "WHERE workflow_id = %s ORDER BY parent_node_id, child_node_id",
+                (workflow_id,),
+            ).fetchall()
+        result = dict(workflow)
+        result["input"] = result.pop("input_json")
+        result["nodes"] = [
+            {**dict(node), "input": node["input_json"], "result": node["result_json"]}
+            for node in nodes
+        ]
+        result["edges"] = [
+            (edge["parent_node_id"], edge["child_node_id"]) for edge in edges
+        ]
+        return result
+
+    def events_after(self, workflow_id: str, last_id: int = 0) -> list[dict[str, Any]]:
+        with psycopg.connect(self.database_url, row_factory=dict_row) as db:
+            rows = db.execute(
+                """
+                SELECT id, node_id, event_type, payload_json, created_at
+                FROM resource_workflow_events
+                WHERE workflow_id = %s AND id > %s ORDER BY id
+                """,
+                (workflow_id, last_id),
+            ).fetchall()
+        return [
+            {
+                "id": row["id"],
+                "node_id": row["node_id"],
+                "type": row["event_type"],
+                "payload": row["payload_json"],
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
