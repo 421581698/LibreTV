@@ -4,7 +4,6 @@ import argparse
 import asyncio
 import json
 import logging
-import os
 import socket
 import uuid
 from dataclasses import asdict
