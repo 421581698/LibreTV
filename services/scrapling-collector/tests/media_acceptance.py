@@ -47,7 +47,7 @@ def main():
         raise SystemExit("FAIL: media fixture resolved to a private or reserved address")
     require_firewall_proof()
 
-    protocol_whitelist = "https,tls,tcp,crypto,hls"
+    protocol_whitelist = "https,tls,tcp,crypto,hls,pipe"
     probe = subprocess.run([
         "ffprobe", "-v", "error", "-protocol_whitelist", protocol_whitelist,
         "-show_streams", "-show_format", "-of", "json", url,
@@ -62,20 +62,30 @@ def main():
     if width < 3840 or height < 2160:
         raise SystemExit(f"FAIL: decoded video dimensions are {width}x{height}, not UHD 4K")
     started = time.monotonic()
+    requested_seconds = int(os.environ.get("MEDIA_ACCEPTANCE_SECONDS", "60"))
     decode = subprocess.run([
-        "ffmpeg", "-nostdin", "-hide_banner", "-v", "error",
+        "ffmpeg", "-nostdin", "-hide_banner", "-nostats", "-v", "error",
         "-protocol_whitelist", protocol_whitelist, "-i", url,
-        "-map", "0:v:0", "-t", os.environ.get("MEDIA_ACCEPTANCE_SECONDS", "60"),
-        "-f", "null", "-",
-    ], capture_output=True, text=True, timeout=180)
+        "-map", "0:v:0", "-t", str(requested_seconds),
+        "-progress", "pipe:1", "-f", "null", "-",
+    ], capture_output=True, text=True, timeout=240)
     elapsed = time.monotonic() - started
     if decode.returncode:
         raise SystemExit("FAIL: sustained native-resolution decode failed")
+    progress = {}
+    for line in decode.stdout.splitlines():
+        if "=" in line:
+            key, value = line.split("=", 1)
+            progress[key] = value
+    decoded_us = int(progress.get("out_time_us") or progress.get("out_time_ms") or 0)
+    frames = int(progress.get("frame") or 0)
+    if frames < 1 or decoded_us < requested_seconds * 1_000_000 * 0.9:
+        raise SystemExit("FAIL: stream ended before the required sustained decode interval")
     report = {
         "status": "passed", "width": width, "height": height,
         "codec": video.get("codec_name"), "pixel_format": video.get("pix_fmt"),
         "duration_seconds": round(elapsed, 2),
-        "requested_decode_seconds": int(os.environ.get("MEDIA_ACCEPTANCE_SECONDS", "60")),
+        "requested_decode_seconds": requested_seconds,\n        "decoded_frames": frames,\n        "decoded_media_seconds": round(decoded_us / 1_000_000, 2),
         "evidence": "ffprobe stream dimensions plus ffmpeg native-resolution frame decode",
     }
     print(json.dumps(report, ensure_ascii=False, indent=2))
