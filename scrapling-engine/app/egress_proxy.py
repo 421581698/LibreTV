@@ -13,6 +13,7 @@ CONNECT_TIMEOUT_SECONDS = 10
 DNS_TIMEOUT_SECONDS = 8
 IDLE_TIMEOUT_SECONDS = 60
 ALLOWED_PORTS = {80, 443}
+IPAddress = ipaddress.IPv4Address | ipaddress.IPv6Address
 
 
 class EgressDenied(ValueError):
@@ -23,7 +24,7 @@ async def resolve_public_addresses(
     host: str,
     port: int,
     resolver=None,
-) -> list[ipaddress.IPv4Address | ipaddress.IPv6Address]:
+) -> list[IPAddress]:
     normalized = host.rstrip(".").lower()
     if (
         not normalized
@@ -42,7 +43,7 @@ async def resolve_public_addresses(
                 resolve(normalized, port, type=socket.SOCK_STREAM),
                 timeout=DNS_TIMEOUT_SECONDS,
             )
-        except (OSError, asyncio.TimeoutError) as exc:
+        except (OSError, TimeoutError) as exc:
             raise EgressDenied("Target DNS resolution failed") from exc
         addresses = []
         for record in records:
@@ -60,7 +61,7 @@ async def resolve_public_addresses(
 async def open_pinned_connection(
     host: str,
     port: int,
-) -> tuple[asyncio.StreamReader, asyncio.StreamWriter, ipaddress.IPv4Address | ipaddress.IPv6Address]:
+) -> tuple[asyncio.StreamReader, asyncio.StreamWriter, IPAddress]:
     addresses = await resolve_public_addresses(host, port)
     last_error: OSError | None = None
     for address in addresses:
