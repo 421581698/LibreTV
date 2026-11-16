@@ -167,3 +167,53 @@ async def test_supervisor_rejects_executable_or_extra_rule_fields() -> None:
             "https://93.184.216.34/catalog",
             "<html><body>fixture</body></html>",
         )
+
+
+
+@pytest.mark.asyncio
+async def test_supervisor_planning_uses_configured_egress_proxy(monkeypatch) -> None:
+    captured = {}
+
+    class FakeAsyncClient:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def post(self, url, **_kwargs):
+            return httpx.Response(
+                200,
+                request=httpx.Request("POST", url),
+                json={
+                    "choices": [
+                        {
+                            "message": {
+                                "content": json.dumps(
+                                    {
+                                        "max_pages": 10,
+                                        "max_depth": 1,
+                                        "max_links_per_page": 10,
+                                        "rationale": "Keep the crawl bounded.",
+                                    }
+                                )
+                            }
+                        }
+                    ]
+                },
+            )
+
+    monkeypatch.setattr("app.supervisor.httpx.AsyncClient", FakeAsyncClient)
+    client = SupervisorClient(
+        "https://model.example/v1",
+        "test-secret",
+        "test-model",
+        proxy="http://scrapling-egress-proxy:8080",
+    )
+    await client.plan_discovery("Find public media pages", ["https://example.com/"])
+    assert captured["proxy"] == "http://scrapling-egress-proxy:8080"
+    assert captured["trust_env"] is False
+    assert captured["follow_redirects"] is False
