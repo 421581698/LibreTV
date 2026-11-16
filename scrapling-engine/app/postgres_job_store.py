@@ -245,7 +245,8 @@ class PostgresJobStore:
                     SELECT task_id
                     FROM crawl_jobs
                     WHERE status = 'queued'
-                       OR (status = 'running' AND (lease_expires_at IS NULL OR lease_expires_at < %s))
+                       OR (status = 'running' AND (lease_expires_at IS NULL 
+                           OR lease_expires_at < %s))
                     ORDER BY created_at, task_id
                     LIMIT 1
                     FOR UPDATE SKIP LOCKED
@@ -278,7 +279,8 @@ class PostgresJobStore:
                 """
                 UPDATE crawl_jobs
                 SET heartbeat_at = %s, lease_expires_at = %s, updated_at = %s
-                WHERE task_id = %s AND status IN ('running', 'pausing', 'cancelling') AND lease_owner = %s
+                WHERE task_id = %s AND status IN 
+                    ('running', 'pausing', 'cancelling') AND lease_owner = %s
                 """,
                 (now, lease_until, now.isoformat(), task_id, worker_id),
             )
