@@ -33,6 +33,22 @@ class RenderDeploymentConfigTests(unittest.TestCase):
         self.assertIn("- PORT=8000", compose)
         self.assertIn("http://scrapling-collector:8000", compose)
 
+    def test_compose_uses_stable_ips_for_app_api_and_worker_firewall_policy(self):
+        compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+        self.assertIn("${LIBRETV_CONTAINER_IP:-172.30.60.2}", compose)
+        self.assertIn("${SCRAPLING_COLLECTOR_IP:-172.30.60.10}", compose)
+        self.assertIn("${SCRAPLING_WORKER_IP:-172.30.60.11}", compose)
+        self.assertIn("${SCRAPLING_NETWORK_SUBNET:-172.30.60.0/24}", compose)
+
+    def test_firewall_only_allows_app_to_collector_api_and_blocks_private_traffic(self):
+        script = (ROOT / "scripts/scrapling-egress-firewall.sh").read_text(encoding="utf-8")
+        self.assertIn('COLLECTOR_CIDR="${COLLECTOR_CIDR:-172.30.60.0/24}"', script)
+        self.assertIn('net.bridge.bridge-nf-call-iptables=1', script)
+        self.assertIn('LIBRETV_APP_IP', script)
+        self.assertIn('SCRAPLING_API_IP', script)
+        self.assertIn('--dport "$SCRAPLING_API_PORT"', script)
+        self.assertIn('iptables -w -I FORWARD 1 -s "$COLLECTOR_CIDR" -j "$CHAIN"', script)
+
     def test_compose_defaults_scrapling_egress_gate_to_disabled(self):
         compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
         self.assertIn("SCRAPLING_EGRESS_FIREWALL_CONFIRMED=${SCRAPLING_EGRESS_FIREWALL_CONFIRMED:-0}", compose)
