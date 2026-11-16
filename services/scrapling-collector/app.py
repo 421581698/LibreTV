@@ -2175,7 +2175,7 @@ def start_one_click_collection(authorization: str | None = Header(default=None))
             connection.execute("UPDATE collection_batches SET status='failed',updated_at=? WHERE id=?", (int(time.time()), batch_id))
         raise
     return {"batch_id": batch_id, "job_id": job["id"], "status": "queued",
-            "target_candidates": 1000, "target_collected": 1000, "directory": FMHY_VIDEO_URL}
+            "target_tasks": 1000, "directory": FMHY_VIDEO_URL}
 
 
 @app.get("/v1/collect/{batch_id}")
