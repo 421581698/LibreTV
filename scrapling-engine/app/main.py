@@ -104,6 +104,7 @@ class WorkflowNodeRequest(BaseModel):
         "ai_supervisor_discover",
         "generate_extraction_rule",
         "register_candidates",
+        "probe_local_media_file",
         "analyze_media_manifest",
         "analyze_media_candidates",
     ]
