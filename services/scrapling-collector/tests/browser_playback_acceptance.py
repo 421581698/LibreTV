@@ -110,7 +110,20 @@ def main():
         or paused_samples > 2
         or final["ended"]
     ):
-        raise SystemExit("FAIL: browser playback did not sustain 4K time progression and frame decoding")
+        diagnostics = {
+            "progressed_seconds": round(progressed, 2),
+            "required_progress_seconds": round(duration * 0.9, 2),
+            "decoded_frame_delta": decoded_frame_delta,
+            "stall_windows": stalls,
+            "paused_samples": paused_samples,
+            "ended": final["ended"],
+            "final_time": round(final["time"], 2),
+            "dimensions": [final["width"], final["height"]],
+        }
+        raise SystemExit(
+            "FAIL: browser playback did not sustain 4K time progression and frame decoding: "
+            + json.dumps(diagnostics, sort_keys=True)
+        )
     print(json.dumps({
         "status": "passed",
         "decoded_width": final["width"],
