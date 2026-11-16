@@ -13,6 +13,7 @@ os.environ.setdefault("SCRAPLING_DB_PATH", str(Path(tempfile.gettempdir()) / "li
 
 import app as collector
 import registry_queue
+import worker
 
 
 class CollectorTests(unittest.TestCase):
