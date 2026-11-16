@@ -15,6 +15,7 @@ cleanup() {
   docker rm -f scrapling-firewall-target >/dev/null 2>&1 || true
   docker network rm "$NETWORK" >/dev/null 2>&1 || true
   sudo iptables -w -D DOCKER-USER -s "$COLLECTOR_CIDR" -j "$CHAIN" >/dev/null 2>&1 || true
+  sudo iptables -w -D FORWARD -s "$COLLECTOR_CIDR" -j "$CHAIN" >/dev/null 2>&1 || true
   sudo iptables -w -D INPUT -s "$COLLECTOR_CIDR" -j DROP >/dev/null 2>&1 || true
   sudo iptables -w -F "$CHAIN" >/dev/null 2>&1 || true
   sudo iptables -w -X "$CHAIN" >/dev/null 2>&1 || true
@@ -63,6 +64,7 @@ probe_container "$GATEWAY_IP:18080"
 
 sudo env COLLECTOR_CIDR="$COLLECTOR_CIDR" bash scripts/scrapling-egress-firewall.sh
 sudo iptables -w -C DOCKER-USER -s "$COLLECTOR_CIDR" -j "$CHAIN"
+sudo iptables -w -C FORWARD -s "$COLLECTOR_CIDR" -j "$CHAIN"
 sudo iptables -w -C INPUT -s "$COLLECTOR_CIDR" -j DROP
 
 if probe_container "$TARGET_IP:8000" >/dev/null 2>&1; then
