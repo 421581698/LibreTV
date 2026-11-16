@@ -203,9 +203,10 @@ def handle(payload: dict, checkpoint, cancelled):
             spider_diagnostics.get("status") == "completed"
             and int(spider_diagnostics.get("candidate_count") or 0) == 0
         )
-        active_rule = ai_rules.get_active_rule(urlsplit(str(crawl_payload["url"])).hostname or "")
-        if sample and (active_rule is None or spider_failed):
-            host = urlsplit(str(crawl_payload["url"])).hostname or ""
+        host = urlsplit(str(crawl_payload["url"])).hostname or ""
+        active_rule = ai_rules.get_active_rule(host)
+        has_history = ai_rules.has_rule_history(host)
+        if sample and ((active_rule is None and not has_history) or (active_rule and spider_failed)):
             rule_job_type = "rule_repair" if active_rule and spider_failed else "rule_generate"
             rule_payload = {
                 "host": host, "page_html": sample, "fixtures": [sample],
