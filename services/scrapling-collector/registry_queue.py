@@ -682,11 +682,13 @@ def register_candidate_playback(candidate_id: str, evidence: dict) -> dict:
     # Preserve canonical title/type linkage. Older candidate rows may predate
     # registry creation, so reconstruct their resource before recording playback.
     row = _candidate_resource(candidate_id)
-    with connect() as c:
-        candidate = c.execute(
-            "SELECT id,url,host,kind,title,status,access_state,media_identity,quality_evidence,validation FROM candidates WHERE id=?",
-            (candidate_id,),
-        ).fetchone()
+    candidate = None
+    if not row:
+        with connect() as c:
+            candidate = c.execute(
+                "SELECT id,url,host,kind,title,status,access_state,media_identity,quality_evidence,validation FROM candidates WHERE id=?",
+                (candidate_id,),
+            ).fetchone()
     if not row and candidate:
         candidate_data = dict(candidate)
         candidate_data["media_identity"] = safe_json(candidate_data.get("media_identity"))
