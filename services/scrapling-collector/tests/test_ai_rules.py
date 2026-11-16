@@ -53,6 +53,19 @@ class AIRuleTests(unittest.TestCase):
         self.assertEqual(current["version"], active["version"])
         self.assertEqual(current["rules"]["selectors"]["media"], "a.media")
 
+    def test_partial_fixture_match_remains_draft_and_preserves_active_version(self):
+        active = ai_rules.save_version(
+            "partial-fixture.example", {"selectors": {"media": "a.media"}}, "test",
+            ['<a class="media"></a>']
+        )
+        proposed = ai_rules.save_version(
+            "partial-fixture.example", {"selectors": {"media": "video.player"}}, "ai",
+            ['<video class="player"></video>', '<div class="different"></div>']
+        )
+        self.assertEqual(proposed["status"], "draft")
+        self.assertEqual((proposed["fixture_passes"], proposed["fixture_total"]), (1, 2))
+        self.assertEqual(ai_rules.get_active_rule("partial-fixture.example")["version"], active["version"])
+
     def test_title_only_fixture_match_cannot_activate_extraction_rule(self):
         result = ai_rules.save_version(
             "title-only.example", {"selectors": {"title": "h1"}}, "ai",
