@@ -25,7 +25,7 @@ class WorkerAIRuleTests(unittest.TestCase):
             patch.object(worker, "task_page_sample", return_value="<html><a class='media'>watch</a></html>"),
             patch.object(worker.ai_rules, "is_configured", return_value=configured),
             patch.object(worker.ai_rules, "get_active_rule", return_value=active_rule),
-            patch.object(worker.ai_rules, "has_rule_history", return_value=False),
+            patch.object(worker.ai_rules, "has_rule_history", return_value=active_rule is not None),
             patch.object(worker, "submit_job", return_value={"id": "rule-job-1", "status": "queued"}) as submit,
         ):
             result = worker.handle(payload, lambda value: checkpoint.append(value) or True, lambda: False)
