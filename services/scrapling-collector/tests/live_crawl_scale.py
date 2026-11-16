@@ -95,7 +95,7 @@ def main():
                 {"ids": jobs[offset:offset + 1000]},
             )
             results.extend(batch["jobs"])
-        if all(item["status"] in terminal for item in results):
+        if len(results) == len(jobs) and all(item["status"] in terminal for item in results):
             break
         time.sleep(5)
     completed = [item for item in results if item.get("status") in {"succeeded", "partial"}]
