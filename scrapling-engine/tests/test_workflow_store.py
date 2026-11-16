@@ -52,6 +52,7 @@ def test_postgres_workflow_dag_claims_dependencies_and_retries_durably() -> None
         second = store.claim_ready_node("worker-b", lease_seconds=30)
         assert second is not None
         assert second["node_id"] == "analyze"
+        assert second["dependencies"]["discover"] == {"sites": ["example.com"]}
         assert store.fail_node(
             workflow_id, "analyze", "worker-b", "temporary model timeout", 0
         ) == "retry_wait"
