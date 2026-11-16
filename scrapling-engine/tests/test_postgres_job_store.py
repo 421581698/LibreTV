@@ -84,8 +84,17 @@ def test_postgres_worker_control_requests_pause_cancel_and_resume() -> None:
         assert job["status"] == "pausing"
         assert job["control_request"] == "pause"
         assert store.get_control(task_id, "worker-control") == "pause"
-        assert store.heartbeat(task_id, "worker-control", lease_seconds=30)
-        assert store.release_lease(task_id, "worker-control", "paused")
+        with psycopg.connect(database_url) as db:
+            db.execute(
+                "UPDATE crawl_jobs SET lease_expires_at = NOW() - INTERVAL '1 second' "
+                "WHERE task_id = %s",
+                (task_id,),
+            )
+        reclaimed = store.claim_next("worker-control-recovery", lease_seconds=30)
+        assert reclaimed is not None
+        assert reclaimed["lease_owner"] == "worker-control-recovery"
+        assert store.get_control(task_id, "worker-control-recovery") == "pause"
+        assert store.release_lease(task_id, "worker-control-recovery", "paused")
         assert store.resume(task_id)
         job = store.get(task_id)
         assert job is not None
