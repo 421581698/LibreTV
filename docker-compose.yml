@@ -107,6 +107,14 @@ services:
       context: ./scrapling-engine
     command: ["libretv-workflow-worker", "--worker-id", "dag-worker-1"]
     restart: unless-stopped
+    # The workflow worker runs untrusted media parsers; keep the process unprivileged and resource-bounded.
+    user: "10001:10001"
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 2g
+    cpus: 2.0
     environment:
       SCRAPLING_API_KEY: ${SCRAPLING_API_KEY:-}
       DATABASE_URL: postgresql://libretv_scrapling:${SCRAPLING_DB_PASSWORD:-local-dev-only-change-me}@scrapling-postgres:5432/libretv_scrapling
