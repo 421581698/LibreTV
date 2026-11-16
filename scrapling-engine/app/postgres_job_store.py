@@ -258,7 +258,7 @@ class PostgresJobStore:
                 WHERE job.task_id = candidate.task_id
                 RETURNING job.task_id
                 """,
-                (now, worker_id, lease_until, now.isoformat(), now.isoformat()),
+                (now, worker_id, lease_until, now, now.isoformat(), now.isoformat()),
             ).fetchone()
             if row is None:
                 return None
