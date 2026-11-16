@@ -9,6 +9,7 @@ from dataclasses import asdict
 from typing import Any, Awaitable, Callable
 
 from app.candidate_store import PostgresCandidateStore
+from app.media_analyzer import analyze_hls_manifest, analyze_mpd_manifest
 from app.config import settings
 from app.security import validate_public_http_url
 from app.spider import ScraplingSpiderAdapter
@@ -41,6 +42,7 @@ class WorkflowWorker:
             "validate_public_urls": self._validate_public_urls,
             "crawl_seed_urls": self._crawl_seed_urls,
             "register_candidates": self._register_candidates,
+            "analyze_media_manifest": self._analyze_media_manifest,
         }
 
     @staticmethod
@@ -90,6 +92,38 @@ class WorkflowWorker:
             "candidate_ids": candidate_ids,
             "count": len(candidate_ids),
             "review_status": "pending_review",
+        }
+
+    async def _analyze_media_manifest(
+        self,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        candidate_id = payload.get("candidate_id")
+        manifest_text = payload.get("manifest_text")
+        manifest_format = payload.get("format", "hls")
+        if not isinstance(candidate_id, str) or not candidate_id:
+            raise ValueError("analyze_media_manifest requires candidate_id")
+        if not isinstance(manifest_text, str):
+            raise ValueError("analyze_media_manifest requires manifest_text")
+        if manifest_format == "hls":
+            report = analyze_hls_manifest(manifest_text)
+        elif manifest_format == "dash":
+            report = analyze_mpd_manifest(manifest_text)
+        else:
+            raise ValueError("format must be 'hls' or 'dash'")
+        saved = await asyncio.to_thread(
+            self.candidates.save_quality_report,
+            candidate_id,
+            report,
+        )
+        if not saved:
+            raise ValueError("Media analysis candidate does not exist")
+        return {
+            "candidate_id": candidate_id,
+            "quality_label": report["quality_label"],
+            "is_4k_claim": report["is_4k_claim"],
+            "hdr_claim": report["hdr_claim"],
+            "verification_level": report["verification_level"],
         }
 
     async def _heartbeat(
