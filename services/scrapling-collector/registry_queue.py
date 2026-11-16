@@ -22,7 +22,6 @@ def connect() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH, timeout=15, isolation_level=None)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     conn.execute("PRAGMA busy_timeout=15000")
     return conn
@@ -30,6 +29,9 @@ def connect() -> sqlite3.Connection:
 
 def initialize() -> None:
     with connect() as c:
+        # WAL mode is persistent for the database; configure it once at startup
+        # instead of taking a journal-mode lock on every queue operation.
+        c.execute("PRAGMA journal_mode=WAL")
         c.executescript("""
         CREATE TABLE IF NOT EXISTS registry_movies (
           id TEXT PRIMARY KEY, external_key TEXT UNIQUE, title TEXT NOT NULL,
