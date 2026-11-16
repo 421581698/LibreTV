@@ -244,3 +244,11 @@ async def test_public_ipv4_mapped_ipv6_literal_is_pinned_as_ipv4():
 async def test_private_ipv4_mapped_ipv6_literal_is_rejected():
     with pytest.raises(EgressDenied):
         await resolve_public_addresses("::ffff:127.0.0.1", 443)
+
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("address", ["224.0.0.1", "240.0.0.1", "255.255.255.255"])
+async def test_proxy_rejects_multicast_and_reserved_ip_literals(address: str):
+    with pytest.raises(EgressDenied):
+        await resolve_public_addresses(address, 443)
