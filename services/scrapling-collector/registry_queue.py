@@ -366,12 +366,12 @@ class JobCancelled(Exception):
     pass
 
 
-def run_worker(worker_id: str, handler: Callable[[dict, Callable[[dict], bool]], dict], once: bool = False, idle_seconds: float = 2.0) -> None:
+def run_worker(worker_id: str, handler: Callable[[dict, Callable[[dict], bool]], dict], once: bool = False, idle_seconds: float = 2.0) -> bool:
     while True:
         job = claim_job(worker_id, lease_seconds=900)
         if not job:
             if once:
-                return
+                return False
             time.sleep(idle_seconds)
             continue
         try:
@@ -391,7 +391,7 @@ def run_worker(worker_id: str, handler: Callable[[dict, Callable[[dict], bool]],
         except Exception as exc:
             fail_job(job["id"],worker_id,type(exc).__name__)
         if once:
-            return
+            return True
 
 
 def safe_json(value: str | None) -> dict:
