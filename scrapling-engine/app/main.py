@@ -106,6 +106,7 @@ class WorkflowNodeRequest(BaseModel):
         "generate_extraction_rule",
         "register_candidates",
         "probe_local_media_file",
+        "probe_media_candidates",
         "analyze_media_manifest",
         "analyze_media_candidates",
     ]
