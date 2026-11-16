@@ -48,6 +48,7 @@ permissions:
 jobs:
   collector-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     defaults:
       run:
         working-directory: services/scrapling-collector
@@ -89,7 +90,8 @@ jobs:
           bash -n ../../scripts/scrapling-egress-firewall.sh
           bash -n ../../scripts/test-scrapling-egress-firewall.sh
       - name: Build isolated collector image
-        run: docker build --tag libretv-scrapling-collector:ci .
+        timeout-minutes: 30
+        run: timeout --signal=TERM --kill-after=30s 29m docker build --progress=plain --tag libretv-scrapling-collector:ci .
       - name: Smoke test isolated Chromium runtime without network
         working-directory: .
         run: |
