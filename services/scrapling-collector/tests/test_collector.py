@@ -84,6 +84,16 @@ class CollectorTests(unittest.TestCase):
         ])
         self.assertEqual(candidates[0]["ai_rule_version"], 1)
 
+    def test_per_host_throttle_reserves_slots_across_worker_threads(self):
+        host = "throttle.example"
+        collector._last_request_by_host.pop(host, None)
+        with patch.object(collector.time, "monotonic", side_effect=[100.0, 100.2]), \
+             patch.object(collector.time, "sleep") as sleep:
+            collector.throttle(host)
+            collector.throttle(host)
+        sleep.assert_called_once()
+        self.assertAlmostEqual(sleep.call_args.args[0], 0.8, places=5)
+
     def test_importing_app_does_not_create_or_migrate_database(self):
         with tempfile.TemporaryDirectory() as directory:
             database = Path(directory) / "must-not-exist.sqlite3"
