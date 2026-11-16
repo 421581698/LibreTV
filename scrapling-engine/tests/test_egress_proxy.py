@@ -307,6 +307,38 @@ async def test_dns_rebinding_second_resolution_rejects_private_answer():
 
 
 @pytest.mark.asyncio
+async def test_pinned_connection_re_resolves_and_blocks_dns_rebinding(monkeypatch):
+    loop = asyncio.get_running_loop()
+    answers = iter(
+        [
+            [_record("93.184.216.34")],
+            [_record("169.254.169.254")],
+        ]
+    )
+    connected = []
+
+    async def controlled_getaddrinfo(host, port, type):
+        assert host == "rebind.example"
+        assert port == 443
+        return next(answers)
+
+    async def fake_open_connection(host, port):
+        connected.append((host, port))
+        return object(), object()
+
+    monkeypatch.setattr(loop, "getaddrinfo", controlled_getaddrinfo)
+    monkeypatch.setattr(asyncio, "open_connection", fake_open_connection)
+
+    _reader, _writer, pinned = await open_pinned_connection("rebind.example", 443)
+    assert str(pinned) == "93.184.216.34"
+    assert connected == [("93.184.216.34", 443)]
+
+    with pytest.raises(EgressDenied, match="globally routable"):
+        await open_pinned_connection("rebind.example", 443)
+    assert connected == [("93.184.216.34", 443)]
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "target",
     [
