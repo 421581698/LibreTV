@@ -81,7 +81,7 @@ jobs:
       - name: Validate Render Blueprint YAML syntax
         working-directory: .
         run: |
-          ruby -e 'require "yaml"; YAML.safe_load_file("render.yaml", permitted_classes: [], aliases: false); YAML.safe_load_file(".github/workflows/collector-live-acceptance.yml", permitted_classes: [], aliases: false); puts "Render Blueprint and live acceptance workflow YAML syntax passed"'
+          ruby -e 'require "yaml"; YAML.safe_load_file("render.yaml", permitted_classes: [], aliases: false); YAML.safe_load_file(".github/workflows/scrapling-collector.yml", permitted_classes: [], aliases: false); YAML.safe_load_file(".github/workflows/collector-live-acceptance.yml", permitted_classes: [], aliases: false); puts "Render Blueprint and Collector workflow YAML syntax passed"'
       - name: Validate host firewall scripts syntax
         run: |
           bash -n ../../scripts/scrapling-egress-firewall.sh
