@@ -85,12 +85,18 @@ services:
       - SCRAPLING_API_TOKEN=${SCRAPLING_API_TOKEN:-}
       # Keep every outbound collector operation disabled until the host firewall has been installed and verified.
       - SCRAPLING_EGRESS_FIREWALL_CONFIRMED=${SCRAPLING_EGRESS_FIREWALL_CONFIRMED:-0}
+      - SCRAPLING_EGRESS_MARKER_PATH=/run/libretv-scrapling-egress/confirmed.json
+      - SCRAPLING_EGRESS_COLLECTOR_CIDR=${SCRAPLING_NETWORK_SUBNET:-172.30.60.0/24}
+      - SCRAPLING_EGRESS_APP_IP=${LIBRETV_CONTAINER_IP:-172.30.60.2}
+      - SCRAPLING_EGRESS_API_IP=${SCRAPLING_COLLECTOR_IP:-172.30.60.10}
+      - SCRAPLING_EGRESS_API_PORT=8000
       - SCRAPLING_DB_PATH=${SCRAPLING_DB_PATH:-/data/collector.sqlite3}
       - PORT=8000
     expose:
       - "8000"
     volumes:
       - scrapling_data:/data
+      - ${SCRAPLING_EGRESS_MARKER_DIR:-/run/libretv-scrapling-egress}:/run/libretv-scrapling-egress:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
       interval: 30s
@@ -125,9 +131,15 @@ services:
     environment:
       - SCRAPLING_API_TOKEN=${SCRAPLING_API_TOKEN:-}
       - SCRAPLING_EGRESS_FIREWALL_CONFIRMED=${SCRAPLING_EGRESS_FIREWALL_CONFIRMED:-0}
+      - SCRAPLING_EGRESS_MARKER_PATH=/run/libretv-scrapling-egress/confirmed.json
+      - SCRAPLING_EGRESS_COLLECTOR_CIDR=${SCRAPLING_NETWORK_SUBNET:-172.30.60.0/24}
+      - SCRAPLING_EGRESS_APP_IP=${LIBRETV_CONTAINER_IP:-172.30.60.2}
+      - SCRAPLING_EGRESS_API_IP=${SCRAPLING_COLLECTOR_IP:-172.30.60.10}
+      - SCRAPLING_EGRESS_API_PORT=8000
       - SCRAPLING_DB_PATH=${SCRAPLING_DB_PATH:-/data/collector.sqlite3}
     volumes:
       - scrapling_data:/data
+      - ${SCRAPLING_EGRESS_MARKER_DIR:-/run/libretv-scrapling-egress}:/run/libretv-scrapling-egress:ro
     depends_on:
       scrapling-collector:
         condition: service_healthy
