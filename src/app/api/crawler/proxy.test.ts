@@ -105,4 +105,22 @@ describe('crawler engine proxy', () => {
     expect(response.status).toBe(503);
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it('never activates extraction rules when LibreTV authentication is disabled', async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await POST(
+      new Request('https://local.test/api/crawler/rules/rule-123/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note: 'Looks good' }),
+      }),
+      context(['rules', 'rule-123', 'activate']),
+    );
+
+    expect(response.status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
 });
