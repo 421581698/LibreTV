@@ -12,6 +12,13 @@ compose=(docker compose --profile crawler)
 cleanup() {
   status=$?
   if [[ "$status" -ne 0 ]]; then
+    for service in scrapling-engine scrapling-job-worker scrapling-workflow-worker scrapling-egress-proxy scrapling-media-probe; do
+      container=$("${compose[@]}" ps -aq "$service" | head -n 1)
+      if [[ -n "$container" ]]; then
+        echo "Runtime state for $service:"
+        docker inspect --format '{{json .State}}' "$container" || true
+      fi
+    done
     "${compose[@]}" logs --no-color --tail=100 scrapling-engine scrapling-job-worker scrapling-egress-proxy scrapling-workflow-worker scrapling-media-probe || true
   fi
   "${compose[@]}" down --volumes --remove-orphans
