@@ -404,7 +404,11 @@ async def capabilities() -> dict:
                 else "candidate_store_requires_postgresql"
             ),
             "read_only_candidate_review_api" if settings.database_url else "no_candidate_api",
-            "versioned_rule_registry" if settings.database_url else "rule_registry_requires_postgresql",
+            (
+                "versioned_rule_registry"
+                if settings.database_url
+                else "rule_registry_requires_postgresql"
+            ),
             (
                 "hls_dash_manifest_quality_analysis"
                 if settings.database_url
