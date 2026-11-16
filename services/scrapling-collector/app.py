@@ -29,8 +29,8 @@ import registry_queue as registry_store
 FMHY_VIDEO_URL = "https://fmhy.net/video"
 TOKEN = os.environ.get("SCRAPLING_API_TOKEN", "").strip()
 DB_PATH = Path(os.environ.get("SCRAPLING_DB_PATH", "/data/collector.sqlite3"))
-MAX_RESULTS = 100
-MAX_CANDIDATES = 100
+MAX_RESULTS = 1000
+MAX_CANDIDATES = 1000
 MAX_CRAWL_DEPTH = 2
 MAX_CRAWL_PAGES = 12
 MAX_CRAWL_LINKS_PER_PAGE = 8
