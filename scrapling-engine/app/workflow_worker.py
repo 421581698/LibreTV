@@ -42,15 +42,15 @@ class WorkflowWorker:
 
     async def _validate_public_urls(self, payload: dict[str, Any]) -> dict[str, Any]:
         urls = payload.get("urls")
-        if not isinstance(urls, list) or not urls:
-            raise ValueError("validate_public_urls requires a non-empty urls array")
+        if not isinstance(urls, list) or not urls or len(urls) > 20:
+            raise ValueError("validate_public_urls requires 1 to 20 URLs")
         safe_urls = list(dict.fromkeys(validate_public_http_url(url) for url in urls))
         return {"urls": safe_urls, "validated_count": len(safe_urls)}
 
     async def _crawl_seed_urls(self, payload: dict[str, Any]) -> dict[str, Any]:
         urls = payload.get("urls")
-        if not isinstance(urls, list) or not urls:
-            raise ValueError("crawl_seed_urls requires a non-empty urls array")
+        if not isinstance(urls, list) or not urls or len(urls) > 20:
+            raise ValueError("crawl_seed_urls requires 1 to 20 URLs")
         safe_urls = list(dict.fromkeys(validate_public_http_url(url) for url in urls))
         spider = ScraplingSpiderAdapter.create(safe_urls)
         items: list[dict[str, Any]] = []
