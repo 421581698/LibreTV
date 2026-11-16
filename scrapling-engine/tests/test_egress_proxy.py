@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import socket
 
 import pytest
@@ -58,7 +59,7 @@ async def test_open_connection_uses_pinned_ip_not_hostname(monkeypatch):
     async def fake_resolve(host, port):
         assert host == "public.example"
         assert port == 443
-        return [__import__("ipaddress").ip_address(pinned[0])]
+        return [ipaddress.ip_address(pinned[0])]
 
     async def fake_open_connection(host, port):
         observed["host"] = host
@@ -67,6 +68,6 @@ async def test_open_connection_uses_pinned_ip_not_hostname(monkeypatch):
 
     monkeypatch.setattr("app.egress_proxy.resolve_public_addresses", fake_resolve)
     monkeypatch.setattr(asyncio, "open_connection", fake_open_connection)
-    reader, writer, address = await open_pinned_connection("public.example", 443)
+    _reader, _writer, address = await open_pinned_connection("public.example", 443)
     assert observed == {"host": "93.184.216.34", "port": 443}
     assert str(address) == "93.184.216.34"
