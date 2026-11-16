@@ -1990,17 +1990,21 @@ def record_page_sample(task_id: str, host: str, page_url: str, body: bytes) -> N
 def task_page_sample(task_id: str | None = None, host: str | None = None) -> str | None:
     if not task_id and not host:
         return None
-    with db() as connection:
-        if task_id:
-            row = connection.execute(
-                "SELECT html_sample FROM crawl_page_samples WHERE task_id=? ORDER BY captured_at DESC LIMIT 1",
-                (task_id,),
-            ).fetchone()
-        else:
-            row = connection.execute(
-                "SELECT html_sample FROM crawl_page_samples WHERE host=? ORDER BY captured_at DESC LIMIT 1",
-                (host,),
-            ).fetchone()
+    try:
+        with db() as connection:
+            if task_id:
+                row = connection.execute(
+                    "SELECT html_sample FROM crawl_page_samples WHERE task_id=? ORDER BY captured_at DESC LIMIT 1",
+                    (task_id,),
+                ).fetchone()
+            else:
+                row = connection.execute(
+                    "SELECT html_sample FROM crawl_page_samples WHERE host=? ORDER BY captured_at DESC LIMIT 1",
+                    (host,),
+                ).fetchone()
+    except sqlite3.OperationalError:
+        # Worker unit tests and older DBs may not yet have the optional sample table.
+        return None
     return row["html_sample"] if row else None
 
 
