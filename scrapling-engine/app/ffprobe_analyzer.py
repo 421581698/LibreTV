@@ -22,7 +22,12 @@ class MediaProbeError(ValueError):
 
 def _probe_root() -> Path:
     root = Path(os.environ.get("MEDIA_PROBE_ROOT", str(DEFAULT_PROBE_ROOT)))
-    root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if root.is_symlink():
+        raise MediaProbeError("The media probe root cannot be a symbolic link")
+    if not root.exists():
+        root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if not root.is_dir():
+        raise MediaProbeError("The media probe root must be a directory")
     return root.resolve(strict=True)
 
 
