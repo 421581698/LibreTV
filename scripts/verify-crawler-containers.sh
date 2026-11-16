@@ -62,7 +62,11 @@ for service in scrapling-engine scrapling-job-worker scrapling-workflow-worker; 
   }
 
   # The shared durable volume must be writable by the unprivileged process.
-  "${compose[@]}" exec -T "$service" sh -ec 'f="/data/.runtime-acceptance-$$"; : > "$f"; rm "$f"'
+  if ! "${compose[@]}" exec -T "$service" sh -ec 'f="/data/.runtime-acceptance-$"; : > "$f"; rm "$f"'; then
+    echo "$service failed during the /data write check; container logs follow"
+    docker logs "$container" || true
+    exit 1
+  fi
   echo "$service: uid, read-only rootfs, tmpfs, resource limits and /data write passed"
 done
 
