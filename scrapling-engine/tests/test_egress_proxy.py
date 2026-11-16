@@ -71,3 +71,96 @@ async def test_open_connection_uses_pinned_ip_not_hostname(monkeypatch):
     _reader, _writer, address = await open_pinned_connection("public.example", 443)
     assert observed == {"host": "93.184.216.34", "port": 443}
     assert str(address) == "93.184.216.34"
+
+@pytest.mark.asyncio
+async def test_connect_proxy_tunnels_tls_bytes_to_pinned_peer(monkeypatch):
+    from app import egress_proxy
+
+    async def echo(reader, writer):
+        payload = await reader.read(64)
+        writer.write(payload)
+        await writer.drain()
+        writer.close()
+        await writer.wait_closed()
+
+    target_server = await asyncio.start_server(echo, "127.0.0.1", 0)
+    target_port = target_server.sockets[0].getsockname()[1]
+
+    async def fake_open_pinned_connection(host, port):
+        assert host == "example.com"
+        assert port == 443
+        return await asyncio.open_connection("127.0.0.1", target_port) + (
+            ipaddress.ip_address("93.184.216.34"),
+        )
+
+    monkeypatch.setattr(egress_proxy, "open_pinned_connection", fake_open_pinned_connection)
+    proxy_server = await asyncio.start_server(egress_proxy.handle_client, "127.0.0.1", 0)
+    proxy_port = proxy_server.sockets[0].getsockname()[1]
+    try:
+        reader, writer = await asyncio.open_connection("127.0.0.1", proxy_port)
+        writer.write(
+            b"CONNECT example.com:443 HTTP/1.1\r\n"
+            b"Host: example.com:443\r\n\r\n"
+        )
+        await writer.drain()
+        response = await reader.readuntil(b"\r\n\r\n")
+        assert response.startswith(b"HTTP/1.1 200")
+        writer.write(b"tls-client-hello")
+        await writer.drain()
+        assert await asyncio.wait_for(reader.readexactly(16), timeout=3) == b"tls-client-hello"
+        writer.close()
+        await writer.wait_closed()
+    finally:
+        proxy_server.close()
+        target_server.close()
+        await proxy_server.wait_closed()
+        await target_server.wait_closed()
+
+
+@pytest.mark.asyncio
+async def test_http_proxy_rewrites_absolute_target_and_closes_connection(monkeypatch):
+    from app import egress_proxy
+
+    observed = {}
+
+    async def target(reader, writer):
+        observed["request"] = await reader.readuntil(b"\r\n\r\n")
+        writer.write(
+            b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
+        )
+        await writer.drain()
+        writer.close()
+        await writer.wait_closed()
+
+    target_server = await asyncio.start_server(target, "127.0.0.1", 0)
+    target_port = target_server.sockets[0].getsockname()[1]
+
+    async def fake_open_pinned_connection(host, port):
+        assert host == "example.com"
+        assert port == 80
+        return await asyncio.open_connection("127.0.0.1", target_port) + (
+            ipaddress.ip_address("93.184.216.34"),
+        )
+
+    monkeypatch.setattr(egress_proxy, "open_pinned_connection", fake_open_pinned_connection)
+    proxy_server = await asyncio.start_server(egress_proxy.handle_client, "127.0.0.1", 0)
+    proxy_port = proxy_server.sockets[0].getsockname()[1]
+    try:
+        reader, writer = await asyncio.open_connection("127.0.0.1", proxy_port)
+        writer.write(
+            b"GET http://example.com/catalog?q=1 HTTP/1.1\r\n"
+            b"Host: example.com\r\n"
+            b"Proxy-Connection: keep-alive\r\n\r\n"
+        )
+        await writer.drain()
+        response = await reader.read()
+        assert response.startswith(b"HTTP/1.1 200 OK")
+        assert b"GET /catalog?q=1 HTTP/1.1" in observed["request"]
+        assert b"Proxy-Connection" not in observed["request"]
+        writer.close()
+        await writer.wait_closed()
+    finally:
+        proxy_server.close()
+        target_server.close()
+        await proxy_server.wait_closed()
+        await target_server.wait_closed()
