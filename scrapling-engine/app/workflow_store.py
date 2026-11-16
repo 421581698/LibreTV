@@ -220,6 +220,56 @@ class PostgresWorkflowStore:
         now = _now()
         lease_until = now + timedelta(seconds=lease_seconds)
         with psycopg.connect(self.database_url, row_factory=dict_row) as db:
+            # A worker that crashes on its final attempt must not leave a DAG
+            # permanently running with an expired, unclaimable lease.
+            exhausted = db.execute(
+                """
+                UPDATE resource_workflow_nodes AS node
+                SET status = 'failed',
+                    error = 'Worker lease expired after maximum attempts',
+                    lease_owner = NULL,
+                    lease_expires_at = NULL,
+                    updated_at = %s
+                FROM resource_workflows AS workflow
+                WHERE workflow.workflow_id = node.workflow_id
+                  AND workflow.status = 'running'
+                  AND node.status = 'running'
+                  AND node.lease_expires_at < %s
+                  AND node.attempt_count >= node.max_attempts
+                RETURNING node.workflow_id, node.node_id, node.attempt_count
+                """,
+                (now, now),
+            ).fetchall()
+            failed_workflows: set[str] = set()
+            for expired in exhausted:
+                failed_workflows.add(expired["workflow_id"])
+                self._event(
+                    db,
+                    expired["workflow_id"],
+                    expired["node_id"],
+                    "node_failed",
+                    {
+                        "attempt": expired["attempt_count"],
+                        "error": "Worker lease expired after maximum attempts",
+                    },
+                )
+            for failed_workflow_id in failed_workflows:
+                cursor = db.execute(
+                    """
+                    UPDATE resource_workflows
+                    SET status = 'failed', updated_at = %s
+                    WHERE workflow_id = %s AND status = 'running'
+                    """,
+                    (now, failed_workflow_id),
+                )
+                if cursor.rowcount:
+                    self._event(
+                        db,
+                        failed_workflow_id,
+                        None,
+                        "workflow_failed",
+                        {"reason": "node_lease_exhausted"},
+                    )
             row = db.execute(
                 """
                 WITH candidate AS (
