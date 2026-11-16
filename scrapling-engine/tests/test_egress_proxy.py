@@ -3,6 +3,9 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import socket
+import shutil
+import ssl
+import subprocess
 
 import pytest
 
@@ -353,3 +356,81 @@ async def test_http_proxy_rejects_private_ip_before_connecting(target: str):
             target.split("//", 1)[1].split("/", 1)[0].strip("[]"),
             80,
         )
+
+
+
+@pytest.mark.asyncio
+async def test_connect_proxy_preserves_tls_sni_and_hostname_verification(tmp_path, monkeypatch):
+    from app import egress_proxy
+
+    openssl = shutil.which("openssl")
+    if not openssl:
+        pytest.skip("openssl is required to create the ephemeral TLS fixture")
+    cert = tmp_path / "server.crt"
+    key = tmp_path / "server.key"
+    subprocess.run(
+        [
+            openssl, "req", "-x509", "-newkey", "rsa:2048",
+            "-keyout", str(key), "-out", str(cert), "-days", "1",
+            "-nodes", "-subj", "/CN=example.test",
+            "-addext", "subjectAltName=DNS:example.test",
+        ],
+        check=True,
+        capture_output=True,
+        timeout=15,
+    )
+
+    observed_sni = []
+    server_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    server_context.load_cert_chain(str(cert), str(key))
+    server_context.set_servername_callback(
+        lambda _ssl_object, server_name, _context: observed_sni.append(server_name)
+    )
+
+    async def tls_handler(_reader, writer):
+        writer.write(b"ok")
+        await writer.drain()
+        writer.close()
+        await writer.wait_closed()
+
+    target_server = await asyncio.start_server(
+        tls_handler, "127.0.0.1", 0, ssl=server_context
+    )
+    target_port = target_server.sockets[0].getsockname()[1]
+
+    async def fake_open_pinned_connection(host, port):
+        assert host == "example.test"
+        assert port == 443
+        reader, writer = await asyncio.open_connection("127.0.0.1", target_port)
+        return reader, writer, ipaddress.ip_address("93.184.216.34")
+
+    monkeypatch.setattr(
+        egress_proxy, "open_pinned_connection", fake_open_pinned_connection
+    )
+    proxy_server = await asyncio.start_server(
+        egress_proxy.handle_client, "127.0.0.1", 0
+    )
+    proxy_port = proxy_server.sockets[0].getsockname()[1]
+
+    def tls_client():
+        raw = socket.create_connection(("127.0.0.1", proxy_port), timeout=5)
+        raw.sendall(
+            b"CONNECT example.test:443 HTTP/1.1\\r\\n"
+            b"Host: example.test:443\\r\\n\\r\\n"
+        )
+        response = bytearray()
+        while not response.endswith(b"\\r\\n\\r\\n"):
+            response.extend(raw.recv(1))
+        assert response.startswith(b"HTTP/1.1 200"), bytes(response)
+        context = ssl.create_default_context(cafile=str(cert))
+        with context.wrap_socket(raw, server_hostname="example.test") as secure:
+            assert secure.recv(2) == b"ok"
+
+    try:
+        await asyncio.to_thread(tls_client)
+        assert observed_sni == ["example.test"]
+    finally:
+        proxy_server.close()
+        target_server.close()
+        await proxy_server.wait_closed()
+        await target_server.wait_closed()
