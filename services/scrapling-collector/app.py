@@ -183,14 +183,12 @@ def refresh_collection_batch(batch_id: str) -> dict | None:
         ).fetchall()
         job_counts = {row["status"]: row["n"] for row in jobs}
         pending = job_counts.get("queued", 0) + job_counts.get("running", 0)
-        if candidate_count >= batch["target_candidates"] and collected_count >= batch["target_collected"]:
-            status = "target_reached"
-        elif pending:
+        if pending:
             status = "running"
         elif job_counts.get("failed", 0) or job_counts.get("partial", 0):
             status = "partial"
         else:
-            status = "exhausted"
+            status = "completed"
         connection.execute(
             "UPDATE collection_batches SET candidate_count=?,collected_count=?,status=?,updated_at=? WHERE id=?",
             (candidate_count, collected_count, status, int(time.time()), batch_id),
