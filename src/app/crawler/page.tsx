@@ -166,7 +166,11 @@ export default function CrawlerControlCenterPage() {
               node_type: 'validate_public_urls',
               input: { urls },
             },
-            { node_id: 'crawl', node_type: 'crawl_seed_urls', input: {} },
+            {
+              node_id: 'crawl',
+              node_type: 'discover_site_links',
+              input: { max_pages: 60, max_depth: 2, max_links_per_page: 25 },
+            },
             { node_id: 'candidates', node_type: 'register_candidates', input: {} },
             { node_id: 'media', node_type: 'analyze_media_candidates', input: {} },
           ],
