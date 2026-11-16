@@ -10,10 +10,16 @@ from __future__ import annotations
 import argparse
 import os
 import subprocess
+import urllib.request
 from pathlib import Path
 from urllib.parse import urlsplit
 
 from app import public_https_url, require_egress_firewall
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
 
 def main() -> None:
@@ -43,6 +49,24 @@ def main() -> None:
     if suffix not in {".mp4", ".m4v", ".webm"}:
         raise SystemExit("Media acceptance requires a direct MP4, M4V or WebM URL (no HLS/DRM playlists)")
     require_egress_firewall()
+
+    # Refuse redirects so the fetch cannot silently leave the operator's
+    # explicit hostname allowlist.
+    request = urllib.request.Request(
+        normalized, headers={"Range": "bytes=0-0"}, method="GET"
+    )
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect)
+    try:
+        with opener.open(request, timeout=20) as response:
+            if response.status not in {200, 206} or response.geturl() != normalized:
+                raise SystemExit("Media fixture must respond directly without redirects")
+            content_type = (response.headers.get("Content-Type") or "").lower()
+            if "mpegurl" in content_type or "dash+xml" in content_type:
+                raise SystemExit("HLS/DASH playlists are not accepted by this direct-file harness")
+    except urllib.error.HTTPError as exc:
+        raise SystemExit(f"Media fixture redirect or HTTP error rejected: {exc.code}") from exc
+    except (urllib.error.URLError, TimeoutError) as exc:
+        raise SystemExit(f"Media fixture preflight failed: {exc}") from exc
 
     output = Path(args.output)
     if not output.is_absolute() or output.parent != Path("/tmp"):
