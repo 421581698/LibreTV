@@ -27,8 +27,10 @@ def probe_media_file(
     if source.is_symlink():
         raise MediaProbeError("Symbolic links are not accepted for media probing")
     try:
+        probe_root = Path(os.environ.get("MEDIA_PROBE_ROOT", "/tmp/libretv-media-probe"))
+        probe_root.mkdir(mode=0o700, parents=True, exist_ok=True)
+        probe_root = probe_root.resolve(strict=True)
         resolved = source.resolve(strict=True)
-        probe_root = Path(os.environ.get("MEDIA_PROBE_ROOT", "/tmp/libretv-media-probe")).resolve(strict=True)
         resolved.relative_to(probe_root)
         metadata = resolved.stat()
     except (OSError, ValueError) as exc:
