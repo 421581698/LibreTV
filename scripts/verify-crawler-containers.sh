@@ -208,6 +208,12 @@ test -n "$proxy_container"
 [[ "$(docker inspect --format '{{.Config.User}}' "$proxy_container")" == "10001:10001" ]]
 [[ "$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "$proxy_container")" == "true" ]]
 [[ "$(docker inspect --format '{{.HostConfig.PidsLimit}}' "$proxy_container")" -le 64 ]]
+[[ "$(docker inspect --format '{{.HostConfig.Memory}}' "$proxy_container")" -gt 0 ]]
+[[ "$(docker inspect --format '{{.HostConfig.NanoCpus}}' "$proxy_container")" -gt 0 ]]
+proxy_tmpfs=$(docker inspect --format '{{json .HostConfig.Tmpfs}}' "$proxy_container")
+grep -q 'noexec' <<<"$proxy_tmpfs"
+grep -q 'nosuid' <<<"$proxy_tmpfs"
+grep -q 'nodev' <<<"$proxy_tmpfs"
 grep -q '"ALL"' <<<"$(docker inspect --format '{{json .HostConfig.CapDrop}}' "$proxy_container")"
 grep -q 'no-new-privileges' <<<"$(docker inspect --format '{{json .HostConfig.SecurityOpt}}' "$proxy_container")"
 proxy_networks=$(docker inspect --format '{{range $name, $value := .NetworkSettings.Networks}}{{$name}} {{end}}' "$proxy_container")
