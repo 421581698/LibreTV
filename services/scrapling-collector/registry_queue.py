@@ -116,7 +116,7 @@ def validate_durable_job_payload(job_type: str, payload: dict) -> dict:
         host = payload.get("host")
         sample = payload.get("page_html")
         fixtures = payload.get("fixtures", [])
-        if not isinstance(host, str) or not re.fullmatch(r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*", host.strip().rstrip(".").lower()):
+        if not isinstance(host, str) or not re.fullmatch(r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*", host.strip().rstrip(".").lower()):
             raise ValueError("AI rule jobs require a canonical DNS hostname")
         if not isinstance(sample, str) or not sample or len(sample.encode("utf-8")) > 256 * 1024:
             raise ValueError("AI rule jobs require a bounded HTML sample")
