@@ -71,7 +71,7 @@ async def open_pinned_connection(
                 timeout=CONNECT_TIMEOUT_SECONDS,
             )
             return reader, writer, address
-        except (OSError, asyncio.TimeoutError) as exc:
+        except (OSError, TimeoutError) as exc:
             last_error = exc
     raise EgressDenied("Could not connect to any validated target address") from last_error
 
@@ -264,7 +264,7 @@ async def handle_client(
     except EgressDenied as exc:
         await _write_error(writer, 403, "Forbidden")
         logger.info("Denied egress request: %s", str(exc))
-    except (asyncio.IncompleteReadError, asyncio.LimitOverrunError, asyncio.TimeoutError):
+    except (asyncio.IncompleteReadError, asyncio.LimitOverrunError, TimeoutError):
         await _write_error(writer, 400, "Bad Request")
     except Exception as exc:
         logger.warning("Egress proxy request failed: %s", type(exc).__name__)
