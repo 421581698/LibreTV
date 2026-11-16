@@ -17,6 +17,8 @@ def main():
     parsed = urlparse(url)
     if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.hostname.lower() not in allowed:
         raise SystemExit("FAIL: browser media fixture must be an allowlisted HTTPS URL")
+    if not parsed.path.lower().endswith((".mp4", ".m4v", ".webm")):
+        raise SystemExit("FAIL: Chromium acceptance requires a direct MP4 or WebM fixture (HLS is tested by ffmpeg)")
     try:
         addresses = {ipaddress.ip_address(item[4][0]) for item in socket.getaddrinfo(parsed.hostname, 443, type=socket.SOCK_STREAM)}
     except OSError as exc:
