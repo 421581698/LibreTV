@@ -19,12 +19,9 @@ trap cleanup EXIT
 
 ready=0
 for attempt in $(seq 1 60); do
-  state=$("${compose[@]}" ps --format json scrapling-postgres | python3 -c 'import json,sys; rows=[json.loads(x) for x in sys.stdin if x.strip()]; print(rows[0].get("State", "") if rows else "")')
-  if [[ "$state" == "running" ]]; then
-    if "${compose[@]}" exec -T scrapling-postgres pg_isready -U libretv_scrapling -d libretv_scrapling >/dev/null 2>&1; then
-      ready=1
-      break
-    fi
+  if "${compose[@]}" exec -T scrapling-postgres pg_isready -U libretv_scrapling -d libretv_scrapling >/dev/null 2>&1; then
+    ready=1
+    break
   fi
   sleep 2
 done
