@@ -1302,6 +1302,17 @@ segment-2.ts
         self.assertIsNone(collector.frontier_link_priority("https://cdn.example/movie.m3u8", "Stream"))
         self.assertIsNone(collector.frontier_link_priority("https://catalog.example:8443/movie/123", "Movie"))
 
+    def test_worker_crawl_path_rejects_hosts_missing_from_fmhy_registry(self):
+        with patch.object(collector, "enable_adaptive_fetcher"), \
+             patch.object(collector, "require_egress_firewall"), \
+             patch.object(collector, "public_https_url",
+                          return_value=("https://not-discovered.example/", "not-discovered.example")):
+            with self.assertRaises(collector.HTTPException) as error:
+                collector.crawl_site(
+                    collector.CrawlRequest(url="https://not-discovered.example/")
+                )
+        self.assertEqual(error.exception.status_code, 403)
+
     def test_fmhy_category_discovery_only_returns_fmhy_owned_pages(self):
         class Anchor:
             def __init__(self, href, text):
