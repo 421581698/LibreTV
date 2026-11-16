@@ -65,8 +65,9 @@ def test_probe_reports_encoded_dimensions_but_not_native_4k(tmp_path, monkeypatc
     real_popen = subprocess.Popen
 
     def fake_popen(command, **kwargs):
-        assert command[0] == "ffprobe"
-        assert "-protocol_whitelist" in command
+        assert command[0] == "prlimit"
+        assert command[command.index("--") + 1] == "ffprobe"
+        assert command[command.index("--") + 1:][command[command.index("--") + 1:].index("-protocol_whitelist") + 1] == "file"
         entries = command[command.index("-show_entries") + 1]
         assert "stream_tags=language,title" in entries
         assert "stream_disposition=default,forced" in entries
