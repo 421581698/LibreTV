@@ -260,6 +260,11 @@ def validate_durable_job_payload(job_type: str, payload: dict) -> dict:
     netloc = host if port is None else f"{host}:{port}"
     normalized = dict(payload)
     normalized["url"] = urlunsplit(("https", netloc, parsed.path or "/", parsed.query, ""))
+    if "max_pages" in payload:
+        max_pages = payload["max_pages"]
+        if isinstance(max_pages, bool) or not isinstance(max_pages, int) or not 1 <= max_pages <= 100:
+            raise ValueError("Crawl page budget must be an integer between 1 and 100")
+        normalized["max_pages"] = max_pages
     return normalized
 
 
