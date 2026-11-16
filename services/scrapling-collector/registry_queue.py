@@ -118,7 +118,8 @@ def validate_durable_job_payload(job_type: str, payload: dict) -> dict:
         or parsed.username is not None
         or parsed.password is not None
         or port not in (None, 443)
-        or any(ord(char) < 32 or ord(char) == 127 for char in url)
+        or "\\" in url
+        or any(char.isspace() or ord(char) < 32 or ord(char) == 127 for char in url)
     ):
         raise ValueError("Only credential-free HTTPS crawl URLs on port 443 are accepted")
     sensitive_keys = {
@@ -406,7 +407,8 @@ def upsert_resource(payload: dict) -> dict:
         or parsed_url.username is not None
         or parsed_url.password is not None
         or port not in (None, 443)
-        or any(ord(char) < 32 or ord(char) == 127 for char in url)
+        or "\\" in url
+        or any(char.isspace() or ord(char) < 32 or ord(char) == 127 for char in url)
     ):
         raise ValueError("Only credential-free HTTPS URLs on port 443 are accepted")
     sensitive_query_keys = {
