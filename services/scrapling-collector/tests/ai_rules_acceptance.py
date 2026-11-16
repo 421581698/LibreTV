@@ -76,7 +76,7 @@ def main():
         "/v1/rules/" + HOST + f"/versions/{repaired_version}/activate", "POST"
     )
     audit = request("/v1/rules/" + HOST + "/events")["events"]
-    if not any(item.get("action") == "rollback" and item.get("version") == previous_version for item in audit):
+    if not any(item.get("action") == "rollback" and item.get("version") == previous_version and item.get("previous_version") == repaired_version for item in audit):
         raise SystemExit("FAIL: rollback audit event was not recorded")
     if int(restored["version"]) != repaired_version:
         raise SystemExit("FAIL: repaired version could not be reactivated after rollback")
