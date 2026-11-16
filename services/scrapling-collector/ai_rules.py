@@ -318,6 +318,10 @@ def diagnose_and_repair(host: str, page_html: str, failure_code: str,
 def list_versions(host: str, limit: int = 50) -> list[dict]:
     limit = max(1, min(100, int(limit)))
     with connect() as c:
+        active = c.execute(
+            "SELECT active_version FROM collector_rules WHERE host=?", (host,)
+        ).fetchone()
+        active_version = active["active_version"] if active else None
         rows = c.execute(
             """SELECT id,host,version,status,rules_json,source,fixture_passes,
                       fixture_total,created_at
@@ -327,6 +331,7 @@ def list_versions(host: str, limit: int = 50) -> list[dict]:
         ).fetchall()
     return [{
         "id": row["id"], "host": row["host"], "version": row["version"],
+        "is_active": row["version"] == active_version,
         "status": row["status"], "rules": json.loads(row["rules_json"]),
         "source": row["source"], "fixture_passes": row["fixture_passes"],
         "fixture_total": row["fixture_total"], "created_at": row["created_at"],
