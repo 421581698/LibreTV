@@ -71,8 +71,8 @@ def handle(payload: dict, checkpoint, cancelled):
                 "UPDATE collection_batches SET discovered_sites=?,queued_jobs=?,status='running',updated_at=? WHERE id=?",
                 (len(sites), len(queued), now, batch_id),
             )
-        checkpoint({"stage": "fmhy_sites_registered", "batch_id": batch_id, "target_candidates": 1000, "target_collected": 1000, "discovered": len(sites), "queued_jobs": len(queued)})
-        return {"status": "succeeded", "batch_id": batch_id, "target_candidates": 1000, "target_collected": 1000, "discovered": len(sites), "queued_jobs": queued}
+        checkpoint({"stage": "fmhy_sites_registered", "batch_id": batch_id, "target_tasks": MAX_BATCH_SITE_JOBS, "discovered": len(sites), "queued_jobs": len(queued), "worker_concurrency": int(os.environ.get("SCRAPLING_WORKER_CONCURRENCY", str(DEFAULT_WORKER_CONCURRENCY)))})
+        return {"status": "succeeded", "batch_id": batch_id, "target_tasks": MAX_BATCH_SITE_JOBS, "discovered": len(sites), "queued_jobs": queued, "worker_concurrency": int(os.environ.get("SCRAPLING_WORKER_CONCURRENCY", str(DEFAULT_WORKER_CONCURRENCY)))}
 
     batch_id = payload.get("batch_id")
     checkpoint({"stage": "crawl_started"})
