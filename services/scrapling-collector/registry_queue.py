@@ -121,6 +121,52 @@ def submit_job(job_type: str, payload: dict, idempotency_key: str, max_attempts:
     return dict(row)
 
 
+def submit_jobs(jobs: list[dict]) -> list[dict]:
+    """Atomically enqueue up to 1,000 independent jobs in one durable transaction."""
+    if not isinstance(jobs, list) or not 1 <= len(jobs) <= 1000:
+        raise ValueError("Bulk submission requires between 1 and 1000 jobs")
+    now = int(time.time())
+    results = []
+    with connect() as c:
+        c.execute("BEGIN IMMEDIATE")
+        for item in jobs:
+            if not isinstance(item, dict):
+                c.rollback()
+                raise ValueError("Each bulk job must be an object")
+            job_type = item.get("job_type")
+            payload = item.get("payload")
+            idempotency_key = item.get("idempotency_key")
+            if job_type not in {"crawl", "discover", "batch_crawl"}:
+                c.rollback()
+                raise ValueError("Unsupported job type")
+            if not isinstance(payload, dict):
+                c.rollback()
+                raise ValueError("Each job payload must be an object")
+            if not isinstance(idempotency_key, str) or not idempotency_key or len(idempotency_key) > 200:
+                c.rollback()
+                raise ValueError("Invalid idempotency key")
+            try:
+                max_attempts = max(1, min(int(item.get("max_attempts", 4)), 8))
+            except (TypeError, ValueError):
+                c.rollback()
+                raise ValueError("Invalid max_attempts")
+            job_id = hashlib.sha256(idempotency_key.encode()).hexdigest()[:32]
+            cursor = c.execute("""INSERT OR IGNORE INTO collector_jobs
+              (id,idempotency_key,job_type,payload,status,max_attempts,available_at,created_at,updated_at)
+              VALUES(?,?,?,?,?,?,?,?,?)""",
+              (job_id,idempotency_key,job_type,json.dumps(payload,ensure_ascii=False),
+               "queued",max_attempts,now,now,now))
+            row = c.execute("SELECT * FROM collector_jobs WHERE idempotency_key=?", (idempotency_key,)).fetchone()
+            if row["job_type"] != job_type or json.loads(row["payload"]) != payload:
+                c.rollback()
+                raise ValueError("Idempotency key was already used for a different job payload")
+            if cursor.rowcount:
+                event(c, row["id"], "queued", {"job_type": job_type, "submission": "bulk"})
+            results.append(dict(row))
+        c.commit()
+    return results
+
+
 def claim_job(worker_id: str, lease_seconds: int = 90) -> dict | None:
     now = int(time.time())
     with connect() as c:
@@ -584,6 +630,18 @@ def api_submit_batch(payload: dict, authorization: str | None = Header(default=N
     return {"job_id": job["id"], "status": job["status"], "batch_target": {
         "minimum": minimum, "target": target, "max_sites": max_sites,
     }}
+
+
+@router.post("/v1/jobs/bulk")
+def api_submit_jobs(payload: dict, authorization: str | None = Header(default=None)):
+    require_auth(authorization)
+    jobs = payload.get("jobs")
+    if not isinstance(jobs, list) or not 1 <= len(jobs) <= 1000:
+        raise HTTPException(status_code=400, detail="Bulk submission requires 1 to 1000 jobs")
+    try:
+        return {"jobs": submit_jobs(jobs)}
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @router.get("/v1/jobs")
