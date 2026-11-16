@@ -85,8 +85,7 @@ def analyze_local_media_file(
         completed = subprocess.run(
             command,
             stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             timeout=timeout_seconds,
             check=False,
             shell=False,
@@ -113,7 +112,11 @@ def analyze_local_media_file(
         raise MediaProbeError("Media file contains no readable streams")
 
     video = next(
-        (stream for stream in streams if isinstance(stream, dict) and stream.get("codec_type") == "video"),
+        (
+            stream
+            for stream in streams
+            if isinstance(stream, dict) and stream.get("codec_type") == "video"
+        ),
         None,
     )
     if video is None:
@@ -133,7 +136,7 @@ def analyze_local_media_file(
     is_4k = bool(width and height and width >= 3840 and height >= 2160)
     return {
         "container": format_info.get("format_name"),
-        "duration_seconds": _ratio(str(format_info.get("duration"))) if "/" in str(format_info.get("duration")) else _safe_float(format_info.get("duration")),
+        "duration_seconds": _safe_float(format_info.get("duration")),
         "file_size_bytes": _safe_int(format_info.get("size")) or media_path.stat().st_size,
         "container_bitrate_bps": _safe_int(format_info.get("bit_rate")),
         "video": {
@@ -142,7 +145,10 @@ def analyze_local_media_file(
             "width": width,
             "height": height,
             "pixel_format": video.get("pix_fmt"),
-            "frame_rate_fps": _ratio(video.get("avg_frame_rate")) or _ratio(video.get("r_frame_rate")),
+            "frame_rate_fps": (
+                _ratio(video.get("avg_frame_rate"))
+                or _ratio(video.get("r_frame_rate"))
+            ),
             "bitrate_bps": _safe_int(video.get("bit_rate")),
             "color_range": video.get("color_range"),
             "color_space": video.get("color_space"),
@@ -158,8 +164,14 @@ def analyze_local_media_file(
         "upscaled_4k": "unknown",
         "verification_level": "local_bitstream_probe",
         "limitations": [
-            "ffprobe reads the encoded stream dimensions and metadata; it cannot prove the source was natively captured or mastered at 4K.",
-            "HDR classification is based on stream color metadata and may still be missing or incorrect.",
+            (
+                "ffprobe reads encoded stream dimensions and metadata; it cannot prove "
+                "the source was natively captured or mastered at 4K."
+            ),
+            (
+                "HDR classification is based on stream color metadata and may still "
+                "be missing or incorrect."
+            ),
             "This probe does not decode frames or perform visual quality analysis.",
         ],
     }
