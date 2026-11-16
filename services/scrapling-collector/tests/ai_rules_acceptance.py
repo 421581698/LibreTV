@@ -2,15 +2,18 @@
 """Live AI rule generation/repair against an operator-approved public HTML page."""
 from __future__ import annotations
 
+import http.client
 import json
 import os
+import ssl
 import sys
 import time
 import uuid
 import urllib.request
+from urllib.parse import urljoin, urlparse
 
 sys.path.insert(0, "/app")
-from app import Fetcher, public_https_url, require_egress_firewall
+from app import PinnedHTTPSConnection, public_https_url, require_egress_firewall, resolve_public_addresses
 import ai_rules
 
 BASE = os.environ.get("SCRAPLING_API_BASE", "http://127.0.0.1:8000").rstrip("/")
@@ -21,7 +24,7 @@ MAX_SAMPLE_BYTES = 128 * 1024
 
 def fetch_real_sample() -> tuple[str, str]:
     require_egress_firewall()
-    _, host = public_https_url(TARGET_URL)
+    normalized, host = public_https_url(TARGET_URL)
     allowed = {
         item.strip().lower().rstrip(".")
         for item in os.environ.get("COLLECTOR_AI_ALLOWED_HOSTS", "").split(",")
@@ -30,26 +33,55 @@ def fetch_real_sample() -> tuple[str, str]:
     if host not in allowed:
         raise SystemExit("FAIL: AI acceptance target host is not in COLLECTOR_AI_ALLOWED_HOSTS")
 
-    # Use the Collector's normal fetcher, not a separate raw HTTP client.
-    page = Fetcher.get(TARGET_URL, timeout=25, follow_redirects="safe")
-    status = int(getattr(page, "status", 0) or 0)
-    final_url = str(getattr(page, "url", TARGET_URL) or TARGET_URL)
-    _, final_host = public_https_url(final_url)
-    if final_host != host:
-        raise SystemExit("FAIL: AI acceptance fetch redirected outside its approved hostname")
+    current = normalized
+    response_body = b""
+    content_type = ""
+    status = 0
+    for redirect_count in range(4):
+        _, current_host = public_https_url(current)
+        if current_host != host:
+            raise SystemExit("FAIL: AI acceptance redirect left the approved hostname")
+        parsed = urlparse(current)
+        pinned_ip = resolve_public_addresses(current_host)[0]
+        connection = PinnedHTTPSConnection(
+            current_host, pinned_ip, 443, timeout=20, context=ssl.create_default_context()
+        )
+        try:
+            target = parsed.path or "/"
+            if parsed.query:
+                target += "?" + parsed.query
+            connection.request("GET", target, headers={
+                "Accept": "text/html,application/xhtml+xml",
+                "Accept-Encoding": "identity",
+                "User-Agent": "LibreTV-AI-Rule-Acceptance/1.0",
+                "Connection": "close",
+            })
+            response = connection.getresponse()
+            status = response.status
+            headers = {key.lower(): value for key, value in response.getheaders()}
+            if status in (301, 302, 303, 307, 308):
+                location = headers.get("location", "")
+                response.read(4096)
+                if not location or redirect_count == 3:
+                    raise SystemExit("FAIL: approved page exceeded safe redirect limit")
+                current = urljoin(current, location)
+                continue
+            content_type = headers.get("content-type", "").lower()
+            response_body = response.read(MAX_SAMPLE_BYTES + 1)
+            break
+        finally:
+            connection.close()
+
     if not 200 <= status < 300:
         raise SystemExit(f"FAIL: approved HTML page returned HTTP {status}")
-    content_type = str((getattr(page, "headers", {}) or {}).get("content-type", "")).lower()
     if "text/html" not in content_type and "application/xhtml+xml" not in content_type:
         raise SystemExit("FAIL: AI acceptance target did not return an HTML content type")
-    body = getattr(page, "body", b"") or b""
-    if isinstance(body, str):
-        body = body.encode("utf-8")
-    sample = ai_rules.sanitize_html_sample(body[:MAX_SAMPLE_BYTES].decode("utf-8", errors="replace"))
+    sample = ai_rules.sanitize_html_sample(
+        response_body[:MAX_SAMPLE_BYTES].decode("utf-8", errors="replace")
+    )
     if len(sample.encode("utf-8")) < 128:
         raise SystemExit("FAIL: fetched page did not contain a sufficiently useful sanitized HTML sample")
     return host, sample
-
 
 def request(path, method="GET", body=None):
     data = json.dumps(body).encode() if body is not None else None
