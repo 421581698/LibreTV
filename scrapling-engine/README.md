@@ -59,13 +59,18 @@ Example workflow:
       "node_id": "crawl",
       "node_type": "crawl_seed_urls",
       "input": {}
+    },
+    {
+      "node_id": "candidate-review",
+      "node_type": "register_candidates",
+      "input": {}
     }
   ],
-  "edges": [["validate", "crawl"]]
+  "edges": [["validate", "crawl"], ["crawl", "candidate-review"]]
 }
 ```
 
-The DAG engine is now a real durable orchestration primitive, not yet the complete AI Supervisor. Completed parent outputs are injected into each dependent node under its `dependencies` input, and the built-in crawl node can consume validated URLs from its predecessor. Autonomous recursive site discovery, model-driven rule generation, media analysis, candidate review, and the user-approved publish gate remain later integrations.
+The DAG engine is now a real durable orchestration primitive, not yet the complete AI Supervisor. Completed parent outputs are injected into each dependent node under its `dependencies` input, and the built-in crawl node can consume validated URLs from its predecessor. The `register_candidates` node stores deduplicated candidate records with append-only page evidence. GET /v1/candidates and GET /v1/candidates/{candidate_id} expose the review queue. These APIs are read-only: there is deliberately no AI approval or publish endpoint, and no candidate is written into LibreTV's formal resource registry. Autonomous recursive site discovery, model-driven rule generation, and media analysis remain later integrations.
 
 ## Safety boundary
 
