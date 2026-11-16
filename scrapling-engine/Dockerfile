@@ -5,7 +5,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     HOST=0.0.0.0 \
     PORT=8787 \
-    MEDIA_PROBE_ROOT=/tmp/libretv-media-probe
+    MEDIA_PROBE_ROOT=/probe/staging
 
 WORKDIR /service
 COPY pyproject.toml README.md ./
@@ -13,7 +13,7 @@ COPY app ./app
 
 RUN groupadd --gid 10001 libretv \
     && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin libretv \
-    && mkdir -p /tmp/libretv-media-probe /probe/inbox /probe/outbox /data \
+    && mkdir -p /tmp/libretv-media-probe /probe/staging /probe/inbox /probe/outbox /data \
     && chown -R 10001:10001 /tmp/libretv-media-probe /probe /data \
     && chmod 700 /tmp/libretv-media-probe \
     && pip install --upgrade pip \
