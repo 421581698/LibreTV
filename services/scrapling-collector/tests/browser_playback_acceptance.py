@@ -72,15 +72,22 @@ def main():
             raise SystemExit("FAIL: browser decoded video below UHD 4K dimensions")
         page.locator("#acceptance-video").evaluate("v => v.play()")
         start = time.monotonic()
-        start_time = page.locator("#acceptance-video").evaluate("v => v.currentTime")
+        initial = page.locator("#acceptance-video").evaluate(
+            "v => ({time:v.currentTime,frames:(v.getVideoPlaybackQuality ? v.getVideoPlaybackQuality().totalVideoFrames : 0)})"
+        )
+        start_time = initial["time"]
+        initial_frames = initial["frames"]
         last_time = start_time
         last_progress = time.monotonic()
         stalls = 0
+        paused_samples = 0
         while time.monotonic() - start < duration:
             page.wait_for_timeout(1000)
             state = page.locator("#acceptance-video").evaluate(
                 "v => ({time:v.currentTime,paused:v.paused,ended:v.ended,frames:(v.getVideoPlaybackQuality ? v.getVideoPlaybackQuality().totalVideoFrames : 0),ready:v.readyState})"
             )
+            if state["paused"] and not state["ended"]:
+                paused_samples += 1
             if state["time"] > last_time + 0.05:
                 last_time = state["time"]
                 last_progress = time.monotonic()
@@ -95,15 +102,24 @@ def main():
         browser.close()
 
     progressed = final["time"] - start_time
-    if progressed < duration * 0.9 or final["frames"] < 1 or stalls > 2:
-        raise SystemExit("FAIL: browser playback did not sustain the required 4K time progression")
+    decoded_frame_delta = final["frames"] - initial_frames
+    if (
+        progressed < duration * 0.9
+        or decoded_frame_delta < 1
+        or stalls > 2
+        or paused_samples > 2
+        or final["ended"]
+    ):
+        raise SystemExit("FAIL: browser playback did not sustain 4K time progression and frame decoding")
     print(json.dumps({
         "status": "passed",
         "decoded_width": final["width"],
         "decoded_height": final["height"],
         "progressed_seconds": round(progressed, 2),
         "decoded_frames": final["frames"],
+        "decoded_frame_delta": decoded_frame_delta,
         "stall_windows": stalls,
+        "paused_samples": paused_samples,
         "acceptance_seconds": duration,
         "evidence": "Chromium HTMLVideoElement decoded dimensions, presented frames and sustained currentTime progression",
     }, ensure_ascii=False, indent=2))
