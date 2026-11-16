@@ -34,6 +34,7 @@ function isAllowedPath(path: string[], method: string): boolean {
     return (
       joined === 'workflows' ||
       joined === 'jobs' ||
+      (path[0] === 'workflows' && path.length === 3 && path[2] === 'control') ||
       (path[0] === 'candidates' && path.length === 3 && path[2] === 'review') ||
       (path[0] === 'jobs' &&
         path.length === 3 &&
