@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
 import os
 import sqlite3
@@ -137,7 +138,14 @@ def validate_durable_job_payload(job_type: str, payload: dict) -> dict:
     query_keys = {key.casefold() for key, _ in parse_qsl(parsed.query, keep_blank_values=True)}
     if any(key in sensitive_keys or key.startswith(("x-amz-", "x-goog-", "x-ms-")) for key in query_keys):
         raise ValueError("Signed or credential-bearing crawl URLs cannot be persisted in the durable queue")
-    host = parsed.hostname.encode("idna").decode("ascii").lower()
+    raw_host = parsed.hostname
+    try:
+        literal_ip = ipaddress.ip_address(raw_host)
+    except ValueError:
+        literal_ip = None
+    if literal_ip is not None and not literal_ip.is_global:
+        raise ValueError("Private or reserved IP literals cannot be persisted in the durable crawl queue")
+    host = raw_host.encode("idna").decode("ascii").lower()
     if ":" in host and not host.startswith("["):
         host = "[" + host + "]"
     netloc = host if port is None else f"{host}:{port}"
