@@ -127,30 +127,13 @@ class PostgresRuleStore:
                 """,
                 (rule_key,),
             ).fetchone()["next_version"]
-            previous = db.execute(
-                """
-                UPDATE scraping_rules SET status = 'disabled', updated_at = %s
-                WHERE rule_key = %s AND status = 'active'
-                RETURNING rule_id
-                """,
-                (now, rule_key),
-            ).fetchall()
-            for old_rule in previous:
-                db.execute(
-                    """
-                    INSERT INTO scraping_rule_events
-                        (rule_id, actor_id, action, note, created_at)
-                    VALUES (%s, 'ai-supervisor', 'superseded', %s, %s)
-                    """,
-                    (old_rule["rule_id"], f"Superseded by version {version}.", now),
-                )
             db.execute(
                 """
                 INSERT INTO scraping_rules
                     (rule_id, rule_key, version, source_origin, page_url, goal,
                      mode, selector, rationale, status, workflow_id, test_json,
                      created_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'active', %s, %s::jsonb, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'tested', %s, %s::jsonb, %s, %s)
                 """,
                 (
                     rule_id,
@@ -185,7 +168,7 @@ class PostgresRuleStore:
                 """
                 INSERT INTO scraping_rule_events
                     (rule_id, actor_id, action, note, created_at)
-                VALUES (%s, 'ai-supervisor', 'rule_auto_activated', %s, %s)
+                VALUES (%s, 'ai-supervisor', 'rule_tested', %s, %s)
                 """,
                 (rule_id, rationale[:500], now),
             )
