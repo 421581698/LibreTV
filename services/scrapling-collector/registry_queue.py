@@ -122,12 +122,16 @@ def validate_durable_job_payload(job_type: str, payload: dict) -> dict:
             raise ValueError("AI rule jobs require a bounded HTML sample")
         if not isinstance(fixtures, list) or len(fixtures) > 20 or any(not isinstance(item, str) or len(item.encode("utf-8")) > 256 * 1024 for item in fixtures):
             raise ValueError("AI rule fixtures exceed the bounded limit")
+        diagnostic_id = payload.get("diagnostic_id")
+        if diagnostic_id is not None and (not isinstance(diagnostic_id, str) or len(diagnostic_id) > 80):
+            raise ValueError("Invalid AI rule diagnostic ID")
         return {
             "host": host.strip().rstrip(".").lower(),
             "page_html": sample,
             "fixtures": fixtures,
             "task_id": str(payload.get("task_id") or "")[:80] or None,
             "failure_code": str(payload.get("failure_code") or "selector_miss")[:80],
+            "diagnostic_id": diagnostic_id,
         }
     if job_type != "crawl":
         return payload
