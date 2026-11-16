@@ -86,7 +86,9 @@ def main():
         "status": "passed", "width": width, "height": height,
         "codec": video.get("codec_name"), "pixel_format": video.get("pix_fmt"),
         "duration_seconds": round(elapsed, 2),
-        "requested_decode_seconds": requested_seconds,\n        "decoded_frames": frames,\n        "decoded_media_seconds": round(decoded_us / 1_000_000, 2),
+        "requested_decode_seconds": requested_seconds,
+        "decoded_frames": frames,
+        "decoded_media_seconds": round(decoded_us / 1_000_000, 2),
         "evidence": "ffprobe stream dimensions plus ffmpeg native-resolution frame decode",
     }
     print(json.dumps(report, ensure_ascii=False, indent=2))
