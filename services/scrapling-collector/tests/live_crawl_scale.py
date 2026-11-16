@@ -114,6 +114,7 @@ def main():
         pages += int(result.get("pages_visited") or page_metrics.get("visited") or 0)
         candidates += int(result.get("count") or result.get("candidate_count") or 0)
     page_coverage_ok = len(completed) > 0 and pages >= len(completed)
+    candidate_yield_ok = candidates > 0
     report = {
         "run_id": run_id,
         "target_jobs": args.target, "submitted_jobs": len(jobs),
@@ -121,8 +122,9 @@ def main():
         "failed_or_cancelled_jobs": len(failed), "unfinished_jobs": len(jobs) - terminal_count,
         "observed_pages_visited": pages, "observed_candidates": candidates,
         "page_coverage_ok": page_coverage_ok,
+        "candidate_yield_ok": candidate_yield_ok,
         "success_rate": round(len(completed) / len(jobs), 4) if jobs else 0,
-        "status": "passed" if terminal_count == len(jobs) and len(results) == len(jobs) and not failed and page_coverage_ok else "incomplete_or_failed",
+        "status": "passed" if terminal_count == len(jobs) and len(results) == len(jobs) and not failed and page_coverage_ok and candidate_yield_ok else "incomplete_or_failed",
     }
     print(json.dumps(report, ensure_ascii=False, indent=2))
     if report["status"] != "passed":
