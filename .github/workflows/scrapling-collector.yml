@@ -108,6 +108,22 @@ jobs:
       - name: Run live Docker egress firewall attack tests
         working-directory: .
         run: bash scripts/test-scrapling-egress-firewall.sh
+      - name: Run real public 4K decode and Chromium playback acceptance
+        working-directory: .
+        env:
+          SCRAPLING_EGRESS_FIREWALL_CONFIRMED: "1"
+          MEDIA_ACCEPTANCE_URL: https://upload.wikimedia.org/wikipedia/commons/c/c0/Big_Buck_Bunny_4K.webm
+          MEDIA_ACCEPTANCE_ALLOWED_HOSTS: upload.wikimedia.org
+          MEDIA_ACCEPTANCE_SECONDS: "60"
+        run: |
+          set -euo pipefail
+          docker compose --profile collector up -d --build
+          trap 'docker compose --profile collector down -v >/dev/null 2>&1 || true' EXIT
+          sudo bash scripts/scrapling-egress-firewall.sh
+          docker cp services/scrapling-collector/tests/media_acceptance.py libretv-scrapling-collector:/tmp/media_acceptance.py
+          docker cp services/scrapling-collector/tests/browser_playback_acceptance.py libretv-scrapling-collector:/tmp/browser_playback_acceptance.py
+          docker exec -e MEDIA_ACCEPTANCE_URL="$MEDIA_ACCEPTANCE_URL" -e MEDIA_ACCEPTANCE_ALLOWED_HOSTS="$MEDIA_ACCEPTANCE_ALLOWED_HOSTS" -e MEDIA_ACCEPTANCE_SECONDS="$MEDIA_ACCEPTANCE_SECONDS" libretv-scrapling-collector python /tmp/media_acceptance.py
+          docker exec -e MEDIA_ACCEPTANCE_URL="$MEDIA_ACCEPTANCE_URL" -e MEDIA_ACCEPTANCE_ALLOWED_HOSTS="$MEDIA_ACCEPTANCE_ALLOWED_HOSTS" -e MEDIA_ACCEPTANCE_SECONDS="$MEDIA_ACCEPTANCE_SECONDS" libretv-scrapling-collector python /tmp/browser_playback_acceptance.py
       - name: Smoke test durable worker startup
         working-directory: .
         run: |
