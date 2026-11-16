@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
 from app import main
+from app.config import is_loopback_host
 from app.job_store import JobStore
 
 
@@ -251,8 +252,8 @@ def test_remote_api_key_protects_v1_routes_but_not_health(monkeypatch) -> None:
 
 
 def test_loopback_host_detection() -> None:
-    assert main._is_loopback_host("127.0.0.1")
-    assert main._is_loopback_host("::1")
-    assert main._is_loopback_host("localhost")
-    assert not main._is_loopback_host("0.0.0.0")
-    assert not main._is_loopback_host("192.0.2.10")
+    assert is_loopback_host("127.0.0.1")
+    assert is_loopback_host("::1")
+    assert is_loopback_host("localhost")
+    assert not is_loopback_host("0.0.0.0")
+    assert not is_loopback_host("192.0.2.10")
