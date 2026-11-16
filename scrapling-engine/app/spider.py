@@ -61,7 +61,7 @@ class _SeedSpider(Spider):
         for raw_url in raw_media_urls:
             candidate_url = urljoin(str(response.url), raw_url.strip())
             if urlsplit(candidate_url).path.lower().endswith(media_extensions):
-                if candidate_url not in media_urls:
+                if candidate_url not in media_urls and len(media_urls) < 20:
                     media_urls.append(candidate_url)
         yield {
             "url": str(response.url),
