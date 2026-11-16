@@ -94,6 +94,12 @@ class CollectorTests(unittest.TestCase):
         sleep.assert_called_once()
         self.assertAlmostEqual(sleep.call_args.args[0], 0.8, places=5)
 
+    def test_authenticated_ai_rule_generation_repair_and_read_routes_are_mounted(self):
+        paths = {route.path for route in collector.app.routes}
+        self.assertIn("/v1/rules/generate", paths)
+        self.assertIn("/v1/rules/repair", paths)
+        self.assertIn("/v1/rules/{host}", paths)
+
     def test_importing_app_does_not_create_or_migrate_database(self):
         with tempfile.TemporaryDirectory() as directory:
             database = Path(directory) / "must-not-exist.sqlite3"
