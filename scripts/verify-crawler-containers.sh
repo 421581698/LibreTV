@@ -26,7 +26,7 @@ cleanup() {
 trap cleanup EXIT
 
 "${compose[@]}" config --quiet
-"${compose[@]}" up -d --build scrapling-postgres scrapling-engine scrapling-job-worker scrapling-workflow-worker scrapling-media-probe scrapling-egress-proxy
+"${compose[@]}" up -d --build scrapling-postgres scrapling-egress-proxy scrapling-media-probe scrapling-engine
 
 ready=0
 for attempt in $(seq 1 60); do
@@ -37,6 +37,49 @@ for attempt in $(seq 1 60); do
   sleep 2
 done
 [[ "$ready" == "1" ]] || { echo "PostgreSQL did not become ready"; exit 1; }
+
+engine_container=$("${compose[@]}" ps -q scrapling-engine)
+engine_ready=0
+for attempt in $(seq 1 60); do
+  engine_health=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$engine_container")
+  if [[ "$engine_health" == "healthy" ]]; then
+    engine_ready=1
+    break
+  fi
+  running=$(docker inspect --format '{{.State.Running}}' "$engine_container")
+  if [[ "$running" != "true" ]]; then
+    echo "scrapling-engine exited before becoming healthy"
+    docker inspect --format '{{json .State}}' "$engine_container" || true
+    docker logs "$engine_container" || true
+    exit 1
+  fi
+  sleep 2
+done
+[[ "$engine_ready" == "1" ]] || {
+  echo "scrapling-engine did not become healthy"
+  docker inspect --format '{{json .State.Health}}' "$engine_container" || true
+  docker logs "$engine_container" || true
+  exit 1
+}
+
+probe_container=$("${compose[@]}" ps -q scrapling-media-probe)
+probe_ready=0
+for attempt in $(seq 1 30); do
+  probe_health=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$probe_container")
+  if [[ "$probe_health" == "healthy" ]]; then
+    probe_ready=1
+    break
+  fi
+  sleep 2
+done
+[[ "$probe_ready" == "1" ]] || {
+  echo "scrapling-media-probe did not become healthy"
+  docker inspect --format '{{json .State.Health}}' "$probe_container" || true
+  docker logs "$probe_container" || true
+  exit 1
+}
+
+"${compose[@]}" up -d --build scrapling-job-worker scrapling-workflow-worker
 
 for service in scrapling-engine scrapling-job-worker scrapling-workflow-worker; do
   container=$("${compose[@]}" ps -q "$service")
