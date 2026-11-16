@@ -193,6 +193,27 @@ class RegistryQueueTests(unittest.TestCase):
         self.assertEqual(searched["total"], 1)
         self.assertFalse(searched["has_more"])
 
+    def test_registry_url_drops_query_credentials_and_rejects_unsafe_authorities(self):
+        resource = queue.upsert_resource({
+            "resource_key": "resource:secret-query", "source_key": "provider",
+            "resource_type": "DIRECT_MEDIA",
+            "url": "https://Media.Example.org/movie.m3u8?token=secret&expires=123#player",
+            "title": "Example Film",
+        })
+        self.assertEqual(resource["url"], "https://media.example.org/movie.m3u8")
+        for unsafe_url in (
+            "http://media.example.org/movie.mp4",
+            "https://user:password@media.example.org/movie.mp4",
+            "https://media.example.org:8443/movie.mp4",
+        ):
+            with self.subTest(url=unsafe_url):
+                with self.assertRaises(ValueError):
+                    queue.upsert_resource({
+                        "resource_key": "unsafe:" + str(abs(hash(unsafe_url))),
+                        "source_key": "provider", "resource_type": "DIRECT_MEDIA",
+                        "url": unsafe_url, "title": "Unsafe",
+                    })
+
     def test_playback_requires_public_preflight(self):
         resource = queue.upsert_resource({
             "resource_key": "resource:private", "source_key": "provider",
