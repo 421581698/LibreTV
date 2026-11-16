@@ -172,7 +172,7 @@ def refresh_collection_batch(batch_id: str) -> dict | None:
         if not batch:
             return None
         candidate_count = connection.execute(
-            "SELECT COUNT(DISTINCT lower(trim(url))) AS n FROM candidates WHERE batch_id=?", (batch_id,)
+            "SELECT COUNT(DISTINCT canonical_url) AS n FROM candidates WHERE batch_id=?", (batch_id,)
         ).fetchone()["n"]
         collected_count = connection.execute(
             "SELECT COUNT(*) AS n FROM collection_observations WHERE batch_id=?", (batch_id,)
