@@ -108,7 +108,7 @@ class PostgresRuleStore:
         parsed = urlsplit(safe_url)
         origin = f"{parsed.scheme.lower()}://{parsed.netloc.lower()}"
         rule_key = hashlib.sha256(
-            f"{origin}\0{goal.strip().lower()}".encode("utf-8")
+            f"{origin}\0{goal.strip().lower()}".encode()
         ).hexdigest()
         rule_id = uuid.uuid4().hex
         now = _now()
