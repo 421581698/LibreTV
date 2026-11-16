@@ -226,7 +226,6 @@ class PostgresJobStore:
         jobs = [self.get(row["task_id"]) for row in rows]
         return [job for job in jobs if job is not None]
 
-
     def claim_next(self, worker_id: str, lease_seconds: int = 60) -> dict[str, Any] | None:
         """Atomically claim one queued job or reclaim a job with an expired lease."""
         now = datetime.now(UTC)
@@ -309,7 +308,8 @@ class PostgresJobStore:
         with self._connection() as db:
             rows = db.execute(
                 "SELECT task_id FROM crawl_jobs WHERE status IN ('running', 'pausing') "
-                "FOR UPDATE"
+                "AND (lease_expires_at IS NULL OR lease_expires_at < %s) FOR UPDATE",
+                (datetime.now(UTC),),
             ).fetchall()
             task_ids = [row["task_id"] for row in rows]
             for task_id in task_ids:
