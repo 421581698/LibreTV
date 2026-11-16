@@ -111,6 +111,9 @@ class AIRuleTests(unittest.TestCase):
             ).fetchone()
         self.assertEqual(event["action"], "rollback")
         self.assertEqual(event["version"], first["version"])
+        audit = ai_rules.list_rule_events("rollback.example")
+        self.assertEqual(audit[0]["action"], "rollback")
+        self.assertEqual(audit[0]["version"], first["version"])
         self.assertEqual(second["status"], "active")
 
     def test_draft_rule_version_cannot_be_activated(self):
