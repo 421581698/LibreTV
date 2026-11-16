@@ -14,6 +14,7 @@ import socket
 import ssl
 import sqlite3
 import time
+import threading
 import xml.etree.ElementTree as ET
 import uuid
 from pathlib import Path
@@ -42,6 +43,7 @@ MIN_HOST_INTERVAL = 1.0
 MEDIA_EXTENSIONS = (".m3u8", ".mp4", ".m4v", ".webm", ".mpd", ".mov", ".ts", ".m4s", ".aac")
 CMS_PATH_MARKERS = ("/api.php/provide/vod", "/provide/vod", "/api/v1/vod")
 _last_request_by_host: dict[str, float] = {}
+_throttle_lock = threading.Lock()
 
 if not TOKEN:
     raise RuntimeError("SCRAPLING_API_TOKEN must be configured")
@@ -1194,12 +1196,15 @@ def probe_hls_variant_tree(
 
 
 def throttle(host: str) -> None:
-    now = time.monotonic()
-    previous = _last_request_by_host.get(host, 0.0)
-    wait = MIN_HOST_INTERVAL - (now - previous)
+    # Reserve a per-host request slot atomically so multiple Worker threads
+    # cannot race through the host delay at the same time.
+    with _throttle_lock:
+        now = time.monotonic()
+        scheduled = max(now, _last_request_by_host.get(host, 0.0) + MIN_HOST_INTERVAL)
+        _last_request_by_host[host] = scheduled
+        wait = scheduled - now
     if wait > 0:
         time.sleep(wait)
-    _last_request_by_host[host] = time.monotonic()
 
 
 def adaptive_css(page, selector: str):
