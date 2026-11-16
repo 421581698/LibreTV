@@ -295,7 +295,11 @@ async def capabilities() -> dict:
             "async_job_execution",
             "job_status_api",
             "job_event_stream",
-            "api_pause_resume_controls" if not settings.database_url else "independent_worker_execution",
+            (
+                "api_pause_resume_controls"
+                if not settings.database_url
+                else "independent_worker_execution"
+            ),
             "worker_lease_fencing" if settings.database_url else "single_process_execution",
         ],
         "planned": [
@@ -313,7 +317,8 @@ async def capabilities() -> dict:
             "postgresql_job_store" if settings.database_url else "sqlite_local_job_store",
         ],
         "note": (
-            "Only implemented entries have been integrated. PostgreSQL mode requires at least one independent worker. Browser and recursive crawling "
+            "Only implemented entries have been integrated. PostgreSQL mode requires at least one independent worker. "
+            "Browser and recursive crawling "
             "remain disabled until request-level and deployment egress protections are verified."
         ),
     }
