@@ -131,6 +131,28 @@ class ResourceStatsTests(unittest.TestCase):
         self.assertEqual(result["summary"]["quality_ranking"][0]["host"],"media.example")
         self.assertEqual(result["sites"][0]["quality_score_state"],"scored")
 
+    def test_quality_score_requires_fifteen_seconds_of_observed_playback(self):
+        self.db.execute(
+            "UPDATE candidates SET playback_verification=? WHERE id=?",
+            (json.dumps({"state":"PLAYER_CONFIRMED","decoded_width":1920,"decoded_height":1080,
+                         "observed_seconds":4,"progressed_seconds":3,"selected_rendition_bitrate_kbps":4500}),
+             "candidate-2")
+        )
+        self.db.execute("INSERT INTO candidates VALUES(?,?,?,?,?,?,?,?,?,?,?)", (
+            "candidate-3","task-1","https://media.example/c.mp4","media.example",
+            "direct-media","Film C","validated","PUBLIC",107,"{}",
+            json.dumps({"state":"PLAYER_CONFIRMED","decoded_width":1280,"decoded_height":720,
+                        "observed_seconds":4,"progressed_seconds":3,"selected_rendition_bitrate_kbps":2500})
+        ))
+        self.db.execute("INSERT OR REPLACE INTO playback_quality_samples VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                        ("quality-sample-2","media.example","player","mp4",4,3,1920,1080,1080,4500,112))
+        self.db.execute("INSERT OR REPLACE INTO playback_quality_samples VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                        ("quality-sample-3","media.example","player","mp4",4,3,1280,720,720,2500,113))
+        result = build_stats(self.db)
+        self.assertEqual(result["sites"][0]["playback_samples"],3)
+        self.assertIsNone(result["sites"][0]["quality_score"])
+        self.assertEqual(result["sites"][0]["quality_score_state"],"insufficient_samples")
+
     def test_site_detail_does_not_expose_media_urls_or_tokens(self):
         result = build_stats(self.db,"media.example")
         self.assertEqual(result["site"]["host"],"media.example")
