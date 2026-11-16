@@ -152,7 +152,9 @@ Model output is constrained to a small JSON selector document: no executable cod
 
 ## Real media and network acceptance
 
-The regular CI suite proves code, queue throughput and Docker firewall behavior using isolated fixtures. It does not claim external 4K playback or 1k–10k live-site yield. Two opt-in operator harnesses are provided:
+The regular CI suite now runs a real 60-second 4K decode and a separate 60-second Chromium playback against the public Wikimedia-hosted Big Buck Bunny 4K WebM fixture (4,000×2,250, VP8; approximately 2.76 GB full file). Only the required stream interval is read. The file is licensed CC BY 3.0; attribution: `(c) copyright Blender Foundation | www.bigbuckbunny.org`. See the [file details and license](https://www.mediawiki.org/wiki/File:Big_Buck_Bunny_4K.webm). This validates actual FFmpeg decoding and Chromium video-frame/time progression, but it is a known public test fixture—not evidence that a LibreTV source has 4K playback quality.
+
+The separate operator acceptance job still checks a configured provider fixture and 1k–10k live-site crawl yield. These require operator-approved hosts and credentials:
 
 - `python tests/media_acceptance.py` requires `MEDIA_ACCEPTANCE_URL`, `MEDIA_ACCEPTANCE_ALLOWED_HOSTS`, `MEDIA_ACCEPTANCE_SECONDS` (default 60), and the current-boot firewall marker. It checks decoded stream dimensions with ffprobe and decodes native-resolution frames with ffmpeg for the requested media duration. A pass requires at least 3840x2160 and at least 90% of the requested decode interval.
 - `python tests/browser_playback_acceptance.py` requires a direct MP4/WebM `MEDIA_ACCEPTANCE_URL` and the matching host allowlist. It launches Chromium, reads the actual HTMLVideoElement decoded dimensions, presented frame count and playback-time progression, and requires at least 90% of the requested duration without repeated stalls. HLS is tested by the ffmpeg harness; Chromium's native HLS support is not assumed.
