@@ -565,12 +565,12 @@ async def workflow_events(
             for event in events:
                 cursor = event["id"]
                 payload = json.dumps(event, ensure_ascii=False)
-                yield f"id: {cursor}\\nevent: {event['type']}\\ndata: {payload}\\n\\n"
+                yield f"id: {cursor}\nevent: {event['type']}\ndata: {payload}\n\n"
             workflow = workflow_store.get_workflow(workflow_id)
             if workflow is None or workflow["status"] in {"completed", "failed"}:
                 break
             if not events:
-                yield ": keep-alive\\n\\n"
+                yield ": keep-alive\n\n"
                 await asyncio.sleep(1)
 
     return StreamingResponse(stream_events(), media_type="text/event-stream")
