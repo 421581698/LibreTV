@@ -67,3 +67,95 @@ def test_rule_registry_versions_tests_and_requires_human_activation() -> None:
                 "DELETE FROM scraping_rules WHERE workflow_id = %s",
                 (workflow_id,),
             )
+
+
+@pytest.mark.skipif(
+    not os.getenv("DATABASE_URL"),
+    reason="PostgreSQL integration database is not configured",
+)
+def test_active_rule_is_auto_disabled_after_three_consecutive_execution_failures() -> None:
+    database_url = os.environ["DATABASE_URL"]
+    store = PostgresRuleStore(database_url)
+    store.initialize()
+    workflow_id = "rule_feedback_" + uuid.uuid4().hex
+
+    try:
+        rule_id = store.save_tested_rule(
+            page_url="https://93.184.216.34/catalog",
+            goal="extract movie titles",
+            mode="css",
+            selector=".movie-card a.title",
+            rationale="Tested title selector.",
+            match_count=2,
+            sample_values=["Film A", "Film B"],
+            workflow_id=workflow_id,
+        )
+        assert store.set_status(rule_id, "active", "human-reviewer", "Approved")
+
+        first = store.record_execution(
+            rule_id,
+            passed=False,
+            match_count=0,
+            sample_values=[],
+            workflow_id=workflow_id,
+            page_url="https://93.184.216.34/catalog?page=1",
+            error="no_matches",
+        )
+        second = store.record_execution(
+            rule_id,
+            passed=False,
+            match_count=0,
+            sample_values=[],
+            workflow_id=workflow_id,
+            page_url="https://93.184.216.34/catalog?page=2",
+            error="no_matches",
+        )
+        assert first["failure_streak"] == 1
+        assert first["auto_disabled"] is False
+        assert second["failure_streak"] == 2
+        assert second["auto_disabled"] is False
+
+        recovered = store.record_execution(
+            rule_id,
+            passed=True,
+            match_count=3,
+            sample_values=["Film A", "Film B", "Film C"],
+            workflow_id=workflow_id,
+            page_url="https://93.184.216.34/catalog?page=3",
+        )
+        assert recovered["failure_streak"] == 0
+        assert recovered["auto_disabled"] is False
+
+        for page in (4, 5):
+            feedback = store.record_execution(
+                rule_id,
+                passed=False,
+                match_count=0,
+                sample_values=[],
+                workflow_id=workflow_id,
+                page_url=f"https://93.184.216.34/catalog?page={page}",
+                error="selector_mismatch",
+            )
+            assert feedback["auto_disabled"] is False
+
+        final = store.record_execution(
+            rule_id,
+            passed=False,
+            match_count=0,
+            sample_values=[],
+            workflow_id=workflow_id,
+            page_url="https://93.184.216.34/catalog?page=6",
+            error="selector_mismatch",
+        )
+        assert final["failure_streak"] == 3
+        assert final["auto_disabled"] is True
+        stored = store.get_rule(rule_id)
+        assert stored is not None
+        assert stored["status"] == "disabled"
+        assert stored["events"][-1]["action"] == "auto_disabled"
+    finally:
+        with psycopg.connect(database_url) as db:
+            db.execute(
+                "DELETE FROM scraping_rules WHERE workflow_id = %s",
+                (workflow_id,),
+            )
