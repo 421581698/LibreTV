@@ -40,15 +40,23 @@ class WorkflowWorker:
             "crawl_seed_urls": self._crawl_seed_urls,
         }
 
+    @staticmethod
+    def _dependency_urls(payload: dict[str, Any]) -> list[str]:
+        dependencies = payload.get("dependencies", {})
+        for result in dependencies.values():
+            if isinstance(result, dict) and isinstance(result.get("urls"), list):
+                return result["urls"]
+        return []
+
     async def _validate_public_urls(self, payload: dict[str, Any]) -> dict[str, Any]:
-        urls = payload.get("urls")
+        urls = payload.get("urls") or self._dependency_urls(payload)
         if not isinstance(urls, list) or not urls or len(urls) > 20:
             raise ValueError("validate_public_urls requires 1 to 20 URLs")
         safe_urls = list(dict.fromkeys(validate_public_http_url(url) for url in urls))
         return {"urls": safe_urls, "validated_count": len(safe_urls)}
 
     async def _crawl_seed_urls(self, payload: dict[str, Any]) -> dict[str, Any]:
-        urls = payload.get("urls")
+        urls = payload.get("urls") or self._dependency_urls(payload)
         if not isinstance(urls, list) or not urls or len(urls) > 20:
             raise ValueError("crawl_seed_urls requires 1 to 20 URLs")
         safe_urls = list(dict.fromkeys(validate_public_http_url(url) for url in urls))
@@ -103,7 +111,9 @@ class WorkflowWorker:
             handler = self.handlers.get(node["node_type"])
             if handler is None:
                 raise ValueError(f"Unsupported workflow node type: {node['node_type']}")
-            result = await handler(node["input"])
+            payload = dict(node["input"])
+            payload["dependencies"] = node.get("dependencies", {})
+            result = await handler(payload)
             if lost.is_set():
                 logger.warning("Workflow lease lost for %s/%s", workflow_id, node_id)
                 return True
