@@ -217,7 +217,10 @@ class WorkflowWorker:
         )
         goal = payload.get(
             "goal",
-            "Discover public movie, series and animation pages and identify direct media references.",
+            (
+                "Discover public movie, series and animation pages and identify "
+                "direct media references."
+            ),
         )
         plan = await planner.plan_discovery(str(goal), safe_urls)
         discovery = await self._discover_site_links(
