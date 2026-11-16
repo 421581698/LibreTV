@@ -74,7 +74,7 @@ class WorkerPipelineTests(unittest.TestCase):
     def test_worker_once_does_not_claim_queued_jobs_without_current_boot_firewall_proof(self):
         with (
             patch("sys.argv", ["worker.py", "--once"]),
-            patch.object(worker.registry_store, "initialize"),
+            patch.object(worker.registry_queue, "initialize"),
             patch.object(worker, "egress_firewall_ready", return_value=False),
             patch.object(worker, "run_worker") as run,
         ):
