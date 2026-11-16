@@ -90,6 +90,14 @@ if probe_container "$APP_IP" "$TARGET_IP:8001" >/dev/null 2>&1; then
   echo "FAIL: app reached an unrelated private-network peer after firewall installation." >&2
   exit 1
 fi
+if probe_container "$COLLECTOR_IP" "$TARGET_IP:8001" >/dev/null 2>&1; then
+  echo "FAIL: Collector API reached an unrelated private-network peer after firewall installation." >&2
+  exit 1
+fi
+if probe_container "$COLLECTOR_IP" "$GATEWAY_IP:18080" >/dev/null 2>&1; then
+  echo "FAIL: Collector API reached a host-local service after firewall installation." >&2
+  exit 1
+fi
 if probe_container "$WORKER_IP" "$GATEWAY_IP:18080" >/dev/null 2>&1; then
   echo "FAIL: worker reached a host-local service after firewall installation." >&2
   exit 1
