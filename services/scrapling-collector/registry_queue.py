@@ -126,7 +126,7 @@ def upsert_discovered_sites(sites: list[dict], discovered_at: int | None = None)
         except ValueError:
             continue
         if (
-            not host or not re.fullmatch(r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*", host)
+            not host or not re.fullmatch(r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*", host)
             or parsed.scheme.lower() != "https" or parsed.hostname != host
             or parsed.username is not None or parsed.password is not None
             or port not in (None, 443) or not title or not directory.startswith("FMHY /")
