@@ -37,9 +37,10 @@ def test_probe_media_candidates_downloads_and_probes_direct_file_candidate(
     staged = tmp_path / "download.media"
     staged.write_bytes(b"media")
 
-    async def fake_download(url, staging, *, proxy):
+    async def fake_download(url, staging, *, proxy, max_bytes):
         assert url == "https://93.184.216.34/video.mp4"
         assert Path(staging) == tmp_path
+        assert max_bytes > 0
         return staged
 
     def fake_probe(path, *, timeout_seconds):
