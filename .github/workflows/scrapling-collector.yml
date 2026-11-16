@@ -188,11 +188,11 @@ jobs:
 
           status, body = request("/v1/crawl", method="POST", token=token,
                                  body={"url": "https://example.com", "mode": "http", "limit": 101})
-          assert status == 503 and "egress filtering" in body, ("crawl must fail closed", status, body)
+          assert status == 503 and "current-boot" in body, ("crawl must fail closed", status, body)
 
           status, body = request("/v1/candidates/" + ("a" * 32) + "/validate",
                                  method="POST", token=token)
-          assert status == 503 and "egress filtering" in body, ("validation must fail closed", status, body)
+          assert status == 503 and "current-boot" in body, ("validation must fail closed", status, body)
 
           print("Collector container API smoke passed: health, auth, and default-deny egress gate.")
           PY
