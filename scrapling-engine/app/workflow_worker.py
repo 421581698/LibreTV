@@ -8,6 +8,7 @@ import uuid
 from dataclasses import asdict
 from typing import Any, Awaitable, Callable
 
+from app.candidate_store import PostgresCandidateStore
 from app.config import settings
 from app.security import validate_public_http_url
 from app.spider import ScraplingSpiderAdapter
@@ -35,9 +36,11 @@ class WorkflowWorker:
         self.lease_seconds = lease_seconds
         self.poll_seconds = poll_seconds
         self.store = PostgresWorkflowStore(database_url)
+        self.candidates = PostgresCandidateStore(database_url)
         self.handlers: dict[str, NodeHandler] = {
             "validate_public_urls": self._validate_public_urls,
             "crawl_seed_urls": self._crawl_seed_urls,
+            "register_candidates": self._register_candidates,
         }
 
     @staticmethod
@@ -68,6 +71,25 @@ class WorkflowWorker:
             "items": items,
             "stats": asdict(spider.stats),
             "count": len(items),
+        }
+
+    async def _register_candidates(self, payload: dict[str, Any]) -> dict[str, Any]:
+        workflow_id = payload.get("_workflow_id")
+        items = payload.get("items")
+        if not isinstance(items, list):
+            for result in payload.get("dependencies", {}).values():
+                if isinstance(result, dict) and isinstance(result.get("items"), list):
+                    items = result["items"]
+                    break
+        if not isinstance(workflow_id, str) or not isinstance(items, list):
+            raise ValueError("register_candidates requires a workflow and crawl items")
+        candidate_ids = await asyncio.to_thread(
+            self.candidates.ingest_crawl_items, workflow_id, items
+        )
+        return {
+            "candidate_ids": candidate_ids,
+            "count": len(candidate_ids),
+            "review_status": "pending_review",
         }
 
     async def _heartbeat(
@@ -113,6 +135,7 @@ class WorkflowWorker:
                 raise ValueError(f"Unsupported workflow node type: {node['node_type']}")
             payload = dict(node["input"])
             payload["dependencies"] = node.get("dependencies", {})
+            payload["_workflow_id"] = workflow_id
             result = await handler(payload)
             if lost.is_set():
                 logger.warning("Workflow lease lost for %s/%s", workflow_id, node_id)
@@ -144,6 +167,7 @@ class WorkflowWorker:
 
     async def run_forever(self) -> None:
         self.store.initialize()
+        self.candidates.initialize()
         logger.info("Workflow worker %s started", self.worker_id)
         while True:
             processed = await self.process_once()
