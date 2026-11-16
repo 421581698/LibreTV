@@ -49,6 +49,18 @@ class RegistryQueueTests(unittest.TestCase):
         payload = __import__("json").loads(row["payload"])
         self.assertEqual(payload["max_sites"], 1000)
 
+    def test_idempotency_key_cannot_be_reused_for_different_payload(self):
+        queue.submit_job("crawl", {"url": "https://example.org/a"}, "idempotency:collision")
+        with self.assertRaisesRegex(ValueError, "different job payload"):
+            queue.submit_job("crawl", {"url": "https://example.org/b"}, "idempotency:collision")
+        with self.assertRaisesRegex(ValueError, "different job payload"):
+            queue.submit_job("discover", {"search_keyword": "other"}, "idempotency:collision")
+        with queue.connect() as c:
+            rows = c.execute("SELECT job_type,payload FROM collector_jobs WHERE idempotency_key=?", ("idempotency:collision",)).fetchall()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["job_type"], "crawl")
+        self.assertEqual(__import__("json").loads(rows[0]["payload"]), {"url": "https://example.org/a"})
+
     def test_idempotent_job_submit_and_atomic_claim(self):
         first = queue.submit_job("crawl", {"url": "https://example.org"}, "crawl:example")
         second = queue.submit_job("crawl", {"url": "https://example.org"}, "crawl:example")
