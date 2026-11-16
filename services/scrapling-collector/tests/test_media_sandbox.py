@@ -21,10 +21,10 @@ class MediaSandboxPolicyTests(unittest.TestCase):
         ]
         for workflow_path in workflow_paths:
             workflow = workflow_path.read_text(encoding="utf-8")
-            self.assertIn('BROWSER_MEDIA_ACCEPTANCE_URL="$BROWSER_MEDIA_ACCEPTANCE_URL"', workflow)
-            self.assertIn('BROWSER_MEDIA_ACCEPTANCE_ALLOWED_HOSTS="$BROWSER_MEDIA_ACCEPTANCE_ALLOWED_HOSTS"', workflow)
-            self.assertNotIn('MEDIA_ACCEPTANCE_URL="$BROWSER_MEDIA_ACCEPTANCE_URL"', workflow)
-            self.assertNotIn('MEDIA_ACCEPTANCE_ALLOWED_HOSTS="$BROWSER_MEDIA_ACCEPTANCE_ALLOWED_HOSTS"', workflow)
+            self.assertIn('-e BROWSER_MEDIA_ACCEPTANCE_URL=', workflow)
+            self.assertIn('-e BROWSER_MEDIA_ACCEPTANCE_ALLOWED_HOSTS=', workflow)
+            self.assertNotIn('-e MEDIA_ACCEPTANCE_URL="$BROWSER_MEDIA_ACCEPTANCE_URL"', workflow)
+            self.assertNotIn('-e MEDIA_ACCEPTANCE_ALLOWED_HOSTS="$BROWSER_MEDIA_ACCEPTANCE_ALLOWED_HOSTS"', workflow)
 
     def test_probe_seccomp_profile_denies_socket_creation_and_io(self):
         profile_path = Path(__file__).resolve().parents[1] / "seccomp-no-socket.json"
