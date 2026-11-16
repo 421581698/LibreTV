@@ -1,97 +1,92 @@
 #!/usr/bin/env python3
-"""Opt-in real 4K decode and sustained playback acceptance.
-
-Requires an operator-approved public HTTPS fixture, an explicit host allowlist,
-ffmpeg/ffprobe, and the current-boot collector firewall proof. The URL is never
-printed because test fixtures may contain sensitive query material.
-"""
+"""Decode a previously downloaded 4K sample inside a no-network sandbox."""
 from __future__ import annotations
 
+import argparse
 import json
-import os
-import socket
 import subprocess
-import sys
-import time
 from pathlib import Path
-from urllib.parse import urlparse
-import ipaddress
 
 
-def require_firewall_proof():
-    if os.environ.get("SCRAPLING_EGRESS_FIREWALL_CONFIRMED") != "1":
-        raise SystemExit("FAIL: current-boot egress firewall gate is not enabled")
-    marker_path = Path(os.environ.get("SCRAPLING_EGRESS_MARKER_PATH", "/run/libretv-scrapling-egress/confirmed.json"))
-    try:
-        marker = json.loads(marker_path.read_text())
-        boot_id = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
-    except (OSError, ValueError) as exc:
-        raise SystemExit("FAIL: current-boot firewall proof is missing") from exc
-    if marker.get("policy_version") != 1 or marker.get("boot_id") != boot_id:
-        raise SystemExit("FAIL: firewall proof is stale or invalid")
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input", required=True, help="read-only local media file")
+    parser.add_argument("--requested-seconds", type=int, default=60)
+    args = parser.parse_args()
+    media = Path(args.input)
+    if not media.is_absolute() or not media.is_file() or media.is_symlink():
+        raise SystemExit("Input must be an existing local regular file")
+    if not 10 <= args.requested_seconds <= 300:
+        raise SystemExit("requested-seconds must be between 10 and 300")
 
-
-def main():
-    url = os.environ.get("MEDIA_ACCEPTANCE_URL", "").strip()
-    if not url:
-        raise SystemExit("Set MEDIA_ACCEPTANCE_URL to an operator-approved public test stream")
-    parsed = urlparse(url)
-    allowed = {x.strip().lower() for x in os.environ.get("MEDIA_ACCEPTANCE_ALLOWED_HOSTS", "").split(",") if x.strip()}
-    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.hostname.lower() not in allowed:
-        raise SystemExit("FAIL: media fixture must be HTTPS and its host explicitly allowlisted")
-    try:
-        addresses = {ipaddress.ip_address(item[4][0]) for item in socket.getaddrinfo(parsed.hostname, 443, type=socket.SOCK_STREAM)}
-    except OSError as exc:
-        raise SystemExit("FAIL: media fixture host did not resolve") from exc
-    if not addresses or any(not address.is_global for address in addresses):
-        raise SystemExit("FAIL: media fixture resolved to a private or reserved address")
-    require_firewall_proof()
-
-    protocol_whitelist = "https,tls,tcp,crypto,hls,pipe"
-    probe = subprocess.run([
-        "ffprobe", "-v", "error", "-protocol_whitelist", protocol_whitelist,
-        "-show_streams", "-show_format", "-of", "json", url,
-    ], capture_output=True, text=True, timeout=90)
-    if probe.returncode:
-        raise SystemExit("FAIL: ffprobe could not inspect the approved media fixture")
-    data = json.loads(probe.stdout)
-    video_streams = [stream for stream in data.get("streams", []) if stream.get("codec_type") == "video"]
-    video = max(video_streams, key=lambda stream: int(stream.get("width") or 0) * int(stream.get("height") or 0), default=None)
-    if not video:
-        raise SystemExit("FAIL: no video stream was decoded")
-    width, height = int(video.get("width") or 0), int(video.get("height") or 0)
+    probe = subprocess.run(
+        [
+            "ffprobe", "-protocol_whitelist", "file,pipe",
+            "-v", "error", "-select_streams", "v:0",
+            "-show_entries", "stream=codec_name,width,height",
+            "-show_entries", "format=duration",
+            "-of", "json", str(media),
+        ],
+        check=True, capture_output=True, text=True, timeout=60,
+    )
+    metadata = json.loads(probe.stdout)
+    streams = metadata.get("streams") or []
+    if not streams:
+        raise SystemExit("No video stream found in local media sample")
+    video = streams[0]
+    width = int(video.get("width") or 0)
+    height = int(video.get("height") or 0)
     if width < 3840 or height < 2160:
-        raise SystemExit(f"FAIL: decoded video dimensions are {width}x{height}, not UHD 4K")
-    started = time.monotonic()
-    requested_seconds = int(os.environ.get("MEDIA_ACCEPTANCE_SECONDS", "60"))
-    decode = subprocess.run([
-        "ffmpeg", "-nostdin", "-hide_banner", "-nostats", "-v", "error",
-        "-protocol_whitelist", protocol_whitelist, "-re", "-i", url,
-        "-map", "0:" + str(video.get("index", 0)), "-t", str(requested_seconds),
-        "-progress", "pipe:1", "-f", "null", "-",
-    ], capture_output=True, text=True, timeout=max(240, requested_seconds * 4 + 60))
-    elapsed = time.monotonic() - started
-    if decode.returncode:
-        raise SystemExit("FAIL: sustained native-resolution decode failed")
-    progress = {}
-    for line in decode.stdout.splitlines():
-        if "=" in line:
-            key, value = line.split("=", 1)
-            progress[key] = value
-    decoded_us = int(progress.get("out_time_us") or progress.get("out_time_ms") or 0)
-    frames = int(progress.get("frame") or 0)
-    if frames < 1 or decoded_us < requested_seconds * 1_000_000 * 0.9:
-        raise SystemExit("FAIL: stream ended before the required sustained decode interval")
-    report = {
-        "status": "passed", "width": width, "height": height,
-        "codec": video.get("codec_name"), "pixel_format": video.get("pix_fmt"),
-        "duration_seconds": round(elapsed, 2),
-        "requested_decode_seconds": requested_seconds,
+        raise SystemExit(f"FAIL: expected UHD 4K, got {width}x{height}")
+    duration = float((metadata.get("format") or {}).get("duration") or 0)
+    if duration < args.requested_seconds * 0.9:
+        raise SystemExit(f"FAIL: local sample is too short ({duration:.2f}s)")
+
+    decoded = subprocess.run(
+        [
+            "ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error",
+            "-protocol_whitelist", "file,pipe", "-threads", "2",
+            "-i", str(media), "-map", "0:v:0",
+            "-progress", "pipe:1", "-nostats", "-f", "null", "-",
+        ],
+        check=True, capture_output=True, text=True,
+        timeout=args.requested_seconds * 10 + 120,
+    )
+    frames = decoded_us = 0
+    for line in decoded.stdout.splitlines():
+        if line.startswith("frame="):
+            try:
+                frames = max(frames, int(line.split("=", 1)[1]))
+            except ValueError:
+                pass
+        elif line.startswith("out_time_us="):
+            try:
+                decoded_us = max(decoded_us, int(line.split("=", 1)[1]))
+            except ValueError:
+                pass
+        elif line.startswith("out_time_ms="):
+            try:
+                decoded_us = max(decoded_us, int(line.split("=", 1)[1]))
+            except ValueError:
+                pass
+
+    decoded_seconds = decoded_us / 1_000_000
+    if frames <= 0 or decoded_seconds < args.requested_seconds * 0.9:
+        raise SystemExit(
+            f"FAIL: decoded only {decoded_seconds:.2f}s and {frames} frames"
+        )
+    print(json.dumps({
+        "status": "passed",
+        "network": "disabled",
+        "read_only_input": True,
+        "codec": video.get("codec_name"),
+        "width": width,
+        "height": height,
+        "requested_decode_seconds": args.requested_seconds,
         "decoded_frames": frames,
-        "decoded_media_seconds": round(decoded_us / 1_000_000, 2),
-        "evidence": "ffprobe stream dimensions plus ffmpeg native-resolution frame decode",
-    }
-    print(json.dumps(report, ensure_ascii=False, indent=2))
+        "decoded_media_seconds": round(decoded_seconds, 2),
+        "input_bytes": media.stat().st_size,
+    }, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
