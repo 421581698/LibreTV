@@ -37,6 +37,36 @@ POST /v1/spider remains a synchronous compatibility endpoint. For managed work, 
 
 Run one Uvicorn API process per deployment instance and run independent workers with unique IDs using `libretv-scrapling-worker --worker-id worker-a`. Multiple PostgreSQL workers can compete safely for queued jobs; each renews its lease and fences result/completion writes by current lease ownership. If a worker loses its lease, late writes are rejected. The API must be configured with DATABASE_URL and workers must use the same database. PostgreSQL mode persists pause/cancel control requests for the lease-owning worker to observe and apply; paused jobs can be resumed through the API after a saved checkpoint is present. Control requests are recorded in the event stream. Cancellation is terminal. SQLite mode retains its original in-process pause behavior; the cancel endpoint is PostgreSQL-worker-only. Keep local development bound to localhost. The Docker image binds to 0.0.0.0 using the same HOST and PORT settings as the application, so it must be started with a SCRAPLING_API_KEY of at least 32 characters. Any non-loopback bind without this key fails closed; all /v1/* routes then require the matching X-API-Key header. Terminate TLS at a trusted reverse proxy; do not send the API key over plain public HTTP. This is a single service key, not per-user tenant isolation. Before a multi-user remote deployment, add per-user authorization/quotas, audit retention, and network-level egress filtering that blocks private, loopback, link-local and metadata-service ranges even after DNS resolution and redirects.
 
+
+## Durable server-side DAG runtime
+
+PostgreSQL mode also exposes a persistent DAG API. POST /v1/workflows accepts a workflow_id (optional), nodes, directed edges, and input metadata. The API rejects duplicate node IDs, unknown edge endpoints, self-edges, and cycles. GET /v1/workflows/{workflow_id} returns node states and graph edges; GET /v1/workflows/{workflow_id}/events streams the durable audit log.
+
+Start independent DAG executors with `libretv-workflow-worker --worker-id dag-worker-a`. The runtime claims only nodes whose dependencies are completed, uses PostgreSQL leases and heartbeats, fences completion writes by lease owner, and retries failed nodes up to each node's max_attempts. Current built-in node types are `validate_public_urls` and `crawl_seed_urls`; the latter uses the same public-target validation and Scrapling seed Spider. Node retries currently rerun the node from its beginning; per-node checkpoint/resume is not yet implemented.
+
+Example workflow:
+
+```json
+{
+  "workflow_id": "site-discovery-001",
+  "nodes": [
+    {
+      "node_id": "validate",
+      "node_type": "validate_public_urls",
+      "input": {"urls": ["https://example.com/"]}
+    },
+    {
+      "node_id": "crawl",
+      "node_type": "crawl_seed_urls",
+      "input": {"urls": ["https://example.com/"]}
+    }
+  ],
+  "edges": [["validate", "crawl"]]
+}
+```
+
+The DAG engine is now a real durable orchestration primitive, not yet the complete AI Supervisor. Autonomous recursive site discovery, model-driven rule generation, media analysis, candidate review, and the user-approved publish gate remain later integrations. The current DAG worker does not infer outputs into downstream node inputs automatically; downstream nodes receive their declared inputs, so data handoff contracts are still to be added.
+
 ## Safety boundary
 
 - Phase 1 does not crawl FMHY yet; FMHY directory ingestion is Phase 2.
