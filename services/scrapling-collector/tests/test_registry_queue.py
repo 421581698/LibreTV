@@ -68,6 +68,11 @@ class RegistryQueueTests(unittest.TestCase):
             "https://user:password@example.org/watch",
             "http://example.org/watch",
             "https://example.org:8443/watch",
+            "https://127.0.0.1/admin",
+            "https://10.0.0.8/internal",
+            "https://169.254.169.254/latest/meta-data/",
+            "https://[::1]/admin",
+            "https://[fc00::1]/internal",
         ):
             with self.subTest(url=url):
                 with self.assertRaises(ValueError):
