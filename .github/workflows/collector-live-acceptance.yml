@@ -41,7 +41,6 @@ jobs:
     timeout-minutes: 360
     environment: collector-acceptance
     env:
-      PASSWORD: ${{ secrets.COLLECTOR_ACCEPTANCE_PASSWORD }}
       SCRAPLING_API_TOKEN: ${{ secrets.SCRAPLING_API_TOKEN }}
       SCRAPLING_EGRESS_FIREWALL_CONFIRMED: "1"
       COLLECTOR_WORKER_CONCURRENCY: "4"
@@ -63,7 +62,6 @@ jobs:
           python-version: "3.11"
       - name: Validate operator acceptance fixtures
         run: |
-          test -n "$PASSWORD"
           test -n "$SCRAPLING_API_TOKEN"
           test -n "$MEDIA_ACCEPTANCE_URL"
           test -n "$MEDIA_ACCEPTANCE_ALLOWED_HOSTS"
