@@ -49,6 +49,34 @@ class RegistryQueueTests(unittest.TestCase):
         payload = __import__("json").loads(row["payload"])
         self.assertEqual(payload["max_sites"], 1000)
 
+    def test_durable_crawl_queue_rejects_signed_urls_but_keeps_public_query_params(self):
+        public = queue.submit_job(
+            "crawl",
+            {"url": "https://example.org/watch?quality=1080p&format=hls"},
+            "crawl:public-query",
+        )
+        self.assertEqual(public["status"], "queued")
+        for url in (
+            "https://example.org/watch?token=secret",
+            "https://example.org/watch?X-Amz-Signature=secret",
+            "https://user:password@example.org/watch",
+            "http://example.org/watch",
+            "https://example.org:8443/watch",
+        ):
+            with self.subTest(url=url):
+                with self.assertRaises(ValueError):
+                    queue.submit_job("crawl", {"url": url}, "crawl:unsafe:" + str(abs(hash(url))))
+
+        with self.assertRaises(ValueError):
+            queue.submit_jobs([{
+                "job_type": "crawl",
+                "payload": {"url": "https://example.org/watch?access_token=secret"},
+                "idempotency_key": "bulk:signed-url",
+            }])
+        with queue.connect() as c:
+            rows = c.execute("SELECT idempotency_key FROM collector_jobs ORDER BY idempotency_key").fetchall()
+        self.assertEqual([row["idempotency_key"] for row in rows], ["crawl:public-query"])
+
     def test_bulk_submission_is_atomic_and_idempotent(self):
         jobs = [
             {"job_type": "crawl", "payload": {"url": "https://example.org/a"},
