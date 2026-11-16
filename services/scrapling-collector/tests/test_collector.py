@@ -140,10 +140,16 @@ class CollectorTests(unittest.TestCase):
     def test_crawl_batch_defaults_to_250_and_requires_at_least_101(self):
         request = collector.CrawlRequest(url="https://catalog.example/")
         self.assertEqual(request.limit, 250)
+        self.assertEqual(request.max_pages, collector.MAX_CRAWL_PAGES)
         with self.assertRaises(Exception):
             collector.CrawlRequest(url="https://catalog.example/", limit=100)
-        accepted = collector.CrawlRequest(url="https://catalog.example/", limit=101)
+        accepted = collector.CrawlRequest(url="https://catalog.example/", limit=101, max_pages=1)
         self.assertEqual(accepted.limit, 101)
+        self.assertEqual(accepted.max_pages, 1)
+        with self.assertRaises(Exception):
+            collector.CrawlRequest(url="https://catalog.example/", max_pages=0)
+        with self.assertRaises(Exception):
+            collector.CrawlRequest(url="https://catalog.example/", max_pages=101)
 
     def test_crawl_egress_gate_requires_current_boot_firewall_marker(self):
         with patch.dict(os.environ, {"SCRAPLING_EGRESS_FIREWALL_CONFIRMED": ""}):
