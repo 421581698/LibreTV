@@ -93,6 +93,7 @@ services:
       SUPERVISOR_MODEL: ${SUPERVISOR_MODEL:-}
       SUPERVISOR_TIMEOUT_SECONDS: ${SUPERVISOR_TIMEOUT_SECONDS:-45}
       SCRAPLING_EGRESS_PROXY: http://scrapling-egress-proxy:8080
+      SCRAPLING_REQUIRE_EGRESS_PROXY: "true"
     networks:
       - crawler-app
       - crawler-clients
@@ -134,6 +135,7 @@ services:
       DATABASE_URL: postgresql://libretv_scrapling:${SCRAPLING_DB_PASSWORD:-local-dev-only-change-me}@scrapling-postgres:5432/libretv_scrapling
       CRAWL_DATA_DIR: /data
       SCRAPLING_EGRESS_PROXY: http://scrapling-egress-proxy:8080
+      SCRAPLING_REQUIRE_EGRESS_PROXY: "true"
     networks:
       - crawler-clients
       - crawler-db
@@ -176,6 +178,7 @@ services:
       SUPERVISOR_MODEL: ${SUPERVISOR_MODEL:-}
       SUPERVISOR_TIMEOUT_SECONDS: ${SUPERVISOR_TIMEOUT_SECONDS:-45}
       SCRAPLING_EGRESS_PROXY: http://scrapling-egress-proxy:8080
+      SCRAPLING_REQUIRE_EGRESS_PROXY: "true"
     networks:
       - crawler-clients
       - crawler-db
