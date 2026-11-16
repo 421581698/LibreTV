@@ -16,9 +16,12 @@ POLL_SECONDS = 0.25
 MAX_REQUEST_BYTES = 4096
 
 
-def _directories() -> tuple[Path, Path]:
+def _directories() -> tuple[Path, Path, Path]:
+    staging = Path(os.environ.get("MEDIA_PROBE_STAGING", "/probe/staging"))
     inbox = Path(os.environ.get("MEDIA_PROBE_INBOX", "/probe/inbox"))
     outbox = Path(os.environ.get("MEDIA_PROBE_OUTBOX", "/probe/outbox"))
+    if staging.is_symlink() or not staging.is_dir():
+        raise RuntimeError("Probe staging mount must be a read-only directory")
     for directory in (inbox, outbox):
         if directory.is_symlink():
             raise RuntimeError("Probe spool directories cannot be symbolic links")
@@ -26,7 +29,7 @@ def _directories() -> tuple[Path, Path]:
             directory.mkdir(parents=True, exist_ok=True)
         if not directory.is_dir():
             raise RuntimeError("Probe spool paths must be directories")
-    return inbox, outbox
+    return staging, inbox, outbox
 
 
 def _write_result(outbox: Path, job_id: str, result: dict[str, Any]) -> None:
@@ -40,7 +43,12 @@ def _write_result(outbox: Path, job_id: str, result: dict[str, Any]) -> None:
     os.replace(temporary, destination)
 
 
-def process_request(request_path: Path, inbox: Path, outbox: Path) -> bool:
+def process_request(
+    request_path: Path,
+    inbox: Path,
+    outbox: Path,
+    staging: Path | None = None,
+) -> bool:
     if request_path.is_symlink() or not request_path.is_file():
         return False
     if request_path.stat().st_size > MAX_REQUEST_BYTES:
@@ -63,7 +71,8 @@ def process_request(request_path: Path, inbox: Path, outbox: Path) -> bool:
         destination = outbox / f"{job_id}.json"
         if destination.exists():
             return True
-        media_path = inbox / filename
+        staging_root = staging or Path(os.environ.get("MEDIA_PROBE_STAGING", "/probe/staging"))
+        media_path = staging_root / filename
         if media_path.is_symlink() or not media_path.is_file():
             raise MediaProbeError("Probe input is missing or is not a regular file")
         report = analyze_local_media_file(
@@ -86,12 +95,12 @@ def process_request(request_path: Path, inbox: Path, outbox: Path) -> bool:
 
 
 def run_forever() -> None:
-    inbox, outbox = _directories()
+    staging, inbox, outbox = _directories()
     logger.info("Isolated media probe worker started (network disabled by container)")
     while True:
         for request_path in sorted(inbox.glob("*.json")):
             try:
-                process_request(request_path, inbox, outbox)
+                process_request(request_path, inbox, outbox, staging)
             except Exception:
                 logger.exception("Unexpected media probe worker failure")
         time.sleep(POLL_SECONDS)
