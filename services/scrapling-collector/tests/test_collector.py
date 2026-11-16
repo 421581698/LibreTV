@@ -1453,6 +1453,25 @@ segment-2.ts
 
 
 
+    def test_fmhy_discovery_persists_sites_through_canonical_registry(self):
+        discovered = [{
+            "host": "catalog.example", "title": "Catalog",
+            "url": "https://catalog.example/video", "directory": "FMHY / video",
+        }]
+        with (
+            patch.object(collector, "enable_adaptive_fetcher"),
+            patch.object(collector, "throttle"),
+            patch.object(collector.Fetcher, "get", return_value=object()),
+            patch.object(collector, "fmhy_category_pages_from_page", return_value=[]),
+            patch.object(collector, "fmhy_sites_from_page", return_value=discovered),
+        ):
+            result = collector.discover_sites()
+        self.assertEqual(result, discovered)
+        self.assertEqual(
+            registry_queue.list_discovered_sites(10)[0]["host"],
+            "catalog.example",
+        )
+
     def test_cms_api_shape_requires_actual_vod_fields_not_any_json_list(self):
         valid = {
             "code": 1,
