@@ -89,13 +89,13 @@ class CrawlWorker:
                 "UPDATE crawl_jobs SET status = %s, result_json = %s::jsonb, error = %s, "
                 "finished_at = %s, updated_at = %s, lease_owner = NULL, "
                 "lease_expires_at = NULL, heartbeat_at = NULL "
-                "WHERE task_id = %s AND status = 'running' AND lease_owner = %s "
+                "WHERE task_id = %s AND status IN ('running', 'pausing', 'cancelling') AND lease_owner = %s "
                 "AND lease_expires_at > NOW()",
                 (
                     status,
                     json.dumps(result, ensure_ascii=False),
                     error,
-                    _now() if status in {"completed", "failed"} else None,
+                    _now() if status in {"completed", "failed", "cancelled"} else None,
                     _now(),
                     task_id,
                     self.worker_id,
@@ -127,6 +127,31 @@ class CrawlWorker:
                     lost.set()
                     return
 
+    async def _watch_control(
+        self,
+        task_id: str,
+        spider: Any,
+        stop: asyncio.Event,
+        requested: asyncio.Event,
+        control: dict[str, str | None],
+    ) -> None:
+        while not stop.is_set():
+            command = await asyncio.to_thread(
+                self.store.get_control, task_id, self.worker_id
+            )
+            if command in {"pause", "cancel"}:
+                control["command"] = command
+                requested.set()
+                try:
+                    spider.pause()
+                except RuntimeError:
+                    logger.info("Control request arrived before Spider started for %s", task_id)
+                return
+            try:
+                await asyncio.wait_for(stop.wait(), timeout=1.0)
+            except TimeoutError:
+                continue
+
     async def process_once(self) -> bool:
         job = await asyncio.to_thread(
             self.store.claim_next, self.worker_id, self.lease_seconds
@@ -138,6 +163,8 @@ class CrawlWorker:
         stop = asyncio.Event()
         lost = asyncio.Event()
         heartbeat = asyncio.create_task(self._heartbeat(task_id, stop, lost))
+        control_requested = asyncio.Event()
+        control: dict[str, str | None] = {"command": None}
         items = await asyncio.to_thread(self.store.get_results, task_id)
         seen = {item.get("url") for item in items if item.get("url")}
         stats: dict[str, Any] = {}
@@ -146,9 +173,14 @@ class CrawlWorker:
             spider = ScraplingSpiderAdapter.create(
                 safe_seeds, Path(job["checkpoint_dir"])
             )
+            watcher = asyncio.create_task(
+                self._watch_control(task_id, spider, stop, control_requested, control)
+            )
             async for item in spider.stream():
                 if lost.is_set():
                     raise LeaseLost(task_id)
+                if control_requested.is_set():
+                    break
                 item_url = item.get("url")
                 if item_url and item_url in seen:
                     continue
@@ -160,10 +192,22 @@ class CrawlWorker:
 
             if lost.is_set():
                 raise LeaseLost(task_id)
+            command = control["command"]
+            final_status = (
+                "paused" if command == "pause"
+                else "cancelled" if command == "cancel"
+                else "completed"
+            )
             self._fenced_finish(
                 task_id,
-                "completed",
-                {"items": items, "completed": True, "paused": False, "stats": stats},
+                final_status,
+                {
+                    "items": items,
+                    "completed": final_status == "completed",
+                    "paused": final_status == "paused",
+                    "cancelled": final_status == "cancelled",
+                    "stats": stats,
+                },
             )
         except LeaseLost:
             logger.warning("Worker %s lost lease for task %s", self.worker_id, task_id)
@@ -181,6 +225,8 @@ class CrawlWorker:
         finally:
             stop.set()
             await heartbeat
+            if "watcher" in locals():
+                await watcher
         return True
 
     async def run_forever(self) -> None:
