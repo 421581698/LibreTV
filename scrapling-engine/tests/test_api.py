@@ -5,7 +5,7 @@ from cssselect.parser import SelectorSyntaxError
 from fastapi.testclient import TestClient
 from lxml.etree import XPathError
 
-from app.main import app
+from app.main import WorkflowNodeRequest, app
 from app.scraper import ScraplingAdapter
 
 client = TestClient(app)
@@ -284,3 +284,13 @@ def test_rule_activation_records_human_actor(monkeypatch) -> None:
     )
     assert response.status_code == 200
     assert store.action == ("rule-123", "active", "site-admin", "Selector reviewed")
+
+
+
+def test_workflow_schema_exposes_isolated_media_probe_node() -> None:
+    node = WorkflowNodeRequest(
+        node_id="probe-media",
+        node_type="probe_local_media_file",
+        input={"local_path": "/tmp/libretv-media-probe/movie.mp4"},
+    )
+    assert node.node_type == "probe_local_media_file"
