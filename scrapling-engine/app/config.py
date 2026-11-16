@@ -46,7 +46,6 @@ class Settings(BaseSettings):
     supervisor_api_key: SecretStr | None = Field(
         default=None,
         validation_alias="SUPERVISOR_API_KEY",
-        min_length=1,
     )
     supervisor_model: str = Field(default="", validation_alias="SUPERVISOR_MODEL")
     supervisor_timeout_seconds: float = Field(
