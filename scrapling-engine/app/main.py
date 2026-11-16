@@ -73,6 +73,13 @@ class FetchRequest(BaseModel):
 
 
 
+
+class CandidateReviewRequest(BaseModel):
+    decision: Literal["approved", "rejected"]
+    reviewer_id: str = Field(min_length=1, max_length=128)
+    note: str = Field(default="", max_length=1000)
+
+
 class WorkflowNodeRequest(BaseModel):
     node_id: str = Field(min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
     node_type: Literal[
@@ -562,6 +569,38 @@ async def list_candidates(status: str | None = None, limit: int = 50) -> dict:
         )
     candidates = candidate_store.list_candidates(status=status, limit=limit)
     return {"ok": True, "count": len(candidates), "candidates": candidates}
+
+
+
+@app.post("/v1/candidates/{candidate_id}/review")
+async def review_candidate(
+    candidate_id: str,
+    request: CandidateReviewRequest,
+) -> dict:
+    if candidate_store is None:
+        raise HTTPException(
+            status_code=501,
+            detail="Resource candidate review requires PostgreSQL mode.",
+        )
+    reviewed = candidate_store.review_candidate(
+        candidate_id,
+        request.decision,
+        request.reviewer_id,
+        request.note,
+    )
+    if not reviewed:
+        if candidate_store.get_candidate(candidate_id) is None:
+            raise HTTPException(status_code=404, detail="Resource candidate not found.")
+        raise HTTPException(
+            status_code=409,
+            detail="Candidate is no longer awaiting human review.",
+        )
+    return {
+        "ok": True,
+        "candidate_id": candidate_id,
+        "status": request.decision,
+        "formal_resource_published": False,
+    }
 
 
 @app.get("/v1/candidates/{candidate_id}")
