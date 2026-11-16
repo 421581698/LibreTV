@@ -98,6 +98,12 @@ def test_postgres_workflow_dag_claims_dependencies_and_retries_durably() -> None
             "analyze": "failed",
             "candidate": "pending",
         }
+        first_page = store.events_after(workflow_id, limit=2)
+        assert len(first_page) == 2
+        second_page = store.events_after(workflow_id, last_id=first_page[-1]["id"], limit=2)
+        assert len(second_page) == 2
+        assert second_page[0]["id"] > first_page[-1]["id"]
+        assert len(store.events_after(workflow_id, limit=5000)) <= 1000
         event_types = [event["type"] for event in store.events_after(workflow_id)]
         assert event_types == [
             "workflow_created",

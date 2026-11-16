@@ -637,15 +637,26 @@ class PostgresWorkflowStore:
         ]
         return result
 
-    def events_after(self, workflow_id: str, last_id: int = 0) -> list[dict[str, Any]]:
+    def events_after(
+        self,
+        workflow_id: str,
+        last_id: int = 0,
+        limit: int = 500,
+    ) -> list[dict[str, Any]]:
+        # SSE clients page through the durable event log using the last event ID.
+        # Bound each database read so a long-running workflow cannot allocate an
+        # unbounded result set in the API process.
+        safe_limit = min(max(int(limit), 1), 1000)
+        safe_last_id = max(int(last_id), 0)
         with psycopg.connect(self.database_url, row_factory=dict_row) as db:
             rows = db.execute(
                 """
                 SELECT id, node_id, event_type, payload_json, created_at
                 FROM resource_workflow_events
                 WHERE workflow_id = %s AND id > %s ORDER BY id
+                LIMIT %s
                 """,
-                (workflow_id, last_id),
+                (workflow_id, safe_last_id, safe_limit),
             ).fetchall()
         return [
             {
