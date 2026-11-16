@@ -19,6 +19,24 @@ type Candidate = {
   updated_at: string;
 };
 
+type ScrapingRule = {
+  rule_id: string;
+  source_origin: string;
+  page_url: string;
+  goal: string;
+  mode: 'css' | 'xpath';
+  selector: string;
+  rationale: string;
+  version: number;
+  status: 'tested' | 'active' | 'disabled';
+  test_json?: {
+    match_count?: number;
+    sample_values?: string[];
+    verification_level?: string;
+  };
+  updated_at: string;
+};
+
 type Workflow = {
   workflow_id: string;
   status: string;
@@ -71,6 +89,9 @@ function statusLabel(status: string): string {
     cancelled: '已取消',
     approved: '已批准',
     rejected: '已拒绝',
+    tested: '测试通过，待启用',
+    active: '已启用',
+    disabled: '已停用',
   };
   return labels[status] || status;
 }
@@ -82,6 +103,8 @@ function formatDate(value: string): string {
 export default function CrawlerControlCenterPage() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [rules, setRules] = useState<ScrapingRule[]>([]);
+  const [aiRuleGenerationReady, setAiRuleGenerationReady] = useState(false);
   const [seedText, setSeedText] = useState('');
   const [activeWorkflow, setActiveWorkflow] = useState<WorkflowDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -91,12 +114,18 @@ export default function CrawlerControlCenterPage() {
 
   const refresh = useCallback(async () => {
     try {
-      const [candidateData, workflowData] = await Promise.all([
+      const [candidateData, workflowData, ruleData, capabilities] = await Promise.all([
         api<{ candidates: Candidate[] }>('candidates?limit=100'),
         api<{ workflows: Workflow[] }>('workflows?limit=50'),
+        api<{ rules: ScrapingRule[] }>('rules?limit=100'),
+        api<{ implemented: string[] }>('capabilities'),
       ]);
       setCandidates(candidateData.candidates);
       setWorkflows(workflowData.workflows);
+      setRules(ruleData.rules);
+      setAiRuleGenerationReady(
+        capabilities.implemented.includes('ai_selector_generation_and_live_test'),
+      );
       setError('');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '无法读取爬虫引擎状态');
@@ -155,30 +184,39 @@ export default function CrawlerControlCenterPage() {
     setNotice('');
     try {
       const workflowId = `crawl_${crypto.randomUUID().replaceAll('-', '').slice(0, 20)}`;
+      const nodes = [
+        {
+          node_id: 'validate',
+          node_type: 'validate_public_urls',
+          input: { urls },
+        },
+        {
+          node_id: 'crawl',
+          node_type: 'discover_site_links',
+          input: { max_pages: 60, max_depth: 2, max_links_per_page: 25 },
+        },
+      ];
+      const edges: Array<[string, string]> = [['validate', 'crawl']];
+      if (aiRuleGenerationReady) {
+        nodes.push({
+          node_id: 'rule',
+          node_type: 'generate_extraction_rule',
+          input: { goal: '识别电影、剧集和动漫列表中的标题及详情入口' },
+        });
+        edges.push(['crawl', 'rule']);
+      }
+      nodes.push(
+        { node_id: 'candidates', node_type: 'register_candidates', input: {} },
+        { node_id: 'media', node_type: 'analyze_media_candidates', input: {} },
+      );
+      edges.push(['crawl', 'candidates'], ['candidates', 'media']);
       await api('workflows', {
         method: 'POST',
         body: JSON.stringify({
           workflow_id: workflowId,
           input: { initiated_from: 'crawler_control_center' },
-          nodes: [
-            {
-              node_id: 'validate',
-              node_type: 'validate_public_urls',
-              input: { urls },
-            },
-            {
-              node_id: 'crawl',
-              node_type: 'discover_site_links',
-              input: { max_pages: 60, max_depth: 2, max_links_per_page: 25 },
-            },
-            { node_id: 'candidates', node_type: 'register_candidates', input: {} },
-            { node_id: 'media', node_type: 'analyze_media_candidates', input: {} },
-          ],
-          edges: [
-            ['validate', 'crawl'],
-            ['crawl', 'candidates'],
-            ['candidates', 'media'],
-          ],
+          nodes,
+          edges,
         }),
       });
       setNotice('采集工作流已提交，独立 Worker 将自动领取任务。');
@@ -207,6 +245,21 @@ export default function CrawlerControlCenterPage() {
       await refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : `${action}失败`);
+    }
+  }
+
+  async function setRuleStatus(ruleId: string, status: 'activate' | 'disable') {
+    const action = status === 'activate' ? '启用' : '停用';
+    if (!window.confirm(`确定${action}这条已测试的采集规则吗？`)) return;
+    try {
+      await api(`rules/${ruleId}/${status}`, {
+        method: 'POST',
+        body: JSON.stringify({ note: `管理员确认${action}` }),
+      });
+      setNotice(`采集规则已${action}。`);
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : `采集规则${action}失败`);
     }
   }
 
@@ -248,7 +301,7 @@ export default function CrawlerControlCenterPage() {
               智能爬虫控制中心
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-              自主采集任务、媒体质量分析与候选资源管理。AI 负责发现和分析，正式资源入库仍由你亲自决定。
+              自主网站发现、AI 规则生成、媒体质量分析与候选资源管理。正式资源入库仍由你亲自决定。
             </p>
           </div>
           <button
@@ -294,7 +347,7 @@ export default function CrawlerControlCenterPage() {
               <p className="text-xs font-semibold tracking-[0.2em] text-cyan-200">NEW DISCOVERY</p>
               <h2 className="mt-2 text-xl font-semibold">启动自主采集</h2>
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                输入公开网站起始地址。系统会验证地址、执行 Scrapling 抓取、提取媒体链接、建立候选并分析 HLS/DASH 清单。
+                输入公开网站起始地址。系统会验证地址、进行同源递归发现、提取媒体链接、建立候选并分析 HLS/DASH 清单。AI 模型已配置时，还会生成并实测一条采集规则。
               </p>
             </div>
             <label className="block text-sm text-slate-300" htmlFor="crawler-seeds">
@@ -316,7 +369,7 @@ export default function CrawlerControlCenterPage() {
               {submitting ? '正在提交工作流…' : '启动采集工作流'}
             </button>
             <p className="text-xs leading-5 text-slate-500">
-              仅抓取公开 HTTP(S) 资源，遵守 robots.txt。当前版本不执行递归链接发现、不绕过登录或 DRM。
+              仅抓取公开 HTTP(S) 资源并遵守 robots.txt；同源发现最多 60 页、深度 2。不跨域扩展，不绕过登录或 DRM。
             </p>
           </form>
 
@@ -403,6 +456,67 @@ export default function CrawlerControlCenterPage() {
               )}
             </div>
           </section>
+        </section>
+
+        <section className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035]">
+          <div className="flex flex-col gap-2 border-b border-white/10 p-5 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold tracking-[0.2em] text-cyan-200">RULE INTELLIGENCE</p>
+              <h2 className="mt-2 text-xl font-semibold">采集规则库</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                AI 生成的 CSS / XPath 规则必须先通过真实页面匹配测试；启用和停用均保留管理员操作记录。
+              </p>
+            </div>
+            <span className="text-xs text-slate-500">
+              {aiRuleGenerationReady ? 'AI 规则生成已配置' : 'AI 规则生成待配置模型密钥'}
+            </span>
+          </div>
+          <div className="divide-y divide-white/[0.07]">
+            {rules.map((rule) => (
+              <article key={rule.rule_id} className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-medium text-slate-200">{rule.source_origin}</span>
+                    <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-slate-400">
+                      v{rule.version} · {statusLabel(rule.status)}
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                      {rule.test_json?.match_count ?? 0} 次匹配
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs text-slate-400">{rule.goal}</p>
+                  <code className="mt-2 block break-all rounded-lg bg-black/30 px-3 py-2 text-xs text-cyan-200">
+                    {rule.mode}: {rule.selector}
+                  </code>
+                  <p className="mt-1 text-xs text-slate-500">{rule.rationale}</p>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  {rule.status !== 'active' ? (
+                    <button
+                      type="button"
+                      onClick={() => void setRuleStatus(rule.rule_id, 'activate')}
+                      className="rounded-lg border border-emerald-300/30 px-3 py-2 text-xs text-emerald-200 hover:bg-emerald-300/10"
+                    >
+                      启用规则
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => void setRuleStatus(rule.rule_id, 'disable')}
+                      className="rounded-lg border border-rose-300/25 px-3 py-2 text-xs text-rose-200 hover:bg-rose-300/10"
+                    >
+                      停用规则
+                    </button>
+                  )}
+                </div>
+              </article>
+            ))}
+            {!loading && rules.length === 0 && (
+              <p className="px-5 py-10 text-center text-sm text-slate-500">
+                暂无已测试规则。配置 SUPERVISOR_API_KEY 和 SUPERVISOR_MODEL 后，采集工作流会自动生成并测试规则。
+              </p>
+            )}
+          </div>
         </section>
 
         <section className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035]">
