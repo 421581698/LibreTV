@@ -11,6 +11,7 @@ from typing import Any
 
 from app.candidate_store import PostgresCandidateStore
 from app.config import settings
+from app.discovery import extract_discovery_links
 from app.media_analyzer import analyze_hls_manifest, analyze_mpd_manifest
 from app.robots import ensure_robots_allowed
 from app.scraper import ScraplingAdapter
@@ -44,6 +45,7 @@ class WorkflowWorker:
         self.handlers: dict[str, NodeHandler] = {
             "validate_public_urls": self._validate_public_urls,
             "crawl_seed_urls": self._crawl_seed_urls,
+            "discover_site_links": self._discover_site_links,
             "register_candidates": self._register_candidates,
             "analyze_media_manifest": self._analyze_media_manifest,
             "analyze_media_candidates": self._analyze_media_candidates,
@@ -77,6 +79,112 @@ class WorkflowWorker:
             "items": items,
             "stats": asdict(spider.stats),
             "count": len(items),
+        }
+
+    async def _discover_site_links(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Bounded same-origin breadth-first discovery; no arbitrary domain expansion."""
+        urls = payload.get("urls") or self._dependency_urls(payload)
+        if not isinstance(urls, list) or not urls or len(urls) > 20:
+            raise ValueError("discover_site_links requires 1 to 20 seed URLs")
+        max_pages = payload.get("max_pages", 50)
+        max_depth = payload.get("max_depth", 2)
+        max_links_per_page = payload.get("max_links_per_page", 30)
+        if not isinstance(max_pages, int) or isinstance(max_pages, bool) or not 1 <= max_pages <= 200:
+            raise ValueError("max_pages must be an integer from 1 to 200")
+        if not isinstance(max_depth, int) or isinstance(max_depth, bool) or not 0 <= max_depth <= 5:
+            raise ValueError("max_depth must be an integer from 0 to 5")
+        if (
+            not isinstance(max_links_per_page, int)
+            or isinstance(max_links_per_page, bool)
+            or not 1 <= max_links_per_page <= 50
+        ):
+            raise ValueError("max_links_per_page must be an integer from 1 to 50")
+
+        seeds = list(dict.fromkeys(validate_public_http_url(url) for url in urls))
+        queue: list[tuple[str, int]] = [(url, 0) for url in seeds]
+        queued = set(seeds)
+        visited: set[str] = set()
+        items: list[dict[str, Any]] = []
+        errors: list[dict[str, str]] = []
+        media_extensions = (
+            ".m3u8", ".mpd", ".mp4", ".m4v", ".webm", ".mov", ".ts", ".mkv"
+        )
+
+        while queue and len(visited) < max_pages:
+            url, depth = queue.pop(0)
+            if url in visited:
+                continue
+            visited.add(url)
+            try:
+                await asyncio.to_thread(
+                    ensure_robots_allowed,
+                    url,
+                    settings.request_timeout_seconds,
+                )
+                page = await asyncio.to_thread(
+                    ScraplingAdapter.fetch_page,
+                    url,
+                    settings.request_timeout_seconds,
+                )
+                final_url = validate_public_http_url(str(getattr(page, "url", None) or url))
+                # A public redirect must not silently widen the discovery scope.
+                if (urlsplit(final_url).hostname or "").lower() != (urlsplit(url).hostname or "").lower():
+                    errors.append({"url": url, "error": "cross_origin_redirect"})
+                    continue
+                headers = getattr(page, "headers", {}) or {}
+                content_type = headers.get("content-type", "") if hasattr(headers, "get") else ""
+                if content_type and "html" not in str(content_type).lower():
+                    continue
+
+                title_node = page.css_first("title::text")
+                raw_media = page.css("video::attr(src), source::attr(src)").getall()
+                raw_media.extend(page.css("a::attr(href)").getall())
+                media_urls: list[str] = []
+                for raw in raw_media:
+                    if not isinstance(raw, str):
+                        continue
+                    absolute = urljoin(final_url, raw.strip())
+                    if urlsplit(absolute).path.lower().endswith(media_extensions):
+                        safe_media = validate_public_http_url(absolute)
+                        if safe_media not in media_urls and len(media_urls) < 20:
+                            media_urls.append(safe_media)
+
+                items.append(
+                    {
+                        "url": final_url,
+                        "status": getattr(page, "status", None),
+                        "title": title_node.get().strip() if title_node else "",
+                        "text": page.get_all_text(strip=True)[:20_000],
+                        "media_urls": media_urls,
+                        "depth": depth,
+                    }
+                )
+                if depth < max_depth and len(visited) + len(queue) < max_pages:
+                    links = extract_discovery_links(
+                        page,
+                        final_url,
+                        max_links=max_links_per_page,
+                        same_origin_only=True,
+                    )
+                    for link in links:
+                        if link not in queued and len(visited) + len(queue) < max_pages:
+                            queued.add(link)
+                            queue.append((link, depth + 1))
+            except Exception as exc:
+                logger.warning("Discovery failed for %s: %s", url, type(exc).__name__)
+                errors.append({"url": url, "error": type(exc).__name__})
+            if queue and len(visited) < max_pages:
+                await asyncio.sleep(1.0)
+
+        return {
+            "items": items,
+            "count": len(items),
+            "visited_count": len(visited),
+            "queued_count": len(queue),
+            "max_depth": max_depth,
+            "max_pages": max_pages,
+            "scope": "same_origin_only",
+            "errors": errors[:100],
         }
 
     async def _register_candidates(self, payload: dict[str, Any]) -> dict[str, Any]:
