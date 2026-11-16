@@ -137,6 +137,10 @@ services:
       - SCRAPLING_EGRESS_API_IP=${SCRAPLING_COLLECTOR_IP:-172.30.60.10}
       - SCRAPLING_EGRESS_API_PORT=8000
       - SCRAPLING_DB_PATH=${SCRAPLING_DB_PATH:-/data/collector.sqlite3}
+      - COLLECTOR_AI_GATEWAY_URL=${COLLECTOR_AI_GATEWAY_URL:-}
+      - COLLECTOR_AI_API_KEY=${COLLECTOR_AI_API_KEY:-}
+      - COLLECTOR_AI_MODEL=${COLLECTOR_AI_MODEL:-}
+      - COLLECTOR_AI_ALLOWED_HOSTS=${COLLECTOR_AI_ALLOWED_HOSTS:-}
     volumes:
       - scrapling_data:/data
       - ${SCRAPLING_EGRESS_MARKER_DIR:-/run/libretv-scrapling-egress}:/run/libretv-scrapling-egress:ro
