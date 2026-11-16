@@ -145,7 +145,7 @@ services:
       context: ./scrapling-engine
     command: ["libretv-workflow-worker", "--worker-id", "dag-worker-1"]
     restart: unless-stopped
-    # The workflow worker runs untrusted media parsers; keep the process unprivileged and resource-bounded.
+    # The worker coordinates untrusted media through a separate no-network probe container.
     user: "10001:10001"
     read_only: true
     cap_drop: ["ALL"]
@@ -167,6 +167,10 @@ services:
       SUPERVISOR_API_KEY: ${SUPERVISOR_API_KEY:-}
       SUPERVISOR_MODEL: ${SUPERVISOR_MODEL:-}
       SUPERVISOR_TIMEOUT_SECONDS: ${SUPERVISOR_TIMEOUT_SECONDS:-45}
+      SCRAPLING_EGRESS_PROXY: http://scrapling-egress-proxy:8080
+    networks:
+      - crawler-clients
+      - crawler-db
     volumes:
       - scrapling-crawl-data:/data
       - scrapling-probe-inbox:/probe/inbox
@@ -175,6 +179,11 @@ services:
       scrapling-postgres:
         condition: service_healthy
       scrapling-egress-proxy:
+        condition: service_started
+      scrapling-media-probe:
+        condition: service_started
+
+  scrapling-egress-proxy:
     profiles: ["crawler"]
     build:
       context: ./scrapling-engine
@@ -201,11 +210,6 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
-
-  scrapling-media-probe:
-        condition: service_started
-      scrapling-egress-proxy:
-        condition: service_started
 
   scrapling-media-probe:
     profiles: ["crawler"]
