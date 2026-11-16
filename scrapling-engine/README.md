@@ -58,6 +58,8 @@ Start independent DAG executors with `libretv-workflow-worker --worker-id dag-wo
 
 Example workflow:
 
+This AI-assisted example requires `SUPERVISOR_API_KEY` and `SUPERVISOR_MODEL` to be configured. The supervisor may choose only bounded same-origin discovery limits and one CSS/XPath extraction selector; it cannot execute generated code, issue arbitrary URLs, or activate a rule. A human administrator still approves tested rules before they become active.
+
 ```json
 {
   "workflow_id": "site-discovery-001",
