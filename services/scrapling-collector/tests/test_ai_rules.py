@@ -212,11 +212,14 @@ class AIRuleTests(unittest.TestCase):
                 self.timeout = timeout
                 return FakeResponse()
 
-        opener = FakeOpener()
+        captured = {}
+        def fake_post(endpoint, key, body):
+            captured.update(endpoint=endpoint, key=key, body=body)
+            return response_body
         with patch.object(
             ai_rules, "_model_endpoint",
             return_value=("https://llm.example/v1/chat/completions", "secret-key", "test-model"),
-        ), patch.object(ai_rules.urllib.request, "build_opener", return_value=opener):
+        ), patch.object(ai_rules, "_post_model_request", side_effect=fake_post):
             result = ai_rules.generate_rules(
                 "catalog.example",
                 '<script>do-not-send()</script><a class="media-card" href="https://x/?token=secret">Watch</a>',
@@ -224,15 +227,33 @@ class AIRuleTests(unittest.TestCase):
             )
 
         self.assertEqual(result["selectors"]["media"], "a.media-card")
-        self.assertEqual(opener.timeout, 12)
-        self.assertEqual(opener.request.get_header("Authorization"), "Bearer secret-key")
-        sent = json.loads(opener.request.data)
+        self.assertEqual(captured["endpoint"], "https://llm.example/v1/chat/completions")
+        self.assertEqual(captured["key"], "secret-key")
+        sent = json.loads(captured["body"])
         self.assertEqual(sent["model"], "test-model")
         self.assertEqual(sent["response_format"], {"type": "json_object"})
         prompt = json.loads(sent["messages"][1]["content"])
         self.assertNotIn("do-not-send", prompt["html_sample"])
         self.assertNotIn("token=secret", prompt["html_sample"])
         self.assertEqual(prompt["diagnostics"]["failure_code"], "selector_miss")
+
+    def test_gateway_dns_rejects_mixed_public_and_private_answers(self):
+        with patch.object(ai_rules.socket, "getaddrinfo", return_value=[
+            (2, 1, 6, "", ("93.184.216.34", 443)),
+            (2, 1, 6, "", ("127.0.0.1", 443)),
+        ]):
+            with self.assertRaises(RuntimeError):
+                ai_rules._resolve_gateway_ip("llm.example")
+
+    def test_model_gateway_rejects_nonstandard_ports(self):
+        with patch.dict(os.environ, {
+            "COLLECTOR_AI_GATEWAY_URL": "https://llm.example:8443",
+            "COLLECTOR_AI_API_KEY": "test",
+            "COLLECTOR_AI_MODEL": "test-model",
+            "COLLECTOR_AI_ALLOWED_HOSTS": "llm.example",
+        }):
+            with self.assertRaises(RuntimeError):
+                ai_rules._model_endpoint()
 
     def test_model_gateway_requires_explicit_https_host_allowlist(self):
         with patch.dict(os.environ, {
