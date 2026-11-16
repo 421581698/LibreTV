@@ -230,6 +230,7 @@ async def test_autonomous_discovery_finds_public_sites_and_registers_candidates(
         assert payload["_workflow_id"] == "workflow-test"
         return {"candidate_ids": ["candidate-1"], "count": 1}
 
+    monkeypatch.setattr(worker.rules, "list_active_for_origin", lambda _url: [])
     monkeypatch.setattr(worker, "_ai_supervisor_discover", discover)
     monkeypatch.setattr(worker, "_generate_extraction_rule", generate)
     monkeypatch.setattr(worker, "_register_candidates", register)
