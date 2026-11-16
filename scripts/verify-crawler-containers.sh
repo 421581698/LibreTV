@@ -225,7 +225,8 @@ proxy = "http://scrapling-egress-proxy:8080"
 for target in ("https://example.com/", "http://example.com/"):
     page = Fetcher.get(
         target,
-        timeout=20,
+        timeout=10,
+        retries=0,
         follow_redirects=True,
         proxy=proxy,
         impersonate=None,
