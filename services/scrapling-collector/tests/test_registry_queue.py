@@ -66,6 +66,18 @@ class RegistryQueueTests(unittest.TestCase):
                 1,
             )
 
+    def test_crawl_job_page_budget_is_bounded(self):
+        payload = queue.validate_durable_job_payload(
+            "crawl", {"url": "https://catalog.example/video", "max_pages": 1}
+        )
+        self.assertEqual(payload["max_pages"], 1)
+        for invalid in (0, 101, True, "1"):
+            with self.subTest(max_pages=invalid):
+                with self.assertRaises(ValueError):
+                    queue.validate_durable_job_payload(
+                        "crawl", {"url": "https://catalog.example/video", "max_pages": invalid}
+                    )
+
     def test_bulk_job_status_returns_bounded_status_for_live_scale_harness(self):
         job = queue.submit_job("crawl", {"url": "https://example.com"}, "bulk-status:one")
         with patch.object(queue, "require_auth"):
