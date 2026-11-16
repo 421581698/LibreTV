@@ -11,7 +11,8 @@ services:
     ports:
       - "8080:8080"
     networks:
-      - collector_net
+      collector_net:
+        ipv4_address: ${LIBRETV_CONTAINER_IP:-172.30.60.2}
     # 无状态服务：观看历史在浏览器 IndexedDB、设置在 localStorage，无需挂载卷
     environment:
       # 必填：访问密码（在 .env 中设置，缺失时 compose 启动即报错提醒）
@@ -102,7 +103,8 @@ services:
     restart: unless-stopped
     command: ["python", "worker.py"]
     networks:
-      - collector_net
+      collector_net:
+        ipv4_address: ${SCRAPLING_WORKER_IP:-172.30.60.11}
     read_only: true
     tmpfs:
       - /tmp:size=256m,noexec,nosuid
