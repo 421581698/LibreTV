@@ -174,6 +174,7 @@ assert report["video"]["height"] == 240, report
 print("End-to-end isolated ffprobe handoff passed.")
 PY
 "${compose[@]}" exec -T scrapling-workflow-worker rm -f /tmp/libretv-media-probe/probe-smoke.mp4
+"${compose[@]}" exec -T scrapling-media-probe rm -f /probe/outbox/probe-smoke.mp4
 grep -q 'no-new-privileges' <<<"$(docker inspect --format '{{json .HostConfig.SecurityOpt}}' "$probe_container")"
 probe_mounts=$(docker inspect --format '{{json .Mounts}}' "$probe_container")
 python3 -c 'import json,sys; mounts=json.loads(sys.argv[1]); by_target={m["Destination"]:m for m in mounts}; assert by_target["/probe/inbox"]["RW"] is False; assert by_target["/probe/outbox"]["RW"] is True' "$probe_mounts"
