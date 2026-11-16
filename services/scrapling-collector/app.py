@@ -1200,7 +1200,8 @@ def throttle(host: str) -> None:
     # cannot race through the host delay at the same time.
     with _throttle_lock:
         now = time.monotonic()
-        scheduled = max(now, _last_request_by_host.get(host, 0.0) + MIN_HOST_INTERVAL)
+        previous = _last_request_by_host.get(host)
+        scheduled = now if previous is None else max(now, previous + MIN_HOST_INTERVAL)
         _last_request_by_host[host] = scheduled
         wait = scheduled - now
     if wait > 0:
