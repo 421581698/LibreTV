@@ -18,7 +18,7 @@ from registry_queue import JobCancelled, run_worker, submit_job
 
 # Bound automatic network validation per crawl so one discovered site cannot
 # trigger an unbounded number of outbound media probes.
-MAX_AUTOMATIC_MEDIA_PREFLIGHTS = 20
+MAX_AUTOMATIC_MEDIA_PREFLIGHTS = 1000
 
 
 def handle(payload: dict, checkpoint, cancelled):
@@ -32,9 +32,9 @@ def handle(payload: dict, checkpoint, cancelled):
             raise JobCancelled()
         keyword = str(payload.get("search_keyword") or "")[:50]
         queued = []
-        for site in sites[:5]:
+        for site in sites:
             key = "registry-search:"+hashlib.sha256((keyword.lower()+"|"+site["host"]).encode()).hexdigest()
-            job = submit_job("crawl", {"url":site["url"],"mode":"auto","limit":50,"search_keyword":keyword}, key)
+            job = submit_job("crawl", {"url":site["url"],"mode":"auto","limit":100,"search_keyword":keyword}, key)
             queued.append(job["id"])
         checkpoint({"stage": "fmhy_sites_registered", "discovered": len(sites), "queued_jobs": len(queued)})
         return {"status": "succeeded", "discovered": len(sites), "queued_jobs": queued}
