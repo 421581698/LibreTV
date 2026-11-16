@@ -483,7 +483,8 @@ def upsert_resource(payload: dict) -> dict:
     if not title:
         raise ValueError("Resource title is required")
     now = int(time.time())
-    resource_key = str(payload.get("resource_key") or hashlib.sha256((source_key+"|"+url).encode()).hexdigest())
+    # Registry identity is always source + canonical URL; callers cannot create duplicate aliases.
+    resource_key = hashlib.sha256((source_key + "|" + url).encode()).hexdigest()
     movie_id = episode_id = source_id = None
     with connect() as c:
         c.execute("BEGIN IMMEDIATE")
