@@ -69,7 +69,11 @@ class FetchRequest(BaseModel):
 
 class WorkflowNodeRequest(BaseModel):
     node_id: str = Field(min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
-    node_type: Literal["validate_public_urls", "crawl_seed_urls"]
+    node_type: Literal[
+        "validate_public_urls",
+        "crawl_seed_urls",
+        "register_candidates",
+    ]
     input: dict[str, Any] = Field(default_factory=dict)
     max_attempts: int = Field(default=3, ge=1, le=5)
 
