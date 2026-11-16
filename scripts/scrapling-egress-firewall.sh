@@ -10,11 +10,19 @@ CHAIN="LIBRETV-SCRAPLING-EGRESS"
 LIBRETV_APP_IP="${LIBRETV_APP_IP:-172.30.60.2}"
 SCRAPLING_API_IP="${SCRAPLING_API_IP:-172.30.60.10}"
 SCRAPLING_API_PORT="${SCRAPLING_API_PORT:-8000}"
+MARKER_DIR="${SCRAPLING_EGRESS_MARKER_DIR:-/run/libretv-scrapling-egress}"
+MARKER_FILE="$MARKER_DIR/confirmed.json"
 
 if [[ "${EUID}" -ne 0 ]]; then
   echo "Run as root (for example: sudo $0)" >&2
   exit 1
 fi
+# Invalidate any previous proof before touching rules. /run is cleared at boot,
+# so containers restarted after a reboot remain fail-closed until this script
+# completes successfully again.
+mkdir -p "$MARKER_DIR"
+chmod 0755 "$MARKER_DIR"
+rm -f "$MARKER_FILE"
 if ! command -v iptables >/dev/null 2>&1; then
   echo "iptables is required; configure equivalent DOCKER-USER rules with your host firewall." >&2
   exit 1
@@ -100,12 +108,24 @@ while iptables -w -C INPUT -s "$COLLECTOR_CIDR" -j DROP 2>/dev/null; do
 done
 iptables -w -I INPUT 1 -s "$COLLECTOR_CIDR" -j DROP
 
-# Fail the installer if either enforcement hook is not actually present.
+# Fail the installer if every enforcement hook is not actually present.
 iptables -w -C DOCKER-USER -s "$COLLECTOR_CIDR" -j "$CHAIN"
 iptables -w -C FORWARD -s "$COLLECTOR_CIDR" -j "$CHAIN"
 iptables -w -C INPUT -s "$COLLECTOR_CIDR" -j DROP
 
+if [[ ! "$SCRAPLING_API_PORT" =~ ^[0-9]{1,5}$ ]] || (( SCRAPLING_API_PORT < 1 || SCRAPLING_API_PORT > 65535 )); then
+  echo "SCRAPLING_API_PORT must be a valid TCP port." >&2
+  exit 1
+fi
+BOOT_ID="$(cat /proc/sys/kernel/random/boot_id)"
+MARKER_TMP="$MARKER_FILE.tmp.$"
+printf '{"policy_version":1,"boot_id":"%s","collector_cidr":"%s","app_ip":"%s","api_ip":"%s","api_port":"%s","installed_at":"%s"}\n' \
+  "$BOOT_ID" "$COLLECTOR_CIDR" "$LIBRETV_APP_IP" "$SCRAPLING_API_IP" "$SCRAPLING_API_PORT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$MARKER_TMP"
+chmod 0644 "$MARKER_TMP"
+mv -f "$MARKER_TMP" "$MARKER_FILE"
+
 echo "Verified IPv4 egress restrictions for Scrapling collector $COLLECTOR_CIDR."
 echo "Only LibreTV app -> Collector API TCP/$SCRAPLING_API_PORT is allowed inside the private subnet; other private/reserved destinations are blocked."
 echo "IPv6 is disabled in the app, Collector API, and worker containers by docker-compose.yml."
+echo "Current-boot firewall proof written to $MARKER_FILE."
 echo "To remove these rules: iptables -D DOCKER-USER -s $COLLECTOR_CIDR -j $CHAIN; iptables -D FORWARD -s $COLLECTOR_CIDR -j $CHAIN; iptables -D INPUT -s $COLLECTOR_CIDR -j DROP; iptables -F $CHAIN; iptables -X $CHAIN"
