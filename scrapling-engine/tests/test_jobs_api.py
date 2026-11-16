@@ -257,3 +257,20 @@ def test_loopback_host_detection() -> None:
     assert is_loopback_host("localhost")
     assert not is_loopback_host("0.0.0.0")
     assert not is_loopback_host("192.0.2.10")
+
+
+
+def test_startup_reschedules_persisted_queued_jobs(monkeypatch, tmp_path) -> None:
+    store = _use_test_store(monkeypatch, tmp_path)
+    assert store.create(
+        "queued_after_restart",
+        ["https://example.com/"],
+        str(tmp_path / "queued_after_restart"),
+    )
+    scheduled: list[str] = []
+    monkeypatch.setattr(main, "_schedule_job", scheduled.append)
+
+    with TestClient(main.app):
+        pass
+
+    assert scheduled == ["queued_after_restart"]
