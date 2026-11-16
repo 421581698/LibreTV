@@ -24,7 +24,11 @@ def test_capabilities_distinguish_planned_features() -> None:
     body = response.json()
     assert "http_fetch" in body["implemented"]
     assert "xpath_extraction" in body["implemented"]
-    assert "recursive_link_crawling" in body["planned"]
+    assert (
+        "bounded_same_origin_recursive_discovery" in body["implemented"]
+        or "recursive_discovery_requires_postgresql_worker" in body["implemented"]
+    )
+    assert "unrestricted_cross_origin_discovery" in body["planned"]
 
 
 def test_fetch_rejects_localhost_before_network_request() -> None:
