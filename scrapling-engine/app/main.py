@@ -237,6 +237,10 @@ async def stop_active_crawls() -> None:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    # Queued jobs were durably accepted before the previous process stopped.
+    # Re-schedule them on startup instead of incorrectly marking them interrupted.
+    for job in job_store.list_queued():
+        _schedule_job(job["task_id"])
     yield
     await stop_active_crawls()
 
