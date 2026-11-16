@@ -35,7 +35,10 @@ async def resolve_public_addresses(
         raise EgressDenied("Local hostnames are not allowed")
 
     try:
-        addresses = [ipaddress.ip_address(normalized)]
+        literal = ipaddress.ip_address(normalized)
+        if isinstance(literal, ipaddress.IPv6Address) and literal.ipv4_mapped:
+            literal = literal.ipv4_mapped
+        addresses = [literal]
     except ValueError:
         loop = asyncio.get_running_loop()
         resolve = resolver or loop.getaddrinfo
