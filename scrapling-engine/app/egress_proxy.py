@@ -19,7 +19,11 @@ class EgressDenied(ValueError):
     pass
 
 
-async def resolve_public_addresses(host: str, port: int) -> list[ipaddress.IPv4Address | ipaddress.IPv6Address]:
+async def resolve_public_addresses(
+    host: str,
+    port: int,
+    resolver=None,
+) -> list[ipaddress.IPv4Address | ipaddress.IPv6Address]:
     normalized = host.rstrip(".").lower()
     if (
         not normalized
@@ -32,9 +36,10 @@ async def resolve_public_addresses(host: str, port: int) -> list[ipaddress.IPv4A
         addresses = [ipaddress.ip_address(normalized)]
     except ValueError:
         loop = asyncio.get_running_loop()
+        resolve = resolver or loop.getaddrinfo
         try:
             records = await asyncio.wait_for(
-                loop.getaddrinfo(normalized, port, type=socket.SOCK_STREAM),
+                resolve(normalized, port, type=socket.SOCK_STREAM),
                 timeout=DNS_TIMEOUT_SECONDS,
             )
         except (OSError, asyncio.TimeoutError) as exc:
