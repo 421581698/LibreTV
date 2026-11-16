@@ -25,7 +25,10 @@ def validate_bind_security(host: str, api_key: SecretStr | None) -> None:
     secret = api_key.get_secret_value()
     if len(secret) < 32 or re.fullmatch(r"[A-Za-z0-9_-]+", secret) is None:
         raise RuntimeError(
-            "SCRAPLING_API_KEY must contain at least 32 alphanumeric, underscore, or hyphen characters."
+            (
+                "SCRAPLING_API_KEY must contain at least 32 alphanumeric, underscore, "
+                "or hyphen characters."
+            )
         )
 
 
