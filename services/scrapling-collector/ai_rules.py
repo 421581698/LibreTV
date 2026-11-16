@@ -302,6 +302,14 @@ def diagnose_and_repair(host: str, page_html: str, failure_code: str,
     return {"diagnostic_id": diagnostic_id, "repair": version}
 
 
+def has_rule_history(host: str) -> bool:
+    with connect() as c:
+        row = c.execute(
+            "SELECT 1 FROM collector_rule_versions WHERE host=? LIMIT 1", (host,)
+        ).fetchone()
+    return row is not None
+
+
 def get_active_rule(host: str) -> dict | None:
     with connect() as c:
         row = c.execute("""SELECT v.* FROM collector_rules r
