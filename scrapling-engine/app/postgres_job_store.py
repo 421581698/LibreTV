@@ -278,7 +278,7 @@ class PostgresJobStore:
                 """
                 UPDATE crawl_jobs
                 SET heartbeat_at = %s, lease_expires_at = %s, updated_at = %s
-                WHERE task_id = %s AND status = 'running' AND lease_owner = %s
+                WHERE task_id = %s AND status IN ('running', 'pausing', 'cancelling') AND lease_owner = %s
                 """,
                 (now, lease_until, now.isoformat(), task_id, worker_id),
             )
