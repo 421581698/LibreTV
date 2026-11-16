@@ -416,14 +416,12 @@ async def capabilities() -> dict:
             ),
         ],
         "planned": [
-            "dynamic_browser",
+            "dynamic_browser_rendering",
             "stealth_browser",
             "automatic_extraction_rule_self_repair",
             "rule_rollback",
-            "dynamic_browser_rendering",
             "network_api_capture",
             "unrestricted_cross_origin_discovery",
-            "network_api_capture",
             "mcp_agent_integration",
         ],
         "service_layer": [
