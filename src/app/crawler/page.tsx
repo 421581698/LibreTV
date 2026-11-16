@@ -104,6 +104,19 @@ function statusLabel(status: string): string {
   return labels[status] || status;
 }
 
+function eventLabel(type: string): string {
+  const labels: Record<string, string> = {
+    workflow_created: '工作流已创建',
+    node_claimed: 'Worker 已领取节点',
+    node_completed: '节点执行完成',
+    workflow_completed: '工作流完成',
+    node_retry_scheduled: '节点安排重试',
+    node_failed: '节点执行失败',
+    workflow_control_requested: '收到控制指令',
+  };
+  return labels[type] || type;
+}
+
 function formatDate(value: string): string {
   return new Date(value).toLocaleString('zh-CN', { hour12: false });
 }
@@ -492,7 +505,7 @@ export default function CrawlerControlCenterPage() {
                           <span className="shrink-0 font-mono text-slate-600">
                             {formatDate(item.created_at)}
                           </span>
-                          <span className="text-cyan-200">{item.type}</span>
+                          <span className="text-cyan-200">{eventLabel(item.type)}</span>
                           {item.node_id && (
                             <span className="min-w-0 truncate text-slate-400">
                               {item.node_id}
