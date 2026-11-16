@@ -40,18 +40,19 @@ def probe_media_file(
     if metadata.st_size > MAX_MEDIA_FILE_BYTES:
         raise MediaProbeError("Media file exceeds the 2 GiB probe limit")
 
+    staging = Path(os.environ.get("MEDIA_PROBE_STAGING", "/probe/staging"))
     inbox = Path(os.environ.get("MEDIA_PROBE_INBOX", "/probe/inbox"))
     outbox = Path(os.environ.get("MEDIA_PROBE_OUTBOX", "/probe/outbox"))
-    if not inbox.is_dir() or not outbox.is_dir():
+    if not staging.is_dir() or not inbox.is_dir() or not outbox.is_dir():
         raise MediaProbeError("Isolated media probe sidecar is not mounted")
     job_id = uuid.uuid4().hex
-    media_path = inbox / f"{job_id}.media"
+    media_path = staging / f"{job_id}.media"
     request_path = inbox / f"{job_id}.json"
     request_tmp = inbox / f".{job_id}.request.tmp"
     result_path = outbox / f"{job_id}.json"
 
     try:
-        # Publish the request last so the sidecar never observes a partial media file.
+        # The sidecar sees this staging volume read-only; publish the request last.
         shutil.copyfile(resolved, media_path)
         request = {
             "job_id": job_id,
