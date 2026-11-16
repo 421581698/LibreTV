@@ -16,6 +16,7 @@ from app import (
     CrawlRequest,
     crawl_site,
     discover_sites,
+    egress_firewall_ready,
     require_egress_firewall,
     task_candidates,
     validate_candidate,
@@ -221,7 +222,7 @@ def enqueue_daily_batch(now: datetime | None = None) -> dict:
     date_key = current.date().isoformat()
     if current.time() < clock_time(hour, minute):
         return {"status": "not_due", "date": date_key}
-    if os.environ.get("SCRAPLING_EGRESS_FIREWALL_CONFIRMED") != "1":
+    if not egress_firewall_ready():
         return {"status": "blocked_egress_gate", "date": date_key}
     job = submit_job(
         "batch_crawl",
