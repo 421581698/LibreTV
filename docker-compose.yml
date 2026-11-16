@@ -103,7 +103,7 @@ services:
       scrapling-postgres:
         condition: service_healthy
       scrapling-egress-proxy:
-        condition: service_started
+        condition: service_healthy
     expose:
       - "8787"
 
@@ -137,7 +137,7 @@ services:
       scrapling-postgres:
         condition: service_healthy
       scrapling-egress-proxy:
-        condition: service_started
+        condition: service_healthy
 
   scrapling-workflow-worker:
     profiles: ["crawler"]
@@ -179,7 +179,7 @@ services:
       scrapling-postgres:
         condition: service_healthy
       scrapling-egress-proxy:
-        condition: service_started
+        condition: service_healthy
       scrapling-media-probe:
         condition: service_started
 
