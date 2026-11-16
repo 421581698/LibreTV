@@ -21,11 +21,11 @@ from app.candidate_store import PostgresCandidateStore
 from app.config import settings, validate_bind_security
 from app.job_store import JobStore
 from app.postgres_job_store import PostgresJobStore
-from app.workflow_store import PostgresWorkflowStore, WorkflowDefinitionError
 from app.robots import RobotsPolicyError, RobotsUnavailableError, ensure_robots_allowed
 from app.scraper import ScraplingAdapter
 from app.security import UnsafeTargetError, validate_public_http_url
 from app.spider import ScraplingSpiderAdapter
+from app.workflow_store import PostgresWorkflowStore, WorkflowDefinitionError
 
 logging.basicConfig(level=settings.log_level.upper())
 logger = logging.getLogger("libretv.scrapling")
