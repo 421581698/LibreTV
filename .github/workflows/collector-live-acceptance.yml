@@ -36,7 +36,7 @@ permissions:
 
 jobs:
   live-acceptance:
-    if: ${{ github.event_name == 'workflow_dispatch' || vars.COLLECTOR_LIVE_ACCEPTANCE_ENABLED == 'true' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.number == 92 && vars.COLLECTOR_LIVE_ACCEPTANCE_ENABLED == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 360
     environment: collector-acceptance
