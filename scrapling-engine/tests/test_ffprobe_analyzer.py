@@ -36,7 +36,15 @@ def test_probe_reports_encoded_dimensions_but_not_native_4k(tmp_path, monkeypatc
                 "color_primaries": "bt2020", "color_space": "bt2020nc",
                 "bit_rate": "8000000",
                 "side_data_list": [
-                    {"side_data_type": "Mastering display metadata"}
+                    {
+                        "side_data_type": "DOVI configuration record",
+                        "dv_profile": 8,
+                        "dv_level": 6,
+                        "rpu_present": 1,
+                        "el_present": 0,
+                        "bl_present": 1,
+                    },
+                    {"side_data_type": "Mastering display metadata"},
                 ],
             },
             {
@@ -165,3 +173,14 @@ def test_probe_stops_process_when_stdout_exceeds_limit(tmp_path, monkeypatch):
     monkeypatch.setattr(subprocess, "Popen", oversized)
     with pytest.raises(MediaProbeError, match="exceeds the 1 MiB limit"):
         analyze_local_media_file(media)
+
+
+
+def test_pixel_format_bit_depth_inference():
+    from app.ffprobe_analyzer import _pixel_format_bit_depth
+
+    assert _pixel_format_bit_depth("yuv420p10le") == 10
+    assert _pixel_format_bit_depth("yuv444p12be") == 12
+    assert _pixel_format_bit_depth("p010le") == 10
+    assert _pixel_format_bit_depth("yuv420p") == 8
+    assert _pixel_format_bit_depth("unknown") is None

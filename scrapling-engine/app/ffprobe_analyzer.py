@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import selectors
 import signal
 import stat
@@ -88,7 +89,7 @@ def analyze_local_media_file(
         "channel_layout,sample_rate:"
         "stream_tags=language,title:"
         "stream_disposition=default,forced:"
-        "stream_side_data=side_data_type",
+        "stream_side_data=side_data_type,dv_profile,dv_level,rpu_present,el_present,bl_present",
         "-of", "json",
         str(media_path),
     ]
@@ -190,11 +191,35 @@ def analyze_local_media_file(
     transfer = str(video.get("color_transfer") or "").lower()
     hdr = transfer in {"smpte2084", "arib-std-b67"}
     side_data = video.get("side_data_list")
+    side_data_items = [item for item in side_data or [] if isinstance(item, dict)]
     side_data_types = [
         item.get("side_data_type")
-        for item in side_data or []
-        if isinstance(item, dict) and isinstance(item.get("side_data_type"), str)
+        for item in side_data_items
+        if isinstance(item.get("side_data_type"), str)
     ]
+    dolby_vision_data = next(
+        (
+            item for item in side_data_items
+            if "dovi" in str(item.get("side_data_type") or "").lower()
+            or "dolby vision" in str(item.get("side_data_type") or "").lower()
+            or item.get("dv_profile") is not None
+        ),
+        None,
+    )
+    pixel_format = video.get("pix_fmt")
+    encoded_bit_depth = _safe_int(video.get("bits_per_raw_sample"))
+    if encoded_bit_depth is None:
+        encoded_bit_depth = _pixel_format_bit_depth(pixel_format)
+    if dolby_vision_data:
+        hdr_format_claim = "dolby_vision"
+    elif transfer == "smpte2084" and str(video.get("color_primaries") or "").lower() == "bt2020":
+        hdr_format_claim = "hdr10_or_pq"
+    elif transfer == "arib-std-b67":
+        hdr_format_claim = "hlg"
+    elif hdr:
+        hdr_format_claim = "hdr_metadata_other"
+    else:
+        hdr_format_claim = "unknown" if not transfer else "sdr_or_unclassified"
     format_info = payload.get("format")
     format_info = format_info if isinstance(format_info, dict) else {}
     audio_tracks = []
@@ -240,7 +265,8 @@ def analyze_local_media_file(
             "profile": video.get("profile"),
             "width": width,
             "height": height,
-            "pixel_format": video.get("pix_fmt"),
+            "pixel_format": pixel_format,
+            "bit_depth": encoded_bit_depth,
             "frame_rate_fps": (
                 _ratio(video.get("avg_frame_rate"))
                 or _ratio(video.get("r_frame_rate"))
@@ -252,6 +278,18 @@ def analyze_local_media_file(
             "color_primaries": video.get("color_primaries"),
             "bits_per_raw_sample": _safe_int(video.get("bits_per_raw_sample")),
             "side_data_types": side_data_types,
+            "dolby_vision_metadata": (
+                {
+                    "profile": _safe_int(dolby_vision_data.get("dv_profile")),
+                    "level": _safe_int(dolby_vision_data.get("dv_level")),
+                    "rpu_present": bool(dolby_vision_data.get("rpu_present", 0)),
+                    "enhancement_layer_present": bool(dolby_vision_data.get("el_present", 0)),
+                    "base_layer_present": bool(dolby_vision_data.get("bl_present", 0)),
+                }
+                if dolby_vision_data
+                else None
+            ),
+            "hdr_format_claim": hdr_format_claim,
         },
         "resolution_verified": True,
         "is_4k_bitstream": is_4k,
@@ -271,6 +309,22 @@ def analyze_local_media_file(
             "This probe does not decode frames or perform visual quality analysis.",
         ],
     }
+
+
+def _pixel_format_bit_depth(pixel_format: Any) -> int | None:
+    """Infer component depth from common FFmpeg pixel-format names."""
+    if not isinstance(pixel_format, str):
+        return None
+    normalized = pixel_format.lower()
+    match = re.search(r"p(9|10|12|14|16)(?:le|be)?$", normalized)
+    if match:
+        return int(match.group(1))
+    packed = re.fullmatch(r"p0(10|12|16)(?:le|be)?", normalized)
+    if packed:
+        return int(packed.group(1))
+    if re.search(r"(?:yuv|yuva|gbr|gray|ya).*p$", normalized):
+        return 8
+    return None
 
 
 def _safe_int(value: Any) -> int | None:
