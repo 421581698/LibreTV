@@ -92,10 +92,12 @@ class _SafeHTMLSample(HTMLParser):
         self.parts.append("<" + tag + "".join(safe_attrs) + ">")
 
     def handle_startendtag(self, tag, attrs):
-        if not self.skip:
-            self.handle_starttag(tag, attrs)
-            if tag.lower() not in self.VOID and not self.skip:
-                self.parts.append("</" + tag.lower() + ">")
+        tag = tag.lower()
+        if self.skip or tag in self.OMIT:
+            return
+        self.handle_starttag(tag, attrs)
+        if tag not in self.VOID and not self.skip:
+            self.parts.append("</" + tag + ">")
 
     def handle_endtag(self, tag):
         tag = tag.lower()
