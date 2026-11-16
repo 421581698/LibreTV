@@ -41,6 +41,10 @@ def test_postgres_workflow_dag_claims_dependencies_and_retries_durably() -> None
     try:
         assert store.create_workflow(workflow_id, nodes, edges, {"source": "test"})
         assert not store.create_workflow(workflow_id, nodes, edges)
+        assert any(
+            item["workflow_id"] == workflow_id
+            for item in store.list_workflows(limit=200)
+        )
         first = store.claim_ready_node("worker-a", lease_seconds=30)
         assert first is not None
         assert first["node_id"] == "discover"
