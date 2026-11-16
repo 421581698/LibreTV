@@ -38,6 +38,7 @@ class Settings(BaseSettings):
         default="./crawl_data/jobs.sqlite3",
         validation_alias="CRAWL_JOB_DATABASE_PATH",
     )
+    database_url: str | None = Field(default=None, validation_alias="DATABASE_URL")
     default_user_agent: str = (
         "LibreTV-Scrapling-Engine/0.1 "
         "(+respectful public resource discovery)"
