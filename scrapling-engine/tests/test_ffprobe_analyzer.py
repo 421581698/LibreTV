@@ -20,13 +20,21 @@ def test_probe_reports_encoded_dimensions_but_not_native_4k(tmp_path, monkeypatc
     root, media = _media_file(tmp_path)
     monkeypatch.setenv("MEDIA_PROBE_ROOT", str(root))
     payload = {
-        "format": {"format_name": "mov,mp4", "duration": "120.5", "size": "1024", "bit_rate": "9000000"},
+        "format": {
+            "format_name": "mov,mp4",
+            "duration": "120.5",
+            "size": "1024",
+            "bit_rate": "9000000",
+        },
         "streams": [{
             "codec_type": "video", "codec_name": "hevc", "profile": "Main 10",
             "width": 3840, "height": 2160, "pix_fmt": "yuv420p10le",
             "avg_frame_rate": "60000/1001", "color_transfer": "smpte2084",
             "color_primaries": "bt2020", "color_space": "bt2020nc",
-            "bit_rate": "8000000", "side_data_list": [{"side_data_type": "Mastering display metadata"}],
+            "bit_rate": "8000000",
+            "side_data_list": [
+                {"side_data_type": "Mastering display metadata"}
+            ],
         }],
     }
 
