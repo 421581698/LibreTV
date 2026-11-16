@@ -57,13 +57,14 @@ class ResourceStatsTests(unittest.TestCase):
         self.assertEqual(summary["playback_confirmed"],1)
         self.assertEqual(summary["actual_quality"]["4K"],1)
         self.assertEqual(summary["playback_samples"],1)
-        self.assertIsNotNone(result["sites"][0]["quality_score"])
-        self.assertEqual(result["sites"][0]["quality_score_state"],"preliminary")
+        self.assertIsNone(result["sites"][0]["quality_score"])
+        self.assertEqual(result["sites"][0]["quality_score_state"],"insufficient_samples")
         self.assertEqual(summary["queue_jobs"]["queued"],1)
         self.assertEqual(summary["pages_visited"],2)
         self.assertEqual(summary["pages_failed"],1)
         self.assertEqual(summary["pages_changed"],1)
         self.assertEqual(result["sites"][0]["health_status"],"healthy")
+        self.assertEqual(result["sites"][0]["pages_succeeded"],1)
 
     def test_candidate_breakdown_reports_extractor_kind_and_access_state(self):
         self.db.execute("ALTER TABLE candidates ADD COLUMN collected_by TEXT NOT NULL DEFAULT '[]'")
