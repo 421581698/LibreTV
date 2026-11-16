@@ -28,9 +28,11 @@ def probe_media_file(
         raise MediaProbeError("Symbolic links are not accepted for media probing")
     try:
         resolved = source.resolve(strict=True)
+        probe_root = Path(os.environ.get("MEDIA_PROBE_ROOT", "/tmp/libretv-media-probe")).resolve(strict=True)
+        resolved.relative_to(probe_root)
         metadata = resolved.stat()
-    except OSError as exc:
-        raise MediaProbeError("Media file cannot be inspected") from exc
+    except (OSError, ValueError) as exc:
+        raise MediaProbeError("Media file must exist inside MEDIA_PROBE_ROOT") from exc
     if not stat.S_ISREG(metadata.st_mode) or metadata.st_size <= 0:
         raise MediaProbeError("Only non-empty regular media files can be probed")
     if metadata.st_size > MAX_MEDIA_FILE_BYTES:
