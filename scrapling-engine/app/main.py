@@ -321,7 +321,8 @@ async def capabilities() -> dict:
             "postgresql_job_store" if settings.database_url else "sqlite_local_job_store",
         ],
         "note": (
-            "Only implemented entries have been integrated. PostgreSQL mode requires at least one independent worker. "
+            "Only implemented entries have been integrated. "
+            "PostgreSQL mode requires at least one independent worker. "
             "Browser and recursive crawling "
             "remain disabled until request-level and deployment egress protections are verified."
         ),
@@ -583,7 +584,9 @@ data: {payload}
 
 "
             job = job_store.get(task_id)
-            if job is None or job["status"] in {"completed", "paused", "failed", "interrupted", "cancelled"}:
+            if job is None or job["status"] in {
+                "completed", "paused", "failed", "interrupted", "cancelled"
+            }:
                 break
             if not events:
                 yield ": keep-alive
