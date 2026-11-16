@@ -24,13 +24,13 @@ def test_candidate_ingestion_deduplicates_and_preserves_evidence_without_publish
             workflow_id,
             [
                 {
-                    "url": "https://example.com/catalog#first",
+                    "url": f"https://example.com/catalog/{workflow_id}#first",
                     "title": "Example Catalogue",
                     "status": 200,
                     "text": "First observed page",
                 },
                 {
-                    "url": "https://example.com/catalog#second",
+                    "url": f"https://example.com/catalog/{workflow_id}#second",
                     "title": "Updated title",
                     "status": 200,
                     "text": "Second observation",
@@ -45,10 +45,11 @@ def test_candidate_ingestion_deduplicates_and_preserves_evidence_without_publish
         assert candidate["status"] == "pending_review"
         assert candidate["title"] == "Example Catalogue"
         assert len(candidate["evidence"]) == 2
-        assert candidate["source_url"] == "https://example.com/catalog"
-        assert store.list_candidates(status="pending_review", limit=10)[0][
-            "candidate_id"
-        ] == ids[0]
+        assert candidate["source_url"] == f"https://example.com/catalog/{workflow_id}"
+        assert any(
+            item["candidate_id"] == ids[0]
+            for item in store.list_candidates(status="pending_review", limit=200)
+        )
     finally:
         with psycopg.connect(database_url) as db:
             db.execute(
