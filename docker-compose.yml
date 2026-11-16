@@ -187,7 +187,7 @@ services:
       - scrapling-crawl-data:/data
       - scrapling-probe-staging:/probe/staging
       - scrapling-probe-inbox:/probe/inbox
-      - scrapling-probe-outbox:/probe/outbox
+      - scrapling-probe-outbox:/probe/outbox:ro
     depends_on:
       scrapling-postgres:
         condition: service_healthy
