@@ -69,8 +69,15 @@ Example workflow:
     },
     {
       "node_id": "crawl",
-      "node_type": "discover_site_links",
-      "input": {"max_pages": 50, "max_depth": 2, "max_links_per_page": 30}
+      "node_type": "ai_supervisor_discover",
+      "input": {
+        "goal": "Discover public movie, series and animation pages and direct media references."
+      }
+    },
+    {
+      "node_id": "rule-generation",
+      "node_type": "generate_extraction_rule",
+      "input": {"goal": "Extract the primary movie, series and animation cards."}
     },
     {
       "node_id": "candidate-review",
@@ -90,6 +97,7 @@ Example workflow:
   ],
   "edges": [
     ["validate", "crawl"],
+    ["crawl", "rule-generation"],
     ["crawl", "candidate-review"],
     ["candidate-review", "media-analysis"],
     ["candidate-review", "bitstream-probe"]
