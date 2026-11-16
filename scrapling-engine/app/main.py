@@ -22,6 +22,7 @@ from app.config import settings, validate_bind_security
 from app.job_store import JobStore
 from app.postgres_job_store import PostgresJobStore
 from app.robots import RobotsPolicyError, RobotsUnavailableError, ensure_robots_allowed
+from app.rule_store import PostgresRuleStore
 from app.scraper import ScraplingAdapter
 from app.security import UnsafeTargetError, validate_public_http_url
 from app.spider import ScraplingSpiderAdapter
@@ -51,10 +52,15 @@ workflow_store = (
 candidate_store = (
     PostgresCandidateStore(settings.database_url) if settings.database_url else None
 )
+rule_store = (
+    PostgresRuleStore(settings.database_url) if settings.database_url else None
+)
 if workflow_store is not None:
     workflow_store.initialize()
 if candidate_store is not None:
     candidate_store.initialize()
+if rule_store is not None:
+    rule_store.initialize()
 if not settings.database_url:
     job_store.recover_interrupted()
 _active_spiders: dict[str, Any] = {}
@@ -82,6 +88,11 @@ class CandidateReviewRequest(BaseModel):
 
 class WorkflowControlRequest(BaseModel):
     action: Literal["pause", "resume", "cancel"]
+
+
+class RuleStatusRequest(BaseModel):
+    reviewer_id: str = Field(min_length=1, max_length=128)
+    note: str = Field(default="", max_length=1000)
 
 
 class WorkflowNodeRequest(BaseModel):
@@ -584,6 +595,65 @@ async def create_workflow(request: WorkflowRequest) -> dict:
         "node_count": len(nodes),
     }
 
+
+
+
+@app.get("/v1/rules")
+async def list_rules(status: str | None = None, limit: int = 100) -> dict:
+    if rule_store is None:
+        raise HTTPException(
+            status_code=501,
+            detail="Persistent extraction rules require PostgreSQL mode.",
+        )
+    rules = rule_store.list_rules(status=status, limit=limit)
+    return {"ok": True, "count": len(rules), "rules": rules}
+
+
+@app.get("/v1/rules/{rule_id}")
+async def get_rule(rule_id: str) -> dict:
+    if rule_store is None:
+        raise HTTPException(
+            status_code=501,
+            detail="Persistent extraction rules require PostgreSQL mode.",
+        )
+    rule = rule_store.get_rule(rule_id)
+    if rule is None:
+        raise HTTPException(status_code=404, detail="Extraction rule not found.")
+    return {"ok": True, "rule": rule}
+
+
+@app.post("/v1/rules/{rule_id}/activate")
+async def activate_rule(rule_id: str, request: RuleStatusRequest) -> dict:
+    if rule_store is None:
+        raise HTTPException(
+            status_code=501,
+            detail="Persistent extraction rules require PostgreSQL mode.",
+        )
+    changed = rule_store.set_status(
+        rule_id, "active", request.reviewer_id, request.note
+    )
+    if not changed:
+        if rule_store.get_rule(rule_id) is None:
+            raise HTTPException(status_code=404, detail="Extraction rule not found.")
+        raise HTTPException(status_code=409, detail="Extraction rule could not be activated.")
+    return {"ok": True, "rule_id": rule_id, "status": "active"}
+
+
+@app.post("/v1/rules/{rule_id}/disable")
+async def disable_rule(rule_id: str, request: RuleStatusRequest) -> dict:
+    if rule_store is None:
+        raise HTTPException(
+            status_code=501,
+            detail="Persistent extraction rules require PostgreSQL mode.",
+        )
+    changed = rule_store.set_status(
+        rule_id, "disabled", request.reviewer_id, request.note
+    )
+    if not changed:
+        if rule_store.get_rule(rule_id) is None:
+            raise HTTPException(status_code=404, detail="Extraction rule not found.")
+        raise HTTPException(status_code=409, detail="Extraction rule could not be disabled.")
+    return {"ok": True, "rule_id": rule_id, "status": "disabled"}
 
 
 @app.get("/v1/candidates")
