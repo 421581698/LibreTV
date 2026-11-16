@@ -44,7 +44,9 @@ class WorkflowWorker:
             raise ValueError("lease_seconds must be at least 15")
         if poll_seconds <= 0:
             raise ValueError("poll_seconds must be positive")
-        self.worker_id = worker_id
+        # Compose service names are stable across restarts. Add a per-process nonce so
+        # a restarted instance cannot accidentally reuse an expired lease owner ID.
+        self.worker_id = f"{worker_id}:{uuid.uuid4().hex}"
         self.lease_seconds = lease_seconds
         self.poll_seconds = poll_seconds
         self.store = PostgresWorkflowStore(database_url)
