@@ -97,7 +97,7 @@ class PostgresCandidateStore:
                 if not isinstance(media_urls, list):
                     media_urls = [item.get("media_url")]
                 title = str(item.get("title") or page_url)[:300]
-                for raw_media_url in media_urls:
+                for raw_media_url in media_urls[:20]:
                     if not isinstance(raw_media_url, str):
                         continue
                     try:
