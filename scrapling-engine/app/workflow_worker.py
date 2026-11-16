@@ -6,7 +6,6 @@ import logging
 import socket
 import uuid
 from dataclasses import asdict
-from pathlib import Path
 from typing import Any, Awaitable, Callable
 
 from app.config import settings
@@ -53,11 +52,7 @@ class WorkflowWorker:
         if not isinstance(urls, list) or not urls:
             raise ValueError("crawl_seed_urls requires a non-empty urls array")
         safe_urls = list(dict.fromkeys(validate_public_http_url(url) for url in urls))
-        checkpoint_dir = payload.get("checkpoint_dir")
-        spider = ScraplingSpiderAdapter.create(
-            safe_urls,
-            Path(checkpoint_dir) if checkpoint_dir else None,
-        )
+        spider = ScraplingSpiderAdapter.create(safe_urls)
         items: list[dict[str, Any]] = []
         async for item in spider.stream():
             items.append(item)
