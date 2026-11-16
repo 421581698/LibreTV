@@ -49,6 +49,43 @@ class RegistryQueueTests(unittest.TestCase):
         payload = __import__("json").loads(row["payload"])
         self.assertEqual(payload["max_sites"], 1000)
 
+    def test_bulk_submission_is_atomic_and_idempotent(self):
+        jobs = [
+            {"job_type": "crawl", "payload": {"url": "https://example.org/a"},
+             "idempotency_key": "bulk:a"},
+            {"job_type": "discover", "payload": {"search_keyword": "film"},
+             "idempotency_key": "bulk:b"},
+        ]
+        first = queue.submit_jobs(jobs)
+        second = queue.submit_jobs(jobs)
+        self.assertEqual([item["id"] for item in first], [item["id"] for item in second])
+        with queue.connect() as c:
+            self.assertEqual(c.execute("SELECT COUNT(*) FROM collector_jobs").fetchone()[0], 2)
+            self.assertEqual(c.execute("SELECT COUNT(*) FROM collector_job_events WHERE event='queued'").fetchone()[0], 2)
+
+        conflicting = [
+            {"job_type": "crawl", "payload": {"url": "https://example.org/c"},
+             "idempotency_key": "bulk:c"},
+            {"job_type": "crawl", "payload": {"url": "https://example.org/changed"},
+             "idempotency_key": "bulk:a"},
+        ]
+        with self.assertRaisesRegex(ValueError, "different job payload"):
+            queue.submit_jobs(conflicting)
+        with queue.connect() as c:
+            self.assertEqual(c.execute("SELECT COUNT(*) FROM collector_jobs").fetchone()[0], 2)
+
+    def test_bulk_submission_endpoint_requires_auth_and_bounds_batch_size(self):
+        with self.assertRaises(Exception):
+            queue.api_submit_jobs({"jobs": []}, authorization=None)
+        with patch.object(queue, "require_auth"):
+            with self.assertRaisesRegex(Exception, "1 to 1000"):
+                queue.api_submit_jobs({"jobs": [{}] * 1001}, authorization="Bearer test")
+            result = queue.api_submit_jobs({
+                "jobs": [{"job_type": "crawl", "payload": {"url": "https://example.org"},
+                          "idempotency_key": "bulk:api"}]
+            }, authorization="Bearer test")
+        self.assertEqual(len(result["jobs"]), 1)
+
     def test_idempotency_key_cannot_be_reused_for_different_payload(self):
         queue.submit_job("crawl", {"url": "https://example.org/a"}, "idempotency:collision")
         with self.assertRaisesRegex(ValueError, "different job payload"):
