@@ -78,6 +78,21 @@ test -n "$probe_container"
 [[ "$(docker inspect --format '{{.HostConfig.NanoCpus}}' "$probe_container")" -gt 0 ]]
 grep -q '"ALL"' <<<"$(docker inspect --format '{{json .HostConfig.CapDrop}}' "$probe_container")"
 grep -q 'no-new-privileges' <<<"$(docker inspect --format '{{json .HostConfig.SecurityOpt}}' "$probe_container")"
+probe_tmpfs=$(docker inspect --format '{{json .HostConfig.Tmpfs}}' "$probe_container")
+grep -q 'noexec' <<<"$probe_tmpfs"
+grep -q 'nosuid' <<<"$probe_tmpfs"
+grep -q 'nodev' <<<"$probe_tmpfs"
+probe_env=$(docker inspect --format '{{json .Config.Env}}' "$probe_container")
+if grep -Eq 'DATABASE_URL|SCRAPLING_API_KEY|SUPERVISOR_API_KEY' <<<"$probe_env"; then
+  echo "Probe sidecar must not receive database or Supervisor credentials"
+  exit 1
+fi
+"${compose[@]}" exec -T scrapling-media-probe ffprobe -version >/dev/null
+if "${compose[@]}" exec -T scrapling-workflow-worker sh -c 'command -v ffprobe >/dev/null 2>&1'; then
+  echo "ffprobe must not be installed in the networked workflow worker"
+  exit 1
+fi
+grep -q 'no-new-privileges' <<<"$(docker inspect --format '{{json .HostConfig.SecurityOpt}}' "$probe_container")"
 probe_mounts=$(docker inspect --format '{{json .Mounts}}' "$probe_container")
 python3 -c 'import json,sys; mounts=json.loads(sys.argv[1]); by_target={m["Destination"]:m for m in mounts}; assert by_target["/probe/inbox"]["RW"] is False; assert by_target["/probe/outbox"]["RW"] is True' "$probe_mounts"
 "${compose[@]}" exec -T scrapling-media-probe python -c 'import socket; s=socket.socket(); s.settimeout(1); 
