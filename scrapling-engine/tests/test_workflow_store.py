@@ -33,7 +33,7 @@ def test_postgres_workflow_dag_claims_dependencies_and_retries_durably() -> None
     store.initialize()
     workflow_id = "dag_test_" + uuid.uuid4().hex
     nodes = [
-        {"node_id": "discover", "node_type": "discover", "max_attempts": 1},
+        {"node_id": "discover", "node_type": "discover", "max_attempts": 2},
         {"node_id": "analyze", "node_type": "analyze", "max_attempts": 2},
         {"node_id": "candidate", "node_type": "candidate", "max_attempts": 1},
     ]
