@@ -178,3 +178,48 @@ def test_workflow_worker_uses_unique_lease_identity_per_process() -> None:
     assert first.worker_id.startswith("dag-worker-1:")
     assert second.worker_id.startswith("dag-worker-1:")
     assert first.worker_id != second.worker_id
+
+
+@pytest.mark.skipif(
+    not os.getenv("DATABASE_URL"),
+    reason="PostgreSQL integration database is not configured",
+)
+def test_expired_lease_at_max_attempts_fails_workflow_instead_of_stalling() -> None:
+    database_url = os.environ["DATABASE_URL"]
+    store = PostgresWorkflowStore(database_url)
+    store.initialize()
+    workflow_id = "dag_lease_exhausted_" + uuid.uuid4().hex
+
+    try:
+        assert store.create_workflow(
+            workflow_id,
+            [{"node_id": "crawl", "node_type": "crawl", "max_attempts": 1}],
+            [],
+        )
+        claimed = store.claim_ready_node("worker-crashed", lease_seconds=30)
+        assert claimed is not None
+        with psycopg.connect(database_url) as db:
+            db.execute(
+                "UPDATE resource_workflow_nodes "
+                "SET lease_expires_at = NOW() - INTERVAL '1 second' "
+                "WHERE workflow_id = %s AND node_id = 'crawl'",
+                (workflow_id,),
+            )
+
+        assert store.claim_ready_node("worker-recovery", lease_seconds=30) is None
+        workflow = store.get_workflow(workflow_id)
+        assert workflow is not None
+        assert workflow["status"] == "failed"
+        assert workflow["nodes"][0]["status"] == "failed"
+        assert workflow["nodes"][0]["error"] == (
+            "Worker lease expired after maximum attempts"
+        )
+        event_types = [event["type"] for event in store.events_after(workflow_id)]
+        assert "node_failed" in event_types
+        assert "workflow_failed" in event_types
+    finally:
+        with psycopg.connect(database_url) as db:
+            db.execute(
+                "DELETE FROM resource_workflows WHERE workflow_id = %s",
+                (workflow_id,),
+            )
