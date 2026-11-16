@@ -11,6 +11,7 @@ from app import (
     crawl_site,
     discover_sites,
     require_egress_firewall,
+    refresh_collection_batch,
     task_candidates,
     validate_candidate,
 )
@@ -31,15 +32,27 @@ def handle(payload: dict, checkpoint, cancelled):
         if cancelled():
             raise JobCancelled()
         keyword = str(payload.get("search_keyword") or "")[:50]
-        batch_id = uuid.uuid4().hex
+        batch_id = str(payload.get("batch_id") or uuid.uuid4().hex)
         queued = []
         for site in sites:
             key = f"fmhy-batch:{batch_id}:{site['host']}"
             job = submit_job("crawl", {"url":site["url"],"mode":"auto","limit":1000,"search_keyword":keyword,"batch_id":batch_id}, key)
             queued.append(job["id"])
+        from app import db
+        import time
+        with db() as connection:
+            connection.execute(
+                "UPDATE collection_batches SET discovered_sites=?,queued_jobs=?,status='running',updated_at=? WHERE id=?",
+                (len(sites), len(queued), int(time.time()), batch_id),
+            )
         checkpoint({"stage": "fmhy_sites_registered", "batch_id": batch_id, "target_candidates": 1000, "target_collected": 1000, "discovered": len(sites), "queued_jobs": len(queued)})
         return {"status": "succeeded", "batch_id": batch_id, "target_candidates": 1000, "target_collected": 1000, "discovered": len(sites), "queued_jobs": queued}
 
+    batch_id = payload.get("batch_id")
+    if batch_id:
+        batch = refresh_collection_batch(batch_id)
+        if batch and batch.get("status") == "target_reached":
+            return {"status": "succeeded", "batch_id": batch_id, "skipped": True, "reason": "batch_targets_reached"}
     checkpoint({"stage": "crawl_started"})
     result = crawl_site(CrawlRequest(**payload), cancel_check=cancelled)
     if cancelled():
@@ -83,6 +96,8 @@ def handle(payload: dict, checkpoint, cancelled):
     })
     result["preflight"] = preflight
     result["registry_ready"] = preflight["validated"]
+    if batch_id:
+        result["batch"] = refresh_collection_batch(batch_id)
     checkpoint({
         "stage": "candidates_persisted",
         "count": result.get("count", 0),
