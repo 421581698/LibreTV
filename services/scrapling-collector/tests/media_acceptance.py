@@ -68,7 +68,7 @@ def main():
         "-protocol_whitelist", protocol_whitelist, "-i", url,
         "-map", "0:v:0", "-t", str(requested_seconds),
         "-progress", "pipe:1", "-f", "null", "-",
-    ], capture_output=True, text=True, timeout=240)
+    ], capture_output=True, text=True, timeout=max(240, requested_seconds * 4 + 60))
     elapsed = time.monotonic() - started
     if decode.returncode:
         raise SystemExit("FAIL: sustained native-resolution decode failed")
