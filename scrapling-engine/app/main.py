@@ -348,6 +348,8 @@ async def capabilities() -> dict:
             ),
             "server_side_dag_runtime" if settings.database_url else "dag_requires_postgresql",
             "workflow_node_leases_and_retries" if settings.database_url else "no_workflow_worker",
+            "candidate_evidence_registry" if settings.database_url else "candidate_store_requires_postgresql",
+            "read_only_candidate_review_api" if settings.database_url else "no_candidate_api",
         ],
         "planned": [
             "dynamic_browser",
