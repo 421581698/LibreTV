@@ -154,6 +154,11 @@ class PostgresCandidateStore:
                         "title": item.get("title"),
                         "text_excerpt": str(item.get("text") or "")[:1500],
                         "media_type": media_type,
+                        "rule_extractions": (
+                            item.get("rule_extractions", [])[:20]
+                            if isinstance(item.get("rule_extractions"), list)
+                            else []
+                        ),
                     }
                     db.execute(
                         """
