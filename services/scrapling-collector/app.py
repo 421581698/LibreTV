@@ -103,10 +103,6 @@ def db() -> sqlite3.Connection:
 def init_db() -> None:
     with db() as connection:
         connection.executescript("""
-        CREATE TABLE IF NOT EXISTS sites (
-          host TEXT PRIMARY KEY, title TEXT NOT NULL, url TEXT NOT NULL,
-          directory TEXT NOT NULL, discovered_at INTEGER NOT NULL
-        );
         CREATE TABLE IF NOT EXISTS tasks (
           id TEXT PRIMARY KEY, url TEXT NOT NULL, host TEXT NOT NULL,
           status TEXT NOT NULL, mode TEXT NOT NULL, created_at INTEGER NOT NULL,
@@ -1310,15 +1306,8 @@ def discover_sites() -> list[dict]:
         if len(sites_by_host) >= MAX_RESULTS:
             break
     sites = list(sites_by_host.values())[:MAX_RESULTS]
-    now = int(time.time())
-    with db() as connection:
-        for site in sites:
-            connection.execute(
-                """INSERT INTO sites(host,title,url,directory,discovered_at) VALUES(?,?,?,?,?)
-                   ON CONFLICT(host) DO UPDATE SET title=excluded.title,url=excluded.url,
-                   directory=excluded.directory,discovered_at=excluded.discovered_at""",
-                (site["host"], site["title"], site["url"], site["directory"], now),
-            )
+    registry_queue.DB_PATH = DB_PATH
+    registry_queue.upsert_discovered_sites(sites, int(time.time()))
     return sites
 
 
@@ -2277,9 +2266,8 @@ def crawl_site(payload: CrawlRequest, cancel_check=None) -> dict:
     enable_adaptive_fetcher()
     require_egress_firewall()
     raw_url, host = public_https_url(str(payload.url))
-    with db() as connection:
-        site = connection.execute("SELECT host FROM sites WHERE host=?", (host,)).fetchone()
-    if not site:
+    registry_queue.DB_PATH = DB_PATH
+    if not registry_queue.is_discovered_host(host):
         raise HTTPException(status_code=403, detail="Target host was not discovered from the FMHY video directory")
 
     task_id = uuid.uuid4().hex
