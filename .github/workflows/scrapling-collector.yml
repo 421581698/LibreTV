@@ -64,7 +64,7 @@ jobs:
       - name: Stress test 1k, 2k, 5k, and 10k independent durable queue jobs
         run: |
           for target in 1000 2000 5000 10000; do
-            python tests/load_queue.py --target "$target" --workers 12
+            python tests/load_queue.py --target "$target" --workers 4
           done
       - name: Validate Docker Compose collector profile
         working-directory: .
