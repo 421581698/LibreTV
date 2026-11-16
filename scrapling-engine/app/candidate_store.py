@@ -200,6 +200,49 @@ class PostgresCandidateStore:
             )
             return True
 
+    def review_candidate(
+        self,
+        candidate_id: str,
+        decision: str,
+        reviewer_id: str,
+        note: str = "",
+    ) -> bool:
+        if decision not in {"approved", "rejected"}:
+            raise ValueError("Candidate decision must be approved or rejected")
+        if not reviewer_id.strip():
+            raise ValueError("A reviewer identity is required")
+        now = _now()
+        with psycopg.connect(self.database_url, row_factory=dict_row) as db:
+            cursor = db.execute(
+                """
+                UPDATE resource_candidates
+                SET status = %s, updated_at = %s
+                WHERE candidate_id = %s AND status = 'pending_review'
+                """,
+                (decision, now, candidate_id),
+            )
+            if cursor.rowcount != 1:
+                return False
+            evidence = {
+                "decision": decision,
+                "reviewer_id": reviewer_id[:128],
+                "note": note[:1000],
+                "reviewed_at": now.isoformat(),
+            }
+            db.execute(
+                """
+                INSERT INTO resource_candidate_evidence
+                    (candidate_id, evidence_type, evidence_json, created_at)
+                VALUES (%s, 'human_review', %s::jsonb, %s)
+                """,
+                (
+                    candidate_id,
+                    json.dumps(evidence, ensure_ascii=False),
+                    now,
+                ),
+            )
+            return True
+
     def list_candidates(
         self,
         status: str | None = None,
