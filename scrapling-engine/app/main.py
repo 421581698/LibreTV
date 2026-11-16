@@ -481,6 +481,13 @@ async def pause_job(task_id: str) -> dict:
         job = job_store.get(task_id)
         if job is None:
             raise HTTPException(status_code=404, detail="Crawl job not found.")
+        if settings.database_url:
+            if not job_store.request_control(task_id, "pause"):
+                raise HTTPException(
+                    status_code=409,
+                    detail="Crawl job is not running under an active worker lease.",
+                )
+            return {"ok": True, "task_id": task_id, "status": "pausing"}
         spider_instance = _active_spiders.get(task_id)
         if job["status"] != "running" or spider_instance is None:
             raise HTTPException(status_code=409, detail="Crawl job is not currently pausable.")
@@ -498,6 +505,23 @@ async def pause_job(task_id: str) -> dict:
                 detail="Spider has not started its crawl loop.",
             ) from exc
         return {"ok": True, "task_id": task_id, "status": "pausing"}
+
+
+@app.post("/v1/jobs/{task_id}/cancel")
+async def cancel_job(task_id: str) -> dict:
+    if not settings.database_url:
+        raise HTTPException(
+            status_code=501,
+            detail="Cross-process cancellation requires PostgreSQL worker mode.",
+        )
+    if job_store.get(task_id) is None:
+        raise HTTPException(status_code=404, detail="Crawl job not found.")
+    if not job_store.request_control(task_id, "cancel"):
+        raise HTTPException(
+            status_code=409,
+            detail="Crawl job is not running under an active worker lease.",
+        )
+    return {"ok": True, "task_id": task_id, "status": "cancelling"}
 
 
 @app.post("/v1/jobs/{task_id}/resume", status_code=202)
@@ -524,8 +548,12 @@ async def resume_job(task_id: str) -> dict:
                 status_code=409,
                 detail="No saved Scrapling checkpoint is available for this job.",
             )
-        job_store.update(task_id, "queued", finished_at=None, error=None)
-        _schedule_job(task_id)
+        if settings.database_url:
+            if not job_store.resume(task_id):
+                raise HTTPException(status_code=409, detail="Job state changed; retry resume.")
+        else:
+            job_store.update(task_id, "queued", finished_at=None, error=None)
+            _schedule_job(task_id)
         return {"ok": True, "task_id": task_id, "status": "queued"}
 
 
@@ -555,7 +583,7 @@ data: {payload}
 
 "
             job = job_store.get(task_id)
-            if job is None or job["status"] in {"completed", "paused", "failed", "interrupted"}:
+            if job is None or job["status"] in {"completed", "paused", "failed", "interrupted", "cancelled"}:
                 break
             if not events:
                 yield ": keep-alive
