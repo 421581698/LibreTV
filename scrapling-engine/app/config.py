@@ -39,6 +39,7 @@ class Settings(BaseSettings):
         validation_alias="CRAWL_JOB_DATABASE_PATH",
     )
     database_url: str | None = Field(default=None, validation_alias="DATABASE_URL")
+    egress_proxy_url: str | None = Field(default=None, validation_alias="SCRAPLING_EGRESS_PROXY")
     supervisor_api_base: str = Field(
         default="https://api.openai.com/v1",
         validation_alias="SUPERVISOR_API_BASE",
