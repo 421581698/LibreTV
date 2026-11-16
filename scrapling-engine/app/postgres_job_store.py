@@ -239,8 +239,8 @@ class PostgresJobStore:
                     WHERE status = 'queued'
                        OR (status = 'running' AND lease_expires_at < %s)
                     ORDER BY created_at, task_id
-                    FOR UPDATE SKIP LOCKED
                     LIMIT 1
+                    FOR UPDATE SKIP LOCKED
                 )
                 UPDATE crawl_jobs AS job
                 SET status = 'running',
