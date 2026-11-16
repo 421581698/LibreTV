@@ -132,6 +132,7 @@ jobs:
             -e MEDIA_ACCEPTANCE_SECONDS="$MEDIA_ACCEPTANCE_SECONDS" \
             libretv-scrapling-collector python /tmp/media_download.py --output /tmp/media-acceptance-sample.mkv
           docker cp libretv-scrapling-collector:/tmp/media-acceptance-sample.mkv "$RUNNER_TEMP/media-acceptance-sample.mkv"
+          docker exec libretv-scrapling-collector rm -f /tmp/media-acceptance-sample.mkv
       - name: Decode 4K in a no-network FFprobe and FFmpeg sandbox
         run: |
           docker run --rm --network none --read-only --user 10001:10001 --cap-drop ALL \
