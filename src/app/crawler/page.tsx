@@ -46,6 +46,14 @@ type Workflow = {
   created_at: string;
 };
 
+type WorkflowEvent = {
+  id: number;
+  node_id: string | null;
+  type: string;
+  payload: Record<string, unknown>;
+  created_at: string;
+};
+
 type WorkflowDetail = {
   workflow_id: string;
   status: string;
@@ -107,6 +115,7 @@ export default function CrawlerControlCenterPage() {
   const [aiRuleGenerationReady, setAiRuleGenerationReady] = useState(false);
   const [seedText, setSeedText] = useState('');
   const [activeWorkflow, setActiveWorkflow] = useState<WorkflowDetail | null>(null);
+  const [workflowEvents, setWorkflowEvents] = useState<WorkflowEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -140,6 +149,47 @@ export default function CrawlerControlCenterPage() {
 
   const activeWorkflowId = activeWorkflow?.workflow_id;
   const activeWorkflowStatus = activeWorkflow?.status;
+
+
+  useEffect(() => {
+    if (!activeWorkflowId) {
+      setWorkflowEvents([]);
+      return;
+    }
+    const stream = new EventSource(
+      `/api/crawler/workflows/${activeWorkflowId}/events`,
+    );
+    const eventTypes = [
+      'workflow_created',
+      'node_claimed',
+      'node_completed',
+      'workflow_completed',
+      'node_retry_scheduled',
+      'node_failed',
+      'workflow_control_requested',
+    ];
+    const receive = (event: Event) => {
+      const message = event as MessageEvent<string>;
+      try {
+        const parsed = JSON.parse(message.data) as WorkflowEvent;
+        setWorkflowEvents((current) => {
+          if (current.some((item) => item.id === parsed.id)) return current;
+          return [...current, parsed].slice(-40);
+        });
+      } catch {
+        // Ignore malformed stream events and keep the durable node snapshot.
+      }
+    };
+    for (const eventType of eventTypes) {
+      stream.addEventListener(eventType, receive);
+    }
+    return () => {
+      for (const eventType of eventTypes) {
+        stream.removeEventListener(eventType, receive);
+      }
+      stream.close();
+    };
+  }, [activeWorkflowId]);
 
   useEffect(() => {
     if (
@@ -423,6 +473,39 @@ export default function CrawlerControlCenterPage() {
                       </span>
                     </div>
                   ))}
+                </div>
+
+                <div className="mt-4 border-t border-white/10 pt-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-medium text-slate-300">实时事件时间线</span>
+                    <span className="text-[10px] text-slate-500">
+                      {workflowEvents.length} 条事件
+                    </span>
+                  </div>
+                  {workflowEvents.length ? (
+                    <div className="max-h-48 space-y-2 overflow-y-auto pr-1">
+                      {workflowEvents.slice().reverse().map((item) => (
+                        <div key={item.id} className="flex items-start gap-2 text-[11px]">
+                          <span className="shrink-0 font-mono text-slate-600">
+                            {formatDate(item.created_at)}
+                          </span>
+                          <span className="text-cyan-200">{item.type}</span>
+                          {item.node_id && (
+                            <span className="min-w-0 truncate text-slate-400">
+                              {item.node_id}
+                            </span>
+                          )}
+                          {typeof item.payload.error === 'string' && (
+                            <span className="min-w-0 break-words text-rose-300">
+                              {item.payload.error}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-slate-500">等待 Worker 事件…</p>
+                  )}
                 </div>
               </div>
             )}
