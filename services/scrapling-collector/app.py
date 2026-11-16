@@ -63,6 +63,7 @@ class CrawlRequest(BaseModel):
     url: HttpUrl
     mode: str = Field(default="auto", pattern="^(auto|http|browser)$")
     limit: int = Field(default=DEFAULT_BATCH_CANDIDATES, ge=MIN_BATCH_CANDIDATES, le=MAX_CANDIDATES)
+    max_pages: int = Field(default=MAX_CRAWL_PAGES, ge=1, le=MAX_CRAWL_PAGES)
     search_keyword: str = Field(default="", max_length=100)
 
 
@@ -2034,12 +2035,13 @@ def record_page_fingerprint(host: str, page_url: str, body: bytes) -> bool:
     return changed
 
 
-def run_spider(url: str, limit: int, task_id: str | None = None) -> list[dict]:
+def run_spider(url: str, limit: int, task_id: str | None = None, max_pages: int = MAX_CRAWL_PAGES) -> list[dict]:
     enable_adaptive_fetcher()
     class TargetSiteSpider(SiteSpider):
         start_urls = [url]
         allowed_domains = [urlparse(url).hostname]
         candidate_limit = limit
+        page_cap = max(1, min(MAX_CRAWL_PAGES, int(max_pages)))
         pages_scheduled: set[str] = {canonical_candidate_url(url)}
         pages_processed: set[str] = set()
         changed_pages = 0
@@ -2071,7 +2073,7 @@ def run_spider(url: str, limit: int, task_id: str | None = None) -> list[dict]:
                 depth = max(0, int(meta.get("crawl_depth", 0)))
             except (TypeError, ValueError):
                 depth = 0
-            if depth >= MAX_CRAWL_DEPTH or len(self.pages_scheduled) >= MAX_CRAWL_PAGES:
+            if depth >= MAX_CRAWL_DEPTH or len(self.pages_scheduled) >= self.page_cap:
                 return
 
             ranked: list[tuple[int, str]] = []
@@ -2108,7 +2110,7 @@ def run_spider(url: str, limit: int, task_id: str | None = None) -> list[dict]:
 
             # Bounded priority frontier: pagination and catalogue/category links first.
             ranked.sort(key=lambda item: (-item[0], item[1]))
-            page_budget = min(MAX_CRAWL_LINKS_PER_PAGE, MAX_CRAWL_PAGES - len(self.pages_scheduled))
+            page_budget = min(MAX_CRAWL_LINKS_PER_PAGE, self.page_cap - len(self.pages_scheduled))
             for priority, target in ranked[:page_budget]:
                 self.pages_scheduled.add(target)
                 yield response.follow(
@@ -2129,7 +2131,7 @@ def run_spider(url: str, limit: int, task_id: str | None = None) -> list[dict]:
     stats = getattr(result, "stats", None)
     diagnostics = {
         "frontier_max_depth": MAX_CRAWL_DEPTH,
-        "frontier_max_pages": MAX_CRAWL_PAGES,
+        "frontier_max_pages": TargetSiteSpider.page_cap,
         "pages_scheduled": len(TargetSiteSpider.pages_scheduled),
         "pages_processed": len(TargetSiteSpider.pages_processed),
         "changed_pages": TargetSiteSpider.changed_pages,
@@ -2291,7 +2293,7 @@ def crawl_site(payload: CrawlRequest, cancel_check=None) -> dict:
         if payload.mode == "auto":
             # Run both collectors independently; one failure never suppresses the other.
             with ThreadPoolExecutor(max_workers=2, thread_name_prefix="scrapling-collector") as pool:
-                spider_future = pool.submit(run_spider, raw_url, payload.limit, task_id)
+                spider_future = pool.submit(run_spider, raw_url, payload.limit, task_id, payload.max_pages)
                 browser_future = pool.submit(run_browser_capture, raw_url, payload.limit)
                 try:
                     spider_candidates = spider_future.result()
@@ -2319,7 +2321,7 @@ def crawl_site(payload: CrawlRequest, cancel_check=None) -> dict:
                     errors.append(f"Browser capture: {type(exc).__name__}")
         elif payload.mode == "http":
             try:
-                spider_candidates = run_spider(raw_url, payload.limit, task_id)
+                spider_candidates = run_spider(raw_url, payload.limit, task_id, payload.max_pages)
                 for item in spider_candidates:
                     item["collector"] = "spider"
                     item["collected_by"] = ["spider"]
