@@ -48,6 +48,14 @@ def test_candidate_ingestion_deduplicates_and_preserves_evidence_without_publish
         assert candidate["title"] == "Example Catalogue"
         assert len(candidate["evidence"]) == 2
         assert candidate["source_url"] == f"https://example.com/movie-{workflow_id}.m3u8"
+        report = {
+            "quality_label": "4K_claim",
+            "is_4k_claim": True,
+            "native_4k_verified": False,
+        }
+        assert store.save_quality_report(ids[0], report)
+        candidate = store.get_candidate(ids[0])
+        assert candidate["quality_json"] == report
         assert any(
             item["candidate_id"] == ids[0]
             for item in store.list_candidates(status="pending_review", limit=200)
