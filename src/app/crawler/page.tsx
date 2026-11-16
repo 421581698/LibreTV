@@ -184,7 +184,11 @@ export default function CrawlerControlCenterPage() {
     setNotice('');
     try {
       const workflowId = `crawl_${crypto.randomUUID().replaceAll('-', '').slice(0, 20)}`;
-      const nodes = [
+      const nodes: Array<{
+        node_id: string;
+        node_type: string;
+        input: Record<string, unknown>;
+      }> = [
         {
           node_id: 'validate',
           node_type: 'validate_public_urls',
