@@ -233,9 +233,8 @@ async def _handle_http(
     request.append(f"Host: {parsed.netloc}".encode("ascii"))
     request.append(b"Connection: close")
     try:
-        target_writer.write(b"\\r\\n".join(request) + b"\\r\\n\\r\\n")
+        target_writer.write(b"\r\n".join(request) + b"\r\n\r\n")
         await target_writer.drain()
-    try:
         while True:
             chunk = await asyncio.wait_for(
                 target_reader.read(64 * 1024),
