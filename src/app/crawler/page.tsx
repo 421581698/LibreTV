@@ -196,8 +196,12 @@ export default function CrawlerControlCenterPage() {
         },
         {
           node_id: 'crawl',
-          node_type: 'discover_site_links',
-          input: { max_pages: 60, max_depth: 2, max_links_per_page: 25 },
+          node_type: aiRuleGenerationReady
+            ? 'ai_supervisor_discover'
+            : 'discover_site_links',
+          input: aiRuleGenerationReady
+            ? { goal: '发现公开影视、剧集和动漫目录页面及媒体引用' }
+            : { max_pages: 60, max_depth: 2, max_links_per_page: 25 },
         },
       ];
       const edges: Array<[string, string]> = [['validate', 'crawl']];
