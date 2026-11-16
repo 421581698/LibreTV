@@ -174,13 +174,20 @@ def validate_fixtures(rules: dict, fixtures: list[str]) -> tuple[int, int]:
     rules = validate_rules(rules)
     total = min(len(fixtures), 20)
     passed = 0
+    # A title/pagination selector alone cannot activate an extraction rule.
+    extraction_selectors = [
+        rules["selectors"][kind] for kind in ("media", "player")
+        if kind in rules["selectors"]
+    ]
+    if not extraction_selectors:
+        return 0, total
     for source in fixtures[:20]:
         if not isinstance(source, str) or len(source.encode("utf-8")) > MAX_HTML_BYTES:
             continue
         parser = _FixtureParser()
         parser.feed(source)
         if any(any(_matches(node, selector) for node in parser.nodes)
-               for selector in rules["selectors"].values()):
+               for selector in extraction_selectors):
             passed += 1
     return passed, total
 
