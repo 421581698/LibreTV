@@ -67,6 +67,16 @@ services:
     build:
       context: ./scrapling-engine
     restart: unless-stopped
+    user: "10001:10001"
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 1g
+    cpus: 1.0
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=256m
     environment:
       HOST: 0.0.0.0
       PORT: 8787
@@ -91,6 +101,16 @@ services:
       context: ./scrapling-engine
     command: ["libretv-scrapling-worker", "--worker-id", "crawl-worker-1"]
     restart: unless-stopped
+    user: "10001:10001"
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 1g
+    cpus: 1.0
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=256m
     environment:
       SCRAPLING_API_KEY: ${SCRAPLING_API_KEY:-}
       DATABASE_URL: postgresql://libretv_scrapling:${SCRAPLING_DB_PASSWORD:-local-dev-only-change-me}@scrapling-postgres:5432/libretv_scrapling
