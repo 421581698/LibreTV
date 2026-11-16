@@ -340,10 +340,10 @@ function ResourceCollectorPanel() {
       if (!response.ok) throw new Error(payload.error || payload.detail || `一键采集启动失败（HTTP ${response.status}）。`);
       setBatch({
         id: payload.batch_id, status: payload.status || 'queued',
-        target_candidates: payload.target_candidates || 1000, target_collected: payload.target_collected || 1000,
+        target_candidates: 0, target_collected: 0,
         candidate_count: 0, collected_count: 0, discovered_sites: 0, queued_jobs: 0,
       });
-      setResultMessage('一键采集任务已进入队列。采集将在后台运行，进度会自动刷新；候选资源仍需你人工审核。');
+      setResultMessage('已创建一次性 FMHY 批量采集批次。目录发现完成后，最多 1,000 个网站任务会进入队列，由后台并发 Worker 执行；候选资源仍需你人工审核。');
       await loadTasks();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '一键采集启动失败。');
@@ -559,11 +559,11 @@ function ResourceCollectorPanel() {
             <span className="text-xs text-muted">{batch.status}</span>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl bg-surface p-3"><strong className="block text-lg text-content tabular-nums">{batch.candidate_count} / {batch.target_candidates}</strong><span className="text-xs text-muted">去重候选资源</span></div>
-            <div className="rounded-xl bg-surface p-3"><strong className="block text-lg text-content tabular-nums">{batch.collected_count} / {batch.target_collected}</strong><span className="text-xs text-muted">成功采集记录</span></div>
+            <div className="rounded-xl bg-surface p-3"><strong className="block text-lg text-content tabular-nums">{batch.candidate_count}</strong><span className="text-xs text-muted">去重候选资源</span></div>
+            <div className="rounded-xl bg-surface p-3"><strong className="block text-lg text-content tabular-nums">{batch.collected_count}</strong><span className="text-xs text-muted">成功采集记录</span></div>
           </div>
           <p className="text-xs text-muted">FMHY 网站 {batch.discovered_sites} 个 · 已提交采集任务 {batch.queued_jobs} 个</p>
-          <p className="text-[11px] leading-5 text-muted">采集记录按成功写入的站点采集记录计数；候选资源按 URL 去重计数。本次批量任务全部完成后结束；候选数量与采集记录数量分别统计。正式资源库仍需人工审核。</p>
+          <p className="text-[11px] leading-5 text-muted">采集记录按成功写入的站点采集记录计数；候选资源按 URL 去重计数。最多提交 1,000 个网站任务，实际数量取决于 FMHY 当前可发现的网站数；后台并发执行，全部任务结束后关闭批次。候选数与采集记录数分别统计。正式资源库仍需人工审核。</p>
         </section>
       ) : null}
       {error ? <p className="rounded-xl border border-line bg-card px-3 py-2 text-xs text-muted" role="status">{error}</p> : null}
