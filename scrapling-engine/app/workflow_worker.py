@@ -295,6 +295,7 @@ class WorkflowWorker:
         self.candidates.initialize()
         logger.info("Workflow worker %s started", self.worker_id)
         while True:
+            await asyncio.to_thread(self.store.reconcile_controls)
             processed = await self.process_once()
             if not processed:
                 await asyncio.sleep(self.poll_seconds)
