@@ -21,7 +21,7 @@ describe('crawler engine proxy', () => {
   });
 
   it('forwards allowed requests through the server-side engine credential', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify({ ok: true, candidates: [] }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -40,11 +40,11 @@ describe('crawler engine proxy', () => {
     expect(String(target)).toBe(
       'https://engine.example.test/base/v1/candidates?limit=10',
     );
-    expect(init.headers.get('X-API-Key')).toBe('test-engine-key');
+    expect(new Headers(init?.headers).get('X-API-Key')).toBe('test-engine-key');
   });
 
   it('rejects paths outside the explicit API allowlist', async () => {
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn<typeof fetch>();
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await GET(
@@ -59,7 +59,7 @@ describe('crawler engine proxy', () => {
   it('requires a LibreTV session when authentication is enabled', async () => {
     delete process.env.AUTH_DISABLED;
     process.env.PASSWORD = 'test-password-123';
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn<typeof fetch>();
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await POST(
@@ -77,7 +77,7 @@ describe('crawler engine proxy', () => {
 
   it('fails closed when the engine service credentials are missing', async () => {
     delete process.env.SCRAPLING_ENGINE_API_KEY;
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn<typeof fetch>();
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await GET(
