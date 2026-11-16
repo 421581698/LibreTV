@@ -70,12 +70,12 @@ class CrawlWorker:
                 "VALUES (%s, 'item', %s::jsonb, %s)",
                 (
                     task_id,
-                    json.dumps({"count": sequence, "url": item.get("url"), "title": item.get("title")}),
+                    json.dumps(\n                        {"count": sequence, "url": item.get("url"), "title": item.get("title")}\n                    ),
                     _now(),
                 ),
             )
 
-    def _fenced_finish(self, task_id: str, status: str, result: dict[str, Any], error: str | None = None) -> None:
+    def _fenced_finish(\n        self,\n        task_id: str,\n        status: str,\n        result: dict[str, Any],\n        error: str | None = None,\n    ) -> None:
         with psycopg.connect(self.database_url, row_factory=dict_row) as db:
             cursor = db.execute(
                 "UPDATE crawl_jobs SET status = %s, result_json = %s::jsonb, error = %s, "
