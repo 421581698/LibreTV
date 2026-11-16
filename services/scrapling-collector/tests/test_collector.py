@@ -250,11 +250,14 @@ class CollectorTests(unittest.TestCase):
 
     def test_general_playback_sample_only_records_fmhy_discovered_hosts(self):
         now = 1_800_000_000
-        with collector.db() as connection:
-            connection.execute(
-                "INSERT INTO sites(host,title,url,directory,discovered_at) VALUES(?,?,?,?,?)",
-                ("media.example", "Media", "https://media.example", "FMHY / Movies", now),
-            )
+        collector.registry_queue.DB_PATH = collector.DB_PATH
+        collector.registry_queue.upsert_discovered_sites(
+            [{
+                "host": "media.example", "title": "Media",
+                "url": "https://media.example/", "directory": "FMHY / Movies",
+            }],
+            now,
+        )
         payload = collector.PlaybackSampleEvidence(
             host="media.example", media_type="hls", observed_seconds=5,
             progressed_seconds=4, decoded_width=1920, decoded_height=1080,
