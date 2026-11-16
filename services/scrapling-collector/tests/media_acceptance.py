@@ -55,7 +55,8 @@ def main():
     if probe.returncode:
         raise SystemExit("FAIL: ffprobe could not inspect the approved media fixture")
     data = json.loads(probe.stdout)
-    video = next((stream for stream in data.get("streams", []) if stream.get("codec_type") == "video"), None)
+    video_streams = [stream for stream in data.get("streams", []) if stream.get("codec_type") == "video"]
+    video = max(video_streams, key=lambda stream: int(stream.get("width") or 0) * int(stream.get("height") or 0), default=None)
     if not video:
         raise SystemExit("FAIL: no video stream was decoded")
     width, height = int(video.get("width") or 0), int(video.get("height") or 0)
@@ -65,8 +66,8 @@ def main():
     requested_seconds = int(os.environ.get("MEDIA_ACCEPTANCE_SECONDS", "60"))
     decode = subprocess.run([
         "ffmpeg", "-nostdin", "-hide_banner", "-nostats", "-v", "error",
-        "-protocol_whitelist", protocol_whitelist, "-i", url,
-        "-map", "0:v:0", "-t", str(requested_seconds),
+        "-protocol_whitelist", protocol_whitelist, "-re", "-i", url,
+        "-map", "0:" + str(video.get("index", 0)), "-t", str(requested_seconds),
         "-progress", "pipe:1", "-f", "null", "-",
     ], capture_output=True, text=True, timeout=max(240, requested_seconds * 4 + 60))
     elapsed = time.monotonic() - started
