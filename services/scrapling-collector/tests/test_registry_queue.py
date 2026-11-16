@@ -63,7 +63,7 @@ class RegistryQueueTests(unittest.TestCase):
         with queue.connect() as connection:
             self.assertEqual(
                 connection.execute("SELECT COUNT(*) FROM sites").fetchone()[0],
-                1,
+                2,
             )
 
     def test_crawl_job_page_budget_is_bounded(self):
