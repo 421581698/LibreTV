@@ -73,6 +73,10 @@ services:
       SCRAPLING_API_KEY: ${SCRAPLING_API_KEY:-}
       DATABASE_URL: postgresql://libretv_scrapling:${SCRAPLING_DB_PASSWORD:-local-dev-only-change-me}@scrapling-postgres:5432/libretv_scrapling
       CRAWL_DATA_DIR: /data
+      SUPERVISOR_API_BASE: ${SUPERVISOR_API_BASE:-https://api.openai.com/v1}
+      SUPERVISOR_API_KEY: ${SUPERVISOR_API_KEY:-}
+      SUPERVISOR_MODEL: ${SUPERVISOR_MODEL:-}
+      SUPERVISOR_TIMEOUT_SECONDS: ${SUPERVISOR_TIMEOUT_SECONDS:-45}
     volumes:
       - scrapling-crawl-data:/data
     depends_on:
@@ -107,6 +111,10 @@ services:
       SCRAPLING_API_KEY: ${SCRAPLING_API_KEY:-}
       DATABASE_URL: postgresql://libretv_scrapling:${SCRAPLING_DB_PASSWORD:-local-dev-only-change-me}@scrapling-postgres:5432/libretv_scrapling
       CRAWL_DATA_DIR: /data
+      SUPERVISOR_API_BASE: ${SUPERVISOR_API_BASE:-https://api.openai.com/v1}
+      SUPERVISOR_API_KEY: ${SUPERVISOR_API_KEY:-}
+      SUPERVISOR_MODEL: ${SUPERVISOR_MODEL:-}
+      SUPERVISOR_TIMEOUT_SECONDS: ${SUPERVISOR_TIMEOUT_SECONDS:-45}
     volumes:
       - scrapling-crawl-data:/data
     depends_on:
