@@ -54,6 +54,9 @@ def test_rule_registry_versions_tests_and_requires_human_activation() -> None:
         newer = store.get_rule(second)
         assert active is not None and newer is not None
         assert active["status"] == "active"
+        assert [rule["rule_id"] for rule in store.list_active_for_origin(
+            "https://93.184.216.34/catalog"
+        )] == [first]
         assert newer["status"] == "tested"
         assert newer["events"][-1]["action"] == "rule_tested"
         assert active["events"][-1]["actor_id"] == "human-reviewer"
