@@ -41,7 +41,11 @@ class PostgresJobStore:
                     started_at TEXT,
                     finished_at TEXT,
                     result_json JSONB,
-                    error TEXT
+                    error TEXT,
+                    lease_owner TEXT,
+                    lease_expires_at TIMESTAMPTZ,
+                    heartbeat_at TIMESTAMPTZ,
+                    attempt_count INTEGER NOT NULL DEFAULT 0
                 )
                 """
             )
@@ -66,6 +70,13 @@ class PostgresJobStore:
                     PRIMARY KEY (task_id, sequence)
                 )
                 """
+            )
+            db.execute("ALTER TABLE crawl_jobs ADD COLUMN IF NOT EXISTS lease_owner TEXT")
+            db.execute("ALTER TABLE crawl_jobs ADD COLUMN IF NOT EXISTS lease_expires_at TIMESTAMPTZ")
+            db.execute("ALTER TABLE crawl_jobs ADD COLUMN IF NOT EXISTS heartbeat_at TIMESTAMPTZ")
+            db.execute(
+                "ALTER TABLE crawl_jobs ADD COLUMN IF NOT EXISTS "
+                "attempt_count INTEGER NOT NULL DEFAULT 0"
             )
             db.execute(
                 """
@@ -214,6 +225,85 @@ class PostgresJobStore:
             ).fetchall()
         jobs = [self.get(row["task_id"]) for row in rows]
         return [job for job in jobs if job is not None]
+
+
+    def claim_next(self, worker_id: str, lease_seconds: int = 60) -> dict[str, Any] | None:
+        """Atomically claim one queued job or reclaim a job with an expired lease."""
+        now = datetime.now(UTC)
+        lease_until = datetime.fromtimestamp(now.timestamp() + lease_seconds, UTC)
+        with self._connection() as db:
+            row = db.execute(
+                """
+                WITH candidate AS (
+                    SELECT task_id
+                    FROM crawl_jobs
+                    WHERE status = 'queued'
+                       OR (status = 'running' AND lease_expires_at < %s)
+                    ORDER BY created_at, task_id
+                    FOR UPDATE SKIP LOCKED
+                    LIMIT 1
+                )
+                UPDATE crawl_jobs AS job
+                SET status = 'running',
+                    lease_owner = %s,
+                    lease_expires_at = %s,
+                    heartbeat_at = %s,
+                    attempt_count = job.attempt_count + 1,
+                    started_at = COALESCE(job.started_at, %s),
+                    updated_at = %s
+                FROM candidate
+                WHERE job.task_id = candidate.task_id
+                RETURNING job.task_id
+                """,
+                (now, worker_id, lease_until, now.isoformat(), now.isoformat()),
+            ).fetchone()
+            if row is None:
+                return None
+            task_id = row["task_id"]
+            self._event(db, task_id, "claimed", {"worker_id": worker_id})
+        return self.get(task_id)
+
+    def heartbeat(self, task_id: str, worker_id: str, lease_seconds: int = 60) -> bool:
+        now = datetime.now(UTC)
+        lease_until = datetime.fromtimestamp(now.timestamp() + lease_seconds, UTC)
+        with self._connection() as db:
+            cursor = db.execute(
+                """
+                UPDATE crawl_jobs
+                SET heartbeat_at = %s, lease_expires_at = %s, updated_at = %s
+                WHERE task_id = %s AND status = 'running' AND lease_owner = %s
+                """,
+                (now, lease_until, now.isoformat(), task_id, worker_id),
+            )
+            return cursor.rowcount == 1
+
+    def release_lease(
+        self,
+        task_id: str,
+        worker_id: str,
+        next_status: str = "queued",
+    ) -> bool:
+        if next_status not in {"queued", "interrupted", "failed", "completed", "paused"}:
+            raise ValueError("Unsupported lease release status")
+        now = _now()
+        with self._connection() as db:
+            cursor = db.execute(
+                """
+                UPDATE crawl_jobs
+                SET status = %s, lease_owner = NULL, lease_expires_at = NULL,
+                    heartbeat_at = NULL, updated_at = %s
+                WHERE task_id = %s AND lease_owner = %s
+                """,
+                (next_status, now, task_id, worker_id),
+            )
+            if cursor.rowcount == 1:
+                self._event(
+                    db,
+                    task_id,
+                    "lease_released",
+                    {"worker_id": worker_id, "status": next_status},
+                )
+            return cursor.rowcount == 1
 
     def recover_interrupted(self) -> list[str]:
         with self._connection() as db:
