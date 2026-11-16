@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/scrapling-engine-phase1
+      - feature/ai-scrapling-autonomous-integration
     paths:
       - "scrapling-engine/**"
       - ".github/workflows/scrapling-engine.yml"
