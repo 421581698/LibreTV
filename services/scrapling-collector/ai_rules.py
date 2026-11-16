@@ -59,10 +59,13 @@ def initialize(connection=None):
         );
         CREATE TABLE IF NOT EXISTS collector_rule_events (
           id TEXT PRIMARY KEY, host TEXT NOT NULL, version INTEGER NOT NULL,
-          action TEXT NOT NULL, created_at INTEGER NOT NULL
+          previous_version INTEGER, action TEXT NOT NULL, created_at INTEGER NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_collector_rule_events_host
           ON collector_rule_events(host,created_at DESC);
+        event_columns = {row[1] for row in c.execute("PRAGMA table_info(collector_rule_events)")}
+        if "previous_version" not in event_columns:
+            c.execute("ALTER TABLE collector_rule_events ADD COLUMN previous_version INTEGER")
         """)
         c.commit()
     finally:
@@ -358,12 +361,13 @@ def list_rule_events(host: str, limit: int = 50) -> list[dict]:
     limit = max(1, min(100, int(limit)))
     with connect() as c:
         rows = c.execute(
-            """SELECT id,host,version,action,created_at FROM collector_rule_events
+            """SELECT id,host,version,previous_version,action,created_at FROM collector_rule_events
                WHERE host=? ORDER BY created_at DESC LIMIT ?""",
             (host, limit),
         ).fetchall()
     return [{
         "id": row["id"], "host": row["host"], "version": row["version"],
+        "previous_version": row["previous_version"],
         "action": row["action"], "created_at": row["created_at"],
     } for row in rows]
 
@@ -393,8 +397,10 @@ def activate_version(host: str, version: int) -> dict:
             (host, version, now),
         )
         c.execute(
-            "INSERT INTO collector_rule_events(id,host,version,action,created_at) VALUES(?,?,?,?,?)",
-            (uuid.uuid4().hex, host, version, "rollback" if previous and version < previous else "activate", now),
+            """INSERT INTO collector_rule_events
+               (id,host,version,previous_version,action,created_at) VALUES(?,?,?,?,?,?)""",
+            (uuid.uuid4().hex, host, version, previous,
+             "rollback" if previous and version < previous else "activate", now),
         )
         c.commit()
     rule = get_active_rule(host)
