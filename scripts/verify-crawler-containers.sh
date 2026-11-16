@@ -210,6 +210,21 @@ test -n "$proxy_container"
 [[ "$(docker inspect --format '{{.HostConfig.PidsLimit}}' "$proxy_container")" -le 64 ]]
 grep -q '"ALL"' <<<"$(docker inspect --format '{{json .HostConfig.CapDrop}}' "$proxy_container")"
 grep -q 'no-new-privileges' <<<"$(docker inspect --format '{{json .HostConfig.SecurityOpt}}' "$proxy_container")"
+proxy_networks=$(docker inspect --format '{{range $name, $value := .NetworkSettings.Networks}}{{$name}} {{end}}' "$proxy_container")
+proxy_internal_count=0
+proxy_external_count=0
+for network in $proxy_networks; do
+  internal=$(docker network inspect --format '{{.Internal}}' "$network")
+  if [[ "$internal" == "true" ]]; then
+    proxy_internal_count=$((proxy_internal_count + 1))
+  else
+    proxy_external_count=$((proxy_external_count + 1))
+  fi
+done
+[[ "$proxy_internal_count" -eq 1 && "$proxy_external_count" -eq 1 ]] || {
+  echo "Egress proxy must attach only to one internal client network and one external egress network"
+  exit 1
+}
 
 # A crawler worker must have no direct Internet route, but must be able to fetch
 # both HTTP and HTTPS through the validated proxy.
