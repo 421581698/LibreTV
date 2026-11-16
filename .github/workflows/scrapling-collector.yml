@@ -77,6 +77,9 @@ jobs:
         run: bash -n ../../scripts/scrapling-egress-firewall.sh
       - name: Build isolated collector image
         run: docker build --tag libretv-scrapling-collector:ci .
+      - name: Run live Docker egress firewall attack tests
+        working-directory: .
+        run: bash scripts/test-scrapling-egress-firewall.sh
       - name: Smoke test durable worker startup
         working-directory: .
         run: |
