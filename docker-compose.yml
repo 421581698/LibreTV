@@ -13,6 +13,9 @@ services:
     networks:
       collector_net:
         ipv4_address: ${LIBRETV_CONTAINER_IP:-172.30.60.2}
+    sysctls:
+      net.ipv6.conf.all.disable_ipv6: "1"
+      net.ipv6.conf.default.disable_ipv6: "1"
     # 无状态服务：观看历史在浏览器 IndexedDB、设置在 localStorage，无需挂载卷
     environment:
       # 必填：访问密码（在 .env 中设置，缺失时 compose 启动即报错提醒）
@@ -105,6 +108,9 @@ services:
     networks:
       collector_net:
         ipv4_address: ${SCRAPLING_WORKER_IP:-172.30.60.11}
+    sysctls:
+      net.ipv6.conf.all.disable_ipv6: "1"
+      net.ipv6.conf.default.disable_ipv6: "1"
     read_only: true
     tmpfs:
       - /tmp:size=256m,noexec,nosuid
