@@ -6,6 +6,13 @@ from pathlib import Path
 
 
 class MediaSandboxPolicyTests(unittest.TestCase):
+    def test_browser_playback_uses_dedicated_fixture_secrets(self):
+        harness = Path(__file__).with_name("browser_playback_acceptance.py").read_text(encoding="utf-8")
+        self.assertIn('os.environ.get("BROWSER_MEDIA_ACCEPTANCE_URL"', harness)
+        self.assertIn('os.environ.get("BROWSER_MEDIA_ACCEPTANCE_ALLOWED_HOSTS"', harness)
+        self.assertNotIn('os.environ.get("MEDIA_ACCEPTANCE_URL"', harness)
+        self.assertNotIn('os.environ.get("MEDIA_ACCEPTANCE_ALLOWED_HOSTS"', harness)
+
     def test_probe_seccomp_profile_denies_socket_creation_and_io(self):
         profile_path = Path(__file__).resolve().parents[1] / "seccomp-no-socket.json"
         profile = json.loads(profile_path.read_text(encoding="utf-8"))
