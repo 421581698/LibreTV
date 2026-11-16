@@ -56,6 +56,8 @@ def test_rule_registry_versions_tests_and_requires_human_activation() -> None:
         assert active is not None and newer is not None
         assert active["status"] == "active"
         assert newer["status"] == "disabled"
+        assert newer["events"][-1]["action"] == "superseded"
+        assert newer["events"][-1]["actor_id"] == "human-reviewer"
         assert active["events"][-1]["actor_id"] == "human-reviewer"
         assert not store.set_status("missing-rule", "active", "human-reviewer")
     finally:
