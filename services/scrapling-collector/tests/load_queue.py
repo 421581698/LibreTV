@@ -24,18 +24,21 @@ def run(target: int, workers: int) -> dict:
 
         enqueue_started = time.perf_counter()
         submitted_ids = set()
-        for index in range(target):
-            job = queue.submit_job(
-                "crawl",
+        for offset in range(0, target, 1000):
+            jobs = [
                 {
-                    "url": f"https://example.invalid/load/{index}",
-                    "mode": "http",
-                    "limit": 1,
-                    "load_test": True,
-                },
-                f"load-test:{target}:{index}",
-            )
-            submitted_ids.add(job["id"])
+                    "job_type": "crawl",
+                    "payload": {
+                        "url": f"https://example.invalid/load/{index}",
+                        "mode": "http",
+                        "limit": 1,
+                        "load_test": True,
+                    },
+                    "idempotency_key": f"load-test:{target}:{index}",
+                }
+                for index in range(offset, min(target, offset + 1000))
+            ]
+            submitted_ids.update(job["id"] for job in queue.submit_jobs(jobs))
         enqueue_seconds = time.perf_counter() - enqueue_started
 
         claim_started = time.perf_counter()
