@@ -41,6 +41,7 @@ def inspect_file(path: Path) -> list[str]:
     httpx_module_aliases: set[str] = set()
     httpx_client_symbols: set[str] = set()
     importlib_aliases: set[str] = set()
+    builtin_import_aliases: set[str] = set()
 
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -56,8 +57,10 @@ def inspect_file(path: Path) -> list[str]:
                     errors.append(
                         f"{relative}:{node.lineno}: Scrapling fetcher import is outside an approved adapter"
                     )
-                if alias.name == "importlib":
-                    importlib_aliases.add(alias.asname or "importlib")
+                if alias.name == "importlib" or alias.name.startswith("importlib."):
+                    importlib_aliases.add(alias.asname or alias.name.split(".")[0])
+                if alias.name == "builtins":
+                    builtin_import_aliases.add(alias.asname or "builtins")
 
         elif isinstance(node, ast.ImportFrom):
             module = node.module or ""
@@ -82,6 +85,12 @@ def inspect_file(path: Path) -> list[str]:
                     for alias in node.names
                     if alias.name == "import_module"
                 )
+            if module == "builtins":
+                builtin_import_aliases.update(
+                    alias.asname or alias.name
+                    for alias in node.names
+                    if alias.name == "__import__"
+                )
 
         elif isinstance(node, ast.Call):
             # Catch common dynamic-import escapes when the module name is literal.
@@ -91,7 +100,13 @@ def inspect_file(path: Path) -> list[str]:
             )
             dynamic_import = dynamic_import or (
                 isinstance(node.func, ast.Name)
-                and node.func.id in importlib_aliases
+                and node.func.id in importlib_aliases | builtin_import_aliases
+            )
+            dynamic_import = dynamic_import or (
+                isinstance(node.func, ast.Attribute)
+                and node.func.attr == "__import__"
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id in builtin_import_aliases
             )
             dynamic_import = dynamic_import or (
                 isinstance(node.func, ast.Attribute)
