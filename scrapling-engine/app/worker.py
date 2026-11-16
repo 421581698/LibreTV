@@ -46,15 +46,17 @@ class CrawlWorker:
         self.poll_seconds = poll_seconds
         self.store = PostgresJobStore(database_url)
 
-    def _fenced_result(self, task_id: str, item: dict[str, Any]) -> None:
+    def _fenced_result(self, task_id: str, item: dict[str, Any]) -> bool:
         with psycopg.connect(self.database_url, row_factory=dict_row) as db:
             row = db.execute(
-                "SELECT 1 FROM crawl_jobs WHERE task_id = %s AND status = 'running' "
+                "SELECT status FROM crawl_jobs WHERE task_id = %s "
                 "AND lease_owner = %s AND lease_expires_at > NOW() FOR UPDATE",
                 (task_id, self.worker_id),
             ).fetchone()
             if row is None:
                 raise LeaseLost(task_id)
+            if row["status"] != "running":
+                return False
             sequence = db.execute(
                 "SELECT COALESCE(MAX(sequence), 0) + 1 AS next FROM crawl_results "
                 "WHERE task_id = %s",
@@ -76,6 +78,7 @@ class CrawlWorker:
                     _now(),
                 ),
             )
+            return True
 
     def _fenced_finish(
         self,
@@ -185,7 +188,13 @@ class CrawlWorker:
                 item_url = item.get("url")
                 if item_url and item_url in seen:
                     continue
-                await asyncio.to_thread(self._fenced_result, task_id, item)
+                persisted = await asyncio.to_thread(self._fenced_result, task_id, item)
+                if not persisted:
+                    control["command"] = await asyncio.to_thread(
+                        self.store.get_control, task_id, self.worker_id
+                    )
+                    control_requested.set()
+                    break
                 items.append(item)
                 if item_url:
                     seen.add(item_url)
