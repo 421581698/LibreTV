@@ -168,8 +168,9 @@ async def test_http_proxy_rewrites_absolute_target_and_closes_connection(monkeyp
 
 @pytest.mark.asyncio
 async def test_http_redirect_to_metadata_is_revalidated_by_proxy(monkeypatch):
-    from app import egress_proxy
     from scrapling.fetchers import Fetcher
+
+    from app import egress_proxy
 
     async def redirect_to_metadata(reader, writer):
         await reader.readuntil(b"\r\n\r\n")
