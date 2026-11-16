@@ -152,17 +152,20 @@ if "${compose[@]}" exec -T scrapling-workflow-worker sh -c 'command -v ffprobe >
 fi
 # Exercise the complete file handoff: generate a tiny local clip inside the
 # no-network sidecar, stage it in the worker's tmpfs, and request a real probe.
-"${compose[@]}" exec -T scrapling-media-probe ffmpeg -hide_banner -loglevel error \
+echo "[runtime] Generate a probe fixture in the isolated sidecar"
+timeout 30s "${compose[@]}" exec -T scrapling-media-probe ffmpeg -hide_banner -loglevel error \
   -f lavfi -i color=c=black:s=320x240:r=1:d=1 -frames:v 1 \
   -c:v mpeg4 -threads 1 -y /probe/outbox/probe-smoke.mp4
 "${compose[@]}" exec -T scrapling-media-probe test -s /probe/outbox/probe-smoke.mp4
 worker_container=$("${compose[@]}" ps -q scrapling-workflow-worker)
 "${compose[@]}" exec -T scrapling-workflow-worker mkdir -p /tmp/libretv-media-probe
 probe_smoke_dir=$(mktemp -d)
-docker cp "$probe_container:/probe/outbox/probe-smoke.mp4" "$probe_smoke_dir/probe-smoke.mp4"
-docker cp "$probe_smoke_dir/probe-smoke.mp4" "$worker_container:/tmp/libretv-media-probe/probe-smoke.mp4"
+echo "[runtime] Copy the isolated probe fixture to the worker staging area"
+timeout 15s docker cp "$probe_container:/probe/outbox/probe-smoke.mp4" "$probe_smoke_dir/probe-smoke.mp4"
+timeout 15s docker cp "$probe_smoke_dir/probe-smoke.mp4" "$worker_container:/tmp/libretv-media-probe/probe-smoke.mp4"
 rm -rf "$probe_smoke_dir"
-"${compose[@]}" exec -T scrapling-workflow-worker python - <<'PY'
+echo "[runtime] Exercise the real sidecar handoff and ffprobe analysis"
+timeout 45s "${compose[@]}" exec -T scrapling-workflow-worker python - <<'PY'
 from app.probe_client import probe_media_file
 
 report = probe_media_file(
@@ -236,7 +239,8 @@ done
 
 # A crawler worker must have no direct Internet route, but must be able to fetch
 # both HTTP and HTTPS through the validated proxy.
-"${compose[@]}" exec -T scrapling-workflow-worker python - <<'PY'
+echo "[runtime] Verify workers cannot bypass proxy and can fetch HTTP(S) through it"
+timeout 60s "${compose[@]}" exec -T scrapling-workflow-worker python - <<'PY'
 import socket
 from scrapling.fetchers import Fetcher
 
@@ -263,9 +267,10 @@ for target in ("https://example.com/", "http://example.com/"):
 print("Worker direct egress blocked; HTTP and HTTPS proxy fetches passed.")
 PY
 
-"${compose[@]}" exec -T scrapling-workflow-worker python - <<'PY'
+echo "[runtime] Verify proxy blocks cloud metadata endpoints"
+timeout 15s "${compose[@]}" exec -T scrapling-workflow-worker python - <<'PY'
 import socket
-sock = socket.create_connection(("scrapling-egress-proxy", 8080), timeout=3)
+sock = socket.create_connection(("scrapling-egress-proxy", 8080), timeout=3
 sock.sendall(b"CONNECT 169.254.169.254:443 HTTP/1.1\\r\\nHost: 169.254.169.254:443\\r\\n\\r\\n")
 response = sock.recv(4096)
 sock.close()
