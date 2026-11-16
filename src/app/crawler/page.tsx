@@ -65,8 +65,6 @@ function statusLabel(status: string): string {
     pending: '等待执行',
     retry_wait: '等待重试',
     pending_review: '待人工审核',
-    paused: '已暂停',
-    cancelled: '已取消',
     cancelling: '正在取消',
     pausing: '正在暂停',
     paused: '已暂停',
