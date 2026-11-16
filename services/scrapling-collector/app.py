@@ -2068,6 +2068,19 @@ def run_spider(url: str, limit: int, task_id: str | None = None) -> list[dict]:
                 return
 
             ranked: list[tuple[int, str]] = []
+            ai_pagination_targets: set[str] = set()
+            active_rule = ai_rules.get_active_rule(self.allowed_domains[0])
+            pagination_selector = (active_rule or {}).get("rules", {}).get("selectors", {}).get("pagination")
+            if pagination_selector:
+                try:
+                    for page_link in response.css(pagination_selector):
+                        href = (page_link.attrib.get("href") or "").strip()
+                        if href:
+                            ai_pagination_targets.add(canonical_candidate_url(urljoin(response.url, href)))
+                except Exception:
+                    # Invalid/stale selectors are handled by the normal frontier;
+                    # the crawl remains bounded and the Worker can queue repair.
+                    pass
             for anchor in response.css("a"):
                 href = (anchor.attrib.get("href") or "").strip()
                 if not href:
@@ -2082,7 +2095,7 @@ def run_spider(url: str, limit: int, task_id: str | None = None) -> list[dict]:
                 target = canonical_candidate_url(target)
                 if target in self.pages_scheduled:
                     continue
-                priority = frontier_link_priority(target, text_of(anchor))
+                priority = 30 if target in ai_pagination_targets else frontier_link_priority(target, text_of(anchor))
                 if priority is not None:
                     ranked.append((priority, target))
 
