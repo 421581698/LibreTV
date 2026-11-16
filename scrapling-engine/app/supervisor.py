@@ -167,6 +167,7 @@ class SupervisorClient:
             follow_redirects=False,
             trust_env=False,
             transport=self.transport,
+            proxy=self.proxy,
         ) as client:
             try:
                 response = await client.post(
