@@ -151,16 +151,30 @@ def handle(payload: dict, checkpoint, cancelled):
         checkpoint({"stage": "ai_rule_analysis_started", "host": host})
         if cancelled():
             raise JobCancelled()
-        if payload.get("_job_type") == "rule_repair":
-            result = ai_rules.diagnose_and_repair(
-                host, sample, payload.get("failure_code") or "selector_miss",
-                payload.get("task_id"), fixtures, payload.get("diagnostic_id"),
-            )
-        else:
-            proposed = ai_rules.generate_rules(host, sample, {"task_id": payload.get("task_id")})
-            result = ai_rules.save_version(host, proposed, "ai_generation", fixtures)
-            if payload.get("diagnostic_id"):
-                ai_rules.link_diagnostic_version(payload["diagnostic_id"], result["version"])
+        try:
+            if payload.get("_job_type") == "rule_repair":
+                result = ai_rules.diagnose_and_repair(
+                    host, sample, payload.get("failure_code") or "selector_miss",
+                    payload.get("task_id"), fixtures, payload.get("diagnostic_id"),
+                )
+            else:
+                proposed = ai_rules.generate_rules(host, sample, {"task_id": payload.get("task_id")})
+                result = ai_rules.save_version(host, proposed, "ai_generation", fixtures)
+                if payload.get("diagnostic_id"):
+                    ai_rules.link_diagnostic_version(payload["diagnostic_id"], result["version"])
+        except Exception as exc:
+            # Keep a durable diagnostic even when the model gateway or response
+            # validation fails; then let the queue apply its bounded retry policy.
+            try:
+                ai_rules.record_failure(
+                    host, payload.get("task_id"),
+                    "ai_rule_repair_failed" if payload.get("_job_type") == "rule_repair" else "ai_rule_generation_failed",
+                    {"error": type(exc).__name__, "prior_diagnostic_id": payload.get("diagnostic_id")},
+                )
+                checkpoint({"stage": "ai_rule_analysis_failed", "host": host, "error": type(exc).__name__})
+            except Exception:
+                pass
+            raise
         checkpoint({
             "stage": "ai_rule_version_recorded",
             "host": host,
