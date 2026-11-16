@@ -223,13 +223,13 @@ class PostgresWorkflowStore:
                 WITH candidate AS (
                     SELECT node.workflow_id, node.node_id
                     FROM resource_workflow_nodes AS node
-                    WHERE (
+                    WHERE ((
                         node.status IN ('pending', 'retry_wait')
                         AND node.available_at <= %s
                     ) OR (
                         node.status = 'running'
                         AND node.lease_expires_at < %s
-                    )
+                    ))
                     AND NOT EXISTS (
                         SELECT 1
                         FROM resource_workflow_edges AS edge
