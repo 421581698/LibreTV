@@ -9,7 +9,10 @@ import pytest
 from app.postgres_job_store import PostgresJobStore
 
 
-@pytest.mark.skipif(not os.getenv("DATABASE_URL"), reason="PostgreSQL integration database is not configured")
+@pytest.mark.skipif(
+    not os.getenv("DATABASE_URL"),
+    reason="PostgreSQL integration database is not configured",
+)
 def test_postgres_job_store_persists_jobs_results_and_ordered_events() -> None:
     database_url = os.environ["DATABASE_URL"]
     store = PostgresJobStore(database_url)
@@ -28,7 +31,12 @@ def test_postgres_job_store_persists_jobs_results_and_ordered_events() -> None:
         assert sequence == 1
         assert store.get_results(task_id)[0]["title"] == "Example Domain"
 
-        store.update(task_id, "completed", result_json='{"count": 1}', finished_at="2026-11-16T00:00:00+00:00")
+        store.update(
+            task_id,
+            "completed",
+            result_json='{"count": 1}',
+            finished_at="2026-11-16T00:00:00+00:00",
+        )
         job = store.get(task_id)
         assert job is not None
         assert job["status"] == "completed"
