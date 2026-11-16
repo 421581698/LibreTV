@@ -274,8 +274,9 @@ def main():
         if not egress_firewall_ready():
             time.sleep(5)
             continue
-        run_worker(args.worker_id, handle, once=True)
-        time.sleep(1)
+        processed = run_worker(args.worker_id, handle, once=True)
+        if not processed:
+            time.sleep(1)
 
 
 if __name__ == "__main__":
