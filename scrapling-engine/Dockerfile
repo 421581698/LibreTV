@@ -12,12 +12,10 @@ COPY pyproject.toml README.md ./
 COPY app ./app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg \
-    && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 libretv \
     && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin libretv \
-    && mkdir -p /tmp/libretv-media-probe /data \
-    && chown -R 10001:10001 /tmp/libretv-media-probe /data \
+    && mkdir -p /tmp/libretv-media-probe /probe/inbox /probe/outbox /data \
+    && chown -R 10001:10001 /tmp/libretv-media-probe /probe /data \
     && chmod 700 /tmp/libretv-media-probe \
     && pip install --upgrade pip \
     && pip install .
