@@ -16,7 +16,7 @@ from app.candidate_store import PostgresCandidateStore
 from app.config import settings
 from app.discovery import extract_discovery_links, is_same_origin
 from app.media_analyzer import analyze_hls_manifest, analyze_mpd_manifest
-from app.media_downloader import download_candidate_media
+from app.media_downloader import MAX_MEDIA_FILE_BYTES, download_candidate_media
 from app.probe_client import probe_media_file
 from app.robots import ensure_robots_allowed
 from app.rule_store import PostgresRuleStore
@@ -494,10 +494,8 @@ class WorkflowWorker:
         candidate_ids = list(dict.fromkeys(candidate_ids))
         if not candidate_ids:
             return {"count": 0, "reports": []}
-        if len(candidate_ids) > 5:
-            raise ValueError(
-                "probe_media_candidates accepts at most 5 candidates per workflow node"
-            )
+        skipped_count = max(0, len(candidate_ids) - 20)
+        candidate_ids = candidate_ids[:20]
         timeout_seconds = payload.get("timeout_seconds", 20)
         if (
             not isinstance(timeout_seconds, int)
@@ -508,6 +506,8 @@ class WorkflowWorker:
 
         staging = Path(os.environ.get("MEDIA_PROBE_STAGING", "/tmp/libretv-media-probe"))
         reports: list[dict[str, Any]] = []
+        remaining_budget = 5 * 1024 * 1024 * 1024
+        downloaded_bytes = 0
         for candidate_id in dict.fromkeys(candidate_ids):
             if not isinstance(candidate_id, str) or not candidate_id:
                 reports.append({"candidate_id": str(candidate_id)[:128], "status": "invalid_id"})
@@ -529,11 +529,20 @@ class WorkflowWorker:
             staged_path: Path | None = None
             try:
                 media_url = validate_public_http_url(candidate["media_url"])
+                if remaining_budget <= 0:
+                    reports.append(
+                        {"candidate_id": candidate_id, "status": "download_budget_exhausted"}
+                    )
+                    continue
                 staged_path = await download_candidate_media(
                     media_url,
                     staging,
                     proxy=settings.egress_proxy_url,
+                    max_bytes=min(MAX_MEDIA_FILE_BYTES, remaining_budget),
                 )
+                file_size = staged_path.stat().st_size
+                remaining_budget -= file_size
+                downloaded_bytes += file_size
                 report = await asyncio.to_thread(
                     probe_media_file,
                     staged_path,
@@ -572,7 +581,13 @@ class WorkflowWorker:
             finally:
                 if staged_path is not None:
                     staged_path.unlink(missing_ok=True)
-        return {"count": len(reports), "reports": reports}
+        return {
+            "count": len(reports),
+            "reports": reports,
+            "skipped_count": skipped_count,
+            "downloaded_bytes": downloaded_bytes,
+            "remaining_download_budget_bytes": remaining_budget,
+        }
 
     async def _analyze_media_manifest(
         self,
