@@ -98,11 +98,11 @@ def event(c: sqlite3.Connection, job_id: str, name: str, detail: dict | None = N
               (uuid.uuid4().hex, job_id, name, json.dumps(detail or {}, ensure_ascii=False), int(time.time())))
 
 
-def validate_durable_job_payload(job_type: str, payload: dict) -> None:
+def validate_durable_job_payload(job_type: str, payload: dict) -> dict:
     if not isinstance(payload, dict):
         raise ValueError("Job payload must be an object")
     if job_type != "crawl":
-        return
+        return payload
     from urllib.parse import parse_qsl, urlsplit
     url = payload.get("url")
     if not isinstance(url, str) or len(url) > 4096:
@@ -129,12 +129,19 @@ def validate_durable_job_payload(job_type: str, payload: dict) -> None:
     query_keys = {key.casefold() for key, _ in parse_qsl(parsed.query, keep_blank_values=True)}
     if any(key in sensitive_keys or key.startswith(("x-amz-", "x-goog-")) for key in query_keys):
         raise ValueError("Signed or credential-bearing crawl URLs cannot be persisted in the durable queue")
+    host = parsed.hostname.encode("idna").decode("ascii").lower()
+    if ":" in host and not host.startswith("["):
+        host = "[" + host + "]"
+    netloc = host if port is None else f"{host}:{port}"
+    normalized = dict(payload)
+    normalized["url"] = urlunsplit(("https", netloc, parsed.path or "/", parsed.query, ""))
+    return normalized
 
 
 def submit_job(job_type: str, payload: dict, idempotency_key: str, max_attempts: int = 4) -> dict:
     if job_type not in {"crawl", "discover", "batch_crawl"}:
         raise ValueError("Unsupported job type")
-    validate_durable_job_payload(job_type, payload)
+    payload = validate_durable_job_payload(job_type, payload)
     if not idempotency_key or len(idempotency_key) > 200:
         raise ValueError("Invalid idempotency key")
     now = int(time.time())
@@ -174,7 +181,7 @@ def submit_jobs(jobs: list[dict]) -> list[dict]:
                 c.rollback()
                 raise ValueError("Unsupported job type")
             try:
-                validate_durable_job_payload(job_type, payload)
+                payload = validate_durable_job_payload(job_type, payload)
             except ValueError:
                 c.rollback()
                 raise
