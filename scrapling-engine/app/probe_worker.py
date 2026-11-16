@@ -28,7 +28,7 @@ def _write_result(outbox: Path, job_id: str, result: dict[str, Any]) -> None:
     destination = outbox / f"{job_id}.json"
     temporary = outbox / f".{job_id}.tmp"
     encoded = json.dumps(result, ensure_ascii=False, separators=(",", ":"))
-    with temporary.open("x", encoding="utf-8") as handle:
+    with temporary.open("w", encoding="utf-8") as handle:
         handle.write(encoded)
         handle.flush()
         os.fsync(handle.fileno())
