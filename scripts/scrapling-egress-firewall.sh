@@ -7,6 +7,9 @@ set -euo pipefail
 # Override COLLECTOR_CIDR if SCRAPLING_NETWORK_SUBNET is changed.
 COLLECTOR_CIDR="${COLLECTOR_CIDR:-172.30.60.0/24}"
 CHAIN="LIBRETV-SCRAPLING-EGRESS"
+LIBRETV_APP_IP="${LIBRETV_APP_IP:-172.30.60.2}"
+SCRAPLING_API_IP="${SCRAPLING_API_IP:-172.30.60.10}"
+SCRAPLING_API_PORT="${SCRAPLING_API_PORT:-8000}"
 
 if [[ "${EUID}" -ne 0 ]]; then
   echo "Run as root (for example: sudo $0)" >&2
@@ -38,6 +41,12 @@ fi
 
 iptables -w -N "$CHAIN" 2>/dev/null || true
 iptables -w -F "$CHAIN"
+
+# Keep the app's one required connection to the authenticated Collector API.
+# Only the LibreTV app may initiate TCP connections to the API port; replies
+# from the API to that app are allowed only for established/related sessions.
+iptables -w -A "$CHAIN" -s "$LIBRETV_APP_IP/32" -d "$SCRAPLING_API_IP/32" -p tcp --dport "$SCRAPLING_API_PORT" -m conntrack --ctstate NEW,ESTABLISHED -j RETURN
+iptables -w -A "$CHAIN" -s "$SCRAPLING_API_IP/32" -d "$LIBRETV_APP_IP/32" -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
 
 # Deny loopback, private, carrier-grade NAT, link-local, documentation,
 # benchmarking, multicast, and reserved IPv4 destinations.
@@ -97,6 +106,6 @@ iptables -w -C FORWARD -s "$COLLECTOR_CIDR" -j "$CHAIN"
 iptables -w -C INPUT -s "$COLLECTOR_CIDR" -j DROP
 
 echo "Verified IPv4 egress restrictions for Scrapling collector $COLLECTOR_CIDR."
-echo "The collector may reach public IPv4 destinations, but private/reserved ranges are blocked."
+echo "Only LibreTV app -> Collector API TCP/$SCRAPLING_API_PORT is allowed inside the private subnet; other private/reserved destinations are blocked."
 echo "IPv6 is disabled in the collector container by docker-compose.yml."
 echo "To remove these rules: iptables -D DOCKER-USER -s $COLLECTOR_CIDR -j $CHAIN; iptables -D INPUT -s $COLLECTOR_CIDR -j DROP; iptables -F $CHAIN; iptables -X $CHAIN"
