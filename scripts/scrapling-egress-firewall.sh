@@ -108,4 +108,4 @@ iptables -w -C INPUT -s "$COLLECTOR_CIDR" -j DROP
 echo "Verified IPv4 egress restrictions for Scrapling collector $COLLECTOR_CIDR."
 echo "Only LibreTV app -> Collector API TCP/$SCRAPLING_API_PORT is allowed inside the private subnet; other private/reserved destinations are blocked."
 echo "IPv6 is disabled in the collector container by docker-compose.yml."
-echo "To remove these rules: iptables -D DOCKER-USER -s $COLLECTOR_CIDR -j $CHAIN; iptables -D INPUT -s $COLLECTOR_CIDR -j DROP; iptables -F $CHAIN; iptables -X $CHAIN"
+echo "To remove these rules: iptables -D DOCKER-USER -s $COLLECTOR_CIDR -j $CHAIN; iptables -D FORWARD -s $COLLECTOR_CIDR -j $CHAIN; iptables -D INPUT -s $COLLECTOR_CIDR -j DROP; iptables -F $CHAIN; iptables -X $CHAIN"
