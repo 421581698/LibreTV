@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import os
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 from app import (
     TOKEN,
@@ -20,6 +21,9 @@ from registry_queue import JobCancelled, run_worker, submit_job
 # Bound automatic network validation per crawl so one discovered site cannot
 # trigger an unbounded number of outbound media probes.
 MAX_AUTOMATIC_MEDIA_PREFLIGHTS = 1000
+MAX_BATCH_SITE_JOBS = 1000
+DEFAULT_WORKER_CONCURRENCY = 2
+MAX_WORKER_CONCURRENCY = 8
 
 
 def handle(payload: dict, checkpoint, cancelled):
@@ -34,7 +38,8 @@ def handle(payload: dict, checkpoint, cancelled):
         keyword = str(payload.get("search_keyword") or "")[:50]
         batch_id = str(payload.get("batch_id") or uuid.uuid4().hex)
         queued = []
-        for site in sites:
+        selected_sites = sites[:MAX_BATCH_SITE_JOBS]
+        for site in selected_sites:
             key = f"fmhy-batch:{batch_id}:{site['host']}"
             job = submit_job("crawl", {"url":site["url"],"mode":"auto","limit":1000,"search_keyword":keyword,"batch_id":batch_id}, key)
             queued.append(job["id"])
@@ -70,10 +75,6 @@ def handle(payload: dict, checkpoint, cancelled):
         return {"status": "succeeded", "batch_id": batch_id, "target_candidates": 1000, "target_collected": 1000, "discovered": len(sites), "queued_jobs": queued}
 
     batch_id = payload.get("batch_id")
-    if batch_id:
-        batch = refresh_collection_batch(batch_id)
-        if batch and batch.get("status") == "target_reached":
-            return {"status": "succeeded", "batch_id": batch_id, "skipped": True, "reason": "batch_targets_reached"}
     checkpoint({"stage": "crawl_started"})
     result = crawl_site(CrawlRequest(**payload), cancel_check=cancelled)
     if cancelled():
@@ -132,10 +133,30 @@ def main():
     parser = argparse.ArgumentParser(description="LibreTV durable Scrapling job worker")
     parser.add_argument("--once", action="store_true", help="claim at most one job and exit")
     parser.add_argument("--worker-id", default=f"collector-{uuid.uuid4().hex[:8]}")
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=int(os.environ.get("SCRAPLING_WORKER_CONCURRENCY", str(DEFAULT_WORKER_CONCURRENCY))),
+        help=f"parallel queue consumers (1-{MAX_WORKER_CONCURRENCY}; default {DEFAULT_WORKER_CONCURRENCY})",
+    )
     args = parser.parse_args()
     if not os.environ.get("SCRAPLING_API_TOKEN", "").strip():
         parser.error("SCRAPLING_API_TOKEN must be configured")
-    run_worker(args.worker_id, handle, once=args.once)
+    if not 1 <= args.concurrency <= MAX_WORKER_CONCURRENCY:
+        parser.error(f"--concurrency must be between 1 and {MAX_WORKER_CONCURRENCY}")
+    if args.once:
+        run_worker(args.worker_id, handle, once=True)
+        return
+    if args.concurrency == 1:
+        run_worker(args.worker_id, handle, once=False)
+        return
+    with ThreadPoolExecutor(max_workers=args.concurrency, thread_name_prefix="collector") as pool:
+        futures = [
+            pool.submit(run_worker, f"{args.worker_id}-{index + 1}", handle, False)
+            for index in range(args.concurrency)
+        ]
+        for future in futures:
+            future.result()
 
 
 if __name__ == "__main__":
