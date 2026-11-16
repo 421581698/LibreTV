@@ -19,6 +19,7 @@ from starlette.concurrency import run_in_threadpool
 
 from app.config import settings, validate_bind_security
 from app.job_store import JobStore
+from app.postgres_job_store import PostgresJobStore
 from app.robots import RobotsPolicyError, RobotsUnavailableError, ensure_robots_allowed
 from app.scraper import ScraplingAdapter
 from app.security import UnsafeTargetError, validate_public_http_url
@@ -36,7 +37,11 @@ app = FastAPI(
     version="0.3.0",
     description="Phase-one isolated crawler service built on upstream Scrapling.",
 )
-job_store = JobStore(settings.job_database_path)
+job_store = (
+    PostgresJobStore(settings.database_url)
+    if settings.database_url
+    else JobStore(settings.job_database_path)
+)
 job_store.initialize()
 job_store.recover_interrupted()
 _active_spiders: dict[str, Any] = {}
