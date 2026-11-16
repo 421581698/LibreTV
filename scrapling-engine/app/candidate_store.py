@@ -41,12 +41,16 @@ class PostgresCandidateStore:
                     title TEXT NOT NULL,
                     media_url TEXT,
                     media_type TEXT,
+                    quality_json JSONB,
                     status TEXT NOT NULL DEFAULT 'pending_review',
                     discovery_workflow_id TEXT,
                     created_at TIMESTAMPTZ NOT NULL,
                     updated_at TIMESTAMPTZ NOT NULL
                 )
                 """
+            )
+            db.execute(
+                "ALTER TABLE resource_candidates ADD COLUMN IF NOT EXISTS quality_json JSONB"
             )
             db.execute(
                 """
@@ -162,6 +166,37 @@ class PostgresCandidateStore:
                         ),
                     )
         return candidate_ids
+
+    def save_quality_report(
+        self,
+        candidate_id: str,
+        report: dict[str, Any],
+    ) -> bool:
+        now = _now()
+        with psycopg.connect(self.database_url, row_factory=dict_row) as db:
+            cursor = db.execute(
+                """
+                UPDATE resource_candidates
+                SET quality_json = %s::jsonb, updated_at = %s
+                WHERE candidate_id = %s
+                """,
+                (json.dumps(report, ensure_ascii=False), now, candidate_id),
+            )
+            if cursor.rowcount != 1:
+                return False
+            db.execute(
+                """
+                INSERT INTO resource_candidate_evidence
+                    (candidate_id, evidence_type, evidence_json, created_at)
+                VALUES (%s, 'media_quality_analysis', %s::jsonb, %s)
+                """,
+                (
+                    candidate_id,
+                    json.dumps(report, ensure_ascii=False),
+                    now,
+                ),
+            )
+            return True
 
     def list_candidates(
         self,
