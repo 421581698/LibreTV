@@ -108,6 +108,7 @@ def test_postgres_worker_control_requests_pause_cancel_and_resume() -> None:
             "queued",
             "claimed",
             "pause_requested",
+            "claimed",
             "lease_released",
             "resumed",
             "claimed",
