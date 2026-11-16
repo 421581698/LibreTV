@@ -308,7 +308,8 @@ async def capabilities() -> dict:
             "target_validation",
             "health_endpoint",
             "structured_fetch_api",
-            "sqlite_job_registry",
+            "durable_job_registry",
+            "postgresql_job_store" if settings.database_url else "sqlite_local_job_store",
         ],
         "note": (
             "Only implemented entries have been integrated. Browser and recursive crawling "
