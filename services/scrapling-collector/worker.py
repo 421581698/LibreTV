@@ -31,13 +31,14 @@ def handle(payload: dict, checkpoint, cancelled):
         if cancelled():
             raise JobCancelled()
         keyword = str(payload.get("search_keyword") or "")[:50]
+        batch_id = uuid.uuid4().hex
         queued = []
         for site in sites:
-            key = "registry-search:"+hashlib.sha256((keyword.lower()+"|"+site["host"]).encode()).hexdigest()
-            job = submit_job("crawl", {"url":site["url"],"mode":"auto","limit":100,"search_keyword":keyword}, key)
+            key = f"fmhy-batch:{batch_id}:{site['host']}"
+            job = submit_job("crawl", {"url":site["url"],"mode":"auto","limit":1000,"search_keyword":keyword,"batch_id":batch_id}, key)
             queued.append(job["id"])
-        checkpoint({"stage": "fmhy_sites_registered", "discovered": len(sites), "queued_jobs": len(queued)})
-        return {"status": "succeeded", "discovered": len(sites), "queued_jobs": queued}
+        checkpoint({"stage": "fmhy_sites_registered", "batch_id": batch_id, "target_candidates": 1000, "target_collected": 1000, "discovered": len(sites), "queued_jobs": len(queued)})
+        return {"status": "succeeded", "batch_id": batch_id, "target_candidates": 1000, "target_collected": 1000, "discovered": len(sites), "queued_jobs": queued}
 
     checkpoint({"stage": "crawl_started"})
     result = crawl_site(CrawlRequest(**payload), cancel_check=cancelled)
