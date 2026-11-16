@@ -468,7 +468,7 @@ export default function CrawlerControlCenterPage() {
               <p className="text-xs font-semibold tracking-[0.2em] text-cyan-200">RULE INTELLIGENCE</p>
               <h2 className="mt-2 text-xl font-semibold">采集规则库</h2>
               <p className="mt-1 text-sm text-slate-400">
-                AI 生成的 CSS / XPath 规则必须先通过真实页面匹配测试；启用和停用均保留管理员操作记录。
+                AI 生成的 CSS / XPath 规则必须先通过真实页面匹配测试，通过后自动启用并替换旧版本；管理员可随时停用或恢复。
               </p>
             </div>
             <span className="text-xs text-slate-500">
@@ -517,7 +517,7 @@ export default function CrawlerControlCenterPage() {
             ))}
             {!loading && rules.length === 0 && (
               <p className="px-5 py-10 text-center text-sm text-slate-500">
-                暂无已测试规则。配置 SUPERVISOR_API_KEY 和 SUPERVISOR_MODEL 后，采集工作流会自动生成并测试规则。
+                暂无采集规则。配置 SUPERVISOR_API_KEY 和 SUPERVISOR_MODEL 后，工作流会自动生成、实测并启用规则。
               </p>
             )}
           </div>
