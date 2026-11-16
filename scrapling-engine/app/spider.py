@@ -37,6 +37,7 @@ class _SeedSpider(Spider):
                 impersonate=None,
                 timeout=settings.request_timeout_seconds,
                 follow_redirects="safe",
+                proxy=settings.egress_proxy_url,
             ),
         )
 
