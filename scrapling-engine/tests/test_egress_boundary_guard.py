@@ -74,7 +74,10 @@ def test_rejects_literal_dynamic_network_client_imports(
     "source",
     [
         "import httpx\nclient = httpx.AsyncClient(proxy=EGRESS_PROXY, trust_env=False)",
-        "from httpx import Client as HttpClient\nclient = HttpClient(proxy=EGRESS_PROXY, trust_env=False)",
+        (
+            "from httpx import Client as HttpClient\n"
+            "client = HttpClient(proxy=EGRESS_PROXY, trust_env=False)"
+        ),
     ],
 )
 def test_allows_explicitly_configured_httpx_only_in_approved_adapter(
