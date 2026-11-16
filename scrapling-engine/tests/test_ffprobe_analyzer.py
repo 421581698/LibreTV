@@ -59,8 +59,9 @@ def test_probe_reports_encoded_dimensions_but_not_native_4k(tmp_path, monkeypatc
     def fake_popen(command, **kwargs):
         assert command[0] == "ffprobe"
         assert "-protocol_whitelist" in command
-        assert "stream_tags=language,title" in command
-        assert "stream_disposition=default,forced" in command
+        entries = command[command.index("-show_entries") + 1]
+        assert "stream_tags=language,title" in entries
+        assert "stream_disposition=default,forced" in entries
         assert command[-1] == str(media)
         assert kwargs["shell"] is False
         assert kwargs["start_new_session"] is True
