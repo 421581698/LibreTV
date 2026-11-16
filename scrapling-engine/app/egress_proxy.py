@@ -194,8 +194,6 @@ async def _handle_http(
     ):
         raise EgressDenied("Only absolute public HTTP URLs on port 80 are supported")
     host = parsed.hostname
-    target_reader, target_writer, pinned_ip = await open_pinned_connection(host, port)
-    logger.info("Pinned HTTP request to %s:%s via %s", host, port, pinned_ip)
 
     content_length = 0
     forwarded_headers: list[bytes] = []
@@ -222,6 +220,11 @@ async def _handle_http(
     if content_length != 0:
         raise EgressDenied("Request bodies are not supported by this proxy")
 
+    # Validate the complete request before opening an outbound socket. Invalid
+    # headers must not let clients consume pinned target sockets.
+    target_reader, target_writer, pinned_ip = await open_pinned_connection(host, port)
+    logger.info("Pinned HTTP request to %s:%s via %s", host, port, pinned_ip)
+
     path = parsed.path or "/"
     if parsed.query:
         path += "?" + parsed.query
@@ -229,8 +232,9 @@ async def _handle_http(
     request.extend(forwarded_headers)
     request.append(f"Host: {parsed.netloc}".encode("ascii"))
     request.append(b"Connection: close")
-    target_writer.write(b"\r\n".join(request) + b"\r\n\r\n")
-    await target_writer.drain()
+    try:
+        target_writer.write(b"\\r\\n".join(request) + b"\\r\\n\\r\\n")
+        await target_writer.drain()
     try:
         while True:
             chunk = await asyncio.wait_for(

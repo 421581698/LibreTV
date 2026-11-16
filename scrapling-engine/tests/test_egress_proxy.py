@@ -252,3 +252,29 @@ async def test_private_ipv4_mapped_ipv6_literal_is_rejected():
 async def test_proxy_rejects_multicast_and_reserved_ip_literals(address: str):
     with pytest.raises(EgressDenied):
         await resolve_public_addresses(address, 443)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "headers",
+    [
+        [b"Transfer-Encoding: chunked"],
+        [b"Content-Length: not-a-number"],
+        [b"Content-Length: 1"],
+        [b"MalformedHeaderWithoutColon"],
+    ],
+)
+async def test_http_proxy_rejects_invalid_headers_before_opening_target(monkeypatch, headers):
+    from app import egress_proxy
+
+    async def unexpected_open(*args, **kwargs):
+        raise AssertionError("Outbound socket opened before request validation")
+
+    monkeypatch.setattr(egress_proxy, "open_pinned_connection", unexpected_open)
+    with pytest.raises(EgressDenied):
+        await egress_proxy._handle_http(
+            "GET http://example.com/catalog HTTP/1.1",
+            headers,
+            object(),
+            object(),
+        )
