@@ -23,7 +23,7 @@ class RegistryQueueTests(unittest.TestCase):
             {
                 "host": "catalog.example",
                 "title": "Catalog",
-                "url": "https://catalog.example/video",
+                "url": "https://catalog.example/video#client-state",
                 "directory": "FMHY / Video",
             },
             {
@@ -32,12 +32,25 @@ class RegistryQueueTests(unittest.TestCase):
                 "url": "http://private.example/",
                 "directory": "FMHY / Video",
             },
+            {
+                "host": "127.0.0.1",
+                "title": "Loopback",
+                "url": "https://127.0.0.1/admin",
+                "directory": "FMHY / Video",
+            },
+            {
+                "host": "signed.example",
+                "title": "Signed",
+                "url": "https://signed.example/?token=secret",
+                "directory": "FMHY / Video",
+            },
         ], discovered_at=123)
         self.assertEqual(inserted, 1)
         self.assertTrue(queue.is_discovered_host("CATALOG.EXAMPLE"))
         self.assertFalse(queue.is_discovered_host("private.example"))
         sites = queue.list_discovered_sites(10)
         self.assertEqual([item["host"] for item in sites], ["catalog.example"])
+        self.assertEqual(sites[0]["url"], "https://catalog.example/video")
         with queue.connect() as connection:
             self.assertEqual(
                 connection.execute("SELECT COUNT(*) FROM sites").fetchone()[0],
