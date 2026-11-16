@@ -158,11 +158,11 @@ timeout 30s "${compose[@]}" exec -T scrapling-media-probe ffmpeg -hide_banner -l
   -c:v mpeg4 -threads 1 -y /probe/outbox/probe-smoke.mp4
 "${compose[@]}" exec -T scrapling-media-probe test -s /probe/outbox/probe-smoke.mp4
 worker_container=$("${compose[@]}" ps -q scrapling-workflow-worker)
-"${compose[@]}" exec -T scrapling-workflow-worker mkdir -p /tmp/libretv-media-probe
+"${compose[@]}" exec -T scrapling-workflow-worker mkdir -p /probe/staging
 probe_smoke_dir=$(mktemp -d)
 echo "[runtime] Copy the isolated probe fixture to the worker staging area"
 timeout 15s docker cp "$probe_container:/probe/outbox/probe-smoke.mp4" "$probe_smoke_dir/probe-smoke.mp4"
-timeout 15s docker cp "$probe_smoke_dir/probe-smoke.mp4" "$worker_container:/tmp/libretv-media-probe/probe-smoke.mp4"
+timeout 15s docker cp "$probe_smoke_dir/probe-smoke.mp4" "$worker_container:/probe/staging/probe-smoke.mp4"
 rm -rf "$probe_smoke_dir"
 echo "[runtime] Exercise the real sidecar handoff and ffprobe analysis"
 timeout 45s "${compose[@]}" exec -T scrapling-workflow-worker python - <<'PY'
@@ -176,7 +176,7 @@ assert report["video"]["width"] == 320, report
 assert report["video"]["height"] == 240, report
 print("End-to-end isolated ffprobe handoff passed.")
 PY
-"${compose[@]}" exec -T scrapling-workflow-worker rm -f /tmp/libretv-media-probe/probe-smoke.mp4
+"${compose[@]}" exec -T scrapling-workflow-worker rm -f /probe/staging/probe-smoke.mp4
 "${compose[@]}" exec -T scrapling-media-probe rm -f /probe/outbox/probe-smoke.mp4
 grep -q 'no-new-privileges' <<<"$(docker inspect --format '{{json .HostConfig.SecurityOpt}}' "$probe_container")"
 probe_mounts=$(docker inspect --format '{{json .Mounts}}' "$probe_container")
@@ -270,7 +270,7 @@ PY
 echo "[runtime] Verify proxy blocks cloud metadata endpoints"
 timeout 15s "${compose[@]}" exec -T scrapling-workflow-worker python - <<'PY'
 import socket
-sock = socket.create_connection(("scrapling-egress-proxy", 8080), timeout=3
+sock = socket.create_connection(("scrapling-egress-proxy", 8080), timeout=3)
 sock.sendall(b"CONNECT 169.254.169.254:443 HTTP/1.1\\r\\nHost: 169.254.169.254:443\\r\\n\\r\\n")
 response = sock.recv(4096)
 sock.close()
