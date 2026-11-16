@@ -34,6 +34,10 @@ class CollectorTests(unittest.TestCase):
             "title": "Sample video",
             "source_key": "example-org",
         })
+        rule = collector.ai_rules.save_version(
+            "example.org", {"selectors": {"media": "a.media"}}, "test",
+            ['<a class="media"></a>'],
+        )
         with collector.db() as connection:
             stored_job = connection.execute(
                 "SELECT id FROM collector_jobs WHERE id=?", (job["id"],)
@@ -41,9 +45,15 @@ class CollectorTests(unittest.TestCase):
             stored_resource = connection.execute(
                 "SELECT id FROM registry_resources WHERE id=?", (resource["id"],)
             ).fetchone()
+            stored_rule = connection.execute(
+                "SELECT host FROM collector_rule_versions WHERE host='example.org'"
+            ).fetchone()
         self.assertIsNotNone(stored_job)
         self.assertIsNotNone(stored_resource)
+        self.assertIsNotNone(stored_rule)
+        self.assertEqual(rule["status"], "active")
         self.assertEqual(registry_store.DB_PATH, collector.DB_PATH)
+        self.assertEqual(Path(collector.ai_rules.DB_PATH), collector.DB_PATH)
 
     def test_importing_app_does_not_create_or_migrate_database(self):
         with tempfile.TemporaryDirectory() as directory:
