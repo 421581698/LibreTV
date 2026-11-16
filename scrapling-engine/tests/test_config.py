@@ -37,3 +37,10 @@ def test_crawler_policy_accepts_configured_egress_proxy() -> None:
 
 def test_local_development_may_omit_egress_proxy() -> None:
     validate_egress_proxy_policy(False, None)
+
+
+
+@pytest.mark.parametrize("secret", ["short", "x" * 31, "x" * 31 + " "])
+def test_invalid_api_key_is_rejected(secret: str) -> None:
+    with pytest.raises(RuntimeError, match="SCRAPLING_API_KEY must contain"):
+        validate_bind_security("0.0.0.0", SecretStr(secret))
