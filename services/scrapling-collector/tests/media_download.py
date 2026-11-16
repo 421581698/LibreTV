@@ -55,7 +55,13 @@ def main() -> None:
     # Refuse redirects so the fetch cannot silently leave the operator's
     # explicit hostname allowlist.
     request = urllib.request.Request(
-        normalized, headers={"Range": "bytes=0-0"}, method="GET"
+        normalized,
+        headers={
+            "Range": "bytes=0-0",
+            "User-Agent": "LibreTV-Collector-Acceptance/1.0 (CI media validation)",
+            "Accept": "video/webm,video/mp4,application/octet-stream;q=0.9,*/*;q=0.8",
+        },
+        method="GET",
     )
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect)
     try:
@@ -79,6 +85,7 @@ def main() -> None:
         "ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error",
         "-rw_timeout", "30000000",
         "-protocol_whitelist", "https,tls,tcp",
+        "-user_agent", "LibreTV-Collector-Acceptance/1.0 (CI media validation)",
         "-i", normalized,
         "-map", "0:v:0", "-t", str(seconds),
         "-c:v", "copy", "-an", "-sn", "-dn",
