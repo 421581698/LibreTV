@@ -186,6 +186,8 @@ def egress_firewall_ready() -> bool:
     ))
     try:
         marker = json.loads(marker_path.read_text(encoding="utf-8"))
+        if not isinstance(marker, dict):
+            return False
         return (
             marker.get("policy_version") == 1
             and marker.get("boot_id") == current_host_boot_id()
