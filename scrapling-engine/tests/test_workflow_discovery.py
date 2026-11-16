@@ -170,6 +170,15 @@ async def test_discovery_applies_only_explicitly_active_origin_rules(
         "list_active_for_origin",
         lambda _url: [active_rule],
     )
+    monkeypatch.setattr(
+        worker.rules,
+        "record_execution",
+        lambda *_args, **_kwargs: {
+            "recorded": True,
+            "failure_streak": 0,
+            "auto_disabled": False,
+        },
+    )
 
     result = await worker._discover_site_links({"urls": [seed], "max_pages": 1})
 
@@ -181,5 +190,8 @@ async def test_discovery_applies_only_explicitly_active_origin_rules(
             "goal": "Extract movie titles",
             "values": ["Film A", "Film B"],
             "match_count": 2,
+            "status": "matched",
+            "failure_streak": 0,
+            "auto_disabled": False,
         }
     ]
