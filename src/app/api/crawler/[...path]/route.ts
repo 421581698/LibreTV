@@ -23,6 +23,8 @@ function isAllowedPath(path: string[], method: string): boolean {
       joined === 'capabilities' ||
       joined === 'candidates' ||
       (path[0] === 'candidates' && path.length === 2) ||
+      joined === 'rules' ||
+      (path[0] === 'rules' && path.length === 2) ||
       joined === 'workflows' ||
       (path[0] === 'workflows' && path.length === 2) ||
       (path[0] === 'workflows' && path.length === 3 && path[2] === 'events') ||
@@ -36,6 +38,9 @@ function isAllowedPath(path: string[], method: string): boolean {
       joined === 'jobs' ||
       (path[0] === 'workflows' && path.length === 3 && path[2] === 'control') ||
       (path[0] === 'candidates' && path.length === 3 && path[2] === 'review') ||
+      (path[0] === 'rules' &&
+        path.length === 3 &&
+        ['activate', 'disable'].includes(path[2])) ||
       (path[0] === 'jobs' &&
         path.length === 3 &&
         ['pause', 'resume', 'cancel'].includes(path[2]))
@@ -55,8 +60,13 @@ async function proxy(
     path[0] === 'candidates' &&
     path.length === 3 &&
     path[2] === 'review';
-  if (isCandidateReview && isAuthDisabled()) {
-    return errorResponse('候选审核必须启用登录验证。', 403);
+  const isRuleAction =
+    method === 'POST' &&
+    path[0] === 'rules' &&
+    path.length === 3 &&
+    ['activate', 'disable'].includes(path[2]);
+  if ((isCandidateReview || isRuleAction) && isAuthDisabled()) {
+    return errorResponse('候选审核和采集规则启用操作必须启用登录验证。', 403);
   }
   if (!isAuthDisabled()) {
     if (!isPasswordConfigured()) {
@@ -135,6 +145,16 @@ async function proxy(
         });
       } catch {
         return errorResponse('审核请求格式无效。', 400);
+      }
+    } else if (isRuleAction) {
+      try {
+        const submitted = JSON.parse(body) as { note?: string };
+        body = JSON.stringify({
+          note: typeof submitted.note === 'string' ? submitted.note.slice(0, 1000) : '',
+          reviewer_id: 'site_admin',
+        });
+      } catch {
+        return errorResponse('规则操作请求格式无效。', 400);
       }
     }
     headers.set('Content-Type', 'application/json');
