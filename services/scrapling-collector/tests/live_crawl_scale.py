@@ -62,6 +62,107 @@ def api(base: str, token: str, path: str, method: str = "GET", body=None):
         raise RuntimeError(f"Collector API returned HTTP {exc.code}") from exc
 
 
+def _nonnegative_int(value) -> int:
+    try:
+        parsed = int(value or 0)
+    except (TypeError, ValueError, OverflowError):
+        return 0
+    return max(0, parsed)
+
+
+def summarize_results(results: list[dict], target_jobs: int, run_id: str,
+                      expected_job_ids: list[str] | None = None) -> dict:
+    """Require complete, unique job coverage and at least one page per successful job."""
+    expected = set(expected_job_ids or [])
+    seen = set()
+    duplicate_ids = set()
+    unexpected_ids = set()
+    completed = []
+    failed = []
+    terminal = {"succeeded", "partial", "failed", "cancelled"}
+    terminal_count = 0
+    pages = candidates = 0
+    jobs_without_page_coverage = []
+
+    for item in results:
+        job_id = item.get("id")
+        if job_id:
+            if job_id in seen:
+                duplicate_ids.add(job_id)
+            seen.add(job_id)
+            if expected and job_id not in expected:
+                unexpected_ids.add(job_id)
+        status = item.get("status")
+        if status in terminal:
+            terminal_count += 1
+        if status in {"succeeded", "partial"}:
+            completed.append(item)
+            raw_result = item.get("result")
+            if isinstance(raw_result, dict):
+                result = raw_result
+            elif isinstance(raw_result, str):
+                try:
+                    result = json.loads(raw_result or "{}")
+                except (TypeError, ValueError):
+                    result = {}
+            else:
+                result = {}
+            page_metrics = result.get("page_metrics") or {}
+            job_pages = _nonnegative_int(
+                result.get("pages_visited", page_metrics.get("visited", 0))
+            )
+            job_candidates = _nonnegative_int(
+                result.get("count", result.get("candidate_count", 0))
+            )
+            pages += job_pages
+            candidates += job_candidates
+            if job_pages < 1:
+                jobs_without_page_coverage.append(job_id or "unknown")
+        elif status in {"failed", "cancelled"}:
+            failed.append(item)
+
+    missing_ids = sorted(expected - seen) if expected else []
+    page_coverage_ok = bool(completed) and not jobs_without_page_coverage
+    candidate_yield_ok = candidates > 0
+    coverage_ok = (
+        len(results) == target_jobs
+        and len(seen) == target_jobs
+        and not duplicate_ids
+        and not unexpected_ids
+        and not missing_ids
+    )
+    report = {
+        "run_id": run_id,
+        "target_jobs": target_jobs,
+        "submitted_jobs": target_jobs,
+        "observed_jobs": len(results),
+        "unique_observed_jobs": len(seen),
+        "terminal_jobs": terminal_count,
+        "successful_or_partial_jobs": len(completed),
+        "failed_or_cancelled_jobs": len(failed),
+        "unfinished_jobs": max(0, target_jobs - terminal_count),
+        "missing_job_ids": missing_ids[:20],
+        "duplicate_job_count": len(duplicate_ids),
+        "unexpected_job_count": len(unexpected_ids),
+        "jobs_without_page_coverage": jobs_without_page_coverage[:20],
+        "observed_pages_visited": pages,
+        "observed_candidates": candidates,
+        "job_coverage_ok": coverage_ok,
+        "page_coverage_ok": page_coverage_ok,
+        "candidate_yield_ok": candidate_yield_ok,
+        "success_rate": round(len(completed) / target_jobs, 4) if target_jobs else 0,
+        "status": "passed" if (
+            coverage_ok
+            and terminal_count == target_jobs
+            and len(completed) == target_jobs
+            and not failed
+            and page_coverage_ok
+            and candidate_yield_ok
+        ) else "incomplete_or_failed",
+    }
+    return report
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--urls", required=True, help="approved HTTPS URL list")
@@ -101,31 +202,7 @@ def main():
         if len(results) == len(jobs) and all(item["status"] in terminal for item in results):
             break
         time.sleep(5)
-    completed = [item for item in results if item.get("status") in {"succeeded", "partial"}]
-    failed = [item for item in results if item.get("status") in {"failed", "cancelled"}]
-    terminal_count = sum(1 for item in results if item.get("status") in terminal)
-    pages = candidates = 0
-    for item in completed:
-        try:
-            result = json.loads(item.get("result") or "{}")
-        except (TypeError, ValueError):
-            result = {}
-        page_metrics = result.get("page_metrics") or {}
-        pages += int(result.get("pages_visited") or page_metrics.get("visited") or 0)
-        candidates += int(result.get("count") or result.get("candidate_count") or 0)
-    page_coverage_ok = len(completed) > 0 and pages >= len(completed)
-    candidate_yield_ok = candidates > 0
-    report = {
-        "run_id": run_id,
-        "target_jobs": args.target, "submitted_jobs": len(jobs),
-        "terminal_jobs": terminal_count, "successful_or_partial_jobs": len(completed),
-        "failed_or_cancelled_jobs": len(failed), "unfinished_jobs": len(jobs) - terminal_count,
-        "observed_pages_visited": pages, "observed_candidates": candidates,
-        "page_coverage_ok": page_coverage_ok,
-        "candidate_yield_ok": candidate_yield_ok,
-        "success_rate": round(len(completed) / len(jobs), 4) if jobs else 0,
-        "status": "passed" if terminal_count == len(jobs) and len(results) == len(jobs) and not failed and page_coverage_ok and candidate_yield_ok else "incomplete_or_failed",
-    }
+    report = summarize_results(results, args.target, run_id, jobs)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     if report["status"] != "passed":
         raise SystemExit(1)
