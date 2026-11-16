@@ -55,9 +55,16 @@ def handle(payload: dict, checkpoint, cancelled):
                   created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
                 )"""
             )
+            now = int(time.time())
+            connection.execute(
+                """INSERT OR IGNORE INTO collection_batches
+                   (id,directory_source,target_candidates,target_collected,status,created_at,updated_at)
+                   VALUES(?,'FMHY',1000,1000,'queued',?,?)""",
+                (batch_id, now, now),
+            )
             connection.execute(
                 "UPDATE collection_batches SET discovered_sites=?,queued_jobs=?,status='running',updated_at=? WHERE id=?",
-                (len(sites), len(queued), int(time.time()), batch_id),
+                (len(sites), len(queued), now, batch_id),
             )
         checkpoint({"stage": "fmhy_sites_registered", "batch_id": batch_id, "target_candidates": 1000, "target_collected": 1000, "discovered": len(sites), "queued_jobs": len(queued)})
         return {"status": "succeeded", "batch_id": batch_id, "target_candidates": 1000, "target_collected": 1000, "discovered": len(sites), "queued_jobs": queued}
