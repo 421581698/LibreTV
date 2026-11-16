@@ -447,6 +447,8 @@ class WorkflowWorker:
                     result.get("candidate_ids"), list
                 ):
                     candidate_ids.extend(result["candidate_ids"])
+        if not all(isinstance(item, str) and item for item in candidate_ids):
+            raise ValueError("probe_media_candidates requires non-empty string candidate IDs")
         candidate_ids = list(dict.fromkeys(candidate_ids))
         if not candidate_ids:
             return {"count": 0, "reports": []}
