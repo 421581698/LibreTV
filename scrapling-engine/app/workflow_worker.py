@@ -5,14 +5,15 @@ import asyncio
 import logging
 import socket
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import asdict
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from app.candidate_store import PostgresCandidateStore
+from app.config import settings
 from app.media_analyzer import analyze_hls_manifest, analyze_mpd_manifest
 from app.robots import ensure_robots_allowed
 from app.scraper import ScraplingAdapter
-from app.config import settings
 from app.security import validate_public_http_url
 from app.spider import ScraplingSpiderAdapter
 from app.workflow_store import PostgresWorkflowStore
