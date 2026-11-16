@@ -46,7 +46,7 @@ class WorkerPipelineTests(unittest.TestCase):
     def test_discovery_queues_every_discovered_site_not_only_first_five(self):
         sites = [
             {"host": f"site-{index}.example", "url": f"https://site-{index}.example/"}
-            for index in range(8)
+            for index in range(1005)
         ]
         queued = []
         with (
@@ -59,12 +59,12 @@ class WorkerPipelineTests(unittest.TestCase):
                 lambda event: None,
                 lambda: False,
             )
-        self.assertEqual(result["discovered"], 8)
-        self.assertEqual(len(result["queued_jobs"]), 8)
-        self.assertEqual(len(queued), 8)
+        self.assertEqual(result["discovered"], 1005)
+        self.assertEqual(len(result["queued_jobs"]), 1000)
+        self.assertEqual(len(queued), 1000)
+        self.assertEqual(worker.MAX_BATCH_SITE_JOBS, 1000)
         self.assertTrue(all(item["limit"] == 1000 for item in queued))
-        self.assertEqual(result["target_candidates"], 1000)
-        self.assertEqual(result["target_collected"], 1000)
+        self.assertEqual(result["target_tasks"], 1000)
         self.assertTrue(result["batch_id"])
 
     def test_candidate_and_discovery_limits_support_at_least_one_thousand(self):
