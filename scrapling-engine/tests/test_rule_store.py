@@ -45,13 +45,17 @@ def test_rule_registry_versions_tests_and_requires_human_activation() -> None:
         assert first_rule is not None and second_rule is not None
         assert first_rule["version"] == 1
         assert second_rule["version"] == 2
-        assert first_rule["status"] == "tested"
+        assert first_rule["status"] == "disabled"
         assert first_rule["tests"][0]["passed"] is True
-        assert first_rule["events"][0]["action"] == "rule_tested"
-        assert store.set_status(first, "active", "human-reviewer", "Selector checked")
+        assert first_rule["events"][0]["action"] == "rule_auto_activated"
+        assert first_rule["events"][-1]["action"] == "superseded"
+        assert second_rule["status"] == "active"
+        assert store.set_status(first, "active", "human-reviewer", "Restore previous version")
         active = store.get_rule(first)
-        assert active is not None
+        newer = store.get_rule(second)
+        assert active is not None and newer is not None
         assert active["status"] == "active"
+        assert newer["status"] == "disabled"
         assert active["events"][-1]["actor_id"] == "human-reviewer"
         assert not store.set_status("missing-rule", "active", "human-reviewer")
     finally:
