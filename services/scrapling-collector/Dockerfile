@@ -16,7 +16,8 @@ RUN pip install --no-cache-dir -r requirements.txt \
     && useradd --create-home --uid 10001 collector \
     && chown -R collector:collector /data \
     && scrapling install \
-    && patchright install chromium
+    && patchright install chromium \
+    && patchright install-deps chromium
 COPY app.py registry_queue.py stats.py worker.py run_services.py ai_rules.py ./
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod 755 /usr/local/bin/docker-entrypoint.sh
