@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import time
+import registry_queue
 from urllib.parse import urlsplit
 
 QUALITY_BUCKETS = ("8K", "4K", "2K", "1080P", "720P", "480P", "SD", "未知")
@@ -45,9 +46,7 @@ def _empty_quality():
 
 def build_stats(connection: sqlite3.Connection, host=None):
     connection.row_factory = sqlite3.Row
-    sites = [dict(r) for r in connection.execute(
-        "SELECT host,title,url,directory,discovered_at FROM sites ORDER BY discovered_at DESC"
-    ).fetchall()]
+    sites = registry_queue.list_discovered_sites(limit=1000, connection=connection)
     tasks = [dict(r) for r in connection.execute(
         """SELECT id,host,status,created_at,updated_at,error,result_count,
                   pages_scheduled,pages_visited,pages_failed,pages_changed,pages_unchanged
