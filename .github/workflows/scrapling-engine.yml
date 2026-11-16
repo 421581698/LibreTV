@@ -8,6 +8,7 @@ on:
     paths:
       - "scrapling-engine/**"
       - "docker-compose.yml"
+      - "scripts/verify-crawler-containers.sh"
       - ".github/workflows/scrapling-engine.yml"
   pull_request:
     paths:
@@ -53,13 +54,13 @@ jobs:
         run: ruff check .
       - name: Test
         run: pytest -q
-      - name: Validate opt-in crawler Compose profile
+      - name: Real crawler container runtime acceptance
         working-directory: .
         env:
           PASSWORD: ci-password
           SCRAPLING_API_KEY: ci-scrapling-api-key-0123456789abcdef
           SCRAPLING_DB_PASSWORD: ci-db-password
-        run: docker compose --profile crawler config --quiet
+        run: bash scripts/verify-crawler-containers.sh
       - name: Public HTTP and Spider smoke test
         run: |
           python - <<'PY'
