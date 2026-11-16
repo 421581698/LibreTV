@@ -295,7 +295,8 @@ async def capabilities() -> dict:
             "async_job_execution",
             "job_status_api",
             "job_event_stream",
-            "api_pause_resume_controls" if not settings.database_url else "independent_worker_execution",\n            "worker_lease_fencing" if settings.database_url else "single_process_execution",
+            "api_pause_resume_controls" if not settings.database_url else "independent_worker_execution",
+            "worker_lease_fencing" if settings.database_url else "single_process_execution",
         ],
         "planned": [
             "dynamic_browser",
@@ -539,12 +540,18 @@ async def job_events(
             for event in events:
                 cursor = event["id"]
                 payload = json.dumps(event, ensure_ascii=False)
-                yield f"id: {cursor}\nevent: {event['type']}\ndata: {payload}\n\n"
+                yield f"id: {cursor}
+event: {event['type']}
+data: {payload}
+
+"
             job = job_store.get(task_id)
             if job is None or job["status"] in {"completed", "paused", "failed", "interrupted"}:
                 break
             if not events:
-                yield ": keep-alive\n\n"
+                yield ": keep-alive
+
+"
                 await asyncio.sleep(1)
 
     return StreamingResponse(stream_events(), media_type="text/event-stream")
