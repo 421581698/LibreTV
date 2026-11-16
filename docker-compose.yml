@@ -68,7 +68,7 @@ services:
         ipv4_address: ${SCRAPLING_COLLECTOR_IP:-172.30.60.10}
     read_only: true
     tmpfs:
-      - /tmp:size=256m,noexec,nosuid
+      - /tmp:size=384m,noexec,nosuid
     shm_size: 256m
     cap_drop:
       - ALL
