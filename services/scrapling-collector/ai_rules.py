@@ -9,14 +9,16 @@ must separately permit that gateway before enabling this feature.
 """
 
 import hashlib
+import http.client
+import ipaddress
 import html
 import json
 import os
 import re
+import socket
 import sqlite3
+import ssl
 import time
-import urllib.error
-import urllib.request
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 import uuid
@@ -206,14 +208,82 @@ def _model_endpoint() -> tuple[str, str, str]:
     api_key = os.environ.get("COLLECTOR_AI_API_KEY", "").strip()
     model = os.environ.get("COLLECTOR_AI_MODEL", "").strip()
     parsed = urlparse(endpoint)
-    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.path not in ("", "/"):
-        raise RuntimeError("COLLECTOR_AI_GATEWAY_URL must be an operator-configured HTTPS gateway")
-    allowed = {item.strip().lower() for item in os.environ.get("COLLECTOR_AI_ALLOWED_HOSTS", "").split(",") if item.strip()}
-    if parsed.hostname.lower() not in allowed:
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise RuntimeError("AI gateway URL has an invalid port") from exc
+    if (
+        parsed.scheme != "https" or not parsed.hostname
+        or parsed.username or parsed.password or parsed.query or parsed.fragment
+        or parsed.path not in ("", "/") or port not in (None, 443)
+    ):
+        raise RuntimeError("COLLECTOR_AI_GATEWAY_URL must be an operator-configured HTTPS gateway on port 443")
+    host = parsed.hostname.lower().rstrip(".")
+    allowed = {item.strip().lower().rstrip(".") for item in os.environ.get("COLLECTOR_AI_ALLOWED_HOSTS", "").split(",") if item.strip()}
+    if host not in allowed:
         raise RuntimeError("AI gateway host is not in COLLECTOR_AI_ALLOWED_HOSTS")
     if not api_key or not model:
         raise RuntimeError("AI gateway key and model are not configured")
-    return endpoint.rstrip("/") + "/v1/chat/completions", api_key, model
+    return "https://" + host + "/v1/chat/completions", api_key, model
+
+
+def _resolve_gateway_ip(host: str) -> str:
+    try:
+        addresses = {
+            str(ipaddress.ip_address(entry[4][0]))
+            for entry in socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
+        }
+    except (OSError, ValueError) as exc:
+        raise RuntimeError("AI gateway DNS resolution failed") from exc
+    if not addresses or any(not ipaddress.ip_address(value).is_global for value in addresses):
+        raise RuntimeError("AI gateway resolved to a private or reserved address")
+    return sorted(addresses, key=lambda value: (ipaddress.ip_address(value).version, value))[0]
+
+
+class _PinnedGatewayConnection(http.client.HTTPSConnection):
+    def __init__(self, host: str, pinned_ip: str, timeout: int = 12):
+        self.pinned_ip = str(ipaddress.ip_address(pinned_ip))
+        super().__init__(host, port=443, timeout=timeout, context=ssl.create_default_context())
+
+    def connect(self):
+        address = ipaddress.ip_address(self.pinned_ip)
+        family = socket.AF_INET6 if address.version == 6 else socket.AF_INET
+        sock = socket.socket(family, socket.SOCK_STREAM)
+        try:
+            sock.settimeout(self.timeout)
+            destination = (self.pinned_ip, 443, 0, 0) if address.version == 6 else (self.pinned_ip, 443)
+            sock.connect(destination)
+            self.sock = self._context.wrap_socket(sock, server_hostname=self.host)
+        except BaseException:
+            sock.close()
+            raise
+
+
+def _post_model_request(endpoint: str, key: str, body: bytes) -> bytes:
+    parsed = urlparse(endpoint)
+    if parsed.scheme != "https" or not parsed.hostname or parsed.port not in (None, 443):
+        raise RuntimeError("AI gateway endpoint is not a permitted HTTPS origin")
+    pinned_ip = _resolve_gateway_ip(parsed.hostname)
+    connection = _PinnedGatewayConnection(parsed.hostname, pinned_ip, timeout=12)
+    try:
+        connection.request("POST", parsed.path or "/", body=body, headers={
+            "Authorization": "Bearer " + key,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Connection": "close",
+        })
+        response = connection.getresponse()
+        if response.status != 200:
+            response.read(4096)
+            raise RuntimeError("AI gateway returned a non-success status")
+        raw = response.read(MAX_MODEL_RESPONSE + 1)
+        if len(raw) > MAX_MODEL_RESPONSE:
+            raise ValueError("AI gateway response exceeded limit")
+        return raw
+    except (OSError, ssl.SSLError, http.client.HTTPException, TimeoutError) as exc:
+        raise RuntimeError("AI gateway request failed") from exc
+    finally:
+        connection.close()
 
 
 def generate_rules(host: str, page_html: str, diagnostics: dict | None = None) -> dict:
@@ -239,23 +309,7 @@ def generate_rules(host: str, page_html: str, diagnostics: dict | None = None) -
             {"role": "user", "content": json.dumps(prompt, ensure_ascii=False)},
         ],
     }).encode("utf-8")
-    request = urllib.request.Request(endpoint, data=body, headers={
-        "Authorization": "Bearer " + key,
-        "Content-Type": "application/json",
-    }, method="POST")
-    class _NoRedirect(urllib.request.HTTPRedirectHandler):
-        def redirect_request(self, req, fp, code, msg, headers, newurl):
-            return None
-    opener = urllib.request.build_opener(_NoRedirect)
-    try:
-        with opener.open(request, timeout=12) as response:
-            if response.status != 200:
-                raise RuntimeError("AI gateway returned a non-success status")
-            raw = response.read(MAX_MODEL_RESPONSE + 1)
-    except (urllib.error.URLError, TimeoutError, urllib.error.HTTPError) as exc:
-        raise RuntimeError("AI gateway request failed") from exc
-    if len(raw) > MAX_MODEL_RESPONSE:
-        raise ValueError("AI gateway response exceeded limit")
+    raw = _post_model_request(endpoint, key, body)
     envelope = json.loads(raw)
     content = envelope["choices"][0]["message"]["content"]
     if not isinstance(content, str) or len(content.encode("utf-8")) > MAX_RULE_BYTES:
