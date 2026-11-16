@@ -71,6 +71,16 @@ class WorkerPipelineTests(unittest.TestCase):
         self.assertEqual(args[1]["target"], 1000)
         self.assertEqual(args[2], "daily-fmhy-batch:2026-11-11")
 
+    def test_worker_once_does_not_claim_queued_jobs_without_current_boot_firewall_proof(self):
+        with (
+            patch("sys.argv", ["worker.py", "--once"]),
+            patch.object(worker.registry_store, "initialize"),
+            patch.object(worker, "egress_firewall_ready", return_value=False),
+            patch.object(worker, "run_worker") as run,
+        ):
+            worker.main()
+        run.assert_not_called()
+
     def test_daily_scheduler_does_not_queue_without_verified_egress_gate(self):
         from datetime import datetime
         from zoneinfo import ZoneInfo
