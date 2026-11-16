@@ -98,9 +98,43 @@ def event(c: sqlite3.Connection, job_id: str, name: str, detail: dict | None = N
               (uuid.uuid4().hex, job_id, name, json.dumps(detail or {}, ensure_ascii=False), int(time.time())))
 
 
+def validate_durable_job_payload(job_type: str, payload: dict) -> None:
+    if not isinstance(payload, dict):
+        raise ValueError("Job payload must be an object")
+    if job_type != "crawl":
+        return
+    from urllib.parse import parse_qsl, urlsplit
+    url = payload.get("url")
+    if not isinstance(url, str) or len(url) > 4096:
+        raise ValueError("Crawl jobs require a bounded HTTPS URL")
+    try:
+        parsed = urlsplit(url)
+        port = parsed.port
+    except ValueError as exc:
+        raise ValueError("Invalid crawl URL") from exc
+    if (
+        parsed.scheme.lower() != "https"
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or port not in (None, 443)
+        or any(ord(char) < 32 or ord(char) == 127 for char in url)
+    ):
+        raise ValueError("Only credential-free HTTPS crawl URLs on port 443 are accepted")
+    sensitive_keys = {
+        "token", "access_token", "auth", "authorization", "api_key", "apikey",
+        "key", "signature", "sig", "jwt", "expires", "policy", "hdnts",
+        "hdnea", "x-amz-signature", "x-amz-credential", "x-goog-signature",
+    }
+    query_keys = {key.casefold() for key, _ in parse_qsl(parsed.query, keep_blank_values=True)}
+    if any(key in sensitive_keys or key.startswith(("x-amz-", "x-goog-")) for key in query_keys):
+        raise ValueError("Signed or credential-bearing crawl URLs cannot be persisted in the durable queue")
+
+
 def submit_job(job_type: str, payload: dict, idempotency_key: str, max_attempts: int = 4) -> dict:
     if job_type not in {"crawl", "discover", "batch_crawl"}:
         raise ValueError("Unsupported job type")
+    validate_durable_job_payload(job_type, payload)
     if not idempotency_key or len(idempotency_key) > 200:
         raise ValueError("Invalid idempotency key")
     now = int(time.time())
@@ -139,9 +173,11 @@ def submit_jobs(jobs: list[dict]) -> list[dict]:
             if job_type not in {"crawl", "discover", "batch_crawl"}:
                 c.rollback()
                 raise ValueError("Unsupported job type")
-            if not isinstance(payload, dict):
+            try:
+                validate_durable_job_payload(job_type, payload)
+            except ValueError:
                 c.rollback()
-                raise ValueError("Each job payload must be an object")
+                raise
             if not isinstance(idempotency_key, str) or not idempotency_key or len(idempotency_key) > 200:
                 c.rollback()
                 raise ValueError("Invalid idempotency key")
