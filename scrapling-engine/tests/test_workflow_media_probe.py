@@ -113,6 +113,6 @@ def test_probe_media_candidates_rejects_more_than_five_files() -> None:
             )
         )
     except ValueError as exc:
-        assert "1 to 5" in str(exc)
+        assert "at most 5" in str(exc)
     else:
         raise AssertionError("Expected a bounded candidate batch")
