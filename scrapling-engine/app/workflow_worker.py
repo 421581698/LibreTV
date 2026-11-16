@@ -49,6 +49,7 @@ class WorkflowWorker:
             "crawl_seed_urls": self._crawl_seed_urls,
             "discover_site_links": self._discover_site_links,
             "ai_supervisor_discover": self._ai_supervisor_discover,
+            "generate_extraction_rule": self._generate_extraction_rule,
             "register_candidates": self._register_candidates,
             "analyze_media_manifest": self._analyze_media_manifest,
             "analyze_media_candidates": self._analyze_media_candidates,
@@ -234,6 +235,77 @@ class WorkflowWorker:
                 "selected_limits": plan.model_dump(),
                 "executed_tool": "discover_site_links",
             },
+        }
+
+    async def _generate_extraction_rule(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Generate one selector with the configured model and test it on the fetched page."""
+        page_url = payload.get("page_url")
+        if not isinstance(page_url, str):
+            for result in payload.get("dependencies", {}).values():
+                if isinstance(result, dict) and isinstance(result.get("items"), list):
+                    page_url = next(
+                        (
+                            item.get("url")
+                            for item in result["items"]
+                            if isinstance(item, dict) and isinstance(item.get("url"), str)
+                        ),
+                        None,
+                    )
+                    if page_url:
+                        break
+        if not isinstance(page_url, str):
+            raise ValueError("generate_extraction_rule requires page_url or a discovered page")
+        safe_url = validate_public_http_url(page_url)
+        await asyncio.to_thread(
+            ensure_robots_allowed,
+            safe_url,
+            settings.request_timeout_seconds,
+        )
+        page = await asyncio.to_thread(
+            ScraplingAdapter.fetch_page,
+            safe_url,
+            settings.request_timeout_seconds,
+        )
+        final_url = validate_public_http_url(str(getattr(page, "url", None) or safe_url))
+        if not is_same_origin(final_url, safe_url):
+            raise ValueError("Extraction rule page redirected outside its seed origin.")
+        body = getattr(page, "body", b"")
+        html_sample = (
+            bytes(body).decode("utf-8", errors="replace")
+            if isinstance(body, (bytes, bytearray))
+            else str(body or page.get_all_text(strip=True))
+        )[:30_000]
+        api_key = (
+            settings.supervisor_api_key.get_secret_value()
+            if settings.supervisor_api_key is not None
+            else ""
+        )
+        planner = SupervisorClient(
+            settings.supervisor_api_base,
+            api_key,
+            settings.supervisor_model,
+            settings.supervisor_timeout_seconds,
+        )
+        goal = payload.get("goal", "Extract the primary movie, series or animation entries.")
+        rule = await planner.generate_extraction_rule(str(goal), final_url, html_sample)
+        extraction = await asyncio.to_thread(
+            ScraplingAdapter.extract,
+            page,
+            rule.selector,
+            rule.mode,
+        )
+        values = extraction.get("text", [])
+        if not values:
+            raise ValueError("Generated extraction rule returned no matches on the source page.")
+        return {
+            "page_url": final_url,
+            "mode": rule.mode,
+            "selector": rule.selector,
+            "rationale": rule.rationale,
+            "test_passed": True,
+            "match_count": len(values),
+            "sample_values": values[:5],
+            "verification_level": "live_page_selector_test",
         }
 
     async def _register_candidates(self, payload: dict[str, Any]) -> dict[str, Any]:
