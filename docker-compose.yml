@@ -146,6 +146,7 @@ services:
       - COLLECTOR_AI_MODEL=${COLLECTOR_AI_MODEL:-}
       - COLLECTOR_AI_ALLOWED_HOSTS=${COLLECTOR_AI_ALLOWED_HOSTS:-}
       - COLLECTOR_WORKER_CONCURRENCY=${COLLECTOR_WORKER_CONCURRENCY:-1}
+      - COLLECTOR_DAILY_SCHEDULER_ENABLED=${COLLECTOR_DAILY_SCHEDULER_ENABLED:-true}
     volumes:
       - scrapling_data:/data
       - ${SCRAPLING_EGRESS_MARKER_DIR:-/run/libretv-scrapling-egress}:/run/libretv-scrapling-egress:ro
