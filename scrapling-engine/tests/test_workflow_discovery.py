@@ -131,7 +131,7 @@ async def test_worker_tests_ai_generated_rule_on_fetched_page(
 
     assert result["test_passed"] is True
     assert result["rule_id"] == "rule-test-id"
-    assert result["rule_status"] == "tested"
+    assert result["rule_status"] == "active"
     assert result["selector"] == ".movie-card"
     assert result["match_count"] == 2
     assert result["verification_level"] == "live_page_selector_test"
