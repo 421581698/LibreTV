@@ -21,6 +21,10 @@ class EgressDenied(ValueError):
     pass
 
 
+def _is_public_address(address: IPAddress) -> bool:
+    return address.is_global and not address.is_reserved and not address.is_multicast
+
+
 async def resolve_public_addresses(
     host: str,
     port: int,
@@ -57,7 +61,7 @@ async def resolve_public_addresses(
                 address = address.ipv4_mapped
             addresses.append(address)
 
-    if not addresses or any(not address.is_global for address in addresses):
+    if not addresses or any(not _is_public_address(address) for address in addresses):
         raise EgressDenied("Every resolved address must be globally routable")
     return list(dict.fromkeys(addresses))
 
