@@ -247,3 +247,41 @@ async def test_autonomous_discovery_finds_public_sites_and_registers_candidates(
     assert result["review_gate"].startswith("resources_remain_pending_human_review")
     assert all(site["status"] == "candidates_registered" for site in result["sites"])
     assert all(site["review_status"] == "candidate_only" for site in result["sites"])
+
+@pytest.mark.asyncio
+async def test_autonomous_discovery_proposes_replacement_after_active_rule_breaks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    catalog = "https://93.184.216.34/catalog"
+    page = _Page(catalog, ["https://93.184.216.35/"])
+    monkeypatch.setattr("app.workflow_worker.ensure_robots_allowed", lambda *_a, **_k: None)
+    monkeypatch.setattr("app.workflow_worker.ScraplingAdapter.fetch_page", lambda *_a, **_k: page)
+    worker = WorkflowWorker("postgresql://unused", "test-worker")
+    monkeypatch.setattr(worker.rules, "list_active_for_origin", lambda _url: [{"rule_id": "old-rule"}])
+
+    async def discover(_payload: dict[str, object]) -> dict[str, object]:
+        return {
+            "count": 1,
+            "errors": [],
+            "items": [{
+                "url": "https://93.184.216.35/",
+                "media_urls": ["https://93.184.216.35/film.m3u8"],
+                "rule_extractions": [{"status": "no_matches", "auto_disabled": True}],
+            }],
+        }
+
+    async def generate(_payload: dict[str, object]) -> dict[str, object]:
+        return {"rule_id": "replacement-rule", "rule_status": "tested", "test_passed": True}
+
+    async def register(_payload: dict[str, object]) -> dict[str, object]:
+        return {"candidate_ids": ["candidate-2"], "count": 1}
+
+    monkeypatch.setattr(worker, "_ai_supervisor_discover", discover)
+    monkeypatch.setattr(worker, "_generate_extraction_rule", generate)
+    monkeypatch.setattr(worker, "_register_candidates", register)
+    result = await worker._autonomous_site_discovery({"catalog_urls": [catalog], "max_sites": 1})
+
+    site = result["sites"][0]
+    assert site["rule"]["rule_id"] == "replacement-rule"
+    assert site["rule_repair_status"] == "replacement_tested_pending_approval"
+    assert site["status"] == "candidates_registered"
