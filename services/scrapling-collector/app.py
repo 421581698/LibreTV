@@ -2508,10 +2508,10 @@ def record_general_playback_sample(
     host = payload.host.strip().lower().rstrip(".")
     if not re.fullmatch(r"[a-z0-9.-]{1,253}", host) or "." not in host:
         raise HTTPException(status_code=400, detail="Invalid playback source host")
+    registry_queue.DB_PATH = DB_PATH
+    if not registry_queue.is_discovered_host(host):
+        return {"recorded": False, "reason": "host_not_in_fmhy_directory"}
     with db() as connection:
-        site = connection.execute("SELECT host FROM sites WHERE host=?", (host,)).fetchone()
-        if not site:
-            return {"recorded": False, "reason": "host_not_in_fmhy_directory"}
         connection.execute(
             """INSERT INTO playback_quality_samples
                (id,host,sample_source,media_type,observed_seconds,progressed_seconds,
