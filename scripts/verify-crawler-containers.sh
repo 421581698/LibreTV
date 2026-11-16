@@ -15,7 +15,7 @@ cleanup() {
 trap cleanup EXIT
 
 "${compose[@]}" config --quiet
-"${compose[@]}" up -d --build scrapling-postgres scrapling-engine scrapling-job-worker scrapling-workflow-worker scrapling-media-probe
+"${compose[@]}" up -d --build scrapling-postgres scrapling-engine scrapling-job-worker scrapling-workflow-worker scrapling-media-probe scrapling-egress-proxy
 
 ready=0
 for attempt in $(seq 1 60); do
@@ -89,5 +89,53 @@ except OSError:
 finally:
  s.close()'
 echo "scrapling-media-probe: no network, read-only input mount and writable result mount passed"
+
+
+proxy_container=$("${compose[@]}" ps -q scrapling-egress-proxy)
+test -n "$proxy_container"
+[[ "$(docker inspect --format '{{.State.Running}}' "$proxy_container")" == "true" ]]
+[[ "$(docker inspect --format '{{.Config.User}}' "$proxy_container")" == "10001:10001" ]]
+[[ "$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "$proxy_container")" == "true" ]]
+[[ "$(docker inspect --format '{{.HostConfig.PidsLimit}}' "$proxy_container")" -le 64 ]]
+grep -q '"ALL"' <<<"$(docker inspect --format '{{json .HostConfig.CapDrop}}' "$proxy_container")"
+grep -q 'no-new-privileges' <<<"$(docker inspect --format '{{json .HostConfig.SecurityOpt}}' "$proxy_container")"
+
+# A crawler worker must have no direct Internet route, but must be able to fetch
+# both HTTP and HTTPS through the validated proxy.
+"${compose[@]}" exec -T scrapling-workflow-worker python - <<'PY'
+import socket
+from scrapling.fetchers import Fetcher
+
+try:
+    socket.create_connection(("93.184.216.34", 80), timeout=2)
+except OSError:
+    pass
+else:
+    raise SystemExit("workflow worker bypassed the egress proxy")
+
+proxy = "http://scrapling-egress-proxy:8080"
+for target in ("https://example.com/", "http://example.com/"):
+    page = Fetcher.get(
+        target,
+        timeout=20,
+        follow_redirects=True,
+        proxy=proxy,
+        impersonate=None,
+        stealthy_headers=False,
+    )
+    assert page.status == 200, (target, page.status)
+    assert "Example Domain" in page.get_all_text(strip=True)
+print("Worker direct egress blocked; HTTP and HTTPS proxy fetches passed.")
+PY
+
+"${compose[@]}" exec -T scrapling-workflow-worker python - <<'PY'
+import socket
+sock = socket.create_connection(("scrapling-egress-proxy", 8080), timeout=3)
+sock.sendall(b"CONNECT 169.254.169.254:443 HTTP/1.1\\r\\nHost: 169.254.169.254:443\\r\\n\\r\\n")
+response = sock.recv(4096)
+sock.close()
+assert response.startswith(b"HTTP/1.1 403"), response[:200]
+print("Proxy rejected cloud metadata address.")
+PY
 
 echo "Crawler container runtime acceptance passed."
