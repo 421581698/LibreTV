@@ -36,7 +36,7 @@ def main():
     if marker.get("policy_version") != 1 or marker.get("boot_id") != boot_id:
         raise SystemExit("FAIL: firewall proof is stale or invalid")
 
-    from playwright.sync_api import sync_playwright
+    from patchright.sync_api import sync_playwright
 
     duration = int(os.environ.get("MEDIA_ACCEPTANCE_SECONDS", "60"))
     with sync_playwright() as playwright:
