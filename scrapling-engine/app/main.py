@@ -38,7 +38,9 @@ validate_bind_security(settings.host, settings.api_key)
 app = FastAPI(
     title="LibreTV Scrapling Engine",
     version="0.3.0",
-    description="Phase-two autonomous discovery and isolated crawler service built on upstream Scrapling.",
+    description=(
+        "Phase-two autonomous discovery and isolated crawler service built on upstream Scrapling."
+    ),
 )
 job_store = (
     PostgresJobStore(settings.database_url)
