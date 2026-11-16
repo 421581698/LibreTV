@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field, HttpUrl
 from scrapling.fetchers import Fetcher, FetcherSession, StealthySession
 from scrapling.spiders import Response, Spider
 from registry_queue import JobCancelled, router as registry_router, register_candidate_playback, register_discovered_candidate, sync_candidate_validation
-import registry_queue as registry_store
+import registry_queue
 from stats import build_stats
 
 FMHY_VIDEO_URL = "https://fmhy.net/video"
@@ -173,8 +173,8 @@ def init_db() -> None:
         )
     # Keep the Registry on the same SQLite file as the legacy Collector tables,
     # including tests that override DB_PATH with a temporary database.
-    registry_store.DB_PATH = DB_PATH
-    registry_store.initialize()
+    registry_queue.DB_PATH = DB_PATH
+    registry_queue.initialize()
     ai_rules.DB_PATH = str(DB_PATH)
     ai_rules.initialize()
 
