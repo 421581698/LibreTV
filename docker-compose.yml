@@ -107,7 +107,7 @@ services:
     expose:
       - "8787"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8787/health', timeout=2).read()"]
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('127.0.0.1',8787), timeout=2); s.close()"]
       interval: 5s
       timeout: 3s
       retries: 12
