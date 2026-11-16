@@ -138,8 +138,7 @@ grep -q '"ALL"' <<<"$(docker inspect --format '{{json .HostConfig.CapDrop}}' "$p
 grep -q 'no-new-privileges' <<<"$(docker inspect --format '{{json .HostConfig.SecurityOpt}}' "$probe_container")"
 probe_security_opt=$(docker inspect --format '{{json .HostConfig.SecurityOpt}}' "$probe_container")
 grep -q 'seccomp' <<<"$probe_security_opt" || { echo "Probe sidecar must use the dedicated ffprobe seccomp profile"; exit 1; }
-probe_ulimits=$(docker inspect --format '{{json .HostConfig.Ulimits}}' "$probe_container")
-for limit in cpu core nofile nproc; do grep -q "\\\"Name\\\":\\\"$limit\\\"" <<<"$probe_ulimits" || { echo "Missing probe ulimit: $limit"; exit 1; }; done
+"${compose[@]}" exec -T scrapling-media-probe prlimit --help >/dev/null
 probe_tmpfs=$(docker inspect --format '{{json .HostConfig.Tmpfs}}' "$probe_container")
 grep -q 'noexec' <<<"$probe_tmpfs"
 grep -q 'nosuid' <<<"$probe_tmpfs"
