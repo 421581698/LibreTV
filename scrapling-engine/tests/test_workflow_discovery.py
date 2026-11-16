@@ -73,3 +73,58 @@ async def test_discover_site_links_is_bounded_and_stays_on_seed_origin(
     assert result["scope"] == "same_origin_only"
     assert result["visited_count"] == 2
     assert [item["url"] for item in result["items"]] == [seed, child]
+
+
+@pytest.mark.asyncio
+async def test_worker_tests_ai_generated_rule_on_fetched_page(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seed = "https://93.184.216.34/catalog"
+
+    class RulePage:
+        url = seed
+        body = b"<html><article class='movie-card'>Movie A</article></html>"
+
+        def get_all_text(self, strip: bool = True) -> str:
+            return "Movie A"
+
+    class FakePlanner:
+        model = "test-model"
+
+        def __init__(self, *_args: object) -> None:
+            pass
+
+        async def generate_extraction_rule(
+            self,
+            _goal: str,
+            _url: str,
+            _html: str,
+        ):
+            from app.supervisor import ExtractionRule
+
+            return ExtractionRule(
+                mode="css",
+                selector=".movie-card",
+                rationale="Stable movie card class.",
+            )
+
+    monkeypatch.setattr("app.workflow_worker.ensure_robots_allowed", lambda *a, **k: None)
+    monkeypatch.setattr(
+        "app.workflow_worker.ScraplingAdapter.fetch_page",
+        lambda *_args, **_kwargs: RulePage(),
+    )
+    monkeypatch.setattr(
+        "app.workflow_worker.ScraplingAdapter.extract",
+        lambda *_args, **_kwargs: {"text": ["Movie A", "Movie B"], "count": 2},
+    )
+    monkeypatch.setattr("app.workflow_worker.SupervisorClient", FakePlanner)
+
+    worker = WorkflowWorker("postgresql://unused", "test-worker")
+    result = await worker._generate_extraction_rule(
+        {"page_url": seed, "goal": "Extract movie titles"}
+    )
+
+    assert result["test_passed"] is True
+    assert result["selector"] == ".movie-card"
+    assert result["match_count"] == 2
+    assert result["verification_level"] == "live_page_selector_test"
