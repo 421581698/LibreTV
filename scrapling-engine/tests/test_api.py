@@ -3,6 +3,7 @@ from unittest.mock import Mock
 import pytest
 from cssselect.parser import SelectorSyntaxError
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 from lxml.etree import XPathError
 
 from app.main import WorkflowNodeRequest, app
@@ -10,6 +11,45 @@ from app.scraper import ScraplingAdapter
 
 client = TestClient(app)
 
+
+
+def test_candidate_and_rule_approval_routes_require_api_key(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.main.settings.api_key",
+        SecretStr("review-gate-test-key-0123456789abcdef"),
+    )
+
+    protected_routes = [
+        (
+            "/v1/candidates/candidate-123/review",
+            {"decision": "approved", "reviewer_id": "reviewer", "note": "reviewed"},
+        ),
+        (
+            "/v1/rules/rule-123/activate",
+            {"reviewer_id": "reviewer", "note": "reviewed"},
+        ),
+        (
+            "/v1/rules/rule-123/disable",
+            {"reviewer_id": "reviewer", "note": "disabled"},
+        ),
+    ]
+
+    for path, payload in protected_routes:
+        assert client.post(path, json=payload).status_code == 401
+        assert client.post(
+            path,
+            json=payload,
+            headers={"X-API-Key": "incorrect-key"},
+        ).status_code == 401
+
+        authorized = client.post(
+            path,
+            json=payload,
+            headers={"X-API-Key": "review-gate-test-key-0123456789abcdef"},
+        )
+        # The request passes the authentication middleware. The endpoint may
+        # then return 404/409/501 depending on the configured test database.
+        assert authorized.status_code != 401
 
 def test_health_reports_phase_one() -> None:
     response = client.get("/health")
