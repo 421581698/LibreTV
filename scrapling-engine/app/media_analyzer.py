@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import xml.etree.ElementTree as ET
 import re
+import xml.etree.ElementTree as ET
 from typing import Any
 
 
