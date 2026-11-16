@@ -27,6 +27,7 @@ def test_probe_client_submits_file_and_reads_sidecar_result(tmp_path, monkeypatc
     media = root / "clip.mp4"
     media.write_bytes(b"test media")
     monkeypatch.setenv("MEDIA_PROBE_ROOT", str(root))
+    monkeypatch.setenv("MEDIA_PROBE_STAGING", str(root))
     monkeypatch.setenv("MEDIA_PROBE_INBOX", str(inbox))
     monkeypatch.setenv("MEDIA_PROBE_OUTBOX", str(outbox))
 
@@ -34,7 +35,7 @@ def test_probe_client_submits_file_and_reads_sidecar_result(tmp_path, monkeypatc
         request_files = list(inbox.glob("*.json"))
         assert len(request_files) == 1
         request = json.loads(request_files[0].read_text())
-        assert (inbox / request["filename"]).read_bytes() == b"test media"
+        assert (root / request["filename"]).read_bytes() == b"test media"
         (outbox / f'{request["job_id"]}.json').write_text(
             json.dumps({"ok": True, "report": _report()}),
             encoding="utf-8",
