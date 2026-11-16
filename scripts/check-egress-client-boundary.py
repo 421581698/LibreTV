@@ -108,11 +108,14 @@ def inspect_file(path: Path) -> list[str]:
                 and isinstance(node.func.value, ast.Name)
                 and node.func.value.id in builtin_import_aliases
             )
+            importlib_root = node.func.value if isinstance(node.func, ast.Attribute) else None
+            while isinstance(importlib_root, ast.Attribute):
+                importlib_root = importlib_root.value
             dynamic_import = dynamic_import or (
                 isinstance(node.func, ast.Attribute)
                 and node.func.attr == "import_module"
-                and isinstance(node.func.value, ast.Name)
-                and node.func.value.id in importlib_aliases
+                and isinstance(importlib_root, ast.Name)
+                and importlib_root.id in importlib_aliases
             )
             if dynamic_import and node.args:
                 arg = node.args[0]
