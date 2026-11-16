@@ -493,9 +493,13 @@ class WorkflowWorker:
             raise ValueError("probe_media_candidates requires non-empty string candidate IDs")
         candidate_ids = list(dict.fromkeys(candidate_ids))
         if not candidate_ids:
-            return {"count": 0, "reports": []}
-        skipped_count = max(0, len(candidate_ids) - 20)
-        candidate_ids = candidate_ids[:20]
+            return {
+                "count": 0,
+                "reports": [],
+                "skipped_count": 0,
+                "downloaded_bytes": 0,
+            }
+
         timeout_seconds = payload.get("timeout_seconds", 20)
         if (
             not isinstance(timeout_seconds, int)
@@ -504,19 +508,18 @@ class WorkflowWorker:
         ):
             raise ValueError("timeout_seconds must be an integer from 1 to 60")
 
-        staging = Path(os.environ.get("MEDIA_PROBE_STAGING", "/tmp/libretv-media-probe"))
+        skipped_count = max(0, len(candidate_ids) - 200)
+        candidate_ids = candidate_ids[:200]
         reports: list[dict[str, Any]] = []
-        remaining_budget = 5 * 1024 * 1024 * 1024
-        downloaded_bytes = 0
-        for candidate_id in dict.fromkeys(candidate_ids):
-            if not isinstance(candidate_id, str) or not candidate_id:
-                reports.append({"candidate_id": str(candidate_id)[:128], "status": "invalid_id"})
-                continue
-            candidate = await asyncio.to_thread(self.candidates.get_candidate, candidate_id)
+        file_candidates: list[tuple[str, dict[str, Any]]] = []
+        for candidate_id in candidate_ids:
+            candidate = await asyncio.to_thread(
+                self.candidates.get_candidate,
+                candidate_id,
+            )
             if candidate is None:
                 reports.append({"candidate_id": candidate_id, "status": "not_found"})
-                continue
-            if candidate.get("media_type") != "file":
+            elif candidate.get("media_type") != "file":
                 reports.append(
                     {
                         "candidate_id": candidate_id,
@@ -524,8 +527,19 @@ class WorkflowWorker:
                         "verification_level": "manifest_analysis_required",
                     }
                 )
-                continue
+            else:
+                file_candidates.append((candidate_id, candidate))
 
+        skipped_count += max(0, len(file_candidates) - 20)
+        for candidate_id, _candidate in file_candidates[20:]:
+            reports.append(
+                {"candidate_id": candidate_id, "status": "batch_limit_skipped"}
+            )
+
+        staging = Path(os.environ.get("MEDIA_PROBE_STAGING", "/tmp/libretv-media-probe"))
+        remaining_budget = 5 * 1024 * 1024 * 1024
+        downloaded_bytes = 0
+        for candidate_id, candidate in file_candidates[:20]:
             staged_path: Path | None = None
             try:
                 media_url = validate_public_http_url(candidate["media_url"])
