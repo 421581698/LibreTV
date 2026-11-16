@@ -90,6 +90,7 @@ def test_postgres_worker_control_requests_pause_cancel_and_resume() -> None:
                 "WHERE task_id = %s",
                 (task_id,),
             )
+        assert not store.heartbeat(task_id, "worker-control", lease_seconds=30)
         reclaimed = store.claim_next("worker-control-recovery", lease_seconds=30)
         assert reclaimed is not None
         assert reclaimed["lease_owner"] == "worker-control-recovery"
