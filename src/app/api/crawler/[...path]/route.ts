@@ -62,7 +62,6 @@ async function proxy(
     return errorResponse('智能爬虫引擎尚未配置连接地址或服务密钥。', 503);
   }
 
-  const { path } = await context.params;
   if (
     !path.length ||
     path.some((segment) => !/^[a-zA-Z0-9_-]+$/.test(segment)) ||
