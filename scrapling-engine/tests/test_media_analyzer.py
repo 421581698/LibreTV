@@ -6,7 +6,7 @@ from app.media_analyzer import analyze_hls_manifest, analyze_mpd_manifest
 
 
 def test_hls_manifest_reports_4k_hdr_and_bitrate_as_unverified_claims() -> None:
-    manifest = "\\n".join(
+    manifest = "\n".join(
         [
             "#EXTM3U",
             "#EXT-X-VERSION:6",
