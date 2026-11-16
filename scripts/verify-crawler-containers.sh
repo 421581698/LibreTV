@@ -186,8 +186,17 @@ except OSError:
 finally:
  s.close()'
 worker_mounts=$(docker inspect --format '{{json .Mounts}}' "$worker_container")
-python3 -c 'import json,sys; mounts=json.loads(sys.argv[1]); by_target={m["Destination"]:m for m in mounts}; assert by_target["/probe/staging"]["RW"] is True' "$worker_mounts"
-echo "scrapling-media-probe: no network, read-only input mount and writable result mount passed"
+python3 -c 'import json,sys; mounts=json.loads(sys.argv[1]); by_target={m["Destination"]:m for m in mounts}; assert by_target["/probe/staging"]["RW"] is True; assert by_target["/probe/inbox"]["RW"] is True; assert by_target["/probe/outbox"]["RW"] is False' "$worker_mounts"
+timeout 5s "${compose[@]}" exec -T scrapling-workflow-worker python - <<'PY'
+from pathlib import Path
+try:
+    (Path("/probe/outbox") / "worker-write-forbidden").write_text("tamper")
+except OSError:
+    print("Workflow worker cannot modify probe results.")
+else:
+    raise SystemExit("Workflow worker unexpectedly wrote to the probe result volume.")
+PY
+echo "scrapling-media-probe: no network, read-only input and output isolation passed"
 
 
 # Network membership is the actual no-bypass control: every worker and
