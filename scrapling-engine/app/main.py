@@ -606,6 +606,16 @@ async def start_autonomous_discovery(request: AutonomousDiscoveryRequest) -> dic
             status_code=501,
             detail="Autonomous discovery requires PostgreSQL worker mode.",
         )
+    if not (
+        settings.supervisor_api_key
+        and settings.supervisor_api_key.get_secret_value()
+        and settings.supervisor_model
+        and settings.egress_proxy_url
+    ):
+        raise HTTPException(
+            status_code=503,
+            detail="AI model credentials and the validated egress proxy must be configured.",
+        )
     try:
         catalog_urls = _safe_seed_urls(request.catalog_urls)
     except HTTPException:
