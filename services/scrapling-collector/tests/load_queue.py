@@ -95,6 +95,6 @@ def run(target: int, workers: int) -> dict:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Isolated durable queue load test; no network requests are made.")
     parser.add_argument("--target", type=int, default=10000)
-    parser.add_argument("--workers", type=int, default=12)
+    parser.add_argument("--workers", type=int, default=4)
     args = parser.parse_args()
     print(json.dumps(run(args.target, args.workers), sort_keys=True))
