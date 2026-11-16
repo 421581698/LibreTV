@@ -104,6 +104,7 @@ class CollectorTests(unittest.TestCase):
         self.assertIn("/v1/rules/{host}", paths)
         self.assertIn("/v1/rules/{host}/versions", paths)
         self.assertIn("/v1/rules/{host}/diagnostics", paths)
+        self.assertIn("/v1/rules/{host}/events", paths)
         self.assertIn("/v1/rules/{host}/versions/{version}/activate", paths)
 
     def test_importing_app_does_not_create_or_migrate_database(self):
