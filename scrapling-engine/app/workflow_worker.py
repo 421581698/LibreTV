@@ -250,10 +250,18 @@ class WorkflowWorker:
             payload["dependencies"] = node.get("dependencies", {})
             payload["_workflow_id"] = workflow_id
             payload["_workflow_input"] = node.get("workflow_input", {})
-            result = await handler(payload)
+            handler_task = asyncio.create_task(handler(payload))
+            lost_task = asyncio.create_task(lost.wait())
+            await asyncio.wait(
+                {handler_task, lost_task},
+                return_when=asyncio.FIRST_COMPLETED,
+            )
             if lost.is_set():
                 logger.warning("Workflow lease lost for %s/%s", workflow_id, node_id)
+                handler_task.cancel()
+                await asyncio.gather(handler_task, return_exceptions=True)
                 return True
+            result = await handler_task
             completed = await asyncio.to_thread(
                 self.store.complete_node,
                 workflow_id,
@@ -277,6 +285,9 @@ class WorkflowWorker:
         finally:
             stop.set()
             await heartbeat
+            if "lost_task" in locals():
+                lost_task.cancel()
+                await asyncio.gather(lost_task, return_exceptions=True)
         return True
 
     async def run_forever(self) -> None:
