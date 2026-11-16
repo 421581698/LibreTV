@@ -62,8 +62,15 @@ async def test_discover_site_links_is_bounded_and_stays_on_seed_origin(
     monkeypatch.setattr("app.workflow_worker.ensure_robots_allowed", lambda *a, **k: None)
     monkeypatch.setattr("app.workflow_worker.ScraplingAdapter.fetch_page", fetch)
     monkeypatch.setattr("app.workflow_worker.asyncio.sleep", no_wait)
+    monkeypatch.setattr(
+        WorkflowWorker,
+        "_unused",
+        lambda *_args: None,
+        raising=False,
+    )
 
     worker = WorkflowWorker("postgresql://unused", "test-worker")
+    monkeypatch.setattr(worker.rules, "list_active_for_origin", lambda _url: [])
     result = await worker._discover_site_links(
         {"urls": [seed], "max_pages": 2, "max_depth": 2}
     )
@@ -135,3 +142,50 @@ async def test_worker_tests_ai_generated_rule_on_fetched_page(
     assert result["selector"] == ".movie-card"
     assert result["match_count"] == 2
     assert result["verification_level"] == "live_page_selector_test"
+
+
+@pytest.mark.asyncio
+async def test_discovery_applies_only_explicitly_active_origin_rules(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seed = "https://93.184.216.34/catalog"
+    page = _Page(seed, [])
+    active_rule = {
+        "rule_id": "approved-rule",
+        "version": 2,
+        "goal": "Extract movie titles",
+        "mode": "css",
+        "selector": ".movie-card",
+    }
+    extracted_calls: list[str] = []
+
+    monkeypatch.setattr("app.workflow_worker.ensure_robots_allowed", lambda *a, **k: None)
+    monkeypatch.setattr(
+        "app.workflow_worker.ScraplingAdapter.fetch_page",
+        lambda *_args, **_kwargs: page,
+    )
+
+    def extract(_page: _Page, selector: str, _mode: str) -> dict[str, object]:
+        extracted_calls.append(selector)
+        return {"text": ["Film A", "Film B"], "count": 2}
+
+    monkeypatch.setattr("app.workflow_worker.ScraplingAdapter.extract", extract)
+    worker = WorkflowWorker("postgresql://unused", "test-worker")
+    monkeypatch.setattr(
+        worker.rules,
+        "list_active_for_origin",
+        lambda _url: [active_rule],
+    )
+
+    result = await worker._discover_site_links({"urls": [seed], "max_pages": 1})
+
+    assert extracted_calls == [".movie-card"]
+    assert result["items"][0]["rule_extractions"] == [
+        {
+            "rule_id": "approved-rule",
+            "version": 2,
+            "goal": "Extract movie titles",
+            "values": ["Film A", "Film B"],
+            "match_count": 2,
+        }
+    ]
