@@ -102,17 +102,25 @@ def test_probe_media_candidates_keeps_manifest_candidates_on_manifest_path() -> 
     assert worker.candidates.saved == []
 
 
-def test_probe_media_candidates_rejects_more_than_five_files() -> None:
+def test_probe_media_candidates_caps_batch_and_reports_overflow() -> None:
     worker = WorkflowWorker.__new__(WorkflowWorker)
-    worker.candidates = _CandidateStore({})
+    candidate_ids = [f"candidate-{index}" for index in range(21)]
+    worker.candidates = _CandidateStore(
+        {
+            candidate_id: {
+                "candidate_id": candidate_id,
+                "media_type": "hls",
+                "media_url": "https://93.184.216.34/master.m3u8",
+            }
+            for candidate_id in candidate_ids
+        }
+    )
 
-    try:
-        asyncio.run(
-            worker._probe_media_candidates(
-                {"candidate_ids": ["a", "b", "c", "d", "e", "f"]}
-            )
-        )
-    except ValueError as exc:
-        assert "at most 5" in str(exc)
-    else:
-        raise AssertionError("Expected a bounded candidate batch")
+    result = asyncio.run(
+        worker._probe_media_candidates({"candidate_ids": candidate_ids})
+    )
+
+    assert result["count"] == 20
+    assert result["skipped_count"] == 1
+    assert len(result["reports"]) == 20
+    assert all(item["status"] == "manifest_candidate" for item in result["reports"])
