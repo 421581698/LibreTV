@@ -7,6 +7,7 @@ import psycopg
 import pytest
 
 from app.workflow_store import PostgresWorkflowStore, WorkflowDefinitionError
+from app.workflow_worker import WorkflowWorker
 
 
 def test_workflow_store_rejects_cycles_and_unknown_edges() -> None:
@@ -168,3 +169,12 @@ def test_workflow_pause_resume_and_cancel_are_durable_node_boundary_controls() -
                 "DELETE FROM resource_workflows WHERE workflow_id = %s",
                 (workflow_id,),
             )
+
+
+def test_workflow_worker_uses_unique_lease_identity_per_process() -> None:
+    first = WorkflowWorker("postgresql://unused", "dag-worker-1")
+    second = WorkflowWorker("postgresql://unused", "dag-worker-1")
+
+    assert first.worker_id.startswith("dag-worker-1:")
+    assert second.worker_id.startswith("dag-worker-1:")
+    assert first.worker_id != second.worker_id
