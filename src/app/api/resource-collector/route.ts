@@ -8,7 +8,13 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   const guarded = guardPrivateFeatureRequest(request);
   if (guarded) return guarded;
-  const action = new URL(request.url).searchParams.get('action');
+  const params = new URL(request.url).searchParams;
+  const action = params.get('action');
+  if (action === 'batch') {
+    const batchId = params.get('id') ?? '';
+    if (!/^[a-f0-9]{32}$/.test(batchId)) return NextResponse.json({ error: 'Invalid batch ID.' }, { status: 400 });
+    return collectorRequest(`/v1/collect/${batchId}`, {}, 10_000, request);
+  }
   return collectorRequest(action === 'tasks' ? '/v1/tasks' : '/v1/discover', {}, 20_000, request);
 }
 
@@ -34,6 +40,9 @@ export async function POST(request: NextRequest) {
 
   if (!body || typeof body !== 'object') {
     return NextResponse.json({ error: 'Invalid collector request.' }, { status: 400 });
+  }
+  if ('action' in body && body.action === 'collect') {
+    return collectorRequest('/v1/collect', { method: 'POST' }, 10_000, request);
   }
   if ('candidateId' in body && typeof body.candidateId === 'string') {
     if (!/^[a-f0-9]{32}$/i.test(body.candidateId)) {
