@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import time
 
 import pytest
 
 from app.probe_client import MediaProbeError, probe_media_file
+from app.probe_worker import cleanup_orphaned_results
 
 
 def _report() -> dict:
@@ -45,6 +47,8 @@ def test_probe_client_submits_file_and_reads_sidecar_result(tmp_path, monkeypatc
     report = probe_media_file(media, timeout_seconds=5)
     assert report["video"]["width"] == 3840
     assert list(inbox.iterdir()) == []
+    assert len(list(outbox.iterdir())) == 1
+    cleanup_orphaned_results(inbox, outbox, now=time.time() + 61)
     assert list(outbox.iterdir()) == []
 
 
