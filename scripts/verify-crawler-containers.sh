@@ -17,20 +17,25 @@ trap cleanup EXIT
 "${compose[@]}" config --quiet
 "${compose[@]}" up -d --build scrapling-postgres scrapling-engine scrapling-job-worker scrapling-workflow-worker
 
+ready=0
 for attempt in $(seq 1 60); do
   state=$("${compose[@]}" ps --format json scrapling-postgres | python3 -c 'import json,sys; rows=[json.loads(x) for x in sys.stdin if x.strip()]; print(rows[0].get("State", "") if rows else "")')
   if [[ "$state" == "running" ]]; then
     if "${compose[@]}" exec -T scrapling-postgres pg_isready -U libretv_scrapling -d libretv_scrapling >/dev/null 2>&1; then
+      ready=1
       break
     fi
   fi
   sleep 2
 done
+[[ "$ready" == "1" ]] || { echo "PostgreSQL did not become ready"; exit 1; }
 
 for service in scrapling-engine scrapling-job-worker scrapling-workflow-worker; do
   container=$("${compose[@]}" ps -q "$service")
   test -n "$container"
 
+  running=$(docker inspect --format '{{.State.Running}}' "$container")
+  [[ "$running" == "true" ]] || { echo "$service is not running"; docker logs "$container"; exit 1; }
   user=$(docker inspect --format '{{.Config.User}}' "$container")
   readonly=$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "$container")
   pids=$(docker inspect --format '{{.HostConfig.PidsLimit}}' "$container")
