@@ -38,6 +38,20 @@ POST /v1/spider remains a synchronous compatibility endpoint. For managed work, 
 Run one Uvicorn API process per deployment instance and run independent workers with unique IDs using `libretv-scrapling-worker --worker-id worker-a`. Multiple PostgreSQL workers can compete safely for queued jobs; each renews its lease and fences result/completion writes by current lease ownership. If a worker loses its lease, late writes are rejected. The API must be configured with DATABASE_URL and workers must use the same database. PostgreSQL mode persists pause/cancel control requests for the lease-owning worker to observe and apply; paused jobs can be resumed through the API after a saved checkpoint is present. Control requests are recorded in the event stream. Cancellation is terminal. SQLite mode retains its original in-process pause behavior; the cancel endpoint is PostgreSQL-worker-only. Keep local development bound to localhost. The Docker image binds to 0.0.0.0 using the same HOST and PORT settings as the application, so it must be started with a SCRAPLING_API_KEY of at least 32 characters. Any non-loopback bind without this key fails closed; all /v1/* routes then require the matching X-API-Key header. Terminate TLS at a trusted reverse proxy; do not send the API key over plain public HTTP. This is a single service key, not per-user tenant isolation. Before a multi-user remote deployment, add per-user authorization/quotas, audit retention, and network-level egress filtering that blocks private, loopback, link-local and metadata-service ranges even after DNS resolution and redirects.
 
 
+## Optional Docker Compose deployment
+
+The root `docker-compose.yml` includes an opt-in `crawler` profile with PostgreSQL, the Scrapling API, the legacy crawl-job worker, and the DAG workflow worker. It does not start as part of the default LibreTV Compose deployment.
+
+Set `SCRAPLING_API_KEY` to at least 32 random characters and `SCRAPLING_DB_PASSWORD` to a separate strong password in the root `.env`, then start the profile:
+
+```bash
+docker compose --profile crawler up -d --build
+```
+
+LibreTV reaches the engine over the internal Compose network at `http://scrapling-engine:8787`; the engine port is not published to the host. PostgreSQL data and shared crawl checkpoint data use named volumes. The engine refuses to bind to `0.0.0.0` without its API key. Change the example development database password before any non-local deployment, terminate TLS at the public edge, and keep the engine and database private.
+
+```
+
 ## Durable server-side DAG runtime
 
 PostgreSQL mode also exposes a persistent DAG API. POST /v1/workflows accepts a workflow_id (optional), nodes, directed edges, and input metadata. The API rejects duplicate node IDs, unknown edge endpoints, self-edges, and cycles. GET /v1/workflows/{workflow_id} returns node states and graph edges; GET /v1/workflows/{workflow_id}/events streams the durable audit log.
