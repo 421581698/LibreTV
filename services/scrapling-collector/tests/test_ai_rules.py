@@ -117,6 +117,22 @@ class AIRuleTests(unittest.TestCase):
         self.assertEqual(audit[0]["previous_version"], second["version"])
         self.assertEqual(second["status"], "active")
 
+    def test_rule_event_schema_additively_migrates_previous_version(self):
+        with ai_rules.connect() as connection:
+            connection.execute("DROP TABLE collector_rule_events")
+            connection.execute("""CREATE TABLE collector_rule_events (
+                id TEXT PRIMARY KEY, host TEXT NOT NULL, version INTEGER NOT NULL,
+                action TEXT NOT NULL, created_at INTEGER NOT NULL
+            )""")
+        ai_rules.initialize()
+        with ai_rules.connect() as connection:
+            columns = {
+                row[1] for row in connection.execute(
+                    "PRAGMA table_info(collector_rule_events)"
+                ).fetchall()
+            }
+        self.assertIn("previous_version", columns)
+
     def test_draft_rule_version_cannot_be_activated(self):
         draft = ai_rules.save_version(
             "draft-rollback.example", {"selectors": {"media": "video.missing"}}, "ai",
