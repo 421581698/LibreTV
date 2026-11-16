@@ -57,6 +57,12 @@ def initialize(connection=None):
           id TEXT PRIMARY KEY, host TEXT NOT NULL, task_id TEXT, failure_code TEXT NOT NULL,
           detail_json TEXT NOT NULL, repair_version INTEGER, created_at INTEGER NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS collector_rule_events (
+          id TEXT PRIMARY KEY, host TEXT NOT NULL, version INTEGER NOT NULL,
+          action TEXT NOT NULL, created_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_collector_rule_events_host
+          ON collector_rule_events(host,created_at DESC);
         """)
         c.commit()
     finally:
@@ -309,6 +315,75 @@ def diagnose_and_repair(host: str, page_html: str, failure_code: str,
     return {"diagnostic_id": diagnostic_id, "repair": version}
 
 
+def list_versions(host: str, limit: int = 50) -> list[dict]:
+    limit = max(1, min(100, int(limit)))
+    with connect() as c:
+        rows = c.execute(
+            """SELECT id,host,version,status,rules_json,source,fixture_passes,
+                      fixture_total,created_at
+               FROM collector_rule_versions WHERE host=?
+               ORDER BY version DESC LIMIT ?""",
+            (host, limit),
+        ).fetchall()
+    return [{
+        "id": row["id"], "host": row["host"], "version": row["version"],
+        "status": row["status"], "rules": json.loads(row["rules_json"]),
+        "source": row["source"], "fixture_passes": row["fixture_passes"],
+        "fixture_total": row["fixture_total"], "created_at": row["created_at"],
+    } for row in rows]
+
+
+def list_diagnostics(host: str, limit: int = 50) -> list[dict]:
+    limit = max(1, min(100, int(limit)))
+    with connect() as c:
+        rows = c.execute(
+            """SELECT id,host,task_id,failure_code,detail_json,repair_version,created_at
+               FROM collector_rule_diagnostics WHERE host=?
+               ORDER BY created_at DESC LIMIT ?""",
+            (host, limit),
+        ).fetchall()
+    return [{
+        "id": row["id"], "host": row["host"], "task_id": row["task_id"],
+        "failure_code": row["failure_code"], "detail": json.loads(row["detail_json"]),
+        "repair_version": row["repair_version"], "created_at": row["created_at"],
+    } for row in rows]
+
+
+def activate_version(host: str, version: int) -> dict:
+    now = int(time.time())
+    with connect() as c:
+        initialize(c)
+        c.execute("BEGIN IMMEDIATE")
+        row = c.execute(
+            """SELECT status,fixture_passes,fixture_total FROM collector_rule_versions
+               WHERE host=? AND version=?""",
+            (host, version),
+        ).fetchone()
+        if not row:
+            raise ValueError("Rule version does not exist")
+        if row["status"] != "active" or row["fixture_total"] < 1 or row["fixture_passes"] != row["fixture_total"]:
+            raise ValueError("Only fully fixture-validated rule versions can be activated")
+        current = c.execute(
+            "SELECT active_version FROM collector_rules WHERE host=?", (host,)
+        ).fetchone()
+        previous = current["active_version"] if current else None
+        c.execute(
+            """INSERT INTO collector_rules(host,active_version,updated_at) VALUES(?,?,?)
+               ON CONFLICT(host) DO UPDATE SET active_version=excluded.active_version,
+               updated_at=excluded.updated_at""",
+            (host, version, now),
+        )
+        c.execute(
+            "INSERT INTO collector_rule_events(id,host,version,action,created_at) VALUES(?,?,?,?,?)",
+            (uuid.uuid4().hex, host, version, "rollback" if previous and version < previous else "activate", now),
+        )
+        c.commit()
+    rule = get_active_rule(host)
+    if rule is None:
+        raise RuntimeError("Activated rule version could not be read back")
+    return rule
+
+
 def has_rule_history(host: str) -> bool:
     with connect() as c:
         row = c.execute(
@@ -387,3 +462,27 @@ def read_active_rule(host: str, authorization: str | None = Header(default=None)
     if rule is None:
         raise HTTPException(status_code=404, detail="No fixture-validated active rule")
     return rule
+
+
+@router.get("/v1/rules/{host}/versions")
+def read_rule_versions(host: str, authorization: str | None = Header(default=None), limit: int = 50):
+    from registry_queue import require_auth
+    require_auth(authorization)
+    return {"host": _validate_host(host), "versions": list_versions(_validate_host(host), limit)}
+
+
+@router.get("/v1/rules/{host}/diagnostics")
+def read_rule_diagnostics(host: str, authorization: str | None = Header(default=None), limit: int = 50):
+    from registry_queue import require_auth
+    require_auth(authorization)
+    return {"host": _validate_host(host), "diagnostics": list_diagnostics(_validate_host(host), limit)}
+
+
+@router.post("/v1/rules/{host}/versions/{version}/activate")
+def activate_rule_version(host: str, version: int, authorization: str | None = Header(default=None)):
+    from registry_queue import require_auth
+    require_auth(authorization)
+    try:
+        return activate_version(_validate_host(host), version)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
