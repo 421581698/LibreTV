@@ -44,6 +44,7 @@ async def download_candidate_media(
     descriptor, raw_path = tempfile.mkstemp(prefix=".libretv-probe-", suffix=".media", dir=staging)
     path = Path(raw_path)
     total = 0
+    completed = False
     try:
         timeout = httpx.Timeout(
             connect=15.0,
@@ -102,6 +103,7 @@ async def download_candidate_media(
                         os.fsync(handle.fileno())
                     if total <= 0:
                         raise MediaDownloadError("Media server returned an empty file")
+                    completed = True
                     return path
 
         raise MediaDownloadError("Media redirect chain did not produce a file")
@@ -111,5 +113,5 @@ async def download_candidate_media(
         if descriptor >= 0:
             os.close(descriptor)
         # On success the caller owns the returned file and removes it after probing.
-        if not path.exists() or total == 0:
+        if not completed:
             path.unlink(missing_ok=True)
