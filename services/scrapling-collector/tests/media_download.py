@@ -10,10 +10,12 @@ from __future__ import annotations
 import argparse
 import os
 import subprocess
+import sys
 import urllib.request
 from pathlib import Path
 from urllib.parse import urlsplit
 
+sys.path.insert(0, "/app")
 from app import public_https_url, require_egress_firewall
 
 
