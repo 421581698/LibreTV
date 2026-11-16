@@ -20,6 +20,7 @@ from starlette.concurrency import run_in_threadpool
 from app.config import settings, validate_bind_security
 from app.job_store import JobStore
 from app.postgres_job_store import PostgresJobStore
+from app.workflow_store import PostgresWorkflowStore, WorkflowDefinitionError
 from app.robots import RobotsPolicyError, RobotsUnavailableError, ensure_robots_allowed
 from app.scraper import ScraplingAdapter
 from app.security import UnsafeTargetError, validate_public_http_url
@@ -43,6 +44,11 @@ job_store = (
     else JobStore(settings.job_database_path)
 )
 job_store.initialize()
+workflow_store = (
+    PostgresWorkflowStore(settings.database_url) if settings.database_url else None
+)
+if workflow_store is not None:
+    workflow_store.initialize()
 if not settings.database_url:
     job_store.recover_interrupted()
 _active_spiders: dict[str, Any] = {}
@@ -58,6 +64,26 @@ class FetchRequest(BaseModel):
         "text", "css", "xpath", "regex", "adaptive_css", "adaptive_xpath"
     ] = "text"
     adaptive_action: Literal["save", "relocate"] | None = None
+
+
+
+class WorkflowNodeRequest(BaseModel):
+    node_id: str = Field(min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
+    node_type: Literal["validate_public_urls", "crawl_seed_urls"]
+    input: dict[str, Any] = Field(default_factory=dict)
+    max_attempts: int = Field(default=3, ge=1, le=5)
+
+
+class WorkflowRequest(BaseModel):
+    workflow_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=64,
+        pattern=r"^[a-zA-Z0-9_-]+$",
+    )
+    nodes: list[WorkflowNodeRequest] = Field(min_length=1, max_length=50)
+    edges: list[tuple[str, str]] = Field(default_factory=list, max_length=200)
+    input: dict[str, Any] = Field(default_factory=dict)
 
 
 class SpiderRequest(BaseModel):
@@ -470,6 +496,84 @@ async def create_job(request: SpiderRequest) -> dict:
         job_store.create(task_id, safe_urls, str(checkpoint_dir))
         _schedule_job(task_id)
         return {"ok": True, "created": True, "job": job_store.get(task_id)}
+
+
+
+@app.post("/v1/workflows", status_code=202)
+async def create_workflow(request: WorkflowRequest) -> dict:
+    if workflow_store is None:
+        raise HTTPException(
+            status_code=501,
+            detail="Durable DAG workflows require PostgreSQL mode.",
+        )
+    workflow_id = request.workflow_id or uuid.uuid4().hex
+    nodes = [node.model_dump() for node in request.nodes]
+    try:
+        created = workflow_store.create_workflow(
+            workflow_id,
+            nodes,
+            request.edges,
+            request.input,
+        )
+    except WorkflowDefinitionError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if not created:
+        raise HTTPException(status_code=409, detail="Workflow ID already exists.")
+    return {
+        "ok": True,
+        "workflow_id": workflow_id,
+        "status": "running",
+        "node_count": len(nodes),
+    }
+
+
+@app.get("/v1/workflows/{workflow_id}")
+async def get_workflow(workflow_id: str) -> dict:
+    if workflow_store is None:
+        raise HTTPException(
+            status_code=501,
+            detail="Durable DAG workflows require PostgreSQL mode.",
+        )
+    workflow = workflow_store.get_workflow(workflow_id)
+    if workflow is None:
+        raise HTTPException(status_code=404, detail="Workflow not found.")
+    return {"ok": True, "workflow": workflow}
+
+
+@app.get("/v1/workflows/{workflow_id}/events")
+async def workflow_events(
+    workflow_id: str,
+    request: Request,
+    last_event_id: int = 0,
+) -> StreamingResponse:
+    if workflow_store is None:
+        raise HTTPException(
+            status_code=501,
+            detail="Durable DAG workflows require PostgreSQL mode.",
+        )
+    if workflow_store.get_workflow(workflow_id) is None:
+        raise HTTPException(status_code=404, detail="Workflow not found.")
+
+    async def stream_events():
+        header_cursor = request.headers.get("last-event-id", "0")
+        try:
+            cursor = max(last_event_id, int(header_cursor))
+        except ValueError:
+            cursor = max(last_event_id, 0)
+        while True:
+            events = workflow_store.events_after(workflow_id, cursor)
+            for event in events:
+                cursor = event["id"]
+                payload = json.dumps(event, ensure_ascii=False)
+                yield f"id: {cursor}\\nevent: {event['type']}\\ndata: {payload}\\n\\n"
+            workflow = workflow_store.get_workflow(workflow_id)
+            if workflow is None or workflow["status"] in {"completed", "failed"}:
+                break
+            if not events:
+                yield ": keep-alive\\n\\n"
+                await asyncio.sleep(1)
+
+    return StreamingResponse(stream_events(), media_type="text/event-stream")
 
 
 @app.get("/v1/jobs/{task_id}")
