@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 from urllib.parse import urlsplit, urlunsplit
 
 import registry_queue as registry_store
+import ai_rules
 from app import (
     TOKEN,
     CrawlRequest,
@@ -140,6 +141,29 @@ def handle(payload: dict, checkpoint, cancelled):
         raise JobCancelled()
     if payload.get("_job_type") == "batch_crawl":
         return run_batch_crawl(payload, checkpoint, cancelled)
+    if payload.get("_job_type") in {"rule_generate", "rule_repair"}:
+        require_egress_firewall()
+        host = payload["host"]
+        sample = payload["page_html"]
+        fixtures = payload.get("fixtures") or []
+        checkpoint({"stage": "ai_rule_analysis_started", "host": host})
+        if cancelled():
+            raise JobCancelled()
+        if payload.get("_job_type") == "rule_repair":
+            result = ai_rules.diagnose_and_repair(
+                host, sample, payload.get("failure_code") or "selector_miss",
+                payload.get("task_id"), fixtures,
+            )
+        else:
+            proposed = ai_rules.generate_rules(host, sample, {"task_id": payload.get("task_id")})
+            result = ai_rules.save_version(host, proposed, "ai_generation", fixtures)
+        checkpoint({
+            "stage": "ai_rule_version_recorded",
+            "host": host,
+            "version": result.get("repair", result).get("version", result.get("repair", result).get("version")),
+            "status": result.get("repair", result).get("status"),
+        })
+        return result
     if payload.get("_job_type") == "discover":
         require_egress_firewall()
         checkpoint({"stage": "fmhy_discovery_started"})
