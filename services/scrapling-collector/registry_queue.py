@@ -103,7 +103,7 @@ def validate_durable_job_payload(job_type: str, payload: dict) -> dict:
         raise ValueError("Job payload must be an object")
     if job_type != "crawl":
         return payload
-    from urllib.parse import parse_qsl, urlsplit
+    from urllib.parse import parse_qsl, urlsplit, urlunsplit
     url = payload.get("url")
     if not isinstance(url, str) or len(url) > 4096:
         raise ValueError("Crawl jobs require a bounded HTTPS URL")
