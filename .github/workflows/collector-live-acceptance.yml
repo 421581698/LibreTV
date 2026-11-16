@@ -112,7 +112,7 @@ jobs:
             -e SCRAPLING_API_TOKEN="$SCRAPLING_API_TOKEN" \
             -e LIVE_CRAWL_ALLOWED_HOSTS="$LIVE_CRAWL_ALLOWED_HOSTS" \
             libretv-scrapling-collector python /tmp/live_crawl_scale.py \
-              --urls /tmp/approved-live-urls.txt --target "${{ inputs.crawl_target || '1000' }}"
+              --urls /tmp/approved-live-urls.txt --target "${{ inputs.crawl_target || vars.COLLECTOR_LIVE_CRAWL_TARGET || '1000' }}"
       - name: Collect isolated stack diagnostics
         if: always()
         run: |
