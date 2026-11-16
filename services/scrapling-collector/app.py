@@ -47,6 +47,8 @@ if not TOKEN:
 
 app = FastAPI(title="LibreTV FMHY Scrapling Collector", docs_url=None, redoc_url=None)
 app.include_router(registry_router)
+import ai_rules
+app.include_router(ai_rules.router)
 
 # Enable Scrapling's persistent adaptive selector storage only when a crawl starts.
 # Importing the ASGI app must not create or migrate any database files.
