@@ -422,6 +422,39 @@ class RegistryQueueTests(unittest.TestCase):
             ).fetchone()
         self.assertIsNone(stored)
 
+    def test_candidate_links_deduplicate_by_source_and_canonical_url(self):
+        url = "https://media.example.org/catalog/movie.mp4"
+        first_id = "1" * 32
+        second_id = "2" * 32
+        first = queue.register_discovered_candidate({
+            "id": first_id, "kind": "direct-media", "host": "media.example.org",
+            "url": url, "title": "Same public media", "status": "pending",
+            "access_state": "ACCESS_UNKNOWN",
+        })
+        second = queue.register_discovered_candidate({
+            "id": second_id, "kind": "direct-media", "host": "media.example.org",
+            "url": url, "title": "Same public media", "status": "pending",
+            "access_state": "ACCESS_UNKNOWN",
+        })
+        self.assertEqual(first["id"], second["id"])
+        self.assertNotEqual(first["resource_key"], "candidate:" + first_id)
+        with queue.connect() as connection:
+            links = connection.execute(
+                "SELECT COUNT(*) AS n FROM registry_candidate_links WHERE resource_id=?",
+                (first["id"],),
+            ).fetchone()["n"]
+        self.assertEqual(links, 2)
+
+        queue.sync_candidate_validation(first_id, {
+            "reachable": True, "media_format": "progressive",
+            "content_type": "video/mp4", "access": {"access_state": "PUBLIC"},
+        }, "validated")
+        confirmed = queue.register_candidate_playback(second_id, {
+            "progressed_seconds": 15, "observed_seconds": 15, "media_type": "mp4",
+        })
+        self.assertEqual(confirmed["resource"]["id"], first["id"])
+        self.assertEqual(confirmed["resource"]["playback_state"], "PLAYER_CONFIRMED")
+
     def test_registry_search_matches_preserved_search_keyword_metadata(self):
         candidate_id = "b" * 32
         resource = queue.register_discovered_candidate({
