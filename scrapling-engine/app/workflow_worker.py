@@ -304,7 +304,11 @@ class WorkflowWorker:
         if not isinstance(catalog_urls, list) or not 1 <= len(catalog_urls) <= 5:
             raise ValueError("autonomous_site_discovery requires 1 to 5 catalog URLs")
         max_sites = payload.get("max_sites", 10)
-        if not isinstance(max_sites, int) or isinstance(max_sites, bool) or not 1 <= max_sites <= 20:
+        if (
+            not isinstance(max_sites, int)
+            or isinstance(max_sites, bool)
+            or not 1 <= max_sites <= 20
+        ):
             raise ValueError("max_sites must be an integer from 1 to 20")
         goal = str(payload.get("goal", "Discover public movie, series and animation resources."))
         if not goal.strip() or len(goal) > 1000:
@@ -318,16 +322,24 @@ class WorkflowWorker:
                 continue
             catalog_url = validate_public_http_url(raw_catalog_url)
             try:
-                await asyncio.to_thread(ensure_robots_allowed, catalog_url, settings.request_timeout_seconds)
-                page = await asyncio.to_thread(ScraplingAdapter.fetch_page, catalog_url, settings.request_timeout_seconds)
-                final_url = validate_public_http_url(str(getattr(page, "url", None) or catalog_url))
+                await asyncio.to_thread(
+                    ensure_robots_allowed, catalog_url, settings.request_timeout_seconds
+                )
+                page = await asyncio.to_thread(
+                    ScraplingAdapter.fetch_page, catalog_url, settings.request_timeout_seconds
+                )
+                final_url = validate_public_http_url(
+                    str(getattr(page, "url", None) or catalog_url)
+                )
                 if not is_same_origin(final_url, catalog_url):
                     raise ValueError("catalog_redirect_outside_origin")
                 content_type = (getattr(page, "headers", {}) or {}).get("content-type", "")
                 if content_type and "html" not in str(content_type).lower():
                     raise ValueError("catalog_not_html")
                 catalog_pages.append((final_url, page))
-                for link in extract_discovery_links(page, final_url, max_links=100, same_origin_only=False):
+                for link in extract_discovery_links(
+                    page, final_url, max_links=100, same_origin_only=False
+                ):
                     parsed = urlsplit(link)
                     origin = f"{parsed.scheme.lower()}://{parsed.netloc.lower()}"
                     if origin != f"{urlsplit(final_url).scheme.lower()}://{urlsplit(final_url).netloc.lower()}":
@@ -338,9 +350,15 @@ class WorkflowWorker:
         site_results: list[dict[str, Any]] = []
         workflow_id = str(payload.get("_workflow_id") or "manual")
         for site_url in list(discovered_origins.values())[:max_sites]:
-            site_result: dict[str, Any] = {"site_url": site_url, "status": "discovered", "review_status": "candidate_only"}
+            site_result: dict[str, Any] = {
+                "site_url": site_url,
+                "status": "discovered",
+                "review_status": "candidate_only",
+            }
             try:
-                discovery = await self._ai_supervisor_discover({"urls": [site_url], "goal": goal})
+                discovery = await self._ai_supervisor_discover(
+                    {"urls": [site_url], "goal": goal}
+                )
                 site_result["pages_discovered"] = discovery.get("count", 0)
                 site_result["discovery_errors"] = discovery.get("errors", [])[:10]
                 items = discovery.get("items", [])
@@ -360,9 +378,13 @@ class WorkflowWorker:
                     )
                     if repair_needed:
                         try:
-                            rule_result = await self._generate_extraction_rule({
-                                "page_url": items[0].get("url"), "goal": goal, "_workflow_id": workflow_id
-                            })
+                            rule_result = await self._generate_extraction_rule(
+                                {
+                                    "page_url": items[0].get("url"),
+                                    "goal": goal,
+                                    "_workflow_id": workflow_id,
+                                }
+                            )
                             site_result["rule"] = rule_result
                             site_result["rule_repair_status"] = (
                                 "replacement_tested_pending_approval" if active_rules
