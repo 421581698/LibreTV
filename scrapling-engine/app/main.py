@@ -382,12 +382,20 @@ async def capabilities() -> dict:
             "workflow_node_leases_and_retries" if settings.database_url else "no_workflow_worker",
             (
                 "model_planned_discovery"
-                if settings.supervisor_api_key is not None and settings.supervisor_model
+                if bool(
+                    settings.supervisor_api_key
+                    and settings.supervisor_api_key.get_secret_value()
+                    and settings.supervisor_model
+                )
                 else "supervisor_requires_model_configuration"
             ),
             (
                 "ai_selector_generation_and_live_test"
-                if settings.supervisor_api_key is not None and settings.supervisor_model
+                if bool(
+                    settings.supervisor_api_key
+                    and settings.supervisor_api_key.get_secret_value()
+                    and settings.supervisor_model
+                )
                 else "selector_generation_requires_model_configuration"
             ),
             (
