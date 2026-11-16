@@ -29,6 +29,7 @@ on:
       - "render.yaml"
       - "scripts/scrapling-egress-firewall.sh"
       - ".github/workflows/scrapling-collector.yml"
+      - ".github/workflows/collector-live-acceptance.yml"
   pull_request:
     paths:
       - "services/scrapling-collector/**"
@@ -38,6 +39,7 @@ on:
       - "render.yaml"
       - "scripts/scrapling-egress-firewall.sh"
       - ".github/workflows/scrapling-collector.yml"
+      - ".github/workflows/collector-live-acceptance.yml"
   workflow_dispatch:
 
 permissions:
