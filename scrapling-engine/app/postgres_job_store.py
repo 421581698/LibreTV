@@ -245,7 +245,7 @@ class PostgresJobStore:
                     SELECT task_id
                     FROM crawl_jobs
                     WHERE status = 'queued'
-                       OR (status = 'running' AND (lease_expires_at IS NULL 
+                       OR (status IN ('running', 'pausing') AND (lease_expires_at IS NULL 
                            OR lease_expires_at < %s))
                     ORDER BY created_at, task_id
                     LIMIT 1
