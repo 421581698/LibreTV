@@ -89,7 +89,8 @@ class CrawlWorker:
                 "UPDATE crawl_jobs SET status = %s, result_json = %s::jsonb, error = %s, "
                 "finished_at = %s, updated_at = %s, lease_owner = NULL, "
                 "lease_expires_at = NULL, heartbeat_at = NULL "
-                "WHERE task_id = %s AND status IN ('running', 'pausing', 'cancelling') AND lease_owner = %s "
+                "WHERE task_id = %s AND status IN "
+                "('running', 'pausing', 'cancelling') AND lease_owner = %s "
                 "AND lease_expires_at > NOW()",
                 (
                     status,
