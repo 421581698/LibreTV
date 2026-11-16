@@ -123,6 +123,15 @@ class WorkflowWorker:
         media_extensions = (
             ".m3u8", ".mpd", ".mp4", ".m4v", ".webm", ".mov", ".ts", ".mkv"
         )
+        active_rules_by_origin: dict[str, list[dict[str, Any]]] = {}
+        for seed in seeds:
+            parsed_seed = urlsplit(seed)
+            seed_origin = f"{parsed_seed.scheme.lower()}://{parsed_seed.netloc.lower()}"
+            if seed_origin not in active_rules_by_origin:
+                active_rules_by_origin[seed_origin] = await asyncio.to_thread(
+                    self.rules.list_active_for_origin,
+                    seed,
+                )
 
         while queue and len(visited) < max_pages:
             url, depth = queue.pop(0)
@@ -163,6 +172,42 @@ class WorkflowWorker:
                         if safe_media not in media_urls and len(media_urls) < 20:
                             media_urls.append(safe_media)
 
+                parsed_final = urlsplit(final_url)
+                final_origin = (
+                    f"{parsed_final.scheme.lower()}://{parsed_final.netloc.lower()}"
+                )
+                rule_extractions: list[dict[str, Any]] = []
+                for active_rule in active_rules_by_origin.get(final_origin, []):
+                    try:
+                        matched = await asyncio.to_thread(
+                            ScraplingAdapter.extract,
+                            page,
+                            active_rule["selector"],
+                            active_rule["mode"],
+                        )
+                        rule_extractions.append(
+                            {
+                                "rule_id": active_rule["rule_id"],
+                                "version": active_rule["version"],
+                                "goal": active_rule["goal"],
+                                "values": matched.get("text", [])[:20],
+                                "match_count": matched.get("count", 0),
+                            }
+                        )
+                    except Exception as exc:
+                        logger.warning(
+                            "Active extraction rule %s failed: %s",
+                            active_rule["rule_id"],
+                            type(exc).__name__,
+                        )
+                        rule_extractions.append(
+                            {
+                                "rule_id": active_rule["rule_id"],
+                                "version": active_rule["version"],
+                                "status": "execution_failed",
+                            }
+                        )
+
                 items.append(
                     {
                         "url": final_url,
@@ -170,6 +215,7 @@ class WorkflowWorker:
                         "title": title_node.get().strip() if title_node else "",
                         "text": page.get_all_text(strip=True)[:20_000],
                         "media_urls": media_urls,
+                        "rule_extractions": rule_extractions,
                         "depth": depth,
                     }
                 )
