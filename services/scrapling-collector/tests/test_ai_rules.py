@@ -53,6 +53,14 @@ class AIRuleTests(unittest.TestCase):
         self.assertEqual(current["version"], active["version"])
         self.assertEqual(current["rules"]["selectors"]["media"], "a.media")
 
+    def test_title_only_fixture_match_cannot_activate_extraction_rule(self):
+        result = ai_rules.save_version(
+            "title-only.example", {"selectors": {"title": "h1"}}, "ai",
+            ["<h1>Page title</h1>"]
+        )
+        self.assertEqual(result["status"], "draft")
+        self.assertEqual((result["fixture_passes"], result["fixture_total"]), (0, 1))
+
     def test_version_increments_and_failure_diagnostic_is_recorded(self):
         first = ai_rules.save_version("site.example", {"selectors": {"title": "h1"}}, "manual")
         second = ai_rules.save_version("site.example", {"selectors": {"title": ".title"}}, "repair")
