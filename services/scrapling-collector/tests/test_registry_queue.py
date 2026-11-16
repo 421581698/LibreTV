@@ -124,6 +124,13 @@ class RegistryQueueTests(unittest.TestCase):
         with queue.connect() as c:
             row = c.execute("SELECT status FROM collector_jobs WHERE id=?", (job["id"],)).fetchone()
         self.assertEqual(row["status"], "failed")
+        with queue.connect() as c:
+            events = [row["event"] for row in c.execute(
+                "SELECT event FROM collector_job_events WHERE job_id=? ORDER BY created_at,id",
+                (job["id"],),
+            ).fetchall()]
+        self.assertIn("retry_scheduled", events)
+        self.assertIn("dead_letter", events)
 
     def test_fail_job_does_not_overwrite_cancel_requested_job(self):
         job = queue.submit_job("crawl", {"url": "https://example.org"}, "cancel-fail-race:test")
@@ -149,6 +156,13 @@ class RegistryQueueTests(unittest.TestCase):
         with queue.connect() as c:
             row = c.execute("SELECT status FROM collector_jobs WHERE id=?", (job["id"],)).fetchone()
         self.assertEqual(row["status"], "cancelled")
+        with queue.connect() as c:
+            events = [row["event"] for row in c.execute(
+                "SELECT event FROM collector_job_events WHERE job_id=? ORDER BY created_at,id",
+                (job["id"],),
+            ).fetchall()]
+        self.assertIn("cancel_requested", events)
+        self.assertGreaterEqual(events.count("cancelled"), 1)
 
     def test_registry_search_miss_enqueues_fmhy_discovery(self):
         with patch.object(queue, "require_auth"):
