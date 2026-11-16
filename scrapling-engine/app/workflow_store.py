@@ -313,7 +313,13 @@ class PostgresWorkflowStore:
             )
             if cursor.rowcount != 1:
                 return False
-            self._event(db, workflow_id, node_id, "node_completed", {"result": result})
+            self._event(
+                db,
+                workflow_id,
+                node_id,
+                "node_completed",
+                {"result_keys": sorted(result), "count": result.get("count")},
+            )
             remaining = db.execute(
                 """
                 SELECT COUNT(*) AS count FROM resource_workflow_nodes
