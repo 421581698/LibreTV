@@ -304,7 +304,6 @@ def diagnose_and_repair(host: str, page_html: str, failure_code: str,
 
 def get_active_rule(host: str) -> dict | None:
     with connect() as c:
-        initialize(c)
         row = c.execute("""SELECT v.* FROM collector_rules r
           JOIN collector_rule_versions v ON v.host=r.host AND v.version=r.active_version
           WHERE r.host=?""", (host,)).fetchone()
