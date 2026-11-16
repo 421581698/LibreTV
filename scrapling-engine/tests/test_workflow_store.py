@@ -44,6 +44,7 @@ def test_postgres_workflow_dag_claims_dependencies_and_retries_durably() -> None
         first = store.claim_ready_node("worker-a", lease_seconds=30)
         assert first is not None
         assert first["node_id"] == "discover"
+        assert first["workflow_input"] == {"source": "test"}
         assert store.claim_ready_node("worker-b", lease_seconds=30) is None
         with psycopg.connect(database_url) as db:
             db.execute(
