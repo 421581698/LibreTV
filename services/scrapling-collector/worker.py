@@ -153,11 +153,13 @@ def handle(payload: dict, checkpoint, cancelled):
         if payload.get("_job_type") == "rule_repair":
             result = ai_rules.diagnose_and_repair(
                 host, sample, payload.get("failure_code") or "selector_miss",
-                payload.get("task_id"), fixtures,
+                payload.get("task_id"), fixtures, payload.get("diagnostic_id"),
             )
         else:
             proposed = ai_rules.generate_rules(host, sample, {"task_id": payload.get("task_id")})
             result = ai_rules.save_version(host, proposed, "ai_generation", fixtures)
+            if payload.get("diagnostic_id"):
+                ai_rules.link_diagnostic_version(payload["diagnostic_id"], result["version"])
         checkpoint({
             "stage": "ai_rule_version_recorded",
             "host": host,
@@ -196,7 +198,7 @@ def handle(payload: dict, checkpoint, cancelled):
 
     # Analyze the sanitized HTML captured by the Spider. Only enqueue model work
     # when the operator has configured an allowlisted HTTPS gateway.
-    if task_id and ai_rules.is_configured():
+    if task_id:
         sample = task_page_sample(task_id=task_id)
         spider_diagnostics = (result.get("diagnostics") or {}).get("http_spider") or {}
         spider_failed = spider_diagnostics.get("status") == "failed" or (
@@ -204,15 +206,23 @@ def handle(payload: dict, checkpoint, cancelled):
             and int(spider_diagnostics.get("candidate_count") or 0) == 0
         )
         host = urlsplit(str(crawl_payload["url"])).hostname or ""
-        active_rule = ai_rules.get_active_rule(host)
-        has_history = ai_rules.has_rule_history(host)
-        if sample and (not has_history or spider_failed):
-            rule_job_type = "rule_repair" if has_history and spider_failed else "rule_generate"
-            rule_payload = {
-                "host": host, "page_html": sample, "fixtures": [sample],
-                "task_id": task_id,
-                "failure_code": "spider_candidate_miss" if spider_failed else "initial_rule_generation",
-            }
+        diagnostic_id = None
+        if spider_failed:
+            diagnostic_id = ai_rules.record_failure(
+                host, task_id, "spider_candidate_miss",
+                {"status": spider_diagnostics.get("status"),
+                 "candidate_count": spider_diagnostics.get("candidate_count", 0)},
+            )
+        if sample and ai_rules.is_configured():
+            active_rule = ai_rules.get_active_rule(host)
+            has_history = ai_rules.has_rule_history(host)
+            if not has_history or spider_failed:
+                rule_job_type = "rule_repair" if has_history and spider_failed else "rule_generate"
+                rule_payload = {
+                    "host": host, "page_html": sample, "fixtures": [sample],
+                    "task_id": task_id, "diagnostic_id": diagnostic_id,
+                    "failure_code": "spider_candidate_miss" if spider_failed else "initial_rule_generation",
+                }
             queued_rule = submit_job(
                 rule_job_type, rule_payload,
                 f"ai-rule:auto:{rule_job_type}:{task_id}", max_attempts=2,
