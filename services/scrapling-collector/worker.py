@@ -322,15 +322,34 @@ def main():
         return
 
     threading.Thread(target=daily_scheduler, name="daily-fmhy-scheduler", daemon=True).start()
-    while True:
-        # Do not claim already-queued work while the host firewall proof is
-        # absent or stale (for example, after a host reboot).
-        if not egress_firewall_ready():
-            time.sleep(5)
-            continue
-        processed = run_worker(args.worker_id, handle, once=True)
-        if not processed:
-            time.sleep(1)
+    try:
+        concurrency = max(1, min(8, int(os.environ.get("COLLECTOR_WORKER_CONCURRENCY", "1"))))
+    except ValueError:
+        concurrency = 1
+
+    def worker_loop(worker_id: str):
+        while True:
+            # Do not claim queued work without a current-boot host firewall proof.
+            if not egress_firewall_ready():
+                time.sleep(5)
+                continue
+            processed = run_worker(worker_id, handle, once=True)
+            if not processed:
+                time.sleep(1)
+
+    workers = [
+        threading.Thread(
+            target=worker_loop,
+            args=(f"{args.worker_id}-{index + 1}",),
+            name=f"collector-worker-{index + 1}",
+            daemon=True,
+        )
+        for index in range(concurrency)
+    ]
+    for thread in workers:
+        thread.start()
+    for thread in workers:
+        thread.join()
 
 
 if __name__ == "__main__":
