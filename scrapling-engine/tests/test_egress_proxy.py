@@ -311,8 +311,6 @@ async def test_dns_rebinding_second_resolution_rejects_private_answer():
         "ftp://example.com/file",
         "file:///etc/passwd",
         "http://example.com:8080/",
-        "http://127.0.0.1/",
-        "http://169.254.169.254/latest/meta-data/",
     ],
 )
 async def test_http_proxy_rejects_unsupported_scheme_ports_and_private_targets(
@@ -332,4 +330,26 @@ async def test_http_proxy_rejects_unsupported_scheme_ports_and_private_targets(
             [],
             object(),
             object(),
+        )
+
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "target",
+    [
+        "http://127.0.0.1/",
+        "http://10.0.0.8/",
+        "http://169.254.169.254/latest/meta-data/",
+        "http://[::1]/",
+        "http://[fd00::1]/",
+    ],
+)
+async def test_http_proxy_rejects_private_ip_before_connecting(target: str):
+    from app import egress_proxy
+
+    with pytest.raises(EgressDenied):
+        await egress_proxy.open_pinned_connection(
+            target.split("//", 1)[1].split("/", 1)[0].strip("[]"),
+            80,
         )
