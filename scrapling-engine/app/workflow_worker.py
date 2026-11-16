@@ -6,6 +6,7 @@ import logging
 import socket
 import uuid
 from collections.abc import Awaitable, Callable
+from urllib.parse import urljoin
 from dataclasses import asdict
 from typing import Any
 
@@ -89,9 +90,17 @@ class WorkflowWorker:
         max_pages = payload.get("max_pages", 50)
         max_depth = payload.get("max_depth", 2)
         max_links_per_page = payload.get("max_links_per_page", 30)
-        if not isinstance(max_pages, int) or isinstance(max_pages, bool) or not 1 <= max_pages <= 200:
+        if (
+            not isinstance(max_pages, int)
+            or isinstance(max_pages, bool)
+            or not 1 <= max_pages <= 200
+        ):
             raise ValueError("max_pages must be an integer from 1 to 200")
-        if not isinstance(max_depth, int) or isinstance(max_depth, bool) or not 0 <= max_depth <= 5:
+        if (
+            not isinstance(max_depth, int)
+            or isinstance(max_depth, bool)
+            or not 0 <= max_depth <= 5
+        ):
             raise ValueError("max_depth must be an integer from 0 to 5")
         if (
             not isinstance(max_links_per_page, int)
