@@ -109,6 +109,8 @@ class PostgresWorkflowStore:
         if not ids or any(not node_id for node_id in ids) or len(set(ids)) != len(ids):
             raise WorkflowDefinitionError("Workflow requires unique non-empty node IDs.")
         known = set(ids)
+        if len(set(edges)) != len(edges):
+            raise WorkflowDefinitionError("Workflow edges must be unique.")
         indegree = dict.fromkeys(known, 0)
         children: dict[str, list[str]] = defaultdict(list)
         for parent, child in edges:
