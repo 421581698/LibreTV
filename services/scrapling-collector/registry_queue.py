@@ -649,5 +649,3 @@ def api_verify_resource(resource_id: str, payload: dict, authorization: str | No
     except KeyError: raise HTTPException(status_code=404,detail="Resource not found")
     except ValueError as exc: raise HTTPException(status_code=409,detail=str(exc))
 
-
-initialize()
