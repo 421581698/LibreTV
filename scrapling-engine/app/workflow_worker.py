@@ -191,28 +191,70 @@ class WorkflowWorker:
                             active_rule["selector"],
                             active_rule["mode"],
                         )
+                        match_count = matched.get("count", 0)
+                        values = matched.get("text", [])
+                        if not isinstance(match_count, int) or isinstance(match_count, bool):
+                            match_count = 0
+                        if not isinstance(values, list):
+                            values = []
+                        feedback = await asyncio.to_thread(
+                            self.rules.record_execution,
+                            active_rule["rule_id"],
+                            passed=match_count > 0,
+                            match_count=match_count,
+                            sample_values=[str(value) for value in values[:5]],
+                            workflow_id=str(payload.get("_workflow_id") or "manual"),
+                            page_url=final_url,
+                        )
                         rule_extractions.append(
                             {
                                 "rule_id": active_rule["rule_id"],
                                 "version": active_rule["version"],
                                 "goal": active_rule["goal"],
-                                "values": matched.get("text", [])[:20],
-                                "match_count": matched.get("count", 0),
+                                "values": values[:20],
+                                "match_count": match_count,
+                                "status": "matched" if match_count > 0 else "no_matches",
+                                "failure_streak": feedback["failure_streak"],
+                                "auto_disabled": feedback["auto_disabled"],
                             }
                         )
+                        if feedback["auto_disabled"]:
+                            active_rules_by_origin[final_origin] = [
+                                rule
+                                for rule in active_rules_by_origin.get(final_origin, [])
+                                if rule["rule_id"] != active_rule["rule_id"]
+                            ]
                     except Exception as exc:
                         logger.warning(
                             "Active extraction rule %s failed: %s",
                             active_rule["rule_id"],
                             type(exc).__name__,
                         )
+                        feedback = await asyncio.to_thread(
+                            self.rules.record_execution,
+                            active_rule["rule_id"],
+                            passed=False,
+                            match_count=0,
+                            sample_values=[],
+                            workflow_id=str(payload.get("_workflow_id") or "manual"),
+                            page_url=final_url,
+                            error=type(exc).__name__,
+                        )
                         rule_extractions.append(
                             {
                                 "rule_id": active_rule["rule_id"],
                                 "version": active_rule["version"],
                                 "status": "execution_failed",
+                                "failure_streak": feedback["failure_streak"],
+                                "auto_disabled": feedback["auto_disabled"],
                             }
                         )
+                        if feedback["auto_disabled"]:
+                            active_rules_by_origin[final_origin] = [
+                                rule
+                                for rule in active_rules_by_origin.get(final_origin, [])
+                                if rule["rule_id"] != active_rule["rule_id"]
+                            ]
 
                 items.append(
                     {
