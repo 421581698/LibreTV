@@ -85,6 +85,28 @@ class AIRuleTests(unittest.TestCase):
         self.assertIn('id="play"', cleaned)
         self.assertIn("Watch", cleaned)
 
+    def test_repair_links_existing_crawl_diagnostic_to_new_rule_version(self):
+        diagnostic = ai_rules.record_failure("catalog.example", "task-2", "selector_miss")
+        with patch.object(
+            ai_rules, "generate_rules",
+            return_value={"selectors": {"media": "a.media"}, "notes": "fixture repair"},
+        ):
+            result = ai_rules.diagnose_and_repair(
+                "catalog.example",
+                '<a class="media">Watch</a>',
+                "selector_miss",
+                "task-2",
+                ['<a class="media">Watch</a>'],
+                diagnostic,
+            )
+        with ai_rules.connect() as connection:
+            row = connection.execute(
+                "SELECT repair_version FROM collector_rule_diagnostics WHERE id=?",
+                (diagnostic,),
+            ).fetchone()
+        self.assertEqual(result["diagnostic_id"], diagnostic)
+        self.assertEqual(row["repair_version"], result["repair"]["version"])
+
     def test_model_gateway_requires_explicit_https_host_allowlist(self):
         with patch.dict(os.environ, {
             "COLLECTOR_AI_GATEWAY_URL": "https://llm.example",
