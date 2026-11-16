@@ -219,18 +219,20 @@ class RegistryQueueTests(unittest.TestCase):
         self.assertEqual(searched["total"], 1)
         self.assertFalse(searched["has_more"])
 
-    def test_registry_url_drops_query_credentials_and_rejects_unsafe_authorities(self):
+    def test_registry_preserves_public_query_but_rejects_signed_urls(self):
         resource = queue.upsert_resource({
-            "resource_key": "resource:secret-query", "source_key": "provider",
+            "resource_key": "resource:public-query", "source_key": "provider",
             "resource_type": "DIRECT_MEDIA",
-            "url": "https://Media.Example.org/movie.m3u8?token=secret&expires=123#player",
+            "url": "https://Media.Example.org/movie.m3u8?quality=1080p&format=hls#player",
             "title": "Example Film",
         })
-        self.assertEqual(resource["url"], "https://media.example.org/movie.m3u8")
+        self.assertEqual(resource["url"], "https://media.example.org/movie.m3u8?quality=1080p&format=hls")
         for unsafe_url in (
             "http://media.example.org/movie.mp4",
             "https://user:password@media.example.org/movie.mp4",
             "https://media.example.org:8443/movie.mp4",
+            "https://media.example.org/movie.m3u8?token=secret",
+            "https://media.example.org/movie.m3u8?X-Amz-Signature=secret",
         ):
             with self.subTest(url=unsafe_url):
                 with self.assertRaises(ValueError):
