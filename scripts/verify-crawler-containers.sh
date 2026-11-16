@@ -136,6 +136,10 @@ test -n "$probe_container"
 [[ "$(docker inspect --format '{{.HostConfig.NanoCpus}}' "$probe_container")" -gt 0 ]]
 grep -q '"ALL"' <<<"$(docker inspect --format '{{json .HostConfig.CapDrop}}' "$probe_container")"
 grep -q 'no-new-privileges' <<<"$(docker inspect --format '{{json .HostConfig.SecurityOpt}}' "$probe_container")"
+probe_security_opt=$(docker inspect --format '{{json .HostConfig.SecurityOpt}}' "$probe_container")
+grep -q 'seccomp' <<<"$probe_security_opt" || { echo "Probe sidecar must use the dedicated ffprobe seccomp profile"; exit 1; }
+probe_ulimits=$(docker inspect --format '{{json .HostConfig.Ulimits}}' "$probe_container")
+for limit in cpu core nofile nproc; do grep -q "\\\"Name\\\":\\\"$limit\\\"" <<<"$probe_ulimits" || { echo "Missing probe ulimit: $limit"; exit 1; }; done
 probe_tmpfs=$(docker inspect --format '{{json .HostConfig.Tmpfs}}' "$probe_container")
 grep -q 'noexec' <<<"$probe_tmpfs"
 grep -q 'nosuid' <<<"$probe_tmpfs"
@@ -175,6 +179,15 @@ PY
 "${compose[@]}" exec -T scrapling-workflow-worker rm -f /probe/staging/probe-smoke.mp4
 "${compose[@]}" exec -T scrapling-media-probe rm -f /probe/outbox/probe-smoke.mp4
 grep -q 'no-new-privileges' <<<"$(docker inspect --format '{{json .HostConfig.SecurityOpt}}' "$probe_container")"
+"${compose[@]}" exec -T scrapling-media-probe python - <<'PY'
+import socket
+try:
+    socket.socket()
+except PermissionError:
+    print("Probe seccomp profile denied socket creation.")
+else:
+    raise SystemExit("Probe sidecar unexpectedly created a socket.")
+PY
 probe_mounts=$(docker inspect --format '{{json .Mounts}}' "$probe_container")
 python3 -c 'import json,sys; mounts=json.loads(sys.argv[1]); by_target={m["Destination"]:m for m in mounts}; assert by_target["/probe/staging"]["RW"] is False; assert by_target["/probe/inbox"]["RW"] is False; assert by_target["/probe/outbox"]["RW"] is True' "$probe_mounts"
 "${compose[@]}" exec -T scrapling-media-probe python -c 'import socket; s=socket.socket(); s.settimeout(1); 
