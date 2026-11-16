@@ -10,6 +10,8 @@ on:
       - "scripts/scrapling-egress-firewall.sh"
       - "scripts/test-scrapling-egress-firewall.sh"
       - "docker-compose.yml"
+      - "README.md"
+      - "services/scrapling-collector/README.md"
   workflow_dispatch:
     inputs:
       crawl_target:
