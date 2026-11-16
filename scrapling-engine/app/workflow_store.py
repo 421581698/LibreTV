@@ -418,6 +418,31 @@ class PostgresWorkflowStore:
                 )
             return status
 
+    def list_workflows(self, limit: int = 50) -> list[dict[str, Any]]:
+        safe_limit = min(max(limit, 1), 200)
+        with psycopg.connect(self.database_url, row_factory=dict_row) as db:
+            rows = db.execute(
+                """
+                SELECT workflow.workflow_id, workflow.status,
+                       workflow.created_at, workflow.updated_at,
+                       COUNT(node.node_id) AS node_count,
+                       COUNT(node.node_id) FILTER (
+                           WHERE node.status = 'completed'
+                       ) AS completed_count,
+                       COUNT(node.node_id) FILTER (
+                           WHERE node.status = 'failed'
+                       ) AS failed_count
+                FROM resource_workflows AS workflow
+                LEFT JOIN resource_workflow_nodes AS node
+                  ON node.workflow_id = workflow.workflow_id
+                GROUP BY workflow.workflow_id
+                ORDER BY workflow.created_at DESC
+                LIMIT %s
+                """,
+                (safe_limit,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     def get_workflow(self, workflow_id: str) -> dict[str, Any] | None:
         with psycopg.connect(self.database_url, row_factory=dict_row) as db:
             workflow = db.execute(
