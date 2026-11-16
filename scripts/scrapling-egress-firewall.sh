@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Apply host-level Docker egress filtering for the Scrapling collector only.
+# Apply host-level Docker egress filtering to every container on the isolated
+# Scrapling network (API and worker), not just the API's static address.
 # Run on the Docker host as root after creating the Compose network.
-# Override COLLECTOR_CIDR if SCRAPLING_NETWORK_SUBNET / static IP is changed.
-COLLECTOR_CIDR="${COLLECTOR_CIDR:-172.30.60.10/32}"
+# Override COLLECTOR_CIDR if SCRAPLING_NETWORK_SUBNET is changed.
+COLLECTOR_CIDR="${COLLECTOR_CIDR:-172.30.60.0/24}"
 CHAIN="LIBRETV-SCRAPLING-EGRESS"
 
 if [[ "${EUID}" -ne 0 ]]; then
@@ -17,6 +18,21 @@ if ! command -v iptables >/dev/null 2>&1; then
 fi
 if ! iptables -w -nL DOCKER-USER >/dev/null 2>&1; then
   echo "Docker DOCKER-USER chain is unavailable. Start Docker with its iptables firewall integration enabled." >&2
+  exit 1
+fi
+# Same-bridge container traffic can bypass the FORWARD chain unless bridge
+# netfilter is enabled. Require this kernel hook so DOCKER-USER also sees
+# container-to-container packets on the isolated collector bridge.
+if [[ ! -e /proc/sys/net/bridge/bridge-nf-call-iptables ]]; then
+  modprobe br_netfilter
+fi
+if [[ ! -e /proc/sys/net/bridge/bridge-nf-call-iptables ]]; then
+  echo "br_netfilter is unavailable; refusing to claim complete Docker egress filtering." >&2
+  exit 1
+fi
+sysctl -w net.bridge.bridge-nf-call-iptables=1 >/dev/null
+if [[ "$(cat /proc/sys/net/bridge/bridge-nf-call-iptables)" != "1" ]]; then
+  echo "Could not enable bridge netfilter for Docker traffic." >&2
   exit 1
 fi
 
