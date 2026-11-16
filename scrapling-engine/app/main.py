@@ -305,6 +305,11 @@ async def capabilities() -> dict:
                 else "independent_worker_execution"
             ),
             "worker_lease_fencing" if settings.database_url else "single_process_execution",
+            (
+                "cross_process_pause_resume_cancel"
+                if settings.database_url
+                else "in_process_pause_resume"
+            ),
         ],
         "planned": [
             "dynamic_browser",
@@ -318,6 +323,7 @@ async def capabilities() -> dict:
             "health_endpoint",
             "structured_fetch_api",
             "durable_job_registry",
+            "worker_control_events" if settings.database_url else "local_spider_controls",
             "postgresql_job_store" if settings.database_url else "sqlite_local_job_store",
         ],
         "note": (
