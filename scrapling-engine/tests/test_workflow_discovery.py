@@ -257,7 +257,11 @@ async def test_autonomous_discovery_proposes_replacement_after_active_rule_break
     monkeypatch.setattr("app.workflow_worker.ensure_robots_allowed", lambda *_a, **_k: None)
     monkeypatch.setattr("app.workflow_worker.ScraplingAdapter.fetch_page", lambda *_a, **_k: page)
     worker = WorkflowWorker("postgresql://unused", "test-worker")
-    monkeypatch.setattr(worker.rules, "list_active_for_origin", lambda _url: [{"rule_id": "old-rule"}])
+    monkeypatch.setattr(
+        worker.rules,
+        "list_active_for_origin",
+        lambda _url: [{"rule_id": "old-rule"}],
+    )
 
     async def discover(_payload: dict[str, object]) -> dict[str, object]:
         return {
