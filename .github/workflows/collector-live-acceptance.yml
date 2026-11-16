@@ -1,0 +1,95 @@
+name: Collector Live Acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      crawl_target:
+        description: Number of approved live crawl jobs
+        required: true
+        type: choice
+        options:
+          - "1000"
+          - "2000"
+          - "5000"
+          - "10000"
+      media_seconds:
+        description: Required continuous native-resolution decode duration
+        required: true
+        default: "60"
+        type: choice
+        options:
+          - "60"
+          - "120"
+          - "300"
+
+permissions:
+  contents: read
+
+jobs:
+  live-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1440
+    environment: collector-acceptance
+    env:
+      PASSWORD: ${{ secrets.COLLECTOR_ACCEPTANCE_PASSWORD }}
+      SCRAPLING_API_TOKEN: ${{ secrets.SCRAPLING_API_TOKEN }}
+      SCRAPLING_EGRESS_FIREWALL_CONFIRMED: "1"
+      COLLECTOR_AI_GATEWAY_URL: ${{ secrets.COLLECTOR_AI_GATEWAY_URL }}
+      COLLECTOR_AI_API_KEY: ${{ secrets.COLLECTOR_AI_API_KEY }}
+      COLLECTOR_AI_MODEL: ${{ secrets.COLLECTOR_AI_MODEL }}
+      COLLECTOR_AI_ALLOWED_HOSTS: ${{ secrets.COLLECTOR_AI_ALLOWED_HOSTS }}
+      MEDIA_ACCEPTANCE_URL: ${{ secrets.MEDIA_ACCEPTANCE_URL }}
+      MEDIA_ACCEPTANCE_ALLOWED_HOSTS: ${{ secrets.MEDIA_ACCEPTANCE_ALLOWED_HOSTS }}
+      MEDIA_ACCEPTANCE_SECONDS: ${{ inputs.media_seconds }}
+      LIVE_CRAWL_ALLOWED_HOSTS: ${{ secrets.LIVE_CRAWL_ALLOWED_HOSTS }}
+      LIVE_CRAWL_URLS: ${{ secrets.LIVE_CRAWL_URLS }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate operator acceptance fixtures
+        run: |
+          test -n "$PASSWORD"
+          test -n "$SCRAPLING_API_TOKEN"
+          test -n "$MEDIA_ACCEPTANCE_URL"
+          test -n "$MEDIA_ACCEPTANCE_ALLOWED_HOSTS"
+          test -n "$LIVE_CRAWL_ALLOWED_HOSTS"
+          test -n "$LIVE_CRAWL_URLS"
+          test -n "$COLLECTOR_AI_GATEWAY_URL"
+          test -n "$COLLECTOR_AI_API_KEY"
+          test -n "$COLLECTOR_AI_MODEL"
+          test -n "$COLLECTOR_AI_ALLOWED_HOSTS"
+      - name: Build isolated stack
+        run: docker compose --profile collector up -d --build
+      - name: Install and verify current-boot host firewall
+        run: sudo bash scripts/scrapling-egress-firewall.sh
+      - name: Copy real acceptance harnesses into isolated Collector
+        run: |
+          docker cp services/scrapling-collector/tests/media_acceptance.py libretv-scrapling-collector:/tmp/media_acceptance.py
+          docker cp services/scrapling-collector/tests/live_crawl_scale.py libretv-scrapling-collector:/tmp/live_crawl_scale.py
+          printf '%s' "$LIVE_CRAWL_URLS" > /tmp/collector-approved-live-urls.txt
+          docker cp /tmp/collector-approved-live-urls.txt libretv-scrapling-collector:/tmp/approved-live-urls.txt
+      - name: Verify real UHD 4K sustained decode
+        run: |
+          docker exec \
+            -e MEDIA_ACCEPTANCE_URL="$MEDIA_ACCEPTANCE_URL" \
+            -e MEDIA_ACCEPTANCE_ALLOWED_HOSTS="$MEDIA_ACCEPTANCE_ALLOWED_HOSTS" \
+            -e MEDIA_ACCEPTANCE_SECONDS="$MEDIA_ACCEPTANCE_SECONDS" \
+            libretv-scrapling-collector python /tmp/media_acceptance.py
+      - name: Verify live network crawl scale
+        run: |
+          docker exec \
+            -e SCRAPLING_API_TOKEN="$SCRAPLING_API_TOKEN" \
+            -e LIVE_CRAWL_ALLOWED_HOSTS="$LIVE_CRAWL_ALLOWED_HOSTS" \
+            libretv-scrapling-collector python /tmp/live_crawl_scale.py \
+              --urls /tmp/approved-live-urls.txt --target "${{ inputs.crawl_target }}"
+      - name: Collect isolated stack diagnostics
+        if: always()
+        run: |
+          docker compose --profile collector ps
+          docker logs libretv-scrapling-collector 2>&1 | tail -200 || true
+          docker logs libretv-scrapling-worker 2>&1 | tail -200 || true
+      - name: Tear down isolated stack
+        if: always()
+        run: docker compose --profile collector down -v
