@@ -256,6 +256,9 @@ def main():
     args = parser.parse_args()
     if not os.environ.get("SCRAPLING_API_TOKEN", "").strip():
         parser.error("SCRAPLING_API_TOKEN must be configured")
+    # The worker is also an executable entrypoint (including --once smoke tests).
+    # Initialize here rather than at module import so imports remain side-effect free.
+    registry_store.initialize()
     if not args.once:
         threading.Thread(target=daily_scheduler, name="daily-fmhy-scheduler", daemon=True).start()
     run_worker(args.worker_id, handle, once=args.once)
