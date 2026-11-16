@@ -39,6 +39,8 @@ def test_probe_reports_encoded_dimensions_but_not_native_4k(tmp_path, monkeypatc
         }],
     }
 
+    real_popen = subprocess.Popen
+
     def fake_popen(command, **kwargs):
         assert command[0] == "ffprobe"
         assert "-protocol_whitelist" in command
@@ -46,7 +48,7 @@ def test_probe_reports_encoded_dimensions_but_not_native_4k(tmp_path, monkeypatc
         assert kwargs["shell"] is False
         assert kwargs["start_new_session"] is True
         script = "import sys; sys.stdout.write(" + repr(json.dumps(payload)) + ")"
-        return subprocess.Popen([sys.executable, "-c", script], **kwargs)
+        return real_popen([sys.executable, "-c", script], **kwargs)
 
     monkeypatch.setattr(subprocess, "Popen", fake_popen)
     report = analyze_local_media_file(media)
