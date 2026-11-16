@@ -56,6 +56,25 @@ jobs:
       MEDIA_ACCEPTANCE_SECONDS: ${{ inputs.media_seconds || '60' }}
       LIVE_CRAWL_ALLOWED_HOSTS: ${{ secrets.LIVE_CRAWL_ALLOWED_HOSTS }}
       LIVE_CRAWL_URLS: ${{ secrets.LIVE_CRAWL_URLS }}
+      LIVE_CRAWL_URLS_2: ${{ secrets.LIVE_CRAWL_URLS_2 }}
+      LIVE_CRAWL_URLS_3: ${{ secrets.LIVE_CRAWL_URLS_3 }}
+      LIVE_CRAWL_URLS_4: ${{ secrets.LIVE_CRAWL_URLS_4 }}
+      LIVE_CRAWL_URLS_5: ${{ secrets.LIVE_CRAWL_URLS_5 }}
+      LIVE_CRAWL_URLS_6: ${{ secrets.LIVE_CRAWL_URLS_6 }}
+      LIVE_CRAWL_URLS_7: ${{ secrets.LIVE_CRAWL_URLS_7 }}
+      LIVE_CRAWL_URLS_8: ${{ secrets.LIVE_CRAWL_URLS_8 }}
+      LIVE_CRAWL_URLS_9: ${{ secrets.LIVE_CRAWL_URLS_9 }}
+      LIVE_CRAWL_URLS_10: ${{ secrets.LIVE_CRAWL_URLS_10 }}
+      LIVE_CRAWL_URLS_11: ${{ secrets.LIVE_CRAWL_URLS_11 }}
+      LIVE_CRAWL_URLS_12: ${{ secrets.LIVE_CRAWL_URLS_12 }}
+      LIVE_CRAWL_URLS_13: ${{ secrets.LIVE_CRAWL_URLS_13 }}
+      LIVE_CRAWL_URLS_14: ${{ secrets.LIVE_CRAWL_URLS_14 }}
+      LIVE_CRAWL_URLS_15: ${{ secrets.LIVE_CRAWL_URLS_15 }}
+      LIVE_CRAWL_URLS_16: ${{ secrets.LIVE_CRAWL_URLS_16 }}
+      LIVE_CRAWL_URLS_17: ${{ secrets.LIVE_CRAWL_URLS_17 }}
+      LIVE_CRAWL_URLS_18: ${{ secrets.LIVE_CRAWL_URLS_18 }}
+      LIVE_CRAWL_URLS_19: ${{ secrets.LIVE_CRAWL_URLS_19 }}
+      LIVE_CRAWL_URLS_20: ${{ secrets.LIVE_CRAWL_URLS_20 }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -84,7 +103,7 @@ jobs:
           docker cp services/scrapling-collector/tests/media_acceptance.py libretv-scrapling-collector:/tmp/media_acceptance.py
           docker cp services/scrapling-collector/tests/browser_playback_acceptance.py libretv-scrapling-collector:/tmp/browser_playback_acceptance.py
           docker cp services/scrapling-collector/tests/live_crawl_scale.py libretv-scrapling-collector:/tmp/live_crawl_scale.py
-          printf '%s' "$LIVE_CRAWL_URLS" > /tmp/collector-approved-live-urls.txt
+          printf '%s\n' "$LIVE_CRAWL_URLS" "$LIVE_CRAWL_URLS_2" "$LIVE_CRAWL_URLS_3" "$LIVE_CRAWL_URLS_4" "$LIVE_CRAWL_URLS_5" "$LIVE_CRAWL_URLS_6" "$LIVE_CRAWL_URLS_7" "$LIVE_CRAWL_URLS_8" "$LIVE_CRAWL_URLS_9" "$LIVE_CRAWL_URLS_10" "$LIVE_CRAWL_URLS_11" "$LIVE_CRAWL_URLS_12" "$LIVE_CRAWL_URLS_13" "$LIVE_CRAWL_URLS_14" "$LIVE_CRAWL_URLS_15" "$LIVE_CRAWL_URLS_16" "$LIVE_CRAWL_URLS_17" "$LIVE_CRAWL_URLS_18" "$LIVE_CRAWL_URLS_19" "$LIVE_CRAWL_URLS_20" > /tmp/collector-approved-live-urls.txt
           docker cp /tmp/collector-approved-live-urls.txt libretv-scrapling-collector:/tmp/approved-live-urls.txt
       - name: Verify AI rule generation, versioning and automatic repair
         run: |
