@@ -60,6 +60,22 @@ def test_candidate_ingestion_deduplicates_and_preserves_evidence_without_publish
             item["candidate_id"] == ids[0]
             for item in store.list_candidates(status="pending_review", limit=200)
         )
+        assert store.review_candidate(
+            ids[0], "approved", "test-reviewer", "Evidence reviewed"
+        )
+        reviewed = store.get_candidate(ids[0])
+        assert reviewed is not None
+        assert reviewed["status"] == "approved"
+        assert any(
+            evidence["evidence_type"] == "human_review"
+            and evidence["evidence_json"]["reviewer_id"] == "test-reviewer"
+            for evidence in reviewed["evidence"]
+        )
+        assert not store.review_candidate(ids[0], "rejected", "test-reviewer")
+        assert not any(
+            evidence["evidence_type"] == "formal_resource_publish"
+            for evidence in reviewed["evidence"]
+        )
     finally:
         with psycopg.connect(database_url) as db:
             db.execute(
