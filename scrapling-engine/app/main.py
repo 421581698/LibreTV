@@ -369,6 +369,11 @@ async def capabilities() -> dict:
             "server_side_dag_runtime" if settings.database_url else "dag_requires_postgresql",
             "workflow_node_leases_and_retries" if settings.database_url else "no_workflow_worker",
             (
+                "model_planned_discovery"
+                if settings.supervisor_api_key is not None and settings.supervisor_model
+                else "supervisor_requires_model_configuration"
+            ),
+            (
                 "candidate_evidence_registry"
                 if settings.database_url
                 else "candidate_store_requires_postgresql"
@@ -383,6 +388,8 @@ async def capabilities() -> dict:
         "planned": [
             "dynamic_browser",
             "stealth_browser",
+            "model_driven_extraction_rule_generation",
+            "extraction_rule_testing_and_self_repair",
             "unrestricted_cross_origin_discovery",
             "network_api_capture",
             "mcp_agent_integration",
