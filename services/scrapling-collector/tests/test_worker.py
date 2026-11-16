@@ -1,4 +1,6 @@
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 import worker
@@ -70,6 +72,49 @@ class WorkerPipelineTests(unittest.TestCase):
         self.assertGreaterEqual(app.MAX_RESULTS, 1000)
         self.assertGreaterEqual(app.MAX_CANDIDATES, 1000)
         self.assertGreaterEqual(worker.MAX_AUTOMATIC_MEDIA_PREFLIGHTS, 1000)
+
+    def test_batch_counts_collected_observations_separately_from_unique_candidates(self):
+        import app
+        old_db_path = app.DB_PATH
+        old_registry_path = app.registry_store.DB_PATH
+        with tempfile.TemporaryDirectory() as directory:
+            try:
+                app.DB_PATH = Path(directory) / "batch.sqlite3"
+                app.init_db()
+                batch_id = "a" * 32
+                with app.db() as connection:
+                    connection.execute(
+                        """INSERT INTO collection_batches
+                           (id,target_candidates,target_collected,status,created_at,updated_at)
+                           VALUES(?,1000,1000,'running',1,1)""",
+                        (batch_id,),
+                    )
+                    for index, host in enumerate(("one.example", "two.example"), start=1):
+                        task_id = str(index) * 32
+                        connection.execute(
+                            """INSERT INTO tasks(id,url,host,status,mode,created_at,updated_at,batch_id)
+                               VALUES(?,?,?,'completed','auto',1,1,?)""",
+                            (task_id, f"https://{host}/", host, batch_id),
+                        )
+                        connection.execute(
+                            """INSERT INTO collection_observations
+                               (id,batch_id,task_id,canonical_url,host,kind,created_at)
+                               VALUES(?,?,?,?,?,'direct-media',1)""",
+                            (str(index + 2) * 32, batch_id, task_id, "https://cdn.example/movie.mp4", host),
+                        )
+                    connection.execute(
+                        """INSERT INTO candidates
+                           (id,task_id,url,host,kind,title,status,created_at,batch_id,canonical_url)
+                           VALUES(?,?,'https://cdn.example/movie.mp4','one.example','direct-media','Movie','pending',1,?,?)""",
+                        ("c" * 32, "1" * 32, batch_id, "https://cdn.example/movie.mp4"),
+                    )
+                progress = app.refresh_collection_batch(batch_id)
+                self.assertEqual(progress["candidate_count"], 1)
+                self.assertEqual(progress["collected_count"], 2)
+            finally:
+                app.DB_PATH = old_db_path
+                app.init_db()
+                app.registry_store.DB_PATH = old_registry_path
 
     def test_crawl_job_does_not_preflight_non_media_candidates(self):
         with (
