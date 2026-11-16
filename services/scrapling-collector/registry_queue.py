@@ -122,12 +122,13 @@ def validate_durable_job_payload(job_type: str, payload: dict) -> dict:
     ):
         raise ValueError("Only credential-free HTTPS crawl URLs on port 443 are accepted")
     sensitive_keys = {
-        "token", "access_token", "auth", "authorization", "api_key", "apikey",
-        "key", "signature", "sig", "jwt", "expires", "policy", "hdnts",
-        "hdnea", "x-amz-signature", "x-amz-credential", "x-goog-signature",
+        "token", "access_token", "auth_token", "auth", "authorization", "api_key", "apikey",
+        "key", "signature", "sig", "jwt", "expires", "expires_at", "policy", "hdnts",
+        "hdnea", "session", "sessionid", "password", "secret", "credential", "credentials",
+        "bearer", "x-amz-signature", "x-amz-credential", "x-goog-signature",
     }
     query_keys = {key.casefold() for key, _ in parse_qsl(parsed.query, keep_blank_values=True)}
-    if any(key in sensitive_keys or key.startswith(("x-amz-", "x-goog-")) for key in query_keys):
+    if any(key in sensitive_keys or key.startswith(("x-amz-", "x-goog-", "x-ms-")) for key in query_keys):
         raise ValueError("Signed or credential-bearing crawl URLs cannot be persisted in the durable queue")
     host = parsed.hostname.encode("idna").decode("ascii").lower()
     if ":" in host and not host.startswith("["):
@@ -409,13 +410,14 @@ def upsert_resource(payload: dict) -> dict:
     ):
         raise ValueError("Only credential-free HTTPS URLs on port 443 are accepted")
     sensitive_query_keys = {
-        "token", "access_token", "auth", "authorization", "api_key", "apikey",
-        "key", "signature", "sig", "jwt", "expires", "policy", "hdnts",
-        "hdnea", "x-amz-signature", "x-amz-credential", "x-goog-signature",
+        "token", "access_token", "auth_token", "auth", "authorization", "api_key", "apikey",
+        "key", "signature", "sig", "jwt", "expires", "expires_at", "policy", "hdnts",
+        "hdnea", "session", "sessionid", "password", "secret", "credential", "credentials",
+        "bearer", "x-amz-signature", "x-amz-credential", "x-goog-signature",
     }
     query_keys = {key.casefold() for key, _ in parse_qsl(parsed_url.query, keep_blank_values=True)}
     if any(
-        key in sensitive_query_keys or key.startswith("x-amz-") or key.startswith("x-goog-")
+        key in sensitive_query_keys or key.startswith(("x-amz-", "x-goog-", "x-ms-"))
         for key in query_keys
     ):
         raise ValueError("Signed or credential-bearing URLs cannot be persisted in the resource registry")
