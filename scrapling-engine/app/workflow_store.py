@@ -285,7 +285,13 @@ class PostgresWorkflowStore:
             }
             return result
 
-    def heartbeat_node(self, workflow_id: str, node_id: str, worker_id: str, lease_seconds: int = 60) -> bool:
+    def heartbeat_node(
+        self,
+        workflow_id: str,
+        node_id: str,
+        worker_id: str,
+        lease_seconds: int = 60,
+    ) -> bool:
         now = _now()
         with psycopg.connect(self.database_url, row_factory=dict_row) as db:
             cursor = db.execute(
