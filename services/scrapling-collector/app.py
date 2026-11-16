@@ -1710,6 +1710,52 @@ def normalize_candidate(candidate: dict) -> dict:
 def extract_candidates(page, page_url: str, limit: int) -> list[dict]:
     found: dict[str, dict] = {}
     page_metadata = extract_page_metadata(page, page_url)
+    # Apply only fixture-validated AI selectors. Selector output is data, never
+    # executable code, and all extracted URLs still pass the normal classifier.
+    page_host = urlparse(page_url).hostname or ""
+    active_rule = ai_rules.get_active_rule(page_host)
+    if active_rule:
+        selectors = active_rule.get("rules", {}).get("selectors", {})
+        for rule_kind in ("media", "player"):
+            rule_selector = selectors.get(rule_kind)
+            if not rule_selector:
+                continue
+            try:
+                matched = page.css(rule_selector)
+            except Exception:
+                matched = []
+            for element in matched:
+                targets = [element]
+                for child_selector in ("a", "video", "source", "iframe"):
+                    try:
+                        targets.extend(element.css(child_selector))
+                    except Exception:
+                        continue
+                for target in targets:
+                    attrs = getattr(target, "attrib", {}) or {}
+                    for attribute in ("href", "src", "data-src", "data-url", "data-play"):
+                        value = (attrs.get(attribute) or "").strip()
+                        if not value:
+                            continue
+                        absolute = urljoin(page_url, value)
+                        classified = classify_url(absolute)
+                        if not classified:
+                            continue
+                        kind, host = classified
+                        access = classify_access_state(url=absolute)
+                        found.setdefault(absolute, {
+                            "url": absolute, "kind": kind, "host": host,
+                            "title": str(page_metadata.get("title") or "")[:200],
+                            "ai_rule_version": active_rule.get("version"),
+                            "ai_rule_kind": rule_kind,
+                            **{"page_metadata": page_metadata,
+                               "media_identity": infer_media_identity(
+                                   str(page_metadata.get("title") or "")[:200], page_url, page_metadata
+                               )},
+                            **access,
+                        })
+                        if len(found) >= limit:
+                            return list(found.values())
     title = str(page_metadata.get("title") or "")[:200]
     candidate_metadata = {"page_metadata": page_metadata, "media_identity": infer_media_identity(title, page_url, page_metadata)}
     selectors = [("video", "src"), ("source", "src"), ("iframe", "src"), ("a", "href"), ("script", "src")]
