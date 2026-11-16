@@ -278,3 +278,58 @@ async def test_http_proxy_rejects_invalid_headers_before_opening_target(monkeypa
             object(),
             object(),
         )
+
+
+@pytest.mark.asyncio
+async def test_dns_rebinding_second_resolution_rejects_private_answer():
+    answers = iter(
+        [
+            [_record("93.184.216.34")],
+            [_record("169.254.169.254")],
+        ]
+    )
+
+    async def resolver(host, port, type):
+        return next(answers)
+
+    first = await resolve_public_addresses(
+        "rebind.example", 443, resolver=resolver
+    )
+    assert [str(address) for address in first] == ["93.184.216.34"]
+
+    with pytest.raises(EgressDenied, match="Every resolved address"):
+        await resolve_public_addresses(
+            "rebind.example", 443, resolver=resolver
+        )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "target",
+    [
+        "https://example.com/",
+        "ftp://example.com/file",
+        "file:///etc/passwd",
+        "http://example.com:8080/",
+        "http://127.0.0.1/",
+        "http://169.254.169.254/latest/meta-data/",
+    ],
+)
+async def test_http_proxy_rejects_unsupported_scheme_ports_and_private_targets(
+    monkeypatch, target: str
+):
+    from app import egress_proxy
+
+    async def unexpected_open(*args, **kwargs):
+        raise AssertionError("Outbound socket opened for a denied target")
+
+    monkeypatch.setattr(
+        egress_proxy, "open_pinned_connection", unexpected_open
+    )
+    with pytest.raises(EgressDenied):
+        await egress_proxy._handle_http(
+            f"GET {target} HTTP/1.1",
+            [],
+            object(),
+            object(),
+        )
