@@ -7,6 +7,7 @@ on:
       - feature/ai-scrapling-autonomous-integration
     paths:
       - "scrapling-engine/**"
+      - "docker-compose.yml"
       - ".github/workflows/scrapling-engine.yml"
   pull_request:
     paths:
