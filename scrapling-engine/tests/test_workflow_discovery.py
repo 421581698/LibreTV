@@ -120,11 +120,18 @@ async def test_worker_tests_ai_generated_rule_on_fetched_page(
     monkeypatch.setattr("app.workflow_worker.SupervisorClient", FakePlanner)
 
     worker = WorkflowWorker("postgresql://unused", "test-worker")
+    monkeypatch.setattr(
+        worker.rules,
+        "save_tested_rule",
+        lambda **_kwargs: "rule-test-id",
+    )
     result = await worker._generate_extraction_rule(
         {"page_url": seed, "goal": "Extract movie titles"}
     )
 
     assert result["test_passed"] is True
+    assert result["rule_id"] == "rule-test-id"
+    assert result["rule_status"] == "tested"
     assert result["selector"] == ".movie-card"
     assert result["match_count"] == 2
     assert result["verification_level"] == "live_page_selector_test"
