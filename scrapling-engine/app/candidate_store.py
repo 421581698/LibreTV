@@ -92,7 +92,12 @@ class PostgresCandidateStore:
                 candidate_id = hashlib.sha256(source_url.encode("utf-8")).hexdigest()[:24]
                 title = str(item.get("title") or source_url)[:300]
                 media_url = item.get("media_url")
-                if not isinstance(media_url, str):
+                if isinstance(media_url, str):
+                    try:
+                        media_url = validate_public_http_url(media_url)
+                    except UnsafeTargetError:
+                        media_url = None
+                else:
                     media_url = None
                 media_type = item.get("media_type")
                 if not isinstance(media_type, str):
