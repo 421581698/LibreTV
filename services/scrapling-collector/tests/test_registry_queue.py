@@ -52,10 +52,14 @@ class RegistryQueueTests(unittest.TestCase):
     def test_durable_crawl_queue_rejects_signed_urls_but_keeps_public_query_params(self):
         public = queue.submit_job(
             "crawl",
-            {"url": "https://example.org/watch?quality=1080p&format=hls"},
+            {"url": "https://Example.org:443/watch?quality=1080p&format=hls#client-secret"},
             "crawl:public-query",
         )
         self.assertEqual(public["status"], "queued")
+        self.assertEqual(
+            __import__("json").loads(public["payload"])["url"],
+            "https://example.org:443/watch?quality=1080p&format=hls",
+        )
         for url in (
             "https://example.org/watch?token=secret",
             "https://example.org/watch?X-Amz-Signature=secret",
