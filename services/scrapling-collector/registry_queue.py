@@ -175,7 +175,7 @@ def list_discovered_sites(limit: int = 1000, connection=None) -> list[dict]:
 def is_discovered_host(host: str) -> bool:
     normalized = host.strip().rstrip(".").lower()
     with connect() as c:
-        row = c.execute("SELECT 1 FROM sites WHERE host=?", (normalized,)).fetchone()
+        row = c.execute("SELECT 1 FROM sites WHERE host=? AND directory LIKE 'FMHY / %'", (normalized,)).fetchone()
     return row is not None
 
 
