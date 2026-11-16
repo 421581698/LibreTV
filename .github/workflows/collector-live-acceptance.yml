@@ -125,6 +125,8 @@ jobs:
           docker exec \
             -e SCRAPLING_API_BASE="http://127.0.0.1:8000" \
             -e SCRAPLING_API_TOKEN="$SCRAPLING_API_TOKEN" \
+            -e AI_RULE_ACCEPTANCE_URL="$AI_RULE_ACCEPTANCE_URL" \
+            -e COLLECTOR_AI_ALLOWED_HOSTS="$COLLECTOR_AI_ALLOWED_HOSTS" \
             libretv-scrapling-collector python /tmp/ai_rules_acceptance.py
       - name: Fetch bounded public media fixture behind the egress firewall
         run: |
