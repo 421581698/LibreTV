@@ -72,8 +72,12 @@ class PostgresJobStore:
                 """
             )
             db.execute("ALTER TABLE crawl_jobs ADD COLUMN IF NOT EXISTS lease_owner TEXT")
-            db.execute("ALTER TABLE crawl_jobs ADD COLUMN IF NOT EXISTS lease_expires_at TIMESTAMPTZ")
-            db.execute("ALTER TABLE crawl_jobs ADD COLUMN IF NOT EXISTS heartbeat_at TIMESTAMPTZ")
+            db.execute(
+                "ALTER TABLE crawl_jobs ADD COLUMN IF NOT EXISTS lease_expires_at TIMESTAMPTZ"
+            )
+            db.execute(
+                "ALTER TABLE crawl_jobs ADD COLUMN IF NOT EXISTS heartbeat_at TIMESTAMPTZ"
+            )
             db.execute(
                 "ALTER TABLE crawl_jobs ADD COLUMN IF NOT EXISTS "
                 "attempt_count INTEGER NOT NULL DEFAULT 0"
