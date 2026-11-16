@@ -101,7 +101,7 @@ This is a reproducible CI runtime acceptance, not evidence that a user's own Doc
 
 ## DNS-pinned egress path
 
-The crawler Compose profile places the API and workers only on internal Docker networks. PostgreSQL is on a separate internal database network. Workers have no default bridge route; their HTTP(S) traffic and configured Supervisor requests use `scrapling-egress-proxy`, which is the only crawler component attached to the external egress bridge.
+The crawler Compose profile places the API and workers only on internal Docker networks. PostgreSQL is on a separate internal database network. Workers have no default bridge route; their HTTP(S) traffic and configured Supervisor requests use `scrapling-egress-proxy`, which is the only crawler component attached to the external egress bridge. Compose sets `SCRAPLING_REQUIRE_EGRESS_PROXY=true`; engine and worker processes fail startup if the proxy URL is missing.
 
 The proxy supports HTTP GET/HEAD and HTTPS CONNECT. For every new target connection it resolves the hostname, rejects the request if any A/AAAA answer is not globally routable, and opens the socket to one of the validated IP literals rather than resolving the hostname again. HTTPS remains end-to-end TLS: the proxy does not terminate TLS, so the client's original SNI and certificate validation remain intact. Redirects are followed by the client; each new origin connection returns through the proxy and is independently resolved and checked. Same-connection keep-alive traffic remains pinned to the already validated peer.
 
