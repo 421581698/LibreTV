@@ -10,7 +10,7 @@ from datetime import datetime, time as clock_time
 from zoneinfo import ZoneInfo
 from urllib.parse import urlsplit, urlunsplit
 
-import registry_queue as registry_store
+import registry_queue
 import ai_rules
 from app import (
     TOKEN,
@@ -32,7 +32,7 @@ MAX_AUTOMATIC_MEDIA_PREFLIGHTS = 100
 
 
 def get_discovered_sites(limit: int = 1000) -> list[dict]:
-    with registry_store.connect() as connection:
+    with registry_queue.connect() as connection:
         rows = connection.execute(
             "SELECT host,title,url,directory FROM sites WHERE directory LIKE 'FMHY / %' ORDER BY discovered_at DESC LIMIT ?",
             (max(1, min(1000, limit)),),
