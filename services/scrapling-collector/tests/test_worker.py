@@ -60,7 +60,10 @@ class WorkerPipelineTests(unittest.TestCase):
         self.assertEqual(result["discovered"], 8)
         self.assertEqual(len(result["queued_jobs"]), 8)
         self.assertEqual(len(queued), 8)
-        self.assertTrue(all(item["limit"] == 100 for item in queued))
+        self.assertTrue(all(item["limit"] == 1000 for item in queued))
+        self.assertEqual(result["target_candidates"], 1000)
+        self.assertEqual(result["target_collected"], 1000)
+        self.assertTrue(result["batch_id"])
 
     def test_candidate_and_discovery_limits_support_at_least_one_thousand(self):
         import app
