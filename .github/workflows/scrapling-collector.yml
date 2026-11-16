@@ -99,6 +99,7 @@ jobs:
         working-directory: .
         env:
           SCRAPLING_EGRESS_FIREWALL_CONFIRMED: "1"
+          PASSWORD: ci-only-acceptance-password
           MEDIA_ACCEPTANCE_URL: https://upload.wikimedia.org/wikipedia/commons/c/c0/Big_Buck_Bunny_4K.webm
           MEDIA_ACCEPTANCE_ALLOWED_HOSTS: upload.wikimedia.org
           MEDIA_ACCEPTANCE_SECONDS: "60"
