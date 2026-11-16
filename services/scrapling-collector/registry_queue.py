@@ -110,6 +110,9 @@ def submit_job(job_type: str, payload: dict, idempotency_key: str, max_attempts:
           VALUES(?,?,?,?,?,?,?,?,?)""",
           (job_id,idempotency_key,job_type,json.dumps(payload,ensure_ascii=False),"queued",max(1,min(max_attempts,8)),now,now,now))
         row = c.execute("SELECT * FROM collector_jobs WHERE idempotency_key=?", (idempotency_key,)).fetchone()
+        if row["job_type"] != job_type or json.loads(row["payload"]) != payload:
+            c.rollback()
+            raise ValueError("Idempotency key was already used for a different job payload")
         if c.execute("SELECT changes()").fetchone()[0]:
             event(c, row["id"], "queued", {"job_type": job_type})
         c.commit()
