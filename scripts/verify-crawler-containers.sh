@@ -269,7 +269,7 @@ echo "[runtime] Verify proxy blocks cloud metadata endpoints"
 timeout 15s "${compose[@]}" exec -T scrapling-workflow-worker python - <<'PY'
 import socket
 sock = socket.create_connection(("scrapling-egress-proxy", 8080), timeout=3)
-sock.sendall(b"CONNECT 169.254.169.254:443 HTTP/1.1\\r\\nHost: 169.254.169.254:443\\r\\n\\r\\n")
+sock.sendall(b"CONNECT 169.254.169.254:443 HTTP/1.1\r\nHost: 169.254.169.254:443\r\n\r\n")
 response = sock.recv(4096)
 sock.close()
 assert response.startswith(b"HTTP/1.1 403"), response[:200]
