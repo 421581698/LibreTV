@@ -54,14 +54,39 @@ def main():
 
     repaired = enqueue("/v1/rules/repair", "live_acceptance_repair")
     active_after = request("/v1/rules/" + HOST)
-    if int(active_after["version"]) <= previous_version or active_after.get("status") != "active":
+    repaired_version = int(active_after["version"])
+    if repaired_version <= previous_version or active_after.get("status") != "active":
         raise SystemExit("FAIL: repaired rule was not versioned and fixture-validated")
+
+    history = request("/v1/rules/" + HOST + "/versions")["versions"]
+    if not any(item["version"] == previous_version for item in history):
+        raise SystemExit("FAIL: initial rule version is missing from history")
+    if not any(item["version"] == repaired_version and item["is_active"] for item in history):
+        raise SystemExit("FAIL: active rule pointer is missing from version history")
+    diagnostics = request("/v1/rules/" + HOST + "/diagnostics")["diagnostics"]
+    if not any(item.get("repair_version") == repaired_version for item in diagnostics):
+        raise SystemExit("FAIL: repair diagnostic was not linked to its rule version")
+
+    rolled_back = request(
+        "/v1/rules/" + HOST + f"/versions/{previous_version}/activate", "POST"
+    )
+    if int(rolled_back["version"]) != previous_version:
+        raise SystemExit("FAIL: validated rollback did not restore the previous version")
+    restored = request(
+        "/v1/rules/" + HOST + f"/versions/{repaired_version}/activate", "POST"
+    )
+    if int(restored["version"]) != repaired_version:
+        raise SystemExit("FAIL: repaired version could not be reactivated after rollback")
+
     print(json.dumps({
         "status": "passed",
         "generation_job": generated.get("id"),
         "repair_job": repaired.get("id"),
         "initial_version": previous_version,
-        "repaired_version": active_after["version"],
+        "repaired_version": repaired_version,
+        "history_versions": len(history),
+        "diagnostics": len(diagnostics),
+        "rollback_verified": True,
         "fixture_passes": active_after["fixture_passes"],
     }, ensure_ascii=False, indent=2))
 
