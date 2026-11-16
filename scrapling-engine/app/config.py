@@ -1,4 +1,5 @@
 import ipaddress
+import re
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -15,9 +16,16 @@ def is_loopback_host(host: str) -> bool:
 
 
 def validate_bind_security(host: str, api_key: SecretStr | None) -> None:
-    if api_key is None and not is_loopback_host(host):
+    if api_key is None:
+        if not is_loopback_host(host):
+            raise RuntimeError(
+                "SCRAPLING_API_KEY is required when the service binds to a non-loopback host."
+            )
+        return
+    secret = api_key.get_secret_value()
+    if len(secret) < 32 or re.fullmatch(r"[A-Za-z0-9_-]+", secret) is None:
         raise RuntimeError(
-            "SCRAPLING_API_KEY is required when the service binds to a non-loopback host."
+            "SCRAPLING_API_KEY must contain at least 32 alphanumeric, underscore, or hyphen characters."
         )
 
 
@@ -26,8 +34,6 @@ class Settings(BaseSettings):
     api_key: SecretStr | None = Field(
         default=None,
         validation_alias="SCRAPLING_API_KEY",
-        min_length=32,
-        pattern=r"^[A-Za-z0-9_-]+$",
     )
     port: int = Field(default=8787, ge=1, le=65535, validation_alias="PORT")
     log_level: str = "INFO"
