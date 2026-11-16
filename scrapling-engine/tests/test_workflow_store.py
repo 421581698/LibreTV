@@ -57,6 +57,9 @@ def test_postgres_workflow_dag_claims_dependencies_and_retries_durably() -> None
                 "WHERE workflow_id = %s AND node_id = 'discover'",
                 (workflow_id,),
             )
+        assert not store.heartbeat_node(
+            workflow_id, "discover", "worker-a", lease_seconds=30
+        )
         recovered = store.claim_ready_node("worker-b", lease_seconds=30)
         assert recovered is not None
         assert recovered["node_id"] == "discover"
