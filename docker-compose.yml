@@ -181,7 +181,7 @@ services:
       scrapling-egress-proxy:
         condition: service_healthy
       scrapling-media-probe:
-        condition: service_started
+        condition: service_healthy
 
   scrapling-egress-proxy:
     profiles: ["crawler"]
