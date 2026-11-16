@@ -422,6 +422,16 @@ class RegistryQueueTests(unittest.TestCase):
             ).fetchone()
         self.assertIsNone(stored)
 
+    def test_registry_identity_cannot_be_overridden_by_caller_key(self):
+        common = {
+            "source_key": "same-provider", "resource_type": "DIRECT_MEDIA",
+            "url": "https://media.example.org/stable/movie.mp4", "title": "Same film",
+        }
+        first = queue.upsert_resource({**common, "resource_key": "caller-key-one"})
+        second = queue.upsert_resource({**common, "resource_key": "caller-key-two"})
+        self.assertEqual(first["id"], second["id"])
+        self.assertEqual(first["resource_key"], second["resource_key"])
+
     def test_candidate_links_deduplicate_by_source_and_canonical_url(self):
         url = "https://media.example.org/catalog/movie.mp4"
         first_id = "1" * 32
