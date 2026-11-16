@@ -10,6 +10,7 @@ from typing import Any, Awaitable, Callable
 
 from app.candidate_store import PostgresCandidateStore
 from app.media_analyzer import analyze_hls_manifest, analyze_mpd_manifest
+from app.scraper import ScraplingAdapter
 from app.config import settings
 from app.security import validate_public_http_url
 from app.spider import ScraplingSpiderAdapter
@@ -43,6 +44,7 @@ class WorkflowWorker:
             "crawl_seed_urls": self._crawl_seed_urls,
             "register_candidates": self._register_candidates,
             "analyze_media_manifest": self._analyze_media_manifest,
+            "analyze_media_candidates": self._analyze_media_candidates,
         }
 
     @staticmethod
@@ -125,6 +127,74 @@ class WorkflowWorker:
             "hdr_claim": report["hdr_claim"],
             "verification_level": report["verification_level"],
         }
+
+    async def _analyze_media_candidates(
+        self,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        candidate_ids = payload.get("candidate_ids")
+        if not isinstance(candidate_ids, list):
+            candidate_ids = []
+            for result in payload.get("dependencies", {}).values():
+                if isinstance(result, dict) and isinstance(
+                    result.get("candidate_ids"), list
+                ):
+                    candidate_ids.extend(result["candidate_ids"])
+        if not candidate_ids or len(candidate_ids) > 20:
+            raise ValueError("analyze_media_candidates requires 1 to 20 candidate IDs")
+
+        reports: list[dict[str, Any]] = []
+        for candidate_id in dict.fromkeys(candidate_ids):
+            candidate = await asyncio.to_thread(
+                self.candidates.get_candidate, str(candidate_id)
+            )
+            if candidate is None:
+                reports.append({"candidate_id": candidate_id, "status": "not_found"})
+                continue
+            media_type = candidate.get("media_type")
+            if media_type not in {"hls", "dash"}:
+                reports.append(
+                    {
+                        "candidate_id": candidate_id,
+                        "status": "requires_file_probe",
+                        "verification_level": "not_analyzed",
+                    }
+                )
+                continue
+            media_url = validate_public_http_url(candidate["media_url"])
+            page = await asyncio.to_thread(
+                ScraplingAdapter.fetch_page,
+                media_url,
+                settings.request_timeout_seconds,
+            )
+            body = getattr(page, "body", b"")
+            if isinstance(body, bytes):
+                manifest_text = body.decode("utf-8", errors="replace")
+            else:
+                manifest_text = str(body)
+            report = (
+                analyze_hls_manifest(manifest_text)
+                if media_type == "hls"
+                else analyze_mpd_manifest(manifest_text)
+            )
+            saved = await asyncio.to_thread(
+                self.candidates.save_quality_report,
+                str(candidate_id),
+                report,
+            )
+            reports.append(
+                {
+                    "candidate_id": candidate_id,
+                    "status": "analyzed" if saved else "not_found",
+                    "quality_label": report["quality_label"],
+                    "is_4k_claim": report["is_4k_claim"],
+                    "hdr_claim": report["hdr_claim"],
+                    "max_height": report["max_height"],
+                    "max_bitrate_bps": report["max_bitrate_bps"],
+                    "verification_level": report["verification_level"],
+                }
+            )
+        return {"count": len(reports), "reports": reports}
 
     async def _heartbeat(
         self,
