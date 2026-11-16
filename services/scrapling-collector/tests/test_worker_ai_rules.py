@@ -32,6 +32,24 @@ class WorkerAIRuleTests(unittest.TestCase):
             result = worker.handle(payload, lambda value: checkpoint.append(value) or True, lambda: False)
         return result, submit, checkpoint, record_failure
 
+    def test_failed_ai_generation_persists_diagnostic_before_queue_retry(self):
+        checkpoint = Mock()
+        with patch.object(worker, "require_egress_firewall"), \
+             patch.object(worker.ai_rules, "generate_rules", side_effect=RuntimeError("gateway unavailable")), \
+             patch.object(worker.ai_rules, "record_failure", return_value="diagnostic-failed") as record_failure:
+            with self.assertRaises(RuntimeError):
+                worker.handle(
+                    {"_job_type": "rule_generate", "host": "catalog.example",
+                     "page_html": "<html></html>", "task_id": "task-ai-fail"},
+                    checkpoint,
+                    lambda: False,
+                )
+        record_failure.assert_called_once()
+        self.assertEqual(record_failure.call_args.args[0:3],
+                         ("catalog.example", "task-ai-fail", "ai_rule_generation_failed"))
+        self.assertTrue(any(call.args[0].get("stage") == "ai_rule_analysis_failed"
+                            for call in checkpoint.call_args_list))
+
     def test_initial_crawl_automatically_enqueues_rule_generation_when_gateway_is_configured(self):
         _, submit, checkpoint, record_failure = self._run_crawl()
         submit.assert_called_once()
