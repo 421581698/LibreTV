@@ -18,6 +18,7 @@ from app.robots import ensure_robots_allowed
 from app.scraper import ScraplingAdapter
 from app.security import validate_public_http_url
 from app.spider import ScraplingSpiderAdapter
+from app.supervisor import SupervisorClient
 from app.workflow_store import PostgresWorkflowStore
 
 logger = logging.getLogger("libretv.scrapling.workflow_worker")
@@ -47,6 +48,7 @@ class WorkflowWorker:
             "validate_public_urls": self._validate_public_urls,
             "crawl_seed_urls": self._crawl_seed_urls,
             "discover_site_links": self._discover_site_links,
+            "ai_supervisor_discover": self._ai_supervisor_discover,
             "register_candidates": self._register_candidates,
             "analyze_media_manifest": self._analyze_media_manifest,
             "analyze_media_candidates": self._analyze_media_candidates,
@@ -194,6 +196,41 @@ class WorkflowWorker:
             "max_pages": max_pages,
             "scope": "same_origin_only",
             "errors": errors[:100],
+        }
+
+    async def _ai_supervisor_discover(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Ask the configured model for bounded limits, then execute the safe discovery tool."""
+        urls = payload.get("urls") or self._dependency_urls(payload)
+        if not isinstance(urls, list) or not urls or len(urls) > 20:
+            raise ValueError("ai_supervisor_discover requires 1 to 20 seed URLs")
+        safe_urls = list(dict.fromkeys(validate_public_http_url(url) for url in urls))
+        api_key = (
+            settings.supervisor_api_key.get_secret_value()
+            if settings.supervisor_api_key is not None
+            else ""
+        )
+        planner = SupervisorClient(
+            settings.supervisor_api_base,
+            api_key,
+            settings.supervisor_model,
+            settings.supervisor_timeout_seconds,
+        )
+        goal = payload.get(
+            "goal",
+            "Discover public movie, series and animation pages and identify direct media references.",
+        )
+        plan = await planner.plan_discovery(str(goal), safe_urls)
+        discovery = await self._discover_site_links(
+            {"urls": safe_urls, **plan.model_dump(exclude={"rationale"})}
+        )
+        return {
+            **discovery,
+            "supervisor": {
+                "model": planner.model,
+                "rationale": plan.rationale,
+                "selected_limits": plan.model_dump(),
+                "executed_tool": "discover_site_links",
+            },
         }
 
     async def _register_candidates(self, payload: dict[str, Any]) -> dict[str, Any]:
