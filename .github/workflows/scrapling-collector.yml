@@ -64,7 +64,7 @@ jobs:
       - name: Verify installed Patchright browser runtime
         run: python -c "from patchright.sync_api import sync_playwright; print('Patchright import passed')"
       - name: Compile Python service
-        run: python -m py_compile app.py registry_queue.py worker.py ai_rules.py tests/ai_rules_acceptance.py tests/media_acceptance.py tests/browser_playback_acceptance.py tests/live_crawl_scale.py tests/test_ai_rules.py tests/test_worker_ai_rules.py
+        run: python -m py_compile app.py registry_queue.py worker.py ai_rules.py tests/ai_rules_acceptance.py tests/media_download.py tests/media_acceptance.py tests/browser_playback_acceptance.py tests/live_crawl_scale.py tests/test_ai_rules.py tests/test_worker_ai_rules.py
       - name: Run collector unit tests
         run: python -m unittest discover -s tests -v
       - name: Stress test 1k, 2k, 5k, and 10k independent durable queue jobs
