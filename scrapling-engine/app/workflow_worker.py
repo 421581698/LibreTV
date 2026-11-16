@@ -345,14 +345,34 @@ class WorkflowWorker:
                 site_result["discovery_errors"] = discovery.get("errors", [])[:10]
                 items = discovery.get("items", [])
                 if items:
-                    try:
-                        rule_result = await self._generate_extraction_rule({
-                            "page_url": items[0].get("url"), "goal": goal, "_workflow_id": workflow_id
-                        })
-                        site_result["rule"] = rule_result
-                    except Exception as exc:
-                        site_result["rule_repair_status"] = "needs_review"
-                        site_result["rule_error"] = type(exc).__name__
+                    active_rules = await asyncio.to_thread(
+                        self.rules.list_active_for_origin, str(items[0].get("url") or site_url)
+                    )
+                    rule_feedback = [
+                        extraction
+                        for item in items if isinstance(item, dict)
+                        for extraction in item.get("rule_extractions", [])
+                        if isinstance(extraction, dict)
+                    ]
+                    repair_needed = not active_rules or any(
+                        extraction.get("status") != "matched" or extraction.get("auto_disabled")
+                        for extraction in rule_feedback
+                    )
+                    if repair_needed:
+                        try:
+                            rule_result = await self._generate_extraction_rule({
+                                "page_url": items[0].get("url"), "goal": goal, "_workflow_id": workflow_id
+                            })
+                            site_result["rule"] = rule_result
+                            site_result["rule_repair_status"] = (
+                                "replacement_tested_pending_approval" if active_rules
+                                else "initial_rule_tested_pending_approval"
+                            )
+                        except Exception as exc:
+                            site_result["rule_repair_status"] = "needs_review"
+                            site_result["rule_error"] = type(exc).__name__
+                    else:
+                        site_result["rule_repair_status"] = "active_rule_healthy"
                     registered = await self._register_candidates({
                         "_workflow_id": workflow_id, "items": items
                     })
