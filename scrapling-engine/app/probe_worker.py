@@ -94,6 +94,37 @@ def process_request(
     return True
 
 
+def cleanup_orphaned_results(
+    inbox: Path,
+    outbox: Path,
+    *,
+    now: float | None = None,
+    retention_seconds: int = 60,
+) -> int:
+    """Reap acknowledged sidecar outputs without granting the caller write access."""
+    current_time = time.time() if now is None else now
+    removed = 0
+    for result_path in outbox.glob("*.json"):
+        job_id = result_path.stem
+        if not _JOB_ID.fullmatch(job_id):
+            continue
+        if result_path.is_symlink():
+            result_path.unlink(missing_ok=True)
+            removed += 1
+            continue
+        request_path = inbox / f"{job_id}.json"
+        if request_path.is_file() and not request_path.is_symlink():
+            continue
+        try:
+            age = current_time - result_path.stat().st_mtime
+        except OSError:
+            continue
+        if age >= retention_seconds:
+            result_path.unlink(missing_ok=True)
+            removed += 1
+    return removed
+
+
 def run_forever() -> None:
     staging, inbox, outbox = _directories()
     logger.info("Isolated media probe worker started (network disabled by container)")
@@ -103,6 +134,7 @@ def run_forever() -> None:
                 process_request(request_path, inbox, outbox, staging)
             except Exception:
                 logger.exception("Unexpected media probe worker failure")
+        cleanup_orphaned_results(inbox, outbox)
         time.sleep(POLL_SECONDS)
 
 
