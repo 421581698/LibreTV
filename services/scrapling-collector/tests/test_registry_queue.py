@@ -300,6 +300,25 @@ class RegistryQueueTests(unittest.TestCase):
 
 
 
+    def test_signed_candidate_is_not_promoted_into_durable_registry(self):
+        candidate_id = "c" * 32
+        result = queue.register_discovered_candidate({
+            "id": candidate_id,
+            "kind": "direct-media",
+            "host": "media.example.org",
+            "url": "https://media.example.org/movie.m3u8?token=ephemeral-secret",
+            "title": "Signed Film",
+            "status": "pending",
+            "access_state": "ACCESS_UNKNOWN",
+        })
+        self.assertIsNone(result)
+        with queue.connect() as c:
+            stored = c.execute(
+                "SELECT id FROM registry_resources WHERE candidate_id=?",
+                (candidate_id,),
+            ).fetchone()
+        self.assertIsNone(stored)
+
     def test_registry_search_matches_preserved_search_keyword_metadata(self):
         candidate_id = "b" * 32
         resource = queue.register_discovered_candidate({
