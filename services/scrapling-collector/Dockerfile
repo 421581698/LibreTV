@@ -8,7 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PORT=10000
 
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends gosu libatomic1 ffmpeg \
+RUN apt-get update && apt-get install -y --no-install-recommends gosu libatomic1 ffmpeg ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt \
