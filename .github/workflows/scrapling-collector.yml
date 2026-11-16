@@ -117,7 +117,8 @@ jobs:
           docker exec -i libretv-scrapling-collector sh -c 'cat > /tmp/media_download.py' < services/scrapling-collector/tests/media_download.py
           docker exec -i libretv-scrapling-collector sh -c 'cat > /tmp/browser_playback_acceptance.py' < services/scrapling-collector/tests/browser_playback_acceptance.py
           docker exec -e MEDIA_ACCEPTANCE_URL="$MEDIA_ACCEPTANCE_URL" -e MEDIA_ACCEPTANCE_ALLOWED_HOSTS="$MEDIA_ACCEPTANCE_ALLOWED_HOSTS" -e MEDIA_ACCEPTANCE_SECONDS="$MEDIA_ACCEPTANCE_SECONDS" libretv-scrapling-collector python /tmp/media_download.py --output /tmp/media-acceptance-sample.mkv
-          docker cp libretv-scrapling-collector:/tmp/media-acceptance-sample.mkv "$RUNNER_TEMP/media-acceptance-sample.mkv"
+          docker exec libretv-scrapling-collector sh -c 'test -s /tmp/media-acceptance-sample.mkv && cat /tmp/media-acceptance-sample.mkv' > "$RUNNER_TEMP/media-acceptance-sample.mkv"
+          test -s "$RUNNER_TEMP/media-acceptance-sample.mkv"
           docker exec libretv-scrapling-collector rm -f /tmp/media-acceptance-sample.mkv
           docker run --rm --network none --read-only --user 10001:10001 --cap-drop ALL \
             --security-opt no-new-privileges \
