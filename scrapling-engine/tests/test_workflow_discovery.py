@@ -62,12 +62,6 @@ async def test_discover_site_links_is_bounded_and_stays_on_seed_origin(
     monkeypatch.setattr("app.workflow_worker.ensure_robots_allowed", lambda *a, **k: None)
     monkeypatch.setattr("app.workflow_worker.ScraplingAdapter.fetch_page", fetch)
     monkeypatch.setattr("app.workflow_worker.asyncio.sleep", no_wait)
-    monkeypatch.setattr(
-        WorkflowWorker,
-        "_unused",
-        lambda *_args: None,
-        raising=False,
-    )
 
     worker = WorkflowWorker("postgresql://unused", "test-worker")
     monkeypatch.setattr(worker.rules, "list_active_for_origin", lambda _url: [])
