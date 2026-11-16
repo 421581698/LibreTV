@@ -225,6 +225,9 @@ class PostgresWorkflowStore:
                 WITH candidate AS (
                     SELECT node.workflow_id, node.node_id
                     FROM resource_workflow_nodes AS node
+                    JOIN resource_workflows AS workflow
+                      ON workflow.workflow_id = node.workflow_id
+                     AND workflow.status = 'running'
                     WHERE ((
                         node.status IN ('pending', 'retry_wait')
                         AND node.available_at <= %s
