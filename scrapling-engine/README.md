@@ -97,7 +97,7 @@ The DAG engine is now a real durable orchestration primitive, not yet the comple
 
 The Scrapling Engine CI runs `scripts/verify-crawler-containers.sh` on an isolated GitHub-hosted Docker runner. It builds and starts the opt-in crawler services, then checks the effective container configuration and runtime identity for the API and both workers: UID/GID 10001, read-only root filesystem, dropped capabilities, no-new-privileges, PID/CPU/memory limits, and a `/tmp` tmpfs mounted with `noexec,nosuid,nodev`. It also performs an actual write/delete operation on the shared `/data` volume as UID 10001 and checks that the media-probe sidecar uses `network_mode: none`, has a read-only inbox, a separate writable result volume, and cannot open an outbound TCP connection.
 
-This is a reproducible CI runtime acceptance, not evidence that a user's own Docker host has been tested. The probe process is still executed by the workflow worker in the current implementation; an isolated no-network probe sidecar remains a required security change. DNS validation is still application-layer only until a pinned-IP egress proxy and enforced no-bypass network topology are implemented and tested.
+This is a reproducible CI runtime acceptance on a GitHub-hosted Docker runner, not evidence that a user's own Docker host has been tested. The sidecar handoff is exercised end to end with a generated media clip and a real ffprobe report. The same acceptance checks that workers cannot reach a public IP directly, can fetch HTTP and HTTPS through the proxy, that metadata-address CONNECT requests are rejected, and that the proxy is the only crawler service attached to an external network.
 
 ## DNS-pinned egress path
 
