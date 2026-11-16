@@ -257,7 +257,7 @@ def generate_rules(host: str, page_html: str, diagnostics: dict | None = None) -
 def save_version(host: str, rules: dict, source: str, fixtures: list[str] | None = None) -> dict:
     rules = validate_rules(rules)
     passed, total = validate_fixtures(rules, fixtures or [])
-    status = "active" if total > 0 and passed > 0 else "draft"
+    status = "active" if total > 0 and passed == total else "draft"
     now = int(time.time())
     version_id = uuid.uuid4().hex
     with connect() as c:
