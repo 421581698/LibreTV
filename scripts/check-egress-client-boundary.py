@@ -21,6 +21,10 @@ HTTP_CLIENT_MODULES = (
 
 
 def is_http_client_module(module: str) -> bool:
+    if module == "urllib":
+        return True
+    if module.startswith("urllib.") and module not in {"urllib.parse", "urllib.robotparser"}:
+        return True
     return any(module == item or module.startswith(f"{item}.") for item in HTTP_CLIENT_MODULES)
 
 
