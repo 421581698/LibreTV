@@ -57,7 +57,11 @@ def test_probe_media_candidates_downloads_and_probes_direct_file_candidate(
     monkeypatch.setattr("app.workflow_worker.download_candidate_media", fake_download)
     monkeypatch.setattr("app.workflow_worker.probe_media_file", fake_probe)
 
-    result = asyncio.run(worker._probe_media_candidates({"candidate_ids": ["file-1"]}))
+    result = asyncio.run(
+        worker._probe_media_candidates(
+            {"dependencies": {"register": {"candidate_ids": ["file-1"]}}}
+        )
+    )
 
     assert result["count"] == 1
     assert result["reports"][0] == {
