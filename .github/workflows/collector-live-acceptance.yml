@@ -112,7 +112,7 @@ jobs:
       - name: Copy real acceptance harnesses into isolated Collector
         run: |
           docker cp services/scrapling-collector/tests/ai_rules_acceptance.py libretv-scrapling-collector:/tmp/ai_rules_acceptance.py
-          docker cp services/scrapling-collector/tests/media_acceptance.py libretv-scrapling-collector:/tmp/media_acceptance.py
+          docker cp services/scrapling-collector/tests/media_download.py libretv-scrapling-collector:/tmp/media_download.py
           docker cp services/scrapling-collector/tests/browser_playback_acceptance.py libretv-scrapling-collector:/tmp/browser_playback_acceptance.py
           docker cp services/scrapling-collector/tests/live_crawl_scale.py libretv-scrapling-collector:/tmp/live_crawl_scale.py
           printf '%s\n' "$LIVE_CRAWL_URLS" "$LIVE_CRAWL_URLS_2" "$LIVE_CRAWL_URLS_3" "$LIVE_CRAWL_URLS_4" "$LIVE_CRAWL_URLS_5" "$LIVE_CRAWL_URLS_6" "$LIVE_CRAWL_URLS_7" "$LIVE_CRAWL_URLS_8" "$LIVE_CRAWL_URLS_9" "$LIVE_CRAWL_URLS_10" "$LIVE_CRAWL_URLS_11" "$LIVE_CRAWL_URLS_12" "$LIVE_CRAWL_URLS_13" "$LIVE_CRAWL_URLS_14" "$LIVE_CRAWL_URLS_15" "$LIVE_CRAWL_URLS_16" "$LIVE_CRAWL_URLS_17" "$LIVE_CRAWL_URLS_18" "$LIVE_CRAWL_URLS_19" "$LIVE_CRAWL_URLS_20" "$LIVE_CRAWL_URLS_21" "$LIVE_CRAWL_URLS_22" "$LIVE_CRAWL_URLS_23" "$LIVE_CRAWL_URLS_24" "$LIVE_CRAWL_URLS_25" "$LIVE_CRAWL_URLS_26" "$LIVE_CRAWL_URLS_27" "$LIVE_CRAWL_URLS_28" "$LIVE_CRAWL_URLS_29" "$LIVE_CRAWL_URLS_30" > /tmp/collector-approved-live-urls.txt
@@ -123,13 +123,25 @@ jobs:
             -e SCRAPLING_API_BASE="http://127.0.0.1:8000" \
             -e SCRAPLING_API_TOKEN="$SCRAPLING_API_TOKEN" \
             libretv-scrapling-collector python /tmp/ai_rules_acceptance.py
-      - name: Verify real UHD 4K sustained decode
+      - name: Fetch bounded public media fixture behind the egress firewall
         run: |
           docker exec \
             -e MEDIA_ACCEPTANCE_URL="$MEDIA_ACCEPTANCE_URL" \
             -e MEDIA_ACCEPTANCE_ALLOWED_HOSTS="$MEDIA_ACCEPTANCE_ALLOWED_HOSTS" \
             -e MEDIA_ACCEPTANCE_SECONDS="$MEDIA_ACCEPTANCE_SECONDS" \
-            libretv-scrapling-collector python /tmp/media_acceptance.py
+            libretv-scrapling-collector python /tmp/media_download.py --output /tmp/media-acceptance-sample.mkv
+          docker cp libretv-scrapling-collector:/tmp/media-acceptance-sample.mkv "$RUNNER_TEMP/media-acceptance-sample.mkv"
+      - name: Decode 4K in a no-network FFprobe and FFmpeg sandbox
+        run: |
+          docker run --rm --network none --read-only --user 10001:10001 --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --security-opt seccomp="$GITHUB_WORKSPACE/services/scrapling-collector/seccomp-no-socket.json" \
+            --tmpfs /tmp:rw,noexec,nosuid,nodev,size=128m \
+            --mount type=bind,src="$RUNNER_TEMP/media-acceptance-sample.mkv",dst=/input/media-acceptance-sample.mkv,readonly \
+            --mount type=bind,src="$GITHUB_WORKSPACE/services/scrapling-collector/tests/media_acceptance.py",dst=/opt/media_acceptance.py,readonly \
+            --memory 2g --cpus 2 --pids-limit 128 -e HOME=/tmp \
+            --entrypoint python libretv-scrapling-collector:ci \
+            /opt/media_acceptance.py --input /input/media-acceptance-sample.mkv --requested-seconds "$MEDIA_ACCEPTANCE_SECONDS"
       - name: Verify real Chromium 4K continuous playback
         run: |
           docker exec \
