@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import json
 import os
+import selectors
+import signal
 import stat
 import subprocess
+import time
 from pathlib import Path
 from typing import Any
 
@@ -81,28 +84,81 @@ def analyze_local_media_file(
         "-of", "json",
         str(media_path),
     ]
+    stdout = bytearray()
+    stderr = bytearray()
+    deadline = time.monotonic() + timeout_seconds
     try:
-        completed = subprocess.run(
+        process = subprocess.Popen(
             command,
             stdin=subprocess.DEVNULL,
-            capture_output=True,
-            timeout=timeout_seconds,
-            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             shell=False,
             cwd=str(_probe_root()),
             env={"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "LANG": "C"},
             close_fds=True,
+            start_new_session=True,
         )
     except FileNotFoundError as exc:
         raise MediaProbeError("ffprobe is not installed in the worker image") from exc
-    except subprocess.TimeoutExpired as exc:
+
+    assert process.stdout is not None and process.stderr is not None
+    streams = {process.stdout: (stdout, MAX_PROBE_OUTPUT_BYTES, "stdout"),
+               process.stderr: (stderr, 64 * 1024, "stderr")}
+    selector = selectors.DefaultSelector()
+    try:
+        for stream in streams:
+            os.set_blocking(stream.fileno(), False)
+            selector.register(stream, selectors.EVENT_READ)
+        while selector.get_map():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise MediaProbeError("Media probe timed out")
+            for key, _ in selector.select(min(remaining, 0.25)):
+                stream = key.fileobj
+                chunk = os.read(stream.fileno(), 64 * 1024)
+                if not chunk:
+                    selector.unregister(stream)
+                    stream.close()
+                    continue
+                buffer, limit, label = streams[stream]
+                if len(buffer) + len(chunk) > limit:
+                    raise MediaProbeError(
+                        "ffprobe output exceeds the 1 MiB limit"
+                        if label == "stdout"
+                        else "ffprobe diagnostics exceed the 64 KiB limit"
+                    )
+                buffer.extend(chunk)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise MediaProbeError("Media probe timed out")
+        return_code = process.wait(timeout=remaining)
+    except (subprocess.TimeoutExpired, TimeoutError) as exc:
         raise MediaProbeError("Media probe timed out") from exc
-    if len(completed.stdout) > MAX_PROBE_OUTPUT_BYTES:
-        raise MediaProbeError("ffprobe output exceeds the 1 MiB limit")
-    if completed.returncode != 0:
+    except BaseException:
+        if process.poll() is None:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        process.wait()
+        raise
+    finally:
+        selector.close()
+        for stream in (process.stdout, process.stderr):
+            if not stream.closed:
+                stream.close()
+        if process.poll() is None:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait()
+
+    if return_code != 0:
         raise MediaProbeError("ffprobe could not parse the local media file")
     try:
-        payload = json.loads(completed.stdout)
+        payload = json.loads(stdout)
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise MediaProbeError("ffprobe returned invalid JSON") from exc
     if not isinstance(payload, dict):
