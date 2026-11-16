@@ -108,6 +108,8 @@ jobs:
             --cap-drop ALL --cap-add CHOWN --cap-add SETGID --cap-add SETUID --security-opt no-new-privileges \
             -e SCRAPLING_API_TOKEN=collector-ci-token \
             -e SCRAPLING_DB_PATH=/data/collector.sqlite3 \
+            -e SCRAPLING_EGRESS_FIREWALL_CONFIRMED=1 \
+            -e SCRAPLING_EGRESS_MARKER_PATH=/data/missing-firewall-proof.json \
             -e PORT=8000 \
             -p 127.0.0.1:18000:8000 \
             libretv-scrapling-collector:ci
