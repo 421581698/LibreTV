@@ -28,7 +28,7 @@ permissions:
 jobs:
   live-acceptance:
     runs-on: ubuntu-latest
-    timeout-minutes: 1440
+    timeout-minutes: 360
     environment: collector-acceptance
     env:
       PASSWORD: ${{ secrets.COLLECTOR_ACCEPTANCE_PASSWORD }}
@@ -66,10 +66,16 @@ jobs:
         run: sudo bash scripts/scrapling-egress-firewall.sh
       - name: Copy real acceptance harnesses into isolated Collector
         run: |
+          docker cp services/scrapling-collector/tests/ai_rules_acceptance.py libretv-scrapling-collector:/tmp/ai_rules_acceptance.py
           docker cp services/scrapling-collector/tests/media_acceptance.py libretv-scrapling-collector:/tmp/media_acceptance.py
           docker cp services/scrapling-collector/tests/live_crawl_scale.py libretv-scrapling-collector:/tmp/live_crawl_scale.py
           printf '%s' "$LIVE_CRAWL_URLS" > /tmp/collector-approved-live-urls.txt
           docker cp /tmp/collector-approved-live-urls.txt libretv-scrapling-collector:/tmp/approved-live-urls.txt
+      - name: Verify AI rule generation, versioning and automatic repair
+        run: |
+          docker exec \
+            -e SCRAPLING_API_TOKEN="$SCRAPLING_API_TOKEN" \
+            libretv-scrapling-collector python /tmp/ai_rules_acceptance.py
       - name: Verify real UHD 4K sustained decode
         run: |
           docker exec \
