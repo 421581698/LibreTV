@@ -20,6 +20,7 @@ from app import (
     egress_firewall_ready,
     require_egress_firewall,
     task_candidates,
+    task_page_sample,
     validate_candidate,
 )
 from registry_queue import JobCancelled, run_worker, submit_job
@@ -192,6 +193,34 @@ def handle(payload: dict, checkpoint, cancelled):
 
     task_id = result.get("task_id")
     candidates = task_candidates(task_id, f"Bearer {TOKEN}").get("candidates", []) if task_id else []
+
+    # Analyze the sanitized HTML captured by the Spider. Only enqueue model work
+    # when the operator has configured an allowlisted HTTPS gateway.
+    if task_id and ai_rules.is_configured():
+        sample = task_page_sample(task_id=task_id)
+        spider_diagnostics = (result.get("diagnostics") or {}).get("http_spider") or {}
+        spider_failed = spider_diagnostics.get("status") == "failed" or (
+            spider_diagnostics.get("status") == "completed"
+            and int(spider_diagnostics.get("candidate_count") or 0) == 0
+        )
+        active_rule = ai_rules.get_active_rule(urlsplit(str(crawl_payload["url"])).hostname or "")
+        if sample and (active_rule is None or spider_failed):
+            host = urlsplit(str(crawl_payload["url"])).hostname or ""
+            rule_job_type = "rule_repair" if active_rule and spider_failed else "rule_generate"
+            rule_payload = {
+                "host": host, "page_html": sample, "fixtures": [sample],
+                "task_id": task_id,
+                "failure_code": "spider_candidate_miss" if spider_failed else "initial_rule_generation",
+            }
+            queued_rule = submit_job(
+                rule_job_type, rule_payload,
+                f"ai-rule:auto:{rule_job_type}:{task_id}", max_attempts=2,
+            )
+            checkpoint({
+                "stage": "ai_rule_job_enqueued",
+                "host": host, "job_id": queued_rule["id"],
+                "job_type": rule_job_type,
+            })
     media_candidates = [
         item for item in candidates
         if item.get("kind") == "direct-media" and item.get("status") == "pending"
