@@ -126,7 +126,7 @@ jobs:
             --memory 2g --cpus 2 --pids-limit 128 -e HOME=/tmp \
             --entrypoint python libretv-scrapling-collector:ci \
             /opt/media_acceptance.py --input /input/media-acceptance-sample.mkv --requested-seconds "$MEDIA_ACCEPTANCE_SECONDS"
-          docker exec -e MEDIA_ACCEPTANCE_URL="$MEDIA_ACCEPTANCE_URL" -e MEDIA_ACCEPTANCE_ALLOWED_HOSTS="$MEDIA_ACCEPTANCE_ALLOWED_HOSTS" -e MEDIA_ACCEPTANCE_SECONDS="$MEDIA_ACCEPTANCE_SECONDS" libretv-scrapling-collector python /tmp/browser_playback_acceptance.py
+          docker exec -e BROWSER_MEDIA_ACCEPTANCE_URL="$MEDIA_ACCEPTANCE_URL" -e BROWSER_MEDIA_ACCEPTANCE_ALLOWED_HOSTS="$MEDIA_ACCEPTANCE_ALLOWED_HOSTS" -e MEDIA_ACCEPTANCE_SECONDS="$MEDIA_ACCEPTANCE_SECONDS" libretv-scrapling-collector python /tmp/browser_playback_acceptance.py
       - name: Smoke test durable worker startup
         working-directory: .
         run: |
