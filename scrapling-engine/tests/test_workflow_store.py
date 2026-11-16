@@ -45,23 +45,37 @@ def test_postgres_workflow_dag_claims_dependencies_and_retries_durably() -> None
         assert first is not None
         assert first["node_id"] == "discover"
         assert store.claim_ready_node("worker-b", lease_seconds=30) is None
+        with psycopg.connect(database_url) as db:
+            db.execute(
+                "UPDATE resource_workflow_nodes "
+                "SET lease_expires_at = NOW() - INTERVAL '1 second' "
+                "WHERE workflow_id = %s AND node_id = 'discover'",
+                (workflow_id,),
+            )
+        recovered = store.claim_ready_node("worker-b", lease_seconds=30)
+        assert recovered is not None
+        assert recovered["node_id"] == "discover"
+        assert recovered["attempt_count"] == 2
+        assert not store.complete_node(
+            workflow_id, "discover", "worker-a", {"sites": ["stale.example"]}
+        )
         assert store.complete_node(
-            workflow_id, "discover", "worker-a", {"sites": ["example.com"]}
+            workflow_id, "discover", "worker-b", {"sites": ["example.com"]}
         )
 
-        second = store.claim_ready_node("worker-b", lease_seconds=30)
+        second = store.claim_ready_node("worker-c", lease_seconds=30)
         assert second is not None
         assert second["node_id"] == "analyze"
         assert second["dependencies"]["discover"] == {"sites": ["example.com"]}
         assert store.fail_node(
-            workflow_id, "analyze", "worker-b", "temporary model timeout", 0
+            workflow_id, "analyze", "worker-c", "temporary model timeout", 0
         ) == "retry_wait"
-        retried = store.claim_ready_node("worker-c", lease_seconds=30)
+        retried = store.claim_ready_node("worker-d", lease_seconds=30)
         assert retried is not None
         assert retried["node_id"] == "analyze"
         assert retried["attempt_count"] == 2
         assert store.fail_node(
-            workflow_id, "analyze", "worker-c", "second model timeout", 0
+            workflow_id, "analyze", "worker-d", "second model timeout", 0
         ) == "failed"
 
         workflow = store.get_workflow(workflow_id)
