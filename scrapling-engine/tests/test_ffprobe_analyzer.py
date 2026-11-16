@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 
 import pytest
 
@@ -38,15 +39,16 @@ def test_probe_reports_encoded_dimensions_but_not_native_4k(tmp_path, monkeypatc
         }],
     }
 
-    def fake_run(command, **kwargs):
+    def fake_popen(command, **kwargs):
         assert command[0] == "ffprobe"
         assert "-protocol_whitelist" in command
         assert command[-1] == str(media)
         assert kwargs["shell"] is False
-        assert kwargs["timeout"] <= 60
-        return subprocess.CompletedProcess(command, 0, json.dumps(payload).encode(), b"")
+        assert kwargs["start_new_session"] is True
+        script = "import sys; sys.stdout.write(" + repr(json.dumps(payload)) + ")"
+        return subprocess.Popen([sys.executable, "-c", script], **kwargs)
 
-    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
     report = analyze_local_media_file(media)
     assert report["is_4k_bitstream"] is True
     assert report["hdr_bitstream_claim"] is True
@@ -84,17 +86,19 @@ def test_probe_handles_timeout_and_missing_binary(tmp_path, monkeypatch):
     root, media = _media_file(tmp_path)
     monkeypatch.setenv("MEDIA_PROBE_ROOT", str(root))
 
-    def timeout(*args, **kwargs):
-        raise subprocess.TimeoutExpired("ffprobe", 20)
+    real_popen = subprocess.Popen
 
-    monkeypatch.setattr(subprocess, "run", timeout)
+    def timeout(*args, **kwargs):
+        return real_popen([sys.executable, "-c", "import time; time.sleep(3)"], **kwargs)
+
+    monkeypatch.setattr(subprocess, "Popen", timeout)
     with pytest.raises(MediaProbeError, match="timed out"):
-        analyze_local_media_file(media)
+        analyze_local_media_file(media, timeout_seconds=1)
 
     def missing(*args, **kwargs):
         raise FileNotFoundError()
 
-    monkeypatch.setattr(subprocess, "run", missing)
+    monkeypatch.setattr(subprocess, "Popen", missing)
     with pytest.raises(MediaProbeError, match="not installed"):
         analyze_local_media_file(media)
 
@@ -102,9 +106,27 @@ def test_probe_handles_timeout_and_missing_binary(tmp_path, monkeypatch):
 def test_probe_rejects_empty_or_invalid_stream_report(tmp_path, monkeypatch):
     root, media = _media_file(tmp_path)
     monkeypatch.setenv("MEDIA_PROBE_ROOT", str(root))
-    monkeypatch.setattr(
-        subprocess, "run",
-        lambda command, **kwargs: subprocess.CompletedProcess(command, 0, b'{"streams":[]}', b""),
-    )
+    real_popen = subprocess.Popen
+
+    def invalid_report(command, **kwargs):
+        script = "import sys; sys.stdout.write('{\"streams\":[]}')"
+        return real_popen([sys.executable, "-c", script], **kwargs)
+
+    monkeypatch.setattr(subprocess, "Popen", invalid_report)
     with pytest.raises(MediaProbeError, match="no readable streams"):
+        analyze_local_media_file(media)
+
+
+
+def test_probe_stops_process_when_stdout_exceeds_limit(tmp_path, monkeypatch):
+    root, media = _media_file(tmp_path)
+    monkeypatch.setenv("MEDIA_PROBE_ROOT", str(root))
+    real_popen = subprocess.Popen
+
+    def oversized(command, **kwargs):
+        script = "import sys; sys.stdout.write('x' * (1024 * 1024 + 1))"
+        return real_popen([sys.executable, "-c", script], **kwargs)
+
+    monkeypatch.setattr(subprocess, "Popen", oversized)
+    with pytest.raises(MediaProbeError, match="exceeds the 1 MiB limit"):
         analyze_local_media_file(media)
