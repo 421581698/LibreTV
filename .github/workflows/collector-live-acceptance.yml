@@ -53,6 +53,7 @@ jobs:
       COLLECTOR_AI_MODEL: ${{ secrets.COLLECTOR_AI_MODEL }}
       COLLECTOR_AI_ALLOWED_HOSTS: ${{ secrets.COLLECTOR_AI_ALLOWED_HOSTS }}
       AI_RULE_ACCEPTANCE_URL: ${{ secrets.AI_RULE_ACCEPTANCE_URL }}
+      AI_RULE_ACCEPTANCE_ALLOWED_HOSTS: ${{ secrets.AI_RULE_ACCEPTANCE_ALLOWED_HOSTS }}
       MEDIA_ACCEPTANCE_URL: ${{ secrets.MEDIA_ACCEPTANCE_URL }}
       MEDIA_ACCEPTANCE_ALLOWED_HOSTS: ${{ secrets.MEDIA_ACCEPTANCE_ALLOWED_HOSTS }}
       BROWSER_MEDIA_ACCEPTANCE_URL: ${{ secrets.BROWSER_MEDIA_ACCEPTANCE_URL }}
@@ -108,6 +109,7 @@ jobs:
           test -n "$COLLECTOR_AI_MODEL"
           test -n "$COLLECTOR_AI_ALLOWED_HOSTS"
           test -n "$AI_RULE_ACCEPTANCE_URL"
+          test -n "$AI_RULE_ACCEPTANCE_ALLOWED_HOSTS"
       - name: Build isolated stack
         run: docker compose --profile collector up -d --build
       - name: Install and verify current-boot host firewall
@@ -126,7 +128,7 @@ jobs:
             -e SCRAPLING_API_BASE="http://127.0.0.1:8000" \
             -e SCRAPLING_API_TOKEN="$SCRAPLING_API_TOKEN" \
             -e AI_RULE_ACCEPTANCE_URL="$AI_RULE_ACCEPTANCE_URL" \
-            -e COLLECTOR_AI_ALLOWED_HOSTS="$COLLECTOR_AI_ALLOWED_HOSTS" \
+            -e AI_RULE_ACCEPTANCE_ALLOWED_HOSTS="$AI_RULE_ACCEPTANCE_ALLOWED_HOSTS" \
             libretv-scrapling-collector python /tmp/ai_rules_acceptance.py
       - name: Fetch bounded public media fixture behind the egress firewall
         run: |
