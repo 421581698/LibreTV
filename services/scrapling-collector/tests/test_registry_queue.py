@@ -89,7 +89,7 @@ class RegistryQueueTests(unittest.TestCase):
         with queue.connect() as c:
             row = c.execute("SELECT status,error,lease_owner FROM collector_jobs WHERE id=?", (job["id"],)).fetchone()
             event_row = c.execute(
-                "SELECT event,detail FROM collector_job_events WHERE job_id=? ORDER BY created_at DESC,id DESC LIMIT 1",
+                "SELECT event,detail FROM collector_job_events WHERE job_id=? AND event='dead_letter' LIMIT 1",
                 (job["id"],),
             ).fetchone()
         self.assertEqual(row["status"], "failed")
