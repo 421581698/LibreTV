@@ -84,7 +84,10 @@ def analyze_local_media_file(
         "format=format_name,duration,size,bit_rate:"
         "stream=index,codec_type,codec_name,profile,width,height,pix_fmt,"
         "avg_frame_rate,r_frame_rate,bit_rate,color_range,color_space,"
-        "color_transfer,color_primaries,bits_per_raw_sample:"
+        "color_transfer,color_primaries,bits_per_raw_sample,channels,"
+        "channel_layout,sample_rate:"
+        "stream_tags=language,title:"
+        "stream_disposition=default,forced:"
         "stream_side_data=side_data_type",
         "-of", "json",
         str(media_path),
@@ -194,9 +197,41 @@ def analyze_local_media_file(
     ]
     format_info = payload.get("format")
     format_info = format_info if isinstance(format_info, dict) else {}
+    audio_tracks = []
+    subtitle_tracks = []
+    for stream in streams:
+        if not isinstance(stream, dict):
+            continue
+        tags = stream.get("tags")
+        tags = tags if isinstance(tags, dict) else {}
+        disposition = stream.get("disposition")
+        disposition = disposition if isinstance(disposition, dict) else {}
+        track = {
+            "index": _safe_int(stream.get("index")),
+            "codec": stream.get("codec_name"),
+            "profile": stream.get("profile"),
+            "language": tags.get("language"),
+            "title": tags.get("title"),
+            "is_default": bool(disposition.get("default", 0)),
+            "is_forced": bool(disposition.get("forced", 0)),
+        }
+        if stream.get("codec_type") == "audio":
+            track.update(
+                {
+                    "channels": _safe_int(stream.get("channels")),
+                    "channel_layout": stream.get("channel_layout"),
+                    "sample_rate_hz": _safe_int(stream.get("sample_rate")),
+                }
+            )
+            audio_tracks.append(track)
+        elif stream.get("codec_type") == "subtitle":
+            subtitle_tracks.append(track)
     is_4k = bool(width and height and width >= 3840 and height >= 2160)
     return {
         "container": format_info.get("format_name"),
+        "stream_count": len(streams),
+        "audio_tracks": audio_tracks,
+        "subtitle_tracks": subtitle_tracks,
         "duration_seconds": _safe_float(format_info.get("duration")),
         "file_size_bytes": _safe_int(format_info.get("size")) or media_path.stat().st_size,
         "container_bitrate_bps": _safe_int(format_info.get("bit_rate")),

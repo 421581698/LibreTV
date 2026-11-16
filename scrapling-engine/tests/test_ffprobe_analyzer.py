@@ -27,16 +27,31 @@ def test_probe_reports_encoded_dimensions_but_not_native_4k(tmp_path, monkeypatc
             "size": "1024",
             "bit_rate": "9000000",
         },
-        "streams": [{
-            "codec_type": "video", "codec_name": "hevc", "profile": "Main 10",
-            "width": 3840, "height": 2160, "pix_fmt": "yuv420p10le",
-            "avg_frame_rate": "60000/1001", "color_transfer": "smpte2084",
-            "color_primaries": "bt2020", "color_space": "bt2020nc",
-            "bit_rate": "8000000",
-            "side_data_list": [
-                {"side_data_type": "Mastering display metadata"}
-            ],
-        }],
+        "streams": [
+            {
+                "index": 0,
+                "codec_type": "video", "codec_name": "hevc", "profile": "Main 10",
+                "width": 3840, "height": 2160, "pix_fmt": "yuv420p10le",
+                "avg_frame_rate": "60000/1001", "color_transfer": "smpte2084",
+                "color_primaries": "bt2020", "color_space": "bt2020nc",
+                "bit_rate": "8000000",
+                "side_data_list": [
+                    {"side_data_type": "Mastering display metadata"}
+                ],
+            },
+            {
+                "index": 1, "codec_type": "audio", "codec_name": "eac3",
+                "profile": "Dolby Digital Plus", "channels": 6,
+                "channel_layout": "5.1", "sample_rate": "48000",
+                "tags": {"language": "zh", "title": "国语"},
+                "disposition": {"default": 1, "forced": 0},
+            },
+            {
+                "index": 2, "codec_type": "subtitle", "codec_name": "ass",
+                "tags": {"language": "en", "title": "English"},
+                "disposition": {"default": 0, "forced": 0},
+            },
+        ],
     }
 
     real_popen = subprocess.Popen
@@ -44,6 +59,8 @@ def test_probe_reports_encoded_dimensions_but_not_native_4k(tmp_path, monkeypatc
     def fake_popen(command, **kwargs):
         assert command[0] == "ffprobe"
         assert "-protocol_whitelist" in command
+        assert "stream_tags=language,title" in command
+        assert "stream_disposition=default,forced" in command
         assert command[-1] == str(media)
         assert kwargs["shell"] is False
         assert kwargs["start_new_session"] is True
@@ -57,6 +74,21 @@ def test_probe_reports_encoded_dimensions_but_not_native_4k(tmp_path, monkeypatc
     assert report["video"]["frame_rate_fps"] == pytest.approx(59.94, rel=1e-3)
     assert report["native_4k_verified"] is False
     assert report["verification_level"] == "local_bitstream_probe"
+    assert report["stream_count"] == 3
+    assert report["audio_tracks"] == [{
+        "index": 1,
+        "codec": "eac3",
+        "profile": "Dolby Digital Plus",
+        "language": "zh",
+        "title": "国语",
+        "is_default": True,
+        "is_forced": False,
+        "channels": 6,
+        "channel_layout": "5.1",
+        "sample_rate_hz": 48000,
+    }]
+    assert report["subtitle_tracks"][0]["language"] == "en"
+    assert report["subtitle_tracks"][0]["codec"] == "ass"
 
 
 def test_probe_rejects_paths_outside_probe_root(tmp_path, monkeypatch):
