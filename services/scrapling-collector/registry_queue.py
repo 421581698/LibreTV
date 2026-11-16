@@ -119,20 +119,32 @@ def upsert_discovered_sites(sites: list[dict], discovered_at: int | None = None)
         title = str(site.get("title") or "").strip()[:240]
         url = str(site.get("url") or "").strip()
         directory = str(site.get("directory") or "").strip()[:240]
-        from urllib.parse import urlsplit
+        from urllib.parse import parse_qsl, urlsplit, urlunsplit
         try:
             parsed = urlsplit(url)
             port = parsed.port
         except ValueError:
             continue
+        try:
+            ipaddress.ip_address(host)
+            continue
+        except ValueError:
+            pass
+        sensitive_keys = {
+            "token", "access_token", "auth", "authorization", "api_key", "apikey",
+            "key", "signature", "sig", "jwt", "expires", "session", "password", "secret",
+        }
+        query_keys = {key.casefold() for key, _ in parse_qsl(parsed.query, keep_blank_values=True)}
         if (
             not host or not re.fullmatch(r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*", host)
             or parsed.scheme.lower() != "https" or parsed.hostname != host
             or parsed.username is not None or parsed.password is not None
             or port not in (None, 443) or not title or not directory.startswith("FMHY /")
+            or any(key in sensitive_keys for key in query_keys)
         ):
             continue
-        normalized.append((host, title, url, directory, now))
+        canonical_url = urlunsplit(("https", parsed.netloc, parsed.path or "/", parsed.query, ""))
+        normalized.append((host, title, canonical_url, directory, now))
     if not normalized:
         return 0
     with connect() as c:
