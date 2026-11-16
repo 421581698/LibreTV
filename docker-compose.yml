@@ -106,6 +106,12 @@ services:
         condition: service_healthy
     expose:
       - "8787"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8787/health', timeout=2).read()"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
 
   scrapling-job-worker:
     profiles: ["crawler"]
@@ -137,6 +143,8 @@ services:
       scrapling-postgres:
         condition: service_healthy
       scrapling-egress-proxy:
+        condition: service_healthy
+      scrapling-engine:
         condition: service_healthy
 
   scrapling-workflow-worker:
@@ -179,6 +187,8 @@ services:
       scrapling-postgres:
         condition: service_healthy
       scrapling-egress-proxy:
+        condition: service_healthy
+      scrapling-engine:
         condition: service_healthy
       scrapling-media-probe:
         condition: service_healthy
