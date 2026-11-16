@@ -1,7 +1,11 @@
 import pytest
 from pydantic import SecretStr
 
-from app.config import is_loopback_host, validate_bind_security
+from app.config import (
+    is_loopback_host,
+    validate_bind_security,
+    validate_egress_proxy_policy,
+)
 
 
 @pytest.mark.parametrize("host", ["127.0.0.1", "::1", "localhost"])
@@ -19,3 +23,17 @@ def test_non_loopback_hosts_require_api_key(host: str) -> None:
 
 def test_non_loopback_host_accepts_configured_api_key() -> None:
     validate_bind_security("0.0.0.0", SecretStr("x" * 32))
+
+
+
+def test_crawler_policy_fails_closed_without_egress_proxy() -> None:
+    with pytest.raises(RuntimeError, match="SCRAPLING_EGRESS_PROXY is required"):
+        validate_egress_proxy_policy(True, None)
+
+
+def test_crawler_policy_accepts_configured_egress_proxy() -> None:
+    validate_egress_proxy_policy(True, "http://scrapling-egress-proxy:8080")
+
+
+def test_local_development_may_omit_egress_proxy() -> None:
+    validate_egress_proxy_policy(False, None)
