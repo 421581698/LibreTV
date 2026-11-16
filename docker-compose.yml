@@ -40,3 +40,79 @@ services:
       # - USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36
       # 可选：影视榜单推荐源（60s API）实例地址，官方公共实例有限流
       # - 60S_API_BASE=https://60s.crystelf.top
+      # 可选：启用 --profile crawler 后，LibreTV 通过内部网络连接 Scrapling Engine
+      - SCRAPLING_ENGINE_URL=${SCRAPLING_ENGINE_URL:-http://scrapling-engine:8787}
+      - SCRAPLING_ENGINE_API_KEY=${SCRAPLING_API_KEY:-}
+
+  # 以下三个服务仅在 docker compose --profile crawler up 时启动。
+  # 请在 .env 中设置至少 32 位随机 SCRAPLING_API_KEY 和独立 SCRAPLING_DB_PASSWORD。
+  scrapling-postgres:
+    profiles: ["crawler"]
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: libretv_scrapling
+      POSTGRES_USER: libretv_scrapling
+      POSTGRES_PASSWORD: ${SCRAPLING_DB_PASSWORD:-local-dev-only-change-me}
+    volumes:
+      - scrapling-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U libretv_scrapling -d libretv_scrapling"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  scrapling-engine:
+    profiles: ["crawler"]
+    build:
+      context: ./scrapling-engine
+    restart: unless-stopped
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8787
+      SCRAPLING_API_KEY: ${SCRAPLING_API_KEY:-}
+      DATABASE_URL: postgresql://libretv_scrapling:${SCRAPLING_DB_PASSWORD:-local-dev-only-change-me}@scrapling-postgres:5432/libretv_scrapling
+      CRAWL_DATA_DIR: /data
+    volumes:
+      - scrapling-crawl-data:/data
+    depends_on:
+      scrapling-postgres:
+        condition: service_healthy
+    expose:
+      - "8787"
+
+  scrapling-job-worker:
+    profiles: ["crawler"]
+    build:
+      context: ./scrapling-engine
+    command: ["libretv-scrapling-worker", "--worker-id", "crawl-worker-1"]
+    restart: unless-stopped
+    environment:
+      SCRAPLING_API_KEY: ${SCRAPLING_API_KEY:-}
+      DATABASE_URL: postgresql://libretv_scrapling:${SCRAPLING_DB_PASSWORD:-local-dev-only-change-me}@scrapling-postgres:5432/libretv_scrapling
+      CRAWL_DATA_DIR: /data
+    volumes:
+      - scrapling-crawl-data:/data
+    depends_on:
+      scrapling-postgres:
+        condition: service_healthy
+
+  scrapling-workflow-worker:
+    profiles: ["crawler"]
+    build:
+      context: ./scrapling-engine
+    command: ["libretv-workflow-worker", "--worker-id", "dag-worker-1"]
+    restart: unless-stopped
+    environment:
+      SCRAPLING_API_KEY: ${SCRAPLING_API_KEY:-}
+      DATABASE_URL: postgresql://libretv_scrapling:${SCRAPLING_DB_PASSWORD:-local-dev-only-change-me}@scrapling-postgres:5432/libretv_scrapling
+      CRAWL_DATA_DIR: /data
+    volumes:
+      - scrapling-crawl-data:/data
+    depends_on:
+      scrapling-postgres:
+        condition: service_healthy
+
+volumes:
+  scrapling-postgres-data:
+  scrapling-crawl-data:
