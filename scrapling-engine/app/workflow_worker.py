@@ -15,6 +15,7 @@ from app.config import settings
 from app.discovery import extract_discovery_links, is_same_origin
 from app.media_analyzer import analyze_hls_manifest, analyze_mpd_manifest
 from app.robots import ensure_robots_allowed
+from app.rule_store import PostgresRuleStore
 from app.scraper import ScraplingAdapter
 from app.security import validate_public_http_url
 from app.spider import ScraplingSpiderAdapter
@@ -44,6 +45,7 @@ class WorkflowWorker:
         self.poll_seconds = poll_seconds
         self.store = PostgresWorkflowStore(database_url)
         self.candidates = PostgresCandidateStore(database_url)
+        self.rules = PostgresRuleStore(database_url)
         self.handlers: dict[str, NodeHandler] = {
             "validate_public_urls": self._validate_public_urls,
             "crawl_seed_urls": self._crawl_seed_urls,
@@ -297,7 +299,21 @@ class WorkflowWorker:
         values = extraction.get("text", [])
         if not values:
             raise ValueError("Generated extraction rule returned no matches on the source page.")
+        workflow_id = str(payload.get("_workflow_id") or "manual")
+        rule_id = await asyncio.to_thread(
+            self.rules.save_tested_rule,
+            page_url=final_url,
+            goal=str(goal),
+            mode=rule.mode,
+            selector=rule.selector,
+            rationale=rule.rationale,
+            match_count=len(values),
+            sample_values=[str(value) for value in values[:5]],
+            workflow_id=workflow_id,
+        )
         return {
+            "rule_id": rule_id,
+            "rule_status": "tested",
             "page_url": final_url,
             "mode": rule.mode,
             "selector": rule.selector,
@@ -522,6 +538,7 @@ class WorkflowWorker:
     async def run_forever(self) -> None:
         self.store.initialize()
         self.candidates.initialize()
+        self.rules.initialize()
         logger.info("Workflow worker %s started", self.worker_id)
         while True:
             await asyncio.to_thread(self.store.reconcile_controls)
