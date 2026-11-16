@@ -118,7 +118,12 @@ def init_db() -> None:
           id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
           url TEXT NOT NULL, host TEXT NOT NULL, kind TEXT NOT NULL,
           title TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'pending',
-          created_at INTEGER NOT NULL, validation TEXT, batch_id TEXT
+          created_at INTEGER NOT NULL, validation TEXT, batch_id TEXT, canonical_url TEXT
+        );
+        CREATE TABLE IF NOT EXISTS collection_observations (
+          id TEXT PRIMARY KEY, batch_id TEXT NOT NULL, task_id TEXT NOT NULL,
+          canonical_url TEXT NOT NULL, host TEXT NOT NULL, kind TEXT NOT NULL,
+          created_at INTEGER NOT NULL, UNIQUE(batch_id,task_id,canonical_url)
         );
         CREATE INDEX IF NOT EXISTS idx_candidates_task ON candidates(task_id);
         CREATE INDEX IF NOT EXISTS idx_tasks_created ON tasks(created_at DESC);
@@ -130,6 +135,10 @@ def init_db() -> None:
         candidate_columns = {row["name"] for row in connection.execute("PRAGMA table_info(candidates)").fetchall()}
         if "batch_id" not in candidate_columns:
             connection.execute("ALTER TABLE candidates ADD COLUMN batch_id TEXT")
+        if "canonical_url" not in candidate_columns:
+            connection.execute("ALTER TABLE candidates ADD COLUMN canonical_url TEXT")
+        connection.execute("UPDATE candidates SET canonical_url=url WHERE canonical_url IS NULL")
+        connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_candidates_batch_canonical ON candidates(batch_id,canonical_url) WHERE batch_id IS NOT NULL AND canonical_url IS NOT NULL")
         connection.execute("CREATE INDEX IF NOT EXISTS idx_tasks_batch ON tasks(batch_id,status)")
         connection.execute("CREATE INDEX IF NOT EXISTS idx_candidates_batch ON candidates(batch_id,url)")
         candidate_migrations = {
@@ -166,7 +175,7 @@ def refresh_collection_batch(batch_id: str) -> dict | None:
             "SELECT COUNT(DISTINCT lower(trim(url))) AS n FROM candidates WHERE batch_id=?", (batch_id,)
         ).fetchone()["n"]
         collected_count = connection.execute(
-            "SELECT COUNT(*) AS n FROM candidates WHERE batch_id=?", (batch_id,)
+            "SELECT COUNT(*) AS n FROM collection_observations WHERE batch_id=?", (batch_id,)
         ).fetchone()["n"]
         jobs = connection.execute(
             "SELECT status,COUNT(*) AS n FROM collector_jobs WHERE json_extract(payload,'$.batch_id')=? GROUP BY status",
@@ -2029,29 +2038,45 @@ def crawl_site(payload: CrawlRequest, cancel_check=None) -> dict:
             raise JobCancelled()
 
         now = int(time.time())
+        persisted_candidates: list[dict] = []
         with db() as connection:
             for item in candidates[:payload.limit]:
                 if payload.search_keyword:
                     item["search_keyword"] = payload.search_keyword.strip()[:100]
-                candidate_id = hashlib.sha256((task_id + item["url"]).encode()).hexdigest()[:32]
-                connection.execute(
+                canonical_url = canonical_candidate_url(item["url"])
+                candidate_id = hashlib.sha256(((payload.batch_id or task_id) + canonical_url).encode()).hexdigest()[:32]
+                if payload.batch_id:
+                    observation_id = hashlib.sha256((payload.batch_id + task_id + canonical_url).encode()).hexdigest()[:32]
+                    connection.execute(
+                        """INSERT OR IGNORE INTO collection_observations
+                           (id,batch_id,task_id,canonical_url,host,kind,created_at) VALUES(?,?,?,?,?,?,?)""",
+                        (observation_id, payload.batch_id, task_id, canonical_url, item["host"], item["kind"], now),
+                    )
+                inserted = connection.execute(
                     """INSERT OR IGNORE INTO candidates
-                    (id,task_id,url,host,kind,title,status,created_at,collected_by,access_state,access_reason,probe_evidence,media_identity,quality_evidence,batch_id)
-                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (id,task_id,url,host,kind,title,status,created_at,collected_by,access_state,access_reason,probe_evidence,media_identity,quality_evidence,batch_id,canonical_url)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                     (candidate_id, task_id, item["url"], item["host"], item["kind"], item.get("title", ""), "pending", now,
                      json.dumps(item.get("collected_by", []), ensure_ascii=False),
                      item.get("access_state", "ACCESS_UNKNOWN"), item.get("reason"),
                      json.dumps(item.get("probe_evidence", {}), ensure_ascii=False),
                      json.dumps(item.get("media_identity", {}), ensure_ascii=False),
-                     json.dumps(item.get("quality_evidence", {}), ensure_ascii=False), payload.batch_id),
+                     json.dumps(item.get("quality_evidence", {}), ensure_ascii=False), payload.batch_id, canonical_url),
                 )
-                item["id"] = candidate_id
-                item["status"] = "pending"
+                existing = connection.execute(
+                    "SELECT id FROM candidates WHERE canonical_url=? AND batch_id IS ?",
+                    (canonical_url, payload.batch_id),
+                ).fetchone()
+                if existing:
+                    item["id"] = existing["id"]
+                    item["status"] = "pending"
+                if inserted.rowcount:
+                    persisted_candidates.append(item)
             connection.execute(
                 "UPDATE tasks SET status=?,updated_at=?,error=?,result_count=? WHERE id=?",
                 ("partial" if errors and candidates else ("failed" if errors else "completed"), now, "; ".join(errors) or None, len(candidates), task_id),
             )
-        for item in candidates[:payload.limit]:
+        for item in persisted_candidates:
             register_discovered_candidate(item)
         if payload.batch_id:
             refresh_collection_batch(payload.batch_id)
