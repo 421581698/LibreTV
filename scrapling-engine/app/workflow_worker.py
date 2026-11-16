@@ -248,6 +248,7 @@ class WorkflowWorker:
             payload = dict(node["input"])
             payload["dependencies"] = node.get("dependencies", {})
             payload["_workflow_id"] = workflow_id
+            payload["_workflow_input"] = node.get("workflow_input", {})
             result = await handler(payload)
             if lost.is_set():
                 logger.warning("Workflow lease lost for %s/%s", workflow_id, node_id)
