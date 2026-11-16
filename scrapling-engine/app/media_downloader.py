@@ -41,7 +41,9 @@ async def download_candidate_media(
     if staging.is_symlink() or not staging.is_dir():
         raise MediaDownloadError("Media staging path must be a real directory")
 
-    descriptor, raw_path = tempfile.mkstemp(prefix=".libretv-probe-", suffix=".media", dir=staging)
+    descriptor, raw_path = tempfile.mkstemp(
+        prefix=".libretv-probe-", suffix=".media", dir=staging
+    )
     path = Path(raw_path)
     total = 0
     completed = False
@@ -72,7 +74,9 @@ async def download_candidate_media(
                         )
                         next_scheme = urlsplit(next_url).scheme.lower()
                         if initial_scheme == "https" and next_scheme != "https":
-                            raise MediaDownloadError("HTTPS media redirects cannot downgrade to HTTP")
+                            raise MediaDownloadError(
+                                "HTTPS media redirects cannot downgrade to HTTP"
+                            )
                         current_url = next_url
                         continue
 
@@ -80,16 +84,27 @@ async def download_candidate_media(
                         raise MediaDownloadError(
                             f"Media server returned HTTP {response.status_code}"
                         )
-                    content_type = response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+                    content_type = (
+                        response.headers.get("content-type", "")
+                        .split(";", 1)[0]
+                        .strip()
+                        .lower()
+                    )
                     if content_type in {
                         "text/html",
                         "application/json",
                         "text/xml",
                         "application/xml",
                     }:
-                        raise MediaDownloadError("Media URL returned a document, not a media file")
+                        raise MediaDownloadError(
+                            "Media URL returned a document, not a media file"
+                        )
                     content_length = response.headers.get("content-length")
-                    if content_length and content_length.isdigit() and int(content_length) > max_bytes:
+                    if (
+                        content_length
+                        and content_length.isdigit()
+                        and int(content_length) > max_bytes
+                    ):
                         raise MediaDownloadError("Media file exceeds the configured download limit")
 
                     with os.fdopen(descriptor, "wb") as handle:
@@ -97,7 +112,9 @@ async def download_candidate_media(
                         async for chunk in response.aiter_bytes(64 * 1024):
                             total += len(chunk)
                             if total > max_bytes:
-                                raise MediaDownloadError("Media file exceeds the configured download limit")
+                                raise MediaDownloadError(
+                                    "Media file exceeds the configured download limit"
+                                )
                             handle.write(chunk)
                         handle.flush()
                         os.fsync(handle.fileno())
