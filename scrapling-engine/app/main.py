@@ -577,6 +577,17 @@ async def get_candidate(candidate_id: str) -> dict:
     return {"ok": True, "candidate": candidate}
 
 
+@app.get("/v1/workflows")
+async def list_workflows(limit: int = 50) -> dict:
+    if workflow_store is None:
+        raise HTTPException(
+            status_code=501,
+            detail="Durable DAG workflows require PostgreSQL mode.",
+        )
+    workflows = workflow_store.list_workflows(limit=limit)
+    return {"ok": True, "count": len(workflows), "workflows": workflows}
+
+
 @app.get("/v1/workflows/{workflow_id}")
 async def get_workflow(workflow_id: str) -> dict:
     if workflow_store is None:
