@@ -23,8 +23,7 @@ def main() -> None:
         [
             "ffprobe", "-protocol_whitelist", "file,pipe",
             "-v", "error", "-select_streams", "v:0",
-            "-show_entries", "stream=codec_name,width,height",
-            "-show_entries", "format=duration",
+            "-show_entries", "stream=codec_name,width,height:format=duration",
             "-of", "json", str(media),
         ],
         check=True, capture_output=True, text=True, timeout=60,
