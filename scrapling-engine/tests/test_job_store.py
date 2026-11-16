@@ -23,15 +23,18 @@ def test_job_store_persists_jobs_and_events(tmp_path) -> None:
     assert events[-1]["payload"]["count"] == 1
 
 
-def test_job_store_recovers_interrupted_jobs_as_paused(tmp_path) -> None:
+def test_job_store_recovers_running_jobs_but_preserves_queued_jobs(tmp_path) -> None:
     store = JobStore(str(tmp_path / "jobs.sqlite3"))
     store.initialize()
-    store.create("job_02", ["https://example.com/"], str(tmp_path / "job_02"))
-    store.update("job_02", "running")
+    store.create("queued_01", ["https://queued.example/"], str(tmp_path / "queued_01"))
+    store.create("running_01", ["https://running.example/"], str(tmp_path / "running_01"))
+    store.update("running_01", "running")
 
-    assert store.recover_interrupted() == ["job_02"]
-    job = store.get("job_02")
-    assert job is not None
-    assert job["status"] == "interrupted"
-    assert store.events_after("job_02", 0)[-1]["type"] == "interrupted"
-    assert store.events_after("job_02", 0)[-1]["payload"]["reason"] == "service_restart"
+    assert store.recover_interrupted() == ["running_01"]
+    queued = store.get("queued_01")
+    interrupted = store.get("running_01")
+    assert queued is not None and queued["status"] == "queued"
+    assert interrupted is not None and interrupted["status"] == "interrupted"
+    assert [job["task_id"] for job in store.list_queued()] == ["queued_01"]
+    assert store.events_after("running_01", 0)[-1]["type"] == "interrupted"
+    assert store.events_after("running_01", 0)[-1]["payload"]["reason"] == "service_restart"
