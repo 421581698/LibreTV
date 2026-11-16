@@ -21,6 +21,7 @@ from app import (
     require_egress_firewall,
     task_candidates,
     task_page_sample,
+    init_db,
     validate_candidate,
 )
 from registry_queue import JobCancelled, run_worker, submit_job
@@ -323,7 +324,7 @@ def main():
         parser.error("SCRAPLING_API_TOKEN must be configured")
     # The worker is also an executable entrypoint (including --once smoke tests).
     # Initialize here rather than at module import so imports remain side-effect free.
-    registry_store.initialize()
+    init_db()
     if args.once:
         if not egress_firewall_ready():
             print("[worker] refusing to claim a job without current-boot firewall proof", flush=True)
