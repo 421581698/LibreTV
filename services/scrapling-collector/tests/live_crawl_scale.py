@@ -106,7 +106,8 @@ def main():
             result = json.loads(item.get("result") or "{}")
         except (TypeError, ValueError):
             result = {}
-        pages += int(result.get("pages_visited") or result.get("pages", {}).get("visited") or 0)
+        page_metrics = result.get("page_metrics") or {}
+        pages += int(result.get("pages_visited") or page_metrics.get("visited") or 0)
         candidates += int(result.get("count") or result.get("candidate_count") or 0)
     report = {
         "target_jobs": args.target, "submitted_jobs": len(jobs),
