@@ -6,13 +6,24 @@ from app.media_analyzer import analyze_hls_manifest, analyze_mpd_manifest
 
 
 def test_hls_manifest_reports_4k_hdr_and_bitrate_as_unverified_claims() -> None:
-    manifest = """#EXTM3U
-#EXT-X-VERSION:6
-#EXT-X-STREAM-INF:BANDWIDTH=12000000,AVERAGE-BANDWIDTH=10000000,RESOLUTION=1920x1080,FRAME-RATE=30.000,CODECS="avc1.640028",VIDEO-RANGE=SDR
-1080/index.m3u8
-#EXT-X-STREAM-INF:BANDWIDTH=28000000,AVERAGE-BANDWIDTH=24000000,RESOLUTION=3840x2160,FRAME-RATE=59.940,CODECS="hvc1.2.4.L153.B0",VIDEO-RANGE=PQ
-2160/index.m3u8
-"""
+    manifest = "\\n".join(
+        [
+            "#EXTM3U",
+            "#EXT-X-VERSION:6",
+            (
+                "#EXT-X-STREAM-INF:BANDWIDTH=12000000,"
+                "AVERAGE-BANDWIDTH=10000000,RESOLUTION=1920x1080,"
+                'FRAME-RATE=30.000,CODECS="avc1.640028",VIDEO-RANGE=SDR'
+            ),
+            "1080/index.m3u8",
+            (
+                "#EXT-X-STREAM-INF:BANDWIDTH=28000000,"
+                "AVERAGE-BANDWIDTH=24000000,RESOLUTION=3840x2160,"
+                'FRAME-RATE=59.940,CODECS="hvc1.2.4.L153.B0",VIDEO-RANGE=PQ'
+            ),
+            "2160/index.m3u8",
+        ]
+    )
     report = analyze_hls_manifest(manifest)
     assert report["quality_label"] == "4K_claim"
     assert report["is_4k_claim"] is True
