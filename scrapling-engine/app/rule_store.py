@@ -205,16 +205,31 @@ class PostgresRuleStore:
         now = _now()
         with psycopg.connect(self.database_url, row_factory=dict_row) as db:
             if status == "active":
-                db.execute(
+                superseded = db.execute(
                     """
                     UPDATE scraping_rules
                     SET status = 'disabled', updated_at = %s
                     WHERE rule_key = (
                         SELECT rule_key FROM scraping_rules WHERE rule_id = %s
                     ) AND rule_id <> %s AND status = 'active'
+                    RETURNING rule_id
                     """,
                     (now, rule_id, rule_id),
-                )
+                ).fetchall()
+                for previous in superseded:
+                    db.execute(
+                        """
+                        INSERT INTO scraping_rule_events
+                            (rule_id, actor_id, action, note, created_at)
+                        VALUES (%s, %s, 'superseded', %s, %s)
+                        """,
+                        (
+                            previous["rule_id"],
+                            actor_id[:128],
+                            f"Superseded by {rule_id}.",
+                            now,
+                        ),
+                    )
             cursor = db.execute(
                 """
                 UPDATE scraping_rules SET status = %s, updated_at = %s
