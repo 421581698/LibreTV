@@ -41,6 +41,8 @@ class RenderDeploymentConfigTests(unittest.TestCase):
         self.assertIn("${SCRAPLING_NETWORK_SUBNET:-172.30.60.0/24}", compose)
         self.assertGreaterEqual(compose.count("net.ipv6.conf.all.disable_ipv6"), 3)
         self.assertGreaterEqual(compose.count("net.ipv6.conf.default.disable_ipv6"), 3)
+        self.assertGreaterEqual(compose.count("SCRAPLING_EGRESS_MARKER_PATH"), 2)
+        self.assertGreaterEqual(compose.count("SCRAPLING_EGRESS_MARKER_DIR"), 2)
 
     def test_firewall_only_allows_app_to_collector_api_and_blocks_private_traffic(self):
         script = (ROOT / "scripts/scrapling-egress-firewall.sh").read_text(encoding="utf-8")
@@ -50,6 +52,8 @@ class RenderDeploymentConfigTests(unittest.TestCase):
         self.assertIn('SCRAPLING_API_IP', script)
         self.assertIn('--dport "$SCRAPLING_API_PORT"', script)
         self.assertIn('iptables -w -I FORWARD 1 -s "$COLLECTOR_CIDR" -j "$CHAIN"', script)
+        self.assertIn('MARKER_FILE="$MARKER_DIR/confirmed.json"', script)
+        self.assertIn('cat /proc/sys/kernel/random/boot_id', script)
 
     def test_compose_defaults_scrapling_egress_gate_to_disabled(self):
         compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
