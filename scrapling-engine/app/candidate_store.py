@@ -82,73 +82,85 @@ class PostgresCandidateStore:
         now = _now()
         with psycopg.connect(self.database_url, row_factory=dict_row) as db:
             for item in items:
-                raw_url = item.get("url")
-                if not isinstance(raw_url, str):
+                page_url = item.get("url")
+                if not isinstance(page_url, str):
                     continue
                 try:
-                    source_url = _canonical_url(validate_public_http_url(raw_url))
+                    page_url = _canonical_url(validate_public_http_url(page_url))
                 except UnsafeTargetError:
                     continue
-                candidate_id = hashlib.sha256(source_url.encode("utf-8")).hexdigest()[:24]
-                title = str(item.get("title") or source_url)[:300]
-                media_url = item.get("media_url")
-                if isinstance(media_url, str):
+                media_urls = item.get("media_urls")
+                if not isinstance(media_urls, list):
+                    media_urls = [item.get("media_url")]
+                title = str(item.get("title") or page_url)[:300]
+                for raw_media_url in media_urls:
+                    if not isinstance(raw_media_url, str):
+                        continue
                     try:
-                        media_url = validate_public_http_url(media_url)
+                        media_url = _canonical_url(
+                            validate_public_http_url(raw_media_url)
+                        )
                     except UnsafeTargetError:
-                        media_url = None
-                else:
-                    media_url = None
-                media_type = item.get("media_type")
-                if not isinstance(media_type, str):
-                    media_type = None
-                row = db.execute(
-                    """
-                    INSERT INTO resource_candidates
-                        (candidate_id, source_url, title, media_url, media_type,
-                         status, discovery_workflow_id, created_at, updated_at)
-                    VALUES (%s, %s, %s, %s, %s, 'pending_review', %s, %s, %s)
-                    ON CONFLICT (source_url) DO UPDATE
-                    SET title = CASE
-                            WHEN resource_candidates.title = resource_candidates.source_url
-                            THEN EXCLUDED.title ELSE resource_candidates.title END,
-                        media_url = COALESCE(resource_candidates.media_url, EXCLUDED.media_url),
-                        media_type = COALESCE(resource_candidates.media_type, EXCLUDED.media_type),
-                        updated_at = EXCLUDED.updated_at
-                    RETURNING candidate_id
-                    """,
-                    (
-                        candidate_id,
-                        source_url,
-                        title,
-                        media_url,
-                        media_type,
-                        workflow_id,
-                        now,
-                        now,
-                    ),
-                ).fetchone()
-                if row is None:
-                    continue
-                stored_id = row["candidate_id"]
-                candidate_ids.append(stored_id)
-                evidence = {
-                    "workflow_id": workflow_id,
-                    "page_url": source_url,
-                    "http_status": item.get("status"),
-                    "title": item.get("title"),
-                    "text_excerpt": str(item.get("text") or "")[:1500],
-                    "media_url": media_url,
-                    "media_type": media_type,
-                }
-                db.execute(
-                    """
-                    INSERT INTO resource_candidate_evidence
-                        (candidate_id, evidence_type, evidence_json, created_at)
-                    VALUES (%s, 'scrapling_page', %s::jsonb, %s)
-                    """,
-                    (stored_id, json.dumps(evidence, ensure_ascii=False), now),
-                )
+                        continue
+                    candidate_id = hashlib.sha256(
+                        media_url.encode("utf-8")
+                    ).hexdigest()[:24]
+                    media_type = (
+                        "hls" if ".m3u8" in urlsplit(media_url).path.lower()
+                        else "dash" if ".mpd" in urlsplit(media_url).path.lower()
+                        else "file"
+                    )
+                    row = db.execute(
+                        """
+                        INSERT INTO resource_candidates
+                            (candidate_id, source_url, title, media_url, media_type,
+                             status, discovery_workflow_id, created_at, updated_at)
+                        VALUES (%s, %s, %s, %s, %s, 'pending_review', %s, %s, %s)
+                        ON CONFLICT (source_url) DO UPDATE
+                        SET title = CASE
+                                WHEN resource_candidates.title = resource_candidates.source_url
+                                THEN EXCLUDED.title ELSE resource_candidates.title END,
+                            media_url = COALESCE(resource_candidates.media_url, EXCLUDED.media_url),
+                            media_type = COALESCE(resource_candidates.media_type, EXCLUDED.media_type),
+                            updated_at = EXCLUDED.updated_at
+                        RETURNING candidate_id
+                        """,
+                        (
+                            candidate_id,
+                            media_url,
+                            title,
+                            media_url,
+                            media_type,
+                            workflow_id,
+                            now,
+                            now,
+                        ),
+                    ).fetchone()
+                    if row is None:
+                        continue
+                    stored_id = row["candidate_id"]
+                    candidate_ids.append(stored_id)
+                    evidence = {
+                        "workflow_id": workflow_id,
+                        "page_url": page_url,
+                        "media_url": media_url,
+                        "http_status": item.get("status"),
+                        "title": item.get("title"),
+                        "text_excerpt": str(item.get("text") or "")[:1500],
+                        "media_type": media_type,
+                    }
+                    db.execute(
+                        """
+                        INSERT INTO resource_candidate_evidence
+                            (candidate_id, evidence_type, evidence_json, created_at)
+                        VALUES (%s, 'scrapling_media_reference', %s::jsonb, %s)
+                        """,
+                        (
+                            stored_id,
+                            json.dumps(evidence, ensure_ascii=False),
+                            now,
+                        ),
+                    )
         return candidate_ids
 
     def list_candidates(
