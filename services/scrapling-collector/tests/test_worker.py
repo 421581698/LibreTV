@@ -60,6 +60,7 @@ class WorkerPipelineTests(unittest.TestCase):
                 "COLLECTOR_DAILY_MINUTE": "0",
                 "SCRAPLING_EGRESS_FIREWALL_CONFIRMED": "1",
             }),
+            patch.object(worker, "egress_firewall_ready", return_value=True),
             patch.object(worker, "submit_job", return_value={"id": "daily-job", "status": "queued"}) as submit,
         ):
             result = worker.enqueue_daily_batch(datetime(2026, 11, 11, 4, 0, tzinfo=ZoneInfo("UTC")))
