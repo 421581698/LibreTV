@@ -19,8 +19,13 @@ MAX_REQUEST_BYTES = 4096
 def _directories() -> tuple[Path, Path]:
     inbox = Path(os.environ.get("MEDIA_PROBE_INBOX", "/probe/inbox"))
     outbox = Path(os.environ.get("MEDIA_PROBE_OUTBOX", "/probe/outbox"))
-    inbox.mkdir(parents=True, exist_ok=True)
-    outbox.mkdir(parents=True, exist_ok=True)
+    for directory in (inbox, outbox):
+        if directory.is_symlink():
+            raise RuntimeError("Probe spool directories cannot be symbolic links")
+        if not directory.exists():
+            directory.mkdir(parents=True, exist_ok=True)
+        if not directory.is_dir():
+            raise RuntimeError("Probe spool paths must be directories")
     return inbox, outbox
 
 
