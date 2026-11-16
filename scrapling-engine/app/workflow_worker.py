@@ -13,7 +13,7 @@ from urllib.parse import urljoin, urlsplit
 from app.candidate_store import PostgresCandidateStore
 from app.config import settings
 from app.discovery import extract_discovery_links, is_same_origin
-from app.ffprobe_analyzer import analyze_local_media_file
+from app.probe_client import probe_media_file
 from app.media_analyzer import analyze_hls_manifest, analyze_mpd_manifest
 from app.robots import ensure_robots_allowed
 from app.rule_store import PostgresRuleStore
@@ -404,7 +404,7 @@ class WorkflowWorker:
         ):
             raise ValueError("timeout_seconds must be an integer from 1 to 60")
         report = await asyncio.to_thread(
-            analyze_local_media_file,
+            probe_media_file,
             local_path,
             timeout_seconds=timeout_seconds,
         )
