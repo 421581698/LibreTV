@@ -50,8 +50,6 @@ docker compose --profile crawler up -d --build
 
 LibreTV reaches the engine over the internal Compose network at `http://scrapling-engine:8787`; the engine port is not published to the host. PostgreSQL data and shared crawl checkpoint data use named volumes. The engine refuses to bind to `0.0.0.0` without its API key. Change the example development database password before any non-local deployment, terminate TLS at the public edge, and keep the engine and database private.
 
-```
-
 ## Durable server-side DAG runtime
 
 PostgreSQL mode also exposes a persistent DAG API. POST /v1/workflows accepts a workflow_id (optional), nodes, directed edges, and input metadata. The API rejects duplicate node IDs, unknown edge endpoints, self-edges, and cycles. GET /v1/workflows/{workflow_id} returns node states and graph edges; GET /v1/workflows/{workflow_id}/events streams the durable audit log.
