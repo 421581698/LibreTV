@@ -11,7 +11,7 @@ from typing import Any
 
 from app.candidate_store import PostgresCandidateStore
 from app.config import settings
-from app.discovery import extract_discovery_links
+from app.discovery import extract_discovery_links, is_same_origin
 from app.media_analyzer import analyze_hls_manifest, analyze_mpd_manifest
 from app.robots import ensure_robots_allowed
 from app.scraper import ScraplingAdapter
@@ -128,7 +128,7 @@ class WorkflowWorker:
                 )
                 final_url = validate_public_http_url(str(getattr(page, "url", None) or url))
                 # A public redirect must not silently widen the discovery scope.
-                if (urlsplit(final_url).hostname or "").lower() != (urlsplit(url).hostname or "").lower():
+                if not is_same_origin(final_url, url):
                     errors.append({"url": url, "error": "cross_origin_redirect"})
                     continue
                 headers = getattr(page, "headers", {}) or {}
