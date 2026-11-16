@@ -11,8 +11,7 @@ WORKDIR /service
 COPY pyproject.toml README.md ./
 COPY app ./app
 
-RUN apt-get update \
-    && groupadd --gid 10001 libretv \
+RUN groupadd --gid 10001 libretv \
     && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin libretv \
     && mkdir -p /tmp/libretv-media-probe /probe/inbox /probe/outbox /data \
     && chown -R 10001:10001 /tmp/libretv-media-probe /probe /data \
