@@ -49,6 +49,9 @@ class RegistryQueueTests(unittest.TestCase):
         self.assertTrue(queue.is_discovered_host("CATALOG.EXAMPLE"))
         self.assertFalse(queue.is_discovered_host("private.example"))
         sites = queue.list_discovered_sites(10)
+        with queue.connect() as connection:
+            same_connection_sites = queue.list_discovered_sites(10, connection=connection)
+        self.assertEqual(sites, same_connection_sites)
         self.assertEqual([item["host"] for item in sites], ["catalog.example"])
         self.assertEqual(sites[0]["url"], "https://catalog.example/video")
         with queue.connect() as connection:
