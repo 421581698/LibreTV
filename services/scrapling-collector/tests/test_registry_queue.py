@@ -55,6 +55,12 @@ class RegistryQueueTests(unittest.TestCase):
         self.assertEqual([item["host"] for item in sites], ["catalog.example"])
         self.assertEqual(sites[0]["url"], "https://catalog.example/video")
         with queue.connect() as connection:
+            connection.execute(
+                "INSERT INTO sites(host,title,url,directory,discovered_at) VALUES(?,?,?,?,?)",
+                ("other.example", "Other", "https://other.example/", "Other / Directory", 124),
+            )
+        self.assertFalse(queue.is_discovered_host("other.example"))
+        with queue.connect() as connection:
             self.assertEqual(
                 connection.execute("SELECT COUNT(*) FROM sites").fetchone()[0],
                 1,
