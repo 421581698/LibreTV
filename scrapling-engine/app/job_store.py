@@ -185,7 +185,10 @@ class JobStore:
         """Return queued jobs in creation order for startup scheduling."""
         with self._connection() as db:
             rows = db.execute(
-                "SELECT task_id FROM crawl_jobs WHERE status = 'queued' ORDER BY created_at, task_id"
+                """
+                SELECT task_id FROM crawl_jobs
+                WHERE status = 'queued' ORDER BY created_at, task_id
+                """
             ).fetchall()
         jobs = [self.get(row["task_id"]) for row in rows]
         return [job for job in jobs if job is not None]
