@@ -140,8 +140,10 @@ class WorkflowWorker:
                     result.get("candidate_ids"), list
                 ):
                     candidate_ids.extend(result["candidate_ids"])
-        if not candidate_ids or len(candidate_ids) > 20:
-            raise ValueError("analyze_media_candidates requires 1 to 20 candidate IDs")
+        if not isinstance(candidate_ids, list) or len(candidate_ids) > 20:
+            raise ValueError("analyze_media_candidates accepts at most 20 candidate IDs")
+        if not candidate_ids:
+            return {"count": 0, "reports": []}
 
         reports: list[dict[str, Any]] = []
         for candidate_id in dict.fromkeys(candidate_ids):
@@ -168,8 +170,8 @@ class WorkflowWorker:
                 settings.request_timeout_seconds,
             )
             body = getattr(page, "body", b"")
-            if isinstance(body, bytes):
-                manifest_text = body.decode("utf-8", errors="replace")
+            if isinstance(body, (bytes, bytearray)):
+                manifest_text = bytes(body).decode("utf-8", errors="replace")
             else:
                 manifest_text = str(body)
             report = (
