@@ -29,6 +29,15 @@ def test_candidate_ingestion_deduplicates_and_preserves_evidence_without_publish
                     "title": "Example Catalogue",
                     "status": 200,
                     "text": "First observed page",
+                    "rule_extractions": [
+                        {
+                            "rule_id": "reviewed-rule",
+                            "version": 3,
+                            "goal": "Extract movie titles",
+                            "values": ["Example Movie"],
+                            "match_count": 1,
+                        }
+                    ],
                 },
                 {
                     "url": f"https://example.com/catalog/{workflow_id}",
@@ -47,6 +56,9 @@ def test_candidate_ingestion_deduplicates_and_preserves_evidence_without_publish
         assert candidate["status"] == "pending_review"
         assert candidate["title"] == "Example Catalogue"
         assert len(candidate["evidence"]) == 2
+        assert candidate["evidence"][0]["data"]["rule_extractions"][0]["values"] == [
+            "Example Movie"
+        ]
         assert candidate["source_url"] == f"https://example.com/movie-{workflow_id}.m3u8"
         report = {
             "quality_label": "4K_claim",
