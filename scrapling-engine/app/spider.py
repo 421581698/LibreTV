@@ -4,7 +4,7 @@ import asyncio
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 from scrapling.fetchers import FetcherSession
 from scrapling.spiders import Response, Spider
@@ -51,11 +51,24 @@ class _SeedSpider(Spider):
             }
             return
         title = response.css("title::text").get() or ""
+        media_urls: list[str] = []
+        selectors = response.css("video::attr(src), source::attr(src)")
+        raw_media_urls = selectors.getall()
+        raw_media_urls.extend(response.css("a::attr(href)").getall())
+        media_extensions = (
+            ".m3u8", ".mpd", ".mp4", ".m4v", ".webm", ".mov", ".ts", ".mkv"
+        )
+        for raw_url in raw_media_urls:
+            candidate_url = urljoin(str(response.url), raw_url.strip())
+            if urlsplit(candidate_url).path.lower().endswith(media_extensions):
+                if candidate_url not in media_urls:
+                    media_urls.append(candidate_url)
         yield {
             "url": str(response.url),
             "status": getattr(response, "status", None),
             "title": title.strip(),
             "text": response.get_all_text(strip=True)[:20_000],
+            "media_urls": media_urls,
         }
 
 
