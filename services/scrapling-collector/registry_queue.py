@@ -4,6 +4,7 @@ import hashlib
 import ipaddress
 import json
 import os
+import re
 import sqlite3
 import time
 import uuid
@@ -115,13 +116,19 @@ def validate_durable_job_payload(job_type: str, payload: dict) -> dict:
         host = payload.get("host")
         sample = payload.get("page_html")
         fixtures = payload.get("fixtures", [])
-        if not isinstance(host, str) or not host or len(host) > 253:
-            raise ValueError("AI rule jobs require a bounded hostname")
+        if not isinstance(host, str) or not re.fullmatch(r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*", host.strip().rstrip(".").lower()):
+            raise ValueError("AI rule jobs require a canonical DNS hostname")
         if not isinstance(sample, str) or not sample or len(sample.encode("utf-8")) > 256 * 1024:
             raise ValueError("AI rule jobs require a bounded HTML sample")
         if not isinstance(fixtures, list) or len(fixtures) > 20 or any(not isinstance(item, str) or len(item.encode("utf-8")) > 256 * 1024 for item in fixtures):
             raise ValueError("AI rule fixtures exceed the bounded limit")
-        return payload
+        return {
+            "host": host.strip().rstrip(".").lower(),
+            "page_html": sample,
+            "fixtures": fixtures,
+            "task_id": str(payload.get("task_id") or "")[:80] or None,
+            "failure_code": str(payload.get("failure_code") or "selector_miss")[:80],
+        }
     if job_type != "crawl":
         return payload
     from urllib.parse import parse_qsl, urlsplit, urlunsplit
