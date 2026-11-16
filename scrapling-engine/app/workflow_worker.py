@@ -13,8 +13,8 @@ from urllib.parse import urljoin, urlsplit
 from app.candidate_store import PostgresCandidateStore
 from app.config import settings
 from app.discovery import extract_discovery_links, is_same_origin
-from app.media_analyzer import analyze_hls_manifest, analyze_mpd_manifest
 from app.ffprobe_analyzer import analyze_local_media_file
+from app.media_analyzer import analyze_hls_manifest, analyze_mpd_manifest
 from app.robots import ensure_robots_allowed
 from app.rule_store import PostgresRuleStore
 from app.scraper import ScraplingAdapter
