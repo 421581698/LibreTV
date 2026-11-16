@@ -47,7 +47,7 @@ services:
       - default
       - crawler-app
 
-  # 以下三个服务仅在 docker compose --profile crawler up 时启动。
+  # 以下采集基础设施服务仅在 docker compose --profile crawler up 时启动。
   # 请在 .env 中设置至少 32 位随机 SCRAPLING_API_KEY 和独立 SCRAPLING_DB_PASSWORD。
   scrapling-postgres:
     profiles: ["crawler"]
