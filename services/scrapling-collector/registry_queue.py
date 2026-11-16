@@ -302,7 +302,7 @@ def upsert_resource(payload: dict) -> dict:
     url = payload.get("url")
     if not isinstance(url, str) or len(url) > 4096:
         raise ValueError("Only bounded HTTPS resource URLs are accepted")
-    from urllib.parse import urlsplit, urlunsplit
+    from urllib.parse import parse_qsl, urlsplit, urlunsplit
     try:
         parsed_url = urlsplit(url)
         port = parsed_url.port
@@ -314,11 +314,27 @@ def upsert_resource(payload: dict) -> dict:
         or parsed_url.username is not None
         or parsed_url.password is not None
         or port not in (None, 443)
+        or any(ord(char) < 32 or ord(char) == 127 for char in url)
     ):
         raise ValueError("Only credential-free HTTPS URLs on port 443 are accepted")
-    # Signed query strings and fragments may contain bearer credentials. Do not
-    # persist them in the durable registry; only the canonical resource path is stored.
-    url = urlunsplit(("https", parsed_url.netloc.lower(), parsed_url.path or "/", "", ""))
+    sensitive_query_keys = {
+        "token", "access_token", "auth", "authorization", "api_key", "apikey",
+        "key", "signature", "sig", "jwt", "expires", "policy", "hdnts",
+        "hdnea", "x-amz-signature", "x-amz-credential", "x-goog-signature",
+    }
+    query_keys = {key.casefold() for key, _ in parse_qsl(parsed_url.query, keep_blank_values=True)}
+    if any(
+        key in sensitive_query_keys or key.startswith("x-amz-") or key.startswith("x-goog-")
+        for key in query_keys
+    ):
+        raise ValueError("Signed or credential-bearing URLs cannot be persisted in the resource registry")
+    # Keep non-secret query parameters needed by public media endpoints, but never
+    # persist fragments (which are client-side state and may contain credentials).
+    host = parsed_url.hostname.encode("idna").decode("ascii").lower()
+    if ":" in host and not host.startswith("["):
+        host = "[" + host + "]"
+    netloc = host if port is None else f"{host}:{port}"
+    url = urlunsplit(("https", netloc, parsed_url.path or "/", parsed_url.query, ""))
     source_key = str(payload.get("source_key") or "unknown")[:200]
     external_movie = payload.get("movie_external_key")
     external_episode = payload.get("episode_external_key")
