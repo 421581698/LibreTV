@@ -4,6 +4,7 @@ set -euo pipefail
 IMAGE="${COLLECTOR_TEST_IMAGE:-libretv-scrapling-collector:ci}"
 NETWORK="libretv-scrapling-firewall-test"
 COLLECTOR_IP="172.30.60.10"
+COLLECTOR_CIDR="172.30.60.0/24"
 TARGET_IP="172.30.60.11"
 GATEWAY_IP="172.30.60.1"
 CHAIN="LIBRETV-SCRAPLING-EGRESS"
@@ -13,8 +14,8 @@ cleanup() {
   if [[ -n "$HOST_SERVER_PID" ]]; then kill "$HOST_SERVER_PID" >/dev/null 2>&1 || true; fi
   docker rm -f scrapling-firewall-target >/dev/null 2>&1 || true
   docker network rm "$NETWORK" >/dev/null 2>&1 || true
-  sudo iptables -w -D DOCKER-USER -s "$COLLECTOR_IP/32" -j "$CHAIN" >/dev/null 2>&1 || true
-  sudo iptables -w -D INPUT -s "$COLLECTOR_IP/32" -j DROP >/dev/null 2>&1 || true
+  sudo iptables -w -D DOCKER-USER -s "$COLLECTOR_CIDR" -j "$CHAIN" >/dev/null 2>&1 || true
+  sudo iptables -w -D INPUT -s "$COLLECTOR_CIDR" -j DROP >/dev/null 2>&1 || true
   sudo iptables -w -F "$CHAIN" >/dev/null 2>&1 || true
   sudo iptables -w -X "$CHAIN" >/dev/null 2>&1 || true
 }
@@ -60,9 +61,9 @@ fi
 probe_container "$TARGET_IP:8000"
 probe_container "$GATEWAY_IP:18080"
 
-sudo env COLLECTOR_CIDR="$COLLECTOR_IP/32" bash scripts/scrapling-egress-firewall.sh
-sudo iptables -w -C DOCKER-USER -s "$COLLECTOR_IP/32" -j "$CHAIN"
-sudo iptables -w -C INPUT -s "$COLLECTOR_IP/32" -j DROP
+sudo env COLLECTOR_CIDR="$COLLECTOR_CIDR" bash scripts/scrapling-egress-firewall.sh
+sudo iptables -w -C DOCKER-USER -s "$COLLECTOR_CIDR" -j "$CHAIN"
+sudo iptables -w -C INPUT -s "$COLLECTOR_CIDR" -j DROP
 
 if probe_container "$TARGET_IP:8000" >/dev/null 2>&1; then
   echo "FAIL: collector container reached a private-network peer after firewall installation." >&2
