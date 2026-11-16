@@ -151,7 +151,7 @@ def build_stats(connection: sqlite3.Connection, host=None):
             if bitrate > 0:
                 bitrate_scores.append(min(1.0, bitrate / 8000.0) * 100)
         quality_score = None
-        if len(sample_evidence) >= 1 and observed_total >= 5 and progress_scores:
+        if len(sample_evidence) >= 3 and observed_total >= 15 and progress_scores:
             resolution_average = sum(resolution_scores) / len(resolution_scores)
             progress_average = sum(progress_scores) / len(progress_scores)
             if bitrate_scores:
@@ -191,7 +191,7 @@ def build_stats(connection: sqlite3.Connection, host=None):
             "playback_samples": len(site_samples), "preview_samples": len(preview_samples), "quality_score": quality_score,
             "quality_score_state": ("preliminary" if len(sample_evidence) < 3 else "scored") if quality_score is not None else "insufficient_samples",
             "pages_visited": sum(int(t.get("pages_visited") or 0) for t in site_tasks),
-            "pages_succeeded": sum(int(t.get("pages_visited") or 0) for t in site_tasks),
+            "pages_succeeded": sum(max(0, int(t.get("pages_visited") or 0) - int(t.get("pages_failed") or 0)) for t in site_tasks),
             "pages_failed": sum(int(t.get("pages_failed") or 0) for t in site_tasks),
             "pages_changed": sum(int(t.get("pages_changed") or 0) for t in site_tasks),
             "pages_unchanged": sum(int(t.get("pages_unchanged") or 0) for t in site_tasks)
