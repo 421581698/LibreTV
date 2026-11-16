@@ -143,7 +143,7 @@ def upsert_discovered_sites(sites: list[dict], discovered_at: int | None = None)
             or any(key in sensitive_keys for key in query_keys)
         ):
             continue
-        canonical_url = urlunsplit(("https", parsed.netloc, parsed.path or "/", parsed.query, ""))
+        canonical_url = urlunsplit(("https", host, parsed.path or "/", parsed.query, ""))
         normalized.append((host, title, canonical_url, directory, now))
     if not normalized:
         return 0
