@@ -64,6 +64,67 @@ def initialize(connection=None):
             c.close()
 
 
+class _SafeHTMLSample(HTMLParser):
+    OMIT = {"script", "style", "noscript", "form", "input", "button", "textarea", "select", "option", "iframe"}
+    VOID = {"area", "base", "br", "col", "embed", "hr", "img", "link", "meta", "param", "source", "track", "wbr"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.parts = []
+        self.skip = 0
+
+    def handle_starttag(self, tag, attrs):
+        tag = tag.lower()
+        if self.skip:
+            if tag in self.OMIT:
+                self.skip += 1
+            return
+        if tag in self.OMIT:
+            self.skip = 1
+            return
+        safe_attrs = []
+        values = dict(attrs)
+        for name in ("id", "class"):
+            value = values.get(name)
+            if value:
+                safe_attrs.append(f' {name}="{html.escape(str(value)[:160], quote=True)}"')
+        self.parts.append("<" + tag + "".join(safe_attrs) + ">")
+
+    def handle_startendtag(self, tag, attrs):
+        if not self.skip:
+            self.handle_starttag(tag, attrs)
+            if tag.lower() not in self.VOID and not self.skip:
+                self.parts.append("</" + tag.lower() + ">")
+
+    def handle_endtag(self, tag):
+        tag = tag.lower()
+        if self.skip:
+            if tag in self.OMIT:
+                self.skip = max(0, self.skip - 1)
+            return
+        if tag not in self.VOID:
+            self.parts.append("</" + tag + ">")
+
+    def handle_data(self, data):
+        if not self.skip and data.strip():
+            self.parts.append(html.escape(data[:1000]))
+
+
+def sanitize_html_sample(source: str) -> str:
+    parser = _SafeHTMLSample()
+    parser.feed(source[:MAX_HTML_BYTES])
+    result = "".join(parser.parts)
+    return result.encode("utf-8")[:MAX_HTML_BYTES].decode("utf-8", errors="ignore")
+
+
+def is_configured() -> bool:
+    try:
+        _model_endpoint()
+        return True
+    except RuntimeError:
+        return False
+
+
 def validate_rules(value: object) -> dict:
     if not isinstance(value, dict) or set(value) - {"selectors", "notes"}:
         raise ValueError("Rule document must contain only selectors and notes")
@@ -142,7 +203,7 @@ def generate_rules(host: str, page_html: str, diagnostics: dict | None = None) -
     endpoint, key, model = _model_endpoint()
     prompt = {
         "host": host,
-        "html_sample": page_html[:MAX_HTML_BYTES],
+        "html_sample": sanitize_html_sample(page_html),
         "diagnostics": diagnostics or {},
         "contract": {
             "selectors": {kind: "one simple CSS selector" for kind in sorted(ALLOWED_KINDS)},
