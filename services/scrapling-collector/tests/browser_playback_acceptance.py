@@ -15,7 +15,7 @@ def main():
     url = os.environ.get("MEDIA_ACCEPTANCE_URL", "").strip()
     allowed = {x.strip().lower() for x in os.environ.get("MEDIA_ACCEPTANCE_ALLOWED_HOSTS", "").split(",") if x.strip()}
     parsed = urlparse(url)
-    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.hostname.lower() not in allowed:
+    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.hostname.lower().rstrip(".") not in allowed or parsed.port not in (None, 443):
         raise SystemExit("FAIL: browser media fixture must be an allowlisted HTTPS URL")
     if not parsed.path.lower().endswith((".mp4", ".m4v", ".webm")):
         raise SystemExit("FAIL: Chromium acceptance requires a direct MP4 or WebM fixture (HLS is tested by ffmpeg)")
@@ -42,6 +42,22 @@ def main():
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         page = browser.new_page()
+
+        def enforce_media_host_allowlist(route):
+            request_url = urlparse(route.request.url)
+            if request_url.scheme in {"data", "blob", "about"}:
+                route.continue_()
+            elif (
+                request_url.scheme == "https"
+                and request_url.hostname
+                and request_url.hostname.lower().rstrip(".") in allowed
+                and request_url.port in (None, 443)
+            ):
+                route.continue_()
+            else:
+                route.abort()
+
+        page.route("**/*", enforce_media_host_allowlist)
         page.set_content('<video id="acceptance-video" muted autoplay playsinline controls></video>')
         page.locator("#acceptance-video").evaluate("(video, url) => { video.src = url; video.load(); }", url)
         page.wait_for_function(
