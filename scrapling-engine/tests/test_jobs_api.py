@@ -15,6 +15,7 @@ def _use_test_store(monkeypatch, tmp_path) -> JobStore:
     store = JobStore(str(tmp_path / "jobs.sqlite3"))
     store.initialize()
     monkeypatch.setattr(main, "job_store", store)
+    monkeypatch.setattr(main.settings, "database_url", None)
     monkeypatch.setattr(main, "validate_public_http_url", lambda url: url)
     monkeypatch.setattr(main, "_schedule_job", lambda task_id: None)
     monkeypatch.setattr(main.settings, "crawl_data_dir", str(tmp_path / "crawls"))
