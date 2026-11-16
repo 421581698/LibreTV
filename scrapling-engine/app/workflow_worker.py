@@ -313,7 +313,7 @@ class WorkflowWorker:
         )
         return {
             "rule_id": rule_id,
-            "rule_status": "active",
+            "rule_status": "tested",
             "page_url": final_url,
             "mode": rule.mode,
             "selector": rule.selector,
