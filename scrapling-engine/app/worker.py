@@ -16,6 +16,7 @@ from psycopg.rows import dict_row
 
 from app.config import settings
 from app.postgres_job_store import PostgresJobStore
+from app.security import validate_public_http_url
 from app.spider import ScraplingSpiderAdapter
 
 logger = logging.getLogger("libretv.scrapling.worker")
@@ -141,8 +142,9 @@ class CrawlWorker:
         seen = {item.get("url") for item in items if item.get("url")}
         stats: dict[str, Any] = {}
         try:
+            safe_seeds = [validate_public_http_url(url) for url in job["seeds"]]
             spider = ScraplingSpiderAdapter.create(
-                job["seeds"], Path(job["checkpoint_dir"])
+                safe_seeds, Path(job["checkpoint_dir"])
             )
             async for item in spider.stream():
                 if lost.is_set():
