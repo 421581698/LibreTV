@@ -273,6 +273,13 @@ class PostgresWorkflowStore:
             )
             result = dict(row)
             result["input"] = result.pop("input_json")
+            workflow_input = db.execute(
+                "SELECT input_json FROM resource_workflows WHERE workflow_id = %s",
+                (result["workflow_id"],),
+            ).fetchone()
+            result["workflow_input"] = (
+                workflow_input["input_json"] if workflow_input else {}
+            )
             parents = db.execute(
                 """
                 SELECT edge.parent_node_id, parent.result_json
