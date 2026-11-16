@@ -341,6 +341,11 @@ async def capabilities() -> dict:
             "markdown_conversion",
             "public_target_validation",
             "spider_seed_crawl",
+            (
+                "bounded_same_origin_recursive_discovery"
+                if settings.database_url
+                else "recursive_discovery_requires_postgresql_worker"
+            ),
             "spider_concurrency_limits",
             "spider_robots_txt_policy",
             "one_off_fetch_robots_policy",
@@ -377,7 +382,7 @@ async def capabilities() -> dict:
         "planned": [
             "dynamic_browser",
             "stealth_browser",
-            "recursive_link_crawling",
+            "unrestricted_cross_origin_discovery",
             "network_api_capture",
             "mcp_agent_integration",
         ],
@@ -392,8 +397,10 @@ async def capabilities() -> dict:
         "note": (
             "Only implemented entries have been integrated. "
             "PostgreSQL mode requires at least one independent worker. "
-            "Browser and recursive crawling "
-            "remain disabled until request-level and deployment egress protections are verified."
+            "Dynamic browser capture and cross-origin discovery remain disabled until "
+            "request-level and deployment egress protections are verified. Bounded "
+            "same-origin discovery revalidates each URL but still requires network-level "
+            "egress filtering to close DNS-rebinding races."
         ),
     }
 
