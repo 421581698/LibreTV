@@ -14,7 +14,7 @@ class MediaSandboxPolicyTests(unittest.TestCase):
         self.assertNotIn('os.environ.get("MEDIA_ACCEPTANCE_ALLOWED_HOSTS"', harness)
 
     def test_workflows_pass_dedicated_browser_fixture_environment(self):
-        repository_root = Path(__file__).resolve().parents[2]
+        repository_root = Path(__file__).resolve().parents[3]
         workflow_paths = [
             repository_root / ".github/workflows/scrapling-collector.yml",
             repository_root / ".github/workflows/collector-live-acceptance.yml",
