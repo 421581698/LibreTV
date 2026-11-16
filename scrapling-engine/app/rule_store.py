@@ -254,6 +254,24 @@ class PostgresRuleStore:
                 ).fetchall()
         return [dict(row) for row in rows]
 
+
+    def list_active_for_origin(self, page_url: str) -> list[dict[str, Any]]:
+        safe_url = validate_public_http_url(page_url)
+        parsed = urlsplit(safe_url)
+        origin = f"{parsed.scheme.lower()}://{parsed.netloc.lower()}"
+        with psycopg.connect(self.database_url, row_factory=dict_row) as db:
+            rows = db.execute(
+                """
+                SELECT rule_id, rule_key, version, goal, mode, selector, rationale
+                FROM scraping_rules
+                WHERE source_origin = %s AND status = 'active'
+                ORDER BY updated_at DESC
+                LIMIT 50
+                """,
+                (origin,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     def get_rule(self, rule_id: str) -> dict[str, Any] | None:
         with psycopg.connect(self.database_url, row_factory=dict_row) as db:
             rule = db.execute(
