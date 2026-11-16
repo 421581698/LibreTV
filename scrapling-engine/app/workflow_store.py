@@ -268,6 +268,21 @@ class PostgresWorkflowStore:
             )
             result = dict(row)
             result["input"] = result.pop("input_json")
+            parents = db.execute(
+                """
+                SELECT edge.parent_node_id, parent.result_json
+                FROM resource_workflow_edges AS edge
+                JOIN resource_workflow_nodes AS parent
+                  ON parent.workflow_id = edge.workflow_id
+                 AND parent.node_id = edge.parent_node_id
+                WHERE edge.workflow_id = %s AND edge.child_node_id = %s
+                ORDER BY edge.parent_node_id
+                """,
+                (result["workflow_id"], result["node_id"]),
+            ).fetchall()
+            result["dependencies"] = {
+                parent["parent_node_id"]: parent["result_json"] for parent in parents
+            }
             return result
 
     def heartbeat_node(self, workflow_id: str, node_id: str, worker_id: str, lease_seconds: int = 60) -> bool:
