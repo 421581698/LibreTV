@@ -88,7 +88,9 @@ def probe_media_file(
             time.sleep(0.2)
         raise MediaProbeError("Timed out waiting for isolated media probe sidecar")
     finally:
-        for path in (request_tmp, request_path, media_path, result_path):
+        # The result volume is mounted read-only in this worker; the sidecar
+        # reaps acknowledged results after the request disappears.
+        for path in (request_tmp, request_path, media_path):
             try:
                 path.unlink(missing_ok=True)
             except OSError:
