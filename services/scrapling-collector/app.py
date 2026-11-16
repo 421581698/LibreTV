@@ -1964,12 +1964,20 @@ def record_page_sample(task_id: str, host: str, page_url: str, body: bytes) -> N
     if not sample:
         return
     with db() as connection:
-        # Keep one bounded, sanitized sample per host; avoid unbounded HTML retention.
+        # Keep the first-page sample for the latest task per host; never retain
+        # an unbounded page archive or signed query strings.
+        existing = connection.execute(
+            "SELECT 1 FROM crawl_page_samples WHERE task_id=? LIMIT 1", (task_id,)
+        ).fetchone()
+        if existing:
+            return
         connection.execute("DELETE FROM crawl_page_samples WHERE host=?", (host,))
+        parsed_page = urlparse(page_url)
+        safe_page_url = parsed_page._replace(query="", fragment="").geturl()
         connection.execute(
             """INSERT INTO crawl_page_samples(task_id,host,page_url,html_sample,captured_at)
                VALUES(?,?,?,?,?)""",
-            (task_id, host, canonical_candidate_url(page_url), sample, int(time.time())),
+            (task_id, host, safe_page_url, sample, int(time.time())),
         )
 
 
