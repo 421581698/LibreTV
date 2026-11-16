@@ -75,6 +75,23 @@ describe('crawler engine proxy', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('never permits candidate review when LibreTV authentication is disabled', async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await POST(
+      new Request('https://local.test/api/crawler/candidates/example/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision: 'approved' }),
+      }),
+      context(['candidates', 'example', 'review']),
+    );
+
+    expect(response.status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('fails closed when the engine service credentials are missing', async () => {
     delete process.env.SCRAPLING_ENGINE_API_KEY;
     const fetchMock = vi.fn<typeof fetch>();
