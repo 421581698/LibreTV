@@ -60,7 +60,7 @@ jobs:
         run: |
           changed_files="$(git diff --name-only HEAD^ HEAD -- 'scrapling-engine/*.py' 'scrapling-engine/**/*.py' | sed 's#^scrapling-engine/##')"
           if [ -n "$changed_files" ]; then
-            printf '%s\\n' "$changed_files" | xargs ruff format --check
+            echo "$changed_files" | xargs ruff format --check
           else
             echo "No changed Scrapling Python files to format-check."
           fi
