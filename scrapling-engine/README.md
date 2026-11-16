@@ -40,7 +40,7 @@ Run one Uvicorn API process per deployment instance and run independent workers 
 
 ## Optional Docker Compose deployment
 
-The root `docker-compose.yml` includes an opt-in `crawler` profile with PostgreSQL, the Scrapling API, the legacy crawl-job worker, the DAG workflow worker, and a dedicated media-probe sidecar. It does not start as part of the default LibreTV Compose deployment.
+The root `docker-compose.yml` includes an opt-in `crawler` profile with PostgreSQL, the Scrapling API, the legacy crawl-job worker, the DAG workflow worker, a DNS-pinned egress proxy, and a dedicated media-probe sidecar. It does not start as part of the default LibreTV Compose deployment.
 
 Set `SCRAPLING_API_KEY` to at least 32 random characters and `SCRAPLING_DB_PASSWORD` to a separate strong password in the root `.env`, then start the profile:
 
@@ -98,6 +98,14 @@ The DAG engine is now a real durable orchestration primitive, not yet the comple
 The Scrapling Engine CI runs `scripts/verify-crawler-containers.sh` on an isolated GitHub-hosted Docker runner. It builds and starts the opt-in crawler services, then checks the effective container configuration and runtime identity for the API and both workers: UID/GID 10001, read-only root filesystem, dropped capabilities, no-new-privileges, PID/CPU/memory limits, and a `/tmp` tmpfs mounted with `noexec,nosuid,nodev`. It also performs an actual write/delete operation on the shared `/data` volume as UID 10001 and checks that the media-probe sidecar uses `network_mode: none`, has a read-only inbox, a separate writable result volume, and cannot open an outbound TCP connection.
 
 This is a reproducible CI runtime acceptance, not evidence that a user's own Docker host has been tested. The probe process is still executed by the workflow worker in the current implementation; an isolated no-network probe sidecar remains a required security change. DNS validation is still application-layer only until a pinned-IP egress proxy and enforced no-bypass network topology are implemented and tested.
+
+## DNS-pinned egress path
+
+The crawler Compose profile places the API and workers only on internal Docker networks. PostgreSQL is on a separate internal database network. Workers have no default bridge route; their HTTP(S) traffic and configured Supervisor requests use `scrapling-egress-proxy`, which is the only crawler component attached to the external egress bridge.
+
+The proxy supports HTTP GET/HEAD and HTTPS CONNECT. For every new target connection it resolves the hostname, rejects the request if any A/AAAA answer is not globally routable, and opens the socket to one of the validated IP literals rather than resolving the hostname again. HTTPS remains end-to-end TLS: the proxy does not terminate TLS, so the client's original SNI and certificate validation remain intact. Redirects are followed by the client; each new origin connection returns through the proxy and is independently resolved and checked. Same-connection keep-alive traffic remains pinned to the already validated peer.
+
+This closes the DNS check-to-connect gap for the configured Scrapling Fetcher, Spider, robots fetches, and Supervisor HTTP client when running in the Compose profile. It is not a general-purpose browser egress gateway: browser subresource fetching is not enabled, and any future network-capable component must be explicitly routed through this proxy or isolated on a network with no external route. Do not attach workers to the default bridge network.
 
 ## Safety boundary
 
