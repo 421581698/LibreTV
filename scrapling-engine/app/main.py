@@ -89,6 +89,7 @@ class WorkflowNodeRequest(BaseModel):
     node_type: Literal[
         "validate_public_urls",
         "crawl_seed_urls",
+        "discover_site_links",
         "register_candidates",
         "analyze_media_manifest",
         "analyze_media_candidates",
