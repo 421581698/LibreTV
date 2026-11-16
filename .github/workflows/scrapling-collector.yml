@@ -184,7 +184,7 @@ jobs:
 
           token = "collector-ci-token"
           status, body = request("/v1/discover", token=token)
-          assert status == 503 and "egress filtering" in body, ("discovery must fail closed", status, body)
+          assert status == 503 and "current-boot" in body, ("discovery must fail closed", status, body)
 
           status, body = request("/v1/crawl", method="POST", token=token,
                                  body={"url": "https://example.com", "mode": "http", "limit": 101})
