@@ -448,11 +448,11 @@ async def test_connect_proxy_preserves_tls_sni_and_hostname_verification(tmp_pat
     def tls_client():
         raw = socket.create_connection(("127.0.0.1", proxy_port), timeout=5)
         raw.sendall(
-            b"CONNECT example.test:443 HTTP/1.1\\r\\n"
-            b"Host: example.test:443\\r\\n\\r\\n"
+            b"CONNECT example.test:443 HTTP/1.1\r\n"
+            b"Host: example.test:443\r\n\r\n"
         )
         response = bytearray()
-        while not response.endswith(b"\\r\\n\\r\\n"):
+        while not response.endswith(b"\r\n\r\n"):
             response.extend(raw.recv(1))
         assert response.startswith(b"HTTP/1.1 200"), bytes(response)
         context = ssl.create_default_context(cafile=str(cert))
