@@ -92,3 +92,34 @@ def test_expired_worker_lease_is_reclaimed_and_old_worker_is_fenced() -> None:
     finally:
         with psycopg.connect(database_url) as db:
             db.execute("DELETE FROM crawl_jobs WHERE task_id = %s", (task_id,))
+
+@pytest.mark.skipif(
+    not os.getenv("DATABASE_URL"),
+    reason="PostgreSQL integration database is not configured",
+)
+def test_worker_stops_persisting_results_after_pause_is_requested() -> None:
+    database_url = os.environ["DATABASE_URL"]
+    store = PostgresJobStore(database_url)
+    store.initialize()
+    task_id = "worker_pause_fence_" + uuid.uuid4().hex
+    worker = CrawlWorker(database_url, "worker-pause", lease_seconds=30)
+
+    try:
+        assert store.create(task_id, ["https://example.com/"], "/tmp/" + task_id)
+        assert store.claim_next("worker-pause", lease_seconds=30) is not None
+        assert store.request_control(task_id, "pause")
+        persisted = worker._fenced_result(
+            task_id,
+            {"url": "https://example.com/late", "title": "Must not persist"},
+        )
+        assert persisted is False
+        assert store.get_results(task_id) == []
+        worker._fenced_finish(
+            task_id,
+            "paused",
+            {"items": [], "completed": False, "paused": True},
+        )
+        assert store.get(task_id)["status"] == "paused"
+    finally:
+        with psycopg.connect(database_url) as db:
+            db.execute("DELETE FROM crawl_jobs WHERE task_id = %s", (task_id,))
