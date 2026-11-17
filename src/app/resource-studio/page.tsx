@@ -59,7 +59,7 @@ export default function ResourceStudioPage() {
       const jobPayload = await jobResponse.json();
       const agentPayload = await agentResponse.json().catch(() => ({}));
       if (!resourceResponse.ok) {
-        if (resourceResponse.status === 503) {
+        if ([501, 503].includes(resourceResponse.status)) {
           setResources([]);
           setResourceBackendMessage(resourcePayload.error || '独立 Collector 尚未连接。请配置 HTTPS 地址和访问 Token。');
         } else {
