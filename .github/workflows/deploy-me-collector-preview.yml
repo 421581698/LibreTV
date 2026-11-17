@@ -87,9 +87,10 @@ jobs:
         run: |
           node --input-type=module <<'NODE'
           const base = "https://libretv-me-collector-preview.bggdbh.workers.dev";
-          async function request(path) {
+          const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+          async function check(path, validate, description) {
             let lastError;
-            for (let attempt = 1; attempt <= 8; attempt += 1) {
+            for (let attempt = 1; attempt <= 12; attempt += 1) {
               try {
                 const response = await fetch(base + path, {
                   redirect: "manual",
@@ -97,36 +98,31 @@ jobs:
                   signal: AbortSignal.timeout(15000),
                 });
                 const body = await response.text();
-                console.log(path + ": HTTP " + response.status + " " + (response.headers.get("content-type") || ""));
-                if (response.status < 500) return { response, body };
-                lastError = new Error(path + " returned " + response.status + ": " + body.slice(0, 400));
+                console.log(path + " attempt " + attempt + ": HTTP " + response.status + " " + (response.headers.get("content-type") || ""));
+                if (validate(response, body)) return { response, body };
+                lastError = new Error(description + " not ready; HTTP " + response.status + "; body=" + body.slice(0, 240));
               } catch (error) {
                 lastError = error;
               }
-              if (attempt < 8) await new Promise((resolve) => setTimeout(resolve, 5000));
+              if (attempt < 12) await sleep(5000);
             }
             throw lastError;
           }
           const [home, statusResult, collector, studio] = await Promise.all([
-            request("/"),
-            request("/api/status"),
-            request("/api/resource-collector"),
-            request("/resource-studio"),
+            check("/", (response) =>
+              response.status === 200 && (response.headers.get("content-type") || "").includes("text/html"),
+              "Homepage"),
+            check("/api/status", (response, body) => {
+              if (response.status !== 200) return false;
+              try {
+                const status = JSON.parse(body);
+                return status.passwordRequired === true && status.verified === false;
+              } catch { return false; }
+            }, "Password gate"),
+            check("/api/resource-collector", (response) => response.status === 401,
+              "Unauthenticated collector API rejection"),
+            check("/resource-studio", (response) => response.status === 200,
+              "Resource Studio route"),
           ]);
-          if (!(home.response.headers.get("content-type") || "").includes("text/html")) {
-            throw new Error("Preview homepage did not return HTML.");
-          }
-          let status;
-          try { status = JSON.parse(statusResult.body); }
-          catch { throw new Error("/api/status did not return JSON."); }
-          if (status.passwordRequired !== true || status.verified !== false) {
-            throw new Error("Preview password gate is not active.");
-          }
-          if (collector.response.status !== 401) {
-            throw new Error("Unauthenticated collector API must return 401, got " + collector.response.status);
-          }
-          if (![200, 302, 307, 401].includes(studio.response.status)) {
-            throw new Error("Resource Studio route unexpected status: " + studio.response.status);
-          }
-          console.log("Preview smoke checks passed: homepage reachable, password gate active, collector API protected, Resource Studio route responds.");
+          console.log("Preview smoke checks passed: homepage reachable, password gate active, collector API rejects anonymous requests, Resource Studio route responds.");
           NODE
