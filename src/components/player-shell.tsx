@@ -14,6 +14,7 @@ import { getVideoPrefetcher } from '@/lib/video-prefetcher';
 import { loadCacheSettings } from '@/lib/video-cache';
 import { formatTime } from '@/lib/utils';
 import { executeFridayPlayerCommand, parseFridayPlayerCommand } from '@/lib/friday/player-control';
+import { hasTouchGestureMoved } from '@/lib/touch-gesture';
 import { prefersTouchPointer } from '@/lib/touch-pointer';
 import { requestNativeFullscreenWithFallback, type NativeFullscreenVideo } from '@/lib/player-fullscreen';
 import { bindPlaybackUiEvents } from '@/lib/player-playback-ui';
@@ -1371,6 +1372,8 @@ export function PlayerShell({
     let longPressTimer: ReturnType<typeof setTimeout> | null = null;
     let isLongPress = false;
     let originalRate = 1.0;
+    let touchStartX = 0;
+    let touchStartY = 0;
     const el = containerRef.current;
 
     // 全屏时播放器覆盖整个视口，无法依赖 mouseleave 判断“移出播放器”。
@@ -1404,6 +1407,8 @@ export function PlayerShell({
       if (isLongPress || longPressTimer) return;
       // 控制栏 / 设置面板上的长按不触发倍速（按住进度条拖动、长按倍速菜单项会误触）
       if ((e.target as HTMLElement).closest?.('.art-controls, .art-settings')) return;
+      touchStartX = e.touches[0]?.clientX ?? 0;
+      touchStartY = e.touches[0]?.clientY ?? 0;
       originalRate = art.video.playbackRate;
       longPressTimer = setTimeout(() => {
         if (art.video?.paused) return;
@@ -1421,6 +1426,20 @@ export function PlayerShell({
       }
     };
     const onTouchMove = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      if (!touch) return;
+      // A seek/scroll gesture must cancel the pending long-press speed boost.
+      // Otherwise a finger that starts on the video and then moves can
+      // unexpectedly switch playback to 3x after the 500ms timer expires.
+      if (longPressTimer && hasTouchGestureMoved(
+        touchStartX,
+        touchStartY,
+        touch.clientX,
+        touch.clientY,
+      )) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
       if (isLongPress) e.preventDefault();
     };
     // ArtPlayer 的 contextmenu 组件只在桌面端初始化（移动端构造函数里跳过 init），
