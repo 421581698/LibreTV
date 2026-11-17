@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   deploy-preview:
-    name: Build and deploy isolated password-protected preview
+    name: Build and deploy isolated public-access preview
     runs-on: ubuntu-latest
     timeout-minutes: 35
     environment: preview
@@ -109,10 +109,19 @@ jobs:
                 return status.passwordRequired === false && status.verified === true;
               } catch { return false; }
             }, "Password-free public access"),
-            check("/api/resource-collector", (response) => [401, 403, 503].includes(response.status),
-              "Collector API remains independently protected or reports missing backend configuration"),
+            check("/api/resource-collector/jobs?limit=5", (response) => [401, 403, 503].includes(response.status),
+              "Collector job data remains independently protected"),
+            check("/api/resource-collector/agent", (response, body) => {
+              if (response.status !== 200) return false;
+              try {
+                const agent = JSON.parse(body);
+                return agent.configured === true && typeof agent.provider === "string";
+              } catch { return false; }
+            }, "Cloudflare Workers AI Supervisor readiness"),
+            check("/api/resource-collector?action=resources&limit=5", (response) => response.status === 503,
+              "Missing Collector backend is reported explicitly until a secured service is configured"),
             check("/resource-studio", (response) => response.status === 200,
               "Resource Studio route"),
           ]);
-          console.log("Preview smoke checks passed: homepage and Resource Studio are public without a site password; collector API remains independently protected/unconfigured.");
+          console.log("Preview smoke checks passed: homepage and Resource Studio are public; Workers AI Supervisor is ready; Collector job data remains protected; missing Collector backend is reported as HTTP 503.");
           NODE
