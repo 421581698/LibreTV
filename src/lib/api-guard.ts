@@ -37,7 +37,14 @@ export function guardPrivateFeatureRequest(req: Request): NextResponse | null {
 
   // Browser-supplied credentials remain supported for operators.
   if (browserBase && browserToken) return null;
-  const action = new URL(req.url).searchParams.get('action');
+  const requestUrl = new URL(req.url);
+  const action = requestUrl.searchParams.get('action');
+
+  // Formal registry reads expose only resources already approved and verified
+  // by the PlayerShell. The route enforces verified_only=true and a hard limit.
+  if (req.method === 'GET' &&
+      requestUrl.pathname.endsWith('/api/resource-collector/registry/resources') &&
+      requestUrl.searchParams.get('verified_only') === 'true') return null;
 
   // The dedicated public preview may expose only bounded, read-only data when
   // a server-side Collector is configured. Never extend this allowlist to
