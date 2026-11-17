@@ -86,6 +86,7 @@ export function SmartImage({
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
+      key={src}
       src={src}
       alt={alt}
       className={`${className ?? ''} transition-opacity duration-200 motion-reduce:transition-none ${loaded ? 'opacity-100' : 'opacity-0'}`.trim()}
