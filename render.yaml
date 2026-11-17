@@ -1,7 +1,7 @@
 # PR #96 isolated Collector preview. Manual opt-in only; creating this Blueprint provisions paid infrastructure.
 services:
   - type: web
-    name: libretv-pr61-scrapling-collector
+    name: libretv-pr96-scrapling-collector
     runtime: docker
     branch: feature/me-intelligent-collector-entry
     plan: 2c-4g
@@ -12,7 +12,7 @@ services:
     autoDeployTrigger: "off"
     healthCheckPath: /health
     disk:
-      name: scrapling-collector-pr61-data
+      name: scrapling-collector-pr96-data
       mountPath: /data
       sizeGB: 1
     envVars:
