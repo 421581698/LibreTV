@@ -532,6 +532,15 @@ export function PlayerShell({
       window.removeEventListener('libretv-quality-preference-change', qualityPreferenceHandlerRef.current);
       qualityPreferenceHandlerRef.current = null;
     }
+    // A source switch from HLS to MP4/WebM must not retain the previous
+    // playlist's rendition metadata or advertise HLS-only quality controls.
+    setQualityControlMode('single');
+    setAvailableQualityHeights([]);
+    setAvailableQualityLevelCount(0);
+    setQualityMetadataComplete(false);
+    setSelectedHlsRendition(null);
+    setQualityNotice('');
+    setNetworkQualityWarning('');
     hlsRef.current?.destroy();
     hlsRef.current = null;
     const mediaKind = getMediaPlaybackKind(mediaUrl, propsRef.current.mediaType);
