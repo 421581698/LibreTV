@@ -40,3 +40,26 @@ jobs:
         run: npx opennextjs-cloudflare build
       - name: Verify generated Worker entrypoint
         run: test -s .open-next/worker.js
+      - name: Start local Workers runtime preview and smoke-test the homepage
+        run: |
+          set -euo pipefail
+          npx wrangler dev --ip 127.0.0.1 --port 8787 \
+            > "$RUNNER_TEMP/wrangler-local-preview.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/wrangler-local-preview.pid"
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error \
+              http://127.0.0.1:8787/ \
+              -o "$RUNNER_TEMP/wrangler-homepage.html"; then
+              break
+            fi
+            sleep 2
+          done
+          test -s "$RUNNER_TEMP/wrangler-homepage.html"
+          grep -Eqi '<html|<!doctype html' "$RUNNER_TEMP/wrangler-homepage.html"
+          cat "$RUNNER_TEMP/wrangler-local-preview.log"
+      - name: Stop local Workers runtime preview
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/wrangler-local-preview.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/wrangler-local-preview.pid")" 2>/dev/null || true
+          fi
