@@ -100,6 +100,11 @@ def _validate_allowed_host(host: str) -> None:
         if item.strip()
     }
     normalized = host.rstrip(".").lower()
+    require_allowlist = os.environ.get("EGRESS_REQUIRE_ALLOWED_HOSTS", "").strip().lower() in {
+        "1", "true", "yes", "on"
+    }
+    if require_allowlist and not configured:
+        raise EgressDenied("An exact egress host allowlist is required")
     if configured and normalized not in configured:
         raise EgressDenied("Target host is not in the exact egress allowlist")
 
