@@ -51,6 +51,12 @@ export async function GET(request: Request) {
   if (!successful.length) {
     const failure = engineResponse && engineResponse.status >= 500 ? engineResponse : legacyResponse;
     const payload = engineResponse === failure ? enginePayload : legacyPayload;
+    if (failure.status === 404) {
+      return NextResponse.json({
+        code: 'COLLECTOR_ROUTE_NOT_FOUND',
+        error: '已连接到 Collector，但该服务没有提供 /v1/registry/resources 接口。请检查 Scrapling 服务地址是否指向服务根域名，并确认部署的是包含 Registry API 的版本。',
+      }, { status: 502, headers: { 'Cache-Control': 'no-store' } });
+    }
     return NextResponse.json(
       payload && typeof payload === 'object' ? payload : { error: '资源站暂时不可用。' },
       { status: failure.status, headers: { 'Cache-Control': 'no-store' } },
