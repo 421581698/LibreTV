@@ -16,3 +16,7 @@ LLM_MODEL = "glm-4-flash"
 AUTH_DISABLED = "true"
 
 # Public preview only. Keep collector mutation/discovery endpoints independently guarded.
+
+# Cloudflare Workers AI binding used by the Resource Supervisor.
+[ai]
+binding = "AI"
