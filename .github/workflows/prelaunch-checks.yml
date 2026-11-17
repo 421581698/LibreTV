@@ -8,6 +8,7 @@ on:
       - feature/libretv-eight-screen-glass-2026-11-09
       - feature/auto-rank-best-vod-sources-2026-11-10
       - feature/hls-playback-regression-suite-2026-11-13
+      - feature/ipad-cinema-adaptation-v1
   pull_request:
     branches:
       - main
@@ -15,6 +16,7 @@ on:
       - feature/libretv-v4-pc-light-homepage-2026-11-09
       - feature/auto-rank-best-vod-sources-2026-11-10
       - feature/homepage-cinema-lobby-order-2026-11-11
+      - feature/ui-autonomous-agent-v1
   workflow_dispatch:
 
 permissions:
