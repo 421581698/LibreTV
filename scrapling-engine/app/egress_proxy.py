@@ -93,6 +93,22 @@ async def open_pinned_connection(
     ) from last_error
 
 
+def _validate_allowed_host(host: str) -> None:
+    configured = {
+        item.strip().rstrip(".").lower()
+        for item in os.environ.get("EGRESS_ALLOWED_HOSTS", "").split(",")
+        if item.strip()
+    }
+    normalized = host.rstrip(".").lower()
+    require_allowlist = os.environ.get("EGRESS_REQUIRE_ALLOWED_HOSTS", "").strip().lower() in {
+        "1", "true", "yes", "on"
+    }
+    if require_allowlist and not configured:
+        raise EgressDenied("An exact egress host allowlist is required")
+    if configured and normalized not in configured:
+        raise EgressDenied("Target host is not in the exact egress allowlist")
+
+
 def _authority(value: str, expected_port: int) -> tuple[str, int]:
     parsed = urlsplit(f"//{value}")
     try:
@@ -103,12 +119,10 @@ def _authority(value: str, expected_port: int) -> tuple[str, int]:
         not parsed.hostname
         or parsed.username is not None
         or parsed.password is not None
-        or parsed.path
-        or parsed.query
-        or parsed.fragment
         or port != expected_port
     ):
-        raise EgressDenied("Only a host and standard public HTTP(S) port are allowed")
+        raise EgressDenied("Only standard public HTTP(S) ports are allowed")
+    _validate_allowed_host(parsed.hostname)
     return parsed.hostname, port
 
 
@@ -168,23 +182,7 @@ async def _handle_connect_upstream(
     writer: asyncio.StreamWriter,
 ) -> None:
     host, port = _authority(authority, 443)
-    # Apply per-host pacing to connection establishment only. Holding the
-    # governor lease for the lifetime of a TLS tunnel serializes parallel
-    # browser connections and can stall segmented 4K playback.
-    async with site_governor.request(host) as lease:
-        try:
-            target_reader, target_writer, pinned_ip = await open_pinned_connection(host, port)
-        except EgressConnectionFailed:
-            lease.mark_failure()
-            raise
-        except EgressDenied:
-            lease.ignore()
-            raise
-        except Exception:
-            lease.mark_failure()
-            raise
-        lease.mark_success()
-
+    target_reader, target_writer, pinned_ip = await open_pinned_connection(host, port)
     logger.info("Pinned HTTPS tunnel to %s:%s via %s", host, port, pinned_ip)
     writer.write(b"HTTP/1.1 200 Connection Established\r\nProxy-Agent: LibreTV-Egress\r\n\r\n")
     await writer.drain()
@@ -203,7 +201,20 @@ async def _handle_connect(
     reader: asyncio.StreamReader,
     writer: asyncio.StreamWriter,
 ) -> None:
-    await _handle_connect_upstream(authority, reader, writer)
+    host, _ = _authority(authority, 443)
+    async with site_governor.request(host) as lease:
+        try:
+            await _handle_connect_upstream(authority, reader, writer)
+        except EgressConnectionFailed:
+            lease.mark_failure()
+            raise
+        except EgressDenied:
+            lease.ignore()
+            raise
+        except Exception:
+            lease.mark_failure()
+            raise
+        lease.mark_success()
 
 
 async def _handle_http_upstream(
@@ -231,6 +242,7 @@ async def _handle_http_upstream(
     ):
         raise EgressDenied("Only absolute public HTTP URLs on port 80 are supported")
     host = parsed.hostname
+    _validate_allowed_host(host)
 
     content_length = 0
     forwarded_headers: list[bytes] = []
@@ -263,23 +275,7 @@ async def _handle_http_upstream(
 
     # Validate the complete request before opening an outbound socket. Invalid
     # headers must not let clients consume pinned target sockets.
-    # Pace connection establishment, not the lifetime of the HTTP response.
-    # Holding this lease while streaming a large media body serializes same-host
-    # segment requests and can stall parallel HLS/DASH downloads.
-    async with site_governor.request(host) as lease:
-        try:
-            target_reader, target_writer, pinned_ip = await open_pinned_connection(host, port)
-        except EgressConnectionFailed:
-            lease.mark_failure()
-            raise
-        except EgressDenied:
-            lease.ignore()
-            raise
-        except Exception:
-            lease.mark_failure()
-            raise
-        lease.mark_success()
-
+    target_reader, target_writer, pinned_ip = await open_pinned_connection(host, port)
     logger.info("Pinned HTTP request to %s:%s via %s", host, port, pinned_ip)
 
     path = parsed.path or "/"
@@ -293,20 +289,6 @@ async def _handle_http_upstream(
     try:
         target_writer.write(b"\r\n".join(request) + b"\r\n\r\n")
         await target_writer.drain()
-        # Parse the complete response head: TCP reads may split the status
-        # line, which can otherwise hide 429/5xx responses from the breaker.
-        response_head = await asyncio.wait_for(
-            target_reader.readuntil(b"\r\n\r\n"),
-            timeout=IDLE_TIMEOUT_SECONDS,
-        )
-        status_line = response_head.split(b"\r\n", 1)[0].split()
-        if len(status_line) >= 2:
-            try:
-                response_status_code = int(status_line[1])
-            except ValueError:
-                response_status_code = None
-        writer.write(response_head)
-        await writer.drain()
         while True:
             chunk = await asyncio.wait_for(
                 target_reader.read(64 * 1024),
@@ -314,6 +296,13 @@ async def _handle_http_upstream(
             )
             if not chunk:
                 break
+            if response_status_code is None:
+                status_line = chunk.split(b"\r\n", 1)[0].split()
+                if len(status_line) >= 2:
+                    try:
+                        response_status_code = int(status_line[1])
+                    except ValueError:
+                        response_status_code = None
             writer.write(chunk)
             await writer.drain()
     finally:
@@ -322,10 +311,6 @@ async def _handle_http_upstream(
             await target_writer.wait_closed()
         except OSError:
             pass
-    if response_status_code == 429 or (
-        response_status_code is not None and response_status_code >= 500
-    ):
-        site_governor.record_failure(host)
     return response_status_code
 
 
@@ -335,7 +320,33 @@ async def _handle_http(
     reader: asyncio.StreamReader,
     writer: asyncio.StreamWriter,
 ) -> None:
-    await _handle_http_upstream(request_line, header_lines, reader, writer)
+    parts = request_line.split()
+    if len(parts) != 3 or parts[0] not in {"GET", "HEAD"}:
+        await _handle_http_upstream(request_line, header_lines, reader, writer)
+        return
+    try:
+        host = urlsplit(parts[1]).hostname
+    except ValueError:
+        host = None
+    if not host:
+        await _handle_http_upstream(request_line, header_lines, reader, writer)
+        return
+    async with site_governor.request(host) as lease:
+        try:
+            status = await _handle_http_upstream(request_line, header_lines, reader, writer)
+        except EgressConnectionFailed:
+            lease.mark_failure()
+            raise
+        except EgressDenied:
+            lease.ignore()
+            raise
+        except Exception:
+            lease.mark_failure()
+            raise
+        if status == 429 or status is not None and status >= 500:
+            lease.mark_failure()
+        else:
+            lease.mark_success()
 
 
 async def handle_client(

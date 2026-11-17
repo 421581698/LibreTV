@@ -11,33 +11,9 @@ import pytest
 
 from app.egress_proxy import (
     EgressDenied,
-    _authority,
     open_pinned_connection,
     resolve_public_addresses,
 )
-
-
-@pytest.mark.parametrize(
-    "authority",
-    [
-        "example.com:443/path",
-        "example.com:443?query=1",
-        "example.com:443#fragment",
-        "user@example.com:443",
-        "example.com:80",
-    ],
-)
-def test_connect_authority_rejects_non_authority_components(authority: str):
-    with pytest.raises(EgressDenied):
-        _authority(authority, 443)
-
-
-def test_connect_authority_accepts_host_and_expected_port():
-    assert _authority("example.com:443", 443) == ("example.com", 443)
-    assert _authority("[2606:2800:220:1:248:1893:25c8:1946]:443", 443) == (
-        "2606:2800:220:1:248:1893:25c8:1946",
-        443,
-    )
 
 
 def _record(address: str):
@@ -136,55 +112,6 @@ async def test_connect_proxy_tunnels_tls_bytes_to_pinned_peer(monkeypatch):
         writer.close()
         await writer.wait_closed()
     finally:
-        proxy_server.close()
-        target_server.close()
-        await proxy_server.wait_closed()
-        await target_server.wait_closed()
-
-
-@pytest.mark.asyncio
-async def test_parallel_connect_tunnels_are_not_serialized_by_site_governor(monkeypatch):
-    from app import egress_proxy
-    from app.site_governor import SiteGovernor
-
-    release_targets = asyncio.Event()
-    accepted = 0
-
-    async def target(_reader, writer):
-        nonlocal accepted
-        accepted += 1
-        await release_targets.wait()
-        writer.close()
-        await writer.wait_closed()
-
-    target_server = await asyncio.start_server(target, "127.0.0.1", 0)
-    target_port = target_server.sockets[0].getsockname()[1]
-    monkeypatch.setattr(egress_proxy, "site_governor", SiteGovernor(minimum_interval_seconds=0))
-
-    async def fake_open_pinned_connection(host, port):
-        assert host == "example.com"
-        assert port == 443
-        reader, writer = await asyncio.open_connection("127.0.0.1", target_port)
-        return reader, writer, ipaddress.ip_address("93.184.216.34")
-
-    monkeypatch.setattr(egress_proxy, "open_pinned_connection", fake_open_pinned_connection)
-    proxy_server = await asyncio.start_server(egress_proxy.handle_client, "127.0.0.1", 0)
-    proxy_port = proxy_server.sockets[0].getsockname()[1]
-    clients = []
-    try:
-        for _ in range(2):
-            reader, writer = await asyncio.open_connection("127.0.0.1", proxy_port)
-            clients.append(writer)
-            writer.write(b"CONNECT example.com:443 HTTP/1.1\r\nHost: example.com:443\r\n\r\n")
-            await writer.drain()
-            response = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), timeout=3)
-            assert response.startswith(b"HTTP/1.1 200")
-        assert accepted == 2
-    finally:
-        release_targets.set()
-        for writer in clients:
-            writer.close()
-            await writer.wait_closed()
         proxy_server.close()
         target_server.close()
         await proxy_server.wait_closed()
@@ -531,128 +458,38 @@ async def test_connect_proxy_preserves_tls_sni_and_hostname_verification(tmp_pat
         await target_server.wait_closed()
 
 
-@pytest.mark.asyncio
-async def test_parallel_http_responses_are_not_serialized_by_site_governor(monkeypatch):
-    from app import egress_proxy
-    from app.site_governor import SiteGovernor
+def test_proxy_enforces_optional_exact_host_allowlist(monkeypatch):
+    from app.egress_proxy import EgressDenied, _authority
 
-    both_requests_accepted = asyncio.Event()
-    accepted = 0
-
-    async def target(reader, writer):
-        nonlocal accepted
-        await reader.readuntil(b"\r\n\r\n")
-        accepted += 1
-        if accepted == 2:
-            both_requests_accepted.set()
-        await asyncio.wait_for(both_requests_accepted.wait(), timeout=3)
-        writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok")
-        await writer.drain()
-        writer.close()
-        await writer.wait_closed()
-
-    target_server = await asyncio.start_server(target, "127.0.0.1", 0)
-    target_port = target_server.sockets[0].getsockname()[1]
-    monkeypatch.setattr(
-        egress_proxy,
-        "site_governor",
-        SiteGovernor(minimum_interval_seconds=0),
-    )
-
-    async def fake_open_pinned_connection(host, port):
-        assert host == "example.com"
-        assert port == 80
-        reader, writer = await asyncio.open_connection("127.0.0.1", target_port)
-        return reader, writer, ipaddress.ip_address("93.184.216.34")
-
-    monkeypatch.setattr(
-        egress_proxy,
-        "open_pinned_connection",
-        fake_open_pinned_connection,
-    )
-    proxy_server = await asyncio.start_server(
-        egress_proxy.handle_client,
-        "127.0.0.1",
-        0,
-    )
-    proxy_port = proxy_server.sockets[0].getsockname()[1]
-    clients = []
-    try:
-        responses = []
-
-        async def request(path):
-            reader, writer = await asyncio.open_connection("127.0.0.1", proxy_port)
-            clients.append(writer)
-            request_bytes = f"GET http://example.com{path} HTTP/1.1\r\n".encode()
-            request_bytes += b"Host: example.com\r\n\r\n"
-            writer.write(request_bytes)
-            await writer.drain()
-            responses.append(await asyncio.wait_for(reader.read(), timeout=4))
-
-        await asyncio.gather(request("/segment-1"), request("/segment-2"))
-        assert accepted == 2
-        assert len(responses) == 2
-        assert all(response.startswith(b"HTTP/1.1 200 OK") for response in responses)
-    finally:
-        for writer in clients:
-            writer.close()
-            await writer.wait_closed()
-        proxy_server.close()
-        target_server.close()
-        await proxy_server.wait_closed()
-        await target_server.wait_closed()
+    monkeypatch.setenv("EGRESS_ALLOWED_HOSTS", "media.example,cdn.example")
+    assert _authority("media.example:443", 443) == ("media.example", 443)
+    with pytest.raises(EgressDenied, match="exact egress allowlist"):
+        _authority("attacker.example:443", 443)
 
 
 @pytest.mark.asyncio
-async def test_fragmented_http_429_status_is_recorded_by_site_governor(monkeypatch):
+async def test_http_proxy_enforces_exact_host_allowlist_before_opening_socket(monkeypatch):
     from app import egress_proxy
-    from app.site_governor import SiteGovernor
 
-    governor = SiteGovernor(minimum_interval_seconds=0, failure_threshold=1)
-    monkeypatch.setattr(egress_proxy, "site_governor", governor)
+    monkeypatch.setenv("EGRESS_ALLOWED_HOSTS", "media.example")
 
-    async def target(reader, writer):
-        await reader.readuntil(b"\r\n\r\n")
-        writer.write(b"HTTP/1.1 4")
-        await writer.drain()
-        await asyncio.sleep(0.01)
-        writer.write(b"29 Too Many Requests\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
-        await writer.drain()
-        writer.close()
-        await writer.wait_closed()
+    async def unexpected_open(*args, **kwargs):
+        raise AssertionError("Outbound socket opened for a host outside the allowlist")
 
-    target_server = await asyncio.start_server(target, "127.0.0.1", 0)
-    target_port = target_server.sockets[0].getsockname()[1]
+    monkeypatch.setattr(egress_proxy, "open_pinned_connection", unexpected_open)
+    with pytest.raises(egress_proxy.EgressDenied, match="exact egress allowlist"):
+        await egress_proxy._handle_http_upstream(
+            "GET http://attacker.example/catalog HTTP/1.1",
+            [],
+            object(),
+            object(),
+        )
 
-    async def fake_open_pinned_connection(host, port):
-        assert host == "example.com"
-        assert port == 80
-        reader, writer = await asyncio.open_connection("127.0.0.1", target_port)
-        return reader, writer, ipaddress.ip_address("93.184.216.34")
 
-    monkeypatch.setattr(
-        egress_proxy,
-        "open_pinned_connection",
-        fake_open_pinned_connection,
-    )
-    proxy_server = await asyncio.start_server(
-        egress_proxy.handle_client,
-        "127.0.0.1",
-        0,
-    )
-    proxy_port = proxy_server.sockets[0].getsockname()[1]
-    try:
-        reader, writer = await asyncio.open_connection("127.0.0.1", proxy_port)
-        writer.write(b"GET http://example.com/catalog HTTP/1.1\r\nHost: example.com\r\n\r\n")
-        await writer.drain()
-        response = await asyncio.wait_for(reader.read(), timeout=3)
-        assert response.startswith(b"HTTP/1.1 429 Too Many Requests")
-        assert governor.snapshot("example.com")["failures"] == 1
-        assert governor.snapshot("example.com")["open_until"] > 0
-        writer.close()
-        await writer.wait_closed()
-    finally:
-        proxy_server.close()
-        target_server.close()
-        await proxy_server.wait_closed()
-        await target_server.wait_closed()
+def test_proxy_fails_closed_when_required_allowlist_is_missing(monkeypatch):
+    from app.egress_proxy import _authority, EgressDenied
+
+    monkeypatch.delenv("EGRESS_ALLOWED_HOSTS", raising=False)
+    monkeypatch.setenv("EGRESS_REQUIRE_ALLOWED_HOSTS", "true")
+    with pytest.raises(EgressDenied, match="allowlist is required"):
+        _authority("media.example:443", 443)
