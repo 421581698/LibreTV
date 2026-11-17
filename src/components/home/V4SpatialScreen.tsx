@@ -499,7 +499,7 @@ function CollectorConnectionSettings() {
     <section className="card space-y-4 p-4 sm:p-5" aria-labelledby="collector-connection-title">
       <div className="flex items-start gap-3">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent/10 text-accent">
-          <Icon name="server" />
+          <span className="text-xs font-bold">API</span>
         </span>
         <div className="min-w-0">
           <h2 id="collector-connection-title" className="text-base font-semibold text-content">资源采集后端连接</h2>
