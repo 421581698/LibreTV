@@ -1,8 +1,9 @@
-# Manual opt-in only. Creating this Blueprint provisions paid infrastructure.
+# PR #96 isolated Collector preview. Manual opt-in only; creating this Blueprint provisions paid infrastructure.
 services:
   - type: web
     name: libretv-pr61-scrapling-collector
     runtime: docker
+    branch: feature/me-intelligent-collector-entry
     plan: 2c-4g
     region: oregon
     rootDir: services/scrapling-collector
