@@ -55,16 +55,17 @@ export default function ResourceStudioPage() {
         collectorFetch('/api/resource-collector?action=jobs&limit=30'),
         collectorFetch('/api/resource-collector/agent'),
       ]);
-      const resourcePayload = await resourceResponse.json();
-      const jobPayload = await jobResponse.json();
+      const resourcePayload = await resourceResponse.json().catch(() => ({}));
+      const jobPayload = await jobResponse.json().catch(() => ({}));
       const agentPayload = await agentResponse.json().catch(() => ({}));
       if (!resourceResponse.ok) {
-        if ([501, 503].includes(resourceResponse.status)) {
-          setResources([]);
-          setResourceBackendMessage(resourcePayload.error || '独立 Collector 尚未连接。请配置 HTTPS 地址和访问 Token。');
-        } else {
-          throw new Error(resourcePayload.error || '读取已验证资源失败');
-        }
+        setResources([]);
+        const detail = typeof resourcePayload.error === 'string'
+          ? resourcePayload.error
+          : typeof resourcePayload.detail === 'string'
+            ? resourcePayload.detail
+            : '资源注册表暂时无法读取，请检查 Collector 后端连接。';
+        setResourceBackendMessage(`资源接口请求失败（HTTP ${resourceResponse.status}）：${detail}`);
       } else {
         setResources(Array.isArray(resourcePayload.resources) ? resourcePayload.resources : []);
         setResourceBackendMessage('');
