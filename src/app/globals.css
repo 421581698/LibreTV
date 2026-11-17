@@ -1744,8 +1744,16 @@ html.dark .netflix-watch-sidebar .netflix-sidebar-footer {
   }
   .artplayer .art-control,
   .art-video-player .art-control {
-    min-width: 36px !important;
-    min-height: 40px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+  /* The visual seek line stays slim, but its interactive wrapper gets a
+     44px touch target so scrubbing is reliable on narrow phone screens. */
+  .artplayer .art-progress,
+  .art-video-player .art-progress {
+    min-height: 44px !important;
+    padding: 12px 0 !important;
+    box-sizing: border-box !important;
   }
   .artplayer .art-bottom,
   .art-video-player .art-bottom {
