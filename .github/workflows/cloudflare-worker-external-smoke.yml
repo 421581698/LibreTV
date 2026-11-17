@@ -70,7 +70,9 @@ jobs:
 
           const home = await get('/', 'text/html');
           const html = await home.text();
-          assert.match(html, /<!doctype html|<html[\\s>]/i, 'Homepage is not an HTML document');
+          const lowerHtml = html.toLowerCase();
+          assert.ok(lowerHtml.includes('<html') || lowerHtml.includes('<!doctype html'),
+            'Homepage is not an HTML document');
           const edgeProof = home.headers.get('cf-ray')
             || /cloudflare/i.test(home.headers.get('server') ?? '');
           assert.ok(edgeProof, 'Response did not expose Cloudflare edge headers');
@@ -81,14 +83,17 @@ jobs:
           assert.equal(typeof status.passwordRequired, 'boolean', 'Missing passwordRequired flag');
           assert.equal(typeof status.verified, 'boolean', 'Missing verified flag');
 
-          const assetMatches = [...html.matchAll(
-            /(?:src|href)=["']([^"']*\\/_next\\/static\\/[^"']+\\.(?:js|css)(?:\\?[^"']*)?)["']/g
-          )];
-          assert.ok(assetMatches.length > 0, 'No Next.js static assets found in homepage HTML');
-          const assetPaths = [...new Set(assetMatches.map(match => match[1]))].slice(0, 3);
+          const attributes = [...html.matchAll(/(?:src|href)=["']([^"']+)["']/g)];
+          const assetPaths = [...new Set(attributes
+            .map(match => match[1])
+            .filter(value => value.includes('_next/static/'))
+            .filter(value => {
+              const pathname = new URL(value, base).pathname;
+              return pathname.endsWith('.js') || pathname.endsWith('.css');
+            }))].slice(0, 3);
+          assert.ok(assetPaths.length > 0, 'No Next.js static assets found in homepage HTML');
           for (const assetPath of assetPaths) {
             const asset = await get(assetPath, '*/*');
-            assert.ok(Number(asset.headers.get('content-length') ?? '0') >= 0);
             await asset.arrayBuffer();
           }
 
