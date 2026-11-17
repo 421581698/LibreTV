@@ -1759,11 +1759,6 @@ html.dark .netflix-watch-sidebar .netflix-sidebar-footer {
   .art-video-player .art-bottom {
     padding-bottom: max(8px, env(safe-area-inset-bottom, 0px)) !important;
   }
-  .artplayer .art-progress,
-  .art-video-player .art-progress {
-    padding-top: 8px !important;
-    padding-bottom: 8px !important;
-  }
   .artplayer .art-settings,
   .artplayer .art-settings-panel,
   .artplayer .art-setting-panel,
