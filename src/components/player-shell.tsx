@@ -886,6 +886,11 @@ export function PlayerShell({
   /** 换集：重置每集状态并切换到新 HLS 源（不重建 ArtPlayer）。 */
   const loadEpisode = (targetUrl: string) => {
     if (!targetUrl) return;
+    // A pending iOS native-fullscreen timeout belongs to the old media source.
+    // Cancel it before swapping sources so it cannot trigger web fullscreen on
+    // the newly loaded episode after the user has already changed videos.
+    nativeFullscreenCleanupRef.current?.();
+    nativeFullscreenCleanupRef.current = null;
     flushPlaybackMetrics();
     resetPlaybackMetrics();
     mediaHealthyRef.current = true;
