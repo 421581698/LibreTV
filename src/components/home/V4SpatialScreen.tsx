@@ -385,6 +385,12 @@ function MeScreen() {
       <section className="v52-me-section v52-me-other" aria-label="其他功能">
         <div className="v52-me-section-head"><h3>其他功能</h3></div>
         <div className="v52-me-list">
+          <Link href="/resource-studio" className="v52-me-list-row" aria-label="打开智能爬虫资源管理中心">
+            <span className="v52-me-list-icon"><Icon name="network" /></span>
+            <strong>智能爬虫</strong>
+            <small>AI 发现 · 采集任务 · 资源审核</small>
+            <span className="v52-me-chevron" aria-hidden="true">›</span>
+          </Link>
           <Link href="/search" className="v52-me-list-row">
             <span className="v52-me-list-icon"><Icon name="search" /></span>
             <strong>搜索记录</strong><span className="v52-me-chevron" aria-hidden="true">›</span>
