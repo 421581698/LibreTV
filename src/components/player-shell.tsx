@@ -573,12 +573,20 @@ export function PlayerShell({
         restoredRef.current = true;
         restoreCleanupRef.current?.();
         restoreCleanupRef.current = null;
-        video.play().catch(() => setShowPlayFallback(true));
+        video.play().catch(() => {
+          if (sourceGeneration === playbackSourceGenerationRef.current) {
+            setShowPlayFallback(true);
+          }
+        });
       } catch {
         // A failed progress lookup must never prevent direct media playback.
         if (sourceGeneration !== playbackSourceGenerationRef.current) return;
         restoredRef.current = true;
-        video.play().catch(() => setShowPlayFallback(true));
+        video.play().catch(() => {
+          if (sourceGeneration === playbackSourceGenerationRef.current) {
+            setShowPlayFallback(true);
+          }
+        });
       } finally {
         restoreInFlight = false;
       }
@@ -655,14 +663,22 @@ export function PlayerShell({
             setQualityNotice('当前使用原生 HLS，无法验证或强制限制 1080P；已暂停以避免超过所选上限，请选择自动继续播放。');
             return;
           }
-          video.play().catch(() => setShowPlayFallback(true));
+          video.play().catch(() => {
+          if (sourceGeneration === playbackSourceGenerationRef.current) {
+            setShowPlayFallback(true);
+          }
+        });
         } catch {
           // A failed progress lookup must never block native-HLS playback.
           if (sourceGeneration !== playbackSourceGenerationRef.current) return;
           restoredRef.current = true;
           restoreCleanupRef.current?.();
           restoreCleanupRef.current = null;
-          video.play().catch(() => setShowPlayFallback(true));
+          video.play().catch(() => {
+          if (sourceGeneration === playbackSourceGenerationRef.current) {
+            setShowPlayFallback(true);
+          }
+        });
         } finally {
           nativeRestoreInFlight = false;
         }
