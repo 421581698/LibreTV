@@ -104,9 +104,9 @@ function cloudflareEnv(): Env {
   return getCloudflareContext().env as Env;
 }
 
-export async function GET(request: Request) {
-  const guarded = guardPrivateFeatureRequest(request);
-  if (guarded) return guarded;
+export async function GET() {
+  // Readiness exposes only provider availability, never credentials or tasks.
+  // Planning and queue submission remain protected in POST below.
   try {
     const config = resolveResourceAgent(cloudflareEnv());
     return NextResponse.json({ configured: true, provider: config.provider });
