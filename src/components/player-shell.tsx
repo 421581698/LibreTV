@@ -380,6 +380,8 @@ export function PlayerShell({
   };
   // setupHls 可能改走代理形式，video:error 重试要用最近一次的地址
   const currentMediaUrlRef = useRef(url);
+  // Invalidates async restore-position reads when the active media source changes.
+  const playbackSourceGenerationRef = useRef(0);
   // 本集的恢复策略实例：跨直连/代理两级重建共享计数
   const recoveryRef = useRef<PlaybackRecovery | null>(null);
   // 自然播完标记，卸载时不回写进度（避免覆盖「已看完」记录）
@@ -525,6 +527,7 @@ export function PlayerShell({
 
   /** Native progressive media path for formats the existing HTMLVideoElement can play. */
   const setupDirectMedia = (video: HTMLVideoElement, mediaUrl: string) => {
+    const sourceGeneration = ++playbackSourceGenerationRef.current;
     clearMetadataWatchdog();
     restoreCleanupRef.current?.();
     restoreCleanupRef.current = null;
@@ -562,6 +565,7 @@ export function PlayerShell({
       restoreInFlight = true;
       try {
         const saved = (await propsRef.current.getRestorePosition?.()) ?? 0;
+        if (sourceGeneration !== playbackSourceGenerationRef.current) return;
         if (saved > 10 && saved < duration - 2) {
           video.currentTime = saved;
           showHint(`已从 ${formatTime(saved)} 继续播放`);
@@ -572,6 +576,7 @@ export function PlayerShell({
         video.play().catch(() => setShowPlayFallback(true));
       } catch {
         // A failed progress lookup must never prevent direct media playback.
+        if (sourceGeneration !== playbackSourceGenerationRef.current) return;
         restoredRef.current = true;
         video.play().catch(() => setShowPlayFallback(true));
       } finally {
@@ -594,6 +599,7 @@ export function PlayerShell({
    * 注意：不销毁 ArtPlayer，只销毁并重建 hls，从而保留网页全屏等播放器状态。
    */
   const setupHls = (video: HTMLVideoElement, mediaUrl: string, allowProxyFallback: boolean) => {
+    const sourceGeneration = ++playbackSourceGenerationRef.current;
     clearMetadataWatchdog();
     restoreCleanupRef.current?.();
     restoreCleanupRef.current = null;
@@ -636,6 +642,7 @@ export function PlayerShell({
         nativeRestoreInFlight = true;
         try {
           const saved = (await propsRef.current.getRestorePosition?.()) ?? 0;
+          if (sourceGeneration !== playbackSourceGenerationRef.current) return;
           if (saved > 10 && saved < duration - 2) {
             video.currentTime = saved;
             showHint(`已从 ${formatTime(saved)} 继续播放`);
@@ -651,6 +658,7 @@ export function PlayerShell({
           video.play().catch(() => setShowPlayFallback(true));
         } catch {
           // A failed progress lookup must never block native-HLS playback.
+          if (sourceGeneration !== playbackSourceGenerationRef.current) return;
           restoredRef.current = true;
           restoreCleanupRef.current?.();
           restoreCleanupRef.current = null;
@@ -703,6 +711,7 @@ export function PlayerShell({
       restoreInFlight = true;
       try {
         const saved = (await propsRef.current.getRestorePosition?.()) ?? 0;
+        if (sourceGeneration !== playbackSourceGenerationRef.current) return;
         const currentDuration = artRef.current?.duration || video.duration || duration;
         let prefetchAnchor = video.currentTime;
         if (saved > 10 && Number.isFinite(currentDuration) && saved < currentDuration - 2) {
@@ -720,6 +729,7 @@ export function PlayerShell({
         });
       } catch {
         // IndexedDB 读取失败时不阻塞播放，后续事件仍可再次尝试恢复。
+        if (sourceGeneration !== playbackSourceGenerationRef.current) return;
       } finally {
         restoreInFlight = false;
       }
@@ -1502,6 +1512,8 @@ export function PlayerShell({
     document.addEventListener('visibilitychange', saveOnHide);
 
     return () => {
+      // Invalidate any restore-position promise still pending during teardown.
+      playbackSourceGenerationRef.current += 1;
       flushPlaybackMetrics();
       // 卸载前刷一次最终进度，避免丢失最后几秒。
       // 已自然播完的集数不回写，避免覆盖 onEnded 里清除的「已看完」记录
