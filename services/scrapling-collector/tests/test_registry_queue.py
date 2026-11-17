@@ -242,5 +242,46 @@ class RegistryQueueTests(unittest.TestCase):
 
 
 
+    def test_registry_resources_list_route_is_registered(self):
+        routes = {
+            (route.path, method)
+            for route in queue.router.routes
+            for method in (getattr(route, "methods", None) or set())
+        }
+        self.assertIn(("/v1/registry/resources", "GET"), routes)
+        self.assertIn(("/v1/registry/resources", "POST"), routes)
+
+    def test_registry_resources_list_returns_expected_payload_and_verified_filter(self):
+        verified = queue.upsert_resource({
+            "resource_key": "resource:list-verified", "source_key": "provider-list",
+            "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/verified.m3u8",
+            "title": "Verified Film", "access_state": "PUBLIC", "media_format": "hls",
+        })
+        queue.record_verification(
+            verified["id"], "preflight", "passed", {"access_state": "PUBLIC"}
+        )
+        queue.record_verification(
+            verified["id"], "player", "passed", {"progressed_seconds": 5}
+        )
+        queue.upsert_resource({
+            "resource_key": "resource:list-unverified", "source_key": "provider-list",
+            "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/pending.mp4",
+            "title": "Pending Film", "access_state": "ACCESS_UNKNOWN", "media_format": "mp4",
+        })
+
+        with patch.object(queue, "require_auth"):
+            verified_result = queue.api_search_resources(
+                q="", verified_only=True, limit=10, authorization="Bearer test"
+            )
+            all_result = queue.api_search_resources(
+                q="", verified_only=False, limit=10, authorization="Bearer test"
+            )
+
+        self.assertEqual(set(verified_result), {"resources"})
+        self.assertEqual([item["id"] for item in verified_result["resources"]], [verified["id"]])
+        self.assertEqual(len(all_result["resources"]), 2)
+        self.assertTrue(all(item.get("source_name") for item in all_result["resources"]))
+
+
 if __name__ == "__main__":
     unittest.main()
