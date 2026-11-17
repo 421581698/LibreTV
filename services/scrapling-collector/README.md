@@ -75,14 +75,14 @@ SCRAPLING_API_TOKEN=test-token python -m unittest discover -s tests -v
 
 The GitHub Actions workflow runs Python compilation and the collector security/persistence unit tests on relevant changes.
 
-## Deploy to Render (PR #60 preview / manual opt-in)
+## Deploy to Render (PR #96 isolated preview / manual opt-in)
 
-This repository includes a Render Blueprint at the repository root. It is configured for the PR #60 feature branch and creates one **paid** Docker web service only when the owner explicitly creates/syncs the Blueprint. It does not deploy automatically: `autoDeployTrigger: off`.
+This repository includes a Render Blueprint at the repository root. It is pinned to the PR #96 feature branch (`feature/me-intelligent-collector-entry`) so the deployed image includes the Registry API required by Resource Studio. It creates one **paid** Docker web service only when the owner explicitly creates/syncs the Blueprint. It does not deploy automatically: `autoDeployTrigger: off`.
 
 ### Render settings
 
 - Repository: `421581698/LibreTV`
-- Branch: `feat/iphone-inline-play-top-search-2026-11-09` (select this branch when connecting the Blueprint)
+- Branch: `feature/me-intelligent-collector-entry` (the Blueprint pins this branch; do not deploy the older `feat/iphone-inline-play-top-search-2026-11-09` branch, which may not contain the Registry API expected by PR #96)
 - Blueprint file: `render.yaml` at repository root
 - Service root directory: `services/scrapling-collector`
 - Dockerfile: `services/scrapling-collector/Dockerfile`
@@ -91,7 +91,7 @@ This repository includes a Render Blueprint at the repository root. It is config
 - Persistent disk: `/data` (1 GB)
 - Runtime port: Render-provided `PORT` (defaults to 10000 on Render); Docker Compose explicitly sets `PORT=8000`.
 
-The Blueprint generates `SCRAPLING_API_TOKEN` as a secret. Do not commit a token or paste it into chat. After deployment, copy the generated value securely from the Render service environment into the **PR #60 Preview Worker Secret** with the same name. Set the Worker variable `SCRAPLING_API_BASE` to the service's HTTPS `onrender.com` URL (no trailing slash). The Worker must be configured separately; this repository does not publish a shared test token or public shared collector.
+The Blueprint generates `SCRAPLING_API_TOKEN` as a secret. Do not commit a token or paste it into chat. After deployment, copy the generated value securely from the Render service environment into the **`libretv-me-collector-preview` Worker Secret** named `SCRAPLING_API_TOKEN`. Set that Preview Worker's secret/variable `SCRAPLING_API_BASE` to the service's HTTPS `onrender.com` root URL (no trailing slash). Do not configure the production Worker or reuse production credentials. The Worker must be configured separately; this repository does not publish a shared test token or public shared collector.
 
 ### Important deployment and security limits
 
@@ -110,5 +110,5 @@ After the owner manually deploys the Blueprint, verify all of the following befo
 2. `GET /v1/discover` without a bearer token returns HTTP 401.
 3. `GET /v1/discover` with the configured token returns a real FMHY discovery response.
 4. Restart/redeploy the service and confirm task records remain available from the persistent `/data` disk.
-5. Set the Preview Worker's `SCRAPLING_API_BASE` and `SCRAPLING_API_TOKEN` secrets, then verify `/api/resource-collector` from the Preview app.
+5. Set `SCRAPLING_API_BASE` and `SCRAPLING_API_TOKEN` only on the `libretv-me-collector-preview` Worker, then verify `/api/resource-collector/registry/resources?verified_only=true&limit=5` from Resource Studio. With an invalid/missing token, the upstream Registry route should return HTTP 401; HTTP 404 means the deployed image does not include the Registry API.
 6. Keep this service isolated from production. Do not reuse production secrets.
