@@ -199,11 +199,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
-      LIBRETV_4K_TEST_URL: https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd
-      LIBRETV_4K_ALLOWED_HOSTS: dash.akamaized.net
+      LIBRETV_4K_TEST_URL: https://drive.usercontent.google.com/download?id=18cLDFgHKfHuq7C17gmqHYsH8TjNvk-bt&export=download&confirm=t
+      LIBRETV_4K_ALLOWED_HOSTS: drive.usercontent.google.com
       LIBRETV_4K_DURATION_SECONDS: "600"
       LIBRETV_4K_EGRESS_PROXY: http://127.0.0.1:18080
-      EGRESS_ALLOWED_HOSTS: dash.akamaized.net
+      EGRESS_ALLOWED_HOSTS: drive.usercontent.google.com
       EGRESS_REQUIRE_ALLOWED_HOSTS: "true"
       EGRESS_PROXY_HOST: 127.0.0.1
       EGRESS_PROXY_PORT: "18080"
@@ -220,7 +220,7 @@ jobs:
       - name: Install project and isolated media test dependencies
         run: |
           npm ci
-          npm install --no-save --package-lock=false playwright@1.55.0 dashjs@4.7.4
+          npm install --no-save --package-lock=false playwright@1.55.0
       - name: Install Chrome with media codecs
         run: npx playwright install --with-deps chrome
       - name: Start exact-host DNS-pinning egress proxy
@@ -242,7 +242,7 @@ jobs:
         run: |
           set -o pipefail
           node scripts/verify-live-4k-playback.mjs \
-            2> "$RUNNER_TEMP/public-4k-playback.stderr.log" \
+            2> >(tee "$RUNNER_TEMP/public-4k-playback.stderr.log" >&2) \
             | tee "$RUNNER_TEMP/public-4k-playback.json"
       - name: Capture and stop public 4K egress proxy
         if: always()
