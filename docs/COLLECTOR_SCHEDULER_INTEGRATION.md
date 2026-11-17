@@ -27,7 +27,7 @@ Resource Studio / 前端
 
 复用的现有组件（未改写）：
 - `src/lib/resource-collector-client.ts` 的 `collectorRequest`：HTTPS-only、无查询参数、非 IP 字面量的 base 白名单；Bearer 仅服务端注入；拒绝重定向。
-- `src/lib/resource-collector-workflow.ts` 的 `registerValidatedCmsSource`：仅接收 `cms-api-candidate`、要求 `cms_shape && reachable && access_state=PUBLIC`、对 `customAPIs + envSources` 去重后 `addCustomApi`。
+- `src/lib/resource-collector-workflow.ts` 的 `registerValidatedCmsSource`：仅接收 `cms-api-candidate`，要求 `cms_shape && reachable && access_state=PUBLIC`；浏览器端再对当前 `customAPIs + envSources` 去重并调用 `addCustomApi`。
 
 ## 2. 安全属性（已落实并测试）
 
