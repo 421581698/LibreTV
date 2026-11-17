@@ -484,3 +484,12 @@ async def test_http_proxy_enforces_exact_host_allowlist_before_opening_socket(mo
             object(),
             object(),
         )
+
+
+def test_proxy_fails_closed_when_required_allowlist_is_missing(monkeypatch):
+    from app.egress_proxy import _authority, EgressDenied
+
+    monkeypatch.delenv("EGRESS_ALLOWED_HOSTS", raising=False)
+    monkeypatch.setenv("EGRESS_REQUIRE_ALLOWED_HOSTS", "true")
+    with pytest.raises(EgressDenied, match="allowlist is required"):
+        _authority("media.example:443", 443)
