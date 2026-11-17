@@ -1411,6 +1411,9 @@ export function PlayerShell({
       touchStartY = e.touches[0]?.clientY ?? 0;
       originalRate = art.video.playbackRate;
       longPressTimer = setTimeout(() => {
+        // Release the timer handle even when playback was paused during the
+        // delay; otherwise later touch starts would be ignored indefinitely.
+        longPressTimer = null;
         if (art.video?.paused) return;
         art.video.playbackRate = 3.0;
         isLongPress = true;
@@ -1487,6 +1490,14 @@ export function PlayerShell({
       if (playbackConfirmationTimerRef.current) clearTimeout(playbackConfirmationTimerRef.current);
       clearMetadataWatchdog();
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+      if (isLongPress && art.video) {
+        art.video.playbackRate = originalRate;
+        isLongPress = false;
+      }
       el?.removeEventListener('touchstart', onTouchStart);
       el?.removeEventListener('touchend', onTouchEnd);
       el?.removeEventListener('touchcancel', onTouchEnd);
