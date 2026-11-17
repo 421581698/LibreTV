@@ -160,17 +160,21 @@ jobs:
                 return agent.configured === true && typeof agent.provider === "string";
               } catch { return false; }
             }, "Cloudflare Workers AI Supervisor readiness"),
-            check("/api/resource-collector?action=resources&limit=5", (response, body) => {
+            check("/api/resource-collector/registry/resources?verified_only=true&limit=5", (response, body) => {
               if (response.status === 200) {
-                try { return Array.isArray(JSON.parse(body).resources); } catch { return false; }
+                try {
+                  const payload = JSON.parse(body);
+                  return Array.isArray(payload.resources) &&
+                    payload.resources.every((item) => item.playback_state === "PLAYER_CONFIRMED");
+                } catch { return false; }
               }
-              if (response.status === 503) {
-                try { return JSON.parse(body).code === "COLLECTOR_NOT_CONFIGURED" || typeof JSON.parse(body).error === "string"; } catch { return false; }
+              if ([501, 503].includes(response.status)) {
+                try { return typeof JSON.parse(body).error === "string"; } catch { return false; }
               }
               return false;
-            }, "Verified resources are readable or missing Collector configuration is explicit"),
+            }, "Unified registry exposes only player-confirmed resources or explicitly reports missing backend"),
             check("/resource-studio", (response) => response.status === 200,
               "Resource Studio route"),
           ]);
-          console.log("Preview smoke checks passed: homepage and Resource Studio are public; Workers AI Supervisor is ready; Collector job data remains protected; missing Collector backend is reported as HTTP 503.");
+          console.log("Preview smoke checks passed: homepage and Resource Studio are public; Workers AI Supervisor is ready; Collector job data remains protected; unified registry returns only PlayerShell-confirmed resources or a clear missing-backend status.");
           NODE
