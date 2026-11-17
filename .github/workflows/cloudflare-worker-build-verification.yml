@@ -40,6 +40,10 @@ jobs:
         run: npx opennextjs-cloudflare build
       - name: Verify generated Worker entrypoint
         run: test -s .open-next/worker.js
+      - name: Install Playwright WebKit for mobile-viewport smoke testing
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps webkit
       - name: Start local Workers runtime preview and smoke-test the homepage
         run: |
           set -euo pipefail
@@ -57,6 +61,47 @@ jobs:
           test -s "$RUNNER_TEMP/wrangler-homepage.html"
           grep -Eqi '<html|<!doctype html' "$RUNNER_TEMP/wrangler-homepage.html"
           cat "$RUNNER_TEMP/wrangler-local-preview.log"
+      - name: Run WebKit iPhone-viewport smoke test (simulator only)
+        run: |
+          node --input-type=module <<'NODE'
+          import { webkit, devices } from 'playwright';
+          const browser = await webkit.launch({ headless: true });
+          try {
+            const context = await browser.newContext({ ...devices['iPhone 15 Pro'] });
+            const page = await context.newPage();
+            const pageErrors = [];
+            page.on('pageerror', (error) => pageErrors.push(error.message));
+            const response = await page.goto('http://127.0.0.1:8787/', {
+              waitUntil: 'domcontentloaded',
+              timeout: 60000,
+            });
+            if (!response || response.status() !== 200) {
+              throw new Error(`WebKit homepage returned HTTP ${response?.status() ?? 'no response'}`);
+            }
+            const metrics = await page.evaluate(() => ({
+              viewportWidth: document.documentElement.clientWidth,
+              contentWidth: document.documentElement.scrollWidth,
+              viewportHeight: document.documentElement.clientHeight,
+              title: document.title,
+            }));
+            if (metrics.contentWidth > metrics.viewportWidth + 1) {
+              throw new Error('Mobile viewport has horizontal overflow: ' + JSON.stringify(metrics));
+            }
+            if (pageErrors.length) {
+              throw new Error('WebKit page errors: ' + pageErrors.slice(0, 5).join(' | '));
+            }
+            console.log(JSON.stringify({
+              status: 'passed',
+              browser: 'WebKit',
+              device_profile: 'iPhone 15 Pro viewport emulation',
+              physical_device: false,
+              ...metrics,
+            }));
+            await context.close();
+          } finally {
+            await browser.close();
+          }
+          NODE
       - name: Stop local Workers runtime preview
         if: always()
         run: |
