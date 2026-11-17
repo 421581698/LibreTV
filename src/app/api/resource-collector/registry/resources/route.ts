@@ -20,10 +20,14 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const params = new URLSearchParams({
     q: url.searchParams.get('q') ?? '',
-    verified_only: url.searchParams.get('verified_only') ?? 'true',
+    verified_only: 'true',
     limit: url.searchParams.get('limit') ?? '30',
   });
-  const limit = Math.min(Math.max(Number(params.get('limit')) || 30, 1), 100);
+  const requestedLimit = Number(params.get('limit'));
+  if (!Number.isInteger(requestedLimit) || requestedLimit < 1 || requestedLimit > 100) {
+    return NextResponse.json({ error: 'Invalid resource limit.' }, { status: 400 });
+  }
+  const limit = requestedLimit;
   const legacyPromise = collectorRequest(
     `/v1/registry/resources?${params.toString()}`,
     {},
