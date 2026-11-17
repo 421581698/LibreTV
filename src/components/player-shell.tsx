@@ -1574,7 +1574,7 @@ export function PlayerShell({
       <div className="player-quality-controls absolute right-3 top-3 z-20 flex flex-col items-end gap-2">
         <button
           type="button"
-          className="player-quality-badge"
+          className="player-quality-badge min-h-11 px-3"
           aria-expanded={qualityPanelOpen}
           aria-label="画质设置"
           onClick={() => setQualityPanelOpen((open) => !open)}
@@ -1598,7 +1598,7 @@ export function PlayerShell({
                   key={value}
                   type="button"
                   aria-pressed={qualityPreference === value}
-                  className={`rounded-lg px-2 py-2 text-xs transition ${qualityPreference === value ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                  className={`min-h-11 rounded-lg px-2 py-2 text-xs transition ${qualityPreference === value ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
                   onClick={() => {
                     try {
                       window.localStorage.setItem(QUALITY_PREFERENCE_KEY, value === '4k' ? '2160' : value);
