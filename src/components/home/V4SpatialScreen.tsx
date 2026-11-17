@@ -388,7 +388,7 @@ function MeScreen() {
           <Link href="/resource-studio" className="v52-me-list-row" aria-label="打开智能爬虫资源管理中心">
             <span className="v52-me-list-icon"><Icon name="network" /></span>
             <strong>智能爬虫</strong>
-            <small>AI 发现 · 采集任务 · 资源审核</small>
+            <small>AI 发现 · 千级采集 · 人工审核</small>
             <span className="v52-me-chevron" aria-hidden="true">›</span>
           </Link>
           <Link href="/search" className="v52-me-list-row">
