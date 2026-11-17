@@ -140,9 +140,9 @@ export function IntelligentCollectorPanel() {
   const [pendingIdempotencyKey, setPendingIdempotencyKey] = useState('');
   const [pendingStart, setPendingStart] = useState<number | null>(null);
   const [discoverKeyword, setDiscoverKeyword] = useState('');
-  const [discoverJobId, setDiscoverJobId] = useState('');
+  const [discoveredSites, setDiscoveredSites] = useState<Array<{ title: string; url: string; host: string; directory?: string }>>([]);
+  const [discoverTaskId, setDiscoverTaskId] = useState('');
   const [discoverStatus, setDiscoverStatus] = useState('');
-  const [discoverEvents, setDiscoverEvents] = useState<Array<{ event: string; created_at?: number | null }>>([]);
   const [discoverBusy, setDiscoverBusy] = useState(false);
 
   const targets = useMemo(
@@ -180,53 +180,75 @@ export function IntelligentCollectorPanel() {
     try {
       const result = await requestJson('/api/resource-collector/scheduler', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'submit', searchKeyword: discoverKeyword.trim(), idempotencyKey: crypto.randomUUID().replaceAll('-', '') }),
+        body: JSON.stringify({ action: 'discover' }),
       });
-      const jobId = result.id ?? result.job_id;
-      if (typeof jobId !== 'string' || !/^[a-f0-9]{32}$/i.test(jobId)) throw new Error('Collector 未返回有效任务 ID。');
-      setDiscoverJobId(jobId); setDiscoverStatus(String(result.status ?? 'queued')); setDiscoverEvents([]);
-      setNotice('发现任务已提交。任务成功后可接收通过验证的 CMS 源。');
-    } catch (reason) { setError(reason instanceof Error ? reason.message : '无法提交发现任务。'); }
-    finally { setDiscoverBusy(false); }
+      const sites = Array.isArray(result.sites) ? result.sites : [];
+      setDiscoveredSites(sites);
+      setDiscoverTaskId('');
+      setDiscoverStatus('');
+      setNotice(`Collector 目录发现完成：返回 ${sites.length} 个站点。可用关键词筛选后逐个发起采集。`);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '站点发现失败。Collector 出口门禁未通过时会拒绝该请求。');
+    } finally { setDiscoverBusy(false); }
   }
 
-  async function refreshDiscover() {
-    if (!discoverJobId) return;
-    setDiscoverBusy(true); setError('');
-    try {
-      const [status, eventResult] = await Promise.all([
-        requestJson(`/api/resource-collector/scheduler?action=status&jobId=${encodeURIComponent(discoverJobId)}`),
-        requestJson(`/api/resource-collector/scheduler?action=events&jobId=${encodeURIComponent(discoverJobId)}`),
-      ]);
-      setDiscoverStatus(String(status.status ?? status.job?.status ?? 'unknown'));
-      setDiscoverEvents(eventResult.events ?? []);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : '读取发现任务状态失败。'); }
-    finally { setDiscoverBusy(false); }
-  }
-
-  async function receiveDiscover() {
-    if (!discoverJobId) return;
+  async function startCrawl(site: { title: string; url: string; host: string }) {
     setDiscoverBusy(true); setError(''); setNotice('');
     try {
       const result = await requestJson('/api/resource-collector/scheduler', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'receive', jobId: discoverJobId }),
+        body: JSON.stringify({
+          action: 'crawl', url: site.url, mode: 'auto', limit: 50,
+          searchKeyword: discoverKeyword.trim(),
+        }),
+      });
+      const taskId = result.task_id;
+      if (typeof taskId !== 'string' || !/^[a-f0-9]{32}$/i.test(taskId)) {
+        throw new Error('Collector 未返回有效的持久化任务 ID。');
+      }
+      setDiscoverTaskId(taskId);
+      setDiscoverStatus(String(result.status ?? 'unknown'));
+      setNotice(`站点采集请求已完成：${site.host}，候选 ${Number(result.count ?? 0)} 项。任务结果已由 Collector 持久化。`);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '站点采集失败。请检查 Collector 出口门禁与服务状态。');
+    } finally { setDiscoverBusy(false); }
+  }
+
+  async function refreshDiscover() {
+    if (!discoverTaskId) return;
+    setDiscoverBusy(true); setError('');
+    try {
+      const result = await requestJson(`/api/resource-collector/scheduler?action=status&taskId=${encodeURIComponent(discoverTaskId)}`);
+      setDiscoverStatus(String(result.task?.status ?? 'unknown'));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '读取持久化任务状态失败。');
+    } finally { setDiscoverBusy(false); }
+  }
+
+  async function receiveDiscover() {
+    if (!discoverTaskId) return;
+    setDiscoverBusy(true); setError(''); setNotice('');
+    try {
+      const result = await requestJson('/api/resource-collector/scheduler', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'receive', taskId: discoverTaskId }),
       });
       const candidates: Array<{ url: string; name: string }> = result.ingest?.sources ?? [];
       let added = 0; let duplicates = 0;
       for (const candidate of candidates) {
-        const normalized = candidate.url.trim().replace(/\/+$/, '');
+        const normalized = candidate.url.trim().replace(/\\/+$/, '');
         const current = useAppStore.getState();
         const exists = [...current.customAPIs, ...current.envSources]
-          .some((source) => source.url.trim().replace(/\/+$/, '') === normalized);
+          .some((source) => source.url.trim().replace(/\\/+$/, '') === normalized);
         if (exists) { duplicates += 1; continue; }
         current.addCustomApi({ name: candidate.name || new URL(candidate.url).hostname, url: normalized, detail: 'via Scrapling Collector' });
         added += 1;
       }
-      setNotice(`结果验证完成：新增并保存在本机 ${added} 个，重复跳过 ${duplicates} 个；服务端拒绝 ${result.ingest?.rejected ?? 0} 个。`);
-      setDiscoverStatus(String(result.job?.status ?? discoverStatus));
-    } catch (reason) { setError(reason instanceof Error ? reason.message : '接收发现结果失败。'); }
-    finally { setDiscoverBusy(false); }
+      setNotice(`验证完成：新增并保存在本机 ${added} 个，重复跳过 ${duplicates} 个；不合格候选 ${result.ingest?.rejected ?? 0} 个。`);
+      setDiscoverStatus(String(result.task?.status ?? discoverStatus));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '接收发现结果失败。');
+    } finally { setDiscoverBusy(false); }
   }
 
   async function submitBatch() {
@@ -377,28 +399,43 @@ export function IntelligentCollectorPanel() {
 
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
         <div className="mb-3">
-          <h2 className="text-lg font-semibold">站点发现任务</h2>
-          <p className="mt-1 text-sm text-[var(--muted)]">通过服务端 Collector 代理提交任务。仅成功任务中公开、可访问且结构验证通过的 CMS API 会被接收；源配置最终保存在当前浏览器。</p>
+          <h2 className="text-lg font-semibold">站点发现与采集</h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">调用 Collector 现有的目录发现与同步采集 API。发现站点后可按关键词筛选，再逐站点采集；采集和验证仍受 Collector 主机出口门禁约束。</p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
           <input value={discoverKeyword} onChange={(event) => setDiscoverKeyword(event.target.value.slice(0, 50))}
-            aria-label="发现关键词" placeholder="可选：影视、动漫或站点关键词"
+            aria-label="站点筛选关键词" placeholder="可选：按站点名称、域名或目录筛选"
             className="min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-transparent px-3 py-3 text-sm" />
           <button type="button" onClick={() => void submitDiscover()} disabled={discoverBusy}
-            className="rounded-xl bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">提交发现任务</button>
+            className="rounded-xl bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">
+            {discoverBusy ? '正在连接 Collector…' : '发现公开站点'}
+          </button>
         </div>
-        {discoverJobId ? <div className="mt-4 rounded-xl border border-[var(--border)] p-3">
-          <p className="break-all font-mono text-xs text-[var(--muted)]">任务 {discoverJobId}</p>
-          <p className="mt-1 text-sm">状态：<strong>{discoverStatus || '未知'}</strong></p>
+        {discoveredSites.length ? <div className="mt-4">
+          <p className="mb-2 text-xs text-[var(--muted)]">发现 {discoveredSites.length} 个站点 · 显示最多 30 个匹配项</p>
+          <div className="max-h-72 space-y-2 overflow-auto">
+            {discoveredSites.filter((site) => {
+              const keyword = discoverKeyword.trim().toLowerCase();
+              return !keyword || `${site.title} ${site.host} ${site.directory ?? ''}`.toLowerCase().includes(keyword);
+            }).slice(0, 30).map((site) => <div key={site.host} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--border)] p-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">{site.title}</p>
+                <p className="break-all font-mono text-[11px] text-[var(--muted)]">{site.host} · {site.directory ?? 'Collector directory'}</p>
+              </div>
+              <button type="button" onClick={() => void startCrawl(site)} disabled={discoverBusy}
+                className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs disabled:opacity-50">采集此站点</button>
+            </div>)}
+          </div>
+        </div> : <p className="mt-3 text-xs text-[var(--muted)]">尚未发现站点。点击「发现公开站点」读取 Collector 目录。</p>}
+        {discoverTaskId ? <div className="mt-4 rounded-xl border border-[var(--border)] p-3">
+          <p className="break-all font-mono text-xs text-[var(--muted)]">持久化任务 {discoverTaskId}</p>
+          <p className="mt-1 text-sm">任务状态：<strong>{discoverStatus || '未知'}</strong></p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button type="button" onClick={() => void refreshDiscover()} disabled={discoverBusy}
-              className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs disabled:opacity-50">刷新状态与事件</button>
-            <button type="button" onClick={() => void receiveDiscover()} disabled={discoverBusy || !['succeeded', 'completed', 'done'].includes(discoverStatus)}
-              className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs disabled:opacity-50">接收并保存有效源</button>
+              className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs disabled:opacity-50">刷新任务状态</button>
+            <button type="button" onClick={() => void receiveDiscover()} disabled={discoverBusy || discoverStatus !== 'completed'}
+              className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs disabled:opacity-50">验证并保存 CMS 源</button>
           </div>
-          {discoverEvents.length ? <ul className="mt-3 space-y-1 text-xs text-[var(--muted)]">
-            {discoverEvents.map((event, index) => <li key={index}>{event.event}{event.created_at ? ` · ${new Date(event.created_at * 1000).toLocaleString()}` : ''}</li>)}
-          </ul> : <p className="mt-3 text-xs text-[var(--muted)]">尚未读取事件。</p>}
         </div> : null}
       </section>
 
