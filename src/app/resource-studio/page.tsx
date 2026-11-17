@@ -51,7 +51,7 @@ export default function ResourceStudioPage() {
     setError('');
     try {
       const [resourceResponse, jobResponse, agentResponse] = await Promise.all([
-        collectorFetch('/api/resource-collector?action=resources&limit=100'),
+        collectorFetch('/api/resource-collector/registry/resources?verified_only=true&limit=100'),
         collectorFetch('/api/resource-collector?action=jobs&limit=30'),
         collectorFetch('/api/resource-collector/agent'),
       ]);
