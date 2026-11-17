@@ -685,6 +685,11 @@ export function PlayerShell({
       setAvailableQualityHeights(result.heights);
       setQualityNotice(result.notice ?? '');
     };
+    // Keep the HLS rendition lock in sync with changes from the quality panel.
+    // The panel persists the preference and dispatches this event after each
+    // selection; without this subscription only the label changed, not playback.
+    qualityPreferenceHandlerRef.current = handleQualityPreferenceChange;
+    window.addEventListener('libretv-quality-preference-change', handleQualityPreferenceChange);
 
     let restoreInFlight = false;
     const restoreAndStart = async () => {
