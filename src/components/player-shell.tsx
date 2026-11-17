@@ -1426,6 +1426,16 @@ export function PlayerShell({
       }
     };
     const onTouchMove = (e: TouchEvent) => {
+      // Pinch / multi-touch is never a long-press gesture. Also restore the
+      // original rate immediately if a second finger arrives after activation.
+      if (e.touches.length !== 1) {
+        if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+        if (isLongPress) {
+          art.video.playbackRate = originalRate;
+          isLongPress = false;
+        }
+        return;
+      }
       const touch = e.touches[0];
       if (!touch) return;
       // A seek/scroll gesture must cancel the pending long-press speed boost.
