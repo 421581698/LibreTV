@@ -199,11 +199,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
-      LIBRETV_4K_TEST_URL: https://drive.google.com/uc?export=download&id=18cLDFgHKfHuq7C17gmqHYsH8TjNvk-bt&confirm=t
-      LIBRETV_4K_ALLOWED_HOSTS: drive.google.com,drive.usercontent.google.com
+      LIBRETV_4K_TEST_URL: http://sample.vodobox.com/big_buck_bunny_4k/big_buck_bunny_4k.m3u8
+      LIBRETV_4K_ALLOWED_HOSTS: sample.vodobox.com
       LIBRETV_4K_DURATION_SECONDS: "600"
       LIBRETV_4K_EGRESS_PROXY: http://127.0.0.1:18080
-      EGRESS_ALLOWED_HOSTS: drive.google.com,drive.usercontent.google.com
+      EGRESS_ALLOWED_HOSTS: sample.vodobox.com
       EGRESS_REQUIRE_ALLOWED_HOSTS: "true"
       EGRESS_PROXY_HOST: 127.0.0.1
       EGRESS_PROXY_PORT: "18080"
@@ -238,11 +238,23 @@ jobs:
           done
           cat "$RUNNER_TEMP/public-4k-egress.log"
           exit 1
-      - name: Check public 4K media headers through the pinned proxy
+      - name: Verify public HLS manifest is 4K and unencrypted through the pinned proxy
         run: |
           set -euo pipefail
-          curl --head --location --fail --show-error --max-time 60 \
-            --proxy "$LIBRETV_4K_EGRESS_PROXY" "$LIBRETV_4K_TEST_URL"
+          curl --fail --silent --show-error --max-time 45 \
+            --proxy "$LIBRETV_4K_EGRESS_PROXY" \
+            "$LIBRETV_4K_TEST_URL" -o "$RUNNER_TEMP/public-4k-master.m3u8"
+          variant="$(awk '/RESOLUTION=3840x2160/{getline; gsub(/\r/, ""); print; exit}' "$RUNNER_TEMP/public-4k-master.m3u8")"
+          test -n "$variant"
+          variant_url="$(node -e "console.log(new URL(process.argv[1], process.argv[2]).href)" "$variant" "$LIBRETV_4K_TEST_URL")"
+          curl --fail --silent --show-error --max-time 45 \
+            --proxy "$LIBRETV_4K_EGRESS_PROXY" \
+            "$variant_url" -o "$RUNNER_TEMP/public-4k-variant.m3u8"
+          if grep -Eq '^#EXT-X-(SESSION-)?KEY:' "$RUNNER_TEMP/public-4k-master.m3u8" "$RUNNER_TEMP/public-4k-variant.m3u8"; then
+            echo "Encrypted HLS playlist is not permitted for this public acceptance test." >&2
+            exit 1
+          fi
+          grep -q '^#EXTINF:' "$RUNNER_TEMP/public-4k-variant.m3u8"
       - name: Verify 600 seconds of real 4K Chromium decoding
         run: |
           set -o pipefail
