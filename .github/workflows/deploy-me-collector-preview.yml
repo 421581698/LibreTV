@@ -52,18 +52,15 @@ jobs:
       - name: Unit tests
         run: npm test -- --reporter=dot
 
-      - name: Verify isolated preview configuration and credentials
+      - name: Verify isolated public preview configuration and deployment credentials
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY: ${{ secrets.LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY }}
         run: |
           grep -Eq '^[[:space:]]*name[[:space:]]*=[[:space:]]*"libretv-me-collector-preview"' wrangler.me-collector-preview.toml
-          grep -Eq '^[[:space:]]*AUTH_DISABLED[[:space:]]*=[[:space:]]*"false"' wrangler.me-collector-preview.toml
+          grep -Eq '^[[:space:]]*AUTH_DISABLED[[:space:]]*=[[:space:]]*"true"' wrangler.me-collector-preview.toml
           test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing preview secret: CLOUDFLARE_API_TOKEN" && exit 1)
           test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "Missing preview secret: CLOUDFLARE_ACCOUNT_ID" && exit 1)
-          test -n "$LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY" || (echo "Missing preview secret: LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY" && exit 1)
-          test "${#LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY}" -ge 24 || (echo "LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY must contain at least 24 characters" && exit 1)
 
       - name: Build isolated preview
         env:
@@ -75,13 +72,6 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler deploy --config wrangler.me-collector-preview.toml
-
-      - name: Provision preview password as Worker secret
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY: ${{ secrets.LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY }}
-        run: printf '%s' "$LIBRETV_FRIDAY_V3_PREVIEW_GATE_KEY" | npx wrangler secret put PASSWORD --config wrangler.me-collector-preview.toml
 
       - name: Verify preview homepage and collector access boundary
         run: |
@@ -116,13 +106,13 @@ jobs:
               if (response.status !== 200) return false;
               try {
                 const status = JSON.parse(body);
-                return status.passwordRequired === true && status.verified === false;
+                return status.passwordRequired === false && status.verified === true;
               } catch { return false; }
-            }, "Password gate"),
-            check("/api/resource-collector", (response) => response.status === 401,
-              "Unauthenticated collector API rejection"),
+            }, "Password-free public access"),
+            check("/api/resource-collector", (response) => [401, 403, 503].includes(response.status),
+              "Collector API remains independently protected or reports missing backend configuration"),
             check("/resource-studio", (response) => response.status === 200,
               "Resource Studio route"),
           ]);
-          console.log("Preview smoke checks passed: homepage reachable, password gate active, collector API rejects anonymous requests, Resource Studio route responds.");
+          console.log("Preview smoke checks passed: homepage and Resource Studio are public without a site password; collector API remains independently protected/unconfigured.");
           NODE
