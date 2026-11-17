@@ -118,8 +118,15 @@ jobs:
                 return agent.configured === true && typeof agent.provider === "string";
               } catch { return false; }
             }, "Cloudflare Workers AI Supervisor readiness"),
-            check("/api/resource-collector?action=resources&limit=5", (response) => response.status === 503,
-              "Missing Collector backend is reported explicitly until a secured service is configured"),
+            check("/api/resource-collector?action=resources&limit=5", (response, body) => {
+              if (response.status === 200) {
+                try { return Array.isArray(JSON.parse(body).resources); } catch { return false; }
+              }
+              if (response.status === 503) {
+                try { return JSON.parse(body).code === "COLLECTOR_NOT_CONFIGURED" || typeof JSON.parse(body).error === "string"; } catch { return false; }
+              }
+              return false;
+            }, "Verified resources are readable or missing Collector configuration is explicit"),
             check("/resource-studio", (response) => response.status === 200,
               "Resource Studio route"),
           ]);
