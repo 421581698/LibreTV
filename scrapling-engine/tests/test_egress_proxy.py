@@ -459,7 +459,7 @@ async def test_connect_proxy_preserves_tls_sni_and_hostname_verification(tmp_pat
 
 
 def test_proxy_enforces_optional_exact_host_allowlist(monkeypatch):
-    from app.egress_proxy import _authority, EgressDenied
+    from app.egress_proxy import EgressDenied, _authority
 
     monkeypatch.setenv("EGRESS_ALLOWED_HOSTS", "media.example,cdn.example")
     assert _authority("media.example:443", 443) == ("media.example", 443)
