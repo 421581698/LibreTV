@@ -110,6 +110,7 @@ jobs:
         run: node --check scripts/verify-live-4k-playback.mjs
       - name: Validate manual live acceptance workflow YAML
         run: ruby -e 'require "yaml"; ARGV.each { |file| YAML.load_file(file) }' .github/workflows/authorized-live-4k-playback.yml .github/workflows/authorized-live-collector-acceptance.yml
+  # Keep DNS-pinning and exact-host allowlist regressions on the focused 4K security branch.
   egress-proxy-tests:
     runs-on: ubuntu-latest
     defaults:
