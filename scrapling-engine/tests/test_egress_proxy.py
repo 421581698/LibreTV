@@ -456,3 +456,31 @@ async def test_connect_proxy_preserves_tls_sni_and_hostname_verification(tmp_pat
         target_server.close()
         await proxy_server.wait_closed()
         await target_server.wait_closed()
+
+
+def test_proxy_enforces_optional_exact_host_allowlist(monkeypatch):
+    from app.egress_proxy import _authority, EgressDenied
+
+    monkeypatch.setenv("EGRESS_ALLOWED_HOSTS", "media.example,cdn.example")
+    assert _authority("media.example:443", 443) == ("media.example", 443)
+    with pytest.raises(EgressDenied, match="exact egress allowlist"):
+        _authority("attacker.example:443", 443)
+
+
+@pytest.mark.asyncio
+async def test_http_proxy_enforces_exact_host_allowlist_before_opening_socket(monkeypatch):
+    from app import egress_proxy
+
+    monkeypatch.setenv("EGRESS_ALLOWED_HOSTS", "media.example")
+
+    async def unexpected_open(*args, **kwargs):
+        raise AssertionError("Outbound socket opened for a host outside the allowlist")
+
+    monkeypatch.setattr(egress_proxy, "open_pinned_connection", unexpected_open)
+    with pytest.raises(egress_proxy.EgressDenied, match="exact egress allowlist"):
+        await egress_proxy._handle_http_upstream(
+            "GET http://attacker.example/catalog HTTP/1.1",
+            [],
+            object(),
+            object(),
+        )
