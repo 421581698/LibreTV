@@ -9,6 +9,26 @@ const allowedHosts = new Set(
     .filter(Boolean),
 );
 const durationSeconds = Number(process.env.LIBRETV_4K_DURATION_SECONDS || '600');
+const rawProxy = process.env.LIBRETV_4K_EGRESS_PROXY || '';
+
+function validateLocalProxy() {
+  if (!rawProxy) throw new Error('LIBRETV_4K_EGRESS_PROXY must point to the local validated egress proxy.');
+  const proxy = new URL(rawProxy);
+  const loopbackHosts = new Set(['127.0.0.1', '::1', '[::1]', 'localhost']);
+  if (
+    proxy.protocol !== 'http:' ||
+    !loopbackHosts.has(proxy.hostname.toLowerCase()) ||
+    proxy.username ||
+    proxy.password ||
+    proxy.pathname !== '/' ||
+    proxy.search ||
+    proxy.hash
+  ) {
+    throw new Error('The 4K egress proxy must be an unauthenticated HTTP proxy bound to loopback only.');
+  }
+  return proxy.origin;
+}
+
 
 function validateTarget() {
   if (!rawUrl || allowedHosts.size === 0) {
@@ -32,14 +52,20 @@ function validateTarget() {
 }
 
 const target = validateTarget();
+const proxyServer = validateLocalProxy();
 const browser = await chromium.launch({
+  proxy: { server: proxyServer },
   channel: 'chrome',
   headless: true,
   // The workflow starts the repository's validated DNS-pinning egress proxy
   // on loopback. Chromium must use it for every remote media request so the
   // hostname allowlist is backed by pinned public IP connections.
   proxy: { server: process.env.LIBRETV_4K_EGRESS_PROXY || 'http://127.0.0.1:8080' },
-  args: ['--autoplay-policy=no-user-gesture-required'],
+  args: [
+    '--autoplay-policy=no-user-gesture-required',
+    '--disable-features=AsyncDns',
+    '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost',
+  ],
 });
 let failure;
 try {
