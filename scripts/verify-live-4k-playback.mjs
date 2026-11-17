@@ -61,7 +61,7 @@ const browser = await chromium.launch({
   args: [
     '--autoplay-policy=no-user-gesture-required',
     '--disable-features=AsyncDns',
-    '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost',
+    '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1',
   ],
 });
 let failure;
