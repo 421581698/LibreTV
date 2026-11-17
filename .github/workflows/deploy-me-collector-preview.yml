@@ -84,7 +84,7 @@ jobs:
           printf '%s' "$token" | npx wrangler secret put RESOURCE_AGENT_SMOKE_TOKEN --config wrangler.me-collector-preview.toml
           cleanup() {
             original_status=$?
-            if npx wrangler secret delete RESOURCE_AGENT_SMOKE_TOKEN --config wrangler.me-collector-preview.toml --force; then
+            if printf 'y\\n' | npx wrangler secret delete RESOURCE_AGENT_SMOKE_TOKEN --config wrangler.me-collector-preview.toml; then
               echo "Temporary Workers AI smoke credential deleted."
             else
               echo "::error::Failed to delete temporary Workers AI smoke credential."
