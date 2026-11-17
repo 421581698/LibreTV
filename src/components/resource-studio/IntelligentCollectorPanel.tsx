@@ -180,7 +180,7 @@ export function IntelligentCollectorPanel() {
     try {
       const result = await requestJson('/api/resource-collector/scheduler', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'submit', searchKeyword: discoverKeyword.trim() }),
+        body: JSON.stringify({ action: 'submit', searchKeyword: discoverKeyword.trim(), idempotencyKey: crypto.randomUUID().replaceAll('-', '') }),
       });
       const jobId = result.id ?? result.job_id;
       if (typeof jobId !== 'string' || !/^[a-f0-9]{32}$/i.test(jobId)) throw new Error('Collector 未返回有效任务 ID。');
