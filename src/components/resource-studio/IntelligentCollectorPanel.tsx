@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PlayerShell } from '@/components/player-shell';
+import { useAppStore } from '@/lib/store';
 
 type Batch = {
   batch_id: string;
@@ -138,6 +139,11 @@ export function IntelligentCollectorPanel() {
   const [pendingFingerprint, setPendingFingerprint] = useState('');
   const [pendingIdempotencyKey, setPendingIdempotencyKey] = useState('');
   const [pendingStart, setPendingStart] = useState<number | null>(null);
+  const [discoverKeyword, setDiscoverKeyword] = useState('');
+  const [discoverJobId, setDiscoverJobId] = useState('');
+  const [discoverStatus, setDiscoverStatus] = useState('');
+  const [discoverEvents, setDiscoverEvents] = useState<Array<{ event: string; created_at?: number | null }>>([]);
+  const [discoverBusy, setDiscoverBusy] = useState(false);
 
   const targets = useMemo(
     () => targetsText.split(/\r?\n/).map((value) => value.trim()).filter(Boolean),
@@ -168,6 +174,60 @@ export function IntelligentCollectorPanel() {
     const timer = window.setInterval(() => void refresh(), 15_000);
     return () => window.clearInterval(timer);
   }, [refresh]);
+
+  async function submitDiscover() {
+    setDiscoverBusy(true); setError(''); setNotice('');
+    try {
+      const result = await requestJson('/api/resource-collector/scheduler', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'submit', searchKeyword: discoverKeyword.trim() }),
+      });
+      const jobId = result.id ?? result.job_id;
+      if (typeof jobId !== 'string' || !/^[a-f0-9]{32}$/i.test(jobId)) throw new Error('Collector 未返回有效任务 ID。');
+      setDiscoverJobId(jobId); setDiscoverStatus(String(result.status ?? 'queued')); setDiscoverEvents([]);
+      setNotice('发现任务已提交。任务成功后可接收通过验证的 CMS 源。');
+    } catch (reason) { setError(reason instanceof Error ? reason.message : '无法提交发现任务。'); }
+    finally { setDiscoverBusy(false); }
+  }
+
+  async function refreshDiscover() {
+    if (!discoverJobId) return;
+    setDiscoverBusy(true); setError('');
+    try {
+      const [status, eventResult] = await Promise.all([
+        requestJson(`/api/resource-collector/scheduler?action=status&jobId=${encodeURIComponent(discoverJobId)}`),
+        requestJson(`/api/resource-collector/scheduler?action=events&jobId=${encodeURIComponent(discoverJobId)}`),
+      ]);
+      setDiscoverStatus(String(status.status ?? status.job?.status ?? 'unknown'));
+      setDiscoverEvents(eventResult.events ?? []);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : '读取发现任务状态失败。'); }
+    finally { setDiscoverBusy(false); }
+  }
+
+  async function receiveDiscover() {
+    if (!discoverJobId) return;
+    setDiscoverBusy(true); setError(''); setNotice('');
+    try {
+      const result = await requestJson('/api/resource-collector/scheduler', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'receive', jobId: discoverJobId }),
+      });
+      const candidates: Array<{ url: string; name: string }> = result.ingest?.sources ?? [];
+      let added = 0; let duplicates = 0;
+      for (const candidate of candidates) {
+        const normalized = candidate.url.trim().replace(/\\/+$/, '');
+        const current = useAppStore.getState();
+        const exists = [...current.customAPIs, ...current.envSources]
+          .some((source) => source.url.trim().replace(/\\/+$/, '') === normalized);
+        if (exists) { duplicates += 1; continue; }
+        current.addCustomApi({ name: candidate.name || new URL(candidate.url).hostname, url: normalized, detail: 'via Scrapling Collector' });
+        added += 1;
+      }
+      setNotice(`结果验证完成：新增并保存在本机 ${added} 个，重复跳过 ${duplicates} 个；服务端拒绝 ${result.ingest?.rejected ?? 0} 个。`);
+      setDiscoverStatus(String(result.job?.status ?? discoverStatus));
+    } catch (reason) { setError(reason instanceof Error ? reason.message : '接收发现结果失败。'); }
+    finally { setDiscoverBusy(false); }
+  }
 
   async function submitBatch() {
     if (targets.length < 1 || targets.length > 1000) {
@@ -314,6 +374,33 @@ export function IntelligentCollectorPanel() {
     <div className="space-y-8">
       {error ? <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-600">{error}</div> : null}
       {notice ? <div role="status" className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-700">{notice}</div> : null}
+
+      <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
+        <div className="mb-3">
+          <h2 className="text-lg font-semibold">站点发现任务</h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">通过服务端 Collector 代理提交任务。仅成功任务中公开、可访问且结构验证通过的 CMS API 会被接收；源配置最终保存在当前浏览器。</p>
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <input value={discoverKeyword} onChange={(event) => setDiscoverKeyword(event.target.value.slice(0, 50))}
+            aria-label="发现关键词" placeholder="可选：影视、动漫或站点关键词"
+            className="min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-transparent px-3 py-3 text-sm" />
+          <button type="button" onClick={() => void submitDiscover()} disabled={discoverBusy}
+            className="rounded-xl bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">提交发现任务</button>
+        </div>
+        {discoverJobId ? <div className="mt-4 rounded-xl border border-[var(--border)] p-3">
+          <p className="break-all font-mono text-xs text-[var(--muted)]">任务 {discoverJobId}</p>
+          <p className="mt-1 text-sm">状态：<strong>{discoverStatus || '未知'}</strong></p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" onClick={() => void refreshDiscover()} disabled={discoverBusy}
+              className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs disabled:opacity-50">刷新状态与事件</button>
+            <button type="button" onClick={() => void receiveDiscover()} disabled={discoverBusy || !['succeeded', 'completed', 'done'].includes(discoverStatus)}
+              className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs disabled:opacity-50">接收并保存有效源</button>
+          </div>
+          {discoverEvents.length ? <ul className="mt-3 space-y-1 text-xs text-[var(--muted)]">
+            {discoverEvents.map((event, index) => <li key={index}>{event.event}{event.created_at ? ` · ${new Date(event.created_at * 1000).toLocaleString()}` : ''}</li>)}
+          </ul> : <p className="mt-3 text-xs text-[var(--muted)]">尚未读取事件。</p>}
+        </div> : null}
+      </section>
 
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
