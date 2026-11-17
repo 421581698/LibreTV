@@ -6,7 +6,6 @@ import {
   receiveJobResult,
   submitDiscoverJob,
 } from '@/lib/collector-scheduler';
-import { useAppStore } from '@/lib/store';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -63,8 +62,15 @@ export async function POST(request: Request) {
     if (!JOB_ID_RE.test(jobId)) {
       return NextResponse.json({ error: '任务 ID 无效' }, { status: 400 });
     }
-    const store = useAppStore.getState();
-    const result = await receiveJobResult(store, jobId, request);
+    // API routes run on the server: never write to the browser's Zustand/localStorage store here.
+    // This temporary adapter lets the shared validator return approved source candidates;
+    // the authenticated browser caller performs final local dedupe and persistence.
+    const validationStore = {
+      customAPIs: [],
+      envSources: [],
+      addCustomApi: () => undefined,
+    };
+    const result = await receiveJobResult(validationStore, jobId, request);
     return NextResponse.json(result, {
       status: result.status,
       headers: { 'Cache-Control': 'no-store' },
