@@ -61,7 +61,14 @@ export function SmartImage({
 
   useEffect(() => {
     const query = window.matchMedia('(dynamic-range: high)');
-    const update = () => setSupportsHdr(query.matches);
+    const update = () => {
+      // A display-capability change can switch the active URL from SDR to HDR
+      // (or back). Start the newly selected source hidden until it has decoded.
+      setLoaded(false);
+      setIdx(0);
+      setHdrFailed(false);
+      setSupportsHdr(query.matches);
+    };
     update();
     query.addEventListener?.('change', update);
     return () => query.removeEventListener?.('change', update);
@@ -81,7 +88,7 @@ export function SmartImage({
     <img
       src={src}
       alt={alt}
-      className={`${className ?? ''} transition-opacity duration-200 ${loaded ? 'opacity-100' : 'opacity-0'}`.trim()}
+      className={`${className ?? ''} transition-opacity duration-200 motion-reduce:transition-none ${loaded ? 'opacity-100' : 'opacity-0'}`.trim()}
       loading={loading}
       decoding="async"
       referrerPolicy="no-referrer"
