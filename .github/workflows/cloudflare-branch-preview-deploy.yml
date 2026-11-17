@@ -1,0 +1,115 @@
+name: Cloudflare Branch Preview Deploy
+
+on:
+  push:
+    branches:
+      - fix/4k-egress-proxy-acceptance
+    paths:
+      - "src/**"
+      - "public/**"
+      - "next.config.*"
+      - "wrangler.toml"
+      - "open-next.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/cloudflare-branch-preview-deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: libretv-cloudflare-branch-preview
+  cancel-in-progress: true
+
+jobs:
+  deploy-preview-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      NODE_OPTIONS: --max-old-space-size=4096
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Require Cloudflare preview credentials without exposing values
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || {
+            echo "::error::CLOUDFLARE_API_TOKEN is not configured in GitHub Actions secrets."
+            exit 1
+          }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || {
+            echo "::error::CLOUDFLARE_ACCOUNT_ID is not configured in GitHub Actions secrets."
+            exit 1
+          }
+      - name: Build OpenNext Worker
+        run: |
+          npm ci
+          npx opennextjs-cloudflare build
+          test -s .open-next/worker.js
+      - name: Deploy exclusively to the dedicated branch-preview Worker
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "fix/4k-egress-proxy-acceptance"
+          npx wrangler deploy --name libretv-homepage-preview
+      - name: Verify the deployed branch preview from the external runner
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          const base = new URL('https://libretv-homepage-preview.bggdbh.workers.dev');
+
+          async function get(path, accept) {
+            const url = new URL(path, base);
+            let last;
+            for (let attempt = 1; attempt <= 12; attempt++) {
+              try {
+                const response = await fetch(url, {
+                  method: 'GET',
+                  redirect: 'follow',
+                  cache: 'no-store',
+                  headers: { accept },
+                  signal: AbortSignal.timeout(15000),
+                });
+                assert.equal(new URL(response.url).origin, base.origin,
+                  'Preview redirected outside its own origin');
+                if (response.status === 200) return response;
+                last = new Error(`${path}: HTTP ${response.status}`);
+              } catch (error) {
+                last = error;
+              }
+              await new Promise(resolve => setTimeout(resolve, 5000));
+            }
+            throw last ?? new Error(`Preview did not become healthy: ${path}`);
+          }
+
+          const home = await get('/', 'text/html');
+          const html = await home.text();
+          assert.ok(html.toLowerCase().includes('<html')
+            || html.toLowerCase().includes('<!doctype html'));
+          assert.ok(home.headers.get('cf-ray')
+            || /cloudflare/i.test(home.headers.get('server') ?? ''),
+            'Preview response is not confirmed at Cloudflare edge');
+
+          const api = await get('/api/status', 'application/json');
+          const status = await api.json();
+          assert.equal(typeof status.version, 'string');
+          assert.equal(typeof status.passwordRequired, 'boolean');
+          assert.equal(typeof status.verified, 'boolean');
+
+          console.log(JSON.stringify({
+            result: 'passed',
+            preview: base.origin,
+            homepage_http: home.status,
+            api_status_http: api.status,
+            app_version: status.version,
+            edge: 'Cloudflare verified',
+            target_worker: 'libretv-homepage-preview',
+            production_worker_touched: false,
+            deployment_scope: 'preview only',
+          }, null, 2));
+          NODE
