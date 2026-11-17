@@ -37,8 +37,12 @@ import './pr84-apple-tv-dock.css';
 import './pr84-watch-mobile-fix.css';
 // PR #84 Resource Studio: route-scoped dark theme and isolated mobile dock.
 import './resource-studio.css';
+// V4.3.1: iPad cinema navigation ownership. Loaded last and inert unless the
+// contract component marks an iPad container. Phone and desktop selectors are untouched.
+import './ipad-cinema.css';
 import { Providers } from '@/components/providers';
 import { MobileTabBar } from '@/components/home/header/MobileTabBar';
+import { IpadCinemaContract } from '@/components/ipad-cinema/IpadCinemaContract';
 import { GlobalDownloadManager } from '@/components/download-manager';
 
 export const metadata: Metadata = {
@@ -86,6 +90,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           {children}
           <MobileTabBar />
+          <IpadCinemaContract />
           <GlobalDownloadManager />
         </Providers>
       </body>

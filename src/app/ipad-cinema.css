@@ -1,0 +1,20 @@
+/*
+ * V4.3.1 AdaptiveNavigation ownership hook.
+ * Matches only after IpadCinemaContract marks an iPad cinema container.
+ * Do not hide the existing phone dock here: the floating capsule is not drawn yet,
+ * and iPhone/PC never receive data-nav-owner="adaptive".
+ * Token values are the frozen defaults from src/lib/ipad-cinema/tokens.ts.
+ */
+html[data-nav-owner='adaptive'] {
+  --ipad-cinema-nav-owner: adaptive;
+  --ipad-focus-scale: 1.06;
+  --ipad-hover-brightness: 1.03;
+  --ipad-pressed-scale: 0.98;
+  --ipad-focus-duration: 200ms;
+  --ipad-hero-fade-duration: 500ms;
+  --ipad-hero-carousel-duration: 600ms;
+  --ipad-hero-parallax: 1.5%;
+  --ipad-glass-blur: 24px;
+  --ipad-light-blur: 14px;
+  --ipad-glass-opacity: 0.65;
+}
