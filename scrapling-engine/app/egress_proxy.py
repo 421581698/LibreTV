@@ -93,6 +93,22 @@ async def open_pinned_connection(
     ) from last_error
 
 
+def _validate_allowed_host(host: str) -> None:
+    configured = {
+        item.strip().rstrip(".").lower()
+        for item in os.environ.get("EGRESS_ALLOWED_HOSTS", "").split(",")
+        if item.strip()
+    }
+    normalized = host.rstrip(".").lower()
+    require_allowlist = os.environ.get("EGRESS_REQUIRE_ALLOWED_HOSTS", "").strip().lower() in {
+        "1", "true", "yes", "on"
+    }
+    if require_allowlist and not configured:
+        raise EgressDenied("An exact egress host allowlist is required")
+    if configured and normalized not in configured:
+        raise EgressDenied("Target host is not in the exact egress allowlist")
+
+
 def _authority(value: str, expected_port: int) -> tuple[str, int]:
     parsed = urlsplit(f"//{value}")
     try:
@@ -109,6 +125,7 @@ def _authority(value: str, expected_port: int) -> tuple[str, int]:
         or port != expected_port
     ):
         raise EgressDenied("Only a host and standard public HTTP(S) port are allowed")
+    _validate_allowed_host(parsed.hostname)
     return parsed.hostname, port
 
 
@@ -231,6 +248,7 @@ async def _handle_http_upstream(
     ):
         raise EgressDenied("Only absolute public HTTP URLs on port 80 are supported")
     host = parsed.hostname
+    _validate_allowed_host(host)
 
     content_length = 0
     forwarded_headers: list[bytes] = []
