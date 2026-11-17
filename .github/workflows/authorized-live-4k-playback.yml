@@ -37,6 +37,7 @@ jobs:
       - name: Start loopback-only DNS-pinning egress proxy
         env:
           EGRESS_ALLOWED_HOSTS: ${{ secrets.LIBRETV_4K_ALLOWED_HOSTS }}
+          EGRESS_REQUIRE_ALLOWED_HOSTS: 'true'
           EGRESS_PROXY_HOST: 127.0.0.1
           EGRESS_PROXY_PORT: '18080'
           EGRESS_SITE_MIN_INTERVAL_SECONDS: '0'
