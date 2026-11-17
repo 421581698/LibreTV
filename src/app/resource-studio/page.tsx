@@ -37,6 +37,7 @@ export default function ResourceStudioPage() {
   const [resources, setResources] = useState<Resource[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [jobsAccessMessage, setJobsAccessMessage] = useState('');
+  const [resourceBackendMessage, setResourceBackendMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
@@ -57,8 +58,17 @@ export default function ResourceStudioPage() {
       const resourcePayload = await resourceResponse.json();
       const jobPayload = await jobResponse.json();
       const agentPayload = await agentResponse.json().catch(() => ({}));
-      if (!resourceResponse.ok) throw new Error(resourcePayload.error || '读取已验证资源失败');
-      setResources(Array.isArray(resourcePayload.resources) ? resourcePayload.resources : []);
+      if (!resourceResponse.ok) {
+        if (resourceResponse.status === 503) {
+          setResources([]);
+          setResourceBackendMessage(resourcePayload.error || '独立 Collector 尚未连接。请配置 HTTPS 地址和访问 Token。');
+        } else {
+          throw new Error(resourcePayload.error || '读取已验证资源失败');
+        }
+      } else {
+        setResources(Array.isArray(resourcePayload.resources) ? resourcePayload.resources : []);
+        setResourceBackendMessage('');
+      }
       if (jobResponse.ok) {
         setJobs(Array.isArray(jobPayload.jobs) ? jobPayload.jobs.filter((job: Job) => !['seedhub_sync', 'seedhub_detail_sync'].includes(job.job_type)) : []);
         setJobsAccessMessage('');
@@ -133,6 +143,7 @@ export default function ResourceStudioPage() {
 
         {error ? <div role="alert" className="mb-5 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-600">{error}</div> : null}
         {notice ? <div role="status" className="mb-5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-700">{notice}</div> : null}
+        {resourceBackendMessage ? <div role="status" className="mb-5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700"><p className="font-semibold">资源后端尚未接通</p><p className="mt-1">{resourceBackendMessage}</p><p className="mt-2">配置服务后刷新数据；在后端连接成功前，不会把空列表误报为已验证资源。</p></div> : null}
 
         <section className="mb-8 grid gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5"><p className="text-sm text-[var(--muted)]">已通过播放器验收</p><p className="mt-2 text-3xl font-semibold">{loading ? '…' : verifiedCount}</p><p className="mt-1 text-xs text-[var(--muted)]">当前出口仅展示已确认资源</p></div>
