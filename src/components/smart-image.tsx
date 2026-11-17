@@ -52,6 +52,7 @@ export function SmartImage({
   const [hdrFailed, setHdrFailed] = useState(false);
   const [idx, setIdx] = useState(0);
   const [fallback, setFallback] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const useHdrSource = supportsHdr && hdrCandidates.length > 0 && !hdrFailed;
   const activeCandidates = useHdrSource ? hdrCandidates : candidates;
   const src = fallback
@@ -71,6 +72,7 @@ export function SmartImage({
     setIdx(0);
     setHdrFailed(false);
     setFallback(false);
+    setLoaded(false);
   }, [url, fallbackUrl, hdrUrl, mode, customProxy]);
 
   if (!src) return null;
@@ -79,11 +81,13 @@ export function SmartImage({
     <img
       src={src}
       alt={alt}
-      className={className}
+      className={`${className ?? ''} transition-opacity duration-200 ${loaded ? 'opacity-100' : 'opacity-0'}`.trim()}
       loading={loading}
       decoding="async"
       referrerPolicy="no-referrer"
+      onLoad={() => setLoaded(true)}
       onError={() => {
+        setLoaded(false);
         if (fallback) return;
         if (idx + 1 < activeCandidates.length) {
           setIdx((current) => current + 1);
