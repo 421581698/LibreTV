@@ -54,13 +54,10 @@ function validateTarget() {
 const target = validateTarget();
 const proxyServer = validateLocalProxy();
 const browser = await chromium.launch({
+  // Chromium must send all remote media traffic through the validated loopback proxy.
   proxy: { server: proxyServer },
   channel: 'chrome',
   headless: true,
-  // The workflow starts the repository's validated DNS-pinning egress proxy
-  // on loopback. Chromium must use it for every remote media request so the
-  // hostname allowlist is backed by pinned public IP connections.
-  proxy: { server: process.env.LIBRETV_4K_EGRESS_PROXY || 'http://127.0.0.1:8080' },
   args: [
     '--autoplay-policy=no-user-gesture-required',
     '--disable-features=AsyncDns',
@@ -74,6 +71,27 @@ try {
     deviceScaleFactor: 1,
   });
   page.setDefaultTimeout(60_000);
+  page.on('requestfailed', (request) => {
+    console.error(JSON.stringify({
+      event: 'request_failed',
+      url: request.url().slice(0, 500),
+      error: request.failure()?.errorText || 'unknown',
+    }));
+  });
+  page.on('response', (response) => {
+    if (response.status() >= 300) {
+      console.error(JSON.stringify({
+        event: 'http_response',
+        status: response.status(),
+        url: response.url().slice(0, 500),
+      }));
+    }
+  });
+  page.on('console', (message) => {
+    if (message.type() === 'error') {
+      console.error(JSON.stringify({ event: 'browser_console_error', message: message.text().slice(0, 500) }));
+    }
+  });
   // Enforce the exact hostname allowlist on every media, manifest, segment, and
   // redirect request—not only on the initial URL supplied to the workflow.
   await page.route('**/*', async (route) => {
@@ -102,6 +120,16 @@ try {
       '<video id="v" muted playsinline controls style="width:100vw;height:100vh"></video>' +
       '</body></html>',
   );
+  await page.locator('#v').evaluate((video) => {
+    video.addEventListener('error', () => {
+      console.error(JSON.stringify({
+        event: 'video_error',
+        code: video.error?.code ?? null,
+        message: video.error?.message ?? null,
+        currentSrc: video.currentSrc,
+      }));
+    });
+  });
   const isHls = new URL(target).pathname.toLowerCase().endsWith('.m3u8');
   if (isHls) {
     await page.addScriptTag({ path: 'node_modules/hls.js/dist/hls.min.js' });
