@@ -215,10 +215,10 @@ export function IntelligentCollectorPanel() {
       const candidates: Array<{ url: string; name: string }> = result.ingest?.sources ?? [];
       let added = 0; let duplicates = 0;
       for (const candidate of candidates) {
-        const normalized = candidate.url.trim().replace(/\\/+$/, '');
+        const normalized = candidate.url.trim().replace(/\/+$/, '');
         const current = useAppStore.getState();
         const exists = [...current.customAPIs, ...current.envSources]
-          .some((source) => source.url.trim().replace(/\\/+$/, '') === normalized);
+          .some((source) => source.url.trim().replace(/\/+$/, '') === normalized);
         if (exists) { duplicates += 1; continue; }
         current.addCustomApi({ name: candidate.name || new URL(candidate.url).hostname, url: normalized, detail: 'via Scrapling Collector' });
         added += 1;
