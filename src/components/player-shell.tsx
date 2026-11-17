@@ -1428,6 +1428,15 @@ export function PlayerShell({
         showHint(`${originalRate} 倍速`);
       }
     };
+    // Pausing while the long-press boost is active must not leave 3x behind
+    // for the next playback session (e.g. system pause or media interruption).
+    const onVideoPause = () => {
+      if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+      if (isLongPress && art.video) {
+        art.video.playbackRate = originalRate;
+        isLongPress = false;
+      }
+    };
     const onTouchMove = (e: TouchEvent) => {
       // Pinch / multi-touch is never a long-press gesture. Also restore the
       // original rate immediately if a second finger arrives after activation.
@@ -1460,6 +1469,7 @@ export function PlayerShell({
     const onContextMenu = (e: Event) => e.preventDefault();
     el?.addEventListener('touchstart', onTouchStart, { passive: false });
     el?.addEventListener('touchend', onTouchEnd);
+    art.video?.addEventListener('pause', onVideoPause);
     el?.addEventListener('touchcancel', onTouchEnd);
     el?.addEventListener('touchmove', onTouchMove, { passive: false });
     el?.addEventListener('contextmenu', onContextMenu);
@@ -1500,6 +1510,7 @@ export function PlayerShell({
       }
       el?.removeEventListener('touchstart', onTouchStart);
       el?.removeEventListener('touchend', onTouchEnd);
+      art.video?.removeEventListener('pause', onVideoPause);
       el?.removeEventListener('touchcancel', onTouchEnd);
       el?.removeEventListener('touchmove', onTouchMove);
       el?.removeEventListener('contextmenu', onContextMenu);
