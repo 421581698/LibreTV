@@ -1,0 +1,42 @@
+name: Cloudflare Worker Build Verification
+
+on:
+  push:
+    branches:
+      - fix/4k-egress-proxy-acceptance
+    paths:
+      - "src/**"
+      - "public/**"
+      - "next.config.*"
+      - "wrangler.toml"
+      - "open-next.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/cloudflare-worker-build-verification.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-worker-build-verification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  worker-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      NODE_OPTIONS: --max-old-space-size=4096
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install project dependencies
+        run: npm ci
+      - name: Build the OpenNext Cloudflare Worker bundle without deploying
+        run: npx opennextjs-cloudflare build
+      - name: Verify generated Worker entrypoint
+        run: test -s .open-next/worker.js
