@@ -1,0 +1,99 @@
+name: Cloudflare Preview WebKit Mobile Verification
+
+on:
+  push:
+    branches:
+      - fix/4k-egress-proxy-acceptance
+    paths:
+      - ".github/workflows/cloudflare-preview-webkit-verification.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: libretv-preview-webkit-verification
+  cancel-in-progress: true
+
+jobs:
+  remote-preview-webkit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright WebKit
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps webkit
+      - name: Verify the deployed Cloudflare preview with iPhone 15 Pro WebKit emulation
+        run: |
+          mkdir -p artifacts
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { webkit, devices } from 'playwright';
+
+          const target = 'https://libretv-homepage-preview.bggdbh.workers.dev/';
+          const browser = await webkit.launch({ headless: true });
+          try {
+            const context = await browser.newContext({
+              ...devices['iPhone 15 Pro'],
+              viewport: { width: 393, height: 852 },
+              deviceScaleFactor: 3,
+              isMobile: true,
+              hasTouch: true,
+            });
+            const page = await context.newPage();
+            const pageErrors = [];
+            page.on('pageerror', error => pageErrors.push(error.message));
+
+            const response = await page.goto(target, {
+              waitUntil: 'domcontentloaded',
+              timeout: 60000,
+            });
+            assert.ok(response, 'No response from deployed preview');
+            assert.equal(response.status(), 200, `Preview returned HTTP ${response.status()}`);
+            assert.ok(response.headers()['cf-ray'] || /cloudflare/i.test(response.headers()['server'] ?? ''),
+              'Preview response did not prove Cloudflare edge delivery');
+
+            await page.waitForTimeout(1500);
+            const metrics = await page.evaluate(() => ({
+              viewportWidth: document.documentElement.clientWidth,
+              contentWidth: document.documentElement.scrollWidth,
+              viewportHeight: document.documentElement.clientHeight,
+              title: document.title,
+              imageCount: document.images.length,
+            }));
+            assert.equal(metrics.viewportWidth, 393, 'Unexpected emulated viewport width');
+            assert.ok(metrics.contentWidth <= metrics.viewportWidth + 1,
+              `Horizontal overflow detected: ${JSON.stringify(metrics)}`);
+            assert.deepEqual(pageErrors, [], `Page JavaScript errors: ${pageErrors.join(' | ')}`);
+
+            await page.screenshot({
+              path: 'artifacts/cloudflare-preview-iphone15pro-webkit.png',
+              fullPage: true,
+            });
+            console.log(JSON.stringify({
+              result: 'passed',
+              target,
+              engine: 'WebKit',
+              device_profile: 'iPhone 15 Pro emulation',
+              physical_device: false,
+              ...metrics,
+              page_errors: pageErrors.length,
+            }, null, 2));
+            await context.close();
+          } finally {
+            await browser.close();
+          }
+          NODE
+      - name: Upload remote Preview WebKit screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-preview-webkit-mobile-${{ github.run_id }}
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
