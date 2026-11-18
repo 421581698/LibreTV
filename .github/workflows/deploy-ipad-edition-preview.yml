@@ -332,6 +332,7 @@ jobs:
                     light.glassWarpPresent && metrics.theme.glassWarpPresent &&
                     light.glassBlurValid && metrics.theme.glassBlurValid &&
                     light.glassGeometryValid && metrics.theme.glassGeometryValid &&
+                    light.iconUsesThemeColor && metrics.theme.iconUsesThemeColor &&
                     metrics.themeDifference.glassBackgroundChanged &&
                     metrics.themeDifference.navigationColorChanged &&
                     metrics.themeDifference.activeNavigationColorChanged &&
