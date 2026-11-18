@@ -1438,7 +1438,6 @@ export function PlayerShell({
       if (document.visibilityState !== 'hidden' || endedRef.current) return;
       const video = art.video;
       const position = Number.isFinite(art.currentTime) ? art.currentTime : 0;
-      const duration = Number.isFinite(art.duration) ? art.duration : 0;
       propsRef.current.onPause?.(position, duration);
       document.dispatchEvent(new CustomEvent('ipad-cinema:system-interruption', {
         detail: {
