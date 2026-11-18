@@ -26,6 +26,7 @@ export function IpadCinemaContract() {
   const sessionRef = useRef<ExperienceSession>(createSession());
 
   useEffect(() => {
+    let imageAudit: ReturnType<typeof attachImageAuditRuntime> | null = null;
     const apply = () => {
       const activation = resolveCinemaActivation(
         isIpadClassDevice({
@@ -40,22 +41,24 @@ export function IpadCinemaContract() {
       session = reconcilePlayerRoute(session, route).session;
       sessionRef.current = session;
       applyAttributes(document.documentElement, projectAttributes(session, route));
+      imageAudit?.audit();
     };
 
     apply();
-    const imageAudit = attachImageAuditRuntime({
+    imageAudit = attachImageAuditRuntime({
       root: document,
+      isLive: () => sessionRef.current.activation !== 'inactive' && document.visibilityState === 'visible',
       onIssue: issue => document.dispatchEvent(new CustomEvent('ipad-cinema:image-audit-issue', { detail: issue })),
     });
     const lifecycle = attachPageLifecycle(window, transition => {
-      if (transition === 'to-background' || transition === 'offline') imageAudit.setLive(false);
-      else imageAudit.setLive(true);
+      if (transition === 'to-background' || transition === 'offline') imageAudit?.setLive(false);
+      else imageAudit?.setLive(true);
     });
     window.addEventListener('resize', apply);
     return () => {
       window.removeEventListener('resize', apply);
       lifecycle.detach();
-      imageAudit.detach();
+      imageAudit?.detach();
     };
   }, [pathname]);
 
