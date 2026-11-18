@@ -1707,3 +1707,33 @@ body:has(.ipad-edition) { margin: 0; }
 }
 
 /* [deploy-ipad-edition-preview] Publish the global iPad Edition refinement to isolated Preview. */
+
+
+/* Real light appearance for the iPad cinema edition. */
+:root:not(.dark) .ipad-edition {
+  --ipad-page: #f5f5f7;
+  --ipad-surface: rgba(255, 255, 255, .72);
+  --ipad-surface-solid: #fff;
+  --ipad-text: #1d1d1f;
+  --ipad-muted: rgba(60, 60, 67, .72);
+  --ipad-line: rgba(60, 60, 67, .14);
+  --ipad-accent: #0a84ff;
+  --ipad-glass-fill: rgba(246, 249, 255, .64);
+  --ipad-glass-fill-strong: rgba(246, 249, 255, .78);
+  --ipad-glass-edge: rgba(255, 255, 255, .9);
+  --ipad-glass-highlight: rgba(255, 255, 255, .96);
+  --ipad-glass-shadow: 0 16px 48px rgba(24, 38, 62, .14), 0 3px 10px rgba(24, 38, 62, .07);
+  color: var(--ipad-text) !important;
+  background: radial-gradient(ellipse at 75% -8%, rgba(186, 204, 235, .34), transparent 43%), var(--ipad-page) !important;
+}
+:root:not(.dark):has(.ipad-edition),
+:root:not(.dark):has(.ipad-edition) body {
+  background: #f5f5f7 !important;
+}
+:root:not(.dark) .ipad-edition__top-links > a,
+:root:not(.dark) .ipad-edition__top-links > .ipad-edition__nav-button {
+  color: rgba(35, 43, 56, .82) !important;
+}
+:root:not(.dark) .ipad-edition__top-links > a.is-active {
+  color: #151b25 !important;
+}
