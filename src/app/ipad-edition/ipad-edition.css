@@ -1540,6 +1540,9 @@ body:has(.ipad-edition) { margin: 0; }
   min-height: 48px;
 }
 .ipad-edition__home {
+  /* The navigation is fixed to the viewport, so reserve its full vertical footprint
+     in the homepage flow instead of letting it cover the featured hero. */
+  padding-top: max(104px, calc(env(safe-area-inset-top, 0px) + 88px)) !important;
   gap: var(--ipad-content-gap) !important;
 }
 .ipad-edition__hero {
@@ -1681,6 +1684,10 @@ body:has(.ipad-edition) { margin: 0; }
   }
 }
 @media (max-width: 699px) {
+  .ipad-edition__home {
+    /* Compact mobile capsule: keep a smaller, but still explicit, safe-area gap. */
+    padding-top: max(76px, calc(env(safe-area-inset-top, 0px) + 64px)) !important;
+  }
   .ipad-edition__page {
     padding-top: max(88px, calc(env(safe-area-inset-top, 0px) + 76px)) !important;
   }
