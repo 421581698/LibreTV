@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
  * calls play(): the user must resume playback with a fresh interaction.
  */
 export function IpadCinemaResumeNotice() {
+  const [message, setMessage] = useState('');
   const [pending, setPending] = useState(false);
   const [visible, setVisible] = useState(false);
 
@@ -17,6 +18,9 @@ export function IpadCinemaResumeNotice() {
         decision?: string;
       }>).detail;
       if (detail?.kind !== 'app-background' || !detail.decision || detail.decision === 'none') return;
+      setMessage(detail.decision === 'reload-then-resume'
+        ? '当前视频源已失效，请重新选择播放源后继续。'
+        : '已保存播放进度。请轻点播放器的播放按钮继续。');
       setPending(true);
       setVisible(document.visibilityState === 'visible');
     };
@@ -37,7 +41,7 @@ export function IpadCinemaResumeNotice() {
       role="status"
       className="fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+1rem)] z-[100] mx-auto flex max-w-xl items-center justify-between gap-3 rounded-2xl border border-white/15 bg-black/85 px-4 py-3 text-sm text-white shadow-2xl backdrop-blur-xl"
     >
-      <span>已保存播放进度。请轻点播放器的播放按钮继续。</span>
+      <span>{message}</span>
       <button
         type="button"
         className="shrink-0 rounded-full bg-white/15 px-3 py-1.5 text-xs font-medium"
