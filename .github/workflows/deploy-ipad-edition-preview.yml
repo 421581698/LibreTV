@@ -145,7 +145,7 @@ jobs:
                 page.on("pageerror", error => consoleErrors.push(error.message));
                 const response = await page.goto(target, { waitUntil: "domcontentloaded", timeout: 60000 });
                 await page.locator('[data-ipad-edition="true"]').waitFor({ state: "attached", timeout: 30000 });
-                await page.locator('.ipad-edition__liquid-glass-host .glass').waitFor({ state: "visible", timeout: 30000 });
+                await page.locator('.ipad-nav__topbar-inner').waitFor({ state: "visible", timeout: 30000 });
                 // Wait for real homepage content before inspecting all poster-bearing cards.
                 await page.waitForFunction(() => {
                   const busyRail = document.querySelector('.ipad-edition__poster-grid[aria-busy="true"]');
@@ -178,8 +178,7 @@ jobs:
                 const metrics = await page.evaluate((scheme) => {
                   const root = document.querySelector('[data-ipad-edition="true"]');
                   const main = document.querySelector('.ipad-edition__main');
-                  const topbar = document.querySelector('.ipad-edition__topbar');
-                  const capsule = document.querySelector('.ipad-edition__top-links');
+                  const topbar = document.querySelector('.ipad-nav__topbar');
                   const hero = document.querySelector('.ipad-edition__hero');
                   const heroCopy = document.querySelector('.ipad-edition__hero-copy');
                   const rect = element => {
@@ -198,49 +197,34 @@ jobs:
                     });
                     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
                   };
-                  const glass = document.querySelector('.ipad-edition__liquid-glass-host .glass');
-                  const warp = glass?.querySelector('.glass__warp') ?? null;
-                  const glassStyle = glass ? getComputedStyle(glass) : null;
-                  const navLink = capsule?.querySelector(':scope > a') ?? null;
-                  const activeNavLink = capsule?.querySelector(':scope > a.is-active') ?? navLink;
-                  const navStyle = navLink ? getComputedStyle(navLink) : null;
-                  const activeNavStyle = activeNavLink ? getComputedStyle(activeNavLink) : null;
-                  const icon = navLink?.querySelector('svg') ?? null;
-                  const iconStyle = icon ? getComputedStyle(icon) : null;
-                  const glassBackground = glassStyle?.backgroundColor ?? '';
-                  const navColor = navStyle?.color ?? '';
-                  const activeNavColor = activeNavStyle?.color ?? '';
-                  const iconStroke = iconStyle?.stroke ?? '';
-                  const glassBackgroundLuminance = luminance(glassBackground);
+                  const navigationSurface = document.querySelector('.ipad-nav__topbar-inner');
+                  const wordmark = document.querySelector('.ipad-nav__wordmark');
+                  const navigationStyle = navigationSurface ? getComputedStyle(navigationSurface) : null;
+                  const wordmarkStyle = wordmark ? getComputedStyle(wordmark) : null;
+                  const navigationBackground = navigationStyle?.backgroundColor ?? '';
+                  const navColor = wordmarkStyle?.color ?? '';
+                  const navigationBackgroundLuminance = luminance(navigationBackground);
                   const navTextLuminance = luminance(navColor);
-                  const activeNavTextLuminance = luminance(activeNavColor);
-                  const glassRadius = Number.parseFloat(glassStyle?.borderTopLeftRadius ?? '0');
-                  const glassBackdropFilter = glassStyle?.backdropFilter ?? 'none';
-                  const glassWebkitBackdropFilter = glassStyle?.webkitBackdropFilter ?? 'none';
+                  const navigationRadius = Number.parseFloat(navigationStyle?.borderTopLeftRadius ?? '0');
+                  const navigationBackdropFilter = navigationStyle?.backdropFilter ?? 'none';
+                  const navigationWebkitBackdropFilter = navigationStyle?.webkitBackdropFilter ?? 'none';
                   const theme = {
-                    glassPresent: Boolean(glass),
-                    glassWarpPresent: Boolean(warp),
-                    glassBackground,
-                    glassBackgroundLuminance,
-                    glassBorder: glassStyle?.borderTopColor ?? '',
-                    glassRadius,
-                    glassBackdropFilter,
-                    glassWebkitBackdropFilter,
+                    navigationPresent: Boolean(navigationSurface),
+                    navigationBackground,
+                    navigationBackgroundLuminance,
+                    navigationBorder: navigationStyle?.borderTopColor ?? '',
+                    navigationRadius,
+                    navigationBackdropFilter,
+                    navigationWebkitBackdropFilter,
                     navColor,
                     navTextLuminance,
-                    activeNavColor,
-                    activeNavTextLuminance,
-                    iconStroke,
                     validForRequestedScheme: scheme === 'light'
-                      ? glassBackgroundLuminance !== null && glassBackgroundLuminance > 0.72 &&
-                        navTextLuminance !== null && navTextLuminance < 0.3 &&
-                        activeNavTextLuminance !== null && activeNavTextLuminance < 0.3
-                      : glassBackgroundLuminance !== null && glassBackgroundLuminance < 0.08 &&
-                        navTextLuminance !== null && navTextLuminance > 0.7 &&
-                        activeNavTextLuminance !== null && activeNavTextLuminance > 0.7,
-                    glassBlurValid: /blur\(/.test(glassBackdropFilter) || /blur\(/.test(glassWebkitBackdropFilter),
-                    glassGeometryValid: glassRadius >= 18 && Boolean(glassStyle?.borderTopColor),
-                    iconUsesThemeColor: Boolean(icon && (iconStyle?.stroke === 'currentcolor' || iconStyle?.stroke === navColor)),
+                      ? navigationBackgroundLuminance !== null && navigationBackgroundLuminance > 0.72 &&
+                        navTextLuminance !== null && navTextLuminance < 0.3
+                      : navigationBackgroundLuminance !== null && navigationBackgroundLuminance < 0.08 &&
+                        navTextLuminance !== null && navTextLuminance > 0.7,
+                    navigationBlurValid: /blur\\(/.test(navigationBackdropFilter) || /blur\\(/.test(navigationWebkitBackdropFilter),
+                    navigationGeometryValid: navigationRadius >= 14 && Boolean(navigationStyle?.borderTopColor),
                   };
                   const slots = Array.from(document.querySelectorAll('[data-ipad-poster-slot]'));
                   const posterChecks = slots.map(slot => {
@@ -326,25 +310,23 @@ jobs:
                 const themeBaselines = globalThis.__ipadThemeBaselines ?? (globalThis.__ipadThemeBaselines = {});
                 if (colorScheme === 'light') {
                   themeBaselines[themeKey] = metrics.theme;
-                  metrics.themePairValid = metrics.theme.validForRequestedScheme;
+                  metrics.themePairValid = metrics.theme.validForRequestedScheme &&
+                    metrics.theme.navigationPresent && metrics.theme.navigationBlurValid &&
+                    metrics.theme.navigationGeometryValid;
                 } else {
                   const light = themeBaselines[themeKey];
                   metrics.themeDifference = light ? {
-                    glassBackgroundChanged: light.glassBackground !== metrics.theme.glassBackground,
+                    navigationBackgroundChanged: light.navigationBackground !== metrics.theme.navigationBackground,
                     navigationColorChanged: light.navColor !== metrics.theme.navColor,
-                    activeNavigationColorChanged: light.activeNavColor !== metrics.theme.activeNavColor,
-                    glassBlurPresentInBothThemes: light.glassBlurValid && metrics.theme.glassBlurValid,
+                    navigationBlurPresentInBothThemes: light.navigationBlurValid && metrics.theme.navigationBlurValid,
                   } : null;
                   metrics.themePairValid = Boolean(light && light.validForRequestedScheme && metrics.theme.validForRequestedScheme &&
-                    light.glassPresent && metrics.theme.glassPresent &&
-                    light.glassWarpPresent && metrics.theme.glassWarpPresent &&
-                    light.glassBlurValid && metrics.theme.glassBlurValid &&
-                    light.glassGeometryValid && metrics.theme.glassGeometryValid &&
-                    light.iconUsesThemeColor && metrics.theme.iconUsesThemeColor &&
-                    metrics.themeDifference.glassBackgroundChanged &&
+                    light.navigationPresent && metrics.theme.navigationPresent &&
+                    light.navigationBlurValid && metrics.theme.navigationBlurValid &&
+                    light.navigationGeometryValid && metrics.theme.navigationGeometryValid &&
+                    metrics.themeDifference.navigationBackgroundChanged &&
                     metrics.themeDifference.navigationColorChanged &&
-                    metrics.themeDifference.activeNavigationColorChanged &&
-                    metrics.themeDifference.glassBlurPresentInBothThemes);
+                    metrics.themeDifference.navigationBlurPresentInBothThemes);
                 }
                 // Force every poster slot through a real paint/decode cycle before the
                 // full-page capture. DOM naturalWidth alone can be true while a lazy
