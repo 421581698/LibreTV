@@ -199,7 +199,7 @@ jobs:
                   const posterChecks = slots.map(slot => {
                     const image = slot.querySelector('img');
                     const sourceAddress = (slot.getAttribute('data-poster-url') ?? '').trim();
-                    if (!image) return { hasImageElement: false, emptyAddress: !sourceAddress, svgPlaceholder: false, loaded: false, visible: false, pixelVisible: false };
+                    if (!image) return { slotType: slot.getAttribute('data-ipad-poster-slot') ?? 'unknown', hasImageElement: false, emptyAddress: !sourceAddress, svgPlaceholder: false, loaded: false, visible: false, pixelVisible: false };
                     const source = image.currentSrc || image.getAttribute('src') || image.src || '';
                     const svgPlaceholder = /^data:image\/svg\+xml/i.test(source);
                     const style = getComputedStyle(image);
@@ -224,6 +224,7 @@ jobs:
                       }
                     }
                     return {
+                      slotType: slot.getAttribute('data-ipad-poster-slot') ?? 'unknown',
                       hasImageElement: true, emptyAddress: !sourceAddress, svgPlaceholder,
                       loaded, visible, pixelVisible,
                       naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight,
@@ -237,6 +238,11 @@ jobs:
                   const copy = heroCopy?.getBoundingClientRect();
                   const heroTextOverlapsNavigation = Boolean(top && copy && top.left < copy.right && top.right > copy.left && top.top < copy.bottom && top.bottom > copy.top);
                   const realLoaded = posterChecks.filter(item => item.loaded && item.visible && item.pixelVisible).length;
+                  const posterSlotBreakdown = Object.fromEntries([...new Set(posterChecks.map(item => item.slotType))].map(type => {
+                    const matching = posterChecks.filter(item => item.slotType === type);
+                    const loaded = matching.filter(item => item.loaded && item.visible && item.pixelVisible).length;
+                    return [type, { total: matching.length, realLoaded: loaded, loadRate: matching.length ? Number((loaded / matching.length).toFixed(3)) : 0 }];
+                  }));
                   return {
                     viewportWidth: window.innerWidth,
                     documentWidth: document.documentElement.scrollWidth,
@@ -248,6 +254,7 @@ jobs:
                     posterCount: posters.length,
                     animeCardCount: animeCards.length,
                     posterSlotCount: posterChecks.length,
+                    posterSlotBreakdown,
                     posterImageElementCount: posterChecks.filter(item => item.hasImageElement).length,
                     emptyPosterAddressCount: posterChecks.filter(item => item.emptyAddress).length,
                     missingPosterImageElementCount: posterChecks.filter(item => !item.hasImageElement).length,
