@@ -12,6 +12,5 @@ preview_urls = false
 CMS_SEARCH_API = "https://caiji.dyttzyapi.com/api.php/provide/vod"
 API_60S_BASE = "https://60s.bggdbh.workers.dev"
 LLM_MODEL = "glm-4-flash"
-# Cloudflare Access protects this dedicated Worker at the edge.
-# App-level password authentication is disabled only because Access is the mandatory gate.
-AUTH_DISABLED = "true"
+# Keep the isolated Preview protected by the existing PASSWORD secret.
+AUTH_DISABLED = "false"
