@@ -1,7 +1,9 @@
 'use client';
 
-import LiquidGlass from 'liquid-glass-react';
+import dynamic from 'next/dynamic';
 import { useEffect, useRef, useState } from 'react';
+
+const LiquidGlass = dynamic(() => import('liquid-glass-react'), { ssr: false });
 
 type RefractionMode = 'standard' | 'polar' | 'prominent' | 'shader';
 
