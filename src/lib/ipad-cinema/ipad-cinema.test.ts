@@ -301,6 +301,8 @@ describe('V4.3.1 contract wiring', () => {
     expect(contract).toContain('applyAttributes(document.documentElement, projectAttributes(session, route));');
     expect(contract).not.toContain('router.back');
     expect(contract).not.toContain('router.push');
+    expect(contract).toContain('navigator.onLine !== false');
+    expect(contract).toContain("transition !== 'offline'");
   });
 
   it('does not hide the current dock or recapture phone and desktop with a pointer query', () => {
