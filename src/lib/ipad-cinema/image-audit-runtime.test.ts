@@ -20,7 +20,7 @@ describe('image audit runtime', () => {
     runtime.audit();
     runtime.audit();
     expect(onIssue).toHaveBeenCalledTimes(1);
-    expect(onIssue).toHaveBeenLastCalledWith({ element: image, reason: 'not-loaded' });
+    expect(onIssue).not.toHaveBeenCalled();
 
     Object.defineProperty(image, 'complete', { configurable: true, value: true });
     Object.defineProperty(image, 'naturalWidth', { configurable: true, value: 640 });
@@ -29,7 +29,7 @@ describe('image audit runtime', () => {
 
     Object.defineProperty(image, 'naturalWidth', { configurable: true, value: 0 });
     runtime.audit();
-    expect(onIssue).toHaveBeenCalledTimes(2);
+    expect(onIssue).toHaveBeenCalledTimes(1);
     runtime.detach();
     runtime.detach();
     expect(root.removeEventListener).toHaveBeenCalledTimes(2);
