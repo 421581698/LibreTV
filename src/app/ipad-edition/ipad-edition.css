@@ -939,3 +939,5 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
 /* [deploy-ipad-edition-preview] Audit the replacement iPad navigation shell. */
 
 /* [deploy-ipad-edition-preview] Run the new navigation visual audit against the deployed shell. */
+
+/* [deploy-ipad-edition-preview] Finalize the new navigation theme audit. */
