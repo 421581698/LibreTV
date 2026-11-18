@@ -1624,3 +1624,29 @@ body:has(.ipad-edition){margin:0}
     min-height: max(560px, 78svh);
   }
 }
+
+
+/* Final clipping and rail sizing corrections. */
+.ipad-edition__poster-art,
+.ipad-edition__anime-card > span,
+.ipad-edition__continue-art,
+.ipad-edition__result-poster {
+  contain: layout style !important;
+}
+.ipad-edition__continue-card {
+  flex: 0 0 clamp(220px, 25vw, 320px);
+  width: clamp(220px, 25vw, 320px);
+  min-width: 0;
+  scroll-snap-align: start;
+}
+.ipad-edition__poster-card,
+.ipad-edition__anime-card {
+  min-width: 0;
+  scroll-snap-align: start;
+}
+@media (max-width: 699px) {
+  .ipad-edition__continue-card {
+    flex-basis: 220px;
+    width: 220px;
+  }
+}
