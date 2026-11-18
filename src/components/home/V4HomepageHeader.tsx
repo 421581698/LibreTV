@@ -30,7 +30,11 @@ export function V4HomepageHeader({ overlay = false }: { overlay?: boolean }) {
 
   return (
     <>
-      <header className={'v4-header' + (overlay ? ' is-overlay' : '')}>
+      <header
+        className={'v4-header' + (overlay ? ' is-overlay' : '')}
+        data-ipad-focus-id="region:primary-navigation:index:0"
+        tabIndex={-1}
+      >
         <div className="v4-header-inner v4-header-inner--no-brand">
           {!overlay && (
             <div className="v4-header-actions">
