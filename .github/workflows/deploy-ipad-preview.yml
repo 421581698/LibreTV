@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm_preview_deploy:
-        description: "确认仅部署到带应用密码保护的独立 libretv-ipad-preview Worker"
+        description: "确认仅部署到不需要访问码的独立 libretv-ipad-preview Worker"
         required: true
         type: choice
         options:
@@ -44,17 +44,15 @@ jobs:
         run: |
           git merge-base --is-ancestor "cbc3d0e35b29a81719fcb8bb376fa89b1768302e" "$SOURCE_SHA" || (echo "Deployment commit does not descend from the visually accepted iPad baseline" && exit 1)
           grep -Eq '^[[:space:]]*name[[:space:]]*=[[:space:]]*"libretv-ipad-preview"' wrangler.ipad-preview.toml
-          grep -Eq '^[[:space:]]*AUTH_DISABLED[[:space:]]*=[[:space:]]*"false"' wrangler.ipad-preview.toml
+          grep -Eq '^[[:space:]]*AUTH_DISABLED[[:space:]]*=[[:space:]]*"true"' wrangler.ipad-preview.toml
 
-      - name: Verify Cloudflare and Preview password credentials
+      - name: Verify Cloudflare deployment credentials
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          LIBRETV_IPAD_PREVIEW_PASSWORD: ${{ secrets.LIBRETV_IPAD_PREVIEW_PASSWORD }}
         run: |
           test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing preview secret: CLOUDFLARE_API_TOKEN" && exit 1)
           test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "Missing preview secret: CLOUDFLARE_ACCOUNT_ID" && exit 1)
-          test -n "$LIBRETV_IPAD_PREVIEW_PASSWORD" || (echo "Missing preview secret: LIBRETV_IPAD_PREVIEW_PASSWORD" && exit 1)
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -79,67 +77,40 @@ jobs:
           NEXT_TELEMETRY_DISABLED: "1"
         run: npx opennextjs-cloudflare build
 
-      - name: Deploy dedicated Worker with encrypted password secret
+      - name: Deploy dedicated public Worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          LIBRETV_IPAD_PREVIEW_PASSWORD: ${{ secrets.LIBRETV_IPAD_PREVIEW_PASSWORD }}
-        run: |
-          set -euo pipefail
-          trap 'rm -f .worker-secrets.json' EXIT
-          node --input-type=module <<'NODE'
-          import { writeFileSync } from "node:fs";
-          const password = process.env.LIBRETV_IPAD_PREVIEW_PASSWORD;
-          if (!password) throw new Error("Preview password secret is missing.");
-          writeFileSync(".worker-secrets.json", JSON.stringify({ PASSWORD: password }), { mode: 0o600 });
-          NODE
-          npx wrangler deploy --config wrangler.ipad-preview.toml --secrets-file .worker-secrets.json
+        run: npx wrangler deploy --config wrangler.ipad-preview.toml
 
-      - name: Verify deployed Preview password gate
-        env:
-          LIBRETV_IPAD_PREVIEW_PASSWORD: ${{ secrets.LIBRETV_IPAD_PREVIEW_PASSWORD }}
+      - name: Verify Preview is publicly accessible without an access code
         run: |
           node --input-type=module <<'NODE'
           const base = "https://libretv-ipad-preview.bggdbh.workers.dev";
-          // workers.dev edge activation can lag behind the successful upload by several seconds.
-          // Retry the public endpoint instead of treating immediate propagation delay as a bad deploy.
-          let statusResponse;
+          let response;
           let lastStatus = "no response";
           for (let attempt = 1; attempt <= 12; attempt += 1) {
             try {
-              statusResponse = await fetch(base + "/api/status", { cache: "no-store" });
-              if (statusResponse.ok) break;
-              lastStatus = "HTTP " + statusResponse.status;
+              response = await fetch(base + "/api/status", { cache: "no-store", redirect: "manual" });
+              if (response.ok) break;
+              lastStatus = "HTTP " + response.status;
             } catch (error) {
               lastStatus = String(error);
             }
             if (attempt < 12) await new Promise(resolve => setTimeout(resolve, 5000));
           }
-          if (!statusResponse?.ok) {
+          if (!response?.ok) {
             throw new Error("Preview did not become reachable after 60 seconds: " + lastStatus);
           }
-          const status = await statusResponse.json();
-          if (status.passwordRequired !== true || status.verified !== false) {
-            throw new Error("Preview is not presenting the expected unauthenticated password gate.");
+          const status = await response.json();
+          if (status.passwordRequired === true || status.verified === false) {
+            throw new Error("Preview still requires an access code.");
           }
-
-          const loginResponse = await fetch(base + "/api/auth", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ password: process.env.LIBRETV_IPAD_PREVIEW_PASSWORD })
-          });
-          if (!loginResponse.ok) throw new Error("Preview password login failed: HTTP " + loginResponse.status);
-          const setCookie = loginResponse.headers.get("set-cookie") || "";
-          const cookie = setCookie.split(";")[0];
-          if (!cookie.includes("ltv_session=")) throw new Error("Preview login did not issue the expected session cookie.");
-
-          const verifiedResponse = await fetch(base + "/api/status", {
-            headers: { cookie },
-            cache: "no-store"
-          });
-          const verified = await verifiedResponse.json();
-          if (!verifiedResponse.ok || verified.verified !== true) {
-            throw new Error("Preview authenticated session verification failed.");
+          const home = await fetch(base + "/", { cache: "no-store", redirect: "manual" });
+          if (!home.ok) throw new Error("Preview homepage is not publicly accessible: HTTP " + home.status);
+          const html = await home.text();
+          if (!html.includes("<html") && !html.includes("<!DOCTYPE html>")) {
+            throw new Error("Preview homepage did not return an HTML document.");
           }
-          console.log("Dedicated iPad Preview is deployed and protected by its application password.");
+          console.log("Dedicated iPad Preview homepage and status endpoint are publicly accessible without an access code.");
           NODE
