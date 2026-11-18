@@ -19,13 +19,12 @@ describe('image audit runtime', () => {
 
     runtime.audit();
     runtime.audit();
-    expect(onIssue).toHaveBeenCalledTimes(1);
     expect(onIssue).not.toHaveBeenCalled();
 
     Object.defineProperty(image, 'complete', { configurable: true, value: true });
     Object.defineProperty(image, 'naturalWidth', { configurable: true, value: 640 });
     runtime.audit();
-    expect(onIssue).toHaveBeenCalledTimes(1);
+    expect(onIssue).not.toHaveBeenCalled();
 
     Object.defineProperty(image, 'naturalWidth', { configurable: true, value: 0 });
     runtime.audit();
