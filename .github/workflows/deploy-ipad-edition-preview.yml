@@ -223,7 +223,7 @@ jobs:
                         navTextLuminance !== null && navTextLuminance < 0.3
                       : navigationBackgroundLuminance !== null && navigationBackgroundLuminance < 0.08 &&
                         navTextLuminance !== null && navTextLuminance > 0.7,
-                    navigationBlurValid: /blur\\(/.test(navigationBackdropFilter) || /blur\\(/.test(navigationWebkitBackdropFilter),
+                    navigationBlurValid: navigationBackdropFilter.includes('blur(') || navigationWebkitBackdropFilter.includes('blur('),
                     navigationGeometryValid: navigationRadius >= 14 && Boolean(navigationStyle?.borderTopColor),
                   };
                   const slots = Array.from(document.querySelectorAll('[data-ipad-poster-slot]'));
