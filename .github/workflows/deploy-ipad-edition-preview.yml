@@ -171,7 +171,7 @@ jobs:
                     return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
                   };
                   const luminance = value => {
-                    const match = value.match(/rgba?\\(([^)]+)\\)/);
+                    const match = value.match(/rgba?\(([^)]+)\)/);
                     if (!match) return null;
                     const channels = match[1].split(',').slice(0, 3).map(Number);
                     if (channels.length !== 3 || channels.some(Number.isNaN)) return null;
@@ -201,7 +201,7 @@ jobs:
                     const sourceAddress = (slot.getAttribute('data-poster-url') ?? '').trim();
                     if (!image) return { hasImageElement: false, emptyAddress: !sourceAddress, svgPlaceholder: false, loaded: false, visible: false, pixelVisible: false };
                     const source = image.currentSrc || image.getAttribute('src') || image.src || '';
-                    const svgPlaceholder = /^data:image\\/svg\\+xml/i.test(source);
+                    const svgPlaceholder = /^data:image\/svg\+xml/i.test(source);
                     const style = getComputedStyle(image);
                     const box = image.getBoundingClientRect();
                     const visible = box.width > 2 && box.height > 2 && style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) > 0.1;
@@ -273,7 +273,7 @@ jobs:
                     rootBackgroundChanged: light.rootBackground !== metrics.theme.rootBackground,
                     rootTextChanged: light.rootColor !== metrics.theme.rootColor,
                     glassSurfaceChanged: light.capsuleBackground !== metrics.theme.capsuleBackground,
-                    glassNavigationPresent: /blur\\(/.test(metrics.theme.capsuleBackdropFilter) && /blur\\(/.test(light.capsuleBackdropFilter),
+                    glassNavigationPresent: /blur\(/.test(metrics.theme.capsuleBackdropFilter) && /blur\(/.test(light.capsuleBackdropFilter),
                   } : null;
                   metrics.themePairValid = Boolean(light && light.validForRequestedScheme && metrics.theme.validForRequestedScheme &&
                     metrics.themeDifference.rootBackgroundChanged && metrics.themeDifference.rootTextChanged &&
