@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { LiquidGlassSurface } from '@/components/ui/liquid-glass';
 
 const sidebarNavigation = [
@@ -44,8 +44,15 @@ function NavigationIcon({ name }: { name: NavigationIconName }) {
 export function IpadEditionShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() || '/ipad-edition';
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarDragOffset, setSidebarDragOffset] = useState(0);
+  const [sidebarDragging, setSidebarDragging] = useState(false);
+  const gestureRef = useRef<{ pointerId: number; startX: number; lastX: number; lastAt: number; width: number; wasOpen: boolean } | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => { setSidebarOpen(false); }, [pathname]);
+  useEffect(() => {
+    setSidebarOpen(false);
+    setSidebarDragOffset(0);
+  }, [pathname]);
   useEffect(() => {
     if (!sidebarOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -54,6 +61,60 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [sidebarOpen]);
+
+  const beginSidebarGesture = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === 'mouse' || !event.isPrimary || isChromeHidden) return;
+    const sidebar = document.querySelector<HTMLElement>('.ipad-nav__sidebar');
+    const width = sidebar?.getBoundingClientRect().width ?? 280;
+    const target = event.target as HTMLElement;
+    const startedOnSidebar = Boolean(target.closest('.ipad-nav__sidebar'));
+    const startedAtEdge = event.clientX <= 24;
+    if (sidebarOpen ? !startedOnSidebar : !startedAtEdge) return;
+    gestureRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      lastX: event.clientX,
+      lastAt: event.timeStamp,
+      width,
+      wasOpen: sidebarOpen,
+    };
+    setSidebarDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const moveSidebarGesture = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const gesture = gestureRef.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+    const delta = event.clientX - gesture.startX;
+    const offset = gesture.wasOpen ? Math.min(0, Math.max(-gesture.width, delta)) : Math.max(0, Math.min(gesture.width, delta));
+    gesture.lastX = event.clientX;
+    gesture.lastAt = event.timeStamp;
+    setSidebarDragOffset(offset);
+    event.preventDefault();
+  };
+
+  const finishSidebarGesture = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const gesture = gestureRef.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+    const delta = event.clientX - gesture.startX;
+    const elapsed = Math.max(1, event.timeStamp - gesture.lastAt);
+    const velocity = (event.clientX - gesture.lastX) / elapsed;
+    const threshold = gesture.width * 0.28;
+    const shouldOpen = gesture.wasOpen
+      ? !(delta < -threshold || velocity < -0.45)
+      : delta > threshold || velocity > 0.45;
+    setSidebarOpen(shouldOpen);
+    setSidebarDragOffset(0);
+    setSidebarDragging(false);
+    gestureRef.current = null;
+  };
+
+  const cancelSidebarGesture = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (gestureRef.current?.pointerId !== event.pointerId) return;
+    gestureRef.current = null;
+    setSidebarDragOffset(0);
+    setSidebarDragging(false);
+  };
 
   const isPlayerRoute = pathname === '/ipad-edition/watch' || pathname.startsWith('/ipad-edition/watch/');
   const isDetailRoute = pathname === '/ipad-edition/detail' || pathname.startsWith('/ipad-edition/detail/');
@@ -71,6 +132,12 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
       data-ipad-player={isPlayerRoute ? 'true' : undefined}
       data-ipad-detail={isDetailRoute ? 'true' : undefined}
       data-ipad-sidebar-open={sidebarOpen ? 'true' : 'false'}
+      data-ipad-sidebar-dragging={sidebarDragging ? 'true' : 'false'}
+      onPointerDown={beginSidebarGesture}
+      onPointerMove={moveSidebarGesture}
+      onPointerUp={finishSidebarGesture}
+      onPointerCancel={cancelSidebarGesture}
+      style={{ '--ipad-sidebar-drag': `${sidebarDragOffset}px` } as React.CSSProperties}
     >
       {!isChromeHidden && sidebarOpen && (
         <button
@@ -128,6 +195,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
           <header className="ipad-nav__topbar">
             <LiquidGlassSurface as="div" variant="panel" cornerRadius={18} className="ipad-nav__topbar-inner">
               <button
+                ref={menuButtonRef}
                 className="ipad-nav__menu-button"
                 type="button"
                 aria-label={sidebarOpen ? '关闭导航菜单' : '打开导航菜单'}
