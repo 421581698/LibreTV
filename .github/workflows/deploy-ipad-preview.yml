@@ -54,7 +54,8 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing preview secret: CLOUDFLARE_API_TOKEN" && exit 1)
           test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "Missing preview secret: CLOUDFLARE_ACCOUNT_ID" && exit 1)
 
-      # Fail closed: do not deploy until the dedicated workers.dev hostname is
+      # Deployment is intentionally branch-scoped; no default-branch workflow copy is needed.
+# Fail closed: do not deploy until the dedicated workers.dev hostname is
       # already protected by Cloudflare Access and anonymous requests redirect to login.
       - name: Verify Cloudflare Access gate before deployment
         run: |
