@@ -1,7 +1,6 @@
 'use client';
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { SmartImage } from '@/components/smart-image';
 import { api } from '@/lib/client-api';
