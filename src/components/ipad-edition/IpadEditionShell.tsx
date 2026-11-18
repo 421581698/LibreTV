@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
+import LiquidGlass from 'liquid-glass-react';
 
 const sidebarNavigation = [
   { label: '首页', href: '/ipad-edition', icon: 'house' },
@@ -46,6 +47,10 @@ function SidebarPanelIcon() {
 export function IpadEditionShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [glassReady, setGlassReady] = useState(false);
+
+  // liquid-glass-react reads navigator during render, so mount it only after hydration.
+  useEffect(() => { setGlassReady(true); }, []);
 
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
   useEffect(() => {
@@ -75,6 +80,24 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
       </aside>
       <main className="ipad-edition__main">
         <header className="ipad-edition__topbar">
+          {glassReady && (
+            <LiquidGlass
+              className="ipad-edition__liquid-glass-host"
+              style={{ position: 'absolute', top: '50%', left: '50%', zIndex: 0, pointerEvents: 'none' }}
+              displacementScale={22}
+              blurAmount={0.8}
+              saturation={180}
+              aberrationIntensity={0.45}
+              elasticity={0}
+              cornerRadius={22}
+              padding="0"
+              mode="standard"
+              globalMousePos={{ x: 0, y: 0 }}
+              mouseOffset={{ x: 0, y: 0 }}
+            >
+              <span className="ipad-edition__liquid-glass-surface" aria-hidden="true" />
+            </LiquidGlass>
+          )}
           <nav className="ipad-edition__top-links" aria-label="主导航">
             <button className="ipad-edition__nav-button ipad-edition__sidebar-toggle" type="button" aria-label={sidebarOpen ? "关闭侧边栏" : "打开侧边栏"} aria-expanded={sidebarOpen} aria-controls="ipad-edition-sidebar" onClick={() => setSidebarOpen((open) => !open)}>
               <SidebarPanelIcon />
