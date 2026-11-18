@@ -91,6 +91,15 @@ try {
         authenticationError = error.message;
       }
 
+      // Wait for the real recommendation queries to settle. A skeleton is not a successful
+      // homepage render and must never be accepted as poster evidence.
+      await page.waitForFunction(() => {
+        const rails = ['apple-tv-top10', 'apple-movie-top10', 'apple-new-releases']
+          .map((id) => document.getElementById(id));
+        return rails.every((rail) => rail && rail.querySelector('.v4-apple-rail-skeleton, .v4-apple-poster-skeleton') === null
+          && !rail.querySelector('[aria-label$="加载中"]'));
+      }, { timeout: 20000 }).catch(() => {});
+
       await page.evaluate(async () => {
         const images = [...document.images];
         images.forEach((image) => { image.loading = 'eager'; });
@@ -110,6 +119,23 @@ try {
         return {
           title: document.title,
           posterCards: document.querySelectorAll('.v4-apple-poster-card').length,
+          posterSkeletons: document.querySelectorAll('.v4-apple-poster-skeleton').length,
+          posterRails: ['apple-tv-top10', 'apple-movie-top10', 'apple-new-releases'].map((id) => {
+            const rail = document.getElementById(id);
+            const cards = [...(rail?.querySelectorAll('.v4-apple-poster-card') ?? [])];
+            return { id, present: Boolean(rail), skeletons: rail?.querySelectorAll('.v4-apple-poster-skeleton').length ?? 0,
+              cards: cards.length, titles: cards.map((card) => card.textContent?.trim().slice(0, 100) ?? ''),
+              images: cards.flatMap((card) => [...card.querySelectorAll('img')].map((image) => ({
+                src: image.getAttribute('src') ?? '', currentSrc: image.currentSrc, complete: image.complete,
+                naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight,
+                isFallback: (image.getAttribute('src') ?? '').startsWith('data:image/svg+xml'),
+              }))) };
+          }),
+          homepageDataReady: ['apple-tv-top10', 'apple-movie-top10', 'apple-new-releases'].every((id) => {
+            const rail = document.getElementById(id);
+            return Boolean(rail && rail.querySelector('.v4-apple-rail-message') || rail && rail.querySelector('.v4-apple-poster-card'))
+              && !rail?.querySelector('.v4-apple-poster-skeleton');
+          }),
           posterImages: [...document.querySelectorAll('.v4-apple-poster-card img')].map((image) => ({
             alt: image.alt,
             src: image.getAttribute('src') ?? '',
@@ -186,7 +212,11 @@ const defects = results.filter((result) =>
   (result.expectedCinema && (result.metrics?.ipadCinema !== result.expectedCinema || result.metrics?.navOwner !== 'adaptive')) ||
   result.consoleErrors.length > 0 ||
   result.responseErrors.length > 0 ||
-  (result.metrics?.posterCards > 0 && (result.metrics?.posterImages?.length === 0 || result.metrics.posterImages.some((image) => image.isFallback || image.naturalWidth === 0))) ||
+  !result.metrics?.homepageDataReady ||
+  result.metrics?.posterCards === 0 ||
+  result.metrics?.posterSkeletons > 0 ||
+  result.metrics?.posterRails?.some((rail) => rail.cards === 0 || rail.skeletons > 0 || rail.images.length === 0 || rail.images.some((image) => image.isFallback || image.naturalWidth === 0)) ||
+  (result.metrics?.posterImages?.length === 0 || result.metrics.posterImages.some((image) => image.isFallback || image.naturalWidth === 0)) ||
   result.pageErrors.length > 0
 );
 console.log(JSON.stringify({
