@@ -69,7 +69,7 @@ LibreTV iPad Edition 是独立的 iPad 产品版本。它拥有独立入口、�
 
 ## Preview 发布
 
-独立 Preview Worker 名称为 libretv-ipad-edition-preview。部署只允许由本分支触发，且只写入该独立 Worker，不配置生产路由或自定义域名。部署后通过自动 HTTP smoke test 检查 /ipad-edition 路由及影院应用壳。
+独立 Preview Worker 名称为 libretv-ipad-edition-preview。部署只允许由本分支触发，且只写入该独立 Worker，不配置生产路由或自定义域名。部署后通过自动 HTTP smoke test 检查 /ipad-edition 路由及影院应用壳；同一时间只保留一个 Preview 部署任务。
 
 ## 分支与发布边界
 
