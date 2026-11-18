@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { LiquidGlassSurface } from '@/components/ui/liquid-glass';
 
 const sidebarNavigation = [
@@ -47,7 +47,6 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
   const [sidebarDragOffset, setSidebarDragOffset] = useState(0);
   const [sidebarDragging, setSidebarDragging] = useState(false);
   const gestureRef = useRef<{ pointerId: number; startX: number; lastX: number; lastAt: number; width: number; wasOpen: boolean } | null>(null);
-  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setSidebarOpen(false);
@@ -137,7 +136,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
       onPointerMove={moveSidebarGesture}
       onPointerUp={finishSidebarGesture}
       onPointerCancel={cancelSidebarGesture}
-      style={{ '--ipad-sidebar-drag': `${sidebarDragOffset}px` } as React.CSSProperties}
+      style={{ '--ipad-sidebar-drag': `${sidebarDragOffset}px` } as CSSProperties}
     >
       {!isChromeHidden && sidebarOpen && (
         <button
@@ -195,7 +194,6 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
           <header className="ipad-nav__topbar">
             <LiquidGlassSurface as="div" variant="panel" cornerRadius={18} className="ipad-nav__topbar-inner">
               <button
-                ref={menuButtonRef}
                 className="ipad-nav__menu-button"
                 type="button"
                 aria-label={sidebarOpen ? '关闭导航菜单' : '打开导航菜单'}
