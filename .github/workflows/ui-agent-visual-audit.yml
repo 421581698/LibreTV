@@ -70,7 +70,7 @@ jobs:
         env:
           UI_AGENT_BASE_URL: http://127.0.0.1:8080/
           UI_AGENT_OUTPUT_DIR: artifacts/ui-agent
-          UI_AGENT_STRICT: '0'
+          UI_AGENT_STRICT: '1'
         run: node scripts/ui-agent/capture.mjs
       - name: Upload screenshots and report
         if: always()
