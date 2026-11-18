@@ -53,15 +53,46 @@ export function IpadCinemaContract() {
       isLive: () => sessionRef.current.activation !== 'inactive' && document.visibilityState === 'visible',
       onIssue: issue => document.dispatchEvent(new CustomEvent('ipad-cinema:image-audit-issue', { detail: issue })),
     });
+    const voiceOver = attachVoiceOverRuntime({
+      resolveElement: focusId => Array.from(document.querySelectorAll<HTMLElement>('[data-ipad-focus-id]'))
+        .find(element => element.dataset.ipadFocusId === focusId) ?? null,
+      onState: state => { sessionRef.current = setVoiceOverState(sessionRef.current, state).session; },
+      onFocus: focusId => document.dispatchEvent(new CustomEvent('ipad-cinema:voiceover-focus', { detail: { focusId } })),
+    });
+    const onFocusRequest = (event: Event) => {
+      const focusId = (event as CustomEvent<{ focusId?: string }>).detail?.focusId;
+      if (!focusId) return;
+      void voiceOver.moveFocus(focusId).then(result => document.dispatchEvent(
+        new CustomEvent('ipad-cinema:focus-result', { detail: { focusId, ...result } }),
+      ));
+    };
+    const onInterruption = (event: Event) => {
+      const detail = (event as CustomEvent<{
+        kind: 'incoming-call' | 'audio-route-change' | 'app-background' | 'system-modal';
+        resource: { valid: boolean; positionResumable: boolean };
+      }>).detail;
+      if (!detail?.kind || !detail.resource) return;
+      const decision = decideAfterInterruption(detail.kind, detail.resource);
+      document.dispatchEvent(new CustomEvent('ipad-cinema:resume-decision', { detail: { kind: detail.kind, decision } }));
+    };
+    document.addEventListener('ipad-cinema:focus-request', onFocusRequest);
+    document.addEventListener('ipad-cinema:system-interruption', onInterruption);
     const lifecycle = attachPageLifecycle(window, transition => {
-      if (transition === 'to-background' || transition === 'offline') imageAudit?.setLive(false);
-      else imageAudit?.setLive(true);
+      if (transition === 'to-background' || transition === 'offline') {
+        imageAudit?.setLive(false);
+        document.dispatchEvent(new CustomEvent('ipad-cinema:system-interruption', {
+          detail: { kind: 'app-background', resource: { valid: false, positionResumable: false } },
+        }));
+      } else imageAudit?.setLive(true);
     });
     window.addEventListener('resize', apply);
     return () => {
       window.removeEventListener('resize', apply);
       lifecycle.detach();
       imageAudit?.detach();
+      voiceOver.detach();
+      document.removeEventListener('ipad-cinema:focus-request', onFocusRequest);
+      document.removeEventListener('ipad-cinema:system-interruption', onInterruption);
     };
   }, [pathname]);
 
