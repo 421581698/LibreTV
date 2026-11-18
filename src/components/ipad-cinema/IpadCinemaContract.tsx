@@ -50,7 +50,7 @@ export function IpadCinemaContract() {
     apply();
     imageAudit = attachImageAuditRuntime({
       root: document,
-      isLive: () => sessionRef.current.activation !== 'inactive' && document.visibilityState === 'visible',
+      isLive: () => sessionRef.current.activation !== 'inactive' && document.visibilityState === 'visible' && navigator.onLine !== false,
       onIssue: issue => document.dispatchEvent(new CustomEvent('ipad-cinema:image-audit-issue', { detail: issue })),
     });
     const voiceOver = attachVoiceOverRuntime({
