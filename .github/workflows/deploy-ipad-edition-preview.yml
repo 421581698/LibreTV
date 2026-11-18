@@ -146,6 +146,22 @@ jobs:
                 const response = await page.goto(target, { waitUntil: "domcontentloaded", timeout: 60000 });
                 await page.locator('[data-ipad-edition="true"]').waitFor({ state: "attached", timeout: 30000 });
                 await page.locator('.ipad-nav__topbar-inner').waitFor({ state: "visible", timeout: 30000 });
+                // Exercise the real navigation controls in every viewport/theme pair.
+                let sidebarInteractionPassed = false;
+                const menuButton = page.locator('.ipad-nav__menu-button');
+                await menuButton.click();
+                await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'true');
+                const openedSidebar = await page.locator('.ipad-nav__sidebar.is-open').isVisible();
+                await page.keyboard.press('Escape');
+                await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false');
+                const escapeClosedSidebar = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
+                await menuButton.click();
+                const scrim = page.locator('.ipad-nav__scrim');
+                await scrim.waitFor({ state: 'visible', timeout: 10000 });
+                await scrim.click({ position: { x: Math.floor(viewport.width / 2), y: Math.floor(viewport.height / 2) } });
+                await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false');
+                const scrimClosedSidebar = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
+                sidebarInteractionPassed = openedSidebar && escapeClosedSidebar && scrimClosedSidebar;
                 // Wait for real homepage content before inspecting all poster-bearing cards.
                 await page.waitForFunction(() => {
                   const busyRail = document.querySelector('.ipad-edition__poster-grid[aria-busy="true"]');
@@ -432,9 +448,9 @@ jobs:
                 await page.evaluate(() => window.scrollTo(0, 0));
                 await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
                 await page.screenshot({ path: "artifacts/ipad-visual-audit/" + name + ".png", fullPage: false, animations: "disabled" });
-                const failed = response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.width < viewport.width * 0.7 || metrics.homepageStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.posterImageLoadRate < 0.75 || !metrics.posterPixelInspectionPassed || metrics.heroTextOverlapsNavigation || metrics.heroOverlapsNavigation || !Number.isFinite(metrics.heroClearancePx) || metrics.heroClearancePx < 8 || !metrics.themePairValid || !scrollAudit.navigationViewportValid || scrollAudit.overlappingPosterLabels.length > 0;
+                const failed = !sidebarInteractionPassed || response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.width < viewport.width * 0.7 || metrics.homepageStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.posterImageLoadRate < 0.75 || !metrics.posterPixelInspectionPassed || metrics.heroTextOverlapsNavigation || metrics.heroOverlapsNavigation || !Number.isFinite(metrics.heroClearancePx) || metrics.heroClearancePx < 8 || !metrics.themePairValid || !scrollAudit.navigationViewportValid || scrollAudit.overlappingPosterLabels.length > 0;
                 if (failed) failures += 1;
-                results.push({ name, httpStatus: response?.status() ?? null, failed, metrics, pageErrors: consoleErrors });
+                results.push({ name, httpStatus: response?.status() ?? null, failed, sidebarInteractionPassed, metrics, pageErrors: consoleErrors });
                 console.log(JSON.stringify(results.at(-1)));
                 await context.close();
               }
