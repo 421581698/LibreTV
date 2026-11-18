@@ -46,11 +46,17 @@ try {
       const consoleErrors = [];
       const pageErrors = [];
       const failedRequests = [];
+      const responseErrors = [];
 
       page.on('console', (message) => {
         if (message.type() === 'error') consoleErrors.push(message.text());
       });
       page.on('pageerror', (error) => pageErrors.push(error.message));
+      page.on('response', (response) => {
+        if (response.status() >= 400) {
+          responseErrors.push({ url: response.url(), status: response.status(), statusText: response.statusText() });
+        }
+      });
       page.on('requestfailed', (request) => {
         failedRequests.push({
           url: request.url(),
@@ -76,6 +82,7 @@ try {
           // Ignore expected anonymous 401 responses emitted before the test login.
           consoleErrors.length = 0;
           failedRequests.length = 0;
+          responseErrors.length = 0;
           await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
         } else {
           authenticated = true;
@@ -83,6 +90,15 @@ try {
       } catch (error) {
         authenticationError = error.message;
       }
+
+      await page.evaluate(async () => {
+        const images = [...document.images];
+        images.forEach((image) => { image.loading = 'eager'; });
+        await Promise.race([
+          Promise.allSettled(images.map((image) => image.decode())),
+          new Promise((resolve) => window.setTimeout(resolve, 12000)),
+        ]);
+      }).catch(() => {});
 
       const metrics = await page.evaluate(() => {
         const root = document.documentElement;
@@ -93,6 +109,16 @@ try {
         const documentHeight = Math.max(root?.scrollHeight ?? 0, body?.scrollHeight ?? 0);
         return {
           title: document.title,
+          posterCards: document.querySelectorAll('.v4-apple-poster-card').length,
+          posterImages: [...document.querySelectorAll('.v4-apple-poster-card img')].map((image) => ({
+            alt: image.alt,
+            src: image.getAttribute('src') ?? '',
+            currentSrc: image.currentSrc,
+            complete: image.complete,
+            naturalWidth: image.naturalWidth,
+            naturalHeight: image.naturalHeight,
+            isFallback: (image.getAttribute('src') ?? '').startsWith('data:image/svg+xml'),
+          })),
           homepageVisible: Boolean(document.querySelector('main.v4-home-main')?.getClientRects().length),
           authDialogVisible: Boolean(document.querySelector('[role="dialog"][aria-modal="true"]')?.getClientRects().length),
           ipadCinema: root?.getAttribute('data-ipad-cinema') ?? null,
@@ -132,6 +158,7 @@ try {
         consoleErrors,
         pageErrors,
         failedRequests,
+        responseErrors,
         screenshot,
       });
       await context.close();
@@ -158,6 +185,8 @@ const defects = results.filter((result) =>
   result.metrics?.horizontalOverflow ||
   (result.expectedCinema && (result.metrics?.ipadCinema !== result.expectedCinema || result.metrics?.navOwner !== 'adaptive')) ||
   result.consoleErrors.length > 0 ||
+  result.responseErrors.length > 0 ||
+  (result.metrics?.posterCards > 0 && (result.metrics?.posterImages?.length === 0 || result.metrics.posterImages.some((image) => image.isFallback || image.naturalWidth === 0))) ||
   result.pageErrors.length > 0
 );
 console.log(JSON.stringify({
