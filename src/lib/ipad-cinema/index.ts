@@ -54,4 +54,9 @@ export type { FocusDelivery, FocusRequest, VoiceOverBridge, VoiceOverState } fro
 export { attachVoiceOverRuntime } from './voiceover-runtime';
 export { attachInterruptionLifecycle, decideAfterInterruption } from './interruption';
 export type { InterruptionEvent, InterruptionKind, ResourceFacts, ResumeDecision } from './interruption';
+export { attachPageLifecycle, createLifecycleTransitionDeduper } from './lifecycle-transition';
+export type { LifecycleTransition } from './lifecycle-transition';
+export { auditImage, runImageAudit } from './image-audit';
+export type { ImageAuditHost, ImageAuditIssue } from './image-audit';
+export { attachImageAuditRuntime } from './image-audit-runtime';
 export { IPAD_CINEMA_TOKENS, IPAD_CINEMA_TOKEN_LIMITS, tokensWithinLimits } from './tokens';
