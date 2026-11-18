@@ -43,6 +43,7 @@ import './ipad-cinema.css';
 import { Providers } from '@/components/providers';
 import { MobileTabBar } from '@/components/home/header/MobileTabBar';
 import { IpadCinemaContract } from '@/components/ipad-cinema/IpadCinemaContract';
+import { IpadCinemaResumeNotice } from '@/components/ipad-cinema/IpadCinemaResumeNotice';
 import { GlobalDownloadManager } from '@/components/download-manager';
 
 export const metadata: Metadata = {
@@ -91,6 +92,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {children}
           <MobileTabBar />
           <IpadCinemaContract />
+          <IpadCinemaResumeNotice />
           <GlobalDownloadManager />
         </Providers>
       </body>
