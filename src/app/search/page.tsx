@@ -25,7 +25,6 @@ export default function SearchPage() {
   const history = useSearchHistory(query);
 
   useEffect(() => {
-    inputRef.current?.focus();
     const onTranscript = (event: Event) => {
       const transcript = (event as CustomEvent<{text?:string}>).detail?.text?.trim();
       if (transcript) setQuery(transcript.slice(0,100));
