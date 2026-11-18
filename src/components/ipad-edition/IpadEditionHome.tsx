@@ -11,9 +11,14 @@ import type { DoubanItem } from '@/lib/types';
 import { IpadEditionContinueWatching } from '@/components/ipad-edition/IpadEditionContinueWatching';
 
 const RAIL_SIZE = 10;
+const HERO_SIZE = 5;
 
 function searchHref(title: string) {
   return '/ipad-edition/search?q=' + encodeURIComponent(title);
+}
+
+function detailHref(title: string) {
+  return '/ipad-edition/detail?title=' + encodeURIComponent(title);
 }
 
 export function IpadEditionHome() {
@@ -22,17 +27,10 @@ export function IpadEditionHome() {
   const imageProxyMode = useAppStore((s) => s.imageProxyMode);
   const customImageProxy = useAppStore((s) => s.customImageProxy);
 
+  // One real recommendation request feeds both the featured hero and today's movie rail.
+  // This avoids duplicate requests and keeps the hero and poster rail consistent.
   const featured = useQuery({
-    queryKey: ['ipad-edition-featured'],
-    queryFn: ({ signal }) => fetchHomepageWithFallback(
-      () => api.douban('movie', '热门', 0, 8, signal),
-      () => api.hotList('douban_movie_weekly', signal),
-      signal,
-    ),
-    staleTime: 5 * 60_000,
-  });
-  const movies = useQuery({
-    queryKey: ['ipad-edition-movies'],
+    queryKey: ['ipad-edition-home-featured', doubanEnabled],
     queryFn: ({ signal }) => fetchHomepageWithFallback(
       () => api.douban('movie', '热门', 0, RAIL_SIZE, signal),
       () => api.hotList('douban_movie_weekly', signal),
@@ -41,6 +39,7 @@ export function IpadEditionHome() {
     enabled: doubanEnabled,
     staleTime: 5 * 60_000,
   });
+
   const series = useQuery({
     queryKey: ['ipad-edition-series'],
     queryFn: ({ signal }) => fetchHomepageWithFallback(
@@ -51,51 +50,78 @@ export function IpadEditionHome() {
     enabled: doubanEnabled,
     staleTime: 5 * 60_000,
   });
+
   const newReleases = useQuery({
     queryKey: ['ipad-edition-new'],
     queryFn: ({ signal }) => api.douban('movie', '最新', 0, RAIL_SIZE, signal),
     enabled: doubanEnabled,
     staleTime: 5 * 60_000,
   });
+
   const calendar = useQuery({
     queryKey: ['ipad-edition-bangumi-calendar'],
     queryFn: ({ signal }) => api.bangumiCalendar(signal),
     staleTime: 30 * 60_000,
   });
 
-  const featuredItems = useMemo(
-    () => (featured.data?.items ?? []).filter((item) => item.cover).slice(0, 5),
-    [featured.data],
-  );
-  const hero = featuredItems.length ? featuredItems[activeHero % featuredItems.length] : undefined;
+  const movieItems = useMemo(() => {
+    const seen = new Set<string>();
+    return (featured.data?.items ?? []).filter((item) => {
+      const key = item.id || item.title;
+      if (!item.title?.trim() || !item.cover?.trim() || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [featured.data]);
+
+  const heroItems = movieItems.slice(0, HERO_SIZE);
+  const hero = heroItems.length ? heroItems[activeHero % heroItems.length] : undefined;
   const today = ((new Date().getDay() + 6) % 7) + 1;
   const todayItems = calendar.data?.days.find((day) => day.weekday === today)?.items ?? [];
 
-  const renderRail = (id: string, title: string, items: DoubanItem[], loading: boolean, error: boolean) => (
+  const renderRail = (
+    id: string,
+    title: string,
+    items: DoubanItem[],
+    loading: boolean,
+    error: boolean,
+  ) => (
     <section className="ipad-edition__rail-section" id={id} aria-labelledby={id + '-title'}>
       <div className="ipad-edition__section-heading">
         <h2 id={id + '-title'}>{title}</h2>
       </div>
       {loading ? (
-        <div className="ipad-edition__poster-grid" aria-label={title + '加载中'}>
-          {Array.from({ length: 5 }).map((_, index) => <div className="ipad-edition__poster-skeleton" key={index} />)}
+        <div className="ipad-edition__poster-grid" aria-label={title + '加载中'} aria-busy="true">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div className="ipad-edition__poster-skeleton" key={index} />
+          ))}
         </div>
       ) : error ? (
-        <div className="ipad-edition__rail-message" role="status">暂时无法获取{title}，请稍后重试。</div>
+        <div className="ipad-edition__rail-message" role="status">
+          暂时无法获取{title}，请稍后重试。
+        </div>
       ) : items.length ? (
-        <div className="ipad-edition__poster-grid">
-          {items.slice(0, 5).map((item, index) => (
-            <Link className="ipad-edition__poster-card" href={searchHref(item.title)} key={item.id}>
+        <div className="ipad-edition__poster-grid" aria-label={title}>
+          {items.slice(0, RAIL_SIZE).map((item, index) => (
+            <Link className="ipad-edition__poster-card" href={searchHref(item.title)} key={item.id || item.title}>
               <span className="ipad-edition__poster-art">
-                <SmartImage url={item.cover} mode={imageProxyMode} customProxy={customImageProxy} alt={item.title} />
+                <SmartImage
+                  url={item.cover}
+                  mode={imageProxyMode}
+                  customProxy={customImageProxy}
+                  alt={item.title}
+                  loading="lazy"
+                />
                 <span className="ipad-edition__poster-rank">{index + 1}</span>
               </span>
               <strong title={item.title}>{item.title}</strong>
-              {item.rating ? <small>★ {item.rating}</small> : <small>影视推荐</small>}
+              <small>{item.rating ? '★ ' + item.rating : '影视推荐'}</small>
             </Link>
           ))}
         </div>
-      ) : <div className="ipad-edition__rail-message">当前没有可展示的真实内容。</div>}
+      ) : (
+        <div className="ipad-edition__rail-message">当前没有可展示的真实内容。</div>
+      )}
     </section>
   );
 
@@ -105,19 +131,44 @@ export function IpadEditionHome() {
         {hero ? (
           <>
             <div className="ipad-edition__hero-art">
-              <SmartImage url={hero.cover} mode={imageProxyMode} customProxy={customImageProxy} alt="" loading="eager" />
+              <SmartImage
+                url={hero.cover}
+                mode={imageProxyMode}
+                customProxy={customImageProxy}
+                alt=""
+                loading="eager"
+              />
             </div>
             <div className="ipad-edition__hero-veil" />
             <div className="ipad-edition__hero-copy">
-              
               <h1>{hero.title}</h1>
               <p>在大银幕般的画面里，发现下一部值得收藏的作品。</p>
-              <div className="ipad-edition__hero-meta"><span>豆瓣热门精选</span>{hero.rating ? <span>★ {hero.rating}</span> : null}</div>
-              <div className="ipad-edition__hero-actions"><Link className="ipad-edition__hero-cta" href={"/ipad-edition/detail?title=" + encodeURIComponent(hero.title)}>播放影片 <svg className="ipad-edition__play-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M5 3.5 12 8l-7 4.5z" fill="currentColor" /></svg></Link><Link className="ipad-edition__hero-add" href={"/ipad-edition/detail?title=" + encodeURIComponent(hero.title)} aria-label="查看影片详情">＋</Link></div>
+              <div className="ipad-edition__hero-meta">
+                <span>豆瓣热门精选</span>
+                {hero.rating ? <span>★ {hero.rating}</span> : null}
+              </div>
+              <div className="ipad-edition__hero-actions">
+                <Link className="ipad-edition__hero-cta" href={detailHref(hero.title)}>
+                  播放影片
+                  <svg className="ipad-edition__play-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                    <path d="M5 3.5 12 8l-7 4.5z" fill="currentColor" />
+                  </svg>
+                </Link>
+                <Link className="ipad-edition__hero-add" href={detailHref(hero.title)} aria-label="查看影片详情">＋</Link>
+              </div>
             </div>
-            {featuredItems.length > 1 ? (
+            {heroItems.length > 1 ? (
               <div className="ipad-edition__hero-dots" role="group" aria-label="切换精选影片">
-                {featuredItems.map((item, index) => <button key={item.id} type="button" aria-label={'精选：' + item.title} aria-pressed={activeHero === index} className={activeHero === index ? 'is-active' : ''} onClick={() => setActiveHero(index)} />)}
+                {heroItems.map((item, index) => (
+                  <button
+                    key={item.id || item.title}
+                    type="button"
+                    aria-label={'精选：' + item.title}
+                    aria-pressed={activeHero === index}
+                    className={activeHero === index ? 'is-active' : ''}
+                    onClick={() => setActiveHero(index)}
+                  />
+                ))}
               </div>
             ) : null}
           </>
@@ -126,17 +177,14 @@ export function IpadEditionHome() {
             <p className="ipad-edition__eyebrow">影院大堂 · LIBRETV IPAD EDITION</p>
             <h1>{featured.isLoading ? '正在为你准备影院' : '精选内容暂不可用'}</h1>
             <p>{featured.isLoading ? '正在获取真实影视推荐…' : '推荐服务暂时不可用，请稍后重试。'}</p>
-            {featured.isError ? <button type="button" onClick={() => void featured.refetch()}>重新加载</button> : null}
+            {featured.isError ? (
+              <button type="button" onClick={() => void featured.refetch()}>重新加载</button>
+            ) : null}
           </div>
         )}
       </section>
 
-      <section className="ipad-edition__today" aria-label="今日热门">
-        <div className="ipad-edition__section-heading">
-          <h2>今日热门</h2>
-        </div>
-        {renderRail('ipad-popular-movies', '热门电影', movies.data?.items ?? [], movies.isLoading, movies.isError)}
-      </section>
+      {renderRail('ipad-popular-movies', '今日热门', movieItems, featured.isLoading, featured.isError)}
 
       <IpadEditionContinueWatching />
 
@@ -147,17 +195,31 @@ export function IpadEditionHome() {
         <div className="ipad-edition__section-heading">
           <h2 id="ipad-anime-title">今日新番</h2>
         </div>
-        {calendar.isLoading ? <div className="ipad-edition__rail-message">正在读取每日放送…</div> : calendar.isError ? <div className="ipad-edition__rail-message">新番日历暂时不可用。</div> : todayItems.length ? (
+        {calendar.isLoading ? (
+          <div className="ipad-edition__rail-message" role="status">正在读取每日放送…</div>
+        ) : calendar.isError ? (
+          <div className="ipad-edition__rail-message" role="status">新番日历暂时不可用。</div>
+        ) : todayItems.length ? (
           <div className="ipad-edition__anime-grid">
             {todayItems.slice(0, 5).map((item) => (
               <Link href={searchHref(item.title)} className="ipad-edition__anime-card" key={item.id}>
-                <span><SmartImage url={item.cover} mode={imageProxyMode} customProxy={customImageProxy} alt={item.title} /></span>
+                <span>
+                  <SmartImage
+                    url={item.cover}
+                    mode={imageProxyMode}
+                    customProxy={customImageProxy}
+                    alt={item.title}
+                    loading="lazy"
+                  />
+                </span>
                 <strong>{item.title}</strong>
                 {item.rating ? <small>★ {item.rating}</small> : null}
               </Link>
             ))}
           </div>
-        ) : <div className="ipad-edition__rail-message">今天暂无可展示的新番条目。</div>}
+        ) : (
+          <div className="ipad-edition__rail-message">今天暂无可展示的新番条目。</div>
+        )}
       </section>
     </div>
   );
