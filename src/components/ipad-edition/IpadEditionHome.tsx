@@ -74,8 +74,7 @@ export function IpadEditionHome() {
   const renderRail = (id: string, title: string, items: DoubanItem[], loading: boolean, error: boolean) => (
     <section className="ipad-edition__rail-section" id={id} aria-labelledby={id + '-title'}>
       <div className="ipad-edition__section-heading">
-        <div><p className="ipad-edition__eyebrow">CURATED FOR YOU</p><h2 id={id + '-title'}>{title}</h2></div>
-        <Link href={searchHref(title)}>探索更多 <span aria-hidden="true">›</span></Link>
+        <h2 id={id + '-title'}>{title}</h2>
       </div>
       {loading ? (
         <div className="ipad-edition__poster-grid" aria-label={title + '加载中'}>
@@ -110,11 +109,11 @@ export function IpadEditionHome() {
             </div>
             <div className="ipad-edition__hero-veil" />
             <div className="ipad-edition__hero-copy">
-              <p className="ipad-edition__eyebrow">影院大堂 · LIBRETV ORIGINAL SELECTION</p>
+              
               <h1>{hero.title}</h1>
               <p>在大银幕般的画面里，发现下一部值得收藏的作品。</p>
               <div className="ipad-edition__hero-meta"><span>豆瓣热门精选</span>{hero.rating ? <span>★ {hero.rating}</span> : null}</div>
-              <Link className="ipad-edition__hero-cta" href={searchHref(hero.title)}>查看影片 <span aria-hidden="true">↗</span></Link>
+              <div className="ipad-edition__hero-actions"><Link className="ipad-edition__hero-cta" href={"/ipad-edition/detail?title=" + encodeURIComponent(hero.title)}>播放影片 <span aria-hidden="true">▶</span></Link><Link className="ipad-edition__hero-add" href={"/ipad-edition/detail?title=" + encodeURIComponent(hero.title)} aria-label="查看影片详情">＋</Link></div>
             </div>
             {featuredItems.length > 1 ? (
               <div className="ipad-edition__hero-dots" role="group" aria-label="切换精选影片">
@@ -136,8 +135,7 @@ export function IpadEditionHome() {
 
       <section className="ipad-edition__today" aria-label="今日热门">
         <div className="ipad-edition__section-heading">
-          <div><p className="ipad-edition__eyebrow">NOW SHOWING</p><h2>今日热门</h2></div>
-          <Link href={searchHref('热门')}>全部内容 <span aria-hidden="true">›</span></Link>
+          <h2>今日热门</h2>
         </div>
         {renderRail('ipad-popular-movies', '热门电影', movies.data?.items ?? [], movies.isLoading, movies.isError)}
       </section>
@@ -147,8 +145,7 @@ export function IpadEditionHome() {
 
       <section className="ipad-edition__rail-section" id="ipad-anime-calendar" aria-labelledby="ipad-anime-title">
         <div className="ipad-edition__section-heading">
-          <div><p className="ipad-edition__eyebrow">WEEKLY SIMULCAST</p><h2 id="ipad-anime-title">今日新番</h2></div>
-          <span className="ipad-edition__section-note">Bangumi 每日放送</span>
+          <h2 id="ipad-anime-title">今日新番</h2>
         </div>
         {calendar.isLoading ? <div className="ipad-edition__rail-message">正在读取每日放送…</div> : calendar.isError ? <div className="ipad-edition__rail-message">新番日历暂时不可用。</div> : todayItems.length ? (
           <div className="ipad-edition__anime-grid">
