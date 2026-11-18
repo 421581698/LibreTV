@@ -329,3 +329,119 @@
 }
 
 /* Preview visual refresh checkpoint. */
+
+
+/* Full-bleed iPad cinema layout: no desktop sidebar, floating navigation. */
+html:has(.ipad-edition),body:has(.ipad-edition){background:#000!important;overflow-x:hidden}
+body:has(.ipad-edition){margin:0}
+.ipad-edition{
+  width:100%;min-height:100dvh;margin:0;padding:0 0 64px!important;
+  overflow-x:clip;background:#000!important;color:#f5f5f7!important;
+}
+.ipad-edition__main{width:100%;max-width:none;margin:0;padding:0}
+.ipad-edition__sidebar{display:none!important}
+.ipad-edition__topbar{
+  position:fixed;z-index:100;top:calc(env(safe-area-inset-top,0px) + 18px);left:50%;
+  width:max-content;height:auto;min-height:0;margin:0;padding:0;transform:translateX(-50%);
+  display:flex;align-items:center;justify-content:center;border:0;background:transparent;
+}
+.ipad-edition__top-links{
+  display:flex;align-items:center;justify-content:center;gap:3px;margin:0;padding:6px;
+  border:1px solid rgba(255,255,255,.12);border-radius:999px;
+  background:rgba(34,34,38,.48);box-shadow:0 12px 40px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.08);
+  -webkit-backdrop-filter:blur(28px) saturate(180%);backdrop-filter:blur(28px) saturate(180%);
+}
+.ipad-edition__top-links a{
+  display:flex;align-items:center;justify-content:center;min-height:38px;padding:0 17px;
+  border:0;border-radius:999px;color:rgba(255,255,255,.78);font-size:14px;font-weight:650;
+  white-space:nowrap;transition:background .18s ease,color .18s ease;
+}
+.ipad-edition__top-links a.is-active{background:rgba(255,255,255,.18);color:#fff}
+.ipad-edition__top-links a::after{display:none!important}
+.ipad-edition__top-links a[aria-label]{
+  width:38px;min-width:38px;padding:0;color:rgba(255,255,255,.88)
+}
+.ipad-edition__top-links a[aria-label] .ipad-edition__nav-icon::before{font-size:19px}
+.ipad-edition__home{display:grid;gap:48px;width:100%;padding:0}
+.ipad-edition__hero{
+  position:relative;width:100vw;height:80svh;min-height:560px;max-height:900px;
+  margin:0 0 0 calc(50% - 50vw);border:0;border-radius:0;overflow:hidden;
+  background:#000;box-shadow:none;
+}
+.ipad-edition__hero-art img{width:100%;height:100%;object-fit:cover;object-position:center 34%;opacity:1}
+.ipad-edition__hero-veil{
+  background:linear-gradient(0deg,#000 0%,rgba(0,0,0,.88) 13%,rgba(0,0,0,.42) 43%,rgba(0,0,0,.08) 74%,rgba(0,0,0,.22) 100%),
+    linear-gradient(90deg,rgba(0,0,0,.58) 0%,rgba(0,0,0,.2) 43%,transparent 78%);
+}
+.ipad-edition__hero-copy{
+  left:clamp(28px,6vw,100px);right:auto;bottom:clamp(58px,8vh,110px);
+  width:min(680px,76vw);max-width:680px;display:flex;flex-direction:column;align-items:flex-start;text-align:left;
+}
+.ipad-edition__hero h1{
+  margin:0 0 14px;font-size:clamp(48px,7.2vw,88px);line-height:.98;
+  font-weight:850;letter-spacing:-.07em;color:#fff;
+}
+.ipad-edition__hero-copy>p:not(.ipad-edition__eyebrow){
+  max-width:560px;margin:0 0 15px;color:rgba(255,255,255,.86);font-size:clamp(14px,1.5vw,17px);line-height:1.55;
+}
+.ipad-edition__hero-meta{display:flex;align-items:center;gap:12px;margin:0 0 4px;color:rgba(255,255,255,.8);font-size:13px}
+.ipad-edition__hero-actions{display:flex;align-items:center;gap:12px;margin-top:19px}
+.ipad-edition__hero-cta{
+  display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;margin:0;padding:0 24px;
+  border:0;border-radius:10px;background:#fff;color:#111!important;font-size:15px;font-weight:720;
+  -webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:0 8px 28px rgba(0,0,0,.22);
+}
+.ipad-edition__hero-add{
+  display:grid;place-items:center;width:48px;height:48px;border:1px solid rgba(255,255,255,.18);
+  border-radius:10px;background:rgba(0,0,0,.72);color:#fff!important;font-size:27px;font-weight:300;
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+}
+.ipad-edition__hero-dots{right:clamp(28px,6vw,100px);bottom:38px;gap:6px}
+.ipad-edition__today,.ipad-edition__rail-section{
+  width:100%;padding:0 0 0 clamp(22px,4vw,64px);overflow:hidden;
+}
+.ipad-edition__section-heading{
+  display:flex;align-items:center;justify-content:flex-start;margin:0 0 18px;padding-right:28px;
+}
+.ipad-edition__section-heading h2{
+  margin:0;color:#fff;font-size:clamp(24px,2.5vw,31px);font-weight:780;letter-spacing:-.045em;
+}
+.ipad-edition__section-heading .ipad-edition__eyebrow,
+.ipad-edition__section-heading>a,
+.ipad-edition__section-note{display:none!important}
+.ipad-edition__poster-grid,.ipad-edition__anime-grid,.ipad-edition__continue-grid{
+  display:flex;width:100%;gap:16px;padding:0 48px 20px 0;overflow-x:auto;overflow-y:visible;
+  scroll-snap-type:x mandatory;scroll-padding-left:0;overscroll-behavior-x:contain;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch;
+}
+.ipad-edition__poster-grid::-webkit-scrollbar,.ipad-edition__anime-grid::-webkit-scrollbar,.ipad-edition__continue-grid::-webkit-scrollbar{display:none}
+.ipad-edition__poster-card{flex:0 0 clamp(148px,16vw,220px);width:clamp(148px,16vw,220px);scroll-snap-align:start}
+.ipad-edition__anime-card{flex:0 0 clamp(210px,23vw,310px);width:clamp(210px,23vw,310px);scroll-snap-align:start}
+.ipad-edition__continue-card{flex:0 0 clamp(220px,25vw,340px);width:clamp(220px,25vw,340px);scroll-snap-align:start}
+.ipad-edition__poster-art,.ipad-edition__anime-card>span,.ipad-edition__continue-art{border-radius:10px}
+.ipad-edition__poster-card:hover .ipad-edition__poster-art,
+.ipad-edition__result-card:hover .ipad-edition__result-poster,
+.ipad-edition__library-card:hover .ipad-edition__result-poster{transform:scale(1.035)}
+.ipad-edition__poster-card>strong,.ipad-edition__anime-card>strong,.ipad-edition__continue-card>strong{font-size:14px;font-weight:650}
+.ipad-edition__poster-card>small,.ipad-edition__anime-card>small,.ipad-edition__continue-card>small{font-size:12px}
+.ipad-edition__rail-section .ipad-edition__section-heading{margin-bottom:18px}
+.ipad-edition__page{padding:112px clamp(22px,4vw,64px) 60px}
+@media (max-width:699px){
+ .ipad-edition__topbar{top:calc(env(safe-area-inset-top,0px) + 10px)}
+ .ipad-edition__top-links{gap:0;padding:4px}
+ .ipad-edition__top-links a{min-height:34px;padding:0 10px;font-size:12px}
+ .ipad-edition__top-links a[aria-label]{width:32px;min-width:32px}
+ .ipad-edition__hero{height:76svh;min-height:500px}
+ .ipad-edition__hero-copy{left:22px;bottom:54px;width:calc(100% - 44px)}
+ .ipad-edition__hero h1{font-size:clamp(42px,11vw,62px)}
+ .ipad-edition__today,.ipad-edition__rail-section{padding-left:22px}
+ .ipad-edition__poster-card{flex-basis:142px;width:142px}
+ .ipad-edition__anime-card{flex-basis:200px;width:200px}
+ .ipad-edition__continue-card{flex-basis:220px;width:220px}
+}
+@media (min-width:700px) and (max-width:1023px){
+ .ipad-edition__hero{height:80svh;min-height:540px}
+ .ipad-edition__hero-copy{left:48px;bottom:68px}
+ .ipad-edition__today,.ipad-edition__rail-section{padding-left:32px}
+ .ipad-edition__poster-card{flex-basis:180px;width:180px}
+}
