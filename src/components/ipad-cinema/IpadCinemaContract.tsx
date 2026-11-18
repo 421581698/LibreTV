@@ -4,6 +4,8 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 import {
   applyAttributes,
+  attachImageAuditRuntime,
+  attachPageLifecycle,
   createSession,
   isIpadClassDevice,
   parseRoute,
@@ -41,8 +43,20 @@ export function IpadCinemaContract() {
     };
 
     apply();
+    const imageAudit = attachImageAuditRuntime({
+      root: document,
+      onIssue: issue => document.dispatchEvent(new CustomEvent('ipad-cinema:image-audit-issue', { detail: issue })),
+    });
+    const lifecycle = attachPageLifecycle(window, transition => {
+      if (transition === 'to-background' || transition === 'offline') imageAudit.setLive(false);
+      else imageAudit.setLive(true);
+    });
     window.addEventListener('resize', apply);
-    return () => window.removeEventListener('resize', apply);
+    return () => {
+      window.removeEventListener('resize', apply);
+      lifecycle.detach();
+      imageAudit.detach();
+    };
   }, [pathname]);
 
   return null;
