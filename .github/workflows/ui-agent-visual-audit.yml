@@ -1,6 +1,18 @@
 name: ui-agent-visual-audit
 
 on:
+  push:
+    branches:
+      - feature/ipad-cinema-adaptation-v1
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'styles/**'
+      - 'app/**'
+      - 'scripts/ui-agent/**'
+      - '.agents/skills/libretv-ui-agent/**'
+      - 'docs/ui-agent/**'
+      - '.github/workflows/ui-agent-visual-audit.yml'
   pull_request:
     branches: [main]
     paths:
