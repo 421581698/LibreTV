@@ -292,6 +292,7 @@ describe('V4.3.1 contract wiring', () => {
   const css = read('src/app/ipad-cinema.css');
   const player = read('src/components/player-shell.tsx');
   const detail = read('src/components/movie-detail-page.tsx');
+  const header = read('src/components/home/V4HomepageHeader.tsx');
 
   it('loads the ownership layer last and mounts one contract writer', () => {
     expect(layout.indexOf("import './ipad-cinema.css';")).toBeGreaterThan(layout.indexOf("import './resource-studio.css';"));
@@ -301,6 +302,9 @@ describe('V4.3.1 contract wiring', () => {
     expect(contract).toContain('applyAttributes(document.documentElement, projectAttributes(session, route));');
     expect(contract).not.toContain('router.back');
     expect(contract).not.toContain('router.push');
+    expect(contract).toContain("detail: { focusId: 'region:primary-navigation:index:0', reason: 'navigation' }");
+    expect(header).toContain('data-ipad-focus-id="region:primary-navigation:index:0"');
+    expect(header).toContain('tabIndex={-1}');
     expect(contract).toContain('navigator.onLine !== false');
     expect(contract).toContain("transition !== 'offline'");
   });
@@ -329,5 +333,14 @@ describe('V4.3.1 contract wiring', () => {
     expect(detail).toContain('router.back()');
     expect(detail).toContain('router.push(buildWatchUrl({');
     expect(detail).not.toContain("router.push('/')");
+  });
+
+  it('connects interruption decisions to an explicit user-activated resume action', () => {
+    expect(player).toContain("document.addEventListener('ipad-cinema:resume-decision', handleResumeDecision)");
+    expect(player).toContain("document.removeEventListener('ipad-cinema:resume-decision', handleResumeDecision)");
+    expect(player).toContain('点击继续播放');
+    expect(player).toContain('void art.play().then(() => {');
+    expect(player).toContain("kind: 'app-background'");
+    expect(player).not.toContain("document.addEventListener('ipad-cinema:resume-decision', () => artRef.current?.play())");
   });
 });
