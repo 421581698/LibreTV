@@ -103,7 +103,7 @@ export function IpadEditionHome() {
       ) : items.length ? (
         <div className="ipad-edition__poster-grid" aria-label={title}>
           {items.slice(0, RAIL_SIZE).map((item, index) => (
-            <Link className="ipad-edition__poster-card" data-ipad-poster-slot="movie" data-poster-url={item.cover ?? ''} href={searchHref(item.title)} key={item.id || item.title}>
+            <Link className="ipad-edition__poster-card" data-ipad-poster-slot={id === 'ipad-popular-series' ? 'series' : id === 'ipad-new-releases' ? 'new-release' : 'movie'} data-poster-url={item.cover ?? ''} href={searchHref(item.title)} key={item.id || item.title}>
               <span className="ipad-edition__poster-art">
                 <SmartImage
                   url={item.cover}
