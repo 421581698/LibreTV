@@ -21,7 +21,8 @@ function makeStore(): CollectorSourceStore & { state: { custom: SourceConfig[]; 
     },
   };
 }
-const TASK_ID = 'b'.repeat(32);
+const JOB_ID = 'b'.repeat(32);
+const CRAWL_TASK_ID = 'd'.repeat(32);
 const CANDIDATE_ID = 'c'.repeat(32);
 const VALID_CMS = {
   id: CANDIDATE_ID,
@@ -46,7 +47,7 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
-describe('Collector scheduler bridge — actual Collector API contract, no live crawl', () => {
+describe('Collector scheduler bridge — durable worker queue contract', () => {
   it('discovers sites through the existing /v1/discover endpoint', async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({
       directory: 'https://fmhy.net',
@@ -58,12 +59,11 @@ describe('Collector scheduler bridge — actual Collector API contract, no live 
     expect(response.status).toBe(200);
     expect(fetchMock.mock.calls[0][0]).toBe('https://collector.example/v1/discover');
     expect(fetchMock.mock.calls[0][1].method).toBe('GET');
-    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer server-only-token-should-never-leak');
     expect((await response.json()).sites).toHaveLength(1);
   });
 
-  it('starts a crawl through the existing synchronous /v1/crawl endpoint', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ task_id: TASK_ID, status: 'completed', count: 1 }));
+  it('submits crawl work to the durable queue instead of blocking on /v1/crawl', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ id: JOB_ID, status: 'queued', job_type: 'crawl' }));
     vi.stubGlobal('fetch', fetchMock);
     const response = await startCollectorCrawl({
       url: 'https://catalog.example',
@@ -71,12 +71,16 @@ describe('Collector scheduler bridge — actual Collector API contract, no live 
       limit: 50,
       searchKeyword: 'documentary',
     });
-    expect(response.status).toBe(200);
-    expect(fetchMock.mock.calls[0][0]).toBe('https://collector.example/v1/crawl');
+    expect(response.status).toBe(202);
+    expect(await response.json()).toMatchObject({ task_id: JOB_ID, status: 'queued' });
+    expect(fetchMock.mock.calls[0][0]).toBe('https://collector.example/v1/tasks/submit');
     expect(fetchMock.mock.calls[0][1].method).toBe('POST');
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
-      url: 'https://catalog.example', mode: 'auto', limit: 50, search_keyword: 'documentary',
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body).toMatchObject({
+      job_type: 'crawl',
+      payload: { url: 'https://catalog.example', mode: 'auto', limit: 50, search_keyword: 'documentary' },
     });
+    expect(body.idempotency_key).toMatch(/^resource-studio:crawl:/);
   });
 
   it('rejects an empty crawl URL without contacting the Collector', async () => {
@@ -87,13 +91,15 @@ describe('Collector scheduler bridge — actual Collector API contract, no live 
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('reads persisted tasks from /v1/tasks and selects the requested task', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ tasks: [{ id: TASK_ID, status: 'completed' }] }));
+  it('reads a durable job and normalizes worker succeeded to UI completed', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ id: JOB_ID, status: 'succeeded', result: '{"task_id":"' + CRAWL_TASK_ID + '"}' }));
     vi.stubGlobal('fetch', fetchMock);
-    const response = await getCollectorTaskStatus(TASK_ID);
+    const response = await getCollectorTaskStatus(JOB_ID);
     expect(response.status).toBe(200);
-    expect((await response.json()).task.status).toBe('completed');
-    expect(fetchMock.mock.calls[0][0]).toBe('https://collector.example/v1/tasks?limit=100');
+    expect((await response.json()).task).toMatchObject({
+      id: JOB_ID, status: 'completed', result: { task_id: CRAWL_TASK_ID },
+    });
+    expect(fetchMock.mock.calls[0][0]).toBe(`https://collector.example/v1/jobs/${JOB_ID}`);
   });
 
   it('rejects malformed task ids without issuing a request', async () => {
@@ -103,30 +109,32 @@ describe('Collector scheduler bridge — actual Collector API contract, no live 
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('validates candidates via the Collector gate before returning a CMS source', async () => {
+  it('resolves the underlying crawl task, validates candidates, and returns CMS source', async () => {
     const store = makeStore();
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(jsonResponse({ tasks: [{ id: TASK_ID, status: 'completed' }] }))
+      .mockResolvedValueOnce(jsonResponse({ id: JOB_ID, status: 'succeeded', result: { task_id: CRAWL_TASK_ID } }))
+      .mockResolvedValueOnce(jsonResponse({ id: JOB_ID, status: 'succeeded', result: { task_id: CRAWL_TASK_ID } }))
       .mockResolvedValueOnce(jsonResponse({ candidates: [VALID_CMS] }))
       .mockResolvedValueOnce(jsonResponse({ candidate_id: CANDIDATE_ID, validation: VALIDATION }));
     vi.stubGlobal('fetch', fetchMock);
-    const result = await receiveCollectorTaskResult(store, TASK_ID);
+    const result = await receiveCollectorTaskResult(store, JOB_ID);
     expect(result.status).toBe(200);
     expect(result.ingest).toMatchObject({ considered: 1, registered: 1, rejected: 0, duplicates: 0 });
     expect(result.ingest.sources).toEqual([{ url: VALIDATION.source_url, name: 'Catalog' }]);
     expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
-      'https://collector.example/v1/tasks?limit=100',
-      `https://collector.example/v1/tasks/${TASK_ID}/candidates`,
+      `https://collector.example/v1/jobs/${JOB_ID}`,
+      `https://collector.example/v1/jobs/${JOB_ID}`,
+      `https://collector.example/v1/tasks/${CRAWL_TASK_ID}/candidates`,
       `https://collector.example/v1/candidates/${CANDIDATE_ID}/validate`,
     ]);
     expect(JSON.stringify(result)).not.toContain('server-only-token-should-never-leak');
   });
 
-  it('does not fetch candidates or ingest a partial/failed task', async () => {
+  it('does not fetch candidates or ingest a queued/failed job', async () => {
     const store = makeStore();
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ tasks: [{ id: TASK_ID, status: 'partial' }] }));
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ id: JOB_ID, status: 'queued', result: '{}' }));
     vi.stubGlobal('fetch', fetchMock);
-    const result = await receiveCollectorTaskResult(store, TASK_ID);
+    const result = await receiveCollectorTaskResult(store, JOB_ID);
     expect(result.status).toBe(409);
     expect(result.ingest.considered).toBe(0);
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -144,7 +152,7 @@ describe('Collector scheduler bridge — actual Collector API contract, no live 
     expect(store.customAPIs).toHaveLength(0);
   });
 
-  it('rejects gated CMS candidates and all non-completed tasks', () => {
+  it('rejects gated CMS candidates and failed jobs', () => {
     const store = makeStore();
     const gated = { ...VALIDATION, access: { access_state: 'ACCESS_UNKNOWN' } };
     const gatedResult = ingestJobResult(store, {
