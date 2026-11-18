@@ -6,6 +6,8 @@ import {
   applyAttributes,
   attachImageAuditRuntime,
   attachPageLifecycle,
+  attachVoiceOverRuntime,
+  decideAfterInterruption,
   createSession,
   isIpadClassDevice,
   parseRoute,
@@ -13,6 +15,7 @@ import {
   reconcilePlayerRoute,
   resolveCinemaActivation,
   setActivation,
+  setVoiceOverState,
   type ExperienceSession,
 } from '@/lib/ipad-cinema';
 
