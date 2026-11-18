@@ -21,7 +21,7 @@ This specification governs the isolated LibreTV iPad Edition product branch.
 
 ## Shared component language
 
-Apply the same material tokens to the top navigation, sidebar, backdrop, search surfaces, category controls, pagination, and floating action surfaces. New floating panels and menus should reuse these tokens rather than introducing unrelated glass treatments.
+Apply the same material tokens and capsule geometry across the top navigation, sidebar navigation, search controls, category filters, collection tabs, pagination, form actions, and floating action surfaces. Compact controls use a full pill radius; larger category tiles and panels retain generous continuous Apple-like corners while sharing the same translucent material. New floating panels and menus should reuse these tokens rather than introducing unrelated glass treatments.
 
 ## Scope and validation
 
