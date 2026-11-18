@@ -131,14 +131,14 @@ export function IpadEditionHome() {
         )}
       </section>
 
-      <IpadEditionContinueWatching />
-
       <section className="ipad-edition__today" aria-label="今日热门">
         <div className="ipad-edition__section-heading">
           <h2>今日热门</h2>
         </div>
         {renderRail('ipad-popular-movies', '热门电影', movies.data?.items ?? [], movies.isLoading, movies.isError)}
       </section>
+
+      <IpadEditionContinueWatching />
 
       {renderRail('ipad-popular-series', '热门剧集', series.data?.items ?? [], series.isLoading, series.isError)}
       {renderRail('ipad-new-releases', '新近上线', newReleases.data?.items ?? [], newReleases.isLoading, newReleases.isError)}
