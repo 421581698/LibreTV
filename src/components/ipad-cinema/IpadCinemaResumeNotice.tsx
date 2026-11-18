@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * Safari may suspend media while the page is backgrounded. This notice never
@@ -10,6 +10,7 @@ export function IpadCinemaResumeNotice() {
   const [message, setMessage] = useState('');
   const [pending, setPending] = useState(false);
   const [visible, setVisible] = useState(false);
+  const pendingRef = useRef(false);
 
   useEffect(() => {
     const onDecision = (event: Event) => {
@@ -21,11 +22,12 @@ export function IpadCinemaResumeNotice() {
       setMessage(detail.decision === 'reload-then-resume'
         ? '当前视频源已失效，请重新选择播放源后继续。'
         : '已保存播放进度。请轻点播放器的播放按钮继续。');
+      pendingRef.current = true;
       setPending(true);
       setVisible(document.visibilityState === 'visible');
     };
     const onVisibility = () => {
-      if (document.visibilityState === 'visible' && pending) setVisible(true);
+      if (document.visibilityState === 'visible' && pendingRef.current) setVisible(true);
     };
     document.addEventListener('ipad-cinema:resume-decision', onDecision);
     document.addEventListener('visibilitychange', onVisibility);
@@ -33,7 +35,7 @@ export function IpadCinemaResumeNotice() {
       document.removeEventListener('ipad-cinema:resume-decision', onDecision);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [pending]);
+  }, []);
 
   if (!visible || !pending) return null;
   return (
@@ -45,7 +47,7 @@ export function IpadCinemaResumeNotice() {
       <button
         type="button"
         className="shrink-0 rounded-full bg-white/15 px-3 py-1.5 text-xs font-medium"
-        onClick={() => { setPending(false); setVisible(false); }}
+        onClick={() => { pendingRef.current = false; setPending(false); setVisible(false); }}
       >
         知道了
       </button>
