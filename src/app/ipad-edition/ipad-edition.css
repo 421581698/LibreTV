@@ -1739,3 +1739,15 @@ body:has(.ipad-edition) { margin: 0; }
 :root:not(.dark) .ipad-edition__top-links > a.is-active {
   color: #151b25 !important;
 }
+
+/* iPad Edition owns its top Liquid Glass navigation. The shared mobile dock is
+   portaled directly under body, so hiding descendants of .ipad-edition is not
+   sufficient; explicitly exclude that portal on this route. */
+html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+.ipad-edition {
+  padding-bottom: max(24px, env(safe-area-inset-bottom, 0px)) !important;
+}
