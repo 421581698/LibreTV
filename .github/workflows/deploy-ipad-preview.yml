@@ -101,8 +101,23 @@ jobs:
         run: |
           node --input-type=module <<'NODE'
           const base = "https://libretv-ipad-preview.bggdbh.workers.dev";
-          const statusResponse = await fetch(base + "/api/status", { cache: "no-store" });
-          if (!statusResponse.ok) throw new Error("Preview status endpoint failed: HTTP " + statusResponse.status);
+          // workers.dev edge activation can lag behind the successful upload by several seconds.
+          // Retry the public endpoint instead of treating immediate propagation delay as a bad deploy.
+          let statusResponse;
+          let lastStatus = "no response";
+          for (let attempt = 1; attempt <= 12; attempt += 1) {
+            try {
+              statusResponse = await fetch(base + "/api/status", { cache: "no-store" });
+              if (statusResponse.ok) break;
+              lastStatus = "HTTP " + statusResponse.status;
+            } catch (error) {
+              lastStatus = String(error);
+            }
+            if (attempt < 12) await new Promise(resolve => setTimeout(resolve, 5000));
+          }
+          if (!statusResponse?.ok) {
+            throw new Error("Preview did not become reachable after 60 seconds: " + lastStatus);
+          }
           const status = await statusResponse.json();
           if (status.passwordRequired !== true || status.verified !== false) {
             throw new Error("Preview is not presenting the expected unauthenticated password gate.");
