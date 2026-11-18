@@ -145,7 +145,9 @@ describe('首页与播放页回归契约', () => {
     expect(v4Styles).toContain('.v4-apple-poster-card');
     expect(home).toContain("router.push('/detail?' + params.toString())");
     expect(home).toContain('api.search(movie.title, selectedSources, yellowFilter)');
-    expect(movieDetail).toMatch(/export function MovieDetailPage\\(/);\n    expect(movieDetail).toContain("watchPath = '/watch'");\n    expect(movieDetail).toContain(".replace('/watch?', watchPath + '?')");
+    expect(movieDetail).toMatch(/export function MovieDetailPage\(/);
+    expect(movieDetail).toContain("watchPath = '/watch'");
+    expect(movieDetail).toContain(".replace('/watch?', watchPath + '?')");
   });
 
   it('V4 首页 Header 首屏即透明沉浸，滚动时不切换状态', () => {
