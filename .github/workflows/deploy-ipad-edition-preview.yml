@@ -88,10 +88,18 @@ jobs:
           }
           console.log("Dedicated iPad Edition Preview route is reachable and renders the cinema shell.");
           NODE
-      - name: Install Playwright Chromium for simulated iPad visual audit
-        run: |
-          npm install --no-save --no-package-lock playwright@1.56.1
-          npx playwright install --with-deps chromium
+      - name: Install Playwright package for simulated iPad visual audit
+        timeout-minutes: 5
+        run: npm install --no-save --no-package-lock playwright@1.56.1
+      - name: Install Chromium system dependencies
+        timeout-minutes: 8
+        run: npx playwright install-deps chromium
+      - name: Install Playwright Chromium browser
+        timeout-minutes: 8
+        env:
+          PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT: "120000"
+          PLAYWRIGHT_DOWNLOAD_NO_PROGRESS: "1"
+        run: npx playwright install chromium --no-progress
       - name: Run iPad viewport and theme visual audit
         run: |
           mkdir -p artifacts/ipad-visual-audit
