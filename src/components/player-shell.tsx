@@ -240,7 +240,9 @@ export function PlayerShell({
       const decision = (event as CustomEvent<{ decision?: string }>).detail?.decision;
       setResumePrompt(decision === 'resume' || decision === 'ask-user');
       if (decision === 'reload-then-resume') {
-        showHint('当前视频资源已失效，请重新选择播放源后继续');
+        setHint('当前视频资源已失效，请重新选择播放源后继续');
+        if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+        hintTimerRef.current = setTimeout(() => setHint(''), 2500);
       }
     };
     document.addEventListener('ipad-cinema:resume-decision', handleResumeDecision);
