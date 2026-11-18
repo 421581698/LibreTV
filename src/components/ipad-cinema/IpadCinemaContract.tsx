@@ -27,6 +27,7 @@ import {
 export function IpadCinemaContract() {
   const pathname = usePathname() || '/';
   const sessionRef = useRef<ExperienceSession>(createSession());
+  const lastRouteRef = useRef<string | null>(null);
 
   useEffect(() => {
     let imageAudit: ReturnType<typeof attachImageAuditRuntime> | null = null;
@@ -40,10 +41,22 @@ export function IpadCinemaContract() {
         document.documentElement.clientWidth,
       );
       const route = parseRoute(pathname, window.location.search);
+      const routeKey = `${pathname}?${window.location.search}`;
+      const routeChanged = lastRouteRef.current !== null && lastRouteRef.current !== routeKey;
+      lastRouteRef.current = routeKey;
       let session = setActivation(sessionRef.current, activation).session;
       session = reconcilePlayerRoute(session, route).session;
       sessionRef.current = session;
       applyAttributes(document.documentElement, projectAttributes(session, route));
+
+      // A real navigation caller now requests focus restoration. The target is
+      // intentionally limited to the V4 homepage header; no initial-load focus
+      // stealing and no claim that DOM focus equals VoiceOver virtual focus.
+      if (routeChanged && route.kind === 'home' && activation !== 'inactive') {
+        document.dispatchEvent(new CustomEvent('ipad-cinema:focus-request', {
+          detail: { focusId: 'region:primary-navigation:index:0', reason: 'navigation' },
+        }));
+      }
       imageAudit?.audit();
     };
 
