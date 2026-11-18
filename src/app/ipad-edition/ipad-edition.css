@@ -1242,3 +1242,138 @@ body:has(.ipad-edition){margin:0}
   color: currentColor;
   filter: drop-shadow(0 1px 1px rgba(0,0,0,.12));
 }
+
+/* iPad Design Engine foundation: shared material, spatial and motion tokens. */
+.ipad-edition {
+  --ipad-z-content: 0;
+  --ipad-z-controls: 20;
+  --ipad-z-navigation: 110;
+  --ipad-z-drawer: 121;
+  --ipad-z-modal: 140;
+  --ipad-motion-fast: 160ms;
+  --ipad-motion-standard: 240ms;
+  --ipad-motion-emphasized: 340ms;
+  --ipad-motion-ease: cubic-bezier(.2,.8,.2,1);
+  --ipad-glass-fill: rgba(246,248,252,.76);
+  --ipad-glass-fill-strong: rgba(250,251,253,.9);
+  --ipad-glass-edge: rgba(24,32,46,.14);
+  --ipad-glass-highlight: rgba(255,255,255,.82);
+  --ipad-glass-shadow: 0 12px 38px rgba(28,38,56,.16);
+  --ipad-glass-text: #17191d;
+  --ipad-glass-muted: #596273;
+  --ipad-depth-shadow: 0 18px 54px rgba(12,20,34,.2);
+}
+.dark .ipad-edition {
+  --ipad-glass-fill: rgba(34,36,42,.62);
+  --ipad-glass-fill-strong: rgba(24,26,31,.88);
+  --ipad-glass-edge: rgba(255,255,255,.16);
+  --ipad-glass-highlight: rgba(255,255,255,.14);
+  --ipad-glass-shadow: 0 12px 38px rgba(0,0,0,.32);
+  --ipad-glass-text: #f5f6f8;
+  --ipad-glass-muted: rgba(235,235,245,.68);
+  --ipad-depth-shadow: 0 20px 64px rgba(0,0,0,.48);
+}
+.ipad-edition__top-links {
+  z-index: var(--ipad-z-navigation);
+  border-color: var(--ipad-glass-edge);
+  background: var(--ipad-glass-fill);
+  box-shadow: var(--ipad-glass-shadow), inset 0 1px 0 var(--ipad-glass-highlight);
+  -webkit-backdrop-filter: blur(var(--ipad-glass-blur, 24px)) saturate(175%);
+  backdrop-filter: blur(var(--ipad-glass-blur, 24px)) saturate(175%);
+}
+.ipad-edition__top-links a {
+  min-height: 42px;
+  transition:
+    background-color var(--ipad-motion-standard) var(--ipad-motion-ease),
+    color var(--ipad-motion-fast) ease,
+    transform var(--ipad-motion-fast) var(--ipad-motion-ease);
+}
+.ipad-edition__top-links a,
+.ipad-edition__sidebar-toggle {
+  color: var(--ipad-glass-text);
+}
+.ipad-edition__top-links a.is-active {
+  background: color-mix(in srgb, var(--ipad-accent, #0a84ff) 17%, transparent);
+  color: var(--ipad-glass-text);
+  box-shadow: inset 0 1px 0 var(--ipad-glass-highlight);
+}
+.ipad-edition__sidebar {
+  z-index: var(--ipad-z-drawer);
+  border-right: 1px solid var(--ipad-glass-edge);
+  background: var(--ipad-glass-fill-strong);
+  color: var(--ipad-glass-text);
+  box-shadow: var(--ipad-depth-shadow);
+  -webkit-backdrop-filter: blur(30px) saturate(165%);
+  backdrop-filter: blur(30px) saturate(165%);
+  transition:
+    transform var(--ipad-motion-emphasized) var(--ipad-motion-ease),
+    visibility var(--ipad-motion-emphasized) ease;
+}
+.ipad-edition__backdrop { z-index: calc(var(--ipad-z-drawer) - 1); }
+.ipad-edition__sidebar-toggle {
+  z-index: calc(var(--ipad-z-navigation) + 2);
+  border-color: var(--ipad-glass-edge);
+  background: var(--ipad-glass-fill);
+  box-shadow: var(--ipad-glass-shadow), inset 0 1px 0 var(--ipad-glass-highlight);
+}
+.ipad-edition__sidebar-toggle svg { width: 20px; height: 20px; }
+.ipad-edition__nav-button:active,
+.ipad-edition__sidebar-toggle:active,
+.ipad-edition__top-links a:active,
+.ipad-edition__hero-cta:active,
+.ipad-edition__hero-add:active {
+  transform: scale(.96);
+}
+.ipad-edition :where(a,button,input,[tabindex]):focus-visible {
+  outline: 2px solid var(--ipad-accent, #0a84ff);
+  outline-offset: 3px;
+}
+.ipad-edition :where(button,a) {
+  -webkit-tap-highlight-color: transparent;
+}
+.ipad-edition__poster-grid,
+.ipad-edition__anime-grid,
+.ipad-edition__continue-grid {
+  overscroll-behavior-x: contain;
+  scroll-behavior: smooth;
+}
+.ipad-edition__poster-art,
+.ipad-edition__anime-card > span,
+.ipad-edition__continue-art,
+.ipad-edition__result-poster {
+  contain: paint;
+}
+@media (prefers-reduced-transparency: reduce) {
+  .ipad-edition__top-links,
+  .ipad-edition__sidebar,
+  .ipad-edition__sidebar-toggle {
+    background: var(--ipad-glass-fill-strong);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,.18);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ipad-edition__top-links a,
+  .ipad-edition__sidebar,
+  .ipad-edition__sidebar-toggle,
+  .ipad-edition__poster-art,
+  .ipad-edition__anime-card > span,
+  .ipad-edition__hero-cta {
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+  .ipad-edition__top-links a:active,
+  .ipad-edition__sidebar-toggle:active,
+  .ipad-edition__hero-cta:active {
+    transform: none;
+  }
+}
+@media (hover: none) {
+  .ipad-edition__top-links a:hover,
+  .ipad-edition__sidebar-toggle:hover { transform: none; }
+  .ipad-edition__top-links a:active { background: var(--ipad-glass-highlight); }
+}
+@media (max-width: 699px) {
+  .ipad-edition__top-links a { min-height: 38px; }
+}
