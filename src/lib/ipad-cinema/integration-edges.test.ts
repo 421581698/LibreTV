@@ -29,5 +29,8 @@ describe('iPad cinema integration edges', () => {
     expect(notice).toContain('当前视频源已失效，请重新选择播放源后继续。');
     expect(notice).not.toContain('.play(');
     expect(notice).not.toContain('autoplay');
+    expect(notice).toContain('const pendingRef = useRef(false);');
+    expect(notice).toContain("if (document.visibilityState === 'visible' && pendingRef.current) setVisible(true);");
+    expect(notice).toContain('  }, []);');
   });
 });
