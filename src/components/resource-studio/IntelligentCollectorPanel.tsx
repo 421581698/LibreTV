@@ -208,7 +208,7 @@ export function IntelligentCollectorPanel() {
       }
       setDiscoverTaskId(taskId);
       setDiscoverStatus(String(result.status ?? 'unknown'));
-      setNotice(`站点采集请求已完成：${site.host}，候选 ${Number(result.count ?? 0)} 项。任务结果已由 Collector 持久化。`);
+      setNotice(`已将 ${site.host} 的采集任务提交到后台队列。任务正在等待 Worker 执行，可刷新状态查看进度。`);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '站点采集失败。请检查 Collector 出口门禁与服务状态。');
     } finally { setDiscoverBusy(false); }
