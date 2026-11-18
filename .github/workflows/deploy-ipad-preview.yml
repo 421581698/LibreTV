@@ -1,0 +1,117 @@
+name: Deploy Isolated iPad Cinema Preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_preview_deploy:
+        description: "确认仅部署到独立的 libretv-ipad-preview Worker"
+        required: true
+        type: choice
+        options:
+          - "no"
+          - "yes"
+        default: "no"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: libretv-ipad-preview-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-preview:
+    if: ${{ inputs.confirm_preview_deploy == 'yes' }}
+    name: Build and deploy isolated iPad preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment: preview
+    steps:
+      - name: Checkout exact manually selected commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Verify source commit and isolated target
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          test "$SOURCE_SHA" = "cbc3d0e35b29a81719fcb8bb376fa89b1768302e" || (echo "Unexpected source SHA: $SOURCE_SHA" && exit 1)
+          grep -Eq '^[[:space:]]*name[[:space:]]*=[[:space:]]*"libretv-ipad-preview"' wrangler.ipad-preview.toml
+          grep -Eq '^[[:space:]]*AUTH_DISABLED[[:space:]]*=[[:space:]]*"false"' wrangler.ipad-preview.toml
+          if grep -Eq '^[[:space:]]*AUTH_DISABLED[[:space:]]*=[[:space:]]*"true"' wrangler.ipad-preview.toml; then
+            echo "iPad preview must remain password-protected"
+            exit 1
+          fi
+
+      - name: Verify Cloudflare and iPad preview secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          IPAD_PREVIEW_PASSWORD: ${{ secrets.LIBRETV_IPAD_PREVIEW_PASSWORD }}
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing preview secret: CLOUDFLARE_API_TOKEN" && exit 1)
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "Missing preview secret: CLOUDFLARE_ACCOUNT_ID" && exit 1)
+          test -n "$IPAD_PREVIEW_PASSWORD" || (echo "Missing preview secret: LIBRETV_IPAD_PREVIEW_PASSWORD" && exit 1)
+          test "${#IPAD_PREVIEW_PASSWORD}" -ge 24 || (echo "LIBRETV_IPAD_PREVIEW_PASSWORD must contain at least 24 characters" && exit 1)
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: TypeScript verification
+        run: npm run typecheck
+
+      - name: ESLint verification
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test -- --reporter=dot
+
+      - name: Build iPad preview
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npx opennextjs-cloudflare build
+
+      - name: Deploy to dedicated iPad Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --config wrangler.ipad-preview.toml
+
+      - name: Set dedicated Worker PASSWORD secret without logging its value
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          IPAD_PREVIEW_PASSWORD: ${{ secrets.LIBRETV_IPAD_PREVIEW_PASSWORD }}
+        run: printf '%s' "$IPAD_PREVIEW_PASSWORD" | npx wrangler secret put PASSWORD --config wrangler.ipad-preview.toml
+
+      - name: Verify deployed password gate and endpoints
+        run: |
+          node --input-type=module <<'NODE'
+          const base = "https://libretv-ipad-preview.bggdbh.workers.dev";
+          const statusResponse = await fetch(base + "/api/status", { headers: { "cache-control": "no-cache" } });
+          if (!statusResponse.ok) throw new Error("/api/status returned HTTP " + statusResponse.status);
+          const status = await statusResponse.json();
+          if (status.passwordRequired !== true || status.verified !== false) {
+            throw new Error("iPad preview is not locked: passwordRequired=" + status.passwordRequired + ", verified=" + status.verified);
+          }
+          const authResponse = await fetch(base + "/api/auth", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ password: "__invalid_ipad_preview_smoke_password__" }),
+          });
+          if (authResponse.status !== 401) {
+            throw new Error("Expected invalid password to return 401, got " + authResponse.status);
+          }
+          const homeResponse = await fetch(base + "/", { redirect: "follow" });
+          if (homeResponse.status !== 200 || !(homeResponse.headers.get("content-type") || "").includes("text/html")) {
+            throw new Error("Homepage smoke check failed: HTTP " + homeResponse.status);
+          }
+          console.log("Verified isolated iPad preview: homepage available, anonymous session locked, invalid password rejected.");
+          NODE
