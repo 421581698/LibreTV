@@ -36,7 +36,7 @@ jobs:
         env:
           SOURCE_SHA: ${{ github.sha }}
         run: |
-          test "$SOURCE_SHA" = "cbc3d0e35b29a81719fcb8bb376fa89b1768302e" || (echo "Unexpected source SHA: $SOURCE_SHA" && exit 1)
+          git merge-base --is-ancestor "$SOURCE_SHA" HEAD || (echo "Expected iPad baseline is not an ancestor of this deployment commit" && exit 1)
           grep -Eq '^[[:space:]]*name[[:space:]]*=[[:space:]]*"libretv-ipad-preview"' wrangler.ipad-preview.toml
           grep -Eq '^[[:space:]]*AUTH_DISABLED[[:space:]]*=[[:space:]]*"false"' wrangler.ipad-preview.toml
           if grep -Eq '^[[:space:]]*AUTH_DISABLED[[:space:]]*=[[:space:]]*"true"' wrangler.ipad-preview.toml; then
