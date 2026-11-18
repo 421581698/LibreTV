@@ -1432,11 +1432,23 @@ export function PlayerShell({
     el?.addEventListener('touchmove', onTouchMove, { passive: false });
     el?.addEventListener('contextmenu', onContextMenu);
 
-    // 卸载与页面隐藏时保存进度
+    // 页面进入后台时保存进度，并向 iPad Cinema 生命周期合同报告真实播放器状态。
+    // 这里只记录恢复决策，不自动调用 play()；iOS Safari 的恢复播放仍需用户手势。
     const saveOnHide = () => {
-      if (document.visibilityState === 'hidden' && !endedRef.current) {
-        propsRef.current.onPause?.(art.currentTime, art.duration);
-      }
+      if (document.visibilityState !== 'hidden' || endedRef.current) return;
+      const video = art.video;
+      const position = Number.isFinite(art.currentTime) ? art.currentTime : 0;
+      const duration = Number.isFinite(art.duration) ? art.duration : 0;
+      propsRef.current.onPause?.(position, duration);
+      document.dispatchEvent(new CustomEvent('ipad-cinema:system-interruption', {
+        detail: {
+          kind: 'app-background',
+          resource: {
+            valid: Boolean(video?.currentSrc) && Boolean(video && video.readyState >= HTMLMediaElement.HAVE_METADATA) && !video?.error,
+            positionResumable: position > 0 && Number.isFinite(position),
+          },
+        },
+      }));
     };
     document.addEventListener('visibilitychange', saveOnHide);
 
