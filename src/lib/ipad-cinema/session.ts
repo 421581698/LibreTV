@@ -3,6 +3,7 @@ import type { DetailCapsulePolicy } from './chrome';
 import { resolvedFocusAxis, type FocusAxis } from './focus-engine';
 
 export type HistoryAction = 'none' | 'back-once';
+export type VoiceOverSessionState = 'unknown' | 'running' | 'stopped';
 
 export type PageSurface =
   | { readonly type: 'home' }
@@ -27,6 +28,7 @@ export type PageSnapshot = {
 
 export type ExperienceSession = {
   readonly activation: CinemaActivation;
+  readonly voiceOver: VoiceOverSessionState;
   readonly detailCapsule: DetailCapsulePolicy;
   readonly page: PageSurface;
   readonly player: PlayerOverlay | null;
@@ -54,6 +56,7 @@ export function createSession(partial?: {
 }): ExperienceSession {
   return {
     activation: partial?.activation ?? 'inactive',
+    voiceOver: 'unknown',
     detailCapsule: partial?.detailCapsule ?? 'baseline-visible',
     page: { type: 'home' },
     player: null,
@@ -68,6 +71,11 @@ export function playerExitHistory(
 ): HistoryAction {
   if (presentation !== 'fullscreen' || !routeOwned) return 'none';
   return 'back-once';
+}
+
+export function setVoiceOverState(session: ExperienceSession, voiceOver: VoiceOverSessionState): SessionResult {
+  if (session.voiceOver === voiceOver) return noop(session);
+  return { session: { ...session, voiceOver }, historyAction: 'none' };
 }
 
 export function setActivation(session: ExperienceSession, activation: CinemaActivation): SessionResult {
