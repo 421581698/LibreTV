@@ -172,7 +172,7 @@ export const LiquidGlassSurface = forwardRef<HTMLElement, SurfaceProps>(function
     {
       ...props,
       ref,
-      style: { position: 'relative', ...style },
+      style,
       className: [
         'liquid-glass',
         interactive ? 'liquid-glass--interactive' : '',
