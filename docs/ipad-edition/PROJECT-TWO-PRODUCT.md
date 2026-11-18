@@ -10,7 +10,7 @@
 
 | 页面/模块 | 实现方式 | 数据来源 |
 |---|---|---|
-| 影院首页 | 宽幅精选 Hero、热门电影、热门剧集、最新内容、新番轨道 | 豆瓣 API、60s 热榜备用、Bangumi 日历 |
+| 影院首页 | 宽幅精选 Hero、继续观看、热门电影、热门剧集、最新内容、新番轨道 | 豆瓣 API、60s 热榜备用、Bangumi 日历 |
 | 电影 | 热门/最新/高分切换、分页、真实海报 | `/api/douban` |
 | 电视剧 | 热门/最新/高分切换、分页、真实海报 | `/api/douban` |
 | 动漫 | 新番日历与真实番剧条目 | `/api/bangumi/calendar` |
@@ -37,7 +37,7 @@
 
 ## 独立验证
 
-当前产品分支的 TypeScript、ESLint、单元测试与 Next.js 生产构建已在 CI 通过；独立 Preview 部署与 HTTP smoke test 正在启动。
+产品包含本地继续观看进度轨道；播放入口使用 iPad Edition 专属播放路由。\n\n当前产品分支的 TypeScript、ESLint、单元测试与 Next.js 生产构建已通过 CI；独立 Preview 部署与 HTTP smoke test 已通过，最新增量变更正在重新验收。
 
 - TypeScript：`npm run typecheck`
 - ESLint：`npm run lint`
