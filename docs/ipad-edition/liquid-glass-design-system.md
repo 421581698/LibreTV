@@ -36,3 +36,11 @@ CI success and HTTP route checks are not substitutes for real iPad visual accept
 - Media artwork and video surfaces are intentionally excluded from global glass overlays.
 - Use `-webkit-backdrop-filter` alongside `backdrop-filter` for Safari compatibility, with translucent fills remaining legible when blur is unavailable.
 - Verify touch targets, safe-area placement, scrolling, and light/dark contrast on a real iPad after Preview deployment.
+
+## Design Engine integration
+
+The six-pillar system is defined in [IPAD-DESIGN-ENGINE-ROADMAP.md](./IPAD-DESIGN-ENGINE-ROADMAP.md). This Liquid Glass document remains the material-specific reference; it must follow the shared material, motion, spatial, accessibility, and performance tokens defined by that roadmap.
+
+Safari baseline: translucent fill, backdrop blur where available, edge contrast, highlight and shadow. SVG displacement/refraction and chromatic aberration are optional progressive enhancements only. A missing displacement filter must never make the navigation or controls unreadable.
+
+Preview rollout: [deploy-ipad-edition-preview]
