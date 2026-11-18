@@ -96,9 +96,9 @@ try {
       await page.waitForFunction(() => {
         const rails = ['apple-tv-top10', 'apple-movie-top10', 'apple-new-releases']
           .map((id) => document.getElementById(id));
-        return rails.every((rail) => rail && rail.querySelector('.v4-apple-rail-skeleton, .v4-apple-poster-skeleton') === null
+        return rails.every((rail) => rail && rail.querySelector('.v4-apple-poster-skeleton') === null
           && !rail.querySelector('[aria-label$="加载中"]'));
-      }, { timeout: 20000 }).catch(() => {});
+      }, null, { timeout: 20000 }).catch(() => {});
 
       await page.evaluate(async () => {
         const images = [...document.images];
