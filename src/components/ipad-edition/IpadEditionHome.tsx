@@ -8,6 +8,7 @@ import { api } from '@/lib/client-api';
 import { fetchHomepageWithFallback } from '@/lib/homepage-recommendation-fallback';
 import { useAppStore } from '@/lib/store';
 import type { DoubanItem } from '@/lib/types';
+import { IpadEditionContinueWatching } from '@/components/ipad-edition/IpadEditionContinueWatching';
 
 const RAIL_SIZE = 10;
 
@@ -130,6 +131,8 @@ export function IpadEditionHome() {
           </div>
         )}
       </section>
+
+      <IpadEditionContinueWatching />
 
       <section className="ipad-edition__today" aria-label="今日热门">
         <div className="ipad-edition__section-heading">
