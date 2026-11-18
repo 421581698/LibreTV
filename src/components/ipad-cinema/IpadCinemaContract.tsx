@@ -78,8 +78,13 @@ export function IpadCinemaContract() {
     document.addEventListener('ipad-cinema:focus-request', onFocusRequest);
     document.addEventListener('ipad-cinema:system-interruption', onInterruption);
     const lifecycle = attachPageLifecycle(window, transition => {
-      if (transition === 'to-background' || transition === 'offline') imageAudit?.setLive(false);
-      else imageAudit?.setLive(true);
+      imageAudit?.setLive(
+        sessionRef.current.activation !== 'inactive'
+        && document.visibilityState === 'visible'
+        && navigator.onLine !== false
+        && transition !== 'to-background'
+        && transition !== 'offline',
+      );
     });
     window.addEventListener('resize', apply);
     return () => {
