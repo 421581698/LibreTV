@@ -4,9 +4,15 @@ on:
   push:
     branches:
       - feature/libretv-ipad-edition-foundation
+      - feature/libretv-ipad-edition-product
     paths:
       - "src/app/ipad-edition/**"
       - "src/components/ipad-edition/**"
+      - "src/components/movie-detail-page.tsx"
+      - "src/app/watch/page.tsx"
+      - "src/lib/client-api.ts"
+      - "src/lib/types.ts"
+      - "src/lib/utils.ts"
       - "src/lib/ipad-edition/**"
       - "docs/ipad-edition/**"
       - "src/app/layout.tsx"
