@@ -109,7 +109,7 @@ export function IpadEditionHome() {
             </div>
             <div className="ipad-edition__hero-veil" />
             <div className="ipad-edition__hero-copy">
-              <p className="ipad-edition__eyebrow">LIBRETV ORIGINAL SELECTION</p>
+              <p className="ipad-edition__eyebrow">影院大堂 · LIBRETV ORIGINAL SELECTION</p>
               <h1>{hero.title}</h1>
               <p>在大银幕般的画面里，发现下一部值得收藏的作品。</p>
               <div className="ipad-edition__hero-meta"><span>豆瓣热门精选</span>{hero.rating ? <span>★ {hero.rating}</span> : null}</div>
