@@ -1,4 +1,5 @@
 name: Deploy LibreTV iPad Edition Preview
+# Preview-only visual audit activation; never targets the production Worker.
 
 on:
   workflow_dispatch:
