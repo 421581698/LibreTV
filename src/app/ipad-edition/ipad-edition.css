@@ -1705,3 +1705,5 @@ body:has(.ipad-edition) { margin: 0; }
     scroll-behavior: auto !important;
   }
 }
+
+/* [deploy-ipad-edition-preview] Publish the global iPad Edition refinement to isolated Preview. */
