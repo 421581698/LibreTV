@@ -339,6 +339,26 @@ jobs:
                     metrics.themeDifference.activeNavigationColorChanged &&
                     metrics.themeDifference.glassBlurPresentInBothThemes);
                 }
+                // Force every poster slot through a real paint/decode cycle before the
+                // full-page capture. DOM naturalWidth alone can be true while a lazy
+                // image has not yet been painted into the captured screenshot.
+                await page.evaluate(async () => {
+                  const slots = Array.from(document.querySelectorAll('[data-ipad-poster-slot]'));
+                  for (const slot of slots) {
+                    slot.scrollIntoView({ block: 'center', inline: 'nearest' });
+                    const image = slot.querySelector('img');
+                    if (image) {
+                      image.loading = 'eager';
+                      if (typeof image.decode === 'function') {
+                        await image.decode().catch(() => {});
+                      }
+                    }
+                    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                  }
+                  window.scrollTo(0, 0);
+                  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                  if (document.fonts?.ready) await document.fonts.ready;
+                });
                 const name = viewport.name + "-" + colorScheme;
                 await page.screenshot({ path: "artifacts/ipad-visual-audit/" + name + ".png", fullPage: true, animations: "disabled" });
                 const failed = response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.width < viewport.width * 0.7 || metrics.homepageStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.posterImageLoadRate < 0.75 || metrics.heroTextOverlapsNavigation || !metrics.themePairValid;
