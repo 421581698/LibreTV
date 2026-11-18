@@ -451,13 +451,9 @@ body:has(.ipad-edition) { margin: 0; }
   border: 1px solid transparent !important;
   border-radius: 17px !important;
   background: transparent !important;
-  color: rgba(35, 43, 56, .76) !important;
+  color: var(--ipad-glass-muted) !important;
   cursor: pointer;
   transition: background .2s ease, border-color .2s ease, color .2s ease, transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s ease !important;
-}
-.dark .ipad-edition__top-links > a,
-.dark .ipad-edition__top-links > .ipad-edition__nav-button {
-  color: rgba(246, 248, 252, .82) !important;
 }
 .ipad-edition__top-links > a::after { display: none !important; }
 .ipad-edition__top-links > a > svg,
@@ -475,13 +471,13 @@ body:has(.ipad-edition) { margin: 0; }
 .ipad-edition__top-links > a.is-active {
   border-color: rgba(255,255,255,.54) !important;
   background: linear-gradient(145deg, rgba(255,255,255,.62), rgba(255,255,255,.22)) !important;
-  color: #151b25 !important;
+  color: var(--ipad-glass-foreground) !important;
   box-shadow: 0 4px 14px rgba(24,38,62,.1), inset 0 1px 0 rgba(255,255,255,.82) !important;
 }
 .dark .ipad-edition__top-links > a.is-active {
   border-color: rgba(255,255,255,.2) !important;
   background: linear-gradient(145deg, rgba(255,255,255,.2), rgba(255,255,255,.07)) !important;
-  color: #fff !important;
+  color: var(--ipad-glass-foreground) !important;
   box-shadow: 0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.24) !important;
 }
 .ipad-edition__top-links > a:active,
