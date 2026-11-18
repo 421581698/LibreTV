@@ -37,6 +37,8 @@
 
 ## 独立验证
 
+当前产品分支的 TypeScript、ESLint、单元测试与 Next.js 生产构建已在 CI 通过；独立 Preview 部署与 HTTP smoke test 正在启动。
+
 - TypeScript：`npm run typecheck`
 - ESLint：`npm run lint`
 - 单元测试：`npm test -- --reporter=dot`
