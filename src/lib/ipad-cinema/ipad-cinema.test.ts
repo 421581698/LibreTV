@@ -340,6 +340,10 @@ describe('V4.3.1 contract wiring', () => {
     expect(player).toContain("document.removeEventListener('ipad-cinema:resume-decision', handleResumeDecision)");
     expect(player).toContain('点击继续播放');
     expect(player).toContain('void art.play().then(() => {');
+    expect(player).toContain("decision === 'resume' || decision === 'ask-user'");
+    expect(player).toContain("decision === 'reload-then-resume'");
+    expect(player).toContain('if (!video?.paused)');
+    expect(player).toContain('当前视频资源已失效，请重新选择播放源后继续');
     expect(player).toContain("kind: 'app-background'");
     expect(player).not.toContain("document.addEventListener('ipad-cinema:resume-decision', () => artRef.current?.play())");
   });
