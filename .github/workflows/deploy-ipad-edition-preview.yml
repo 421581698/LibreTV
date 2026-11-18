@@ -403,9 +403,36 @@ jobs:
                 metrics.posterPixelInspectionPassed = posterPixelChecks.length === metrics.posterSlotCount &&
                   metrics.posterPixelInspectionUnavailableCount === 0 && metrics.blankBlackPosterCount === 0;
 
+                // Audit the real viewport, not a stitched full-page capture. Chromium can
+                // reposition fixed elements while stitching a fullPage screenshot, making
+                // the top navigation appear over unrelated poster rows even though its
+                // measured viewport position is correct.
+                await page.locator("#ipad-popular-series").scrollIntoViewIfNeeded();
+                await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+                const scrollAudit = await page.evaluate(() => {
+                  const nav = document.querySelector(".ipad-nav__topbar")?.getBoundingClientRect();
+                  const labels = Array.from(document.querySelectorAll("#ipad-popular-series .ipad-edition__poster-card strong, #ipad-popular-series .ipad-edition__poster-card small"));
+                  const visibleLabels = labels.map((element) => {
+                    const rect = element.getBoundingClientRect();
+                    const visible = rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < window.innerHeight;
+                    const overlapsNavigation = Boolean(nav && visible && nav.left < rect.right && nav.right > rect.left && nav.top < rect.bottom && nav.bottom > rect.top);
+                    return { text: element.textContent?.trim() ?? "", top: Math.round(rect.top), bottom: Math.round(rect.bottom), visible, overlapsNavigation };
+                  });
+                  return {
+                    scrollY: Math.round(window.scrollY),
+                    navigationTop: nav ? Math.round(nav.top) : null,
+                    navigationBottom: nav ? Math.round(nav.bottom) : null,
+                    visiblePosterLabels: visibleLabels.filter(item => item.visible).length,
+                    overlappingPosterLabels: visibleLabels.filter(item => item.overlapsNavigation),
+                    navigationViewportValid: Boolean(nav && nav.top >= 0 && nav.bottom <= window.innerHeight),
+                  };
+                });
+                metrics.scrollAudit = scrollAudit;
                 const name = viewport.name + "-" + colorScheme;
-                await page.screenshot({ path: "artifacts/ipad-visual-audit/" + name + ".png", fullPage: true, animations: "disabled" });
-                const failed = response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.width < viewport.width * 0.7 || metrics.homepageStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.posterImageLoadRate < 0.75 || !metrics.posterPixelInspectionPassed || metrics.heroTextOverlapsNavigation || metrics.heroOverlapsNavigation || !Number.isFinite(metrics.heroClearancePx) || metrics.heroClearancePx < 8 || !metrics.themePairValid;
+                await page.evaluate(() => window.scrollTo(0, 0));
+                await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+                await page.screenshot({ path: "artifacts/ipad-visual-audit/" + name + ".png", fullPage: false, animations: "disabled" });
+                const failed = response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.width < viewport.width * 0.7 || metrics.homepageStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.posterImageLoadRate < 0.75 || !metrics.posterPixelInspectionPassed || metrics.heroTextOverlapsNavigation || metrics.heroOverlapsNavigation || !Number.isFinite(metrics.heroClearancePx) || metrics.heroClearancePx < 8 || !metrics.themePairValid || !scrollAudit.navigationViewportValid || scrollAudit.overlappingPosterLabels.length > 0;
                 if (failed) failures += 1;
                 results.push({ name, httpStatus: response?.status() ?? null, failed, metrics, pageErrors: consoleErrors });
                 console.log(JSON.stringify(results.at(-1)));
