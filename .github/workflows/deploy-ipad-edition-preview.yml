@@ -99,7 +99,7 @@ jobs:
         env:
           PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT: "120000"
           PLAYWRIGHT_DOWNLOAD_NO_PROGRESS: "1"
-        run: npx playwright install chromium --no-progress
+        run: npx playwright install chromium
       - name: Run iPad viewport and theme visual audit
         run: |
           mkdir -p artifacts/ipad-visual-audit
