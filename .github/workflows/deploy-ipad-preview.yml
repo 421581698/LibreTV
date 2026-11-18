@@ -1,4 +1,5 @@
 name: Deploy Isolated iPad Cinema Preview
+# Public Preview rollout: no application access-code gate.
 
 on:
   workflow_dispatch:
