@@ -67,6 +67,10 @@ LibreTV iPad Edition 是独立的 iPad 产品版本。它拥有独立入口、�
 
 完整首页数据接入、真实 Hero 内容、影视详情页、搜索页、分类页、播放器完整 UI、个人空间和设置页面属于项目二。项目一只交付这些页面未来使用的独立应用基础，不以静态占位冒充完整产品。
 
+## Preview 发布
+
+独立 Preview Worker 名称为 libretv-ipad-edition-preview。部署只允许由本分支触发，且只写入该独立 Worker，不配置生产路由或自定义域名。
+
 ## 分支与发布边界
 
 - 工作分支：feature/libretv-ipad-edition-foundation
