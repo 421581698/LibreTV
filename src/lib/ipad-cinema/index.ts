@@ -35,6 +35,7 @@ export {
   resetToHome,
   resolvedSessionAxis,
   setActivation,
+  setVoiceOverState,
   setDetailCapsule,
   updateFocus,
 } from './session';
@@ -46,5 +47,11 @@ export type {
   PageSurface,
   PlayerOverlay,
   SessionResult,
+  VoiceOverSessionState,
 } from './session';
+export { requestAccessibilityFocus, parseFocusId } from './voiceover';
+export type { FocusDelivery, FocusRequest, VoiceOverBridge, VoiceOverState } from './voiceover';
+export { attachVoiceOverRuntime } from './voiceover-runtime';
+export { attachInterruptionLifecycle, decideAfterInterruption } from './interruption';
+export type { InterruptionEvent, InterruptionKind, ResourceFacts, ResumeDecision } from './interruption';
 export { IPAD_CINEMA_TOKENS, IPAD_CINEMA_TOKEN_LIMITS, tokensWithinLimits } from './tokens';
