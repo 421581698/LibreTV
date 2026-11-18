@@ -967,3 +967,98 @@ body:has(.ipad-edition){margin:0}
   .ipad-edition__category-grid button,
   .ipad-edition__search-form button { transition: none !important; }
 }
+
+
+/* Apple TV-inspired top navigation: dark liquid glass, icon + label, blue active state. */
+.ipad-edition .ipad-edition__top-links {
+  width: min(520px, calc(100vw - 36px)) !important;
+  max-width: 520px !important;
+  height: 62px !important;
+  padding: 7px 10px !important;
+  gap: 3px !important;
+  border: 1px solid rgba(255,255,255,.14) !important;
+  border-radius: 999px !important;
+  background: rgba(30,30,32,.86) !important;
+  box-shadow: 0 10px 34px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.1) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(165%) !important;
+  backdrop-filter: blur(30px) saturate(165%) !important;
+}
+.ipad-edition .ipad-edition__top-links > a,
+.ipad-edition .ipad-edition__top-links > .ipad-edition__nav-button {
+  display: inline-flex !important;
+  flex: 1 1 0 !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  width: auto !important;
+  min-width: 0 !important;
+  height: 46px !important;
+  min-height: 46px !important;
+  padding: 0 12px !important;
+  border: 1px solid transparent !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  color: rgba(255,255,255,.78) !important;
+  box-shadow: none !important;
+  text-decoration: none !important;
+  white-space: nowrap !important;
+}
+.ipad-edition .ipad-edition__top-links > a.is-active {
+  color: #0a84ff !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+.ipad-edition .ipad-edition__top-links > a:hover,
+.ipad-edition .ipad-edition__top-links > .ipad-edition__nav-button:hover {
+  color: #fff !important;
+  background: rgba(255,255,255,.09) !important;
+}
+.ipad-edition .ipad-edition__top-links .ipad-edition__top-icon {
+  display: block !important;
+  flex: 0 0 21px !important;
+  width: 21px !important;
+  height: 21px !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 1.75 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+.ipad-edition .ipad-edition__top-label {
+  display: inline-block !important;
+  color: inherit !important;
+  font-size: 13px !important;
+  line-height: 1 !important;
+  font-weight: 620 !important;
+  letter-spacing: -.01em !important;
+}
+.ipad-edition .ipad-edition__top-links > .ipad-edition__nav-button:active,
+.ipad-edition .ipad-edition__top-links > a:active {
+  transform: scale(.97) !important;
+  background: rgba(255,255,255,.1) !important;
+}
+.ipad-edition .ipad-edition__sidebar-toggle span:not(.ipad-edition__top-label) {
+  display: none !important;
+}
+@media (max-width: 520px) {
+  .ipad-edition .ipad-edition__top-links {
+    width: calc(100vw - 24px) !important;
+    height: 58px !important;
+    padding: 5px 6px !important;
+  }
+  .ipad-edition .ipad-edition__top-links > a,
+  .ipad-edition .ipad-edition__top-links > .ipad-edition__nav-button {
+    gap: 5px !important;
+    padding-inline: 5px !important;
+  }
+  .ipad-edition .ipad-edition__top-icon {
+    width: 19px !important;
+    height: 19px !important;
+    flex-basis: 19px !important;
+  }
+  .ipad-edition .ipad-edition__top-label {
+    font-size: 12px !important;
+  }
+}
