@@ -27,7 +27,7 @@ function detailSource(store: Pick<ReturnType<typeof useAppStore.getState>, 'cust
   return null;
 }
 
-export function MovieDetailPage() {
+export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch' | '/ipad-edition/watch' }) {
   const router = useRouter();
   const params = useSearchParams();
   const customAPIs = useAppStore((state) => state.customAPIs);
@@ -176,8 +176,8 @@ export function MovieDetailPage() {
       index,
       title: displayTitle,
       sourceUrl: source?.url || sourceUrl || undefined,
-    }));
-  }, [sourceKey, vodId, episodes, displayTitle, router, source, sourceUrl]);
+    }).replace(/^\\/watch(?=\\?)/, watchPath));
+  }, [sourceKey, vodId, episodes, displayTitle, router, source, sourceUrl, watchPath]);
 
   const toggleFavorite = async () => {
     if (!sourceKey || !vodId) return;
