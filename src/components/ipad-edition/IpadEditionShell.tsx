@@ -12,7 +12,7 @@ const sidebarNavigation = [
   { label: '资料库', href: '/ipad-edition/library', icon: 'square-stack' },
 ];
 
-function NavigationIcon({ name }: { name: 'house' | 'search' | 'user' }) {
+function NavigationIcon({ name }: { name: 'house' | 'film' | 'sparkles' | 'search' | 'user' }) {
   const common = {
     viewBox: '0 0 24 24',
     className: 'ipad-edition__top-icon',
@@ -27,6 +27,12 @@ function NavigationIcon({ name }: { name: 'house' | 'search' | 'user' }) {
   if (name === 'house') {
     return <svg {...common}><path d="M3.8 10.4 12 3.7l8.2 6.7v9a.9.9 0 0 1-.9.9h-5.1v-6.1H9.8v6.1H4.7a.9.9 0 0 1-.9-.9z" /></svg>;
   }
+  if (name === 'film') {
+    return <svg {...common}><rect x="3.5" y="5" width="17" height="14" rx="2" /><path d="M7 5v14M17 5v14M3.5 9h3.5M17 9h3.5M3.5 15h3.5M17 15h3.5" /></svg>;
+  }
+  if (name === 'sparkles') {
+    return <svg {...common}><path d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3Z" /><path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15ZM5 2l.7 2.3L8 5l-2.3.7L5 8l-.7-2.3L2 5l2.3-.7L5 2Z" /></svg>;
+  }
   if (name === 'search') {
     return <svg {...common}><circle cx="10.7" cy="10.7" r="6.4" /><path d="m15.4 15.4 4.6 4.6" /></svg>;
   }
@@ -34,7 +40,7 @@ function NavigationIcon({ name }: { name: 'house' | 'search' | 'user' }) {
 }
 
 function SidebarPanelIcon() {
-  return <svg className="ipad-edition__top-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3.5" y="4" width="17" height="16" rx="2" /><path d="M9.5 4v16M6.5 8h.1M6.5 12h.1M12.5 8h4.5M12.5 12h4.5" /></svg>;
+  return <svg className="ipad-edition__top-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2.5" width="16" height="19" rx="3" /><path d="M9.5 5.5h5M10 18.5h4" /></svg>;
 }
 
 export function IpadEditionShell({ children }: { children: ReactNode }) {
@@ -71,9 +77,11 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
         <header className="ipad-edition__topbar">
           <nav className="ipad-edition__top-links" aria-label="主导航">
             <button className="ipad-edition__nav-button ipad-edition__sidebar-toggle" type="button" aria-label={sidebarOpen ? "关闭侧边栏" : "打开侧边栏"} aria-expanded={sidebarOpen} aria-controls="ipad-edition-sidebar" onClick={() => setSidebarOpen((open) => !open)}>
-              <SidebarPanelIcon /><span className="ipad-edition__top-label">菜单</span>
+              <SidebarPanelIcon />
             </button>
             <Link href="/ipad-edition" className={homeActive ? 'is-active' : ''} aria-label="首页" aria-current={homeActive ? 'page' : undefined}><NavigationIcon name="house" /><span className="ipad-edition__top-label">首页</span></Link>
+            <Link href="/ipad-edition/movies" className={pathname.startsWith('/ipad-edition/movies') ? 'is-active' : ''} aria-label="影视" aria-current={pathname.startsWith('/ipad-edition/movies') ? 'page' : undefined}><NavigationIcon name="film" /><span className="ipad-edition__top-label">影视</span></Link>
+            <Link href="/ipad-edition/anime" className={pathname.startsWith('/ipad-edition/anime') ? 'is-active' : ''} aria-label="动漫" aria-current={pathname.startsWith('/ipad-edition/anime') ? 'page' : undefined}><NavigationIcon name="sparkles" /><span className="ipad-edition__top-label">动漫</span></Link>
             <Link href="/ipad-edition/search" className={searchActive ? 'is-active' : ''} aria-label="搜索" aria-current={searchActive ? 'page' : undefined}><NavigationIcon name="search" /><span className="ipad-edition__top-label">搜索</span></Link>
             <Link href="/ipad-edition/library" className={myActive ? 'is-active' : ''} aria-label="我的" aria-current={myActive ? 'page' : undefined}><NavigationIcon name="user" /><span className="ipad-edition__top-label">我的</span></Link>
           </nav>
