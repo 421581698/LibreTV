@@ -857,13 +857,15 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
   color: var(--ipad-nav-ink);
   background: transparent;
   box-shadow: 24px 0 70px rgba(0, 0, 0, .22);
-  transform: translateX(-105%);
+  transform: translateX(calc(-105% + var(--ipad-sidebar-drag, 0px)));
   visibility: hidden;
   transition: transform .24s cubic-bezier(.2,.75,.25,1), visibility .24s;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
-.ipad-nav__sidebar.is-open { transform: translateX(0); visibility: visible; }
+.ipad-nav__sidebar.is-open { transform: translateX(var(--ipad-sidebar-drag, 0px)); visibility: visible; }
+.ipad-edition[data-ipad-sidebar-dragging="true"] .ipad-nav__sidebar { transition: none !important; }
+.ipad-edition { touch-action: pan-y pinch-zoom; }
 .ipad-nav__brand { display: flex; align-items: center; gap: 11px; padding: 4px 8px 42px; color: inherit; }
 .ipad-nav__brand-copy { display: grid; gap: 3px; }
 .ipad-nav__brand-copy strong { font-size: 19px; font-weight: 780; letter-spacing: -.04em; }
