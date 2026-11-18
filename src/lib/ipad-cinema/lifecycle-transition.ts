@@ -1,10 +1,4 @@
 export type LifecycleTransition = 'to-background' | 'to-foreground' | 'offline' | 'online';
-const OPPOSITE_KEY: Record<LifecycleTransition, LifecycleTransition> = {
-  'to-background': 'to-foreground',
-  'to-foreground': 'to-background',
-  offline: 'online',
-  online: 'offline',
-};
 /** Deduplicates paired browser signals for one physical transition, while allowing the next cycle. */
 export function createLifecycleTransitionDeduper(onTransition: (transition: LifecycleTransition) => void) {
   let last: LifecycleTransition | null = null;
