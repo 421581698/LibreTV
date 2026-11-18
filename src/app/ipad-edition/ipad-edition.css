@@ -148,3 +148,182 @@
 .ipad-edition [data-screen="settings"] .v4-spatial-screen{min-height:0!important;background:transparent!important}
 .ipad-edition [data-screen="settings"] .v4-spatial-main{max-width:none!important;padding:12px 0 40px!important}
 @media (min-width:700px) and (max-width:1023px){.ipad-edition__continue-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}}
+
+
+/* Apple TV-inspired cinema material system */
+.ipad-edition{
+  --ipad-page:#000;
+  --ipad-surface:rgba(28,28,30,.58);
+  --ipad-surface-solid:#171719;
+  --ipad-text:#f5f5f7;
+  --ipad-muted:rgba(235,235,245,.62);
+  --ipad-line:rgba(255,255,255,.075);
+  --ipad-accent:#0a84ff;
+  --ipad-glass-blur:28px;
+  padding-top:10px;
+  color:var(--ipad-text);
+  background:#000;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",sans-serif;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+.dark .ipad-edition{background:#000}
+.ipad-edition__sidebar{
+  width:272px;
+  padding:30px 18px 22px;
+  border:0;
+  background:rgba(12,12,14,.64);
+  -webkit-backdrop-filter:blur(30px) saturate(165%);
+  backdrop-filter:blur(30px) saturate(165%);
+}
+.ipad-edition__brand{gap:11px;padding:0 13px 42px;color:#fff;font-size:21px;font-weight:720;letter-spacing:-.055em}
+.ipad-edition__brand-mark{
+  width:31px;height:31px;border:1px solid rgba(255,255,255,.28);border-radius:9px;
+  background:linear-gradient(145deg,rgba(255,255,255,.19),rgba(255,255,255,.035));
+  color:#fff;font-size:16px;font-weight:650;box-shadow:inset 0 1px 0 rgba(255,255,255,.16);
+}
+.ipad-edition__brand small{color:rgba(235,235,245,.48);font-size:8px;letter-spacing:.1em}
+.ipad-edition__nav-label{color:rgba(235,235,245,.42);font-size:10px;font-weight:650;letter-spacing:.1em}
+.ipad-edition__nav{gap:5px}
+.ipad-edition__nav a,.ipad-edition__sidebar-footer a{
+  min-height:46px;padding:0 14px;border-radius:12px;color:rgba(235,235,245,.72);
+  font-size:15px;font-weight:650;letter-spacing:-.015em;
+  transition:background .2s ease,color .2s ease,transform .2s ease;
+}
+.ipad-edition__nav a>span{width:22px;font-size:0}
+.ipad-edition__nav a:hover,.ipad-edition__sidebar-footer a:hover{background:rgba(255,255,255,.07);color:#fff}
+.ipad-edition__nav a.is-active{
+  background:rgba(255,255,255,.14);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+}
+.ipad-edition__nav-icon{display:inline-grid;place-items:center;width:20px;height:20px;color:currentColor}
+.ipad-edition__nav-icon::before{font-size:17px;line-height:1;font-weight:400}
+.icon-house::before{content:"⌂"}
+.icon-film::before{content:"▤"}
+.icon-tv::before{content:"▣"}
+.icon-sparkles::before{content:"✧"}
+.icon-square-stack::before{content:"▱"}
+.icon-search::before{content:"⌕"}
+.icon-settings::before{content:"⚙"}
+.ipad-edition__sidebar-footer{border:0;padding-top:12px}
+.ipad-edition__main{max-width:none}
+.ipad-edition__topbar{
+  height:58px;margin:0 0 16px;justify-content:flex-start;
+  border-bottom:1px solid rgba(255,255,255,.045);
+}
+.ipad-edition__top-links{display:flex;align-items:center;gap:30px;margin-left:24px}
+.ipad-edition__top-links a{
+  position:relative;padding:8px 1px;color:rgba(235,235,245,.64);
+  font-size:14px;font-weight:600;letter-spacing:-.01em;transition:color .18s ease;
+}
+.ipad-edition__top-links a:hover,.ipad-edition__top-links a.is-active{color:#fff}
+.ipad-edition__top-links a.is-active::after{
+  content:"";position:absolute;left:0;right:0;bottom:-9px;height:2px;border-radius:2px;background:#0a84ff;
+}
+.ipad-edition__top-actions{right:12px;gap:18px}
+.ipad-edition__top-actions a{
+  width:38px;height:38px;border:0;border-radius:50%;background:transparent;
+  color:rgba(235,235,245,.82);font-size:0;transition:background .18s ease,color .18s ease;
+}
+.ipad-edition__top-actions a:hover{background:rgba(255,255,255,.09);color:#fff}
+.ipad-edition__top-actions .ipad-edition__nav-icon::before{font-size:21px}
+.ipad-edition__home{gap:42px}
+.ipad-edition__hero{
+  height:clamp(390px,42vw,570px);margin:0 12px;border:0;border-radius:22px;
+  background:#09090b;box-shadow:0 28px 80px rgba(0,0,0,.48);
+}
+.ipad-edition__hero-art img{opacity:.94;object-position:center 38%;transform:scale(1.015)}
+.ipad-edition__hero-veil{
+  background:
+    linear-gradient(0deg,#000 0%,rgba(0,0,0,.92) 8%,rgba(0,0,0,.55) 34%,rgba(0,0,0,.08) 72%,rgba(0,0,0,.08) 100%),
+    linear-gradient(90deg,rgba(0,0,0,.82) 0%,rgba(0,0,0,.52) 37%,rgba(0,0,0,.04) 82%);
+}
+.ipad-edition__hero-copy{left:clamp(28px,4vw,66px);bottom:clamp(34px,4vw,58px);max-width:650px}
+.ipad-edition__hero .ipad-edition__eyebrow{margin-bottom:16px;color:rgba(255,255,255,.72);font-size:11px;font-weight:650;letter-spacing:.045em}
+.ipad-edition__hero h1{
+  margin-bottom:14px;font-size:clamp(42px,5.2vw,68px);line-height:.99;
+  font-weight:820;letter-spacing:-.065em;text-shadow:0 3px 28px rgba(0,0,0,.35);
+}
+.ipad-edition__hero-copy>p:not(.ipad-edition__eyebrow){max-width:480px;color:rgba(255,255,255,.78);font-size:15px;line-height:1.55}
+.ipad-edition__hero-meta{gap:18px;color:rgba(255,255,255,.72);font-size:12px}
+.ipad-edition__hero-cta{
+  min-height:43px;margin-top:20px;padding:0 19px;border:1px solid rgba(255,255,255,.2);
+  border-radius:11px;background:rgba(255,255,255,.17);color:#fff!important;
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  font-size:14px;font-weight:680;box-shadow:0 8px 26px rgba(0,0,0,.22);
+  transition:background .18s ease,transform .18s ease;
+}
+.ipad-edition__hero-cta:hover{background:rgba(255,255,255,.26);transform:translateY(-1px)}
+.ipad-edition__hero-dots{right:clamp(28px,4vw,60px);bottom:34px;gap:6px}
+.ipad-edition__hero-dots button{width:5px;height:5px;background:rgba(255,255,255,.38)}
+.ipad-edition__hero-dots button.is-active{width:19px;background:#fff}
+.ipad-edition__today,.ipad-edition__rail-section{padding:0 22px}
+.ipad-edition__section-heading{margin-bottom:19px}
+.ipad-edition__section-heading .ipad-edition__eyebrow{
+  margin-bottom:5px;color:rgba(235,235,245,.5);font-size:10px;font-weight:680;letter-spacing:.055em;
+}
+.ipad-edition__section-heading h2{
+  color:#f5f5f7;font-size:clamp(23px,2.2vw,29px);font-weight:760;letter-spacing:-.045em;
+}
+.ipad-edition__section-heading>a,.ipad-edition__section-note{
+  color:#0a84ff;font-size:13px;font-weight:620;transition:opacity .18s ease;
+}
+.ipad-edition__section-heading>a:hover{opacity:.75}
+.ipad-edition__poster-grid,.ipad-edition__anime-grid{gap:17px}
+.ipad-edition__poster-card{gap:9px;cursor:pointer}
+.ipad-edition__poster-art,.ipad-edition__result-poster{
+  border-radius:12px;background:#151517;box-shadow:0 8px 24px rgba(0,0,0,.34);
+  transition:transform .28s cubic-bezier(.2,.8,.2,1),box-shadow .28s ease;
+}
+.ipad-edition__poster-card:hover .ipad-edition__poster-art,
+.ipad-edition__result-card:hover .ipad-edition__result-poster,
+.ipad-edition__library-card:hover .ipad-edition__result-poster{
+  transform:scale(1.045);box-shadow:0 18px 38px rgba(0,0,0,.58),0 0 0 1px rgba(255,255,255,.13);
+}
+.ipad-edition__poster-card>strong,.ipad-edition__anime-card>strong{
+  color:rgba(255,255,255,.94);font-size:13px;font-weight:650;letter-spacing:-.015em;
+}
+.ipad-edition__poster-card>small,.ipad-edition__anime-card>small{color:rgba(235,235,245,.55);font-size:11px}
+.ipad-edition__poster-rank{border:1px solid rgba(255,255,255,.16);background:rgba(0,0,0,.58);backdrop-filter:blur(14px)}
+.ipad-edition__poster-skeleton{background:linear-gradient(100deg,#141416 20%,#242427 40%,#141416 60%);background-size:200% 100%}
+.ipad-edition__rail-message{border-color:rgba(255,255,255,.1);background:rgba(255,255,255,.035);color:rgba(235,235,245,.55)}
+.ipad-edition__anime-card>span{border-radius:12px;background:#151517;box-shadow:0 8px 24px rgba(0,0,0,.34)}
+.ipad-edition__anime-card:hover>span{transform:scale(1.035);box-shadow:0 18px 38px rgba(0,0,0,.58)}
+.ipad-edition__page{gap:30px;padding:12px 22px 60px}
+.ipad-edition__page-heading h1{color:#f5f5f7;font-weight:780;letter-spacing:-.055em}
+.ipad-edition__page-heading>p:last-child{color:rgba(235,235,245,.58)}
+.ipad-edition__search-form,.ipad-edition__category-grid button{
+  border-color:rgba(255,255,255,.09);background:rgba(255,255,255,.055);
+  box-shadow:0 14px 34px rgba(0,0,0,.22);-webkit-backdrop-filter:blur(22px);backdrop-filter:blur(22px);
+}
+.ipad-edition__search-form input{color:#fff}
+.ipad-edition__search-form button{background:#0a84ff}
+.ipad-edition__category-grid button{color:#f5f5f7}
+.ipad-edition__category-grid button small,.ipad-edition__result-card>small{color:rgba(235,235,245,.55)}
+.ipad-edition__result-poster{background:#151517}
+.ipad-edition__result-card>strong{color:#f5f5f7}
+.ipad-edition__collection-tabs button,.ipad-edition__pagination button{
+  border-color:rgba(255,255,255,.1);background:rgba(255,255,255,.06);color:rgba(235,235,245,.72);
+  -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
+}
+.ipad-edition__collection-tabs button.is-active{border-color:#0a84ff;background:#0a84ff;color:#fff}
+.ipad-edition__library-card>button{border-color:rgba(255,255,255,.12);background:rgba(255,255,255,.07);color:rgba(255,255,255,.8)}
+.ipad-edition__continue-art{border-radius:12px;background:#151517;box-shadow:0 8px 24px rgba(0,0,0,.34)}
+.ipad-edition__continue-card>strong{color:#f5f5f7}
+.ipad-edition__continue-card>small{color:rgba(235,235,245,.55)}
+.ipad-edition__continue-progress i{background:#0a84ff}
+.ipad-edition__continue-play{background:linear-gradient(0deg,rgba(0,0,0,.35),transparent)}
+@media (min-width:700px) and (max-width:1023px){
+  .ipad-edition{padding:8px 16px 52px}
+  .ipad-edition__topbar{height:56px}
+  .ipad-edition__top-links{gap:22px;margin-left:56px}
+  .ipad-edition__hero{height:clamp(360px,48vw,490px);margin:0 4px}
+  .ipad-edition__today,.ipad-edition__rail-section{padding:0 8px}
+  .ipad-edition__page{padding:8px 8px 48px}
+}
+@media (hover:none){
+  .ipad-edition__poster-card:active .ipad-edition__poster-art,
+  .ipad-edition__anime-card:active>span{transform:scale(1.025)}
+}
+@media (prefers-reduced-motion:reduce){
+  .ipad-edition__poster-art,.ipad-edition__anime-card>span,.ipad-edition__hero-cta{transition:none}
+}
