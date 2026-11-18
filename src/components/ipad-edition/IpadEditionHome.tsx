@@ -103,7 +103,7 @@ export function IpadEditionHome() {
       ) : items.length ? (
         <div className="ipad-edition__poster-grid" aria-label={title}>
           {items.slice(0, RAIL_SIZE).map((item, index) => (
-            <Link className="ipad-edition__poster-card" href={searchHref(item.title)} key={item.id || item.title}>
+            <Link className="ipad-edition__poster-card" data-ipad-poster-slot="movie" data-poster-url={item.cover ?? ''} href={searchHref(item.title)} key={item.id || item.title}>
               <span className="ipad-edition__poster-art">
                 <SmartImage
                   url={item.cover}
@@ -200,7 +200,7 @@ export function IpadEditionHome() {
         ) : todayItems.length ? (
           <div className="ipad-edition__anime-grid">
             {todayItems.slice(0, 5).map((item) => (
-              <Link href={searchHref(item.title)} className="ipad-edition__anime-card" key={item.id}>
+              <Link href={searchHref(item.title)} className="ipad-edition__anime-card" data-ipad-poster-slot="anime" data-poster-url={item.cover ?? ''} key={item.id}>
                 <span>
                   <SmartImage
                     url={item.cover}
