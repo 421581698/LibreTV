@@ -176,7 +176,7 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
       index,
       title: displayTitle,
       sourceUrl: source?.url || sourceUrl || undefined,
-    }).replace('/watch?', watchPath + '?')
+    }).replace('/watch?', watchPath + '?'));
   }, [sourceKey, vodId, episodes, displayTitle, router, source, sourceUrl, watchPath]);
 
   const toggleFavorite = async () => {
