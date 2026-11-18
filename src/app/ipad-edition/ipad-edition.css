@@ -382,6 +382,10 @@ body:has(.ipad-edition) { margin: 0; }
   --ipad-glass-highlight: rgba(255, 255, 255, .86);
   --ipad-glass-shadow: 0 16px 48px rgba(24, 38, 62, .16), 0 3px 10px rgba(24, 38, 62, .08);
   --ipad-glass-blur: 30px;
+  --ipad-glass-foreground: #20242c;
+  --ipad-glass-muted: rgba(32, 36, 44, .82);
+  --ipad-glass-active: rgba(55, 105, 190, .14);
+  --ipad-glass-active-edge: rgba(55, 105, 190, .22);
 }
 .dark .ipad-edition {
   --ipad-glass-fill: rgba(34, 39, 49, .58);
@@ -389,6 +393,10 @@ body:has(.ipad-edition) { margin: 0; }
   --ipad-glass-edge: rgba(255, 255, 255, .2);
   --ipad-glass-highlight: rgba(255, 255, 255, .3);
   --ipad-glass-shadow: 0 18px 54px rgba(0, 0, 0, .42), 0 3px 12px rgba(0, 0, 0, .22);
+  --ipad-glass-foreground: #f5f6fa;
+  --ipad-glass-muted: rgba(245, 246, 250, .86);
+  --ipad-glass-active: rgba(120, 150, 255, .28);
+  --ipad-glass-active-edge: rgba(160, 185, 255, .24);
 }
 .ipad-edition__topbar {
   position: fixed !important;
@@ -840,15 +848,13 @@ body:has(.ipad-edition) { margin: 0; }
   padding: 0 !important;
   gap: 0 !important;
   overflow: hidden !important;
-  border: .5px solid rgba(255,255,255,.34) !important;
+  border: .5px solid var(--ipad-glass-edge) !important;
   border-radius: 22px !important;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.105), rgba(255,255,255,.018)),
-    rgba(48,50,56,.55) !important;
-  box-shadow:
-    0 10px 30px rgba(0,0,0,.25),
-    inset 0 1px 0 rgba(255,255,255,.18),
-    inset 0 -1px 0 rgba(255,255,255,.045) !important;
+  background-color: var(--ipad-glass-fill) !important;
+  background-image: linear-gradient(180deg, var(--ipad-glass-highlight), transparent 58%) !important;
+  -webkit-backdrop-filter: blur(var(--ipad-glass-blur)) saturate(165%) !important;
+  backdrop-filter: blur(var(--ipad-glass-blur)) saturate(165%) !important;
+  box-shadow: var(--ipad-glass-shadow), inset 0 1px 0 var(--ipad-glass-highlight), inset 0 -1px 0 rgba(120,130,150,.08) !important;
   isolation: isolate;
 }
 .ipad-edition .ipad-edition__liquid-glass-host .glass__warp {
@@ -864,7 +870,7 @@ body:has(.ipad-edition) { margin: 0; }
   border-radius: inherit;
   pointer-events: none;
   background:
-    linear-gradient(180deg, rgba(255,255,255,.20), rgba(255,255,255,.035) 22%, transparent 56%),
+    linear-gradient(180deg, var(--ipad-glass-highlight), rgba(255,255,255,.035) 24%, transparent 62%),
     linear-gradient(90deg, rgba(255,255,255,.075), transparent 18%, transparent 82%, rgba(255,255,255,.055));
 }
 .ipad-edition .ipad-edition__liquid-glass-host .glass > div:last-child {
@@ -919,7 +925,7 @@ body:has(.ipad-edition) { margin: 0; }
   border: 1px solid transparent !important;
   border-radius: 18px !important;
   background: transparent !important;
-  color: rgba(255,255,255,.84) !important;
+  color: var(--ipad-glass-muted) !important;
   box-shadow: none !important;
   text-decoration: none !important;
   white-space: nowrap !important;
@@ -935,9 +941,9 @@ body:has(.ipad-edition) { margin: 0; }
   flex: 1 1 0 !important;
 }
 .ipad-edition .ipad-edition__top-links > a.is-active {
-  color: #a9c1ff !important;
-  background: rgba(120,150,255,.28) !important;
-  border-color: rgba(160,185,255,.16) !important;
+  color: var(--ipad-glass-foreground) !important;
+  background: var(--ipad-glass-active) !important;
+  border-color: var(--ipad-glass-active-edge) !important;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.13) !important;
 }
 .ipad-edition .ipad-edition__top-links .ipad-edition__top-icon {
@@ -962,8 +968,8 @@ body:has(.ipad-edition) { margin: 0; }
 }
 .ipad-edition .ipad-edition__top-links > a:hover,
 .ipad-edition .ipad-edition__top-links > .ipad-edition__sidebar-toggle:hover {
-  color: #fff !important;
-  background: rgba(255,255,255,.11) !important;
+  color: var(--ipad-glass-foreground) !important;
+  background: rgba(125,140,165,.14) !important;
 }
 .ipad-edition .ipad-edition__top-links > a:active,
 .ipad-edition .ipad-edition__top-links > .ipad-edition__sidebar-toggle:active {
@@ -976,9 +982,9 @@ body:has(.ipad-edition) { margin: 0; }
 }
 .ipad-edition .ipad-edition__topbar:focus-within .glass {
   box-shadow:
-    0 10px 30px rgba(0,0,0,.25),
-    0 0 0 1px rgba(145,180,255,.16),
-    inset 0 1px 0 rgba(255,255,255,.2) !important;
+    var(--ipad-glass-shadow),
+    0 0 0 1px var(--ipad-glass-active-edge),
+    inset 0 1px 0 var(--ipad-glass-highlight) !important;
 }
 .ipad-edition .ipad-edition__sidebar.is-open {
   display: flex !important;
