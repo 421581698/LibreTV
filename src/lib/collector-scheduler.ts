@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { collectorRequest } from './resource-collector-client';
 import {
@@ -14,6 +15,7 @@ export interface CollectorTask {
   host?: string;
   error?: string | null;
   result_count?: number;
+  result?: Record<string, unknown>;
   [key: string]: unknown;
 }
 export interface CollectorSite {
@@ -44,14 +46,24 @@ function safeTaskId(taskId: string): string {
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
 }
+function parseObject(value: unknown): Record<string, unknown> {
+  if (typeof value === 'string') {
+    try { return asRecord(JSON.parse(value)) ?? {}; } catch { return {}; }
+  }
+  return asRecord(value) ?? {};
+}
+function normalizeJob(raw: Record<string, unknown>): Record<string, unknown> {
+  const status = raw.status === 'succeeded' ? 'completed' : raw.status;
+  return { ...raw, status, result: parseObject(raw.result) };
+}
 const emptyOutcome = (): IngestOutcome => ({ considered: 0, registered: 0, duplicates: 0, rejected: 0, sources: [] });
 
-/** Uses the Collector's real /v1/discover endpoint; the Collector itself enforces its egress gate. */
+/** Site discovery is a bounded Collector operation; crawl execution itself is always queued. */
 export async function discoverCollectorSites(request?: Request) {
   return collectorRequest('/v1/discover', {}, 30_000, request);
 }
 
-/** Existing Collector contract is synchronous /v1/crawl, not a separate jobs/submit API. */
+/** Submit a durable crawl job. The separate Scrapling Worker executes it outside the HTTP request. */
 export async function startCollectorCrawl(input: CrawlInput) {
   const url = typeof input.url === 'string' ? input.url.trim() : '';
   if (!url || url.length > 2_048) {
@@ -60,30 +72,48 @@ export async function startCollectorCrawl(input: CrawlInput) {
   const mode = input.mode ?? 'auto';
   const limit = Number.isInteger(input.limit) ? Math.max(1, Math.min(input.limit as number, 200)) : 50;
   const searchKeyword = typeof input.searchKeyword === 'string' ? input.searchKeyword.trim().slice(0, 100) : '';
-  return collectorRequest('/v1/crawl', {
+  const idempotencyKey = `resource-studio:crawl:${randomUUID()}`;
+  const response = await collectorRequest('/v1/tasks/submit', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url, mode, limit, search_keyword: searchKeyword }),
-  }, 120_000, input.request);
+    body: JSON.stringify({
+      job_type: 'crawl',
+      payload: { url, mode, limit, search_keyword: searchKeyword },
+      idempotency_key: idempotencyKey,
+    }),
+  }, 15_000, input.request);
+  if (response.status < 200 || response.status >= 300) return response;
+  const job = await response.json().catch(() => null) as Record<string, unknown> | null;
+  const id = typeof job?.id === 'string' && TASK_ID_RE.test(job.id) ? job.id : '';
+  if (!id) return NextResponse.json({ error: 'Collector 未返回有效的队列任务 ID。' }, { status: 502 });
+  return NextResponse.json({ task_id: id, status: job?.status ?? 'queued', job }, { status: 202 });
 }
 
-/** The Collector exposes a persisted task list, not a /v1/jobs/{id} endpoint. */
+/** Queue jobs are queried by their durable job ID, not by the legacy synchronous task list. */
 export async function getCollectorTaskStatus(taskId: string, request?: Request) {
   const id = safeTaskId(taskId);
-  const response = await collectorRequest('/v1/tasks?limit=100', {}, 10_000, request);
+  const response = await collectorRequest(`/v1/jobs/${id}`, {}, 10_000, request);
   if (response.status !== 200) return response;
   const payload = await response.json().catch(() => null) as Record<string, unknown> | null;
-  const tasks = payload && Array.isArray(payload.tasks) ? payload.tasks : [];
-  const task = tasks.map(asRecord).find((item) => item?.id === id);
-  if (!task) return NextResponse.json({ error: '未找到该 Collector 任务（仅返回最近 100 条）。' }, { status: 404 });
-  return NextResponse.json({ task });
+  if (!payload || payload.id !== id) return NextResponse.json({ error: 'Collector 返回了无效任务记录。' }, { status: 502 });
+  return NextResponse.json({ task: normalizeJob(payload) });
 }
 
-export async function getCollectorTaskCandidates(taskId: string, request?: Request) {
-  return collectorRequest(`/v1/tasks/${safeTaskId(taskId)}/candidates`, {}, 15_000, request);
+/** Resolve the legacy crawl task ID from the completed durable job before reading candidates. */
+export async function getCollectorTaskCandidates(jobId: string, request?: Request) {
+  const statusResponse = await getCollectorTaskStatus(jobId, request);
+  if (statusResponse.status !== 200) return statusResponse;
+  const payload = await statusResponse.json().catch(() => null) as Record<string, unknown> | null;
+  const job = asRecord(payload?.task);
+  const result = asRecord(job?.result);
+  const crawlTaskId = typeof result?.task_id === 'string' && TASK_ID_RE.test(result.task_id)
+    ? result.task_id
+    : '';
+  if (!crawlTaskId) return NextResponse.json({ candidates: [] });
+  return collectorRequest(`/v1/tasks/${crawlTaskId}/candidates`, {}, 15_000, request);
 }
 
-/** Validate each CMS candidate through the Collector's own gated validation endpoint. */
+/** Validate CMS candidates with Collector's own public-access gate before local source registration. */
 export async function receiveCollectorTaskResult(
   store: CollectorSourceStore,
   taskId: string,
@@ -94,7 +124,7 @@ export async function receiveCollectorTaskResult(
   const statusPayload = await statusResponse.json().catch(() => null) as Record<string, unknown> | null;
   const task = asRecord(statusPayload?.task);
   if (!task) return { status: 502, task: null, ingest: emptyOutcome() };
-  if (task.status !== 'completed') {
+  if (task.status !== 'completed' && task.status !== 'partial') {
     return { status: 409, task, ingest: emptyOutcome() };
   }
 
@@ -147,8 +177,8 @@ export function ingestJobResult(
 ): IngestOutcome {
   const outcome = emptyOutcome();
   const record = asRecord(job);
-  if (!record || record.status !== 'completed') return outcome;
-  const result = asRecord(record.result) ?? {};
+  if (!record || (record.status !== 'completed' && record.status !== 'partial' && record.status !== 'succeeded')) return outcome;
+  const result = parseObject(record.result);
   const rawCandidates = Array.isArray(result.candidates) ? result.candidates : [];
   for (const raw of rawCandidates.slice(0, 200)) {
     const item = asRecord(raw);
