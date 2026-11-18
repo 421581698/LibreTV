@@ -228,25 +228,10 @@ export function PlayerShell({
   const unsustainableFragmentsRef = useRef(0);
   const sustainableFragmentsRef = useRef(0);
   const [showPlayFallback, setShowPlayFallback] = useState(false);
-  const [resumePrompt, setResumePrompt] = useState(false);
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setQualityPreference(readQualityPreference());
-  }, []);
-
-  useEffect(() => {
-    const handleResumeDecision = (event: Event) => {
-      const decision = (event as CustomEvent<{ decision?: string }>).detail?.decision;
-      setResumePrompt(decision === 'resume' || decision === 'ask-user');
-      if (decision === 'reload-then-resume') {
-        setHint('当前视频资源已失效，请重新选择播放源后继续');
-        if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
-        hintTimerRef.current = setTimeout(() => setHint(''), 2500);
-      }
-    };
-    document.addEventListener('ipad-cinema:resume-decision', handleResumeDecision);
-    return () => document.removeEventListener('ipad-cinema:resume-decision', handleResumeDecision);
   }, []);
 
   useEffect(() => {
@@ -1657,25 +1642,6 @@ export function PlayerShell({
             backgroundRepeat: 'no-repeat',
           }}
         />
-      )}
-      {resumePrompt && !error && (
-        <button
-          type="button"
-          className="absolute inset-x-0 bottom-20 z-20 mx-auto min-h-11 w-fit rounded-full border border-white/20 bg-black/80 px-5 py-2.5 text-sm font-semibold text-white shadow-lg backdrop-blur-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          onClick={() => {
-            const art = artRef.current;
-            if (!art) return;
-            void art.play().then(() => {
-              setResumePrompt(false);
-              setShowPlayFallback(false);
-            }).catch(() => {
-              setShowPlayFallback(true);
-              showHint('浏览器未能恢复播放，请检查视频源后重试');
-            });
-          }}
-        >
-          点击继续播放
-        </button>
       )}
       {showPlayFallback && showPoster && !error && (
         <button
