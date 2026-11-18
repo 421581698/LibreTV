@@ -7,7 +7,10 @@ const outputDir = process.env.UI_AGENT_OUTPUT_DIR ?? 'artifacts/ui-agent';
 const strict = process.env.UI_AGENT_STRICT === '1';
 const targets = [
   { name: 'desktop-1440x900', width: 1440, height: 900 },
-  { name: 'tablet-1024x1366', width: 1024, height: 1366 },
+  { name: 'ipad-11-portrait-834x1194', width: 834, height: 1194, ipad: true },
+  { name: 'ipad-11-landscape-1194x834', width: 1194, height: 834, ipad: true },
+  { name: 'ipad-pro-13-portrait-1032x1376', width: 1032, height: 1376, ipad: true },
+  { name: 'ipados-desktop-mode-1024x1366', width: 1024, height: 1366, ipadDesktopMode: true },
   { name: 'phone-390x844', width: 390, height: 844 },
   { name: 'phone-375x812', width: 375, height: 812 },
 ];
@@ -22,11 +25,24 @@ try {
     for (const theme of themes) {
       const context = await browser.newContext({
         viewport: { width: target.width, height: target.height },
-        deviceScaleFactor: target.width < 600 ? 2 : 1,
+        deviceScaleFactor: target.width < 600 || target.ipad ? 2 : 1,
+        isMobile: Boolean(target.ipad),
+        hasTouch: Boolean(target.ipad || target.ipadDesktopMode),
+        userAgent: target.ipad
+          ? 'Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'
+          : target.ipadDesktopMode
+            ? 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15'
+            : undefined,
         colorScheme: theme,
         reducedMotion: 'reduce',
       });
       const page = await context.newPage();
+      if (target.ipadDesktopMode) {
+        await page.addInitScript(() => {
+          Object.defineProperty(navigator, 'platform', { configurable: true, get: () => 'MacIntel' });
+          Object.defineProperty(navigator, 'maxTouchPoints', { configurable: true, get: () => 5 });
+        });
+      }
       const consoleErrors = [];
       const pageErrors = [];
       const failedRequests = [];
@@ -58,6 +74,9 @@ try {
         const documentHeight = Math.max(root?.scrollHeight ?? 0, body?.scrollHeight ?? 0);
         return {
           title: document.title,
+          ipadCinema: root?.getAttribute('data-ipad-cinema') ?? null,
+          navOwner: root?.getAttribute('data-nav-owner') ?? null,
+          navigator: { userAgent: navigator.userAgent, platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints },
           viewport: { width: viewportWidth, height: viewportHeight },
           document: { width: documentWidth, height: documentHeight },
           horizontalOverflow: documentWidth > viewportWidth + 1,
@@ -109,6 +128,7 @@ await writeFile(path.join(outputDir, 'report.json'), JSON.stringify(report, null
 const defects = results.filter((result) =>
   result.navigationError ||
   result.metrics?.horizontalOverflow ||
+  ((result.target.startsWith('ipad-') || result.target.startsWith('ipados-')) && result.metrics?.ipadCinema == null) ||
   result.pageErrors.length > 0
 );
 console.log(JSON.stringify({
