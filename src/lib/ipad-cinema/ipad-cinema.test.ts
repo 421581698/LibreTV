@@ -335,16 +335,14 @@ describe('V4.3.1 contract wiring', () => {
     expect(detail).not.toContain("router.push('/')");
   });
 
-  it('connects interruption decisions to an explicit user-activated resume action', () => {
-    expect(player).toContain("document.addEventListener('ipad-cinema:resume-decision', handleResumeDecision)");
-    expect(player).toContain("document.removeEventListener('ipad-cinema:resume-decision', handleResumeDecision)");
-    expect(player).toContain('点击继续播放');
-    expect(player).toContain('void art.play().then(() => {');
-    expect(player).toContain("decision === 'resume' || decision === 'ask-user'");
-    expect(player).toContain("decision === 'reload-then-resume'");
+  it('routes interruption decisions through one global notice and never autoplays', () => {
+    const notice = read('src/components/ipad-cinema/IpadCinemaResumeNotice.tsx');
+    expect(notice).toContain("detail.decision === 'reload-then-resume'");
+    expect(notice).toContain('当前视频源已失效，请重新选择播放源后继续。');
+    expect(notice).toContain('已保存播放进度。请轻点播放器的播放按钮继续。');
+    expect(notice).not.toContain('.play(');
     expect(player).toContain('if (!video?.paused)');
-    expect(player).toContain('当前视频资源已失效，请重新选择播放源后继续');
     expect(player).toContain("kind: 'app-background'");
-    expect(player).not.toContain("document.addEventListener('ipad-cinema:resume-decision', () => artRef.current?.play())");
+    expect(player).not.toContain("document.addEventListener('ipad-cinema:resume-decision'");
   });
 });
