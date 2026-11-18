@@ -53,3 +53,18 @@
 - 项目二 Draft PR：#99
 - 不修改 main、不合并 PR、不部署生产。
 - 只有 CI 通过、独立 Preview 可访问并完成 iPad 实际视觉验收后，才可报告项目二验收完成。
+
+## 六大方向：iPad Design Engine
+
+本产品将六个技术方向统一纳入 iPad Edition Design Engine，不再分散堆叠页面级特效：
+
+1. Apple Liquid Glass 材质：折射增强、边缘高光、环境光与 Safari 兼容降级。
+2. 动态物理动画：弹簧、惯性、形变与触摸反馈。
+3. 空间化 UI：内容层、导航层、浮层、侧栏与模态层级。
+4. 自适应材质：浅色/深色、动态海报背景、减少透明度与窗口尺寸变化。
+5. 高性能渲染：Safari/WebKit、视频播放并发、低功耗设备与效果降级。
+6. 交互细节：点击、长按、拖动、滑动、转场、键盘与触控板。
+
+完整设计规范、实施顺序和验收矩阵见 [IPAD-DESIGN-ENGINE-ROADMAP.md](./IPAD-DESIGN-ENGINE-ROADMAP.md)。
+
+当前只将共享 token、Safari fallback、按压反馈、焦点可见性和减少透明度降级作为本轮基础能力；完整折射、惯性拖拽和复杂手势仍须分阶段实现并通过真实 iPad Safari 验收。不得将设计路线图误报为全部功能已经完成。
