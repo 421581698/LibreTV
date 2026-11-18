@@ -122,30 +122,62 @@ jobs:
                 page.on("pageerror", error => consoleErrors.push(error.message));
                 const response = await page.goto(target, { waitUntil: "domcontentloaded", timeout: 60000 });
                 await page.locator('[data-ipad-edition="true"]').waitFor({ state: "attached", timeout: 30000 });
-                await page.waitForTimeout(1800);
+                // Wait for the homepage query to settle; a fixed short sleep captured skeletons as if they were posters.
+                await page.waitForFunction(() => {
+                  const busyRail = document.querySelector('.ipad-edition__poster-grid[aria-busy="true"]');
+                  const heroTitle = document.querySelector('.ipad-edition__hero-copy h1')?.textContent ?? '';
+                  return !busyRail && !heroTitle.includes('正在为你准备影院');
+                }, { timeout: 30000 }).catch(() => {});
+                // Force lazy poster images to load before measuring and capturing the page.
+                await page.evaluate(async () => {
+                  const images = Array.from(document.querySelectorAll('.ipad-edition__poster-card img'));
+                  for (const image of images) image.loading = 'eager';
+                  await Promise.race([
+                    Promise.all(images.map(image => new Promise(resolve => {
+                      if (image.complete) return resolve();
+                      image.addEventListener('load', resolve, { once: true });
+                      image.addEventListener('error', resolve, { once: true });
+                    }))),
+                    new Promise(resolve => setTimeout(resolve, 20000)),
+                  ]);
+                });
                 const metrics = await page.evaluate(() => {
                   const root = document.querySelector('[data-ipad-edition="true"]');
                   const main = document.querySelector('.ipad-edition__main');
                   const topbar = document.querySelector('.ipad-edition__topbar');
                   const hero = document.querySelector('.ipad-edition__hero');
+                  const heroCopy = document.querySelector('.ipad-edition__hero-copy');
                   const rect = element => {
                     if (!element) return null;
                     const r = element.getBoundingClientRect();
                     return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
                   };
+                  const posters = Array.from(document.querySelectorAll('.ipad-edition__poster-card'));
+                  const posterImages = posters.flatMap(card => Array.from(card.querySelectorAll('img')));
+                  const realImagesLoaded = posterImages.filter(image => image.complete && image.naturalWidth > 0 && !image.currentSrc.startsWith('data:image/svg+xml')).length;
+                  const fallbackImages = posterImages.filter(image => image.currentSrc.startsWith('data:image/svg+xml')).length;
+                  const top = topbar?.getBoundingClientRect();
+                  const copy = heroCopy?.getBoundingClientRect();
+                  const heroTextOverlapsNavigation = Boolean(top && copy && top.left < copy.right && top.right > copy.left && top.top < copy.bottom && top.bottom > copy.top);
                   return {
                     viewportWidth: window.innerWidth,
                     documentWidth: document.documentElement.scrollWidth,
                     bodyWidth: document.body.scrollWidth,
                     horizontalOverflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) > window.innerWidth + 2,
-                    shell: rect(root), main: rect(main), topbar: rect(topbar), hero: rect(hero),
-                    posterCount: document.querySelectorAll('.ipad-edition__poster-card').length,
+                    shell: rect(root), main: rect(main), topbar: rect(topbar), hero: rect(hero), heroCopy: rect(heroCopy),
+                    heroTextOverlapsNavigation,
+                    homepageStillLoading: Boolean(document.querySelector('.ipad-edition__poster-grid[aria-busy="true"]')) || (document.querySelector('.ipad-edition__hero-copy h1')?.textContent ?? '').includes('正在为你准备影院'),
+                    posterCount: posters.length,
+                    posterImageCount: posterImages.length,
+                    realPosterImagesLoaded: realImagesLoaded,
+                    posterFallbackImages: fallbackImages,
+                    posterImageLoadRate: posterImages.length ? Number((realImagesLoaded / posterImages.length).toFixed(2)) : 0,
                     popularHeading: Boolean(document.querySelector('#ipad-popular-movies-title')),
                   };
                 });
                 const name = viewport.name + "-" + colorScheme;
                 await page.screenshot({ path: "artifacts/ipad-visual-audit/" + name + ".png", fullPage: true, animations: "disabled" });
-                const failed = response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.width < viewport.width * 0.7;
+                const failed = response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.width < viewport.width * 0.7 || metrics.homepageStillLoading || metrics.posterCount < 1 || metrics.posterImageLoadRate < 0.75 || metrics.heroTextOverlapsNavigation;
                 if (failed) failures += 1;
                 results.push({ name, httpStatus: response?.status() ?? null, failed, metrics, pageErrors: consoleErrors });
                 console.log(JSON.stringify(results.at(-1)));
