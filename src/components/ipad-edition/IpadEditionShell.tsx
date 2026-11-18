@@ -13,17 +13,28 @@ const sidebarNavigation = [
 ];
 
 function NavigationIcon({ name }: { name: 'house' | 'search' | 'user' }) {
+  const common = {
+    viewBox: '0 0 24 24',
+    className: 'ipad-edition__top-icon',
+    'aria-hidden': true as const,
+    focusable: false as const,
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.75,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+  };
   if (name === 'house') {
-    return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 10.5 12 3.8l8.5 6.7v9.2h-6v-6h-5v6h-6z" /></svg>;
+    return <svg {...common}><path d="M3.8 10.4 12 3.7l8.2 6.7v9a.9.9 0 0 1-.9.9h-5.1v-6.1H9.8v6.1H4.7a.9.9 0 0 1-.9-.9z" /></svg>;
   }
   if (name === 'search') {
-    return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.6" /><path d="m15.7 15.7 4.5 4.5" /></svg>;
+    return <svg {...common}><circle cx="10.7" cy="10.7" r="6.4" /><path d="m15.4 15.4 4.6 4.6" /></svg>;
   }
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.6" /><path d="M4.8 20c.7-3.7 3.1-5.6 7.2-5.6s6.5 1.9 7.2 5.6" /></svg>;
+  return <svg {...common}><circle cx="12" cy="8" r="3.5" /><path d="M4.6 20c.6-3.5 3.1-5.3 7.4-5.3s6.8 1.8 7.4 5.3" /></svg>;
 }
 
 function SidebarPanelIcon() {
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="1.2" /><path d="M10 4v16M6.5 8h1.2M6.5 11h1.2M13 8h4.5M13 11h4.5" /></svg>;
+  return <svg className="ipad-edition__top-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3.5" y="4" width="17" height="16" rx="2" /><path d="M9.5 4v16M6.5 8h.1M6.5 12h.1M12.5 8h4.5M12.5 12h4.5" /></svg>;
 }
 
 export function IpadEditionShell({ children }: { children: ReactNode }) {
@@ -60,11 +71,11 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
         <header className="ipad-edition__topbar">
           <nav className="ipad-edition__top-links" aria-label="主导航">
             <button className="ipad-edition__nav-button ipad-edition__sidebar-toggle" type="button" aria-label={sidebarOpen ? "关闭侧边栏" : "打开侧边栏"} aria-expanded={sidebarOpen} aria-controls="ipad-edition-sidebar" onClick={() => setSidebarOpen((open) => !open)}>
-              <SidebarPanelIcon />
+              <SidebarPanelIcon /><span className="ipad-edition__top-label">菜单</span>
             </button>
-            <Link href="/ipad-edition" className={homeActive ? 'is-active' : ''} aria-label="首页" aria-current={homeActive ? 'page' : undefined}><NavigationIcon name="house" /></Link>
-            <Link href="/ipad-edition/search" className={searchActive ? 'is-active' : ''} aria-label="搜索" aria-current={searchActive ? 'page' : undefined}><NavigationIcon name="search" /></Link>
-            <Link href="/ipad-edition/library" className={myActive ? 'is-active' : ''} aria-label="我的" aria-current={myActive ? 'page' : undefined}><NavigationIcon name="user" /></Link>
+            <Link href="/ipad-edition" className={homeActive ? 'is-active' : ''} aria-label="首页" aria-current={homeActive ? 'page' : undefined}><NavigationIcon name="house" /><span className="ipad-edition__top-label">首页</span></Link>
+            <Link href="/ipad-edition/search" className={searchActive ? 'is-active' : ''} aria-label="搜索" aria-current={searchActive ? 'page' : undefined}><NavigationIcon name="search" /><span className="ipad-edition__top-label">搜索</span></Link>
+            <Link href="/ipad-edition/library" className={myActive ? 'is-active' : ''} aria-label="我的" aria-current={myActive ? 'page' : undefined}><NavigationIcon name="user" /><span className="ipad-edition__top-label">我的</span></Link>
           </nav>
         </header>
         {children}
