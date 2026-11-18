@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   deploy-preview:
-    if: ${{ inputs.confirm_preview_deploy == 'yes' }}
+    if: ${{ inputs.confirm_preview_deploy == 'yes' && github.ref == 'refs/heads/feature/ipad-cinema-preview-deploy' }}
     name: Build and deploy isolated iPad preview
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -36,7 +36,7 @@ jobs:
         env:
           SOURCE_SHA: ${{ github.sha }}
         run: |
-          git merge-base --is-ancestor "$SOURCE_SHA" HEAD || (echo "Expected iPad baseline is not an ancestor of this deployment commit" && exit 1)
+          git merge-base --is-ancestor "cbc3d0e35b29a81719fcb8bb376fa89b1768302e" "$SOURCE_SHA" || (echo "Deployment commit does not descend from the visually accepted iPad baseline" && exit 1)
           grep -Eq '^[[:space:]]*name[[:space:]]*=[[:space:]]*"libretv-ipad-preview"' wrangler.ipad-preview.toml
           grep -Eq '^[[:space:]]*AUTH_DISABLED[[:space:]]*=[[:space:]]*"false"' wrangler.ipad-preview.toml
           if grep -Eq '^[[:space:]]*AUTH_DISABLED[[:space:]]*=[[:space:]]*"true"' wrangler.ipad-preview.toml; then
