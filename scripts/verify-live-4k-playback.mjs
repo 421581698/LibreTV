@@ -9,6 +9,26 @@ const allowedHosts = new Set(
     .filter(Boolean),
 );
 const durationSeconds = Number(process.env.LIBRETV_4K_DURATION_SECONDS || '600');
+const rawProxy = process.env.LIBRETV_4K_EGRESS_PROXY || '';
+
+function validateLocalProxy() {
+  if (!rawProxy) throw new Error('LIBRETV_4K_EGRESS_PROXY must point to the local validated egress proxy.');
+  const proxy = new URL(rawProxy);
+  const loopbackHosts = new Set(['127.0.0.1', '::1', '[::1]', 'localhost']);
+  if (
+    proxy.protocol !== 'http:' ||
+    !loopbackHosts.has(proxy.hostname.toLowerCase()) ||
+    proxy.username ||
+    proxy.password ||
+    proxy.pathname !== '/' ||
+    proxy.search ||
+    proxy.hash
+  ) {
+    throw new Error('The 4K egress proxy must be an unauthenticated HTTP proxy bound to loopback only.');
+  }
+  return proxy.origin;
+}
+
 
 function validateTarget() {
   if (!rawUrl || allowedHosts.size === 0) {
@@ -32,14 +52,17 @@ function validateTarget() {
 }
 
 const target = validateTarget();
+const proxyServer = validateLocalProxy();
 const browser = await chromium.launch({
+  // Chromium must send all remote media traffic through the validated loopback proxy.
+  proxy: { server: proxyServer },
   channel: 'chrome',
   headless: true,
-  // The workflow starts the repository's validated DNS-pinning egress proxy
-  // on loopback. Chromium must use it for every remote media request so the
-  // hostname allowlist is backed by pinned public IP connections.
-  proxy: { server: process.env.LIBRETV_4K_EGRESS_PROXY || 'http://127.0.0.1:8080' },
-  args: ['--autoplay-policy=no-user-gesture-required'],
+  args: [
+    '--autoplay-policy=no-user-gesture-required',
+    '--disable-features=AsyncDns',
+    '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1',
+  ],
 });
 let failure;
 try {
@@ -48,6 +71,27 @@ try {
     deviceScaleFactor: 1,
   });
   page.setDefaultTimeout(60_000);
+  page.on('requestfailed', (request) => {
+    console.error(JSON.stringify({
+      event: 'request_failed',
+      url: request.url().slice(0, 500),
+      error: request.failure()?.errorText || 'unknown',
+    }));
+  });
+  page.on('response', (response) => {
+    if (response.status() >= 300) {
+      console.error(JSON.stringify({
+        event: 'http_response',
+        status: response.status(),
+        url: response.url().slice(0, 500),
+      }));
+    }
+  });
+  page.on('console', (message) => {
+    if (message.type() === 'error') {
+      console.error(JSON.stringify({ event: 'browser_console_error', message: message.text().slice(0, 500) }));
+    }
+  });
   // Enforce the exact hostname allowlist on every media, manifest, segment, and
   // redirect request—not only on the initial URL supplied to the workflow.
   await page.route('**/*', async (route) => {
@@ -76,6 +120,16 @@ try {
       '<video id="v" muted playsinline controls style="width:100vw;height:100vh"></video>' +
       '</body></html>',
   );
+  await page.locator('#v').evaluate((video) => {
+    video.addEventListener('error', () => {
+      console.error(JSON.stringify({
+        event: 'video_error',
+        code: video.error?.code ?? null,
+        message: video.error?.message ?? null,
+        currentSrc: video.currentSrc,
+      }));
+    });
+  });
   const isHls = new URL(target).pathname.toLowerCase().endsWith('.m3u8');
   if (isHls) {
     await page.addScriptTag({ path: 'node_modules/hls.js/dist/hls.min.js' });
@@ -116,6 +170,46 @@ try {
           }
         });
       });
+    }, target.href);
+  } else if (new URL(target).pathname.toLowerCase().endsWith('.mpd')) {
+    await page.addScriptTag({ path: 'node_modules/dashjs/dist/dash.all.min.js' });
+    await page.evaluate(async (url) => {
+      const video = document.querySelector('#v');
+      const player = window.dashjs.MediaPlayer().create();
+      window.__libretvDash = player;
+      player.updateSettings({
+        streaming: { abr: { autoSwitchBitrate: { video: false } } },
+      });
+      const ready = new Promise((resolve, reject) => {
+        const timeout = setTimeout(
+          () => reject(new Error('DASH manifest initialization timed out.')),
+          60000,
+        );
+        player.on(window.dashjs.MediaPlayer.events.STREAM_INITIALIZED, () => {
+          clearTimeout(timeout);
+          const candidates = (player.getBitrateInfoListFor('video') || [])
+            .map((level, index) => ({ ...level, index }))
+            .filter((level) => level.width >= 3840 && level.height >= 2160)
+            .sort((a, b) => b.height - a.height || b.width - a.width || b.bitrate - a.bitrate);
+          if (!candidates.length) {
+            reject(new Error('The DASH manifest has no rendition at or above 3840x2160.'));
+            return;
+          }
+          const chosen = candidates[0];
+          player.setQualityFor('video', chosen.index, true);
+          window.__libretvExpectedLevel = chosen;
+          resolve();
+        });
+        player.on(window.dashjs.MediaPlayer.events.ERROR, (event) => {
+          const message = event?.error?.message || event?.event?.message;
+          if (message) {
+            clearTimeout(timeout);
+            reject(new Error('DASH playback error: ' + String(message).slice(0, 180)));
+          }
+        });
+      });
+      player.initialize(video, url, false);
+      await ready;
     }, target.href);
   } else {
     await page.locator('#v').evaluate((video, url) => {

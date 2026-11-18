@@ -1,0 +1,113 @@
+name: Cloudflare Worker External Smoke
+
+on:
+  push:
+    branches:
+      - fix/4k-egress-proxy-acceptance
+    paths:
+      - ".github/workflows/cloudflare-worker-external-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-worker-external-smoke
+  cancel-in-progress: true
+
+jobs:
+  external-readonly-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      LIBRETV_CLOUDFLARE_BASE_URL: https://libretv.bggdbh.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify deployed Cloudflare Worker from an external GitHub runner
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+
+          const base = new URL(process.env.LIBRETV_CLOUDFLARE_BASE_URL);
+          assert.equal(base.protocol, 'https:', 'Cloudflare smoke target must use HTTPS');
+          assert.equal(base.hostname, 'libretv.bggdbh.workers.dev',
+            'This read-only check is pinned to the known public LibreTV Worker');
+
+          async function get(path, accept) {
+            const url = new URL(path, base);
+            assert.equal(url.origin, base.origin, 'Refusing cross-origin request');
+            let lastError;
+            for (let attempt = 1; attempt <= 3; attempt++) {
+              try {
+                const response = await fetch(url, {
+                  method: 'GET',
+                  redirect: 'follow',
+                  cache: 'no-store',
+                  headers: { accept },
+                  signal: AbortSignal.timeout(15000),
+                });
+                assert.equal(new URL(response.url).origin, base.origin,
+                  'Worker redirected the request outside its own origin');
+                if (response.status >= 500 && attempt < 3) {
+                  await response.body?.cancel();
+                  await new Promise(resolve => setTimeout(resolve, attempt * 1500));
+                  continue;
+                }
+                assert.equal(response.status, 200, `${path} returned HTTP ${response.status}`);
+                return response;
+              } catch (error) {
+                lastError = error;
+                if (attempt < 3) {
+                  await new Promise(resolve => setTimeout(resolve, attempt * 1500));
+                }
+              }
+            }
+            throw lastError ?? new Error(`Request failed: ${path}`);
+          }
+
+          const home = await get('/', 'text/html');
+          const html = await home.text();
+          const lowerHtml = html.toLowerCase();
+          assert.ok(lowerHtml.includes('<html') || lowerHtml.includes('<!doctype html'),
+            'Homepage is not an HTML document');
+          const edgeProof = home.headers.get('cf-ray')
+            || /cloudflare/i.test(home.headers.get('server') ?? '');
+          assert.ok(edgeProof, 'Response did not expose Cloudflare edge headers');
+
+          const statusResponse = await get('/api/status', 'application/json');
+          const status = await statusResponse.json();
+          assert.equal(typeof status.version, 'string', 'Missing application version');
+          assert.equal(typeof status.passwordRequired, 'boolean', 'Missing passwordRequired flag');
+          assert.equal(typeof status.verified, 'boolean', 'Missing verified flag');
+
+          const attributes = [...html.matchAll(/(?:src|href)=["']([^"']+)["']/g)];
+          const assetPaths = [...new Set(attributes
+            .map(match => match[1])
+            .filter(value => value.includes('_next/static/'))
+            .filter(value => {
+              const pathname = new URL(value, base).pathname;
+              return pathname.endsWith('.js') || pathname.endsWith('.css');
+            }))].slice(0, 3);
+          assert.ok(assetPaths.length > 0, 'No Next.js static assets found in homepage HTML');
+          for (const assetPath of assetPaths) {
+            const asset = await get(assetPath, '*/*');
+            await asset.arrayBuffer();
+          }
+
+          console.log(JSON.stringify({
+            result: 'passed',
+            target: base.origin,
+            edge: 'Cloudflare response headers verified',
+            homepage_http: home.status,
+            api_status_http: statusResponse.status,
+            app_version: status.version,
+            password_required: status.passwordRequired,
+            session_verified: status.verified,
+            static_assets_checked: assetPaths.length,
+            deployment_mutated: false,
+            methods_used: ['GET'],
+          }, null, 2));
+          NODE

@@ -1,0 +1,152 @@
+name: Cloudflare Preview WebKit Mobile Verification
+
+on:
+  push:
+    branches:
+      - fix/4k-egress-proxy-acceptance
+    paths:
+      - ".github/workflows/cloudflare-preview-webkit-verification.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: libretv-preview-webkit-verification
+  cancel-in-progress: true
+
+jobs:
+  remote-preview-webkit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright WebKit
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps webkit
+      - name: Verify deployed Cloudflare preview and diagnose homepage content
+        run: |
+          mkdir -p artifacts
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { webkit, devices } from 'playwright';
+
+          const target = 'https://libretv-homepage-preview.bggdbh.workers.dev/';
+          const browser = await webkit.launch({ headless: true });
+          try {
+            const context = await browser.newContext({
+              ...devices['iPhone 15 Pro'],
+              viewport: { width: 393, height: 852 },
+              deviceScaleFactor: 3,
+              isMobile: true,
+              hasTouch: true,
+            });
+            const page = await context.newPage();
+            const pageErrors = [];
+            const consoleErrors = [];
+            const failedRequests = [];
+            const badResponses = [];
+            page.on('pageerror', error => pageErrors.push(error.message));
+            page.on('console', message => {
+              if (message.type() === 'error') consoleErrors.push(message.text().slice(0, 300));
+            });
+            page.on('requestfailed', request => failedRequests.push({
+              url: request.url().slice(0, 300),
+              error: request.failure()?.errorText ?? 'unknown',
+            }));
+            page.on('response', response => {
+              if (response.status() >= 400) badResponses.push({
+                status: response.status(),
+                url: response.url().slice(0, 300),
+              });
+            });
+
+            const response = await page.goto(target, {
+              waitUntil: 'domcontentloaded',
+              timeout: 60000,
+            });
+            assert.ok(response, 'No response from deployed preview');
+            assert.equal(response.status(), 200, `Preview returned HTTP ${response.status()}`);
+            assert.ok(response.headers()['cf-ray'] || /cloudflare/i.test(response.headers()['server'] ?? ''),
+              'Preview response did not prove Cloudflare edge delivery');
+
+            await page.waitForTimeout(10000);
+            const metrics = await page.evaluate(() => {
+              const images = [...document.images];
+              const skeletons = document.querySelectorAll(
+                '[class*="skeleton"], [class*="Skeleton"], [class*="placeholder"], [class*="Placeholder"]'
+              );
+              return {
+                viewportWidth: document.documentElement.clientWidth,
+                contentWidth: document.documentElement.scrollWidth,
+                viewportHeight: document.documentElement.clientHeight,
+                title: document.title,
+                imageCount: images.length,
+                loadedImageCount: images.filter(image => image.complete && image.naturalWidth > 0).length,
+                skeletonCount: skeletons.length,
+                bodyText: (document.body?.innerText ?? '').slice(0, 1200),
+              };
+            });
+            const apiResults = await page.evaluate(async () => {
+              const paths = ['/api/status', '/api/douban', '/api/hot-list', '/api/bangumi/calendar'];
+              return Promise.all(paths.map(async path => {
+                try {
+                  const response = await fetch(path, { cache: 'no-store' });
+                  const body = await response.text();
+                  return {
+                    path,
+                    status: response.status,
+                    contentType: response.headers.get('content-type'),
+                    bodyBytes: new TextEncoder().encode(body).length,
+                    bodyPreview: body.slice(0, 160),
+                  };
+                } catch (error) {
+                  return { path, error: String(error).slice(0, 240) };
+                }
+              }));
+            });
+
+            assert.equal(metrics.viewportWidth, 393, 'Unexpected emulated viewport width');
+            assert.ok(metrics.contentWidth <= metrics.viewportWidth + 1,
+              `Horizontal overflow detected: ${JSON.stringify(metrics)}`);
+            assert.deepEqual(pageErrors, [], `Page JavaScript errors: ${pageErrors.join(' | ')}`);
+
+            await page.screenshot({
+              path: 'artifacts/cloudflare-preview-iphone15pro-webkit.png',
+              fullPage: true,
+            });
+            const diagnostics = {
+              result: 'passed',
+              target,
+              engine: 'WebKit',
+              device_profile: 'iPhone 15 Pro emulation',
+              physical_device: false,
+              metrics,
+              apiResults,
+              pageErrors,
+              consoleErrors: consoleErrors.slice(0, 30),
+              failedRequests: failedRequests.slice(0, 30),
+              badResponses: badResponses.slice(0, 30),
+            };
+            await import('node:fs/promises').then(fs =>
+              fs.writeFile('artifacts/cloudflare-preview-webkit-diagnostics.json',
+                JSON.stringify(diagnostics, null, 2))
+            );
+            console.log(JSON.stringify(diagnostics, null, 2));
+            await context.close();
+          } finally {
+            await browser.close();
+          }
+          NODE
+      - name: Upload remote Preview WebKit diagnostics and screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-preview-webkit-mobile-${{ github.run_id }}
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 7

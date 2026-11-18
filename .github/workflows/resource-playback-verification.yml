@@ -6,6 +6,7 @@ on:
       - feat/resource-playback-verification-v1
       - feat/resource-intelligence-center-v2
       - integration/**
+      - fix/4k-egress-proxy-acceptance
     paths:
       - "src/components/player-shell.tsx"
       - "src/components/source-manager.tsx"
@@ -51,6 +52,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: resource-playback-verification-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   web-verification:
@@ -109,3 +114,171 @@ jobs:
         run: node --check scripts/verify-live-4k-playback.mjs
       - name: Validate manual live acceptance workflow YAML
         run: ruby -e 'require "yaml"; ARGV.each { |file| YAML.load_file(file) }' .github/workflows/authorized-live-4k-playback.yml .github/workflows/authorized-live-collector-acceptance.yml
+  egress-proxy-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: scrapling-engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scrapling-engine/pyproject.toml
+      - name: Install engine and development dependencies
+        run: python -m pip install -e ".[dev]"
+      - name: Run DNS-pinning and egress isolation regression tests
+        run: pytest -q tests/test_egress_proxy.py
+  public-authorized-seed-crawl:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SCRAPLING_EGRESS_PROXY: http://127.0.0.1:18081
+      EGRESS_ALLOWED_HOSTS: university.svta.org,durian.blender.org,raw.githubusercontent.com
+      EGRESS_REQUIRE_ALLOWED_HOSTS: "true"
+      EGRESS_PROXY_HOST: 127.0.0.1
+      EGRESS_PROXY_PORT: "18081"
+      EGRESS_SITE_MIN_INTERVAL_SECONDS: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scrapling-engine/pyproject.toml
+      - name: Install collector engine
+        working-directory: scrapling-engine
+        run: python -m pip install -e ".[dev]"
+      - name: Start allowlisted loopback egress proxy
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$GITHUB_WORKSPACE/scrapling-engine" \
+            nohup python -m app.egress_proxy \
+            > "$RUNNER_TEMP/public-crawl-egress.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/public-crawl-egress.pid"
+          for attempt in $(seq 1 30); do
+            if python -c "import socket; s=socket.create_connection(('127.0.0.1',18081),timeout=1); s.close()" 2>/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/public-crawl-egress.log"
+          exit 1
+      - name: Create three public test-catalogue seeds
+        run: |
+          cat > "$RUNNER_TEMP/authorized-public-seeds.txt" <<'EOF'
+          https://university.svta.org/svta-streaming-industry-media-samples/
+          https://durian.blender.org/download/
+          https://raw.githubusercontent.com/videojs/http-streaming/main/scripts/sources.json
+          EOF
+      - name: Crawl only the explicitly allowlisted public seed pages
+        working-directory: scrapling-engine
+        run: |
+          set -o pipefail
+          python -m scripts.verify_live_authorized_scale \
+            --input "$RUNNER_TEMP/authorized-public-seeds.txt" \
+            --allowed-hosts "$EGRESS_ALLOWED_HOSTS" \
+            --max-urls 3 \
+            | tee "$RUNNER_TEMP/public-crawl-acceptance.json"
+      - name: Capture and stop public crawl egress proxy
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/public-crawl-egress.log" ]; then
+            cp "$RUNNER_TEMP/public-crawl-egress.log" "$RUNNER_TEMP/public-crawl-egress-evidence.log"
+          fi
+          if [ -f "$RUNNER_TEMP/public-crawl-egress.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/public-crawl-egress.pid")" 2>/dev/null || true
+          fi
+      - name: Upload public crawl evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-authorized-seed-crawl-${{ github.run_id }}
+          path: ${{ runner.temp }}/public-crawl-*
+          if-no-files-found: ignore
+          retention-days: 14
+
+  public-4k-demo-playback:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      LIBRETV_4K_TEST_URL: http://sample.vodobox.com/big_buck_bunny_4k/big_buck_bunny_4k.m3u8
+      LIBRETV_4K_ALLOWED_HOSTS: sample.vodobox.com
+      LIBRETV_4K_DURATION_SECONDS: "600"
+      LIBRETV_4K_EGRESS_PROXY: http://127.0.0.1:18080
+      EGRESS_ALLOWED_HOSTS: sample.vodobox.com
+      EGRESS_REQUIRE_ALLOWED_HOSTS: "true"
+      EGRESS_PROXY_HOST: 127.0.0.1
+      EGRESS_PROXY_PORT: "18080"
+      EGRESS_SITE_MIN_INTERVAL_SECONDS: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install project and isolated media test dependencies
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+      - name: Install Chrome with media codecs
+        run: npx playwright install --with-deps chrome
+      - name: Start exact-host DNS-pinning egress proxy
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$GITHUB_WORKSPACE/scrapling-engine" \
+            nohup python -m app.egress_proxy \
+            > "$RUNNER_TEMP/public-4k-egress.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/public-4k-egress.pid"
+          for attempt in $(seq 1 30); do
+            if python -c "import socket; s=socket.create_connection(('127.0.0.1',18080),timeout=1); s.close()" 2>/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/public-4k-egress.log"
+          exit 1
+      - name: Verify public HLS manifest is 4K and unencrypted through the pinned proxy
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 45 \
+            --proxy "$LIBRETV_4K_EGRESS_PROXY" \
+            "$LIBRETV_4K_TEST_URL" -o "$RUNNER_TEMP/public-4k-master.m3u8"
+          variant="$(awk '/RESOLUTION=3840x2160/{getline; gsub(/\r/, ""); print; exit}' "$RUNNER_TEMP/public-4k-master.m3u8")"
+          test -n "$variant"
+          variant_url="$(node -e "console.log(new URL(process.argv[1], process.argv[2]).href)" "$variant" "$LIBRETV_4K_TEST_URL")"
+          curl --fail --silent --show-error --max-time 45 \
+            --proxy "$LIBRETV_4K_EGRESS_PROXY" \
+            "$variant_url" -o "$RUNNER_TEMP/public-4k-variant.m3u8"
+          if grep -Eq '^#EXT-X-(SESSION-)?KEY:' "$RUNNER_TEMP/public-4k-master.m3u8" "$RUNNER_TEMP/public-4k-variant.m3u8"; then
+            echo "Encrypted HLS playlist is not permitted for this public acceptance test." >&2
+            exit 1
+          fi
+          grep -q '^#EXTINF:' "$RUNNER_TEMP/public-4k-variant.m3u8"
+      - name: Verify 600 seconds of real 4K Chromium decoding
+        run: |
+          set -o pipefail
+          node scripts/verify-live-4k-playback.mjs \
+            2> >(tee "$RUNNER_TEMP/public-4k-playback.stderr.log" >&2) \
+            | tee "$RUNNER_TEMP/public-4k-playback.json"
+      - name: Capture and stop public 4K egress proxy
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/public-4k-egress.log" ]; then
+            cp "$RUNNER_TEMP/public-4k-egress.log" "$RUNNER_TEMP/public-4k-egress-evidence.log"
+          fi
+          if [ -f "$RUNNER_TEMP/public-4k-egress.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/public-4k-egress.pid")" 2>/dev/null || true
+          fi
+      - name: Upload public 4K playback evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-4k-demo-playback-${{ github.run_id }}
+          path: ${{ runner.temp }}/public-4k-*
+          if-no-files-found: ignore
+          retention-days: 14

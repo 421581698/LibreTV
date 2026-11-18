@@ -1,0 +1,110 @@
+name: Cloudflare Worker Build Verification
+
+on:
+  push:
+    branches:
+      - fix/4k-egress-proxy-acceptance
+    paths:
+      - "src/**"
+      - "public/**"
+      - "next.config.*"
+      - "wrangler.toml"
+      - "open-next.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/cloudflare-worker-build-verification.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-worker-build-verification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  worker-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      NODE_OPTIONS: --max-old-space-size=4096
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install project dependencies
+        run: npm ci
+      - name: Build the OpenNext Cloudflare Worker bundle without deploying
+        run: npx opennextjs-cloudflare build
+      - name: Verify generated Worker entrypoint
+        run: test -s .open-next/worker.js
+      - name: Install Playwright WebKit for mobile-viewport smoke testing
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps webkit
+      - name: Start local Workers runtime preview and smoke-test the homepage
+        run: |
+          set -euo pipefail
+          npx wrangler dev --ip 127.0.0.1 --port 8787 \
+            > "$RUNNER_TEMP/wrangler-local-preview.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/wrangler-local-preview.pid"
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error \
+              http://127.0.0.1:8787/ \
+              -o "$RUNNER_TEMP/wrangler-homepage.html"; then
+              break
+            fi
+            sleep 2
+          done
+          test -s "$RUNNER_TEMP/wrangler-homepage.html"
+          grep -Eqi '<html|<!doctype html' "$RUNNER_TEMP/wrangler-homepage.html"
+          cat "$RUNNER_TEMP/wrangler-local-preview.log"
+      - name: Run WebKit iPhone-viewport smoke test (simulator only)
+        run: |
+          node --input-type=module <<'NODE'
+          import { webkit, devices } from 'playwright';
+          const browser = await webkit.launch({ headless: true });
+          try {
+            const context = await browser.newContext({ ...devices['iPhone 15 Pro'] });
+            const page = await context.newPage();
+            const pageErrors = [];
+            page.on('pageerror', (error) => pageErrors.push(error.message));
+            const response = await page.goto('http://127.0.0.1:8787/', {
+              waitUntil: 'domcontentloaded',
+              timeout: 60000,
+            });
+            if (!response || response.status() !== 200) {
+              throw new Error(`WebKit homepage returned HTTP ${response?.status() ?? 'no response'}`);
+            }
+            const metrics = await page.evaluate(() => ({
+              viewportWidth: document.documentElement.clientWidth,
+              contentWidth: document.documentElement.scrollWidth,
+              viewportHeight: document.documentElement.clientHeight,
+              title: document.title,
+            }));
+            if (metrics.contentWidth > metrics.viewportWidth + 1) {
+              throw new Error('Mobile viewport has horizontal overflow: ' + JSON.stringify(metrics));
+            }
+            if (pageErrors.length) {
+              throw new Error('WebKit page errors: ' + pageErrors.slice(0, 5).join(' | '));
+            }
+            console.log(JSON.stringify({
+              status: 'passed',
+              browser: 'WebKit',
+              device_profile: 'iPhone 15 Pro viewport emulation',
+              physical_device: false,
+              ...metrics,
+            }));
+            await context.close();
+          } finally {
+            await browser.close();
+          }
+          NODE
+      - name: Stop local Workers runtime preview
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/wrangler-local-preview.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/wrangler-local-preview.pid")" 2>/dev/null || true
+          fi
