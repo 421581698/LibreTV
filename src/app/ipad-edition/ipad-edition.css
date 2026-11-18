@@ -947,3 +947,53 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
 .ipad-nav__sidebar[data-liquid-glass-engine="fallback"] {
   background: var(--ipad-nav-panel);
 }
+
+
+/* Phase 2 · shared spatial and motion contract for iPad chrome. */
+.ipad-edition {
+  --ipad-z-content: 0;
+  --ipad-z-navigation: 80;
+  --ipad-z-scrim: 90;
+  --ipad-z-floating: 100;
+  --ipad-motion-fast: 140ms;
+  --ipad-motion-panel: 240ms;
+  --ipad-motion-ease: cubic-bezier(.2, .8, .2, 1);
+  --ipad-press-scale: .97;
+}
+.ipad-nav__topbar { z-index: var(--ipad-z-navigation); }
+.ipad-nav__scrim { z-index: var(--ipad-z-scrim); }
+.ipad-nav__sidebar {
+  z-index: var(--ipad-z-floating);
+  transition:
+    transform var(--ipad-motion-panel) var(--ipad-motion-ease),
+    visibility var(--ipad-motion-panel);
+}
+.ipad-nav__menu-button,
+.ipad-nav__quick-search,
+.ipad-nav__links a {
+  transition:
+    transform var(--ipad-motion-fast) var(--ipad-motion-ease),
+    color var(--ipad-motion-fast) ease,
+    background-color var(--ipad-motion-fast) ease,
+    border-color var(--ipad-motion-fast) ease;
+}
+.ipad-nav__menu-button:active,
+.ipad-nav__quick-search:active,
+.ipad-nav__links a:active {
+  transform: scale(var(--ipad-press-scale));
+}
+.ipad-nav__menu-button:focus-visible,
+.ipad-nav__quick-search:focus-visible,
+.ipad-nav__links a:focus-visible {
+  outline: 2px solid var(--ipad-accent);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ipad-nav__sidebar,
+  .ipad-nav__menu-button,
+  .ipad-nav__quick-search,
+  .ipad-nav__links a {
+    transition: none !important;
+    transform: none !important;
+  }
+}
