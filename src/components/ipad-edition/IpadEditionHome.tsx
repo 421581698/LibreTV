@@ -123,7 +123,7 @@ export function IpadEditionHome() {
           </>
         ) : (
           <div className="ipad-edition__hero-copy" role="status">
-            <p className="ipad-edition__eyebrow">LIBRETV IPAD EDITION</p>
+            <p className="ipad-edition__eyebrow">影院大堂 · LIBRETV IPAD EDITION</p>
             <h1>{featured.isLoading ? '正在为你准备影院' : '精选内容暂不可用'}</h1>
             <p>{featured.isLoading ? '正在获取真实影视推荐…' : '推荐服务暂时不可用，请稍后重试。'}</p>
             {featured.isError ? <button type="button" onClick={() => void featured.refetch()}>重新加载</button> : null}
