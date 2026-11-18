@@ -11,6 +11,9 @@ on:
           - "no"
           - "yes"
         default: "no"
+  push:
+    branches:
+      - feature/libretv-ipad-edition-foundation
 
 permissions:
   contents: read
@@ -21,7 +24,7 @@ concurrency:
 
 jobs:
   deploy-preview:
-    if: ${{ github.ref == 'refs/heads/feature/libretv-ipad-edition-foundation' && inputs.confirm_preview_deploy == 'yes' }}
+    if: ${{ github.ref == 'refs/heads/feature/libretv-ipad-edition-foundation' && ((github.event_name == 'workflow_dispatch' && inputs.confirm_preview_deploy == 'yes') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[deploy-ipad-edition-preview]'))) }}
     name: Build and deploy isolated iPad Edition Preview
     runs-on: ubuntu-latest
     timeout-minutes: 35
