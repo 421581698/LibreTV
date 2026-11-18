@@ -1,80 +1,63 @@
-# Collector ↔ Crawler 接入说明（功能分支）
+# Collector ↔ Resource Studio 接入说明（功能分支）
 
 分支：`feat/collector-crawler-scheduler-integration`
-来源基线：`421581698/LibreTV` @ `7a44d02`（PR #96 / `feature/me-intelligent-collector-entry`）
-本分支**不修改 main、不合并 PR、不部署生产**。
+基线：PR #96 / `feature/me-intelligent-collector-entry`
+本分支不修改 `main`、不合并 PR、不部署生产。
 
-## 1. 与现有 Collector API 对齐
-
-本接入严格使用 `services/scrapling-collector/app.py` 已实现的 API，不假设额外的异步 jobs/events 服务：
+## 1. 实际调用链
 
 ```
 Resource Studio
   → POST /api/resource-collector/scheduler {action:'discover'}
-      → Collector GET /v1/discover（FMHY 公开目录发现）
-  → 用户筛选站点并点击「采集此站点」
-      → POST /api/resource-collector/scheduler {action:'crawl', url, mode, limit}
-      → Collector POST /v1/crawl（同步执行，返回 task_id / status / candidates）
+      → Collector GET /v1/discover
+  → 用户选择站点并点击「采集此站点」
+      → POST /api/resource-collector/scheduler {action:'crawl', ...}
+      → Collector POST /v1/tasks/submit
+      → SQLite collector_jobs 持久化排队
+      → scrapling-worker claim job 并执行 worker.py
+      → worker 调用 crawl_site，写入旧任务表与候选表
+      → worker 将结果写回 collector_jobs
   → GET /api/resource-collector/scheduler?action=status&taskId=...
-      → Collector GET /v1/tasks?limit=100，按 task_id 读取持久化任务
+      → Collector GET /v1/jobs/{job_id}
+      → succeeded 映射为 Resource Studio 的 completed
   → POST /api/resource-collector/scheduler {action:'receive', taskId}
-      → Collector GET /v1/tasks/{task_id}/candidates
-      → 对 CMS 候选逐一调用 POST /v1/candidates/{candidate_id}/validate
-      → 仅 completed 任务且 CMS 结构、可达性、PUBLIC 访问验证通过才返回候选
-      → 浏览器对 customAPIs + envSources 去重并调用 addCustomApi 写入 localStorage
+      → 从 job.result.task_id 解析底层 crawl task ID
+      → GET /v1/tasks/{crawl_task_id}/candidates
+      → POST /v1/candidates/{candidate_id}/validate
+      → 仅公开可访问且 CMS 结构有效的候选返回前端
+      → 浏览器对现有源去重并通过 addCustomApi 写入
 ```
 
-Collector 当前没有 `/v1/tasks/submit`、`/v1/jobs/{id}` 或持久化 events API；本分支不再调用这些不存在的端点，也不伪造事件流。Collector 的 `/v1/crawl` 是同步调用，任务结果另行持久化到其任务表。
+Collector 的持久化队列 API 位于 `registry_queue.py`，包括 `POST /v1/tasks/submit`、`GET /v1/jobs/{id}`、retry/cancel；执行器位于 `worker.py`。队列 job 状态使用 `queued/running/succeeded/partial/failed`，旧 crawl task 状态与其不同。桥接层负责将两种 ID 和状态正确转换。
 
-## 2. 文件变更
+## 2. 本次修复
 
-- `src/lib/collector-scheduler.ts` — 现有 discover/crawl/tasks/candidates/validate API 的服务端编排与 CMS 验证
-- `src/lib/collector-scheduler.test.ts` — 使用 mock fetch 验证真实 API 路径、请求体、任务状态与验证门禁
-- `src/app/api/resource-collector/scheduler/route.ts` — 编排 API 路由，启用私域守卫；不写服务端 Zustand
-- `src/components/resource-studio/IntelligentCollectorPanel.tsx` — 目录发现、站点筛选、单站采集、状态刷新、接收有效 CMS 源
-- `.github/workflows/resource-playback-verification.yml` — 为调度 API、测试和 Resource Studio UI 增加 PR 路径触发
-- `.env.example` — 补充 `SCRAPLING_API_BASE` / `SCRAPLING_API_TOKEN` 说明
+- Resource Studio crawl 从阻塞式 `POST /v1/crawl` 改为持久化 `POST /v1/tasks/submit`。
+- 状态查询从扫描最近 100 条旧 tasks 改为精确读取 `GET /v1/jobs/{job_id}`。
+- 接收结果时从 job.result 解析底层 crawl task ID，再读取候选并逐个验证。
+- 将 Worker 的 `succeeded` 映射为 UI 的 `completed`，兼容 `partial`。
+- Render 单 Collector 容器同时运行 API 与队列 Worker，共享同一挂载 SQLite 文件；Docker Compose 仍可使用独立 worker 服务。
+- UI 明确显示“已排队”，不再误报同步采集已完成。
 
 ## 3. 安全边界
 
-| 要求 | 实现 |
-|---|---|
-| 服务端凭据 | `SCRAPLING_API_BASE` / `SCRAPLING_API_TOKEN` 仅由 `collectorRequest` 在服务端读取；浏览器不能读取或注入服务端 Token |
-| 安全代理 | HTTPS-only、无查询参数/路径前缀、非 IP 字面量的 Collector base 校验；拒绝重定向 |
-| 出口门禁 | `/v1/discover`、`/v1/crawl`、`/v1/candidates/{id}/validate` 均由 Collector 自身实施出口门禁；本分支不修改、不绕过门禁 |
-| 候选类型 | 仅 `cms-api-candidate` 可成为点播源；direct-media / player 候选不会写入 CMS API 列表 |
-| 验证要求 | 必须 `cms_shape=true`、`reachable=true`、`access_state=PUBLIC` |
-| 任务状态 | 仅 `completed` 任务允许接收；partial/failed/interrupted/running 均不入库 |
-| 本地持久化 | 服务端只返回验证通过的候选；浏览器端对当前自定义源和预置源去重，再使用既有 Zustand `addCustomApi` 写入当前浏览器 localStorage |
-| 私域路由 | 新路由启用 `guardPrivateFeatureRequest` |
+- Collector Token 仅在服务端代理注入。
+- HTTPS Collector 源站校验与禁止重定向保持启用。
+- Collector 出口防火墙仍由 Collector 自身强制执行；没有真实防火墙时保持 fail-closed。
+- 只接收 `cms-api-candidate`，并要求 CMS 结构、可达性和 `PUBLIC` 访问状态验证通过。
+- 资源源写入沿用浏览器端现有 Zustand/localStorage，不改现有存储格式。
 
 ## 4. 测试边界
 
-测试全部使用 `vi.stubGlobal('fetch', mock)`，不会触发真实第三方采集。覆盖：
-- `/v1/discover` 目录发现代理；
-- `/v1/crawl` 请求路径与参数；
-- `/v1/tasks` 持久化任务状态读取；
-- `/v1/tasks/{id}/candidates` 与 `/v1/candidates/{id}/validate` 的顺序；
-- 非 completed 任务拒绝接收；
-- CMS 结构与 PUBLIC 访问校验；
-- 与已有源 URL 去重；
-- 无效任务 ID 与空采集 URL 拒绝。
-
-测试通过不代表真实 Collector 服务可达，也不代表第三方采集已经成功。真实调用必须在 Collector 出口防火墙门禁配置正确的环境中单独验收。
+自动化测试验证队列提交、job 精确状态读取、Worker 状态映射、底层 crawl task ID 解析、候选验证和去重。Mock 测试不等于真实公网采集验收。
 
 ## 5. 配置
 
+Collector 服务端需要配置 `SCRAPLING_API_TOKEN`、`SCRAPLING_DB_PATH` 和主机级出口防火墙。LibreTV 服务端需要配置：
+
 ```bash
-# 必须是公网 HTTPS 源站（无查询参数、无路径、非 IP）
-SCRAPLING_API_BASE=https://<your-collector-host>
-SCRAPLING_API_TOKEN=<server-only-random-token>
+SCRAPLING_API_BASE=https://<collector-host>
+SCRAPLING_API_TOKEN=<same-server-side-token>
 ```
 
-Token 通过安全密钥渠道交付，不写入前端、日志或 Git。Collector 侧 `SCRAPLING_EGRESS_FIREWALL_CONFIRMED` 保持在 Collector 服务端；未配置主机级出口防火墙时，discover/crawl/validate 按设计 fail-closed。
-
-## 6. 已知边界
-
-- 本接入只编排当前已存在的 Collector API；不新增后台队列、任务事件流或独立调度服务。
-- `/v1/crawl` 为同步调用；Resource Studio 一次发起一个站点任务，不声称存在异步任务提交队列。
-- Collector 的任务列表接口只返回最近最多 100 条；超出范围的历史任务可能无法通过此桥接读取。
-- E2B/沙盒地址为临时入口，非永久生产地址。
+Render 的 PR #96 Blueprint 将 `SCRAPLING_RUN_WORKER=1`，在同一 Collector 容器内启动 Worker，确保 API 与 Worker 共享持久化磁盘。此 Blueprint 仍为手动 opt-in，不会自动创建或部署付费资源。
