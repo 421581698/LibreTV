@@ -9,9 +9,13 @@ describe('image audit live gate and retry', () => {
   });
   it('rechecks the same image element after it becomes loaded', () => {
     const image = { getAttribute: () => '/a.jpg', currentSrc: '/a.jpg', complete: false, naturalWidth: 0 } as unknown as HTMLImageElement;
-    expect(auditImage(image)?.reason).toBe('not-loaded');
+    expect(auditImage(image)).toBeNull();
     Object.defineProperty(image, 'complete', { value: true, configurable: true });
     Object.defineProperty(image, 'naturalWidth', { value: 640, configurable: true });
+    expect(auditImage(image)).toBeNull();
+  });
+  it('does not report an image that is still loading, including lazy images', () => {
+    const image = { getAttribute: () => '/lazy.jpg', currentSrc: '', complete: false, naturalWidth: 0, loading: 'lazy' } as unknown as HTMLImageElement;
     expect(auditImage(image)).toBeNull();
   });
   it('reports a broken image only while live', () => {
