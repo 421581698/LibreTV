@@ -1593,3 +1593,34 @@ body:has(.ipad-edition){margin:0}
     transform: none !important;
   }
 }
+
+
+/* Detail pages own their hero controls; keep the shell navigation out of that layer. */
+.ipad-edition[data-ipad-detail="true"] {
+  min-height: 100dvh;
+  padding: 0 !important;
+  background: #08080a !important;
+}
+.ipad-edition[data-ipad-detail="true"] > .ipad-edition__main {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+.ipad-edition[data-ipad-detail="true"] .movie-detail-page {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+.ipad-edition__poster-skeleton {
+  flex: 0 0 clamp(136px, 15vw, 204px);
+  width: clamp(136px, 15vw, 204px);
+}
+@media (max-width: 699px) {
+  .ipad-edition__poster-skeleton {
+    flex-basis: 138px;
+    width: 138px;
+  }
+  .ipad-edition[data-ipad-detail="true"] .movie-detail-hero {
+    min-height: max(560px, 78svh);
+  }
+}
