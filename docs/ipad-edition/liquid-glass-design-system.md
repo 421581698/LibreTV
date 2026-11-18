@@ -6,8 +6,9 @@ This specification governs the isolated LibreTV iPad Edition product branch.
 
 - Four icon-only entries, in order: sidebar, home, search, and personal space.
 - One geometric panel icon for the sidebar; do not substitute a hamburger icon.
-- A 72px desktop/tablet capsule with a 430px maximum width, adaptive on compact screens.
-- Consistent icon scale, stroke weight, and minimum 48px interaction targets.
+- A slim 58px desktop/tablet capsule with a 390px maximum width; compact screens use a 54px capsule capped at 360px.
+- The outer shell uses a true pill radius (`999px`); the four inner icon targets use restrained Apple-like rounded corners (15px desktop/tablet, 14px compact).
+- Consistent 21–22px icon scale and stroke weight, with 42–44px inner touch targets.
 - Active route state is conveyed by a restrained inner glass highlight.
 
 ## Material
