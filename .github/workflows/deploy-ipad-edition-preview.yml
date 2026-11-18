@@ -283,7 +283,10 @@ jobs:
                   const animeCards = Array.from(document.querySelectorAll('.ipad-edition__anime-card'));
                   const top = topbar?.getBoundingClientRect();
                   const copy = heroCopy?.getBoundingClientRect();
+                  const heroRect = hero?.getBoundingClientRect();
                   const heroTextOverlapsNavigation = Boolean(top && copy && top.left < copy.right && top.right > copy.left && top.top < copy.bottom && top.bottom > copy.top);
+                  const heroOverlapsNavigation = Boolean(top && heroRect && top.left < heroRect.right && top.right > heroRect.left && top.top < heroRect.bottom && top.bottom > heroRect.top);
+                  const heroClearancePx = top && heroRect ? Math.round(heroRect.top - top.bottom) : null;
                   // naturalWidth/naturalHeight prove a real image decoded. Canvas pixel inspection is diagnostic only: cross-origin posters can taint the canvas without being visually broken.
               const realLoaded = posterChecks.filter(item => item.loaded && item.visible).length;
                   const posterSlotBreakdown = Object.fromEntries([...new Set(posterChecks.map(item => item.slotType))].map(type => {
@@ -298,6 +301,8 @@ jobs:
                     horizontalOverflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) > window.innerWidth + 2,
                     shell: rect(root), main: rect(main), topbar: rect(topbar), hero: rect(hero), heroCopy: rect(heroCopy),
                     heroTextOverlapsNavigation,
+                    heroOverlapsNavigation,
+                    heroClearancePx,
                     homepageStillLoading: Boolean(document.querySelector('.ipad-edition__poster-grid[aria-busy="true"]')) || (document.querySelector('.ipad-edition__hero-copy h1')?.textContent ?? '').includes('正在为你准备影院'),
                     posterCount: posters.length,
                     animeCardCount: animeCards.length,
@@ -418,7 +423,7 @@ jobs:
 
                 const name = viewport.name + "-" + colorScheme;
                 await page.screenshot({ path: "artifacts/ipad-visual-audit/" + name + ".png", fullPage: true, animations: "disabled" });
-                const failed = response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.width < viewport.width * 0.7 || metrics.homepageStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.posterImageLoadRate < 0.75 || !metrics.posterPixelInspectionPassed || metrics.heroTextOverlapsNavigation || !metrics.themePairValid;
+                const failed = response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.width < viewport.width * 0.7 || metrics.homepageStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.posterImageLoadRate < 0.75 || !metrics.posterPixelInspectionPassed || metrics.heroTextOverlapsNavigation || metrics.heroOverlapsNavigation || !Number.isFinite(metrics.heroClearancePx) || metrics.heroClearancePx < 8 || !metrics.themePairValid;
                 if (failed) failures += 1;
                 results.push({ name, httpStatus: response?.status() ?? null, failed, metrics, pageErrors: consoleErrors });
                 console.log(JSON.stringify(results.at(-1)));
