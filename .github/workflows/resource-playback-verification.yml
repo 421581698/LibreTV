@@ -30,6 +30,12 @@ on:
       - "src/app/api/auth-guard.test.ts"
       - "src/lib/resource-collector-client.ts"
       - "src/lib/resource-collector-client.test.ts"
+      - "src/lib/collector-scheduler.ts"
+      - "src/lib/collector-scheduler.test.ts"
+      - "src/app/api/resource-collector/scheduler/route.ts"
+      - "src/components/resource-studio/IntelligentCollectorPanel.tsx"
+      - "docs/COLLECTOR_SCHEDULER_INTEGRATION.md"
+      - ".env.example"
   workflow_dispatch:
 
   pull_request:
