@@ -445,3 +445,5 @@ body:has(.ipad-edition){margin:0}
  .ipad-edition__today,.ipad-edition__rail-section{padding-left:32px}
  .ipad-edition__poster-card{flex-basis:180px;width:180px}
 }
+
+/* Full-bleed navigation and cinema layout preview deployment. */
