@@ -1377,3 +1377,219 @@ body:has(.ipad-edition){margin:0}
 @media (max-width: 699px) {
   .ipad-edition__top-links a { min-height: 38px; }
 }
+
+
+/* iPad Edition layout collision pass — consolidated final overrides. */
+.ipad-edition {
+  /* The drawer is off-canvas; never reserve its former 316px width. */
+  padding: 10px clamp(16px, 2.4vw, 36px) 56px !important;
+  min-width: 0;
+  overflow-x: clip;
+}
+.ipad-edition__main {
+  width: 100%;
+  min-width: 0;
+  max-width: none !important;
+  margin: 0 auto;
+}
+.ipad-edition__topbar {
+  z-index: 150 !important;
+}
+.ipad-edition__top-links {
+  position: relative;
+  z-index: 151 !important;
+}
+.ipad-edition__backdrop {
+  z-index: 200 !important;
+}
+.ipad-edition__sidebar,
+.ipad-edition__sidebar.is-open {
+  z-index: 210 !important;
+}
+.ipad-edition[data-sidebar-open="true"] .ipad-edition__topbar {
+  visibility: hidden;
+  pointer-events: none;
+}
+.ipad-edition__hero {
+  width: 100vw !important;
+  max-width: none !important;
+  height: clamp(300px, 44svh, 520px) !important;
+  min-height: 300px !important;
+  max-height: 520px !important;
+  margin: 0 0 0 calc(50% - 50vw) !important;
+  border-radius: 0 !important;
+}
+.ipad-edition__home {
+  min-width: 0;
+  gap: clamp(20px, 3vh, 30px) !important;
+}
+.ipad-edition__hero-copy {
+  left: clamp(22px, 5vw, 72px) !important;
+  right: 22px;
+  bottom: clamp(28px, 5vh, 54px) !important;
+  width: min(680px, calc(100% - 44px));
+}
+.ipad-edition__hero h1 {
+  font-size: clamp(36px, 5.6vw, 68px) !important;
+  overflow-wrap: anywhere;
+}
+.ipad-edition__today,
+.ipad-edition__rail-section {
+  min-width: 0;
+  padding-left: clamp(16px, 2.4vw, 36px) !important;
+  padding-right: clamp(16px, 2.4vw, 36px) !important;
+}
+.ipad-edition__poster-grid,
+.ipad-edition__anime-grid,
+.ipad-edition__continue-grid {
+  min-width: 0;
+  padding: 10px 24px 20px 0 !important;
+  margin-top: -8px;
+  scroll-padding-inline: 4px;
+}
+.ipad-edition__poster-grid,
+.ipad-edition__anime-grid {
+  display: flex !important;
+  gap: clamp(12px, 1.5vw, 18px) !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.ipad-edition__poster-card {
+  flex: 0 0 clamp(136px, 15vw, 204px) !important;
+  width: clamp(136px, 15vw, 204px) !important;
+}
+.ipad-edition__anime-card {
+  flex: 0 0 clamp(190px, 21vw, 280px) !important;
+  width: clamp(190px, 21vw, 280px) !important;
+}
+.ipad-edition__poster-card:hover .ipad-edition__poster-art,
+.ipad-edition__result-card:hover .ipad-edition__result-poster,
+.ipad-edition__library-card:hover .ipad-edition__result-poster {
+  transform: translateY(-3px) scale(1.01) !important;
+}
+.ipad-edition__result-grid,
+.ipad-edition__collection-grid {
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: clamp(12px, 1.5vw, 20px) !important;
+  min-width: 0;
+}
+.ipad-edition__category-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  min-width: 0;
+}
+.ipad-edition__page {
+  min-width: 0;
+  width: 100%;
+  padding: 112px clamp(16px, 2.4vw, 36px) 56px !important;
+}
+.ipad-edition__page-heading,
+.ipad-edition__search-form,
+.ipad-edition__search-results,
+.ipad-edition__category-area {
+  min-width: 0;
+  max-width: 100%;
+}
+.ipad-edition__search-form input {
+  width: 1px;
+}
+.ipad-edition__pagination {
+  flex-wrap: wrap;
+}
+.ipad-edition[data-ipad-player="true"] {
+  min-height: 100dvh;
+  height: 100dvh;
+  padding: 0 !important;
+  overflow: hidden !important;
+  background: #000 !important;
+}
+.ipad-edition[data-ipad-player="true"] > .ipad-edition__sidebar,
+.ipad-edition[data-ipad-player="true"] > .ipad-edition__backdrop,
+.ipad-edition[data-ipad-player="true"] .ipad-edition__topbar {
+  display: none !important;
+}
+.ipad-edition[data-ipad-player="true"] > .ipad-edition__main {
+  width: 100%;
+  height: 100%;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 0;
+}
+.ipad-edition[data-ipad-player="true"] .netflix-watch-shell {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+}
+@media (min-width: 700px) and (max-width: 1023px) {
+  .ipad-edition__result-grid,
+  .ipad-edition__collection-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+  .ipad-edition__category-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+  .ipad-edition__hero {
+    height: clamp(320px, 44svh, 470px) !important;
+  }
+}
+@media (max-width: 699px) {
+  .ipad-edition {
+    padding: 8px 0 40px !important;
+  }
+  .ipad-edition__hero {
+    height: clamp(300px, 48svh, 390px) !important;
+    min-height: 300px !important;
+  }
+  .ipad-edition__hero-copy {
+    left: 20px !important;
+    right: 20px;
+    bottom: 30px !important;
+    width: auto;
+  }
+  .ipad-edition__today,
+  .ipad-edition__rail-section {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+  .ipad-edition__poster-card {
+    flex-basis: 138px !important;
+    width: 138px !important;
+  }
+  .ipad-edition__anime-card {
+    flex-basis: 188px !important;
+    width: 188px !important;
+  }
+  .ipad-edition__result-grid,
+  .ipad-edition__collection-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 16px 12px !important;
+  }
+  .ipad-edition__category-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+  .ipad-edition__page {
+    padding: 84px 16px 40px !important;
+  }
+  .ipad-edition__search-form {
+    gap: 8px;
+    padding: 8px 10px;
+  }
+  .ipad-edition__search-form button {
+    padding-inline: 12px;
+  }
+  .ipad-edition__pagination {
+    gap: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ipad-edition__poster-card:hover .ipad-edition__poster-art,
+  .ipad-edition__result-card:hover .ipad-edition__result-poster,
+  .ipad-edition__library-card:hover .ipad-edition__result-poster {
+    transform: none !important;
+  }
+}
