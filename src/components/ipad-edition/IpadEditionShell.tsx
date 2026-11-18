@@ -11,12 +11,12 @@ const sidebarNavigation = [
   { label: '电视剧', href: '/ipad-edition/series', icon: 'tv' },
   { label: '动漫', href: '/ipad-edition/anime', icon: 'sparkles' },
   { label: '资料库', href: '/ipad-edition/library', icon: 'square-stack' },
-];
+] as const;
 
-function NavigationIcon({ name }: { name: 'house' | 'film' | 'sparkles' | 'search' | 'user' }) {
+function NavigationIcon({ name, className = 'ipad-edition__top-icon' }: { name: 'house' | 'film' | 'tv' | 'sparkles' | 'square-stack' | 'search' | 'user'; className?: string }) {
   const common = {
     viewBox: '0 0 24 24',
-    className: 'ipad-edition__top-icon',
+    className,
     'aria-hidden': true as const,
     focusable: false as const,
     fill: 'none',
@@ -31,6 +31,12 @@ function NavigationIcon({ name }: { name: 'house' | 'film' | 'sparkles' | 'searc
   if (name === 'film') {
     return <svg {...common}><rect x="3.5" y="5" width="17" height="14" rx="2" /><path d="M7 5v14M17 5v14M3.5 9h3.5M17 9h3.5M3.5 15h3.5M17 15h3.5" /></svg>;
   }
+  if (name === 'tv') {
+    return <svg {...common}><rect x="3" y="4.5" width="18" height="13" rx="2" /><path d="M8 21h8M12 17.5V21" /></svg>;
+  }
+  if (name === 'square-stack') {
+    return <svg {...common}><rect x="5" y="6" width="14" height="15" rx="2" /><path d="M8 3h11a2 2 0 0 1 2 2v12M9 10h6M9 14h6" /></svg>;
+  }
   if (name === 'sparkles') {
     return <svg {...common}><path d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3Z" /><path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15ZM5 2l.7 2.3L8 5l-2.3.7L5 8l-.7-2.3L2 5l2.3-.7L5 2Z" /></svg>;
   }
@@ -38,6 +44,10 @@ function NavigationIcon({ name }: { name: 'house' | 'film' | 'sparkles' | 'searc
     return <svg {...common}><circle cx="10.7" cy="10.7" r="6.4" /><path d="m15.4 15.4 4.6 4.6" /></svg>;
   }
   return <svg {...common}><circle cx="12" cy="8" r="3.5" /><path d="M4.6 20c.6-3.5 3.1-5.3 7.4-5.3s6.8 1.8 7.4 5.3" /></svg>;
+}
+
+function SettingsIcon() {
+  return <svg className="ipad-edition__sidebar-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h9m4 0h3M4 17h3m4 0h9" /><circle cx="15" cy="7" r="2" /><circle cx="9" cy="17" r="2" /></svg>;
 }
 
 function SidebarPanelIcon() {
@@ -71,11 +81,11 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
         <div className="ipad-edition__brand"><span className="ipad-edition__brand-mark">L</span><span>LibreTV</span><small>IPAD EDITION</small></div>
         <p className="ipad-edition__nav-label">浏览</p>
         <nav className="ipad-edition__nav">
-          {sidebarNavigation.map((item) => <Link key={item.href} href={item.href} tabIndex={sidebarOpen ? 0 : -1} className={pathname === item.href ? 'is-active' : ''}><span className={"ipad-edition__nav-icon icon-" + item.icon} aria-hidden="true" />{item.label}</Link>)}
+          {sidebarNavigation.map((item) => <Link key={item.href} href={item.href} tabIndex={sidebarOpen ? 0 : -1} className={pathname === item.href ? 'is-active' : ''}><NavigationIcon name={item.icon} className="ipad-edition__sidebar-icon" />{item.label}</Link>)}
         </nav>
         <div className="ipad-edition__sidebar-footer">
-          <Link href="/ipad-edition/search" tabIndex={sidebarOpen ? 0 : -1}><span className="ipad-edition__nav-icon icon-search" />搜索影片</Link>
-          <Link href="/ipad-edition/settings" tabIndex={sidebarOpen ? 0 : -1}><span className="ipad-edition__nav-icon icon-settings" />设置</Link>
+          <Link href="/ipad-edition/search" tabIndex={sidebarOpen ? 0 : -1}><NavigationIcon name="search" className="ipad-edition__sidebar-icon" />搜索影片</Link>
+          <Link href="/ipad-edition/settings" tabIndex={sidebarOpen ? 0 : -1}><SettingsIcon />设置</Link>
         </div>
       </aside>
       <main className="ipad-edition__main">
