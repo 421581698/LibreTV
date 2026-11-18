@@ -2,8 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
-import { IpadEditionHome } from '@/components/ipad-edition/IpadEditionHome';
+import { useState, type ReactNode } from 'react';
 
 const navigation = [
   { label: '首页', href: '/ipad-edition', icon: '⌂' },
@@ -13,7 +12,7 @@ const navigation = [
   { label: '资料库', href: '/ipad-edition/library', icon: '▱' },
 ];
 
-export function IpadEditionShell() {
+export function IpadEditionShell({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
 
@@ -34,7 +33,6 @@ export function IpadEditionShell() {
           <Link href="/ipad-edition/settings" onClick={() => setSidebarOpen(false)}>⚙ <span>设置</span></Link>
         </div>
       </aside>
-
       <main className="ipad-edition__main">
         <header className="ipad-edition__topbar">
           <button className="ipad-edition__menu" type="button" aria-label="打开导航" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen((open) => !open)}>☰</button>
@@ -43,7 +41,7 @@ export function IpadEditionShell() {
           </nav>
           <div className="ipad-edition__top-actions"><Link href="/ipad-edition/search" aria-label="搜索">⌕</Link><Link href="/ipad-edition/settings" aria-label="设置">⚙</Link></div>
         </header>
-        <IpadEditionHome />
+        {children}
       </main>
     </div>
   );
