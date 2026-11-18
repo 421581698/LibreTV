@@ -74,9 +74,10 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
   const searchActive = pathname.startsWith('/ipad-edition/search');
   const myActive = pathname.startsWith('/ipad-edition/library') || pathname.startsWith('/ipad-edition/settings');
   const isPlayerRoute = pathname === '/ipad-edition/watch' || pathname.startsWith('/ipad-edition/watch/');
+  const isDetailRoute = pathname === '/ipad-edition/detail' || pathname.startsWith('/ipad-edition/detail/');
 
   return (
-    <div className="ipad-edition" data-ipad-edition="true" data-ipad-player={isPlayerRoute ? "true" : undefined} data-sidebar-open={sidebarOpen ? "true" : "false"}>
+    <div className="ipad-edition" data-ipad-edition="true" data-ipad-player={isPlayerRoute ? "true" : undefined} data-ipad-detail={isDetailRoute ? "true" : undefined} data-sidebar-open={sidebarOpen ? "true" : "false"}>
       {!isPlayerRoute && sidebarOpen && <button className="ipad-edition__backdrop" type="button" aria-label="关闭导航菜单" onClick={() => setSidebarOpen(false)} />}
       {!isPlayerRoute && <aside className={"ipad-edition__sidebar" + (sidebarOpen ? " is-open" : "")} id="ipad-edition-sidebar" aria-label="主导航" aria-hidden={!sidebarOpen}>
         <div className="ipad-edition__brand"><span className="ipad-edition__brand-mark">L</span><span>LibreTV</span><small>IPAD EDITION</small></div>
@@ -90,7 +91,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
         </div>
       </aside>}
       <main className="ipad-edition__main">
-        {!isPlayerRoute && <header className="ipad-edition__topbar">
+        {!isPlayerRoute && !isDetailRoute && <header className="ipad-edition__topbar">
           {glassReady && (
             <LiquidGlass
               className="ipad-edition__liquid-glass-host"
