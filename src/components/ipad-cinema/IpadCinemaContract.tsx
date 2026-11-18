@@ -60,7 +60,6 @@ export function IpadCinemaContract() {
       imageAudit?.audit();
     };
 
-    apply();
     imageAudit = attachImageAuditRuntime({
       root: document,
       isLive: () => sessionRef.current.activation !== 'inactive' && document.visibilityState === 'visible' && navigator.onLine !== false,
@@ -100,6 +99,7 @@ export function IpadCinemaContract() {
       );
     });
     window.addEventListener('resize', apply);
+    apply();
     return () => {
       window.removeEventListener('resize', apply);
       lifecycle.detach();
