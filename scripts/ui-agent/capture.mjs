@@ -59,10 +59,29 @@ try {
       });
 
       let navigationError = null;
+      let authenticationError = null;
+      let authenticated = false;
       try {
         await page.goto(baseURL, { waitUntil: 'networkidle', timeout: 45000 });
+        const loginDialog = page.locator('[role="dialog"][aria-modal="true"]');
+        if (await loginDialog.isVisible().catch(() => false)) {
+          const testPassword = process.env.UI_AGENT_TEST_PASSWORD;
+          if (!testPassword) {
+            throw new Error('Protected page is showing a login dialog, but UI_AGENT_TEST_PASSWORD is not configured.');
+          }
+          await loginDialog.locator('input[type="password"]').fill(testPassword);
+          await loginDialog.locator('button[type="submit"]').click();
+          await loginDialog.waitFor({ state: 'hidden', timeout: 15000 });
+          authenticated = true;
+          // Ignore expected anonymous 401 responses emitted before the test login.
+          consoleErrors.length = 0;
+          failedRequests.length = 0;
+          await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+        } else {
+          authenticated = true;
+        }
       } catch (error) {
-        navigationError = error.message;
+        authenticationError = error.message;
       }
 
       const metrics = await page.evaluate(() => {
@@ -74,6 +93,8 @@ try {
         const documentHeight = Math.max(root?.scrollHeight ?? 0, body?.scrollHeight ?? 0);
         return {
           title: document.title,
+          homepageVisible: Boolean(document.querySelector('main.v4-home-main')?.getClientRects().length),
+          authDialogVisible: Boolean(document.querySelector('[role="dialog"][aria-modal="true"]')?.getClientRects().length),
           ipadCinema: root?.getAttribute('data-ipad-cinema') ?? null,
           navOwner: root?.getAttribute('data-nav-owner') ?? null,
           navigator: { userAgent: navigator.userAgent, platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints },
@@ -105,6 +126,8 @@ try {
         theme,
         url: page.url(),
         navigationError,
+        authenticationError,
+        authenticated,
         metrics,
         consoleErrors,
         pageErrors,
@@ -128,6 +151,10 @@ const report = {
 await writeFile(path.join(outputDir, 'report.json'), JSON.stringify(report, null, 2));
 const defects = results.filter((result) =>
   result.navigationError ||
+  result.authenticationError ||
+  !result.authenticated ||
+  result.metrics?.authDialogVisible ||
+  !result.metrics?.homepageVisible ||
   result.metrics?.horizontalOverflow ||
   (result.expectedCinema && (result.metrics?.ipadCinema !== result.expectedCinema || result.metrics?.navOwner !== 'adaptive')) ||
   result.pageErrors.length > 0
