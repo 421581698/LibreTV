@@ -282,10 +282,11 @@ jobs:
                   const top = topbar?.getBoundingClientRect();
                   const copy = heroCopy?.getBoundingClientRect();
                   const heroTextOverlapsNavigation = Boolean(top && copy && top.left < copy.right && top.right > copy.left && top.top < copy.bottom && top.bottom > copy.top);
-                  const realLoaded = posterChecks.filter(item => item.loaded && item.visible && item.pixelVisible).length;
+                  // naturalWidth/naturalHeight prove a real image decoded. Canvas pixel inspection is diagnostic only: cross-origin posters can taint the canvas without being visually broken.
+              const realLoaded = posterChecks.filter(item => item.loaded && item.visible).length;
                   const posterSlotBreakdown = Object.fromEntries([...new Set(posterChecks.map(item => item.slotType))].map(type => {
                     const matching = posterChecks.filter(item => item.slotType === type);
-                    const loaded = matching.filter(item => item.loaded && item.visible && item.pixelVisible).length;
+                    const loaded = matching.filter(item => item.loaded && item.visible).length;
                     return [type, { total: matching.length, realLoaded: loaded, loadRate: matching.length ? Number((loaded / matching.length).toFixed(3)) : 0 }];
                   }));
                   return {
