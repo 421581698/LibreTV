@@ -28,3 +28,11 @@ Apply the same material tokens and capsule geometry across the top navigation, s
 All implementation remains on `feature/libretv-ipad-edition-product`, based on the iPad Edition foundation branch. Preview deployment is isolated to the iPad Edition Preview Worker. No production deployment, main-branch change, or PR merge is authorized by this specification.
 
 CI success and HTTP route checks are not substitutes for real iPad visual acceptance.
+
+
+## Implementation notes
+
+- Compact controls use a full capsule radius; category tiles and large panels retain larger continuous corners.
+- Media artwork and video surfaces are intentionally excluded from global glass overlays.
+- Use `-webkit-backdrop-filter` alongside `backdrop-filter` for Safari compatibility, with translucent fills remaining legible when blur is unavailable.
+- Verify touch targets, safe-area placement, scrolling, and light/dark contrast on a real iPad after Preview deployment.
