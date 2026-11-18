@@ -128,17 +128,22 @@ jobs:
                   const heroTitle = document.querySelector('.ipad-edition__hero-copy h1')?.textContent ?? '';
                   return !busyRail && !heroTitle.includes('正在为你准备影院');
                 }, { timeout: 30000 }).catch(() => {});
-                // Force lazy poster images to load before measuring and capturing the page.
+                // Register listeners before promoting lazy images to eager. An image with
+                // complete=true and naturalWidth=0 is already broken; complete=false must
+                // wait for a real load/error event. The old check could settle lazy images early.
                 await page.evaluate(async () => {
                   const images = Array.from(document.querySelectorAll('.ipad-edition__poster-card img'));
-                  for (const image of images) image.loading = 'eager';
+                  const waitForImage = (image) => new Promise(resolve => {
+                    if (image.complete) return resolve();
+                    const finish = () => resolve();
+                    image.addEventListener('load', finish, { once: true });
+                    image.addEventListener('error', finish, { once: true });
+                    image.loading = 'eager';
+                    if (image.complete) finish();
+                  });
                   await Promise.race([
-                    Promise.all(images.map(image => new Promise(resolve => {
-                      if (image.complete) return resolve();
-                      image.addEventListener('load', resolve, { once: true });
-                      image.addEventListener('error', resolve, { once: true });
-                    }))),
-                    new Promise(resolve => setTimeout(resolve, 20000)),
+                    Promise.all(images.map(waitForImage)),
+                    new Promise(resolve => setTimeout(resolve, 45000)),
                   ]);
                 });
                 const metrics = await page.evaluate(() => {
@@ -172,6 +177,7 @@ jobs:
                     realPosterImagesLoaded: realImagesLoaded,
                     posterFallbackImages: fallbackImages,
                     posterImageLoadRate: posterImages.length ? Number((realImagesLoaded / posterImages.length).toFixed(2)) : 0,
+                    failedPosterUrls: posterImages.filter(image => !image.complete || image.naturalWidth === 0).map(image => image.currentSrc || image.src).slice(0, 12),
                     popularHeading: Boolean(document.querySelector('#ipad-popular-movies-title')),
                   };
                 });
