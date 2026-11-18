@@ -24,7 +24,9 @@ describe('iPad cinema integration edges', () => {
     expect(layout).toContain('<IpadCinemaResumeNotice />');
     expect(notice).toContain("detail?.kind !== 'app-background'");
     expect(notice).toContain("document.visibilityState === 'visible'");
-    expect(notice).toContain('请轻点播放器的播放按钮继续');
+    expect(notice).toContain('已保存播放进度。请轻点播放器的播放按钮继续。');
+    expect(notice).toContain("detail.decision === 'reload-then-resume'");
+    expect(notice).toContain('当前视频源已失效，请重新选择播放源后继续。');
     expect(notice).not.toContain('.play(');
     expect(notice).not.toContain('autoplay');
   });
