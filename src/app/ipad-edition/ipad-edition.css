@@ -498,7 +498,7 @@ body:has(.ipad-edition){margin:0}
 }
 
 
-/* Navigation collision fix: one toolbar row with independent, reserved control space. */
+/* Navigation collision fix: one toolbar row with independent, reserved control space. [deploy-ipad-edition-preview] */
 .ipad-edition__topbar{
   position:fixed!important;z-index:110!important;
   top:calc(env(safe-area-inset-top,0px) + 18px)!important;
