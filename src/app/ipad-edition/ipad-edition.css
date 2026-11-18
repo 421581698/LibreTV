@@ -942,41 +942,8 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
 /* [deploy-ipad-edition-preview] Re-run viewport-based scroll overlap audit. */
 
 
-/* Shared optical layer supplied by liquid-glass-react; content remains in the host. */
-.liquid-glass {
-  isolation: isolate;
-}
-.liquid-glass-engine-slot {
-  position: absolute;
-  z-index: 0;
-  inset: 0;
-  overflow: hidden;
-  border-radius: inherit;
-  pointer-events: none;
-}
-.liquid-glass-engine-root {
-  pointer-events: none !important;
-}
-.liquid-glass-engine-fill {
-  display: block;
-  width: 100%;
-  height: 100%;
-  min-height: 1px;
-  background: rgba(150, 160, 180, .025);
-}
-.liquid-glass > :not(.liquid-glass-engine-slot) {
-  position: relative;
-  z-index: 1;
-}
-.ipad-nav__topbar-inner,
-.ipad-nav__sidebar {
-  border: 1px solid var(--ipad-nav-line);
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-}
-.ipad-nav__topbar-inner {
-  min-height: 58px;
-}
-.ipad-nav__sidebar {
+/* Keep the legacy tint only while the optical engine is loading or unavailable. */
+.ipad-nav__topbar-inner[data-liquid-glass-engine="fallback"],
+.ipad-nav__sidebar[data-liquid-glass-engine="fallback"] {
   background: var(--ipad-nav-panel);
 }
