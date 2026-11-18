@@ -4,7 +4,7 @@ compatibility_date = "2025-04-01"
 compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
 assets = { directory = ".open-next/assets" }
 
-# Dedicated iPad acceptance Worker. Never reuse the shared homepage or production Worker.
+# Dedicated public iPad acceptance Worker. Never reuse the shared homepage or production Worker.
 workers_dev = true
 preview_urls = false
 
@@ -12,5 +12,5 @@ preview_urls = false
 CMS_SEARCH_API = "https://caiji.dyttzyapi.com/api.php/provide/vod"
 API_60S_BASE = "https://60s.bggdbh.workers.dev"
 LLM_MODEL = "glm-4-flash"
-# Keep the isolated Preview protected by the existing PASSWORD secret.
-AUTH_DISABLED = "false"
+# Public iPad Preview: disable the application access-code gate on this isolated Worker only.
+AUTH_DISABLED = "true"
