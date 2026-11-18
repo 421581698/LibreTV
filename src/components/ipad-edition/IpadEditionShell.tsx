@@ -85,6 +85,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
         <LiquidGlassSurface
           as="aside"
           variant="panel"
+          cornerRadius={0}
           className={`ipad-nav__sidebar${sidebarOpen ? ' is-open' : ''}`}
           id="ipad-edition-sidebar"
           aria-label="主导航"
@@ -125,7 +126,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
       <main className="ipad-edition__main">
         {!isChromeHidden && (
           <header className="ipad-nav__topbar">
-            <LiquidGlassSurface as="div" variant="panel" className="ipad-nav__topbar-inner">
+            <LiquidGlassSurface as="div" variant="panel" cornerRadius={18} className="ipad-nav__topbar-inner">
               <button
                 className="ipad-nav__menu-button"
                 type="button"
