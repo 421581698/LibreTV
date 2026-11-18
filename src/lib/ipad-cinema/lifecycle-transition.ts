@@ -12,8 +12,7 @@ export function createLifecycleTransitionDeduper(onTransition: (transition: Life
   return {
     dispatch(transition: LifecycleTransition) {
       if (detached || last === transition) return false;
-      if (last && OPPOSITE_KEY[last] === transition) last = null;
-      else last = transition;
+      last = transition;
       onTransition(transition);
       return true;
     },
@@ -23,7 +22,7 @@ export function createLifecycleTransitionDeduper(onTransition: (transition: Life
 }
 export function attachPageLifecycle(target: Window, onTransition: (transition: LifecycleTransition) => void) {
   const deduper = createLifecycleTransitionDeduper(onTransition);
-  const visibility = () => deduper.dispatch(document.visibilityState === 'hidden' ? 'to-background' : 'to-foreground');
+  const visibility = () => deduper.dispatch(target.document.visibilityState === 'hidden' ? 'to-background' : 'to-foreground');
   const pagehide = () => deduper.dispatch('to-background');
   const pageshow = () => deduper.dispatch('to-foreground');
   const offline = () => deduper.dispatch('offline');
