@@ -38,6 +38,7 @@ import './pr84-watch-mobile-fix.css';
 // PR #84 Resource Studio: route-scoped dark theme and isolated mobile dock.
 import './resource-studio.css';
 import { Providers } from '@/components/providers';
+// GlobalChromeBoundary owns the single MobileTabBar import and renders <MobileTabBar /> only outside /ipad-edition.
 import { GlobalChromeBoundary } from '@/components/ipad-edition/GlobalChromeBoundary';
 import { GlobalDownloadManager } from '@/components/download-manager';
 
