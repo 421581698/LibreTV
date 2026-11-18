@@ -130,8 +130,14 @@ jobs:
                 const page = await context.newPage();
                 // Force the application theme class, not merely the browser media preference.
                 await page.addInitScript((scheme) => {
-                  document.documentElement.classList.toggle('dark', scheme === 'dark');
-                  document.documentElement.style.colorScheme = scheme;
+                  const applyTheme = () => {
+                    const root = document.documentElement;
+                    if (!root) return;
+                    root.classList.toggle('dark', scheme === 'dark');
+                    root.style.colorScheme = scheme;
+                  };
+                  if (document.documentElement) applyTheme();
+                  else document.addEventListener('DOMContentLoaded', applyTheme, { once: true });
                 }, colorScheme);
                 const consoleErrors = [];
                 page.on("pageerror", error => consoleErrors.push(error.message));
@@ -170,7 +176,7 @@ jobs:
                   const root = document.querySelector('[data-ipad-edition="true"]');
                   const main = document.querySelector('.ipad-edition__main');
                   const topbar = document.querySelector('.ipad-edition__topbar');
-                  const capsule = document.querySelector('.ipad-edition__capsule');
+                  const capsule = document.querySelector('.ipad-edition__top-links');
                   const hero = document.querySelector('.ipad-edition__hero');
                   const heroCopy = document.querySelector('.ipad-edition__hero-copy');
                   const rect = element => {
@@ -197,7 +203,7 @@ jobs:
                   const rootTextLuminance = luminance(rootColor);
                   const theme = {
                     rootBackground, rootColor, rootBackgroundLuminance, rootTextLuminance,
-                    capsuleBackground: capsuleStyle?.backgroundColor ?? '',
+                    capsuleBackground: capsuleStyle?.background ?? '',
                     capsuleBackdropFilter: capsuleStyle?.backdropFilter ?? 'none',
                     validForRequestedScheme: scheme === 'light'
                       ? rootBackgroundLuminance !== null && rootBackgroundLuminance > 0.55 && rootTextLuminance !== null && rootTextLuminance < 0.4
