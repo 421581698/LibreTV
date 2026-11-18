@@ -17,7 +17,7 @@ import { db, removeFavorite, type FavoriteEntry, type HistoryEntry } from '@/lib
 import { isInDisabledSubscription, isSourceDisabled, resolveSource, useAppStore } from '@/lib/store';
 import type { DoubanItem, SearchResultItem, SourceConfig } from '@/lib/types';
 import { api } from '@/lib/client-api';
-import { collectorFetch } from '@/lib/collector-browser-config';
+import { collectorFetch, readScraplingConfig, saveScraplingConfig, clearScraplingConfig } from '@/lib/collector-browser-config';
 import { validateSourceUrl } from '@/lib/utils';
 import { formatTime } from '@/lib/utils';
 
@@ -385,6 +385,12 @@ function MeScreen() {
       <section className="v52-me-section v52-me-other" aria-label="其他功能">
         <div className="v52-me-section-head"><h3>其他功能</h3></div>
         <div className="v52-me-list">
+          <Link href="/resource-studio" className="v52-me-list-row" aria-label="打开智能爬虫资源管理中心">
+            <span className="v52-me-list-icon"><Icon name="network" /></span>
+            <strong>智能爬虫</strong>
+            <small>AI 发现 · 千级采集 · 人工审核</small>
+            <span className="v52-me-chevron" aria-hidden="true">›</span>
+          </Link>
           <Link href="/search" className="v52-me-list-row">
             <span className="v52-me-list-icon"><Icon name="search" /></span>
             <strong>搜索记录</strong><span className="v52-me-chevron" aria-hidden="true">›</span>
@@ -451,6 +457,85 @@ function MeHistoryCard({ item }: { item: HistoryEntry }) {
   );
 }
 
+function CollectorConnectionSettings() {
+  const [base, setBase] = useState('');
+  const [token, setToken] = useState('');
+  const [status, setStatus] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const config = readScraplingConfig();
+    setBase(config.base);
+    setToken(config.token);
+  }, []);
+
+  async function testConnection(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setStatus('');
+    try {
+      saveScraplingConfig({ base, token });
+      const response = await collectorFetch('/api/resource-collector/registry/resources?verified_only=true&limit=1');
+      const payload = await response.json().catch(() => ({})) as { error?: string; detail?: string; code?: string };
+      if (!response.ok) {
+        throw new Error(payload.error || payload.detail || `资源注册表连接失败（HTTP ${response.status}）`);
+      }
+      setStatus('连接成功：Registry API 已响应。只有通过验证和播放器验收的资源才会进入已验证列表。');
+    } catch (reason) {
+      setStatus(reason instanceof Error ? reason.message : '连接测试失败，请检查服务地址和 Token。');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function clearConnection() {
+    clearScraplingConfig();
+    setBase('');
+    setToken('');
+    setStatus('已清除本机保存的 Collector 地址和 Token。');
+  }
+
+  return (
+    <section className="card space-y-4 p-4 sm:p-5" aria-labelledby="collector-connection-title">
+      <div className="flex items-start gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent/10 text-accent">
+          <span className="text-xs font-bold">API</span>
+        </span>
+        <div className="min-w-0">
+          <h2 id="collector-connection-title" className="text-base font-semibold text-content">资源采集后端连接</h2>
+          <p className="mt-1 text-xs leading-5 text-faint">连接你自己部署的 Scrapling Collector。地址必须是 HTTPS 服务根域名，不要填写 /v1 或 API 路径。</p>
+        </div>
+      </div>
+      <form onSubmit={(event) => void testConnection(event)} className="space-y-3">
+        <label className="block space-y-1.5">
+          <span className="text-xs font-medium text-content">Scrapling 服务根地址</span>
+          <input value={base} onChange={(event) => setBase(event.target.value)} type="url" required
+            placeholder="https://your-collector.example.com" autoComplete="url"
+            className="input w-full text-sm" />
+          <span className="block text-[11px] leading-5 text-faint">正确示例：https://your-collector.example.com；不要添加 /health、/v1/registry/resources、端口或查询参数。</span>
+        </label>
+        <label className="block space-y-1.5">
+          <span className="text-xs font-medium text-content">SCRAPLING_API_TOKEN</span>
+          <input value={token} onChange={(event) => setToken(event.target.value)} type="password" required
+            autoComplete="new-password" placeholder="粘贴 Collector 服务端生成的 Token"
+            className="input w-full text-sm" />
+          <span className="block text-[11px] leading-5 text-faint">Token 仅保存在当前浏览器本机存储中，不要提交到代码仓库或聊天中。</span>
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <button type="submit" disabled={busy || !base.trim() || !token.trim()}
+            className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
+            {busy ? '正在测试 Registry API…' : '保存并测试连接'}
+          </button>
+          <button type="button" onClick={clearConnection} disabled={busy}
+            className="rounded-xl border border-line px-4 py-2.5 text-sm text-muted disabled:opacity-50">清除本机配置</button>
+        </div>
+      </form>
+      {status ? <p role="status" aria-live="polite" className="rounded-xl border border-line bg-chip/50 p-3 text-xs leading-5 text-content">{status}</p> : null}
+      <p className="text-[11px] leading-5 text-faint">尚未部署 Collector 时，此处无法连接。Collector 需要独立部署、HTTPS、持久化存储、匹配的 Token，以及经实际验证的网络出口防护；创建付费服务前请先确认费用。</p>
+    </section>
+  );
+}
+
 function SettingsScreen() {
   const downloads = useLiveQuery(
     () => db.downloads.orderBy('createdAt').reverse().toArray(),
@@ -463,7 +548,7 @@ function SettingsScreen() {
   return (
     <div className="mx-auto w-full max-w-5xl space-y-5 px-4 pb-12 sm:px-6">
 
-      <SourceManagerDrawer open embedded onClose={() => undefined} />
+      <CollectorConnectionSettings />\n      <SourceManagerDrawer open embedded onClose={() => undefined} />
       <section className="card p-4 sm:p-5" aria-labelledby="settings-downloads-title">
         <div className="flex items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">

@@ -1,0 +1,187 @@
+name: Deploy My Space Intelligent Collector Preview
+
+on:
+  push:
+    branches:
+      - feature/me-intelligent-collector-entry
+    paths:
+      - ".github/workflows/deploy-me-collector-preview.yml"
+      - "wrangler.me-collector-preview.toml"
+      - "src/**"
+      - "public/**"
+      - "package.json"
+      - "package-lock.json"
+      - "next.config.*"
+      - "open-next.config.*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: libretv-me-collector-preview
+  cancel-in-progress: false
+
+jobs:
+  deploy-preview:
+    name: Build and deploy isolated public-access preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment: preview
+    steps:
+      - name: Checkout exact stacked PR commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: TypeScript verification
+        run: npm run typecheck
+
+      - name: ESLint verification
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test -- --reporter=dot
+
+      - name: Verify isolated public preview configuration and deployment credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          grep -Eq '^[[:space:]]*name[[:space:]]*=[[:space:]]*"libretv-me-collector-preview"' wrangler.me-collector-preview.toml
+          grep -Eq '^[[:space:]]*AUTH_DISABLED[[:space:]]*=[[:space:]]*"true"' wrangler.me-collector-preview.toml
+          test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing preview secret: CLOUDFLARE_API_TOKEN" && exit 1)
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "Missing preview secret: CLOUDFLARE_ACCOUNT_ID" && exit 1)
+
+      - name: Build isolated preview
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npx opennextjs-cloudflare build
+
+      - name: Deploy isolated Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --config wrangler.me-collector-preview.toml
+
+      - name: Exercise a real Workers AI planning request without queue submission
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          token="$(node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))')"
+          echo "::add-mask::$token"
+          printf '%s' "$token" | npx wrangler secret put RESOURCE_AGENT_SMOKE_TOKEN --config wrangler.me-collector-preview.toml
+          cleanup() {
+            original_status=$?
+            if printf 'y\n' | npx wrangler secret delete RESOURCE_AGENT_SMOKE_TOKEN --config wrangler.me-collector-preview.toml; then
+              echo "Temporary Workers AI smoke credential deleted."
+            else
+              echo "::error::Failed to delete temporary Workers AI smoke credential."
+              exit 1
+            fi
+            exit "$original_status"
+          }
+          trap cleanup EXIT
+          sleep 5
+          RESOURCE_AGENT_SMOKE_TOKEN="$token" node --input-type=module <<'NODE'
+          const endpoint = "https://libretv-me-collector-preview.bggdbh.workers.dev/api/resource-collector/agent";
+          let response;
+          let body = {};
+          for (let attempt = 1; attempt <= 6; attempt += 1) {
+            response = await fetch(endpoint, {
+              method: "POST",
+              headers: {
+                "content-type": "application/json",
+                "x-resource-agent-smoke-token": process.env.RESOURCE_AGENT_SMOKE_TOKEN,
+              },
+              body: JSON.stringify({
+                goal: "仅规划一次公开资源站发现任务，用于验证模型连接",
+                dryRun: true,
+              }),
+              signal: AbortSignal.timeout(60000),
+            });
+            body = await response.json().catch(() => ({}));
+            if (response.status !== 503 || body.code !== "COLLECTOR_NOT_CONFIGURED") break;
+            if (attempt < 6) await new Promise((resolve) => setTimeout(resolve, 5000));
+          }
+          if (!response?.ok || body.dryRun !== true || body.provider !== "cloudflare-workers-ai" ||
+              typeof body.summary !== "string" || !Array.isArray(body.tasks) || body.tasks.length < 1) {
+            throw new Error("Workers AI live planning smoke failed: HTTP " + response?.status + " " + JSON.stringify(body).slice(0, 800));
+          }
+          console.log("Workers AI live planning passed: provider=" + body.provider + ", planned=" + body.tasks.length + "; dryRun prevented queue submission.");
+          NODE
+
+      - name: Verify preview homepage and collector access boundary
+        run: |
+          node --input-type=module <<'NODE'
+          const base = "https://libretv-me-collector-preview.bggdbh.workers.dev";
+          const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+          async function check(path, validate, description) {
+            let lastError;
+            for (let attempt = 1; attempt <= 12; attempt += 1) {
+              try {
+                const response = await fetch(base + path, {
+                  redirect: "manual",
+                  headers: { "cache-control": "no-cache" },
+                  signal: AbortSignal.timeout(15000),
+                });
+                const body = await response.text();
+                console.log(path + " attempt " + attempt + ": HTTP " + response.status + " " + (response.headers.get("content-type") || ""));
+                if (validate(response, body)) return { response, body };
+                lastError = new Error(description + " not ready; HTTP " + response.status + "; body=" + body.slice(0, 240));
+              } catch (error) {
+                lastError = error;
+              }
+              if (attempt < 12) await sleep(5000);
+            }
+            throw lastError;
+          }
+          const [home, statusResult, collector, studio] = await Promise.all([
+            check("/", (response) =>
+              response.status === 200 && (response.headers.get("content-type") || "").includes("text/html"),
+              "Homepage"),
+            check("/api/status", (response, body) => {
+              if (response.status !== 200) return false;
+              try {
+                const status = JSON.parse(body);
+                return status.passwordRequired === false && status.verified === true;
+              } catch { return false; }
+            }, "Password-free public access"),
+            check("/api/resource-collector/jobs?limit=5", (response) => [401, 403, 503].includes(response.status),
+              "Collector job data remains independently protected"),
+            check("/api/resource-collector/agent", (response, body) => {
+              if (response.status !== 200) return false;
+              try {
+                const agent = JSON.parse(body);
+                return agent.configured === true && typeof agent.provider === "string";
+              } catch { return false; }
+            }, "Cloudflare Workers AI Supervisor readiness"),
+            check("/api/resource-collector/registry/resources?verified_only=true&limit=5", (response, body) => {
+              if (response.status === 200) {
+                try {
+                  const payload = JSON.parse(body);
+                  return Array.isArray(payload.resources) &&
+                    payload.resources.every((item) => item.playback_state === "PLAYER_CONFIRMED");
+                } catch { return false; }
+              }
+              if ([501, 503].includes(response.status)) {
+                try { return typeof JSON.parse(body).error === "string"; } catch { return false; }
+              }
+              return false;
+            }, "Unified registry exposes only player-confirmed resources or explicitly reports missing backend"),
+            check("/resource-studio", (response) => response.status === 200,
+              "Resource Studio route"),
+          ]);
+          console.log("Preview smoke checks passed: homepage and Resource Studio are public; Workers AI Supervisor is ready; Collector job data remains protected; unified registry returns only PlayerShell-confirmed resources or a clear missing-backend status.");
+          NODE

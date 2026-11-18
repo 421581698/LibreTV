@@ -1,8 +1,9 @@
-# Manual opt-in only. Creating this Blueprint provisions paid infrastructure.
+# PR #96 isolated Collector preview. Manual opt-in only; creating this Blueprint provisions paid infrastructure.
 services:
   - type: web
-    name: libretv-pr61-scrapling-collector
+    name: libretv-pr96-scrapling-collector
     runtime: docker
+    branch: feature/me-intelligent-collector-entry
     plan: 2c-4g
     region: oregon
     rootDir: services/scrapling-collector
@@ -11,7 +12,7 @@ services:
     autoDeployTrigger: "off"
     healthCheckPath: /health
     disk:
-      name: scrapling-collector-pr61-data
+      name: scrapling-collector-pr96-data
       mountPath: /data
       sizeGB: 1
     envVars:
@@ -19,5 +20,9 @@ services:
         generateValue: true
       - key: SCRAPLING_DB_PATH
         value: /data/collector.sqlite3
+      - key: SCRAPLING_RUN_WORKER
+        value: "1"
+      - key: SCRAPLING_WORKER_ID
+        value: render-collector-worker
       - key: SEEDHUB_PURGE_LEGACY_CATALOG
         value: "1"

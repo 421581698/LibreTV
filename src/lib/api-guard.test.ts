@@ -67,6 +67,23 @@ describe('guardPrivateFeatureRequest', () => {
     ))?.status).toBe(503);
   });
 
+  it('allows only verified registry reads in the public preview', () => {
+    vi.stubEnv('AUTH_DISABLED', 'true');
+    vi.stubEnv('SCRAPLING_API_BASE', '');
+    vi.stubEnv('SCRAPLING_API_TOKEN', '');
+
+    expect(guardPrivateFeatureRequest(new Request(
+      'https://preview.example/api/resource-collector/registry/resources?verified_only=true&limit=100'
+    ))).toBeNull();
+    expect(guardPrivateFeatureRequest(new Request(
+      'https://preview.example/api/resource-collector/registry/resources?verified_only=false&limit=100'
+    ))?.status).toBe(503);
+    expect(guardPrivateFeatureRequest(new Request(
+      'https://preview.example/api/resource-collector/registry/resources?verified_only=true',
+      { method: 'POST' }
+    ))?.status).toBe(503);
+  });
+
   it('allows a public preview caller to provide its own browser-local Collector credentials', () => {
     vi.stubEnv('AUTH_DISABLED', 'true');
     vi.stubEnv('SCRAPLING_API_BASE', 'https://collector.example');

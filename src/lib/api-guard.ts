@@ -35,22 +35,28 @@ export function guardPrivateFeatureRequest(req: Request): NextResponse | null {
   const browserBase = req.headers.get('x-scrapling-api-base')?.trim() ?? '';
   const browserToken = req.headers.get('x-scrapling-api-token')?.trim() ?? '';
 
-  // Browser-supplied credentials remain supported for operators. A server-
-  // configured Collector may serve only the two bounded SeedHub read endpoints
-  // anonymously; mutations, discovery, task inspection, and crawling stay closed.
+  // Browser-supplied credentials remain supported for operators.
   if (browserBase && browserToken) return null;
-  const action = new URL(req.url).searchParams.get('action');
-  // SeedHub catalogue/detail GETs have a repository-backed, read-only snapshot
-  // fallback. They must remain readable when the optional live Collector is
-  // not provisioned; all mutations and other Collector operations stay gated.
-  if (req.method === 'GET' &&
-      (action === 'seedhub-catalog' || action === 'seedhub-detail')) return null;
+  const requestUrl = new URL(req.url);
+  const action = requestUrl.searchParams.get('action');
 
+  // Formal registry reads expose only resources already approved and verified
+  // by the PlayerShell. The route enforces verified_only=true and a hard limit.
+  if (req.method === 'GET' &&
+      requestUrl.pathname.endsWith('/api/resource-collector/registry/resources') &&
+      requestUrl.searchParams.get('verified_only') === 'true') return null;
+
+  // The dedicated public preview may expose only bounded, read-only data when
+  // a server-side Collector is configured. Never extend this allowlist to
+  // jobs, task queues, candidates, rules, discovery, or mutation endpoints.
   const serverCollectorConfigured = Boolean(
     process.env.SCRAPLING_API_BASE?.trim() && process.env.SCRAPLING_API_TOKEN?.trim()
   );
-  if (req.method === 'GET' && serverCollectorConfigured &&
-      (action === 'seedhub-catalog' || action === 'seedhub-detail')) return null;
+  if (req.method === 'GET' && (
+    action === 'seedhub-catalog' ||
+    action === 'seedhub-detail' ||
+    (serverCollectorConfigured && (action === 'resources' || action === 'stats'))
+  )) return null;
 
   return NextResponse.json(
     { code: 'COLLECTOR_NOT_CONFIGURED', error: '网站无需访问密码。请先在「设置 → 资源采集中心」配置 Scrapling HTTPS 地址和访问 Token。' },
