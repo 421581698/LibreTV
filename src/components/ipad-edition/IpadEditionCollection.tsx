@@ -6,25 +6,35 @@ import { useQuery } from '@tanstack/react-query';
 import { SmartImage } from '@/components/smart-image';
 import { api } from '@/lib/client-api';
 import { useAppStore } from '@/lib/store';
+import type { BangumiCalendarResponse, DoubanItem, DoubanResponse } from '@/lib/types';
 
 type CollectionKind = 'movie' | 'tv' | 'anime';
 const tabs = ['热门', '最新', '高分'] as const;
+
+function isCalendar(value: unknown): value is BangumiCalendarResponse {
+  return typeof value === 'object' && value !== null && 'days' in value;
+}
+
+function isDouban(value: unknown): value is DoubanResponse {
+  return typeof value === 'object' && value !== null && 'items' in value;
+}
 
 export function IpadEditionCollection({ kind, title }: { kind: CollectionKind; title: string }) {
   const [tag, setTag] = useState<(typeof tabs)[number]>('热门');
   const [page, setPage] = useState(0);
   const imageProxyMode = useAppStore((s) => s.imageProxyMode);
   const customImageProxy = useAppStore((s) => s.customImageProxy);
-  const query = useQuery({
+  const query = useQuery<BangumiCalendarResponse | DoubanResponse>({
     queryKey: ['ipad-edition-collection', kind, tag, page],
-    queryFn: ({ signal }) => kind === 'anime'
-      ? api.bangumiCalendar(signal)
-      : api.douban(kind, tag, page * 20, 20, signal),
+    queryFn: async ({ signal }) => {
+      if (kind === 'anime') return api.bangumiCalendar(signal);
+      return api.douban(kind, tag, page * 20, 20, signal);
+    },
     staleTime: 5 * 60_000,
   });
-  const items = kind === 'anime'
-    ? (query.data && 'days' in query.data ? query.data.days.flatMap((day) => day.items) : [])
-    : (query.data && 'items' in query.data ? query.data.items : []);
+  const items: DoubanItem[] = kind === 'anime'
+    ? (isCalendar(query.data) ? query.data.days.flatMap((day) => day.items) : [])
+    : (isDouban(query.data) ? query.data.items : []);
   const uniqueItems = items.filter((item, index, list) => list.findIndex((candidate) => candidate.id === item.id) === index);
   const heading = kind === 'anime' ? '每日放送' : tag + title;
 
