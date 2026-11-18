@@ -7,10 +7,10 @@ const outputDir = process.env.UI_AGENT_OUTPUT_DIR ?? 'artifacts/ui-agent';
 const strict = process.env.UI_AGENT_STRICT === '1';
 const targets = [
   { name: 'desktop-1440x900', width: 1440, height: 900 },
-  { name: 'ipad-11-portrait-834x1194', width: 834, height: 1194, ipad: true },
-  { name: 'ipad-11-landscape-1194x834', width: 1194, height: 834, ipad: true },
-  { name: 'ipad-pro-13-portrait-1032x1376', width: 1032, height: 1376, ipad: true },
-  { name: 'ipados-desktop-mode-1024x1366', width: 1024, height: 1366, ipadDesktopMode: true },
+  { name: 'ipad-11-portrait-834x1194', width: 834, height: 1194, ipad: true, expectedCinema: 'compact' },
+  { name: 'ipad-11-landscape-1194x834', width: 1194, height: 834, ipad: true, expectedCinema: 'stage' },
+  { name: 'ipad-pro-13-portrait-1032x1376', width: 1032, height: 1376, ipad: true, expectedCinema: 'stage' },
+  { name: 'ipados-desktop-mode-1024x1366', width: 1024, height: 1366, ipadDesktopMode: true, expectedCinema: 'stage' },
   { name: 'phone-390x844', width: 390, height: 844 },
   { name: 'phone-375x812', width: 375, height: 812 },
 ];
@@ -101,6 +101,7 @@ try {
       await page.screenshot({ path: screenshot, fullPage: true, animations: 'disabled' }).catch(() => {});
       results.push({
         target: target.name,
+        expectedCinema: target.expectedCinema ?? null,
         theme,
         url: page.url(),
         navigationError,
@@ -128,7 +129,7 @@ await writeFile(path.join(outputDir, 'report.json'), JSON.stringify(report, null
 const defects = results.filter((result) =>
   result.navigationError ||
   result.metrics?.horizontalOverflow ||
-  ((result.target.startsWith('ipad-') || result.target.startsWith('ipados-')) && result.metrics?.ipadCinema == null) ||
+  (result.expectedCinema && (result.metrics?.ipadCinema !== result.expectedCinema || result.metrics?.navOwner !== 'adaptive')) ||
   result.pageErrors.length > 0
 );
 console.log(JSON.stringify({
