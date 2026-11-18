@@ -1,4 +1,4 @@
-export type ImageAuditIssue = { readonly element: HTMLImageElement; readonly reason: 'missing-src' | 'not-loaded' | 'broken' };
+export type ImageAuditIssue = { readonly element: HTMLImageElement; readonly reason: 'missing-src' | 'broken' };
 export type ImageAuditHost = {
   queryImages(): readonly HTMLImageElement[];
   isLive(): boolean;
@@ -7,7 +7,6 @@ export type ImageAuditHost = {
 export function auditImage(image: HTMLImageElement): ImageAuditIssue | null {
   if (!image.getAttribute('src') && !image.currentSrc) return { element: image, reason: 'missing-src' };
   if (image.complete && image.naturalWidth === 0) return { element: image, reason: 'broken' };
-  if (!image.complete) return { element: image, reason: 'not-loaded' };
   return null;
 }
 export function runImageAudit(host: ImageAuditHost): number {
