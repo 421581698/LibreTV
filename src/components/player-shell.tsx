@@ -238,7 +238,10 @@ export function PlayerShell({
   useEffect(() => {
     const handleResumeDecision = (event: Event) => {
       const decision = (event as CustomEvent<{ decision?: string }>).detail?.decision;
-      setResumePrompt(Boolean(decision && decision !== 'none'));
+      setResumePrompt(decision === 'resume' || decision === 'ask-user');
+      if (decision === 'reload-then-resume') {
+        showHint('当前视频资源已失效，请重新选择播放源后继续');
+      }
     };
     document.addEventListener('ipad-cinema:resume-decision', handleResumeDecision);
     return () => document.removeEventListener('ipad-cinema:resume-decision', handleResumeDecision);
@@ -1450,15 +1453,18 @@ export function PlayerShell({
       const position = Number.isFinite(art.currentTime) ? art.currentTime : 0;
       const duration = Number.isFinite(art.duration) ? art.duration : 0;
       propsRef.current.onPause?.(position, duration);
-      document.dispatchEvent(new CustomEvent('ipad-cinema:system-interruption', {
-        detail: {
-          kind: 'app-background',
-          resource: {
-            valid: Boolean(video?.currentSrc) && Boolean(video && video.readyState >= HTMLMediaElement.HAVE_METADATA) && !video?.error,
-            positionResumable: position > 0 && Number.isFinite(position),
+      // A deliberately paused video should not receive a misleading resume prompt.
+      if (!video?.paused) {
+        document.dispatchEvent(new CustomEvent('ipad-cinema:system-interruption', {
+          detail: {
+            kind: 'app-background',
+            resource: {
+              valid: Boolean(video?.currentSrc) && Boolean(video && video.readyState >= HTMLMediaElement.HAVE_METADATA) && !video?.error,
+              positionResumable: position > 0 && Number.isFinite(position),
+            },
           },
-        },
-      }));
+        }));
+      }
     };
     document.addEventListener('visibilitychange', saveOnHide);
 
