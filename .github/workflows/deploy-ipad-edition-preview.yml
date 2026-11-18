@@ -236,7 +236,7 @@ jobs:
                       : glassBackgroundLuminance !== null && glassBackgroundLuminance < 0.08 &&
                         navTextLuminance !== null && navTextLuminance > 0.7 &&
                         activeNavTextLuminance !== null && activeNavTextLuminance > 0.7,
-                    glassBlurValid: /blur\\(/.test(glassBackdropFilter) || /blur\\(/.test(glassWebkitBackdropFilter),
+                    glassBlurValid: /blur\(/.test(glassBackdropFilter) || /blur\(/.test(glassWebkitBackdropFilter),
                     glassGeometryValid: glassRadius >= 18 && Boolean(glassStyle?.borderTopColor),
                     iconUsesThemeColor: Boolean(icon && (iconStyle?.stroke === 'currentcolor' || iconStyle?.stroke === navColor)),
                   };
