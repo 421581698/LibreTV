@@ -21,9 +21,8 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
         <header className="ipad-edition__topbar">
           
           <nav className="ipad-edition__top-links" aria-label="主导航">
-            {navigation.slice(0, 4).map((item) => <Link key={item.href} href={item.href} className={(pathname === item.href ? 'is-active' : '')}>{item.label}</Link>)}
+            {navigation.slice(0, 4).map((item) => <Link key={item.href} href={item.href} className={(pathname === item.href ? 'is-active' : '')}>{item.label}</Link>)}<Link href="/ipad-edition/search" aria-label="搜索影片"><span className="ipad-edition__nav-icon icon-search" /></Link><Link href="/ipad-edition/settings" aria-label="设置"><span className="ipad-edition__nav-icon icon-settings" /></Link>
           </nav>
-          <div className="ipad-edition__top-actions"><Link href="/ipad-edition/search" aria-label="搜索"><span className="ipad-edition__nav-icon icon-search" /></Link><Link href="/ipad-edition/settings" aria-label="设置"><span className="ipad-edition__nav-icon icon-settings" /></Link></div>
         </header>
         {children}
       </main>
