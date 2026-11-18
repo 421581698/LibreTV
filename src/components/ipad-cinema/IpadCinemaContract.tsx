@@ -78,12 +78,8 @@ export function IpadCinemaContract() {
     document.addEventListener('ipad-cinema:focus-request', onFocusRequest);
     document.addEventListener('ipad-cinema:system-interruption', onInterruption);
     const lifecycle = attachPageLifecycle(window, transition => {
-      if (transition === 'to-background' || transition === 'offline') {
-        imageAudit?.setLive(false);
-        document.dispatchEvent(new CustomEvent('ipad-cinema:system-interruption', {
-          detail: { kind: 'app-background', resource: { valid: false, positionResumable: false } },
-        }));
-      } else imageAudit?.setLive(true);
+      if (transition === 'to-background' || transition === 'offline') imageAudit?.setLive(false);
+      else imageAudit?.setLive(true);
     });
     window.addEventListener('resize', apply);
     return () => {
