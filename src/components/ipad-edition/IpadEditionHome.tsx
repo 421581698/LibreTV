@@ -113,7 +113,7 @@ export function IpadEditionHome() {
               <h1>{hero.title}</h1>
               <p>在大银幕般的画面里，发现下一部值得收藏的作品。</p>
               <div className="ipad-edition__hero-meta"><span>豆瓣热门精选</span>{hero.rating ? <span>★ {hero.rating}</span> : null}</div>
-              <div className="ipad-edition__hero-actions"><Link className="ipad-edition__hero-cta" href={"/ipad-edition/detail?title=" + encodeURIComponent(hero.title)}>播放影片 <span aria-hidden="true">▶</span></Link><Link className="ipad-edition__hero-add" href={"/ipad-edition/detail?title=" + encodeURIComponent(hero.title)} aria-label="查看影片详情">＋</Link></div>
+              <div className="ipad-edition__hero-actions"><Link className="ipad-edition__hero-cta" href={"/ipad-edition/detail?title=" + encodeURIComponent(hero.title)}>播放影片 <svg className="ipad-edition__play-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M5 3.5 12 8l-7 4.5z" fill="currentColor" /></svg></Link><Link className="ipad-edition__hero-add" href={"/ipad-edition/detail?title=" + encodeURIComponent(hero.title)} aria-label="查看影片详情">＋</Link></div>
             </div>
             {featuredItems.length > 1 ? (
               <div className="ipad-edition__hero-dots" role="group" aria-label="切换精选影片">
