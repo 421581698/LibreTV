@@ -7,7 +7,7 @@ export interface VoiceOverBridge {
   subscribe?(listener: (event: { type: 'running'; running: boolean } | { type: 'focus'; focusId: string }) => void): (() => void) | void;
 }
 export function parseFocusId(value: string): { regionId: string; index: number } | null {
-  const match = /^region:(.+):index:(\\d+)$/.exec(value);
+  const match = /^region:(.+):index:(\d+)$/.exec(value);
   if (!match) return null;
   const index = Number(match[2]);
   return Number.isSafeInteger(index) && index >= 0 ? { regionId: match[1], index } : null;
