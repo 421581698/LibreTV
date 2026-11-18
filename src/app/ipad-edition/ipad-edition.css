@@ -327,3 +327,5 @@
 @media (prefers-reduced-motion:reduce){
   .ipad-edition__poster-art,.ipad-edition__anime-card>span,.ipad-edition__hero-cta{transition:none}
 }
+
+/* Preview visual refresh checkpoint. */
