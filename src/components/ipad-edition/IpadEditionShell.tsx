@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
+import { LiquidGlassSurface } from '@/components/ui/liquid-glass';
 
 const sidebarNavigation = [
   { label: '主页', href: '/ipad-edition', icon: 'house' },
@@ -81,7 +82,9 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
       )}
 
       {!isChromeHidden && (
-        <aside
+        <LiquidGlassSurface
+          as="aside"
+          variant="panel"
           className={`ipad-nav__sidebar${sidebarOpen ? ' is-open' : ''}`}
           id="ipad-edition-sidebar"
           aria-label="主导航"
@@ -116,13 +119,13 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
           <div className="ipad-nav__sidebar-foot">
             <span>LIBRETV · IPAD EDITION</span>
           </div>
-        </aside>
+        </LiquidGlassSurface>
       )}
 
       <main className="ipad-edition__main">
         {!isChromeHidden && (
           <header className="ipad-nav__topbar">
-            <div className="ipad-nav__topbar-inner">
+            <LiquidGlassSurface as="div" variant="panel" className="ipad-nav__topbar-inner">
               <button
                 className="ipad-nav__menu-button"
                 type="button"
@@ -149,7 +152,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
                 <NavigationIcon name="search" />
                 <span>搜索影片</span>
               </Link>
-            </div>
+            </LiquidGlassSurface>
           </header>
         )}
         {children}
