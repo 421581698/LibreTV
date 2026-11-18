@@ -24,11 +24,11 @@ function detailHref(title: string) {
 export function IpadEditionHome() {
   const [activeHero, setActiveHero] = useState(0);
   const doubanEnabled = useAppStore((s) => s.doubanEnabled);
-  const imageProxyMode = useAppStore((s) => s.imageProxyMode);
-  const customImageProxy = useAppStore((s) => s.customImageProxy);
 
   // One real recommendation request feeds both the featured hero and today's movie rail.
   // This avoids duplicate requests and keeps the hero and poster rail consistent.
+  // Homepage posters use the built-in same-origin image proxy first. The public Douban mirrors
+  // intermittently stall on iPad-sized poster rails; proxy responses carry a long browser cache.
   const featured = useQuery({
     queryKey: ['ipad-edition-home-featured', doubanEnabled],
     queryFn: ({ signal }) => fetchHomepageWithFallback(
@@ -107,8 +107,7 @@ export function IpadEditionHome() {
               <span className="ipad-edition__poster-art">
                 <SmartImage
                   url={item.cover}
-                  mode={imageProxyMode}
-                  customProxy={customImageProxy}
+                  mode="proxy"
                   alt={item.title}
                   loading="lazy"
                 />
@@ -133,8 +132,7 @@ export function IpadEditionHome() {
             <div className="ipad-edition__hero-art">
               <SmartImage
                 url={hero.cover}
-                mode={imageProxyMode}
-                customProxy={customImageProxy}
+                mode="proxy"
                 alt=""
                 loading="eager"
               />
@@ -206,9 +204,8 @@ export function IpadEditionHome() {
                 <span>
                   <SmartImage
                     url={item.cover}
-                    mode={imageProxyMode}
-                    customProxy={customImageProxy}
-                    alt={item.title}
+                    mode="proxy"
+                      alt={item.title}
                     loading="lazy"
                   />
                 </span>
