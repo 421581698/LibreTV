@@ -157,6 +157,7 @@ const defects = results.filter((result) =>
   !result.metrics?.homepageVisible ||
   result.metrics?.horizontalOverflow ||
   (result.expectedCinema && (result.metrics?.ipadCinema !== result.expectedCinema || result.metrics?.navOwner !== 'adaptive')) ||
+  result.consoleErrors.length > 0 ||
   result.pageErrors.length > 0
 );
 console.log(JSON.stringify({
