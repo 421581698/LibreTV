@@ -935,3 +935,5 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
 @media (prefers-reduced-motion: reduce) {
   .ipad-nav__sidebar { transition: none; }
 }
+
+/* [deploy-ipad-edition-preview] Audit the replacement iPad navigation shell. */
