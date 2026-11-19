@@ -7,6 +7,7 @@ import { api } from '@/lib/client-api';
 import { resolveSource, useAppStore } from '@/lib/store';
 import { validateSourceUrl } from '@/lib/utils';
 import type { SearchResultItem } from '@/lib/types';
+import { fromCmsSearchResult } from '@/lib/poster';
 
 function IpadSearchContent() {
   const params = useSearchParams();
@@ -94,7 +95,7 @@ function IpadSearchContent() {
           <div className="ipad-edition__section-heading"><div><p className="ipad-edition__eyebrow">RESULTS</p><h2>搜索结果 <small>({results.length})</small></h2></div></div>
           <div className="ipad-edition__result-grid">
             {results.map((item, index) => <button className="ipad-edition__result-card" type="button" key={item.sourceKey + ':' + item.vodId + ':' + index} onClick={() => openDetail(item)}>
-              <span className="ipad-edition__result-poster">{item.pic ? <SmartImage url={item.pic} mode={imageProxyMode} customProxy={customImageProxy} alt={item.name} /> : <span>LibreTV</span>}</span>
+              <span className="ipad-edition__result-poster">{item.pic ? <SmartImage asset={fromCmsSearchResult(item)} url={item.pic} mode={imageProxyMode} customProxy={customImageProxy} alt={item.name} /> : <span>LibreTV</span>}</span>
               <strong>{item.name}</strong><small>{[item.year, item.typeName, item.remarks, item.sourceName].filter(Boolean).join(' · ')}</small>
             </button>)}
           </div>
