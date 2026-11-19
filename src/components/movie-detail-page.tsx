@@ -15,6 +15,7 @@ import { formatRemarks } from '@/lib/remarks';
 import { isMovieType } from '@/lib/cms-parser';
 import type { SourceConfig, VideoDetail } from '@/lib/types';
 import { enqueueDownload } from '@/components/download-manager';
+import { fromCmsArtwork } from '@/lib/poster';
 
 function detailSource(store: Pick<ReturnType<typeof useAppStore.getState>, 'customAPIs' | 'envSources'>, key: string, name: string, sourceUrl: string): SourceConfig | null {
   const local = resolveSource(store, key);
@@ -238,6 +239,7 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
       <section className="movie-detail-hero relative isolate min-h-[560px] overflow-hidden sm:min-h-[640px]">
         {backdrop ? (
           <SmartImage
+            asset={fromCmsArtwork({ sourceKey, vodId, title: displayTitle, imageUrl: image, kind: 'backdrop' })}
             url={backdrop}
             mode={imageProxyMode}
             customProxy={customImageProxy}
@@ -307,6 +309,7 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
                   <div className="relative aspect-video w-full shrink-0 overflow-hidden bg-white/[.06]">
                     {(item?.image || image) ? (
                       <SmartImage
+                        asset={item?.image ? fromCmsArtwork({ sourceKey, vodId: `${vodId}:episode:${index + 1}`, title: titleText, imageUrl: item.image, kind: 'still' }) : undefined}
                         url={item?.image || image}
                         mode={imageProxyMode}
                         customProxy={customImageProxy}
