@@ -1212,7 +1212,7 @@ body:has(.ipad-edition[data-environment="light"]) {
 }
 @media (max-width: 699px) {
   .ipad-edition__home {
-    padding-block-start: max(78px, calc(env(safe-area-inset-top, 0px) + 66px)) !important;
+    padding-block-start: max(80px, calc(env(safe-area-inset-top, 0px) + 68px)) !important;
   }
 }
 

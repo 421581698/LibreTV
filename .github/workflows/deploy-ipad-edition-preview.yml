@@ -200,7 +200,7 @@ jobs:
               await menuButton.click();
               const scrim = page.locator('.ipad-nav__scrim');
               await scrim.waitFor({ state: 'visible', timeout: 10000 });
-              await scrim.click({ position: { x: Math.floor(viewport.width / 2), y: Math.floor(viewport.height / 2) } });
+              await scrim.click({ position: { x: Math.max(300, viewport.width - 32), y: Math.floor(viewport.height / 2) } });
               await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false');
               await page.waitForFunction(() => !document.querySelector('.ipad-nav__sidebar')?.classList.contains('is-open'));
               sidebarInteraction.scrimClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
