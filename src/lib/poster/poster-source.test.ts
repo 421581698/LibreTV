@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DoubanItem, SearchResultItem } from '../types';
-import { createPosterAsset, fromBangumiItem, fromCmsArtwork, fromCmsSearchResult, fromDoubanItem } from './poster-source';
+import { createPosterAsset, fromBangumiItem, fromCmsArtwork, fromCmsSearchResult, fromDoubanItem, fromEpisodeArtwork } from './poster-source';
 import { classifyPosterAspect, inferPosterImageKind, withPosterDimensions } from './poster-normalizer';
 
 describe('poster source adapters', () => {
@@ -31,6 +31,18 @@ describe('poster source adapters', () => {
       providerItemId: 'site-a:42',
       originalUrl: item.pic,
     });
+  });
+
+  it('preserves TMDB episode provenance and does not invent missing TMDB identity', () => {
+    expect(fromEpisodeArtwork({
+      sourceKey: 'cms-a', vodId: '42', episodeIndex: 2, title: '第三集',
+      imageUrl: 'https://image.tmdb.org/still.jpg', imageSource: 'tmdb', tmdbSeriesId: 100,
+      seasonNumber: 1, episodeNumber: 3,
+    })).toMatchObject({ provider: 'tmdb', providerItemId: '100:s1:e3', kind: 'still' });
+    expect(fromEpisodeArtwork({
+      sourceKey: 'cms-a', vodId: '42', episodeIndex: 2, title: '第三集',
+      imageUrl: 'https://image.tmdb.org/still.jpg', imageSource: 'tmdb',
+    })).toBeUndefined();
   });
 
   it('adapts stored CMS artwork using stable source and video identity', () => {
