@@ -88,7 +88,7 @@ jobs:
             exit 1
           fi
           set +e
-          OUTPUT="$(edgeone makers deploy ./.next -n nks -e preview --json -t "$EDGEONE_PAGES_API_TOKEN" 2>&1)"
+          OUTPUT="$(edgeone makers deploy ./.next -n nks -e preview --site china --json -t "$EDGEONE_PAGES_API_TOKEN" 2>&1)"
           DEPLOY_EXIT=$?
           set -e
           LAST_LINE="$(printf '%s\n' "$OUTPUT" | tail -n 1)"
