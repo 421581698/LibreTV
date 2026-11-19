@@ -182,8 +182,476 @@ jobs:
             try {
               await page.waitForFunction(() => {
                 const button = document.querySelector('.ipad-nav__menu-button');
-                return Boolean(button && Object.keys(button).some(key => key.startsWith('__reactProps$')));
-              }, { timeout: 20000 });
+                return Boolean(button && Object.keys(button).some(key => key.startsWith('__reactProps
+              const menuButton = page.locator('.ipad-nav__menu-button');
+              await menuButton.click();
+              await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'true', undefined, { timeout: 10000 });
+              await page.locator('.ipad-nav__sidebar.is-open').waitFor({ state: 'visible', timeout: 10000 });
+              sidebarInteraction.opened = await page.locator('.ipad-nav__sidebar.is-open').isVisible();
+              await page.keyboard.press('Escape');
+              await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false');
+              await page.waitForFunction(() => !document.querySelector('.ipad-nav__sidebar')?.classList.contains('is-open'));
+              sidebarInteraction.escapeClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
+              await menuButton.click();
+              const scrim = page.locator('.ipad-nav__scrim');
+              await scrim.waitFor({ state: 'visible', timeout: 10000 });
+              await scrim.click({ position: { x: Math.floor(viewport.width / 2), y: Math.floor(viewport.height / 2) } });
+              await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false');
+              await page.waitForFunction(() => !document.querySelector('.ipad-nav__sidebar')?.classList.contains('is-open'));
+              sidebarInteraction.scrimClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
+              // Verify genuine touch-pointer edge-swipe open and only attempt close after a proven open.
+              const touchSession = await context.newCDPSession(page);
+              sidebarInteraction.diagnostics = await page.evaluate(() => {
+                const edge = document.querySelector('.ipad-nav__edge-swipe-zone');
+                const root = document.querySelector('.ipad-edition');
+                const hit = document.elementFromPoint(8, 260);
+                const rect = element => {
+                  if (!element) return null;
+                  const r = element.getBoundingClientRect();
+                  return { x:r.x, y:r.y, width:r.width, height:r.height };
+                };
+                return {
+                  edgeRect: rect(edge),
+                  hitAtEdge: hit?.className ?? hit?.tagName ?? null,
+                  hitIsEdge: Boolean(edge && hit && (hit === edge || edge.contains(hit))),
+                  edgeTouchAction: edge ? getComputedStyle(edge).touchAction : null,
+                  rootTouchAction: root ? getComputedStyle(root).touchAction : null,
+                  rootPresent: Boolean(root),
+                };
+              });
+              try {
+                await touchSession.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 8, y: 260, id: 1, force: 1 }] });
+                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 96, y: 260, id: 1, force: 1 }] });
+                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 180, y: 260, id: 1, force: 1 }] });
+                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+                await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'true', undefined, { timeout: 5000 });
+                // Wait for the rendered CSS state, not only React's aria-expanded state.
+                await page.waitForFunction(() => {
+                  const sidebar = document.querySelector('.ipad-nav__sidebar');
+                  if (!sidebar) return false;
+                  const style = getComputedStyle(sidebar);
+                  const rect = sidebar.getBoundingClientRect();
+                  return style.display !== 'none' && style.visibility === 'visible' && rect.width > 0;
+                }, undefined, { timeout: 1200 }).catch(() => {});
+                sidebarInteraction.edgeSwipeOpened = await page.locator('.ipad-nav__sidebar.is-open').isVisible();
+                if (sidebarInteraction.edgeSwipeOpened) {
+                  await touchSession.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 220, y: 260, id: 1, force: 1 }] });
+                  await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 120, y: 260, id: 1, force: 1 }] });
+                  await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 32, y: 260, id: 1, force: 1 }] });
+                  await touchSession.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+                  await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false', undefined, { timeout: 5000 });
+                  sidebarInteraction.edgeSwipeClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
+                } else {
+                  sidebarInteraction.edgeSwipeClosed = false;
+                  sidebarInteraction.closeSkippedBecauseOpenFailed = true;
+                }
+              } finally {
+                await touchSession.detach();
+                sidebarInteraction.diagnostics.trace = await page.evaluate(() => window.__ipadTouchTrace ?? []);
+                sidebarInteraction.diagnostics.finalState = await page.evaluate(() => ({
+                  expanded: document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') ?? null,
+                  sidebarClass: document.querySelector('.ipad-nav__sidebar')?.className ?? null,
+                  sidebarVisible: Boolean(document.querySelector('.ipad-nav__sidebar')?.getBoundingClientRect().width &&
+                    getComputedStyle(document.querySelector('.ipad-nav__sidebar')).visibility === 'visible' &&
+                    getComputedStyle(document.querySelector('.ipad-nav__sidebar')).display !== 'none'),
+                  computedStyle: (() => {
+                    const sidebar = document.querySelector('.ipad-nav__sidebar');
+                    if (!sidebar) return null;
+                    const style = getComputedStyle(sidebar);
+                    const rect = sidebar.getBoundingClientRect();
+                    return {
+                      display: style.display,
+                      visibility: style.visibility,
+                      width: style.width,
+                      rectWidth: rect.width,
+                      transform: style.transform,
+                      transitionProperty: style.transitionProperty,
+                      transitionDuration: style.transitionDuration,
+                    };
+                  })(),
+                  dragging: document.querySelector('.ipad-edition')?.getAttribute('data-ipad-sidebar-dragging') ?? null,
+                }));
+              }
+              sidebarInteractionPassed = sidebarInteraction.opened && sidebarInteraction.escapeClosed &&
+                sidebarInteraction.scrimClosed && sidebarInteraction.edgeSwipeOpened && sidebarInteraction.edgeSwipeClosed;
+            } catch (error) {
+              sidebarInteraction.error = String(error);
+              sidebarInteractionPassed = false;
+              console.error('Sidebar interaction audit failed for ' + viewport.name + '-' + colorScheme + ': ' + String(error));
+            }
+            // Always restore the page to its neutral state before capturing the visual baseline.
+            // A failed gesture must not leave the sidebar/scrim covering the screenshot.
+            await page.evaluate(() => {
+              const button = document.querySelector('.ipad-nav__menu-button');
+              if (button?.getAttribute('aria-expanded') === 'true') button.click();
+            });
+            await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false', undefined, { timeout: 5000 });
+            await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+            await page.waitForTimeout(180);
+            // Wait for real homepage content before inspecting all poster-bearing cards.
+                await page.waitForFunction(() => {
+                  const busyRail = document.querySelector('.ipad-edition__poster-grid[aria-busy="true"]');
+                  const heroTitle = document.querySelector('.ipad-edition__hero-copy h1')?.textContent ?? '';
+                  return !busyRail && !heroTitle.includes('正在为你准备影院');
+                }, undefined, { timeout: 30000 }).catch(() => {});
+                // Re-assert the requested theme after application hydration has completed.
+                await page.evaluate((scheme) => {
+                  document.documentElement.classList.toggle('dark', scheme === 'dark');
+                  document.documentElement.style.colorScheme = scheme;
+                }, colorScheme);
+                // Include movie, series, new-release and anime slots. A missing SmartImage
+                // element is still a failed poster slot and must remain in the denominator.
+                await page.evaluate(async () => {
+                  const slots = Array.from(document.querySelectorAll('[data-ipad-poster-slot]'));
+                  const images = slots.map(slot => slot.querySelector('img')).filter(Boolean);
+                  const waitForImage = (image) => new Promise(resolve => {
+                    if (image.complete) return resolve();
+                    const finish = () => resolve();
+                    image.addEventListener('load', finish, { once: true });
+                    image.addEventListener('error', finish, { once: true });
+                    image.loading = 'eager';
+                    if (image.complete) finish();
+                  });
+                  await Promise.race([
+                    Promise.all(images.map(waitForImage)),
+                    new Promise(resolve => setTimeout(resolve, 45000)),
+                  ]);
+                });
+                await page.locator('section[aria-label="iPad 页面布局诊断"] pre').waitFor({ state: "attached", timeout: 10000 });
+                await page.waitForTimeout(1000);
+                const layoutDiagnostics = await page.evaluate(() => {
+                  const panel = document.querySelector('section[aria-label="iPad 页面布局诊断"]');
+                  const raw = panel?.querySelector('pre')?.textContent ?? '';
+                  try { return JSON.parse(raw); } catch { return { parseError: true, raw: raw.slice(0, 2000) }; }
+                });
+                await page.evaluate(() => {
+                  const panel = document.querySelector('section[aria-label="iPad 页面布局诊断"]');
+                  if (panel) panel.style.display = 'none';
+                });
+                const metrics = await page.evaluate(({ scheme, layoutDiagnostics }) => {
+                  const root = document.querySelector('[data-ipad-edition="true"]');
+                  const main = document.querySelector('.ipad-edition__main');
+                  const topbar = document.querySelector('.ipad-nav__topbar');
+                  const hero = document.querySelector('.ipad-edition__hero');
+                  const heroCopy = document.querySelector('.ipad-edition__hero-copy');
+                  const rect = element => {
+                    if (!element) return null;
+                    const r = element.getBoundingClientRect();
+                    return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
+                  };
+                  const luminance = value => {
+                    const match = value.match(/rgba?\(([^)]+)\)/);
+                    if (!match) return null;
+                    const channels = match[1].split(',').slice(0, 3).map(Number);
+                    if (channels.length !== 3 || channels.some(Number.isNaN)) return null;
+                    const [r, g, b] = channels.map(v => {
+                      const c = v / 255;
+                      return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+                    });
+                    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                  };
+                  const navigationSurface = document.querySelector('.ipad-nav__topbar-inner');
+                  const wordmark = document.querySelector('.ipad-nav__capsule-action');
+                  const navigationStyle = navigationSurface ? getComputedStyle(navigationSurface) : null;
+                  const wordmarkStyle = wordmark ? getComputedStyle(wordmark) : null;
+                  const navigationBackground = navigationStyle?.backgroundColor ?? '';
+                  const navColor = wordmarkStyle?.color ?? '';
+                  const navigationBackgroundLuminance = luminance(navigationBackground);
+                  const navTextLuminance = luminance(navColor);
+                  const navigationRadius = Number.parseFloat(navigationStyle?.borderTopLeftRadius ?? '0');
+                  const navigationBackdropFilter = navigationStyle?.backdropFilter ?? 'none';
+                  const navigationWebkitBackdropFilter = navigationStyle?.webkitBackdropFilter ?? 'none';
+                  const theme = {
+                    navigationPresent: Boolean(navigationSurface),
+                    navigationBackground,
+                    navigationBackgroundLuminance,
+                    navigationBorder: navigationStyle?.borderTopColor ?? '',
+                    navigationRadius,
+                    navigationBackdropFilter,
+                    navigationWebkitBackdropFilter,
+                    navColor,
+                    navTextLuminance,
+                    validForRequestedScheme: scheme === 'light'
+                      ? navigationBackgroundLuminance !== null && navigationBackgroundLuminance > 0.72 &&
+                        navTextLuminance !== null && navTextLuminance < 0.3
+                      : navigationBackgroundLuminance !== null && navigationBackgroundLuminance < 0.08 &&
+                        navTextLuminance !== null && navTextLuminance > 0.7,
+                    navigationBlurValid: navigationBackdropFilter.includes('blur(') || navigationWebkitBackdropFilter.includes('blur('),
+                    navigationGeometryValid: navigationRadius >= 14 && Boolean(navigationStyle?.borderTopColor),
+                  };
+                  const slots = Array.from(document.querySelectorAll('[data-ipad-poster-slot]'));
+                  const posterChecks = slots.map(slot => {
+                    const image = slot.querySelector('img');
+                    const sourceAddress = (slot.getAttribute('data-poster-url') ?? '').trim();
+                    if (!image) return { slotType: slot.getAttribute('data-ipad-poster-slot') ?? 'unknown', hasImageElement: false, emptyAddress: !sourceAddress, svgPlaceholder: false, loaded: false, visible: false, pixelVisible: false };
+                    const source = image.currentSrc || image.getAttribute('src') || image.src || '';
+                    const svgPlaceholder = /^data:image\/svg\+xml/i.test(source);
+                    const style = getComputedStyle(image);
+                    const box = image.getBoundingClientRect();
+                    const visible = box.width > 2 && box.height > 2 && style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) > 0.1;
+                    const loaded = image.complete && image.naturalWidth > 0 && image.naturalHeight > 0 && !svgPlaceholder;
+                    let pixelVisible = false;
+                    if (loaded && visible) {
+                      try {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = 8; canvas.height = 8;
+                        const context = canvas.getContext('2d', { willReadFrequently: true });
+                        context.drawImage(image, 0, 0, 8, 8);
+                        const pixels = context.getImageData(0, 0, 8, 8).data;
+                        const samples = new Set();
+                        for (let i = 0; i < pixels.length; i += 4) {
+                          if (pixels[i + 3] > 8) samples.add(pixels[i] + ',' + pixels[i + 1] + ',' + pixels[i + 2]);
+                        }
+                        pixelVisible = samples.size > 2;
+                      } catch {
+                        pixelVisible = false;
+                      }
+                    }
+                    return {
+                      slotType: slot.getAttribute('data-ipad-poster-slot') ?? 'unknown',
+                      hasImageElement: true, emptyAddress: !sourceAddress, svgPlaceholder,
+                      loaded, visible, pixelVisible,
+                      naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight,
+                      renderedWidth: Math.round(box.width), renderedHeight: Math.round(box.height),
+                      source: source.slice(0, 180),
+                    };
+                  });
+                  const posters = Array.from(document.querySelectorAll('.ipad-edition__poster-card'));
+                  const animeCards = Array.from(document.querySelectorAll('.ipad-edition__anime-card'));
+                  const home = document.querySelector('.ipad-edition__home');
+                  const homeStyle = home ? getComputedStyle(home) : null;
+                  const layoutChain = [];
+                  let layoutNode = hero;
+                  for (let depth = 0; layoutNode && depth < 7; depth += 1, layoutNode = layoutNode.parentElement) {
+                    const rect = layoutNode.getBoundingClientRect();
+                    const style = getComputedStyle(layoutNode);
+                    layoutChain.push({
+                      tag: layoutNode.tagName.toLowerCase(),
+                      className: typeof layoutNode.className === 'string' ? layoutNode.className : '',
+                      top: Math.round(rect.top),
+                      bottom: Math.round(rect.bottom),
+                      height: Math.round(rect.height),
+                      paddingTop: style.paddingTop,
+                      marginTop: style.marginTop,
+                      display: style.display,
+                      position: style.position,
+                      transform: style.transform,
+                      rowGap: style.rowGap,
+                    });
+                  }
+                  const top = topbar?.getBoundingClientRect();
+                  const copy = heroCopy?.getBoundingClientRect();
+                  const heroRect = hero?.getBoundingClientRect();
+                  const heroTextOverlapsNavigation = Boolean(top && copy && top.left < copy.right && top.right > copy.left && top.top < copy.bottom && top.bottom > copy.top);
+                  const heroOverlapsNavigation = Boolean(top && heroRect && top.left < heroRect.right && top.right > heroRect.left && top.top < heroRect.bottom && top.bottom > heroRect.top);
+                  const heroClearancePx = top && heroRect ? Math.round(heroRect.top - top.bottom) : null;
+                  // naturalWidth/naturalHeight prove a real image decoded. Canvas pixel inspection is diagnostic only: cross-origin posters can taint the canvas without being visually broken.
+              const realLoaded = posterChecks.filter(item => item.loaded && item.visible).length;
+                  const posterSlotBreakdown = Object.fromEntries([...new Set(posterChecks.map(item => item.slotType))].map(type => {
+                    const matching = posterChecks.filter(item => item.slotType === type);
+                    const loaded = matching.filter(item => item.loaded && item.visible).length;
+                    return [type, { total: matching.length, realLoaded: loaded, loadRate: matching.length ? Number((loaded / matching.length).toFixed(3)) : 0 }];
+                  }));
+                  return {
+                    viewportWidth: window.innerWidth,
+                    documentWidth: document.documentElement.scrollWidth,
+                    bodyWidth: document.body.scrollWidth,
+                    horizontalOverflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) > window.innerWidth + 2,
+                    shell: rect(root), main: rect(main), home: rect(home), topbar: rect(topbar), hero: rect(hero), heroCopy: rect(heroCopy),
+                    homeComputed: homeStyle ? { paddingTop: homeStyle.paddingTop, marginTop: homeStyle.marginTop, rowGap: homeStyle.rowGap, display: homeStyle.display, transform: homeStyle.transform } : null,
+                    layoutChain,
+                    layoutDiagnostics,
+                    heroTextOverlapsNavigation,
+                    heroOverlapsNavigation,
+                    heroClearancePx,
+                    homepageStillLoading: Boolean(document.querySelector('.ipad-edition__poster-grid[aria-busy="true"]')) || (document.querySelector('.ipad-edition__hero-copy h1')?.textContent ?? '').includes('正在为你准备影院'),
+                    posterCount: posters.length,
+                    animeCardCount: animeCards.length,
+                    posterSlotCount: posterChecks.length,
+                    posterSlotBreakdown,
+                    posterImageElementCount: posterChecks.filter(item => item.hasImageElement).length,
+                    emptyPosterAddressCount: posterChecks.filter(item => item.emptyAddress).length,
+                    missingPosterImageElementCount: posterChecks.filter(item => !item.hasImageElement).length,
+                    svgPlaceholderCount: posterChecks.filter(item => item.svgPlaceholder).length,
+                    realPosterImagesLoaded: realLoaded,
+                    visiblePosterImages: posterChecks.filter(item => item.visible).length,
+                    pixelVisiblePosterImages: posterChecks.filter(item => item.pixelVisible).length,
+                    pixelInspectionUnavailableCount: posterChecks.filter(item => item.loaded && item.visible && !item.pixelVisible).length,
+                    posterImageLoadRate: posterChecks.length ? Number((realLoaded / posterChecks.length).toFixed(3)) : 0,
+                    posterChecks,
+                    popularHeading: Boolean(document.querySelector('#ipad-popular-movies-title')),
+                    theme,
+                  };
+                }, { scheme: colorScheme, layoutDiagnostics });
+                const themeKey = viewport.name;
+                const themeBaselines = globalThis.__ipadThemeBaselines ?? (globalThis.__ipadThemeBaselines = {});
+                if (colorScheme === 'light') {
+                  themeBaselines[themeKey] = metrics.theme;
+                  metrics.themePairValid = metrics.theme.validForRequestedScheme &&
+                    metrics.theme.navigationPresent && metrics.theme.navigationBlurValid &&
+                    metrics.theme.navigationGeometryValid;
+                } else {
+                  const light = themeBaselines[themeKey];
+                  metrics.themeDifference = light ? {
+                    navigationBackgroundChanged: light.navigationBackground !== metrics.theme.navigationBackground,
+                    navigationColorChanged: light.navColor !== metrics.theme.navColor,
+                    navigationBlurPresentInBothThemes: light.navigationBlurValid && metrics.theme.navigationBlurValid,
+                  } : null;
+                  metrics.themePairValid = Boolean(light && light.validForRequestedScheme && metrics.theme.validForRequestedScheme &&
+                    light.navigationPresent && metrics.theme.navigationPresent &&
+                    light.navigationBlurValid && metrics.theme.navigationBlurValid &&
+                    light.navigationGeometryValid && metrics.theme.navigationGeometryValid &&
+                    metrics.themeDifference.navigationBackgroundChanged &&
+                    metrics.themeDifference.navigationColorChanged &&
+                    metrics.themeDifference.navigationBlurPresentInBothThemes);
+                }
+                // Force every poster slot through a real paint/decode cycle before the
+                // full-page capture. DOM naturalWidth alone can be true while a lazy
+                // image has not yet been painted into the captured screenshot.
+                await page.evaluate(async () => {
+                  const slots = Array.from(document.querySelectorAll('[data-ipad-poster-slot]'));
+                  for (const slot of slots) {
+                    slot.scrollIntoView({ block: 'center', inline: 'nearest' });
+                    const image = slot.querySelector('img');
+                    if (image) {
+                      image.loading = 'eager';
+                      if (typeof image.decode === 'function') {
+                        // A single broken or stalled image decode must not hold the full
+                        // eight-viewport audit hostage. Record the failure in the later
+                        // rendered-pixel inspection instead of waiting indefinitely.
+                        await Promise.race([
+                          image.decode().catch(() => {}),
+                          new Promise(resolve => setTimeout(resolve, 8000)),
+                        ]);
+                      }
+                    }
+                    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                  }
+                  window.scrollTo(0, 0);
+                  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                  if (document.fonts?.ready) await document.fonts.ready;
+                });
+                // Inspect the browser-rendered poster pixels, not the source image canvas.
+                // Element screenshots are taken by Chromium after compositing, so CORS canvas
+                // taint cannot turn a failed inspection into a false PASS.
+                const posterPixelChecks = [];
+                const posterSlots = page.locator('[data-ipad-poster-slot]');
+                for (let index = 0; index < await posterSlots.count(); index += 1) {
+                  const slot = posterSlots.nth(index);
+                  const image = slot.locator('img').first();
+                  const slotType = await slot.getAttribute('data-ipad-poster-slot') ?? 'unknown';
+                  if (await image.count() === 0) {
+                    posterPixelChecks.push({ index, slotType, inspected: false, reason: "missing-image-element", blankBlack: false });
+                    continue;
+                  }
+                  try {
+                    const buffer = await image.screenshot({ animations: "disabled", timeout: 15000 });
+                    const png = PNG.sync.read(buffer);
+                    let sum = 0;
+                    let sumSquares = 0;
+                    let darkPixels = 0;
+                    let samples = 0;
+                    const colorBuckets = new Set();
+                    for (let offset = 0; offset < png.data.length; offset += 4) {
+                      const alpha = png.data[offset + 3] / 255;
+                      if (alpha < 0.9) continue;
+                      const r = png.data[offset], g = png.data[offset + 1], b = png.data[offset + 2];
+                      const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                      sum += luminance;
+                      sumSquares += luminance * luminance;
+                      if (luminance <= 16) darkPixels += 1;
+                      colorBuckets.add([r >> 4, g >> 4, b >> 4].join(","));
+                      samples += 1;
+                    }
+                    const meanLuminance = samples ? sum / samples : 0;
+                    const variance = samples ? Math.max(0, sumSquares / samples - meanLuminance ** 2) : 0;
+                    const standardDeviation = Math.sqrt(variance);
+                    const nearBlackRatio = samples ? darkPixels / samples : 1;
+                    const blankBlack = samples === 0 || (meanLuminance < 8 && standardDeviation < 4 && nearBlackRatio > 0.995);
+                    posterPixelChecks.push({
+                      index, slotType, inspected: samples > 0, width: png.width, height: png.height,
+                      meanLuminance: Number(meanLuminance.toFixed(2)),
+                      luminanceStdDev: Number(standardDeviation.toFixed(2)),
+                      nearBlackRatio: Number(nearBlackRatio.toFixed(4)),
+                      colorBucketCount: colorBuckets.size,
+                      blankBlack,
+                    });
+                  } catch (error) {
+                    posterPixelChecks.push({ index, slotType, inspected: false, reason: String(error), blankBlack: false });
+                  }
+                }
+                metrics.posterPixelChecks = posterPixelChecks;
+                metrics.posterPixelInspectionUnavailableCount = posterPixelChecks.filter(item => !item.inspected).length;
+                metrics.blankBlackPosterCount = posterPixelChecks.filter(item => item.blankBlack).length;
+                metrics.posterPixelInspectionPassed = posterPixelChecks.length === metrics.posterSlotCount &&
+                  metrics.posterPixelInspectionUnavailableCount === 0 && metrics.blankBlackPosterCount === 0;
+
+                // Audit the real viewport, not a stitched full-page capture. Chromium can
+                // reposition fixed elements while stitching a fullPage screenshot, making
+                // the top navigation appear over unrelated poster rows even though its
+                // measured viewport position is correct.
+                await page.locator("#ipad-popular-series").scrollIntoViewIfNeeded();
+                await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+                const scrollAudit = await page.evaluate(() => {
+                  const nav = document.querySelector(".ipad-nav__topbar")?.getBoundingClientRect();
+                  const labels = Array.from(document.querySelectorAll("#ipad-popular-series .ipad-edition__poster-card strong, #ipad-popular-series .ipad-edition__poster-card small"));
+                  const visibleLabels = labels.map((element) => {
+                    const rect = element.getBoundingClientRect();
+                    const visible = rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < window.innerHeight;
+                    const overlapsNavigation = Boolean(nav && visible && nav.left < rect.right && nav.right > rect.left && nav.top < rect.bottom && nav.bottom > rect.top);
+                    return { text: element.textContent?.trim() ?? "", top: Math.round(rect.top), bottom: Math.round(rect.bottom), visible, overlapsNavigation };
+                  });
+                  return {
+                    scrollY: Math.round(window.scrollY),
+                    navigationTop: nav ? Math.round(nav.top) : null,
+                    navigationBottom: nav ? Math.round(nav.bottom) : null,
+                    visiblePosterLabels: visibleLabels.filter(item => item.visible).length,
+                    overlappingPosterLabels: visibleLabels.filter(item => item.overlapsNavigation),
+                    navigationViewportValid: Boolean(nav && nav.top >= 0 && nav.bottom <= window.innerHeight),
+                  };
+                });
+                metrics.scrollAudit = scrollAudit;
+                const name = viewport.name + "-" + colorScheme;
+                await page.evaluate(() => window.scrollTo(0, 0));
+                await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+                await page.screenshot({ path: "artifacts/ipad-visual-audit/" + name + ".png", fullPage: false, animations: "disabled" });
+                const failed = !sidebarInteractionPassed || response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.width < viewport.width * 0.7 || metrics.homepageStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.posterImageLoadRate < 0.75 || !metrics.posterPixelInspectionPassed || metrics.heroTextOverlapsNavigation || metrics.heroOverlapsNavigation || !Number.isFinite(metrics.heroClearancePx) || metrics.heroClearancePx < 8 || metrics.heroClearancePx > 144 || !metrics.hero || metrics.hero.y < 0 || metrics.hero.y > Math.min(160, viewport.height * 0.25) || !metrics.themePairValid || !scrollAudit.navigationViewportValid || scrollAudit.overlappingPosterLabels.length > 0;
+                if (failed) failures += 1;
+                results.push({ name, httpStatus: response?.status() ?? null, failed, sidebarInteractionPassed, sidebarInteraction, metrics, pageErrors: consoleErrors });
+                console.log(JSON.stringify(results.at(-1)));
+                await context.close();
+              }
+            }
+          } catch (error) {
+            failures += 1;
+            results.push({ fatalError: String(error), completedViewportThemePairs: results.length });
+            console.error("Fatal iPad visual audit error:", error);
+          } finally {
+            await browser.close();
+            await fs.writeFile("artifacts/ipad-visual-audit/report.json", JSON.stringify({
+              target,
+              mode: "simulated Chromium viewport audit; not real iPad Safari",
+              total: results.length,
+              failures,
+              fatalError: failures && results.at(-1)?.fatalError ? results.at(-1).fatalError : null,
+              results,
+            }, null, 2));
+          }
+          if (failures) process.exitCode = 1;
+          NODE
+      - name: Upload iPad visual audit screenshots and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipad-edition-visual-audit
+          path: artifacts/ipad-visual-audit/
+          if-no-files-found: warn
+          retention-days: 14
+
+# [deploy-ipad-edition-preview] Capture parent-chain diagnostics on the isolated Preview.
+)));
+              }, undefined, { timeout: 20000 });
               const menuButton = page.locator('.ipad-nav__menu-button');
               await menuButton.click();
               await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'true', { timeout: 10000 });
