@@ -102,6 +102,7 @@ jobs:
           PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT: "120000"
           PLAYWRIGHT_DOWNLOAD_NO_PROGRESS: "1"
         run: npx playwright install chromium
+      # [deploy-ipad-edition-preview] Re-run after edge-swipe touch handling fix.
       - name: Run iPad viewport and theme visual audit
         timeout-minutes: 18
         run: |
