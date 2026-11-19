@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DoubanItem, SearchResultItem } from '../types';
-import { createPosterAsset, fromBangumiItem, fromCmsSearchResult, fromDoubanItem } from './poster-source';
+import { createPosterAsset, fromBangumiItem, fromCmsArtwork, fromCmsSearchResult, fromDoubanItem } from './poster-source';
 import { classifyPosterAspect, inferPosterImageKind, withPosterDimensions } from './poster-normalizer';
 
 describe('poster source adapters', () => {
@@ -30,6 +30,12 @@ describe('poster source adapters', () => {
       provider: 'cms',
       providerItemId: 'site-a:42',
       originalUrl: item.pic,
+    });
+  });
+
+  it('adapts stored CMS artwork using stable source and video identity', () => {
+    expect(fromCmsArtwork({ sourceKey: 'source-a', vodId: '77', title: '收藏影片', imageUrl: 'https://cdn.example/cover.jpg' })).toMatchObject({
+      id: 'cms:source-a:77:poster', providerItemId: 'source-a:77', originalUrl: 'https://cdn.example/cover.jpg',
     });
   });
 
