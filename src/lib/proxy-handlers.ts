@@ -184,10 +184,14 @@ export async function handleProxyRequest(req: Request, targetUrl: string): Promi
   }
   // fetch 会自动解压，转发时必须去掉长度相关头避免浏览器二次解压
   // 图片基本不变：长缓存交给浏览器与边缘 CDN（分片 / key 仍保守 1 小时）
-  outHeaders.set(
-    'Cache-Control',
-    contentType.startsWith('image/') ? 'public, max-age=2592000' : 'public, max-age=3600'
-  );
+  // Never put authenticated or failed upstream images into a shared 30-day cache.
+  // Only successful responses from the explicitly public image allowlist are CDN-shareable.
+  const cacheControl = !response.ok
+    ? 'no-store'
+    : contentType.startsWith('image/')
+      ? (looksLikeImageUrl(finalUrl) ? 'public, max-age=2592000' : 'private, max-age=300')
+      : 'public, max-age=3600';
+  outHeaders.set('Cache-Control', cacheControl);
   outHeaders.set('Access-Control-Allow-Origin', '*');
 
   return new NextResponse(response.body, {

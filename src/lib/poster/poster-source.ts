@@ -7,7 +7,7 @@ function normalizeHttpUrl(value: string | null | undefined): string | undefined 
     const parsed = new URL(value);
     if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return undefined;
     if (parsed.username || parsed.password) return undefined;
-    return parsed.toString();
+    return value;
   } catch {
     return undefined;
   }
