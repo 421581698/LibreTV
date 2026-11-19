@@ -133,6 +133,30 @@ jobs:
                   colorScheme,
                 });
                 const page = await context.newPage();
+                // Capture native touch and Pointer Event delivery before application hydration.
+                await page.addInitScript(() => {
+                  window.__ipadTouchTrace = [];
+                  const record = (event) => {
+                    const target = event.target instanceof Element
+                      ? (event.target.closest('.ipad-nav__edge-swipe-zone, .ipad-nav__sidebar, .ipad-edition')?.className ?? event.target.tagName)
+                      : String(event.target);
+                    window.__ipadTouchTrace.push({
+                      type: event.type,
+                      pointerType: 'pointerType' in event ? event.pointerType : undefined,
+                      pointerId: 'pointerId' in event ? event.pointerId : undefined,
+                      isPrimary: 'isPrimary' in event ? event.isPrimary : undefined,
+                      x: 'clientX' in event ? event.clientX : ('touches' in event && event.touches[0] ? event.touches[0].clientX : undefined),
+                      y: 'clientY' in event ? event.clientY : ('touches' in event && event.touches[0] ? event.touches[0].clientY : undefined),
+                      cancelable: event.cancelable,
+                      defaultPrevented: event.defaultPrevented,
+                      target,
+                    });
+                    if (window.__ipadTouchTrace.length > 120) window.__ipadTouchTrace.shift();
+                  };
+                  for (const type of ['pointerdown','pointermove','pointerup','pointercancel','touchstart','touchmove','touchend','touchcancel']) {
+                    document.addEventListener(type, record, { capture: true, passive: false });
+                  }
+                });
                 // Force the application theme class, not merely the browser media preference.
                 await page.addInitScript((scheme) => {
                   const applyTheme = () => {
@@ -175,8 +199,26 @@ jobs:
               await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false');
               await page.waitForFunction(() => !document.querySelector('.ipad-nav__sidebar')?.classList.contains('is-open'));
               sidebarInteraction.scrimClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
-              // Verify genuine touch-pointer edge-swipe open and in-panel swipe close.
+              // Verify genuine touch-pointer edge-swipe open and only attempt close after a proven open.
               const touchSession = await context.newCDPSession(page);
+              sidebarInteraction.diagnostics = await page.evaluate(() => {
+                const edge = document.querySelector('.ipad-nav__edge-swipe-zone');
+                const root = document.querySelector('.ipad-edition');
+                const hit = document.elementFromPoint(8, 260);
+                const rect = element => {
+                  if (!element) return null;
+                  const r = element.getBoundingClientRect();
+                  return { x:r.x, y:r.y, width:r.width, height:r.height };
+                };
+                return {
+                  edgeRect: rect(edge),
+                  hitAtEdge: hit?.className ?? hit?.tagName ?? null,
+                  hitIsEdge: Boolean(edge && hit && (hit === edge || edge.contains(hit))),
+                  edgeTouchAction: edge ? getComputedStyle(edge).touchAction : null,
+                  rootTouchAction: root ? getComputedStyle(root).touchAction : null,
+                  rootPresent: Boolean(root),
+                };
+              });
               try {
                 await touchSession.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
                 await touchSession.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 8, y: 260, id: 1, force: 1 }] });
@@ -185,14 +227,27 @@ jobs:
                 await touchSession.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
                 await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'true', undefined, { timeout: 5000 });
                 sidebarInteraction.edgeSwipeOpened = await page.locator('.ipad-nav__sidebar.is-open').isVisible();
-                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 220, y: 260, id: 1, force: 1 }] });
-                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 120, y: 260, id: 1, force: 1 }] });
-                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 32, y: 260, id: 1, force: 1 }] });
-                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-                await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false', undefined, { timeout: 5000 });
-                sidebarInteraction.edgeSwipeClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
+                if (sidebarInteraction.edgeSwipeOpened) {
+                  await touchSession.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 220, y: 260, id: 1, force: 1 }] });
+                  await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 120, y: 260, id: 1, force: 1 }] });
+                  await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 32, y: 260, id: 1, force: 1 }] });
+                  await touchSession.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+                  await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false', undefined, { timeout: 5000 });
+                  sidebarInteraction.edgeSwipeClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
+                } else {
+                  sidebarInteraction.edgeSwipeClosed = false;
+                  sidebarInteraction.closeSkippedBecauseOpenFailed = true;
+                }
               } finally {
                 await touchSession.detach();
+                sidebarInteraction.diagnostics.trace = await page.evaluate(() => window.__ipadTouchTrace ?? []);
+                sidebarInteraction.diagnostics.finalState = await page.evaluate(() => ({
+                  expanded: document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') ?? null,
+                  sidebarClass: document.querySelector('.ipad-nav__sidebar')?.className ?? null,
+                  sidebarVisible: Boolean(document.querySelector('.ipad-nav__sidebar')?.getBoundingClientRect().width &&
+                    getComputedStyle(document.querySelector('.ipad-nav__sidebar')).visibility !== 'hidden'),
+                  dragging: document.querySelector('.ipad-edition')?.getAttribute('data-ipad-sidebar-dragging') ?? null,
+                }));
               }
               sidebarInteractionPassed = sidebarInteraction.opened && sidebarInteraction.escapeClosed &&
                 sidebarInteraction.scrimClosed && sidebarInteraction.edgeSwipeOpened && sidebarInteraction.edgeSwipeClosed;
