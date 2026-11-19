@@ -203,7 +203,7 @@ jobs:
             // A failed gesture must not leave the sidebar/scrim covering the screenshot.
             await page.evaluate(() => {
               const button = document.querySelector('.ipad-nav__menu-button');
-              if (button?.getAttribute('aria-expanded') === 'true') (button as HTMLButtonElement).click();
+              if (button?.getAttribute('aria-expanded') === 'true') button.click();
             });
             await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false', { timeout: 5000 });
             await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
