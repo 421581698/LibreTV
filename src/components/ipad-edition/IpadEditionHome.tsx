@@ -129,6 +129,14 @@ export function IpadEditionHome() {
       <section className="ipad-edition__hero" aria-label="精选影片">
         {hero ? (
           <>
+            <div className="ipad-edition__hero-backdrop" aria-hidden="true">
+              <SmartImage
+                url={hero.backdrop || hero.cover}
+                mode="proxy"
+                alt=""
+                loading="eager"
+              />
+            </div>
             <div className="ipad-edition__hero-art">
               <SmartImage
                 url={hero.cover}

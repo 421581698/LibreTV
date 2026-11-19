@@ -1347,3 +1347,188 @@ body:has(.ipad-edition[data-environment="light"]) {
     scroll-padding-inline: 16px !important;
   }
 }
+
+
+/* iPad visual polish: layered cinematic hero, single focus ring and clear drawer state. */
+.ipad-edition__hero-backdrop {
+  position: absolute;
+  z-index: 0;
+  inset: -22px;
+  overflow: hidden;
+  pointer-events: none;
+  background: #10141d;
+}
+.ipad-edition__hero-backdrop img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 38%;
+  filter: blur(22px) brightness(.62) saturate(1.2);
+  transform: scale(1.09);
+  opacity: .82;
+}
+.ipad-edition__hero-art {
+  z-index: 1;
+  inset: 0 0 0 auto !important;
+  width: min(42%, 440px) !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 26%, #000 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 26%, #000 100%);
+}
+.ipad-edition__hero-art img {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  object-position: right center !important;
+  filter: drop-shadow(0 12px 30px rgba(0,0,0,.32));
+}
+.ipad-edition__hero-veil {
+  z-index: 1;
+  background:
+    linear-gradient(90deg, rgba(0,0,0,.9) 0%, rgba(0,0,0,.68) 40%, rgba(0,0,0,.28) 68%, rgba(0,0,0,.08) 100%),
+    linear-gradient(0deg, rgba(0,0,0,.42) 0%, transparent 62%) !important;
+}
+.ipad-edition__hero-copy {
+  z-index: 2;
+  max-width: min(680px, 62%) !important;
+}
+.ipad-edition__hero-actions {
+  display: flex;
+  align-items: center !important;
+  gap: 12px !important;
+}
+.ipad-edition__hero-actions .ipad-edition__hero-cta,
+.ipad-edition__hero-actions .ipad-edition__hero-add {
+  height: 48px !important;
+  min-height: 48px !important;
+  margin: 0 !important;
+  align-self: center;
+}
+.ipad-edition__hero-actions .ipad-edition__hero-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1 !important;
+}
+.ipad-edition__hero-actions .ipad-edition__hero-add {
+  display: grid !important;
+  place-items: center !important;
+  padding: 0 !important;
+  line-height: 1 !important;
+  font-size: 25px !important;
+}
+.ipad-edition__hero-add {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+.ipad-edition__hero-add::first-letter {
+  line-height: 1;
+}
+
+/* The search field owns no second border: the surrounding surface is the focus ring. */
+.ipad-edition__search-form input {
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+.ipad-edition__search-form input:focus,
+.ipad-edition__search-form input:focus-visible {
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+.ipad-edition__search-form:focus-within {
+  border-color: rgba(105,157,255,.9) !important;
+  box-shadow: 0 0 0 2px rgba(67,132,245,.24), 0 0 0 4px rgba(67,132,245,.08), var(--ipad-glass-shadow) !important;
+}
+
+/* Category arrows are quiet card affordances, inset from the edge. */
+.ipad-edition__category-grid button b {
+  top: 16px !important;
+  right: 18px !important;
+  bottom: auto !important;
+  color: var(--ipad-muted) !important;
+  opacity: .72;
+  pointer-events: none;
+  font-size: 16px !important;
+  line-height: 1;
+}
+
+/* The drawer scrim visibly lowers the page's visual priority. */
+.ipad-nav__scrim {
+  background: rgba(0,0,0,.56) !important;
+  -webkit-backdrop-filter: blur(4px) brightness(.68) !important;
+  backdrop-filter: blur(4px) brightness(.68) !important;
+}
+.ipad-nav__links a i {
+  display: block;
+  flex: 0 0 5px;
+  align-self: center;
+  width: 5px;
+  height: 5px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: #e5a83b;
+}
+
+/* Distinct capsule edge and brighter icon contrast on dark hero backgrounds. */
+.ipad-edition .ipad-nav__topbar-inner {
+  background: rgba(25,29,38,.86) !important;
+  border-color: rgba(255,255,255,.34) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) brightness(1.14) !important;
+  backdrop-filter: blur(28px) saturate(190%) brightness(1.14) !important;
+  box-shadow: 0 12px 38px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.2) !important;
+}
+.ipad-edition .ipad-nav__capsule-action {
+  color: rgba(255,255,255,.94) !important;
+}
+.ipad-edition .ipad-nav__capsule-action.is-active {
+  color: #fff !important;
+  background: rgba(255,255,255,.23) !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.18) !important;
+}
+.ipad-edition[data-environment="light"] .ipad-nav__topbar-inner {
+  background: rgba(250,252,255,.9) !important;
+  border-color: rgba(25,35,52,.24) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%) brightness(1.04) !important;
+  backdrop-filter: blur(28px) saturate(180%) brightness(1.04) !important;
+}
+.ipad-edition[data-environment="light"] .ipad-nav__capsule-action {
+  color: #202633 !important;
+}
+.ipad-edition[data-environment="light"] .ipad-nav__capsule-action.is-active {
+  background: rgba(25,35,52,.13) !important;
+  box-shadow: inset 0 0 0 1px rgba(25,35,52,.08) !important;
+}
+
+/* Preserve equal scroll-rail insets and a real trailing end-cap after the last card. */
+.ipad-edition__poster-grid,
+.ipad-edition__anime-grid,
+.ipad-edition__continue-grid {
+  padding-inline: 24px !important;
+  scroll-padding-inline: 24px !important;
+}
+.ipad-edition__poster-grid::after,
+.ipad-edition__anime-grid::after,
+.ipad-edition__continue-grid::after {
+  content: "";
+  display: block;
+  flex: 0 0 1px;
+  min-height: 1px;
+}
+@media (max-width: 699px) {
+  .ipad-edition__hero-art { width: 44% !important; }
+  .ipad-edition__hero-copy { max-width: 64% !important; }
+  .ipad-edition__poster-grid,
+  .ipad-edition__anime-grid,
+  .ipad-edition__continue-grid {
+    padding-inline: 16px !important;
+    scroll-padding-inline: 16px !important;
+  }
+}
