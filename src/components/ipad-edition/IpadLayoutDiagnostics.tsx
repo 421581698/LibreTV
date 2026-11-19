@@ -16,34 +16,128 @@ type LayoutSnapshot = {
     devicePixelRatio: number;
   };
   elements: Record<string, unknown>;
+  siblingLayoutChain: Record<string, unknown>;
   heroToNavGap: number | null;
 };
 
-function measureElement(selector: string) {
-  const element = document.querySelector<HTMLElement>(selector);
-  if (!element) return { missing: true };
+function nodePath(element: Element | null): string | null {
+  if (!element) return null;
+  const id = element.id ? `#${element.id}` : '';
+  const classes = typeof element.className === 'string'
+    ? element.className.trim().split(/\\s+/).filter(Boolean).slice(0, 5).map((name) => `.${name}`).join('')
+    : '';
+  return `${element.tagName.toLowerCase()}${id}${classes}`;
+}
+
+function measureNode(element: HTMLElement) {
   const rect = element.getBoundingClientRect();
   const style = getComputedStyle(element);
+  const offsetParent = element.offsetParent instanceof HTMLElement ? element.offsetParent : null;
   return {
+    path: nodePath(element),
     top: Number(rect.top.toFixed(1)),
     bottom: Number(rect.bottom.toFixed(1)),
-    height: Number(rect.height.toFixed(1)),
-    width: Number(rect.width.toFixed(1)),
+    left: Number(rect.left.toFixed(1)),
+    right: Number(rect.right.toFixed(1)),
+    rectHeight: Number(rect.height.toFixed(1)),
+    rectWidth: Number(rect.width.toFixed(1)),
+    offsetTop: element.offsetTop,
+    offsetHeight: element.offsetHeight,
+    scrollHeight: element.scrollHeight,
+    offsetParent: nodePath(offsetParent),
     position: style.position,
-    heightStyle: style.height,
+    display: style.display,
+    visibility: style.visibility,
+    opacity: style.opacity,
+    height: style.height,
     minHeight: style.minHeight,
-    paddingTop: style.paddingTop,
-    paddingBottom: style.paddingBottom,
-    marginTop: style.marginTop,
-    overflow: style.overflow,
-    overflowY: style.overflowY,
+    maxHeight: style.maxHeight,
+    margin: style.margin,
+    padding: style.padding,
     transform: style.transform,
+    translate: style.translate,
+    flexDirection: style.flexDirection,
+    flex: style.flex,
+    alignItems: style.alignItems,
+    justifyContent: style.justifyContent,
+    rowGap: style.rowGap,
+    gridTemplateRows: style.gridTemplateRows,
+    contain: style.contain,
+    contentVisibility: style.contentVisibility,
+  };
+}
+
+function measureElement(selector: string) {
+  const element = document.querySelector<HTMLElement>(selector);
+  return element ? measureNode(element) : { missing: true, selector };
+}
+
+function collectSubtree(element: Element, depth = 0): Record<string, unknown> {
+  const htmlElement = element as HTMLElement;
+  const children = Array.from(element.children).filter((child) => child instanceof HTMLElement) as HTMLElement[];
+  return {
+    ...measureNode(htmlElement),
+    childCount: children.length,
+    children: depth < 3 ? children.map((child) => collectSubtree(child, depth + 1)) : undefined,
+  };
+}
+
+function collectSiblingLayoutChain(root: HTMLElement, main: HTMLElement | null) {
+  const rootChildren = Array.from(root.children).filter((child) => child instanceof HTMLElement) as HTMLElement[];
+  const mainPreviousSiblings: HTMLElement[] = [];
+  const mainNextSiblings: HTMLElement[] = [];
+  if (main) {
+    let previous = main.previousElementSibling;
+    while (previous) {
+      if (previous instanceof HTMLElement) mainPreviousSiblings.unshift(previous);
+      previous = previous.previousElementSibling;
+    }
+    let next = main.nextElementSibling;
+    while (next) {
+      if (next instanceof HTMLElement) mainNextSiblings.push(next);
+      next = next.nextElementSibling;
+    }
+  }
+
+  return {
+    root: {
+      ...measureNode(root),
+      display: getComputedStyle(root).display,
+      childOrder: rootChildren.map((child, index) => ({
+        index,
+        ...measureNode(child),
+      })),
+      childSubtrees: rootChildren.map((child) => collectSubtree(child)),
+    },
+    main: main ? {
+      node: measureNode(main),
+      previousSiblings: mainPreviousSiblings.map(measureNode),
+      nextSiblings: mainNextSiblings.map(measureNode),
+      ancestors: (() => {
+        const ancestors: Record<string, unknown>[] = [];
+        let parent = main.parentElement;
+        while (parent && ancestors.length < 8) {
+          ancestors.push(measureNode(parent));
+          parent = parent.parentElement;
+        }
+        return ancestors;
+      })(),
+    } : { missing: true },
+    documentFlow: {
+      body: measureElement('body'),
+      html: measureElement('html'),
+      bodyChildren: Array.from(document.body.children)
+        .filter((child) => child instanceof HTMLElement)
+        .map((child, index) => ({ index, ...measureNode(child as HTMLElement) })),
+    },
   };
 }
 
 function collectSnapshot(): LayoutSnapshot {
   const nav = document.querySelector<HTMLElement>('.ipad-nav__topbar');
   const hero = document.querySelector<HTMLElement>('.ipad-edition__hero');
+  const root = document.querySelector<HTMLElement>('.ipad-edition');
+  const main = document.querySelector<HTMLElement>('.ipad-edition__main');
   const viewport = window.visualViewport;
   return {
     capturedAt: new Date().toISOString(),
@@ -60,11 +154,15 @@ function collectSnapshot(): LayoutSnapshot {
     },
     elements: {
       nav: measureElement('.ipad-nav__topbar'),
+      sidebar: measureElement('.ipad-nav__sidebar'),
+      edgeSwipeZone: measureElement('.ipad-nav__edge-swipe-zone'),
+      scrim: measureElement('.ipad-nav__scrim'),
       root: measureElement('.ipad-edition'),
       main: measureElement('.ipad-edition__main'),
       home: measureElement('.ipad-edition__home'),
       hero: measureElement('.ipad-edition__hero'),
     },
+    siblingLayoutChain: root ? collectSiblingLayoutChain(root, main) : { missingRoot: true },
     heroToNavGap: nav && hero
       ? Number((hero.getBoundingClientRect().top - nav.getBoundingClientRect().bottom).toFixed(1))
       : null,
@@ -136,7 +234,7 @@ export function IpadLayoutDiagnostics() {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, position: 'sticky', top: -10, padding: '2px 0 8px', background: 'rgba(8,12,20,.98)' }}>
-        <strong style={{ fontSize: 12 }}>iPad Layout Debug · 实时数据</strong>
+        <strong style={{ fontSize: 12 }}>iPad Layout Debug · 兄弟节点与布局链</strong>
         <button type="button" onClick={copySnapshot} style={{ border: '1px solid #8793a5', borderRadius: 7, padding: '5px 9px', background: '#263448', color: 'white' }}>
           {copied ? '已复制' : '复制 JSON'}
         </button>
