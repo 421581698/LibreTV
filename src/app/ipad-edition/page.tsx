@@ -1,3 +1,4 @@
+import './hero.css';
 import { IpadEditionHome } from '@/components/ipad-edition/IpadEditionHome';
 
 export default function IpadEditionPage() {
