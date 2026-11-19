@@ -177,15 +177,15 @@ jobs:
               // Verify genuine touch-pointer edge-swipe open and in-panel swipe close.
               const touchSession = await context.newCDPSession(page);
               try {
-                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 8, y: 260 }] });
-                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 96, y: 260 }] });
-                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 180, y: 260 }] });
+                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 8, y: 260, id: 1, force: 1 }] });
+                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 96, y: 260, id: 1, force: 1 }] });
+                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 180, y: 260, id: 1, force: 1 }] });
                 await touchSession.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
                 await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'true', { timeout: 5000 });
                 sidebarInteraction.edgeSwipeOpened = await page.locator('.ipad-nav__sidebar.is-open').isVisible();
-                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 220, y: 260 }] });
-                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 120, y: 260 }] });
-                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 32, y: 260 }] });
+                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 220, y: 260, id: 1, force: 1 }] });
+                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 120, y: 260, id: 1, force: 1 }] });
+                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 32, y: 260, id: 1, force: 1 }] });
                 await touchSession.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
                 await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false', { timeout: 5000 });
                 sidebarInteraction.edgeSwipeClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
@@ -199,6 +199,15 @@ jobs:
               sidebarInteractionPassed = false;
               console.error('Sidebar interaction audit failed for ' + viewport.name + '-' + colorScheme + ': ' + String(error));
             }
+            // Always restore the page to its neutral state before capturing the visual baseline.
+            // A failed gesture must not leave the sidebar/scrim covering the screenshot.
+            await page.evaluate(() => {
+              const button = document.querySelector('.ipad-nav__menu-button');
+              if (button?.getAttribute('aria-expanded') === 'true') (button as HTMLButtonElement).click();
+            });
+            await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false', { timeout: 5000 });
+            await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+            await page.waitForTimeout(180);
             // Wait for real homepage content before inspecting all poster-bearing cards.
                 await page.waitForFunction(() => {
                   const busyRail = document.querySelector('.ipad-edition__poster-grid[aria-busy="true"]');
@@ -251,7 +260,7 @@ jobs:
                     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
                   };
                   const navigationSurface = document.querySelector('.ipad-nav__topbar-inner');
-                  const wordmark = document.querySelector('.ipad-nav__wordmark');
+                  const wordmark = document.querySelector('.ipad-nav__capsule-action');
                   const navigationStyle = navigationSurface ? getComputedStyle(navigationSurface) : null;
                   const wordmarkStyle = wordmark ? getComputedStyle(wordmark) : null;
                   const navigationBackground = navigationStyle?.backgroundColor ?? '';
