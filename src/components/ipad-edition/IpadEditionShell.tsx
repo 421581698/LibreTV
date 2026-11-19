@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { LiquidGlassSurface } from '@/components/ui/liquid-glass';
+import { attachEnvironmentEngine } from '@/lib/ipad-edition/environment-engine';
+import { detectRenderCapabilities, selectRenderPolicy } from '@/lib/ipad-edition/render-engine';
 
 const primaryNavigation = [
   { label: '首页', href: '/ipad-edition', icon: 'house' },
@@ -66,6 +68,23 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
   const [sidebarDragOffset, setSidebarDragOffset] = useState(0);
   const [sidebarDragging, setSidebarDragging] = useState(false);
   const gestureRef = useRef<{ pointerId: number; startX: number; lastX: number; lastAt: number; width: number; wasOpen: boolean } | null>(null);
+  const environmentRootRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const root = environmentRootRef.current;
+    if (!root) return;
+    const detachEnvironment = attachEnvironmentEngine(root);
+    const renderPolicy = selectRenderPolicy(detectRenderCapabilities());
+    root.dataset.renderBackend = renderPolicy.backend;
+    root.dataset.renderDisplacement = renderPolicy.allowDisplacement ? 'enabled' : 'disabled';
+    root.dataset.renderMotion = renderPolicy.allowContinuousAnimation ? 'enabled' : 'reduced';
+    return () => {
+      detachEnvironment();
+      delete root.dataset.renderBackend;
+      delete root.dataset.renderDisplacement;
+      delete root.dataset.renderMotion;
+    };
+  }, []);
 
   useEffect(() => {
     setSidebarOpen(false);
@@ -143,6 +162,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
 
   return (
     <div
+      ref={environmentRootRef}
       className="ipad-edition"
       data-ipad-edition="true"
       data-ipad-player={isPlayerRoute ? 'true' : undefined}
