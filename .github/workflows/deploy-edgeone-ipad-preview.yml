@@ -52,7 +52,7 @@ jobs:
       - name: Install EdgeOne Makers CLI
         run: |
           npm install --global edgeone@latest
-          CLI_VERSION="$(edgeone -v | grep -Eo '[0-9]+\\.[0-9]+\\.[0-9]+' | head -n 1)"
+          CLI_VERSION="$(edgeone -v | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)"
           if [ -z "$CLI_VERSION" ]; then
             echo "::error::Unable to determine EdgeOne CLI version."
             exit 1
@@ -85,7 +85,7 @@ jobs:
             echo "::error::EdgeOne Preview deployment failed. Review the EdgeOne CLI step output; raw credential-bearing output was suppressed."
             exit 1
           }
-          LAST_LINE="$(printf '%s\\n' "$OUTPUT" | tail -n 1)"
+          LAST_LINE="$(printf '%s\n' "$OUTPUT" | tail -n 1)"
           node - "$LAST_LINE" "$GITHUB_OUTPUT" "$GITHUB_STEP_SUMMARY" <<'NODE'
           const fs = require('node:fs');
           let result;
@@ -98,7 +98,7 @@ jobs:
           const url = result.url;
           const output = process.argv[3];
           const summary = process.argv[4];
-          fs.appendFileSync(output, `preview_url=${url}\\nproject_id=${result.projectId || ''}\\nconsole_url=${result.consoleUrl || ''}\\n`);
-          fs.appendFileSync(summary, `## EdgeOne Preview deployment\\n\\n- Project: \`nks\`\\n- Environment: **Preview**\\n- URL: ${url}\\n- Project ID: ${result.projectId || 'not returned'}\\n`);
+          fs.appendFileSync(output, `preview_url=${url}\nproject_id=${result.projectId || ''}\nconsole_url=${result.consoleUrl || ''}\n`);
+          fs.appendFileSync(summary, `## EdgeOne Preview deployment\n\n- Project: \`nks\`\n- Environment: **Preview**\n- URL: ${url}\n- Project ID: ${result.projectId || 'not returned'}\n`);
           console.log('EdgeOne confirmed a successful Preview deployment for project nks.');
           NODE
