@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildImageCandidates, buildImageUrl } from './utils';
+import { buildImageCandidates, buildImageUrl, isDoubanImageUrl } from './utils';
 
 describe('buildImageUrl', () => {
   it('proxy 模式走查询串形式（路径形式会被 EdgeOne 等网关归一化破坏）', () => {
@@ -36,7 +36,14 @@ describe('buildImageCandidates', () => {
     ]);
   });
 
-  it('镜像改写不命中 img\\d+ 子域时去重，不产生重复候选', () => {
+  it('只把官方 HTTPS 豆瓣图片主机识别为豆瓣来源', () => {
+    expect(isDoubanImageUrl('https://img3.doubanio.com/a.jpg')).toBe(true);
+    expect(isDoubanImageUrl('http://img3.doubanio.com/a.jpg')).toBe(false);
+    expect(isDoubanImageUrl('https://evil.doubanio.com/a.jpg')).toBe(false);
+    expect(isDoubanImageUrl('https://img3.doubanio.com.evil.test/a.jpg')).toBe(false);
+  });
+
+  it('镜像改写不命中 imgN 官方子域时去重，不产生重复候选', () => {
     const cands = buildImageCandidates('https://doubanio.com/a.jpg', 'direct', '');
     expect(new Set(cands).size).toBe(cands.length);
     expect(cands[0]).toBe('https://doubanio.com/a.jpg');
@@ -70,6 +77,14 @@ describe('buildImageCandidates', () => {
       'https://img.doubanio.cmliussss.com/view/photo/s_ratio_poster/public/p123.jpg',
       '/api/proxy?url=' + encodeURIComponent(large),
       '/api/proxy?url=' + encodeURIComponent(small),
+    ]);
+  });
+
+  it('第三方 URL 即使包含豆瓣比例路径也不会被改写或发送到豆瓣镜像', () => {
+    const thirdParty = 'https://cdn.example/view/photo/s_ratio_poster/poster.jpg';
+    expect(buildImageCandidates(thirdParty, 'direct', '')).toEqual([
+      thirdParty,
+      '/api/proxy?url=' + encodeURIComponent(thirdParty),
     ]);
   });
 
