@@ -1414,6 +1414,8 @@ body:has(.ipad-edition[data-environment="light"]) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  white-space: nowrap !important;
   line-height: 1 !important;
 }
 .ipad-edition__hero-actions .ipad-edition__hero-add {
