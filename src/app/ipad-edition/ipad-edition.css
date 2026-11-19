@@ -1124,3 +1124,56 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
 @media (prefers-reduced-motion: reduce) {
   .ipad-nav__capsule-action { transition: none !important; }
 }
+
+/* Design Engine 04/06 — environment-driven glass and theme tokens. */
+.ipad-edition {
+  --ipad-env-glass-opacity: .72;
+  --ipad-env-blur: 24px;
+  --ipad-env-scrim: .2;
+  --ipad-env-edge-opacity: .22;
+}
+.ipad-edition .ipad-nav__topbar-inner,
+.ipad-edition .ipad-nav__sidebar {
+  background: color-mix(in srgb, var(--ipad-surface-solid) calc(var(--ipad-env-glass-opacity) * 100%), transparent) !important;
+  border-color: color-mix(in srgb, var(--ipad-text) calc(var(--ipad-env-edge-opacity) * 100%), transparent) !important;
+  -webkit-backdrop-filter: blur(var(--ipad-env-blur)) saturate(180%) !important;
+  backdrop-filter: blur(var(--ipad-env-blur)) saturate(180%) !important;
+}
+.ipad-edition[data-environment="light"] {
+  --ipad-page: #f3f4f6;
+  --ipad-surface: rgba(255,255,255,.72);
+  --ipad-surface-solid: #fff;
+  --ipad-text: #17191d;
+  --ipad-muted: #626a76;
+  --ipad-line: rgba(28,35,46,.16);
+  --ipad-accent: #1769d2;
+  color: var(--ipad-text);
+  background:
+    radial-gradient(ellipse at 75% -8%, rgba(186,204,235,.42), transparent 43%),
+    var(--ipad-page) !important;
+}
+html:has(.ipad-edition[data-environment="light"]),
+body:has(.ipad-edition[data-environment="light"]) {
+  background: #f3f4f6 !important;
+}
+.ipad-edition[data-environment="light"] .ipad-nav__topbar-inner,
+.ipad-edition[data-environment="light"] .ipad-nav__sidebar {
+  color: #17191d !important;
+  box-shadow: 0 16px 48px rgba(24,38,62,.12) !important;
+}
+.ipad-edition[data-environment="light"] .ipad-nav__capsule-action {
+  color: #242a34 !important;
+}
+.ipad-edition[data-environment-contrast="high"] .ipad-nav__topbar-inner,
+.ipad-edition[data-environment-contrast="high"] .ipad-nav__sidebar {
+  border-width: 1.5px !important;
+}
+.ipad-edition[data-environment-motion="reduced"] *,
+.ipad-edition[data-render-motion="reduced"] * {
+  animation: none !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+.ipad-edition[data-render-displacement="disabled"] .liquid-glass-engine-slot {
+  display: none !important;
+}
