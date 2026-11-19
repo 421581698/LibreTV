@@ -22,6 +22,8 @@ on:
       - feature/libretv-ipad-edition-foundation
       - feature/libretv-ipad-edition-product
 
+# Matched CSS provenance is captured via CSS.styleSheetAdded before querying computed rule origins.
+
 permissions:
   contents: read
 
