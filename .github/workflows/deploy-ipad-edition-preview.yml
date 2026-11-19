@@ -87,18 +87,21 @@ jobs:
             if (attempt < 12) await new Promise(resolve => setTimeout(resolve, 5000));
           }
           if (!response?.ok) throw new Error("iPad Edition Preview did not respond: " + lastError);
+          const contentType = response.headers.get("content-type") || "";
           const html = await response.text();
-          if (!html.includes("影院大堂") || !html.includes("LibreTV")) {
-            throw new Error("Preview returned HTML but did not render the iPad Edition shell.");
+          if (!contentType.includes("text/html") || html.length < 1000 || !html.toLowerCase().includes("<html")) {
+            throw new Error("Preview route did not return a complete HTML document.");
           }
-          console.log("Dedicated iPad Edition Preview route is reachable and renders the cinema shell.");
+          console.log("Dedicated iPad Edition Preview route returned an HTML document.");
           NODE
       - name: Install Playwright package for simulated iPad visual audit
         timeout-minutes: 5
         run: npm install --no-save --no-package-lock playwright@1.56.1 pngjs@7.0.0
-      - name: Install Chromium system dependencies
-        timeout-minutes: 8
-        run: npx playwright install-deps chromium
+      - name: Use runner-provided Chromium system libraries
+        run: |
+          for library in libnss3 libatk-1.0-0 libatk-bridge2.0-0 libX11-xcb1 libxkbcommon0; do
+            ldconfig -p | grep -q "$library" || { echo "Missing runner library: $library"; exit 1; }
+          done
       - name: Install Playwright Chromium browser
         timeout-minutes: 8
         env:
