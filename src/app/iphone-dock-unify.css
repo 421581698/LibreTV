@@ -1,0 +1,151 @@
+/* ============================================================================
+   iPhone dock contract — route-agnostic fallback (FINAL LAYER)
+
+   Problem this fixes:
+   The polished edge-to-edge dock was scoped to a :has() whitelist
+   (.v4-home / .v4-search-page / .v4-spatial-screen / .movie-detail-page).
+   Any route outside that whitelist (e.g. /live) fell back to LiquidGlassSurface's
+   default `dock` preset (cornerRadius 999, block flow), producing a 176px
+   vertical capsule with a leaking refraction ring and unreadable labels.
+
+   Fix:
+   Re-assert the canonical horizontal dock on the portaled nav for EVERY mobile
+   route using a selector that does not depend on the whitelist. Whitelisted
+   routes keep their (higher-specificity) identical rules, so nothing changes
+   there; non-whitelisted routes now get the same correct dock.
+   ============================================================================ */
+@media (max-width: 700px) {
+  /* High-specificity mirror for the engine-decorated dock. On non-whitelisted
+     routes the liquid-glass engine leaves data-liquid-glass="true" with a
+     transparent initial background; match that specificity so our glass wins. */
+  html body > nav.v4-mobile-tabbar.liquid-glass[data-liquid-glass="true"],
+  html body > nav.v4-mobile-tabbar {
+    z-index: 2147483000 !important;
+    position: fixed !important;
+    inset: auto 0 0 0 !important;
+    top: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    grid-auto-flow: column !important;
+    align-items: center !important;
+    justify-items: stretch !important;
+    gap: 0 !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
+    min-height: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
+    margin: 0 !important;
+    padding: 7px 12px calc(7px + env(safe-area-inset-bottom, 0px)) !important;
+    overflow: hidden !important;
+    border: 0 !important;
+    outline: 0 !important;
+    border-radius: 0 !important;
+    background: rgba(0, 0, 0, 0.86) !important;
+    background-color: rgba(0, 0, 0, 0.86) !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: blur(24px) saturate(140%) !important;
+    backdrop-filter: blur(24px) saturate(140%) !important;
+    isolation: isolate !important;
+    transform: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  /* Never let the upstream liquid-glass engine draw its own capsule/ring on top
+     of the dock — it is the source of the stray circular refraction on /live. */
+  html body > nav.v4-mobile-tabbar > .liquid-glass-engine-slot,
+  html body > nav.v4-mobile-tabbar::before,
+  html body > nav.v4-mobile-tabbar::after {
+    display: none !important;
+    content: none !important;
+    border: 0 !important;
+    outline: 0 !important;
+    background: none !important;
+    box-shadow: none !important;
+  }
+
+  html body > nav.v4-mobile-tabbar > a {
+    position: relative !important;
+    z-index: 1 !important;
+    display: flex !important;
+    flex: 1 1 0 !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    justify-self: stretch !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: 52px !important;
+    min-height: 52px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 3px !important;
+    border: 0 !important;
+    border-radius: 18px !important;
+    color: rgba(255, 255, 255, 0.72) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-size: 10px !important;
+    line-height: 1.1 !important;
+    text-align: center !important;
+    text-decoration: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  html body > nav.v4-mobile-tabbar > a.is-active {
+    color: #fff !important;
+    background: rgba(255, 255, 255, 0.15) !important;
+    box-shadow: none !important;
+  }
+
+  html body > nav.v4-mobile-tabbar > a > svg {
+    display: block !important;
+    flex: 0 0 19px !important;
+    width: 19px !important;
+    min-width: 19px !important;
+    height: 19px !important;
+    min-height: 19px !important;
+    margin: 0 auto !important;
+    stroke: currentColor !important;
+    filter: none !important;
+  }
+
+  html body > nav.v4-mobile-tabbar > a > span {
+    display: block !important;
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: inherit !important;
+    font-size: 10px !important;
+    line-height: 1.1 !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+  }
+
+  html body > nav.v4-mobile-tabbar > a > i {
+    display: none !important;
+  }
+
+  /* Keep scrollable content clear of the now-fixed dock on every route. */
+  html body {
+    padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px) + 52px) !important;
+  }
+}
+
+/* Respect users who ask for reduced transparency: opaque dock, no blur cost. */
+@media (max-width: 700px) and (prefers-reduced-transparency: reduce) {
+  html body > nav.v4-mobile-tabbar {
+    background: rgba(20, 20, 22, 0.98) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
