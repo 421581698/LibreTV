@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { IpadEditionHero } from '@/components/ipad-edition/IpadEditionHero';
 import { PosterRenderer } from '@/components/ipad-edition/PosterRenderer';
 import { api } from '@/lib/client-api';
 import { fetchHomepageWithFallback } from '@/lib/homepage-recommendation-fallback';
@@ -16,10 +17,6 @@ const HERO_SIZE = 5;
 
 function searchHref(title: string) {
   return '/ipad-edition/search?q=' + encodeURIComponent(title);
-}
-
-function detailHref(title: string) {
-  return '/ipad-edition/detail?title=' + encodeURIComponent(title);
 }
 
 export function IpadEditionHome() {
@@ -121,55 +118,20 @@ export function IpadEditionHome() {
 
   return (
     <div className="ipad-edition__home">
-      <section className="ipad-edition__hero" aria-label="精选影片">
-        {hero ? (
-          <>
-            <PosterRenderer variant="backdrop" frameClassName="ipad-edition__hero-backdrop" url={hero.backdrop || hero.cover} mode="proxy" alt="" loading="eager" />
-            <PosterRenderer variant="hero-poster" frameClassName="ipad-edition__hero-art" asset={fromDoubanItem(hero)} url={hero.cover} mode="proxy" alt="" loading="eager" />
-            <div className="ipad-edition__hero-veil" />
-            <div className="ipad-edition__hero-copy">
-              <h1>{hero.title}</h1>
-              <p>在大银幕般的画面里，发现下一部值得收藏的作品。</p>
-              <div className="ipad-edition__hero-meta">
-                <span>豆瓣热门精选</span>
-                {hero.rating ? <span>★ {hero.rating}</span> : null}
-              </div>
-              <div className="ipad-edition__hero-actions">
-                <Link className="ipad-edition__hero-cta" href={detailHref(hero.title)}>
-                  播放影片
-                  <svg className="ipad-edition__play-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                    <path d="M5 3.5 12 8l-7 4.5z" fill="currentColor" />
-                  </svg>
-                </Link>
-                <Link className="ipad-edition__hero-add" href={detailHref(hero.title)} aria-label="查看影片详情">＋</Link>
-              </div>
-            </div>
-            {heroItems.length > 1 ? (
-              <div className="ipad-edition__hero-dots" role="group" aria-label="切换精选影片">
-                {heroItems.map((item, index) => (
-                  <button
-                    key={item.id || item.title}
-                    type="button"
-                    aria-label={'精选：' + item.title}
-                    aria-pressed={activeHero === index}
-                    className={activeHero === index ? 'is-active' : ''}
-                    onClick={() => setActiveHero(index)}
-                  />
-                ))}
-              </div>
-            ) : null}
-          </>
-        ) : (
-          <div className="ipad-edition__hero-copy" role="status">
-            <p className="ipad-edition__eyebrow">影院大堂 · LIBRETV IPAD EDITION</p>
+      {hero ? (
+        <IpadEditionHero items={heroItems} activeIndex={activeHero % heroItems.length} onSelect={setActiveHero} />
+      ) : (
+        <section className="ipad-edition__cinema-hero ipad-edition__cinema-hero--empty" aria-label="精选影片">
+          <div className="ipad-edition__cinema-hero-copy" role="status">
+            <p className="ipad-edition__cinema-hero-kicker">LIBRETV · 精选推荐</p>
             <h1>{featured.isLoading ? '正在为你准备影院' : '精选内容暂不可用'}</h1>
             <p>{featured.isLoading ? '正在获取真实影视推荐…' : '推荐服务暂时不可用，请稍后重试。'}</p>
             {featured.isError ? (
               <button type="button" onClick={() => void featured.refetch()}>重新加载</button>
             ) : null}
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
       {renderRail('ipad-popular-movies', '今日热门', movieItems, featured.isLoading, featured.isError)}
 
