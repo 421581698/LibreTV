@@ -74,6 +74,28 @@ jobs:
           }
           NODE
 
+      # Separate authentication from deployment to identify token/workspace failures.
+      # Login output is suppressed so the credential can never appear in Actions logs.
+      - name: Authenticate and identify EdgeOne Workspace
+        env:
+          EDGEONE_PAGES_API_TOKEN: ${{ secrets.EDGEONE_PAGES_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${EDGEONE_PAGES_API_TOKEN:-}" ]; then
+            echo "::error::Missing repository secret EDGEONE_PAGES_API_TOKEN."
+            exit 1
+          fi
+          if ! edgeone login --site china -t "$EDGEONE_PAGES_API_TOKEN" >/dev/null 2>&1; then
+            echo "::error::EdgeOne token authentication failed. Check the existing repository secret and its Makers Workspace/site; do not create another token yet."
+            exit 1
+          fi
+          echo "EdgeOne token authentication succeeded."
+          echo "Authenticated Workspace:"
+          edgeone whoami
+          echo "Workspace associations:"
+          edgeone workspace ls
+
       - name: Deploy to EdgeOne nks Preview only
         id: deploy
         env:
