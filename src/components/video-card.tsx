@@ -14,7 +14,7 @@ import { useQualityProbe } from './use-quality-probe';
 import { useInView } from './use-in-view';
 import { addFavorite, db, removeFavorite } from '@/lib/db';
 import doubanPosters from '@/data/douban-posters.json';
-import { fromCmsSearchResult } from '@/lib/poster';
+import { fromCmsSearchResult, fromDoubanItem } from '@/lib/poster';
 
 // —— 跨源同名聚合 ——
 
@@ -502,6 +502,7 @@ export function DoubanCard({
       <div className="lg-media-frame relative aspect-[2/3] bg-chip">
         {item.cover ? (
           <SmartImage
+            asset={fromDoubanItem({ id: item.id, title: item.title, cover: item.cover, rating: item.rating })}
             url={item.cover}
             fallbackUrl={indexedDoubanPoster}
             mode={imageProxyMode}
