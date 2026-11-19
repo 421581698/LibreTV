@@ -148,27 +148,34 @@ jobs:
                 await page.locator('[data-ipad-edition="true"]').waitFor({ state: "attached", timeout: 30000 });
                 await page.locator('.ipad-nav__topbar-inner').waitFor({ state: "visible", timeout: 30000 });
                 // Exercise the real navigation controls in every viewport/theme pair.
-                let sidebarInteractionPassed = false;
-                const sidebarInteraction = { opened: false, escapeClosed: false, scrimClosed: false };
-                const menuButton = page.locator('.ipad-nav__menu-button');
-                await menuButton.click();
-                await page.locator('.ipad-nav__sidebar.is-open').waitFor({ state: 'visible', timeout: 5000 });
-                await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'true');
-                sidebarInteraction.opened = await page.locator('.ipad-nav__sidebar.is-open').isVisible();
-                await page.keyboard.press('Escape');
-                await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false');
-                await page.waitForFunction(() => !document.querySelector('.ipad-nav__sidebar')?.classList.contains('is-open'));
-                sidebarInteraction.escapeClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
-                await menuButton.click();
-                const scrim = page.locator('.ipad-nav__scrim');
-                await scrim.waitFor({ state: 'visible', timeout: 10000 });
-                await scrim.click({ position: { x: Math.floor(viewport.width / 2), y: Math.floor(viewport.height / 2) } });
-                await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false');
-                await page.waitForFunction(() => !document.querySelector('.ipad-nav__sidebar')?.classList.contains('is-open'));
-                sidebarInteraction.scrimClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
-                sidebarInteractionPassed = sidebarInteraction.opened && sidebarInteraction.escapeClosed && sidebarInteraction.scrimClosed;
-                // Verify genuine touch-pointer edge-swipe open and in-panel swipe close.
-                const touchSession = await context.newCDPSession(page);
+            // Wait for React to attach client event props before clicking: domcontentloaded
+            // can occur before hydration, which otherwise creates a false timeout.
+            let sidebarInteractionPassed = false;
+            const sidebarInteraction = { opened: false, escapeClosed: false, scrimClosed: false, edgeSwipeOpened: false, edgeSwipeClosed: false };
+            try {
+              await page.waitForFunction(() => {
+                const button = document.querySelector('.ipad-nav__menu-button');
+                return Boolean(button && Object.keys(button).some(key => key.startsWith('__reactProps$')));
+              }, { timeout: 20000 });
+              const menuButton = page.locator('.ipad-nav__menu-button');
+              await menuButton.click();
+              await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'true', { timeout: 10000 });
+              await page.locator('.ipad-nav__sidebar.is-open').waitFor({ state: 'visible', timeout: 10000 });
+              sidebarInteraction.opened = await page.locator('.ipad-nav__sidebar.is-open').isVisible();
+              await page.keyboard.press('Escape');
+              await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false');
+              await page.waitForFunction(() => !document.querySelector('.ipad-nav__sidebar')?.classList.contains('is-open'));
+              sidebarInteraction.escapeClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
+              await menuButton.click();
+              const scrim = page.locator('.ipad-nav__scrim');
+              await scrim.waitFor({ state: 'visible', timeout: 10000 });
+              await scrim.click({ position: { x: Math.floor(viewport.width / 2), y: Math.floor(viewport.height / 2) } });
+              await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false');
+              await page.waitForFunction(() => !document.querySelector('.ipad-nav__sidebar')?.classList.contains('is-open'));
+              sidebarInteraction.scrimClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
+              // Verify genuine touch-pointer edge-swipe open and in-panel swipe close.
+              const touchSession = await context.newCDPSession(page);
+              try {
                 await touchSession.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 8, y: 260 }] });
                 await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 96, y: 260 }] });
                 await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 180, y: 260 }] });
@@ -181,9 +188,17 @@ jobs:
                 await touchSession.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
                 await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false', { timeout: 5000 });
                 sidebarInteraction.edgeSwipeClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
+              } finally {
                 await touchSession.detach();
-                sidebarInteractionPassed = sidebarInteractionPassed && sidebarInteraction.edgeSwipeOpened && sidebarInteraction.edgeSwipeClosed;
-                // Wait for real homepage content before inspecting all poster-bearing cards.
+              }
+              sidebarInteractionPassed = sidebarInteraction.opened && sidebarInteraction.escapeClosed &&
+                sidebarInteraction.scrimClosed && sidebarInteraction.edgeSwipeOpened && sidebarInteraction.edgeSwipeClosed;
+            } catch (error) {
+              sidebarInteraction.error = String(error);
+              sidebarInteractionPassed = false;
+              console.error('Sidebar interaction audit failed for ' + viewport.name + '-' + colorScheme + ': ' + String(error));
+            }
+            // Wait for real homepage content before inspecting all poster-bearing cards.
                 await page.waitForFunction(() => {
                   const busyRail = document.querySelector('.ipad-edition__poster-grid[aria-busy="true"]');
                   const heroTitle = document.querySelector('.ipad-edition__hero-copy h1')?.textContent ?? '';
