@@ -1227,3 +1227,123 @@ body:has(.ipad-edition[data-environment="light"]) {
 .ipad-nav__sidebar.liquid-glass {
   position: fixed;
 }
+
+
+/* PR #99 visual correction: preserve poster artwork, strengthen glass and balance rails. */
+.ipad-edition__hero {
+  background: #080a0f !important;
+}
+.ipad-edition__hero-art {
+  inset: 0 0 0 auto !important;
+  width: min(56%, 620px) !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 22%, #000 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 22%, #000 100%);
+}
+.ipad-edition__hero-art img {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  object-position: right center !important;
+  opacity: 1 !important;
+}
+.ipad-edition__hero-veil {
+  background:
+    linear-gradient(90deg, rgba(0,0,0,.94) 0%, rgba(0,0,0,.82) 38%, rgba(0,0,0,.48) 62%, rgba(0,0,0,.08) 100%),
+    linear-gradient(0deg, rgba(0,0,0,.46) 0%, transparent 58%) !important;
+}
+.ipad-edition__hero-copy {
+  max-width: min(680px, 58%) !important;
+}
+.ipad-edition__hero-copy > p:not(.ipad-edition__eyebrow) {
+  color: rgba(255,255,255,.96) !important;
+  text-shadow: 0 1px 12px rgba(0,0,0,.72);
+}
+.ipad-edition__hero-meta {
+  color: rgba(255,255,255,.92) !important;
+  text-shadow: 0 1px 10px rgba(0,0,0,.7);
+}
+.ipad-edition__hero-actions {
+  align-items: center !important;
+  gap: 12px !important;
+}
+.ipad-edition__hero-actions .ipad-edition__hero-cta {
+  min-height: 48px;
+  margin-top: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.ipad-edition__hero-add {
+  box-sizing: border-box;
+  padding: 0 !important;
+  line-height: 1 !important;
+  text-align: center;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 26px !important;
+  transform: none;
+}
+.ipad-edition__hero-add:active {
+  transform: scale(.96);
+}
+
+/* Dark glass is visibly separated from dark hero artwork; light mode stays light. */
+.ipad-edition .ipad-nav__topbar-inner {
+  background: rgba(12, 15, 22, .78) !important;
+  border: 1px solid rgba(255,255,255,.24) !important;
+  color: #f7f8fb !important;
+  -webkit-backdrop-filter: blur(26px) saturate(175%) !important;
+  backdrop-filter: blur(26px) saturate(175%) !important;
+  box-shadow: 0 12px 36px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.12) !important;
+}
+.ipad-edition .ipad-nav__capsule-action {
+  color: #f4f6fa !important;
+}
+.ipad-edition .ipad-nav__capsule-action:hover,
+.ipad-edition .ipad-nav__capsule-action.is-active {
+  background: rgba(255,255,255,.16) !important;
+}
+.ipad-edition[data-environment="light"] .ipad-nav__topbar-inner {
+  background: rgba(250,252,255,.88) !important;
+  border-color: rgba(25,35,52,.2) !important;
+  color: #171b24 !important;
+  box-shadow: 0 12px 36px rgba(25,35,52,.18), inset 0 1px 0 rgba(255,255,255,.9) !important;
+}
+.ipad-edition[data-environment="light"] .ipad-nav__capsule-action {
+  color: #202633 !important;
+}
+.ipad-edition[data-environment="light"] .ipad-nav__capsule-action:hover,
+.ipad-edition[data-environment="light"] .ipad-nav__capsule-action.is-active {
+  background: rgba(25,35,52,.1) !important;
+}
+
+/* A horizontally scrolling rail needs equal leading and trailing breathing room. */
+.ipad-edition__poster-grid,
+.ipad-edition__anime-grid,
+.ipad-edition__continue-grid {
+  padding-left: 24px !important;
+  padding-right: 24px !important;
+  scroll-padding-inline: 24px !important;
+}
+
+@media (max-width: 699px) {
+  .ipad-edition__hero-art {
+    width: 58% !important;
+    opacity: .9;
+  }
+  .ipad-edition__hero-copy {
+    max-width: min(680px, 68%) !important;
+  }
+  .ipad-edition__poster-grid,
+  .ipad-edition__anime-grid,
+  .ipad-edition__continue-grid {
+    padding-inline: 16px !important;
+    scroll-padding-inline: 16px !important;
+  }
+}
