@@ -330,6 +330,76 @@ jobs:
                   const panel = document.querySelector('section[aria-label="iPad 页面布局诊断"]');
                   if (panel) panel.style.display = 'none';
                 });
+                // Resolve each layout node to the exact CSS selectors and stylesheet that matched it.
+                // Computed styles alone cannot identify which overlapping rule supplied a value.
+                const cssSession = await context.newCDPSession(page);
+                try {
+                  await cssSession.send('DOM.enable');
+                  await cssSession.send('CSS.enable');
+                  const { root: documentNode } = await cssSession.send('DOM.getDocument', { depth: -1, pierce: true });
+                  const { nodes: flatNodes } = await cssSession.send('DOM.getFlattenedDocument', { depth: -1, pierce: true });
+                  const nodesById = new Map(flatNodes.map(node => [node.nodeId, node]));
+                  const parentById = new Map(flatNodes.map(node => [node.nodeId, node.parentId]));
+                  const { headers = [] } = await cssSession.send('CSS.getAllStyleSheets');
+                  const stylesheetById = new Map(headers.map(header => [header.styleSheetId, {
+                    sourceURL: header.sourceURL,
+                    title: header.title,
+                    origin: header.origin,
+                  }]));
+                  const relevantProperties = new Set([
+                    'display','position','top','right','bottom','left','inset','height','min-height','max-height',
+                    'margin','margin-top','margin-bottom','padding','padding-top','padding-bottom',
+                    'gap','row-gap','grid-template-rows','flex','flex-direction','align-items','justify-content',
+                    'transform','translate','contain','content-visibility','overflow','visibility',
+                  ]);
+                  const selectors = [
+                    '[data-ipad-edition="true"]',
+                    '.ipad-edition__main',
+                    '.ipad-edition__home',
+                    '.ipad-edition__hero',
+                    'body',
+                    'html',
+                  ];
+                  const targetNodeIds = {};
+                  const requestedNodeIds = new Set();
+                  for (const selector of selectors) {
+                    const { nodeId } = await cssSession.send('DOM.querySelector', { nodeId: documentNode.nodeId, selector });
+                    targetNodeIds[selector] = nodeId || null;
+                    let current = nodeId;
+                    let depth = 0;
+                    while (current && depth < 12 && !requestedNodeIds.has(current)) {
+                      requestedNodeIds.add(current);
+                      current = parentById.get(current);
+                      depth += 1;
+                    }
+                  }
+                  const matchedNodes = await Promise.all([...requestedNodeIds].map(async nodeId => {
+                    const node = nodesById.get(nodeId);
+                    const matched = await cssSession.send('CSS.getMatchedStylesForNode', { nodeId });
+                    const properties = style => (style?.cssProperties ?? [])
+                      .filter(property => relevantProperties.has(property.name) && !property.disabled)
+                      .map(property => ({ name: property.name, value: property.value, important: Boolean(property.important) }));
+                    return {
+                      nodeId,
+                      parentNodeId: parentById.get(nodeId) ?? null,
+                      nodeName: node?.nodeName ?? null,
+                      nodeValue: node?.nodeValue ?? null,
+                      attributes: node?.attributes ?? [],
+                      inlineStyle: properties(matched.inlineStyle),
+                      matchedRules: (matched.matchedCSSRules ?? []).map(({ rule }) => ({
+                        selector: rule.selectorList?.text ?? '',
+                        origin: rule.origin,
+                        stylesheet: stylesheetById.get(rule.style?.styleSheetId) ?? null,
+                        declarations: properties(rule.style),
+                      })).filter(rule => rule.declarations.length > 0),
+                    };
+                  }));
+                  layoutDiagnostics.matchedCssOrigins = { selectors, targetNodeIds, matchedNodes };
+                } catch (error) {
+                  layoutDiagnostics.matchedCssCaptureError = String(error);
+                } finally {
+                  await cssSession.detach().catch(() => {});
+                }
                 const metrics = await page.evaluate(({ scheme, layoutDiagnostics }) => {
                   const root = document.querySelector('[data-ipad-edition="true"]');
                   const main = document.querySelector('.ipad-edition__main');
