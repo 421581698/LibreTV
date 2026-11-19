@@ -2,11 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { buildImageCandidates } from '@/lib/utils';
+import type { PosterAsset } from '@/lib/poster';
 
 const DEFAULT_POSTER_SRC =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 450'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%231b2940'/%3E%3Cstop offset='1' stop-color='%23090f1c'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='300' height='450' fill='url(%23g)'/%3E%3Crect x='105' y='165' width='90' height='90' rx='18' fill='none' stroke='%237d91ad' stroke-width='7'/%3E%3Cpath d='M135 185v50l42-25z' fill='%237d91ad'/%3E%3Ctext x='150' y='310' text-anchor='middle' fill='%2393a4bb' font-size='17' font-family='Arial,sans-serif'%3ELibreTV%3C/text%3E%3C/svg%3E";
 
 interface SmartImageProps {
+  /** Source-neutral asset metadata; originalUrl remains the only image source. */
+  asset?: PosterAsset;
   /** SDR 图片地址；HDR 不可用或加载失败时的可靠回退 */
   url?: string;
   /** 主图候选全部失败后继续尝试的备用图片地址 */
@@ -43,8 +46,9 @@ export function SmartImage({
   showDefaultFallback = true,
   onExhausted,
 }: SmartImageProps) {
+  const sourceUrl = asset?.originalUrl ?? url;
   const candidates = [...new Set([
-    ...buildImageCandidates(url, mode, customProxy),
+    ...buildImageCandidates(sourceUrl, mode, customProxy),
     ...buildImageCandidates(fallbackUrl, mode, customProxy),
   ])];
   const hdrCandidates = buildImageCandidates(hdrUrl, mode, customProxy);
@@ -71,7 +75,7 @@ export function SmartImage({
     setIdx(0);
     setHdrFailed(false);
     setFallback(false);
-  }, [url, fallbackUrl, hdrUrl, mode, customProxy]);
+  }, [sourceUrl, fallbackUrl, hdrUrl, mode, customProxy]);
 
   if (!src) return null;
   return (
