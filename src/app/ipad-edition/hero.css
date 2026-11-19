@@ -131,6 +131,7 @@
   color: #11151c !important;
   font-size: 13px;
   font-weight: 760;
+  white-space: nowrap;
   box-shadow: 0 8px 28px rgba(0,0,0,.22);
   transition: transform .2s ease, background .2s ease;
 }
