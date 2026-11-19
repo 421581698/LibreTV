@@ -1217,3 +1217,5 @@ body:has(.ipad-edition[data-environment="light"]) {
 }
 
 /* [deploy-ipad-edition-preview] Re-run iPad first-screen clearance audit on the isolated Preview. */
+
+/* [deploy-ipad-edition-preview] Re-run audit with the corrected hero y-coordinate gate. */
