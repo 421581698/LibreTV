@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as R
 import { LiquidGlassSurface } from '@/components/ui/liquid-glass';
 import { attachEnvironmentEngine } from '@/lib/ipad-edition/environment-engine';
 import { detectRenderCapabilities, selectRenderPolicy } from '@/lib/ipad-edition/render-engine';
+import { IpadLayoutDiagnostics } from '@/components/ipad-edition/IpadLayoutDiagnostics';
 
 const primaryNavigation = [
   { label: '首页', href: '/ipad-edition', icon: 'house' },
@@ -291,6 +292,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
         )}
         {children}
       </main>
+      <IpadLayoutDiagnostics />
     </div>
   );
 }
