@@ -1,0 +1,125 @@
+/* ============================================================================
+   iPhone search contrast contract (FINAL LAYER)
+
+   Root cause these fix:
+   The search page (/search) and search results (/search/results -> HomePage)
+   render on a forced black surface, but the document root has no `dark` class.
+   Tailwind color tokens (text-content / text-muted / bg-surface-raised) therefore
+   resolve to their LIGHT-mode values — dark grey text and a pure-white dropdown
+   — which is unreadable / jarring on the black surface.
+
+   We scope every fix to the self-declared black-surface routes via :has(), so
+   genuinely light pages (e.g. settings forms) are untouched. Keep this file
+   loaded LAST in layout.tsx.
+   ============================================================================ */
+
+/* ---- 1. Search page: the "recent search" dropdown must be dark, not white ---- */
+@media (max-width: 700px) {
+  /* Neutralise the light-mode surface token inside the dropdown list. */
+  body:has(.v4-search-page) .v4-search-box [role='listbox'],
+  body:has(.v4-search-page) .v4-search-box [id^='search-page-history'] {
+    background-color: #1c1c1e !important;
+  }
+
+  /* The floating dropdown wrapper (sibling of <form>, child of .v4-search-box). */
+  body:has(.v4-search-page) .v4-search-box > div.absolute {
+    background: rgba(28, 28, 30, 0.98) !important;
+    background-color: rgba(28, 28, 30, 0.98) !important;
+    border-color: rgba(255, 255, 255, 0.14) !important;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    backdrop-filter: blur(20px) !important;
+    z-index: 60 !important;
+  }
+  /* Its toolbar header ("最近搜索 / 清空"): dark, with readable muted text. */
+  body:has(.v4-search-page) .v4-search-box > div.absolute .glass-toolbar {
+    background: transparent !important;
+    border: 0 !important;
+    color: rgba(235, 235, 245, 0.6) !important;
+  }
+  body:has(.v4-search-page) .v4-search-box > div.absolute .glass-toolbar span,
+  body:has(.v4-search-page) .v4-search-box > div.absolute .glass-toolbar button {
+    color: rgba(235, 235, 245, 0.6) !important;
+  }
+  body:has(.v4-search-page) .v4-search-box > div.absolute li > button {
+    color: #f5f5f7 !important;
+  }
+
+  /* The static "最近搜索" block sits directly under the input. When the
+     dropdown is open it overlays this block (top=127 vs block=151); give the
+     block a little breathing room so the two headers never look glued together,
+     and keep its title bright. */
+  body:has(.v4-search-page) .v4-search-recent {
+    margin-top: 8px !important;
+  }
+  body:has(.v4-search-page) .v4-search-recent h2 {
+    color: #f5f5f7 !important;
+  }
+  body:has(.v4-search-page) .v4-search-recent button span,
+  body:has(.v4-search-page) .v4-search-recent button {
+    color: rgba(235, 235, 245, 0.82) !important;
+  }
+}
+
+/* ---- 2. Search results: force readable light text on the black surface ---- */
+@media (max-width: 700px) {
+  body:has(.v4-home) section[aria-label='搜索结果'] h2,
+  body:has(.v4-home) section[aria-label='搜索结果'] h2 span,
+  body:has(.v4-home) section[aria-label='搜索结果'] .text-content,
+  body:has(.v4-home) section[aria-label='搜索结果'] .text-faint {
+    color: #f5f5f7 !important;
+  }
+  /* Aggregated result cards: title, meta tags, source badge, rating. */
+  body:has(.v4-home) section[aria-label='搜索结果'] .card,
+  body:has(.v4-home) section[aria-label='搜索结果'] .card h3 {
+    color: #f5f5f7 !important;
+  }
+  body:has(.v4-home) section[aria-label='搜索结果'] .card .text-content,
+  body:has(.v4-home) section[aria-label='搜索结果'] .card .text-muted,
+  body:has(.v4-home) section[aria-label='搜索结果'] .card .text-faint {
+    color: rgba(235, 235, 245, 0.72) !important;
+  }
+  body:has(.v4-home) section[aria-label='搜索结果'] h2.text-muted {
+    color: rgba(235, 235, 245, 0.82) !important;
+  }
+
+  /* Left inset so the "…的搜索结果" title never kisses the screen edge. */
+  body:has(.v4-home) section[aria-label='搜索结果'] {
+    padding-inline: 4px !important;
+  }
+
+  /* Fixed, dark header action buttons on the search-results route. The late
+     v4-header-theme.css uses :root:not(.dark) .v4-header:not(.is-overlay)
+     .v4-header-actions > .v4-{search,avatar} with !important; we mirror that
+     specificity (plus the .v4-home scope) and load after it, so dark glass wins
+     while every other light page keeps its original header. */
+  :root:not(.dark) .v4-home .v4-header:not(.is-overlay) .v4-header-actions > .v4-search,
+  :root:not(.dark) .v4-home .v4-header:not(.is-overlay) .v4-header-actions > .v4-avatar {
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+    background: rgba(12, 17, 27, 0.72) !important;
+    background-color: rgba(12, 17, 27, 0.72) !important;
+    background-image: none !important;
+    border: 1px solid rgba(255, 255, 255, 0.22) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(155%) !important;
+    backdrop-filter: blur(18px) saturate(155%) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  :root:not(.dark) .v4-home .v4-header:not(.is-overlay) .v4-header-actions > .v4-search .liquid-glass-engine-slot,
+  :root:not(.dark) .v4-home .v4-header:not(.is-overlay) .v4-header-actions > .v4-avatar .liquid-glass-engine-slot,
+  :root:not(.dark) .v4-home .v4-header:not(.is-overlay) .v4-header-actions > .v4-search::before,
+  :root:not(.dark) .v4-home .v4-header:not(.is-overlay) .v4-header-actions > .v4-search::after,
+  :root:not(.dark) .v4-home .v4-header:not(.is-overlay) .v4-header-actions > .v4-avatar::before,
+  :root:not(.dark) .v4-home .v4-header:not(.is-overlay) .v4-header-actions > .v4-avatar::after {
+    display: none !important;
+    content: none !important;
+    background: none !important;
+  }
+  :root:not(.dark) .v4-home .v4-header:not(.is-overlay) .v4-header-actions > .v4-search svg,
+  :root:not(.dark) .v4-home .v4-header:not(.is-overlay) .v4-header-actions > .v4-avatar svg {
+    color: #fff !important;
+    stroke: currentColor !important;
+  }
+}
