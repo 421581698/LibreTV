@@ -121,6 +121,8 @@ jobs:
             { name: "ipad-11-landscape", width: 1194, height: 834, deviceScaleFactor: 2 },
             { name: "ipad-pro-13-portrait", width: 1032, height: 1376, deviceScaleFactor: 2 },
             { name: "ipad-pro-13-landscape", width: 1366, height: 1024, deviceScaleFactor: 2 },
+            { name: "ipad-split-half", width: 507, height: 834, deviceScaleFactor: 2 },
+            { name: "ipad-split-two-thirds", width: 694, height: 834, deviceScaleFactor: 2 },
           ];
           const browser = await chromium.launch({ headless: true });
           const results = [];
