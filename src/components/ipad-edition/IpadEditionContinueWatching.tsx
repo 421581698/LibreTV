@@ -6,6 +6,7 @@ import { SmartImage } from '@/components/smart-image';
 import { db } from '@/lib/db';
 import { useAppStore } from '@/lib/store';
 import { buildWatchUrl } from '@/lib/utils';
+import { fromCmsArtwork } from '@/lib/poster';
 
 export function IpadEditionContinueWatching() {
   const history = useLiveQuery(() => db.history.orderBy('timestamp').reverse().limit(8).toArray(), []);
@@ -31,7 +32,7 @@ export function IpadEditionContinueWatching() {
           const progress = item.duration > 0 ? Math.min(100, Math.max(0, item.playbackPosition / item.duration * 100)) : 0;
           return <Link href={href} className="ipad-edition__continue-card" key={item.id}>
             <span className="ipad-edition__continue-art">
-              {item.pic ? <SmartImage url={item.pic} mode={imageProxyMode} customProxy={customImageProxy} alt={item.title} /> : <span>LibreTV</span>}
+              {item.pic ? <SmartImage asset={fromCmsArtwork({ sourceKey: item.sourceKey, vodId: item.vodId, title: item.title, imageUrl: item.pic })} url={item.pic} mode={imageProxyMode} customProxy={customImageProxy} alt={item.title} /> : <span>LibreTV</span>}
               <span className="ipad-edition__continue-play" aria-hidden="true">▶</span>
               <span className="ipad-edition__continue-progress"><i style={{ width: progress + '%' }} /></span>
             </span>
