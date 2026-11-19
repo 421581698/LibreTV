@@ -1018,3 +1018,64 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
   backdrop-filter: blur(28px) saturate(175%) !important;
   box-shadow: var(--ipad-depth-shadow, 0 18px 54px rgba(12,20,34,.2)) !important;
 }
+
+
+/* [deploy-ipad-edition-preview] Navigation hierarchy: capsule categories + personal/tools sidebar. */
+.ipad-nav__topbar {
+  width: min(980px, calc(100vw - 36px));
+}
+.ipad-nav__topbar-inner {
+  gap: 10px;
+  padding-inline: 10px;
+}
+.ipad-nav__capsule {
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: center;
+  gap: 3px;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.ipad-nav__capsule a {
+  padding: 9px clamp(9px, 1.25vw, 18px);
+  font-size: 13px;
+}
+.ipad-nav__personal-tools {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 13px;
+  border: 1px solid var(--ipad-nav-line);
+  border-radius: 999px;
+  color: var(--ipad-nav-ink);
+  background: rgba(128, 140, 160, .09);
+  font-size: 12px;
+  font-weight: 680;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--ipad-motion-fast, 140ms) ease, color var(--ipad-motion-fast, 140ms) ease, transform var(--ipad-motion-fast, 140ms) ease;
+}
+.ipad-nav__personal-tools.is-active {
+  border-color: rgba(229, 168, 59, .42);
+  color: #e5a83b;
+  background: rgba(229, 168, 59, .1);
+}
+.ipad-nav__personal-tools:active { transform: scale(.97); }
+.ipad-nav__menu-button { flex-basis: 40px; }
+@media (max-width: 699px) {
+  .ipad-nav__topbar { width: calc(100vw - 16px); }
+  .ipad-nav__topbar-inner { gap: 4px; padding-inline: 5px; }
+  .ipad-nav__capsule { gap: 0; padding: 3px 1px; }
+  .ipad-nav__capsule a { padding: 9px clamp(5px, 1.5vw, 9px); font-size: 11px; }
+  .ipad-nav__personal-tools { min-height: 38px; padding-inline: 7px; font-size: 10px; }
+  .ipad-nav__menu-button { flex-basis: 36px; width: 36px; height: 38px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ipad-nav__personal-tools { transition: none !important; }
+}
