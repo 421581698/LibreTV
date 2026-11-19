@@ -15,7 +15,8 @@ It does not change the existing page layouts or introduce the Phase 2 renderer.
 
 - `fromDoubanItem`: Douban recommendation cover.
 - `fromBangumiItem`: Bangumi calendar cover.
-- `fromCmsSearchResult`: CMS search result artwork.
+- `fromCmsArtwork` / `fromCmsSearchResult`: CMS search, saved artwork, and detail-page artwork.
+- `fromEpisodeArtwork`: preserves TMDB episode-still provenance only when a real TMDB episode/series-season-episode identity is available; it does not invent one.
 
 The contract reserves provider identities for TMDB and other sources without claiming those providers are already connected to every iPad page.
 
@@ -25,7 +26,8 @@ The source-neutral contract is passed through the existing `SmartImage` entry po
 
 - Douban: iPad home hero/poster rails, movie and series collections, and existing recommendation cards.
 - Bangumi: the home daily-anime rail and anime collection route use the Bangumi provider namespace.
-- CMS: iPad search results, video cards, movie details/backdrops, episode stills, saved library items, and continue-watching cards use stable source/video identities.
+- CMS: iPad search results, video cards, movie details/backdrops, CMS episode stills, saved library items, and continue-watching cards use stable source/video identities.
+- TMDB: explicitly attributed episode stills retain TMDB identity; records without sufficient TMDB identity remain unclassified rather than receiving a guessed provider ID.
 - Stored favorites and watch history are adapted at render time; their existing IndexedDB records and schemas are unchanged.
 
 `SmartImage` reads the asset's untouched `originalUrl` as its source while retaining its existing HDR, fallback, proxy, and placeholder behavior. Backdrops and episode stills carry their own artwork kind so they are not mislabeled as posters.
