@@ -298,7 +298,7 @@ jobs:
             // Wait for real homepage content before inspecting all poster-bearing cards.
                 await page.waitForFunction(() => {
                   const busyRail = document.querySelector('.ipad-edition__poster-grid[aria-busy="true"]');
-                  const heroTitle = document.querySelector('.ipad-edition__hero-copy h1')?.textContent ?? '';
+                  const heroTitle = document.querySelector('.ipad-edition__cinema-hero-copy h1')?.textContent ?? '';
                   return !busyRail && !heroTitle.includes('正在为你准备影院');
                 }, undefined, { timeout: 30000 }).catch(() => {});
                 // Re-assert the requested theme after application hydration has completed.
@@ -474,8 +474,8 @@ jobs:
                   const root = document.querySelector('[data-ipad-edition="true"]');
                   const main = document.querySelector('.ipad-edition__main');
                   const topbar = document.querySelector('.ipad-nav__topbar');
-                  const hero = document.querySelector('.ipad-edition__hero');
-                  const heroCopy = document.querySelector('.ipad-edition__hero-copy');
+                  const hero = document.querySelector('.ipad-edition__cinema-hero');
+                  const heroCopy = document.querySelector('.ipad-edition__cinema-hero-copy');
                   const rect = element => {
                     if (!element) return null;
                     const r = element.getBoundingClientRect();
@@ -587,7 +587,7 @@ jobs:
                   const heroTextOverlapsNavigation = Boolean(top && copy && top.left < copy.right && top.right > copy.left && top.top < copy.bottom && top.bottom > copy.top);
                   const heroOverlapsNavigation = Boolean(top && heroRect && top.left < heroRect.right && top.right > heroRect.left && top.top < heroRect.bottom && top.bottom > heroRect.top);
                   const heroClearancePx = top && heroRect ? Math.round(heroRect.top - top.bottom) : null;
-                  const heroCta = document.querySelector('.ipad-edition__hero-cta');
+                  const heroCta = document.querySelector('.ipad-edition__cinema-hero-cta');
                   const heroCtaWhiteSpace = heroCta ? getComputedStyle(heroCta).whiteSpace : null;
                   // naturalWidth/naturalHeight prove a real image decoded. Canvas pixel inspection is diagnostic only: cross-origin posters can taint the canvas without being visually broken.
               const realLoaded = posterChecks.filter(item => item.loaded && item.visible).length;
@@ -609,7 +609,7 @@ jobs:
                     heroOverlapsNavigation,
                     heroClearancePx,
                     heroCtaWhiteSpace,
-                    homepageStillLoading: Boolean(document.querySelector('.ipad-edition__poster-grid[aria-busy="true"]')) || (document.querySelector('.ipad-edition__hero-copy h1')?.textContent ?? '').includes('正在为你准备影院'),
+                    homepageStillLoading: Boolean(document.querySelector('.ipad-edition__poster-grid[aria-busy="true"]')) || (document.querySelector('.ipad-edition__cinema-hero-copy h1')?.textContent ?? '').includes('正在为你准备影院'),
                     posterCount: posters.length,
                     animeCardCount: animeCards.length,
                     posterSlotCount: posterChecks.length,
