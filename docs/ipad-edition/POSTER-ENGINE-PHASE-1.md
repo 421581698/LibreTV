@@ -19,6 +19,17 @@ It does not change the existing page layouts or introduce the Phase 2 renderer.
 
 The contract reserves provider identities for TMDB and other sources without claiming those providers are already connected to every iPad page.
 
+## Runtime integration
+
+The source-neutral contract is passed through the existing `SmartImage` entry point on the iPad product surfaces without changing the renderer or image-candidate policy:
+
+- Douban: iPad home hero/poster rails, movie and series collections, and existing recommendation cards.
+- Bangumi: the home daily-anime rail and anime collection route use the Bangumi provider namespace.
+- CMS: iPad search results, video cards, movie details/backdrops, episode stills, saved library items, and continue-watching cards use stable source/video identities.
+- Stored favorites and watch history are adapted at render time; their existing IndexedDB records and schemas are unchanged.
+
+`SmartImage` reads the asset's untouched `originalUrl` as its source while retaining its existing HDR, fallback, proxy, and placeholder behavior. Backdrops and episode stills carry their own artwork kind so they are not mislabeled as posters.
+
 ## Image normalization
 
 Measured width and height can be attached with `withPosterDimensions`.
@@ -32,8 +43,8 @@ Other providers retain their original URL and the existing site proxy fallback; 
 
 ## Proxy cache policy
 
-Only successful image responses whose final upstream host remains in the explicit anonymous-image allowlist receive a shared 30-day cache.
-Failed responses are `no-store`; image responses outside that public allowlist use a private short cache.
+Only HTTP 200 image responses whose final upstream URL is HTTPS and whose host remains in the explicit anonymous-image allowlist receive a shared 30-day cache.
+Failed and partial responses are `no-store`; image responses outside that public allowlist use a private short cache.
 The existing SSRF validation and per-redirect validation remain in place.
 
 ## Not part of Phase 1
