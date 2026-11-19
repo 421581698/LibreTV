@@ -159,13 +159,15 @@ export function MovieDetailPage() {
   const isMovie = isMovieType(info?.typeName, episodes.length);
   const displayTitle = info?.title || title;
   const image = info?.cover || poster;
-  const metadata = [
+  // 采集源常把「电影解说」这类文案同时塞进 typeName 和 remarks，
+  // 直接拼数组会出现两遍；这里按值去重，同时避免 map 的 duplicate key。
+  const metadata = Array.from(new Set([
     info?.year,
     info?.area,
     info?.typeName,
     rating ? '豆瓣 ' + rating : undefined,
     formatRemarks(info?.remarks),
-  ].filter((value): value is string => Boolean(value));
+  ].filter((value): value is string => Boolean(value))));
 
   const play = useCallback((index: number) => {
     if (!sourceKey || !vodId || !episodes[index]) return;
