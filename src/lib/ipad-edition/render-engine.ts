@@ -41,17 +41,18 @@ export function detectRenderCapabilities(preferences: {
   const css = typeof CSS !== 'undefined' && (
     CSS.supports('backdrop-filter', 'blur(1px)') || CSS.supports('-webkit-backdrop-filter', 'blur(1px)')
   );
-  const svg = typeof SVGSVGElement !== 'undefined' && !!document.createElementNS('http://www.w3.org/2000/svg', 'svg').createSVGRect;
+  const svg = typeof SVGSVGElement !== 'undefined'
+    && document.createElementNS('http://www.w3.org/2000/svg', 'svg') instanceof SVGSVGElement;
   const canvas2d = (() => {
     try { return !!document.createElement('canvas').getContext('2d'); } catch { return false; }
   })();
   const webgl = (() => {
     try {
       const canvas = document.createElement('canvas');
-      const context = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-      const extension = context && context.getExtension('WEBGL_lose_context');
+      const context = (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
+      const extension = context?.getExtension('WEBGL_lose_context');
       extension?.loseContext();
-      return !!context;
+      return context !== null;
     } catch { return false; }
   })();
   const nav = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } };
