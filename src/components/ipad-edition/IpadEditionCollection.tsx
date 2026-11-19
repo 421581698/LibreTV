@@ -7,6 +7,7 @@ import { SmartImage } from '@/components/smart-image';
 import { api } from '@/lib/client-api';
 import { useAppStore } from '@/lib/store';
 import type { BangumiCalendarResponse, DoubanItem, DoubanResponse } from '@/lib/types';
+import { fromBangumiItem, fromDoubanItem } from '@/lib/poster';
 
 type CollectionKind = 'movie' | 'tv' | 'anime';
 const tabs = ['热门', '最新', '高分'] as const;
@@ -54,7 +55,7 @@ export function IpadEditionCollection({ kind, title }: { kind: CollectionKind; t
           <div className="ipad-edition__section-heading"><div><p className="ipad-edition__eyebrow">NOW SHOWING</p><h2>{heading}</h2></div><span className="ipad-edition__section-note">{uniqueItems.length} 部作品</span></div>
           <div className="ipad-edition__collection-grid">
             {uniqueItems.map((item) => <Link className="ipad-edition__poster-card" href={'/ipad-edition/search?q=' + encodeURIComponent(item.title)} key={item.id}>
-              <span className="ipad-edition__poster-art"><SmartImage url={item.cover} mode={imageProxyMode} customProxy={customImageProxy} alt={item.title} /></span>
+              <span className="ipad-edition__poster-art"><SmartImage asset={kind === 'anime' ? fromBangumiItem(item) : fromDoubanItem(item)} url={item.cover} mode={imageProxyMode} customProxy={customImageProxy} alt={item.title} /></span>
               <strong title={item.title}>{item.title}</strong><small>{item.rating ? '★ ' + item.rating : '查看可播放资源'}</small>
             </Link>)}
           </div>
