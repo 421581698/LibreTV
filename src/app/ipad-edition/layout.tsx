@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { IpadEditionShell } from '@/components/ipad-edition/IpadEditionShell';
 import './ipad-edition.css';
+import './poster-engine.css';
 
 export const metadata = {
   title: 'LibreTV iPad Edition',

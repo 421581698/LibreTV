@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { SmartImage } from '@/components/smart-image';
+import { PosterRenderer } from '@/components/ipad-edition/PosterRenderer';
 import { api } from '@/lib/client-api';
 import { fetchHomepageWithFallback } from '@/lib/homepage-recommendation-fallback';
 import { useAppStore } from '@/lib/store';
@@ -105,16 +105,9 @@ export function IpadEditionHome() {
         <div className="ipad-edition__poster-grid" aria-label={title}>
           {items.slice(0, RAIL_SIZE).map((item, index) => (
             <Link className="ipad-edition__poster-card" data-ipad-poster-slot={id === 'ipad-popular-series' ? 'series' : id === 'ipad-new-releases' ? 'new-release' : 'movie'} data-poster-url={item.cover ?? ''} href={searchHref(item.title)} key={item.id || item.title}>
-              <span className="ipad-edition__poster-art">
-                <SmartImage
-                  asset={fromDoubanItem(item)}
-                  url={item.cover}
-                  mode="proxy"
-                  alt={item.title}
-                  loading="lazy"
-                />
+              <PosterRenderer variant="poster" frameClassName="ipad-edition__poster-art" asset={fromDoubanItem(item)} url={item.cover} mode="proxy" alt={item.title}>
                 <span className="ipad-edition__poster-rank">{index + 1}</span>
-              </span>
+              </PosterRenderer>
               <strong title={item.title}>{item.title}</strong>
               <small>{item.rating ? '★ ' + item.rating : '影视推荐'}</small>
             </Link>
@@ -131,23 +124,8 @@ export function IpadEditionHome() {
       <section className="ipad-edition__hero" aria-label="精选影片">
         {hero ? (
           <>
-            <div className="ipad-edition__hero-backdrop" aria-hidden="true">
-              <SmartImage
-                url={hero.backdrop || hero.cover}
-                mode="proxy"
-                alt=""
-                loading="eager"
-              />
-            </div>
-            <div className="ipad-edition__hero-art">
-              <SmartImage
-                asset={fromDoubanItem(hero)}
-                url={hero.cover}
-                mode="proxy"
-                alt=""
-                loading="eager"
-              />
-            </div>
+            <PosterRenderer variant="backdrop" frameClassName="ipad-edition__hero-backdrop" url={hero.backdrop || hero.cover} mode="proxy" alt="" loading="eager" />
+            <PosterRenderer variant="hero-poster" frameClassName="ipad-edition__hero-art" asset={fromDoubanItem(hero)} url={hero.cover} mode="proxy" alt="" loading="eager" />
             <div className="ipad-edition__hero-veil" />
             <div className="ipad-edition__hero-copy">
               <h1>{hero.title}</h1>
@@ -212,15 +190,7 @@ export function IpadEditionHome() {
           <div className="ipad-edition__anime-grid">
             {todayItems.slice(0, 5).map((item) => (
               <Link href={searchHref(item.title)} className="ipad-edition__anime-card" data-ipad-poster-slot="anime" data-poster-url={item.cover ?? ''} key={item.id}>
-                <span>
-                  <SmartImage
-                    asset={fromBangumiItem(item)}
-                    url={item.cover}
-                    mode="proxy"
-                      alt={item.title}
-                    loading="lazy"
-                  />
-                </span>
+                <PosterRenderer variant="anime" asset={fromBangumiItem(item)} url={item.cover} mode="proxy" alt={item.title} />
                 <strong>{item.title}</strong>
                 {item.rating ? <small>★ {item.rating}</small> : null}
               </Link>

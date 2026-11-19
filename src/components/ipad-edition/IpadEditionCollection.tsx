@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { SmartImage } from '@/components/smart-image';
+import { PosterRenderer } from '@/components/ipad-edition/PosterRenderer';
 import { api } from '@/lib/client-api';
 import { useAppStore } from '@/lib/store';
 import type { BangumiCalendarResponse, DoubanItem, DoubanResponse } from '@/lib/types';
@@ -55,7 +55,7 @@ export function IpadEditionCollection({ kind, title }: { kind: CollectionKind; t
           <div className="ipad-edition__section-heading"><div><p className="ipad-edition__eyebrow">NOW SHOWING</p><h2>{heading}</h2></div><span className="ipad-edition__section-note">{uniqueItems.length} 部作品</span></div>
           <div className="ipad-edition__collection-grid">
             {uniqueItems.map((item) => <Link className="ipad-edition__poster-card" href={'/ipad-edition/search?q=' + encodeURIComponent(item.title)} key={item.id}>
-              <span className="ipad-edition__poster-art"><SmartImage asset={kind === 'anime' ? fromBangumiItem(item) : fromDoubanItem(item)} url={item.cover} mode={imageProxyMode} customProxy={customImageProxy} alt={item.title} /></span>
+              <PosterRenderer variant="poster" frameClassName="ipad-edition__poster-art" asset={kind === 'anime' ? fromBangumiItem(item) : fromDoubanItem(item)} url={item.cover} mode={imageProxyMode} customProxy={customImageProxy} alt={item.title} />
               <strong title={item.title}>{item.title}</strong><small>{item.rating ? '★ ' + item.rating : '查看可播放资源'}</small>
             </Link>)}
           </div>

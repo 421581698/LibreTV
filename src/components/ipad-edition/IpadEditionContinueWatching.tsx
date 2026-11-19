@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { SmartImage } from '@/components/smart-image';
+import { PosterRenderer } from '@/components/ipad-edition/PosterRenderer';
 import { db } from '@/lib/db';
 import { useAppStore } from '@/lib/store';
 import { buildWatchUrl } from '@/lib/utils';
@@ -31,11 +31,10 @@ export function IpadEditionContinueWatching() {
           }).replace('/watch?', '/ipad-edition/watch?');
           const progress = item.duration > 0 ? Math.min(100, Math.max(0, item.playbackPosition / item.duration * 100)) : 0;
           return <Link href={href} className="ipad-edition__continue-card" key={item.id}>
-            <span className="ipad-edition__continue-art">
-              {item.pic ? <SmartImage asset={fromCmsArtwork({ sourceKey: item.sourceKey, vodId: item.vodId, title: item.title, imageUrl: item.pic })} url={item.pic} mode={imageProxyMode} customProxy={customImageProxy} alt={item.title} /> : <span>LibreTV</span>}
+            <PosterRenderer variant="continue" frameClassName="ipad-edition__continue-art" asset={fromCmsArtwork({ sourceKey: item.sourceKey, vodId: item.vodId, title: item.title, imageUrl: item.pic })} url={item.pic} mode={imageProxyMode} customProxy={customImageProxy} alt={item.title}>
               <span className="ipad-edition__continue-play" aria-hidden="true">▶</span>
               <span className="ipad-edition__continue-progress"><i style={{ width: progress + '%' }} /></span>
-            </span>
+            </PosterRenderer>
             <strong title={item.title}>{item.title}</strong>
             <small>{item.totalEpisodes > 1 ? '上次看到第 ' + (item.episodeIndex + 1) + ' 集' : '继续播放'}</small>
           </Link>;
