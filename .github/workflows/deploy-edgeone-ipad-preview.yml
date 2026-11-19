@@ -74,32 +74,6 @@ jobs:
           }
           NODE
 
-      - name: Verify EdgeOne API token
-        env:
-          EDGEONE_PAGES_API_TOKEN: ${{ secrets.EDGEONE_PAGES_API_TOKEN }}
-          EDGEONE_PAGES_API_REGION: china
-          PAGES_SOURCE: skills
-        shell: bash
-        run: |
-          set +e
-          WHOAMI_OUTPUT="$(edgeone whoami --json 2>&1)"
-          set -e
-          node - "$WHOAMI_OUTPUT" <<'NODE'
-          const raw = process.argv[2] || '';
-          const lines = raw.split('\n').filter(Boolean);
-          let result;
-          for (let i = lines.length - 1; i >= 0; i--) {
-            try { result = JSON.parse(lines[i]); break; } catch {}
-          }
-          if (!result || result.authenticated !== true) {
-            const code = result?.errorCode || result?.status || 'identity_unverified';
-            console.error(`EdgeOne identity check did not confirm authentication (${code}).`);
-            // Provider messages are omitted to avoid leaking credential-bearing URLs.
-            process.exit(1);
-          }
-          console.log('EdgeOne API token authentication confirmed.');
-          NODE
-
       - name: Deploy to EdgeOne nks Preview only
         id: deploy
         env:
@@ -114,7 +88,7 @@ jobs:
             exit 1
           fi
           set +e
-          OUTPUT="$(edgeone makers deploy ./.next -n nks -e preview --json 2>&1)"
+          OUTPUT="$(edgeone makers deploy ./.next -n nks -e preview --json -t "$EDGEONE_PAGES_API_TOKEN" 2>&1)"
           DEPLOY_EXIT=$?
           set -e
           LAST_LINE="$(printf '%s\n' "$OUTPUT" | tail -n 1)"
