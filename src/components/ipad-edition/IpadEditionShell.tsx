@@ -5,21 +5,20 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { LiquidGlassSurface } from '@/components/ui/liquid-glass';
 
-const sidebarNavigation = [
+const primaryNavigation = [
   { label: '首页', href: '/ipad-edition', icon: 'house' },
+  { label: '电影', href: '/ipad-edition/movies', icon: 'clapperboard' },
+  { label: '电视剧', href: '/ipad-edition/series', icon: 'tv' },
+  { label: '动漫', href: '/ipad-edition/anime', icon: 'drama' },
+] as const;
+
+const personalNavigation = [
   { label: '搜索', href: '/ipad-edition/search', icon: 'search' },
   { label: '我的', href: '/ipad-edition/library', icon: 'user-round' },
   { label: '设置', href: '/ipad-edition/settings', icon: 'settings' },
 ] as const;
 
-const capsuleNavigation = [
-  { label: '首页', href: '/ipad-edition' },
-  { label: '电影', href: '/ipad-edition/movies' },
-  { label: '电视剧', href: '/ipad-edition/series' },
-  { label: '动漫', href: '/ipad-edition/anime' },
-] as const;
-
-type NavigationIconName = 'house' | 'user-round' | 'search' | 'panel-left' | 'close' | 'settings';
+type NavigationIconName = 'house' | 'user-round' | 'search' | 'panel-left' | 'settings' | 'clapperboard' | 'tv' | 'drama';
 
 function NavigationIcon({ name }: { name: NavigationIconName }) {
   const common = {
@@ -46,13 +45,19 @@ function NavigationIcon({ name }: { name: NavigationIconName }) {
   if (name === 'search') {
     return <svg {...common}><circle cx="10.7" cy="10.7" r="6.4" /><path d="m15.4 15.4 4.6 4.6" /></svg>;
   }
-  if (name === 'close') {
-    return <svg {...common}><path d="m6 6 12 12M18 6 6 18" /></svg>;
-  }
   if (name === 'panel-left') {
     return <svg {...common}><rect x="3.5" y="4" width="17" height="16" rx="2.2" /><path d="M9 4v16" /></svg>;
   }
-  return <svg {...common}><path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z" /><path d="m19.4 13.5 1.1.8-1.3 2.3-1.3-.4a6.8 6.8 0 0 1-1.5.9l-.3 1.4h-2.7l-.4-1.4a6.8 6.8 0 0 1-1.5-.9l-1.3.4-1.3-2.3 1.1-.8a6.5 6.5 0 0 1 0-1.7l-1.1-.8 1.3-2.3 1.3.4a6.8 6.8 0 0 1 1.5-.9l.4-1.4h2.7l.3 1.4a6.8 6.8 0 0 1 1.5.9l1.3-.4 1.3 2.3-1.1.8a6.5 6.5 0 0 1 0 1.7Z" /></svg>;
+  if (name === 'clapperboard') {
+    return <svg {...common}><path d="M4 8h16v12H4zM4 8l2-4h14l-2 4M9 4l3 4m3-4 3 4" /></svg>;
+  }
+  if (name === 'tv') {
+    return <svg {...common}><rect x="3" y="6" width="18" height="13" rx="2" /><path d="m8 3 4 3 4-3M9 22h6" /></svg>;
+  }
+  if (name === 'drama') {
+    return <svg {...common}><path d="M4 5.5 12 3l8 2.5v10L12 18l-8-2.5z" /><path d="M4 5.5 12 8l8-2.5M12 8v10M8 10l-2 2m10-2 2 2" /></svg>;
+  }
+  return <svg {...common}><circle cx="12" cy="12" r="3" /><path d="m19.4 15 .1.1 1.1 1.9-1.7 2.9-2.2-.5a7.8 7.8 0 0 1-1.7 1l-.7 2.1h-3.4l-.7-2.1a7.8 7.8 0 0 1-1.7-1l-2.2.5-1.7-2.9 1.1-1.9a7.5 7.5 0 0 1 0-2l-1.1-1.9 1.7-2.9 2.2.5a7.8 7.8 0 0 1 1.7-1l.7-2.1h3.4l.7 2.1a7.8 7.8 0 0 1 1.7 1l2.2-.5 1.7 2.9-1.1 1.9a7.5 7.5 0 0 1 0 2Z" transform="translate(-1 -1) scale(1.08)" /></svg>;
 }
 
 export function IpadEditionShell({ children }: { children: ReactNode }) {
@@ -132,17 +137,9 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
   const isPlayerRoute = pathname === '/ipad-edition/watch' || pathname.startsWith('/ipad-edition/watch/');
   const isDetailRoute = pathname === '/ipad-edition/detail' || pathname.startsWith('/ipad-edition/detail/');
   const isChromeHidden = isPlayerRoute || isDetailRoute;
-  const activeHref = capsuleNavigation.find((item) => item.href !== '/ipad-edition' && pathname.startsWith(item.href))?.href
+  const allNavigation = [...primaryNavigation, ...personalNavigation];
+  const activeHref = allNavigation.find((item) => item.href !== '/ipad-edition' && pathname.startsWith(item.href))?.href
     ?? (pathname === '/ipad-edition' ? '/ipad-edition' : '');
-  const sidebarActiveHref = pathname.startsWith('/ipad-edition/search')
-    ? '/ipad-edition/search'
-    : pathname.startsWith('/ipad-edition/library')
-      ? '/ipad-edition/library'
-      : pathname.startsWith('/ipad-edition/settings')
-        ? '/ipad-edition/settings'
-        : pathname === '/ipad-edition'
-          ? '/ipad-edition'
-          : '';
 
   return (
     <div
@@ -186,9 +183,9 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
             </span>
           </Link>
 
-          <p className="ipad-nav__section-label">导航</p>
-          <nav className="ipad-nav__links" aria-label="主导航">
-            {sidebarNavigation.map((item) => (
+          <p className="ipad-nav__section-label">主导航</p>
+          <nav className="ipad-nav__links" aria-label="主要内容">
+            {primaryNavigation.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -198,7 +195,24 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
               >
                 <NavigationIcon name={item.icon} />
                 <span>{item.label}</span>
-                {sidebarActiveHref === item.href && <i aria-hidden="true" />}
+                {activeHref === item.href && <i aria-hidden="true" />}
+              </Link>
+            ))}
+          </nav>
+
+          <p className="ipad-nav__section-label ipad-nav__section-label--tools">个人与工具</p>
+          <nav className="ipad-nav__links" aria-label="个人与工具">
+            {personalNavigation.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                tabIndex={sidebarOpen ? 0 : -1}
+                className={activeHref === item.href ? 'is-active' : ''}
+                aria-current={activeHref === item.href ? 'page' : undefined}
+              >
+                <NavigationIcon name={item.icon} />
+                <span>{item.label}</span>
+                {activeHref === item.href && <i aria-hidden="true" />}
               </Link>
             ))}
           </nav>
@@ -212,39 +226,44 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
       <main className="ipad-edition__main">
         {!isChromeHidden && (
           <header className="ipad-nav__topbar">
-            <LiquidGlassSurface as="div" variant="panel" cornerRadius={18} className="ipad-nav__topbar-inner">
+            <LiquidGlassSurface as="div" variant="panel" cornerRadius={999} className="ipad-nav__topbar-inner">
               <button
-                className="ipad-nav__menu-button"
+                className={`ipad-nav__capsule-action ipad-nav__menu-button${sidebarOpen ? ' is-active' : ''}`}
                 type="button"
-                aria-label={sidebarOpen ? '关闭侧边栏' : '打开侧边栏'}
+                aria-label={sidebarOpen ? '收起侧边栏' : '展开侧边栏'}
                 aria-expanded={sidebarOpen}
                 aria-controls="ipad-edition-sidebar"
                 onClick={() => setSidebarOpen((open) => !open)}
               >
-                <NavigationIcon name={sidebarOpen ? 'close' : 'panel-left'} />
+                <NavigationIcon name="panel-left" />
               </button>
 
-              <nav className="ipad-edition__capsule ipad-nav__capsule" aria-label="主要分类">
-                {capsuleNavigation.map((item) => {
-                  const isActive = activeHref === item.href;
-                  return (
-                    <Link key={item.href} href={item.href} className={isActive ? 'is-active' : ''} aria-current={isActive ? 'page' : undefined}>
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
-
-              <button
-                className={`ipad-nav__personal-tools${sidebarOpen || sidebarActiveHref === '/ipad-edition/library' || sidebarActiveHref === '/ipad-edition/settings' ? ' is-active' : ''}`}
-                type="button"
-                aria-label="个人与工具"
-                aria-expanded={sidebarOpen}
-                aria-controls="ipad-edition-sidebar"
-                onClick={() => setSidebarOpen((open) => !open)}
+              <Link
+                className={`ipad-nav__capsule-action${activeHref === '/ipad-edition' ? ' is-active' : ''}`}
+                href="/ipad-edition"
+                aria-label="首页"
+                aria-current={activeHref === '/ipad-edition' ? 'page' : undefined}
               >
-                <span>个人与工具</span>
-              </button>
+                <NavigationIcon name="house" />
+              </Link>
+
+              <Link
+                className={`ipad-nav__capsule-action${activeHref === '/ipad-edition/search' ? ' is-active' : ''}`}
+                href="/ipad-edition/search"
+                aria-label="搜索"
+                aria-current={activeHref === '/ipad-edition/search' ? 'page' : undefined}
+              >
+                <NavigationIcon name="search" />
+              </Link>
+
+              <Link
+                className={`ipad-nav__capsule-action${activeHref === '/ipad-edition/library' ? ' is-active' : ''}`}
+                href="/ipad-edition/library"
+                aria-label="我的"
+                aria-current={activeHref === '/ipad-edition/library' ? 'page' : undefined}
+              >
+                <NavigationIcon name="user-round" />
+              </Link>
             </LiquidGlassSurface>
           </header>
         )}
