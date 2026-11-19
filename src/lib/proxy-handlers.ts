@@ -97,10 +97,10 @@ function looksLikeImageUrl(target: string): boolean {
 }
 
 /** Shared CDN caching is HTTPS-only even when the request is otherwise proxyable. */
-function isPublicCacheableImageUrl(target: string): boolean {
+function isLongLivedPrivateCacheableImageUrl(target: string): boolean {
   try {
     const url = new URL(target);
-    return url.protocol === 'https:' && isAnonymousImageHost(url.hostname);
+    return url.protocol === 'https:' && !url.username && !url.password && isAnonymousImageHost(url.hostname);
   } catch {
     return false;
   }
@@ -199,7 +199,7 @@ export async function handleProxyRequest(req: Request, targetUrl: string): Promi
   const cacheControl = !response.ok || response.status !== 200
     ? 'no-store'
     : contentType.startsWith('image/')
-      ? (isPublicCacheableImageUrl(finalUrl) ? 'public, max-age=2592000' : 'private, max-age=300')
+      ? (isLongLivedPrivateCacheableImageUrl(finalUrl) ? 'private, max-age=2592000' : 'private, max-age=300')
       : 'public, max-age=3600';
   outHeaders.set('Cache-Control', cacheControl);
   outHeaders.set('Access-Control-Allow-Origin', '*');
