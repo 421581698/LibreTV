@@ -97,14 +97,14 @@ describe('handleProxyRequest image cache policy', () => {
 
   afterEach(() => vi.clearAllMocks());
 
-  it('allows long shared caching only for successful public allowlisted images', async () => {
+  it('allows long browser-private caching only for successful HTTPS allowlisted images', async () => {
     const target = 'https://img3.doubanio.com/view/photo/m/poster.jpg';
     mocks.fetchWithSafeRedirects.mockResolvedValue({
       res: new Response('image-bytes', { status: 200, headers: { 'content-type': 'image/jpeg' } }),
       finalUrl: target,
     });
     const response = await handleProxyRequest(request(), target);
-    expect(response.headers.get('cache-control')).toBe('public, max-age=2592000');
+    expect(response.headers.get('cache-control')).toBe('private, max-age=2592000');
   });
 
   it('does not shared-cache images redirected to a non-allowlisted host', async () => {
