@@ -408,6 +408,27 @@ jobs:
                   });
                   const posters = Array.from(document.querySelectorAll('.ipad-edition__poster-card'));
                   const animeCards = Array.from(document.querySelectorAll('.ipad-edition__anime-card'));
+                  const home = document.querySelector('.ipad-edition__home');
+                  const homeStyle = home ? getComputedStyle(home) : null;
+                  const layoutChain = [];
+                  let layoutNode = hero;
+                  for (let depth = 0; layoutNode && depth < 7; depth += 1, layoutNode = layoutNode.parentElement) {
+                    const rect = layoutNode.getBoundingClientRect();
+                    const style = getComputedStyle(layoutNode);
+                    layoutChain.push({
+                      tag: layoutNode.tagName.toLowerCase(),
+                      className: typeof layoutNode.className === 'string' ? layoutNode.className : '',
+                      top: Math.round(rect.top),
+                      bottom: Math.round(rect.bottom),
+                      height: Math.round(rect.height),
+                      paddingTop: style.paddingTop,
+                      marginTop: style.marginTop,
+                      display: style.display,
+                      position: style.position,
+                      transform: style.transform,
+                      rowGap: style.rowGap,
+                    });
+                  }
                   const top = topbar?.getBoundingClientRect();
                   const copy = heroCopy?.getBoundingClientRect();
                   const heroRect = hero?.getBoundingClientRect();
@@ -426,7 +447,9 @@ jobs:
                     documentWidth: document.documentElement.scrollWidth,
                     bodyWidth: document.body.scrollWidth,
                     horizontalOverflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) > window.innerWidth + 2,
-                    shell: rect(root), main: rect(main), topbar: rect(topbar), hero: rect(hero), heroCopy: rect(heroCopy),
+                    shell: rect(root), main: rect(main), home: rect(home), topbar: rect(topbar), hero: rect(hero), heroCopy: rect(heroCopy),
+                    homeComputed: homeStyle ? { paddingTop: homeStyle.paddingTop, marginTop: homeStyle.marginTop, rowGap: homeStyle.rowGap, display: homeStyle.display, transform: homeStyle.transform } : null,
+                    layoutChain,
                     heroTextOverlapsNavigation,
                     heroOverlapsNavigation,
                     heroClearancePx,
