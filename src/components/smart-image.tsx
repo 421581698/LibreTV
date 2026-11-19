@@ -35,6 +35,7 @@ interface SmartImageProps {
  * - 不对图片像素做 canvas 重绘，避免丢失增益图、广色域和原始细节。
  */
 export function SmartImage({
+  asset,
   url,
   fallbackUrl,
   hdrUrl,
