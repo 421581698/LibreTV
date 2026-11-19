@@ -2,7 +2,7 @@ name: Deploy LibreTV iPad Edition Preview (Ubuntu 24.04)
 # Preview-only visual audit activation; never targets the production Worker.
 # Poster proxy verification follows the iPad homepage image reliability fix.
 # Rendered PNG poster pixels are now a required gate; unreadable slots fail closed.
-# [deploy-ipad-edition-preview] Verify fixed navigation clearance across all iPad viewports.
+# [deploy-ipad-edition-preview] Verify glass material, touch gestures and rendered poster pixels across iPad viewports.
 
 on:
   workflow_dispatch:
@@ -114,7 +114,7 @@ jobs:
             { name: "ipad-11-portrait", width: 834, height: 1194, deviceScaleFactor: 2 },
             { name: "ipad-11-landscape", width: 1194, height: 834, deviceScaleFactor: 2 },
             { name: "ipad-pro-13-portrait", width: 1032, height: 1376, deviceScaleFactor: 2 },
-            { name: "ipados-desktop", width: 1366, height: 1024, deviceScaleFactor: 1 },
+            { name: "ipad-pro-13-landscape", width: 1366, height: 1024, deviceScaleFactor: 2 },
           ];
           const browser = await chromium.launch({ headless: true });
           const results = [];
@@ -125,8 +125,8 @@ jobs:
                 const context = await browser.newContext({
                   viewport: { width: viewport.width, height: viewport.height },
                   deviceScaleFactor: viewport.deviceScaleFactor,
-                  isMobile: viewport.name !== "ipados-desktop",
-                  hasTouch: viewport.name !== "ipados-desktop",
+                  isMobile: true,
+                  hasTouch: true,
                   colorScheme,
                 });
                 const page = await context.newPage();
@@ -166,6 +166,22 @@ jobs:
                 await page.waitForFunction(() => !document.querySelector('.ipad-nav__sidebar')?.classList.contains('is-open'));
                 sidebarInteraction.scrimClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
                 sidebarInteractionPassed = sidebarInteraction.opened && sidebarInteraction.escapeClosed && sidebarInteraction.scrimClosed;
+                // Verify genuine touch-pointer edge-swipe open and in-panel swipe close.
+                const touchSession = await context.newCDPSession(page);
+                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 8, y: 260 }] });
+                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 96, y: 260 }] });
+                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 180, y: 260 }] });
+                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+                await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'true', { timeout: 5000 });
+                sidebarInteraction.edgeSwipeOpened = await page.locator('.ipad-nav__sidebar.is-open').isVisible();
+                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 220, y: 260 }] });
+                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 120, y: 260 }] });
+                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 32, y: 260 }] });
+                await touchSession.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+                await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false', { timeout: 5000 });
+                sidebarInteraction.edgeSwipeClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
+                await touchSession.detach();
+                sidebarInteractionPassed = sidebarInteractionPassed && sidebarInteraction.edgeSwipeOpened && sidebarInteraction.edgeSwipeClosed;
                 // Wait for real homepage content before inspecting all poster-bearing cards.
                 await page.waitForFunction(() => {
                   const busyRail = document.querySelector('.ipad-edition__poster-grid[aria-busy="true"]');
