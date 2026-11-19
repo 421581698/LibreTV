@@ -177,17 +177,18 @@ jobs:
               // Verify genuine touch-pointer edge-swipe open and in-panel swipe close.
               const touchSession = await context.newCDPSession(page);
               try {
+                await touchSession.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
                 await touchSession.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 8, y: 260, id: 1, force: 1 }] });
                 await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 96, y: 260, id: 1, force: 1 }] });
                 await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 180, y: 260, id: 1, force: 1 }] });
                 await touchSession.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-                await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'true', { timeout: 5000 });
+                await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'true', undefined, { timeout: 5000 });
                 sidebarInteraction.edgeSwipeOpened = await page.locator('.ipad-nav__sidebar.is-open').isVisible();
                 await touchSession.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 220, y: 260, id: 1, force: 1 }] });
                 await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 120, y: 260, id: 1, force: 1 }] });
                 await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 32, y: 260, id: 1, force: 1 }] });
                 await touchSession.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-                await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false', { timeout: 5000 });
+                await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false', undefined, { timeout: 5000 });
                 sidebarInteraction.edgeSwipeClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
               } finally {
                 await touchSession.detach();
