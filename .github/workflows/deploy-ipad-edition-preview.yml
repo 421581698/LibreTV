@@ -97,11 +97,16 @@ jobs:
       - name: Install Playwright package for simulated iPad visual audit
         timeout-minutes: 5
         run: npm install --no-save --no-package-lock playwright@1.56.1 pngjs@7.0.0
-      - name: Use runner-provided Chromium system libraries
+      - name: Install minimal Chromium runtime libraries
+        timeout-minutes: 6
         run: |
-          for library in libnss3 libatk-1.0-0 libatk-bridge2.0-0 libX11-xcb1 libxkbcommon0; do
-            ldconfig -p | grep -q "$library" || { echo "Missing runner library: $library"; exit 1; }
-          done
+          sudo apt-get update -o Acquire::Retries=3
+          sudo apt-get install -y --no-install-recommends \
+            libnss3 libatk1.0-0t64 libatk-bridge2.0-0t64 \
+            libx11-xcb1 libxkbcommon0 libxcomposite1 libxdamage1 \
+            libxfixes3 libxrandr2 libgbm1 libasound2t64
+          ldconfig -p | grep -q libatk-1.0.so.0
+          ldconfig -p | grep -q libatk-bridge-2.0.so.0
       - name: Install Playwright Chromium browser
         timeout-minutes: 8
         env:
