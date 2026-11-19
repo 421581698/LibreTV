@@ -52,13 +52,28 @@ export function fromBangumiItem(item: DoubanItem): PosterAsset | undefined {
   });
 }
 
-export function fromCmsSearchResult(item: SearchResultItem): PosterAsset | undefined {
+export function fromCmsArtwork(input: {
+  sourceKey: string;
+  vodId: string;
+  title: string;
+  imageUrl?: string | null;
+  kind?: 'poster' | 'backdrop' | 'still';
+}): PosterAsset | undefined {
   return createPosterAsset({
     provider: 'cms',
-    providerItemId: `${item.sourceKey}:${item.vodId}`,
+    providerItemId: `${input.sourceKey}:${input.vodId}`,
+    title: input.title,
+    imageUrl: input.imageUrl,
+    kind: input.kind ?? 'poster',
+  });
+}
+
+export function fromCmsSearchResult(item: SearchResultItem): PosterAsset | undefined {
+  return fromCmsArtwork({
+    sourceKey: item.sourceKey,
+    vodId: item.vodId,
     title: item.name,
     imageUrl: item.pic,
-    kind: 'poster',
   });
 }
 
