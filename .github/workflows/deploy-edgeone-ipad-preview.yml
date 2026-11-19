@@ -1,4 +1,5 @@
 name: Deploy LibreTV iPad Edition Preview to EdgeOne
+# Explicit Preview deployment trigger is supplied by the commit message [edgeone-preview].
 
 on:
   push:
