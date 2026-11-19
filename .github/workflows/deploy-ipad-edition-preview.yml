@@ -381,6 +381,9 @@ jobs:
                   ];
                   const findNodeId = selector => {
                     const node = [...nodesById.values()].find(candidate => {
+                      // CSS.getMatchedStylesForNode accepts Element nodes only. The
+                      // document root also has nodeName metadata and must never match.
+                      if (candidate.nodeType !== 1) return false;
                       if (selector === '[data-ipad-edition="true"]') return attribute(candidate, 'data-ipad-edition') === 'true';
                       if (selector.startsWith('.')) return hasClass(candidate, selector.slice(1));
                       return candidate.nodeName?.toLowerCase() === selector;
@@ -393,6 +396,10 @@ jobs:
                     let current = targetNodeIds[selector];
                     let depth = 0;
                     while (current && depth < 12 && !requestedNodeIds.has(current)) {
+                      const currentNode = nodesById.get(current);
+                      // Walk only real Elements; stop before #document and other
+                      // non-element nodes so the CSS protocol receives valid node IDs.
+                      if (!currentNode || currentNode.nodeType !== 1) break;
                       requestedNodeIds.add(current);
                       current = parentById.get(current);
                       depth += 1;
