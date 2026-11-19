@@ -1215,3 +1215,5 @@ body:has(.ipad-edition[data-environment="light"]) {
     padding-block-start: max(78px, calc(env(safe-area-inset-top, 0px) + 66px)) !important;
   }
 }
+
+/* [deploy-ipad-edition-preview] Re-run iPad first-screen clearance audit on the isolated Preview. */
