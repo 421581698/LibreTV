@@ -112,7 +112,7 @@ jobs:
           import fs from 'node:fs/promises';
           import { PNG } from 'pngjs';
 
-          const target = "https://libretv-ipad-edition-preview.bggdbh.workers.dev/ipad-edition";
+          const target = "https://libretv-ipad-edition-preview.bggdbh.workers.dev/ipad-edition?__layout_debug=1";
           const viewports = [
             { name: "ipad-11-portrait", width: 834, height: 1194, deviceScaleFactor: 2 },
             { name: "ipad-11-landscape", width: 1194, height: 834, deviceScaleFactor: 2 },
@@ -318,6 +318,17 @@ jobs:
                     new Promise(resolve => setTimeout(resolve, 45000)),
                   ]);
                 });
+                await page.locator('section[aria-label="iPad 页面布局诊断"] pre').waitFor({ state: "attached", timeout: 10000 });
+                await page.waitForTimeout(1000);
+                const layoutDiagnostics = await page.evaluate(() => {
+                  const panel = document.querySelector('section[aria-label="iPad 页面布局诊断"]');
+                  const raw = panel?.querySelector('pre')?.textContent ?? '';
+                  try { return JSON.parse(raw); } catch { return { parseError: true, raw: raw.slice(0, 2000) }; }
+                });
+                await page.evaluate(() => {
+                  const panel = document.querySelector('section[aria-label="iPad 页面布局诊断"]');
+                  if (panel) panel.style.display = 'none';
+                });
                 const metrics = await page.evaluate((scheme) => {
                   const root = document.querySelector('[data-ipad-edition="true"]');
                   const main = document.querySelector('.ipad-edition__main');
@@ -450,6 +461,7 @@ jobs:
                     shell: rect(root), main: rect(main), home: rect(home), topbar: rect(topbar), hero: rect(hero), heroCopy: rect(heroCopy),
                     homeComputed: homeStyle ? { paddingTop: homeStyle.paddingTop, marginTop: homeStyle.marginTop, rowGap: homeStyle.rowGap, display: homeStyle.display, transform: homeStyle.transform } : null,
                     layoutChain,
+                    layoutDiagnostics,
                     heroTextOverlapsNavigation,
                     heroOverlapsNavigation,
                     heroClearancePx,
