@@ -47,3 +47,50 @@ export function resolveEnvironmentProfile(signals: EnvironmentSignals): Environm
     ambientClass,
   };
 }
+
+/** Applies environment tokens to one iPad Edition root and returns a complete cleanup function. */
+export function attachEnvironmentEngine(
+  root: HTMLElement,
+  options: { appearance?: AppearancePreference; backdropLuminance?: () => number | undefined } = {},
+): () => void {
+  const queries = [
+    '(prefers-color-scheme: dark)',
+    '(prefers-contrast: more)',
+    '(prefers-reduced-transparency: reduce)',
+    '(prefers-reduced-motion: reduce)',
+  ];
+  const media = queries.map((query) => window.matchMedia(query));
+  const update = () => {
+    const systemDark = root.closest('.dark') !== null || document.documentElement.classList.contains('dark') || media[0].matches;
+    const profile = resolveEnvironmentProfile({
+      appearance: options.appearance ?? 'system',
+      systemDark,
+      contrast: media[1].matches ? 'more' : 'normal',
+      reducedTransparency: media[2].matches,
+      reducedMotion: media[3].matches,
+      backdropLuminance: options.backdropLuminance?.(),
+    });
+    root.dataset.environment = profile.colorScheme;
+    root.dataset.environmentContrast = profile.contrast;
+    root.style.setProperty('--ipad-env-glass-opacity', String(profile.glassOpacity));
+    root.style.setProperty('--ipad-env-blur', profile.blurPx + 'px');
+    root.style.setProperty('--ipad-env-scrim', String(profile.scrimOpacity));
+    root.style.setProperty('--ipad-env-edge-opacity', String(profile.edgeOpacity));
+    root.style.colorScheme = profile.colorScheme;
+    root.dataset.environmentMotion = profile.motionEnabled ? 'enabled' : 'reduced';
+  };
+  media.forEach((query) => query.addEventListener('change', update));
+  const themeObserver = new MutationObserver(update);
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  update();
+  return () => {
+    media.forEach((query) => query.removeEventListener('change', update));
+    themeObserver.disconnect();
+    delete root.dataset.environment;
+    delete root.dataset.environmentContrast;
+    delete root.dataset.environmentMotion;
+    ['--ipad-env-glass-opacity', '--ipad-env-blur', '--ipad-env-scrim', '--ipad-env-edge-opacity']
+      .forEach((property) => root.style.removeProperty(property));
+    root.style.removeProperty('color-scheme');
+  };
+}
