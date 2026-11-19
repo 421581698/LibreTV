@@ -369,7 +369,7 @@ jobs:
                     const index = (node?.attributes ?? []).indexOf(name);
                     return index >= 0 ? node.attributes[index + 1] ?? '' : '';
                   };
-                  const hasClass = (node, name) => attribute(node, 'class').split(/\\s+/).includes(name);
+                  const hasClass = (node, name) => attribute(node, 'class').split(/\s+/).includes(name);
                   const selectors = [
                     '[data-ipad-edition="true"]',
                     '.ipad-nav__sidebar',
