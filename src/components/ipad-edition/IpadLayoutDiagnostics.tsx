@@ -24,7 +24,7 @@ function nodePath(element: Element | null): string | null {
   if (!element) return null;
   const id = element.id ? `#${element.id}` : '';
   const classes = typeof element.className === 'string'
-    ? element.className.trim().split(/\\s+/).filter(Boolean).slice(0, 5).map((name) => `.${name}`).join('')
+    ? element.className.trim().split(/\s+/).filter(Boolean).slice(0, 5).map((name) => `.${name}`).join('')
     : '';
   return `${element.tagName.toLowerCase()}${id}${classes}`;
 }
