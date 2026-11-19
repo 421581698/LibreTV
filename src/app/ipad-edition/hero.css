@@ -1,4 +1,5 @@
 /* Homepage Hero A: full-bleed cinematic frame, isolated from poster rails and legacy hero rules. */
+/* Preview audit activation: [deploy-ipad-edition-preview] */
 .ipad-edition .ipad-edition__cinema-hero {
   --hero-focal-x: 50%;
   --hero-focal-y: 38%;
