@@ -625,3 +625,5 @@ jobs:
           path: artifacts/ipad-visual-audit/
           if-no-files-found: warn
           retention-days: 14
+
+# [deploy-ipad-edition-preview] Capture parent-chain diagnostics on the isolated Preview.
