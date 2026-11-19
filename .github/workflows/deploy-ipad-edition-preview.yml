@@ -334,18 +334,20 @@ jobs:
                 // Computed styles alone cannot identify which overlapping rule supplied a value.
                 const cssSession = await context.newCDPSession(page);
                 try {
+                  const stylesheetById = new Map();
+                  cssSession.on('CSS.styleSheetAdded', ({ header }) => {
+                    stylesheetById.set(header.styleSheetId, {
+                      sourceURL: header.sourceURL,
+                      title: header.title,
+                      origin: header.origin,
+                    });
+                  });
                   await cssSession.send('DOM.enable');
                   await cssSession.send('CSS.enable');
                   const { root: documentNode } = await cssSession.send('DOM.getDocument', { depth: -1, pierce: true });
                   const { nodes: flatNodes } = await cssSession.send('DOM.getFlattenedDocument', { depth: -1, pierce: true });
                   const nodesById = new Map(flatNodes.map(node => [node.nodeId, node]));
                   const parentById = new Map(flatNodes.map(node => [node.nodeId, node.parentId]));
-                  const { headers = [] } = await cssSession.send('CSS.getAllStyleSheets');
-                  const stylesheetById = new Map(headers.map(header => [header.styleSheetId, {
-                    sourceURL: header.sourceURL,
-                    title: header.title,
-                    origin: header.origin,
-                  }]));
                   const relevantProperties = new Set([
                     'display','position','top','right','bottom','left','inset','height','min-height','max-height',
                     'margin','margin-top','margin-bottom','padding','padding-top','padding-bottom',
@@ -354,6 +356,7 @@ jobs:
                   ]);
                   const selectors = [
                     '[data-ipad-edition="true"]',
+                    '.ipad-nav__sidebar',
                     '.ipad-edition__main',
                     '.ipad-edition__home',
                     '.ipad-edition__hero',
