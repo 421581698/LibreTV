@@ -139,3 +139,28 @@
     stroke: currentColor !important;
   }
 }
+
+/* ============================================================================
+   详情页深色底兜底 — 消除 dock 下方白条
+   ----------------------------------------------------------------------------
+   详情页本体是深色主题，但浅色系统模式下 html/body 仍是 globals.css 的浅色
+   渐变背景。iphone-dock-unify.css 给 body 留了 padding-bottom，dock 只占其中
+   68px，dock 下方那段浅色 body 背景就透成一条白条。
+   这里在详情页存在时把 html/body 背景统一压成深色，白条随之消失。
+   用 :has() 提升特异性，压过 globals.css 里的 !important 浅色规则。
+   只作用于移动端 <=700px，桌面端不受影响。
+   ============================================================================ */
+@media (max-width: 700px) {
+  html:has(body .movie-detail-page),
+  html:has(body .movie-detail-page) body {
+    background: #08080a !important;
+    background-color: #08080a !important;
+    background-image: none !important;
+  }
+
+  /* 页面滚动容器与 dock 之间不留浅色缝隙 */
+  html:has(body .movie-detail-page) body > main.movie-detail-page {
+    background: #08080a !important;
+    background-color: #08080a !important;
+  }
+}
