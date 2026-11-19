@@ -39,8 +39,12 @@ import './pr84-watch-mobile-fix.css';
 import './resource-studio.css';
 // FINAL: route-agnostic iPhone dock contract. Guarantees one horizontal dock on
 // every mobile route (incl. /live) so pages outside the :has() whitelist never
-// fall back to the engine's vertical capsule. Must stay last.
+// fall back to the engine's vertical capsule.
 import './iphone-dock-unify.css';
+// FINAL: search/search-results contrast on the forced black surface. Corrects
+// light-mode token values (dark text / white dropdown) on dark-surfaced routes.
+// Must stay last.
+import './iphone-search-contrast.css';
 import { Providers } from '@/components/providers';
 import { MobileTabBar } from '@/components/home/header/MobileTabBar';
 import { GlobalDownloadManager } from '@/components/download-manager';
