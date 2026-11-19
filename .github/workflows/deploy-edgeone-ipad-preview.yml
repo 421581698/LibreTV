@@ -1,0 +1,104 @@
+name: Deploy LibreTV iPad Edition Preview to EdgeOne
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_preview_deploy:
+        description: "Type yes to deploy this branch to the nks Preview environment (never Production)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: edgeone-ipad-preview
+  cancel-in-progress: true
+
+jobs:
+  verify-and-deploy:
+    if: ${{ github.ref == 'refs/heads/feature/libretv-ipad-edition-product' && inputs.confirm_preview_deploy == 'yes' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    environment: edgeone-preview
+    steps:
+      - name: Checkout PR #99 branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/libretv-ipad-edition-product
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.11.0"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript
+        run: npm run typecheck
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build
+
+      # Install the CLI before exposing the deployment credential to any process.
+      - name: Install EdgeOne Makers CLI
+        run: |
+          npm install --global edgeone@latest
+          CLI_VERSION="$(edgeone -v | grep -Eo '[0-9]+\\.[0-9]+\\.[0-9]+' | head -n 1)"
+          if [ -z "$CLI_VERSION" ]; then
+            echo "::error::Unable to determine EdgeOne CLI version."
+            exit 1
+          fi
+          node - "$CLI_VERSION" <<'NODE'
+          const [major, minor, patch] = process.argv[2].split('.').map(Number);
+          const actual = [major, minor, patch];
+          const minimum = [1, 7, 0];
+          const lower = actual.some((value, index) => value < minimum[index] &&
+            actual.slice(0, index).every((part, prior) => part === minimum[prior]));
+          if (lower) {
+            console.error(`EdgeOne CLI ${process.argv[2]} is below required 1.7.0.`);
+            process.exit(1);
+          }
+          NODE
+
+      - name: Deploy to EdgeOne nks Preview only
+        id: deploy
+        env:
+          EDGEONE_PAGES_API_TOKEN: ${{ secrets.EDGEONE_PAGES_API_TOKEN }}
+          EDGEONE_PAGES_API_REGION: global
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${EDGEONE_PAGES_API_TOKEN:-}" ]; then
+            echo "::error::Missing repository/environment secret EDGEONE_PAGES_API_TOKEN. Add it to the edgeone-preview environment."
+            exit 1
+          fi
+          OUTPUT="$(edgeone makers deploy ./.next -n nks -e preview --json 2>&1)" || {
+            echo "::error::EdgeOne Preview deployment failed. Review the EdgeOne CLI step output; raw credential-bearing output was suppressed."
+            exit 1
+          }
+          LAST_LINE="$(printf '%s\\n' "$OUTPUT" | tail -n 1)"
+          node - "$LAST_LINE" "$GITHUB_OUTPUT" "$GITHUB_STEP_SUMMARY" <<'NODE'
+          const fs = require('node:fs');
+          let result;
+          try { result = JSON.parse(process.argv[2]); }
+          catch { console.error('EdgeOne CLI did not return valid JSON.'); process.exit(1); }
+          if (result.status !== 'success' || !result.url) {
+            console.error(result.error || 'EdgeOne did not confirm a successful Preview deployment.');
+            process.exit(1);
+          }
+          const url = result.url;
+          const output = process.argv[3];
+          const summary = process.argv[4];
+          fs.appendFileSync(output, `preview_url=${url}\\nproject_id=${result.projectId || ''}\\nconsole_url=${result.consoleUrl || ''}\\n`);
+          fs.appendFileSync(summary, `## EdgeOne Preview deployment\\n\\n- Project: \`nks\`\\n- Environment: **Preview**\\n- URL: ${url}\\n- Project ID: ${result.projectId || 'not returned'}\\n`);
+          console.log('EdgeOne confirmed a successful Preview deployment for project nks.');
+          NODE
