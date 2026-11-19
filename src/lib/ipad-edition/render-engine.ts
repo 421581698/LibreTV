@@ -26,3 +26,42 @@ export function selectRenderPolicy(capabilities: RenderCapabilities): RenderPoli
     reason: capabilities.css ? 'safe-css-fallback' : 'minimum-css-fallback',
   };
 }
+
+/** Reads browser capabilities at runtime; call only after mounting on the client. */
+export function detectRenderCapabilities(preferences: {
+  reducedMotion?: boolean;
+  reducedTransparency?: boolean;
+} = {}): RenderCapabilities {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return {
+      css: true, svg: false, canvas2d: false, webgl: false,
+      reducedMotion: true, reducedTransparency: true, lowPower: true,
+    };
+  }
+  const css = typeof CSS !== 'undefined' && (
+    CSS.supports('backdrop-filter', 'blur(1px)') || CSS.supports('-webkit-backdrop-filter', 'blur(1px)')
+  );
+  const svg = typeof SVGSVGElement !== 'undefined' && !!document.createElementNS('http://www.w3.org/2000/svg', 'svg').createSVGRect;
+  const canvas2d = (() => {
+    try { return !!document.createElement('canvas').getContext('2d'); } catch { return false; }
+  })();
+  const webgl = (() => {
+    try {
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      const extension = context && context.getExtension('WEBGL_lose_context');
+      extension?.loseContext();
+      return !!context;
+    } catch { return false; }
+  })();
+  const nav = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } };
+  const lowPower = nav.connection?.saveData === true
+    || (typeof nav.deviceMemory === 'number' && nav.deviceMemory <= 4)
+    || (typeof nav.hardwareConcurrency === 'number' && nav.hardwareConcurrency <= 4);
+  return {
+    css, svg, canvas2d, webgl,
+    reducedMotion: preferences.reducedMotion ?? window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    reducedTransparency: preferences.reducedTransparency ?? window.matchMedia('(prefers-reduced-transparency: reduce)').matches,
+    lowPower,
+  };
+}
