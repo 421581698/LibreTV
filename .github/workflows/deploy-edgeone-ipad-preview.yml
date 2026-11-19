@@ -23,7 +23,6 @@ jobs:
     if: ${{ github.ref == 'refs/heads/feature/libretv-ipad-edition-product' && ((github.event_name == 'push' && contains(github.event.head_commit.message, '[edgeone-preview]')) || (github.event_name == 'workflow_dispatch' && inputs.confirm_preview_deploy == 'yes')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 35
-    environment: edgeone-preview
     steps:
       - name: Checkout PR #99 branch
         uses: actions/checkout@v4
@@ -76,7 +75,7 @@ jobs:
         id: deploy
         env:
           EDGEONE_PAGES_API_TOKEN: ${{ secrets.EDGEONE_PAGES_API_TOKEN }}
-          EDGEONE_PAGES_API_REGION: global
+          EDGEONE_PAGES_API_REGION: china
         shell: bash
         run: |
           set -euo pipefail
