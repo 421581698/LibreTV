@@ -329,7 +329,7 @@ jobs:
                   const panel = document.querySelector('section[aria-label="iPad 页面布局诊断"]');
                   if (panel) panel.style.display = 'none';
                 });
-                const metrics = await page.evaluate((scheme) => {
+                const metrics = await page.evaluate((scheme, layoutDiagnostics) => {
                   const root = document.querySelector('[data-ipad-edition="true"]');
                   const main = document.querySelector('.ipad-edition__main');
                   const topbar = document.querySelector('.ipad-nav__topbar');
@@ -483,7 +483,7 @@ jobs:
                     popularHeading: Boolean(document.querySelector('#ipad-popular-movies-title')),
                     theme,
                   };
-                }, colorScheme);
+                }, colorScheme, layoutDiagnostics);
                 const themeKey = viewport.name;
                 const themeBaselines = globalThis.__ipadThemeBaselines ?? (globalThis.__ipadThemeBaselines = {});
                 if (colorScheme === 'light') {
