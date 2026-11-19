@@ -83,6 +83,22 @@
     color: rgba(235, 235, 245, 0.82) !important;
   }
 
+  /* Meta tag chips (year / type / region). bg-chip + text-muted resolve to a
+     pale surface with pale text in light mode; with the readable-text fix above
+     that becomes white-on-white "blank blocks" on the forced black surface.
+     Give every result tag a dark glass background so its light label is legible. */
+  body:has(.v4-home) section[aria-label='搜索结果'] .tag,
+  body:has(.v4-home) section[aria-label='搜索结果'] .card .tag,
+  body:has(.v4-home) section[aria-label='搜索结果'] .tag.bg-chip,
+  body:has(.v4-home) section[aria-label='搜索结果'] .card .tag.bg-chip {
+    background: rgba(28, 28, 30, 0.92) !important;
+    background-color: rgba(28, 28, 30, 0.92) !important;
+    background-image: none !important;
+    color: rgba(235, 235, 245, 0.82) !important;
+    -webkit-text-fill-color: rgba(235, 235, 245, 0.82) !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  }
+
   /* Left inset so the "…的搜索结果" title never kisses the screen edge. */
   body:has(.v4-home) section[aria-label='搜索结果'] {
     padding-inline: 4px !important;
