@@ -239,7 +239,7 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
       <section className="movie-detail-hero relative isolate min-h-[560px] overflow-hidden sm:min-h-[640px]">
         {backdrop ? (
           <SmartImage
-            asset={fromCmsArtwork({ sourceKey, vodId, title: displayTitle, imageUrl: image, kind: 'backdrop' })}
+            asset={fromCmsArtwork({ sourceKey, vodId, title: displayTitle, imageUrl: backdrop, kind: 'backdrop' })}
             url={backdrop}
             mode={imageProxyMode}
             customProxy={customImageProxy}
