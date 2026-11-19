@@ -2,8 +2,7 @@
 
 import Link from 'next/link';
 import type { DoubanItem } from '@/lib/types';
-import { fromDoubanItem } from '@/lib/poster';
-import { PosterRenderer } from '@/components/ipad-edition/PosterRenderer';
+import { IpadEditionHeroArtwork } from '@/components/ipad-edition/IpadEditionHeroArtwork';
 
 interface IpadEditionHeroProps {
   items: DoubanItem[];
@@ -15,51 +14,15 @@ function detailHref(title: string) {
   return '/ipad-edition/detail?title=' + encodeURIComponent(title);
 }
 
-/** Homepage-only cinematic feature. Wide artwork is never fabricated from a portrait poster. */
+/** Homepage-only cinematic feature; content and artwork remain source-backed. */
 export function IpadEditionHero({ items, activeIndex, onSelect }: IpadEditionHeroProps) {
   const item = items[activeIndex];
   if (!item) return null;
 
-  const hasBackdrop = Boolean(item.backdrop?.trim());
-  const posterAsset = fromDoubanItem(item);
-
   return (
     <section className="ipad-edition__cinema-hero" aria-label="精选影片">
-      <div className="ipad-edition__cinema-hero-media" key={item.id || item.title}>
-        {hasBackdrop ? (
-          <PosterRenderer
-            variant="backdrop"
-            frameClassName="ipad-edition__cinema-hero-backdrop"
-            url={item.backdrop}
-            mode="proxy"
-            alt=""
-            loading="eager"
-          />
-        ) : (
-          <>
-            <PosterRenderer
-              variant="backdrop"
-              frameClassName="ipad-edition__cinema-hero-atmosphere"
-              asset={posterAsset}
-              url={item.cover}
-              mode="proxy"
-              alt=""
-              loading="eager"
-            />
-            <PosterRenderer
-              variant="hero-poster"
-              frameClassName="ipad-edition__cinema-hero-poster"
-              asset={posterAsset}
-              url={item.cover}
-              mode="proxy"
-              alt=""
-              loading="eager"
-            />
-          </>
-        )}
-      </div>
-
-      <div className="ipad-edition__cinema-hero-shade" />
+      <IpadEditionHeroArtwork item={item} key={item.id || item.title} />
+      <div className="ipad-edition__cinema-hero-shade" aria-hidden="true" />
       <div className="ipad-edition__cinema-hero-copy">
         <p className="ipad-edition__cinema-hero-kicker">LIBRETV · 精选推荐</p>
         <h1>{item.title}</h1>
