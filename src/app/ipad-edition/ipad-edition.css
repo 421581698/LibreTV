@@ -1219,3 +1219,11 @@ body:has(.ipad-edition[data-environment="light"]) {
 /* [deploy-ipad-edition-preview] Re-run iPad first-screen clearance audit on the isolated Preview. */
 
 /* [deploy-ipad-edition-preview] Re-run audit with the corrected hero y-coordinate gate. */
+
+
+/* [deploy-ipad-edition-preview] Keep the drawer out of document flow.
+   The shared .liquid-glass host sets position: relative; this compound selector
+   restores the fixed overlay contract for the semantic sidebar element. */
+.ipad-nav__sidebar.liquid-glass {
+  position: fixed;
+}
