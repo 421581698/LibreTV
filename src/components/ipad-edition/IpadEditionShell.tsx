@@ -175,6 +175,8 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
       onPointerCancel={cancelSidebarGesture}
       style={{ '--ipad-sidebar-drag': `${sidebarDragOffset}px` } as CSSProperties}
     >
+      {!isChromeHidden && <div className="ipad-nav__edge-swipe-zone" aria-hidden="true" />}
+
       {!isChromeHidden && sidebarOpen && (
         <button
           className="ipad-nav__scrim"
