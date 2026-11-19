@@ -999,3 +999,22 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
     transform: none !important;
   }
 }
+
+
+/* iPad navigation keeps a translucent material base beneath the optical engine.
+   The engine provides refraction; this host layer supplies readable tint and blur
+   in browsers where displacement rendering is limited (notably Safari). */
+.ipad-nav__topbar-inner.liquid-glass[data-liquid-glass-engine="ready"] {
+  background: var(--ipad-glass-fill, rgba(246,248,252,.76)) !important;
+  border-color: var(--ipad-glass-edge, rgba(24,32,46,.14)) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  box-shadow: var(--ipad-glass-shadow, 0 12px 38px rgba(28,38,56,.16)) !important;
+}
+.ipad-nav__sidebar.liquid-glass[data-liquid-glass-engine="ready"] {
+  background: var(--ipad-glass-fill-strong, rgba(250,251,253,.9)) !important;
+  border-right-color: var(--ipad-glass-edge, rgba(24,32,46,.14)) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(175%) !important;
+  backdrop-filter: blur(28px) saturate(175%) !important;
+  box-shadow: var(--ipad-depth-shadow, 0 18px 54px rgba(12,20,34,.2)) !important;
+}
