@@ -45,8 +45,8 @@ Other providers retain their original URL and the existing site proxy fallback; 
 
 ## Proxy cache policy
 
-Only HTTP 200 image responses whose final upstream URL is HTTPS and whose host remains in the explicit anonymous-image allowlist receive a shared 30-day cache.
-Failed and partial responses are `no-store`; image responses outside that public allowlist use a private short cache.
+Only HTTP 200 image responses whose final upstream URL is HTTPS and whose host remains in the explicit anonymous-image allowlist receive a 30-day **browser-private** cache. No shared CDN cache is used while image rights remain `unknown`.
+Failed and partial responses are `no-store`; image responses outside that host allowlist use a private short cache.
 The existing SSRF validation and per-redirect validation remain in place.
 
 ## Not part of Phase 1
