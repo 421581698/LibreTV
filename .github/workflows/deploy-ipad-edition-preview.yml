@@ -405,6 +405,19 @@ jobs:
                       depth += 1;
                     }
                   }
+                  // Keep the CSS provenance capture self-contained. These are the layout
+                  // properties needed to explain the sidebar's containing-block and flow behavior.
+                  const relevantProperties = new Set([
+                    'position', 'top', 'right', 'bottom', 'left', 'inset',
+                    'display', 'visibility', 'z-index', 'transform', 'translate',
+                    'width', 'height', 'min-width', 'max-width', 'min-height', 'max-height',
+                    'margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+                    'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+                    'overflow', 'overflow-x', 'overflow-y', 'contain', 'will-change',
+                    'filter', 'perspective', 'backdrop-filter', 'box-sizing',
+                    'flex', 'flex-basis', 'flex-grow', 'flex-shrink',
+                    'grid', 'grid-template-columns', 'grid-template-rows', 'gap', 'row-gap',
+                  ]);
                   const matchedNodes = await Promise.all([...requestedNodeIds].map(async nodeId => {
                     const node = nodesById.get(nodeId);
                     const matched = await cssSession.send('CSS.getMatchedStylesForNode', { nodeId });
