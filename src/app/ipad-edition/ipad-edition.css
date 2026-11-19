@@ -1177,3 +1177,21 @@ body:has(.ipad-edition[data-environment="light"]) {
 .ipad-edition[data-render-displacement="disabled"] .liquid-glass-engine-slot {
   display: none !important;
 }
+
+
+/* Reserve a narrow touch-only edge target for horizontal drawer gestures.
+   pan-y keeps vertical page scrolling native while preventing browser takeover. */
+.ipad-nav__edge-swipe-zone {
+  position: fixed;
+  z-index: 99;
+  inset: 0 auto 0 0;
+  width: 24px;
+  min-height: 100dvh;
+  background: transparent;
+  pointer-events: auto;
+  touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
+}
+.ipad-nav__sidebar {
+  touch-action: pan-y;
+}
