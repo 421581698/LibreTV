@@ -1,6 +1,9 @@
 name: Deploy LibreTV iPad Edition Preview to EdgeOne
 
 on:
+  push:
+    branches:
+      - feature/libretv-ipad-edition-product
   workflow_dispatch:
     inputs:
       confirm_preview_deploy:
@@ -17,7 +20,7 @@ concurrency:
 
 jobs:
   verify-and-deploy:
-    if: ${{ github.ref == 'refs/heads/feature/libretv-ipad-edition-product' && inputs.confirm_preview_deploy == 'yes' }}
+    if: ${{ github.ref == 'refs/heads/feature/libretv-ipad-edition-product' && ((github.event_name == 'push' && contains(github.event.head_commit.message, '[edgeone-preview]')) || (github.event_name == 'workflow_dispatch' && inputs.confirm_preview_deploy == 'yes')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     environment: edgeone-preview
@@ -96,6 +99,7 @@ jobs:
             process.exit(1);
           }
           const url = result.url;
+          process.stdout.write(`::add-mask::${url}\n`);
           const output = process.argv[3];
           const summary = process.argv[4];
           fs.appendFileSync(output, `preview_url=${url}\nproject_id=${result.projectId || ''}\nconsole_url=${result.consoleUrl || ''}\n`);
