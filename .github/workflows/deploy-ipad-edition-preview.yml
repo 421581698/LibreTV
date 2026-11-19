@@ -103,6 +103,7 @@ jobs:
           PLAYWRIGHT_DOWNLOAD_NO_PROGRESS: "1"
         run: npx playwright install chromium
       - name: Run iPad viewport and theme visual audit
+        timeout-minutes: 18
         run: |
           mkdir -p artifacts/ipad-visual-audit
           node --input-type=module <<'NODE'
@@ -391,7 +392,13 @@ jobs:
                     if (image) {
                       image.loading = 'eager';
                       if (typeof image.decode === 'function') {
-                        await image.decode().catch(() => {});
+                        // A single broken or stalled image decode must not hold the full
+                        // eight-viewport audit hostage. Record the failure in the later
+                        // rendered-pixel inspection instead of waiting indefinitely.
+                        await Promise.race([
+                          image.decode().catch(() => {}),
+                          new Promise(resolve => setTimeout(resolve, 8000)),
+                        ]);
                       }
                     }
                     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
