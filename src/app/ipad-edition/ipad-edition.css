@@ -1030,3 +1030,97 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
 @media (prefers-reduced-motion: reduce) {
   .ipad-nav__personal-tools { transition: none !important; }
 }
+
+
+/* Frozen iPad Edition capsule specification: 430px maximum width × 72px,
+   with four icon-only shortcuts and the original full pill silhouette. */
+.ipad-nav__topbar {
+  width: min(430px, calc(100vw - 24px)) !important;
+  height: 72px !important;
+  top: max(12px, calc(env(safe-area-inset-top, 0px) + 8px)) !important;
+}
+.ipad-nav__topbar-inner {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-around !important;
+  gap: 0 !important;
+  width: 100% !important;
+  height: 72px !important;
+  padding: 9px !important;
+  border-radius: 999px !important;
+  border: 1px solid var(--ipad-glass-edge, rgba(255,255,255,.72)) !important;
+  color: var(--ipad-nav-ink) !important;
+  background: var(--ipad-glass-fill, rgba(246,248,252,.72)) !important;
+  box-shadow: var(--ipad-glass-shadow, 0 16px 48px rgba(24,38,62,.14)) !important;
+}
+.ipad-nav__topbar-inner.liquid-glass[data-liquid-glass-engine="ready"] {
+  border-radius: 999px !important;
+  background: var(--ipad-glass-fill, rgba(246,248,252,.72)) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+}
+.ipad-nav__topbar-inner[data-liquid-glass-engine="fallback"] {
+  border-radius: 999px !important;
+  background: var(--ipad-glass-fill-strong, rgba(246,248,252,.86)) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+}
+.ipad-nav__capsule-action {
+  display: grid !important;
+  flex: 0 0 52px !important;
+  place-items: center !important;
+  width: 52px !important;
+  min-width: 52px !important;
+  height: 52px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 50% !important;
+  color: var(--ipad-nav-ink) !important;
+  background: transparent !important;
+  text-decoration: none !important;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 140ms ease, color 140ms ease, transform 140ms cubic-bezier(.2,.8,.2,1);
+}
+.ipad-nav__capsule-action .ipad-nav__icon {
+  width: 24px !important;
+  height: 24px !important;
+}
+.ipad-nav__capsule-action:hover,
+.ipad-nav__capsule-action.is-active {
+  color: var(--ipad-nav-ink) !important;
+  background: rgba(128, 140, 160, .16) !important;
+}
+.ipad-nav__capsule-action:active { transform: scale(.94); }
+.ipad-nav__capsule-action:focus-visible {
+  outline: 2px solid var(--ipad-accent);
+  outline-offset: 2px;
+}
+.ipad-nav__section-label--tools {
+  margin-top: 30px !important;
+}
+.ipad-nav__links a .ipad-nav__icon {
+  width: 22px;
+  height: 22px;
+}
+@media (max-width: 699px) {
+  .ipad-nav__topbar {
+    width: min(430px, calc(100vw - 24px)) !important;
+    height: 72px !important;
+    top: max(8px, calc(env(safe-area-inset-top, 0px) + 4px)) !important;
+  }
+  .ipad-nav__topbar-inner {
+    height: 72px !important;
+    padding: 9px !important;
+    gap: 0 !important;
+  }
+  .ipad-nav__capsule-action {
+    flex-basis: 52px !important;
+    width: 52px !important;
+    min-width: 52px !important;
+    height: 52px !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ipad-nav__capsule-action { transition: none !important; }
+}
