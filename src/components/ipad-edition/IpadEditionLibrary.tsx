@@ -5,6 +5,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, removeFavorite } from '@/lib/db';
 import { SmartImage } from '@/components/smart-image';
 import { useAppStore } from '@/lib/store';
+import { fromCmsArtwork } from '@/lib/poster';
 
 export function IpadEditionLibrary() {
   const favorites = useLiveQuery(() => db.favorites.orderBy('addedAt').reverse().toArray(), []);
@@ -21,7 +22,7 @@ export function IpadEditionLibrary() {
             if (item.sourceUrl) params.set('sourceUrl', item.sourceUrl);
             return <article className="ipad-edition__library-card" key={item.id}>
               <Link className="ipad-edition__poster-card" href={'/ipad-edition/detail?' + params.toString()}>
-                <span className="ipad-edition__poster-art">{item.pic ? <SmartImage url={item.pic} mode={imageProxyMode} customProxy={customImageProxy} alt={item.title} /> : <span>LibreTV</span>}</span>
+                <span className="ipad-edition__poster-art">{item.pic ? <SmartImage asset={fromCmsArtwork({ sourceKey: item.sourceKey, vodId: item.vodId, title: item.title, imageUrl: item.pic })} url={item.pic} mode={imageProxyMode} customProxy={customImageProxy} alt={item.title} /> : <span>LibreTV</span>}</span>
                 <strong>{item.title}</strong><small>{[item.year, item.typeName, item.sourceName].filter(Boolean).join(' · ')}</small>
               </Link>
               <button type="button" onClick={() => void removeFavorite(item.sourceKey, item.vodId)}>移出收藏</button>
