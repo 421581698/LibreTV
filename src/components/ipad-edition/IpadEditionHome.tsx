@@ -107,7 +107,7 @@ export function IpadEditionHome() {
             <Link className="ipad-edition__poster-card" data-ipad-poster-slot={id === 'ipad-popular-series' ? 'series' : id === 'ipad-new-releases' ? 'new-release' : 'movie'} data-poster-url={item.cover ?? ''} href={searchHref(item.title)} key={item.id || item.title}>
               <span className="ipad-edition__poster-art">
                 <SmartImage
-                  asset={id === 'ipad-anime-calendar' ? fromBangumiItem(item) : fromDoubanItem(item)}
+                  asset={fromDoubanItem(item)}
                   url={item.cover}
                   mode="proxy"
                   alt={item.title}
