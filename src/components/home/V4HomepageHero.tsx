@@ -7,6 +7,7 @@ import { fetchHomepageWithFallback } from '@/lib/homepage-recommendation-fallbac
 import { SmartImage } from '@/components/smart-image';
 import { useAppStore } from '@/lib/store';
 import type { DoubanItem } from '@/lib/types';
+import { fromDoubanItem } from '@/lib/poster';
 
 const AUTOPLAY_INTERVAL = 6_000;
 const MANUAL_PAUSE = 9_000;
@@ -87,6 +88,7 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
         <>
           <div className="v4-hero-image lg-media-frame" aria-hidden="true">
             <SmartImage
+              asset={fromDoubanItem(slide)}
               url={slide.cover}
               hdrUrl={slide.coverHdr}
               mode={imageProxyMode}
