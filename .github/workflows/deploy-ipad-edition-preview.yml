@@ -592,6 +592,13 @@ jobs:
                   const top = topbar?.getBoundingClientRect();
                   const copy = heroCopy?.getBoundingClientRect();
                   const heroRect = hero?.getBoundingClientRect();
+                  const heroContentElements = ['.ipad-edition__cinema-hero-kicker', '.ipad-edition__cinema-hero-copy h1', '.ipad-edition__cinema-hero-meta', '.ipad-edition__cinema-hero-cta']
+                    .map(selector => hero?.querySelector(selector)?.getBoundingClientRect())
+                    .filter(Boolean);
+                  const heroContentTop = heroContentElements.length ? Math.min(...heroContentElements.map(rect => rect.top)) : null;
+                  const heroContentBottom = heroContentElements.length ? Math.max(...heroContentElements.map(rect => rect.bottom)) : null;
+                  const heroContentCenterOffsetPx = heroRect && heroContentTop !== null && heroContentBottom !== null
+                    ? Math.round((heroContentTop + heroContentBottom) / 2 - (heroRect.top + heroRect.bottom) / 2) : null;
                   const heroTextOverlapsNavigation = Boolean(top && copy && top.left < copy.right && top.right > copy.left && top.top < copy.bottom && top.bottom > copy.top);
                   const heroOverlapsNavigation = Boolean(top && heroRect && top.left < heroRect.right && top.right > heroRect.left && top.top < heroRect.bottom && top.bottom > heroRect.top);
                   const heroClearancePx = top && heroRect ? Math.round(heroRect.top - top.bottom) : null;
@@ -615,6 +622,7 @@ jobs:
                     layoutDiagnostics,
                     heroTextOverlapsNavigation,
                     heroOverlapsNavigation,
+                    heroContentCenterOffsetPx,
                     heroClearancePx,
                     heroCtaWhiteSpace,
                     homepageStillLoading: Boolean(document.querySelector('.ipad-edition__poster-grid[aria-busy="true"]')) || (document.querySelector('.ipad-edition__cinema-hero-copy h1')?.textContent ?? '').includes('正在为你准备影院'),
@@ -768,7 +776,7 @@ jobs:
                 await page.evaluate(() => window.scrollTo(0, 0));
                 await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
                 await page.screenshot({ path: "artifacts/ipad-visual-audit/" + name + ".png", fullPage: false, animations: "disabled" });
-                const failed = !sidebarInteractionPassed || sidebarInteraction.diagnostics.finalState?.computedStyle?.position !== "fixed" || response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.y > 220 || metrics.main.width < viewport.width * 0.7 || metrics.homepageStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.posterImageLoadRate < 0.75 || !metrics.posterPixelInspectionPassed || metrics.heroTextOverlapsNavigation || metrics.heroOverlapsNavigation || !Number.isFinite(metrics.heroClearancePx) || metrics.heroClearancePx < 8 || metrics.heroCtaWhiteSpace !== "nowrap" || metrics.heroClearancePx > 144 || !metrics.hero || metrics.hero.y < 0 || metrics.hero.y > Math.min(160, viewport.height * 0.25) || !metrics.themePairValid || !scrollAudit.navigationViewportValid || scrollAudit.overlappingPosterLabels.length > 0;
+                const failed = !sidebarInteractionPassed || sidebarInteraction.diagnostics.finalState?.computedStyle?.position !== "fixed" || response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.y > 220 || metrics.main.width < viewport.width * 0.7 || metrics.homepageStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.posterImageLoadRate < 0.75 || !metrics.posterPixelInspectionPassed || metrics.heroTextOverlapsNavigation || metrics.heroOverlapsNavigation || !Number.isFinite(metrics.heroClearancePx) || metrics.heroClearancePx < 8 || metrics.heroCtaWhiteSpace !== "nowrap" || (viewport.width >= 700 && Math.abs(metrics.heroContentCenterOffsetPx ?? Infinity) > (metrics.hero?.height ?? 0) * 0.12) || metrics.heroClearancePx > 144 || !metrics.hero || metrics.hero.y < 0 || metrics.hero.y > Math.min(160, viewport.height * 0.25) || !metrics.themePairValid || !scrollAudit.navigationViewportValid || scrollAudit.overlappingPosterLabels.length > 0;
                 if (failed) failures += 1;
                 results.push({ name, httpStatus: response?.status() ?? null, failed, sidebarInteractionPassed, sidebarInteraction, metrics, pageErrors: consoleErrors });
                 console.log(JSON.stringify(results.at(-1)));
