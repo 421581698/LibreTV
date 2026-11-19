@@ -795,56 +795,6 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
 }
 .ipad-nav__menu-button:active { background: rgba(128, 140, 160, .16); }
 .ipad-nav__icon { display: block; width: 21px; height: 21px; }
-.ipad-nav__wordmark {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  color: inherit;
-  font-size: 16px;
-  font-weight: 760;
-  letter-spacing: -.035em;
-}
-.ipad-nav__wordmark-mark,
-.ipad-nav__brand-mark {
-  display: grid;
-  place-items: center;
-  width: 31px;
-  height: 31px;
-  border-radius: 10px;
-  color: #fff;
-  background: #e5a83b;
-  font-size: 17px;
-  font-weight: 800;
-}
-.ipad-nav__wordmark small {
-  margin-left: 2px;
-  color: var(--ipad-nav-muted);
-  font-size: 11px;
-  font-weight: 550;
-  letter-spacing: .12em;
-}
-.ipad-nav__topbar-spacer { flex: 1; }
-.ipad-nav__quick-search {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-width: 104px;
-  min-height: 40px;
-  padding: 0 13px;
-  border: 1px solid var(--ipad-nav-line);
-  border-radius: 12px;
-  color: inherit;
-  background: rgba(128, 140, 160, .09);
-  font-size: 12px;
-  font-weight: 650;
-}
-.ipad-nav__quick-search .ipad-nav__icon { width: 17px; height: 17px; }
-.ipad-nav__quick-search.is-active {
-  border-color: rgba(229, 168, 59, .42);
-  color: #e5a83b;
-  background: rgba(229, 168, 59, .1);
-}
 .ipad-nav__sidebar {
   position: fixed;
   z-index: 100;
@@ -1021,6 +971,7 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
 
 
 /* [deploy-ipad-edition-preview] Navigation hierarchy: capsule categories + personal/tools sidebar. */
+/* Retire the former wordmark/search-only topbar controls; the capsule now owns category navigation. */
 .ipad-nav__topbar {
   width: min(980px, calc(100vw - 36px));
 }
