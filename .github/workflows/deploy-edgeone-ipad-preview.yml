@@ -86,7 +86,7 @@ jobs:
           set -e
           node - "$WHOAMI_OUTPUT" <<'NODE'
           const raw = process.argv[2] || '';
-          const lines = raw.split(/\\r?\\n/).filter(Boolean);
+          const lines = raw.split('\n').filter(Boolean);
           let result;
           for (let i = lines.length - 1; i >= 0; i--) {
             try { result = JSON.parse(lines[i]); break; } catch {}
@@ -94,7 +94,7 @@ jobs:
           if (!result || result.authenticated !== true) {
             const code = result?.errorCode || result?.status || 'identity_unverified';
             console.error(`EdgeOne identity check did not confirm authentication (${code}).`);
-            if (result?.message) console.error(String(result.message).replace(/https?:\\/\\/\\S+/g, '[URL redacted]'));
+            // Provider messages are omitted to avoid leaking credential-bearing URLs.
             process.exit(1);
           }
           console.log('EdgeOne API token authentication confirmed.');
@@ -117,7 +117,7 @@ jobs:
           OUTPUT="$(edgeone makers deploy ./.next -n nks -e preview --json 2>&1)"
           DEPLOY_EXIT=$?
           set -e
-          LAST_LINE="$(printf '%s\\n' "$OUTPUT" | tail -n 1)"
+          LAST_LINE="$(printf '%s\n' "$OUTPUT" | tail -n 1)"
           if [ "$DEPLOY_EXIT" -ne 0 ]; then
             EDGEONE_SAFE_TOKEN="$EDGEONE_PAGES_API_TOKEN" node - "$LAST_LINE" <<'NODE'
           let result;
