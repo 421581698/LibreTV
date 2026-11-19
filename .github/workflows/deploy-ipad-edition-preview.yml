@@ -226,6 +226,14 @@ jobs:
                 await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 180, y: 260, id: 1, force: 1 }] });
                 await touchSession.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
                 await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'true', undefined, { timeout: 5000 });
+                // Wait for the rendered CSS state, not only React's aria-expanded state.
+                await page.waitForFunction(() => {
+                  const sidebar = document.querySelector('.ipad-nav__sidebar');
+                  if (!sidebar) return false;
+                  const style = getComputedStyle(sidebar);
+                  const rect = sidebar.getBoundingClientRect();
+                  return style.display !== 'none' && style.visibility === 'visible' && rect.width > 0;
+                }, undefined, { timeout: 1200 }).catch(() => {});
                 sidebarInteraction.edgeSwipeOpened = await page.locator('.ipad-nav__sidebar.is-open').isVisible();
                 if (sidebarInteraction.edgeSwipeOpened) {
                   await touchSession.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 220, y: 260, id: 1, force: 1 }] });
@@ -245,7 +253,23 @@ jobs:
                   expanded: document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') ?? null,
                   sidebarClass: document.querySelector('.ipad-nav__sidebar')?.className ?? null,
                   sidebarVisible: Boolean(document.querySelector('.ipad-nav__sidebar')?.getBoundingClientRect().width &&
-                    getComputedStyle(document.querySelector('.ipad-nav__sidebar')).visibility !== 'hidden'),
+                    getComputedStyle(document.querySelector('.ipad-nav__sidebar')).visibility === 'visible' &&
+                    getComputedStyle(document.querySelector('.ipad-nav__sidebar')).display !== 'none'),
+                  computedStyle: (() => {
+                    const sidebar = document.querySelector('.ipad-nav__sidebar');
+                    if (!sidebar) return null;
+                    const style = getComputedStyle(sidebar);
+                    const rect = sidebar.getBoundingClientRect();
+                    return {
+                      display: style.display,
+                      visibility: style.visibility,
+                      width: style.width,
+                      rectWidth: rect.width,
+                      transform: style.transform,
+                      transitionProperty: style.transitionProperty,
+                      transitionDuration: style.transitionDuration,
+                    };
+                  })(),
                   dragging: document.querySelector('.ipad-edition')?.getAttribute('data-ipad-sidebar-dragging') ?? null,
                 }));
               }
