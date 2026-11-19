@@ -37,6 +37,10 @@ import './pr84-apple-tv-dock.css';
 import './pr84-watch-mobile-fix.css';
 // PR #84 Resource Studio: route-scoped dark theme and isolated mobile dock.
 import './resource-studio.css';
+// FINAL: route-agnostic iPhone dock contract. Guarantees one horizontal dock on
+// every mobile route (incl. /live) so pages outside the :has() whitelist never
+// fall back to the engine's vertical capsule. Must stay last.
+import './iphone-dock-unify.css';
 import { Providers } from '@/components/providers';
 import { MobileTabBar } from '@/components/home/header/MobileTabBar';
 import { GlobalDownloadManager } from '@/components/download-manager';
