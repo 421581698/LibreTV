@@ -8,6 +8,7 @@ import { api } from '@/lib/client-api';
 import { fetchHomepageWithFallback } from '@/lib/homepage-recommendation-fallback';
 import { useAppStore } from '@/lib/store';
 import type { DoubanItem } from '@/lib/types';
+import { fromBangumiItem, fromDoubanItem } from '@/lib/poster';
 import { IpadEditionContinueWatching } from '@/components/ipad-edition/IpadEditionContinueWatching';
 
 const RAIL_SIZE = 10;
@@ -106,6 +107,7 @@ export function IpadEditionHome() {
             <Link className="ipad-edition__poster-card" data-ipad-poster-slot={id === 'ipad-popular-series' ? 'series' : id === 'ipad-new-releases' ? 'new-release' : 'movie'} data-poster-url={item.cover ?? ''} href={searchHref(item.title)} key={item.id || item.title}>
               <span className="ipad-edition__poster-art">
                 <SmartImage
+                  asset={id === 'ipad-anime-calendar' ? fromBangumiItem(item) : fromDoubanItem(item)}
                   url={item.cover}
                   mode="proxy"
                   alt={item.title}
@@ -139,6 +141,7 @@ export function IpadEditionHome() {
             </div>
             <div className="ipad-edition__hero-art">
               <SmartImage
+                asset={fromDoubanItem(hero)}
                 url={hero.cover}
                 mode="proxy"
                 alt=""
@@ -211,6 +214,7 @@ export function IpadEditionHome() {
               <Link href={searchHref(item.title)} className="ipad-edition__anime-card" data-ipad-poster-slot="anime" data-poster-url={item.cover ?? ''} key={item.id}>
                 <span>
                   <SmartImage
+                    asset={fromBangumiItem(item)}
                     url={item.cover}
                     mode="proxy"
                       alt={item.title}
