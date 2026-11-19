@@ -346,16 +346,30 @@ jobs:
                   });
                   await cssSession.send('DOM.enable');
                   await cssSession.send('CSS.enable');
+                  // Keep one DOM document snapshot. DOM.getFlattenedDocument can invalidate
+                  // node IDs obtained from DOM.getDocument in Chromium; querying with the
+                  // earlier documentNode after flattening caused the previous audit failure.
                   const { root: documentNode } = await cssSession.send('DOM.getDocument', { depth: -1, pierce: true });
-                  const { nodes: flatNodes } = await cssSession.send('DOM.getFlattenedDocument', { depth: -1, pierce: true });
-                  const nodesById = new Map(flatNodes.map(node => [node.nodeId, node]));
-                  const parentById = new Map(flatNodes.map(node => [node.nodeId, node.parentId]));
-                  const relevantProperties = new Set([
-                    'display','position','top','right','bottom','left','inset','height','min-height','max-height',
-                    'margin','margin-top','margin-bottom','padding','padding-top','padding-bottom',
-                    'gap','row-gap','grid-template-rows','flex','flex-direction','align-items','justify-content',
-                    'transform','translate','contain','content-visibility','overflow','visibility',
-                  ]);
+                  const nodesById = new Map();
+                  const parentById = new Map();
+                  const visitNode = (node, parentId = null) => {
+                    if (!node || !node.nodeId) return;
+                    nodesById.set(node.nodeId, node);
+                    if (parentId !== null) parentById.set(node.nodeId, parentId);
+                    const children = [
+                      ...(node.children ?? []),
+                      ...(node.shadowRoots ?? []),
+                      ...(node.templateContent ? [node.templateContent] : []),
+                      ...(node.contentDocument ? [node.contentDocument] : []),
+                    ];
+                    for (const child of children) visitNode(child, node.nodeId);
+                  };
+                  visitNode(documentNode);
+                  const attribute = (node, name) => {
+                    const index = (node?.attributes ?? []).indexOf(name);
+                    return index >= 0 ? node.attributes[index + 1] ?? '' : '';
+                  };
+                  const hasClass = (node, name) => attribute(node, 'class').split(/\\s+/).includes(name);
                   const selectors = [
                     '[data-ipad-edition="true"]',
                     '.ipad-nav__sidebar',
@@ -365,12 +379,18 @@ jobs:
                     'body',
                     'html',
                   ];
-                  const targetNodeIds = {};
+                  const findNodeId = selector => {
+                    const node = [...nodesById.values()].find(candidate => {
+                      if (selector === '[data-ipad-edition="true"]') return attribute(candidate, 'data-ipad-edition') === 'true';
+                      if (selector.startsWith('.')) return hasClass(candidate, selector.slice(1));
+                      return candidate.nodeName?.toLowerCase() === selector;
+                    });
+                    return node?.nodeId ?? null;
+                  };
+                  const targetNodeIds = Object.fromEntries(selectors.map(selector => [selector, findNodeId(selector)]));
                   const requestedNodeIds = new Set();
                   for (const selector of selectors) {
-                    const { nodeId } = await cssSession.send('DOM.querySelector', { nodeId: documentNode.nodeId, selector });
-                    targetNodeIds[selector] = nodeId || null;
-                    let current = nodeId;
+                    let current = targetNodeIds[selector];
                     let depth = 0;
                     while (current && depth < 12 && !requestedNodeIds.has(current)) {
                       requestedNodeIds.add(current);
@@ -381,25 +401,47 @@ jobs:
                   const matchedNodes = await Promise.all([...requestedNodeIds].map(async nodeId => {
                     const node = nodesById.get(nodeId);
                     const matched = await cssSession.send('CSS.getMatchedStylesForNode', { nodeId });
+                    const computed = await cssSession.send('CSS.getComputedStyleForNode', { nodeId });
                     const properties = style => (style?.cssProperties ?? [])
                       .filter(property => relevantProperties.has(property.name) && !property.disabled)
                       .map(property => ({ name: property.name, value: property.value, important: Boolean(property.important) }));
+                    const computedProperties = (computed.computedStyle ?? [])
+                      .filter(property => relevantProperties.has(property.name))
+                      .map(property => ({ name: property.name, value: property.value }));
+                    const serializeRule = ({ rule, matchingSelectors }) => ({
+                      selector: rule.selectorList?.text ?? '',
+                      matchingSelectors: matchingSelectors ?? [],
+                      origin: rule.origin,
+                      styleSheetId: rule.style?.styleSheetId ?? null,
+                      stylesheet: stylesheetById.get(rule.style?.styleSheetId) ?? null,
+                      sourceRange: rule.style?.range ?? null,
+                      media: rule.media ?? [],
+                      supports: rule.supports ?? [],
+                      layers: rule.layers ?? [],
+                      declarations: properties(rule.style),
+                    });
                     return {
                       nodeId,
                       parentNodeId: parentById.get(nodeId) ?? null,
                       nodeName: node?.nodeName ?? null,
                       nodeValue: node?.nodeValue ?? null,
                       attributes: node?.attributes ?? [],
+                      computedProperties,
                       inlineStyle: properties(matched.inlineStyle),
-                      matchedRules: (matched.matchedCSSRules ?? []).map(({ rule }) => ({
-                        selector: rule.selectorList?.text ?? '',
-                        origin: rule.origin,
-                        stylesheet: stylesheetById.get(rule.style?.styleSheetId) ?? null,
-                        declarations: properties(rule.style),
-                      })).filter(rule => rule.declarations.length > 0),
+                      matchedRules: (matched.matchedCSSRules ?? []).map(serializeRule).filter(rule => rule.declarations.length > 0),
+                      inheritedRules: (matched.inherited ?? []).map(entry => ({
+                        nodeName: entry.inlineStyle?.cssProperties ? 'inline' : null,
+                        matchedRules: (entry.matchedCSSRules ?? []).map(serializeRule).filter(rule => rule.declarations.length > 0),
+                      })),
                     };
                   }));
-                  layoutDiagnostics.matchedCssOrigins = { selectors, targetNodeIds, matchedNodes };
+                  layoutDiagnostics.matchedCssOrigins = {
+                    selectors,
+                    targetNodeIds,
+                    documentNodeCount: nodesById.size,
+                    stylesheetCount: stylesheetById.size,
+                    matchedNodes,
+                  };
                 } catch (error) {
                   layoutDiagnostics.matchedCssCaptureError = String(error);
                 } finally {
