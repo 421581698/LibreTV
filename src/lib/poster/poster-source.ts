@@ -68,6 +68,42 @@ export function fromCmsArtwork(input: {
   });
 }
 
+export function fromEpisodeArtwork(input: {
+  sourceKey: string;
+  vodId: string;
+  episodeIndex: number;
+  title: string;
+  imageUrl?: string | null;
+  imageSource?: 'tmdb';
+  tmdbEpisodeId?: number;
+  tmdbSeriesId?: number;
+  seasonNumber?: number;
+  episodeNumber?: number;
+}): PosterAsset | undefined {
+  if (input.imageSource === 'tmdb') {
+    const episodeIdentity = input.tmdbEpisodeId != null
+      ? String(input.tmdbEpisodeId)
+      : input.tmdbSeriesId != null && input.seasonNumber != null && input.episodeNumber != null
+        ? `${input.tmdbSeriesId}:s${input.seasonNumber}:e${input.episodeNumber}`
+        : undefined;
+    if (!episodeIdentity) return undefined;
+    return createPosterAsset({
+      provider: 'tmdb',
+      providerItemId: episodeIdentity,
+      title: input.title,
+      imageUrl: input.imageUrl,
+      kind: 'still',
+    });
+  }
+  return fromCmsArtwork({
+    sourceKey: input.sourceKey,
+    vodId: `${input.vodId}:episode:${input.episodeIndex + 1}`,
+    title: input.title,
+    imageUrl: input.imageUrl,
+    kind: 'still',
+  });
+}
+
 export function fromCmsSearchResult(item: SearchResultItem): PosterAsset | undefined {
   return fromCmsArtwork({
     sourceKey: item.sourceKey,
