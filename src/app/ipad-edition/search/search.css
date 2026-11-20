@@ -732,3 +732,47 @@ body:has(.ipad-edition__search-page) {
   .ipad-edition .ipad-edition__search-page .ipad-edition__category-grid button { min-width: 76px; min-height: 42px; padding-inline: 15px; }
   .ipad-edition .ipad-edition__search-page .ipad-edition__result-grid { grid-template-columns: repeat(3,minmax(0,1fr)) !important; }
 }
+
+
+/* Search is a fixed cinema-black surface, independent of the adaptive app theme.
+   The environment engine may switch the shell to light mode while the user is
+   interacting; keep this route and the browser's native form controls dark. */
+.ipad-edition[data-environment="light"]:has(.ipad-edition__search-page) {
+  --ipad-page: #08090c !important;
+  --ipad-surface: rgba(28, 28, 30, .58) !important;
+  --ipad-surface-solid: #171719 !important;
+  --ipad-text: #f5f5f7 !important;
+  --ipad-muted: rgba(235, 235, 245, .62) !important;
+  --ipad-line: rgba(255, 255, 255, .09) !important;
+  --ipad-glass-fill: rgba(34, 36, 42, .62) !important;
+  --ipad-glass-fill-strong: rgba(24, 26, 31, .88) !important;
+  --ipad-glass-edge: rgba(255, 255, 255, .16) !important;
+  color: #f5f5f7 !important;
+  background: #08090c !important;
+}
+html:has(.ipad-edition[data-environment="light"] .ipad-edition__search-page):has(.ipad-edition__search-page),
+body:has(.ipad-edition[data-environment="light"] .ipad-edition__search-page):has(.ipad-edition__search-page) {
+  color-scheme: dark !important;
+  background: #08090c !important;
+}
+.ipad-edition .ipad-edition__search-page {
+  color-scheme: dark;
+  background: #08090c;
+}
+.ipad-edition .ipad-edition__search-page input,
+.ipad-edition .ipad-edition__search-page select,
+.ipad-edition .ipad-edition__search-page textarea {
+  color-scheme: dark;
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: transparent;
+}
+.ipad-edition .ipad-edition__search-page input:-webkit-autofill,
+.ipad-edition .ipad-edition__search-page input:-webkit-autofill:hover,
+.ipad-edition .ipad-edition__search-page input:-webkit-autofill:focus,
+.ipad-edition .ipad-edition__search-page input:-webkit-autofill:active {
+  -webkit-text-fill-color: #f5f5f7 !important;
+  caret-color: #f5f5f7;
+  -webkit-box-shadow: 0 0 0 1000px #1c1c1e inset !important;
+  box-shadow: 0 0 0 1000px #1c1c1e inset !important;
+}
