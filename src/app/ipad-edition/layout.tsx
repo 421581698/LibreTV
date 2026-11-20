@@ -1,7 +1,15 @@
 import type { ReactNode } from 'react';
+import type { Viewport } from 'next';
 import { IpadEditionShell } from '@/components/ipad-edition/IpadEditionShell';
 import './ipad-edition.css';
 import './poster-engine.css';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#000000',
+};
 
 export const metadata = {
   title: 'LibreTV iPad Edition',
