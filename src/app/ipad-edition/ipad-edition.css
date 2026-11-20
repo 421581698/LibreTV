@@ -156,12 +156,6 @@
   
   --ipad-glass-active: rgba(120, 150, 255, .28);
   --ipad-glass-active-edge: rgba(160, 185, 255, .24);
-} .ipad-edition__category-grid button, .ipad-edition__collection-tabs button, .ipad-edition__pagination button, .ipad-edition__library-card > button{
-  border: 1px solid var(--ipad-glass-edge) !important;
-  background: linear-gradient(145deg, rgba(255,255,255,.26), transparent 56%), var(--ipad-glass-fill) !important;
-  box-shadow: 0 10px 30px rgba(15,25,40,.08), inset 0 1px 0 var(--ipad-glass-highlight) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
-  backdrop-filter: blur(24px) saturate(180%) !important;
 } .ipad-edition[data-environment="dark"] .ipad-edition__category-grid button, .ipad-edition[data-environment="dark"] .ipad-edition__collection-tabs button, .ipad-edition[data-environment="dark"] .ipad-edition__pagination button, .ipad-edition[data-environment="dark"] .ipad-edition__library-card > button{
   border-color: var(--ipad-glass-edge) !important;
   background: linear-gradient(145deg, rgba(255,255,255,.1), transparent 56%), var(--ipad-glass-fill) !important;
@@ -283,7 +277,6 @@
 }.ipad-edition__main {
   width: 100%;
   min-width: 0;
-  max-width: none !important;
   margin: 0 auto;
 }.ipad-edition__home {
   min-width: 0;
@@ -532,8 +525,6 @@
   --ipad-glass-shadow: 0 16px 48px rgba(24, 38, 62, .14), 0 3px 10px rgba(24, 38, 62, .07);
   color: var(--ipad-text) !important;
   background: radial-gradient(ellipse at 75% -8%, rgba(186, 204, 235, .34), transparent 43%), var(--ipad-page) !important;
-}html:has(.ipad-edition[data-environment="light"]), body:has(.ipad-edition[data-environment="light"]) {
-  background: #f5f5f7 !important;
 }/* iPad Edition owns its top Liquid Glass navigation. The shared mobile dock is
    portaled directly under body, so hiding descendants of .ipad-edition is not
    sufficient; explicitly exclude that portal on this route. */
@@ -845,11 +836,7 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
 .ipad-nav__topbar-inner {
   display: flex !important;
   align-items: center !important;
-  justify-content: space-around !important;
-  gap: 0 !important;
   width: 100% !important;
-  height: 72px !important;
-  padding: 9px !important;
   border-radius: 999px !important;
   border: 1px solid var(--ipad-glass-edge, rgba(255,255,255,.72)) !important;
   color: var(--ipad-nav-ink) !important;
@@ -870,11 +857,7 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
 }
 .ipad-nav__capsule-action {
   display: grid !important;
-  flex: 0 0 52px !important;
   place-items: center !important;
-  width: 52px !important;
-  min-width: 52px !important;
-  height: 52px !important;
   padding: 0 !important;
   border: 0 !important;
   border-radius: 50% !important;
@@ -885,22 +868,10 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
   -webkit-tap-highlight-color: transparent;
   transition: background-color 140ms ease, color 140ms ease, transform 140ms cubic-bezier(.2,.8,.2,1);
 }
-.ipad-nav__capsule-action .ipad-nav__icon {
-  width: 24px !important;
-  height: 24px !important;
-}
-.ipad-nav__capsule-action:hover,
-.ipad-nav__capsule-action.is-active {
-  color: var(--ipad-nav-ink) !important;
-  background: rgba(128, 140, 160, .16) !important;
-}
 .ipad-nav__capsule-action:active { transform: scale(.94); }
 .ipad-nav__capsule-action:focus-visible {
   outline: 2px solid var(--ipad-accent);
   outline-offset: 2px;
-}
-.ipad-nav__section-label--tools {
-  margin-top: 30px !important;
 }
 .ipad-nav__links a .ipad-nav__icon {
   width: 22px;
@@ -908,20 +879,10 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
 }
 @media (max-width: 699px) {
   .ipad-nav__topbar {
-    width: min(430px, calc(100vw - 24px)) !important;
-    height: 72px !important;
     top: max(8px, calc(env(safe-area-inset-top, 0px) + 4px)) !important;
   }
   .ipad-nav__topbar-inner {
-    height: 72px !important;
-    padding: 9px !important;
     gap: 0 !important;
-  }
-  .ipad-nav__capsule-action {
-    flex-basis: 52px !important;
-    width: 52px !important;
-    min-width: 52px !important;
-    height: 52px !important;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1061,10 +1022,6 @@ body:has(.ipad-edition[data-environment="light"]) {
   color: #171b24 !important;
   box-shadow: 0 12px 36px rgba(25,35,52,.18), inset 0 1px 0 rgba(255,255,255,.9) !important;
 }
-.ipad-edition[data-environment="light"] .ipad-nav__capsule-action:hover,
-.ipad-edition[data-environment="light"] .ipad-nav__capsule-action.is-active {
-  background: rgba(25,35,52,.1) !important;
-}
 
 /* A horizontally scrolling rail needs equal leading and trailing breathing room. */
 .ipad-edition__poster-grid,
@@ -1128,10 +1085,6 @@ body:has(.ipad-edition[data-environment="light"]) {
 }
 .ipad-edition[data-environment="light"] .ipad-nav__capsule-action {
   color: #202633 !important;
-}
-.ipad-edition[data-environment="light"] .ipad-nav__capsule-action.is-active {
-  background: rgba(25,35,52,.13) !important;
-  box-shadow: inset 0 0 0 1px rgba(25,35,52,.08) !important;
 }
 
 /* Preserve equal scroll-rail insets and a real trailing end-cap after the last card. */
@@ -1207,54 +1160,54 @@ body:has(.ipad-edition[data-environment="light"]) {
   gap: 0 !important;
 }
 .ipad-nav__brand {
-  gap: 12px !important;
-  padding: 4px 8px 28px !important;
-  margin-bottom: 4px !important;
-  border-bottom: 1px solid var(--ipad-nav-line) !important;
+  gap: 12px ;
+  padding: 4px 8px 28px ;
+  margin-bottom: 4px ;
+  border-bottom: 1px solid var(--ipad-nav-line) ;
 }
 .ipad-nav__brand-mark {
-  flex: 0 0 38px !important;
-  width: 38px !important;
-  height: 38px !important;
-  display: grid !important;
-  place-items: center !important;
-  border-radius: 12px !important;
-  background: rgba(128, 140, 160, .14) !important;
-  color: var(--ipad-nav-ink) !important;
-  font-size: 19px !important;
-  font-weight: 800 !important;
+  flex: 0 0 38px ;
+  width: 38px ;
+  height: 38px ;
+  display: grid ;
+  place-items: center ;
+  border-radius: 12px ;
+  background: rgba(128, 140, 160, .14) ;
+  color: var(--ipad-nav-ink) ;
+  font-size: 19px ;
+  font-weight: 800 ;
 }
-.ipad-nav__brand-copy strong { font-size: 17px !important; }
-.ipad-nav__brand-copy small { font-size: 8px !important; letter-spacing: .16em !important; }
+.ipad-nav__brand-copy strong { font-size: 17px ; }
+.ipad-nav__brand-copy small { font-size: 8px ; letter-spacing: .16em ; }
 .ipad-nav__section-label {
-  margin: 22px 10px 9px !important;
-  font-size: 9px !important;
-  letter-spacing: .18em !important;
+  margin: 22px 10px 9px ;
+  font-size: 9px ;
+  letter-spacing: .18em ;
   opacity: .72;
 }
 .ipad-nav__links { gap: 5px !important; }
 .ipad-nav__links a {
-  min-height: 46px !important;
-  gap: 13px !important;
-  padding: 0 13px !important;
-  border-radius: 13px !important;
-  font-size: 14px !important;
-  font-weight: 620 !important;
+  min-height: 46px ;
+  gap: 13px ;
+  padding: 0 13px ;
+  border-radius: 13px ;
+  font-size: 14px ;
+  font-weight: 620 ;
 }
 .ipad-nav__links a .ipad-nav__icon {
-  width: 20px !important;
-  height: 20px !important;
+  width: 20px ;
+  height: 20px ;
   opacity: .88;
 }
 .ipad-nav__section-label--tools {
-  margin-top: 25px !important;
-  padding-top: 20px !important;
-  border-top: 1px solid var(--ipad-nav-line) !important;
+  margin-top: 25px ;
+  padding-top: 20px ;
+  border-top: 1px solid var(--ipad-nav-line) ;
 }
 .ipad-nav__links a.is-active {
-  border-color: rgba(128, 140, 160, .2) !important;
-  color: var(--ipad-nav-ink) !important;
-  background: rgba(128, 140, 160, .14) !important;
+  border-color: rgba(128, 140, 160, .2) ;
+  color: var(--ipad-nav-ink) ;
+  background: rgba(128, 140, 160, .14) ;
 }
 .ipad-edition[data-environment="dark"] .ipad-nav__links a.is-active {
   border-color: rgba(255, 255, 255, .13) !important;
@@ -1265,7 +1218,7 @@ body:has(.ipad-edition[data-environment="light"]) {
   background: rgba(30, 38, 52, .08) !important;
 }
 .ipad-nav__links a.is-active .ipad-nav__icon {
-  color: var(--ipad-nav-ink) !important;
+  color: var(--ipad-nav-ink) ;
 }
 .ipad-nav__links a.is-active::before {
   content: "";
@@ -1279,15 +1232,15 @@ body:has(.ipad-edition[data-environment="light"]) {
   opacity: .72;
   transform: translateY(-50%);
 }
-.ipad-nav__links a i { display: none !important; }
+.ipad-nav__links a i { display: none ; }
 .ipad-nav__personal-tools.is-active {
-  border-color: rgba(128, 140, 160, .22) !important;
-  color: var(--ipad-nav-ink) !important;
-  background: rgba(128, 140, 160, .14) !important;
+  border-color: rgba(128, 140, 160, .22) ;
+  color: var(--ipad-nav-ink) ;
+  background: rgba(128, 140, 160, .14) ;
 }
 .ipad-nav__sidebar-foot {
-  margin-top: auto !important;
-  padding: 15px 9px 0 !important;
+  margin-top: auto ;
+  padding: 15px 9px 0 ;
 }
 @media (max-width: 699px) {
   .ipad-nav__topbar {
