@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { inspectSpatialAudioCapabilities, isMediaElementAudioOriginSafe, planSpatialAudio } from './spatial-audio';
+import { inspectSpatialAudioCapabilities, isAudioSourceUrlOriginSafe, isMediaElementAudioOriginSafe, planSpatialAudio } from './spatial-audio';
 
 describe('planSpatialAudio', () => {
   it('keeps the original route when spatial processing is off', () => {
@@ -60,5 +60,13 @@ describe('isMediaElementAudioOriginSafe', () => {
   it('allows cross-origin media only when the element is configured for CORS', () => {
     expect(isMediaElementAudioOriginSafe(media('https://cdn.example/movie.mp4', 'anonymous'), 'https://libretv.example')).toBe(true);
     expect(isMediaElementAudioOriginSafe(media('https://cdn.example/movie.mp4', 'use-credentials'), 'https://libretv.example')).toBe(true);
+  });
+});
+
+describe('isAudioSourceUrlOriginSafe', () => {
+  it('checks a prospective source URL before it is assigned to a media element', () => {
+    expect(isAudioSourceUrlOriginSafe('blob:https://libretv.example/abc', 'https://libretv.example')).toBe(true);
+    expect(isAudioSourceUrlOriginSafe('https://cdn.example/movie.mp4', 'https://libretv.example')).toBe(false);
+    expect(isAudioSourceUrlOriginSafe('https://cdn.example/movie.mp4', 'https://libretv.example', 'anonymous')).toBe(true);
   });
 });
