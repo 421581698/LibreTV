@@ -566,3 +566,169 @@ body:has(.ipad-edition__search-page) {
     font-size: 14px;
   }
 }
+
+
+/* iPadOS-inspired refinement: quiet hierarchy, generous spacing, native-feeling controls. */
+.ipad-edition .ipad-edition__search-page {
+  width: min(100%, 1540px);
+  padding: clamp(28px, 4vw, 56px) clamp(32px, 5vw, 76px) 80px;
+  gap: clamp(34px, 4.5vw, 58px);
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-hero {
+  width: 100%;
+  max-width: 980px;
+  gap: 22px;
+  padding-top: 0;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-hero__copy h1 {
+  font-size: 32px;
+  line-height: 1.2;
+  font-weight: 650;
+  letter-spacing: -.04em;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form {
+  width: 100%;
+  min-height: 60px;
+  padding: 5px 7px 5px 20px;
+  gap: 12px;
+  border-radius: 18px;
+  border-color: rgba(255,255,255,.075);
+  background: #1c1c1e;
+  box-shadow: none;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form:focus-within {
+  border-color: rgba(255,255,255,.24);
+  background: #222225;
+  box-shadow: 0 0 0 3px rgba(255,255,255,.035);
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form input {
+  min-height: 48px;
+  font-size: 17px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form input::placeholder {
+  color: rgba(235,235,245,.38);
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form button {
+  min-height: 44px;
+  border-radius: 13px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-clear {
+  width: 36px;
+  min-width: 36px;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(255,255,255,.08);
+  color: rgba(245,245,247,.75);
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-submit {
+  min-width: 76px;
+  background: #f5f5f7;
+  color: #171719;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-discovery {
+  width: 100%;
+  max-width: 1280px;
+  gap: 30px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-quick {
+  gap: 0;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-quick__items {
+  gap: 10px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-quick button {
+  min-height: 42px;
+  padding: 0 17px;
+  border: 0;
+  border-radius: 12px;
+  background: #1c1c1e;
+  color: rgba(245,245,247,.82);
+  font-size: 14px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-quick button:hover {
+  background: #2c2c2e;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-section-heading {
+  margin-bottom: -14px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-section-heading h2 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__category-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px !important;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__category-grid button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 88px;
+  min-height: 46px;
+  padding: 0 20px;
+  border: 1px solid rgba(255,255,255,.075);
+  border-radius: 13px !important;
+  background: #1c1c1e !important;
+  box-shadow: none;
+  text-align: center;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__category-grid button span {
+  font-size: 15px;
+  font-weight: 560;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__category-grid button:hover {
+  transform: none;
+  border-color: rgba(255,255,255,.2);
+  background: #2c2c2e !important;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-results-heading h2 {
+  font-size: 22px;
+  font-weight: 650;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__result-grid {
+  gap: 26px 20px !important;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__result-poster {
+  border-radius: 9px;
+  border-color: rgba(255,255,255,.06);
+  box-shadow: none;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__result-card:hover .ipad-edition__result-poster {
+  transform: translateY(-2px);
+  box-shadow: none;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__result-card > strong {
+  font-size: 14px;
+  font-weight: 560;
+  line-height: 1.45;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-source-filter select {
+  min-height: 42px;
+  border-radius: 12px;
+  background: #1c1c1e;
+}
+@media (min-width: 900px) {
+  .ipad-edition .ipad-edition__search-page .ipad-search-hero__copy h1 { font-size: 34px; }
+}
+@media (max-width: 899px) {
+  .ipad-edition .ipad-edition__search-page {
+    padding: 26px 26px 56px;
+  }
+  .ipad-edition .ipad-edition__search-page .ipad-edition__category-grid {
+    display: flex;
+    grid-template-columns: none !important;
+  }
+}
+@media (max-width: 699px) {
+  .ipad-edition .ipad-edition__search-page { padding: 20px 16px 44px; gap: 28px; }
+  .ipad-edition .ipad-edition__search-page .ipad-search-hero__copy h1 { font-size: 29px; }
+  .ipad-edition .ipad-edition__search-page .ipad-edition__search-form { min-height: 56px; border-radius: 16px; }
+  .ipad-edition .ipad-edition__search-page .ipad-edition__search-form input { font-size: 15px; }
+  .ipad-edition .ipad-edition__search-page .ipad-edition__category-grid button { min-width: 76px; min-height: 42px; padding-inline: 15px; }
+  .ipad-edition .ipad-edition__search-page .ipad-edition__result-grid { grid-template-columns: repeat(3,minmax(0,1fr)) !important; }
+}
