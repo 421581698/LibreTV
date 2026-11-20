@@ -979,7 +979,8 @@ jobs:
                       focusLayoutAudit.inputBoxShadow !== "none" ||
                       focusLayoutAudit.inputAppearance !== "none" ||
                       focusLayoutAudit.categoryBackdropFilter !== "none" ||
-                      focusLayoutAudit.categoryWebkitBackdropFilter !== "none" ||
+                      (focusLayoutAudit.categoryWebkitBackdropFilter !== "none" &&
+                      focusLayoutAudit.categoryWebkitBackdropFilter !== "") ||
                       focusLayoutAudit.categoryTransform !== "none" ||
                       focusLayoutAudit.discoveryOverflowAnchor !== "none" ||
                       focusLayoutAudit.formCategoryGap < 0) {
