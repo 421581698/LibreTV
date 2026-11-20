@@ -11,6 +11,7 @@ import { hasSustainedPlaybackProgress } from '@/lib/playback-verification';
 import { PlaybackRecovery, describeHlsError } from '@/lib/playback-recovery';
 import { createHlsLoader } from '@/lib/hls-loader';
 import { getBufferedAheadSeconds, readPlaybackQualityCounters } from '@/lib/playback-diagnostics';
+import { AdaptiveQualityGuard } from '@/lib/adaptive-quality-guard';
 import { getVideoPrefetcher } from '@/lib/video-prefetcher';
 import { loadCacheSettings } from '@/lib/video-cache';
 import { formatTime } from '@/lib/utils';
@@ -208,6 +209,7 @@ export function PlayerShell({
   const artRef = useRef<any>(null);
   const nativeFullscreenCleanupRef = useRef<(() => void) | null>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const qualityGuardRef = useRef(new AdaptiveQualityGuard());
   const qualityPreferenceHandlerRef = useRef<(() => void) | null>(null);
   const [error, setError] = useState('');
   const [hint, setHint] = useState('');
@@ -290,6 +292,8 @@ export function PlayerShell({
     firstFragmentMs: undefined as number | undefined,
     totalBytes: 0, totalDownloadMs: 0, totalMediaSeconds: 0,
     videoBytes: 0, videoDownloadMs: 0, videoMediaSeconds: 0,
+    lastFragmentThroughputKbps: undefined as number | undefined,
+    lastFragmentBitrateKbps: undefined as number | undefined,
     selectedRenditionIndex: undefined as number | undefined,
     selectedRenditionHeight: undefined as number | undefined,
     selectedRenditionBitrateKbps: undefined as number | undefined,
@@ -313,6 +317,7 @@ export function PlayerShell({
       startedAt: Date.now(), startupMs: undefined, firstFragmentMs: undefined,
       totalBytes: 0, totalDownloadMs: 0, totalMediaSeconds: 0, videoBytes: 0,
       videoDownloadMs: 0, videoMediaSeconds: 0,
+      lastFragmentThroughputKbps: undefined, lastFragmentBitrateKbps: undefined,
       selectedRenditionIndex: undefined, selectedRenditionHeight: undefined,
       selectedRenditionBitrateKbps: undefined,
       stalls: 0, stallDurationMs: 0, maxStallMs: 0, waitingStartedAt: undefined,
@@ -638,6 +643,7 @@ export function PlayerShell({
    * 注意：不销毁 ArtPlayer，只销毁并重建 hls，从而保留网页全屏等播放器状态。
    */
   const setupHls = (video: HTMLVideoElement, mediaUrl: string, allowProxyFallback: boolean) => {
+    qualityGuardRef.current.reset();
     clearMetadataWatchdog();
     restoreCleanupRef.current?.();
     restoreCleanupRef.current = null;
@@ -718,6 +724,7 @@ export function PlayerShell({
     hlsRef.current = hls;
     setQualityControlMode('hls');
     const handleQualityPreferenceChange = () => {
+      qualityGuardRef.current.reset();
       const preference = readQualityPreference();
       setQualityPreference(preference);
       unsustainableFragmentsRef.current = 0;
@@ -814,8 +821,12 @@ export function PlayerShell({
             metrics.videoBytes += bytes;
             metrics.videoDownloadMs += loadMs;
             metrics.videoMediaSeconds += mediaSeconds;
-            setObservedMediaBitrateKbps(bytes * 8 / (mediaSeconds * 1000));
-            setObservedThroughputKbps(bytes * 8 / loadMs);
+            const fragmentBitrateKbps = bytes * 8 / (mediaSeconds * 1000);
+            const fragmentThroughputKbps = bytes * 8 / loadMs;
+            metrics.lastFragmentBitrateKbps = fragmentBitrateKbps;
+            metrics.lastFragmentThroughputKbps = fragmentThroughputKbps;
+            setObservedMediaBitrateKbps(fragmentBitrateKbps);
+            setObservedThroughputKbps(fragmentThroughputKbps);
           }
           const preference = readQualityPreference();
           // Only main video fragments represent the selected picture rendition; audio/subtitle
@@ -846,6 +857,10 @@ export function PlayerShell({
     hls.on(Hls.Events.LEVELS_UPDATED, () => {
       // 部分动态清单会在初次解析后补齐档位；重新应用用户的最高画质限制。
       const qualityResult = applyHlsQualityPreference(hls!, readQualityPreference(), video);
+      const protectedLevel = qualityGuardRef.current.activeCapLevel;
+      if (protectedLevel !== null && readQualityPreference() === 'auto') {
+        hls!.autoLevelCapping = Math.min(protectedLevel, Math.max(0, hls!.levels.length - 1));
+      }
       setAvailableQualityHeights(qualityResult.heights);
       setAvailableQualityLevelCount(hls.levels.length);
       setQualityMetadataComplete(hls.levels.length > 0 && hls.levels.every((level) => Number.isFinite(level.height) && level.height > 0));
@@ -870,8 +885,20 @@ export function PlayerShell({
       if (decodedHeight > 0) setActualQualityHeight(decodedHeight);
     });
     // 分片真正进入 MSE buffer 才算媒体恢复：此时视频轨可渲染，错误态可解除
-    hls.on(Hls.Events.FRAG_BUFFERED, () => {
+    hls.on(Hls.Events.FRAG_BUFFERED, (_event, data) => {
       mediaHealthyRef.current = true;
+      if (data.frag?.type !== 'main') return;
+      const metrics = playbackMetricsRef.current;
+      const decision = qualityGuardRef.current.onBufferedFragment({
+        mode: readQualityPreference() === 'auto' ? 'auto' : 'manual',
+        bufferAheadSeconds: getBufferedAheadSeconds(video.buffered, video.currentTime),
+        throughputKbps: metrics.lastFragmentThroughputKbps ?? 0,
+        mediaBitrateKbps: metrics.lastFragmentBitrateKbps ?? 0,
+      });
+      if (decision.action === 'restore') {
+        hls!.autoLevelCapping = -1;
+        showHint('缓冲已恢复，正在恢复自适应画质');
+      }
     });
 
     hls.on(Hls.Events.ERROR, (_evt, data) => {
@@ -1361,6 +1388,26 @@ export function PlayerShell({
         else metrics.decodeStalls += 1;
       }
       updatePlaybackDiagnostics(video);
+      const hls = hlsRef.current;
+      if (video && !video.paused && hls) {
+        if (readQualityPreference() === 'auto') {
+          const decision = qualityGuardRef.current.onStall({
+            mode: 'auto',
+            currentLevel: hls.currentLevel,
+            levelCount: hls.levels.length,
+          });
+          if (decision.action === 'cap') {
+            hls.autoLevelCapping = decision.capLevel;
+            hls.nextAutoLevel = decision.nextLevel;
+            const cappedHeight = hls.levels[decision.capLevel]?.height;
+            showHint(cappedHeight
+              ? `检测到缓冲，临时限制到 ${cappedHeight}P；稳定后自动恢复`
+              : '检测到缓冲，临时降低自适应画质');
+          }
+        } else {
+          showHint('当前为手动画质锁定；如持续卡顿，可切换自动模式');
+        }
+      }
       // 缓冲不足时彻底停止预取，释放所有并发请求给当前播放链路。
       getVideoPrefetcher().stop();
     });
