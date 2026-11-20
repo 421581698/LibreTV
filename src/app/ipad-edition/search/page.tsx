@@ -110,7 +110,7 @@ function IpadSearchContent() {
             <path d="m15.8 15.8 4.2 4.2" />
           </svg>
         </span>
-        <input value={query} maxLength={100} onChange={(event) => { setQuery(event.target.value); setHasSearched(false); setResults([]); setError(''); }} placeholder="搜索片名、演员或关键词…" aria-label="搜索影视内容" />
+        <input value={query} maxLength={100} onChange={(event) => { activeController.current?.abort(); activeController.current = null; requestId.current += 1; setLoading(false); setQuery(event.target.value); setHasSearched(false); setResults([]); setError(''); }} placeholder="搜索片名、演员或关键词…" aria-label="搜索影视内容" />
         {query ? <button type="button" onClick={() => { setQuery(''); setResults([]); setError(''); router.replace('/ipad-edition/search'); }}>清空</button> : null}
         <button type="submit" disabled={loading || !query.trim()}>{loading ? '搜索中…' : '搜索'}</button>
       </form>
