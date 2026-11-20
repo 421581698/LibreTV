@@ -124,7 +124,7 @@ function IpadSearchContent() {
     <div className="ipad-edition__page ipad-edition__search-page">
       <header className="ipad-search-hero">
         <div className="ipad-search-hero__copy">
-          <h1>{hasSearched ? '找到下一部想看的' : '想看什么，现在就搜'}</h1>
+          <h1>搜索</h1>
         </div>
         <form className="ipad-edition__search-form" role="search" onSubmit={(event) => { event.preventDefault(); void runSearch(query); }}>
           <span aria-hidden="true">
@@ -155,7 +155,7 @@ function IpadSearchContent() {
             setHasSearched(false);
             setSelectedSource('all');
             router.replace('/ipad-edition/search');
-          }}>清空</button> : null}
+          }} aria-label="清空搜索">×</button> : null}
           <button className="ipad-search-submit" type="submit" disabled={loading || !query.trim()}>
             {loading ? '搜索中' : '搜索'}
           </button>
