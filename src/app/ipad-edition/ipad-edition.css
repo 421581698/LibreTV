@@ -139,11 +139,7 @@
   min-width: 0;
   scroll-snap-align: start;
 }
-@media (min-width: 700px) and (max-width: 1023px) {.ipad-edition__poster-card, .ipad-edition__poster-skeleton {   }
-}
 @media (max-width: 699px) {.ipad-edition { padding-bottom: 40px !important; }.ipad-edition__today, .ipad-edition__rail-section { padding-inline: 16px !important; }.ipad-edition__poster-card, .ipad-edition__poster-skeleton { flex-basis: 138px !important; width: 138px !important; }.ipad-edition__anime-card { flex-basis: 188px; width: 188px; }.ipad-edition__continue-card { flex-basis: 220px; width: 220px; }
-}
-@media (prefers-reduced-motion: reduce) {.ipad-edition__poster-art, .ipad-edition__anime-card > span {  }
 }/* Shared liquid-glass navigation and controls. */
 /* Unified Liquid Glass system — Project Two iPad Edition */
 .ipad-edition {
@@ -177,9 +173,6 @@
   border-color: var(--ipad-glass-edge) !important;
   background: linear-gradient(145deg, rgba(255,255,255,.1), transparent 56%), var(--ipad-glass-fill) !important;
   box-shadow: 0 12px 34px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.18) !important;
-}.ipad-edition__search-form:focus-within {
-  
-  
 }.ipad-edition__category-grid button:active, .ipad-edition__collection-tabs button:active, .ipad-edition__pagination button:active, .ipad-edition__library-card > button:active{
   transform: scale(.975);
 }
@@ -379,12 +372,6 @@
   height: 100dvh !important;
   min-height: 100dvh !important;
 }
-@media (min-width: 700px) and (max-width: 1023px) {.ipad-edition__result-grid, .ipad-edition__collection-grid {
-    
-  }.ipad-edition__category-grid {
-    
-  }
-}
 @media (max-width: 699px) {.ipad-edition {
     padding: 8px 0 40px !important;
   }.ipad-edition__today, .ipad-edition__rail-section {
@@ -549,8 +536,6 @@
 @media (max-width: 699px) {.ipad-edition__home {
     /* Compact mobile capsule: keep a smaller, but still explicit, safe-area gap. */
     padding-top: max(76px, calc(env(safe-area-inset-top, 0px) + 64px)) !important;
-  }.ipad-edition__page {
-    
   }
 }
 @media (prefers-reduced-transparency: reduce) {.ipad-edition__search-form, .ipad-edition__collection-tabs button, .ipad-edition__pagination button, .ipad-edition__category-grid button {
@@ -1013,9 +998,6 @@ body:has(.ipad-edition[data-environment="light"]) {
   color: #17191d !important;
   box-shadow: 0 16px 48px rgba(24,38,62,.12) !important;
 }
-.ipad-edition[data-environment="light"] .ipad-nav__capsule-action {
-  
-}
 .ipad-edition[data-environment-contrast="high"] .ipad-nav__topbar-inner,
 .ipad-edition[data-environment-contrast="high"] .ipad-nav__sidebar {
   border-width: 1.5px !important;
@@ -1103,9 +1085,6 @@ body:has(.ipad-edition[data-environment="light"]) {
   
   
 }
-.ipad-edition .ipad-nav__capsule-action {
-  
-}
 .ipad-edition .ipad-nav__capsule-action:hover,
 .ipad-edition .ipad-nav__capsule-action.is-active {
   background: rgba(255,255,255,.16) !important;
@@ -1115,9 +1094,6 @@ body:has(.ipad-edition[data-environment="light"]) {
   
   color: #171b24 !important;
   box-shadow: 0 12px 36px rgba(25,35,52,.18), inset 0 1px 0 rgba(255,255,255,.9) !important;
-}
-.ipad-edition[data-environment="light"] .ipad-nav__capsule-action {
-  
 }
 .ipad-edition[data-environment="light"] .ipad-nav__capsule-action:hover,
 .ipad-edition[data-environment="light"] .ipad-nav__capsule-action.is-active {
@@ -1131,17 +1107,6 @@ body:has(.ipad-edition[data-environment="light"]) {
   padding-left: 24px !important;
   padding-right: 24px !important;
   
-}
-
-@media (max-width: 699px) {
-  
-  
-  .ipad-edition__poster-grid,
-  .ipad-edition__anime-grid,
-  .ipad-edition__continue-grid {
-    
-    
-  }
 }
 
 
