@@ -173,7 +173,7 @@ function IpadSearchContent() {
             <h2>类型</h2>
           </div>
           <div className="ipad-edition__category-grid">
-            {categories.map(([label, term], index) => (
+            {categories.map(([label, term]) => (
               <button key={label} type="button" onClick={() => void runSearch(term)}>
                 <span>{label}</span>
               </button>
