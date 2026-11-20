@@ -69,7 +69,7 @@ function IpadSearchContent() {
   ];
 
   return (
-    <div className="ipad-edition__page">
+    <div className="ipad-edition__page ipad-edition__search-page">
       <header className="ipad-edition__page-heading">
         <p className="ipad-edition__eyebrow">DISCOVER SOMETHING NEW</p>
         <h1>搜索与发现</h1>
