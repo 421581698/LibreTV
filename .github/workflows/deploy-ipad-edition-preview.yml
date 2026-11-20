@@ -883,7 +883,7 @@ jobs:
 
           const base = "https://libretv-ipad-edition-preview.bggdbh.workers.dev";
           const routes = [
-            { name: "search", path: "/ipad-edition/search", chrome: true, heading: true },
+            { name: "search", path: "/ipad-edition/search", chrome: true, headingSelector: ".ipad-search-hero__copy h1" },
             { name: "movies", path: "/ipad-edition/movies", chrome: true, heading: true },
             { name: "series", path: "/ipad-edition/series", chrome: true, heading: true },
             { name: "anime", path: "/ipad-edition/anime", chrome: true, heading: true },
@@ -920,8 +920,13 @@ jobs:
                   colorScheme,
                   { timeout: 30000 },
                 );
-                if (route.heading) {
-                  await page.locator(".ipad-edition__page-heading h1").waitFor({ state: "visible", timeout: 30000 });
+                if (route.headingSelector) {
+                  await page.locator(route.headingSelector).waitFor({ state: "visible", timeout: 30000 });
+                }
+                if (route.name === "search") {
+                  await page.locator(".ipad-edition__search-form").waitFor({ state: "visible", timeout: 15000 });
+                  await page.locator(".ipad-search-quick button").first().waitFor({ state: "visible", timeout: 15000 });
+                  await page.locator(".ipad-edition__category-grid button").nth(7).waitFor({ state: "visible", timeout: 15000 });
                 }
                 // Collection pages must reach a terminal data state before a screenshot is accepted.
                 // A heading alone can appear while the grid is still showing loading skeletons.
@@ -958,6 +963,15 @@ jobs:
                     loadingSkeletonCount: skeletonCount,
                     collectionItemCount: collection?.children.length ?? 0,
                     hasTerminalCollectionState: Boolean(collection || emptyMessage),
+                    searchFormPresent: Boolean(document.querySelector(".ipad-edition__search-form")),
+                    searchQuickKeywordCount: document.querySelectorAll(".ipad-search-quick button").length,
+                    searchCategoryCount: document.querySelectorAll(".ipad-edition__category-grid button").length,
+                    searchCategoryColumns: routeName === "search"
+                      ? getComputedStyle(document.querySelector(".ipad-edition__category-grid")).gridTemplateColumns.split(" ").length
+                      : null,
+                    searchPageBackground: routeName === "search"
+                      ? getComputedStyle(document.querySelector(".ipad-edition")).backgroundColor
+                      : null,
                     visualScope: ["detail", "watch"].includes(routeName) ? "route-shell-only" : "page-content",
                   };
                 }, route.name);
@@ -968,6 +982,10 @@ jobs:
                   metrics.hasTopbar !== route.chrome ||
                   (["movies", "series", "anime"].includes(route.name) &&
                     (metrics.loadingSkeletonCount > 0 || !metrics.hasTerminalCollectionState)) ||
+                  (route.name === "search" &&
+                    (!metrics.searchFormPresent || metrics.searchQuickKeywordCount !== 4 ||
+                     metrics.searchCategoryCount !== 8 || metrics.searchCategoryColumns !== 4 ||
+                     metrics.searchPageBackground !== "rgb(8, 9, 12)")) ||
                   errors.length > 0;
                 const name = route.name + "-" + colorScheme;
                 await page.screenshot({
