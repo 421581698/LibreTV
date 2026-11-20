@@ -6,6 +6,7 @@ name: Deploy LibreTV iPad Edition Preview (Ubuntu 24.04)
 # [deploy-ipad-edition-preview] Verify glass material, touch gestures and rendered poster pixels across iPad viewports.
 # Preview dispatch is gated by a green Verify run for the same branch head; screenshots are reset to the closed-sidebar page top.
 # Layout diagnostics are passed explicitly into the browser evaluation context for report serialization.
+# [deploy-ipad-edition-preview] Rebuild isolated Preview for the minimal iPad search pass.
 
 on:
   workflow_dispatch:
