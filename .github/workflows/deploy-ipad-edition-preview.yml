@@ -21,10 +21,12 @@ on:
     branches:
       - feature/libretv-ipad-edition-foundation
       - feature/libretv-ipad-edition-product
+      - feature/ipad-css-important-cleanup
 
 # Matched CSS provenance is captured via CSS.styleSheetAdded before querying computed rule origins.
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -33,7 +35,7 @@ concurrency:
 
 jobs:
   deploy-preview:
-    if: ${{ (github.ref == 'refs/heads/feature/libretv-ipad-edition-foundation' || github.ref == 'refs/heads/feature/libretv-ipad-edition-product') && ((github.event_name == 'workflow_dispatch' && inputs.confirm_preview_deploy == 'yes') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[deploy-ipad-edition-preview]'))) }}
+    if: ${{ (github.ref == 'refs/heads/feature/libretv-ipad-edition-foundation' || github.ref == 'refs/heads/feature/libretv-ipad-edition-product' || github.ref == 'refs/heads/feature/ipad-css-important-cleanup') && ((github.event_name == 'workflow_dispatch' && inputs.confirm_preview_deploy == 'yes') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[deploy-ipad-edition-preview]'))) }}
     name: Build and deploy isolated iPad Edition Preview
     runs-on: ubuntu-24.04
     timeout-minutes: 35
@@ -42,6 +44,26 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
+      - name: Wait for Verify on this exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 120); do
+            state=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?branch=${GITHUB_REF_NAME}&per_page=100" | jq -r --arg sha "${GITHUB_SHA}" '[.workflow_runs[] | select(.head_sha == $sha and .path == ".github/workflows/ipad-edition-verify.yml")] | sort_by(.created_at) | last | if . == null then "missing" else "\(.status)|\(.conclusion // "")" end')
+            echo "Matching Verify state: ${state} (attempt ${attempt}/120)"
+            if [[ "${state}" == "completed|success" ]]; then
+              echo "Exact-commit Verify passed; Preview deployment may continue."
+              exit 0
+            fi
+            if [[ "${state}" == completed\|* ]]; then
+              echo "Exact-commit Verify did not pass: ${state}" >&2
+              exit 1
+            fi
+            sleep 10
+          done
+          echo "Timed out waiting for exact-commit Verify." >&2
+          exit 1
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -976,5 +998,7 @@ jobs:
           retention-days: 14
 
 # [deploy-ipad-edition-preview] Capture parent-chain diagnostics on the isolated Preview.
+
+# Re-run the isolated Preview against the verified CSS cleanup baseline.
 
 # [deploy-ipad-edition-preview] Verify the upstream product baseline on isolated iPad Preview.

@@ -5,6 +5,7 @@ on:
     branches:
       - feature/libretv-ipad-edition-foundation
       - feature/libretv-ipad-edition-product
+      - feature/ipad-css-important-cleanup
     paths:
       - "src/app/ipad-edition/**"
       - "src/components/ipad-edition/**"
