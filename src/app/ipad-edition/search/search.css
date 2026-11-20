@@ -874,3 +874,39 @@ body:has(.ipad-edition[data-environment="light"] .ipad-edition__search-page):has
   outline: 2px solid rgba(255,255,255,.78);
   outline-offset: 3px;
 }
+
+
+/* iOS Safari keyboard focus: keep the search field visually integrated.
+   The shell has a global :focus-visible ring; this text input uses the
+   surrounding form's subtle :focus-within treatment instead. */
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form input,
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form input:focus,
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form input:focus-visible {
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Solid category chips avoid Safari's backdrop-filter compositing artifacts
+   when the visual viewport resizes to make room for the on-screen keyboard. */
+.ipad-edition .ipad-edition__search-page .ipad-edition__category-grid button {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  transform: none !important;
+  transition: none !important;
+  will-change: auto !important;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__category-grid button:hover,
+.ipad-edition .ipad-edition__search-page .ipad-edition__category-grid button:active {
+  transform: none !important;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-discovery {
+  overflow-anchor: none;
+}
+
+/* Keep iOS keyboard/Visual Viewport fixes scoped to the iPad Edition search route. */
