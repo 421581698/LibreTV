@@ -124,9 +124,7 @@ function IpadSearchContent() {
     <div className="ipad-edition__page ipad-edition__search-page">
       <header className="ipad-search-hero">
         <div className="ipad-search-hero__copy">
-          <p className="ipad-edition__eyebrow">LIBRETV · DISCOVER</p>
           <h1>{hasSearched ? '找到下一部想看的' : '想看什么，现在就搜'}</h1>
-          <p>跨已启用的资源源，发现电影、剧集与动画。</p>
         </div>
         <form className="ipad-edition__search-form" role="search" onSubmit={(event) => { event.preventDefault(); void runSearch(query); }}>
           <span aria-hidden="true">
@@ -167,19 +165,17 @@ function IpadSearchContent() {
       {!hasSearched && !query.trim() ? (
         <section className="ipad-search-discovery" aria-label="搜索灵感">
           <div className="ipad-search-quick">
-            <span>试试这些</span>
             <div className="ipad-search-quick__items">
               {QUICK_SEARCHES.map((term) => <button key={term} type="button" onClick={() => void runSearch(term)}>{term}</button>)}
             </div>
           </div>
           <div className="ipad-search-section-heading">
-            <div><p className="ipad-edition__eyebrow">BROWSE BY GENRE</p><h2>按类型探索</h2></div>
-            <span>选择一个方向，开始发现</span>
+            <h2>类型</h2>
           </div>
           <div className="ipad-edition__category-grid">
             {categories.map(([label, term], index) => (
               <button key={label} type="button" onClick={() => void runSearch(term)}>
-                <span>{label}</span><small>探索相关影片</small><b aria-hidden="true">{['01', '02', '03', '04', '05', '06', '07', '08'][index]}</b>
+                <span>{label}</span>
               </button>
             ))}
           </div>
@@ -189,7 +185,7 @@ function IpadSearchContent() {
       {loading ? (
         <div className="ipad-search-state" role="status">
           <span className="ipad-search-state__spinner" aria-hidden="true" />
-          <div><strong>正在全源检索</strong><p>正在查询已启用的资源源，请稍候…</p></div>
+          <div><strong>正在搜索</strong></div>
         </div>
       ) : null}
       {error ? (
@@ -201,17 +197,16 @@ function IpadSearchContent() {
       {!loading && !error && hasSearched && results.length === 0 ? (
         <div className="ipad-search-state ipad-search-state--empty">
           <span className="ipad-search-state__empty-mark" aria-hidden="true">⌕</span>
-          <div><strong>没有找到匹配内容</strong><p>试试更短的片名、演员名字，或换一个关键词。</p></div>
+          <div><strong>没有找到结果</strong></div>
         </div>
       ) : null}
 
       {results.length > 0 ? (
         <section className="ipad-edition__search-results" aria-label="搜索结果">
           <div className="ipad-search-results-heading">
-            <div><p className="ipad-edition__eyebrow">YOUR RESULTS</p><h2>搜索结果 <span>{visibleResults.length}</span></h2><p>共找到 {results.length} 条内容 · 来自 {sourceOptions.length} 个资源源</p></div>
+            <div><h2>搜索结果 <span>{visibleResults.length}</span></h2></div>
             {sourceOptions.length > 1 ? (
               <label className="ipad-search-source-filter">
-                <span>资源来源</span>
                 <select value={selectedSource} onChange={(event) => setSelectedSource(event.target.value)}>
                   <option value="all">全部来源</option>
                   {sourceOptions.map((source) => <option key={source} value={source}>{source}</option>)}
@@ -225,9 +220,7 @@ function IpadSearchContent() {
                 <button className="ipad-edition__result-card" type="button" key={item.sourceKey + ':' + item.vodId + ':' + index} onClick={() => openDetail(item)}>
                   <PosterRenderer variant="result" frameClassName="ipad-edition__result-poster" asset={fromCmsSearchResult(item)} url={item.pic} mode={imageProxyMode} customProxy={customImageProxy} alt={item.name} />
                   <strong>{item.name}</strong>
-                  <small className="ipad-search-card-meta">{[item.year, item.typeName].filter(Boolean).join(' · ') || '影视内容'}</small>
-                  {item.remarks ? <small className="ipad-search-card-remarks">{item.remarks}</small> : null}
-                  <span className="ipad-search-card-source">{item.sourceName}</span>
+                  {item.year ? <span className="ipad-search-card-meta">{item.year}</span> : null}
                 </button>
               ))}
             </div>
