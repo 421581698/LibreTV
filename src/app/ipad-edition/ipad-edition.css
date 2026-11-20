@@ -40,9 +40,9 @@
   --ipad-accent: #0a84ff;
   --ipad-glass-blur: 28px;
   min-height: 100dvh;
-  padding: 0 0 64px !important;
+  
   color: var(--ipad-text);
-  background: #000 !important;
+  
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -84,7 +84,7 @@
   width: 100%;
   min-width: 0;
   margin: 0;
-  padding: 4px 24px 18px 0 !important;
+  
   overflow-x: auto !important;
   overflow-y: hidden !important;
   overscroll-behavior-x: contain;
@@ -92,8 +92,8 @@
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }.ipad-edition__poster-grid::-webkit-scrollbar, .ipad-edition__anime-grid::-webkit-scrollbar, .ipad-edition__continue-grid::-webkit-scrollbar { display: none; }.ipad-edition__poster-card {
-  flex: 0 0 clamp(142px, 15vw, 204px) !important;
-  width: clamp(142px, 15vw, 204px) !important;
+  
+  
   min-width: 0;
   scroll-snap-align: start;
 }.ipad-edition__poster-art {
@@ -139,11 +139,11 @@
   min-width: 0;
   scroll-snap-align: start;
 }
-@media (min-width: 700px) and (max-width: 1023px) {.ipad-edition__poster-card, .ipad-edition__poster-skeleton { flex-basis: 164px !important; width: 164px !important; }
+@media (min-width: 700px) and (max-width: 1023px) {.ipad-edition__poster-card, .ipad-edition__poster-skeleton {   }
 }
 @media (max-width: 699px) {.ipad-edition { padding-bottom: 40px !important; }.ipad-edition__today, .ipad-edition__rail-section { padding-inline: 16px !important; }.ipad-edition__poster-card, .ipad-edition__poster-skeleton { flex-basis: 138px !important; width: 138px !important; }.ipad-edition__anime-card { flex-basis: 188px; width: 188px; }.ipad-edition__continue-card { flex-basis: 220px; width: 220px; }
 }
-@media (prefers-reduced-motion: reduce) {.ipad-edition__poster-art, .ipad-edition__anime-card > span { transition: none !important; }
+@media (prefers-reduced-motion: reduce) {.ipad-edition__poster-art, .ipad-edition__anime-card > span {  }
 }/* Shared liquid-glass navigation and controls. */
 /* Unified Liquid Glass system — Project Two iPad Edition */
 .ipad-edition {
@@ -178,8 +178,8 @@
   background: linear-gradient(145deg, rgba(255,255,255,.1), transparent 56%), var(--ipad-glass-fill) !important;
   box-shadow: 0 12px 34px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.18) !important;
 }.ipad-edition__search-form:focus-within {
-  border-color: rgba(105,157,255,.72) !important;
-  box-shadow: 0 0 0 3px rgba(67,132,245,.14), var(--ipad-glass-shadow), inset 0 1px 0 var(--ipad-glass-highlight) !important;
+  
+  
 }.ipad-edition__category-grid button:active, .ipad-edition__collection-tabs button:active, .ipad-edition__pagination button:active, .ipad-edition__library-card > button:active{
   transform: scale(.975);
 }
@@ -316,11 +316,11 @@
   margin: 0 auto;
 }.ipad-edition__home {
   min-width: 0;
-  gap: clamp(20px, 3vh, 30px) !important;
+  
 }.ipad-edition__today, .ipad-edition__rail-section {
   min-width: 0;
-  padding-left: clamp(16px, 2.4vw, 36px) !important;
-  padding-right: clamp(16px, 2.4vw, 36px) !important;
+  
+  
 }.ipad-edition__poster-grid, .ipad-edition__anime-grid, .ipad-edition__continue-grid {
   min-width: 0;
   padding: 10px 24px 20px 0 !important;
@@ -380,9 +380,9 @@
   min-height: 100dvh !important;
 }
 @media (min-width: 700px) and (max-width: 1023px) {.ipad-edition__result-grid, .ipad-edition__collection-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    
   }.ipad-edition__category-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    
   }
 }
 @media (max-width: 699px) {.ipad-edition {
@@ -466,7 +466,7 @@
   --ipad-touch-target: 44px;
   min-height: 100svh;
   min-height: 100dvh;
-  padding-bottom: max(56px, env(safe-area-inset-bottom, 0px)) !important;
+  
   color: #f5f5f7;
   background: #000 !important;
   -webkit-tap-highlight-color: transparent;
@@ -477,7 +477,7 @@
 }.ipad-edition__home {
   /* The navigation is fixed to the viewport, so reserve its full vertical footprint
      in the homepage flow instead of letting it cover the featured hero. */
-  padding-top: max(104px, calc(env(safe-area-inset-top, 0px) + 88px)) !important;
+  
   gap: var(--ipad-content-gap) !important;
 }.ipad-edition__search-form button, .ipad-edition__collection-tabs button, .ipad-edition__pagination button, .ipad-edition__category-grid button, .ipad-edition__library-card > button{
   min-height: var(--ipad-touch-target);
@@ -507,7 +507,7 @@
 }.ipad-edition__poster-card > strong, .ipad-edition__anime-card > strong, .ipad-edition__continue-card > strong, .ipad-edition__result-card > strong {
   line-height: 1.4;
 }.ipad-edition__page {
-  padding-top: max(104px, calc(env(safe-area-inset-top, 0px) + 88px)) !important;
+  
   padding-bottom: max(48px, env(safe-area-inset-bottom, 0px)) !important;
 }.ipad-edition__page-heading h1 {
   line-height: 1.08;
@@ -550,7 +550,7 @@
     /* Compact mobile capsule: keep a smaller, but still explicit, safe-area gap. */
     padding-top: max(76px, calc(env(safe-area-inset-top, 0px) + 64px)) !important;
   }.ipad-edition__page {
-    padding-top: max(88px, calc(env(safe-area-inset-top, 0px) + 76px)) !important;
+    
   }
 }
 @media (prefers-reduced-transparency: reduce) {.ipad-edition__search-form, .ipad-edition__collection-tabs button, .ipad-edition__pagination button, .ipad-edition__category-grid button {
@@ -807,10 +807,10 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
    The engine provides refraction; this host layer supplies readable tint and blur
    in browsers where displacement rendering is limited (notably Safari). */
 .ipad-nav__topbar-inner.liquid-glass[data-liquid-glass-engine="ready"] {
-  background: var(--ipad-glass-fill, rgba(246,248,252,.76)) !important;
+  
   border-color: var(--ipad-glass-edge, rgba(24,32,46,.14)) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
-  backdrop-filter: blur(24px) saturate(180%) !important;
+  
+  
   box-shadow: var(--ipad-glass-shadow, 0 12px 38px rgba(28,38,56,.16)) !important;
 }
 .ipad-nav__sidebar.liquid-glass[data-liquid-glass-engine="ready"] {
@@ -1014,7 +1014,7 @@ body:has(.ipad-edition[data-environment="light"]) {
   box-shadow: 0 16px 48px rgba(24,38,62,.12) !important;
 }
 .ipad-edition[data-environment="light"] .ipad-nav__capsule-action {
-  color: #242a34 !important;
+  
 }
 .ipad-edition[data-environment-contrast="high"] .ipad-nav__topbar-inner,
 .ipad-edition[data-environment-contrast="high"] .ipad-nav__sidebar {
@@ -1096,28 +1096,28 @@ body:has(.ipad-edition[data-environment="light"]) {
 
 /* Dark glass is visibly separated from dark hero artwork; light mode stays light. */
 .ipad-edition .ipad-nav__topbar-inner {
-  background: rgba(12, 15, 22, .78) !important;
+  
   border: 1px solid rgba(255,255,255,.24) !important;
   color: #f7f8fb !important;
-  -webkit-backdrop-filter: blur(26px) saturate(175%) !important;
-  backdrop-filter: blur(26px) saturate(175%) !important;
-  box-shadow: 0 12px 36px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.12) !important;
+  
+  
+  
 }
 .ipad-edition .ipad-nav__capsule-action {
-  color: #f4f6fa !important;
+  
 }
 .ipad-edition .ipad-nav__capsule-action:hover,
 .ipad-edition .ipad-nav__capsule-action.is-active {
   background: rgba(255,255,255,.16) !important;
 }
 .ipad-edition[data-environment="light"] .ipad-nav__topbar-inner {
-  background: rgba(250,252,255,.88) !important;
-  border-color: rgba(25,35,52,.2) !important;
+  
+  
   color: #171b24 !important;
   box-shadow: 0 12px 36px rgba(25,35,52,.18), inset 0 1px 0 rgba(255,255,255,.9) !important;
 }
 .ipad-edition[data-environment="light"] .ipad-nav__capsule-action {
-  color: #202633 !important;
+  
 }
 .ipad-edition[data-environment="light"] .ipad-nav__capsule-action:hover,
 .ipad-edition[data-environment="light"] .ipad-nav__capsule-action.is-active {
@@ -1130,7 +1130,7 @@ body:has(.ipad-edition[data-environment="light"]) {
 .ipad-edition__continue-grid {
   padding-left: 24px !important;
   padding-right: 24px !important;
-  scroll-padding-inline: 24px !important;
+  
 }
 
 @media (max-width: 699px) {
@@ -1139,8 +1139,8 @@ body:has(.ipad-edition[data-environment="light"]) {
   .ipad-edition__poster-grid,
   .ipad-edition__anime-grid,
   .ipad-edition__continue-grid {
-    padding-inline: 16px !important;
-    scroll-padding-inline: 16px !important;
+    
+    
   }
 }
 
