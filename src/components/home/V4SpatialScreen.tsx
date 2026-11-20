@@ -464,6 +464,18 @@ function SettingsScreen() {
     <div className="mx-auto w-full max-w-5xl space-y-5 px-4 pb-12 sm:px-6">
 
       <SourceManagerDrawer open embedded onClose={() => undefined} />
+      <section className="card p-4 sm:p-5" aria-labelledby="settings-ui-agent-title">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent/10 text-accent"><Icon name="palette" /></span>
+            <div className="min-w-0">
+              <h2 id="settings-ui-agent-title" className="text-base font-semibold text-content">AI 界面工作台</h2>
+              <p className="mt-1 text-xs text-faint">自主界面设计、视觉检查与质量验收</p>
+            </div>
+          </div>
+          <Link href="/ui-studio" className="shrink-0 rounded-full bg-accent px-4 py-2 text-sm font-medium text-white transition hover:opacity-90">打开工作台</Link>
+        </div>
+      </section>
       <section className="card p-4 sm:p-5" aria-labelledby="settings-downloads-title">
         <div className="flex items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
