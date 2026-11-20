@@ -185,7 +185,28 @@ jobs:
                   else document.addEventListener('DOMContentLoaded', applyTheme, { once: true });
                 }, colorScheme);
                 const consoleErrors = [];
+                const apiDiagnostics = [];
                 page.on("pageerror", error => consoleErrors.push(error.message));
+                page.on("requestfailed", request => {
+                  const pathname = new URL(request.url()).pathname;
+                  if (/^\/api\/(douban|hot-list|bangumi\/calendar)$/.test(pathname)) {
+                    apiDiagnostics.push({
+                      type: "requestfailed",
+                      pathname,
+                      error: request.failure()?.errorText ?? "unknown",
+                    });
+                  }
+                });
+                page.on("response", async apiResponse => {
+                  const pathname = new URL(apiResponse.url()).pathname;
+                  if (!/^\/api\/(douban|hot-list|bangumi\/calendar)$/.test(pathname)) return;
+                  const entry = { type: "response", pathname, status: apiResponse.status() };
+                  if (!apiResponse.ok()) {
+                    try { entry.body = (await apiResponse.text()).slice(0, 1200); }
+                    catch (error) { entry.bodyReadError = String(error); }
+                  }
+                  apiDiagnostics.push(entry);
+                });
                 const response = await page.goto(target, { waitUntil: "domcontentloaded", timeout: 60000 });
                 await page.locator('[data-ipad-edition="true"]').waitFor({ state: "attached", timeout: 30000 });
                 await page.waitForFunction((scheme) => document.querySelector('.ipad-edition')?.getAttribute('data-environment') === scheme, colorScheme, { timeout: 30000 });
@@ -784,7 +805,7 @@ jobs:
                 await page.screenshot({ path: "artifacts/ipad-visual-audit/" + name + ".png", fullPage: false, animations: "disabled" });
                 const failed = !sidebarInteractionPassed || sidebarInteraction.diagnostics.finalState?.computedStyle?.position !== "fixed" || response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.y > 220 || metrics.main.width < viewport.width * 0.7 || metrics.homepageStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.posterImageLoadRate < 0.75 || !metrics.posterPixelInspectionPassed || metrics.heroTextOverlapsNavigation || metrics.heroOverlapsNavigation || !Number.isFinite(metrics.heroClearancePx) || metrics.heroClearancePx < 8 || metrics.heroCtaWhiteSpace !== "nowrap" || (viewport.width >= 700 && Math.abs(metrics.heroContentCenterOffsetPx ?? Infinity) > (metrics.hero?.height ?? 0) * 0.12) || metrics.heroClearancePx > 144 || !metrics.hero || metrics.hero.y < 0 || metrics.hero.y > Math.min(160, viewport.height * 0.25) || !metrics.themePairValid || !scrollAudit.navigationViewportValid || scrollAudit.overlappingPosterLabels.length > 0;
                 if (failed) failures += 1;
-                results.push({ name, httpStatus: response?.status() ?? null, failed, sidebarInteractionPassed, sidebarInteraction, metrics, pageErrors: consoleErrors });
+                results.push({ name, httpStatus: response?.status() ?? null, failed, sidebarInteractionPassed, sidebarInteraction, metrics, pageErrors: consoleErrors, apiDiagnostics });
                 console.log(JSON.stringify(results.at(-1)));
                 await context.close();
               }
@@ -978,3 +999,5 @@ jobs:
 # [deploy-ipad-edition-preview] Capture parent-chain diagnostics on the isolated Preview.
 
 # [deploy-ipad-edition-preview] Verify the upstream product baseline on isolated iPad Preview.
+
+# [deploy-ipad-edition-preview] Capture recommendation API failure diagnostics per iPad viewport/theme.
