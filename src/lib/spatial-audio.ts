@@ -28,8 +28,8 @@ export interface SpatialAudioPlan {
 }
 
 export interface SpatialAudioAttachOptions {
-  /** Runtime channel count reported by the pass-through AudioWorklet. */
-  channelProbeTimeoutMs?: number;
+  /** Verified audio-track channel count from manifest/media inspection. */
+  inputChannels: number;
 }
 
 const speakerPositions = {
@@ -74,7 +74,7 @@ export function inspectSpatialAudioCapabilities(context?: AudioContext | null): 
 }
 
 /**
- * Plan only from channels actually exposed by MediaElementAudioSourceNode.
+ * Plan only from verified audio-track metadata supplied by the media inspector.
  * Unknown/unsupported layouts are never advertised as surround.
  */
 export function planSpatialAudio(
@@ -160,7 +160,6 @@ export function isMediaElementAudioOriginSafe(media: HTMLMediaElement, pageOrigi
 export class SpatialAudioEngine {
   private readonly context: AudioContext;
   private readonly source: MediaElementAudioSourceNode;
-  private readonly channelProbe: AudioWorkletNode;
   private readonly output: GainNode;
   private readonly capabilities: SpatialAudioCapabilities;
   private readonly splitters: ChannelSplitterNode[] = [];
@@ -168,91 +167,41 @@ export class SpatialAudioEngine {
   private lfeGain?: GainNode;
   private mode: SpatialAudioMode = 'off';
   private route: SpatialAudioRoute = 'bypass';
-  private inputChannels = 0;
-  private channelProbeResolve?: (channels: number) => void;
+  private readonly inputChannels: number;
 
   private constructor(
     readonly media: HTMLMediaElement,
     context: AudioContext,
-    channelProbe: AudioWorkletNode,
+    inputChannels: number,
   ) {
     this.context = context;
     this.capabilities = inspectSpatialAudioCapabilities(context);
+    this.inputChannels = inputChannels;
     this.source = context.createMediaElementSource(media);
-    this.channelProbe = channelProbe;
     this.output = context.createGain();
     this.output.gain.value = 1;
-    this.source.connect(this.channelProbe);
-    this.channelProbe.connect(this.output);
+    this.source.connect(this.output);
     this.output.connect(context.destination);
-    this.channelProbe.port.onmessage = (event: MessageEvent<{ channels?: number }>) => {
-      const channels = Number(event.data?.channels);
-      if (Number.isInteger(channels) && channels >= 0 && channels <= 32) {
-        this.inputChannels = channels;
-        this.channelProbeResolve?.(channels);
-        this.channelProbeResolve = undefined;
-        // A source change can change channel count without replacing the video element.
-        if (this.mode !== 'off') void this.setMode(this.mode);
-      }
-    };
   }
 
-  static async attach(
+  static attach(
     media: HTMLMediaElement,
+    options: SpatialAudioAttachOptions,
     contextFactory: () => AudioContext = () => new AudioContext(),
-    options: SpatialAudioAttachOptions = {},
-  ): Promise<SpatialAudioEngine> {
+  ): SpatialAudioEngine {
     const existing = attachedEngines.get(media);
     if (existing) return existing;
     const pageOrigin = typeof window !== 'undefined' ? window.location.origin : '';
     if (!pageOrigin || !isMediaElementAudioOriginSafe(media, pageOrigin)) {
       throw new Error('当前视频源未通过 CORS 安全检查，空间音频已保持关闭以避免静音');
     }
-
+    if (options.inputChannels !== 2 && options.inputChannels !== 6) {
+      throw new Error('当前音轨声道布局尚未得到支持，空间音频保持关闭');
+    }
     const context = contextFactory();
-    // Call resume synchronously while still inside the tap/click activation.
-    const resumePromise = context.state === 'suspended' ? context.resume() : Promise.resolve();
-    if (!context.audioWorklet) {
-      await context.close();
-      throw new Error('当前浏览器不支持 AudioWorklet，已保留原始音频输出');
-    }
-    try {
-      await context.audioWorklet.addModule('/audio-worklets/spatial-channel-probe.js');
-      await resumePromise;
-      const probe = new AudioWorkletNode(context, 'libretv-channel-probe', {
-        numberOfInputs: 1,
-        numberOfOutputs: 1,
-        channelCount: 32,
-        channelCountMode: 'max',
-        channelInterpretation: 'discrete',
-        outputChannelCount: [32],
-      });
-      const engine = new SpatialAudioEngine(media, context, probe);
-      attachedEngines.set(media, engine);
-      if (options.channelProbeTimeoutMs !== 0) {
-        await engine.waitForChannelCount(options.channelProbeTimeoutMs ?? 1200);
-      }
-      return engine;
-    } catch (error) {
-      if (context.state !== 'closed') await context.close().catch(() => undefined);
-      throw error;
-    }
-  }
-
-  async waitForChannelCount(timeoutMs = 1200): Promise<number> {
-    if (this.inputChannels > 0 || timeoutMs <= 0) return this.inputChannels;
-    return new Promise((resolve) => {
-      let settled = false;
-      const finish = (channels: number) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        this.channelProbeResolve = undefined;
-        resolve(channels);
-      };
-      const timer = setTimeout(() => finish(this.inputChannels), timeoutMs);
-      this.channelProbeResolve = finish;
-    });
+    const engine = new SpatialAudioEngine(media, context, options.inputChannels);
+    attachedEngines.set(media, engine);
+    return engine;
   }
 
   get status(): { mode: SpatialAudioMode; route: SpatialAudioRoute; contextState: AudioContextState; inputChannels: number } {
@@ -269,22 +218,21 @@ export class SpatialAudioEngine {
     if (this.context.state !== 'running') throw new Error('AudioContext is not running');
   }
 
-  async setMode(mode: SpatialAudioMode): Promise<SpatialAudioPlan> {
-    if (mode !== 'off' && this.inputChannels === 0) await this.waitForChannelCount();
+  setMode(mode: SpatialAudioMode): SpatialAudioPlan {
     this.clearSpatialGraph();
     this.mode = mode;
 
     const plan = planSpatialAudio(mode, this.inputChannels, this.capabilities.hrtfPanner);
     this.route = plan.route;
     if (plan.route === 'bypass') {
-      this.channelProbe.connect(this.output);
+      this.source.connect(this.output);
       return plan;
     }
 
     const channelCount = plan.route === 'surround-5.1-binaural' ? 6 : 2;
     const splitter = this.context.createChannelSplitter(channelCount);
     splitter.channelInterpretation = 'discrete';
-    this.channelProbe.connect(splitter);
+    this.source.connect(splitter);
     this.splitters.push(splitter);
 
     const positions = plan.route === 'surround-5.1-binaural'
@@ -348,7 +296,7 @@ export class SpatialAudioEngine {
     }
     this.splitters.length = 0;
     this.panners.length = 0;
-    try { this.channelProbe.disconnect(); } catch { /* already disconnected */ }
+    try { this.source.disconnect(); } catch { /* already disconnected */ }
     try { this.output.disconnect(); } catch { /* already disconnected */ }
     this.output.connect(this.context.destination);
   }
