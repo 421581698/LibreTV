@@ -195,6 +195,12 @@ function IpadSearchContent() {
             </svg>
           </span>
           <input
+            type="text"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            enterKeyHint="search"
             value={query}
             maxLength={100}
             onChange={(event) => {
