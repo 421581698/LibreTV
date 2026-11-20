@@ -220,7 +220,6 @@ function IpadSearchContent() {
                 <button className="ipad-edition__result-card" type="button" key={item.sourceKey + ':' + item.vodId + ':' + index} onClick={() => openDetail(item)}>
                   <PosterRenderer variant="result" frameClassName="ipad-edition__result-poster" asset={fromCmsSearchResult(item)} url={item.pic} mode={imageProxyMode} customProxy={customImageProxy} alt={item.name} />
                   <strong>{item.name}</strong>
-                  {item.year ? <span className="ipad-search-card-meta">{item.year}</span> : null}
                 </button>
               ))}
             </div>
