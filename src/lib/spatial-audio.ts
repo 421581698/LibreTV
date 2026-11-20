@@ -167,7 +167,7 @@ export class SpatialAudioEngine {
   private lfeGain?: GainNode;
   private mode: SpatialAudioMode = 'off';
   private route: SpatialAudioRoute = 'bypass';
-  private readonly inputChannels: number;
+  private inputChannels: number;
 
   private constructor(
     readonly media: HTMLMediaElement,
@@ -260,6 +260,19 @@ export class SpatialAudioEngine {
     });
 
     return plan;
+  }
+
+  /**
+   * Update verified track metadata when PlayerShell switches media sources
+   * while retaining the same HTMLVideoElement.
+   */
+  updateInputChannels(inputChannels: number): SpatialAudioPlan {
+    if (!Number.isInteger(inputChannels) || inputChannels < 1 || inputChannels > 32) {
+      this.inputChannels = 0;
+    } else {
+      this.inputChannels = inputChannels;
+    }
+    return this.setMode(this.mode);
   }
 
   setOutputGain(value: number): void {
