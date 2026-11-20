@@ -874,3 +874,36 @@ body:has(.ipad-edition[data-environment="light"] .ipad-edition__search-page):has
   outline: 2px solid rgba(255,255,255,.78);
   outline-offset: 3px;
 }
+
+
+/* iOS focus polish: remove the native text-field ring while keeping a quiet
+   focus cue on the complete search surface. */
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form input,
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form input:focus,
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form input:focus-visible {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  outline: none !important;
+  border: 0 !important;
+  -webkit-box-shadow: none !important;
+  box-shadow: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form:focus-within {
+  border-color: rgba(255,255,255,.28);
+  outline: none;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.045), 0 12px 30px rgba(0,0,0,.3);
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form input:focus {
+  background: transparent;
+}
+
+/* Touch browsers can repaint hover transforms during keyboard/visual-viewport
+   changes. Keep category chips in normal flow and free of transform layers. */
+@media (hover: none) and (pointer: coarse) {
+  .ipad-edition .ipad-edition__search-page .ipad-edition__category-grid button,
+  .ipad-edition .ipad-edition__search-page .ipad-search-quick button {
+    transform: none !important;
+    transition: none !important;
+  }
+}
