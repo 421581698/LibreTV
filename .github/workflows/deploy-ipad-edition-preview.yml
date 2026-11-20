@@ -899,12 +899,32 @@ jobs:
                 );
                 if (route.heading) {
                   await page.locator(".ipad-edition__page-heading h1").waitFor({ state: "visible", timeout: 30000 });
-                } else {
-                  await page.waitForTimeout(1200);
                 }
-                const metrics = await page.evaluate(() => {
+                // Collection pages must reach a terminal data state before a screenshot is accepted.
+                // A heading alone can appear while the grid is still showing loading skeletons.
+                if (["movies", "series", "anime"].includes(route.name)) {
+                  await page.waitForFunction(() => {
+                    const skeletons = document.querySelectorAll(".ipad-edition__poster-skeleton").length;
+                    const content = document.querySelector(".ipad-edition__collection-grid");
+                    const message = document.querySelector(".ipad-edition__rail-message");
+                    return skeletons === 0 && Boolean(content || message);
+                  }, undefined, { timeout: 30000 });
+                }
+                // Detail/player routes intentionally hide the global chrome. Their no-parameter
+                // smoke checks validate the route's explicit empty/error state only; they are not
+                // represented as full content-page visual baselines without real source fixtures.
+                if (route.name === "detail") {
+                  await page.locator(".movie-detail-page").waitFor({ state: "visible", timeout: 30000 });
+                }
+                if (route.name === "watch") {
+                  await page.locator("main").filter({ hasText: /缺少|未提供|无法|错误|播放/ }).first().waitFor({ state: "visible", timeout: 30000 });
+                }
+                const metrics = await page.evaluate((routeName) => {
                   const root = document.querySelector(".ipad-edition");
                   const nav = document.querySelector(".ipad-nav__topbar");
+                  const skeletonCount = document.querySelectorAll(".ipad-edition__poster-skeleton").length;
+                  const collection = document.querySelector(".ipad-edition__collection-grid");
+                  const emptyMessage = document.querySelector(".ipad-edition__rail-message");
                   return {
                     rootPresent: Boolean(root),
                     rootEnvironment: root?.dataset.environment ?? null,
@@ -912,13 +932,19 @@ jobs:
                     viewportWidth: document.documentElement.clientWidth,
                     contentTextLength: (root?.textContent ?? "").trim().length,
                     hasTopbar: Boolean(nav),
+                    loadingSkeletonCount: skeletonCount,
+                    collectionItemCount: collection?.children.length ?? 0,
+                    hasTerminalCollectionState: Boolean(collection || emptyMessage),
+                    visualScope: ["detail", "watch"].includes(routeName) ? "route-shell-only" : "page-content",
                   };
-                });
+                }, route.name);
                 const failed = !response?.ok() || !metrics.rootPresent ||
                   metrics.rootEnvironment !== colorScheme ||
                   metrics.documentWidth > metrics.viewportWidth + 1 ||
                   metrics.contentTextLength < 8 ||
                   metrics.hasTopbar !== route.chrome ||
+                  (["movies", "series", "anime"].includes(route.name) &&
+                    (metrics.loadingSkeletonCount > 0 || !metrics.hasTerminalCollectionState)) ||
                   errors.length > 0;
                 const name = route.name + "-" + colorScheme;
                 await page.screenshot({
