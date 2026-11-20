@@ -10,6 +10,34 @@ import { validateSourceUrl } from '@/lib/utils';
 import type { SearchResultItem } from '@/lib/types';
 import { fromCmsSearchResult } from '@/lib/poster';
 
+const SEARCH_HISTORY_KEY = 'libretv-ipad-search-history-v1';
+type SearchHistoryEntry = { term: string; count: number; lastSearchedAt: number };
+
+function readSearchHistory(): SearchHistoryEntry[] {
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(SEARCH_HISTORY_KEY) ?? '[]');
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item): item is SearchHistoryEntry =>
+        Boolean(item) &&
+        typeof item.term === 'string' &&
+        item.term.trim().length > 0 &&
+        typeof item.count === 'number' &&
+        Number.isFinite(item.count) &&
+        typeof item.lastSearchedAt === 'number' &&
+        Number.isFinite(item.lastSearchedAt),
+      )
+      .map((item) => ({
+        term: item.term.trim().slice(0, 100),
+        count: Math.max(1, Math.floor(item.count)),
+        lastSearchedAt: item.lastSearchedAt,
+      }))
+      .slice(0, 12);
+  } catch {
+    return [];
+  }
+}
+
 function IpadSearchContent() {
   const params = useSearchParams();
   const router = useRouter();
@@ -19,6 +47,8 @@ function IpadSearchContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
+  const [selectedSource, setSelectedSource] = useState('all');
+  const [searchHistory, setSearchHistory] = useState<SearchHistoryEntry[]>([]);
   const activeController = useRef<AbortController | null>(null);
   const requestId = useRef(0);
   const customAPIs = useAppStore((s) => s.customAPIs);
@@ -27,6 +57,7 @@ function IpadSearchContent() {
   const yellowFilter = useAppStore((s) => s.yellowFilter);
   const imageProxyMode = useAppStore((s) => s.imageProxyMode);
   const customImageProxy = useAppStore((s) => s.customImageProxy);
+
   const sources = useMemo(() => {
     const seen = new Set<string>();
     return selectedKeys.map((key) => resolveSource({ customAPIs, envSources }, key)).filter((source): source is NonNullable<typeof source> => {
@@ -36,25 +67,74 @@ function IpadSearchContent() {
     });
   }, [selectedKeys, customAPIs, envSources]);
 
+  const sourceOptions = useMemo(
+    () => Array.from(new Set(results.map((item) => item.sourceName).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'zh-CN')),
+    [results],
+  );
+  const visibleResults = useMemo(
+    () => selectedSource === 'all' ? results : results.filter((item) => item.sourceName === selectedSource),
+    [results, selectedSource],
+  );
+
+  useEffect(() => {
+    setSearchHistory(readSearchHistory());
+  }, []);
+
+  const recordSearchTerm = (term: string) => {
+    const normalized = term.trim().slice(0, 100);
+    if (!normalized) return;
+    const now = Date.now();
+    const current = readSearchHistory();
+    const previous = current.find((entry) => entry.term.toLocaleLowerCase() === normalized.toLocaleLowerCase());
+    const next = [
+      { term: normalized, count: (previous?.count ?? 0) + 1, lastSearchedAt: now },
+      ...current.filter((entry) => entry.term.toLocaleLowerCase() !== normalized.toLocaleLowerCase()),
+    ]
+      .sort((a, b) => b.count - a.count || b.lastSearchedAt - a.lastSearchedAt)
+      .slice(0, 12);
+    try {
+      window.localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(next));
+    } catch {
+      // Search remains usable when local storage is unavailable or full.
+    }
+    setSearchHistory(next);
+  };
+
+  const clearSearchHistory = () => {
+    try {
+      window.localStorage.removeItem(SEARCH_HISTORY_KEY);
+    } catch {
+      // The visible list can still be cleared for this session.
+    }
+    setSearchHistory([]);
+  };
+
+  const cancelSearch = () => {
+    activeController.current?.abort();
+    activeController.current = null;
+    requestId.current += 1;
+    setLoading(false);
+  };
+
   const runSearch = async (term: string) => {
     const value = term.trim().slice(0, 100);
     setQuery(value);
-    activeController.current?.abort();
-    const currentRequest = ++requestId.current;
-    activeController.current = null;
+    cancelSearch();
+    if (value) recordSearchTerm(value);
     if (!value) {
       setResults([]);
       setError('');
       setHasSearched(false);
-      setLoading(false);
+      setSelectedSource('all');
       return;
     }
+    const currentRequest = requestId.current;
     setHasSearched(true);
     setResults([]);
     setError('');
+    setSelectedSource('all');
     if (!sources.length) {
-      setError('尚未启用可用的点播源，请先在 LibreTV 设置中添加或启用资源源。');
-      setLoading(false);
+      setError('尚未启用可用的点播源。请先在 LibreTV 设置中添加或启用资源源。');
       return;
     }
     const controller = new AbortController();
@@ -80,7 +160,12 @@ function IpadSearchContent() {
 
   useEffect(() => {
     if (initial.trim()) void runSearch(initial);
-    // initial query is the route's entry value; later searches are user-triggered.
+    return () => {
+      activeController.current?.abort();
+      activeController.current = null;
+      requestId.current += 1;
+    };
+    // Initial query is the route entry value; later searches are user-triggered.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -98,40 +183,125 @@ function IpadSearchContent() {
 
   return (
     <div className="ipad-edition__page ipad-edition__search-page">
-      <header className="ipad-edition__page-heading">
-        <p className="ipad-edition__eyebrow">DISCOVER SOMETHING NEW</p>
-        <h1>搜索与发现</h1>
-        <p>跨已启用的点播源搜索电影、剧集与动画。</p>
+      <header className="ipad-search-hero">
+        <div className="ipad-search-hero__copy">
+          <h1>搜索</h1>
+        </div>
+        <form className="ipad-edition__search-form" role="search" onSubmit={(event) => { event.preventDefault(); void runSearch(query); }}>
+          <span aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <circle cx="10.8" cy="10.8" r="6.7" />
+              <path d="m15.8 15.8 4.2 4.2" />
+            </svg>
+          </span>
+          <input
+            value={query}
+            maxLength={100}
+            onChange={(event) => {
+              cancelSearch();
+              setQuery(event.target.value);
+              setHasSearched(false);
+              setResults([]);
+              setError('');
+              setSelectedSource('all');
+            }}
+            placeholder="搜索片名、演员、导演或关键词"
+            aria-label="搜索影视内容"
+          />
+          {query ? <button className="ipad-search-clear" type="button" onClick={() => {
+            cancelSearch();
+            setQuery('');
+            setResults([]);
+            setError('');
+            setHasSearched(false);
+            setSelectedSource('all');
+            router.replace('/ipad-edition/search');
+          }} aria-label="清空搜索">×</button> : null}
+          <button className="ipad-search-submit" type="submit" disabled={loading || !query.trim()}>
+            {loading ? '搜索中' : '搜索'}
+          </button>
+        </form>
       </header>
-      <form className="ipad-edition__search-form" onSubmit={(event) => { event.preventDefault(); void runSearch(query); }}>
-        <span aria-hidden="true">
-          <svg viewBox="0 0 24 24">
-            <circle cx="10.8" cy="10.8" r="6.7" />
-            <path d="m15.8 15.8 4.2 4.2" />
-          </svg>
-        </span>
-        <input value={query} maxLength={100} onChange={(event) => { activeController.current?.abort(); activeController.current = null; requestId.current += 1; setLoading(false); setQuery(event.target.value); setHasSearched(false); setResults([]); setError(''); }} placeholder="搜索片名、演员或关键词…" aria-label="搜索影视内容" />
-        {query ? <button type="button" onClick={() => { activeController.current?.abort(); activeController.current = null; requestId.current += 1; setLoading(false); setQuery(''); setResults([]); setError(''); setHasSearched(false); router.replace('/ipad-edition/search'); }}>清空</button> : null}
-        <button type="submit" disabled={loading || !query.trim()}>{loading ? '搜索中…' : '搜索'}</button>
-      </form>
-      {!query.trim() ? (
-        <section className="ipad-edition__category-area">
-          <div className="ipad-edition__section-heading"><div><p className="ipad-edition__eyebrow">BROWSE BY GENRE</p><h2>热门分类</h2></div></div>
-          <div className="ipad-edition__category-grid">{categories.map(([label, term]) => <button key={label} type="button" onClick={() => void runSearch(term)}><span>{label}</span><small>探索相关影片</small><b aria-hidden="true">↗</b></button>)}</div>
+
+      {!hasSearched && !query.trim() ? (
+        <section className="ipad-search-discovery" aria-label="搜索灵感">
+          <div className="ipad-search-quick" aria-label="个人搜索习惯">
+            <div className="ipad-search-quick__heading">
+              <h2>常用搜索</h2>
+              {searchHistory.length > 0 ? (
+                <button className="ipad-search-history-clear" type="button" onClick={clearSearchHistory}>清空</button>
+              ) : null}
+            </div>
+            {searchHistory.length > 0 ? (
+              <div className="ipad-search-quick__items">
+                {searchHistory.slice(0, 6).map((entry) => (
+                  <button key={entry.term} type="button" onClick={() => void runSearch(entry.term)}>
+                    {entry.term}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="ipad-search-history-empty">搜索过的片名、演员或导演会自动整理在这里</p>
+            )}
+            <span className="ipad-search-history-note">仅保存在此设备 · 根据你的搜索频率与最近使用情况排序</span>
+          </div>
+          <div className="ipad-search-section-heading">
+            <h2>类型</h2>
+          </div>
+          <div className="ipad-edition__category-grid">
+            {categories.map(([label, term]) => (
+              <button key={label} type="button" onClick={() => void runSearch(term)}>
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
         </section>
       ) : null}
-      {error ? <div className="ipad-edition__rail-message" role="alert">{error}</div> : null}
-      {loading ? <div className="ipad-edition__rail-message" role="status">正在检索已启用的资源源…</div> : null}
-      {!loading && !error && hasSearched && query.trim() && results.length === 0 ? <div className="ipad-edition__rail-message">没有找到匹配内容，试试更短的片名或其他关键词。</div> : null}
-      {results.length ? (
+
+      {loading ? (
+        <div className="ipad-search-state" role="status">
+          <span className="ipad-search-state__spinner" aria-hidden="true" />
+          <div><strong>正在搜索</strong></div>
+        </div>
+      ) : null}
+      {error ? (
+        <div className="ipad-search-state ipad-search-state--error" role="alert">
+          <div><strong>暂时无法完成搜索</strong><p>{error}</p></div>
+          {query.trim() ? <button type="button" onClick={() => void runSearch(query)}>重试</button> : null}
+        </div>
+      ) : null}
+      {!loading && !error && hasSearched && results.length === 0 ? (
+        <div className="ipad-search-state ipad-search-state--empty">
+          <span className="ipad-search-state__empty-mark" aria-hidden="true">⌕</span>
+          <div><strong>没有找到结果</strong></div>
+        </div>
+      ) : null}
+
+      {results.length > 0 ? (
         <section className="ipad-edition__search-results" aria-label="搜索结果">
-          <div className="ipad-edition__section-heading"><div><p className="ipad-edition__eyebrow">RESULTS</p><h2>搜索结果 <small>({results.length})</small></h2></div></div>
-          <div className="ipad-edition__result-grid">
-            {results.map((item, index) => <button className="ipad-edition__result-card" type="button" key={item.sourceKey + ':' + item.vodId + ':' + index} onClick={() => openDetail(item)}>
-              <PosterRenderer variant="result" frameClassName="ipad-edition__result-poster" asset={fromCmsSearchResult(item)} url={item.pic} mode={imageProxyMode} customProxy={customImageProxy} alt={item.name} />
-              <strong>{item.name}</strong><small>{[item.year, item.typeName, item.remarks, item.sourceName].filter(Boolean).join(' · ')}</small>
-            </button>)}
+          <div className="ipad-search-results-heading">
+            <div><h2>搜索结果 <span>{visibleResults.length}</span></h2></div>
+            {sourceOptions.length > 1 ? (
+              <label className="ipad-search-source-filter">
+                <select value={selectedSource} onChange={(event) => setSelectedSource(event.target.value)}>
+                  <option value="all">全部来源</option>
+                  {sourceOptions.map((source) => <option key={source} value={source}>{source}</option>)}
+                </select>
+              </label>
+            ) : null}
           </div>
+          {visibleResults.length > 0 ? (
+            <div className="ipad-edition__result-grid">
+              {visibleResults.map((item, index) => (
+                <button className="ipad-edition__result-card" type="button" key={item.sourceKey + ':' + item.vodId + ':' + index} onClick={() => openDetail(item)}>
+                  <PosterRenderer variant="result" frameClassName="ipad-edition__result-poster" asset={fromCmsSearchResult(item)} url={item.pic} mode={imageProxyMode} customProxy={customImageProxy} alt={item.name} />
+                  <strong>{item.name}</strong>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="ipad-search-filter-empty">这个资源源没有匹配结果。选择“全部来源”查看其他结果。</div>
+          )}
         </section>
       ) : null}
     </div>
