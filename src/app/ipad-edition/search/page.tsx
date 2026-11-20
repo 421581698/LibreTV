@@ -120,7 +120,16 @@ function IpadSearchContent() {
           <div className="ipad-edition__category-grid">{categories.map(([label, term]) => <button key={label} type="button" onClick={() => void runSearch(term)}><span>{label}</span><small>探索相关影片</small><b aria-hidden="true">↗</b></button>)}</div>
         </section>
       ) : null}
-      {error ? <div className="ipad-edition__rail-message" role="alert">{error}</div> : null}
+      {error ? (
+        <div className="ipad-edition__rail-message" role="alert">
+          <p>{error}</p>
+          {sources.length ? (
+            <button type="button" onClick={() => void runSearch(query)}>重试搜索</button>
+          ) : (
+            <a href="/ipad-edition/settings">前往设置资源源</a>
+          )}
+        </div>
+      ) : null}
       {loading ? <div className="ipad-edition__rail-message" role="status">正在检索已启用的资源源…</div> : null}
       {!loading && !error && hasSearched && query.trim() && results.length === 0 ? <div className="ipad-edition__rail-message">没有找到匹配内容，试试更短的片名或其他关键词。</div> : null}
       {results.length ? (
