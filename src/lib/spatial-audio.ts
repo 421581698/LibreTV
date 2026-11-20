@@ -141,21 +141,33 @@ const attachedEngines = new WeakMap<HTMLMediaElement, SpatialAudioEngine>();
  * crossorigin attribute so they remain playable; do not attach Web Audio to
  * those URLs and accidentally mute a working stream.
  */
-export function isMediaElementAudioOriginSafe(media: HTMLMediaElement, pageOrigin: string): boolean {
-  const raw = media.currentSrc || media.src;
-  if (!raw) return false;
+export function isAudioSourceUrlOriginSafe(
+  sourceUrl: string,
+  pageOrigin: string,
+  crossOrigin: string | null = null,
+): boolean {
+  if (!sourceUrl || !pageOrigin) return false;
   try {
-    const url = new URL(raw, pageOrigin);
+    const url = new URL(sourceUrl, pageOrigin);
     if (url.protocol === 'blob:' || url.protocol === 'data:' || url.origin === pageOrigin) return true;
-    return media.crossOrigin === 'anonymous' || media.crossOrigin === 'use-credentials';
+    return crossOrigin === 'anonymous' || crossOrigin === 'use-credentials';
   } catch {
     return false;
   }
 }
 
+export function isMediaElementAudioOriginSafe(media: HTMLMediaElement, pageOrigin: string): boolean {
+  return isAudioSourceUrlOriginSafe(media.currentSrc || media.src, pageOrigin, media.crossOrigin);
+}
+
 /**
  * One engine per media element: createMediaElementSource() must not be called
  * repeatedly for the same element. attach() should be called from a click/tap.
+ *
+ * Important lifecycle constraint: after attach(), every future src assigned to
+ * this same media element must also be CORS-safe. Before switching to a
+ * non-CORS direct URL, PlayerShell must replace the media element; disconnecting
+ * this graph cannot restore the browser's native audio path for the old element.
  */
 export class SpatialAudioEngine {
   private readonly context: AudioContext;
