@@ -99,3 +99,33 @@
     transition: none;
   }
 }
+
+/* Search results remain spacious on iPad portrait and compact phones. */
+.ipad-edition.ipad-edition__search-page .ipad-edition__result-card:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, .72);
+  outline-offset: 5px;
+  border-radius: 12px;
+}
+@media (min-width: 700px) and (max-width: 1023px) {
+  .ipad-edition.ipad-edition__search-page .ipad-edition__category-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ipad-edition.ipad-edition__search-page .ipad-edition__result-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 20px 14px;
+  }
+}
+@media (max-width: 699px) {
+  .ipad-edition.ipad-edition__search-page .ipad-edition__category-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .ipad-edition.ipad-edition__search-page .ipad-edition__category-grid button {
+    min-height: 104px;
+    padding: 15px;
+  }
+  .ipad-edition.ipad-edition__search-page .ipad-edition__result-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px 10px;
+  }
+}
