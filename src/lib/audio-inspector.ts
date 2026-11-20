@@ -49,6 +49,48 @@ function channelLayout(channelCount: number | null): AudioChannelLayout {
   return 'unknown';
 }
 
+function parseChannelDeclaration(channelsRaw: string | null): {
+  channelCount: number | null;
+  hasJocMarker: boolean;
+} {
+  const match = channelsRaw ? /^(\d+)(?:\/(.*))?$/.exec(channelsRaw) : null;
+  const count = match ? Number(match[1]) : null;
+  return {
+    channelCount: Number.isInteger(count) && count! > 0 ? count : null,
+    hasJocMarker: Boolean(match?.[2] && /JOC/i.test(match[2])),
+  };
+}
+
+export interface HlsAudioTrackLike {
+  id?: number;
+  name?: string;
+  groupId?: string;
+  lang?: string;
+  url?: string;
+  channels?: string;
+  audioCodec?: string;
+  default?: boolean;
+  autoselect?: boolean;
+}
+
+/** Normalize the audio track metadata exposed by hls.js 1.7.x. */
+export function inspectHlsAudioTrack(track: HlsAudioTrackLike): HlsAudioRenditionInfo {
+  const channelsRaw = track.channels ?? null;
+  const parsed = parseChannelDeclaration(channelsRaw);
+  return {
+    groupId: track.groupId ?? '',
+    name: track.name ?? '',
+    uri: track.url ?? null,
+    channelsRaw,
+    channelCount: parsed.channelCount,
+    layout: channelLayout(parsed.channelCount),
+    codec: track.audioCodec ?? null,
+    hasJocMarker: parsed.hasJocMarker,
+    default: Boolean(track.default),
+    autoselect: Boolean(track.autoselect),
+  };
+}
+
 export function parseHlsAudioRenditions(manifest: string): HlsAudioRenditionInfo[] {
   const lines = manifest.split(/\r?\n/).map((line) => line.trim());
   const audioGroups = new Map<string, string | null>();
@@ -66,18 +108,16 @@ export function parseHlsAudioRenditions(manifest: string): HlsAudioRenditionInfo
     if (attrs.TYPE !== 'AUDIO') continue;
 
     const channelsRaw = attrs.CHANNELS ?? null;
-    const channelsMatch = channelsRaw ? /^(\d+)(?:\/(.*))?$/.exec(channelsRaw) : null;
-    const channelCount = channelsMatch ? Number(channelsMatch[1]) : null;
-    const hasJocMarker = Boolean(channelsMatch?.[2] && /JOC/i.test(channelsMatch[2]));
+    const parsedChannels = parseChannelDeclaration(channelsRaw);
     renditions.push({
       groupId: attrs['GROUP-ID'] ?? '',
       name: attrs.NAME ?? '',
       uri: attrs.URI ?? null,
       channelsRaw,
-      channelCount: Number.isInteger(channelCount) && channelCount! > 0 ? channelCount : null,
-      layout: channelLayout(Number.isInteger(channelCount) && channelCount! > 0 ? channelCount : null),
+      channelCount: parsedChannels.channelCount,
+      layout: channelLayout(parsedChannels.channelCount),
       codec: null,
-      hasJocMarker,
+      hasJocMarker: parsedChannels.hasJocMarker,
       default: attrs.DEFAULT === 'YES',
       autoselect: attrs.AUTOSELECT === 'YES',
     });
