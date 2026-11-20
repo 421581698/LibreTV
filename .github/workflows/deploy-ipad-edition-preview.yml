@@ -976,3 +976,5 @@ jobs:
           retention-days: 14
 
 # [deploy-ipad-edition-preview] Capture parent-chain diagnostics on the isolated Preview.
+
+# [deploy-ipad-edition-preview] Verify the upstream product baseline on isolated iPad Preview.
