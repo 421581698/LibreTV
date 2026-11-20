@@ -1,6 +1,5 @@
 name: Deploy LibreTV iPad Edition Preview (Ubuntu 24.04)
 # Preview-only visual audit activation; never targets the production Worker.
-# [deploy-ipad-edition-preview] Isolated iOS keyboard/focus rendering regression audit.
 # [deploy-ipad-edition-preview] Re-run isolated Preview after locale-agnostic player smoke-check fix.
 # Poster proxy verification follows the iPad homepage image reliability fix.
 # Rendered PNG poster pixels are now a required gate; unreadable slots fail closed.
@@ -929,8 +928,31 @@ jobs:
                 }
                 if (route.name === "search") {
                   await page.locator(".ipad-edition__search-form").waitFor({ state: "visible", timeout: 15000 });
-                  await page.locator(".ipad-search-quick button").first().waitFor({ state: "visible", timeout: 15000 });
+                  await page.evaluate(() => localStorage.removeItem("libretv-ipad-search-history-v1"));
+                  await page.reload({ waitUntil: "domcontentloaded" });
+                  await page.locator(".ipad-search-history-empty").waitFor({ state: "visible", timeout: 15000 });
                   await page.locator(".ipad-edition__category-grid button").nth(7).waitFor({ state: "visible", timeout: 15000 });
+                  const firstUseState = await page.evaluate(() => ({
+                    emptyHint: Boolean(document.querySelector(".ipad-search-history-empty")),
+                    historyPills: document.querySelectorAll(".ipad-search-quick__items button").length,
+                  }));
+                  if (!firstUseState.emptyHint || firstUseState.historyPills !== 0) {
+                    throw new Error("First-use search history must be empty and contain no preset suggestions");
+                  }
+                  await page.evaluate(() => localStorage.setItem(
+                    "libretv-ipad-search-history-v1",
+                    JSON.stringify([
+                      { term: "用户测试词A", count: 3, lastSearchedAt: 200 },
+                      { term: "用户测试词B", count: 1, lastSearchedAt: 100 },
+                    ]),
+                  ));
+                  await page.reload({ waitUntil: "domcontentloaded" });
+                  await page.getByRole("button", { name: "用户测试词A" }).waitFor({ state: "visible", timeout: 15000 });
+                  await page.getByRole("button", { name: "用户测试词B" }).waitFor({ state: "visible", timeout: 15000 });
+                  const personalizedTerms = await page.locator(".ipad-search-quick__items button").allTextContents();
+                  if (personalizedTerms.join("|") !== "用户测试词A|用户测试词B") {
+                    throw new Error("Personal search history should be ordered by frequency, then recency");
+                  }
                 }
                 // Collection pages must reach a terminal data state before a screenshot is accepted.
                 // A heading alone can appear while the grid is still showing loading skeletons.
@@ -973,7 +995,7 @@ jobs:
                     collectionItemCount: collection?.children.length ?? 0,
                     hasTerminalCollectionState: Boolean(collection || emptyMessage),
                     searchFormPresent: Boolean(document.querySelector(".ipad-edition__search-form")),
-                    searchQuickKeywordCount: document.querySelectorAll(".ipad-search-quick button").length,
+                    searchQuickKeywordCount: document.querySelectorAll(".ipad-search-quick__items button").length,
                     searchCategoryCount: document.querySelectorAll(".ipad-edition__category-grid button").length,
                     searchCategoryLayout: routeName === "search"
                       ? (() => {
@@ -1013,7 +1035,7 @@ jobs:
                   (["movies", "series", "anime"].includes(route.name) &&
                     (metrics.loadingSkeletonCount > 0 || !metrics.hasTerminalCollectionState)) ||
                   (route.name === "search" &&
-                    (!metrics.searchFormPresent || metrics.searchQuickKeywordCount !== 4 ||
+                    (!metrics.searchFormPresent || metrics.searchQuickKeywordCount > 6 ||
                      metrics.searchCategoryCount !== 8 ||
                      metrics.searchCategoryLayout?.display !== "flex" ||
                      metrics.searchCategoryLayout?.flexWrap !== "wrap" ||
@@ -1053,3 +1075,7 @@ jobs:
           retention-days: 14
 
 # [deploy-ipad-edition-preview] Capture parent-chain diagnostics on the isolated Preview.
+
+# [deploy-ipad-edition-preview] Audit personalized search history without assuming preset keywords.
+
+# [deploy-ipad-edition-preview] Re-run keyboard fix with adaptive personal-search audit.
