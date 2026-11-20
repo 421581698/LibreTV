@@ -540,3 +540,29 @@ body:has(.ipad-edition__search-page) {
     font-size: 13px;
   }
 }
+
+
+/* Keep every remaining control comfortably readable on iPad and mobile. */
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form button {
+  font-size: 14px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-clear {
+  font-size: 14px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-submit {
+  min-width: 84px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__result-card > strong {
+  font-size: 14px;
+}
+@media (max-width: 699px) {
+  .ipad-edition .ipad-edition__search-page .ipad-edition__search-form button {
+    font-size: 14px;
+  }
+  .ipad-edition .ipad-edition__search-page .ipad-search-submit {
+    min-width: 68px;
+  }
+  .ipad-edition .ipad-edition__search-page .ipad-edition__result-card > strong {
+    font-size: 14px;
+  }
+}
