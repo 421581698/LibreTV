@@ -249,7 +249,7 @@
   --ipad-glass-control-fill: rgba(43, 47, 56, .58);
   --ipad-glass-control-edge: rgba(255, 255, 255, .17);
   --ipad-glass-control-shadow: 0 10px 30px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.15);
-}/* All compact navigation, .ipad-edition__collection-tabs button, .ipad-edition__pagination button, .ipad-edition__library-card > button, .ipad-edition__category-grid button, .ipad-edition__search-form, .ipad-edition__search-form button, .ipad-edition__hero-cta, .ipad-edition__hero-add {
+}/* All compact navigation */ .ipad-edition__collection-tabs button, .ipad-edition__pagination button, .ipad-edition__library-card > button, .ipad-edition__category-grid button, .ipad-edition__search-form, .ipad-edition__search-form button, .ipad-edition__hero-cta, .ipad-edition__hero-add {
   border-radius: var(--ipad-glass-capsule-radius) !important;
 }.ipad-edition__collection-tabs, .ipad-edition__pagination {
   align-items: center;
