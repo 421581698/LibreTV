@@ -1,7 +1,7 @@
 'use client';
 
 import './search.css';
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PosterRenderer } from '@/components/ipad-edition/PosterRenderer';
 import { api } from '@/lib/client-api';
@@ -18,6 +18,9 @@ function IpadSearchContent() {
   const [results, setResults] = useState<SearchResultItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [hasSearched, setHasSearched] = useState(false);
+  const activeController = useRef<AbortController | null>(null);
+  const requestId = useRef(0);
   const customAPIs = useAppStore((s) => s.customAPIs);
   const envSources = useAppStore((s) => s.envSources);
   const selectedKeys = useAppStore((s) => s.selectedKeys);
@@ -36,19 +39,43 @@ function IpadSearchContent() {
   const runSearch = async (term: string) => {
     const value = term.trim().slice(0, 100);
     setQuery(value);
-    if (!value) { setResults([]); setError(''); return; }
-    if (!sources.length) { setResults([]); setError('尚未启用可用的点播源，请先在 LibreTV 设置中添加或启用资源源。'); return; }
-    setLoading(true); setError('');
+    activeController.current?.abort();
+    const currentRequest = ++requestId.current;
+    activeController.current = null;
+    if (!value) {
+      setResults([]);
+      setError('');
+      setHasSearched(false);
+      setLoading(false);
+      return;
+    }
+    setHasSearched(true);
+    setResults([]);
+    setError('');
+    if (!sources.length) {
+      setError('尚未启用可用的点播源，请先在 LibreTV 设置中添加或启用资源源。');
+      setLoading(false);
+      return;
+    }
     const controller = new AbortController();
+    activeController.current = controller;
+    setLoading(true);
     try {
       const response = await api.search(value, sources, yellowFilter, { signal: controller.signal });
+      if (currentRequest !== requestId.current) return;
       setResults(response.list ?? []);
       const next = new URLSearchParams({ q: value });
       router.replace('/ipad-edition/search?' + next.toString(), { scroll: false });
     } catch (reason) {
+      if (controller.signal.aborted || currentRequest !== requestId.current) return;
       setResults([]);
       setError(reason instanceof Error ? reason.message : '搜索失败，请稍后重试。');
-    } finally { setLoading(false); }
+    } finally {
+      if (currentRequest === requestId.current) {
+        activeController.current = null;
+        setLoading(false);
+      }
+    }
   };
 
   useEffect(() => {
@@ -83,7 +110,7 @@ function IpadSearchContent() {
             <path d="m15.8 15.8 4.2 4.2" />
           </svg>
         </span>
-        <input value={query} maxLength={100} onChange={(event) => setQuery(event.target.value)} placeholder="搜索片名、演员或关键词…" aria-label="搜索影视内容" />
+        <input value={query} maxLength={100} onChange={(event) => { setQuery(event.target.value); setHasSearched(false); setResults([]); setError(''); }} placeholder="搜索片名、演员或关键词…" aria-label="搜索影视内容" />
         {query ? <button type="button" onClick={() => { setQuery(''); setResults([]); setError(''); router.replace('/ipad-edition/search'); }}>清空</button> : null}
         <button type="submit" disabled={loading || !query.trim()}>{loading ? '搜索中…' : '搜索'}</button>
       </form>
@@ -95,7 +122,7 @@ function IpadSearchContent() {
       ) : null}
       {error ? <div className="ipad-edition__rail-message" role="alert">{error}</div> : null}
       {loading ? <div className="ipad-edition__rail-message" role="status">正在检索已启用的资源源…</div> : null}
-      {!loading && !error && query.trim() && results.length === 0 ? <div className="ipad-edition__rail-message">没有找到匹配内容，试试更短的片名或其他关键词。</div> : null}
+      {!loading && !error && hasSearched && query.trim() && results.length === 0 ? <div className="ipad-edition__rail-message">没有找到匹配内容，试试更短的片名或其他关键词。</div> : null}
       {results.length ? (
         <section className="ipad-edition__search-results" aria-label="搜索结果">
           <div className="ipad-edition__section-heading"><div><p className="ipad-edition__eyebrow">RESULTS</p><h2>搜索结果 <small>({results.length})</small></h2></div></div>
