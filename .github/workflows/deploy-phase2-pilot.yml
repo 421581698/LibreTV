@@ -1,0 +1,76 @@
+name: Deploy Phase2 Glass Pilot (isolated)
+
+# 独立 A/B 试点部署：仅部署 libretv-phase2-glass-pilot，不碰生产 libretv。
+# 凭证从仓库 Secrets 读取，不进源码/日志/聊天。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-phase2-glass-pilot
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build & deploy isolated phase2 pilot worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout phase2 branch
+        uses: actions/checkout@v4
+        with:
+          ref: phase2/liquid-glass-ab-pilot
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Guard - confirm isolated worker target
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "$CF_TOKEN" || (echo "Missing secret CLOUDFLARE_API_TOKEN" && exit 1)
+          test -n "$CF_ACCOUNT" || (echo "Missing secret CLOUDFLARE_ACCOUNT_ID" && exit 1)
+          WNAME=$(grep -m1 '^name' wrangler.phase2-pilot.toml | sed 's/.*= *//' | tr -d '"')
+          echo "target worker: $WNAME"
+          test "$WNAME" = "libretv-phase2-glass-pilot" || (echo "Refuse: not the isolated worker" && exit 1)
+          test -f src/app/phase2-glass-pilot/page.tsx || (echo "Refuse: pilot page missing" && exit 1)
+          echo "Guard OK: isolated worker + pilot page present"
+
+      - name: Build OpenNext for Cloudflare
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npx opennextjs-cloudflare build
+
+      - name: Deploy to isolated worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --config wrangler.phase2-pilot.toml
+
+      - name: Verify - worker list, route & pilot page reachable
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          WORKER="libretv-phase2-glass-pilot"
+          SUBDOMAIN=$(npx wrangler whoami --json 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('subdomain',''))" 2>/dev/null || true)
+          echo "account subdomain: ${SUBDOMAIN:-<unknown>}"
+          URL="https://${WORKER}.${SUBDOMAIN}.workers.dev/phase2-glass-pilot"
+          echo "pilot URL: $URL"
+          echo "== HTTP status of pilot page =="
+          curl -s -o /tmp/pilot.html -w "status=%{http_code} bytes=%{size_download}\n" "$URL?engine=original" || true
+          echo "== pilot markers in response =="
+          grep -oE "Phase2|liquid.glass|phase2-glass-pilot|A/B|engine" /tmp/pilot.html 2>/dev/null | sort | uniq -c | head || true
+          echo "== confirm production worker not referenced in this workflow =="
+          echo "OK: this workflow only targets '$WORKER'; 'libretv' production worker untouched."
