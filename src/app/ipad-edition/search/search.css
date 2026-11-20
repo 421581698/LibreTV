@@ -869,3 +869,8 @@ body:has(.ipad-edition[data-environment="light"] .ipad-edition__search-page):has
     font-size: 10px;
   }
 }
+
+.ipad-edition .ipad-edition__search-page .ipad-search-history-clear:focus-visible {
+  outline: 2px solid rgba(255,255,255,.78);
+  outline-offset: 3px;
+}
