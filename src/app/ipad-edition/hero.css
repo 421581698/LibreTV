@@ -216,3 +216,127 @@
   .ipad-edition .ipad-edition__cinema-hero-cta,
   .ipad-edition .ipad-edition__cinema-hero-pagination button { animation: none !important; transition: none !important; }
 }
+
+
+/* Cinematic composition pass: blend the source poster into one continuous scene.
+   The source artwork stays untouched; atmosphere, light and typography are separate layers. */
+.ipad-edition .ipad-edition__cinema-hero-media {
+  background:
+    radial-gradient(ellipse at 76% 46%, rgba(190,145,91,.22) 0%, transparent 34%),
+    radial-gradient(ellipse at 54% 62%, rgba(73,103,145,.24) 0%, transparent 48%),
+    linear-gradient(115deg, #111722 0%, #171d28 52%, #0b1018 100%);
+}
+.ipad-edition .ipad-edition__cinema-hero-media::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  inset: -12%;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 76% 44%, rgba(226,177,116,.24) 0%, rgba(153,116,83,.1) 24%, transparent 52%),
+    radial-gradient(ellipse at 42% 54%, rgba(74,105,148,.18) 0%, transparent 54%),
+    linear-gradient(105deg, rgba(17,23,34,.12), transparent 54%, rgba(7,10,15,.12));
+  mix-blend-mode: screen;
+}
+.ipad-edition .ipad-edition__cinema-hero-media::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 72% 48%, transparent 24%, rgba(5,8,13,.16) 76%, rgba(5,8,13,.38) 100%),
+    linear-gradient(180deg, rgba(5,8,13,.12), transparent 22%, transparent 72%, rgba(5,8,13,.36));
+}
+.ipad-edition .ipad-edition__cinema-hero-atmosphere .poster-engine__image {
+  filter: blur(22px) brightness(.64) saturate(1.28);
+  transform: scale(1.16);
+  opacity: .9;
+}
+.ipad-edition .ipad-edition__cinema-hero-poster {
+  z-index: 3;
+}
+.ipad-edition .ipad-edition__cinema-hero-poster::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 5% -12% -3%;
+  border-radius: 28px;
+  background:
+    radial-gradient(ellipse at 50% 46%, rgba(228,185,130,.28), rgba(121,139,165,.12) 42%, transparent 72%);
+  filter: blur(34px);
+  opacity: .9;
+}
+.ipad-edition .ipad-edition__cinema-hero-poster .poster-engine__image {
+  filter: drop-shadow(0 24px 52px rgba(0,0,0,.52)) drop-shadow(0 0 22px rgba(220,181,130,.12));
+}
+.ipad-edition .ipad-edition__cinema-hero-shade {
+  z-index: 4;
+  background:
+    linear-gradient(90deg,
+      rgba(7,11,17,.78) 0%,
+      rgba(7,11,17,.64) 22%,
+      rgba(7,11,17,.42) 42%,
+      rgba(7,11,17,.16) 66%,
+      rgba(7,11,17,.02) 100%),
+    linear-gradient(0deg, rgba(5,8,13,.5) 0%, transparent 46%, rgba(5,8,13,.08) 100%);
+}
+.ipad-edition .ipad-edition__cinema-hero-copy {
+  z-index: 5;
+  width: min(650px, 56%);
+  padding-left: clamp(36px, 6.2vw, 92px);
+  padding-right: clamp(12px, 2vw, 28px);
+}
+.ipad-edition .ipad-edition__cinema-hero-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255,255,255,.82);
+  text-shadow: 0 2px 18px rgba(0,0,0,.42);
+}
+.ipad-edition .ipad-edition__cinema-hero-kicker::before {
+  content: "";
+  width: 22px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(236,197,143,.95), rgba(236,197,143,.18));
+}
+.ipad-edition .ipad-edition__cinema-hero-copy h1 {
+  max-width: 12ch;
+  text-shadow: 0 4px 32px rgba(0,0,0,.58), 0 1px 2px rgba(0,0,0,.72);
+}
+.ipad-edition .ipad-edition__cinema-hero-meta {
+  color: rgba(255,255,255,.94);
+}
+.ipad-edition .ipad-edition__cinema-hero-cta {
+  border-color: rgba(255,255,255,.72);
+  background: rgba(248,247,243,.94);
+  box-shadow: 0 12px 34px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.8);
+}
+@media (max-width: 699px) {
+  .ipad-edition .ipad-edition__cinema-hero-media::before {
+    background:
+      radial-gradient(ellipse at 82% 32%, rgba(226,177,116,.2), transparent 48%),
+      linear-gradient(105deg, rgba(17,23,34,.12), transparent 80%);
+  }
+  .ipad-edition .ipad-edition__cinema-hero-shade {
+    z-index: 4;
+    background:
+      linear-gradient(90deg, rgba(7,11,17,.78) 0%, rgba(7,11,17,.58) 48%, rgba(7,11,17,.12) 100%),
+      linear-gradient(0deg, rgba(5,8,13,.66) 0%, transparent 68%);
+  }
+  .ipad-edition .ipad-edition__cinema-hero-copy {
+    width: min(78%, 560px);
+    padding: 24px 20px 82px;
+  }
+}
+@media (orientation: portrait) and (min-width: 700px) {
+  .ipad-edition .ipad-edition__cinema-hero-copy {
+    width: 64%;
+    padding-left: clamp(34px, 5vw, 58px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ipad-edition .ipad-edition__cinema-hero-atmosphere .poster-engine__image {
+    animation: none !important;
+  }
+}
