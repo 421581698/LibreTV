@@ -952,6 +952,43 @@ jobs:
                   if (personalizedTerms.join("|") !== "用户测试词A|用户测试词B") {
                     throw new Error("Personal search history should be ordered by frequency, then recency");
                   }
+                  const searchInput = page.locator(".ipad-edition__search-form input");
+                  await searchInput.focus();
+                  const focusLayoutAudit = await page.evaluate(() => {
+                    const input = document.querySelector(".ipad-edition__search-form input");
+                    const form = document.querySelector(".ipad-edition__search-form");
+                    const main = document.querySelector(".ipad-edition__main");
+                    const page = document.querySelector(".ipad-edition__search-page");
+                    const categories = document.querySelector(".ipad-edition__category-grid");
+                    const inputStyle = getComputedStyle(input);
+                    const formRect = form.getBoundingClientRect();
+                    const categoryRect = categories.getBoundingClientRect();
+                    return {
+                      outlineStyle: inputStyle.outlineStyle,
+                      outlineWidth: inputStyle.outlineWidth,
+                      inputBoxShadow: inputStyle.boxShadow,
+                      inputAppearance: inputStyle.webkitAppearance,
+                      formBorderColor: getComputedStyle(form).borderTopColor,
+                      mainOverflowY: getComputedStyle(main).overflowY,
+                      pageOverflowAnchor: getComputedStyle(page).overflowAnchor,
+                      formBottom: Math.round(formRect.bottom),
+                      categoryTop: Math.round(categoryRect.top),
+                      formCategoryGap: Math.round(categoryRect.top - formRect.bottom),
+                      autocomplete: input.getAttribute("autocomplete"),
+                      autocorrect: input.getAttribute("autocorrect"),
+                    };
+                  });
+                  if (focusLayoutAudit.outlineStyle !== "none" ||
+                      focusLayoutAudit.inputBoxShadow !== "none" ||
+                      focusLayoutAudit.inputAppearance !== "none" ||
+                      focusLayoutAudit.mainOverflowY !== "visible" ||
+                      focusLayoutAudit.pageOverflowAnchor !== "none" ||
+                      focusLayoutAudit.formCategoryGap < 0 ||
+                      focusLayoutAudit.autocomplete !== "off" ||
+                      focusLayoutAudit.autocorrect !== "off") {
+                    throw new Error("Search input focus or keyboard-safe layout contract failed: " + JSON.stringify(focusLayoutAudit));
+                  }
+                  await searchInput.evaluate(input => input.blur());
                 }
                 // Collection pages must reach a terminal data state before a screenshot is accepted.
                 // A heading alone can appear while the grid is still showing loading skeletons.
@@ -1076,3 +1113,5 @@ jobs:
 # [deploy-ipad-edition-preview] Capture parent-chain diagnostics on the isolated Preview.
 
 # [deploy-ipad-edition-preview] Audit personalized search history without assuming preset keywords.
+
+# [deploy-ipad-edition-preview] Verify iOS search focus and keyboard-safe normal flow.
