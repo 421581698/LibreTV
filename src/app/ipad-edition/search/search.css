@@ -776,3 +776,48 @@ body:has(.ipad-edition[data-environment="light"] .ipad-edition__search-page):has
   -webkit-box-shadow: 0 0 0 1000px #1c1c1e inset !important;
   box-shadow: 0 0 0 1000px #1c1c1e inset !important;
 }
+
+
+/* Safari-safe search submit: preserve its label and prevent flex expansion. */
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form > .ipad-search-submit {
+  -webkit-appearance: none;
+  appearance: none;
+  display: inline-flex;
+  flex: 0 0 76px;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  min-width: 76px;
+  max-width: 76px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: #f5f5f7;
+  color: #171719;
+  -webkit-text-fill-color: #171719;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: 0;
+  text-align: center;
+  text-indent: 0;
+  white-space: nowrap;
+  opacity: 1;
+  visibility: visible;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form > .ipad-search-submit:disabled {
+  background: rgba(255,255,255,.12);
+  color: rgba(245,245,247,.48);
+  -webkit-text-fill-color: rgba(245,245,247,.48);
+}
+@media (max-width: 699px) {
+  .ipad-edition .ipad-edition__search-page .ipad-edition__search-form > .ipad-search-submit {
+    flex-basis: 68px;
+    width: 68px;
+    min-width: 68px;
+    max-width: 68px;
+  }
+}
