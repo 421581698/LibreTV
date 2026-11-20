@@ -1,12 +1,5 @@
 .ipad-edition {
-  --ipad-page: #f3f4f6;
-  --ipad-surface: rgba(255,255,255,.72);
-  --ipad-surface-solid: #fff;
-  --ipad-text: #17191d;
-  --ipad-muted: #737984;
-  --ipad-line: rgba(28,35,46,.12);
-  --ipad-accent: #3478f6;
-  --ipad-glass-blur: 24px;
+  /* Layout foundation only; environment tokens are defined by the cinema theme block below. */
   min-height: 100dvh;
   padding: 14px 28px 72px 316px;
   color: var(--ipad-text);
