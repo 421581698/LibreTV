@@ -10,7 +10,33 @@ import { validateSourceUrl } from '@/lib/utils';
 import type { SearchResultItem } from '@/lib/types';
 import { fromCmsSearchResult } from '@/lib/poster';
 
-const QUICK_SEARCHES = ['星际穿越', '流浪地球', '周星驰', '宫崎骏'];
+const SEARCH_HISTORY_KEY = 'libretv-ipad-search-history-v1';
+type SearchHistoryEntry = { term: string; count: number; lastSearchedAt: number };
+
+function readSearchHistory(): SearchHistoryEntry[] {
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(SEARCH_HISTORY_KEY) ?? '[]');
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item): item is SearchHistoryEntry =>
+        Boolean(item) &&
+        typeof item.term === 'string' &&
+        item.term.trim().length > 0 &&
+        typeof item.count === 'number' &&
+        Number.isFinite(item.count) &&
+        typeof item.lastSearchedAt === 'number' &&
+        Number.isFinite(item.lastSearchedAt),
+      )
+      .map((item) => ({
+        term: item.term.trim().slice(0, 100),
+        count: Math.max(1, Math.floor(item.count)),
+        lastSearchedAt: item.lastSearchedAt,
+      }))
+      .slice(0, 12);
+  } catch {
+    return [];
+  }
+}
 
 function IpadSearchContent() {
   const params = useSearchParams();
@@ -22,6 +48,7 @@ function IpadSearchContent() {
   const [error, setError] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedSource, setSelectedSource] = useState('all');
+  const [searchHistory, setSearchHistory] = useState<SearchHistoryEntry[]>([]);
   const activeController = useRef<AbortController | null>(null);
   const requestId = useRef(0);
   const customAPIs = useAppStore((s) => s.customAPIs);
@@ -49,6 +76,39 @@ function IpadSearchContent() {
     [results, selectedSource],
   );
 
+  useEffect(() => {
+    setSearchHistory(readSearchHistory());
+  }, []);
+
+  const recordSearchTerm = (term: string) => {
+    const normalized = term.trim().slice(0, 100);
+    if (!normalized) return;
+    const now = Date.now();
+    const current = readSearchHistory();
+    const previous = current.find((entry) => entry.term.toLocaleLowerCase() === normalized.toLocaleLowerCase());
+    const next = [
+      { term: normalized, count: (previous?.count ?? 0) + 1, lastSearchedAt: now },
+      ...current.filter((entry) => entry.term.toLocaleLowerCase() !== normalized.toLocaleLowerCase()),
+    ]
+      .sort((a, b) => b.count - a.count || b.lastSearchedAt - a.lastSearchedAt)
+      .slice(0, 12);
+    try {
+      window.localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(next));
+    } catch {
+      // Search remains usable when local storage is unavailable or full.
+    }
+    setSearchHistory(next);
+  };
+
+  const clearSearchHistory = () => {
+    try {
+      window.localStorage.removeItem(SEARCH_HISTORY_KEY);
+    } catch {
+      // The visible list can still be cleared for this session.
+    }
+    setSearchHistory([]);
+  };
+
   const cancelSearch = () => {
     activeController.current?.abort();
     activeController.current = null;
@@ -60,6 +120,7 @@ function IpadSearchContent() {
     const value = term.trim().slice(0, 100);
     setQuery(value);
     cancelSearch();
+    if (value) recordSearchTerm(value);
     if (!value) {
       setResults([]);
       setError('');
@@ -164,10 +225,25 @@ function IpadSearchContent() {
 
       {!hasSearched && !query.trim() ? (
         <section className="ipad-search-discovery" aria-label="搜索灵感">
-          <div className="ipad-search-quick">
-            <div className="ipad-search-quick__items">
-              {QUICK_SEARCHES.map((term) => <button key={term} type="button" onClick={() => void runSearch(term)}>{term}</button>)}
+          <div className="ipad-search-quick" aria-label="个人搜索习惯">
+            <div className="ipad-search-quick__heading">
+              <h2>常用搜索</h2>
+              {searchHistory.length > 0 ? (
+                <button className="ipad-search-history-clear" type="button" onClick={clearSearchHistory}>清空</button>
+              ) : null}
             </div>
+            {searchHistory.length > 0 ? (
+              <div className="ipad-search-quick__items">
+                {searchHistory.slice(0, 6).map((entry) => (
+                  <button key={entry.term} type="button" onClick={() => void runSearch(entry.term)}>
+                    {entry.term}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="ipad-search-history-empty">搜索过的片名、演员或导演会自动整理在这里</p>
+            )}
+            <span className="ipad-search-history-note">仅保存在此设备 · 根据你的搜索频率与最近使用情况排序</span>
           </div>
           <div className="ipad-search-section-heading">
             <h2>类型</h2>
