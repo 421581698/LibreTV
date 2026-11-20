@@ -98,7 +98,7 @@ jobs:
         timeout-minutes: 5
         run: npm install --no-save --no-package-lock playwright@1.56.1 pngjs@7.0.0
       - name: Install minimal Chromium runtime libraries
-        timeout-minutes: 6
+        timeout-minutes: 15
         run: |
           sudo apt-get update -o Acquire::Retries=3
           sudo apt-get install -y --no-install-recommends \
