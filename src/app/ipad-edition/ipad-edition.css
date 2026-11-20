@@ -1362,3 +1362,117 @@ body:has(.ipad-edition[data-environment="light"]) {
     height: 40px !important;
   }
 }
+
+
+/* iPad Search — dedicated landscape-first layout; scoped to the search route only. */
+.ipad-edition__search-page {
+  width: min(100%, 1680px);
+  margin-inline: auto;
+  gap: clamp(20px, 2.4vw, 34px);
+  padding: clamp(14px, 2vw, 28px) clamp(20px, 3vw, 48px) 64px;
+}
+.ipad-edition__search-page .ipad-edition__page-heading {
+  padding: 8px 0 0;
+}
+.ipad-edition__search-page .ipad-edition__page-heading h1 {
+  font-size: clamp(28px, 3vw, 38px);
+  letter-spacing: -.045em;
+}
+.ipad-edition__search-page .ipad-edition__page-heading > p:last-child {
+  margin-top: 7px;
+  font-size: 13px;
+}
+.ipad-edition__search-page .ipad-edition__search-form {
+  min-height: 68px;
+  gap: 14px;
+  padding: 10px 12px 10px 22px;
+  border-radius: 19px;
+}
+.ipad-edition__search-page .ipad-edition__search-form input {
+  font-size: 17px;
+}
+.ipad-edition__search-page .ipad-edition__search-form button {
+  min-width: 76px;
+  min-height: 44px;
+  border-radius: 12px;
+}
+.ipad-edition__search-page .ipad-edition__category-area {
+  gap: 16px;
+  max-width: 1180px;
+}
+.ipad-edition__search-page .ipad-edition__category-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.ipad-edition__search-page .ipad-edition__category-grid button {
+  min-height: 112px;
+  padding: 18px 20px;
+  border-radius: 16px;
+}
+.ipad-edition__search-page .ipad-edition__category-grid button span {
+  font-size: 18px;
+}
+.ipad-edition__search-page .ipad-edition__search-results {
+  min-width: 0;
+}
+.ipad-edition__search-page .ipad-edition__result-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 24px 18px;
+}
+.ipad-edition__search-page .ipad-edition__result-card {
+  gap: 9px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ipad-edition__search-page .ipad-edition__result-poster {
+  border-radius: 13px;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.ipad-edition__search-page .ipad-edition__result-card:active .ipad-edition__result-poster {
+  transform: scale(.975);
+}
+.ipad-edition__search-page .ipad-edition__result-card > strong {
+  font-size: 13px;
+}
+.ipad-edition__search-page .ipad-edition__result-card > small {
+  font-size: 11px;
+}
+.ipad-edition__search-page .ipad-edition__section-heading {
+  margin-bottom: 18px;
+}
+.ipad-edition__search-page .ipad-edition__section-heading h2 {
+  font-size: 23px;
+}
+.ipad-edition__search-page .ipad-edition__rail-message {
+  min-height: 132px;
+  border-radius: 16px;
+}
+@media (min-width: 700px) and (max-width: 1023px) {
+  .ipad-edition__search-page {
+    padding: 12px 22px 52px;
+    gap: 22px;
+  }
+  .ipad-edition__search-page .ipad-edition__category-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .ipad-edition__search-page .ipad-edition__category-grid button {
+    min-height: 100px;
+    padding: 15px;
+  }
+  .ipad-edition__search-page .ipad-edition__result-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 18px 12px;
+  }
+}
+@media (min-width: 1400px) {
+  .ipad-edition__search-page .ipad-edition__result-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 26px 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ipad-edition__search-page .ipad-edition__result-poster {
+    transition: none;
+  }
+}
