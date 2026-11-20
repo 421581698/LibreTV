@@ -847,6 +847,91 @@ jobs:
             await browser.close();
           }
           NODE
+      - name: Capture iPad subpage visual baselines
+        timeout-minutes: 12
+        run: |
+          mkdir -p artifacts/ipad-visual-audit/subpages
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs/promises';
+
+          const base = "https://libretv-ipad-edition-preview.bggdbh.workers.dev";
+          const routes = [
+            { name: "search", path: "/ipad-edition/search", chrome: true, heading: true },
+            { name: "movies", path: "/ipad-edition/movies", chrome: true, heading: true },
+            { name: "series", path: "/ipad-edition/series", chrome: true, heading: true },
+            { name: "anime", path: "/ipad-edition/anime", chrome: true, heading: true },
+            { name: "detail", path: "/ipad-edition/detail?title=Preview%20Layout%20Audit", chrome: false, heading: false },
+            { name: "watch", path: "/ipad-edition/watch", chrome: false, heading: false },
+          ];
+          const browser = await chromium.launch({ headless: true });
+          const results = [];
+          try {
+            for (const route of routes) {
+              for (const colorScheme of ["light", "dark"]) {
+                const context = await browser.newContext({
+                  viewport: { width: 1194, height: 834 },
+                  deviceScaleFactor: 2,
+                  isMobile: true,
+                  hasTouch: true,
+                  colorScheme,
+                });
+                const page = await context.newPage();
+                const errors = [];
+                page.on("pageerror", error => errors.push(error.message));
+                await page.addInitScript((scheme) => {
+                  const apply = () => {
+                    document.documentElement.classList.toggle("dark", scheme === "dark");
+                    document.documentElement.style.colorScheme = scheme;
+                  };
+                  if (document.documentElement) apply();
+                  else document.addEventListener("DOMContentLoaded", apply, { once: true });
+                }, colorScheme);
+                const response = await page.goto(base + route.path, { waitUntil: "domcontentloaded", timeout: 60000 });
+                await page.locator('[data-ipad-edition="true"]').waitFor({ state: "attached", timeout: 30000 });
+                if (route.heading) {
+                  await page.locator(".ipad-edition__page-heading h1").waitFor({ state: "visible", timeout: 30000 });
+                } else {
+                  await page.waitForTimeout(1200);
+                }
+                const metrics = await page.evaluate(() => {
+                  const root = document.querySelector(".ipad-edition");
+                  const nav = document.querySelector(".ipad-nav__topbar");
+                  return {
+                    rootPresent: Boolean(root),
+                    rootEnvironment: root?.dataset.environment ?? null,
+                    documentWidth: document.documentElement.scrollWidth,
+                    viewportWidth: document.documentElement.clientWidth,
+                    contentTextLength: (root?.textContent ?? "").trim().length,
+                    hasTopbar: Boolean(nav),
+                  };
+                });
+                const failed = !response?.ok() || !metrics.rootPresent ||
+                  metrics.rootEnvironment !== colorScheme ||
+                  metrics.documentWidth > metrics.viewportWidth + 1 ||
+                  metrics.contentTextLength < 8 ||
+                  metrics.hasTopbar !== route.chrome ||
+                  errors.length > 0;
+                const name = route.name + "-" + colorScheme;
+                await page.screenshot({
+                  path: "artifacts/ipad-visual-audit/subpages/" + name + ".png",
+                  fullPage: false,
+                  animations: "disabled",
+                });
+                results.push({ name, route: route.path, status: response?.status() ?? null, failed, metrics, errors });
+                console.log(JSON.stringify(results.at(-1)));
+                await context.close();
+                if (failed) throw new Error("iPad subpage visual baseline failed: " + name);
+              }
+            }
+          } finally {
+            await browser.close();
+            await fs.writeFile(
+              "artifacts/ipad-visual-audit/subpages/report.json",
+              JSON.stringify({ viewport: { width: 1194, height: 834 }, total: results.length, results }, null, 2),
+            );
+          }
+          NODE
       - name: Upload iPad visual audit screenshots and report
         if: always()
         uses: actions/upload-artifact@v4
