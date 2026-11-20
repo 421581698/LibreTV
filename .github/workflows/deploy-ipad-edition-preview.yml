@@ -22,6 +22,7 @@ on:
       - feature/libretv-ipad-edition-foundation
       - feature/libretv-ipad-edition-product
       - feature/ipad-css-important-cleanup
+      - feature/ipad-search-cinema-redesign
 
 # Matched CSS provenance is captured via CSS.styleSheetAdded before querying computed rule origins.
 
@@ -35,7 +36,7 @@ concurrency:
 
 jobs:
   deploy-preview:
-    if: ${{ (github.ref == 'refs/heads/feature/libretv-ipad-edition-foundation' || github.ref == 'refs/heads/feature/libretv-ipad-edition-product' || github.ref == 'refs/heads/feature/ipad-css-important-cleanup') && ((github.event_name == 'workflow_dispatch' && inputs.confirm_preview_deploy == 'yes') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[deploy-ipad-edition-preview]'))) }}
+    if: ${{ (github.ref == 'refs/heads/feature/libretv-ipad-edition-foundation' || github.ref == 'refs/heads/feature/libretv-ipad-edition-product' || github.ref == 'refs/heads/feature/ipad-css-important-cleanup' || github.ref == 'refs/heads/feature/ipad-search-cinema-redesign') && ((github.event_name == 'workflow_dispatch' && inputs.confirm_preview_deploy == 'yes') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[deploy-ipad-edition-preview]'))) }}
     name: Build and deploy isolated iPad Edition Preview
     runs-on: ubuntu-24.04
     timeout-minutes: 35
