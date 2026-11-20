@@ -186,32 +186,60 @@ jobs:
                 }, colorScheme);
                 const consoleErrors = [];
                 const apiDiagnostics = [];
+                const apiDiagnosticTasks = [];
+                const apiRequestStartedAt = new Map();
+                const isHomepageApi = (url) => /^\/api\/(douban|hot-list|bangumi\/calendar)$/.test(new URL(url).pathname);
                 page.on("pageerror", error => consoleErrors.push(error.message));
-                page.on("requestfailed", request => {
-                  const pathname = new URL(request.url()).pathname;
-                  if (/^\/api\/(douban|hot-list|bangumi\/calendar)$/.test(pathname)) {
-                    apiDiagnostics.push({
-                      type: "requestfailed",
-                      pathname,
-                      error: request.failure()?.errorText ?? "unknown",
-                    });
-                  }
+                page.on("request", request => {
+                  if (isHomepageApi(request.url())) apiRequestStartedAt.set(request, Date.now());
                 });
-                page.on("response", async apiResponse => {
-                  const pathname = new URL(apiResponse.url()).pathname;
-                  if (!/^\/api\/(douban|hot-list|bangumi\/calendar)$/.test(pathname)) return;
-                  const entry = { type: "response", pathname, status: apiResponse.status() };
-                  if (!apiResponse.ok()) {
-                    try { entry.body = (await apiResponse.text()).slice(0, 1200); }
-                    catch (error) { entry.bodyReadError = String(error); }
-                  }
-                  apiDiagnostics.push(entry);
+                page.on("requestfailed", request => {
+                  if (!isHomepageApi(request.url())) return;
+                  apiDiagnostics.push({
+                    type: "requestfailed",
+                    pathname: new URL(request.url()).pathname,
+                    durationMs: apiRequestStartedAt.has(request) ? Date.now() - apiRequestStartedAt.get(request) : null,
+                    error: request.failure()?.errorText ?? "unknown",
+                  });
+                });
+                page.on("response", apiResponse => {
+                  if (!isHomepageApi(apiResponse.url())) return;
+                  const task = (async () => {
+                    const pathname = new URL(apiResponse.url()).pathname;
+                    const entry = {
+                      type: "response",
+                      pathname,
+                      status: apiResponse.status(),
+                      durationMs: apiRequestStartedAt.has(apiResponse.request())
+                        ? Date.now() - apiRequestStartedAt.get(apiResponse.request())
+                        : null,
+                    };
+                    try {
+                      const body = await apiResponse.text();
+                      let payload;
+                      try {
+                        payload = JSON.parse(body);
+                        entry.payloadKeys = payload && typeof payload === "object" ? Object.keys(payload) : [];
+                        if (Array.isArray(payload?.items)) entry.itemCount = payload.items.length;
+                        if (Array.isArray(payload?.days)) {
+                          entry.dayCount = payload.days.length;
+                          entry.calendarItemCount = payload.days.reduce((sum, day) => sum + (Array.isArray(day?.items) ? day.items.length : 0), 0);
+                        }
+                        if (!apiResponse.ok()) entry.body = body.slice(0, 1200);
+                      } catch (error) {
+                        entry.jsonParseError = String(error);
+                        entry.body = body.slice(0, 1200);
+                      }
+                    } catch (error) {
+                      entry.bodyReadError = String(error);
+                    }
+                    apiDiagnostics.push(entry);
+                  })();
+                  apiDiagnosticTasks.push(task);
                 });
                 const response = await page.goto(target, { waitUntil: "domcontentloaded", timeout: 60000 });
                 await page.locator('[data-ipad-edition="true"]').waitFor({ state: "attached", timeout: 30000 });
                 await page.waitForFunction((scheme) => document.querySelector('.ipad-edition')?.getAttribute('data-environment') === scheme, colorScheme, { timeout: 30000 });
-              // The environment profile is set by the hydrated client shell effect.
-              await page.waitForFunction((scheme) => document.querySelector('.ipad-edition')?.getAttribute('data-environment') === scheme, colorScheme, { timeout: 30000 });
                 await page.locator('.ipad-nav__topbar-inner').waitFor({ state: "visible", timeout: 30000 });
                 // Exercise the real navigation controls in every viewport/theme pair.
             // Wait for React to attach client event props before clicking: domcontentloaded
@@ -331,11 +359,14 @@ jobs:
             await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
             await page.waitForTimeout(180);
             // Wait for real homepage content before inspecting all poster-bearing cards.
-                await page.waitForFunction(() => {
+                const homepageReadiness = await page.waitForFunction(() => {
                   const busyRail = document.querySelector('.ipad-edition__poster-grid[aria-busy="true"]');
                   const heroTitle = document.querySelector('.ipad-edition__cinema-hero-copy h1')?.textContent ?? '';
-                  return !busyRail && !heroTitle.includes('正在为你准备影院');
-                }, undefined, { timeout: 30000 }).catch(() => {});
+                  const animeLoading = (document.querySelector('#ipad-anime-calendar')?.textContent ?? '').includes('正在读取每日放送');
+                  return !busyRail && !animeLoading && !heroTitle.includes('正在为你准备影院');
+                }, undefined, { timeout: 30000 })
+                  .then(() => ({ ready: true, timeoutMs: 30000 }))
+                  .catch(error => ({ ready: false, timeoutMs: 30000, error: String(error) }));
                 // Re-assert the requested theme after application hydration has completed.
                 await page.evaluate((scheme) => {
                   document.documentElement.classList.toggle('dark', scheme === 'dark');
@@ -653,6 +684,7 @@ jobs:
                     heroClearancePx,
                     heroCtaWhiteSpace,
                     homepageStillLoading: Boolean(document.querySelector('.ipad-edition__poster-grid[aria-busy="true"]')) || (document.querySelector('.ipad-edition__cinema-hero-copy h1')?.textContent ?? '').includes('正在为你准备影院'),
+                    animeCalendarStillLoading: (document.querySelector('#ipad-anime-calendar')?.textContent ?? '').includes('正在读取每日放送'),
                     posterCount: posters.length,
                     animeCardCount: animeCards.length,
                     posterSlotCount: posterChecks.length,
@@ -671,6 +703,7 @@ jobs:
                     theme,
                   };
                 }, { scheme: colorScheme, layoutDiagnostics });
+                metrics.homepageReadiness = homepageReadiness;
                 const themeKey = viewport.name;
                 const themeBaselines = globalThis.__ipadThemeBaselines ?? (globalThis.__ipadThemeBaselines = {});
                 if (colorScheme === 'light') {
@@ -803,8 +836,9 @@ jobs:
                 await page.evaluate(() => window.scrollTo(0, 0));
                 await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
                 await page.screenshot({ path: "artifacts/ipad-visual-audit/" + name + ".png", fullPage: false, animations: "disabled" });
-                const failed = !sidebarInteractionPassed || sidebarInteraction.diagnostics.finalState?.computedStyle?.position !== "fixed" || response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.y > 220 || metrics.main.width < viewport.width * 0.7 || metrics.homepageStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.posterImageLoadRate < 0.75 || !metrics.posterPixelInspectionPassed || metrics.heroTextOverlapsNavigation || metrics.heroOverlapsNavigation || !Number.isFinite(metrics.heroClearancePx) || metrics.heroClearancePx < 8 || metrics.heroCtaWhiteSpace !== "nowrap" || (viewport.width >= 700 && Math.abs(metrics.heroContentCenterOffsetPx ?? Infinity) > (metrics.hero?.height ?? 0) * 0.12) || metrics.heroClearancePx > 144 || !metrics.hero || metrics.hero.y < 0 || metrics.hero.y > Math.min(160, viewport.height * 0.25) || !metrics.themePairValid || !scrollAudit.navigationViewportValid || scrollAudit.overlappingPosterLabels.length > 0;
+                const failed = !sidebarInteractionPassed || sidebarInteraction.diagnostics.finalState?.computedStyle?.position !== "fixed" || response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.y > 220 || metrics.main.width < viewport.width * 0.7 || !homepageReadiness.ready || metrics.homepageStillLoading || metrics.animeCalendarStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.posterImageLoadRate < 0.75 || !metrics.posterPixelInspectionPassed || metrics.heroTextOverlapsNavigation || metrics.heroOverlapsNavigation || !Number.isFinite(metrics.heroClearancePx) || metrics.heroClearancePx < 8 || metrics.heroCtaWhiteSpace !== "nowrap" || (viewport.width >= 700 && Math.abs(metrics.heroContentCenterOffsetPx ?? Infinity) > (metrics.hero?.height ?? 0) * 0.12) || metrics.heroClearancePx > 144 || !metrics.hero || metrics.hero.y < 0 || metrics.hero.y > Math.min(160, viewport.height * 0.25) || !metrics.themePairValid || !scrollAudit.navigationViewportValid || scrollAudit.overlappingPosterLabels.length > 0;
                 if (failed) failures += 1;
+                await Promise.allSettled(apiDiagnosticTasks);
                 results.push({ name, httpStatus: response?.status() ?? null, failed, sidebarInteractionPassed, sidebarInteraction, metrics, pageErrors: consoleErrors, apiDiagnostics });
                 console.log(JSON.stringify(results.at(-1)));
                 await context.close();
