@@ -1,34 +1,66 @@
-/* Apple TV-inspired search capsule — scoped to the iPad Edition search route. */
-.ipad-edition.ipad-edition__search-page .ipad-edition__search-form {
+/* iPad search experience — cinema-black, landscape-first, route-scoped. */
+.ipad-edition .ipad-edition__search-page {
+  width: min(100%, 1720px);
+  margin-inline: auto;
+  gap: clamp(24px, 3vw, 42px);
+  padding: clamp(16px, 2vw, 30px) clamp(22px, 3.2vw, 54px) 72px;
+  color: #f5f5f7;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-hero {
+  display: grid;
+  gap: clamp(18px, 2.2vw, 28px);
+  max-width: 1240px;
+  padding: 8px 0 0;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-hero__copy .ipad-edition__eyebrow,
+.ipad-edition .ipad-edition__search-page .ipad-search-section-heading .ipad-edition__eyebrow,
+.ipad-edition .ipad-edition__search-page .ipad-search-results-heading .ipad-edition__eyebrow {
+  margin: 0 0 8px;
+  color: rgba(225, 229, 238, .48);
+  font-size: 10px;
+  letter-spacing: .2em;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-hero__copy h1 {
+  margin: 0;
+  color: #f5f5f7;
+  font-size: clamp(30px, 3.2vw, 42px);
+  font-weight: 760;
+  letter-spacing: -.055em;
+  line-height: 1.12;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-hero__copy > p:last-child {
+  margin: 9px 0 0;
+  color: rgba(225, 229, 238, .56);
+  font-size: 13px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   width: min(100%, 1120px);
-  min-height: 72px;
-  padding: 8px 12px 8px 25px;
-  border: 1px solid rgba(255, 255, 255, .075);
+  min-height: 68px;
+  padding: 7px 9px 7px 23px;
+  border: 1px solid rgba(255, 255, 255, .1);
   border-radius: 999px;
-  background: #151517;
-  box-shadow: 0 10px 34px rgba(0, 0, 0, .22);
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease;
+  background: #17181b;
+  box-shadow: 0 14px 42px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255,255,255,.025);
+  transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease;
 }
-.ipad-edition.ipad-edition__search-page .ipad-edition__search-form:focus-within {
-  border-color: rgba(255, 255, 255, .2);
-  background: #1b1b1e;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, .035), 0 12px 36px rgba(0, 0, 0, .28);
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form:focus-within {
+  border-color: rgba(255, 255, 255, .25);
+  background: #1b1c20;
+  box-shadow: 0 0 0 3px rgba(255,255,255,.035), 0 16px 44px rgba(0,0,0,.34);
 }
-.ipad-edition.ipad-edition__search-page .ipad-edition__search-form > span {
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form > span {
   display: grid;
   flex: 0 0 24px;
   width: 24px;
   height: 24px;
   place-items: center;
-  color: rgba(235, 235, 245, .68);
+  color: rgba(235, 237, 244, .68);
   font-size: 0;
 }
-.ipad-edition.ipad-edition__search-page .ipad-edition__search-form > span svg {
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form > span svg {
   display: block;
   width: 22px;
   height: 22px;
@@ -38,94 +70,807 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.ipad-edition.ipad-edition__search-page .ipad-edition__search-form input {
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form input {
+  flex: 1 1 auto;
   min-width: 0;
-  min-height: 52px;
+  min-height: 50px;
+  padding: 0;
   border: 0;
   outline: 0;
   box-shadow: none;
   background: transparent;
   color: #f5f5f7;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 450;
-  letter-spacing: -.015em;
+  letter-spacing: -.012em;
 }
-.ipad-edition.ipad-edition__search-page .ipad-edition__search-form input::placeholder {
-  color: rgba(235, 235, 245, .46);
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form input::placeholder {
+  color: rgba(225, 229, 238, .4);
   opacity: 1;
 }
-.ipad-edition.ipad-edition__search-page .ipad-edition__search-form button {
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
   min-width: auto;
   min-height: 44px;
   padding: 0 18px;
   border: 0;
   border-radius: 999px;
-  background: rgba(255, 255, 255, .09);
   color: rgba(245, 245, 247, .88);
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 660;
   transition: background-color .18s ease, opacity .18s ease;
 }
-.ipad-edition.ipad-edition__search-page .ipad-edition__search-form button:hover:not(:disabled) {
-  background: rgba(255, 255, 255, .15);
+.ipad-edition .ipad-edition__search-page .ipad-search-clear {
+  background: rgba(255,255,255,.055);
+  color: rgba(235,237,244,.62);
 }
-.ipad-edition.ipad-edition__search-page .ipad-edition__search-form button:disabled {
-  background: transparent;
-  color: rgba(235, 235, 245, .3);
+.ipad-edition .ipad-edition__search-page .ipad-search-submit {
+  min-width: 76px;
+  background: #f1f2f4;
+  color: #17181b;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form button:disabled {
+  background: rgba(255,255,255,.07);
+  color: rgba(235,237,244,.3);
   opacity: 1;
 }
-.ipad-edition.ipad-edition__search-page .ipad-edition__search-form button:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, .62);
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form button:focus-visible,
+.ipad-edition .ipad-edition__search-page .ipad-search-quick button:focus-visible,
+.ipad-edition .ipad-edition__search-page .ipad-edition__category-grid button:focus-visible,
+.ipad-edition .ipad-edition__search-page .ipad-edition__result-card:focus-visible {
+  outline: 2px solid rgba(255,255,255,.78);
+  outline-offset: 4px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-discovery {
+  display: grid;
+  gap: clamp(28px, 3vw, 40px);
+  max-width: 1420px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-quick {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-quick > span {
+  color: rgba(225,229,238,.48);
+  font-size: 12px;
+  font-weight: 620;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-quick__items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-quick button {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 999px;
+  background: rgba(255,255,255,.035);
+  color: rgba(240,242,247,.76);
+  font-size: 12px;
+  transition: background-color .16s ease, border-color .16s ease;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-quick button:hover {
+  border-color: rgba(255,255,255,.2);
+  background: rgba(255,255,255,.085);
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-section-heading,
+.ipad-edition .ipad-edition__search-page .ipad-search-results-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-section-heading h2,
+.ipad-edition .ipad-edition__search-page .ipad-search-results-heading h2 {
+  margin: 0;
+  color: #f2f3f5;
+  font-size: 23px;
+  font-weight: 740;
+  letter-spacing: -.035em;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-section-heading > span {
+  padding-bottom: 3px;
+  color: rgba(225,229,238,.42);
+  font-size: 11px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__category-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__category-grid button {
+  position: relative;
+  display: grid;
+  align-content: space-between;
+  gap: 12px;
+  min-height: 104px;
+  padding: 17px 18px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.085);
+  border-radius: 15px !important;
+  background: linear-gradient(145deg, #1b1c20, #131417) !important;
+  color: #f4f4f6;
+  text-align: left;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+  transition: border-color .18s ease, transform .18s ease, background-color .18s ease;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__category-grid button:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255,255,255,.2);
+  background: linear-gradient(145deg, #222329, #17181c);
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__category-grid button span {
+  color: #f4f4f6;
+  font-size: 17px;
+  font-weight: 720;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__category-grid button small {
+  color: rgba(225,229,238,.43);
+  font-size: 10px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__category-grid button b {
+  position: absolute;
+  top: 15px;
+  right: 16px;
+  color: rgba(225,229,238,.25);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: .12em;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 150px;
+  padding: 26px;
+  border: 1px solid rgba(255,255,255,.075);
+  border-radius: 18px;
+  background: #141518;
+  color: #f3f4f6;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-state strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-state p {
+  margin: 6px 0 0;
+  color: rgba(225,229,238,.52);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-state__spinner {
+  width: 25px;
+  height: 25px;
+  flex: 0 0 25px;
+  border: 2px solid rgba(255,255,255,.14);
+  border-top-color: rgba(255,255,255,.85);
+  border-radius: 50%;
+  animation: ipad-search-spin .8s linear infinite;
+}
+@keyframes ipad-search-spin { to { transform: rotate(360deg); } }
+.ipad-edition .ipad-edition__search-page .ipad-search-state--error {
+  justify-content: space-between;
+  border-color: rgba(255,255,255,.13);
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-state--error button {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 999px;
+  background: rgba(255,255,255,.08);
+  color: #f5f5f7;
+  font-size: 12px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-state__empty-mark {
+  color: rgba(255,255,255,.35);
+  font-size: 38px;
+  line-height: 1;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-results-heading {
+  margin-bottom: 20px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-results-heading h2 span {
+  margin-left: 6px;
+  color: rgba(240,242,247,.48);
+  font-size: 15px;
+  font-weight: 550;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-results-heading > div > p:last-child {
+  margin: 7px 0 0;
+  color: rgba(225,229,238,.45);
+  font-size: 11px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-source-filter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(225,229,238,.52);
+  font-size: 11px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-source-filter select {
+  min-width: 140px;
+  min-height: 38px;
+  padding: 0 32px 0 13px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 999px;
+  outline: none;
+  background: #191a1e;
+  color: #f1f2f4;
+  font: inherit;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-source-filter select:focus-visible {
+  outline: 2px solid rgba(255,255,255,.65);
   outline-offset: 2px;
 }
-@media (max-width: 699px) {
-  .ipad-edition.ipad-edition__search-page .ipad-edition__search-form {
-    min-height: 60px;
-    padding: 6px 8px 6px 18px;
-    gap: 10px;
-  }
-  .ipad-edition.ipad-edition__search-page .ipad-edition__search-form input {
-    min-height: 46px;
-    font-size: 16px;
-  }
-  .ipad-edition.ipad-edition__search-page .ipad-edition__search-form button {
-    min-height: 40px;
-    padding-inline: 13px;
+.ipad-edition .ipad-edition__search-page .ipad-edition__result-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+  gap: 24px 18px !important;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__result-card {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #f4f4f6;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__result-poster {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.075);
+  border-radius: 12px;
+  background: #191a1e;
+  box-shadow: 0 8px 22px rgba(0,0,0,.24);
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__result-card:hover .ipad-edition__result-poster {
+  transform: translateY(-3px);
+  border-color: rgba(255,255,255,.2);
+  box-shadow: 0 15px 30px rgba(0,0,0,.36);
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__result-card > strong {
+  display: block;
+  overflow: hidden;
+  color: #f2f3f5;
+  font-size: 12px;
+  font-weight: 670;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-card-meta {
+  overflow: hidden;
+  color: rgba(225,229,238,.54);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-card-remarks {
+  overflow: hidden;
+  color: rgba(225,229,238,.42);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-card-source {
+  width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 3px 7px;
+  border: 1px solid rgba(255,255,255,.075);
+  border-radius: 5px;
+  color: rgba(225,229,238,.43);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-filter-empty {
+  padding: 28px;
+  border: 1px dashed rgba(255,255,255,.13);
+  border-radius: 14px;
+  color: rgba(225,229,238,.5);
+  font-size: 12px;
+  text-align: center;
+}
+@media (min-width: 700px) and (max-width: 899px) {
+  .ipad-edition .ipad-edition__search-page { padding-inline: 20px; }
+  .ipad-edition .ipad-edition__search-page .ipad-edition__category-grid { grid-template-columns: repeat(4, minmax(0,1fr)) !important; }
+  .ipad-edition .ipad-edition__search-page .ipad-edition__result-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 20px 13px !important;
   }
 }
+@media (min-width: 900px) and (max-width: 1299px) {
+  .ipad-edition .ipad-edition__search-page .ipad-edition__result-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    gap: 22px 15px !important;
+  }
+}
+@media (min-width: 1300px) {
+  .ipad-edition .ipad-edition__search-page .ipad-edition__result-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+    gap: 25px 18px !important;
+  }
+}
+@media (max-width: 699px) {
+  .ipad-edition .ipad-edition__search-page { padding: 12px 16px 48px; gap: 24px; }
+  .ipad-edition .ipad-edition__search-page .ipad-search-hero__copy h1 { font-size: 29px; }
+  .ipad-edition .ipad-edition__search-page .ipad-edition__search-form { min-height: 58px; padding: 5px 6px 5px 16px; gap: 7px; }
+  .ipad-edition .ipad-edition__search-page .ipad-edition__search-form input { min-height: 44px; font-size: 14px; }
+  .ipad-edition .ipad-edition__search-page .ipad-edition__search-form button { min-height: 40px; padding-inline: 11px; font-size: 11px; }
+  .ipad-edition .ipad-edition__search-page .ipad-search-submit { min-width: 56px; }
+  .ipad-edition .ipad-edition__search-page .ipad-search-section-heading,
+  .ipad-edition .ipad-edition__search-page .ipad-search-results-heading { align-items: start; flex-direction: column; }
+  .ipad-edition .ipad-edition__search-page .ipad-edition__category-grid { grid-template-columns: repeat(2, minmax(0,1fr)) !important; gap: 9px !important; }
+  .ipad-edition .ipad-edition__search-page .ipad-edition__category-grid button { min-height: 92px; padding: 14px; }
+  .ipad-edition .ipad-edition__search-page .ipad-edition__result-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 16px 10px !important;
+  }
+  .ipad-edition .ipad-edition__search-page .ipad-search-source-filter { width: 100%; justify-content: space-between; }
+  .ipad-edition .ipad-edition__search-page .ipad-search-source-filter select { flex: 1; }
+}
 @media (prefers-reduced-motion: reduce) {
-  .ipad-edition.ipad-edition__search-page .ipad-edition__search-form,
-  .ipad-edition.ipad-edition__search-page .ipad-edition__search-form button {
-    transition: none;
+  .ipad-edition .ipad-edition__search-page *,
+  .ipad-edition .ipad-edition__search-page *::before,
+  .ipad-edition .ipad-edition__search-page *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
   }
 }
 
-/* Search results remain spacious on iPad portrait and compact phones. */
-.ipad-edition.ipad-edition__search-page .ipad-edition__result-card:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, .72);
-  outline-offset: 5px;
-  border-radius: 12px;
+
+/* Keep this route cinema-black even when the surrounding iPad edition is in light mode. */
+.ipad-edition:has(.ipad-edition__search-page) {
+  --ipad-page: #08090c;
+  --ipad-text: #f5f5f7;
+  --ipad-muted: rgba(225,229,238,.52);
+  --ipad-surface: rgba(255,255,255,.045);
+  --ipad-surface-solid: #17181b;
+  color: #f5f5f7 !important;
+  background: #08090c !important;
 }
-@media (min-width: 700px) and (max-width: 1023px) {
-  .ipad-edition.ipad-edition__search-page .ipad-edition__category-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+html:has(.ipad-edition__search-page),
+body:has(.ipad-edition__search-page) {
+  background: #08090c !important;
+}
+
+
+/* Minimal search pass: remove microcopy and give the remaining controls room. */
+.ipad-edition .ipad-edition__search-page {
+  gap: 30px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-hero {
+  gap: 22px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-hero__copy h1 {
+  font-size: clamp(34px, 3.8vw, 48px);
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-quick {
+  gap: 10px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-quick__items {
+  gap: 10px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-quick button {
+  min-height: 42px;
+  padding-inline: 18px;
+  font-size: 14px;
+  color: #f0f1f3;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-section-heading h2,
+.ipad-edition .ipad-edition__search-page .ipad-search-results-heading h2 {
+  font-size: 24px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__category-grid {
+  gap: 10px !important;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__category-grid button {
+  min-height: 76px;
+  padding: 16px 20px;
+  border-radius: 12px !important;
+  background: #151619 !important;
+  box-shadow: none;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__category-grid button span {
+  font-size: 19px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-results-heading {
+  margin-bottom: 18px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-results-heading h2 span {
+  font-size: 17px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__result-grid {
+  gap: 24px 18px !important;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__result-card {
+  gap: 8px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__result-card > strong {
+  font-size: 14px;
+  line-height: 1.4;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-card-meta {
+  font-size: 12px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-state strong {
+  font-size: 17px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-state p,
+.ipad-edition .ipad-edition__search-page .ipad-search-filter-empty {
+  font-size: 14px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-source-filter {
+  font-size: 14px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-source-filter select {
+  min-height: 42px;
+  font-size: 14px;
+}
+@media (max-width: 699px) {
+  .ipad-edition .ipad-edition__search-page .ipad-search-hero__copy h1 {
+    font-size: 32px;
   }
-  .ipad-edition.ipad-edition__search-page .ipad-edition__result-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 20px 14px;
+  .ipad-edition .ipad-edition__search-page .ipad-edition__category-grid button {
+    min-height: 68px;
+  }
+  .ipad-edition .ipad-edition__search-page .ipad-edition__result-card > strong {
+    font-size: 13px;
+  }
+}
+
+
+/* Keep every remaining control comfortably readable on iPad and mobile. */
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form button {
+  font-size: 14px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-clear {
+  font-size: 14px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-submit {
+  min-width: 84px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__result-card > strong {
+  font-size: 14px;
+}
+@media (max-width: 699px) {
+  .ipad-edition .ipad-edition__search-page .ipad-edition__search-form button {
+    font-size: 14px;
+  }
+  .ipad-edition .ipad-edition__search-page .ipad-search-submit {
+    min-width: 68px;
+  }
+  .ipad-edition .ipad-edition__search-page .ipad-edition__result-card > strong {
+    font-size: 14px;
+  }
+}
+
+
+/* iPadOS-inspired refinement: quiet hierarchy, generous spacing, native-feeling controls. */
+.ipad-edition .ipad-edition__search-page {
+  width: min(100%, 1540px);
+  padding: clamp(28px, 4vw, 56px) clamp(32px, 5vw, 76px) 80px;
+  gap: clamp(34px, 4.5vw, 58px);
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-hero {
+  width: 100%;
+  max-width: 980px;
+  gap: 22px;
+  padding-top: 0;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-hero__copy h1 {
+  font-size: 32px;
+  line-height: 1.2;
+  font-weight: 650;
+  letter-spacing: -.04em;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form {
+  width: 100%;
+  min-height: 60px;
+  padding: 5px 7px 5px 20px;
+  gap: 12px;
+  border-radius: 18px;
+  border-color: rgba(255,255,255,.075);
+  background: #1c1c1e;
+  box-shadow: none;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form:focus-within {
+  border-color: rgba(255,255,255,.24);
+  background: #222225;
+  box-shadow: 0 0 0 3px rgba(255,255,255,.035);
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form input {
+  min-height: 48px;
+  font-size: 17px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form input::placeholder {
+  color: rgba(235,235,245,.38);
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form button {
+  min-height: 44px;
+  border-radius: 13px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-clear {
+  width: 36px;
+  min-width: 36px;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(255,255,255,.08);
+  color: rgba(245,245,247,.75);
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-submit {
+  min-width: 76px;
+  background: #f5f5f7;
+  color: #171719;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-discovery {
+  width: 100%;
+  max-width: 1280px;
+  gap: 30px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-quick {
+  gap: 0;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-quick__items {
+  gap: 10px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-quick button {
+  min-height: 42px;
+  padding: 0 17px;
+  border: 0;
+  border-radius: 12px;
+  background: #1c1c1e;
+  color: rgba(245,245,247,.82);
+  font-size: 14px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-quick button:hover {
+  background: #2c2c2e;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-section-heading {
+  margin-bottom: -14px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-section-heading h2 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__category-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px !important;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__category-grid button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 88px;
+  min-height: 46px;
+  padding: 0 20px;
+  border: 1px solid rgba(255,255,255,.075);
+  border-radius: 13px !important;
+  background: #1c1c1e !important;
+  box-shadow: none;
+  text-align: center;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__category-grid button span {
+  font-size: 15px;
+  font-weight: 560;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__category-grid button:hover {
+  transform: none;
+  border-color: rgba(255,255,255,.2);
+  background: #2c2c2e !important;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-results-heading h2 {
+  font-size: 22px;
+  font-weight: 650;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__result-grid {
+  gap: 26px 20px !important;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__result-poster {
+  border-radius: 9px;
+  border-color: rgba(255,255,255,.06);
+  box-shadow: none;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__result-card:hover .ipad-edition__result-poster {
+  transform: translateY(-2px);
+  box-shadow: none;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__result-card > strong {
+  font-size: 14px;
+  font-weight: 560;
+  line-height: 1.45;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-source-filter select {
+  min-height: 42px;
+  border-radius: 12px;
+  background: #1c1c1e;
+}
+@media (min-width: 900px) {
+  .ipad-edition .ipad-edition__search-page .ipad-search-hero__copy h1 { font-size: 34px; }
+}
+@media (max-width: 899px) {
+  .ipad-edition .ipad-edition__search-page {
+    padding: 26px 26px 56px;
+  }
+  .ipad-edition .ipad-edition__search-page .ipad-edition__category-grid {
+    display: flex;
+    grid-template-columns: none !important;
   }
 }
 @media (max-width: 699px) {
-  .ipad-edition.ipad-edition__search-page .ipad-edition__category-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+  .ipad-edition .ipad-edition__search-page { padding: 20px 16px 44px; gap: 28px; }
+  .ipad-edition .ipad-edition__search-page .ipad-search-hero__copy h1 { font-size: 29px; }
+  .ipad-edition .ipad-edition__search-page .ipad-edition__search-form { min-height: 56px; border-radius: 16px; }
+  .ipad-edition .ipad-edition__search-page .ipad-edition__search-form input { font-size: 15px; }
+  .ipad-edition .ipad-edition__search-page .ipad-edition__category-grid button { min-width: 76px; min-height: 42px; padding-inline: 15px; }
+  .ipad-edition .ipad-edition__search-page .ipad-edition__result-grid { grid-template-columns: repeat(3,minmax(0,1fr)) !important; }
+}
+
+
+/* Search is a fixed cinema-black surface, independent of the adaptive app theme.
+   The environment engine may switch the shell to light mode while the user is
+   interacting; keep this route and the browser's native form controls dark. */
+.ipad-edition[data-environment="light"]:has(.ipad-edition__search-page) {
+  --ipad-page: #08090c !important;
+  --ipad-surface: rgba(28, 28, 30, .58) !important;
+  --ipad-surface-solid: #171719 !important;
+  --ipad-text: #f5f5f7 !important;
+  --ipad-muted: rgba(235, 235, 245, .62) !important;
+  --ipad-line: rgba(255, 255, 255, .09) !important;
+  --ipad-glass-fill: rgba(34, 36, 42, .62) !important;
+  --ipad-glass-fill-strong: rgba(24, 26, 31, .88) !important;
+  --ipad-glass-edge: rgba(255, 255, 255, .16) !important;
+  color: #f5f5f7 !important;
+  background: #08090c !important;
+}
+html:has(.ipad-edition[data-environment="light"] .ipad-edition__search-page):has(.ipad-edition__search-page),
+body:has(.ipad-edition[data-environment="light"] .ipad-edition__search-page):has(.ipad-edition__search-page) {
+  color-scheme: dark !important;
+  background: #08090c !important;
+}
+.ipad-edition .ipad-edition__search-page {
+  color-scheme: dark;
+  background: #08090c;
+}
+.ipad-edition .ipad-edition__search-page input,
+.ipad-edition .ipad-edition__search-page select,
+.ipad-edition .ipad-edition__search-page textarea {
+  color-scheme: dark;
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: transparent;
+}
+.ipad-edition .ipad-edition__search-page input:-webkit-autofill,
+.ipad-edition .ipad-edition__search-page input:-webkit-autofill:hover,
+.ipad-edition .ipad-edition__search-page input:-webkit-autofill:focus,
+.ipad-edition .ipad-edition__search-page input:-webkit-autofill:active {
+  -webkit-text-fill-color: #f5f5f7 !important;
+  caret-color: #f5f5f7;
+  -webkit-box-shadow: 0 0 0 1000px #1c1c1e inset !important;
+  box-shadow: 0 0 0 1000px #1c1c1e inset !important;
+}
+
+
+/* Safari-safe search submit: preserve its label and prevent flex expansion. */
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form > .ipad-search-submit {
+  -webkit-appearance: none;
+  appearance: none;
+  display: inline-flex;
+  flex: 0 0 76px;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  min-width: 76px;
+  max-width: 76px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: #f5f5f7;
+  color: #171719;
+  -webkit-text-fill-color: #171719;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: 0;
+  text-align: center;
+  text-indent: 0;
+  white-space: nowrap;
+  opacity: 1;
+  visibility: visible;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form > .ipad-search-submit:disabled {
+  background: rgba(255,255,255,.12);
+  color: rgba(245,245,247,.48);
+  -webkit-text-fill-color: rgba(245,245,247,.48);
+}
+@media (max-width: 699px) {
+  .ipad-edition .ipad-edition__search-page .ipad-edition__search-form > .ipad-search-submit {
+    flex-basis: 68px;
+    width: 68px;
+    min-width: 68px;
+    max-width: 68px;
   }
-  .ipad-edition.ipad-edition__search-page .ipad-edition__category-grid button {
-    min-height: 104px;
-    padding: 15px;
+}
+
+
+/* Personal search history: suggestions come only from this device's real usage. */
+.ipad-edition .ipad-edition__search-page .ipad-search-quick {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-quick__heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-quick__heading h2 {
+  margin: 0;
+  color: rgba(245,245,247,.82);
+  font-size: 15px;
+  font-weight: 620;
+  letter-spacing: -.015em;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-history-clear {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(235,235,245,.52);
+  font-size: 12px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-history-clear:hover {
+  background: rgba(255,255,255,.06);
+  color: #f5f5f7;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-history-empty {
+  margin: 0;
+  color: rgba(235,235,245,.44);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.ipad-edition .ipad-edition__search-page .ipad-search-history-note {
+  color: rgba(235,235,245,.34);
+  font-size: 11px;
+}
+@media (max-width: 699px) {
+  .ipad-edition .ipad-edition__search-page .ipad-search-history-note {
+    font-size: 10px;
   }
-  .ipad-edition.ipad-edition__search-page .ipad-edition__result-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 16px 10px;
-  }
+}
+
+.ipad-edition .ipad-edition__search-page .ipad-search-history-clear:focus-visible {
+  outline: 2px solid rgba(255,255,255,.78);
+  outline-offset: 3px;
 }
