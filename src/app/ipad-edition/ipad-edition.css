@@ -862,7 +862,7 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
   border: 0 !important;
   border-radius: 50% !important;
   color: var(--ipad-nav-ink) !important;
-  background: transparent;
+  background: transparent !important;
   text-decoration: none !important;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
