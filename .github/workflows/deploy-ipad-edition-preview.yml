@@ -104,7 +104,10 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             libnss3 libatk1.0-0t64 libatk-bridge2.0-0t64 \
             libx11-xcb1 libxkbcommon0 libxcomposite1 libxdamage1 \
-            libxfixes3 libxrandr2 libgbm1 libasound2t64
+            libxfixes3 libxrandr2 libgbm1 libasound2t64 \
+            fonts-noto-cjk
+          fc-cache -f
+          fc-list :lang=zh | grep -q .
           ldconfig -p | grep -q libatk-1.0.so.0
           ldconfig -p | grep -q libatk-bridge-2.0.so.0
       - name: Install Playwright Chromium browser
