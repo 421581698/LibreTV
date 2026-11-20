@@ -1355,3 +1355,39 @@ body:has(.ipad-edition[data-environment="light"]) {
     transition: none;
   }
 }
+
+
+/* Search route must remain cinema-black in every async state, including
+   the transition from loading to populated results. Keep this in the shell
+   stylesheet so it wins over the environment engine's light-theme rules. */
+html:has(body .ipad-edition .ipad-edition__search-page),
+body:has(.ipad-edition .ipad-edition__search-page) {
+  color-scheme: dark;
+  background: #08090c !important;
+}
+html:has(.ipad-edition .ipad-edition__search-page) body {
+  background: #08090c !important;
+}
+.ipad-edition:has(.ipad-edition__search-page),
+.ipad-edition:has(.ipad-edition__search-page) .ipad-edition__main,
+.ipad-edition:has(.ipad-edition__search-page) .ipad-edition__page,
+.ipad-edition:has(.ipad-edition__search-page) .ipad-edition__search-page,
+.ipad-edition:has(.ipad-edition__search-page) .ipad-edition__search-results {
+  --ipad-page: #08090c;
+  --ipad-surface-solid: #171719 !important;
+  --ipad-text: #f5f5f7 !important;
+  --ipad-muted: rgba(235,235,245,.62) !important;
+  --ipad-line: rgba(255,255,255,.09) !important;
+  color: #f5f5f7 !important;
+  background-color: #08090c !important;
+}
+.ipad-edition:has(.ipad-edition__search-page) .ipad-edition__result-grid,
+.ipad-edition:has(.ipad-edition__search-page) .ipad-edition__result-card {
+  background: transparent;
+}
+.ipad-edition:has(.ipad-edition__search-page) .ipad-edition__result-card > strong,
+.ipad-edition:has(.ipad-edition__search-page) .ipad-search-results-heading,
+.ipad-edition:has(.ipad-edition__search-page) .ipad-search-results-heading h2 {
+  color: #f5f5f7 !important;
+}
+/* Preview gate: verify the search results cinema-black state on the isolated iPad Worker. */
