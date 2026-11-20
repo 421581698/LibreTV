@@ -21,9 +21,9 @@
   
   --ipad-accent: #76a7ff;
   background: radial-gradient(ellipse at 75% -8%,rgba(47,68,105,.3),transparent 43%),var(--ipad-page);
-}.ipad-edition, .ipad-edition * {box-sizing:border-box}.ipad-edition a {color:inherit;text-decoration:none}.ipad-edition button {color:inherit;font:inherit}.ipad-edition__main {min-width:0;max-width:1800px;margin:0 auto}.ipad-edition__capsule {display:flex;align-items:center;gap:4px;padding:6px;border:1px solid var(--ipad-line);border-radius:999px;background:var(--ipad-surface);-webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);box-shadow:0 8px 30px rgba(20,28,42,.08)}.ipad-edition__capsule a {padding:10px 19px;border-radius:999px;color:var(--ipad-muted);font-size:14px;font-weight:650;white-space:nowrap}.ipad-edition__capsule a.is-active {background:var(--ipad-accent);color:white}.ipad-edition__top-actions {position:absolute;right:4px;display:flex;gap:16px}.ipad-edition__top-actions a {display:grid;place-items:center;width:40px;height:40px;border:1px solid var(--ipad-line);border-radius:50%;background:var(--ipad-surface);font-size:20px;color:var(--ipad-muted)}.ipad-edition__home {display:grid;gap:34px}.ipad-edition__hero {height:392px;margin:0 28px;position:relative;overflow:hidden;border:1px solid var(--ipad-line);border-radius:28px;background:linear-gradient(135deg,#25364e,#52647a 50%,#1c2635);color:white;box-shadow:0 22px 60px rgba(18,28,45,.16)}.ipad-edition__hero-art, .ipad-edition__hero-veil {position:absolute;inset:0}.ipad-edition__hero-art img {width:100%;height:100%;object-fit:cover;object-position:center 34%;opacity:.88}.ipad-edition__hero-veil {background:linear-gradient(90deg,rgba(7,11,18,.88) 0%,rgba(7,11,18,.58) 42%,rgba(7,11,18,.06) 100%),linear-gradient(0deg,rgba(7,11,18,.25),transparent 60%)}.ipad-edition__hero-copy {position:absolute;z-index:2;left:38px;bottom:42px;max-width:560px}.ipad-edition__eyebrow {margin:0 0 12px;color:var(--ipad-muted);font-size:10px;font-weight:780;letter-spacing:.17em}.ipad-edition__hero .ipad-edition__eyebrow {color:rgba(255,255,255,.72)}.ipad-edition__hero h1 {margin:0 0 12px;font-size:40px;line-height:1.12;font-weight:790;letter-spacing:-.045em}.ipad-edition__hero-copy>p:not(.ipad-edition__eyebrow) {margin:0 0 17px;color:rgba(255,255,255,.82);font-size:16px}.ipad-edition__hero-meta {display:flex;gap:16px;color:rgba(255,255,255,.78);font-size:12px}.ipad-edition__hero-cta {display:inline-flex;align-items:center;gap:12px;margin-top:22px;padding:12px 19px;border-radius:999px;background:white;color:#17191d!important;font-size:13px;font-weight:720;box-shadow:0 8px 25px rgba(0,0,0,.18)}.ipad-edition__hero-dots {position:absolute;z-index:3;right:30px;bottom:28px;display:flex;gap:8px}.ipad-edition__hero-dots button {width:7px;height:7px;padding:0;border:0;border-radius:20px;background:rgba(255,255,255,.42);transition:width .2s,background .2s}.ipad-edition__hero-dots button.is-active {width:26px;background:white}.ipad-edition__today, .ipad-edition__rail-section {padding:0 28px}.ipad-edition__section-heading {display:flex;align-items:end;justify-content:space-between;margin-bottom:16px}.ipad-edition__section-heading .ipad-edition__eyebrow {margin-bottom:6px}.ipad-edition__section-heading h2 {margin:0;font-size:25px;font-weight:760;letter-spacing:-.035em}.ipad-edition__section-heading>a, .ipad-edition__section-note {padding-bottom:3px;color:var(--ipad-muted);font-size:12px;font-weight:600}.ipad-edition__poster-grid {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:18px}.ipad-edition__poster-card {min-width:0;display:grid;gap:7px;text-align:left}.ipad-edition__poster-art {position:relative;display:block;aspect-ratio:2/3;overflow:hidden;border-radius:15px;background:var(--ipad-surface-solid);box-shadow:0 8px 22px rgba(10,20,35,.1);transition:transform .2s,box-shadow .2s}.ipad-edition__poster-card:hover .ipad-edition__poster-art, .ipad-edition__anime-card:hover>span {transform:translateY(-4px);box-shadow:0 15px 28px rgba(10,20,35,.18)}.ipad-edition__poster-art img {position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.ipad-edition__poster-rank {position:absolute;top:9px;left:9px;display:grid;place-items:center;min-width:25px;height:25px;padding:0 6px;border-radius:8px;background:rgba(8,12,20,.66);color:white;font-size:11px;font-weight:760;backdrop-filter:blur(8px)}.ipad-edition__poster-card>strong, .ipad-edition__anime-card>strong {overflow:hidden;color:var(--ipad-text);font-size:13px;font-weight:680;text-overflow:ellipsis;white-space:nowrap}.ipad-edition__poster-card>small, .ipad-edition__anime-card>small {color:var(--ipad-muted);font-size:11px}.ipad-edition__poster-skeleton {aspect-ratio:2/3;border-radius:15px;background:linear-gradient(100deg,rgba(125,135,150,.1) 20%,rgba(125,135,150,.2) 40%,rgba(125,135,150,.1) 60%);background-size:200% 100%;animation:ipad-edition-shimmer 1.4s linear infinite}
+}.ipad-edition, .ipad-edition * {box-sizing:border-box}.ipad-edition a {color:inherit;text-decoration:none}.ipad-edition button {color:inherit;font:inherit}.ipad-edition__main {min-width:0;max-width:1800px;margin:0 auto}.ipad-edition__capsule {display:flex;align-items:center;gap:4px;padding:6px;border:1px solid var(--ipad-line);border-radius:999px;background:var(--ipad-surface);-webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);box-shadow:0 8px 30px rgba(20,28,42,.08)}.ipad-edition__capsule a {padding:10px 19px;border-radius:999px;color:var(--ipad-muted);font-size:14px;font-weight:650;white-space:nowrap}.ipad-edition__capsule a.is-active {background:var(--ipad-accent);color:white}.ipad-edition__top-actions {position:absolute;right:4px;display:flex;gap:16px}.ipad-edition__top-actions a {display:grid;place-items:center;width:40px;height:40px;border:1px solid var(--ipad-line);border-radius:50%;background:var(--ipad-surface);font-size:20px;color:var(--ipad-muted)}.ipad-edition__home {display:grid;gap:34px}.ipad-edition__eyebrow {margin:0 0 12px;color:var(--ipad-muted);font-size:10px;font-weight:780;letter-spacing:.17em}.ipad-edition__today, .ipad-edition__rail-section {padding:0 28px}.ipad-edition__section-heading {display:flex;align-items:end;justify-content:space-between;margin-bottom:16px}.ipad-edition__section-heading .ipad-edition__eyebrow {margin-bottom:6px}.ipad-edition__section-heading h2 {margin:0;font-size:25px;font-weight:760;letter-spacing:-.035em}.ipad-edition__section-heading>a, .ipad-edition__section-note {padding-bottom:3px;color:var(--ipad-muted);font-size:12px;font-weight:600}.ipad-edition__poster-grid {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:18px}.ipad-edition__poster-card {min-width:0;display:grid;gap:7px;text-align:left}.ipad-edition__poster-art {position:relative;display:block;aspect-ratio:2/3;overflow:hidden;border-radius:15px;background:var(--ipad-surface-solid);box-shadow:0 8px 22px rgba(10,20,35,.1);transition:transform .2s,box-shadow .2s}.ipad-edition__poster-card:hover .ipad-edition__poster-art, .ipad-edition__anime-card:hover>span {transform:translateY(-4px);box-shadow:0 15px 28px rgba(10,20,35,.18)}.ipad-edition__poster-art img {position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.ipad-edition__poster-rank {position:absolute;top:9px;left:9px;display:grid;place-items:center;min-width:25px;height:25px;padding:0 6px;border-radius:8px;background:rgba(8,12,20,.66);color:white;font-size:11px;font-weight:760;backdrop-filter:blur(8px)}.ipad-edition__poster-card>strong, .ipad-edition__anime-card>strong {overflow:hidden;color:var(--ipad-text);font-size:13px;font-weight:680;text-overflow:ellipsis;white-space:nowrap}.ipad-edition__poster-card>small, .ipad-edition__anime-card>small {color:var(--ipad-muted);font-size:11px}.ipad-edition__poster-skeleton {aspect-ratio:2/3;border-radius:15px;background:linear-gradient(100deg,rgba(125,135,150,.1) 20%,rgba(125,135,150,.2) 40%,rgba(125,135,150,.1) 60%);background-size:200% 100%;animation:ipad-edition-shimmer 1.4s linear infinite}
 @keyframes ipad-edition-shimmer{to {background-position:-200% 0}}.ipad-edition__rail-message {display:grid;place-items:center;min-height:110px;border:1px dashed var(--ipad-line);border-radius:18px;color:var(--ipad-muted);font-size:13px;background:var(--ipad-surface)}.ipad-edition__anime-grid {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:18px}.ipad-edition__anime-card {min-width:0;display:grid;gap:7px}.ipad-edition__anime-card>span {position:relative;display:block;aspect-ratio:16/9;overflow:hidden;border-radius:13px;background:var(--ipad-surface-solid);transition:transform .2s}.ipad-edition__anime-card img {width:100%;height:100%;object-fit:cover}
-@media (min-width:700px) and (max-width:1023px){.ipad-edition {padding:14px 20px 60px}.ipad-edition__hero {margin:0 12px}.ipad-edition__today, .ipad-edition__rail-section {padding:0 12px}.ipad-edition__poster-grid, .ipad-edition__anime-grid {gap:12px}
+@media (min-width:700px) and (max-width:1023px){.ipad-edition {padding:14px 20px 60px}.ipad-edition__today, .ipad-edition__rail-section {padding:0 12px}.ipad-edition__poster-grid, .ipad-edition__anime-grid {gap:12px}
 }
 @media (prefers-reduced-motion:reduce){.ipad-edition * {animation:none!important;scroll-behavior:auto!important;transition:none!important}}.ipad-edition__page {display:grid;gap:28px;padding:12px 28px 60px}.ipad-edition__page-heading {padding:18px 0 2px}.ipad-edition__page-heading .ipad-edition__eyebrow {margin-bottom:9px}.ipad-edition__page-heading h1 {margin:0;color:var(--ipad-text);font-size:clamp(30px,4vw,46px);font-weight:790;letter-spacing:-.05em}.ipad-edition__page-heading>p:last-child {margin:10px 0 0;color:var(--ipad-muted);font-size:14px}.ipad-edition__search-form {display:flex;align-items:center;gap:12px;min-height:66px;padding:9px 12px 9px 22px;border:1px solid var(--ipad-line);border-radius:20px;background:var(--ipad-surface);box-shadow:0 12px 35px rgba(15,25,40,.06);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}.ipad-edition__search-form>span {color:var(--ipad-muted);font-size:26px}.ipad-edition__search-form input {flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--ipad-text);font:inherit;font-size:16px}.ipad-edition__search-form input::placeholder {color:var(--ipad-muted)}.ipad-edition__search-form button {min-height:42px;padding:0 19px;border:0;border-radius:13px;background:var(--ipad-accent);color:white;font-size:13px;font-weight:700}.ipad-edition__search-form button:disabled {opacity:.45}.ipad-edition__category-area {display:grid;gap:15px}.ipad-edition__category-grid {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.ipad-edition__category-grid button {position:relative;display:grid;gap:7px;min-height:120px;padding:19px;text-align:left;border:1px solid var(--ipad-line);border-radius:18px;background:linear-gradient(135deg,var(--ipad-surface-solid),var(--ipad-surface));color:var(--ipad-text);box-shadow:0 8px 24px rgba(20,30,45,.05)}.ipad-edition__category-grid button span {font-size:19px;font-weight:750}.ipad-edition__category-grid button small {color:var(--ipad-muted);font-size:11px}.ipad-edition__category-grid button b {position:absolute;right:16px;bottom:16px;color:var(--ipad-accent);font-size:19px}.ipad-edition__result-grid, .ipad-edition__collection-grid {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:20px 16px}.ipad-edition__result-card {display:grid;min-width:0;gap:8px;padding:0;text-align:left;border:0;background:transparent}.ipad-edition__result-poster {position:relative;display:grid;place-items:center;aspect-ratio:2/3;overflow:hidden;border-radius:15px;background:var(--ipad-surface-solid);color:var(--ipad-muted);box-shadow:0 8px 22px rgba(10,20,35,.1)}.ipad-edition__result-poster img {position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.ipad-edition__result-card>strong {overflow:hidden;color:var(--ipad-text);font-size:13px;text-overflow:ellipsis;white-space:nowrap}.ipad-edition__result-card>small {display:-webkit-box;overflow:hidden;color:var(--ipad-muted);font-size:10px;line-height:1.5;-webkit-line-clamp:2;-webkit-box-orient:vertical}.ipad-edition__collection-tabs {display:flex;gap:8px}.ipad-edition__collection-tabs button, .ipad-edition__pagination button {padding:10px 19px;border:1px solid var(--ipad-line);border-radius:999px;background:var(--ipad-surface);color:var(--ipad-muted);font-size:13px;font-weight:650}.ipad-edition__collection-tabs button.is-active {border-color:var(--ipad-accent);background:var(--ipad-accent);color:white}.ipad-edition__pagination {display:flex;align-items:center;justify-content:center;gap:18px;color:var(--ipad-muted);font-size:12px}.ipad-edition__pagination button:disabled {opacity:.35}.ipad-edition__library-card {min-width:0;display:grid;gap:8px}.ipad-edition__library-card>button {justify-self:start;padding:7px 12px;border:1px solid var(--ipad-line);border-radius:10px;background:var(--ipad-surface);color:var(--ipad-muted);font-size:11px}
 @media (min-width:700px) and (max-width:1023px){.ipad-edition__page {padding:8px 12px 48px}.ipad-edition__category-grid {grid-template-columns:repeat(2,minmax(0,1fr))}.ipad-edition__result-grid, .ipad-edition__collection-grid {grid-template-columns:repeat(4,minmax(0,1fr));gap:16px 12px}
@@ -62,48 +62,6 @@
   min-width: 0;
   gap: clamp(24px, 3.2vh, 38px);
   padding: 0;
-}.ipad-edition__hero {
-  width: 100vw !important;
-  max-width: none !important;
-  height: clamp(320px, 48svh, 560px) !important;
-  min-height: 320px !important;
-  max-height: 560px !important;
-  margin: 0 0 0 calc(50% - 50vw) !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: #09090b;
-  box-shadow: none;
-}.ipad-edition__hero-art img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 35%;
-  opacity: 1;
-}.ipad-edition__hero-veil {
-  background:
-    linear-gradient(180deg, rgba(0,0,0,.34) 0%, transparent 24%, transparent 55%, #000 100%),
-    linear-gradient(90deg, rgba(0,0,0,.62) 0%, rgba(0,0,0,.24) 48%, transparent 82%);
-}.ipad-edition__hero-copy {
-  left: clamp(22px, 5vw, 72px) !important;
-  right: 22px;
-  bottom: clamp(30px, 5vh, 58px) !important;
-  width: min(680px, calc(100% - 44px));
-  max-width: 680px;
-}.ipad-edition__hero-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 18px;
-}.ipad-edition__hero-add {
-  display: grid;
-  place-items: center;
-  flex: 0 0 48px;
-  width: 48px;
-  height: 48px;
-  border: 1px solid var(--ipad-glass-edge);
-  border-radius: 999px;
-  color: #fff;
-  font-size: 25px;
 }.ipad-edition__today, .ipad-edition__rail-section {
   min-width: 0;
   width: 100%;
@@ -181,17 +139,9 @@
   min-width: 0;
   scroll-snap-align: start;
 }
-@media (min-width: 700px) and (max-width: 1023px) {.ipad-edition__hero { height: clamp(340px, 48svh, 500px) !important; }.ipad-edition__poster-card, .ipad-edition__poster-skeleton { flex-basis: 164px !important; width: 164px !important; }
+@media (min-width: 700px) and (max-width: 1023px) {.ipad-edition__poster-card, .ipad-edition__poster-skeleton { flex-basis: 164px !important; width: 164px !important; }
 }
-@media (max-width: 699px) {.ipad-edition { padding-bottom: 40px !important; }.ipad-edition__hero {
-    height: clamp(320px, 52svh, 430px) !important;
-    min-height: 320px !important;
-  }.ipad-edition__hero-copy {
-    left: 20px !important;
-    right: 20px;
-    bottom: 30px !important;
-    width: auto;
-  }.ipad-edition__today, .ipad-edition__rail-section { padding-inline: 16px !important; }.ipad-edition__poster-card, .ipad-edition__poster-skeleton { flex-basis: 138px !important; width: 138px !important; }.ipad-edition__anime-card { flex-basis: 188px; width: 188px; }.ipad-edition__continue-card { flex-basis: 220px; width: 220px; }.ipad-edition__hero-add { flex-basis: 44px; width: 44px; height: 44px; }
+@media (max-width: 699px) {.ipad-edition { padding-bottom: 40px !important; }.ipad-edition__today, .ipad-edition__rail-section { padding-inline: 16px !important; }.ipad-edition__poster-card, .ipad-edition__poster-skeleton { flex-basis: 138px !important; width: 138px !important; }.ipad-edition__anime-card { flex-basis: 188px; width: 188px; }.ipad-edition__continue-card { flex-basis: 220px; width: 220px; }
 }
 @media (prefers-reduced-motion: reduce) {.ipad-edition__poster-art, .ipad-edition__anime-card > span { transition: none !important; }
 }/* Shared liquid-glass navigation and controls. */
@@ -217,20 +167,20 @@
   
   --ipad-glass-active: rgba(120, 150, 255, .28);
   --ipad-glass-active-edge: rgba(160, 185, 255, .24);
-}.ipad-edition__search-form, .ipad-edition__category-grid button, .ipad-edition__collection-tabs button, .ipad-edition__pagination button, .ipad-edition__library-card > button, .ipad-edition__hero-add {
+}.ipad-edition__search-form, .ipad-edition__category-grid button, .ipad-edition__collection-tabs button, .ipad-edition__pagination button, .ipad-edition__library-card > button{
   border: 1px solid var(--ipad-glass-edge) !important;
   background: linear-gradient(145deg, rgba(255,255,255,.26), transparent 56%), var(--ipad-glass-fill) !important;
   box-shadow: 0 10px 30px rgba(15,25,40,.08), inset 0 1px 0 var(--ipad-glass-highlight) !important;
   -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
   backdrop-filter: blur(24px) saturate(180%) !important;
-}.dark .ipad-edition__search-form, .dark .ipad-edition__category-grid button, .dark .ipad-edition__collection-tabs button, .dark .ipad-edition__pagination button, .dark .ipad-edition__library-card > button, .dark .ipad-edition__hero-add {
+}.dark .ipad-edition__search-form, .dark .ipad-edition__category-grid button, .dark .ipad-edition__collection-tabs button, .dark .ipad-edition__pagination button, .dark .ipad-edition__library-card > button{
   border-color: var(--ipad-glass-edge) !important;
   background: linear-gradient(145deg, rgba(255,255,255,.1), transparent 56%), var(--ipad-glass-fill) !important;
   box-shadow: 0 12px 34px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.18) !important;
 }.ipad-edition__search-form:focus-within {
   border-color: rgba(105,157,255,.72) !important;
   box-shadow: 0 0 0 3px rgba(67,132,245,.14), var(--ipad-glass-shadow), inset 0 1px 0 var(--ipad-glass-highlight) !important;
-}.ipad-edition__category-grid button:active, .ipad-edition__collection-tabs button:active, .ipad-edition__pagination button:active, .ipad-edition__library-card > button:active, .ipad-edition__hero-add:active {
+}.ipad-edition__category-grid button:active, .ipad-edition__collection-tabs button:active, .ipad-edition__pagination button:active, .ipad-edition__library-card > button:active{
   transform: scale(.975);
 }
 
@@ -245,7 +195,7 @@
   --ipad-glass-control-fill: rgba(43, 47, 56, .58);
   --ipad-glass-control-edge: rgba(255, 255, 255, .17);
   --ipad-glass-control-shadow: 0 10px 30px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.15);
-}/* All compact navigation */ .ipad-edition__collection-tabs button, .ipad-edition__pagination button, .ipad-edition__library-card > button, .ipad-edition__category-grid button, .ipad-edition__search-form, .ipad-edition__search-form button, .ipad-edition__hero-cta, .ipad-edition__hero-add {
+}/* All compact navigation */ .ipad-edition__collection-tabs button, .ipad-edition__pagination button, .ipad-edition__library-card > button, .ipad-edition__category-grid button, .ipad-edition__search-form, .ipad-edition__search-form button{
   border-radius: var(--ipad-glass-capsule-radius) !important;
 }.ipad-edition__collection-tabs, .ipad-edition__pagination {
   align-items: center;
@@ -295,18 +245,10 @@
   -webkit-backdrop-filter: blur(26px) saturate(180%) !important;
   backdrop-filter: blur(26px) saturate(180%) !important;
   transition: transform .22s cubic-bezier(.2,.8,.2,1),box-shadow .22s ease;
-}.ipad-edition__hero-cta {
-  min-height: 48px;
-  padding: 0 25px;
-  box-shadow: 0 8px 26px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.9);
-}.ipad-edition__hero-add {
-  border-radius: 50% !important;
-  border: 1px solid rgba(255,255,255,.28) !important;
-  background: rgba(255,255,255,.16) !important;
 }.ipad-edition button:focus-visible, .ipad-edition a:focus-visible, .ipad-edition input:focus-visible, .ipad-edition select:focus-visible, .ipad-edition textarea:focus-visible {
   outline: 2px solid rgba(91,153,255,.9);
   outline-offset: 3px;
-}.ipad-edition__collection-tabs button:active, .ipad-edition__pagination button:active, .ipad-edition__library-card > button:active, .ipad-edition__category-grid button:active, .ipad-edition__search-form button:active, .ipad-edition__hero-cta:active {
+}.ipad-edition__collection-tabs button:active, .ipad-edition__pagination button:active, .ipad-edition__library-card > button:active, .ipad-edition__category-grid button:active, .ipad-edition__search-form button:active{
   transform: scale(.965);
 }.ipad-edition button:disabled {
   cursor: not-allowed;
@@ -343,8 +285,6 @@
   --ipad-glass-text: #f5f6f8;
   --ipad-glass-muted: rgba(235,235,245,.68);
   --ipad-depth-shadow: 0 20px 64px rgba(0,0,0,.48);
-}.ipad-edition__hero-cta:active, .ipad-edition__hero-add:active {
-  transform: scale(.96);
 }.ipad-edition :where(a,button,input,[tabindex]):focus-visible {
   outline: 2px solid var(--ipad-accent, #0a84ff);
   outline-offset: 3px;
@@ -357,11 +297,9 @@
   contain: paint;
 }
 
-@media (prefers-reduced-motion: reduce) {.ipad-edition__poster-art, .ipad-edition__anime-card > span, .ipad-edition__hero-cta {
+@media (prefers-reduced-motion: reduce) {.ipad-edition__poster-art, .ipad-edition__anime-card > span{
     transition: none !important;
     scroll-behavior: auto !important;
-  }.ipad-edition__hero-cta:active {
-    transform: none;
   }
 }
 
@@ -376,25 +314,9 @@
   min-width: 0;
   max-width: none !important;
   margin: 0 auto;
-}.ipad-edition__hero {
-  width: 100vw !important;
-  max-width: none !important;
-  height: clamp(300px, 44svh, 520px) !important;
-  min-height: 300px !important;
-  max-height: 520px !important;
-  margin: 0 0 0 calc(50% - 50vw) !important;
-  border-radius: 0 !important;
 }.ipad-edition__home {
   min-width: 0;
   gap: clamp(20px, 3vh, 30px) !important;
-}.ipad-edition__hero-copy {
-  left: clamp(22px, 5vw, 72px) !important;
-  right: 22px;
-  bottom: clamp(28px, 5vh, 54px) !important;
-  width: min(680px, calc(100% - 44px));
-}.ipad-edition__hero h1 {
-  font-size: clamp(36px, 5.6vw, 68px) !important;
-  overflow-wrap: anywhere;
 }.ipad-edition__today, .ipad-edition__rail-section {
   min-width: 0;
   padding-left: clamp(16px, 2.4vw, 36px) !important;
@@ -461,20 +383,10 @@
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   }.ipad-edition__category-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-  }.ipad-edition__hero {
-    height: clamp(320px, 44svh, 470px) !important;
   }
 }
 @media (max-width: 699px) {.ipad-edition {
     padding: 8px 0 40px !important;
-  }.ipad-edition__hero {
-    height: clamp(300px, 48svh, 390px) !important;
-    min-height: 300px !important;
-  }.ipad-edition__hero-copy {
-    left: 20px !important;
-    right: 20px;
-    bottom: 30px !important;
-    width: auto;
   }.ipad-edition__today, .ipad-edition__rail-section {
     padding-left: 16px !important;
     padding-right: 16px !important;
@@ -567,20 +479,7 @@
      in the homepage flow instead of letting it cover the featured hero. */
   padding-top: max(104px, calc(env(safe-area-inset-top, 0px) + 88px)) !important;
   gap: var(--ipad-content-gap) !important;
-}.ipad-edition__hero {
-  isolation: isolate;
-  contain: layout paint;
-  min-height: 300px !important;
-}.ipad-edition__hero-art, .ipad-edition__hero-art img {
-  display: block;
-}.ipad-edition__hero-art img {
-  object-position: center 32%;
-}.ipad-edition__hero-veil {
-  pointer-events: none;
-}.ipad-edition__hero-copy {
-  z-index: 2;
-  max-width: min(680px, calc(100% - 44px));
-}.ipad-edition__hero-cta, .ipad-edition__hero-add, .ipad-edition__search-form button, .ipad-edition__collection-tabs button, .ipad-edition__pagination button, .ipad-edition__category-grid button, .ipad-edition__library-card > button {
+}.ipad-edition__search-form button, .ipad-edition__collection-tabs button, .ipad-edition__pagination button, .ipad-edition__category-grid button, .ipad-edition__library-card > button{
   min-height: var(--ipad-touch-target);
   touch-action: manipulation;
 }.ipad-edition__today, .ipad-edition__rail-section {
@@ -630,8 +529,6 @@
 @media (min-width: 700px) and (max-width: 1023px) {.ipad-edition {
     --ipad-page-gutter: 24px;
     --ipad-content-gap: 26px;
-  }.ipad-edition__hero {
-    height: clamp(320px, 42svh, 470px) !important;
   }.ipad-edition__poster-card, .ipad-edition__poster-skeleton {
     flex-basis: clamp(148px, 19vw, 172px) !important;
     width: clamp(148px, 19vw, 172px) !important;
@@ -647,8 +544,6 @@
 }
 @media (min-width: 1024px) and (max-width: 1440px) {.ipad-edition {
     --ipad-page-gutter: clamp(28px, 3.2vw, 48px);
-  }.ipad-edition__hero {
-    height: clamp(360px, 45svh, 520px) !important;
   }
 }
 @media (max-width: 699px) {.ipad-edition__home {
@@ -1187,68 +1082,17 @@ body:has(.ipad-edition[data-environment="light"]) {
 
 
 /* PR #99 visual correction: preserve poster artwork, strengthen glass and balance rails. */
-.ipad-edition__hero {
-  background: #080a0f !important;
-}
-.ipad-edition__hero-art {
-  inset: 0 0 0 auto !important;
-  width: min(56%, 620px) !important;
-  height: 100% !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: flex-end !important;
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 22%, #000 100%);
-  mask-image: linear-gradient(90deg, transparent 0%, #000 22%, #000 100%);
-}
-.ipad-edition__hero-art img {
-  display: block;
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: contain !important;
-  object-position: right center !important;
-  opacity: 1 !important;
-}
-.ipad-edition__hero-veil {
-  background:
-    linear-gradient(90deg, rgba(0,0,0,.94) 0%, rgba(0,0,0,.82) 38%, rgba(0,0,0,.48) 62%, rgba(0,0,0,.08) 100%),
-    linear-gradient(0deg, rgba(0,0,0,.46) 0%, transparent 58%) !important;
-}
-.ipad-edition__hero-copy {
-  max-width: min(680px, 58%) !important;
-}
-.ipad-edition__hero-copy > p:not(.ipad-edition__eyebrow) {
-  color: rgba(255,255,255,.96) !important;
-  text-shadow: 0 1px 12px rgba(0,0,0,.72);
-}
-.ipad-edition__hero-meta {
-  color: rgba(255,255,255,.92) !important;
-  text-shadow: 0 1px 10px rgba(0,0,0,.7);
-}
-.ipad-edition__hero-actions {
-  align-items: center !important;
-  gap: 12px !important;
-}
-.ipad-edition__hero-actions .ipad-edition__hero-cta {
-  min-height: 48px;
-  margin-top: 0 !important;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-}
-.ipad-edition__hero-add {
-  box-sizing: border-box;
-  padding: 0 !important;
-  line-height: 1 !important;
-  text-align: center;
-  font-family: ui-sans-serif, system-ui, sans-serif;
-  font-size: 26px !important;
-  transform: none;
-}
-.ipad-edition__hero-add:active {
-  transform: scale(.96);
-}
+
+
+
+
+
+
+
+
+
+
+
 
 /* Dark glass is visibly separated from dark hero artwork; light mode stays light. */
 .ipad-edition .ipad-nav__topbar-inner {
@@ -1290,13 +1134,8 @@ body:has(.ipad-edition[data-environment="light"]) {
 }
 
 @media (max-width: 699px) {
-  .ipad-edition__hero-art {
-    width: 58% !important;
-    opacity: .9;
-  }
-  .ipad-edition__hero-copy {
-    max-width: min(680px, 68%) !important;
-  }
+  
+  
   .ipad-edition__poster-grid,
   .ipad-edition__anime-grid,
   .ipad-edition__continue-grid {
@@ -1307,87 +1146,18 @@ body:has(.ipad-edition[data-environment="light"]) {
 
 
 /* iPad visual polish: layered cinematic hero, single focus ring and clear drawer state. */
-.ipad-edition__hero-backdrop {
-  position: absolute;
-  z-index: 0;
-  inset: -22px;
-  overflow: hidden;
-  pointer-events: none;
-  background: #10141d;
-}
-.ipad-edition__hero-backdrop img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 38%;
-  filter: blur(22px) brightness(.62) saturate(1.2);
-  transform: scale(1.09);
-  opacity: .82;
-}
-.ipad-edition__hero-art {
-  z-index: 1;
-  inset: 0 0 0 auto !important;
-  width: min(42%, 440px) !important;
-  height: 100% !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: flex-end !important;
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 26%, #000 100%);
-  mask-image: linear-gradient(90deg, transparent 0%, #000 26%, #000 100%);
-}
-.ipad-edition__hero-art img {
-  display: block;
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: contain !important;
-  object-position: right center !important;
-  filter: drop-shadow(0 12px 30px rgba(0,0,0,.32));
-}
-.ipad-edition__hero-veil {
-  z-index: 1;
-  background:
-    linear-gradient(90deg, rgba(0,0,0,.9) 0%, rgba(0,0,0,.68) 40%, rgba(0,0,0,.28) 68%, rgba(0,0,0,.08) 100%),
-    linear-gradient(0deg, rgba(0,0,0,.42) 0%, transparent 62%) !important;
-}
-.ipad-edition__hero-copy {
-  z-index: 2;
-  max-width: min(680px, 62%) !important;
-}
-.ipad-edition__hero-actions {
-  display: flex;
-  align-items: center !important;
-  gap: 12px !important;
-}
-.ipad-edition__hero-actions .ipad-edition__hero-cta,
-.ipad-edition__hero-actions .ipad-edition__hero-add {
-  height: 48px !important;
-  min-height: 48px !important;
-  margin: 0 !important;
-  align-self: center;
-}
-.ipad-edition__hero-actions .ipad-edition__hero-cta {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  white-space: nowrap !important;
-  line-height: 1 !important;
-}
-.ipad-edition__hero-actions .ipad-edition__hero-add {
-  display: grid !important;
-  place-items: center !important;
-  padding: 0 !important;
-  line-height: 1 !important;
-  font-size: 25px !important;
-}
-.ipad-edition__hero-add {
-  font-family: ui-sans-serif, system-ui, sans-serif;
-}
-.ipad-edition__hero-add::first-letter {
-  line-height: 1;
-}
+
+
+
+
+
+
+
+
+
+
+
+
 
 /* The search field owns no second border: the surrounding surface is the focus ring. */
 .ipad-edition__search-form input {
@@ -1482,8 +1252,8 @@ body:has(.ipad-edition[data-environment="light"]) {
   min-height: 1px;
 }
 @media (max-width: 699px) {
-  .ipad-edition__hero-art { width: 44% !important; }
-  .ipad-edition__hero-copy { max-width: 64% !important; }
+  
+  
   .ipad-edition__poster-grid,
   .ipad-edition__anime-grid,
   .ipad-edition__continue-grid {
