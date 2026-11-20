@@ -14,6 +14,7 @@ import { getVideoPrefetcher } from '@/lib/video-prefetcher';
 import { loadCacheSettings } from '@/lib/video-cache';
 import { formatTime } from '@/lib/utils';
 import { executeFridayPlayerCommand, parseFridayPlayerCommand } from '@/lib/friday/player-control';
+import { hasTouchGestureMoved } from '@/lib/touch-gesture';
 import { prefersTouchPointer } from '@/lib/touch-pointer';
 import { requestNativeFullscreenWithFallback, type NativeFullscreenVideo } from '@/lib/player-fullscreen';
 import { bindPlaybackUiEvents } from '@/lib/player-playback-ui';
@@ -379,6 +380,8 @@ export function PlayerShell({
   };
   // setupHls 可能改走代理形式，video:error 重试要用最近一次的地址
   const currentMediaUrlRef = useRef(url);
+  // Invalidates async restore-position reads when the active media source changes.
+  const playbackSourceGenerationRef = useRef(0);
   // 本集的恢复策略实例：跨直连/代理两级重建共享计数
   const recoveryRef = useRef<PlaybackRecovery | null>(null);
   // 自然播完标记，卸载时不回写进度（避免覆盖「已看完」记录）
@@ -524,6 +527,7 @@ export function PlayerShell({
 
   /** Native progressive media path for formats the existing HTMLVideoElement can play. */
   const setupDirectMedia = (video: HTMLVideoElement, mediaUrl: string) => {
+    const sourceGeneration = ++playbackSourceGenerationRef.current;
     clearMetadataWatchdog();
     restoreCleanupRef.current?.();
     restoreCleanupRef.current = null;
@@ -531,6 +535,15 @@ export function PlayerShell({
       window.removeEventListener('libretv-quality-preference-change', qualityPreferenceHandlerRef.current);
       qualityPreferenceHandlerRef.current = null;
     }
+    // A source switch from HLS to MP4/WebM must not retain the previous
+    // playlist's rendition metadata or advertise HLS-only quality controls.
+    setQualityControlMode('single');
+    setAvailableQualityHeights([]);
+    setAvailableQualityLevelCount(0);
+    setQualityMetadataComplete(false);
+    setSelectedHlsRendition(null);
+    setQualityNotice('');
+    setNetworkQualityWarning('');
     hlsRef.current?.destroy();
     hlsRef.current = null;
     const mediaKind = getMediaPlaybackKind(mediaUrl, propsRef.current.mediaType);
@@ -552,6 +565,7 @@ export function PlayerShell({
       restoreInFlight = true;
       try {
         const saved = (await propsRef.current.getRestorePosition?.()) ?? 0;
+        if (sourceGeneration !== playbackSourceGenerationRef.current) return;
         if (saved > 10 && saved < duration - 2) {
           video.currentTime = saved;
           showHint(`已从 ${formatTime(saved)} 继续播放`);
@@ -559,11 +573,20 @@ export function PlayerShell({
         restoredRef.current = true;
         restoreCleanupRef.current?.();
         restoreCleanupRef.current = null;
-        video.play().catch(() => setShowPlayFallback(true));
+        video.play().catch(() => {
+          if (sourceGeneration === playbackSourceGenerationRef.current) {
+            setShowPlayFallback(true);
+          }
+        });
       } catch {
         // A failed progress lookup must never prevent direct media playback.
+        if (sourceGeneration !== playbackSourceGenerationRef.current) return;
         restoredRef.current = true;
-        video.play().catch(() => setShowPlayFallback(true));
+        video.play().catch(() => {
+          if (sourceGeneration === playbackSourceGenerationRef.current) {
+            setShowPlayFallback(true);
+          }
+        });
       } finally {
         restoreInFlight = false;
       }
@@ -584,6 +607,7 @@ export function PlayerShell({
    * 注意：不销毁 ArtPlayer，只销毁并重建 hls，从而保留网页全屏等播放器状态。
    */
   const setupHls = (video: HTMLVideoElement, mediaUrl: string, allowProxyFallback: boolean) => {
+    const sourceGeneration = ++playbackSourceGenerationRef.current;
     clearMetadataWatchdog();
     restoreCleanupRef.current?.();
     restoreCleanupRef.current = null;
@@ -626,6 +650,7 @@ export function PlayerShell({
         nativeRestoreInFlight = true;
         try {
           const saved = (await propsRef.current.getRestorePosition?.()) ?? 0;
+          if (sourceGeneration !== playbackSourceGenerationRef.current) return;
           if (saved > 10 && saved < duration - 2) {
             video.currentTime = saved;
             showHint(`已从 ${formatTime(saved)} 继续播放`);
@@ -638,13 +663,22 @@ export function PlayerShell({
             setQualityNotice('当前使用原生 HLS，无法验证或强制限制 1080P；已暂停以避免超过所选上限，请选择自动继续播放。');
             return;
           }
-          video.play().catch(() => setShowPlayFallback(true));
+          video.play().catch(() => {
+          if (sourceGeneration === playbackSourceGenerationRef.current) {
+            setShowPlayFallback(true);
+          }
+        });
         } catch {
           // A failed progress lookup must never block native-HLS playback.
+          if (sourceGeneration !== playbackSourceGenerationRef.current) return;
           restoredRef.current = true;
           restoreCleanupRef.current?.();
           restoreCleanupRef.current = null;
-          video.play().catch(() => setShowPlayFallback(true));
+          video.play().catch(() => {
+          if (sourceGeneration === playbackSourceGenerationRef.current) {
+            setShowPlayFallback(true);
+          }
+        });
         } finally {
           nativeRestoreInFlight = false;
         }
@@ -675,6 +709,11 @@ export function PlayerShell({
       setAvailableQualityHeights(result.heights);
       setQualityNotice(result.notice ?? '');
     };
+    // Keep the HLS rendition lock in sync with changes from the quality panel.
+    // The panel persists the preference and dispatches this event after each
+    // selection; without this subscription only the label changed, not playback.
+    qualityPreferenceHandlerRef.current = handleQualityPreferenceChange;
+    window.addEventListener('libretv-quality-preference-change', handleQualityPreferenceChange);
 
     let restoreInFlight = false;
     const restoreAndStart = async () => {
@@ -688,6 +727,7 @@ export function PlayerShell({
       restoreInFlight = true;
       try {
         const saved = (await propsRef.current.getRestorePosition?.()) ?? 0;
+        if (sourceGeneration !== playbackSourceGenerationRef.current) return;
         const currentDuration = artRef.current?.duration || video.duration || duration;
         let prefetchAnchor = video.currentTime;
         if (saved > 10 && Number.isFinite(currentDuration) && saved < currentDuration - 2) {
@@ -705,6 +745,7 @@ export function PlayerShell({
         });
       } catch {
         // IndexedDB 读取失败时不阻塞播放，后续事件仍可再次尝试恢复。
+        if (sourceGeneration !== playbackSourceGenerationRef.current) return;
       } finally {
         restoreInFlight = false;
       }
@@ -871,6 +912,11 @@ export function PlayerShell({
   /** 换集：重置每集状态并切换到新 HLS 源（不重建 ArtPlayer）。 */
   const loadEpisode = (targetUrl: string) => {
     if (!targetUrl) return;
+    // A pending iOS native-fullscreen timeout belongs to the old media source.
+    // Cancel it before swapping sources so it cannot trigger web fullscreen on
+    // the newly loaded episode after the user has already changed videos.
+    nativeFullscreenCleanupRef.current?.();
+    nativeFullscreenCleanupRef.current = null;
     flushPlaybackMetrics();
     resetPlaybackMetrics();
     mediaHealthyRef.current = true;
@@ -1371,6 +1417,8 @@ export function PlayerShell({
     let longPressTimer: ReturnType<typeof setTimeout> | null = null;
     let isLongPress = false;
     let originalRate = 1.0;
+    let touchStartX = 0;
+    let touchStartY = 0;
     const el = containerRef.current;
 
     // 全屏时播放器覆盖整个视口，无法依赖 mouseleave 判断“移出播放器”。
@@ -1404,8 +1452,13 @@ export function PlayerShell({
       if (isLongPress || longPressTimer) return;
       // 控制栏 / 设置面板上的长按不触发倍速（按住进度条拖动、长按倍速菜单项会误触）
       if ((e.target as HTMLElement).closest?.('.art-controls, .art-settings')) return;
+      touchStartX = e.touches[0]?.clientX ?? 0;
+      touchStartY = e.touches[0]?.clientY ?? 0;
       originalRate = art.video.playbackRate;
       longPressTimer = setTimeout(() => {
+        // Release the timer handle even when playback was paused during the
+        // delay; otherwise later touch starts would be ignored indefinitely.
+        longPressTimer = null;
         if (art.video?.paused) return;
         art.video.playbackRate = 3.0;
         isLongPress = true;
@@ -1420,7 +1473,40 @@ export function PlayerShell({
         showHint(`${originalRate} 倍速`);
       }
     };
+    // Pausing while the long-press boost is active must not leave 3x behind
+    // for the next playback session (e.g. system pause or media interruption).
+    const onVideoPause = () => {
+      if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+      if (isLongPress && art.video) {
+        art.video.playbackRate = originalRate;
+        isLongPress = false;
+      }
+    };
     const onTouchMove = (e: TouchEvent) => {
+      // Pinch / multi-touch is never a long-press gesture. Also restore the
+      // original rate immediately if a second finger arrives after activation.
+      if (e.touches.length !== 1) {
+        if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+        if (isLongPress) {
+          art.video.playbackRate = originalRate;
+          isLongPress = false;
+        }
+        return;
+      }
+      const touch = e.touches[0];
+      if (!touch) return;
+      // A seek/scroll gesture must cancel the pending long-press speed boost.
+      // Otherwise a finger that starts on the video and then moves can
+      // unexpectedly switch playback to 3x after the 500ms timer expires.
+      if (longPressTimer && hasTouchGestureMoved(
+        touchStartX,
+        touchStartY,
+        touch.clientX,
+        touch.clientY,
+      )) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
       if (isLongPress) e.preventDefault();
     };
     // ArtPlayer 的 contextmenu 组件只在桌面端初始化（移动端构造函数里跳过 init），
@@ -1428,6 +1514,7 @@ export function PlayerShell({
     const onContextMenu = (e: Event) => e.preventDefault();
     el?.addEventListener('touchstart', onTouchStart, { passive: false });
     el?.addEventListener('touchend', onTouchEnd);
+    art.video?.addEventListener('pause', onVideoPause);
     el?.addEventListener('touchcancel', onTouchEnd);
     el?.addEventListener('touchmove', onTouchMove, { passive: false });
     el?.addEventListener('contextmenu', onContextMenu);
@@ -1441,6 +1528,8 @@ export function PlayerShell({
     document.addEventListener('visibilitychange', saveOnHide);
 
     return () => {
+      // Invalidate any restore-position promise still pending during teardown.
+      playbackSourceGenerationRef.current += 1;
       flushPlaybackMetrics();
       // 卸载前刷一次最终进度，避免丢失最后几秒。
       // 已自然播完的集数不回写，避免覆盖 onEnded 里清除的「已看完」记录
@@ -1458,8 +1547,17 @@ export function PlayerShell({
       if (playbackConfirmationTimerRef.current) clearTimeout(playbackConfirmationTimerRef.current);
       clearMetadataWatchdog();
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+      if (isLongPress && art.video) {
+        art.video.playbackRate = originalRate;
+        isLongPress = false;
+      }
       el?.removeEventListener('touchstart', onTouchStart);
       el?.removeEventListener('touchend', onTouchEnd);
+      art.video?.removeEventListener('pause', onVideoPause);
       el?.removeEventListener('touchcancel', onTouchEnd);
       el?.removeEventListener('touchmove', onTouchMove);
       el?.removeEventListener('contextmenu', onContextMenu);
@@ -1545,7 +1643,7 @@ export function PlayerShell({
       <div className="player-quality-controls absolute right-3 top-3 z-20 flex flex-col items-end gap-2">
         <button
           type="button"
-          className="player-quality-badge"
+          className="player-quality-badge min-h-11 px-3"
           aria-expanded={qualityPanelOpen}
           aria-label="画质设置"
           onClick={() => setQualityPanelOpen((open) => !open)}
@@ -1569,7 +1667,7 @@ export function PlayerShell({
                   key={value}
                   type="button"
                   aria-pressed={qualityPreference === value}
-                  className={`rounded-lg px-2 py-2 text-xs transition ${qualityPreference === value ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                  className={`min-h-11 rounded-lg px-2 py-2 text-xs transition ${qualityPreference === value ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
                   onClick={() => {
                     try {
                       window.localStorage.setItem(QUALITY_PREFERENCE_KEY, value === '4k' ? '2160' : value);
