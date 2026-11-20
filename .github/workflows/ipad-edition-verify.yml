@@ -75,7 +75,7 @@ jobs:
           const requiredSelectors = [
             '.ipad-edition__cinema-hero',
             '.ipad-edition[data-environment="light"]',
-            '.dark .ipad-edition__category-grid button',
+            '.ipad-edition[data-environment="dark"] .ipad-edition__category-grid button',
           ];
           const missing = requiredSelectors.filter(selector => !allIpadStyles.includes(selector));
           console.log(JSON.stringify({ emptyMedia, legacyHeroSelectors, importantCount, importantBudget, forbiddenLegacySystemTheme, missing }));
