@@ -135,7 +135,7 @@ function collectSiblingLayoutChain(root: HTMLElement, main: HTMLElement | null) 
 
 function collectSnapshot(): LayoutSnapshot {
   const nav = document.querySelector<HTMLElement>('.ipad-nav__topbar');
-  const hero = document.querySelector<HTMLElement>('.ipad-edition__cinema-hero, .ipad-edition__hero');
+  const hero = document.querySelector<HTMLElement>('.ipad-edition__cinema-hero');
   const root = document.querySelector<HTMLElement>('.ipad-edition');
   const main = document.querySelector<HTMLElement>('.ipad-edition__main');
   const viewport = window.visualViewport;
@@ -160,7 +160,7 @@ function collectSnapshot(): LayoutSnapshot {
       root: measureElement('.ipad-edition'),
       main: measureElement('.ipad-edition__main'),
       home: measureElement('.ipad-edition__home'),
-      hero: measureElement('.ipad-edition__cinema-hero, .ipad-edition__hero'),
+      hero: measureElement('.ipad-edition__cinema-hero'),
     },
     siblingLayoutChain: root ? collectSiblingLayoutChain(root, main) : { missingRoot: true },
     heroToNavGap: nav && hero
