@@ -13,7 +13,18 @@ export interface PlaybackSample {
   /** Stable local identifier such as sourceKey:vodId; never a media URL. */
   resourceKey: string;
   timestamp: number;
+  /** Time from episode load to the first frame reported as presented. */
   startupMs?: number;
+  /** Time from episode load to the first completed HLS fragment (diagnostic only). */
+  firstFragmentMs?: number;
+  stallDurationMs?: number;
+  maxStallMs?: number;
+  networkStalls?: number;
+  decodeStalls?: number;
+  droppedFrames?: number;
+  totalFrames?: number;
+  bufferAheadSecondsAvg?: number;
+  bufferAheadSecondsMin?: number;
   throughputKbps?: number;
   mediaBitrateKbps?: number;
   /** Selected HLS playlist rendition, distinct from the decoded video dimensions. */
@@ -31,6 +42,14 @@ export interface PlaybackHealthEntry {
   sampleCount: number;
   lastSampleAt: number;
   startupMsAvg?: number;
+  firstFragmentMsAvg?: number;
+  stallDurationMsPerHour?: number;
+  maxStallMs?: number;
+  networkStallsPerHour?: number;
+  decodeStallsPerHour?: number;
+  droppedFrameRatio?: number;
+  bufferAheadSecondsAvg?: number;
+  bufferAheadSecondsMin?: number;
   throughputKbpsAvg?: number;
   mediaBitrateKbpsAvg?: number;
   heightMax?: number;
@@ -48,6 +67,12 @@ const MAX_SAMPLES_PER_SOURCE = 10;
 
 function finitePositive(value: number | undefined): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? value
+    : undefined;
+}
+
+function finiteNonNegative(value: number | undefined): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
     ? value
     : undefined;
 }
@@ -100,6 +125,15 @@ export function mergePlaybackHealth(
       resourceKey: sample.resourceKey,
       timestamp: sample.timestamp,
       startupMs: finitePositive(sample.startupMs),
+      firstFragmentMs: finitePositive(sample.firstFragmentMs),
+      stallDurationMs: finiteNonNegative(sample.stallDurationMs),
+      maxStallMs: finiteNonNegative(sample.maxStallMs),
+      networkStalls: boundedCount(sample.networkStalls),
+      decodeStalls: boundedCount(sample.decodeStalls),
+      droppedFrames: boundedCount(sample.droppedFrames),
+      totalFrames: boundedCount(sample.totalFrames),
+      bufferAheadSecondsAvg: finiteNonNegative(sample.bufferAheadSecondsAvg),
+      bufferAheadSecondsMin: finiteNonNegative(sample.bufferAheadSecondsMin),
       throughputKbps: finitePositive(sample.throughputKbps),
       mediaBitrateKbps: finitePositive(sample.mediaBitrateKbps),
       selectedRenditionIndex: typeof sample.selectedRenditionIndex === 'number' && Number.isInteger(sample.selectedRenditionIndex) && sample.selectedRenditionIndex >= 0 ? sample.selectedRenditionIndex : undefined,
@@ -112,19 +146,34 @@ export function mergePlaybackHealth(
       playedSeconds: boundedCount(sample.playedSeconds),
     };
     const samples = [...previous.samples, clean].slice(-MAX_SAMPLES_PER_SOURCE);
-    const average = (field: 'startupMs' | 'throughputKbps' | 'mediaBitrateKbps') => {
+    const average = (field: 'startupMs' | 'firstFragmentMs' | 'throughputKbps' | 'mediaBitrateKbps' | 'bufferAheadSecondsAvg') => {
       const values = samples.map((item) => item[field]).filter((v): v is number => v !== undefined);
       return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : undefined;
     };
     const totalPlayed = samples.reduce((sum, item) => sum + (item.playedSeconds ?? 0), 0);
     const totalStalls = samples.reduce((sum, item) => sum + (item.stalls ?? 0), 0);
     const totalFatal = samples.reduce((sum, item) => sum + (item.fatalErrors ?? 0), 0);
+    const totalStallDurationMs = samples.reduce((sum, item) => sum + (item.stallDurationMs ?? 0), 0);
+    const totalNetworkStalls = samples.reduce((sum, item) => sum + (item.networkStalls ?? 0), 0);
+    const totalDecodeStalls = samples.reduce((sum, item) => sum + (item.decodeStalls ?? 0), 0);
+    const totalDroppedFrames = samples.reduce((sum, item) => sum + (item.droppedFrames ?? 0), 0);
+    const totalFrames = samples.reduce((sum, item) => sum + (item.totalFrames ?? 0), 0);
+    const maxStallMs = samples.reduce((max, item) => Math.max(max, item.maxStallMs ?? 0), 0);
+    const bufferAheadValues = samples.map((item) => item.bufferAheadSecondsMin).filter((value): value is number => value !== undefined);
     const maxHeight = samples.reduce((max, item) => Math.max(max, item.height ?? 0), 0);
 
     working[key] = {
       sampleCount: previous.sampleCount + 1,
       lastSampleAt: sample.timestamp,
       startupMsAvg: average('startupMs'),
+      firstFragmentMsAvg: average('firstFragmentMs'),
+      stallDurationMsPerHour: totalPlayed > 0 ? totalStallDurationMs * 3600 / totalPlayed : undefined,
+      maxStallMs: maxStallMs || undefined,
+      networkStallsPerHour: totalPlayed > 0 ? totalNetworkStalls * 3600 / totalPlayed : undefined,
+      decodeStallsPerHour: totalPlayed > 0 ? totalDecodeStalls * 3600 / totalPlayed : undefined,
+      droppedFrameRatio: totalFrames > 0 ? totalDroppedFrames / totalFrames : undefined,
+      bufferAheadSecondsAvg: average('bufferAheadSecondsAvg'),
+      bufferAheadSecondsMin: bufferAheadValues.length ? Math.min(...bufferAheadValues) : undefined,
       throughputKbpsAvg: average('throughputKbps'),
       mediaBitrateKbpsAvg: average('mediaBitrateKbps'),
       heightMax: maxHeight || undefined,
