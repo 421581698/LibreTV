@@ -239,7 +239,7 @@ export function IpadLayoutDiagnostics() {
           {copied ? '已复制' : '复制 JSON'}
         </button>
       </div>
-      <div style={{ marginBottom: 6, color: snapshot.heroToNavGap !== null && snapshot.heroToNavGap > 60 ? '#ffc66d' : '#9de4b2' }}>
+      <div style={{ marginBottom: 6, color: snapshot.heroToNavGap === null || snapshot.heroToNavGap > 60 ? '#ffc66d' : '#9de4b2' }}>
         导航底部 → Hero 顶部间距：{snapshot.heroToNavGap === null ? '无法计算（元素缺失）' : `${snapshot.heroToNavGap}px`}
       </div>
       <pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', color: '#e6edf7' }}>{json}</pre>
