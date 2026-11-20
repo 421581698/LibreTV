@@ -215,6 +215,7 @@ jobs:
                         : null,
                     };
                     try {
+                      // Bound body reads so a stalled upstream cannot block the audit report.
                       const body = await new Promise((resolve, reject) => {
                         const timeout = setTimeout(() => resolve(null), 5000);
                         apiResponse.text().then(value => {
