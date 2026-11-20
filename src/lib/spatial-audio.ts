@@ -287,6 +287,19 @@ export class SpatialAudioEngine {
     return this.setMode(this.mode);
   }
 
+  /**
+   * Final cleanup for a media element that has already been removed from the
+   * player DOM. Do not call this when the same element may be reused: browsers
+   * bind MediaElementAudioSourceNode to its original element for its lifetime.
+   */
+  async destroyAfterMediaElementRemoval(): Promise<void> {
+    this.disable();
+    attachedEngines.delete(this.media);
+    try { this.source.disconnect(); } catch { /* already disconnected */ }
+    try { this.output.disconnect(); } catch { /* already disconnected */ }
+    if (this.context.state !== 'closed') await this.context.close();
+  }
+
   setOutputGain(value: number): void {
     if (!Number.isFinite(value)) return;
     this.output.gain.setTargetAtTime(
