@@ -1391,3 +1391,27 @@ html:has(.ipad-edition .ipad-edition__search-page) body {
   color: #f5f5f7 !important;
 }
 /* Preview gate: verify the search results cinema-black state on the isolated iPad Worker. */
+
+
+/* iOS keyboard/VisualViewport: the search route stays in normal document flow.
+   Do not let the shared clipped main container truncate or repaint chips when
+   Safari resizes the visual viewport for its on-screen keyboard. */
+.ipad-edition:has(.ipad-edition__search-page) {
+  height: auto !important;
+  min-height: 100svh;
+  min-height: 100dvh;
+  overflow: visible !important;
+}
+.ipad-edition:has(.ipad-edition__search-page) > .ipad-edition__main {
+  height: auto !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+}
+.ipad-edition:has(.ipad-edition__search-page) .ipad-edition__search-page {
+  height: auto;
+  min-height: 100svh;
+  min-height: 100dvh;
+  overflow: visible;
+  overflow-anchor: none;
+  scroll-margin-block-end: max(24px, env(safe-area-inset-bottom, 0px));
+}
