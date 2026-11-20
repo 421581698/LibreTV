@@ -1,5 +1,6 @@
 'use client';
 
+import './search.css';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PosterRenderer } from '@/components/ipad-edition/PosterRenderer';
@@ -76,7 +77,12 @@ function IpadSearchContent() {
         <p>跨已启用的点播源搜索电影、剧集与动画。</p>
       </header>
       <form className="ipad-edition__search-form" onSubmit={(event) => { event.preventDefault(); void runSearch(query); }}>
-        <span aria-hidden="true">⌕</span>
+        <span aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <circle cx="10.8" cy="10.8" r="6.7" />
+            <path d="m15.8 15.8 4.2 4.2" />
+          </svg>
+        </span>
         <input value={query} maxLength={100} onChange={(event) => setQuery(event.target.value)} placeholder="搜索片名、演员或关键词…" aria-label="搜索影视内容" />
         {query ? <button type="button" onClick={() => { setQuery(''); setResults([]); setError(''); router.replace('/ipad-edition/search'); }}>清空</button> : null}
         <button type="submit" disabled={loading || !query.trim()}>{loading ? '搜索中…' : '搜索'}</button>
