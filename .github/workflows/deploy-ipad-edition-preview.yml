@@ -1,5 +1,5 @@
 name: Deploy LibreTV iPad Edition Preview (Ubuntu 24.04)
-# Preview-only visual audit activation; never targets the production Worker.
+# Preview-only visual audit activation; never targets the production Worker. [deploy-ipad-edition-preview]
 # [deploy-ipad-edition-preview] Re-run isolated Preview after locale-agnostic player smoke-check fix.
 # Poster proxy verification follows the iPad homepage image reliability fix.
 # Rendered PNG poster pixels are now a required gate; unreadable slots fail closed.
