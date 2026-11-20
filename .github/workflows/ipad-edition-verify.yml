@@ -64,6 +64,10 @@ jobs:
           let emptyMedia = 0;
           let emptyRules = 0;
           let legacyHeroSelectors = 0;
+          const layoutRoot = root.nodes.find(node => node.type === 'rule' && node.selector === '.ipad-edition');
+          const shadowedRootThemeTokens = (layoutRoot?.nodes ?? [])
+            .filter(node => node.type === 'decl' && /^--ipad-(page|surface|surface-solid|text|muted|line|accent|glass-blur)$/.test(node.prop))
+            .map(node => node.prop);
           const hasEffectiveNodes = node => (node.nodes ?? []).some(child =>
             child.type === 'decl' || child.type === 'rule' ||
             (child.type === 'atrule' && hasEffectiveNodes(child))
@@ -84,8 +88,8 @@ jobs:
             '.ipad-edition[data-environment="dark"] .ipad-edition__category-grid button',
           ];
           const missing = requiredSelectors.filter(selector => !allIpadStyles.includes(selector));
-          console.log(JSON.stringify({ emptyMedia, emptyRules, legacyHeroSelectors, importantCount, importantBudget, forbiddenLegacySystemTheme, missing }));
-          if (emptyMedia || emptyRules || legacyHeroSelectors || importantCount > importantBudget || forbiddenLegacySystemTheme || missing.length) {
+          console.log(JSON.stringify({ emptyMedia, emptyRules, legacyHeroSelectors, shadowedRootThemeTokens, importantCount, importantBudget, forbiddenLegacySystemTheme, missing }));
+          if (emptyMedia || emptyRules || legacyHeroSelectors || shadowedRootThemeTokens.length || importantCount > importantBudget || forbiddenLegacySystemTheme || missing.length) {
             throw new Error('iPad Edition CSS structure audit failed.');
           }
           NODE
