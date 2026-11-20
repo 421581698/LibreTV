@@ -99,6 +99,23 @@
     border: 1px solid rgba(255, 255, 255, 0.14) !important;
   }
 
+  /* 展开的「选择来源」面板：每个来源行用 bg-chip，浅色模式下是 rgb(238 240 243)
+     近白，在强制黑底的搜索结果页里就是刺眼的白条。上面的 .tag.bg-chip
+     规则只管元信息标签，管不到这里的 div.bg-chip / button.bg-chip，单独兜底。 */
+  body:has(.v4-home) section[aria-label='搜索结果'] .card .animate-fade-in .bg-chip,
+  body:has(.v4-home) section[aria-label='搜索结果'] .card .animate-fade-in div[role='button'].bg-chip,
+  body:has(.v4-home) section[aria-label='搜索结果'] .card .animate-fade-in button.bg-chip {
+    background: rgba(28, 28, 30, 0.92) !important;
+    background-color: rgba(28, 28, 30, 0.92) !important;
+    background-image: none !important;
+    border-color: rgba(255, 255, 255, 0.14) !important;
+  }
+  body:has(.v4-home) section[aria-label='搜索结果'] .card .animate-fade-in .bg-chip .text-content,
+  body:has(.v4-home) section[aria-label='搜索结果'] .card .animate-fade-in .bg-chip .font-medium {
+    color: #f5f5f7 !important;
+    -webkit-text-fill-color: #f5f5f7 !important;
+  }
+
   /* Left inset so the "…的搜索结果" title never kisses the screen edge. */
   body:has(.v4-home) section[aria-label='搜索结果'] {
     padding-inline: 4px !important;

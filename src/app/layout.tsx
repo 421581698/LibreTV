@@ -86,7 +86,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "(function(){try{var t=localStorage.getItem('libretv-theme')||'system';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);var r=d?'dark':'light';document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=r;var m=document.querySelector('meta[name=\\\"theme-color\\\"]');if(m)m.content=window.location.pathname==='/'?'#000000':(d?'#08080A':'#F5F7FA');}catch(e){}})()",
+              "(function(){try{var t=localStorage.getItem('libretv-theme')||'system';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);var r=d?'dark':'light';document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=r;var m=document.querySelector('meta[name=\\\"theme-color\\\"]');var p=window.location.pathname;var darkSurface=p==='/'||p.indexOf('/search')===0||p.indexOf('/detail')===0||p.indexOf('/live')===0;if(m)m.content=darkSurface?'#000000':(d?'#08080A':'#F5F7FA');}catch(e){}})()",
           }}
         />
       </head>
