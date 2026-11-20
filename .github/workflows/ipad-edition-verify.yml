@@ -62,7 +62,7 @@ jobs:
           let emptyMedia = 0;
           let legacyHeroSelectors = 0;
           root.walkRules(rule => {
-            if (/\\.ipad-edition__hero(?:-[\\w-]+)?(?![\\w-])/.test(rule.selector)) legacyHeroSelectors += 1;
+            if (/\.ipad-edition__hero(?:-[\w-]+)?(?![\w-])/.test(rule.selector)) legacyHeroSelectors += 1;
           });
           root.walkAtRules('media', rule => {
             if (!rule.nodes?.length) emptyMedia += 1;
