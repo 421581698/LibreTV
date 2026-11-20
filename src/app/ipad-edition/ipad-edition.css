@@ -862,7 +862,7 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
   border: 0 !important;
   border-radius: 50% !important;
   color: var(--ipad-nav-ink) !important;
-  background: transparent !important;
+  background: transparent;
   text-decoration: none !important;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -1362,7 +1362,7 @@ body:has(.ipad-edition[data-environment="light"]) {
    stylesheet so it wins over the environment engine's light-theme rules. */
 html:has(body .ipad-edition .ipad-edition__search-page),
 body:has(.ipad-edition .ipad-edition__search-page) {
-  color-scheme: dark !important;
+  color-scheme: dark;
   background: #08090c !important;
 }
 html:has(.ipad-edition .ipad-edition__search-page) body {
@@ -1383,7 +1383,7 @@ html:has(.ipad-edition .ipad-edition__search-page) body {
 }
 .ipad-edition:has(.ipad-edition__search-page) .ipad-edition__result-grid,
 .ipad-edition:has(.ipad-edition__search-page) .ipad-edition__result-card {
-  background: transparent !important;
+  background: transparent;
 }
 .ipad-edition:has(.ipad-edition__search-page) .ipad-edition__result-card > strong,
 .ipad-edition:has(.ipad-edition__search-page) .ipad-search-results-heading,
