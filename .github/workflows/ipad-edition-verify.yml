@@ -6,6 +6,7 @@ on:
       - feature/libretv-ipad-edition-foundation
       - feature/libretv-ipad-edition-product
       - feature/ipad-css-important-cleanup
+      - feature/ipad-search-cinema-redesign
     paths:
       - "src/app/ipad-edition/**"
       - "src/components/ipad-edition/**"
