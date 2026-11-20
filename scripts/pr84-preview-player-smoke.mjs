@@ -140,7 +140,14 @@ try {
     await page.waitForFunction(() => {
       const shell = document.querySelector('.netflix-watch-shell');
       const video = document.querySelector('video');
-      return Boolean(shell?.classList.contains('cinema-controls-hidden') && video && !video.paused);
+      if (!shell?.classList.contains('cinema-controls-hidden') || !video || video.paused) return false;
+      const selectors = ['.watch-topbar', '.cinema-center-controls', '.watch-cinema-info', '.player-quality-controls'];
+      return selectors.every((selector) => {
+        const element = shell.querySelector(selector);
+        if (!(element instanceof HTMLElement)) return false;
+        const style = getComputedStyle(element);
+        return style.visibility === 'hidden' && Number.parseFloat(style.opacity) <= 0.05;
+      });
     }, null, { timeout: 8_000, polling: 100 });
   } catch (error) {
     hideWaitError = error instanceof Error ? error.message : String(error);
