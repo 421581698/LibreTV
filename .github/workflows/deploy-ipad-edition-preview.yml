@@ -948,6 +948,10 @@ jobs:
                   await page.reload({ waitUntil: "domcontentloaded" });
                   await page.getByRole("button", { name: "用户测试词A" }).waitFor({ state: "visible", timeout: 15000 });
                   await page.getByRole("button", { name: "用户测试词B" }).waitFor({ state: "visible", timeout: 15000 });
+                  const personalizedTerms = await page.locator(".ipad-search-quick__items button").allTextContents();
+                  if (personalizedTerms.join("|") !== "用户测试词A|用户测试词B") {
+                    throw new Error("Personal search history should be ordered by frequency, then recency");
+                  }
                 }
                 // Collection pages must reach a terminal data state before a screenshot is accepted.
                 // A heading alone can appear while the grid is still showing loading skeletons.
@@ -1030,7 +1034,7 @@ jobs:
                   (["movies", "series", "anime"].includes(route.name) &&
                     (metrics.loadingSkeletonCount > 0 || !metrics.hasTerminalCollectionState)) ||
                   (route.name === "search" &&
-                    (!metrics.searchFormPresent || metrics.searchQuickKeywordCount < 0 || metrics.searchQuickKeywordCount > 6 ||
+                    (!metrics.searchFormPresent || metrics.searchQuickKeywordCount > 6 ||
                      metrics.searchCategoryCount !== 8 ||
                      metrics.searchCategoryLayout?.display !== "flex" ||
                      metrics.searchCategoryLayout?.flexWrap !== "wrap" ||
@@ -1070,3 +1074,5 @@ jobs:
           retention-days: 14
 
 # [deploy-ipad-edition-preview] Capture parent-chain diagnostics on the isolated Preview.
+
+# [deploy-ipad-edition-preview] Audit personalized search history without assuming preset keywords.
