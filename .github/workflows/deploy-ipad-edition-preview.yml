@@ -215,20 +215,33 @@ jobs:
                         : null,
                     };
                     try {
-                      const body = await apiResponse.text();
-                      let payload;
-                      try {
-                        payload = JSON.parse(body);
-                        entry.payloadKeys = payload && typeof payload === "object" ? Object.keys(payload) : [];
-                        if (Array.isArray(payload?.items)) entry.itemCount = payload.items.length;
-                        if (Array.isArray(payload?.days)) {
-                          entry.dayCount = payload.days.length;
-                          entry.calendarItemCount = payload.days.reduce((sum, day) => sum + (Array.isArray(day?.items) ? day.items.length : 0), 0);
+                      const body = await new Promise((resolve, reject) => {
+                        const timeout = setTimeout(() => resolve(null), 5000);
+                        apiResponse.text().then(value => {
+                          clearTimeout(timeout);
+                          resolve(value);
+                        }, error => {
+                          clearTimeout(timeout);
+                          reject(error);
+                        });
+                      });
+                      if (body === null) {
+                        entry.bodyReadTimeoutMs = 5000;
+                      } else {
+                        let payload;
+                        try {
+                          payload = JSON.parse(body);
+                          entry.payloadKeys = payload && typeof payload === "object" ? Object.keys(payload) : [];
+                          if (Array.isArray(payload?.items)) entry.itemCount = payload.items.length;
+                          if (Array.isArray(payload?.days)) {
+                            entry.dayCount = payload.days.length;
+                            entry.calendarItemCount = payload.days.reduce((sum, day) => sum + (Array.isArray(day?.items) ? day.items.length : 0), 0);
+                          }
+                          if (!apiResponse.ok()) entry.body = body.slice(0, 1200);
+                        } catch (error) {
+                          entry.jsonParseError = String(error);
+                          entry.body = body.slice(0, 1200);
                         }
-                        if (!apiResponse.ok()) entry.body = body.slice(0, 1200);
-                      } catch (error) {
-                        entry.jsonParseError = String(error);
-                        entry.body = body.slice(0, 1200);
                       }
                     } catch (error) {
                       entry.bodyReadError = String(error);
