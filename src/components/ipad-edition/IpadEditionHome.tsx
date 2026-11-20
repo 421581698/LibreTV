@@ -83,6 +83,7 @@ export function IpadEditionHome() {
     items: DoubanItem[],
     loading: boolean,
     error: boolean,
+    retry: () => Promise<unknown>,
   ) => (
     <section className="ipad-edition__rail-section" id={id} aria-labelledby={id + '-title'}>
       <div className="ipad-edition__section-heading">
@@ -95,8 +96,9 @@ export function IpadEditionHome() {
           ))}
         </div>
       ) : error ? (
-        <div className="ipad-edition__rail-message" role="status">
-          暂时无法获取{title}，请稍后重试。
+        <div className="ipad-edition__rail-message" role="alert">
+          <span>暂时无法获取{title}。</span>
+          <button type="button" onClick={() => void retry()}>重新加载</button>
         </div>
       ) : items.length ? (
         <div className="ipad-edition__poster-grid" aria-label={title}>
@@ -111,7 +113,10 @@ export function IpadEditionHome() {
           ))}
         </div>
       ) : (
-        <div className="ipad-edition__rail-message">当前没有可展示的真实内容。</div>
+        <div className="ipad-edition__rail-message">
+          <span>{!doubanEnabled ? '推荐服务尚未启用，请先配置内容推荐。' : '当前没有可展示的真实内容。'}</span>
+          {!doubanEnabled ? <Link href="/ipad-edition/settings">前往设置</Link> : <button type="button" onClick={() => void retry()}>重新加载</button>}
+        </div>
       )}
     </section>
   );
@@ -125,20 +130,20 @@ export function IpadEditionHome() {
           <div className="ipad-edition__cinema-hero-copy" role="status">
             <p className="ipad-edition__cinema-hero-kicker">LIBRETV · 精选推荐</p>
             <h1>{featured.isLoading ? '正在为你准备影院' : '精选内容暂不可用'}</h1>
-            <p>{featured.isLoading ? '正在获取真实影视推荐…' : '推荐服务暂时不可用，请稍后重试。'}</p>
-            {featured.isError ? (
+            <p>{featured.isLoading ? '正在获取真实影视推荐…' : !doubanEnabled ? '请先在设置中启用内容推荐服务。' : '推荐服务暂时不可用，请稍后重试。'}</p>
+            {!doubanEnabled ? <Link href="/ipad-edition/settings">前往设置</Link> : featured.isError ? (
               <button type="button" onClick={() => void featured.refetch()}>重新加载</button>
             ) : null}
           </div>
         </section>
       )}
 
-      {renderRail('ipad-popular-movies', '今日热门', movieItems, featured.isLoading, featured.isError)}
+      {renderRail('ipad-popular-movies', '今日热门', movieItems, featured.isLoading, featured.isError, featured.refetch)}
 
       <IpadEditionContinueWatching />
 
-      {renderRail('ipad-popular-series', '热门剧集', series.data?.items ?? [], series.isLoading, series.isError)}
-      {renderRail('ipad-new-releases', '新近上线', newReleases.data?.items ?? [], newReleases.isLoading, newReleases.isError)}
+      {renderRail('ipad-popular-series', '热门剧集', series.data?.items ?? [], series.isLoading, series.isError, series.refetch)}
+      {renderRail('ipad-new-releases', '新近上线', newReleases.data?.items ?? [], newReleases.isLoading, newReleases.isError, newReleases.refetch)}
 
       <section className="ipad-edition__rail-section" id="ipad-anime-calendar" aria-labelledby="ipad-anime-title">
         <div className="ipad-edition__section-heading">
