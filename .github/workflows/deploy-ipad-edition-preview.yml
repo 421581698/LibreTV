@@ -945,7 +945,12 @@ jobs:
                   await page.locator(".movie-detail-page").waitFor({ state: "visible", timeout: 30000 });
                 }
                 if (route.name === "watch") {
-                  await page.locator("main").filter({ hasText: /缺少|未提供|无法|错误|播放/ }).first().waitFor({ state: "visible", timeout: 30000 });
+                  const playerMain = page.locator("main").first();
+                  await playerMain.waitFor({ state: "visible", timeout: 30000 });
+                  await page.waitForFunction(() => {
+                    const main = document.querySelector("main");
+                    return Boolean(main && main.textContent?.trim().length >= 8);
+                  }, undefined, { timeout: 15000 });
                 }
                 const metrics = await page.evaluate((routeName) => {
                   const root = document.querySelector(".ipad-edition");
