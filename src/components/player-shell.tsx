@@ -1379,7 +1379,8 @@ export function PlayerShell({
     art.on('video:waiting', () => {
       const metrics = playbackMetricsRef.current;
       const video = art.video;
-      if (video && !video.paused && !metrics.waiting) {
+      const newStall = Boolean(video && !video.paused && !metrics.waiting);
+      if (newStall && video) {
         metrics.stalls += 1;
         metrics.waiting = true;
         metrics.waitingStartedAt = Date.now();
@@ -1389,7 +1390,7 @@ export function PlayerShell({
       }
       updatePlaybackDiagnostics(video);
       const hls = hlsRef.current;
-      if (video && !video.paused && hls) {
+      if (newStall && video && !video.paused && hls) {
         if (readQualityPreference() === 'auto') {
           const decision = qualityGuardRef.current.onStall({
             mode: 'auto',
