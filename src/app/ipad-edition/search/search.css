@@ -41,6 +41,10 @@
 .ipad-edition.ipad-edition__search-page .ipad-edition__search-form input {
   min-width: 0;
   min-height: 52px;
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+  background: transparent;
   color: #f5f5f7;
   font-size: 18px;
   font-weight: 450;
