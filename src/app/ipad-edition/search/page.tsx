@@ -207,6 +207,11 @@ function IpadSearchContent() {
             }}
             placeholder="搜索片名、演员、导演或关键词"
             aria-label="搜索影视内容"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            enterKeyHint="search"
           />
           {query ? <button className="ipad-search-clear" type="button" onClick={() => {
             cancelSearch();
