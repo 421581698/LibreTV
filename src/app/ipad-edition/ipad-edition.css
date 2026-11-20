@@ -668,17 +668,17 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
 }
 .ipad-nav__links a:hover { color: var(--ipad-nav-ink); background: rgba(128, 140, 160, .1); }
 .ipad-nav__links a.is-active {
-  border-color: rgba(229, 168, 59, .22);
+  border-color: rgba(128, 140, 160, .2);
   color: var(--ipad-nav-ink);
-  background: rgba(229, 168, 59, .12);
+  background: rgba(128, 140, 160, .14);
 }
-.ipad-nav__links a.is-active .ipad-nav__icon { color: #e5a83b; }
+.ipad-nav__links a.is-active .ipad-nav__icon { color: currentColor; }
 .ipad-nav__links a i {
   width: 5px;
   height: 5px;
   margin-left: auto;
   border-radius: 50%;
-  background: #e5a83b;
+  background: currentColor;
 }
 .ipad-nav__sidebar-foot { margin-top: auto; padding: 18px 9px 0; border-top: 1px solid var(--ipad-nav-line); }
 .ipad-nav__sidebar-foot span { color: var(--ipad-nav-muted); font-size: 9px; letter-spacing: .12em; }
@@ -843,9 +843,9 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
   transition: background-color var(--ipad-motion-fast, 140ms) ease, color var(--ipad-motion-fast, 140ms) ease, transform var(--ipad-motion-fast, 140ms) ease;
 }
 .ipad-nav__personal-tools.is-active {
-  border-color: rgba(229, 168, 59, .42);
-  color: #e5a83b;
-  background: rgba(229, 168, 59, .1);
+  border-color: rgba(128, 140, 160, .22);
+  color: currentColor;
+  background: rgba(128, 140, 160, .12);
 }
 .ipad-nav__personal-tools:active { transform: scale(.97); }
 .ipad-nav__menu-button { flex-basis: 40px; }
@@ -1161,7 +1161,7 @@ body:has(.ipad-edition[data-environment="light"]) {
   height: 5px;
   margin-left: auto;
   border-radius: 50%;
-  background: #e5a83b;
+  background: currentColor;
 }
 
 /* Distinct capsule edge and brighter icon contrast on dark hero backgrounds. */
