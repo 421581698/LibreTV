@@ -68,6 +68,7 @@ jobs:
             if (!rule.nodes?.length) emptyMedia += 1;
           });
           const importantCount = (css.match(/!important/g) || []).length;
+          const importantBudget = 283;
           const forbiddenLegacySystemTheme = /@media\s*\(\s*prefers-color-scheme/i.test(css);
           const requiredSelectors = [
             '.ipad-edition__cinema-hero',
@@ -75,8 +76,8 @@ jobs:
             '.dark .ipad-edition__category-grid button',
           ];
           const missing = requiredSelectors.filter(selector => !css.includes(selector));
-          console.log(JSON.stringify({ emptyMedia, legacyHeroSelectors, importantCount, forbiddenLegacySystemTheme, missing }));
-          if (emptyMedia || legacyHeroSelectors || forbiddenLegacySystemTheme || missing.length) {
+          console.log(JSON.stringify({ emptyMedia, legacyHeroSelectors, importantCount, importantBudget, forbiddenLegacySystemTheme, missing }));
+          if (emptyMedia || legacyHeroSelectors || importantCount > importantBudget || forbiddenLegacySystemTheme || missing.length) {
             throw new Error('iPad Edition CSS structure audit failed.');
           }
           NODE
