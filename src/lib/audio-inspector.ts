@@ -50,7 +50,7 @@ function channelLayout(channelCount: number | null): AudioChannelLayout {
 }
 
 export function parseHlsAudioRenditions(manifest: string): HlsAudioRenditionInfo[] {
-  const lines = manifest.split(/\\r?\\n/).map((line) => line.trim());
+  const lines = manifest.split(/\r?\n/).map((line) => line.trim());
   const audioGroups = new Map<string, string | null>();
   const renditions: HlsAudioRenditionInfo[] = [];
 
@@ -66,7 +66,7 @@ export function parseHlsAudioRenditions(manifest: string): HlsAudioRenditionInfo
     if (attrs.TYPE !== 'AUDIO') continue;
 
     const channelsRaw = attrs.CHANNELS ?? null;
-    const channelsMatch = channelsRaw ? /^(\\d+)(?:\\/(.*))?$/.exec(channelsRaw) : null;
+    const channelsMatch = channelsRaw ? /^(\d+)(?:\/(.*))?$/.exec(channelsRaw) : null;
     const channelCount = channelsMatch ? Number(channelsMatch[1]) : null;
     const hasJocMarker = Boolean(channelsMatch?.[2] && /JOC/i.test(channelsMatch[2]));
     renditions.push({
