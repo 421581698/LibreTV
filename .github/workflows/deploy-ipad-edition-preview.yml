@@ -969,7 +969,7 @@ jobs:
                       inputBoxShadow: inputStyle.boxShadow,
                       inputAppearance: inputStyle.webkitAppearance,
                       categoryBackdropFilter: categoryStyle.backdropFilter,
-                      categoryWebkitBackdropFilter: categoryStyle.webkitBackdropFilter,
+                      categoryWebkitBackdropFilter: categoryStyle.getPropertyValue("-webkit-backdrop-filter"),
                       categoryTransform: categoryStyle.transform,
                       discoveryOverflowAnchor: getComputedStyle(discovery).overflowAnchor,
                       formCategoryGap: Math.round(categoryRect.top - formRect.bottom),
