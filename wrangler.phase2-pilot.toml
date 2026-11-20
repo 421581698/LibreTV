@@ -1,0 +1,28 @@
+# Phase 2 液态玻璃 A/B 试点 —— 独立公网 Preview Worker
+# ----------------------------------------------------------------------------
+# 隔离原则（严格遵守用户要求）：
+#   1. 全新 Worker 名 libretv-phase2-glass-pilot，不复用生产 Worker libretv；
+#   2. 不借用 libretv-homepage-preview / libretv-pr84-preview 等其他分支的固定 target；
+#   3. 只服务于 phase2/liquid-glass-ab-pilot 分支的 /phase2-glass-pilot 试点页；
+#   4. workers_dev=true，得到独立的 *.workers.dev 地址，供真机 Safari 打开。
+# ----------------------------------------------------------------------------
+name = "libretv-phase2-glass-pilot"
+main = ".open-next/worker.js"
+compatibility_date = "2025-04-01"
+compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
+assets = { directory = ".open-next/assets" }
+
+workers_dev = true
+preview_urls = false
+
+[vars]
+CMS_SEARCH_API = "https://caiji.dyttzyapi.com/api.php/provide/vod"
+API_60S_BASE = "https://60s.bggdbh.workers.dev"
+LLM_MODEL = "glm-4-flash"
+# 公开验收用：试点页为纯前端 A/B 对比，不强加登录门槛（同 pr84-preview 策略）。
+AUTH_DISABLED = "true"
+DEFAULT_IMAGE_MODE = "proxy"
+DEFAULT_RECOMMEND_SOURCE = "hot-list"
+DEFAULT_SOURCES = '[]'
+
+# 不在此文件写任何密钥。真机验收不需要后端 API Key。
