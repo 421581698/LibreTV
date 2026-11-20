@@ -457,3 +457,27 @@
 }
 
 /* [deploy-ipad-edition-preview] Validate the hero crop and pagination on the isolated iPad Preview. */
+
+/* Fine correction: PosterRenderer's base hero frame anchors to the left by default.
+   Reset that anchor explicitly so the right-aligned art does not inherit left: 0. */
+.ipad-edition .ipad-edition__cinema-hero-poster {
+  left: auto;
+  right: clamp(36px, 8vw, 144px);
+  mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,.22) 9%, #000 24%, #000 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,.22) 9%, #000 24%, #000 100%);
+}
+.ipad-edition .ipad-edition__cinema-hero-poster .poster-engine__image {
+  inset: 10px;
+  width: calc(100% - 20px);
+  height: calc(100% - 20px);
+  object-fit: contain;
+  object-position: center;
+}
+@media (max-width: 699px) {
+  .ipad-edition .ipad-edition__cinema-hero-poster {
+    left: auto;
+    right: 18px;
+  }
+}
+
+/* [deploy-ipad-edition-preview] Correct intrinsic poster frame anchoring and edge blend. */
