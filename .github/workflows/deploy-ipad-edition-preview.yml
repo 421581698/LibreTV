@@ -803,6 +803,50 @@ jobs:
           }
           if (failures) process.exitCode = 1;
           NODE
+      - name: Verify clean Preview URL without layout debug parameter
+        timeout-minutes: 8
+        run: |
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+          const url = "https://libretv-ipad-edition-preview.bggdbh.workers.dev/ipad-edition";
+          const browser = await chromium.launch({ headless: true });
+          const results = [];
+          try {
+            for (const colorScheme of ["light", "dark"]) {
+              const context = await browser.newContext({
+                viewport: { width: 1194, height: 834 },
+                deviceScaleFactor: 2,
+                isMobile: true,
+                hasTouch: true,
+                colorScheme,
+              });
+              const page = await context.newPage();
+              const errors = [];
+              page.on("pageerror", error => errors.push(error.message));
+              const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
+              await page.locator('[data-ipad-edition="true"]').waitFor({ state: "attached", timeout: 30000 });
+              await page.locator(".ipad-edition__cinema-hero").waitFor({ state: "visible", timeout: 30000 });
+              await page.locator(".ipad-nav__topbar").waitFor({ state: "visible", timeout: 30000 });
+              const metrics = await page.evaluate(() => ({
+                hasDebugOverlay: Boolean(document.querySelector('[aria-label="iPad 页面布局诊断"]')),
+                hasDebugQuery: new URLSearchParams(location.search).has("__layout_debug"),
+                rootEnvironment: document.querySelector(".ipad-edition")?.dataset.environment ?? null,
+                viewportWidth: document.documentElement.clientWidth,
+                documentWidth: document.documentElement.scrollWidth,
+                heroWidth: Math.round(document.querySelector(".ipad-edition__cinema-hero")?.getBoundingClientRect().width ?? 0),
+              }));
+              const failed = !response?.ok() || metrics.hasDebugOverlay || metrics.hasDebugQuery ||
+                metrics.rootEnvironment !== colorScheme || metrics.documentWidth > metrics.viewportWidth + 1 ||
+                metrics.heroWidth < metrics.viewportWidth * 0.7 || errors.length > 0;
+              results.push({ colorScheme, status: response?.status() ?? null, failed, metrics, errors });
+              console.log(JSON.stringify(results.at(-1)));
+              await context.close();
+              if (failed) throw new Error("Clean Preview audit failed for " + colorScheme);
+            }
+          } finally {
+            await browser.close();
+          }
+          NODE
       - name: Upload iPad visual audit screenshots and report
         if: always()
         uses: actions/upload-artifact@v4
