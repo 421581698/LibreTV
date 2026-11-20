@@ -1,5 +1,5 @@
 name: Deploy LibreTV iPad Edition Preview (Ubuntu 24.04)
-# Preview-only visual audit activation; never targets the production Worker.
+# Preview-only visual audit activation; never targets the production Worker. [deploy-ipad-edition-preview]
 # [deploy-ipad-edition-preview] Re-run isolated Preview after locale-agnostic player smoke-check fix.
 # Poster proxy verification follows the iPad homepage image reliability fix.
 # Rendered PNG poster pixels are now a required gate; unreadable slots fail closed.
@@ -25,6 +25,7 @@ on:
       - feature/libretv-ipad-edition-product
       - feature/ipad-css-important-cleanup
       - feature/ipad-search-cinema-redesign
+      - feature/ipad-search-ios-keyboard-fix
 
 # Matched CSS provenance is captured via CSS.styleSheetAdded before querying computed rule origins.
 
@@ -38,7 +39,7 @@ concurrency:
 
 jobs:
   deploy-preview:
-    if: ${{ (github.ref == 'refs/heads/feature/libretv-ipad-edition-foundation' || github.ref == 'refs/heads/feature/libretv-ipad-edition-product' || github.ref == 'refs/heads/feature/ipad-css-important-cleanup' || github.ref == 'refs/heads/feature/ipad-search-cinema-redesign') && ((github.event_name == 'workflow_dispatch' && inputs.confirm_preview_deploy == 'yes') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[deploy-ipad-edition-preview]'))) }}
+    if: ${{ (github.ref == 'refs/heads/feature/libretv-ipad-edition-foundation' || github.ref == 'refs/heads/feature/libretv-ipad-edition-product' || github.ref == 'refs/heads/feature/ipad-css-important-cleanup' || github.ref == 'refs/heads/feature/ipad-search-cinema-redesign' || github.ref == 'refs/heads/feature/ipad-search-ios-keyboard-fix') && ((github.event_name == 'workflow_dispatch' && inputs.confirm_preview_deploy == 'yes') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[deploy-ipad-edition-preview]'))) }}
     name: Build and deploy isolated iPad Edition Preview
     runs-on: ubuntu-24.04
     timeout-minutes: 35
@@ -952,6 +953,40 @@ jobs:
                   if (personalizedTerms.join("|") !== "用户测试词A|用户测试词B") {
                     throw new Error("Personal search history should be ordered by frequency, then recency");
                   }
+                  const focusLayoutAudit = await page.evaluate(() => {
+                    const input = document.querySelector(".ipad-edition__search-form input");
+                    const form = document.querySelector(".ipad-edition__search-form");
+                    const discovery = document.querySelector(".ipad-search-discovery");
+                    const category = document.querySelector(".ipad-edition__category-grid button");
+                    input.focus();
+                    const inputStyle = getComputedStyle(input);
+                    const categoryStyle = getComputedStyle(category);
+                    const formRect = form.getBoundingClientRect();
+                    const categoryRect = category.getBoundingClientRect();
+                    return {
+                      outlineStyle: inputStyle.outlineStyle,
+                      outlineWidth: inputStyle.outlineWidth,
+                      inputBoxShadow: inputStyle.boxShadow,
+                      inputAppearance: inputStyle.webkitAppearance,
+                      categoryBackdropFilter: categoryStyle.backdropFilter,
+                      categoryWebkitBackdropFilter: categoryStyle.getPropertyValue("-webkit-backdrop-filter"),
+                      categoryTransform: categoryStyle.transform,
+                      discoveryOverflowAnchor: getComputedStyle(discovery).overflowAnchor,
+                      formCategoryGap: Math.round(categoryRect.top - formRect.bottom),
+                    };
+                  });
+                  if (focusLayoutAudit.outlineStyle !== "none" ||
+                      focusLayoutAudit.inputBoxShadow !== "none" ||
+                      focusLayoutAudit.inputAppearance !== "none" ||
+                      focusLayoutAudit.categoryBackdropFilter !== "none" ||
+                      (focusLayoutAudit.categoryWebkitBackdropFilter !== "none" &&
+                      focusLayoutAudit.categoryWebkitBackdropFilter !== "") ||
+                      focusLayoutAudit.categoryTransform !== "none" ||
+                      focusLayoutAudit.discoveryOverflowAnchor !== "none" ||
+                      focusLayoutAudit.formCategoryGap < 0) {
+                    throw new Error("iOS search focus/category compositing audit failed: " + JSON.stringify(focusLayoutAudit));
+                  }
+                  await page.locator(".ipad-edition__search-form input").evaluate(input => input.blur());
                 }
                 // Collection pages must reach a terminal data state before a screenshot is accepted.
                 // A heading alone can appear while the grid is still showing loading skeletons.
@@ -1077,8 +1112,8 @@ jobs:
 
 # [deploy-ipad-edition-preview] Audit personalized search history without assuming preset keywords.
 
-# Re-run the isolated Preview against the verified CSS cleanup baseline.
+# [deploy-ipad-edition-preview] Re-run keyboard fix with adaptive personal-search audit.
+
+# [deploy-ipad-edition-preview] Add explicit search focus and category compositing assertions.
 
 # [deploy-ipad-edition-preview] Run isolated Preview against the rebased search branch.
-
-# [deploy-ipad-edition-preview] Verify the upstream product baseline on isolated iPad Preview.
