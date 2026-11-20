@@ -986,7 +986,9 @@ jobs:
                   await page.locator(".movie-detail-page").waitFor({ state: "visible", timeout: 30000 });
                 }
                 if (route.name === "watch") {
-                  await page.locator("main").filter({ hasText: /缺少|未提供|无法|错误|播放/ }).first().waitFor({ state: "visible", timeout: 30000 });
+                  // The no-parameter watch route resolves to the explicit missing-source state before a player shell exists.
+                  // That state is an h1 outside <main>; assert the actual route contract, not a guessed wrapper.
+                  await page.getByRole("heading", { name: "点播源不存在" }).waitFor({ state: "visible", timeout: 30000 });
                 }
                 const metrics = await page.evaluate((routeName) => {
                   const root = document.querySelector(".ipad-edition");
