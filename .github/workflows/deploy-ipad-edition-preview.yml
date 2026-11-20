@@ -1117,3 +1117,5 @@ jobs:
 # [deploy-ipad-edition-preview] Add explicit search focus and category compositing assertions.
 
 # [deploy-ipad-edition-preview] Run isolated Preview against the rebased search branch.
+
+# [deploy-ipad-edition-preview] Run full integrated search and iOS keyboard acceptance on isolated Preview.
