@@ -153,7 +153,6 @@ export class SpatialAudioEngine {
   private lfeGain?: GainNode;
   private mode: SpatialAudioMode = 'off';
   private route: SpatialAudioRoute = 'bypass';
-  private disposed = false;
 
   private constructor(
     readonly media: HTMLMediaElement,
@@ -173,7 +172,7 @@ export class SpatialAudioEngine {
     contextFactory: () => AudioContext = () => new AudioContext(),
   ): SpatialAudioEngine {
     const existing = attachedEngines.get(media);
-    if (existing && !existing.disposed) return existing;
+    if (existing) return existing;
 
     const engine = new SpatialAudioEngine(media, contextFactory());
     attachedEngines.set(media, engine);
@@ -190,13 +189,11 @@ export class SpatialAudioEngine {
   }
 
   async resumeFromUserGesture(): Promise<void> {
-    if (this.disposed) throw new Error('Spatial audio engine has been disposed');
     if (this.context.state === 'suspended') await this.context.resume();
     if (this.context.state !== 'running') throw new Error('AudioContext is not running');
   }
 
   setMode(mode: SpatialAudioMode): SpatialAudioPlan {
-    if (this.disposed) throw new Error('Spatial audio engine has been disposed');
     this.clearSpatialGraph();
     this.mode = mode;
 
@@ -250,19 +247,15 @@ export class SpatialAudioEngine {
   }
 
   /**
-   * Disconnect processing but keep the source routed to the destination.
-   * The media element remains audible without recreating its one-shot source node.
+   * Disable spatial processing but keep the one-shot media source reusable.
+   * Do not delete this engine from the WeakMap: createMediaElementSource() must
+   * not be called a second time for the same media element.
    */
-  dispose(): void {
-    if (this.disposed) return;
+  disable(): void {
     this.clearSpatialGraph();
     this.mode = 'off';
     this.route = 'bypass';
     this.source.connect(this.output);
-    this.disposed = true;
-    attachedEngines.delete(this.media);
-    // Do not close the context here: the MediaElementAudioSourceNode is bound
-    // to this element and cannot be recreated for a reused video element.
   }
 
   private clearSpatialGraph(): void {
