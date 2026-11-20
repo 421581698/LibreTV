@@ -60,6 +60,10 @@ jobs:
           const css = fs.readFileSync(path, 'utf8');
           const root = postcss.parse(css, { from: path });
           let emptyMedia = 0;
+          let legacyHeroSelectors = 0;
+          root.walkRules(rule => {
+            if (/\\.ipad-edition__hero(?:-[\\w-]+)?(?![\\w-])/.test(rule.selector)) legacyHeroSelectors += 1;
+          });
           root.walkAtRules('media', rule => {
             if (!rule.nodes?.length) emptyMedia += 1;
           });
@@ -71,8 +75,8 @@ jobs:
             '.dark .ipad-edition__category-grid button',
           ];
           const missing = requiredSelectors.filter(selector => !css.includes(selector));
-          console.log(JSON.stringify({ emptyMedia, importantCount, forbiddenLegacySystemTheme, missing }));
-          if (emptyMedia || forbiddenLegacySystemTheme || missing.length) {
+          console.log(JSON.stringify({ emptyMedia, legacyHeroSelectors, importantCount, forbiddenLegacySystemTheme, missing }));
+          if (emptyMedia || legacyHeroSelectors || forbiddenLegacySystemTheme || missing.length) {
             throw new Error('iPad Edition CSS structure audit failed.');
           }
           NODE
