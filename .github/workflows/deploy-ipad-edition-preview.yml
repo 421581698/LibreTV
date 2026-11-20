@@ -953,6 +953,39 @@ jobs:
                   if (personalizedTerms.join("|") !== "用户测试词A|用户测试词B") {
                     throw new Error("Personal search history should be ordered by frequency, then recency");
                   }
+                  const focusLayoutAudit = await page.evaluate(() => {
+                    const input = document.querySelector(".ipad-edition__search-form input");
+                    const form = document.querySelector(".ipad-edition__search-form");
+                    const discovery = document.querySelector(".ipad-search-discovery");
+                    const category = document.querySelector(".ipad-edition__category-grid button");
+                    input.focus();
+                    const inputStyle = getComputedStyle(input);
+                    const categoryStyle = getComputedStyle(category);
+                    const formRect = form.getBoundingClientRect();
+                    const categoryRect = category.getBoundingClientRect();
+                    return {
+                      outlineStyle: inputStyle.outlineStyle,
+                      outlineWidth: inputStyle.outlineWidth,
+                      inputBoxShadow: inputStyle.boxShadow,
+                      inputAppearance: inputStyle.webkitAppearance,
+                      categoryBackdropFilter: categoryStyle.backdropFilter,
+                      categoryWebkitBackdropFilter: categoryStyle.webkitBackdropFilter,
+                      categoryTransform: categoryStyle.transform,
+                      discoveryOverflowAnchor: getComputedStyle(discovery).overflowAnchor,
+                      formCategoryGap: Math.round(categoryRect.top - formRect.bottom),
+                    };
+                  });
+                  if (focusLayoutAudit.outlineStyle !== "none" ||
+                      focusLayoutAudit.inputBoxShadow !== "none" ||
+                      focusLayoutAudit.inputAppearance !== "none" ||
+                      focusLayoutAudit.categoryBackdropFilter !== "none" ||
+                      focusLayoutAudit.categoryWebkitBackdropFilter !== "none" ||
+                      focusLayoutAudit.categoryTransform !== "none" ||
+                      focusLayoutAudit.discoveryOverflowAnchor !== "none" ||
+                      focusLayoutAudit.formCategoryGap < 0) {
+                    throw new Error("iOS search focus/category compositing audit failed: " + JSON.stringify(focusLayoutAudit));
+                  }
+                  await page.locator(".ipad-edition__search-form input").evaluate(input => input.blur());
                 }
                 // Collection pages must reach a terminal data state before a screenshot is accepted.
                 // A heading alone can appear while the grid is still showing loading skeletons.
@@ -1079,3 +1112,5 @@ jobs:
 # [deploy-ipad-edition-preview] Audit personalized search history without assuming preset keywords.
 
 # [deploy-ipad-edition-preview] Re-run keyboard fix with adaptive personal-search audit.
+
+# [deploy-ipad-edition-preview] Add explicit search focus and category compositing assertions.
