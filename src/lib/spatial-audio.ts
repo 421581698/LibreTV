@@ -280,7 +280,7 @@ export class SpatialAudioEngine {
     this.clearSpatialGraph();
     this.mode = 'off';
     this.route = 'bypass';
-    this.channelProbe.connect(this.output);
+    this.source.connect(this.output);
   }
 
   private clearSpatialGraph(): void {
