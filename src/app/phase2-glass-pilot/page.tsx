@@ -62,6 +62,7 @@ export default function Phase2GlassPilot() {
   });
   const [interactionMs, setInteractionMs] = useState<number | null>(null);
   const [mouseMoves, setMouseMoves] = useState(0);
+  const [isSafari, setIsSafari] = useState<boolean | null>(null);
   const rafRef = useRef<number | null>(null);
   const framesRef = useRef(0);
   const lastRef = useRef(0);
@@ -71,6 +72,7 @@ export default function Phase2GlassPilot() {
     if (typeof window === 'undefined') return;
     const q = new URLSearchParams(window.location.search).get('engine');
     if (q === 'optimized' || q === 'original') setEngine(q);
+    setIsSafari(/^((?!chrome|android).)*safari/i.test(navigator.userAgent));
   }, []);
 
   // FPS counter.
@@ -114,8 +116,6 @@ export default function Phase2GlassPilot() {
   }, []);
 
   const onPointerMove = useCallback(() => setMouseMoves((n) => n + 1), []);
-
-  const isSafari = typeof navigator !== 'undefined' && /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
   return (
     <main className="pilot-root" onPointerMove={onPointerMove}>
@@ -170,7 +170,12 @@ export default function Phase2GlassPilot() {
             </div>
           </LiquidGlassSurface>
         ) : (
-          <OptimizedGlass {...PANEL_PRESET} className="pilot-panel">
+          <div className="pilot-panel liquid-glass" data-liquid-glass-engine="ready">
+            <div className="liquid-glass-engine-slot" aria-hidden="true">
+              <OptimizedGlass className="liquid-glass-engine-root" {...PANEL_PRESET}>
+                <span aria-hidden="true" />
+              </OptimizedGlass>
+            </div>
             <div className="pilot-panel-content">
               <div className="pilot-panel-icon">◍</div>
               <div>
@@ -178,7 +183,7 @@ export default function Phase2GlassPilot() {
                 <div className="pilot-panel-desc">INIRU fork · RAF + ResizeObserver</div>
               </div>
             </div>
-          </OptimizedGlass>
+          </div>
         )}
         <p className="pilot-hint">用手指在面板上滑动、点击，观察折射/高光跟随与跟手程度（在 Safari 里折射可能不可见，重点看交互响应与流畅度）。</p>
       </section>
@@ -189,7 +194,7 @@ export default function Phase2GlassPilot() {
         <div className="pilot-metric"><span>指针事件</span><b>{mouseMoves}</b></div>
         <div className="pilot-metric"><span>JS 堆(已用)</span><b>{perf.jsHeapUsedMB !== null ? `${perf.jsHeapUsedMB} MB` : '不支持'}</b></div>
         <div className="pilot-metric"><span>视口 / DPR</span><b>{perf.viewport} · {perf.dpr}</b></div>
-        <div className="pilot-metric"><span>Safari 内核</span><b>{isSafari ? '是' : '否'}</b></div>
+        <div className="pilot-metric"><span>Safari 内核</span><b>{isSafari === null ? '检测中' : isSafari ? '是' : '否'}</b></div>
       </section>
       {perf.memoryMB === null && (
         <p className="pilot-note">注：Safari 不提供 <code>performance.memory</code>，内存项无法显示。请用 Safari 开发者工具 → 性能/内存 时间轴观察。</p>
