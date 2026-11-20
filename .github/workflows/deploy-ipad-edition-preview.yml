@@ -998,3 +998,5 @@ jobs:
           retention-days: 14
 
 # [deploy-ipad-edition-preview] Capture parent-chain diagnostics on the isolated Preview.
+
+# Re-run the isolated Preview against the verified CSS cleanup baseline.
