@@ -124,6 +124,16 @@ try {
       video?.addEventListener(name, record);
     }
   });
+  // Playback may already have reached the 3s auto-hide deadline before
+  // the first interaction; reveal controls before clicking the transport button.
+  await page.mouse.move(720, 450);
+  await page.waitForFunction(() => {
+    const shell = document.querySelector('.netflix-watch-shell');
+    const button = document.querySelector('.cinema-play-control');
+    if (!shell || !button || shell.classList.contains('cinema-controls-hidden')) return false;
+    const style = getComputedStyle(button);
+    return style.visibility === 'visible' && Number.parseFloat(style.opacity) > 0.9;
+  }, null, { timeout: 3_000, polling: 50 });
   const transportButton = page.locator('.cinema-play-control');
   await transportButton.click();
   await page.waitForFunction(() => document.querySelector('video')?.paused === true, null, { timeout: 3_000 });
