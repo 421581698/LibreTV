@@ -50,6 +50,32 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
+      - name: iPad Edition CSS structure audit
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import postcss from 'postcss';
+
+          const path = 'src/app/ipad-edition/ipad-edition.css';
+          const css = fs.readFileSync(path, 'utf8');
+          const root = postcss.parse(css, { from: path });
+          let emptyMedia = 0;
+          root.walkAtRules('media', rule => {
+            if (!rule.nodes?.length) emptyMedia += 1;
+          });
+          const importantCount = (css.match(/!important/g) || []).length;
+          const forbiddenLegacySystemTheme = /@media\\s*\\(\\s*prefers-color-scheme/i.test(css);
+          const requiredSelectors = [
+            '.ipad-edition__cinema-hero',
+            '.ipad-edition[data-environment="light"]',
+            '.dark .ipad-edition__category-grid button',
+          ];
+          const missing = requiredSelectors.filter(selector => !css.includes(selector));
+          console.log(JSON.stringify({ emptyMedia, importantCount, forbiddenLegacySystemTheme, missing }));
+          if (emptyMedia || forbiddenLegacySystemTheme || missing.length) {
+            throw new Error('iPad Edition CSS structure audit failed.');
+          }
+          NODE
       - name: TypeScript
         run: npm run typecheck
       - name: ESLint
