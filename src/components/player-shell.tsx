@@ -1340,6 +1340,8 @@ export function PlayerShell({
       updateSkipPrompt(prompt);
     });
     art.on('video:pause', () => {
+      // A user pause must not be counted as continued buffering time.
+      closePlaybackStall(art.video);
       if (playbackConfirmationTimerRef.current) {
         clearTimeout(playbackConfirmationTimerRef.current);
         playbackConfirmationTimerRef.current = null;
