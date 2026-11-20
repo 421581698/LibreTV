@@ -234,12 +234,9 @@
 }.ipad-edition__category-grid button:active, .ipad-edition__collection-tabs button:active, .ipad-edition__pagination button:active, .ipad-edition__library-card > button:active, .ipad-edition__hero-add:active {
   transform: scale(.975);
 }
-@media (max-width: 699px) {
-}
-@media (prefers-reduced-motion: reduce) {
-}
-@media (max-width: 699px) {
-}/* Global Apple TV / iPadOS Liquid Glass controls — Project Two */
+
+
+/* Global Apple TV / iPadOS Liquid Glass controls — Project Two */
 .ipad-edition {
   --ipad-glass-capsule-radius: 999px;
   --ipad-glass-control-fill: rgba(247, 249, 253, .48);
@@ -319,42 +316,6 @@
 @media (max-width: 699px) {.ipad-edition__search-form { min-height: 54px; padding-left: 16px; }.ipad-edition__search-form button { min-height: 40px; padding-inline: 18px; }.ipad-edition__collection-tabs button, .ipad-edition__pagination button, .ipad-edition__library-card > button { min-height: 38px; padding-inline: 16px; }
 }
 @media (prefers-reduced-motion: reduce) {.ipad-edition__collection-tabs button, .ipad-edition__pagination button, .ipad-edition__library-card > button, .ipad-edition__category-grid button, .ipad-edition__search-form button { transition: none !important; }
-}/* iPad Liquid Glass navigation — optical layer + crisp {
-  position: fixed !important;
-  z-index: 100 !important;
-  top: calc(env(safe-area-inset-top, 0px) + 14px) !important;
-  left: 0 !important;
-  right: 0 !important;
-  width: 100% !important;
-  height: 48px !important;
-  min-height: 48px !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  border: 0 !important;
-  background: transparent !important;
-  transform: none !important;
-  pointer-events: none !important;
-}.ipad-edition .ipad-edition__liquid-glass-surface {
-  display: block;
-  width: min(650px, calc(100vw - 48px));
-  height: 44px;
-}.ipad-edition button:focus-visible, .ipad-edition a:focus-visible {
-  outline: 2px solid rgba(145,180,255,.95) !important;
-  outline-offset: 3px !important;
-}
-@media (max-width: 699px) {.ipad-edition .ipad-edition__liquid-glass-surface {
-    width: calc(100vw - 16px);
-    height: 44px;
-  }
-}
-@media (prefers-reduced-transparency: reduce) {
-}
-@media (hover: none) {
-}
-@media (prefers-reduced-motion: reduce) {
 }/* iPad Design Engine foundation: shared material, spatial and motion tokens. */
 .ipad-edition {
   --ipad-z-content: 0;
@@ -396,8 +357,7 @@
 }.ipad-edition__poster-art, .ipad-edition__anime-card > span, .ipad-edition__continue-art, .ipad-edition__result-poster {
   contain: paint;
 }
-@media (prefers-reduced-transparency: reduce) {
-}
+
 @media (prefers-reduced-motion: reduce) {.ipad-edition__poster-art, .ipad-edition__anime-card > span, .ipad-edition__hero-cta {
     transition: none !important;
     scroll-behavior: auto !important;
@@ -405,10 +365,8 @@
     transform: none;
   }
 }
-@media (hover: none) {
-}
-@media (max-width: 699px) {
-}/* iPad Edition layout collision pass — consolidated final overrides. */
+
+/* iPad Edition layout collision pass — consolidated final overrides. */
 .ipad-edition {
   /* The drawer is off-canvas; never reserve its former 316px width. */
   padding: 10px clamp(16px, 2.4vw, 36px) 56px !important;
