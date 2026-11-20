@@ -908,3 +908,5 @@ body:has(.ipad-edition[data-environment="light"] .ipad-edition__search-page):has
 .ipad-edition .ipad-edition__search-page .ipad-search-discovery {
   overflow-anchor: none;
 }
+
+/* Keep iOS keyboard/Visual Viewport fixes scoped to the iPad Edition search route. */
