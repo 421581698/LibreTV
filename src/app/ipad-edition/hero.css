@@ -393,3 +393,65 @@
       linear-gradient(0deg, rgba(5,8,13,.5) 0%, transparent 46%, rgba(5,8,13,.08) 100%);
   }
 }
+
+/* iPad hero artwork and pagination safety pass — preserve the original cinema layout. */
+/* Keep the artwork's important right/bottom details inside the visible crop.
+   The previous 50% / 38% focal point biased the crop upward on wide iPad viewports. */
+.ipad-edition .ipad-edition__cinema-hero {
+  --hero-focal-x: 62%;
+  --hero-focal-y: 56%;
+}
+.ipad-edition .ipad-edition__cinema-hero-backdrop {
+  overflow: hidden;
+}
+.ipad-edition .ipad-edition__cinema-hero-backdrop .poster-engine__image {
+  object-position: var(--hero-focal-x) var(--hero-focal-y);
+}
+.ipad-edition .ipad-edition__cinema-hero-poster {
+  contain: none;
+  overflow: visible;
+  right: clamp(36px, 8vw, 144px);
+  width: min(33%, 420px);
+  height: 86%;
+  top: 7%;
+  bottom: 7%;
+}
+.ipad-edition .ipad-edition__cinema-hero-poster .poster-engine__image {
+  object-fit: contain;
+  object-position: center;
+}
+.ipad-edition .ipad-edition__cinema-hero-pagination {
+  right: clamp(28px, 4.5vw, 68px);
+  bottom: clamp(26px, 4.5vh, 48px);
+  gap: 11px;
+  padding: 11px 15px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 999px;
+  background: rgba(8,11,17,.42);
+  box-shadow: 0 8px 28px rgba(0,0,0,.2);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+.ipad-edition .ipad-edition__cinema-hero-count {
+  margin-right: 5px;
+  white-space: nowrap;
+}
+@media (max-width: 699px) {
+  .ipad-edition .ipad-edition__cinema-hero {
+    --hero-focal-x: 62%;
+    --hero-focal-y: 54%;
+  }
+  .ipad-edition .ipad-edition__cinema-hero-poster {
+    right: 18px;
+    top: 7%;
+    bottom: auto;
+    width: 38%;
+    height: 72%;
+  }
+  .ipad-edition .ipad-edition__cinema-hero-pagination {
+    right: 16px;
+    bottom: 16px;
+    gap: 8px;
+    padding: 9px 12px;
+  }
+}
