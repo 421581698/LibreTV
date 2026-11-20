@@ -6,10 +6,16 @@ import {
   useEffect,
   useState,
   type ComponentType,
+  type CSSProperties,
   type ElementType,
   type HTMLAttributes,
   type ReactNode,
+  type RefObject,
 } from 'react';
+
+type Point = { x: number; y: number };
+type GlassMode = 'standard' | 'polar' | 'prominent' | 'shader';
+type SurfaceVariant = 'dock' | 'control' | 'panel';
 
 type EngineProps = {
   children: ReactNode;
@@ -19,18 +25,33 @@ type EngineProps = {
   aberrationIntensity?: number;
   elasticity?: number;
   cornerRadius?: number;
+  globalMousePos?: Point;
+  mouseOffset?: Point;
+  mouseContainer?: RefObject<HTMLElement | null> | null;
   className?: string;
   padding?: string;
+  style?: CSSProperties;
   overLight?: boolean;
-  mode?: 'standard' | 'polar' | 'prominent' | 'shader';
+  mode?: GlassMode;
 };
 
-type SurfaceVariant = 'dock' | 'control' | 'panel';
-type SurfaceProps = HTMLAttributes<HTMLElement> & {
+type SurfaceProps = Omit<HTMLAttributes<HTMLElement>, 'color'> & {
   as?: ElementType;
   children?: ReactNode;
   interactive?: boolean;
   variant?: SurfaceVariant;
+  displacementScale?: number;
+  blurAmount?: number;
+  saturation?: number;
+  aberrationIntensity?: number;
+  elasticity?: number;
+  cornerRadius?: number;
+  globalMousePos?: Point;
+  mouseOffset?: Point;
+  mouseContainer?: RefObject<HTMLElement | null> | null;
+  padding?: string;
+  overLight?: boolean;
+  mode?: GlassMode;
   type?: 'button' | 'submit' | 'reset';
   disabled?: boolean;
   autoFocus?: boolean;
@@ -38,9 +59,10 @@ type SurfaceProps = HTMLAttributes<HTMLElement> & {
   value?: string;
   form?: string;
 };
+
 type EngineComponent = ComponentType<EngineProps>;
 
-const presets: Record<SurfaceVariant, Omit<EngineProps, 'children' | 'className'>> = {
+const presets: Record<SurfaceVariant, Omit<EngineProps, 'children' | 'className' | 'style'>> = {
   dock: {
     displacementScale: 18,
     blurAmount: 0.08,
@@ -73,22 +95,31 @@ const presets: Record<SurfaceVariant, Omit<EngineProps, 'children' | 'className'
   },
 };
 
-/**
- * LibreTV Liquid Glass v1.0 surface.
- *
- * The semantic/control element remains the real outer DOM node. The upstream
- * engine is rendered as a non-interactive optical layer behind its children;
- * this avoids letting the upstream demo component's centered positioning,
- * transforms or internal wrapper replace the host component's layout.
- */
-export const LiquidGlassSurface = forwardRef<HTMLElement, SurfaceProps>(function LiquidGlassSurface({
-  as = 'div',
-  className = '',
-  children,
-  interactive = false,
-  variant = 'control',
-  ...props
-}: SurfaceProps, ref) {
+/** Shared host surface: semantic content/layout stays in the host; optics are decorative. */
+export const LiquidGlassSurface = forwardRef<HTMLElement, SurfaceProps>(function LiquidGlassSurface(
+  {
+    as = 'div',
+    className = '',
+    children,
+    interactive = false,
+    variant = 'control',
+    displacementScale,
+    blurAmount,
+    saturation,
+    aberrationIntensity,
+    elasticity,
+    cornerRadius,
+    globalMousePos,
+    mouseOffset,
+    mouseContainer,
+    padding,
+    overLight,
+    mode,
+    style,
+    ...props
+  }: SurfaceProps,
+  ref,
+) {
   const [Engine, setEngine] = useState<EngineComponent | null>(null);
 
   useEffect(() => {
@@ -98,30 +129,50 @@ export const LiquidGlassSurface = forwardRef<HTMLElement, SurfaceProps>(function
         if (mounted) setEngine(() => module.default as EngineComponent);
       })
       .catch(() => {
-        // The surface remains usable; the minimal CSS treatment is the fallback.
+        // Keep the semantic surface usable if the optical engine cannot load.
       });
     return () => {
       mounted = false;
     };
   }, []);
 
-  // The upstream engine renders block-level div layers. Do not nest those
-  // inside phrasing-only hosts such as button/a/span; keep those controls on
-  // the minimal fallback until an inline-safe engine surface exists.
+  const preset = presets[variant];
   const canHostEngine = as !== 'button' && as !== 'a' && as !== 'span';
-  const opticalLayer = Engine && canHostEngine ? (
-    <div className="liquid-glass-engine-slot" aria-hidden="true">
-      <Engine className="liquid-glass-engine-root" {...presets[variant]}>
-        <span aria-hidden="true" />
-      </Engine>
-    </div>
-  ) : null;
+  const engineProps: EngineProps = {
+    children: createElement('span', {
+      className: 'liquid-glass-engine-fill',
+      'aria-hidden': true,
+    }),
+    ...preset,
+    displacementScale: displacementScale ?? preset.displacementScale,
+    blurAmount: blurAmount ?? preset.blurAmount,
+    saturation: saturation ?? preset.saturation,
+    aberrationIntensity: aberrationIntensity ?? preset.aberrationIntensity,
+    elasticity: elasticity ?? preset.elasticity,
+    cornerRadius: cornerRadius ?? preset.cornerRadius,
+    padding: padding ?? preset.padding,
+    overLight: overLight ?? false,
+    mode: mode ?? preset.mode,
+    globalMousePos,
+    mouseOffset,
+    mouseContainer,
+    className: 'liquid-glass-engine-root',
+    style: {
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      width: '100%',
+      height: '100%',
+      pointerEvents: 'none',
+    },
+  };
 
   return createElement(
     as,
     {
       ...props,
       ref,
+      style: padding === undefined ? style : { ...style, padding },
       className: [
         'liquid-glass',
         interactive ? 'liquid-glass--interactive' : '',
@@ -130,7 +181,9 @@ export const LiquidGlassSurface = forwardRef<HTMLElement, SurfaceProps>(function
       'data-liquid-glass': 'true',
       'data-liquid-glass-engine': Engine && canHostEngine ? 'ready' : 'fallback',
     },
-    opticalLayer,
+    Engine && canHostEngine
+      ? createElement('span', { className: 'liquid-glass-engine-slot', 'aria-hidden': true }, createElement(Engine, engineProps))
+      : null,
     children,
   );
 });

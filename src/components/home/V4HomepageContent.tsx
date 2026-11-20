@@ -9,6 +9,7 @@ import { fetchHomepageWithFallback } from '@/lib/homepage-recommendation-fallbac
 import { db, type HistoryEntry } from '@/lib/db';
 import { resolveSource, useAppStore } from '@/lib/store';
 import type { DoubanItem } from '@/lib/types';
+import { fromCmsArtwork, fromDoubanItem } from '@/lib/poster';
 import { buildWatchUrl, formatTime } from '@/lib/utils';
 
 const CONTINUE_LIMIT = 8;
@@ -151,6 +152,7 @@ function HomepagePosterRail({
             <button className="v4-apple-poster-card" key={item.id} type="button" onClick={() => onPick(item)}>
               <span className="v4-apple-poster-art">
                 <SmartImage
+                  asset={fromDoubanItem(item)}
                   url={item.cover}
                   mode={imageProxyMode}
                   customProxy={customImageProxy}
@@ -196,6 +198,7 @@ function V4ContinueCard({ item }: { item: HistoryEntry }) {
       <div className="v4-history-image">
         {item.pic ? (
           <SmartImage
+            asset={fromCmsArtwork({ sourceKey: item.sourceKey, vodId: item.vodId, title: item.title, imageUrl: item.pic })}
             url={item.pic}
             mode={imageProxyMode}
             customProxy={customImageProxy}
