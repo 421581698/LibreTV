@@ -973,8 +973,29 @@ jobs:
                     searchFormPresent: Boolean(document.querySelector(".ipad-edition__search-form")),
                     searchQuickKeywordCount: document.querySelectorAll(".ipad-search-quick button").length,
                     searchCategoryCount: document.querySelectorAll(".ipad-edition__category-grid button").length,
-                    searchCategoryColumns: routeName === "search"
-                      ? getComputedStyle(document.querySelector(".ipad-edition__category-grid")).gridTemplateColumns.split(" ").length
+                    searchCategoryLayout: routeName === "search"
+                      ? (() => {
+                          const grid = document.querySelector(".ipad-edition__category-grid");
+                          const style = getComputedStyle(grid);
+                          const rect = grid.getBoundingClientRect();
+                          const buttons = [...grid.querySelectorAll("button")];
+                          const rows = new Set(buttons.map(button => Math.round(button.getBoundingClientRect().top)));
+                          const allInside = buttons.every(button => {
+                            const buttonRect = button.getBoundingClientRect();
+                            return buttonRect.left >= rect.left - 1 && buttonRect.right <= rect.right + 1;
+                          });
+                          const minButtonHeight = buttons.length
+                            ? Math.min(...buttons.map(button => button.getBoundingClientRect().height))
+                            : 0;
+                          return {
+                            display: style.display,
+                            flexWrap: style.flexWrap,
+                            rowCount: rows.size,
+                            buttonCount: buttons.length,
+                            allInside,
+                            minButtonHeight: Math.round(minButtonHeight),
+                          };
+                        })()
                       : null,
                     searchPageBackground: routeName === "search"
                       ? getComputedStyle(document.querySelector(".ipad-edition")).backgroundColor
@@ -991,7 +1012,13 @@ jobs:
                     (metrics.loadingSkeletonCount > 0 || !metrics.hasTerminalCollectionState)) ||
                   (route.name === "search" &&
                     (!metrics.searchFormPresent || metrics.searchQuickKeywordCount !== 4 ||
-                     metrics.searchCategoryCount !== 8 || metrics.searchCategoryColumns !== 4 ||
+                     metrics.searchCategoryCount !== 8 ||
+                     metrics.searchCategoryLayout?.display !== "flex" ||
+                     metrics.searchCategoryLayout?.flexWrap !== "wrap" ||
+                     metrics.searchCategoryLayout?.rowCount < 1 ||
+                     metrics.searchCategoryLayout?.buttonCount !== 8 ||
+                     !metrics.searchCategoryLayout?.allInside ||
+                     metrics.searchCategoryLayout?.minButtonHeight < 44 ||
                      metrics.searchPageBackground !== "rgb(8, 9, 12)")) ||
                   errors.length > 0;
                 const name = route.name + "-" + colorScheme;
