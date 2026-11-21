@@ -44,5 +44,8 @@ describe('iPad Edition playback interaction contract', () => {
     expect(player).toContain('current.fullscreenWeb = true');
     expect(player).toContain('isFullscreen: () => {');
     expect(player).toContain('exitFullscreen: () => {');
+    expect(player).toContain('if (art.fullscreenWeb) {');
+    expect(player).toContain('art.fullscreenWeb = false;');
+    expect(player).toContain('nativeVideo.webkitExitFullscreen();');
   });
 });
