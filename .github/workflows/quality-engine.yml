@@ -103,7 +103,7 @@ jobs:
           TESTSPRITE_PREVIEW_URL_TEMPLATE: ${{ vars.TESTSPRITE_PREVIEW_URL_TEMPLATE }}
         run: |
           if [ -n "$TESTSPRITE_PROJECT_ID" ] && [ -n "$TESTSPRITE_PREVIEW_URL_TEMPLATE" ]; then
-            echo "TestSprite CI is configured; its dedicated gate runs for non-draft same-repository pull requests." >> "$GITHUB_STEP_SUMMARY"
+            echo "TestSprite CI is configured; its dedicated gate runs for same-repository pull requests, including Draft PRs." >> "$GITHUB_STEP_SUMMARY"
           else
             echo "TestSprite cloud gate: NOT CONFIGURED / NOT RUN. Add repository variables TESTSPRITE_PROJECT_ID, TESTSPRITE_PREVIEW_URL_TEMPLATE and secret TESTSPRITE_API_KEY. This is not a TestSprite pass." >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -114,7 +114,6 @@ jobs:
     timeout-minutes: 35
     if: >-
       github.event_name == 'pull_request' &&
-      !github.event.pull_request.draft &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.actor != 'dependabot[bot]' &&
       vars.TESTSPRITE_PROJECT_ID != '' &&
