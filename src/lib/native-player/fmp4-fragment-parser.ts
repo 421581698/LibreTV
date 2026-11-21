@@ -210,6 +210,7 @@ export interface Fmp4TrackMetadata {
   readonly timescale: number;
   readonly handlerType: string;
   readonly sampleEntry: string | null;
+  readonly sampleEntries: readonly string[];
   readonly defaultSampleDescriptionIndex: number | null;
   readonly defaultSampleDuration: number | null;
   readonly defaultSampleSize: number | null;
@@ -311,20 +312,23 @@ export function parseFmp4InitSegment(input: ArrayBuffer | Uint8Array): Fmp4InitS
     const stbl = minfChildren.find(box => box.type === 'stbl');
     const stblChildren = stbl ? readBoxes(bytes, view, stbl.payload, stbl.end) : [];
     const stsd = stblChildren.find(box => box.type === 'stsd');
-    let sampleEntry: string | null = null;
+    let sampleEntries: string[] = [];
     if (stsd) {
       if (stsd.payload + 8 > stsd.end) throw new Error('Truncated stsd box.');
       const entryCount = u32(view, stsd.payload + 4);
       const entries = readBoxes(bytes, view, stsd.payload + 8, stsd.end);
       if (entries.length !== entryCount) throw new Error('stsd entry count does not match its box contents.');
-      sampleEntry = entries[0]?.type ?? null;
+      sampleEntries = entries.map(entry => entry.type);
     }
     const defaults = trexDefaults.get(trackId);
+    const sampleDescriptionIndex = defaults?.descriptionIndex ?? 1;
+    const sampleEntry = sampleEntries[sampleDescriptionIndex - 1] ?? null;
     tracks.push({
       trackId,
       timescale: parseTimescale(view, mdhd),
       handlerType: parseHandlerType(bytes, view, hdlr),
       sampleEntry,
+      sampleEntries,
       defaultSampleDescriptionIndex: defaults?.descriptionIndex ?? null,
       defaultSampleDuration: defaults?.duration ?? null,
       defaultSampleSize: defaults?.size ?? null,
