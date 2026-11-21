@@ -49,7 +49,7 @@ describe('createAssSubtitleRenderer', () => {
   });
 
   it('rejects empty subtitle content', async () => {
-    await expect(createAssSubtitleRenderer({} as HTMLVideoElement, '  ')).rejects.toThrow(/empty/i);
+    await expect(createAssSubtitleRenderer({} as HTMLVideoElement, '  ')).rejects.toThrow(/字幕文件为空/i);
   });
 
   it('destroys the worker renderer when initialization fails', async () => {
