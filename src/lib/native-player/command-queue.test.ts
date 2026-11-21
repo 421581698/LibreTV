@@ -21,14 +21,18 @@ describe('PlaybackCommandQueue', () => {
     const gate = new Promise<void>(resolve => { release = resolve; });
     const first = queue.enqueue(() => gate);
     const second = queue.enqueue(() => 'should not run');
-    // Attach the rejection assertion before releasing the first command so
-    // Node does not report the intentionally rejected queued promise as
-    // temporarily unhandled.
-    const secondRejected = expect(second).rejects.toThrow('closed');
+    // Convert the expected rejection into a fulfilled outcome immediately;
+    // this avoids an unhandled-rejection window while the first command is gated.
+    const secondOutcome = second.then(
+      () => null,
+      error => error,
+    );
     queue.close();
     release();
     await first;
-    await secondRejected;
+    const secondError = await secondOutcome;
+    expect(secondError).toBeInstanceOf(Error);
+    expect((secondError as Error).message).toContain('closed');
     expect(queue.isClosed).toBe(true);
   });
 });
