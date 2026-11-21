@@ -7,7 +7,7 @@ function createPlayer() {
   const player = {
     play: vi.fn(async () => 'art-play'),
     pause: vi.fn(() => 'art-pause'),
-  } as {
+  } as unknown as {
     play: () => unknown;
     pause: () => unknown;
     currentTime: number;
