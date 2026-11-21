@@ -6,8 +6,9 @@ describe('planSpatialAudio', () => {
     expect(planSpatialAudio('off', 6, true).route).toBe('bypass');
   });
 
-  it('uses a real 5.1 binaural route only for six-channel input', () => {
-    const plan = planSpatialAudio('headphone-surround', 6, true);
+  it('requires an explicitly verified 5.1 speaker layout before binaural routing', () => {
+    expect(planSpatialAudio('headphone-surround', 6, true).route).toBe('bypass');
+    const plan = planSpatialAudio('headphone-surround', 6, true, '5.1');
     expect(plan.route).toBe('surround-5.1-binaural');
     expect(plan.label).toContain('5.1');
   });
@@ -19,6 +20,7 @@ describe('planSpatialAudio', () => {
   });
 
   it('bypasses unknown and unsupported channel layouts', () => {
+    expect(planSpatialAudio('headphone-surround', 6, true, 'unknown').reason).toContain('未验证扬声器顺序');
     expect(planSpatialAudio('headphone-surround', 0, true).route).toBe('bypass');
     expect(planSpatialAudio('headphone-surround', 8, true).route).toBe('bypass');
     expect(planSpatialAudio('headphone-stereo', 2, false).route).toBe('bypass');
