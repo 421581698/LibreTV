@@ -66,6 +66,7 @@ MjAuMTAw
 
 `;
 
+/** Real audio-iamf fixture from shaka-project/shaka-player test assets; upstream license Apache-2.0. */
 const REAL_IAMF_INIT_BASE64 = `
 AAAAIGZ0eXBpc281AAACAGlzbzVpc282aWFtZm1wNDEAAAKdbW9vdgAAAGxt
 dmhkAAAAAAAAAAAAAAAAAAAD6AAAAAAAAQAAAQAAAAAAAAAAAAAAAAEAAAAA
