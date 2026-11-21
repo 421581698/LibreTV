@@ -268,15 +268,18 @@ The first implementation slice adds framework-independent core contracts under `
 
 - `types.ts`: versionable domain contracts for plans, cases, runs, events, evidence, and defects.
 - `task-runtime.ts`: deterministic run creation and guarded lifecycle transitions. Terminal states cannot be reopened.
-- `event-store.ts`: append-only event-store contract and an in-memory reference adapter for unit/integration tests. This adapter is intentionally non-durable and is not presented as production persistence.
+- `event-store.ts` and `jsonl-event-store.ts`: append-only event-store contract, in-memory test adapter, and durable JSONL adapter for single-writer Node runners/CI. The JSONL adapter is not a distributed store and is not wired as Cloudflare production persistence.
 - `change-impact.ts`: conservative path-to-feature impact mapping. Unknown paths remain explicitly unknown; player/media/mobile-sensitive changes request separate physical iPhone and iPad acceptance.
 - `failure-classifier.ts`: evidence-driven initial failure classification. Ambiguous failures remain `unknown`; classification is not treated as an authoritative root-cause diagnosis.
-- `quality-gates.ts`: strict gate evaluation. A required failed, blocked, or not-run check prevents readiness; optional not-run checks remain visible.
+- `quality-gates.ts`: strict gate evaluation. A required failed, blocked, not-run, or evidence-free check prevents readiness; optional not-run checks remain visible.
+- `test-planner.ts`: deterministic change-impact-based baseline plan generation and plan validation; this is a safe baseline, not a claim of autonomous AI discovery.
+- `agent-contracts.ts` and `orchestrator.ts`: provider-neutral Discovery/Planner/Generator contracts and a guarded orchestration pipeline. Generated paths are restricted to approved test directories and plans must match the current commit.
+- `quality-report.ts`: unified report construction; verifies evidence belongs to the current run and prevents release eligibility when required physical device evidence or blocker/critical defects remain.
 
 The core is deliberately independent of Next.js, Cloudflare Workers, GitHub Actions, and any single AI provider. Persistence, agent orchestration, and remote execution are later adapters, not hidden assumptions in these domain functions.
 
 Verification entry points:
-- `npm run quality:core`: focused core contract tests.
+- `npm run quality:core`: focused Quality Engine core, persistence, planning, report, and orchestration tests.
 - `npm run quality:verify`: existing lint, TypeScript, and full Vitest suite; the new core tests are included by the current Vitest configuration.
 
-Phase 1 implementation does not claim durable cross-run storage, autonomous AI discovery, self-healing, remote browser fleet execution, or physical-device acceptance. Those remain explicit later milestones.
+Phase 1 implementation includes a durable single-writer JSONL event adapter for Node runners, deterministic baseline planning, provider-neutral agent contracts, guarded planning orchestration, evidence-backed reports, and strict quality gates. It does not claim distributed persistence, a connected LLM provider, autonomous live-site discovery, automatic product-code self-healing, remote browser fleet execution, or completed physical-device acceptance. Those remain explicit later milestones.
