@@ -129,3 +129,43 @@
     gap: 16px 10px;
   }
 }
+
+
+/* Search-page flow recovery: keep the search control directly below its heading.
+   Prevent global form spacing or grid free-space distribution from creating a
+   viewport-sized dead zone on iPhone Safari. */
+.ipad-edition.ipad-edition__search-page {
+  align-content: start;
+  grid-auto-rows: max-content;
+  row-gap: 24px;
+}
+.ipad-edition.ipad-edition__search-page > .ipad-edition__page-heading,
+.ipad-edition.ipad-edition__search-page > .ipad-edition__search-form,
+.ipad-edition.ipad-edition__search-page > .ipad-edition__category-area,
+.ipad-edition.ipad-edition__search-page > .ipad-edition__search-results,
+.ipad-edition.ipad-edition__search-page > .ipad-edition__rail-message {
+  position: static;
+  inset: auto;
+  align-self: start;
+  margin-block: 0;
+  transform: none;
+}
+.ipad-edition.ipad-edition__search-page > .ipad-edition__search-form {
+  width: 100%;
+  max-width: 1120px;
+}
+.ipad-edition.ipad-edition__search-page > .ipad-edition__search-results {
+  width: 100%;
+}
+@media (max-width: 699px) {
+  .ipad-edition.ipad-edition__search-page {
+    row-gap: 20px;
+    padding-top: 84px !important;
+  }
+  .ipad-edition.ipad-edition__search-page > .ipad-edition__page-heading {
+    padding-top: 8px;
+  }
+  .ipad-edition.ipad-edition__search-page > .ipad-edition__search-form {
+    min-height: 56px;
+  }
+}
