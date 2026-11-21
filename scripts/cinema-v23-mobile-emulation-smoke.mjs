@@ -21,6 +21,8 @@ const errors = [];
 const requestFailures = [];
 const mediaRequests = [];
 const mediaResponses = [];
+const mediaResponseBodies = [];
+const viewportFailures = [];
 const safeUrl = (value) => {
   try { const parsed = new URL(value); return parsed.origin + parsed.pathname; }
   catch { return String(value).split('?')[0]; }
@@ -32,7 +34,13 @@ page.on('request', request => {
   if (isMediaRequest(request.url())) mediaRequests.push({ url: safeUrl(request.url()), method: request.method(), resourceType: request.resourceType() });
 });
 page.on('response', response => {
-  if (isMediaRequest(response.url())) mediaResponses.push({ url: safeUrl(response.url()), status: response.status(), contentType: response.headers()['content-type'] ?? null, contentLength: response.headers()['content-length'] ?? null });
+  if (isMediaRequest(response.url())) {
+    const headers = response.headers();
+    mediaResponses.push({ url: safeUrl(response.url()), status: response.status(), contentType: headers['content-type'] ?? null, contentLength: headers['content-length'] ?? null, accessControlAllowOrigin: headers['access-control-allow-origin'] ?? null });
+    if (/\.m3u8(?:$|[?#])/i.test(response.url())) {
+      mediaResponseBodies.push(response.text().then(body => ({ url: safeUrl(response.url()), body: body.slice(0, 9000) })).catch(error => ({ url: safeUrl(response.url()), error: String(error) })));
+    }
+  }
 });
 page.on('requestfailed', request => requestFailures.push({ url: safeUrl(request.url()), error: request.failure()?.errorText ?? 'unknown' }));
 
@@ -139,6 +147,14 @@ try {
       const topbarRect = document.querySelector('.watch-topbar')?.getBoundingClientRect();
       const closeRect = document.querySelector('.cinema-close-control')?.getBoundingClientRect();
       const dockRect = document.querySelector('nav.v4-mobile-tabbar')?.getBoundingClientRect();
+      const synopsis = document.querySelector('.watch-cinema-copy');
+      const safeProbe = document.createElement('div');
+      safeProbe.style.cssText = 'position:fixed;visibility:hidden;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)';
+      document.body.appendChild(safeProbe);
+      const safeStyle = getComputedStyle(safeProbe);
+      const safeTop = parseFloat(safeStyle.paddingTop) || 0;
+      const safeBottom = parseFloat(safeStyle.paddingBottom) || 0;
+      safeProbe.remove();
       return {
         videoCount: document.querySelectorAll('video').length,
         sameVideoElement: video === window.__cinemaV23Video,
@@ -167,24 +183,39 @@ try {
           const r = document.querySelector('nav.v4-mobile-tabbar')?.getBoundingClientRect();
           return r ? { top: r.top, bottom: r.bottom, height: r.height } : null;
         })(),
-        safeArea: {
-          top: getComputedStyle(document.documentElement).getPropertyValue('padding-top'),
-          bottomInset: getComputedStyle(document.documentElement).getPropertyValue('--libretv-visual-viewport-bottom-inset'),
-        },
+        synopsis: synopsis ? {
+          textLength: synopsis.textContent?.trim().length ?? 0,
+          clientHeight: synopsis.clientHeight,
+          scrollHeight: synopsis.scrollHeight,
+          overflowY: getComputedStyle(synopsis).overflowY,
+          lineClamp: getComputedStyle(synopsis).webkitLineClamp,
+        } : null,
+        safeArea: { top: safeTop, bottom: safeBottom },
       };
     });
+    const layoutIssues = [];
     if (layout.videoCount !== 1 || !layout.sameVideoElement || layout.frameWidth <= 0 || layout.frameHeight <= 0 ||
         layout.documentWidth > layout.viewportWidth + 2) {
-      throw new Error(profile.name + ' layout invariant failed: ' + JSON.stringify(layout));
+      layoutIssues.push('base layout invariant');
     }
     if (profile.width <= 700) {
-      if (layout.topbarBottom > layout.frameTop + 2) {
-        throw new Error(profile.name + ' topbar overlaps player frame: ' + JSON.stringify(layout));
+      // The cinema header is deliberately layered over the full-bleed player.
+      // Validate its close affordance and safe-area bounds, not non-overlap with the video frame.
+      if (!layout.closeButton || layout.closeButton.top < layout.safeArea.top - 1 ||
+          layout.closeButton.left < 0 || layout.closeButton.right > profile.width ||
+          layout.closeButton.bottom > profile.height) {
+        layoutIssues.push('close control is outside the safe viewport');
       }
-      if (layout.dockBottom > profile.height + 2 || layout.dockTop < 0) {
-        throw new Error(profile.name + ' app dock is outside the visible viewport: ' + JSON.stringify(layout));
+      if (layout.dockBottom > profile.height + 2 || layout.dockTop < 0 ||
+          (layout.closeButton && layout.dockTop > 0 && layout.closeButton.bottom >= layout.dockTop)) {
+        layoutIssues.push('app dock is outside the visible viewport or overlaps close control');
       }
     }
+    if (layout.synopsis && (layout.synopsis.overflowY === 'hidden' || layout.synopsis.overflowY === 'clip') &&
+        layout.synopsis.scrollHeight > layout.synopsis.clientHeight + 1) {
+      layoutIssues.push('synopsis content is clipped');
+    }
+    if (layoutIssues.length) viewportFailures.push({ profile: profile.name, issues: layoutIssues, layout });
 
     await page.mouse.move(Math.min(profile.width - 10, Math.round(profile.width / 2)), Math.round(profile.height / 2));
     const subtitleButton = page.locator('button[aria-label="字幕设置"]');
@@ -202,7 +233,7 @@ try {
     await spatialButton.click();
 
     await page.screenshot({ path: profile.screenshot, fullPage: false });
-    console.log('PASS ' + profile.name + ': ' + JSON.stringify(layout));
+    console.log((layoutIssues.length ? 'DIAGNOSTIC ' : 'PASS ') + profile.name + ': ' + JSON.stringify({ layoutIssues, layout }));
   }
 
   if (mobileDecodeReady) {
@@ -229,8 +260,10 @@ try {
   } else {
     console.warn('SKIP mobile source-switch decode acceptance because initial media never reached decoded-frame readiness; viewport checks still ran.');
   }
-  if (errors.length) throw new Error('Mobile emulation page errors: ' + errors.slice(0, 8).join(' | '));
-  console.log('Mobile media request summary: ' + JSON.stringify({ requests: mediaRequests.length, responses: mediaResponses.length, failures: requestFailures.length }));
+  const playlistBodies = await Promise.all(mediaResponseBodies);
+  console.log('Mobile media request summary: ' + JSON.stringify({ requests: mediaRequests, responses: mediaResponses, failures: requestFailures, playlists: playlistBodies }));
+  if (errors.length) viewportFailures.push({ pageErrors: errors.slice(0, 8) });
+  if (viewportFailures.length) throw new Error('Mobile viewport acceptance issues: ' + JSON.stringify(viewportFailures));
   console.log('PASS Chromium responsive/rotation/split-width layout emulation. Decode-dependent source switching is reported separately; physical Safari testing remains required.');
 } finally {
   await browser.close();
