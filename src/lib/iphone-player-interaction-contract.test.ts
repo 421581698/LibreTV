@@ -39,6 +39,11 @@ describe('iPhone playback interaction contract', () => {
     expect(watch).toContain('if (switchOpen) cancelAutoNext();');
   });
 
+  it('does not route episode hotkeys while a modal or editable field owns keyboard focus', () => {
+    expect(watch).toContain('if (!e.altKey || switchOpen || skipPanelOpen) return;');
+    expect(watch).toContain("target.closest('input, textarea, select, [contenteditable=\"true\"], [role=\"dialog\"]')");
+  });
+
   it('uses one tested native-fullscreen fallback path for the watch-page fullscreen control', () => {
     expect(watch).toContain("import { requestNativeFullscreenWithFallback, type NativeFullscreenVideo } from '@/lib/player-fullscreen';");
     expect(watch).toContain('requestNativeFullscreenWithFallback(');
