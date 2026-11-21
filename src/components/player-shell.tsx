@@ -2145,7 +2145,7 @@ export function PlayerShell({
               />
             </label>
             <p className="mt-2 text-[11px] text-white/55">
-              字幕轨选择会按当前片源和剧集保存；外部 SRT/ASS 文件与高级样式仍在接入中。
+              字幕轨选择和原生字幕样式按片源与剧集保存；本地 ASS/SSA 仅在当前会话有效，ASS 样式遵循字幕脚本。
             </p>
           </div>
         )}
