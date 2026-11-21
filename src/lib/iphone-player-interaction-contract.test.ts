@@ -38,6 +38,7 @@ describe('iPhone playback interaction contract', () => {
     expect(watch).toContain('onClockUpdate={(position, duration) => setWatchClock({ position, duration })}');
     expect(watch).toContain('onTimeUpdate={handleProgress}');
     expect(watch).toContain('onRequestSwitchSource={(reason) => {');
+    expect(watch).toContain('}, [sourceKey, vodId, indexParam, directUrl]);');
     expect(watch).toContain('setSwitchOpen(true);');
   });
 
