@@ -491,7 +491,7 @@ function WatchContent() {
   // Alt+←/→ 集数切换快捷键
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (!e.altKey || switchOpen || skipPanelOpen) return;
+      if (!e.altKey || switchOpen || skipPanelOpen || showPlayerPanel) return;
       const target = e.target;
       if (target instanceof HTMLElement && (
         target.isContentEditable ||
