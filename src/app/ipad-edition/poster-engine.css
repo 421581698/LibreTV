@@ -1,0 +1,20 @@
+/* Shared artwork geometry for every iPad Edition surface. */
+.ipad-edition .poster-engine{position:relative;display:block;min-width:0;overflow:hidden;isolation:isolate;background:linear-gradient(145deg,rgba(120,133,154,.2),rgba(25,32,44,.12));contain:layout paint}
+.ipad-edition .poster-engine__image{display:block;width:100%;height:100%;object-fit:cover;object-position:center;-webkit-user-drag:none}
+.ipad-edition .poster-engine__fallback{position:absolute;inset:0;display:grid;place-items:center;color:var(--ipad-muted);font-size:12px;font-weight:700;letter-spacing:.12em}
+.ipad-edition .poster-engine--poster{aspect-ratio:2/3}
+.ipad-edition .poster-engine--poster .poster-engine__image,.ipad-edition .poster-engine--anime .poster-engine__image,.ipad-edition .poster-engine--result .poster-engine__image,.ipad-edition .poster-engine--continue .poster-engine__image,.ipad-edition .poster-engine--hero-poster .poster-engine__image,.ipad-edition .poster-engine--backdrop .poster-engine__image{position:absolute;inset:0}
+.ipad-edition .poster-engine--anime,.ipad-edition .poster-engine--result,.ipad-edition .poster-engine--continue{width:100%;height:100%}
+.ipad-edition .poster-engine--hero-poster{position:absolute;inset:0 auto 0 0;width:min(44%,520px);height:100%;pointer-events:none}
+.ipad-edition .poster-engine--backdrop{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.ipad-edition .poster-engine--backdrop .poster-engine__image{object-position:center 34%}
+.ipad-edition .poster-engine--result{aspect-ratio:2/3}
+.ipad-edition .poster-engine--continue{aspect-ratio:16/9}
+.ipad-edition .poster-engine--poster .poster-engine__image,.ipad-edition .poster-engine--result .poster-engine__image{transition:transform .28s cubic-bezier(.2,.75,.25,1)}
+@media (hover:hover) and (pointer:fine){.ipad-edition .ipad-edition__poster-card:hover .poster-engine--poster .poster-engine__image,.ipad-edition .ipad-edition__result-card:hover .poster-engine--result .poster-engine__image{transform:scale(1.045)}}
+@media (orientation:portrait) and (min-width:700px){.ipad-edition .ipad-edition__hero{height:clamp(300px,39svh,430px)}.ipad-edition .poster-engine--hero-poster{width:46%}.ipad-edition .ipad-edition__hero-copy{max-width:56%}.ipad-edition .ipad-edition__result-grid,.ipad-edition .ipad-edition__collection-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (orientation:landscape) and (min-width:1024px){.ipad-edition .ipad-edition__hero{height:clamp(360px,46svh,540px)}.ipad-edition .ipad-edition__result-grid,.ipad-edition .ipad-edition__collection-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media (min-width:700px) and (max-width:1023px){.ipad-edition .ipad-edition__hero{margin-inline:12px}.ipad-edition .ipad-edition__result-grid,.ipad-edition .ipad-edition__collection-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:16px 12px}.ipad-edition .ipad-edition__poster-grid{grid-auto-columns:clamp(136px,20vw,176px)}}
+@media (max-width:699px){.ipad-edition .poster-engine--hero-poster{width:44%}.ipad-edition .poster-engine--result{aspect-ratio:2/3}.ipad-edition .ipad-edition__result-grid,.ipad-edition .ipad-edition__collection-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (prefers-reduced-motion:reduce){.ipad-edition .poster-engine__image{transition:none!important}}
+@media (prefers-reduced-transparency:reduce){.ipad-edition .poster-engine{background:#20242b}}

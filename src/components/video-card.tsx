@@ -14,6 +14,7 @@ import { useQualityProbe } from './use-quality-probe';
 import { useInView } from './use-in-view';
 import { addFavorite, db, removeFavorite } from '@/lib/db';
 import doubanPosters from '@/data/douban-posters.json';
+import { fromCmsSearchResult, fromDoubanItem } from '@/lib/poster';
 
 // —— 跨源同名聚合 ——
 
@@ -229,6 +230,7 @@ export function AggregatedCard({
         {showImg ? (
           <div className="lg-media-frame relative flex-shrink-0 w-[105px] sm:w-[120px] aspect-[2/3] bg-chip">
             <SmartImage
+              asset={group.items.find((item) => item.pic) ? fromCmsSearchResult(group.items.find((item) => item.pic)!) : undefined}
               url={group.pic}
               mode={imageProxyMode}
               customProxy={customImageProxy}
@@ -438,6 +440,7 @@ export function VideoCard({ item, onClick }: { item: SearchResultItem; onClick: 
         {showImg ? (
           <div className="relative flex-shrink-0 w-[105px] sm:w-[120px] aspect-[2/3] bg-chip">
             <SmartImage
+              asset={fromCmsSearchResult(item)}
               url={item.pic}
               mode={imageProxyMode}
               customProxy={customImageProxy}
@@ -499,6 +502,7 @@ export function DoubanCard({
       <div className="lg-media-frame relative aspect-[2/3] bg-chip">
         {item.cover ? (
           <SmartImage
+            asset={fromDoubanItem({ id: item.id, title: item.title, cover: item.cover, rating: item.rating })}
             url={item.cover}
             fallbackUrl={indexedDoubanPoster}
             mode={imageProxyMode}

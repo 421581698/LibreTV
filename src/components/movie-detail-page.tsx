@@ -15,6 +15,7 @@ import { formatRemarks } from '@/lib/remarks';
 import { isMovieType } from '@/lib/cms-parser';
 import type { SourceConfig, VideoDetail } from '@/lib/types';
 import { enqueueDownload } from '@/components/download-manager';
+import { fromCmsArtwork, fromEpisodeArtwork } from '@/lib/poster';
 
 function detailSource(store: Pick<ReturnType<typeof useAppStore.getState>, 'customAPIs' | 'envSources'>, key: string, name: string, sourceUrl: string): SourceConfig | null {
   const local = resolveSource(store, key);
@@ -27,7 +28,7 @@ function detailSource(store: Pick<ReturnType<typeof useAppStore.getState>, 'cust
   return null;
 }
 
-export function MovieDetailPage() {
+export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch' | '/ipad-edition/watch' }) {
   const router = useRouter();
   const params = useSearchParams();
   const customAPIs = useAppStore((state) => state.customAPIs);
@@ -176,8 +177,8 @@ export function MovieDetailPage() {
       index,
       title: displayTitle,
       sourceUrl: source?.url || sourceUrl || undefined,
-    }));
-  }, [sourceKey, vodId, episodes, displayTitle, router, source, sourceUrl]);
+    }).replace('/watch?', watchPath + '?'));
+  }, [sourceKey, vodId, episodes, displayTitle, router, source, sourceUrl, watchPath]);
 
   const toggleFavorite = async () => {
     if (!sourceKey || !vodId) return;
@@ -238,6 +239,7 @@ export function MovieDetailPage() {
       <section className="movie-detail-hero relative isolate min-h-[560px] overflow-hidden sm:min-h-[640px]">
         {backdrop ? (
           <SmartImage
+            asset={fromCmsArtwork({ sourceKey, vodId, title: displayTitle, imageUrl: backdrop, kind: 'backdrop' })}
             url={backdrop}
             mode={imageProxyMode}
             customProxy={customImageProxy}
@@ -307,6 +309,7 @@ export function MovieDetailPage() {
                   <div className="relative aspect-video w-full shrink-0 overflow-hidden bg-white/[.06]">
                     {(item?.image || image) ? (
                       <SmartImage
+                        asset={item?.image ? fromEpisodeArtwork({ sourceKey, vodId, episodeIndex: index, title: titleText, imageUrl: item.image, imageSource: item.imageSource, tmdbEpisodeId: item.tmdbEpisodeId, tmdbSeriesId: item.tmdbSeriesId, seasonNumber: item.seasonNumber, episodeNumber: item.episodeNumber }) : undefined}
                         url={item?.image || image}
                         mode={imageProxyMode}
                         customProxy={customImageProxy}

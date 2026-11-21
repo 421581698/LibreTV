@@ -96,6 +96,16 @@ function looksLikeImageUrl(target: string): boolean {
   return isAnonymousImageHost(host);
 }
 
+/** Shared CDN caching is HTTPS-only even when the request is otherwise proxyable. */
+function isLongLivedPrivateCacheableImageUrl(target: string): boolean {
+  try {
+    const url = new URL(target);
+    return url.protocol === 'https:' && !url.username && !url.password && isAnonymousImageHost(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 /** 解码路径段形式的代理目标（网关可能已把 %2F 解码为 /，失败时原样返回） */
 export function decodePathTarget(encodedUrl: string): string {
   try { return decodeURIComponent(encodedUrl); } catch { return encodedUrl; }
@@ -184,10 +194,14 @@ export async function handleProxyRequest(req: Request, targetUrl: string): Promi
   }
   // fetch 会自动解压，转发时必须去掉长度相关头避免浏览器二次解压
   // 图片基本不变：长缓存交给浏览器与边缘 CDN（分片 / key 仍保守 1 小时）
-  outHeaders.set(
-    'Cache-Control',
-    contentType.startsWith('image/') ? 'public, max-age=2592000' : 'public, max-age=3600'
-  );
+  // Never put authenticated or failed upstream images into a shared 30-day cache.
+  // Only successful responses from the explicitly public image allowlist are CDN-shareable.
+  const cacheControl = !response.ok || response.status !== 200
+    ? 'no-store'
+    : contentType.startsWith('image/')
+      ? (isLongLivedPrivateCacheableImageUrl(finalUrl) ? 'private, max-age=2592000' : 'private, max-age=300')
+      : 'public, max-age=3600';
+  outHeaders.set('Cache-Control', cacheControl);
   outHeaders.set('Access-Control-Allow-Origin', '*');
 
   return new NextResponse(response.body, {
