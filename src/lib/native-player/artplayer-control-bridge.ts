@@ -10,6 +10,14 @@ function succeeded(result: BackendCommandResult | null | undefined): boolean {
   return Boolean(result?.ok);
 }
 
+function shouldFallback(result: BackendCommandResult | null | undefined): boolean {
+  return !result || (!result.ok && (result.reason === 'unsupported' || result.reason === 'not-ready'));
+}
+
+function commandError(result: BackendCommandResult): Error {
+  return new Error(result.ok ? 'Playback controller command failed.' : result.error?.message ?? `Playback controller command failed: ${result.reason}`);
+}
+
 function findDescriptor(target: object, property: PropertyKey): PropertyDescriptor | undefined {
   let current: object | null = target;
   while (current) {
@@ -67,13 +75,15 @@ export function installArtPlayerControlBridge(
         if (controllerCommandDepth > 0) return originalPlay();
         const controller = getController();
         if (!controller) return originalPlay();
+        let result: BackendCommandResult;
         try {
-          const result = await executeControllerAsync(() => controller.play());
-          if (succeeded(result)) return;
+          result = await executeControllerAsync(() => controller.play());
         } catch {
-          // Fall back to the browser's original media method.
+          return originalPlay();
         }
-        return originalPlay();
+        if (succeeded(result)) return;
+        if (shouldFallback(result)) return originalPlay();
+        throw commandError(result);
       },
     });
 
@@ -84,12 +94,16 @@ export function installArtPlayerControlBridge(
       value: () => {
         if (controllerCommandDepth > 0) return originalPause();
         const controller = getController();
+        if (!controller) return originalPause();
+        let result: BackendCommandResult;
         try {
-          if (controller && succeeded(executeControllerSync(() => controller.pause()))) return;
+          result = executeControllerSync(() => controller.pause());
         } catch {
-          // Fall back to the browser's original media method.
+          return originalPause();
         }
-        return originalPause();
+        if (succeeded(result)) return;
+        if (shouldFallback(result)) return originalPause();
+        throw commandError(result);
       },
     });
 
@@ -105,11 +119,15 @@ export function installArtPlayerControlBridge(
         const seconds = Number(value);
         const controller = getController();
         if (controller && Number.isFinite(seconds)) {
+          let result: BackendCommandResult;
           try {
-            if (succeeded(executeControllerSync(() => controller.seek(seconds)))) return;
+            result = executeControllerSync(() => controller.seek(seconds));
           } catch {
-            // Fall back to the browser's original media setter.
+            timeDescriptor.set!.call(video, value);
+            return;
           }
+          if (succeeded(result)) return;
+          if (!shouldFallback(result)) throw commandError(result);
         }
         timeDescriptor.set!.call(video, value);
       },
