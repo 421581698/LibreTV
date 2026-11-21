@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "policy": "Record only devices and OS/browser combinations physically tested by a human. Never infer a real-device pass from Chromium emulation or cloud browsers.",
+  "lastUpdated": "2026-11-21",
+  "devices": [],
+  "requiredEvidence": [
+    "deviceModel",
+    "osVersion",
+    "browserName",
+    "browserVersion",
+    "testedAt",
+    "previewUrl",
+    "commitSha",
+    "testCases",
+    "result",
+    "evidenceLinks"
+  ],
+  "resultValues": ["passed", "failed", "blocked", "not-tested"]
+}
