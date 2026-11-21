@@ -26,9 +26,14 @@ export function RegistryInlinePlayer({
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  const isPlayable = Boolean(
+    resource?.candidate_id &&
+    resource.media_format &&
+    ['hls', 'mp4', 'webm'].includes(resource.media_format),
+  );
 
   useEffect(() => {
-    if (!resource) return;
+    if (!resource || !isPlayable) return;
     const previousOverflow = document.body.style.overflow;
     const activeElement = document.activeElement;
     previousFocusRef.current = activeElement instanceof HTMLElement ? activeElement : null;
@@ -72,7 +77,7 @@ export function RegistryInlinePlayer({
       previousFocusRef.current = null;
       if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
     };
-  }, [resource?.id]);
+  }, [resource?.id, isPlayable]);
 
   const confirmPlayback = useCallback((evidence: { mediaType: string; observedSeconds: number; progressedSeconds: number; decodedWidth: number; decodedHeight: number; selectedRenditionHeight: number; selectedRenditionBitrateKbps: number }) => {
     if (!resource?.candidate_id) return;
@@ -93,9 +98,8 @@ export function RegistryInlinePlayer({
     });
   }, [resource?.candidate_id]);
 
-  if (!resource) return null;
+  if (!resource || !isPlayable) return null;
   const mediaType = resource.media_format;
-  if (!resource.candidate_id || !mediaType || !['hls', 'mp4', 'webm'].includes(mediaType)) return null;
 
   return (
     <div
