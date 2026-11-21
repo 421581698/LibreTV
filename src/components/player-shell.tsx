@@ -531,6 +531,8 @@ export function PlayerShell({
         return;
       }
       assSubtitleRendererRef.current = renderer;
+      const subtitleCanvas = video.parentElement?.querySelector('canvas.JASSUB') as HTMLCanvasElement | null;
+      if (subtitleCanvas) subtitleCanvas.style.zIndex = '5';
       setAssSubtitleFileName(file.name);
       updateSubtitlePreferences({
         ...subtitlePreferencesRef.current,
