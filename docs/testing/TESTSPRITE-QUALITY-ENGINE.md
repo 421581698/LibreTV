@@ -201,22 +201,22 @@ testsprite ci run \
 ## 8. 分阶段落地
 
 ### Phase 0 — 兼容性审计
-- 检查项目 Node.js、包管理器、现有 Playwright/Vitest 配置和 GitHub Actions；
-- 核对 TestSprite CLI 当前版本、命令、认证、额度和 CI 支持；
-- 明确 Preview URL 注入、测试账号/数据、报告保留方式；
-- 不修改 main，不部署生产。
+核对项目运行时、包管理器、Playwright/Vitest、GitHub Actions、TestSprite CLI、Preview 注入、测试数据和证据保留策略。此阶段已完成初步仓库审计，云端 TestSprite 配置仍未完成。
 
-### Phase 1 — Cinema V2.3 试点
-优先覆盖播放入口、首帧、播放/暂停、控制栏、seek、切源、错误恢复、搜索到播放的主链路。对 iPhone 与 iPad 的差异用独立用例表达。
+### Phase 1 — 质量平台核心底座（当前实施）
+建立领域类型、任务生命周期、事件存储契约、变更影响分析、失败分类、证据约束质量门禁和核心单元测试。当前实现使用内存适配器验证事件契约，不宣称已具备持久化能力。
 
-### Phase 2 — 扩展关键用户路径
-扩展搜索、导航、详情、推荐、Friday、液态玻璃和资源管理界面；把稳定用例固化为 Playwright 回归套件。
+### Phase 2 — AI 规划与测试生成
+实现 Discovery、Planner、Generator Agent，产出可审阅、可版本化的测试计划和用例，并将生成质量纳入测试。
 
-### Phase 3 — 统一质量门禁
-接入 PR Preview 自动触发、失败证据归档、质量报告和门禁；为真机验收保留独立状态与人工签署。
+### Phase 3 — 执行、观察与诊断
+接入浏览器/API/媒体执行器，统一收集截图、Trace、Console、网络和报告；增加根因分析与安全修复/回归闭环。
 
-### Phase 4 — 持续维护
-按缺陷与功能变更更新用例；定期清理 flaky tests；记录测试覆盖与逃逸缺陷；每次工具升级先在试点分支验证。
+### Phase 4 — 独立设备验收
+建立 iPhone Safari 与 iPad Safari 分开的测试矩阵、设备会话和证据签署流程。
+
+### Phase 5 — 长期质量运营
+增加持久化存储、历史趋势、缺陷知识库、多项目支持和自动回归调度。
 
 ## 9. 安全与项目边界
 
