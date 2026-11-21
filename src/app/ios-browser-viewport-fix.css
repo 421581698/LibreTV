@@ -1,0 +1,159 @@
+/* iOS browser chrome + watch-page safe layout.
+   Browser-owned address/toolbar surfaces cannot be styled by the page. Keep
+   application controls inside the visual viewport and reserve their space. */
+:root {
+  --libretv-visual-viewport-bottom-inset: 0px;
+  --libretv-visual-viewport-top-inset: 0px;
+  --libretv-watch-dock-height: 68px;
+}
+@media (max-width: 700px) {
+  html:has(.netflix-watch) {
+    min-height: 100%;
+    min-height: 100dvh;
+    scroll-padding-bottom: calc(
+      var(--libretv-watch-dock-height) + env(safe-area-inset-bottom, 0px) +
+      var(--libretv-visual-viewport-bottom-inset, 0px) + 24px
+    );
+  }
+
+  html:has(.netflix-watch) body {
+    min-height: 100%;
+    min-height: 100dvh;
+    padding-bottom: 0 !important;
+    overflow-x: clip !important;
+  }
+
+  /* The close/fullscreen/cast row is part of document flow, never a floating
+     layer over ArtPlayer's own top-left network/retry status. */
+  html:has(.netflix-watch) .netflix-watch-shell {
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+  html:has(.netflix-watch) .watch-topbar {
+    position: relative !important;
+    inset: auto !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    z-index: 20 !important;
+    display: block !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-height: calc(56px + env(safe-area-inset-top, 0px)) !important;
+    padding-top: env(safe-area-inset-top, 0px) !important;
+    transform: none !important;
+  }
+  html:has(.netflix-watch) .watch-topbar-inner {
+    position: relative !important;
+    display: flex !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-height: 56px !important;
+    padding-inline: max(12px, env(safe-area-inset-left, 0px)) max(12px, env(safe-area-inset-right, 0px)) !important;
+    gap: 8px !important;
+  }
+  html:has(.netflix-watch) .watch-topbar-left,
+  html:has(.netflix-watch) .watch-topbar-right {
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    flex: 0 0 auto !important;
+    gap: 6px !important;
+    min-width: 0 !important;
+  }
+  html:has(.netflix-watch) .watch-topbar-right {
+    margin-left: auto !important;
+  }
+  html:has(.netflix-watch) .watch-topbar .cinema-glass-control {
+    position: relative !important;
+    inset: auto !important;
+    flex: 0 0 38px !important;
+    width: 38px !important;
+    min-width: 38px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 50% !important;
+    touch-action: manipulation !important;
+  }
+  html:has(.netflix-watch) .watch-topbar .cinema-close-control {
+    z-index: 2 !important;
+    background: rgba(255,255,255,.10) !important;
+    box-shadow: none !important;
+  }
+  html:has(.netflix-watch) .watch-topbar .cinema-glass-control svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  /* Safari's bottom browser toolbar is outside env(safe-area-inset-bottom).
+     The visualViewport inset is measured by MobileTabBar and applied here. */
+  html body:has(.netflix-watch) > nav.v4-mobile-tabbar {
+    position: fixed !important;
+    top: auto !important;
+    right: 0 !important;
+    bottom: var(--libretv-visual-viewport-bottom-inset, 0px) !important;
+    left: 0 !important;
+    z-index: 100 !important;
+    height: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
+    min-height: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(7px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-left: max(10px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(10px, env(safe-area-inset-right, 0px)) !important;
+    transform: none !important;
+  }
+  html:has(.netflix-watch) body main.netflix-watch,
+  html:has(.netflix-watch) body .netflix-watch {
+    box-sizing: border-box !important;
+    padding-bottom: calc(
+      92px + env(safe-area-inset-bottom, 0px) +
+      var(--libretv-visual-viewport-bottom-inset, 0px)
+    ) !important;
+    scroll-padding-bottom: calc(
+      92px + env(safe-area-inset-bottom, 0px) +
+      var(--libretv-visual-viewport-bottom-inset, 0px)
+    ) !important;
+  }
+  html:has(.netflix-watch) .watch-cinema-copy {
+    min-width: 0 !important;
+    overflow-wrap: anywhere !important;
+    padding-bottom: 12px !important;
+  }
+  html:has(.netflix-watch) .watch-cinema-copy p {
+    display: block !important;
+    max-height: none !important;
+    overflow: visible !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    line-height: 1.7 !important;
+  }
+
+  /* Reduce accidental taps in the player's crowded top/right status cluster. */
+  html:has(.netflix-watch) .player-quality-badge {
+    max-width: min(58vw, 240px) !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-size: 11px !important;
+  }
+}
+
+@media (max-width: 700px) and (orientation: landscape) {
+  html:has(.netflix-watch) .watch-topbar {
+    min-height: calc(44px + env(safe-area-inset-top, 0px)) !important;
+  }
+  html:has(.netflix-watch) .watch-topbar-inner {
+    min-height: 44px !important;
+  }
+  html:has(.netflix-watch) .watch-topbar .cinema-glass-control {
+    flex-basis: 34px !important;
+    width: 34px !important;
+    min-width: 34px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+  }
+}
