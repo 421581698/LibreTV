@@ -227,6 +227,7 @@ export function PlayerShell({
   const [subtitleTracks, setSubtitleTracks] = useState<SubtitleTrackOption[]>([]);
   const [subtitlePreferences, setSubtitlePreferences] = useState<SubtitlePreferences>(DEFAULT_SUBTITLE_PREFERENCES);
   const subtitlePreferencesRef = useRef<SubtitlePreferences>(DEFAULT_SUBTITLE_PREFERENCES);
+  const subtitlePreferencesLoadedRef = useRef(false);
   const subtitleTrackCleanupRef = useRef<(() => void) | null>(null);
   const [availableQualityHeights, setAvailableQualityHeights] = useState<number[]>([]);
   const [availableQualityLevelCount, setAvailableQualityLevelCount] = useState(0);
@@ -249,9 +250,16 @@ export function PlayerShell({
   }, []);
 
   useEffect(() => {
-    const preferences = loadSubtitlePreferences(window.localStorage, sourceKey, episodeKey);
+    subtitlePreferencesLoadedRef.current = false;
+    let preferences = DEFAULT_SUBTITLE_PREFERENCES;
+    try {
+      preferences = loadSubtitlePreferences(window.localStorage, sourceKey, episodeKey);
+    } catch {
+      // Storage access can itself throw before the helper receives it.
+    }
     subtitlePreferencesRef.current = preferences;
     setSubtitlePreferences(preferences);
+    subtitlePreferencesLoadedRef.current = true;
     const video = artRef.current?.video as HTMLVideoElement | undefined;
     if (video) refreshSubtitleTracks(video, hlsRef.current);
   }, [sourceKey, episodeKey]);
@@ -487,12 +495,17 @@ export function PlayerShell({
   const updateSubtitlePreferences = (next: SubtitlePreferences) => {
     subtitlePreferencesRef.current = next;
     setSubtitlePreferences(next);
-    saveSubtitlePreferences(window.localStorage, next, propsRef.current.sourceKey, propsRef.current.episodeKey);
+    try {
+      saveSubtitlePreferences(window.localStorage, next, propsRef.current.sourceKey, propsRef.current.episodeKey);
+    } catch {
+      // Private browsing or storage policy may disable persistence; playback still works.
+    }
   };
 
   const refreshSubtitleTracks = (video: HTMLVideoElement, hls?: Hls | null) => {
     const options = listSubtitleTracks(video, hls);
     setSubtitleTracks(options);
+    if (!subtitlePreferencesLoadedRef.current) return;
     const preferences = subtitlePreferencesRef.current;
     if (!preferences.enabled) {
       applySubtitleTrack(video, hls, null, false);
