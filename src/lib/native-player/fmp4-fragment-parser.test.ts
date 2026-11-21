@@ -137,6 +137,15 @@ describe('parseFmp4Fragments', () => {
     expect(() => extractFmp4SamplePayload(new Uint8Array(8), { dataOffset: 6, size: 4 })).toThrow(/outside/i);
   });
 
+  it('can require sample payloads to be contained by a declared mdat range', () => {
+    const bytes = makeFragment();
+    const [fragment] = parseFmp4Fragments(bytes);
+    const sample = fragment.tracks[0].samples[0];
+    expect(extractFmp4SamplePayload(bytes, sample, fragment.mdatRanges).byteLength).toBe(4);
+    expect(() => extractFmp4SamplePayload(bytes, { dataOffset: 8, size: 4 }, fragment.mdatRanges))
+      .toThrow(/outside.*mdat/i);
+  });
+
   it('filters by track id and accepts a view into a larger backing buffer', () => {
     const fragment = makeFragment();
     const padded = join(new Uint8Array([9, 9, 9]), fragment, new Uint8Array([8]));
