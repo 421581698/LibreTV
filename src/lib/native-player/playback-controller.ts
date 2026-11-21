@@ -59,6 +59,9 @@ export class PlaybackController {
   setVolume(value: number): BackendCommandResult { this.assertActive(); return this.backend.setVolume(value); }
   setMuted(value: boolean): BackendCommandResult { this.assertActive(); return this.backend.setMuted(value); }
   setPlaybackRate(value: number): BackendCommandResult { this.assertActive(); return this.backend.setPlaybackRate(value); }
+  selectAudioTrack(index: number): BackendCommandResult { this.assertActive(); return this.backend.selectAudioTrack(index); }
+  selectTextTrack(index: number | null): BackendCommandResult { this.assertActive(); return this.backend.selectTextTrack(index); }
+  selectQuality(index: number | null): BackendCommandResult { this.assertActive(); return this.backend.selectQuality(index); }
 
   dispose(): void {
     if (this.disposed) return;
