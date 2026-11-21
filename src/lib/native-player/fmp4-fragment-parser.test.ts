@@ -48,7 +48,7 @@ function makeMultiTrafFragment(): Uint8Array {
   return join(moof, box('mdat', new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])));
 }
 
-function makeInitSegment(): Uint8Array {
+function makeInitSegment(defaultDescriptionIndex = 1): Uint8Array {
   const tkhd = box('tkhd', join(u32(0), u32(0), u32(0), u32(7), u32(0)));
   const mdhd = box('mdhd', join(u32(0), u32(0), u32(0), u32(90_000), u32(0)));
   const hdlr = box('hdlr', join(
@@ -56,14 +56,17 @@ function makeInitSegment(): Uint8Array {
     new Uint8Array([118, 105, 100, 101]),
     new Uint8Array(12),
   ));
-  const sampleEntry = box('avc1', new Uint8Array([0, 0, 0, 0]));
-  const stsd = box('stsd', join(u32(0), u32(1), sampleEntry));
+  const sampleEntries = join(
+    box('avc1', new Uint8Array([0, 0, 0, 0])),
+    box('hvc1', new Uint8Array([0, 0, 0, 0])),
+  );
+  const stsd = box('stsd', join(u32(0), u32(2), sampleEntries));
   const stbl = box('stbl', stsd);
   const minf = box('minf', stbl);
   const mdia = box('mdia', join(mdhd, hdlr, minf));
   const trak = box('trak', join(tkhd, mdia));
   const trex = box('trex', join(
-    u32(0), u32(7), u32(1), u32(3000), u32(2048), u32(0x00010000),
+    u32(0), u32(7), u32(defaultDescriptionIndex), u32(3000), u32(2048), u32(0x00010000),
   ));
   return box('moov', join(trak, box('mvex', trex)));
 }
@@ -75,7 +78,7 @@ describe('parseFmp4InitSegment', () => {
       timescale: 90_000,
       handlerType: 'vide',
       sampleEntry: 'avc1',
-      sampleEntries: ['avc1'],
+      sampleEntries: ['avc1', 'hvc1'],
       defaultSampleDescriptionIndex: 1,
       defaultSampleDuration: 3000,
       defaultSampleSize: 2048,
@@ -85,6 +88,10 @@ describe('parseFmp4InitSegment', () => {
 
   it('rejects initialization segments without a movie box', () => {
     expect(() => parseFmp4InitSegment(box('free', new Uint8Array()))).toThrow(/missing moov/i);
+  });
+
+  it('selects the sample entry referenced by trex rather than always choosing the first', () => {
+    expect(parseFmp4InitSegment(makeInitSegment(2)).tracks[0].sampleEntry).toBe('hvc1');
   });
 });
 
