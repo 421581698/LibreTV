@@ -131,6 +131,28 @@ describe("Quality report", () => {
     expect(report.releaseEligible).toBe(false);
   });
 
+  it("blocks release eligibility while blocker or critical defects remain", () => {
+    const report = buildQualityReport({
+      plan, run,
+      checks: [{ id: "unit", required: true, outcome: "passed", evidenceIds: ["junit-1"] }],
+      evidence: [{ id: "junit-1", runId: run.id, kind: "junit", uri: "artifacts/junit.xml", label: "Unit tests", createdAt: "2026-11-21T00:00:00.000Z" }],
+      defects: [{ id: "defect-1", runId: run.id, category: "product", severity: "critical", title: "Playback crash", details: "Critical user flow crashes", evidenceIds: ["junit-1"], regressionCaseIds: ["case-1"] }],
+    });
+    expect(report.releaseEligible).toBe(false);
+    expect(report.blockingDefects).toEqual(["defect-1"]);
+  });
+
+  it("rejects evidence belonging to a different run", () => {
+    const report = buildQualityReport({
+      plan, run,
+      checks: [{ id: "unit", required: true, outcome: "passed", evidenceIds: ["old-run-evidence"] }],
+      evidence: [{ id: "old-run-evidence", runId: "old-run", kind: "junit", uri: "artifacts/old.xml", label: "Old report", createdAt: "2026-11-20T00:00:00.000Z" }],
+      defects: [],
+    });
+    expect(report.releaseEligible).toBe(false);
+    expect(report.gate.missingEvidence).toContain("unit -> old-run-evidence");
+  });
+
   it("rejects reports that combine different plan and run revisions", () => {
     expect(() => buildQualityReport({
       plan, run: { ...run, commitSha: "different" }, checks: [], evidence: [], defects: [],
