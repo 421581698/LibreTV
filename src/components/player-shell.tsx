@@ -114,6 +114,10 @@ export interface PlayerSkipApi {
   isPaused(): boolean;
   getPlaybackRate(): number;
   setPlaybackRate(rate: number): void;
+  /** Enter the player's web-fullscreen mode when native fullscreen is unavailable. */
+  enterFullscreen(): void;
+  isFullscreen(): boolean;
+  exitFullscreen(): void;
 }
 
 interface PlayerShellProps {
@@ -152,6 +156,9 @@ interface PlayerShellProps {
   /** 进度恢复：优先 URL position，其次查询该回调（返回 0 表示无记录） */
   getRestorePosition?: () => number | Promise<number>;
   onTimeUpdate?: (position: number, duration: number) => void;
+  /** High-frequency UI clock; persistence remains throttled through onTimeUpdate. */
+  onClockUpdate?: (position: number, duration: number) => void;
+  onPlaybackRateChange?: (rate: number) => void;
   onEnded?: () => void;
   onPause?: (position: number, duration: number) => void;
   /**
@@ -190,6 +197,8 @@ export function PlayerShell({
   nextEpisodeKey,
   getRestorePosition,
   onTimeUpdate,
+  onClockUpdate,
+  onPlaybackRateChange,
   onEnded,
   onPause,
   onQuality,
@@ -267,14 +276,14 @@ export function PlayerShell({
     url, title, mediaType, onPlaybackConfirmed, adFilter, autoplayNext, skipMark, autoSkipSegments,
     pendingStart, onPendingStart, onPlayerApi, onRecordSegment,
     episodeKey, nextUrl, nextEpisodeKey,
-    getRestorePosition, onTimeUpdate, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource,
+    getRestorePosition, onTimeUpdate, onClockUpdate, onPlaybackRateChange, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource,
     onPrevEpisode, onNextEpisode, hasPrevEpisode, hasNextEpisode,
   });
   propsRef.current = {
     url, title, mediaType, onPlaybackConfirmed, adFilter, autoplayNext, skipMark, autoSkipSegments,
     pendingStart, onPendingStart, onPlayerApi, onRecordSegment,
     episodeKey, nextUrl, nextEpisodeKey,
-    getRestorePosition, onTimeUpdate, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource,
+    getRestorePosition, onTimeUpdate, onClockUpdate, onPlaybackRateChange, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource,
     onPrevEpisode, onNextEpisode, hasPrevEpisode, hasNextEpisode,
   };
 
@@ -991,7 +1000,21 @@ export function PlayerShell({
           html: '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"><path fill="currentColor" d="M4 9V4h5v2H6v3H4zm10-5h6v6h-2V6h-4V4zM4 15h2v3h3v2H4v-5zm14 3v-3h2v5h-6v-2h4z"/></svg>',
           tooltip: '全屏播放',
           click: () => {
-            const nativeVideo = art.video as NativeFullscreenVideo;
+            const nativeVideo = art.video as NativeFullscreenVideo & { webkitExitFullscreen?: () => void };
+            if (nativeVideo.webkitDisplayingFullscreen && nativeVideo.webkitExitFullscreen) {
+              nativeFullscreenCleanupRef.current?.();
+              nativeFullscreenCleanupRef.current = null;
+              nativeVideo.webkitExitFullscreen();
+              return;
+            }
+            if (art.fullscreenWeb) {
+              art.fullscreenWeb = false;
+              return;
+            }
+            if (art.fullscreen) {
+              art.fullscreen = false;
+              return;
+            }
             nativeFullscreenCleanupRef.current?.();
             nativeFullscreenCleanupRef.current = requestNativeFullscreenWithFallback(
               nativeVideo,
@@ -1044,9 +1067,11 @@ export function PlayerShell({
      */
     art.on('video:ratechange', () => {
       const video = art.video;
-      if (video && video.playbackRate !== video.defaultPlaybackRate) {
+      if (!video) return;
+      if (video.playbackRate !== video.defaultPlaybackRate) {
         video.defaultPlaybackRate = video.playbackRate;
       }
+      propsRef.current.onPlaybackRateChange?.(video.playbackRate);
     });
 
     // 播放页「记录当前」需要精确时间：不能依赖 5s 节流的 onTimeUpdate
@@ -1086,6 +1111,20 @@ export function PlayerShell({
         video.playbackRate = rate;
         video.defaultPlaybackRate = rate;
       },
+      enterFullscreen: () => {
+        const current = artRef.current;
+        if (current && !current.fullscreenWeb) current.fullscreenWeb = true;
+      },
+      isFullscreen: () => {
+        const current = artRef.current;
+        return Boolean(current?.fullscreen || current?.fullscreenWeb);
+      },
+      exitFullscreen: () => {
+        const current = artRef.current;
+        if (!current) return;
+        if (current.fullscreenWeb) current.fullscreenWeb = false;
+        else if (current.fullscreen) current.fullscreen = false;
+      },
     });
 
     /**
@@ -1113,6 +1152,9 @@ export function PlayerShell({
     };
     art.on('video:loadedmetadata', reportVideoHeight);
     art.on('video:canplay', reportVideoHeight);
+    const syncPlaybackClock = () => propsRef.current.onClockUpdate?.(art.currentTime, art.duration);
+    art.on('video:loadedmetadata', syncPlaybackClock);
+    art.on('video:durationchange', syncPlaybackClock);
     art.on('video:loadedmetadata', clearMetadataWatchdog);
     art.on('video:canplay', clearMetadataWatchdog);
     // resize 不在 ArtPlayer 的视频事件转发表里，直接挂原生事件
@@ -1205,6 +1247,7 @@ export function PlayerShell({
       metrics.lastPosition = position;
       metrics.lastTickAt = Date.now();
       metrics.height = Math.max(metrics.height, art.video?.videoHeight ?? 0);
+      propsRef.current.onClockUpdate?.(art.currentTime, art.duration);
       const now = Date.now();
       if (now - lastSave > 5000) {
         lastSave = now;
@@ -1262,6 +1305,7 @@ export function PlayerShell({
       // seek 是用户主动行为：拉平采样基准，避免下一拍被误判为「连续越过片尾」。
       // 暂停中 seek 不会触发 timeupdate，这里也同步刷新按钮的显隐。
       const current = art.currentTime;
+      propsRef.current.onClockUpdate?.(current, art.duration);
       lastSampleRef.current = current;
       const segments = resolveSegments(propsRef.current.skipMark, art.duration);
       const active = findActiveSegment(segments, current);
@@ -1298,9 +1342,11 @@ export function PlayerShell({
 
     // —— 键盘快捷键（旧版 hotkey:false + 自定义逻辑的移植） ——
     const shortcuts = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      // 输入框或按钮获得焦点时不劫持按键：否则空格会吞掉按钮的默认激活
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.closest('button')) return;
+      const target = e.target;
+      // 表单控件、链接和弹窗持有焦点时不劫持方向键/空格，避免破坏选择与弹窗操作。
+      if (target instanceof Element && target.closest(
+        'input, textarea, select, button, a[href], [contenteditable="true"], [role="dialog"], [role="listbox"], [role="menu"], [role="slider"]',
+      )) return;
       const current = artRef.current;
       if (!current) return;
       if (e.altKey && e.key === 'ArrowLeft') { e.preventDefault(); return; } // 由父层处理集数切换
@@ -1321,9 +1367,28 @@ export function PlayerShell({
         case ' ':
           current.toggle(); showHint('播放/暂停'); e.preventDefault();
           break;
-        case 'f': case 'F':
-          current.fullscreen = !current.fullscreen; e.preventDefault();
+        case 'f': case 'F': {
+          const nativeVideo = current.video as NativeFullscreenVideo & { webkitExitFullscreen?: () => void };
+          if (nativeVideo.webkitDisplayingFullscreen && nativeVideo.webkitExitFullscreen) {
+            nativeFullscreenCleanupRef.current?.();
+            nativeFullscreenCleanupRef.current = null;
+            nativeVideo.webkitExitFullscreen();
+          } else if (current.fullscreenWeb) {
+            current.fullscreenWeb = false;
+          } else if (current.fullscreen) {
+            current.fullscreen = false;
+          } else {
+            nativeFullscreenCleanupRef.current?.();
+            nativeFullscreenCleanupRef.current = requestNativeFullscreenWithFallback(
+              nativeVideo,
+              () => {
+                if (!current.fullscreenWeb) current.fullscreenWeb = true;
+              },
+            );
+          }
+          e.preventDefault();
           break;
+        }
         // 标记类快捷键一律要求 Shift：这几键会直接写盘并影响整部剧，
         // 单键太容易误触（误记片头 = 之后每集都被跳过一大段）
         case 'i': case 'I':
@@ -1371,6 +1436,7 @@ export function PlayerShell({
     let longPressTimer: ReturnType<typeof setTimeout> | null = null;
     let isLongPress = false;
     let originalRate = 1.0;
+    let activeTouchId: number | null = null;
     const el = containerRef.current;
 
     // 全屏时播放器覆盖整个视口，无法依赖 mouseleave 判断“移出播放器”。
@@ -1398,30 +1464,41 @@ export function PlayerShell({
     }
 
     const onTouchStart = (e: TouchEvent) => {
-      if (art.video?.paused) return;
-      // 已有触控在处理时忽略新手指：否则第二指会把 originalRate 捕获成 3.0，
-      // 松手后倍速永久卡在 3x；旧定时器句柄也会被覆盖成无法清除的幽灵触发
-      if (isLongPress || longPressTimer) return;
-      // 控制栏 / 设置面板上的长按不触发倍速（按住进度条拖动、长按倍速菜单项会误触）
+      if (art.video?.paused || activeTouchId !== null) return;
+      const touch = e.changedTouches[0];
+      if (!touch) return;
+      // 只跟踪启动长按的那根手指；第二根手指抬起/取消时不能提前结束第一根手指的倍速状态。
       if ((e.target as HTMLElement).closest?.('.art-controls, .art-settings')) return;
+      activeTouchId = touch.identifier;
       originalRate = art.video.playbackRate;
       longPressTimer = setTimeout(() => {
-        if (art.video?.paused) return;
+        longPressTimer = null;
+        if (art.video?.paused || activeTouchId === null) return;
         art.video.playbackRate = 3.0;
         isLongPress = true;
         showHint('3 倍速');
       }, 500);
     };
-    const onTouchEnd = () => {
+    const onTouchEnd = (e: TouchEvent) => {
+      if (activeTouchId === null) return;
+      const endedTrackedTouch = Array.from(e.changedTouches).some(
+        (touch) => touch.identifier === activeTouchId,
+      );
+      if (!endedTrackedTouch) return;
+      activeTouchId = null;
       if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
       if (isLongPress) {
-        art.video.playbackRate = originalRate;
+        if (art.video) art.video.playbackRate = originalRate;
         isLongPress = false;
         showHint(`${originalRate} 倍速`);
       }
     };
     const onTouchMove = (e: TouchEvent) => {
-      if (isLongPress) e.preventDefault();
+      if (
+        isLongPress &&
+        activeTouchId !== null &&
+        Array.from(e.changedTouches).some((touch) => touch.identifier === activeTouchId)
+      ) e.preventDefault();
     };
     // ArtPlayer 的 contextmenu 组件只在桌面端初始化（移动端构造函数里跳过 init），
     // 长按倍速因而会连带呼出系统原生菜单/气泡。播放器表面没有可用的原生菜单，统一抑制
@@ -1458,6 +1535,11 @@ export function PlayerShell({
       if (playbackConfirmationTimerRef.current) clearTimeout(playbackConfirmationTimerRef.current);
       clearMetadataWatchdog();
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+      if (longPressTimer) clearTimeout(longPressTimer);
+      longPressTimer = null;
+      if (isLongPress && art.video) art.video.playbackRate = originalRate;
+      isLongPress = false;
+      activeTouchId = null;
       el?.removeEventListener('touchstart', onTouchStart);
       el?.removeEventListener('touchend', onTouchEnd);
       el?.removeEventListener('touchcancel', onTouchEnd);
