@@ -1148,6 +1148,9 @@ export function PlayerShell({
     };
     art.on('video:loadedmetadata', reportVideoHeight);
     art.on('video:canplay', reportVideoHeight);
+    const syncPlaybackClock = () => propsRef.current.onClockUpdate?.(art.currentTime, art.duration);
+    art.on('video:loadedmetadata', syncPlaybackClock);
+    art.on('video:durationchange', syncPlaybackClock);
     art.on('video:loadedmetadata', clearMetadataWatchdog);
     art.on('video:canplay', clearMetadataWatchdog);
     // resize 不在 ArtPlayer 的视频事件转发表里，直接挂原生事件
