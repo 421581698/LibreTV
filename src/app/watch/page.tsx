@@ -46,10 +46,10 @@ import type { VideoEpisode } from '@/lib/types';
  * Friday CMS 特殊处理：
  * 优先使用搜索结果传递的 sourceUrl，避免本地旧配置覆盖本次搜索地址。
  */
-export default function WatchPage({ watchPath = '/watch' }: { watchPath?: '/watch' | '/ipad-edition/watch' }) {
+export default function WatchPage() {
   return (
     <Suspense>
-      <WatchContent watchPath={watchPath} />
+      <WatchContent />
     </Suspense>
   );
 }
@@ -62,13 +62,14 @@ function formatWatchTime(seconds: number) {
   return hours > 0 ? `${hours}:${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}` : `${minutes}:${String(remainder).padStart(2, '0')}`;
 }
 
-function WatchContent({ watchPath }: { watchPath: '/watch' | '/ipad-edition/watch' }) {
+function WatchContent() {
+  const watchPath = '/watch' as const;
+  const fallbackHref = '/';
   const searchParams = useSearchParams();
   const router = useRouter();
   const store = useAppStore();
   const { verified } = useAuth();
   const { toast } = useToast();
-  const fallbackHref = watchPath === '/ipad-edition/watch' ? '/ipad-edition' : '/';
   const sourceKey = searchParams.get('source') || '';
   const vodId = searchParams.get('id') || '';
   const directUrl = searchParams.get('url') || '';
