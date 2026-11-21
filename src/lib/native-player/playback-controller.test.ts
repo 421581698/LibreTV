@@ -18,6 +18,9 @@ class FakeBackend implements PlaybackBackend {
   setVolume(): BackendCommandResult { return { ok: true }; }
   setMuted(): BackendCommandResult { return { ok: true }; }
   setPlaybackRate(): BackendCommandResult { return { ok: true }; }
+  selectAudioTrack(): BackendCommandResult { return { ok: true }; }
+  selectTextTrack(): BackendCommandResult { return { ok: true }; }
+  selectQuality(): BackendCommandResult { return { ok: true }; }
   getCapabilities(): BackendCapabilities { return { kind: this.kind, nativeHls: false, mse: false, audioTrackSelection: false, textTrackSelection: false, qualitySelection: false, reportsDecodedFrames: false }; }
   getSnapshot(): PlaybackSnapshot { return createInitialPlaybackSnapshot(); }
   subscribe(listener: (event: PlaybackEventEnvelope<BackendEvent>) => void): () => void { this.listeners.add(listener); return () => this.listeners.delete(listener); }
