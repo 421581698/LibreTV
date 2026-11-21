@@ -18,6 +18,25 @@ const context = await browser.newContext({
   hasTouch: true,
 });
 const page = await context.newPage();
+const mediaCapabilities = await page.evaluate(() => {
+  const mediaSource = window.MediaSource;
+  const video = document.createElement('video');
+  const codecs = [
+    'video/mp4; codecs="avc1.64001e"',
+    'audio/mp4; codecs="mp4a.40.2"',
+    'video/mp4; codecs="avc1.64001e,mp4a.40.2"',
+  ];
+  return {
+    userAgent: navigator.userAgent,
+    mediaSourceAvailable: Boolean(mediaSource),
+    mediaSourceTypeSupport: Object.fromEntries(codecs.map(codec => [codec, Boolean(mediaSource?.isTypeSupported(codec))])),
+    canPlayType: Object.fromEntries(codecs.map(codec => [codec, video.canPlayType(codec)])),
+  };
+});
+console.log('HLS browser codec preflight: ' + JSON.stringify(mediaCapabilities));
+if (!mediaCapabilities.mediaSourceAvailable || !mediaCapabilities.mediaSourceTypeSupport['video/mp4; codecs="avc1.64001e,mp4a.40.2"']) {
+  throw new Error('HLS acceptance browser lacks MSE AVC/AAC support; use the installed codec-enabled Chrome channel.');
+}
 page.setDefaultTimeout(15_000);
 const errors = [];
 const requestFailures = [];
