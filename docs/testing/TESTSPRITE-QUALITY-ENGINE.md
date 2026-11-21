@@ -1,8 +1,8 @@
-# LibreTV Quality Engine：TestSprite CLI 测试标准
+# LibreTV Quality Engine：自主质量验收标准
 
-> 状态：已批准的测试体系方案 / 待独立分支试点  
+> 状态：独立分支试点中  
 > 决策日期：2026-11-21  
-> 默认原则：后续 LibreTV 功能测试以 TestSprite CLI 为 AI 端到端测试入口，并与 Playwright、单元/集成测试及真实 iPhone/iPad Safari 验收组合使用。
+> 默认原则：核心质量验收由 Vitest、Playwright、API/集成测试、浏览器诊断与证据报告组成；不依赖 TestSprite。TestSprite 仅为显式启用的可选云端增强，真实 iPhone/iPad Safari 仍是独立验收层。
 
 ## 1. 目标
 
@@ -20,13 +20,13 @@
 
 | 工具 | 主要职责 | 不负责的事项 |
 |---|---|---|
-| **TestSprite CLI** | AI 辅助理解需求、生成/维护端到端测试计划、执行测试、整理失败证据与诊断 | 不作为唯一测试来源；不替代真实设备验收 |
+| **TestSprite CLI（可选）** | 显式启用时提供额外 AI 辅助测试计划、云端 E2E 执行与诊断 | 不属于核心质量引擎；不作为必需门禁；不替代 Playwright、单元/集成测试或真机验收 |
 | **Playwright** | 可重复、确定性的浏览器自动化；关键流程、断言、截图、trace 与回归脚本 | 不承担所有 AI 需求分析工作 |
 | **Vitest / 现有单元测试** | 纯函数、状态机、组件逻辑、API/业务规则和边界条件 | 不替代完整用户旅程测试 |
 | **集成/API 测试** | 服务接口、数据流、媒体资源、任务与模块间契约 | 不证明真实浏览器的音视频体验 |
 | **真实 iPhone/iPad Safari** | WebKit、触控、安全区域、系统音视频解码、权限、前后台和设备特有行为 | 不由云端 Chromium 或桌面模拟结果代替 |
 
-**组合原则：** TestSprite + Playwright + 单元/集成测试 + 真机 Safari。各层互补，不以单一工具取代已有测试。
+**组合原则：** Vitest + Playwright + API/集成测试 + 浏览器诊断/证据 + 真机 Safari。TestSprite 仅在明确选择时作为额外增强，不是核心依赖。
 
 ## 3. 统一测试架构
 
@@ -39,10 +39,10 @@ PR / Feature Branch / Preview
    +--------+---------+----------------+
    |                  |                |
    v                  v                v
-TestSprite CLI    Playwright     Unit / Integration
-AI E2E plans      deterministic  Vitest / API / media
-   |                  |                |
-   +------------------+----------------+
+Optional TestSprite  Playwright     Unit / Integration
+supplement only      deterministic  Vitest / API / media
+   |                     |                |
+   +---------------------+----------------+
                       |
                       v
              Real-device acceptance
@@ -96,10 +96,10 @@ AI E2E plans      deterministic  Vitest / API / media
 ## 5. 标准工作流
 
 1. **需求整理：** 明确用户路径、前置条件、预期结果、设备差异和风险等级。
-2. **测试计划：** 使用 TestSprite 生成/更新 AI 测试计划；人工检查关键断言，禁止把模糊描述直接当作验收标准。
+2. **测试计划：** 优先使用仓库内确定性基线计划与变更影响分析；只有显式启用可选 TestSprite 时，才使用其生成/更新 AI 测试计划，并人工检查关键断言。
 3. **确定性用例：** 将稳定、重复执行的关键路径沉淀为 Playwright 脚本；业务规则继续保留单元/集成测试。
 4. **独立 Preview：** 仅对 Feature Branch / PR Preview 执行端到端测试，测试数据与环境必须隔离。
-5. **自动执行：** 运行单元/集成、Playwright 和 TestSprite 测试，保存日志、截图、trace 和报告。
+5. **自动执行：** 核心默认运行单元/集成、Playwright 与浏览器诊断，保存日志、截图、trace 和报告；TestSprite 仅在单独 opt-in 后额外运行。
 6. **失败诊断：** 区分产品缺陷、测试脚本缺陷、环境/网络问题、第三方资源问题；不把环境失败误报为产品通过。
 7. **修复与复测：** Agent 可以提出或实施经授权的修复；必须重新运行失败用例、相关回归套件和必要的全量检查。
 8. **真机验收：** 对 iPhone 与 iPad 分别执行设备清单，记录设备型号、iOS/iPadOS、Safari 版本、网络、操作步骤和证据。
@@ -111,19 +111,19 @@ AI E2E plans      deterministic  Vitest / API / media
 - **Gate A — 静态与单元：** lint、typecheck、unit tests；
 - **Gate B — 集成：** API、媒体管线、任务/数据契约测试；
 - **Gate C — 浏览器确定性回归：** Playwright；
-- **Gate D — AI 端到端：** TestSprite CLI；
+- **Optional — AI 云端增强：** TestSprite CLI，仅显式启用时运行且不阻断核心 CI；
 - **Gate E — 设备验收：** iPhone/iPad Safari，按变更风险要求执行并单独签署结果。
 
 阻断规则：
 - 必需 Gate 失败则 PR 不得视为通过；
-- TestSprite 生成的测试必须经过审阅，避免不稳定或错误断言成为阻断条件；
+- 可选 TestSprite 生成的测试必须经过审阅，避免不稳定或错误断言成为阻断条件；
 - 外部服务不可用时标记为 blocked/environment failure，不得伪装成 success；
 - 真机未执行时明确标注“未验收”，不可用桌面模拟或云端浏览器替代；
 - 不允许自动批准 PR、自动合并或自动部署生产。
 
-## 7. TestSprite CLI 试点与操作
+## 7. 可选 TestSprite CLI 增强与操作
 
-先在独立 Feature Branch / Preview 做兼容性审计和试点，不立即改变所有现有 CI。以下命令按官方 CLI 0.17 文档校准；升级 CLI 后先运行 `testsprite --version` 与 `testsprite doctor`，不要混用 0.16 子命令。
+本节仅供主动选择 TestSprite 云端增强时参考。核心质量引擎不需要安装 CLI、创建项目、配置 Preview 环境或提供 API Key。只有在明确 opt-in 后，才在独立 Feature Branch / Preview 中试点。以下命令按官方 CLI 0.17 文档校准；升级 CLI 后先运行 `testsprite --version` 与 `testsprite doctor`，不要混用 0.16 子命令。
 
 开发环境安装（官方 CLI 当前要求 Node.js 20.19+、22.13+ 或 24+）：
 
@@ -174,7 +174,7 @@ testsprite result get "<result-id>" --out ".testsprite/results/<result-id>"
 
 CLI 0.17 变更提醒：计划仍使用根命令 `testsprite plan` / `testsprite apply`；项目套件执行使用根命令 `testsprite run --project ... --wait`；失败详情使用 `testsprite result get`。不要再使用旧版 `testsprite test plan generate/accept`、`testsprite test run` 或 `testsprite test failure get` 命令。
 
-GitHub Actions 使用官方 CI 门禁命令（先由工作流等待 Preview URL 可达，再传入已验证地址）：
+显式启用可选云端增强时，可使用官方 CLI 命令（先确认 PR Preview URL 可达）。该命令不是核心 CI 的必要步骤：
 
 ```bash
 testsprite ci run \
@@ -189,7 +189,7 @@ testsprite ci run \
 - Repository variable `TESTSPRITE_PREVIEW_URL_TEMPLATE`：PR Preview URL 模板，使用 `{pr}`、`{pr-number}`、`{branch-slug}`、`{sha}` 或 `{short-sha}` 占位符；
 - Repository secret `TESTSPRITE_API_KEY`：TestSprite API Key，只能放在 GitHub Secrets。
 
-当前工作流在 `TESTSPRITE_PROJECT_ID` 与 `TESTSPRITE_PREVIEW_URL_TEMPLATE` 齐备且 PR 非 Draft 时启动 TestSprite 云端门禁；先轮询对应 PR Preview 的 HTTP 可达性，再启动 `testsprite ci run`。缺少配置时会明确报告“未配置/未运行”，不会将其伪装成通过。TestSprite 项目还必须有可用的默认环境和至少一条已应用的测试用例。当前工作流通过 `--target-url` 将执行指向本 PR Preview；如果默认环境使用登录态，需确认该登录配置能安全地用于 PR 临时环境。
+当前 GitHub Actions 工作流默认不启动 TestSprite。只有仓库变量 `TESTSPRITE_ENABLED=true` 且项目 ID、Preview URL 模板和 Secret 均已配置时，才尝试运行可选云端增强；该任务为 non-blocking，不会阻断核心 Quality Engine。未启用、跳过、凭据错误或执行失败都必须如实标注，绝不计为 TestSprite 通过。
 
 凭据要求：
 - API Key 只存储在本地安全环境或 GitHub Actions Secrets；
@@ -230,13 +230,14 @@ testsprite ci run \
 
 ## 10. 默认执行政策（后续测试）
 
-从本方案批准起，LibreTV 后续测试默认遵循：
-1. 新增/修改用户可见功能时，评估并优先补充 TestSprite 端到端测试；
-2. 稳定关键路径同步保留 Playwright 确定性回归；
-3. 业务逻辑与状态机继续使用单元/集成测试；
-4. 涉及 iOS/iPadOS、媒体解码、触控、语音权限等设备行为时，单独安排真实 iPhone/iPad Safari 验收；
-5. 报告必须区分自动化通过、真机通过、未执行和环境阻塞；
-6. 不因 TestSprite 接入而改变 main/生产发布授权边界。
+LibreTV 后续测试默认遵循：
+1. 新增/修改用户可见功能时，优先补充 Vitest、API/集成与 Playwright 确定性回归；
+2. 使用浏览器诊断收集路由、控件、错误、网络和截图等证据，再由质量引擎进行归类与报告；
+3. TestSprite 不是默认工具，不要求用户创建或更新 API Key；只有用户明确选择启用时，才作为可选云端增强；
+4. 业务逻辑与状态机继续使用单元/集成测试；
+5. 涉及 iOS/iPadOS、媒体解码、触控、语音权限等设备行为时，单独安排真实 iPhone/iPad Safari 验收；
+6. 报告必须区分自动化通过、真机通过、未执行和环境阻塞；
+7. 不因任何测试工具接入而改变 main/生产发布授权边界。
 
 ## 11. 官方资源
 
