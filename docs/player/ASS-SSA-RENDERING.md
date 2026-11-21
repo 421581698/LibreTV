@@ -17,7 +17,7 @@ The renderer checks the required browser primitives before startup and reports a
 
 ## Persistence boundaries
 
-HLS/native subtitle track choice and enable state are stored per source and episode. The preference schema reserves delay and visual-style fields, but those controls are not yet exposed or applied. A local ASS/SSA file is currently session-scoped: its contents are not copied into localStorage and are not restored after a reload. Persisting user-provided subtitle files requires a separate IndexedDB quota/eviction policy and is not claimed complete.
+HLS/native subtitle track choice, enable state, font size and background opacity are stored per source and episode. ASS time offset is persisted and applied to the active JASSUB renderer; ASS font styling remains governed by the subtitle script. A local ASS/SSA file is currently session-scoped: its contents are not copied into localStorage and are not restored after a reload. Persisting user-provided subtitle files requires a separate IndexedDB quota/eviction policy and is not claimed complete.
 
 ## Licensing
 
