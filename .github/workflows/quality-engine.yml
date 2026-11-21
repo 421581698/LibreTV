@@ -92,12 +92,11 @@ jobs:
         env:
           TESTSPRITE_PROJECT_ID: ${{ vars.TESTSPRITE_PROJECT_ID }}
           TESTSPRITE_PREVIEW_URL_TEMPLATE: ${{ vars.TESTSPRITE_PREVIEW_URL_TEMPLATE }}
-          TESTSPRITE_PREVIEW_STATUS_NAME: ${{ vars.TESTSPRITE_PREVIEW_STATUS_NAME }}
         run: |
-          if [ -n "$TESTSPRITE_PROJECT_ID" ] && [ -n "$TESTSPRITE_PREVIEW_URL_TEMPLATE" ] && [ -n "$TESTSPRITE_PREVIEW_STATUS_NAME" ]; then
+          if [ -n "$TESTSPRITE_PROJECT_ID" ] && [ -n "$TESTSPRITE_PREVIEW_URL_TEMPLATE" ]; then
             echo "TestSprite CI is configured; its dedicated gate runs for non-draft same-repository pull requests." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "TestSprite cloud gate: NOT CONFIGURED / NOT RUN. Add repository variables TESTSPRITE_PROJECT_ID, TESTSPRITE_PREVIEW_URL_TEMPLATE, TESTSPRITE_PREVIEW_STATUS_NAME and secret TESTSPRITE_API_KEY. This is not a TestSprite pass." >> "$GITHUB_STEP_SUMMARY"
+            echo "TestSprite cloud gate: NOT CONFIGURED / NOT RUN. Add repository variables TESTSPRITE_PROJECT_ID, TESTSPRITE_PREVIEW_URL_TEMPLATE and secret TESTSPRITE_API_KEY. This is not a TestSprite pass." >> "$GITHUB_STEP_SUMMARY"
           fi
 
   testsprite:
@@ -110,8 +109,7 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.actor != 'dependabot[bot]' &&
       vars.TESTSPRITE_PROJECT_ID != '' &&
-      vars.TESTSPRITE_PREVIEW_URL_TEMPLATE != '' &&
-      vars.TESTSPRITE_PREVIEW_STATUS_NAME != ''
+      vars.TESTSPRITE_PREVIEW_URL_TEMPLATE != ''
     permissions:
       contents: read
       pull-requests: read
@@ -139,18 +137,49 @@ jobs:
             exit 1
           fi
 
+      - name: Wait for the PR Preview to become reachable
+        id: preview
+        env:
+          TESTSPRITE_PREVIEW_URL_TEMPLATE: ${{ vars.TESTSPRITE_PREVIEW_URL_TEMPLATE }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          PREVIEW_URL=$(node <<'NODE'
+          const template = process.env.TESTSPRITE_PREVIEW_URL_TEMPLATE;
+          const branch = process.env.PR_BRANCH.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+          const sha = process.env.PR_SHA;
+          const url = template
+            .replaceAll('{pr}', process.env.PR_NUMBER)
+            .replaceAll('{pr-number}', process.env.PR_NUMBER)
+            .replaceAll('{branch-slug}', branch)
+            .replaceAll('{sha}', sha)
+            .replaceAll('{short-sha}', sha.slice(0, 7));
+          if (/\{[^}]+\}/.test(url)) throw new Error('Unsupported/unresolved Preview URL template placeholder: ' + url);
+          console.log(url);
+          NODE
+          )
+          echo "Waiting for PR Preview: $PREVIEW_URL"
+          for attempt in $(seq 1 45); do
+            if curl --fail --silent --show-error --location --connect-timeout 10 --max-time 20 "$PREVIEW_URL" -o /dev/null; then
+              echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
+              echo "PR Preview is reachable." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "::error::PR Preview did not become reachable within 15 minutes."
+          exit 1
+
       - name: Run TestSprite against the pull request Preview
         env:
           TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
           TESTSPRITE_PROJECT_ID: ${{ vars.TESTSPRITE_PROJECT_ID }}
-          TESTSPRITE_PREVIEW_URL_TEMPLATE: ${{ vars.TESTSPRITE_PREVIEW_URL_TEMPLATE }}
-          TESTSPRITE_PREVIEW_STATUS_NAME: ${{ vars.TESTSPRITE_PREVIEW_STATUS_NAME }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           testsprite ci run \
             --project "$TESTSPRITE_PROJECT_ID" \
-            --wait-for-status "$TESTSPRITE_PREVIEW_STATUS_NAME" \
-            --target-url-template "$TESTSPRITE_PREVIEW_URL_TEMPLATE" \
+            --target-url "${{ steps.preview.outputs.preview_url }}" \
             --fail-on-skipped \
             --summary-file testsprite-summary.json
 
