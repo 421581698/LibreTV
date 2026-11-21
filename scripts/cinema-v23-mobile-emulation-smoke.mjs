@@ -219,20 +219,24 @@ try {
     }
     if (layoutIssues.length) viewportFailures.push({ profile: profile.name, issues: layoutIssues, layout });
 
-    await page.mouse.move(Math.min(profile.width - 10, Math.round(profile.width / 2)), Math.round(profile.height / 2));
-    const subtitleButton = page.locator('button[aria-label="字幕设置"]');
-    await subtitleButton.waitFor({ state: 'visible', timeout: 5_000 });
-    await subtitleButton.click();
-    await page.locator('select[aria-label="选择字幕轨"]').waitFor({ state: 'visible', timeout: 3_000 });
-    // Subtitle source ownership is remote-resource driven. This layout smoke
-    // test checks the controls only; it must not inject a local ASS fixture.
-    await subtitleButton.click();
+    try {
+      await page.mouse.move(Math.min(profile.width - 10, Math.round(profile.width / 2)), Math.round(profile.height / 2));
+      const subtitleButton = page.locator('button[aria-label="字幕设置"]');
+      await subtitleButton.waitFor({ state: 'visible', timeout: 5_000 });
+      await subtitleButton.click();
+      await page.locator('select[aria-label="选择字幕轨"]').waitFor({ state: 'visible', timeout: 3_000 });
+      // Subtitle source ownership is remote-resource driven. This layout smoke
+      // test checks the controls only; it must not inject a local ASS fixture.
+      await subtitleButton.click();
 
-    const spatialButton = page.locator('button[aria-label="空间音频设置"]');
-    await spatialButton.waitFor({ state: 'visible', timeout: 5_000 });
-    await spatialButton.click();
-    await page.getByText('空间音频', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
-    await spatialButton.click();
+      const spatialButton = page.locator('button[aria-label="空间音频设置"]');
+      await spatialButton.waitFor({ state: 'visible', timeout: 5_000 });
+      await spatialButton.click();
+      await page.getByText('空间音频', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
+      await spatialButton.click();
+    } catch (error) {
+      viewportFailures.push({ profile: profile.name, controlError: error instanceof Error ? error.message : String(error) });
+    }
 
     await page.screenshot({ path: profile.screenshot, fullPage: false });
     console.log((layoutIssues.length ? 'DIAGNOSTIC ' : 'PASS ') + profile.name + ': ' + JSON.stringify({ layoutIssues, layout }));
