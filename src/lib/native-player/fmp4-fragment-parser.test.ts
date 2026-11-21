@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseFmp4Fragments } from './fmp4-fragment-parser';
+import { extractFmp4SamplePayload, parseFmp4Fragments } from './fmp4-fragment-parser';
 
 function u32(value: number): Uint8Array {
   return new Uint8Array([(value >>> 24) & 255, (value >>> 16) & 255, (value >>> 8) & 255, value & 255]);
@@ -31,7 +31,7 @@ function makeFragment(dataOffsetOverride?: number): Uint8Array {
   const makeMoof = (dataOffset: number) => box('moof', box('traf', join(tfhd, tfdt, makeTrun(dataOffset))));
   const first = makeMoof(0);
   const moof = makeMoof(dataOffsetOverride ?? first.length + 8);
-  return join(moof, box('mdat', new Uint8Array(8)));
+  return join(moof, box('mdat', new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])));
 }
 
 describe('parseFmp4Fragments', () => {
@@ -52,6 +52,20 @@ describe('parseFmp4Fragments', () => {
       }),
     ]);
     expect(fragment.mdatRanges).toEqual([{ start: fragment.moofSize + 8, end: fragment.moofSize + 16 }]);
+  });
+
+  it('extracts zero-copy sample payload views from mdat', () => {
+    const bytes = makeFragment();
+    const [fragment] = parseFmp4Fragments(bytes);
+    const samples = fragment.tracks[0].samples;
+    expect([...extractFmp4SamplePayload(bytes, samples[0])]).toEqual([1, 2, 3, 4]);
+    expect([...extractFmp4SamplePayload(bytes, samples[1])]).toEqual([5, 6, 7, 8]);
+    expect(extractFmp4SamplePayload(bytes, samples[0]).buffer).toBe(bytes.buffer);
+  });
+
+  it('rejects samples without a valid payload range', () => {
+    expect(() => extractFmp4SamplePayload(new Uint8Array(8), { dataOffset: null, size: 4 })).toThrow(/not available/i);
+    expect(() => extractFmp4SamplePayload(new Uint8Array(8), { dataOffset: 6, size: 4 })).toThrow(/outside/i);
   });
 
   it('filters by track id and accepts a view into a larger backing buffer', () => {
