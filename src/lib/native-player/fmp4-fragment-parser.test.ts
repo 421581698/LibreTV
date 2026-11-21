@@ -48,6 +48,14 @@ function makeMultiTrafFragment(): Uint8Array {
   return join(moof, box('mdat', new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])));
 }
 
+function makeDescriptionIndexFragment(descriptionIndex: number): Uint8Array {
+  const tfhd = box('tfhd', join(u32(0x020000 | 0x000002), u32(7), u32(descriptionIndex)));
+  const tfdt = box('tfdt', join(u32(0), u32(5000)));
+  const trun = box('trun', join(u32(0), u32(1)));
+  const traf = box('traf', join(tfhd, tfdt, trun));
+  return join(box('moof', traf), box('mdat', new Uint8Array([1, 2, 3, 4])));
+}
+
 function makeInitSegment(defaultDescriptionIndex = 1): Uint8Array {
   const tkhd = box('tkhd', join(u32(0), u32(0), u32(0), u32(7), u32(0)));
   const mdhd = box('mdhd', join(u32(0), u32(0), u32(0), u32(90_000), u32(0)));
@@ -134,6 +142,18 @@ describe('parseFmp4Fragments', () => {
     const padded = join(new Uint8Array([9, 9, 9]), fragment, new Uint8Array([8]));
     const parsed = parseFmp4Fragments(padded.subarray(3, 3 + fragment.length), { trackId: 8 });
     expect(parsed[0].tracks).toEqual([]);
+  });
+
+  it('uses tfhd sample_description_index overrides for the active init segment', () => {
+    const initSegment = parseFmp4InitSegment(makeInitSegment());
+    const [fragment] = parseFmp4Fragments(makeDescriptionIndexFragment(2), { initSegment });
+    expect(fragment.tracks[0]).toMatchObject({ sampleDescriptionIndex: 2, sampleEntry: 'hvc1' });
+  });
+
+  it('rejects a tfhd sample description index absent from the active init segment', () => {
+    const initSegment = parseFmp4InitSegment(makeInitSegment());
+    expect(() => parseFmp4Fragments(makeDescriptionIndexFragment(3), { initSegment }))
+      .toThrow(/missing sample description index/i);
   });
 
   it('uses trex defaults when tfhd does not override sample duration, size or flags', () => {
