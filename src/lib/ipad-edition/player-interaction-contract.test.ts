@@ -14,7 +14,7 @@ describe('iPad Edition playback interaction contract', () => {
     expect(wrapper).toContain('<IpadEditionWatchPlayer />');
     expect(watch).toContain("const watchPath = '/ipad-edition/watch' as const;");
     expect(watch).toContain('router.replace(`${watchPath}?${sp.toString()}`, { scroll: false });');
-    expect(watch).toContain("const fallbackHref = watchPath === '/ipad-edition/watch' ? '/ipad-edition' : '/';");
+    expect(watch).toContain("const fallbackHref = '/ipad-edition';");
     expect(watch).toContain('watchPath={watchPath}');
     expect(switchSource).toContain("watchUrl.replace('/watch?', watchPath + '?')");
   });
