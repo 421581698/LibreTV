@@ -57,9 +57,9 @@ describe('Fmp4StreamSession', () => {
     const session = new Fmp4StreamSession();
     session.updateInitSegment(makeInitSegment());
     session.parseMediaSegment(makeFragment(90_000));
-    const gap = session.parseMediaSegment(makeFragment(97_500)).discontinuities[0];
+    const gap = session.parseMediaSegment(makeFragment(98_000)).discontinuities[0];
     expect(gap).toMatchObject({ trackId: 7, kind: 'gap' });
-    expect(gap?.deltaSeconds).toBeCloseTo(0.05, 5);
+    expect(gap?.deltaSeconds).toBeCloseTo(5_000 / 90_000, 5);
 
     session.recover();
     session.parseMediaSegment(makeFragment(90_000));
