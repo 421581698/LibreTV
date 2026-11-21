@@ -79,3 +79,11 @@ See [CINEMA-ENGINE-V2-3-DEVICE-ACCEPTANCE.md](./CINEMA-ENGINE-V2-3-DEVICE-ACCEPT
 - The browser smoke then failed with repeated `Maximum call stack size exceeded` errors after the source-switch exercise. The mobile viewport job was skipped as a consequence.
 - The smoke runner now captures page-error stacks and console locations, and saves its screenshot before failing so the next run produces actionable artifacts.
 - This diagnostic update does not claim the source-switch defect is fixed; rerun the isolated Preview acceptance before proceeding.
+
+## Source-switch regression fix (2026-11-21)
+
+- Preview run `44890134353` decoded the 1080p fMP4 fixture and passed play/pause, timeline seek and control-overlay lifecycle checks, but reported repeated `Maximum call stack size exceeded` during subtitle-track loading.
+- The captured stack entered hls.js `onSubtitleTrackLoading`; PlayerShell was refreshing subtitle selection from `SUBTITLE_TRACK_SWITCH`, then assigning `hls.subtitleTrack` again from that refresh. This could re-emit the switch event recursively.
+- Commit `3b8c3a1` removes the re-entrant switch-event refresh listener while retaining subtitle-list updates and direct user selection handling.
+- Exact-head TypeScript, ESLint, unit tests and production build passed in prelaunch-checks and Resource Playback Verification; collector verification also passed.
+- The isolated Preview must now rerun on this exact fix commit. Source-switch regression, mobile viewport emulation, JASSUB rendering and spatial-audio browser behavior remain unverified until that run completes.
