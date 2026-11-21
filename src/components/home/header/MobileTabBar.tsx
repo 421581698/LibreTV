@@ -37,6 +37,40 @@ export function MobileTabBar() {
     setPortalTarget(document.body);
   }, [isHomepage]);
 
+  // iOS Safari's browser chrome can cover fixed app controls without changing
+  // env(safe-area-inset-bottom). Track the visual viewport separately so the
+  // dock stays above the browser toolbar while the document remains scrollable.
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const updateViewportInsets = () => {
+      const bottom = viewport
+        ? Math.max(0, window.innerHeight - (viewport.offsetTop + viewport.height))
+        : 0;
+      const top = viewport ? Math.max(0, viewport.offsetTop) : 0;
+      document.documentElement.style.setProperty(
+        '--libretv-visual-viewport-bottom-inset',
+        `${Math.min(bottom, 240)}px`,
+      );
+      document.documentElement.style.setProperty(
+        '--libretv-visual-viewport-top-inset',
+        `${Math.min(top, 120)}px`,
+      );
+    };
+    updateViewportInsets();
+    viewport?.addEventListener('resize', updateViewportInsets);
+    viewport?.addEventListener('scroll', updateViewportInsets);
+    window.addEventListener('resize', updateViewportInsets);
+    window.addEventListener('orientationchange', updateViewportInsets);
+    return () => {
+      viewport?.removeEventListener('resize', updateViewportInsets);
+      viewport?.removeEventListener('scroll', updateViewportInsets);
+      window.removeEventListener('resize', updateViewportInsets);
+      window.removeEventListener('orientationchange', updateViewportInsets);
+      document.documentElement.style.removeProperty('--libretv-visual-viewport-bottom-inset');
+      document.documentElement.style.removeProperty('--libretv-visual-viewport-top-inset');
+    };
+  }, []);
+
   const navigation = (
     <LiquidGlassSurface
       as="nav"
