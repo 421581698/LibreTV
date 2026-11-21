@@ -173,11 +173,10 @@ testsprite ci run \
 
 仓库变量与密钥：
 - Repository variable `TESTSPRITE_PROJECT_ID`：TestSprite 项目 ID；
-- Repository variable `TESTSPRITE_PREVIEW_URL_TEMPLATE`：PR Preview URL 模板，使用官方支持的 `{pr}` / `{branch-slug}` 等占位符；
-- Repository variable `TESTSPRITE_PREVIEW_STATUS_NAME`：部署平台在 PR head commit 上发布的精确 Check / Status 名称；
+- Repository variable `TESTSPRITE_PREVIEW_URL_TEMPLATE`：PR Preview URL 模板，使用 `{pr}`、`{pr-number}`、`{branch-slug}`、`{sha}` 或 `{short-sha}` 占位符；
 - Repository secret `TESTSPRITE_API_KEY`：TestSprite API Key，只能放在 GitHub Secrets。
 
-当前工作流在上述三个变量齐备且 PR 非 Draft 时启动 TestSprite 云端门禁；缺少配置时会明确报告“未配置/未运行”，不会将其伪装成通过。TestSprite 项目还必须有可用的默认环境和至少一条已应用的测试用例。CLI 0.17 的命令和选项以官方文档为准。
+当前工作流在 `TESTSPRITE_PROJECT_ID` 与 `TESTSPRITE_PREVIEW_URL_TEMPLATE` 齐备且 PR 非 Draft 时启动 TestSprite 云端门禁；先轮询对应 PR Preview 的 HTTP 可达性，再启动 `testsprite ci run`。缺少配置时会明确报告“未配置/未运行”，不会将其伪装成通过。TestSprite 项目还必须有可用的默认环境和至少一条已应用的测试用例。CLI 0.17 的命令和选项以官方文档为准。
 
 凭据要求：
 - API Key 只存储在本地安全环境或 GitHub Actions Secrets；
