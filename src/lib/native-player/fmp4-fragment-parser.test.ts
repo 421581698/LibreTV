@@ -54,7 +54,6 @@ function makeInitSegment(): Uint8Array {
   return box('moov', join(trak, box('mvex', trex)));
 }
 
-describe('parseFmp4Fragments', () => {
 describe('parseFmp4InitSegment', () => {
   it('reads track timescale, handler, sample entry and trex defaults', () => {
     expect(parseFmp4InitSegment(makeInitSegment()).tracks).toEqual([{
@@ -74,7 +73,7 @@ describe('parseFmp4InitSegment', () => {
   });
 });
 
-
+describe('parseFmp4Fragments', () => {
   it('extracts per-sample decode and presentation timing plus byte ranges', () => {
     const bytes = makeFragment();
     const [fragment] = parseFmp4Fragments(bytes);
