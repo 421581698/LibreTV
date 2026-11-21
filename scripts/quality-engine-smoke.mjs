@@ -66,20 +66,33 @@ try {
       entry.pageState = pageState;
       if (!pageState.title) throw new Error('Document title is empty');
       if (!pageState.bodyTextLength) throw new Error('Homepage body is empty');
+      if (pageState.documentWidth > pageState.viewportWidth) {
+        throw new Error(`Horizontal overflow: document ${pageState.documentWidth}px > viewport ${pageState.viewportWidth}px`);
+      }
       entry.checks.push({ name: 'document-title-and-content', status: 'passed' });
+      entry.checks.push({ name: 'no-horizontal-overflow', status: 'passed' });
 
       if (pageErrors.length) throw new Error(`Uncaught page errors: ${pageErrors.join(' | ')}`);
       entry.checks.push({ name: 'uncaught-page-errors', status: 'passed' });
 
-      // Deterministic user journey: dedicated search page -> input -> results route.
+      // Deterministic user journeys: empty search, category shortcut and query submission.
       await page.goto(new URL('/search', baseURL).toString(), { waitUntil: 'domcontentloaded', timeout: 45_000 });
-      const searchInput = page.getByRole('textbox', { name: '搜索影视内容' });
+      let searchInput = page.getByRole('textbox', { name: '搜索影视内容' });
       await searchInput.waitFor({ state: 'visible', timeout: 15_000 });
       await searchInput.fill('');
       await searchInput.press('Enter');
       if (!page.url().includes('/search')) throw new Error('Empty search unexpectedly navigated');
       entry.checks.push({ name: 'empty-search-stays-on-search-page', status: 'passed' });
 
+      const categoryButton = page.getByRole('button', { name: '科幻', exact: true });
+      await categoryButton.waitFor({ state: 'visible', timeout: 10_000 });
+      await categoryButton.click();
+      await page.waitForURL((url) => url.pathname === '/search/results' && url.searchParams.get('q') === '科幻电影', { timeout: 15_000 });
+      entry.checks.push({ name: 'category-shortcut-submits-intended-query', status: 'passed' });
+
+      await page.goto(new URL('/search', baseURL).toString(), { waitUntil: 'domcontentloaded', timeout: 45_000 });
+      searchInput = page.getByRole('textbox', { name: '搜索影视内容' });
+      await searchInput.waitFor({ state: 'visible', timeout: 15_000 });
       const query = 'LibreTV QA smoke';
       await searchInput.fill(query);
       await searchInput.press('Enter');
@@ -87,7 +100,15 @@ try {
       await page.locator('main').first().waitFor({ state: 'visible', timeout: 15_000 });
       entry.checks.push({ name: 'search-submits-query-to-results-route', status: 'passed', detail: page.url() });
 
-      if (pageErrors.length) throw new Error(`Uncaught page errors: ${pageErrors.join(' | ')}`);
+      // Safe route smoke for core navigation and incomplete watch URLs.
+      for (const route of ['/settings', '/me', '/live', '/watch']) {
+        const routeResponse = await page.goto(new URL(route, baseURL).toString(), { waitUntil: 'domcontentloaded', timeout: 45_000 });
+        if (!routeResponse?.ok()) throw new Error(`${route} returned HTTP ${routeResponse?.status() ?? 'no response'}`);
+        await page.locator('main').first().waitFor({ state: 'visible', timeout: 15_000 });
+        if (pageErrors.length) throw new Error(`Uncaught page errors on ${route}: ${pageErrors.join(' | ')}`);
+        entry.checks.push({ name: `route-${route.slice(1)}-loads-safely`, status: 'passed', detail: routeResponse.status() });
+      }
+
       entry.status = 'passed';
     } catch (error) {
       entry.error = error instanceof Error ? error.stack || error.message : String(error);
