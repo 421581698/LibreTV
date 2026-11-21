@@ -6,6 +6,8 @@ import Hls, { type HlsConfig } from 'hls.js';
 import type { PlaybackSample } from '@/lib/playback-telemetry';
 import { getAdvertised4kStatus, resolveQualitySelection, type QualityPreference } from '@/lib/player-quality';
 import { getMediaPlaybackKind } from '@/lib/media-playback';
+import { NativeMediaBackend } from '@/lib/native-player/native-media-backend';
+import { PlaybackController } from '@/lib/native-player/playback-controller';
 import { hasSustainedPlaybackProgress } from '@/lib/playback-verification';
 
 import { PlaybackRecovery, describeHlsError } from '@/lib/playback-recovery';
@@ -209,6 +211,7 @@ export function PlayerShell({
   const artRef = useRef<any>(null);
   const nativeFullscreenCleanupRef = useRef<(() => void) | null>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const cinemaObserverRef = useRef<PlaybackController | null>(null);
   const qualityGuardRef = useRef(new AdaptiveQualityGuard());
   const qualityPreferenceHandlerRef = useRef<(() => void) | null>(null);
   const [error, setError] = useState('');
@@ -461,6 +464,40 @@ export function PlayerShell({
     hintTimerRef.current = setTimeout(() => setHint(''), 2500);
   };
 
+  /**
+   * Cinema Engine V2.3 observes the existing ArtPlayer media element.
+   * ArtPlayer/hls.js remain the sole source and MSE owners in this integration stage.
+   */
+  const observeCinemaEngine = (
+    video: HTMLVideoElement,
+    mediaUrl: string,
+    kind: 'hls' | 'mp4' | 'webm',
+  ) => {
+    cinemaObserverRef.current?.dispose();
+    const controller = new PlaybackController(new NativeMediaBackend());
+    const result = controller.observeExistingSource({
+      url: mediaUrl,
+      kind,
+      sourceId: propsRef.current.sourceKey,
+      episodeId: propsRef.current.episodeKey,
+    }, video);
+    if (!result.ok) {
+      controller.dispose();
+      cinemaObserverRef.current = null;
+      return;
+    }
+    cinemaObserverRef.current = controller;
+    controller.subscribe((snapshot) => {
+      window.dispatchEvent(new CustomEvent('libretv-cinema-engine-snapshot', {
+        detail: {
+          snapshot,
+          identity: controller.getIdentity(),
+          ownership: 'observer-only',
+        },
+      }));
+    });
+  };
+
   // 流式播放：hls.js 按播放头顺序请求分片，不因缓存开关扩大到整集级内存缓冲。
   // 30s 常规缓冲、60s 上限；网络抖动由 HLS 自身重试与 ABR 处理。
   const buildHlsConfig = (): Partial<HlsConfig> => {
@@ -635,10 +672,11 @@ export function PlayerShell({
     };
     video.src = mediaUrl;
     video.load();
+    observeCinemaEngine(video, mediaUrl, mediaKind);
   };
 
   /**
-   * 初始化/切换 HLS。allowProxyFallback：直连致命网络错误（CORS/防盗链/分片被拒）时，
+   * 初始化/切换 HLS.allowProxyFallback：直连致命网络错误（CORS/防盗链/分片被拒）时，
    * 自动改走同源 cookie 鉴权的 /api/proxy 重试一次。
    * 注意：不销毁 ArtPlayer，只销毁并重建 hls，从而保留网页全屏等播放器状态。
    */
@@ -717,6 +755,7 @@ export function PlayerShell({
       };
       video.src = mediaUrl;
       video.load();
+      observeCinemaEngine(video, mediaUrl, 'hls');
       return;
     }
     armMetadataWatchdog(video, mediaUrl);
@@ -788,6 +827,7 @@ export function PlayerShell({
     }
     hls.loadSource(mediaUrl);
     hls.attachMedia(video);
+    observeCinemaEngine(video, mediaUrl, 'hls');
 
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
       const qualityResult = applyHlsQualityPreference(hls!, readQualityPreference(), video);
@@ -1608,6 +1648,8 @@ export function PlayerShell({
       }
       hlsRef.current?.destroy();
       hlsRef.current = null;
+      cinemaObserverRef.current?.dispose();
+      cinemaObserverRef.current = null;
       recoveryRef.current?.dispose();
       getVideoPrefetcher().stop();
       // 播放页可能仍持有读取接口：销毁前显式置空，避免「记录当前」读到已销毁实例
