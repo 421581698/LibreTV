@@ -79,6 +79,7 @@ function IpadEditionWatchContent() {
   const [sidebarTab, setSidebarTab] = useState<'episodes' | 'sources' | 'details'>('episodes');
   const [watchInfoTab, setWatchInfoTab] = useState<'overview' | 'insights' | 'more'>('overview');
   const [watchClock, setWatchClock] = useState({ position: 0, duration: 0 });
+  const [seekDraft, setSeekDraft] = useState<number | null>(null);
   const [watchRate, setWatchRate] = useState(1);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showPlayerPanel, setShowPlayerPanel] = useState(false);
@@ -87,6 +88,16 @@ function IpadEditionWatchContent() {
   const closeSwitchModal = useCallback(() => setSwitchOpen(false), []);
   const [skipPanelOpen, setSkipPanelOpen] = useState(false);
   const playerApiRef = useRef<PlayerSkipApi | null>(null);
+  const commitSeek = (value: number) => {
+    if (!Number.isFinite(value)) {
+      setSeekDraft(null);
+      return;
+    }
+    const next = Math.max(0, Math.min(value, watchClock.duration || value));
+    playerApiRef.current?.seek(next);
+    setWatchClock((current) => ({ ...current, position: next }));
+    setSeekDraft(null);
+  };
   const nativeFullscreenCleanupRef = useRef<(() => void) | null>(null);
   const playerFrameRef = useRef<HTMLDivElement | null>(null);
   const watchShellRef = useRef<HTMLDivElement | null>(null);
@@ -330,6 +341,7 @@ function IpadEditionWatchContent() {
   // 换集清空中段两步态：起点属于上一集，不能和新集的位置拼成区间
   useEffect(() => {
     setPendingStart(null);
+    setSeekDraft(null);
   }, [sourceKey, vodId, currentIndex]);
   const goEpisode = useCallback(
     (index: number) => {
@@ -758,9 +770,12 @@ function IpadEditionWatchContent() {
                   min={0}
                   max={Math.max(1, watchClock.duration)}
                   step={1}
-                  value={Math.min(watchClock.position, watchClock.duration || watchClock.position)}
+                  value={Math.min(seekDraft ?? watchClock.position, watchClock.duration || seekDraft || watchClock.position)}
                   aria-label="播放进度"
-                  onChange={(event) => playerApiRef.current?.seek(Number(event.target.value))}
+                  onChange={(event) => setSeekDraft(Number(event.target.value))}
+                  onPointerUp={(event) => commitSeek(Number(event.currentTarget.value))}
+                  onPointerCancel={() => setSeekDraft(null)}
+                  onKeyUp={(event) => commitSeek(Number(event.currentTarget.value))}
                   disabled={!watchClock.duration}
                 />
                 <button
