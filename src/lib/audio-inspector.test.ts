@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { inspectHlsAudioTrack, parseHlsAudioRenditions } from './audio-inspector';
 
 describe('parseHlsAudioRenditions', () => {
-  it('parses declared stereo and 5.1 tracks and links codecs by audio group', () => {
+  it('parses declared stereo and multichannel tracks without guessing speaker layout', () => {
     const manifest = [
       '#EXTM3U',
       '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="stereo",NAME="English",DEFAULT=YES,AUTOSELECT=YES,CHANNELS="2",URI="audio/en.m3u8"',
@@ -18,14 +18,14 @@ describe('parseHlsAudioRenditions', () => {
       default: true, autoselect: true, codec: null,
     });
     expect(result[1]).toMatchObject({
-      name: 'English 5.1', channelCount: 6, layout: '5.1', codec: 'ec-3',
+      name: 'English 5.1', channelCount: 6, layout: 'unknown', codec: 'ec-3',
     });
   });
 
   it('recognizes the JOC marker without claiming Atmos decoding', () => {
     const manifest = '#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a",NAME="E-AC3 JOC",CHANNELS="6/JOC",URI="a.m3u8"';
     expect(parseHlsAudioRenditions(manifest)[0]).toMatchObject({
-      channelCount: 6, layout: '5.1', hasJocMarker: true,
+      channelCount: 6, layout: 'unknown', hasJocMarker: true,
     });
   });
 
@@ -69,7 +69,7 @@ describe('inspectHlsAudioTrack', () => {
       name: 'English E-AC3',
       uri: 'https://cdn.example/audio.m3u8',
       channelCount: 6,
-      layout: '5.1',
+      layout: 'unknown',
       codec: 'ec-3',
       hasJocMarker: true,
       default: true,
