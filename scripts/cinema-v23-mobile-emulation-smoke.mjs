@@ -28,6 +28,9 @@ const safeUrl = (value) => {
   catch { return String(value).split('?')[0]; }
 };
 const isMediaRequest = (value) => /\.(m3u8|m4s|mp4|ts|aac|m4a)(?:$|[?#])/i.test(value) || /playlist|segment|manifest/i.test(value);
+// Subscribe before navigation: HLS may attach and begin loading its master
+// playlist before the video element is mounted in the DOM.
+const hlsLifecycleEvents = [];
 page.on('pageerror', error => errors.push(error.message));
 page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
 page.on('request', request => {
@@ -53,6 +56,12 @@ try {
     url: stream,
     title: 'Cinema V2.3 Mobile Emulation',
     cinemaDebug: '1',
+  });
+  await page.addInitScript(() => {
+    window.__cinemaV23HlsEvents = [];
+    window.addEventListener('libretv-cinema-hls-debug', event => {
+      window.__cinemaV23HlsEvents.push({ ...event.detail, at: Math.round(performance.now()) });
+    });
   });
   const response = await page.goto(base + '/watch?' + params.toString(), {
     waitUntil: 'domcontentloaded',
@@ -82,10 +91,6 @@ try {
     if (!video) throw new Error('PlayerShell video missing.');
     window.__cinemaV23Video = video;
     window.__cinemaV23MediaEvents = [];
-    window.__cinemaV23HlsEvents = [];
-    window.addEventListener('libretv-cinema-hls-debug', event => {
-      window.__cinemaV23HlsEvents.push({ ...event.detail, at: Math.round(performance.now()) });
-    });
     for (const type of ['loadstart', 'loadedmetadata', 'loadeddata', 'canplay', 'playing', 'waiting', 'stalled', 'suspend', 'abort', 'emptied', 'error']) {
       video.addEventListener(type, () => window.__cinemaV23MediaEvents.push({ type, at: Math.round(performance.now()), readyState: video.readyState, networkState: video.networkState, errorCode: video.error?.code ?? null }));
     }
