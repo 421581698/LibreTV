@@ -18,8 +18,10 @@ const context = await browser.newContext({
 const page = await context.newPage();
 page.setDefaultTimeout(15_000);
 const errors = [];
+const requestFailures = [];
 page.on('pageerror', error => errors.push(error.message));
 page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+page.on('requestfailed', request => requestFailures.push({ url: request.url(), error: request.failure()?.errorText ?? 'unknown' }));
 
 try {
   const params = new URLSearchParams({
@@ -60,10 +62,41 @@ try {
     video.muted = true;
     void video.play().catch(() => undefined);
   });
-  await page.waitForFunction(() => {
-    const video = document.querySelector('.netflix-player-frame video');
-    return Boolean(video && video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0);
-  }, null, { timeout: 45_000 });
+  try {
+    await page.waitForFunction(() => {
+      const video = document.querySelector('.netflix-player-frame video');
+      return Boolean(video && video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0);
+    }, null, { timeout: 45_000 });
+  } catch (error) {
+    const mediaState = await page.evaluate(() => {
+      const video = document.querySelector('.netflix-player-frame video');
+      return {
+        videoPresent: Boolean(video),
+        readyState: video?.readyState ?? null,
+        networkState: video?.networkState ?? null,
+        paused: video?.paused ?? null,
+        currentTime: video?.currentTime ?? null,
+        duration: Number.isFinite(video?.duration) ? video.duration : null,
+        videoWidth: video?.videoWidth ?? null,
+        videoHeight: video?.videoHeight ?? null,
+        currentSrc: video?.currentSrc ?? null,
+        src: video?.getAttribute('src') ?? null,
+        mediaError: video?.error ? { code: video.error.code, message: video.error.message } : null,
+        playerText: document.querySelector('.netflix-player-frame')?.innerText.slice(0, 500) ?? '',
+        resourceRequests: performance.getEntriesByType('resource')
+          .map(entry => entry.name)
+          .filter(url => /m3u8|m4s|mp4|ts|\.js/.test(url))
+          .slice(-30),
+      };
+    });
+    await page.screenshot({ path: '/tmp/cinema-v23-mobile-media-readiness-failure.png', fullPage: false });
+    throw new Error('Mobile PlayerShell mounted but media did not reach decoded-frame readiness: ' + JSON.stringify({
+      mediaState,
+      pageErrors: errors.slice(0, 12),
+      requestFailures: requestFailures.slice(-20),
+      cause: error instanceof Error ? error.message : String(error),
+    }));
+  }
 
   const profiles = [
     { name: 'iPhone-size portrait viewport', width: 390, height: 844, screenshot: '/tmp/cinema-v23-iphone-portrait.png' },
