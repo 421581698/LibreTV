@@ -202,14 +202,14 @@ export function parseAssSubtitle(input: string): AssDocument {
 
 /** Converts ASS BGR/alpha color notation to CSS rgba; unknown values return null. */
 export function assColorToRgba(value: string): string | null {
-  const match = value.trim().match(/^&H([0-9A-F]{6})([0-9A-F]{2})?&?$/i);
+  const match = value.trim().match(/^&H([0-9A-F]{2})?([0-9A-F]{6})&?$/i);
   if (!match) return null;
-  const packed = match[1];
+  const alpha = match[1] ? Number.parseInt(match[1], 16) : 0;
+  const packed = match[2];
   const blue = Number.parseInt(packed.slice(0, 2), 16);
   const green = Number.parseInt(packed.slice(2, 4), 16);
   const red = Number.parseInt(packed.slice(4, 6), 16);
-  const transparency = match[2] ? Number.parseInt(match[2], 16) / 255 : 0;
-  return `rgba(${red}, ${green}, ${blue}, ${1 - transparency})`;
+  return `rgba(${red}, ${green}, ${blue}, ${1 - alpha / 255})`;
 }
 
 /** Removes override commands while retaining readable dialogue and line breaks. */
