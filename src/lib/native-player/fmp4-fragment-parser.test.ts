@@ -31,7 +31,9 @@ function makeFragment(dataOffsetOverride?: number, omitTfhdDefaults = false, mda
   const makeMoof = (dataOffset: number) => box('moof', box('traf', join(tfhd, tfdt, makeTrun(dataOffset))));
   const first = makeMoof(0);
   const moof = makeMoof(dataOffsetOverride ?? first.length + 8);
-  return join(moof, box('mdat', new Uint8Array(mdatSize).fill(1)));
+  const mdatPayload = new Uint8Array(mdatSize);
+  mdatPayload.set([1, 2, 3, 4, 5, 6, 7, 8].slice(0, mdatSize));
+  return join(moof, box('mdat', mdatPayload));
 }
 
 function makeMultiTrafFragment(): Uint8Array {
