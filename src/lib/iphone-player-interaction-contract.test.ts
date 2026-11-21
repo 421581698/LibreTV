@@ -52,7 +52,7 @@ describe('iPhone playback interaction contract', () => {
   });
 
   it('does not route episode hotkeys while a modal or editable field owns keyboard focus', () => {
-    expect(watch).toContain('if (!e.altKey || switchOpen || skipPanelOpen) return;');
+    expect(watch).toContain('if (!e.altKey || switchOpen || skipPanelOpen || showPlayerPanel) return;');
     expect(watch).toContain("target.closest('input, textarea, select, [contenteditable=\"true\"], [role=\"dialog\"]')");
   });
 
