@@ -32,7 +32,8 @@
     "zod": "^3.24.1",
     "zustand": "^5.0.2",
     "wrangler": "^4.148.0",
-    "liquid-glass-react": "1.1.1"
+    "liquid-glass-react": "1.1.1",
+    "jassub": "2.5.38"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
