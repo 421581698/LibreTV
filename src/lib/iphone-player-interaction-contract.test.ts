@@ -20,6 +20,7 @@ describe('iPhone playback interaction contract', () => {
     expect(registry).toContain("document.body.style.overflow = 'hidden';");
     expect(registry).toContain('closeButtonRef.current?.focus({ preventScroll: true });');
     expect(registry).toContain('previousFocus.focus({ preventScroll: true });');
+    expect(registry).toContain('element.getClientRects().length > 0');
   });
 
   it('keeps playback clock rendering responsive without increasing progress persistence frequency', () => {
@@ -36,6 +37,8 @@ describe('iPhone playback interaction contract', () => {
   it('uses one tested native-fullscreen fallback path for the watch-page fullscreen control', () => {
     expect(watch).toContain("import { requestNativeFullscreenWithFallback, type NativeFullscreenVideo } from '@/lib/player-fullscreen';");
     expect(watch).toContain('requestNativeFullscreenWithFallback(');
+    expect(watch).toContain('playerApiRef.current?.isFullscreen()');
+    expect(watch).toContain('playerApiRef.current.exitFullscreen();');
     expect(watch).toContain('playerApiRef.current.enterFullscreen()');
     expect(player).toContain('enterFullscreen: () => {');
     expect(player).toContain('current.fullscreenWeb = true');
