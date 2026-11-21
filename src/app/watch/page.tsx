@@ -522,7 +522,7 @@ function WatchContent({ watchPath }: { watchPath: '/watch' | '/ipad-edition/watc
           <p className="text-sm text-muted mb-4">
             当前视频携带的数据源地址未通过安全校验。为避免请求不安全的地址，播放页已停止加载。
           </p>
-          <Link href="/" className="btn-primary">
+          <Link href={fallbackHref} className="btn-primary">
             返回首页
           </Link>
         </div>
