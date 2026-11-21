@@ -128,7 +128,7 @@ jobs:
       - name: Install TestSprite CLI
         run: npm install -g @testsprite/testsprite-cli
 
-      - name: Validate TestSprite credentials
+      - name: Validate TestSprite credentials and CLI
         env:
           TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
         run: |
@@ -136,6 +136,8 @@ jobs:
             echo "::error::TESTSPRITE_API_KEY secret is missing."
             exit 1
           fi
+          testsprite --version
+          testsprite auth status
 
       - name: Wait for the PR Preview to become reachable
         id: preview
@@ -179,8 +181,11 @@ jobs:
         run: |
           testsprite ci run \
             --project "$TESTSPRITE_PROJECT_ID" \
+            --env default \
             --target-url "${{ steps.preview.outputs.preview_url }}" \
             --fail-on-skipped \
+            --report junit \
+            --report-file testsprite-junit.xml \
             --summary-file testsprite-summary.json
 
       - name: Upload TestSprite summary
@@ -188,6 +193,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: testsprite-summary-${{ github.run_id }}
-          path: testsprite-summary.json
+          path: |
+            testsprite-summary.json
+            testsprite-junit.xml
           if-no-files-found: warn
           retention-days: 14
