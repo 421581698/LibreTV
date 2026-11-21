@@ -69,6 +69,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
   const [sidebarDragOffset, setSidebarDragOffset] = useState(0);
   const [sidebarDragging, setSidebarDragging] = useState(false);
   const gestureRef = useRef<{ pointerId: number; startX: number; lastX: number; lastAt: number; width: number; wasOpen: boolean } | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const environmentRootRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -93,11 +94,41 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
   }, [pathname]);
   useEffect(() => {
     if (!sidebarOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const sidebar = document.getElementById('ipad-edition-sidebar');
+    const focusable = () => Array.from(sidebar?.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ) ?? []).filter((element) => element.offsetParent !== null);
+    focusable()[0]?.focus({ preventScroll: true });
+
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setSidebarOpen(false);
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setSidebarOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const elements = focusable();
+      if (!elements.length) return;
+      const first = elements[0];
+      const last = elements[elements.length - 1];
+      const current = document.activeElement;
+      if (event.shiftKey && (current === first || !sidebar?.contains(current))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (current === last || !sidebar?.contains(current))) {
+        event.preventDefault();
+        first.focus();
+      }
     };
+
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+      menuButtonRef.current?.focus({ preventScroll: true });
+    };
   }, [sidebarOpen]);
 
   const beginSidebarGesture = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -251,6 +282,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
           <header className="ipad-nav__topbar">
             <LiquidGlassSurface as="div" variant="panel" cornerRadius={999} className="ipad-nav__topbar-inner">
               <button
+                ref={menuButtonRef}
                 className={`ipad-nav__capsule-action ipad-nav__menu-button${sidebarOpen ? ' is-active' : ''}`}
                 type="button"
                 aria-label={sidebarOpen ? '收起侧边栏' : '展开侧边栏'}
