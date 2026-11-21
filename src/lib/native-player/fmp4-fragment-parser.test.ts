@@ -75,6 +75,7 @@ describe('parseFmp4InitSegment', () => {
       timescale: 90_000,
       handlerType: 'vide',
       sampleEntry: 'avc1',
+      sampleEntries: ['avc1'],
       defaultSampleDescriptionIndex: 1,
       defaultSampleDuration: 3000,
       defaultSampleSize: 2048,
