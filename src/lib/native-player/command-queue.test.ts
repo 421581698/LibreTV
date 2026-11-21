@@ -21,10 +21,14 @@ describe('PlaybackCommandQueue', () => {
     const gate = new Promise<void>(resolve => { release = resolve; });
     const first = queue.enqueue(() => gate);
     const second = queue.enqueue(() => 'should not run');
+    // Attach the rejection assertion before releasing the first command so
+    // Node does not report the intentionally rejected queued promise as
+    // temporarily unhandled.
+    const secondRejected = expect(second).rejects.toThrow('closed');
     queue.close();
     release();
     await first;
-    await expect(second).rejects.toThrow('closed');
+    await secondRejected;
     expect(queue.isClosed).toBe(true);
   });
 });
