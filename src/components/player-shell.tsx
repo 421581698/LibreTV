@@ -158,6 +158,7 @@ interface PlayerShellProps {
   onTimeUpdate?: (position: number, duration: number) => void;
   /** High-frequency UI clock; persistence remains throttled through onTimeUpdate. */
   onClockUpdate?: (position: number, duration: number) => void;
+  onPlaybackRateChange?: (rate: number) => void;
   onEnded?: () => void;
   onPause?: (position: number, duration: number) => void;
   /**
@@ -197,6 +198,7 @@ export function PlayerShell({
   getRestorePosition,
   onTimeUpdate,
   onClockUpdate,
+  onPlaybackRateChange,
   onEnded,
   onPause,
   onQuality,
@@ -274,14 +276,14 @@ export function PlayerShell({
     url, title, mediaType, onPlaybackConfirmed, adFilter, autoplayNext, skipMark, autoSkipSegments,
     pendingStart, onPendingStart, onPlayerApi, onRecordSegment,
     episodeKey, nextUrl, nextEpisodeKey,
-    getRestorePosition, onTimeUpdate, onClockUpdate, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource,
+    getRestorePosition, onTimeUpdate, onClockUpdate, onPlaybackRateChange, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource,
     onPrevEpisode, onNextEpisode, hasPrevEpisode, hasNextEpisode,
   });
   propsRef.current = {
     url, title, mediaType, onPlaybackConfirmed, adFilter, autoplayNext, skipMark, autoSkipSegments,
     pendingStart, onPendingStart, onPlayerApi, onRecordSegment,
     episodeKey, nextUrl, nextEpisodeKey,
-    getRestorePosition, onTimeUpdate, onClockUpdate, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource,
+    getRestorePosition, onTimeUpdate, onClockUpdate, onPlaybackRateChange, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource,
     onPrevEpisode, onNextEpisode, hasPrevEpisode, hasNextEpisode,
   };
 
@@ -1065,9 +1067,11 @@ export function PlayerShell({
      */
     art.on('video:ratechange', () => {
       const video = art.video;
-      if (video && video.playbackRate !== video.defaultPlaybackRate) {
+      if (!video) return;
+      if (video.playbackRate !== video.defaultPlaybackRate) {
         video.defaultPlaybackRate = video.playbackRate;
       }
+      propsRef.current.onPlaybackRateChange?.(video.playbackRate);
     });
 
     // 播放页「记录当前」需要精确时间：不能依赖 5s 节流的 onTimeUpdate
