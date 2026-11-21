@@ -114,17 +114,23 @@ try {
     console.log('PASS ' + profile.name + ': ' + JSON.stringify(layout));
   }
 
-  await page.evaluate((url) => {
+  const previousMediaSrc = await page.evaluate((url) => {
     const video = document.querySelector('.netflix-player-frame video');
     if (!video) throw new Error('Video missing before ASS cleanup source switch.');
+    const previousSrc = video.currentSrc;
     const next = new URL(window.location.href);
     next.searchParams.set('url', url);
     window.history.pushState({}, '', next.toString());
     window.dispatchEvent(new PopStateEvent('popstate'));
+    return previousSrc;
   }, alternateStream);
+  await page.waitForFunction((previousSrc) => {
+    const video = document.querySelector('.netflix-player-frame video');
+    return Boolean(video && video.currentSrc && video.currentSrc !== previousSrc && video.readyState >= 2 && video.videoWidth > 0);
+  }, previousMediaSrc, { timeout: 60_000 });
   await page.waitForFunction(() => {
     const video = document.querySelector('.netflix-player-frame video');
-    return Boolean(video && video.readyState >= 2 && video.currentTime >= 1.5 && video.videoWidth > 0);
+    return Boolean(video && video.currentTime >= 1.5);
   }, null, { timeout: 60_000 });
   await page.waitForFunction(() => !document.querySelector('canvas.JASSUB'), null, { timeout: 10_000 });
 
