@@ -1,0 +1,137 @@
+name: Deploy Cinema Engine V2.1 Isolated Preview
+
+on:
+  push:
+    branches:
+      - feature/cinema-engine-v2-1-playback-stability
+    paths:
+      - ".github/workflows/deploy-cinema-v21-preview.yml"
+      - "wrangler.cinema-v21-preview.toml"
+      - "scripts/pr84-preview-player-smoke.mjs"
+      - "src/**"
+      - "public/**"
+      - "package.json"
+      - "package-lock.json"
+      - "next.config.*"
+      - "open-next.config.*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: libretv-cinema-v21-preview
+  cancel-in-progress: true
+
+jobs:
+  deploy-preview:
+    name: Build, deploy and smoke-test isolated Cinema V2.1 Preview
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment: preview
+    steps:
+      - name: Checkout exact feature commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: TypeScript verification
+        run: npm run typecheck
+
+      - name: ESLint verification
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test -- --reporter=dot
+
+      - name: Verify isolated Worker config and deployment credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          grep -Eq '^[[:space:]]*name[[:space:]]*=[[:space:]]*"libretv-cinema-v21-preview"' wrangler.cinema-v21-preview.toml
+          grep -Eq '^[[:space:]]*AUTH_DISABLED[[:space:]]*=[[:space:]]*"true"' wrangler.cinema-v21-preview.toml
+          test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing preview secret: CLOUDFLARE_API_TOKEN" && exit 1)
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "Missing preview secret: CLOUDFLARE_ACCOUNT_ID" && exit 1)
+
+      - name: Build isolated Preview
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npx opennextjs-cloudflare build
+
+      - name: Deploy isolated Preview Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --config wrangler.cinema-v21-preview.toml
+
+      - name: Verify deployed Preview endpoints
+        env:
+          CINEMA_PREVIEW_URL: https://libretv-cinema-v21-preview.bggdbh.workers.dev
+        run: |
+          node --input-type=module <<'NODE'
+          const base = process.env.CINEMA_PREVIEW_URL;
+          for (const path of ["/", "/detail", "/api/status"]) {
+            let response;
+            let body = "";
+            for (let attempt = 1; attempt <= 6; attempt += 1) {
+              response = await fetch(base + path, {
+                redirect: "follow",
+                headers: { "cache-control": "no-cache" },
+                signal: AbortSignal.timeout(30000),
+              });
+              body = await response.text();
+              if (response.status === 200) break;
+              console.warn(path + " attempt " + attempt + " returned HTTP " + response.status +
+                "; server=" + (response.headers.get("server") || "unknown") +
+                "; cf-ray=" + (response.headers.get("cf-ray") || "none") +
+                "; body=" + body.slice(0, 1200));
+              if (attempt < 6) await new Promise((resolve) => setTimeout(resolve, attempt * 3000));
+            }
+            if (!response || response.status !== 200) {
+              throw new Error(path + " did not reach HTTP 200 after six attempts");
+            }
+            if (path === "/api/status") {
+              const status = JSON.parse(body);
+              if (status.passwordRequired !== false || status.verified !== true) {
+                throw new Error("Isolated Preview auth/status invariant failed: " + JSON.stringify({
+                  passwordRequired: status.passwordRequired,
+                  verified: status.verified,
+                }));
+              }
+            } else if (!(response.headers.get("content-type") || "").includes("text/html")) {
+              throw new Error(path + " did not return HTML");
+            }
+            console.log("PASS " + path + " HTTP 200");
+          }
+          NODE
+
+      - name: Install Playwright and Chrome for actual LibreTV PlayerShell acceptance
+        timeout-minutes: 12
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chrome
+
+      - name: Verify real LibreTV PlayerShell HLS playback and source switching
+        env:
+          PR84_PREVIEW_URL: https://libretv-cinema-v21-preview.bggdbh.workers.dev
+          PR84_BROWSER_CHANNEL: chrome
+        run: node scripts/pr84-preview-player-smoke.mjs
+
+      - name: Upload PlayerShell acceptance screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cinema-v21-preview-player-acceptance
+          path: /tmp/pr84-preview-player.png
+          if-no-files-found: ignore

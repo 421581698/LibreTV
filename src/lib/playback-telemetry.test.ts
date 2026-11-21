@@ -16,6 +16,15 @@ describe('playback telemetry', () => {
         resourceKey: 'source-a:movie-1',
         timestamp: 10_000,
         startupMs: 1_000,
+        firstFragmentMs: 600,
+        stallDurationMs: 12_000,
+        maxStallMs: 8_000,
+        networkStalls: 2,
+        decodeStalls: 1,
+        droppedFrames: 3,
+        totalFrames: 120,
+        bufferAheadSecondsAvg: 14,
+        bufferAheadSecondsMin: 0,
         throughputKbps: 8_000,
         mediaBitrateKbps: 4_000,
         selectedRenditionIndex: 3,
@@ -29,6 +38,14 @@ describe('playback telemetry', () => {
     ], 10_000);
     expect(health['source-a'].heightMax).toBe(2160);
     expect(health['source-a'].startupMsAvg).toBe(1_000);
+    expect(health['source-a'].firstFragmentMsAvg).toBe(600);
+    expect(health['source-a'].stallDurationMsPerHour).toBe(72_000);
+    expect(health['source-a'].maxStallMs).toBe(8_000);
+    expect(health['source-a'].networkStallsPerHour).toBe(12);
+    expect(health['source-a'].decodeStallsPerHour).toBe(6);
+    expect(health['source-a'].droppedFrameRatio).toBe(0.025);
+    expect(health['source-a'].bufferAheadSecondsAvg).toBe(14);
+    expect(health['source-a'].bufferAheadSecondsMin).toBe(0);
     expect(JSON.stringify(health)).toContain('"selectedRenditionIndex":3');
     expect(JSON.stringify(health)).toContain('"selectedRenditionHeight":2160');
     expect(JSON.stringify(health)).toContain('"selectedRenditionBitrateKbps":18000');

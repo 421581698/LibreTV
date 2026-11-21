@@ -10,6 +10,8 @@ import { hasSustainedPlaybackProgress } from '@/lib/playback-verification';
 
 import { PlaybackRecovery, describeHlsError } from '@/lib/playback-recovery';
 import { createHlsLoader } from '@/lib/hls-loader';
+import { getBufferedAheadSeconds, getFragmentQualityEvidence, readPlaybackQualityCounters } from '@/lib/playback-diagnostics';
+import { AdaptiveQualityGuard } from '@/lib/adaptive-quality-guard';
 import { getVideoPrefetcher } from '@/lib/video-prefetcher';
 import { loadCacheSettings } from '@/lib/video-cache';
 import { formatTime } from '@/lib/utils';
@@ -207,6 +209,7 @@ export function PlayerShell({
   const artRef = useRef<any>(null);
   const nativeFullscreenCleanupRef = useRef<(() => void) | null>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const qualityGuardRef = useRef(new AdaptiveQualityGuard());
   const qualityPreferenceHandlerRef = useRef<(() => void) | null>(null);
   const [error, setError] = useState('');
   const [hint, setHint] = useState('');
@@ -285,13 +288,23 @@ export function PlayerShell({
 
   const playbackIdentityRef = useRef({ sourceKey, resourceKey, onPlaybackSample });
   const playbackMetricsRef = useRef({
-    startedAt: Date.now(), firstFragmentMs: undefined as number | undefined,
+    startedAt: Date.now(), startupMs: undefined as number | undefined,
+    firstFragmentMs: undefined as number | undefined,
     totalBytes: 0, totalDownloadMs: 0, totalMediaSeconds: 0,
     videoBytes: 0, videoDownloadMs: 0, videoMediaSeconds: 0,
+    lastFragmentThroughputKbps: undefined as number | undefined,
+    lastFragmentBitrateKbps: undefined as number | undefined,
     selectedRenditionIndex: undefined as number | undefined,
     selectedRenditionHeight: undefined as number | undefined,
     selectedRenditionBitrateKbps: undefined as number | undefined,
-    stalls: 0, fatalErrors: 0, recoveries: 0, playedSeconds: 0,
+    stalls: 0, stallDurationMs: 0, maxStallMs: 0,
+    waitingStartedAt: undefined as number | undefined,
+    networkStalls: 0, decodeStalls: 0,
+    bufferAheadSum: 0, bufferAheadSamples: 0,
+    bufferAheadMin: undefined as number | undefined,
+    frameBaselineTotal: 0, frameBaselineDropped: 0,
+    totalFrames: 0, droppedFrames: 0,
+    fatalErrors: 0, recoveries: 0, playedSeconds: 0,
     lastPosition: 0, lastTickAt: 0, height: 0, waiting: false, flushed: false,
   });
   const resetPlaybackMetrics = () => {
@@ -299,19 +312,55 @@ export function PlayerShell({
     setObservedMediaBitrateKbps(0);
     setObservedThroughputKbps(0);
     playbackIdentityRef.current = { sourceKey: propsRef.current.sourceKey, resourceKey: propsRef.current.resourceKey, onPlaybackSample: propsRef.current.onPlaybackSample };
+    const frameBaseline = readPlaybackQualityCounters(artRef.current?.video);
     playbackMetricsRef.current = {
-      startedAt: Date.now(), firstFragmentMs: undefined, totalBytes: 0,
-      totalDownloadMs: 0, totalMediaSeconds: 0, videoBytes: 0,
+      startedAt: Date.now(), startupMs: undefined, firstFragmentMs: undefined,
+      totalBytes: 0, totalDownloadMs: 0, totalMediaSeconds: 0, videoBytes: 0,
       videoDownloadMs: 0, videoMediaSeconds: 0,
+      lastFragmentThroughputKbps: undefined, lastFragmentBitrateKbps: undefined,
       selectedRenditionIndex: undefined, selectedRenditionHeight: undefined,
-      selectedRenditionBitrateKbps: undefined, stalls: 0, fatalErrors: 0,
-      recoveries: 0, playedSeconds: 0, lastPosition: 0, lastTickAt: 0,
-      height: 0, waiting: false, flushed: false,
+      selectedRenditionBitrateKbps: undefined,
+      stalls: 0, stallDurationMs: 0, maxStallMs: 0, waitingStartedAt: undefined,
+      networkStalls: 0, decodeStalls: 0,
+      bufferAheadSum: 0, bufferAheadSamples: 0, bufferAheadMin: undefined,
+      frameBaselineTotal: frameBaseline?.totalFrames ?? 0,
+      frameBaselineDropped: frameBaseline?.droppedFrames ?? 0,
+      totalFrames: 0, droppedFrames: 0,
+      fatalErrors: 0, recoveries: 0, playedSeconds: 0,
+      lastPosition: 0, lastTickAt: 0, height: 0, waiting: false, flushed: false,
     };
+  };
+  const updatePlaybackDiagnostics = (video: HTMLVideoElement | null | undefined) => {
+    if (!video) return;
+    const metrics = playbackMetricsRef.current;
+    const bufferAhead = getBufferedAheadSeconds(video.buffered, video.currentTime);
+    metrics.bufferAheadSum += bufferAhead;
+    metrics.bufferAheadSamples += 1;
+    metrics.bufferAheadMin = metrics.bufferAheadMin === undefined
+      ? bufferAhead
+      : Math.min(metrics.bufferAheadMin, bufferAhead);
+
+    const counters = readPlaybackQualityCounters(video);
+    if (counters) {
+      metrics.totalFrames = Math.max(0, counters.totalFrames - metrics.frameBaselineTotal);
+      metrics.droppedFrames = Math.max(0, counters.droppedFrames - metrics.frameBaselineDropped);
+    }
+  };
+  const closePlaybackStall = (video: HTMLVideoElement | null | undefined) => {
+    const metrics = playbackMetricsRef.current;
+    if (metrics.waiting && metrics.waitingStartedAt !== undefined) {
+      const duration = Math.max(0, Date.now() - metrics.waitingStartedAt);
+      metrics.stallDurationMs += duration;
+      metrics.maxStallMs = Math.max(metrics.maxStallMs, duration);
+      metrics.waiting = false;
+      metrics.waitingStartedAt = undefined;
+    }
+    updatePlaybackDiagnostics(video);
   };
   const flushPlaybackMetrics = () => {
     const metrics = playbackMetricsRef.current;
-    if (metrics.flushed || (!metrics.playedSeconds && !metrics.totalBytes && !metrics.fatalErrors)) return;
+    closePlaybackStall(artRef.current?.video);
+    if (metrics.flushed || (!metrics.playedSeconds && !metrics.totalBytes && !metrics.fatalErrors && !metrics.stalls)) return;
     metrics.flushed = true;
     const identity = playbackIdentityRef.current;
     if (!identity.sourceKey || !identity.resourceKey) return;
@@ -319,7 +368,17 @@ export function PlayerShell({
       sourceKey: identity.sourceKey,
       resourceKey: identity.resourceKey,
       timestamp: Date.now(),
-      startupMs: metrics.firstFragmentMs,
+      // startupMs now means the first presented frame; firstFragmentMs is retained separately.
+      startupMs: metrics.startupMs,
+      firstFragmentMs: metrics.firstFragmentMs,
+      stallDurationMs: metrics.stallDurationMs,
+      maxStallMs: metrics.maxStallMs,
+      networkStalls: metrics.networkStalls,
+      decodeStalls: metrics.decodeStalls,
+      droppedFrames: metrics.droppedFrames,
+      totalFrames: metrics.totalFrames,
+      bufferAheadSecondsAvg: metrics.bufferAheadSamples > 0 ? metrics.bufferAheadSum / metrics.bufferAheadSamples : undefined,
+      bufferAheadSecondsMin: metrics.bufferAheadMin,
       throughputKbps: metrics.videoDownloadMs > 0 ? metrics.videoBytes * 8 / metrics.videoDownloadMs : undefined,
       mediaBitrateKbps: metrics.videoMediaSeconds > 0 ? metrics.videoBytes * 8 / metrics.videoMediaSeconds / 1000 : undefined,
       selectedRenditionIndex: metrics.selectedRenditionIndex,
@@ -584,6 +643,7 @@ export function PlayerShell({
    * 注意：不销毁 ArtPlayer，只销毁并重建 hls，从而保留网页全屏等播放器状态。
    */
   const setupHls = (video: HTMLVideoElement, mediaUrl: string, allowProxyFallback: boolean) => {
+    qualityGuardRef.current.reset();
     clearMetadataWatchdog();
     restoreCleanupRef.current?.();
     restoreCleanupRef.current = null;
@@ -664,6 +724,7 @@ export function PlayerShell({
     hlsRef.current = hls;
     setQualityControlMode('hls');
     const handleQualityPreferenceChange = () => {
+      qualityGuardRef.current.reset();
       const preference = readQualityPreference();
       setQualityPreference(preference);
       unsustainableFragmentsRef.current = 0;
@@ -760,8 +821,12 @@ export function PlayerShell({
             metrics.videoBytes += bytes;
             metrics.videoDownloadMs += loadMs;
             metrics.videoMediaSeconds += mediaSeconds;
-            setObservedMediaBitrateKbps(bytes * 8 / (mediaSeconds * 1000));
-            setObservedThroughputKbps(bytes * 8 / loadMs);
+            const fragmentBitrateKbps = bytes * 8 / (mediaSeconds * 1000);
+            const fragmentThroughputKbps = bytes * 8 / loadMs;
+            metrics.lastFragmentBitrateKbps = fragmentBitrateKbps;
+            metrics.lastFragmentThroughputKbps = fragmentThroughputKbps;
+            setObservedMediaBitrateKbps(fragmentBitrateKbps);
+            setObservedThroughputKbps(fragmentThroughputKbps);
           }
           const preference = readQualityPreference();
           // Only main video fragments represent the selected picture rendition; audio/subtitle
@@ -792,6 +857,10 @@ export function PlayerShell({
     hls.on(Hls.Events.LEVELS_UPDATED, () => {
       // 部分动态清单会在初次解析后补齐档位；重新应用用户的最高画质限制。
       const qualityResult = applyHlsQualityPreference(hls!, readQualityPreference(), video);
+      const protectedLevel = qualityGuardRef.current.activeCapLevel;
+      if (protectedLevel !== null && readQualityPreference() === 'auto') {
+        hls!.autoLevelCapping = Math.min(protectedLevel, Math.max(0, hls!.levels.length - 1));
+      }
       setAvailableQualityHeights(qualityResult.heights);
       setAvailableQualityLevelCount(hls.levels.length);
       setQualityMetadataComplete(hls.levels.length > 0 && hls.levels.every((level) => Number.isFinite(level.height) && level.height > 0));
@@ -816,8 +885,23 @@ export function PlayerShell({
       if (decodedHeight > 0) setActualQualityHeight(decodedHeight);
     });
     // 分片真正进入 MSE buffer 才算媒体恢复：此时视频轨可渲染，错误态可解除
-    hls.on(Hls.Events.FRAG_BUFFERED, () => {
+    hls.on(Hls.Events.FRAG_BUFFERED, (_event, data) => {
       mediaHealthyRef.current = true;
+      if (data.frag?.type !== 'main') return;
+      // FRAG_LOADED and FRAG_BUFFERED can interleave across concurrent HLS loads.
+      // Use this exact buffered main fragment's own stats instead of global "last fragment"
+      // values, otherwise throughput from one fragment can be paired with another's buffer event.
+      const fragmentEvidence = getFragmentQualityEvidence(data.frag?.stats, data.frag?.duration);
+      if (!fragmentEvidence) return;
+      const decision = qualityGuardRef.current.onBufferedFragment({
+        mode: readQualityPreference() === 'auto' ? 'auto' : 'manual',
+        bufferAheadSeconds: getBufferedAheadSeconds(video.buffered, video.currentTime),
+        ...fragmentEvidence,
+      });
+      if (decision.action === 'restore') {
+        hls!.autoLevelCapping = -1;
+        showHint('缓冲已恢复，正在恢复自适应画质');
+      }
     });
 
     hls.on(Hls.Events.ERROR, (_evt, data) => {
@@ -1128,9 +1212,24 @@ export function PlayerShell({
 
     art.on('video:playing', () => {
       const metrics = playbackMetricsRef.current;
-      if (metrics.firstFragmentMs === undefined) metrics.firstFragmentMs = Date.now() - metrics.startedAt;
-      if (metrics.waiting) metrics.recoveries += 1;
-      metrics.waiting = false;
+      const recoveredFromWaiting = metrics.waiting;
+      if (recoveredFromWaiting) metrics.recoveries += 1;
+      closePlaybackStall(art.video);
+      if (metrics.startupMs === undefined) {
+        const metricsForFrame = metrics;
+        const video = art.video as (HTMLVideoElement & {
+          requestVideoFrameCallback?: (callback: () => void) => number;
+        }) | undefined;
+        if (video?.requestVideoFrameCallback) {
+          video.requestVideoFrameCallback(() => {
+            if (playbackMetricsRef.current === metricsForFrame && metricsForFrame.startupMs === undefined) {
+              metricsForFrame.startupMs = Date.now() - metricsForFrame.startedAt;
+            }
+          });
+        } else {
+          metrics.startupMs = Date.now() - metrics.startedAt;
+        }
+      }
       metrics.height = Math.max(metrics.height, art.video?.videoHeight ?? 0);
       playbackStartedRef.current = true;
       setShowPoster(false);
@@ -1200,6 +1299,7 @@ export function PlayerShell({
     });
     art.on('video:timeupdate', () => {
       const metrics = playbackMetricsRef.current;
+      updatePlaybackDiagnostics(art.video);
       const position = art.currentTime;
       if (metrics.lastTickAt > 0 && position > metrics.lastPosition && position - metrics.lastPosition <= 2.5) metrics.playedSeconds += position - metrics.lastPosition;
       metrics.lastPosition = position;
@@ -1270,6 +1370,8 @@ export function PlayerShell({
       updateSkipPrompt(prompt);
     });
     art.on('video:pause', () => {
+      // A user pause must not be counted as continued buffering time.
+      closePlaybackStall(art.video);
       if (playbackConfirmationTimerRef.current) {
         clearTimeout(playbackConfirmationTimerRef.current);
         playbackConfirmationTimerRef.current = null;
@@ -1279,7 +1381,37 @@ export function PlayerShell({
     });
     art.on('video:waiting', () => {
       const metrics = playbackMetricsRef.current;
-      if (!art.video?.paused && !metrics.waiting) { metrics.stalls += 1; metrics.waiting = true; }
+      const video = art.video;
+      const newStall = Boolean(video && !video.paused && !metrics.waiting);
+      if (newStall && video) {
+        metrics.stalls += 1;
+        metrics.waiting = true;
+        metrics.waitingStartedAt = Date.now();
+        const bufferAhead = getBufferedAheadSeconds(video.buffered, video.currentTime);
+        if (bufferAhead <= 0.25 || video.readyState < 2) metrics.networkStalls += 1;
+        else metrics.decodeStalls += 1;
+      }
+      updatePlaybackDiagnostics(video);
+      const hls = hlsRef.current;
+      if (newStall && video && !video.paused && hls) {
+        if (readQualityPreference() === 'auto') {
+          const decision = qualityGuardRef.current.onStall({
+            mode: 'auto',
+            currentLevel: hls.currentLevel,
+            levelCount: hls.levels.length,
+          });
+          if (decision.action === 'cap') {
+            hls.autoLevelCapping = decision.capLevel;
+            hls.nextAutoLevel = decision.nextLevel;
+            const cappedHeight = hls.levels[decision.capLevel]?.height;
+            showHint(cappedHeight
+              ? `检测到缓冲，临时限制到 ${cappedHeight}P；稳定后自动恢复`
+              : '检测到缓冲，临时降低自适应画质');
+          }
+        } else {
+          showHint('当前为手动画质锁定；如持续卡顿，可切换自动模式');
+        }
+      }
       // 缓冲不足时彻底停止预取，释放所有并发请求给当前播放链路。
       getVideoPrefetcher().stop();
     });
