@@ -44,7 +44,7 @@ Dialogue: 0,broken,0:00:03.00,Default,,0,0,0,,Bad cue`);
 
   it('converts ASS BGR color and strips override tags for plain text', () => {
     expect(assColorToRgba('&H0000FF00')).toBe('rgba(0, 255, 0, 1)');
-    expect(assDialogueToPlainText('{\an8}Top\Nline')).toBe('Top\nline');
+    expect(assDialogueToPlainText('{\\an8}Top\\Nline')).toBe('Top\nline');
   });
 
   it('uses defaults for an empty but valid document', () => {
