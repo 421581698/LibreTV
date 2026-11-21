@@ -42,12 +42,14 @@ export function SwitchSourceModal({
   currentVodId,
   currentIndex,
   onClose,
+  watchPath = '/watch',
 }: {
   currentTitle: string;
   currentSourceKey: string;
   currentVodId: string;
   currentIndex: number;
   onClose: () => void;
+  watchPath?: '/watch' | '/ipad-edition/watch';
 }) {
   const store = useAppStore();
   const router = useRouter();
@@ -257,16 +259,15 @@ export function SwitchSourceModal({
     }
     const targetIndex = currentIndex < c.episodes ? currentIndex : 0;
     onClose(); // 先关闭面板，避免路由参数变化后弹窗残留旧数据
-    router.push(
-      buildWatchUrl({
-        sourceKey: c.source.key,
-        vodId: c.result.vodId,
-        index: targetIndex,
-        title: c.result.name || currentTitle,
-        sourceUrl: c.source.url,
-        detail: c.source.detail,
-      })
-    );
+    const watchUrl = buildWatchUrl({
+      sourceKey: c.source.key,
+      vodId: c.result.vodId,
+      index: targetIndex,
+      title: c.result.name || currentTitle,
+      sourceUrl: c.source.url,
+      detail: c.source.detail,
+    });
+    router.push(watchPath === '/watch' ? watchUrl : watchUrl.replace('/watch?', watchPath + '?'));
   };
 
   return (
