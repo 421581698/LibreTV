@@ -36,9 +36,11 @@ describe('PR #84 homepage blocking layout recovery', () => {
 
   it('keeps all four navigation destinations visible in a four-column viewport dock', () => {
     expect(dock).toContain("{ href: '/', label: '首页', icon: 'home' }");
-    expect(dock).toContain("{ href: '/search', label: '搜索', icon: 'search' }");
-    expect(dock).toContain("{ href: '/settings', label: '设置', icon: 'settings' }");
+    expect(dock).toContain("{ href: '/movies', label: '电影', icon: 'film' }");
+    expect(dock).toContain("{ href: '/tv', label: '电视剧', icon: 'tv' }");
     expect(dock).toContain("{ href: '/me', label: '我的', icon: 'user' }");
+    expect(dock).toContain("normalized === '/movies' || normalized.startsWith('/movies/')");
+    expect(dock).toContain("normalized === '/tv' || normalized.startsWith('/tv/')");
     expect(dock).toContain('createPortal(navigation, portalTarget)');
     expect(dock).toContain('setPortalTarget(document.body)');
     expect(appleDock).toContain('grid-template-columns: repeat(4, minmax(0, 1fr)) !important;');
