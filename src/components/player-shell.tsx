@@ -586,6 +586,9 @@ export function PlayerShell({
     const refresh = () => refreshSubtitleTracks(video, hls);
     if (hls) {
       hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, refresh);
+      // Do not refresh/apply subtitle selection from SUBTITLE_TRACK_SWITCH:
+      // assigning hls.subtitleTrack inside refresh emits SUBTITLE_TRACK_SWITCH
+      // again in hls.js, creating an unbounded re-entrant event loop.
       const refreshSpatialAudioTrack = () => {
         const engine = spatialAudioEngineRef.current;
         if (!engine) return;
@@ -597,11 +600,9 @@ export function PlayerShell({
         else if (info?.channelCount === 6) setSpatialAudioMessage('检测到六声道，但扬声器顺序未验证，环绕双耳渲染保持关闭。');
         else setSpatialAudioMessage('当前音轨未声明可验证的声道数，保持原始播放。');
       };
-      hls.on(Hls.Events.SUBTITLE_TRACK_SWITCH, refresh);
       hls.on(Hls.Events.AUDIO_TRACK_SWITCHED, refreshSpatialAudioTrack);
       subtitleTrackCleanupRef.current = () => {
         hls.off(Hls.Events.SUBTITLE_TRACKS_UPDATED, refresh);
-        hls.off(Hls.Events.SUBTITLE_TRACK_SWITCH, refresh);
         hls.off(Hls.Events.AUDIO_TRACK_SWITCHED, refreshSpatialAudioTrack);
       };
     } else {
