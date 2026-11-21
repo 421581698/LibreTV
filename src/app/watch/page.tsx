@@ -479,7 +479,12 @@ function WatchContent() {
   // Alt+←/→ 集数切换快捷键
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (!e.altKey) return;
+      if (!e.altKey || switchOpen || skipPanelOpen) return;
+      const target = e.target;
+      if (target instanceof HTMLElement && (
+        target.isContentEditable ||
+        target.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]')
+      )) return;
       if (e.key === 'ArrowLeft' && currentIndex > 0) {
         e.preventDefault();
         goEpisode(currentIndex - 1);
@@ -495,7 +500,7 @@ function WatchContent() {
     return () => {
       document.removeEventListener('keydown', handler);
     };
-  }, [currentIndex, episodes.length, goEpisode]);
+  }, [currentIndex, episodes.length, goEpisode, switchOpen, skipPanelOpen]);
   const orderedEpisodes = reversed
     ? [...episodes].map((_, i) => episodes.length - 1 - i)
     : episodes.map((_, i) => i);
