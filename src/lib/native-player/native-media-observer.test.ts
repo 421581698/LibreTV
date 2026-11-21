@@ -55,6 +55,30 @@ describe('NativeMediaBackend observation mode', () => {
     controller.dispose();
   });
 
+  it('detaches the previous media element when the observed source changes', () => {
+    vi.stubGlobal('HTMLMediaElement', { HAVE_METADATA: 1, HAVE_FUTURE_DATA: 3 });
+    const first = createExistingVideo();
+    const second = createExistingVideo();
+    const controller = new PlaybackController(new NativeMediaBackend());
+
+    expect(controller.observeExistingSource(
+      { url: String(first.video.src), kind: 'mp4' },
+      first.video,
+    )).toEqual({ ok: true });
+    expect(controller.observeExistingSource(
+      { url: String(second.video.src), kind: 'mp4' },
+      second.video,
+    )).toEqual({ ok: true });
+
+    expect(controller.getSnapshot().phase).toBe('playing');
+    first.video.dispatchEvent(new Event('waiting'));
+    expect(controller.getSnapshot().phase).toBe('playing');
+    second.video.dispatchEvent(new Event('waiting'));
+    expect(controller.getSnapshot().phase).toBe('buffering');
+
+    controller.dispose();
+  });
+
   it('does not silently fall back to a source-owning load path', () => {
     const backend = {
       kind: 'experimental' as const,
