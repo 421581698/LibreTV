@@ -23,6 +23,8 @@ export interface Fmp4TrackFragment {
   /** Track media timescale from mdhd; null when no init segment was supplied. */
   readonly timescale: number | null;
   readonly baseDecodeTime: number;
+  readonly sampleDescriptionIndex: number | null;
+  readonly sampleEntry: string | null;
   readonly samples: readonly Fmp4Sample[];
 }
 
@@ -56,6 +58,7 @@ interface Tfhd {
   defaultDuration: number | null;
   defaultSize: number | null;
   defaultFlags: number | null;
+  defaultDescriptionIndex: number | null;
   defaultBaseIsMoof: boolean;
 }
 
@@ -121,13 +124,14 @@ function parseTfhd(view: DataView, box: Box): Tfhd {
   let defaultDuration: number | null = null;
   let defaultSize: number | null = null;
   let defaultFlags: number | null = null;
+  let defaultDescriptionIndex: number | null = null;
   if (flags & 0x000001) { baseDataOffset = u64(view, offset); offset += 8; }
-  if (flags & 0x000002) offset += 4; // sample_description_index
+  if (flags & 0x000002) { defaultDescriptionIndex = u32(view, offset); offset += 4; }
   if (flags & 0x000008) { defaultDuration = u32(view, offset); offset += 4; }
   if (flags & 0x000010) { defaultSize = u32(view, offset); offset += 4; }
   if (flags & 0x000020) { defaultFlags = u32(view, offset); offset += 4; }
   if (offset > box.end) throw new Error('tfhd fields exceed box bounds.');
-  return { trackId, baseDataOffset, defaultDuration, defaultSize, defaultFlags, defaultBaseIsMoof: Boolean(flags & 0x020000) };
+  return { trackId, baseDataOffset, defaultDuration, defaultSize, defaultFlags, defaultDescriptionIndex, defaultBaseIsMoof: Boolean(flags & 0x020000) };
 }
 
 function parseTfdt(view: DataView, box: Box): number {
@@ -364,13 +368,21 @@ export function parseFmp4Fragments(input: ArrayBuffer | Uint8Array, options: Par
       const tfdtBox = fields.find(box => box.type === 'tfdt');
       if (!tfhdBox || !tfdtBox) throw new Error('Each parsed traf must contain tfhd and tfdt boxes.');
       const parsedTfhd = parseTfhd(view, tfhdBox);
-      const trex = options.initSegment?.tracks.find(track => track.trackId === parsedTfhd.trackId);
+      const initTrack = options.initSegment?.tracks.find(track => track.trackId === parsedTfhd.trackId);
       const tfhd: Tfhd = {
         ...parsedTfhd,
         defaultDuration: parsedTfhd.defaultDuration ?? trex?.defaultSampleDuration ?? null,
         defaultSize: parsedTfhd.defaultSize ?? trex?.defaultSampleSize ?? null,
-        defaultFlags: parsedTfhd.defaultFlags ?? trex?.defaultSampleFlags ?? null,
+        defaultFlags: parsedTfhd.defaultFlags ?? initTrack?.defaultSampleFlags ?? null,
+        defaultDescriptionIndex: parsedTfhd.defaultDescriptionIndex ?? initTrack?.defaultSampleDescriptionIndex ?? null,
       };
+      const sampleDescriptionIndex = tfhd.defaultDescriptionIndex;
+      const sampleEntry = sampleDescriptionIndex !== null && initTrack
+        ? initTrack.sampleEntries[sampleDescriptionIndex - 1] ?? null
+        : null;
+      if (initTrack && sampleDescriptionIndex !== null && !sampleEntry) {
+        throw new Error(`Track ${tfhd.trackId} references missing sample description index ${sampleDescriptionIndex}.`);
+      }
       const baseDecodeTime = parseTfdt(view, tfdtBox);
       const baseDataOffset = tfhd.baseDataOffset ??
         (tfhd.defaultBaseIsMoof || trafIndex === 0 ? moof.start : implicitBaseDataOffset);
@@ -387,7 +399,7 @@ export function parseFmp4Fragments(input: ArrayBuffer | Uint8Array, options: Par
       // The next traf's implicit base is the end of this traf's resolved sample data.
       implicitBaseDataOffset = nextDataOffset;
       if (options.trackId === undefined || parsedTfhd.trackId === options.trackId) {
-        tracks.push({ trackId: tfhd.trackId, timescale: trex?.timescale ?? null, baseDecodeTime, samples });
+        tracks.push({ trackId: tfhd.trackId, timescale: initTrack?.timescale ?? null, baseDecodeTime, sampleDescriptionIndex, sampleEntry, samples });
       }
     }
     fragments.push({ moofOffset: moof.start, moofSize: moof.size, mdatRanges: mdats, tracks });
