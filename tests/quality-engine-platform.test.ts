@@ -88,6 +88,7 @@ describe("Quality report", () => {
   const run: TestRun = {
     id: "run-report", planId: plan.id, commitSha: plan.commitSha, branch: plan.branch,
     status: "passed", createdAt: "2026-11-21T00:00:00.000Z",
+    startedAt: "2026-11-21T00:00:10.000Z", finishedAt: "2026-11-21T00:01:00.000Z",
   };
 
   it("allows a completed run only when required checks have referenced evidence", () => {
@@ -131,6 +132,32 @@ describe("Quality report", () => {
     expect(report.releaseEligible).toBe(false);
   });
 
+  it("allows release only with separate, evidence-backed physical iPhone and iPad sessions", () => {
+    const mobilePlan = createBaselineTestPlan({
+      id: "plan-device-pass", project: "LibreTV", commitSha: "abc123", branch: "feature/player",
+      objective: "Verify both physical device lines", impact: {
+        areas: ["player"], requiresBrowser: true, requiresMedia: true,
+        requiresPhysicalIPhone: true, requiresPhysicalIPad: true, matchedPaths: [],
+      },
+    });
+    const mobileRun = { ...run, id: "run-device-pass", planId: mobilePlan.id, branch: mobilePlan.branch };
+    const evidence = [
+      { id: "junit-device", runId: mobileRun.id, kind: "junit" as const, uri: "artifacts/junit.xml", label: "Unit tests", createdAt: "2026-11-21T00:00:00.000Z" },
+      { id: "iphone-photo", runId: mobileRun.id, kind: "screenshot" as const, uri: "artifacts/iphone.png", label: "iPhone Safari", createdAt: "2026-11-21T00:00:00.000Z" },
+      { id: "ipad-photo", runId: mobileRun.id, kind: "screenshot" as const, uri: "artifacts/ipad.png", label: "iPad Safari", createdAt: "2026-11-21T00:00:00.000Z" },
+    ];
+    const report = buildQualityReport({
+      plan: mobilePlan, run: mobileRun,
+      checks: [{ id: "unit", required: true, outcome: "passed", evidenceIds: ["junit-device"] }],
+      evidence, defects: [],
+      devices: [
+        { device: "iphone", outcome: "passed", deviceModel: "iPhone test device", osVersion: "iOS test", browserVersion: "Safari test", evidenceIds: ["iphone-photo"] },
+        { device: "ipad", outcome: "passed", deviceModel: "iPad test device", osVersion: "iPadOS test", browserVersion: "Safari test", evidenceIds: ["ipad-photo"] },
+      ],
+    });
+    expect(report.releaseEligible).toBe(true);
+  });
+
   it("blocks release eligibility while blocker or critical defects remain", () => {
     const report = buildQualityReport({
       plan, run,
@@ -151,6 +178,12 @@ describe("Quality report", () => {
     });
     expect(report.releaseEligible).toBe(false);
     expect(report.gate.missingEvidence).toContain("unit -> old-run-evidence");
+  });
+
+  it("rejects reports that combine different plan and run branches", () => {
+    expect(() => buildQualityReport({
+      plan, run: { ...run, branch: "feature/other" }, checks: [], evidence: [], defects: [],
+    })).toThrow(/branch/);
   });
 
   it("rejects reports that combine different plan and run revisions", () => {
