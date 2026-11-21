@@ -33,6 +33,11 @@ export type BackendEvent =
 export interface PlaybackBackend {
   readonly kind: BackendKind;
   attach(element: HTMLMediaElement): void;
+  /**
+   * Observe a media element whose source/lifecycle is owned by another player.
+   * Implementations must not set src, call load(), or create another MSE pipeline.
+   */
+  observeExistingSource?(element: HTMLMediaElement, identity: PlaybackSessionIdentity): BackendCommandResult;
   load(source: PlaybackSource, identity: PlaybackSessionIdentity, signal?: AbortSignal): Promise<BackendCommandResult>;
   play(): Promise<BackendCommandResult>;
   pause(): BackendCommandResult;
