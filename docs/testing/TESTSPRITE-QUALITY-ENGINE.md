@@ -138,7 +138,8 @@ testsprite auth status
 首次建立 LibreTV 前端项目（只在尚无对应项目时执行）：
 
 ```bash
-testsprite project create --type frontend --name "LibreTV"
+testsprite project create --type frontend --name "LibreTV" \\
+  --instruction "$(cat testsprite/PROJECT-INSTRUCTIONS.md)"
 # 将返回的项目 ID 保存为 TESTSPRITE_PROJECT_ID
 testsprite project env create "$TESTSPRITE_PROJECT_ID" --name default --url "https://<verified-preview-or-staging-url>"
 ```
@@ -249,7 +250,9 @@ testsprite ci run \
 
 本分支已增加以下基础设施：
 - `.github/workflows/quality-engine.yml`：PR 质量工作流，执行 lint、typecheck、Vitest、生产构建和 Chromium 浏览器 smoke，并上传证据；
-- `scripts/quality-engine-smoke.mjs`：桌面 Chromium 与 iPhone/iPad 尺寸视口模拟测试，记录页面错误、HTTP 状态和截图；
+- `scripts/quality-engine-smoke.mjs`：桌面 Chromium 与 iPhone/iPad 尺寸视口模拟测试，覆盖首页加载、搜索空值校验、搜索提交与结果路由，并记录页面错误、HTTP 状态和截图；
+- `testsprite/libretv-coverage-brief.md`：TestSprite AI E2E 用例覆盖说明；
+- `testsprite/PROJECT-INSTRUCTIONS.md`：TestSprite 项目级测试约束与验收边界；
 - `quality-engine/device-registry.json`：真实设备兼容性登记表，初始为空，等待人工真机验收记录；
 - `npm run quality:verify` 与 `npm run quality:smoke`：统一入口；
 - `.gitignore`：忽略本地 TestSprite 与质量测试产物。
