@@ -561,6 +561,10 @@ function WatchContent() {
                 void document.exitFullscreen().catch(() => toast('退出全屏失败，请重试', 'info'));
                 return;
               }
+              if (playerApiRef.current?.isFullscreen()) {
+                playerApiRef.current.exitFullscreen();
+                return;
+              }
               const frame = playerFrameRef.current;
               if (!video) {
                 if (playerApiRef.current?.enterFullscreen) {
