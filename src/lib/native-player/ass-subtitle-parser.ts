@@ -215,8 +215,8 @@ export function assColorToRgba(value: string): string | null {
 /** Removes override commands while retaining readable dialogue and line breaks. */
 export function assDialogueToPlainText(value: string): string {
   return value
-    .replace(/\\[Nn]/g, '\n')
-    .replace(/\\h/g, ' ')
+    .replace(/\\x5c[Nn]/g, '\n')
+    .replace(/\\x5ch/g, ' ')
     .replace(/\{[^}]*\}/g, '')
     .replace(/\\[\\{}]/g, '');
 }
