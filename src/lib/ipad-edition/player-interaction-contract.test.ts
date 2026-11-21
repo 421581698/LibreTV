@@ -30,6 +30,10 @@ describe('iPad Edition playback interaction contract', () => {
     expect(watch).toContain('setSwitchOpen(true);');
   });
 
+  it('cancels pending auto-next when the source session changes, not only when the episode index changes', () => {
+    expect(watch).toContain('}, [sourceKey, vodId, directUrl, suppliedSourceUrl, currentUrl, currentIndex, cancelAutoNext]);');
+  });
+
   it('uses the same native-fullscreen fallback helper as the player control', () => {
     expect(watch).toContain('requestNativeFullscreenWithFallback(');
     expect(watch).toContain('playerApiRef.current?.isFullscreen()');
