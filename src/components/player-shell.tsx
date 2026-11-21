@@ -11,6 +11,8 @@ import { PlaybackController } from '@/lib/native-player/playback-controller';
 import { installArtPlayerControlBridge } from '@/lib/native-player/artplayer-control-bridge';
 import { DEFAULT_SUBTITLE_PREFERENCES, loadSubtitlePreferences, saveSubtitlePreferences, type SubtitlePreferences } from '@/lib/native-player/subtitle-preferences';
 import { applySubtitleTrack, listSubtitleTracks, type SubtitleTrackOption } from '@/lib/native-player/subtitle-track-controller';
+import { inspectHlsAudioTrack } from '@/lib/audio-inspector';
+import { isAudioSourceUrlOriginSafe, SpatialAudioEngine, type SpatialAudioMode } from '@/lib/spatial-audio';
 import { hasSustainedPlaybackProgress } from '@/lib/playback-verification';
 
 import { PlaybackRecovery, describeHlsError } from '@/lib/playback-recovery';
@@ -229,6 +231,10 @@ export function PlayerShell({
   const subtitlePreferencesRef = useRef<SubtitlePreferences>(DEFAULT_SUBTITLE_PREFERENCES);
   const subtitlePreferencesLoadedRef = useRef(false);
   const subtitleTrackCleanupRef = useRef<(() => void) | null>(null);
+  const spatialAudioEngineRef = useRef<SpatialAudioEngine | null>(null);
+  const [spatialAudioPanelOpen, setSpatialAudioPanelOpen] = useState(false);
+  const [spatialAudioMode, setSpatialAudioMode] = useState<SpatialAudioMode>('off');
+  const [spatialAudioMessage, setSpatialAudioMessage] = useState('空间音频默认关闭，不改变原始音轨。');
   const [availableQualityHeights, setAvailableQualityHeights] = useState<number[]>([]);
   const [availableQualityLevelCount, setAvailableQualityLevelCount] = useState(0);
   const [qualityMetadataComplete, setQualityMetadataComplete] = useState(false);
@@ -546,6 +552,56 @@ export function PlayerShell({
     refresh();
   };
 
+  const setSpatialAudio = async (mode: SpatialAudioMode) => {
+    const video = artRef.current?.video as HTMLVideoElement | undefined;
+    if (!video) return;
+    try {
+      let engine = spatialAudioEngineRef.current;
+      if (mode !== 'off' && !engine) {
+        const hls = hlsRef.current;
+        const tracks = hls?.audioTracks ?? [];
+        const selectedTrack = tracks[hls?.audioTrack ?? -1] ?? tracks.find(track => track.default) ?? tracks[0];
+        if (!selectedTrack) {
+          setSpatialAudioMessage('当前播放路径没有可读取的 HLS 声道元数据；为避免猜测声道，保持原始音轨。');
+          return;
+        }
+        const info = inspectHlsAudioTrack(selectedTrack);
+        if (info.channelCount !== 2 && info.channelCount !== 6) {
+          setSpatialAudioMessage('当前音轨没有明确的 2 声道或 6 声道声明，空间音频不可用。');
+          return;
+        }
+        engine = SpatialAudioEngine.attach(video, {
+          inputChannels: info.channelCount,
+          inputLayout: 'unknown',
+        });
+        spatialAudioEngineRef.current = engine;
+      }
+      if (!engine) {
+        setSpatialAudioMode('off');
+        return;
+      }
+      if (mode !== 'off') await engine.resumeFromUserGesture();
+      const plan = mode === 'off'
+        ? (engine.disable(), { label: '原始音轨', reason: '空间处理已关闭' })
+        : engine.setMode(mode);
+      setSpatialAudioMode(mode);
+      setSpatialAudioMessage(`${plan.label}：${plan.reason}`);
+    } catch (error) {
+      setSpatialAudioMessage(error instanceof Error ? error.message : '空间音频初始化失败，已保持原始播放。');
+      setSpatialAudioMode('off');
+    }
+  };
+
+  const canKeepSpatialAudioForSource = (mediaUrl: string, corsMode: string | null) => {
+    if (!spatialAudioEngineRef.current) return true;
+    const safe = isAudioSourceUrlOriginSafe(mediaUrl, window.location.origin, corsMode);
+    if (!safe) {
+      setError('空间音频已连接当前媒体元素；新片源不支持安全的 Web Audio CORS 路径。请刷新播放器后再切换到该片源，避免音频静音。');
+      return false;
+    }
+    return true;
+  };
+
   const chooseSubtitleTrack = (trackId: string) => {
     const video = artRef.current?.video as HTMLVideoElement | undefined;
     if (!video) return;
@@ -734,6 +790,7 @@ export function PlayerShell({
 
   /** Native progressive media path for formats the existing HTMLVideoElement can play. */
   const setupDirectMedia = (video: HTMLVideoElement, mediaUrl: string) => {
+    if (!canKeepSpatialAudioForSource(mediaUrl, null)) { video.pause(); return; }
     subtitleTrackCleanupRef.current?.();
     subtitleTrackCleanupRef.current = null;
     cinemaObserverRef.current?.dispose();
@@ -833,8 +890,9 @@ export function PlayerShell({
       hlsRef.current = null;
       armMetadataWatchdog(video, mediaUrl);
       // Safari's native HLS pipeline does not need CORS-readable media bytes.
-      // Keeping crossorigin="anonymous" here can make otherwise playable
-      // cross-origin HLS streams fail when the source omits ACAO headers.
+      // If Web Audio has already claimed this element, a non-CORS native URL
+      // cannot safely reuse it: block the switch rather than silently muting.
+      if (!canKeepSpatialAudioForSource(mediaUrl, null)) { video.pause(); return; }
       video.removeAttribute('crossorigin');
       setAvailableQualityHeights([]);
       setQualityControlMode('native');
@@ -1784,6 +1842,9 @@ export function PlayerShell({
       // 播放页可能仍持有读取接口：销毁前显式置空，避免「记录当前」读到已销毁实例
       propsRef.current.onPlayerApi?.(null);
       art.destroy();
+      const spatialEngine = spatialAudioEngineRef.current;
+      spatialAudioEngineRef.current = null;
+      if (spatialEngine) void spatialEngine.destroyAfterMediaElementRemoval();
       artRef.current = null;
       window.dispatchEvent(new CustomEvent('friday-player-state', { detail: { active: false } }));
     };
@@ -1846,6 +1907,39 @@ export function PlayerShell({
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" style={{ WebkitTouchCallout: 'none' }} />
       <div className="player-quality-controls absolute right-3 top-3 z-20 flex flex-col items-end gap-2">
+        <button
+          type="button"
+          className="player-quality-badge"
+          aria-expanded={spatialAudioPanelOpen}
+          aria-label="空间音频设置"
+          onClick={() => setSpatialAudioPanelOpen((open) => !open)}
+        >
+          空间音频 · {spatialAudioMode === 'off' ? '关闭' : spatialAudioMode === 'headphone-stereo' ? '耳机空间化' : '环绕模式'}
+        </button>
+        {spatialAudioPanelOpen && (
+          <div className="w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-white/15 bg-black/90 p-3 text-white shadow-2xl backdrop-blur-xl">
+            <div className="mb-2 text-sm font-semibold">空间音频</div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {([
+                ['off', '关闭'],
+                ['headphone-stereo', '立体声'],
+                ['headphone-surround', '环绕'],
+              ] as const).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  aria-pressed={spatialAudioMode === mode}
+                  className={`rounded-lg px-2 py-2 text-xs transition ${spatialAudioMode === mode ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                  onClick={() => { void setSpatialAudio(mode); }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-[11px] leading-relaxed text-white/60">{spatialAudioMessage}</p>
+            <p className="mt-1 text-[10px] text-white/45">仅在音轨明确声明声道数且 CORS 安全时启用；不代表 Atmos 对象解码。</p>
+          </div>
+        )}
         <button
           type="button"
           className="player-quality-badge"
