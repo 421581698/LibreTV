@@ -1424,7 +1424,7 @@ export function PlayerShell({
       },
     });
     artRef.current = art;
-    const cleanupCinemaControlBridge = installArtPlayerControlBridge(art, () => cinemaObserverRef.current);
+    const cleanupCinemaControlBridge = installArtPlayerControlBridge(art.video as HTMLVideoElement, () => cinemaObserverRef.current);
     // Native media events are the source of truth. Bridge them into ArtPlayer's
     // public play/pause event bus so its center and bottom controls stay in sync,
     // including pauses initiated by iOS media controls or external callers.
