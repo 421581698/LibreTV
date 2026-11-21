@@ -283,3 +283,18 @@ Verification entry points:
 - `npm run quality:verify`: existing lint, TypeScript, and full Vitest suite; the new core tests are included by the current Vitest configuration.
 
 Phase 1 implementation includes a durable single-writer JSONL event adapter for Node runners, deterministic baseline planning, provider-neutral agent contracts, guarded planning orchestration, evidence-backed reports, and strict quality gates. It does not claim distributed persistence, a connected LLM provider, autonomous live-site discovery, automatic product-code self-healing, remote browser fleet execution, or completed physical-device acceptance. Those remain explicit later milestones.
+
+## 14. PR Preview runtime configuration and API smoke
+
+The Netlify deploy-preview context must be configured separately from production. The public homepage can return HTTP 200 while protected data APIs remain unavailable; a successful deploy alone is not a functional Preview pass.
+
+For this repository's intentionally public, synthetic-data PR previews, set the Netlify site environment variable `AUTH_DISABLED=true` with context `deploy-preview` only. Do not apply this setting to `production` or `all` contexts. This context applies to every PR Deploy Preview on the Netlify site, so never place production credentials or real user data in those previews. The Collector's private-feature guard remains separately enforced and is not bypassed by this setting.
+
+After changing Preview runtime configuration, trigger a new Deploy Preview build; existing deploys do not retroactively receive changed runtime variables. Verify at minimum:
+- `GET /` and `GET /api/status` return successful responses;
+- `GET /api/douban?type=movie&tag=热门&pageStart=0&pageSize=10` returns a valid `items` array or a clearly classified upstream-provider failure;
+- `GET /api/hot-list?id=douban_movie_weekly` returns a valid `items` array or a clearly classified upstream-provider failure;
+- a `503` from `guardRequest` must be distinguished from an upstream `502`, a Worker/runtime failure, and a rate-limit response;
+- save request IDs, response status, response body classification, and deploy commit SHA as evidence.
+
+A Preview with API guard failures or repeated upstream failures is not functionally accepted, even if Netlify reports the deployment as `ready`. The mobile Lighthouse score is advisory and is not a substitute for Playwright interaction tests or physical iPhone/iPad Safari acceptance.
