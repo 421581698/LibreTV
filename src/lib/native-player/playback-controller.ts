@@ -46,11 +46,14 @@ export class PlaybackController {
     this.loadAbort = null;
     const generation = ++this.generation;
     const identity = createPlaybackSessionIdentity(`observed-${generation}-${Date.now()}`, generation);
-    const result = this.backend.observeExistingSource(element, identity);
-    if (!result.ok) return result;
     this.identity = identity;
     this.cursor = createPlaybackEventCursor(identity);
     this.dispatch({ type: 'LOAD', source });
+    const result = this.backend.observeExistingSource(element, identity);
+    if (!result.ok) {
+      this.identity = null;
+      return result;
+    }
     return result;
   }
 
