@@ -18,7 +18,7 @@ function box(type: string, payload: Uint8Array): Uint8Array {
   return join(u32(payload.length + 8), new Uint8Array([...type].map(char => char.charCodeAt(0))), payload);
 }
 
-function makeFragment(dataOffsetOverride?: number, omitTfhdDefaults = false): Uint8Array {
+function makeFragment(dataOffsetOverride?: number, omitTfhdDefaults = false, mdatSize = 8): Uint8Array {
   const tfhd = box('tfhd', omitTfhdDefaults
     ? join(u32(0x00020000), u32(7))
     : join(u32(0x00020000 | 0x000008 | 0x000010 | 0x000020), u32(7), u32(1000), u32(4), u32(0)));
@@ -31,7 +31,7 @@ function makeFragment(dataOffsetOverride?: number, omitTfhdDefaults = false): Ui
   const makeMoof = (dataOffset: number) => box('moof', box('traf', join(tfhd, tfdt, makeTrun(dataOffset))));
   const first = makeMoof(0);
   const moof = makeMoof(dataOffsetOverride ?? first.length + 8);
-  return join(moof, box('mdat', new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])));
+  return join(moof, box('mdat', new Uint8Array(mdatSize).fill(1)));
 }
 
 function makeMultiTrafFragment(): Uint8Array {
@@ -167,7 +167,7 @@ describe('parseFmp4Fragments', () => {
 
   it('uses trex defaults when tfhd does not override sample duration, size or flags', () => {
     const initSegment = parseFmp4InitSegment(makeInitSegment());
-    const bytes = makeFragment(undefined, true);
+    const bytes = makeFragment(undefined, true, 4096);
     const [fragment] = parseFmp4Fragments(bytes, { initSegment });
     expect(fragment.tracks[0].timescale).toBe(90_000);
     expect(fragment.tracks[0].samples).toEqual([
