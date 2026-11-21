@@ -8,6 +8,7 @@ on:
       - ".github/workflows/deploy-cinema-v23-preview.yml"
       - "wrangler.cinema-v23-preview.toml"
       - "scripts/pr84-preview-player-smoke.mjs"
+      - "scripts/cinema-v23-mobile-emulation-smoke.mjs"
       - "src/**"
       - "public/**"
       - "package.json"
@@ -119,10 +120,17 @@ jobs:
           PR84_BROWSER_CHANNEL: chrome
         run: node scripts/pr84-preview-player-smoke.mjs
 
-      - name: Upload PlayerShell acceptance screenshot
+      - name: Verify iPhone/iPad viewport, rotation and split-view emulation
+        env:
+          CINEMA_PREVIEW_URL: https://libretv-cinema-v23-preview.bggdbh.workers.dev
+        run: node scripts/cinema-v23-mobile-emulation-smoke.mjs
+
+      - name: Upload PlayerShell acceptance screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: cinema-v23-preview-player-acceptance
-          path: /tmp/pr84-preview-player.png
+          path: |
+            /tmp/pr84-preview-player.png
+            /tmp/cinema-v23-*.png
           if-no-files-found: ignore
