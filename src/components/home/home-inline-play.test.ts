@@ -138,6 +138,13 @@ describe('iPhone shared navigation, routed playback and runtime cleanup', () => 
     expect(fridayFab).toContain('A tap opens the assistant from the click event');
   });
 
+  it('keeps homepage search and profile actions mounted when the header is in overlay mode', () => {
+    expect(homepageHeader).toContain('<div className="v4-header-actions">');
+    expect(homepageHeader).toContain('<SearchModule />');
+    expect(homepageHeader).toContain('<AvatarModule pathname={pathname} />');
+    expect(homepageHeader).not.toContain('{!overlay && (');
+  });
+
   it('exposes FMHY discovery and Scrapling media preview behind the authenticated API proxy', () => {
     expect(collectorSettings).toContain("{ id: 'collector', label: '资源采集中心'");
     expect(collectorSettings).toContain('ResourceCollectorPanel');
