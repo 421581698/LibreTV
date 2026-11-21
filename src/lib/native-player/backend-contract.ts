@@ -40,6 +40,9 @@ export interface PlaybackBackend {
   setVolume(volume: number): BackendCommandResult;
   setMuted(muted: boolean): BackendCommandResult;
   setPlaybackRate(rate: number): BackendCommandResult;
+  selectAudioTrack(index: number): BackendCommandResult;
+  selectTextTrack(index: number | null): BackendCommandResult;
+  selectQuality(index: number | null): BackendCommandResult;
   getCapabilities(): BackendCapabilities;
   getSnapshot(): PlaybackSnapshot;
   subscribe(listener: (event: PlaybackEventEnvelope<BackendEvent>) => void): () => void;
