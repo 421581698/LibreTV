@@ -102,6 +102,24 @@ export class NativeMediaBackend implements PlaybackBackend {
     return { ok: true };
   }
 
+  selectAudioTrack(index: number): BackendCommandResult {
+    const tracks = (this.element as (HTMLMediaElement & { audioTracks?: { length: number; [index: number]: { enabled: boolean } } }) | null)?.audioTracks;
+    if (!tracks) return { ok: false, reason: 'unsupported' };
+    if (!Number.isInteger(index) || index < 0 || index >= tracks.length) return { ok: false, reason: 'failed' };
+    for (let i = 0; i < tracks.length; i += 1) tracks[i].enabled = i === index;
+    return { ok: true };
+  }
+
+  selectTextTrack(index: number | null): BackendCommandResult {
+    const tracks = this.element?.textTracks;
+    if (!tracks) return { ok: false, reason: 'unsupported' };
+    if (index !== null && (!Number.isInteger(index) || index < 0 || index >= tracks.length)) return { ok: false, reason: 'failed' };
+    for (let i = 0; i < tracks.length; i += 1) tracks[i].mode = i === index ? 'showing' : 'disabled';
+    return { ok: true };
+  }
+
+  selectQuality(): BackendCommandResult { return { ok: false, reason: 'unsupported' }; }
+
   getCapabilities(): BackendCapabilities {
     const mse = typeof MediaSource !== 'undefined';
     return {
