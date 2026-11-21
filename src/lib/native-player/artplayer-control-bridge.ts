@@ -26,8 +26,8 @@ export function installArtPlayerControlBridge(
   player: ArtPlayerCommandSurface,
   getController: () => PlaybackCommandPort | null,
 ): () => void {
-  const originalPlay = player.play.bind(player);
-  const originalPause = player.pause.bind(player);
+  const originalPlay = player.play;
+  const originalPause = player.pause;
   const ownDescriptor = Object.getOwnPropertyDescriptor(player, 'currentTime');
   let prototype = Object.getPrototypeOf(player) as object | null;
   let inheritedDescriptor: PropertyDescriptor | undefined;
@@ -39,16 +39,16 @@ export function installArtPlayerControlBridge(
 
   player.play = async () => {
     const controller = getController();
-    if (!controller) return originalPlay();
+    if (!controller) return originalPlay.call(player);
     const result = await controller.play();
     if (succeeded(result)) return undefined;
-    return originalPlay();
+    return originalPlay.call(player);
   };
 
   player.pause = () => {
     const controller = getController();
     if (controller && succeeded(controller.pause())) return undefined;
-    return originalPause();
+    return originalPause.call(player);
   };
 
   let timeBridgeInstalled = false;
