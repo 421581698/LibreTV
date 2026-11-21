@@ -1254,6 +1254,8 @@ export function PlayerShell({
       fatal: data.fatal,
       errorType: data.type,
       details: data.details,
+      reason: data.reason,
+      errorMessage: data.error?.message,
     }));
 
     hls.on(Hls.Events.ERROR, (_evt, data) => {
