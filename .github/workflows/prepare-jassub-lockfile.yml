@@ -6,14 +6,12 @@ on:
       - feature/cinema-engine-v2-3-integration
     paths:
       - package.json
-      - .github/workflows/prepare-jassub-lockfile.yml
 
 permissions:
   contents: write
 
 jobs:
   update-lockfile:
-    if: contains(github.event.head_commit.message, 'deps(subtitles): add JASSUB 2.5.38 runtime')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
