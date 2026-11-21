@@ -53,7 +53,7 @@ describe('createAssSubtitleRenderer', () => {
   });
 
   it('destroys the worker renderer when initialization fails', async () => {
-    state.ready = Promise.reject(new Error('WASM init failed'));
+    state.ready = Promise.resolve().then(() => { throw new Error('WASM init failed'); });
     await expect(createAssSubtitleRenderer({} as HTMLVideoElement, '[Events]')).rejects.toThrow(/WASM init failed/);
     expect(state.destroy).toHaveBeenCalledOnce();
   });
