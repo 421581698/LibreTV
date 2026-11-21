@@ -45,7 +45,8 @@ function audioCodecFromCodecs(codecs: string | undefined): string | null {
 function channelLayout(channelCount: number | null): AudioChannelLayout {
   if (channelCount === 1) return 'mono';
   if (channelCount === 2) return 'stereo';
-  if (channelCount === 6) return '5.1';
+  // CHANNELS=6 (including 6/JOC) gives a count, not a trustworthy speaker order.
+  // Keep it unknown until a source supplies an explicit, verified layout.
   return 'unknown';
 }
 
