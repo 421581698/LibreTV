@@ -6,98 +6,131 @@ export interface PlaybackCommandPort {
   seek(seconds: number): BackendCommandResult;
 }
 
-export interface ArtPlayerCommandSurface {
-  play(): unknown;
-  pause(): unknown;
-  currentTime: number;
-}
-
 function succeeded(result: BackendCommandResult | null | undefined): boolean {
   return Boolean(result?.ok);
 }
 
+function findDescriptor(target: object, property: PropertyKey): PropertyDescriptor | undefined {
+  let current: object | null = target;
+  while (current) {
+    const descriptor = Object.getOwnPropertyDescriptor(current, property);
+    if (descriptor) return descriptor;
+    current = Object.getPrototypeOf(current) as object | null;
+  }
+  return undefined;
+}
+
 /**
- * Make ArtPlayer the presentation/control-surface fallback while routing its
- * public play/pause/currentTime commands through the Cinema controller whenever
- * an observed session is active. The controller still acts on ArtPlayer's
- * existing HTMLMediaElement; it does not create or replace a media pipeline.
+ * Route ArtPlayer's underlying HTMLVideoElement commands through Cinema's
+ * controller while leaving ArtPlayer's own non-configurable public methods
+ * untouched. A re-entrancy guard lets the controller call the native media
+ * methods without routing back into itself.
  */
 export function installArtPlayerControlBridge(
-  player: ArtPlayerCommandSurface,
+  video: HTMLVideoElement,
   getController: () => PlaybackCommandPort | null,
 ): () => void {
-  const originalPlay = player.play;
-  const originalPause = player.pause;
-  const ownDescriptor = Object.getOwnPropertyDescriptor(player, 'currentTime');
-  let prototype = Object.getPrototypeOf(player) as object | null;
-  let inheritedDescriptor: PropertyDescriptor | undefined;
-  while (prototype && !inheritedDescriptor) {
-    inheritedDescriptor = Object.getOwnPropertyDescriptor(prototype, 'currentTime');
-    prototype = Object.getPrototypeOf(prototype) as object | null;
-  }
-  const originalTimeDescriptor = ownDescriptor ?? inheritedDescriptor;
+  const ownPlay = Object.getOwnPropertyDescriptor(video, 'play');
+  const ownPause = Object.getOwnPropertyDescriptor(video, 'pause');
+  const ownTime = Object.getOwnPropertyDescriptor(video, 'currentTime');
+  const timeDescriptor = findDescriptor(video, 'currentTime');
+  if (!timeDescriptor?.get || !timeDescriptor.set) return () => undefined;
 
-  player.play = async () => {
-    const controller = getController();
-    if (!controller) return originalPlay.call(player);
+  const originalPlay = video.play.bind(video);
+  const originalPause = video.pause.bind(video);
+  let controllerCommandDepth = 0;
+
+  const executeControllerAsync = async <T>(command: () => Promise<T>): Promise<T> => {
+    controllerCommandDepth += 1;
     try {
-      const result = await controller.play();
-      if (succeeded(result)) return undefined;
-    } catch {
-      // A disposed or temporarily unavailable controller must not strand the UI.
+      return await command();
+    } finally {
+      controllerCommandDepth -= 1;
     }
-    return originalPlay.call(player);
   };
 
-  player.pause = () => {
-    const controller = getController();
+  const executeControllerSync = <T>(command: () => T): T => {
+    controllerCommandDepth += 1;
     try {
-      if (controller && succeeded(controller.pause())) return undefined;
-    } catch {
-      // Fall through to ArtPlayer's established media-control path.
+      return command();
+    } finally {
+      controllerCommandDepth -= 1;
     }
-    return originalPause.call(player);
   };
 
-  let timeBridgeInstalled = false;
   try {
-    Object.defineProperty(player, 'currentTime', {
+    Object.defineProperty(video, 'play', {
       configurable: true,
-      enumerable: originalTimeDescriptor?.enumerable ?? true,
-      get: () => originalTimeDescriptor?.get
-        ? originalTimeDescriptor.get.call(player)
-        : originalTimeDescriptor?.value,
-      set: (seconds: number) => {
+      enumerable: ownPlay?.enumerable ?? false,
+      writable: true,
+      value: async () => {
+        if (controllerCommandDepth > 0) return originalPlay();
         const controller = getController();
+        if (!controller) return originalPlay();
         try {
-          if (controller && succeeded(controller.seek(seconds))) return;
+          const result = await executeControllerAsync(() => controller.play());
+          if (succeeded(result)) return;
         } catch {
-          // Use the original ArtPlayer setter when the controller cannot seek.
+          // Fall back to the browser's original media method.
         }
-        if (originalTimeDescriptor?.set) {
-          originalTimeDescriptor.set.call(player, seconds);
-        } else if (player && 'video' in player) {
-          const video = (player as ArtPlayerCommandSurface & { video?: HTMLMediaElement }).video;
-          if (video) video.currentTime = seconds;
-        }
+        return originalPlay();
       },
     });
-    timeBridgeInstalled = true;
+
+    Object.defineProperty(video, 'pause', {
+      configurable: true,
+      enumerable: ownPause?.enumerable ?? false,
+      writable: true,
+      value: () => {
+        if (controllerCommandDepth > 0) return originalPause();
+        const controller = getController();
+        try {
+          if (controller && succeeded(executeControllerSync(() => controller.pause()))) return;
+        } catch {
+          // Fall back to the browser's original media method.
+        }
+        return originalPause();
+      },
+    });
+
+    Object.defineProperty(video, 'currentTime', {
+      configurable: true,
+      enumerable: timeDescriptor.enumerable ?? false,
+      get: () => timeDescriptor.get!.call(video),
+      set: (value: number) => {
+        if (controllerCommandDepth > 0) {
+          timeDescriptor.set!.call(video, value);
+          return;
+        }
+        const seconds = Number(value);
+        const controller = getController();
+        if (controller && Number.isFinite(seconds)) {
+          try {
+            if (succeeded(executeControllerSync(() => controller.seek(seconds)))) return;
+          } catch {
+            // Fall back to the browser's original media setter.
+          }
+        }
+        timeDescriptor.set!.call(video, value);
+      },
+    });
   } catch {
-    // Some ArtPlayer builds may expose a non-configurable accessor. play/pause
-    // still use the controller; the original seek surface remains intact.
+    // Restore a partially installed bridge if a browser exposes a sealed media element.
+    if (ownPlay) Object.defineProperty(video, 'play', ownPlay);
+    else Reflect.deleteProperty(video, 'play');
+    if (ownPause) Object.defineProperty(video, 'pause', ownPause);
+    else Reflect.deleteProperty(video, 'pause');
+    if (ownTime) Object.defineProperty(video, 'currentTime', ownTime);
+    else Reflect.deleteProperty(video, 'currentTime');
+    return () => undefined;
   }
 
   return () => {
-    player.play = originalPlay;
-    player.pause = originalPause;
-    if (timeBridgeInstalled) {
-      try {
-        if (ownDescriptor) Object.defineProperty(player, 'currentTime', ownDescriptor);
-        else Reflect.deleteProperty(player, 'currentTime');
-      } catch {
-        // Player destruction follows immediately; no further commands are issued.
-      }
-    }
+    if (ownPlay) Object.defineProperty(video, 'play', ownPlay);
+    else Reflect.deleteProperty(video, 'play');
+    if (ownPause) Object.defineProperty(video, 'pause', ownPause);
+    else Reflect.deleteProperty(video, 'pause');
+    if (ownTime) Object.defineProperty(video, 'currentTime', ownTime);
+    else Reflect.deleteProperty(video, 'currentTime');
   };
 }
