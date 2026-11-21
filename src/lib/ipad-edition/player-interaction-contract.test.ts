@@ -33,6 +33,12 @@ describe('iPad Edition playback interaction contract', () => {
     expect(watch).toContain('setSwitchOpen(true);');
   });
 
+  it('previews range scrubbing and commits a single seek on pointer/key release', () => {
+    expect(watch).toContain('onChange={(event) => setSeekDraft(Number(event.target.value))}');
+    expect(watch).toContain('onPointerUp={(event) => commitSeek(Number(event.currentTarget.value))}');
+    expect(watch).toContain('onKeyUp={(event) => commitSeek(Number(event.currentTarget.value))}');
+  });
+
   it('cancels pending auto-next when the source session changes, not only when the episode index changes', () => {
     expect(watch).toContain('}, [sourceKey, vodId, directUrl, suppliedSourceUrl, currentUrl, currentIndex, cancelAutoNext]);');
     expect(watch).toContain('if (switchOpen) cancelAutoNext();');
