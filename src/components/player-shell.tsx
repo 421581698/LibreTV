@@ -1110,8 +1110,11 @@ export function PlayerShell({
       video.load();
       return;
     }
-    hls.loadSource(mediaUrl);
+    // Attach the media element before starting manifest loading. On fast mobile
+    // networks the master playlist can resolve immediately; establishing the
+    // MSE/media attachment first avoids a load-before-attach race in hls.js.
     hls.attachMedia(video);
+    hls.loadSource(mediaUrl);
     observeCinemaEngine(video, mediaUrl, 'hls');
     bindSubtitleTrackEvents(video, hls);
 
