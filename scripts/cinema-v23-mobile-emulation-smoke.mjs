@@ -89,7 +89,12 @@ try {
         viewportWidth: window.innerWidth,
         documentWidth: document.documentElement.scrollWidth,
         frameWidth: rect?.width ?? 0,
-        frameHeight: rect?.height ?? 0,\n        frameTop: rect?.top ?? 0,\n        topbarBottom: topbarRect?.bottom ?? 0,\n        closeBottom: closeRect?.bottom ?? 0,\n        dockTop: dockRect?.top ?? 0,\n        dockBottom: dockRect?.bottom ?? 0,
+        frameHeight: rect?.height ?? 0,
+        frameTop: rect?.top ?? 0,
+        topbarBottom: topbarRect?.bottom ?? 0,
+        closeBottom: closeRect?.bottom ?? 0,
+        dockTop: dockRect?.top ?? 0,
+        dockBottom: dockRect?.bottom ?? 0,
         videoRectWidth: videoRect?.width ?? 0,
         videoRectHeight: videoRect?.height ?? 0,
         videoWidth: video?.videoWidth ?? 0,
@@ -146,7 +151,7 @@ try {
 
   const previousMediaSrc = await page.evaluate((url) => {
     const video = document.querySelector('.netflix-player-frame video');
-    if (!video) throw new Error('Video missing before ASS cleanup source switch.');
+    if (!video) throw new Error('Video missing before resource source switch.');
     const previousSrc = video.currentSrc;
     const next = new URL(window.location.href);
     next.searchParams.set('url', url);
