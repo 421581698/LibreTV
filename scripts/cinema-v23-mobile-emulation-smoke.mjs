@@ -120,6 +120,7 @@ try {
     const next = new URL(window.location.href);
     next.searchParams.set('url', url);
     window.history.pushState({}, '', next.toString());
+    window.dispatchEvent(new PopStateEvent('popstate'));
   }, alternateStream);
   await page.waitForFunction(() => {
     const video = document.querySelector('.netflix-player-frame video');
