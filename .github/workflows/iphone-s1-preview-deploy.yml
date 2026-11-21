@@ -1,6 +1,9 @@
 name: iPhone S1 Isolated Preview Deploy
 
 on:
+  push:
+    branches:
+      - ops/iphone-s1-preview
   workflow_dispatch:
 
 permissions:
