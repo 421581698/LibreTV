@@ -29,6 +29,8 @@ describe('iPhone playback interaction contract', () => {
     expect(player).toContain('if (now - lastSave > 5000)');
     expect(watch).toContain('onClockUpdate={(position, duration) => setWatchClock({ position, duration })}');
     expect(watch).toContain('onTimeUpdate={handleProgress}');
+    expect(watch).toContain('onRequestSwitchSource={(reason) => {');
+    expect(watch).toContain('setSwitchOpen(true);');
   });
 
   it('uses one tested native-fullscreen fallback path for the watch-page fullscreen control', () => {
