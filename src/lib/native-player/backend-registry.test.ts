@@ -13,6 +13,12 @@ describe('playback backend selection', () => {
     selected.backend.dispose();
   });
 
+  it('prefers native HLS when the platform reports support', () => {
+    const selected = selectPlaybackBackend(hls, 'auto', { hasWindow: true, mseSupported: true, nativeHlsSupported: true });
+    expect(selected.backend).toBeInstanceOf(NativeMediaBackend);
+    selected.backend.dispose();
+  });
+
   it('selects native backend for direct files', () => {
     const selected = selectPlaybackBackend(mp4, 'auto', { hasWindow: true, mseSupported: true, nativeHlsSupported: false });
     expect(selected.backend).toBeInstanceOf(NativeMediaBackend);
