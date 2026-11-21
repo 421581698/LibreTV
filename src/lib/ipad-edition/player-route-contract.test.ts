@@ -26,7 +26,7 @@ describe('iPad Edition playback route contract', () => {
 
   it('keeps source switching and player error/close fallbacks inside iPad Edition', () => {
     expect(watch).toContain('watchPath={watchPath}');
-    expect(watch).toContain("const fallbackHref = watchPath === '/ipad-edition/watch' ? '/ipad-edition' : '/';");
+    expect(watch).toContain("const fallbackHref = '/ipad-edition';");
     expect(switchSource).toContain("watchPath = '/watch'");
     expect(switchSource).toContain("watchUrl.replace('/watch?', watchPath + '?')");
   });
