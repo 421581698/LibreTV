@@ -24,9 +24,9 @@
 
 合并并部署此分支后，可在 LibreTV「设置 → 资源站 → 资源订阅」中手动添加：
 
-`/source-catalog/verified-api-subscription.json`
+`https://<你的-LibreTV-域名>/source-catalog/verified-api-subscription.json`
 
-也可直接在部署站点打开该 JSON，再由管理员按现有资源订阅流程导入。该订阅不会被设置为全体用户的默认源；是否启用由管理员决定。
+将 `<你的-LibreTV-域名>` 替换为实际部署域名后，在「设置 → 资源站 → 资源订阅」粘贴完整 HTTPS 地址并手动同步。该订阅不会被设置为全体用户的默认源；是否启用由管理员决定。
 
 ## 4K 规则
 
