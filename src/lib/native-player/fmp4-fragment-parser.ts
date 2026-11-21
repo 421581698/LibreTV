@@ -355,6 +355,7 @@ export function parseFmp4Fragments(input: ArrayBuffer | Uint8Array, options: Par
   const topLevel = readBoxes(bytes, view, 0, bytes.length);
   const mdats = topLevel.filter(box => box.type === 'mdat').map(box => ({ start: box.payload, end: box.end }));
   const fragments: Fmp4Fragment[] = [];
+  let totalSamples = 0;
 
   for (const moof of topLevel.filter(box => box.type === 'moof')) {
     const children = readBoxes(bytes, view, moof.payload, moof.end);
