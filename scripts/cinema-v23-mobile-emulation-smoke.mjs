@@ -24,7 +24,9 @@ page.on('console', message => { if (message.type() === 'error') errors.push(mess
 
 try {
   const params = new URLSearchParams({
-    source: 'cinema-v23-mobile-emulation',
+    // Match the already verified PlayerShell fixture identity so source resolution
+    // and preview auth behavior are identical across desktop/mobile smoke runs.
+    source: 'preview-smoke',
     sourceUrl: 'https://example.com/api.php/provide/vod',
     url: stream,
     title: 'Cinema V2.3 Mobile Emulation',
@@ -35,7 +37,23 @@ try {
   });
   if (!response || response.status() !== 200) throw new Error('WatchPage did not return HTTP 200.');
 
-  await page.waitForSelector('.netflix-player-frame video', { timeout: 45_000 });
+  try {
+    await page.waitForSelector('.netflix-player-frame video', { timeout: 45_000 });
+  } catch (error) {
+    const state = await page.evaluate(() => ({
+      title: document.title,
+      bodyText: document.body.innerText.slice(0, 1200),
+      authDialog: Boolean(document.querySelector('[role="dialog"]')),
+      watchShell: Boolean(document.querySelector('.netflix-watch-shell')),
+      playerFrame: Boolean(document.querySelector('.netflix-player-frame')),
+      status: document.querySelector('main')?.innerText.slice(0, 600) ?? '',
+    }));
+    await page.screenshot({ path: '/tmp/cinema-v23-mobile-bootstrap-failure.png', fullPage: false });
+    throw new Error('Mobile PlayerShell bootstrap did not mount: ' + JSON.stringify({
+      state,
+      cause: error instanceof Error ? error.message : String(error),
+    }));
+  }
   await page.evaluate(() => {
     const video = document.querySelector('.netflix-player-frame video');
     if (!video) throw new Error('PlayerShell video missing.');
