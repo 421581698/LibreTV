@@ -102,7 +102,16 @@ export class HlsMseBackend implements PlaybackBackend {
   }
 
   getCapabilities(): BackendCapabilities {
-    return { ...this.media.getCapabilities(), kind: this.kind, nativeHls: false, mse: Hls.isSupported(), qualitySelection: Boolean(this.hls) };
+    const hls = this.hls;
+    return {
+      ...this.media.getCapabilities(),
+      kind: this.kind,
+      nativeHls: false,
+      mse: Hls.isSupported(),
+      audioTrackSelection: Boolean(hls && hls.audioTracks.length > 0),
+      textTrackSelection: Boolean(hls && hls.subtitleTracks.length > 0),
+      qualitySelection: Boolean(hls && hls.levels.length > 0),
+    };
   }
 
   getSnapshot(): PlaybackSnapshot { return this.media.getSnapshot(); }
