@@ -80,6 +80,27 @@ export class HlsMseBackend implements PlaybackBackend {
   setMuted(muted: boolean): BackendCommandResult { return this.media.setMuted(muted); }
   setPlaybackRate(rate: number): BackendCommandResult { return this.media.setPlaybackRate(rate); }
 
+  selectAudioTrack(index: number): BackendCommandResult {
+    if (!this.hls) return { ok: false, reason: 'not-ready' };
+    if (!Number.isInteger(index) || index < 0 || index >= this.hls.audioTracks.length) return { ok: false, reason: 'failed' };
+    this.hls.audioTrack = index;
+    return { ok: true };
+  }
+
+  selectTextTrack(index: number | null): BackendCommandResult {
+    if (!this.hls) return { ok: false, reason: 'not-ready' };
+    if (index !== null && (!Number.isInteger(index) || index < 0 || index >= this.hls.subtitleTracks.length)) return { ok: false, reason: 'failed' };
+    this.hls.subtitleTrack = index ?? -1;
+    return { ok: true };
+  }
+
+  selectQuality(index: number | null): BackendCommandResult {
+    if (!this.hls) return { ok: false, reason: 'not-ready' };
+    if (index !== null && (!Number.isInteger(index) || index < 0 || index >= this.hls.levels.length)) return { ok: false, reason: 'failed' };
+    this.hls.currentLevel = index ?? -1;
+    return { ok: true };
+  }
+
   getCapabilities(): BackendCapabilities {
     return { ...this.media.getCapabilities(), kind: this.kind, nativeHls: false, mse: Hls.isSupported(), qualitySelection: Boolean(this.hls) };
   }
