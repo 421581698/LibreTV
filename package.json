@@ -11,7 +11,10 @@
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "syncDoubanPosters": "node scripts/sync-douban-posters.mjs"
+    "syncDoubanPosters": "node scripts/sync-douban-posters.mjs",
+    "prepare:jassub-assets": "node scripts/prepare-jassub-assets.mjs",
+    "predev": "npm run prepare:jassub-assets",
+    "prebuild": "npm run prepare:jassub-assets"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "1.0.0",
