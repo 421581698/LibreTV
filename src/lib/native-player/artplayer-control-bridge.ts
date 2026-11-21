@@ -40,14 +40,22 @@ export function installArtPlayerControlBridge(
   player.play = async () => {
     const controller = getController();
     if (!controller) return originalPlay.call(player);
-    const result = await controller.play();
-    if (succeeded(result)) return undefined;
+    try {
+      const result = await controller.play();
+      if (succeeded(result)) return undefined;
+    } catch {
+      // A disposed or temporarily unavailable controller must not strand the UI.
+    }
     return originalPlay.call(player);
   };
 
   player.pause = () => {
     const controller = getController();
-    if (controller && succeeded(controller.pause())) return undefined;
+    try {
+      if (controller && succeeded(controller.pause())) return undefined;
+    } catch {
+      // Fall through to ArtPlayer's established media-control path.
+    }
     return originalPause.call(player);
   };
 
@@ -61,7 +69,11 @@ export function installArtPlayerControlBridge(
         : originalTimeDescriptor?.value,
       set: (seconds: number) => {
         const controller = getController();
-        if (controller && succeeded(controller.seek(seconds))) return;
+        try {
+          if (controller && succeeded(controller.seek(seconds))) return;
+        } catch {
+          // Use the original ArtPlayer setter when the controller cannot seek.
+        }
         if (originalTimeDescriptor?.set) {
           originalTimeDescriptor.set.call(player, seconds);
         } else if (player && 'video' in player) {
