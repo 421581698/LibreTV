@@ -13,6 +13,9 @@ describe('iPhone playback interaction contract', () => {
   it('tests the actual homepage inline player rather than the unused legacy HomeInlinePlayer', () => {
     expect(home).toContain("import { RegistryInlinePlayer } from '@/components/home/RegistryInlinePlayer';");
     expect(home).toContain('<RegistryInlinePlayer resource={registryPlayItem}');
+    expect(registry).toContain('const isPlayable = Boolean(');
+    expect(registry).toContain('if (!resource || !isPlayable) return;');
+    expect(registry).toContain('if (!resource || !isPlayable) return null;');
     expect(registry).toContain('role="dialog"');
     expect(registry).toContain('onCloseRef.current()');
     expect(registry).toContain("if (event.key === 'Escape')");
