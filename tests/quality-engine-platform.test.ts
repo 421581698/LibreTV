@@ -6,6 +6,7 @@ import { JsonlEventStore } from "../quality-engine/core/jsonl-event-store";
 import { createBaselineTestPlan, validateTestPlan } from "../quality-engine/core/test-planner";
 import { buildQualityReport } from "../quality-engine/core/quality-report";
 import type { TestEvent, TestRun } from "../quality-engine/core/types";
+import type { ChangeImpact } from "../quality-engine/core/change-impact";
 
 const temporaryDirectories: string[] = [];
 afterEach(async () => {
@@ -46,8 +47,8 @@ describe("Durable JSONL event store", () => {
 });
 
 describe("Baseline test planner", () => {
-  const impact = {
-    areas: ["player", "media"] as const,
+  const impact: ChangeImpact = {
+    areas: ["player", "media"],
     requiresBrowser: true,
     requiresMedia: true,
     requiresPhysicalIPhone: true,
