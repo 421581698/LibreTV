@@ -20,7 +20,6 @@ import { SwitchSourceModal } from '@/components/switch-source';
 import { SkipMarkPanel } from '@/components/skip-mark-panel';
 import { skipMarkKey, validateSegment, type SkipSegment } from '@/lib/skip-marks';
 import type { PlayerSkipApi } from '@/components/player-shell';
-import { requestNativeFullscreenWithFallback, type NativeFullscreenVideo } from '@/lib/player-fullscreen';
 import { useToast } from '@/components/toast';
 import { enqueueDownload } from '@/components/download-manager';
 import { suggestDownloadFilename } from '@/lib/download-saver';
@@ -63,8 +62,6 @@ function formatWatchTime(seconds: number) {
 }
 
 function WatchContent() {
-  const watchPath = '/watch' as const;
-  const fallbackHref = '/';
   const searchParams = useSearchParams();
   const router = useRouter();
   const store = useAppStore();
@@ -84,20 +81,13 @@ function WatchContent() {
   const [showPlayerPanel, setShowPlayerPanel] = useState(false);
   const [showAutoNext, setShowAutoNext] = useState(false);
   const [switchOpen, setSwitchOpen] = useState(false);
-  const closeSwitchModal = useCallback(() => setSwitchOpen(false), []);
   const [skipPanelOpen, setSkipPanelOpen] = useState(false);
   const playerApiRef = useRef<PlayerSkipApi | null>(null);
-  const nativeFullscreenCleanupRef = useRef<(() => void) | null>(null);
   const playerFrameRef = useRef<HTMLDivElement | null>(null);
   const watchShellRef = useRef<HTMLDivElement | null>(null);
   const controlsHideTimerRef = useRef<number | null>(null);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [sheetMaxHeight] = useState<number | undefined>(undefined);
-
-  useEffect(() => () => {
-    nativeFullscreenCleanupRef.current?.();
-    nativeFullscreenCleanupRef.current = null;
-  }, []);
 
   // 优先使用本次播放 URL 传入的数据源地址，普通源仍以本机配置为准。
   const suppliedSourceUrl = (searchParams.get('sourceUrl') || '').trim();
@@ -337,7 +327,7 @@ function WatchContent() {
       sp.set('index', String(index));
       sp.set('url', episodes[index] || directUrl);
       sp.delete('position');
-      router.replace(`${watchPath}?${sp.toString()}`, { scroll: false });
+      router.replace(`/watch?${sp.toString()}`, { scroll: false });
     },
     [router, searchParams, episodes, directUrl]
   );
@@ -417,10 +407,6 @@ function WatchContent() {
     autoNextTimer.current = null;
     setShowAutoNext(false);
   }, []);
-
-  useEffect(() => {
-    if (switchOpen) cancelAutoNext();
-  }, [switchOpen, cancelAutoNext]);
   const handleEnded = useCallback(() => {
     const progressId = vodId || currentUrl;
     if (progressId) clearProgress(sourceKey, progressId, currentIndex).catch(() => {});
@@ -445,7 +431,7 @@ function WatchContent() {
   }, [store.autoplayNext, cancelAutoNext]);
   useEffect(() => {
     cancelAutoNext();
-  }, [sourceKey, vodId, directUrl, suppliedSourceUrl, currentUrl, currentIndex, cancelAutoNext]);
+  }, [currentIndex, cancelAutoNext]);
   // 快捷键（Shift+I/O/S/E）记录片段：校验后写入
   const handleRecordSegment = useCallback(
     (segment: SkipSegment) => {
@@ -481,12 +467,7 @@ function WatchContent() {
   // Alt+←/→ 集数切换快捷键
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (!e.altKey || switchOpen || skipPanelOpen) return;
-      const target = e.target;
-      if (target instanceof HTMLElement && (
-        target.isContentEditable ||
-        target.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]')
-      )) return;
+      if (!e.altKey) return;
       if (e.key === 'ArrowLeft' && currentIndex > 0) {
         e.preventDefault();
         goEpisode(currentIndex - 1);
@@ -502,7 +483,7 @@ function WatchContent() {
     return () => {
       document.removeEventListener('keydown', handler);
     };
-  }, [currentIndex, episodes.length, goEpisode, switchOpen, skipPanelOpen]);
+  }, [currentIndex, episodes.length, goEpisode]);
   const orderedEpisodes = reversed
     ? [...episodes].map((_, i) => episodes.length - 1 - i)
     : episodes.map((_, i) => i);
@@ -523,7 +504,7 @@ function WatchContent() {
           <p className="text-sm text-muted mb-4">
             该视频来自点播源「{sourceKey}」，但它可能已被删除。请在设置中重新添加后重试。
           </p>
-          <Link href={fallbackHref} className="btn-primary">
+          <Link href="/" className="btn-primary">
             返回首页
           </Link>
         </div>
@@ -540,7 +521,7 @@ function WatchContent() {
           <p className="text-sm text-muted mb-4">
             当前视频携带的数据源地址未通过安全校验。为避免请求不安全的地址，播放页已停止加载。
           </p>
-          <Link href={fallbackHref} className="btn-primary">
+          <Link href="/" className="btn-primary">
             返回首页
           </Link>
         </div>
@@ -552,19 +533,18 @@ function WatchContent() {
       <header className="watch-topbar netflix-watch-overlay-topbar">
         <div className="watch-topbar-inner">
           <div className="watch-topbar-left">
-            <button type="button" className="cinema-glass-control cinema-close-control" aria-label="关闭播放器" onClick={() => { if (window.history.length > 1) router.back(); else router.push(fallbackHref); }}>
+            <button type="button" className="cinema-glass-control cinema-close-control" aria-label="关闭播放器" onClick={() => { if (window.history.length > 1) router.back(); else router.push('/'); }}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" /></svg>
             </button>
           </div>
           <div className="watch-topbar-right">
             <button type="button" className="cinema-glass-control" aria-label="全屏播放" title="全屏播放" onClick={() => {
               const video = playerFrameRef.current?.querySelector('video') as (HTMLVideoElement & {
+                webkitEnterFullscreen?: () => void;
                 webkitExitFullscreen?: () => void;
                 webkitDisplayingFullscreen?: boolean;
               }) | null;
               if (video?.webkitDisplayingFullscreen && video.webkitExitFullscreen) {
-                nativeFullscreenCleanupRef.current?.();
-                nativeFullscreenCleanupRef.current = null;
                 video.webkitExitFullscreen();
                 return;
               }
@@ -572,32 +552,20 @@ function WatchContent() {
                 void document.exitFullscreen().catch(() => toast('退出全屏失败，请重试', 'info'));
                 return;
               }
-              if (playerApiRef.current?.isFullscreen()) {
-                playerApiRef.current.exitFullscreen();
-                return;
+              if (typeof video?.webkitEnterFullscreen === 'function') {
+                try {
+                  video.webkitEnterFullscreen();
+                  return;
+                } catch {
+                  // Fall through to the standard element fullscreen API.
+                }
               }
               const frame = playerFrameRef.current;
-              if (!video) {
-                if (playerApiRef.current?.enterFullscreen) {
-                  playerApiRef.current.enterFullscreen();
-                } else {
-                  toast('视频尚未准备好，暂时无法进入全屏', 'info');
-                }
-                return;
+              if (frame?.requestFullscreen) {
+                void frame.requestFullscreen().catch(() => toast('当前浏览器无法进入全屏', 'info'));
+              } else {
+                toast('当前浏览器不支持全屏播放', 'info');
               }
-              nativeFullscreenCleanupRef.current?.();
-              nativeFullscreenCleanupRef.current = requestNativeFullscreenWithFallback(
-                video as NativeFullscreenVideo,
-                () => {
-                  if (playerApiRef.current?.enterFullscreen) {
-                    playerApiRef.current.enterFullscreen();
-                  } else if (frame?.requestFullscreen) {
-                    void frame.requestFullscreen().catch(() => toast('当前浏览器无法进入全屏', 'info'));
-                  } else {
-                    toast('当前浏览器不支持全屏播放', 'info');
-                  }
-                },
-              );
             }}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" /></svg>
             </button>
@@ -652,17 +620,15 @@ function WatchContent() {
                   nextUrl={currentIndex + 1 < episodes.length ? episodes[currentIndex + 1] : undefined}
                   nextEpisodeKey={currentIndex + 1 < episodes.length ? `${sourceKey}:${vodId}:${currentIndex + 1}` : undefined}
                   getRestorePosition={getRestorePosition}
-                  onClockUpdate={(position, duration) => setWatchClock({ position, duration })}
-                  onTimeUpdate={handleProgress}
+                  onTimeUpdate={(position, duration) => {
+                    setWatchClock({ position, duration });
+                    handleProgress(position, duration);
+                  }}
                   onPause={(position, duration) => {
                     setWatchClock({ position, duration });
                     handleProgress(position, duration);
                   }}
                   onEnded={handleEnded}
-                  onRequestSwitchSource={(reason) => {
-                    toast(reason, 'warning');
-                    setSwitchOpen(true);
-                  }}
                   onPlaybackConfirmed={(evidence) => {
                     let host = '';
                     try { host = new URL(currentUrl).hostname.toLowerCase(); } catch { return; }
@@ -934,8 +900,7 @@ function WatchContent() {
           currentSourceKey={sourceKey}
           currentVodId={vodId}
           currentIndex={currentIndex}
-          onClose={closeSwitchModal}
-          watchPath={watchPath}
+          onClose={() => setSwitchOpen(false)}
         />
       )}
     </div>
