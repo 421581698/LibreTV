@@ -1,6 +1,6 @@
 # Cinema Engine V2.3 — iPhone/iPad acceptance checklist
 
-Status: **Not yet device-verified.** CI and Preview checks are not substitutes for physical Safari testing.
+Status: **Not yet device-verified.** The Preview workflow includes Chromium mobile-viewport emulation for portrait, landscape, split-width resizing and JASSUB source cleanup. This is not WebKit/Safari and does not replace physical iPhone/iPad testing.
 
 Record the exact PR head SHA and Preview deployment SHA before each run. Do not test a moving branch without recording the deployed commit.
 
