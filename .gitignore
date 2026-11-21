@@ -12,3 +12,5 @@ vitest-results.json
 .zcode/
 .codebuddy/
 generated-images/
+# Generated self-hosted ASS renderer assets
+/public/jassub/

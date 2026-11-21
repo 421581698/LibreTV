@@ -9,6 +9,7 @@ on:
       - feature/auto-rank-best-vod-sources-2026-11-10
       - feature/hls-playback-regression-suite-2026-11-13
       - feature/cinema-engine-v2-3-architecture
+      - feature/cinema-engine-v2-3-integration
   pull_request:
     branches:
       - main
@@ -17,6 +18,8 @@ on:
       - feature/auto-rank-best-vod-sources-2026-11-10
       - feature/homepage-cinema-lobby-order-2026-11-11
       - feature/libretv-native-player-v1
+      - feature/cinema-engine-v2-3-architecture
+      - feature/cinema-engine-v2-3-integration
   workflow_dispatch:
 
 permissions:

@@ -53,6 +53,29 @@ export class NativeMediaBackend implements PlaybackBackend {
     bind('error', () => ({ type: 'ERROR', error: toError(element.error) }));
   }
 
+  /**
+   * Bind to an already active media element without taking source ownership.
+   * No src assignment, load() call, MediaSource, or SourceBuffer is created here.
+   */
+  observeExistingSource(element: HTMLMediaElement, identity: PlaybackSessionIdentity): BackendCommandResult {
+    if (this.disposed) return { ok: false, reason: 'failed' };
+    this.setSessionIdentity(identity);
+    this.attach(element);
+
+    // Events that fired before observation are reflected as an initial snapshot.
+    if (element.readyState >= HTMLMediaElement.HAVE_METADATA) {
+      this.emit({ type: 'METADATA', duration: element.duration });
+    }
+    if (element.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+      this.emit({ type: 'CAN_PLAY' });
+    }
+    if (element.ended) this.emit({ type: 'ENDED' });
+    else if (element.paused) this.emit({ type: 'PAUSE' });
+    else this.emit({ type: 'PLAYING' });
+    this.emit({ type: 'TIME_UPDATE', currentTime: element.currentTime, bufferedAhead: bufferedAhead(element) });
+    return { ok: true };
+  }
+
   setSessionIdentity(identity: PlaybackSessionIdentity): void {
     this.identity = identity;
     this.sequence = 0;

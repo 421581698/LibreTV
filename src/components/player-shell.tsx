@@ -6,6 +6,16 @@ import Hls, { type HlsConfig } from 'hls.js';
 import type { PlaybackSample } from '@/lib/playback-telemetry';
 import { getAdvertised4kStatus, resolveQualitySelection, type QualityPreference } from '@/lib/player-quality';
 import { getMediaPlaybackKind } from '@/lib/media-playback';
+import { NativeMediaBackend } from '@/lib/native-player/native-media-backend';
+import { PlaybackController } from '@/lib/native-player/playback-controller';
+import { installArtPlayerControlBridge } from '@/lib/native-player/artplayer-control-bridge';
+import { DEFAULT_SUBTITLE_PREFERENCES, loadSubtitlePreferences, saveSubtitlePreferences, type SubtitlePreferences } from '@/lib/native-player/subtitle-preferences';
+import { applySubtitleTrack, listSubtitleTracks, type SubtitleTrackOption } from '@/lib/native-player/subtitle-track-controller';
+import { inspectHlsAudioTrack } from '@/lib/audio-inspector';
+import { isAudioSourceUrlOriginSafe, SpatialAudioEngine, type SpatialAudioMode } from '@/lib/spatial-audio';
+import { createAssSubtitleRenderer, type AssSubtitleRenderer } from '@/lib/native-player/jassub-renderer';
+import { applyNativeSubtitleStyle, clearNativeSubtitleStyle } from '@/lib/native-player/subtitle-style';
+import { sanitizePlaybackSnapshot } from '@/lib/native-player/snapshot-sanitizer';
 import { hasSustainedPlaybackProgress } from '@/lib/playback-verification';
 
 import { PlaybackRecovery, describeHlsError } from '@/lib/playback-recovery';
@@ -209,6 +219,7 @@ export function PlayerShell({
   const artRef = useRef<any>(null);
   const nativeFullscreenCleanupRef = useRef<(() => void) | null>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const cinemaObserverRef = useRef<PlaybackController | null>(null);
   const qualityGuardRef = useRef(new AdaptiveQualityGuard());
   const qualityPreferenceHandlerRef = useRef<(() => void) | null>(null);
   const [error, setError] = useState('');
@@ -217,6 +228,18 @@ export function PlayerShell({
   const [showPoster, setShowPoster] = useState(true);
   const [qualityPreference, setQualityPreference] = useState<QualityPreference>('auto');
   const [qualityPanelOpen, setQualityPanelOpen] = useState(false);
+  const [subtitlePanelOpen, setSubtitlePanelOpen] = useState(false);
+  const [subtitleTracks, setSubtitleTracks] = useState<SubtitleTrackOption[]>([]);
+  const [subtitlePreferences, setSubtitlePreferences] = useState<SubtitlePreferences>(DEFAULT_SUBTITLE_PREFERENCES);
+  const subtitlePreferencesRef = useRef<SubtitlePreferences>(DEFAULT_SUBTITLE_PREFERENCES);
+  const subtitlePreferencesLoadedRef = useRef(false);
+  const subtitleTrackCleanupRef = useRef<(() => void) | null>(null);
+  const assSubtitleRendererRef = useRef<AssSubtitleRenderer | null>(null);
+  const [assSubtitleFileName, setAssSubtitleFileName] = useState('');
+  const spatialAudioEngineRef = useRef<SpatialAudioEngine | null>(null);
+  const [spatialAudioPanelOpen, setSpatialAudioPanelOpen] = useState(false);
+  const [spatialAudioMode, setSpatialAudioMode] = useState<SpatialAudioMode>('off');
+  const [spatialAudioMessage, setSpatialAudioMessage] = useState('空间音频默认关闭，不改变原始音轨。');
   const [availableQualityHeights, setAvailableQualityHeights] = useState<number[]>([]);
   const [availableQualityLevelCount, setAvailableQualityLevelCount] = useState(0);
   const [qualityMetadataComplete, setQualityMetadataComplete] = useState(false);
@@ -236,6 +259,21 @@ export function PlayerShell({
   useEffect(() => {
     setQualityPreference(readQualityPreference());
   }, []);
+
+  useEffect(() => {
+    subtitlePreferencesLoadedRef.current = false;
+    let preferences = DEFAULT_SUBTITLE_PREFERENCES;
+    try {
+      preferences = loadSubtitlePreferences(window.localStorage, sourceKey, episodeKey);
+    } catch {
+      // Storage access can itself throw before the helper receives it.
+    }
+    subtitlePreferencesRef.current = preferences;
+    setSubtitlePreferences(preferences);
+    subtitlePreferencesLoadedRef.current = true;
+    const video = artRef.current?.video as HTMLVideoElement | undefined;
+    if (video) refreshSubtitleTracks(video, hlsRef.current);
+  }, [sourceKey, episodeKey]);
 
   useEffect(() => {
     const handleFridayPlayerCommand = (event: Event) => {
@@ -461,6 +499,274 @@ export function PlayerShell({
     hintTimerRef.current = setTimeout(() => setHint(''), 2500);
   };
 
+  /**
+   * Cinema Engine V2.3 observes the existing ArtPlayer media element.
+   * ArtPlayer/hls.js remain the sole source and MSE owners in this integration stage.
+   */
+  const clearAssSubtitleRenderer = () => {
+    const renderer = assSubtitleRendererRef.current;
+    assSubtitleRendererRef.current = null;
+    if (renderer) void renderer.destroy().catch(() => undefined);
+    setAssSubtitleFileName('');
+  };
+
+  const loadAssSubtitleFile = async (file: File | null) => {
+    if (!file) return;
+    if (!/\.(ass|ssa)$/i.test(file.name)) {
+      showHint('请选择 .ass 或 .ssa 字幕文件');
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      showHint('字幕文件不能超过 20 MB');
+      return;
+    }
+    const video = artRef.current?.video as HTMLVideoElement | undefined;
+    if (!video) return;
+    const sourceAtStart = currentMediaUrlRef.current;
+    try {
+      const content = await file.text();
+      clearAssSubtitleRenderer();
+      applySubtitleTrack(video, hlsRef.current, null, false);
+      const renderer = await createAssSubtitleRenderer(video, content);
+      if (artRef.current?.video !== video || currentMediaUrlRef.current !== sourceAtStart) {
+        void renderer.destroy().catch(() => undefined);
+        return;
+      }
+      renderer.timeOffset = subtitlePreferencesRef.current.delayMs / 1000;
+      assSubtitleRendererRef.current = renderer;
+      const subtitleCanvas = video.parentElement?.querySelector('canvas.JASSUB') as HTMLCanvasElement | null;
+      if (subtitleCanvas) subtitleCanvas.style.zIndex = '5';
+      setAssSubtitleFileName(file.name);
+      updateSubtitlePreferences({
+        ...subtitlePreferencesRef.current,
+        enabled: true,
+        selectedTrackId: 'ass:local',
+      });
+      showHint(`ASS 字幕已加载：${file.name}`);
+    } catch (error) {
+      showHint(error instanceof Error ? error.message : 'ASS 字幕加载失败');
+    }
+  };
+
+  const updateSubtitlePreferences = (next: SubtitlePreferences) => {
+    subtitlePreferencesRef.current = next;
+    setSubtitlePreferences(next);
+    const video = artRef.current?.video as HTMLVideoElement | undefined;
+    if (video) applyNativeSubtitleStyle(video, next.fontSizePercent, next.backgroundOpacityPercent);
+    if (assSubtitleRendererRef.current) assSubtitleRendererRef.current.timeOffset = next.delayMs / 1000;
+    try {
+      saveSubtitlePreferences(window.localStorage, next, propsRef.current.sourceKey, propsRef.current.episodeKey);
+    } catch {
+      // Private browsing or storage policy may disable persistence; playback still works.
+    }
+  };
+
+  const refreshSubtitleTracks = (video: HTMLVideoElement, hls?: Hls | null) => {
+    const options = listSubtitleTracks(video, hls);
+    setSubtitleTracks(options);
+    if (!subtitlePreferencesLoadedRef.current) return;
+    const preferences = subtitlePreferencesRef.current;
+    applyNativeSubtitleStyle(video, preferences.fontSizePercent, preferences.backgroundOpacityPercent);
+    if (preferences.selectedTrackId === 'ass:local' && assSubtitleRendererRef.current) return;
+    if (!preferences.enabled) {
+      applySubtitleTrack(video, hls, null, false);
+      return;
+    }
+    let selectedId = preferences.selectedTrackId;
+    if (!selectedId || !options.some(track => track.id === selectedId)) {
+      selectedId = options.find(track => track.isDefault)?.id ?? null;
+      if (selectedId) updateSubtitlePreferences({ ...preferences, selectedTrackId: selectedId });
+    }
+    if (selectedId) applySubtitleTrack(video, hls, selectedId, true);
+    else applySubtitleTrack(video, hls, null, false);
+  };
+
+  const bindSubtitleTrackEvents = (video: HTMLVideoElement, hls?: Hls | null) => {
+    subtitleTrackCleanupRef.current?.();
+    const refresh = () => refreshSubtitleTracks(video, hls);
+    if (hls) {
+      hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, refresh);
+      // Do not refresh/apply subtitle selection from SUBTITLE_TRACK_SWITCH:
+      // assigning hls.subtitleTrack inside refresh emits SUBTITLE_TRACK_SWITCH
+      // again in hls.js, creating an unbounded re-entrant event loop.
+      const refreshSpatialAudioTrack = () => {
+        const engine = spatialAudioEngineRef.current;
+        if (!engine) return;
+        const tracks = hls.audioTracks ?? [];
+        const selectedTrack = tracks[hls.audioTrack] ?? tracks.find(track => track.default) ?? tracks[0];
+        const info = selectedTrack ? inspectHlsAudioTrack(selectedTrack) : null;
+        engine.updateInputChannels(info?.channelCount ?? 0, 'unknown');
+        if (info?.channelCount === 2) setSpatialAudioMessage('检测到双声道音轨，可启用耳机空间化。');
+        else if (info?.channelCount === 6) setSpatialAudioMessage('检测到六声道，但扬声器顺序未验证，环绕双耳渲染保持关闭。');
+        else setSpatialAudioMessage('当前音轨未声明可验证的声道数，保持原始播放。');
+      };
+      hls.on(Hls.Events.AUDIO_TRACK_SWITCHED, refreshSpatialAudioTrack);
+      subtitleTrackCleanupRef.current = () => {
+        hls.off(Hls.Events.SUBTITLE_TRACKS_UPDATED, refresh);
+        hls.off(Hls.Events.AUDIO_TRACK_SWITCHED, refreshSpatialAudioTrack);
+      };
+    } else {
+      const tracks = video.textTracks;
+      video.addEventListener('loadedmetadata', refresh);
+      video.addEventListener('durationchange', refresh);
+      tracks.addEventListener('addtrack', refresh);
+      tracks.addEventListener('removetrack', refresh);
+      subtitleTrackCleanupRef.current = () => {
+        video.removeEventListener('loadedmetadata', refresh);
+        video.removeEventListener('durationchange', refresh);
+        tracks.removeEventListener('addtrack', refresh);
+        tracks.removeEventListener('removetrack', refresh);
+      };
+    }
+    refresh();
+  };
+
+  const setSpatialAudio = async (mode: SpatialAudioMode) => {
+    const video = artRef.current?.video as HTMLVideoElement | undefined;
+    if (!video) return;
+    try {
+      let engine = spatialAudioEngineRef.current;
+      if (mode !== 'off') {
+        const hls = hlsRef.current;
+        const tracks = hls?.audioTracks ?? [];
+        const selectedTrack = tracks[hls?.audioTrack ?? -1] ?? tracks.find(track => track.default) ?? tracks[0];
+        if (!selectedTrack) {
+          engine?.updateInputChannels(0, 'unknown');
+          setSpatialAudioMessage('当前播放路径没有可读取的 HLS 声道元数据；为避免猜测声道，保持原始音轨。');
+          return;
+        }
+        const info = inspectHlsAudioTrack(selectedTrack);
+        if (info.channelCount !== 2 && info.channelCount !== 6) {
+          engine?.updateInputChannels(info.channelCount ?? 0, 'unknown');
+          setSpatialAudioMessage('当前音轨没有明确的 2 声道或 6 声道声明，空间音频不可用。');
+          return;
+        }
+        if (!engine) {
+          engine = SpatialAudioEngine.attach(video, {
+            inputChannels: info.channelCount,
+            inputLayout: 'unknown',
+          });
+          spatialAudioEngineRef.current = engine;
+        } else {
+          engine.updateInputChannels(info.channelCount, 'unknown');
+        }
+      }
+      if (!engine) {
+        setSpatialAudioMode('off');
+        return;
+      }
+      if (mode !== 'off') await engine.resumeFromUserGesture();
+      const plan = mode === 'off'
+        ? (engine.disable(), { label: '原始音轨', reason: '空间处理已关闭' })
+        : engine.setMode(mode);
+      setSpatialAudioMode(mode);
+      setSpatialAudioMessage(`${plan.label}：${plan.reason}`);
+    } catch (error) {
+      setSpatialAudioMessage(error instanceof Error ? error.message : '空间音频初始化失败，已保持原始播放。');
+      setSpatialAudioMode('off');
+    }
+  };
+
+  const canKeepSpatialAudioForSource = (mediaUrl: string, corsMode: string | null) => {
+    if (!spatialAudioEngineRef.current) return true;
+    const safe = isAudioSourceUrlOriginSafe(mediaUrl, window.location.origin, corsMode);
+    if (!safe) {
+      setError('空间音频已连接当前媒体元素；新片源不支持安全的 Web Audio CORS 路径。请刷新播放器后再切换到该片源，避免音频静音。');
+      return false;
+    }
+    return true;
+  };
+
+  const resetSpatialAudioForUninspectedSource = () => {
+    const engine = spatialAudioEngineRef.current;
+    if (engine) {
+      const plan = engine.updateInputChannels(0, 'unknown');
+      setSpatialAudioMessage(plan.reason);
+    }
+    setSpatialAudioMode('off');
+  };
+
+  const chooseSubtitleTrack = (trackId: string) => {
+    const video = artRef.current?.video as HTMLVideoElement | undefined;
+    if (!video) return;
+    if (trackId === 'ass:local') {
+      if (!assSubtitleRendererRef.current) return;
+      applySubtitleTrack(video, hlsRef.current, null, false);
+      const canvas = video.parentElement?.querySelector('canvas.JASSUB') as HTMLCanvasElement | null;
+      if (canvas) canvas.style.display = 'block';
+      updateSubtitlePreferences({ ...subtitlePreferencesRef.current, enabled: true, selectedTrackId: 'ass:local' });
+      return;
+    }
+    clearAssSubtitleRenderer();
+    const enabled = Boolean(trackId);
+    const selectedTrackId = enabled ? trackId : null;
+    const applied = applySubtitleTrack(video, hlsRef.current, selectedTrackId, enabled);
+    if (!applied && enabled) {
+      showHint('当前浏览器暂不支持所选字幕轨');
+      return;
+    }
+    updateSubtitlePreferences({
+      ...subtitlePreferencesRef.current,
+      enabled,
+      selectedTrackId,
+    });
+  };
+
+  const toggleSubtitles = (enabled: boolean) => {
+    const video = artRef.current?.video as HTMLVideoElement | undefined;
+    if (!video) return;
+    const current = subtitlePreferencesRef.current;
+    if (current.selectedTrackId === 'ass:local' && assSubtitleRendererRef.current) {
+      const canvas = video.parentElement?.querySelector('canvas.JASSUB') as HTMLCanvasElement | null;
+      if (canvas) canvas.style.display = enabled ? 'block' : 'none';
+      updateSubtitlePreferences({ ...current, enabled });
+      return;
+    }
+    const selected = current.selectedTrackId && subtitleTracks.some(track => track.id === current.selectedTrackId)
+      ? current.selectedTrackId
+      : subtitleTracks.find(track => track.isDefault)?.id ?? subtitleTracks[0]?.id ?? null;
+    const applied = applySubtitleTrack(video, hlsRef.current, selected, enabled && Boolean(selected));
+    if (enabled && selected && !applied) {
+      showHint('当前浏览器暂不支持字幕轨切换');
+      return;
+    }
+    updateSubtitlePreferences({ ...current, enabled, selectedTrackId: selected });
+  };
+
+  const observeCinemaEngine = (
+    video: HTMLVideoElement,
+    mediaUrl: string,
+    kind: 'hls' | 'mp4' | 'webm',
+  ) => {
+    cinemaObserverRef.current?.dispose();
+    const controller = new PlaybackController(new NativeMediaBackend());
+    const result = controller.observeExistingSource({
+      url: mediaUrl,
+      kind,
+      sourceId: propsRef.current.sourceKey,
+      episodeId: propsRef.current.episodeKey,
+    }, video);
+    if (!result.ok) {
+      controller.dispose();
+      cinemaObserverRef.current = null;
+      return;
+    }
+    cinemaObserverRef.current = controller;
+    controller.subscribe((snapshot) => {
+      // Never publish media URLs through the window event bus; source URLs may contain credentials.
+      const safeSnapshot = sanitizePlaybackSnapshot(snapshot);
+      window.dispatchEvent(new CustomEvent('libretv-cinema-engine-snapshot', {
+        detail: {
+          snapshot: safeSnapshot,
+          identity: controller.getIdentity(),
+          sourceId: propsRef.current.sourceKey ?? null,
+          episodeId: propsRef.current.episodeKey ?? null,
+          ownership: 'observer-only',
+        },
+      }));
+    });
+  };
+
   // 流式播放：hls.js 按播放头顺序请求分片，不因缓存开关扩大到整集级内存缓冲。
   // 30s 常规缓冲、60s 上限；网络抖动由 HLS 自身重试与 ABR 处理。
   const buildHlsConfig = (): Partial<HlsConfig> => {
@@ -583,6 +889,13 @@ export function PlayerShell({
 
   /** Native progressive media path for formats the existing HTMLVideoElement can play. */
   const setupDirectMedia = (video: HTMLVideoElement, mediaUrl: string) => {
+    clearAssSubtitleRenderer();
+    if (!canKeepSpatialAudioForSource(mediaUrl, null)) { video.pause(); return; }
+    resetSpatialAudioForUninspectedSource();
+    subtitleTrackCleanupRef.current?.();
+    subtitleTrackCleanupRef.current = null;
+    cinemaObserverRef.current?.dispose();
+    cinemaObserverRef.current = null;
     clearMetadataWatchdog();
     restoreCleanupRef.current?.();
     restoreCleanupRef.current = null;
@@ -635,6 +948,8 @@ export function PlayerShell({
     };
     video.src = mediaUrl;
     video.load();
+    observeCinemaEngine(video, mediaUrl, mediaKind);
+    bindSubtitleTrackEvents(video);
   };
 
   /**
@@ -643,6 +958,11 @@ export function PlayerShell({
    * 注意：不销毁 ArtPlayer，只销毁并重建 hls，从而保留网页全屏等播放器状态。
    */
   const setupHls = (video: HTMLVideoElement, mediaUrl: string, allowProxyFallback: boolean) => {
+    clearAssSubtitleRenderer();
+    subtitleTrackCleanupRef.current?.();
+    subtitleTrackCleanupRef.current = null;
+    cinemaObserverRef.current?.dispose();
+    cinemaObserverRef.current = null;
     qualityGuardRef.current.reset();
     clearMetadataWatchdog();
     restoreCleanupRef.current?.();
@@ -672,8 +992,10 @@ export function PlayerShell({
       hlsRef.current = null;
       armMetadataWatchdog(video, mediaUrl);
       // Safari's native HLS pipeline does not need CORS-readable media bytes.
-      // Keeping crossorigin="anonymous" here can make otherwise playable
-      // cross-origin HLS streams fail when the source omits ACAO headers.
+      // If Web Audio has already claimed this element, a non-CORS native URL
+      // cannot safely reuse it: block the switch rather than silently muting.
+      if (!canKeepSpatialAudioForSource(mediaUrl, null)) { video.pause(); return; }
+      resetSpatialAudioForUninspectedSource();
       video.removeAttribute('crossorigin');
       setAvailableQualityHeights([]);
       setQualityControlMode('native');
@@ -717,6 +1039,8 @@ export function PlayerShell({
       };
       video.src = mediaUrl;
       video.load();
+      observeCinemaEngine(video, mediaUrl, 'hls');
+      bindSubtitleTrackEvents(video);
       return;
     }
     armMetadataWatchdog(video, mediaUrl);
@@ -786,8 +1110,11 @@ export function PlayerShell({
       video.load();
       return;
     }
-    hls.loadSource(mediaUrl);
-    hls.attachMedia(video);
+    // Attach the media element before starting manifest loading. On fast mobile
+    // networks the master playlist can resolve immediately; establishing the
+    // MSE/media attachment first avoids a load-before-attach race in hls.js.
+    observeCinemaEngine(video, mediaUrl, 'hls');
+    bindSubtitleTrackEvents(video, hls);
 
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
       const qualityResult = applyHlsQualityPreference(hls!, readQualityPreference(), video);
@@ -904,6 +1231,33 @@ export function PlayerShell({
       }
     });
 
+    // Preview-only event tracing lets mobile acceptance distinguish manifest
+    // parsing, level selection and fragment loading without exposing media URLs.
+    const emitHlsDiagnostic = (type: string, detail: Record<string, unknown> = {}) => {
+      if (new URLSearchParams(window.location.search).get('cinemaDebug') !== '1') return;
+      window.dispatchEvent(new CustomEvent('libretv-cinema-hls-debug', {
+        detail: { type, ...detail },
+      }));
+    };
+    hls.on(Hls.Events.MEDIA_ATTACHED, () => emitHlsDiagnostic('media-attached'));
+    hls.on(Hls.Events.MANIFEST_LOADING, () => emitHlsDiagnostic('manifest-loading'));
+    hls.on(Hls.Events.MANIFEST_LOADED, (_event, data) => emitHlsDiagnostic('manifest-loaded', {
+      levelCount: data.levels?.length ?? 0,
+    }));
+    hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => emitHlsDiagnostic('manifest-parsed', {
+      levelCount: data.levels?.length ?? 0,
+    }));
+    hls.on(Hls.Events.LEVEL_LOADING, (_event, data) => emitHlsDiagnostic('level-loading', {
+      level: data.level,
+    }));
+    hls.on(Hls.Events.ERROR, (_evt, data) => emitHlsDiagnostic('error', {
+      fatal: data.fatal,
+      errorType: data.type,
+      details: data.details,
+      reason: data.reason,
+      errorMessage: data.error?.message,
+    }));
+
     hls.on(Hls.Events.ERROR, (_evt, data) => {
       if (!data.fatal) return;
       const recovery = recoveryRef.current;
@@ -950,6 +1304,11 @@ export function PlayerShell({
         }
       }
     });
+
+    // Register every observer before attaching media or starting network loads;
+    // fast manifests must not outrun the PlayerShell lifecycle handlers.
+    hls.attachMedia(video);
+    hls.loadSource(mediaUrl);
   };
 
   /** 换集：重置每集状态并切换到新 HLS 源（不重建 ArtPlayer）。 */
@@ -1099,6 +1458,7 @@ export function PlayerShell({
       },
     });
     artRef.current = art;
+    const cleanupCinemaControlBridge = installArtPlayerControlBridge(art.video as HTMLVideoElement, () => cinemaObserverRef.current);
     // Native media events are the source of truth. Bridge them into ArtPlayer's
     // public play/pause event bus so its center and bottom controls stay in sync,
     // including pauses initiated by iOS media controls or external callers.
@@ -1606,13 +1966,26 @@ export function PlayerShell({
         window.removeEventListener('libretv-quality-preference-change', qualityPreferenceHandlerRef.current);
         qualityPreferenceHandlerRef.current = null;
       }
+      const assRenderer = assSubtitleRendererRef.current;
+      assSubtitleRendererRef.current = null;
+      if (assRenderer) void assRenderer.destroy().catch(() => undefined);
+      const activeVideo = artRef.current?.video as HTMLVideoElement | undefined;
+      if (activeVideo) clearNativeSubtitleStyle(activeVideo);
+      subtitleTrackCleanupRef.current?.();
+      subtitleTrackCleanupRef.current = null;
       hlsRef.current?.destroy();
       hlsRef.current = null;
+      cleanupCinemaControlBridge();
+      cinemaObserverRef.current?.dispose();
+      cinemaObserverRef.current = null;
       recoveryRef.current?.dispose();
       getVideoPrefetcher().stop();
       // 播放页可能仍持有读取接口：销毁前显式置空，避免「记录当前」读到已销毁实例
       propsRef.current.onPlayerApi?.(null);
       art.destroy();
+      const spatialEngine = spatialAudioEngineRef.current;
+      spatialAudioEngineRef.current = null;
+      if (spatialEngine) void spatialEngine.destroyAfterMediaElementRemoval();
       artRef.current = null;
       window.dispatchEvent(new CustomEvent('friday-player-state', { detail: { active: false } }));
     };
@@ -1674,7 +2047,143 @@ export function PlayerShell({
   return (
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" style={{ WebkitTouchCallout: 'none' }} />
-      <div className="player-quality-controls absolute right-3 top-3 z-20 flex flex-col items-end gap-2">
+      <div className="player-quality-controls fixed right-3 top-[calc(env(safe-area-inset-top)+68px)] z-[200] flex flex-col items-end gap-2">
+        <button
+          type="button"
+          className="player-quality-badge"
+          aria-expanded={spatialAudioPanelOpen}
+          aria-label="空间音频设置"
+          onClick={() => setSpatialAudioPanelOpen((open) => !open)}
+        >
+          空间音频 · {spatialAudioMode === 'off' ? '关闭' : spatialAudioMode === 'headphone-stereo' ? '耳机空间化' : '环绕模式'}
+        </button>
+        {spatialAudioPanelOpen && (
+          <div className="w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-white/15 bg-black/90 p-3 text-white shadow-2xl backdrop-blur-xl">
+            <div className="mb-2 text-sm font-semibold">空间音频</div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {([
+                ['off', '关闭'],
+                ['headphone-stereo', '立体声'],
+                ['headphone-surround', '环绕'],
+              ] as const).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  aria-pressed={spatialAudioMode === mode}
+                  className={`rounded-lg px-2 py-2 text-xs transition ${spatialAudioMode === mode ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                  onClick={() => { void setSpatialAudio(mode); }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-[11px] leading-relaxed text-white/60">{spatialAudioMessage}</p>
+            <p className="mt-1 text-[10px] text-white/45">仅在音轨明确声明声道数且 CORS 安全时启用；不代表 Atmos 对象解码。</p>
+          </div>
+        )}
+        <button
+          type="button"
+          className="player-quality-badge"
+          aria-expanded={subtitlePanelOpen}
+          aria-label="字幕设置"
+          onClick={() => setSubtitlePanelOpen((open) => !open)}
+        >
+          字幕 · {subtitlePreferences.enabled && subtitlePreferences.selectedTrackId
+            ? subtitleTracks.find(track => track.id === subtitlePreferences.selectedTrackId)?.label ?? '已开启'
+            : '关闭'}
+        </button>
+        {subtitlePanelOpen && (
+          <div className="w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-white/15 bg-black/90 p-3 text-white shadow-2xl backdrop-blur-xl">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-sm font-semibold">字幕</span>
+              <label className="flex items-center gap-2 text-xs text-white/80">
+                <input
+                  type="checkbox"
+                  checked={subtitlePreferences.enabled && Boolean(subtitlePreferences.selectedTrackId)}
+                  onChange={(event) => toggleSubtitles(event.target.checked)}
+                />
+                启用
+              </label>
+            </div>
+            <select
+              aria-label="选择字幕轨"
+              className="w-full rounded-lg border border-white/15 bg-white/10 px-2 py-2 text-sm text-white"
+              value={subtitlePreferences.selectedTrackId ?? ''}
+              onChange={(event) => chooseSubtitleTrack(event.target.value)}
+            >
+              <option value="" className="bg-black">关闭字幕</option>
+              {subtitleTracks.map((track) => (
+                <option key={track.id} value={track.id} className="bg-black">
+                  {track.label}{track.language ? ` · ${track.language}` : ''}
+                </option>
+              ))}
+              {assSubtitleRendererRef.current && (
+                <option value="ass:local" className="bg-black">本地 ASS · {assSubtitleFileName}</option>
+              )}
+            </select>
+            <label className="mt-3 flex cursor-pointer items-center justify-center rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-xs text-white/85 hover:bg-white/15">
+              加载 ASS / SSA 文件
+              <input
+                type="file"
+                accept=".ass,.ssa,text/plain"
+                className="sr-only"
+                onChange={(event) => { void loadAssSubtitleFile(event.target.files?.[0] ?? null); event.currentTarget.value = ''; }}
+              />
+            </label>
+            {assSubtitleFileName && (
+              <p className="mt-2 truncate text-[11px] text-white/60">当前文件：{assSubtitleFileName}</p>
+            )}
+            <label className="mt-3 block text-xs text-white/75">
+              字幕字号 · {subtitlePreferences.fontSizePercent}%
+              <input
+                type="range"
+                min="60"
+                max="200"
+                step="5"
+                className="mt-1 w-full"
+                value={subtitlePreferences.fontSizePercent}
+                onChange={(event) => updateSubtitlePreferences({
+                  ...subtitlePreferencesRef.current,
+                  fontSizePercent: Number(event.target.value),
+                })}
+              />
+            </label>
+            <label className="mt-3 block text-xs text-white/75">
+              字幕背景 · {subtitlePreferences.backgroundOpacityPercent}%
+              <input
+                type="range"
+                min="0"
+                max="90"
+                step="5"
+                className="mt-1 w-full"
+                value={subtitlePreferences.backgroundOpacityPercent}
+                onChange={(event) => updateSubtitlePreferences({
+                  ...subtitlePreferencesRef.current,
+                  backgroundOpacityPercent: Number(event.target.value),
+                })}
+              />
+            </label>
+            <label className="mt-3 block text-xs text-white/75">
+              ASS 时间偏移 · {subtitlePreferences.delayMs} ms
+              <input
+                type="range"
+                min="-5000"
+                max="5000"
+                step="250"
+                className="mt-1 w-full"
+                value={subtitlePreferences.delayMs}
+                disabled={!assSubtitleRendererRef.current}
+                onChange={(event) => updateSubtitlePreferences({
+                  ...subtitlePreferencesRef.current,
+                  delayMs: Number(event.target.value),
+                })}
+              />
+            </label>
+            <p className="mt-2 text-[11px] text-white/55">
+              字幕轨选择和原生字幕样式按片源与剧集保存；本地 ASS/SSA 仅在当前会话有效，ASS 样式遵循字幕脚本。
+            </p>
+          </div>
+        )}
         <button
           type="button"
           className="player-quality-badge"

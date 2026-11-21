@@ -26,9 +26,9 @@ try {
   });
   const page = await context.newPage();
   page.setDefaultTimeout(45_000);
-  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('pageerror', (error) => errors.push({ kind: 'pageerror', message: error.message, stack: error.stack ?? '' }));
   page.on('console', (message) => {
-    if (message.type() === 'error') errors.push(message.text());
+    if (message.type() === 'error') errors.push({ kind: 'console', message: message.text(), location: message.location() });
   });
   page.on('requestfailed', (request) => {
     const url = new URL(request.url());
@@ -380,9 +380,8 @@ try {
     console.log('SKIP KKPhim PlayerShell decode: no freshly verified HLS candidate was produced by this run.');
   }
 
-  if (errors.length > 0) throw new Error('Player console errors: ' + errors.slice(0, 8).join(' | '));
-
   await page.screenshot({ path: '/tmp/pr84-preview-player.png', fullPage: false });
+  if (errors.length > 0) throw new Error('Player browser errors: ' + JSON.stringify(errors.slice(0, 12)));
   // A source reload must rebind media lifecycle listeners and restart the same overlay timer.
   await page.waitForFunction(() => {
     const video = document.querySelector('video');
