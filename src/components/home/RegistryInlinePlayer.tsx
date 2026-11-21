@@ -120,7 +120,7 @@ export function RegistryInlinePlayer({
             key={resource.id}
             url={resource.url}
             title={resource.title}
-            mediaType={mediaType}
+            mediaType={mediaType ?? undefined}
             onPlaybackConfirmed={confirmPlayback}
             adFilter={adFilter}
             autoplayNext={autoplayNext}
