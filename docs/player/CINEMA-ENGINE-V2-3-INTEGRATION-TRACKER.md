@@ -3,11 +3,11 @@
 Status: implementation in progress; no production integration is claimed.
 Branch: `feature/cinema-engine-v2-3-integration`
 Base: `feature/cinema-engine-v2-3-architecture` at `99cad81c1a3505012e53dd898de68d001ba04c81`
-CI-validated code head: `f5951fb181ca02987c143bda029c1504015cf40f`
+CI-validated code head: `c8840875cbfc7175994deb8d87cc3485ce8024a8`
 
 ## Current validation
 
-- Exact code head `f5951fb181ca02987c143bda029c1504015cf40f` passed TypeScript, ESLint, unit tests and production build in both prelaunch-checks and Resource Playback Verification. Collector verification also passed.
+- Exact code head `c8840875cbfc7175994deb8d87cc3485ce8024a8` passed TypeScript, ESLint, unit tests and production build in both prelaunch-checks (run `44897430572`) and Resource Playback Verification (run `44897430542`). Collector verification also passed.
 - The following documentation commit carries the explicit preview marker; the isolated Preview workflow will rerun its own typecheck, lint, tests, asset preparation and build before deployment.
 - PR #110 remains Draft. No merge, main update or production deploy has been performed.
 - A dedicated Cloudflare Worker preview config and gated deploy workflow are prepared. This tracker update triggers the workflow with `[cinema-v2.3-preview]`; deployment and browser smoke checks are pending.
@@ -20,7 +20,7 @@ CI-validated code head: `f5951fb181ca02987c143bda029c1504015cf40f`
 
 - ArtPlayer's play/pause/currentTime/seek command surface is bridged to the existing PlaybackController.
 - The controller uses the existing ArtPlayer video element; it does not assign a second source, call a second load path, create a second video element or create a second MSE/HLS pipeline.
-- If the controller is unavailable or a command fails, the original ArtPlayer method/setter is invoked.
+- If the controller is unavailable, throws during dispatch, or explicitly reports `unsupported` / `not-ready`, the original media method/setter is used as a compatibility fallback. A definitive controller media failure is surfaced rather than blindly replayed.
 - Source ownership remains with the existing ArtPlayer + hls.js path. Preview browser playback is still required to verify the real UI path and legacy parity.
 
 ### fMP4 and timeline
@@ -87,3 +87,12 @@ See [CINEMA-ENGINE-V2-3-DEVICE-ACCEPTANCE.md](./CINEMA-ENGINE-V2-3-DEVICE-ACCEPT
 - Commit `3b8c3a1` removes the re-entrant switch-event refresh listener while retaining subtitle-list updates and direct user selection handling.
 - Exact-head TypeScript, ESLint, unit tests and production build passed in prelaunch-checks and Resource Playback Verification; collector verification also passed.
 - The isolated Preview must now rerun on this exact fix commit. Source-switch regression, mobile viewport emulation, JASSUB rendering and spatial-audio browser behavior remain unverified until that run completes.
+
+
+## Playback bridge concurrency follow-up (2026-11-21)
+
+- Scoped the asynchronous play-command re-entrancy guard to the synchronous controller dispatch call stack. It no longer remains held while the browser's `HTMLMediaElement.play()` Promise is pending.
+- Added a regression test that starts a pending play Promise, issues pause before it settles, and verifies pause still routes through PlaybackController.
+- Exact code head `c8840875cbfc7175994deb8d87cc3485ce8024a8` passed both prelaunch-checks and Resource Playback Verification, including TypeScript, ESLint, unit tests and production build; collector verification passed as well.
+- The source lifecycle remains deliberately owned by PlayerShell + hls.js. `NativeMediaBackend.observeExistingSource()` attaches to the already active video element without assigning `src`, calling `load()`, or creating a second MSE pipeline. PlaybackController currently owns command routing and observed-session state, not HLS manifest/MSE source orchestration.
+- Isolated Preview browser regression must now run against this updated exact branch head; CI success alone does not close the browser acceptance gate.
