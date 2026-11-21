@@ -9,13 +9,14 @@ async function withPathQueue<T>(path: string, operation: () => Promise<T>): Prom
   const previous = pathQueues.get(path) ?? Promise.resolve();
   let release!: () => void;
   const current = new Promise<void>((resolve) => { release = resolve; });
-  pathQueues.set(path, previous.then(() => current));
+  const queued = previous.then(() => current);
+  pathQueues.set(path, queued);
   await previous;
   try {
     return await operation();
   } finally {
     release();
-    if (pathQueues.get(path) === current) pathQueues.delete(path);
+    if (pathQueues.get(path) === queued) pathQueues.delete(path);
   }
 }
 
