@@ -41,11 +41,13 @@ export function selectPlaybackBackend(
     return { backend: new NativeMediaBackend(), reason: 'Explicit native media preference.' };
   }
 
-  if (source.kind === 'hls' && environment.hasWindow && environment.mseSupported) {
-    return { backend: new HlsMseBackend(), reason: 'HLS source with MSE support; hls.js backend selected.' };
+  if (source.kind === 'hls' && environment.nativeHlsSupported) {
+    return { backend: new NativeMediaBackend(), reason: 'Native HLS is available; preserve the platform streaming path.' };
   }
 
-  return { backend: new NativeMediaBackend(), reason: source.kind === 'hls' && environment.nativeHlsSupported
-    ? 'Native HLS capability reported; native media backend selected.'
-    : 'Native media backend selected as the safe default.' };
+  if (source.kind === 'hls' && environment.hasWindow && environment.mseSupported) {
+    return { backend: new HlsMseBackend(), reason: 'Native HLS unavailable; hls.js/MSE selected.' };
+  }
+
+  return { backend: new NativeMediaBackend(), reason: 'Native media backend selected as the safe fallback.' };
 }
