@@ -72,3 +72,10 @@ See [CINEMA-ENGINE-V2-3-DEVICE-ACCEPTANCE.md](./CINEMA-ENGINE-V2-3-DEVICE-ACCEPT
 - CI, Preview, Chromium emulation and physical Safari acceptance are separate evidence gates.
 - Never report sample arrival as decoded/presented frames unless the browser/backend reports it.
 - No merge or production deployment without explicit authorization after all gates.
+
+## Preview diagnostic update (2026-11-21)
+
+- The first isolated Preview run decoded the 1920×1080 fMP4 fixture and passed pause/resume, custom timeline seek, and control auto-hide/reveal checks.
+- The browser smoke then failed with repeated `Maximum call stack size exceeded` errors after the source-switch exercise. The mobile viewport job was skipped as a consequence.
+- The smoke runner now captures page-error stacks and console locations, and saves its screenshot before failing so the next run produces actionable artifacts.
+- This diagnostic update does not claim the source-switch defect is fixed; rerun the isolated Preview acceptance before proceeding.
