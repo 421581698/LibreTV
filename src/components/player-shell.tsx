@@ -1893,7 +1893,8 @@ export function PlayerShell({
         window.removeEventListener('libretv-quality-preference-change', qualityPreferenceHandlerRef.current);
         qualityPreferenceHandlerRef.current = null;
       }
-      clearAssSubtitleRenderer();
+      assSubtitleRendererRef.current?.destroy();
+      assSubtitleRendererRef.current = null;
       subtitleTrackCleanupRef.current?.();
       subtitleTrackCleanupRef.current = null;
       hlsRef.current?.destroy();
