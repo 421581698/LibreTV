@@ -665,6 +665,7 @@ function IpadEditionWatchContent() {
                   nextEpisodeKey={currentIndex + 1 < episodes.length ? `${sourceKey}:${vodId}:${currentIndex + 1}` : undefined}
                   getRestorePosition={getRestorePosition}
                   onClockUpdate={(position, duration) => setWatchClock({ position, duration })}
+                  onPlaybackRateChange={setWatchRate}
                   onTimeUpdate={handleProgress}
                   onPause={(position, duration) => {
                     setWatchClock({ position, duration });
