@@ -417,6 +417,10 @@ function IpadEditionWatchContent() {
     autoNextTimer.current = null;
     setShowAutoNext(false);
   }, []);
+
+  useEffect(() => {
+    if (switchOpen) cancelAutoNext();
+  }, [switchOpen, cancelAutoNext]);
   const handleEnded = useCallback(() => {
     const progressId = vodId || currentUrl;
     if (progressId) clearProgress(sourceKey, progressId, currentIndex).catch(() => {});
