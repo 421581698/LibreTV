@@ -10,22 +10,14 @@ import {
   type HTMLAttributes,
   type ReactNode,
 } from 'react';
+import { resolveMaterial, materialToCssVars, type GlassMaterial } from '@/lib/friday-glass/tokens';
 
 type EngineProps = {
-  children: ReactNode;
-  displacementScale?: number;
-  blurAmount?: number;
-  saturation?: number;
-  aberrationIntensity?: number;
-  elasticity?: number;
-  cornerRadius?: number;
-  className?: string;
-  padding?: string;
+  variant?: string;
   overLight?: boolean;
-  mode?: 'standard' | 'polar' | 'prominent' | 'shader';
 };
 
-type SurfaceVariant = 'dock' | 'control' | 'panel';
+type SurfaceVariant = 'dock' | 'control' | 'panel' | 'card' | 'field' | 'bar';
 type SurfaceProps = HTMLAttributes<HTMLElement> & {
   as?: ElementType;
   children?: ReactNode;
@@ -40,46 +32,17 @@ type SurfaceProps = HTMLAttributes<HTMLElement> & {
 };
 type EngineComponent = ComponentType<EngineProps>;
 
-const presets: Record<SurfaceVariant, Omit<EngineProps, 'children' | 'className'>> = {
-  dock: {
-    displacementScale: 18,
-    blurAmount: 0.08,
-    saturation: 165,
-    aberrationIntensity: 0.7,
-    elasticity: 0,
-    cornerRadius: 999,
-    padding: '0',
-    mode: 'standard',
-  },
-  control: {
-    displacementScale: 12,
-    blurAmount: 0.07,
-    saturation: 150,
-    aberrationIntensity: 0.45,
-    elasticity: 0,
-    cornerRadius: 999,
-    padding: '0',
-    mode: 'standard',
-  },
-  panel: {
-    displacementScale: 14,
-    blurAmount: 0.08,
-    saturation: 145,
-    aberrationIntensity: 0.5,
-    elasticity: 0,
-    cornerRadius: 20,
-    padding: '0',
-    mode: 'standard',
-  },
-};
-
 /**
- * LibreTV Liquid Glass v1.0 surface.
+ * LibreTV Liquid Glass v2.0 surface, powered by the in-house
+ * Friday Liquid Glass Engine (CSS material + Canvas 2D optical + optional SVG
+ * refraction + adaptive runtime). Replaces the previous `liquid-glass-react`
+ * dependency without changing any call site.
  *
- * The semantic/control element remains the real outer DOM node. The upstream
- * engine is rendered as a non-interactive optical layer behind its children;
- * this avoids letting the upstream demo component's centered positioning,
- * transforms or internal wrapper replace the host component's layout.
+ * The semantic/control element stays the real outer DOM node; the engine is a
+ * non-interactive optical layer behind children and never alters host layout.
+ * The engine is loaded lazily in an effect, so SSR markup stays on the CSS
+ * fallback (`data-liquid-glass-engine="fallback"`) — preserving the existing
+ * rendering contract.
  */
 export const LiquidGlassSurface = forwardRef<HTMLElement, SurfaceProps>(function LiquidGlassSurface({
   as = 'div',
@@ -93,27 +56,26 @@ export const LiquidGlassSurface = forwardRef<HTMLElement, SurfaceProps>(function
 
   useEffect(() => {
     let mounted = true;
-    import('liquid-glass-react')
+    import('@/lib/friday-glass/engine')
       .then((module) => {
         if (mounted) setEngine(() => module.default as EngineComponent);
       })
       .catch(() => {
-        // The surface remains usable; the minimal CSS treatment is the fallback.
+        // The surface remains usable; the CSS material layer is the fallback.
       });
     return () => {
       mounted = false;
     };
   }, []);
 
-  // The upstream engine renders block-level div layers. Do not nest those
-  // inside phrasing-only hosts such as button/a/span; keep those controls on
-  // the minimal fallback until an inline-safe engine surface exists.
+  // Phrasing-only hosts keep the CSS fallback: block-level canvas layers are
+  // invalid inside button/a/span and would break those controls' layout.
   const canHostEngine = as !== 'button' && as !== 'a' && as !== 'span';
-  const opticalLayer = Engine && canHostEngine ? (
+  const material: GlassMaterial = resolveMaterial(variant);
+  const engineReady = !!Engine && canHostEngine;
+  const opticalLayer = engineReady ? (
     <div className="liquid-glass-engine-slot" aria-hidden="true">
-      <Engine className="liquid-glass-engine-root" {...presets[variant]}>
-        <span aria-hidden="true" />
-      </Engine>
+      <Engine variant={variant} />
     </div>
   ) : null;
 
@@ -124,11 +86,14 @@ export const LiquidGlassSurface = forwardRef<HTMLElement, SurfaceProps>(function
       ref,
       className: [
         'liquid-glass',
+        'friday-glass',
         interactive ? 'liquid-glass--interactive' : '',
         className,
       ].filter(Boolean).join(' '),
+      style: { ...materialToCssVars(material), ...(props.style || {}) },
       'data-liquid-glass': 'true',
-      'data-liquid-glass-engine': Engine && canHostEngine ? 'ready' : 'fallback',
+      'data-liquid-glass-engine': engineReady ? 'friday-engine' : 'fallback',
+      'data-friday-glass': material.optical > 0 ? 'optical' : 'static',
     },
     opticalLayer,
     children,
