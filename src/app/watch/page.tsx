@@ -45,10 +45,10 @@ import type { VideoEpisode } from '@/lib/types';
  * Friday CMS 特殊处理：
  * 优先使用搜索结果传递的 sourceUrl，避免本地旧配置覆盖本次搜索地址。
  */
-export default function WatchPage() {
+export default function WatchPage({ watchPath = '/watch' }: { watchPath?: '/watch' | '/ipad-edition/watch' }) {
   return (
     <Suspense>
-      <WatchContent />
+      <WatchContent watchPath={watchPath} />
     </Suspense>
   );
 }
@@ -61,12 +61,13 @@ function formatWatchTime(seconds: number) {
   return hours > 0 ? `${hours}:${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}` : `${minutes}:${String(remainder).padStart(2, '0')}`;
 }
 
-function WatchContent() {
+function WatchContent({ watchPath }: { watchPath: '/watch' | '/ipad-edition/watch' }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const store = useAppStore();
   const { verified } = useAuth();
   const { toast } = useToast();
+  const fallbackHref = watchPath === '/ipad-edition/watch' ? '/ipad-edition' : '/';
   const sourceKey = searchParams.get('source') || '';
   const vodId = searchParams.get('id') || '';
   const directUrl = searchParams.get('url') || '';
@@ -327,7 +328,7 @@ function WatchContent() {
       sp.set('index', String(index));
       sp.set('url', episodes[index] || directUrl);
       sp.delete('position');
-      router.replace(`/watch?${sp.toString()}`, { scroll: false });
+      router.replace(`${watchPath}?${sp.toString()}`, { scroll: false });
     },
     [router, searchParams, episodes, directUrl]
   );
@@ -504,7 +505,7 @@ function WatchContent() {
           <p className="text-sm text-muted mb-4">
             该视频来自点播源「{sourceKey}」，但它可能已被删除。请在设置中重新添加后重试。
           </p>
-          <Link href="/" className="btn-primary">
+          <Link href={fallbackHref} className="btn-primary">
             返回首页
           </Link>
         </div>
@@ -533,7 +534,7 @@ function WatchContent() {
       <header className="watch-topbar netflix-watch-overlay-topbar">
         <div className="watch-topbar-inner">
           <div className="watch-topbar-left">
-            <button type="button" className="cinema-glass-control cinema-close-control" aria-label="关闭播放器" onClick={() => { if (window.history.length > 1) router.back(); else router.push('/'); }}>
+            <button type="button" className="cinema-glass-control cinema-close-control" aria-label="关闭播放器" onClick={() => { if (window.history.length > 1) router.back(); else router.push(fallbackHref); }}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" /></svg>
             </button>
           </div>
@@ -901,6 +902,7 @@ function WatchContent() {
           currentVodId={vodId}
           currentIndex={currentIndex}
           onClose={() => setSwitchOpen(false)}
+          watchPath={watchPath}
         />
       )}
     </div>
