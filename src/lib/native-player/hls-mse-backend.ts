@@ -5,6 +5,20 @@ import type { PlaybackEventEnvelope, PlaybackSessionIdentity } from './session-i
 import type { PlaybackSnapshot, PlaybackSource } from './types';
 
 /**
+ * Guards callbacks against a destroyed HLS instance or superseded source.
+ * Exported as a pure predicate so generation isolation can be regression-tested.
+ */
+export function isCurrentHlsCallback(
+  activeInstance: Hls | null,
+  callbackInstance: Hls,
+  activeIdentity: PlaybackSessionIdentity | null,
+  callbackIdentity: PlaybackSessionIdentity,
+  disposed: boolean,
+): boolean {
+  return !disposed && activeInstance === callbackInstance && activeIdentity === callbackIdentity;
+}
+
+/**
  * MSE/HLS adapter. hls.js owns manifest/fragment loading; the native adapter
  * owns normalized HTMLMediaElement events and controls.
  */
@@ -58,7 +72,7 @@ export class HlsMseBackend implements PlaybackBackend {
       // A destroyed HLS instance may still have a queued callback. Bind the
       // callback to the identity and instance that created it; never label it
       // with a later source generation.
-      if (!data.fatal || this.disposed || this.hls !== hls || this.identity !== identity) return;
+      if (!data.fatal || !isCurrentHlsCallback(this.hls, hls, this.identity, identity, this.disposed)) return;
       this.sequence += 1;
       this.listeners.forEach(listener => listener({
         identity,
