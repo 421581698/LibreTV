@@ -15,6 +15,7 @@ import { inspectHlsAudioTrack } from '@/lib/audio-inspector';
 import { isAudioSourceUrlOriginSafe, SpatialAudioEngine, type SpatialAudioMode } from '@/lib/spatial-audio';
 import { createAssSubtitleRenderer, type AssSubtitleRenderer } from '@/lib/native-player/jassub-renderer';
 import { applyNativeSubtitleStyle, clearNativeSubtitleStyle } from '@/lib/native-player/subtitle-style';
+import { sanitizePlaybackSnapshot } from '@/lib/native-player/snapshot-sanitizer';
 import { hasSustainedPlaybackProgress } from '@/lib/playback-verification';
 
 import { PlaybackRecovery, describeHlsError } from '@/lib/playback-recovery';
@@ -752,14 +753,10 @@ export function PlayerShell({
     cinemaObserverRef.current = controller;
     controller.subscribe((snapshot) => {
       // Never publish media URLs through the window event bus; source URLs may contain credentials.
-      const { source: _source, error: _error, ...safeSnapshot } = snapshot;
+      const safeSnapshot = sanitizePlaybackSnapshot(snapshot);
       window.dispatchEvent(new CustomEvent('libretv-cinema-engine-snapshot', {
         detail: {
-          snapshot: {
-            ...safeSnapshot,
-            // Error messages/causes may contain source URLs or upstream response details.
-            error: _error ? { code: _error.code, recoverable: _error.recoverable } : null,
-          },
+          snapshot: safeSnapshot,
           identity: controller.getIdentity(),
           sourceId: propsRef.current.sourceKey ?? null,
           episodeId: propsRef.current.episodeKey ?? null,
