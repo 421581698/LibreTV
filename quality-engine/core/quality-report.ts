@@ -36,14 +36,19 @@ export interface QualityReport {
   defects: DefectRecord[];
   devices: DeviceAcceptance[];
   releaseEligible: boolean;
+  blockingDefects: string[];
 }
 
 export function buildQualityReport(input: QualityReportInput): QualityReport {
   if (input.plan.id !== input.run.planId) throw new Error("Report plan and run do not match.");
   if (input.plan.commitSha !== input.run.commitSha) throw new Error("Report plan and run commit SHA do not match.");
   const evidenceIds = new Set(input.evidence.map((item) => item.id));
+  const evidenceById = new Map(input.evidence.map((item) => [item.id, item]));
   const missingEvidenceReferences = input.checks.flatMap((check) =>
-    (check.evidenceIds ?? []).filter((id) => !evidenceIds.has(id)).map((id) => `${check.id} -> ${id}`),
+    (check.evidenceIds ?? []).filter((id) => {
+      const evidence = evidenceById.get(id);
+      return !evidence || evidence.runId !== input.run.id;
+    }).map((id) => `${check.id} -> ${id}`),
   );
   const gate = evaluateQualityGate(input.checks);
   if (missingEvidenceReferences.length) {
@@ -59,6 +64,7 @@ export function buildQualityReport(input: QualityReportInput): QualityReport {
     return !device || device.outcome !== "passed" || device.evidenceIds.length === 0 ||
       device.evidenceIds.some((id) => !evidenceIds.has(id));
   });
+  const blockingDefects = input.defects.filter((defect) => defect.severity === "blocker" || defect.severity === "critical").map((defect) => defect.id);
   return {
     schemaVersion: 1,
     generatedAt: input.generatedAt ?? new Date().toISOString(),
@@ -73,6 +79,7 @@ export function buildQualityReport(input: QualityReportInput): QualityReport {
     evidence: input.evidence.map((item) => ({ ...item })),
     defects: input.defects.map((item) => ({ ...item, evidenceIds: [...item.evidenceIds], regressionCaseIds: [...item.regressionCaseIds] })),
     devices,
-    releaseEligible: gate.eligible && input.run.status === "passed" && !requiredDeviceBlocked,
+    blockingDefects,
+    releaseEligible: gate.eligible && input.run.status === "passed" && !requiredDeviceBlocked && blockingDefects.length === 0,
   };
 }
