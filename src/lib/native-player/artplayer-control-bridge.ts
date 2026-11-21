@@ -82,7 +82,7 @@ export function installArtPlayerControlBridge(
     if (timeBridgeInstalled) {
       try {
         if (ownDescriptor) Object.defineProperty(player, 'currentTime', ownDescriptor);
-        else delete (player as ArtPlayerCommandSurface & { currentTime: number }).currentTime;
+        else Reflect.deleteProperty(player, 'currentTime');
       } catch {
         // Player destruction follows immediately; no further commands are issued.
       }
