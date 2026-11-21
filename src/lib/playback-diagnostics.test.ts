@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { getBufferedAheadSeconds, readPlaybackQualityCounters } from './playback-diagnostics';
+import { getBufferedAheadSeconds, getFragmentQualityEvidence, readPlaybackQualityCounters } from './playback-diagnostics';
 
 function ranges(items: Array<[number, number]>) {
   return {
@@ -14,6 +14,25 @@ function ranges(items: Array<[number, number]>) {
     },
   };
 }
+
+describe('fragment quality evidence', () => {
+  it('uses byte and timing statistics from the same fragment', () => {
+    expect(getFragmentQualityEvidence({ loaded: 1_000_000, loading: { start: 100, end: 1_100 } }, 4))
+      .toEqual({ throughputKbps: 8_000, mediaBitrateKbps: 2_000 });
+  });
+
+  it('falls back to total bytes when loaded bytes are unavailable', () => {
+    expect(getFragmentQualityEvidence({ total: 500_000, loading: { start: 0, end: 500 } }, 2))
+      .toEqual({ throughputKbps: 8_000, mediaBitrateKbps: 2_000 });
+  });
+
+  it('rejects incomplete, zero-duration, and invalid fragment statistics', () => {
+    expect(getFragmentQualityEvidence(undefined, 4)).toBeUndefined();
+    expect(getFragmentQualityEvidence({ loaded: 100, loading: { start: 2, end: 2 } }, 4)).toBeUndefined();
+    expect(getFragmentQualityEvidence({ loaded: 100, loading: { start: 0, end: 10 } }, 0)).toBeUndefined();
+    expect(getFragmentQualityEvidence({ loaded: Number.NaN, total: -1, loading: { start: 0, end: 10 } }, 4)).toBeUndefined();
+  });
+});
 
 describe('playback diagnostics', () => {
   it('measures the buffered range containing the playhead', () => {
