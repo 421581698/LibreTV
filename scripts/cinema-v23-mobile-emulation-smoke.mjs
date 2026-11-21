@@ -8,6 +8,7 @@ import { resolve } from 'node:path';
 
 const base = process.env.CINEMA_PREVIEW_URL || 'https://libretv-cinema-v23-preview.bggdbh.workers.dev';
 const stream = 'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8';
+const alternateStream = 'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/v9/prog_index.m3u8';
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({
   viewport: { width: 390, height: 844 },
@@ -19,6 +20,7 @@ const page = await context.newPage();
 page.setDefaultTimeout(15_000);
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
+page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
 
 try {
   const params = new URLSearchParams({
@@ -107,8 +109,21 @@ try {
     console.log('PASS ' + profile.name + ': ' + JSON.stringify(layout));
   }
 
+  await page.evaluate((url) => {
+    const video = document.querySelector('.netflix-player-frame video');
+    if (!video) throw new Error('Video missing before ASS cleanup source switch.');
+    const next = new URL(window.location.href);
+    next.searchParams.set('url', url);
+    window.history.pushState({}, '', next.toString());
+  }, alternateStream);
+  await page.waitForFunction(() => {
+    const video = document.querySelector('.netflix-player-frame video');
+    return Boolean(video && video.readyState >= 2 && video.currentTime >= 1.5 && video.videoWidth > 0);
+  }, null, { timeout: 60_000 });
+  await page.waitForFunction(() => !document.querySelector('canvas.JASSUB'), null, { timeout: 10_000 });
+
   if (errors.length) throw new Error('Mobile emulation page errors: ' + errors.slice(0, 8).join(' | '));
-  console.log('PASS Chromium responsive/rotation/split-width emulation. Physical Safari testing remains required.');
+  console.log('PASS Chromium responsive/rotation/split-width emulation and JASSUB source-switch cleanup. Physical Safari testing remains required.');
 } finally {
   await browser.close();
 }
