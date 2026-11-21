@@ -34,6 +34,20 @@ function makeFragment(dataOffsetOverride?: number, omitTfhdDefaults = false): Ui
   return join(moof, box('mdat', new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])));
 }
 
+function makeMultiTrafFragment(): Uint8Array {
+  const makeTraf = (trackId: number, dataOffset: number) => {
+    const tfhd = box('tfhd', join(u32(0x000008 | 0x000010 | 0x000020), u32(trackId), u32(1000), u32(4), u32(0)));
+    const tfdt = box('tfdt', join(u32(0), u32(trackId * 1000)));
+    const trun = box('trun', join(u32(0x000001), u32(1), i32(dataOffset)));
+    return box('traf', join(tfhd, tfdt, trun));
+  };
+  const makeMoof = (firstOffset: number, secondOffset: number) =>
+    box('moof', join(makeTraf(7, firstOffset), makeTraf(8, secondOffset)));
+  const first = makeMoof(0, 0);
+  const moof = makeMoof(first.length + 8, 0);
+  return join(moof, box('mdat', new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])));
+}
+
 function makeInitSegment(): Uint8Array {
   const tkhd = box('tkhd', join(u32(0), u32(0), u32(0), u32(7), u32(0)));
   const mdhd = box('mdhd', join(u32(0), u32(0), u32(0), u32(90_000), u32(0)));
@@ -122,6 +136,18 @@ describe('parseFmp4Fragments', () => {
       expect.objectContaining({ duration: 3000, size: 2048, flags: 0x00010000 }),
       expect.objectContaining({ duration: 3000, size: 2048, flags: 0x00010000 }),
     ]);
+  });
+
+  it('resolves implicit data base offsets across multiple traf boxes, including track filtering', () => {
+    const bytes = makeMultiTrafFragment();
+    const [fragment] = parseFmp4Fragments(bytes);
+    expect(fragment.tracks.map(track => track.trackId)).toEqual([7, 8]);
+    expect(fragment.tracks[0].samples[0].dataOffset).toBe(fragment.moofSize + 8);
+    expect(fragment.tracks[1].samples[0].dataOffset).toBe(fragment.moofSize + 12);
+
+    const filtered = parseFmp4Fragments(bytes, { trackId: 8 });
+    expect(filtered[0].tracks).toHaveLength(1);
+    expect(filtered[0].tracks[0].samples[0].dataOffset).toBe(fragment.moofSize + 12);
   });
 
   it('rejects truncated and invalid box lengths', () => {
