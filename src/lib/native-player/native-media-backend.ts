@@ -53,10 +53,14 @@ export class NativeMediaBackend implements PlaybackBackend {
     bind('error', () => ({ type: 'ERROR', error: toError(element.error) }));
   }
 
-  async load(source: PlaybackSource, identity: PlaybackSessionIdentity): Promise<BackendCommandResult> {
-    const element = this.requireElement();
+  setSessionIdentity(identity: PlaybackSessionIdentity): void {
     this.identity = identity;
     this.sequence = 0;
+  }
+
+  async load(source: PlaybackSource, identity: PlaybackSessionIdentity): Promise<BackendCommandResult> {
+    const element = this.requireElement();
+    this.setSessionIdentity(identity);
     element.src = source.url;
     element.load();
     return { ok: true };
