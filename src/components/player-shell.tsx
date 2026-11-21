@@ -1335,9 +1335,11 @@ export function PlayerShell({
 
     // —— 键盘快捷键（旧版 hotkey:false + 自定义逻辑的移植） ——
     const shortcuts = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      // 输入框或按钮获得焦点时不劫持按键：否则空格会吞掉按钮的默认激活
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.closest('button')) return;
+      const target = e.target;
+      // 表单控件、链接和弹窗持有焦点时不劫持方向键/空格，避免破坏选择与弹窗操作。
+      if (target instanceof Element && target.closest(
+        'input, textarea, select, button, a[href], [contenteditable="true"], [role="dialog"], [role="listbox"], [role="menu"], [role="slider"]',
+      )) return;
       const current = artRef.current;
       if (!current) return;
       if (e.altKey && e.key === 'ArrowLeft') { e.preventDefault(); return; } // 由父层处理集数切换
@@ -1358,9 +1360,28 @@ export function PlayerShell({
         case ' ':
           current.toggle(); showHint('播放/暂停'); e.preventDefault();
           break;
-        case 'f': case 'F':
-          current.fullscreen = !current.fullscreen; e.preventDefault();
+        case 'f': case 'F': {
+          const nativeVideo = current.video as NativeFullscreenVideo & { webkitExitFullscreen?: () => void };
+          if (nativeVideo.webkitDisplayingFullscreen && nativeVideo.webkitExitFullscreen) {
+            nativeFullscreenCleanupRef.current?.();
+            nativeFullscreenCleanupRef.current = null;
+            nativeVideo.webkitExitFullscreen();
+          } else if (current.fullscreenWeb) {
+            current.fullscreenWeb = false;
+          } else if (current.fullscreen) {
+            current.fullscreen = false;
+          } else {
+            nativeFullscreenCleanupRef.current?.();
+            nativeFullscreenCleanupRef.current = requestNativeFullscreenWithFallback(
+              nativeVideo,
+              () => {
+                if (!current.fullscreenWeb) current.fullscreenWeb = true;
+              },
+            );
+          }
+          e.preventDefault();
           break;
+        }
         // 标记类快捷键一律要求 Shift：这几键会直接写盘并影响整部剧，
         // 单键太容易误触（误记片头 = 之后每集都被跳过一大段）
         case 'i': case 'I':
