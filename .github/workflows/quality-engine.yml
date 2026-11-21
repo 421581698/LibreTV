@@ -76,6 +76,13 @@ jobs:
           QUALITY_BASE_URL: http://127.0.0.1:8080
         run: npm run quality:smoke
 
+      - name: Run read-only browser discovery
+        env:
+          QUALITY_BASE_URL: http://127.0.0.1:8080
+          GITHUB_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+        run: npm run quality:discover
+
       - name: Upload Quality Engine evidence
         if: always()
         uses: actions/upload-artifact@v4
