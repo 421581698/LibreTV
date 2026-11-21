@@ -298,3 +298,16 @@ After changing Preview runtime configuration, trigger a new Deploy Preview build
 - save request IDs, response status, response body classification, and deploy commit SHA as evidence.
 
 A Preview with API guard failures or repeated upstream failures is not functionally accepted, even if Netlify reports the deployment as `ready`. The mobile Lighthouse score is advisory and is not a substitute for Playwright interaction tests or physical iPhone/iPad Safari acceptance.
+
+## 15. Phase 2A — read-only browser discovery runner
+
+A first deterministic Discovery runner is now included at `scripts/quality-engine-discovery.mjs` and exposed as `npm run quality:discover`.
+
+It uses the CI-installed Playwright Chromium browser to:
+- Visit the homepage and a small set of safe entry routes, then discover additional same-origin navigation links up to a bounded route count;
+- Record route HTTP status, document title, headings, page landmarks, visible control metadata, link counts, browser console errors, failed requests and HTTP 5xx observations;
+- Emit `artifacts/quality-engine/quality-engine-discovery.json` for later Planner/Generator input;
+- Run in read-only mode: it does not click controls, submit forms, change settings, or send user input;
+- Explicitly record that Chromium is not physical Safari and that no LLM provider is connected.
+
+The Quality Engine CI now runs this discovery pass after the existing deterministic smoke and uploads the resulting JSON with the other evidence. The report is an observation artifact, not an AI-generated test plan and not a release pass by itself. The next increment is to normalize discovery evidence into the `DiscoveryResult` contract, add deterministic planner consumption, and then add an approved provider adapter behind strict schema validation and secret handling.
