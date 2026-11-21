@@ -36,6 +36,7 @@ describe('iPhone playback interaction contract', () => {
 
   it('cancels pending auto-next when the source session changes, not only when the episode index changes', () => {
     expect(watch).toContain('}, [sourceKey, vodId, directUrl, suppliedSourceUrl, currentUrl, currentIndex, cancelAutoNext]);');
+    expect(watch).toContain('if (switchOpen) cancelAutoNext();');
   });
 
   it('uses one tested native-fullscreen fallback path for the watch-page fullscreen control', () => {
