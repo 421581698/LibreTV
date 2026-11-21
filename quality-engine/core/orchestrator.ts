@@ -45,8 +45,12 @@ export async function runPlanningPipeline(input: {
     allowedDirectories: input.allowedDirectories,
     framework: input.framework,
   });
+  if (plan.cases.some((testCase) => testCase.required) && generatedTests.length === 0) {
+    throw new Error("Generator returned no test artifacts for a plan with required cases.");
+  }
   const seenPaths = new Set<string>();
   for (const artifact of generatedTests) {
+    if (artifact.framework !== input.framework) throw new Error(`Generator returned an unexpected framework for ${artifact.path}.`);
     const normalized = artifact.path.replace(/\\/g, "/");
     const allowed = input.allowedDirectories.some((directory) => {
       const prefix = directory.replace(/\\/g, "/").replace(/\/$/, "") + "/";
