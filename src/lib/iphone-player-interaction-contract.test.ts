@@ -32,8 +32,6 @@ describe('iPhone playback interaction contract', () => {
     expect(player).toContain('propsRef.current.onClockUpdate?.(current, art.duration);');
     expect(player).toContain("art.on('video:loadedmetadata', syncPlaybackClock);");
     expect(player).toContain("art.on('video:durationchange', syncPlaybackClock);");
-    expect(player).toContain("art.on('video:loadedmetadata', syncPlaybackClock);");
-    expect(player).toContain("art.on('video:durationchange', syncPlaybackClock);");
     expect(player).toContain('if (now - lastSave > 5000)');
     expect(watch).toContain('onClockUpdate={(position, duration) => setWatchClock({ position, duration })}');
     expect(watch).toContain('onTimeUpdate={handleProgress}');
