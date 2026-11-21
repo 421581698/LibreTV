@@ -112,7 +112,7 @@ jobs:
         timeout-minutes: 12
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
-          npx playwright install --with-deps chrome
+          npx playwright install --with-deps chrome chromium
 
       - name: Verify PlayerShell fMP4 playback, controls, seek and source switching
         env:
