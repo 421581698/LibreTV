@@ -27,6 +27,8 @@ const videoCards = source('src/components/video-card.tsx');
 const spatialScreenSource = source('src/components/home/V4SpatialScreen.tsx');
 const searchPageSource = source('src/app/search/page.tsx');
 const searchResultsSource = source('src/app/search/results/page.tsx');
+const searchResultsViewSource = source('src/components/search/SearchResultsView.tsx');
+const detailNavSource = source('src/hooks/search/useSearchDetailNav.ts');
 const history = source('src/components/history-panel.tsx');
 const settings = source('src/components/source-manager.tsx');
 const drawer = source('src/components/drawer.tsx');
@@ -143,7 +145,8 @@ describe('首页与播放页回归契约', () => {
     expect(v4Styles).toContain('.v4-history-row');
     expect(v4Styles).toContain('.v4-apple-rail');
     expect(v4Styles).toContain('.v4-apple-poster-card');
-    expect(home).toContain("router.push('/detail?' + params.toString())");
+    expect(detailNavSource).toContain("router.push('/detail?' + params.toString())");
+    expect(home).toContain('const { openDetail } = useSearchDetailNav();');
     expect(home).toContain('api.search(movie.title, selectedSources, yellowFilter)');
     expect(movieDetail).toContain('export function MovieDetailPage()');
   });
@@ -600,9 +603,11 @@ describe('首页与播放页回归契约', () => {
 
   it('搜索页面显示独立结果入口及可重试错误状态', () => {
     expect(searchPageSource).toContain('/search/results?q=');
-    expect(searchResultsSource).toContain("import HomePage from '@/app/page'");
-    expect(home).toContain('searchQuery.isError || failures.length > 0');
-    expect(home).toContain('重试搜索');
+    // 结果页改为自有容器 + 复用 SearchResultsView，不再寄生 HomePage
+    expect(searchResultsSource).toContain("import { SearchResultsView } from '@/components/search/SearchResultsView'");
+    expect(searchResultsSource).not.toContain("import HomePage from '@/app/page'");
+    expect(searchResultsViewSource).toContain('searchQuery.isError || failures.length > 0');
+    expect(searchResultsViewSource).toContain('重试搜索');
   });
 
   it('iPad 适配覆盖 1440px 宽屏触控设备，并分别定义横竖屏布局', () => {
