@@ -105,7 +105,7 @@ try {
         mediaEvents: window.__cinemaV23MediaEvents ?? [],
         resourceRequests: performance.getEntriesByType('resource')
           .map(entry => ({ name: entry.name.split('?')[0], initiatorType: entry.initiatorType, duration: Math.round(entry.duration), transferSize: entry.transferSize }))
-          .filter(entry => /m3u8|m4s|mp4|ts|\\.js/.test(entry.name))
+          .filter(entry => /m3u8|m4s|mp4|ts|\.js/i.test(entry.name))
           .slice(-40),
       };
     });
@@ -230,6 +230,7 @@ try {
     console.warn('SKIP mobile source-switch decode acceptance because initial media never reached decoded-frame readiness; viewport checks still ran.');
   }
   if (errors.length) throw new Error('Mobile emulation page errors: ' + errors.slice(0, 8).join(' | '));
+  console.log('Mobile media request summary: ' + JSON.stringify({ requests: mediaRequests.length, responses: mediaResponses.length, failures: requestFailures.length }));
   console.log('PASS Chromium responsive/rotation/split-width layout emulation. Decode-dependent source switching is reported separately; physical Safari testing remains required.');
 } finally {
   await browser.close();
