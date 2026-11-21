@@ -998,7 +998,21 @@ export function PlayerShell({
           html: '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"><path fill="currentColor" d="M4 9V4h5v2H6v3H4zm10-5h6v6h-2V6h-4V4zM4 15h2v3h3v2H4v-5zm14 3v-3h2v5h-6v-2h4z"/></svg>',
           tooltip: '全屏播放',
           click: () => {
-            const nativeVideo = art.video as NativeFullscreenVideo;
+            const nativeVideo = art.video as NativeFullscreenVideo & { webkitExitFullscreen?: () => void };
+            if (nativeVideo.webkitDisplayingFullscreen && nativeVideo.webkitExitFullscreen) {
+              nativeFullscreenCleanupRef.current?.();
+              nativeFullscreenCleanupRef.current = null;
+              nativeVideo.webkitExitFullscreen();
+              return;
+            }
+            if (art.fullscreenWeb) {
+              art.fullscreenWeb = false;
+              return;
+            }
+            if (art.fullscreen) {
+              art.fullscreen = false;
+              return;
+            }
             nativeFullscreenCleanupRef.current?.();
             nativeFullscreenCleanupRef.current = requestNativeFullscreenWithFallback(
               nativeVideo,
