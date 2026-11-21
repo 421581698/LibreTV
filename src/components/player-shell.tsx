@@ -488,10 +488,14 @@ export function PlayerShell({
     }
     cinemaObserverRef.current = controller;
     controller.subscribe((snapshot) => {
+      // Never publish media URLs through the window event bus; source URLs may contain credentials.
+      const { source: _source, ...safeSnapshot } = snapshot;
       window.dispatchEvent(new CustomEvent('libretv-cinema-engine-snapshot', {
         detail: {
-          snapshot,
+          snapshot: safeSnapshot,
           identity: controller.getIdentity(),
+          sourceId: propsRef.current.sourceKey ?? null,
+          episodeId: propsRef.current.episodeKey ?? null,
           ownership: 'observer-only',
         },
       }));
