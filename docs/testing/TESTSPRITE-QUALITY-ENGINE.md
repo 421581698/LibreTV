@@ -201,7 +201,7 @@ testsprite ci run \
 ## 8. 分阶段落地
 
 ### Phase 0 — 兼容性审计
-核对项目运行时、包管理器、Playwright/Vitest、GitHub Actions、TestSprite CLI、Preview 注入、测试数据和证据保留策略。此阶段已完成初步仓库审计，云端 TestSprite 配置仍未完成。
+核对项目运行时、包管理器、Playwright/Vitest、GitHub Actions、Preview 注入、测试数据和证据保留策略。核心质量引擎不依赖 TestSprite；云端 TestSprite 是否配置不影响 Phase 0/核心验收。
 
 ### Phase 1 — 质量平台核心底座（当前实施）
 建立领域类型、任务生命周期、事件存储契约、变更影响分析、失败分类、证据约束质量门禁和核心单元测试。当前实现使用内存适配器验证事件契约，不宣称已具备持久化能力。
@@ -258,9 +258,9 @@ LibreTV 后续测试默认遵循：
 - `npm run quality:verify` 与 `npm run quality:smoke`：统一入口；
 - `.gitignore`：忽略本地 TestSprite 与质量测试产物。
 
-**明确的验收边界：** Chromium 移动视口只属于响应式模拟测试，不代表 iPhone/iPad Safari 真机通过。真实设备登记表只有在人工提供设备型号、系统/浏览器版本、提交 SHA、Preview 地址、测试步骤和证据后才可增加通过记录。TestSprite 云端门禁需要用户在 GitHub 仓库配置上述变量和 API Key；没有这些凭据时不会启动真实云端测试。
+**明确的验收边界：** Chromium 移动视口只属于响应式模拟测试，不代表 iPhone/iPad Safari 真机通过。真实设备登记表只有在人工提供设备型号、系统/浏览器版本、提交 SHA、Preview 地址、测试步骤和证据后才可增加通过记录。TestSprite 默认关闭，不要求用户配置变量或 API Key；只有用户主动 opt-in 时才运行可选云端增强。
 
-**当前状态不是最终验收通过：** 工作流提交后仍需等待 GitHub Actions 执行，并处理实际出现的失败；本会话无法代替物理 iPhone/iPad 操作或设置用户的 TestSprite API Key。
+**当前状态不是最终验收通过：** 核心 CI 与独立 Preview 验证必须按当前提交的实际证据确认；本会话无法代替物理 iPhone/iPad 操作。TestSprite 凭据不是核心验收前提。
 
 
 ## 13. Quality Engine core foundation (Phase 1 implementation)
