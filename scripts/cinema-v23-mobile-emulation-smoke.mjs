@@ -122,6 +122,25 @@ try {
         playError: window.__cinemaV23PlayError ?? null,
         mediaEvents: window.__cinemaV23MediaEvents ?? [],
         hlsEvents: window.__cinemaV23HlsEvents ?? [],
+        codecSupport: (() => {
+          const video = document.createElement('video');
+          const mediaSource = window.MediaSource;
+          const candidates = [
+            'video/mp4; codecs="avc1.640015"',
+            'video/mp4; codecs="avc1.64001e"',
+            'video/mp4; codecs="avc1.640020"',
+            'video/mp4; codecs="avc1.64002a"',
+            'audio/mp4; codecs="mp4a.40.2"',
+            'audio/mp4; codecs="ac-3"',
+            'audio/mp4; codecs="ec-3"',
+          ];
+          return {
+            userAgent: navigator.userAgent,
+            mediaSourceAvailable: Boolean(mediaSource),
+            mediaSourceTypeSupport: Object.fromEntries(candidates.map(codec => [codec, Boolean(mediaSource?.isTypeSupported(codec))])),
+            canPlayType: Object.fromEntries(candidates.map(codec => [codec, video.canPlayType(codec)])),
+          };
+        })(),
         resourceRequests: performance.getEntriesByType('resource')
           .map(entry => ({ name: entry.name.split('?')[0], initiatorType: entry.initiatorType, duration: Math.round(entry.duration), transferSize: entry.transferSize }))
           .filter(entry => /m3u8|m4s|mp4|ts|\.js/i.test(entry.name))
