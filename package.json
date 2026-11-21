@@ -14,7 +14,8 @@
     "syncDoubanPosters": "node scripts/sync-douban-posters.mjs",
     "quality:smoke": "node scripts/quality-engine-smoke.mjs",
     "quality:core": "vitest run tests/quality-engine-*.test.ts",
-    "quality:verify": "npm run lint && npm run typecheck && npm test"
+    "quality:verify": "npm run lint && npm run typecheck && npm test",
+    "quality:discover": "node scripts/quality-engine-discovery.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "1.0.0",
