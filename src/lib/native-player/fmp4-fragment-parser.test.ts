@@ -190,6 +190,11 @@ describe('parseFmp4Fragments', () => {
     expect(filtered[0].tracks[0].samples[0].dataOffset).toBe(fragment.moofSize + 12);
   });
 
+  it('applies maxSamples across all traf boxes in the input segment', () => {
+    expect(() => parseFmp4Fragments(makeMultiTrafFragment(), { maxSamples: 1 }))
+      .toThrow(/sample count exceeds/i);
+  });
+
   it('rejects truncated and invalid box lengths', () => {
     expect(() => parseFmp4Fragments(new Uint8Array([0, 0, 0, 4, 109, 111, 111, 102]))).toThrow(/box size/i);
     expect(() => parseFmp4Fragments(new Uint8Array([0, 0, 0]))).toThrow(/truncated/i);
