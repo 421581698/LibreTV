@@ -42,6 +42,7 @@ export interface QualityReport {
 export function buildQualityReport(input: QualityReportInput): QualityReport {
   if (input.plan.id !== input.run.planId) throw new Error("Report plan and run do not match.");
   if (input.plan.commitSha !== input.run.commitSha) throw new Error("Report plan and run commit SHA do not match.");
+  if (input.plan.branch !== input.run.branch) throw new Error("Report plan and run branch do not match.");
   const evidenceIds = new Set(input.evidence.map((item) => item.id));
   const evidenceById = new Map(input.evidence.map((item) => [item.id, item]));
   const missingEvidenceReferences = input.checks.flatMap((check) =>
@@ -61,8 +62,12 @@ export function buildQualityReport(input: QualityReportInput): QualityReport {
   const devices = (input.devices ?? []).map((device) => ({ ...device, evidenceIds: [...device.evidenceIds] }));
   const requiredDeviceBlocked = requiredDevices.some((testCase) => {
     const device = testCase.tags.includes("iphone") ? deviceOutcomes.get("iphone") : deviceOutcomes.get("ipad");
-    return !device || device.outcome !== "passed" || device.evidenceIds.length === 0 ||
-      device.evidenceIds.some((id) => !evidenceIds.has(id));
+    return !device || device.outcome !== "passed" || !device.deviceModel?.trim() ||
+      !device.osVersion?.trim() || !device.browserVersion?.trim() || device.evidenceIds.length === 0 ||
+      device.evidenceIds.some((id) => {
+        const evidence = evidenceById.get(id);
+        return !evidence || evidence.runId !== input.run.id;
+      });
   });
   const blockingDefects = input.defects.filter((defect) => defect.severity === "blocker" || defect.severity === "critical").map((defect) => defect.id);
   return {
@@ -80,6 +85,6 @@ export function buildQualityReport(input: QualityReportInput): QualityReport {
     defects: input.defects.map((item) => ({ ...item, evidenceIds: [...item.evidenceIds], regressionCaseIds: [...item.regressionCaseIds] })),
     devices,
     blockingDefects,
-    releaseEligible: gate.eligible && input.run.status === "passed" && !requiredDeviceBlocked && blockingDefects.length === 0,
+    releaseEligible: gate.eligible && input.run.status === "passed" && Boolean(input.run.startedAt && input.run.finishedAt) && !requiredDeviceBlocked && blockingDefects.length === 0,
   };
 }
