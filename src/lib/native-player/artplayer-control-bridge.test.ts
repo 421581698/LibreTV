@@ -83,6 +83,24 @@ describe('installArtPlayerControlBridge', () => {
     cleanup();
   });
 
+  it('does not retry native play after the controller reports a real media failure', async () => {
+    const { video } = createVideo();
+    const nativePlay = video.play;
+    const controller = {
+      play: vi.fn(async (): Promise<BackendCommandResult> => ({
+        ok: false,
+        reason: 'failed',
+        error: { code: 'NETWORK', message: 'controller media failure', recoverable: false },
+      })),
+      pause: vi.fn((): BackendCommandResult => ({ ok: true })),
+      seek: vi.fn((): BackendCommandResult => ({ ok: true })),
+    };
+    const cleanup = installArtPlayerControlBridge(video, () => controller);
+    await expect(video.play()).rejects.toThrow('controller media failure');
+    expect(nativePlay).not.toHaveBeenCalled();
+    cleanup();
+  });
+
   it('restores the exact original media-element descriptors on cleanup', async () => {
     const { video, readTime } = createVideo();
     const originalPlay = video.play;
