@@ -579,10 +579,23 @@ export function PlayerShell({
     const refresh = () => refreshSubtitleTracks(video, hls);
     if (hls) {
       hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, refresh);
+      const refreshSpatialAudioTrack = () => {
+        const engine = spatialAudioEngineRef.current;
+        if (!engine) return;
+        const tracks = hls.audioTracks ?? [];
+        const selectedTrack = tracks[hls.audioTrack] ?? tracks.find(track => track.default) ?? tracks[0];
+        const info = selectedTrack ? inspectHlsAudioTrack(selectedTrack) : null;
+        engine.updateInputChannels(info?.channelCount ?? 0, 'unknown');
+        if (info?.channelCount === 2) setSpatialAudioMessage('检测到双声道音轨，可启用耳机空间化。');
+        else if (info?.channelCount === 6) setSpatialAudioMessage('检测到六声道，但扬声器顺序未验证，环绕双耳渲染保持关闭。');
+        else setSpatialAudioMessage('当前音轨未声明可验证的声道数，保持原始播放。');
+      };
       hls.on(Hls.Events.SUBTITLE_TRACK_SWITCH, refresh);
+      hls.on(Hls.Events.AUDIO_TRACK_SWITCHED, refreshSpatialAudioTrack);
       subtitleTrackCleanupRef.current = () => {
         hls.off(Hls.Events.SUBTITLE_TRACKS_UPDATED, refresh);
         hls.off(Hls.Events.SUBTITLE_TRACK_SWITCH, refresh);
+        hls.off(Hls.Events.AUDIO_TRACK_SWITCHED, refreshSpatialAudioTrack);
       };
     } else {
       const tracks = video.textTracks;
@@ -605,24 +618,30 @@ export function PlayerShell({
     if (!video) return;
     try {
       let engine = spatialAudioEngineRef.current;
-      if (mode !== 'off' && !engine) {
+      if (mode !== 'off') {
         const hls = hlsRef.current;
         const tracks = hls?.audioTracks ?? [];
         const selectedTrack = tracks[hls?.audioTrack ?? -1] ?? tracks.find(track => track.default) ?? tracks[0];
         if (!selectedTrack) {
+          engine?.updateInputChannels(0, 'unknown');
           setSpatialAudioMessage('当前播放路径没有可读取的 HLS 声道元数据；为避免猜测声道，保持原始音轨。');
           return;
         }
         const info = inspectHlsAudioTrack(selectedTrack);
         if (info.channelCount !== 2 && info.channelCount !== 6) {
+          engine?.updateInputChannels(info.channelCount ?? 0, 'unknown');
           setSpatialAudioMessage('当前音轨没有明确的 2 声道或 6 声道声明，空间音频不可用。');
           return;
         }
-        engine = SpatialAudioEngine.attach(video, {
-          inputChannels: info.channelCount,
-          inputLayout: 'unknown',
-        });
-        spatialAudioEngineRef.current = engine;
+        if (!engine) {
+          engine = SpatialAudioEngine.attach(video, {
+            inputChannels: info.channelCount,
+            inputLayout: 'unknown',
+          });
+          spatialAudioEngineRef.current = engine;
+        } else {
+          engine.updateInputChannels(info.channelCount, 'unknown');
+        }
       }
       if (!engine) {
         setSpatialAudioMode('off');
@@ -855,6 +874,7 @@ export function PlayerShell({
   const setupDirectMedia = (video: HTMLVideoElement, mediaUrl: string) => {
     clearAssSubtitleRenderer();
     if (!canKeepSpatialAudioForSource(mediaUrl, null)) { video.pause(); return; }
+    spatialAudioEngineRef.current?.updateInputChannels(0, 'unknown');
     subtitleTrackCleanupRef.current?.();
     subtitleTrackCleanupRef.current = null;
     cinemaObserverRef.current?.dispose();
@@ -958,6 +978,7 @@ export function PlayerShell({
       // If Web Audio has already claimed this element, a non-CORS native URL
       // cannot safely reuse it: block the switch rather than silently muting.
       if (!canKeepSpatialAudioForSource(mediaUrl, null)) { video.pause(); return; }
+      spatialAudioEngineRef.current?.updateInputChannels(0, 'unknown');
       video.removeAttribute('crossorigin');
       setAvailableQualityHeights([]);
       setQualityControlMode('native');
