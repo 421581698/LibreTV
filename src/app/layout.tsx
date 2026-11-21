@@ -45,6 +45,8 @@ import './iphone-dock-unify.css';
 // light-mode token values (dark text / white dropdown) on dark-surfaced routes.
 // Must stay last.
 import './iphone-search-contrast.css';
+// Final iOS Safari/WebView visual-viewport and playback safe-area contract.
+import './ios-browser-viewport-fix.css';
 import { Providers } from '@/components/providers';
 import { MobileTabBar } from '@/components/home/header/MobileTabBar';
 import { GlobalDownloadManager } from '@/components/download-manager';
