@@ -156,7 +156,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
 
   const isPlayerRoute = pathname === '/ipad-edition/watch' || pathname.startsWith('/ipad-edition/watch/');
   const isDetailRoute = pathname === '/ipad-edition/detail' || pathname.startsWith('/ipad-edition/detail/');
-  const isChromeHidden = isPlayerRoute || isDetailRoute;
+  const isChromeHidden = isPlayerRoute;
   const allNavigation = [...primaryNavigation, ...personalNavigation];
   const activeHref = allNavigation.find((item) => item.href !== '/ipad-edition' && pathname.startsWith(item.href))?.href
     ?? (pathname === '/ipad-edition' ? '/ipad-edition' : '');
