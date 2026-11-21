@@ -8,7 +8,9 @@ import { chromium } from 'playwright';
 const base = process.env.CINEMA_PREVIEW_URL || 'https://libretv-cinema-v23-preview.bggdbh.workers.dev';
 const stream = 'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8';
 const alternateStream = 'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/v9/prog_index.m3u8';
-const browser = await chromium.launch({ headless: true });
+// Use the installed branded Chrome: Playwright's bundled Chromium may omit proprietary H.264/AAC codecs,
+// which makes every HLS variant appear unsupported and invalidates playback acceptance.
+const browser = await chromium.launch({ channel: 'chrome', headless: true });
 const context = await browser.newContext({
   viewport: { width: 390, height: 844 },
   deviceScaleFactor: 2,
