@@ -9,6 +9,8 @@ import { getMediaPlaybackKind } from '@/lib/media-playback';
 import { NativeMediaBackend } from '@/lib/native-player/native-media-backend';
 import { PlaybackController } from '@/lib/native-player/playback-controller';
 import { installArtPlayerControlBridge } from '@/lib/native-player/artplayer-control-bridge';
+import { DEFAULT_SUBTITLE_PREFERENCES, loadSubtitlePreferences, saveSubtitlePreferences, type SubtitlePreferences } from '@/lib/native-player/subtitle-preferences';
+import { applySubtitleTrack, listSubtitleTracks, type SubtitleTrackOption } from '@/lib/native-player/subtitle-track-controller';
 import { hasSustainedPlaybackProgress } from '@/lib/playback-verification';
 
 import { PlaybackRecovery, describeHlsError } from '@/lib/playback-recovery';
@@ -221,6 +223,11 @@ export function PlayerShell({
   const [showPoster, setShowPoster] = useState(true);
   const [qualityPreference, setQualityPreference] = useState<QualityPreference>('auto');
   const [qualityPanelOpen, setQualityPanelOpen] = useState(false);
+  const [subtitlePanelOpen, setSubtitlePanelOpen] = useState(false);
+  const [subtitleTracks, setSubtitleTracks] = useState<SubtitleTrackOption[]>([]);
+  const [subtitlePreferences, setSubtitlePreferences] = useState<SubtitlePreferences>(DEFAULT_SUBTITLE_PREFERENCES);
+  const subtitlePreferencesRef = useRef<SubtitlePreferences>(DEFAULT_SUBTITLE_PREFERENCES);
+  const subtitleTrackCleanupRef = useRef<(() => void) | null>(null);
   const [availableQualityHeights, setAvailableQualityHeights] = useState<number[]>([]);
   const [availableQualityLevelCount, setAvailableQualityLevelCount] = useState(0);
   const [qualityMetadataComplete, setQualityMetadataComplete] = useState(false);
@@ -240,6 +247,14 @@ export function PlayerShell({
   useEffect(() => {
     setQualityPreference(readQualityPreference());
   }, []);
+
+  useEffect(() => {
+    const preferences = loadSubtitlePreferences(window.localStorage, sourceKey, episodeKey);
+    subtitlePreferencesRef.current = preferences;
+    setSubtitlePreferences(preferences);
+    const video = artRef.current?.video as HTMLVideoElement | undefined;
+    if (video) refreshSubtitleTracks(video, hlsRef.current);
+  }, [sourceKey, episodeKey]);
 
   useEffect(() => {
     const handleFridayPlayerCommand = (event: Event) => {
@@ -469,6 +484,87 @@ export function PlayerShell({
    * Cinema Engine V2.3 observes the existing ArtPlayer media element.
    * ArtPlayer/hls.js remain the sole source and MSE owners in this integration stage.
    */
+  const updateSubtitlePreferences = (next: SubtitlePreferences) => {
+    subtitlePreferencesRef.current = next;
+    setSubtitlePreferences(next);
+    saveSubtitlePreferences(window.localStorage, next, propsRef.current.sourceKey, propsRef.current.episodeKey);
+  };
+
+  const refreshSubtitleTracks = (video: HTMLVideoElement, hls?: Hls | null) => {
+    const options = listSubtitleTracks(video, hls);
+    setSubtitleTracks(options);
+    const preferences = subtitlePreferencesRef.current;
+    if (!preferences.enabled) {
+      applySubtitleTrack(video, hls, null, false);
+      return;
+    }
+    let selectedId = preferences.selectedTrackId;
+    if (!selectedId || !options.some(track => track.id === selectedId)) {
+      selectedId = options.find(track => track.isDefault)?.id ?? null;
+      if (selectedId) updateSubtitlePreferences({ ...preferences, selectedTrackId: selectedId });
+    }
+    if (selectedId) applySubtitleTrack(video, hls, selectedId, true);
+    else applySubtitleTrack(video, hls, null, false);
+  };
+
+  const bindSubtitleTrackEvents = (video: HTMLVideoElement, hls?: Hls | null) => {
+    subtitleTrackCleanupRef.current?.();
+    const refresh = () => refreshSubtitleTracks(video, hls);
+    if (hls) {
+      hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, refresh);
+      hls.on(Hls.Events.SUBTITLE_TRACK_SWITCH, refresh);
+      subtitleTrackCleanupRef.current = () => {
+        hls.off(Hls.Events.SUBTITLE_TRACKS_UPDATED, refresh);
+        hls.off(Hls.Events.SUBTITLE_TRACK_SWITCH, refresh);
+      };
+    } else {
+      const tracks = video.textTracks;
+      video.addEventListener('loadedmetadata', refresh);
+      video.addEventListener('durationchange', refresh);
+      tracks.addEventListener('addtrack', refresh);
+      tracks.addEventListener('removetrack', refresh);
+      subtitleTrackCleanupRef.current = () => {
+        video.removeEventListener('loadedmetadata', refresh);
+        video.removeEventListener('durationchange', refresh);
+        tracks.removeEventListener('addtrack', refresh);
+        tracks.removeEventListener('removetrack', refresh);
+      };
+    }
+    refresh();
+  };
+
+  const chooseSubtitleTrack = (trackId: string) => {
+    const video = artRef.current?.video as HTMLVideoElement | undefined;
+    if (!video) return;
+    const enabled = Boolean(trackId);
+    const selectedTrackId = enabled ? trackId : null;
+    const applied = applySubtitleTrack(video, hlsRef.current, selectedTrackId, enabled);
+    if (!applied && enabled) {
+      showHint('当前浏览器暂不支持所选字幕轨');
+      return;
+    }
+    updateSubtitlePreferences({
+      ...subtitlePreferencesRef.current,
+      enabled,
+      selectedTrackId,
+    });
+  };
+
+  const toggleSubtitles = (enabled: boolean) => {
+    const video = artRef.current?.video as HTMLVideoElement | undefined;
+    if (!video) return;
+    const current = subtitlePreferencesRef.current;
+    const selected = current.selectedTrackId && subtitleTracks.some(track => track.id === current.selectedTrackId)
+      ? current.selectedTrackId
+      : subtitleTracks.find(track => track.isDefault)?.id ?? subtitleTracks[0]?.id ?? null;
+    const applied = applySubtitleTrack(video, hlsRef.current, selected, enabled && Boolean(selected));
+    if (enabled && selected && !applied) {
+      showHint('当前浏览器暂不支持字幕轨切换');
+      return;
+    }
+    updateSubtitlePreferences({ ...current, enabled, selectedTrackId: selected });
+  };
+
   const observeCinemaEngine = (
     video: HTMLVideoElement,
     mediaUrl: string,
@@ -680,6 +776,7 @@ export function PlayerShell({
     video.src = mediaUrl;
     video.load();
     observeCinemaEngine(video, mediaUrl, mediaKind);
+    bindSubtitleTrackEvents(video);
   };
 
   /**
@@ -765,6 +862,7 @@ export function PlayerShell({
       video.src = mediaUrl;
       video.load();
       observeCinemaEngine(video, mediaUrl, 'hls');
+      bindSubtitleTrackEvents(video);
       return;
     }
     armMetadataWatchdog(video, mediaUrl);
@@ -837,6 +935,7 @@ export function PlayerShell({
     hls.loadSource(mediaUrl);
     hls.attachMedia(video);
     observeCinemaEngine(video, mediaUrl, 'hls');
+    bindSubtitleTrackEvents(video, hls);
 
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
       const qualityResult = applyHlsQualityPreference(hls!, readQualityPreference(), video);
@@ -1656,6 +1755,8 @@ export function PlayerShell({
         window.removeEventListener('libretv-quality-preference-change', qualityPreferenceHandlerRef.current);
         qualityPreferenceHandlerRef.current = null;
       }
+      subtitleTrackCleanupRef.current?.();
+      subtitleTrackCleanupRef.current = null;
       hlsRef.current?.destroy();
       hlsRef.current = null;
       cleanupCinemaControlBridge();
@@ -1728,6 +1829,48 @@ export function PlayerShell({
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" style={{ WebkitTouchCallout: 'none' }} />
       <div className="player-quality-controls absolute right-3 top-3 z-20 flex flex-col items-end gap-2">
+        <button
+          type="button"
+          className="player-quality-badge"
+          aria-expanded={subtitlePanelOpen}
+          aria-label="字幕设置"
+          onClick={() => setSubtitlePanelOpen((open) => !open)}
+        >
+          字幕 · {subtitlePreferences.enabled && subtitlePreferences.selectedTrackId
+            ? subtitleTracks.find(track => track.id === subtitlePreferences.selectedTrackId)?.label ?? '已开启'
+            : '关闭'}
+        </button>
+        {subtitlePanelOpen && (
+          <div className="w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-white/15 bg-black/90 p-3 text-white shadow-2xl backdrop-blur-xl">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-sm font-semibold">字幕</span>
+              <label className="flex items-center gap-2 text-xs text-white/80">
+                <input
+                  type="checkbox"
+                  checked={subtitlePreferences.enabled}
+                  onChange={(event) => toggleSubtitles(event.target.checked)}
+                />
+                启用
+              </label>
+            </div>
+            <select
+              aria-label="选择字幕轨"
+              className="w-full rounded-lg border border-white/15 bg-white/10 px-2 py-2 text-sm text-white"
+              value={subtitlePreferences.selectedTrackId ?? ''}
+              onChange={(event) => chooseSubtitleTrack(event.target.value)}
+            >
+              <option value="" className="bg-black">关闭字幕</option>
+              {subtitleTracks.map((track) => (
+                <option key={track.id} value={track.id} className="bg-black">
+                  {track.label}{track.language ? ` · ${track.language}` : ''}
+                </option>
+              ))}
+            </select>
+            <p className="mt-2 text-[11px] text-white/55">
+              字幕轨选择会按当前片源和剧集保存；外部 SRT/ASS 文件与高级样式仍在接入中。
+            </p>
+          </div>
+        )}
         <button
           type="button"
           className="player-quality-badge"
