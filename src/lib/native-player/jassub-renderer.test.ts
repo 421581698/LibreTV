@@ -25,6 +25,9 @@ describe('createAssSubtitleRenderer', () => {
     state.destroy.mockReset();
     vi.stubGlobal('Worker', class Worker {});
     vi.stubGlobal('OffscreenCanvas', class OffscreenCanvas {});
+    class CanvasWithTransfer {}
+    Object.defineProperty(CanvasWithTransfer.prototype, 'transferControlToOffscreen', { value: vi.fn() });
+    vi.stubGlobal('HTMLCanvasElement', CanvasWithTransfer);
   });
 
   it('uses self-hosted WASM/worker assets and disables remote font lookup', async () => {
