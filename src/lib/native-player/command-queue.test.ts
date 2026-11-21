@@ -18,11 +18,17 @@ describe('PlaybackCommandQueue', () => {
   it('rejects commands after close and skips queued commands not yet started', async () => {
     const queue = new PlaybackCommandQueue();
     let release!: () => void;
+    let markStarted!: () => void;
     const gate = new Promise<void>(resolve => { release = resolve; });
-    const first = queue.enqueue(() => gate);
+    const started = new Promise<void>(resolve => { markStarted = resolve; });
+    const first = queue.enqueue(() => {
+      markStarted();
+      return gate;
+    });
+    await started;
     const second = queue.enqueue(() => 'should not run');
-    // Convert the expected rejection into a fulfilled outcome immediately;
-    // this avoids an unhandled-rejection window while the first command is gated.
+    // Attach a rejection handler immediately so a deliberate cancellation cannot
+    // create an unhandled-rejection window while the active command is gated.
     const secondOutcome = second.then(
       () => null,
       error => error,
