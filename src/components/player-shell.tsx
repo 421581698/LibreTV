@@ -114,6 +114,8 @@ export interface PlayerSkipApi {
   isPaused(): boolean;
   getPlaybackRate(): number;
   setPlaybackRate(rate: number): void;
+  /** Enter the player's web-fullscreen mode when native fullscreen is unavailable. */
+  enterFullscreen(): void;
 }
 
 interface PlayerShellProps {
@@ -152,6 +154,8 @@ interface PlayerShellProps {
   /** 进度恢复：优先 URL position，其次查询该回调（返回 0 表示无记录） */
   getRestorePosition?: () => number | Promise<number>;
   onTimeUpdate?: (position: number, duration: number) => void;
+  /** High-frequency UI clock; persistence remains throttled through onTimeUpdate. */
+  onClockUpdate?: (position: number, duration: number) => void;
   onEnded?: () => void;
   onPause?: (position: number, duration: number) => void;
   /**
@@ -190,6 +194,7 @@ export function PlayerShell({
   nextEpisodeKey,
   getRestorePosition,
   onTimeUpdate,
+  onClockUpdate,
   onEnded,
   onPause,
   onQuality,
@@ -267,7 +272,7 @@ export function PlayerShell({
     url, title, mediaType, onPlaybackConfirmed, adFilter, autoplayNext, skipMark, autoSkipSegments,
     pendingStart, onPendingStart, onPlayerApi, onRecordSegment,
     episodeKey, nextUrl, nextEpisodeKey,
-    getRestorePosition, onTimeUpdate, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource,
+    getRestorePosition, onTimeUpdate, onClockUpdate, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource,
     onPrevEpisode, onNextEpisode, hasPrevEpisode, hasNextEpisode,
   });
   propsRef.current = {
@@ -1086,6 +1091,10 @@ export function PlayerShell({
         video.playbackRate = rate;
         video.defaultPlaybackRate = rate;
       },
+      enterFullscreen: () => {
+        const current = artRef.current;
+        if (current && !current.fullscreenWeb) current.fullscreenWeb = true;
+      },
     });
 
     /**
@@ -1205,6 +1214,7 @@ export function PlayerShell({
       metrics.lastPosition = position;
       metrics.lastTickAt = Date.now();
       metrics.height = Math.max(metrics.height, art.video?.videoHeight ?? 0);
+      propsRef.current.onClockUpdate?.(art.currentTime, art.duration);
       const now = Date.now();
       if (now - lastSave > 5000) {
         lastSave = now;
@@ -1262,6 +1272,7 @@ export function PlayerShell({
       // seek 是用户主动行为：拉平采样基准，避免下一拍被误判为「连续越过片尾」。
       // 暂停中 seek 不会触发 timeupdate，这里也同步刷新按钮的显隐。
       const current = art.currentTime;
+      propsRef.current.onClockUpdate?.(current, art.duration);
       lastSampleRef.current = current;
       const segments = resolveSegments(propsRef.current.skipMark, art.duration);
       const active = findActiveSegment(segments, current);
