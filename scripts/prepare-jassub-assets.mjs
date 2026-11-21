@@ -23,5 +23,5 @@ await build({
 
 await cp(resolve(packageDist, 'wasm'), resolve(publicRoot, 'wasm'), { recursive: true });
 await cp(resolve(packageDist, 'default.woff2'), resolve(publicRoot, 'default.woff2'));
-await cp(resolve(packageDist, 'LICENSE'), resolve(publicRoot, 'LICENSE'));
+await cp(resolve(root, 'node_modules/jassub/LICENSE'), resolve(publicRoot, 'LICENSE'));
 console.log('Prepared self-hosted JASSUB worker, WASM variants, default font and license.');
