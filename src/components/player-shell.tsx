@@ -1113,8 +1113,6 @@ export function PlayerShell({
     // Attach the media element before starting manifest loading. On fast mobile
     // networks the master playlist can resolve immediately; establishing the
     // MSE/media attachment first avoids a load-before-attach race in hls.js.
-    hls.attachMedia(video);
-    hls.loadSource(mediaUrl);
     observeCinemaEngine(video, mediaUrl, 'hls');
     bindSubtitleTrackEvents(video, hls);
 
@@ -1233,6 +1231,31 @@ export function PlayerShell({
       }
     });
 
+    // Preview-only event tracing lets mobile acceptance distinguish manifest
+    // parsing, level selection and fragment loading without exposing media URLs.
+    const emitHlsDiagnostic = (type: string, detail: Record<string, unknown> = {}) => {
+      if (new URLSearchParams(window.location.search).get('cinemaDebug') !== '1') return;
+      window.dispatchEvent(new CustomEvent('libretv-cinema-hls-debug', {
+        detail: { type, ...detail },
+      }));
+    };
+    hls.on(Hls.Events.MEDIA_ATTACHED, () => emitHlsDiagnostic('media-attached'));
+    hls.on(Hls.Events.MANIFEST_LOADING, () => emitHlsDiagnostic('manifest-loading'));
+    hls.on(Hls.Events.MANIFEST_LOADED, (_event, data) => emitHlsDiagnostic('manifest-loaded', {
+      levelCount: data.levels?.length ?? 0,
+    }));
+    hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => emitHlsDiagnostic('manifest-parsed', {
+      levelCount: data.levels?.length ?? 0,
+    }));
+    hls.on(Hls.Events.LEVEL_LOADING, (_event, data) => emitHlsDiagnostic('level-loading', {
+      level: data.level,
+    }));
+    hls.on(Hls.Events.ERROR, (_evt, data) => emitHlsDiagnostic('error', {
+      fatal: data.fatal,
+      errorType: data.type,
+      details: data.details,
+    }));
+
     hls.on(Hls.Events.ERROR, (_evt, data) => {
       if (!data.fatal) return;
       const recovery = recoveryRef.current;
@@ -1279,6 +1302,11 @@ export function PlayerShell({
         }
       }
     });
+
+    // Register every observer before attaching media or starting network loads;
+    // fast manifests must not outrun the PlayerShell lifecycle handlers.
+    hls.attachMedia(video);
+    hls.loadSource(mediaUrl);
   };
 
   /** 换集：重置每集状态并切换到新 HLS 源（不重建 ArtPlayer）。 */
