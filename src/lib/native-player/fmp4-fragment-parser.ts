@@ -20,6 +20,8 @@ export interface Fmp4Sample {
 
 export interface Fmp4TrackFragment {
   readonly trackId: number;
+  /** Track media timescale from mdhd; null when no init segment was supplied. */
+  readonly timescale: number | null;
   readonly baseDecodeTime: number;
   readonly samples: readonly Fmp4Sample[];
 }
@@ -381,7 +383,7 @@ export function parseFmp4Fragments(input: ArrayBuffer | Uint8Array, options: Par
       // The next traf's implicit base is the end of this traf's resolved sample data.
       implicitBaseDataOffset = nextDataOffset;
       if (options.trackId === undefined || parsedTfhd.trackId === options.trackId) {
-        tracks.push({ trackId: tfhd.trackId, baseDecodeTime, samples });
+        tracks.push({ trackId: tfhd.trackId, timescale: trex?.timescale ?? null, baseDecodeTime, samples });
       }
     }
     fragments.push({ moofOffset: moof.start, moofSize: moof.size, mdatRanges: mdats, tracks });
