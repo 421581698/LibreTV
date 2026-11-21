@@ -28,11 +28,17 @@ describe('iPad Edition navigation contract', () => {
     expect(shell).toContain('data-ipad-detail={isDetailRoute ? \'true\' : undefined}');
   });
 
-  it('preserves a keyboard and touch accessible sidebar toggle', () => {
+  it('preserves an accessible sidebar toggle and manages modal focus/scroll lifecycle', () => {
     expect(shell).toContain('aria-expanded={sidebarOpen}');
     expect(shell).toContain('aria-controls="ipad-edition-sidebar"');
     expect(shell).toContain('onClick={() => setSidebarOpen((open) => !open)}');
     expect(shell).toContain('onClick={() => setSidebarOpen(false)}');
-    expect(shell).toContain("if (event.key === 'Escape') setSidebarOpen(false);");
+    expect(shell).toContain("if (event.key === 'Escape')");
+    expect(shell).toContain("if (event.key !== 'Tab') return;");
+    expect(shell).toContain("document.body.style.overflow = 'hidden';");
+    expect(shell).toContain('focusable()[0]?.focus({ preventScroll: true });');
+    expect(shell).toContain('last.focus();');
+    expect(shell).toContain('first.focus();');
+    expect(shell).toContain('menuButtonRef.current?.focus({ preventScroll: true });');
   });
 });
