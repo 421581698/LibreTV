@@ -104,3 +104,13 @@ See [CINEMA-ENGINE-V2-3-DEVICE-ACCEPTANCE.md](./CINEMA-ENGINE-V2-3-DEVICE-ACCEPT
 - Code commit: `c69acde915627d5297374181a7bc7b751ac8989a`.
 - The prior bridge concurrency fix at `c8840875cbfc7175994deb8d87cc3485ce8024a8` passed both CI workflows. This additional observer-lifecycle test has not yet received an exact-head CI result.
 - The current branch head is marked for a fresh isolated Preview run. Preview browser acceptance remains pending; do not infer a successful deployment from this marker commit.
+
+## Mobile immersive-layout regression (2026-11-21)
+
+- Inspection of the completed Chromium screenshots found the global mobile tab bar still visible over the immersive WatchPage, even though the mobile CSS intended to hide it.
+- Root cause: `MobileTabBar` is rendered inside the `Providers` subtree, not as a direct child of `body`; the old `body > nav` selector therefore did not match.
+- Updated the immersive selector to target the descendant tab bar with sufficient specificity, overriding the legacy mobile-watch dock rule.
+- Strengthened `scripts/cinema-v23-mobile-emulation-smoke.mjs`: each viewport now fails if the dock remains visible or the cinema information panel overlaps the bottom safe area.
+- Code commits: `5073d5305c7bb23efc6b13cdb3e19a370e6537ef` (CSS) and `a1cdbf054c8f438518fd1febfd459839b9b2f35c` (acceptance assertion).
+- The earlier Preview run `44897743436` passed its existing mobile emulation but did not assert dock visibility; its screenshots exposed this missed condition. The strengthened test must run on the new exact head before the fix is considered accepted.
+- Physical iPhone/iPad Safari acceptance remains a separate required gate.
