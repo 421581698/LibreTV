@@ -279,7 +279,7 @@ export function PlayerShell({
     url, title, mediaType, onPlaybackConfirmed, adFilter, autoplayNext, skipMark, autoSkipSegments,
     pendingStart, onPendingStart, onPlayerApi, onRecordSegment,
     episodeKey, nextUrl, nextEpisodeKey,
-    getRestorePosition, onTimeUpdate, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource,
+    getRestorePosition, onTimeUpdate, onClockUpdate, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource,
     onPrevEpisode, onNextEpisode, hasPrevEpisode, hasNextEpisode,
   };
 
