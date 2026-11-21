@@ -255,8 +255,7 @@ describe('首页与播放页回归契约', () => {
     expect(watch).toContain('<SwitchSourceModal');
     expect(watch).toContain('getRestorePosition={getRestorePosition}');
     expect(watch).toContain('setWatchClock({ position, duration })');
-    expect(watch).toContain('onClockUpdate={(position, duration) => setWatchClock({ position, duration })}');
-    expect(watch).toContain('onTimeUpdate={handleProgress}');
+    expect(watch).toContain('onTimeUpdate={(position, duration) =>');
     expect(watch).toContain('onPause={(position, duration) =>');
     expect(watch).toContain('enqueueDownload({');
     expect(watch).toContain('setSwitchOpen(true)');
