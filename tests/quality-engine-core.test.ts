@@ -147,6 +147,10 @@ describe("Quality Engine quality gate", () => {
     });
   });
 
+  it("blocks a passed check that has no evidence attached", () => {
+    expect(evaluateQualityGate([{ id: "preview", required: true, outcome: "passed" }])).toMatchObject({ eligible: false, missingEvidence: ["preview"] });
+  });
+
   it("does not allow an empty required-check list to imply successful verification", () => {
     expect(evaluateQualityGate([])).toMatchObject({ eligible: false, status: "blocked", notRun: ["__no_required_checks__"] });
   });
