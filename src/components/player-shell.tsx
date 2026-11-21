@@ -888,7 +888,6 @@ export function PlayerShell({
     hls.on(Hls.Events.FRAG_BUFFERED, (_event, data) => {
       mediaHealthyRef.current = true;
       if (data.frag?.type !== 'main') return;
-      const metrics = playbackMetricsRef.current;
       // FRAG_LOADED and FRAG_BUFFERED can interleave across concurrent HLS loads.
       // Use this exact buffered main fragment's own stats instead of global "last fragment"
       // values, otherwise throughput from one fragment can be paired with another's buffer event.
