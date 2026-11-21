@@ -52,8 +52,9 @@ describe("Quality Engine agent orchestrator", () => {
     const invalidPlanner: TestPlanAgent = {
       async createPlan() { return { ...plan, commitSha: "other-sha" }; },
     };
+    const { discoveryAgent, generatorAgent } = agents();
     await expect(runPlanningPipeline({
-      snapshot, impact, objective: "Validate quality core", ...agents(), plannerAgent: invalidPlanner,
+      snapshot, impact, objective: "Validate quality core", discoveryAgent, generatorAgent, plannerAgent: invalidPlanner,
       allowedDirectories: ["tests/generated"], framework: "vitest",
     })).rejects.toThrow(/different repository revision/);
   });
