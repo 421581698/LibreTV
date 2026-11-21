@@ -492,11 +492,7 @@
     --ipad-page-gutter: clamp(28px, 3.2vw, 48px);
   }
 }
-@media (max-width: 699px) {.ipad-edition__home {
-    /* Compact mobile capsule: keep a smaller, but still explicit, safe-area gap. */
-    
-  }
-}
+/* Compact mobile capsule spacing is defined by the later safe-area layout rules. */
 @media (prefers-reduced-transparency: reduce) { .ipad-edition__collection-tabs button, .ipad-edition__pagination button, .ipad-edition__category-grid button {
     background: rgba(24, 26, 31, .96) !important;
     -webkit-backdrop-filter: none !important;
