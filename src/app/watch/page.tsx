@@ -82,6 +82,7 @@ function WatchContent() {
   const [showPlayerPanel, setShowPlayerPanel] = useState(false);
   const [showAutoNext, setShowAutoNext] = useState(false);
   const [switchOpen, setSwitchOpen] = useState(false);
+  const closeSwitchModal = useCallback(() => setSwitchOpen(false), []);
   const [skipPanelOpen, setSkipPanelOpen] = useState(false);
   const playerApiRef = useRef<PlayerSkipApi | null>(null);
   const nativeFullscreenCleanupRef = useRef<(() => void) | null>(null);
@@ -918,7 +919,7 @@ function WatchContent() {
           currentSourceKey={sourceKey}
           currentVodId={vodId}
           currentIndex={currentIndex}
-          onClose={() => setSwitchOpen(false)}
+          onClose={closeSwitchModal}
         />
       )}
     </div>
