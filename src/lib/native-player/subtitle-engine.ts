@@ -65,16 +65,14 @@ export function parseSubtitle(input: string, format?: SubtitleFormat): SubtitleT
 export function findActiveSubtitle(cues: readonly SubtitleCue[], timeSeconds: number): SubtitleCue | null {
   if (!Number.isFinite(timeSeconds) || timeSeconds < 0) return null;
   let low = 0;
-  let high = cues.length - 1;
-  let candidate: SubtitleCue | null = null;
-  while (low <= high) {
+  let high = cues.length;
+  while (low < high) {
     const middle = (low + high) >> 1;
-    if (cues[middle].start <= timeSeconds) {
-      candidate = cues[middle];
-      low = middle + 1;
-    } else {
-      high = middle - 1;
-    }
+    if (cues[middle].start <= timeSeconds) low = middle + 1;
+    else high = middle;
   }
-  return candidate && timeSeconds < candidate.end ? candidate : null;
+  for (let index = low - 1; index >= 0; index -= 1) {
+    if (timeSeconds < cues[index].end) return cues[index];
+  }
+  return null;
 }
