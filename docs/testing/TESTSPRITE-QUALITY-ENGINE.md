@@ -123,7 +123,7 @@ AI E2E plans      deterministic  Vitest / API / media
 
 ## 7. TestSprite CLI 试点与操作
 
-先在独立 Feature Branch / Preview 做兼容性审计和试点，不立即改变所有现有 CI。
+先在独立 Feature Branch / Preview 做兼容性审计和试点，不立即改变所有现有 CI。以下命令按官方 CLI 0.17 文档校准；升级 CLI 后先运行 `testsprite --version` 与 `testsprite doctor`，不要混用 0.16 子命令。
 
 开发环境安装（官方 CLI 当前要求 Node.js 20.19+、22.13+ 或 24+）：
 
@@ -143,22 +143,35 @@ testsprite project create --type frontend --name "LibreTV"
 testsprite project env create "$TESTSPRITE_PROJECT_ID" --name default --url "https://<verified-preview-or-staging-url>"
 ```
 
-当前 CLI 0.17 的计划与执行流程：
+当前 CLI 0.17 的计划、审阅、保存和执行流程：
 
 ```bash
-# 让 AI 提出覆盖计划，先审阅步骤
-testsprite plan "Verify LibreTV homepage, search entry, navigation and primary user journeys" --project "$TESTSPRITE_PROJECT_ID" --steps
+# 创建 LibreTV 项目（若尚不存在）；返回项目 ID
+testsprite project create --type frontend --name "LibreTV"
+export TESTSPRITE_PROJECT_ID="<project-id>"
 
-# 审阅建议后应用（会将通过审阅的用例写入项目）
+# 创建可访问的 Preview 环境；第一个环境成为默认环境
+testsprite project env create "$TESTSPRITE_PROJECT_ID" \
+  --name default --url "https://<verified-preview-url>"
+
+# 附上本仓库覆盖说明与当前 PR diff，让 TestSprite 提出测试计划
+testsprite plan "Create a durable, reviewed LibreTV frontend regression suite covering homepage, search, navigation, and playback entry. Treat external media providers as flaky dependencies; never assert live catalog contents." \
+  --project "$TESTSPRITE_PROJECT_ID" \
+  --file testsprite/libretv-coverage-brief.md \
+  --diff --steps
+
+# 人工审阅提议与断言；只有确认正确后才保存
 testsprite apply --output json
 
-# 查看现有测试并运行整个项目套件
+# 列出已保存用例并执行整个项目套件
 testsprite test list --project "$TESTSPRITE_PROJECT_ID"
-testsprite run --project "$TESTSPRITE_PROJECT_ID" --wait
+testsprite run --project "$TESTSPRITE_PROJECT_ID" --wait --output json
 
-# 获取失败详情和证据
-testsprite result get <RESULT_ID> --out ".testsprite/results/<RESULT_ID>"
+# 读取单个失败结果及其截图、页面快照和视频
+testsprite result get "<result-id>" --out ".testsprite/results/<result-id>"
 ```
+
+CLI 0.17 变更提醒：计划仍使用根命令 `testsprite plan` / `testsprite apply`；项目套件执行使用根命令 `testsprite run --project ... --wait`；失败详情使用 `testsprite result get`。不要再使用旧版 `testsprite test plan generate/accept`、`testsprite test run` 或 `testsprite test failure get` 命令。
 
 GitHub Actions 使用官方 CI 门禁命令（先由工作流等待 Preview URL 可达，再传入已验证地址）：
 
@@ -175,7 +188,7 @@ testsprite ci run \
 - Repository variable `TESTSPRITE_PREVIEW_URL_TEMPLATE`：PR Preview URL 模板，使用 `{pr}`、`{pr-number}`、`{branch-slug}`、`{sha}` 或 `{short-sha}` 占位符；
 - Repository secret `TESTSPRITE_API_KEY`：TestSprite API Key，只能放在 GitHub Secrets。
 
-当前工作流在 `TESTSPRITE_PROJECT_ID` 与 `TESTSPRITE_PREVIEW_URL_TEMPLATE` 齐备且 PR 非 Draft 时启动 TestSprite 云端门禁；先轮询对应 PR Preview 的 HTTP 可达性，再启动 `testsprite ci run`。缺少配置时会明确报告“未配置/未运行”，不会将其伪装成通过。TestSprite 项目还必须有可用的默认环境和至少一条已应用的测试用例。CLI 0.17 的命令和选项以官方文档为准。
+当前工作流在 `TESTSPRITE_PROJECT_ID` 与 `TESTSPRITE_PREVIEW_URL_TEMPLATE` 齐备且 PR 非 Draft 时启动 TestSprite 云端门禁；先轮询对应 PR Preview 的 HTTP 可达性，再启动 `testsprite ci run`。缺少配置时会明确报告“未配置/未运行”，不会将其伪装成通过。TestSprite 项目还必须有可用的默认环境和至少一条已应用的测试用例。当前工作流通过 `--target-url` 将执行指向本 PR Preview；如果默认环境使用登录态，需确认该登录配置能安全地用于 PR 临时环境。
 
 凭据要求：
 - API Key 只存储在本地安全环境或 GitHub Actions Secrets；
