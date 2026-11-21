@@ -6,6 +6,15 @@ import { NativeMediaBackend } from './native-media-backend';
 
 export type BackendPreference = 'auto' | 'native' | 'hls-mse';
 
+function detectNativeHlsSupport(): boolean {
+  if (typeof document === 'undefined') return false;
+  const video = document.createElement('video');
+  return Boolean(
+    video.canPlayType('application/vnd.apple.mpegurl') ||
+    video.canPlayType('application/x-mpegURL')
+  );
+}
+
 export interface BackendSelection {
   readonly backend: PlaybackBackend;
   readonly reason: string;
@@ -18,7 +27,7 @@ export function selectPlaybackBackend(
   environment: { readonly hasWindow: boolean; readonly mseSupported: boolean; readonly nativeHlsSupported: boolean } = {
     hasWindow: typeof window !== 'undefined',
     mseSupported: typeof window !== 'undefined' && Hls.isSupported(),
-    nativeHlsSupported: false,
+    nativeHlsSupported: detectNativeHlsSupport(),
   },
 ): BackendSelection {
   if (preference === 'hls-mse') {
