@@ -1432,6 +1432,7 @@ export function PlayerShell({
     let longPressTimer: ReturnType<typeof setTimeout> | null = null;
     let isLongPress = false;
     let originalRate = 1.0;
+    let activeTouchId: number | null = null;
     const el = containerRef.current;
 
     // 全屏时播放器覆盖整个视口，无法依赖 mouseleave 判断“移出播放器”。
@@ -1459,30 +1460,41 @@ export function PlayerShell({
     }
 
     const onTouchStart = (e: TouchEvent) => {
-      if (art.video?.paused) return;
-      // 已有触控在处理时忽略新手指：否则第二指会把 originalRate 捕获成 3.0，
-      // 松手后倍速永久卡在 3x；旧定时器句柄也会被覆盖成无法清除的幽灵触发
-      if (isLongPress || longPressTimer) return;
-      // 控制栏 / 设置面板上的长按不触发倍速（按住进度条拖动、长按倍速菜单项会误触）
+      if (art.video?.paused || activeTouchId !== null) return;
+      const touch = e.changedTouches[0];
+      if (!touch) return;
+      // 只跟踪启动长按的那根手指；第二根手指抬起/取消时不能提前结束第一根手指的倍速状态。
       if ((e.target as HTMLElement).closest?.('.art-controls, .art-settings')) return;
+      activeTouchId = touch.identifier;
       originalRate = art.video.playbackRate;
       longPressTimer = setTimeout(() => {
-        if (art.video?.paused) return;
+        longPressTimer = null;
+        if (art.video?.paused || activeTouchId === null) return;
         art.video.playbackRate = 3.0;
         isLongPress = true;
         showHint('3 倍速');
       }, 500);
     };
-    const onTouchEnd = () => {
+    const onTouchEnd = (e: TouchEvent) => {
+      if (activeTouchId === null) return;
+      const endedTrackedTouch = Array.from(e.changedTouches).some(
+        (touch) => touch.identifier === activeTouchId,
+      );
+      if (!endedTrackedTouch) return;
+      activeTouchId = null;
       if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
       if (isLongPress) {
-        art.video.playbackRate = originalRate;
+        if (art.video) art.video.playbackRate = originalRate;
         isLongPress = false;
         showHint(`${originalRate} 倍速`);
       }
     };
     const onTouchMove = (e: TouchEvent) => {
-      if (isLongPress) e.preventDefault();
+      if (
+        isLongPress &&
+        activeTouchId !== null &&
+        Array.from(e.changedTouches).some((touch) => touch.identifier === activeTouchId)
+      ) e.preventDefault();
     };
     // ArtPlayer 的 contextmenu 组件只在桌面端初始化（移动端构造函数里跳过 init），
     // 长按倍速因而会连带呼出系统原生菜单/气泡。播放器表面没有可用的原生菜单，统一抑制
@@ -1519,6 +1531,11 @@ export function PlayerShell({
       if (playbackConfirmationTimerRef.current) clearTimeout(playbackConfirmationTimerRef.current);
       clearMetadataWatchdog();
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+      if (longPressTimer) clearTimeout(longPressTimer);
+      longPressTimer = null;
+      if (isLongPress && art.video) art.video.playbackRate = originalRate;
+      isLongPress = false;
+      activeTouchId = null;
       el?.removeEventListener('touchstart', onTouchStart);
       el?.removeEventListener('touchend', onTouchEnd);
       el?.removeEventListener('touchcancel', onTouchEnd);
