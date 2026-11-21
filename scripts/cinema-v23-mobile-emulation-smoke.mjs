@@ -49,10 +49,10 @@ try {
   }, null, { timeout: 45_000 });
 
   const profiles = [
-    { name: 'iPhone portrait emulation', width: 390, height: 844, screenshot: '/tmp/cinema-v23-iphone-portrait.png' },
-    { name: 'iPhone landscape emulation', width: 844, height: 390, screenshot: '/tmp/cinema-v23-iphone-landscape.png' },
-    { name: 'iPad landscape emulation', width: 1194, height: 834, screenshot: '/tmp/cinema-v23-ipad-landscape.png' },
-    { name: 'iPad split-view width emulation', width: 680, height: 834, screenshot: '/tmp/cinema-v23-ipad-split-view.png' },
+    { name: 'iPhone-size portrait viewport', width: 390, height: 844, screenshot: '/tmp/cinema-v23-iphone-portrait.png' },
+    { name: 'iPhone-size landscape viewport', width: 844, height: 390, screenshot: '/tmp/cinema-v23-iphone-landscape.png' },
+    { name: 'iPad-size landscape viewport', width: 1194, height: 834, screenshot: '/tmp/cinema-v23-ipad-landscape.png' },
+    { name: 'iPad split-view width viewport', width: 680, height: 834, screenshot: '/tmp/cinema-v23-ipad-split-view.png' },
   ];
 
   for (const profile of profiles) {
@@ -62,6 +62,7 @@ try {
       const video = document.querySelector('.netflix-player-frame video');
       const frame = document.querySelector('.netflix-player-frame');
       const rect = frame?.getBoundingClientRect();
+      const videoRect = video?.getBoundingClientRect();
       return {
         videoCount: document.querySelectorAll('video').length,
         sameVideoElement: video === window.__cinemaV23Video,
@@ -69,6 +70,8 @@ try {
         documentWidth: document.documentElement.scrollWidth,
         frameWidth: rect?.width ?? 0,
         frameHeight: rect?.height ?? 0,
+        videoRectWidth: videoRect?.width ?? 0,
+        videoRectHeight: videoRect?.height ?? 0,
         videoWidth: video?.videoWidth ?? 0,
         videoHeight: video?.videoHeight ?? 0,
         assCanvas: (() => {
@@ -82,7 +85,9 @@ try {
         layout.documentWidth > layout.viewportWidth + 2) {
       throw new Error(profile.name + ' layout invariant failed: ' + JSON.stringify(layout));
     }
-    if (profile.name !== 'iPhone portrait emulation' && (!layout.assCanvas || layout.assCanvas.width <= 0 || layout.assCanvas.height <= 0)) {
+    if (!layout.assCanvas || layout.assCanvas.width <= 0 || layout.assCanvas.height <= 0 ||
+        Math.abs(layout.assCanvas.width - layout.videoRectWidth) > 12 ||
+        Math.abs(layout.assCanvas.height - layout.videoRectHeight) > 12) {
       throw new Error(profile.name + ' did not retain a measurable JASSUB canvas after resize: ' + JSON.stringify(layout));
     }
 
@@ -91,7 +96,7 @@ try {
     await subtitleButton.waitFor({ state: 'visible', timeout: 5_000 });
     await subtitleButton.click();
     await page.locator('select[aria-label="选择字幕轨"]').waitFor({ state: 'visible', timeout: 3_000 });
-    if (profile.name === 'iPhone portrait emulation') {
+    if (profile.name === 'iPhone-size portrait viewport') {
       await page.locator('input[accept=".ass,.ssa,text/plain"]').setInputFiles(
         resolve('src/lib/native-player/fixtures/minimal.ass'),
       );
