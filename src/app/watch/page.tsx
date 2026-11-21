@@ -768,7 +768,7 @@ function WatchContent() {
                   min={0}
                   max={Math.max(1, watchClock.duration)}
                   step={1}
-                  value={Math.min(seekDraft ?? watchClock.position, watchClock.duration || seekDraft || watchClock.position)}
+                  value={watchClock.duration > 0 ? Math.min(seekDraft ?? watchClock.position, watchClock.duration) : 0}
                   aria-label="播放进度"
                   onChange={(event) => setSeekDraft(Number(event.target.value))}
                   onPointerUp={(event) => commitSeek(Number(event.currentTarget.value))}
