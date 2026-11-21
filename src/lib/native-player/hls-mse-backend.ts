@@ -29,10 +29,12 @@ export class HlsMseBackend implements PlaybackBackend {
     this.media.attach(element);
     this.unsubscribeMedia?.();
     this.unsubscribeMedia = this.media.subscribe(event => {
-      if (!this.identity) return;
+      // Preserve the media backend's source identity. Re-tagging an old queued
+      // DOM event with the latest identity would defeat generation isolation.
+      if (!this.identity || event.identity !== this.identity) return;
       this.sequence += 1;
       this.listeners.forEach(listener => listener({
-        identity: this.identity!,
+        identity: event.identity,
         sequence: this.sequence,
         event: event.event,
       }));
@@ -53,10 +55,13 @@ export class HlsMseBackend implements PlaybackBackend {
     const hls = new Hls({ enableWorker: true, lowLatencyMode: false });
     this.hls = hls;
     hls.on(Hls.Events.ERROR, (_event, data) => {
-      if (!data.fatal || !this.identity || this.disposed) return;
+      // A destroyed HLS instance may still have a queued callback. Bind the
+      // callback to the identity and instance that created it; never label it
+      // with a later source generation.
+      if (!data.fatal || this.disposed || this.hls !== hls || this.identity !== identity) return;
       this.sequence += 1;
       this.listeners.forEach(listener => listener({
-        identity: this.identity!,
+        identity,
         sequence: this.sequence,
         event: {
           type: 'ERROR',
