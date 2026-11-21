@@ -58,8 +58,10 @@ export class NativeMediaBackend implements PlaybackBackend {
     this.sequence = 0;
   }
 
-  async load(source: PlaybackSource, identity: PlaybackSessionIdentity): Promise<BackendCommandResult> {
-    const element = this.requireElement();
+  async load(source: PlaybackSource, identity: PlaybackSessionIdentity, signal?: AbortSignal): Promise<BackendCommandResult> {
+    if (this.disposed || !this.element) return { ok: false, reason: 'not-ready' };
+    if (signal?.aborted) return { ok: false, reason: 'failed', error: { code: 'LOAD_ABORTED', message: 'The load was cancelled.', recoverable: true } };
+    const element = this.element;
     this.setSessionIdentity(identity);
     element.src = source.url;
     element.load();
