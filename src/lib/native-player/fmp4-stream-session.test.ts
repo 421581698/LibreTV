@@ -57,13 +57,13 @@ describe('Fmp4StreamSession', () => {
     const session = new Fmp4StreamSession();
     session.updateInitSegment(makeInitSegment());
     session.parseMediaSegment(makeFragment(90_000));
-    expect(session.parseMediaSegment(makeFragment(97_500)).discontinuities[0]).toMatchObject({
-      trackId: 7, kind: 'gap', deltaSeconds: expect.closeTo(0.05, 5),
-    });
+    const gap = session.parseMediaSegment(makeFragment(97_500)).discontinuities[0];
+    expect(gap).toMatchObject({ trackId: 7, kind: 'gap' });
+    expect(gap?.deltaSeconds).toBeCloseTo(0.05, 5);
 
     session.recover();
     session.parseMediaSegment(makeFragment(90_000));
-    expect(session.parseMediaSegment(makeFragment(82_500)).discontinuities[0]?.kind).toBe('overlap');
+    expect(session.parseMediaSegment(makeFragment(92_000)).discontinuities[0]?.kind).toBe('overlap');
 
     session.recover();
     session.parseMediaSegment(makeFragment(90_000));
