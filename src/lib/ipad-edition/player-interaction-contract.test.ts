@@ -5,13 +5,14 @@ import { describe, expect, it } from 'vitest';
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
 describe('iPad Edition playback interaction contract', () => {
-  const watch = read('src/app/watch/page.tsx');
+  const watch = read('src/components/ipad-edition/IpadEditionWatchPlayer.tsx');
   const player = read('src/components/player-shell.tsx');
   const switchSource = read('src/components/switch-source.tsx');
   const wrapper = read('src/app/ipad-edition/watch/page.tsx');
 
   it('keeps every playback route transition inside the iPad Edition route', () => {
-    expect(wrapper).toContain('<WatchPage watchPath="/ipad-edition/watch" />');
+    expect(wrapper).toContain('<IpadEditionWatchPlayer />');
+    expect(watch).toContain("const watchPath = '/ipad-edition/watch' as const;");
     expect(watch).toContain('router.replace(`${watchPath}?${sp.toString()}`, { scroll: false });');
     expect(watch).toContain("const fallbackHref = watchPath === '/ipad-edition/watch' ? '/ipad-edition' : '/';");
     expect(watch).toContain('watchPath={watchPath}');
