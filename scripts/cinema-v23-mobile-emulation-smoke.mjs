@@ -4,7 +4,6 @@
  * It exercises responsive layout, rotation-like viewport changes and split-view widths.
  */
 import { chromium } from 'playwright';
-import { resolve } from 'node:path';
 
 const base = process.env.CINEMA_PREVIEW_URL || 'https://libretv-cinema-v23-preview.bggdbh.workers.dev';
 const stream = 'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8';
@@ -81,32 +80,49 @@ try {
       const frame = document.querySelector('.netflix-player-frame');
       const rect = frame?.getBoundingClientRect();
       const videoRect = video?.getBoundingClientRect();
+      const topbarRect = document.querySelector('.watch-topbar')?.getBoundingClientRect();
+      const closeRect = document.querySelector('.cinema-close-control')?.getBoundingClientRect();
+      const dockRect = document.querySelector('nav.v4-mobile-tabbar')?.getBoundingClientRect();
       return {
         videoCount: document.querySelectorAll('video').length,
         sameVideoElement: video === window.__cinemaV23Video,
         viewportWidth: window.innerWidth,
         documentWidth: document.documentElement.scrollWidth,
         frameWidth: rect?.width ?? 0,
-        frameHeight: rect?.height ?? 0,
+        frameHeight: rect?.height ?? 0,\n        frameTop: rect?.top ?? 0,\n        topbarBottom: topbarRect?.bottom ?? 0,\n        closeBottom: closeRect?.bottom ?? 0,\n        dockTop: dockRect?.top ?? 0,\n        dockBottom: dockRect?.bottom ?? 0,
         videoRectWidth: videoRect?.width ?? 0,
         videoRectHeight: videoRect?.height ?? 0,
         videoWidth: video?.videoWidth ?? 0,
         videoHeight: video?.videoHeight ?? 0,
-        assCanvas: (() => {
-          const canvas = document.querySelector('canvas.JASSUB');
-          const canvasRect = canvas?.getBoundingClientRect();
-          return canvasRect ? { width: canvasRect.width, height: canvasRect.height } : null;
+        topbar: (() => {
+          const r = document.querySelector('.watch-topbar')?.getBoundingClientRect();
+          return r ? { top: r.top, bottom: r.bottom, height: r.height } : null;
         })(),
+        closeButton: (() => {
+          const r = document.querySelector('.cinema-close-control')?.getBoundingClientRect();
+          return r ? { top: r.top, bottom: r.bottom, left: r.left, right: r.right } : null;
+        })(),
+        dock: (() => {
+          const r = document.querySelector('nav.v4-mobile-tabbar')?.getBoundingClientRect();
+          return r ? { top: r.top, bottom: r.bottom, height: r.height } : null;
+        })(),
+        safeArea: {
+          top: getComputedStyle(document.documentElement).getPropertyValue('padding-top'),
+          bottomInset: getComputedStyle(document.documentElement).getPropertyValue('--libretv-visual-viewport-bottom-inset'),
+        },
       };
     });
     if (layout.videoCount !== 1 || !layout.sameVideoElement || layout.frameWidth <= 0 || layout.frameHeight <= 0 ||
         layout.documentWidth > layout.viewportWidth + 2) {
       throw new Error(profile.name + ' layout invariant failed: ' + JSON.stringify(layout));
     }
-    if (!layout.assCanvas || layout.assCanvas.width <= 0 || layout.assCanvas.height <= 0 ||
-        Math.abs(layout.assCanvas.width - layout.videoRectWidth) > 12 ||
-        Math.abs(layout.assCanvas.height - layout.videoRectHeight) > 12) {
-      throw new Error(profile.name + ' did not retain a measurable JASSUB canvas after resize: ' + JSON.stringify(layout));
+    if (profile.width <= 700) {
+      if (layout.topbarBottom > layout.frameTop + 2) {
+        throw new Error(profile.name + ' topbar overlaps player frame: ' + JSON.stringify(layout));
+      }
+      if (layout.dockBottom > profile.height + 2 || layout.dockTop < 0) {
+        throw new Error(profile.name + ' app dock is outside the visible viewport: ' + JSON.stringify(layout));
+      }
     }
 
     await page.mouse.move(Math.min(profile.width - 10, Math.round(profile.width / 2)), Math.round(profile.height / 2));
@@ -114,12 +130,8 @@ try {
     await subtitleButton.waitFor({ state: 'visible', timeout: 5_000 });
     await subtitleButton.click();
     await page.locator('select[aria-label="选择字幕轨"]').waitFor({ state: 'visible', timeout: 3_000 });
-    if (profile.name === 'iPhone-size portrait viewport') {
-      await page.locator('input[accept=".ass,.ssa,text/plain"]').setInputFiles(
-        resolve('src/lib/native-player/fixtures/minimal.ass'),
-      );
-      await page.waitForSelector('canvas.JASSUB', { state: 'visible', timeout: 25_000 });
-    }
+    // Subtitle source ownership is remote-resource driven. This layout smoke
+    // test checks the controls only; it must not inject a local ASS fixture.
     await subtitleButton.click();
 
     const spatialButton = page.locator('button[aria-label="空间音频设置"]');
@@ -150,10 +162,9 @@ try {
     const video = document.querySelector('.netflix-player-frame video');
     return Boolean(video && video.currentTime >= 1.5);
   }, null, { timeout: 60_000 });
-  await page.waitForFunction(() => !document.querySelector('canvas.JASSUB'), null, { timeout: 10_000 });
 
   if (errors.length) throw new Error('Mobile emulation page errors: ' + errors.slice(0, 8).join(' | '));
-  console.log('PASS Chromium responsive/rotation/split-width emulation and JASSUB source-switch cleanup. Physical Safari testing remains required.');
+  console.log('PASS Chromium responsive/rotation/split-width layout emulation. Remote subtitle playback is covered by the resource-source acceptance suite; physical Safari testing remains required.');
 } finally {
   await browser.close();
 }
