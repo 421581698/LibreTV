@@ -51,6 +51,37 @@ describe('installArtPlayerControlBridge', () => {
     cleanup();
   });
 
+  it('keeps concurrent pause routed through the controller while play is pending', async () => {
+    const { video } = createVideo();
+    let resolvePlay!: () => void;
+    const pendingPlay = new Promise<void>((resolve) => { resolvePlay = resolve; });
+    const nativePlay = vi.fn(() => pendingPlay);
+    const nativePause = vi.fn(() => undefined);
+    video.play = nativePlay;
+    video.pause = nativePause;
+
+    const controller = {
+      play: vi.fn(() => video.play().then((): BackendCommandResult => ({ ok: true }))),
+      pause: vi.fn((): BackendCommandResult => {
+        video.pause();
+        return { ok: true };
+      }),
+      seek: vi.fn((): BackendCommandResult => ({ ok: true })),
+    };
+    const cleanup = installArtPlayerControlBridge(video, () => controller);
+
+    const playPromise = video.play();
+    video.pause();
+
+    expect(controller.play).toHaveBeenCalledOnce();
+    expect(controller.pause).toHaveBeenCalledOnce();
+    expect(nativePause).toHaveBeenCalledOnce();
+
+    resolvePlay();
+    await playPromise;
+    cleanup();
+  });
+
   it('uses native media methods when no controller is attached', async () => {
     const { video } = createVideo();
     const nativePlay = video.play;
