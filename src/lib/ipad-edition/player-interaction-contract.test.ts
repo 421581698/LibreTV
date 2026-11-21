@@ -32,6 +32,8 @@ describe('iPad Edition playback interaction contract', () => {
 
   it('uses the same native-fullscreen fallback helper as the player control', () => {
     expect(watch).toContain('requestNativeFullscreenWithFallback(');
+    expect(watch).toContain('playerApiRef.current?.isFullscreen()');
+    expect(watch).toContain('playerApiRef.current.exitFullscreen();');
     expect(watch).toContain('playerApiRef.current.enterFullscreen()');
     expect(player).toContain('enterFullscreen: () => {');
     expect(player).toContain('current.fullscreenWeb = true');
