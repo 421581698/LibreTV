@@ -240,3 +240,23 @@ export function parseFmp4Fragments(input: ArrayBuffer | Uint8Array, options: Par
   }
   return fragments;
 }
+
+/**
+ * Return a zero-copy view of one parsed sample payload.
+ * Offsets are relative to the exact byte range passed to parseFmp4Fragments.
+ */
+export function extractFmp4SamplePayload(
+  input: ArrayBuffer | Uint8Array,
+  sample: Pick<Fmp4Sample, 'dataOffset' | 'size'>,
+): Uint8Array {
+  if (sample.dataOffset === null || sample.size === null) {
+    throw new Error('Sample payload offset and size are not available in fragment metadata.');
+  }
+  const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
+  const end = sample.dataOffset + sample.size;
+  if (!Number.isSafeInteger(sample.dataOffset) || !Number.isSafeInteger(end) ||
+      sample.dataOffset < 0 || sample.size < 0 || end > bytes.length) {
+    throw new Error('Sample payload range is outside the supplied fMP4 byte range.');
+  }
+  return bytes.subarray(sample.dataOffset, end);
+}
