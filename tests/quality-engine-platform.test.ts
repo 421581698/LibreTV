@@ -121,7 +121,7 @@ describe("Quality report", () => {
         requiresPhysicalIPhone: true, requiresPhysicalIPad: true, matchedPaths: [],
       },
     });
-    const mobileRun = { ...run, id: "run-mobile", planId: mobilePlan.id };
+    const mobileRun = { ...run, id: "run-mobile", planId: mobilePlan.id, branch: mobilePlan.branch };
     const report = buildQualityReport({
       plan: mobilePlan, run: mobileRun,
       checks: [{ id: "unit", required: true, outcome: "passed", evidenceIds: ["junit-1"] }],
