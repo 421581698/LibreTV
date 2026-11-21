@@ -116,6 +116,8 @@ export interface PlayerSkipApi {
   setPlaybackRate(rate: number): void;
   /** Enter the player's web-fullscreen mode when native fullscreen is unavailable. */
   enterFullscreen(): void;
+  isFullscreen(): boolean;
+  exitFullscreen(): void;
 }
 
 interface PlayerShellProps {
@@ -1094,6 +1096,16 @@ export function PlayerShell({
       enterFullscreen: () => {
         const current = artRef.current;
         if (current && !current.fullscreenWeb) current.fullscreenWeb = true;
+      },
+      isFullscreen: () => {
+        const current = artRef.current;
+        return Boolean(current?.fullscreen || current?.fullscreenWeb);
+      },
+      exitFullscreen: () => {
+        const current = artRef.current;
+        if (!current) return;
+        if (current.fullscreenWeb) current.fullscreenWeb = false;
+        else if (current.fullscreen) current.fullscreen = false;
       },
     });
 
