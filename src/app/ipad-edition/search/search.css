@@ -131,10 +131,10 @@
 }
 
 
-/* Search-page flow recovery: keep the search control directly below its heading.
-   Prevent global form spacing or grid free-space distribution from creating a
-   viewport-sized dead zone on iPhone Safari. */
+/* iPad Search flow recovery: prevent the page's viewport min-height from
+   stretching implicit grid rows and separating the form from its heading. */
 .ipad-edition.ipad-edition__search-page {
+  min-height: 0;
   align-content: start;
   grid-auto-rows: max-content;
   row-gap: 24px;
