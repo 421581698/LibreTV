@@ -3,7 +3,7 @@
 Status: implementation in progress; no production integration is claimed.
 Branch: `feature/cinema-engine-v2-3-integration`
 Base: `feature/cinema-engine-v2-3-architecture` at `99cad81c1a3505012e53dd898de68d001ba04c81`
-CI-validated code head: `c8840875cbfc7175994deb8d87cc3485ce8024a8`
+Latest code head awaiting exact-head CI: `c69acde915627d5297374181a7bc7b751ac8989a`
 
 ## Current validation
 
@@ -96,3 +96,11 @@ See [CINEMA-ENGINE-V2-3-DEVICE-ACCEPTANCE.md](./CINEMA-ENGINE-V2-3-DEVICE-ACCEPT
 - Exact code head `c8840875cbfc7175994deb8d87cc3485ce8024a8` passed both prelaunch-checks and Resource Playback Verification, including TypeScript, ESLint, unit tests and production build; collector verification passed as well.
 - The source lifecycle remains deliberately owned by PlayerShell + hls.js. `NativeMediaBackend.observeExistingSource()` attaches to the already active video element without assigning `src`, calling `load()`, or creating a second MSE pipeline. PlaybackController currently owns command routing and observed-session state, not HLS manifest/MSE source orchestration.
 - Isolated Preview browser regression must now run against this updated exact branch head; CI success alone does not close the browser acceptance gate.
+
+
+## Media-source observer lifecycle regression coverage (2026-11-21)
+
+- Added a regression test that observes one media element, switches the same controller to a second element/source, and verifies events from the previous element are detached and ignored.
+- Code commit: `c69acde915627d5297374181a7bc7b751ac8989a`.
+- The prior bridge concurrency fix at `c8840875cbfc7175994deb8d87cc3485ce8024a8` passed both CI workflows. This additional observer-lifecycle test has not yet received an exact-head CI result.
+- The current branch head is marked for a fresh isolated Preview run. Preview browser acceptance remains pending; do not infer a successful deployment from this marker commit.
