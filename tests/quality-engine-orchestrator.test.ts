@@ -18,7 +18,7 @@ const plan: TestPlan = {
 function agents(generatedPath = "tests/generated/core.test.ts") {
   const discoveryAgent: DiscoveryAgent = {
     async discover() {
-      return { findings: [{ id: "finding-1", area: "quality-engine", title: "Core contracts" }], completed: true, limitations: [] };
+      return { findings: [{ id: "finding-1", area: "quality-engine", title: "Core contracts", risk: "medium" }], completed: true, limitations: [] };
     },
   };
   const plannerAgent: TestPlanAgent = { async createPlan() { return plan; } };
