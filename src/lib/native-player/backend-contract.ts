@@ -33,7 +33,7 @@ export type BackendEvent =
 export interface PlaybackBackend {
   readonly kind: BackendKind;
   attach(element: HTMLMediaElement): void;
-  load(source: PlaybackSource, identity: PlaybackSessionIdentity): Promise<BackendCommandResult>;
+  load(source: PlaybackSource, identity: PlaybackSessionIdentity, signal?: AbortSignal): Promise<BackendCommandResult>;
   play(): Promise<BackendCommandResult>;
   pause(): BackendCommandResult;
   seek(seconds: number): BackendCommandResult;
