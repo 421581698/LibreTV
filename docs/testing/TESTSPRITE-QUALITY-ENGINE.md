@@ -125,30 +125,59 @@ AI E2E plans      deterministic  Vitest / API / media
 
 先在独立 Feature Branch / Preview 做兼容性审计和试点，不立即改变所有现有 CI。
 
-开发环境安装（以官方文档当前支持的 Node.js 版本和 CLI 版本为准）：
+开发环境安装（官方 CLI 当前要求 Node.js 20.19+、22.13+ 或 24+）：
 
 ```bash
 npm install -g @testsprite/testsprite-cli
 testsprite --version
 testsprite setup
 testsprite doctor
+testsprite auth status
 ```
 
-常用操作示例（实际子命令和参数以当前官方 CLI 文档为准）：
+首次建立 LibreTV 前端项目（只在尚无对应项目时执行）：
 
 ```bash
-# 生成测试计划
-testsprite test plan generate --project <PROJECT_ID>
-
-# 执行全部测试
-testsprite test run --all --project <PROJECT_ID> --wait
-
-# 查看失败详情
-testsprite test failure get <TEST_ID>
-
-# 初始化 GitHub Actions 集成
-testsprite ci init github
+testsprite project create --type frontend --name "LibreTV"
+# 将返回的项目 ID 保存为 TESTSPRITE_PROJECT_ID
+testsprite project env create "$TESTSPRITE_PROJECT_ID" --name default --url "https://<verified-preview-or-staging-url>"
 ```
+
+当前 CLI 0.17 的计划与执行流程：
+
+```bash
+# 让 AI 提出覆盖计划，先审阅步骤
+testsprite plan "Verify LibreTV homepage, search entry, navigation and primary user journeys" --project "$TESTSPRITE_PROJECT_ID" --steps
+
+# 审阅建议后应用（会将通过审阅的用例写入项目）
+testsprite apply --output json
+
+# 查看现有测试并运行整个项目套件
+testsprite test list --project "$TESTSPRITE_PROJECT_ID"
+testsprite run --project "$TESTSPRITE_PROJECT_ID" --wait
+
+# 获取失败详情和证据
+testsprite result get <RESULT_ID> --out ".testsprite/results/<RESULT_ID>"
+```
+
+GitHub Actions 使用官方 CI 门禁命令：
+
+```bash
+testsprite ci run \
+  --project "$TESTSPRITE_PROJECT_ID" \
+  --wait-for-status "$TESTSPRITE_PREVIEW_STATUS_NAME" \
+  --target-url-template "$TESTSPRITE_PREVIEW_URL_TEMPLATE" \
+  --fail-on-skipped \
+  --summary-file testsprite-summary.json
+```
+
+仓库变量与密钥：
+- Repository variable `TESTSPRITE_PROJECT_ID`：TestSprite 项目 ID；
+- Repository variable `TESTSPRITE_PREVIEW_URL_TEMPLATE`：PR Preview URL 模板，使用官方支持的 `{pr}` / `{branch-slug}` 等占位符；
+- Repository variable `TESTSPRITE_PREVIEW_STATUS_NAME`：部署平台在 PR head commit 上发布的精确 Check / Status 名称；
+- Repository secret `TESTSPRITE_API_KEY`：TestSprite API Key，只能放在 GitHub Secrets。
+
+当前工作流在上述三个变量齐备且 PR 非 Draft 时启动 TestSprite 云端门禁；缺少配置时会明确报告“未配置/未运行”，不会将其伪装成通过。TestSprite 项目还必须有可用的默认环境和至少一条已应用的测试用例。CLI 0.17 的命令和选项以官方文档为准。
 
 凭据要求：
 - API Key 只存储在本地安全环境或 GitHub Actions Secrets；
@@ -204,3 +233,16 @@ testsprite ci init github
 - CLI 文档：<https://github.com/TestSprite/testsprite-cli/blob/main/DOCUMENTATION.md>
 
 > 本文是 LibreTV 的测试策略与落地规范，不代表 TestSprite 已经安装、已接入 CI 或已完成真机验收。上述状态必须以实际试点结果为准。
+
+## 12. 当前仓库接入状态（2026-11-21）
+
+本分支已增加以下基础设施：
+- `.github/workflows/quality-engine.yml`：PR 质量工作流，执行 lint、typecheck、Vitest、生产构建和 Chromium 浏览器 smoke，并上传证据；
+- `scripts/quality-engine-smoke.mjs`：桌面 Chromium 与 iPhone/iPad 尺寸视口模拟测试，记录页面错误、HTTP 状态和截图；
+- `quality-engine/device-registry.json`：真实设备兼容性登记表，初始为空，等待人工真机验收记录；
+- `npm run quality:verify` 与 `npm run quality:smoke`：统一入口；
+- `.gitignore`：忽略本地 TestSprite 与质量测试产物。
+
+**明确的验收边界：** Chromium 移动视口只属于响应式模拟测试，不代表 iPhone/iPad Safari 真机通过。真实设备登记表只有在人工提供设备型号、系统/浏览器版本、提交 SHA、Preview 地址、测试步骤和证据后才可增加通过记录。TestSprite 云端门禁需要用户在 GitHub 仓库配置上述变量和 API Key；没有这些凭据时不会启动真实云端测试。
+
+**当前状态不是最终验收通过：** 工作流提交后仍需等待 GitHub Actions 执行，并处理实际出现的失败；本会话无法代替物理 iPhone/iPad 操作或设置用户的 TestSprite API Key。
