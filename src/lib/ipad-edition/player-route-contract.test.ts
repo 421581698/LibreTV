@@ -6,13 +6,15 @@ const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8'
 
 describe('iPad Edition playback route contract', () => {
   const wrapper = read('src/app/ipad-edition/watch/page.tsx');
-  const watch = read('src/app/watch/page.tsx');
+  const watch = read('src/components/ipad-edition/IpadEditionWatchPlayer.tsx');
   const switchSource = read('src/components/switch-source.tsx');
   const continueWatching = read('src/components/ipad-edition/IpadEditionContinueWatching.tsx');
 
   it('mounts the shared playback engine with the dedicated iPad watch route', () => {
-    expect(wrapper).toContain('<WatchPage watchPath="/ipad-edition/watch" />');
-    expect(watch).toContain("watchPath = '/watch'");
+    expect(wrapper).toContain("import { IpadEditionWatchPlayer } from '@/components/ipad-edition/IpadEditionWatchPlayer';");
+    expect(wrapper).toContain('<IpadEditionWatchPlayer />');
+    expect(watch).toContain("const watchPath = '/ipad-edition/watch' as const;");
+    expect(watch).toContain("const fallbackHref = '/ipad-edition';");
     expect(watch).toContain('router.replace(`${watchPath}?${sp.toString()}`, { scroll: false });');
   });
 
