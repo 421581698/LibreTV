@@ -6,7 +6,8 @@ export async function createAssSubtitleRenderer(
   video: HTMLVideoElement,
   subtitleContent: string,
 ): Promise<AssSubtitleRenderer> {
-  if (typeof Worker === 'undefined' || typeof OffscreenCanvas === 'undefined' || typeof WebAssembly === 'undefined') {
+  if (typeof Worker === 'undefined' || typeof OffscreenCanvas === 'undefined' || typeof WebAssembly === 'undefined' ||
+      typeof HTMLCanvasElement === 'undefined' || typeof HTMLCanvasElement.prototype.transferControlToOffscreen !== 'function') {
     throw new Error('当前浏览器缺少 JASSUB 所需的 Worker、OffscreenCanvas 或 WebAssembly 能力。');
   }
   if (!subtitleContent.trim()) throw new Error('ASS/SSA 字幕文件为空。');
