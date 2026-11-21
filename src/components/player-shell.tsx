@@ -13,6 +13,7 @@ import { DEFAULT_SUBTITLE_PREFERENCES, loadSubtitlePreferences, saveSubtitlePref
 import { applySubtitleTrack, listSubtitleTracks, type SubtitleTrackOption } from '@/lib/native-player/subtitle-track-controller';
 import { inspectHlsAudioTrack } from '@/lib/audio-inspector';
 import { isAudioSourceUrlOriginSafe, SpatialAudioEngine, type SpatialAudioMode } from '@/lib/spatial-audio';
+import { createAssSubtitleRenderer, type AssSubtitleRenderer } from '@/lib/native-player/jassub-renderer';
 import { hasSustainedPlaybackProgress } from '@/lib/playback-verification';
 
 import { PlaybackRecovery, describeHlsError } from '@/lib/playback-recovery';
@@ -231,6 +232,8 @@ export function PlayerShell({
   const subtitlePreferencesRef = useRef<SubtitlePreferences>(DEFAULT_SUBTITLE_PREFERENCES);
   const subtitlePreferencesLoadedRef = useRef(false);
   const subtitleTrackCleanupRef = useRef<(() => void) | null>(null);
+  const assSubtitleRendererRef = useRef<AssSubtitleRenderer | null>(null);
+  const [assSubtitleFileName, setAssSubtitleFileName] = useState('');
   const spatialAudioEngineRef = useRef<SpatialAudioEngine | null>(null);
   const [spatialAudioPanelOpen, setSpatialAudioPanelOpen] = useState(false);
   const [spatialAudioMode, setSpatialAudioMode] = useState<SpatialAudioMode>('off');
@@ -498,6 +501,48 @@ export function PlayerShell({
    * Cinema Engine V2.3 observes the existing ArtPlayer media element.
    * ArtPlayer/hls.js remain the sole source and MSE owners in this integration stage.
    */
+  const clearAssSubtitleRenderer = () => {
+    const renderer = assSubtitleRendererRef.current;
+    assSubtitleRendererRef.current = null;
+    if (renderer) renderer.destroy();
+    setAssSubtitleFileName('');
+  };
+
+  const loadAssSubtitleFile = async (file: File | null) => {
+    if (!file) return;
+    if (!/\.(ass|ssa)$/i.test(file.name)) {
+      showHint('请选择 .ass 或 .ssa 字幕文件');
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      showHint('字幕文件不能超过 20 MB');
+      return;
+    }
+    const video = artRef.current?.video as HTMLVideoElement | undefined;
+    if (!video) return;
+    const sourceAtStart = currentMediaUrlRef.current;
+    try {
+      const content = await file.text();
+      clearAssSubtitleRenderer();
+      applySubtitleTrack(video, hlsRef.current, null, false);
+      const renderer = await createAssSubtitleRenderer(video, content);
+      if (artRef.current?.video !== video || currentMediaUrlRef.current !== sourceAtStart) {
+        renderer.destroy();
+        return;
+      }
+      assSubtitleRendererRef.current = renderer;
+      setAssSubtitleFileName(file.name);
+      updateSubtitlePreferences({
+        ...subtitlePreferencesRef.current,
+        enabled: true,
+        selectedTrackId: 'ass:local',
+      });
+      showHint(`ASS 字幕已加载：${file.name}`);
+    } catch (error) {
+      showHint(error instanceof Error ? error.message : 'ASS 字幕加载失败');
+    }
+  };
+
   const updateSubtitlePreferences = (next: SubtitlePreferences) => {
     subtitlePreferencesRef.current = next;
     setSubtitlePreferences(next);
@@ -513,6 +558,7 @@ export function PlayerShell({
     setSubtitleTracks(options);
     if (!subtitlePreferencesLoadedRef.current) return;
     const preferences = subtitlePreferencesRef.current;
+    if (preferences.selectedTrackId === 'ass:local' && assSubtitleRendererRef.current) return;
     if (!preferences.enabled) {
       applySubtitleTrack(video, hls, null, false);
       return;
@@ -605,6 +651,15 @@ export function PlayerShell({
   const chooseSubtitleTrack = (trackId: string) => {
     const video = artRef.current?.video as HTMLVideoElement | undefined;
     if (!video) return;
+    if (trackId === 'ass:local') {
+      if (!assSubtitleRendererRef.current) return;
+      applySubtitleTrack(video, hlsRef.current, null, false);
+      const canvas = video.parentElement?.querySelector('canvas.JASSUB') as HTMLCanvasElement | null;
+      if (canvas) canvas.style.display = 'block';
+      updateSubtitlePreferences({ ...subtitlePreferencesRef.current, enabled: true, selectedTrackId: 'ass:local' });
+      return;
+    }
+    clearAssSubtitleRenderer();
     const enabled = Boolean(trackId);
     const selectedTrackId = enabled ? trackId : null;
     const applied = applySubtitleTrack(video, hlsRef.current, selectedTrackId, enabled);
@@ -623,6 +678,12 @@ export function PlayerShell({
     const video = artRef.current?.video as HTMLVideoElement | undefined;
     if (!video) return;
     const current = subtitlePreferencesRef.current;
+    if (current.selectedTrackId === 'ass:local' && assSubtitleRendererRef.current) {
+      const canvas = video.parentElement?.querySelector('canvas.JASSUB') as HTMLCanvasElement | null;
+      if (canvas) canvas.style.display = enabled ? 'block' : 'none';
+      updateSubtitlePreferences({ ...current, enabled });
+      return;
+    }
     const selected = current.selectedTrackId && subtitleTracks.some(track => track.id === current.selectedTrackId)
       ? current.selectedTrackId
       : subtitleTracks.find(track => track.isDefault)?.id ?? subtitleTracks[0]?.id ?? null;
@@ -790,6 +851,7 @@ export function PlayerShell({
 
   /** Native progressive media path for formats the existing HTMLVideoElement can play. */
   const setupDirectMedia = (video: HTMLVideoElement, mediaUrl: string) => {
+    clearAssSubtitleRenderer();
     if (!canKeepSpatialAudioForSource(mediaUrl, null)) { video.pause(); return; }
     subtitleTrackCleanupRef.current?.();
     subtitleTrackCleanupRef.current = null;
@@ -857,6 +919,7 @@ export function PlayerShell({
    * 注意：不销毁 ArtPlayer，只销毁并重建 hls，从而保留网页全屏等播放器状态。
    */
   const setupHls = (video: HTMLVideoElement, mediaUrl: string, allowProxyFallback: boolean) => {
+    clearAssSubtitleRenderer();
     subtitleTrackCleanupRef.current?.();
     subtitleTrackCleanupRef.current = null;
     cinemaObserverRef.current?.dispose();
@@ -1830,6 +1893,7 @@ export function PlayerShell({
         window.removeEventListener('libretv-quality-preference-change', qualityPreferenceHandlerRef.current);
         qualityPreferenceHandlerRef.current = null;
       }
+      clearAssSubtitleRenderer();
       subtitleTrackCleanupRef.current?.();
       subtitleTrackCleanupRef.current = null;
       hlsRef.current?.destroy();
@@ -1976,7 +2040,22 @@ export function PlayerShell({
                   {track.label}{track.language ? ` · ${track.language}` : ''}
                 </option>
               ))}
+              {assSubtitleRendererRef.current && (
+                <option value="ass:local" className="bg-black">本地 ASS · {assSubtitleFileName}</option>
+              )}
             </select>
+            <label className="mt-3 flex cursor-pointer items-center justify-center rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-xs text-white/85 hover:bg-white/15">
+              加载 ASS / SSA 文件
+              <input
+                type="file"
+                accept=".ass,.ssa,text/plain"
+                className="sr-only"
+                onChange={(event) => { void loadAssSubtitleFile(event.target.files?.[0] ?? null); event.currentTarget.value = ''; }}
+              />
+            </label>
+            {assSubtitleFileName && (
+              <p className="mt-2 truncate text-[11px] text-white/60">当前文件：{assSubtitleFileName}</p>
+            )}
             <p className="mt-2 text-[11px] text-white/55">
               字幕轨选择会按当前片源和剧集保存；外部 SRT/ASS 文件与高级样式仍在接入中。
             </p>
