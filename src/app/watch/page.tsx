@@ -340,7 +340,7 @@ function WatchContent() {
   useEffect(() => {
     setPendingStart(null);
     setSeekDraft(null);
-  }, [sourceKey, vodId, currentIndex]);
+  }, [sourceKey, vodId, directUrl, suppliedSourceUrl, currentIndex]);
   const goEpisode = useCallback(
     (index: number) => {
       const sp = new URLSearchParams(searchParams.toString());
