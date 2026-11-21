@@ -103,15 +103,18 @@ jobs:
           TESTSPRITE_PREVIEW_URL_TEMPLATE: ${{ vars.TESTSPRITE_PREVIEW_URL_TEMPLATE }}
         run: |
           if [ -n "$TESTSPRITE_PROJECT_ID" ] && [ -n "$TESTSPRITE_PREVIEW_URL_TEMPLATE" ]; then
-            echo "TestSprite CI is configured; its dedicated gate runs for same-repository pull requests, including Draft PRs." >> "$GITHUB_STEP_SUMMARY"
+            echo "TestSprite is an OPTIONAL supplemental cloud E2E check. Its result does not gate or block the core Quality Engine." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "TestSprite cloud gate: NOT CONFIGURED / NOT RUN. Add repository variables TESTSPRITE_PROJECT_ID, TESTSPRITE_PREVIEW_URL_TEMPLATE and secret TESTSPRITE_API_KEY. This is not a TestSprite pass." >> "$GITHUB_STEP_SUMMARY"
+            echo "TestSprite is OPTIONAL and is not configured; the core Quality Engine runs independently. Not configured / not run is not counted as a TestSprite pass." >> "$GITHUB_STEP_SUMMARY"
           fi
 
   testsprite:
     name: TestSprite AI end-to-end gate
     runs-on: ubuntu-24.04
     timeout-minutes: 35
+    # Optional supplemental coverage only. A missing/invalid TestSprite credential
+    # must never block the core lint, typecheck, Vitest, build, or Playwright gates.
+    continue-on-error: true
     if: >-
       github.event_name == 'pull_request' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
@@ -137,6 +140,7 @@ jobs:
         run: npm install -g @testsprite/testsprite-cli
 
       - name: Validate TestSprite credentials and CLI
+        id: validate_credentials
         env:
           TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
         run: |
@@ -182,6 +186,7 @@ jobs:
           exit 1
 
       - name: Run TestSprite against the pull request Preview
+        id: testsprite_run
         env:
           TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
           TESTSPRITE_PROJECT_ID: ${{ vars.TESTSPRITE_PROJECT_ID }}
@@ -206,3 +211,20 @@ jobs:
             testsprite-junit.xml
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Report optional TestSprite outcome
+        if: always()
+        env:
+          CREDENTIALS_OUTCOME: ${{ steps.validate_credentials.outcome }}
+          PREVIEW_OUTCOME: ${{ steps.preview.outcome }}
+          TESTSPRITE_OUTCOME: ${{ steps.testsprite_run.outcome }}
+        run: |
+          if [ "$TESTSPRITE_OUTCOME" = "success" ]; then
+            echo "Optional TestSprite cloud E2E: PASSED with an actual run." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$CREDENTIALS_OUTCOME" != "success" ]; then
+            echo "Optional TestSprite cloud E2E: NOT RUN — credentials/CLI validation failed. This does not block core Quality Engine and is not counted as a pass." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$PREVIEW_OUTCOME" != "success" ]; then
+            echo "Optional TestSprite cloud E2E: NOT RUN — PR Preview was not reachable. This does not block core Quality Engine and is not counted as a pass." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Optional TestSprite cloud E2E: DID NOT PASS. This does not block core Quality Engine and is not counted as a pass." >> "$GITHUB_STEP_SUMMARY"
+          fi
