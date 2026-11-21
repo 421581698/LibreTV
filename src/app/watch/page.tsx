@@ -643,6 +643,10 @@ function WatchContent() {
                     handleProgress(position, duration);
                   }}
                   onEnded={handleEnded}
+                  onRequestSwitchSource={(reason) => {
+                    toast(reason, 'warning');
+                    setSwitchOpen(true);
+                  }}
                   onPlaybackConfirmed={(evidence) => {
                     let host = '';
                     try { host = new URL(currentUrl).hostname.toLowerCase(); } catch { return; }
