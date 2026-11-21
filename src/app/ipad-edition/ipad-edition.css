@@ -829,9 +829,9 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
 /* Frozen iPad Edition capsule specification: 430px maximum width × 72px,
    with four icon-only shortcuts and the original full pill silhouette. */
 .ipad-nav__topbar {
-  
-  
-  top: max(12px, calc(env(safe-area-inset-
+  width: min(430px, calc(100vw - 24px));
+  height: 72px;
+  top: max(12px, calc(env(safe-area-inset-top, 0px) + 8px));
 }
 .ipad-nav__topbar-inner {
   display: flex !important;
@@ -860,7 +860,7 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
   place-items: center !important;
   padding: 0 !important;
   border: 0 !important;
-  
+  border-radius: 50%;
   color: var(--ipad-nav-ink) !important;
   background: transparent !important;
   text-decoration: none !important;
@@ -879,7 +879,7 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
 }
 @media (max-width: 699px) {
   .ipad-nav__topbar {
-    top: max(8px, calc(env(safe-area-inset-
+    top: max(8px, calc(env(safe-area-inset-top, 0px) + 4px));
   }
   .ipad-nav__topbar-inner {
     gap: 0 !important;
