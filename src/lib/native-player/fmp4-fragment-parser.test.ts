@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractFmp4SamplePayload, parseFmp4Fragments } from './fmp4-fragment-parser';
+import { extractFmp4SamplePayload, parseFmp4Fragments, parseFmp4InitSegment } from './fmp4-fragment-parser';
 
 function u32(value: number): Uint8Array {
   return new Uint8Array([(value >>> 24) & 255, (value >>> 16) & 255, (value >>> 8) & 255, value & 255]);
@@ -34,7 +34,47 @@ function makeFragment(dataOffsetOverride?: number): Uint8Array {
   return join(moof, box('mdat', new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])));
 }
 
+function makeInitSegment(): Uint8Array {
+  const tkhd = box('tkhd', join(u32(0), u32(0), u32(0), u32(7), u32(0)));
+  const mdhd = box('mdhd', join(u32(0), u32(0), u32(0), u32(90_000), u32(0)));
+  const hdlr = box('hdlr', join(
+    u32(0), u32(0),
+    new Uint8Array([118, 105, 100, 101]),
+    new Uint8Array(12),
+  ));
+  const sampleEntry = box('avc1', new Uint8Array([0, 0, 0, 0]));
+  const stsd = box('stsd', join(u32(0), u32(1), sampleEntry));
+  const stbl = box('stbl', stsd);
+  const minf = box('minf', stbl);
+  const mdia = box('mdia', join(mdhd, hdlr, minf));
+  const trak = box('trak', join(tkhd, mdia));
+  const trex = box('trex', join(
+    u32(0), u32(7), u32(1), u32(3000), u32(2048), u32(0x00010000),
+  ));
+  return box('moov', join(trak, box('mvex', trex)));
+}
+
 describe('parseFmp4Fragments', () => {
+describe('parseFmp4InitSegment', () => {
+  it('reads track timescale, handler, sample entry and trex defaults', () => {
+    expect(parseFmp4InitSegment(makeInitSegment()).tracks).toEqual([{
+      trackId: 7,
+      timescale: 90_000,
+      handlerType: 'vide',
+      sampleEntry: 'avc1',
+      defaultSampleDescriptionIndex: 1,
+      defaultSampleDuration: 3000,
+      defaultSampleSize: 2048,
+      defaultSampleFlags: 0x00010000,
+    }]);
+  });
+
+  it('rejects initialization segments without a movie box', () => {
+    expect(() => parseFmp4InitSegment(box('free', new Uint8Array()))).toThrow(/missing moov/i);
+  });
+});
+
+
   it('extracts per-sample decode and presentation timing plus byte ranges', () => {
     const bytes = makeFragment();
     const [fragment] = parseFmp4Fragments(bytes);
