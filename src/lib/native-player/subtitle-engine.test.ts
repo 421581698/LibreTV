@@ -28,6 +28,15 @@ First`);
     expect(track.cues.map(cue => cue.start)).toEqual([1, 5]);
   });
 
+  it('finds an earlier long cue when a later overlapping cue has ended', () => {
+    const track = parseSubtitle(`00:00:01,000 --> 00:00:10,000
+Long cue
+
+00:00:05,000 --> 00:00:06,000
+Short cue`);
+    expect(findActiveSubtitle(track.cues, 7)?.text).toBe('Long cue');
+  });
+
   it('finds the active cue and respects cue end boundaries', () => {
     const track = parseSubtitle(`00:00:01,000 --> 00:00:02,000
 Hello`);
