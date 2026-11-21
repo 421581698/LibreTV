@@ -390,7 +390,8 @@ export function parseFmp4Fragments(input: ArrayBuffer | Uint8Array, options: Par
       let decodeTime = baseDecodeTime;
       const samples: Fmp4Sample[] = [];
       for (const trun of fields.filter(box => box.type === 'trun')) {
-        const parsed = parseTrun(view, trun, tfhd, decodeTime, baseDataOffset, nextDataOffset, maxSamples - samples.length);
+        const parsed = parseTrun(view, trun, tfhd, decodeTime, baseDataOffset, nextDataOffset, maxSamples - totalSamples);
+        totalSamples += parsed.samples.length;
         samples.push(...parsed.samples.map((sample, index) => ({ ...sample, index: samples.length + index })));
         nextDataOffset = parsed.nextDataOffset;
         const last = parsed.samples[parsed.samples.length - 1];
