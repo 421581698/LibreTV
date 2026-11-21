@@ -23,7 +23,7 @@ function makeFragment(dataOffsetOverride?: number): Uint8Array {
     u32(0x00020000 | 0x000008 | 0x000010 | 0x000020),
     u32(7), u32(1000), u32(4), u32(0),
   ));
-  const tfdt = box('tfdt', join(u32(0x01000000), u32(1), u32(5000)));
+  const tfdt = box('tfdt', join(u32(0x01000000), u32(0), u32(5000)));
   const makeTrun = (dataOffset: number) => box('trun', join(
     u32(0x01000000 | 0x000001 | 0x000800),
     u32(2), i32(dataOffset), i32(0), i32(-120),
