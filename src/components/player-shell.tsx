@@ -669,6 +669,15 @@ export function PlayerShell({
     return true;
   };
 
+  const resetSpatialAudioForUninspectedSource = () => {
+    const engine = spatialAudioEngineRef.current;
+    if (engine) {
+      const plan = engine.updateInputChannels(0, 'unknown');
+      setSpatialAudioMessage(plan.reason);
+    }
+    setSpatialAudioMode('off');
+  };
+
   const chooseSubtitleTrack = (trackId: string) => {
     const video = artRef.current?.video as HTMLVideoElement | undefined;
     if (!video) return;
@@ -874,7 +883,7 @@ export function PlayerShell({
   const setupDirectMedia = (video: HTMLVideoElement, mediaUrl: string) => {
     clearAssSubtitleRenderer();
     if (!canKeepSpatialAudioForSource(mediaUrl, null)) { video.pause(); return; }
-    spatialAudioEngineRef.current?.updateInputChannels(0, 'unknown');
+    resetSpatialAudioForUninspectedSource();
     subtitleTrackCleanupRef.current?.();
     subtitleTrackCleanupRef.current = null;
     cinemaObserverRef.current?.dispose();
@@ -978,7 +987,7 @@ export function PlayerShell({
       // If Web Audio has already claimed this element, a non-CORS native URL
       // cannot safely reuse it: block the switch rather than silently muting.
       if (!canKeepSpatialAudioForSource(mediaUrl, null)) { video.pause(); return; }
-      spatialAudioEngineRef.current?.updateInputChannels(0, 'unknown');
+      resetSpatialAudioForUninspectedSource();
       video.removeAttribute('crossorigin');
       setAvailableQualityHeights([]);
       setQualityControlMode('native');
