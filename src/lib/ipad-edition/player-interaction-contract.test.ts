@@ -35,6 +35,11 @@ describe('iPad Edition playback interaction contract', () => {
     expect(watch).toContain('if (switchOpen) cancelAutoNext();');
   });
 
+  it('does not route episode hotkeys while a modal or editable field owns keyboard focus', () => {
+    expect(watch).toContain('if (!e.altKey || switchOpen || skipPanelOpen) return;');
+    expect(watch).toContain("target.closest('input, textarea, select, [contenteditable=\"true\"], [role=\"dialog\"]')");
+  });
+
   it('uses the same native-fullscreen fallback helper as the player control', () => {
     expect(watch).toContain('requestNativeFullscreenWithFallback(');
     expect(watch).toContain('playerApiRef.current?.isFullscreen()');
