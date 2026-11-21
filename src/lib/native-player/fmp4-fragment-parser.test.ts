@@ -132,6 +132,7 @@ describe('parseFmp4Fragments', () => {
     const initSegment = parseFmp4InitSegment(makeInitSegment());
     const bytes = makeFragment(undefined, true);
     const [fragment] = parseFmp4Fragments(bytes, { initSegment });
+    expect(fragment.tracks[0].timescale).toBe(90_000);
     expect(fragment.tracks[0].samples).toEqual([
       expect.objectContaining({ duration: 3000, size: 2048, flags: 0x00010000 }),
       expect.objectContaining({ duration: 3000, size: 2048, flags: 0x00010000 }),
