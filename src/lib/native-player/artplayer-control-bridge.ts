@@ -49,12 +49,18 @@ export function installArtPlayerControlBridge(
   let controllerCommandDepth = 0;
 
   const executeControllerAsync = async <T>(command: () => Promise<T>): Promise<T> => {
+    // Keep the re-entrancy guard only around the synchronous call into the
+    // controller. Its backend reaches video.play() before yielding; holding
+    // the guard until that Promise settles would let concurrent pause/seek
+    // commands bypass the controller while playback startup is pending.
+    let pending: Promise<T>;
     controllerCommandDepth += 1;
     try {
-      return await command();
+      pending = command();
     } finally {
       controllerCommandDepth -= 1;
     }
+    return await pending;
   };
 
   const executeControllerSync = <T>(command: () => T): T => {
