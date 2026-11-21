@@ -504,7 +504,7 @@ export function PlayerShell({
   const clearAssSubtitleRenderer = () => {
     const renderer = assSubtitleRendererRef.current;
     assSubtitleRendererRef.current = null;
-    if (renderer) renderer.destroy();
+    if (renderer) void renderer.destroy().catch(() => undefined);
     setAssSubtitleFileName('');
   };
 
@@ -527,7 +527,7 @@ export function PlayerShell({
       applySubtitleTrack(video, hlsRef.current, null, false);
       const renderer = await createAssSubtitleRenderer(video, content);
       if (artRef.current?.video !== video || currentMediaUrlRef.current !== sourceAtStart) {
-        renderer.destroy();
+        void renderer.destroy().catch(() => undefined);
         return;
       }
       assSubtitleRendererRef.current = renderer;
@@ -1925,8 +1925,9 @@ export function PlayerShell({
         window.removeEventListener('libretv-quality-preference-change', qualityPreferenceHandlerRef.current);
         qualityPreferenceHandlerRef.current = null;
       }
-      assSubtitleRendererRef.current?.destroy();
+      const assRenderer = assSubtitleRendererRef.current;
       assSubtitleRendererRef.current = null;
+      if (assRenderer) void assRenderer.destroy().catch(() => undefined);
       subtitleTrackCleanupRef.current?.();
       subtitleTrackCleanupRef.current = null;
       hlsRef.current?.destroy();
