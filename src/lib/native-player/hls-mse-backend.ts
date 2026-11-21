@@ -48,6 +48,7 @@ export class HlsMseBackend implements PlaybackBackend {
     this.destroyHls();
     this.identity = identity;
     this.sequence = 0;
+    this.media.setSessionIdentity(identity);
     const hls = new Hls({ enableWorker: true, lowLatencyMode: false });
     this.hls = hls;
     hls.on(Hls.Events.ERROR, (_event, data) => {
