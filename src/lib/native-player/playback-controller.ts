@@ -34,6 +34,26 @@ export class PlaybackController {
     this.backend.attach(element);
   }
 
+  /**
+   * Attach diagnostics to a source already managed by ArtPlayer/hls.js or the
+   * browser. This path is intentionally observation-only: it never calls load()
+   * and never asks the backend to mutate the element's source.
+   */
+  observeExistingSource(source: PlaybackSource, element: HTMLMediaElement): BackendCommandResult {
+    this.assertActive();
+    if (!this.backend.observeExistingSource) return { ok: false, reason: 'unsupported' };
+    this.loadAbort?.abort();
+    this.loadAbort = null;
+    const generation = ++this.generation;
+    const identity = createPlaybackSessionIdentity(`observed-${generation}-${Date.now()}`, generation);
+    const result = this.backend.observeExistingSource(element, identity);
+    if (!result.ok) return result;
+    this.identity = identity;
+    this.cursor = createPlaybackEventCursor(identity);
+    this.dispatch({ type: 'LOAD', source });
+    return result;
+  }
+
   async load(source: PlaybackSource, element?: HTMLMediaElement): Promise<BackendCommandResult> {
     this.assertActive();
     this.loadAbort?.abort();
