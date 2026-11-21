@@ -71,6 +71,23 @@ try {
       if (pageErrors.length) throw new Error(`Uncaught page errors: ${pageErrors.join(' | ')}`);
       entry.checks.push({ name: 'uncaught-page-errors', status: 'passed' });
 
+      // Deterministic user journey: dedicated search page -> input -> results route.
+      await page.goto(new URL('/search', baseURL).toString(), { waitUntil: 'domcontentloaded', timeout: 45_000 });
+      const searchInput = page.getByRole('textbox', { name: '搜索影视内容' });
+      await searchInput.waitFor({ state: 'visible', timeout: 15_000 });
+      await searchInput.fill('');
+      await searchInput.press('Enter');
+      if (!page.url().includes('/search')) throw new Error('Empty search unexpectedly navigated');
+      entry.checks.push({ name: 'empty-search-stays-on-search-page', status: 'passed' });
+
+      const query = 'LibreTV QA smoke';
+      await searchInput.fill(query);
+      await searchInput.press('Enter');
+      await page.waitForURL((url) => url.pathname === '/search/results' && url.searchParams.get('q') === query, { timeout: 15_000 });
+      await page.locator('main').first().waitFor({ state: 'visible', timeout: 15_000 });
+      entry.checks.push({ name: 'search-submits-query-to-results-route', status: 'passed', detail: page.url() });
+
+      if (pageErrors.length) throw new Error(`Uncaught page errors: ${pageErrors.join(' | ')}`);
       entry.status = 'passed';
     } catch (error) {
       entry.error = error instanceof Error ? error.stack || error.message : String(error);
