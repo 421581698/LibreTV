@@ -159,6 +159,8 @@ try {
         videoCount: document.querySelectorAll('video').length,
         sameVideoElement: video === window.__cinemaV23Video,
         viewportWidth: window.innerWidth,
+        visualViewportHeight: window.visualViewport?.height ?? window.innerHeight,
+        userAgent: navigator.userAgent,
         documentWidth: document.documentElement.scrollWidth,
         frameWidth: rect?.width ?? 0,
         frameHeight: rect?.height ?? 0,
