@@ -198,7 +198,11 @@ try {
       const videoRect = video?.getBoundingClientRect();
       const topbarRect = document.querySelector('.watch-topbar')?.getBoundingClientRect();
       const closeRect = document.querySelector('.cinema-close-control')?.getBoundingClientRect();
-      const dockRect = document.querySelector('nav.v4-mobile-tabbar')?.getBoundingClientRect();
+      const dock = document.querySelector('nav.v4-mobile-tabbar');
+      const dockRect = dock?.getBoundingClientRect();
+      const dockStyle = dock ? getComputedStyle(dock) : null;
+      const dockVisible = Boolean(dock && dockStyle && dockStyle.display !== 'none' && dockStyle.visibility !== 'hidden' && Number.parseFloat(dockStyle.opacity || '1') > 0.05);
+      const infoRect = document.querySelector('.watch-cinema-info')?.getBoundingClientRect();
       const synopsis = document.querySelector('.watch-cinema-copy');
       const safeProbe = document.createElement('div');
       safeProbe.style.cssText = 'position:fixed;visibility:hidden;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)';
@@ -221,6 +225,8 @@ try {
         closeBottom: closeRect?.bottom ?? 0,
         dockTop: dockRect?.top ?? 0,
         dockBottom: dockRect?.bottom ?? 0,
+        dockVisible,
+        infoPanel: infoRect ? { top: infoRect.top, bottom: infoRect.bottom, height: infoRect.height } : null,
         videoRectWidth: videoRect?.width ?? 0,
         videoRectHeight: videoRect?.height ?? 0,
         videoWidth: video?.videoWidth ?? 0,
@@ -260,9 +266,11 @@ try {
           layout.closeButton.bottom > profile.height) {
         layoutIssues.push('close control is outside the safe viewport');
       }
-      if (layout.dockBottom > profile.height + 2 || layout.dockTop < 0 ||
-          (layout.closeButton && layout.dockTop > 0 && layout.closeButton.bottom >= layout.dockTop)) {
-        layoutIssues.push('app dock is outside the visible viewport or overlaps close control');
+      if (layout.dockVisible) {
+        layoutIssues.push('app dock remains visible over the immersive player');
+      }
+      if (!layout.infoPanel || layout.infoPanel.bottom > profile.height - layout.safeArea.bottom + 2) {
+        layoutIssues.push('cinema information panel overlaps the bottom safe area');
       }
     }
     if (layout.synopsis && (layout.synopsis.overflowY === 'hidden' || layout.synopsis.overflowY === 'clip') &&
