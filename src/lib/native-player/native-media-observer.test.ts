@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { NativeMediaBackend } from './native-media-backend';
+import type { PlaybackBackend } from './backend-contract';
 import { PlaybackController } from './playback-controller';
 
 afterEach(() => {
@@ -72,7 +73,7 @@ describe('NativeMediaBackend observation mode', () => {
       getSnapshot: vi.fn(),
       subscribe: vi.fn(() => () => undefined),
       dispose: vi.fn(),
-    };
+    } as unknown as PlaybackBackend;
     const controller = new PlaybackController(backend);
     const result = controller.observeExistingSource(
       { url: 'https://media.example.test/a.mp4', kind: 'mp4' },
