@@ -185,6 +185,7 @@ export class SpatialAudioEngine {
   private mode: SpatialAudioMode = 'off';
   private route: SpatialAudioRoute = 'bypass';
   private inputChannels: number;
+  private inputLayout: '5.1' | 'unknown';
 
   private constructor(
     readonly media: HTMLMediaElement,
@@ -223,12 +224,13 @@ export class SpatialAudioEngine {
     return engine;
   }
 
-  get status(): { mode: SpatialAudioMode; route: SpatialAudioRoute; contextState: AudioContextState; inputChannels: number } {
+  get status(): { mode: SpatialAudioMode; route: SpatialAudioRoute; contextState: AudioContextState; inputChannels: number; inputLayout: '5.1' | 'unknown' } {
     return {
       mode: this.mode,
       route: this.route,
       contextState: this.context.state,
       inputChannels: this.inputChannels,
+      inputLayout: this.inputLayout,
     };
   }
 
