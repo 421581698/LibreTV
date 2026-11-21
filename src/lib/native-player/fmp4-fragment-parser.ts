@@ -398,6 +398,12 @@ export function parseFmp4Fragments(input: ArrayBuffer | Uint8Array, options: Par
       }
       // The next traf's implicit base is the end of this traf's resolved sample data.
       implicitBaseDataOffset = nextDataOffset;
+      for (const sample of samples) {
+        if (sample.dataOffset === null || sample.size === null) continue;
+        const sampleEnd = sample.dataOffset + sample.size;
+        const containedInMdat = mdats.some(range => sample.dataOffset! >= range.start && sampleEnd <= range.end);
+        if (!containedInMdat) throw new Error(`Track ${tfhd.trackId} sample payload range is outside every mdat box.`);
+      }
       if (options.trackId === undefined || parsedTfhd.trackId === options.trackId) {
         tracks.push({ trackId: tfhd.trackId, timescale: initTrack?.timescale ?? null, baseDecodeTime, sampleDescriptionIndex, sampleEntry, samples });
       }
@@ -414,6 +420,7 @@ export function parseFmp4Fragments(input: ArrayBuffer | Uint8Array, options: Par
 export function extractFmp4SamplePayload(
   input: ArrayBuffer | Uint8Array,
   sample: Pick<Fmp4Sample, 'dataOffset' | 'size'>,
+  mdatRanges?: readonly { readonly start: number; readonly end: number }[],
 ): Uint8Array {
   if (sample.dataOffset === null || sample.size === null) {
     throw new Error('Sample payload offset and size are not available in fragment metadata.');
@@ -423,6 +430,9 @@ export function extractFmp4SamplePayload(
   if (!Number.isSafeInteger(sample.dataOffset) || !Number.isSafeInteger(end) ||
       sample.dataOffset < 0 || sample.size < 0 || end > bytes.length) {
     throw new Error('Sample payload range is outside the supplied fMP4 byte range.');
+  }
+  if (mdatRanges && !mdatRanges.some(range => sample.dataOffset! >= range.start && end <= range.end)) {
+    throw new Error('Sample payload range is outside the supplied mdat boxes.');
   }
   return bytes.subarray(sample.dataOffset, end);
 }
