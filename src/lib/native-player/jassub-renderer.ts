@@ -32,7 +32,7 @@ export async function createAssSubtitleRenderer(
     await renderer.ready;
     return renderer;
   } catch (error) {
-    renderer.destroy();
+    try { await renderer.destroy(); } catch { /* preserve the initialization error */ }
     throw error;
   }
 }
