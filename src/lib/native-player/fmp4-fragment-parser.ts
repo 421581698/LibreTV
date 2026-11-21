@@ -36,6 +36,8 @@ export interface ParseFmp4Options {
   readonly trackId?: number;
   /** Maximum accepted sample count; protects against hostile metadata. */
   readonly maxSamples?: number;
+  /** Initialization metadata supplies movie-level trex defaults when tfhd omits them. */
+  readonly initSegment?: Fmp4InitSegment;
 }
 
 interface Box {
@@ -351,8 +353,15 @@ export function parseFmp4Fragments(input: ArrayBuffer | Uint8Array, options: Par
       const tfhdBox = fields.find(box => box.type === 'tfhd');
       const tfdtBox = fields.find(box => box.type === 'tfdt');
       if (!tfhdBox || !tfdtBox) throw new Error('Each parsed traf must contain tfhd and tfdt boxes.');
-      const tfhd = parseTfhd(view, tfhdBox);
-      if (options.trackId !== undefined && tfhd.trackId !== options.trackId) continue;
+      const parsedTfhd = parseTfhd(view, tfhdBox);
+      if (options.trackId !== undefined && parsedTfhd.trackId !== options.trackId) continue;
+      const trex = options.initSegment?.tracks.find(track => track.trackId === parsedTfhd.trackId);
+      const tfhd: Tfhd = {
+        ...parsedTfhd,
+        defaultDuration: parsedTfhd.defaultDuration ?? trex?.defaultSampleDuration ?? null,
+        defaultSize: parsedTfhd.defaultSize ?? trex?.defaultSampleSize ?? null,
+        defaultFlags: parsedTfhd.defaultFlags ?? trex?.defaultSampleFlags ?? null,
+      };
       const baseDecodeTime = parseTfdt(view, tfdtBox);
       const baseDataOffset = tfhd.baseDataOffset ?? moof.start;
       let nextDataOffset: number | null = null;
