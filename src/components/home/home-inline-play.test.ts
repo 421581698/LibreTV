@@ -57,6 +57,19 @@ describe('iPhone homepage detail navigation and top search', () => {
     expect(player).toContain('onNextEpisode');
   });
 
+  it('inline player traps keyboard focus, supports Escape and restores the invoking focus target on close', () => {
+    expect(player).toContain('const dialogRef = useRef<HTMLElement | null>(null);');
+    expect(player).toContain('const closeButtonRef = useRef<HTMLButtonElement | null>(null);');
+    expect(player).toContain('closeButtonRef.current?.focus({ preventScroll: true });');
+    expect(player).toContain("if (event.key === 'Escape')");
+    expect(player).toContain("if (event.key !== 'Tab') return;");
+    expect(player).toContain("dialog.querySelectorAll<HTMLElement>(");
+    expect(player).toContain('last.focus();');
+    expect(player).toContain('first.focus();');
+    expect(player).toContain('previousFocus?.isConnected');
+    expect(player).toContain('previousFocus.focus({ preventScroll: true });');
+  });
+
   it('iPhone shows an editable search field in the header row and hides the collapsed search toggle', () => {
     expect(mobileSearch).toContain('.v4-header .v4-header-actions {');
     expect(mobileSearch).toContain('display: contents !important;');
