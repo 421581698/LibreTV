@@ -18,11 +18,11 @@ function box(type: string, payload: Uint8Array): Uint8Array {
   return join(u32(payload.length + 8), new Uint8Array([...type].map(char => char.charCodeAt(0))), payload);
 }
 
-function makeFragment(dataOffsetOverride?: number): Uint8Array {
-  const tfhd = box('tfhd', join(
-    u32(0x00020000 | 0x000008 | 0x000010 | 0x000020),
-    u32(7), u32(1000), u32(4), u32(0),
-  ));
+function makeFragment(dataOffsetOverride?: number, omitTfhdDefaults = false): Uint8Array {
+  const tfhd = box('tfhd', omitTfhdDefaults
+    ? join(u32(0x00020000), u32(7))
+    : join(u32(0x00020000 | 0x000008 | 0x000010 | 0x000020), u32(7), u32(1000), u32(4), u32(0)));
+
   const tfdt = box('tfdt', join(u32(0x01000000), u32(0), u32(5000)));
   const makeTrun = (dataOffset: number) => box('trun', join(
     u32(0x01000000 | 0x000001 | 0x000800),
@@ -113,6 +113,16 @@ describe('parseFmp4InitSegment', () => {
     const padded = join(new Uint8Array([9, 9, 9]), fragment, new Uint8Array([8]));
     const parsed = parseFmp4Fragments(padded.subarray(3, 3 + fragment.length), { trackId: 8 });
     expect(parsed[0].tracks).toEqual([]);
+  });
+
+  it('uses trex defaults when tfhd does not override sample duration, size or flags', () => {
+    const initSegment = parseFmp4InitSegment(makeInitSegment());
+    const bytes = makeFragment(undefined, true);
+    const [fragment] = parseFmp4Fragments(bytes, { initSegment });
+    expect(fragment.tracks[0].samples).toEqual([
+      expect.objectContaining({ duration: 3000, size: 2048, flags: 0x00010000 }),
+      expect.objectContaining({ duration: 3000, size: 2048, flags: 0x00010000 }),
+    ]);
   });
 
   it('rejects truncated and invalid box lengths', () => {
