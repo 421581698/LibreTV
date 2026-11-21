@@ -39,5 +39,7 @@ describe('iPhone playback interaction contract', () => {
     expect(watch).toContain('playerApiRef.current.enterFullscreen()');
     expect(player).toContain('enterFullscreen: () => {');
     expect(player).toContain('current.fullscreenWeb = true');
+    expect(player).toContain('isFullscreen: () => {');
+    expect(player).toContain('exitFullscreen: () => {');
   });
 });
