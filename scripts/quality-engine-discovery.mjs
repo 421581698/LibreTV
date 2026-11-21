@@ -58,13 +58,35 @@ try {
 
     page.on('pageerror', (error) => routeEntry.errors.push({ kind: 'pageerror', message: error.message.slice(0, 240) }));
     page.on('console', (message) => {
-      if (message.type() === 'error') routeEntry.errors.push({ kind: 'console', message: message.text().slice(0, 240) });
+      if (message.type() === 'error') {
+        const location = message.location();
+        routeEntry.errors.push({
+          kind: 'console',
+          message: message.text().slice(0, 240),
+          sourceURL: location.url ? location.url.slice(0, 300) : null,
+        });
+      }
     });
     page.on('requestfailed', (request) => {
-      routeEntry.errors.push({ kind: 'requestfailed', url: request.url().slice(0, 300), message: request.failure()?.errorText || 'request failed' });
+      routeEntry.errors.push({
+        kind: 'requestfailed',
+        url: request.url().slice(0, 300),
+        resourceType: request.resourceType(),
+        method: request.method(),
+        message: request.failure()?.errorText || 'request failed',
+      });
     });
     page.on('response', (response) => {
-      if (response.status() >= 500) routeEntry.errors.push({ kind: 'http', status: response.status(), url: response.url().slice(0, 300) });
+      if (response.status() >= 400) {
+        routeEntry.errors.push({
+          kind: 'http',
+          status: response.status(),
+          statusText: response.statusText().slice(0, 120),
+          url: response.url().slice(0, 300),
+          resourceType: response.request().resourceType(),
+          method: response.request().method(),
+        });
+      }
     });
 
     try {
