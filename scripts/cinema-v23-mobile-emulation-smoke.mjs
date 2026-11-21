@@ -4,6 +4,7 @@
  * It exercises responsive layout, rotation-like viewport changes and split-view widths.
  */
 import { chromium } from 'playwright';
+import { resolve } from 'node:path';
 
 const base = process.env.CINEMA_PREVIEW_URL || 'https://libretv-cinema-v23-preview.bggdbh.workers.dev';
 const stream = 'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8';
@@ -68,11 +69,19 @@ try {
         frameHeight: rect?.height ?? 0,
         videoWidth: video?.videoWidth ?? 0,
         videoHeight: video?.videoHeight ?? 0,
+        assCanvas: (() => {
+          const canvas = document.querySelector('canvas.JASSUB');
+          const canvasRect = canvas?.getBoundingClientRect();
+          return canvasRect ? { width: canvasRect.width, height: canvasRect.height } : null;
+        })(),
       };
     });
     if (layout.videoCount !== 1 || !layout.sameVideoElement || layout.frameWidth <= 0 || layout.frameHeight <= 0 ||
         layout.documentWidth > layout.viewportWidth + 2) {
       throw new Error(profile.name + ' layout invariant failed: ' + JSON.stringify(layout));
+    }
+    if (profile.name !== 'iPhone portrait emulation' && (!layout.assCanvas || layout.assCanvas.width <= 0 || layout.assCanvas.height <= 0)) {
+      throw new Error(profile.name + ' did not retain a measurable JASSUB canvas after resize: ' + JSON.stringify(layout));
     }
 
     await page.mouse.move(Math.min(profile.width - 10, Math.round(profile.width / 2)), Math.round(profile.height / 2));
@@ -80,6 +89,12 @@ try {
     await subtitleButton.waitFor({ state: 'visible', timeout: 5_000 });
     await subtitleButton.click();
     await page.locator('select[aria-label="选择字幕轨"]').waitFor({ state: 'visible', timeout: 3_000 });
+    if (profile.name === 'iPhone portrait emulation') {
+      await page.locator('input[accept=".ass,.ssa,text/plain"]').setInputFiles(
+        resolve('src/lib/native-player/fixtures/minimal.ass'),
+      );
+      await page.waitForSelector('canvas.JASSUB', { state: 'visible', timeout: 25_000 });
+    }
     await subtitleButton.click();
 
     const spatialButton = page.locator('button[aria-label="空间音频设置"]');
