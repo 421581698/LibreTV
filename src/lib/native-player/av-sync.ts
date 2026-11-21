@@ -1,3 +1,5 @@
+import type { Fmp4Sample } from './fmp4-fragment-parser';
+
 export interface MediaTimestamp {
   readonly decodeTime: number;
   readonly compositionTimeOffset?: number;
@@ -20,6 +22,22 @@ export interface TimelineDiscontinuity {
   readonly kind: TimelineDiscontinuityKind;
   /** Positive means a hole between the previous sample end and current sample start. */
   readonly deltaSeconds: number;
+}
+
+/** Adapt parsed fMP4 sample ticks into the shared A/V timing model. */
+export function mediaTimestampFromSample(
+  sample: Pick<Fmp4Sample, 'decodeTime' | 'compositionTimeOffset' | 'duration'>,
+  timescale: number,
+): MediaTimestamp {
+  if (!Number.isFinite(timescale) || timescale <= 0) {
+    throw new Error('Media timescale must be finite and positive.');
+  }
+  return {
+    decodeTime: sample.decodeTime,
+    compositionTimeOffset: sample.compositionTimeOffset,
+    duration: sample.duration,
+    timescale,
+  };
 }
 
 /** Convert media-clock ticks to seconds without assuming a shared audio/video timescale. */
