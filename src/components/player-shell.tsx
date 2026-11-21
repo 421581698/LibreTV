@@ -620,6 +620,8 @@ export function PlayerShell({
 
   /** Native progressive media path for formats the existing HTMLVideoElement can play. */
   const setupDirectMedia = (video: HTMLVideoElement, mediaUrl: string) => {
+    cinemaObserverRef.current?.dispose();
+    cinemaObserverRef.current = null;
     clearMetadataWatchdog();
     restoreCleanupRef.current?.();
     restoreCleanupRef.current = null;
@@ -676,11 +678,13 @@ export function PlayerShell({
   };
 
   /**
-   * 初始化/切换 HLS.allowProxyFallback：直连致命网络错误（CORS/防盗链/分片被拒）时，
+   * 初始化/切换 HLS。allowProxyFallback：直连致命网络错误（CORS/防盗链/分片被拒）时，
    * 自动改走同源 cookie 鉴权的 /api/proxy 重试一次。
    * 注意：不销毁 ArtPlayer，只销毁并重建 hls，从而保留网页全屏等播放器状态。
    */
   const setupHls = (video: HTMLVideoElement, mediaUrl: string, allowProxyFallback: boolean) => {
+    cinemaObserverRef.current?.dispose();
+    cinemaObserverRef.current = null;
     qualityGuardRef.current.reset();
     clearMetadataWatchdog();
     restoreCleanupRef.current?.();
