@@ -45,6 +45,7 @@ jobs:
       - name: Production build for isolated Preview-like smoke
         env:
           PASSWORD: ci-test-password
+          AUTH_DISABLED: 'true'
           NEXT_TELEMETRY_DISABLED: '1'
         run: npm run build
 
@@ -57,6 +58,7 @@ jobs:
       - name: Start local production server
         env:
           PASSWORD: ci-test-password
+          AUTH_DISABLED: 'true'
           PORT: 8080
         run: |
           npm run start > /tmp/libretv-quality-server.log 2>&1 &
@@ -79,8 +81,8 @@ jobs:
       - name: Run read-only browser discovery
         env:
           QUALITY_BASE_URL: http://127.0.0.1:8080
-          GITHUB_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          QUALITY_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          QUALITY_BRANCH: ${{ github.head_ref || github.ref_name }}
         run: npm run quality:discover
 
       - name: Upload Quality Engine evidence
