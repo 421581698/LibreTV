@@ -295,7 +295,8 @@ try {
   
   
   } else {
-    console.warn('SKIP mobile source-switch decode acceptance because initial media never reached decoded-frame readiness; viewport checks still ran.');
+    console.warn('FAIL mobile playback acceptance: initial media never reached decoded-frame readiness; source-switch acceptance is blocked.');
+    viewportFailures.push({ mobilePlayback: 'Initial HLS source did not decode a frame; inspect HLS lifecycle, codec capability and media requests.' });
   }
   const playlistBodies = await Promise.all(mediaResponseBodies);
   console.log('Mobile media request summary: ' + JSON.stringify({ requests: mediaRequests, responses: mediaResponses, failures: requestFailures, playlists: playlistBodies }));
