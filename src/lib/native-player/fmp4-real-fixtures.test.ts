@@ -103,7 +103,7 @@ describe('real fragmented WebVTT fixture', () => {
     const [fragment] = parseFmp4Fragments(mediaBytes, { initSegment: init });
     const sample = fragment.tracks[0].samples.find(candidate => candidate.dataOffset !== null && candidate.size !== null);
     expect(sample).toBeDefined();
-    const payload = extractFmp4SamplePayload(mediaBytes, sample!);
+    const payload = extractFmp4SamplePayload(mediaBytes, sample!, fragment.mdatRanges);
     expect(payload.byteLength).toBe(sample!.size);
     expect(payload.byteLength).toBeGreaterThan(0);
   });
