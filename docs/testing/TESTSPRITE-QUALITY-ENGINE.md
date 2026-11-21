@@ -260,3 +260,23 @@ testsprite ci run \
 **明确的验收边界：** Chromium 移动视口只属于响应式模拟测试，不代表 iPhone/iPad Safari 真机通过。真实设备登记表只有在人工提供设备型号、系统/浏览器版本、提交 SHA、Preview 地址、测试步骤和证据后才可增加通过记录。TestSprite 云端门禁需要用户在 GitHub 仓库配置上述变量和 API Key；没有这些凭据时不会启动真实云端测试。
 
 **当前状态不是最终验收通过：** 工作流提交后仍需等待 GitHub Actions 执行，并处理实际出现的失败；本会话无法代替物理 iPhone/iPad 操作或设置用户的 TestSprite API Key。
+
+
+## 13. Quality Engine core foundation (Phase 1 implementation)
+
+The first implementation slice adds framework-independent core contracts under `quality-engine/core/`:
+
+- `types.ts`: versionable domain contracts for plans, cases, runs, events, evidence, and defects.
+- `task-runtime.ts`: deterministic run creation and guarded lifecycle transitions. Terminal states cannot be reopened.
+- `event-store.ts`: append-only event-store contract and an in-memory reference adapter for unit/integration tests. This adapter is intentionally non-durable and is not presented as production persistence.
+- `change-impact.ts`: conservative path-to-feature impact mapping. Unknown paths remain explicitly unknown; player/media/mobile-sensitive changes request separate physical iPhone and iPad acceptance.
+- `failure-classifier.ts`: evidence-driven initial failure classification. Ambiguous failures remain `unknown`; classification is not treated as an authoritative root-cause diagnosis.
+- `quality-gates.ts`: strict gate evaluation. A required failed, blocked, or not-run check prevents readiness; optional not-run checks remain visible.
+
+The core is deliberately independent of Next.js, Cloudflare Workers, GitHub Actions, and any single AI provider. Persistence, agent orchestration, and remote execution are later adapters, not hidden assumptions in these domain functions.
+
+Verification entry points:
+- `npm run quality:core`: focused core contract tests.
+- `npm run quality:verify`: existing lint, TypeScript, and full Vitest suite; the new core tests are included by the current Vitest configuration.
+
+Phase 1 implementation does not claim durable cross-run storage, autonomous AI discovery, self-healing, remote browser fleet execution, or physical-device acceptance. Those remain explicit later milestones.
