@@ -29,6 +29,11 @@ export class PlaybackController {
   getSnapshot(): PlaybackSnapshot { return this.snapshot; }
   getIdentity(): PlaybackSessionIdentity | null { return this.identity; }
 
+  attach(element: HTMLMediaElement): void {
+    this.assertActive();
+    this.backend.attach(element);
+  }
+
   async load(source: PlaybackSource, element?: HTMLMediaElement): Promise<BackendCommandResult> {
     this.assertActive();
     this.loadAbort?.abort();
@@ -39,7 +44,10 @@ export class PlaybackController {
     this.cursor = createPlaybackEventCursor(identity);
     if (element) this.backend.attach(element);
     this.dispatch({ type: 'LOAD', source });
-    return this.backend.load(source, identity);
+    const signal = this.loadAbort.signal;
+    const result = await this.backend.load(source, identity, signal);
+    if (signal.aborted || this.identity !== identity) return { ok: false, reason: 'failed', error: { code: 'STALE_LOAD', message: 'The source load was superseded by a newer session.', recoverable: true } };
+    return result;
   }
 
   async play(): Promise<BackendCommandResult> {
@@ -60,9 +68,10 @@ export class PlaybackController {
     this.unsubscribeBackend?.();
     this.unsubscribeBackend = null;
     this.backend.dispose();
-    this.listeners.clear();
     this.identity = null;
     this.snapshot = reducePlayback(this.snapshot, { type: 'DISPOSE' });
+    this.listeners.forEach(listener => listener(this.snapshot));
+    this.listeners.clear();
   }
 
   private onBackendEvent(envelope: PlaybackEventEnvelope<BackendEvent>): void {
