@@ -644,6 +644,10 @@ function WatchContent({ watchPath }: { watchPath: '/watch' | '/ipad-edition/watc
                     handleProgress(position, duration);
                   }}
                   onEnded={handleEnded}
+                  onRequestSwitchSource={(reason) => {
+                    toast(reason, 'warning');
+                    setSwitchOpen(true);
+                  }}
                   onPlaybackConfirmed={(evidence) => {
                     let host = '';
                     try { host = new URL(currentUrl).hostname.toLowerCase(); } catch { return; }
