@@ -20,6 +20,7 @@ describe('iPhone homepage detail navigation and top search', () => {
   const mobileSearch = read('src/app/iphone-home-inline.css');
   const homepageHero = read('src/components/home/V4HomepageHero.tsx');
   const homepageContent = read('src/components/home/V4HomepageContent.tsx');
+  const detailNav = read('src/hooks/search/useSearchDetailNav.ts');
 
   it('homepage uses Douban featured artwork and real recommendation rails for detail navigation', () => {
     expect(home).toContain('<V4HomepageHero onPick={handleHomepagePick} />');
@@ -32,7 +33,8 @@ describe('iPhone homepage detail navigation and top search', () => {
     expect(homepageContent).toContain("api.hotList('douban_movie_weekly'");
     expect(homepageContent).toContain('url={item.cover}');
     expect(home).toContain('api.search(movie.title, selectedSources, yellowFilter)');
-    expect(home).toContain("router.push('/detail?' + params.toString())");
+    expect(detailNav).toContain("router.push('/detail?' + params.toString())");
+    expect(home).toContain('const { openDetail } = useSearchDetailNav();');
     expect(player).toContain("import('@/components/player-shell')");
     expect(player).toContain('api.detail(item.vodId, source, controller.signal)');
     expect(player).toContain('<PlayerShell');
