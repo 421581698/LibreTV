@@ -10,7 +10,7 @@ import { hasSustainedPlaybackProgress } from '@/lib/playback-verification';
 
 import { PlaybackRecovery, describeHlsError } from '@/lib/playback-recovery';
 import { createHlsLoader } from '@/lib/hls-loader';
-import { getBufferedAheadSeconds, readPlaybackQualityCounters } from '@/lib/playback-diagnostics';
+import { getBufferedAheadSeconds, getFragmentQualityEvidence, readPlaybackQualityCounters } from '@/lib/playback-diagnostics';
 import { AdaptiveQualityGuard } from '@/lib/adaptive-quality-guard';
 import { getVideoPrefetcher } from '@/lib/video-prefetcher';
 import { loadCacheSettings } from '@/lib/video-cache';
@@ -889,11 +889,15 @@ export function PlayerShell({
       mediaHealthyRef.current = true;
       if (data.frag?.type !== 'main') return;
       const metrics = playbackMetricsRef.current;
+      // FRAG_LOADED and FRAG_BUFFERED can interleave across concurrent HLS loads.
+      // Use this exact buffered main fragment's own stats instead of global "last fragment"
+      // values, otherwise throughput from one fragment can be paired with another's buffer event.
+      const fragmentEvidence = getFragmentQualityEvidence(data.frag?.stats, data.frag?.duration);
+      if (!fragmentEvidence) return;
       const decision = qualityGuardRef.current.onBufferedFragment({
         mode: readQualityPreference() === 'auto' ? 'auto' : 'manual',
         bufferAheadSeconds: getBufferedAheadSeconds(video.buffered, video.currentTime),
-        throughputKbps: metrics.lastFragmentThroughputKbps ?? 0,
-        mediaBitrateKbps: metrics.lastFragmentBitrateKbps ?? 0,
+        ...fragmentEvidence,
       });
       if (decision.action === 'restore') {
         hls!.autoLevelCapping = -1;
