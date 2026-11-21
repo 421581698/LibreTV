@@ -40,7 +40,7 @@ let browser;
 function safePath(pathname) {
   if (!pathname.startsWith('/') || pathname.startsWith('//')) return false;
   if (excluded.some((prefix) => pathname.startsWith(prefix))) return false;
-  if (pathname.split('/').some((segment) => segment.startsWith(':') || /^\\d{5,}$/.test(segment) || /^[a-f0-9]{16,}$/i.test(segment))) return false;
+  if (pathname.split('/').some((segment) => segment.startsWith(':') || /^\d{5,}$/.test(segment) || /^[a-f0-9]{16,}$/i.test(segment))) return false;
   return true;
 }
 
@@ -72,7 +72,7 @@ try {
       routeEntry.httpStatus = response?.status() ?? null;
       await page.waitForTimeout(350);
       const observed = await page.evaluate(() => {
-        const clean = (value) => (value || '').replace(/\\s+/g, ' ').trim().slice(0, 120);
+        const clean = (value) => (value || '').replace(/\s+/g, ' ').trim().slice(0, 120);
         const controls = [...document.querySelectorAll('button, input, textarea, select, [role="button"], [role="link"], [role="tab"]')]
           .slice(0, 100)
           .map((node) => ({
