@@ -8,6 +8,7 @@ import { getAdvertised4kStatus, resolveQualitySelection, type QualityPreference 
 import { getMediaPlaybackKind } from '@/lib/media-playback';
 import { NativeMediaBackend } from '@/lib/native-player/native-media-backend';
 import { PlaybackController } from '@/lib/native-player/playback-controller';
+import { installArtPlayerControlBridge } from '@/lib/native-player/artplayer-control-bridge';
 import { hasSustainedPlaybackProgress } from '@/lib/playback-verification';
 
 import { PlaybackRecovery, describeHlsError } from '@/lib/playback-recovery';
@@ -1147,6 +1148,7 @@ export function PlayerShell({
       },
     });
     artRef.current = art;
+    const cleanupCinemaControlBridge = installArtPlayerControlBridge(art, () => cinemaObserverRef.current);
     // Native media events are the source of truth. Bridge them into ArtPlayer's
     // public play/pause event bus so its center and bottom controls stay in sync,
     // including pauses initiated by iOS media controls or external callers.
@@ -1656,6 +1658,7 @@ export function PlayerShell({
       }
       hlsRef.current?.destroy();
       hlsRef.current = null;
+      cleanupCinemaControlBridge();
       cinemaObserverRef.current?.dispose();
       cinemaObserverRef.current = null;
       recoveryRef.current?.dispose();
