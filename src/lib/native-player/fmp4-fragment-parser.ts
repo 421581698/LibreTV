@@ -199,6 +199,137 @@ function parseTrun(
   return { samples, nextDataOffset: dataOffset };
 }
 
+
+export interface Fmp4TrackMetadata {
+  readonly trackId: number;
+  readonly timescale: number;
+  readonly handlerType: string;
+  readonly sampleEntry: string | null;
+  readonly defaultSampleDescriptionIndex: number | null;
+  readonly defaultSampleDuration: number | null;
+  readonly defaultSampleSize: number | null;
+  readonly defaultSampleFlags: number | null;
+}
+
+export interface Fmp4InitSegment {
+  readonly tracks: readonly Fmp4TrackMetadata[];
+}
+
+function readAscii(bytes: Uint8Array, start: number, length: number): string {
+  if (start < 0 || length < 0 || start + length > bytes.length) {
+    throw new Error('ISO BMFF text field exceeds box bounds.');
+  }
+  return String.fromCharCode(...bytes.subarray(start, start + length));
+}
+
+function parseTrackId(view: DataView, box: Box): number {
+  if (box.payload + 16 > box.end) throw new Error('Truncated tkhd box.');
+  const version = view.getUint8(box.payload);
+  const offset = box.payload + (version === 1 ? 20 : 12);
+  if (offset + 4 > box.end) throw new Error('Truncated tkhd track id.');
+  if (version !== 0 && version !== 1) throw new Error(`Unsupported tkhd version ${version}.`);
+  return u32(view, offset);
+}
+
+function parseTimescale(view: DataView, box: Box): number {
+  if (box.payload + 16 > box.end) throw new Error('Truncated mdhd box.');
+  const version = view.getUint8(box.payload);
+  const offset = box.payload + (version === 1 ? 20 : 12);
+  if (version !== 0 && version !== 1) throw new Error(`Unsupported mdhd version ${version}.`);
+  if (offset + 4 > box.end) throw new Error('Truncated mdhd timescale.');
+  const timescale = u32(view, offset);
+  if (timescale === 0) throw new Error('Track timescale must be greater than zero.');
+  return timescale;
+}
+
+function parseHandlerType(bytes: Uint8Array, view: DataView, box: Box): string {
+  if (box.payload + 12 > box.end) throw new Error('Truncated hdlr box.');
+  return readAscii(bytes, box.payload + 8, 4);
+}
+
+function parseTrex(view: DataView, box: Box): {
+  trackId: number;
+  descriptionIndex: number;
+  duration: number;
+  size: number;
+  flags: number;
+} {
+  if (box.payload + 24 > box.end) throw new Error('Truncated trex box.');
+  return {
+    trackId: u32(view, box.payload + 4),
+    descriptionIndex: u32(view, box.payload + 8),
+    duration: u32(view, box.payload + 12),
+    size: u32(view, box.payload + 16),
+    flags: u32(view, box.payload + 20),
+  };
+}
+
+/**
+ * Parse the initialization segment's movie/track metadata.
+ * This supplies each track's media timescale and movie-level trex defaults;
+ * it does not decode codec configuration records or instantiate a decoder.
+ */
+export function parseFmp4InitSegment(input: ArrayBuffer | Uint8Array): Fmp4InitSegment {
+  const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const topLevel = readBoxes(bytes, view, 0, bytes.length);
+  const moov = topLevel.find(box => box.type === 'moov');
+  if (!moov) throw new Error('fMP4 initialization segment is missing moov.');
+  const movieChildren = readBoxes(bytes, view, moov.payload, moov.end);
+  const mvex = movieChildren.find(box => box.type === 'mvex');
+  const trexDefaults = new Map<number, ReturnType<typeof parseTrex>>();
+  if (mvex) {
+    for (const trexBox of readBoxes(bytes, view, mvex.payload, mvex.end).filter(box => box.type === 'trex')) {
+      const trex = parseTrex(view, trexBox);
+      if (trexDefaults.has(trex.trackId)) throw new Error(`Duplicate trex defaults for track ${trex.trackId}.`);
+      trexDefaults.set(trex.trackId, trex);
+    }
+  }
+
+  const tracks: Fmp4TrackMetadata[] = [];
+  const seenTrackIds = new Set<number>();
+  for (const trak of movieChildren.filter(box => box.type === 'trak')) {
+    const trakChildren = readBoxes(bytes, view, trak.payload, trak.end);
+    const tkhd = trakChildren.find(box => box.type === 'tkhd');
+    const mdia = trakChildren.find(box => box.type === 'mdia');
+    if (!tkhd || !mdia) throw new Error('Each fMP4 trak must contain tkhd and mdia.');
+    const trackId = parseTrackId(view, tkhd);
+    if (trackId <= 0 || seenTrackIds.has(trackId)) throw new Error('fMP4 track IDs must be unique positive integers.');
+    seenTrackIds.add(trackId);
+
+    const mediaChildren = readBoxes(bytes, view, mdia.payload, mdia.end);
+    const mdhd = mediaChildren.find(box => box.type === 'mdhd');
+    const hdlr = mediaChildren.find(box => box.type === 'hdlr');
+    const minf = mediaChildren.find(box => box.type === 'minf');
+    if (!mdhd || !hdlr || !minf) throw new Error(`Track ${trackId} is missing mdhd, hdlr or minf.`);
+    const minfChildren = readBoxes(bytes, view, minf.payload, minf.end);
+    const stbl = minfChildren.find(box => box.type === 'stbl');
+    const stblChildren = stbl ? readBoxes(bytes, view, stbl.payload, stbl.end) : [];
+    const stsd = stblChildren.find(box => box.type === 'stsd');
+    let sampleEntry: string | null = null;
+    if (stsd) {
+      if (stsd.payload + 8 > stsd.end) throw new Error('Truncated stsd box.');
+      const entryCount = u32(view, stsd.payload + 4);
+      const entries = readBoxes(bytes, view, stsd.payload + 8, stsd.end);
+      if (entries.length !== entryCount) throw new Error('stsd entry count does not match its box contents.');
+      sampleEntry = entries[0]?.type ?? null;
+    }
+    const defaults = trexDefaults.get(trackId);
+    tracks.push({
+      trackId,
+      timescale: parseTimescale(view, mdhd),
+      handlerType: parseHandlerType(bytes, view, hdlr),
+      sampleEntry,
+      defaultSampleDescriptionIndex: defaults?.descriptionIndex ?? null,
+      defaultSampleDuration: defaults?.duration ?? null,
+      defaultSampleSize: defaults?.size ?? null,
+      defaultSampleFlags: defaults?.flags ?? null,
+    });
+  }
+  if (tracks.length === 0) throw new Error('fMP4 initialization segment contains no tracks.');
+  return { tracks };
+}
+
 /**
  * Parse one or more movie fragments from an fMP4 byte range.
  * Times are returned in each track's native media timescale (from mdhd).
