@@ -3,6 +3,7 @@ import { createTestRun, isTerminalRunStatus, transitionTestRun } from "../qualit
 import { InMemoryEventStore, withSequence } from "../quality-engine/core/event-store";
 import { analyzeChangeImpact } from "../quality-engine/core/change-impact";
 import { classifyFailure } from "../quality-engine/core/failure-classifier";
+import { evaluateQualityGate } from "../quality-engine/core/quality-gates";
 
 describe("Quality Engine task runtime", () => {
   it("creates a pending run with immutable source identity", () => {
@@ -116,5 +117,37 @@ describe("Quality Engine failure classifier", () => {
 
   it("does not guess when evidence is insufficient", () => {
     expect(classifyFailure({ message: "something failed" })).toMatchObject({ category: "unknown", confidence: "low" });
+  });
+});
+
+ 
+describe("Quality Engine quality gate", () => {
+  it("allows eligibility only when every required check passed", () => {
+    const result = evaluateQualityGate([
+      { id: "unit", required: true, outcome: "passed", evidenceIds: ["junit-1"] },
+      { id: "preview", required: true, outcome: "passed", evidenceIds: ["trace-1"] },
+      { id: "optional-a11y", required: false, outcome: "not-run" },
+    ]);
+    expect(result).toMatchObject({ eligible: true, status: "ready", passed: ["unit", "preview"], optionalNotRun: ["optional-a11y"] });
+  });
+
+  it("blocks eligibility for failed, blocked, and not-run required checks", () => {
+    const result = evaluateQualityGate([
+      { id: "unit", required: true, outcome: "passed" },
+      { id: "browser", required: true, outcome: "failed" },
+      { id: "preview", required: true, outcome: "blocked" },
+      { id: "physical-iphone", required: true, outcome: "not-run" },
+    ]);
+    expect(result).toMatchObject({
+      eligible: false,
+      status: "blocked",
+      failed: ["browser"],
+      blocked: ["preview"],
+      notRun: ["physical-iphone"],
+    });
+  });
+
+  it("does not allow an empty required-check list to imply successful verification", () => {
+    expect(evaluateQualityGate([])).toMatchObject({ eligible: true, status: "ready" });
   });
 });
