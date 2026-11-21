@@ -48,16 +48,20 @@ describe('installArtPlayerControlBridge', () => {
 
   it('falls back to the original ArtPlayer methods when no controller is attached', async () => {
     const { player } = createPlayer();
+    const fallbackPlay = player.play;
+    const fallbackPause = player.pause;
     const cleanup = installArtPlayerControlBridge(player, () => null);
     await player.play();
     player.pause();
-    expect(player.play).toHaveBeenCalledOnce();
-    expect(player.pause).toHaveBeenCalledOnce();
+    expect(fallbackPlay).toHaveBeenCalledOnce();
+    expect(fallbackPause).toHaveBeenCalledOnce();
     cleanup();
   });
 
   it('falls back when the controller reports unsupported commands', async () => {
     const { player } = createPlayer();
+    const fallbackPlay = player.play;
+    const fallbackPause = player.pause;
     const controller = {
       play: vi.fn(async (): Promise<BackendCommandResult> => ({ ok: false, reason: 'unsupported' })),
       pause: vi.fn((): BackendCommandResult => ({ ok: false, reason: 'unsupported' })),
@@ -67,8 +71,8 @@ describe('installArtPlayerControlBridge', () => {
     await player.play();
     player.pause();
     player.currentTime = 22;
-    expect(player.play).toHaveBeenCalledOnce();
-    expect(player.pause).toHaveBeenCalledOnce();
+    expect(fallbackPlay).toHaveBeenCalledOnce();
+    expect(fallbackPause).toHaveBeenCalledOnce();
     cleanup();
   });
 
