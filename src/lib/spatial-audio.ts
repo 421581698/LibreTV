@@ -30,6 +30,8 @@ export interface SpatialAudioPlan {
 export interface SpatialAudioAttachOptions {
   /** Verified audio-track channel count from manifest/media inspection. */
   inputChannels: number;
+  /** Explicitly verified speaker layout; six channels alone is not sufficient. */
+  inputLayout?: '5.1' | 'unknown';
 }
 
 const speakerPositions = {
@@ -81,6 +83,7 @@ export function planSpatialAudio(
   mode: SpatialAudioMode,
   inputChannels: number,
   hrtfAvailable: boolean,
+  inputLayout: '5.1' | 'unknown' = 'unknown',
 ): SpatialAudioPlan {
   if (mode === 'off') {
     return { route: 'bypass', inputChannels, label: '原始音轨', reason: '空间处理已关闭' };
@@ -88,7 +91,7 @@ export function planSpatialAudio(
   if (!hrtfAvailable) {
     return { route: 'bypass', inputChannels, label: '原始音轨', reason: '当前浏览器没有可用的 HRTF 空间声像器' };
   }
-  if (inputChannels === 6 && mode === 'headphone-surround') {
+  if (inputChannels === 6 && mode === 'headphone-surround' && inputLayout === '5.1') {
     return {
       route: 'surround-5.1-binaural',
       inputChannels,
@@ -110,8 +113,10 @@ export function planSpatialAudio(
     route: 'bypass',
     inputChannels,
     label: '原始音轨',
-    reason: inputChannels > 0
-      ? `当前输入为 ${inputChannels} 声道，暂不支持此布局的空间映射`
+    reason: inputChannels === 6 && mode === 'headphone-surround'
+      ? '已检测到六声道，但未验证扬声器顺序；为避免声道错位，保持原始音轨'
+      : inputChannels > 0
+        ? `当前输入为 ${inputChannels} 声道，暂不支持此布局的空间映射`
       : '尚未获得可靠的输入声道数，保持原始播放',
   };
 }
@@ -185,10 +190,12 @@ export class SpatialAudioEngine {
     readonly media: HTMLMediaElement,
     context: AudioContext,
     inputChannels: number,
+    inputLayout: '5.1' | 'unknown',
   ) {
     this.context = context;
     this.capabilities = inspectSpatialAudioCapabilities(context);
     this.inputChannels = inputChannels;
+    this.inputLayout = inputLayout;
     this.source = context.createMediaElementSource(media);
     this.output = context.createGain();
     this.output.gain.value = 1;
@@ -211,7 +218,7 @@ export class SpatialAudioEngine {
       throw new Error('当前音轨声道布局尚未得到支持，空间音频保持关闭');
     }
     const context = contextFactory();
-    const engine = new SpatialAudioEngine(media, context, options.inputChannels);
+    const engine = new SpatialAudioEngine(media, context, options.inputChannels, options.inputLayout ?? 'unknown');
     attachedEngines.set(media, engine);
     return engine;
   }
@@ -234,7 +241,7 @@ export class SpatialAudioEngine {
     this.clearSpatialGraph();
     this.mode = mode;
 
-    const plan = planSpatialAudio(mode, this.inputChannels, this.capabilities.hrtfPanner);
+    const plan = planSpatialAudio(mode, this.inputChannels, this.capabilities.hrtfPanner, this.inputLayout);
     this.route = plan.route;
     if (plan.route === 'bypass') {
       this.source.connect(this.output);
@@ -278,12 +285,13 @@ export class SpatialAudioEngine {
    * Update verified track metadata when PlayerShell switches media sources
    * while retaining the same HTMLVideoElement.
    */
-  updateInputChannels(inputChannels: number): SpatialAudioPlan {
+  updateInputChannels(inputChannels: number, inputLayout: '5.1' | 'unknown' = 'unknown'): SpatialAudioPlan {
     if (!Number.isInteger(inputChannels) || inputChannels < 1 || inputChannels > 32) {
       this.inputChannels = 0;
     } else {
       this.inputChannels = inputChannels;
     }
+    this.inputLayout = inputLayout;
     return this.setMode(this.mode);
   }
 
