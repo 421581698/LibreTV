@@ -3,13 +3,14 @@
 Status: implementation in progress; no production integration is claimed.
 Branch: `feature/cinema-engine-v2-3-integration`
 Base: `feature/cinema-engine-v2-3-architecture` at `99cad81c1a3505012e53dd898de68d001ba04c81`
-Current head at this update: `60a8d7943433cafbf02529b184986b7a3084608d`
+CI-validated code head: `f5951fb181ca02987c143bda029c1504015cf40f`
 
 ## Current validation
 
-- CI for the current head is running; do not treat earlier-head green runs as validation of this SHA.
+- Exact code head `f5951fb181ca02987c143bda029c1504015cf40f` passed TypeScript, ESLint, unit tests and production build in both prelaunch-checks and Resource Playback Verification. Collector verification also passed.
+- The following documentation commit carries the explicit preview marker; the isolated Preview workflow will rerun its own typecheck, lint, tests, asset preparation and build before deployment.
 - PR #110 remains Draft. No merge, main update or production deploy has been performed.
-- A dedicated Cloudflare Worker preview config and gated deploy workflow are prepared. The workflow is intentionally skipped until a commit explicitly carries `[cinema-v2.3-preview]`. Preview is not deployed yet.
+- A dedicated Cloudflare Worker preview config and gated deploy workflow are prepared. This tracker update triggers the workflow with `[cinema-v2.3-preview]`; deployment and browser smoke checks are pending.
 - Netlify Production remains on its existing main deployment.
 - Chromium mobile viewport emulation is included in the Preview workflow; it is not physical iPhone/iPad Safari acceptance.
 
