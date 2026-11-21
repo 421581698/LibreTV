@@ -160,13 +160,12 @@ testsprite run --project "$TESTSPRITE_PROJECT_ID" --wait
 testsprite result get <RESULT_ID> --out ".testsprite/results/<RESULT_ID>"
 ```
 
-GitHub Actions 使用官方 CI 门禁命令：
+GitHub Actions 使用官方 CI 门禁命令（先由工作流等待 Preview URL 可达，再传入已验证地址）：
 
 ```bash
 testsprite ci run \
   --project "$TESTSPRITE_PROJECT_ID" \
-  --wait-for-status "$TESTSPRITE_PREVIEW_STATUS_NAME" \
-  --target-url-template "$TESTSPRITE_PREVIEW_URL_TEMPLATE" \
+  --target-url "$PREVIEW_URL" \
   --fail-on-skipped \
   --summary-file testsprite-summary.json
 ```
