@@ -70,6 +70,14 @@ describe('Fmp4StreamSession', () => {
     expect(session.parseMediaSegment(makeFragment(0)).discontinuities[0]?.kind).toBe('reset');
   });
 
+  it('processes multiple moof fragments in one media segment in decode order', () => {
+    const session = new Fmp4StreamSession();
+    session.updateInitSegment(makeInitSegment());
+    const result = session.parseMediaSegment(join(makeFragment(90_000), makeFragment(93_000)));
+    expect(result.fragments).toHaveLength(2);
+    expect(result.discontinuities).toEqual([]);
+  });
+
   it('clears timeline baselines when the init segment changes', () => {
     const session = new Fmp4StreamSession();
     const first = session.updateInitSegment(makeInitSegment(90_000));
