@@ -1,0 +1,41 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
+
+describe('iPhone playback interaction contract', () => {
+  const home = read('src/app/page.tsx');
+  const registry = read('src/components/home/RegistryInlinePlayer.tsx');
+  const watch = read('src/app/watch/page.tsx');
+  const player = read('src/components/player-shell.tsx');
+
+  it('tests the actual homepage inline player rather than the unused legacy HomeInlinePlayer', () => {
+    expect(home).toContain("import { RegistryInlinePlayer } from '@/components/home/RegistryInlinePlayer';");
+    expect(home).toContain('<RegistryInlinePlayer resource={registryPlayItem}');
+    expect(registry).toContain('role="dialog"');
+    expect(registry).toContain('onCloseRef.current()');
+    expect(registry).toContain("if (event.key === 'Escape')");
+    expect(registry).toContain("if (event.key !== 'Tab') return;");
+    expect(registry).toContain("document.body.style.overflow = 'hidden';");
+    expect(registry).toContain('closeButtonRef.current?.focus({ preventScroll: true });');
+    expect(registry).toContain('previousFocus.focus({ preventScroll: true });');
+  });
+
+  it('keeps playback clock rendering responsive without increasing progress persistence frequency', () => {
+    expect(player).toContain('onClockUpdate?: (position: number, duration: number) => void;');
+    expect(player).toContain('propsRef.current.onClockUpdate?.(art.currentTime, art.duration);');
+    expect(player).toContain('propsRef.current.onClockUpdate?.(current, art.duration);');
+    expect(player).toContain('if (now - lastSave > 5000)');
+    expect(watch).toContain('onClockUpdate={(position, duration) => setWatchClock({ position, duration })}');
+    expect(watch).toContain('onTimeUpdate={handleProgress}');
+  });
+
+  it('uses one tested native-fullscreen fallback path for the watch-page fullscreen control', () => {
+    expect(watch).toContain("import { requestNativeFullscreenWithFallback, type NativeFullscreenVideo } from '@/lib/player-fullscreen';");
+    expect(watch).toContain('requestNativeFullscreenWithFallback(');
+    expect(watch).toContain('playerApiRef.current.enterFullscreen()');
+    expect(player).toContain('enterFullscreen: () => {');
+    expect(player).toContain('current.fullscreenWeb = true');
+  });
+});
