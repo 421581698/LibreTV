@@ -734,6 +734,8 @@ export function PlayerShell({
 
   /** Native progressive media path for formats the existing HTMLVideoElement can play. */
   const setupDirectMedia = (video: HTMLVideoElement, mediaUrl: string) => {
+    subtitleTrackCleanupRef.current?.();
+    subtitleTrackCleanupRef.current = null;
     cinemaObserverRef.current?.dispose();
     cinemaObserverRef.current = null;
     clearMetadataWatchdog();
@@ -798,6 +800,8 @@ export function PlayerShell({
    * 注意：不销毁 ArtPlayer，只销毁并重建 hls，从而保留网页全屏等播放器状态。
    */
   const setupHls = (video: HTMLVideoElement, mediaUrl: string, allowProxyFallback: boolean) => {
+    subtitleTrackCleanupRef.current?.();
+    subtitleTrackCleanupRef.current = null;
     cinemaObserverRef.current?.dispose();
     cinemaObserverRef.current = null;
     qualityGuardRef.current.reset();
