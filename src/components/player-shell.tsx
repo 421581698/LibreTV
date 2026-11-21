@@ -14,6 +14,7 @@ import { applySubtitleTrack, listSubtitleTracks, type SubtitleTrackOption } from
 import { inspectHlsAudioTrack } from '@/lib/audio-inspector';
 import { isAudioSourceUrlOriginSafe, SpatialAudioEngine, type SpatialAudioMode } from '@/lib/spatial-audio';
 import { createAssSubtitleRenderer, type AssSubtitleRenderer } from '@/lib/native-player/jassub-renderer';
+import { applyNativeSubtitleStyle, clearNativeSubtitleStyle } from '@/lib/native-player/subtitle-style';
 import { hasSustainedPlaybackProgress } from '@/lib/playback-verification';
 
 import { PlaybackRecovery, describeHlsError } from '@/lib/playback-recovery';
@@ -530,6 +531,7 @@ export function PlayerShell({
         void renderer.destroy().catch(() => undefined);
         return;
       }
+      renderer.timeOffset = subtitlePreferencesRef.current.delayMs / 1000;
       assSubtitleRendererRef.current = renderer;
       const subtitleCanvas = video.parentElement?.querySelector('canvas.JASSUB') as HTMLCanvasElement | null;
       if (subtitleCanvas) subtitleCanvas.style.zIndex = '5';
@@ -548,6 +550,9 @@ export function PlayerShell({
   const updateSubtitlePreferences = (next: SubtitlePreferences) => {
     subtitlePreferencesRef.current = next;
     setSubtitlePreferences(next);
+    const video = artRef.current?.video as HTMLVideoElement | undefined;
+    if (video) applyNativeSubtitleStyle(video, next.fontSizePercent, next.backgroundOpacityPercent);
+    if (assSubtitleRendererRef.current) assSubtitleRendererRef.current.timeOffset = next.delayMs / 1000;
     try {
       saveSubtitlePreferences(window.localStorage, next, propsRef.current.sourceKey, propsRef.current.episodeKey);
     } catch {
@@ -560,6 +565,7 @@ export function PlayerShell({
     setSubtitleTracks(options);
     if (!subtitlePreferencesLoadedRef.current) return;
     const preferences = subtitlePreferencesRef.current;
+    applyNativeSubtitleStyle(video, preferences.fontSizePercent, preferences.backgroundOpacityPercent);
     if (preferences.selectedTrackId === 'ass:local' && assSubtitleRendererRef.current) return;
     if (!preferences.enabled) {
       applySubtitleTrack(video, hls, null, false);
@@ -1928,6 +1934,8 @@ export function PlayerShell({
       const assRenderer = assSubtitleRendererRef.current;
       assSubtitleRendererRef.current = null;
       if (assRenderer) void assRenderer.destroy().catch(() => undefined);
+      const activeVideo = artRef.current?.video as HTMLVideoElement | undefined;
+      if (activeVideo) clearNativeSubtitleStyle(activeVideo);
       subtitleTrackCleanupRef.current?.();
       subtitleTrackCleanupRef.current = null;
       hlsRef.current?.destroy();
@@ -2090,6 +2098,52 @@ export function PlayerShell({
             {assSubtitleFileName && (
               <p className="mt-2 truncate text-[11px] text-white/60">当前文件：{assSubtitleFileName}</p>
             )}
+            <label className="mt-3 block text-xs text-white/75">
+              字幕字号 · {subtitlePreferences.fontSizePercent}%
+              <input
+                type="range"
+                min="60"
+                max="200"
+                step="5"
+                className="mt-1 w-full"
+                value={subtitlePreferences.fontSizePercent}
+                onChange={(event) => updateSubtitlePreferences({
+                  ...subtitlePreferencesRef.current,
+                  fontSizePercent: Number(event.target.value),
+                })}
+              />
+            </label>
+            <label className="mt-3 block text-xs text-white/75">
+              字幕背景 · {subtitlePreferences.backgroundOpacityPercent}%
+              <input
+                type="range"
+                min="0"
+                max="90"
+                step="5"
+                className="mt-1 w-full"
+                value={subtitlePreferences.backgroundOpacityPercent}
+                onChange={(event) => updateSubtitlePreferences({
+                  ...subtitlePreferencesRef.current,
+                  backgroundOpacityPercent: Number(event.target.value),
+                })}
+              />
+            </label>
+            <label className="mt-3 block text-xs text-white/75">
+              ASS 时间偏移 · {subtitlePreferences.delayMs} ms
+              <input
+                type="range"
+                min="-5000"
+                max="5000"
+                step="250"
+                className="mt-1 w-full"
+                value={subtitlePreferences.delayMs}
+                disabled={!assSubtitleRendererRef.current}
+                onChange={(event) => updateSubtitlePreferences({
+                  ...subtitlePreferencesRef.current,
+                  delayMs: Number(event.target.value),
+                })}
+              />
+            </label>
             <p className="mt-2 text-[11px] text-white/55">
               字幕轨选择会按当前片源和剧集保存；外部 SRT/ASS 文件与高级样式仍在接入中。
             </p>
