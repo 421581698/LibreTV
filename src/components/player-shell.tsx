@@ -2064,7 +2064,7 @@ export function PlayerShell({
               <label className="flex items-center gap-2 text-xs text-white/80">
                 <input
                   type="checkbox"
-                  checked={subtitlePreferences.enabled}
+                  checked={subtitlePreferences.enabled && Boolean(subtitlePreferences.selectedTrackId)}
                   onChange={(event) => toggleSubtitles(event.target.checked)}
                 />
                 启用
