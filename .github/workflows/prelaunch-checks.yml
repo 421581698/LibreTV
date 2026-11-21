@@ -16,6 +16,7 @@ on:
       - feature/libretv-v4-pc-light-homepage-2026-11-09
       - feature/auto-rank-best-vod-sources-2026-11-10
       - feature/homepage-cinema-lobby-order-2026-11-11
+      - feature/libretv-native-player-v1
   workflow_dispatch:
 
 permissions:
