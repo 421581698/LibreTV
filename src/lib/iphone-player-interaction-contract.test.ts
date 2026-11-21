@@ -40,6 +40,12 @@ describe('iPhone playback interaction contract', () => {
     expect(watch).toContain('setSwitchOpen(true);');
   });
 
+  it('synchronizes the speed label with settings-menu and long-press rate changes', () => {
+    expect(player).toContain('onPlaybackRateChange?: (rate: number) => void;');
+    expect(player).toContain('propsRef.current.onPlaybackRateChange?.(video.playbackRate);');
+    expect(watch).toContain('onPlaybackRateChange={setWatchRate}');
+  });
+
   it('previews range scrubbing and commits a single seek on pointer/key release', () => {
     expect(watch).toContain('onChange={(event) => setSeekDraft(Number(event.target.value))}');
     expect(watch).toContain('onPointerUp={(event) => commitSeek(Number(event.currentTarget.value))}');
