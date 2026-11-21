@@ -52,6 +52,7 @@ try {
     sourceUrl: 'https://example.com/api.php/provide/vod',
     url: stream,
     title: 'Cinema V2.3 Mobile Emulation',
+    cinemaDebug: '1',
   });
   const response = await page.goto(base + '/watch?' + params.toString(), {
     waitUntil: 'domcontentloaded',
@@ -81,6 +82,10 @@ try {
     if (!video) throw new Error('PlayerShell video missing.');
     window.__cinemaV23Video = video;
     window.__cinemaV23MediaEvents = [];
+    window.__cinemaV23HlsEvents = [];
+    window.addEventListener('libretv-cinema-hls-debug', event => {
+      window.__cinemaV23HlsEvents.push({ ...event.detail, at: Math.round(performance.now()) });
+    });
     for (const type of ['loadstart', 'loadedmetadata', 'loadeddata', 'canplay', 'playing', 'waiting', 'stalled', 'suspend', 'abort', 'emptied', 'error']) {
       video.addEventListener(type, () => window.__cinemaV23MediaEvents.push({ type, at: Math.round(performance.now()), readyState: video.readyState, networkState: video.networkState, errorCode: video.error?.code ?? null }));
     }
@@ -111,6 +116,7 @@ try {
         playerText: document.querySelector('.netflix-player-frame')?.innerText.slice(0, 500) ?? '',
         playError: window.__cinemaV23PlayError ?? null,
         mediaEvents: window.__cinemaV23MediaEvents ?? [],
+        hlsEvents: window.__cinemaV23HlsEvents ?? [],
         resourceRequests: performance.getEntriesByType('resource')
           .map(entry => ({ name: entry.name.split('?')[0], initiatorType: entry.initiatorType, duration: Math.round(entry.duration), transferSize: entry.transferSize }))
           .filter(entry => /m3u8|m4s|mp4|ts|\.js/i.test(entry.name))
@@ -126,6 +132,7 @@ try {
       pageErrors: errors.slice(0, 12),
       requestFailures: requestFailures.slice(-20),
       cause: error instanceof Error ? error.message : String(error),
+      hlsEvents: await page.evaluate(() => window.__cinemaV23HlsEvents ?? []),
     }));
   }
 
