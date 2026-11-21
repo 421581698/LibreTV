@@ -4,6 +4,19 @@ Status: implementation in progress; no production integration is claimed.
 Branch: `feature/cinema-engine-v2-3-integration`
 Base: `feature/cinema-engine-v2-3-architecture` at `99cad81c1a3505012e53dd898de68d001ba04c81`
 
+## Verified progress — 2026-11-21
+
+Current validated head: `443cdcc0d4668525b158ecf795866b6092cadf9c`
+
+- **CI green on this exact head:** TypeScript, ESLint, unit tests, production build, web verification and collector verification.
+- **PlayerShell observer bridge implemented:** the new controller observes the existing ArtPlayer video element and publishes snapshots. It does not assign `src`, call `load()`, create another video element, or create a second MSE pipeline. ArtPlayer/hls.js remain playback owners.
+- **fMP4 metadata foundation implemented:** initialization parsing reads track IDs, media timescales, handler types, sample-entry identifiers and `trex` defaults. Fragment parsing reads `moof/traf/tfhd/tfdt/trun`, applies `tfhd`/ `trex` sample defaults, resolves multi-`traf` implicit data offsets, preserves DTS/PTS ticks and exposes sample byte ranges.
+- **Sample extraction implemented:** bounded zero-copy `Uint8Array` sample views with null/range checks.
+- **A/V timing foundation implemented:** timescale conversion, presentation-time calculation, timestamp alignment and timeline discontinuity classification.
+
+These are parser/observation foundations, not a complete codec demuxer/decoder or a production playback-engine handoff. Playback commands are not yet owned by the new controller. ASS/SSA rendering, subtitle controls/persistence, spatial audio and physical device acceptance remain open.
+
+
 ## Safety boundaries
 
 - Keep `main` and Production unchanged.
