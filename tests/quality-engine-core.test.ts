@@ -148,6 +148,6 @@ describe("Quality Engine quality gate", () => {
   });
 
   it("does not allow an empty required-check list to imply successful verification", () => {
-    expect(evaluateQualityGate([])).toMatchObject({ eligible: true, status: "ready" });
+    expect(evaluateQualityGate([])).toMatchObject({ eligible: false, status: "blocked", notRun: ["__no_required_checks__"] });
   });
 });
