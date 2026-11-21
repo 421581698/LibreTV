@@ -63,7 +63,7 @@ describe('Fmp4StreamSession', () => {
 
     session.recover();
     session.parseMediaSegment(makeFragment(90_000));
-    expect(session.parseMediaSegment(makeFragment(92_000)).discontinuities[0]?.kind).toBe('overlap');
+    expect(session.parseMediaSegment(makeFragment(87_000)).discontinuities[0]?.kind).toBe('overlap');
 
     session.recover();
     session.parseMediaSegment(makeFragment(90_000));
