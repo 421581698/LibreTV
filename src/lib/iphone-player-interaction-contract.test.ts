@@ -34,6 +34,10 @@ describe('iPhone playback interaction contract', () => {
     expect(watch).toContain('setSwitchOpen(true);');
   });
 
+  it('cancels pending auto-next when the source session changes, not only when the episode index changes', () => {
+    expect(watch).toContain('}, [sourceKey, vodId, directUrl, suppliedSourceUrl, currentUrl, currentIndex, cancelAutoNext]);');
+  });
+
   it('uses one tested native-fullscreen fallback path for the watch-page fullscreen control', () => {
     expect(watch).toContain("import { requestNativeFullscreenWithFallback, type NativeFullscreenVideo } from '@/lib/player-fullscreen';");
     expect(watch).toContain('requestNativeFullscreenWithFallback(');
