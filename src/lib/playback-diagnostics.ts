@@ -10,6 +10,41 @@ export interface PlaybackQualityCounters {
   droppedFrames: number;
 }
 
+export interface FragmentStatsLike {
+  loaded?: number;
+  total?: number;
+  loading?: { start?: number; end?: number };
+}
+
+export interface FragmentQualityEvidence {
+  throughputKbps: number;
+  mediaBitrateKbps: number;
+}
+
+/** Derive throughput and encoded bitrate from the same completed fragment. */
+export function getFragmentQualityEvidence(
+  stats: FragmentStatsLike | null | undefined,
+  durationSeconds: number | null | undefined,
+): FragmentQualityEvidence | undefined {
+  const bytes = typeof stats?.loaded === 'number' && Number.isFinite(stats.loaded) && stats.loaded > 0
+    ? stats.loaded
+    : stats?.total;
+  const start = stats?.loading?.start;
+  const end = stats?.loading?.end;
+  const loadMs = typeof start === 'number' && typeof end === 'number' ? end - start : 0;
+  if (
+    typeof bytes !== 'number' || !Number.isFinite(bytes) || bytes <= 0 ||
+    !Number.isFinite(loadMs) || loadMs <= 0 ||
+    typeof durationSeconds !== 'number' || !Number.isFinite(durationSeconds) || durationSeconds <= 0
+  ) return undefined;
+
+  return {
+    // bytes * 8 / milliseconds is decimal kilobits per second.
+    throughputKbps: bytes * 8 / loadMs,
+    mediaBitrateKbps: bytes * 8 / (durationSeconds * 1000),
+  };
+}
+
 export interface BufferedRangesLike {
   length: number;
   start(index: number): number;
