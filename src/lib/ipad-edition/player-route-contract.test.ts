@@ -7,6 +7,7 @@ const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8'
 describe('iPad Edition playback route contract', () => {
   const wrapper = read('src/app/ipad-edition/watch/page.tsx');
   const watch = read('src/components/ipad-edition/IpadEditionWatchPlayer.tsx');
+  const genericWatch = read('src/app/watch/page.tsx');
   const switchSource = read('src/components/switch-source.tsx');
   const continueWatching = read('src/components/ipad-edition/IpadEditionContinueWatching.tsx');
 
@@ -16,6 +17,12 @@ describe('iPad Edition playback route contract', () => {
     expect(watch).toContain("const watchPath = '/ipad-edition/watch' as const;");
     expect(watch).toContain("const fallbackHref = '/ipad-edition';");
     expect(watch).toContain('router.replace(`${watchPath}?${sp.toString()}`, { scroll: false });');
+  });
+
+  it('keeps the generic iPhone watch controller independent from the iPad Edition controller', () => {
+    expect(genericWatch).toContain('export default function WatchPage()');
+    expect(genericWatch).not.toContain("const watchPath = '/ipad-edition/watch'");
+    expect(wrapper).not.toContain("from '@/app/watch/page'");
   });
 
   it('keeps episode selection, previous/next and auto-next on the current edition route', () => {
