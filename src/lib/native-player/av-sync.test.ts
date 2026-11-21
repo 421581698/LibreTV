@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { detectTimelineDiscontinuity, measureAvSync, mediaTicksToSeconds, presentationTimeSeconds } from './av-sync';
+import { detectTimelineDiscontinuity, measureAvSync, mediaTicksToSeconds, mediaTimestampFromSample, presentationTimeSeconds } from './av-sync';
 
 describe('media clock conversion', () => {
+  it('adapts parsed fMP4 samples using their own track timescale', () => {
+    const timestamp = mediaTimestampFromSample({
+      decodeTime: 90_000,
+      compositionTimeOffset: -900,
+      duration: 3_000,
+    }, 90_000);
+    expect(presentationTimeSeconds(timestamp)).toBeCloseTo(0.99);
+    expect(timestamp.duration).toBe(3_000);
+  });
+
   it('converts independent track timescales and composition offsets', () => {
     expect(mediaTicksToSeconds(90_000, 90_000)).toBe(1);
     expect(presentationTimeSeconds({ decodeTime: 180_000, compositionTimeOffset: -900, timescale: 90_000 })).toBe(1.99);
