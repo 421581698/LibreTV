@@ -980,7 +980,7 @@ function BackButton() {
         if (window.history.length > 1) {
           router.back();
         } else {
-          router.push('/');
+          router.push('/ipad-edition');
         }
       }}
       aria-label="返回"
