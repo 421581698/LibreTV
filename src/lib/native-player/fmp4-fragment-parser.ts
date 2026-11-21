@@ -371,8 +371,8 @@ export function parseFmp4Fragments(input: ArrayBuffer | Uint8Array, options: Par
       const initTrack = options.initSegment?.tracks.find(track => track.trackId === parsedTfhd.trackId);
       const tfhd: Tfhd = {
         ...parsedTfhd,
-        defaultDuration: parsedTfhd.defaultDuration ?? trex?.defaultSampleDuration ?? null,
-        defaultSize: parsedTfhd.defaultSize ?? trex?.defaultSampleSize ?? null,
+        defaultDuration: parsedTfhd.defaultDuration ?? initTrack?.defaultSampleDuration ?? null,
+        defaultSize: parsedTfhd.defaultSize ?? initTrack?.defaultSampleSize ?? null,
         defaultFlags: parsedTfhd.defaultFlags ?? initTrack?.defaultSampleFlags ?? null,
         defaultDescriptionIndex: parsedTfhd.defaultDescriptionIndex ?? initTrack?.defaultSampleDescriptionIndex ?? null,
       };
