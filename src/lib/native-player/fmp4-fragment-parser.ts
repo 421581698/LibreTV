@@ -54,6 +54,7 @@ interface Tfhd {
   defaultDuration: number | null;
   defaultSize: number | null;
   defaultFlags: number | null;
+  defaultBaseIsMoof: boolean;
 }
 
 const MAX_SAFE = Number.MAX_SAFE_INTEGER;
@@ -124,7 +125,7 @@ function parseTfhd(view: DataView, box: Box): Tfhd {
   if (flags & 0x000010) { defaultSize = u32(view, offset); offset += 4; }
   if (flags & 0x000020) { defaultFlags = u32(view, offset); offset += 4; }
   if (offset > box.end) throw new Error('tfhd fields exceed box bounds.');
-  return { trackId, baseDataOffset, defaultDuration, defaultSize, defaultFlags };
+  return { trackId, baseDataOffset, defaultDuration, defaultSize, defaultFlags, defaultBaseIsMoof: Boolean(flags & 0x020000) };
 }
 
 function parseTfdt(view: DataView, box: Box): number {
@@ -143,7 +144,7 @@ function parseTrun(
   box: Box,
   tfhd: Tfhd,
   baseDecodeTime: number,
-  baseDataOffset: number,
+  baseDataOffset: number | null,
   initialDataOffset: number | null,
   maxSamples: number,
 ): { samples: Fmp4Sample[]; nextDataOffset: number | null } {
@@ -157,7 +158,7 @@ function parseTrun(
   let firstSampleFlags: number | null = null;
   if (flags & 0x000001) {
     if (offset + 4 > box.end) throw new Error('Truncated trun data_offset.');
-    dataOffset = baseDataOffset + i32(view, offset);
+    dataOffset = baseDataOffset === null ? null : baseDataOffset + i32(view, offset);
     offset += 4;
   }
   if (flags & 0x000004) {
@@ -348,13 +349,15 @@ export function parseFmp4Fragments(input: ArrayBuffer | Uint8Array, options: Par
   for (const moof of topLevel.filter(box => box.type === 'moof')) {
     const children = readBoxes(bytes, view, moof.payload, moof.end);
     const tracks: Fmp4TrackFragment[] = [];
-    for (const traf of children.filter(box => box.type === 'traf')) {
+    let implicitBaseDataOffset: number | null = null;
+    const trafs = children.filter(box => box.type === 'traf');
+    for (let trafIndex = 0; trafIndex < trafs.length; trafIndex += 1) {
+      const traf = trafs[trafIndex];
       const fields = readBoxes(bytes, view, traf.payload, traf.end);
       const tfhdBox = fields.find(box => box.type === 'tfhd');
       const tfdtBox = fields.find(box => box.type === 'tfdt');
       if (!tfhdBox || !tfdtBox) throw new Error('Each parsed traf must contain tfhd and tfdt boxes.');
       const parsedTfhd = parseTfhd(view, tfhdBox);
-      if (options.trackId !== undefined && parsedTfhd.trackId !== options.trackId) continue;
       const trex = options.initSegment?.tracks.find(track => track.trackId === parsedTfhd.trackId);
       const tfhd: Tfhd = {
         ...parsedTfhd,
@@ -363,7 +366,8 @@ export function parseFmp4Fragments(input: ArrayBuffer | Uint8Array, options: Par
         defaultFlags: parsedTfhd.defaultFlags ?? trex?.defaultSampleFlags ?? null,
       };
       const baseDecodeTime = parseTfdt(view, tfdtBox);
-      const baseDataOffset = tfhd.baseDataOffset ?? moof.start;
+      const baseDataOffset = tfhd.baseDataOffset ??
+        (tfhd.defaultBaseIsMoof || trafIndex === 0 ? moof.start : implicitBaseDataOffset);
       let nextDataOffset: number | null = null;
       let decodeTime = baseDecodeTime;
       const samples: Fmp4Sample[] = [];
@@ -374,7 +378,11 @@ export function parseFmp4Fragments(input: ArrayBuffer | Uint8Array, options: Par
         const last = parsed.samples[parsed.samples.length - 1];
         if (last?.duration !== null && last) decodeTime = last.decodeTime + last.duration;
       }
-      tracks.push({ trackId: tfhd.trackId, baseDecodeTime, samples });
+      // The next traf's implicit base is the end of this traf's resolved sample data.
+      implicitBaseDataOffset = nextDataOffset;
+      if (options.trackId === undefined || parsedTfhd.trackId === options.trackId) {
+        tracks.push({ trackId: tfhd.trackId, baseDecodeTime, samples });
+      }
     }
     fragments.push({ moofOffset: moof.start, moofSize: moof.size, mdatRanges: mdats, tracks });
   }
