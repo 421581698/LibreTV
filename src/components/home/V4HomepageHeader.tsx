@@ -32,12 +32,10 @@ export function V4HomepageHeader({ overlay = false }: { overlay?: boolean }) {
     <>
       <header className={'v4-header' + (overlay ? ' is-overlay' : '')}>
         <div className="v4-header-inner v4-header-inner--no-brand">
-          {!overlay && (
-            <div className="v4-header-actions">
-              <SearchModule />
-              <AvatarModule pathname={pathname} />
-            </div>
-          )}
+          <div className="v4-header-actions">
+            <SearchModule />
+            <AvatarModule pathname={pathname} />
+          </div>
         </div>
       </header>
       {pathname !== '/detail' && <AIFloatingBall showFab inlineMode={false} />}
