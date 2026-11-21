@@ -39,9 +39,10 @@ export class HlsMseBackend implements PlaybackBackend {
     });
   }
 
-  async load(source: PlaybackSource, identity: PlaybackSessionIdentity): Promise<BackendCommandResult> {
+  async load(source: PlaybackSource, identity: PlaybackSessionIdentity, signal?: AbortSignal): Promise<BackendCommandResult> {
     this.assertActive();
     if (!this.element) return { ok: false, reason: 'not-ready' };
+    if (signal?.aborted) return { ok: false, reason: 'failed', error: { code: 'LOAD_ABORTED', message: 'The load was cancelled.', recoverable: true } };
     if (!Hls.isSupported()) return { ok: false, reason: 'unsupported' };
     if (source.kind !== 'hls') return { ok: false, reason: 'unsupported' };
 
