@@ -59,6 +59,9 @@ describe('iPhone playback interaction contract', () => {
     expect(player).toContain("[role=\"dialog\"], [role=\"listbox\"]");
     expect(player).toContain("case 'f': case 'F': {");
     expect(player).toContain('requestNativeFullscreenWithFallback(');
+    expect(player).toContain('let activeTouchId: number | null = null;');
+    expect(player).toContain('touch.identifier === activeTouchId');
+    expect(player).toContain('if (isLongPress && art.video) art.video.playbackRate = originalRate;');
     expect(player).toContain('if (art.fullscreenWeb) {');
     expect(player).toContain('art.fullscreenWeb = false;');
     expect(player).toContain('nativeVideo.webkitExitFullscreen();');
