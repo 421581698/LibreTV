@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 
 import { SmartImage } from '@/components/smart-image';
+import { GlassBar } from '@/components/ui/friday-glass';
 import { AggregatedCard, aggregateResults } from '@/components/video-card';
 import { RegistryInlinePlayer } from '@/components/home/RegistryInlinePlayer';
 import { EmptyState } from '@/components/states';
@@ -145,7 +146,7 @@ export function SearchResultsView({ query, openDetail }: Props) {
   return (
     <>
       <section aria-label="搜索结果" className="mb-10">
-        <div className="flex items-center justify-between mb-3">
+        <GlassBar className="flex items-center justify-between mb-3 px-3 py-2">
           <h2 className="text-sm text-muted">
             “<span className="text-content">{query}</span>” 的搜索结果
             {isSearching ? (
@@ -161,7 +162,7 @@ export function SearchResultsView({ query, openDetail }: Props) {
               )
             )}
           </h2>
-        </div>
+        </GlassBar>
         {seedhubItems.length > 0 && (
           <div className="mb-5" aria-label="SeedHub 已采集目录">
             <div className="mb-2 flex items-center gap-2">
