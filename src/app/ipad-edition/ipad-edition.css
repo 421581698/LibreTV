@@ -657,8 +657,8 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
 }
 .ipad-edition__home,
 .ipad-edition__page { scroll-margin-top: 94px; }
-.ipad-edition__home { padding-top: max(104px, calc(env(safe-area-inset-top, 0px) + 88px)) !important; }
-.ipad-edition__page { padding-top: max(104px, calc(env(safe-area-inset-top, 0px) + 88px)) !important; }
+.ipad-edition__home { padding-top: max(104px, calc(env(safe-area-inset-top, 0px) + 88px)); }
+.ipad-edition__page { padding-top: max(104px, calc(env(safe-area-inset-top, 0px) + 88px)); }
 .ipad-edition[data-ipad-player="true"] .ipad-nav__topbar,
 .ipad-edition[data-ipad-player="true"] .ipad-nav__sidebar,
 .ipad-edition[data-ipad-detail="true"] .ipad-nav__topbar,
@@ -670,8 +670,8 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
   .ipad-nav__wordmark small { display: none; }
   .ipad-nav__quick-search { min-width: 40px; width: 40px; padding: 0; }
   .ipad-nav__quick-search span { display: none; }
-  .ipad-edition__home { padding-top: max(82px, env(safe-area-inset-top, 0px) + 72px) !important; }
-  .ipad-edition__page { padding-top: max(82px, env(safe-area-inset-top, 0px) + 72px) !important; }
+  .ipad-edition__home { padding-top: max(82px, env(safe-area-inset-top, 0px) + 72px); }
+  .ipad-edition__page { padding-top: max(82px, env(safe-area-inset-top, 0px) + 72px); }
 }
 @media (prefers-reduced-motion: reduce) {
   .ipad-nav__sidebar { transition: none; }
@@ -1114,25 +1114,25 @@ body:has(.ipad-edition[data-environment="light"]) {
 
 /* PR #99 navigation refinement: compact capsule, neutral active state, reordered drawer rhythm. */
 .ipad-nav__topbar {
-  width: min(252px, calc(100vw - 24px)) !important;
-  height: 54px !important;
-  top: max(8px, calc(env(safe-area-inset-top, 0px) + 4px)) !important;
+  width: min(252px, calc(100vw - 24px));
+  height: 54px;
+  top: max(8px, calc(env(safe-area-inset-top, 0px) + 4px));
 }
 .ipad-nav__topbar-inner {
   height: 54px !important;
-  justify-content: center !important;
+  justify-content: center;
   
   
 }
 .ipad-nav__capsule-action {
-  flex: 0 0 42px !important;
+  flex: 0 0 42px;
   
   
   
 }
 .ipad-nav__capsule-action .ipad-nav__icon {
-  width: 20px !important;
-  height: 20px !important;
+  width: 20px;
+  height: 20px;
 }
 .ipad-nav__capsule-action:hover,
 .ipad-nav__capsule-action.is-active {
@@ -1242,15 +1242,15 @@ body:has(.ipad-edition[data-environment="light"]) {
 }
 @media (max-width: 699px) {
   .ipad-nav__topbar {
-    width: min(232px, calc(100vw - 24px)) !important;
-    height: 50px !important;
+    width: min(232px, calc(100vw - 24px));
+    height: 50px;
   }
-  .ipad-nav__topbar-inner { height: 50px !important; padding: 4px !important; }
+  .ipad-nav__topbar-inner { height: 50px; padding: 4px; }
   .ipad-nav__capsule-action {
-    flex-basis: 40px !important;
-    width: 40px !important;
-    min-width: 40px !important;
-    height: 40px !important;
+    flex-basis: 40px;
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
   }
 }
 
@@ -1544,11 +1544,11 @@ body:has(.ipad-edition[data-environment="light"]) {
   --ipad-page-gutter: clamp(18px, 3vw, 44px);
 }
 .ipad-edition[data-environment="light"] {
-  background: #f5f5f7 !important;
+  background: #f5f5f7;
 }
 html:has(.ipad-edition[data-environment="light"]),
 body:has(.ipad-edition[data-environment="light"]) {
-  background: #f5f5f7 !important;
+  background: #f5f5f7;
 }
 .ipad-edition .ipad-edition__home {
   padding-block-start: max(68px, calc(env(safe-area-inset-top, 0px) + 60px));
@@ -1556,20 +1556,20 @@ body:has(.ipad-edition[data-environment="light"]) {
 }
 .ipad-edition .ipad-edition__today,
 .ipad-edition .ipad-edition__rail-section {
-  padding-inline: var(--ipad-page-gutter) !important;
+  padding-inline: var(--ipad-page-gutter);
 }
 .ipad-edition .ipad-edition__poster-grid,
 .ipad-edition .ipad-edition__anime-grid,
 .ipad-edition .ipad-edition__continue-grid {
-  height: auto !important;
-  min-height: 0 !important;
-  max-height: none !important;
+  height: auto;
+  min-height: 0;
+  max-height: none;
   align-items: flex-start;
-  padding-block-end: 26px !important;
+  padding-block-end: 26px;
 }
 .ipad-edition .ipad-edition__poster-card {
-  height: auto !important;
-  min-height: 0 !important;
+  height: auto;
+  min-height: 0;
   grid-template-rows: auto auto auto;
   align-content: start;
 }
@@ -1599,6 +1599,6 @@ body:has(.ipad-edition[data-environment="light"]) {
   }
   .ipad-edition .ipad-edition__today,
   .ipad-edition .ipad-edition__rail-section {
-    padding-inline: 16px !important;
+    padding-inline: 16px;
   }
 }
