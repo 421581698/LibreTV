@@ -35,9 +35,15 @@ export default function ConnectPage() {
     if (parsed.protocol !== 'https:' || parsed.username || parsed.password) {
       throw new Error('播放地址必须是有效的 HTTPS 链接。');
     }
+    // Keep signed media URLs out of browser history and referrer headers.
+    // sessionStorage is tab-scoped and is cleared when the tab session ends.
+    window.sessionStorage.setItem('libretv:manual-playback', JSON.stringify({
+      url: parsed.toString(),
+      mediaType,
+      createdAt: Date.now(),
+    }));
     const params = new URLSearchParams({
       source: 'manual-input',
-      url: parsed.toString(),
       title: title.trim() || fallbackTitle,
       mediaType,
     });
