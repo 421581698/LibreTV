@@ -124,25 +124,16 @@ async function fetchJson(path: string): Promise<unknown> {
 }
 
 export async function fetchHotList(id: HotListId): Promise<DoubanItem[]> {
+  if (id !== 'baidu_teleplay') throw new Error('未知榜单');
+
   const cacheKey = `hot-list:${id}`;
   const cached = getCache<DoubanItem[]>(cacheKey);
   if (cached) return cached;
 
-  let items: DoubanItem[];
-
-  const category = DOUBAN_WEEKLY_CATEGORY[id];
-  if (category) {
-    const raw = (await fetchJson(`/v2/douban/weekly/${category}`)) as SixtyResponse<DoubanWeeklyRaw[]>;
-    const isTv = id !== 'douban_movie_weekly';
-    items = assertArray<DoubanWeeklyRaw>(raw.data, '豆瓣周榜')
-      .map((entry) => doubanWeeklyToItem(entry, isTv))
-      .filter((item): item is DoubanItem => item !== undefined);
-  } else {
-    const raw = (await fetchJson('/v2/baidu/teleplay')) as SixtyResponse<BaiduTeleplayRaw[]>;
-    items = assertArray<BaiduTeleplayRaw>(raw.data, '百度热播剧榜')
-      .map((entry, i) => baiduTeleplayToItem(entry, i))
-      .filter((item): item is DoubanItem => item !== undefined);
-  }
+  const raw = (await fetchJson('/v2/baidu/teleplay')) as SixtyResponse<BaiduTeleplayRaw[]>;
+  const items = assertArray<BaiduTeleplayRaw>(raw.data, '百度热播剧榜')
+    .map((entry, index) => baiduTeleplayToItem(entry, index))
+    .filter((item): item is DoubanItem => item !== undefined);
 
   if (items.length === 0) throw new Error('榜单数据为空');
 
