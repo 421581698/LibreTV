@@ -30,7 +30,7 @@ export const GlassButton = forwardRef<HTMLButtonElement, ButtonProps>(function G
   { className = '', type = 'button', children, ...props }, ref,
 ) {
   return (
-    <FridayGlassControl className={`glass-button liquid-glass-button-wrap ${className}`.trim()}>
+    <FridayGlassControl className={`glass-button liquid-glass-button-wrap friday-glass--interactive ${className}`.trim()}>
       <button
         ref={ref}
         type={type}
