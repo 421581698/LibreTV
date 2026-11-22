@@ -1687,3 +1687,44 @@ body:has(.ipad-edition[data-environment="light"]) {
     transition: none;
   }
 }
+
+
+/* Cinema gallery: continuous poster rails with tactile focus and native momentum scrolling. */
+.ipad-edition__home{gap:0;padding-bottom:72px}
+.ipad-edition__home>.ipad-edition__cinema-hero{margin-bottom:0}
+.ipad-edition__home>.ipad-edition__rail-section:first-of-type{position:relative;z-index:3;margin-top:clamp(-84px,-7svh,-48px);padding-top:0}
+.ipad-edition__home>.ipad-edition__rail-section,
+.ipad-edition__home>.ipad-edition__continue-section{margin-top:clamp(42px,5.5vw,76px)}
+.ipad-edition__home>.ipad-edition__rail-section:first-of-type .ipad-edition__section-heading{margin-bottom:20px}
+.ipad-edition__gallery-heading{min-height:48px}
+.ipad-edition__gallery-heading .ipad-edition__eyebrow{margin:0 0 5px;font-size:9px;letter-spacing:.2em;color:rgba(235,235,245,.46)}
+.ipad-edition__gallery-heading h2{font-size:clamp(23px,2.2vw,30px);font-weight:720;letter-spacing:-.045em}
+.ipad-edition__gallery-controls{display:flex;gap:9px;padding-bottom:2px}
+.ipad-edition__gallery-controls button{display:grid;place-items:center;width:40px;height:40px;border:1px solid rgba(255,255,255,.15);border-radius:50%;background:rgba(255,255,255,.075);color:rgba(255,255,255,.92);font-size:27px;line-height:1;-webkit-backdrop-filter:blur(18px) saturate(150%);backdrop-filter:blur(18px) saturate(150%);transition:background .2s ease,border-color .2s ease,transform .2s ease}
+.ipad-edition__gallery-controls button:active{transform:scale(.92);background:rgba(255,255,255,.18)}
+.ipad-edition__poster-grid{display:flex;gap:clamp(14px,1.6vw,22px);overflow-x:auto;overflow-y:visible;padding:10px 4px 22px;scroll-snap-type:x mandatory;scroll-padding-inline:4px;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none;touch-action:pan-x pan-y;contain:layout paint}
+.ipad-edition__poster-grid::-webkit-scrollbar{display:none}
+.ipad-edition__poster-card{flex:0 0 clamp(158px,18.5vw,238px);width:clamp(158px,18.5vw,238px);scroll-snap-align:start;gap:9px;transform:translateZ(0);transition:transform .28s cubic-bezier(.2,.75,.25,1),opacity .28s ease}
+.ipad-edition__poster-art{border-radius:clamp(13px,1.2vw,19px);box-shadow:0 14px 38px rgba(0,0,0,.32);transition:transform .32s cubic-bezier(.2,.75,.25,1),box-shadow .32s ease,border-color .32s ease;border:1px solid rgba(255,255,255,.06)}
+.ipad-edition__poster-card:hover,.ipad-edition__poster-card:focus-visible{transform:translateY(-5px) scale(1.025);outline:none}
+.ipad-edition__poster-card:hover .ipad-edition__poster-art,.ipad-edition__poster-card:focus-visible .ipad-edition__poster-art{box-shadow:0 22px 48px rgba(0,0,0,.48),0 0 0 1px rgba(255,255,255,.2)}
+.ipad-edition__poster-card:focus-visible .ipad-edition__poster-art{outline:2px solid rgba(255,255,255,.86);outline-offset:3px}
+.ipad-edition__poster-card>strong{font-size:14px;font-weight:650;letter-spacing:-.015em}
+.ipad-edition__poster-card>small{font-size:11px;color:rgba(235,235,245,.54)}
+.ipad-edition__poster-rank{top:11px;left:11px;min-width:29px;height:29px;border:1px solid rgba(255,255,255,.14);border-radius:10px;background:rgba(8,10,14,.62);font-size:12px}
+.ipad-edition__poster-skeleton{flex:0 0 clamp(158px,18.5vw,238px)}
+.ipad-edition__anime-grid{display:flex;gap:18px;overflow-x:auto;padding:4px 2px 18px;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.ipad-edition__anime-grid::-webkit-scrollbar{display:none}
+.ipad-edition__anime-card{flex:0 0 clamp(220px,25vw,320px);scroll-snap-align:start}
+.ipad-edition__anime-card>span{border-radius:16px;box-shadow:0 12px 34px rgba(0,0,0,.28)}
+@media(max-width:699px){
+ .ipad-edition__home>.ipad-edition__rail-section:first-of-type{margin-top:-42px}
+ .ipad-edition__home>.ipad-edition__rail-section,.ipad-edition__home>.ipad-edition__continue-section{margin-top:38px}
+ .ipad-edition__rail-section{padding-inline:20px}
+ .ipad-edition__poster-card{flex-basis:clamp(142px,42vw,190px);width:clamp(142px,42vw,190px)}
+ .ipad-edition__poster-skeleton{flex-basis:clamp(142px,42vw,190px)}
+ .ipad-edition__gallery-controls button{width:36px;height:36px}
+}
+@media(prefers-reduced-motion:reduce){
+ .ipad-edition__poster-card,.ipad-edition__poster-art,.ipad-edition__gallery-controls button{transition:none}
+}
