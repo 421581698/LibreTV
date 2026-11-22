@@ -550,7 +550,8 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
   z-index: 80;
   top: max(12px, env(safe-area-inset-top, 0px) + 8px);
   left: 50%;
-  width: min(720px, calc(100vw - 36px));
+  width: max-content;
+  max-width: calc(100vw - 36px);
   height: 58px;
   transform: translateX(-50%);
   pointer-events: none;
@@ -559,7 +560,8 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
   display: flex;
   align-items: center;
   gap: 12px;
-  width: 100%;
+  width: max-content;
+  max-width: 100%;
   height: 100%;
   padding: 0 12px;
   border: 1px solid var(--ipad-nav-line);
