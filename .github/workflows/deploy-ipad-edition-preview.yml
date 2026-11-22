@@ -973,8 +973,8 @@ jobs:
             { name: "movies", path: "/ipad-edition/movies", chrome: true, heading: true },
             { name: "series", path: "/ipad-edition/series", chrome: true, heading: true },
             { name: "anime", path: "/ipad-edition/anime", chrome: true, heading: true },
-            { name: "detail", path: "/ipad-edition/detail?title=Preview%20Layout%20Audit", chrome: true, heading: false },
-            { name: "watch", path: "/ipad-edition/watch", chrome: false, heading: false },
+            { name: "detail", path: "/ipad-edition/detail?source=friday-cms&id=ipad-preview-fixture&title=iPad%20Preview%20%E6%A0%B7%E7%89%87&sourceUrl=https%3A%2F%2Fpreview.invalid%2Fapi.php%2Fprovide%2Fvod", chrome: true, heading: false },
+            { name: "watch", path: "/ipad-edition/watch?source=friday-cms&id=ipad-preview-fixture&index=0&title=iPad%20Preview%20%E6%A0%B7%E7%89%87&sourceUrl=https%3A%2F%2Fpreview.invalid%2Fapi.php%2Fprovide%2Fvod", chrome: false, heading: false },
           ];
           const browser = await chromium.launch({ headless: true });
           const results = [];
@@ -991,6 +991,41 @@ jobs:
                 const page = await context.newPage();
                 const errors = [];
                 page.on("pageerror", error => errors.push(error.message));
+                // Use deterministic, clearly synthetic CMS data so detail/player baselines
+                // exercise real page content without depending on third-party source uptime.
+                if (["detail", "watch"].includes(route.name)) {
+                  const fixtureDetail = {
+                    episodes: ["https://media.preview.invalid/fixture.mp4"],
+                    episodeItems: [{ title: "预览播放条目", url: "https://media.preview.invalid/fixture.mp4", duration: "00:30" }],
+                    videoInfo: {
+                      title: "iPad Preview 样片",
+                      desc: "用于 iPad Edition 详情页与播放页视觉验收的合成测试数据，不代表真实片源。",
+                      typeName: "电视剧",
+                      year: "2026",
+                      area: "测试环境",
+                      sourceKey: "friday-cms",
+                      sourceName: "Preview Fixture",
+                      sourceUrl: "https://preview.invalid/api.php/provide/vod",
+                    },
+                  };
+                  await page.route("**/api/status", route => route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify({
+                      passwordRequired: false, verified: true, version: "ipad-preview-fixture",
+                      defaultSources: [], defaultLiveSources: [], defaultSubscriptions: [],
+                      defaultRecommendSource: null, defaultImageMode: "direct",
+                    }),
+                  }));
+                  await page.route("**/api/detail?*", route => route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify(fixtureDetail),
+                  }));
+                  await page.route("https://media.preview.invalid/**", route => route.fulfill({
+                    status: 200, contentType: "video/mp4", body: Buffer.alloc(0),
+                  }));
+                }
                 await page.addInitScript((scheme) => {
                   const apply = () => {
                     document.documentElement.classList.toggle("dark", scheme === "dark");
@@ -1023,12 +1058,14 @@ jobs:
                 // smoke checks validate the route's explicit empty/error state only; they are not
                 // represented as full content-page visual baselines without real source fixtures.
                 if (route.name === "detail") {
-                  await page.locator(".movie-detail-page").waitFor({ state: "visible", timeout: 30000 });
+                  await page.locator(".movie-detail-title").waitFor({ state: "visible", timeout: 30000 });
+                  await page.getByRole("heading", { name: "iPad Preview 样片" }).waitFor({ state: "visible", timeout: 30000 });
+                  await page.locator(".movie-episode-card").first().waitFor({ state: "visible", timeout: 30000 });
                 }
                 if (route.name === "watch") {
-                  // The no-parameter watch route resolves to the explicit missing-source state before a player shell exists.
-                  // That state is an h1 outside <main>; assert the actual route contract, not a guessed wrapper.
-                  await page.getByRole("heading", { name: "点播源不存在" }).waitFor({ state: "visible", timeout: 30000 });
+                  await page.locator(".netflix-watch").waitFor({ state: "visible", timeout: 30000 });
+                  await page.locator(".netflix-player-frame").waitFor({ state: "visible", timeout: 30000 });
+                  await page.getByText("iPad Preview 样片").first().waitFor({ state: "visible", timeout: 30000 });
                 }
                 const metrics = await page.evaluate((routeName) => {
                   const root = document.querySelector(".ipad-edition");
@@ -1046,7 +1083,9 @@ jobs:
                     loadingSkeletonCount: skeletonCount,
                     collectionItemCount: collection?.children.length ?? 0,
                     hasTerminalCollectionState: Boolean(collection || emptyMessage),
-                    visualScope: ["detail", "watch"].includes(routeName) ? "route-shell-only" : "page-content",
+                    visualScope: routeName === "detail" ? "full-detail-content-with-mocked-cms-fixture"
+                      : routeName === "watch" ? "player-page-with-mocked-cms-fixture"
+                      : "page-content",
                   };
                 }, route.name);
                 const failed = !response?.ok() || !metrics.rootPresent ||
@@ -1056,6 +1095,8 @@ jobs:
                   metrics.hasTopbar !== route.chrome ||
                   (["movies", "series", "anime"].includes(route.name) &&
                     (metrics.loadingSkeletonCount > 0 || !metrics.hasTerminalCollectionState)) ||
+                  (route.name === "detail" && (!document.querySelector(".movie-detail-title") || !document.querySelector(".movie-episode-card"))) ||
+                  (route.name === "watch" && (!document.querySelector(".netflix-player-frame") || !document.querySelector(".netflix-watch"))) ||
                   errors.length > 0;
                 const name = route.name + "-" + colorScheme;
                 await page.screenshot({
