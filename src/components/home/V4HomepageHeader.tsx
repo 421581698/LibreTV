@@ -7,6 +7,7 @@ import { HistoryPanel } from '@/components/history-panel';
 import AIFloatingBall from '@/components/AIFloatingBall';
 import { SearchModule } from './header/SearchModule';
 import { AvatarModule } from './header/AvatarModule';
+import { GlassBar } from '@/components/ui/friday-glass';
 
 export function V4HomepageHeader({ overlay = false }: { overlay?: boolean }) {
   const pathname = usePathname();
@@ -30,7 +31,7 @@ export function V4HomepageHeader({ overlay = false }: { overlay?: boolean }) {
 
   return (
     <>
-      <header className={'v4-header' + (overlay ? ' is-overlay' : '')}>
+      <GlassBar as="header" className={'v4-header' + (overlay ? ' is-overlay' : '')}>
         <div className="v4-header-inner v4-header-inner--no-brand">
           {!overlay && (
             <div className="v4-header-actions">
@@ -39,7 +40,7 @@ export function V4HomepageHeader({ overlay = false }: { overlay?: boolean }) {
             </div>
           )}
         </div>
-      </header>
+      </GlassBar>
       {pathname !== '/detail' && <AIFloatingBall showFab inlineMode={false} />}
       <SourceManagerDrawer
         key={settingsInstance}
