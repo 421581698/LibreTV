@@ -787,6 +787,7 @@ body:has(.ipad-edition[data-ipad-home="true"]) {
     max-height: 760px;
   }
 }
+/* Keep portrait hero height within the visible viewport even on tall iPad screens. */
 @media (orientation: portrait) and (min-width: 700px) {
   .ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero {
     height: 60vh;
