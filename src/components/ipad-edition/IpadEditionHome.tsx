@@ -9,6 +9,7 @@ import { api } from '@/lib/client-api';
 import type { DoubanItem } from '@/lib/types';
 import { fromBangumiItem, fromTmdbItem } from '@/lib/poster';
 import { IpadEditionContinueWatching } from '@/components/ipad-edition/IpadEditionContinueWatching';
+import { TmdbAttribution } from '@/components/ipad-edition/TmdbAttribution';
 
 const RAIL_SIZE = 10;
 const HERO_SIZE = 5;
@@ -159,6 +160,7 @@ export function IpadEditionHome() {
           <div className="ipad-edition__rail-message">今天暂无可展示的新番条目。</div>
         )}
       </section>
+      <TmdbAttribution />
     </div>
   );
 }
