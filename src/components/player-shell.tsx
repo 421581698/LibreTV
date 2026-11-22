@@ -6,6 +6,7 @@ import Hls, { type HlsConfig } from 'hls.js';
 import type { PlaybackSample } from '@/lib/playback-telemetry';
 import { getAdvertised4kStatus, resolveQualitySelection, type QualityPreference } from '@/lib/player-quality';
 import { getMediaPlaybackKind } from '@/lib/media-playback';
+import { createDashRequestAuthFilter, type DashNetworkRequest, type DashRequestAuthOptions } from '@/lib/dash-request-auth';
 import { hasSustainedPlaybackProgress } from '@/lib/playback-verification';
 
 import { PlaybackRecovery, describeHlsError } from '@/lib/playback-recovery';
@@ -41,6 +42,10 @@ interface DashPlayerInstance {
   configure(config: Record<string, unknown>): void;
   addEventListener(type: string, listener: (event: Event) => void): void;
   load(uri: string): Promise<void>;
+  getNetworkingEngine?(): {
+    registerRequestFilter(filter: (type: number, request: DashNetworkRequest) => void): void;
+    unregisterRequestFilter?(filter: (type: number, request: DashNetworkRequest) => void): void;
+  } | null;
 }
 
 interface ShakaRuntime {
@@ -136,6 +141,8 @@ interface PlayerShellProps {
   title: string;
   /** Validated format hint for extensionless direct-media URLs. */
   mediaType?: 'hls' | 'dash' | 'mp4' | 'webm';
+  /** Trusted provider adapter only; never populate from untrusted CMS/source metadata. */
+  dashRequestAuth?: DashRequestAuthOptions;
   /** Called once per episode, only after the video element advances during a sustained playing window. */
   onPlaybackConfirmed?: (evidence: {
     mediaType: string; observedSeconds: number; progressedSeconds: number;
@@ -191,6 +198,7 @@ export function PlayerShell({
   url,
   title,
   mediaType,
+  dashRequestAuth,
   onPlaybackConfirmed,
   adFilter,
   autoplayNext,
@@ -281,14 +289,14 @@ export function PlayerShell({
 
   // 始终持有最新 props/回调，避免重建播放器
   const propsRef = useRef({
-    url, title, mediaType, onPlaybackConfirmed, adFilter, autoplayNext, skipMark, autoSkipSegments,
+    url, title, mediaType, dashRequestAuth, onPlaybackConfirmed, adFilter, autoplayNext, skipMark, autoSkipSegments,
     pendingStart, onPendingStart, onPlayerApi, onRecordSegment,
     episodeKey, nextUrl, nextEpisodeKey,
     getRestorePosition, onTimeUpdate, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource,
     onPrevEpisode, onNextEpisode, hasPrevEpisode, hasNextEpisode,
   });
   propsRef.current = {
-    url, title, mediaType, onPlaybackConfirmed, adFilter, autoplayNext, skipMark, autoSkipSegments,
+    url, title, mediaType, dashRequestAuth, onPlaybackConfirmed, adFilter, autoplayNext, skipMark, autoSkipSegments,
     pendingStart, onPendingStart, onPlayerApi, onRecordSegment,
     episodeKey, nextUrl, nextEpisodeKey,
     getRestorePosition, onTimeUpdate, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource,
@@ -569,7 +577,7 @@ export function PlayerShell({
     hlsRef.current = null;
     currentMediaUrlRef.current = mediaUrl;
     armMetadataWatchdog(video, mediaUrl);
-    video.crossOrigin = 'anonymous';
+    video.crossOrigin = propsRef.current.dashRequestAuth?.withCredentials ? 'use-credentials' : 'anonymous';
     setAvailableQualityHeights([]);
     setAvailableQualityLevelCount(0);
     setQualityMetadataComplete(false);
@@ -594,6 +602,9 @@ export function PlayerShell({
         return;
       }
       dashPlayerRef.current = player;
+      const requestAuthFilter = createDashRequestAuthFilter(propsRef.current.dashRequestAuth, mediaUrl);
+      const requestFilter = (_type: number, request: DashNetworkRequest) => requestAuthFilter(request);
+      player.getNetworkingEngine?.()?.registerRequestFilter(requestFilter);
       player.configure({
         abr: { enabled: true },
         streaming: {
