@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 type PdsResult = {
   status: 'pending' | 'ready';
@@ -102,7 +103,7 @@ export default function ConnectPage() {
   return (
     <main className="min-h-screen px-4 py-8 sm:px-6">
       <div className="mx-auto max-w-3xl">
-        <a href="/" className="text-sm text-muted hover:text-content">← 返回 LibreTV</a>
+        <Link href="/" className="text-sm text-muted hover:text-content">← 返回 LibreTV</Link>
         <header className="mt-6 mb-7">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">LibreTV · External playback</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-content">资源接入</h1>
