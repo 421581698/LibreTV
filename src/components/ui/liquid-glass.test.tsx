@@ -5,7 +5,7 @@ import { GlassButton, GlassDialog, GlassPanel, GlassPopover, GlassToolbar } from
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Drawer } from '@/components/drawer';
 import { LiquidGlassSurface } from './liquid-glass';
-import { GlassDock } from './friday-glass';
+import { GlassBar, GlassCard, GlassDock } from './friday-glass';
 
 describe('LiquidGlassSurface v1.0', () => {
   it('keeps the semantic button as the host element', () => {
@@ -79,6 +79,22 @@ describe('LiquidGlassSurface v1.0', () => {
     expect(html).toContain('role="dialog"');
   });
 
+
+  it('keeps header and list-item semantics on canonical Friday surfaces', () => {
+    const headerHtml = renderToStaticMarkup(
+      createElement(GlassBar, { as: 'header', 'aria-label': '站点导航' }, 'LibreTV'),
+    );
+    const itemHtml = renderToStaticMarkup(
+      createElement(GlassCard, { as: 'li', title: '当前节目' }, '节目标题'),
+    );
+
+    expect(headerHtml).toContain('<header');
+    expect(headerHtml).toContain('aria-label="站点导航"');
+    expect(headerHtml).toContain('data-friday-glass-role="bar"');
+    expect(itemHtml).toContain('<li');
+    expect(itemHtml).toContain('title="当前节目"');
+    expect(itemHtml).toContain('data-friday-glass-role="card"');
+  });
 
   it('keeps the navigation landmark when adopting the canonical Friday dock material', () => {
     const html = renderToStaticMarkup(
