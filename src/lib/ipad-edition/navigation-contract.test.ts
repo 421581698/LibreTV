@@ -22,7 +22,7 @@ describe('iPad Edition navigation contract', () => {
     const topbar = topbarStart >= 0 && topbarEnd > topbarStart
       ? shell.slice(topbarStart, topbarEnd)
       : '';
-    expect(topbar).toContain('aria-label="展开侧边栏"');
+    expect(topbar).toContain("aria-label={sidebarOpen ? '收起侧边栏' : '展开侧边栏'}");
     expect(topbar).toContain('aria-label="首页"');
     expect(topbar).toContain('aria-label="搜索"');
     expect(topbar).not.toContain('aria-label="电影"');
