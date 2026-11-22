@@ -84,11 +84,10 @@ function IpadSearchContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const openDetail = (item: SearchResultItem) => {
-    const next = new URLSearchParams({ source: item.sourceKey, id: item.vodId, title: item.name, sourceName: item.sourceName });
-    if (item.pic) next.set('pic', item.pic);
+  const openPlayback = (item: SearchResultItem) => {
+    const next = new URLSearchParams({ source: item.sourceKey, id: item.vodId, title: item.name });
     if (item.sourceUrl) next.set('sourceUrl', item.sourceUrl);
-    router.push('/ipad-edition/detail?' + next.toString());
+    router.push('/ipad-edition/watch?' + next.toString());
   };
 
   const categories = [
@@ -136,7 +135,7 @@ function IpadSearchContent() {
         <section className="ipad-edition__search-results" aria-label="搜索结果">
           <div className="ipad-edition__section-heading"><div><p className="ipad-edition__eyebrow">RESULTS</p><h2>搜索结果 <small>({results.length})</small></h2></div></div>
           <div className="ipad-edition__result-grid">
-            {results.map((item, index) => <button className="ipad-edition__result-card" type="button" key={item.sourceKey + ':' + item.vodId + ':' + index} onClick={() => openDetail(item)}>
+            {results.map((item, index) => <button className="ipad-edition__result-card" type="button" key={item.sourceKey + ':' + item.vodId + ':' + index} onClick={() => openPlayback(item)}>
               <PosterRenderer variant="result" frameClassName="ipad-edition__result-poster" asset={fromCmsSearchResult(item)} url={item.pic} mode={imageProxyMode} customProxy={customImageProxy} alt={item.name} />
               <strong>{item.name}</strong><small>{[item.year, item.typeName, item.remarks, item.sourceName].filter(Boolean).join(' · ')}</small>
             </button>)}
