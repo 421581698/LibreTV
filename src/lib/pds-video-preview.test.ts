@@ -36,6 +36,14 @@ describe('getPdsVideoPreviewPlayInfo', () => {
         redirect: 'error',
         cache: 'no-store',
         headers: expect.objectContaining({ Authorization: 'Bearer access-token' }),
+        body: JSON.stringify({
+          domain_id: 'demo-domain',
+          file_id: 'file-1',
+          category: 'quick_video',
+          url_expire_sec: 900,
+          get_master_url: false,
+          drive_id: 'drive-1',
+        }),
       }),
     );
   });
