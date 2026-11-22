@@ -22,6 +22,7 @@ export function IpadEditionHeroArtwork({ item }: IpadEditionHeroArtworkProps) {
       className="ipad-edition__cinema-hero-media"
       data-artwork-mode={backdrop ? 'backdrop-with-poster' : 'poster-fallback'}
       data-poster-resolution-target="1200"
+      data-poster-resolution-audit="natural-width"
     >
       {backdrop ? (
         <PosterRenderer
