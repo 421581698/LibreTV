@@ -1291,6 +1291,8 @@ html:not(.dark) .settings-embedded-root .settings-large-title {
 }
 html:not(.dark) .settings-embedded-root .settings-large-title h1 {
   color: #20242b !important;
+  -webkit-text-fill-color: #20242b !important;
+  text-shadow: none !important;
 }
 html:not(.dark) .settings-embedded-root .settings-large-title p,
 html:not(.dark) .v4-spatial-screen[data-screen="me"] .v52-me-heading span {

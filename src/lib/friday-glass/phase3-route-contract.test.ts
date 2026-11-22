@@ -25,6 +25,7 @@ describe('Friday Liquid Glass Phase 3 route contracts', () => {
     expect(mobileStyles).toContain('html:not(.dark) .v4-spatial-screen[data-screen="me"] .v52-me-list-row strong');
     expect(mobileStyles).toContain('html:not(.dark) .v4-spatial-screen[data-screen="me"] .v52-me-heading span');
     expect(mobileStyles).toContain('html:not(.dark) .settings-embedded-root .settings-large-title h1');
+    expect(mobileStyles).toContain('-webkit-text-fill-color: #20242b !important;');
   });
 
   it('uses Friday controls on the detail hero and glass cards for episode actions', () => {
