@@ -7,6 +7,11 @@ on:
     paths:
       - "src/lib/friday-glass/**"
       - "src/components/ui/friday-glass.tsx"
+      - "src/components/ui/glass.tsx"
+      - "src/components/ui/liquid-glass.test.tsx"
+      - "src/components/home/header/MobileTabBar.tsx"
+      - "src/components/confirm-dialog.tsx"
+      - "src/components/dropdown.tsx"
       - "src/components/ui/liquid-glass.tsx"
       - "src/app/glass-system.css"
       - "docs/FRIDAY_LIQUID_GLASS_PHASE_2.md"
