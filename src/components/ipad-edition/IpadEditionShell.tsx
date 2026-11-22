@@ -304,53 +304,12 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
               </Link>
 
               <Link
-                className={`ipad-nav__capsule-action${activeHref === '/ipad-edition/movies' ? ' is-active' : ''}`}
-                href="/ipad-edition/movies"
-                aria-label="电影"
-                aria-current={activeHref === '/ipad-edition/movies' ? 'page' : undefined}
-              >
-                <NavigationIcon name="clapperboard" />
-              </Link>
-              <Link
-                className={`ipad-nav__capsule-action${activeHref === '/ipad-edition/series' ? ' is-active' : ''}`}
-                href="/ipad-edition/series"
-                aria-label="电视剧"
-                aria-current={activeHref === '/ipad-edition/series' ? 'page' : undefined}
-              >
-                <NavigationIcon name="tv" />
-              </Link>
-              <Link
-                className={`ipad-nav__capsule-action${activeHref === '/ipad-edition/anime' ? ' is-active' : ''}`}
-                href="/ipad-edition/anime"
-                aria-label="动漫"
-                aria-current={activeHref === '/ipad-edition/anime' ? 'page' : undefined}
-              >
-                <NavigationIcon name="drama" />
-              </Link>
-              <Link
                 className={`ipad-nav__capsule-action${activeHref === '/ipad-edition/search' ? ' is-active' : ''}`}
                 href="/ipad-edition/search"
                 aria-label="搜索"
                 aria-current={activeHref === '/ipad-edition/search' ? 'page' : undefined}
               >
                 <NavigationIcon name="search" />
-              </Link>
-              <Link
-                className={`ipad-nav__capsule-action${activeHref === '/ipad-edition/settings' ? ' is-active' : ''}`}
-                href="/ipad-edition/settings"
-                aria-label="设置"
-                aria-current={activeHref === '/ipad-edition/settings' ? 'page' : undefined}
-              >
-                <NavigationIcon name="settings" />
-              </Link>
-
-              <Link
-                className={`ipad-nav__capsule-action${activeHref === '/ipad-edition/library' ? ' is-active' : ''}`}
-                href="/ipad-edition/library"
-                aria-label="我的"
-                aria-current={activeHref === '/ipad-edition/library' ? 'page' : undefined}
-              >
-                <NavigationIcon name="user-round" />
               </Link>
             </LiquidGlassSurface>
           </header>
