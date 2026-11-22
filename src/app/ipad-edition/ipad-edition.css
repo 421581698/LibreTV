@@ -1880,3 +1880,5 @@ body:has(.ipad-edition[data-environment="light"]) {
     transform: none;
   }
 }
+
+/* Preview deploy trigger: verify this exact cinema rail cascade in the isolated nks Preview. */
