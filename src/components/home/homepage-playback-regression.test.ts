@@ -124,17 +124,19 @@ describe('首页与播放页回归契约', () => {
     expect(fridayConversation).toContain("播放器解码实测");
   });
 
-  it('首页以豆瓣精选主视觉和真实推荐海报为主，并保留 IndexedDB 继续观看进度', () => {
+  it('首页以 TMDB 中国区精选主视觉和真实推荐海报为主，并保留 IndexedDB 继续观看进度', () => {
     const homepageHero = source('src/components/home/V4HomepageHero.tsx');
     const homepageContent = source('src/components/home/V4HomepageContent.tsx');
     expect(home).toContain('<V4HomepageHero onPick={handleHomepagePick} />');
     expect(home).toContain('<V4HomepageContent onPick={handleHomepagePick} />');
     expect(home).not.toContain('SeedHubHomepage');
-    expect(homepageHero).toContain("api.douban('movie', '热门'");
+    expect(homepageHero).toContain("api.tmdbDiscover('movie', '热门', 1");
+    expect(homepageHero).toContain('fromTmdbItem(slide)');
     expect(homepageHero).toContain('slide.cover');
-    expect(homepageContent).toContain("api.douban('tv', '热门'");
-    expect(homepageContent).toContain("api.douban('movie', '热门'");
-    expect(homepageContent).toContain("api.hotList('douban_movie_weekly'");
+    expect(homepageContent).toContain("api.tmdbDiscover('tv', '热门', 1");
+    expect(homepageContent).toContain("api.tmdbDiscover('movie', '热门', 1");
+    expect(homepageContent).not.toContain('douban_movie_weekly');
+    expect(homepageContent).toContain('fromTmdbItem(item)');
     expect(homepageContent).toContain('url={item.cover}');
     expect(homepageContent).toContain('v4-continue-section');
     expect(homepageContent).toContain('v4-progress-percent');
