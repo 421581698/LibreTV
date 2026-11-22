@@ -9,14 +9,15 @@ import { V4HomepageHeader } from '@/components/home/V4HomepageHeader';
 import { SourceManagerDrawer } from '@/components/source-manager';
 import { Icon } from '@/components/icon';
 import { requestShowDownloadManager } from '@/components/download-manager';
-import { AnimeRecommendationSection, RecommendSection } from '@/components/douban-section';
-import { DoubanCard } from '@/components/video-card';
+import { AnimeRecommendationSection } from '@/components/douban-section';
+import { TmdbAttribution } from '@/components/ipad-edition/TmdbAttribution';
 import { GlassPanel } from '@/components/ui/glass';
 import { SmartImage } from '@/components/smart-image';
 import { db, removeFavorite, type FavoriteEntry, type HistoryEntry } from '@/lib/db';
 import { isInDisabledSubscription, isSourceDisabled, resolveSource, useAppStore } from '@/lib/store';
 import type { DoubanItem, SearchResultItem, SourceConfig } from '@/lib/types';
 import { api } from '@/lib/client-api';
+import { fromTmdbItem } from '@/lib/poster';
 import { collectorFetch } from '@/lib/collector-browser-config';
 import { validateSourceUrl } from '@/lib/utils';
 import { formatTime } from '@/lib/utils';
@@ -138,19 +139,21 @@ function SeedHubCatalogSection({ category }: { category: SeedHubCategory }) {
 type CatalogCategory = 'movie' | 'tv' | 'variety' | 'overseas';
 
 const CATALOG_TAGS: Record<CatalogCategory, string[]> = {
-  movie: ['热门', '最新', '经典', '豆瓣高分', '冷门佳片', '华语', '欧美', '韩国', '日本'],
-  tv: ['热门', '国产剧', '美剧', '英剧', '韩剧', '日剧', '港剧'],
-  variety: ['综艺'],
-  overseas: ['热门', '美剧', '英剧', '韩剧', '日剧', '泰剧'],
+  movie: ['热门', '最新', '高分'],
+  tv: ['热门', '最新', '高分'],
+  variety: ['热门', '最新', '高分'],
+  overseas: ['热门', '最新', '高分'],
 };
 
 function CatalogScreen({ category, onPick }: { category: CatalogCategory; onPick: (item: DoubanItem) => void }) {
   const tags = CATALOG_TAGS[category];
   const [tag, setTag] = useState(tags[0]);
   const type = category === 'movie' ? 'movie' : 'tv';
+  const imageProxyMode = useAppStore((s) => s.imageProxyMode);
+  const customImageProxy = useAppStore((s) => s.customImageProxy);
   const query = useQuery({
-    queryKey: ['catalog', category, tag],
-    queryFn: ({ signal }) => api.douban(type, tag, 0, 50, signal),
+    queryKey: ['catalog', category, tag, 'CN'],
+    queryFn: ({ signal }) => api.tmdbDiscover(type, tag, 1, signal),
     // A transient upstream failure should not leave the catalogue retrying
     // invisibly for a long time; cached results remain usable across tabs.
     staleTime: 5 * 60 * 1000,
@@ -171,7 +174,7 @@ function CatalogScreen({ category, onPick }: { category: CatalogCategory; onPick
   const items = query.data?.items ?? [];
   return (
     <section className="v4-spatial-panel" aria-label={`${COPY[category === 'movie' ? 'movies' : category].title}推荐`}>
-      <div className="v4-spatial-panel-head"><h2>{COPY[category === 'movie' ? 'movies' : category].title}推荐</h2><span>豆瓣实时数据</span></div>
+      <div className="v4-spatial-panel-head"><h2>{COPY[category === 'movie' ? 'movies' : category].title}推荐</h2><span>中国 · TMDB</span></div>
       <div className="v4-catalog-filters mb-4">
         {tags.map((item) => (
           <button key={item} type="button" aria-pressed={tag === item}
@@ -195,18 +198,10 @@ function CatalogScreen({ category, onPick }: { category: CatalogCategory; onPick
         <div className="v4-spatial-empty">该分类暂无推荐内容。</div>
       ) : (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
-          {items.map((item) => <DoubanCard key={item.id} item={item} onClick={() => onPick(item)} />)}
+          {items.map((item) => <button key={item.id} type="button" onClick={() => onPick(item)} className="group min-w-0 overflow-hidden rounded-xl text-left"><div className="relative aspect-[2/3] overflow-hidden rounded-lg bg-chip"><SmartImage asset={fromTmdbItem(item)} url={item.cover} mode={imageProxyMode} customProxy={customImageProxy} alt={item.title} className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105" /></div><strong className="mt-2 block line-clamp-2 text-xs text-content">{item.title}</strong><span className="mt-1 block text-[10px] text-faint">{item.rating ? '★ ' + item.rating : 'TMDB'}</span></button>)}
         </div>
       )}
-    </section>
-  );
-}
-
-function MoviesScreen({ onPick }: { onPick: (item: DoubanItem) => void }) {
-  return (
-    <section className="v4-spatial-panel" aria-label="影视推荐">
-      <div className="v4-spatial-panel-head"><h2>热门影视</h2><span>实时推荐数据</span></div>
-      <RecommendSection onPick={onPick} />
+      <TmdbAttribution />
     </section>
   );
 }
