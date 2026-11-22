@@ -9,16 +9,20 @@ interface IpadEditionHeroArtworkProps {
 }
 
 /**
- * Selects only artwork actually supplied by the recommendation source.
- * A portrait cover is never stretched into a fabricated cinematic still.
+ * Keep the source backdrop as the cinematic scene when available, while always
+ * presenting the matching portrait poster as the foreground artwork.
+ * No generated or substituted artwork is introduced.
  */
 export function IpadEditionHeroArtwork({ item }: IpadEditionHeroArtworkProps) {
   const backdrop = item.backdrop?.trim();
   const posterAsset = fromDoubanItem(item);
 
-  if (backdrop) {
-    return (
-      <div className="ipad-edition__cinema-hero-media" data-artwork-mode="backdrop">
+  return (
+    <div
+      className="ipad-edition__cinema-hero-media"
+      data-artwork-mode={backdrop ? 'backdrop-with-poster' : 'poster-fallback'}
+    >
+      {backdrop ? (
         <PosterRenderer
           variant="backdrop"
           frameClassName="ipad-edition__cinema-hero-backdrop"
@@ -28,21 +32,18 @@ export function IpadEditionHeroArtwork({ item }: IpadEditionHeroArtworkProps) {
           alt=""
           loading="eager"
         />
-      </div>
-    );
-  }
+      ) : (
+        <PosterRenderer
+          variant="backdrop"
+          frameClassName="ipad-edition__cinema-hero-atmosphere"
+          asset={posterAsset}
+          url={item.cover}
+          mode="proxy"
+          alt=""
+          loading="eager"
+        />
+      )}
 
-  return (
-    <div className="ipad-edition__cinema-hero-media" data-artwork-mode="poster-fallback">
-      <PosterRenderer
-        variant="backdrop"
-        frameClassName="ipad-edition__cinema-hero-atmosphere"
-        asset={posterAsset}
-        url={item.cover}
-        mode="proxy"
-        alt=""
-        loading="eager"
-      />
       <PosterRenderer
         variant="hero-poster"
         frameClassName="ipad-edition__cinema-hero-poster"
