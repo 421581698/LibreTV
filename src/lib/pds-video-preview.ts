@@ -40,6 +40,8 @@ export class PdsPreviewError extends Error {
   }
 }
 
+interface PdsPreviewEntry { template_id?: string; status?: string; url?: string }
+
 interface PdsPreviewResponse {
   Code?: string;
   Message?: string;
@@ -135,7 +137,7 @@ export async function getPdsVideoPreviewPlayInfo(
   const info = data.video_preview_play_info;
   if (!info) throw new PdsPreviewError('PDS response is missing video preview information', 'INVALID_RESPONSE', 502);
 
-  const lists: Array<[PdsPreviewCategory, PdsPreviewResponse['video_preview_play_info'] extends infer T ? T extends object ? Array<{ template_id?: string; status?: string; url?: string }> | undefined : never : never]> = [
+  const lists: Array<[PdsPreviewCategory, PdsPreviewResponse['video_preview_play_info'] extends infer T ? T extends object ? PdsPreviewEntry[] | undefined]> = [
     ['live_transcoding', info.live_transcoding_task_list],
     ['quick_video', info.quick_video_list],
     ['offline_video', info.offline_video_transcoding_list],
