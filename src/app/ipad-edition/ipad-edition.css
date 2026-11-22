@@ -1499,3 +1499,41 @@ body:has(.ipad-edition[data-environment="light"]) {
   outline: 2px solid color-mix(in srgb, var(--ipad-accent) 78%, white);
   outline-offset: 3px;
 }
+
+
+/* Final compact top capsule: size to its three actions instead of a fixed wide pill. */
+.ipad-edition .ipad-nav__topbar {
+  width: max-content !important;
+  max-width: calc(100vw - 24px) !important;
+  height: 48px !important;
+}
+.ipad-edition .ipad-nav__topbar-inner {
+  width: max-content !important;
+  min-width: 0 !important;
+  height: 48px !important;
+  padding: 4px !important;
+  gap: 3px !important;
+  justify-content: center !important;
+}
+.ipad-edition .ipad-nav__capsule-action {
+  flex: 0 0 36px !important;
+  width: 36px !important;
+  min-width: 36px !important;
+  height: 36px !important;
+}
+.ipad-edition .ipad-nav__capsule-action .ipad-nav__icon {
+  width: 18px !important;
+  height: 18px !important;
+}
+@media (max-width: 699px) {
+  .ipad-edition .ipad-nav__topbar,
+  .ipad-edition .ipad-nav__topbar-inner {
+    height: 44px !important;
+  }
+  .ipad-edition .ipad-nav__capsule-action {
+    flex-basis: 34px !important;
+    width: 34px !important;
+    min-width: 34px !important;
+    height: 34px !important;
+  }
+}
