@@ -8,6 +8,8 @@ on:
     paths:
       - "src/app/ipad-edition/**"
       - "src/components/ipad-edition/**"
+      - "src/components/smart-image.tsx"
+      - "src/lib/poster/**"
       - "src/components/movie-detail-page.tsx"
       - "src/app/watch/page.tsx"
       - "src/lib/client-api.ts"
