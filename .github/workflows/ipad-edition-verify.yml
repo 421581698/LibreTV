@@ -23,6 +23,7 @@ on:
   pull_request:
     branches:
       - main
+      - feature/libretv-ipad-edition-foundation
     paths:
       - "src/app/ipad-edition/**"
       - "src/components/ipad-edition/**"
