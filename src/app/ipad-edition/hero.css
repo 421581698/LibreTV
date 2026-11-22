@@ -703,21 +703,30 @@ body:has(.ipad-edition[data-ipad-home="true"]) {
 }
 .ipad-edition[data-ipad-home="true"] .ipad-nav__topbar-inner {
   height: 58px;
-  border-color: transparent !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
-  color: #fff !important;
+  border: 1px solid rgba(255,255,255,.78) !important;
+  border-color: rgba(255,255,255,.78) !important;
+  background: rgba(248,250,254,.88) !important;
+  box-shadow: 0 10px 34px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.9) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(155%) !important;
+  backdrop-filter: blur(22px) saturate(155%) !important;
+  color: #20242c !important;
   pointer-events: auto;
   transition: background-color 220ms ease, border-color 220ms ease, box-shadow 220ms ease, backdrop-filter 220ms ease;
 }
+.ipad-edition[data-ipad-home="true"][data-environment="dark"] .ipad-nav__topbar-inner {
+  border-color: rgba(255,255,255,.16) !important;
+  background: rgba(8,11,17,.82) !important;
+  box-shadow: 0 10px 34px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.08) !important;
+  color: #fff !important;
+}
 .ipad-edition[data-ipad-home="true"][data-ipad-scrolled="true"] .ipad-nav__topbar-inner {
-  border-color: rgba(255,255,255,.12) !important;
-  background: rgba(8,11,17,.78) !important;
-  box-shadow: 0 10px 34px rgba(0,0,0,.24) !important;
-  -webkit-backdrop-filter: blur(22px) saturate(150%) !important;
-  backdrop-filter: blur(22px) saturate(150%) !important;
+  background: rgba(248,250,254,.92) !important;
+  box-shadow: 0 10px 34px rgba(0,0,0,.18) !important;
+}
+.ipad-edition[data-ipad-home="true"][data-environment="dark"][data-ipad-scrolled="true"] .ipad-nav__topbar-inner {
+  border-color: rgba(255,255,255,.16) !important;
+  background: rgba(8,11,17,.88) !important;
+  box-shadow: 0 10px 34px rgba(0,0,0,.3) !important;
 }
 .ipad-edition[data-ipad-home="true"] .ipad-nav__capsule-action {
   color: #fff !important;
