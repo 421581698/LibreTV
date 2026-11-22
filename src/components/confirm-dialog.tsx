@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
-import { LiquidGlassSurface } from '@/components/ui/liquid-glass';
+import { GlassPanel } from '@/components/ui/glass';
 
 /**
  * 破坏性操作确认弹窗（分级确认中的「重操作」）：
@@ -64,9 +64,7 @@ export function ConfirmDialog({
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 animate-fade-in" onClick={onCancel} aria-hidden />
-      <LiquidGlassSurface
-        as="div"
-        variant="panel"
+      <GlassPanel
         role="alertdialog"
         aria-modal="true"
         aria-label={title}
@@ -89,7 +87,7 @@ export function ConfirmDialog({
             {confirmLabel}
           </button>
         </div>
-      </LiquidGlassSurface>
+      </GlassPanel>
     </div>
   );
 }
