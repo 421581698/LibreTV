@@ -553,8 +553,11 @@ export function PlayerShell({
    * attaching to a video element after the user has already switched episodes.
    */
   const setupDash = async (video: HTMLVideoElement, mediaUrl: string) => {
-    await destroyDashPlayer();
-    const generation = dashGenerationRef.current;
+    const teardownGeneration = dashGenerationRef.current + 1;
+    const teardown = destroyDashPlayer();
+    await teardown;
+    if (dashGenerationRef.current !== teardownGeneration) return;
+    const generation = teardownGeneration;
     clearMetadataWatchdog();
     restoreCleanupRef.current?.();
     restoreCleanupRef.current = null;
@@ -640,7 +643,10 @@ export function PlayerShell({
 
   /** Native progressive media path for formats the existing HTMLVideoElement can play. */
   const setupDirectMedia = async (video: HTMLVideoElement, mediaUrl: string) => {
-    await destroyDashPlayer();
+    const teardownGeneration = dashGenerationRef.current + 1;
+    const teardown = destroyDashPlayer();
+    await teardown;
+    if (dashGenerationRef.current !== teardownGeneration) return;
     clearMetadataWatchdog();
     restoreCleanupRef.current?.();
     restoreCleanupRef.current = null;
