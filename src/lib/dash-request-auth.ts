@@ -11,7 +11,7 @@ export interface DashRequestAuthOptions {
   /** Send browser-managed cookies only when the provider explicitly requires them. */
   withCredentials?: boolean;
   /** Provider-owned refresh flow, called only after a 401 retry is observed. */
-  refreshHeaders?: () => Promise<Record<string, string> | void>;
+  refreshHeaders?: () => Promise<Record<string, string>>;
 }
 
 export interface DashNetworkRequest {
@@ -90,10 +90,10 @@ export function createDashRequestAuthFilter(
       if (!refreshInFlight) {
         refreshInFlight = options.refreshHeaders()
           .then((nextHeaders) => {
-            if (nextHeaders) headers = sanitizeHeaders(nextHeaders);
+            headers = sanitizeHeaders(nextHeaders);
+            refreshRequired = false;
           })
           .finally(() => {
-            refreshRequired = false;
             refreshInFlight = null;
           });
       }
