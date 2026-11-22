@@ -5,18 +5,17 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useQuery } from '@tanstack/react-query';
 import { SmartImage } from '@/components/smart-image';
 import { api } from '@/lib/client-api';
-import { fetchHomepageWithFallback } from '@/lib/homepage-recommendation-fallback';
 import { db, type HistoryEntry } from '@/lib/db';
 import { resolveSource, useAppStore } from '@/lib/store';
 import type { DoubanItem } from '@/lib/types';
-import { fromCmsArtwork, fromDoubanItem } from '@/lib/poster';
+import { fromCmsArtwork, fromTmdbItem } from '@/lib/poster';
+import { TmdbAttribution } from '@/components/ipad-edition/TmdbAttribution';
 import { buildWatchUrl, formatTime } from '@/lib/utils';
 
 const CONTINUE_LIMIT = 8;
 const RAIL_LIMIT = 10;
 
 export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => void }) {
-  const doubanEnabled = useAppStore((s) => s.doubanEnabled);
   const imageProxyMode = useAppStore((s) => s.imageProxyMode);
   const customImageProxy = useAppStore((s) => s.customImageProxy);
   const history = useLiveQuery(
@@ -25,29 +24,18 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
   );
 
   const tvQuery = useQuery({
-    queryKey: ['homepage-apple-tv-top10'],
-    queryFn: ({ signal }) => fetchHomepageWithFallback(
-      () => api.douban('tv', '热门', 0, RAIL_LIMIT, signal),
-      () => api.hotList('douban_tv_chinese', signal),
-      signal
-    ),
-    enabled: doubanEnabled,
+    queryKey: ['homepage-apple-tv-top10', 'CN'],
+    queryFn: ({ signal }) => api.tmdbDiscover('tv', '热门', 1, signal),
     staleTime: 5 * 60_000,
   });
   const movieQuery = useQuery({
-    queryKey: ['homepage-apple-movie-top10'],
-    queryFn: ({ signal }) => fetchHomepageWithFallback(
-      () => api.douban('movie', '热门', 0, RAIL_LIMIT, signal),
-      () => api.hotList('douban_movie_weekly', signal),
-      signal
-    ),
-    enabled: doubanEnabled,
+    queryKey: ['homepage-apple-movie-top10', 'CN'],
+    queryFn: ({ signal }) => api.tmdbDiscover('movie', '热门', 1, signal),
     staleTime: 5 * 60_000,
   });
   const newQuery = useQuery({
-    queryKey: ['homepage-apple-new-releases'],
-    queryFn: ({ signal }) => api.douban('movie', '最新', 0, RAIL_LIMIT, signal),
-    enabled: doubanEnabled,
+    queryKey: ['homepage-apple-new-releases', 'CN'],
+    queryFn: ({ signal }) => api.tmdbDiscover('movie', '最新', 1, signal),
     staleTime: 5 * 60_000,
   });
 
@@ -58,7 +46,7 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
   return (
     <>
 
-      {doubanEnabled ? (
+      {(
         <>
           <HomepagePosterRail
             id="apple-tv-top10"
@@ -91,7 +79,7 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
             customImageProxy={customImageProxy}
           />
         </>
-      ) : null}
+      )}
 
       <section className="v4-content-section v4-continue-section" id="my-library" aria-label="继续观看">
         <div className="v4-section-heading">
@@ -110,6 +98,7 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
           </div>
         )}
       </section>
+      <TmdbAttribution />
     </>
   );
 }
@@ -152,7 +141,7 @@ function HomepagePosterRail({
             <button className="v4-apple-poster-card" key={item.id} type="button" onClick={() => onPick(item)}>
               <span className="v4-apple-poster-art">
                 <SmartImage
-                  asset={fromDoubanItem(item)}
+                  asset={fromTmdbItem(item)}
                   url={item.cover}
                   mode={imageProxyMode}
                   customProxy={customImageProxy}
