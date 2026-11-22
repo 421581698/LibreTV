@@ -9,7 +9,7 @@ function getHighResolutionTmdbPosterUrl(value: string | undefined): string | und
   try {
     const url = new URL(value);
     if (url.hostname !== 'image.tmdb.org') return value;
-    const match = url.pathname.match(/^(\\/t\\/p\\/)(?:w[0-9]+|original)(\\/.+)$/);
+    const match = url.pathname.match(/^(\/t\/p\/)(?:w[0-9]+|original)(\/.+)$/);
     if (!match) return value;
     url.pathname = match[1] + 'w1280' + match[2];
     return url.toString();
@@ -29,7 +29,11 @@ interface IpadEditionHeroArtworkProps {
  */
 export function IpadEditionHeroArtwork({ item }: IpadEditionHeroArtworkProps) {
   const backdrop = item.backdrop?.trim();
-  const posterAsset = fromTmdbItem(item);\n  const highResolutionPosterUrl = getHighResolutionTmdbPosterUrl(item.cover);\n  const heroPosterAsset = posterAsset && highResolutionPosterUrl\n    ? { ...posterAsset, originalUrl: highResolutionPosterUrl }\n    : posterAsset;
+  const posterAsset = fromTmdbItem(item);
+  const highResolutionPosterUrl = getHighResolutionTmdbPosterUrl(item.cover);
+  const heroPosterAsset = posterAsset && highResolutionPosterUrl
+    ? { ...posterAsset, originalUrl: highResolutionPosterUrl }
+    : posterAsset;
 
   return (
     <div
