@@ -729,7 +729,7 @@ body:has(.ipad-edition[data-ipad-home="true"]) {
   box-shadow: 0 10px 34px rgba(0,0,0,.3) !important;
 }
 .ipad-edition[data-ipad-home="true"] .ipad-nav__capsule-action {
-  color: #fff !important;
+  color: inherit !important;
 }
 .ipad-edition[data-ipad-home="true"] .ipad-edition__today,
 .ipad-edition[data-ipad-home="true"] .ipad-edition__rail-section {
