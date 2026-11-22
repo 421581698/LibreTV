@@ -16,6 +16,8 @@ Move real LibreTV page surfaces onto the canonical Friday material system withou
 - Live EPG current-program panel uses `GlassPanel`; upcoming program rows use `GlassCard` with native `li` semantics.
 - Aggregated search cards, single-source result cards, and Douban recommendation cards use `GlassCard` without changing their existing keyboard, favorite, lazy-image, or playback-selection behavior.
 - Resource Studio uses `GlassBar` for its page header and `GlassCard` / `GlassPanel` for its status cards and task sections.
+- Search results heading uses `GlassBar` while preserving the existing result stream and navigation.
+- Settings drawer uses `GlassBar` for both index/detail headers and `GlassPanel` for the appearance section; settings persistence and panel routing remain unchanged.
 - The shared dropdown overlay uses the Friday popover primitive.
 - Destructive confirmation dialogs use the Friday panel primitive while retaining `role="alertdialog"`.
 - Shared drawers already use the legacy `GlassPanel` API, so they inherit the Friday panel material without changing their focus, scroll-lock, or dismissal lifecycle.
@@ -32,7 +34,7 @@ Move real LibreTV page surfaces onto the canonical Friday material system withou
 
 ## Remaining Phase 3 work
 
-- Continue page-local glass migration in homepage content rails, detail hero controls, settings, personal space, and remaining live route chrome.
+- Continue page-local glass migration in homepage content rails, detail hero controls, the remaining settings subpanels, personal space, and remaining live route chrome.
 - Audit the player chrome separately; never glass the video surface itself.
 - Add route-level interaction and responsive regression coverage.
 - Verify independent desktop, iPhone Safari, and iPad Safari layouts before calling the phase complete.
