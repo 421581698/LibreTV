@@ -46,6 +46,29 @@ describe('iPad Edition navigation contract', () => {
     expect(styles).toContain('flex: 0 0 36px !important;');
   });
 
+
+  it('keeps the homepage hero and recommendation rails on one shared gutter', () => {
+    const styles = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/hero.css'), 'utf8');
+    const layout = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/ipad-edition.css'), 'utf8');
+    expect(styles).toContain('width: calc(100% - 2 * var(--ipad-page-gutter, 24px));');
+    expect(styles).toContain('margin: 0 auto;');
+    expect(layout).toContain('padding-inline: var(--ipad-page-gutter) !important;');
+  });
+
+  it('reserves space below the floating capsule and keeps poster captions in the rail flow', () => {
+    const layout = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/ipad-edition.css'), 'utf8');
+    expect(layout).toContain('padding-block-start: max(68px, calc(env(safe-area-inset-top, 0px) + 60px));');
+    expect(layout).toContain('height: auto !important;');
+    expect(layout).toContain('grid-template-rows: auto auto auto;');
+    expect(layout).toContain('background: #f5f5f7 !important;');
+  });
+
+  it('places hero pagination in the left-side safe area away from the poster artwork', () => {
+    const styles = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/hero.css'), 'utf8');
+    expect(styles).toContain('left: clamp(22px, 4vw, 56px);');
+    expect(styles).toContain('right: auto;');
+  });
+
   it('preserves an accessible sidebar toggle and manages modal focus/scroll lifecycle', () => {
     expect(shell).toContain('aria-expanded={sidebarOpen}');
     expect(shell).toContain('aria-controls="ipad-edition-sidebar"');
