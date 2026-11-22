@@ -6,15 +6,8 @@ import { classifyPosterAspect, inferPosterImageKind, withPosterDimensions } from
 describe('poster source adapters', () => {
   const douban: DoubanItem = { id: '1292052', title: '肖申克的救赎', cover: 'https://img3.doubanio.com/p.jpg' };
 
-  it('preserves real provider identity and original image URL', () => {
-    expect(fromDoubanItem(douban)).toMatchObject({
-      id: 'douban:1292052:poster',
-      provider: 'douban',
-      providerItemId: '1292052',
-      originalUrl: douban.cover,
-      rights: 'unknown',
-      kind: 'poster',
-    });
+  it('does not emit poster assets from the disabled Douban provider', () => {
+    expect(fromDoubanItem(douban)).toBeUndefined();
   });
 
   it('uses distinct provider namespaces for Bangumi and Douban', () => {
@@ -58,7 +51,7 @@ describe('poster source adapters', () => {
   });
 
   it('keeps rights unknown unless an explicit rights declaration is provided', () => {
-    expect(fromDoubanItem(douban)?.rights).toBe('unknown');
+    expect(fromBangumiItem(douban)?.rights).toBe('unknown');
     expect(createPosterAsset({
       provider: 'tmdb', providerItemId: '1', title: 'x',
       imageUrl: 'https://image.example/x.jpg', rights: 'restricted',
@@ -75,7 +68,7 @@ describe('poster dimension normalization', () => {
   });
 
   it('adds measured dimensions while retaining the exact original URL', () => {
-    const asset = fromDoubanItem({ id: '1', title: 'x', cover: 'https://img.example/x.jpg' })!;
+    const asset = fromBangumiItem({ id: '1', title: 'x', cover: 'https://img.example/x.jpg' })!;
     expect(withPosterDimensions(asset, 600, 900)).toMatchObject({
       originalUrl: asset.originalUrl, width: 600, height: 900,
       aspectRatio: 2 / 3, aspectClass: 'portrait',
