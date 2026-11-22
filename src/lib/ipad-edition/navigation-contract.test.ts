@@ -145,11 +145,31 @@ describe('iPad Edition cinematic detail experience', () => {
 
 
 describe('iPad Edition end-to-end cinema navigation contracts', () => {
-  it('sends recommendation-only hero items to search instead of an incomplete detail route', () => {
+  it('resolves recommendation posters against enabled sources before opening the real detail route', () => {
+    const posterNavigation = readFileSync(resolve(process.cwd(), 'src/components/ipad-edition/useIpadEditionPosterNavigation.ts'), 'utf8');
+    const home = readFileSync(resolve(process.cwd(), 'src/components/ipad-edition/IpadEditionHome.tsx'), 'utf8');
+    const collection = readFileSync(resolve(process.cwd(), 'src/components/ipad-edition/IpadEditionCollection.tsx'), 'utf8');
     const hero = readFileSync(resolve(process.cwd(), 'src/components/ipad-edition/IpadEditionHero.tsx'), 'utf8');
-    expect(hero).toContain("return '/ipad-edition/search?q=' + encodeURIComponent(title);");
+
+    // Preserve poster artwork and resolve a real enabled CMS resource before navigation.
+    expect(home).toContain('<PosterRenderer variant="poster"');
+    expect(home).toContain('url={item.cover}');
+    expect(home).toContain('onClick={() => void openPoster(item)}');
+    expect(collection).toContain('<PosterRenderer variant="poster"');
+    expect(collection).toContain('onClick={() => void openPoster(item)}');
+    expect(hero).toContain('onClick={() => onOpen(item)}');
     expect(hero).toContain('查找播放资源');
-    expect(hero).not.toContain("return '/ipad-edition/detail?title='");
+    expect(posterNavigation).toContain('api.search(movie.title, selectedSources, yellowFilter)');
+    expect(posterNavigation).toContain('!isSourceDisabled({ sourceHealth }, source.key)');
+    expect(posterNavigation).toContain('!isInDisabledSubscription({ subscriptions }, source.key)');
+    expect(posterNavigation).toContain(String.fromCharCode(92) + 'p{P}');
+    expect(posterNavigation).toContain('response.list.find((entry) => normalizeTitle(entry.name) === target)');
+    expect(posterNavigation).toContain("router.push('/ipad-edition/detail?' + params.toString())");
+    expect(posterNavigation).toContain('source: match.sourceKey');
+    expect(posterNavigation).toContain('id: match.vodId');
+    expect(posterNavigation).toContain("if (match.sourceUrl) params.set('sourceUrl', match.sourceUrl)");
+    expect(posterNavigation).toContain('没有找到《');
+    expect(posterNavigation).not.toContain("router.push('/ipad-edition/search?q='");
   });
 
   it('activates the dedicated detail styling on the actual detail route', () => {
