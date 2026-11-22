@@ -856,31 +856,71 @@ jobs:
                   await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
                   if (document.fonts?.ready) await document.fonts.ready;
                 });
-                // Inspect the browser-rendered poster pixels, not the source image canvas.
-                // Element screenshots are taken by Chromium after compositing, so CORS canvas
-                // taint cannot turn a failed inspection into a false PASS.
-                const posterPixelChecks = [];
-                const posterSlots = page.locator('[data-ipad-poster-slot]');
-                for (let index = 0; index < await posterSlots.count(); index += 1) {
-                  const slot = posterSlots.nth(index);
-                  const image = slot.locator('img').first();
-                  const slotType = await slot.getAttribute('data-ipad-poster-slot') ?? 'unknown';
-                  if (await image.count() === 0) {
-                    posterPixelChecks.push({ index, slotType, inspected: false, reason: "missing-image-element", blankBlack: false });
-                    continue;
+                // Inspect poster pixels from one browser-composited page capture.
+                // Locator.screenshot() can read an isolated lazy-image compositor layer as
+                // solid black on dark iPad emulation even while the page composite is correct.
+                // The full-page screenshot is the same composited surface users actually see.
+                const renderedPagePng = PNG.sync.read(await page.screenshot({
+                  fullPage: true,
+                  animations: "disabled",
+                  timeout: 30000,
+                }));
+                const renderedPosterGeometry = await page.evaluate(() => {
+                  const scale = window.devicePixelRatio || 1;
+                  return Array.from(document.querySelectorAll('[data-ipad-poster-slot]')).map((slot, index) => {
+                    const image = slot.querySelector('img');
+                    if (!image) {
+                      return {
+                        index,
+                        slotType: slot.getAttribute('data-ipad-poster-slot') ?? 'unknown',
+                        missingImage: true,
+                      };
+                    }
+                    const rect = image.getBoundingClientRect();
+                    return {
+                      index,
+                      slotType: slot.getAttribute('data-ipad-poster-slot') ?? 'unknown',
+                      missingImage: false,
+                      x: rect.left + window.scrollX,
+                      y: rect.top + window.scrollY,
+                      width: rect.width,
+                      height: rect.height,
+                      naturalWidth: image.naturalWidth,
+                      naturalHeight: image.naturalHeight,
+                      complete: image.complete,
+                      source: (image.currentSrc || image.src || '').slice(0, 180),
+                      deviceScaleFactor: scale,
+                    };
+                  });
+                });
+                const screenshotScale = renderedPagePng.width / viewport.width;
+                const posterPixelChecks = renderedPosterGeometry.map(item => {
+                  if (item.missingImage) {
+                    return {
+                      index: item.index,
+                      slotType: item.slotType,
+                      inspected: false,
+                      reason: "missing-image-element",
+                      blankBlack: false,
+                    };
                   }
-                  try {
-                    const buffer = await image.screenshot({ animations: "disabled", timeout: 15000 });
-                    const png = PNG.sync.read(buffer);
-                    let sum = 0;
-                    let sumSquares = 0;
-                    let darkPixels = 0;
-                    let samples = 0;
-                    const colorBuckets = new Set();
-                    for (let offset = 0; offset < png.data.length; offset += 4) {
-                      const alpha = png.data[offset + 3] / 255;
+                  const left = Math.max(0, Math.floor(item.x * screenshotScale));
+                  const top = Math.max(0, Math.floor(item.y * screenshotScale));
+                  const right = Math.min(renderedPagePng.width, Math.ceil((item.x + item.width) * screenshotScale));
+                  const bottom = Math.min(renderedPagePng.height, Math.ceil((item.y + item.height) * screenshotScale));
+                  let sum = 0;
+                  let sumSquares = 0;
+                  let darkPixels = 0;
+                  let samples = 0;
+                  const colorBuckets = new Set();
+                  for (let y = top; y < bottom; y += 1) {
+                    for (let x = left; x < right; x += 1) {
+                      const offset = (y * renderedPagePng.width + x) * 4;
+                      const alpha = renderedPagePng.data[offset + 3] / 255;
                       if (alpha < 0.9) continue;
-                      const r = png.data[offset], g = png.data[offset + 1], b = png.data[offset + 2];
+                      const r = renderedPagePng.data[offset];
+                      const g = renderedPagePng.data[offset + 1];
+                      const b = renderedPagePng.data[offset + 2];
                       const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
                       sum += luminance;
                       sumSquares += luminance * luminance;
@@ -888,23 +928,31 @@ jobs:
                       colorBuckets.add([r >> 4, g >> 4, b >> 4].join(","));
                       samples += 1;
                     }
-                    const meanLuminance = samples ? sum / samples : 0;
-                    const variance = samples ? Math.max(0, sumSquares / samples - meanLuminance ** 2) : 0;
-                    const standardDeviation = Math.sqrt(variance);
-                    const nearBlackRatio = samples ? darkPixels / samples : 1;
-                    const blankBlack = samples === 0 || (meanLuminance < 8 && standardDeviation < 4 && nearBlackRatio > 0.995);
-                    posterPixelChecks.push({
-                      index, slotType, inspected: samples > 0, width: png.width, height: png.height,
-                      meanLuminance: Number(meanLuminance.toFixed(2)),
-                      luminanceStdDev: Number(standardDeviation.toFixed(2)),
-                      nearBlackRatio: Number(nearBlackRatio.toFixed(4)),
-                      colorBucketCount: colorBuckets.size,
-                      blankBlack,
-                    });
-                  } catch (error) {
-                    posterPixelChecks.push({ index, slotType, inspected: false, reason: String(error), blankBlack: false });
                   }
-                }
+                  const meanLuminance = samples ? sum / samples : 0;
+                  const variance = samples ? Math.max(0, sumSquares / samples - meanLuminance ** 2) : 0;
+                  const standardDeviation = Math.sqrt(variance);
+                  const nearBlackRatio = samples ? darkPixels / samples : 1;
+                  const blankBlack = samples === 0 ||
+                    (meanLuminance < 8 && standardDeviation < 4 && nearBlackRatio > 0.995);
+                  return {
+                    index: item.index,
+                    slotType: item.slotType,
+                    inspected: samples > 0,
+                    width: Math.max(0, right - left),
+                    height: Math.max(0, bottom - top),
+                    meanLuminance: Number(meanLuminance.toFixed(2)),
+                    luminanceStdDev: Number(standardDeviation.toFixed(2)),
+                    nearBlackRatio: Number(nearBlackRatio.toFixed(4)),
+                    colorBucketCount: colorBuckets.size,
+                    blankBlack,
+                    naturalWidth: item.naturalWidth,
+                    naturalHeight: item.naturalHeight,
+                    complete: item.complete,
+                    source: item.source,
+                  };
+                });
+                metrics.posterPixelInspectionSource = "full-page-composited-screenshot";
                 metrics.posterPixelChecks = posterPixelChecks;
                 metrics.posterPixelInspectionUnavailableCount = posterPixelChecks.filter(item => !item.inspected).length;
                 metrics.blankBlackPosterCount = posterPixelChecks.filter(item => item.blankBlack).length;
