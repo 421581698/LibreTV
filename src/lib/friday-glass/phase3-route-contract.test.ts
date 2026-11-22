@@ -27,9 +27,16 @@ describe('Friday Liquid Glass Phase 3 route contracts', () => {
 
   it('keeps live route chrome separate from the live video frame', () => {
     const live = read('src/app/live/page.tsx');
-    expect(live).toContain('<GlassPanel as="aside"');
+    expect(live).toMatch(/<GlassPanel\\s+as="aside"/);
     expect(live).toContain('<GlassPanel as="section" className="glass-panel p-3 mt-3">');
     expect(live).toContain('<div className="aspect-video bg-black rounded-lg overflow-hidden">');
+  });
+
+  it('wraps the remaining settings index groups and detail subpanels in Friday panels', () => {
+    const settings = read('src/components/source-manager.tsx');
+    expect(settings).toContain('<GlassPanel className="overflow-hidden rounded-2xl border border-line bg-card divide-y divide-line">');
+    expect(settings).toContain('<GlassPanel className="rounded-2xl"><VodSourcesPanel /></GlassPanel>');
+    expect(settings).toContain('<GlassPanel className="rounded-2xl"><ResourceCollectorPanel /></GlassPanel>');
   });
 
   it('does not apply Friday glass or backdrop blur to the ArtPlayer surface', () => {

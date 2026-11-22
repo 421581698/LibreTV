@@ -38,6 +38,8 @@ Move real LibreTV page surfaces onto the canonical Friday material system withou
 - Detail hero back and favorite controls use `GlassControl`; episode cards use `GlassCard`. The primary play and share actions retain their existing native button behavior.
 - Personal space uses `GlassBar` for its heading and `GlassPanel` for the continue-watching, media-library, and utility sections.
 - Settings download management uses `GlassPanel` without changing download task actions.
+- The settings index groups and all remaining settings detail panels (sources, playback, image, home, voice, language, subscriptions, import/export, cache, collector, and about) now use `GlassPanel` while preserving their existing forms and handlers.
+- Personal-space favorite entries now use `GlassCard` while keeping the detail link and remove-favorite button as separate native controls.
 - Live channel information, EPG, and channel-list sidebar use `GlassPanel`. The LivePlayer video frame remains outside all glass surfaces.
 - The ArtPlayer `PlayerShell` was source-audited: it contains no Friday glass primitive or backdrop-filter styling. The video/media surface and its playback lifecycle remain untouched.
 - The Phase 3 verification workflow now includes a Playwright Chromium route smoke across desktop, iPhone-sized, and iPad-sized viewport emulation. These are browser-emulated layouts, not physical Safari acceptance.

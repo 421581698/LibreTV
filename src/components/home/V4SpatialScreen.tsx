@@ -11,7 +11,7 @@ import { Icon } from '@/components/icon';
 import { requestShowDownloadManager } from '@/components/download-manager';
 import { AnimeRecommendationSection, RecommendSection } from '@/components/douban-section';
 import { DoubanCard } from '@/components/video-card';
-import { GlassBar, GlassPanel } from '@/components/ui/friday-glass';
+import { GlassBar, GlassCard, GlassPanel } from '@/components/ui/friday-glass';
 import { SmartImage } from '@/components/smart-image';
 import { db, removeFavorite, type FavoriteEntry, type HistoryEntry } from '@/lib/db';
 import { isInDisabledSubscription, isSourceDisabled, resolveSource, useAppStore } from '@/lib/store';
@@ -419,13 +419,13 @@ function MeFavoriteCard({ item }: { item: FavoriteEntry }) {
   if (sourceUrl) params.set('sourceUrl', sourceUrl);
   const href = '/detail?' + params.toString();
   return (
-    <article className="v4-me-history-card relative">
+    <GlassCard as="article" className="v4-me-history-card relative">
       <Link href={href} className="flex min-w-0 flex-1 items-center gap-3">
         <div className="v4-me-history-image">{item.pic ? <SmartImage url={item.pic} mode={imageProxyMode} customProxy={customImageProxy} alt="" className="absolute inset-0 h-full w-full object-cover" /> : <span>▶</span>}</div>
         <div className="v4-me-history-copy min-w-0"><strong>{item.title}</strong><span>{[item.year, item.typeName, item.sourceName].filter(Boolean).join(' · ')}</span></div>
       </Link>
       <button type="button" className="ml-2 shrink-0 rounded-lg px-3 py-2 text-xs text-muted hover:bg-chip" aria-label={"取消收藏 " + item.title} onClick={() => { void removeFavorite(item.sourceKey, item.vodId); }}>取消收藏</button>
-    </article>
+    </GlassCard>
   );
 }
 

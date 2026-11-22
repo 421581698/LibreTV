@@ -152,7 +152,7 @@ export function SourceManagerDrawer({ open, onClose, embedded = false }: { open:
           {SETTINGS_SECTIONS.map((section) => (
             <section key={section.title} className="space-y-2">
               <h3 className="px-1 text-xs font-semibold tracking-wide text-muted">{section.title}</h3>
-              <div className="overflow-hidden rounded-2xl border border-line bg-card divide-y divide-line">
+              <GlassPanel className="overflow-hidden rounded-2xl border border-line bg-card divide-y divide-line">
                 {section.items.map((item) => (
                   <button
                     key={item.id}
@@ -171,7 +171,7 @@ export function SourceManagerDrawer({ open, onClose, embedded = false }: { open:
                     <span aria-hidden="true" className="shrink-0 text-xl leading-none text-[#8E8E93] transition-transform group-hover:translate-x-0.5">›</span>
                   </button>
                 ))}
-              </div>
+              </GlassPanel>
             </section>
           ))}
           <p className="px-1 text-center text-xs text-faint">LibreTV · 本机设置</p>
@@ -204,18 +204,18 @@ export function SourceManagerDrawer({ open, onClose, embedded = false }: { open:
               <ThemeToggle />
             </GlassPanel>
           )}
-          {activePage === 'vod' && <VodSourcesPanel />}
-          {activePage === 'live' && <LiveSourceManager />}
-          {activePage === 'playback' && <PlaybackPanel />}
-          {activePage === 'image' && <ImagePanel />}
-          {activePage === 'home' && <HomePanel />}
-          {activePage === 'voice' && <VoiceSettingsPanel />}
-          {activePage === 'language' && <LanguageSettingsPanel />}
-          {activePage === 'subs' && <SourceSubscriptions />}
-          {activePage === 'io' && <ConfigIoPanel />}
-          {activePage === 'cache' && <VideoCachePanel />}
-          {activePage === 'collector' && <ResourceCollectorPanel />}
-          {activePage === 'about' && <section className="settings-apple-about"><h3>LibreTV</h3><p>为个人观影而设计的开放式影视浏览与播放体验。</p><p className="settings-apple-about-note">播放记录、收藏与偏好设置按现有功能保存在当前设备；资源站和网络连接由你配置与管理。</p></section>}
+          {activePage === 'vod' && <GlassPanel className="rounded-2xl"><VodSourcesPanel /></GlassPanel>}
+          {activePage === 'live' && <GlassPanel className="rounded-2xl"><LiveSourceManager /></GlassPanel>}
+          {activePage === 'playback' && <GlassPanel className="rounded-2xl"><PlaybackPanel /></GlassPanel>}
+          {activePage === 'image' && <GlassPanel className="rounded-2xl"><ImagePanel /></GlassPanel>}
+          {activePage === 'home' && <GlassPanel className="rounded-2xl"><HomePanel /></GlassPanel>}
+          {activePage === 'voice' && <GlassPanel className="rounded-2xl"><VoiceSettingsPanel /></GlassPanel>}
+          {activePage === 'language' && <GlassPanel className="rounded-2xl"><LanguageSettingsPanel /></GlassPanel>}
+          {activePage === 'subs' && <GlassPanel className="rounded-2xl"><SourceSubscriptions /></GlassPanel>}
+          {activePage === 'io' && <GlassPanel className="rounded-2xl"><ConfigIoPanel /></GlassPanel>}
+          {activePage === 'cache' && <GlassPanel className="rounded-2xl"><VideoCachePanel /></GlassPanel>}
+          {activePage === 'collector' && <GlassPanel className="rounded-2xl"><ResourceCollectorPanel /></GlassPanel>}
+          {activePage === 'about' && <GlassPanel as="section" className="settings-apple-about"><h3>LibreTV</h3><p>为个人观影而设计的开放式影视浏览与播放体验。</p><p className="settings-apple-about-note">播放记录、收藏与偏好设置按现有功能保存在当前设备；资源站和网络连接由你配置与管理。</p></GlassPanel>}
         </div>
         </>
       )}
