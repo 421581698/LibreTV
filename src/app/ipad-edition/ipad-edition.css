@@ -1119,7 +1119,7 @@ body:has(.ipad-edition[data-environment="light"]) {
   top: max(8px, calc(env(safe-area-inset-top, 0px) + 4px));
 }
 .ipad-nav__topbar-inner {
-  height: 54px !important;
+  height: 54px;
   justify-content: center;
   
   
