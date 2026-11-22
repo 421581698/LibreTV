@@ -869,7 +869,16 @@ jobs:
                     const slots = Array.from(document.querySelectorAll('[data-ipad-poster-slot]'));
                     const slot = slots[slotIndex];
                     if (!slot) return;
-                    slot.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' });
+                    // Center the card inside its own horizontal rail first. scrollIntoView()
+                    // alone can leave the final flex item outside the screenshot crop when
+                    // scroll-snap and the page's vertical scroller compete for the gesture.
+                    const rail = slot.parentElement;
+                    if (rail) {
+                      const slotRect = slot.getBoundingClientRect();
+                      const railRect = rail.getBoundingClientRect();
+                      rail.scrollLeft += slotRect.left - railRect.left - (rail.clientWidth - slotRect.width) / 2;
+                    }
+                    slot.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
                     const image = slot.querySelector('img');
                     if (image) {
                       image.loading = 'eager';
