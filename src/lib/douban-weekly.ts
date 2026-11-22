@@ -15,15 +15,8 @@ function apiBase(): string {
   return (process.env['API_60S_BASE'] || 'https://60s.viki.moe').replace(/\/+$/, '');
 }
 
-/** 榜单标识：豆瓣五个周榜 + 百度热播剧榜 */
-export const HOT_LIST_IDS = [
-  'douban_movie_weekly',
-  'douban_tv_chinese',
-  'douban_tv_global',
-  'douban_show_chinese',
-  'douban_show_global',
-  'baidu_teleplay',
-] as const;
+/** 豆瓣榜单已停用；仅保留百度热播剧榜。 */
+export const HOT_LIST_IDS = ['baidu_teleplay'] as const;
 
 export type HotListId = (typeof HOT_LIST_IDS)[number];
 
@@ -31,13 +24,7 @@ export function isHotListId(id: string): id is HotListId {
   return (HOT_LIST_IDS as readonly string[]).includes(id);
 }
 
-const DOUBAN_WEEKLY_CATEGORY: Partial<Record<HotListId, string>> = {
-  douban_movie_weekly: 'movie',
-  douban_tv_chinese: 'tv_chinese',
-  douban_tv_global: 'tv_global',
-  douban_show_chinese: 'show_chinese',
-  douban_show_global: 'show_global',
-};
+const DOUBAN_WEEKLY_CATEGORY: Partial<Record<HotListId, string>> = {};
 
 // —— 60s API 原始结构（只取用到的字段） ——
 
