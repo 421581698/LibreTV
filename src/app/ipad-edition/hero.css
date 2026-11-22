@@ -684,6 +684,7 @@ body:has(.ipad-edition[data-ipad-home="true"]) {
 .ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-poster {
   max-width: min(48vw, 580px);
 }
+/* The final homepage layer owns the right-side pagination anchor. */
 .ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-pagination {
   left: auto;
 }
