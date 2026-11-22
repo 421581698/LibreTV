@@ -32,14 +32,9 @@ export function createPosterAsset(record: PosterSourceRecord): PosterAsset | und
   };
 }
 
-export function fromDoubanItem(item: DoubanItem): PosterAsset | undefined {
-  return createPosterAsset({
-    provider: 'douban',
-    providerItemId: item.id,
-    title: item.title,
-    imageUrl: item.cover,
-    kind: 'poster',
-  });
+/** 豆瓣海报来源已停用；不再将豆瓣图片注入统一海报管线。 */
+export function fromDoubanItem(_item: DoubanItem): PosterAsset | undefined {
+  return undefined;
 }
 
 export function fromBangumiItem(item: DoubanItem): PosterAsset | undefined {
