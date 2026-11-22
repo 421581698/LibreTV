@@ -28,12 +28,16 @@ let browser;
 try {
   browser = await chromium.launch({ headless: true });
   for (const scenario of scenarios) {
-    const context = await browser.newContext({
+    const contextOptions = {
       viewport: scenario.viewport,
       deviceScaleFactor: scenario.deviceScaleFactor,
-      isMobile: Boolean(scenario.isMobile),
-      hasTouch: Boolean(scenario.hasTouch),
-    });
+    };
+    // Firefox does not implement Playwright's isMobile context emulation.
+    if (browserName !== 'firefox') {
+      contextOptions.isMobile = Boolean(scenario.isMobile);
+      contextOptions.hasTouch = Boolean(scenario.hasTouch);
+    }
+    const context = await browser.newContext(contextOptions);
     const page = await context.newPage();
     const pageErrors = [];
     page.on('pageerror', (error) => pageErrors.push(error.message));
