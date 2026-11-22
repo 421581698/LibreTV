@@ -51,7 +51,7 @@ function sanitizeHeaders(headers: Record<string, string> | undefined): Record<st
     if (!normalizedName || FORBIDDEN_HEADERS.has(normalizedName) ||
         normalizedName.startsWith('proxy-') || normalizedName.startsWith('sec-') ||
         !/^[!#$%&'*+.^_`|~0-9a-z-]+$/i.test(name) ||
-        typeof value !== 'string' || /[\\r\\n]/.test(value)) {
+        typeof value !== 'string' || /[\r\n]/.test(value)) {
       continue;
     }
     safe[name] = value;
@@ -77,9 +77,6 @@ export function createDashRequestAuthFilter(
 
   const filter: DashRequestAuthFilter = async (request) => {
     if (!allowedOrigins.size || !request.uris.length) return;
-
-    // Shaka can carry fallback URIs in one request. Only attach secrets when
-    // every candidate is explicitly trusted; otherwise the filter fails closed.
     const trusted = request.uris.every((uri) => {
       const origin = normalizeOrigin(uri);
       return origin !== null && allowedOrigins.has(origin);

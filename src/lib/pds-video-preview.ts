@@ -2,7 +2,7 @@
  * Server-side adapter for the official Alibaba Cloud PDS video-preview API.
  *
  * Do not call this from browser code: access/share tokens must remain on the
- * server. PDS preview URLs are short-lived HLS URLs, not DASH manifests.
+ * server. PDS preview URLs are short-lived HLS/MP4 URLs, not DASH manifests.
  */
 export type PdsPreviewCategory = 'live_transcoding' | 'quick_video' | 'offline_video';
 
@@ -26,13 +26,13 @@ export interface PdsPreviewRendition {
 }
 
 export type PdsVideoPreviewResult =
-  | { status: 'pending'; retryAfterSeconds?: number }
+  | { status: 'pending'; retryAfterSeconds: number }
   | { status: 'ready'; renditions: PdsPreviewRendition[]; masterUrl?: string };
 
 export class PdsPreviewError extends Error {
   constructor(
     message: string,
-    public readonly code: 'INVALID_INPUT' | 'UNAUTHORIZED' | 'NOT_FOUND' | 'UPSTREAM_ERROR' | 'INVALID_RESPONSE',
+    public readonly code: 'INVALID_INPUT' | 'UNAUTHORIZED' | 'NOT_FOUND' | 'FEATURE_DISABLED' | 'UPSTREAM_ERROR' | 'INVALID_RESPONSE',
     public readonly status?: number,
   ) {
     super(message);
@@ -44,7 +44,9 @@ interface PdsPreviewEntry { template_id?: string; status?: string; url?: string 
 
 interface PdsPreviewResponse {
   Code?: string;
+  code?: string;
   Message?: string;
+  message?: string;
   video_preview_play_info?: {
     live_transcoding_task_list?: PdsPreviewEntry[];
     quick_video_list?: PdsPreviewEntry[];
@@ -56,14 +58,15 @@ interface PdsPreviewResponse {
 function isHttpsUrl(value: unknown): value is string {
   if (typeof value !== 'string' || !value.trim()) return false;
   try {
-    return new URL(value).protocol === 'https:';
+    const parsed = new URL(value);
+    return parsed.protocol === 'https:' && !parsed.username && !parsed.password;
   } catch {
     return false;
   }
 }
 
 function isPdsPending(status: number, body: PdsPreviewResponse): boolean {
-  return status === 202 || body.Code === 'VideoPreviewWaitAndRetry';
+  return status === 202 || body.Code === 'VideoPreviewWaitAndRetry' || body.code === 'VideoPreviewWaitAndRetry';
 }
 
 export async function getPdsVideoPreviewPlayInfo(
@@ -75,24 +78,32 @@ export async function getPdsVideoPreviewPlayInfo(
   const usingShare = Boolean(input.shareId);
   const token = usingShare ? input.shareToken : input.accessToken;
 
-  if (!/^[a-zA-Z0-9-]{2,64}$/.test(domainId) || !fileId || !token ||
+  if (!/^[a-zA-Z0-9-]{2,64}$/.test(domainId) || !/^[^\u0000-\u001f]{1,256}$/.test(fileId) ||
+      !token || token.length > 8192 ||
       (usingShare ? !input.shareToken : !input.driveId)) {
     throw new PdsPreviewError('PDS preview credentials or identifiers are incomplete', 'INVALID_INPUT', 400);
   }
 
   const category = input.category ?? 'quick_video';
   const urlExpireSec = input.urlExpireSec ?? 900;
+  if (!['live_transcoding', 'quick_video', 'offline_video'].includes(category)) {
+    throw new PdsPreviewError('Unsupported PDS preview category', 'INVALID_INPUT', 400);
+  }
   if (!Number.isInteger(urlExpireSec) || urlExpireSec < 60 || urlExpireSec > 14400) {
     throw new PdsPreviewError('urlExpireSec must be between 60 and 14400 seconds', 'INVALID_INPUT', 400);
   }
+  if (input.templateId && (input.templateId.length > 128 || /[\u0000-\u001f]/.test(input.templateId))) {
+    throw new PdsPreviewError('Invalid PDS template id', 'INVALID_INPUT', 400);
+  }
 
+  // Domain-specific API hostname is fixed by PDS; user input cannot select an arbitrary host.
   const endpoint = `https://${domainId}.api.aliyunpds.com/v2/file/get_video_preview_play_info`;
   const body: Record<string, unknown> = {
     domain_id: domainId,
     file_id: fileId,
     category,
     url_expire_sec: urlExpireSec,
-    get_master_url: input.getMasterUrl === true,
+    get_master_url: input.getMasterUrl === true && category === 'quick_video',
   };
   if (input.templateId) body.template_id = input.templateId;
   if (usingShare) body.share_id = input.shareId;
@@ -103,9 +114,10 @@ export async function getPdsVideoPreviewPlayInfo(
     response = await fetcher(endpoint, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
-        ...(usingShare ? { 'x-share-token': input.shareToken! } : {}),
+        ...(usingShare
+          ? { 'x-share-token': input.shareToken! }
+          : { Authorization: `Bearer ${input.accessToken}` }),
       },
       body: JSON.stringify(body),
       redirect: 'error',
@@ -130,6 +142,10 @@ export async function getPdsVideoPreviewPlayInfo(
   }
   if (response.status === 404) {
     throw new PdsPreviewError('PDS has no preview result for this file', 'NOT_FOUND', 404);
+  }
+  const upstreamCode = data.Code ?? data.code ?? '';
+  if (response.status === 400 && /PreviewDisabled|Transcode.*Disabled/i.test(upstreamCode)) {
+    throw new PdsPreviewError('PDS video transcoding is not enabled for this domain/category', 'FEATURE_DISABLED', 400);
   }
   if (!response.ok) {
     throw new PdsPreviewError('PDS preview request failed', 'UPSTREAM_ERROR', response.status);

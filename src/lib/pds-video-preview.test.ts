@@ -59,7 +59,7 @@ describe('getPdsVideoPreviewPlayInfo', () => {
     });
   });
 
-  it('uses share token auth and never sends a drive id for shared files', async () => {
+  it('uses only x-share-token auth and never sends a drive id for shared files', async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       video_preview_play_info: {
         quick_video_list: [{ status: 'finished', url: 'https://media.example/share.m3u8' }],
@@ -71,10 +71,13 @@ describe('getPdsVideoPreviewPlayInfo', () => {
       fileId: 'shared-file',
       shareId: 'share-1',
       shareToken: 'share-token',
+      accessToken: 'must-not-be-used',
     }, fetcher);
 
     const init = fetcher.mock.calls[0][1] as RequestInit;
-    expect(new Headers(init.headers).get('x-share-token')).toBe('share-token');
+    const headers = new Headers(init.headers);
+    expect(headers.get('x-share-token')).toBe('share-token');
+    expect(headers.has('authorization')).toBe(false);
     expect(JSON.parse(String(init.body))).toMatchObject({ share_id: 'share-1' });
     expect(JSON.parse(String(init.body))).not.toHaveProperty('drive_id');
   });
@@ -99,5 +102,13 @@ describe('getPdsVideoPreviewPlayInfo', () => {
     const fetcher = vi.fn().mockResolvedValue(new Response('{}', { status: 401 }));
     await expect(getPdsVideoPreviewPlayInfo(baseInput, fetcher))
       .rejects.toMatchObject({ code: 'UNAUTHORIZED', status: 401 });
+  });
+
+  it('maps disabled online transcoding to a setup error', async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      Code: 'VideoPreviewDisabled.OnlineVideoTranscode',
+    }), { status: 400 }));
+    await expect(getPdsVideoPreviewPlayInfo(baseInput, fetcher))
+      .rejects.toMatchObject({ code: 'FEATURE_DISABLED', status: 400 });
   });
 });
