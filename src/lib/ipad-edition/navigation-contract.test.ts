@@ -47,14 +47,15 @@ describe('iPad Edition navigation contract', () => {
   });
 
 
-  it('keeps the homepage hero and recommendation rails on one shared gutter', () => {
+  it('keeps the cinema hero full-bleed while recommendation rails retain their own page gutter', () => {
     const styles = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/hero.css'), 'utf8');
     const layout = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/ipad-edition.css'), 'utf8');
-    expect(styles).toContain('width: calc(100% + 2 * clamp(16px, 2.4vw, 36px));');
-    expect(styles).toContain('margin-inline: calc(-1 * clamp(16px, 2.4vw, 36px));');
+    expect(styles).toContain('width: 100vw;');
+    expect(styles).toContain('margin: 0;');
     expect(styles).toContain('border-radius: 0;');
-    expect(layout).toContain('.ipad-edition .ipad-edition__today,');
-    expect(layout).toContain('padding-inline: var(--ipad-page-gutter);');
+    expect(layout).toContain('.ipad-edition__today, .ipad-edition__rail-section');
+    expect(layout).toContain('padding-left: var(--ipad-page-gutter) !important;');
+    expect(layout).toContain('padding-right: var(--ipad-page-gutter) !important;');
   });
 
   it('reserves space below the floating capsule and keeps poster captions in the rail flow', () => {
@@ -69,10 +70,11 @@ describe('iPad Edition navigation contract', () => {
     expect(layout).toContain('background: #f5f5f7;');
   });
 
-  it('places hero pagination in the left-side safe area away from the poster artwork', () => {
+  it('anchors hero pagination to the right and prevents legacy left-side positioning from winning', () => {
     const styles = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/hero.css'), 'utf8');
-    expect(styles).toContain('left: clamp(22px, 4vw, 56px);');
-    expect(styles).toContain('right: auto;');
+    expect(styles).toContain('right: clamp(28px, 4.5vw, 68px);');
+    expect(styles).toContain('.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-pagination');
+    expect(styles).toContain('left: auto;');
   });
 
   it('preserves an accessible sidebar toggle and manages modal focus/scroll lifecycle', () => {
