@@ -88,6 +88,7 @@ export async function getPdsVideoPreviewPlayInfo(
 
   const endpoint = `https://${domainId}.api.aliyunpds.com/v2/file/get_video_preview_play_info`;
   const body: Record<string, unknown> = {
+    domain_id: domainId,
     file_id: fileId,
     category,
     url_expire_sec: urlExpireSec,
