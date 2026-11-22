@@ -1280,3 +1280,19 @@ html:not(.dark) .v4-spatial-screen[data-screen="me"] .v52-me-list {
 html:not(.dark) .v4-spatial-screen[data-screen="me"] .v52-me-list-row::after {
   background: rgba(40, 48, 60, .09);
 }
+
+
+/* The settings index uses a dark-era title treatment; adapt its heading when
+   Friday's shared GlassBar resolves to the light material. */
+html:not(.dark) .settings-embedded-root .settings-large-title {
+  color: #20242b !important;
+  background: linear-gradient(160deg, rgba(255,255,255,.94), rgba(245,247,250,.86)) !important;
+  border-color: rgba(40, 48, 60, .13) !important;
+}
+html:not(.dark) .settings-embedded-root .settings-large-title h1 {
+  color: #20242b !important;
+}
+html:not(.dark) .settings-embedded-root .settings-large-title p,
+html:not(.dark) .v4-spatial-screen[data-screen="me"] .v52-me-heading span {
+  color: #69717d !important;
+}
