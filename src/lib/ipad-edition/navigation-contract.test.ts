@@ -140,3 +140,29 @@ describe('iPad Edition cinematic detail experience', () => {
     expect(styles).toContain('@media (prefers-reduced-transparency: reduce)');
   });
 });
+
+
+describe('iPad Edition end-to-end cinema navigation contracts', () => {
+  it('sends recommendation-only hero items to search instead of an incomplete detail route', () => {
+    const hero = readFileSync(resolve(process.cwd(), 'src/components/ipad-edition/IpadEditionHero.tsx'), 'utf8');
+    expect(hero).toContain("return '/ipad-edition/search?q=' + encodeURIComponent(title);");
+    expect(hero).toContain('查找播放资源');
+    expect(hero).not.toContain("return '/ipad-edition/detail?title='");
+  });
+
+  it('activates the dedicated detail styling on the actual detail route', () => {
+    const route = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/detail/page.tsx'), 'utf8');
+    const styles = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/detail/detail.css'), 'utf8');
+    expect(route).toContain('data-ipad-detail="true"');
+    expect(styles).toContain('.ipad-edition [data-ipad-detail="true"] .movie-detail-hero');
+    expect(styles).toContain('.ipad-edition [data-ipad-detail="true"] .movie-detail-title');
+  });
+
+  it('renders homepage content as touch-scrollable cinematic shelves', () => {
+    const styles = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/ipad-edition.css'), 'utf8');
+    expect(styles).toContain('scroll-snap-type: x mandatory;');
+    expect(styles).toContain('-webkit-overflow-scrolling: touch;');
+    expect(styles).toContain('.ipad-edition__home .ipad-edition__poster-card');
+    expect(styles).toContain('padding-block-start: 0;');
+  });
+});
