@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { Icon } from './icon';
-import { LiquidGlassSurface } from '@/components/ui/liquid-glass';
+import { GlassPopover } from '@/components/ui/glass';
 
 export interface DropdownOption {
   value: string;
@@ -154,9 +154,7 @@ export function Dropdown({
         />
       </button>
       {open && menuStyle && typeof document !== 'undefined' && createPortal(
-        <LiquidGlassSurface
-          as="div"
-          variant="panel"
+        <GlassPopover
           className="fixed z-[100100] overflow-y-auto overscroll-contain rounded-xl border border-line shadow-2xl animate-fade-in"
           style={{ top: menuStyle.top, left: menuStyle.left, minWidth: menuStyle.minWidth, maxWidth: menuStyle.maxWidth, maxHeight: menuStyle.maxHeight }}
         >
@@ -193,7 +191,7 @@ export function Dropdown({
             );
           })}
         </ul>
-        </LiquidGlassSurface>,
+        </GlassPopover>,
         document.body
       )}
     </div>
