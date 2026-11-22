@@ -412,7 +412,7 @@ export function AggregatedCard({
           </div>
         </div>
       )}
-    </div>
+    </GlassCard>
   );
 }
 
