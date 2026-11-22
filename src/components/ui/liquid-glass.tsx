@@ -39,6 +39,8 @@ type SurfaceProps = Omit<HTMLAttributes<HTMLElement>, 'color'> & {
   as?: ElementType;
   children?: ReactNode;
   interactive?: boolean;
+  /** Disable the optional optical renderer when a stable CSS-only surface is required. */
+  disableEngine?: boolean;
   variant?: SurfaceVariant;
   displacementScale?: number;
   blurAmount?: number;
@@ -102,6 +104,7 @@ export const LiquidGlassSurface = forwardRef<HTMLElement, SurfaceProps>(function
     className = '',
     children,
     interactive = false,
+    disableEngine = false,
     variant = 'control',
     displacementScale,
     blurAmount,
@@ -123,6 +126,7 @@ export const LiquidGlassSurface = forwardRef<HTMLElement, SurfaceProps>(function
   const [Engine, setEngine] = useState<EngineComponent | null>(null);
 
   useEffect(() => {
+    if (disableEngine) return;
     let mounted = true;
     import('liquid-glass-react')
       .then((module) => {
@@ -134,10 +138,10 @@ export const LiquidGlassSurface = forwardRef<HTMLElement, SurfaceProps>(function
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [disableEngine]);
 
   const preset = presets[variant];
-  const canHostEngine = as !== 'button' && as !== 'a' && as !== 'span';
+  const canHostEngine = !disableEngine && as !== 'button' && as !== 'a' && as !== 'span';
   const engineProps: EngineProps = {
     children: createElement('span', {
       className: 'liquid-glass-engine-fill',
