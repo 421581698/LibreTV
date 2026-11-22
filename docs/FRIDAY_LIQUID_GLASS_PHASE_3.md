@@ -9,6 +9,11 @@ Move real LibreTV page surfaces onto the canonical Friday material system withou
 - Legacy `GlassPanel`, `GlassToolbar`, `GlassPopover`, and `GlassDialog` now delegate to the Friday `panel` / `bar` material primitives.
 - Legacy `GlassButton` delegates its surface to the Friday `control` material while preserving the native button as the interactive element.
 - The shared mobile tab bar uses `GlassDock` and keeps its semantic `nav` landmark.
+- The general site header and cinema homepage header use `GlassBar` as their native `header` landmark.
+- Search history dropdown heading uses `GlassBar` while preserving its listbox and keyboard interaction.
+- Detail modal uses the `GlassDialog` compatibility primitive, preserving its focus trap, Escape/backdrop close behavior, and dialog labeling.
+- Live channel filters and tool strips use the canonical panel material.
+- Live EPG current-program panel uses `GlassPanel`; upcoming program rows use `GlassCard` with native `li` semantics.
 - The shared dropdown overlay uses the Friday popover primitive.
 - Destructive confirmation dialogs use the Friday panel primitive while retaining `role="alertdialog"`.
 - Shared drawers already use the legacy `GlassPanel` API, so they inherit the Friday panel material without changing their focus, scroll-lock, or dismissal lifecycle.
@@ -25,7 +30,7 @@ Move real LibreTV page surfaces onto the canonical Friday material system withou
 
 ## Remaining Phase 3 work
 
-- Audit and migrate page-local glass surfaces in homepage, search, detail, settings, personal space, resource studio, and live routes.
+- Continue page-local glass migration in homepage content rails and movie cards, search results/cards, detail hero controls, settings, personal space, resource studio, and live route chrome.
 - Audit the player chrome separately; never glass the video surface itself.
 - Add route-level interaction and responsive regression coverage.
 - Verify independent desktop, iPhone Safari, and iPad Safari layouts before calling the phase complete.
