@@ -62,13 +62,16 @@ export function GlassPopover({ className = '', ...props }: DivProps) {
   );
 }
 
-export function GlassDialog({ className = '', ...props }: DivProps) {
+export const GlassDialog = forwardRef<HTMLDivElement, DivProps>(function GlassDialog(
+  { className = '', ...props }, ref,
+) {
   return (
     <FridayGlassPanel
+      ref={ref as React.Ref<HTMLElement>}
       role="dialog"
       aria-modal="true"
       className={`glass-dialog ${className}`.trim()}
       {...props}
     />
   );
-}
+});
