@@ -174,6 +174,11 @@ export function buildSearchUrl(
     throw new Error('接口地址不能包含登录凭据');
   }
 
+  const hostname = url.hostname.toLowerCase();
+  if (sourceKey.trim().toLowerCase() === 'bfzy' || hostname === 'bfzyapi.com' || hostname.endsWith('.bfzyapi.com')) {
+    throw new Error('风暴（BFZY）数据源已停用');
+  }
+
   // KKPhim 是独立 REST API，不是 Apple CMS；只允许其固定 HTTPS 主机。
   if (sourceKey === 'kkphim' || url.hostname.toLowerCase() === 'phimapi.com') {
     if (url.hostname.toLowerCase() !== 'phimapi.com' || url.origin !== 'https://phimapi.com' || url.pathname !== '/') {
@@ -192,9 +197,8 @@ export function buildSearchUrl(
     url.pathname = `${basePath}/api.php/provide/vod`;
   }
 
-  // 风暴官方 JSON 接口使用 ac=list；其他 Apple CMS 源继续使用兼容动作 videolist。
-  const isStorm = sourceKey === 'bfzy' || url.hostname.toLowerCase() === 'bfzyapi.com';
-  url.searchParams.set('ac', isStorm ? 'list' : 'videolist');
+  // 活跃 Apple CMS 来源统一使用兼容动作 videolist。
+  url.searchParams.set('ac', 'videolist');
   url.searchParams.set('wd', keyword);
 
   return url;
