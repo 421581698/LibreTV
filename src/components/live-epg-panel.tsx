@@ -6,6 +6,8 @@ import { api } from '@/lib/client-api';
 import { cn } from '@/lib/utils';
 import type { EpgProgram } from '@/lib/types';
 import { EmptyState, ErrorState, Spinner } from './states';
+import { GlassPanel } from '@/components/ui/glass';
+import { GlassCard } from '@/components/ui/friday-glass';
 
 /**
  * EPG 节目单面板：当前节目（含播放进度条）+ 接下来节目列表 + 简介展开。
@@ -68,7 +70,7 @@ export function LiveEpgPanel({ epgUrl, tvgId }: { epgUrl?: string; tvgId?: strin
   return (
     <div className="space-y-3">
       {current ? (
-        <div className="glass-panel p-3">
+        <GlassPanel className="p-3">
           <div className="flex items-center gap-2 mb-1.5">
             <span className="text-[10px] font-semibold text-danger bg-danger/10 px-1.5 py-0.5 rounded-full">
               正在播出
@@ -99,7 +101,7 @@ export function LiveEpgPanel({ epgUrl, tvgId }: { epgUrl?: string; tvgId?: strin
             <span>{Math.round(progress)}%</span>
             <span>{fmtTime(current.stop)}</span>
           </div>
-        </div>
+        </GlassPanel>
       ) : (
         <p className="text-xs text-faint text-center py-2">当前时段暂无节目数据</p>
       )}
@@ -109,7 +111,8 @@ export function LiveEpgPanel({ epgUrl, tvgId }: { epgUrl?: string; tvgId?: strin
           <h4 className="text-xs font-semibold text-content mb-1.5">接下来</h4>
           <ul className="space-y-1">
             {upcoming.map((p) => (
-              <li
+              <GlassCard
+                as="li"
                 key={`${p.start}-${p.title}`}
                 className={cn(
                   'flex items-center gap-2 text-xs px-2 py-1.5 rounded-md',
@@ -119,7 +122,7 @@ export function LiveEpgPanel({ epgUrl, tvgId }: { epgUrl?: string; tvgId?: strin
               >
                 <span className="text-faint tabular-nums shrink-0">{fmtTime(p.start)}</span>
                 <span className="text-content truncate">{p.title}</span>
-              </li>
+              </GlassCard>
             ))}
           </ul>
         </div>

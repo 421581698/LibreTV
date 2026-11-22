@@ -1,19 +1,25 @@
 'use client';
 
 import React, { forwardRef } from 'react';
-import { LiquidGlassSurface } from '@/components/ui/liquid-glass';
+import {
+  GlassBar as FridayGlassBar,
+  GlassControl as FridayGlassControl,
+  GlassPanel as FridayGlassPanel,
+} from '@/components/ui/friday-glass';
 
 type DivProps = React.HTMLAttributes<HTMLDivElement>;
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement>;
 
+/**
+ * Backward-compatible public API for existing LibreTV surfaces.
+ * Every legacy primitive now delegates to the canonical Friday material role.
+ */
 export const GlassPanel = forwardRef<HTMLDivElement, DivProps>(function GlassPanel(
   { className = '', ...props }, ref,
 ) {
   return (
-    <LiquidGlassSurface
+    <FridayGlassPanel
       ref={ref as React.Ref<HTMLElement>}
-      as="div"
-      variant="panel"
       className={`glass-panel ${className}`.trim()}
       {...props}
     />
@@ -24,12 +30,7 @@ export const GlassButton = forwardRef<HTMLButtonElement, ButtonProps>(function G
   { className = '', type = 'button', children, ...props }, ref,
 ) {
   return (
-    <LiquidGlassSurface
-      as="div"
-      variant="control"
-      interactive
-      className={`glass-button liquid-glass-button-wrap ${className}`.trim()}
-    >
+    <FridayGlassControl className={`glass-button liquid-glass-button-wrap friday-glass--interactive ${className}`.trim()}>
       <button
         ref={ref}
         type={type}
@@ -38,7 +39,7 @@ export const GlassButton = forwardRef<HTMLButtonElement, ButtonProps>(function G
       >
         {children}
       </button>
-    </LiquidGlassSurface>
+    </FridayGlassControl>
   );
 });
 
@@ -46,11 +47,9 @@ export const GlassToolbar = forwardRef<HTMLDivElement, DivProps>(function GlassT
   { className = '', ...props }, ref,
 ) {
   return (
-    <LiquidGlassSurface
+    <FridayGlassBar
       ref={ref as React.Ref<HTMLElement>}
-      as="div"
       role="toolbar"
-      variant="panel"
       className={`glass-toolbar ${className}`.trim()}
       {...props}
     />
@@ -59,24 +58,20 @@ export const GlassToolbar = forwardRef<HTMLDivElement, DivProps>(function GlassT
 
 export function GlassPopover({ className = '', ...props }: DivProps) {
   return (
-    <LiquidGlassSurface
-      as="div"
-      variant="panel"
-      className={`glass-popover ${className}`.trim()}
-      {...props}
-    />
+    <FridayGlassPanel className={`glass-popover ${className}`.trim()} {...props} />
   );
 }
 
-export function GlassDialog({ className = '', ...props }: DivProps) {
+export const GlassDialog = forwardRef<HTMLDivElement, DivProps>(function GlassDialog(
+  { className = '', ...props }, ref,
+) {
   return (
-    <LiquidGlassSurface
-      as="div"
+    <FridayGlassPanel
+      ref={ref as React.Ref<HTMLElement>}
       role="dialog"
       aria-modal="true"
-      variant="panel"
       className={`glass-dialog ${className}`.trim()}
       {...props}
     />
   );
-}
+});

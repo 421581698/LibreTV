@@ -38,6 +38,7 @@ import { collectorFetch, clearScraplingConfig, normalizeScraplingBase, readScrap
 import { registerValidatedCmsSource } from '@/lib/resource-collector-workflow';
 import { ResourceStatsPanel } from '@/components/resource-stats-panel';
 import { requestShowDownloadManager } from '@/components/download-manager';
+import { GlassBar, GlassPanel } from '@/components/ui/friday-glass';
 
 
 const CollectorPlayerShell = dynamic(
@@ -143,15 +144,15 @@ export function SourceManagerDrawer({ open, onClose, embedded = false }: { open:
     <>
       {activePage === 'index' ? (
         <>
-        <header className="settings-large-title">
+        <GlassBar as="header" className="settings-large-title">
           <h1>设置</h1>
           <p>管理 LibreTV 的外观、播放与资源偏好。</p>
-        </header>
+        </GlassBar>
         <div className="ipad-settings-content mx-auto w-full max-w-2xl space-y-7 pb-3">
           {SETTINGS_SECTIONS.map((section) => (
             <section key={section.title} className="space-y-2">
               <h3 className="px-1 text-xs font-semibold tracking-wide text-muted">{section.title}</h3>
-              <div className="overflow-hidden rounded-2xl border border-line bg-card divide-y divide-line">
+              <GlassPanel className="overflow-hidden rounded-2xl border border-line bg-card divide-y divide-line">
                 {section.items.map((item) => (
                   <button
                     key={item.id}
@@ -170,7 +171,7 @@ export function SourceManagerDrawer({ open, onClose, embedded = false }: { open:
                     <span aria-hidden="true" className="shrink-0 text-xl leading-none text-[#8E8E93] transition-transform group-hover:translate-x-0.5">›</span>
                   </button>
                 ))}
-              </div>
+              </GlassPanel>
             </section>
           ))}
           <p className="px-1 text-center text-xs text-faint">LibreTV · 本机设置</p>
@@ -178,12 +179,12 @@ export function SourceManagerDrawer({ open, onClose, embedded = false }: { open:
         </>
       ) : (
         <>
-        <header className="settings-nav-bar">
+        <GlassBar as="header" className="settings-nav-bar">
           <button type="button" className="settings-nav-back" onClick={() => setActivePage('index')} aria-label="返回设置">
             <span aria-hidden="true">‹</span><span>设置</span>
           </button>
           <span className="settings-nav-center">设置</span>
-        </header>
+        </GlassBar>
         <div className="ipad-settings-content settings-apple-detail mx-auto w-full max-w-2xl space-y-5 pb-3">
           <div className="settings-apple-detail-heading space-y-1 border-b border-line pb-4">
             <div className="settings-apple-page-title">
@@ -195,26 +196,26 @@ export function SourceManagerDrawer({ open, onClose, embedded = false }: { open:
             <p className="text-sm text-muted">{SETTINGS_PAGE_META[activePage].description}</p>
           </div>
           {activePage === 'appearance' && (
-            <section className="rounded-2xl border border-line bg-card p-4">
+            <GlassPanel as="section" className="rounded-2xl border border-line bg-card p-4">
               <div className="mb-3">
                 <h3 className="text-sm font-semibold text-content">外观模式</h3>
                 <p className="mt-1 text-xs text-muted">选择浅色、深色，或跟随设备系统设置。</p>
               </div>
               <ThemeToggle />
-            </section>
+            </GlassPanel>
           )}
-          {activePage === 'vod' && <VodSourcesPanel />}
-          {activePage === 'live' && <LiveSourceManager />}
-          {activePage === 'playback' && <PlaybackPanel />}
-          {activePage === 'image' && <ImagePanel />}
-          {activePage === 'home' && <HomePanel />}
-          {activePage === 'voice' && <VoiceSettingsPanel />}
-          {activePage === 'language' && <LanguageSettingsPanel />}
-          {activePage === 'subs' && <SourceSubscriptions />}
-          {activePage === 'io' && <ConfigIoPanel />}
-          {activePage === 'cache' && <VideoCachePanel />}
-          {activePage === 'collector' && <ResourceCollectorPanel />}
-          {activePage === 'about' && <section className="settings-apple-about"><h3>LibreTV</h3><p>为个人观影而设计的开放式影视浏览与播放体验。</p><p className="settings-apple-about-note">播放记录、收藏与偏好设置按现有功能保存在当前设备；资源站和网络连接由你配置与管理。</p></section>}
+          {activePage === 'vod' && <GlassPanel className="rounded-2xl"><VodSourcesPanel /></GlassPanel>}
+          {activePage === 'live' && <GlassPanel className="rounded-2xl"><LiveSourceManager /></GlassPanel>}
+          {activePage === 'playback' && <GlassPanel className="rounded-2xl"><PlaybackPanel /></GlassPanel>}
+          {activePage === 'image' && <GlassPanel className="rounded-2xl"><ImagePanel /></GlassPanel>}
+          {activePage === 'home' && <GlassPanel className="rounded-2xl"><HomePanel /></GlassPanel>}
+          {activePage === 'voice' && <GlassPanel className="rounded-2xl"><VoiceSettingsPanel /></GlassPanel>}
+          {activePage === 'language' && <GlassPanel className="rounded-2xl"><LanguageSettingsPanel /></GlassPanel>}
+          {activePage === 'subs' && <GlassPanel className="rounded-2xl"><SourceSubscriptions /></GlassPanel>}
+          {activePage === 'io' && <GlassPanel className="rounded-2xl"><ConfigIoPanel /></GlassPanel>}
+          {activePage === 'cache' && <GlassPanel className="rounded-2xl"><VideoCachePanel /></GlassPanel>}
+          {activePage === 'collector' && <GlassPanel className="rounded-2xl"><ResourceCollectorPanel /></GlassPanel>}
+          {activePage === 'about' && <GlassPanel as="section" className="settings-apple-about"><h3>LibreTV</h3><p>为个人观影而设计的开放式影视浏览与播放体验。</p><p className="settings-apple-about-note">播放记录、收藏与偏好设置按现有功能保存在当前设备；资源站和网络连接由你配置与管理。</p></GlassPanel>}
         </div>
         </>
       )}

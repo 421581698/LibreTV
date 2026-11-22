@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useQuery } from '@tanstack/react-query';
 import { SmartImage } from '@/components/smart-image';
+import { GlassCard } from '@/components/ui/friday-glass';
 import { api } from '@/lib/client-api';
 import { fetchHomepageWithFallback } from '@/lib/homepage-recommendation-fallback';
 import { db, type HistoryEntry } from '@/lib/db';
@@ -148,7 +149,7 @@ function HomepagePosterRail({
       ) : items.length > 0 ? (
         <div className="v4-apple-rail" aria-label={`${title}，可横向滑动`}>
           {items.map((item, index) => (
-            <button className="v4-apple-poster-card" key={item.id} type="button" onClick={() => onPick(item)}>
+            <GlassCard as="button" className="v4-apple-poster-card" key={item.id} onClick={() => onPick(item)}>
               <span className="v4-apple-poster-art">
                 <SmartImage
                   url={item.cover}
@@ -163,7 +164,7 @@ function HomepagePosterRail({
                   {item.rating ? <small>★ {item.rating}</small> : null}
                 </span>
               </span>
-            </button>
+            </GlassCard>
           ))}
         </div>
       ) : (

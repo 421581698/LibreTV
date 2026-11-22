@@ -16,6 +16,7 @@ import { copyToClipboard } from '@/lib/clipboard';
 import { EmptyState, ErrorState, LoadingState } from './states';
 import { useFocusTrap } from './use-focus-trap';
 import { Icon } from './icon';
+import { GlassDialog } from '@/components/ui/glass';
 
 /**
  * 详情弹窗：剧集列表 + 排序 + 复制链接。
@@ -249,10 +250,10 @@ export function DetailModal({
         }
       }}
     >
-      <div
+      <GlassDialog
         ref={panelRef}
         tabIndex={-1}
-        className="glass-dialog w-full max-w-3xl animate-slide-up outline-none"
+        className="w-full max-w-3xl animate-slide-up outline-none"
         role="dialog"
         aria-modal="true"
         aria-label={`${item.name} 详情`}
@@ -417,7 +418,7 @@ export function DetailModal({
             </>
           )}
         </div>
-      </div>
+      </GlassDialog>
     </div>
   );
 }

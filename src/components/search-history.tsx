@@ -6,6 +6,7 @@ import { addSearchHistory, clearSearchHistory, db, removeSearchHistory, restoreS
 import { cn } from '@/lib/utils';
 import { useToast } from './toast';
 import { Icon } from './icon';
+import { GlassBar } from '@/components/ui/friday-glass';
 
 /** 下拉最多展示条数，与 db 层 MAX_SEARCH_HISTORY 保持一致 */
 const HISTORY_LIMIT = 10;
@@ -150,7 +151,7 @@ export function SearchHistoryDropdown({
         'rounded-b-xl border-x border-b border-accent bg-surface-raised shadow-2xl animate-fade-in'
       )}
     >
-      <div className="glass-toolbar flex items-center justify-between pl-4 pr-2 py-2 !rounded-none border-x-0 border-t-0">
+      <GlassBar className="glass-toolbar flex items-center justify-between pl-4 pr-2 py-2 !rounded-none border-x-0 border-t-0">
         <span className="flex items-center gap-1.5 text-xs text-faint">
           <Icon name="clock" className="w-3.5 h-3.5" />
           最近搜索
@@ -162,7 +163,7 @@ export function SearchHistoryDropdown({
         >
           清空
         </button>
-      </div>
+      </GlassBar>
       <ul
         id={id}
         role="listbox"

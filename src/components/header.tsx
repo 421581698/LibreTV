@@ -11,6 +11,7 @@ import { Icon } from './icon';
 import { SearchHistoryDropdown, useSearchHistory } from './search-history';
 import { cn } from '@/lib/utils';
 import AIFloatingBall from '@/components/AIFloatingBall';
+import { GlassBar } from '@/components/ui/friday-glass';
 /** 顶部导航：Logo、搜索框（首页外）、历史、设置 */
 export function Header({ showSearch = false, showFridayFab = true, minimalFridayNav = false, homeSearch }: { showSearch?: boolean; showFridayFab?: boolean; minimalFridayNav?: boolean; homeSearch?: React.ReactNode }) {
   const router = useRouter();
@@ -38,7 +39,7 @@ export function Header({ showSearch = false, showFridayFab = true, minimalFriday
 
   return (
     <React.Fragment>
-<header className="sticky top-0 z-40 bg-surface/90 backdrop-blur border-b border-line">
+<GlassBar as="header" className="sticky top-0 z-40 bg-surface/90 backdrop-blur border-b border-line">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-3">
           <Link href="/" aria-label="LibreTV 首页" className="flex items-center shrink-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -144,7 +145,7 @@ export function Header({ showSearch = false, showFridayFab = true, minimalFriday
             </IconButton>
           </nav>
         </div>
-      </header>
+      </GlassBar>
 
       <AIFloatingBall showFab={showFridayFab} inlineMode />
       <SourceManagerDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />

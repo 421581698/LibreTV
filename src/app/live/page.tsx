@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/client-api';
 import { copyToClipboard } from '@/lib/clipboard';
 import { V4HomepageHeader } from '@/components/home/V4HomepageHeader';
+import { GlassPanel } from '@/components/ui/friday-glass';
 // 播放器（artplayer + hls.js）按需加载：拆出独立 chunk，不占首屏 First Load JS
 import dynamic from 'next/dynamic';
 const LivePlayer = dynamic(() => import('@/components/live-player').then((m) => m.LivePlayer), {
@@ -250,7 +251,7 @@ function LiveContent() {
 
             {/* 频道信息条 */}
             {currentChannel && (
-              <div className="glass-panel p-3 mt-3 flex items-center gap-3">
+              <GlassPanel as="section" className="glass-panel p-3 mt-3 flex items-center gap-3">
                 <div className="w-10 h-10 shrink-0 rounded bg-chip flex items-center justify-center overflow-hidden">
                   {logo && !logoFailed ? (
                     <SmartImage
@@ -375,15 +376,15 @@ function LiveContent() {
                     )}
                   </button>
                 </div>
-              </div>
+              </GlassPanel>
             )}
 
             {/* 节目单 */}
             {currentChannel && (
-              <section className="glass-panel p-3 mt-3">
+              <GlassPanel as="section" className="glass-panel p-3 mt-3">
                 <h2 className="text-sm font-semibold text-content mb-2.5">节目单</h2>
                 <LiveEpgPanel epgUrl={currentChannel.epg} tvgId={currentChannel.tvgId} />
-              </section>
+              </GlassPanel>
             )}
           </div>
 
@@ -397,7 +398,8 @@ function LiveContent() {
           )}
 
           {/* 侧栏：桌面常驻 sticky；移动端底部抽屉 */}
-          <aside
+          <GlassPanel
+            as="aside"
             className={cn(
               'glass-panel flex-col overflow-hidden',
               'fixed inset-x-0 bottom-0 z-40 h-[75vh] rounded-t-2xl shadow-2xl',
@@ -442,7 +444,7 @@ function LiveContent() {
                 </p>
               )}
             </div>
-          </aside>
+          </GlassPanel>
         </div>
 
         {/* 移动端呼出频道列表的悬浮按钮 */}

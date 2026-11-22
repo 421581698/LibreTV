@@ -14,6 +14,7 @@ import { useQualityProbe } from './use-quality-probe';
 import { useInView } from './use-in-view';
 import { addFavorite, db, removeFavorite } from '@/lib/db';
 import doubanPosters from '@/data/douban-posters.json';
+import { GlassCard } from '@/components/ui/friday-glass';
 
 // —— 跨源同名聚合 ——
 
@@ -197,7 +198,8 @@ export function AggregatedCard({
       : undefined;
 
   return (
-    <div
+    <GlassCard
+      as="div"
       ref={inViewRef}
       className={cn('card relative', !multi && 'hover:scale-[1.02] hover:shadow-md', multi && expanded && 'ring-1 ring-accent/40')}
     >
@@ -410,7 +412,7 @@ export function AggregatedCard({
           </div>
         </div>
       )}
-    </div>
+    </GlassCard>
   );
 }
 
@@ -421,7 +423,8 @@ export function VideoCard({ item, onClick }: { item: SearchResultItem; onClick: 
   const showImg = !!item.pic;
 
   return (
-    <div
+    <GlassCard
+      as="div"
       className="card cursor-pointer hover:scale-[1.02] hover:shadow-md h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
       role="button"
       tabIndex={0}
@@ -467,7 +470,7 @@ export function VideoCard({ item, onClick }: { item: SearchResultItem; onClick: 
           </div>
         </div>
       </div>
-    </div>
+    </GlassCard>
   );
 }
 
@@ -484,7 +487,8 @@ export function DoubanCard({
   const indexedDoubanPoster = doubanPosters[item.id as keyof typeof doubanPosters];
 
   return (
-    <div
+    <GlassCard
+      as="div"
       className="card group cursor-pointer overflow-hidden transition-[transform,box-shadow] duration-300 hover:scale-[1.05] hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
       role="button"
       tabIndex={0}
@@ -532,6 +536,6 @@ export function DoubanCard({
           {item.title}
         </div>
       </div>
-    </div>
+    </GlassCard>
   );
 }

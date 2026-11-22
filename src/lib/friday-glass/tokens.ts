@@ -94,7 +94,40 @@ export const LEGACY_VARIANT_MAP: Record<string, GlassVariant> = {
   dock: 'dock',
   control: 'control',
   panel: 'panel',
+  popover: 'panel',
+  sheet: 'panel',
+  dialog: 'panel',
+  card: 'card',
+  movieCard: 'card',
+  'movie-card': 'card',
+  field: 'field',
+  input: 'field',
+  search: 'field',
+  bar: 'bar',
+  toolbar: 'bar',
+  navigation: 'bar',
 };
+
+/** Semantic UI roles map to one canonical material preset. */
+export const GLASS_ROLE_VARIANTS = {
+  dock: 'dock',
+  control: 'control',
+  panel: 'panel',
+  popover: 'panel',
+  dialog: 'panel',
+  sheet: 'panel',
+  card: 'card',
+  movieCard: 'card',
+  field: 'field',
+  search: 'field',
+  bar: 'bar',
+  toolbar: 'bar',
+  navigation: 'bar',
+} as const satisfies Record<string, GlassVariant>;
+
+export function isGlassVariant(value: string): value is GlassVariant {
+  return Object.prototype.hasOwnProperty.call(GLASS_MATERIALS, value);
+}
 
 export function resolveMaterial(variant: GlassVariant | string | undefined): GlassMaterial {
   const key = (variant && LEGACY_VARIANT_MAP[variant]) || (variant as GlassVariant) || 'control';

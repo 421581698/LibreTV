@@ -191,7 +191,7 @@ describe('PR #84 homepage blocking layout recovery', () => {
   });
 
   it('uses the same left-aligned Large Title hierarchy on Settings and Search', () => {
-    expect(settings).toContain('<header className="settings-large-title">');
+    expect(settings).toContain('<GlassBar as="header" className="settings-large-title">');
     expect(settings).toContain('<h1>设置</h1>');
     expect(globalLayout).toContain('.settings-embedded-root .settings-large-title h1');
     expect(globalLayout).toContain('.v4-search-page .v4-search-heading h1');

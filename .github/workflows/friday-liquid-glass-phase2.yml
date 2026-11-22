@@ -1,0 +1,123 @@
+name: Friday Liquid Glass Phase 2 Verify
+
+on:
+  push:
+    branches:
+      - feature/friday-liquid-glass-system-v2
+    paths:
+      - "src/lib/friday-glass/**"
+      - "src/components/ui/friday-glass.tsx"
+      - "src/components/ui/glass.tsx"
+      - "src/components/ui/liquid-glass.test.tsx"
+      - "src/components/home/header/MobileTabBar.tsx"
+      - "src/components/confirm-dialog.tsx"
+      - "src/components/dropdown.tsx"
+      - "src/components/ui/liquid-glass.tsx"
+      - "src/components/live-channel-list.tsx"
+      - "src/components/video-card.tsx"
+      - "src/app/resource-studio/page.tsx"
+      - "src/components/search/SearchResultsView.tsx"
+      - "src/components/source-manager.tsx"
+      - "src/components/home/pr84-layout-recovery.test.ts"
+      - "src/components/live-epg-panel.tsx"
+      - "src/components/detail-modal.tsx"
+      - "src/components/search-history.tsx"
+      - "src/components/home/V4HomepageContent.tsx"
+      - "src/lib/friday-glass/phase3-route-contract.test.ts"
+      - "scripts/friday-liquid-glass-smoke.mjs"
+      - "src/components/home/HomeRecommendationSection.tsx"
+      - "src/components/movie-detail-page.tsx"
+      - "src/components/player-shell.tsx"
+      - "src/components/live-player.tsx"
+      - "src/components/live-source-manager.tsx"
+      - "src/components/settings-shared.tsx"
+      - "src/app/page.tsx"
+      - "src/app/detail/**"
+      - "src/app/settings/**"
+      - "src/app/me/**"
+      - "src/app/live/**"
+      - "src/app/watch/**"
+      - "src/components/home/**/*.test.ts"
+      - "src/components/**/*.test.ts"
+      - "src/components/**/*.test.tsx"
+      - "src/app/**/*.test.ts"
+      - "src/components/home/V4HomepageHeader.tsx"
+      - "src/components/header.tsx"
+      - "src/app/glass-system.css"
+      - "docs/FRIDAY_LIQUID_GLASS_PHASE_2.md"
+      - "docs/FRIDAY_LIQUID_GLASS_PHASE_3.md"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/friday-liquid-glass-phase2.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: friday-liquid-glass-phase2-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: TypeScript
+        run: npm run typecheck
+      - name: ESLint
+        run: npm run lint
+      - name: Unit tests
+        run: npm test
+      - name: Production build
+        env:
+          PASSWORD: ci-test-password
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npm run build
+
+      - name: Install isolated Playwright runner
+        run: npm install --no-save --package-lock=false playwright@1.55.0
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Start local production server
+        env:
+          PASSWORD: ci-test-password
+          AUTH_DISABLED: "true"
+          PORT: 8080
+        run: |
+          npm run start > /tmp/friday-glass-server.log 2>&1 &
+          echo $! > /tmp/friday-glass-server.pid
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:8080/ >/dev/null; then
+              echo "LibreTV production server is ready."
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/friday-glass-server.log
+          exit 1
+
+      - name: Run route and responsive browser smoke
+        env:
+          QUALITY_BASE_URL: http://127.0.0.1:8080
+          QUALITY_ARTIFACT_DIR: artifacts/friday-liquid-glass
+        run: node scripts/friday-liquid-glass-smoke.mjs
+
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: friday-liquid-glass-browser-evidence-${{ github.run_id }}
+          path: |
+            artifacts/friday-liquid-glass/
+            /tmp/friday-glass-server.log
+          if-no-files-found: warn
+          retention-days: 14

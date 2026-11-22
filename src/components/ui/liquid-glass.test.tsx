@@ -5,6 +5,7 @@ import { GlassButton, GlassDialog, GlassPanel, GlassPopover, GlassToolbar } from
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Drawer } from '@/components/drawer';
 import { LiquidGlassSurface } from './liquid-glass';
+import { GlassBar, GlassCard, GlassDock } from './friday-glass';
 
 describe('LiquidGlassSurface v1.0', () => {
   it('keeps the semantic button as the host element', () => {
@@ -69,6 +70,9 @@ describe('LiquidGlassSurface v1.0', () => {
     expect(html).toContain('glass-toolbar');
     expect(html).toContain('glass-popover');
     expect(html).toContain('glass-dialog');
+    expect(html).toContain('data-friday-glass-role="panel"');
+    expect(html).toContain('data-friday-glass-role="control"');
+    expect(html).toContain('data-friday-glass-role="bar"');
     expect(html.match(/data-liquid-glass="true"/g)).toHaveLength(5);
     expect(html).toContain('<button');
     expect(html).toContain('role="toolbar"');
@@ -76,6 +80,34 @@ describe('LiquidGlassSurface v1.0', () => {
   });
 
 
+  it('keeps header and list-item semantics on canonical Friday surfaces', () => {
+    const headerHtml = renderToStaticMarkup(
+      createElement(GlassBar, { as: 'header', 'aria-label': '站点导航' }, 'LibreTV'),
+    );
+    const itemHtml = renderToStaticMarkup(
+      createElement(GlassCard, { as: 'li', title: '当前节目' }, '节目标题'),
+    );
+
+    expect(headerHtml).toContain('<header');
+    expect(headerHtml).toContain('aria-label="站点导航"');
+    expect(headerHtml).toContain('data-friday-glass-role="bar"');
+    expect(itemHtml).toContain('<li');
+    expect(itemHtml).toContain('title="当前节目"');
+    expect(itemHtml).toContain('data-friday-glass-role="card"');
+  });
+
+  it('keeps the navigation landmark when adopting the canonical Friday dock material', () => {
+    const html = renderToStaticMarkup(
+      createElement(GlassDock, { as: 'nav', 'aria-label': '底部导航' },
+        createElement('a', { href: '/' }, '首页'),
+      ),
+    );
+
+    expect(html).toContain('<nav');
+    expect(html).toContain('aria-label="底部导航"');
+    expect(html).toContain('data-friday-glass-role="dock"');
+    expect(html).toContain('<a href="/">首页</a>');
+  });
   it('keeps shared drawer and alert-dialog semantics while using the glass adapter', () => {
     const drawerHtml = renderToStaticMarkup(
       <Drawer open onClose={() => undefined} title="Settings">

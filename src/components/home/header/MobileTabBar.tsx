@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LiquidGlassSurface } from '@/components/ui/liquid-glass';
+import { GlassDock } from '@/components/ui/friday-glass';
 
 const tabs = [
   { href: '/', label: '首页', icon: 'home' },
@@ -38,10 +38,8 @@ export function MobileTabBar() {
   }, [isHomepage]);
 
   const navigation = (
-    <LiquidGlassSurface
+    <GlassDock
       as="nav"
-      interactive
-      variant="dock"
       className="v4-mobile-tabbar"
       aria-label="底部导航"
     >
@@ -55,7 +53,7 @@ export function MobileTabBar() {
           </Link>
         );
       })}
-    </LiquidGlassSurface>
+    </GlassDock>
   );
 
   return portalTarget ? createPortal(navigation, portalTarget) : null;
