@@ -1093,6 +1093,11 @@ jobs:
                     episodeCardCount: document.querySelectorAll(".movie-episode-card").length,
                     hasPlayerFrame: Boolean(document.querySelector(".netflix-player-frame")),
                     hasWatchContent: Boolean(document.querySelector(".netflix-watch")),
+                    hasVisiblePlayerTitle: (() => {
+                      const title = document.querySelector(".netflix-watch .netflix-title-row h1");
+                      return Boolean(title && title.getClientRects().length > 0 && getComputedStyle(title).visibility !== "hidden");
+                    })(),
+                    visiblePlayerTitleText: document.querySelector(".netflix-watch .netflix-title-row h1")?.textContent?.trim() ?? null,
                     visualScope: routeName === "detail" ? "full-detail-content-with-mocked-cms-fixture"
                       : routeName === "watch" ? "player-page-with-mocked-cms-fixture"
                       : "page-content",
@@ -1106,7 +1111,8 @@ jobs:
                   (["movies", "series", "anime"].includes(route.name) &&
                     (metrics.loadingSkeletonCount > 0 || !metrics.hasTerminalCollectionState)) ||
                   (route.name === "detail" && (!metrics.hasDetailTitle || metrics.episodeCardCount < 1)) ||
-                  (route.name === "watch" && (!metrics.hasPlayerFrame || !metrics.hasWatchContent)) ||
+                  (route.name === "watch" && (!metrics.hasPlayerFrame || !metrics.hasWatchContent ||
+                    !metrics.hasVisiblePlayerTitle || metrics.visiblePlayerTitleText !== "iPad Preview 样片")) ||
                   errors.length > 0;
                 const name = route.name + "-" + colorScheme;
                 await page.screenshot({
