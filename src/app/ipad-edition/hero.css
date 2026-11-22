@@ -829,3 +829,11 @@ body:has(.ipad-edition[data-ipad-home="true"]) {
     transition: none !important;
   }
 }
+
+
+/* Keep source artwork aligned to its upper focal area on every iPad orientation. */
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-backdrop .poster-engine__image,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-poster .poster-engine__image {
+  object-fit: cover;
+  object-position: center top;
+}
