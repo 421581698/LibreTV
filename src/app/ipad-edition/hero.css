@@ -624,3 +624,65 @@
     filter: drop-shadow(0 26px 38px rgba(0,0,0,.54));
   }
 }
+
+/* PR #99 · Immersive featured-poster treatment.
+   Make the actual portrait artwork the visual anchor, not a small card layered
+   under the backdrop shade. This is intentionally limited to the cinema hero. */
+.ipad-edition .ipad-edition__cinema-hero-poster {
+  z-index: 5;
+  left: auto;
+  right: clamp(5vw, 10vw, 160px);
+  top: 50%;
+  bottom: auto;
+  width: min(43vw, 560px);
+  height: 118%;
+  transform: translateY(-50%) perspective(1500px) rotateY(-7deg) scale(1.025);
+  transform-origin: 58% 50%;
+  filter:
+    drop-shadow(0 42px 58px rgba(0,0,0,.62))
+    drop-shadow(0 12px 26px rgba(0,0,0,.42));
+}
+.ipad-edition .ipad-edition__cinema-hero-poster::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 8% -18% -5%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(221,184,132,.34) 0%, rgba(125,151,183,.16) 38%, transparent 72%);
+  filter: blur(38px);
+  pointer-events: none;
+}
+.ipad-edition .ipad-edition__cinema-hero-poster .poster-engine__image {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  transform: scale(1.035);
+  filter: drop-shadow(0 0 1px rgba(255,255,255,.18));
+}
+.ipad-edition .ipad-edition__cinema-hero-shade {
+  z-index: 4;
+}
+.ipad-edition .ipad-edition__cinema-hero-copy {
+  z-index: 6;
+}
+.ipad-edition .ipad-edition__cinema-hero-pagination {
+  z-index: 7;
+}
+@media (min-width: 700px) and (max-width: 1023px) {
+  .ipad-edition .ipad-edition__cinema-hero-poster {
+    right: max(22px, env(safe-area-inset-right, 0px));
+    width: min(46vw, 470px);
+    height: 112%;
+    transform: translateY(-50%) perspective(1300px) rotateY(-5deg) scale(1.015);
+  }
+}
+@media (orientation: portrait) and (min-width: 700px) {
+  .ipad-edition .ipad-edition__cinema-hero-poster {
+    right: max(14px, env(safe-area-inset-right, 0px));
+    width: min(43vw, 420px);
+    height: 106%;
+    transform: translateY(-50%) perspective(1200px) rotateY(-4deg) scale(1.01);
+  }
+}
