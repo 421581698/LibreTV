@@ -32,9 +32,19 @@ Move real LibreTV page surfaces onto the canonical Friday material system withou
 - Preserve reduced-motion, reduced-transparency, coarse-pointer, and low-power fallbacks.
 - This slice is an incremental shared-surface migration, not a claim that every page has completed visual acceptance.
 
+## Additional page integration on the Phase 3 branch
+
+- Homepage poster rails now use `GlassCard` as the semantic button surface; `SmartImage` poster artwork remains foreground content and is not blurred.
+- Detail hero back and favorite controls use `GlassControl`; episode cards use `GlassCard`. The primary play and share actions retain their existing native button behavior.
+- Personal space uses `GlassBar` for its heading and `GlassPanel` for the continue-watching, media-library, and utility sections.
+- Settings download management uses `GlassPanel` without changing download task actions.
+- Live channel information, EPG, and channel-list sidebar use `GlassPanel`. The LivePlayer video frame remains outside all glass surfaces.
+- The ArtPlayer `PlayerShell` was source-audited: it contains no Friday glass primitive or backdrop-filter styling. The video/media surface and its playback lifecycle remain untouched.
+- The Phase 3 verification workflow now includes a Playwright Chromium route smoke across desktop, iPhone-sized, and iPad-sized viewport emulation. These are browser-emulated layouts, not physical Safari acceptance.
+
 ## Remaining Phase 3 work
 
-- Continue page-local glass migration in homepage content rails, detail hero controls, the remaining settings subpanels, personal space, and remaining live route chrome.
-- Audit the player chrome separately; never glass the video surface itself.
-- Add route-level interaction and responsive regression coverage.
-- Verify independent desktop, iPhone Safari, and iPad Safari layouts before calling the phase complete.
+- Extend deterministic interaction coverage for actual detail playback, episode selection, live channel switching, and settings persistence.
+- Verify the independent Netlify Preview visually and check responsive behavior against the real deployment.
+- Complete physical iPhone Safari and iPad Safari acceptance; Chromium viewport emulation must not be reported as device acceptance.
+- Run Lighthouse/mobile performance checks and record results before calling the phase complete.

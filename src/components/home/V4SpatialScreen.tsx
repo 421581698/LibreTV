@@ -11,7 +11,7 @@ import { Icon } from '@/components/icon';
 import { requestShowDownloadManager } from '@/components/download-manager';
 import { AnimeRecommendationSection, RecommendSection } from '@/components/douban-section';
 import { DoubanCard } from '@/components/video-card';
-import { GlassBar, GlassCard, GlassPanel } from '@/components/ui/friday-glass';
+import { GlassBar, GlassPanel } from '@/components/ui/friday-glass';
 import { SmartImage } from '@/components/smart-image';
 import { db, removeFavorite, type FavoriteEntry, type HistoryEntry } from '@/lib/db';
 import { isInDisabledSubscription, isSourceDisabled, resolveSource, useAppStore } from '@/lib/store';

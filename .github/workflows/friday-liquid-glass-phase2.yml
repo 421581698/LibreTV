@@ -23,6 +23,8 @@ on:
       - "src/components/detail-modal.tsx"
       - "src/components/search-history.tsx"
       - "src/components/home/V4HomepageContent.tsx"
+      - "src/lib/friday-glass/phase3-route-contract.test.ts"
+      - "scripts/friday-liquid-glass-smoke.mjs"
       - "src/components/home/HomeRecommendationSection.tsx"
       - "src/components/movie-detail-page.tsx"
       - "src/components/player-shell.tsx"
@@ -78,3 +80,44 @@ jobs:
           PASSWORD: ci-test-password
           NEXT_TELEMETRY_DISABLED: "1"
         run: npm run build
+
+      - name: Install isolated Playwright runner
+        run: npm install --no-save --package-lock=false playwright@1.55.0
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Start local production server
+        env:
+          PASSWORD: ci-test-password
+          AUTH_DISABLED: "true"
+          PORT: 8080
+        run: |
+          npm run start > /tmp/friday-glass-server.log 2>&1 &
+          echo $! > /tmp/friday-glass-server.pid
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:8080/ >/dev/null; then
+              echo "LibreTV production server is ready."
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/friday-glass-server.log
+          exit 1
+
+      - name: Run route and responsive browser smoke
+        env:
+          QUALITY_BASE_URL: http://127.0.0.1:8080
+          QUALITY_ARTIFACT_DIR: artifacts/friday-liquid-glass
+        run: node scripts/friday-liquid-glass-smoke.mjs
+
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: friday-liquid-glass-browser-evidence-${{ github.run_id }}
+          path: |
+            artifacts/friday-liquid-glass/
+            /tmp/friday-glass-server.log
+          if-no-files-found: warn
+          retention-days: 14
