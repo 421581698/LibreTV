@@ -17,6 +17,8 @@ on:
       - "src/components/ipad-edition/**"
       - "src/components/home/V4HomepageHero.tsx"
       - "src/components/home/V4HomepageContent.tsx"
+      - "src/components/home/home-inline-play.test.ts"
+      - "src/components/home/homepage-playback-regression.test.ts"
       - "src/components/smart-image.tsx"
       - "src/lib/poster/**"
       - "src/lib/ipad-edition/**"
