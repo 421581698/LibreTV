@@ -1,37 +1,37 @@
 /* Apple TV-inspired title detail: artwork is the canvas, information stays legible above it. */
-.ipad-edition[data-ipad-detail="true"] .movie-detail-page {
+.ipad-edition [data-ipad-detail="true"] .movie-detail-page {
   padding-bottom: max(72px, env(safe-area-inset-bottom, 0px)) !important;
   background: #08080a !important;
   color: #f7f7f8;
 }
-.ipad-edition[data-ipad-detail="true"] .movie-detail-hero {
+.ipad-edition [data-ipad-detail="true"] .movie-detail-hero {
   min-height: clamp(620px, 82svh, 900px) !important;
   height: min(88svh, 920px);
   max-height: 920px;
   isolation: isolate;
   background: #08080a;
 }
-.ipad-edition[data-ipad-detail="true"] .movie-detail-hero__image {
+.ipad-edition [data-ipad-detail="true"] .movie-detail-hero__image {
   object-position: center 34%;
   transform: scale(1.015);
 }
-.ipad-edition[data-ipad-detail="true"] .movie-detail-hero__scrim {
+.ipad-edition [data-ipad-detail="true"] .movie-detail-hero__scrim {
   background: linear-gradient(90deg, rgba(5,6,8,.86) 0%, rgba(5,6,8,.62) 36%, rgba(5,6,8,.12) 76%, rgba(5,6,8,.08) 100%);
 }
-.ipad-edition[data-ipad-detail="true"] .movie-detail-hero__bottom-gradient {
+.ipad-edition [data-ipad-detail="true"] .movie-detail-hero__bottom-gradient {
   height: 72%;
   background: linear-gradient(0deg, #08080a 0%, rgba(8,8,10,.92) 13%, rgba(8,8,10,.3) 60%, transparent 100%);
 }
-.ipad-edition[data-ipad-detail="true"] .movie-detail-hero__side-gradient {
+.ipad-edition [data-ipad-detail="true"] .movie-detail-hero__side-gradient {
   background: radial-gradient(ellipse at 74% 28%, transparent 0%, rgba(0,0,0,.08) 46%, rgba(0,0,0,.34) 100%);
 }
-.ipad-edition[data-ipad-detail="true"] .movie-detail-hero__header {
+.ipad-edition [data-ipad-detail="true"] .movie-detail-hero__header {
   max-width: 1600px;
   margin-inline: auto;
   padding-inline: clamp(28px, 5vw, 88px);
   padding-top: max(24px, env(safe-area-inset-top, 0px) + 14px);
 }
-.ipad-edition[data-ipad-detail="true"] .movie-detail-hero__content {
+.ipad-edition [data-ipad-detail="true"] .movie-detail-hero__content {
   width: 100%;
   max-width: 1600px;
   min-height: 0 !important;
@@ -39,23 +39,23 @@
   padding: 0 clamp(28px, 7vw, 112px) clamp(54px, 8vh, 96px);
   justify-content: flex-end;
 }
-.ipad-edition[data-ipad-detail="true"] .movie-detail-hero__content > div {
+.ipad-edition [data-ipad-detail="true"] .movie-detail-hero__content > div {
   max-width: min(720px, 58vw);
 }
-.ipad-edition[data-ipad-detail="true"] .movie-detail-eyebrow {
+.ipad-edition [data-ipad-detail="true"] .movie-detail-eyebrow {
   margin-bottom: 18px;
   letter-spacing: .24em;
   font-size: 11px;
   color: rgba(255,255,255,.62);
 }
-.ipad-edition[data-ipad-detail="true"] .movie-detail-title {
+.ipad-edition [data-ipad-detail="true"] .movie-detail-title {
   max-width: 900px;
   font-size: clamp(48px, 6.4vw, 88px);
   line-height: .98;
   letter-spacing: -.055em;
   text-wrap: balance;
 }
-.ipad-edition[data-ipad-detail="true"] .movie-detail-description {
+.ipad-edition [data-ipad-detail="true"] .movie-detail-description {
   max-width: 660px;
   display: -webkit-box;
   overflow: hidden;
@@ -65,17 +65,17 @@
   line-height: 1.85;
   color: rgba(255,255,255,.76);
 }
-.ipad-edition[data-ipad-detail="true"] .movie-detail-actions {
+.ipad-edition [data-ipad-detail="true"] .movie-detail-actions {
   gap: 14px;
   margin-top: 30px;
 }
-.ipad-edition[data-ipad-detail="true"] .movie-detail-actions > button:first-child {
+.ipad-edition [data-ipad-detail="true"] .movie-detail-actions > button:first-child {
   min-height: 56px;
   padding-inline: 30px;
   font-size: 15px;
   box-shadow: 0 8px 30px rgba(255,255,255,.12);
 }
-.ipad-edition[data-ipad-detail="true"] .movie-detail-glass-control {
+.ipad-edition [data-ipad-detail="true"] .movie-detail-glass-control {
   width: 46px;
   height: 46px;
   border: 1px solid rgba(255,255,255,.22);
@@ -84,11 +84,11 @@
   -webkit-backdrop-filter: blur(18px) saturate(150%);
   backdrop-filter: blur(18px) saturate(150%);
 }
-.ipad-edition[data-ipad-detail="true"] .movie-episode-carousel {
+.ipad-edition [data-ipad-detail="true"] .movie-episode-carousel {
   scroll-padding-inline: clamp(24px, 5vw, 72px);
   padding-inline: clamp(24px, 5vw, 72px);
 }
-.ipad-edition[data-ipad-detail="true"] .movie-episode-card {
+.ipad-edition [data-ipad-detail="true"] .movie-episode-card {
   width: clamp(300px, 31vw, 440px);
   max-width: 440px;
   min-width: 300px;
@@ -96,70 +96,70 @@
   background: rgba(255,255,255,.045);
   transition: transform 220ms ease, border-color 220ms ease, background 220ms ease;
 }
-.ipad-edition[data-ipad-detail="true"] .movie-episode-card:active {
+.ipad-edition [data-ipad-detail="true"] .movie-episode-card:active {
   transform: scale(.985);
 }
-.ipad-edition[data-ipad-detail="true"] .movie-detail-page > section:not(.movie-detail-hero) {
+.ipad-edition [data-ipad-detail="true"] .movie-detail-page > section:not(.movie-detail-hero) {
   max-width: 1600px;
   margin-inline: auto;
   padding-top: 38px;
 }
 @media (max-width: 900px) {
-  .ipad-edition[data-ipad-detail="true"] .movie-detail-hero {
+  .ipad-edition [data-ipad-detail="true"] .movie-detail-hero {
     min-height: max(600px, 78svh) !important;
     height: auto;
   }
-  .ipad-edition[data-ipad-detail="true"] .movie-detail-hero__scrim {
+  .ipad-edition [data-ipad-detail="true"] .movie-detail-hero__scrim {
     background: linear-gradient(90deg, rgba(5,6,8,.68), rgba(5,6,8,.12)), linear-gradient(0deg, rgba(5,6,8,.96), transparent 82%);
   }
-  .ipad-edition[data-ipad-detail="true"] .movie-detail-hero__content {
+  .ipad-edition [data-ipad-detail="true"] .movie-detail-hero__content {
     padding-inline: 28px;
     padding-bottom: 54px;
   }
-  .ipad-edition[data-ipad-detail="true"] .movie-detail-hero__content > div {
+  .ipad-edition [data-ipad-detail="true"] .movie-detail-hero__content > div {
     max-width: min(680px, 82vw);
   }
 }
 @media (max-width: 600px) {
-  .ipad-edition[data-ipad-detail="true"] .movie-detail-hero {
+  .ipad-edition [data-ipad-detail="true"] .movie-detail-hero {
     min-height: max(620px, 84svh) !important;
     height: auto;
   }
-  .ipad-edition[data-ipad-detail="true"] .movie-detail-hero__image {
+  .ipad-edition [data-ipad-detail="true"] .movie-detail-hero__image {
     object-position: 58% center;
   }
-  .ipad-edition[data-ipad-detail="true"] .movie-detail-hero__content {
+  .ipad-edition [data-ipad-detail="true"] .movie-detail-hero__content {
     padding-inline: 22px;
     padding-bottom: 44px;
   }
-  .ipad-edition[data-ipad-detail="true"] .movie-detail-hero__content > div {
+  .ipad-edition [data-ipad-detail="true"] .movie-detail-hero__content > div {
     max-width: 100%;
   }
-  .ipad-edition[data-ipad-detail="true"] .movie-detail-title {
+  .ipad-edition [data-ipad-detail="true"] .movie-detail-title {
     font-size: clamp(42px, 12vw, 62px);
   }
-  .ipad-edition[data-ipad-detail="true"] .movie-detail-description {
+  .ipad-edition [data-ipad-detail="true"] .movie-detail-description {
     -webkit-line-clamp: 3;
     font-size: 13px;
     line-height: 1.7;
   }
-  .ipad-edition[data-ipad-detail="true"] .movie-detail-page > section:not(.movie-detail-hero) {
+  .ipad-edition [data-ipad-detail="true"] .movie-detail-page > section:not(.movie-detail-hero) {
     padding-top: 30px;
   }
-  .ipad-edition[data-ipad-detail="true"] .movie-episode-card {
+  .ipad-edition [data-ipad-detail="true"] .movie-episode-card {
     width: 78vw;
     min-width: 260px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ipad-edition[data-ipad-detail="true"] .movie-episode-card,
-  .ipad-edition[data-ipad-detail="true"] .movie-detail-hero__image {
+  .ipad-edition [data-ipad-detail="true"] .movie-episode-card,
+  .ipad-edition [data-ipad-detail="true"] .movie-detail-hero__image {
     transition: none !important;
     transform: none !important;
   }
 }
 @media (prefers-reduced-transparency: reduce) {
-  .ipad-edition[data-ipad-detail="true"] .movie-detail-glass-control {
+  .ipad-edition [data-ipad-detail="true"] .movie-detail-glass-control {
     background: rgba(12,14,18,.92);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
