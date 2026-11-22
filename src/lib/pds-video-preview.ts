@@ -46,9 +46,9 @@ interface PdsPreviewResponse {
   Code?: string;
   Message?: string;
   video_preview_play_info?: {
-    live_transcoding_task_list?: Array<{ template_id?: string; status?: string; url?: string }>;
-    quick_video_list?: Array<{ template_id?: string; status?: string; url?: string }>;
-    offline_video_transcoding_list?: Array<{ template_id?: string; status?: string; url?: string }>;
+    live_transcoding_task_list?: PdsPreviewEntry[];
+    quick_video_list?: PdsPreviewEntry[];
+    offline_video_transcoding_list?: PdsPreviewEntry[];
     master_url?: string;
   };
 }
@@ -137,7 +137,7 @@ export async function getPdsVideoPreviewPlayInfo(
   const info = data.video_preview_play_info;
   if (!info) throw new PdsPreviewError('PDS response is missing video preview information', 'INVALID_RESPONSE', 502);
 
-  const lists: Array<[PdsPreviewCategory, PdsPreviewResponse['video_preview_play_info'] extends infer T ? T extends object ? PdsPreviewEntry[] | undefined]> = [
+  const lists: Array<[PdsPreviewCategory, PdsPreviewEntry[] | undefined]> = [
     ['live_transcoding', info.live_transcoding_task_list],
     ['quick_video', info.quick_video_list],
     ['offline_video', info.offline_video_transcoding_list],
