@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-api';
 import { isInDisabledSubscription, isSourceDisabled, resolveSource, useAppStore } from '@/lib/store';
-import type { DoubanItem, SearchResultItem, SourceConfig } from '@/lib/types';
+import type { DoubanItem, SourceConfig } from '@/lib/types';
 import { validateSourceUrl } from '@/lib/utils';
 
 function normalizeTitle(value: string) {
