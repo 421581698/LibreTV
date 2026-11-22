@@ -74,7 +74,7 @@ describe('createDashRequestAuthFilter', () => {
         Authorization: 'Bearer secret',
         Cookie: 'session=secret',
         Host: 'evil.example',
-        'X-Bad': 'value\\r\\ninjected: yes',
+        'X-Bad': 'value' + String.fromCharCode(13, 10) + 'injected: yes',
         'Sec-Fetch-Site': 'cross-site',
       },
     }, 'https://media.example/stream.mpd');
