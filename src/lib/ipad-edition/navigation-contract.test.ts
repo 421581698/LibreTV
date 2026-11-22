@@ -39,6 +39,13 @@ describe('iPad Edition navigation contract', () => {
     expect(shell).toContain("data-ipad-detail={isDetailRoute ? 'true' : undefined}");
   });
 
+  it('sizes the top capsule to its three actions instead of a fixed oversized width', () => {
+    const styles = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/ipad-edition.css'), 'utf8');
+    expect(styles).toContain('width: max-content !important;');
+    expect(styles).toContain('height: 48px !important;');
+    expect(styles).toContain('flex: 0 0 36px !important;');
+  });
+
   it('preserves an accessible sidebar toggle and manages modal focus/scroll lifecycle', () => {
     expect(shell).toContain('aria-expanded={sidebarOpen}');
     expect(shell).toContain('aria-controls="ipad-edition-sidebar"');
@@ -51,6 +58,12 @@ describe('iPad Edition navigation contract', () => {
     expect(shell).toContain('last.focus();');
     expect(shell).toContain('first.focus();');
     expect(shell).toContain('menuButtonRef.current?.focus({ preventScroll: true });');
+  });
+
+  it('opens a selected search result directly in the playback route', () => {
+    expect(searchPage).toContain("router.push('/ipad-edition/watch?' + next.toString());");
+    expect(searchPage).not.toContain("router.push('/ipad-edition/detail?' + next.toString());");
+    expect(searchPage).toContain("if (item.sourceUrl) next.set('sourceUrl', item.sourceUrl);");
   });
 
   it('scopes search styles to the actual nested search page element', () => {
