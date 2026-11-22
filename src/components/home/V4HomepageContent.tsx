@@ -9,7 +9,6 @@ import { db, type HistoryEntry } from '@/lib/db';
 import { resolveSource, useAppStore } from '@/lib/store';
 import type { DoubanItem } from '@/lib/types';
 import { fromCmsArtwork, fromTmdbItem } from '@/lib/poster';
-import { TmdbAttribution } from '@/components/ipad-edition/TmdbAttribution';
 import { buildWatchUrl, formatTime } from '@/lib/utils';
 
 const CONTINUE_LIMIT = 8;
@@ -96,7 +95,6 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
           </div>
         )}
       </section>
-      <TmdbAttribution />
     </>
   );
 }
