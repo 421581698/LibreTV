@@ -12,6 +12,8 @@ on:
       - "src/lib/media-playback.test.ts"
       - "src/lib/dash-request-auth.ts"
       - "src/lib/dash-request-auth.test.ts"
+      - "src/lib/pds-video-preview.ts"
+      - "src/lib/pds-video-preview.test.ts"
       - "src/lib/types.ts"
       - "scripts/dash-browser-playback-smoke.mjs"
       - ".github/workflows/dash-player-verification.yml"
