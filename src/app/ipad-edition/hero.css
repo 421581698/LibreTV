@@ -733,6 +733,9 @@ body:has(.ipad-edition[data-ipad-home="true"]) {
 .ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-poster {
   max-width: min(48vw, 580px);
 }
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-pagination {
+  left: auto;
+}
 .ipad-edition[data-ipad-home="true"] .ipad-nav__topbar {
   position: fixed;
   z-index: 100;
@@ -788,7 +791,7 @@ body:has(.ipad-edition[data-ipad-home="true"]) {
   .ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero {
     height: 60vh;
     height: 60dvh;
-    min-height: 60vh;
+    min-height: min(60vh, 760px);
     max-height: 760px;
   }
   .ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-poster {
