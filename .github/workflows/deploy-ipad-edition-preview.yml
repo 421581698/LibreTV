@@ -835,26 +835,23 @@ jobs:
                 // image has not yet been painted into the captured screenshot.
                 await page.evaluate(async () => {
                   const slots = Array.from(document.querySelectorAll('[data-ipad-poster-slot]'));
-                  for (const slot of slots) {
-                    slot.scrollIntoView({ block: 'center', inline: 'nearest' });
-                    const image = slot.querySelector('img');
-                    if (image) {
-                      image.loading = 'eager';
-                      if (typeof image.decode === 'function') {
-                        // A single broken or stalled image decode must not hold the full
-                        // eight-viewport audit hostage. Record the failure in the later
-                        // rendered-pixel inspection instead of waiting indefinitely.
-                        await Promise.race([
-                          image.decode().catch(() => {}),
-                          new Promise(resolve => setTimeout(resolve, 8000)),
-                        ]);
-                      }
-                    }
-                    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-                  }
+                  const images = slots.map(slot => slot.querySelector('img')).filter(Boolean);
+                  // Promote every lazy poster at once. Sequential per-card decode waits
+                  // multiplied an 8s timeout by every slot in every viewport/theme pair.
+                  for (const image of images) image.loading = 'eager';
+                  await Promise.race([
+                    Promise.all(images.map(image =>
+                      typeof image.decode === 'function' ? image.decode().catch(() => {}) : Promise.resolve()
+                    )),
+                    new Promise(resolve => setTimeout(resolve, 12000)),
+                  ]);
+                  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
                   window.scrollTo(0, 0);
                   await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-                  if (document.fonts?.ready) await document.fonts.ready;
+                  if (document.fonts?.ready) await Promise.race([
+                    document.fonts.ready,
+                    new Promise(resolve => setTimeout(resolve, 3000)),
+                  ]);
                 });
                 // Inspect every poster from a browser-composited viewport screenshot.
                 // A single fullPage capture cannot contain horizontally off-screen carousel
@@ -880,15 +877,9 @@ jobs:
                     }
                     slot.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
                     const image = slot.querySelector('img');
-                    if (image) {
-                      image.loading = 'eager';
-                      if (typeof image.decode === 'function') {
-                        await Promise.race([
-                          image.decode().catch(() => {}),
-                          new Promise(resolve => setTimeout(resolve, 8000)),
-                        ]);
-                      }
-                    }
+                    if (image) image.loading = 'eager';
+                    // Decode was bounded once for the whole poster set above. Do not
+                    // repeat an 8s per-image wait before every screenshot.
                     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
                   }, index);
 
