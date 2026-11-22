@@ -962,7 +962,7 @@ body:has(.ipad-edition[data-environment="light"]) {
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  max-width: none !important;
+  max-width: none;
   margin: 0 !important;
   padding-block-start: 0 !important;
 }
@@ -1891,6 +1891,6 @@ body:has(.ipad-edition[data-environment="light"]) {
   box-sizing: border-box;
   width: 100% !important;
   min-width: 0;
-  max-width: 100% !important;
+  max-width: 100%;
   overflow-x: clip;
 }
