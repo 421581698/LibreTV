@@ -21,6 +21,7 @@ on:
       - "docs/pds-video-preview.md"
       - "src/lib/types.ts"
       - "scripts/dash-browser-playback-smoke.mjs"
+      - "scripts/connect-page-browser-smoke.mjs"
       - ".github/workflows/dash-player-verification.yml"
   workflow_dispatch:
 
@@ -56,3 +57,15 @@ jobs:
         run: npx playwright install --with-deps chrome
       - name: Verify real DASH browser playback
         run: node scripts/dash-browser-playback-smoke.mjs
+      - name: Start production server for connection-page smoke
+        env:
+          PASSWORD: ci-test-password
+          PORT: 3000
+        run: |
+          npm run start -- --hostname 127.0.0.1 > /tmp/libretv-next.log 2>&1 &
+          echo $! > /tmp/libretv-next.pid
+          node -e "const wait=async()=>{for(let i=0;i<60;i++){try{const r=await fetch('http://127.0.0.1:3000/connect');if(r.ok)process.exit(0)}catch{}await new Promise(resolve=>setTimeout(resolve,1000))}console.error(require('fs').readFileSync('/tmp/libretv-next.log','utf8'));process.exit(1)};wait()"
+      - name: Verify DASH connection form and secure URL handoff
+        env:
+          BASE_URL: http://127.0.0.1:3000
+        run: node scripts/connect-page-browser-smoke.mjs
