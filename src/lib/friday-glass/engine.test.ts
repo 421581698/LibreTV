@@ -4,6 +4,8 @@ import {
   resolveMaterial,
   materialToCssVars,
   type GlassVariant,
+  GLASS_ROLE_VARIANTS,
+  isGlassVariant,
 } from './tokens';
 import { detectProfile, withVisibility, type RuntimeProfile } from './adaptive-runtime';
 import { createRefractionDefs } from './svg-layer';
@@ -26,6 +28,22 @@ describe('Friday Liquid Glass Engine — tokens (Layer 1)', () => {
     expect(resolveMaterial('card')).toBe(GLASS_MATERIALS.card);
     expect(resolveMaterial('nonsense')).toBe(GLASS_MATERIALS.control);
     expect(resolveMaterial(undefined)).toBe(GLASS_MATERIALS.control);
+  });
+
+
+  it('maps semantic UI roles to canonical material presets', () => {
+    expect(GLASS_ROLE_VARIANTS.popover).toBe('panel');
+    expect(GLASS_ROLE_VARIANTS.movieCard).toBe('card');
+    expect(GLASS_ROLE_VARIANTS.search).toBe('field');
+    expect(GLASS_ROLE_VARIANTS.navigation).toBe('bar');
+    expect(resolveMaterial('toolbar')).toBe(GLASS_MATERIALS.bar);
+    expect(resolveMaterial('input')).toBe(GLASS_MATERIALS.field);
+  });
+
+  it('recognizes only canonical glass variants', () => {
+    expect(isGlassVariant('card')).toBe(true);
+    expect(isGlassVariant('popover')).toBe(false);
+    expect(isGlassVariant('unknown')).toBe(false);
   });
 
   it('emits CSS custom properties from a material', () => {
