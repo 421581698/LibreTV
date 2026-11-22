@@ -3,7 +3,7 @@ name: Deploy LibreTV iPad Edition Preview (Ubuntu 24.04)
 # Poster proxy verification follows the iPad homepage image reliability fix.
 # Rendered PNG poster pixels are now a required gate; unreadable slots fail closed.
 # [deploy-ipad-edition-preview] Verify glass material, touch gestures and rendered poster pixels across iPad viewports.
-# Preview dispatch is gated by a green Verify run for the same branch head; screenshots are reset to the closed-sidebar page top.
+# Every relevant push to this feature branch queues the isolated Preview; deployment still waits for Verify on the exact same SHA.
 # Layout diagnostics are passed explicitly into the browser evaluation context for report serialization.
 
 on:
@@ -58,7 +58,7 @@ concurrency:
 
 jobs:
   deploy-preview:
-    if: ${{ ((github.event_name == 'workflow_dispatch' && inputs.confirm_preview_deploy == 'yes') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[deploy-ipad-edition-preview]'))) && github.ref == 'refs/heads/feature/libretv-ipad-edition-product' }}
+    if: ${{ github.ref == 'refs/heads/feature/libretv-ipad-edition-product' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.confirm_preview_deploy == 'yes')) }}
     name: Build and deploy isolated iPad Edition Preview
     runs-on: ubuntu-24.04
     timeout-minutes: 35
