@@ -11,7 +11,7 @@ import { Icon } from '@/components/icon';
 import { requestShowDownloadManager } from '@/components/download-manager';
 import { AnimeRecommendationSection, RecommendSection } from '@/components/douban-section';
 import { DoubanCard } from '@/components/video-card';
-import { GlassPanel } from '@/components/ui/glass';
+import { GlassBar, GlassCard, GlassPanel } from '@/components/ui/friday-glass';
 import { SmartImage } from '@/components/smart-image';
 import { db, removeFavorite, type FavoriteEntry, type HistoryEntry } from '@/lib/db';
 import { isInDisabledSubscription, isSourceDisabled, resolveSource, useAppStore } from '@/lib/store';
@@ -322,14 +322,14 @@ function MeScreen() {
 
   return (
     <div className="v4-me-layout v52-me-layout">
-      <header className="v52-me-header">
+      <GlassBar as="header" className="v52-me-header">
         <div className="v52-me-heading">
           <h2>我的空间</h2>
           <span>PERSONAL LIBRARY</span>
         </div>
-      </header>
+      </GlassBar>
 
-      <section className="v52-me-section v52-me-continue" aria-label="继续观看">
+      <GlassPanel as="section" className="v52-me-section v52-me-continue" aria-label="继续观看">
         <div className="v52-me-section-head">
           <h3>继续观看</h3>
           {history && history.length > 0 ? (
@@ -350,9 +350,9 @@ function MeScreen() {
             {history.map((item) => <MeHistoryCard key={item.id} item={item} />)}
           </div>
         )}
-      </section>
+      </GlassPanel>
 
-      <section className="v52-me-section v52-me-library" aria-label="媒体库">
+      <GlassPanel as="section" className="v52-me-section v52-me-library" aria-label="媒体库">
         <div className="v52-me-section-head"><h3>媒体库</h3></div>
         <div className="v52-me-library-grid">
           <button type="button" className="v52-me-library-tile" aria-expanded={showFavorites}
@@ -380,9 +380,9 @@ function MeScreen() {
             )}
           </div>
         ) : null}
-      </section>
+      </GlassPanel>
 
-      <section className="v52-me-section v52-me-other" aria-label="其他功能">
+      <GlassPanel as="section" className="v52-me-section v52-me-other" aria-label="其他功能">
         <div className="v52-me-section-head"><h3>其他功能</h3></div>
         <div className="v52-me-list">
           <Link href="/search" className="v52-me-list-row">
@@ -402,7 +402,7 @@ function MeScreen() {
             <strong>设置</strong><span className="v52-me-chevron" aria-hidden="true">›</span>
           </Link>
         </div>
-      </section>
+      </GlassPanel>
     </div>
   );
 }
@@ -464,7 +464,7 @@ function SettingsScreen() {
     <div className="mx-auto w-full max-w-5xl space-y-5 px-4 pb-12 sm:px-6">
 
       <SourceManagerDrawer open embedded onClose={() => undefined} />
-      <section className="card p-4 sm:p-5" aria-labelledby="settings-downloads-title">
+      <GlassPanel as="section" className="card p-4 sm:p-5" aria-labelledby="settings-downloads-title">
         <div className="flex items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent/10 text-accent">
@@ -488,7 +488,7 @@ function SettingsScreen() {
         <p className="mt-3 text-xs leading-5 text-faint">
           查看下载进度与状态，暂停、继续、取消、重试或删除任务。下载完成状态以实际文件保存结果为准。
         </p>
-      </section>
+      </GlassPanel>
     </div>
   );
 }

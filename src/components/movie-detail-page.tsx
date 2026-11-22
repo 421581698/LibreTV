@@ -15,6 +15,7 @@ import { formatRemarks } from '@/lib/remarks';
 import { isMovieType } from '@/lib/cms-parser';
 import type { SourceConfig, VideoDetail } from '@/lib/types';
 import { enqueueDownload } from '@/components/download-manager';
+import { GlassCard, GlassControl } from '@/components/ui/friday-glass';
 
 function detailSource(store: Pick<ReturnType<typeof useAppStore.getState>, 'customAPIs' | 'envSources'>, key: string, name: string, sourceUrl: string): SourceConfig | null {
   const local = resolveSource(store, key);
@@ -255,9 +256,9 @@ export function MovieDetailPage() {
         <div className="movie-detail-hero__side-gradient absolute inset-0 -z-10" />
 
         <header className="movie-detail-hero__header relative z-10 flex items-center justify-between px-5 pt-[max(18px,env(safe-area-inset-top))] sm:px-10">
-          <button type="button" onClick={() => router.back()} className="movie-detail-glass-control" aria-label="返回上一页">
+          <GlassControl as="button" onClick={() => router.back()} className="movie-detail-glass-control" aria-label="返回上一页">
             <span aria-hidden="true">‹</span>
-          </button>
+          </GlassControl>
           <button type="button" onClick={() => void share()} disabled={sharing} className="movie-detail-glass-control" aria-label="分享影片">↗</button>
         </header>
 
@@ -275,9 +276,9 @@ export function MovieDetailPage() {
               <button type="button" onClick={() => play(0)} disabled={episodes.length === 0} className="inline-flex min-h-12 items-center gap-3 rounded-full bg-white px-7 text-sm font-semibold text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-40">
                 <span aria-hidden="true">▶</span>{isMovie ? '立即播放' : '开始观看'}
               </button>
-              <button type="button" onClick={() => void toggleFavorite()} className="flex h-12 w-12 items-center justify-center rounded-full border border-white/25 bg-white/10 text-xl backdrop-blur-xl" aria-label={favorite ? '取消收藏' : '加入收藏'} aria-pressed={Boolean(favorite)}>
+              <GlassControl as="button" onClick={() => void toggleFavorite()} className="flex h-12 w-12 items-center justify-center rounded-full border border-white/25 bg-white/10 text-xl backdrop-blur-xl" aria-label={favorite ? '取消收藏' : '加入收藏'} aria-pressed={Boolean(favorite)}>
                 <span aria-hidden="true">{favorite ? '♥' : '＋'}</span>
-              </button>
+              </GlassControl>
               <button type="button" onClick={() => void share()} disabled={sharing} className="flex h-12 w-12 items-center justify-center rounded-full border border-white/25 bg-white/10 text-lg backdrop-blur-xl" aria-label="分享影片">↗</button>
             </div>
           </div>
@@ -299,9 +300,9 @@ export function MovieDetailPage() {
               const titleText = episodeDisplayTitle(index) || episodeNumberLabel(index) || episodeTitle(index);
               const detailText = [item?.description?.trim(), item?.duration?.trim()].filter(Boolean).join(' · ');
               return (
-                <button
+                <GlassCard
+                  as="button"
                   key={item?.url || episodeUrl || index}
-                  type="button"
                   onClick={() => play(index)}
                   className="movie-episode-card group flex w-[72vw] max-w-[420px] min-w-[260px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[.055] text-left transition hover:border-white/25 hover:bg-white/[.085]"
                   aria-label={`播放${titleText}`}
@@ -331,7 +332,7 @@ export function MovieDetailPage() {
                     )}
                     <span className="mt-2 inline-flex items-center gap-2 text-xs font-medium text-white/75">▶ 播放本集</span>
                   </div>
-                </button>
+                </GlassCard>
               );
             })}
           </div>
