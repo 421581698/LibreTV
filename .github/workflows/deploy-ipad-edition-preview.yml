@@ -1065,9 +1065,9 @@ jobs:
                 if (route.name === "watch") {
                   await page.locator(".netflix-watch").waitFor({ state: "visible", timeout: 30000 });
                   await page.locator(".netflix-player-frame").waitFor({ state: "visible", timeout: 30000 });
-                  // The watch page also renders a hidden fallback H1 outside the visible player content.
-                  // Scope the assertion to the actual title row inside the rendered watch page.
-                  const playerTitle = page.locator(".netflix-watch .netflix-title-row h1");
+                  // The title-row H1 is hidden by the shared page-heading rule; assert the
+                  // visible title in the player metadata panel instead.
+                  const playerTitle = page.locator(".netflix-watch .watch-cinema-meta h2");
                   await playerTitle.waitFor({ state: "visible", timeout: 30000 });
                   if ((await playerTitle.innerText()).trim() !== "iPad Preview 样片") {
                     throw new Error("Visible player title did not match the mocked CMS fixture.");
@@ -1094,10 +1094,10 @@ jobs:
                     hasPlayerFrame: Boolean(document.querySelector(".netflix-player-frame")),
                     hasWatchContent: Boolean(document.querySelector(".netflix-watch")),
                     hasVisiblePlayerTitle: (() => {
-                      const title = document.querySelector(".netflix-watch .netflix-title-row h1");
+                      const title = document.querySelector(".netflix-watch .watch-cinema-meta h2");
                       return Boolean(title && title.getClientRects().length > 0 && getComputedStyle(title).visibility !== "hidden");
                     })(),
-                    visiblePlayerTitleText: document.querySelector(".netflix-watch .netflix-title-row h1")?.textContent?.trim() ?? null,
+                    visiblePlayerTitleText: document.querySelector(".netflix-watch .watch-cinema-meta h2")?.textContent?.trim() ?? null,
                     visualScope: routeName === "detail" ? "full-detail-content-with-mocked-cms-fixture"
                       : routeName === "watch" ? "player-page-with-mocked-cms-fixture"
                       : "page-content",
