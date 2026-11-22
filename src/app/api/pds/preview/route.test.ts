@@ -36,6 +36,7 @@ beforeEach(() => {
   state.error = null;
   state.guarded = null;
   state.input = null;
+  state.result = { status: 'ready', renditions: [{ templateId: '264_1080p', url: 'https://media.example/movie.m3u8', category: 'quick_video' }] };
 });
 
 describe('POST /api/pds/preview', () => {
