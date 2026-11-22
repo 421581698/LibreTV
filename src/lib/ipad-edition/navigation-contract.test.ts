@@ -124,3 +124,19 @@ describe('iPad Edition Cinema Experience', () => {
     expect(styles).toContain('animation: none !important;');
   });
 });
+
+
+describe('iPad Edition cinematic detail experience', () => {
+  it('loads the isolated detail presentation without changing shared movie detail behavior', () => {
+    const detailRoute = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/detail/page.tsx'), 'utf8');
+    const styles = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/detail/detail.css'), 'utf8');
+    expect(detailRoute).toContain("import './detail.css';");
+    expect(detailRoute).toContain('<MovieDetailPage watchPath="/ipad-edition/watch" />');
+    expect(styles).toContain('.ipad-edition[data-ipad-detail="true"] .movie-detail-hero');
+    expect(styles).toContain('.ipad-edition[data-ipad-detail="true"] .movie-detail-title');
+    expect(styles).toContain('.ipad-edition[data-ipad-detail="true"] .movie-episode-card');
+    expect(styles).toContain('env(safe-area-inset-top, 0px)');
+    expect(styles).toContain('@media (prefers-reduced-motion: reduce)');
+    expect(styles).toContain('@media (prefers-reduced-transparency: reduce)');
+  });
+});
