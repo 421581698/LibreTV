@@ -133,6 +133,24 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler deploy --config wrangler.ipad-edition-preview.toml
+      - name: Configure TMDB metadata secret for Preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TMDB_API_READ_ACCESS_TOKEN: ${{ secrets.TMDB_API_READ_ACCESS_TOKEN }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          METADATA_API_KEY: ${{ secrets.METADATA_API_KEY }}
+        run: |
+          if [ -n "${TMDB_API_READ_ACCESS_TOKEN:-}" ]; then
+            printf '%s' "$TMDB_API_READ_ACCESS_TOKEN" | npx wrangler secret put TMDB_API_READ_ACCESS_TOKEN --config wrangler.ipad-edition-preview.toml
+          elif [ -n "${TMDB_API_KEY:-}" ]; then
+            printf '%s' "$TMDB_API_KEY" | npx wrangler secret put TMDB_API_KEY --config wrangler.ipad-edition-preview.toml
+          elif [ -n "${METADATA_API_KEY:-}" ]; then
+            printf '%s' "$METADATA_API_KEY" | npx wrangler secret put METADATA_API_KEY --config wrangler.ipad-edition-preview.toml
+          else
+            echo "::error::Missing Preview environment secret: configure TMDB_API_READ_ACCESS_TOKEN, TMDB_API_KEY, or METADATA_API_KEY."
+            exit 1
+          fi
       - name: Verify isolated iPad Edition route
         run: |
           node --input-type=module <<'NODE'
