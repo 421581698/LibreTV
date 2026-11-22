@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useRef, type PointerEvent as ReactPointerEvent, type KeyboardEvent } from 'react';
 import type { DoubanItem } from '@/lib/types';
 import { IpadEditionHeroArtwork } from '@/components/ipad-edition/IpadEditionHeroArtwork';
@@ -9,6 +8,8 @@ interface IpadEditionHeroProps {
   items: DoubanItem[];
   activeIndex: number;
   onSelect: (index: number) => void;
+  onOpen: (item: DoubanItem) => void;
+  pendingTitle: string;
 }
 
 function detailHref(title: string) {
@@ -16,7 +17,7 @@ function detailHref(title: string) {
 }
 
 /** Homepage-only cinematic feature; source artwork is navigable by swipe, keys and controls. */
-export function IpadEditionHero({ items, activeIndex, onSelect }: IpadEditionHeroProps) {
+export function IpadEditionHero({ items, activeIndex, onSelect, onOpen, pendingTitle }: IpadEditionHeroProps) {
   const item = items[activeIndex];
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
   if (!item) return null;
@@ -71,10 +72,10 @@ export function IpadEditionHero({ items, activeIndex, onSelect }: IpadEditionHer
           <span>TMDB · 中国区精选</span>
           {item.rating ? <span className="ipad-edition__cinema-hero-rating">★ {item.rating}</span> : null}
         </div>
-        <Link className="ipad-edition__cinema-hero-cta" href={detailHref(item.title)}>
+        <button type="button" className="ipad-edition__cinema-hero-cta" aria-busy={pendingTitle === item.title} disabled={Boolean(pendingTitle)} onClick={() => onOpen(item)}>
           查找播放资源
           <span aria-hidden="true">→</span>
-        </Link>
+        </button>
       </div>
 
       {items.length > 1 ? (
