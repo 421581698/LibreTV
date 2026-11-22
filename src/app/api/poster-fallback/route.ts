@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
 import { guardRequest } from '@/lib/api-guard';
-import { fetchTmdbJson } from '@/lib/tmdb';
+import { fetchTmdbJson, getTmdbPosterBase } from '@/lib/tmdb';
 import { getCache, setCache } from '@/lib/fetch-utils';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const CACHE_TTL = 24 * 60 * 60 * 1000;
-const IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
 
 interface TmdbSearchResult {
   id: number;
@@ -60,7 +59,8 @@ export async function GET(req: Request) {
       const releaseYear = (entry.release_date || entry.first_air_date || '').slice(0, 4);
       return releaseYear === year;
     });
-    const poster = result?.poster_path ? `${IMAGE_BASE}${result.poster_path}` : null;
+    const imageBase = result?.poster_path ? await getTmdbPosterBase() : '';
+    const poster = result?.poster_path ? `${imageBase}${result.poster_path}` : null;
     setCache(cacheKey, poster, CACHE_TTL);
     return NextResponse.json({ poster, tmdbId: result?.id ?? null });
   } catch (error) {
