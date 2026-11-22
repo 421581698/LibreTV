@@ -16,6 +16,7 @@ type LayoutSnapshot = {
     devicePixelRatio: number;
   };
   elements: Record<string, unknown>;
+  heroArtwork: Record<string, unknown>;
   siblingLayoutChain: Record<string, unknown>;
   searchFlow: Record<string, unknown>;
   overlapCandidates: Record<string, unknown>[];
@@ -236,6 +237,20 @@ function collectSnapshot(): LayoutSnapshot {
   const root = document.querySelector<HTMLElement>('.ipad-edition');
   const main = document.querySelector<HTMLElement>('.ipad-edition__main');
   const viewport = window.visualViewport;
+  const artwork = hero?.querySelector<HTMLElement>('.ipad-edition__cinema-hero-media');
+  const posterImage = hero?.querySelector<HTMLImageElement>('.ipad-edition__cinema-hero-poster img');
+  const heroArtwork = {
+    mode: artwork?.dataset.artworkMode ?? null,
+    targetWidthPx: Number(artwork?.dataset.posterResolutionTarget ?? 1200),
+    poster: posterImage ? {
+      complete: posterImage.complete,
+      naturalWidth: posterImage.naturalWidth,
+      naturalHeight: posterImage.naturalHeight,
+      resolutionTier: posterImage.dataset.resolutionTier ?? 'unavailable',
+      meets1200px: posterImage.naturalWidth >= 1200,
+      currentSrc: (posterImage.currentSrc || posterImage.src || '').slice(0, 180),
+    } : { missing: true },
+  };
   return {
     capturedAt: new Date().toISOString(),
     viewport: {
@@ -259,6 +274,7 @@ function collectSnapshot(): LayoutSnapshot {
       home: measureElement('.ipad-edition__home'),
       hero: measureElement('.ipad-edition__cinema-hero'),
     },
+    heroArtwork,
     siblingLayoutChain: root ? collectSiblingLayoutChain(root, main) : { missingRoot: true },
     searchFlow: collectSearchFlow(),
     overlapCandidates: collectOverlayCandidates(),
