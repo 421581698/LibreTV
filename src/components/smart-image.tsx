@@ -25,6 +25,8 @@ interface SmartImageProps {
   showDefaultFallback?: boolean;
   /** 候选链耗尽后回调，调用方切换占位图等兜底 UI */
   onExhausted?: () => void;
+  /** 仅在需要审计的关键海报上记录浏览器实际解码尺寸。 */
+  measureNaturalSize?: boolean;
 }
 
 /**
@@ -46,6 +48,7 @@ export function SmartImage({
   loading = 'lazy',
   showDefaultFallback = true,
   onExhausted,
+  measureNaturalSize = false,
 }: SmartImageProps) {
   const sourceUrl = asset?.originalUrl ?? url;
   const candidates = [...new Set([
@@ -77,8 +80,8 @@ export function SmartImage({
     setIdx(0);
     setHdrFailed(false);
     setFallback(false);
-    setNaturalSize(null);
-  }, [sourceUrl, fallbackUrl, hdrUrl, mode, customProxy]);
+    if (measureNaturalSize) setNaturalSize(null);
+  }, [sourceUrl, fallbackUrl, hdrUrl, mode, customProxy, measureNaturalSize]);
 
   if (!src) return null;
   return (
@@ -90,15 +93,15 @@ export function SmartImage({
       loading={loading}
       decoding="async"
       referrerPolicy="no-referrer"
-      data-natural-width={naturalSize?.width}
-      data-natural-height={naturalSize?.height}
-      data-resolution-tier={naturalSize ? (naturalSize.width >= 1200 ? 'meets-1200px' : 'below-1200px') : 'pending'}
-      onLoad={(event) => {
+      data-natural-width={measureNaturalSize ? naturalSize?.width : undefined}
+      data-natural-height={measureNaturalSize ? naturalSize?.height : undefined}
+      data-resolution-tier={measureNaturalSize ? (naturalSize ? (naturalSize.width >= 1200 ? 'meets-1200px' : 'below-1200px') : 'pending') : undefined}
+      onLoad={measureNaturalSize ? (event) => {
         const image = event.currentTarget;
         setNaturalSize({ width: image.naturalWidth, height: image.naturalHeight });
-      }}
+      } : undefined}
       onError={() => {
-        setNaturalSize(null);
+        if (measureNaturalSize) setNaturalSize(null);
         if (fallback) return;
         if (idx + 1 < activeCandidates.length) {
           setIdx((current) => current + 1);
