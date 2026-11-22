@@ -8,6 +8,7 @@ import { api } from '@/lib/client-api';
 import { useAppStore } from '@/lib/store';
 import type { BangumiCalendarResponse, DoubanItem, DoubanResponse } from '@/lib/types';
 import { fromBangumiItem, fromTmdbItem } from '@/lib/poster';
+import { TmdbAttribution } from '@/components/ipad-edition/TmdbAttribution';
 
 type CollectionKind = 'movie' | 'tv' | 'anime';
 const tabs = ['热门', '最新', '高分'] as const;
@@ -45,7 +46,7 @@ export function IpadEditionCollection({ kind, title }: { kind: CollectionKind; t
         <p className="ipad-edition__eyebrow">LIBRETV COLLECTION</p>
         <h1>{title}</h1>
         <p>{kind === 'anime' ? '来自 Bangumi 的真实每日放送日历。' : '默认展示中国影视作品，元数据与海报来自 TMDB。'}</p>
-        {kind !== 'anime' ? <small className="ipad-edition__section-note">This product uses the TMDB API but is not endorsed or certified by TMDB. · <a href="https://www.themoviedb.org" target="_blank" rel="noreferrer">TMDB</a></small> : null}
+
       </header>
       {kind !== 'anime' ? <div className="ipad-edition__collection-tabs" role="group" aria-label="内容排序">{tabs.map((item) => <button type="button" key={item} className={tag === item ? 'is-active' : ''} aria-pressed={tag === item} onClick={() => { setTag(item); setPage(0); }}>{item}</button>)}</div> : null}
       {query.isLoading ? <div className="ipad-edition__poster-grid">{Array.from({ length: 10 }).map((_, index) => <div className="ipad-edition__poster-skeleton" key={index} />)}</div> : null}
@@ -63,6 +64,7 @@ export function IpadEditionCollection({ kind, title }: { kind: CollectionKind; t
           {kind !== 'anime' ? <div className="ipad-edition__pagination"><button type="button" disabled={page === 0} onClick={() => setPage((value) => Math.max(0, value - 1))}>上一页</button><span>第 {page + 1} 页</span><button type="button" disabled={uniqueItems.length < 20} onClick={() => setPage((value) => value + 1)}>下一页</button></div> : null}
         </>
       ) : null}
+      {kind !== 'anime' ? <TmdbAttribution /> : null}
     </div>
   );
 }
