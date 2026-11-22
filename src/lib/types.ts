@@ -159,7 +159,7 @@ export interface RegistrySearchResource {
   resource_type: 'CMS_VOD' | 'DIRECT_MEDIA' | 'EMBEDDED_PLAYER';
   url: string;
   candidate_id?: string;
-  media_format?: 'hls' | 'mp4' | 'webm' | null;
+  media_format?: 'hls' | 'dash' | 'mp4' | 'webm' | null;
   access_state: string;
   validation_state: string;
   playback_state: string;
