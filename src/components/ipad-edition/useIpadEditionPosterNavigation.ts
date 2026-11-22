@@ -8,7 +8,7 @@ import type { DoubanItem, SourceConfig } from '@/lib/types';
 import { validateSourceUrl } from '@/lib/utils';
 
 function normalizeTitle(value: string) {
-  return value.replace(/[\\s\\p{P}\\p{S}]/gu, '').toLocaleLowerCase();
+  return value.replace(/[\s\p{P}\p{S}]/gu, '').toLocaleLowerCase();
 }
 
 /** Resolves recommendation metadata to a real enabled CMS resource before opening detail. */
