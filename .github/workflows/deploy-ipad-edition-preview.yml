@@ -15,6 +15,7 @@ on:
       - ".github/workflows/ipad-edition-verify.yml"
       - "src/app/ipad-edition/**"
       - "src/components/ipad-edition/**"
+      - "src/components/home/V4SpatialScreen.tsx"
       - "src/components/home/V4HomepageHero.tsx"
       - "src/components/home/V4HomepageContent.tsx"
       - "src/components/home/home-inline-play.test.ts"
