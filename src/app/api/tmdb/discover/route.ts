@@ -29,6 +29,58 @@ function sortForTag(tag: string, mediaType: 'movie' | 'tv'): string {
   return 'popularity.desc';
 }
 
+/**
+ * Keep provider failures distinguishable without ever returning credentials or
+ * raw upstream response bodies to the browser.
+ */
+function classifyTmdbFailure(error: unknown): {
+  code: string;
+  message: string;
+  upstreamStatus?: number;
+} {
+  const detail = error instanceof Error ? error.message : String(error);
+  const statusMatch = /^TMDB_HTTP_(\d{3})$/.exec(detail);
+  const upstreamStatus = statusMatch ? Number(statusMatch[1]) : undefined;
+
+  if (upstreamStatus === 401 || upstreamStatus === 403) {
+    return {
+      code: 'TMDB_AUTH_REJECTED',
+      message: 'TMDB 拒绝了访问凭据，请检查 Preview 环境中的 API 读访问令牌。',
+      upstreamStatus,
+    };
+  }
+  if (upstreamStatus === 429) {
+    return {
+      code: 'TMDB_RATE_LIMITED',
+      message: 'TMDB 请求过于频繁，请稍后重试。',
+      upstreamStatus,
+    };
+  }
+  if (upstreamStatus !== undefined) {
+    return {
+      code: 'TMDB_UPSTREAM_HTTP_ERROR',
+      message: 'TMDB 上游服务暂时无法完成请求。',
+      upstreamStatus,
+    };
+  }
+  if (detail.includes('跳转目标被拒绝') || detail.includes('DNS 查询超时')) {
+    return {
+      code: 'TMDB_NETWORK_POLICY_BLOCKED',
+      message: 'Preview Worker 无法通过安全网络检查连接 TMDB。',
+    };
+  }
+  if (/timeout|timed out|aborted/i.test(detail)) {
+    return {
+      code: 'TMDB_UPSTREAM_TIMEOUT',
+      message: '连接 TMDB 超时，请稍后重试。',
+    };
+  }
+  return {
+    code: 'TMDB_UPSTREAM_ERROR',
+    message: 'TMDB 推荐服务暂时不可用，请稍后重试。',
+  };
+}
+
 export async function GET(req: Request) {
   const guarded = guardRequest(req);
   if (guarded) return guarded;
@@ -74,11 +126,27 @@ export async function GET(req: Request) {
     return NextResponse.json(result, { headers: { 'Cache-Control': 'public, max-age=900, s-maxage=3600, stale-while-revalidate=3600' } });
   } catch (error) {
     const notConfigured = error instanceof Error && error.message === 'TMDB_NOT_CONFIGURED';
+    if (notConfigured) {
+      return NextResponse.json(
+        { error: 'TMDB 服务尚未配置，请在 Preview Worker 中设置访问密钥', code: 'TMDB_NOT_CONFIGURED' },
+        { status: 424, headers: { 'Cache-Control': 'no-store' } },
+      );
+    }
+
+    const failure = classifyTmdbFailure(error);
+    // Deliberately log only a classified code and HTTP status; never log tokens,
+    // authorization headers, or upstream response bodies.
+    console.error('[TMDB discover] request failed', {
+      code: failure.code,
+      upstreamStatus: failure.upstreamStatus ?? null,
+    });
     return NextResponse.json(
-      { error: notConfigured ? 'TMDB 服务尚未配置，请在 Preview Worker 中设置访问密钥' : '暂时无法获取中国影视内容', code: notConfigured ? 'TMDB_NOT_CONFIGURED' : 'TMDB_DISCOVER_UNAVAILABLE' },
-      // 503 is reserved by the client API for the global password-setup flow.
-      // Missing an optional metadata provider must not open the site-wide login modal.
-      { status: notConfigured ? 424 : 502, headers: { 'Cache-Control': 'no-store' } },
+      {
+        error: failure.message,
+        code: failure.code,
+        ...(failure.upstreamStatus ? { upstreamStatus: failure.upstreamStatus } : {}),
+      },
+      { status: 502, headers: { 'Cache-Control': 'no-store' } },
     );
   }
 }
