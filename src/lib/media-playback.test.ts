@@ -18,8 +18,12 @@ describe('getMediaPlaybackKind', () => {
     expect(getMediaPlaybackKind('https://media.example/movie.webm')).toBe('webm');
   });
 
-  it('does not mislabel DASH as HLS', () => {
-    expect(getMediaPlaybackKind('https://media.example/manifest.mpd')).toBe('unsupported');
+  it('recognizes DASH MPD manifests with query strings', () => {
+    expect(getMediaPlaybackKind('https://media.example/manifest.mpd?token=abc')).toBe('dash');
+  });
+
+  it('uses an explicit DASH type hint for extensionless manifests', () => {
+    expect(getMediaPlaybackKind('https://media.example/manifest?id=123', 'dash')).toBe('dash');
   });
 
   it('uses a validated media type hint for extensionless URLs', () => {
