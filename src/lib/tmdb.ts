@@ -1,4 +1,4 @@
-import { fetchUpstream } from '@/lib/fetch-utils';
+import { fetchUpstream, getCache, setCache } from '@/lib/fetch-utils';
 
 const API_BASE = 'https://api.themoviedb.org/3';
 
@@ -59,4 +59,31 @@ export function isTmdbCountry(value: unknown): value is TmdbCountry {
     /^[A-Z]{2}$/.test(item.iso_3166_1) &&
     typeof item.english_name === 'string' &&
     typeof item.native_name === 'string';
+}
+
+
+const IMAGE_CONFIG_CACHE_KEY = 'tmdb:image-configuration';
+const IMAGE_CONFIG_TTL = 30 * 24 * 60 * 60 * 1000;
+
+/** Build image URLs from TMDB's official configuration, with a safe documented CDN fallback. */
+export async function getTmdbPosterBase(): Promise<string> {
+  const cached = getCache<string>(IMAGE_CONFIG_CACHE_KEY);
+  if (cached) return cached;
+
+  try {
+    const configuration = await fetchTmdbJson<TmdbConfiguration>('/configuration');
+    const images = configuration.images;
+    const base = images?.secure_base_url;
+    if (!base || !base.startsWith('https://image.tmdb.org/t/p/') || !Array.isArray(images?.poster_sizes)) {
+      throw new Error('TMDB_INVALID_IMAGE_CONFIGURATION');
+    }
+    const size = images.poster_sizes.includes('w500')
+      ? 'w500'
+      : images.poster_sizes.find((candidate) => /^w[0-9]+$/.test(candidate)) || 'original';
+    const imageBase = base + size;
+    setCache(IMAGE_CONFIG_CACHE_KEY, imageBase, IMAGE_CONFIG_TTL);
+    return imageBase;
+  } catch {
+    return 'https://image.tmdb.org/t/p/w500';
+  }
 }
