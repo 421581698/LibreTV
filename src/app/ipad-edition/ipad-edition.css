@@ -271,7 +271,7 @@
 /* iPad Edition layout collision pass — consolidated final overrides. */
 .ipad-edition {
   /* The drawer is off-canvas; never reserve its former 316px width. */
-  padding: 10px clamp(16px, 2.4vw, 36px) 56px !important;
+  padding: 0 clamp(16px, 2.4vw, 36px) 56px !important;
   min-width: 0;
   overflow-x: clip;
 }.ipad-edition__main {
@@ -342,7 +342,7 @@
   min-height: 100dvh !important;
 }
 @media (max-width: 699px) {.ipad-edition {
-    padding: 8px 0 40px !important;
+    padding: 0 0 40px !important;
   }.ipad-edition__today, .ipad-edition__rail-section {
     padding-left: 16px !important;
     padding-right: 16px !important;
@@ -1551,7 +1551,7 @@ body:has(.ipad-edition[data-environment="light"]) {
   background: #f5f5f7;
 }
 .ipad-edition .ipad-edition__home {
-  padding-block-start: max(68px, calc(env(safe-area-inset-top, 0px) + 60px));
+  padding-block-start: 0;
   gap: clamp(22px, 2.8vh, 32px);
 }
 .ipad-edition .ipad-edition__today,
