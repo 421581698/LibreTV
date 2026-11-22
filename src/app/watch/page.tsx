@@ -93,6 +93,13 @@ function WatchContent() {
   const suppliedSourceUrl = (searchParams.get('sourceUrl') || '').trim();
   const localSource = resolveSource(store, sourceKey);
   const source = useMemo(() => {
+    if (sourceKey === 'manual-input' && directUrl) {
+      return {
+        key: 'manual-input',
+        name: '自定义播放链接',
+        url: directUrl,
+      };
+    }
     if (sourceKey === 'friday-cms' && suppliedSourceUrl) {
       return {
         ...(localSource ?? {}),
@@ -107,7 +114,7 @@ function WatchContent() {
       url: suppliedSourceUrl || undefined,
       detail: searchParams.get('detail') || undefined,
     });
-  }, [store, sourceKey, suppliedSourceUrl, searchParams]);
+  }, [store, sourceKey, suppliedSourceUrl, searchParams, directUrl]);
   const sourceUrlInvalid = Boolean(source?.url && !validateSourceUrl(source.url));
   const detailQuery = useQuery({
     queryKey: ['detail', sourceKey, vodId, source?.url],
@@ -120,6 +127,7 @@ function WatchContent() {
     [detailQuery.data]
   );
   const mediaType = detailQuery.data?.videoInfo?.typeName ?? '';
+  const directMediaType = searchParams.get('mediaType') as 'hls' | 'dash' | 'mp4' | 'webm' | null;
   const isMovie = /电影|movie|film/i.test(mediaType);
   const hasEpisodeNavigation = episodes.length > 1;
   const isReadableTitle = (value: string) => Boolean(value.trim()) && !/^[a-z0-9_-]+$/i.test(value.trim());
@@ -605,6 +613,7 @@ function WatchContent() {
                 <PlayerShell
                   url={currentUrl}
                   title={videoTitle}
+                  mediaType={directMediaType ?? undefined}
                   adFilter={store.adFilter}
                   autoplayNext={store.autoplayNext}
                   skipMark={skipMark}
