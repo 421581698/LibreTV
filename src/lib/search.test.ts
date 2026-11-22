@@ -2,14 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { buildSearchUrl, searchSources } from './search';
 
 describe('buildSearchUrl', () => {
-  it('keeps BFZY URL construction isolated from active-source scheduling', () => {
-    const url = buildSearchUrl(
+  it('rejects direct URL construction for the disabled BFZY Storm source', () => {
+    expect(() => buildSearchUrl(
       'https://bfzyapi.com/api.php/provide/vod',
       '沙丘',
       'custom_0',
-    );
-
-    expect(url.searchParams.get('ac')).toBe('list');
+    )).toThrow('风暴（BFZY）数据源已停用');
   });
 
   it('keeps the existing videolist action for other Apple CMS sources', () => {
