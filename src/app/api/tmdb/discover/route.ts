@@ -76,7 +76,9 @@ export async function GET(req: Request) {
     const notConfigured = error instanceof Error && error.message === 'TMDB_NOT_CONFIGURED';
     return NextResponse.json(
       { error: notConfigured ? 'TMDB 服务尚未配置，请在 Preview Worker 中设置访问密钥' : '暂时无法获取中国影视内容', code: notConfigured ? 'TMDB_NOT_CONFIGURED' : 'TMDB_DISCOVER_UNAVAILABLE' },
-      { status: notConfigured ? 503 : 502, headers: { 'Cache-Control': 'no-store' } },
+      // 503 is reserved by the client API for the global password-setup flow.
+      // Missing an optional metadata provider must not open the site-wide login modal.
+      { status: notConfigured ? 424 : 502, headers: { 'Cache-Control': 'no-store' } },
     );
   }
 }
