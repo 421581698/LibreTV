@@ -20,6 +20,8 @@ on:
       - "src/lib/ipad-edition/**"
       - "src/lib/search.ts"
       - "src/lib/search.test.ts"
+      - "src/lib/douban-weekly.ts"
+      - "src/app/api/douban/route.ts"
       - "src/lib/env-sources.ts"
       - "src/app/api/detail/route.ts"
       - "src/app/api/detail/route.test.ts"
