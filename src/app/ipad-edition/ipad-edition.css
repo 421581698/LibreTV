@@ -1602,3 +1602,88 @@ body:has(.ipad-edition[data-environment="light"]) {
     padding-inline: 16px;
   }
 }
+
+
+/* Apple TV-style home shelves: browse films horizontally instead of a dense web grid. */
+.ipad-edition .ipad-edition__home .ipad-edition__rail-section {
+  min-width: 0;
+  overflow: hidden;
+}
+.ipad-edition .ipad-edition__home .ipad-edition__poster-grid,
+.ipad-edition .ipad-edition__home .ipad-edition__anime-grid,
+.ipad-edition .ipad-edition__home .ipad-edition__continue-grid {
+  display: flex;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  gap: clamp(14px, 1.7vw, 24px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: var(--ipad-page-gutter);
+  padding: 2px var(--ipad-page-gutter) 28px;
+  margin-inline: calc(-1 * var(--ipad-page-gutter));
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.ipad-edition .ipad-edition__home .ipad-edition__poster-grid::-webkit-scrollbar,
+.ipad-edition .ipad-edition__home .ipad-edition__anime-grid::-webkit-scrollbar,
+.ipad-edition .ipad-edition__home .ipad-edition__continue-grid::-webkit-scrollbar {
+  display: none;
+}
+.ipad-edition .ipad-edition__home .ipad-edition__poster-card {
+  flex: 0 0 clamp(132px, 15vw, 196px);
+  width: clamp(132px, 15vw, 196px);
+  min-width: 0;
+  height: auto;
+  scroll-snap-align: start;
+  scroll-snap-stop: normal;
+  transform-origin: center bottom;
+  transition: transform 220ms ease, opacity 220ms ease;
+}
+.ipad-edition .ipad-edition__home .ipad-edition__poster-card:active {
+  transform: scale(.975);
+}
+.ipad-edition .ipad-edition__home .ipad-edition__poster-art {
+  overflow: hidden;
+  border-radius: 13px;
+  aspect-ratio: 2 / 3;
+}
+.ipad-edition .ipad-edition__home .ipad-edition__anime-card {
+  flex: 0 0 clamp(180px, 23vw, 290px);
+  width: clamp(180px, 23vw, 290px);
+  scroll-snap-align: start;
+}
+.ipad-edition .ipad-edition__home .ipad-edition__continue-card {
+  flex: 0 0 clamp(220px, 28vw, 340px);
+  scroll-snap-align: start;
+}
+.ipad-edition .ipad-edition__home .ipad-edition__section-heading {
+  padding-inline: 0;
+}
+.ipad-edition .ipad-edition__home .ipad-edition__section-heading h2 {
+  font-size: clamp(19px, 2vw, 25px);
+  letter-spacing: -.035em;
+}
+@media (max-width: 699px) {
+  .ipad-edition .ipad-edition__home {
+    padding-block-start: 0;
+  }
+  .ipad-edition .ipad-edition__home .ipad-edition__poster-grid,
+  .ipad-edition .ipad-edition__home .ipad-edition__anime-grid,
+  .ipad-edition .ipad-edition__home .ipad-edition__continue-grid {
+    gap: 12px;
+    padding-bottom: 22px;
+  }
+  .ipad-edition .ipad-edition__home .ipad-edition__poster-card {
+    flex-basis: 126px;
+    width: 126px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ipad-edition .ipad-edition__home .ipad-edition__poster-card {
+    transition: none;
+  }
+}
