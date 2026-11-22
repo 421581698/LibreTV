@@ -43,3 +43,13 @@ A ready response contains signed HLS rendition URLs (and optionally a master M3U
 - URLs are temporary signed URLs. Request fresh playback information when they expire; do not persist or rewrite the signatures.
 - Share requests use `x-share-token` only; drive requests use `Authorization: Bearer`.
 - Tokens are accepted in the authenticated POST body only, never in query strings. The route does not persist them or implement OAuth refresh/token storage.
+
+
+## In-app connection screen
+
+Open `/connect` (also available from the homepage header's DASH entry) to use the same adapters without editing URLs manually:
+
+- **DASH / MPD**: paste an HTTPS `.mpd` manifest URL and optional title. The page routes it to the existing Shaka-backed player.
+- **PDS**: enter the tenant domain ID, file ID, and either Drive ID + short-lived access token or Share ID + share token. The page calls the authenticated server route, retries pending transcodes briefly, then opens the returned HLS rendition in the existing player.
+
+Credentials are held only in page memory and sent in the authenticated POST body; they are not placed in the watch URL or persisted by the page. PDS still requires the tenant's corresponding transcoding feature to be enabled. The returned PDS URL is temporary and should be refreshed after expiry.
