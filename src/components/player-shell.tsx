@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Artplayer from 'artplayer';
 import Hls, { type HlsConfig } from 'hls.js';
-import type { Player as ShakaPlayer } from 'shaka-player';
 import type { PlaybackSample } from '@/lib/playback-telemetry';
 import { getAdvertised4kStatus, resolveQualitySelection, type QualityPreference } from '@/lib/player-quality';
 import { getMediaPlaybackKind } from '@/lib/media-playback';
@@ -36,6 +35,21 @@ import {
 
 /** 片段时间统一保留 1 位小数：与面板展示保持一致，避免浮点尾巴 */
 const round1 = (v: number) => Math.round(v * 10) / 10;
+
+interface DashPlayerInstance {
+  destroy(): Promise<void>;
+  configure(config: Record<string, unknown>): void;
+  addEventListener(type: string, listener: (event: Event) => void): void;
+  load(uri: string): Promise<void>;
+}
+
+interface ShakaRuntime {
+  Player: {
+    new (video: HTMLVideoElement): DashPlayerInstance;
+    isBrowserSupported(): boolean;
+  };
+  polyfill: { installAll(): void };
+}
 
 const QUALITY_PREFERENCE_KEY = 'libretv-quality-preference';
 function readQualityPreference(): QualityPreference {
@@ -208,7 +222,7 @@ export function PlayerShell({
   const artRef = useRef<any>(null);
   const nativeFullscreenCleanupRef = useRef<(() => void) | null>(null);
   const hlsRef = useRef<Hls | null>(null);
-  const dashPlayerRef = useRef<ShakaPlayer | null>(null);
+  const dashPlayerRef = useRef<DashPlayerInstance | null>(null);
   const dashGenerationRef = useRef(0);
   const qualityPreferenceHandlerRef = useRef<(() => void) | null>(null);
   const [error, setError] = useState('');
@@ -526,11 +540,11 @@ export function PlayerShell({
   };
 
   /** Tear down a previous DASH session before changing media pipelines. */
-  const destroyDashPlayer = () => {
+  const destroyDashPlayer = (): Promise<void> => {
     dashGenerationRef.current += 1;
     const player = dashPlayerRef.current;
     dashPlayerRef.current = null;
-    if (player) void player.destroy().catch(() => undefined);
+    return player ? player.destroy().catch(() => undefined) : Promise.resolve();
   };
 
   /**
@@ -538,8 +552,8 @@ export function PlayerShell({
    * shell. A generation token prevents a late dynamic import or MPD load from
    * attaching to a video element after the user has already switched episodes.
    */
-  const setupDash = (video: HTMLVideoElement, mediaUrl: string) => {
-    destroyDashPlayer();
+  const setupDash = async (video: HTMLVideoElement, mediaUrl: string) => {
+    await destroyDashPlayer();
     const generation = dashGenerationRef.current;
     clearMetadataWatchdog();
     restoreCleanupRef.current?.();
@@ -560,7 +574,8 @@ export function PlayerShell({
     setQualityNotice('DASH 自适应码率由 Shaka Player 管理；实际解码分辨率以播放器检测为准。');
 
     void (async () => {
-      const shaka = await import('shaka-player');
+      const imported = await import('shaka-player');
+      const shaka = ((imported as unknown as { default?: ShakaRuntime }).default ?? imported) as unknown as ShakaRuntime;
       shaka.polyfill.installAll();
       if (generation !== dashGenerationRef.current) return;
       if (!shaka.Player.isBrowserSupported()) {
@@ -624,7 +639,8 @@ export function PlayerShell({
   };
 
   /** Native progressive media path for formats the existing HTMLVideoElement can play. */
-  const setupDirectMedia = (video: HTMLVideoElement, mediaUrl: string) => {
+  const setupDirectMedia = async (video: HTMLVideoElement, mediaUrl: string) => {
+    await destroyDashPlayer();
     clearMetadataWatchdog();
     restoreCleanupRef.current?.();
     restoreCleanupRef.current = null;
@@ -632,7 +648,6 @@ export function PlayerShell({
       window.removeEventListener('libretv-quality-preference-change', qualityPreferenceHandlerRef.current);
       qualityPreferenceHandlerRef.current = null;
     }
-    destroyDashPlayer();
     hlsRef.current?.destroy();
     hlsRef.current = null;
     const mediaKind = getMediaPlaybackKind(mediaUrl, propsRef.current.mediaType);
@@ -685,7 +700,18 @@ export function PlayerShell({
    * 自动改走同源 cookie 鉴权的 /api/proxy 重试一次。
    * 注意：不销毁 ArtPlayer，只销毁并重建 hls，从而保留网页全屏等播放器状态。
    */
-  const setupHls = (video: HTMLVideoElement, mediaUrl: string, allowProxyFallback: boolean) => {
+  const setupHls = async (video: HTMLVideoElement, mediaUrl: string, allowProxyFallback: boolean) => {
+    const mediaKind = getMediaPlaybackKind(mediaUrl, propsRef.current.mediaType);
+    if (mediaKind === 'dash') {
+      hlsRef.current?.destroy();
+      hlsRef.current = null;
+      await setupDash(video, mediaUrl);
+      return;
+    }
+    const teardownGeneration = dashGenerationRef.current + 1;
+    const teardown = destroyDashPlayer();
+    await teardown;
+    if (dashGenerationRef.current !== teardownGeneration) return;
     clearMetadataWatchdog();
     restoreCleanupRef.current?.();
     restoreCleanupRef.current = null;
@@ -693,17 +719,11 @@ export function PlayerShell({
       window.removeEventListener('libretv-quality-preference-change', qualityPreferenceHandlerRef.current);
       qualityPreferenceHandlerRef.current = null;
     }
-    destroyDashPlayer();
     hlsRef.current?.destroy();
     hlsRef.current = null;
     currentMediaUrlRef.current = mediaUrl;
-    const mediaKind = getMediaPlaybackKind(mediaUrl, propsRef.current.mediaType);
-    if (mediaKind === 'dash') {
-      setupDash(video, mediaUrl);
-      return;
-    }
     if (mediaKind === 'mp4' || mediaKind === 'webm') {
-      setupDirectMedia(video, mediaUrl);
+      await setupDirectMedia(video, mediaUrl);
       return;
     }
     if (mediaKind === 'unsupported') {
@@ -946,7 +966,7 @@ export function PlayerShell({
             (decision.attempt >= 2 || data.details === 'manifestLoadError')
           ) {
             showHint('直连失败，改用代理重试...');
-            setupHls(video, `/api/proxy?url=${encodeURIComponent(mediaUrl)}`, false);
+            void setupHls(video, `/api/proxy?url=${encodeURIComponent(mediaUrl)}`, false);
             return;
           }
           showHint(`${decision.reason}（第 ${decision.attempt} 次）...`);
@@ -1111,13 +1131,13 @@ export function PlayerShell({
       ],
       customType: {
         m3u8: (video: HTMLVideoElement, mediaUrl: string) => {
-          setupHls(video, mediaUrl, true);
+          void setupHls(video, mediaUrl, true);
         },
         dash: (video: HTMLVideoElement, mediaUrl: string) => {
-          setupDash(video, mediaUrl);
+          void setupDash(video, mediaUrl);
         },
         mp4: (video: HTMLVideoElement, mediaUrl: string) => {
-          setupDirectMedia(video, mediaUrl);
+          void setupDirectMedia(video, mediaUrl);
         },
         webm: (video: HTMLVideoElement, mediaUrl: string) => {
           setupDirectMedia(video, mediaUrl);
@@ -1292,7 +1312,7 @@ export function PlayerShell({
         videoErrorRetryUsedRef.current = true;
         playbackMetricsRef.current.recoveries += 1;
         showHint('播放异常，正在重试...');
-        setupHls(art.video, currentMediaUrlRef.current, true);
+        void setupHls(art.video, currentMediaUrlRef.current, true);
         return;
       }
       const mediaError = art.video?.error;
@@ -1584,7 +1604,7 @@ export function PlayerShell({
         window.removeEventListener('libretv-quality-preference-change', qualityPreferenceHandlerRef.current);
         qualityPreferenceHandlerRef.current = null;
       }
-      destroyDashPlayer();
+      void destroyDashPlayer();
       hlsRef.current?.destroy();
       hlsRef.current = null;
       recoveryRef.current?.dispose();
