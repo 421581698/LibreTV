@@ -4,6 +4,20 @@ import { PosterRenderer } from '@/components/ipad-edition/PosterRenderer';
 import { fromTmdbItem } from '@/lib/poster';
 import type { DoubanItem } from '@/lib/types';
 
+function getHighResolutionTmdbPosterUrl(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value);
+    if (url.hostname !== 'image.tmdb.org') return value;
+    const match = url.pathname.match(/^(\\/t\\/p\\/)(?:w[0-9]+|original)(\\/.+)$/);
+    if (!match) return value;
+    url.pathname = match[1] + 'w1280' + match[2];
+    return url.toString();
+  } catch {
+    return value;
+  }
+}
+
 interface IpadEditionHeroArtworkProps {
   item: DoubanItem;
 }
@@ -15,7 +29,7 @@ interface IpadEditionHeroArtworkProps {
  */
 export function IpadEditionHeroArtwork({ item }: IpadEditionHeroArtworkProps) {
   const backdrop = item.backdrop?.trim();
-  const posterAsset = fromTmdbItem(item);
+  const posterAsset = fromTmdbItem(item);\n  const highResolutionPosterUrl = getHighResolutionTmdbPosterUrl(item.cover);\n  const heroPosterAsset = posterAsset && highResolutionPosterUrl\n    ? { ...posterAsset, originalUrl: highResolutionPosterUrl }\n    : posterAsset;
 
   return (
     <div
@@ -49,8 +63,9 @@ export function IpadEditionHeroArtwork({ item }: IpadEditionHeroArtworkProps) {
       <PosterRenderer
         variant="hero-poster"
         frameClassName="ipad-edition__cinema-hero-poster"
-        asset={posterAsset}
-        url={item.cover}
+        asset={heroPosterAsset}
+        url={highResolutionPosterUrl ?? item.cover}
+        fallbackUrl={item.cover}
         mode="proxy"
         alt={item.title + ' 海报'}
         loading="eager"
