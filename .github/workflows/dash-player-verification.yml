@@ -10,6 +10,8 @@ on:
       - "src/components/player-shell.tsx"
       - "src/lib/media-playback.ts"
       - "src/lib/media-playback.test.ts"
+      - "src/lib/dash-request-auth.ts"
+      - "src/lib/dash-request-auth.test.ts"
       - "src/lib/types.ts"
       - "scripts/dash-browser-playback-smoke.mjs"
       - ".github/workflows/dash-player-verification.yml"
