@@ -3,11 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/client-api';
-import { fetchHomepageWithFallback } from '@/lib/homepage-recommendation-fallback';
 import { SmartImage } from '@/components/smart-image';
-import { useAppStore } from '@/lib/store';
 import type { DoubanItem } from '@/lib/types';
-import { fromDoubanItem } from '@/lib/poster';
+import { fromTmdbItem } from '@/lib/poster';
 
 const AUTOPLAY_INTERVAL = 6_000;
 const MANUAL_PAUSE = 9_000;
@@ -20,12 +18,8 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
   const imageProxyMode = useAppStore((s) => s.imageProxyMode);
   const customImageProxy = useAppStore((s) => s.customImageProxy);
   const featuredQuery = useQuery({
-    queryKey: ['v4-featured-movies'],
-    queryFn: ({ signal }) => fetchHomepageWithFallback(
-      () => api.douban('movie', '热门', 0, 8, signal),
-      () => api.hotList('douban_movie_weekly', signal),
-      signal
-    ),
+    queryKey: ['v4-featured-movies', 'CN'],
+    queryFn: ({ signal }) => api.tmdbDiscover('movie', '热门', 1, signal),
     staleTime: 5 * 60_000,
   });
   const slides = (featuredQuery.data?.items ?? []).filter((item) => item.cover).slice(0, 5);
@@ -88,7 +82,7 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
         <>
           <div className="v4-hero-image lg-media-frame" aria-hidden="true">
             <SmartImage
-              asset={fromDoubanItem(slide)}
+              asset={fromTmdbItem(slide)}
               url={slide.cover}
               hdrUrl={slide.coverHdr}
               mode={imageProxyMode}
@@ -104,7 +98,7 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
             <p className="v4-hero-subtitle">从热门影片中，找到下一部值得看的作品</p>
             <div className="v4-hero-tags" aria-label="内容标签">
               <span>精选影片</span>
-              <span>豆瓣热门</span>
+              <span>中国 · TMDB</span>
               {slide.rating ? <span>★ {slide.rating}</span> : null}
             </div>
             <div className="v4-hero-actions v4-apple-actions">
