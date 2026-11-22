@@ -17,6 +17,8 @@ type LayoutSnapshot = {
   };
   elements: Record<string, unknown>;
   siblingLayoutChain: Record<string, unknown>;
+  searchFlow: Record<string, unknown>;
+  overlapCandidates: Record<string, unknown>[];
   heroToNavGap: number | null;
 };
 
@@ -133,6 +135,101 @@ function collectSiblingLayoutChain(root: HTMLElement, main: HTMLElement | null) 
   };
 }
 
+function collectSearchFlow() {
+  const heading = document.querySelector<HTMLElement>('.ipad-edition__page-heading');
+  const form = document.querySelector<HTMLElement>('.ipad-edition__search-form');
+  const page = document.querySelector<HTMLElement>('.ipad-edition__search-page');
+  const headingRect = heading?.getBoundingClientRect() ?? null;
+  const formRect = form?.getBoundingClientRect() ?? null;
+  const gap = headingRect && formRect ? {
+    top: headingRect.bottom,
+    bottom: formRect.top,
+    left: Math.max(0, page?.getBoundingClientRect().left ?? 0),
+    right: Math.min(window.innerWidth, page?.getBoundingClientRect().right ?? window.innerWidth),
+  } : null;
+  return {
+    page: page ? measureNode(page) : { missing: true },
+    heading: heading ? measureNode(heading) : { missing: true },
+    form: form ? measureNode(form) : { missing: true },
+    gap: gap ? {
+      top: Number(gap.top.toFixed(1)),
+      bottom: Number(gap.bottom.toFixed(1)),
+      height: Number((gap.bottom - gap.top).toFixed(1)),
+      left: Number(gap.left.toFixed(1)),
+      right: Number(gap.right.toFixed(1)),
+    } : null,
+  };
+}
+
+function collectOverlayCandidates() {
+  const heading = document.querySelector<HTMLElement>('.ipad-edition__page-heading');
+  const form = document.querySelector<HTMLElement>('.ipad-edition__search-form');
+  const page = document.querySelector<HTMLElement>('.ipad-edition__search-page');
+  const headingRect = heading?.getBoundingClientRect();
+  const formRect = form?.getBoundingClientRect();
+  const pageRect = page?.getBoundingClientRect();
+  if (!headingRect || !formRect || !pageRect) return [];
+
+  const gapTop = headingRect.bottom;
+  const gapBottom = formRect.top;
+  const candidates: Record<string, unknown>[] = [];
+  const elements = Array.from(document.querySelectorAll<HTMLElement>('body *'));
+  for (const element of elements) {
+    if (element.closest('[aria-label="iPad 页面布局诊断"]')) continue;
+    const style = getComputedStyle(element);
+    if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) <= 0) continue;
+    const rect = element.getBoundingClientRect();
+    if (rect.width < 12 || rect.height < 12) continue;
+    const overlapsGap = rect.bottom > gapTop && rect.top < gapBottom &&
+      rect.right > pageRect.left && rect.left < pageRect.right;
+    const isPositioned = style.position === 'fixed' || style.position === 'absolute' || style.position === 'sticky';
+    const hasStacking = style.zIndex !== 'auto';
+    const hasShape = style.borderRadius !== '0px' && style.borderRadius !== '0';
+    const background = style.backgroundColor;
+    const hasPaint = background !== 'rgba(0, 0, 0, 0)' || style.backgroundImage !== 'none' ||
+      style.boxShadow !== 'none' || style.border !== '0px none rgb(0, 0, 0)';
+    const before = getComputedStyle(element, '::before');
+    const after = getComputedStyle(element, '::after');
+    const pseudoPaint = [before, after].some((pseudo) =>
+      pseudo.content !== 'none' && pseudo.content !== 'normal' &&
+      (pseudo.backgroundColor !== 'rgba(0, 0, 0, 0)' || pseudo.backgroundImage !== 'none' || pseudo.border !== '0px none rgb(0, 0, 0)')
+    );
+    if (!overlapsGap && !(isPositioned && hasStacking && hasShape && hasPaint) && !pseudoPaint) continue;
+    candidates.push({
+      ...measureNode(element),
+      zIndex: style.zIndex,
+      backgroundColor: style.backgroundColor,
+      backgroundImage: style.backgroundImage,
+      borderRadius: style.borderRadius,
+      boxShadow: style.boxShadow,
+      pointerEvents: style.pointerEvents,
+      overlapsHeadingToSearchGap: overlapsGap,
+      before: {
+        content: before.content,
+        display: before.display,
+        position: before.position,
+        width: before.width,
+        height: before.height,
+        backgroundColor: before.backgroundColor,
+        backgroundImage: before.backgroundImage,
+        borderRadius: before.borderRadius,
+      },
+      after: {
+        content: after.content,
+        display: after.display,
+        position: after.position,
+        width: after.width,
+        height: after.height,
+        backgroundColor: after.backgroundColor,
+        backgroundImage: after.backgroundImage,
+        borderRadius: after.borderRadius,
+      },
+    });
+    if (candidates.length >= 100) break;
+  }
+  return candidates;
+}
+
 function collectSnapshot(): LayoutSnapshot {
   const nav = document.querySelector<HTMLElement>('.ipad-nav__topbar');
   const hero = document.querySelector<HTMLElement>('.ipad-edition__cinema-hero');
@@ -163,6 +260,8 @@ function collectSnapshot(): LayoutSnapshot {
       hero: measureElement('.ipad-edition__cinema-hero'),
     },
     siblingLayoutChain: root ? collectSiblingLayoutChain(root, main) : { missingRoot: true },
+    searchFlow: collectSearchFlow(),
+    overlapCandidates: collectOverlayCandidates(),
     heroToNavGap: nav && hero
       ? Number((hero.getBoundingClientRect().top - nav.getBoundingClientRect().bottom).toFixed(1))
       : null,
