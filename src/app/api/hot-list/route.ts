@@ -4,7 +4,7 @@ import { fetchHotList, isHotListId } from '@/lib/douban-weekly';
 
 export const runtime = 'nodejs';
 
-/** 影视热榜（经 60s API 免 key）：豆瓣五个周榜 + 百度热播剧，服务端转发 + 缓存 */
+/** 影视热榜（经 60s API 免 key）：当前仅保留百度热播剧榜，豆瓣榜单已停用。 */
 export async function GET(req: Request) {
   const guarded = guardRequest(req);
   if (guarded) return guarded;
