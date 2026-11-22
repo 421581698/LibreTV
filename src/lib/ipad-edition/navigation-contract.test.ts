@@ -17,7 +17,11 @@ const searchCss = readFileSync(
 
 describe('iPad Edition navigation contract', () => {
   it('keeps exactly the three agreed actions in the persistent top capsule', () => {
-    const topbar = shell.match(/<header className="ipad-nav__topbar">([\\s\\S]*?)<\\/header>/)?.[1] ?? '';
+    const topbarStart = shell.indexOf('<header className="ipad-nav__topbar">');
+    const topbarEnd = shell.indexOf('</header>', topbarStart);
+    const topbar = topbarStart >= 0 && topbarEnd > topbarStart
+      ? shell.slice(topbarStart, topbarEnd)
+      : '';
     expect(topbar).toContain('aria-label="展开侧边栏"');
     expect(topbar).toContain('aria-label="首页"');
     expect(topbar).toContain('aria-label="搜索"');
