@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { guardRequest } from '@/lib/api-guard';
-import { fetchTmdbJson } from '@/lib/tmdb';
+import { fetchTmdbJson, getTmdbPosterBase } from '@/lib/tmdb';
 import { getCache, setCache } from '@/lib/fetch-utils';
 
 export const runtime = 'nodejs';
@@ -22,7 +22,6 @@ interface TmdbDiscoverResponse {
 }
 
 const CACHE_TTL = 60 * 60 * 1000;
-const IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
 
 function sortForTag(tag: string, mediaType: 'movie' | 'tv'): string {
   if (tag === '最新') return mediaType === 'movie' ? 'primary_release_date.desc' : 'first_air_date.desc';
@@ -57,12 +56,13 @@ export async function GET(req: Request) {
     };
     if (tag === '高分') query['vote_count.gte'] = '100';
     const payload = await fetchTmdbJson<TmdbDiscoverResponse>(`/discover/${mediaType}`, query);
+    const imageBase = await getTmdbPosterBase();
     const items = (Array.isArray(payload.results) ? payload.results : [])
       .filter((item) => Number.isInteger(item.id) && item.id > 0 && (item.title || item.name))
       .map((item) => ({
         id: String(item.id),
         title: item.title || item.name || '',
-        cover: item.poster_path ? `${IMAGE_BASE}${item.poster_path}` : '',
+        cover: item.poster_path ? `${imageBase}${item.poster_path}` : '',
         rating: typeof item.vote_average === 'number' ? item.vote_average.toFixed(1) : undefined,
         isTv: mediaType === 'tv',
         year: (item.release_date || item.first_air_date || '').slice(0, 4),
