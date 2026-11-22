@@ -27,7 +27,7 @@ describe('Friday Liquid Glass Phase 3 route contracts', () => {
 
   it('keeps live route chrome separate from the live video frame', () => {
     const live = read('src/app/live/page.tsx');
-    expect(live).toMatch(/<GlassPanel\\s+as="aside"/);
+    expect(live).toMatch(/<GlassPanel\s+as="aside"/);
     expect(live).toContain('<GlassPanel as="section" className="glass-panel p-3 mt-3">');
     expect(live).toContain('<div className="aspect-video bg-black rounded-lg overflow-hidden">');
   });
