@@ -5,10 +5,10 @@
  * surface uses the shared material tokens and the same adaptive engine.
  * They intentionally do not own page layout, data, or interaction behavior.
  */
-import { forwardRef, type HTMLAttributes } from 'react';
+import { forwardRef, type ElementType, type HTMLAttributes } from 'react';
 import { LiquidGlassSurface } from '@/components/ui/liquid-glass';
 
-type GlassContainerProps = HTMLAttributes<HTMLElement>;
+type GlassContainerProps = HTMLAttributes<HTMLElement> & { as?: ElementType };
 
 function createGlassPrimitive(
   displayName: string,
@@ -17,12 +17,12 @@ function createGlassPrimitive(
   baseClass: string,
 ) {
   const Primitive = forwardRef<HTMLElement, GlassContainerProps>(
-    function FridayGlassPrimitive({ className = '', ...props }, ref) {
+    function FridayGlassPrimitive({ as = 'div', className = '', ...props }, ref) {
       return (
         <LiquidGlassSurface
           {...props}
           ref={ref}
-          as="div"
+          as={as}
           variant={variant}
           className={[`friday-glass-${baseClass}`, className].filter(Boolean).join(' ')}
           data-friday-glass-role={role}
