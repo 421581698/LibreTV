@@ -45,6 +45,7 @@ export function IpadEditionCollection({ kind, title }: { kind: CollectionKind; t
         <p className="ipad-edition__eyebrow">LIBRETV COLLECTION</p>
         <h1>{title}</h1>
         <p>{kind === 'anime' ? '来自 Bangumi 的真实每日放送日历。' : '默认展示中国影视作品，元数据与海报来自 TMDB。'}</p>
+        {kind !== 'anime' ? <small className="ipad-edition__section-note">This product uses the TMDB API but is not endorsed or certified by TMDB. · <a href="https://www.themoviedb.org" target="_blank" rel="noreferrer">TMDB</a></small> : null}
       </header>
       {kind !== 'anime' ? <div className="ipad-edition__collection-tabs" role="group" aria-label="内容排序">{tabs.map((item) => <button type="button" key={item} className={tag === item ? 'is-active' : ''} aria-pressed={tag === item} onClick={() => { setTag(item); setPage(0); }}>{item}</button>)}</div> : null}
       {query.isLoading ? <div className="ipad-edition__poster-grid">{Array.from({ length: 10 }).map((_, index) => <div className="ipad-edition__poster-skeleton" key={index} />)}</div> : null}
