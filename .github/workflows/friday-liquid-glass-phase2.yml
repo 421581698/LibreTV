@@ -15,6 +15,7 @@ on:
       - "src/components/ui/liquid-glass.tsx"
       - "src/app/glass-system.css"
       - "docs/FRIDAY_LIQUID_GLASS_PHASE_2.md"
+      - "docs/FRIDAY_LIQUID_GLASS_PHASE_3.md"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/friday-liquid-glass-phase2.yml"
