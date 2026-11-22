@@ -132,8 +132,8 @@ describe('iPad Edition cinematic detail experience', () => {
     const styles = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/detail/detail.css'), 'utf8');
     expect(detailRoute).toContain("import './detail.css';");
     expect(detailRoute).toContain('<MovieDetailPage watchPath="/ipad-edition/watch" />');
-    expect(styles).toContain('.ipad-edition[data-ipad-detail="true"] .movie-detail-hero');
-    expect(styles).toContain('.ipad-edition[data-ipad-detail="true"] .movie-detail-title');
+    expect(styles).toContain('.ipad-edition [data-ipad-detail="true"] .movie-detail-hero');
+    expect(styles).toContain('.ipad-edition [data-ipad-detail="true"] .movie-detail-title');
     expect(styles).toContain('.ipad-edition[data-ipad-detail="true"] .movie-episode-card');
     expect(styles).toContain('env(safe-area-inset-top, 0px)');
     expect(styles).toContain('@media (prefers-reduced-motion: reduce)');
