@@ -1889,8 +1889,8 @@ body:has(.ipad-edition[data-environment="light"]) {
 /* Keep the iPad shell content inside its viewport despite legacy global main sizing. */
 .ipad-edition > main.ipad-edition__main {
   box-sizing: border-box;
-  width: 100%;
+  width: 100% !important;
   min-width: 0;
-  max-width: 100%;
+  max-width: 100% !important;
   overflow-x: clip;
 }
