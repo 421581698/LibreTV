@@ -54,6 +54,7 @@ export function IpadEditionHeroArtwork({ item }: IpadEditionHeroArtworkProps) {
         mode="proxy"
         alt={item.title + ' 海报'}
         loading="eager"
+        measureNaturalSize
       />
     </div>
   );
