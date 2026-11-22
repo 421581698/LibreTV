@@ -5,6 +5,7 @@ on:
     branches:
       - feature/libretv-ipad-edition-foundation
       - feature/libretv-ipad-edition-product
+      - fix/ipad-search-black-circle
     paths:
       - "src/app/ipad-edition/**"
       - "src/components/ipad-edition/**"
@@ -21,6 +22,7 @@ on:
   pull_request:
     branches:
       - main
+      - feature/libretv-ipad-edition-product
     paths:
       - "src/app/ipad-edition/**"
       - "src/components/ipad-edition/**"
