@@ -251,7 +251,7 @@ jobs:
                 const apiDiagnostics = [];
                 const apiDiagnosticTasks = [];
                 const apiRequestStartedAt = new Map();
-                const isHomepageApi = (url) => /^\/api\/(douban|hot-list|bangumi\/calendar)$/.test(new URL(url).pathname);
+                const isHomepageApi = (url) => /^\/api\/(douban|hot-list|bangumi\/calendar|tmdb\/discover)$/.test(new URL(url).pathname);
                 page.on("pageerror", error => consoleErrors.push(error.message));
                 page.on("request", request => {
                   if (isHomepageApi(request.url())) apiRequestStartedAt.set(request, Date.now());
