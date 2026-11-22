@@ -102,3 +102,25 @@ describe('iPad Edition navigation contract', () => {
     expect(searchCss).not.toContain('.ipad-edition.ipad-edition__search-page');
   });
 });
+
+
+describe('iPad Edition Cinema Experience', () => {
+  it('supports touch swipes, keyboard navigation and explicit previous/next controls', () => {
+    const hero = readFileSync(resolve(process.cwd(), 'src/components/ipad-edition/IpadEditionHero.tsx'), 'utf8');
+    expect(hero).toContain('onPointerDown={handlePointerDown}');
+    expect(hero).toContain('onPointerUp={handlePointerUp}');
+    expect(hero).toContain("event.key === 'ArrowLeft'");
+    expect(hero).toContain("event.key === 'ArrowRight'");
+    expect(hero).toContain('aria-label="上一部精选影片"');
+    expect(hero).toContain('aria-label="下一部精选影片"');
+    expect(hero).toContain('aria-roledescription="电影精选轮播"');
+  });
+
+  it('keeps cinematic transitions restrained and respects reduced-motion preferences', () => {
+    const styles = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/hero.css'), 'utf8');
+    expect(styles).toContain('touch-action: pan-y pinch-zoom;');
+    expect(styles).toContain('@keyframes ipad-cinema-copy-in');
+    expect(styles).toContain('@media (prefers-reduced-motion: reduce)');
+    expect(styles).toContain('animation: none !important;');
+  });
+});
