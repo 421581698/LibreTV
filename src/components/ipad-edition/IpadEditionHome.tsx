@@ -86,11 +86,20 @@ export function IpadEditionHome() {
     retry: () => Promise<unknown>,
   ) => (
     <section className="ipad-edition__rail-section" id={id} aria-labelledby={id + '-title'}>
-      <div className="ipad-edition__section-heading">
-        <h2 id={id + '-title'}>{title}</h2>
+      <div className="ipad-edition__section-heading ipad-edition__gallery-heading">
+        <div>
+          <p className="ipad-edition__eyebrow">LIBRETV · COLLECTION</p>
+          <h2 id={id + '-title'}>{title}</h2>
+        </div>
+        {items.length > 5 ? (
+          <div className="ipad-edition__gallery-controls" role="group" aria-label={title + '画廊导航'}>
+            <button type="button" aria-label={'向左浏览' + title} onClick={() => document.getElementById(id + '-track')?.scrollBy({ left: -Math.max(320, window.innerWidth * 0.62), behavior: 'smooth' })}>‹</button>
+            <button type="button" aria-label={'向右浏览' + title} onClick={() => document.getElementById(id + '-track')?.scrollBy({ left: Math.max(320, window.innerWidth * 0.62), behavior: 'smooth' })}>›</button>
+          </div>
+        ) : null}
       </div>
       {loading ? (
-        <div className="ipad-edition__poster-grid" aria-label={title + '加载中'} aria-busy="true">
+        <div id={id + '-track'} className="ipad-edition__poster-grid" aria-label={title + '加载中'} aria-busy="true">
           {Array.from({ length: 6 }).map((_, index) => (
             <div className="ipad-edition__poster-skeleton" key={index} />
           ))}
@@ -101,7 +110,7 @@ export function IpadEditionHome() {
           <button type="button" onClick={() => void retry()}>重新加载</button>
         </div>
       ) : items.length ? (
-        <div className="ipad-edition__poster-grid" aria-label={title}>
+        <div id={id + '-track'} className="ipad-edition__poster-grid" aria-label={title} role="region" tabIndex={0}>
           {items.slice(0, RAIL_SIZE).map((item, index) => (
             <Link className="ipad-edition__poster-card" data-ipad-poster-slot={id === 'ipad-popular-series' ? 'series' : id === 'ipad-new-releases' ? 'new-release' : 'movie'} data-poster-url={item.cover ?? ''} href={searchHref(item.title)} key={item.id || item.title}>
               <PosterRenderer variant="poster" frameClassName="ipad-edition__poster-art" asset={fromDoubanItem(item)} url={item.cover} mode="proxy" alt={item.title}>
