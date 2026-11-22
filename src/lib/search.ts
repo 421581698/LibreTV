@@ -447,6 +447,13 @@ export async function searchSources(
     const name = source.name.trim();
     const url = source.url.trim();
 
+    // BFZY/Storm is intentionally disabled, including aliases and custom source keys.
+    let sourceHost = '';
+    try { sourceHost = new URL(url).hostname.toLowerCase(); } catch { /* invalid URL is rejected below */ }
+    if (key.toLowerCase() === 'bfzy' || sourceHost === 'bfzyapi.com' || sourceHost.endsWith('.bfzyapi.com')) {
+      continue;
+    }
+
     if (
       !key ||
       key.length > 100 ||
