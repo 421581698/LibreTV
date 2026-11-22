@@ -20,7 +20,6 @@ import { fromTmdbItem } from '@/lib/poster';
 import { collectorFetch } from '@/lib/collector-browser-config';
 import { validateSourceUrl } from '@/lib/utils';
 import { formatTime } from '@/lib/utils';
-import { TmdbAttribution } from '@/components/ipad-edition/TmdbAttribution';
 
 type Screen = 'movies' | 'tv' | 'anime' | 'variety' | 'overseas' | 'resources' | 'me' | 'settings';
 const COPY: Record<Screen, { eyebrow: string; title: string; subtitle: string }> = {
@@ -302,11 +301,6 @@ function ResourcesScreen({ onPick }: { onPick: (item: SearchResultItem) => void 
           </div>
         )}
         <button type="button" className="v4-spatial-primary" onClick={() => window.dispatchEvent(new CustomEvent('libretv:open-source-manager'))}>管理点播源与订阅</button>
-      </section>
-      <section className="card p-4 sm:p-5" aria-labelledby="settings-about-title">
-        <h2 id="settings-about-title" className="text-base font-semibold text-content">关于与数据来源</h2>
-        <p className="mt-1 text-xs text-faint">第三方影视资料来源与相关声明。</p>
-        <div className="mt-3"><TmdbAttribution /></div>
       </section>
     </div>
   );
