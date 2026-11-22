@@ -6,20 +6,27 @@ const shell = readFileSync(
   resolve(process.cwd(), 'src/components/ipad-edition/IpadEditionShell.tsx'),
   'utf8',
 );
+const searchPage = readFileSync(
+  resolve(process.cwd(), 'src/app/ipad-edition/search/page.tsx'),
+  'utf8',
+);
+const searchCss = readFileSync(
+  resolve(process.cwd(), 'src/app/ipad-edition/search/search.css'),
+  'utf8',
+);
 
 describe('iPad Edition navigation contract', () => {
-  it('keeps all primary destinations directly available in the persistent capsule', () => {
-    for (const destination of [
-      'href="/ipad-edition"',
-      'href="/ipad-edition/movies"',
-      'href="/ipad-edition/series"',
-      'href="/ipad-edition/anime"',
-      'href="/ipad-edition/search"',
-      'href="/ipad-edition/library"',
-      'href="/ipad-edition/settings"',
-    ]) {
-      expect(shell).toContain(destination);
-    }
+  it('keeps exactly the three agreed actions in the persistent top capsule', () => {
+    const topbar = shell.match(/<header className="ipad-nav__topbar">([\\s\\S]*?)<\\/header>/)?.[1] ?? '';
+    expect(topbar).toContain('aria-label="展开侧边栏"');
+    expect(topbar).toContain('aria-label="首页"');
+    expect(topbar).toContain('aria-label="搜索"');
+    expect(topbar).not.toContain('aria-label="电影"');
+    expect(topbar).not.toContain('aria-label="电视剧"');
+    expect(topbar).not.toContain('aria-label="动漫"');
+    expect(topbar).not.toContain('aria-label="设置"');
+    expect(topbar).not.toContain('aria-label="我的"');
+    expect(shell).toContain('href="/ipad-edition/settings"');
   });
 
   it('keeps navigation visible on detail pages and hides it only for immersive playback', () => {
@@ -40,5 +47,12 @@ describe('iPad Edition navigation contract', () => {
     expect(shell).toContain('last.focus();');
     expect(shell).toContain('first.focus();');
     expect(shell).toContain('menuButtonRef.current?.focus({ preventScroll: true });');
+  });
+
+  it('scopes search styles to the actual nested search page element', () => {
+    expect(searchPage).toContain('className="ipad-edition__page ipad-edition__search-page"');
+    expect(searchPage).toContain('className="ipad-edition__search-form"');
+    expect(searchCss).toContain('.ipad-edition .ipad-edition__search-page .ipad-edition__search-form');
+    expect(searchCss).not.toContain('.ipad-edition.ipad-edition__search-page');
   });
 });
