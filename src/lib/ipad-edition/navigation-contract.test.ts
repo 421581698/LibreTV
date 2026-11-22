@@ -134,7 +134,7 @@ describe('iPad Edition cinematic detail experience', () => {
     expect(detailRoute).toContain('<MovieDetailPage watchPath="/ipad-edition/watch" />');
     expect(styles).toContain('.ipad-edition [data-ipad-detail="true"] .movie-detail-hero');
     expect(styles).toContain('.ipad-edition [data-ipad-detail="true"] .movie-detail-title');
-    expect(styles).toContain('.ipad-edition[data-ipad-detail="true"] .movie-episode-card');
+    expect(styles).toContain('.ipad-edition [data-ipad-detail="true"] .movie-episode-card');
     expect(styles).toContain('env(safe-area-inset-top, 0px)');
     expect(styles).toContain('@media (prefers-reduced-motion: reduce)');
     expect(styles).toContain('@media (prefers-reduced-transparency: reduce)');
