@@ -486,8 +486,9 @@
 /* PR #99 homepage visual alignment pass.
    Keep the cinematic treatment, but place it on the same content grid as every rail. */
 .ipad-edition .ipad-edition__cinema-hero {
-  width: 100%;
+  width: calc(100% + 2 * clamp(16px, 2.4vw, 36px));
   min-width: 0;
+  margin-inline: calc(-1 * clamp(16px, 2.4vw, 36px));
   height: clamp(340px, 42svh, 520px);
   min-height: 300px;
   max-height: 520px;
@@ -513,7 +514,8 @@
 }
 @media (max-width: 699px) {
   .ipad-edition .ipad-edition__cinema-hero {
-    width: 100%;
+    width: calc(100% + 32px);
+    margin-inline: -16px;
     height: clamp(300px, 42svh, 420px);
     min-height: 300px;
     border-radius: 0;
