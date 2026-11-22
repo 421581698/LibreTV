@@ -18,6 +18,13 @@ describe('Friday Liquid Glass Phase 3 route contracts', () => {
     expect(spatial).toContain('<GlassPanel as="section" className="card p-4 sm:p-5"');
   });
 
+  it('keeps personal-space text readable on light Friday glass surfaces', () => {
+    const mobileStyles = read('src/app/iphone-minimal-ui.css');
+    expect(mobileStyles).toContain('html:not(.dark) .v4-spatial-screen[data-screen="me"] .v52-me-heading h2');
+    expect(mobileStyles).toContain('html:not(.dark) .v4-spatial-screen[data-screen="me"] .v52-me-section-head h3');
+    expect(mobileStyles).toContain('html:not(.dark) .v4-spatial-screen[data-screen="me"] .v52-me-list-row strong');
+  });
+
   it('uses Friday controls on the detail hero and glass cards for episode actions', () => {
     const detail = read('src/components/movie-detail-page.tsx');
     expect(detail).toContain('<GlassControl as="button"');

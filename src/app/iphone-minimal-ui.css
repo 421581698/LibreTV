@@ -1258,3 +1258,25 @@
     padding: 20px !important;
   }
 }
+
+
+/* Friday Liquid Glass: preserve readable personal-space labels in light theme.
+   The original V52 personal-space typography is intentionally light for dark
+   cards; GlassPanel/GlassBar now provide light surfaces when html is not dark. */
+html:not(.dark) .v4-spatial-screen[data-screen="me"] .v52-me-heading h2,
+html:not(.dark) .v4-spatial-screen[data-screen="me"] .v52-me-section-head h3,
+html:not(.dark) .v4-spatial-screen[data-screen="me"] .v52-me-list-row,
+html:not(.dark) .v4-spatial-screen[data-screen="me"] .v52-me-list-row strong {
+  color: #20242b !important;
+}
+html:not(.dark) .v4-spatial-screen[data-screen="me"] .v52-me-section-head button,
+html:not(.dark) .v4-spatial-screen[data-screen="me"] .v52-me-section-head button span,
+html:not(.dark) .v4-spatial-screen[data-screen="me"] .v52-me-list-row small {
+  color: #69717d !important;
+}
+html:not(.dark) .v4-spatial-screen[data-screen="me"] .v52-me-list {
+  border-top-color: rgba(40, 48, 60, .12);
+}
+html:not(.dark) .v4-spatial-screen[data-screen="me"] .v52-me-list-row::after {
+  background: rgba(40, 48, 60, .09);
+}
