@@ -69,7 +69,24 @@ function WatchContent() {
   const { toast } = useToast();
   const sourceKey = searchParams.get('source') || '';
   const vodId = searchParams.get('id') || '';
-  const directUrl = searchParams.get('url') || '';
+  const [directUrl, setDirectUrl] = useState(() => searchParams.get('url') || '');
+
+  useEffect(() => {
+    if (sourceKey !== 'manual-input' || directUrl) return;
+    try {
+      const stored = window.sessionStorage.getItem('libretv:manual-playback');
+      if (!stored) return;
+      const payload = JSON.parse(stored) as { url?: unknown; createdAt?: unknown };
+      const age = Date.now() - Number(payload.createdAt);
+      if (typeof payload.url === 'string' && age >= 0 && age <= 15 * 60_000) {
+        setDirectUrl(payload.url);
+      } else {
+        window.sessionStorage.removeItem('libretv:manual-playback');
+      }
+    } catch {
+      window.sessionStorage.removeItem('libretv:manual-playback');
+    }
+  }, [sourceKey, directUrl]);
   const titleParam = searchParams.get('title') || '';
   const indexParam = parseInt(searchParams.get('index') || '0', 10) || 0;
   const [reversed, setReversed] = useState(false);
