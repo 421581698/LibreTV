@@ -7,6 +7,11 @@ name: Deploy LibreTV iPad Edition Preview (Ubuntu 24.04)
 # Layout diagnostics are passed explicitly into the browser evaluation context for report serialization.
 
 on:
+  push:
+    branches:
+      - feature/libretv-ipad-edition-product
+    paths:
+      - ".github/workflows/deploy-ipad-edition-preview.yml"
   workflow_dispatch:
     inputs:
       confirm_preview_deploy:
@@ -30,7 +35,7 @@ concurrency:
 
 jobs:
   deploy-preview:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.confirm_preview_deploy == 'yes' && (github.ref == 'refs/heads/feature/libretv-ipad-edition-foundation' || github.ref == 'refs/heads/feature/libretv-ipad-edition-product') }}
+    if: ${{ ((github.event_name == 'workflow_dispatch' && inputs.confirm_preview_deploy == 'yes') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[deploy-ipad-edition-preview]'))) && github.ref == 'refs/heads/feature/libretv-ipad-edition-product' }}
     name: Build and deploy isolated iPad Edition Preview
     runs-on: ubuntu-24.04
     timeout-minutes: 35
@@ -50,23 +55,30 @@ jobs:
           const url = new URL(`https://api.github.com/repos/${process.env.GH_REPOSITORY}/actions/runs`);
           url.searchParams.set("branch", process.env.GH_BRANCH);
           url.searchParams.set("per_page", "100");
-          const response = await fetch(url, {
-            headers: {
-              accept: "application/vnd.github+json",
-              authorization: `Bearer ${process.env.GH_TOKEN}`,
-              "x-github-api-version": "2022-11-28",
-            },
-          });
-          if (!response.ok) throw new Error(`Cannot inspect Verify runs: HTTP ${response.status}`);
-          const payload = await response.json();
-          const verify = (payload.workflow_runs ?? []).find(run =>
-            run.name === "LibreTV iPad Edition Verify" &&
-            run.head_sha === process.env.GH_SHA &&
-            run.head_branch === process.env.GH_BRANCH &&
-            run.conclusion === "success"
-          );
+          const headers = {
+            accept: "application/vnd.github+json",
+            authorization: `Bearer ${process.env.GH_TOKEN}`,
+            "x-github-api-version": "2022-11-28",
+          };
+          let verify;
+          for (let attempt = 1; attempt <= 20; attempt += 1) {
+            const response = await fetch(url, { headers });
+            if (!response.ok) throw new Error(`Cannot inspect Verify runs: HTTP ${response.status}`);
+            const payload = await response.json();
+            verify = (payload.workflow_runs ?? []).find(run =>
+              run.name === "LibreTV iPad Edition Verify" &&
+              run.head_sha === process.env.GH_SHA &&
+              run.head_branch === process.env.GH_BRANCH &&
+              run.conclusion === "success"
+            );
+            if (verify) break;
+            if (attempt < 20) {
+              console.log(`Waiting for successful Verify on exact SHA ${process.env.GH_SHA} (attempt ${attempt}/20).`);
+              await new Promise(resolve => setTimeout(resolve, 15000));
+            }
+          }
           if (!verify) {
-            throw new Error(`No successful iPad Edition Verify run for ${process.env.GH_SHA}; Preview deployment is blocked.`);
+            throw new Error(`No successful iPad Edition Verify run for ${process.env.GH_SHA} after 5 minutes; Preview deployment is blocked.`);
           }
           console.log(`Verified exact commit ${verify.head_sha} with run ${verify.id}.`);
           NODE
