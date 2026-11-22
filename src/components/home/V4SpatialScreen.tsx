@@ -10,7 +10,6 @@ import { SourceManagerDrawer } from '@/components/source-manager';
 import { Icon } from '@/components/icon';
 import { requestShowDownloadManager } from '@/components/download-manager';
 import { AnimeRecommendationSection } from '@/components/douban-section';
-import { TmdbAttribution } from '@/components/ipad-edition/TmdbAttribution';
 import { GlassPanel } from '@/components/ui/glass';
 import { SmartImage } from '@/components/smart-image';
 import { db, removeFavorite, type FavoriteEntry, type HistoryEntry } from '@/lib/db';
@@ -21,6 +20,7 @@ import { fromTmdbItem } from '@/lib/poster';
 import { collectorFetch } from '@/lib/collector-browser-config';
 import { validateSourceUrl } from '@/lib/utils';
 import { formatTime } from '@/lib/utils';
+import { TmdbAttribution } from '@/components/ipad-edition/TmdbAttribution';
 
 type Screen = 'movies' | 'tv' | 'anime' | 'variety' | 'overseas' | 'resources' | 'me' | 'settings';
 const COPY: Record<Screen, { eyebrow: string; title: string; subtitle: string }> = {
@@ -201,7 +201,6 @@ function CatalogScreen({ category, onPick }: { category: CatalogCategory; onPick
           {items.map((item) => <button key={item.id} type="button" onClick={() => onPick(item)} className="group min-w-0 overflow-hidden rounded-xl text-left"><div className="relative aspect-[2/3] overflow-hidden rounded-lg bg-chip"><SmartImage asset={fromTmdbItem(item)} url={item.cover} mode={imageProxyMode} customProxy={customImageProxy} alt={item.title} className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105" /></div><strong className="mt-2 block line-clamp-2 text-xs text-content">{item.title}</strong><span className="mt-1 block text-[10px] text-faint">{item.rating ? '★ ' + item.rating : 'TMDB'}</span></button>)}
         </div>
       )}
-      <TmdbAttribution />
     </section>
   );
 }
@@ -303,6 +302,11 @@ function ResourcesScreen({ onPick }: { onPick: (item: SearchResultItem) => void 
           </div>
         )}
         <button type="button" className="v4-spatial-primary" onClick={() => window.dispatchEvent(new CustomEvent('libretv:open-source-manager'))}>管理点播源与订阅</button>
+      </section>
+      <section className="card p-4 sm:p-5" aria-labelledby="settings-about-title">
+        <h2 id="settings-about-title" className="text-base font-semibold text-content">关于与数据来源</h2>
+        <p className="mt-1 text-xs text-faint">第三方影视资料来源与相关声明。</p>
+        <div className="mt-3"><TmdbAttribution /></div>
       </section>
     </div>
   );
