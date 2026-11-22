@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { IpadEditionHero } from '@/components/ipad-edition/IpadEditionHero';
@@ -9,16 +8,14 @@ import { api } from '@/lib/client-api';
 import type { DoubanItem } from '@/lib/types';
 import { fromBangumiItem, fromTmdbItem } from '@/lib/poster';
 import { IpadEditionContinueWatching } from '@/components/ipad-edition/IpadEditionContinueWatching';
+import { useIpadEditionPosterNavigation } from '@/components/ipad-edition/useIpadEditionPosterNavigation';
 
 const RAIL_SIZE = 10;
 const HERO_SIZE = 5;
 
-function searchHref(title: string) {
-  return '/ipad-edition/search?q=' + encodeURIComponent(title);
-}
-
 export function IpadEditionHome() {
   const [activeHero, setActiveHero] = useState(0);
+  const { openPoster, pendingTitle, error } = useIpadEditionPosterNavigation();
 
   // TMDB China recommendations feed the hero and today's movie rail from one cached request.
   const featured = useQuery({
@@ -95,13 +92,13 @@ export function IpadEditionHome() {
       ) : items.length ? (
         <div id={id + '-track'} className="ipad-edition__poster-grid" aria-label={title} role="region" tabIndex={0}>
           {items.slice(0, RAIL_SIZE).map((item, index) => (
-            <Link className="ipad-edition__poster-card" data-ipad-poster-slot={id === 'ipad-popular-series' ? 'series' : id === 'ipad-new-releases' ? 'new-release' : 'movie'} data-poster-url={item.cover ?? ''} href={searchHref(item.title)} key={item.id || item.title}>
+            <button type="button" className="ipad-edition__poster-card appearance-none border-0 bg-transparent p-0 text-left font-[inherit] text-inherit" data-ipad-poster-slot={id === 'ipad-popular-series' ? 'series' : id === 'ipad-new-releases' ? 'new-release' : 'movie'} data-poster-url={item.cover ?? ''} aria-label={'查看 ' + item.title + ' 的详情并查找播放资源'} aria-busy={pendingTitle === item.title} disabled={Boolean(pendingTitle)} onClick={() => void openPoster(item)} key={item.id || item.title}>
               <PosterRenderer variant="poster" frameClassName="ipad-edition__poster-art" asset={fromTmdbItem(item)} url={item.cover} mode="proxy" alt={item.title}>
                 <span className="ipad-edition__poster-rank">{index + 1}</span>
               </PosterRenderer>
               <strong title={item.title}>{item.title}</strong>
               <small>{item.rating ? '★ ' + item.rating : '影视推荐'}</small>
-            </Link>
+            </button>
           ))}
         </div>
       ) : (
@@ -116,7 +113,7 @@ export function IpadEditionHome() {
   return (
     <div className="ipad-edition__home">
       {hero ? (
-        <IpadEditionHero items={heroItems} activeIndex={activeHero % heroItems.length} onSelect={setActiveHero} />
+        <IpadEditionHero items={heroItems} activeIndex={activeHero % heroItems.length} onSelect={setActiveHero} onOpen={openPoster} pendingTitle={pendingTitle} />
       ) : (
         <section className="ipad-edition__cinema-hero ipad-edition__cinema-hero--empty" aria-label="精选影片">
           <div className="ipad-edition__cinema-hero-copy" role="status">
@@ -129,6 +126,8 @@ export function IpadEditionHome() {
           </div>
         </section>
       )}
+
+      {error ? <p className="ipad-edition__rail-message" role="alert">{error}</p> : null}
 
       {renderRail('ipad-popular-movies', '今日热门', movieItems, featured.isLoading, featured.isError, featured.refetch)}
 
@@ -148,11 +147,11 @@ export function IpadEditionHome() {
         ) : todayItems.length ? (
           <div className="ipad-edition__anime-grid">
             {todayItems.slice(0, 5).map((item) => (
-              <Link href={searchHref(item.title)} className="ipad-edition__anime-card" data-ipad-poster-slot="anime" data-poster-url={item.cover ?? ''} key={item.id}>
+              <button type="button" className="ipad-edition__anime-card appearance-none border-0 bg-transparent p-0 text-left font-[inherit] text-inherit" data-ipad-poster-slot="anime" data-poster-url={item.cover ?? ''} aria-label={'查看 ' + item.title + ' 的详情并查找播放资源'} aria-busy={pendingTitle === item.title} disabled={Boolean(pendingTitle)} onClick={() => void openPoster(item)} key={item.id}>
                 <PosterRenderer variant="anime" asset={fromBangumiItem(item)} url={item.cover} mode="proxy" alt={item.title} />
                 <strong>{item.title}</strong>
                 {item.rating ? <small>★ {item.rating}</small> : null}
-              </Link>
+              </button>
             ))}
           </div>
         ) : (
