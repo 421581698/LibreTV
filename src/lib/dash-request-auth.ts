@@ -10,12 +10,19 @@ export interface DashRequestAuthOptions {
   allowedOrigins?: string[];
   /** Send browser-managed cookies only when the provider explicitly requires them. */
   withCredentials?: boolean;
+  /** Provider-owned refresh flow, called only after a 401 retry is observed. */
+  refreshHeaders?: () => Promise<Record<string, string> | void>;
 }
 
 export interface DashNetworkRequest {
   uris: string[];
   headers: Record<string, string>;
   allowCrossSiteCredentials: boolean;
+}
+
+export interface DashRequestAuthFilter {
+  (request: DashNetworkRequest): void | Promise<void>;
+  markUnauthorized(): void;
 }
 
 const FORBIDDEN_HEADERS = new Set([
@@ -44,7 +51,7 @@ function sanitizeHeaders(headers: Record<string, string> | undefined): Record<st
     if (!normalizedName || FORBIDDEN_HEADERS.has(normalizedName) ||
         normalizedName.startsWith('proxy-') || normalizedName.startsWith('sec-') ||
         !/^[!#$%&'*+.^_`|~0-9a-z-]+$/i.test(name) ||
-        typeof value !== 'string' || /[\r\n]/.test(value)) {
+        typeof value !== 'string' || /[\\r\\n]/.test(value)) {
       continue;
     }
     safe[name] = value;
@@ -55,7 +62,7 @@ function sanitizeHeaders(headers: Record<string, string> | undefined): Record<st
 export function createDashRequestAuthFilter(
   options: DashRequestAuthOptions | undefined,
   manifestUrl: string,
-): (request: DashNetworkRequest) => void {
+): DashRequestAuthFilter {
   const manifestOrigin = normalizeOrigin(manifestUrl);
   const allowedOrigins = new Set<string>();
   if (manifestOrigin) allowedOrigins.add(manifestOrigin);
@@ -63,10 +70,12 @@ export function createDashRequestAuthFilter(
     const normalized = normalizeOrigin(origin);
     if (normalized) allowedOrigins.add(normalized);
   }
-  const headers = sanitizeHeaders(options?.headers);
+  let headers = sanitizeHeaders(options?.headers);
+  let refreshRequired = false;
+  let refreshInFlight: Promise<void> | null = null;
   const withCredentials = options?.withCredentials === true;
 
-  return (request) => {
+  const filter: DashRequestAuthFilter = async (request) => {
     if (!allowedOrigins.size || !request.uris.length) return;
 
     // Shaka can carry fallback URIs in one request. Only attach secrets when
@@ -77,7 +86,26 @@ export function createDashRequestAuthFilter(
     });
     if (!trusted) return;
 
+    if (refreshRequired && options?.refreshHeaders) {
+      if (!refreshInFlight) {
+        refreshInFlight = options.refreshHeaders()
+          .then((nextHeaders) => {
+            if (nextHeaders) headers = sanitizeHeaders(nextHeaders);
+          })
+          .finally(() => {
+            refreshRequired = false;
+            refreshInFlight = null;
+          });
+      }
+      await refreshInFlight;
+    }
+
     Object.assign(request.headers, headers);
     if (withCredentials) request.allowCrossSiteCredentials = true;
   };
+
+  filter.markUnauthorized = () => {
+    if (options?.refreshHeaders) refreshRequired = true;
+  };
+  return filter;
 }
