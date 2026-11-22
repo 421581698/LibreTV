@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { GlassBar, GlassCard, GlassPanel } from '@/components/ui/friday-glass';
 import { collectorFetch } from '@/lib/collector-browser-config';
 
 type Resource = {
@@ -111,7 +112,7 @@ export default function ResourceStudioPage() {
   return (
     <main className="resource-studio-page min-h-screen bg-[var(--background)] px-4 pb-16 pt-8 text-[var(--foreground)] sm:px-8">
       <div className="mx-auto max-w-7xl">
-        <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
+        <GlassBar as="header" className="mb-8 flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold tracking-[0.24em] text-[var(--accent)]">LIBRETV / RESOURCE INTELLIGENCE</p>
             <h1 className="mt-2 text-3xl font-bold tracking-tight">独立资源管理中心</h1>
@@ -122,18 +123,18 @@ export default function ResourceStudioPage() {
             <Link href="/" className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm">返回 LibreTV</Link>
             <button onClick={() => void refresh()} disabled={loading} className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm disabled:opacity-50">刷新数据</button>
           </div>
-        </header>
+        </GlassBar>
 
         {error ? <div role="alert" className="mb-5 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-600">{error}</div> : null}
         {notice ? <div role="status" className="mb-5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-700">{notice}</div> : null}
 
         <section className="mb-8 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5"><p className="text-sm text-[var(--muted)]">已通过播放器验收</p><p className="mt-2 text-3xl font-semibold">{loading ? '…' : verifiedCount}</p><p className="mt-1 text-xs text-[var(--muted)]">当前出口仅展示已确认资源</p></div>
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5"><p className="text-sm text-[var(--muted)]">可用资源记录</p><p className="mt-2 text-3xl font-semibold">{loading ? '…' : resources.length}</p><p className="mt-1 text-xs text-[var(--muted)]">来自独立 Collector 注册表</p></div>
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5"><p className="text-sm text-[var(--muted)]">待处理任务</p><p className="mt-2 text-3xl font-semibold">{loading ? '…' : runningCount}</p><p className="mt-1 text-xs text-[var(--muted)]">排队中与运行中的任务</p></div>
+<GlassCard className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5"><p className="text-sm text-[var(--muted)]">已通过播放器验收</p><p className="mt-2 text-3xl font-semibold">{loading ? '…' : verifiedCount}</p><p className="mt-1 text-xs text-[var(--muted)]">当前出口仅展示已确认资源</p></GlassCard>
+<GlassCard className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5"><p className="text-sm text-[var(--muted)]">可用资源记录</p><p className="mt-2 text-3xl font-semibold">{loading ? '…' : resources.length}</p><p className="mt-1 text-xs text-[var(--muted)]">来自独立 Collector 注册表</p></GlassCard>
+<GlassCard className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5"><p className="text-sm text-[var(--muted)]">待处理任务</p><p className="mt-2 text-3xl font-semibold">{loading ? '…' : runningCount}</p><p className="mt-1 text-xs text-[var(--muted)]">排队中与运行中的任务</p></GlassCard>
         </section>
 
-        <section className="mb-8 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
+        <GlassPanel as="section" className="mb-8 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold">AI 资源 Supervisor</h2>
@@ -151,20 +152,20 @@ export default function ResourceStudioPage() {
             </button>
           </div>
           {!agentConfigured ? <p className="mt-3 text-xs leading-5 text-[var(--muted)]">默认使用 PR84 Preview 的 Cloudflare Workers AI，无需填写模型 API Key。只有需要切换到外部模型或专用 OpenClaw Gateway 时，才需要额外凭据；资源站本身只采集公开可访问内容。</p> : null}
-        </section>
+        </GlassPanel>
 
-        <section className="mb-8 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
+        <GlassPanel as="section" className="mb-8 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div><h2 className="text-lg font-semibold">资源站发现与目录采集</h2><p className="mt-1 text-sm text-[var(--muted)]">任务会进入现有持久化队列；服务未配置或安全出口未启用时，操作会明确失败，不会伪装成已启动。</p></div>
             <button onClick={() => void discover()} disabled={Boolean(busy)} className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{busy === 'discover' ? '正在提交…' : '发现公开资源站'}</button>
           </div>
 
-        </section>
+        </GlassPanel>
 
-        <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
+        <GlassPanel as="section" className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
           <div className="mb-4 flex items-center justify-between"><div><h2 className="text-lg font-semibold">采集任务</h2><p className="mt-1 text-sm text-[var(--muted)]">持久化队列状态与最近执行记录。</p></div><span className="text-xs text-[var(--muted)]">{jobs.length} 条</span></div>
           {jobs.length === 0 ? <p className="py-6 text-center text-sm text-[var(--muted)]">暂无任务记录</p> : <div className="divide-y divide-[var(--border)]">{jobs.map((job) => <div key={job.id} className="flex flex-wrap items-center justify-between gap-3 py-3"><div className="min-w-0"><p className="text-sm font-medium">{job.job_type} <span className="ml-2 font-mono text-xs text-[var(--muted)]">{job.id.slice(0, 10)}</span></p><p className="mt-1 text-xs text-[var(--muted)]">{formatTime(job.created_at)} · 尝试 {job.attempt} 次</p>{job.error ? <p className="mt-1 text-xs text-red-600">{job.error}</p> : null}</div><div className="flex items-center gap-2"><span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs">{statusLabel[job.status] || job.status}</span>{['failed','partial'].includes(job.status) ? <button type="button" disabled={Boolean(busy)} onClick={() => void jobAction(job,'retry')} className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs disabled:opacity-50">重试</button> : null}{['queued','running'].includes(job.status) ? <button type="button" disabled={Boolean(busy)} onClick={() => void jobAction(job,'cancel')} className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs disabled:opacity-50">取消</button> : null}</div></div>)}</div>}
-        </section>
+        </GlassPanel>
 
         <p className="mt-6 text-xs leading-6 text-[var(--muted)]">说明：这是资源管理网页与现有 Scrapling Collector 的第一阶段连接，不代表完整 AI Agent Runtime 已上线。AI 自主研究、Connector 自动生成/修复、DAG 调度和独立 PlayerShell 回归仍需后续实现。不会绕过登录、付费墙、DRM、验证码或其他访问限制，也不会自动启用未通过验收的片源。</p>
       </div>
