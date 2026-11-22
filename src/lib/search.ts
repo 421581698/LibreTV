@@ -149,7 +149,7 @@ async function readLimitedResponse(
   }
 }
 
-function buildSearchUrl(
+export function buildSearchUrl(
   sourceUrl: string,
   keyword: string,
   sourceKey: string,
@@ -192,7 +192,9 @@ function buildSearchUrl(
     url.pathname = `${basePath}/api.php/provide/vod`;
   }
 
-  url.searchParams.set('ac', 'videolist');
+  // 风暴官方 JSON 接口使用 ac=list；其他 Apple CMS 源继续使用兼容动作 videolist。
+  const isStorm = sourceKey === 'bfzy' || url.hostname.toLowerCase() === 'bfzyapi.com';
+  url.searchParams.set('ac', isStorm ? 'list' : 'videolist');
   url.searchParams.set('wd', keyword);
 
   return url;
