@@ -89,6 +89,28 @@ describe('createDashRequestAuthFilter', () => {
     expect(request.headers).toEqual({ Authorization: 'Bearer secret' });
   });
 
+  it('refreshes provider headers only after an unauthorized retry is marked', async () => {
+    let refreshCount = 0;
+    const filter = createDashRequestAuthFilter({
+      headers: { Authorization: 'Bearer expired' },
+      refreshHeaders: async () => {
+        refreshCount += 1;
+        return { Authorization: 'Bearer renewed' };
+      },
+    }, 'https://media.example/stream.mpd');
+    const request = {
+      uris: ['https://media.example/chunk.m4s'],
+      headers: {} as Record<string, string>,
+      allowCrossSiteCredentials: false,
+    };
+
+    filter.markUnauthorized();
+    await filter(request);
+
+    expect(refreshCount).toBe(1);
+    expect(request.headers.Authorization).toBe('Bearer renewed');
+  });
+
   it('enables cookie credentials only when explicitly requested', () => {
     const filter = createDashRequestAuthFilter({
       withCredentials: true,
