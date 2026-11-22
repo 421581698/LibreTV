@@ -721,6 +721,14 @@ jobs:
                   const heroClearancePx = top && heroRect ? Math.round(heroRect.top - top.bottom) : null;
                   const heroCta = document.querySelector('.ipad-edition__cinema-hero-cta');
                   const heroCtaWhiteSpace = heroCta ? getComputedStyle(heroCta).whiteSpace : null;
+                  const heroPosterImage = hero?.querySelector('.ipad-edition__cinema-hero-poster img');
+                  const heroPosterResolution = heroPosterImage ? {
+                    loaded: heroPosterImage.complete && heroPosterImage.naturalWidth > 0 && heroPosterImage.naturalHeight > 0,
+                    naturalWidth: heroPosterImage.naturalWidth,
+                    naturalHeight: heroPosterImage.naturalHeight,
+                    meets1200px: heroPosterImage.naturalWidth >= 1200,
+                    source: (heroPosterImage.currentSrc || heroPosterImage.src || '').slice(0, 180),
+                  } : { loaded: false, naturalWidth: 0, naturalHeight: 0, meets1200px: false, source: null };
                   // naturalWidth/naturalHeight prove a real image decoded. Canvas pixel inspection is diagnostic only: cross-origin posters can taint the canvas without being visually broken.
               const realLoaded = posterChecks.filter(item => item.loaded && item.visible).length;
                   const posterSlotBreakdown = Object.fromEntries([...new Set(posterChecks.map(item => item.slotType))].map(type => {
@@ -742,6 +750,7 @@ jobs:
                     heroContentCenterOffsetPx,
                     heroClearancePx,
                     heroCtaWhiteSpace,
+                    heroPosterResolution,
                     homepageStillLoading: Boolean(document.querySelector('.ipad-edition__poster-grid[aria-busy="true"]')) || (document.querySelector('.ipad-edition__cinema-hero-copy h1')?.textContent ?? '').includes('正在为你准备影院'),
                     animeCalendarStillLoading: (document.querySelector('#ipad-anime-calendar')?.textContent ?? '').includes('正在读取每日放送'),
                     posterCount: posters.length,
@@ -895,7 +904,7 @@ jobs:
                 await page.evaluate(() => window.scrollTo(0, 0));
                 await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
                 await page.screenshot({ path: "artifacts/ipad-visual-audit/" + name + ".png", fullPage: false, animations: "disabled" });
-                const failed = !sidebarInteractionPassed || sidebarInteraction.diagnostics.finalState?.computedStyle?.position !== "fixed" || response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.y > 220 || metrics.main.width < viewport.width * 0.7 || !homepageReadiness.ready || metrics.homepageStillLoading || metrics.animeCalendarStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.posterImageLoadRate < 0.75 || !metrics.posterPixelInspectionPassed || metrics.heroTextOverlapsNavigation || metrics.heroOverlapsNavigation || !Number.isFinite(metrics.heroClearancePx) || metrics.heroClearancePx < 8 || metrics.heroCtaWhiteSpace !== "nowrap" || (viewport.width >= 700 && Math.abs(metrics.heroContentCenterOffsetPx ?? Infinity) > (metrics.hero?.height ?? 0) * 0.12) || metrics.heroClearancePx > 144 || !metrics.hero || metrics.hero.y < 0 || metrics.hero.y > Math.min(160, viewport.height * 0.25) || !metrics.themePairValid || !scrollAudit.navigationViewportValid || scrollAudit.overlappingPosterLabels.length > 0;
+                const failed = !sidebarInteractionPassed || sidebarInteraction.diagnostics.finalState?.computedStyle?.position !== "fixed" || response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.y > 220 || metrics.main.width < viewport.width * 0.7 || !homepageReadiness.ready || metrics.homepageStillLoading || metrics.animeCalendarStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.posterImageLoadRate < 0.75 || !metrics.posterPixelInspectionPassed || !metrics.heroPosterResolution?.loaded || !metrics.heroPosterResolution.meets1200px || metrics.heroTextOverlapsNavigation || metrics.heroOverlapsNavigation || !Number.isFinite(metrics.heroClearancePx) || metrics.heroClearancePx < 8 || metrics.heroCtaWhiteSpace !== "nowrap" || (viewport.width >= 700 && Math.abs(metrics.heroContentCenterOffsetPx ?? Infinity) > (metrics.hero?.height ?? 0) * 0.12) || metrics.heroClearancePx > 144 || !metrics.hero || metrics.hero.y < 0 || metrics.hero.y > Math.min(160, viewport.height * 0.25) || !metrics.themePairValid || !scrollAudit.navigationViewportValid || scrollAudit.overlappingPosterLabels.length > 0;
                 if (failed) failures += 1;
                 await Promise.allSettled(apiDiagnosticTasks);
                 results.push({ name, httpStatus: response?.status() ?? null, failed, sidebarInteractionPassed, sidebarInteraction, metrics, pageErrors: consoleErrors, apiDiagnostics });
