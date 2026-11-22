@@ -12,7 +12,7 @@ interface IpadEditionHeroProps {
 }
 
 function detailHref(title: string) {
-  return '/ipad-edition/detail?title=' + encodeURIComponent(title);
+  return '/ipad-edition/search?q=' + encodeURIComponent(title);
 }
 
 /** Homepage-only cinematic feature; source artwork is navigable by swipe, keys and controls. */
@@ -72,7 +72,7 @@ export function IpadEditionHero({ items, activeIndex, onSelect }: IpadEditionHer
           {item.rating ? <span className="ipad-edition__cinema-hero-rating">★ {item.rating}</span> : null}
         </div>
         <Link className="ipad-edition__cinema-hero-cta" href={detailHref(item.title)}>
-          查看影片详情
+          查找播放资源
           <span aria-hidden="true">→</span>
         </Link>
       </div>
