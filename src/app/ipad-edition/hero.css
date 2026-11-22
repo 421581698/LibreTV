@@ -530,3 +530,51 @@
     padding: 8px 11px;
   }
 }
+
+
+/* Cinema Experience interaction layer: tactile navigation and restrained scene transitions. */
+.ipad-edition .ipad-edition__cinema-hero {
+  touch-action: pan-y pinch-zoom;
+  outline: none;
+}
+.ipad-edition .ipad-edition__cinema-hero:focus-visible {
+  outline: 2px solid rgba(255,255,255,.88);
+  outline-offset: -5px;
+}
+.ipad-edition .ipad-edition__cinema-hero-copy {
+  animation: ipad-cinema-copy-in 480ms cubic-bezier(.2,.72,.25,1) both;
+}
+.ipad-edition .ipad-edition__cinema-hero-pagination {
+  z-index: 6;
+}
+.ipad-edition .ipad-edition__cinema-hero-pagination .ipad-edition__cinema-hero-step {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 50%;
+  background: rgba(255,255,255,.1);
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.ipad-edition .ipad-edition__cinema-hero-pagination .ipad-edition__cinema-hero-step:active {
+  transform: scale(.92);
+}
+.ipad-edition .ipad-edition__cinema-hero-pagination button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+@keyframes ipad-cinema-copy-in {
+  from { opacity: 0; transform: translate3d(0, 14px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ipad-edition .ipad-edition__cinema-hero-copy {
+    animation: none !important;
+  }
+}
