@@ -178,3 +178,79 @@
 @media (prefers-reduced-motion: reduce) {
   .friday-glass-canvas { display: none; }
 }
+
+
+/* ==========================================================================
+ * Friday Liquid Glass — semantic primitive states and optical-layer ordering
+ * ========================================================================== */
+.friday-glass > .liquid-glass-engine-slot {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.friday-glass .friday-glass-engine {
+  z-index: 0;
+}
+.friday-glass[data-friday-glass-role="card"] {
+  transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
+}
+.friday-glass[data-friday-glass-role="card"]:hover {
+  border-color: rgba(var(--glass-border), calc(var(--friday-glass-border, .14) + .08));
+  box-shadow: var(--glass-shadow-soft), inset 0 1px 0 rgba(255, 255, 255, .16);
+}
+.friday-glass[data-friday-glass-role="field"]:focus-within {
+  border-color: rgba(var(--glass-border), .34);
+  box-shadow: 0 0 0 2px rgba(213, 169, 79, .16), inset 0 1px 0 rgba(255, 255, 255, .12);
+}
+.friday-glass[data-friday-glass-role="panel"] {
+  box-shadow: var(--glass-shadow);
+}
+.friday-glass[data-friday-glass-role="bar"],
+.friday-glass[data-friday-glass-role="dock"] {
+  -webkit-backdrop-filter: blur(var(--friday-glass-blur, 22px)) saturate(var(--friday-glass-saturate, 150%));
+  backdrop-filter: blur(var(--friday-glass-blur, 22px)) saturate(var(--friday-glass-saturate, 150%));
+}
+.friday-glass--interactive {
+  cursor: pointer;
+  transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.friday-glass--interactive:hover {
+  border-color: rgba(var(--glass-border), .28);
+  box-shadow: var(--glass-shadow);
+}
+.friday-glass--interactive:active {
+  transform: translateY(1px);
+}
+.friday-glass--interactive:focus-visible {
+  outline: 2px solid #d5a94f;
+  outline-offset: 3px;
+}
+.friday-glass:disabled,
+.friday-glass[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: .58;
+  filter: saturate(.7);
+}
+@media (prefers-reduced-motion: reduce) {
+  .friday-glass,
+  .friday-glass--interactive {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+@media (max-width: 700px), (pointer: coarse) {
+  .friday-glass[data-friday-glass-role="card"]:hover {
+    border-color: rgba(var(--glass-border), var(--friday-glass-border, .14));
+    box-shadow: var(--glass-shadow-soft);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .friday-glass {
+    --friday-glass-fill: .92 !important;
+    --friday-glass-blur: 4px !important;
+  }
+  .friday-glass-canvas { display: none !important; }
+}
