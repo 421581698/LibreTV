@@ -856,58 +856,82 @@ jobs:
                   await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
                   if (document.fonts?.ready) await document.fonts.ready;
                 });
-                // Inspect poster pixels from one browser-composited page capture.
-                // Locator.screenshot() can read an isolated lazy-image compositor layer as
-                // solid black on dark iPad emulation even while the page composite is correct.
-                // The full-page screenshot is the same composited surface users actually see.
-                const renderedPagePng = PNG.sync.read(await page.screenshot({
-                  fullPage: true,
-                  animations: "disabled",
-                  timeout: 30000,
-                }));
-                const renderedPosterGeometry = await page.evaluate(() => {
-                  const scale = window.devicePixelRatio || 1;
-                  return Array.from(document.querySelectorAll('[data-ipad-poster-slot]')).map((slot, index) => {
+                // Inspect every poster from a browser-composited viewport screenshot.
+                // A single fullPage capture cannot contain horizontally off-screen carousel
+                // cards: their document X coordinates can exceed the PNG width. Center each
+                // slot in the real page viewport, capture the complete composited viewport,
+                // then crop using viewport-relative CSS coordinates. This still avoids the
+                // isolated image-layer false-black behavior of locator.screenshot().
+                const posterSlots = await page.locator('[data-ipad-poster-slot]').count();
+                const posterPixelChecks = [];
+                for (let index = 0; index < posterSlots; index += 1) {
+                  await page.evaluate(async (slotIndex) => {
+                    const slots = Array.from(document.querySelectorAll('[data-ipad-poster-slot]'));
+                    const slot = slots[slotIndex];
+                    if (!slot) return;
+                    slot.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' });
                     const image = slot.querySelector('img');
-                    if (!image) {
+                    if (image) {
+                      image.loading = 'eager';
+                      if (typeof image.decode === 'function') {
+                        await Promise.race([
+                          image.decode().catch(() => {}),
+                          new Promise(resolve => setTimeout(resolve, 8000)),
+                        ]);
+                      }
+                    }
+                    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                  }, index);
+
+                  const renderedViewportPng = PNG.sync.read(await page.screenshot({
+                    fullPage: false,
+                    animations: "disabled",
+                    timeout: 30000,
+                  }));
+                  const item = await page.evaluate((slotIndex) => {
+                    const slots = Array.from(document.querySelectorAll('[data-ipad-poster-slot]'));
+                    const slot = slots[slotIndex];
+                    const image = slot?.querySelector('img');
+                    if (!slot || !image) {
                       return {
-                        index,
-                        slotType: slot.getAttribute('data-ipad-poster-slot') ?? 'unknown',
+                        index: slotIndex,
+                        slotType: slot?.getAttribute('data-ipad-poster-slot') ?? 'unknown',
                         missingImage: true,
                       };
                     }
                     const rect = image.getBoundingClientRect();
                     return {
-                      index,
+                      index: slotIndex,
                       slotType: slot.getAttribute('data-ipad-poster-slot') ?? 'unknown',
                       missingImage: false,
-                      x: rect.left + window.scrollX,
-                      y: rect.top + window.scrollY,
+                      x: rect.left,
+                      y: rect.top,
                       width: rect.width,
                       height: rect.height,
                       naturalWidth: image.naturalWidth,
                       naturalHeight: image.naturalHeight,
                       complete: image.complete,
                       source: (image.currentSrc || image.src || '').slice(0, 180),
-                      deviceScaleFactor: scale,
                     };
-                  });
-                });
-                const screenshotScale = renderedPagePng.width / viewport.width;
-                const posterPixelChecks = renderedPosterGeometry.map(item => {
+                  }, index);
+
                   if (item.missingImage) {
-                    return {
+                    posterPixelChecks.push({
                       index: item.index,
                       slotType: item.slotType,
                       inspected: false,
                       reason: "missing-image-element",
                       blankBlack: false,
-                    };
+                    });
+                    continue;
                   }
-                  const left = Math.max(0, Math.floor(item.x * screenshotScale));
-                  const top = Math.max(0, Math.floor(item.y * screenshotScale));
-                  const right = Math.min(renderedPagePng.width, Math.ceil((item.x + item.width) * screenshotScale));
-                  const bottom = Math.min(renderedPagePng.height, Math.ceil((item.y + item.height) * screenshotScale));
+
+                  const screenshotScaleX = renderedViewportPng.width / viewport.width;
+                  const screenshotScaleY = renderedViewportPng.height / viewport.height;
+                  const left = Math.max(0, Math.floor(item.x * screenshotScaleX));
+                  const top = Math.max(0, Math.floor(item.y * screenshotScaleY));
+                  const right = Math.min(renderedViewportPng.width, Math.ceil((item.x + item.width) * screenshotScaleX));
+                  const bottom = Math.min(renderedViewportPng.height, Math.ceil((item.y + item.height) * screenshotScaleY));
                   let sum = 0;
                   let sumSquares = 0;
                   let darkPixels = 0;
@@ -915,17 +939,17 @@ jobs:
                   const colorBuckets = new Set();
                   for (let y = top; y < bottom; y += 1) {
                     for (let x = left; x < right; x += 1) {
-                      const offset = (y * renderedPagePng.width + x) * 4;
-                      const alpha = renderedPagePng.data[offset + 3] / 255;
+                      const offset = (y * renderedViewportPng.width + x) * 4;
+                      const alpha = renderedViewportPng.data[offset + 3] / 255;
                       if (alpha < 0.9) continue;
-                      const r = renderedPagePng.data[offset];
-                      const g = renderedPagePng.data[offset + 1];
-                      const b = renderedPagePng.data[offset + 2];
-                      const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                      const red = renderedViewportPng.data[offset];
+                      const green = renderedViewportPng.data[offset + 1];
+                      const blue = renderedViewportPng.data[offset + 2];
+                      const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
                       sum += luminance;
                       sumSquares += luminance * luminance;
                       if (luminance <= 16) darkPixels += 1;
-                      colorBuckets.add([r >> 4, g >> 4, b >> 4].join(","));
+                      colorBuckets.add([red >> 4, green >> 4, blue >> 4].join(","));
                       samples += 1;
                     }
                   }
@@ -935,7 +959,7 @@ jobs:
                   const nearBlackRatio = samples ? darkPixels / samples : 1;
                   const blankBlack = samples === 0 ||
                     (meanLuminance < 8 && standardDeviation < 4 && nearBlackRatio > 0.995);
-                  return {
+                  posterPixelChecks.push({
                     index: item.index,
                     slotType: item.slotType,
                     inspected: samples > 0,
@@ -950,9 +974,9 @@ jobs:
                     naturalHeight: item.naturalHeight,
                     complete: item.complete,
                     source: item.source,
-                  };
-                });
-                metrics.posterPixelInspectionSource = "full-page-composited-screenshot";
+                  });
+                }
+                metrics.posterPixelInspectionSource = "per-poster-viewport-composited-screenshot";
                 metrics.posterPixelChecks = posterPixelChecks;
                 metrics.posterPixelInspectionUnavailableCount = posterPixelChecks.filter(item => !item.inspected).length;
                 metrics.blankBlackPosterCount = posterPixelChecks.filter(item => item.blankBlack).length;
