@@ -232,3 +232,37 @@
 }
 
 /* Isolated EdgeOne Preview verification trigger. */
+
+
+/* Compact search capsule: keep the input prominent without spanning the full iPad canvas. */
+.ipad-edition .ipad-edition__search-page > .ipad-edition__search-form {
+  width: min(100%, 760px);
+  max-width: 760px;
+  min-height: 60px;
+  padding: 6px 9px 6px 20px;
+  gap: 12px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form input {
+  min-height: 44px;
+  font-size: 16px;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form button {
+  min-height: 40px;
+  padding-inline: 15px;
+}
+@media (max-width: 699px) {
+  .ipad-edition .ipad-edition__search-page > .ipad-edition__search-form {
+    width: 100%;
+    min-height: 54px;
+    padding: 5px 7px 5px 15px;
+    gap: 8px;
+  }
+  .ipad-edition .ipad-edition__search-page .ipad-edition__search-form input {
+    min-height: 42px;
+    font-size: 15px;
+  }
+  .ipad-edition .ipad-edition__search-page .ipad-edition__search-form button {
+    min-height: 38px;
+    padding-inline: 12px;
+  }
+}
