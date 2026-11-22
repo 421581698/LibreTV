@@ -29,13 +29,13 @@ export function IpadEditionHome() {
   });
 
   const series = useQuery({
-    queryKey: ['ipad-edition-series'],
+    queryKey: ['ipad-edition-series', 'CN'],
     queryFn: ({ signal }) => api.tmdbDiscover('tv', '热门', 1, signal),
     staleTime: 5 * 60_000,
   });
 
   const newReleases = useQuery({
-    queryKey: ['ipad-edition-new'],
+    queryKey: ['ipad-edition-new', 'CN'],
     queryFn: ({ signal }) => api.tmdbDiscover('movie', '最新', 1, signal),
     staleTime: 5 * 60_000,
   });
