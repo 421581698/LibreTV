@@ -68,6 +68,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarDragOffset, setSidebarDragOffset] = useState(0);
   const [sidebarDragging, setSidebarDragging] = useState(false);
+  const [cinemaScrolled, setCinemaScrolled] = useState(false);
   const gestureRef = useRef<{ pointerId: number; startX: number; lastX: number; lastAt: number; width: number; wasOpen: boolean } | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const environmentRootRef = useRef<HTMLDivElement | null>(null);
@@ -87,6 +88,17 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
       delete root.dataset.renderMotion;
     };
   }, []);
+
+  useEffect(() => {
+    if (pathname !== '/ipad-edition') {
+      setCinemaScrolled(false);
+      return;
+    }
+    const updateScrollState = () => setCinemaScrolled(window.scrollY > 200);
+    updateScrollState();
+    window.addEventListener('scroll', updateScrollState, { passive: true });
+    return () => window.removeEventListener('scroll', updateScrollState);
+  }, [pathname]);
 
   useEffect(() => {
     setSidebarOpen(false);
@@ -199,6 +211,8 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
       data-ipad-edition="true"
       data-ipad-player={isPlayerRoute ? 'true' : undefined}
       data-ipad-detail={isDetailRoute ? 'true' : undefined}
+      data-ipad-home={pathname === '/ipad-edition' ? 'true' : undefined}
+      data-ipad-scrolled={cinemaScrolled ? 'true' : 'false'}
       data-ipad-sidebar-open={sidebarOpen ? 'true' : 'false'}
       data-ipad-sidebar-dragging={sidebarDragging ? 'true' : 'false'}
       onPointerDown={beginSidebarGesture}
