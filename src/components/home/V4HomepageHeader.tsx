@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { SourceManagerDrawer } from '@/components/source-manager';
 import { HistoryPanel } from '@/components/history-panel';
@@ -35,6 +36,9 @@ export function V4HomepageHeader({ overlay = false }: { overlay?: boolean }) {
           {!overlay && (
             <div className="v4-header-actions">
               <SearchModule />
+              <Link href="/connect" className="v4-header-icon" aria-label="DASH / PDS 资源接入" title="DASH / PDS 资源接入">
+                <span className="text-[11px] font-semibold tracking-tight">DASH</span>
+              </Link>
               <AvatarModule pathname={pathname} />
             </div>
           )}
