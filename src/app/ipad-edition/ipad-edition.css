@@ -659,10 +659,10 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
 .ipad-edition__page { scroll-margin-top: 94px; }
 .ipad-edition__home { padding-top: max(104px, calc(env(safe-area-inset-top, 0px) + 88px)); }
 .ipad-edition__page { padding-top: max(104px, calc(env(safe-area-inset-top, 0px) + 88px)); }
+/* Keep the three-action Liquid Glass capsule and drawer available on every
+   iPad Edition page, including movie detail. Only immersive playback hides chrome. */
 .ipad-edition[data-ipad-player="true"] .ipad-nav__topbar,
-.ipad-edition[data-ipad-player="true"] .ipad-nav__sidebar,
-.ipad-edition[data-ipad-detail="true"] .ipad-nav__topbar,
-.ipad-edition[data-ipad-detail="true"] .ipad-nav__sidebar { display: none !important; }
+.ipad-edition[data-ipad-player="true"] .ipad-nav__sidebar { display: none !important; }
 @media (max-width: 699px) {
   .ipad-nav__topbar { width: calc(100vw - 24px); height: 54px; top: max(7px, env(safe-area-inset-top, 0px) + 4px); }
   .ipad-nav__topbar-inner { border-radius: 16px; padding-inline: 9px; }
