@@ -575,6 +575,8 @@ export function PlayerShell({
     setQualityMetadataComplete(false);
     setQualityControlMode('single');
     setQualityNotice('DASH 自适应码率由 Shaka Player 管理；实际解码分辨率以播放器检测为准。');
+    setError('');
+    mediaHealthyRef.current = false;
 
     void (async () => {
       const imported = await import('shaka-player');
@@ -609,8 +611,12 @@ export function PlayerShell({
       player.addEventListener('error', (event: Event) => {
         if (generation !== dashGenerationRef.current) return;
         playbackMetricsRef.current.fatalErrors += 1;
-        const detail = (event as Event & { detail?: { code?: number } }).detail;
+        const detail = (event as Event & { detail?: { code?: number; severity?: number } }).detail;
         const code = detail?.code;
+        if (detail?.severity === 1) {
+          showHint(code ? `DASH 正在恢复（错误 ${code}）...` : 'DASH 正在恢复...');
+          return;
+        }
         setError(code ? `DASH 播放失败（Shaka 错误 ${code}），请检查媒体地址、跨域和授权状态` : 'DASH 播放失败，请检查 MPD、媒体分片和授权状态');
       });
 
@@ -1146,7 +1152,7 @@ export function PlayerShell({
           void setupDirectMedia(video, mediaUrl);
         },
         webm: (video: HTMLVideoElement, mediaUrl: string) => {
-          setupDirectMedia(video, mediaUrl);
+          void setupDirectMedia(video, mediaUrl);
         },
       },
     });
