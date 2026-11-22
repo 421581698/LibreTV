@@ -15,6 +15,7 @@ on:
       - "src/components/ui/liquid-glass.tsx"
       - "src/components/live-channel-list.tsx"
       - "src/components/video-card.tsx"
+      - "src/app/resource-studio/page.tsx"
       - "src/components/live-epg-panel.tsx"
       - "src/components/detail-modal.tsx"
       - "src/components/search-history.tsx"
