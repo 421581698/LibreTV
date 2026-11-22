@@ -58,7 +58,9 @@ describe('iPad Edition navigation contract', () => {
 
   it('reserves space below the floating capsule and keeps poster captions in the rail flow', () => {
     const layout = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/ipad-edition.css'), 'utf8');
-    expect(layout).toContain('padding-block-start: max(68px, calc(env(safe-area-inset-top, 0px) + 60px));');
+    expect(layout).toContain('padding-block-start: 0;');
+    expect(layout).toContain('padding: 0 clamp(16px, 2.4vw, 36px) 56px !important;');
+    expect(layout).toContain('padding: 0 0 40px !important;');
     expect(layout).toContain('.ipad-edition .ipad-edition__poster-grid,');
     expect(layout).toContain('height: auto;');
     expect(layout).toContain('.ipad-edition .ipad-edition__poster-card {');
