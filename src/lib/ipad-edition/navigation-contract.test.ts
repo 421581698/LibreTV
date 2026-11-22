@@ -36,7 +36,7 @@ describe('iPad Edition navigation contract', () => {
   it('keeps navigation visible on detail pages and hides it only for immersive playback', () => {
     expect(shell).toContain('const isChromeHidden = isPlayerRoute;');
     expect(shell).not.toContain('const isChromeHidden = isPlayerRoute || isDetailRoute;');
-    expect(shell).toContain('data-ipad-detail={isDetailRoute ? \'true\' : undefined}');
+    expect(shell).toContain("data-ipad-detail={isDetailRoute ? 'true' : undefined}");
   });
 
   it('preserves an accessible sidebar toggle and manages modal focus/scroll lifecycle', () => {
