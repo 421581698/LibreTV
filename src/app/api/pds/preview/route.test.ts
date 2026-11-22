@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { POST } from './route';
 
 const state = vi.hoisted(() => ({
-  result: { status: 'ready' as const, renditions: [{ templateId: '264_1080p', url: 'https://media.example/movie.m3u8', category: 'quick_video' as const }] },
+  result: null as unknown,
   error: null as Error | null,
   guarded: null as Response | null,
   input: null as unknown,
