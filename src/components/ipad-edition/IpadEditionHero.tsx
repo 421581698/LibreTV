@@ -12,10 +12,6 @@ interface IpadEditionHeroProps {
   pendingTitle: string;
 }
 
-function detailHref(title: string) {
-  return '/ipad-edition/search?q=' + encodeURIComponent(title);
-}
-
 /** Homepage-only cinematic feature; source artwork is navigable by swipe, keys and controls. */
 export function IpadEditionHero({ items, activeIndex, onSelect, onOpen, pendingTitle }: IpadEditionHeroProps) {
   const item = items[activeIndex];
