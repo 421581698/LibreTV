@@ -14,3 +14,5 @@ AUTH_DISABLED = "true"
 CMS_SEARCH_API = "https://caiji.dyttzyapi.com/api.php/provide/vod"
 API_60S_BASE = "https://60s.bggdbh.workers.dev"
 LLM_MODEL = "glm-4-flash"
+# Preview-only default CMS source. The source remains removable/disableable in Settings.
+DEFAULT_SOURCES = '[{"key":"bfzy","name":"风暴","url":"https://bfzyapi.com/api.php/provide/vod","detail":"https://bfzy.tv","isAdult":false}]'
