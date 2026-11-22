@@ -1065,7 +1065,13 @@ jobs:
                 if (route.name === "watch") {
                   await page.locator(".netflix-watch").waitFor({ state: "visible", timeout: 30000 });
                   await page.locator(".netflix-player-frame").waitFor({ state: "visible", timeout: 30000 });
-                  await page.getByText("iPad Preview 样片").first().waitFor({ state: "visible", timeout: 30000 });
+                  // The watch page also renders a hidden fallback H1 outside the visible player content.
+                  // Scope the assertion to the actual title row inside the rendered watch page.
+                  const playerTitle = page.locator(".netflix-watch .netflix-title-row h1");
+                  await playerTitle.waitFor({ state: "visible", timeout: 30000 });
+                  if ((await playerTitle.innerText()).trim() !== "iPad Preview 样片") {
+                    throw new Error("Visible player title did not match the mocked CMS fixture.");
+                  }
                 }
                 const metrics = await page.evaluate((routeName) => {
                   const root = document.querySelector(".ipad-edition");
