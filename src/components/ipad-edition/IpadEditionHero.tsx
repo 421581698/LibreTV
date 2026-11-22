@@ -68,7 +68,7 @@ export function IpadEditionHero({ items, activeIndex, onSelect }: IpadEditionHer
         <p className="ipad-edition__cinema-hero-kicker">LIBRETV · 精选推荐</p>
         <h1>{item.title}</h1>
         <div className="ipad-edition__cinema-hero-meta">
-          <span>豆瓣热门</span>
+          <span>TMDB · 中国区精选</span>
           {item.rating ? <span className="ipad-edition__cinema-hero-rating">★ {item.rating}</span> : null}
         </div>
         <Link className="ipad-edition__cinema-hero-cta" href={detailHref(item.title)}>
