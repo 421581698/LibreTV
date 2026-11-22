@@ -18,6 +18,12 @@ on:
       - "src/components/smart-image.tsx"
       - "src/lib/poster/**"
       - "src/lib/ipad-edition/**"
+      - "src/lib/search.ts"
+      - "src/lib/search.test.ts"
+      - "src/lib/env-sources.ts"
+      - "src/app/api/detail/route.ts"
+      - "src/app/api/detail/route.test.ts"
+      - "wrangler.ipad-edition-preview.toml"
   workflow_dispatch:
     inputs:
       confirm_preview_deploy:
