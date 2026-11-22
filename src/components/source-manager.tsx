@@ -38,6 +38,7 @@ import { collectorFetch, clearScraplingConfig, normalizeScraplingBase, readScrap
 import { registerValidatedCmsSource } from '@/lib/resource-collector-workflow';
 import { ResourceStatsPanel } from '@/components/resource-stats-panel';
 import { requestShowDownloadManager } from '@/components/download-manager';
+import { GlassBar, GlassPanel } from '@/components/ui/friday-glass';
 
 
 const CollectorPlayerShell = dynamic(
@@ -143,10 +144,10 @@ export function SourceManagerDrawer({ open, onClose, embedded = false }: { open:
     <>
       {activePage === 'index' ? (
         <>
-        <header className="settings-large-title">
+        <GlassBar as="header" className="settings-large-title">
           <h1>设置</h1>
           <p>管理 LibreTV 的外观、播放与资源偏好。</p>
-        </header>
+        </GlassBar>
         <div className="ipad-settings-content mx-auto w-full max-w-2xl space-y-7 pb-3">
           {SETTINGS_SECTIONS.map((section) => (
             <section key={section.title} className="space-y-2">
@@ -178,12 +179,12 @@ export function SourceManagerDrawer({ open, onClose, embedded = false }: { open:
         </>
       ) : (
         <>
-        <header className="settings-nav-bar">
+        <GlassBar as="header" className="settings-nav-bar">
           <button type="button" className="settings-nav-back" onClick={() => setActivePage('index')} aria-label="返回设置">
             <span aria-hidden="true">‹</span><span>设置</span>
           </button>
           <span className="settings-nav-center">设置</span>
-        </header>
+        </GlassBar>
         <div className="ipad-settings-content settings-apple-detail mx-auto w-full max-w-2xl space-y-5 pb-3">
           <div className="settings-apple-detail-heading space-y-1 border-b border-line pb-4">
             <div className="settings-apple-page-title">
@@ -195,13 +196,13 @@ export function SourceManagerDrawer({ open, onClose, embedded = false }: { open:
             <p className="text-sm text-muted">{SETTINGS_PAGE_META[activePage].description}</p>
           </div>
           {activePage === 'appearance' && (
-            <section className="rounded-2xl border border-line bg-card p-4">
+            <GlassPanel as="section" className="rounded-2xl border border-line bg-card p-4">
               <div className="mb-3">
                 <h3 className="text-sm font-semibold text-content">外观模式</h3>
                 <p className="mt-1 text-xs text-muted">选择浅色、深色，或跟随设备系统设置。</p>
               </div>
               <ThemeToggle />
-            </section>
+            </GlassPanel>
           )}
           {activePage === 'vod' && <VodSourcesPanel />}
           {activePage === 'live' && <LiveSourceManager />}
