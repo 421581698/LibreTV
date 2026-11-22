@@ -64,10 +64,11 @@ export function IpadEditionHero({ items, activeIndex, onSelect, onOpen, pendingT
       <div className="ipad-edition__cinema-hero-copy" key={item.id || item.title} aria-live="polite">
         <p className="ipad-edition__cinema-hero-kicker">LIBRETV · 精选推荐</p>
         <h1>{item.title}</h1>
-        <div className="ipad-edition__cinema-hero-meta">
-          <span>TMDB · 中国区精选</span>
-          {item.rating ? <span className="ipad-edition__cinema-hero-rating">★ {item.rating}</span> : null}
-        </div>
+        {item.rating ? (
+          <div className="ipad-edition__cinema-hero-meta">
+            <span className="ipad-edition__cinema-hero-rating">★ {item.rating}</span>
+          </div>
+        ) : null}
         <button type="button" className="ipad-edition__cinema-hero-cta" aria-busy={pendingTitle === item.title} disabled={Boolean(pendingTitle)} onClick={() => onOpen(item)}>
           查找播放资源
           <span aria-hidden="true">→</span>
