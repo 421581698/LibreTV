@@ -1883,11 +1883,7 @@ body:has(.ipad-edition[data-environment="light"]) {
 
 /* Preview deploy trigger: verify this exact cinema rail cascade in the isolated nks Preview. */
 
-.ipad-edition__tmdb-attribution {display:flex;align-items:center;gap:14px;margin:28px 0 12px;padding:16px 18px;border:1px solid var(--ipad-line);border-radius:16px;background:var(--ipad-surface)}
-.ipad-edition__tmdb-attribution a {display:inline-flex;flex:0 0 auto;align-items:center}
-.ipad-edition__tmdb-attribution img {display:block;width:76px;height:auto;max-height:56px;object-fit:contain}
-.ipad-edition__tmdb-attribution p {margin:0;color:var(--ipad-muted);font-size:11px;line-height:1.55}
-@media (max-width:520px){.ipad-edition__tmdb-attribution {align-items:flex-start;gap:10px;padding:12px}.ipad-edition__tmdb-attribution img {width:62px}}
+
 
 
 /* Keep the iPad shell content inside its viewport despite legacy global main sizing. */
