@@ -1,7 +1,7 @@
 'use client';
 
 import { PosterRenderer } from '@/components/ipad-edition/PosterRenderer';
-import { fromDoubanItem } from '@/lib/poster';
+import { fromTmdbItem } from '@/lib/poster';
 import type { DoubanItem } from '@/lib/types';
 
 interface IpadEditionHeroArtworkProps {
@@ -15,7 +15,7 @@ interface IpadEditionHeroArtworkProps {
  */
 export function IpadEditionHeroArtwork({ item }: IpadEditionHeroArtworkProps) {
   const backdrop = item.backdrop?.trim();
-  const posterAsset = fromDoubanItem(item);
+  const posterAsset = fromTmdbItem(item);
 
   return (
     <div
