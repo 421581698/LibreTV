@@ -223,8 +223,8 @@ describe('首页与播放页回归契约', () => {
     expect(settings).toContain("setActivePage(item.id)");
     expect(settings).toContain("setActivePage('index')");
     expect(settings).toContain("activePage === 'appearance'");
-    expect(settings).toContain("activePage === 'vod' && <GlassPanel className="rounded-2xl"><VodSourcesPanel /></GlassPanel>");
-    expect(settings).toContain("activePage === 'live' && <GlassPanel className="rounded-2xl"><LiveSourceManager /></GlassPanel>");
+    expect(settings).toContain(`activePage === 'vod' && <GlassPanel className="rounded-2xl"><VodSourcesPanel /></GlassPanel>`);
+    expect(settings).toContain(`activePage === 'live' && <GlassPanel className="rounded-2xl"><LiveSourceManager /></GlassPanel>`);
     expect(settings).toContain("type VodFilter = 'all' | 'enabled' | 'disabled' | 'sub' | 'manual'");
     expect(settings).toContain('const VOD_FILTERS');
   });
@@ -470,7 +470,7 @@ describe('首页与播放页回归契约', () => {
     expect(settings).toContain("{ id: 'subs', label: '资源订阅'");
     expect(settings).toContain("{ id: 'cache', label: '本机缓存'");
     expect(settings).toContain("{ id: 'collector', label: '资源采集中心'");
-    expect(settings).toContain("activePage === 'voice' && <GlassPanel className="rounded-2xl"><VoiceSettingsPanel /></GlassPanel>");
+    expect(settings).toContain(`activePage === 'voice' && <GlassPanel className="rounded-2xl"><VoiceSettingsPanel /></GlassPanel>`);
     expect(settings).toContain("activePage === 'about'");
   });
 
