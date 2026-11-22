@@ -483,55 +483,6 @@
 /* [deploy-ipad-edition-preview] Correct intrinsic poster frame anchoring and edge blend. */
 
 
-/* PR #99 homepage visual alignment pass.
-   Keep the cinematic treatment, but place it on the same content grid as every rail. */
-.ipad-edition .ipad-edition__cinema-hero {
-  width: calc(100% + 2 * clamp(16px, 2.4vw, 36px));
-  min-width: 0;
-  margin-inline: calc(-1 * clamp(16px, 2.4vw, 36px));
-  height: clamp(340px, 42svh, 520px);
-  min-height: 300px;
-  max-height: 520px;
-  margin: 0;
-  border-radius: 0;
-  box-shadow: none;
-}
-.ipad-edition .ipad-edition__cinema-hero-copy {
-  padding-left: clamp(22px, 4vw, 56px);
-  padding-right: clamp(16px, 2vw, 28px);
-}
-.ipad-edition .ipad-edition__cinema-hero-pagination {
-  left: clamp(22px, 4vw, 56px);
-  right: auto;
-  bottom: 20px;
-  gap: 10px;
-}
-@media (min-width: 700px) and (max-width: 1023px) {
-  .ipad-edition .ipad-edition__cinema-hero {
-    height: clamp(320px, 42svh, 460px);
-    min-height: 320px;
-  }
-}
-@media (max-width: 699px) {
-  .ipad-edition .ipad-edition__cinema-hero {
-    width: calc(100% + 32px);
-    margin-inline: -16px;
-    height: clamp(300px, 42svh, 420px);
-    min-height: 300px;
-    border-radius: 0;
-  }
-  .ipad-edition .ipad-edition__cinema-hero-copy {
-    padding: 22px 18px 78px;
-  }
-  .ipad-edition .ipad-edition__cinema-hero-pagination {
-    left: 18px;
-    right: auto;
-    bottom: 14px;
-    padding: 8px 11px;
-  }
-}
-
-
 /* Cinema Experience interaction layer: tactile navigation and restrained scene transitions. */
 .ipad-edition .ipad-edition__cinema-hero {
   touch-action: pan-y pinch-zoom;
