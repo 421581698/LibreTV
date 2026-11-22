@@ -37,6 +37,17 @@ export function fromDoubanItem(_item: DoubanItem): PosterAsset | undefined {
   return undefined;
 }
 
+export function fromTmdbItem(item: DoubanItem): PosterAsset | undefined {
+  return createPosterAsset({
+    provider: 'tmdb',
+    providerItemId: item.id,
+    title: item.title,
+    imageUrl: item.cover,
+    kind: 'poster',
+    attribution: 'TMDB',
+  });
+}
+
 export function fromBangumiItem(item: DoubanItem): PosterAsset | undefined {
   return createPosterAsset({
     provider: 'bangumi',
