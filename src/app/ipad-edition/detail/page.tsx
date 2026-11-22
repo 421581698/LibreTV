@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense } from 'react';
+import './detail.css';
 import { MovieDetailPage } from '@/components/movie-detail-page';
 
 export default function IpadEditionDetailPage() {
