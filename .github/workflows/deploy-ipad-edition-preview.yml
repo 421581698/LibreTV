@@ -973,7 +973,7 @@ jobs:
             { name: "movies", path: "/ipad-edition/movies", chrome: true, heading: true },
             { name: "series", path: "/ipad-edition/series", chrome: true, heading: true },
             { name: "anime", path: "/ipad-edition/anime", chrome: true, heading: true },
-            { name: "detail", path: "/ipad-edition/detail?title=Preview%20Layout%20Audit", chrome: false, heading: false },
+            { name: "detail", path: "/ipad-edition/detail?title=Preview%20Layout%20Audit", chrome: true, heading: false },
             { name: "watch", path: "/ipad-edition/watch", chrome: false, heading: false },
           ];
           const browser = await chromium.launch({ headless: true });
@@ -1019,7 +1019,7 @@ jobs:
                     return skeletons === 0 && Boolean(content || message);
                   }, undefined, { timeout: 30000 });
                 }
-                // Detail/player routes intentionally hide the global chrome. Their no-parameter
+                // The player route hides the global chrome; the detail route keeps the iPad shell navigation. Their no-parameter
                 // smoke checks validate the route's explicit empty/error state only; they are not
                 // represented as full content-page visual baselines without real source fixtures.
                 if (route.name === "detail") {
