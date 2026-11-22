@@ -50,8 +50,8 @@ describe('iPad Edition navigation contract', () => {
   it('keeps the homepage hero and recommendation rails on one shared gutter', () => {
     const styles = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/hero.css'), 'utf8');
     const layout = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/ipad-edition.css'), 'utf8');
-    expect(styles).toContain('width: 100%;');
-    expect(styles).toContain('margin: 0;');
+    expect(styles).toContain('width: calc(100% + 2 * clamp(16px, 2.4vw, 36px));');
+    expect(styles).toContain('margin-inline: calc(-1 * clamp(16px, 2.4vw, 36px));');
     expect(styles).toContain('border-radius: 0;');
     expect(layout).toContain('.ipad-edition .ipad-edition__today,');
     expect(layout).toContain('padding-inline: var(--ipad-page-gutter);');
