@@ -626,6 +626,8 @@ export function PlayerShell({
         return;
       }
       recoveryRef.current?.markHealthy();
+      mediaHealthyRef.current = true;
+      setError('');
 
       const duration = video.duration;
       try {
