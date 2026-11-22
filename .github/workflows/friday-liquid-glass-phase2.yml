@@ -16,6 +16,8 @@ on:
       - "src/components/live-channel-list.tsx"
       - "src/components/video-card.tsx"
       - "src/app/resource-studio/page.tsx"
+      - "src/components/search/SearchResultsView.tsx"
+      - "src/components/source-manager.tsx"
       - "src/components/live-epg-panel.tsx"
       - "src/components/detail-modal.tsx"
       - "src/components/search-history.tsx"
