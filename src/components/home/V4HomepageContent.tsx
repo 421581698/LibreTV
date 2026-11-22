@@ -46,8 +46,7 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
   return (
     <>
 
-      {(
-        <>
+      <>
           <HomepagePosterRail
             id="apple-tv-top10"
             title="热门电视剧"
@@ -78,8 +77,7 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
             imageProxyMode={imageProxyMode}
             customImageProxy={customImageProxy}
           />
-        </>
-      )}
+      </>
 
       <section className="v4-content-section v4-continue-section" id="my-library" aria-label="继续观看">
         <div className="v4-section-heading">
