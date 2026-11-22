@@ -6,10 +6,8 @@ import { useQuery } from '@tanstack/react-query';
 import { IpadEditionHero } from '@/components/ipad-edition/IpadEditionHero';
 import { PosterRenderer } from '@/components/ipad-edition/PosterRenderer';
 import { api } from '@/lib/client-api';
-import { fetchHomepageWithFallback } from '@/lib/homepage-recommendation-fallback';
-import { useAppStore } from '@/lib/store';
 import type { DoubanItem } from '@/lib/types';
-import { fromBangumiItem, fromDoubanItem } from '@/lib/poster';
+import { fromBangumiItem, fromTmdbItem } from '@/lib/poster';
 import { IpadEditionContinueWatching } from '@/components/ipad-edition/IpadEditionContinueWatching';
 
 const RAIL_SIZE = 10;
@@ -21,38 +19,23 @@ function searchHref(title: string) {
 
 export function IpadEditionHome() {
   const [activeHero, setActiveHero] = useState(0);
-  const doubanEnabled = useAppStore((s) => s.doubanEnabled);
 
-  // One real recommendation request feeds both the featured hero and today's movie rail.
-  // This avoids duplicate requests and keeps the hero and poster rail consistent.
-  // Homepage posters use the built-in same-origin image proxy first. The public Douban mirrors
-  // intermittently stall on iPad-sized poster rails; proxy responses carry a long browser cache.
+  // TMDB China recommendations feed the hero and today's movie rail from one cached request.
   const featured = useQuery({
-    queryKey: ['ipad-edition-home-featured', doubanEnabled],
-    queryFn: ({ signal }) => fetchHomepageWithFallback(
-      () => api.douban('movie', '热门', 0, RAIL_SIZE, signal),
-      () => api.hotList('douban_movie_weekly', signal),
-      signal,
-    ),
-    enabled: doubanEnabled,
+    queryKey: ['ipad-edition-home-featured', 'CN'],
+    queryFn: ({ signal }) => api.tmdbDiscover('movie', '热门', 1, signal),
     staleTime: 5 * 60_000,
   });
 
   const series = useQuery({
     queryKey: ['ipad-edition-series'],
-    queryFn: ({ signal }) => fetchHomepageWithFallback(
-      () => api.douban('tv', '热门', 0, RAIL_SIZE, signal),
-      () => api.hotList('douban_tv_chinese', signal),
-      signal,
-    ),
-    enabled: doubanEnabled,
+    queryFn: ({ signal }) => api.tmdbDiscover('tv', '热门', 1, signal),
     staleTime: 5 * 60_000,
   });
 
   const newReleases = useQuery({
     queryKey: ['ipad-edition-new'],
-    queryFn: ({ signal }) => api.douban('movie', '最新', 0, RAIL_SIZE, signal),
-    enabled: doubanEnabled,
+    queryFn: ({ signal }) => api.tmdbDiscover('movie', '最新', 1, signal),
     staleTime: 5 * 60_000,
   });
 
@@ -113,7 +96,7 @@ export function IpadEditionHome() {
         <div id={id + '-track'} className="ipad-edition__poster-grid" aria-label={title} role="region" tabIndex={0}>
           {items.slice(0, RAIL_SIZE).map((item, index) => (
             <Link className="ipad-edition__poster-card" data-ipad-poster-slot={id === 'ipad-popular-series' ? 'series' : id === 'ipad-new-releases' ? 'new-release' : 'movie'} data-poster-url={item.cover ?? ''} href={searchHref(item.title)} key={item.id || item.title}>
-              <PosterRenderer variant="poster" frameClassName="ipad-edition__poster-art" asset={fromDoubanItem(item)} url={item.cover} mode="proxy" alt={item.title}>
+              <PosterRenderer variant="poster" frameClassName="ipad-edition__poster-art" asset={fromTmdbItem(item)} url={item.cover} mode="proxy" alt={item.title}>
                 <span className="ipad-edition__poster-rank">{index + 1}</span>
               </PosterRenderer>
               <strong title={item.title}>{item.title}</strong>
@@ -123,8 +106,8 @@ export function IpadEditionHome() {
         </div>
       ) : (
         <div className="ipad-edition__rail-message">
-          <span>{!doubanEnabled ? '推荐服务尚未启用，请先配置内容推荐。' : '当前没有可展示的真实内容。'}</span>
-          {!doubanEnabled ? <Link href="/ipad-edition/settings">前往设置</Link> : <button type="button" onClick={() => void retry()}>重新加载</button>}
+          <span>当前没有可展示的真实内容。</span>
+          <button type="button" onClick={() => void retry()}>重新加载</button>
         </div>
       )}
     </section>
@@ -139,8 +122,8 @@ export function IpadEditionHome() {
           <div className="ipad-edition__cinema-hero-copy" role="status">
             <p className="ipad-edition__cinema-hero-kicker">LIBRETV · 精选推荐</p>
             <h1>{featured.isLoading ? '正在为你准备影院' : '精选内容暂不可用'}</h1>
-            <p>{featured.isLoading ? '正在获取真实影视推荐…' : !doubanEnabled ? '请先在设置中启用内容推荐服务。' : '推荐服务暂时不可用，请稍后重试。'}</p>
-            {!doubanEnabled ? <Link href="/ipad-edition/settings">前往设置</Link> : featured.isError ? (
+            <p>{featured.isLoading ? '正在获取中国影视推荐…' : 'TMDB 推荐服务暂时不可用，请稍后重试。'}</p>
+            {featured.isError ? (
               <button type="button" onClick={() => void featured.refetch()}>重新加载</button>
             ) : null}
           </div>
