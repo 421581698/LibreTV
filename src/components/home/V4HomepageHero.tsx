@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/client-api';
 import { SmartImage } from '@/components/smart-image';
+import { useAppStore } from '@/lib/store';
 import type { DoubanItem } from '@/lib/types';
 import { fromTmdbItem } from '@/lib/poster';
 
