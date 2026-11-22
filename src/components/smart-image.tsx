@@ -57,6 +57,7 @@ export function SmartImage({
   const [hdrFailed, setHdrFailed] = useState(false);
   const [idx, setIdx] = useState(0);
   const [fallback, setFallback] = useState(false);
+  const [naturalSize, setNaturalSize] = useState<{ width: number; height: number } | null>(null);
   const useHdrSource = supportsHdr && hdrCandidates.length > 0 && !hdrFailed;
   const activeCandidates = useHdrSource ? hdrCandidates : candidates;
   const src = fallback
@@ -76,6 +77,7 @@ export function SmartImage({
     setIdx(0);
     setHdrFailed(false);
     setFallback(false);
+    setNaturalSize(null);
   }, [sourceUrl, fallbackUrl, hdrUrl, mode, customProxy]);
 
   if (!src) return null;
@@ -88,6 +90,13 @@ export function SmartImage({
       loading={loading}
       decoding="async"
       referrerPolicy="no-referrer"
+      data-natural-width={naturalSize?.width}
+      data-natural-height={naturalSize?.height}
+      data-resolution-tier={naturalSize ? (naturalSize.width >= 1200 ? 'meets-1200px' : 'below-1200px') : 'pending'}
+      onLoad={(event) => {
+        const image = event.currentTarget;
+        setNaturalSize({ width: image.naturalWidth, height: image.naturalHeight });
+      }}
       onError={() => {
         if (fallback) return;
         if (idx + 1 < activeCandidates.length) {
