@@ -30,7 +30,7 @@ describe('iPad Edition navigation contract', () => {
     expect(topbar).not.toContain('aria-label="动漫"');
     expect(topbar).not.toContain('aria-label="设置"');
     expect(topbar).not.toContain('aria-label="我的"');
-    expect(shell).toContain('href="/ipad-edition/settings"');
+    expect(shell).toContain("href: '/ipad-edition/settings'");
   });
 
   it('keeps navigation visible on detail pages and hides it only for immersive playback', () => {
