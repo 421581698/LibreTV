@@ -63,7 +63,7 @@ describe('iPad Edition navigation contract', () => {
     expect(layout).toContain('height: auto;');
     expect(layout).toContain('.ipad-edition .ipad-edition__poster-card {');
     expect(layout).toContain('grid-template-rows: auto auto auto;');
-    expect(layout).toContain('background: #f5f5f7 !important;');
+    expect(layout).toContain('background: #f5f5f7;');
   });
 
   it('places hero pagination in the left-side safe area away from the poster artwork', () => {
