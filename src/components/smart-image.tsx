@@ -98,6 +98,7 @@ export function SmartImage({
         setNaturalSize({ width: image.naturalWidth, height: image.naturalHeight });
       }}
       onError={() => {
+        setNaturalSize(null);
         if (fallback) return;
         if (idx + 1 < activeCandidates.length) {
           setIdx((current) => current + 1);
