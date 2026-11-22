@@ -1083,6 +1083,10 @@ jobs:
                     loadingSkeletonCount: skeletonCount,
                     collectionItemCount: collection?.children.length ?? 0,
                     hasTerminalCollectionState: Boolean(collection || emptyMessage),
+                    hasDetailTitle: Boolean(document.querySelector(".movie-detail-title")),
+                    episodeCardCount: document.querySelectorAll(".movie-episode-card").length,
+                    hasPlayerFrame: Boolean(document.querySelector(".netflix-player-frame")),
+                    hasWatchContent: Boolean(document.querySelector(".netflix-watch")),
                     visualScope: routeName === "detail" ? "full-detail-content-with-mocked-cms-fixture"
                       : routeName === "watch" ? "player-page-with-mocked-cms-fixture"
                       : "page-content",
@@ -1095,8 +1099,8 @@ jobs:
                   metrics.hasTopbar !== route.chrome ||
                   (["movies", "series", "anime"].includes(route.name) &&
                     (metrics.loadingSkeletonCount > 0 || !metrics.hasTerminalCollectionState)) ||
-                  (route.name === "detail" && (!document.querySelector(".movie-detail-title") || !document.querySelector(".movie-episode-card"))) ||
-                  (route.name === "watch" && (!document.querySelector(".netflix-player-frame") || !document.querySelector(".netflix-watch"))) ||
+                  (route.name === "detail" && (!metrics.hasDetailTitle || metrics.episodeCardCount < 1)) ||
+                  (route.name === "watch" && (!metrics.hasPlayerFrame || !metrics.hasWatchContent)) ||
                   errors.length > 0;
                 const name = route.name + "-" + colorScheme;
                 await page.screenshot({
