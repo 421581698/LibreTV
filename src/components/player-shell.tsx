@@ -43,8 +43,8 @@ interface DashPlayerInstance {
   addEventListener(type: string, listener: (event: Event) => void): void;
   load(uri: string): Promise<void>;
   getNetworkingEngine?(): {
-    registerRequestFilter(filter: (type: number, request: DashNetworkRequest) => void): void;
-    unregisterRequestFilter?(filter: (type: number, request: DashNetworkRequest) => void): void;
+    registerRequestFilter(filter: (type: number, request: DashNetworkRequest) => void | Promise<void>): void;
+    addEventListener(type: string, listener: (event: Event) => void): void;
   } | null;
 }
 
@@ -603,8 +603,14 @@ export function PlayerShell({
       }
       dashPlayerRef.current = player;
       const requestAuthFilter = createDashRequestAuthFilter(propsRef.current.dashRequestAuth, mediaUrl);
+      const networkingEngine = player.getNetworkingEngine?.();
       const requestFilter = (_type: number, request: DashNetworkRequest) => requestAuthFilter(request);
-      player.getNetworkingEngine?.()?.registerRequestFilter(requestFilter);
+      networkingEngine?.registerRequestFilter(requestFilter);
+      networkingEngine?.addEventListener('retry', (event: Event) => {
+        const retry = event as Event & { error?: { data?: unknown } };
+        const data = retry.error?.data;
+        if (Array.isArray(data) && data[1] === 401) requestAuthFilter.markUnauthorized();
+      });
       player.configure({
         abr: { enabled: true },
         streaming: {
