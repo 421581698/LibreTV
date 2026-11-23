@@ -142,6 +142,7 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
     const params = new URLSearchParams({
       title: matchTitle,
       alternateTitle: title,
+      ...(info.originalTitle ? { originalTitle: info.originalTitle } : {}),
       type: mediaType,
       ...(info.year ? { year: info.year.slice(0, 4) } : {}),
     });
@@ -170,7 +171,7 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
   const episodeItems = detail?.episodeItems ?? [];
   // Keep landscape backdrops and portrait posters in separate image slots.
   // A low-resolution CMS cover/poster must never be enlarged as the hero backdrop.
-  const backdrop = info?.backdrop?.trim() || tmdbArtwork?.backdrop || '';
+  const backdrop = tmdbArtwork?.backdrop || info?.backdrop?.trim() || '';
   const posterArtwork = tmdbArtwork?.poster || info?.cover?.trim() || poster.trim();
   const knownSeasonNumbers = episodeItems
     .map((item) => item.seasonNumber)
