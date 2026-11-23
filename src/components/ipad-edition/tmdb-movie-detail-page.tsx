@@ -42,6 +42,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, r
   const [detailLoading, setDetailLoading] = useState(false);
   const [person, setPerson] = useState<TmdbPersonDetails | null>(null);
   const [personLoading, setPersonLoading] = useState(false);
+  const [inlineWatchUrl, setInlineWatchUrl] = useState('');
 
   const sources = useMemo(() => selectedKeys.map((key) => resolveSource({ customAPIs, envSources }, key))
     .filter((source): source is SourceConfig => Boolean(source && validateSourceUrl(source.url)
@@ -104,7 +105,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, r
 
   const play = (index: number) => {
     if (!activeResource || !cmsDetail?.episodes[index]) return;
-    router.push(buildWatchUrl({
+    setInlineWatchUrl(buildWatchUrl({
       sourceKey: activeResource.source.key,
       vodId: activeResource.item.vodId,
       index,
@@ -173,6 +174,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, r
         <div className="flex flex-wrap gap-3">{crew.map((member) => <button key={member.id + (member.job || '')} onClick={() => void openPerson(member.id)} className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left"><span className="block font-medium">{member.name}</span><span className="text-xs text-white/55">{member.job}</span></button>)}</div>
         <h2 className="mb-4 mt-8 text-2xl font-semibold">海报与宣传图</h2>
         <div className="flex gap-4 overflow-x-auto pb-4">{posters.map((art, index) => <img key={art.file_path} src={imageUrl(art.file_path, 'w500')} alt={title + ' 海报 ' + (index + 1)} className="w-36 shrink-0 rounded-xl object-cover" />)}</div>
+        {inlineWatchUrl && <section className="mt-10 overflow-hidden rounded-2xl border border-white/15 bg-black" aria-label="影片播放器"><div className="flex items-center justify-between px-4 py-3"><h2 className="font-semibold">正在播放</h2><button onClick={() => setInlineWatchUrl('')} className="rounded-full border border-white/20 px-3 py-1.5 text-sm">关闭播放器</button></div><iframe key={inlineWatchUrl} src={inlineWatchUrl} title={title + ' 播放器'} allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen className="block aspect-video w-full border-0" style={{ minHeight: 360, maxHeight: 760 }} /></section>}
         <h2 className="mb-4 mt-10 text-2xl font-semibold">播放资源与选集</h2>
         <p className="mb-4 text-sm text-white/60">{resourceStatus}</p>
         <div className="flex flex-wrap gap-3">{resources.map((entry, index) => <button key={entry.item.sourceKey + entry.item.vodId} onClick={() => void chooseResource(entry)} className={'rounded-full border px-5 py-3 text-sm ' + (activeResource?.item.vodId === entry.item.vodId ? 'border-white bg-white text-black' : 'border-white/20 bg-white/5')}>{entry.item.sourceName || entry.source.name || '播放源 ' + (index + 1)} · {entry.item.name}</button>)}</div>
