@@ -4,12 +4,14 @@ on:
     branches:
       - feature/hls-playback-regression-suite-2026-11-13
       - feature/homepage-cinema-lobby-order-2026-11-11
+      - feature/libretv-ipad-edition-product
     paths:
       - 'scripts/hls-external-smoke.mjs'
       - '.github/workflows/hls-external-smoke.yml'
   pull_request:
     branches:
       - main
+      - feature/libretv-ipad-edition-foundation
     paths:
       - 'scripts/hls-external-smoke.mjs'
       - '.github/workflows/hls-external-smoke.yml'
