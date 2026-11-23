@@ -51,7 +51,7 @@ describe('iPad Edition poster navigation and explicit playback', () => {
     const resumeUrl = read('src/lib/continue-watching-url.ts');
     expect(resumeUrl).toContain("return '/ipad-edition/watch?' + params.toString()");
     expect(resumeUrl).toContain("params.set('position'");
-    expect(resumeUrl).toContain("params.set('index'");
+    expect(resumeUrl).toContain("index: String(Math.max(0, item.episodeIndex))");
     const watchPage = read('src/app/watch/page.tsx');
     expect(watchPage).toContain("searchParams.get('position')");
     expect(watchPage).toContain('if (urlPos > 0) return urlPos');
