@@ -167,16 +167,23 @@ export async function updateHistoryProgress(
   sourceKey: string,
   vodId: string,
   position: number,
-  duration: number
+  duration: number,
+  expectedEpisodeIndex?: number
 ): Promise<void> {
   const id = `${sourceKey}_${vodId}`;
-  const existing = await db.history.get(id);
-  if (!existing) return;
-  if (Math.abs(existing.playbackPosition - position) < 2 && Math.abs(existing.duration - duration) < 2) return;
-  await db.history.update(id, {
-    playbackPosition: position,
-    duration,
-    timestamp: Date.now(),
+  // Keep the episode check and write in one read/write transaction. Otherwise an
+  // outgoing episode's delayed progress update can race with upsertHistory for
+  // the next episode and attach the old position to the new episodeIndex.
+  await db.transaction('rw', db.history, async () => {
+    const existing = await db.history.get(id);
+    if (!existing) return;
+    if (expectedEpisodeIndex !== undefined && existing.episodeIndex !== expectedEpisodeIndex) return;
+    if (Math.abs(existing.playbackPosition - position) < 2 && Math.abs(existing.duration - duration) < 2) return;
+    await db.history.update(id, {
+      playbackPosition: position,
+      duration,
+      timestamp: Date.now(),
+    });
   });
 }
 
