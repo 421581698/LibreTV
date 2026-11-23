@@ -141,16 +141,17 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
     setTmdbArtwork(null);
     const params = new URLSearchParams({
       title: matchTitle,
+      alternateTitle: title,
       type: mediaType,
       ...(info.year ? { year: info.year.slice(0, 4) } : {}),
     });
     fetch('/api/tmdb/match?' + params.toString(), { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error('TMDB_MATCH_UNAVAILABLE');
-        return response.json() as Promise<{ id: number; type: 'movie' | 'tv'; posterUrl?: string; backdropUrl?: string }>;
+        return response.json() as Promise<{ match: { id: number; type: 'movie' | 'tv'; posterUrl?: string; backdropUrl?: string } | null }>;
       })
-      .then(async (match) => {
-        if (!Number.isInteger(match.id) || match.id <= 0) return;
+      .then(async ({ match }) => {
+        if (!match || !Number.isInteger(match.id) || match.id <= 0) return;
         const detailsResponse = await fetch('/api/tmdb/details?' + new URLSearchParams({ id: String(match.id), type: match.type }), { signal: controller.signal });
         if (!detailsResponse.ok) throw new Error('TMDB_DETAILS_UNAVAILABLE');
         const metadata = await detailsResponse.json() as { poster_path?: string | null; backdrop_path?: string | null };
