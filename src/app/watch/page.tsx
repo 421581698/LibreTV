@@ -246,6 +246,21 @@ function WatchContent() {
       if (next === video) return;
       detachVideo();
       if (!next) return;
+
+      // A replaced media element starts a new control lifecycle (source recovery,
+      // episode switch, or PlayerShell remount). Never carry a stale scrub lock,
+      // preview timer, or "hidden at pointer start" flag into the new element.
+      clearHideTimer('media-element-replaced');
+      if (scrubResetTimerRef.current !== null) {
+        window.clearTimeout(scrubResetTimerRef.current);
+        scrubResetTimerRef.current = null;
+      }
+      scrubbingRef.current = false;
+      controlsWereHiddenAtPointerStart = false;
+      setIsScrubbing(false);
+      setScrubbingPosition(null);
+      showControls();
+
       video = next;
       video.addEventListener('play', onPlay);
       video.addEventListener('playing', scheduleHide);
@@ -331,7 +346,7 @@ function WatchContent() {
       window.removeEventListener('touchcancel', endScrubbing, true);
       scrubbingRef.current = false;
     };
-  }, [sourceKey, vodId, indexParam, directUrl, source, verified, detailQuery.data]);
+  }, [sourceKey, vodId, indexParam, directUrl, source, verified]);
 
   // 当前播放地址：优先取剧集列表中的当前集，其次直连 URL 参数
   const currentUrl = useMemo(() => {
