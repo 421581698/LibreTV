@@ -90,7 +90,7 @@ jobs:
             "x-github-api-version": "2022-11-28",
           };
           let verify;
-          for (let attempt = 1; attempt <= 20; attempt += 1) {
+          for (let attempt = 1; attempt <= 144; attempt += 1) {
             const response = await fetch(url, { headers });
             if (!response.ok) throw new Error(`Cannot inspect Verify runs: HTTP ${response.status}`);
             const payload = await response.json();
@@ -101,13 +101,13 @@ jobs:
               run.conclusion === "success"
             );
             if (verify) break;
-            if (attempt < 20) {
+            if (attempt < 144) {
               console.log(`Waiting for successful Verify on exact SHA ${process.env.GH_SHA} (attempt ${attempt}/20).`);
               await new Promise(resolve => setTimeout(resolve, 15000));
             }
           }
           if (!verify) {
-            throw new Error(`No successful iPad Edition Verify run for ${process.env.GH_SHA} after 5 minutes; Preview deployment is blocked.`);
+            throw new Error(`No successful iPad Edition Verify run for ${process.env.GH_SHA} after 36 minutes; Preview deployment is blocked.`);
           }
           console.log(`Verified exact commit ${verify.head_sha} with run ${verify.id}.`);
           NODE
