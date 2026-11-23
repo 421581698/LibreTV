@@ -13,11 +13,23 @@ import { useIpadEditionPosterNavigation } from '@/components/ipad-edition/useIpa
 const RAIL_SIZE = 10;
 const HERO_SIZE = 5;
 
+function mergeLatestRegionalReleases(usItems: DoubanItem[], cnItems: DoubanItem[]): DoubanItem[] {
+  const byId = new Map<string, DoubanItem>();
+  for (const item of [...usItems, ...cnItems]) {
+    if (!item.id || !item.title?.trim() || !item.cover?.trim() || !item.releaseDate) continue;
+    const existing = byId.get(item.id);
+    if (!existing || item.releaseDate > (existing.releaseDate ?? '')) byId.set(item.id, item);
+  }
+  return [...byId.values()].sort((a, b) =>
+    (b.releaseDate ?? '').localeCompare(a.releaseDate ?? '') ||
+    a.title.localeCompare(b.title, 'zh-CN'),
+  );
+}
+
 export function IpadEditionHome() {
   const [activeHero, setActiveHero] = useState(0);
   const { openPoster, pendingTitle, error } = useIpadEditionPosterNavigation();
 
-  // TMDB China recommendations feed the hero and today's movie rail from one cached request.
   const featured = useQuery({
     queryKey: ['ipad-edition-home-featured', 'CN'],
     queryFn: ({ signal }) => api.tmdbDiscover('movie', '热门', 1, signal),
@@ -30,10 +42,16 @@ export function IpadEditionHome() {
     staleTime: 5 * 60_000,
   });
 
-  const newReleases = useQuery({
-    queryKey: ['ipad-edition-new', 'CN'],
-    queryFn: ({ signal }) => api.tmdbDiscover('movie', '最新', 1, signal),
-    staleTime: 5 * 60_000,
+  const latestCN = useQuery({
+    queryKey: ['ipad-edition-latest-releases', 'CN'],
+    queryFn: ({ signal }) => api.tmdbDiscover('movie', '最新', 1, signal, 'CN'),
+    staleTime: 15 * 60_000,
+  });
+
+  const latestUS = useQuery({
+    queryKey: ['ipad-edition-latest-releases', 'US'],
+    queryFn: ({ signal }) => api.tmdbDiscover('movie', '最新', 1, signal, 'US'),
+    staleTime: 15 * 60_000,
   });
 
   const calendar = useQuery({
@@ -52,6 +70,11 @@ export function IpadEditionHome() {
     });
   }, [featured.data]);
 
+  const latestItems = useMemo(
+    () => mergeLatestRegionalReleases(latestUS.data?.items ?? [], latestCN.data?.items ?? []),
+    [latestUS.data, latestCN.data],
+  );
+
   const heroItems = movieItems.slice(0, HERO_SIZE);
   const hero = heroItems.length ? heroItems[activeHero % heroItems.length] : undefined;
   const today = ((new Date().getDay() + 6) % 7) + 1;
@@ -62,8 +85,9 @@ export function IpadEditionHome() {
     title: string,
     items: DoubanItem[],
     loading: boolean,
-    error: boolean,
+    hasError: boolean,
     retry: () => Promise<unknown>,
+    showReleaseMeta = false,
   ) => (
     <section className="ipad-edition__rail-section" id={id} aria-labelledby={id + '-title'}>
       <div className="ipad-edition__section-heading ipad-edition__gallery-heading">
@@ -84,7 +108,7 @@ export function IpadEditionHome() {
             <div className="ipad-edition__poster-skeleton" key={index} />
           ))}
         </div>
-      ) : error ? (
+      ) : hasError && !items.length ? (
         <div className="ipad-edition__rail-message" role="alert">
           <span>暂时无法获取{title}。</span>
           <button type="button" onClick={() => void retry()}>重新加载</button>
@@ -97,7 +121,9 @@ export function IpadEditionHome() {
                 <span className="ipad-edition__poster-rank">{index + 1}</span>
               </PosterRenderer>
               <strong title={item.title}>{item.title}</strong>
-              <small>{item.rating ? '★ ' + item.rating : '影视推荐'}</small>
+              {showReleaseMeta ? (
+                <small>{item.releaseDate} · {item.releaseRegion === 'US' ? '美国上映' : '中国上映'}</small>
+              ) : null}
             </button>
           ))}
         </div>
@@ -134,7 +160,7 @@ export function IpadEditionHome() {
       <IpadEditionContinueWatching />
 
       {renderRail('ipad-popular-series', '热门剧集', series.data?.items ?? [], series.isLoading, series.isError, series.refetch)}
-      {renderRail('ipad-new-releases', '新近上线', newReleases.data?.items ?? [], newReleases.isLoading, newReleases.isError, newReleases.refetch)}
+      {renderRail('ipad-new-releases', '美国 · 中国最新上映', latestItems, latestUS.isLoading || latestCN.isLoading, latestUS.isError || latestCN.isError, async () => { await Promise.all([latestUS.refetch(), latestCN.refetch()]); }, true)}
 
       <section className="ipad-edition__rail-section" id="ipad-anime-calendar" aria-labelledby="ipad-anime-title">
         <div className="ipad-edition__section-heading">
@@ -150,7 +176,6 @@ export function IpadEditionHome() {
               <button type="button" className="ipad-edition__anime-card appearance-none border-0 bg-transparent p-0 text-left font-[inherit] text-inherit" data-ipad-poster-slot="anime" data-poster-url={item.cover ?? ''} aria-label={'查看 ' + item.title + ' 的详情并查找播放资源'} aria-busy={pendingTitle === item.title} disabled={Boolean(pendingTitle)} onClick={() => void openPoster(item)} key={item.id}>
                 <PosterRenderer variant="anime" asset={fromBangumiItem(item)} url={item.cover} mode="proxy" alt={item.title} />
                 <strong>{item.title}</strong>
-                {item.rating ? <small>★ {item.rating}</small> : null}
               </button>
             ))}
           </div>
