@@ -286,6 +286,8 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
             alt={displayTitle}
             className="movie-detail-hero__image absolute inset-0 -z-20 h-full w-full object-cover object-center"
             loading="eager"
+            minimumWidth={1600}
+            showDefaultFallback={false}
           />
         ) : (
           <div className="absolute inset-0 -z-20 bg-[#08080A]" aria-hidden="true" />
@@ -313,6 +315,7 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
                 className="hidden w-28 shrink-0 self-end rounded-xl object-cover shadow-2xl sm:block sm:w-36"
                 loading="eager"
                 measureNaturalSize
+                minimumWidth={1000}
               />
             ) : null}
             <div className="min-w-0 max-w-2xl">
