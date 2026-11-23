@@ -85,7 +85,7 @@ export async function GET(req: Request) {
         Boolean(item.title?.trim()) && Boolean(item.poster_path));
 
     const imageBase = await getTmdbPosterBase();
-    let items: Array<{ id: string; title: string; cover: string; releaseDate: string; releaseRegion: 'US' | 'CN'; isTv: false }> = [];
+    let items: Array<{ id: string; title: string; cover: string; releaseDate: string; releaseRegion: 'US' | 'CN'; isTv: false; provider: 'tmdb' }> = [];
     if (candidate?.poster_path) {
       const releases = await fetchTmdbJson<TmdbReleaseDatesResponse>(`/movie/${candidate.id}/release_dates`);
       const releaseDate = actualTheatricalReleaseDate(releases, regionalCode);
@@ -97,6 +97,7 @@ export async function GET(req: Request) {
           releaseDate,
           releaseRegion: regionalCode,
           isTv: false,
+          provider: 'tmdb',
         }];
       }
     }
