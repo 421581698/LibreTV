@@ -788,8 +788,13 @@ function WatchContent() {
                 webkitExitFullscreen?: () => void;
               }) | null;
               if (video?.webkitDisplayingFullscreen && video.webkitExitFullscreen) {
-                video.webkitExitFullscreen();
-                return;
+                try {
+                  video.webkitExitFullscreen();
+                  return;
+                } catch {
+                  toast('退出系统全屏失败，请重试', 'info');
+                  return;
+                }
               }
               if (document.fullscreenElement) {
                 void document.exitFullscreen().catch(() => toast('退出全屏失败，请重试', 'info'));
@@ -832,7 +837,11 @@ function WatchContent() {
                 return;
               }
               if (typeof video.webkitShowPlaybackTargetPicker === 'function') {
-                video.webkitShowPlaybackTargetPicker();
+                try {
+                  video.webkitShowPlaybackTargetPicker();
+                } catch {
+                  toast('未能打开 AirPlay 设备选择器', 'info');
+                }
                 return;
               }
               if (typeof video.remote?.prompt === 'function') {
