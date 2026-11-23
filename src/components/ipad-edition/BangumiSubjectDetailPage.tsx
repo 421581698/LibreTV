@@ -6,6 +6,7 @@ import { api } from '@/lib/client-api';
 import { buildWatchUrl, validateSourceUrl } from '@/lib/utils';
 import { findMovieMatch } from '@/lib/movie-title-match';
 import { SmartImage } from '@/components/smart-image';
+import { IpadCinemaDetailLayout } from '@/components/ipad-edition/IpadCinemaDetailLayout';
 import { createPosterAsset } from '@/lib/poster';
 import { rankMovieCandidatesByQuality } from '@/lib/playback-telemetry';
 import { resolveSource, useAppStore, isInDisabledSubscription, isSourceDisabled } from '@/lib/store';
@@ -180,30 +181,49 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
   if (!subject) return <main className="min-h-screen bg-[#08080a] p-10 text-white"><button onClick={() => router.back()}>‹ 返回</button><p className="mt-8">{error || '新番资料暂时不可用'}</p></main>;
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#08080a] pb-24 text-white">
-      <section className="relative flex min-h-[560px] items-end overflow-hidden px-7 pb-14 pt-24 md:min-h-[680px] md:px-16">
-        {tmdbArtwork?.backdrop ? <SmartImage url={tmdbArtwork.backdrop} mode={imageProxyMode} customProxy={customImageProxy} alt="" className="absolute inset-0 h-full w-full object-cover opacity-45" loading="eager" minimumWidth={1600} expectedOrientation="landscape" showDefaultFallback={false} /> : <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_35%,rgba(90,105,130,.22),transparent_55%)]" aria-hidden="true" />}
-        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/75 to-black/20" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#08080a] via-transparent to-black/20" />
-        <button onClick={() => router.back()} className="absolute left-7 top-8 z-10 rounded-full border border-white/20 bg-black/40 px-4 py-2 backdrop-blur">‹ 返回</button>
-        <div className="relative z-10 flex max-w-5xl flex-col items-start gap-7 md:flex-row md:items-end">
-          <SmartImage asset={posterAsset} url={poster} fallbackUrl={tmdbArtwork?.poster ? subject.images?.large || subject.images?.common || subject.images?.medium || posterFallback : undefined} mode={imageProxyMode} customProxy={customImageProxy} alt={title + ' 海报'} className="w-40 shrink-0 rounded-xl object-cover shadow-2xl md:w-56" loading="eager" measureNaturalSize minimumWidth={1000} expectedOrientation="portrait" />
-          <div className="max-w-3xl">
-            <p className="mb-3 text-xs uppercase tracking-[.25em] text-white/60">LIBRETV · BANGUMI DETAILS</p>
-            <h1 className="text-4xl font-bold tracking-tight md:text-6xl">{title}</h1>
-            <p className="mt-3 text-sm text-white/70">{year} · {subject.total_episodes ? subject.total_episodes + ' 集' : '集数待定'} · ★ {(subject.rating?.score || 0).toFixed(1)}</p>
-            <p className="mt-4 max-w-2xl whitespace-pre-line text-sm leading-7 text-white/80">{subject.summary || '暂无剧情简介'}</p>
-            <div className="mt-7 flex flex-wrap items-center gap-3">
-              <button type="button" onClick={() => void startPlayback()} disabled={starting} className="rounded-full bg-white px-7 py-3 font-semibold text-black disabled:opacity-50">{starting ? '正在查找资源…' : '▶ 开始播放'}</button>
-              <span className="max-w-xl rounded-full border border-white/20 bg-black/30 px-5 py-3 text-sm text-white/75" role="status" aria-live="polite">{status}</span>
-            </div>
+    <IpadCinemaDetailLayout
+      title={title}
+      eyebrow="ANIME · BANGUMI"
+      backdropUrl={tmdbArtwork?.backdrop || undefined}
+      imageMode={imageProxyMode}
+      customImageProxy={customImageProxy}
+      originalTitle={subject.name && subject.name !== title ? subject.name : undefined}
+      metadata={
+        <>
+          {year && <span>{year}</span>}
+          <span>{subject.total_episodes ? subject.total_episodes + ' 集' : '集数待定'}</span>
+          <span className="ipad-cinema-rating">★ {(subject.rating?.score || 0).toFixed(1)}</span>
+        </>
+      }
+      overview={subject.summary || '暂无剧情简介'}
+      actions={
+        <>
+          <button type="button" onClick={() => void startPlayback()} disabled={starting} className="ipad-cinema-play">
+            <span aria-hidden="true">▶</span>{starting ? '正在查找资源…' : '开始播放'}
+          </button>
+          <span className="ipad-cinema-status" role="status" aria-live="polite">{status}</span>
+        </>
+      }
+      onBack={() => router.back()}
+    >
+      <section className="ipad-cinema-info">
+        <div>
+          <h2>作品资料</h2>
+          <p>{subject.summary || '暂无剧情简介'}</p>
+          <div className="ipad-cinema-cast__rail" style={{ marginTop: 20 }}>
+            <SmartImage asset={posterAsset} url={poster} fallbackUrl={tmdbArtwork?.poster ? subject.images?.large || subject.images?.common || subject.images?.medium || posterFallback : undefined} mode={imageProxyMode} customProxy={customImageProxy} alt={title + ' 海报'} className="w-32 rounded-xl object-cover" loading="lazy" measureNaturalSize minimumWidth={1000} expectedOrientation="portrait" />
           </div>
         </div>
+        <dl>
+          <div><dt>年份</dt><dd>{year || '暂无数据'}</dd></div>
+          <div><dt>集数</dt><dd>{subject.total_episodes || '待定'}</dd></div>
+          <div><dt>放送平台</dt><dd>{subject.platform || '暂无数据'}</dd></div>
+          <div><dt>评分</dt><dd>{(subject.rating?.score || 0).toFixed(1)}</dd></div>
+        </dl>
       </section>
-      <section className="mx-auto max-w-[1500px] px-7 py-8 md:px-16">
-        <h2 className="mb-4 text-2xl font-semibold">作品标签</h2>
+      <section className="ipad-cinema-cast">
+        <h2>作品标签</h2>
         <div className="flex flex-wrap gap-2">{tags.length ? tags.map((tag) => <span key={tag} className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/75">{tag}</span>) : <span className="text-sm text-white/55">暂无标签</span>}</div>
       </section>
-    </main>
+    </IpadCinemaDetailLayout>
   );
-}
