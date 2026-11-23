@@ -152,11 +152,11 @@ interface PlayerShellProps {
   /** 进度恢复：优先 URL position，其次查询该回调（返回 0 表示无记录） */
   getRestorePosition?: () => number | Promise<number>;
   /** 高频媒体时钟回调：只更新界面，不负责写入持久化存储。 */
-  onTimeUpdate?: (position: number, duration: number) => void;
+  onTimeUpdate?: (position: number, duration: number, episodeKey?: string) => void;
   /** 节流后的进度持久化回调，避免每个 timeupdate 都写 IndexedDB。 */
-  onProgressSave?: (position: number, duration: number) => void;
-  onEnded?: () => void;
-  onPause?: (position: number, duration: number) => void;
+  onProgressSave?: (position: number, duration: number, episodeKey?: string) => void;
+  onEnded?: (episodeKey?: string) => void;
+  onPause?: (position: number, duration: number, episodeKey?: string) => void;
   /**
    * 实测画质（视频高度，像素）。
    * 单码率 m3u8 / 直链的分辨率只能等解码后才知道，播放一次后回写缓存，
@@ -267,6 +267,7 @@ export function PlayerShell({
   }, []);
 
   // 始终持有最新 props/回调，避免重建播放器
+  const activeEpisodeKeyRef = useRef(episodeKey ?? '');
   const propsRef = useRef({
     url, title, mediaType, onPlaybackConfirmed, adFilter, autoplayNext, skipMark, autoSkipSegments,
     pendingStart, onPendingStart, onPlayerApi, onRecordSegment,
@@ -878,6 +879,8 @@ export function PlayerShell({
   /** 换集：重置每集状态并切换到新 HLS 源（不重建 ArtPlayer）。 */
   const loadEpisode = (targetUrl: string) => {
     if (!targetUrl) return;
+    // Bind all following media events to the identity of the source being loaded.
+    activeEpisodeKeyRef.current = propsRef.current.episodeKey ?? '';
     flushPlaybackMetrics();
     resetPlaybackMetrics();
     if (stallRecoveryTimerRef.current) clearTimeout(stallRecoveryTimerRef.current);
@@ -923,6 +926,7 @@ export function PlayerShell({
   useEffect(() => {
     if (!containerRef.current || !propsRef.current.url) return;
     const initialUrl = propsRef.current.url;
+    activeEpisodeKeyRef.current = propsRef.current.episodeKey ?? '';
     // ArtPlayer 默认 3 秒才隐藏控制栏；桌面失去鼠标悬停后缩短为 0.8 秒。
     // 触屏没有 hover，自动隐藏会让按钮来不及点（issue #937）：改为常驻，
     // 由「点按视频 toggle」收起。CONTROL_HIDE_TIME 是 static，创建后修改立即生效。
@@ -1221,10 +1225,10 @@ export function PlayerShell({
       const now = Date.now();
       // Keep the on-screen timeline in sync with the browser's media clock.
       // Persistence remains separately throttled to avoid excessive IndexedDB writes.
-      propsRef.current.onTimeUpdate?.(art.currentTime, art.duration);
+      propsRef.current.onTimeUpdate?.(art.currentTime, art.duration, activeEpisodeKeyRef.current);
       if (now - lastSave > 5000) {
         lastSave = now;
-        propsRef.current.onProgressSave?.(art.currentTime, art.duration);
+        propsRef.current.onProgressSave?.(art.currentTime, art.duration, activeEpisodeKeyRef.current);
       }
       // —— 跳过片段判定 ——
       const p = propsRef.current;
@@ -1291,7 +1295,7 @@ export function PlayerShell({
         playbackConfirmationTimerRef.current = null;
       }
       // 跳过片尾会主动 pause：此时已按「看完」处理，不能再把片尾位置写回进度
-      if (!endedRef.current) propsRef.current.onPause?.(art.currentTime, art.duration);
+      if (!endedRef.current) propsRef.current.onPause?.(art.currentTime, art.duration, activeEpisodeKeyRef.current);
     });
     art.on('video:waiting', () => {
       const metrics = playbackMetricsRef.current;
@@ -1325,7 +1329,7 @@ export function PlayerShell({
       if (endedRef.current) return;
       endedRef.current = true;
       updateSkipPrompt(null);
-      propsRef.current.onEnded?.();
+      propsRef.current.onEnded?.(activeEpisodeKeyRef.current);
     });
 
     // —— 键盘快捷键（旧版 hotkey:false + 自定义逻辑的移植） ——
@@ -1473,7 +1477,7 @@ export function PlayerShell({
     // 卸载与页面隐藏时保存进度
     const saveOnHide = () => {
       if (document.visibilityState === 'hidden' && !endedRef.current) {
-        propsRef.current.onPause?.(art.currentTime, art.duration);
+        propsRef.current.onPause?.(art.currentTime, art.duration, activeEpisodeKeyRef.current);
       }
     };
     document.addEventListener('visibilitychange', saveOnHide);
@@ -1484,7 +1488,7 @@ export function PlayerShell({
       // 已自然播完的集数不回写，避免覆盖 onEnded 里清除的「已看完」记录
       if (!endedRef.current) {
         try {
-          propsRef.current.onPause?.(art.currentTime, art.duration);
+          propsRef.current.onPause?.(art.currentTime, art.duration, activeEpisodeKeyRef.current);
         } catch { /* 忽略 */ }
       }
       document.removeEventListener('keydown', shortcuts);
@@ -1561,12 +1565,25 @@ export function PlayerShell({
 
   // —— 换集：仅切换 HLS 源，不重建播放器（保留网页全屏等状态） ——
   const firstUrlRef = useRef(true);
+  const previousEpisodeUrlRef = useRef(url);
   useEffect(() => {
-    // 挂载时的首次由创建 effect 的 customType 触发，跳过避免重复加载
-    if (firstUrlRef.current) { firstUrlRef.current = false; return; }
-    loadEpisode(url);
+    // The first source is loaded by ArtPlayer's customType during construction.
+    if (firstUrlRef.current) {
+      firstUrlRef.current = false;
+      previousEpisodeUrlRef.current = url;
+      activeEpisodeKeyRef.current = episodeKey ?? '';
+      return;
+    }
+    if (previousEpisodeUrlRef.current !== url) {
+      loadEpisode(url);
+      previousEpisodeUrlRef.current = url;
+    } else {
+      // A source identity can change even when two providers share the same URL.
+      // Update the identity without needlessly reloading an unchanged media URL.
+      activeEpisodeKeyRef.current = episodeKey ?? '';
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url]);
+  }, [url, episodeKey]);
 
   // —— 广告过滤开关变化：重建 HLS loader（无需重建整个播放器） ——
   const firstAdFilterRef = useRef(true);
