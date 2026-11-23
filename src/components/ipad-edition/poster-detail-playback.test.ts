@@ -6,6 +6,7 @@ const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8'
 
 describe('iPad Edition poster navigation and explicit playback', () => {
   const navigation = read('src/components/ipad-edition/useIpadEditionPosterNavigation.ts');
+  const searchPage = read('src/app/ipad-edition/search/page.tsx');
   const detailRoute = read('src/app/ipad-edition/detail/page.tsx');
   const tmdbSearch = read('src/app/api/tmdb/search/route.ts');
   const bangumiRoute = read('src/app/api/bangumi/subject/route.ts');
@@ -13,6 +14,13 @@ describe('iPad Edition poster navigation and explicit playback', () => {
   const tmdbDetail = read('src/components/ipad-edition/tmdb-movie-detail-page.tsx');
   const continueWatching = read('src/components/ipad-edition/IpadEditionContinueWatching.tsx');
   const hero = read('src/components/ipad-edition/IpadEditionHero.tsx');
+
+  it('CMS search poster taps open the detail page before the player', () => {
+    expect(searchPage).toContain("router.push('/ipad-edition/detail?' + next.toString())");
+    expect(searchPage).toContain("next.set('sourceUrl', item.sourceUrl)");
+    expect(searchPage).toContain("next.set('sourceName'");
+    expect(searchPage).not.toContain("router.push('/ipad-edition/watch?'");
+  });
 
   it('poster navigation only routes to metadata details and never searches CMS sources', () => {
     expect(navigation).not.toContain('api.search');
