@@ -54,6 +54,6 @@ export function findMovieMatch(
   title: string,
   items: SearchResultItem[],
 ): SearchResultItem | undefined {
-  const accepted = new Set(getMovieSearchTerms(title).map(normalizeTitle));
+  const accepted = new Set(aliasesFor(title).map(normalizeTitle));
   return items.find((item) => accepted.has(normalizeTitle(item.name)));
 }
