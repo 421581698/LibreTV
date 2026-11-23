@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-api';
 import { buildWatchUrl, validateSourceUrl } from '@/lib/utils';
 import { findMovieMatch } from '@/lib/movie-title-match';
+import { SmartImage } from '@/components/smart-image';
+import { createPosterAsset } from '@/lib/poster';
 import { rankMovieCandidatesByQuality } from '@/lib/playback-telemetry';
 import { resolveSource, useAppStore, isInDisabledSubscription, isSourceDisabled } from '@/lib/store';
 import type { SearchResultItem, SourceConfig } from '@/lib/types';
@@ -36,12 +38,15 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
   const yellowFilter = useAppStore((state) => state.yellowFilter);
   const playbackHealth = useAppStore((state) => state.playbackHealth);
   const playbackResourceHealth = useAppStore((state) => state.playbackResourceHealth);
+  const imageProxyMode = useAppStore((state) => state.imageProxyMode);
+  const customImageProxy = useAppStore((state) => state.customImageProxy);
   const qualityMap = useAppStore((state) => state.qualityMap);
   const [subject, setSubject] = useState<BangumiSubject | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [starting, setStarting] = useState(false);
   const [status, setStatus] = useState('点击「开始播放」后才会查询已启用的点播源。');
+  const [tmdbArtwork, setTmdbArtwork] = useState<{ id: number; poster: string; backdrop: string } | null>(null);
 
   const sources = useMemo(() => selectedKeys
     .map((key) => resolveSource({ customAPIs, envSources }, key))
@@ -63,6 +68,39 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [id]);
+
+  // Bangumi subject ID remains the authoritative anime identity. TMDB is only
+  // used as a high-resolution artwork enhancement after an exact title/year match.
+  useEffect(() => {
+    if (!subject) return;
+    const matchTitle = subject.name_cn?.trim() || subject.name?.trim() || titleFallback.trim();
+    if (!matchTitle) return;
+    const controller = new AbortController();
+    setTmdbArtwork(null);
+    const params = new URLSearchParams({ title: matchTitle, type: 'tv' });
+    if (subject.name && subject.name !== matchTitle) params.set('alternateTitle', subject.name);
+    const year = subject.date?.slice(0, 4);
+    if (year && /^\\d{4}$/.test(year)) params.set('year', year);
+    fetch('/api/tmdb/match?' + params.toString(), { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('TMDB artwork match unavailable');
+        return response.json() as Promise<{ match: { id: number; posterUrl?: string; backdropUrl?: string } | null }>;
+      })
+      .then(async ({ match }) => {
+        if (!match || !Number.isInteger(match.id) || match.id <= 0) return;
+        const response = await fetch('/api/tmdb/details?' + new URLSearchParams({ id: String(match.id), type: 'tv' }), { signal: controller.signal });
+        if (!response.ok) throw new Error('TMDB artwork details unavailable');
+        const metadata = await response.json() as { poster_path?: string | null; backdrop_path?: string | null };
+        if (controller.signal.aborted) return;
+        setTmdbArtwork({
+          id: match.id,
+          poster: metadata.poster_path ? 'https://image.tmdb.org/t/p/original' + metadata.poster_path : match.posterUrl || '',
+          backdrop: metadata.backdrop_path ? 'https://image.tmdb.org/t/p/original' + metadata.backdrop_path : match.backdropUrl || '',
+        });
+      })
+      .catch(() => { /* Bangumi artwork remains the safe fallback. */ });
+    return () => controller.abort();
+  }, [subject, titleFallback]);
 
   const startPlayback = async () => {
     if (starting) return;
@@ -124,7 +162,15 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
   };
 
   const title = subject?.name_cn || subject?.name || titleFallback;
-  const poster = subject?.images?.large || subject?.images?.common || subject?.images?.medium || posterFallback;
+  const poster = tmdbArtwork?.poster || subject?.images?.large || subject?.images?.common || subject?.images?.medium || posterFallback;
+  const posterAsset = subject ? createPosterAsset({
+    provider: tmdbArtwork?.poster ? 'tmdb' : 'bangumi',
+    providerItemId: tmdbArtwork?.poster ? String(tmdbArtwork.id) : String(subject.id),
+    title,
+    imageUrl: poster,
+    kind: 'poster',
+    ...(tmdbArtwork?.poster ? { attribution: 'TMDB' } : {}),
+  }) : undefined;
   const year = subject?.date?.slice(0, 4) || '';
   const tags = (subject?.tags || []).slice(0, 16).map((tag) => tag.name).filter((tag): tag is string => Boolean(tag));
 
@@ -134,12 +180,12 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#08080a] pb-24 text-white">
       <section className="relative flex min-h-[560px] items-end overflow-hidden px-7 pb-14 pt-24 md:min-h-[680px] md:px-16">
-        <img src={poster} alt="" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-30 blur-2xl" />
+        {tmdbArtwork?.backdrop ? <SmartImage url={tmdbArtwork.backdrop} mode={imageProxyMode} customProxy={customImageProxy} alt="" className="absolute inset-0 h-full w-full object-cover opacity-45" loading="eager" /> : <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_35%,rgba(90,105,130,.22),transparent_55%)]" aria-hidden="true" />}
         <div className="absolute inset-0 bg-gradient-to-r from-black via-black/75 to-black/20" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#08080a] via-transparent to-black/20" />
         <button onClick={() => router.back()} className="absolute left-7 top-8 z-10 rounded-full border border-white/20 bg-black/40 px-4 py-2 backdrop-blur">‹ 返回</button>
         <div className="relative z-10 flex max-w-5xl flex-col items-start gap-7 md:flex-row md:items-end">
-          <img src={poster} alt={title + ' 海报'} className="w-40 shrink-0 rounded-xl shadow-2xl md:w-56" />
+          <SmartImage asset={posterAsset} url={poster} mode={imageProxyMode} customProxy={customImageProxy} alt={title + ' 海报'} className="w-40 shrink-0 rounded-xl object-cover shadow-2xl md:w-56" loading="eager" measureNaturalSize />
           <div className="max-w-3xl">
             <p className="mb-3 text-xs uppercase tracking-[.25em] text-white/60">LIBRETV · BANGUMI DETAILS</p>
             <h1 className="text-4xl font-bold tracking-tight md:text-6xl">{title}</h1>
