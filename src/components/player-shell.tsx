@@ -574,6 +574,7 @@ export function PlayerShell({
         restoreCleanupRef.current = null;
         video.play().catch(() => setShowPlayFallback(true));
       } catch {
+        if (loadGeneration !== mediaLoadGenerationRef.current) return;
         // A failed progress lookup must never prevent direct media playback.
         restoredRef.current = true;
         video.play().catch(() => setShowPlayFallback(true));
@@ -655,6 +656,7 @@ export function PlayerShell({
           }
           video.play().catch(() => setShowPlayFallback(true));
         } catch {
+          if (loadGeneration !== mediaLoadGenerationRef.current) return;
           // A failed progress lookup must never block native-HLS playback.
           restoredRef.current = true;
           restoreCleanupRef.current?.();
@@ -720,6 +722,7 @@ export function PlayerShell({
           setShowPlayFallback(true);
         });
       } catch {
+        if (loadGeneration !== mediaLoadGenerationRef.current) return;
         // IndexedDB 读取失败时不阻塞播放，后续事件仍可再次尝试恢复。
       } finally {
         restoreInFlight = false;
