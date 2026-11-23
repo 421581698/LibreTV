@@ -2371,18 +2371,18 @@ body:has(.ipad-edition[data-environment="light"]) {
 /* The immersive player owns the full viewport; do not retain the cinema sidebar
    gutter or the centered content max-width after the navigation is hidden. */
 .ipad-edition[data-ipad-player="true"] {
-  width: 100% !important;
-  min-height: 100dvh !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  overflow: hidden !important;
-  background: #000 !important;
+  width: 100%;
+  min-height: 100dvh;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  background: #000;
 }
 .ipad-edition[data-ipad-player="true"] > .ipad-edition__main {
-  width: 100% !important;
-  max-width: none !important;
-  min-width: 0 !important;
-  height: 100dvh !important;
-  margin: 0 !important;
-  padding: 0 !important;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  height: 100dvh;
+  margin: 0;
+  padding: 0;
 }
