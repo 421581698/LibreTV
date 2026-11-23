@@ -183,7 +183,7 @@ function WatchContent() {
     const revealControls = (event?: Event) => {
       clearHideTimer('reveal');
       showControls();
-      const target = event.target;
+      const target = event?.target;
       if (target instanceof Element && target.closest('.watch-cinema-progress')) {
         scrubbingRef.current = true;
         setIsScrubbing(true);
