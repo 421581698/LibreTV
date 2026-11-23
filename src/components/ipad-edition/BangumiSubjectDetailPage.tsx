@@ -227,3 +227,4 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
       </section>
     </IpadCinemaDetailLayout>
   );
+}
