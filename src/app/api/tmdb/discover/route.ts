@@ -93,7 +93,7 @@ export async function GET(req: Request) {
   const country = (params.get('country') || 'CN').toUpperCase();
   if (!/^[A-Z]{2}$/.test(country)) return NextResponse.json({ error: '国家/地区代码无效' }, { status: 400 });
   const region = (params.get('region') || '').toUpperCase();
-  if (region && !['US', 'CN'].includes(region)) return NextResponse.json({ error: '上映地区仅支持 US 或 CN' }, { status: 400 });
+  if (region && !['US', 'CN', 'GLOBAL'].includes(region)) return NextResponse.json({ error: '地区仅支持 US、CN 或 GLOBAL' }, { status: 400 });
 
   const tag = ['热门', '最新', '高分'].includes(params.get('tag') || '') ? params.get('tag')! : '热门';
   const page = Math.min(500, Math.max(1, Number.parseInt(params.get('page') || '1', 10) || 1));
@@ -105,13 +105,13 @@ export async function GET(req: Request) {
     const query: Record<string, string> = {
       language: 'zh-CN',
       include_image_language: 'zh,null,en',
-      ...(region ? { region } : { with_origin_country: country }),
-      sort_by: region && mediaType === 'movie' ? 'primary_release_date.desc' : sortForTag(tag, mediaType),
+      ...(region === 'GLOBAL' ? {} : region ? { region } : { with_origin_country: country }),
+      sort_by: region && region !== 'GLOBAL' && mediaType === 'movie' ? 'primary_release_date.desc' : sortForTag(tag, mediaType),
       page: String(page),
       include_adult: 'false',
     };
     if (tag === '高分') query['vote_count.gte'] = '100';
-    if (region && mediaType === 'movie') {
+    if (region && region !== 'GLOBAL' && mediaType === 'movie') {
       const today = new Date();
       const from = new Date(today);
       from.setUTCFullYear(from.getUTCFullYear() - 1);
