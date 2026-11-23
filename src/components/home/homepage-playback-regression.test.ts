@@ -300,6 +300,8 @@ describe('首页与播放页回归契约', () => {
     expect(watch).toContain('enterWebFullscreen');
     expect(player).toContain('if (!art.fullscreenWeb) art.fullscreenWeb = true;');
     expect(player).toContain('playbackRate: true');
+    expect(watch).toContain("video.addEventListener('ratechange', sync)");
+    expect(watch).toContain('setWatchRate(rate)');
     expect(player).toContain('art.on(\'video:ratechange\'');
     expect(player).toContain('art.on(\'video:loadedmetadata\'');
     expect(player).toContain('onTimeUpdate');
