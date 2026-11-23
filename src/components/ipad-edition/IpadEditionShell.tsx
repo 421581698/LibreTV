@@ -309,21 +309,49 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
               </button>
 
               <Link
-                className={`ipad-nav__capsule-action${activeHref === '/ipad-edition' ? ' is-active' : ''}`}
+                className={`ipad-nav__capsule-action ipad-nav__capsule-action--text${activeHref === '/ipad-edition' ? ' is-active' : ''}`}
                 href="/ipad-edition"
                 aria-label="首页"
                 aria-current={activeHref === '/ipad-edition' ? 'page' : undefined}
               >
                 <NavigationIcon name="house" />
+                <span className="ipad-nav__label">首页</span>
               </Link>
-
               <Link
-                className={`ipad-nav__capsule-action${activeHref === '/ipad-edition/search' ? ' is-active' : ''}`}
+                className={`ipad-nav__capsule-action ipad-nav__capsule-action--text${activeHref === '/ipad-edition/movies' ? ' is-active' : ''}`}
+                href="/ipad-edition/movies"
+                aria-label="电影"
+                aria-current={activeHref === '/ipad-edition/movies' ? 'page' : undefined}
+              >
+                <NavigationIcon name="clapperboard" />
+                <span className="ipad-nav__label">电影</span>
+              </Link>
+              <Link
+                className={`ipad-nav__capsule-action ipad-nav__capsule-action--text${activeHref === '/ipad-edition/series' ? ' is-active' : ''}`}
+                href="/ipad-edition/series"
+                aria-label="剧集"
+                aria-current={activeHref === '/ipad-edition/series' ? 'page' : undefined}
+              >
+                <NavigationIcon name="tv" />
+                <span className="ipad-nav__label">剧集</span>
+              </Link>
+              <Link
+                className={`ipad-nav__capsule-action ipad-nav__capsule-action--text${activeHref === '/ipad-edition/anime' ? ' is-active' : ''}`}
+                href="/ipad-edition/anime"
+                aria-label="动漫"
+                aria-current={activeHref === '/ipad-edition/anime' ? 'page' : undefined}
+              >
+                <NavigationIcon name="drama" />
+                <span className="ipad-nav__label">动漫</span>
+              </Link>
+              <Link
+                className={`ipad-nav__capsule-action ipad-nav__capsule-action--text${activeHref === '/ipad-edition/search' ? ' is-active' : ''}`}
                 href="/ipad-edition/search"
                 aria-label="搜索"
                 aria-current={activeHref === '/ipad-edition/search' ? 'page' : undefined}
               >
                 <NavigationIcon name="search" />
+                <span className="ipad-nav__label">搜索</span>
               </Link>
             </LiquidGlassSurface>
           </header>
