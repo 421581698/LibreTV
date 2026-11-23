@@ -146,6 +146,7 @@ function WatchContent() {
     const frame = playerFrameRef.current;
     if (!shell || !frame) return;
     let video: HTMLVideoElement | null = null;
+    let controlsWereHiddenAtPointerStart = false;
     const recordControlsDebug = (event: string, detail = '') => {
       try {
         const entries = JSON.parse(shell.dataset.controlsHideDebug || '[]') as string[];
@@ -188,6 +189,9 @@ function WatchContent() {
       // pointerup/touchend; treating it as a new scrub can leave the visibility
       // lock stuck because no second release event follows that click.
       const startsScrubbing = event?.type === 'pointerdown' || event?.type === 'touchstart';
+      if (startsScrubbing) {
+        controlsWereHiddenAtPointerStart = shell.classList.contains('cinema-controls-hidden');
+      }
       if (startsScrubbing && target instanceof Element && target.closest('.watch-cinema-progress')) {
         // A new drag supersedes the delayed cleanup from the previous drag.
         // Otherwise an old 1.2s timer can clear the preview during this gesture.
@@ -267,10 +271,18 @@ function WatchContent() {
         'button, a, input, select, textarea, [role="button"], [role="tab"], label'
       );
       if (clickedControl) {
+        controlsWereHiddenAtPointerStart = false;
         revealControls(event);
         return;
       }
       if (scrubbingRef.current) return;
+      if (controlsWereHiddenAtPointerStart || shell.classList.contains('cinema-controls-hidden')) {
+        controlsWereHiddenAtPointerStart = false;
+        if (video && !video.paused && !video.ended) scheduleHide();
+        else keepControlsVisible();
+        return;
+      }
+      controlsWereHiddenAtPointerStart = false;
       clearHideTimer('manual-dismiss');
       shell.classList.add('cinema-controls-hidden');
       setControlsVisible(false);
