@@ -1585,3 +1585,103 @@ html:has(.netflix-watch) .netflix-watch-shell .watch-topbar-right > button {
   background: #fff !important;
   box-shadow: 0 1px 5px rgba(0,0,0,.4) !important;
 }
+
+/* PR #99 — iPad Edition minimal timeline. Keep native range input and playback behavior. */
+.ipad-edition-watch .watch-cinema-info {
+  left: 50% !important; right: auto !important;
+  width: min(88vw, 1200px) !important; max-width: min(88vw, 1200px) !important;
+  transform: translateX(-50%) !important; padding: 0 !important;
+  border: 0 !important; border-radius: 0 !important; background: transparent !important;
+  box-shadow: none !important; -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important; overflow: visible !important;
+}
+.ipad-edition-watch .watch-cinema-playback {
+  width: 100% !important; max-width: none !important;
+  grid-template-columns: minmax(0, 1fr) 44px !important;
+  grid-template-rows: 20px 44px !important; align-items: center !important;
+  gap: 2px 14px !important;
+}
+.ipad-edition-watch .watch-cinema-time {
+  grid-column: 1 !important; grid-row: 1 !important; display: flex !important;
+  align-items: center !important; justify-content: space-between !important;
+  min-width: 0 !important; color: rgba(255,255,255,.88) !important;
+  font-size: 13px !important; line-height: 20px !important; font-weight: 500 !important;
+  font-variant-numeric: tabular-nums !important; letter-spacing: .01em !important;
+}
+.ipad-edition-watch .watch-cinema-time span:last-child { color: rgba(255,255,255,.58) !important; }
+.ipad-edition-watch .watch-cinema-progress {
+  grid-column: 1 / -1 !important; grid-row: 2 !important; display: block !important;
+  width: 100% !important; height: 44px !important; min-height: 44px !important;
+  margin: 0 !important; padding: 0 !important; background: transparent !important;
+  appearance: none !important; -webkit-appearance: none !important;
+  cursor: pointer !important; touch-action: pan-x !important; --watch-progress: 0%;
+}
+.ipad-edition-watch .watch-cinema-progress::-webkit-slider-runnable-track {
+  height: 2px !important; border: 0 !important; border-radius: 999px !important;
+  background: linear-gradient(to right, #fff 0 var(--watch-progress), rgba(255,255,255,.34) var(--watch-progress) 100%) !important;
+}
+.ipad-edition-watch .watch-cinema-progress::-webkit-slider-thumb {
+  width: 8px !important; height: 8px !important; margin-top: -3px !important;
+  border: 0 !important; border-radius: 50% !important; background: #fff !important;
+  box-shadow: 0 1px 5px rgba(0,0,0,.42) !important;
+  appearance: none !important; -webkit-appearance: none !important;
+  transition: transform 140ms ease, box-shadow 140ms ease !important;
+}
+.ipad-edition-watch .watch-cinema-progress:active::-webkit-slider-thumb,
+.ipad-edition-watch .watch-cinema-progress:focus-visible::-webkit-slider-thumb {
+  transform: scale(1.5) !important;
+  box-shadow: 0 0 0 5px rgba(255,255,255,.13), 0 1px 7px rgba(0,0,0,.45) !important;
+}
+.ipad-edition-watch .watch-cinema-progress::-moz-range-track {
+  height: 2px !important; border: 0 !important; border-radius: 999px !important;
+  background: rgba(255,255,255,.34) !important;
+}
+.ipad-edition-watch .watch-cinema-progress::-moz-range-progress {
+  height: 2px !important; border: 0 !important; border-radius: 999px !important; background: #fff !important;
+}
+.ipad-edition-watch .watch-cinema-progress::-moz-range-thumb {
+  width: 8px !important; height: 8px !important; border: 0 !important;
+  border-radius: 50% !important; background: #fff !important;
+  box-shadow: 0 1px 5px rgba(0,0,0,.42) !important;
+  transition: transform 140ms ease, box-shadow 140ms ease !important;
+}
+.ipad-edition-watch .watch-cinema-progress:active::-moz-range-thumb,
+.ipad-edition-watch .watch-cinema-progress:focus-visible::-moz-range-thumb {
+  transform: scale(1.5) !important;
+  box-shadow: 0 0 0 5px rgba(255,255,255,.13), 0 1px 7px rgba(0,0,0,.45) !important;
+}
+.ipad-edition-watch .watch-cinema-scrub-preview {
+  left: 50% !important; bottom: calc(100% + 2px) !important; z-index: 8 !important;
+  transform: translateX(-50%) !important; padding: 3px 8px !important;
+  border: 0 !important; border-radius: 6px !important; color: #fff !important;
+  background: rgba(20,20,20,.88) !important; font-size: 12px !important;
+  font-weight: 600 !important; font-variant-numeric: tabular-nums !important;
+  white-space: nowrap !important; pointer-events: none !important;
+}
+.ipad-edition-watch.cinema-controls-hidden .watch-cinema-info {
+  left: 50% !important; right: auto !important;
+  width: min(88vw, 1200px) !important; max-width: min(88vw, 1200px) !important;
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+  padding: 0 !important; border: 0 !important; border-radius: 0 !important;
+  background: transparent !important; box-shadow: none !important;
+  opacity: 1 !important; visibility: visible !important; pointer-events: auto !important;
+}
+.ipad-edition-watch.cinema-controls-hidden .watch-cinema-playback {
+  grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: 44px !important;
+}
+.ipad-edition-watch.cinema-controls-hidden .watch-cinema-progress {
+  grid-column: 1 !important; grid-row: 1 !important; height: 44px !important; min-height: 44px !important;
+}
+.ipad-edition-watch.cinema-controls-hidden .watch-cinema-time,
+.ipad-edition-watch.cinema-controls-hidden .watch-cinema-rate { display: none !important; }
+.ipad-edition-watch.cinema-controls-scrubbing .watch-cinema-info { opacity: 1 !important; visibility: visible !important; }
+@media (max-width: 700px) {
+  .ipad-edition-watch .watch-cinema-info,
+  .ipad-edition-watch.cinema-controls-hidden .watch-cinema-info {
+    width: 88vw !important; max-width: 88vw !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ipad-edition-watch .watch-cinema-progress::-webkit-slider-thumb,
+  .ipad-edition-watch .watch-cinema-progress::-moz-range-thumb { transition: none !important; }
+}
