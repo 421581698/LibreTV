@@ -335,6 +335,7 @@ describe('首页与播放页回归契约', () => {
     expect(player).toContain('requestNativeFullscreenWithFallback');
     expect(player).toContain('onRequestFullscreen?: () => void;');
     expect(player).toContain('const requestFullscreen = propsRef.current.onRequestFullscreen');
+    expect(player).toContain('if (propsRef.current.onRequestFullscreen) {\n            propsRef.current.onRequestFullscreen();\n          }');
     expect(watch).toContain('const requestWatchFullscreen = useCallback');
     expect(watch).toContain('onRequestFullscreen={requestWatchFullscreen}');
     expect(watch).toContain('onClick={requestWatchFullscreen}');
