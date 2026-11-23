@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { guardRequest } from '@/lib/api-guard';
 import { fetchTmdbJson } from '@/lib/tmdb';
 import { getCache, setCache } from '@/lib/fetch-utils';
+import { selectPreferredTmdbPoster, type TmdbPosterImage } from '@/lib/poster/tmdb-poster-preference';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -34,11 +35,13 @@ export async function GET(req: Request) {
   });
 
   try {
-    const result = await fetchTmdbJson<Record<string, unknown>>(`/${type}/${id}`, {
+    const payload = await fetchTmdbJson<Record<string, unknown> & { poster_path?: string | null; images?: { posters?: TmdbPosterImage[] } }>(`/${type}/${id}`, {
       language,
       append_to_response: 'images,credits,videos,release_dates,content_ratings',
       include_image_language: 'zh,null,en',
     });
+    const preferredPoster = selectPreferredTmdbPoster(payload.images?.posters, payload.poster_path);
+    const result = { ...payload, ...(preferredPoster ? { poster_path: preferredPoster } : {}) };
     setCache(cacheKey, result, CACHE_TTL);
     return NextResponse.json(result, {
       headers: { 'Cache-Control': 'public, max-age=900, s-maxage=21600, stale-while-revalidate=86400' },
