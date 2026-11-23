@@ -89,7 +89,7 @@ export async function GET(req: Request) {
         if (!localizedMatch && !originalMatch) continue;
 
         const candidateYear = yearOf(item, mediaType);
-        if (year && candidateYear && candidateYear !== year) continue;
+        if (year && candidateYear !== year) continue;
         const yearMatch = Boolean(year && candidateYear === year);
         const score = (localizedMatch ? 4 : 0)
           + (originalMatch ? 3 : 0)
