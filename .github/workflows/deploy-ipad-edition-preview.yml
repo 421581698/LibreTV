@@ -1753,6 +1753,12 @@ jobs:
                 console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-auto-hide", hiddenChromePassed, fullyHiddenPlaybackChrome }));
                 if (!hiddenChromePassed) failures += 1;
 
+                if (!autoHideReached) {
+                  // Keep the independent touch-reveal/toggle checks meaningful
+                  // even when the timer assertion fails: seed the expected hidden
+                  // visual state, while preserving the failure above.
+                  await page.evaluate(() => document.querySelector(".netflix-watch-shell")?.classList.add("cinema-controls-hidden"));
+                }
                 const frameRect = await page.locator(".netflix-player-frame").boundingBox();
                 if (!frameRect) throw new Error("Player frame has no touchable bounds.");
                 const touchX = frameRect.x + Math.max(28, frameRect.width * 0.12);
