@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-api';
 import { buildWatchUrl, validateSourceUrl } from '@/lib/utils';
 import { findMovieMatch } from '@/lib/movie-title-match';
+import { rankMovieCandidatesByQuality } from '@/lib/playback-telemetry';
 import { resolveSource, useAppStore, isInDisabledSubscription, isSourceDisabled } from '@/lib/store';
-import type { SourceConfig } from '@/lib/types';
+import type { SearchResultItem, SourceConfig } from '@/lib/types';
 
 type BangumiSubject = {
   id: number;
@@ -33,6 +34,9 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
   const sourceHealth = useAppStore((state) => state.sourceHealth);
   const subscriptions = useAppStore((state) => state.subscriptions);
   const yellowFilter = useAppStore((state) => state.yellowFilter);
+  const playbackHealth = useAppStore((state) => state.playbackHealth);
+  const playbackResourceHealth = useAppStore((state) => state.playbackResourceHealth);
+  const qualityMap = useAppStore((state) => state.qualityMap);
   const [subject, setSubject] = useState<BangumiSubject | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -67,29 +71,51 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
       return;
     }
     setStarting(true);
-    setStatus('正在查找该作品的播放资源…');
+    setStatus('正在查找资源并评估历史播放流畅度…');
     try {
       const titles = [...new Set([subject?.name_cn, subject?.name, titleFallback].filter((value): value is string => Boolean(value?.trim())))];
       const failures = new Set<string>();
+      const matches: Array<{ item: SearchResultItem; source: SourceConfig }> = [];
+      const seen = new Set<string>();
       for (const title of titles) {
         const response = await api.search(title, sources, yellowFilter);
         response.failures.forEach((failure) => failures.add(failure.sourceKey));
-        const found = findMovieMatch(title, response.list);
-        if (!found) continue;
-        const source = sources.find((candidate) => candidate.key === found.sourceKey);
-        if (!source) continue;
-        router.push(buildWatchUrl({
-          sourceKey: source.key,
-          vodId: found.vodId,
-          index: 0,
-          title: subject?.name_cn || subject?.name || titleFallback,
-          sourceUrl: found.sourceUrl || source.url,
-        }).replace('/watch?', '/ipad-edition/watch?'));
+        for (const item of response.list) {
+          if (!findMovieMatch(title, [item])) continue;
+          const source = sources.find((candidate) => candidate.key === item.sourceKey);
+          if (!source) continue;
+          const key = `${item.sourceKey}:${item.vodId}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          matches.push({ item, source });
+        }
+        if (matches.length) break;
+      }
+      if (!matches.length) {
+        setStatus(failures.size
+          ? '没有匹配到播放资源；另有 ' + failures.size + ' 个点播源请求失败，请检查源状态后重试。'
+          : '暂未找到匹配的播放资源。作品资料仍可继续浏览，请稍后重试或检查点播源。');
         return;
       }
-      setStatus(failures.size
-        ? '没有匹配到播放资源；另有 ' + failures.size + ' 个点播源请求失败，请检查源状态后重试。'
-        : '暂未找到匹配的播放资源。作品资料仍可继续浏览，请稍后重试或检查点播源。');
+      const ranked = rankMovieCandidatesByQuality(
+        matches.map(({ item }) => item),
+        qualityMap,
+        playbackHealth,
+        Date.now(),
+        playbackResourceHealth,
+      );
+      const best = ranked[0];
+      const match = matches.find(({ item }) => item.sourceKey === best.sourceKey && item.vodId === best.vodId);
+      if (!match) throw new Error('无法确定可用播放线路，请重试。');
+      setStatus(`已比较 ${matches.length} 条候选线路，优先选择历史播放更稳定的线路…`);
+      router.push(buildWatchUrl({
+        sourceKey: match.source.key,
+        vodId: match.item.vodId,
+        index: 0,
+        title: subject?.name_cn || subject?.name || titleFallback,
+        sourceUrl: match.item.sourceUrl || match.source.url,
+      }).replace('/watch?', '/ipad-edition/watch?'));
+      return;
     } catch (reason) {
       setStatus(reason instanceof Error ? reason.message : '播放资源查询失败，请稍后重试。');
     } finally {
