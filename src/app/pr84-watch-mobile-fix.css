@@ -1241,7 +1241,7 @@ html:has(.netflix-watch) .netflix-watch-shell .watch-topbar-right > button {
   pointer-events: none !important;
   transition: opacity 240ms ease, visibility 240ms step-end !important;
 }
-.netflix-watch-shell .netflix-watch-utility-panel.is-open ~ .netflix-watch-tools {
+.netflix-watch-shell:has(.netflix-watch-utility-panel.is-open) .netflix-watch-tools {
   visibility: hidden !important;
   pointer-events: none !important;
 }
