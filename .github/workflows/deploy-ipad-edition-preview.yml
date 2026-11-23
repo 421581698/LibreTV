@@ -1626,6 +1626,16 @@ jobs:
                 console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-paused-tap", pausedTapKeepsControls }));
                 if (!pausedTapKeepsControls) failures += 1;
 
+                // Resume after the rejected-play fixture so the 3s auto-hide
+                // assertion observes a genuinely advancing/playing media state.
+                await page.evaluate(() => { window.__mockPlaybackReject = false; });
+                await playButton.click();
+                await page.waitForFunction(() => {
+                  const video = document.querySelector(".netflix-player-frame video");
+                  return Boolean(video && !video.paused &&
+                    document.querySelector(".cinema-play-control")?.getAttribute("data-playback-state") === "playing");
+                }, undefined, { timeout: 5000 });
+
                 // The entire iPad transport (including the seek rail) must hide
                 // after playback settles, then return on a real touch. This catches
                 // the regression where the old CSS deliberately left the progress
