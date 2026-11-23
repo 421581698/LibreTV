@@ -1696,6 +1696,23 @@ jobs:
                 console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-buffering-controls", bufferingStates }));
                 if (!Object.values(bufferingStates).every(Boolean)) failures += 1;
 
+                // A delayed pause event may be delivered after a quick resume.
+                // It must not cancel the current playback auto-hide deadline.
+                await page.evaluate(() => {
+                  const video = document.querySelector(".netflix-player-frame video");
+                  if (!video || video.paused || video.ended) {
+                    throw new Error("Stale-pause fixture requires active playback.");
+                  }
+                  video.dispatchEvent(new Event("pause"));
+                });
+                await page.waitForFunction(() =>
+                  (document.querySelector(".netflix-watch-shell")?.dataset.controlsHideDebug ?? "")
+                    .includes("pause-ignored:media-still-playing"),
+                  undefined,
+                  { timeout: 3000 },
+                );
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-stale-pause-ignored", passed: true }));
+
                 // The entire iPad transport (including the seek rail) must hide
                 // after playback settles, then return on a real touch. This catches
                 // the regression where the old CSS deliberately left the progress
