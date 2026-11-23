@@ -924,7 +924,12 @@ export function PlayerShell({
     lastSampleRef.current = 0;
     endedRef.current = false;
     updateSkipPrompt(null);
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    undoTimerRef.current = null;
     setUndoSkip(null);
+    if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+    hintTimerRef.current = null;
+    setHint('');
     // 换集时清掉上一集的预取窗口，避免带宽被旧集占用
     getVideoPrefetcher().stop();
     setError('');
