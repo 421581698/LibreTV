@@ -483,7 +483,7 @@ function WatchContent() {
     }
     return indexParam;
   }, [episodes, indexParam]);
-  const currentEpisodeKey = `${sourceKey}:${vodId}:${currentIndex}`;
+  const currentEpisodeKey = `${sourceKey}:${vodId || currentUrl}:${currentIndex}`;
   const pendingEpisodeKeyRef = useRef<string | null>(null);
   const isCurrentPlaybackEvent = useCallback((eventEpisodeKey?: string) => {
     // During router.replace there is a short interval where the media element
@@ -519,7 +519,7 @@ function WatchContent() {
       if (autoNextTimer.current) window.clearTimeout(autoNextTimer.current);
       autoNextTimer.current = null;
       setShowAutoNext(false);
-      pendingEpisodeKeyRef.current = `${sourceKey}:${vodId}:${index}`;
+      pendingEpisodeKeyRef.current = `${sourceKey}:${vodId || nextUrl}:${index}`;
       // Flush the outgoing episode before the URL identity changes. Later pause
       // events may belong to the new source lifecycle and must not overwrite it.
       const outgoingProgressId = vodId || currentUrl;
