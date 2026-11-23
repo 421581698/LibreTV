@@ -26,7 +26,7 @@ function requiredString(env: FridayModelEnvironment, key: string): string {
 }
 
 function isPrivateOrLocalHostname(hostname: string): boolean {
-  const host = hostname.toLowerCase().replace(/^\\[|\\]$/g, "").replace(/\\.$/, "");
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
   if (
     host === "localhost" ||
     host.endsWith(".localhost") ||
@@ -37,7 +37,7 @@ function isPrivateOrLocalHostname(hostname: string): boolean {
 
   // Reject IP literals entirely. This avoids direct access to loopback,
   // RFC1918, link-local, carrier-grade NAT, and IPv6 local ranges.
-  if (/^(?:\\d{1,3}\\.){3}\\d{1,3}$/.test(host) || host.includes(":")) return true;
+  if (/^(?:\d{1,3}\.){3}\d{1,3}$/.test(host) || host.includes(":")) return true;
   return !host.includes(".");
 }
 
@@ -59,20 +59,20 @@ function validatePublicHttpsBaseUrl(input: string, variableName: string): string
     throw new Error(`${variableName} must use a public DNS hostname`);
   }
 
-  return url.toString().replace(/\\/+$/, "");
+  return url.toString().replace(/\/+$/, "");
 }
 
 export function validateOpenClawGatewayUrl(input: string): string {
   const base = validatePublicHttpsBaseUrl(input, "OPENCLAW_GATEWAY_URL");
   const url = new URL(base);
-  const pathname = url.pathname.replace(/\\/+$/, "");
+  const pathname = url.pathname.replace(/\/+$/, "");
   return `${url.origin}${pathname.endsWith("/v1") ? pathname : `${pathname}/v1`}`;
 }
 
 export function validateFreeLlmApiBaseUrl(input: string): string {
   const base = validatePublicHttpsBaseUrl(input, "FREELLMAPI_BASE_URL");
   const url = new URL(base);
-  const pathname = url.pathname.replace(/\\/+$/, "");
+  const pathname = url.pathname.replace(/\/+$/, "");
   return `${url.origin}${pathname.endsWith("/v1") ? pathname : `${pathname}/v1`}`;
 }
 
