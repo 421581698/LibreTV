@@ -1489,8 +1489,8 @@ jobs:
                 const errors = [];
                 page.on("pageerror", error => errors.push(error.message));
                 const fixtureDetail = {
-                  episodes: ["https://media.preview.invalid/fixture.mp4"],
-                  episodeItems: [{ title: "预览播放条目", url: "https://media.preview.invalid/fixture.mp4", duration: "00:30" }],
+                  episodes: ["https://media.preview.invalid/fixture.webm"],
+                  episodeItems: [{ title: "预览播放条目", url: "https://media.preview.invalid/fixture.webm", duration: "00:02" }],
                   videoInfo: {
                     title: "iPad Preview 样片",
                     desc: "用于 iPad Edition 播放器几何检查的合成测试数据，不代表真实片源。",
@@ -1517,7 +1517,7 @@ jobs:
                   body: JSON.stringify(fixtureDetail),
                 }));
                 await page.route("https://media.preview.invalid/**", route => route.fulfill({
-                  status: 200, contentType: "video/mp4", body: Buffer.alloc(0),
+                  status: 200, contentType: "video/webm", body: Buffer.from("GkXfo59ChoEBQveBAULygQRC84EIQoKEd2VibUKHgQJChYECGFOAZwEAAAAAAAI3EU2bdLpNu4tTq4QVSalmU6yBoU27i1OrhBZUrmtTrIHWTbuMU6uEElTDZ1OsggEjTbuMU6uEHFO7a1OsggIh7AEAAAAAAABZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVSalmsCrXsYMPQkBNgIxMYXZmNjEuNy4xMDNXQYxMYXZmNjEuNy4xMDNEiYhAn0AAAAAAABZUrmvIrgEAAAAAAAA/14EBc8WIFGPifZdEc9ecgQAitZyDdW5kiIEAhoVWX1ZQOIOBASPjg4QdzWUA4JCwgRC6gRCagQJVsIRVuYEBElTDZ/tzc59jwIBnyJlFo4dFTkNPREVSRIeMTGF2ZjYxLjcuMTAzc3PWY8CLY8WIFGPifZdEc9dnyKFFo4dFTkNPREVSRIeUTGF2YzYxLjE5LjEwMSBsaWJ2cHhnyKFFo4hEVVJBVElPTkSHkzAwOjAwOjAyLjAwMDAwMDAwMAAfQ7Z1+eeBAKOjgQAAgBACAJ0BKhAAEAAARwiFhYiZhIgCAgAMDWAA/v+rUICjmYEB9ACxAQABEBAAGAAwP/QMAAAA/v+rUICjmYED6ACxAQABEBAAGAAwP/QMAAAA/v+rUICjmYEF3ACxAQABEBAAGAAwP/QMAAAA/v+rUIAcU7trkbuPs4EAt4r3gQHxggGj8IED", "base64"),
                 }));
                 await page.addInitScript((scheme) => {
                   const apply = () => {
@@ -1672,8 +1672,10 @@ jobs:
                 console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-paused-tap", pausedTapKeepsControls }));
                 if (!pausedTapKeepsControls) failures += 1;
 
-                // Resume after the rejected-play fixture so the 3s auto-hide
-                // assertion observes a genuinely advancing/playing media state.
+                // A valid, tiny WebM fixture prevents Chromium's empty-file
+                // waiting/stalled events from cancelling the hide timer by accident.
+                // Keep the buffering contract explicit: buffering reveals controls;
+                // playback resuming starts a fresh three-second auto-hide deadline.
                 await page.evaluate(() => { window.__mockPlaybackReject = false; });
                 await playButton.click();
                 await page.waitForFunction(() => {
@@ -1681,6 +1683,18 @@ jobs:
                   return Boolean(video && !video.paused &&
                     document.querySelector(".cinema-play-control")?.getAttribute("data-playback-state") === "playing");
                 }, undefined, { timeout: 5000 });
+                const bufferingStates = {};
+                for (const eventName of ["waiting", "stalled"]) {
+                  await page.evaluate((name) => {
+                    document.querySelector(".netflix-player-frame video")?.dispatchEvent(new Event(name));
+                  }, eventName);
+                  bufferingStates[eventName] = !(await page.locator(".netflix-watch-shell").evaluate(node =>
+                    node.classList.contains("cinema-controls-hidden")
+                  ));
+                  await page.evaluate(() => document.querySelector(".netflix-player-frame video")?.dispatchEvent(new Event("playing")));
+                }
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-buffering-controls", bufferingStates }));
+                if (!Object.values(bufferingStates).every(Boolean)) failures += 1;
 
                 // The entire iPad transport (including the seek rail) must hide
                 // after playback settles, then return on a real touch. This catches
