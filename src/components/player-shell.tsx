@@ -1031,6 +1031,15 @@ export function PlayerShell({
       },
     });
     artRef.current = art;
+    // Keep the page timeline correct even before playback starts and after a
+    // seek while paused. Browsers are not required to emit timeupdate for
+    // metadata changes or a paused seek.
+    const syncTimeline = () => {
+      propsRef.current.onTimeUpdate?.(art.currentTime, art.duration, activeEpisodeKeyRef.current);
+    };
+    art.on('video:loadedmetadata', syncTimeline);
+    art.on('video:durationchange', syncTimeline);
+    art.on('video:seeked', syncTimeline);
     // Promote the pending identity only when the media element starts loading
     // the replacement source; pause/timeupdate events emitted while teardown is
     // in progress must remain attributed to the previous episode.
@@ -1237,7 +1246,7 @@ export function PlayerShell({
       const now = Date.now();
       // Keep the on-screen timeline in sync with the browser's media clock.
       // Persistence remains separately throttled to avoid excessive IndexedDB writes.
-      propsRef.current.onTimeUpdate?.(art.currentTime, art.duration, activeEpisodeKeyRef.current);
+      syncTimeline();
       if (now - lastSave > 5000) {
         lastSave = now;
         propsRef.current.onProgressSave?.(art.currentTime, art.duration, activeEpisodeKeyRef.current);
