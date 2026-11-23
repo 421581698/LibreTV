@@ -627,6 +627,7 @@ describe('首页与播放页回归契约', () => {
     expect(watch).toContain('progressKeyOf(sourceKey, progressId, currentIndex)');
     expect(watch).toContain('saveProgress(\n        sourceKey,\n        progressId');
     expect(watch).toContain('clearProgress(sourceKey, progressId, currentIndex)');
+    expect(watch).toContain('updateHistoryProgress(sourceKey, progressId, 0, 0, currentIndex)');
   });
 
 
