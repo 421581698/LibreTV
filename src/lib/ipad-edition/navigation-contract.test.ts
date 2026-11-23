@@ -56,6 +56,9 @@ describe('iPad Edition navigation contract', () => {
     expect(layout).toContain('.ipad-edition__today, .ipad-edition__rail-section');
     expect(layout).toContain('padding-left: var(--ipad-page-gutter) !important;');
     expect(layout).toContain('padding-right: var(--ipad-page-gutter) !important;');
+    expect(layout).toContain('.ipad-edition[data-ipad-home="true"] {');
+    expect(layout).toContain('padding-inline: 0;');
+    expect(layout).toContain('padding-block-start: 0;');
   });
 
   it('reserves space below the floating capsule and keeps poster captions in the rail flow', () => {
