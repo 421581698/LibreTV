@@ -21,7 +21,7 @@ type TmdbPersonDetails = { id: number; name: string; biography?: string; profile
 
 const imageUrl = (path?: string | null, size = 'w780') => path ? `https://image.tmdb.org/t/p/${size}${path}` : '';
 
-export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, backdropFallback, ratingFallback }: {
+export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, ratingFallback }: {
   id: string; type: 'movie' | 'tv'; titleFallback: string; posterFallback: string; backdropFallback: string; ratingFallback: string;
 }) {
   const router = useRouter();
