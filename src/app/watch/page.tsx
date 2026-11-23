@@ -184,7 +184,11 @@ function WatchContent() {
       clearHideTimer('reveal');
       showControls();
       const target = event?.target;
-      if (target instanceof Element && target.closest('.watch-cinema-progress')) {
+      // Only a physical press starts scrubbing. A synthesized click fires after
+      // pointerup/touchend; treating it as a new scrub can leave the visibility
+      // lock stuck because no second release event follows that click.
+      const startsScrubbing = event?.type === 'pointerdown' || event?.type === 'touchstart';
+      if (startsScrubbing && target instanceof Element && target.closest('.watch-cinema-progress')) {
         scrubbingRef.current = true;
         setIsScrubbing(true);
         return;

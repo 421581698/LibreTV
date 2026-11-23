@@ -1387,8 +1387,10 @@ jobs:
                         centerControls.top >= frame.top - 2 && centerControls.bottom <= frame.bottom + 2);
                       // Core player geometry must be measurable. Optional controls may be
                       // display:none while the player is idle; validate them only when rendered.
-                      const requiredVisibleBoxes = [frame, centerControls, info, title];
-                      const optionalVisibleBoxes = [tools, utility].filter(box =>
+                      const requiredVisibleBoxes = [frame, centerControls, info];
+                      // The title-row H1 is intentionally hidden by shared watch-page CSS.
+                      // Treat it as optional geometry, and validate it only if it is rendered.
+                      const optionalVisibleBoxes = [tools, title, utility].filter(box =>
                         box && box.width > 0 && box.height > 0
                       );
                       const withinViewport = [...requiredVisibleBoxes, ...optionalVisibleBoxes]
@@ -1522,6 +1524,43 @@ jobs:
                 await page.locator(".watch-cinema-info").waitFor({ state: "visible", timeout: 30000 });
                 await page.locator(".cinema-center-controls").waitFor({ state: "visible", timeout: 30000 });
                 await page.locator(".cinema-utility-control").waitFor({ state: "visible", timeout: 30000 });
+
+                // Regression: the browser emits click after pointerup/touchend.
+                // That click must reveal controls but must not re-enter scrubbing.
+                const scrubControl = page.locator(".watch-cinema-progress");
+                await scrubControl.dispatchEvent("pointerdown", {
+                  pointerId: 7, pointerType: "touch", isPrimary: true, button: 0,
+                });
+                await page.waitForFunction(
+                  () => document.querySelector(".netflix-watch-shell")?.classList.contains("cinema-controls-scrubbing"),
+                  undefined,
+                  { timeout: 5000 },
+                );
+                const scrubPreviewVisibleDuringDrag = await page.locator(".watch-cinema-scrub-preview").isVisible();
+                await page.evaluate(() => window.dispatchEvent(new PointerEvent("pointerup", {
+                  bubbles: true, pointerId: 7, pointerType: "touch", isPrimary: true,
+                })));
+                await page.waitForFunction(
+                  () => !document.querySelector(".netflix-watch-shell")?.classList.contains("cinema-controls-scrubbing"),
+                  undefined,
+                  { timeout: 5000 },
+                );
+                await scrubControl.dispatchEvent("click", { bubbles: true });
+                await page.waitForTimeout(80);
+                const scrubStateAfterSyntheticClick = await page.evaluate(() => ({
+                  locked: Boolean(document.querySelector(".netflix-watch-shell")?.classList.contains("cinema-controls-scrubbing")),
+                  previewVisible: Boolean(document.querySelector(".watch-cinema-scrub-preview")),
+                  controlsVisible: !document.querySelector(".netflix-watch-shell")?.classList.contains("cinema-controls-hidden"),
+                }));
+                const scrubInteraction = {
+                  previewVisibleDuringDrag: scrubPreviewVisibleDuringDrag,
+                  unlockedAfterRelease: !scrubStateAfterSyntheticClick.locked,
+                  previewHiddenAfterRelease: !scrubStateAfterSyntheticClick.previewVisible,
+                  clickDidNotRestartScrubbing: !scrubStateAfterSyntheticClick.locked,
+                  controlsRemainVisibleAfterClick: scrubStateAfterSyntheticClick.controlsVisible,
+                };
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-scrub-interaction", scrubInteraction }));
+                if (!Object.values(scrubInteraction).every(Boolean)) failures += 1;
 
                 for (const panelState of ["closed", "open"]) {
                   if (panelState === "open") {
