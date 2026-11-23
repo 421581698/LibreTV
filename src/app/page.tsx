@@ -20,7 +20,6 @@ import {
   isSourceDisabled,
 } from '@/lib/store';
 import { api } from '@/lib/client-api';
-import { findMovieMatch, getMovieSearchTerms } from '@/lib/movie-title-match';
 import type {
   DoubanItem,
   SearchResultItem,
@@ -80,34 +79,17 @@ function HomeContent() {
     router.push('/detail?' + params.toString());
   };
   
-  const handleHomepagePick = async (movie: DoubanItem) => {
-    if (selectedSources.length === 0) {
-      toast('请先在设置中启用至少一个可用点播源。', 'warning');
-      return;
-    }
-    try {
-      // CMS 站点常用原名、地区译名或「蜘蛛侠4」等别名建档；
-      // 首页只按完全一致的标题匹配会把真实存在的资源误报为不存在。
-      let match: SearchResultItem | undefined;
-      const failedSources = new Set<string>();
-      for (const term of getMovieSearchTerms(movie.title)) {
-        const response = await api.search(term, selectedSources, yellowFilter);
-        response.failures.forEach((failure) => failedSources.add(failure.sourceKey));
-        match = findMovieMatch(movie.title, response.list);
-        if (match) break;
-      }
-      if (!match) {
-        if (failedSources.size > 0) {
-          toast('没有匹配到《' + movie.title + '》；另有 ' + failedSources.size + ' 个点播源请求失败，请检查源状态后重试。', 'warning');
-        } else {
-          toast('已尝试影片常见别名，仍未在已启用的点播源中找到《' + movie.title + '》的准确资源。', 'warning');
-        }
-        return;
-      }
-      openDetail(match, { rating: movie.rating, poster: movie.cover });
-    } catch (error) {
-      toast(error instanceof Error ? error.message : '获取影片详情失败，请稍后重试。', 'error');
-    }
+  const handleHomepagePick = (movie: DoubanItem) => {
+    // 首页推荐来自 TMDB：进入详情只传递元数据 ID，不触发 CMS 点播源搜索。
+    const params = new URLSearchParams({
+      tmdbId: movie.id,
+      tmdbType: movie.isTv ? 'tv' : 'movie',
+      title: movie.title,
+      pic: movie.cover,
+      rating: movie.rating || '',
+      backdrop: movie.backdrop || '',
+    });
+    router.push('/ipad-edition/detail?' + params.toString());
   };
 
   const openedFridayDetailRef = useRef<string | null>(null);
