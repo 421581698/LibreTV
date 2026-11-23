@@ -751,9 +751,15 @@ function WatchContent() {
                   if (!video) return;
                   if (video.paused || video.ended) {
                     void video.play().then(() => {
-                      setIsPlaying(!video.paused && !video.ended);
+                      // A source recovery may replace the media element while play() is pending.
+                      // Never let a stale Promise overwrite the state of the newly mounted video.
+                      if (playerFrameRef.current?.querySelector('video') === video) {
+                        setIsPlaying(!video.paused && !video.ended);
+                      }
                     }).catch(() => {
-                      setIsPlaying(false);
+                      if (playerFrameRef.current?.querySelector('video') === video) {
+                        setIsPlaying(false);
+                      }
                     });
                   } else {
                     video.pause();
