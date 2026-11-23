@@ -291,6 +291,7 @@ function WatchContent() {
         scrubResetTimerRef.current = null;
       }
       scrubbingRef.current = false;
+      scrubbingPositionRef.current = null;
       controlsWereHiddenAtPointerStart = false;
       setIsScrubbing(false);
       setScrubbingPosition(null);
@@ -399,6 +400,7 @@ function WatchContent() {
       window.removeEventListener('touchend', endScrubbing, true);
       window.removeEventListener('touchcancel', endScrubbing, true);
       scrubbingRef.current = false;
+      scrubbingPositionRef.current = null;
     };
   }, [verified]);
 
