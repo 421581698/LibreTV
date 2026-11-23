@@ -1526,6 +1526,80 @@ jobs:
                 await page.locator(".cinema-center-controls").waitFor({ state: "visible", timeout: 30000 });
                 await page.locator(".cinema-utility-control").waitFor({ state: "visible", timeout: 30000 });
 
+                // Exercise the real React transport controls against a deterministic media element.
+                // The media API is stubbed, but the button, event listeners and state rendering are real.
+                await page.evaluate(() => {
+                  const frame = document.querySelector(".netflix-player-frame");
+                  if (!frame) throw new Error("Player frame is missing.");
+                  let video = frame.querySelector("video");
+                  if (!video) {
+                    video = document.createElement("video");
+                    frame.append(video);
+                  }
+                  let paused = true;
+                  let ended = false;
+                  let currentTime = 0;
+                  Object.defineProperties(video, {
+                    paused: { configurable: true, get: () => paused },
+                    ended: { configurable: true, get: () => ended },
+                    currentTime: { configurable: true, get: () => currentTime, set: value => { currentTime = Number(value) || 0; } },
+                    duration: { configurable: true, get: () => 120 },
+                  });
+                  video.play = () => {
+                    if (window.__mockPlaybackReject) {
+                      return Promise.reject(new DOMException("Playback blocked by test fixture", "NotAllowedError"));
+                    }
+                    paused = false;
+                    video.dispatchEvent(new Event("play"));
+                    video.dispatchEvent(new Event("playing"));
+                    return Promise.resolve();
+                  };
+                  video.pause = () => {
+                    paused = true;
+                    video.dispatchEvent(new Event("pause"));
+                  };
+                  window.__mockPlaybackReject = false;
+                });
+                await page.waitForFunction(() => document.querySelector(".cinema-play-control")?.getAttribute("data-playback-state") === "paused", undefined, { timeout: 5000 });
+                const playButton = page.locator(".cinema-play-control");
+                await playButton.click();
+                await page.waitForFunction(() => {
+                  const button = document.querySelector(".cinema-play-control");
+                  return button?.getAttribute("data-playback-state") === "playing" &&
+                    button.getAttribute("aria-label") === "暂停" &&
+                    Boolean(button.querySelector(".cinema-play-icon--pause"));
+                }, undefined, { timeout: 5000 });
+                const playingState = await playButton.evaluate(button => ({
+                  state: button.getAttribute("data-playback-state"),
+                  label: button.getAttribute("aria-label"),
+                  pressed: button.getAttribute("aria-pressed"),
+                  pauseIcon: Boolean(button.querySelector(".cinema-play-icon--pause")),
+                }));
+                await playButton.click();
+                await page.waitForFunction(() => {
+                  const button = document.querySelector(".cinema-play-control");
+                  return button?.getAttribute("data-playback-state") === "paused" &&
+                    button.getAttribute("aria-label") === "播放" &&
+                    Boolean(button.querySelector(".cinema-play-icon--play"));
+                }, undefined, { timeout: 5000 });
+                await page.evaluate(() => { window.__mockPlaybackReject = true; });
+                await playButton.click();
+                await page.waitForTimeout(80);
+                const pausedAfterRejectedPlay = await playButton.evaluate(button =>
+                  button.getAttribute("data-playback-state") === "paused" &&
+                  button.getAttribute("aria-label") === "播放" &&
+                  button.getAttribute("aria-pressed") === "false"
+                );
+                const playbackState = {
+                  playingStateCorrect: playingState.state === "playing" && playingState.label === "暂停" &&
+                    playingState.pressed === "true" && playingState.pauseIcon,
+                  pauseStateCorrect: await playButton.getAttribute("data-playback-state") === "paused" &&
+                    await playButton.getAttribute("aria-label") === "播放",
+                  rejectedPlayRemainsPaused: pausedAfterRejectedPlay,
+                };
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-playback-state", playbackState }));
+                if (!Object.values(playbackState).every(Boolean)) failures += 1;
+
                 // Regression: the browser emits click after pointerup/touchend.
                 // That click must reveal controls but must not re-enter scrubbing.
                 const scrubControl = page.locator(".watch-cinema-progress");
