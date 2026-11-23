@@ -21,7 +21,7 @@ describe('iPad Edition poster navigation and explicit playback', () => {
     expect(watchPage).toContain('aria-label="关闭选集与换源面板"');
     expect(watchPage).toContain('aria-label="关闭播放内容面板"');
     expect(playerCss).toContain('.netflix-watch-panel-scrim');
-    expect(playerCss).toContain('z-index: 95');
+    expect(playerCss).toContain('z-index: 60;');
     expect(playerCss).toContain('z-index: 101;');
     expect(playerCss).toContain('top: calc(88px + env(safe-area-inset-top, 0px)) !important');
   });
