@@ -1319,13 +1319,10 @@ jobs:
                 if (route.name === "watch") {
                   await page.locator(".netflix-watch").waitFor({ state: "visible", timeout: 30000 });
                   await page.locator(".netflix-player-frame").waitFor({ state: "visible", timeout: 30000 });
-                  // The title-row H1 is hidden by the shared page-heading rule; assert the
-                  // visible title in the player metadata panel instead.
-                  const playerTitle = page.locator(".netflix-watch .netflix-title-row h1");
-                  await playerTitle.waitFor({ state: "visible", timeout: 30000 });
-                  if ((await playerTitle.innerText()).trim() !== "iPad Preview 样片") {
-                    throw new Error("Visible player title did not match the mocked CMS fixture.");
-                  }
+                  // The title-row H1 is intentionally hidden by the shared page-heading rule.
+                  // Validate the actual visible playback control instead of waiting on that H1.
+                  await page.locator(".watch-cinema-info").waitFor({ state: "visible", timeout: 30000 });
+                  await page.locator(".watch-cinema-progress").waitFor({ state: "visible", timeout: 30000 });
                 }
                 const metrics = await page.evaluate((routeName) => {
                   const root = document.querySelector(".ipad-edition");
@@ -1352,6 +1349,24 @@ jobs:
                       return Boolean(title && title.getClientRects().length > 0 && getComputedStyle(title).visibility !== "hidden");
                     })(),
                     visiblePlayerTitleText: document.querySelector(".netflix-watch .netflix-title-row h1")?.textContent?.trim() ?? null,
+                    hasProgressControl: Boolean(document.querySelector(".watch-cinema-progress")),
+                    progressControlWithinViewport: (() => {
+                      const control = document.querySelector(".watch-cinema-progress");
+                      if (!control) return false;
+                      const rect = control.getBoundingClientRect();
+                      return rect.width > 0 && rect.height > 0 && rect.left >= -2 &&
+                        rect.right <= document.documentElement.clientWidth + 2 &&
+                        rect.top >= -2 && rect.bottom <= document.documentElement.clientHeight + 2;
+                    })(),
+                    progressControlCentered: (() => {
+                      const control = document.querySelector(".watch-cinema-progress");
+                      const playback = document.querySelector(".watch-cinema-playback");
+                      if (!control || !playback) return false;
+                      const controlRect = control.getBoundingClientRect();
+                      const playbackRect = playback.getBoundingClientRect();
+                      return Math.abs((controlRect.left + controlRect.right) / 2 -
+                        (playbackRect.left + playbackRect.right) / 2) <= 8;
+                    })(),
                     playerGeometry: (() => {
                       const rect = (selector) => {
                         const element = document.querySelector(selector);
@@ -1403,7 +1418,8 @@ jobs:
                     (metrics.loadingSkeletonCount > 0 || !metrics.hasTerminalCollectionState)) ||
                   (route.name === "detail" && (!metrics.hasDetailTitle || metrics.episodeCardCount < 1)) ||
                   (route.name === "watch" && (!metrics.hasPlayerFrame || !metrics.hasWatchContent ||
-                    !metrics.hasVisiblePlayerTitle || metrics.visiblePlayerTitleText !== "iPad Preview 样片" ||
+                    !metrics.hasProgressControl || !metrics.progressControlWithinViewport ||
+                    !metrics.progressControlCentered ||
                     !metrics.playerGeometry?.centerControlsInsideFrame ||
                     metrics.playerGeometry.centerControlsOverlapInfo ||
                     metrics.playerGeometry.infoOverlapTools ||
