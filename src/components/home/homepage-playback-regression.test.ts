@@ -293,6 +293,9 @@ describe('首页与播放页回归契约', () => {
     expect(watch).toContain("video.addEventListener('seeked', onSeeked)");
     expect(watch).toContain('setWatchClock({ position, duration })');
     expect(watch).toContain('playerApiRef.current?.seek(finalPosition)');
+    expect(watch).toContain('playerApiRef.current?.seek(position);');
+    expect(watch).toContain('scrubbingPositionRef.current = null;');
+    expect(watch).toContain('setWatchClock((current) => ({ ...current, position }));');
     expect(watch).toContain("shell.querySelector<HTMLInputElement>('.watch-cinema-progress')");
     expect(watch).toContain('scrubbingPositionRef.current = position');
     expect(watch).toContain('Number.isFinite(watchClock.duration) && watchClock.duration > 0');
