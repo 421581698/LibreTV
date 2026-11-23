@@ -9,7 +9,7 @@ export default function DetailRoute() {
     <div className="ipad-edition">
       <div data-ipad-detail="true">
         <Suspense fallback={<main className="min-h-screen bg-[#08080A]" />}>
-          <MovieDetailPage />
+          <MovieDetailPage watchPath="/ipad-edition/watch" />
         </Suspense>
       </div>
     </div>
