@@ -1225,3 +1225,12 @@ body:has(.ipad-edition[data-ipad-home="true"]) {
     height: 70%;
   }
 }
+/* The cinema hero intentionally breaks out of the padded iPad shell.
+   Keep the page-level body/html clip as the horizontal safety boundary;
+   clipping the shell or main here cuts 20–28px from both artwork edges. */
+.ipad-edition[data-ipad-home="true"] {
+  overflow-x: visible !important;
+}
+.ipad-edition[data-ipad-home="true"] > .ipad-edition__main {
+  overflow: visible !important;
+}
