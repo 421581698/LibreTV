@@ -42,8 +42,8 @@ describe('iPad Edition navigation contract', () => {
     const styles = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/ipad-edition.css'), 'utf8');
     expect(styles).toContain('width: max-content !important;');
     expect(styles).toContain('max-width: calc(100vw - 32px);');
-    expect(styles).toContain('height: 52px !important;');
-    expect(styles).toContain('flex: 0 0 auto !important;');
+    expect(styles).toContain('height: 52px;');
+    expect(styles).toContain('flex: 0 0 auto;');
   });
 
 
