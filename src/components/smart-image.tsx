@@ -98,7 +98,7 @@ export function SmartImage({
       referrerPolicy="no-referrer"
       data-natural-width={measureNaturalSize ? naturalSize?.width : undefined}
       data-natural-height={measureNaturalSize ? naturalSize?.height : undefined}
-      data-resolution-tier={measureNaturalSize ? (naturalSize ? (naturalSize.width >= 1200 ? 'meets-1200px' : 'below-1200px') : 'pending') : undefined}
+      data-resolution-tier={measureNaturalSize ? (naturalSize ? (naturalSize.width >= (minimumWidth ?? 1200) ? 'meets-minimum-width' : 'below-minimum-width') : 'pending') : undefined}
       onLoad={measureNaturalSize || minimumWidth ? (event) => {
         const image = event.currentTarget;
         if (measureNaturalSize) setNaturalSize({ width: image.naturalWidth, height: image.naturalHeight });
