@@ -267,7 +267,13 @@ describe('首页与播放页回归契约', () => {
     expect(player).toContain('onProgressSave?.(art.currentTime, art.duration, activeEpisodeKeyRef.current)');
     expect(watch).toContain('setWatchClock({ position, duration })');
     expect(watch).toContain('playerApiRef.current?.seek(Number(event.currentTarget.value))');
+    expect(watch).toContain('event.currentTarget.setPointerCapture(event.pointerId)');
+    expect(watch).not.toContain('onTouchEnd={(event) =>');
+    expect(watch).not.toContain('onBlur={(event) =>');
     expect(watch).not.toContain('setScrubbingPosition(position);\n                    playerApiRef.current?.seek(position);');
+    expect(watchStyles).toContain('.ipad-edition-watch.cinema-controls-hidden:not(.cinema-controls-scrubbing) .watch-cinema-info');
+    expect(watchStyles).toContain('visibility: hidden !important;');
+    expect(watchStyles).toContain('pointer-events: none !important;');
     expect(watch).toContain('enqueueDownload({');
     expect(watch).toContain('setSwitchOpen(true)');
   });
