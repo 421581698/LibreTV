@@ -99,6 +99,21 @@ describe('TMDB poster language preference', () => {
     ])).toBe('/neutral.jpg');
   });
 
+  it('chooses the highest-resolution image within the preferred language tier', () => {
+    expect(selectPreferredTmdbPoster([
+      { file_path: '/small-zh.jpg', iso_639_1: 'zh', width: 342, height: 513 },
+      { file_path: '/large-zh.jpg', iso_639_1: 'zh', width: 2000, height: 3000 },
+      { file_path: '/huge-en.jpg', iso_639_1: 'en', width: 4000, height: 6000 },
+    ])).toBe('/large-zh.jpg');
+  });
+
+  it('does not choose landscape artwork for a poster slot when dimensions are known', () => {
+    expect(selectPreferredTmdbPoster([
+      { file_path: '/landscape.jpg', iso_639_1: 'zh', width: 1600, height: 900 },
+      { file_path: '/portrait.jpg', iso_639_1: 'zh', width: 1000, height: 1500 },
+    ])).toBe('/portrait.jpg');
+  });
+
   it('uses English artwork only as a secondary fallback, then preserves the localized default', () => {
     expect(selectPreferredTmdbPoster([
       { file_path: '/english.jpg', iso_639_1: 'en' },
