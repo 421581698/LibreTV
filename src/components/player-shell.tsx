@@ -608,7 +608,9 @@ export function PlayerShell({
    * 注意：不销毁 ArtPlayer，只销毁并重建 hls，从而保留网页全屏等播放器状态。
    */
   const setupHls = (video: HTMLVideoElement, mediaUrl: string, allowProxyFallback: boolean) => {
-    const loadGeneration = mediaLoadGenerationRef.current;
+    // Every HLS reconfiguration (including direct→proxy fallback and fatal-error
+    // recovery) invalidates async restore work from the previous media pipeline.
+    const loadGeneration = ++mediaLoadGenerationRef.current;
     clearMetadataWatchdog();
     restoreCleanupRef.current?.();
     restoreCleanupRef.current = null;
