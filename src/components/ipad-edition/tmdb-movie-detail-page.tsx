@@ -126,8 +126,8 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
   };
 
   const title = movie?.title || movie?.name || titleFallback;
-  const poster = imageUrl(movie?.poster_path, 'w500') || posterFallback;
-  const backdrop = imageUrl(movie?.backdrop_path, 'w1280') || backdropFallback || poster;
+  // The detail page's primary artwork is always the vertical poster (2:3), never the backdrop.
+  const poster = imageUrl(movie?.poster_path, 'w500') || posterFallback || '/placeholder.svg';
   const cast = movie?.credits?.cast?.slice(0, 18) || [];
 
   if (loading) return <main className="min-h-screen bg-[#08080a] p-10 text-white">正在加载电影资料…</main>;
@@ -135,27 +135,27 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#08080a] pb-24 text-white">
-      <section className="relative flex min-h-[620px] items-end overflow-hidden px-7 pb-16 pt-24 md:min-h-[760px] md:px-16">
-        <img src={backdrop} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80" />
-        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/65 to-black/10" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#08080a] via-transparent to-black/20" />
-        <button onClick={() => router.back()} className="absolute left-7 top-8 z-10 rounded-full border border-white/20 bg-black/40 px-4 py-2 backdrop-blur">‹ 返回</button>
-        <div className="relative z-10 max-w-3xl">
-          <div className="flex items-end gap-6">
-            <img src={poster} alt={title + ' 海报'} className="hidden w-36 rounded-xl shadow-2xl md:block" />
-            <div>
-              <p className="mb-3 text-xs uppercase tracking-[.25em] text-white/60">LIBRETV · TITLE DETAILS</p>
-              <h1 className="text-4xl font-bold tracking-tight md:text-6xl">{title}</h1>
-              <p className="mt-3 text-sm text-white/70">{movie.original_title || movie.original_name} · {(movie.release_date || movie.first_air_date || '').slice(0, 4)} · {movie.genres?.map((genre) => genre.name).join(' / ')} · ★ {(movie.vote_average || Number(ratingFallback) || 0).toFixed(1)}</p>
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-white/80">{movie.overview || '暂无剧情简介'}</p>
-            </div>
+      <section className="relative overflow-hidden border-b border-white/10 bg-[#0d0d10] px-5 pb-10 pt-24 md:px-16 md:pb-14">
+        <button onClick={() => router.back()} className="absolute left-5 top-7 z-10 rounded-full border border-white/20 bg-white/5 px-4 py-2 backdrop-blur md:left-16">‹ 返回</button>
+        <div className="mx-auto flex max-w-[1280px] items-start gap-5 md:items-center md:gap-10">
+          <img
+            src={poster}
+            alt={title + ' 竖版海报'}
+            loading="eager"
+            className="block aspect-[2/3] w-[clamp(7.5rem,22vw,18rem)] shrink-0 rounded-xl object-cover shadow-2xl ring-1 ring-white/15"
+          />
+          <div className="min-w-0 flex-1 py-1 md:py-6">
+            <p className="mb-2 text-[10px] uppercase tracking-[.2em] text-white/50 md:mb-3 md:text-xs">LIBRETV · TITLE DETAILS</p>
+            <h1 className="break-words text-2xl font-bold leading-tight tracking-tight md:text-5xl">{title}</h1>
+            <p className="mt-2 text-xs leading-6 text-white/65 md:mt-4 md:text-sm">{movie.original_title || movie.original_name} · {(movie.release_date || movie.first_air_date || '').slice(0, 4)} · {movie.genres?.map((genre) => genre.name).join(' / ')} · ★ {(movie.vote_average || Number(ratingFallback) || 0).toFixed(1)}</p>
+            <p className="mt-3 line-clamp-5 max-w-3xl text-xs leading-6 text-white/80 md:mt-5 md:text-sm md:leading-7">{movie.overview || '暂无剧情简介'}</p>
           </div>
-          <div className="mt-7 flex flex-wrap items-center gap-3">
-            <button type="button" onClick={() => void startPlayback()} disabled={startingPlayback} className="rounded-full bg-white px-7 py-3 font-semibold text-black disabled:opacity-50">
-              {startingPlayback ? '正在查找资源…' : '▶ 开始播放'}
-            </button>
-            <span className="max-w-xl rounded-full border border-white/20 bg-black/30 px-5 py-3 text-sm text-white/75" role="status" aria-live="polite">{playbackStatus}</span>
-          </div>
+        </div>
+        <div className="mx-auto mt-6 flex max-w-[1280px] flex-wrap items-center gap-3 md:mt-8 md:pl-[calc(clamp(7.5rem,22vw,18rem)+2.5rem)]">
+          <button type="button" onClick={() => void startPlayback()} disabled={startingPlayback} className="rounded-full bg-white px-7 py-3 font-semibold text-black disabled:opacity-50">
+            {startingPlayback ? '正在查找资源…' : '▶ 开始播放'}
+          </button>
+          <span className="max-w-xl rounded-full border border-white/20 bg-black/30 px-5 py-3 text-sm text-white/75" role="status" aria-live="polite">{playbackStatus}</span>
         </div>
       </section>
 
