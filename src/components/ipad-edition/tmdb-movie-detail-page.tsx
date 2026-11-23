@@ -235,3 +235,4 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, backdropFallback,
       </div>}
     </IpadCinemaDetailLayout>
   );
+}
