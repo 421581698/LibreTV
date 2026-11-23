@@ -510,7 +510,10 @@ function WatchContent() {
   // 换集清空中段两步态：起点属于上一集，不能和新集的位置拼成区间
   useEffect(() => {
     setPendingStart(null);
-  }, [sourceKey, vodId, currentIndex]);
+    // A new source/episode is a new media lifecycle. Do not keep the previous
+    // episode's play icon active while the replacement media is still loading.
+    setIsPlaying(false);
+  }, [sourceKey, vodId, currentIndex, currentUrl]);
   const goEpisode = useCallback(
     (index: number) => {
       const nextUrl = episodes[index] || directUrl;
@@ -675,8 +678,10 @@ function WatchContent() {
     if (!store.autoplayNext) cancelAutoNext();
   }, [store.autoplayNext, cancelAutoNext]);
   useEffect(() => {
+    // Switching provider/resource with the same episode index must also cancel
+    // the old countdown; otherwise it can unexpectedly advance the new source.
     cancelAutoNext();
-  }, [currentIndex, cancelAutoNext]);
+  }, [sourceKey, vodId, currentUrl, currentIndex, cancelAutoNext]);
   // 快捷键（Shift+I/O/S/E）记录片段：校验后写入
   const handleRecordSegment = useCallback(
     (segment: SkipSegment) => {
