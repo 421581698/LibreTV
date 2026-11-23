@@ -99,6 +99,41 @@ function WatchContent() {
   const [scrubbingPosition, setScrubbingPosition] = useState<number | null>(null);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [sheetMaxHeight] = useState<number | undefined>(undefined);
+  const requestWatchFullscreen = useCallback(() => {
+    const video = playerFrameRef.current?.querySelector('video') as (NativeFullscreenVideo & {
+      webkitExitFullscreen?: () => void;
+    }) | null;
+    if (video?.webkitDisplayingFullscreen && video.webkitExitFullscreen) {
+      try {
+        video.webkitExitFullscreen();
+        return;
+      } catch {
+        toast('退出系统全屏失败，请重试', 'info');
+        return;
+      }
+    }
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => toast('退出全屏失败，请重试', 'info'));
+      return;
+    }
+    // The shell owns every custom overlay; full-screening only the video would
+    // strand the center transport and bottom seek rail outside the top layer.
+    const fullscreenTarget = watchShellRef.current;
+    const enterWebFullscreen = () => {
+      if (fullscreenTarget?.requestFullscreen) {
+        void fullscreenTarget.requestFullscreen().catch(() => toast('当前浏览器无法进入全屏', 'info'));
+      } else {
+        toast('当前浏览器不支持全屏播放', 'info');
+      }
+    };
+    fullscreenFallbackCleanupRef.current?.();
+    fullscreenFallbackCleanupRef.current = null;
+    if (video) {
+      fullscreenFallbackCleanupRef.current = requestNativeFullscreenWithFallback(video, enterWebFullscreen);
+    } else {
+      enterWebFullscreen();
+    }
+  }, [toast]);
 
   // 优先使用本次播放 URL 传入的数据源地址，普通源仍以本机配置为准。
   const suppliedSourceUrl = (searchParams.get('sourceUrl') || '').trim();
@@ -788,48 +823,7 @@ function WatchContent() {
             </button>
           </div>
           <div className="watch-topbar-right">
-            <button type="button" className="cinema-glass-control" aria-label="全屏播放" title="全屏播放" onClick={() => {
-              const video = playerFrameRef.current?.querySelector('video') as (NativeFullscreenVideo & {
-                webkitExitFullscreen?: () => void;
-              }) | null;
-              if (video?.webkitDisplayingFullscreen && video.webkitExitFullscreen) {
-                try {
-                  video.webkitExitFullscreen();
-                  return;
-                } catch {
-                  toast('退出系统全屏失败，请重试', 'info');
-                  return;
-                }
-              }
-              if (document.fullscreenElement) {
-                void document.exitFullscreen().catch(() => toast('退出全屏失败，请重试', 'info'));
-                return;
-              }
-              // Fullscreen the watch shell, not only the video frame: the
-              // custom seek bar, center transport, top actions and quality UI
-              // are siblings of the video frame and must remain in the fullscreen
-              // top layer when native iOS fullscreen is unavailable.
-              const fullscreenTarget = watchShellRef.current;
-              const enterWebFullscreen = () => {
-                if (fullscreenTarget?.requestFullscreen) {
-                  void fullscreenTarget.requestFullscreen().catch(() => toast('当前浏览器无法进入全屏', 'info'));
-                } else {
-                  toast('当前浏览器不支持全屏播放', 'info');
-                }
-              };
-              fullscreenFallbackCleanupRef.current?.();
-              fullscreenFallbackCleanupRef.current = null;
-              if (video) {
-                // iOS may expose webkitEnterFullscreen but silently fail to enter.
-                // Reuse the tested timeout fallback instead of returning too early.
-                fullscreenFallbackCleanupRef.current = requestNativeFullscreenWithFallback(
-                  video,
-                  enterWebFullscreen,
-                );
-              } else {
-                enterWebFullscreen();
-              }
-            }}>
+            <button type="button" className="cinema-glass-control" aria-label="全屏播放" title="全屏播放" onClick={requestWatchFullscreen}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" /></svg>
             </button>
             <button type="button" className="cinema-glass-control" aria-label="投屏" title="投屏 / AirPlay" onClick={() => {
@@ -886,6 +880,7 @@ function WatchContent() {
                   sourceKey={sourceKey}
                   resourceKey={currentEpisodeKey}
                   onPlaybackSample={(sample) => useAppStore.getState().recordPlaybackSample(sample)}
+                  onRequestFullscreen={requestWatchFullscreen}
                   onRequestSwitchSource={() => {
                     const video = playerFrameRef.current?.querySelector('video');
                     if (video && Number.isFinite(video.currentTime)) {
