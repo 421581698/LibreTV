@@ -967,7 +967,7 @@ body:has(.ipad-edition[data-environment="light"]) {
   padding-block-start: 0 !important;
 }
 .ipad-edition__home {
-  padding-block-start: max(96px, calc(env(safe-area-inset-top, 0px) + 84px)) !important;
+  padding-block-start: 0;
 }
 @media (max-width: 699px) {
   .ipad-edition__home {
