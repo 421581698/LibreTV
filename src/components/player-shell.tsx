@@ -1422,7 +1422,15 @@ export function PlayerShell({
           current.toggle(); showHint('播放/暂停'); e.preventDefault();
           break;
         case 'f': case 'F':
-          current.fullscreen = !current.fullscreen; e.preventDefault();
+          // Keep keyboard and visible fullscreen buttons on the same shell-level
+          // path; ArtPlayer's own fullscreen would promote only its canvas and
+          // strand the page-owned timeline/transport outside the fullscreen layer.
+          if (propsRef.current.onRequestFullscreen) {
+            propsRef.current.onRequestFullscreen();
+          } else {
+            current.fullscreen = !current.fullscreen;
+          }
+          e.preventDefault();
           break;
         // 标记类快捷键一律要求 Shift：这几键会直接写盘并影响整部剧，
         // 单键太容易误触（误记片头 = 之后每集都被跳过一大段）
