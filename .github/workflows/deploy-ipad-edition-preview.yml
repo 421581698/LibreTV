@@ -1600,6 +1600,69 @@ jobs:
                 console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-playback-state", playbackState }));
                 if (!Object.values(playbackState).every(Boolean)) failures += 1;
 
+                // The entire iPad transport (including the seek rail) must hide
+                // after playback settles, then return on a real touch. This catches
+                // the regression where the old CSS deliberately left the progress
+                // slider visible after the other cinema controls disappeared.
+                await page.waitForFunction(() => {
+                  const shell = document.querySelector(".netflix-watch-shell");
+                  const info = document.querySelector(".watch-cinema-info");
+                  const progress = document.querySelector(".watch-cinema-progress");
+                  const hidden = element => {
+                    if (!element) return false;
+                    const style = getComputedStyle(element);
+                    return style.visibility === "hidden" && Number(style.opacity) <= 0.05 &&
+                      style.pointerEvents === "none";
+                  };
+                  return Boolean(shell?.classList.contains("cinema-controls-hidden") &&
+                    hidden(info) && hidden(progress));
+                }, undefined, { timeout: 7000, polling: 50 });
+                const fullyHiddenPlaybackChrome = await page.evaluate(() => {
+                  const selectors = [".watch-topbar", ".cinema-center-controls", ".watch-cinema-info",
+                    ".watch-cinema-progress", ".player-quality-controls"];
+                  return Object.fromEntries(selectors.map(selector => {
+                    const node = document.querySelector(selector);
+                    const style = node ? getComputedStyle(node) : null;
+                    return [selector, style ? { opacity: Number(style.opacity), visibility: style.visibility,
+                      pointerEvents: style.pointerEvents } : null];
+                  }));
+                });
+                const hiddenChromePassed = Object.values(fullyHiddenPlaybackChrome).every(state =>
+                  state && state.visibility === "hidden" && state.opacity <= 0.05 && state.pointerEvents === "none"
+                );
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-auto-hide", hiddenChromePassed, fullyHiddenPlaybackChrome }));
+                if (!hiddenChromePassed) failures += 1;
+
+                const frameRect = await page.locator(".netflix-player-frame").boundingBox();
+                if (!frameRect) throw new Error("Player frame has no touchable bounds.");
+                const touchX = frameRect.x + Math.max(28, frameRect.width * 0.12);
+                const touchY = frameRect.y + Math.max(28, frameRect.height * 0.18);
+                await page.touchscreen.tap(touchX, touchY);
+                await page.waitForFunction(() => {
+                  const shell = document.querySelector(".netflix-watch-shell");
+                  const info = document.querySelector(".watch-cinema-info");
+                  return Boolean(shell && !shell.classList.contains("cinema-controls-hidden") &&
+                    info && getComputedStyle(info).visibility === "visible" &&
+                    Number(getComputedStyle(info).opacity) > 0.95);
+                }, undefined, { timeout: 5000 });
+                const touchRevealPassed = !(await page.locator(".netflix-watch-shell").evaluate(node =>
+                  node.classList.contains("cinema-controls-hidden")
+                ));
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-touch-reveal", touchRevealPassed }));
+                if (!touchRevealPassed) failures += 1;
+
+                // A second tap on the empty video surface explicitly dismisses
+                // the visible controls; a third tap must reveal them again.
+                await page.touchscreen.tap(touchX, touchY);
+                await page.waitForFunction(() => document.querySelector(".netflix-watch-shell")?.classList.contains("cinema-controls-hidden"), undefined, { timeout: 3000 });
+                await page.touchscreen.tap(touchX, touchY);
+                await page.waitForFunction(() => !document.querySelector(".netflix-watch-shell")?.classList.contains("cinema-controls-hidden"), undefined, { timeout: 3000 });
+                const touchTogglePassed = await page.locator(".netflix-watch-shell").evaluate(node =>
+                  !node.classList.contains("cinema-controls-hidden")
+                );
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-touch-toggle", touchTogglePassed }));
+                if (!touchTogglePassed) failures += 1;
+
                 // Regression: the browser emits click after pointerup/touchend.
                 // That click must reveal controls but must not re-enter scrubbing.
                 const scrubControl = page.locator(".watch-cinema-progress");
