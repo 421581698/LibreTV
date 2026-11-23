@@ -592,7 +592,9 @@ function WatchContent() {
             }}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v12H3zM8 20l4-4 4 4M8 9h8" /></svg>
             </button>
-            <button type="button" className="cinema-glass-control cinema-utility-control" aria-expanded={showPlayerPanel} aria-controls="netflix-watch-utility-panel" aria-label="选集与换源" onClick={() => setShowPlayerPanel((value) => !value)}>•••</button>
+            <button type="button" className="cinema-glass-control cinema-utility-control" aria-expanded={showPlayerPanel} aria-controls="netflix-watch-utility-panel" aria-label="选集与换源" onClick={() => setShowPlayerPanel((value) => !value)}>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>
+            </button>
           </div>
         </div>
       </header>
