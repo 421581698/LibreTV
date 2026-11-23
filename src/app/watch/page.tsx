@@ -590,22 +590,25 @@ function WatchContent() {
         saveProgress(sourceKey, outgoingProgressId, currentIndex, outgoingPosition, outgoingDuration).catch(() => {});
         updateHistoryProgress(sourceKey, outgoingProgressId, outgoingPosition, outgoingDuration, currentIndex).catch(() => {});
       }
-      // A new episode starts with a fresh timeline and a fresh visible-control
-      // window; do not let the previous episode's hide timer fire during loading.
-      if (controlsHideTimerRef.current !== null) {
-        window.clearTimeout(controlsHideTimerRef.current);
-        controlsHideTimerRef.current = null;
-      }
-      watchShellRef.current?.classList.remove('cinema-controls-hidden');
-      setControlsVisible(true);
-      setWatchClock({ position: 0, duration: 0 });
-      setScrubbingPosition(null);
-      scrubbingPositionRef.current = null;
-      setIsScrubbing(false);
-      scrubbingRef.current = false;
-      if (scrubResetTimerRef.current !== null) {
-        window.clearTimeout(scrubResetTimerRef.current);
-        scrubResetTimerRef.current = null;
+      // Reset the transport only when the underlying media URL changes.
+      // Some providers map multiple episode identities to the same direct URL;
+      // in that case the existing video keeps playing and its live clock is valid.
+      if (nextUrl !== currentUrl) {
+        if (controlsHideTimerRef.current !== null) {
+          window.clearTimeout(controlsHideTimerRef.current);
+          controlsHideTimerRef.current = null;
+        }
+        watchShellRef.current?.classList.remove('cinema-controls-hidden');
+        setControlsVisible(true);
+        setWatchClock({ position: 0, duration: 0 });
+        setScrubbingPosition(null);
+        scrubbingPositionRef.current = null;
+        setIsScrubbing(false);
+        scrubbingRef.current = false;
+        if (scrubResetTimerRef.current !== null) {
+          window.clearTimeout(scrubResetTimerRef.current);
+          scrubResetTimerRef.current = null;
+        }
       }
       const sp = new URLSearchParams(searchParams.toString());
       sp.set('index', String(index));
