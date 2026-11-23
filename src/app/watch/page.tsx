@@ -480,7 +480,8 @@ function WatchContent() {
       const outgoingProgressId = vodId || currentUrl;
       const outgoingPosition = playerApiRef.current?.getCurrentTime() ?? watchClockRef.current.position;
       const outgoingDuration = playerApiRef.current?.getDuration() ?? watchClockRef.current.duration;
-      if (outgoingProgressId && Number.isFinite(outgoingPosition) && outgoingPosition > 0) {
+      if (outgoingProgressId && Number.isFinite(outgoingPosition) && outgoingPosition > 0 &&
+        Number.isFinite(outgoingDuration) && outgoingDuration > 0) {
         saveProgress(sourceKey, outgoingProgressId, currentIndex, outgoingPosition, outgoingDuration).catch(() => {});
         updateHistoryProgress(sourceKey, outgoingProgressId, outgoingPosition, outgoingDuration).catch(() => {});
       }
@@ -550,6 +551,7 @@ function WatchContent() {
       // Media events can arrive from the previous source during a route/episode
       // transition. Never attribute an old clock position to the newly selected episode.
       if (eventEpisodeKey && eventEpisodeKey !== currentEpisodeKey) return;
+      if (!Number.isFinite(position) || position < 0 || !Number.isFinite(duration) || duration <= 0) return;
       const progressId = vodId || currentUrl;
       if (!progressId) return;
       saveProgress(
