@@ -1669,8 +1669,8 @@ jobs:
                     const node = document.querySelector(selector);
                     const style = node ? getComputedStyle(node) : null;
                     let effectiveOpacity = 1;
-                    for (let node = element; node instanceof HTMLElement; node = node.parentElement) {
-                      effectiveOpacity *= Number.parseFloat(getComputedStyle(node).opacity || "1");
+                    for (let ancestor = node; ancestor instanceof HTMLElement; ancestor = ancestor.parentElement) {
+                      effectiveOpacity *= Number.parseFloat(getComputedStyle(ancestor).opacity || "1");
                     }
                     return [selector, style ? { opacity: Number(style.opacity), effectiveOpacity, visibility: style.visibility,
                       pointerEvents: style.pointerEvents } : null];
