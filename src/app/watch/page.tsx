@@ -486,13 +486,15 @@ function WatchContent() {
   const currentEpisodeKey = `${sourceKey}:${vodId}:${currentIndex}`;
   const pendingEpisodeKeyRef = useRef<string | null>(null);
   const isCurrentPlaybackEvent = useCallback((eventEpisodeKey?: string) => {
-    if (!eventEpisodeKey) return true;
-    const expectedEpisodeKey = pendingEpisodeKeyRef.current ?? currentEpisodeKey;
-    if (eventEpisodeKey !== expectedEpisodeKey) return false;
-    if (pendingEpisodeKeyRef.current === eventEpisodeKey && currentEpisodeKey === eventEpisodeKey) {
+    // During router.replace there is a short interval where the media element
+    // may already emit events but React still holds the previous currentIndex.
+    // Reject every media event until the rendered episode identity catches up.
+    const pendingEpisodeKey = pendingEpisodeKeyRef.current;
+    if (pendingEpisodeKey !== null) {
+      if (currentEpisodeKey !== pendingEpisodeKey) return false;
       pendingEpisodeKeyRef.current = null;
     }
-    return true;
+    return !eventEpisodeKey || eventEpisodeKey === currentEpisodeKey;
   }, [currentEpisodeKey]);
   // 跳过片段按剧名记忆：换集不变，换源到同名资源也能命中。
   // 标题缺失（直连链接）时退回 source:vodId，至少保证本源本片可用。
