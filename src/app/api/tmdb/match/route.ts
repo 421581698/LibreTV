@@ -81,12 +81,18 @@ export async function GET(req: Request) {
         page: '1',
       }),
     ));
+    const hasSearchFailure = searchResults.some((result) => result.status === 'rejected');
     const searchPayloads = searchResults.flatMap((result) =>
       result.status === 'fulfilled' ? [result.value] : [],
     );
     if (!searchPayloads.length) {
       const failed = searchResults.find((result) => result.status === 'rejected');
       throw failed?.status === 'rejected' ? failed.reason : new Error('TMDB_SEARCH_UNAVAILABLE');
+    }
+    // A partial alias search cannot prove that a candidate is unambiguous.
+    // Preserve the original artwork and allow a fresh retry instead of caching it.
+    if (hasSearchFailure) {
+      return NextResponse.json({ match: null }, { headers: { 'Cache-Control': 'no-store' } });
     }
     for (const payload of searchPayloads) {
       for (const item of Array.isArray(payload.results) ? payload.results : []) {
