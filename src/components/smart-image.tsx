@@ -103,7 +103,7 @@ export function SmartImage({
       data-natural-width={measureNaturalSize ? naturalSize?.width : undefined}
       data-natural-height={measureNaturalSize ? naturalSize?.height : undefined}
       data-resolution-tier={measureNaturalSize ? (naturalSize ? (naturalSize.width >= (minimumWidth ?? 1200) ? 'meets-minimum-width' : 'below-minimum-width') : 'pending') : undefined}
-      onLoad={measureNaturalSize || minimumWidth ? (event) => {
+      onLoad={measureNaturalSize || minimumWidth || expectedOrientation ? (event) => {
         const image = event.currentTarget;
         if (measureNaturalSize) setNaturalSize({ width: image.naturalWidth, height: image.naturalHeight });
         const widthIsInsufficient = Boolean(minimumWidth && !meetsMinimumImageWidth(image.naturalWidth, minimumWidth));
