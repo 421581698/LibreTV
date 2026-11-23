@@ -361,7 +361,11 @@ describe('首页与播放页回归契约', () => {
     expect(player).toContain('recoveryRef.current?.dispose();\n    recoveryRef.current = new PlaybackRecovery();');
     expect(player).toContain('artRef.current.currentTime = saved');
     expect(player).toContain('A failed IndexedDB lookup must not strand the player on its poster.');
+    expect(player).toContain('A failed progress lookup must never prevent direct media playback.');
+    expect(player).toContain('A failed progress lookup must never block native-HLS playback.');
     expect(player).toContain('restoredRef.current = true;\n        restoreCleanupRef.current?.();\n        restoreCleanupRef.current = null;\n        video.play().catch(() => {');
+    expect(player).toContain("if (readQualityPreference() === '1080') {\n            video.pause();\n            setQualityNotice('当前使用原生 HLS");
+    expect(player).toContain('restoreCleanupRef.current?.();\n        restoreCleanupRef.current = null;\n        video.play().catch(() => {');
     expect(player).toContain('artRef.current?.pause()');
     expect(player).toContain('if (longPressTimer) clearTimeout(longPressTimer);');
     expect(player).toContain('if (isLongPress && art.video) art.video.playbackRate = originalRate;');
