@@ -119,10 +119,15 @@ export async function GET(req: Request) {
     const second = ranked[1];
     // If same-title remakes remain indistinguishable, preserve source artwork
     // instead of risking a high-resolution image from the wrong film.
-    const ambiguous = Boolean(best && second && (
-      best.score === second.score || !year
+    const ambiguous = Boolean(best && (
+      (second && (best.score === second.score || !year))
+      || (!year && ranked.length > 1)
     ));
-    if (!best || ambiguous || best.score < 3) {
+    // Without a release year, require both localized and original title
+    // identity signals and a single exact candidate. A lone localized-title
+    // hit is not enough to replace the source poster safely.
+    const hasConfidentNoYearMatch = Boolean(best && best.score >= 7 && ranked.length === 1);
+    if (!best || ambiguous || (year ? best.score < 3 : !hasConfidentNoYearMatch)) {
       const empty = { match: null };
       setCache(cacheKey, empty, 30 * 60 * 1000);
       return NextResponse.json(empty, {
