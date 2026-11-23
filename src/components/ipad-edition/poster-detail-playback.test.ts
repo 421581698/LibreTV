@@ -73,6 +73,6 @@ describe('iPad Edition poster navigation and explicit playback', () => {
     expect(resumeUrl).toContain("index: String(Math.max(0, item.episodeIndex))");
     const watchPage = read('src/app/watch/page.tsx');
     expect(watchPage).toContain("searchParams.get('position')");
-    expect(watchPage).toContain('if (urlPos > 0) return urlPos');
+    expect(watchPage).toContain('if (Number.isFinite(urlPos) && urlPos > 0) return urlPos');
   });
 });
