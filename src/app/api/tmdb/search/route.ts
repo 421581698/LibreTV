@@ -11,14 +11,41 @@ interface TmdbSearchItem {
   title?: string;
   original_title?: string;
   poster_path?: string | null;
-  release_date?: string;
 }
 
 interface TmdbSearchResponse {
   results?: TmdbSearchItem[];
 }
 
+interface TmdbReleaseDate {
+  release_date?: string;
+  type?: number;
+}
+
+interface TmdbReleaseRegion {
+  iso_3166_1: string;
+  release_dates?: TmdbReleaseDate[];
+}
+
+interface TmdbReleaseDatesResponse {
+  results?: TmdbReleaseRegion[];
+}
+
 const CACHE_TTL = 60 * 60 * 1000;
+
+function actualTheatricalReleaseDate(payload: TmdbReleaseDatesResponse, region: 'US' | 'CN'): string | undefined {
+  const dates = (payload.results ?? [])
+    .filter((entry) => entry.iso_3166_1 === region)
+    .flatMap((entry) => entry.release_dates ?? [])
+    // TMDB release types 2 and 3 are theatrical releases. Exclude premieres,
+    // digital, physical and TV dates so the rail reflects cinema release dates.
+    .filter((entry) => (entry.type === 2 || entry.type === 3) &&
+      typeof entry.release_date === 'string' &&
+      /^\\d{4}-\\d{2}-\\d{2}/.test(entry.release_date))
+    .map((entry) => entry.release_date!.slice(0, 10))
+    .sort();
+  return dates[0];
+}
 
 export async function GET(req: Request) {
   const guarded = guardRequest(req);
@@ -35,7 +62,8 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: '上映地区仅支持 US 或 CN' }, { status: 400 });
   }
 
-  const cacheKey = `tmdb:search:movie:${region}:${query.toLocaleLowerCase()}`;
+  const regionalCode = region as 'US' | 'CN';
+  const cacheKey = `tmdb:search:movie:${regionalCode}:${query.toLocaleLowerCase()}`;
   const cached = getCache<{ items: unknown[] }>(cacheKey);
   if (cached) {
     return NextResponse.json(cached, {
@@ -46,22 +74,33 @@ export async function GET(req: Request) {
   try {
     const payload = await fetchTmdbJson<TmdbSearchResponse>('/search/movie', {
       query,
-      region,
+      region: regionalCode,
       language: 'zh-CN',
       include_adult: 'false',
       page: '1',
     });
+    const candidate = (Array.isArray(payload.results) ? payload.results : [])
+      .find((item) => Number.isInteger(item.id) && item.id > 0 &&
+        item.original_title?.trim().toLocaleLowerCase() === query.toLocaleLowerCase() &&
+        Boolean(item.title?.trim()) && Boolean(item.poster_path));
+
     const imageBase = await getTmdbPosterBase();
-    const items = (Array.isArray(payload.results) ? payload.results : [])
-      .filter((item) => Number.isInteger(item.id) && item.id > 0 && item.original_title?.trim().toLocaleLowerCase() === query.toLocaleLowerCase() && Boolean(item.title?.trim()) && Boolean(item.poster_path) && Boolean(item.release_date))
-      .map((item) => ({
-        id: String(item.id),
-        title: item.title || '',
-        cover: imageBase + item.poster_path,
-        releaseDate: item.release_date,
-        releaseRegion: region as 'US' | 'CN',
-        isTv: false,
-      }));
+    let items: Array<{ id: string; title: string; cover: string; releaseDate: string; releaseRegion: 'US' | 'CN'; isTv: false }> = [];
+    if (candidate?.poster_path) {
+      const releases = await fetchTmdbJson<TmdbReleaseDatesResponse>(`/movie/${candidate.id}/release_dates`);
+      const releaseDate = actualTheatricalReleaseDate(releases, regionalCode);
+      if (releaseDate) {
+        items = [{
+          id: String(candidate.id),
+          title: candidate.title || '',
+          cover: imageBase + candidate.poster_path,
+          releaseDate,
+          releaseRegion: regionalCode,
+          isTv: false,
+        }];
+      }
+    }
+
     const result = { items };
     setCache(cacheKey, result, CACHE_TTL);
     return NextResponse.json(result, {
@@ -69,7 +108,7 @@ export async function GET(req: Request) {
     });
   } catch (error) {
     const detail = error instanceof Error ? error.message : '';
-    const statusMatch = /^TMDB_HTTP_(\d{3})$/.exec(detail);
+    const statusMatch = /^TMDB_HTTP_(\\d{3})$/.exec(detail);
     const upstreamStatus = statusMatch ? Number(statusMatch[1]) : undefined;
     console.error('[TMDB movie search] request failed', {
       code: upstreamStatus ? `TMDB_HTTP_${upstreamStatus}` : 'TMDB_UPSTREAM_ERROR',
