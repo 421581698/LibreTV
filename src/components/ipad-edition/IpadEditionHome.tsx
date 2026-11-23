@@ -43,14 +43,14 @@ export function IpadEditionHome() {
   const { openPoster, pendingTitle, error } = useIpadEditionPosterNavigation();
 
   const featured = useQuery({
-    queryKey: ['ipad-edition-home-featured', 'CN'],
-    queryFn: ({ signal }) => api.tmdbDiscover('movie', '热门', 1, signal),
+    queryKey: ['ipad-edition-home-featured', 'GLOBAL'],
+    queryFn: ({ signal }) => api.tmdbDiscover('movie', '热门', 1, signal, 'GLOBAL'),
     staleTime: 5 * 60_000,
   });
 
   const series = useQuery({
-    queryKey: ['ipad-edition-series', 'CN'],
-    queryFn: ({ signal }) => api.tmdbDiscover('tv', '热门', 1, signal),
+    queryKey: ['ipad-edition-series', 'GLOBAL'],
+    queryFn: ({ signal }) => api.tmdbDiscover('tv', '热门', 1, signal, 'GLOBAL'),
     staleTime: 5 * 60_000,
   });
 
@@ -191,7 +191,7 @@ export function IpadEditionHome() {
           <div className="ipad-edition__cinema-hero-copy" role="status">
             <p className="ipad-edition__cinema-hero-kicker">LIBRETV · 精选推荐</p>
             <h1>{featured.isLoading ? '正在为你准备影院' : '精选内容暂不可用'}</h1>
-            <p>{featured.isLoading ? '正在获取中国影视推荐…' : 'TMDB 推荐服务暂时不可用，请稍后重试。'}</p>
+            <p>{featured.isLoading ? '正在获取全球热门影视…' : 'TMDB 推荐服务暂时不可用，请稍后重试。'}</p>
             {featured.isError ? (
               <button type="button" onClick={() => void featured.refetch()}>重新加载</button>
             ) : null}
