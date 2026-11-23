@@ -162,7 +162,7 @@ export function IpadEditionHome() {
       ) : items.length ? (
         <div id={id + '-track'} className="ipad-edition__poster-grid" aria-label={title} role="region" tabIndex={0}>
           {items.slice(0, maxItems).map((item, index) => (
-            <button type="button" className="ipad-edition__poster-card appearance-none border-0 bg-transparent p-0 text-left font-[inherit] text-inherit" data-ipad-poster-slot={id === 'ipad-popular-series' ? 'series' : id === 'ipad-new-releases' ? 'new-release' : 'movie'} data-poster-url={item.cover ?? ''} aria-label={'查看 ' + item.title + ' 的详情并查找播放资源'} aria-busy={pendingTitle === item.title} disabled={Boolean(pendingTitle)} onClick={() => void openPoster(item)} key={item.id || item.title}>
+            <button type="button" className="ipad-edition__poster-card appearance-none border-0 bg-transparent p-0 text-left font-[inherit] text-inherit" data-ipad-poster-slot={id === 'ipad-popular-series' ? 'series' : id === 'ipad-new-releases' ? 'new-release' : 'movie'} data-poster-url={item.cover ?? ''} aria-label={'查看 ' + item.title + ' 的详情'} aria-busy={pendingTitle === item.title} disabled={Boolean(pendingTitle)} onClick={() => void openPoster(item)} key={item.id || item.title}>
               <PosterRenderer variant="poster" frameClassName="ipad-edition__poster-art" asset={fromTmdbItem(item)} url={item.cover} mode="proxy" alt={item.title}>
                 <span className="ipad-edition__poster-rank">{index + 1}</span>
               </PosterRenderer>
@@ -219,7 +219,7 @@ export function IpadEditionHome() {
         ) : todayItems.length ? (
           <div className="ipad-edition__anime-grid">
             {todayItems.slice(0, 5).map((item) => (
-              <button type="button" className="ipad-edition__anime-card appearance-none border-0 bg-transparent p-0 text-left font-[inherit] text-inherit" data-ipad-poster-slot="anime" data-poster-url={item.cover ?? ''} aria-label={'查看 ' + item.title + ' 的详情并查找播放资源'} aria-busy={pendingTitle === item.title} disabled={Boolean(pendingTitle)} onClick={() => void openPoster(item)} key={item.id}>
+              <button type="button" className="ipad-edition__anime-card appearance-none border-0 bg-transparent p-0 text-left font-[inherit] text-inherit" data-ipad-poster-slot="anime" data-poster-url={item.cover ?? ''} aria-label={'查看 ' + item.title + ' 的详情'} aria-busy={pendingTitle === item.title} disabled={Boolean(pendingTitle)} onClick={() => void openPoster(item)} key={item.id}>
                 <PosterRenderer variant="anime" asset={fromBangumiItem(item)} url={item.cover} mode="proxy" alt={item.title} />
                 <strong>{item.title}</strong>
               </button>
