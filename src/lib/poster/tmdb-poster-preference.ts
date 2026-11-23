@@ -29,9 +29,9 @@ export function selectPreferredTmdbPoster(
     const width = Number.isFinite(poster.width) ? poster.width! : 0;
     const height = Number.isFinite(poster.height) ? poster.height! : 0;
     const ratio = height > 0 ? width / height : 0;
-    // Penalize non-poster geometry; TMDB poster images should be portrait.
-    const ratioPenalty = ratio > 0 && ratio < 0.9 ? 0 : ratio >= 0.9 ? 1_000_000 : 0;
-    return ratioPenalty + width * Math.max(height, 1) + (poster.vote_average || 0);
+    // Reject clearly landscape artwork from the poster slot when dimensions exist.
+    if (ratio > 1) return 0;
+    return width * Math.max(height, 1) + (poster.vote_average || 0);
   };
   valid.sort((a, b) =>
     languageRank(a.iso_639_1) - languageRank(b.iso_639_1)
