@@ -65,6 +65,7 @@ function WatchContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const isIpadEditionPlayback = pathname === '/ipad-edition/watch';
   const store = useAppStore();
   const { verified } = useAuth();
   const { toast } = useToast();
@@ -837,7 +838,7 @@ function WatchContent() {
             />
           </section>
 
-          {showPlayerPanel && (
+          {showPlayerPanel && isIpadEditionPlayback && (
             <button
               type="button"
               className="netflix-watch-panel-scrim"
@@ -846,10 +847,12 @@ function WatchContent() {
             />
           )}
           <aside id="netflix-watch-utility-panel" className={cn('netflix-watch-sidebar netflix-watch-utility-panel', showPlayerPanel && 'is-open')} aria-hidden={!showPlayerPanel}>
-            <div className="netflix-watch-panel-heading">
-              <strong>播放内容</strong>
-              <button type="button" aria-label="关闭选集与换源面板" onClick={() => setShowPlayerPanel(false)}>×</button>
-            </div>
+            {isIpadEditionPlayback && (
+              <div className="netflix-watch-panel-heading">
+                <strong>播放内容</strong>
+                <button type="button" aria-label="关闭选集与换源面板" onClick={() => setShowPlayerPanel(false)}>×</button>
+              </div>
+            )}
             <div className="netflix-sidebar-tabs" role="tablist" aria-label="播放内容">
               {hasEpisodeNavigation && <button role="tab" aria-selected={sidebarTab === 'episodes'} className={sidebarTab === 'episodes' ? 'active' : ''} onClick={() => setSidebarTab('episodes')}>选集 <span>{episodes.length}</span></button>}
               <button role="tab" aria-selected={sidebarTab === 'sources'} className={sidebarTab === 'sources' ? 'active' : ''} onClick={() => setSidebarTab('sources')}>播放源</button>
