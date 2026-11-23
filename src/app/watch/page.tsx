@@ -530,8 +530,14 @@ function WatchContent() {
         saveProgress(sourceKey, outgoingProgressId, currentIndex, outgoingPosition, outgoingDuration).catch(() => {});
         updateHistoryProgress(sourceKey, outgoingProgressId, outgoingPosition, outgoingDuration, currentIndex).catch(() => {});
       }
-      // A new episode starts with a fresh timeline; never leave the previous
-      // episode's clock or scrub preview visible while the new media loads.
+      // A new episode starts with a fresh timeline and a fresh visible-control
+      // window; do not let the previous episode's hide timer fire during loading.
+      if (controlsHideTimerRef.current !== null) {
+        window.clearTimeout(controlsHideTimerRef.current);
+        controlsHideTimerRef.current = null;
+      }
+      watchShellRef.current?.classList.remove('cinema-controls-hidden');
+      setControlsVisible(true);
       setWatchClock({ position: 0, duration: 0 });
       setScrubbingPosition(null);
       scrubbingPositionRef.current = null;
