@@ -99,9 +99,10 @@ describe('iPad Edition navigation contract', () => {
     expect(shell).toContain('menuButtonRef.current?.focus({ preventScroll: true });');
   });
 
-  it('opens a selected search result directly in the playback route', () => {
-    expect(searchPage).toContain("router.push('/ipad-edition/watch?' + next.toString());");
-    expect(searchPage).not.toContain("router.push('/ipad-edition/detail?' + next.toString());");
+  it('opens a selected search result in details before playback', () => {
+    expect(searchPage).toContain("router.push('/ipad-edition/detail?' + next.toString());");
+    expect(searchPage).not.toContain("router.push('/ipad-edition/watch?'");
+    expect(searchPage).toContain('sourceName: item.sourceName || item.sourceKey');
     expect(searchPage).toContain("if (item.sourceUrl) next.set('sourceUrl', item.sourceUrl);");
   });
 
