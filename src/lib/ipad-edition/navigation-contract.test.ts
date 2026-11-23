@@ -120,6 +120,9 @@ describe('iPad Edition Cinema Experience', () => {
     const detailRoute = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/detail/page.tsx'), 'utf8');
     const tmdbDetail = readFileSync(resolve(process.cwd(), 'src/components/ipad-edition/tmdb-movie-detail-page.tsx'), 'utf8');
     const bangumiDetail = readFileSync(resolve(process.cwd(), 'src/components/ipad-edition/BangumiSubjectDetailPage.tsx'), 'utf8');
+    const detailRoute = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/detail/page.tsx'), 'utf8');
+    const tmdbDetail = readFileSync(resolve(process.cwd(), 'src/components/ipad-edition/tmdb-movie-detail-page.tsx'), 'utf8');
+    const bangumiDetail = readFileSync(resolve(process.cwd(), 'src/components/ipad-edition/BangumiSubjectDetailPage.tsx'), 'utf8');
     expect(hero).toContain('onPointerDown={handlePointerDown}');
     expect(hero).toContain('onPointerUp={handlePointerUp}');
     expect(hero).toContain("event.key === 'ArrowLeft'");
