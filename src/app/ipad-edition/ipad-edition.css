@@ -2566,7 +2566,8 @@ body:has(.ipad-edition[data-environment="light"]) {
 }
 
 .ipad-edition[data-ipad-player="true"] .netflix-watch-shell:has(.netflix-watch-utility-panel.is-open) .watch-cinema-info,
-.ipad-edition[data-ipad-player="true"] .netflix-watch-shell:has(.netflix-watch-utility-panel.is-open) .cinema-center-controls {
+.ipad-edition[data-ipad-player="true"] .netflix-watch-shell:has(.netflix-watch-utility-panel.is-open) .cinema-center-controls,
+.ipad-edition[data-ipad-player="true"] .netflix-watch-shell:has(.netflix-watch-utility-panel.is-open) .netflix-player-frame .art-controls {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
