@@ -11,6 +11,7 @@ interface TmdbDiscoverItem {
   title?: string;
   name?: string;
   poster_path?: string | null;
+  backdrop_path?: string | null;
   vote_average?: number;
   release_date?: string;
   first_air_date?: string;
@@ -124,6 +125,7 @@ export async function GET(req: Request) {
         id: String(item.id),
         title: item.title || item.name || '',
         cover: item.poster_path ? `${imageBase}${item.poster_path}` : '',
+        ...(item.backdrop_path ? { backdrop: `https://image.tmdb.org/t/p/w1280${item.backdrop_path}` } : {}),
         rating: typeof item.vote_average === 'number' ? item.vote_average.toFixed(1) : undefined,
         isTv: mediaType === 'tv',
         year: (item.release_date || item.first_air_date || '').slice(0, 4),
