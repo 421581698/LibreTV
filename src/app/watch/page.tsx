@@ -87,6 +87,7 @@ function WatchContent() {
   const [switchOpen, setSwitchOpen] = useState(false);
   const [skipPanelOpen, setSkipPanelOpen] = useState(false);
   const playerApiRef = useRef<PlayerSkipApi | null>(null);
+  const autoNextTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fullscreenFallbackCleanupRef = useRef<(() => void) | null>(null);
   const playerFrameRef = useRef<HTMLDivElement | null>(null);
   const watchShellRef = useRef<HTMLDivElement | null>(null);
@@ -488,6 +489,10 @@ function WatchContent() {
     (index: number) => {
       const nextUrl = episodes[index] || directUrl;
       if (!nextUrl) return;
+      // A manual episode change supersedes any pending autoplay-next countdown.
+      if (autoNextTimer.current) window.clearTimeout(autoNextTimer.current);
+      autoNextTimer.current = null;
+      setShowAutoNext(false);
       // Flush the outgoing episode before the URL identity changes. Later pause
       // events may belong to the new source lifecycle and must not overwrite it.
       const outgoingProgressId = vodId || currentUrl;
@@ -584,12 +589,12 @@ function WatchContent() {
     },
     [sourceKey, vodId, currentIndex, currentUrl, currentEpisodeKey]
   );
-  // 自动连播的 800ms 延迟切集要在卸载时取消，避免离开页面后跳转
-  const autoNextTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 自动连播的延迟切集要在卸载时取消，避免离开页面后跳转
   useEffect(
     () => () => {
       if (autoNextTimer.current) {
         clearTimeout(autoNextTimer.current);
+        autoNextTimer.current = null;
       }
       fullscreenFallbackCleanupRef.current?.();
       fullscreenFallbackCleanupRef.current = null;
@@ -608,6 +613,7 @@ function WatchContent() {
     if (store.autoplayNext && currentIndex < episodes.length - 1) {
       setShowAutoNext(true);
       autoNextTimer.current = setTimeout(() => {
+        autoNextTimer.current = null;
         setShowAutoNext(false);
         goEpisode(currentIndex + 1);
       }, 8000);
