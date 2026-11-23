@@ -287,7 +287,6 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
       metadata={
         <>
           {metadata.map((value) => <span key={value}>{value}</span>)}
-          {rating && <span>豆瓣 {rating}</span>}
         </>
       }
       overview={info?.desc || '暂无剧情简介'}
@@ -385,7 +384,7 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
             })}
           </div>
         </section>
-      )
+      )}
     </IpadCinemaDetailLayout>
   );
 }
