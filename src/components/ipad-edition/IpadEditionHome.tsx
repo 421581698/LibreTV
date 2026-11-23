@@ -26,7 +26,11 @@ function mergeLatestRegionalReleases(usItems: DoubanItem[], cnItems: DoubanItem[
   for (const item of [...usItems, ...cnItems]) {
     if (!item.id || !item.title?.trim() || !item.cover?.trim() || !item.releaseDate) continue;
     const existing = byId.get(item.id);
-    if (!existing || item.releaseDate > (existing.releaseDate ?? '')) byId.set(item.id, item);
+    if (!existing || item.releaseDate > (existing.releaseDate ?? '')) {
+      byId.set(item.id, item);
+    } else if (item.releaseDate === existing.releaseDate && item.releaseRegion !== existing.releaseRegion) {
+      byId.set(item.id, { ...existing, releaseRegion: 'BOTH' });
+    }
   }
   return [...byId.values()].sort((a, b) =>
     (b.releaseDate ?? '').localeCompare(a.releaseDate ?? '') ||
@@ -164,7 +168,7 @@ export function IpadEditionHome() {
               </PosterRenderer>
               <strong title={item.title}>{item.title}</strong>
               {showReleaseMeta ? (
-                <small>{item.releaseDate} · {item.releaseRegion === 'US' ? '美国上映' : '中国上映'}</small>
+                <small>{item.releaseDate} · {item.releaseRegion === 'BOTH' ? '美国／中国上映' : item.releaseRegion === 'US' ? '美国上映' : '中国上映'}</small>
               ) : null}
             </button>
           ))}
