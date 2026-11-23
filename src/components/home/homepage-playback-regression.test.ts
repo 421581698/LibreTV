@@ -338,6 +338,9 @@ describe('首页与播放页回归契约', () => {
     expect(player).toContain('setupHls(video, mediaUrl, true)');
     expect(player).toContain('artRef.current.currentTime = saved');
     expect(player).toContain('artRef.current?.pause()');
+    expect(player).toContain('if (longPressTimer) clearTimeout(longPressTimer);');
+    expect(player).toContain('if (isLongPress && art.video) art.video.playbackRate = originalRate;');
+    expect(player).toContain('isLongPress = false;');
   });
 
   it('播放页不显示 Friday 悬浮入口，但保留语音运行时且不增加聊天面板', () => {
