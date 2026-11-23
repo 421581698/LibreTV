@@ -1,5 +1,5 @@
 'use client';
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import dynamic from 'next/dynamic';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -87,6 +87,9 @@ function WatchContent() {
   const playerFrameRef = useRef<HTMLDivElement | null>(null);
   const watchShellRef = useRef<HTMLDivElement | null>(null);
   const controlsHideTimerRef = useRef<number | null>(null);
+  const scrubbingRef = useRef(false);
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [scrubbingPosition, setScrubbingPosition] = useState<number | null>(null);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [sheetMaxHeight] = useState<number | undefined>(undefined);
 
@@ -126,6 +129,10 @@ function WatchContent() {
   const isReadableTitle = (value: string) => Boolean(value.trim()) && !/^[a-z0-9_-]+$/i.test(value.trim());
   const detailTitle = detailQuery.data?.videoInfo?.title?.trim() || '';
   const videoTitle = isReadableTitle(titleParam) ? titleParam.trim() : isReadableTitle(detailTitle) ? detailTitle : '未知视频';
+  const displayedPosition = scrubbingPosition ?? watchClock.position;
+  const progressPercent = watchClock.duration > 0
+    ? Math.min(100, Math.max(0, (displayedPosition / watchClock.duration) * 100))
+    : 0;
 
   useEffect(() => {
     if (!hasEpisodeNavigation && sidebarTab === 'episodes') setSidebarTab('sources');
@@ -164,7 +171,7 @@ function WatchContent() {
       recordControlsDebug('timer-fire', activeVideo
         ? `paused=${activeVideo.paused},ended=${activeVideo.ended},time=${activeVideo.currentTime.toFixed(2)}`
         : 'video-missing');
-      if (!activeVideo || activeVideo.paused || activeVideo.ended) {
+      if (scrubbingRef.current || !activeVideo || activeVideo.paused || activeVideo.ended) {
         controlsHideTimerRef.current = null;
         return;
       }
@@ -172,9 +179,15 @@ function WatchContent() {
       setControlsVisible(false);
       controlsHideTimerRef.current = null;
     };
-    const revealControls = () => {
+    const revealControls = (event: Event) => {
       clearHideTimer('reveal');
       showControls();
+      const target = event.target;
+      if (target instanceof Element && target.closest('.watch-cinema-progress')) {
+        scrubbingRef.current = true;
+        setIsScrubbing(true);
+        return;
+      }
       if (video && !video.paused && !video.ended) {
         recordControlsDebug('timer-schedule', `reveal,paused=${video.paused},ended=${video.ended},time=${video.currentTime.toFixed(2)},delay=3000`);
         controlsHideTimerRef.current = window.setTimeout(hideControls, 3000);
@@ -186,6 +199,10 @@ function WatchContent() {
     };
     const scheduleHide = () => {
       clearHideTimer('reschedule');
+      if (scrubbingRef.current) {
+        showControls();
+        return;
+      }
       if (!video || video.paused || video.ended) {
         recordControlsDebug('timer-skip', !video ? 'video-missing' : `paused=${video.paused},ended=${video.ended}`);
         showControls();
@@ -230,11 +247,23 @@ function WatchContent() {
         scheduleHide();
       }
     };
+    const endScrubbing = () => {
+      if (!scrubbingRef.current) return;
+      scrubbingRef.current = false;
+      setIsScrubbing(false);
+      setScrubbingPosition(null);
+      if (video && !video.paused && !video.ended) scheduleHide();
+      else keepControlsVisible();
+    };
     shell.addEventListener('pointerdown', revealControls, true);
     shell.addEventListener('pointermove', onPointerMove, { passive: true });
     shell.addEventListener('touchstart', revealControls, { passive: true, capture: true });
     shell.addEventListener('click', revealControls, true);
     shell.addEventListener('keydown', revealControls, true);
+    window.addEventListener('pointerup', endScrubbing, true);
+    window.addEventListener('pointercancel', endScrubbing, true);
+    window.addEventListener('touchend', endScrubbing, true);
+    window.addEventListener('touchcancel', endScrubbing, true);
     const observer = new MutationObserver(attachVideo);
     observer.observe(frame, { childList: true, subtree: true });
     attachVideo();
@@ -247,6 +276,11 @@ function WatchContent() {
       shell.removeEventListener('touchstart', revealControls, true);
       shell.removeEventListener('click', revealControls, true);
       shell.removeEventListener('keydown', revealControls, true);
+      window.removeEventListener('pointerup', endScrubbing, true);
+      window.removeEventListener('pointercancel', endScrubbing, true);
+      window.removeEventListener('touchend', endScrubbing, true);
+      window.removeEventListener('touchcancel', endScrubbing, true);
+      scrubbingRef.current = false;
     };
   }, [sourceKey, vodId, indexParam, directUrl, source, verified, detailQuery.data]);
 
@@ -530,7 +564,7 @@ function WatchContent() {
     );
   }
   return (
-    <div ref={watchShellRef} className={`min-h-screen flex flex-col netflix-watch-shell${controlsVisible ? '' : ' cinema-controls-hidden'}`}>
+    <div ref={watchShellRef} className={`min-h-screen flex flex-col netflix-watch-shell${controlsVisible ? '' : ' cinema-controls-hidden'}${isScrubbing ? ' cinema-controls-scrubbing' : ''}`}>
       <header className="watch-topbar netflix-watch-overlay-topbar">
         <div className="watch-topbar-inner">
           <div className="watch-topbar-left">
@@ -725,8 +759,8 @@ function WatchContent() {
             <section className="watch-cinema-info" aria-label="影片信息">
               <div className="watch-cinema-playback">
                 <div className="watch-cinema-time">
-                  <span>{formatWatchTime(watchClock.position)}</span>
-                  <span>{watchClock.duration > 0 ? `-${formatWatchTime(Math.max(0, watchClock.duration - watchClock.position))}` : '--:--'}</span>
+                  <span>{formatWatchTime(displayedPosition)}</span>
+                  <span>{watchClock.duration > 0 ? `-${formatWatchTime(Math.max(0, watchClock.duration - displayedPosition))}` : '--:--'}</span>
                 </div>
                 <input
                   className="watch-cinema-progress"
@@ -734,11 +768,24 @@ function WatchContent() {
                   min={0}
                   max={Math.max(1, watchClock.duration)}
                   step={1}
-                  value={Math.min(watchClock.position, watchClock.duration || watchClock.position)}
+                  value={Math.min(displayedPosition, watchClock.duration || displayedPosition)}
+                  style={{ '--watch-progress': `${progressPercent}%` } as CSSProperties}
                   aria-label="播放进度"
-                  onChange={(event) => playerApiRef.current?.seek(Number(event.target.value))}
+                  aria-valuetext={`${formatWatchTime(displayedPosition)} / ${formatWatchTime(watchClock.duration)}`}
+                  onChange={(event) => {
+                    const position = Number(event.target.value);
+                    setScrubbingPosition(position);
+                    playerApiRef.current?.seek(position);
+                  }}
+                  onPointerUp={(event) => {
+                    playerApiRef.current?.seek(Number(event.currentTarget.value));
+                  }}
+                  onTouchEnd={(event) => {
+                    playerApiRef.current?.seek(Number(event.currentTarget.value));
+                  }}
                   disabled={!watchClock.duration}
                 />
+                {isScrubbing && <output className="watch-cinema-scrub-preview" aria-live="off">{formatWatchTime(displayedPosition)}</output>}
                 <button
                   type="button"
                   className="watch-cinema-rate"
