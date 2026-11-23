@@ -361,6 +361,8 @@ describe('首页与播放页回归契约', () => {
     expect(player).toContain('recoveryRef.current?.dispose();\n    recoveryRef.current = new PlaybackRecovery();');
     expect(player).toContain('artRef.current.currentTime = saved');
     expect(player).toContain('A failed IndexedDB lookup must not strand the player on its poster.');
+    expect(player).toContain('An unsupported replacement must not leave the previous episode playing');
+    expect(player).toContain("video.removeAttribute('src');\n      video.load();");
     expect(player).toContain('A failed progress lookup must never prevent direct media playback.');
     expect(player).toContain('A failed progress lookup must never block native-HLS playback.');
     expect(player).toContain('restoredRef.current = true;\n        restoreCleanupRef.current?.();\n        restoreCleanupRef.current = null;\n        video.play().catch(() => {');
