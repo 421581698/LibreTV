@@ -1628,6 +1628,9 @@ export function PlayerShell({
     } else {
       // A source identity can change even when two providers share the same URL.
       // Update the identity without needlessly reloading an unchanged media URL.
+      // The URL did not change, but the logical episode identity did.
+      // Invalidate any asynchronous restore lookup started for the previous identity.
+      mediaLoadGenerationRef.current += 1;
       activeEpisodeKeyRef.current = episodeKey ?? '';
       pendingEpisodeKeyRef.current = null;
       lastProgressSaveAtRef.current = 0;
