@@ -102,7 +102,7 @@ jobs:
             );
             if (verify) break;
             if (attempt < 144) {
-              console.log(`Waiting for successful Verify on exact SHA ${process.env.GH_SHA} (attempt ${attempt}/20).`);
+              console.log(`Waiting for successful Verify on exact SHA ${process.env.GH_SHA} (attempt ${attempt}/144).`);
               await new Promise(resolve => setTimeout(resolve, 15000));
             }
           }
