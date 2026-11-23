@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-api';
+import { SmartImage } from '@/components/smart-image';
 import { resolveSource, useAppStore, isInDisabledSubscription, isSourceDisabled } from '@/lib/store';
 import { buildWatchUrl, validateSourceUrl } from '@/lib/utils';
 import { findMovieMatch, getMovieSearchTerms } from '@/lib/movie-title-match';
@@ -38,6 +39,8 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, backdropFallback,
   const playbackHealth = useAppStore((state) => state.playbackHealth);
   const playbackResourceHealth = useAppStore((state) => state.playbackResourceHealth);
   const qualityMap = useAppStore((state) => state.qualityMap);
+  const imageProxyMode = useAppStore((state) => state.imageProxyMode);
+  const customImageProxy = useAppStore((state) => state.customImageProxy);
   const [movie, setMovie] = useState<TmdbTitle | null>(null);
   const [loading, setLoading] = useState(true);
   const [metadataError, setMetadataError] = useState('');
@@ -167,7 +170,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, backdropFallback,
   return (
     <main className="ipad-cinema-detail" data-ipad-detail-page="true">
       <section className="ipad-cinema-hero" aria-label={title}>
-        {backdrop ? <img src={backdrop} alt="" loading="eager" className="ipad-cinema-hero__image" /> : <div className="ipad-cinema-hero__placeholder">暂无横屏剧照</div>}
+        {backdrop ? <SmartImage url={backdrop} mode={imageProxyMode} customProxy={customImageProxy} alt="" loading="eager" className="ipad-cinema-hero__image" /> : <div className="ipad-cinema-hero__placeholder">暂无横屏剧照</div>}
         <div className="ipad-cinema-hero__shade" aria-hidden="true" />
         <header className="ipad-cinema-hero__header">
           <button type="button" onClick={() => router.back()} className="ipad-cinema-back" aria-label="返回">‹</button>
@@ -216,7 +219,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, backdropFallback,
           <h2>演员阵容</h2>
           {cast.length ? <div className="ipad-cinema-cast__rail">
             {cast.map((actor) => <button key={actor.id} type="button" onClick={() => void openPerson(actor.id)}>
-              <img src={imageUrl(actor.profile_path, 'w185') || '/placeholder.svg'} alt={actor.name} loading="lazy" />
+              <SmartImage url={imageUrl(actor.profile_path, 'w342') || '/placeholder.svg'} mode={imageProxyMode} customProxy={customImageProxy} alt={actor.name} loading="lazy" />
               <strong>{actor.name}</strong><span>{actor.character}</span>
             </button>)}
           </div> : <p>暂无演员资料</p>}
@@ -227,10 +230,10 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, backdropFallback,
         <section className="ipad-cinema-person" onClick={(event) => event.stopPropagation()}>
           {personLoading ? <p>正在加载人物资料…</p> : person && <>
             <button type="button" className="ipad-cinema-person__close" onClick={() => setPerson(null)}>关闭 ✕</button>
-            <div className="ipad-cinema-person__heading"><img src={imageUrl(person.profile_path, 'w342')} alt={person.name} /><div><h2>{person.name}</h2><p>{person.known_for_department} · {person.birthday || ''} · {person.place_of_birth || ''}</p></div></div>
+            <div className="ipad-cinema-person__heading"><SmartImage url={imageUrl(person.profile_path, 'w500') || '/placeholder.svg'} mode={imageProxyMode} customProxy={customImageProxy} alt={person.name} /><div><h2>{person.name}</h2><p>{person.known_for_department} · {person.birthday || ''} · {person.place_of_birth || ''}</p></div></div>
             <p className="ipad-cinema-person__bio">{person.biography || '暂无人物简介'}</p>
             <h3>代表作品</h3>
-            <div className="ipad-cinema-person__works">{[...(person.movie_credits?.cast || []), ...(person.tv_credits?.cast || [])].slice(0, 20).map((work) => <div key={work.id + (work.title || work.name || '')}><img src={imageUrl(work.poster_path, 'w185')} alt={work.title || work.name || ''} /><p>{work.title || work.name}</p></div>)}</div>
+            <div className="ipad-cinema-person__works">{[...(person.movie_credits?.cast || []), ...(person.tv_credits?.cast || [])].slice(0, 20).map((work) => <div key={work.id + (work.title || work.name || '')}><SmartImage url={imageUrl(work.poster_path, 'w342') || '/placeholder.svg'} mode={imageProxyMode} customProxy={customImageProxy} alt={work.title || work.name || ''} /><p>{work.title || work.name}</p></div>)}</div>
           </>}
         </section>
       </div>}
