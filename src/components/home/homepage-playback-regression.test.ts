@@ -601,7 +601,8 @@ describe('首页与播放页回归契约', () => {
     expect(player).toContain("art.on('video:durationchange', syncTimeline)");
     expect(player).toContain("art.on('video:seeked', syncTimeline)");
     expect(player).toContain('syncTimeline();');
-    expect(player).toContain('if (now - lastSave > 5000)');
+    expect(player).toContain('if (now - lastProgressSaveAtRef.current > 5000)');
+    expect(player).toContain('lastProgressSaveAtRef.current = 0;');
     expect(player).toContain('propsRef.current.onProgressSave?.(art.currentTime, art.duration, activeEpisodeKeyRef.current);');
   });
 
