@@ -1427,8 +1427,14 @@ export function PlayerShell({
       // 已有触控在处理时忽略新手指：否则第二指会把 originalRate 捕获成 3.0，
       // 松手后倍速永久卡在 3x；旧定时器句柄也会被覆盖成无法清除的幽灵触发
       if (isLongPress || longPressTimer) return;
-      // 控制栏 / 设置面板上的长按不触发倍速（按住进度条拖动、长按倍速菜单项会误触）
-      if ((e.target as HTMLElement).closest?.('.art-controls, .art-settings')) return;
+      // 控件交互不触发长按 3 倍速。ArtPlayer 的进度轨道在部分版本中是
+      // .art-controls 的同级节点，而不是其子节点；此前只排除 .art-controls，
+      // 手指按住进度条超过 500ms 就会误触 3x，并在 touchmove 中 preventDefault，
+      // 导致 iPad Safari 无法拖动 seek。显式排除进度轨道及其指示器。
+      const touchTarget = e.target as HTMLElement;
+      if (touchTarget.closest?.(
+        '.art-controls, .art-settings, .art-progress, .art-progress-bar, .art-control-progress, .art-progress-indicator'
+      )) return;
       originalRate = art.video.playbackRate;
       longPressTimer = setTimeout(() => {
         if (art.video?.paused) return;
