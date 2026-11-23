@@ -1496,6 +1496,7 @@ jobs:
                     const selectors = {
                       shell: ".netflix-watch-shell",
                       topbar: ".netflix-watch-overlay-topbar",
+                      qualityControls: ".netflix-player-frame .player-quality-controls",
                       frame: ".netflix-player-frame",
                       player: ".netflix-player-frame .artplayer, .netflix-player-frame .art-video-player",
                       video: ".netflix-player-frame video",
@@ -1536,6 +1537,7 @@ jobs:
                       overlaps: {
                         infoWithCenterControls: intersects(boxes.info,boxes.centerControls),
                         topbarWithInfo: intersects(boxes.topbar,boxes.info),
+                        topbarWithQualityControls: intersects(boxes.topbar,boxes.qualityControls),
                       },
                       videoWithinFrame: video ? within(videoRect,frame) : null,
                       frameCoversViewport: Boolean(frame && frame.x <= 1 && frame.y <= 1 && frame.right >= innerWidth - 1 && frame.bottom >= innerHeight - 1),
@@ -1547,9 +1549,9 @@ jobs:
                   }, panelState);
                   const failed = !response?.ok() ||
                     !metrics.boxes.shell || !metrics.boxes.topbar || !metrics.boxes.frame ||
-                    !metrics.boxes.centerControls || !metrics.boxes.info || !metrics.boxes.utilityPanel ||
+                    !metrics.boxes.centerControls || !metrics.boxes.info || !metrics.boxes.utilityPanel || !metrics.boxes.qualityControls ||
                     !metrics.frameCoversViewport || !metrics.infoWithinViewport || !metrics.topbarWithinViewport ||
-                    metrics.overlaps.infoWithCenterControls || metrics.overlaps.topbarWithInfo ||
+                    metrics.overlaps.infoWithCenterControls || metrics.overlaps.topbarWithInfo || metrics.overlaps.topbarWithQualityControls ||
                     (metrics.videoWithinFrame === false) ||
                     (panelState === "closed" && (!metrics.visibility.info || !metrics.visibility.centerControls || metrics.visibility.utilityPanel)) ||
                     (panelState === "open" && (!metrics.visibility.utilityPanel || metrics.visibility.info || metrics.visibility.centerControls || !metrics.panelWithinViewport)) ||
