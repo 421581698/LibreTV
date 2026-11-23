@@ -270,6 +270,10 @@ describe('首页与播放页回归契约', () => {
     expect(player).toContain('mediaLoadGenerationRef.current += 1');
     expect(player).toContain('if (loadGeneration !== mediaLoadGenerationRef.current) return;');
     expect(watch).toContain('saveProgress(sourceKey, outgoingProgressId, currentIndex, outgoingPosition, outgoingDuration)');
+    expect(database).toContain("db.transaction('rw', db.history");
+    expect(database).toContain('existing.episodeIndex !== expectedEpisodeIndex');
+    expect(watch).toContain('updateHistoryProgress(sourceKey, outgoingProgressId, outgoingPosition, outgoingDuration, currentIndex)');
+    expect(watch).toContain('duration,\n        currentIndex\n      ).catch(() => {});');
     expect(watch).toContain('A manual episode change supersedes any pending autoplay-next countdown.');
     expect(watch).toContain('if (autoNextTimer.current) window.clearTimeout(autoNextTimer.current)');
     expect(watch).toContain('autoNextTimer.current = null;');
