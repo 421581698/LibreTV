@@ -411,6 +411,7 @@ function WatchContent() {
     }
     return indexParam;
   }, [episodes, indexParam]);
+  const currentEpisodeKey = `${sourceKey}:${vodId}:${currentIndex}`;
   // 跳过片段按剧名记忆：换集不变，换源到同名资源也能命中。
   // 标题缺失（直连链接）时退回 source:vodId，至少保证本源本片可用。
   const skipMarkFallback = `${sourceKey}:${vodId || currentUrl}`;
@@ -492,7 +493,10 @@ function WatchContent() {
   }, [verified, sourceKey, vodId, currentIndex, videoTitle, currentUrl, detailQuery.data?.videoInfo?.cover, detailQuery.data?.videoInfo?.typeName, detailQuery.data?.videoInfo?.year, detailQuery.data?.videoInfo?.area]);
   // 播放中与暂停时的进度落盘逻辑一致，共用同一回调
   const handleProgress = useCallback(
-    (position: number, duration: number) => {
+    (position: number, duration: number, eventEpisodeKey?: string) => {
+      // Media events can arrive from the previous source during a route/episode
+      // transition. Never attribute an old clock position to the newly selected episode.
+      if (eventEpisodeKey && eventEpisodeKey !== currentEpisodeKey) return;
       const progressId = vodId || currentUrl;
       if (!progressId) return;
       saveProgress(
@@ -509,7 +513,7 @@ function WatchContent() {
         duration
       ).catch(() => {});
     },
-    [sourceKey, vodId, currentIndex, currentUrl]
+    [sourceKey, vodId, currentIndex, currentUrl, currentEpisodeKey]
   );
   // 自动连播的 800ms 延迟切集要在卸载时取消，避免离开页面后跳转
   const autoNextTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -526,7 +530,8 @@ function WatchContent() {
     autoNextTimer.current = null;
     setShowAutoNext(false);
   }, []);
-  const handleEnded = useCallback(() => {
+  const handleEnded = useCallback((eventEpisodeKey?: string) => {
+    if (eventEpisodeKey && eventEpisodeKey !== currentEpisodeKey) return;
     const progressId = vodId || currentUrl;
     if (progressId) clearProgress(sourceKey, progressId, currentIndex).catch(() => {});
     if (store.autoplayNext && currentIndex < episodes.length - 1) {
@@ -539,6 +544,7 @@ function WatchContent() {
   }, [
     store.autoplayNext,
     currentIndex,
+    currentEpisodeKey,
     episodes.length,
     goEpisode,
     sourceKey,
@@ -734,9 +740,9 @@ function WatchContent() {
                   onPendingStart={setPendingStart}
                   onPlayerApi={(api) => { playerApiRef.current = api; }}
                   onRecordSegment={handleRecordSegment}
-                  episodeKey={`${sourceKey}:${vodId}:${currentIndex}`}
+                  episodeKey={currentEpisodeKey}
                   sourceKey={sourceKey}
-                  resourceKey={`${sourceKey}:${vodId}:${currentIndex}`}
+                  resourceKey={currentEpisodeKey}
                   onPlaybackSample={(sample) => useAppStore.getState().recordPlaybackSample(sample)}
                   onRequestSwitchSource={() => {
                     const video = playerFrameRef.current?.querySelector('video');
@@ -748,15 +754,17 @@ function WatchContent() {
                   nextUrl={currentIndex + 1 < episodes.length ? episodes[currentIndex + 1] : undefined}
                   nextEpisodeKey={currentIndex + 1 < episodes.length ? `${sourceKey}:${vodId}:${currentIndex + 1}` : undefined}
                   getRestorePosition={getRestorePosition}
-                  onTimeUpdate={(position, duration) => {
+                  onTimeUpdate={(position, duration, eventEpisodeKey) => {
+                    if (eventEpisodeKey && eventEpisodeKey !== currentEpisodeKey) return;
                     // Render the timeline from every native media timeupdate (typically
                     // several times per second) so the scrubber never visibly jumps.
                     setWatchClock({ position, duration });
                   }}
                   onProgressSave={handleProgress}
-                  onPause={(position, duration) => {
+                  onPause={(position, duration, eventEpisodeKey) => {
+                    if (eventEpisodeKey && eventEpisodeKey !== currentEpisodeKey) return;
                     setWatchClock({ position, duration });
-                    handleProgress(position, duration);
+                    handleProgress(position, duration, eventEpisodeKey);
                   }}
                   onEnded={handleEnded}
                   onPlaybackConfirmed={(evidence) => {
