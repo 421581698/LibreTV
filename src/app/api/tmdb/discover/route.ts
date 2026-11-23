@@ -109,6 +109,13 @@ export async function GET(req: Request) {
       include_adult: 'false',
     };
     if (tag === '高分') query['vote_count.gte'] = '100';
+    if (region && mediaType === 'movie') {
+      const today = new Date();
+      const from = new Date(today);
+      from.setUTCFullYear(from.getUTCFullYear() - 1);
+      query['primary_release_date.gte'] = from.toISOString().slice(0, 10);
+      query['primary_release_date.lte'] = today.toISOString().slice(0, 10);
+    }
     const payload = await fetchTmdbJson<TmdbDiscoverResponse>(`/discover/${mediaType}`, query);
     const imageBase = await getTmdbPosterBase();
     const items = (Array.isArray(payload.results) ? payload.results : [])
