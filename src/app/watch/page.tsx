@@ -258,6 +258,23 @@ function WatchContent() {
         scheduleHide();
       }
     };
+    const onShellClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      // Buttons, tabs, links and form controls keep their normal click behavior.
+      // A tap on the empty video surface is an explicit, immediate dismiss action.
+      const clickedControl = target.closest(
+        'button, a, input, select, textarea, [role="button"], [role="tab"], label'
+      );
+      if (clickedControl) {
+        revealControls(event);
+        return;
+      }
+      if (scrubbingRef.current) return;
+      clearHideTimer('manual-dismiss');
+      shell.classList.add('cinema-controls-hidden');
+      setControlsVisible(false);
+    };
     const endScrubbing = () => {
       if (!scrubbingRef.current) return;
       scrubbingRef.current = false;
@@ -273,7 +290,7 @@ function WatchContent() {
     shell.addEventListener('pointerdown', revealControls, true);
     shell.addEventListener('pointermove', onPointerMove, { passive: true });
     shell.addEventListener('touchstart', revealControls, { passive: true, capture: true });
-    shell.addEventListener('click', revealControls, true);
+    shell.addEventListener('click', onShellClick, true);
     shell.addEventListener('keydown', revealControls, true);
     window.addEventListener('pointerup', endScrubbing, true);
     window.addEventListener('pointercancel', endScrubbing, true);
@@ -290,7 +307,7 @@ function WatchContent() {
       shell.removeEventListener('pointerdown', revealControls, true);
       shell.removeEventListener('pointermove', onPointerMove);
       shell.removeEventListener('touchstart', revealControls, true);
-      shell.removeEventListener('click', revealControls, true);
+      shell.removeEventListener('click', onShellClick, true);
       shell.removeEventListener('keydown', revealControls, true);
       window.removeEventListener('pointerup', endScrubbing, true);
       window.removeEventListener('pointercancel', endScrubbing, true);
