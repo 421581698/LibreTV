@@ -16,13 +16,15 @@ const searchCss = readFileSync(
 );
 
 describe('iPad Edition navigation contract', () => {
-  it('limits the floating top capsule to sidebar, search and my actions', () => {
+  it('limits the floating top capsule to sidebar, home, search and my icons', () => {
     const topbarStart = shell.indexOf('<header className="ipad-nav__topbar">');
     const topbarEnd = shell.indexOf('</header>', topbarStart);
     const topbar = topbarStart >= 0 && topbarEnd > topbarStart
       ? shell.slice(topbarStart, topbarEnd)
       : '';
     expect(topbar).toContain("aria-label={sidebarOpen ? '收起侧边栏' : '展开侧边栏'}");
+    expect(topbar).toContain('aria-label="首页"');
+    expect(topbar).toContain('href="/ipad-edition"');
     expect(topbar).toContain('aria-label="搜索"');
     expect(topbar).toContain('aria-label="我的"');
     expect(topbar).not.toContain('aria-label="首页"');
@@ -31,7 +33,7 @@ describe('iPad Edition navigation contract', () => {
     expect(topbar).not.toContain('aria-label="动漫"');
     expect(topbar).not.toContain('ipad-nav__label');
     expect((topbar.match(/<button\b/g) ?? []).length).toBe(1);
-    expect((topbar.match(/<Link\b/g) ?? []).length).toBe(2);
+    expect((topbar.match(/<Link\b/g) ?? []).length).toBe(3);
     expect(shell).toContain("href: '/ipad-edition/settings'");
   });
 
@@ -41,7 +43,7 @@ describe('iPad Edition navigation contract', () => {
     expect(shell).toContain("data-ipad-detail={isDetailRoute ? 'true' : undefined}");
   });
 
-  it('sizes the labeled top capsule to its content while respecting the iPad viewport', () => {
+  it('sizes the icon-only top capsule to its content while respecting the iPad viewport', () => {
     const styles = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/ipad-edition.css'), 'utf8');
     expect(styles).toContain('width: max-content !important;');
     expect(styles).toContain('max-width: calc(100vw - 32px);');
