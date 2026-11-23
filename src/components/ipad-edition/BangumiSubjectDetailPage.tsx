@@ -107,7 +107,7 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
       const best = ranked[0];
       const match = matches.find(({ item }) => item.sourceKey === best.sourceKey && item.vodId === best.vodId);
       if (!match) throw new Error('无法确定可用播放线路，请重试。');
-      setStatus(`已比较 ${matches.length} 条候选线路，优先选择历史播放更稳定的线路…`);
+      setStatus(`已比较 ${matches.length} 条候选线路，按历史播放稳定性优先排序；无历史记录的线路保留为后备。`);
       router.push(buildWatchUrl({
         sourceKey: match.source.key,
         vodId: match.item.vodId,
