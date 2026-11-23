@@ -2260,3 +2260,109 @@ body:has(.ipad-edition[data-environment="light"]) {
     max-width: 140px;
   }
 }
+
+
+/* PR #99 · Apple TV micro-interactions polish.
+   Scoped to the iPad Edition home; preserves the current layout and card sizing. */
+.ipad-edition[data-ipad-home="true"] {
+  --ipad-motion-ease: cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.ipad-edition[data-environment="light"][data-ipad-home="true"] {
+  --ipad-text: #1d1d1f;
+}
+.ipad-edition[data-environment="dark"][data-ipad-home="true"] {
+  --ipad-text: #f5f5f7;
+}
+
+/* The horizontal rails already use native momentum scrolling; restore explicit
+   snap alignment at the final home-rail cascade and keep the edge inset optical. */
+.ipad-edition[data-ipad-home="true"] .ipad-edition__poster-grid,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__anime-grid,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__continue-grid {
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 16px;
+  scroll-behavior: smooth;
+  overscroll-behavior-x: contain;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__poster-card,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__anime-card,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__continue-card {
+  scroll-snap-align: start;
+  scroll-snap-stop: normal;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__poster-art,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__anime-card > span,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__continue-art {
+  transition:
+    transform 400ms var(--ipad-motion-ease),
+    box-shadow 400ms var(--ipad-motion-ease),
+    border-color 400ms var(--ipad-motion-ease);
+  box-shadow:
+    0 10px 28px rgba(12, 18, 30, .16),
+    0 2px 8px rgba(12, 18, 30, .08);
+}
+
+/* Hover is reserved for true pointer devices; touch receives a restrained press
+   response instead of a sticky simulated hover state. */
+@media (hover: hover) and (pointer: fine) {
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__poster-card:hover .ipad-edition__poster-art,
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__anime-card:hover > span,
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__continue-card:hover .ipad-edition__continue-art {
+    transform: translateY(-3px) scale(1.04);
+    box-shadow:
+      0 18px 38px rgba(18, 28, 46, .18),
+      0 4px 12px rgba(18, 28, 46, .1),
+      0 0 0 1px rgba(255, 255, 255, .18);
+  }
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__poster-card:active .ipad-edition__poster-art,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__anime-card:active > span,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__continue-card:active .ipad-edition__continue-art {
+  transform: scale(.985);
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__poster-card:focus-visible,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__anime-card:focus-visible,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__continue-card:focus-visible {
+  outline: 2px solid var(--ipad-accent);
+  outline-offset: 4px;
+  border-radius: 15px;
+}
+
+/* Keep the navigation glass legible over artwork in both appearances. */
+.ipad-edition[data-ipad-home="true"] .ipad-nav__topbar-inner {
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* Optical type rhythm: compact headlines, comfortable supporting copy. */
+.ipad-edition[data-ipad-home="true"] .ipad-edition__section-heading h2 {
+  line-height: 1.2;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__poster-card > strong,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__anime-card > strong,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__continue-card > strong {
+  line-height: 1.35;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__poster-card > small,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__anime-card > small,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__continue-card > small {
+  line-height: 1.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__poster-grid,
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__anime-grid,
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__continue-grid {
+    scroll-behavior: auto;
+  }
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__poster-art,
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__anime-card > span,
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__continue-art {
+    transition: none;
+  }
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__poster-card:active .ipad-edition__poster-art,
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__anime-card:active > span,
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__continue-card:active .ipad-edition__continue-art {
+    transform: none;
+  }
+}
