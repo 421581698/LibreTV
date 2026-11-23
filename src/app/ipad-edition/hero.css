@@ -981,3 +981,94 @@ body:has(.ipad-edition[data-ipad-home="true"]) {
     animation: none !important;
   }
 }
+
+/* PR #99 · Hero artwork clarity correction.
+   Keep the real featured poster visible and sharp; use gradients only for text
+   contrast. Never turn the source artwork into a full-frame blurred colour wash. */
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-backdrop .poster-engine__image {
+  filter: none !important;
+  opacity: .94;
+  transform: none;
+  object-fit: cover;
+  object-position: center 42%;
+}
+
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-atmosphere .poster-engine__image {
+  filter: brightness(.46) saturate(.9) !important;
+  opacity: .72;
+  transform: none;
+  object-fit: cover;
+  object-position: center 35%;
+}
+
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-poster {
+  display: block !important;
+  visibility: visible !important;
+  z-index: 5;
+  left: auto;
+  right: clamp(28px, 8vw, 150px);
+  top: 50%;
+  bottom: auto;
+  width: min(34vw, 440px);
+  height: 88%;
+  max-width: 48vw;
+  transform: translateY(-50%);
+  transform-origin: center;
+  overflow: visible;
+  mask-image: none !important;
+  -webkit-mask-image: none !important;
+  filter: drop-shadow(0 28px 42px rgba(0,0,0,.58));
+}
+
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-poster .poster-engine__image {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain !important;
+  object-position: center;
+  transform: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-shade {
+  z-index: 4;
+  background:
+    linear-gradient(90deg,
+      rgba(4,7,12,.88) 0%,
+      rgba(4,7,12,.72) 27%,
+      rgba(4,7,12,.36) 49%,
+      rgba(4,7,12,.08) 69%,
+      transparent 82%),
+    linear-gradient(0deg, rgba(3,5,9,.58) 0%, transparent 46%, rgba(3,5,9,.08) 100%);
+}
+
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-poster::before {
+  filter: blur(20px);
+  opacity: .42;
+}
+
+@media (orientation: portrait) and (min-width: 700px) {
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-poster {
+    right: max(18px, env(safe-area-inset-right, 0px));
+    width: min(43vw, 390px);
+    height: 78%;
+  }
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-shade {
+    background:
+      linear-gradient(90deg, rgba(4,7,12,.86) 0%, rgba(4,7,12,.68) 36%, rgba(4,7,12,.24) 68%, transparent 100%),
+      linear-gradient(0deg, rgba(3,5,9,.68) 0%, transparent 58%);
+  }
+}
+
+@media (max-width: 699px) {
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-poster {
+    right: 14px;
+    width: min(42vw, 210px);
+    height: 68%;
+  }
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-copy {
+    width: min(72%, 520px);
+    padding-right: 0;
+  }
+}
