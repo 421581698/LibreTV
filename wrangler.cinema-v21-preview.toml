@@ -1,0 +1,23 @@
+name = "libretv-cinema-v21-preview"
+main = ".open-next/worker.js"
+compatibility_date = "2025-04-01"
+compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
+assets = { directory = ".open-next/assets" }
+
+[ai]
+binding = "AI"
+
+# Dedicated public acceptance Worker for PR #105 only.
+workers_dev = true
+preview_urls = false
+
+[vars]
+CMS_SEARCH_API = "https://caiji.dyttzyapi.com/api.php/provide/vod"
+API_60S_BASE = "https://60s.bggdbh.workers.dev"
+LLM_MODEL = "glm-4-flash"
+AUTH_DISABLED = "true"
+DEFAULT_IMAGE_MODE = "proxy"
+DEFAULT_RECOMMEND_SOURCE = "hot-list"
+DEFAULT_SOURCES = '[]'
+
+# Do not configure production PASSWORD, source tokens, or provider credentials here.

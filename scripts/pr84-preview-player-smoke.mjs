@@ -124,6 +124,16 @@ try {
       video?.addEventListener(name, record);
     }
   });
+  // Playback may already have reached the 3s auto-hide deadline before
+  // the first interaction; reveal controls before clicking the transport button.
+  await page.mouse.move(720, 450);
+  await page.waitForFunction(() => {
+    const shell = document.querySelector('.netflix-watch-shell');
+    const button = document.querySelector('.cinema-play-control');
+    if (!shell || !button || shell.classList.contains('cinema-controls-hidden')) return false;
+    const style = getComputedStyle(button);
+    return style.visibility === 'visible' && Number.parseFloat(style.opacity) > 0.9;
+  }, null, { timeout: 3_000, polling: 50 });
   const transportButton = page.locator('.cinema-play-control');
   await transportButton.click();
   await page.waitForFunction(() => document.querySelector('video')?.paused === true, null, { timeout: 3_000 });
@@ -140,7 +150,14 @@ try {
     await page.waitForFunction(() => {
       const shell = document.querySelector('.netflix-watch-shell');
       const video = document.querySelector('video');
-      return Boolean(shell?.classList.contains('cinema-controls-hidden') && video && !video.paused);
+      if (!shell?.classList.contains('cinema-controls-hidden') || !video || video.paused) return false;
+      const selectors = ['.watch-topbar', '.cinema-center-controls', '.watch-cinema-info', '.player-quality-controls'];
+      return selectors.every((selector) => {
+        const element = shell.querySelector(selector);
+        if (!(element instanceof HTMLElement)) return false;
+        const style = getComputedStyle(element);
+        return style.visibility === 'hidden' && Number.parseFloat(style.opacity) <= 0.05;
+      });
     }, null, { timeout: 8_000, polling: 100 });
   } catch (error) {
     hideWaitError = error instanceof Error ? error.message : String(error);
