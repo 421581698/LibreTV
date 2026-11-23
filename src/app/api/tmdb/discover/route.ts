@@ -104,6 +104,7 @@ export async function GET(req: Request) {
   try {
     const query: Record<string, string> = {
       language: 'zh-CN',
+      include_image_language: 'zh,null,en',
       ...(region ? { region } : { with_origin_country: country }),
       sort_by: region && mediaType === 'movie' ? 'primary_release_date.desc' : sortForTag(tag, mediaType),
       page: String(page),
