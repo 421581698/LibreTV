@@ -907,19 +907,21 @@ function WatchContent() {
                     // on every input event causes repeated HLS flushes and stutter.
                     setScrubbingPosition(Number(event.target.value));
                   }}
-                  onPointerUp={(event) => {
-                    playerApiRef.current?.seek(Number(event.currentTarget.value));
+                  onPointerDown={(event) => {
+                    // Keep the drag stream attached to the range input even if
+                    // the finger leaves its narrow visual track.
+                    event.currentTarget.setPointerCapture(event.pointerId);
                   }}
-                  onTouchEnd={(event) => {
+                  onPointerUp={(event) => {
+                    // Pointer Events cover modern iPad Safari touch and desktop
+                    // mouse. Do not also seek from touchend/blur: those events
+                    // can follow the same gesture and issue duplicate seeks.
                     playerApiRef.current?.seek(Number(event.currentTarget.value));
                   }}
                   onKeyUp={(event) => {
                     if (['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) {
                       playerApiRef.current?.seek(Number(event.currentTarget.value));
                     }
-                  }}
-                  onBlur={(event) => {
-                    playerApiRef.current?.seek(Number(event.currentTarget.value));
                   }}
                   disabled={!watchClock.duration}
                 />
