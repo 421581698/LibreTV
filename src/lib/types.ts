@@ -86,7 +86,7 @@ export interface DoubanItem {
   /** Actual regional theatrical release date (YYYY-MM-DD) from TMDB. */
   releaseDate?: string;
   /** ISO 3166-1 alpha-2 theatrical release region. */
-  releaseRegion?: 'US' | 'CN';
+  releaseRegion?: 'US' | 'CN' | 'BOTH';
   rating?: string;
   isTv?: boolean;
 }
