@@ -2703,5 +2703,4 @@ body:has(.ipad-edition[data-environment="light"]) {
 /* Keep the active title visible in the iPad player after the legacy page-heading reset. */
 .ipad-edition .netflix-watch .netflix-title-row h1 {
   display: block !important;
-  visibility: visible !important;
 }
