@@ -1035,8 +1035,9 @@ export function PlayerShell({
     // the replacement source; pause/timeupdate events emitted while teardown is
     // in progress must remain attributed to the previous episode.
     art.on('video:loadstart', () => {
-      if (pendingEpisodeKeyRef.current !== null) {
-        activeEpisodeKeyRef.current = pendingEpisodeKeyRef.current;
+      const pendingEpisodeKey = pendingEpisodeKeyRef.current;
+      if (pendingEpisodeKey !== null) {
+        activeEpisodeKeyRef.current = pendingEpisodeKey;
         pendingEpisodeKeyRef.current = null;
       }
     });
