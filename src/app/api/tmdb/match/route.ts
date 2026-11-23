@@ -6,7 +6,6 @@ import { getCache, setCache } from '@/lib/fetch-utils';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-type MediaType = 'movie' | 'tv';
 type SearchItem = {
   id: number;
   title?: string;
@@ -57,7 +56,7 @@ export async function GET(req: Request) {
   });
 
   try {
-    let candidates: Array<{ item: SearchItem; exact: boolean; yearMatch: boolean; yearConflict: boolean }> = [];
+    const candidates: Array<{ item: SearchItem; exact: boolean; yearMatch: boolean; yearConflict: boolean }> = [];
     for (const searchTerm of titles) {
       const payload = await fetchTmdbJson<SearchResponse>(`/search/${type}`, {
         query: searchTerm,
