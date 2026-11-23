@@ -294,6 +294,7 @@ describe('首页与播放页回归契约', () => {
     expect(switchSource).toContain('if (!c.episodes)');
     expect(switchSource).toContain('buildWatchUrl({');
     expect(switchSource).toContain('sourceKey: c.source.key');
+    expect(switchSource).toContain('targetIndex === currentIndex ? getCurrentPosition?.() ?? 0 : 0');
     expect(switchSource).toContain('router.push(');
   });
 
