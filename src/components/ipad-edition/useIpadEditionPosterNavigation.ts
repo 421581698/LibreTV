@@ -8,10 +8,10 @@ import type { DoubanItem, SourceConfig } from '@/lib/types';
 import { validateSourceUrl } from '@/lib/utils';
 
 function normalizeTitle(value: string) {
-  return value.replace(/[\s\p{P}\p{S}]/gu, '').toLocaleLowerCase();
+  return value.replace(/[\\s\\p{P}\\p{S}]/gu, '').toLocaleLowerCase();
 }
 
-/** Resolves recommendation metadata to a real enabled CMS resource before opening detail. */
+/** TMDB recommendations open their metadata page first; CMS matching is supplemental playback discovery. */
 export function useIpadEditionPosterNavigation() {
   const router = useRouter();
   const selectedKeys = useAppStore((state) => state.selectedKeys);
@@ -33,6 +33,22 @@ export function useIpadEditionPosterNavigation() {
 
   const openPoster = useCallback(async (movie: DoubanItem) => {
     setError('');
+    const provider = (movie as DoubanItem & { provider?: string }).provider;
+    // Only trust IDs explicitly marked as TMDB IDs. Douban/Bangumi IDs must continue
+    // through the existing CMS title-match path and must never be sent to TMDB.
+    if (provider === 'tmdb' && /^\\d{1,12}$/.test(movie.id)) {
+      const params = new URLSearchParams({
+        tmdbId: movie.id,
+        tmdbType: movie.isTv ? 'tv' : 'movie',
+        title: movie.title,
+      });
+      if (movie.cover) params.set('pic', movie.cover);
+      if (movie.rating) params.set('rating', movie.rating);
+      if (movie.backdrop) params.set('backdrop', movie.backdrop);
+      router.push('/ipad-edition/detail?' + params.toString());
+      return;
+    }
+
     if (selectedSources.length === 0) {
       setError('没有可用的已启用点播源。请先到设置中启用点播源。');
       return;
