@@ -32,9 +32,11 @@ function selectPreferredArtwork(
     const height = Number.isFinite(image.height) ? image.height! : 0;
     return width * Math.max(height, 1) + (image.vote_average || 0);
   };
+  // Actual pixel area wins over language preference; language only breaks
+  // ties so a tiny localized thumbnail never beats a full-resolution image.
   valid.sort((a, b) =>
-    languageRank(a.iso_639_1) - languageRank(b.iso_639_1)
-    || resolutionScore(b) - resolutionScore(a),
+    resolutionScore(b) - resolutionScore(a)
+    || languageRank(a.iso_639_1) - languageRank(b.iso_639_1),
   );
   return valid[0]?.file_path ?? fallbackPath;
 }
