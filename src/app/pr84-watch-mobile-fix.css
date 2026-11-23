@@ -1224,3 +1224,35 @@ html:has(.netflix-watch) .netflix-watch-shell .watch-topbar-right > button {
     transition: none !important;
   }
 }
+
+
+/* Playback obstruction repair:
+   keep the auxiliary action strip out of the lower seek/progress panel, and
+   auto-hide it together with the other cinema controls during active playback. */
+.netflix-watch-shell .netflix-watch-tools {
+  inset: calc(66px + env(safe-area-inset-top, 0px)) auto auto 14px !important;
+  z-index: 54 !important;
+  max-width: min(520px, calc(100vw - 28px)) !important;
+  transition: opacity 240ms ease, visibility 240ms step-start !important;
+}
+.netflix-watch-shell.cinema-controls-hidden .netflix-watch-tools {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transition: opacity 240ms ease, visibility 240ms step-end !important;
+}
+.netflix-watch-shell .netflix-watch-utility-panel.is-open ~ .netflix-watch-tools {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+@media (max-width: 700px) {
+  .netflix-watch-shell .netflix-watch-tools {
+    top: calc(62px + env(safe-area-inset-top, 0px)) !important;
+    left: 8px !important;
+    right: 8px !important;
+    max-width: none !important;
+    justify-content: flex-start !important;
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+  }
+}
