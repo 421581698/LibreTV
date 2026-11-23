@@ -36,7 +36,7 @@ export function useIpadEditionPosterNavigation() {
     const provider = (movie as DoubanItem & { provider?: string }).provider;
     // Only trust IDs explicitly marked as TMDB IDs. Douban/Bangumi IDs must continue
     // through the existing CMS title-match path and must never be sent to TMDB.
-    if (provider === 'tmdb' && /^\\d{1,12}$/.test(movie.id)) {
+    if (provider === 'tmdb' && /^\d{1,12}$/.test(movie.id)) {
       const params = new URLSearchParams({
         tmdbId: movie.id,
         tmdbType: movie.isTv ? 'tv' : 'movie',
