@@ -1534,3 +1534,54 @@ html:has(.netflix-watch) .netflix-watch-shell .watch-topbar-right > button {
     bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
+
+
+/* PR #99 — Apple TV minimal timeline (方案 A).
+   Only the visible seek rail and thumb are refined; the existing range input
+   keeps its larger 22px hit area and all playback behavior remains untouched. */
+.netflix-watch-shell .watch-cinema-progress {
+  height: 22px !important;
+  min-height: 22px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  touch-action: pan-x !important;
+}
+.netflix-watch-shell .watch-cinema-progress::-webkit-slider-runnable-track {
+  height: 2px !important;
+  border-radius: 999px !important;
+  background: linear-gradient(
+    to right,
+    #fff 0 var(--watch-progress),
+    rgba(255,255,255,.34) var(--watch-progress) 100%
+  ) !important;
+}
+.netflix-watch-shell .watch-cinema-progress::-webkit-slider-thumb {
+  width: 8px !important;
+  height: 8px !important;
+  margin-top: -3px !important;
+  border: 0 !important;
+  border-radius: 50% !important;
+  background: #fff !important;
+  box-shadow: 0 1px 5px rgba(0,0,0,.4) !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+.netflix-watch-shell .watch-cinema-progress::-moz-range-track {
+  height: 2px !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,.34) !important;
+}
+.netflix-watch-shell .watch-cinema-progress::-moz-range-progress {
+  height: 2px !important;
+  border-radius: 999px !important;
+  background: #fff !important;
+}
+.netflix-watch-shell .watch-cinema-progress::-moz-range-thumb {
+  width: 8px !important;
+  height: 8px !important;
+  border: 0 !important;
+  border-radius: 50% !important;
+  background: #fff !important;
+  box-shadow: 0 1px 5px rgba(0,0,0,.4) !important;
+}
