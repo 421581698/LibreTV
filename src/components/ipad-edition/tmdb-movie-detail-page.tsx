@@ -17,12 +17,12 @@ type TmdbTitle = {
   images?: { backdrops?: TmdbImage[]; posters?: TmdbImage[]; logos?: TmdbImage[] };
   credits?: { cast?: TmdbPerson[]; crew?: TmdbPerson[] };
 };
-type TmdbPersonDetails = { id: number; name: string; biography?: string; profile_path?: string | null; birthday?: string; place_of_birth?: string; known_for_department?: string; movie_credits?: { cast?: { id: number; title?: string; character?: string; poster_path?: string | null; release_date?: string }[] }; tv_credits?: { cast?: { id: number; name?: string; character?: string; poster_path?: string | null; first_air_date?: string }[] } };
+type TmdbCredit = { id: number; title?: string; name?: string; character?: string; poster_path?: string | null; release_date?: string; first_air_date?: string };\ntype TmdbPersonDetails = { id: number; name: string; biography?: string; profile_path?: string | null; birthday?: string; place_of_birth?: string; known_for_department?: string; movie_credits?: { cast?: TmdbCredit[] }; tv_credits?: { cast?: TmdbCredit[] } };
 
 const imageUrl = (path?: string | null, size = 'w780') => path ? `https://image.tmdb.org/t/p/${size}${path}` : '';
 const normalize = (value: string) => value.replace(/[\\s\\p{P}\\p{S}]/gu, '').toLocaleLowerCase();
 
-export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, ratingFallback }: {
+export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, backdropFallback, ratingFallback }: {
   id: string; type: 'movie' | 'tv'; titleFallback: string; posterFallback: string; backdropFallback: string; ratingFallback: string;
 }) {
   const router = useRouter();
