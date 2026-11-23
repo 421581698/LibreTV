@@ -91,18 +91,20 @@ export async function GET(req: Request) {
 
   const country = (params.get('country') || 'CN').toUpperCase();
   if (!/^[A-Z]{2}$/.test(country)) return NextResponse.json({ error: '国家/地区代码无效' }, { status: 400 });
+  const region = (params.get('region') || '').toUpperCase();
+  if (region && !['US', 'CN'].includes(region)) return NextResponse.json({ error: '上映地区仅支持 US 或 CN' }, { status: 400 });
 
   const tag = ['热门', '最新', '高分'].includes(params.get('tag') || '') ? params.get('tag')! : '热门';
   const page = Math.min(500, Math.max(1, Number.parseInt(params.get('page') || '1', 10) || 1));
-  const cacheKey = `tmdb:discover:${mediaType}:${country}:${tag}:${page}`;
+  const cacheKey = `tmdb:discover:${mediaType}:${country}:${region || 'origin'}:${tag}:${page}`;
   const cached = getCache<{ items: unknown[]; page: number; totalPages: number; country: string; mediaType: string }>(cacheKey);
   if (cached) return NextResponse.json(cached, { headers: { 'Cache-Control': 'public, max-age=900, s-maxage=3600, stale-while-revalidate=3600' } });
 
   try {
     const query: Record<string, string> = {
       language: 'zh-CN',
-      with_origin_country: country,
-      sort_by: sortForTag(tag, mediaType),
+      ...(region ? { region } : { with_origin_country: country }),
+      sort_by: region && mediaType === 'movie' ? 'primary_release_date.desc' : sortForTag(tag, mediaType),
       page: String(page),
       include_adult: 'false',
     };
@@ -118,6 +120,8 @@ export async function GET(req: Request) {
         rating: typeof item.vote_average === 'number' ? item.vote_average.toFixed(1) : undefined,
         isTv: mediaType === 'tv',
         year: (item.release_date || item.first_air_date || '').slice(0, 4),
+        ...(item.release_date ? { releaseDate: item.release_date } : {}),
+        ...(region && item.release_date ? { releaseRegion: region } : {}),
         provider: 'tmdb',
       }))
       .filter((item) => item.cover);
