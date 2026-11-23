@@ -19,7 +19,9 @@ type TmdbTitle = {
 type TmdbCredit = { id: number; title?: string; name?: string; character?: string; poster_path?: string | null; release_date?: string; first_air_date?: string };
 type TmdbPersonDetails = { id: number; name: string; biography?: string; profile_path?: string | null; birthday?: string; place_of_birth?: string; known_for_department?: string; movie_credits?: { cast?: TmdbCredit[] }; tv_credits?: { cast?: TmdbCredit[] } };
 
-const imageUrl = (path?: string | null, size = 'w780') => path ? `https://image.tmdb.org/t/p/${size}${path}` : '';
+const imageUrl = (path?: string | null, size = 'w780') => path
+  ? /^https?:\\/\\//i.test(path) ? path : `https://image.tmdb.org/t/p/${size}${path}`
+  : '';
 
 export function TmdbMovieDetailPage({ id, type, titleFallback, backdropFallback, ratingFallback }: {
   id: string; type: 'movie' | 'tv'; titleFallback: string; posterFallback: string; backdropFallback: string; ratingFallback: string;
