@@ -267,6 +267,8 @@ describe('首页与播放页回归契约', () => {
     expect(player).toContain('onProgressSave?.(art.currentTime, art.duration, activeEpisodeKeyRef.current)');
     expect(player).toContain("art.on('video:loadstart'");
     expect(player).toContain('activeEpisodeKeyRef.current = pendingEpisodeKey;');
+    expect(player).toContain('mediaLoadGenerationRef.current += 1');
+    expect(player).toContain('if (loadGeneration !== mediaLoadGenerationRef.current) return;');
     expect(watch).toContain('saveProgress(sourceKey, outgoingProgressId, currentIndex, outgoingPosition, outgoingDuration)');
     expect(watch).toContain('A manual episode change supersedes any pending autoplay-next countdown.');
     expect(watch).toContain('if (autoNextTimer.current) window.clearTimeout(autoNextTimer.current)');
