@@ -299,6 +299,7 @@ describe('首页与播放页回归契约', () => {
     expect(watch).not.toContain('onBlur={(event) =>');
     expect(watch).not.toContain('setScrubbingPosition(position);\n                    playerApiRef.current?.seek(position);');
     expect(watchStyles).toContain('.ipad-edition-watch.cinema-controls-hidden:not(.cinema-controls-scrubbing) .watch-cinema-info');
+    expect(watchStyles).toContain('bottom: calc(44px + 2px) !important;');
     expect(watchStyles).toContain('visibility: hidden !important;');
     expect(watchStyles).toContain('pointer-events: none !important;');
     expect(watch).toContain('enqueueDownload({');
