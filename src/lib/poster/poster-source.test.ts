@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DoubanItem, SearchResultItem } from '../types';
 import { createPosterAsset, fromBangumiItem, fromCmsArtwork, fromCmsSearchResult, fromDoubanItem, fromEpisodeArtwork } from './poster-source';
-import { classifyPosterAspect, inferPosterImageKind, meetsMinimumImageWidth, withPosterDimensions } from './poster-normalizer';
+import { classifyPosterAspect, inferPosterImageKind, matchesArtworkOrientation, meetsMinimumImageWidth, withPosterDimensions } from './poster-normalizer';
 import { selectPreferredTmdbBackdrop, selectPreferredTmdbPoster } from './tmdb-poster-preference';
 
 describe('poster source adapters', () => {
@@ -87,6 +87,13 @@ describe('poster dimension normalization', () => {
     expect(meetsMinimumImageWidth(800, 1000)).toBe(false);
     expect(meetsMinimumImageWidth(0, 1000)).toBe(false);
     expect(meetsMinimumImageWidth(Number.NaN, 1000)).toBe(false);
+  });
+
+  it('rejects poster/backdrop orientation mismatches', () => {
+    expect(matchesArtworkOrientation(1000, 1500, 'portrait')).toBe(true);
+    expect(matchesArtworkOrientation(1600, 900, 'landscape')).toBe(true);
+    expect(matchesArtworkOrientation(1600, 900, 'portrait')).toBe(false);
+    expect(matchesArtworkOrientation(900, 1600, 'landscape')).toBe(false);
   });
 });
 
