@@ -16,6 +16,7 @@ function DetailContent() {
       type={tmdbType}
       titleFallback={params.get('title') || '未知影片'}
       posterFallback={params.get('pic') || ''}
+      backdropFallback={params.get('backdrop') || ''}
       ratingFallback={params.get('rating') || ''}
     /></div>;
   }
