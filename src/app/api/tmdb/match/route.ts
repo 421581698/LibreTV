@@ -72,7 +72,7 @@ export async function GET(req: Request) {
     const byId = new Map<number, { item: SearchItem; score: number; yearMatch: boolean }>();
     // Search all known titles concurrently to avoid serial API latency. Do not
     // stop at the first partial hit: aliases may reveal the correct candidate.
-    const searchPayloads = await Promise.all(titles.slice(0, 4).map((searchTerm) =>
+    const searchResults = await Promise.allSettled(titles.slice(0, 4).map((searchTerm) =>
       fetchTmdbJson<SearchResponse>(`/search/${mediaType}`, {
         query: searchTerm,
         language: 'zh-CN',
@@ -81,6 +81,13 @@ export async function GET(req: Request) {
         page: '1',
       }),
     ));
+    const searchPayloads = searchResults.flatMap((result) =>
+      result.status === 'fulfilled' ? [result.value] : [],
+    );
+    if (!searchPayloads.length) {
+      const failed = searchResults.find((result) => result.status === 'rejected');
+      throw failed?.status === 'rejected' ? failed.reason : new Error('TMDB_SEARCH_UNAVAILABLE');
+    }
     for (const payload of searchPayloads) {
       for (const item of Array.isArray(payload.results) ? payload.results : []) {
         if (!Number.isInteger(item.id) || item.id <= 0) continue;
