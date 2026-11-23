@@ -337,7 +337,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
         )}
         {children}
       </main>
-      <IpadLayoutDiagnostics />
+      {!isChromeHidden && <IpadLayoutDiagnostics />}
     </div>
   );
 }
