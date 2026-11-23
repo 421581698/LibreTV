@@ -82,7 +82,7 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
     const params = new URLSearchParams({ title: matchTitle, type: mediaType });
     if (subject.name && subject.name !== matchTitle) params.set('alternateTitle', subject.name);
     const year = subject.date?.slice(0, 4);
-    if (year && /^\\d{4}$/.test(year)) params.set('year', year);
+    if (year && /^\d{4}$/.test(year)) params.set('year', year);
     fetch('/api/tmdb/match?' + params.toString(), { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error('TMDB artwork match unavailable');
