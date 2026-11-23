@@ -28,6 +28,7 @@ on:
       - "src/lib/douban-weekly.ts"
       - "src/app/api/douban/route.ts"
       - "src/app/api/tmdb/**"
+      - "src/app/api/bangumi/**"
       - "src/app/api/poster-fallback/route.ts"
       - "src/lib/tmdb.ts"
       - "src/lib/client-api.ts"
