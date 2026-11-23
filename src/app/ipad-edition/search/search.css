@@ -1,0 +1,131 @@
+/* Apple TV-inspired search capsule — scoped to the iPad Edition search route. */
+.ipad-edition.ipad-edition__search-page .ipad-edition__search-form {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: min(100%, 1120px);
+  min-height: 72px;
+  padding: 8px 12px 8px 25px;
+  border: 1px solid rgba(255, 255, 255, .075);
+  border-radius: 999px;
+  background: #151517;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, .22);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.ipad-edition.ipad-edition__search-page .ipad-edition__search-form:focus-within {
+  border-color: rgba(255, 255, 255, .2);
+  background: #1b1b1e;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, .035), 0 12px 36px rgba(0, 0, 0, .28);
+}
+.ipad-edition.ipad-edition__search-page .ipad-edition__search-form > span {
+  display: grid;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  color: rgba(235, 235, 245, .68);
+  font-size: 0;
+}
+.ipad-edition.ipad-edition__search-page .ipad-edition__search-form > span svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ipad-edition.ipad-edition__search-page .ipad-edition__search-form input {
+  min-width: 0;
+  min-height: 52px;
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+  background: transparent;
+  color: #f5f5f7;
+  font-size: 18px;
+  font-weight: 450;
+  letter-spacing: -.015em;
+}
+.ipad-edition.ipad-edition__search-page .ipad-edition__search-form input::placeholder {
+  color: rgba(235, 235, 245, .46);
+  opacity: 1;
+}
+.ipad-edition.ipad-edition__search-page .ipad-edition__search-form button {
+  min-width: auto;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .09);
+  color: rgba(245, 245, 247, .88);
+  font-size: 13px;
+  font-weight: 650;
+  transition: background-color .18s ease, opacity .18s ease;
+}
+.ipad-edition.ipad-edition__search-page .ipad-edition__search-form button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, .15);
+}
+.ipad-edition.ipad-edition__search-page .ipad-edition__search-form button:disabled {
+  background: transparent;
+  color: rgba(235, 235, 245, .3);
+  opacity: 1;
+}
+.ipad-edition.ipad-edition__search-page .ipad-edition__search-form button:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, .62);
+  outline-offset: 2px;
+}
+@media (max-width: 699px) {
+  .ipad-edition.ipad-edition__search-page .ipad-edition__search-form {
+    min-height: 60px;
+    padding: 6px 8px 6px 18px;
+    gap: 10px;
+  }
+  .ipad-edition.ipad-edition__search-page .ipad-edition__search-form input {
+    min-height: 46px;
+    font-size: 16px;
+  }
+  .ipad-edition.ipad-edition__search-page .ipad-edition__search-form button {
+    min-height: 40px;
+    padding-inline: 13px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ipad-edition.ipad-edition__search-page .ipad-edition__search-form,
+  .ipad-edition.ipad-edition__search-page .ipad-edition__search-form button {
+    transition: none;
+  }
+}
+
+/* Search results remain spacious on iPad portrait and compact phones. */
+.ipad-edition.ipad-edition__search-page .ipad-edition__result-card:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, .72);
+  outline-offset: 5px;
+  border-radius: 12px;
+}
+@media (min-width: 700px) and (max-width: 1023px) {
+  .ipad-edition.ipad-edition__search-page .ipad-edition__category-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ipad-edition.ipad-edition__search-page .ipad-edition__result-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 20px 14px;
+  }
+}
+@media (max-width: 699px) {
+  .ipad-edition.ipad-edition__search-page .ipad-edition__category-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .ipad-edition.ipad-edition__search-page .ipad-edition__category-grid button {
+    min-height: 104px;
+    padding: 15px;
+  }
+  .ipad-edition.ipad-edition__search-page .ipad-edition__result-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px 10px;
+  }
+}

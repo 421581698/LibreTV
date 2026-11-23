@@ -1,0 +1,16 @@
+name = "libretv-ipad-edition-preview"
+main = ".open-next/worker.js"
+compatibility_date = "2025-04-01"
+compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
+assets = { directory = ".open-next/assets" }
+
+# Dedicated iPad Edition Preview only. No production routes or custom domains.
+workers_dev = true
+preview_urls = false
+
+[vars]
+# Public iPad Edition Preview: disable the website access-password prompt.
+AUTH_DISABLED = "true"
+CMS_SEARCH_API = "https://caiji.dyttzyapi.com/api.php/provide/vod"
+API_60S_BASE = "https://60s.bggdbh.workers.dev"
+LLM_MODEL = "glm-4-flash"

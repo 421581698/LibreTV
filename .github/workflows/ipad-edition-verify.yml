@@ -1,0 +1,107 @@
+name: LibreTV iPad Edition Verify
+
+on:
+  push:
+    branches:
+      - feature/libretv-ipad-edition-foundation
+      - feature/libretv-ipad-edition-product
+      - feature/ipad-css-important-cleanup
+    paths:
+      - "src/app/ipad-edition/**"
+      - "src/components/ipad-edition/**"
+      - "src/components/movie-detail-page.tsx"
+      - "src/app/watch/page.tsx"
+      - "src/lib/client-api.ts"
+      - "src/lib/types.ts"
+      - "src/lib/utils.ts"
+      - "src/lib/ipad-edition/**"
+      - "docs/ipad-edition/**"
+      - "src/app/layout.tsx"
+      - ".github/workflows/ipad-edition-verify.yml"
+      - ".github/workflows/deploy-ipad-edition-preview.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "src/app/ipad-edition/**"
+      - "src/components/ipad-edition/**"
+      - "src/lib/ipad-edition/**"
+      - "docs/ipad-edition/**"
+      - "src/app/layout.tsx"
+      - ".github/workflows/ipad-edition-verify.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ipad-edition-verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify iPad Edition foundation
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: iPad Edition CSS structure audit
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import postcss from 'postcss';
+
+          const path = 'src/app/ipad-edition/ipad-edition.css';
+          const css = fs.readFileSync(path, 'utf8');
+          const heroCss = fs.readFileSync('src/app/ipad-edition/hero.css', 'utf8');
+          const allIpadStyles = css + '\\n' + heroCss;
+          const root = postcss.parse(css, { from: path });
+          let emptyMedia = 0;
+          let emptyRules = 0;
+          let legacyHeroSelectors = 0;
+          const layoutRoot = root.nodes.find(node => node.type === 'rule' && node.selector === '.ipad-edition');
+          const shadowedRootThemeTokens = (layoutRoot?.nodes ?? [])
+            .filter(node => node.type === 'decl' && /^--ipad-(page|surface|surface-solid|text|muted|line|accent|glass-blur)$/.test(node.prop))
+            .map(node => node.prop);
+          const hasEffectiveNodes = node => (node.nodes ?? []).some(child =>
+            child.type === 'decl' || child.type === 'rule' ||
+            (child.type === 'atrule' && hasEffectiveNodes(child))
+          );
+          root.walkRules(rule => {
+            if (/\.ipad-edition__hero(?:-[\w-]+)?(?![\w-])/.test(rule.selector)) legacyHeroSelectors += 1;
+            if (!hasEffectiveNodes(rule)) emptyRules += 1;
+          });
+          root.walkAtRules('media', rule => {
+            if (!hasEffectiveNodes(rule)) emptyMedia += 1;
+          });
+          const importantCount = (css.match(/!important/g) || []).length;
+          const importantBudget = 249;
+          const forbiddenLegacySystemTheme = /@media\s*\(\s*prefers-color-scheme/i.test(css);
+          const requiredSelectors = [
+            '.ipad-edition__cinema-hero',
+            '.ipad-edition[data-environment="light"]',
+            '.ipad-edition[data-environment="dark"] .ipad-edition__category-grid button',
+          ];
+          const missing = requiredSelectors.filter(selector => !allIpadStyles.includes(selector));
+          console.log(JSON.stringify({ emptyMedia, emptyRules, legacyHeroSelectors, shadowedRootThemeTokens, importantCount, importantBudget, forbiddenLegacySystemTheme, missing }));
+          if (emptyMedia || emptyRules || legacyHeroSelectors || shadowedRootThemeTokens.length || importantCount > importantBudget || forbiddenLegacySystemTheme || missing.length) {
+            throw new Error('iPad Edition CSS structure audit failed.');
+          }
+          NODE
+      - name: TypeScript
+        run: npm run typecheck
+      - name: ESLint
+        run: npm run lint
+      - name: Unit tests
+        run: npm test -- --reporter=dot
+      - name: Production build
+        env:
+          PASSWORD: ci-test-password
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npm run build

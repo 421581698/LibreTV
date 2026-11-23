@@ -79,6 +79,8 @@ export interface DoubanItem {
   id: string;
   title: string;
   cover: string;
+  /** Optional wide cinematic artwork; when absent the UI derives atmosphere from the poster. */
+  backdrop?: string;
   /** Optional native HDR / Ultra HDR image URL; SDR cover remains the universal fallback. */
   coverHdr?: string;
   rating?: string;

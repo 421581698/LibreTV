@@ -1,0 +1,1357 @@
+.ipad-edition {
+  /* Layout foundation only; environment tokens are defined by the cinema theme block below. */
+  min-height: 100dvh;
+  padding: 14px 28px 72px 316px;
+  color: var(--ipad-text);
+  background: radial-gradient(ellipse at 75% -8%, rgba(186,204,235,.3), transparent 43%),var(--ipad-page);
+  isolation: isolate;
+}.ipad-edition[data-environment="dark"] {
+  --ipad-page: #08090c;
+  
+  
+  
+  
+  
+  --ipad-accent: #76a7ff;
+  background: radial-gradient(ellipse at 75% -8%,rgba(47,68,105,.3),transparent 43%),var(--ipad-page);
+}.ipad-edition, .ipad-edition * {box-sizing:border-box}.ipad-edition a {color:inherit;text-decoration:none}.ipad-edition button {color:inherit;font:inherit}.ipad-edition__main {min-width:0;max-width:1800px;margin:0 auto}.ipad-edition__capsule {display:flex;align-items:center;gap:4px;padding:6px;border:1px solid var(--ipad-line);border-radius:999px;background:var(--ipad-surface);-webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);box-shadow:0 8px 30px rgba(20,28,42,.08)}.ipad-edition__capsule a {padding:10px 19px;border-radius:999px;color:var(--ipad-muted);font-size:14px;font-weight:650;white-space:nowrap}.ipad-edition__capsule a.is-active {background:var(--ipad-accent);color:white}.ipad-edition__top-actions {position:absolute;right:4px;display:flex;gap:16px}.ipad-edition__top-actions a {display:grid;place-items:center;width:40px;height:40px;border:1px solid var(--ipad-line);border-radius:50%;background:var(--ipad-surface);font-size:20px;color:var(--ipad-muted)}.ipad-edition__home {display:grid;gap:34px}.ipad-edition__eyebrow {margin:0 0 12px;color:var(--ipad-muted);font-size:10px;font-weight:780;letter-spacing:.17em}.ipad-edition__today, .ipad-edition__rail-section {padding:0 28px}.ipad-edition__section-heading {display:flex;align-items:end;justify-content:space-between;margin-bottom:16px}.ipad-edition__section-heading .ipad-edition__eyebrow {margin-bottom:6px}.ipad-edition__section-heading h2 {margin:0;font-size:25px;font-weight:760;letter-spacing:-.035em}.ipad-edition__section-heading>a, .ipad-edition__section-note {padding-bottom:3px;color:var(--ipad-muted);font-size:12px;font-weight:600}.ipad-edition__poster-grid {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:18px}.ipad-edition__poster-card {min-width:0;display:grid;gap:7px;text-align:left}.ipad-edition__poster-art {position:relative;display:block;aspect-ratio:2/3;overflow:hidden;border-radius:15px;background:var(--ipad-surface-solid);box-shadow:0 8px 22px rgba(10,20,35,.1);transition:transform .2s,box-shadow .2s}.ipad-edition__poster-card:hover .ipad-edition__poster-art, .ipad-edition__anime-card:hover>span {transform:translateY(-4px);box-shadow:0 15px 28px rgba(10,20,35,.18)}.ipad-edition__poster-art img {position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.ipad-edition__poster-rank {position:absolute;top:9px;left:9px;display:grid;place-items:center;min-width:25px;height:25px;padding:0 6px;border-radius:8px;background:rgba(8,12,20,.66);color:white;font-size:11px;font-weight:760;backdrop-filter:blur(8px)}.ipad-edition__poster-card>strong, .ipad-edition__anime-card>strong {overflow:hidden;color:var(--ipad-text);font-size:13px;font-weight:680;text-overflow:ellipsis;white-space:nowrap}.ipad-edition__poster-card>small, .ipad-edition__anime-card>small {color:var(--ipad-muted);font-size:11px}.ipad-edition__poster-skeleton {aspect-ratio:2/3;border-radius:15px;background:linear-gradient(100deg,rgba(125,135,150,.1) 20%,rgba(125,135,150,.2) 40%,rgba(125,135,150,.1) 60%);background-size:200% 100%;animation:ipad-edition-shimmer 1.4s linear infinite}
+@keyframes ipad-edition-shimmer{to {background-position:-200% 0}}.ipad-edition__rail-message {display:grid;place-items:center;min-height:110px;border:1px dashed var(--ipad-line);border-radius:18px;color:var(--ipad-muted);font-size:13px;background:var(--ipad-surface)}.ipad-edition__anime-grid {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:18px}.ipad-edition__anime-card {min-width:0;display:grid;gap:7px}.ipad-edition__anime-card>span {position:relative;display:block;aspect-ratio:16/9;overflow:hidden;border-radius:13px;background:var(--ipad-surface-solid);transition:transform .2s}.ipad-edition__anime-card img {width:100%;height:100%;object-fit:cover}
+@media (min-width:700px) and (max-width:1023px){.ipad-edition {padding:14px 20px 60px}.ipad-edition__today, .ipad-edition__rail-section {padding:0 12px}.ipad-edition__poster-grid, .ipad-edition__anime-grid {gap:12px}
+}
+@media (prefers-reduced-motion:reduce){.ipad-edition * {animation:none!important;scroll-behavior:auto!important;transition:none!important}}.ipad-edition__page {display:grid;gap:28px;padding:12px 28px 60px}.ipad-edition__page-heading {padding:18px 0 2px}.ipad-edition__page-heading .ipad-edition__eyebrow {margin-bottom:9px}.ipad-edition__page-heading h1 {margin:0;color:var(--ipad-text);font-size:clamp(30px,4vw,46px);font-weight:790;letter-spacing:-.05em}.ipad-edition__page-heading>p:last-child {margin:10px 0 0;color:var(--ipad-muted);font-size:14px}.ipad-edition__category-area {display:grid;gap:15px}.ipad-edition__category-grid {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.ipad-edition__category-grid button {position:relative;display:grid;gap:7px;min-height:120px;padding:19px;text-align:left;border:1px solid var(--ipad-line);border-radius:18px;background:linear-gradient(135deg,var(--ipad-surface-solid),var(--ipad-surface));color:var(--ipad-text);box-shadow:0 8px 24px rgba(20,30,45,.05)}.ipad-edition__category-grid button span {font-size:19px;font-weight:750}.ipad-edition__category-grid button small {color:var(--ipad-muted);font-size:11px}.ipad-edition__category-grid button b {position:absolute;right:16px;bottom:16px;color:var(--ipad-accent);font-size:19px}.ipad-edition__result-grid, .ipad-edition__collection-grid {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:20px 16px}.ipad-edition__result-card {display:grid;min-width:0;gap:8px;padding:0;text-align:left;border:0;background:transparent}.ipad-edition__result-poster {position:relative;display:grid;place-items:center;aspect-ratio:2/3;overflow:hidden;border-radius:15px;background:var(--ipad-surface-solid);color:var(--ipad-muted);box-shadow:0 8px 22px rgba(10,20,35,.1)}.ipad-edition__result-poster img {position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.ipad-edition__result-card>strong {overflow:hidden;color:var(--ipad-text);font-size:13px;text-overflow:ellipsis;white-space:nowrap}.ipad-edition__result-card>small {display:-webkit-box;overflow:hidden;color:var(--ipad-muted);font-size:10px;line-height:1.5;-webkit-line-clamp:2;-webkit-box-orient:vertical}.ipad-edition__collection-tabs {display:flex;gap:8px}.ipad-edition__collection-tabs button, .ipad-edition__pagination button {padding:10px 19px;border:1px solid var(--ipad-line);border-radius:999px;background:var(--ipad-surface);color:var(--ipad-muted);font-size:13px;font-weight:650}.ipad-edition__collection-tabs button.is-active {border-color:var(--ipad-accent);background:var(--ipad-accent);color:white}.ipad-edition__pagination {display:flex;align-items:center;justify-content:center;gap:18px;color:var(--ipad-muted);font-size:12px}.ipad-edition__pagination button:disabled {opacity:.35}.ipad-edition__library-card {min-width:0;display:grid;gap:8px}.ipad-edition__library-card>button {justify-self:start;padding:7px 12px;border:1px solid var(--ipad-line);border-radius:10px;background:var(--ipad-surface);color:var(--ipad-muted);font-size:11px}
+@media (min-width:700px) and (max-width:1023px){.ipad-edition__page {padding:8px 12px 48px}.ipad-edition__category-grid {grid-template-columns:repeat(2,minmax(0,1fr))}.ipad-edition__result-grid, .ipad-edition__collection-grid {grid-template-columns:repeat(4,minmax(0,1fr));gap:16px 12px}
+}
+.ipad-edition[data-environment="dark"] .ipad-edition__category-grid button {background:linear-gradient(135deg,rgba(38,43,53,.94),rgba(22,25,32,.9))}.ipad-edition__continue-grid {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}.ipad-edition__continue-card {display:grid;min-width:0;gap:7px}.ipad-edition__continue-art {position:relative;display:block;aspect-ratio:16/9;overflow:hidden;border-radius:15px;background:var(--ipad-surface-solid);box-shadow:0 8px 22px rgba(10,20,35,.1)}.ipad-edition__continue-art img {width:100%;height:100%;object-fit:cover}.ipad-edition__continue-play {position:absolute;inset:0;display:grid;place-items:center;color:white;font-size:24px;text-shadow:0 2px 14px rgba(0,0,0,.5);background:rgba(0,0,0,.12)}.ipad-edition__continue-progress {position:absolute;inset:auto 0 0;height:4px;background:rgba(255,255,255,.3)}.ipad-edition__continue-progress i {display:block;height:100%;background:var(--ipad-accent)}.ipad-edition__continue-card>strong {overflow:hidden;color:var(--ipad-text);font-size:13px;text-overflow:ellipsis;white-space:nowrap}.ipad-edition__continue-card>small {color:var(--ipad-muted);font-size:11px}.ipad-edition [data-screen="settings"] .v4-header {display:none!important}.ipad-edition [data-screen="settings"] .v4-spatial-screen {min-height:0!important;background:transparent!important}.ipad-edition [data-screen="settings"] .v4-spatial-main {max-width:none!important;padding:12px 0 40px!important}
+@media (min-width:700px) and (max-width:1023px){.ipad-edition__continue-grid {grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}}/* iPad Edition cinema foundation — one source of truth for the homepage. */
+.ipad-edition {
+  --ipad-page: #000;
+  --ipad-surface: rgba(28, 28, 30, .58);
+  --ipad-surface-solid: #171719;
+  --ipad-text: #f5f5f7;
+  --ipad-muted: rgba(235, 235, 245, .62);
+  --ipad-line: rgba(255, 255, 255, .09);
+  --ipad-accent: #0a84ff;
+  --ipad-glass-blur: 28px;
+  min-height: 100dvh;
+  
+  color: var(--ipad-text);
+  
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}.ipad-edition[data-environment="dark"] {
+  --ipad-surface: rgba(28, 28, 30, .58);
+  --ipad-surface-solid: #171719;
+  --ipad-text: #f5f5f7;
+  --ipad-muted: rgba(235, 235, 245, .62);
+  --ipad-line: rgba(255, 255, 255, .09);
+  background: #000 !important;
+}html:has(.ipad-edition), body:has(.ipad-edition) {
+  background: #000 !important;
+  overflow-x: hidden;
+}body:has(.ipad-edition) { margin: 0; }.ipad-edition__home {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  gap: clamp(24px, 3.2vh, 38px);
+  padding: 0;
+}.ipad-edition__today, .ipad-edition__rail-section {
+  min-width: 0;
+  width: 100%;
+  padding: 0 clamp(18px, 3.2vw, 48px) !important;
+}.ipad-edition__section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin: 0 0 16px;
+}.ipad-edition__section-heading h2 {
+  margin: 0;
+  color: var(--ipad-text);
+  font-size: clamp(22px, 2.2vw, 29px);
+  font-weight: 760;
+  letter-spacing: -.04em;
+}.ipad-edition__poster-grid, .ipad-edition__anime-grid, .ipad-edition__continue-grid {
+  display: flex !important;
+  align-items: flex-start;
+  gap: clamp(12px, 1.5vw, 18px) !important;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}.ipad-edition__poster-grid::-webkit-scrollbar, .ipad-edition__anime-grid::-webkit-scrollbar, .ipad-edition__continue-grid::-webkit-scrollbar { display: none; }.ipad-edition__poster-card {
+  
+  
+  min-width: 0;
+  scroll-snap-align: start;
+}.ipad-edition__poster-art {
+  display: block;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #171719;
+}.ipad-edition__poster-art img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}.ipad-edition__poster-skeleton {
+  flex: 0 0 clamp(142px, 15vw, 204px);
+  width: clamp(142px, 15vw, 204px);
+  aspect-ratio: 2 / 3;
+  border-radius: 12px;
+}.ipad-edition__anime-card {
+  flex: 0 0 clamp(190px, 21vw, 280px);
+  width: clamp(190px, 21vw, 280px);
+  scroll-snap-align: start;
+}.ipad-edition__anime-card > span {
+  display: block;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 12px;
+}.ipad-edition__anime-card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}.ipad-edition__continue-card {
+  flex: 0 0 clamp(220px, 25vw, 320px);
+  width: clamp(220px, 25vw, 320px);
+  min-width: 0;
+  scroll-snap-align: start;
+}
+@media (max-width: 699px) {.ipad-edition { padding-bottom: 40px !important; }.ipad-edition__today, .ipad-edition__rail-section { padding-inline: 16px !important; }.ipad-edition__poster-card, .ipad-edition__poster-skeleton { flex-basis: 138px !important; width: 138px !important; }.ipad-edition__anime-card { flex-basis: 188px; width: 188px; }.ipad-edition__continue-card { flex-basis: 220px; width: 220px; }
+}/* Shared liquid-glass navigation and controls. */
+/* Unified Liquid Glass system — Project Two iPad Edition */
+.ipad-edition {
+  --ipad-glass-fill: rgba(246, 249, 255, .58);
+  --ipad-glass-fill-strong: rgba(246, 249, 255, .72);
+  --ipad-glass-edge: rgba(255, 255, 255, .78);
+  --ipad-glass-highlight: rgba(255, 255, 255, .86);
+  --ipad-glass-shadow: 0 16px 48px rgba(24, 38, 62, .16), 0 3px 10px rgba(24, 38, 62, .08);
+  --ipad-glass-blur: 30px;
+  --ipad-glass-foreground: #20242c;
+  --ipad-glass-muted: rgba(32, 36, 44, .82);
+  --ipad-glass-active: rgba(55, 105, 190, .14);
+  --ipad-glass-active-edge: rgba(55, 105, 190, .22);
+}.ipad-edition[data-environment="dark"] {
+  
+  
+  
+  
+  
+  --ipad-glass-foreground: #f5f6fa;
+  
+  --ipad-glass-active: rgba(120, 150, 255, .28);
+  --ipad-glass-active-edge: rgba(160, 185, 255, .24);
+} .ipad-edition[data-environment="dark"] .ipad-edition__category-grid button, .ipad-edition[data-environment="dark"] .ipad-edition__collection-tabs button, .ipad-edition[data-environment="dark"] .ipad-edition__pagination button, .ipad-edition[data-environment="dark"] .ipad-edition__library-card > button{
+  border-color: var(--ipad-glass-edge) !important;
+  background: linear-gradient(145deg, rgba(255,255,255,.1), transparent 56%), var(--ipad-glass-fill) !important;
+  box-shadow: 0 12px 34px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.18) !important;
+}.ipad-edition__category-grid button:active, .ipad-edition__collection-tabs button:active, .ipad-edition__pagination button:active, .ipad-edition__library-card > button:active{
+  transform: scale(.975);
+}
+
+
+/* Global Apple TV / iPadOS Liquid Glass controls — Project Two */
+.ipad-edition {
+  --ipad-glass-capsule-radius: 999px;
+  --ipad-glass-control-fill: rgba(247, 249, 253, .48);
+  --ipad-glass-control-edge: rgba(255, 255, 255, .68);
+  --ipad-glass-control-shadow: 0 8px 26px rgba(20, 31, 50, .09), inset 0 1px 0 rgba(255,255,255,.72);
+}.ipad-edition[data-environment="dark"] {
+  --ipad-glass-control-fill: rgba(43, 47, 56, .58);
+  --ipad-glass-control-edge: rgba(255, 255, 255, .17);
+  --ipad-glass-control-shadow: 0 10px 30px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.15);
+}/* All compact navigation */ .ipad-edition__collection-tabs button, .ipad-edition__pagination button, .ipad-edition__library-card > button, .ipad-edition__category-grid button{
+  border-radius: var(--ipad-glass-capsule-radius) !important;
+}.ipad-edition__collection-tabs, .ipad-edition__pagination {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+}.ipad-edition__collection-tabs button, .ipad-edition__pagination button, .ipad-edition__library-card > button {
+  min-height: 40px;
+  padding: 0 19px;
+  border: 1px solid var(--ipad-glass-control-edge) !important;
+  background: linear-gradient(145deg,rgba(255,255,255,.24),transparent 58%),var(--ipad-glass-control-fill) !important;
+  box-shadow: var(--ipad-glass-control-shadow) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(185%) !important;
+  backdrop-filter: blur(24px) saturate(185%) !important;
+  transition: transform .2s cubic-bezier(.2,.8,.2,1),background .2s ease,border-color .2s ease,box-shadow .2s ease;
+}.ipad-edition__collection-tabs button.is-active {
+  border-color: rgba(255,255,255,.72) !important;
+  background: linear-gradient(145deg,rgba(255,255,255,.8),rgba(255,255,255,.34)) !important;
+  color: #172033 !important;
+  box-shadow: 0 6px 20px rgba(20,35,60,.13),inset 0 1px 0 #fff !important;
+}.ipad-edition[data-environment="dark"] .ipad-edition__collection-tabs button.is-active {
+  border-color: rgba(255,255,255,.3) !important;
+  background: linear-gradient(145deg,rgba(255,255,255,.25),rgba(255,255,255,.09)) !important;
+  color: #fff !important;
+} .ipad-edition input:not([type="checkbox"]):not([type="radio"]), .ipad-edition select, .ipad-edition textarea {
+  color: var(--ipad-text);
+  border-radius: 999px;
+}.ipad-edition__category-grid button {
+  border-radius: 24px !important;
+  border: 1px solid var(--ipad-glass-control-edge) !important;
+  background: linear-gradient(145deg,rgba(255,255,255,.24),transparent 58%),var(--ipad-glass-control-fill) !important;
+  box-shadow: var(--ipad-glass-control-shadow) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(180%) !important;
+  backdrop-filter: blur(26px) saturate(180%) !important;
+  transition: transform .22s cubic-bezier(.2,.8,.2,1),box-shadow .22s ease;
+}.ipad-edition button:focus-visible, .ipad-edition a:focus-visible, .ipad-edition input:focus-visible, .ipad-edition select:focus-visible, .ipad-edition textarea:focus-visible {
+  outline: 2px solid rgba(91,153,255,.9);
+  outline-offset: 3px;
+}.ipad-edition__collection-tabs button:active, .ipad-edition__pagination button:active, .ipad-edition__library-card > button:active, .ipad-edition__category-grid button:active{
+  transform: scale(.965);
+}.ipad-edition button:disabled {
+  cursor: not-allowed;
+  opacity: .42;
+}
+@media (max-width: 699px) {.ipad-edition__collection-tabs button, .ipad-edition__pagination button, .ipad-edition__library-card > button { min-height: 38px; padding-inline: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {.ipad-edition__collection-tabs button, .ipad-edition__pagination button, .ipad-edition__library-card > button, .ipad-edition__category-grid button{ transition: none !important; }
+}/* iPad Design Engine foundation: shared material, spatial and motion tokens. */
+.ipad-edition {
+  --ipad-z-content: 0;
+  --ipad-z-controls: 20;
+  --ipad-z-navigation: 110;
+  --ipad-z-drawer: 121;
+  --ipad-z-modal: 140;
+  --ipad-motion-fast: 160ms;
+  --ipad-motion-standard: 240ms;
+  --ipad-motion-emphasized: 340ms;
+  --ipad-motion-ease: cubic-bezier(.2,.8,.2,1);
+  --ipad-glass-fill: rgba(246,248,252,.76);
+  --ipad-glass-fill-strong: rgba(250,251,253,.9);
+  --ipad-glass-edge: rgba(24,32,46,.14);
+  --ipad-glass-highlight: rgba(255,255,255,.82);
+  --ipad-glass-shadow: 0 12px 38px rgba(28,38,56,.16);
+  --ipad-glass-text: #17191d;
+  --ipad-glass-muted: #596273;
+  --ipad-depth-shadow: 0 18px 54px rgba(12,20,34,.2);
+}.ipad-edition[data-environment="dark"] {
+  --ipad-glass-fill: rgba(34,36,42,.62);
+  --ipad-glass-fill-strong: rgba(24,26,31,.88);
+  --ipad-glass-edge: rgba(255,255,255,.16);
+  --ipad-glass-highlight: rgba(255,255,255,.14);
+  --ipad-glass-shadow: 0 12px 38px rgba(0,0,0,.32);
+  --ipad-glass-text: #f5f6f8;
+  --ipad-glass-muted: rgba(235,235,245,.68);
+  --ipad-depth-shadow: 0 20px 64px rgba(0,0,0,.48);
+}.ipad-edition :where(a,button,input,[tabindex]):focus-visible {
+  outline: 2px solid var(--ipad-accent, #0a84ff);
+  outline-offset: 3px;
+}.ipad-edition :where(button,a) {
+  -webkit-tap-highlight-color: transparent;
+}.ipad-edition__poster-grid, .ipad-edition__anime-grid, .ipad-edition__continue-grid {
+  overscroll-behavior-x: contain;
+  scroll-behavior: smooth;
+}.ipad-edition__poster-art, .ipad-edition__anime-card > span, .ipad-edition__continue-art, .ipad-edition__result-poster {
+  contain: paint;
+}
+
+@media (prefers-reduced-motion: reduce) {.ipad-edition__poster-art, .ipad-edition__anime-card > span{
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* iPad Edition layout collision pass — consolidated final overrides. */
+.ipad-edition {
+  /* The drawer is off-canvas; never reserve its former 316px width. */
+  padding: 10px clamp(16px, 2.4vw, 36px) 56px !important;
+  min-width: 0;
+  overflow-x: clip;
+}.ipad-edition__main {
+  width: 100%;
+  min-width: 0;
+  margin: 0 auto;
+}.ipad-edition__home {
+  min-width: 0;
+  
+}.ipad-edition__today, .ipad-edition__rail-section {
+  min-width: 0;
+  
+  
+}.ipad-edition__poster-grid, .ipad-edition__anime-grid, .ipad-edition__continue-grid {
+  min-width: 0;
+  padding: 10px 24px 20px 0 !important;
+  margin-top: -8px;
+  scroll-padding-inline: 4px;
+}.ipad-edition__poster-grid, .ipad-edition__anime-grid {
+  display: flex !important;
+  gap: clamp(12px, 1.5vw, 18px) !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}.ipad-edition__poster-card {
+  flex: 0 0 clamp(136px, 15vw, 204px) !important;
+  width: clamp(136px, 15vw, 204px) !important;
+}.ipad-edition__anime-card {
+  flex: 0 0 clamp(190px, 21vw, 280px) !important;
+  width: clamp(190px, 21vw, 280px) !important;
+}.ipad-edition__poster-card:hover .ipad-edition__poster-art, .ipad-edition__result-card:hover .ipad-edition__result-poster, .ipad-edition__library-card:hover .ipad-edition__result-poster {
+  transform: translateY(-3px) scale(1.01) !important;
+}.ipad-edition__result-grid, .ipad-edition__collection-grid {
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: clamp(12px, 1.5vw, 20px) !important;
+  min-width: 0;
+}.ipad-edition__category-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  min-width: 0;
+}.ipad-edition__page {
+  min-width: 0;
+  width: 100%;
+  padding: 112px clamp(16px, 2.4vw, 36px) 56px !important;
+}.ipad-edition__page-heading, .ipad-edition__search-results, .ipad-edition__category-area {
+  min-width: 0;
+  max-width: 100%;
+}.ipad-edition__pagination {
+  flex-wrap: wrap;
+}.ipad-edition[data-ipad-player="true"] {
+  min-height: 100dvh;
+  height: 100dvh;
+  padding: 0 !important;
+  overflow: hidden !important;
+  background: #000 !important;
+}.ipad-edition[data-ipad-player="true"] > .ipad-edition__main {
+  width: 100%;
+  height: 100%;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 0;
+}.ipad-edition[data-ipad-player="true"] .netflix-watch-shell {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+}
+@media (max-width: 699px) {.ipad-edition {
+    padding: 8px 0 40px !important;
+  }.ipad-edition__today, .ipad-edition__rail-section {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }.ipad-edition__poster-card {
+    flex-basis: 138px !important;
+    width: 138px !important;
+  }.ipad-edition__anime-card {
+    flex-basis: 188px !important;
+    width: 188px !important;
+  }.ipad-edition__result-grid, .ipad-edition__collection-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 16px 12px !important;
+  }.ipad-edition__category-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }.ipad-edition__page {
+    padding: 84px 16px 40px !important;
+  }.ipad-edition__pagination {
+    gap: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {.ipad-edition__poster-card:hover .ipad-edition__poster-art, .ipad-edition__result-card:hover .ipad-edition__result-poster, .ipad-edition__library-card:hover .ipad-edition__result-poster {
+    transform: none !important;
+  }
+}/* Detail pages own their hero controls; keep the shell navigation out of that layer. */
+.ipad-edition[data-ipad-detail="true"] {
+  min-height: 100dvh;
+  padding: 0 !important;
+  background: #08080a !important;
+}.ipad-edition[data-ipad-detail="true"] > .ipad-edition__main {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}.ipad-edition[data-ipad-detail="true"] .movie-detail-page {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}.ipad-edition__poster-skeleton {
+  flex: 0 0 clamp(136px, 15vw, 204px);
+  width: clamp(136px, 15vw, 204px);
+}
+@media (max-width: 699px) {.ipad-edition__poster-skeleton {
+    flex-basis: 138px;
+    width: 138px;
+  }.ipad-edition[data-ipad-detail="true"] .movie-detail-hero {
+    min-height: max(560px, 78svh);
+  }
+}/* Final clipping and rail sizing corrections. */
+.ipad-edition__poster-art, .ipad-edition__anime-card > span, .ipad-edition__continue-art, .ipad-edition__result-poster {
+  contain: layout style !important;
+}.ipad-edition__continue-card {
+  flex: 0 0 clamp(220px, 25vw, 320px);
+  width: clamp(220px, 25vw, 320px);
+  min-width: 0;
+  scroll-snap-align: start;
+}.ipad-edition__poster-card, .ipad-edition__anime-card {
+  min-width: 0;
+  scroll-snap-align: start;
+}
+@media (max-width: 699px) {.ipad-edition__continue-card {
+    flex-basis: 220px;
+    width: 220px;
+  }
+}/* [deploy-ipad-edition-preview] Homepage layout and poster rail consolidation checkpoint. */
+
+
+/* Global refinement pass — iPad Edition only.
+   Keep the cinema-first black canvas while normalizing spacing, touch, safe areas, responsive density and Safari fallbacks across every route. */
+.ipad-edition {
+  --ipad-page-gutter: clamp(18px, 3vw, 44px);
+  --ipad-content-gap: clamp(22px, 3.2vh, 34px);
+  --ipad-touch-target: 44px;
+  min-height: 100svh;
+  min-height: 100dvh;
+  
+  color: #f5f5f7;
+  background: #000 !important;
+  -webkit-tap-highlight-color: transparent;
+}.ipad-edition__main {
+  min-width: 0;
+  width: 100%;
+  overflow: clip;
+}.ipad-edition__home {
+  /* The navigation is fixed to the viewport, so reserve its full vertical footprint
+     in the homepage flow instead of letting it cover the featured hero. */
+  
+  gap: var(--ipad-content-gap) !important;
+} .ipad-edition__collection-tabs button, .ipad-edition__pagination button, .ipad-edition__category-grid button, .ipad-edition__library-card > button{
+  min-height: var(--ipad-touch-target);
+  touch-action: manipulation;
+}.ipad-edition__today, .ipad-edition__rail-section {
+  padding-left: var(--ipad-page-gutter) !important;
+  padding-right: var(--ipad-page-gutter) !important;
+}.ipad-edition__section-heading {
+  min-height: 34px;
+  gap: 12px;
+}.ipad-edition__section-heading h2 {
+  line-height: 1.2;
+}.ipad-edition__poster-grid, .ipad-edition__anime-grid, .ipad-edition__continue-grid {
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 2px;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+}.ipad-edition__poster-grid::-webkit-scrollbar, .ipad-edition__anime-grid::-webkit-scrollbar, .ipad-edition__continue-grid::-webkit-scrollbar {
+  display: none;
+}.ipad-edition__poster-card, .ipad-edition__anime-card, .ipad-edition__continue-card {
+  flex-shrink: 0;
+}.ipad-edition__poster-art img, .ipad-edition__anime-card img, .ipad-edition__continue-art img, .ipad-edition__result-poster img {
+  display: block;
+}.ipad-edition__poster-art, .ipad-edition__anime-card > span, .ipad-edition__continue-art, .ipad-edition__result-poster {
+  background: #171719;
+  border: 1px solid rgba(255,255,255,.07);
+}.ipad-edition__poster-card > strong, .ipad-edition__anime-card > strong, .ipad-edition__continue-card > strong, .ipad-edition__result-card > strong {
+  line-height: 1.4;
+}.ipad-edition__page {
+  
+  padding-bottom: max(48px, env(safe-area-inset-bottom, 0px)) !important;
+}.ipad-edition__page-heading h1 {
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}.ipad-edition :where(a, button, input, select, textarea) {
+  touch-action: manipulation;
+}.ipad-edition :where(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid #70a7ff;
+  outline-offset: 3px;
+}.ipad-edition :where(button):disabled {
+  cursor: not-allowed;
+  opacity: .48;
+}
+@media (min-width: 700px) and (max-width: 1023px) {.ipad-edition {
+    --ipad-page-gutter: 24px;
+    --ipad-content-gap: 26px;
+  }.ipad-edition__poster-card, .ipad-edition__poster-skeleton {
+    flex-basis: clamp(148px, 19vw, 172px) !important;
+    width: clamp(148px, 19vw, 172px) !important;
+  }.ipad-edition__anime-card {
+    flex-basis: clamp(200px, 27vw, 250px) !important;
+    width: clamp(200px, 27vw, 250px) !important;
+  }.ipad-edition__result-grid, .ipad-edition__collection-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 18px 14px !important;
+  }.ipad-edition__category-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+@media (min-width: 1024px) and (max-width: 1440px) {.ipad-edition {
+    --ipad-page-gutter: clamp(28px, 3.2vw, 48px);
+  }
+}
+@media (max-width: 699px) {.ipad-edition__home {
+    /* Compact mobile capsule: keep a smaller, but still explicit, safe-area gap. */
+    padding-top: max(76px, calc(env(safe-area-inset-top, 0px) + 64px)) !important;
+  }
+}
+@media (prefers-reduced-transparency: reduce) { .ipad-edition__collection-tabs button, .ipad-edition__pagination button, .ipad-edition__category-grid button {
+    background: rgba(24, 26, 31, .96) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {.ipad-edition__poster-grid, .ipad-edition__anime-grid, .ipad-edition__continue-grid {
+    scroll-behavior: auto !important;
+  }
+}/* [deploy-ipad-edition-preview] Publish the global iPad Edition refinement to isolated Preview. */
+
+
+/* Real light appearance for the iPad cinema edition. */
+.ipad-edition[data-environment="light"] {
+  --ipad-page: #f5f5f7;
+  --ipad-surface: rgba(255, 255, 255, .72);
+  --ipad-surface-solid: #fff;
+  --ipad-text: #1d1d1f;
+  --ipad-muted: rgba(60, 60, 67, .72);
+  --ipad-line: rgba(60, 60, 67, .14);
+  --ipad-accent: #0a84ff;
+  --ipad-glass-fill: rgba(246, 249, 255, .64);
+  --ipad-glass-fill-strong: rgba(246, 249, 255, .78);
+  --ipad-glass-edge: rgba(255, 255, 255, .9);
+  --ipad-glass-highlight: rgba(255, 255, 255, .96);
+  --ipad-glass-shadow: 0 16px 48px rgba(24, 38, 62, .14), 0 3px 10px rgba(24, 38, 62, .07);
+  color: var(--ipad-text) !important;
+  background: radial-gradient(ellipse at 75% -8%, rgba(186, 204, 235, .34), transparent 43%), var(--ipad-page) !important;
+}/* iPad Edition owns its top Liquid Glass navigation. The shared mobile dock is
+   portaled directly under body, so hiding descendants of .ipad-edition is not
+   sufficient; explicitly exclude that portal on this route. */
+html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}.ipad-edition {
+  padding-bottom: max(24px, env(safe-area-inset-bottom, 0px)) !important;
+}
+
+/* New iPad Edition navigation — replaces the legacy sidebar and glass capsule. */
+.ipad-edition {
+  --ipad-nav-ink: #f5f6f8;
+  --ipad-nav-muted: rgba(245, 246, 248, .58);
+  --ipad-nav-panel: rgba(19, 21, 26, .92);
+  --ipad-nav-line: rgba(255, 255, 255, .1);
+}
+.ipad-edition[data-environment="light"] {
+  --ipad-nav-ink: #20232a;
+  --ipad-nav-muted: rgba(32, 35, 42, .56);
+  --ipad-nav-panel: rgba(250, 251, 253, .96);
+  --ipad-nav-line: rgba(32, 35, 42, .1);
+}
+.ipad-nav__topbar {
+  position: fixed;
+  z-index: 80;
+  top: max(12px, env(safe-area-inset-top, 0px) + 8px);
+  left: 50%;
+  width: min(720px, calc(100vw - 36px));
+  height: 58px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.ipad-nav__topbar-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 100%;
+  padding: 0 12px;
+  border: 1px solid var(--ipad-nav-line);
+  border-radius: 18px;
+  color: var(--ipad-nav-ink);
+  position: relative;
+  background: transparent;
+  box-shadow: 0 10px 36px rgba(0, 0, 0, .16);
+  pointer-events: auto;
+}
+.ipad-nav__menu-button {
+  display: grid;
+  flex: 0 0 40px;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+.ipad-nav__menu-button:active { background: rgba(128, 140, 160, .16); }
+.ipad-nav__icon { display: block; width: 21px; height: 21px; }
+.ipad-nav__sidebar {
+  position: fixed;
+  z-index: 100;
+  inset: 0 auto 0 0;
+  display: flex;
+  flex-direction: column;
+  width: min(280px, calc(100vw - 52px));
+  padding: max(26px, env(safe-area-inset-top, 0px) + 20px) 18px max(20px, env(safe-area-inset-bottom, 0px));
+  border-right: 1px solid var(--ipad-nav-line);
+  color: var(--ipad-nav-ink);
+  background: transparent;
+  box-shadow: 24px 0 70px rgba(0, 0, 0, .22);
+  transform: translateX(calc(-105% + var(--ipad-sidebar-drag, 0px)));
+  visibility: hidden;
+  transition: transform .24s cubic-bezier(.2,.75,.25,1), visibility .24s;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.ipad-nav__sidebar.is-open { transform: translateX(var(--ipad-sidebar-drag, 0px)); visibility: visible; }
+.ipad-edition[data-ipad-sidebar-dragging="true"] .ipad-nav__sidebar { transition: none !important; }
+.ipad-edition { touch-action: pan-y pinch-zoom; }
+.ipad-nav__brand { display: flex; align-items: center; gap: 11px; padding: 4px 8px 42px; color: inherit; }
+.ipad-nav__brand-copy { display: grid; gap: 3px; }
+.ipad-nav__brand-copy strong { font-size: 19px; font-weight: 780; letter-spacing: -.04em; }
+.ipad-nav__brand-copy small { color: var(--ipad-nav-muted); font-size: 9px; letter-spacing: .17em; }
+.ipad-nav__section-label { margin: 0 10px 12px; color: var(--ipad-nav-muted); font-size: 10px; font-weight: 750; letter-spacing: .16em; }
+.ipad-nav__links { display: grid; gap: 8px; }
+.ipad-nav__links a {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  min-height: 54px;
+  padding: 0 15px;
+  border: 1px solid transparent;
+  border-radius: 15px;
+  color: var(--ipad-nav-muted);
+  font-size: 15px;
+  font-weight: 650;
+  transition: color .18s, background .18s, border-color .18s;
+}
+.ipad-nav__links a:hover { color: var(--ipad-nav-ink); background: rgba(128, 140, 160, .1); }
+.ipad-nav__links a.is-active {
+  border-color: rgba(128, 140, 160, .2);
+  color: var(--ipad-nav-ink);
+  background: rgba(128, 140, 160, .14);
+}
+.ipad-nav__links a.is-active .ipad-nav__icon { color: currentColor; }
+.ipad-nav__links a i {
+  width: 5px;
+  height: 5px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: currentColor;
+}
+.ipad-nav__sidebar-foot { margin-top: auto; padding: 18px 9px 0; border-top: 1px solid var(--ipad-nav-line); }
+.ipad-nav__sidebar-foot span { color: var(--ipad-nav-muted); font-size: 9px; letter-spacing: .12em; }
+.ipad-nav__scrim {
+  position: fixed;
+  z-index: 90;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: rgba(0, 0, 0, .38);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+.ipad-edition__home,
+.ipad-edition__page { scroll-margin-top: 94px; }
+.ipad-edition__home { padding-top: max(104px, calc(env(safe-area-inset-top, 0px) + 88px)) !important; }
+.ipad-edition__page { padding-top: max(104px, calc(env(safe-area-inset-top, 0px) + 88px)) !important; }
+.ipad-edition[data-ipad-player="true"] .ipad-nav__topbar,
+.ipad-edition[data-ipad-player="true"] .ipad-nav__sidebar,
+.ipad-edition[data-ipad-detail="true"] .ipad-nav__topbar,
+.ipad-edition[data-ipad-detail="true"] .ipad-nav__sidebar { display: none !important; }
+@media (max-width: 699px) {
+  .ipad-nav__topbar { width: calc(100vw - 24px); height: 54px; top: max(7px, env(safe-area-inset-top, 0px) + 4px); }
+  .ipad-nav__topbar-inner { border-radius: 16px; padding-inline: 9px; }
+  .ipad-nav__wordmark { font-size: 15px; }
+  .ipad-nav__wordmark small { display: none; }
+  .ipad-nav__quick-search { min-width: 40px; width: 40px; padding: 0; }
+  .ipad-nav__quick-search span { display: none; }
+  .ipad-edition__home { padding-top: max(82px, env(safe-area-inset-top, 0px) + 72px) !important; }
+  .ipad-edition__page { padding-top: max(82px, env(safe-area-inset-top, 0px) + 72px) !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ipad-nav__sidebar { transition: none; }
+}
+
+/* [deploy-ipad-edition-preview] Audit the replacement iPad navigation shell. */
+
+/* [deploy-ipad-edition-preview] Run the new navigation visual audit against the deployed shell. */
+
+/* [deploy-ipad-edition-preview] Finalize the new navigation theme audit. */
+
+/* [deploy-ipad-edition-preview] Re-run viewport-based scroll overlap audit. */
+
+
+/* Keep the legacy tint only while the optical engine is loading or unavailable. */
+.ipad-nav__topbar-inner[data-liquid-glass-engine="fallback"],
+.ipad-nav__sidebar[data-liquid-glass-engine="fallback"] {
+  background: var(--ipad-nav-panel);
+}
+
+
+/* Phase 2 · shared spatial and motion contract for iPad chrome. */
+.ipad-edition {
+  --ipad-z-content: 0;
+  --ipad-z-navigation: 80;
+  --ipad-z-scrim: 90;
+  --ipad-z-floating: 100;
+  --ipad-motion-fast: 140ms;
+  --ipad-motion-panel: 240ms;
+  --ipad-motion-ease: cubic-bezier(.2, .8, .2, 1);
+  --ipad-press-scale: .97;
+}
+.ipad-nav__topbar { z-index: var(--ipad-z-navigation); }
+.ipad-nav__scrim { z-index: var(--ipad-z-scrim); }
+.ipad-nav__sidebar {
+  z-index: var(--ipad-z-floating);
+  transition:
+    transform var(--ipad-motion-panel) var(--ipad-motion-ease),
+    visibility var(--ipad-motion-panel);
+}
+.ipad-nav__menu-button,
+.ipad-nav__quick-search,
+.ipad-nav__links a {
+  transition:
+    transform var(--ipad-motion-fast) var(--ipad-motion-ease),
+    color var(--ipad-motion-fast) ease,
+    background-color var(--ipad-motion-fast) ease,
+    border-color var(--ipad-motion-fast) ease;
+}
+.ipad-nav__menu-button:active,
+.ipad-nav__quick-search:active,
+.ipad-nav__links a:active {
+  transform: scale(var(--ipad-press-scale));
+}
+.ipad-nav__menu-button:focus-visible,
+.ipad-nav__quick-search:focus-visible,
+.ipad-nav__links a:focus-visible {
+  outline: 2px solid var(--ipad-accent);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ipad-nav__sidebar,
+  .ipad-nav__menu-button,
+  .ipad-nav__quick-search,
+  .ipad-nav__links a {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+
+/* iPad navigation keeps a translucent material base beneath the optical engine.
+   The engine provides refraction; this host layer supplies readable tint and blur
+   in browsers where displacement rendering is limited (notably Safari). */
+.ipad-nav__topbar-inner.liquid-glass[data-liquid-glass-engine="ready"] {
+  
+  border-color: var(--ipad-glass-edge, rgba(24,32,46,.14)) !important;
+  
+  
+  box-shadow: var(--ipad-glass-shadow, 0 12px 38px rgba(28,38,56,.16)) !important;
+}
+.ipad-nav__sidebar.liquid-glass[data-liquid-glass-engine="ready"] {
+  background: var(--ipad-glass-fill-strong, rgba(250,251,253,.9)) !important;
+  border-right-color: var(--ipad-glass-edge, rgba(24,32,46,.14)) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(175%) !important;
+  backdrop-filter: blur(28px) saturate(175%) !important;
+  box-shadow: var(--ipad-depth-shadow, 0 18px 54px rgba(12,20,34,.2)) !important;
+}
+
+
+/* [deploy-ipad-edition-preview] Navigation hierarchy: capsule categories + personal/tools sidebar. */
+/* Retire the former wordmark/search-only topbar controls; the capsule now owns category navigation. */
+.ipad-nav__topbar {
+  width: min(980px, calc(100vw - 36px));
+}
+.ipad-nav__topbar-inner {
+  gap: 10px;
+  padding-inline: 10px;
+}
+.ipad-nav__capsule {
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: center;
+  gap: 3px;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.ipad-nav__capsule a {
+  padding: 9px clamp(9px, 1.25vw, 18px);
+  font-size: 13px;
+}
+.ipad-nav__personal-tools {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 13px;
+  border: 1px solid var(--ipad-nav-line);
+  border-radius: 999px;
+  color: var(--ipad-nav-ink);
+  background: rgba(128, 140, 160, .09);
+  font-size: 12px;
+  font-weight: 680;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--ipad-motion-fast, 140ms) ease, color var(--ipad-motion-fast, 140ms) ease, transform var(--ipad-motion-fast, 140ms) ease;
+}
+.ipad-nav__personal-tools.is-active {
+  border-color: rgba(128, 140, 160, .22);
+  color: currentColor;
+  background: rgba(128, 140, 160, .12);
+}
+.ipad-nav__personal-tools:active { transform: scale(.97); }
+.ipad-nav__menu-button { flex-basis: 40px; }
+@media (max-width: 699px) {
+  .ipad-nav__topbar { width: calc(100vw - 16px); }
+  .ipad-nav__topbar-inner { gap: 4px; padding-inline: 5px; }
+  .ipad-nav__capsule { gap: 0; padding: 3px 1px; }
+  .ipad-nav__capsule a { padding: 9px clamp(5px, 1.5vw, 9px); font-size: 11px; }
+  .ipad-nav__personal-tools { min-height: 38px; padding-inline: 7px; font-size: 10px; }
+  .ipad-nav__menu-button { flex-basis: 36px; width: 36px; height: 38px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ipad-nav__personal-tools { transition: none !important; }
+}
+
+
+/* Frozen iPad Edition capsule specification: 430px maximum width × 72px,
+   with four icon-only shortcuts and the original full pill silhouette. */
+.ipad-nav__topbar {
+  width: min(430px, calc(100vw - 24px)) !important;
+  height: 72px !important;
+  top: max(12px, calc(env(safe-area-inset-top, 0px) + 8px)) !important;
+}
+.ipad-nav__topbar-inner {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  border-radius: 999px !important;
+  border: 1px solid var(--ipad-glass-edge, rgba(255,255,255,.72)) !important;
+  color: var(--ipad-nav-ink) !important;
+  background: var(--ipad-glass-fill, rgba(246,248,252,.72)) !important;
+  box-shadow: var(--ipad-glass-shadow, 0 16px 48px rgba(24,38,62,.14)) !important;
+}
+.ipad-nav__topbar-inner.liquid-glass[data-liquid-glass-engine="ready"] {
+  border-radius: 999px !important;
+  background: var(--ipad-glass-fill, rgba(246,248,252,.72)) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+}
+.ipad-nav__topbar-inner[data-liquid-glass-engine="fallback"] {
+  border-radius: 999px !important;
+  background: var(--ipad-glass-fill-strong, rgba(246,248,252,.86)) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+}
+.ipad-nav__capsule-action {
+  display: grid !important;
+  place-items: center !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 50% !important;
+  color: var(--ipad-nav-ink) !important;
+  background: transparent !important;
+  text-decoration: none !important;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 140ms ease, color 140ms ease, transform 140ms cubic-bezier(.2,.8,.2,1);
+}
+.ipad-nav__capsule-action:active { transform: scale(.94); }
+.ipad-nav__capsule-action:focus-visible {
+  outline: 2px solid var(--ipad-accent);
+  outline-offset: 2px;
+}
+.ipad-nav__links a .ipad-nav__icon {
+  width: 22px;
+  height: 22px;
+}
+@media (max-width: 699px) {
+  .ipad-nav__topbar {
+    top: max(8px, calc(env(safe-area-inset-top, 0px) + 4px)) !important;
+  }
+  .ipad-nav__topbar-inner {
+    gap: 0 !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ipad-nav__capsule-action { transition: none !important; }
+}
+
+/* Design Engine 04/06 — environment-driven glass and theme tokens. */
+.ipad-edition {
+  --ipad-env-glass-opacity: .72;
+  --ipad-env-blur: 24px;
+  --ipad-env-scrim: .2;
+  --ipad-env-edge-opacity: .22;
+}
+.ipad-edition .ipad-nav__topbar-inner,
+.ipad-edition .ipad-nav__sidebar {
+  background: color-mix(in srgb, var(--ipad-surface-solid) calc(var(--ipad-env-glass-opacity) * 100%), transparent) !important;
+  border-color: color-mix(in srgb, var(--ipad-text) calc(var(--ipad-env-edge-opacity) * 100%), transparent) !important;
+  -webkit-backdrop-filter: blur(var(--ipad-env-blur)) saturate(180%) !important;
+  backdrop-filter: blur(var(--ipad-env-blur)) saturate(180%) !important;
+}
+.ipad-edition[data-environment="light"] {
+  --ipad-page: #f3f4f6;
+  --ipad-surface: rgba(255,255,255,.72);
+  --ipad-surface-solid: #fff;
+  --ipad-text: #17191d;
+  --ipad-muted: #626a76;
+  --ipad-line: rgba(28,35,46,.16);
+  --ipad-accent: #1769d2;
+  color: var(--ipad-text);
+  background:
+    radial-gradient(ellipse at 75% -8%, rgba(186,204,235,.42), transparent 43%),
+    var(--ipad-page) !important;
+}
+html:has(.ipad-edition[data-environment="light"]),
+body:has(.ipad-edition[data-environment="light"]) {
+  background: #f3f4f6 !important;
+}
+.ipad-edition[data-environment="light"] .ipad-nav__topbar-inner,
+.ipad-edition[data-environment="light"] .ipad-nav__sidebar {
+  color: #17191d !important;
+  box-shadow: 0 16px 48px rgba(24,38,62,.12) !important;
+}
+.ipad-edition[data-environment-contrast="high"] .ipad-nav__topbar-inner,
+.ipad-edition[data-environment-contrast="high"] .ipad-nav__sidebar {
+  border-width: 1.5px !important;
+}
+.ipad-edition[data-environment-motion="reduced"] *,
+.ipad-edition[data-render-motion="reduced"] * {
+  animation: none !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+.ipad-edition[data-render-displacement="disabled"] .liquid-glass-engine-slot {
+  display: none !important;
+}
+
+
+/* Reserve a narrow touch-only edge target for horizontal drawer gestures.
+   pan-y keeps vertical page scrolling native while preventing browser takeover. */
+.ipad-nav__edge-swipe-zone {
+  position: fixed;
+  z-index: 99;
+  inset: 0 auto 0 0;
+  width: 24px;
+  min-height: 100dvh;
+  background: transparent;
+  pointer-events: auto;
+  touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
+}
+.ipad-nav__sidebar {
+  touch-action: pan-y;
+}
+
+
+/* iPad first-screen correction: fixed navigation must not inherit global main spacing. */
+.ipad-edition > .ipad-edition__main,
+.ipad-edition__main {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: none !important;
+  margin: 0 !important;
+  padding-block-start: 0 !important;
+}
+.ipad-edition__home {
+  padding-block-start: max(96px, calc(env(safe-area-inset-top, 0px) + 84px)) !important;
+}
+@media (max-width: 699px) {
+  .ipad-edition__home {
+    padding-block-start: max(80px, calc(env(safe-area-inset-top, 0px) + 68px)) !important;
+  }
+}
+
+/* [deploy-ipad-edition-preview] Re-run iPad first-screen clearance audit on the isolated Preview. */
+
+/* [deploy-ipad-edition-preview] Re-run audit with the corrected hero y-coordinate gate. */
+
+
+/* [deploy-ipad-edition-preview] Keep the drawer out of document flow.
+   The shared .liquid-glass host sets position: relative; this compound selector
+   restores the fixed overlay contract for the semantic sidebar element. */
+.ipad-nav__sidebar.liquid-glass {
+  position: fixed;
+}
+
+
+/* PR #99 visual correction: preserve poster artwork, strengthen glass and balance rails. */
+
+
+
+
+
+
+
+
+
+
+
+
+/* Dark glass is visibly separated from dark hero artwork; light mode stays light. */
+.ipad-edition .ipad-nav__topbar-inner {
+  
+  border: 1px solid rgba(255,255,255,.24) !important;
+  color: #f7f8fb !important;
+  
+  
+  
+}
+.ipad-edition .ipad-nav__capsule-action:hover,
+.ipad-edition .ipad-nav__capsule-action.is-active {
+  background: rgba(255,255,255,.16) !important;
+}
+.ipad-edition[data-environment="light"] .ipad-nav__topbar-inner {
+  
+  
+  color: #171b24 !important;
+  box-shadow: 0 12px 36px rgba(25,35,52,.18), inset 0 1px 0 rgba(255,255,255,.9) !important;
+}
+
+/* A horizontally scrolling rail needs equal leading and trailing breathing room. */
+.ipad-edition__poster-grid,
+.ipad-edition__anime-grid,
+.ipad-edition__continue-grid {
+  padding-left: 24px !important;
+  padding-right: 24px !important;
+  
+}
+
+/* Category arrows are quiet card affordances, inset from the edge. */
+.ipad-edition__category-grid button b {
+  top: 16px !important;
+  right: 18px !important;
+  bottom: auto !important;
+  color: var(--ipad-muted) !important;
+  opacity: .72;
+  pointer-events: none;
+  font-size: 16px !important;
+  line-height: 1;
+}
+
+/* The drawer scrim visibly lowers the page's visual priority. */
+.ipad-nav__scrim {
+  background: rgba(0,0,0,.56) !important;
+  -webkit-backdrop-filter: blur(4px) brightness(.68) !important;
+  backdrop-filter: blur(4px) brightness(.68) !important;
+}
+.ipad-nav__links a i {
+  display: block;
+  flex: 0 0 5px;
+  align-self: center;
+  width: 5px;
+  height: 5px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Distinct capsule edge and brighter icon contrast on dark hero backgrounds. */
+.ipad-edition .ipad-nav__topbar-inner {
+  background: rgba(25,29,38,.86) !important;
+  border-color: rgba(255,255,255,.34) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) brightness(1.14) !important;
+  backdrop-filter: blur(28px) saturate(190%) brightness(1.14) !important;
+  box-shadow: 0 12px 38px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.2) !important;
+}
+.ipad-edition .ipad-nav__capsule-action {
+  color: rgba(255,255,255,.94) !important;
+}
+.ipad-edition .ipad-nav__capsule-action.is-active {
+  color: #fff !important;
+  background: rgba(255,255,255,.23) !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.18) !important;
+}
+.ipad-edition[data-environment="light"] .ipad-nav__topbar-inner {
+  background: rgba(250,252,255,.9) !important;
+  border-color: rgba(25,35,52,.24) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%) brightness(1.04) !important;
+  backdrop-filter: blur(28px) saturate(180%) brightness(1.04) !important;
+}
+.ipad-edition[data-environment="light"] .ipad-nav__capsule-action {
+  color: #202633 !important;
+}
+
+/* Preserve equal scroll-rail insets and a real trailing end-cap after the last card. */
+.ipad-edition__poster-grid,
+.ipad-edition__anime-grid,
+.ipad-edition__continue-grid {
+  padding-inline: 24px !important;
+  scroll-padding-inline: 24px !important;
+}
+.ipad-edition__poster-grid::after,
+.ipad-edition__anime-grid::after,
+.ipad-edition__continue-grid::after {
+  content: "";
+  display: block;
+  flex: 0 0 1px;
+  min-height: 1px;
+}
+@media (max-width: 699px) {
+  
+  
+  .ipad-edition__poster-grid,
+  .ipad-edition__anime-grid,
+  .ipad-edition__continue-grid {
+    padding-inline: 16px !important;
+    scroll-padding-inline: 16px !important;
+  }
+}
+
+
+/* PR #99 navigation refinement: compact capsule, neutral active state, reordered drawer rhythm. */
+.ipad-nav__topbar {
+  width: min(252px, calc(100vw - 24px)) !important;
+  height: 54px !important;
+  top: max(8px, calc(env(safe-area-inset-top, 0px) + 4px)) !important;
+}
+.ipad-nav__topbar-inner {
+  height: 54px !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  padding: 5px !important;
+}
+.ipad-nav__capsule-action {
+  flex: 0 0 42px !important;
+  width: 42px !important;
+  min-width: 42px !important;
+  height: 42px !important;
+}
+.ipad-nav__capsule-action .ipad-nav__icon {
+  width: 20px !important;
+  height: 20px !important;
+}
+.ipad-nav__capsule-action:hover,
+.ipad-nav__capsule-action.is-active {
+  color: var(--ipad-nav-ink) !important;
+  background: rgba(128, 140, 160, .17) !important;
+  box-shadow: inset 0 0 0 1px rgba(128, 140, 160, .12) !important;
+}
+.ipad-edition[data-environment="dark"] .ipad-nav__capsule-action:hover,
+.ipad-edition[data-environment="dark"] .ipad-nav__capsule-action.is-active {
+  background: rgba(255, 255, 255, .16) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1) !important;
+}
+.ipad-edition[data-environment="light"] .ipad-nav__capsule-action:hover,
+.ipad-edition[data-environment="light"] .ipad-nav__capsule-action.is-active {
+  background: rgba(30, 38, 52, .1) !important;
+  box-shadow: inset 0 0 0 1px rgba(30, 38, 52, .08) !important;
+}
+
+/* Drawer hierarchy: compact brand header, clear content group, separated personal tools. */
+.ipad-nav__sidebar {
+  width: min(264px, calc(100vw - 48px)) !important;
+  padding: max(24px, env(safe-area-inset-top, 0px) + 18px) 16px max(18px, env(safe-area-inset-bottom, 0px)) !important;
+  gap: 0 !important;
+}
+.ipad-nav__brand {
+  gap: 12px ;
+  padding: 4px 8px 28px ;
+  margin-bottom: 4px ;
+  border-bottom: 1px solid var(--ipad-nav-line) ;
+}
+.ipad-nav__brand-mark {
+  flex: 0 0 38px ;
+  width: 38px ;
+  height: 38px ;
+  display: grid ;
+  place-items: center ;
+  border-radius: 12px ;
+  background: rgba(128, 140, 160, .14) ;
+  color: var(--ipad-nav-ink) ;
+  font-size: 19px ;
+  font-weight: 800 ;
+}
+.ipad-nav__brand-copy strong { font-size: 17px ; }
+.ipad-nav__brand-copy small { font-size: 8px ; letter-spacing: .16em ; }
+.ipad-nav__section-label {
+  margin: 22px 10px 9px ;
+  font-size: 9px ;
+  letter-spacing: .18em ;
+  opacity: .72;
+}
+.ipad-nav__links { gap: 5px !important; }
+.ipad-nav__links a {
+  min-height: 46px ;
+  gap: 13px ;
+  padding: 0 13px ;
+  border-radius: 13px ;
+  font-size: 14px ;
+  font-weight: 620 ;
+}
+.ipad-nav__links a .ipad-nav__icon {
+  width: 20px ;
+  height: 20px ;
+  opacity: .88;
+}
+.ipad-nav__section-label--tools {
+  margin-top: 25px ;
+  padding-top: 20px ;
+  border-top: 1px solid var(--ipad-nav-line) ;
+}
+.ipad-nav__links a.is-active {
+  border-color: rgba(128, 140, 160, .2) ;
+  color: var(--ipad-nav-ink) ;
+  background: rgba(128, 140, 160, .14) ;
+}
+.ipad-edition[data-environment="dark"] .ipad-nav__links a.is-active {
+  border-color: rgba(255, 255, 255, .13) !important;
+  background: rgba(255, 255, 255, .12) !important;
+}
+.ipad-edition[data-environment="light"] .ipad-nav__links a.is-active {
+  border-color: rgba(30, 38, 52, .12) !important;
+  background: rgba(30, 38, 52, .08) !important;
+}
+.ipad-nav__links a.is-active .ipad-nav__icon {
+  color: var(--ipad-nav-ink) ;
+}
+.ipad-nav__links a.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 18px;
+  border-radius: 0 3px 3px 0;
+  background: currentColor;
+  opacity: .72;
+  transform: translateY(-50%);
+}
+.ipad-nav__links a i { display: none ; }
+.ipad-nav__personal-tools.is-active {
+  border-color: rgba(128, 140, 160, .22) ;
+  color: var(--ipad-nav-ink) ;
+  background: rgba(128, 140, 160, .14) ;
+}
+.ipad-nav__sidebar-foot {
+  margin-top: auto ;
+  padding: 15px 9px 0 ;
+}
+@media (max-width: 699px) {
+  .ipad-nav__topbar {
+    width: min(232px, calc(100vw - 24px)) !important;
+    height: 50px !important;
+  }
+  .ipad-nav__topbar-inner { height: 50px !important; padding: 4px !important; }
+  .ipad-nav__capsule-action {
+    flex-basis: 40px !important;
+    width: 40px !important;
+    min-width: 40px !important;
+    height: 40px !important;
+  }
+}
+
+
+/* iPad Search — dedicated landscape-first layout; scoped to the search route only. */
+.ipad-edition__search-page {
+  width: min(100%, 1680px);
+  margin-inline: auto;
+  gap: clamp(20px, 2.4vw, 34px);
+  padding: clamp(14px, 2vw, 28px) clamp(20px, 3vw, 48px) 64px;
+}
+.ipad-edition__search-page .ipad-edition__page-heading {
+  padding: 8px 0 0;
+}
+.ipad-edition__search-page .ipad-edition__page-heading h1 {
+  font-size: clamp(28px, 3vw, 38px);
+  letter-spacing: -.045em;
+}
+.ipad-edition__search-page .ipad-edition__page-heading > p:last-child {
+  margin-top: 7px;
+  font-size: 13px;
+}
+.ipad-edition__search-page .ipad-edition__category-area {
+  gap: 16px;
+  max-width: 1180px;
+}
+.ipad-edition__search-page .ipad-edition__category-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.ipad-edition__search-page .ipad-edition__category-grid button {
+  min-height: 112px;
+  padding: 18px 20px;
+  border-radius: 16px;
+}
+.ipad-edition__search-page .ipad-edition__category-grid button span {
+  font-size: 18px;
+}
+.ipad-edition__search-page .ipad-edition__search-results {
+  min-width: 0;
+}
+.ipad-edition__search-page .ipad-edition__result-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 24px 18px;
+}
+.ipad-edition__search-page .ipad-edition__result-card {
+  gap: 9px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ipad-edition__search-page .ipad-edition__result-poster {
+  border-radius: 13px;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.ipad-edition__search-page .ipad-edition__result-card:active .ipad-edition__result-poster {
+  transform: scale(.975);
+}
+.ipad-edition__search-page .ipad-edition__result-card > strong {
+  font-size: 13px;
+}
+.ipad-edition__search-page .ipad-edition__result-card > small {
+  font-size: 11px;
+}
+.ipad-edition__search-page .ipad-edition__section-heading {
+  margin-bottom: 18px;
+}
+.ipad-edition__search-page .ipad-edition__section-heading h2 {
+  font-size: 23px;
+}
+.ipad-edition__search-page .ipad-edition__rail-message {
+  min-height: 132px;
+  border-radius: 16px;
+}
+@media (min-width: 700px) and (max-width: 1023px) {
+  .ipad-edition__search-page {
+    padding: 12px 22px 52px;
+    gap: 22px;
+  }
+  .ipad-edition__search-page .ipad-edition__category-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .ipad-edition__search-page .ipad-edition__category-grid button {
+    min-height: 100px;
+    padding: 15px;
+  }
+  .ipad-edition__search-page .ipad-edition__result-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 18px 12px;
+  }
+}
+@media (min-width: 1400px) {
+  .ipad-edition__search-page .ipad-edition__result-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 26px 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ipad-edition__search-page .ipad-edition__result-poster {
+    transition: none;
+  }
+}
