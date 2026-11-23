@@ -151,7 +151,10 @@ interface PlayerShellProps {
   nextEpisodeKey?: string;
   /** 进度恢复：优先 URL position，其次查询该回调（返回 0 表示无记录） */
   getRestorePosition?: () => number | Promise<number>;
+  /** 高频媒体时钟回调：只更新界面，不负责写入持久化存储。 */
   onTimeUpdate?: (position: number, duration: number) => void;
+  /** 节流后的进度持久化回调，避免每个 timeupdate 都写 IndexedDB。 */
+  onProgressSave?: (position: number, duration: number) => void;
   onEnded?: () => void;
   onPause?: (position: number, duration: number) => void;
   /**
@@ -190,6 +193,7 @@ export function PlayerShell({
   nextEpisodeKey,
   getRestorePosition,
   onTimeUpdate,
+  onProgressSave,
   onEnded,
   onPause,
   onQuality,
@@ -267,14 +271,14 @@ export function PlayerShell({
     url, title, mediaType, onPlaybackConfirmed, adFilter, autoplayNext, skipMark, autoSkipSegments,
     pendingStart, onPendingStart, onPlayerApi, onRecordSegment,
     episodeKey, nextUrl, nextEpisodeKey,
-    getRestorePosition, onTimeUpdate, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource,
+    getRestorePosition, onTimeUpdate, onProgressSave, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource,
     onPrevEpisode, onNextEpisode, hasPrevEpisode, hasNextEpisode,
   });
   propsRef.current = {
     url, title, mediaType, onPlaybackConfirmed, adFilter, autoplayNext, skipMark, autoSkipSegments,
     pendingStart, onPendingStart, onPlayerApi, onRecordSegment,
     episodeKey, nextUrl, nextEpisodeKey,
-    getRestorePosition, onTimeUpdate, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource,
+    getRestorePosition, onTimeUpdate, onProgressSave, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource,
     onPrevEpisode, onNextEpisode, hasPrevEpisode, hasNextEpisode,
   };
 
@@ -1215,9 +1219,12 @@ export function PlayerShell({
       metrics.lastTickAt = Date.now();
       metrics.height = Math.max(metrics.height, art.video?.videoHeight ?? 0);
       const now = Date.now();
+      // Keep the on-screen timeline in sync with the browser's media clock.
+      // Persistence remains separately throttled to avoid excessive IndexedDB writes.
+      propsRef.current.onTimeUpdate?.(art.currentTime, art.duration);
       if (now - lastSave > 5000) {
         lastSave = now;
-        propsRef.current.onTimeUpdate?.(art.currentTime, art.duration);
+        propsRef.current.onProgressSave?.(art.currentTime, art.duration);
       }
       // —— 跳过片段判定 ——
       const p = propsRef.current;
