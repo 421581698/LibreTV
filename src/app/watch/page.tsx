@@ -882,14 +882,22 @@ function WatchContent() {
                   aria-label="播放进度"
                   aria-valuetext={`${formatWatchTime(displayedPosition)} / ${formatWatchTime(watchClock.duration)}`}
                   onChange={(event) => {
-                    const position = Number(event.target.value);
-                    setScrubbingPosition(position);
-                    playerApiRef.current?.seek(position);
+                    // Dragging updates the thumb/preview only. Seeking the media
+                    // on every input event causes repeated HLS flushes and stutter.
+                    setScrubbingPosition(Number(event.target.value));
                   }}
                   onPointerUp={(event) => {
                     playerApiRef.current?.seek(Number(event.currentTarget.value));
                   }}
                   onTouchEnd={(event) => {
+                    playerApiRef.current?.seek(Number(event.currentTarget.value));
+                  }}
+                  onKeyUp={(event) => {
+                    if (['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) {
+                      playerApiRef.current?.seek(Number(event.currentTarget.value));
+                    }
+                  }}
+                  onBlur={(event) => {
                     playerApiRef.current?.seek(Number(event.currentTarget.value));
                   }}
                   disabled={!watchClock.duration}
