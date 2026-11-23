@@ -580,7 +580,7 @@ function WatchContent() {
     );
   }
   return (
-    <div ref={watchShellRef} className={`min-h-screen flex flex-col netflix-watch-shell${controlsVisible ? '' : ' cinema-controls-hidden'}${isScrubbing ? ' cinema-controls-scrubbing' : ''}`}>
+    <div ref={watchShellRef} className={`min-h-screen flex flex-col netflix-watch-shell${isIpadEditionPlayback ? ' ipad-edition-watch' : ''}${controlsVisible ? '' : ' cinema-controls-hidden'}${isScrubbing ? ' cinema-controls-scrubbing' : ''}`}>
       <header className="watch-topbar netflix-watch-overlay-topbar">
         <div className="watch-topbar-inner">
           <div className="watch-topbar-left">
