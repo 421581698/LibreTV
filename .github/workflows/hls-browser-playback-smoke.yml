@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/homepage-cinema-lobby-order-2026-11-11
+      - feature/libretv-ipad-edition-product
     paths:
       - 'scripts/hls-browser-playback-smoke.mjs'
       - '.github/workflows/hls-browser-playback-smoke.yml'
@@ -14,6 +15,7 @@ on:
   pull_request:
     branches:
       - main
+      - feature/libretv-ipad-edition-foundation
     paths:
       - 'scripts/hls-browser-playback-smoke.mjs'
       - '.github/workflows/hls-browser-playback-smoke.yml'
