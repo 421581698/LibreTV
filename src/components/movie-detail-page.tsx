@@ -280,6 +280,7 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
       title={displayTitle}
       eyebrow="LIBRETV · TITLE DETAILS"
       backdropUrl={backdrop || undefined}
+      posterUrl={posterArtwork || undefined}
       backdropFallbackUrl={tmdbArtwork?.backdrop ? info?.backdrop?.trim() : undefined}
       imageMode={imageProxyMode}
       customImageProxy={customImageProxy}
@@ -293,7 +294,7 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
       actions={
         <>
           <button type="button" onClick={() => play(0)} disabled={episodes.length === 0} className="ipad-cinema-play">
-            <span aria-hidden="true">▶</span>{isMovie ? '立即播放' : '开始观看'}
+            <span aria-hidden="true">▶</span>{'▶ 开始播放'}
           </button>
           <button type="button" onClick={() => void toggleFavorite()} className="ipad-cinema-add" aria-label={favorite ? '取消收藏' : '加入收藏'} aria-pressed={Boolean(favorite)}>
             {favorite ? '♥' : '＋'}
@@ -307,21 +308,6 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
         <div>
           <h2>剧情简介</h2>
           <p>{info?.desc || '暂无剧情简介'}</p>
-          {posterArtwork ? (
-            <SmartImage
-              asset={tmdbArtwork?.poster ? undefined : fromCmsArtwork({ sourceKey, vodId, title: displayTitle, imageUrl: posterArtwork, kind: 'poster' })}
-              url={posterArtwork}
-              fallbackUrl={tmdbArtwork?.poster ? info?.cover?.trim() || poster.trim() : undefined}
-              mode={imageProxyMode}
-              customProxy={customImageProxy}
-              alt={displayTitle + ' 海报'}
-              className="mt-6 w-32 rounded-xl object-cover shadow-xl"
-              loading="lazy"
-              measureNaturalSize
-              minimumWidth={1000}
-              expectedOrientation="portrait"
-            />
-          ) : null}
         </div>
         <dl>
           <div><dt>年份</dt><dd>{info?.year || '暂无数据'}</dd></div>
@@ -332,7 +318,7 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
         </dl>
       </section>
       {!isMovie && episodes.length > 0 && (
-        <section className="mx-auto max-w-6xl px-5 pb-12 pt-10 sm:px-10" aria-labelledby="movie-episode-heading">
+        <section className="ipad-cinema-section ipad-cinema-episodes" aria-labelledby="movie-episode-heading">
           <div className="mb-5 flex items-end justify-between gap-4">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[.22em] text-white/45">EPISODES</p>
