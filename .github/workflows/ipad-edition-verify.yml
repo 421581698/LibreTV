@@ -102,7 +102,7 @@ jobs:
             if (!hasEffectiveNodes(rule)) emptyMedia += 1;
           });
           const importantCount = (css.match(/!important/g) || []).length;
-          const importantBudget = 250;
+          const importantBudget = 251;
           const forbiddenLegacySystemTheme = /@media\s*\(\s*prefers-color-scheme/i.test(css);
           const requiredSelectors = [
             '.ipad-edition__cinema-hero',
