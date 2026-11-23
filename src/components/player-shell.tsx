@@ -269,6 +269,7 @@ export function PlayerShell({
   // 始终持有最新 props/回调，避免重建播放器
   const activeEpisodeKeyRef = useRef(episodeKey ?? '');
   const pendingEpisodeKeyRef = useRef<string | null>(null);
+  const lastProgressSaveAtRef = useRef(0);
   const propsRef = useRef({
     url, title, mediaType, onPlaybackConfirmed, adFilter, autoplayNext, skipMark, autoSkipSegments,
     pendingStart, onPendingStart, onPlayerApi, onRecordSegment,
@@ -880,6 +881,7 @@ export function PlayerShell({
   /** 换集：重置每集状态并切换到新 HLS 源（不重建 ArtPlayer）。 */
   const loadEpisode = (targetUrl: string) => {
     if (!targetUrl) return;
+    lastProgressSaveAtRef.current = 0;
     flushPlaybackMetrics();
     resetPlaybackMetrics();
     if (stallRecoveryTimerRef.current) clearTimeout(stallRecoveryTimerRef.current);
@@ -947,7 +949,7 @@ export function PlayerShell({
     suppressedAutoRef.current.clear();
     lastSampleRef.current = 0;
 
-    let lastSave = 0;
+
 
     const art = new Artplayer({
       container: containerRef.current,
@@ -1251,8 +1253,8 @@ export function PlayerShell({
       // Keep the on-screen timeline in sync with the browser's media clock.
       // Persistence remains separately throttled to avoid excessive IndexedDB writes.
       syncTimeline();
-      if (now - lastSave > 5000) {
-        lastSave = now;
+      if (now - lastProgressSaveAtRef.current > 5000) {
+        lastProgressSaveAtRef.current = now;
         propsRef.current.onProgressSave?.(art.currentTime, art.duration, activeEpisodeKeyRef.current);
       }
       // —— 跳过片段判定 ——
