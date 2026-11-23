@@ -233,7 +233,7 @@ export function rankSourcesByPlaybackQuality<T extends { key: string }>(
 }
 
 
-/** Rank exact-title source candidates using title-specific observed quality first. */
+/** Rank exact-title candidates by playback sustainability and smoothness before resolution. */
 export function rankMovieCandidatesByQuality<T extends { sourceKey: string; vodId: string }>(
   candidates: T[],
   qualityMap: Record<string, QualityEntry | undefined>,
