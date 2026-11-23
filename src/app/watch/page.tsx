@@ -230,15 +230,23 @@ function WatchContent() {
       recordControlsDebug('timer-schedule', `playback,paused=${video.paused},ended=${video.ended},time=${video.currentTime.toFixed(2)},delay=3000`);
       controlsHideTimerRef.current = window.setTimeout(hideControls, 3000);
     };
-    const onPlay = () => { setControlsVisible(true); scheduleHide(); };
+    const onPlay = () => { showControls(); scheduleHide(); };
     const onPause = keepControlsVisible;
     const onEnded = keepControlsVisible;
+    const onLoadStart = keepControlsVisible;
+    const onWaiting = keepControlsVisible;
+    const onError = keepControlsVisible;
     const detachVideo = () => {
       if (!video) return;
       video.removeEventListener('play', onPlay);
       video.removeEventListener('playing', scheduleHide);
       video.removeEventListener('pause', onPause);
       video.removeEventListener('ended', onEnded);
+      video.removeEventListener('loadstart', onLoadStart);
+      video.removeEventListener('emptied', onLoadStart);
+      video.removeEventListener('waiting', onWaiting);
+      video.removeEventListener('stalled', onWaiting);
+      video.removeEventListener('error', onError);
       video = null;
     };
     const attachVideo = () => {
@@ -266,6 +274,11 @@ function WatchContent() {
       video.addEventListener('playing', scheduleHide);
       video.addEventListener('pause', onPause);
       video.addEventListener('ended', onEnded);
+      video.addEventListener('loadstart', onLoadStart);
+      video.addEventListener('emptied', onLoadStart);
+      video.addEventListener('waiting', onWaiting);
+      video.addEventListener('stalled', onWaiting);
+      video.addEventListener('error', onError);
       if (!video.paused && !video.ended) scheduleHide();
       else keepControlsVisible();
     };
@@ -352,7 +365,7 @@ function WatchContent() {
       window.removeEventListener('touchcancel', endScrubbing, true);
       scrubbingRef.current = false;
     };
-  }, [sourceKey, vodId, indexParam, directUrl, source, verified]);
+  }, [verified]);
 
   // 当前播放地址：优先取剧集列表中的当前集，其次直连 URL 参数
   const currentUrl = useMemo(() => {
