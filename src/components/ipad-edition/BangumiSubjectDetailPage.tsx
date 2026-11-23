@@ -187,7 +187,7 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
         <div className="absolute inset-0 bg-gradient-to-t from-[#08080a] via-transparent to-black/20" />
         <button onClick={() => router.back()} className="absolute left-7 top-8 z-10 rounded-full border border-white/20 bg-black/40 px-4 py-2 backdrop-blur">‹ 返回</button>
         <div className="relative z-10 flex max-w-5xl flex-col items-start gap-7 md:flex-row md:items-end">
-          <SmartImage asset={posterAsset} url={poster} mode={imageProxyMode} customProxy={customImageProxy} alt={title + ' 海报'} className="w-40 shrink-0 rounded-xl object-cover shadow-2xl md:w-56" loading="eager" measureNaturalSize minimumWidth={1000} expectedOrientation="portrait" />
+          <SmartImage asset={posterAsset} url={poster} fallbackUrl={tmdbArtwork?.poster ? subject.images?.large || subject.images?.common || subject.images?.medium || posterFallback : undefined} mode={imageProxyMode} customProxy={customImageProxy} alt={title + ' 海报'} className="w-40 shrink-0 rounded-xl object-cover shadow-2xl md:w-56" loading="eager" measureNaturalSize minimumWidth={1000} expectedOrientation="portrait" />
           <div className="max-w-3xl">
             <p className="mb-3 text-xs uppercase tracking-[.25em] text-white/60">LIBRETV · BANGUMI DETAILS</p>
             <h1 className="text-4xl font-bold tracking-tight md:text-6xl">{title}</h1>
