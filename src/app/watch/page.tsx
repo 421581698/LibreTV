@@ -503,7 +503,7 @@ function WatchContent() {
       if (outgoingProgressId && Number.isFinite(outgoingPosition) && outgoingPosition > 0 &&
         Number.isFinite(outgoingDuration) && outgoingDuration > 0) {
         saveProgress(sourceKey, outgoingProgressId, currentIndex, outgoingPosition, outgoingDuration).catch(() => {});
-        updateHistoryProgress(sourceKey, outgoingProgressId, outgoingPosition, outgoingDuration).catch(() => {});
+        updateHistoryProgress(sourceKey, outgoingProgressId, outgoingPosition, outgoingDuration, currentIndex).catch(() => {});
       }
       // A new episode starts with a fresh timeline; never leave the previous
       // episode's clock or scrub preview visible while the new media loads.
@@ -587,7 +587,8 @@ function WatchContent() {
         sourceKey,
         progressId,
         position,
-        duration
+        duration,
+        currentIndex
       ).catch(() => {});
     },
     [sourceKey, vodId, currentIndex, currentUrl, currentEpisodeKey]
