@@ -317,7 +317,7 @@ export function SwitchSourceModal({
             </p>
             {phase === 'done' && (
               <p className="text-[10px] text-faint mt-0.5">
-                排序优先级：当前播放源 · 可用性 · 实测画质（观测次数）· 探测画质 · 响应速度
+                排序优先级：当前播放源 · 可用性 · 历史播放稳定性 · 实测画质 · 探测画质 · 接口响应
               </p>
             )}
             {phase === 'done' && progress.total > 0 && (
@@ -437,7 +437,7 @@ export function SwitchSourceModal({
                     </div>
                     <div className="mt-2 grid grid-cols-2 gap-2 sm:max-w-[16rem]">
                       <div className="rounded-md bg-chip px-2 py-1.5">
-                        <div className="text-[10px] text-faint">速度</div>
+                        <div className="text-[10px] text-faint">接口响应</div>
                         <div
                           className={cn(
                             'text-xs font-medium tabular-nums',
