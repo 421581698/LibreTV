@@ -7,6 +7,7 @@ import { api } from '@/lib/client-api';
 import { useAppStore, resolveSource } from '@/lib/store';
 import { useAuth } from '@/components/auth';
 import { SmartImage } from '@/components/smart-image';
+import { IpadCinemaDetailLayout } from '@/components/ipad-edition/IpadCinemaDetailLayout';
 import { LoadingState, ErrorState } from '@/components/states';
 import { addFavorite, addSearchHistory, db, removeFavorite } from '@/lib/db';
 import { favoriteIdFor } from '@/lib/favorite-id';
@@ -275,77 +276,62 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
   }
 
   return (
-    <main className="movie-detail-page min-h-screen overflow-x-hidden bg-[#08080A] pb-[calc(96px+env(safe-area-inset-bottom))] text-white">
-      
-      <section className="movie-detail-hero relative isolate min-h-[560px] overflow-hidden sm:min-h-[640px]">
-        {backdrop ? (
-          <SmartImage
-            asset={tmdbArtwork?.backdrop ? undefined : fromCmsArtwork({ sourceKey, vodId, title: displayTitle, imageUrl: backdrop, kind: 'backdrop' })}
-            url={backdrop}
-            fallbackUrl={tmdbArtwork?.backdrop ? info?.backdrop?.trim() : undefined}
-            mode={imageProxyMode}
-            customProxy={customImageProxy}
-            alt={displayTitle}
-            className="movie-detail-hero__image absolute inset-0 -z-20 h-full w-full object-cover object-center"
-            loading="eager"
-            minimumWidth={1600}
-            expectedOrientation="landscape"
-            showDefaultFallback={false}
-          />
-        ) : (
-          <div className="absolute inset-0 -z-20 bg-[#08080A]" aria-hidden="true" />
-        )}
-        <div className="movie-detail-hero__scrim absolute inset-0 -z-10" />
-        <div className="movie-detail-hero__bottom-gradient absolute inset-x-0 bottom-0 -z-10" />
-        <div className="movie-detail-hero__side-gradient absolute inset-0 -z-10" />
-
-        <header className="movie-detail-hero__header relative z-10 flex items-center justify-between px-5 pt-[max(18px,env(safe-area-inset-top))] sm:px-10">
-          <button type="button" onClick={() => router.back()} className="movie-detail-glass-control" aria-label="返回上一页">
-            <span aria-hidden="true">‹</span>
+    <IpadCinemaDetailLayout
+      title={displayTitle}
+      eyebrow="LIBRETV · TITLE DETAILS"
+      backdropUrl={backdrop || undefined}
+      backdropFallbackUrl={tmdbArtwork?.backdrop ? info?.backdrop?.trim() : undefined}
+      imageMode={imageProxyMode}
+      customImageProxy={customImageProxy}
+      originalTitle={info?.originalTitle || undefined}
+      metadata={
+        <>
+          {metadata.map((value) => <span key={value}>{value}</span>)}
+          {rating && <span>豆瓣 {rating}</span>}
+        </>
+      }
+      overview={info?.desc || '暂无剧情简介'}
+      actions={
+        <>
+          <button type="button" onClick={() => play(0)} disabled={episodes.length === 0} className="ipad-cinema-play">
+            <span aria-hidden="true">▶</span>{isMovie ? '立即播放' : '开始观看'}
           </button>
-          <button type="button" onClick={() => void share()} disabled={sharing} className="movie-detail-glass-control" aria-label="分享影片">↗</button>
-        </header>
-
-        <div className="movie-detail-hero__content relative z-10 mx-auto flex min-h-[520px] max-w-6xl flex-col justify-end px-5 pb-10 pt-32 sm:min-h-[580px] sm:px-10 sm:pb-14">
-          <div className="flex max-w-4xl items-end gap-5 sm:gap-7">
-            {posterArtwork ? (
-              <SmartImage
-                asset={tmdbArtwork?.poster ? undefined : fromCmsArtwork({ sourceKey, vodId, title: displayTitle, imageUrl: posterArtwork, kind: 'poster' })}
-                url={posterArtwork}
-                fallbackUrl={tmdbArtwork?.poster ? info?.cover?.trim() || poster.trim() : undefined}
-                mode={imageProxyMode}
-                customProxy={customImageProxy}
-                alt={displayTitle + ' 海报'}
-                className="hidden w-28 shrink-0 self-end rounded-xl object-cover shadow-2xl sm:block sm:w-36"
-                loading="eager"
-                measureNaturalSize
-                minimumWidth={1000}
-                expectedOrientation="portrait"
-              />
-            ) : null}
-            <div className="min-w-0 max-w-2xl">
-            <p className="movie-detail-eyebrow mb-3 text-[10px] font-semibold uppercase text-white/65">LIBRETV · TITLE DETAILS</p>
-            <h1 className="movie-detail-title max-w-3xl text-4xl leading-[1.05] tracking-[-.045em] sm:text-6xl">{displayTitle}</h1>
-            {metadata.length > 0 && (
-              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs font-medium text-white/75 sm:text-sm">
-                {metadata.map((value) => <span key={value}>{value}</span>)}
-              </div>
-            )}
-            {info?.desc && <p className="movie-detail-description mt-5 max-w-xl text-sm leading-7 text-white/80 sm:text-base">{info.desc}</p>}
-            <div className="movie-detail-actions mt-7 flex flex-wrap items-center gap-3">
-              <button type="button" onClick={() => play(0)} disabled={episodes.length === 0} className="inline-flex min-h-12 items-center gap-3 rounded-full bg-white px-7 text-sm font-semibold text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-40">
-                <span aria-hidden="true">▶</span>{isMovie ? '立即播放' : '开始观看'}
-              </button>
-              <button type="button" onClick={() => void toggleFavorite()} className="flex h-12 w-12 items-center justify-center rounded-full border border-white/25 bg-white/10 text-xl backdrop-blur-xl" aria-label={favorite ? '取消收藏' : '加入收藏'} aria-pressed={Boolean(favorite)}>
-                <span aria-hidden="true">{favorite ? '♥' : '＋'}</span>
-              </button>
-              <button type="button" onClick={() => void share()} disabled={sharing} className="flex h-12 w-12 items-center justify-center rounded-full border border-white/25 bg-white/10 text-lg backdrop-blur-xl" aria-label="分享影片">↗</button>
-            </div>
-            </div>
-          </div>
+          <button type="button" onClick={() => void toggleFavorite()} className="ipad-cinema-add" aria-label={favorite ? '取消收藏' : '加入收藏'} aria-pressed={Boolean(favorite)}>
+            {favorite ? '♥' : '＋'}
+          </button>
+          <button type="button" onClick={() => void share()} disabled={sharing} className="ipad-cinema-add" aria-label="分享影片">↗</button>
+        </>
+      }
+      onBack={() => router.back()}
+    >
+      <section className="ipad-cinema-info">
+        <div>
+          <h2>剧情简介</h2>
+          <p>{info?.desc || '暂无剧情简介'}</p>
+          {posterArtwork ? (
+            <SmartImage
+              asset={tmdbArtwork?.poster ? undefined : fromCmsArtwork({ sourceKey, vodId, title: displayTitle, imageUrl: posterArtwork, kind: 'poster' })}
+              url={posterArtwork}
+              fallbackUrl={tmdbArtwork?.poster ? info?.cover?.trim() || poster.trim() : undefined}
+              mode={imageProxyMode}
+              customProxy={customImageProxy}
+              alt={displayTitle + ' 海报'}
+              className="mt-6 w-32 rounded-xl object-cover shadow-xl"
+              loading="lazy"
+              measureNaturalSize
+              minimumWidth={1000}
+              expectedOrientation="portrait"
+            />
+          ) : null}
         </div>
+        <dl>
+          <div><dt>年份</dt><dd>{info?.year || '暂无数据'}</dd></div>
+          <div><dt>地区</dt><dd>{info?.area || '暂无数据'}</dd></div>
+          <div><dt>类型</dt><dd>{info?.typeName || '暂无数据'}</dd></div>
+          <div><dt>备注</dt><dd>{formatRemarks(info?.remarks) || '暂无数据'}</dd></div>
+          <div><dt>播放源</dt><dd>{sourceName || sourceKey}</dd></div>
+        </dl>
       </section>
-
       {!isMovie && episodes.length > 0 && (
         <section className="mx-auto max-w-6xl px-5 pb-12 pt-10 sm:px-10" aria-labelledby="movie-episode-heading">
           <div className="mb-5 flex items-end justify-between gap-4">
@@ -399,7 +385,7 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
             })}
           </div>
         </section>
-      )}
-      </main>
+      )
+    </IpadCinemaDetailLayout>
   );
 }
