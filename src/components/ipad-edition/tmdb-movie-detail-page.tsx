@@ -174,7 +174,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, backdropFallback,
             </div>
             <div className="flex shrink-0 flex-col gap-3 lg:w-[min(100%,18rem)]">
               <button type="button" onClick={() => void startPlayback()} disabled={startingPlayback} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-xl bg-white px-8 py-4 text-base font-semibold text-black shadow-lg shadow-black/20 transition hover:bg-white/90 disabled:cursor-wait disabled:opacity-50 md:text-lg">
-                <span aria-hidden="true">▶</span>{startingPlayback ? '正在查找资源…' : '开始播放'}
+                {startingPlayback ? '正在查找资源…' : '▶ 开始播放'}
               </button>
               <p className="text-center text-xs leading-5 text-white/55" role="status" aria-live="polite">{playbackStatus}</p>
             </div>
