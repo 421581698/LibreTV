@@ -572,12 +572,16 @@ export function PlayerShell({
         restoredRef.current = true;
         restoreCleanupRef.current?.();
         restoreCleanupRef.current = null;
-        video.play().catch(() => setShowPlayFallback(true));
+        video.play().catch(() => {
+          if (loadGeneration === mediaLoadGenerationRef.current) setShowPlayFallback(true);
+        });
       } catch {
         if (loadGeneration !== mediaLoadGenerationRef.current) return;
         // A failed progress lookup must never prevent direct media playback.
         restoredRef.current = true;
-        video.play().catch(() => setShowPlayFallback(true));
+        video.play().catch(() => {
+          if (loadGeneration === mediaLoadGenerationRef.current) setShowPlayFallback(true);
+        });
       } finally {
         restoreInFlight = false;
       }
@@ -654,14 +658,18 @@ export function PlayerShell({
             setQualityNotice('当前使用原生 HLS，无法验证或强制限制 1080P；已暂停以避免超过所选上限，请选择自动继续播放。');
             return;
           }
-          video.play().catch(() => setShowPlayFallback(true));
+          video.play().catch(() => {
+          if (loadGeneration === mediaLoadGenerationRef.current) setShowPlayFallback(true);
+        });
         } catch {
           if (loadGeneration !== mediaLoadGenerationRef.current) return;
           // A failed progress lookup must never block native-HLS playback.
           restoredRef.current = true;
           restoreCleanupRef.current?.();
           restoreCleanupRef.current = null;
-          video.play().catch(() => setShowPlayFallback(true));
+          video.play().catch(() => {
+          if (loadGeneration === mediaLoadGenerationRef.current) setShowPlayFallback(true);
+        });
         } finally {
           nativeRestoreInFlight = false;
         }
@@ -717,6 +725,7 @@ export function PlayerShell({
         restoreCleanupRef.current?.();
         restoreCleanupRef.current = null;
         video.play().catch(() => {
+          if (loadGeneration !== mediaLoadGenerationRef.current) return;
           // iOS Safari may reject autoplay after async detail/source loading.
           // Keep the player inline and offer a user-activated retry instead of a silent poster.
           setShowPlayFallback(true);
