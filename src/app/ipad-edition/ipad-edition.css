@@ -2154,7 +2154,7 @@ body:has(.ipad-edition[data-environment="light"]) {
 .ipad-edition[data-ipad-home="true"] .ipad-edition__rail-section,
 .ipad-edition[data-ipad-home="true"] .ipad-edition__continue-section {
   min-width: 0;
-  padding-inline: 0 !important;
+  padding-inline: 0;
 }
 .ipad-edition[data-ipad-home="true"] .ipad-edition__rail-section .ipad-edition__section-heading,
 .ipad-edition[data-ipad-home="true"] .ipad-edition__continue-section .ipad-edition__section-heading {
@@ -2163,62 +2163,62 @@ body:has(.ipad-edition[data-environment="light"]) {
 .ipad-edition[data-ipad-home="true"] .ipad-edition__poster-grid,
 .ipad-edition[data-ipad-home="true"] .ipad-edition__anime-grid,
 .ipad-edition[data-ipad-home="true"] .ipad-edition__continue-grid {
-  display: flex !important;
-  flex-flow: row nowrap !important;
+  display: flex;
+  flex-flow: row nowrap;
   align-items: flex-start;
   width: 100%;
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  gap: 14px !important;
-  padding: 10px 4px 26px 16px !important;
+  gap: 14px;
+  padding: 10px 4px 26px 16px;
   margin: 0;
-  overflow-x: auto !important;
-  overflow-y: hidden !important;
+  overflow-x: auto;
+  overflow-y: hidden;
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none !important;
+  scrollbar-width: none;
   touch-action: pan-x pan-y;
 }
 .ipad-edition[data-ipad-home="true"] .ipad-edition__poster-grid::-webkit-scrollbar,
 .ipad-edition[data-ipad-home="true"] .ipad-edition__anime-grid::-webkit-scrollbar,
 .ipad-edition[data-ipad-home="true"] .ipad-edition__continue-grid::-webkit-scrollbar {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
+  display: none;
+  width: 0;
+  height: 0;
 }
 .ipad-edition[data-ipad-home="true"] .ipad-edition__poster-card,
 .ipad-edition[data-ipad-home="true"] .ipad-edition__poster-skeleton {
-  flex: 0 0 140px !important;
-  width: 140px !important;
-  min-width: 140px !important;
-  max-width: 140px !important;
+  flex: 0 0 140px;
+  width: 140px;
+  min-width: 140px;
+  max-width: 140px;
   box-sizing: border-box;
 }
 .ipad-edition[data-ipad-home="true"] .ipad-edition__anime-card {
-  flex: 0 0 190px !important;
-  width: 190px !important;
-  min-width: 190px !important;
-  max-width: 190px !important;
+  flex: 0 0 190px;
+  width: 190px;
+  min-width: 190px;
+  max-width: 190px;
   box-sizing: border-box;
 }
 .ipad-edition[data-ipad-home="true"] .ipad-edition__continue-card {
-  flex: 0 0 230px !important;
-  width: 230px !important;
-  min-width: 230px !important;
-  max-width: 230px !important;
+  flex: 0 0 230px;
+  width: 230px;
+  min-width: 230px;
+  max-width: 230px;
   box-sizing: border-box;
 }
 .ipad-edition[data-ipad-home="true"] .ipad-edition__poster-card > strong,
 .ipad-edition[data-ipad-home="true"] .ipad-edition__anime-card > strong,
 .ipad-edition[data-ipad-home="true"] .ipad-edition__continue-card > strong {
-  display: block !important;
+  display: block;
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow: hidden !important;
-  white-space: nowrap !important;
-  text-overflow: ellipsis !important;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   text-align: left;
   line-height: 1.4;
 }
@@ -2248,15 +2248,15 @@ body:has(.ipad-edition[data-environment="light"]) {
   .ipad-edition[data-ipad-home="true"] .ipad-edition__poster-grid,
   .ipad-edition[data-ipad-home="true"] .ipad-edition__anime-grid,
   .ipad-edition[data-ipad-home="true"] .ipad-edition__continue-grid {
-    gap: 12px !important;
-    padding-left: 16px !important;
-    padding-right: 4px !important;
+    gap: 12px;
+    padding-left: 16px;
+    padding-right: 4px;
   }
   .ipad-edition[data-ipad-home="true"] .ipad-edition__poster-card,
   .ipad-edition[data-ipad-home="true"] .ipad-edition__poster-skeleton {
-    flex-basis: 140px !important;
-    width: 140px !important;
-    min-width: 140px !important;
-    max-width: 140px !important;
+    flex-basis: 140px;
+    width: 140px;
+    min-width: 140px;
+    max-width: 140px;
   }
 }
