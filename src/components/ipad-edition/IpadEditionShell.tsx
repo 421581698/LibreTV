@@ -309,6 +309,14 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
               </button>
 
               <Link
+                className={`ipad-nav__capsule-action${activeHref === '/ipad-edition' ? ' is-active' : ''}`}
+                href="/ipad-edition"
+                aria-label="首页"
+                aria-current={activeHref === '/ipad-edition' ? 'page' : undefined}
+              >
+                <NavigationIcon name="house" />
+              </Link>
+              <Link
                 className={`ipad-nav__capsule-action${activeHref === '/ipad-edition/search' ? ' is-active' : ''}`}
                 href="/ipad-edition/search"
                 aria-label="搜索"
