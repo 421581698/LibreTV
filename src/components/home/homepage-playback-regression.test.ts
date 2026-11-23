@@ -618,3 +618,39 @@ describe('首页与播放页回归契约', () => {
   });
 
 });
+
+
+describe('poster → metadata detail → explicit playback flow', () => {
+  const ipadHome = source('src/app/page.tsx');
+  const detailRoute = source('src/app/ipad-edition/detail/page.tsx');
+  const tmdbDetail = source('src/components/ipad-edition/tmdb-movie-detail-page.tsx');
+  const watchRoute = source('src/app/watch/page.tsx');
+
+  it('opens each TMDB poster directly into its own detail page without searching CMS sources', () => {
+    const handlerStart = ipadHome.indexOf('const handleHomepagePick = (movie: DoubanItem) => {');
+    const handlerEnd = ipadHome.indexOf('const openedFridayDetailRef', handlerStart);
+    const handler = ipadHome.slice(handlerStart, handlerEnd);
+    expect(handler).toContain("router.push('/ipad-edition/detail?' + params.toString())");
+    expect(handler).toContain('tmdbId: movie.id');
+    expect(handler).toContain("tmdbType: movie.isTv ? 'tv' : 'movie'");
+    expect(handler).not.toContain('api.search');
+    expect(detailRoute).toContain('/^\\d{1,12}$/');
+    expect(tmdbDetail).toContain("fetch('/api/tmdb/details?'");
+  });
+
+  it('does not query playback sources until the user taps Start Playback', () => {
+    const startIndex = tmdbDetail.indexOf('const startPlayback = async () => {');
+    const metadataSection = tmdbDetail.slice(0, startIndex);
+    const playbackSection = tmdbDetail.slice(startIndex);
+    expect(metadataSection).not.toContain('api.search(');
+    expect(playbackSection).toContain('api.search(term, sources, yellowFilter)');
+    expect(tmdbDetail).toContain('onClick={() => void startPlayback()}');
+    expect(tmdbDetail).toContain('▶ 开始播放');
+    expect(playbackSection).toContain(".replace('/watch?', '/ipad-edition/watch?')");
+  });
+
+  it('keeps episode changes inside the iPad playback route', () => {
+    expect(watchRoute).toContain('const pathname = usePathname();');
+    expect(watchRoute).toContain('router.replace(`${pathname}?${sp.toString()}`, { scroll: false })');
+  });
+});
