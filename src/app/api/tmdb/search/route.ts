@@ -68,7 +68,7 @@ export async function GET(req: Request) {
     });
   } catch (error) {
     const detail = error instanceof Error ? error.message : '';
-    const statusMatch = /^TMDB_HTTP_(\\d{3})$/.exec(detail);
+    const statusMatch = /^TMDB_HTTP_(\d{3})$/.exec(detail);
     const upstreamStatus = statusMatch ? Number(statusMatch[1]) : undefined;
     console.error('[TMDB movie search] request failed', {
       code: upstreamStatus ? `TMDB_HTTP_${upstreamStatus}` : 'TMDB_UPSTREAM_ERROR',
