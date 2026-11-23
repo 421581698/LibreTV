@@ -41,7 +41,7 @@ function selectPreferredArtwork(
   return valid[0]?.file_path ?? fallbackPath;
 }
 
-/** Prefer Chinese key art, then neutral, English, and other language tiers. */
+/** Prefer the largest valid image; language preference breaks equal-resolution ties. */
 export function selectPreferredTmdbPoster(
   posters: TmdbPosterImage[] | undefined,
   fallbackPath?: string | null,
