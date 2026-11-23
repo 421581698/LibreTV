@@ -208,6 +208,23 @@
   object-fit: cover;
   object-position: center 34%;
 }
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__poster {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  object-fit: cover;
+  object-position: center 28%;
+  filter: saturate(.92) brightness(.62);
+  transform: scale(1.08);
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__image {
+  z-index: 1;
+}
 .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__placeholder {
   display: grid;
   place-items: center;
@@ -216,7 +233,7 @@
 }
 .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__shade {
   position: absolute;
-  z-index: 1;
+  z-index: 2;
   inset: 0;
   pointer-events: none;
   background:
@@ -225,7 +242,7 @@
 }
 .ipad-edition [data-ipad-detail="true"] .ipad-cinema-bottom-fade {
   position: absolute;
-  z-index: 2;
+  z-index: 3;
   right: 0;
   bottom: -1px;
   left: 0;
@@ -265,7 +282,7 @@
 }
 .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content {
   position: absolute;
-  z-index: 3;
+  z-index: 4;
   right: auto;
   bottom: clamp(44px, 7.5vh, 96px);
   left: clamp(28px, 6.4vw, 112px);
@@ -423,6 +440,27 @@
 }
 .ipad-edition [data-ipad-detail="true"] .ipad-cinema-info dt { color: rgba(255,255,255,.44); }
 .ipad-edition [data-ipad-detail="true"] .ipad-cinema-info dd { margin: 0; color: rgba(255,255,255,.82); }
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-section {
+  width: 100%;
+  margin: 42px 0 0;
+  padding: 0;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-section > h2,
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-episodes h2 {
+  margin: 0 0 16px;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 680;
+  line-height: 1.25;
+  letter-spacing: -.02em;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-episodes {
+  max-width: none;
+  padding: 0;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-episodes > div:first-child {
+  margin-bottom: 18px;
+}
 .ipad-edition [data-ipad-detail="true"] .ipad-cinema-cast { margin-top: 42px; }
 .ipad-edition [data-ipad-detail="true"] .ipad-cinema-cast__rail,
 .ipad-edition [data-ipad-detail="true"] .ipad-cinema-person__works {
