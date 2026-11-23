@@ -189,6 +189,12 @@ function WatchContent() {
       // lock stuck because no second release event follows that click.
       const startsScrubbing = event?.type === 'pointerdown' || event?.type === 'touchstart';
       if (startsScrubbing && target instanceof Element && target.closest('.watch-cinema-progress')) {
+        // A new drag supersedes the delayed cleanup from the previous drag.
+        // Otherwise an old 1.2s timer can clear the preview during this gesture.
+        if (scrubResetTimerRef.current !== null) {
+          window.clearTimeout(scrubResetTimerRef.current);
+          scrubResetTimerRef.current = null;
+        }
         scrubbingRef.current = true;
         setIsScrubbing(true);
         return;
