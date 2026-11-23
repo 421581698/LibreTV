@@ -27,6 +27,8 @@ interface SmartImageProps {
   onExhausted?: () => void;
   /** 仅在需要审计的关键海报上记录浏览器实际解码尺寸。 */
   measureNaturalSize?: boolean;
+  /** Reject an image that decodes below the required source width; never upscale it. */
+  minimumWidth?: number;
 }
 
 /**
@@ -49,12 +51,12 @@ export function SmartImage({
   showDefaultFallback = true,
   onExhausted,
   measureNaturalSize = false,
+  minimumWidth,
 }: SmartImageProps) {
   const sourceUrl = asset?.originalUrl ?? url;
-  const candidates = [...new Set([
-    ...buildImageCandidates(sourceUrl, mode, customProxy),
-    ...buildImageCandidates(fallbackUrl, mode, customProxy),
-  ])];
+  const primaryCandidates = buildImageCandidates(sourceUrl, mode, customProxy);
+  const fallbackCandidates = buildImageCandidates(fallbackUrl, mode, customProxy);
+  const candidates = [...new Set([...primaryCandidates, ...fallbackCandidates])];
   const hdrCandidates = buildImageCandidates(hdrUrl, mode, customProxy);
   const [supportsHdr, setSupportsHdr] = useState(false);
   const [hdrFailed, setHdrFailed] = useState(false);
@@ -81,7 +83,7 @@ export function SmartImage({
     setHdrFailed(false);
     setFallback(false);
     if (measureNaturalSize) setNaturalSize(null);
-  }, [sourceUrl, fallbackUrl, hdrUrl, mode, customProxy, measureNaturalSize]);
+  }, [sourceUrl, fallbackUrl, hdrUrl, mode, customProxy, measureNaturalSize, minimumWidth]);
 
   if (!src) return null;
   return (
@@ -96,9 +98,22 @@ export function SmartImage({
       data-natural-width={measureNaturalSize ? naturalSize?.width : undefined}
       data-natural-height={measureNaturalSize ? naturalSize?.height : undefined}
       data-resolution-tier={measureNaturalSize ? (naturalSize ? (naturalSize.width >= 1200 ? 'meets-1200px' : 'below-1200px') : 'pending') : undefined}
-      onLoad={measureNaturalSize ? (event) => {
+      onLoad={measureNaturalSize || minimumWidth ? (event) => {
         const image = event.currentTarget;
-        setNaturalSize({ width: image.naturalWidth, height: image.naturalHeight });
+        if (measureNaturalSize) setNaturalSize({ width: image.naturalWidth, height: image.naturalHeight });
+        if (minimumWidth && image.naturalWidth < minimumWidth) {
+          if (useHdrSource) {
+            setHdrFailed(true);
+            setIdx(0);
+            return;
+          }
+          if (idx < primaryCandidates.length && fallbackCandidates.length) {
+            setIdx(primaryCandidates.length);
+            return;
+          }
+          setFallback(true);
+          onExhausted?.();
+        }
       } : undefined}
       onError={() => {
         if (measureNaturalSize) setNaturalSize(null);
