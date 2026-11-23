@@ -32,6 +32,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
   const envSources = useAppStore((state) => state.envSources);
   const sourceHealth = useAppStore((state) => state.sourceHealth);
   const subscriptions = useAppStore((state) => state.subscriptions);
+  const yellowFilter = useAppStore((state) => state.yellowFilter);
   const [movie, setMovie] = useState<TmdbTitle | null>(null);
   const [loading, setLoading] = useState(true);
   const [metadataError, setMetadataError] = useState('');
@@ -79,7 +80,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
       let match: { item: { sourceKey: string; vodId: string; name: string; sourceUrl?: string }; source: SourceConfig } | undefined;
       const failures = new Set<string>();
       for (const term of terms) {
-        const response = await api.search(term, sources, false);
+        const response = await api.search(term, sources, yellowFilter);
         response.failures.forEach((failure) => failures.add(failure.sourceKey));
         const found = findMovieMatch(primaryTitle, response.list)
           || findMovieMatch(term, response.list);
