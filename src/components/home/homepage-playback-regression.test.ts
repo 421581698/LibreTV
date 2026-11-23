@@ -591,7 +591,11 @@ describe('首页与播放页回归契约', () => {
   });
 
   it('播放器时间轴跟随每次媒体 timeupdate，进度持久化单独节流', () => {
-    expect(player).toContain('propsRef.current.onTimeUpdate?.(art.currentTime, art.duration, activeEpisodeKeyRef.current);');
+    expect(player).toContain('const syncTimeline = () =>');
+    expect(player).toContain("art.on('video:loadedmetadata', syncTimeline)");
+    expect(player).toContain("art.on('video:durationchange', syncTimeline)");
+    expect(player).toContain("art.on('video:seeked', syncTimeline)");
+    expect(player).toContain('syncTimeline();');
     expect(player).toContain('if (now - lastSave > 5000)');
     expect(player).toContain('propsRef.current.onProgressSave?.(art.currentTime, art.duration, activeEpisodeKeyRef.current);');
   });
