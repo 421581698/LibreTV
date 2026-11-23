@@ -172,7 +172,7 @@ export function SwitchSourceModal({
   }, [phase, candidates, probe]);
 
   const sorted = useMemo(() => {
-    const playbackRank = new Map(
+    const playbackRank = new Map<string, number>(
       rankMovieCandidatesByQuality(
         candidates.map((candidate) => candidate.result),
         store.qualityMap,
