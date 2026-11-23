@@ -526,18 +526,19 @@ function WatchContent() {
   const getRestorePosition = useCallback(async () => {
     const urlPos =
       parseInt(searchParams.get('position') || '0', 10) || 0;
-    if (urlPos > 0) return urlPos;
+    if (Number.isFinite(urlPos) && urlPos > 0) return urlPos;
     const progressId = vodId || currentUrl;
     if (!progressId) return 0;
     const entry = await db.progress.get(
       progressKeyOf(sourceKey, progressId, currentIndex)
     );
-    if (entry?.position && entry.position > 5) return entry.position;
+    if (entry && Number.isFinite(entry.position) && entry.position > 5) return entry.position;
     // 兼容旧版或进度表缺失：从本机观看历史恢复最后一次有效位置。
     const history = await db.history.get(`${sourceKey}_${progressId}`);
     // History stores only one last-played episode position for the whole title.
     // It is safe to restore only when that record belongs to this same episode.
-    return history && history.episodeIndex === currentIndex && history.playbackPosition > 5
+    return history && history.episodeIndex === currentIndex &&
+      Number.isFinite(history.playbackPosition) && history.playbackPosition > 5
       ? history.playbackPosition
       : 0;
   }, [searchParams, sourceKey, vodId, currentUrl, currentIndex]);
