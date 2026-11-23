@@ -12,26 +12,41 @@ function DetailContent() {
   const tmdbId = params.get('tmdbId');
   const bangumiId = params.get('bangumiId');
   const tmdbType = params.get('tmdbType') === 'tv' ? 'tv' : 'movie';
-  if (bangumiId && /^\d{1,12}$/.test(bangumiId)) {
-    return <div className="ipad-edition"><div data-ipad-detail="true"><BangumiSubjectDetailPage
-      id={bangumiId}
-      titleFallback={params.get('title') || '未知新番'}
-      posterFallback={params.get('pic') || ''}
-    /></div>;
+
+  if (bangumiId && /^\\d{1,12}$/.test(bangumiId)) {
+    return (
+      <BangumiSubjectDetailPage
+        id={bangumiId}
+        titleFallback={params.get('title') || '未知新番'}
+        posterFallback={params.get('pic') || ''}
+      />
+    );
   }
-  if (tmdbId && /^\d{1,12}$/.test(tmdbId)) {
-    return <div data-ipad-detail="true"><TmdbMovieDetailPage
-      id={tmdbId}
-      type={tmdbType}
-      titleFallback={params.get('title') || '未知影片'}
-      posterFallback={params.get('pic') || ''}
-      backdropFallback={params.get('backdrop') || ''}
-      ratingFallback={params.get('rating') || ''}
-    /></div>;
+
+  if (tmdbId && /^\\d{1,12}$/.test(tmdbId)) {
+    return (
+      <TmdbMovieDetailPage
+        id={tmdbId}
+        type={tmdbType}
+        titleFallback={params.get('title') || '未知影片'}
+        posterFallback={params.get('pic') || ''}
+        backdropFallback={params.get('backdrop') || ''}
+        ratingFallback={params.get('rating') || ''}
+      />
+    );
   }
-  return <div className="ipad-edition"><div data-ipad-detail="true"><MovieDetailPage watchPath="/ipad-edition/watch" /></div></div>;
+
+  return <MovieDetailPage watchPath="/ipad-edition/watch" />;
 }
 
 export default function IpadEditionDetailPage() {
-  return <div className="ipad-edition"><Suspense fallback={<main className="ipad-edition__rail-message">正在加载影片详情…</main>}><DetailContent /></Suspense></div>;
+  return (
+    <div className="ipad-edition">
+      <div data-ipad-detail="true">
+        <Suspense fallback={<main className="ipad-edition__rail-message">正在加载影片详情…</main>}>
+          <DetailContent />
+        </Suspense>
+      </div>
+    </div>
+  );
 }
