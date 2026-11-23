@@ -709,6 +709,11 @@ export function PlayerShell({
     armMetadataWatchdog(video, mediaUrl);
     const hls = new Hls(buildHlsConfig());
     hlsRef.current = hls;
+    // Destroyed HLS instances may still flush queued callbacks. Every callback
+    // must prove both instance identity and media generation before touching UI,
+    // recovery state, or the replacement media element.
+    const isCurrentHls = () =>
+      hlsRef.current === hls && loadGeneration === mediaLoadGenerationRef.current;
     setQualityControlMode('hls');
     const handleQualityPreferenceChange = () => {
       const preference = readQualityPreference();
@@ -787,6 +792,7 @@ export function PlayerShell({
     hls.attachMedia(video);
 
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      if (!isCurrentHls()) return;
       const qualityResult = applyHlsQualityPreference(hls!, readQualityPreference(), video);
       setAvailableQualityHeights(qualityResult.heights);
       setAvailableQualityLevelCount(hls.levels.length);
@@ -800,6 +806,7 @@ export function PlayerShell({
     });
     // 播放链路恢复（FRAG_LOADED / MANIFEST_PARSED）：静默窗外清零连续失败计数
     hls.on(Hls.Events.FRAG_LOADED, (_event, data) => {
+      if (!isCurrentHls()) return;
       recoveryRef.current?.markHealthy();
       const metrics = playbackMetricsRef.current;
       const stats = data.frag?.stats;
@@ -848,6 +855,7 @@ export function PlayerShell({
     // LEVEL_LOADED / levelInfo 仍是播放列表声明值，不是当前视频解码分辨率。
     // 实际分辨率统一由 video.videoHeight 的 loadedmetadata/canplay/playing/resize 事件记录。
     hls.on(Hls.Events.LEVELS_UPDATED, () => {
+      if (!isCurrentHls()) return;
       // 部分动态清单会在初次解析后补齐档位；重新应用用户的最高画质限制。
       const qualityResult = applyHlsQualityPreference(hls!, readQualityPreference(), video);
       setAvailableQualityHeights(qualityResult.heights);
@@ -856,6 +864,7 @@ export function PlayerShell({
       setQualityNotice(qualityResult.notice ?? '');
     });
     hls.on(Hls.Events.LEVEL_SWITCHED, (_event, data) => {
+      if (!isCurrentHls()) return;
       // The selected playlist rendition and decoded video dimensions are different observations.
       // Track the HLS level in Auto as well as manual modes; never present it as decoded quality.
       const level = hls.levels[data.level];
@@ -875,11 +884,12 @@ export function PlayerShell({
     });
     // 分片真正进入 MSE buffer 才算媒体恢复：此时视频轨可渲染，错误态可解除
     hls.on(Hls.Events.FRAG_BUFFERED, () => {
+      if (!isCurrentHls()) return;
       mediaHealthyRef.current = true;
     });
 
     hls.on(Hls.Events.ERROR, (_evt, data) => {
-      if (!data.fatal) return;
+      if (!isCurrentHls() || !data.fatal) return;
       const recovery = recoveryRef.current;
       if (!recovery) return;
       const decision = recovery.onFatal(data.type, data.details);
@@ -901,7 +911,9 @@ export function PlayerShell({
             return;
           }
           showHint(`${decision.reason}（第 ${decision.attempt} 次）...`);
-          recovery.schedule(decision.delayMs, () => hls.startLoad());
+          recovery.schedule(decision.delayMs, () => {
+            if (isCurrentHls()) hls.startLoad();
+          });
           break;
         }
         case 'recover-media': {
