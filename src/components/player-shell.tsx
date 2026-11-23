@@ -1043,13 +1043,17 @@ export function PlayerShell({
     // Promote the pending identity only when the media element starts loading
     // the replacement source; pause/timeupdate events emitted while teardown is
     // in progress must remain attributed to the previous episode.
-    art.on('video:loadstart', () => {
+    const promotePendingEpisodeIdentity = () => {
       const pendingEpisodeKey = pendingEpisodeKeyRef.current;
       if (pendingEpisodeKey !== null) {
         activeEpisodeKeyRef.current = pendingEpisodeKey;
         pendingEpisodeKeyRef.current = null;
       }
-    });
+    };
+    art.on('video:loadstart', promotePendingEpisodeIdentity);
+    // Some native HLS/WebKit paths do not expose loadstart consistently.
+    // loadedmetadata is a safe second boundary before normal timeupdate progress.
+    art.on('video:loadedmetadata', promotePendingEpisodeIdentity);
     // Native media events are the source of truth. Bridge them into ArtPlayer's
     // public play/pause event bus so its center and bottom controls stay in sync,
     // including pauses initiated by iOS media controls or external callers.
