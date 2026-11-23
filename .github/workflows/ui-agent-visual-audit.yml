@@ -1,0 +1,70 @@
+name: ui-agent-visual-audit
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'styles/**'
+      - 'app/**'
+      - 'scripts/ui-agent/**'
+      - '.agents/skills/libretv-ui-agent/**'
+      - 'docs/ui-agent/**'
+      - '.github/workflows/ui-agent-visual-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  visual-audit:
+    # Playwright 1.56.1 does not support the Ubuntu 26.04 image currently
+    # provided by ubuntu-latest. Pin the known-supported runner until the
+    # browser toolchain is deliberately upgraded and verified.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install project dependencies
+        run: npm ci
+      - name: Install isolated browser runner
+        run: |
+          npm install --no-save --package-lock=false playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Build application
+        env:
+          PASSWORD: ci-test-password
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: npm run build
+      - name: Start application
+        env:
+          PASSWORD: ci-test-password
+        run: |
+          npm run start > /tmp/libretv-ui-agent.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:8080/ >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/libretv-ui-agent.log
+          exit 1
+      - name: Capture responsive visual evidence
+        env:
+          UI_AGENT_BASE_URL: http://127.0.0.1:8080/
+          UI_AGENT_OUTPUT_DIR: artifacts/ui-agent
+          UI_AGENT_STRICT: '0'
+        run: node scripts/ui-agent/capture.mjs
+      - name: Upload screenshots and report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: libretv-ui-agent-visual-evidence
+          path: artifacts/ui-agent/
+          if-no-files-found: warn
+          retention-days: 14
