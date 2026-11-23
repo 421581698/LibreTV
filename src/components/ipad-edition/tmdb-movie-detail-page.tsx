@@ -8,14 +8,12 @@ import { buildWatchUrl, validateSourceUrl } from '@/lib/utils';
 import { findMovieMatch, getMovieSearchTerms } from '@/lib/movie-title-match';
 import type { SourceConfig } from '@/lib/types';
 
-type TmdbImage = { file_path?: string; iso_639_1?: string | null; width?: number; height?: number };
 type TmdbPerson = { id: number; name: string; character?: string; profile_path?: string | null; job?: string; department?: string };
 type TmdbTitle = {
   id: number; title?: string; name?: string; original_title?: string; original_name?: string;
   overview?: string; poster_path?: string | null; backdrop_path?: string | null; vote_average?: number;
   release_date?: string; first_air_date?: string; runtime?: number; episode_run_time?: number[];
   genres?: { id: number; name: string }[]; production_countries?: { name: string }[];
-  images?: { backdrops?: TmdbImage[]; posters?: TmdbImage[]; logos?: TmdbImage[] };
   credits?: { cast?: TmdbPerson[]; crew?: TmdbPerson[] };
 };
 type TmdbCredit = { id: number; title?: string; name?: string; character?: string; poster_path?: string | null; release_date?: string; first_air_date?: string };
@@ -131,9 +129,6 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
   const poster = imageUrl(movie?.poster_path, 'w500') || posterFallback;
   const backdrop = imageUrl(movie?.backdrop_path, 'w1280') || backdropFallback || poster;
   const cast = movie?.credits?.cast?.slice(0, 18) || [];
-  const crew = (movie?.credits?.crew || []).filter((entry) => ['Director', 'Writer', 'Screenplay', 'Producer', 'Director of Photography'].includes(entry.job || '')).slice(0, 12);
-  const stills = (movie?.images?.backdrops || []).filter((entry) => entry.file_path).slice(0, 18);
-  const posters = (movie?.images?.posters || []).filter((entry) => entry.file_path).slice(0, 12);
 
   if (loading) return <main className="min-h-screen bg-[#08080a] p-10 text-white">正在加载电影资料…</main>;
   if (!movie) return <main className="min-h-screen bg-[#08080a] p-10 text-white"><button onClick={() => router.back()}>‹ 返回</button><p className="mt-8">{metadataError || '电影资料暂时不可用'}</p></main>;
@@ -165,14 +160,8 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
       </section>
 
       <section className="mx-auto max-w-[1500px] px-7 py-8 md:px-16">
-        <h2 className="mb-4 text-2xl font-semibold">剧照</h2>
-        <div className="flex gap-4 overflow-x-auto pb-4">{stills.map((still, index) => <img key={still.file_path} src={imageUrl(still.file_path, 'w780')} alt={title + ' 剧照 ' + (index + 1)} className="w-[280px] shrink-0 rounded-xl object-cover" />)}</div>
         <h2 className="mb-4 mt-8 text-2xl font-semibold">演员</h2>
         <div className="flex gap-4 overflow-x-auto pb-4">{cast.map((actor) => <button key={actor.id} onClick={() => void openPerson(actor.id)} className="w-32 shrink-0 text-left"><img src={imageUrl(actor.profile_path, 'w185') || '/placeholder.svg'} alt={actor.name} className="aspect-[2/3] w-full rounded-xl object-cover" /><span className="mt-2 block truncate text-sm font-semibold">{actor.name}</span><span className="block truncate text-xs text-white/55">{actor.character}</span></button>)}</div>
-        <h2 className="mb-4 mt-8 text-2xl font-semibold">导演与制作团队</h2>
-        <div className="flex flex-wrap gap-3">{crew.map((member) => <button key={member.id + (member.job || '')} onClick={() => void openPerson(member.id)} className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left"><span className="block font-medium">{member.name}</span><span className="text-xs text-white/55">{member.job}</span></button>)}</div>
-        <h2 className="mb-4 mt-8 text-2xl font-semibold">海报与宣传图</h2>
-        <div className="flex gap-4 overflow-x-auto pb-4">{posters.map((art, index) => <img key={art.file_path} src={imageUrl(art.file_path, 'w500')} alt={title + ' 海报 ' + (index + 1)} className="w-36 shrink-0 rounded-xl object-cover" />)}</div>
         <div className="mt-8 flex flex-wrap gap-6 text-sm text-white/65"><span>片长：{movie.runtime ? movie.runtime + ' 分钟' : movie.episode_run_time?.[0] ? movie.episode_run_time[0] + ' 分钟/集' : '暂无数据'}</span><span>国家/地区：{movie.production_countries?.map((country) => country.name).join('、') || '暂无数据'}</span><span>评分：{(movie.vote_average || 0).toFixed(1)} / 10</span></div>
       </section>
 
