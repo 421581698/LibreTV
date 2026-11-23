@@ -207,7 +207,7 @@ export const api = {
     }
   },
 
-  tmdbDiscover: (type: 'movie' | 'tv', tag: string, page: number, signal?: AbortSignal, region: 'US' | 'CN' = 'CN') => {
+  tmdbDiscover: (type: 'movie' | 'tv', tag: string, page: number, signal?: AbortSignal, region: 'US' | 'CN' | 'GLOBAL' = 'CN') => {
     const sp = new URLSearchParams({ type, tag, page: String(page), region });
     return request<DoubanResponse>('/api/tmdb/discover?' + sp.toString(), { signal });
   },
