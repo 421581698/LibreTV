@@ -22,7 +22,9 @@ type MediaType = 'movie' | 'tv';
 
 function normalizeTitle(value: string): string {
   return value.normalize('NFKC').toLocaleLowerCase()
-    .replace(/(?:19|20)\d{2}/g, '')
+    // Remove only a trailing release-year suffix. Years can be part of a
+    // genuine title (for example "1917" or "2001: A Space Odyssey").
+    .replace(/[\s(（\[]+(?:19|20)\d{2}[)）\]]?$/u, '')
     .replace(/[\s\p{P}\p{S}\p{Z}]+/gu, '');
 }
 
