@@ -1550,6 +1550,13 @@ export function PlayerShell({
       if (playbackConfirmationTimerRef.current) clearTimeout(playbackConfirmationTimerRef.current);
       clearMetadataWatchdog();
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+      // A page/source switch can unmount the player while a long-press timer is
+      // pending or while temporary 3x playback is active. Do not let that timer
+      // mutate a destroyed player or leak the temporary rate into a reused video.
+      if (longPressTimer) clearTimeout(longPressTimer);
+      longPressTimer = null;
+      if (isLongPress && art.video) art.video.playbackRate = originalRate;
+      isLongPress = false;
       el?.removeEventListener('touchstart', onTouchStart);
       el?.removeEventListener('touchend', onTouchEnd);
       el?.removeEventListener('touchcancel', onTouchEnd);
