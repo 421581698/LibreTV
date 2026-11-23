@@ -258,9 +258,13 @@ describe('首页与播放页回归契约', () => {
     expect(watch).toContain('<SwitchSourceModal');
     expect(watch).toContain('getRestorePosition={getRestorePosition}');
     expect(watch).toContain('setWatchClock({ position, duration })');
-    expect(watch).toContain('onTimeUpdate={(position, duration) =>');
+    expect(watch).toContain('onTimeUpdate={(position, duration, eventEpisodeKey) =>');
     expect(watch).toContain('onProgressSave={handleProgress}');
-    expect(watch).toContain('onPause={(position, duration) =>');
+    expect(watch).toContain('onPause={(position, duration, eventEpisodeKey) =>');
+    expect(watch).toContain('if (eventEpisodeKey && eventEpisodeKey !== currentEpisodeKey) return;');
+    expect(player).toContain('activeEpisodeKeyRef.current = propsRef.current.episodeKey ??');
+    expect(player).toContain('onTimeUpdate?.(art.currentTime, art.duration, activeEpisodeKeyRef.current)');
+    expect(player).toContain('onProgressSave?.(art.currentTime, art.duration, activeEpisodeKeyRef.current)');
     expect(watch).toContain('setWatchClock({ position, duration })');
     expect(watch).toContain('playerApiRef.current?.seek(Number(event.currentTarget.value))');
     expect(watch).not.toContain('setScrubbingPosition(position);\n                    playerApiRef.current?.seek(position);');
