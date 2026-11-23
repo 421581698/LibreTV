@@ -581,7 +581,10 @@ export function PlayerShell({
       } catch {
         if (loadGeneration !== mediaLoadGenerationRef.current) return;
         // A failed progress lookup must never prevent direct media playback.
+        // Detach the readiness listeners now; the restore attempt is terminal.
         restoredRef.current = true;
+        restoreCleanupRef.current?.();
+        restoreCleanupRef.current = null;
         video.play().catch(() => {
           if (loadGeneration === mediaLoadGenerationRef.current) setShowPlayFallback(true);
         });
@@ -670,9 +673,14 @@ export function PlayerShell({
           restoredRef.current = true;
           restoreCleanupRef.current?.();
           restoreCleanupRef.current = null;
+          if (readQualityPreference() === '1080') {
+            video.pause();
+            setQualityNotice('当前使用原生 HLS，无法验证或强制限制 1080P；已暂停以避免超过所选上限，请选择自动继续播放。');
+            return;
+          }
           video.play().catch(() => {
-          if (loadGeneration === mediaLoadGenerationRef.current) setShowPlayFallback(true);
-        });
+            if (loadGeneration === mediaLoadGenerationRef.current) setShowPlayFallback(true);
+          });
         } finally {
           nativeRestoreInFlight = false;
         }
