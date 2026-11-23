@@ -60,6 +60,15 @@ describe('TMDB artwork identity matching', () => {
     expect((await response.json()).match).toBeNull();
   });
 
+  it('preserves numeric titles such as 1917 when normalizing identity', async () => {
+    mockedFetch.mockResolvedValueOnce({ results: [
+      { id: 1917, title: '1917', original_title: '1917', release_date: '2019-12-25', poster_path: '/1917.jpg' },
+    ] } as never);
+
+    const response = await GET(new Request('https://example.test/api/tmdb/match?title=1917&type=movie&year=2019'));
+    expect((await response.json()).match).toMatchObject({ id: 1917, year: '2019' });
+  });
+
   it('does not replace source artwork from a lone title match when year is missing', async () => {
     mockedFetch.mockResolvedValueOnce({ results: [
       { id: 42, title: '测试影片', original_title: 'Test Film', release_date: '2020-01-01', poster_path: '/poster.jpg' },
