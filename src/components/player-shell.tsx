@@ -168,6 +168,8 @@ interface PlayerShellProps {
   onQuality?: (height: number) => void;
   /** 恢复策略判源不可用（重试耗尽/格式硬失败）时回调：父级弹出换源面板 */
   onRequestSwitchSource?: (reason: string) => void;
+  /** Route fullscreen requests through the page shell so every custom overlay remains in the fullscreen layer. */
+  onRequestFullscreen?: () => void;
   /** 控制条上的上一集 / 下一集：不在播放器里也能切集，省得回到页面按钮 */
   onPrevEpisode?: () => void;
   onNextEpisode?: () => void;
@@ -201,6 +203,7 @@ export function PlayerShell({
   resourceKey,
   onPlaybackSample,
   onRequestSwitchSource,
+  onRequestFullscreen,
   onPrevEpisode,
   onNextEpisode,
   hasPrevEpisode,
@@ -275,7 +278,7 @@ export function PlayerShell({
     url, title, mediaType, onPlaybackConfirmed, adFilter, autoplayNext, skipMark, autoSkipSegments,
     pendingStart, onPendingStart, onPlayerApi, onRecordSegment,
     episodeKey, nextUrl, nextEpisodeKey,
-    getRestorePosition, onTimeUpdate, onProgressSave, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource,
+    getRestorePosition, onTimeUpdate, onProgressSave, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource, onRequestFullscreen,
     onPrevEpisode, onNextEpisode, hasPrevEpisode, hasNextEpisode,
   });
   propsRef.current = {
@@ -1028,6 +1031,11 @@ export function PlayerShell({
           html: '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"><path fill="currentColor" d="M4 9V4h5v2H6v3H4zm10-5h6v6h-2V6h-4V4zM4 15h2v3h3v2H4v-5zm14 3v-3h2v5h-6v-2h4z"/></svg>',
           tooltip: '全屏播放',
           click: () => {
+            const requestFullscreen = propsRef.current.onRequestFullscreen;
+            if (requestFullscreen) {
+              requestFullscreen();
+              return;
+            }
             const nativeVideo = art.video as NativeFullscreenVideo;
             nativeFullscreenCleanupRef.current?.();
             nativeFullscreenCleanupRef.current = requestNativeFullscreenWithFallback(
