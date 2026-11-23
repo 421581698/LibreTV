@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
 interface TmdbSearchItem {
   id: number;
   title?: string;
+  original_title?: string;
   poster_path?: string | null;
   release_date?: string;
 }
@@ -52,7 +53,7 @@ export async function GET(req: Request) {
     });
     const imageBase = await getTmdbPosterBase();
     const items = (Array.isArray(payload.results) ? payload.results : [])
-      .filter((item) => Number.isInteger(item.id) && item.id > 0 && Boolean(item.title?.trim()) && Boolean(item.poster_path) && Boolean(item.release_date))
+      .filter((item) => Number.isInteger(item.id) && item.id > 0 && item.original_title?.trim().toLocaleLowerCase() === query.toLocaleLowerCase() && Boolean(item.title?.trim()) && Boolean(item.poster_path) && Boolean(item.release_date))
       .map((item) => ({
         id: String(item.id),
         title: item.title || '',
