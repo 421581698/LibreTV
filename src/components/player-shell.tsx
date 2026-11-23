@@ -940,6 +940,11 @@ export function PlayerShell({
     unsustainableFragmentsRef.current = 0;
     sustainableFragmentsRef.current = 0;
     setShowPlayFallback(false);
+    // Cancel retries queued by the previous episode before replacing the
+    // recovery controller; otherwise an old timer can call startLoad() on a
+    // destroyed HLS instance after the user has already switched episodes.
+    recoveryRef.current?.dispose();
+    recoveryRef.current = new PlaybackRecovery();
     const art = artRef.current;
     if (!art) return;
     // Keep old-source events tagged with the old identity until the browser
