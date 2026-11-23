@@ -270,6 +270,7 @@ export function PlayerShell({
   const activeEpisodeKeyRef = useRef(episodeKey ?? '');
   const pendingEpisodeKeyRef = useRef<string | null>(null);
   const lastProgressSaveAtRef = useRef(0);
+  const mediaLoadGenerationRef = useRef(0);
   const propsRef = useRef({
     url, title, mediaType, onPlaybackConfirmed, adFilter, autoplayNext, skipMark, autoSkipSegments,
     pendingStart, onPendingStart, onPlayerApi, onRecordSegment,
@@ -534,6 +535,7 @@ export function PlayerShell({
 
   /** Native progressive media path for formats the existing HTMLVideoElement can play. */
   const setupDirectMedia = (video: HTMLVideoElement, mediaUrl: string) => {
+    const loadGeneration = mediaLoadGenerationRef.current;
     clearMetadataWatchdog();
     restoreCleanupRef.current?.();
     restoreCleanupRef.current = null;
@@ -562,6 +564,7 @@ export function PlayerShell({
       restoreInFlight = true;
       try {
         const saved = (await propsRef.current.getRestorePosition?.()) ?? 0;
+        if (loadGeneration !== mediaLoadGenerationRef.current) return;
         if (saved > 10 && saved < duration - 2) {
           video.currentTime = saved;
           showHint(`已从 ${formatTime(saved)} 继续播放`);
@@ -594,6 +597,7 @@ export function PlayerShell({
    * 注意：不销毁 ArtPlayer，只销毁并重建 hls，从而保留网页全屏等播放器状态。
    */
   const setupHls = (video: HTMLVideoElement, mediaUrl: string, allowProxyFallback: boolean) => {
+    const loadGeneration = mediaLoadGenerationRef.current;
     clearMetadataWatchdog();
     restoreCleanupRef.current?.();
     restoreCleanupRef.current = null;
@@ -636,6 +640,7 @@ export function PlayerShell({
         nativeRestoreInFlight = true;
         try {
           const saved = (await propsRef.current.getRestorePosition?.()) ?? 0;
+          if (loadGeneration !== mediaLoadGenerationRef.current) return;
           if (saved > 10 && saved < duration - 2) {
             video.currentTime = saved;
             showHint(`已从 ${formatTime(saved)} 继续播放`);
@@ -698,6 +703,7 @@ export function PlayerShell({
       restoreInFlight = true;
       try {
         const saved = (await propsRef.current.getRestorePosition?.()) ?? 0;
+        if (loadGeneration !== mediaLoadGenerationRef.current) return;
         const currentDuration = artRef.current?.duration || video.duration || duration;
         let prefetchAnchor = video.currentTime;
         if (saved > 10 && Number.isFinite(currentDuration) && saved < currentDuration - 2) {
@@ -881,6 +887,7 @@ export function PlayerShell({
   /** 换集：重置每集状态并切换到新 HLS 源（不重建 ArtPlayer）。 */
   const loadEpisode = (targetUrl: string) => {
     if (!targetUrl) return;
+    mediaLoadGenerationRef.current += 1;
     lastProgressSaveAtRef.current = 0;
     flushPlaybackMetrics();
     resetPlaybackMetrics();
@@ -1226,6 +1233,7 @@ export function PlayerShell({
         videoErrorRetryUsedRef.current = true;
         playbackMetricsRef.current.recoveries += 1;
         showHint('播放异常，正在重试...');
+        mediaLoadGenerationRef.current += 1;
         setupHls(art.video, currentMediaUrlRef.current, true);
         return;
       }
@@ -1510,6 +1518,7 @@ export function PlayerShell({
     document.addEventListener('visibilitychange', saveOnHide);
 
     return () => {
+      mediaLoadGenerationRef.current += 1;
       flushPlaybackMetrics();
       // 卸载前刷一次最终进度，避免丢失最后几秒。
       // 已自然播完的集数不回写，避免覆盖 onEnded 里清除的「已看完」记录
