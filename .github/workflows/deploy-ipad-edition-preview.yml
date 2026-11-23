@@ -861,7 +861,28 @@ jobs:
                 // isolated image-layer false-black behavior of locator.screenshot().
                 const posterSlots = await page.locator('[data-ipad-poster-slot]').count();
                 const posterPixelChecks = [];
+                // Bound the complete per-viewport/theme poster audit, not just each image decode.
+                // The audit still checks every slot when it fits the budget; if screenshots stall,
+                // remaining slots are explicitly recorded as uninspected and the gate fails closed.
+                const posterInspectionStartedAt = Date.now();
+                const posterInspectionBudgetMs = 60_000;
+                let posterInspectionBudgetExceeded = false;
                 for (let index = 0; index < posterSlots; index += 1) {
+                  if (Date.now() - posterInspectionStartedAt >= posterInspectionBudgetMs) {
+                    posterInspectionBudgetExceeded = true;
+                    for (let remaining = index; remaining < posterSlots; remaining += 1) {
+                      const slotType = await page.locator('[data-ipad-poster-slot]').nth(remaining).getAttribute('data-ipad-poster-slot').catch(() => 'unknown');
+                      posterPixelChecks.push({
+                        index: remaining,
+                        slotType: slotType ?? 'unknown',
+                        inspected: false,
+                        reason: 'poster-inspection-time-budget-exceeded',
+                        blankBlack: false,
+                      });
+                    }
+                    console.error('Poster pixel audit exceeded its 60s per-viewport/theme budget; remaining slots are marked uninspected.');
+                    break;
+                  }
                   await page.evaluate(async (slotIndex) => {
                     const slots = Array.from(document.querySelectorAll('[data-ipad-poster-slot]'));
                     const slot = slots[slotIndex];
@@ -886,8 +907,11 @@ jobs:
                   const renderedViewportPng = PNG.sync.read(await page.screenshot({
                     fullPage: false,
                     animations: "disabled",
-                    timeout: 30000,
+                    timeout: 8000,
                   }));
+                  if ((index + 1) % 5 === 0 || index + 1 === posterSlots) {
+                    console.log(`Poster pixel audit progress: ${index + 1}/${posterSlots} slots in ${Date.now() - posterInspectionStartedAt}ms.`);
+                  }
                   const item = await page.evaluate((slotIndex) => {
                     const slots = Array.from(document.querySelectorAll('[data-ipad-poster-slot]'));
                     const slot = slots[slotIndex];
@@ -977,6 +1001,9 @@ jobs:
                   });
                 }
                 metrics.posterPixelInspectionSource = "per-poster-viewport-composited-screenshot";
+                metrics.posterInspectionBudgetMs = posterInspectionBudgetMs;
+                metrics.posterInspectionDurationMs = Date.now() - posterInspectionStartedAt;
+                metrics.posterInspectionBudgetExceeded = posterInspectionBudgetExceeded;
                 metrics.posterPixelChecks = posterPixelChecks;
                 metrics.posterPixelInspectionUnavailableCount = posterPixelChecks.filter(item => !item.inspected).length;
                 metrics.blankBlackPosterCount = posterPixelChecks.filter(item => item.blankBlack).length;
