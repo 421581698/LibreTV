@@ -1609,6 +1609,7 @@ export function PlayerShell({
       // Update the identity without needlessly reloading an unchanged media URL.
       activeEpisodeKeyRef.current = episodeKey ?? '';
       pendingEpisodeKeyRef.current = null;
+      lastProgressSaveAtRef.current = 0;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url, episodeKey]);
