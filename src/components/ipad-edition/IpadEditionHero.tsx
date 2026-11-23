@@ -64,20 +64,19 @@ export function IpadEditionHero({ items, activeIndex, onSelect, onOpen, pendingT
       <div className="ipad-edition__cinema-hero-copy" key={item.id || item.title} aria-live="polite">
         <p className="ipad-edition__cinema-hero-kicker">LIBRETV · 精选推荐</p>
         <h1>{item.title}</h1>
-        <button type="button" className="ipad-edition__cinema-hero-cta" aria-busy={pendingTitle === item.title} disabled={Boolean(pendingTitle)} onClick={() => onOpen(item)}>
-          查找播放资源
-          <span aria-hidden="true">→</span>
-        </button>
+        <div className="ipad-edition__cinema-hero-actions">
+          <button type="button" className="ipad-edition__cinema-hero-cta" aria-busy={pendingTitle === item.title} disabled={Boolean(pendingTitle)} onClick={() => onOpen(item)}>
+            <span aria-hidden="true">▶</span>
+            查找播放资源
+          </button>
+          <button type="button" className="ipad-edition__cinema-hero-more" aria-label={'查看 ' + item.title + ' 的更多信息'} disabled={Boolean(pendingTitle)} onClick={() => onOpen(item)}>
+            <span aria-hidden="true">＋</span>
+          </button>
+        </div>
       </div>
 
       {items.length > 1 ? (
         <div className="ipad-edition__cinema-hero-pagination" role="group" aria-label="切换精选影片">
-          <span className="ipad-edition__cinema-hero-count">
-            {String(activeIndex + 1).padStart(2, '0')} / {String(items.length).padStart(2, '0')}
-          </span>
-          <button className="ipad-edition__cinema-hero-step" type="button" aria-label="上一部精选影片" onClick={() => selectRelative(-1)}>
-            <span aria-hidden="true">‹</span>
-          </button>
           {items.map((candidate, index) => (
             <button
               key={candidate.id || candidate.title}
@@ -88,9 +87,6 @@ export function IpadEditionHero({ items, activeIndex, onSelect, onOpen, pendingT
               onClick={() => onSelect(index)}
             />
           ))}
-          <button className="ipad-edition__cinema-hero-step" type="button" aria-label="下一部精选影片" onClick={() => selectRelative(1)}>
-            <span aria-hidden="true">›</span>
-          </button>
         </div>
       ) : null}
     </section>
