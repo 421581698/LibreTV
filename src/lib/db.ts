@@ -143,6 +143,7 @@ export const MAX_SEARCH_HISTORY = 10;
 export async function upsertHistory(entry: Omit<HistoryEntry, 'id'>): Promise<void> {
   const id = `${entry.sourceKey}_${entry.vodId}`;
   const existing = await db.history.get(id);
+  const sameEpisode = existing?.episodeIndex === entry.episodeIndex;
   const merged: HistoryEntry = {
     ...existing,
     ...entry,
@@ -150,8 +151,12 @@ export async function upsertHistory(entry: Omit<HistoryEntry, 'id'>): Promise<vo
     typeName: entry.typeName || existing?.typeName,
     year: entry.year || existing?.year,
     area: entry.area || existing?.area,
-    playbackPosition: entry.playbackPosition > 10 ? entry.playbackPosition : existing?.playbackPosition ?? 0,
-    duration: entry.duration || existing?.duration || 0,
+    // A title-level history row stores only one episode position. Preserve it
+    // when reopening the same episode, but never carry it into a different one.
+    playbackPosition: entry.playbackPosition > 10
+      ? entry.playbackPosition
+      : sameEpisode ? existing?.playbackPosition ?? 0 : 0,
+    duration: entry.duration || (sameEpisode ? existing?.duration : 0) || 0,
     timestamp: Date.now(),
   };
   await db.history.put(merged);
