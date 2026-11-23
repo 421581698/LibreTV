@@ -1046,7 +1046,14 @@ function WatchContent() {
                   }}
                   onKeyUp={(event) => {
                     if (['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) {
-                      playerApiRef.current?.seek(Number(event.currentTarget.value));
+                      const position = Number(event.currentTarget.value);
+                      if (!Number.isFinite(position)) return;
+                      playerApiRef.current?.seek(position);
+                      // Keyboard range changes do not enter the pointer scrub
+                      // lifecycle, so clear the temporary preview explicitly.
+                      scrubbingPositionRef.current = null;
+                      setScrubbingPosition(null);
+                      setWatchClock((current) => ({ ...current, position }));
                     }
                   }}
                   disabled={!hasFiniteDuration}
