@@ -52,6 +52,7 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
   const [error, setError] = useState('');
   const [sharing, setSharing] = useState(false);
   const [episodeMenuIndex, setEpisodeMenuIndex] = useState<number | null>(null);
+  const [tmdbArtwork, setTmdbArtwork] = useState<{ poster: string; backdrop: string } | null>(null);
 
   // Episode actions are a real popover: dismiss on outside tap or Escape so the
   // menu never remains stranded over the horizontal episode shelf on mobile.
@@ -127,12 +128,49 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
   }, [sourceKey, vodId, source, checked, verified]);
 
   const info = detail?.videoInfo;
+
+  // Ordinary CMS search results do not carry a reliable high-resolution artwork
+  // identity. Resolve the title against TMDB only after CMS detail is available;
+  // exact localized/original-title and year checks prevent unrelated matches.
+  useEffect(() => {
+    if (!detail || !info) return;
+    const matchTitle = (info.title || title).trim();
+    if (!matchTitle) return;
+    const mediaType = isMovieType(info.typeName, detail.episodes?.length ?? 0) ? 'movie' : 'tv';
+    const controller = new AbortController();
+    setTmdbArtwork(null);
+    const params = new URLSearchParams({
+      title: matchTitle,
+      type: mediaType,
+      ...(info.year ? { year: info.year.slice(0, 4) } : {}),
+    });
+    fetch('/api/tmdb/match?' + params.toString(), { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('TMDB_MATCH_UNAVAILABLE');
+        return response.json() as Promise<{ id: number; type: 'movie' | 'tv'; posterUrl?: string; backdropUrl?: string }>;
+      })
+      .then(async (match) => {
+        if (!Number.isInteger(match.id) || match.id <= 0) return;
+        const detailsResponse = await fetch('/api/tmdb/details?' + new URLSearchParams({ id: String(match.id), type: match.type }), { signal: controller.signal });
+        if (!detailsResponse.ok) throw new Error('TMDB_DETAILS_UNAVAILABLE');
+        const metadata = await detailsResponse.json() as { poster_path?: string | null; backdrop_path?: string | null };
+        if (controller.signal.aborted) return;
+        setTmdbArtwork({
+          poster: metadata.poster_path ? `https://image.tmdb.org/t/p/original${metadata.poster_path}` : match.posterUrl || '',
+          backdrop: metadata.backdrop_path ? `https://image.tmdb.org/t/p/original${metadata.backdrop_path}` : match.backdropUrl || '',
+        });
+      })
+      .catch(() => {
+        // TMDB is an enhancement, never a dependency for CMS detail or playback.
+      });
+    return () => controller.abort();
+  }, [detail, info, title]);
   const episodes = detail?.episodes ?? [];
   const episodeItems = detail?.episodeItems ?? [];
-  // Detail feeds often omit a dedicated backdrop even when the search result
-  // already supplied a valid poster. Keep the hero artwork populated by falling
-  // back through the detail cover to the original poster URL.
-  const backdrop = info?.backdrop?.trim() || info?.cover?.trim() || poster.trim();
+  // Keep landscape backdrops and portrait posters in separate image slots.
+  // A low-resolution CMS cover/poster must never be enlarged as the hero backdrop.
+  const backdrop = info?.backdrop?.trim() || tmdbArtwork?.backdrop || '';
+  const posterArtwork = tmdbArtwork?.poster || info?.cover?.trim() || poster.trim();
   const knownSeasonNumbers = episodeItems
     .map((item) => item.seasonNumber)
     .filter((value): value is number => typeof value === 'number' && Number.isInteger(value) && value > 0);
@@ -159,7 +197,7 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
   };
   const isMovie = isMovieType(info?.typeName, episodes.length);
   const displayTitle = info?.title || title;
-  const image = info?.cover || poster;
+  const image = posterArtwork;
   const metadata = [
     info?.year,
     info?.area,
@@ -262,7 +300,20 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
         </header>
 
         <div className="movie-detail-hero__content relative z-10 mx-auto flex min-h-[520px] max-w-6xl flex-col justify-end px-5 pb-10 pt-32 sm:min-h-[580px] sm:px-10 sm:pb-14">
-          <div className="max-w-2xl">
+          <div className="flex max-w-4xl items-end gap-5 sm:gap-7">
+            {posterArtwork ? (
+              <SmartImage
+                asset={tmdbArtwork?.poster ? undefined : fromCmsArtwork({ sourceKey, vodId, title: displayTitle, imageUrl: posterArtwork, kind: 'poster' })}
+                url={posterArtwork}
+                mode={imageProxyMode}
+                customProxy={customImageProxy}
+                alt={displayTitle + ' 海报'}
+                className="hidden w-28 shrink-0 self-end rounded-xl object-cover shadow-2xl sm:block sm:w-36"
+                loading="eager"
+                measureNaturalSize
+              />
+            ) : null}
+            <div className="min-w-0 max-w-2xl">
             <p className="movie-detail-eyebrow mb-3 text-[10px] font-semibold uppercase text-white/65">LIBRETV · TITLE DETAILS</p>
             <h1 className="movie-detail-title max-w-3xl text-4xl leading-[1.05] tracking-[-.045em] sm:text-6xl">{displayTitle}</h1>
             {metadata.length > 0 && (
@@ -279,6 +330,7 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
                 <span aria-hidden="true">{favorite ? '♥' : '＋'}</span>
               </button>
               <button type="button" onClick={() => void share()} disabled={sharing} className="flex h-12 w-12 items-center justify-center rounded-full border border-white/25 bg-white/10 text-lg backdrop-blur-xl" aria-label="分享影片">↗</button>
+            </div>
             </div>
           </div>
         </div>
