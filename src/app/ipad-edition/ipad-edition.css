@@ -2148,3 +2148,115 @@ body:has(.ipad-edition[data-environment="light"]) {
   padding-block-start: 0;
   overflow-x: clip;
 }
+
+/* PR #99 · Horizontal gallery stability + edge alignment.
+   Scroll viewport owns horizontal overflow only; cards keep intrinsic fixed widths. */
+.ipad-edition[data-ipad-home="true"] .ipad-edition__rail-section,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__continue-section {
+  min-width: 0;
+  padding-inline: 0 !important;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__rail-section .ipad-edition__section-heading,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__continue-section .ipad-edition__section-heading {
+  padding-inline: 16px;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__poster-grid,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__anime-grid,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__continue-grid {
+  display: flex !important;
+  flex-flow: row nowrap !important;
+  align-items: flex-start;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  gap: 14px !important;
+  padding: 10px 4px 26px 16px !important;
+  margin: 0;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none !important;
+  touch-action: pan-x pan-y;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__poster-grid::-webkit-scrollbar,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__anime-grid::-webkit-scrollbar,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__continue-grid::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__poster-card,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__poster-skeleton {
+  flex: 0 0 140px !important;
+  width: 140px !important;
+  min-width: 140px !important;
+  max-width: 140px !important;
+  box-sizing: border-box;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__anime-card {
+  flex: 0 0 190px !important;
+  width: 190px !important;
+  min-width: 190px !important;
+  max-width: 190px !important;
+  box-sizing: border-box;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__continue-card {
+  flex: 0 0 230px !important;
+  width: 230px !important;
+  min-width: 230px !important;
+  max-width: 230px !important;
+  box-sizing: border-box;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__poster-card > strong,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__anime-card > strong,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__continue-card > strong {
+  display: block !important;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+  text-align: left;
+  line-height: 1.4;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__poster-card > small,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__anime-card > small,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__continue-card > small {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__poster-card {
+  align-content: start;
+  overflow: visible;
+  text-align: left;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__poster-art,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__anime-card > span,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__continue-art {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+@media (max-width: 699px) {
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__poster-grid,
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__anime-grid,
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__continue-grid {
+    gap: 12px !important;
+    padding-left: 16px !important;
+    padding-right: 4px !important;
+  }
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__poster-card,
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__poster-skeleton {
+    flex-basis: 140px !important;
+    width: 140px !important;
+    min-width: 140px !important;
+    max-width: 140px !important;
+  }
+}
