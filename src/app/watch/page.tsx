@@ -545,9 +545,24 @@ function WatchContent() {
   // 换集清空中段两步态：起点属于上一集，不能和新集的位置拼成区间
   useEffect(() => {
     setPendingStart(null);
-    // A new source/episode is a new media lifecycle. Do not keep the previous
-    // episode's play icon active while the replacement media is still loading.
+    // A new source/episode is a new media lifecycle. Do not carry the previous
+    // source's play state, timeline, drag preview, or hide timer into its loading phase.
     setIsPlaying(false);
+    setWatchClock({ position: 0, duration: 0 });
+    setScrubbingPosition(null);
+    scrubbingPositionRef.current = null;
+    setIsScrubbing(false);
+    scrubbingRef.current = false;
+    if (scrubResetTimerRef.current !== null) {
+      window.clearTimeout(scrubResetTimerRef.current);
+      scrubResetTimerRef.current = null;
+    }
+    if (controlsHideTimerRef.current !== null) {
+      window.clearTimeout(controlsHideTimerRef.current);
+      controlsHideTimerRef.current = null;
+    }
+    watchShellRef.current?.classList.remove('cinema-controls-hidden');
+    setControlsVisible(true);
   }, [sourceKey, vodId, currentIndex, currentUrl]);
   const goEpisode = useCallback(
     (index: number) => {
