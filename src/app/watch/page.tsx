@@ -463,6 +463,15 @@ function WatchContent() {
     (index: number) => {
       const nextUrl = episodes[index] || directUrl;
       if (!nextUrl) return;
+      // Flush the outgoing episode before the URL identity changes. Later pause
+      // events may belong to the new source lifecycle and must not overwrite it.
+      const outgoingProgressId = vodId || currentUrl;
+      const outgoingPosition = playerApiRef.current?.getCurrentTime() ?? watchClock.position;
+      const outgoingDuration = playerApiRef.current?.getDuration() ?? watchClock.duration;
+      if (outgoingProgressId && Number.isFinite(outgoingPosition) && outgoingPosition > 0) {
+        saveProgress(sourceKey, outgoingProgressId, currentIndex, outgoingPosition, outgoingDuration).catch(() => {});
+        updateHistoryProgress(sourceKey, outgoingProgressId, outgoingPosition, outgoingDuration).catch(() => {});
+      }
       // A new episode starts with a fresh timeline; never leave the previous
       // episode's clock or scrub preview visible while the new media loads.
       setWatchClock({ position: 0, duration: 0 });
@@ -479,7 +488,7 @@ function WatchContent() {
       sp.delete('position');
       router.replace(`${pathname}?${sp.toString()}`, { scroll: false });
     },
-    [router, pathname, searchParams, episodes, directUrl]
+    [router, pathname, searchParams, episodes, directUrl, vodId, currentUrl, watchClock, sourceKey, currentIndex]
   );
   // 进度恢复优先级：URL position 参数 > IndexedDB 记录
   const getRestorePosition = useCallback(async () => {
