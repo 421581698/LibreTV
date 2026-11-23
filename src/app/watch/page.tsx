@@ -405,15 +405,21 @@ function WatchContent() {
     const frame = playerFrameRef.current;
     if (!frame) return;
     let video: HTMLVideoElement | null = null;
-    const sync = () => setIsPlaying(Boolean(video && !video.paused && !video.ended));
+    const sync = () => {
+      setIsPlaying(Boolean(video && !video.paused && !video.ended));
+      const rate = video?.playbackRate;
+      if (typeof rate === 'number' && Number.isFinite(rate) && rate > 0) setWatchRate(rate);
+    };
     const detach = () => {
       if (!video) return;
       video.removeEventListener('play', sync);
       video.removeEventListener('playing', sync);
       video.removeEventListener('pause', sync);
       video.removeEventListener('ended', sync);
+      video.removeEventListener('ratechange', sync);
       video = null;
       setIsPlaying(false);
+      setWatchRate(1);
     };
     const attach = () => {
       const next = frame.querySelector('video');
@@ -425,6 +431,7 @@ function WatchContent() {
       video.addEventListener('playing', sync);
       video.addEventListener('pause', sync);
       video.addEventListener('ended', sync);
+      video.addEventListener('ratechange', sync);
       sync();
     };
     const observer = new MutationObserver(attach);
