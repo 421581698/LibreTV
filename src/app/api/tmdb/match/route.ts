@@ -70,16 +70,18 @@ export async function GET(req: Request) {
 
   try {
     const byId = new Map<number, { item: SearchItem; score: number; yearMatch: boolean }>();
-    // Search every known title. Do not stop at the first partial hit: localized,
-    // original-language and CMS aliases may return different candidate sets.
-    for (const searchTerm of titles.slice(0, 4)) {
-      const payload = await fetchTmdbJson<SearchResponse>(`/search/${mediaType}`, {
+    // Search all known titles concurrently to avoid serial API latency. Do not
+    // stop at the first partial hit: aliases may reveal the correct candidate.
+    const searchPayloads = await Promise.all(titles.slice(0, 4).map((searchTerm) =>
+      fetchTmdbJson<SearchResponse>(`/search/${mediaType}`, {
         query: searchTerm,
         language: 'zh-CN',
         include_image_language: 'zh,null,en',
         include_adult: 'false',
         page: '1',
-      });
+      }),
+    ));
+    for (const payload of searchPayloads) {
       for (const item of Array.isArray(payload.results) ? payload.results : []) {
         if (!Number.isInteger(item.id) || item.id <= 0) continue;
         const localized = normalizeTitle(mediaTitle(item, mediaType));
