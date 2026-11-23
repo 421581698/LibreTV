@@ -2704,3 +2704,27 @@ body:has(.ipad-edition[data-environment="light"]) {
 .ipad-edition .netflix-watch .netflix-title-row h1 {
   display: block !important;
 }
+
+/* The legacy title row is normal-flow content below the full-viewport player frame.
+   Pin it beneath the action rail so the active film title remains visible on iPad. */
+.ipad-edition[data-ipad-player="true"] .netflix-watch .netflix-title-row {
+  position: fixed;
+  inset: max(68px, calc(env(safe-area-inset-top, 0px) + 64px)) max(24px, env(safe-area-inset-right, 0px)) auto max(24px, env(safe-area-inset-left, 0px));
+  z-index: 52;
+  display: flex;
+  align-items: flex-start;
+  max-width: min(720px, calc(100vw - 48px));
+  padding: 6px 10px;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(0, 0, 0, .58), rgba(0, 0, 0, 0));
+  border-radius: 10px;
+}
+.ipad-edition[data-ipad-player="true"] .netflix-watch .netflix-title-row h1 {
+  display: block !important;
+  color: #fff;
+  font-size: clamp(16px, 2vw, 24px);
+  line-height: 1.25;
+}
+.ipad-edition[data-ipad-player="true"] .netflix-watch .netflix-title-row p {
+  color: rgba(255, 255, 255, .72);
+}
