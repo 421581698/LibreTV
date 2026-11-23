@@ -27,7 +27,7 @@ const imageUrl = (path?: string | null, size = 'w780') => path
   ? path.startsWith('https://') || path.startsWith('http://') ? path : `https://image.tmdb.org/t/p/${size}${path}`
   : '';
 
-export function TmdbMovieDetailPage({ id, type, titleFallback, backdropFallback, ratingFallback }: {
+export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, backdropFallback, ratingFallback }: {
   id: string; type: 'movie' | 'tv'; titleFallback: string; posterFallback: string; backdropFallback: string; ratingFallback: string;
 }) {
   const router = useRouter();
@@ -159,6 +159,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, backdropFallback,
 
   const title = movie?.title || movie?.name || titleFallback;
   const backdrop = imageUrl(movie?.backdrop_path || backdropFallback, 'original');
+  const poster = imageUrl(movie?.poster_path, 'original') || posterFallback;
   const cast = movie?.credits?.cast?.slice(0, 18) || [];
   const director = movie?.credits?.crew?.find((member) => member.job === 'Director')?.name;
   const releaseYear = (movie?.release_date || movie?.first_air_date || '').slice(0, 4);
@@ -173,6 +174,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, backdropFallback,
       title={title}
       eyebrow={type === 'tv' ? 'SERIES' : 'FEATURE FILM'}
       backdropUrl={backdrop}
+      posterUrl={poster || undefined}
       backdropFallbackUrl={movie?.backdrop_path ? backdropFallback : undefined}
       imageMode={imageProxyMode}
       customImageProxy={customImageProxy}
@@ -213,7 +215,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, backdropFallback,
           <div><dt>国家/地区</dt><dd>{movie.production_countries?.map((country) => country.name).join('、') || '暂无数据'}</dd></div>
         </dl>
       </section>
-      <section className="ipad-cinema-cast">
+      <section className="ipad-cinema-cast ipad-cinema-section">
         <h2>演员阵容</h2>
         {cast.length ? <div className="ipad-cinema-cast__rail">
           {cast.map((actor) => <button key={actor.id} type="button" onClick={() => void openPerson(actor.id)}>
