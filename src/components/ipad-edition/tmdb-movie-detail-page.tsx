@@ -21,7 +21,7 @@ type TmdbPersonDetails = { id: number; name: string; biography?: string; profile
 
 const imageUrl = (path?: string | null, size = 'w780') => path ? `https://image.tmdb.org/t/p/${size}${path}` : '';
 
-export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, backdropFallback, ratingFallback }: {
+export function TmdbMovieDetailPage({ id, type, titleFallback, backdropFallback, ratingFallback }: {
   id: string; type: 'movie' | 'tv'; titleFallback: string; posterFallback: string; backdropFallback: string; ratingFallback: string;
 }) {
   const router = useRouter();
@@ -216,5 +216,4 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
       {(person || personLoading) && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-5" onClick={() => setPerson(null)}><section className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/15 bg-[#151519] p-6" onClick={(event) => event.stopPropagation()}>{personLoading ? <p>正在加载人物资料…</p> : person && <><button className="float-right" onClick={() => setPerson(null)}>关闭 ✕</button><div className="flex gap-5"><img src={imageUrl(person.profile_path, 'w342')} alt={person.name} className="w-28 self-start rounded-xl" /><div><h2 className="text-2xl font-semibold">{person.name}</h2><p className="mt-2 text-sm text-white/60">{person.known_for_department} · {person.birthday || ''} · {person.place_of_birth || ''}</p></div></div><p className="mt-5 whitespace-pre-line text-sm leading-7 text-white/75">{person.biography || '暂无人物简介'}</p><h3 className="mb-3 mt-6 font-semibold">代表作品</h3><div className="flex gap-3 overflow-x-auto">{[...(person.movie_credits?.cast || []), ...(person.tv_credits?.cast || [])].slice(0, 20).map((work) => <div key={work.id + (work.title || work.name || '')} className="w-24 shrink-0"><img src={imageUrl(work.poster_path, 'w185')} alt={work.title || work.name || ''} className="aspect-[2/3] w-full rounded-lg object-cover" /><p className="mt-1 truncate text-xs">{work.title || work.name}</p></div>)}</div></>}</section></div>}
     </main>
   );
-}
 }
