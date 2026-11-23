@@ -1407,3 +1407,16 @@ html:has(.netflix-watch) .netflix-watch-shell .watch-topbar-right > button {
 @media (prefers-reduced-motion: reduce) {
   .netflix-watch-shell .watch-cinema-progress { transition: none !important; }
 }
+
+.netflix-watch-shell .watch-cinema-rate {
+  position: fixed !important;
+  right: 40px !important;
+  bottom: calc(126px + env(safe-area-inset-bottom, 0px)) !important;
+  z-index: 51 !important;
+}
+@media (max-width: 700px) {
+  .netflix-watch-shell .watch-cinema-rate {
+    right: 22px !important;
+    bottom: calc(92px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
