@@ -2660,5 +2660,5 @@ body:has(.ipad-edition[data-environment="light"]) {
   line-height: 1;
 }
 .ipad-edition[data-ipad-player="true"] .netflix-watch-utility-panel {
-  z-index: 100 !important;
+  z-index: 101;
 }
