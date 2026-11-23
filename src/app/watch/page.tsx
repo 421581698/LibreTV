@@ -739,14 +739,31 @@ function WatchContent() {
               }}>
                 <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M18 8L8 16l10 8M10 17a17 17 0 1 0 8-8" /><text x="24" y="29">10</text></svg>
               </button>
-              <button type="button" className="cinema-glass-control cinema-play-control" aria-label={isPlaying ? '暂停' : '播放'} aria-pressed={isPlaying} onClick={() => {
-                const video = playerFrameRef.current?.querySelector('video');
-                if (!video) return;
-                if (video.paused || video.ended) void video.play().catch(() => undefined); else video.pause();
-              }}>
+              <button
+                type="button"
+                className="cinema-glass-control cinema-play-control"
+                aria-label={isPlaying ? '暂停' : '播放'}
+                aria-pressed={isPlaying}
+                title={isPlaying ? '暂停' : '播放'}
+                data-playback-state={isPlaying ? 'playing' : 'paused'}
+                onClick={() => {
+                  const video = playerFrameRef.current?.querySelector('video');
+                  if (!video) return;
+                  if (video.paused || video.ended) {
+                    void video.play().then(() => {
+                      setIsPlaying(!video.paused && !video.ended);
+                    }).catch(() => {
+                      setIsPlaying(false);
+                    });
+                  } else {
+                    video.pause();
+                    setIsPlaying(false);
+                  }
+                }}
+              >
                 {isPlaying
-                  ? <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M16 11v26M32 11v26" /></svg>
-                  : <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M18 11l20 13-20 13z" /></svg>}
+                  ? <svg className="cinema-play-icon cinema-play-icon--pause" viewBox="0 0 48 48" aria-hidden="true"><path d="M16 11v26M32 11v26" /></svg>
+                  : <svg className="cinema-play-icon cinema-play-icon--play" viewBox="0 0 48 48" aria-hidden="true"><path d="M17 10.8c0-1.2 1.3-1.9 2.3-1.2l17.2 11.7a1.5 1.5 0 0 1 0 2.5L19.3 35.5c-1 .7-2.3 0-2.3-1.2V10.8Z" /></svg>}
               </button>
               <button type="button" className="cinema-glass-control cinema-skip-control" aria-label="前进 10 秒" onClick={() => {
                 const video = playerFrameRef.current?.querySelector('video');
