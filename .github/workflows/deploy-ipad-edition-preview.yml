@@ -1107,6 +1107,13 @@ jobs:
               await page.locator('[data-ipad-edition="true"]').waitFor({ state: "attached", timeout: 30000 });
               await page.locator(".ipad-edition__cinema-hero").waitFor({ state: "visible", timeout: 30000 });
               await page.locator(".ipad-nav__topbar").waitFor({ state: "visible", timeout: 30000 });
+              // The environment engine attaches its data attributes in a client effect.
+              // Wait for the requested scheme before asserting clean-URL theme readiness.
+              await page.waitForFunction(
+                (scheme) => document.querySelector(".ipad-edition")?.getAttribute("data-environment") === scheme,
+                colorScheme,
+                { timeout: 15000 },
+              );
               const metrics = await page.evaluate(() => ({
                 hasDebugOverlay: Boolean(document.querySelector('[aria-label="iPad 页面布局诊断"]')),
                 hasDebugQuery: new URLSearchParams(location.search).has("__layout_debug"),
