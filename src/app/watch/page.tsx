@@ -1,7 +1,7 @@
 'use client';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import AIFloatingBall from '@/components/AIFloatingBall';
@@ -64,6 +64,7 @@ function formatWatchTime(seconds: number) {
 function WatchContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const pathname = usePathname();
   const store = useAppStore();
   const { verified } = useAuth();
   const { toast } = useToast();
@@ -327,9 +328,9 @@ function WatchContent() {
       sp.set('index', String(index));
       sp.set('url', episodes[index] || directUrl);
       sp.delete('position');
-      router.replace(`/watch?${sp.toString()}`, { scroll: false });
+      router.replace(`${pathname}?${sp.toString()}`, { scroll: false });
     },
-    [router, searchParams, episodes, directUrl]
+    [router, pathname, searchParams, episodes, directUrl]
   );
   // 进度恢复优先级：URL position 参数 > IndexedDB 记录
   const getRestorePosition = useCallback(async () => {
