@@ -2602,3 +2602,13 @@ body:has(.ipad-edition[data-environment="light"]) {
     transition: none;
   }
 }
+
+
+/* iPad player: keep the quality badge below the top action rail.
+   The quality control is rendered inside the player frame; without this
+   offset it collides with the fixed fullscreen / AirPlay / utility buttons. */
+.ipad-edition[data-ipad-player="true"] .netflix-player-frame .player-quality-controls {
+  top: calc(72px + env(safe-area-inset-top, 0px)) !important;
+  right: max(16px, env(safe-area-inset-right, 0px)) !important;
+  z-index: 30 !important;
+}
