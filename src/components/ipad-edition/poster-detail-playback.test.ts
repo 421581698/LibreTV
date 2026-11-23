@@ -45,8 +45,15 @@ describe('iPad Edition poster navigation and explicit playback', () => {
     expect(hero).toContain('查看详情');
   });
 
-  it('continue-watching posters also open the detail page before playback', () => {
-    expect(continueWatching).toContain("const href = '/ipad-edition/detail?' + detailParams.toString()");
-    expect(continueWatching).not.toContain('buildWatchUrl(');
+  it('continue-watching cards jump directly to the player and preserve resume context', () => {
+    expect(continueWatching).toContain('buildContinueWatchingUrl(item)');
+    expect(continueWatching).toContain('className="ipad-edition__continue-card"');
+    const resumeUrl = read('src/lib/continue-watching-url.ts');
+    expect(resumeUrl).toContain("return '/ipad-edition/watch?' + params.toString()");
+    expect(resumeUrl).toContain("params.set('position'");
+    expect(resumeUrl).toContain("params.set('index'");
+    const watchPage = read('src/app/watch/page.tsx');
+    expect(watchPage).toContain("searchParams.get('position')");
+    expect(watchPage).toContain('if (urlPos > 0) return urlPos');
   });
 });
