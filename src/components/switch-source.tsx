@@ -14,6 +14,7 @@ import { EmptyState, LoadingState } from './states';
 import { useFocusTrap } from './use-focus-trap';
 import { QualityBadge } from './quality-badge';
 import { useQualityProbe } from './use-quality-probe';
+import { rankMovieCandidatesByQuality } from '@/lib/playback-telemetry';
 
 /**
  * 换源面板：跨源按标题搜索 → 匹配同名/同前缀资源 → 并发测速（详情接口耗时）→ 按速度排序展示。
