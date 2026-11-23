@@ -13,7 +13,7 @@ function DetailContent() {
   const bangumiId = params.get('bangumiId');
   const tmdbType = params.get('tmdbType') === 'tv' ? 'tv' : 'movie';
   if (bangumiId && /^\d{1,12}$/.test(bangumiId)) {
-    return <div data-ipad-detail="true"><BangumiSubjectDetailPage
+    return <div className="ipad-edition"><div data-ipad-detail="true"><BangumiSubjectDetailPage
       id={bangumiId}
       titleFallback={params.get('title') || '未知新番'}
       posterFallback={params.get('pic') || ''}
@@ -29,9 +29,9 @@ function DetailContent() {
       ratingFallback={params.get('rating') || ''}
     /></div>;
   }
-  return <div data-ipad-detail="true"><MovieDetailPage watchPath="/ipad-edition/watch" /></div>;
+  return <div className="ipad-edition"><div data-ipad-detail="true"><MovieDetailPage watchPath="/ipad-edition/watch" /></div></div>;
 }
 
 export default function IpadEditionDetailPage() {
-  return <Suspense fallback={<main className="ipad-edition__rail-message">正在加载影片详情…</main>}><DetailContent /></Suspense>;
+  return <div className="ipad-edition"><Suspense fallback={<main className="ipad-edition__rail-message">正在加载影片详情…</main>}><DetailContent /></Suspense></div>;
 }
