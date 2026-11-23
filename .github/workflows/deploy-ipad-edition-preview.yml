@@ -1089,6 +1089,7 @@ jobs:
           if (failures) process.exitCode = 1;
           NODE
       - name: Verify clean Preview URL without layout debug parameter
+        if: always()
         timeout-minutes: 8
         run: |
           node --input-type=module <<'NODE'
@@ -1140,6 +1141,7 @@ jobs:
           }
           NODE
       - name: Capture iPad subpage visual baselines
+        if: always()
         timeout-minutes: 12
         run: |
           mkdir -p artifacts/ipad-visual-audit/subpages
