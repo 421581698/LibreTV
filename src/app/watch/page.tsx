@@ -258,9 +258,19 @@ function WatchContent() {
       recordControlsDebug('timer-schedule', `playback,paused=${video.paused},ended=${video.ended},time=${video.currentTime.toFixed(2)},delay=3000`);
       controlsHideTimerRef.current = window.setTimeout(hideControls, 3000);
     };
-    const onPlay = () => { showControls(); scheduleHide(); };
+    const cancelPendingAutoNext = () => {
+      if (autoNextTimer.current) window.clearTimeout(autoNextTimer.current);
+      autoNextTimer.current = null;
+      setShowAutoNext(false);
+    };
+    const onPlay = () => {
+      cancelPendingAutoNext();
+      showControls();
+      scheduleHide();
+    };
     const onPause = () => { resetScrubbing(); keepControlsVisible(); };
     const onEnded = () => { resetScrubbing(); keepControlsVisible(); };
+    const onSeeked = cancelPendingAutoNext;
     const onLoadStart = onMediaReset;
     const onWaiting = keepControlsVisible;
     const onError = () => { resetScrubbing(); keepControlsVisible(); };
@@ -270,6 +280,7 @@ function WatchContent() {
       video.removeEventListener('playing', scheduleHide);
       video.removeEventListener('pause', onPause);
       video.removeEventListener('ended', onEnded);
+      video.removeEventListener('seeked', onSeeked);
       video.removeEventListener('loadstart', onLoadStart);
       video.removeEventListener('loadedmetadata', onLoadStart);
       video.removeEventListener('emptied', onLoadStart);
@@ -304,6 +315,7 @@ function WatchContent() {
       video.addEventListener('playing', scheduleHide);
       video.addEventListener('pause', onPause);
       video.addEventListener('ended', onEnded);
+      video.addEventListener('seeked', onSeeked);
       video.addEventListener('loadstart', onLoadStart);
       video.addEventListener('loadedmetadata', onLoadStart);
       video.addEventListener('emptied', onLoadStart);
