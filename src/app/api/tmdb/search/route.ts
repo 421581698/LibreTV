@@ -41,7 +41,7 @@ function actualTheatricalReleaseDate(payload: TmdbReleaseDatesResponse, region: 
     // digital, physical and TV dates so the rail reflects cinema release dates.
     .filter((entry) => (entry.type === 2 || entry.type === 3) &&
       typeof entry.release_date === 'string' &&
-      /^\\d{4}-\\d{2}-\\d{2}/.test(entry.release_date))
+      /^\d{4}-\d{2}-\d{2}/.test(entry.release_date))
     .map((entry) => entry.release_date!.slice(0, 10))
     .sort();
   return dates[0];
@@ -108,7 +108,7 @@ export async function GET(req: Request) {
     });
   } catch (error) {
     const detail = error instanceof Error ? error.message : '';
-    const statusMatch = /^TMDB_HTTP_(\\d{3})$/.exec(detail);
+    const statusMatch = /^TMDB_HTTP_(\d{3})$/.exec(detail);
     const upstreamStatus = statusMatch ? Number(statusMatch[1]) : undefined;
     console.error('[TMDB movie search] request failed', {
       code: upstreamStatus ? `TMDB_HTTP_${upstreamStatus}` : 'TMDB_UPSTREAM_ERROR',
