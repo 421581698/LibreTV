@@ -43,3 +43,15 @@ export function meetsMinimumImageWidth(width: number, minimumWidth: number): boo
     && minimumWidth > 0
     && width >= minimumWidth;
 }
+
+
+/** Prevent portrait posters from being stretched into landscape hero backdrops. */
+export function matchesArtworkOrientation(
+  width: number,
+  height: number,
+  orientation: 'portrait' | 'landscape',
+): boolean {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return false;
+  const ratio = width / height;
+  return orientation === 'portrait' ? ratio < 1 : ratio > 1.2;
+}
