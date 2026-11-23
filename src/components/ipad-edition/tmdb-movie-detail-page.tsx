@@ -21,7 +21,7 @@ type TmdbTitle = {
 type TmdbCredit = { id: number; title?: string; name?: string; character?: string; poster_path?: string | null; release_date?: string; first_air_date?: string };
 type TmdbPersonDetails = { id: number; name: string; biography?: string; profile_path?: string | null; birthday?: string; place_of_birth?: string; known_for_department?: string; movie_credits?: { cast?: TmdbCredit[] }; tv_credits?: { cast?: TmdbCredit[] } };
 
-const imageUrl = (path?: string | null, size = 'w780') => path ? \`https://image.tmdb.org/t/p/\${size}\${path}\` : '';
+const imageUrl = (path?: string | null, size = 'w780') => path ? `https://image.tmdb.org/t/p/${size}${path}` : '';
 
 export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, backdropFallback, ratingFallback }: {
   id: string; type: 'movie' | 'tv'; titleFallback: string; posterFallback: string; backdropFallback: string; ratingFallback: string;
@@ -94,7 +94,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
       }
       if (!match) {
         setPlaybackStatus(failures.size
-          ? \`没有匹配到影片资源；另有 \${failures.size} 个点播源请求失败，请检查源状态后重试。\`
+          ? `没有匹配到影片资源；另有 ${failures.size} 个点播源请求失败，请检查源状态后重试。`
           : '暂未找到匹配的播放资源。影片资料仍可继续浏览，请稍后重试或检查点播源。');
         return;
       }
