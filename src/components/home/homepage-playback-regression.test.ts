@@ -324,6 +324,11 @@ describe('首页与播放页回归契约', () => {
     expect(player).toContain('fullscreen: !touchPointer');
     expect(player).toContain('fullscreenWeb: !touchPointer');
     expect(player).toContain('requestNativeFullscreenWithFallback');
+    expect(player).toContain('onRequestFullscreen?: () => void;');
+    expect(player).toContain('const requestFullscreen = propsRef.current.onRequestFullscreen');
+    expect(watch).toContain('const requestWatchFullscreen = useCallback');
+    expect(watch).toContain('onRequestFullscreen={requestWatchFullscreen}');
+    expect(watch).toContain('onClick={requestWatchFullscreen}');
     expect(fullscreenHelper).toContain('webkitEnterFullscreen');
     expect(watch).toContain('requestNativeFullscreenWithFallback(');
     expect(watch).toContain('enterWebFullscreen');
