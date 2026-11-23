@@ -5,9 +5,7 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-api';
 import { buildWatchUrl, validateSourceUrl } from '@/lib/utils';
 import { findMovieMatch } from '@/lib/movie-title-match';
-import { SmartImage } from '@/components/smart-image';
 import { IpadCinemaDetailLayout } from '@/components/ipad-edition/IpadCinemaDetailLayout';
-import { createPosterAsset } from '@/lib/poster';
 import { rankMovieCandidatesByQuality } from '@/lib/playback-telemetry';
 import { resolveSource, useAppStore, isInDisabledSubscription, isSourceDisabled } from '@/lib/store';
 import type { SearchResultItem, SourceConfig } from '@/lib/types';
@@ -166,14 +164,6 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
 
   const title = subject?.name_cn || subject?.name || titleFallback;
   const poster = tmdbArtwork?.poster || subject?.images?.large || subject?.images?.common || subject?.images?.medium || posterFallback;
-  const posterAsset = subject ? createPosterAsset({
-    provider: tmdbArtwork?.poster ? 'tmdb' : 'bangumi',
-    providerItemId: tmdbArtwork?.poster ? String(tmdbArtwork.id) : String(subject.id),
-    title,
-    imageUrl: poster,
-    kind: 'poster',
-    ...(tmdbArtwork?.poster ? { attribution: 'TMDB' } : {}),
-  }) : undefined;
   const year = subject?.date?.slice(0, 4) || '';
   const tags = (subject?.tags || []).slice(0, 16).map((tag) => tag.name).filter((tag): tag is string => Boolean(tag));
 
@@ -185,6 +175,7 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
       title={title}
       eyebrow="ANIME · BANGUMI"
       backdropUrl={tmdbArtwork?.backdrop || undefined}
+      posterUrl={poster || undefined}
       imageMode={imageProxyMode}
       customImageProxy={customImageProxy}
       originalTitle={subject.name && subject.name !== title ? subject.name : undefined}
@@ -210,9 +201,6 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
         <div>
           <h2>作品资料</h2>
           <p>{subject.summary || '暂无剧情简介'}</p>
-          <div className="ipad-cinema-cast__rail" style={{ marginTop: 20 }}>
-            <SmartImage asset={posterAsset} url={poster} fallbackUrl={tmdbArtwork?.poster ? subject.images?.large || subject.images?.common || subject.images?.medium || posterFallback : undefined} mode={imageProxyMode} customProxy={customImageProxy} alt={title + ' 海报'} className="w-32 rounded-xl object-cover" loading="lazy" measureNaturalSize minimumWidth={1000} expectedOrientation="portrait" />
-          </div>
         </div>
         <dl>
           <div><dt>年份</dt><dd>{year || '暂无数据'}</dd></div>
@@ -221,7 +209,7 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
           <div><dt>评分</dt><dd>{(subject.rating?.score || 0).toFixed(1)}</dd></div>
         </dl>
       </section>
-      <section className="ipad-cinema-cast">
+      <section className="ipad-cinema-cast ipad-cinema-section">
         <h2>作品标签</h2>
         <div className="flex flex-wrap gap-2">{tags.length ? tags.map((tag) => <span key={tag} className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/75">{tag}</span>) : <span className="text-sm text-white/55">暂无标签</span>}</div>
       </section>
