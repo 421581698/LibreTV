@@ -762,14 +762,23 @@ jobs:
                   const heroClearancePx = top && heroRect ? Math.round(heroRect.top - top.bottom) : null;
                   const heroCta = document.querySelector('.ipad-edition__cinema-hero-cta');
                   const heroCtaWhiteSpace = heroCta ? getComputedStyle(heroCta).whiteSpace : null;
-                  const heroPosterImage = hero?.querySelector('.ipad-edition__cinema-hero-poster img');
-                  const heroPosterResolution = heroPosterImage ? {
-                    loaded: heroPosterImage.complete && heroPosterImage.naturalWidth > 0 && heroPosterImage.naturalHeight > 0,
-                    naturalWidth: heroPosterImage.naturalWidth,
-                    naturalHeight: heroPosterImage.naturalHeight,
-                    meets1200px: heroPosterImage.naturalWidth >= 1200,
-                    source: (heroPosterImage.currentSrc || heroPosterImage.src || '').slice(0, 180),
-                  } : { loaded: false, naturalWidth: 0, naturalHeight: 0, meets1200px: false, source: null };
+                  // The hero uses a landscape backdrop as its primary artwork. A portrait
+                  // poster is rendered only in the no-backdrop fallback, so inspect the
+                  // actual active PosterRenderer instead of assuming a poster <img> exists.
+                  const heroArtworkMode = hero?.querySelector('.ipad-edition__cinema-hero-media')?.getAttribute('data-artwork-mode') ?? null;
+                  const heroArtworkImage = hero?.querySelector(
+                    '.ipad-edition__cinema-hero-backdrop .poster-engine__image, .ipad-edition__cinema-hero-atmosphere .poster-engine__image, .ipad-edition__cinema-hero-fallback-poster .poster-engine__image'
+                  );
+                  const heroArtworkWidthRequirement = heroArtworkMode === 'landscape-backdrop' ? 1200 : 500;
+                  const heroPosterResolution = heroArtworkImage ? {
+                    loaded: heroArtworkImage.complete && heroArtworkImage.naturalWidth > 0 && heroArtworkImage.naturalHeight > 0,
+                    naturalWidth: heroArtworkImage.naturalWidth,
+                    naturalHeight: heroArtworkImage.naturalHeight,
+                    meets1200px: heroArtworkImage.naturalWidth >= heroArtworkWidthRequirement,
+                    requiredWidth: heroArtworkWidthRequirement,
+                    artworkMode: heroArtworkMode,
+                    source: (heroArtworkImage.currentSrc || heroArtworkImage.src || '').slice(0, 180),
+                  } : { loaded: false, naturalWidth: 0, naturalHeight: 0, meets1200px: false, requiredWidth: heroArtworkWidthRequirement, artworkMode: heroArtworkMode, source: null };
                   // naturalWidth/naturalHeight prove a real image decoded. Canvas pixel inspection is diagnostic only: cross-origin posters can taint the canvas without being visually broken.
               const realLoaded = posterChecks.filter(item => item.loaded && item.visible).length;
                   const posterSlotBreakdown = Object.fromEntries([...new Set(posterChecks.map(item => item.slotType))].map(type => {
@@ -1063,7 +1072,11 @@ jobs:
                 await page.evaluate(() => window.scrollTo(0, 0));
                 await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
                 await page.screenshot({ path: "artifacts/ipad-visual-audit/" + name + ".png", fullPage: false, animations: "disabled" });
-                const failed = !sidebarInteractionPassed || sidebarInteraction.diagnostics.finalState?.computedStyle?.position !== "fixed" || response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.y > 220 || metrics.main.width < viewport.width * 0.7 || !homepageReadiness.ready || metrics.homepageStillLoading || metrics.animeCalendarStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.posterImageLoadRate < 0.75 || !metrics.posterPixelInspectionPassed || !metrics.heroPosterResolution?.loaded || !metrics.heroPosterResolution.meets1200px || metrics.heroTextOverlapsNavigation || metrics.heroOverlapsNavigation || !Number.isFinite(metrics.heroClearancePx) || metrics.heroClearancePx < 8 || metrics.heroCtaWhiteSpace !== "nowrap" || (viewport.width >= 700 && Math.abs(metrics.heroContentCenterOffsetPx ?? Infinity) > (metrics.hero?.height ?? 0) * 0.12) || metrics.heroClearancePx > 144 || !metrics.hero || metrics.hero.y < 0 || metrics.hero.y > Math.min(160, viewport.height * 0.25) || !metrics.themePairValid || !scrollAudit.navigationViewportValid || scrollAudit.overlappingPosterLabels.length > 0;
+                // The navigation capsule intentionally floats above the full-bleed hero artwork.
+                // Gate on copy/navigation collision, not artwork/navigation intersection or a
+                // positive gap between the hero and fixed navigation. Hero copy is bottom-anchored
+                // by design, so do not require its center to match the hero's geometric center.
+                const failed = !sidebarInteractionPassed || sidebarInteraction.diagnostics.finalState?.computedStyle?.position !== "fixed" || response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.y > 220 || metrics.main.width < viewport.width * 0.7 || !homepageReadiness.ready || metrics.homepageStillLoading || metrics.animeCalendarStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.posterImageLoadRate < 0.75 || !metrics.posterPixelInspectionPassed || !metrics.heroPosterResolution?.loaded || !metrics.heroPosterResolution.meets1200px || metrics.heroTextOverlapsNavigation || metrics.heroCtaWhiteSpace !== "nowrap" || !metrics.hero || metrics.hero.y < 0 || metrics.hero.y > Math.min(160, viewport.height * 0.25) || !metrics.themePairValid || !scrollAudit.navigationViewportValid || scrollAudit.overlappingPosterLabels.length > 0;
                 if (failed) failures += 1;
                 await Promise.allSettled(apiDiagnosticTasks);
                 results.push({ name, httpStatus: response?.status() ?? null, failed, sidebarInteractionPassed, sidebarInteraction, metrics, pageErrors: consoleErrors, apiDiagnostics });
@@ -1315,6 +1328,181 @@ jobs:
               JSON.stringify({ viewport: { width: 1194, height: 834 }, total: results.length, results }, null, 2),
             );
           }
+          NODE
+      - name: Audit iPad player geometry and overlay collisions
+        if: always()
+        timeout-minutes: 10
+        run: |
+          mkdir -p artifacts/ipad-visual-audit/player-geometry
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs/promises';
+
+          const base = "https://libretv-ipad-edition-preview.bggdbh.workers.dev";
+          const route = "/ipad-edition/watch?source=friday-cms&id=ipad-preview-fixture&index=0&title=iPad%20Preview%20%E6%A0%B7%E7%89%87&sourceUrl=https%3A%2F%2Fpreview.invalid%2Fapi.php%2Fprovide%2Fvod";
+          const viewports = [
+            { name: "ipad-11-landscape", width: 1194, height: 834 },
+            { name: "ipad-11-portrait", width: 834, height: 1194 },
+          ];
+          const browser = await chromium.launch({ headless: true });
+          const results = [];
+          let failures = 0;
+          try {
+            for (const viewport of viewports) {
+              for (const colorScheme of ["light", "dark"]) {
+                const context = await browser.newContext({
+                  viewport: { width: viewport.width, height: viewport.height },
+                  deviceScaleFactor: 2,
+                  isMobile: true,
+                  hasTouch: true,
+                  colorScheme,
+                });
+                const page = await context.newPage();
+                const errors = [];
+                page.on("pageerror", error => errors.push(error.message));
+                const fixtureDetail = {
+                  episodes: ["https://media.preview.invalid/fixture.mp4"],
+                  episodeItems: [{ title: "预览播放条目", url: "https://media.preview.invalid/fixture.mp4", duration: "00:30" }],
+                  videoInfo: {
+                    title: "iPad Preview 样片",
+                    desc: "用于 iPad Edition 播放器几何检查的合成测试数据，不代表真实片源。",
+                    typeName: "电视剧",
+                    year: "2026",
+                    area: "测试环境",
+                    sourceKey: "friday-cms",
+                    sourceName: "Preview Fixture",
+                    sourceUrl: "https://preview.invalid/api.php/provide/vod",
+                  },
+                };
+                await page.route("**/api/status", route => route.fulfill({
+                  status: 200,
+                  contentType: "application/json",
+                  body: JSON.stringify({
+                    passwordRequired: false, verified: true, version: "ipad-preview-fixture",
+                    defaultSources: [], defaultLiveSources: [], defaultSubscriptions: [],
+                    defaultRecommendSource: null, defaultImageMode: "direct",
+                  }),
+                }));
+                await page.route("**/api/detail?*", route => route.fulfill({
+                  status: 200,
+                  contentType: "application/json",
+                  body: JSON.stringify(fixtureDetail),
+                }));
+                await page.route("https://media.preview.invalid/**", route => route.fulfill({
+                  status: 200, contentType: "video/mp4", body: Buffer.alloc(0),
+                }));
+                await page.addInitScript((scheme) => {
+                  const apply = () => {
+                    document.documentElement.classList.toggle("dark", scheme === "dark");
+                    document.documentElement.style.colorScheme = scheme;
+                  };
+                  if (document.documentElement) apply();
+                  else document.addEventListener("DOMContentLoaded", apply, { once: true });
+                }, colorScheme);
+                const response = await page.goto(base + route, { waitUntil: "domcontentloaded", timeout: 60000 });
+                await page.locator(".netflix-watch").waitFor({ state: "visible", timeout: 30000 });
+                await page.locator(".netflix-player-frame").waitFor({ state: "visible", timeout: 30000 });
+                await page.locator(".watch-cinema-info").waitFor({ state: "visible", timeout: 30000 });
+                await page.locator(".cinema-center-controls").waitFor({ state: "visible", timeout: 30000 });
+                await page.locator(".cinema-utility-control").waitFor({ state: "visible", timeout: 30000 });
+
+                for (const panelState of ["closed", "open"]) {
+                  if (panelState === "open") {
+                    await page.locator(".cinema-utility-control").click();
+                    await page.locator(".netflix-watch-utility-panel.is-open").waitFor({ state: "visible", timeout: 10000 });
+                  } else {
+                    await page.locator(".netflix-watch-utility-panel").waitFor({ state: "attached", timeout: 10000 });
+                  }
+                  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+                  const metrics = await page.evaluate((expectedPanelState) => {
+                    const selectors = {
+                      shell: ".netflix-watch-shell",
+                      topbar: ".netflix-watch-overlay-topbar",
+                      frame: ".netflix-player-frame",
+                      player: ".netflix-player-frame .artplayer, .netflix-player-frame .art-video-player",
+                      video: ".netflix-player-frame video",
+                      centerControls: ".cinema-center-controls",
+                      info: ".watch-cinema-info",
+                      utilityPanel: ".netflix-watch-utility-panel",
+                    };
+                    const element = selector => document.querySelector(selector);
+                    const rect = node => {
+                      if (!node) return null;
+                      const r = node.getBoundingClientRect();
+                      return { x: Math.round(r.x), y: Math.round(r.y), right: Math.round(r.right), bottom: Math.round(r.bottom), width: Math.round(r.width), height: Math.round(r.height) };
+                    };
+                    const visible = node => {
+                      if (!node) return false;
+                      const style = getComputedStyle(node);
+                      const r = node.getBoundingClientRect();
+                      return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) > 0.01 && r.width > 0 && r.height > 0;
+                    };
+                    const intersects = (a,b) => Boolean(a && b && a.x < b.right && a.right > b.x && a.y < b.bottom && a.bottom > b.y);
+                    const nodes = Object.fromEntries(Object.entries(selectors).map(([key,selector]) => [key,element(selector)]));
+                    const boxes = Object.fromEntries(Object.entries(nodes).map(([key,node]) => [key,rect(node)]));
+                    const styles = Object.fromEntries(["topbar","centerControls","info","utilityPanel"].map(key => {
+                      const node = nodes[key];
+                      const style = node ? getComputedStyle(node) : null;
+                      return [key, style ? { position: style.position, zIndex: style.zIndex, display: style.display, visibility: style.visibility, opacity: style.opacity } : null];
+                    }));
+                    const video = nodes.video;
+                    const videoRect = rect(video);
+                    const frame = boxes.frame;
+                    const within = (inner,outer) => Boolean(inner && outer && inner.x >= outer.x - 1 && inner.y >= outer.y - 1 && inner.right <= outer.right + 1 && inner.bottom <= outer.bottom + 1);
+                    const panelOpen = expectedPanelState === "open";
+                    return {
+                      viewport: { width: innerWidth, height: innerHeight },
+                      boxes,
+                      styles,
+                      visibility: Object.fromEntries(Object.entries(nodes).map(([key,node]) => [key,visible(node)])),
+                      overlaps: {
+                        infoWithCenterControls: intersects(boxes.info,boxes.centerControls),
+                        topbarWithInfo: intersects(boxes.topbar,boxes.info),
+                      },
+                      videoWithinFrame: video ? within(videoRect,frame) : null,
+                      frameCoversViewport: Boolean(frame && frame.x <= 1 && frame.y <= 1 && frame.right >= innerWidth - 1 && frame.bottom >= innerHeight - 1),
+                      infoWithinViewport: within(boxes.info,{x:0,y:0,right:innerWidth,bottom:innerHeight}),
+                      topbarWithinViewport: within(boxes.topbar,{x:0,y:0,right:innerWidth,bottom:innerHeight}),
+                      panelWithinViewport: panelOpen ? within(boxes.utilityPanel,{x:0,y:0,right:innerWidth,bottom:innerHeight}) : null,
+                      panelOpen,
+                    };
+                  }, panelState);
+                  const failed = !response?.ok() ||
+                    !metrics.boxes.shell || !metrics.boxes.topbar || !metrics.boxes.frame ||
+                    !metrics.boxes.centerControls || !metrics.boxes.info || !metrics.boxes.utilityPanel ||
+                    !metrics.frameCoversViewport || !metrics.infoWithinViewport || !metrics.topbarWithinViewport ||
+                    metrics.overlaps.infoWithCenterControls || metrics.overlaps.topbarWithInfo ||
+                    (metrics.videoWithinFrame === false) ||
+                    (panelState === "closed" && (!metrics.visibility.info || !metrics.visibility.centerControls || metrics.visibility.utilityPanel)) ||
+                    (panelState === "open" && (!metrics.visibility.utilityPanel || metrics.visibility.info || metrics.visibility.centerControls || !metrics.panelWithinViewport)) ||
+                    errors.length > 0;
+                  const name = viewport.name + "-" + colorScheme + "-panel-" + panelState;
+                  await page.screenshot({
+                    path: "artifacts/ipad-visual-audit/player-geometry/" + name + ".png",
+                    fullPage: false,
+                    animations: "disabled",
+                  });
+                  results.push({ name, status: response?.status() ?? null, failed, metrics, errors });
+                  console.log(JSON.stringify(results.at(-1)));
+                  if (failed) failures += 1;
+                  if (panelState === "open") {
+                    await page.locator(".cinema-utility-control").click();
+                    await page.locator(".netflix-watch-utility-panel.is-open").waitFor({ state: "detached", timeout: 10000 }).catch(async () => {
+                      await page.waitForFunction(() => !document.querySelector(".netflix-watch-utility-panel")?.classList.contains("is-open"), undefined, { timeout: 5000 });
+                    });
+                  }
+                }
+                await context.close();
+              }
+            }
+          } finally {
+            await browser.close();
+            await fs.writeFile(
+              "artifacts/ipad-visual-audit/player-geometry/report.json",
+              JSON.stringify({ mode: "simulated Chromium; synthetic media fixture; not real iPad Safari", total: results.length, failures, results }, null, 2),
+            );
+          }
+          if (failures) process.exitCode = 1;
           NODE
       - name: Upload iPad visual audit screenshots and report
         if: always()
