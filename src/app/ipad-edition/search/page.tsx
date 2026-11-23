@@ -84,10 +84,18 @@ function IpadSearchContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Poster selection is navigation-only. Resource details and playback must
+  // remain behind the explicit Start Playback action on the detail page.
   const openPlayback = (item: SearchResultItem) => {
-    const next = new URLSearchParams({ source: item.sourceKey, id: item.vodId, title: item.name });
+    const next = new URLSearchParams({
+      source: item.sourceKey,
+      id: item.vodId,
+      title: item.name,
+      sourceName: item.sourceName || item.sourceKey,
+    });
+    if (item.pic) next.set('pic', item.pic);
     if (item.sourceUrl) next.set('sourceUrl', item.sourceUrl);
-    router.push('/ipad-edition/watch?' + next.toString());
+    router.push('/ipad-edition/detail?' + next.toString());
   };
 
   const categories = [
