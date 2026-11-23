@@ -54,9 +54,10 @@ export function SmartImage({
   minimumWidth,
 }: SmartImageProps) {
   const sourceUrl = asset?.originalUrl ?? url;
-  const primaryCandidates = buildImageCandidates(sourceUrl, mode, customProxy);
-  const fallbackCandidates = buildImageCandidates(fallbackUrl, mode, customProxy);
-  const candidates = [...new Set([...primaryCandidates, ...fallbackCandidates])];
+  const primaryCandidates = [...new Set(buildImageCandidates(sourceUrl, mode, customProxy))];
+  const fallbackCandidates = [...new Set(buildImageCandidates(fallbackUrl, mode, customProxy))]
+    .filter((candidate) => !primaryCandidates.includes(candidate));
+  const candidates = [...primaryCandidates, ...fallbackCandidates];
   const hdrCandidates = buildImageCandidates(hdrUrl, mode, customProxy);
   const [supportsHdr, setSupportsHdr] = useState(false);
   const [hdrFailed, setHdrFailed] = useState(false);
