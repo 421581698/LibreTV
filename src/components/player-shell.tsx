@@ -925,7 +925,6 @@ export function PlayerShell({
     endedRef.current = false;
     updateSkipPrompt(null);
     setUndoSkip(null);
-    recoveryRef.current = new PlaybackRecovery();
     // 换集时清掉上一集的预取窗口，避免带宽被旧集占用
     getVideoPrefetcher().stop();
     setError('');
