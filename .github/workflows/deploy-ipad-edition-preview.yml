@@ -1570,7 +1570,7 @@ jobs:
                   if (panelState === "open") {
                     await page.locator(".netflix-watch-panel-heading button").click();
                     await page.waitForFunction(() => !document.querySelector(".netflix-watch-utility-panel")?.classList.contains("is-open"), undefined, { timeout: 5000 });
-                    const closeButtonDismissed = await page.locator(".netflix-watch-panel-heading button").isVisible().then(() => false).catch(() => true);
+                    const closeButtonDismissed = !(await page.locator(".netflix-watch-panel-heading button").isVisible());
                     if (!closeButtonDismissed) failures += 1;
 
                     await page.locator(".cinema-utility-control").click();
