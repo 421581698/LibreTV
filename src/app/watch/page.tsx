@@ -523,9 +523,11 @@ function WatchContent() {
       // Flush the outgoing episode before the URL identity changes. Later pause
       // events may belong to the new source lifecycle and must not overwrite it.
       const outgoingProgressId = vodId || currentUrl;
+      const outgoingVideo = playerFrameRef.current?.querySelector('video');
+      const outgoingEnded = Boolean(outgoingVideo?.ended);
       const outgoingPosition = playerApiRef.current?.getCurrentTime() ?? watchClockRef.current.position;
       const outgoingDuration = playerApiRef.current?.getDuration() ?? watchClockRef.current.duration;
-      if (outgoingProgressId && Number.isFinite(outgoingPosition) && outgoingPosition > 0 &&
+      if (!outgoingEnded && outgoingProgressId && Number.isFinite(outgoingPosition) && outgoingPosition > 0 &&
         Number.isFinite(outgoingDuration) && outgoingDuration > 0) {
         saveProgress(sourceKey, outgoingProgressId, currentIndex, outgoingPosition, outgoingDuration).catch(() => {});
         updateHistoryProgress(sourceKey, outgoingProgressId, outgoingPosition, outgoingDuration, currentIndex).catch(() => {});
