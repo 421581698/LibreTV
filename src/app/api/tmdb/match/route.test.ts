@@ -60,6 +60,28 @@ describe('TMDB artwork identity matching', () => {
     expect((await response.json()).match).toBeNull();
   });
 
+  it('does not replace source artwork from a lone title match when year is missing', async () => {
+    mockedFetch.mockResolvedValueOnce({ results: [
+      { id: 42, title: '测试影片', original_title: 'Test Film', release_date: '2020-01-01', poster_path: '/poster.jpg' },
+    ] } as never);
+
+    const response = await GET(new Request('https://example.test/api/tmdb/match?title=测试影片&type=movie'));
+    expect((await response.json()).match).toBeNull();
+  });
+
+  it('allows a no-year match only when localized and original titles both identify one candidate', async () => {
+    mockedFetch
+      .mockResolvedValueOnce({ results: [
+        { id: 42, title: '测试影片', original_title: 'Test Film', release_date: '2020-01-01', poster_path: '/poster.jpg' },
+      ] } as never)
+      .mockResolvedValueOnce({ results: [
+        { id: 42, title: '测试影片', original_title: 'Test Film', release_date: '2020-01-01', poster_path: '/poster.jpg' },
+      ] } as never);
+
+    const response = await GET(new Request('https://example.test/api/tmdb/match?title=测试影片&alternateTitle=Test%20Film&type=movie'));
+    expect((await response.json()).match.id).toBe(42);
+  });
+
   it('rejects a candidate whose release year conflicts with the CMS item', async () => {
     mockedFetch.mockResolvedValueOnce({ results: [
       { id: 10, title: '同名电影', original_title: 'Same Film', release_date: '1998-01-01', poster_path: '/a.jpg' },
