@@ -259,7 +259,11 @@ describe('首页与播放页回归契约', () => {
     expect(watch).toContain('getRestorePosition={getRestorePosition}');
     expect(watch).toContain('setWatchClock({ position, duration })');
     expect(watch).toContain('onTimeUpdate={(position, duration) =>');
+    expect(watch).toContain('onProgressSave={handleProgress}');
     expect(watch).toContain('onPause={(position, duration) =>');
+    expect(watch).toContain('setWatchClock({ position, duration })');
+    expect(watch).toContain('playerApiRef.current?.seek(Number(event.currentTarget.value))');
+    expect(watch).not.toContain('setScrubbingPosition(position);\n                    playerApiRef.current?.seek(position);');
     expect(watch).toContain('enqueueDownload({');
     expect(watch).toContain('setSwitchOpen(true)');
   });
