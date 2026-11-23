@@ -743,9 +743,11 @@ function WatchContent() {
                   nextEpisodeKey={currentIndex + 1 < episodes.length ? `${sourceKey}:${vodId}:${currentIndex + 1}` : undefined}
                   getRestorePosition={getRestorePosition}
                   onTimeUpdate={(position, duration) => {
+                    // Render the timeline from every native media timeupdate (typically
+                    // several times per second) so the scrubber never visibly jumps.
                     setWatchClock({ position, duration });
-                    handleProgress(position, duration);
                   }}
+                  onProgressSave={handleProgress}
                   onPause={(position, duration) => {
                     setWatchClock({ position, duration });
                     handleProgress(position, duration);
