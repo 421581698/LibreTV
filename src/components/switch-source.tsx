@@ -282,7 +282,10 @@ export function SwitchSourceModal({
       sourceUrl: c.source.url,
       detail: c.source.detail,
     });
-    const position = getCurrentPosition?.() ?? 0;
+    // Preserve time only when the same episode index survives the source switch.
+    // If the target source has fewer episodes and we fall back to episode 1,
+    // carrying episode N's position would start the wrong episode mid-stream.
+    const position = targetIndex === currentIndex ? getCurrentPosition?.() ?? 0 : 0;
     router.push(position > 5 ? `${watchUrl}&position=${Math.floor(position)}` : watchUrl);
   };
 
