@@ -113,6 +113,7 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
     setLoading(true);
     setError('');
     setDetail(null);
+    setTmdbArtwork(null);
     api.detail(vodId, source, controller.signal)
       .then((result) => {
         if (!controller.signal.aborted) setDetail(result);
