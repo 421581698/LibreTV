@@ -76,7 +76,6 @@ function WatchContent() {
   const indexParam = parseInt(searchParams.get('index') || '0', 10) || 0;
   const [reversed, setReversed] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<'episodes' | 'sources' | 'details'>('episodes');
-  const [watchInfoTab, setWatchInfoTab] = useState<'overview' | 'insights' | 'more'>('overview');
   const [watchClock, setWatchClock] = useState({ position: 0, duration: 0 });
   const [watchRate, setWatchRate] = useState(1);
   const [isPlaying, setIsPlaying] = useState(false);
