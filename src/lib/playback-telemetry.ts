@@ -188,7 +188,8 @@ export function rankSourcesByPlaybackHealth<T extends { key: string }>(
 
 
 /**
- * Quality-first source ordering.
+ * Playback-stability-first source ordering.
+ * Resolution is a tie-breaker after sustainable throughput and measured smoothness.
  *
  * A source is considered sustainable only when observed fragment throughput
  * has at least 25% headroom over the measured media bitrate. This is a ranking
