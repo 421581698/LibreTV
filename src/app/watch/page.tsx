@@ -271,6 +271,7 @@ function WatchContent() {
       video.removeEventListener('pause', onPause);
       video.removeEventListener('ended', onEnded);
       video.removeEventListener('loadstart', onLoadStart);
+      video.removeEventListener('loadedmetadata', onLoadStart);
       video.removeEventListener('emptied', onLoadStart);
       video.removeEventListener('waiting', onWaiting);
       video.removeEventListener('stalled', onWaiting);
@@ -304,6 +305,7 @@ function WatchContent() {
       video.addEventListener('pause', onPause);
       video.addEventListener('ended', onEnded);
       video.addEventListener('loadstart', onLoadStart);
+      video.addEventListener('loadedmetadata', onLoadStart);
       video.addEventListener('emptied', onLoadStart);
       video.addEventListener('waiting', onWaiting);
       video.addEventListener('stalled', onWaiting);
