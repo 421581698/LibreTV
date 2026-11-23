@@ -783,6 +783,12 @@ jobs:
                   const top = topbar?.getBoundingClientRect();
                   const copy = heroCopy?.getBoundingClientRect();
                   const heroRect = hero?.getBoundingClientRect();
+                  const heroMedia = hero?.querySelector('.ipad-edition__cinema-hero-media');
+                  const heroEdgeY = heroRect ? Math.max(1, Math.min(window.innerHeight - 2, heroRect.top + heroRect.height / 2)) : 1;
+                  const heroArtworkEdgeCoverage = [1, Math.max(1, window.innerWidth - 2)].map(x => {
+                    const hit = document.elementFromPoint(x, heroEdgeY);
+                    return Boolean(heroMedia && hit && (hit === heroMedia || heroMedia.contains(hit)));
+                  });
                   const heroContentElements = ['.ipad-edition__cinema-hero-kicker', '.ipad-edition__cinema-hero-copy h1', '.ipad-edition__cinema-hero-meta', '.ipad-edition__cinema-hero-cta']
                     .map(selector => hero?.querySelector(selector)?.getBoundingClientRect())
                     .filter(Boolean);
@@ -825,6 +831,7 @@ jobs:
                     bodyWidth: document.body.scrollWidth,
                     horizontalOverflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) > window.innerWidth + 2,
                     shell: rect(root), main: rect(main), home: rect(home), topbar: rect(topbar), hero: rect(hero), heroCopy: rect(heroCopy),
+                    heroArtworkEdgeCoverage,
                     homeComputed: homeStyle ? { paddingTop: homeStyle.paddingTop, marginTop: homeStyle.marginTop, rowGap: homeStyle.rowGap, display: homeStyle.display, transform: homeStyle.transform } : null,
                     layoutChain,
                     layoutDiagnostics,
@@ -1112,7 +1119,7 @@ jobs:
                 // Gate on copy/navigation collision, not artwork/navigation intersection or a
                 // positive gap between the hero and fixed navigation. Hero copy is bottom-anchored
                 // by design, so do not require its center to match the hero's geometric center.
-                const failed = !sidebarInteractionPassed || sidebarInteraction.diagnostics.finalState?.computedStyle?.position !== "fixed" || response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.y > 220 || metrics.main.width < viewport.width * 0.7 || !homepageReadiness.ready || !heroArtworkReadiness.ready || metrics.homepageStillLoading || metrics.animeCalendarStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.posterImageLoadRate < 0.75 || !metrics.posterPixelInspectionPassed || !metrics.heroPosterResolution?.loaded || !metrics.heroPosterResolution.meets1200px || metrics.heroTextOverlapsNavigation || metrics.heroCtaWhiteSpace !== "nowrap" || !metrics.hero || metrics.hero.y < 0 || metrics.hero.y > Math.min(160, viewport.height * 0.25) || !metrics.themePairValid || !scrollAudit.navigationViewportValid || scrollAudit.overlappingPosterLabels.length > 0;
+                const failed = !sidebarInteractionPassed || sidebarInteraction.diagnostics.finalState?.computedStyle?.position !== "fixed" || response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.y > 220 || metrics.main.width < viewport.width * 0.7 || !homepageReadiness.ready || !heroArtworkReadiness.ready || metrics.homepageStillLoading || metrics.animeCalendarStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.posterImageLoadRate < 0.75 || !metrics.posterPixelInspectionPassed || !metrics.heroPosterResolution?.loaded || !metrics.heroPosterResolution.meets1200px || metrics.heroTextOverlapsNavigation || metrics.heroCtaWhiteSpace !== "nowrap" || !metrics.hero || metrics.hero.y < 0 || metrics.hero.y > Math.min(160, viewport.height * 0.25) || !metrics.heroArtworkEdgeCoverage?.every(Boolean) || !metrics.themePairValid || !scrollAudit.navigationViewportValid || scrollAudit.overlappingPosterLabels.length > 0;
                 if (failed) failures += 1;
                 await Promise.allSettled(apiDiagnosticTasks);
                 results.push({ name, httpStatus: response?.status() ?? null, failed, sidebarInteractionPassed, sidebarInteraction, metrics, pageErrors: consoleErrors, apiDiagnostics });
