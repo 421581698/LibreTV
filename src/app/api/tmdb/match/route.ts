@@ -22,8 +22,8 @@ type MediaType = 'movie' | 'tv';
 
 function normalizeTitle(value: string): string {
   return value.normalize('NFKC').toLocaleLowerCase()
-    .replace(/(?:19|20)\\d{2}/g, '')
-    .replace(/[\\s\\p{P}\\p{S}\\p{Z}]+/gu, '');
+    .replace(/(?:19|20)\d{2}/g, '')
+    .replace(/[\s\p{P}\p{S}\p{Z}]+/gu, '');
 }
 
 function yearOf(item: SearchItem, type: MediaType): string {
@@ -56,7 +56,7 @@ export async function GET(req: Request) {
   if (!titles.length || (type !== 'movie' && type !== 'tv')) {
     return NextResponse.json({ error: '影片标题或类型无效' }, { status: 400 });
   }
-  if (year && !/^\\d{4}$/.test(year)) {
+  if (year && !/^\d{4}$/.test(year)) {
     return NextResponse.json({ error: '年份必须为四位数字' }, { status: 400 });
   }
 
