@@ -6,6 +6,7 @@ import { PosterRenderer } from '@/components/ipad-edition/PosterRenderer';
 import { db } from '@/lib/db';
 import { useAppStore } from '@/lib/store';
 import { fromCmsArtwork } from '@/lib/poster';
+import { buildContinueWatchingUrl } from '@/lib/continue-watching-url';
 
 export function IpadEditionContinueWatching() {
   const history = useLiveQuery(() => db.history.orderBy('timestamp').reverse().limit(8).toArray(), []);
@@ -21,15 +22,7 @@ export function IpadEditionContinueWatching() {
       </div>
       <div className="ipad-edition__continue-grid">
         {history.map((item) => {
-          const detailParams = new URLSearchParams({
-            source: item.sourceKey,
-            id: item.vodId,
-            title: item.title,
-            sourceName: item.sourceKey,
-          });
-          if (item.pic) detailParams.set('pic', item.pic);
-          if (item.sourceUrl) detailParams.set('sourceUrl', item.sourceUrl);
-          const href = '/ipad-edition/detail?' + detailParams.toString();
+          const href = buildContinueWatchingUrl(item);
           const progress = item.duration > 0 ? Math.min(100, Math.max(0, item.playbackPosition / item.duration * 100)) : 0;
           return <Link href={href} className="ipad-edition__continue-card" key={item.id}>
             <PosterRenderer variant="continue" frameClassName="ipad-edition__continue-art" asset={fromCmsArtwork({ sourceKey: item.sourceKey, vodId: item.vodId, title: item.title, imageUrl: item.pic })} url={item.pic} mode={imageProxyMode} customProxy={customImageProxy} alt={item.title}>
