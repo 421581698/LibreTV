@@ -971,7 +971,7 @@ body:has(.ipad-edition[data-environment="light"]) {
 }
 @media (max-width: 699px) {
   .ipad-edition__home {
-    padding-block-start: max(80px, calc(env(safe-area-inset-top, 0px) + 68px)) !important;
+    padding-block-start: 0;
   }
 }
 
@@ -2139,4 +2139,12 @@ body:has(.ipad-edition[data-environment="light"]) {
   .ipad-edition[data-ipad-home="true"] .ipad-nav__capsule-action {
     height: 36px;
   }
+}
+
+
+/* The sidebar is a floating drawer, never a permanent 316px desktop gutter on iPad. */
+.ipad-edition[data-ipad-home="true"] {
+  padding-inline: 0;
+  padding-block-start: 0;
+  overflow-x: clip;
 }
