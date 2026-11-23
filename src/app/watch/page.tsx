@@ -618,6 +618,13 @@ function WatchContent() {
                   sourceKey={sourceKey}
                   resourceKey={`${sourceKey}:${vodId}:${currentIndex}`}
                   onPlaybackSample={(sample) => useAppStore.getState().recordPlaybackSample(sample)}
+                  onRequestSwitchSource={() => {
+                    const video = playerFrameRef.current?.querySelector('video');
+                    if (video && Number.isFinite(video.currentTime)) {
+                      setWatchClock((current) => ({ ...current, position: video.currentTime }));
+                    }
+                    setSwitchOpen(true);
+                  }}
                   nextUrl={currentIndex + 1 < episodes.length ? episodes[currentIndex + 1] : undefined}
                   nextEpisodeKey={currentIndex + 1 < episodes.length ? `${sourceKey}:${vodId}:${currentIndex + 1}` : undefined}
                   getRestorePosition={getRestorePosition}
@@ -901,6 +908,10 @@ function WatchContent() {
           currentSourceKey={sourceKey}
           currentVodId={vodId}
           currentIndex={currentIndex}
+          getCurrentPosition={() => {
+            const video = playerFrameRef.current?.querySelector('video');
+            return video && Number.isFinite(video.currentTime) ? video.currentTime : watchClock.position;
+          }}
           onClose={() => setSwitchOpen(false)}
         />
       )}
