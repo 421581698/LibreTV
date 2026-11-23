@@ -403,9 +403,21 @@ function WatchContent() {
   }, [sourceKey, vodId, currentIndex]);
   const goEpisode = useCallback(
     (index: number) => {
+      const nextUrl = episodes[index] || directUrl;
+      if (!nextUrl) return;
+      // A new episode starts with a fresh timeline; never leave the previous
+      // episode's clock or scrub preview visible while the new media loads.
+      setWatchClock({ position: 0, duration: 0 });
+      setScrubbingPosition(null);
+      setIsScrubbing(false);
+      scrubbingRef.current = false;
+      if (scrubResetTimerRef.current !== null) {
+        window.clearTimeout(scrubResetTimerRef.current);
+        scrubResetTimerRef.current = null;
+      }
       const sp = new URLSearchParams(searchParams.toString());
       sp.set('index', String(index));
-      sp.set('url', episodes[index] || directUrl);
+      sp.set('url', nextUrl);
       sp.delete('position');
       router.replace(`${pathname}?${sp.toString()}`, { scroll: false });
     },
@@ -424,7 +436,9 @@ function WatchContent() {
     if (entry?.position && entry.position > 5) return entry.position;
     // 兼容旧版或进度表缺失：从本机观看历史恢复最后一次有效位置。
     const history = await db.history.get(`${sourceKey}_${progressId}`);
-    return history && history.playbackPosition > 5
+    // History stores only one last-played episode position for the whole title.
+    // It is safe to restore only when that record belongs to this same episode.
+    return history && history.episodeIndex === currentIndex && history.playbackPosition > 5
       ? history.playbackPosition
       : 0;
   }, [searchParams, sourceKey, vodId, currentUrl, currentIndex]);
