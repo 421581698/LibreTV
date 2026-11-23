@@ -268,16 +268,17 @@ function WatchContent() {
       setScrubbingPosition(null);
       scrubbingPositionRef.current = null;
     };
-    const keepControlsVisible = () => {
-      clearHideTimer();
+    const keepControlsVisible = (reason = 'keep-visible') => {
+      clearHideTimer(reason);
       showControls();
     };
-    const onMediaReset = () => {
+    const onMediaReset = (event: Event) => {
+      const reason = `media-${event.type}`;
       // Source/episode changes can reuse the same HTMLVideoElement. In that
       // case MutationObserver sees no replacement, so reset the scrub lifecycle
       // from native loadstart/emptied events instead of carrying a stale drag lock.
       resetScrubbing();
-      keepControlsVisible();
+      keepControlsVisible(reason);
     };
     const scheduleHide = () => {
       clearHideTimer('reschedule');
@@ -303,12 +304,12 @@ function WatchContent() {
       showControls();
       scheduleHide();
     };
-    const onPause = () => { resetScrubbing(); keepControlsVisible(); };
+    const onPause = () => { resetScrubbing(); keepControlsVisible('media-pause'); };
     const onEnded = () => { resetScrubbing(); keepControlsVisible(); };
     const onSeeked = cancelPendingAutoNext;
     const onLoadStart = onMediaReset;
-    const onWaiting = keepControlsVisible;
-    const onError = () => { resetScrubbing(); keepControlsVisible(); };
+    const onWaiting = (event: Event) => keepControlsVisible(`media-${event.type}`);
+    const onError = () => { resetScrubbing(); keepControlsVisible('media-error'); };
     const detachVideo = () => {
       if (!video) return;
       video.removeEventListener('play', onPlay);
@@ -437,7 +438,7 @@ function WatchContent() {
     observer.observe(frame, { childList: true, subtree: true });
     attachVideo();
     return () => {
-      clearHideTimer();
+      clearHideTimer('effect-cleanup');
       if (scrubResetTimerRef.current !== null) window.clearTimeout(scrubResetTimerRef.current);
       observer.disconnect();
       detachVideo();
