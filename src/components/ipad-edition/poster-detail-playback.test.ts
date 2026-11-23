@@ -29,7 +29,7 @@ describe('iPad Edition poster navigation and explicit playback', () => {
   it('CMS search poster taps open the detail page before the player', () => {
     expect(searchPage).toContain("router.push('/ipad-edition/detail?' + next.toString())");
     expect(searchPage).toContain("next.set('sourceUrl', item.sourceUrl)");
-    expect(searchPage).toContain("next.set('sourceName'");
+    expect(searchPage).toContain('sourceName: item.sourceName || item.sourceKey');
     expect(searchPage).not.toContain("router.push('/ipad-edition/watch?'");
   });
 
