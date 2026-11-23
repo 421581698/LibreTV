@@ -268,6 +268,7 @@ export function PlayerShell({
 
   // 始终持有最新 props/回调，避免重建播放器
   const activeEpisodeKeyRef = useRef(episodeKey ?? '');
+  const pendingEpisodeKeyRef = useRef<string | null>(null);
   const propsRef = useRef({
     url, title, mediaType, onPlaybackConfirmed, adFilter, autoplayNext, skipMark, autoSkipSegments,
     pendingStart, onPendingStart, onPlayerApi, onRecordSegment,
@@ -879,8 +880,6 @@ export function PlayerShell({
   /** 换集：重置每集状态并切换到新 HLS 源（不重建 ArtPlayer）。 */
   const loadEpisode = (targetUrl: string) => {
     if (!targetUrl) return;
-    // Bind all following media events to the identity of the source being loaded.
-    activeEpisodeKeyRef.current = propsRef.current.episodeKey ?? '';
     flushPlaybackMetrics();
     resetPlaybackMetrics();
     if (stallRecoveryTimerRef.current) clearTimeout(stallRecoveryTimerRef.current);
@@ -919,6 +918,9 @@ export function PlayerShell({
     setShowPlayFallback(false);
     const art = artRef.current;
     if (!art) return;
+    // Keep old-source events tagged with the old identity until the browser
+    // actually starts loading the replacement resource.
+    pendingEpisodeKeyRef.current = propsRef.current.episodeKey ?? '';
     setupHls(art.video, targetUrl, true);
   };
 
@@ -1029,6 +1031,15 @@ export function PlayerShell({
       },
     });
     artRef.current = art;
+    // Promote the pending identity only when the media element starts loading
+    // the replacement source; pause/timeupdate events emitted while teardown is
+    // in progress must remain attributed to the previous episode.
+    art.on('video:loadstart', () => {
+      if (pendingEpisodeKeyRef.current !== null) {
+        activeEpisodeKeyRef.current = pendingEpisodeKeyRef.current;
+        pendingEpisodeKeyRef.current = null;
+      }
+    });
     // Native media events are the source of truth. Bridge them into ArtPlayer's
     // public play/pause event bus so its center and bottom controls stay in sync,
     // including pauses initiated by iOS media controls or external callers.
@@ -1581,6 +1592,7 @@ export function PlayerShell({
       // A source identity can change even when two providers share the same URL.
       // Update the identity without needlessly reloading an unchanged media URL.
       activeEpisodeKeyRef.current = episodeKey ?? '';
+      pendingEpisodeKeyRef.current = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url, episodeKey]);
