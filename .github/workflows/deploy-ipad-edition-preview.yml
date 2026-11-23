@@ -1321,7 +1321,7 @@ jobs:
                 // Detail and player screenshots below use deterministic mocked CMS data so their actual
                 // content layouts are exercised without depending on a live third-party source.
                 if (route.name === "detail") {
-                  await page.locator(".movie-detail-title").waitFor({ state: "visible", timeout: 30000 });
+                  await page.locator(".ipad-cinema-hero h1").waitFor({ state: "visible", timeout: 30000 });
                   await page.getByRole("heading", { name: "iPad Preview 样片" }).waitFor({ state: "visible", timeout: 30000 });
                   await page.locator(".movie-episode-card").first().waitFor({ state: "visible", timeout: 30000 });
                 }
@@ -1349,7 +1349,7 @@ jobs:
                     loadingSkeletonCount: skeletonCount,
                     collectionItemCount: collection?.children.length ?? 0,
                     hasTerminalCollectionState: Boolean(collection || emptyMessage),
-                    hasDetailTitle: Boolean(document.querySelector(".movie-detail-title")),
+                    hasDetailTitle: Boolean(document.querySelector(".ipad-cinema-hero h1")),
                     episodeCardCount: document.querySelectorAll(".movie-episode-card").length,
                     hasPlayerFrame: Boolean(document.querySelector(".netflix-player-frame")),
                     hasWatchContent: Boolean(document.querySelector(".netflix-watch")),
