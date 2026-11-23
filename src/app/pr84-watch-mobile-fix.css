@@ -1420,3 +1420,117 @@ html:has(.netflix-watch) .netflix-watch-shell .watch-topbar-right > button {
     bottom: calc(92px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
+
+/* iPad playback transport correction:
+   keep the timeline centered across the complete control rail (not squeezed
+   into the left grid column), and keep the live play/pause state explicit. */
+.netflix-watch-shell .watch-cinema-info {
+  left: 50% !important;
+  right: auto !important;
+  width: min(1100px, calc(100vw - 48px)) !important;
+  transform: translateX(-50%) !important;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px)) !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+.netflix-watch-shell .watch-cinema-playback {
+  position: relative !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 44px !important;
+  grid-template-rows: auto 22px !important;
+  align-items: center !important;
+  gap: 7px 12px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+.netflix-watch-shell .watch-cinema-time {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+}
+.netflix-watch-shell .watch-cinema-progress {
+  grid-column: 1 / -1 !important;
+  grid-row: 2 !important;
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 22px !important;
+  min-height: 22px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  justify-self: stretch !important;
+  touch-action: pan-x !important;
+}
+.netflix-watch-shell .watch-cinema-rate {
+  position: static !important;
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  justify-self: end !important;
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+}
+.netflix-watch-shell .watch-cinema-scrub-preview {
+  left: 50% !important;
+  bottom: calc(100% + 10px) !important;
+  transform: translateX(-50%) !important;
+  z-index: 5 !important;
+  white-space: nowrap !important;
+}
+.netflix-watch-shell .cinema-play-control .cinema-play-icon--play path {
+  fill: currentColor !important;
+  stroke: none !important;
+}
+.netflix-watch-shell .cinema-play-control .cinema-play-icon--pause path {
+  fill: none !important;
+  stroke: currentColor !important;
+}
+.netflix-watch-shell .cinema-play-control[data-playback-state="playing"] {
+  color: #fff !important;
+}
+.netflix-watch-shell .cinema-play-control[data-playback-state="paused"] {
+  color: #fff !important;
+}
+.netflix-watch-shell.cinema-controls-hidden .watch-cinema-playback {
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: 22px !important;
+}
+.netflix-watch-shell.cinema-controls-hidden .watch-cinema-time,
+.netflix-watch-shell.cinema-controls-hidden .watch-cinema-rate {
+  display: none !important;
+}
+.netflix-watch-shell.cinema-controls-hidden .watch-cinema-progress {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  width: 100% !important;
+}
+@media (max-width: 700px) {
+  .netflix-watch-shell .watch-cinema-info {
+    left: 50% !important;
+    right: auto !important;
+    width: calc(100vw - 32px) !important;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  .netflix-watch-shell .watch-cinema-playback {
+    grid-template-columns: minmax(0, 1fr) 40px !important;
+    grid-template-rows: auto 22px !important;
+    gap: 6px 8px !important;
+  }
+  .netflix-watch-shell .watch-cinema-progress {
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+    height: 22px !important;
+    min-height: 22px !important;
+  }
+}
+@media (max-height: 700px) and (orientation: landscape) {
+  .netflix-watch-shell .watch-cinema-info {
+    width: min(900px, calc(100vw - 40px)) !important;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
