@@ -26,6 +26,7 @@ import { suggestDownloadFilename } from '@/lib/download-saver';
 import { useAuth } from '@/components/auth';
 import { resolveSource, useAppStore } from '@/lib/store';
 import { qualityKey } from '@/lib/quality';
+import { requestNativeFullscreenWithFallback, type NativeFullscreenVideo } from '@/lib/player-fullscreen';
 import {
   clearProgress,
   progressKeyOf,
@@ -84,6 +85,7 @@ function WatchContent() {
   const [switchOpen, setSwitchOpen] = useState(false);
   const [skipPanelOpen, setSkipPanelOpen] = useState(false);
   const playerApiRef = useRef<PlayerSkipApi | null>(null);
+  const fullscreenFallbackCleanupRef = useRef<(() => void) | null>(null);
   const playerFrameRef = useRef<HTMLDivElement | null>(null);
   const watchShellRef = useRef<HTMLDivElement | null>(null);
   const controlsHideTimerRef = useRef<number | null>(null);
@@ -535,6 +537,8 @@ function WatchContent() {
       if (autoNextTimer.current) {
         clearTimeout(autoNextTimer.current);
       }
+      fullscreenFallbackCleanupRef.current?.();
+      fullscreenFallbackCleanupRef.current = null;
     },
     []
   );
@@ -677,10 +681,8 @@ function WatchContent() {
           </div>
           <div className="watch-topbar-right">
             <button type="button" className="cinema-glass-control" aria-label="全屏播放" title="全屏播放" onClick={() => {
-              const video = playerFrameRef.current?.querySelector('video') as (HTMLVideoElement & {
-                webkitEnterFullscreen?: () => void;
+              const video = playerFrameRef.current?.querySelector('video') as (NativeFullscreenVideo & {
                 webkitExitFullscreen?: () => void;
-                webkitDisplayingFullscreen?: boolean;
               }) | null;
               if (video?.webkitDisplayingFullscreen && video.webkitExitFullscreen) {
                 video.webkitExitFullscreen();
@@ -690,19 +692,25 @@ function WatchContent() {
                 void document.exitFullscreen().catch(() => toast('退出全屏失败，请重试', 'info'));
                 return;
               }
-              if (typeof video?.webkitEnterFullscreen === 'function') {
-                try {
-                  video.webkitEnterFullscreen();
-                  return;
-                } catch {
-                  // Fall through to the standard element fullscreen API.
-                }
-              }
               const frame = playerFrameRef.current;
-              if (frame?.requestFullscreen) {
-                void frame.requestFullscreen().catch(() => toast('当前浏览器无法进入全屏', 'info'));
+              const enterWebFullscreen = () => {
+                if (frame?.requestFullscreen) {
+                  void frame.requestFullscreen().catch(() => toast('当前浏览器无法进入全屏', 'info'));
+                } else {
+                  toast('当前浏览器不支持全屏播放', 'info');
+                }
+              };
+              fullscreenFallbackCleanupRef.current?.();
+              fullscreenFallbackCleanupRef.current = null;
+              if (video) {
+                // iOS may expose webkitEnterFullscreen but silently fail to enter.
+                // Reuse the tested timeout fallback instead of returning too early.
+                fullscreenFallbackCleanupRef.current = requestNativeFullscreenWithFallback(
+                  video,
+                  enterWebFullscreen,
+                );
               } else {
-                toast('当前浏览器不支持全屏播放', 'info');
+                enterWebFullscreen();
               }
             }}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" /></svg>
