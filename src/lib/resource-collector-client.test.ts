@@ -1,9 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { collectorRequest } from './resource-collector-client';
+import { checkUpstreamAllowed } from './ssrf';
+
+vi.mock('./ssrf', () => ({
+  checkUpstreamAllowed: vi.fn().mockResolvedValue({ ok: true }),
+}));
 
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
+  vi.mocked(checkUpstreamAllowed).mockResolvedValue({ ok: true });
 });
 
 describe('collectorRequest', () => {
@@ -22,6 +28,19 @@ describe('collectorRequest', () => {
 
     const response = await collectorRequest('/v1/tasks');
     expect(response.status).toBe(503);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('checks the resolved collector origin before making the request', async () => {
+    vi.stubEnv('SCRAPLING_API_BASE', 'https://collector.example');
+    vi.stubEnv('SCRAPLING_API_TOKEN', 'server-only-token');
+    vi.mocked(checkUpstreamAllowed).mockResolvedValue({ ok: false, reason: 'private DNS answer' });
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await collectorRequest('/v1/tasks');
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({ code: 'COLLECTOR_TARGET_REJECTED' });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -65,6 +84,16 @@ describe('collectorRequest', () => {
     const response = await collectorRequest('/health');
     expect(response.status).toBe(502);
     await expect(response.json()).resolves.toMatchObject({ code: 'COLLECTOR_INVALID_RESPONSE' });
+  });
+
+  it('rejects collector responses over the hard byte ceiling', async () => {
+    vi.stubEnv('SCRAPLING_API_BASE', 'https://collector.example');
+    vi.stubEnv('SCRAPLING_API_TOKEN', 'server-only-token');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(' '.repeat(4 * 1024 * 1024 + 1), { status: 200 })));
+
+    const response = await collectorRequest('/v1/tasks');
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({ code: 'COLLECTOR_RESPONSE_TOO_LARGE' });
   });
 
   it('does not allow caller-provided headers to override the collector bearer token', async () => {
