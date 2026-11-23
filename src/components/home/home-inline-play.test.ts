@@ -33,8 +33,8 @@ describe('iPhone homepage detail navigation and top search', () => {
     expect(homepageContent).not.toContain('douban_movie_weekly');
     expect(homepageContent).toContain('fromTmdbItem(item)');
     expect(homepageContent).toContain('url={item.cover}');
-    expect(home).toContain('api.search(movie.title, selectedSources, yellowFilter)');
-    expect(home).toContain("router.push('/detail?' + params.toString())");
+    expect(home).not.toContain('api.search(movie.title, selectedSources, yellowFilter)');
+    expect(home).toContain("router.push('/ipad-edition/detail?' + params.toString())");
     expect(player).toContain("import('@/components/player-shell')");
     expect(player).toContain('api.detail(item.vodId, source, controller.signal)');
     expect(player).toContain('<PlayerShell');
