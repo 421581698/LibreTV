@@ -261,7 +261,7 @@ describe('首页与播放页回归契约', () => {
     expect(watch).toContain('onTimeUpdate={(position, duration, eventEpisodeKey) =>');
     expect(watch).toContain('onProgressSave={handleProgress}');
     expect(watch).toContain('onPause={(position, duration, eventEpisodeKey) =>');
-    expect(watch).toContain('if (eventEpisodeKey && eventEpisodeKey !== currentEpisodeKey) return;');
+    expect(watch).toContain('if (!isCurrentPlaybackEvent(eventEpisodeKey)) return;');
     expect(player).toContain('activeEpisodeKeyRef.current = propsRef.current.episodeKey ??');
     expect(player).toContain('onTimeUpdate?.(art.currentTime, art.duration, activeEpisodeKeyRef.current)');
     expect(player).toContain('onProgressSave?.(art.currentTime, art.duration, activeEpisodeKeyRef.current)');
@@ -270,6 +270,7 @@ describe('首页与播放页回归契约', () => {
     expect(player).toContain('mediaLoadGenerationRef.current += 1');
     expect(player).toContain('if (loadGeneration !== mediaLoadGenerationRef.current) return;');
     expect(watch).toContain('saveProgress(sourceKey, outgoingProgressId, currentIndex, outgoingPosition, outgoingDuration)');
+    expect(watch).toContain('pendingEpisodeKeyRef.current = `${sourceKey}:${vodId}:${index}`;');
     expect(database).toContain('const sameEpisode = existing?.episodeIndex === entry.episodeIndex');
     expect(database).toContain('sameEpisode ? existing?.playbackPosition ?? 0 : 0');
     expect(database).toContain("db.transaction('rw', db.history");
