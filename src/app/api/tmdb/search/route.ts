@@ -76,6 +76,7 @@ export async function GET(req: Request) {
       query,
       region: regionalCode,
       language: 'zh-CN',
+      include_image_language: 'zh,null,en',
       include_adult: 'false',
       page: '1',
     });
