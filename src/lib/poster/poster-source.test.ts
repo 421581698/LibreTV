@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { DoubanItem, SearchResultItem } from '../types';
 import { createPosterAsset, fromBangumiItem, fromCmsArtwork, fromCmsSearchResult, fromDoubanItem, fromEpisodeArtwork } from './poster-source';
 import { classifyPosterAspect, inferPosterImageKind, withPosterDimensions } from './poster-normalizer';
+import { selectPreferredTmdbPoster } from './tmdb-poster-preference';
 
 describe('poster source adapters', () => {
   const douban: DoubanItem = { id: '1292052', title: '肖申克的救赎', cover: 'https://img3.doubanio.com/p.jpg' };
@@ -79,5 +80,36 @@ describe('poster dimension normalization', () => {
     expect(inferPosterImageKind(600, 900)).toBe('poster');
     expect(inferPosterImageKind(1600, 900)).toBe('backdrop');
     expect(inferPosterImageKind()).toBe('unknown');
+  });
+});
+
+describe('TMDB poster language preference', () => {
+  it('prefers Chinese artwork over neutral and English artwork', () => {
+    expect(selectPreferredTmdbPoster([
+      { file_path: '/english.jpg', iso_639_1: 'en' },
+      { file_path: '/neutral.jpg', iso_639_1: null },
+      { file_path: '/chinese.jpg', iso_639_1: 'zh' },
+    ], '/default.jpg')).toBe('/chinese.jpg');
+  });
+
+  it('uses language-neutral artwork before English when Chinese artwork is absent', () => {
+    expect(selectPreferredTmdbPoster([
+      { file_path: '/english.jpg', iso_639_1: 'en' },
+      { file_path: '/neutral.jpg', iso_639_1: null },
+    ])).toBe('/neutral.jpg');
+  });
+
+  it('uses English artwork only as a secondary fallback, then preserves the localized default', () => {
+    expect(selectPreferredTmdbPoster([
+      { file_path: '/english.jpg', iso_639_1: 'en' },
+    ], '/localized-default.jpg')).toBe('/english.jpg');
+    expect(selectPreferredTmdbPoster([], '/localized-default.jpg')).toBe('/localized-default.jpg');
+  });
+
+  it('ignores malformed poster paths', () => {
+    expect(selectPreferredTmdbPoster([
+      { file_path: 'javascript:alert(1)', iso_639_1: 'zh' },
+      { file_path: '/english.jpg', iso_639_1: 'en' },
+    ])).toBe('/english.jpg');
   });
 });
