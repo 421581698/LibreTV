@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   if (guarded) return guarded;
 
   const id = new URL(request.url).searchParams.get('id') || '';
-  if (!/^\\d{1,12}$/.test(id) || Number(id) <= 0) {
+  if (!/^\d{1,12}$/.test(id) || Number(id) <= 0) {
     return NextResponse.json({ error: 'Bangumi subject ID 无效' }, { status: 400 });
   }
 
