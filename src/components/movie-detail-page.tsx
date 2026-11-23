@@ -294,7 +294,7 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
       actions={
         <>
           <button type="button" onClick={() => play(0)} disabled={episodes.length === 0} className="ipad-cinema-play">
-            <span aria-hidden="true">▶</span>{'▶ 开始播放'}
+            <span aria-hidden="true">▶</span>{'开始播放'}
           </button>
           <button type="button" onClick={() => void toggleFavorite()} className="ipad-cinema-add" aria-label={favorite ? '取消收藏' : '加入收藏'} aria-pressed={Boolean(favorite)}>
             {favorite ? '♥' : '＋'}
