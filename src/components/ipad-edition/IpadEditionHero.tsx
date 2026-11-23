@@ -67,7 +67,7 @@ export function IpadEditionHero({ items, activeIndex, onSelect, onOpen, pendingT
         <div className="ipad-edition__cinema-hero-actions">
           <button type="button" className="ipad-edition__cinema-hero-cta" aria-busy={pendingTitle === item.title} disabled={Boolean(pendingTitle)} onClick={() => onOpen(item)}>
             <span aria-hidden="true">▶</span>
-            查找播放资源
+            查看详情
           </button>
           <button type="button" className="ipad-edition__cinema-hero-more" aria-label={'查看 ' + item.title + ' 的更多信息'} disabled={Boolean(pendingTitle)} onClick={() => onOpen(item)}>
             <span aria-hidden="true">＋</span>
