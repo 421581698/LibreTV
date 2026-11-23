@@ -190,7 +190,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, backdropFallback,
       actions={
         <>
           <button type="button" onClick={() => void startPlayback()} disabled={startingPlayback} className="ipad-cinema-play" aria-label="▶ 开始播放">
-            <span aria-hidden="true">▶</span>{startingPlayback ? '正在查找资源…' : '开始播放'}
+            {startingPlayback ? '正在查找资源…' : '▶ 开始播放'}
           </button>
           <button type="button" onClick={toggleSaved} className="ipad-cinema-add" aria-label={saved ? '从片单移除' : '加入片单'} aria-pressed={saved}>
             {saved ? '✓' : '+'}
