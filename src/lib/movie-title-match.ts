@@ -4,9 +4,9 @@ function normalizeTitle(value: string): string {
   return value
     .normalize('NFKC')
     .toLocaleLowerCase()
-    .replace(/(?:19|20)\\d{2}/g, '')
-    .replace(/\\b(?:2160p|1080p|720p|4k|uhd|hd|web-?dl|bluray|blu-?ray|中字|国语|粤语|英语|正片)\\b/gi, '')
-    .replace(/[\\s\\p{P}\\p{S}\\p{Z}]+/gu, '');
+    .replace(/(?:19|20)\d{2}/g, '')
+    .replace(/\b(?:2160p|1080p|720p|4k|uhd|hd|web-?dl|bluray|blu-?ray|中字|国语|粤语|英语|正片)\b/gi, '')
+    .replace(/[\s\p{P}\p{S}\p{Z}]+/gu, '');
 }
 
 const SPIDER_MAN_BRAND_NEW_DAY_ALIASES = [
