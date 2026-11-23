@@ -784,10 +784,28 @@ jobs:
                   const copy = heroCopy?.getBoundingClientRect();
                   const heroRect = hero?.getBoundingClientRect();
                   const heroMedia = hero?.querySelector('.ipad-edition__cinema-hero-media');
-                  const heroEdgeY = heroRect ? Math.max(1, Math.min(window.innerHeight - 2, heroRect.top + heroRect.height / 2)) : 1;
+                  // Measure the artwork's painted box and every ancestor's horizontal
+                  // clipping boundary. Do not use elementFromPoint here: decorative
+                  // gradients/overlays may sit above the backdrop, and pointer-events:none
+                  // layers are intentionally omitted from hit testing while still painting.
                   const heroArtworkEdgeCoverage = [1, Math.max(1, window.innerWidth - 2)].map(x => {
-                    const hit = document.elementFromPoint(x, heroEdgeY);
-                    return Boolean(heroMedia && hit && (hit === heroMedia || heroMedia.contains(hit)));
+                    if (!heroMedia || !heroRect) return false;
+                    const mediaRect = heroMedia.getBoundingClientRect();
+                    if (mediaRect.width <= 0 || mediaRect.height <= 0 ||
+                        mediaRect.left > x + 1 || mediaRect.right < x - 1) return false;
+                    for (let ancestor = heroMedia.parentElement;
+                      ancestor && ancestor !== document.documentElement;
+                      ancestor = ancestor.parentElement) {
+                      const style = getComputedStyle(ancestor);
+                      const rect = ancestor.getBoundingClientRect();
+                      const clipsX = ['hidden', 'clip', 'auto', 'scroll'].includes(style.overflowX) ||
+                        ['hidden', 'clip', 'auto', 'scroll'].includes(style.overflow);
+                      if (clipsX && (rect.left > x + 1 || rect.right < x - 1)) return false;
+                      if (style.clipPath !== 'none' && (rect.left > x + 1 || rect.right < x - 1)) return false;
+                      if (style.contain.split(/\\s+/).includes('paint') &&
+                          (rect.left > x + 1 || rect.right < x - 1)) return false;
+                    }
+                    return true;
                   });
                   const heroContentElements = ['.ipad-edition__cinema-hero-kicker', '.ipad-edition__cinema-hero-copy h1', '.ipad-edition__cinema-hero-meta', '.ipad-edition__cinema-hero-cta']
                     .map(selector => hero?.querySelector(selector)?.getBoundingClientRect())
