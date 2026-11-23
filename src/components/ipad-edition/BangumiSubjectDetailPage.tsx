@@ -17,6 +17,7 @@ type BangumiSubject = {
   name_cn?: string;
   summary?: string;
   date?: string;
+  platform?: string;
   total_episodes?: number;
   images?: { large?: string; common?: string; medium?: string };
   rating?: { score?: number; total?: number };
@@ -77,7 +78,8 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
     if (!matchTitle) return;
     const controller = new AbortController();
     setTmdbArtwork(null);
-    const params = new URLSearchParams({ title: matchTitle, type: 'tv' });
+    const mediaType = /剧场版|电影|movie|film/i.test(subject.platform || '') ? 'movie' : 'tv';
+    const params = new URLSearchParams({ title: matchTitle, type: mediaType });
     if (subject.name && subject.name !== matchTitle) params.set('alternateTitle', subject.name);
     const year = subject.date?.slice(0, 4);
     if (year && /^\\d{4}$/.test(year)) params.set('year', year);
@@ -88,7 +90,7 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
       })
       .then(async ({ match }) => {
         if (!match || !Number.isInteger(match.id) || match.id <= 0) return;
-        const response = await fetch('/api/tmdb/details?' + new URLSearchParams({ id: String(match.id), type: 'tv' }), { signal: controller.signal });
+        const response = await fetch('/api/tmdb/details?' + new URLSearchParams({ id: String(match.id), type: mediaType }), { signal: controller.signal });
         if (!response.ok) throw new Error('TMDB artwork details unavailable');
         const metadata = await response.json() as { poster_path?: string | null; backdrop_path?: string | null };
         if (controller.signal.aborted) return;
