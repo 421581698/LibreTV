@@ -6,7 +6,8 @@ import { api } from '@/lib/client-api';
 import { resolveSource, useAppStore, isInDisabledSubscription, isSourceDisabled } from '@/lib/store';
 import { buildWatchUrl, validateSourceUrl } from '@/lib/utils';
 import { findMovieMatch, getMovieSearchTerms } from '@/lib/movie-title-match';
-import type { SourceConfig } from '@/lib/types';
+import { rankMovieCandidatesByQuality } from '@/lib/playback-telemetry';
+import type { SearchResultItem, SourceConfig } from '@/lib/types';
 
 type TmdbPerson = { id: number; name: string; character?: string; profile_path?: string | null; job?: string; department?: string };
 type TmdbTitle = {
@@ -33,6 +34,9 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, backdropFallback,
   const sourceHealth = useAppStore((state) => state.sourceHealth);
   const subscriptions = useAppStore((state) => state.subscriptions);
   const yellowFilter = useAppStore((state) => state.yellowFilter);
+  const playbackHealth = useAppStore((state) => state.playbackHealth);
+  const playbackResourceHealth = useAppStore((state) => state.playbackResourceHealth);
+  const qualityMap = useAppStore((state) => state.qualityMap);
   const [movie, setMovie] = useState<TmdbTitle | null>(null);
   const [loading, setLoading] = useState(true);
   const [metadataError, setMetadataError] = useState('');
@@ -69,7 +73,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, backdropFallback,
       return;
     }
     setStartingPlayback(true);
-    setPlaybackStatus('正在查找该影片的播放资源…');
+    setPlaybackStatus('正在查找资源并评估历史播放流畅度…');
     try {
       const primaryTitle = movie?.title || movie?.name || titleFallback;
       const originalTitle = movie?.original_title || movie?.original_name || '';
@@ -77,27 +81,41 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, backdropFallback,
         ...getMovieSearchTerms(primaryTitle),
         ...(originalTitle ? getMovieSearchTerms(originalTitle) : []),
       ])];
-      let match: { item: { sourceKey: string; vodId: string; name: string; sourceUrl?: string }; source: SourceConfig } | undefined;
+      const matches: Array<{ item: SearchResultItem; source: SourceConfig }> = [];
+      const seen = new Set<string>();
       const failures = new Set<string>();
       for (const term of terms) {
         const response = await api.search(term, sources, yellowFilter);
         response.failures.forEach((failure) => failures.add(failure.sourceKey));
-        const found = findMovieMatch(primaryTitle, response.list)
-          || findMovieMatch(term, response.list);
-        if (found) {
-          const source = sources.find((candidate) => candidate.key === found.sourceKey);
-          if (source) {
-            match = { item: found, source };
-            break;
-          }
+        for (const item of response.list) {
+          if (!findMovieMatch(primaryTitle, [item]) && !findMovieMatch(term, [item])) continue;
+          const source = sources.find((candidate) => candidate.key === item.sourceKey);
+          if (!source) continue;
+          const key = `${item.sourceKey}:${item.vodId}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          matches.push({ item, source });
         }
+        // One successful title query already searches all enabled sources.
+        if (matches.length) break;
       }
-      if (!match) {
+      if (!matches.length) {
         setPlaybackStatus(failures.size
           ? `没有匹配到影片资源；另有 ${failures.size} 个点播源请求失败，请检查源状态后重试。`
           : '暂未找到匹配的播放资源。影片资料仍可继续浏览，请稍后重试或检查点播源。');
         return;
       }
+      const ranked = rankMovieCandidatesByQuality(
+        matches.map(({ item }) => item),
+        qualityMap,
+        playbackHealth,
+        Date.now(),
+        playbackResourceHealth,
+      );
+      const best = ranked[0];
+      const match = matches.find(({ item }) => item.sourceKey === best.sourceKey && item.vodId === best.vodId);
+      if (!match) throw new Error('无法确定可用播放线路，请重试。');
+      setPlaybackStatus(`已比较 ${matches.length} 条候选线路，优先选择历史播放更稳定的线路…`);
       const watchUrl = buildWatchUrl({
         sourceKey: match.source.key,
         vodId: match.item.vodId,
