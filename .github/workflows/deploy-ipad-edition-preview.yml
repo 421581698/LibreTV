@@ -1293,6 +1293,35 @@ jobs:
                       return Boolean(title && title.getClientRects().length > 0 && getComputedStyle(title).visibility !== "hidden");
                     })(),
                     visiblePlayerTitleText: document.querySelector(".netflix-watch .watch-cinema-meta h2")?.textContent?.trim() ?? null,
+                    playerGeometry: (() => {
+                      const rect = (selector) => {
+                        const element = document.querySelector(selector);
+                        if (!element) return null;
+                        const box = element.getBoundingClientRect();
+                        return { left: box.left, top: box.top, right: box.right, bottom: box.bottom, width: box.width, height: box.height };
+                      };
+                      const intersects = (a, b) => Boolean(a && b && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top);
+                      const frame = rect(".netflix-player-frame");
+                      const centerControls = rect(".cinema-center-controls");
+                      const info = rect(".watch-cinema-info");
+                      const tools = rect(".netflix-watch-tools");
+                      const title = rect(".netflix-watch .watch-cinema-meta h2");
+                      const utility = rect("#netflix-watch-utility-panel");
+                      const viewportWidth = document.documentElement.clientWidth;
+                      const centerControlsInsideFrame = Boolean(frame && centerControls &&
+                        centerControls.left >= frame.left - 2 && centerControls.right <= frame.right + 2 &&
+                        centerControls.top >= frame.top - 2 && centerControls.bottom <= frame.bottom + 2);
+                      const withinViewport = [frame, centerControls, info, tools, utility].filter(Boolean)
+                        .every(box => box.left >= -2 && box.right <= viewportWidth + 2 && box.width > 0 && box.height > 0);
+                      return {
+                        frame, centerControls, info, tools, title, utility,
+                        centerControlsInsideFrame,
+                        centerControlsOverlapInfo: intersects(centerControls, info),
+                        infoOverlapTools: intersects(info, tools),
+                        titleOverlapTools: intersects(title, tools),
+                        withinViewport,
+                      };
+                    })(),
                     visualScope: routeName === "detail" ? "full-detail-content-with-mocked-cms-fixture"
                       : routeName === "watch" ? "player-page-with-mocked-cms-fixture"
                       : "page-content",
@@ -1307,7 +1336,12 @@ jobs:
                     (metrics.loadingSkeletonCount > 0 || !metrics.hasTerminalCollectionState)) ||
                   (route.name === "detail" && (!metrics.hasDetailTitle || metrics.episodeCardCount < 1)) ||
                   (route.name === "watch" && (!metrics.hasPlayerFrame || !metrics.hasWatchContent ||
-                    !metrics.hasVisiblePlayerTitle || metrics.visiblePlayerTitleText !== "iPad Preview 样片")) ||
+                    !metrics.hasVisiblePlayerTitle || metrics.visiblePlayerTitleText !== "iPad Preview 样片" ||
+                    !metrics.playerGeometry?.centerControlsInsideFrame ||
+                    metrics.playerGeometry.centerControlsOverlapInfo ||
+                    metrics.playerGeometry.infoOverlapTools ||
+                    metrics.playerGeometry.titleOverlapTools ||
+                    !metrics.playerGeometry.withinViewport)) ||
                   errors.length > 0;
                 const name = route.name + "-" + colorScheme;
                 await page.screenshot({
