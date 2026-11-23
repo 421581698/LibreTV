@@ -644,7 +644,12 @@ function WatchContent() {
   const handleEnded = useCallback((eventEpisodeKey?: string) => {
     if (!isCurrentPlaybackEvent(eventEpisodeKey)) return;
     const progressId = vodId || currentUrl;
-    if (progressId) clearProgress(sourceKey, progressId, currentIndex).catch(() => {});
+    if (progressId) {
+      clearProgress(sourceKey, progressId, currentIndex).catch(() => {});
+      // A completed episode must not fall back to the title-level history
+      // position on the next visit after its per-episode progress is cleared.
+      updateHistoryProgress(sourceKey, progressId, 0, 0, currentIndex).catch(() => {});
+    }
     if (store.autoplayNext && currentIndex < episodes.length - 1) {
       setShowAutoNext(true);
       autoNextTimer.current = setTimeout(() => {
