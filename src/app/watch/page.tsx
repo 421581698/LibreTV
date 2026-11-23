@@ -484,6 +484,16 @@ function WatchContent() {
     return indexParam;
   }, [episodes, indexParam]);
   const currentEpisodeKey = `${sourceKey}:${vodId}:${currentIndex}`;
+  const pendingEpisodeKeyRef = useRef<string | null>(null);
+  const isCurrentPlaybackEvent = useCallback((eventEpisodeKey?: string) => {
+    if (!eventEpisodeKey) return true;
+    const expectedEpisodeKey = pendingEpisodeKeyRef.current ?? currentEpisodeKey;
+    if (eventEpisodeKey !== expectedEpisodeKey) return false;
+    if (pendingEpisodeKeyRef.current === eventEpisodeKey && currentEpisodeKey === eventEpisodeKey) {
+      pendingEpisodeKeyRef.current = null;
+    }
+    return true;
+  }, [currentEpisodeKey]);
   // 跳过片段按剧名记忆：换集不变，换源到同名资源也能命中。
   // 标题缺失（直连链接）时退回 source:vodId，至少保证本源本片可用。
   const skipMarkFallback = `${sourceKey}:${vodId || currentUrl}`;
@@ -507,6 +517,7 @@ function WatchContent() {
       if (autoNextTimer.current) window.clearTimeout(autoNextTimer.current);
       autoNextTimer.current = null;
       setShowAutoNext(false);
+      pendingEpisodeKeyRef.current = `${sourceKey}:${vodId}:${index}`;
       // Flush the outgoing episode before the URL identity changes. Later pause
       // events may belong to the new source lifecycle and must not overwrite it.
       const outgoingProgressId = vodId || currentUrl;
@@ -584,7 +595,7 @@ function WatchContent() {
     (position: number, duration: number, eventEpisodeKey?: string) => {
       // Media events can arrive from the previous source during a route/episode
       // transition. Never attribute an old clock position to the newly selected episode.
-      if (eventEpisodeKey && eventEpisodeKey !== currentEpisodeKey) return;
+      if (!isCurrentPlaybackEvent(eventEpisodeKey)) return;
       if (!Number.isFinite(position) || position < 0 || !Number.isFinite(duration) || duration <= 0) return;
       const progressId = vodId || currentUrl;
       if (!progressId) return;
@@ -603,7 +614,7 @@ function WatchContent() {
         currentIndex
       ).catch(() => {});
     },
-    [sourceKey, vodId, currentIndex, currentUrl, currentEpisodeKey]
+    [sourceKey, vodId, currentIndex, currentUrl, currentEpisodeKey, isCurrentPlaybackEvent]
   );
   // 自动连播的延迟切集要在卸载时取消，避免离开页面后跳转
   useEffect(
@@ -623,7 +634,7 @@ function WatchContent() {
     setShowAutoNext(false);
   }, []);
   const handleEnded = useCallback((eventEpisodeKey?: string) => {
-    if (eventEpisodeKey && eventEpisodeKey !== currentEpisodeKey) return;
+    if (!isCurrentPlaybackEvent(eventEpisodeKey)) return;
     const progressId = vodId || currentUrl;
     if (progressId) clearProgress(sourceKey, progressId, currentIndex).catch(() => {});
     if (store.autoplayNext && currentIndex < episodes.length - 1) {
@@ -638,6 +649,7 @@ function WatchContent() {
     store.autoplayNext,
     currentIndex,
     currentEpisodeKey,
+    isCurrentPlaybackEvent,
     episodes.length,
     goEpisode,
     sourceKey,
@@ -856,14 +868,14 @@ function WatchContent() {
                   nextEpisodeKey={currentIndex + 1 < episodes.length ? `${sourceKey}:${vodId}:${currentIndex + 1}` : undefined}
                   getRestorePosition={getRestorePosition}
                   onTimeUpdate={(position, duration, eventEpisodeKey) => {
-                    if (eventEpisodeKey && eventEpisodeKey !== currentEpisodeKey) return;
+                    if (!isCurrentPlaybackEvent(eventEpisodeKey)) return;
                     // Render the timeline from every native media timeupdate (typically
                     // several times per second) so the scrubber never visibly jumps.
                     setWatchClock({ position, duration });
                   }}
                   onProgressSave={handleProgress}
                   onPause={(position, duration, eventEpisodeKey) => {
-                    if (eventEpisodeKey && eventEpisodeKey !== currentEpisodeKey) return;
+                    if (!isCurrentPlaybackEvent(eventEpisodeKey)) return;
                     setWatchClock({ position, duration });
                     handleProgress(position, duration, eventEpisodeKey);
                   }}
