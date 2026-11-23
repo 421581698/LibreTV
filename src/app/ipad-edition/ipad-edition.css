@@ -2619,7 +2619,7 @@ body:has(.ipad-edition[data-environment="light"]) {
 .ipad-edition[data-ipad-player="true"] .netflix-watch-panel-scrim {
   position: fixed;
   inset: 0;
-  z-index: 95;
+  z-index: 60;
   display: block;
   width: 100%;
   height: 100%;
