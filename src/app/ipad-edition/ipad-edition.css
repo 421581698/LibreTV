@@ -2612,3 +2612,53 @@ body:has(.ipad-edition[data-environment="light"]) {
   right: max(16px, env(safe-area-inset-right, 0px)) !important;
   z-index: 30 !important;
 }
+
+
+/* Keep the playback drawer dismissible without relying on the auto-hidden
+   top action rail. The scrim blocks accidental taps on the video underneath. */
+.ipad-edition[data-ipad-player="true"] .netflix-watch-panel-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: rgba(0, 0, 0, .34);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+.ipad-edition[data-ipad-player="true"] .netflix-watch-panel-scrim:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -4px;
+}
+.ipad-edition[data-ipad-player="true"] .netflix-watch-panel-heading {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 2px 4px 12px;
+  color: #fff;
+}
+.ipad-edition[data-ipad-player="true"] .netflix-watch-panel-heading strong {
+  font-size: 15px;
+  font-weight: 700;
+}
+.ipad-edition[data-ipad-player="true"] .netflix-watch-panel-heading button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(255,255,255,.1);
+  font-size: 26px;
+  line-height: 1;
+}
+.ipad-edition[data-ipad-player="true"] .netflix-watch-utility-panel {
+  z-index: 100 !important;
+}
