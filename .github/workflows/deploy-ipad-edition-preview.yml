@@ -1531,16 +1531,17 @@ jobs:
                 await page.locator(".cinema-center-controls").waitFor({ state: "visible", timeout: 30000 });
                 await page.locator(".cinema-utility-control").waitFor({ state: "visible", timeout: 30000 });
 
-                // Exercise the real React transport controls against a deterministic media element.
+                // Wait for the asynchronously loaded PlayerShell to mount its own media element.
+                // Appending an unrelated <video> here would bypass ArtPlayer's native event
+                // listeners and make the timeline audit test a disconnected DOM node.
+                await page.locator(".netflix-player-frame video").waitFor({ state: "attached", timeout: 30000 });
+                // Exercise the real React transport controls against the mounted media element.
                 // The media API is stubbed, but the button, event listeners and state rendering are real.
                 await page.evaluate(() => {
                   const frame = document.querySelector(".netflix-player-frame");
                   if (!frame) throw new Error("Player frame is missing.");
-                  let video = frame.querySelector("video");
-                  if (!video) {
-                    video = document.createElement("video");
-                    frame.append(video);
-                  }
+                  const video = frame.querySelector("video");
+                  if (!video) throw new Error("PlayerShell media element did not mount.");
                   let paused = true;
                   let ended = false;
                   let currentTime = 0;
