@@ -16,19 +16,20 @@ const searchCss = readFileSync(
 );
 
 describe('iPad Edition navigation contract', () => {
-  it('shows the primary cinema categories as labeled actions in the floating top capsule', () => {
+  it('limits the floating top capsule to sidebar, search and my actions', () => {
     const topbarStart = shell.indexOf('<header className="ipad-nav__topbar">');
     const topbarEnd = shell.indexOf('</header>', topbarStart);
     const topbar = topbarStart >= 0 && topbarEnd > topbarStart
       ? shell.slice(topbarStart, topbarEnd)
       : '';
     expect(topbar).toContain("aria-label={sidebarOpen ? '收起侧边栏' : '展开侧边栏'}");
-    for (const label of ['首页', '电影', '剧集', '动漫', '搜索']) {
-      expect(topbar).toContain('aria-label="' + label + '"');
-      expect(topbar).toContain('ipad-nav__label');
-    }
-    expect(topbar).not.toContain('aria-label="设置"');
-    expect(topbar).not.toContain('aria-label="我的"');
+    expect(topbar).toContain('aria-label="搜索"');
+    expect(topbar).toContain('aria-label="我的"');
+    expect(topbar).not.toContain('aria-label="首页"');
+    expect(topbar).not.toContain('aria-label="电影"');
+    expect(topbar).not.toContain('aria-label="剧集"');
+    expect(topbar).not.toContain('aria-label="动漫"');
+    expect(topbar).not.toContain('ipad-nav__label');
     expect(shell).toContain("href: '/ipad-edition/settings'");
   });
 
