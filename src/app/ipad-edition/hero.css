@@ -1087,3 +1087,107 @@ body:has(.ipad-edition[data-ipad-home="true"]) {
     padding-left: 30px;
   }
 }
+
+/* PR #99 · Apple TV-style full-bleed hero correction.
+   Use one landscape scene across the entire canvas; the portrait poster is not
+   a separate oversized card. All tonal treatment stays on independent overlays. */
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero {
+  position: relative;
+  isolation: isolate;
+  background: #08090c;
+  overflow: hidden;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-media,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-backdrop,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-atmosphere {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-backdrop .poster-engine__image,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-atmosphere .poster-engine__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover !important;
+  object-position: center 42%;
+  filter: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+/* The source landscape backdrop is the hero. Never render a giant portrait poster. */
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-poster {
+  display: none !important;
+  visibility: hidden !important;
+}
+/* Keep contrast local to copy: cinematic left vignette + gentle lower fade. */
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-shade {
+  z-index: 4;
+  background:
+    linear-gradient(90deg,
+      rgba(4,6,10,.78) 0%,
+      rgba(4,6,10,.62) 23%,
+      rgba(4,6,10,.34) 43%,
+      rgba(4,6,10,.08) 68%,
+      transparent 88%),
+    linear-gradient(0deg, rgba(4,6,10,.48) 0%, rgba(4,6,10,.12) 24%, transparent 58%);
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero::before {
+  content: "";
+  position: absolute;
+  z-index: 5;
+  inset: auto 0 0;
+  height: clamp(150px, 25vh, 280px);
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(0,0,0,0) 0%,
+    color-mix(in srgb, var(--ipad-page, #f5f5f7) 24%, transparent) 42%,
+    color-mix(in srgb, var(--ipad-page, #f5f5f7) 72%, transparent) 72%,
+    var(--ipad-page, #f5f5f7) 100%
+  );
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-copy {
+  z-index: 6;
+  width: min(620px, 52%);
+  max-width: 620px;
+  padding: clamp(32px, 5vw, 76px);
+  padding-right: 0;
+  padding-bottom: clamp(96px, 12vh, 132px);
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-copy h1 {
+  max-width: 10ch;
+  font-size: clamp(42px, 5.4vw, 76px);
+  line-height: 1.04;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-pagination {
+  z-index: 7;
+}
+@media (orientation: portrait) and (min-width: 700px) {
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero {
+    height: clamp(480px, 62dvh, 700px);
+    min-height: 480px;
+  }
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-backdrop .poster-engine__image,
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-atmosphere .poster-engine__image {
+    object-position: 58% 38%;
+  }
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-copy {
+    width: min(560px, 76%);
+    padding: 36px 32px 112px;
+  }
+}
+@media (max-width: 699px) {
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-copy {
+    width: min(88%, 560px);
+    padding: 26px 20px 94px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-backdrop .poster-engine__image,
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-atmosphere .poster-engine__image {
+    animation: none !important;
+  }
+}
