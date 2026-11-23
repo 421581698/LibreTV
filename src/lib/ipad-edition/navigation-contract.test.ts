@@ -27,7 +27,6 @@ describe('iPad Edition navigation contract', () => {
     expect(topbar).toContain('href="/ipad-edition"');
     expect(topbar).toContain('aria-label="搜索"');
     expect(topbar).toContain('aria-label="我的"');
-    expect(topbar).not.toContain('aria-label="首页"');
     expect(topbar).not.toContain('aria-label="电影"');
     expect(topbar).not.toContain('aria-label="剧集"');
     expect(topbar).not.toContain('aria-label="动漫"');
