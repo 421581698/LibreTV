@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GET } from './route';
 import { fetchTmdbJson } from '@/lib/tmdb';
-import { getCache, setCache } from '@/lib/fetch-utils';
+import { getCache } from '@/lib/fetch-utils';
 
 vi.mock('@/lib/api-guard', () => ({ guardRequest: vi.fn(() => null) }));
 vi.mock('@/lib/tmdb', () => ({ fetchTmdbJson: vi.fn() }));
