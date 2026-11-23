@@ -121,6 +121,16 @@ describe('TMDB poster language preference', () => {
     ])).toBe('/huge-en.jpg');
   });
 
+  it('rejects square or malformed dimensions when a strict artwork orientation is required', () => {
+    expect(selectPreferredTmdbPoster([
+      { file_path: '/square.jpg', iso_639_1: 'zh', width: 1000, height: 1000 },
+      { file_path: '/invalid.jpg', iso_639_1: 'zh', width: -1, height: 900 },
+    ])).toBeUndefined();
+    expect(selectPreferredTmdbBackdrop([
+      { file_path: '/almost-square.jpg', iso_639_1: 'zh', width: 1100, height: 1000 },
+    ])).toBeUndefined();
+  });
+
   it('does not choose landscape artwork for a poster slot when dimensions are known', () => {
     expect(selectPreferredTmdbPoster([
       { file_path: '/landscape.jpg', iso_639_1: 'zh', width: 1600, height: 900 },
