@@ -1551,12 +1551,12 @@ jobs:
                   }, panelState);
                   const failed = !response?.ok() ||
                     !metrics.boxes.shell || !metrics.boxes.topbar || !metrics.boxes.frame ||
-                    !metrics.boxes.centerControls || !metrics.boxes.info || !metrics.boxes.utilityPanel || !metrics.boxes.qualityControls ||
+                    !metrics.boxes.centerControls || !metrics.boxes.info || !metrics.boxes.utilityPanel ||
                     !metrics.frameCoversViewport || !metrics.infoWithinViewport || !metrics.topbarWithinViewport ||
-                    metrics.overlaps.infoWithCenterControls || metrics.overlaps.topbarWithInfo || metrics.overlaps.topbarWithQualityControls ||
+                    metrics.overlaps.infoWithCenterControls || metrics.overlaps.topbarWithInfo ||
                     (metrics.videoWithinFrame === false) ||
                     (panelState === "closed" && (!metrics.visibility.info || !metrics.visibility.centerControls || metrics.visibility.utilityPanel)) ||
-                    (panelState === "open" && (!metrics.visibility.utilityPanel || metrics.visibility.info || metrics.visibility.centerControls || !metrics.visibility.panelClose || !metrics.visibility.panelScrim || !metrics.panelWithinViewport)) ||
+                    (panelState === "open" && (!metrics.boxes.qualityControls || metrics.overlaps.topbarWithQualityControls || !metrics.visibility.qualityControls || !metrics.visibility.utilityPanel || metrics.visibility.info || metrics.visibility.centerControls || !metrics.visibility.panelClose || !metrics.visibility.panelScrim || !metrics.panelWithinViewport)) ||
                     errors.length > 0;
                   const name = viewport.name + "-" + colorScheme + "-panel-" + panelState;
                   await page.screenshot({
