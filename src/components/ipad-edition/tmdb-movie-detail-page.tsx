@@ -170,7 +170,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, backdropFallback,
   return (
     <main className="ipad-cinema-detail" data-ipad-detail-page="true">
       <section className="ipad-cinema-hero" aria-label={title}>
-        {backdrop ? <SmartImage url={backdrop} mode={imageProxyMode} customProxy={customImageProxy} alt="" loading="eager" className="ipad-cinema-hero__image" minimumWidth={1600} expectedOrientation="landscape" showDefaultFallback={false} /> : <div className="ipad-cinema-hero__placeholder">暂无横屏剧照</div>}
+        {backdrop ? <SmartImage url={backdrop} fallbackUrl={movie?.backdrop_path ? backdropFallback : undefined} mode={imageProxyMode} customProxy={customImageProxy} alt="" loading="eager" className="ipad-cinema-hero__image" minimumWidth={1600} expectedOrientation="landscape" showDefaultFallback={false} /> : <div className="ipad-cinema-hero__placeholder">暂无横屏剧照</div>}
         <div className="ipad-cinema-hero__shade" aria-hidden="true" />
         <header className="ipad-cinema-hero__header">
           <button type="button" onClick={() => router.back()} className="ipad-cinema-back" aria-label="返回">‹</button>
