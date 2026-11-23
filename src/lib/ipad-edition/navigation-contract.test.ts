@@ -16,18 +16,17 @@ const searchCss = readFileSync(
 );
 
 describe('iPad Edition navigation contract', () => {
-  it('keeps exactly the three agreed actions in the persistent top capsule', () => {
+  it('shows the primary cinema categories as labeled actions in the floating top capsule', () => {
     const topbarStart = shell.indexOf('<header className="ipad-nav__topbar">');
     const topbarEnd = shell.indexOf('</header>', topbarStart);
     const topbar = topbarStart >= 0 && topbarEnd > topbarStart
       ? shell.slice(topbarStart, topbarEnd)
       : '';
     expect(topbar).toContain("aria-label={sidebarOpen ? '收起侧边栏' : '展开侧边栏'}");
-    expect(topbar).toContain('aria-label="首页"');
-    expect(topbar).toContain('aria-label="搜索"');
-    expect(topbar).not.toContain('aria-label="电影"');
-    expect(topbar).not.toContain('aria-label="电视剧"');
-    expect(topbar).not.toContain('aria-label="动漫"');
+    for (const label of ['首页', '电影', '剧集', '动漫', '搜索']) {
+      expect(topbar).toContain('aria-label="' + label + '"');
+      expect(topbar).toContain('ipad-nav__label');
+    }
     expect(topbar).not.toContain('aria-label="设置"');
     expect(topbar).not.toContain('aria-label="我的"');
     expect(shell).toContain("href: '/ipad-edition/settings'");
@@ -39,11 +38,12 @@ describe('iPad Edition navigation contract', () => {
     expect(shell).toContain("data-ipad-detail={isDetailRoute ? 'true' : undefined}");
   });
 
-  it('sizes the top capsule to its three actions instead of a fixed oversized width', () => {
+  it('sizes the labeled top capsule to its content while respecting the iPad viewport', () => {
     const styles = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/ipad-edition.css'), 'utf8');
     expect(styles).toContain('width: max-content !important;');
-    expect(styles).toContain('height: 48px !important;');
-    expect(styles).toContain('flex: 0 0 36px !important;');
+    expect(styles).toContain('max-width: calc(100vw - 32px) !important;');
+    expect(styles).toContain('height: 52px !important;');
+    expect(styles).toContain('flex: 0 0 auto !important;');
   });
 
 
@@ -70,11 +70,12 @@ describe('iPad Edition navigation contract', () => {
     expect(layout).toContain('background: #f5f5f7;');
   });
 
-  it('anchors hero pagination to the right and prevents legacy left-side positioning from winning', () => {
+  it('centers transparent hero pagination dots below the featured content', () => {
     const styles = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/hero.css'), 'utf8');
-    expect(styles).toContain('right: clamp(28px, 4.5vw, 68px);');
     expect(styles).toContain('.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-pagination');
-    expect(styles).toContain('left: auto;');
+    expect(styles).toContain('left: 50%;');
+    expect(styles).toContain('background: transparent;');
+    expect(styles).toContain('transform: translateX(-50%);');
   });
 
   it('preserves an accessible sidebar toggle and manages modal focus/scroll lifecycle', () => {
