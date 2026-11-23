@@ -117,6 +117,9 @@ describe('iPad Edition navigation contract', () => {
 describe('iPad Edition Cinema Experience', () => {
   it('supports touch swipes, keyboard navigation and explicit previous/next controls', () => {
     const hero = readFileSync(resolve(process.cwd(), 'src/components/ipad-edition/IpadEditionHero.tsx'), 'utf8');
+    const detailRoute = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/detail/page.tsx'), 'utf8');
+    const tmdbDetail = readFileSync(resolve(process.cwd(), 'src/components/ipad-edition/tmdb-movie-detail-page.tsx'), 'utf8');
+    const bangumiDetail = readFileSync(resolve(process.cwd(), 'src/components/ipad-edition/BangumiSubjectDetailPage.tsx'), 'utf8');
     expect(hero).toContain('onPointerDown={handlePointerDown}');
     expect(hero).toContain('onPointerUp={handlePointerUp}');
     expect(hero).toContain("event.key === 'ArrowLeft'");
@@ -172,6 +175,16 @@ describe('iPad Edition end-to-end cinema navigation contracts', () => {
     expect(posterNavigation).toContain("params.set('bangumiId', movie.id)");
     expect(posterNavigation).toContain("router.push('/ipad-edition/detail?' + params.toString())");
     expect(posterNavigation).not.toContain("router.push('/ipad-edition/search?q='");
+    expect(detailRoute).toContain('<TmdbMovieDetailPage');
+    expect(detailRoute).toContain('<BangumiSubjectDetailPage');
+    expect(tmdbDetail).toContain('const startPlayback = async () => {');
+    expect(tmdbDetail).toContain('api.search(term, sources, yellowFilter)');
+    expect(tmdbDetail).toContain('▶ 开始播放');
+    expect(bangumiDetail).toContain('const startPlayback = async () => {');
+    expect(bangumiDetail).toContain('api.search(title, sources, yellowFilter)');
+    expect(bangumiDetail).toContain('▶ 开始播放');
+    expect(tmdbDetail.slice(0, tmdbDetail.indexOf('const startPlayback')).not.toContain('api.search('));
+    expect(bangumiDetail.slice(0, bangumiDetail.indexOf('const startPlayback')).not.toContain('api.search('));
   });
 
   it('activates the dedicated detail styling on the actual detail route', () => {
