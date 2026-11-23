@@ -153,30 +153,24 @@ describe('iPad Edition cinematic detail experience', () => {
 
 
 describe('iPad Edition end-to-end cinema navigation contracts', () => {
-  it('resolves recommendation posters against enabled sources before opening the real detail route', () => {
+  it('opens recommendation posters directly to metadata details without searching CMS sources', () => {
     const posterNavigation = readFileSync(resolve(process.cwd(), 'src/components/ipad-edition/useIpadEditionPosterNavigation.ts'), 'utf8');
     const home = readFileSync(resolve(process.cwd(), 'src/components/ipad-edition/IpadEditionHome.tsx'), 'utf8');
     const collection = readFileSync(resolve(process.cwd(), 'src/components/ipad-edition/IpadEditionCollection.tsx'), 'utf8');
     const hero = readFileSync(resolve(process.cwd(), 'src/components/ipad-edition/IpadEditionHero.tsx'), 'utf8');
 
-    // Preserve poster artwork and resolve a real enabled CMS resource before navigation.
     expect(home).toContain('<PosterRenderer variant="poster"');
     expect(home).toContain('url={item.cover}');
     expect(home).toContain('onClick={() => void openPoster(item)}');
     expect(collection).toContain('<PosterRenderer variant="poster"');
     expect(collection).toContain('onClick={() => void openPoster(item)}');
     expect(hero).toContain('onClick={() => onOpen(item)}');
-    expect(hero).toContain('查找播放资源');
-    expect(posterNavigation).toContain('api.search(movie.title, selectedSources, yellowFilter)');
-    expect(posterNavigation).toContain('!isSourceDisabled({ sourceHealth }, source.key)');
-    expect(posterNavigation).toContain('!isInDisabledSubscription({ subscriptions }, source.key)');
-    expect(posterNavigation).toContain(String.fromCharCode(92) + 'p{P}');
-    expect(posterNavigation).toContain('response.list.find((entry) => normalizeTitle(entry.name) === target)');
+    expect(hero).toContain('查看详情');
+    expect(posterNavigation).not.toContain('api.search');
+    expect(posterNavigation).toContain("provider === 'tmdb'");
+    expect(posterNavigation).toContain("params.set('tmdbId', movie.id)");
+    expect(posterNavigation).toContain("params.set('bangumiId', movie.id)");
     expect(posterNavigation).toContain("router.push('/ipad-edition/detail?' + params.toString())");
-    expect(posterNavigation).toContain('source: match.sourceKey');
-    expect(posterNavigation).toContain('id: match.vodId');
-    expect(posterNavigation).toContain("if (match.sourceUrl) params.set('sourceUrl', match.sourceUrl)");
-    expect(posterNavigation).toContain('没有找到《');
     expect(posterNavigation).not.toContain("router.push('/ipad-edition/search?q='");
   });
 
