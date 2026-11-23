@@ -78,6 +78,8 @@ function WatchContent() {
   const [reversed, setReversed] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<'episodes' | 'sources' | 'details'>('episodes');
   const [watchClock, setWatchClock] = useState({ position: 0, duration: 0 });
+  const watchClockRef = useRef(watchClock);
+  watchClockRef.current = watchClock;
   const [watchRate, setWatchRate] = useState(1);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showPlayerPanel, setShowPlayerPanel] = useState(false);
@@ -466,8 +468,8 @@ function WatchContent() {
       // Flush the outgoing episode before the URL identity changes. Later pause
       // events may belong to the new source lifecycle and must not overwrite it.
       const outgoingProgressId = vodId || currentUrl;
-      const outgoingPosition = playerApiRef.current?.getCurrentTime() ?? watchClock.position;
-      const outgoingDuration = playerApiRef.current?.getDuration() ?? watchClock.duration;
+      const outgoingPosition = playerApiRef.current?.getCurrentTime() ?? watchClockRef.current.position;
+      const outgoingDuration = playerApiRef.current?.getDuration() ?? watchClockRef.current.duration;
       if (outgoingProgressId && Number.isFinite(outgoingPosition) && outgoingPosition > 0) {
         saveProgress(sourceKey, outgoingProgressId, currentIndex, outgoingPosition, outgoingDuration).catch(() => {});
         updateHistoryProgress(sourceKey, outgoingProgressId, outgoingPosition, outgoingDuration).catch(() => {});
@@ -488,7 +490,7 @@ function WatchContent() {
       sp.delete('position');
       router.replace(`${pathname}?${sp.toString()}`, { scroll: false });
     },
-    [router, pathname, searchParams, episodes, directUrl, vodId, currentUrl, watchClock, sourceKey, currentIndex]
+    [router, pathname, searchParams, episodes, directUrl, vodId, currentUrl, sourceKey, currentIndex]
   );
   // 进度恢复优先级：URL position 参数 > IndexedDB 记录
   const getRestorePosition = useCallback(async () => {
