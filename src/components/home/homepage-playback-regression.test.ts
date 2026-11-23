@@ -349,6 +349,8 @@ describe('首页与播放页回归契约', () => {
     expect(player).toContain('art.on(\'video:loadedmetadata\'');
     expect(player).toContain('onTimeUpdate');
     expect(player).toContain('setupHls(video, mediaUrl, true)');
+    expect(player).toContain('Cancel retries queued by the previous episode');
+    expect(player).toContain('recoveryRef.current?.dispose();\n    recoveryRef.current = new PlaybackRecovery();');
     expect(player).toContain('artRef.current.currentTime = saved');
     expect(player).toContain('artRef.current?.pause()');
     expect(player).toContain('if (longPressTimer) clearTimeout(longPressTimer);');
