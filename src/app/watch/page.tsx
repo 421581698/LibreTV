@@ -182,6 +182,10 @@ function WatchContent() {
       controlsHideTimerRef.current = null;
     };
     const revealControls = (event?: Event) => {
+      // Capture the pre-interaction state before showControls removes the class.
+      // Otherwise the following synthesized click cannot tell that this press
+      // began while controls were hidden and may immediately dismiss them again.
+      const wereHiddenBeforeInteraction = shell.classList.contains('cinema-controls-hidden');
       clearHideTimer('reveal');
       showControls();
       const target = event?.target;
@@ -190,7 +194,7 @@ function WatchContent() {
       // lock stuck because no second release event follows that click.
       const startsScrubbing = event?.type === 'pointerdown' || event?.type === 'touchstart';
       if (startsScrubbing) {
-        controlsWereHiddenAtPointerStart = controlsWereHiddenAtPointerStart || shell.classList.contains('cinema-controls-hidden');
+        controlsWereHiddenAtPointerStart = controlsWereHiddenAtPointerStart || wereHiddenBeforeInteraction;
       }
       if (startsScrubbing && target instanceof Element && target.closest('.watch-cinema-progress')) {
         // A new drag supersedes the delayed cleanup from the previous drag.
