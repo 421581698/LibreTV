@@ -1345,8 +1345,16 @@ jobs:
                       const centerControlsInsideFrame = Boolean(frame && centerControls &&
                         centerControls.left >= frame.left - 2 && centerControls.right <= frame.right + 2 &&
                         centerControls.top >= frame.top - 2 && centerControls.bottom <= frame.bottom + 2);
-                      const withinViewport = [frame, centerControls, info, tools, utility].filter(Boolean)
-                        .every(box => box.left >= -2 && box.right <= viewportWidth + 2 && box.width > 0 && box.height > 0);
+                      // Core player geometry must be measurable. Optional controls may be
+                      // display:none while the player is idle; validate them only when rendered.
+                      const requiredVisibleBoxes = [frame, centerControls, info, title];
+                      const optionalVisibleBoxes = [tools, utility].filter(box =>
+                        box && box.width > 0 && box.height > 0
+                      );
+                      const withinViewport = [...requiredVisibleBoxes, ...optionalVisibleBoxes]
+                        .every(box => Boolean(box) && box.left >= -2 && box.right <= viewportWidth + 2 &&
+                          box.top >= -2 && box.bottom <= document.documentElement.clientHeight + 2 &&
+                          box.width > 0 && box.height > 0);
                       return {
                         frame, centerControls, info, tools, title, utility,
                         centerControlsInsideFrame,
