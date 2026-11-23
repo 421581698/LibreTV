@@ -23,7 +23,7 @@ const imageUrl = (path?: string | null, size = 'w780') => path ? `https://image.
 const normalize = (value: string) => value.replace(/[\\s\\p{P}\\p{S}]/gu, '').toLocaleLowerCase();
 
 export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, ratingFallback }: {
-  id: string; type: 'movie' | 'tv'; titleFallback: string; posterFallback: string; ratingFallback: string;
+  id: string; type: 'movie' | 'tv'; titleFallback: string; posterFallback: string; backdropFallback: string; ratingFallback: string;
 }) {
   const router = useRouter();
   const selectedKeys = useAppStore((state) => state.selectedKeys);
@@ -129,7 +129,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, r
 
   const title = movie?.title || movie?.name || titleFallback;
   const poster = imageUrl(movie?.poster_path, 'w500') || posterFallback;
-  const backdrop = imageUrl(movie?.backdrop_path, 'w1280') || poster;
+  const backdrop = imageUrl(movie?.backdrop_path, 'w1280') || backdropFallback || poster;
   const cast = movie?.credits?.cast?.slice(0, 18) || [];
   const crew = (movie?.credits?.crew || []).filter((entry) => ['Director', 'Writer', 'Screenplay', 'Producer', 'Director of Photography'].includes(entry.job || '')).slice(0, 12);
   const stills = (movie?.images?.backdrops || []).filter((entry) => entry.file_path).slice(0, 18);
