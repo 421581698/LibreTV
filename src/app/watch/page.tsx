@@ -214,9 +214,26 @@ function WatchContent() {
         controlsHideTimerRef.current = window.setTimeout(hideControls, 3000);
       }
     };
+    const resetScrubbing = () => {
+      scrubbingRef.current = false;
+      controlsWereHiddenAtPointerStart = false;
+      if (scrubResetTimerRef.current !== null) {
+        window.clearTimeout(scrubResetTimerRef.current);
+        scrubResetTimerRef.current = null;
+      }
+      setIsScrubbing(false);
+      setScrubbingPosition(null);
+    };
     const keepControlsVisible = () => {
       clearHideTimer();
       showControls();
+    };
+    const onMediaReset = () => {
+      // Source/episode changes can reuse the same HTMLVideoElement. In that
+      // case MutationObserver sees no replacement, so reset the scrub lifecycle
+      // from native loadstart/emptied events instead of carrying a stale drag lock.
+      resetScrubbing();
+      keepControlsVisible();
     };
     const scheduleHide = () => {
       clearHideTimer('reschedule');
@@ -233,11 +250,11 @@ function WatchContent() {
       controlsHideTimerRef.current = window.setTimeout(hideControls, 3000);
     };
     const onPlay = () => { showControls(); scheduleHide(); };
-    const onPause = keepControlsVisible;
-    const onEnded = keepControlsVisible;
-    const onLoadStart = keepControlsVisible;
+    const onPause = () => { resetScrubbing(); keepControlsVisible(); };
+    const onEnded = () => { resetScrubbing(); keepControlsVisible(); };
+    const onLoadStart = onMediaReset;
     const onWaiting = keepControlsVisible;
-    const onError = keepControlsVisible;
+    const onError = () => { resetScrubbing(); keepControlsVisible(); };
     const detachVideo = () => {
       if (!video) return;
       video.removeEventListener('play', onPlay);
