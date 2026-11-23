@@ -30,8 +30,8 @@ describe('iPad Edition navigation contract', () => {
     expect(topbar).not.toContain('aria-label="剧集"');
     expect(topbar).not.toContain('aria-label="动漫"');
     expect(topbar).not.toContain('ipad-nav__label');
-    expect((topbar.match(/<button\\b/g) ?? []).length).toBe(1);
-    expect((topbar.match(/<Link\\b/g) ?? []).length).toBe(2);
+    expect((topbar.match(/<button\b/g) ?? []).length).toBe(1);
+    expect((topbar.match(/<Link\b/g) ?? []).length).toBe(2);
     expect(shell).toContain("href: '/ipad-edition/settings'");
   });
 
