@@ -265,6 +265,9 @@ jobs:
                 });
                 // Force the application theme class, not merely the browser media preference.
                 await page.addInitScript((scheme) => {
+                  // ThemeProvider reads this key during hydration and otherwise may
+                  // overwrite the forced class with a stale/default persisted choice.
+                  try { window.localStorage.setItem('libretv-theme', scheme); } catch { /* isolated audit storage */ }
                   const applyTheme = () => {
                     const root = document.documentElement;
                     if (!root) return;
