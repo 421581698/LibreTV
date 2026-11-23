@@ -93,6 +93,7 @@ function WatchContent() {
   const controlsHideTimerRef = useRef<number | null>(null);
   const scrubResetTimerRef = useRef<number | null>(null);
   const scrubbingRef = useRef(false);
+  const scrubbingPositionRef = useRef<number | null>(null);
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [scrubbingPosition, setScrubbingPosition] = useState<number | null>(null);
   const [controlsVisible, setControlsVisible] = useState(true);
@@ -229,6 +230,7 @@ function WatchContent() {
       }
       setIsScrubbing(false);
       setScrubbingPosition(null);
+      scrubbingPositionRef.current = null;
     };
     const keepControlsVisible = () => {
       clearHideTimer();
@@ -352,11 +354,19 @@ function WatchContent() {
     };
     const endScrubbing = () => {
       if (!scrubbingRef.current) return;
+      // Commit at the window-level release, so lifting a finger outside the
+      // slider still seeks and pointerup/touchend cannot issue duplicate seeks.
+      const progressInput = shell.querySelector<HTMLInputElement>('.watch-cinema-progress');
+      const finalPosition = progressInput ? Number(progressInput.value) : scrubbingPositionRef.current;
+      if (typeof finalPosition === 'number' && Number.isFinite(finalPosition)) {
+        playerApiRef.current?.seek(finalPosition);
+      }
       scrubbingRef.current = false;
       setIsScrubbing(false);
       if (scrubResetTimerRef.current !== null) window.clearTimeout(scrubResetTimerRef.current);
       scrubResetTimerRef.current = window.setTimeout(() => {
         setScrubbingPosition(null);
+        scrubbingPositionRef.current = null;
         scrubResetTimerRef.current = null;
       }, 1200);
       if (video && !video.paused && !video.ended) scheduleHide();
@@ -489,6 +499,7 @@ function WatchContent() {
       // episode's clock or scrub preview visible while the new media loads.
       setWatchClock({ position: 0, duration: 0 });
       setScrubbingPosition(null);
+      scrubbingPositionRef.current = null;
       setIsScrubbing(false);
       scrubbingRef.current = false;
       if (scrubResetTimerRef.current !== null) {
@@ -957,18 +968,14 @@ function WatchContent() {
                   onChange={(event) => {
                     // Dragging updates the thumb/preview only. Seeking the media
                     // on every input event causes repeated HLS flushes and stutter.
-                    setScrubbingPosition(Number(event.target.value));
+                    const position = Number(event.target.value);
+                    scrubbingPositionRef.current = position;
+                    setScrubbingPosition(position);
                   }}
                   onPointerDown={(event) => {
                     // Keep the drag stream attached to the range input even if
                     // the finger leaves its narrow visual track.
                     event.currentTarget.setPointerCapture(event.pointerId);
-                  }}
-                  onPointerUp={(event) => {
-                    // Pointer Events cover modern iPad Safari touch and desktop
-                    // mouse. Do not also seek from touchend/blur: those events
-                    // can follow the same gesture and issue duplicate seeks.
-                    playerApiRef.current?.seek(Number(event.currentTarget.value));
                   }}
                   onKeyUp={(event) => {
                     if (['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) {
