@@ -20,6 +20,7 @@ import {
   isSourceDisabled,
 } from '@/lib/store';
 import { api } from '@/lib/client-api';
+import { findMovieMatch, getMovieSearchTerms } from '@/lib/movie-title-match';
 import type {
   DoubanItem,
   SearchResultItem,
@@ -85,12 +86,22 @@ function HomeContent() {
       return;
     }
     try {
-      const response = await api.search(movie.title, selectedSources, yellowFilter);
-      const normalize = (value: string) => value.replace(/[\\s\\p{P}\\p{S}]/gu, '').toLocaleLowerCase();
-      const target = normalize(movie.title);
-      const match = response.list.find((entry) => normalize(entry.name) === target);
+      // CMS 站点常用原名、地区译名或「蜘蛛侠4」等别名建档；
+      // 首页只按完全一致的标题匹配会把真实存在的资源误报为不存在。
+      let match: SearchResultItem | undefined;
+      const failedSources = new Set<string>();
+      for (const term of getMovieSearchTerms(movie.title)) {
+        const response = await api.search(term, selectedSources, yellowFilter);
+        response.failures.forEach((failure) => failedSources.add(failure.sourceKey));
+        match = findMovieMatch(movie.title, response.list);
+        if (match) break;
+      }
       if (!match) {
-        toast('暂未在已启用的点播源中找到《' + movie.title + '》的准确资源。', 'warning');
+        if (failedSources.size > 0) {
+          toast('没有匹配到《' + movie.title + '》；另有 ' + failedSources.size + ' 个点播源请求失败，请检查源状态后重试。', 'warning');
+        } else {
+          toast('已尝试影片常见别名，仍未在已启用的点播源中找到《' + movie.title + '》的准确资源。', 'warning');
+        }
         return;
       }
       openDetail(match, { rating: movie.rating, poster: movie.cover });
