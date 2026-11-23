@@ -1686,23 +1686,53 @@ jobs:
                 // after playback settles, then return on a real touch. This catches
                 // the regression where the old CSS deliberately left the progress
                 // slider visible after the other cinema controls disappeared.
-                await page.waitForFunction(() => {
+                let autoHideReached = false;
+                try {
+                  await page.waitForFunction(() => {
+                    const shell = document.querySelector(".netflix-watch-shell");
+                    const info = document.querySelector(".watch-cinema-info");
+                    const progress = document.querySelector(".watch-cinema-progress");
+                    const hidden = element => {
+                      if (!element) return false;
+                      const style = getComputedStyle(element);
+                      let effectiveOpacity = 1;
+                      for (let node = element; node instanceof HTMLElement; node = node.parentElement) {
+                        effectiveOpacity *= Number.parseFloat(getComputedStyle(node).opacity || "1");
+                      }
+                      return style.visibility === "hidden" && effectiveOpacity <= 0.05 &&
+                        style.pointerEvents === "none";
+                    };
+                    return Boolean(shell?.classList.contains("cinema-controls-hidden") &&
+                      hidden(info) && hidden(progress));
+                  }, undefined, { timeout: 7000, polling: 50 });
+                  autoHideReached = true;
+                } catch {
+                  // Capture the actual timer/scrub/media state below so a failed
+                  // auto-hide assertion diagnoses the cause instead of aborting
+                  // before the remaining touch/fullscreen regression checks run.
+                }
+                const autoHideDiagnostics = await page.evaluate(() => {
                   const shell = document.querySelector(".netflix-watch-shell");
+                  const video = document.querySelector(".netflix-player-frame video");
                   const info = document.querySelector(".watch-cinema-info");
                   const progress = document.querySelector(".watch-cinema-progress");
-                  const hidden = element => {
-                    if (!element) return false;
+                  const snapshot = element => {
+                    if (!element) return null;
                     const style = getComputedStyle(element);
-                    let effectiveOpacity = 1;
-                    for (let node = element; node instanceof HTMLElement; node = node.parentElement) {
-                      effectiveOpacity *= Number.parseFloat(getComputedStyle(node).opacity || "1");
-                    }
-                    return style.visibility === "hidden" && effectiveOpacity <= 0.05 &&
-                      style.pointerEvents === "none";
+                    return { opacity: style.opacity, visibility: style.visibility,
+                      pointerEvents: style.pointerEvents, rect: element.getBoundingClientRect().toJSON() };
                   };
-                  return Boolean(shell?.classList.contains("cinema-controls-hidden") &&
-                    hidden(info) && hidden(progress));
-                }, undefined, { timeout: 7000, polling: 50 });
+                  return {
+                    shellClass: shell?.className ?? null,
+                    scrubClass: shell?.classList.contains("cinema-controls-scrubbing") ?? null,
+                    debug: shell?.dataset.controlsHideDebug ?? null,
+                    video: video ? { paused: video.paused, ended: video.ended, currentTime: video.currentTime } : null,
+                    info: snapshot(info), progress: snapshot(progress),
+                  };
+                });
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-auto-hide-state",
+                  autoHideReached, autoHideDiagnostics }));
+                if (!autoHideReached) failures += 1;
                 const fullyHiddenPlaybackChrome = await page.evaluate(() => {
                   const selectors = [".watch-topbar", ".cinema-center-controls", ".watch-cinema-info",
                     ".watch-cinema-progress", ".player-quality-controls"];
