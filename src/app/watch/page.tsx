@@ -542,11 +542,16 @@ function WatchContent() {
   const markedCount = skipMark?.segments.length ?? 0;
   // 中段两步态的起点：页面层持有，面板按钮与 Shift+S/E 共用同一份状态
   const [pendingStart, setPendingStart] = useState<number | null>(null);
+  const previousPlaybackUrlRef = useRef(currentUrl);
   // 换集清空中段两步态：起点属于上一集，不能和新集的位置拼成区间
   useEffect(() => {
     setPendingStart(null);
-    // A new source/episode is a new media lifecycle. Do not carry the previous
-    // source's play state, timeline, drag preview, or hide timer into its loading phase.
+    const mediaUrlChanged = previousPlaybackUrlRef.current !== currentUrl;
+    previousPlaybackUrlRef.current = currentUrl;
+    // A provider/episode identity can change while the exact media URL remains
+    // the same. Preserve the live clock/play state in that case; only reset the
+    // transport when the underlying media resource actually changes.
+    if (!mediaUrlChanged) return;
     setIsPlaying(false);
     setWatchClock({ position: 0, duration: 0 });
     setScrubbingPosition(null);
