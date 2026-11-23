@@ -77,6 +77,7 @@ export function IpadEditionHero({ items, activeIndex, onSelect, onOpen, pendingT
 
       {items.length > 1 ? (
         <div className="ipad-edition__cinema-hero-pagination" role="group" aria-label="切换精选影片">
+          <button className="sr-only" type="button" aria-label="上一部精选影片" onClick={() => selectRelative(-1)} />
           {items.map((candidate, index) => (
             <button
               key={candidate.id || candidate.title}
@@ -87,6 +88,7 @@ export function IpadEditionHero({ items, activeIndex, onSelect, onOpen, pendingT
               onClick={() => onSelect(index)}
             />
           ))}
+          <button className="sr-only" type="button" aria-label="下一部精选影片" onClick={() => selectRelative(1)} />
         </div>
       ) : null}
     </section>
