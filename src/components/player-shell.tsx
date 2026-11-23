@@ -338,6 +338,9 @@ export function PlayerShell({
   // 仅当有分片真正进入 MSE buffer 后才视为恢复，错误遮罩才能被清除。
   const mediaHealthyRef = useRef(true);
   const playbackStartedRef = useRef(false);
+  // Long-running stalls after playback starts should surface the switch-source flow.
+  const stallRecoveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stallRecoveryRequestedRef = useRef(false);
   const playbackConfirmedRef = useRef(false);
   const playbackConfirmationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // 起播阶段的 video 元素级错误允许自愈重试一次（重建 hls/MSE）
@@ -873,6 +876,9 @@ export function PlayerShell({
     if (!targetUrl) return;
     flushPlaybackMetrics();
     resetPlaybackMetrics();
+    if (stallRecoveryTimerRef.current) clearTimeout(stallRecoveryTimerRef.current);
+    stallRecoveryTimerRef.current = null;
+    stallRecoveryRequestedRef.current = false;
     mediaHealthyRef.current = true;
     playbackStartedRef.current = false;
     playbackConfirmedRef.current = false;
@@ -1131,6 +1137,9 @@ export function PlayerShell({
       if (metrics.firstFragmentMs === undefined) metrics.firstFragmentMs = Date.now() - metrics.startedAt;
       if (metrics.waiting) metrics.recoveries += 1;
       metrics.waiting = false;
+      if (stallRecoveryTimerRef.current) clearTimeout(stallRecoveryTimerRef.current);
+      stallRecoveryTimerRef.current = null;
+      stallRecoveryRequestedRef.current = false;
       metrics.height = Math.max(metrics.height, art.video?.videoHeight ?? 0);
       playbackStartedRef.current = true;
       setShowPoster(false);
@@ -1280,6 +1289,22 @@ export function PlayerShell({
     art.on('video:waiting', () => {
       const metrics = playbackMetricsRef.current;
       if (!art.video?.paused && !metrics.waiting) { metrics.stalls += 1; metrics.waiting = true; }
+      // 已经正常播放后持续缓冲 12 秒，主动打开换源流程；短暂抖动不打扰用户。
+      if (
+        playbackStartedRef.current &&
+        !stallRecoveryRequestedRef.current &&
+        !stallRecoveryTimerRef.current &&
+        !art.video?.paused
+      ) {
+        stallRecoveryTimerRef.current = setTimeout(() => {
+          stallRecoveryTimerRef.current = null;
+          if (art.video && !art.video.paused && !art.video.ended && playbackMetricsRef.current.waiting) {
+            stallRecoveryRequestedRef.current = true;
+            showHint('当前线路持续缓冲，正在准备切换播放线路…');
+            propsRef.current.onRequestSwitchSource?.('视频持续缓冲超过 12 秒');
+          }
+        }, 12_000);
+      }
       // 缓冲不足时彻底停止预取，释放所有并发请求给当前播放链路。
       getVideoPrefetcher().stop();
     });
@@ -1452,6 +1477,8 @@ export function PlayerShell({
       document.removeEventListener('keydown', shortcuts);
       document.removeEventListener('visibilitychange', saveOnHide);
       if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+      if (stallRecoveryTimerRef.current) clearTimeout(stallRecoveryTimerRef.current);
+      stallRecoveryTimerRef.current = null;
       nativeFullscreenCleanupRef.current?.();
       nativeFullscreenCleanupRef.current = null;
       cleanupPlaybackUi();
