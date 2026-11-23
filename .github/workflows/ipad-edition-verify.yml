@@ -8,6 +8,7 @@ on:
     paths:
       - "src/app/ipad-edition/**"
       - "src/components/ipad-edition/**"
+      - "src/components/ipad-edition/poster-detail-playback.test.ts"
       - "src/components/home/V4HomepageHero.tsx"
       - "src/components/home/V4HomepageContent.tsx"
       - "src/components/home/V4SpatialScreen.tsx"
