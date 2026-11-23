@@ -180,7 +180,7 @@ function WatchContent() {
       setControlsVisible(false);
       controlsHideTimerRef.current = null;
     };
-    const revealControls = (event: Event) => {
+    const revealControls = (event?: Event) => {
       clearHideTimer('reveal');
       showControls();
       const target = event.target;
