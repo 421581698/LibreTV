@@ -34,6 +34,9 @@ on:
       - "src/lib/env-sources.ts"
       - "src/app/api/detail/route.ts"
       - "src/app/api/detail/route.test.ts"
+      - "src/app/page.tsx"
+      - "src/lib/movie-title-match.ts"
+      - "src/lib/movie-title-match.test.ts"
       - "wrangler.ipad-edition-preview.toml"
   workflow_dispatch:
     inputs:
