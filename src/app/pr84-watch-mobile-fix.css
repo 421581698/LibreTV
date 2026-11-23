@@ -1596,6 +1596,7 @@ html:has(.netflix-watch) .netflix-watch-shell .watch-topbar-right > button {
   backdrop-filter: none !important; overflow: visible !important;
 }
 .ipad-edition-watch .watch-cinema-playback {
+  position: relative !important;
   width: 100% !important; max-width: none !important;
   grid-template-columns: minmax(0, 1fr) 44px !important;
   grid-template-rows: 20px 44px !important; align-items: center !important;
@@ -1651,7 +1652,7 @@ html:has(.netflix-watch) .netflix-watch-shell .watch-topbar-right > button {
   box-shadow: 0 0 0 5px rgba(255,255,255,.13), 0 1px 7px rgba(0,0,0,.45) !important;
 }
 .ipad-edition-watch .watch-cinema-scrub-preview {
-  left: 50% !important; bottom: calc(100% + 2px) !important; z-index: 8 !important;
+  left: 50% !important; bottom: calc(44px + 2px) !important; z-index: 8 !important;
   transform: translateX(-50%) !important; padding: 3px 8px !important;
   border: 0 !important; border-radius: 6px !important; color: #fff !important;
   background: rgba(20,20,20,.88) !important; font-size: 12px !important;
