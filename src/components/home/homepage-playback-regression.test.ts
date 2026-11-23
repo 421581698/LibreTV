@@ -265,6 +265,9 @@ describe('首页与播放页回归契约', () => {
     expect(player).toContain('activeEpisodeKeyRef.current = propsRef.current.episodeKey ??');
     expect(player).toContain('onTimeUpdate?.(art.currentTime, art.duration, activeEpisodeKeyRef.current)');
     expect(player).toContain('onProgressSave?.(art.currentTime, art.duration, activeEpisodeKeyRef.current)');
+    expect(player).toContain("art.on('video:loadstart'");
+    expect(player).toContain('activeEpisodeKeyRef.current = pendingEpisodeKeyRef.current');
+    expect(watch).toContain('saveProgress(sourceKey, outgoingProgressId, currentIndex, outgoingPosition, outgoingDuration)');
     expect(watch).toContain('setWatchClock({ position, duration })');
     expect(watch).toContain('playerApiRef.current?.seek(Number(event.currentTarget.value))');
     expect(watch).toContain('event.currentTarget.setPointerCapture(event.pointerId)');
