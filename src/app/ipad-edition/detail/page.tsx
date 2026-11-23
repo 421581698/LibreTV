@@ -10,7 +10,7 @@ function DetailContent() {
   const params = useSearchParams();
   const tmdbId = params.get('tmdbId');
   const tmdbType = params.get('tmdbType') === 'tv' ? 'tv' : 'movie';
-  if (tmdbId && /^\\d{1,12}$/.test(tmdbId)) {
+  if (tmdbId && /^\d{1,12}$/.test(tmdbId)) {
     return <div data-ipad-detail="true"><TmdbMovieDetailPage
       id={tmdbId}
       type={tmdbType}
