@@ -15,6 +15,16 @@ describe('iPad Edition poster navigation and explicit playback', () => {
   const continueWatching = read('src/components/ipad-edition/IpadEditionContinueWatching.tsx');
   const hero = read('src/components/ipad-edition/IpadEditionHero.tsx');
 
+  it('the iPad playback drawer can always be dismissed without the auto-hidden toolbar', () => {
+    const watchPage = read('src/app/watch/page.tsx');
+    const playerCss = read('src/app/ipad-edition/ipad-edition.css');
+    expect(watchPage).toContain('aria-label="关闭选集与换源面板"');
+    expect(watchPage).toContain('aria-label="关闭播放内容面板"');
+    expect(playerCss).toContain('.netflix-watch-panel-scrim');
+    expect(playerCss).toContain('z-index: 95');
+    expect(playerCss).toContain('z-index: 100 !important');
+  });
+
   it('CMS search poster taps open the detail page before the player', () => {
     expect(searchPage).toContain("router.push('/ipad-edition/detail?' + next.toString())");
     expect(searchPage).toContain("next.set('sourceUrl', item.sourceUrl)");
