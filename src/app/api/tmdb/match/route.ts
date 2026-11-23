@@ -93,9 +93,7 @@ export async function GET(req: Request) {
         const yearMatch = Boolean(year && candidateYear === year);
         const score = (localizedMatch ? 4 : 0)
           + (originalMatch ? 3 : 0)
-          + (yearMatch ? 4 : 0)
-          + (item.poster_path ? 1 : 0)
-          + (item.backdrop_path ? 1 : 0);
+          + (yearMatch ? 4 : 0);
         const previous = byId.get(item.id);
         if (!previous || score > previous.score) byId.set(item.id, { item, score, yearMatch });
       }
@@ -106,8 +104,10 @@ export async function GET(req: Request) {
     const second = ranked[1];
     // If same-title remakes remain indistinguishable, preserve source artwork
     // instead of risking a high-resolution image from the wrong film.
-    const ambiguous = Boolean(best && second && best.score === second.score);
-    if (!best || ambiguous || best.score < 5) {
+    const ambiguous = Boolean(best && second && (
+      best.score === second.score || !year
+    ));
+    if (!best || ambiguous || best.score < 3) {
       const empty = { match: null };
       setCache(cacheKey, empty, 30 * 60 * 1000);
       return NextResponse.json(empty, {
