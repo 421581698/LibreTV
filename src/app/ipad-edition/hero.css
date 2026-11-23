@@ -1191,3 +1191,37 @@ body:has(.ipad-edition[data-ipad-home="true"]) {
     animation: none !important;
   }
 }
+
+
+/* PR #99 fix: use TMDB landscape backdrop as the only hero artwork.
+   The portrait poster is rendered only as a contain-mode fallback when no
+   backdrop_path exists; it must never cover an available landscape backdrop. */
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-media[data-artwork-mode="landscape-backdrop"] .ipad-edition__cinema-hero-backdrop .poster-engine__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover !important;
+  object-position: center 42%;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-media[data-artwork-mode="portrait-poster-fallback"] .ipad-edition__cinema-hero-fallback-poster {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  right: clamp(24px, 8vw, 140px);
+  width: min(34vw, 390px);
+  height: 86%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-media[data-artwork-mode="portrait-poster-fallback"] .ipad-edition__cinema-hero-fallback-poster .poster-engine__image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain !important;
+  object-position: center;
+}
+@media (max-width: 699px) {
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-media[data-artwork-mode="portrait-poster-fallback"] .ipad-edition__cinema-hero-fallback-poster {
+    right: 16px;
+    width: min(40vw, 190px);
+    height: 70%;
+  }
+}
