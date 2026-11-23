@@ -1965,3 +1965,34 @@ body:has(.ipad-edition[data-environment="light"]) {
     max-width: 138px !important;
   }
 }
+
+
+/* Higher-specificity final card geometry override after the legacy cinema cascade. */
+.ipad-edition .ipad-edition__home .ipad-edition__poster-card {
+  flex: 0 0 clamp(142px, 15vw, 204px);
+  width: clamp(142px, 15vw, 204px);
+  max-width: clamp(142px, 15vw, 204px);
+}
+.ipad-edition .ipad-edition__home .ipad-edition__poster-card > strong {
+  display: -webkit-box;
+  min-height: 2.8em;
+  overflow: hidden;
+  white-space: normal;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.ipad-edition .ipad-edition__home .ipad-edition__poster-art {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: 14px;
+}
+@media (max-width: 699px) {
+  .ipad-edition .ipad-edition__home .ipad-edition__poster-card {
+    flex-basis: 138px !important;
+    width: 138px !important;
+    max-width: 138px !important;
+  }
+}
