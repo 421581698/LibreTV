@@ -37,7 +37,7 @@ describe('TMDB artwork identity matching', () => {
     expect(mockedFetch).toHaveBeenNthCalledWith(3, '/search/movie', expect.objectContaining({ query: 'Avengers: Endgame' }));
   });
 
-  it('keeps a valid alias match when another TMDB search request fails', async () => {
+  it('refuses to match when any title alias search fails', async () => {
     mockedFetch
       .mockRejectedValueOnce(new Error('TMDB_HTTP_503'))
       .mockResolvedValueOnce({ results: [
@@ -46,7 +46,8 @@ describe('TMDB artwork identity matching', () => {
 
     const response = await GET(new Request('https://example.test/api/tmdb/match?title=测试影片&alternateTitle=Test%20Film&type=movie&year=2020'));
     expect(response.status).toBe(200);
-    expect((await response.json()).match.id).toBe(42);
+    expect((await response.json()).match).toBeNull();
+    expect(mockedSetCache).not.toHaveBeenCalled();
   });
 
   it('does not guess between same-title remakes when no year disambiguates them', async () => {
