@@ -15,7 +15,7 @@ function selectPreferredArtwork(
 ): string | null | undefined {
   const valid = (images ?? []).filter(
     (image): image is TmdbPosterImage & { file_path: string } => {
-      if (typeof image.file_path !== 'string' || !/^\\/[^?#\\s]+$/.test(image.file_path)) return false;
+      if (typeof image.file_path !== 'string' || !/^\/[^?#\s]+$/.test(image.file_path)) return false;
       if (!image.width || !image.height) return true;
       const ratio = image.width / image.height;
       return orientation === 'portrait' ? ratio <= 1 : ratio > 1;
