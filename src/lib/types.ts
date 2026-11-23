@@ -83,6 +83,10 @@ export interface DoubanItem {
   backdrop?: string;
   /** Optional native HDR / Ultra HDR image URL; SDR cover remains the universal fallback. */
   coverHdr?: string;
+  /** Actual regional theatrical release date (YYYY-MM-DD) from TMDB. */
+  releaseDate?: string;
+  /** ISO 3166-1 alpha-2 theatrical release region. */
+  releaseRegion?: 'US' | 'CN';
   rating?: string;
   isTv?: boolean;
 }
