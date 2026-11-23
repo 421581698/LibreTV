@@ -304,7 +304,16 @@ function WatchContent() {
       showControls();
       scheduleHide();
     };
-    const onPause = () => { resetScrubbing(); keepControlsVisible('media-pause'); };
+    const onPause = () => {
+      // Media events are queued: a delayed pause event can arrive after playback
+      // has already resumed. Never let that stale event cancel the active hide timer.
+      if (video && !video.paused && !video.ended) {
+        recordControlsDebug('pause-ignored', 'media-still-playing');
+        return;
+      }
+      resetScrubbing();
+      keepControlsVisible('media-pause');
+    };
     const onEnded = () => { resetScrubbing(); keepControlsVisible(); };
     const onSeeked = cancelPendingAutoNext;
     const onLoadStart = onMediaReset;
