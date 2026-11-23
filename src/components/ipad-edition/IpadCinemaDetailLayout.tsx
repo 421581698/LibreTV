@@ -7,6 +7,7 @@ type IpadCinemaDetailLayoutProps = {
   title: string;
   eyebrow: string;
   backdropUrl?: string;
+  posterUrl?: string;
   backdropFallbackUrl?: string;
   imageMode: 'direct' | 'proxy' | 'custom';
   customImageProxy?: string;
@@ -26,6 +27,7 @@ export function IpadCinemaDetailLayout({
   title,
   eyebrow,
   backdropUrl,
+  posterUrl,
   backdropFallbackUrl,
   imageMode,
   customImageProxy,
@@ -39,6 +41,19 @@ export function IpadCinemaDetailLayout({
   return (
     <main className="ipad-cinema-detail" data-ipad-detail-page="true">
       <section className="ipad-cinema-hero" aria-label={title}>
+        {posterUrl ? (
+          <SmartImage
+            url={posterUrl}
+            mode={imageMode}
+            customProxy={customImageProxy}
+            alt=""
+            loading="eager"
+            className="ipad-cinema-hero__poster"
+            minimumWidth={1000}
+            expectedOrientation="portrait"
+            showDefaultFallback={false}
+          />
+        ) : null}
         {backdropUrl ? (
           <SmartImage
             url={backdropUrl}
@@ -52,9 +67,9 @@ export function IpadCinemaDetailLayout({
             expectedOrientation="landscape"
             showDefaultFallback={false}
           />
-        ) : (
-          <div className="ipad-cinema-hero__placeholder">暂无高清横屏剧照</div>
-        )}
+        ) : !posterUrl ? (
+          <div className="ipad-cinema-hero__placeholder">暂无影片海报</div>
+        ) : null}
         <div className="ipad-cinema-hero__shade" aria-hidden="true" />
         <header className="ipad-cinema-hero__header">
           <button type="button" onClick={onBack} className="ipad-cinema-back" aria-label="返回">‹</button>
