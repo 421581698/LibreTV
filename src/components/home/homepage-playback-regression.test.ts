@@ -281,7 +281,7 @@ describe('首页与播放页回归契约', () => {
     expect(watch).toContain('autoNextTimer.current = null;');
     expect(watch).toContain('const cancelPendingAutoNext = () =>');
     expect(watch).toContain('const onSeeked = cancelPendingAutoNext;');
-    expect(watch).toContain('video.addEventListener(\\'seeked\\', onSeeked)');
+    expect(watch).toContain("video.addEventListener('seeked', onSeeked)");
     expect(watch).toContain('setWatchClock({ position, duration })');
     expect(watch).toContain('playerApiRef.current?.seek(finalPosition)');
     expect(watch).toContain("shell.querySelector<HTMLInputElement>('.watch-cinema-progress')");
@@ -602,7 +602,7 @@ describe('首页与播放页回归契约', () => {
     expect(watch).toContain('if (!video || video.paused || video.ended) {');
     expect(watch).toContain('keepControlsVisible();');
     expect(watch).toContain('video.addEventListener(\'waiting\', onWaiting)');
-    expect(watch).toContain('video.addEventListener(\\'loadedmetadata\\', onLoadStart)');
+    expect(watch).toContain("video.addEventListener('loadedmetadata', onLoadStart)");
     expect(watch).toContain('video.addEventListener(\'loadstart\', onLoadStart)');
     expect(watch).toContain('const onMediaReset = () =>');
     expect(watch).toContain('const resetScrubbing = () =>');
