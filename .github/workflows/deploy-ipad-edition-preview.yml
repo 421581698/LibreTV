@@ -1503,6 +1503,8 @@ jobs:
                       centerControls: ".cinema-center-controls",
                       info: ".watch-cinema-info",
                       utilityPanel: ".netflix-watch-utility-panel",
+                      panelClose: ".netflix-watch-panel-heading button",
+                      panelScrim: ".netflix-watch-panel-scrim",
                     };
                     const element = selector => document.querySelector(selector);
                     const rect = node => {
@@ -1554,7 +1556,7 @@ jobs:
                     metrics.overlaps.infoWithCenterControls || metrics.overlaps.topbarWithInfo || metrics.overlaps.topbarWithQualityControls ||
                     (metrics.videoWithinFrame === false) ||
                     (panelState === "closed" && (!metrics.visibility.info || !metrics.visibility.centerControls || metrics.visibility.utilityPanel)) ||
-                    (panelState === "open" && (!metrics.visibility.utilityPanel || metrics.visibility.info || metrics.visibility.centerControls || !metrics.panelWithinViewport)) ||
+                    (panelState === "open" && (!metrics.visibility.utilityPanel || metrics.visibility.info || metrics.visibility.centerControls || !metrics.visibility.panelClose || !metrics.visibility.panelScrim || !metrics.panelWithinViewport)) ||
                     errors.length > 0;
                   const name = viewport.name + "-" + colorScheme + "-panel-" + panelState;
                   await page.screenshot({
@@ -1566,10 +1568,18 @@ jobs:
                   console.log(JSON.stringify(results.at(-1)));
                   if (failed) failures += 1;
                   if (panelState === "open") {
+                    await page.locator(".netflix-watch-panel-heading button").click();
+                    await page.waitForFunction(() => !document.querySelector(".netflix-watch-utility-panel")?.classList.contains("is-open"), undefined, { timeout: 5000 });
+                    const closeButtonDismissed = await page.locator(".netflix-watch-panel-heading button").isVisible().then(() => false).catch(() => true);
+                    if (!closeButtonDismissed) failures += 1;
+
                     await page.locator(".cinema-utility-control").click();
-                    await page.locator(".netflix-watch-utility-panel.is-open").waitFor({ state: "detached", timeout: 10000 }).catch(async () => {
-                      await page.waitForFunction(() => !document.querySelector(".netflix-watch-utility-panel")?.classList.contains("is-open"), undefined, { timeout: 5000 });
-                    });
+                    await page.locator(".netflix-watch-utility-panel.is-open").waitFor({ state: "visible", timeout: 10000 });
+                    await page.locator(".netflix-watch-panel-scrim").click({ position: { x: 4, y: 200 } });
+                    await page.waitForFunction(() => !document.querySelector(".netflix-watch-utility-panel")?.classList.contains("is-open"), undefined, { timeout: 5000 });
+                    const scrimDismissed = await page.locator(".netflix-watch-utility-panel").evaluate(node => !node.classList.contains("is-open"));
+                    if (!scrimDismissed) failures += 1;
+                    console.log(JSON.stringify({ name: name + "-dismissal", closeButtonDismissed, scrimDismissed }));
                   }
                 }
                 await context.close();
