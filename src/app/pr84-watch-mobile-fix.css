@@ -1685,3 +1685,16 @@ html:has(.netflix-watch) .netflix-watch-shell .watch-topbar-right > button {
   .ipad-edition-watch .watch-cinema-progress::-webkit-slider-thumb,
   .ipad-edition-watch .watch-cinema-progress::-moz-range-thumb { transition: none !important; }
 }
+
+
+/* PR #99 playback auto-hide correction:
+   In normal playback the entire bottom transport (including the seek rail)
+   must disappear with the rest of the cinema controls. Keep it visible only
+   while an active scrub is in progress; pointer interaction on the video
+   surface can reveal it again. */
+.ipad-edition-watch.cinema-controls-hidden:not(.cinema-controls-scrubbing) .watch-cinema-info {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transition: opacity 240ms ease, visibility 240ms step-end !important;
+}
