@@ -527,7 +527,7 @@ export function PlayerShell({
       /* 忽略 */
     }
     showHint('已跳过片尾');
-    propsRef.current.onEnded?.();
+    propsRef.current.onEnded?.(activeEpisodeKeyRef.current);
   };
 
   /** Native progressive media path for formats the existing HTMLVideoElement can play. */
