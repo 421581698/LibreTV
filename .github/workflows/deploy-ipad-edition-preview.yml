@@ -1551,7 +1551,10 @@ jobs:
                   Object.defineProperties(video, {
                     paused: { configurable: true, get: () => paused },
                     ended: { configurable: true, get: () => ended },
-                    currentTime: { configurable: true, get: () => currentTime, set: value => { currentTime = Number(value) || 0; } },
+                    currentTime: { configurable: true, get: () => currentTime, set: value => {
+                      window.__mockSeekCount = (window.__mockSeekCount || 0) + 1;
+                      currentTime = Number(value) || 0;
+                    } },
                     duration: { configurable: true, get: () => 120 },
                   });
                   video.play = () => {
@@ -1614,6 +1617,7 @@ jobs:
                 await page.evaluate(() => {
                   const video = document.querySelector(".netflix-player-frame video");
                   if (!video) throw new Error("Video is missing for live timeline test.");
+                  window.__mockSeekCount = 0;
                   video.currentTime = 37;
                   video.dispatchEvent(new Event("timeupdate"));
                 });
@@ -1624,6 +1628,38 @@ jobs:
                     elapsed?.textContent?.trim() === "0:37");
                 }, undefined, { timeout: 3000 });
                 console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-live-timeline", currentTime: 37 }));
+
+                // Drag the real range control: input changes only the preview, and
+                // the final pointer release must issue exactly one media seek.
+                const seekControl = page.locator(".watch-cinema-progress");
+                await seekControl.dispatchEvent("pointerdown", {
+                  pointerId: 19, pointerType: "touch", isPrimary: true, button: 0,
+                });
+                await seekControl.evaluate(input => {
+                  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+                  setter?.call(input, "64");
+                  input.dispatchEvent(new Event("input", { bubbles: true }));
+                });
+                await page.waitForFunction(() =>
+                  document.querySelector(".watch-cinema-scrub-preview")?.textContent?.trim() === "1:04",
+                  undefined, { timeout: 3000 });
+                await page.evaluate(() => {
+                  window.dispatchEvent(new PointerEvent("pointerup", {
+                    bubbles: true, pointerId: 19, pointerType: "touch", isPrimary: true,
+                  }));
+                  // Some iOS event sequences also deliver touchend after pointerup.
+                  window.dispatchEvent(new Event("touchend", { bubbles: true }));
+                  document.querySelector(".netflix-player-frame video")?.dispatchEvent(new Event("seeked"));
+                });
+                await page.waitForFunction(() => {
+                  const video = document.querySelector(".netflix-player-frame video");
+                  const progress = document.querySelector(".watch-cinema-progress");
+                  const elapsed = document.querySelector(".watch-cinema-time span:first-child");
+                  return Boolean(video && Math.abs(video.currentTime - 64) < 0.1 &&
+                    progress && Math.abs(Number(progress.value) - 64) < 0.1 &&
+                    elapsed?.textContent?.trim() === "1:04" && window.__mockSeekCount === 1);
+                }, undefined, { timeout: 3000 });
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-drag-seek", seekPosition: 64, seekCalls: 1 }));
 
                 // A blank-surface tap while paused must not hide the controls.
                 const pausedFrame = await page.locator(".netflix-player-frame").boundingBox();
