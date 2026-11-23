@@ -1237,6 +1237,8 @@ jobs:
             { name: "series", path: "/ipad-edition/series", chrome: true, heading: true },
             { name: "anime", path: "/ipad-edition/anime", chrome: true, heading: true },
             { name: "detail", path: "/ipad-edition/detail?source=friday-cms&id=ipad-preview-fixture&title=iPad%20Preview%20%E6%A0%B7%E7%89%87&sourceUrl=https%3A%2F%2Fpreview.invalid%2Fapi.php%2Fprovide%2Fvod", chrome: true, heading: false },
+            { name: "detail-tmdb", path: "/ipad-edition/detail?tmdbId=12345&tmdbType=movie&title=TMDB%20%E9%A2%84%E8%A7%88%E6%A0%B7%E7%89%87", chrome: true, heading: false },
+            { name: "detail-bangumi", path: "/ipad-edition/detail?bangumiId=425&title=Bangumi%20%E9%A2%84%E8%A7%88%E6%A0%B7%E7%89%87", chrome: true, heading: false },
             { name: "watch", path: "/ipad-edition/watch?source=friday-cms&id=ipad-preview-fixture&index=0&title=iPad%20Preview%20%E6%A0%B7%E7%89%87&sourceUrl=https%3A%2F%2Fpreview.invalid%2Fapi.php%2Fprovide%2Fvod", chrome: false, heading: false },
           ];
           const browser = await chromium.launch({ headless: true });
@@ -1256,12 +1258,13 @@ jobs:
                 page.on("pageerror", error => errors.push(error.message));
                 // Use deterministic, clearly synthetic CMS data so detail/player baselines
                 // exercise real page content without depending on third-party source uptime.
-                if (["detail", "watch"].includes(route.name)) {
+                if (["detail", "detail-tmdb", "detail-bangumi", "watch"].includes(route.name)) {
                   const fixtureDetail = {
                     episodes: ["https://media.preview.invalid/fixture.mp4"],
                     episodeItems: [{ title: "预览播放条目", url: "https://media.preview.invalid/fixture.mp4", duration: "00:30" }],
                     videoInfo: {
                       title: "iPad Preview 样片",
+                      cover: "https://media.preview.invalid/cms-poster.svg",
                       desc: "用于 iPad Edition 详情页与播放页视觉验收的合成测试数据，不代表真实片源。",
                       typeName: "电视剧",
                       year: "2026",
@@ -1285,9 +1288,42 @@ jobs:
                     contentType: "application/json",
                     body: JSON.stringify(fixtureDetail),
                   }));
-                  await page.route("https://media.preview.invalid/**", route => route.fulfill({
-                    status: 200, contentType: "video/mp4", body: Buffer.alloc(0),
-                  }));
+                  const posterSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1800" viewBox="0 0 1200 1800"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#253b5c"/><stop offset="1" stop-color="#090d18"/></linearGradient></defs><rect width="1200" height="1800" fill="url(#g)"/><circle cx="600" cy="650" r="260" fill="#d9b66c" opacity=".65"/><text x="600" y="1370" fill="#fff" font-size="76" text-anchor="middle">LIBRETV PREVIEW</text></svg>';
+                  await page.route("https://media.preview.invalid/**", route => {
+                    if (route.request().url().endsWith(".mp4")) {
+                      return route.fulfill({ status: 200, contentType: "video/mp4", body: Buffer.alloc(0) });
+                    }
+                    return route.fulfill({ status: 200, contentType: "image/svg+xml", body: posterSvg });
+                  });
+                  if (route.name === "detail-tmdb") {
+                    await page.route("**/api/tmdb/details?*", route => route.fulfill({
+                      status: 200, contentType: "application/json",
+                      body: JSON.stringify({
+                        id: 12345, title: "TMDB 预览样片", original_title: "TMDB Preview",
+                        overview: "TMDB 详情视觉回归测试数据。", poster_path: "/preview-poster.svg",
+                        backdrop_path: null, vote_average: 8.6, release_date: "2026-01-01",
+                        runtime: 120, genres: [{ id: 1, name: "科幻" }],
+                        production_countries: [{ name: "美国" }], credits: { cast: [], crew: [] },
+                      }),
+                    }));
+                    await page.route("https://image.tmdb.org/t/p/**", route => route.fulfill({
+                      status: 200, contentType: "image/svg+xml", body: posterSvg,
+                    }));
+                  }
+                  if (route.name === "detail-bangumi") {
+                    await page.route("**/api/bangumi/subject?*", route => route.fulfill({
+                      status: 200, contentType: "application/json",
+                      body: JSON.stringify({
+                        id: 425, name: "Bangumi Preview", name_cn: "Bangumi 预览样片",
+                        summary: "Bangumi 详情视觉回归测试数据。", date: "2026-04-01",
+                        platform: "TV", total_episodes: 12, images: { large: "https://media.preview.invalid/bangumi-poster.svg" },
+                        rating: { score: 8.8, total: 100 }, tags: [{ name: "科幻" }, { name: "冒险" }],
+                      }),
+                    }));
+                    await page.route("**/api/tmdb/match?*", route => route.fulfill({
+                      status: 200, contentType: "application/json", body: JSON.stringify({ match: null }),
+                    }));
+                  }
                 }
                 await page.addInitScript((scheme) => {
                   const apply = () => {
@@ -1320,10 +1356,13 @@ jobs:
                 // The player route hides the global chrome; the detail route keeps the iPad shell navigation.
                 // Detail and player screenshots below use deterministic mocked CMS data so their actual
                 // content layouts are exercised without depending on a live third-party source.
-                if (route.name === "detail") {
+                if (route.name.startsWith("detail")) {
                   await page.locator(".ipad-cinema-hero h1").waitFor({ state: "visible", timeout: 30000 });
-                  await page.getByRole("heading", { name: "iPad Preview 样片" }).waitFor({ state: "visible", timeout: 30000 });
-                  await page.locator(".movie-episode-card").first().waitFor({ state: "visible", timeout: 30000 });
+                  await page.locator(".ipad-cinema-hero__poster").waitFor({ state: "visible", timeout: 30000 });
+                  if (route.name === "detail") {
+                    await page.getByRole("heading", { name: "iPad Preview 样片" }).waitFor({ state: "visible", timeout: 30000 });
+                    await page.locator(".movie-episode-card").first().waitFor({ state: "visible", timeout: 30000 });
+                  }
                 }
                 if (route.name === "watch") {
                   await page.locator(".netflix-watch").waitFor({ state: "visible", timeout: 30000 });
@@ -1350,6 +1389,21 @@ jobs:
                     collectionItemCount: collection?.children.length ?? 0,
                     hasTerminalCollectionState: Boolean(collection || emptyMessage),
                     hasDetailTitle: Boolean(document.querySelector(".ipad-cinema-hero h1")),
+                    detailArtwork: (() => {
+                      const hero = document.querySelector(".ipad-cinema-hero");
+                      const image = hero?.querySelector(".ipad-cinema-hero__poster, .ipad-cinema-hero__image");
+                      if (!hero || !image) return { present: false, coversHero: false, naturalWidth: 0 };
+                      const heroRect = hero.getBoundingClientRect();
+                      const imageRect = image.getBoundingClientRect();
+                      return {
+                        present: image.getClientRects().length > 0 && imageRect.width > 0 && imageRect.height > 0,
+                        coversHero: imageRect.left <= heroRect.left + 1 && imageRect.top <= heroRect.top + 1 &&
+                          imageRect.right >= heroRect.right - 1 && imageRect.bottom >= heroRect.bottom - 1,
+                        naturalWidth: image.naturalWidth || 0,
+                        naturalHeight: image.naturalHeight || 0,
+                      };
+                    })(),
+                    hasDetailContentLayout: Boolean(document.querySelector(".ipad-cinema-details .ipad-cinema-info")),
                     episodeCardCount: document.querySelectorAll(".movie-episode-card").length,
                     hasPlayerFrame: Boolean(document.querySelector(".netflix-player-frame")),
                     hasWatchContent: Boolean(document.querySelector(".netflix-watch")),
@@ -1427,7 +1481,10 @@ jobs:
                   metrics.hasTopbar !== route.chrome ||
                   (["movies", "series", "anime"].includes(route.name) &&
                     (metrics.loadingSkeletonCount > 0 || !metrics.hasTerminalCollectionState)) ||
-                  (route.name === "detail" && (!metrics.hasDetailTitle || metrics.episodeCardCount < 1)) ||
+                  (route.name.startsWith("detail") && (!metrics.hasDetailTitle ||
+                    !metrics.detailArtwork?.present || !metrics.detailArtwork?.coversHero ||
+                    metrics.detailArtwork?.naturalWidth < 1000 || !metrics.hasDetailContentLayout ||
+                    (route.name === "detail" && metrics.episodeCardCount < 1))) ||
                   (route.name === "watch" && (!metrics.hasPlayerFrame || !metrics.hasWatchContent ||
                     !metrics.hasProgressControl || !metrics.progressControlWithinViewport ||
                     !metrics.progressControlCentered ||
