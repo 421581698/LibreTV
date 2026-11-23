@@ -180,12 +180,12 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#08080a] pb-24 text-white">
       <section className="relative flex min-h-[560px] items-end overflow-hidden px-7 pb-14 pt-24 md:min-h-[680px] md:px-16">
-        {tmdbArtwork?.backdrop ? <SmartImage url={tmdbArtwork.backdrop} mode={imageProxyMode} customProxy={customImageProxy} alt="" className="absolute inset-0 h-full w-full object-cover opacity-45" loading="eager" /> : <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_35%,rgba(90,105,130,.22),transparent_55%)]" aria-hidden="true" />}
+        {tmdbArtwork?.backdrop ? <SmartImage url={tmdbArtwork.backdrop} mode={imageProxyMode} customProxy={customImageProxy} alt="" className="absolute inset-0 h-full w-full object-cover opacity-45" loading="eager" minimumWidth={1600} showDefaultFallback={false} /> : <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_35%,rgba(90,105,130,.22),transparent_55%)]" aria-hidden="true" />}
         <div className="absolute inset-0 bg-gradient-to-r from-black via-black/75 to-black/20" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#08080a] via-transparent to-black/20" />
         <button onClick={() => router.back()} className="absolute left-7 top-8 z-10 rounded-full border border-white/20 bg-black/40 px-4 py-2 backdrop-blur">‹ 返回</button>
         <div className="relative z-10 flex max-w-5xl flex-col items-start gap-7 md:flex-row md:items-end">
-          <SmartImage asset={posterAsset} url={poster} mode={imageProxyMode} customProxy={customImageProxy} alt={title + ' 海报'} className="w-40 shrink-0 rounded-xl object-cover shadow-2xl md:w-56" loading="eager" measureNaturalSize />
+          <SmartImage asset={posterAsset} url={poster} mode={imageProxyMode} customProxy={customImageProxy} alt={title + ' 海报'} className="w-40 shrink-0 rounded-xl object-cover shadow-2xl md:w-56" loading="eager" measureNaturalSize minimumWidth={1000} />
           <div className="max-w-3xl">
             <p className="mb-3 text-xs uppercase tracking-[.25em] text-white/60">LIBRETV · BANGUMI DETAILS</p>
             <h1 className="text-4xl font-bold tracking-tight md:text-6xl">{title}</h1>
