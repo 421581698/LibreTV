@@ -1600,6 +1600,32 @@ jobs:
                 console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-playback-state", playbackState }));
                 if (!Object.values(playbackState).every(Boolean)) failures += 1;
 
+                // Native timeupdate events must drive the visible timeline immediately,
+                // while storage writes remain independently throttled in PlayerShell.
+                await page.evaluate(() => {
+                  const video = document.querySelector(".netflix-player-frame video");
+                  if (!video) throw new Error("Video is missing for live timeline test.");
+                  video.currentTime = 37;
+                  video.dispatchEvent(new Event("timeupdate"));
+                });
+                await page.waitForFunction(() => {
+                  const progress = document.querySelector(".watch-cinema-progress");
+                  const elapsed = document.querySelector(".watch-cinema-time span:first-child");
+                  return Boolean(progress && Math.abs(Number(progress.value) - 37) < 0.1 &&
+                    elapsed?.textContent?.trim() === "0:37");
+                }, undefined, { timeout: 3000 });
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-live-timeline", currentTime: 37 }));
+
+                // A blank-surface tap while paused must not hide the controls.
+                const pausedFrame = await page.locator(".netflix-player-frame").boundingBox();
+                if (!pausedFrame) throw new Error("Player frame has no bounds for paused-tap test.");
+                await page.touchscreen.tap(pausedFrame.x + 32, pausedFrame.y + 32);
+                const pausedTapKeepsControls = await page.locator(".netflix-watch-shell").evaluate(node =>
+                  !node.classList.contains("cinema-controls-hidden")
+                );
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-paused-tap", pausedTapKeepsControls }));
+                if (!pausedTapKeepsControls) failures += 1;
+
                 // The entire iPad transport (including the seek rail) must hide
                 // after playback settles, then return on a real touch. This catches
                 // the regression where the old CSS deliberately left the progress
