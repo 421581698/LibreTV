@@ -21,6 +21,7 @@ on:
       - "src/lib/client-api.ts"
       - "src/lib/tmdb.ts"
       - "src/app/api/tmdb/**"
+      - "src/app/api/bangumi/**"
       - "src/app/api/poster-fallback/route.ts"
       - "src/app/api/douban/route.ts"
       - "src/app/api/hot-list/route.ts"
