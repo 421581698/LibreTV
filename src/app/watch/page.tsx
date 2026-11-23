@@ -358,7 +358,8 @@ function WatchContent() {
       // Commit at the window-level release, so lifting a finger outside the
       // slider still seeks and pointerup/touchend cannot issue duplicate seeks.
       const progressInput = shell.querySelector<HTMLInputElement>('.watch-cinema-progress');
-      const finalPosition = progressInput ? Number(progressInput.value) : scrubbingPositionRef.current;
+      const finalPosition = scrubbingPositionRef.current ??
+        (progressInput ? Number(progressInput.value) : Number.NaN);
       if (typeof finalPosition === 'number' && Number.isFinite(finalPosition)) {
         playerApiRef.current?.seek(finalPosition);
       }
