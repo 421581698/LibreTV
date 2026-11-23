@@ -33,3 +33,13 @@ export function inferPosterImageKind(width?: number, height?: number): PosterIma
   if (aspect === 'landscape') return 'backdrop';
   return 'unknown';
 }
+
+
+/** True only when the decoded source meets the requested width without upscaling. */
+export function meetsMinimumImageWidth(width: number, minimumWidth: number): boolean {
+  return Number.isFinite(width)
+    && Number.isFinite(minimumWidth)
+    && width > 0
+    && minimumWidth > 0
+    && width >= minimumWidth;
+}
