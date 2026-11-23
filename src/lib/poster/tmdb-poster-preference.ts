@@ -17,7 +17,9 @@ export function selectPreferredTmdbPoster(
 ): string | null | undefined {
   const valid = (posters ?? []).filter(
     (poster): poster is TmdbPosterImage & { file_path: string } =>
-      typeof poster.file_path === 'string' && /^\\/[^?#\\s]+$/.test(poster.file_path),
+      typeof poster.file_path === 'string'
+      && /^\\/[^?#\\s]+$/.test(poster.file_path)
+      && (!poster.width || !poster.height || poster.width / poster.height <= 1),
   );
   const languageRank = (language: string | null | undefined): number => {
     if (language === 'zh') return 0;
