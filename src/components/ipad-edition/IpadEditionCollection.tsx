@@ -57,9 +57,9 @@ export function IpadEditionCollection({ kind, title }: { kind: CollectionKind; t
         <>
           <div className="ipad-edition__section-heading"><div><p className="ipad-edition__eyebrow">NOW SHOWING</p><h2>{heading}</h2></div><span className="ipad-edition__section-note">{kind === 'anime' ? 'Bangumi' : '中国 · TMDB'} · {uniqueItems.length} 部作品</span></div>
           <div className="ipad-edition__collection-grid">
-            {uniqueItems.map((item) => <button type="button" className="ipad-edition__poster-card appearance-none border-0 bg-transparent p-0 text-left font-[inherit] text-inherit" aria-label={'查看 ' + item.title + ' 的详情并查找播放资源'} aria-busy={pendingTitle === item.title} disabled={Boolean(pendingTitle)} onClick={() => void openPoster(item)} key={item.id}>
+            {uniqueItems.map((item) => <button type="button" className="ipad-edition__poster-card appearance-none border-0 bg-transparent p-0 text-left font-[inherit] text-inherit" aria-label={'查看 ' + item.title + ' 的详情'} aria-busy={pendingTitle === item.title} disabled={Boolean(pendingTitle)} onClick={() => void openPoster(item)} key={item.id}>
               <PosterRenderer variant="poster" frameClassName="ipad-edition__poster-art" asset={kind === 'anime' ? fromBangumiItem(item) : fromTmdbItem(item)} url={item.cover} mode={imageProxyMode} customProxy={customImageProxy} alt={item.title} />
-              <strong title={item.title}>{item.title}</strong><small>{item.rating ? '★ ' + item.rating : '查看可播放资源'}</small>
+              <strong title={item.title}>{item.title}</strong><small>{item.rating ? '★ ' + item.rating : '查看详情'}</small>
             </button>)}
           </div>
           {kind !== 'anime' ? <div className="ipad-edition__pagination"><button type="button" disabled={page === 0} onClick={() => setPage((value) => Math.max(0, value - 1))}>上一页</button><span>第 {page + 1} 页</span><button type="button" disabled={uniqueItems.length < 20} onClick={() => setPage((value) => value + 1)}>下一页</button></div> : null}
