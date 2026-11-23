@@ -1611,7 +1611,11 @@ jobs:
                   const hidden = element => {
                     if (!element) return false;
                     const style = getComputedStyle(element);
-                    return style.visibility === "hidden" && Number(style.opacity) <= 0.05 &&
+                    let effectiveOpacity = 1;
+                    for (let node = element; node instanceof HTMLElement; node = node.parentElement) {
+                      effectiveOpacity *= Number.parseFloat(getComputedStyle(node).opacity || "1");
+                    }
+                    return style.visibility === "hidden" && effectiveOpacity <= 0.05 &&
                       style.pointerEvents === "none";
                   };
                   return Boolean(shell?.classList.contains("cinema-controls-hidden") &&
@@ -1623,12 +1627,16 @@ jobs:
                   return Object.fromEntries(selectors.map(selector => {
                     const node = document.querySelector(selector);
                     const style = node ? getComputedStyle(node) : null;
-                    return [selector, style ? { opacity: Number(style.opacity), visibility: style.visibility,
+                    let effectiveOpacity = 1;
+                    for (let node = element; node instanceof HTMLElement; node = node.parentElement) {
+                      effectiveOpacity *= Number.parseFloat(getComputedStyle(node).opacity || "1");
+                    }
+                    return [selector, style ? { opacity: Number(style.opacity), effectiveOpacity, visibility: style.visibility,
                       pointerEvents: style.pointerEvents } : null];
                   }));
                 });
                 const hiddenChromePassed = Object.values(fullyHiddenPlaybackChrome).every(state =>
-                  state && state.visibility === "hidden" && state.opacity <= 0.05 && state.pointerEvents === "none"
+                  state && state.visibility === "hidden" && state.effectiveOpacity <= 0.05 && state.pointerEvents === "none"
                 );
                 console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-auto-hide", hiddenChromePassed, fullyHiddenPlaybackChrome }));
                 if (!hiddenChromePassed) failures += 1;
