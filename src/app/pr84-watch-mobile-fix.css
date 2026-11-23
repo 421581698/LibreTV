@@ -1687,6 +1687,23 @@ html:has(.netflix-watch) .netflix-watch-shell .watch-topbar-right > button {
 }
 
 
+/* Web fullscreen must target the watch shell rather than the video node so
+   the custom transport remains in the fullscreen top layer with the video. */
+.netflix-watch-shell:fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483647 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  max-width: none !important;
+  overflow: hidden !important;
+  background: #000 !important;
+}
+.netflix-watch-shell:fullscreen .watch-topbar { z-index: 55 !important; }
+.netflix-watch-shell:fullscreen .cinema-center-controls { z-index: 48 !important; }
+.netflix-watch-shell:fullscreen .watch-cinema-info { z-index: 50 !important; }
+
 /* PR #99 playback auto-hide correction:
    In normal playback the entire bottom transport (including the seek rail)
    must disappear with the rest of the cinema controls. Keep it visible only
