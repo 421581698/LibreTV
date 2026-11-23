@@ -732,10 +732,14 @@ function WatchContent() {
                 void document.exitFullscreen().catch(() => toast('退出全屏失败，请重试', 'info'));
                 return;
               }
-              const frame = playerFrameRef.current;
+              // Fullscreen the watch shell, not only the video frame: the
+              // custom seek bar, center transport, top actions and quality UI
+              // are siblings of the video frame and must remain in the fullscreen
+              // top layer when native iOS fullscreen is unavailable.
+              const fullscreenTarget = watchShellRef.current;
               const enterWebFullscreen = () => {
-                if (frame?.requestFullscreen) {
-                  void frame.requestFullscreen().catch(() => toast('当前浏览器无法进入全屏', 'info'));
+                if (fullscreenTarget?.requestFullscreen) {
+                  void fullscreenTarget.requestFullscreen().catch(() => toast('当前浏览器无法进入全屏', 'info'));
                 } else {
                   toast('当前浏览器不支持全屏播放', 'info');
                 }
