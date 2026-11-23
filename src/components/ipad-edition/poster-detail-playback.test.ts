@@ -22,7 +22,8 @@ describe('iPad Edition poster navigation and explicit playback', () => {
     expect(watchPage).toContain('aria-label="关闭播放内容面板"');
     expect(playerCss).toContain('.netflix-watch-panel-scrim');
     expect(playerCss).toContain('z-index: 95');
-    expect(playerCss).toContain('z-index: 100 !important');
+    expect(playerCss).toContain('z-index: 101;');
+    expect(playerCss).toContain('top: calc(88px + env(safe-area-inset-top, 0px)) !important');
   });
 
   it('CMS search poster taps open the detail page before the player', () => {
