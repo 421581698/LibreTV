@@ -52,6 +52,7 @@ export function SmartImage({
   const [hdrFailed, setHdrFailed] = useState(false);
   const [idx, setIdx] = useState(0);
   const [fallback, setFallback] = useState(false);
+  const [loadedSrc, setLoadedSrc] = useState('');
   const useHdrSource = supportsHdr && hdrCandidates.length > 0 && !hdrFailed;
   const activeCandidates = useHdrSource ? hdrCandidates : candidates;
   const src = fallback
@@ -60,7 +61,14 @@ export function SmartImage({
 
   useEffect(() => {
     const query = window.matchMedia('(dynamic-range: high)');
-    const update = () => setSupportsHdr(query.matches);
+    const update = () => {
+      // A display-capability change can switch the active URL from SDR to HDR
+      // (or back). Start the newly selected source hidden until it has decoded.
+      setLoadedSrc('');
+      setIdx(0);
+      setHdrFailed(false);
+      setSupportsHdr(query.matches);
+    };
     update();
     query.addEventListener?.('change', update);
     return () => query.removeEventListener?.('change', update);
@@ -71,19 +79,23 @@ export function SmartImage({
     setIdx(0);
     setHdrFailed(false);
     setFallback(false);
+    setLoadedSrc('');
   }, [url, fallbackUrl, hdrUrl, mode, customProxy]);
 
   if (!src) return null;
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
+      key={src}
       src={src}
       alt={alt}
-      className={className}
+      className={`${className ?? ''} transition-opacity duration-200 motion-reduce:transition-none ${loadedSrc === src ? 'opacity-100' : 'opacity-0'}`.trim()}
       loading={loading}
       decoding="async"
       referrerPolicy="no-referrer"
+      onLoad={() => setLoadedSrc(src)}
       onError={() => {
+        setLoadedSrc('');
         if (fallback) return;
         if (idx + 1 < activeCandidates.length) {
           setIdx((current) => current + 1);
