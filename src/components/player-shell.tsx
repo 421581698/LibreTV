@@ -624,13 +624,22 @@ export function PlayerShell({
       setupDirectMedia(video, mediaUrl);
       return;
     }
+    const stopPreviousMedia = () => {
+      // An unsupported replacement must not leave the previous episode playing
+      // underneath the error state or continue advancing its progress silently.
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+    };
     if (mediaKind === 'unsupported') {
+      stopPreviousMedia();
       setError('当前媒体格式尚未接入播放器，请选择 HLS、MP4 或 WebM 资源');
       return;
     }
     if (!Hls.isSupported()) {
       if (!video.canPlayType('application/vnd.apple.mpegurl') && !video.canPlayType('application/x-mpegURL')) {
         hlsRef.current = null;
+        stopPreviousMedia();
         setError('当前浏览器不支持 HLS 播放，请尝试其他视频源或浏览器');
         return;
       }
