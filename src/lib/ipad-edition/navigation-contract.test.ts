@@ -167,6 +167,9 @@ describe('iPad Edition end-to-end cinema navigation contracts', () => {
     const home = readFileSync(resolve(process.cwd(), 'src/components/ipad-edition/IpadEditionHome.tsx'), 'utf8');
     const collection = readFileSync(resolve(process.cwd(), 'src/components/ipad-edition/IpadEditionCollection.tsx'), 'utf8');
     const hero = readFileSync(resolve(process.cwd(), 'src/components/ipad-edition/IpadEditionHero.tsx'), 'utf8');
+    const detailRoute = readFileSync(resolve(process.cwd(), 'src/app/ipad-edition/detail/page.tsx'), 'utf8');
+    const tmdbDetail = readFileSync(resolve(process.cwd(), 'src/components/ipad-edition/tmdb-movie-detail-page.tsx'), 'utf8');
+    const bangumiDetail = readFileSync(resolve(process.cwd(), 'src/components/ipad-edition/BangumiSubjectDetailPage.tsx'), 'utf8');
 
     expect(home).toContain('<PosterRenderer variant="poster"');
     expect(home).toContain('url={item.cover}');
