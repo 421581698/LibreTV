@@ -302,6 +302,12 @@ function WatchContent() {
         return;
       }
       controlsWereHiddenAtPointerStart = false;
+      // Paused/ended/not-yet-mounted media must keep its controls available.
+      // Only active playback supports the tap-to-dismiss gesture.
+      if (!video || video.paused || video.ended) {
+        keepControlsVisible();
+        return;
+      }
       clearHideTimer('manual-dismiss');
       shell.classList.add('cinema-controls-hidden');
       setControlsVisible(false);
