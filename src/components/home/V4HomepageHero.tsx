@@ -81,7 +81,7 @@ export function V4HomepageHero({ onPick }: { onPick: (item: DoubanItem) => void 
     >
       {slide ? (
         <>
-          <div className="v4-hero-image lg-media-frame" aria-hidden="true">
+          <div className="v4-hero-image" aria-hidden="true">
             <SmartImage
               asset={fromTmdbItem(slide)}
               url={slide.cover}
