@@ -735,7 +735,15 @@ export function PlayerShell({
         });
       } catch {
         if (loadGeneration !== mediaLoadGenerationRef.current) return;
-        // IndexedDB 读取失败时不阻塞播放，后续事件仍可再次尝试恢复。
+        // A failed IndexedDB lookup must not strand the player on its poster.
+        // If this was the final readiness event, there may be no later event to
+        // retry restoration, so fall back to playback from the current position.
+        restoredRef.current = true;
+        restoreCleanupRef.current?.();
+        restoreCleanupRef.current = null;
+        video.play().catch(() => {
+          if (loadGeneration === mediaLoadGenerationRef.current) setShowPlayFallback(true);
+        });
       } finally {
         restoreInFlight = false;
       }
