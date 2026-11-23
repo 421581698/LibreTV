@@ -288,6 +288,8 @@ describe('首页与播放页回归契约', () => {
     expect(watch).toContain('const cancelPendingAutoNext = () =>');
     expect(watch).toContain('setIsPlaying(false);');
     expect(watch).toContain('setWatchClock({ position: 0, duration: 0 });');
+    expect(watch).toContain('const mediaUrlChanged = previousPlaybackUrlRef.current !== currentUrl;');
+    expect(watch).toContain('if (!mediaUrlChanged) return;');
     expect(watch).toContain("watchShellRef.current?.classList.remove('cinema-controls-hidden')");
     expect(watch).toContain('}, [sourceKey, vodId, currentIndex, currentUrl]);');
     expect(watch).toContain('}, [sourceKey, vodId, currentUrl, currentIndex, cancelAutoNext]);');
