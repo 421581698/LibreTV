@@ -659,8 +659,8 @@ export function PlayerShell({
             return;
           }
           video.play().catch(() => {
-          if (loadGeneration === mediaLoadGenerationRef.current) setShowPlayFallback(true);
-        });
+            if (loadGeneration === mediaLoadGenerationRef.current) setShowPlayFallback(true);
+          });
         } catch {
           if (loadGeneration !== mediaLoadGenerationRef.current) return;
           // A failed progress lookup must never block native-HLS playback.
