@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DoubanItem, SearchResultItem } from '../types';
 import { createPosterAsset, fromBangumiItem, fromCmsArtwork, fromCmsSearchResult, fromDoubanItem, fromEpisodeArtwork } from './poster-source';
-import { classifyPosterAspect, inferPosterImageKind, withPosterDimensions } from './poster-normalizer';
+import { classifyPosterAspect, inferPosterImageKind, meetsMinimumImageWidth, withPosterDimensions } from './poster-normalizer';
 import { selectPreferredTmdbBackdrop, selectPreferredTmdbPoster } from './tmdb-poster-preference';
 
 describe('poster source adapters', () => {
@@ -80,6 +80,13 @@ describe('poster dimension normalization', () => {
     expect(inferPosterImageKind(600, 900)).toBe('poster');
     expect(inferPosterImageKind(1600, 900)).toBe('backdrop');
     expect(inferPosterImageKind()).toBe('unknown');
+  });
+
+  it('accepts only decoded images that meet the minimum source width', () => {
+    expect(meetsMinimumImageWidth(1600, 1000)).toBe(true);
+    expect(meetsMinimumImageWidth(800, 1000)).toBe(false);
+    expect(meetsMinimumImageWidth(0, 1000)).toBe(false);
+    expect(meetsMinimumImageWidth(Number.NaN, 1000)).toBe(false);
   });
 });
 
