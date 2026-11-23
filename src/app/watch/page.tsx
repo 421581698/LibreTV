@@ -419,7 +419,6 @@ function WatchContent() {
       video.removeEventListener('ratechange', sync);
       video = null;
       setIsPlaying(false);
-      setWatchRate(1);
     };
     const attach = () => {
       const next = frame.querySelector('video');
