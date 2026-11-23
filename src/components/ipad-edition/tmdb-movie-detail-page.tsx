@@ -9,15 +9,16 @@ import { findMovieMatch, getMovieSearchTerms } from '@/lib/movie-title-match';
 import { rankMovieCandidatesByQuality } from '@/lib/playback-telemetry';
 import type { SearchResultItem, SourceConfig } from '@/lib/types';
 
-type TmdbPerson = { id: number; name: string; character?: string; profile_path?: string | null; job?: string; department?: string };
+type TmdbPerson = { id: number; name: string; character?: string; profile_path?: string | null; job?: string };
 type TmdbTitle = {
   id: number; title?: string; name?: string; original_title?: string; original_name?: string;
   overview?: string; poster_path?: string | null; backdrop_path?: string | null; vote_average?: number;
   release_date?: string; first_air_date?: string; runtime?: number; episode_run_time?: number[];
-  genres?: { id: number; name: string }[]; production_countries?: { name: string }[];
+  genres?: { id: number; name: string }[];
+  production_countries?: { name: string }[];
   credits?: { cast?: TmdbPerson[]; crew?: TmdbPerson[] };
 };
-type TmdbCredit = { id: number; title?: string; name?: string; character?: string; poster_path?: string | null; release_date?: string; first_air_date?: string };
+type TmdbCredit = { id: number; title?: string; name?: string; poster_path?: string | null };
 type TmdbPersonDetails = { id: number; name: string; biography?: string; profile_path?: string | null; birthday?: string; place_of_birth?: string; known_for_department?: string; movie_credits?: { cast?: TmdbCredit[] }; tv_credits?: { cast?: TmdbCredit[] } };
 
 const imageUrl = (path?: string | null, size = 'w780') => path
@@ -44,6 +45,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, backdropFallback,
   const [playbackStatus, setPlaybackStatus] = useState('点击「开始播放」后才会查询已启用的点播源。');
   const [person, setPerson] = useState<TmdbPersonDetails | null>(null);
   const [personLoading, setPersonLoading] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const sources = useMemo(() => selectedKeys.map((key) => resolveSource({ customAPIs, envSources }, key))
     .filter((source): source is SourceConfig => Boolean(source && validateSourceUrl(source.url)
@@ -65,6 +67,20 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, backdropFallback,
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [id, type]);
+
+  useEffect(() => {
+    try { setSaved(window.localStorage.getItem(`libretv:watchlist:${type}:${id}`) === '1'); } catch { setSaved(false); }
+  }, [id, type]);
+
+  const toggleSaved = () => {
+    const next = !saved;
+    setSaved(next);
+    try {
+      const key = `libretv:watchlist:${type}:${id}`;
+      if (next) window.localStorage.setItem(key, '1');
+      else window.localStorage.removeItem(key);
+    } catch { /* The control remains usable for this session when storage is unavailable. */ }
+  };
 
   const startPlayback = async () => {
     if (startingPlayback) return;
@@ -96,7 +112,6 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, backdropFallback,
           seen.add(key);
           matches.push({ item, source });
         }
-        // One successful title query already searches all enabled sources.
         if (matches.length) break;
       }
       if (!matches.length) {
@@ -106,21 +121,14 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, backdropFallback,
         return;
       }
       const ranked = rankMovieCandidatesByQuality(
-        matches.map(({ item }) => item),
-        qualityMap,
-        playbackHealth,
-        Date.now(),
-        playbackResourceHealth,
+        matches.map(({ item }) => item), qualityMap, playbackHealth, Date.now(), playbackResourceHealth,
       );
       const best = ranked[0];
       const match = matches.find(({ item }) => item.sourceKey === best.sourceKey && item.vodId === best.vodId);
       if (!match) throw new Error('无法确定可用播放线路，请重试。');
       setPlaybackStatus(`已比较 ${matches.length} 条候选线路，按历史播放稳定性优先排序；无历史记录的线路保留为后备。`);
       const watchUrl = buildWatchUrl({
-        sourceKey: match.source.key,
-        vodId: match.item.vodId,
-        index: 0,
-        title: primaryTitle,
+        sourceKey: match.source.key, vodId: match.item.vodId, index: 0, title: primaryTitle,
         sourceUrl: match.item.sourceUrl || match.source.url,
       }).replace('/watch?', '/ipad-edition/watch?');
       router.push(watchUrl);
@@ -146,94 +154,86 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, backdropFallback,
   };
 
   const title = movie?.title || movie?.name || titleFallback;
-  // iPad detail uses one landscape still as its hero; do not substitute a portrait poster.
   const backdrop = imageUrl(movie?.backdrop_path || backdropFallback, 'original');
   const cast = movie?.credits?.cast?.slice(0, 18) || [];
   const director = movie?.credits?.crew?.find((member) => member.job === 'Director')?.name;
   const releaseYear = (movie?.release_date || movie?.first_air_date || '').slice(0, 4);
   const runtime = movie?.runtime || movie?.episode_run_time?.[0];
+  const rating = movie?.vote_average || Number(ratingFallback) || 0;
 
-  if (loading) return <main className="min-h-screen bg-[#08080a] p-10 text-white">正在加载电影资料…</main>;
-  if (!movie) return <main className="min-h-screen bg-[#08080a] p-10 text-white"><button onClick={() => router.back()}>‹ 返回</button><p className="mt-8">{metadataError || '电影资料暂时不可用'}</p></main>;
+  if (loading) return <main className="ipad-detail-state">正在加载电影资料…</main>;
+  if (!movie) return <main className="ipad-detail-state"><button type="button" onClick={() => router.back()}>‹ 返回</button><p>{metadataError || '电影资料暂时不可用'}</p></main>;
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#08080a] pb-12 text-white">
-      <div className="mx-auto max-w-[1600px] px-4 pt-5 sm:px-6 md:px-10 md:pt-7">
-        <header className="mb-4 flex items-center justify-between">
-          <button type="button" onClick={() => router.back()} className="rounded-full border border-white/15 bg-white/[0.06] px-4 py-2 text-sm text-white/90 transition hover:bg-white/10">‹ 返回</button>
-          <p className="text-[10px] font-medium uppercase tracking-[.24em] text-white/45 md:text-xs">LIBRETV CINEMA · iPAD EDITION</p>
-          <span aria-hidden="true" className="w-[4.5rem]" />
+    <main className="ipad-cinema-detail" data-ipad-detail-page="true">
+      <section className="ipad-cinema-hero" aria-label={title}>
+        {backdrop ? <img src={backdrop} alt="" loading="eager" className="ipad-cinema-hero__image" /> : <div className="ipad-cinema-hero__placeholder">暂无横屏剧照</div>}
+        <div className="ipad-cinema-hero__shade" aria-hidden="true" />
+        <header className="ipad-cinema-hero__header">
+          <button type="button" onClick={() => router.back()} className="ipad-cinema-back" aria-label="返回">‹</button>
+          <span>LIBRETV CINEMA</span>
         </header>
+        <div className="ipad-cinema-hero__content">
+          <div className="ipad-cinema-kicker">{type === 'tv' ? 'SERIES' : 'FEATURE FILM'}</div>
+          <h1>{title}</h1>
+          {(movie.original_title || movie.original_name) && <p className="ipad-cinema-original">{movie.original_title || movie.original_name}</p>}
+          <div className="ipad-cinema-meta">
+            {movie.genres?.slice(0, 3).map((genre) => <span key={genre.id}>{genre.name}</span>)}
+            {movie.genres?.length ? <i aria-hidden="true">·</i> : null}
+            {rating > 0 && <span className="ipad-cinema-rating">★ {rating.toFixed(1)} / 10</span>}
+            {releaseYear && <span>{releaseYear}</span>}
+            {runtime && <span>{runtime} 分钟{type === 'tv' ? '/集' : ''}</span>}
+          </div>
+          <p className="ipad-cinema-overview">{movie.overview || '暂无剧情简介'}</p>
+          <div className="ipad-cinema-actions">
+            <button type="button" onClick={() => void startPlayback()} disabled={startingPlayback} className="ipad-cinema-play">
+              <span aria-hidden="true">▶</span>{startingPlayback ? '正在查找资源…' : '开始播放'}
+            </button>
+            <button type="button" onClick={toggleSaved} className="ipad-cinema-add" aria-label={saved ? '从片单移除' : '加入片单'} aria-pressed={saved}>
+              {saved ? '✓' : '+'}
+            </button>
+          </div>
+          <p className="ipad-cinema-status" role="status" aria-live="polite">{playbackStatus}</p>
+        </div>
+        <div className="ipad-cinema-bottom-fade" aria-hidden="true" />
+      </section>
 
-        {backdrop ? (
-          <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-white/[0.04] shadow-2xl ring-1 ring-white/10 md:rounded-2xl">
-            <img src={backdrop} alt={title + ' 横屏电影剧照'} loading="eager" className="h-full w-full object-cover" />
-          </div>
-        ) : (
-          <div className="flex aspect-video w-full items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-sm text-white/45 md:rounded-2xl">
-            暂无横屏剧照
-          </div>
-        )}
-
-        <section className="pt-6 md:pt-8">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="min-w-0 flex-1">
-              <h1 className="break-words text-3xl font-bold leading-tight tracking-tight md:text-4xl lg:text-5xl">{title}</h1>
-              {movie.original_title || movie.original_name ? (
-                <p className="mt-2 text-sm text-white/50 md:text-base">{movie.original_title || movie.original_name}</p>
-              ) : null}
-              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-white/65">
-                {releaseYear && <span>{releaseYear}</span>}
-                {movie.genres?.length ? <span>{movie.genres.map((genre) => genre.name).join(' / ')}</span> : null}
-                <span className="inline-flex items-center gap-1 text-amber-300"><span aria-hidden="true">★</span>{(movie.vote_average || Number(ratingFallback) || 0).toFixed(1)}</span>
-                {runtime ? <span>{runtime} 分钟{type === 'tv' ? '/集' : ''}</span> : null}
-              </div>
-              {director ? <p className="mt-2 text-sm text-white/55">导演：{director}</p> : null}
-            </div>
-            <div className="flex shrink-0 flex-col gap-3 lg:w-[min(100%,18rem)]">
-              <button type="button" onClick={() => void startPlayback()} disabled={startingPlayback} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-xl bg-white px-8 py-4 text-base font-semibold text-black shadow-lg shadow-black/20 transition hover:bg-white/90 disabled:cursor-wait disabled:opacity-50 md:text-lg">
-                {startingPlayback ? '正在查找资源…' : '▶ 开始播放'}
-              </button>
-              <p className="text-center text-xs leading-5 text-white/55" role="status" aria-live="polite">{playbackStatus}</p>
-            </div>
-          </div>
-        </section>
-
-        <section className="mt-9 grid gap-8 border-t border-white/10 pt-7 md:mt-11 md:grid-cols-[minmax(0,1.6fr)_minmax(16rem,1fr)] md:gap-12 md:pt-9">
-          <div className="min-w-0">
-            <h2 className="mb-3 text-xl font-semibold md:text-2xl">剧情简介</h2>
-            <p className="whitespace-pre-line text-sm leading-7 text-white/70 md:text-base md:leading-8">{movie.overview || '暂无剧情简介'}</p>
-          </div>
+      <div className="ipad-cinema-details">
+        <section className="ipad-cinema-info">
           <div>
-            <h2 className="mb-4 text-xl font-semibold md:text-2xl">影片信息</h2>
-            <dl className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-4 gap-y-3 text-sm">
-              <dt className="text-white/45">导演</dt><dd className="text-white/80">{director || '暂无数据'}</dd>
-              <dt className="text-white/45">年份</dt><dd className="text-white/80">{releaseYear || '暂无数据'}</dd>
-              <dt className="text-white/45">类型</dt><dd className="text-white/80">{movie.genres?.map((genre) => genre.name).join('、') || '暂无数据'}</dd>
-              <dt className="text-white/45">片长</dt><dd className="text-white/80">{runtime ? `${runtime} 分钟${type === 'tv' ? '/集' : ''}` : '暂无数据'}</dd>
-              <dt className="text-white/45">国家/地区</dt><dd className="text-white/80">{movie.production_countries?.map((country) => country.name).join('、') || '暂无数据'}</dd>
-              <dt className="text-white/45">评分</dt><dd className="text-white/80">{(movie.vote_average || 0).toFixed(1)} / 10</dd>
-            </dl>
+            <h2>剧情简介</h2>
+            <p>{movie.overview || '暂无剧情简介'}</p>
           </div>
+          <dl>
+            <div><dt>导演</dt><dd>{director || '暂无数据'}</dd></div>
+            <div><dt>年份</dt><dd>{releaseYear || '暂无数据'}</dd></div>
+            <div><dt>类型</dt><dd>{movie.genres?.map((genre) => genre.name).join('、') || '暂无数据'}</dd></div>
+            <div><dt>片长</dt><dd>{runtime ? `${runtime} 分钟${type === 'tv' ? '/集' : ''}` : '暂无数据'}</dd></div>
+            <div><dt>国家/地区</dt><dd>{movie.production_countries?.map((country) => country.name).join('、') || '暂无数据'}</dd></div>
+          </dl>
         </section>
-
-        <section className="mt-10 border-t border-white/10 pt-7 md:mt-12 md:pt-9">
-          <h2 className="mb-5 text-xl font-semibold md:text-2xl">演员阵容</h2>
-          {cast.length ? (
-            <div className="flex gap-4 overflow-x-auto pb-4 md:gap-5">
-              {cast.map((actor) => (
-                <button key={actor.id} type="button" onClick={() => void openPerson(actor.id)} className="w-28 shrink-0 text-left md:w-32">
-                  <img src={imageUrl(actor.profile_path, 'w185') || '/placeholder.svg'} alt={actor.name} loading="lazy" className="aspect-[2/3] w-full rounded-xl bg-white/5 object-cover" />
-                  <span className="mt-2 block truncate text-sm font-semibold">{actor.name}</span>
-                  <span className="mt-0.5 block truncate text-xs text-white/50">{actor.character}</span>
-                </button>
-              ))}
-            </div>
-          ) : <p className="text-sm text-white/50">暂无演员资料</p>}
+        <section className="ipad-cinema-cast">
+          <h2>演员阵容</h2>
+          {cast.length ? <div className="ipad-cinema-cast__rail">
+            {cast.map((actor) => <button key={actor.id} type="button" onClick={() => void openPerson(actor.id)}>
+              <img src={imageUrl(actor.profile_path, 'w185') || '/placeholder.svg'} alt={actor.name} loading="lazy" />
+              <strong>{actor.name}</strong><span>{actor.character}</span>
+            </button>)}
+          </div> : <p>暂无演员资料</p>}
         </section>
       </div>
 
-      {(person || personLoading) && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-5" onClick={() => setPerson(null)}><section className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/15 bg-[#151519] p-6" onClick={(event) => event.stopPropagation()}>{personLoading ? <p>正在加载人物资料…</p> : person && <><button className="float-right" onClick={() => setPerson(null)}>关闭 ✕</button><div className="flex gap-5"><img src={imageUrl(person.profile_path, 'w342')} alt={person.name} className="w-28 self-start rounded-xl" /><div><h2 className="text-2xl font-semibold">{person.name}</h2><p className="mt-2 text-sm text-white/60">{person.known_for_department} · {person.birthday || ''} · {person.place_of_birth || ''}</p></div></div><p className="mt-5 whitespace-pre-line text-sm leading-7 text-white/75">{person.biography || '暂无人物简介'}</p><h3 className="mb-3 mt-6 font-semibold">代表作品</h3><div className="flex gap-3 overflow-x-auto">{[...(person.movie_credits?.cast || []), ...(person.tv_credits?.cast || [])].slice(0, 20).map((work) => <div key={work.id + (work.title || work.name || '')} className="w-24 shrink-0"><img src={imageUrl(work.poster_path, 'w185')} alt={work.title || work.name || ''} className="aspect-[2/3] w-full rounded-lg object-cover" /><p className="mt-1 truncate text-xs">{work.title || work.name}</p></div>)}</div></>}</section></div>}
+      {(person || personLoading) && <div className="ipad-cinema-person-backdrop" onClick={() => setPerson(null)}>
+        <section className="ipad-cinema-person" onClick={(event) => event.stopPropagation()}>
+          {personLoading ? <p>正在加载人物资料…</p> : person && <>
+            <button type="button" className="ipad-cinema-person__close" onClick={() => setPerson(null)}>关闭 ✕</button>
+            <div className="ipad-cinema-person__heading"><img src={imageUrl(person.profile_path, 'w342')} alt={person.name} /><div><h2>{person.name}</h2><p>{person.known_for_department} · {person.birthday || ''} · {person.place_of_birth || ''}</p></div></div>
+            <p className="ipad-cinema-person__bio">{person.biography || '暂无人物简介'}</p>
+            <h3>代表作品</h3>
+            <div className="ipad-cinema-person__works">{[...(person.movie_credits?.cast || []), ...(person.tv_credits?.cast || [])].slice(0, 20).map((work) => <div key={work.id + (work.title || work.name || '')}><img src={imageUrl(work.poster_path, 'w185')} alt={work.title || work.name || ''} /><p>{work.title || work.name}</p></div>)}</div>
+          </>}
+        </section>
+      </div>}
     </main>
   );
 }
