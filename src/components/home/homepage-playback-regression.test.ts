@@ -140,7 +140,8 @@ describe('首页与播放页回归契约', () => {
     expect(homepageContent).toContain('url={item.cover}');
     expect(homepageContent).toContain('v4-continue-section');
     expect(homepageContent).toContain('v4-progress-percent');
-    expect(homepageContent).toContain('buildWatchUrl({');
+    expect(homepageContent).toContain("const href = '/ipad-edition/detail?' + detailParams.toString()");
+    expect(homepageContent).not.toContain('buildWatchUrl({');
     expect(homepageContent).toContain('playbackPosition / item.duration');
     expect(v4Styles).toContain('.v4-history-row');
     expect(v4Styles).toContain('.v4-apple-rail');
