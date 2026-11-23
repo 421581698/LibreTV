@@ -300,6 +300,10 @@ describe('首页与播放页回归契约', () => {
     expect(fullscreenHelper).toContain('webkitEnterFullscreen');
     expect(watch).toContain('requestNativeFullscreenWithFallback(');
     expect(watch).toContain('enterWebFullscreen');
+    expect(watch).toContain('const fullscreenTarget = watchShellRef.current');
+    expect(watch).toContain('fullscreenTarget.requestFullscreen()');
+    expect(watchStyles).toContain('.netflix-watch-shell:fullscreen');
+    expect(watchStyles).toContain('.netflix-watch-shell:fullscreen .watch-cinema-info');
     expect(player).toContain('if (!art.fullscreenWeb) art.fullscreenWeb = true;');
     expect(player).toContain('playbackRate: true');
     expect(watch).toContain("video.addEventListener('ratechange', sync)");
