@@ -560,6 +560,21 @@ describe('首页与播放页回归契约', () => {
     expect(watchStyles).not.toContain('margin-block: -4px !important;');
   });
 
+  it('iPad 播放控制自动隐藏时连同进度条一起隐藏，暂停时保持可操作', () => {
+    expect(watchStyles).toContain('.ipad-edition-watch.cinema-controls-hidden:not(.cinema-controls-scrubbing) .watch-cinema-info');
+    expect(watchStyles).toContain('pointer-events: none !important;');
+    expect(watch).toContain('if (!video || video.paused || video.ended) {');
+    expect(watch).toContain('keepControlsVisible();');
+    expect(watch).toContain('video.addEventListener(\'waiting\', onWaiting)');
+    expect(watch).toContain('video.addEventListener(\'loadstart\', onLoadStart)');
+  });
+
+  it('播放器时间轴跟随每次媒体 timeupdate，进度持久化单独节流', () => {
+    expect(player).toContain('propsRef.current.onTimeUpdate?.(art.currentTime, art.duration, activeEpisodeKeyRef.current);');
+    expect(player).toContain('if (now - lastSave > 5000)');
+    expect(player).toContain('propsRef.current.onProgressSave?.(art.currentTime, art.duration, activeEpisodeKeyRef.current);');
+  });
+
   it('无 vodId 的直连视频也能保存、恢复和清理播放进度', () => {
     expect(watch).toContain('const progressId = vodId || currentUrl');
     expect(watch).toContain('progressKeyOf(sourceKey, progressId, currentIndex)');
