@@ -9,7 +9,7 @@ import { db, type HistoryEntry } from '@/lib/db';
 import { resolveSource, useAppStore } from '@/lib/store';
 import type { DoubanItem } from '@/lib/types';
 import { fromCmsArtwork, fromTmdbItem } from '@/lib/poster';
-import { buildWatchUrl, formatTime } from '@/lib/utils';
+import { formatTime } from '@/lib/utils';
 
 const CONTINUE_LIMIT = 8;
 const RAIL_LIMIT = 10;
@@ -166,14 +166,16 @@ function V4ContinueCard({ item }: { item: HistoryEntry }) {
   const customAPIs = useAppStore((s) => s.customAPIs);
   const envSources = useAppStore((s) => s.envSources);
   const source = resolveSource({ customAPIs, envSources }, item.sourceKey);
-  const href = buildWatchUrl({
-    sourceKey: item.sourceKey,
-    vodId: item.vodId,
-    index: item.episodeIndex,
+  const detailParams = new URLSearchParams({
+    source: item.sourceKey,
+    id: item.vodId,
     title: item.title,
-    sourceUrl: source?.url ?? item.sourceUrl,
-    detail: source?.detail,
+    sourceName: source?.name ?? item.sourceKey,
   });
+  const sourceUrl = source?.url ?? item.sourceUrl;
+  if (item.pic) detailParams.set('pic', item.pic);
+  if (sourceUrl) detailParams.set('sourceUrl', sourceUrl);
+  const href = '/ipad-edition/detail?' + detailParams.toString();
   const percent = item.duration > 0
     ? Math.max(0, Math.min(100, Math.round((item.playbackPosition / item.duration) * 100)))
     : 0;
