@@ -575,6 +575,8 @@ describe('首页与播放页回归契约', () => {
     expect(watch).toContain('keepControlsVisible();');
     expect(watch).toContain('video.addEventListener(\'waiting\', onWaiting)');
     expect(watch).toContain('video.addEventListener(\'loadstart\', onLoadStart)');
+    expect(watch).toContain('const onMediaReset = () =>');
+    expect(watch).toContain('const resetScrubbing = () =>');
   });
 
   it('播放器时间轴跟随每次媒体 timeupdate，进度持久化单独节流', () => {
