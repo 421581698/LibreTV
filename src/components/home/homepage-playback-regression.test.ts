@@ -367,6 +367,9 @@ describe('首页与播放页回归契约', () => {
     expect(player).toContain('A failed progress lookup must never block native-HLS playback.');
     expect(player).toContain('Every HLS reconfiguration (including direct→proxy fallback and fatal-error');
     expect(player).toContain('const loadGeneration = ++mediaLoadGenerationRef.current;');
+    expect(player).toContain('const isCurrentHls = () =>');
+    expect((player.match(/if \(!isCurrentHls\(\)/g) ?? []).length).toBe(6);
+    expect(player).toContain('if (isCurrentHls()) hls.startLoad();');
     expect(player).toContain('restoredRef.current = true;\n        restoreCleanupRef.current?.();\n        restoreCleanupRef.current = null;\n        video.play().catch(() => {');
     expect(player).toContain("if (readQualityPreference() === '1080') {\n            video.pause();\n            setQualityNotice('当前使用原生 HLS");
     expect(player).toContain('restoreCleanupRef.current?.();\n        restoreCleanupRef.current = null;\n        video.play().catch(() => {');
