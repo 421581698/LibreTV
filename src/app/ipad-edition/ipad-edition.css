@@ -2662,3 +2662,39 @@ body:has(.ipad-edition[data-environment="light"]) {
 .ipad-edition[data-ipad-player="true"] .netflix-watch-utility-panel {
   z-index: 101;
 }
+
+/* iPad Edition player: compact, optically aligned top-right action buttons. */
+.ipad-edition[data-ipad-player="true"] .netflix-watch-shell .watch-topbar-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.ipad-edition[data-ipad-player="true"] .netflix-watch-shell .watch-topbar-right > button.cinema-glass-control,
+.ipad-edition[data-ipad-player="true"] .netflix-watch-shell .watch-topbar-right > button.cinema-utility-control {
+  display: grid;
+  place-items: center;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  box-sizing: border-box;
+  line-height: 1;
+}
+.ipad-edition[data-ipad-player="true"] .netflix-watch-shell .watch-topbar-right > button.cinema-glass-control svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ipad-edition[data-ipad-player="true"] .netflix-watch-shell .watch-topbar-right > button.cinema-utility-control svg {
+  fill: currentColor;
+  stroke: none;
+}
