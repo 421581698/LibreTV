@@ -266,11 +266,15 @@ export function rankMovieCandidatesByQuality<T extends { sourceKey: string; vodI
         confidence: quality?.from === 'play' ? 2 : quality?.from === 'probe' ? 1 : 0,
         height: quality?.height ?? 0,
         sustainableRank: sustainable === true ? 2 : sustainable === false ? 0 : 1,
+        // Prefer measured smoothness before advertised resolution when both
+        // candidates have enough playback evidence.
+        stability: fresh ? scorePlaybackHealth(entry, now) ?? -1 : -1,
         bitrate: fresh ? entry.mediaBitrateKbpsAvg ?? 0 : 0,
       };
     })
     .sort((a, b) =>
       b.sustainableRank - a.sustainableRank ||
+      b.stability - a.stability ||
       b.confidence - a.confidence ||
       b.height - a.height ||
       b.bitrate - a.bitrate ||
