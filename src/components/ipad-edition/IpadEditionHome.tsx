@@ -12,6 +12,14 @@ import { useIpadEditionPosterNavigation } from '@/components/ipad-edition/useIpa
 
 const RAIL_SIZE = 10;
 const HERO_SIZE = 5;
+const LATEST_RELEASE_RAIL_SIZE = 30;
+
+async function fetchRegionalMovieSearch(query: string, region: 'US' | 'CN', signal?: AbortSignal): Promise<{ items: DoubanItem[] }> {
+  const params = new URLSearchParams({ query, region });
+  const response = await fetch('/api/tmdb/search?' + params.toString(), { signal });
+  if (!response.ok) throw new Error('TMDB 影片检索暂时不可用');
+  return response.json() as Promise<{ items: DoubanItem[] }>;
+}
 
 function mergeLatestRegionalReleases(usItems: DoubanItem[], cnItems: DoubanItem[]): DoubanItem[] {
   const byId = new Map<string, DoubanItem>();
@@ -54,6 +62,29 @@ export function IpadEditionHome() {
     staleTime: 15 * 60_000,
   });
 
+  // Exact-title lookups keep notable recent releases from being omitted when
+  // TMDB's popularity/release-date discovery page is crowded.
+  const spiderManUS = useQuery({
+    queryKey: ['ipad-edition-release-title', 'spider-man-brand-new-day', 'US'],
+    queryFn: ({ signal }) => fetchRegionalMovieSearch('Spider-Man: Brand New Day', 'US', signal),
+    staleTime: 60 * 60_000,
+  });
+  const spiderManCN = useQuery({
+    queryKey: ['ipad-edition-release-title', 'spider-man-brand-new-day', 'CN'],
+    queryFn: ({ signal }) => fetchRegionalMovieSearch('Spider-Man: Brand New Day', 'CN', signal),
+    staleTime: 60 * 60_000,
+  });
+  const odysseyUS = useQuery({
+    queryKey: ['ipad-edition-release-title', 'the-odyssey', 'US'],
+    queryFn: ({ signal }) => fetchRegionalMovieSearch('The Odyssey', 'US', signal),
+    staleTime: 60 * 60_000,
+  });
+  const odysseyCN = useQuery({
+    queryKey: ['ipad-edition-release-title', 'the-odyssey', 'CN'],
+    queryFn: ({ signal }) => fetchRegionalMovieSearch('The Odyssey', 'CN', signal),
+    staleTime: 60 * 60_000,
+  });
+
   const calendar = useQuery({
     queryKey: ['ipad-edition-bangumi-calendar'],
     queryFn: ({ signal }) => api.bangumiCalendar(signal),
@@ -71,8 +102,18 @@ export function IpadEditionHome() {
   }, [featured.data]);
 
   const latestItems = useMemo(
-    () => mergeLatestRegionalReleases(latestUS.data?.items ?? [], latestCN.data?.items ?? []),
-    [latestUS.data, latestCN.data],
+    () => mergeLatestRegionalReleases(
+      [
+        ...(latestUS.data?.items ?? []),
+        ...(latestCN.data?.items ?? []),
+        ...(spiderManUS.data?.items ?? []),
+        ...(spiderManCN.data?.items ?? []),
+        ...(odysseyUS.data?.items ?? []),
+        ...(odysseyCN.data?.items ?? []),
+      ],
+      [],
+    ),
+    [latestUS.data, latestCN.data, spiderManUS.data, spiderManCN.data, odysseyUS.data, odysseyCN.data],
   );
 
   const heroItems = movieItems.slice(0, HERO_SIZE);
@@ -88,6 +129,7 @@ export function IpadEditionHome() {
     hasError: boolean,
     retry: () => Promise<unknown>,
     showReleaseMeta = false,
+    maxItems = RAIL_SIZE,
   ) => (
     <section className="ipad-edition__rail-section" id={id} aria-labelledby={id + '-title'}>
       <div className="ipad-edition__section-heading ipad-edition__gallery-heading">
@@ -115,7 +157,7 @@ export function IpadEditionHome() {
         </div>
       ) : items.length ? (
         <div id={id + '-track'} className="ipad-edition__poster-grid" aria-label={title} role="region" tabIndex={0}>
-          {items.slice(0, RAIL_SIZE).map((item, index) => (
+          {items.slice(0, maxItems).map((item, index) => (
             <button type="button" className="ipad-edition__poster-card appearance-none border-0 bg-transparent p-0 text-left font-[inherit] text-inherit" data-ipad-poster-slot={id === 'ipad-popular-series' ? 'series' : id === 'ipad-new-releases' ? 'new-release' : 'movie'} data-poster-url={item.cover ?? ''} aria-label={'查看 ' + item.title + ' 的详情并查找播放资源'} aria-busy={pendingTitle === item.title} disabled={Boolean(pendingTitle)} onClick={() => void openPoster(item)} key={item.id || item.title}>
               <PosterRenderer variant="poster" frameClassName="ipad-edition__poster-art" asset={fromTmdbItem(item)} url={item.cover} mode="proxy" alt={item.title}>
                 <span className="ipad-edition__poster-rank">{index + 1}</span>
@@ -160,7 +202,7 @@ export function IpadEditionHome() {
       <IpadEditionContinueWatching />
 
       {renderRail('ipad-popular-series', '热门剧集', series.data?.items ?? [], series.isLoading, series.isError, series.refetch)}
-      {renderRail('ipad-new-releases', '美国 · 中国最新上映', latestItems, latestUS.isLoading || latestCN.isLoading, latestUS.isError || latestCN.isError, async () => { await Promise.all([latestUS.refetch(), latestCN.refetch()]); }, true)}
+      {renderRail('ipad-new-releases', '美国 · 中国最新上映', latestItems, latestUS.isLoading || latestCN.isLoading, latestUS.isError && latestCN.isError, async () => { await Promise.all([latestUS.refetch(), latestCN.refetch(), spiderManUS.refetch(), spiderManCN.refetch(), odysseyUS.refetch(), odysseyCN.refetch()]); }, true, LATEST_RELEASE_RAIL_SIZE)}
 
       <section className="ipad-edition__rail-section" id="ipad-anime-calendar" aria-labelledby="ipad-anime-title">
         <div className="ipad-edition__section-heading">
