@@ -20,7 +20,7 @@ type TmdbCredit = { id: number; title?: string; name?: string; character?: strin
 type TmdbPersonDetails = { id: number; name: string; biography?: string; profile_path?: string | null; birthday?: string; place_of_birth?: string; known_for_department?: string; movie_credits?: { cast?: TmdbCredit[] }; tv_credits?: { cast?: TmdbCredit[] } };
 
 const imageUrl = (path?: string | null, size = 'w780') => path
-  ? /^https?:\\/\\//i.test(path) ? path : `https://image.tmdb.org/t/p/${size}${path}`
+  ? path.startsWith('https://') || path.startsWith('http://') ? path : `https://image.tmdb.org/t/p/${size}${path}`
   : '';
 
 export function TmdbMovieDetailPage({ id, type, titleFallback, backdropFallback, ratingFallback }: {
