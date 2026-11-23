@@ -16,9 +16,11 @@ function selectPreferredArtwork(
   const valid = (images ?? []).filter(
     (image): image is TmdbPosterImage & { file_path: string } => {
       if (typeof image.file_path !== 'string' || !/^\/[^?#\s]+$/.test(image.file_path)) return false;
+      if (image.width != null && (!Number.isFinite(image.width) || image.width <= 0)) return false;
+      if (image.height != null && (!Number.isFinite(image.height) || image.height <= 0)) return false;
       if (!image.width || !image.height) return true;
       const ratio = image.width / image.height;
-      return orientation === 'portrait' ? ratio <= 1 : ratio > 1;
+      return orientation === 'portrait' ? ratio < 1 : ratio > 1.2;
     },
   );
   const languageRank = (language: string | null | undefined): number => {
