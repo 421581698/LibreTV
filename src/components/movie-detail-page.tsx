@@ -281,6 +281,7 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
           <SmartImage
             asset={fromCmsArtwork({ sourceKey, vodId, title: displayTitle, imageUrl: backdrop, kind: 'backdrop' })}
             url={backdrop}
+            fallbackUrl={tmdbArtwork?.backdrop ? info?.backdrop?.trim() : undefined}
             mode={imageProxyMode}
             customProxy={customImageProxy}
             alt={displayTitle}
@@ -310,6 +311,7 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
               <SmartImage
                 asset={tmdbArtwork?.poster ? undefined : fromCmsArtwork({ sourceKey, vodId, title: displayTitle, imageUrl: posterArtwork, kind: 'poster' })}
                 url={posterArtwork}
+                fallbackUrl={tmdbArtwork?.poster ? info?.cover?.trim() || poster.trim() : undefined}
                 mode={imageProxyMode}
                 customProxy={customImageProxy}
                 alt={displayTitle + ' 海报'}
