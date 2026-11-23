@@ -190,7 +190,7 @@ function WatchContent() {
       // lock stuck because no second release event follows that click.
       const startsScrubbing = event?.type === 'pointerdown' || event?.type === 'touchstart';
       if (startsScrubbing) {
-        controlsWereHiddenAtPointerStart = shell.classList.contains('cinema-controls-hidden');
+        controlsWereHiddenAtPointerStart = controlsWereHiddenAtPointerStart || shell.classList.contains('cinema-controls-hidden');
       }
       if (startsScrubbing && target instanceof Element && target.closest('.watch-cinema-progress')) {
         // A new drag supersedes the delayed cleanup from the previous drag.
