@@ -2386,3 +2386,219 @@ body:has(.ipad-edition[data-environment="light"]) {
   margin: 0;
   padding: 0;
 }
+
+
+/* iPad Edition player viewport contract.
+   The shared WatchPage still carries its legacy min-h-screen flex layout.
+   Inside the dedicated iPad shell that creates a second viewport-height layer,
+   pushing the transport/info overlays into the bottom safe-area. Keep this
+   override strictly scoped to the player route; cinema navigation is untouched. */
+.ipad-edition[data-ipad-player="true"] {
+  width: 100%;
+  height: 100dvh;
+  min-height: 100dvh;
+  max-height: 100dvh;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: #000;
+}
+
+.ipad-edition[data-ipad-player="true"] > .ipad-edition__main {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100dvh;
+  min-height: 0;
+  max-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.ipad-edition[data-ipad-player="true"] .netflix-watch-shell {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #000;
+}
+
+.ipad-edition[data-ipad-player="true"] .netflix-watch-overlay-topbar {
+  position: absolute;
+  inset: env(safe-area-inset-top, 0px) 0 auto;
+  z-index: 90;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px));
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(0,0,0,.72), transparent);
+}
+
+.ipad-edition[data-ipad-player="true"] .netflix-watch-overlay-topbar button {
+  pointer-events: auto;
+}
+
+.ipad-edition[data-ipad-player="true"] .netflix-watch {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.ipad-edition[data-ipad-player="true"] .netflix-watch-grid,
+.ipad-edition[data-ipad-player="true"] .netflix-watch-primary {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ipad-edition[data-ipad-player="true"] .netflix-player-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: none;
+  aspect-ratio: auto;
+  margin: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: #000;
+}
+
+.ipad-edition[data-ipad-player="true"] .netflix-player-frame > .artplayer,
+.ipad-edition[data-ipad-player="true"] .netflix-player-frame > .art-video-player,
+.ipad-edition[data-ipad-player="true"] .netflix-player-frame .artplayer,
+.ipad-edition[data-ipad-player="true"] .netflix-player-frame .art-video-player {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+}
+
+.ipad-edition[data-ipad-player="true"] .netflix-player-frame video {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+
+.ipad-edition[data-ipad-player="true"] .cinema-center-controls {
+  z-index: 55;
+  top: 50%;
+  pointer-events: none;
+}
+
+.ipad-edition[data-ipad-player="true"] .watch-cinema-info {
+  z-index: 60;
+  left: max(20px, env(safe-area-inset-left, 0px));
+  right: max(20px, env(safe-area-inset-right, 0px));
+  bottom: max(18px, env(safe-area-inset-bottom, 0px));
+  max-height: min(34dvh, 300px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+}
+
+.ipad-edition[data-ipad-player="true"] .netflix-watch-utility-panel {
+  position: fixed;
+  inset: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) auto;
+  z-index: 100;
+  width: min(420px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: none;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 22px;
+  background: rgba(16,16,18,.96);
+  box-shadow: 0 18px 60px rgba(0,0,0,.55);
+  -webkit-backdrop-filter: blur(28px) saturate(140%);
+  backdrop-filter: blur(28px) saturate(140%);
+}
+
+.ipad-edition[data-ipad-player="true"] .netflix-watch-utility-panel:not(.is-open) {
+  display: none;
+}
+
+.ipad-edition[data-ipad-player="true"] .netflix-watch-utility-panel.is-open {
+  display: flex;
+  flex-direction: column;
+}
+
+.ipad-edition[data-ipad-player="true"] .netflix-sidebar-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  overscroll-behavior: contain;
+}
+
+.ipad-edition[data-ipad-player="true"] .netflix-watch-shell:has(.netflix-watch-utility-panel.is-open) .watch-cinema-info,
+.ipad-edition[data-ipad-player="true"] .netflix-watch-shell:has(.netflix-watch-utility-panel.is-open) .cinema-center-controls {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@media (orientation: landscape) {
+  .ipad-edition[data-ipad-player="true"] .watch-cinema-info {
+    left: max(28px, env(safe-area-inset-left, 0px));
+    right: max(28px, env(safe-area-inset-right, 0px));
+    max-width: min(760px, calc(100vw - 56px));
+    max-height: min(30dvh, 220px);
+  }
+}
+
+@media (orientation: portrait) {
+  .ipad-edition[data-ipad-player="true"] .watch-cinema-info {
+    left: max(14px, env(safe-area-inset-left, 0px));
+    right: max(14px, env(safe-area-inset-right, 0px));
+    max-height: min(38dvh, 340px);
+  }
+  .ipad-edition[data-ipad-player="true"] .netflix-watch-utility-panel {
+    inset: auto max(10px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px));
+    width: auto;
+    max-width: none;
+    height: min(72dvh, 620px);
+    border-radius: 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ipad-edition[data-ipad-player="true"] .watch-cinema-info,
+  .ipad-edition[data-ipad-player="true"] .netflix-watch-utility-panel {
+    transition: none;
+  }
+}
