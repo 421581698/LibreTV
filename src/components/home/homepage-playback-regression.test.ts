@@ -268,6 +268,9 @@ describe('首页与播放页回归契约', () => {
     expect(player).toContain("art.on('video:loadstart'");
     expect(player).toContain('activeEpisodeKeyRef.current = pendingEpisodeKey;');
     expect(watch).toContain('saveProgress(sourceKey, outgoingProgressId, currentIndex, outgoingPosition, outgoingDuration)');
+    expect(watch).toContain('A manual episode change supersedes any pending autoplay-next countdown.');
+    expect(watch).toContain('if (autoNextTimer.current) window.clearTimeout(autoNextTimer.current)');
+    expect(watch).toContain('autoNextTimer.current = null;');
     expect(watch).toContain('setWatchClock({ position, duration })');
     expect(watch).toContain('playerApiRef.current?.seek(finalPosition)');
     expect(watch).toContain("shell.querySelector<HTMLInputElement>('.watch-cinema-progress')");
