@@ -1632,6 +1632,7 @@ jobs:
                 // Drag the real range control: input changes only the preview, and
                 // the final pointer release must issue exactly one media seek.
                 const seekControl = page.locator(".watch-cinema-progress");
+                await page.evaluate(() => { window.__mockSeekCount = 0; });
                 await seekControl.dispatchEvent("pointerdown", {
                   pointerId: 19, pointerType: "touch", isPrimary: true, button: 0,
                 });
