@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-api';
 import { SmartImage } from '@/components/smart-image';
+import { IpadCinemaDetailLayout } from '@/components/ipad-edition/IpadCinemaDetailLayout';
 import { resolveSource, useAppStore, isInDisabledSubscription, isSourceDisabled } from '@/lib/store';
 import { buildWatchUrl, validateSourceUrl } from '@/lib/utils';
 import { findMovieMatch, getMovieSearchTerms } from '@/lib/movie-title-match';
@@ -168,64 +169,59 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, backdropFallback,
   if (!movie) return <main className="ipad-detail-state"><button type="button" onClick={() => router.back()}>‹ 返回</button><p>{metadataError || '电影资料暂时不可用'}</p></main>;
 
   return (
-    <main className="ipad-cinema-detail" data-ipad-detail-page="true">
-      <section className="ipad-cinema-hero" aria-label={title}>
-        {backdrop ? <SmartImage url={backdrop} fallbackUrl={movie?.backdrop_path ? backdropFallback : undefined} mode={imageProxyMode} customProxy={customImageProxy} alt="" loading="eager" className="ipad-cinema-hero__image" minimumWidth={1600} expectedOrientation="landscape" showDefaultFallback={false} /> : <div className="ipad-cinema-hero__placeholder">暂无横屏剧照</div>}
-        <div className="ipad-cinema-hero__shade" aria-hidden="true" />
-        <header className="ipad-cinema-hero__header">
-          <button type="button" onClick={() => router.back()} className="ipad-cinema-back" aria-label="返回">‹</button>
-          <span>LIBRETV CINEMA</span>
-        </header>
-        <div className="ipad-cinema-hero__content">
-          <div className="ipad-cinema-kicker">{type === 'tv' ? 'SERIES' : 'FEATURE FILM'}</div>
-          <h1>{title}</h1>
-          {(movie.original_title || movie.original_name) && <p className="ipad-cinema-original">{movie.original_title || movie.original_name}</p>}
-          <div className="ipad-cinema-meta">
-            {movie.genres?.slice(0, 3).map((genre) => <span key={genre.id}>{genre.name}</span>)}
-            {movie.genres?.length ? <i aria-hidden="true">·</i> : null}
-            {rating > 0 && <span className="ipad-cinema-rating">★ {rating.toFixed(1)} / 10</span>}
-            {releaseYear && <span>{releaseYear}</span>}
-            {runtime && <span>{runtime} 分钟{type === 'tv' ? '/集' : ''}</span>}
-          </div>
-          <p className="ipad-cinema-overview">{movie.overview || '暂无剧情简介'}</p>
-          <div className="ipad-cinema-actions">
-            <button type="button" onClick={() => void startPlayback()} disabled={startingPlayback} className="ipad-cinema-play" aria-label="▶ 开始播放">
-              <span aria-hidden="true">▶</span>{startingPlayback ? '正在查找资源…' : '开始播放'}
-            </button>
-            <button type="button" onClick={toggleSaved} className="ipad-cinema-add" aria-label={saved ? '从片单移除' : '加入片单'} aria-pressed={saved}>
-              {saved ? '✓' : '+'}
-            </button>
-          </div>
-          <p className="ipad-cinema-status" role="status" aria-live="polite">{playbackStatus}</p>
+    <IpadCinemaDetailLayout
+      title={title}
+      eyebrow={type === 'tv' ? 'SERIES' : 'FEATURE FILM'}
+      backdropUrl={backdrop}
+      backdropFallbackUrl={movie?.backdrop_path ? backdropFallback : undefined}
+      imageMode={imageProxyMode}
+      customImageProxy={customImageProxy}
+      originalTitle={movie.original_title || movie.original_name || undefined}
+      metadata={
+        <>
+          {movie.genres?.slice(0, 3).map((genre) => <span key={genre.id}>{genre.name}</span>)}
+          {movie.genres?.length ? <i aria-hidden="true">·</i> : null}
+          {rating > 0 && <span className="ipad-cinema-rating">★ {rating.toFixed(1)} / 10</span>}
+          {releaseYear && <span>{releaseYear}</span>}
+          {runtime && <span>{runtime} 分钟{type === 'tv' ? '/集' : ''}</span>}
+        </>
+      }
+      overview={movie.overview || '暂无剧情简介'}
+      actions={
+        <>
+          <button type="button" onClick={() => void startPlayback()} disabled={startingPlayback} className="ipad-cinema-play" aria-label="▶ 开始播放">
+            <span aria-hidden="true">▶</span>{startingPlayback ? '正在查找资源…' : '开始播放'}
+          </button>
+          <button type="button" onClick={toggleSaved} className="ipad-cinema-add" aria-label={saved ? '从片单移除' : '加入片单'} aria-pressed={saved}>
+            {saved ? '✓' : '+'}
+          </button>
+          <span className="ipad-cinema-status" role="status" aria-live="polite">{playbackStatus}</span>
+        </>
+      }
+      onBack={() => router.back()}
+    >
+      <section className="ipad-cinema-info">
+        <div>
+          <h2>剧情简介</h2>
+          <p>{movie.overview || '暂无剧情简介'}</p>
         </div>
-        <div className="ipad-cinema-bottom-fade" aria-hidden="true" />
+        <dl>
+          <div><dt>导演</dt><dd>{director || '暂无数据'}</dd></div>
+          <div><dt>年份</dt><dd>{releaseYear || '暂无数据'}</dd></div>
+          <div><dt>类型</dt><dd>{movie.genres?.map((genre) => genre.name).join('、') || '暂无数据'}</dd></div>
+          <div><dt>片长</dt><dd>{runtime ? `${runtime} 分钟${type === 'tv' ? '/集' : ''}` : '暂无数据'}</dd></div>
+          <div><dt>国家/地区</dt><dd>{movie.production_countries?.map((country) => country.name).join('、') || '暂无数据'}</dd></div>
+        </dl>
       </section>
-
-      <div className="ipad-cinema-details">
-        <section className="ipad-cinema-info">
-          <div>
-            <h2>剧情简介</h2>
-            <p>{movie.overview || '暂无剧情简介'}</p>
-          </div>
-          <dl>
-            <div><dt>导演</dt><dd>{director || '暂无数据'}</dd></div>
-            <div><dt>年份</dt><dd>{releaseYear || '暂无数据'}</dd></div>
-            <div><dt>类型</dt><dd>{movie.genres?.map((genre) => genre.name).join('、') || '暂无数据'}</dd></div>
-            <div><dt>片长</dt><dd>{runtime ? `${runtime} 分钟${type === 'tv' ? '/集' : ''}` : '暂无数据'}</dd></div>
-            <div><dt>国家/地区</dt><dd>{movie.production_countries?.map((country) => country.name).join('、') || '暂无数据'}</dd></div>
-          </dl>
-        </section>
-        <section className="ipad-cinema-cast">
-          <h2>演员阵容</h2>
-          {cast.length ? <div className="ipad-cinema-cast__rail">
-            {cast.map((actor) => <button key={actor.id} type="button" onClick={() => void openPerson(actor.id)}>
-              <SmartImage url={imageUrl(actor.profile_path, 'w342') || '/placeholder.svg'} mode={imageProxyMode} customProxy={customImageProxy} alt={actor.name} loading="lazy" />
-              <strong>{actor.name}</strong><span>{actor.character}</span>
-            </button>)}
-          </div> : <p>暂无演员资料</p>}
-        </section>
-      </div>
-
+      <section className="ipad-cinema-cast">
+        <h2>演员阵容</h2>
+        {cast.length ? <div className="ipad-cinema-cast__rail">
+          {cast.map((actor) => <button key={actor.id} type="button" onClick={() => void openPerson(actor.id)}>
+            <SmartImage url={imageUrl(actor.profile_path, 'w342') || '/placeholder.svg'} mode={imageProxyMode} customProxy={customImageProxy} alt={actor.name} loading="lazy" />
+            <strong>{actor.name}</strong><span>{actor.character}</span>
+          </button>)}
+        </div> : <p>暂无演员资料</p>}
+      </section>
       {(person || personLoading) && <div className="ipad-cinema-person-backdrop" onClick={() => setPerson(null)}>
         <section className="ipad-cinema-person" onClick={(event) => event.stopPropagation()}>
           {personLoading ? <p>正在加载人物资料…</p> : person && <>
@@ -237,6 +233,5 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, backdropFallback,
           </>}
         </section>
       </div>}
-    </main>
+    </IpadCinemaDetailLayout>
   );
-}
