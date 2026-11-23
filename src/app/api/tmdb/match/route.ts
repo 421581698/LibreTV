@@ -57,26 +57,30 @@ export async function GET(req: Request) {
   });
 
   try {
-    const payload = await fetchTmdbJson<SearchResponse>(`/search/${type}`, {
-      query: title,
-      language: 'zh-CN',
-      include_image_language: 'zh,null,en',
-      include_adult: 'false',
-      page: '1',
-    });
-    const candidates = (Array.isArray(payload.results) ? payload.results : [])
-      .filter((item) => Number.isInteger(item.id) && item.id > 0)
-      .map((item) => {
-        const localized = normalizeTitle(type === 'movie' ? item.title || '' : item.name || '');
-        const original = normalizeTitle(type === 'movie' ? item.original_title || '' : item.original_name || '');
-        const titleMatch = normalized.has(localized);
-        const originalMatch = normalized.has(original);
-        const candidateYear = yearOf(item, type);
-        return { item, exact: titleMatch || originalMatch, yearMatch: Boolean(year && candidateYear === year), yearConflict: Boolean(year && candidateYear && candidateYear !== year) };
-      })
-      .filter((candidate) => candidate.exact && !candidate.yearConflict)
-      .sort((a, b) => Number(b.yearMatch) - Number(a.yearMatch));
-
+    let candidates: Array<{ item: SearchItem; exact: boolean; yearMatch: boolean; yearConflict: boolean }> = [];
+    for (const searchTerm of titles) {
+      const payload = await fetchTmdbJson<SearchResponse>(`/search/${type}`, {
+        query: searchTerm,
+        language: 'zh-CN',
+        include_image_language: 'zh,null,en',
+        include_adult: 'false',
+        page: '1',
+      });
+      const matches = (Array.isArray(payload.results) ? payload.results : [])
+        .filter((item) => Number.isInteger(item.id) && item.id > 0)
+        .map((item) => {
+          const localized = normalizeTitle(type === 'movie' ? item.title || '' : item.name || '');
+          const original = normalizeTitle(type === 'movie' ? item.original_title || '' : item.original_name || '');
+          const titleMatch = normalized.has(localized);
+          const originalMatch = normalized.has(original);
+          const candidateYear = yearOf(item, type);
+          return { item, exact: titleMatch || originalMatch, yearMatch: Boolean(year && candidateYear === year), yearConflict: Boolean(year && candidateYear && candidateYear !== year) };
+        })
+        .filter((candidate) => candidate.exact && !candidate.yearConflict);
+      candidates.push(...matches);
+      if (matches.length) break;
+    }
+    candidates.sort((a, b) => Number(b.yearMatch) - Number(a.yearMatch));
     const candidate = candidates[0]?.item;
     if (!candidate) {
       const empty = { match: null };
