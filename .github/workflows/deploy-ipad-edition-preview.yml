@@ -961,7 +961,9 @@ jobs:
                     renderedViewportPng = PNG.sync.read(await page.screenshot({
                       fullPage: false,
                       animations: "disabled",
-                      timeout: Math.max(1, Math.min(1500, remainingPosterBudgetMs)),
+                      // Full viewport compositing can exceed 1.5s on large 2x iPad
+                      // captures. Allow a bounded 5s while preserving the 60s audit budget.
+                      timeout: Math.max(1, Math.min(5000, remainingPosterBudgetMs)),
                     }));
                   } catch (error) {
                     const slotType = await page.locator('[data-ipad-poster-slot]').nth(index)
