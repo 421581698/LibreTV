@@ -1960,9 +1960,9 @@ body:has(.ipad-edition[data-environment="light"]) {
 }
 @media (max-width: 699px) {
   .ipad-edition__poster-card {
-    flex-basis: 138px !important;
-    width: 138px !important;
-    max-width: 138px !important;
+    flex-basis: 138px;
+    width: 138px;
+    max-width: 138px;
   }
 }
 
@@ -1991,8 +1991,8 @@ body:has(.ipad-edition[data-environment="light"]) {
 }
 @media (max-width: 699px) {
   .ipad-edition .ipad-edition__home .ipad-edition__poster-card {
-    flex-basis: 138px !important;
-    width: 138px !important;
-    max-width: 138px !important;
+    flex-basis: 138px;
+    width: 138px;
+    max-width: 138px;
   }
 }
