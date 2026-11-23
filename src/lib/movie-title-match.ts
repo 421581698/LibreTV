@@ -34,8 +34,14 @@ function aliasesFor(title: string): string[] {
 
 /** Search using known localized/original titles, without broad fuzzy matches that can open the wrong film. */
 export function getMovieSearchTerms(title: string): string[] {
+  const aliases = aliasesFor(title);
+  const spiderMan = aliases.length > 1;
+  // Keep fallback bounded: a title click should not fan out into seven sequential CMS searches.
+  const candidates = spiderMan
+    ? [title, 'Spider-Man: Brand New Day', '蜘蛛侠4']
+    : [title];
   const seen = new Set<string>();
-  return aliasesFor(title).filter((term) => {
+  return candidates.filter((term) => {
     const key = normalizeTitle(term);
     if (!key || seen.has(key)) return false;
     seen.add(key);
