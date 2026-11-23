@@ -13,7 +13,7 @@ function DetailContent() {
   const bangumiId = params.get('bangumiId');
   const tmdbType = params.get('tmdbType') === 'tv' ? 'tv' : 'movie';
 
-  if (bangumiId && /^\\d{1,12}$/.test(bangumiId)) {
+  if (bangumiId && /^\d{1,12}$/.test(bangumiId)) {
     return (
       <BangumiSubjectDetailPage
         id={bangumiId}
@@ -23,7 +23,7 @@ function DetailContent() {
     );
   }
 
-  if (tmdbId && /^\\d{1,12}$/.test(tmdbId)) {
+  if (tmdbId && /^\d{1,12}$/.test(tmdbId)) {
     return (
       <TmdbMovieDetailPage
         id={tmdbId}
