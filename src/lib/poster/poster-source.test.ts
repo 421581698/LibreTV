@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { DoubanItem, SearchResultItem } from '../types';
 import { createPosterAsset, fromBangumiItem, fromCmsArtwork, fromCmsSearchResult, fromDoubanItem, fromEpisodeArtwork } from './poster-source';
 import { classifyPosterAspect, inferPosterImageKind, withPosterDimensions } from './poster-normalizer';
-import { selectPreferredTmdbPoster } from './tmdb-poster-preference';
+import { selectPreferredTmdbBackdrop, selectPreferredTmdbPoster } from './tmdb-poster-preference';
 
 describe('poster source adapters', () => {
   const douban: DoubanItem = { id: '1292052', title: '肖申克的救赎', cover: 'https://img3.doubanio.com/p.jpg' };
@@ -126,5 +126,19 @@ describe('TMDB poster language preference', () => {
       { file_path: 'javascript:alert(1)', iso_639_1: 'zh' },
       { file_path: '/english.jpg', iso_639_1: 'en' },
     ])).toBe('/english.jpg');
+  });
+
+  it('selects the highest-resolution landscape backdrop without mixing poster assets', () => {
+    expect(selectPreferredTmdbBackdrop([
+      { file_path: '/small-backdrop.jpg', iso_639_1: 'zh', width: 1280, height: 720 },
+      { file_path: '/large-backdrop.jpg', iso_639_1: 'zh', width: 3840, height: 2160 },
+      { file_path: '/portrait-poster.jpg', iso_639_1: 'zh', width: 1000, height: 1500 },
+    ])).toBe('/large-backdrop.jpg');
+  });
+
+  it('preserves the existing backdrop only when no valid landscape candidate exists', () => {
+    expect(selectPreferredTmdbBackdrop([
+      { file_path: '/portrait.jpg', iso_639_1: 'zh', width: 1000, height: 1500 },
+    ], '/source-backdrop.jpg')).toBe('/source-backdrop.jpg');
   });
 });
