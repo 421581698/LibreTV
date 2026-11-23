@@ -1753,6 +1753,29 @@ jobs:
                 console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-touch-toggle", touchTogglePassed }));
                 if (!touchTogglePassed) failures += 1;
 
+                // The topbar button and F shortcut must both request fullscreen
+                // on the watch shell, never only on the ArtPlayer/video child.
+                await page.evaluate(() => {
+                  const shell = document.querySelector(".netflix-watch-shell");
+                  if (!shell) throw new Error("Watch shell is missing for fullscreen test.");
+                  window.__shellFullscreenRequests = 0;
+                  Object.defineProperty(shell, "requestFullscreen", {
+                    configurable: true,
+                    value: () => {
+                      window.__shellFullscreenRequests += 1;
+                      return Promise.resolve();
+                    },
+                  });
+                });
+                await page.locator('.watch-topbar-right button[aria-label="全屏播放"]').click();
+                await page.waitForFunction(() => window.__shellFullscreenRequests === 1, undefined, { timeout: 3000 });
+                await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
+                await page.keyboard.press("f");
+                await page.waitForFunction(() => window.__shellFullscreenRequests === 2, undefined, { timeout: 3000 });
+                const unifiedFullscreenEntrypoints = await page.evaluate(() => window.__shellFullscreenRequests === 2);
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-unified-fullscreen-entrypoints", unifiedFullscreenEntrypoints }));
+                if (!unifiedFullscreenEntrypoints) failures += 1;
+
                 // Regression: the browser emits click after pointerup/touchend.
                 // That click must reveal controls but must not re-enter scrubbing.
                 const scrubControl = page.locator(".watch-cinema-progress");
