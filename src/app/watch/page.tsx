@@ -976,8 +976,14 @@ function WatchContent() {
                   }}
                   onPointerDown={(event) => {
                     // Keep the drag stream attached to the range input even if
-                    // the finger leaves its narrow visual track.
-                    event.currentTarget.setPointerCapture(event.pointerId);
+                    // the finger leaves its narrow visual track. Synthetic test
+                    // events and older WebKit builds may reject pointer capture;
+                    // the window-level release listener remains the fallback.
+                    try {
+                      event.currentTarget.setPointerCapture(event.pointerId);
+                    } catch {
+                      // Continue with window-level pointerup/touchend handling.
+                    }
                   }}
                   onKeyUp={(event) => {
                     if (['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) {
