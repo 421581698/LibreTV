@@ -35,6 +35,7 @@ on:
       - "src/app/api/detail/route.ts"
       - "src/app/api/detail/route.test.ts"
       - "src/app/page.tsx"
+      - "src/app/watch/page.tsx"
       - "src/lib/movie-title-match.ts"
       - "src/lib/movie-title-match.test.ts"
       - "wrangler.ipad-edition-preview.toml"
