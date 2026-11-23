@@ -199,7 +199,7 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
       actions={
         <>
           <button type="button" onClick={() => void startPlayback()} disabled={starting} className="ipad-cinema-play">
-            <span aria-hidden="true">▶</span>{starting ? '正在查找资源…' : '开始播放'}
+            {starting ? '正在查找资源…' : '▶ 开始播放'}
           </button>
           <span className="ipad-cinema-status" role="status" aria-live="polite">{status}</span>
         </>
