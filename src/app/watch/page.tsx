@@ -87,6 +87,7 @@ function WatchContent() {
   const playerFrameRef = useRef<HTMLDivElement | null>(null);
   const watchShellRef = useRef<HTMLDivElement | null>(null);
   const controlsHideTimerRef = useRef<number | null>(null);
+  const scrubResetTimerRef = useRef<number | null>(null);
   const scrubbingRef = useRef(false);
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [scrubbingPosition, setScrubbingPosition] = useState<number | null>(null);
@@ -251,7 +252,11 @@ function WatchContent() {
       if (!scrubbingRef.current) return;
       scrubbingRef.current = false;
       setIsScrubbing(false);
-      setScrubbingPosition(null);
+      if (scrubResetTimerRef.current !== null) window.clearTimeout(scrubResetTimerRef.current);
+      scrubResetTimerRef.current = window.setTimeout(() => {
+        setScrubbingPosition(null);
+        scrubResetTimerRef.current = null;
+      }, 1200);
       if (video && !video.paused && !video.ended) scheduleHide();
       else keepControlsVisible();
     };
@@ -269,6 +274,7 @@ function WatchContent() {
     attachVideo();
     return () => {
       clearHideTimer();
+      if (scrubResetTimerRef.current !== null) window.clearTimeout(scrubResetTimerRef.current);
       observer.disconnect();
       detachVideo();
       shell.removeEventListener('pointerdown', revealControls, true);
