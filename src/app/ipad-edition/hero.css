@@ -1072,3 +1072,18 @@ body:has(.ipad-edition[data-ipad-home="true"]) {
     padding-right: 0;
   }
 }
+
+/* Reserve a clean text column beside the restored portrait poster. */
+@media (min-width: 700px) {
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-copy {
+    width: min(58%, 700px);
+    max-width: 700px;
+    padding-right: 0;
+  }
+}
+@media (orientation: portrait) and (min-width: 700px) {
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-copy {
+    width: min(54%, 500px);
+    padding-left: 30px;
+  }
+}
