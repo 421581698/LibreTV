@@ -467,6 +467,39 @@ jobs:
                 }, undefined, { timeout: 30000 })
                   .then(() => ({ ready: true, timeoutMs: 30000 }))
                   .catch(error => ({ ready: false, timeoutMs: 30000, error: String(error) }));
+                // The hero image is outside the poster-slot batch below. Decode it explicitly
+                // before reading naturalWidth so DOM readiness cannot create a false 0px failure.
+                const heroArtworkReadiness = await page.evaluate(async () => {
+                  const media = document.querySelector(".ipad-edition__cinema-hero-media");
+                  const image = media?.querySelector(
+                    ".ipad-edition__cinema-hero-backdrop .poster-engine__image, .ipad-edition__cinema-hero-atmosphere .poster-engine__image, .ipad-edition__cinema-hero-fallback-poster .poster-engine__image"
+                  );
+                  if (!media) return { ready: false, reason: "hero-media-missing", artworkMode: null, source: null, naturalWidth: 0, naturalHeight: 0 };
+                  if (!image) return {
+                    ready: false,
+                    reason: "hero-image-element-missing",
+                    artworkMode: media.getAttribute("data-artwork-mode"),
+                    backdropPresent: media.getAttribute("data-backdrop-present"),
+                    source: null,
+                    naturalWidth: 0,
+                    naturalHeight: 0,
+                  };
+                  image.loading = "eager";
+                  const decoded = await Promise.race([
+                    image.decode().then(() => true, () => false),
+                    new Promise(resolve => setTimeout(() => resolve(false), 20000)),
+                  ]);
+                  return {
+                    ready: decoded && image.complete && image.naturalWidth > 0 && image.naturalHeight > 0,
+                    reason: decoded ? (image.naturalWidth > 0 ? null : "decoded-image-has-zero-natural-width") : "hero-image-decode-timeout-or-error",
+                    artworkMode: media.getAttribute("data-artwork-mode"),
+                    backdropPresent: media.getAttribute("data-backdrop-present"),
+                    source: (image.currentSrc || image.src || "").slice(0, 240),
+                    complete: image.complete,
+                    naturalWidth: image.naturalWidth,
+                    naturalHeight: image.naturalHeight,
+                  };
+                });
                 // Re-assert the requested theme after application hydration has completed.
                 await page.evaluate((scheme) => {
                   document.documentElement.classList.toggle('dark', scheme === 'dark');
@@ -822,6 +855,7 @@ jobs:
                   };
                 }, { scheme: colorScheme, layoutDiagnostics });
                 metrics.homepageReadiness = homepageReadiness;
+                metrics.heroArtworkReadiness = heroArtworkReadiness;
                 const themeKey = viewport.name;
                 const themeBaselines = globalThis.__ipadThemeBaselines ?? (globalThis.__ipadThemeBaselines = {});
                 if (colorScheme === 'light') {
@@ -1076,7 +1110,7 @@ jobs:
                 // Gate on copy/navigation collision, not artwork/navigation intersection or a
                 // positive gap between the hero and fixed navigation. Hero copy is bottom-anchored
                 // by design, so do not require its center to match the hero's geometric center.
-                const failed = !sidebarInteractionPassed || sidebarInteraction.diagnostics.finalState?.computedStyle?.position !== "fixed" || response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.y > 220 || metrics.main.width < viewport.width * 0.7 || !homepageReadiness.ready || metrics.homepageStillLoading || metrics.animeCalendarStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.posterImageLoadRate < 0.75 || !metrics.posterPixelInspectionPassed || !metrics.heroPosterResolution?.loaded || !metrics.heroPosterResolution.meets1200px || metrics.heroTextOverlapsNavigation || metrics.heroCtaWhiteSpace !== "nowrap" || !metrics.hero || metrics.hero.y < 0 || metrics.hero.y > Math.min(160, viewport.height * 0.25) || !metrics.themePairValid || !scrollAudit.navigationViewportValid || scrollAudit.overlappingPosterLabels.length > 0;
+                const failed = !sidebarInteractionPassed || sidebarInteraction.diagnostics.finalState?.computedStyle?.position !== "fixed" || response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.y > 220 || metrics.main.width < viewport.width * 0.7 || !homepageReadiness.ready || !heroArtworkReadiness.ready || metrics.homepageStillLoading || metrics.animeCalendarStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.posterImageLoadRate < 0.75 || !metrics.posterPixelInspectionPassed || !metrics.heroPosterResolution?.loaded || !metrics.heroPosterResolution.meets1200px || metrics.heroTextOverlapsNavigation || metrics.heroCtaWhiteSpace !== "nowrap" || !metrics.hero || metrics.hero.y < 0 || metrics.hero.y > Math.min(160, viewport.height * 0.25) || !metrics.themePairValid || !scrollAudit.navigationViewportValid || scrollAudit.overlappingPosterLabels.length > 0;
                 if (failed) failures += 1;
                 await Promise.allSettled(apiDiagnosticTasks);
                 results.push({ name, httpStatus: response?.status() ?? null, failed, sidebarInteractionPassed, sidebarInteraction, metrics, pageErrors: consoleErrors, apiDiagnostics });
