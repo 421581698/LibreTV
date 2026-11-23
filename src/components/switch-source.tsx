@@ -178,7 +178,7 @@ export function SwitchSourceModal({
         store.playbackHealth,
         Date.now(),
         store.playbackResourceHealth,
-      ).map((candidate, index) => [candidateKey(candidates.find((item) => item.result.sourceKey === candidate.sourceKey && item.result.vodId === candidate.vodId)!), index] as const)
+      ).map((candidate, index) => [`${candidate.sourceKey}_${candidate.vodId}`, index] as const)
     );
     return [...candidates].sort((a, b) => {
       const aCurrent = isCurrentCandidate(a, currentSourceKey, currentVodId);
