@@ -135,8 +135,12 @@ function WatchContent() {
   const detailTitle = detailQuery.data?.videoInfo?.title?.trim() || '';
   const videoTitle = isReadableTitle(titleParam) ? titleParam.trim() : isReadableTitle(detailTitle) ? detailTitle : '未知视频';
   const displayedPosition = scrubbingPosition ?? watchClock.position;
-  const progressPercent = watchClock.duration > 0
-    ? Math.min(100, Math.max(0, (displayedPosition / watchClock.duration) * 100))
+  const hasFiniteDuration = Number.isFinite(watchClock.duration) && watchClock.duration > 0;
+  const safeDisplayedPosition = Number.isFinite(displayedPosition) && displayedPosition >= 0
+    ? displayedPosition
+    : 0;
+  const progressPercent = hasFiniteDuration
+    ? Math.min(100, Math.max(0, (safeDisplayedPosition / watchClock.duration) * 100))
     : 0;
 
   useEffect(() => {
@@ -938,9 +942,9 @@ function WatchContent() {
                   className="watch-cinema-progress"
                   type="range"
                   min={0}
-                  max={Math.max(1, watchClock.duration)}
+                  max={hasFiniteDuration ? watchClock.duration : 1}
                   step={1}
-                  value={Math.min(displayedPosition, watchClock.duration || displayedPosition)}
+                  value={hasFiniteDuration ? Math.min(safeDisplayedPosition, watchClock.duration) : 0}
                   style={{ '--watch-progress': `${progressPercent}%` } as CSSProperties}
                   aria-label="播放进度"
                   aria-valuetext={`${formatWatchTime(displayedPosition)} / ${formatWatchTime(watchClock.duration)}`}
@@ -965,7 +969,7 @@ function WatchContent() {
                       playerApiRef.current?.seek(Number(event.currentTarget.value));
                     }
                   }}
-                  disabled={!watchClock.duration}
+                  disabled={!hasFiniteDuration}
                 />
                 {isScrubbing && <output className="watch-cinema-scrub-preview" aria-live="off">{formatWatchTime(displayedPosition)}</output>}
                 <button
