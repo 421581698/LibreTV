@@ -202,7 +202,7 @@ export function IpadEditionHome() {
       <IpadEditionContinueWatching />
 
       {renderRail('ipad-popular-series', '热门剧集', series.data?.items ?? [], series.isLoading, series.isError, series.refetch)}
-      {renderRail('ipad-new-releases', '美国 · 中国最新上映', latestItems, latestUS.isLoading || latestCN.isLoading, latestUS.isError && latestCN.isError, async () => { await Promise.all([latestUS.refetch(), latestCN.refetch(), spiderManUS.refetch(), spiderManCN.refetch(), odysseyUS.refetch(), odysseyCN.refetch()]); }, true, LATEST_RELEASE_RAIL_SIZE)}
+      {renderRail('ipad-new-releases', '美国 · 中国最新上映', latestItems, latestUS.isLoading || latestCN.isLoading || spiderManUS.isLoading || spiderManCN.isLoading || odysseyUS.isLoading || odysseyCN.isLoading, latestUS.isError && latestCN.isError && spiderManUS.isError && spiderManCN.isError && odysseyUS.isError && odysseyCN.isError, async () => { await Promise.all([latestUS.refetch(), latestCN.refetch(), spiderManUS.refetch(), spiderManCN.refetch(), odysseyUS.refetch(), odysseyCN.refetch()]); }, true, LATEST_RELEASE_RAIL_SIZE)}
 
       <section className="ipad-edition__rail-section" id="ipad-anime-calendar" aria-labelledby="ipad-anime-title">
         <div className="ipad-edition__section-heading">
