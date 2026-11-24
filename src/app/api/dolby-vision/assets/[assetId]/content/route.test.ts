@@ -66,6 +66,23 @@ describe('GET /api/dolby-vision/assets/[assetId]/content', () => {
     expect(response.headers.get('Content-Range')).toBe('bytes */10');
   });
 
+  it('rejects a partial response whose length does not match its byte range', async () => {
+    vi.mocked(fetchDolbyVisionRegistryAsset).mockResolvedValue(new Response('2345', {
+      status: 206,
+      headers: {
+        'Content-Type': 'video/mp4',
+        'Content-Length': '3',
+        'Content-Range': 'bytes 2-5/10',
+        'Accept-Ranges': 'bytes',
+        ETag: `"${'a'.repeat(64)}"`,
+        'X-DV-Asset-ID': assetId,
+        'X-DV-Asset-SHA256': 'a'.repeat(64),
+      },
+    }));
+    const response = await GET(makeRequest('bytes=2-5'), { params: Promise.resolve({ assetId }) });
+    expect(response.status).toBe(502);
+  });
+
   it('streams immutable HLS playlists and fMP4 segments through the same asset proxy', async () => {
     const playlist = '#EXTM3U\n#EXT-X-ENDLIST\n';
     const playlistDigest = 'c'.repeat(64);
