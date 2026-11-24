@@ -21,6 +21,7 @@ export function RegistryInlinePlayer({
   const autoSkipSegments = useAppStore((state) => state.autoSkipSegments);
   const autoplayNext = useAppStore((state) => state.autoplayNext);
   const [pendingStart, setPendingStart] = useState<number | null>(null);
+  const [assetLookupNonce, setAssetLookupNonce] = useState(0);
   const [immutableAsset, setImmutableAsset] = useState<{
     resourceId: string;
     assetId: string;
@@ -32,41 +33,65 @@ export function RegistryInlinePlayer({
   const resourceMediaFormat = resource?.media_format;
 
   useEffect(() => {
+    setImmutableAsset(null);
     if (!resourceId || !['hls', 'mp4', 'webm'].includes(resourceMediaFormat ?? '')) return;
 
     const controller = new AbortController();
-    void fetch(`/api/dolby-vision/resources/${encodeURIComponent(resourceId)}/asset`, {
-      method: 'GET',
-      cache: 'no-store',
-      credentials: 'same-origin',
-      signal: controller.signal,
-    }).then(async (response) => {
-      if (!response.ok) return null;
-      const payload: unknown = await response.json().catch(() => null);
-      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
-      const asset = payload as Record<string, unknown>;
-      if (asset.resourceId !== resourceId ||
-          typeof asset.assetId !== 'string' || !/^[A-Za-z0-9:_-]{1,200}$/.test(asset.assetId) ||
-          typeof asset.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(asset.sha256) ||
-          typeof asset.byteLength !== 'number' || !Number.isSafeInteger(asset.byteLength) || asset.byteLength <= 0 ||
-          !['video/mp4', 'video/webm', 'application/vnd.apple.mpegurl'].includes(String(asset.contentType))) return null;
-      const assetMediaType = asset.contentType === 'video/webm' ? 'webm'
-        : asset.contentType === 'application/vnd.apple.mpegurl' ? 'hls' : 'mp4';
-      if (assetMediaType !== resourceMediaFormat) return null;
-      return {
-        resourceId,
-        assetId: asset.assetId,
-        url: `/api/dolby-vision/assets/${encodeURIComponent(asset.assetId)}/content`,
-        mediaType: assetMediaType as 'hls' | 'mp4' | 'webm',
-      };
-    }).then((asset) => {
-      if (!controller.signal.aborted && asset) setImmutableAsset(asset);
-    }).catch(() => {
-      // Keep the validated original source available if immutable registry playback is unavailable.
-    });
+    const retryDelays = [3_000, 6_000, 12_000, 20_000, 30_000];
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let attempts = 0;
 
-    return () => controller.abort();
-  }, [resourceId, resourceMediaFormat]);
+    const lookup = async (): Promise<void> => {
+      try {
+        const response = await fetch(`/api/dolby-vision/resources/${encodeURIComponent(resourceId)}/asset`, {
+          method: 'GET',
+          cache: 'no-store',
+          credentials: 'same-origin',
+          signal: controller.signal,
+        });
+        if (response.ok) {
+          const payload: unknown = await response.json().catch(() => null);
+          if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+            const asset = payload as Record<string, unknown>;
+            if (asset.resourceId === resourceId &&
+                typeof asset.assetId === 'string' && /^[A-Za-z0-9:_-]{1,200}$/.test(asset.assetId) &&
+                typeof asset.sha256 === 'string' && /^[a-f0-9]{64}$/.test(asset.sha256) &&
+                typeof asset.byteLength === 'number' && Number.isSafeInteger(asset.byteLength) && asset.byteLength > 0 &&
+                ['video/mp4', 'video/webm', 'application/vnd.apple.mpegurl'].includes(String(asset.contentType))) {
+              const assetMediaType = asset.contentType === 'video/webm' ? 'webm'
+                : asset.contentType === 'application/vnd.apple.mpegurl' ? 'hls' : 'mp4';
+              if (assetMediaType === resourceMediaFormat && !controller.signal.aborted) {
+                setImmutableAsset({
+                  resourceId,
+                  assetId: asset.assetId,
+                  url: `/api/dolby-vision/assets/${encodeURIComponent(asset.assetId)}/content`,
+                  mediaType: assetMediaType as 'hls' | 'mp4' | 'webm',
+                });
+                return;
+              }
+            }
+          }
+        } else if (![404, 409].includes(response.status)) {
+          return;
+        }
+      } catch {
+        if (controller.signal.aborted) return;
+      }
+
+      if (!controller.signal.aborted && attempts < retryDelays.length) {
+        retryTimer = setTimeout(() => {
+          attempts += 1;
+          void lookup();
+        }, retryDelays[attempts]);
+      }
+    };
+
+    void lookup();
+    return () => {
+      controller.abort();
+      if (retryTimer) clearTimeout(retryTimer);
+    };
+  }, [resourceId, resourceMediaFormat, assetLookupNonce]);
 
   const confirmPlayback = useCallback((evidence: { mediaType: string; observedSeconds: number; progressedSeconds: number; decodedWidth: number; decodedHeight: number; selectedRenditionHeight: number; selectedRenditionBitrateKbps: number }) => {
     if (!resource?.candidate_id) return;
@@ -82,6 +107,8 @@ export function RegistryInlinePlayer({
         selected_rendition_height: evidence.selectedRenditionHeight,
         selected_rendition_bitrate_kbps: evidence.selectedRenditionBitrateKbps,
       }),
+    }).then((response) => {
+      if (response.ok) setAssetLookupNonce((value) => value + 1);
     }).catch(() => {
       // Playback remains available if the audit writeback service is temporarily offline.
     });
