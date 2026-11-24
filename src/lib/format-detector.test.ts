@@ -14,11 +14,10 @@ describe('detectMediaFormat', () => {
     expect(report.notes.join(' ')).toContain('不证明浏览器已解码 Atmos');
   });
 
-  it('recognizes JOC in the declared codec token even when CHANNELS omits it', () => {
-    expect(detectMediaFormat({ codecs: 'avc1.640028,ec-3-joc', hlsChannels: '6' }))
+  it('uses the standard HLS ec-3 token and CHANNELS JOC marker', () => {
+    expect(detectMediaFormat({ codecs: 'avc1.640028,ec-3', hlsChannels: '16/JOC' }))
       .toMatchObject({ audioCodec: 'eac3', dolbyFamily: 'dolby-atmos-metadata', hasJocMarker: true });
   });
-
   it('parses the four-part Dolby AC-4 codec string without claiming device support', () => {
     const report = detectMediaFormat({ url: 'immersive.m3u8', codecs: 'avc1.640028,ac-4.02.01.04' });
     expect(report).toMatchObject({ audioCodec: 'ac4', dolbyFamily: 'dolby-ac4', ac4Profile: { bitstreamVersion: 2, presentationVersion: 1, mdcompat: 4 } });
