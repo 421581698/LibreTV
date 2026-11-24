@@ -20,6 +20,10 @@ on:
       - feature/libretv-ipad-edition-foundation
     paths:
       - 'scripts/hls-browser-playback-smoke.mjs'
+      - 'scripts/spatial-audio-browser-smoke.mjs'
+      - 'src/lib/spatial-audio.ts'
+      - 'src/lib/spatial-media-session.ts'
+      - 'src/components/player-shell.tsx'
       - '.github/workflows/hls-browser-playback-smoke.yml'
       - 'src/lib/m3u8-downloader.ts'
       - 'src/lib/m3u8-parse.ts'
