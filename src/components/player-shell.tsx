@@ -21,8 +21,10 @@ import {
   readStabilityMetrics,
   toHlsAudioTrackLike,
   type DiagnosticsInput,
+  type PlaybackDiagnostics,
   type StabilityPeaks,
 } from '@/lib/playback-diagnostics';
+import AudioDiagnosticsPanel from '@/components/audio-diagnostics-panel';
 import { createHlsLoader } from '@/lib/hls-loader';
 import { getVideoPrefetcher } from '@/lib/video-prefetcher';
 import { loadCacheSettings } from '@/lib/video-cache';
@@ -265,6 +267,8 @@ export function PlayerShell({
   const [qualityNotice, setQualityNotice] = useState('');
   const [networkQualityWarning, setNetworkQualityWarning] = useState('');
   const [qualityControlMode, setQualityControlMode] = useState<'hls' | 'native' | 'single'>('single');
+  // Read-only diagnostics HUD state. Never feeds back into playback decisions.
+  const [diagnosticsSnapshot, setDiagnosticsSnapshot] = useState<PlaybackDiagnostics | null>(null);
   const unsustainableFragmentsRef = useRef(0);
   const sustainableFragmentsRef = useRef(0);
   const [showPlayFallback, setShowPlayFallback] = useState(false);
@@ -344,6 +348,20 @@ export function PlayerShell({
     };
   };
   /** Sample real video state into the stability diagnostic (read-only). */
+  // Refresh the read-only diagnostics HUD on a low-frequency timer. This only
+  // copies the accumulator into React state for display; it never changes any
+  // playback decision or calls any recovery action.
+  useEffect(() => {
+    const refresh = () => {
+      const src = diagnosticsRef.current.input;
+      if (!src.format && !src.audioTracks && !src.capabilityEnvironment && !src.stabilityMetrics) return;
+      setDiagnosticsSnapshot(buildPlaybackDiagnostics(src, diagnosticsRef.current.peaks));
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 2000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const observeStability = (video: HTMLVideoElement) => {
     const diag = diagnosticsRef.current;
     const now = Date.now();
@@ -400,6 +418,7 @@ export function PlayerShell({
     // 上报前补一次真实视频状态采样，保证稳定性诊断反映最终状态（只读）。
     const video = artRef.current?.video as HTMLVideoElement | undefined;
     if (video) observeStability(video);
+    setDiagnosticsSnapshot(buildPlaybackDiagnostics(diagnosticsRef.current.input, diagnosticsRef.current.peaks));
     const identity = playbackIdentityRef.current;
     if (!identity.sourceKey || !identity.resourceKey) return;
     identity.onPlaybackSample?.({
@@ -1879,6 +1898,7 @@ export function PlayerShell({
   return (
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" style={{ WebkitTouchCallout: 'none' }} />
+      <AudioDiagnosticsPanel diagnostics={diagnosticsSnapshot} />
       <div className="player-quality-controls absolute right-3 top-3 z-20 flex flex-col items-end gap-2">
         <button
           type="button"

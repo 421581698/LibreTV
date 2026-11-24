@@ -78,6 +78,30 @@ Note: `recoveries: 1` / `stalls: 1` in the sample are **statistics** of a brief 
 
 ---
 
+## 2.5 On-screen diagnostics HUD (no DevTools required)
+
+A read-only diagnostics HUD is now part of the player, so the same telemetry can be inspected **on a real device without opening DevTools** and copied back to the developer.
+
+- **Where**: on the watch page, a small `音频诊断` badge sits under the quality control at the top-right of the player. If a JOC / Atmos-metadata signal is detected the badge turns amber and reads `音频诊断 · JOC 线索` — this is a *signal* indicator, **not** an Atmos "working" claim.
+- **How to use**: tap the badge to expand the panel. It groups the same快照 as the telemetry: 媒体格式 / 音轨 / 能力探测 / 播放稳定性.
+- **Copy for verification**: tap `复制诊断报告（发给开发者）`. The clipboard text contains only enums, booleans and bounded numbers — no media URL, token, rendition name or free-form note.
+- **Fixed disclaimer** shown verbatim at the top of the panel:
+  > 杜比全景声（Atmos）对象解码 / 原生 Dolby 解码 / 位流直通均未验证。JOC 或 Dolby 元数据仅代表音轨中检测到相关标记，不等于设备已还原 Atmos 声场。
+
+The HUD is strictly display-only. Opening it or copying the report never switches source, never changes quality and never restarts playback. The P0 read-only policy (`PHASE1_AUTO_RECOVERY_POLICY`) is unchanged.
+
+Sandbox verification of the HUD (Chromium, production build):
+
+| Check | Result |
+|---|---|
+| Badge renders on real `/watch` page | ✅ |
+| Panel expands with format/capability groups | ✅ |
+| Atmos rows show 未验证 / 未确立 (no false claim) | ✅ |
+| Copy button writes a URL/token-free plain-text report to clipboard | ✅ |
+| No source-switch dialog on open/copy | ✅ |
+
+---
+
 ## 3. Real-device acceptance matrix
 
 For each environment, use a real stream you control. Two fixtures are recommended:
@@ -131,6 +155,7 @@ For each environment, use a real stream you control. Two fixtures are recommende
 | I3 | Telemetry flushed | Sample appears in `playbackHealth` after end/navigate (note: iOS may throttle `localStorage` writes — read after the page is foregrounded) |
 | I4 | No false Atmos claim | Same as M3 |
 | I5 | Read-only behaviour | No automatic source switch / quality change / restart |
+| I6 | HUD panel | `音频诊断` badge visible; panel shows 未验证 / 未确立; copied report has no URL/token |
 
 ### 3.4 iPad Safari (iPadOS, real device)
 
@@ -141,6 +166,7 @@ For each environment, use a real stream you control. Two fixtures are recommende
 | P3 | Multi-audio renditions | With F2, `audio.renditionCount` reflects the manifest; JOC is a hint only |
 | P4 | No false Atmos claim | Same as M3 |
 | P5 | Read-only behaviour | No automatic source switch / quality change / restart |
+| P6 | HUD panel | Same as I6; verify the amber `JOC 线索` badge (if shown) reads as a hint, not an Atmos claim |
 
 **Note on iPhone/iPad:** WebKit is the only browser engine allowed on iOS/iPadOS; Chrome/Firefox there are WebKit wrappers. A "Chromium passed" result does **not** substitute for these rows.
 
