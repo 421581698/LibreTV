@@ -80,7 +80,7 @@ describe('parseHlsAudioRenditions', () => {
       '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="shared",NAME="English",URI="audio/en.m3u8"',
       '#EXT-X-STREAM-INF:BANDWIDTH=3000000,CODECS="avc1.640028,ec-3,ac-4.02.01.04",AUDIO="shared"',
       'video/1080p.m3u8',
-    ].join('\\n');
+    ].join('\n');
 
     expect(parseHlsAudioRenditions(manifest)[0]).toMatchObject({
       codec: null,
