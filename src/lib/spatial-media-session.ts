@@ -77,7 +77,7 @@ export class SpatialMediaSession {
   private route: string | null = null;
   private reason: string | null = null;
   private syncing = false;
-  private readonly originalMuted: boolean;
+  private restoreMuted: boolean;
   private readonly listeners: Array<() => void> = [];
   private fallbackPromise: Promise<void> | null = null;
 
@@ -87,7 +87,7 @@ export class SpatialMediaSession {
     private readonly createEngine: (media: HTMLVideoElement) => SpatialEngineHandle,
     private readonly onStateChange?: (snapshot: SpatialMediaSessionSnapshot) => void,
   ) {
-    this.originalMuted = nativeVideo.muted;
+    this.restoreMuted = nativeVideo.muted;
     this.bindNativeSynchronization();
     this.media.addEventListener('error', this.handleSpatialError);
     this.listeners.push(() => this.media.removeEventListener('error', this.handleSpatialError));
@@ -227,6 +227,13 @@ export class SpatialMediaSession {
     bind(this.nativeVideo, 'volumechange', () => {
       if (this.state !== 'active' || this.syncing) return;
       this.media.volume = this.nativeVideo.volume;
+      // ArtPlayer's native mute toggle cannot control the duplicate element
+      // without unmuting the visual element. Exit the session on that action so
+      // the original player regains its normal mute semantics.
+      if (!this.nativeVideo.muted) {
+        this.restoreMuted = false;
+        void this.fallback('静音状态发生变化，已退出独立会话以恢复原生音量控制');
+      }
     });
     bind(this.media, 'timeupdate', () => {
       if (this.state !== 'active' || this.syncing) return;
@@ -251,7 +258,7 @@ export class SpatialMediaSession {
     if (Number.isFinite(this.media.currentTime) && this.media.currentTime >= 0) {
       try { this.nativeVideo.currentTime = this.media.currentTime; } catch { /* keep last native position */ }
     }
-    this.nativeVideo.muted = this.originalMuted;
+    this.nativeVideo.muted = this.restoreMuted;
     this.media.pause();
     this.listeners.splice(0).forEach((remove) => remove());
     this.media.removeAttribute('src');
