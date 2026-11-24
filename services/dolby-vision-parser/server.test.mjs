@@ -1,5 +1,6 @@
 import { generateKeyPairSync, verify } from 'node:crypto';
-import { describe, expect, it } from 'node:test';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 import {
   authorizeBearer,
   canonicalize,
@@ -19,27 +20,27 @@ const report = {
 
 describe('Dolby Vision parser service security primitives', () => {
   it('canonicalizes nested JSON with deterministic key ordering', () => {
-    expect(canonicalize({ z: 1, a: { y: true, b: 2 } })).toBe('{"a":{"b":2,"y":true},"z":1}');
+    assert.equal(canonicalize({ z: 1, a: { y: true, b: 2 } }), '{"a":{"b":2,"y":true},"z":1}');
   });
 
   it('validates stable asset IDs and rejects path-like values', () => {
-    expect(isValidAssetId('catalog:episode_123')).toBe(false);
-    expect(isValidAssetId('catalog:episode-123')).toBe(true);
-    expect(isValidAssetId('../secret')).toBe(false);
+    assert.equal(isValidAssetId('catalog:episode_123'), false);
+    assert.equal(isValidAssetId('catalog:episode-123'), true);
+    assert.equal(isValidAssetId('../secret'), false);
   });
 
   it('compares backend bearer credentials without accepting malformed headers', () => {
-    expect(authorizeBearer('Bearer service-secret', 'service-secret')).toBe(true);
-    expect(authorizeBearer('Bearer wrong', 'service-secret')).toBe(false);
-    expect(authorizeBearer('service-secret', 'service-secret')).toBe(false);
-    expect(authorizeBearer(undefined, 'service-secret')).toBe(false);
+    assert.equal(authorizeBearer('Bearer service-secret', 'service-secret'), true);
+    assert.equal(authorizeBearer('Bearer wrong', 'service-secret'), false);
+    assert.equal(authorizeBearer('service-secret', 'service-secret'), false);
+    assert.equal(authorizeBearer(undefined, 'service-secret'), false);
   });
 
   it('signs full-scope parser reports with Ed25519', () => {
     const envelope = createSignedEnvelope(report, 'catalog:episode-123', 'dv-key-1', privateKeyPem, 1800000000);
     const { signature, ...payload } = envelope;
-    expect(verify(null, Buffer.from(canonicalize(payload)), publicKeyPem, Buffer.from(signature, 'base64url'))).toBe(true);
-    expect(envelope).toMatchObject({
+    assert.equal(verify(null, Buffer.from(canonicalize(payload)), publicKeyPem, Buffer.from(signature, 'base64url')), true);
+    assert.deepEqual({ version: envelope.version, keyId: envelope.keyId, assetId: envelope.assetId, issuedAt: envelope.issuedAt, expiresAt: envelope.expiresAt }, {
       version: 1,
       keyId: 'dv-key-1',
       assetId: 'catalog:episode-123',
@@ -49,7 +50,7 @@ describe('Dolby Vision parser service security primitives', () => {
   });
 
   it('refuses partial reports and detached RPU files', () => {
-    expect(() => createSignedEnvelope({ ...report, extractionScope: { track: null, frameLimit: 50 } }, 'catalog:episode-123', 'dv-key-1', privateKeyPem)).toThrow();
-    expect(() => createSignedEnvelope({ ...report, inputKind: 'rpu' }, 'catalog:episode-123', 'dv-key-1', privateKeyPem)).toThrow();
+    assert.throws(() => createSignedEnvelope({ ...report, extractionScope: { track: null, frameLimit: 50 } }, 'catalog:episode-123', 'dv-key-1', privateKeyPem));
+    assert.throws(() => createSignedEnvelope({ ...report, inputKind: 'rpu' }, 'catalog:episode-123', 'dv-key-1', privateKeyPem));
   });
 });
