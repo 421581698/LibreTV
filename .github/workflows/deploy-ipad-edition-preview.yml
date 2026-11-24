@@ -1450,10 +1450,10 @@ jobs:
                         centerControls.top >= frame.top - 2 && centerControls.bottom <= frame.bottom + 2);
                       // Core player geometry must be measurable. Optional controls may be
                       // display:none while the player is idle; validate them only when rendered.
-                      const requiredVisibleBoxes = [frame, centerControls, info];
-                      // The title-row H1 is intentionally hidden by shared watch-page CSS.
-                      // Treat it as optional geometry, and validate it only if it is rendered.
-                      const optionalVisibleBoxes = [tools, title, utility].filter(box =>
+                      const requiredVisibleBoxes = [frame, centerControls, info, title];
+                      // The active title is part of the iPad cinema overlay and must remain visible.
+                      // Only the auxiliary tools and utility drawer are optional geometry.
+                      const optionalVisibleBoxes = [tools, utility].filter(box =>
                         box && box.width > 0 && box.height > 0
                       );
                       const withinViewport = [...requiredVisibleBoxes, ...optionalVisibleBoxes]
@@ -1486,7 +1486,7 @@ jobs:
                     metrics.detailArtwork?.naturalWidth < 1000 || !metrics.hasDetailContentLayout ||
                     (route.name === "detail" && metrics.episodeCardCount < 1))) ||
                   (route.name === "watch" && (!metrics.hasPlayerFrame || !metrics.hasWatchContent ||
-                    !metrics.hasProgressControl || !metrics.progressControlWithinViewport ||
+                    !metrics.hasVisiblePlayerTitle || !metrics.hasProgressControl || !metrics.progressControlWithinViewport ||
                     !metrics.progressControlCentered ||
                     !metrics.playerGeometry?.centerControlsInsideFrame ||
                     metrics.playerGeometry.centerControlsOverlapInfo ||
