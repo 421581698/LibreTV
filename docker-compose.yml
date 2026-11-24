@@ -122,6 +122,7 @@ services:
     environment:
       - SCRAPLING_API_TOKEN=${SCRAPLING_API_TOKEN:-}
       - DV_INGESTION_TOKEN_FILE=/run/secrets/dv-ingestion-token
+      - DV_MEDIA_OBJECT_ROOT=/data/dv-media-objects
       # Keep every outbound collector operation disabled until the host firewall has been installed and verified.
       - SCRAPLING_EGRESS_FIREWALL_CONFIRMED=${SCRAPLING_EGRESS_FIREWALL_CONFIRMED:-0}
       - SCRAPLING_DB_PATH=${SCRAPLING_DB_PATH:-/data/collector.sqlite3}
