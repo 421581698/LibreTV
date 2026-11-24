@@ -1,6 +1,6 @@
 # P3 Lifecycle Test Matrix
 
-- Status: Initial direct-media controller unit coverage added, including activation/dispose race; full 20-case matrix pending
+- Status: Isolated MP4/WebM and HLS controller paths implemented; HLS track-selection/teardown unit coverage added; full 20-case matrix and real-device acceptance pending
 - Date: 2026-11-24
 - Related decision: [P3 Architecture Decision Record](./P3-ARCHITECTURE-DECISION.md)
 - Branch: `feature/libretv-ipad-edition-product` (PR #99 remains Draft)
@@ -20,9 +20,9 @@ Allowed values: `Not started`, `In progress`, `Pass`, `Fail`, `Blocked`, `Not ap
 
 Code added on the current P3 implementation line:
 
-- `src/lib/spatial-media-session.ts`: independent direct MP4/WebM media element, CORS probe, CORS-before-src ordering, explicit gesture activation, play/pause/seek/rate/volume synchronization, error fallback, native-element restoration and idempotent disposal.
-- `src/components/player-shell.tsx`: opt-in two-step prepare/activate control; source-change and unmount teardown; generation guard against stale asynchronous preparation.
-- `src/lib/spatial-media-session.test.ts`: unit coverage for HLS rejection without native mutation, CORS failure, distinct element/CORS ordering, explicit activation, pause/resume and state synchronization, native mute fallback, media error fallback, activation rejection, idempotent disposal, and disposal while activation is pending.
+- `src/lib/spatial-media-session.ts`: independent direct MP4/WebM/HLS media element, CORS probe, CORS-before-src ordering, explicit gesture activation, play/pause/seek/rate/volume synchronization, isolated HLS controller ownership, track selection, fatal-error fallback, native-element restoration and idempotent disposal.
+- `src/components/player-shell.tsx`: opt-in two-step prepare/activate control; independent hls.js/MSE controller or separate Safari native-HLS controller; spatial-session audio-track selection; source-change and unmount teardown; generation guard against stale asynchronous preparation.
+- `src/lib/spatial-media-session.test.ts`: unit coverage for HLS adapter requirement, isolated HLS controller startup, distinct element/CORS ordering, independent audio-track switching, controller teardown, direct-media CORS failure, explicit activation, pause/resume and state synchronization, native mute fallback, media error fallback, activation rejection, idempotent disposal, and disposal while activation is pending.
 - `src/lib/spatial-audio.test.ts`: unknown input layout remains on bypass.
 
 The controller deliberately supports direct MP4/WebM only. It does not own an hls.js instance, does not switch audio tracks inside the spatial session, and does not process audio when channel layout is unknown. Exact-head CI passed on `f6f0309c4129b44ffd54473740824b5be5484f7a`: iPad Edition Verify (`45373955182`), Resource Playback Verification (`45373955096`), HLS Browser Playback Smoke (`45373955327`) and HLS External Stream Smoke (`45373955245`). These unit/software gates do not establish successful cross-origin CORS on real media, Preview acceptance, Safari/iOS behavior, or physical output.
@@ -35,12 +35,12 @@ The controller deliberately supports direct MP4/WebM only. It does not own an hl
 | P3-02 | Cancel/deny user activation | Spatial session remains inactive; native playback remains audible and usable; UI reports unavailable/fallback | Mock rejected `AudioContext.resume()` and browser autoplay-policy test | Preview fallback state; real Safari/iOS check |
 | P3-03 | CORS success for direct MP4/WebM | CORS mode is set before `src`; valid response allows isolated capture; native element remains untouched | Request/element-order unit test and browser integration test | Preview with controlled CORS fixture; device check where supported |
 | P3-04 | CORS failure / opaque response / redirect failure | Spatial path aborts; no capture of native element; native playback remains available | Simulated CORS failure and browser network test | Preview fallback reason; device/network evidence |
-| P3-05 | hls.js MSE source | Isolated session handles manifest, playlist, segment, key and audio-rendition lifecycle; errors cause deterministic fallback | hls.js integration tests with controlled CORS fixtures | Chromium Preview; Safari only if hls.js path is explicitly selected and supported |
+| P3-05 | hls.js MSE source | Isolated session owns a separate hls.js instance and media element; fatal errors trigger fallback; manifest/playlist/segment/key CORS still needs controlled-fixture verification | Controller unit test; full controlled CORS integration tests pending | Exact-head Chromium Preview; Safari native HLS is a separate path |
 | P3-06 | Safari native HLS regression | Existing Safari native-HLS route remains unchanged and is not intercepted by spatial session | Guard/regression tests proving native route is selected and `art.video` is not captured | Real iPhone/iPad Safari playback and audio check required |
 | P3-07 | Change episode while spatial session active | Old session token invalidates pending work; old session is disposed once; new source cannot receive stale events | Race-condition tests with delayed manifest/metadata promises | Preview rapid episode-switch test; real-device spot check |
 | P3-08 | Reuse ArtPlayer video across episodes/providers | ArtPlayer continues reusing its native element; each spatial session uses a distinct owned element; no duplicate source-node binding | Element identity and repeated create/dispose tests | Preview multi-episode flow |
 | P3-09 | Switch provider/source | New source is prepared independently; failed preparation returns to native route; no silent audio loss | State-machine and browser source-switch tests | Preview with same-origin and CORS-controlled sources |
-| P3-10 | Switch audio track | Selected track identity is preserved only when available in the spatial path; mismatch triggers native fallback | Track-selection unit and integration tests | Preview multi-track fixture; real device only with known test media |
+| P3-10 | Switch audio track | Selection is routed to the independent spatial HLS controller; unsupported/missing tracks must not mutate the original HLS instance | Isolated controller track-selection unit test added; end-to-end identity/race tests pending | Preview multi-track fixture; real device only with known test media |
 | P3-11 | Pause/resume | Native and spatial session state remains coherent; AudioContext suspension/resumption is handled without duplicate graph connections | Lifecycle tests for paused/playing and context state | Preview pause/resume; Safari device check |
 | P3-12 | Seek/time synchronization | Position transfer is bounded and deterministic; unsupported seek transfer causes explicit fallback | Fake-timer-free deterministic media event tests and browser seek test | Preview seek during transition |
 | P3-13 | Volume/mute/rate controls | User settings remain coherent across native/spatial transitions | Controller contract tests | Preview control interaction |
