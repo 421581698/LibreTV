@@ -25,8 +25,6 @@ function addPayloadIssues(payload: z.infer<z.ZodObject<typeof signedPayloadShape
   }
 }
 
-const signedPayloadSchema = z.object(signedPayloadShape).strict().superRefine(addPayloadIssues);
-
 export const SignedDolbyVisionRpuEnvelopeSchema = z.object({
   ...signedPayloadShape,
   signature: z.string().min(80).max(256),
