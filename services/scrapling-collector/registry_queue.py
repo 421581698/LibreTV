@@ -690,7 +690,7 @@ def _stream_dv_object(file_descriptor: int, start: int = 0, length: int | None =
 def _parse_single_byte_range(value: str, total_size: int) -> tuple[int, int]:
     """Return inclusive start/end for one RFC 7233 byte range; reject invalid ranges."""
     import re
-    if not isinstance(value, str) or not value.startswith("bytes=") or "," in value:
+    if not isinstance(value, str) or len(value) > 128 or not value.startswith("bytes=") or "," in value:
         raise ValueError("Only one bytes range is supported")
     match = re.fullmatch(r"bytes=(\d*)-(\d*)", value.strip())
     if not match or (not match.group(1) and not match.group(2)):
@@ -720,7 +720,7 @@ async def api_ingest_dolby_vision_media_asset(
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,200}", resource_id):
         raise HTTPException(status_code=400, detail="Invalid resource ID")
     content_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
-    allowed_types = {"application/octet-stream", "video/mp4", "video/x-matroska", "video/mp2t", "video/hevc"}
+    allowed_types = {"video/mp4", "video/webm"}
     if content_type not in allowed_types:
         raise HTTPException(status_code=415, detail="Unsupported media content type")
     raw_length = request.headers.get("content-length", "")
