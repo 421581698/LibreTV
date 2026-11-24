@@ -32,7 +32,7 @@ export interface SpatialMediaSessionSnapshot {
   reason: string | null;
 }
 
-export async function verifySpatialMediaCors(sourceUrl: string): Promise<boolean> {
+export async function verifySpatialMediaCors(sourceUrl: string, timeoutMs = 8_000): Promise<boolean> {
   if (typeof window === 'undefined' || typeof fetch === 'undefined') return false;
   let url: URL;
   try {
@@ -44,6 +44,7 @@ export async function verifySpatialMediaCors(sourceUrl: string): Promise<boolean
   if (url.origin === window.location.origin) return true;
 
   const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), Math.max(1, timeoutMs));
   try {
     const response = await fetch(url.href, {
       method: 'GET',
@@ -59,6 +60,7 @@ export async function verifySpatialMediaCors(sourceUrl: string): Promise<boolean
   } catch {
     return false;
   } finally {
+    clearTimeout(timeout);
     controller.abort();
   }
 }

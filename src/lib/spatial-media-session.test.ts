@@ -237,4 +237,16 @@ describe('verifySpatialMediaCors', () => {
     vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('CORS'); }));
     expect(await verifySpatialMediaCors('https://cdn.example/movie.mp4')).toBe(false);
   });
+
+  it('aborts a stalled CORS probe after its bounded timeout', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('window', { location: { href: 'https://app.example', origin: 'https://app.example' } });
+    vi.stubGlobal('fetch', vi.fn((_url: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+    })));
+    const result = verifySpatialMediaCors('https://cdn.example/movie.mp4', 25);
+    await vi.advanceTimersByTimeAsync(25);
+    await expect(result).resolves.toBe(false);
+    vi.useRealTimers();
+  });
 });
