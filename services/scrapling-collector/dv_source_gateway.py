@@ -143,6 +143,7 @@ def ingest_authorized_candidate(
         expected_type = "video/webm" if media_type == "webm" else "video/mp4"
         if content_type != expected_type:
             raise SourceGatewayError("Validated MIME type does not match the confirmed media format")
+        _verify_registry_gate(resource_id, media_type)
 
         raw_url = candidate.get("url")
         normalized, host = public_https_url(raw_url)
