@@ -129,8 +129,8 @@ services:
     environment:
       - SCRAPLING_API_TOKEN=${SCRAPLING_API_TOKEN:-}
       - DV_INGESTION_TOKEN_FILE=/run/secrets/dv-ingestion-token
-      - DV_MEDIA_OBJECT_ROOT=/data/dv-media-objects
-      - DV_MEDIA_STAGING_ROOT=/data/dv-media-staging
+      - DV_MEDIA_OBJECT_ROOT=${DV_MEDIA_OBJECT_ROOT:-/data/dv-media-objects}
+      - DV_MEDIA_STAGING_ROOT=${DV_MEDIA_STAGING_ROOT:-/data/dv-media-staging}
       - DV_MAX_INGEST_BYTES=${DV_MAX_INGEST_BYTES:-536870912}
       - DV_MAX_CONCURRENT_INGESTS=${DV_MAX_CONCURRENT_INGESTS:-1}
       # Optional progressive-media source gateway; disabled until an operator explicitly authorizes exact hosts.
