@@ -205,6 +205,8 @@ interface PlayerShellProps {
    */
   sourceKey?: string;
   resourceKey?: string;
+  /** Stable server-issued Dolby Vision media asset ID; never infer from URL or episode key. */
+  dolbyVisionAssetId?: string;
   onPlaybackSample?: (sample: PlaybackSample) => void;
   onQuality?: (height: number) => void;
   /** 恢复策略判源不可用（重试耗尽/格式硬失败）时回调：父级弹出换源面板 */
@@ -242,6 +244,7 @@ export function PlayerShell({
   onQuality,
   sourceKey,
   resourceKey,
+  dolbyVisionAssetId,
   onPlaybackSample,
   onRequestSwitchSource,
   onRequestFullscreen,
@@ -1963,7 +1966,7 @@ export function PlayerShell({
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" style={{ WebkitTouchCallout: 'none' }} />
       <AudioDiagnosticsPanel diagnostics={diagnosticsSnapshot} />
-      <DolbyVisionDiagnosticsPanel report={dolbyVisionFormatReport} />
+      <DolbyVisionDiagnosticsPanel report={dolbyVisionFormatReport} assetId={dolbyVisionAssetId} />
       {audioTrackOptions.length > 1 && (
         <div className="absolute right-3 top-14 z-20 flex flex-col items-end gap-2" data-testid="audio-track-controls">
           <button
