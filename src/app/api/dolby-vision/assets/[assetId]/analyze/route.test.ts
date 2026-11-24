@@ -34,6 +34,7 @@ const report = {
   metadataLevelFrameCounts: { '1': 240, '2': 240, '5': 1, '6': 1 },
   input: 'media.hevc',
   inputSha256: digest,
+  sourceMediaSha256: digest,
   rpuSha256: 'b'.repeat(64),
   inputKind: 'hevc',
   extractionScope: { track: null, frameLimit: null },
@@ -117,6 +118,7 @@ describe('POST /api/dolby-vision/assets/[assetId]/analyze', () => {
       'Content-Type': 'application/octet-stream',
       'X-DV-Asset-ID': assetId,
       'X-DV-Asset-SHA256': digest,
+      'X-DV-Source-Content-Type': 'video/mp4',
     });
     expect(init.body).toBeInstanceOf(ReadableStream);
     expect(init.duplex).toBe('half');
@@ -124,7 +126,7 @@ describe('POST /api/dolby-vision/assets/[assetId]/analyze', () => {
 
   it('rejects a signed envelope for a different asset or digest', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(
-      signedEnvelope({ report: { ...report, inputSha256: 'c'.repeat(64) } }),
+      signedEnvelope({ report: { ...report, sourceMediaSha256: 'c'.repeat(64) } }),
     ), { status: 200 })));
 
     const response = await POST(makeRequest(), { params: Promise.resolve({ assetId }) });
