@@ -1922,7 +1922,7 @@ export function PlayerShell({
       <div ref={containerRef} className="w-full h-full" style={{ WebkitTouchCallout: 'none' }} />
       <AudioDiagnosticsPanel diagnostics={diagnosticsSnapshot} />
       {audioTrackOptions.length > 1 && (
-        <div className="absolute right-3 top-3 z-20 flex flex-col items-end gap-2" data-testid="audio-track-controls">
+        <div className="absolute right-3 top-14 z-20 flex flex-col items-end gap-2" data-testid="audio-track-controls">
           <button
             type="button"
             className="player-quality-badge"
