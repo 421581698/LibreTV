@@ -96,4 +96,23 @@ describe('inspectDolbyVisionMetadata', () => {
       evidenceSource: 'none',
     });
   });
+
+  it('rejects unknown parser sources and malformed runtime field types', () => {
+    const invalidEvidence = [
+      { source: 'untrusted', parserVersion: '1.0', verified: true, rpuPresent: true, profile: 8, frameCount: 10, metadataLevels: [1] },
+      { source: 'dovi_tool', parserVersion: '1.0', verified: true, rpuPresent: 'yes', profile: 8, frameCount: 10, metadataLevels: [1] },
+      { source: 'dovi_tool', parserVersion: '1.0', verified: true, rpuPresent: true, profile: 8, frameCount: 10, metadataLevels: [0] },
+      { source: 'dovi_tool', parserVersion: '1.0', verified: true, rpuPresent: true, profile: 8, frameCount: Number.MAX_SAFE_INTEGER + 1, metadataLevels: [1] },
+    ];
+    for (const evidence of invalidEvidence) {
+      expect(inspectDolbyVisionMetadata({
+        format: declared,
+        rpuEvidence: evidence as unknown as DolbyVisionRpuEvidence,
+      })).toMatchObject({
+        rpuPresence: 'unknown',
+        dynamicMetadata: 'unknown',
+        evidenceSource: 'none',
+      });
+    }
+  });
 });
