@@ -27,12 +27,15 @@ export function RegistryInlinePlayer({
     mediaType: 'mp4' | 'webm';
   } | null>(null);
 
+  const resourceId = resource?.id;
+  const resourceMediaFormat = resource?.media_format;
+
   useEffect(() => {
     setImmutableAsset(null);
-    if (!resource || !['mp4', 'webm'].includes(resource.media_format ?? '')) return;
+    if (!resourceId || !['mp4', 'webm'].includes(resourceMediaFormat ?? '')) return;
 
     const controller = new AbortController();
-    void fetch(\`/api/dolby-vision/resources/\${encodeURIComponent(resource.id)}/asset\`, {
+    void fetch(\`/api/dolby-vision/resources/\${encodeURIComponent(resourceId)}/asset\`, {
       method: 'GET',
       cache: 'no-store',
       credentials: 'same-origin',
@@ -42,13 +45,13 @@ export function RegistryInlinePlayer({
       const payload: unknown = await response.json().catch(() => null);
       if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
       const asset = payload as Record<string, unknown>;
-      if (asset.resourceId !== resource.id ||
+      if (asset.resourceId !== resourceId ||
           typeof asset.assetId !== 'string' || !/^[A-Za-z0-9:_-]{1,200}$/.test(asset.assetId) ||
           typeof asset.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(asset.sha256) ||
           typeof asset.byteLength !== 'number' || !Number.isSafeInteger(asset.byteLength) || asset.byteLength <= 0 ||
           !['video/mp4', 'video/webm'].includes(String(asset.contentType))) return null;
       const assetMediaType = asset.contentType === 'video/webm' ? 'webm' : 'mp4';
-      if (assetMediaType !== resource.media_format) return null;
+      if (assetMediaType !== resourceMediaFormat) return null;
       return {
         assetId: asset.assetId,
         url: \`/api/dolby-vision/assets/\${encodeURIComponent(asset.assetId)}/content\`,
@@ -61,7 +64,7 @@ export function RegistryInlinePlayer({
     });
 
     return () => controller.abort();
-  }, [resource?.id, resource?.media_format]);
+  }, [resourceId, resourceMediaFormat]);
 
   const confirmPlayback = useCallback((evidence: { mediaType: string; observedSeconds: number; progressedSeconds: number; decodedWidth: number; decodedHeight: number; selectedRenditionHeight: number; selectedRenditionBitrateKbps: number }) => {
     if (!resource?.candidate_id) return;
