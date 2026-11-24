@@ -240,7 +240,7 @@ export function buildPlaybackDiagnostics(
 }
 
 const CONTAINERS: MediaContainer[] = ['hls', 'mp4', 'mkv', 'webm', 'mpeg-ts', 'unknown'];
-const CODECS: AudioCodec[] = ['ac4', 'eac3', 'ac3', 'truehd', 'dolby-mat', 'dts-hd', 'dts', 'aac', 'iamf', 'pcm', 'opus', 'flac', 'alac', 'unknown'];
+const CODECS: AudioCodec[] = ['ac4', 'eac3', 'ac3', 'truehd', 'dolby-mat', 'dts-x', 'dts-hd', 'dts', 'aac', 'iamf', 'pcm', 'opus', 'flac', 'alac', 'unknown'];
 const DOLBY_FAMILIES: DolbyFamily[] = ['dolby-ac4', 'dolby-digital', 'dolby-digital-plus', 'dolby-truehd', 'dolby-mat', 'dolby-atmos-metadata', 'none', 'unknown'];
 const CONFIDENCES = ['declared', 'inferred', 'unknown'];
 const BROWSER_FAMILIES = ['safari', 'chromium', 'firefox', 'other', 'unknown'];
