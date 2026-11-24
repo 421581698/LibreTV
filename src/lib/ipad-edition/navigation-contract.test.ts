@@ -116,6 +116,12 @@ describe('iPad Edition navigation contract', () => {
     expect(responsiveStyles).toContain('[data-ipad-sidebar-open="true"] > .ipad-edition__main');
   });
 
+  it('closes wide navigation after route changes and reports its expanded state accessibly', () => {
+    expect(shell).toContain('if (wideLayout) setNavigationCollapsed(true);');
+    expect(shell).toContain('}, [pathname, wideLayout]);');
+    expect(shell).toContain('aria-expanded={sidebarOpen || isExpandedSidebar}');
+  });
+
   it('preserves an accessible sidebar toggle and manages modal focus/scroll lifecycle', () => {
     expect(shell).toContain('aria-expanded={sidebarOpen}');
     expect(shell).toContain('aria-controls="ipad-edition-sidebar"');
