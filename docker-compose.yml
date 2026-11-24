@@ -12,6 +12,7 @@ services:
       - "8080:8080"
     networks:
       - collector_net
+      - dolby_internal
     # 无状态服务：观看历史在浏览器 IndexedDB、设置在 localStorage，无需挂载卷
     environment:
       # 必填：访问密码（在 .env 中设置，缺失时 compose 启动即报错提醒）
@@ -58,7 +59,7 @@ services:
     container_name: libretv-dolby-vision-parser
     restart: unless-stopped
     networks:
-      - collector_net
+      - dolby_internal
     read_only: true
     tmpfs:
       - /tmp:size=2g,noexec,nosuid
@@ -172,6 +173,10 @@ volumes:
   scrapling_data:
 
 networks:
+  dolby_internal:
+    name: libretv_dolby_vision_internal
+    driver: bridge
+    internal: true
   collector_net:
     name: libretv_scrapling_net
     driver: bridge
