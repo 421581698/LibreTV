@@ -132,8 +132,8 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
+        setSidebarOpen(false);
         if (wideLayout) setNavigationCollapsed(true);
-        else setSidebarOpen(false);
         return;
       }
       if (event.key !== 'Tab') return;
