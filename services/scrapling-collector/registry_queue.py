@@ -102,6 +102,14 @@ def initialize() -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_registry_hls_edges_child
           ON registry_hls_asset_edges(child_asset_id);
+        CREATE TABLE IF NOT EXISTS registry_hls_asset_graphs (
+          graph_id TEXT PRIMARY KEY,
+          resource_id TEXT NOT NULL REFERENCES registry_resources(id),
+          root_asset_id TEXT NOT NULL UNIQUE REFERENCES registry_media_assets(asset_id),
+          created_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_registry_hls_graphs_resource
+          ON registry_hls_asset_graphs(resource_id,created_at DESC);
         CREATE TABLE IF NOT EXISTS registry_verifications (
           id TEXT PRIMARY KEY, resource_id TEXT NOT NULL REFERENCES registry_resources(id),
           verification_type TEXT NOT NULL, outcome TEXT NOT NULL, evidence TEXT NOT NULL,
@@ -669,8 +677,9 @@ def api_get_resource(resource_id: str, authorization: str | None = Header(defaul
         verifications=c.execute("SELECT * FROM registry_verifications WHERE resource_id=? ORDER BY created_at DESC",(resource_id,)).fetchall()
         history=c.execute("SELECT * FROM registry_history WHERE resource_id=? ORDER BY created_at DESC",(resource_id,)).fetchall()
         media_assets=c.execute("SELECT asset_id,resource_id,sha256,byte_length,content_type,object_key,created_at FROM registry_media_assets WHERE resource_id=? ORDER BY created_at DESC",(resource_id,)).fetchall()
+        hls_graphs=c.execute("SELECT graph_id,resource_id,root_asset_id,created_at FROM registry_hls_asset_graphs WHERE resource_id=? ORDER BY created_at DESC",(resource_id,)).fetchall()
     if not row: raise HTTPException(status_code=404,detail="Resource not found")
-    return {"resource":dict(row),"media_assets":[dict(a) for a in media_assets],"verifications":[dict(v) for v in verifications],"history":[dict(h) for h in history]}
+    return {"resource":dict(row),"media_assets":[dict(a) for a in media_assets],"hls_graphs":[dict(g) for g in hls_graphs],"verifications":[dict(v) for v in verifications],"history":[dict(h) for h in history]}
 
 
 @router.post("/v1/registry/resources/{resource_id}/media-assets")
