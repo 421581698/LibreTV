@@ -139,7 +139,7 @@ Only invoke it after the registry resource is independently validated as PUBLIC 
 python dv_hls_ingest.py --resource-id <existing-resource-id> --staging-dir /private-staging/hls --playlist master.m3u8
 ```
 
-This is an ingestion primitive for a trusted staging gateway, not a general-purpose remote downloader. The upstream authorized-source gateway and its live production operation remain separate deployment work.
+This is the HLS graph ingestion primitive. The progressive MP4/WebM source gateway described below intentionally does not fetch HLS manifests or segments; HLS needs its own graph-aware authorized fetcher so every referenced member can be pinned, validated, staged, and registered together.
 
 ### Local Compose provisioning
 
@@ -160,6 +160,32 @@ A trusted local staging workflow may invoke:
 python dv_media_ingest.py --resource-id <existing-resource-id> --file /private-staging/media.bin --content-type video/mp4
 ```
 
-The resource ID must already exist. The content type is a trusted-ingestion assertion, not a codec-analysis result. The worker does not download remote URLs, bypass access controls, or decide whether a source is lawful or authorized. Never run it on arbitrary user-provided paths.
+The resource ID must already exist. The content type is a trusted-ingestion assertion, not a codec-analysis result. The local worker itself does not download remote URLs, bypass access controls, or decide whether a source is lawful or authorized. Never run it on arbitrary user-provided paths.
 
-**Remaining boundary:** the trusted source gateway that obtains authorized media bytes and submits them to the private byte-ingress endpoint is not implemented. The local Docker volume is not an external WORM/object-lock store. The server-side Next.js forwarder streams registered bytes into the isolated parser and verifies the signed response, but has not been validated against live Compose services. Stable identity still needs to flow from the selected player source into the registry, and authenticated evidence is not yet wired into the diagnostics panel.
+### Authorized progressive-media source gateway
+
+The collector also includes `dv_source_gateway.py`. When an operator explicitly enables it, a successful browser playback-confirmation request automatically invokes the gateway for that persisted candidate. It reads the candidate URL from the collector database (the request cannot supply or override a URL), and requires all of the following:
+
+- `DV_SOURCE_GATEWAY_ENABLED=1` and `SCRAPLING_EGRESS_FIREWALL_CONFIRMED=1`
+- Exact hostname membership in `DV_AUTHORIZED_SOURCE_HOSTS` (comma-separated; no wildcards or suffix matching)
+- Candidate preflight still marked validated and PUBLIC, plus persisted browser playback progression evidence
+- Registry resource still marked DIRECT_MEDIA, PUBLIC, validated, and PLAYER_CONFIRMED
+- Progressive MP4/WebM only, with the validated MIME type matching the playback-confirmed format
+- HTTPS on port 443, public-IP DNS validation and a TCP connection pinned to that validated IP
+- HTTP 200, exact matching Content-Type, identity content encoding, and a bounded exact Content-Length
+
+The gateway does not follow redirects, forward cookies or authorization headers, accept arbitrary client URLs, or fetch HLS/DASH, encryption keys, or DRM-protected content. Redirected sources must be explicitly re-registered at their final same-host URL. The default transfer limit is 512 MiB (`DV_SOURCE_GATEWAY_MAX_BYTES`, 1 KiB–2 GiB); the origin read timeout defaults to 15 seconds (`DV_SOURCE_GATEWAY_TIMEOUT_SECONDS`, 5–60 seconds). Only one gateway transfer runs concurrently per collector process. Received bytes are streamed to a private staging file, fsynced, hashed, and passed through the same immutable content-addressed ingestion worker; the transfer digest is checked against the stored-object digest. Temporary staging files are removed on success or failure.
+
+Example opt-in configuration (only add domains for which the operator has explicit rights to retrieve and store the media):
+
+```dotenv
+SCRAPLING_EGRESS_FIREWALL_CONFIRMED=1
+DV_SOURCE_GATEWAY_ENABLED=1
+DV_AUTHORIZED_SOURCE_HOSTS=media.example,cdn.example
+DV_SOURCE_GATEWAY_MAX_BYTES=536870912
+DV_SOURCE_GATEWAY_TIMEOUT_SECONDS=15
+```
+
+In Compose, these variables are passed only to the collector API container. The gateway remains disabled by default and will not download from the discovery allowlist automatically. A host being public, or a candidate being playable, is not proof of redistribution rights; the explicit source-host list is the operator's authorization boundary and must be maintained accordingly. This gateway currently automates progressive MP4/WebM ingestion; clear-HLS graph acquisition remains a separate graph-aware staging workflow.
+
+**Remaining boundary:** the gateway code and opt-in wiring are implemented, but it has not yet been run against a real operator-authorized origin or a live Compose deployment. The local Docker volume is not an external WORM/object-lock store.
