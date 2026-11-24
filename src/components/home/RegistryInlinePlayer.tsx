@@ -32,7 +32,6 @@ export function RegistryInlinePlayer({
   const resourceMediaFormat = resource?.media_format;
 
   useEffect(() => {
-    setImmutableAsset(null);
     if (!resourceId || !['mp4', 'webm'].includes(resourceMediaFormat ?? '')) return;
 
     const controller = new AbortController();
@@ -88,7 +87,7 @@ export function RegistryInlinePlayer({
   }, [resource?.candidate_id]);
 
   if (!resource) return null;
-  const activeImmutableAsset = immutableAsset?.resourceId === resource.id ? immutableAsset : null;
+  const activeImmutableAsset = immutableAsset?.resourceId === resource.id && immutableAsset.mediaType === resource.media_format ? immutableAsset : null;
   const mediaType = activeImmutableAsset?.mediaType ?? resource.media_format;
   if (!resource.candidate_id || !mediaType || !['hls', 'mp4', 'webm'].includes(mediaType)) return null;
 
