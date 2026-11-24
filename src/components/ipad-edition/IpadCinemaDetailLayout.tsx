@@ -38,7 +38,7 @@ export function IpadCinemaDetailLayout({
   onBack,
   children,
 }: IpadCinemaDetailLayoutProps) {
-  const displayTitle = title.replace(/([：:])\\s+/g, '$1');
+  const displayTitle = title.replace(/([：:])\s+/g, '$1');
 
   return (
     <main className="ipad-cinema-detail" data-ipad-detail-page="true">
