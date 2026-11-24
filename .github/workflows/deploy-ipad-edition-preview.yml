@@ -1234,19 +1234,39 @@ jobs:
                   const layoutMode = document.querySelector('.ipad-edition')?.getAttribute('data-ipad-layout') ?? 'compact';
                   const navElement = layoutMode === 'expanded' ? document.querySelector('.ipad-nav__sidebar.is-open') : document.querySelector('.ipad-nav__topbar');
                   const nav = navElement?.getBoundingClientRect();
+                  const main = document.querySelector('.ipad-edition__main')?.getBoundingClientRect();
+                  const expandedLayout = layoutMode === 'expanded';
                   const labels = Array.from(document.querySelectorAll("#ipad-popular-series .ipad-edition__poster-card strong, #ipad-popular-series .ipad-edition__poster-card small"));
                   const visibleLabels = labels.map((element) => {
                     const rect = element.getBoundingClientRect();
                     const visible = rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < window.innerHeight;
-                    const overlapsNavigation = Boolean(nav && visible && nav.left < rect.right && nav.right > rect.left && nav.top < rect.bottom && nav.bottom > rect.top);
-                    return { text: element.textContent?.trim() ?? "", top: Math.round(rect.top), bottom: Math.round(rect.bottom), visible, overlapsNavigation };
+                    // In expanded mode the sidebar is a permanent layout column, not an
+                    // overlay. The main content must begin at/after its right edge; only
+                    // compact mode has a floating navigation surface that can cover cards.
+                    const overlapsNavigation = Boolean(!expandedLayout && nav && visible &&
+                      nav.left < rect.right && nav.right > rect.left && nav.top < rect.bottom && nav.bottom > rect.top);
+                    return {
+                      text: element.textContent?.trim() ?? "",
+                      left: Math.round(rect.left),
+                      right: Math.round(rect.right),
+                      top: Math.round(rect.top),
+                      bottom: Math.round(rect.bottom),
+                      visible,
+                      overlapsNavigation,
+                    };
                   });
                   return {
+                    layoutMode,
                     scrollY: Math.round(window.scrollY),
+                    navigationLeft: nav ? Math.round(nav.left) : null,
+                    navigationRight: nav ? Math.round(nav.right) : null,
                     navigationTop: nav ? Math.round(nav.top) : null,
                     navigationBottom: nav ? Math.round(nav.bottom) : null,
+                    mainLeft: main ? Math.round(main.left) : null,
+                    mainRight: main ? Math.round(main.right) : null,
                     visiblePosterLabels: visibleLabels.filter(item => item.visible).length,
                     overlappingPosterLabels: visibleLabels.filter(item => item.overlapsNavigation),
+                    contentClearsSidebar: !expandedLayout || Boolean(nav && main && main.left >= nav.right - 1),
                     navigationViewportValid: Boolean(nav && nav.top >= 0 && nav.bottom <= window.innerHeight),
                   };
                 });
@@ -1259,7 +1279,7 @@ jobs:
                 // Gate on copy/navigation collision, not artwork/navigation intersection or a
                 // positive gap between the hero and fixed navigation. Hero copy is bottom-anchored
                 // by design, so do not require its center to match the hero's geometric center.
-                const failed = !sidebarInteractionPassed || sidebarInteraction.diagnostics.finalState?.computedStyle?.position !== "fixed" || response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.y > 220 || metrics.main.width < viewport.width * 0.7 || !homepageReadiness.ready || !heroArtworkReadiness.ready || metrics.homepageStillLoading || metrics.animeCalendarStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.cardGeometryInvalidCount > 0 || metrics.posterImageLoadRate < 0.75 || !metrics.posterPixelInspectionPassed || !metrics.heroPosterResolution?.loaded || !metrics.heroPosterResolution.meets1200px || metrics.heroTextOverlapsNavigation || metrics.heroCtaWhiteSpace !== "nowrap" || !metrics.hero || metrics.hero.y < 0 || metrics.hero.y > Math.min(160, viewport.height * 0.25) || !metrics.heroArtworkEdgeCoverage?.every(Boolean) || !metrics.themePairValid || !scrollAudit.navigationViewportValid || scrollAudit.overlappingPosterLabels.length > 0;
+                const failed = !sidebarInteractionPassed || sidebarInteraction.diagnostics.finalState?.computedStyle?.position !== "fixed" || response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.y > 220 || metrics.main.width < viewport.width * 0.7 || !homepageReadiness.ready || !heroArtworkReadiness.ready || metrics.homepageStillLoading || metrics.animeCalendarStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.cardGeometryInvalidCount > 0 || metrics.posterImageLoadRate < 0.75 || !metrics.posterPixelInspectionPassed || !metrics.heroPosterResolution?.loaded || !metrics.heroPosterResolution.meets1200px || metrics.heroTextOverlapsNavigation || metrics.heroCtaWhiteSpace !== "nowrap" || !metrics.hero || metrics.hero.y < 0 || metrics.hero.y > Math.min(160, viewport.height * 0.25) || !metrics.heroArtworkEdgeCoverage?.every(Boolean) || !metrics.themePairValid || !scrollAudit.navigationViewportValid || !scrollAudit.contentClearsSidebar || scrollAudit.overlappingPosterLabels.length > 0;
                 if (failed) failures += 1;
                 await Promise.allSettled(apiDiagnosticTasks);
                 results.push({ name, httpStatus: response?.status() ?? null, failed, sidebarInteractionPassed, sidebarInteraction, metrics, pageErrors: consoleErrors, apiDiagnostics });
