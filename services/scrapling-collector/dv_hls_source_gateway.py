@@ -375,7 +375,7 @@ def ingest_authorized_hls_candidate(
                     observed_length += len(chunk)
                     digest_builder.update(chunk)
             if observed_length != expected_length or digest_builder.hexdigest() != expected_digest:
-                raise HlsSourceGatewayError("Staged HLS media member differs from the authorized origin transfer")
+                raise HlsSourceGatewayError("Staged HLS media member transfer digest differs from the authorized origin bytes")
         checkpoint({
             "stage": "authorized_hls_graph_storing",
             "members_downloaded": progress["members_downloaded"],
