@@ -68,7 +68,7 @@ class AuthorizedHlsSourceGatewayTests(unittest.TestCase):
                 ),
                 "Bearer test",
             )
-        self.resource_id = self.registry_result["resource"]["resource"]["id"]
+        self.resource_id = self.registry_result["resource"]["id"]
 
     def tearDown(self):
         (
