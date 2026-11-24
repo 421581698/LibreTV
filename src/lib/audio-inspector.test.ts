@@ -15,37 +15,44 @@ describe('parseHlsAudioRenditions', () => {
     expect(result[0]).toMatchObject({ name: 'English', channelCount: 2, layout: 'stereo', default: true, autoselect: true });
     expect(result[1]).toMatchObject({ name: 'English 5.1', channelCount: 6, layout: 'unknown', codec: 'ec-3' });
   });
-  it('recognizes the Dolby AC-4 FourCC in HLS CODECS', () => {
-    const manifest = [
-      '#EXTM3U',
-      '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="immersive",NAME="AC-4",URI="audio/ac4.m3u8"',
-      '#EXT-X-STREAM-INF:BANDWIDTH=4000000,CODECS="avc1.640028,ac-4.02.01.04",AUDIO="immersive"',
-      'video/1080p.m3u8',
-    ].join('\n');
+
+  it('recognizes Dolby AC-4 FourCC in HLS CODECS', () => {
+    const manifest = '#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="immersive",NAME="AC-4",URI="audio/ac4.m3u8"\n#EXT-X-STREAM-INF:BANDWIDTH=4000000,CODECS="avc1.640028,ac-4.02.01.04",AUDIO="immersive"\nvideo/1080p.m3u8';
     expect(parseHlsAudioRenditions(manifest)[0].codec).toBe('ac-4.02.01.04');
   });
-  it('recognizes JOC as metadata only', () => {
+
+  it('recognizes JOC in CHANNELS as metadata only', () => {
     expect(parseHlsAudioRenditions('#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a",NAME="E-AC3 JOC",CHANNELS="6/JOC",URI="a.m3u8"')[0])
       .toMatchObject({ channelCount: 6, layout: 'unknown', hasJocMarker: true });
   });
+
+  it('recognizes JOC in the declared CODECS token without CHANNELS suffix', () => {
+    const manifest = '#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a",NAME="E-AC3",CHANNELS="6",URI="a.m3u8"\n#EXT-X-STREAM-INF:BANDWIDTH=1000000,CODECS="avc1.640028,ec-3-joc",AUDIO="a"\nvideo.m3u8';
+    expect(parseHlsAudioRenditions(manifest)[0]).toMatchObject({ codec: 'ec-3-joc', hasJocMarker: true });
+  });
+
   it('keeps absent and unsupported channel declarations unknown', () => {
-    const result = parseHlsAudioRenditions([
-      '#EXTM3U',
-      '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a",NAME="Unknown",URI="a.m3u8"',
-      '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="b",NAME="7.1",CHANNELS="8",URI="b.m3u8"',
-    ].join('\n'));
+    const result = parseHlsAudioRenditions('#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a",NAME="Unknown",URI="a.m3u8"\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="b",NAME="7.1",CHANNELS="8",URI="b.m3u8"');
     expect(result.map((item) => [item.channelCount, item.layout])).toEqual([[null, 'unknown'], [8, 'unknown']]);
   });
+
   it('ignores non-audio renditions and preserves quoted commas', () => {
     expect(parseHlsAudioRenditions('#EXTM3U\n#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="s",NAME="English",URI="s.m3u8"')).toEqual([]);
     expect(parseHlsAudioRenditions('#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a",NAME="English, Commentary",CHANNELS="2"')[0].name).toBe('English, Commentary');
   });
 });
+
 describe('inspectHlsAudioTrack', () => {
   it('normalizes hls.js metadata', () => {
     expect(inspectHlsAudioTrack({ name: 'English E-AC3', groupId: 'main', url: 'https://cdn.example/a.m3u8', channels: '6/JOC', audioCodec: 'ec-3', default: true }))
       .toMatchObject({ groupId: 'main', channelCount: 6, layout: 'unknown', hasJocMarker: true, codec: 'ec-3', default: true });
   });
+
+  it('detects JOC from the codec token without guessing channel layout', () => {
+    expect(inspectHlsAudioTrack({ channels: '6', audioCodec: 'ec-3-joc' }))
+      .toMatchObject({ channelCount: 6, layout: 'unknown', hasJocMarker: true });
+  });
+
   it('keeps missing metadata unknown', () => {
     expect(inspectHlsAudioTrack({ name: 'Unknown' })).toMatchObject({ channelCount: null, layout: 'unknown', hasJocMarker: false });
   });
