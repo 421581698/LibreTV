@@ -128,6 +128,42 @@ class RegistryQueueTests(unittest.TestCase):
         self.assertEqual(one["id"], again["id"])
         self.assertNotEqual(one["movie_id"], other["movie_id"])
 
+    def test_dolby_vision_asset_registry_is_content_addressed_and_immutable(self):
+        resource = queue.upsert_resource({
+            "resource_key": "resource:dv", "source_key": "provider",
+            "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/a.mp4",
+            "title": "DV candidate", "access_state": "PUBLIC",
+        })
+        digest = "a" * 64
+        first = queue.register_dolby_vision_media_asset(
+            resource["id"], digest, 123456, "video/mp4"
+        )
+        again = queue.register_dolby_vision_media_asset(
+            resource["id"], digest.upper(), 123456, "video/mp4"
+        )
+        self.assertEqual(first["asset_id"], again["asset_id"])
+        self.assertEqual(first["object_key"], f"sha256/aa/{digest}")
+        self.assertEqual(first["sha256"], digest)
+        with self.assertRaises(ValueError):
+            queue.register_dolby_vision_media_asset(
+                resource["id"], digest, 123457, "video/mp4"
+            )
+        with self.assertRaises(ValueError):
+            queue.register_dolby_vision_media_asset(
+                resource["id"], "not-a-digest", 123456, "video/mp4"
+            )
+        with self.assertRaises(ValueError):
+            queue.register_dolby_vision_media_asset(
+                resource["id"], "b" * 64, 123456, "text/html"
+            )
+
+    def test_dolby_vision_asset_registration_requires_separate_ingestion_secret(self):
+        from fastapi import HTTPException
+        with patch.object(queue, "DV_INGESTION_TOKEN", "dedicated-ingest-secret"):
+            with self.assertRaises(HTTPException):
+                queue.require_dv_ingestion_auth("collector-api-token")
+            queue.require_dv_ingestion_auth("dedicated-ingest-secret")
+
     def test_playback_requires_public_preflight(self):
         resource = queue.upsert_resource({
             "resource_key": "resource:private", "source_key": "provider",
