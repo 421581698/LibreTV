@@ -2,8 +2,6 @@
 import { createHash, createPrivateKey, sign, timingSafeEqual } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-
-const execFileAsync = promisify(execFile);
 import { createWriteStream } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { createServer } from 'node:http';
@@ -12,6 +10,8 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
+
+const execFileAsync = promisify(execFile);
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ANALYZER = resolve(HERE, '../../scripts/dolby-vision/analyze-rpu.mjs');
