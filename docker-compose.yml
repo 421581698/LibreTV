@@ -133,6 +133,11 @@ services:
       - DV_MEDIA_STAGING_ROOT=/data/dv-media-staging
       - DV_MAX_INGEST_BYTES=${DV_MAX_INGEST_BYTES:-536870912}
       - DV_MAX_CONCURRENT_INGESTS=${DV_MAX_CONCURRENT_INGESTS:-1}
+      # Optional progressive-media source gateway; disabled until an operator explicitly authorizes exact hosts.
+      - DV_SOURCE_GATEWAY_ENABLED=${DV_SOURCE_GATEWAY_ENABLED:-0}
+      - DV_AUTHORIZED_SOURCE_HOSTS=${DV_AUTHORIZED_SOURCE_HOSTS:-}
+      - DV_SOURCE_GATEWAY_MAX_BYTES=${DV_SOURCE_GATEWAY_MAX_BYTES:-536870912}
+      - DV_SOURCE_GATEWAY_TIMEOUT_SECONDS=${DV_SOURCE_GATEWAY_TIMEOUT_SECONDS:-15}
       # Keep every outbound collector operation disabled until the host firewall has been installed and verified.
       - SCRAPLING_EGRESS_FIREWALL_CONFIRMED=${SCRAPLING_EGRESS_FIREWALL_CONFIRMED:-0}
       - SCRAPLING_DB_PATH=${SCRAPLING_DB_PATH:-/data/collector.sqlite3}
