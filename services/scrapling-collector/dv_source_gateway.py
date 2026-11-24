@@ -17,6 +17,8 @@ import ssl
 import tempfile
 import threading
 import time
+
+from fastapi import HTTPException
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -240,15 +242,21 @@ def ingest_authorized_candidate(
                 "source_host": host,
             }
         finally:
-            if response is not None:
-                response.close()
-            if connection is not None:
-                connection.close()
-            if temporary_path is not None:
+            try:
+                if response is not None:
+                    response.close()
+            finally:
                 try:
-                    temporary_path.unlink()
-                except FileNotFoundError:
-                    pass
-            _slots.release()
-    except (SourceGatewayError, IngestionError, OSError, ValueError, http.client.HTTPException, ssl.SSLError) as exc:
+                    if connection is not None:
+                        connection.close()
+                finally:
+                    try:
+                        if temporary_path is not None:
+                            try:
+                                temporary_path.unlink()
+                            except FileNotFoundError:
+                                pass
+                    finally:
+                        _slots.release()
+    except (SourceGatewayError, IngestionError, HTTPException, OSError, ValueError, http.client.HTTPException, ssl.SSLError) as exc:
         return {"status": "failed", "reason": str(exc)[:240], "error_type": type(exc).__name__}
