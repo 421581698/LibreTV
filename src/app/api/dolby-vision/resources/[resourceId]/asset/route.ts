@@ -81,7 +81,11 @@ export async function GET(
     );
   }
 
-  const expectedContentType = String(record.media_format).toLowerCase() === 'webm'\n    ? 'video/webm'\n    : String(record.media_format).toLowerCase() === 'hls'\n      ? 'application/vnd.apple.mpegurl'\n      : 'video/mp4';
+  const expectedContentType = String(record.media_format).toLowerCase() === 'webm'
+    ? 'video/webm'
+    : String(record.media_format).toLowerCase() === 'hls'
+      ? 'application/vnd.apple.mpegurl'
+      : 'video/mp4';
   const hlsRootAssetId = String(record.media_format).toLowerCase() === 'hls'
     ? hlsGraphs
       .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object' && !Array.isArray(item))
