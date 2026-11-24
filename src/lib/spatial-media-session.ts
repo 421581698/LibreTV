@@ -79,9 +79,9 @@ export async function verifySpatialMediaCors(sourceUrl: string, timeoutMs = 8_00
  * A spatial session owns a second media element. The ArtPlayer element is never
  * passed to createMediaElementSource and remains the native fallback surface.
  *
- * The first P3 milestone intentionally supports direct MP4/WebM only. HLS,
- * including Safari native HLS, stays on the existing native/hls.js route until
- * an independently-owned HLS pipeline and its complete CORS lifecycle exist.
+ * Direct media and HLS use a separately-owned media element. HLS is delegated
+ * to an injected independent controller so the ArtPlayer/HLS instance and
+ * Safari's existing native-HLS element are never captured or repurposed.
  */
 export class SpatialMediaSession {
   private state: SpatialMediaSessionState = 'prepared';
