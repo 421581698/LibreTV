@@ -2,14 +2,14 @@
 
 Updated: 2026-11-24  
 Branch: `feature/libretv-ipad-edition-product` (PR #99, Draft)  
-Status snapshot head: pending exact-head CI for isolated HLS session
+Implementation code evidence: `3a607107a16d21320231877a281df48345fcef4e` (documentation refresh follows)
 
 ## P1–P6 acceptance summary
 
 | Phase | Implementation status | Acceptance status | Remaining evidence |
 |---|---|---|---|
 | P1 format detection | Metadata/parser foundations exist | Not finally accepted | Controlled real elementary-stream samples cross-checked against matching HLS manifests |
-| P2 spatial presentation | Standalone Web Audio presentation foundation exists | Not finally accepted | Real multichannel HLS/MSE, Safari AudioContext, suspend/resume and failure recovery |
+| P2 spatial presentation | Standalone Web Audio HRTF foundation; selected HLS stereo metadata can drive stereo virtualization; unknown/six-channel layouts bypass | Not finally accepted | Real decoded multichannel media, Safari AudioContext, suspend/resume and failure recovery |
 | P3 player integration | Isolated MP4/WebM and HLS sessions; separate hls.js/MSE or Safari native-HLS controller; spatial-session audio-track selection; source-generation guard and native fallback | Core integration implemented; exact-head automation pending; not accepted | Manifest/playlist/segment/key CORS matrix, delayed errors and race tests, exact-head Preview, Safari/iOS and real-device regression |
 | P4 physical devices | Not implemented/recorded | Not accepted | Named iPhone/iPad and output-chain test records |
 | P5 diagnostics | Read-only diagnostics HUD foundation exists | Not finally accepted | Correlation with observed output on real device chains |
@@ -23,7 +23,7 @@ Status snapshot head: pending exact-head CI for isolated HLS session
 - AC-4 `mdcompat` is retained as bounded numeric source metadata and shown as a declared compatibility tier. It is **not** a browser/device decode result and must not enable an Atmos badge.
 - HLS audio rendition inspection recognizes `ac-4` alongside the existing codecs.
 - Read-only diagnostics continue to report native Dolby decode and bitstream passthrough as unknown, and Atmos object decode as not-established.
-- A CORS-guarded Web Audio spatial presentation module is present. It supports opt-in stereo headphone virtualization and a gated 5.1-to-binaural route only when an explicit 5.1 speaker layout is supplied. This is not Dolby Atmos decoding or object rendering.
+- A CORS-guarded Web Audio spatial presentation module is present. It supports opt-in stereo headphone virtualization and a gated 5.1-to-binaural route only when an explicit 5.1 speaker layout is supplied. The independent HLS session passes the selected rendition's declared stereo channel count into the engine and updates the route on track changes; six channels with unknown speaker layout stay bypassed. This is not Dolby Atmos decoding or object rendering.
 - P3 code: `SpatialMediaSession` owns a distinct media element for direct MP4/WebM and HLS, checks CORS readability before allocation, sets `crossOrigin` before source assignment, creates/resumes the Web Audio engine only from the second explicit user gesture, mirrors native play/pause/seek/rate/volume state, and restores the untouched ArtPlayer element on disable/error/source change/unmount. HLS uses an independently owned hls.js/MSE controller or a separate Safari native-HLS media pipeline; spatial-session track selection does not mutate the original player HLS instance. Pending preparation is invalidated on source changes.
 - When the direct-media audio channel layout is unknown, the engine deliberately remains on an unprocessed bypass route. This session lifecycle milestone does not yet enable spatial virtualization for those sources.
 - The spatial HLS controller is independent from the original ArtPlayer/HLS instance. Manifest preflight is only an initial CORS check; actual playlist, segment, key, redirect and fatal-error behavior still requires controlled fixtures.
