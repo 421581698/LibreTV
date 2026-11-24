@@ -55,6 +55,10 @@ describe('isMediaElementAudioOriginSafe', () => {
     expect(isMediaElementAudioOriginSafe(media('blob:https://libretv.example/abc'), 'https://libretv.example')).toBe(true);
   });
 
+  it('rejects blob URLs created by a different origin', () => {
+    expect(isMediaElementAudioOriginSafe(media('blob:https://evil.example/abc'), 'https://libretv.example')).toBe(false);
+  });
+
   it('rejects direct cross-origin media without an explicit CORS mode', () => {
     expect(isMediaElementAudioOriginSafe(media('https://cdn.example/movie.mp4'), 'https://libretv.example')).toBe(false);
   });
