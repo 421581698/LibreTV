@@ -516,6 +516,20 @@ describe('首页与播放页回归契约', () => {
     expect(tabBar).toContain('{active && <i aria-hidden="true" />}');
   });
 
+  it('iPhone dock keeps four dedicated destinations and route-aware active states', () => {
+    const tabBar = source('src/components/home/header/MobileTabBar.tsx');
+    expect(tabBar).toContain("{ href: '/', label: '首页', icon: 'home' }");
+    expect(tabBar).toContain("{ href: '/movies', label: '电影', icon: 'film' }");
+    expect(tabBar).toContain("{ href: '/tv', label: '电视剧', icon: 'tv' }");
+    expect(tabBar).toContain("{ href: '/me', label: '我的', icon: 'user' }");
+    expect(tabBar).toContain("normalized === '/detail' || normalized.startsWith('/detail/')");
+    expect(tabBar).toContain("normalized === '/watch' || normalized.startsWith('/watch/')");
+    expect(tabBar).toContain("normalized === '/movies' || normalized.startsWith('/movies/')");
+    expect(tabBar).toContain("normalized === '/tv' || normalized.startsWith('/tv/')");
+    expect(tabBar).not.toContain("label: '搜索'");
+    expect(tabBar).not.toContain("label: '设置'");
+  });
+
   it('移动端七项底部导航可横向滚动，不压缩或换行', () => {
     expect(channelStyles).toContain('.v4-mobile-tabs {');
     expect(channelStyles).toContain('overflow-x: auto !important');
