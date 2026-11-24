@@ -3,7 +3,7 @@ import { createHash, createPrivateKey, sign, timingSafeEqual } from 'node:crypto
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createWriteStream, readFileSync } from 'node:fs';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
@@ -61,6 +61,7 @@ export function createSignedEnvelope(report, assetId, keyId, privateKeyPem, now 
       report.inputKind !== 'hevc' || report.extractionScope?.frameLimit !== null ||
       !/^2\.3\.\d+$/.test(report.parserVersion || '') ||
       !/^[a-f0-9]{64}$/i.test(report.inputSha256 || '') ||
+      !/^[a-f0-9]{64}$/i.test(report.sourceMediaSha256 || '') ||
       !/^[a-f0-9]{64}$/i.test(report.rpuSha256 || '') ||
       !Number.isSafeInteger(report.frameCount) || report.frameCount <= 0 ||
       !Array.isArray(report.profiles) || report.profiles.length === 0 ||
@@ -109,6 +110,12 @@ async function analyzeUpload(request, response, env) {
 
   const directory = await mkdtemp(resolve(tmpdir(), 'libretv-dv-job-'));
   const inputPath = resolve(directory, 'input-media');
+  const hevcPath = resolve(directory, 'video-track.hevc');
+  const sourceContentType = request.headers['x-dv-source-content-type'];
+  if (!['video/mp4', 'video/hevc'].includes(sourceContentType)) {
+    sendJson(response, 415, { error: 'SOURCE_CONTAINER_UNSUPPORTED' });
+    return;
+  }
   const digest = createHash('sha256');
   let received = 0;
   const meter = new Transform({
@@ -135,8 +142,50 @@ async function analyzeUpload(request, response, env) {
       return;
     }
 
+    let analysisInputPath = inputPath;
+    if (sourceContentType === 'video/mp4') {
+      const { stdout: codecOutput } = await execFileAsync(env.FFPROBE_BIN || 'ffprobe', [
+        '-v', 'error',
+        '-select_streams', 'v:0',
+        '-show_entries', 'stream=codec_name',
+        '-of', 'default=noprint_wrappers=1:nokey=1',
+        inputPath,
+      ], {
+        encoding: 'utf8',
+        timeout: 30_000,
+        maxBuffer: 64 * 1024,
+        windowsHide: true,
+      });
+      if (codecOutput.trim() !== 'hevc') {
+        sendJson(response, 415, { error: 'HEVC_VIDEO_TRACK_REQUIRED' });
+        return;
+      }
+      await execFileAsync(env.FFMPEG_BIN || 'ffmpeg', [
+        '-nostdin', '-v', 'error',
+        '-i', inputPath,
+        '-map', '0:v:0',
+        '-c:v', 'copy',
+        '-bsf:v', 'hevc_mp4toannexb',
+        '-f', 'hevc',
+        hevcPath,
+      ], {
+        encoding: 'utf8',
+        timeout: ANALYSIS_TIMEOUT_MS,
+        maxBuffer: 1024 * 1024,
+        windowsHide: true,
+      });
+      const extracted = await stat(hevcPath).catch(() => null);
+      if (!extracted?.isFile() || extracted.size <= 0 || extracted.size > MAX_UPLOAD_BYTES) {
+        sendJson(response, extracted?.size > MAX_UPLOAD_BYTES ? 413 : 422, {
+          error: extracted?.size > MAX_UPLOAD_BYTES ? 'EXTRACTED_TRACK_TOO_LARGE' : 'HEVC_TRACK_EXTRACTION_FAILED',
+        });
+        return;
+      }
+      analysisInputPath = hevcPath;
+    }
+
     const { stdout } = await execFileAsync(process.execPath, [
-      ANALYZER, '--input', inputPath, '--kind', 'hevc',
+      ANALYZER, '--input', analysisInputPath, '--kind', 'hevc',
       '--dovi-tool', env.DOVI_TOOL_BIN || '/usr/local/bin/dovi_tool',
     ], {
       encoding: 'utf8',
@@ -145,11 +194,16 @@ async function analyzeUpload(request, response, env) {
       windowsHide: true,
     });
     const report = JSON.parse(stdout);
-    if (report.inputSha256 !== actualSha256 || report.inputKind !== 'hevc' ||
-        report.extractionScope?.frameLimit !== null || !/^2\.3\.\d+$/.test(report.parserVersion || '')) {
+    if ((sourceContentType === 'video/hevc' && report.inputSha256 !== actualSha256) ||
+        report.inputKind !== 'hevc' || report.extractionScope?.frameLimit !== null ||
+        !/^2\.3\.\d+$/.test(report.parserVersion || '') ||
+        !/^[a-f0-9]{64}$/i.test(report.inputSha256 || '')) {
       sendJson(response, 422, { error: 'PARSER_REPORT_REJECTED' });
       return;
     }
+    // inputSha256 binds the extracted HEVC bitstream; sourceMediaSha256 binds
+    // the original MP4 object that the player actually consumes.
+    report.sourceMediaSha256 = actualSha256;
     const envelope = createSignedEnvelope(
       report,
       assetId,
