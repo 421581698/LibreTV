@@ -15,6 +15,7 @@
 import {
   detectMediaFormat,
   type AudioCodec,
+  type Ac4CodecProfile,
   type DolbyFamily,
   type MediaContainer,
   type MediaFormatInput,
@@ -43,6 +44,7 @@ export interface FormatDiagnostics {
   dolbyFamily: DolbyFamily;
   confidence: 'declared' | 'inferred' | 'unknown';
   hasJocMarker: boolean;
+  ac4Profile?: Ac4CodecProfile | null;
 }
 
 export interface AudioDiagnostics {
@@ -181,6 +183,7 @@ export function buildPlaybackDiagnostics(
       confidence: report.confidence,
       // JOC is a metadata hint only — never surfaced as Atmos object decode.
       hasJocMarker: report.hasJocMarker,
+      ac4Profile: report.ac4Profile,
     };
   }
 
@@ -237,8 +240,8 @@ export function buildPlaybackDiagnostics(
 }
 
 const CONTAINERS: MediaContainer[] = ['hls', 'mp4', 'mkv', 'webm', 'mpeg-ts', 'unknown'];
-const CODECS: AudioCodec[] = ['eac3', 'ac3', 'truehd', 'dts-hd', 'dts', 'aac', 'opus', 'flac', 'alac', 'unknown'];
-const DOLBY_FAMILIES: DolbyFamily[] = ['dolby-digital', 'dolby-digital-plus', 'dolby-truehd', 'dolby-atmos-metadata', 'none', 'unknown'];
+const CODECS: AudioCodec[] = ['ac4', 'eac3', 'ac3', 'truehd', 'dts-hd', 'dts', 'aac', 'opus', 'flac', 'alac', 'unknown'];
+const DOLBY_FAMILIES: DolbyFamily[] = ['dolby-ac4', 'dolby-digital', 'dolby-digital-plus', 'dolby-truehd', 'dolby-atmos-metadata', 'none', 'unknown'];
 const CONFIDENCES = ['declared', 'inferred', 'unknown'];
 const BROWSER_FAMILIES = ['safari', 'chromium', 'firefox', 'other', 'unknown'];
 const BROWSER_DECODE = ['not-probed', 'can-play-hint', 'cannot-play-hint'];
@@ -263,6 +266,12 @@ export function sanitizePlaybackDiagnostics(value: PlaybackDiagnostics | undefin
       dolbyFamily: oneOf(DOLBY_FAMILIES, value.format.dolbyFamily, 'unknown'),
       confidence: oneOf(CONFIDENCES, value.format.confidence, 'unknown') as FormatDiagnostics['confidence'],
       hasJocMarker: value.format.hasJocMarker === true,
+      ac4Profile: value.format.ac4Profile &&
+        Number.isInteger(value.format.ac4Profile.bitstreamVersion) && value.format.ac4Profile.bitstreamVersion >= 0 && value.format.ac4Profile.bitstreamVersion <= 255 &&
+        Number.isInteger(value.format.ac4Profile.presentationVersion) && value.format.ac4Profile.presentationVersion >= 0 && value.format.ac4Profile.presentationVersion <= 255 &&
+        Number.isInteger(value.format.ac4Profile.mdcompat) && value.format.ac4Profile.mdcompat >= 0 && value.format.ac4Profile.mdcompat <= 4
+        ? { bitstreamVersion: value.format.ac4Profile.bitstreamVersion, presentationVersion: value.format.ac4Profile.presentationVersion, mdcompat: value.format.ac4Profile.mdcompat }
+        : null,
     };
   }
   if (value.audio && typeof value.audio === 'object') {
