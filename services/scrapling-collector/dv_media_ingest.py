@@ -101,11 +101,25 @@ def ingest_staged_file(
     if isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or not 1 <= max_bytes <= MAX_MEDIA_BYTES:
         raise IngestionError("Invalid ingestion size limit.")
 
-    # Ensure the target resource exists before creating an object-store entry.
+    # Only a resource that has independently passed public-access and player
+    # verification may receive an immutable asset. The declared format must also
+    # agree with the bytes' trusted ingestion MIME assertion.
     with registry.connect() as connection:
-        exists = connection.execute("SELECT 1 FROM registry_resources WHERE id=?", (resource_id,)).fetchone()
-    if not exists:
+        resource = connection.execute(
+            """SELECT resource_type,access_state,validation_state,playback_state,media_format
+               FROM registry_resources WHERE id=?""",
+            (resource_id,),
+        ).fetchone()
+    if not resource:
         raise IngestionError("Registry resource does not exist.")
+    if (resource["resource_type"] != "DIRECT_MEDIA" or
+            resource["access_state"] != "PUBLIC" or
+            resource["validation_state"] != "validated" or
+            resource["playback_state"] != "PLAYER_CONFIRMED"):
+        raise IngestionError("Media ingestion requires a validated PUBLIC resource with confirmed playback.")
+    expected_format = "webm" if content_type == "video/webm" else "mp4"
+    if resource["media_format"] != expected_format:
+        raise IngestionError("Media content type does not match the validated registry media format.")
 
     source_fd = _open_regular_source(Path(source_path))
     root = Path(object_root)
