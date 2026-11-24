@@ -231,7 +231,7 @@ def ingest_authorized_candidate(
                 resource_id, temporary_path, registry.DV_MEDIA_OBJECT_ROOT,
                 expected_type, maximum,
             )
-            if result["sha256"] != digest or result["byte_length"] != received:
+            if result["sha256"] != digest.hexdigest() or result["byte_length"] != received:
                 raise SourceGatewayError("Stored object digest differs from the bytes received from the authorized origin")
             return {
                 "status": "registered",
