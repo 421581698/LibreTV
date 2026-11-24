@@ -837,6 +837,32 @@ jobs:
                   });
                   const posters = Array.from(document.querySelectorAll('.ipad-edition__poster-card'));
                   const animeCards = Array.from(document.querySelectorAll('.ipad-edition__anime-card'));
+                  const cardGeometry = [
+                    ...posters.map((element, index) => ({ element, index, kind: 'poster' })),
+                    ...animeCards.map((element, index) => ({ element, index, kind: 'anime' })),
+                  ].map(({ element, index, kind }) => {
+                    const box = element.getBoundingClientRect();
+                    const style = getComputedStyle(element);
+                    const image = element.querySelector('img')?.getBoundingClientRect();
+                    return {
+                      kind,
+                      index,
+                      x: Math.round(box.x),
+                      y: Math.round(box.y),
+                      width: Math.round(box.width),
+                      height: Math.round(box.height),
+                      imageWidth: image ? Math.round(image.width) : null,
+                      imageHeight: image ? Math.round(image.height) : null,
+                      aspectRatio: style.aspectRatio,
+                      minWidth: style.minWidth,
+                      maxWidth: style.maxWidth,
+                      overflowX: style.overflowX,
+                    };
+                  });
+                  const mainWidth = main?.getBoundingClientRect().width ?? window.innerWidth;
+                  const cardGeometryInvalidCount = cardGeometry.filter(card =>
+                    card.width <= 0 || card.height <= 0 || card.width > mainWidth + 2
+                  ).length;
                   const home = document.querySelector('.ipad-edition__home');
                   const homeStyle = home ? getComputedStyle(home) : null;
                   const layoutChain = [];
@@ -945,6 +971,8 @@ jobs:
                     animeCalendarStillLoading: (document.querySelector('#ipad-anime-calendar')?.textContent ?? '').includes('正在读取每日放送'),
                     posterCount: posters.length,
                     animeCardCount: animeCards.length,
+                    cardGeometry,
+                    cardGeometryInvalidCount,
                     posterSlotCount: posterChecks.length,
                     posterSlotBreakdown,
                     posterImageElementCount: posterChecks.filter(item => item.hasImageElement).length,
@@ -1221,7 +1249,7 @@ jobs:
                 // Gate on copy/navigation collision, not artwork/navigation intersection or a
                 // positive gap between the hero and fixed navigation. Hero copy is bottom-anchored
                 // by design, so do not require its center to match the hero's geometric center.
-                const failed = !sidebarInteractionPassed || sidebarInteraction.diagnostics.finalState?.computedStyle?.position !== "fixed" || response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.y > 220 || metrics.main.width < viewport.width * 0.7 || !homepageReadiness.ready || !heroArtworkReadiness.ready || metrics.homepageStillLoading || metrics.animeCalendarStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.posterImageLoadRate < 0.75 || !metrics.posterPixelInspectionPassed || !metrics.heroPosterResolution?.loaded || !metrics.heroPosterResolution.meets1200px || metrics.heroTextOverlapsNavigation || metrics.heroCtaWhiteSpace !== "nowrap" || !metrics.hero || metrics.hero.y < 0 || metrics.hero.y > Math.min(160, viewport.height * 0.25) || !metrics.heroArtworkEdgeCoverage?.every(Boolean) || !metrics.themePairValid || !scrollAudit.navigationViewportValid || scrollAudit.overlappingPosterLabels.length > 0;
+                const failed = !sidebarInteractionPassed || sidebarInteraction.diagnostics.finalState?.computedStyle?.position !== "fixed" || response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.y > 220 || metrics.main.width < viewport.width * 0.7 || !homepageReadiness.ready || !heroArtworkReadiness.ready || metrics.homepageStillLoading || metrics.animeCalendarStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.cardGeometryInvalidCount > 0 || metrics.posterImageLoadRate < 0.75 || !metrics.posterPixelInspectionPassed || !metrics.heroPosterResolution?.loaded || !metrics.heroPosterResolution.meets1200px || metrics.heroTextOverlapsNavigation || metrics.heroCtaWhiteSpace !== "nowrap" || !metrics.hero || metrics.hero.y < 0 || metrics.hero.y > Math.min(160, viewport.height * 0.25) || !metrics.heroArtworkEdgeCoverage?.every(Boolean) || !metrics.themePairValid || !scrollAudit.navigationViewportValid || scrollAudit.overlappingPosterLabels.length > 0;
                 if (failed) failures += 1;
                 await Promise.allSettled(apiDiagnosticTasks);
                 results.push({ name, httpStatus: response?.status() ?? null, failed, sidebarInteractionPassed, sidebarInteraction, metrics, pageErrors: consoleErrors, apiDiagnostics });
