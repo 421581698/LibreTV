@@ -42,6 +42,18 @@ Set `DOVI_TOOL_BIN` or pass `--dovi-tool` when the executable is not on PATH.
 
 The JSON uses the `DolbyVisionRpuEvidence` core fields expected by `metadata-inspector.ts`, with additional provenance fields. It is local diagnostic evidence, not a playback capability claim.
 
+## Evidence contract and media binding
+
+The browser-side contract is defined in `src/lib/dolby-vision/rpu-evidence-contract.ts` and covered by `rpu-evidence-contract.test.ts`.
+
+- The contract accepts the adapter's strict report shape and currently pins the reviewed parser compatibility range to `dovi_tool 2.3.x`.
+- SHA-256 values must be 64-character hexadecimal digests. The source digest is compared with a separately computed digest of the exact media asset before a report can be marked `matched`.
+- A source hash mismatch rejects the report. Missing source hash means `detached`, not trusted for the currently playing asset.
+- A report generated from a standalone `RPU.bin` is always `detached`; its hash identifies the RPU input, not the media file from which it may have originated.
+- Unknown fields, inconsistent Profile/metadata-level summaries, and invalid extraction scope are rejected.
+
+This contract is currently a validation boundary and testable integration primitive. The player does **not** load arbitrary report JSON, compute a whole-media digest, or display imported RPU evidence yet. A future transport must authenticate who produced the report and bind it to the exact selected media bytes; a self-reported `verified: true` field alone is not authentication.
+
 ## Important boundaries
 
 - `dovi_tool` upstream currently documents HEVC RPU extraction support for Profiles 4, 5, 7 and 8. Matroska input is supported by its extractor. This adapter does not claim arbitrary MP4/HLS/AV1 extraction support.
