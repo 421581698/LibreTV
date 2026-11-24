@@ -2420,6 +2420,9 @@ body:has(.ipad-edition[data-environment="light"]) {
 
 .ipad-edition[data-ipad-player="true"] .netflix-watch-shell {
   position: relative;
+  /* This shell must paint above the fixed watch <main> (z-index: 21).
+     Child z-index values on the topbar cannot escape the shell's stacking context. */
+  z-index: 30 !important;
   display: block;
   width: 100%;
   height: 100%;
