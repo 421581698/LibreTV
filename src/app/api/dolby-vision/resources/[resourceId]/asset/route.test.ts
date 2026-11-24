@@ -68,6 +68,19 @@ describe('GET /api/dolby-vision/resources/[resourceId]/asset', () => {
     );
   });
 
+  it('selects an asset matching the registry media format', async () => {
+    vi.mocked(collectorRequest).mockResolvedValue(NextResponse.json({
+      ...registryPayload,
+      media_assets: [
+        asset,
+        { ...asset, asset_id: 'dv_webm-newer', content_type: 'video/webm', created_at: 20 },
+      ],
+    }));
+    const response = await GET(makeRequest(), { params: Promise.resolve({ resourceId }) });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ assetId: asset.asset_id, contentType: 'video/mp4' });
+  });
+
   it('does not use browser-provided collector credentials', async () => {
     await GET(makeRequest({
       'x-scrapling-api-base': 'https://attacker.example',
