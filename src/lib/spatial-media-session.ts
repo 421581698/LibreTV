@@ -13,6 +13,7 @@ export interface SpatialEngineHandle {
   resumeFromUserGesture(): Promise<void>;
   setMode(mode: 'headphone-stereo'): { route: string; label: string; reason: string };
   destroyAfterMediaElementRemoval(): Promise<void>;
+  subscribeStateChange?(listener: (state: string) => void): () => void;
 }
 
 export interface SpatialMediaSessionOptions {
@@ -82,6 +83,7 @@ export class SpatialMediaSession {
   private restoreMuted: boolean;
   private readonly listeners: Array<() => void> = [];
   private fallbackPromise: Promise<void> | null = null;
+  private removeEngineStateListener: (() => void) | null = null;
 
   private constructor(
     readonly nativeVideo: HTMLVideoElement,
@@ -149,6 +151,11 @@ export class SpatialMediaSession {
     this.notifyState();
     try {
       this.engine = this.createEngine(this.media);
+      this.removeEngineStateListener = this.engine.subscribeStateChange?.((state) => {
+        if (this.state === 'active' && state !== 'running') {
+          void this.fallback('AudioContext 被系统中断或关闭，已恢复原生播放');
+        }
+      }) ?? null;
       const resume = this.engine.resumeFromUserGesture();
       try { this.media.currentTime = this.nativeVideo.currentTime; } catch { /* metadata may not be ready yet */ }
       this.media.playbackRate = this.nativeVideo.playbackRate;
@@ -261,6 +268,8 @@ export class SpatialMediaSession {
     // synchronized from the spatial element while active. Never copy a failed
     // or not-yet-ready spatial element's zero/stale time over the native clock.
     this.nativeVideo.muted = this.restoreMuted;
+    this.removeEngineStateListener?.();
+    this.removeEngineStateListener = null;
     this.media.pause();
     this.listeners.splice(0).forEach((remove) => remove());
     this.media.removeAttribute('src');
