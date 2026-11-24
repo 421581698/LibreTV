@@ -255,9 +255,9 @@ export class SpatialMediaSession {
     this.reason = reason;
     this.state = isFallback ? 'fallback' : 'disposed';
     this.notifyState();
-    if (Number.isFinite(this.media.currentTime) && this.media.currentTime >= 0) {
-      try { this.nativeVideo.currentTime = this.media.currentTime; } catch { /* keep last native position */ }
-    }
+    // The native video remains the canonical visual clock and is continuously
+    // synchronized from the spatial element while active. Never copy a failed
+    // or not-yet-ready spatial element's zero/stale time over the native clock.
     this.nativeVideo.muted = this.restoreMuted;
     this.media.pause();
     this.listeners.splice(0).forEach((remove) => remove());
