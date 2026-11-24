@@ -84,7 +84,9 @@ Until these prerequisites are met, the player correctly displays RPU/dynamic met
 - [x] Add verifier unit tests proving detached, tampered, mismatched and partial reports are rejected.
 - [x] Add route tests proving digest/asset mismatches and unbound registry responses fail closed before returning positive evidence.
 - [ ] Add full live-service integration tests proving rejected reports never become positive player evidence.
-- [ ] Only then connect authenticated evidence to the read-only diagnostics panel.
+- [x] Add an explicit, opt-in diagnostics-panel action that requests server-verified evidence only when a stable server-issued asset ID is supplied.
+- [ ] Propagate the selected source's trusted registry asset ID through the watch page into `PlayerShell`; current episode keys and playback URLs are not valid substitutes.
+- [ ] Only then connect authenticated evidence to the read-only diagnostics panel for registry-backed sources.
 - [ ] Separately test native HLS behavior and actual Dolby Vision output on supported physical iPad hardware.
 
 ## Release boundary
