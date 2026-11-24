@@ -50,9 +50,11 @@ class HlsSourceGatewayError(RuntimeError):
 def _safe_origin_url(raw_url: str, *, public_https_url, resolve_public_addresses, allowed_hosts: set[str]):
     normalized, host = public_https_url(raw_url)
     parsed = urlsplit(normalized)
+    decoded_path = unquote(parsed.path)
+    unsafe_path = "\\" in decoded_path or "\x00" in decoded_path or ".." in PurePosixPath(decoded_path).parts
     if (parsed.scheme != "https" or not parsed.hostname or parsed.hostname.lower().rstrip(".") != host
             or parsed.username or parsed.password or parsed.port not in (None, 443)
-            or host not in allowed_hosts or parsed.fragment):
+            or host not in allowed_hosts or parsed.fragment or unsafe_path):
         raise HlsSourceGatewayError("HLS member is outside the exact HTTPS source-host allowlist")
     addresses = resolve_public_addresses(host)
     if not addresses:
