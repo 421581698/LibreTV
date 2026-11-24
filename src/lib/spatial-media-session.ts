@@ -14,6 +14,7 @@ export interface SpatialEngineHandle {
   setMode(mode: 'headphone-stereo'): { route: string; label: string; reason: string };
   destroyAfterMediaElementRemoval(): Promise<void>;
   subscribeStateChange?(listener: (state: string) => void): () => void;
+  updateInputChannels?(inputChannels: number, inputLayout?: '5.1' | 'unknown'): unknown;
 }
 
 export interface SpatialHlsController {
@@ -192,6 +193,9 @@ export class SpatialMediaSession {
       return false;
     }
     controller.audioTrack = trackIndex;
+    if (this.state === 'active') {
+      this.engine?.updateInputChannels?.(this.getDeclaredInputChannels(), 'unknown');
+    }
     return true;
   }
 
