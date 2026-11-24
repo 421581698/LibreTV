@@ -35,6 +35,9 @@ const cdnServer = createServer((request, response) => {
   } else if (path === '/final/segment.ts') {
     response.writeHead(200, { ...allowOrigin, 'Content-Type': 'video/mp2t' });
     response.end(Buffer.from([0x47, 0x00, 0x00, 0x11]));
+  } else if (path === '/final/segment.ts') {
+    response.writeHead(200, { ...allowOrigin, 'Content-Type': 'video/mp2t' });
+    response.end(Buffer.from([0x47, 0x00, 0x00, 0x12]));
   } else if (path === '/denied/key.bin') {
     // Deliberately omit Access-Control-Allow-Origin: browser fetch must reject.
     response.writeHead(200, { 'Content-Type': 'application/octet-stream' });
@@ -45,6 +48,79 @@ const cdnServer = createServer((request, response) => {
   }
 });
 const servers = [
+  [appServer, 4173],
+  [cdnServer, 4174],
+];
+const listen = (server, port) => new Promise((resolve, reject) => {
+  server.once('error', reject);
+  server.listen(port, '127.0.0.1', resolve);
+});
+const close = server => new Promise(resolve => server.close(() => resolve()));
+const browser = await chromium.launch({ channel: 'chrome', headless: true });
+let failed = false;
+try {
+  await Promise.all(servers.map(([server, port]) => listen(server, port)));
+  const page = await browser.newPage();
+  const requestFailures = [];
+  page.on('requestfailed', request => requestFailures.push({
+    url: request.url(),
+    failure: request.failure()?.errorText ?? 'unknown',
+  }));
+  await page.goto(appOrigin);
+  const results = await page.evaluate(async ({ cdnOrigin }) => {
+    const resources = [
+      ['master manifest', cdnOrigin + '/master.m3u8'],
+      ['variant playlist', cdnOrigin + '/variant/index.m3u8'],
+      ['media segment', cdnOrigin + '/variant/segment.ts'],
+      ['AES-128 key', cdnOrigin + '/keys/key.bin'],
+      ['redirected media resource', cdnOrigin + '/redirect/segment.ts'],
+    ];
+    const checks = [];
+    for (const [name, url] of resources) {
+      try {
+        const response = await fetch(url, { mode: 'cors', credentials: 'omit', cache: 'no-store' });
+        const body = await response.arrayBuffer();
+        checks.push({
+          name,
+          ok: response.ok && response.type !== 'opaque' && body.byteLength > 0,
+          status: response.status,
+          finalUrl: response.url,
+          bytes: body.byteLength,
+        });
+      } catch (error) {
+        checks.push({ name, ok: false, error: String(error) });
+      }
+    }
+    let deniedRejected = false;
+    try {
+      await fetch(cdnOrigin + '/denied/key.bin', { mode: 'cors', credentials: 'omit', cache: 'no-store' });
+    } catch {
+      deniedRejected = true;
+    }
+    checks.push({ name: 'missing CORS header fails closed', ok: deniedRejected });
+    return checks;
+  }, { cdnOrigin });
+  for (const result of results) {
+    console.log(JSON.stringify(result));
+    if (!result.ok) failed = true;
+  }
+  if (results.filter(item => item.ok).length !== 6) failed = true;
+  if (requestFailures.some(item => !item.url.includes('/denied/key.bin'))) {
+    console.error('Unexpected browser request failures:', JSON.stringify(requestFailures));
+    failed = true;
+  }
+  if (!requestFailures.some(item => item.url.includes('/denied/key.bin'))) {
+    console.error('Expected denied key request to be blocked by browser CORS');
+    failed = true;
+  }
+} catch (error) {
+  failed = true;
+  console.error('FAIL spatial HLS resource CORS smoke:', error instanceof Error ? error.stack || error.message : String(error));
+} finally {
+  await browser.close();
+  await Promise.all(servers.map(([server]) => close(server)));
+}
+if (failed) process.exitCode = 1;const servers = [
   [appServer, 4173],
   [cdnServer, 4174],
 ];
