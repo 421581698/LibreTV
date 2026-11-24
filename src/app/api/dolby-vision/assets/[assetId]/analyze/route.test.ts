@@ -8,8 +8,12 @@ vi.mock('@/lib/api-guard', () => ({
 vi.mock('@/lib/resource-collector-client', () => ({
   fetchDolbyVisionRegistryAsset: vi.fn(),
 }));
+vi.mock('@/lib/auth', () => ({
+  isAuthDisabled: vi.fn(() => false),
+}));
 
 import { fetchDolbyVisionRegistryAsset } from '@/lib/resource-collector-client';
+import { isAuthDisabled } from '@/lib/auth';
 import { POST } from './route';
 
 const { privateKey, publicKey } = generateKeyPairSync('ed25519');
@@ -76,6 +80,7 @@ beforeEach(() => {
   vi.stubEnv('DV_SIGNING_PUBLIC_KEY_PEM_B64', Buffer.from(publicKeyPem).toString('base64'));
   vi.stubEnv('DV_MAX_UPLOAD_BYTES', '1048576');
   vi.stubEnv('DV_ANALYSIS_TIMEOUT_MS', '60000');
+  vi.mocked(isAuthDisabled).mockReturnValue(false);
   vi.mocked(fetchDolbyVisionRegistryAsset).mockResolvedValue(makeRegistryResponse());
 });
 
@@ -135,6 +140,25 @@ describe('POST /api/dolby-vision/assets/[assetId]/analyze', () => {
     const response = await POST(makeRequest(), { params: Promise.resolve({ assetId }) });
     expect(response.status).toBe(409);
     expect(parserFetch).not.toHaveBeenCalled();
+  });
+
+  it('does not allow public-preview bypass headers to invoke server-credential analysis', async () => {
+    vi.mocked(isAuthDisabled).mockReturnValue(true);
+    const parserFetch = vi.fn();
+    vi.stubGlobal('fetch', parserFetch);
+
+    const request = new Request(`https://libretv.example/api/dolby-vision/assets/${assetId}/analyze`, {
+      method: 'POST',
+      headers: {
+        'x-scrapling-api-base': 'https://attacker.example',
+        'x-scrapling-api-token': 'attacker-token',
+      },
+    });
+    const response = await POST(request, { params: Promise.resolve({ assetId }) });
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({ code: 'DV_ANALYSIS_AUTH_REQUIRED' });
+    expect(parserFetch).not.toHaveBeenCalled();
+    expect(fetchDolbyVisionRegistryAsset).not.toHaveBeenCalled();
   });
 
   it('fails closed when parser verification settings are missing', async () => {
