@@ -261,7 +261,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
           aria-hidden={!sidebarOpen && !isExpandedSidebar}
           inert={!sidebarOpen && !isExpandedSidebar}
         >
-          <Link className="ipad-nav__brand" href="/ipad-edition" tabIndex={sidebarOpen ? 0 : -1}>
+          <Link className="ipad-nav__brand" href="/ipad-edition" tabIndex={sidebarOpen || isExpandedSidebar ? 0 : -1}>
             <span className="ipad-nav__brand-mark">L</span>
             <span className="ipad-nav__brand-copy">
               <strong>LibreTV</strong>
@@ -280,7 +280,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
-                tabIndex={sidebarOpen ? 0 : -1}
+                tabIndex={sidebarOpen || isExpandedSidebar ? 0 : -1}
                 className={activeHref === item.href ? 'is-active' : ''}
                 aria-current={activeHref === item.href ? 'page' : undefined}
               >
@@ -297,7 +297,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
-                tabIndex={sidebarOpen ? 0 : -1}
+                tabIndex={sidebarOpen || isExpandedSidebar ? 0 : -1}
                 className={activeHref === item.href ? 'is-active' : ''}
                 aria-current={activeHref === item.href ? 'page' : undefined}
               >
