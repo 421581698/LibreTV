@@ -146,7 +146,7 @@ describe('SpatialMediaSession activation and fallback', () => {
     setPaused(native, true);
     native.dispatch('pause');
     expect(spatial.pause).toHaveBeenCalled();
-    native.paused = false;
+    setPaused(native, false);
     native.dispatch('play');
     expect(spatial.play).toHaveBeenCalled();
     native.currentTime = 41;
