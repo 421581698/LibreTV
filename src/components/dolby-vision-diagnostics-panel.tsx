@@ -131,6 +131,16 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId }: DolbyVi
               </>
             )}
             <div className="flex justify-between gap-3">
+              <span className="text-white/55">帧级动态元数据</span>
+              <span className="text-right">
+                {verifiedEvidence
+                  ? verifiedEvidence.evidence.metadataLevels.some((level) => level === 1 || level === 2)
+                    ? '已验证 L1/L2'
+                    : 'RPU 已存在，动态元数据未确认'
+                  : '未验证'}
+              </span>
+            </div>
+            <div className="flex justify-between gap-3">
               <span className="text-white/55">浏览器解码</span>
               <span>未验证</span>
             </div>
