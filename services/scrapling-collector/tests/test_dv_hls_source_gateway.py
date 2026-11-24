@@ -346,7 +346,7 @@ class AuthorizedHlsSourceGatewayTests(unittest.TestCase):
         self.assertFalse(any(self.staging_root.iterdir()))
 
     def test_rejects_hls_path_traversal_before_fetching_child(self):
-        manifest = b"#EXTM3U\n#EXTINF:4.0,\n%252e%252e/private.ts\n#EXT-X-ENDLIST\n"
+        manifest = b"#EXTM3U\n#EXTINF:4.0,\n%25252e%25252e/private.ts\n#EXT-X-ENDLIST\n"
         responses = {
             ("media.example", "/master.m3u8"): (200, {
                 "Content-Type": "application/vnd.apple.mpegurl",
