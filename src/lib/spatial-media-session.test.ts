@@ -72,6 +72,35 @@ describe('SpatialMediaSession preparation', () => {
     expect(native.muted).toBe(false);
   });
 
+  it('preserves fatal HLS errors raised while the independent controller is starting', async () => {
+    const native = makeVideo();
+    const spatial = makeVideo();
+    const engine = makeEngine();
+    const controller = {
+      start: vi.fn(async () => undefined),
+      destroy: vi.fn(),
+      audioTracks: [],
+      audioTrack: -1,
+    };
+    const session = await SpatialMediaSession.prepare({
+      nativeVideo: native, host: makeHost(), sourceUrl: 'https://media.example/master.m3u8',
+      sourceKind: 'hls', verifyCors: vi.fn(async () => true),
+      createMediaElement: () => spatial,
+      createEngine: () => engine,
+      createHlsController: (_media, _url, onFatalError) => ({
+        ...controller,
+        start: vi.fn(async () => { onFatalError('fatal during startup'); }),
+      }),
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(session.snapshot.state).toBe('fallback');
+    expect(session.snapshot.reason).toBe('fatal during startup');
+    expect(native.muted).toBe(false);
+    expect(spatial.remove).toHaveBeenCalledTimes(1);
+    expect(engine.resumeFromUserGesture).not.toHaveBeenCalled();
+  });
+
   it('owns an independent HLS controller and exposes isolated audio-track switching', async () => {
     const native = makeVideo();
     const spatial = makeVideo();
