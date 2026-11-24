@@ -81,6 +81,49 @@ describe('GET /api/dolby-vision/resources/[resourceId]/asset', () => {
     await expect(response.json()).resolves.toMatchObject({ assetId: asset.asset_id, contentType: 'video/mp4' });
   });
 
+  it('resolves the explicit HLS graph root rather than a nested playlist', async () => {
+    const root = {
+      ...asset,
+      asset_id: 'dv_hls_root',
+      sha256: 'b'.repeat(64),
+      byte_length: 512,
+      content_type: 'application/vnd.apple.mpegurl',
+      object_key: `sha256/bb/${'b'.repeat(64)}`,
+    };
+    vi.mocked(collectorRequest).mockResolvedValue(NextResponse.json({
+      resource: { ...registryPayload.resource, media_format: 'hls' },
+      media_assets: [
+        root,
+        { ...root, asset_id: 'dv_nested_playlist', created_at: 20 },
+      ],
+      hls_graphs: [{
+        graph_id: root.asset_id,
+        resource_id: resourceId,
+        root_asset_id: root.asset_id,
+        created_at: 10,
+      }],
+    }));
+    const response = await GET(makeRequest(), { params: Promise.resolve({ resourceId }) });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      assetId: root.asset_id,
+      contentType: 'application/vnd.apple.mpegurl',
+    });
+  });
+
+  it('does not resolve HLS playback when no explicit graph root exists', async () => {
+    vi.mocked(collectorRequest).mockResolvedValue(NextResponse.json({
+      resource: { ...registryPayload.resource, media_format: 'hls' },
+      media_assets: [{
+        ...asset,
+        content_type: 'application/vnd.apple.mpegurl',
+      }],
+      hls_graphs: [],
+    }));
+    const response = await GET(makeRequest(), { params: Promise.resolve({ resourceId }) });
+    expect(response.status).toBe(404);
+  });
+
   it('does not use browser-provided collector credentials', async () => {
     await GET(makeRequest({
       'x-scrapling-api-base': 'https://attacker.example',
