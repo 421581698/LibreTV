@@ -30,7 +30,7 @@ export interface SpatialMediaSessionOptions {
   sourceKind: SpatialMediaSourceKind;
   verifyCors?: (url: string) => Promise<boolean>;
   createMediaElement?: () => HTMLVideoElement;
-  createEngine?: (media: HTMLVideoElement) => SpatialEngineHandle;
+  createEngine?: (media: HTMLVideoElement, declaredInputChannels: number) => SpatialEngineHandle;
   createHlsController?: (media: HTMLVideoElement, sourceUrl: string, onFatalError: (reason: string) => void) => SpatialHlsController;
   onStateChange?: (snapshot: SpatialMediaSessionSnapshot) => void;
 }
@@ -97,7 +97,7 @@ export class SpatialMediaSession {
   private constructor(
     readonly nativeVideo: HTMLVideoElement,
     readonly media: HTMLVideoElement,
-    private readonly createEngine: (media: HTMLVideoElement) => SpatialEngineHandle,
+    private readonly createEngine: (media: HTMLVideoElement, declaredInputChannels: number) => SpatialEngineHandle,
     private readonly onStateChange?: (snapshot: SpatialMediaSessionSnapshot) => void,
     hlsController: SpatialHlsController | null = null,
   ) {
@@ -174,6 +174,18 @@ export class SpatialMediaSession {
     return this.hlsController?.audioTracks ?? [];
   }
 
+  private getDeclaredInputChannels(): number {
+    const tracks = this.hlsController?.audioTracks;
+    const selected = this.hlsController?.audioTrack ?? -1;
+    if (!tracks || selected < 0 || selected >= tracks.length) return 0;
+    const channels = (tracks[selected] as { channels?: string } | undefined)?.channels;
+    const match = channels ? /^(\\d+)/.exec(channels.trim()) : null;
+    const count = match ? Number(match[1]) : 0;
+    // Only declared stereo is eligible for stereo HRTF virtualization.
+    // Six channels remain bypassed unless a verified 5.1 speaker layout exists.
+    return count === 2 ? 2 : count === 6 ? 6 : 0;
+  }
+
   selectAudioTrack(trackIndex: number): boolean {
     const controller = this.hlsController;
     if (!controller || !Number.isInteger(trackIndex) || trackIndex < 0 || trackIndex >= controller.audioTracks.length) {
@@ -192,7 +204,7 @@ export class SpatialMediaSession {
     this.state = 'activating';
     this.notifyState();
     try {
-      this.engine = this.createEngine(this.media);
+      this.engine = this.createEngine(this.media, this.getDeclaredInputChannels());
       this.removeEngineStateListener = this.engine.subscribeStateChange?.((state) => {
         if (this.state === 'active' && state !== 'running') {
           void this.fallback('AudioContext 被系统中断或关闭，已恢复原生播放');
