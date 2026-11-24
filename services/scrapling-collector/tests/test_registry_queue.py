@@ -148,6 +148,16 @@ class RegistryQueueTests(unittest.TestCase):
             queue.register_dolby_vision_media_asset(
                 resource["id"], digest, 123457, "video/mp4"
             )
+        other_resource = queue.upsert_resource({
+            "resource_key": "resource:dv-copy", "source_key": "provider",
+            "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/copy.mp4",
+            "title": "Same bytes", "access_state": "PUBLIC",
+        })
+        shared = queue.register_dolby_vision_media_asset(
+            other_resource["id"], digest, 123456, "video/mp4"
+        )
+        self.assertEqual(shared["object_key"], first["object_key"])
+        self.assertNotEqual(shared["asset_id"], first["asset_id"])
         with self.assertRaises(ValueError):
             queue.register_dolby_vision_media_asset(
                 resource["id"], "not-a-digest", 123456, "video/mp4"
