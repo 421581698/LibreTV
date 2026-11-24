@@ -52,16 +52,18 @@ export function inspectHlsAudioTrack(track: HlsAudioTrackLike): HlsAudioRenditio
   const channelsRaw = track.channels ?? null;
   const parsed = parseChannelDeclaration(channelsRaw);
   const codec = audioCodecFromCodecs(track.audioCodec ?? undefined);
+  const hasJocCodecMarker = Boolean(track.audioCodec && /(?:^|[-.,\s])joc(?:$|[-.,\s])/i.test(track.audioCodec));
   return {
     groupId: track.groupId ?? '', name: track.name ?? '', uri: track.url ?? null,
     channelsRaw, channelCount: parsed.channelCount, layout: channelLayout(parsed.channelCount),
-    codec, hasJocMarker: parsed.hasJocMarker || Boolean(codec && /(?:^|[-.,\s])joc(?:$|[-.,\s])/i.test(codec)),
+    codec, hasJocMarker: parsed.hasJocMarker || hasJocCodecMarker,
     default: Boolean(track.default), autoselect: Boolean(track.autoselect),
   };
 }
 export function parseHlsAudioRenditions(manifest: string): HlsAudioRenditionInfo[] {
   const lines = manifest.split(/\r?\n/).map((line) => line.trim());
   const audioGroups = new Map<string, Set<string>>();
+  const audioGroupJocDeclarations = new Map<string, Set<boolean>>();
   const renditions: HlsAudioRenditionInfo[] = [];
   for (const line of lines) {
     if (line.startsWith('#EXT-X-STREAM-INF:')) {
@@ -73,6 +75,9 @@ export function parseHlsAudioRenditions(manifest: string): HlsAudioRenditionInfo
           declared.add(codec);
           audioGroups.set(attrs.AUDIO, declared);
         }
+        const jocDeclarations = audioGroupJocDeclarations.get(attrs.AUDIO) ?? new Set<boolean>();
+        jocDeclarations.add(Boolean(attrs.CODECS && /(?:^|[-.,\s])joc(?:$|[-.,\s])/i.test(attrs.CODECS)));
+        audioGroupJocDeclarations.set(attrs.AUDIO, jocDeclarations);
       }
       continue;
     }
@@ -93,10 +98,12 @@ export function parseHlsAudioRenditions(manifest: string): HlsAudioRenditionInfo
     // A GROUP-ID can be referenced by multiple variants. Only expose a codec
     // when every observed declaration for that group agrees; otherwise fail closed.
     const codec = declaredCodecs?.size === 1 ? [...declaredCodecs][0] : null;
+    const jocDeclarations = audioGroupJocDeclarations.get(rendition.groupId);
+    const hasConsistentJocDeclaration = jocDeclarations?.size === 1 && jocDeclarations.has(true);
     return {
       ...rendition,
       codec,
-      hasJocMarker: rendition.hasJocMarker || Boolean(codec && /(?:^|[-.,\s])joc(?:$|[-.,\s])/i.test(codec)),
+      hasJocMarker: rendition.hasJocMarker || Boolean(hasConsistentJocDeclaration),
     };
   });
 }
