@@ -76,6 +76,25 @@ function readCapabilityEnvironment(video: HTMLVideoElement) {
   };
 }
 
+/** Preserve the original HLS codec attributes; videoCodec alone can omit supplemental DV signaling. */
+function inspectHlsDolbyVisionFormat(
+  url: string,
+  levels: Array<{ videoCodec?: string; attrs?: unknown }>,
+): DolbyVisionFormatReport {
+  const codecs: string[] = [];
+  const supplementalCodecs: string[] = [];
+  for (const level of levels) {
+    if (level.videoCodec) codecs.push(level.videoCodec);
+    if (!level.attrs || typeof level.attrs !== 'object') continue;
+    const attrs = level.attrs as Record<string, unknown>;
+    if (typeof attrs.CODECS === 'string') codecs.push(attrs.CODECS);
+    if (typeof attrs['SUPPLEMENTAL-CODECS'] === 'string') {
+      supplementalCodecs.push(attrs['SUPPLEMENTAL-CODECS']);
+    }
+  }
+  return inspectDolbyVisionFormat({ url, codecs, supplementalCodecs });
+}
+
 const QUALITY_PREFERENCE_KEY = 'libretv-quality-preference';
 function readQualityPreference(): QualityPreference {
   try {
@@ -974,10 +993,7 @@ export function PlayerShell({
 
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
       if (!isCurrentHls()) return;
-      setDolbyVisionFormatReport(inspectDolbyVisionFormat({
-        url: mediaUrl,
-        codecs: hls.levels.map((level) => level.videoCodec ?? '').filter(Boolean),
-      }));
+      setDolbyVisionFormatReport(inspectHlsDolbyVisionFormat(mediaUrl, hls.levels));
       const qualityResult = applyHlsQualityPreference(hls!, readQualityPreference(), video);
       setAvailableQualityHeights(qualityResult.heights);
       setAvailableQualityLevelCount(hls.levels.length);
@@ -1041,10 +1057,7 @@ export function PlayerShell({
     // 实际分辨率统一由 video.videoHeight 的 loadedmetadata/canplay/playing/resize 事件记录。
     hls.on(Hls.Events.LEVELS_UPDATED, () => {
       if (!isCurrentHls()) return;
-      setDolbyVisionFormatReport(inspectDolbyVisionFormat({
-        url: mediaUrl,
-        codecs: hls.levels.map((level) => level.videoCodec ?? '').filter(Boolean),
-      }));
+      setDolbyVisionFormatReport(inspectHlsDolbyVisionFormat(mediaUrl, hls.levels));
       // 部分动态清单会在初次解析后补齐档位；重新应用用户的最高画质限制。
       const qualityResult = applyHlsQualityPreference(hls!, readQualityPreference(), video);
       setAvailableQualityHeights(qualityResult.heights);
