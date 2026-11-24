@@ -12,6 +12,7 @@ on:
       - "docs/dolby-vision/**"
       - "scripts/dolby-vision/**"
       - "services/dolby-vision-parser/**"
+      - "docker-compose.yml"
       - "services/dolby-vision-parser/**"
       - "src/components/source-manager.tsx"
       - "src/components/home/home-inline-play.test.ts"
@@ -105,6 +106,10 @@ jobs:
         run: node --test services/dolby-vision-parser/server.test.mjs
       - name: Build private parser service container
         run: docker build -f services/dolby-vision-parser/Dockerfile -t libretv-dolby-vision-parser:ci .
+      - name: Validate isolated Dolby Vision Compose profile
+        run: |
+          openssl genpkey -algorithm ED25519 -out /tmp/dv-signing-private-key.pem
+          PASSWORD=ci-placeholder DV_SERVICE_TOKEN=ci-token DV_SIGNING_KEY_ID=ci-key DV_SIGNING_PRIVATE_KEY_FILE=/tmp/dv-signing-private-key.pem docker compose --profile dolby-vision config --quiet
       - name: Run LibreTV RPU adapter against real parser fixture
         run: |
           DOVI_TOOL_BIN=/usr/local/bin/dovi_tool node scripts/dolby-vision/analyze-rpu.mjs --input /tmp/dolby-vision-profile8.rpu --kind rpu > /tmp/dolby-vision-report.json
