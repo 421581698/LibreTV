@@ -27,7 +27,7 @@ function audioCodecFromCodecs(codecs?: string): string | null {
   // Match complete codec identifiers, not arbitrary prefixes. A loose prefix
   // check can mislabel malformed/unknown tokens (for example, `ac-30`) as a
   // supported Dolby codec and pollute the diagnostics HUD.
-  const supportedAudioCodec = /^(?:mp4a\.[a-z0-9.]+|ac-4(?:\.[a-z0-9.]+)?|ac-3|ec-3(?:-joc)?|opus|flac|alac|dts(?:c|h|l|e|x|-hd|-x)?|mlpa|truehd|iamf(?:\.[a-z0-9.]+)?|eclipsa|lpcm|pcm|mat)$/i;
+  const supportedAudioCodec = /^(?:mp4a\.[0-9a-z.]+|ac-4(?:\.[0-9a-f]{2}){3}|ac-3|ec-3|opus|flac|alac|dtsc|dtsh|dtse|mlpa|iamf(?:\.[0-9a-z]+)?)$/i;
   return codecs.split(',').map((value) => value.trim())
     .find((value) => supportedAudioCodec.test(value)) ?? null;
 }
