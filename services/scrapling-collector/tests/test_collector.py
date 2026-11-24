@@ -92,6 +92,140 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(sample["sample_source"], "collector_preview")
         self.assertEqual(sample["decoded_width"], 0)
 
+    def test_playback_confirmation_automatically_ingests_allowlisted_media_bytes(self):
+        import hashlib
+        from unittest.mock import patch
+
+        task_id = "e" * 32
+        candidate_id = "f" * 32
+        now = 1_800_000_001
+        payload = b"authorized-origin-mp4-bytes" * 4096
+        validation = {
+            "reachable": True,
+            "media_format": "progressive",
+            "content_type": "video/mp4",
+            "final_url": "https://media.example/movie.mp4",
+            "access": {"access_state": "PUBLIC"},
+        }
+        with collector.db() as connection:
+            connection.execute(
+                "INSERT INTO tasks(id,url,host,status,mode,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                (task_id, "https://media.example/movie.mp4", "media.example", "completed", "http", now, now),
+            )
+            connection.execute(
+                """INSERT INTO candidates
+                   (id,task_id,url,host,kind,title,status,created_at,access_state,validation)
+                   VALUES(?,?,?,?,?,?,?,?,?,?)""",
+                (candidate_id, task_id, "https://media.example/movie.mp4", "media.example",
+                 "direct-media", "Authorized test media", "validated", now, "PUBLIC",
+                 collector.json.dumps(validation)),
+            )
+
+        class FakeResponse:
+            status = 200
+            def __init__(self):
+                self.body = payload
+            def getheaders(self):
+                return [
+                    ("Content-Type", "video/mp4"),
+                    ("Content-Length", str(len(payload))),
+                    ("Content-Encoding", "identity"),
+                ]
+            def read(self, size=-1):
+                if size is None or size < 0:
+                    size = len(self.body)
+                chunk, self.body = self.body[:size], self.body[size:]
+                return chunk
+            def close(self):
+                pass
+
+        class FakeConnection:
+            def __init__(self, *args, **kwargs):
+                self.request_args = None
+            def request(self, method, target, headers):
+                self.request_args = (method, target, headers)
+            def getresponse(self):
+                return FakeResponse()
+            def close(self):
+                pass
+
+        object_root = Path(self.temp.name) / "dv-objects"
+        staging_root = Path(self.temp.name) / "dv-staging"
+        with (
+            patch.dict(os.environ, {
+                "DV_SOURCE_GATEWAY_ENABLED": "1",
+                "DV_AUTHORIZED_SOURCE_HOSTS": "media.example",
+                "SCRAPLING_EGRESS_FIREWALL_CONFIRMED": "1",
+                "DV_SOURCE_GATEWAY_MAX_BYTES": str(len(payload) + 1),
+            }),
+            patch.object(collector, "public_https_url", return_value=("https://media.example/movie.mp4", "media.example")),
+            patch.object(collector, "resolve_public_addresses", return_value=["93.184.216.34"]),
+            patch.object(collector, "PinnedHTTPSConnection", FakeConnection),
+            patch.object(collector.registry_store, "DV_MEDIA_OBJECT_ROOT", object_root),
+            patch.object(collector.registry_store, "DV_MEDIA_STAGING_ROOT", staging_root),
+            patch.object(collector, "require_token"),
+        ):
+            result = collector.record_playback_evidence(
+                candidate_id,
+                collector.PlaybackEvidence(
+                    media_type="mp4", observed_seconds=5, progressed_seconds=3.5
+                ),
+                "Bearer test",
+            )
+
+        ingestion = result["media_ingestion"]
+        self.assertEqual(ingestion["status"], "registered")
+        self.assertEqual(ingestion["sha256"], hashlib.sha256(payload).hexdigest())
+        self.assertEqual(ingestion["byte_length"], len(payload))
+        stored = object_root / "sha256" / ingestion["sha256"][:2] / ingestion["sha256"]
+        self.assertEqual(stored.read_bytes(), payload)
+        self.assertFalse(any(staging_root.iterdir()))
+
+    def test_source_gateway_skips_non_allowlisted_host_without_network_access(self):
+        from unittest.mock import patch
+
+        task_id = "1" * 32
+        candidate_id = "2" * 32
+        now = 1_800_000_002
+        validation = {
+            "reachable": True,
+            "media_format": "progressive",
+            "content_type": "video/mp4",
+            "final_url": "https://media.example/movie.mp4",
+            "access": {"access_state": "PUBLIC"},
+        }
+        with collector.db() as connection:
+            connection.execute(
+                "INSERT INTO tasks(id,url,host,status,mode,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                (task_id, "https://media.example/movie.mp4", "media.example", "completed", "http", now, now),
+            )
+            connection.execute(
+                """INSERT INTO candidates
+                   (id,task_id,url,host,kind,title,status,created_at,access_state,validation)
+                   VALUES(?,?,?,?,?,?,?,?,?,?)""",
+                (candidate_id, task_id, "https://media.example/movie.mp4", "media.example",
+                 "direct-media", "Unapproved source", "validated", now, "PUBLIC",
+                 collector.json.dumps(validation)),
+            )
+        with (
+            patch.dict(os.environ, {
+                "DV_SOURCE_GATEWAY_ENABLED": "1",
+                "DV_AUTHORIZED_SOURCE_HOSTS": "approved.example",
+                "SCRAPLING_EGRESS_FIREWALL_CONFIRMED": "1",
+            }),
+            patch.object(collector, "public_https_url", return_value=("https://media.example/movie.mp4", "media.example")),
+            patch.object(collector, "require_token"),
+        ):
+            result = collector.record_playback_evidence(
+                candidate_id,
+                collector.PlaybackEvidence(
+                    media_type="mp4", observed_seconds=5, progressed_seconds=3
+                ),
+                "Bearer test",
+            )
+        self.assertEqual(result["media_ingestion"]["status"], "skipped")
+        self.assertEqual(result["media_ingestion"]["reason"], "source_host_not_explicitly_authorized")
+
     def test_general_playback_sample_only_records_fmhy_discovered_hosts(self):
         now = 1_800_000_000
         with collector.db() as connection:
