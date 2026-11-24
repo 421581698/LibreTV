@@ -333,6 +333,20 @@ class AuthorizedHlsSourceGatewayTests(unittest.TestCase):
         self.assertEqual(connection.requests, [("media.example", "GET", "/master.m3u8")])
         self.assertFalse(any(self.staging_root.iterdir()))
 
+    def test_rejects_hls_path_traversal_before_fetching_child(self):
+        manifest = b"#EXTM3U\\n#EXTINF:4.0,\\n%2e%2e/private.ts\\n#EXT-X-ENDLIST\\n"
+        responses = {
+            ("media.example", "/master.m3u8"): (200, {
+                "Content-Type": "application/vnd.apple.mpegurl",
+                "Content-Length": str(len(manifest)),
+            }, manifest),
+        }
+        result, connection = self.run_gateway(responses)
+        self.assertEqual(result["status"], "failed")
+        self.assertIn("path traversal", result["reason"])
+        self.assertEqual(connection.requests, [("media.example", "GET", "/master.m3u8")])
+        self.assertFalse(any(self.staging_root.iterdir()))
+
     def test_rejects_encrypted_hls_before_fetching_key_or_segment(self):
         manifest = b'#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI="secret.key"\n#EXTINF:4.0,\nsegment.ts\n'
         responses = {
