@@ -84,7 +84,6 @@ export class SpatialMediaSession {
   private constructor(
     readonly nativeVideo: HTMLVideoElement,
     readonly media: HTMLVideoElement,
-    private readonly host: HTMLElement,
     private readonly createEngine: (media: HTMLVideoElement) => SpatialEngineHandle,
     private readonly onStateChange?: (snapshot: SpatialMediaSessionSnapshot) => void,
   ) {
@@ -131,7 +130,7 @@ export class SpatialMediaSession {
 
     const createEngine = options.createEngine ?? ((element: HTMLVideoElement) =>
       SpatialAudioEngine.attach(element, { inputChannels: 0 }));
-    return new SpatialMediaSession(nativeVideo, media, host, createEngine, options.onStateChange);
+    return new SpatialMediaSession(nativeVideo, media, createEngine, options.onStateChange);
   }
 
   get snapshot(): SpatialMediaSessionSnapshot {
