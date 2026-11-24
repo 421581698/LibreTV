@@ -12,6 +12,25 @@ A private Node.js analysis service for trusted backend-to-backend use. It accept
 - No remote URL fetching is implemented. This avoids SSRF and uncontrolled third-party media retrieval.
 - Upload size, concurrent jobs, parser runtime and request time are bounded.
 
+## Local Docker Compose profile
+
+The repository's root `docker-compose.yml` includes an opt-in `dolby-vision` profile. It does not publish a host port; the service is reachable only from containers on the private Compose network.
+
+```sh
+mkdir -p secrets
+openssl genpkey -algorithm ED25519 -out secrets/dv-signing-private-key.pem
+openssl pkey -in secrets/dv-signing-private-key.pem -pubout -out secrets/dv-signing-public-key.pem
+export DV_SERVICE_TOKEN="$(openssl rand -hex 32)"
+export DV_SIGNING_KEY_ID="dv-key-1"
+export DV_SIGNING_PRIVATE_KEY_FILE="$PWD/secrets/dv-signing-private-key.pem"
+docker compose --profile dolby-vision up -d --build
+docker compose ps dolby-vision-parser
+```
+
+The private key is mounted read-only at `/run/secrets/dv-signing-private-key`; the local `secrets/` directory is ignored by Git. Keep the public key separate and configure it only in the trusted backend verifier. The health endpoint is available inside the Compose network at `http://dolby-vision-parser:8788/health`.
+
+This starts the parser service only. It does **not** create the missing immutable media catalogue, trusted media gateway, or player integration. Do not configure the browser to call the parser directly.
+
 ## Build
 
 ```sh
