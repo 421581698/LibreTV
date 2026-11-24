@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { inspectSpatialAudioCapabilities, isAudioSourceUrlOriginSafe, isMediaElementAudioOriginSafe, planSpatialAudio, SpatialAudioEngine } from './spatial-audio';
 
 function createMockAudioContext() {
-  let context: Record<string, unknown>;
+  const contextRef: { current?: Record<string, unknown> } = {};
+  const state = { value: 'suspended' as AudioContextState };
   const makeNode = () => ({ connect: vi.fn(), disconnect: vi.fn() });
   const createPanner = () => {
     const panner = Object.assign(makeNode(), {
@@ -18,11 +19,11 @@ function createMockAudioContext() {
       setPosition: vi.fn(),
       context: null as unknown,
     });
-    panner.context = context;
+    panner.context = contextRef.current;
     return panner;
   };
-  context = {
-    state: 'suspended',
+  const context: Record<string, unknown> = {
+    get state() { return state.value; },
     currentTime: 0,
     destination: { maxChannelCount: 2 },
     outputLatency: 0.02,
@@ -32,9 +33,10 @@ function createMockAudioContext() {
       gain: { value: 1, setTargetAtTime: vi.fn() },
     })),
     createChannelSplitter: vi.fn(() => Object.assign(makeNode(), { channelInterpretation: 'speakers' })),
-    resume: vi.fn(async () => { context.state = 'running'; }),
-    close: vi.fn(async () => { context.state = 'closed'; }),
+    resume: vi.fn(async () => { state.value = 'running'; }),
+    close: vi.fn(async () => { state.value = 'closed'; }),
   };
+  contextRef.current = context;
   return context as unknown as AudioContext;
 }
 
