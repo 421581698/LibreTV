@@ -30,6 +30,9 @@ describe('read-only playback diagnostics aggregation', () => {
     expect(snapshot.capability?.bitstreamPassthrough).toBe('unknown');
     expect(snapshot.capability?.nativeDolbyDecode).toBe('unknown');
     expect(snapshot.capability?.safeDefault).toBe('native-media-playback');
+    expect(snapshot.capability?.audioContext).toBe(true);
+    expect(snapshot.capability?.outputDeviceName).toBe('not-exposed');
+    expect(snapshot.capability?.spatialRendering).toBe('not-integrated');
   });
 
   it('aggregates real hls.js audio tracks through the shared mapper -> inspector path', () => {
@@ -151,6 +154,8 @@ describe('sanitizePlaybackDiagnostics (telemetry whitelist)', () => {
     expect(clean?.capability?.bitstreamPassthrough).toBe('unknown');
     expect(clean?.capability?.atmosObjectDecode).toBe('not-established');
     expect(clean?.capability?.safeDefault).toBe('native-media-playback');
+    expect(clean?.capability?.outputDeviceName).toBe('not-exposed');
+    expect(clean?.capability?.spatialRendering).toBe('not-integrated');
     expect(clean?.capability?.browserDecode).toBe('not-probed');
   });
 
