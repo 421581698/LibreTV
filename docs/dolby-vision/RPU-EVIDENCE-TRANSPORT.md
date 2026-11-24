@@ -69,11 +69,13 @@ Until these prerequisites are met, the player correctly displays RPU/dynamic met
 
 - [x] Implement and document a private parser service and backend-only bearer boundary.
 - [ ] Deploy the parser service behind private ingress and provision signing/service secrets with a key rotation process.
-- [x] Add a separate DV ingestion secret and authenticated raw-byte ingress endpoint.\n- [ ] Provision the secret in the deployment environment and connect only the trusted source gateway to the registry endpoint.
+- [x] Add a separate DV ingestion secret and authenticated raw-byte ingress endpoint.
+- [ ] Provision the secret in the deployment environment and connect only the trusted source gateway to the registry endpoint.
 - [x] Define canonical signed envelope and signature verification tests (valid, tampered, wrong-key, expired/stale, unsupported version).
 - [x] Add a content-addressed media-asset registry primitive with a separate ingestion credential and immutable metadata semantics.
 - [x] Implement a local-file ingestion worker that hashes staged bytes and writes a no-overwrite content-addressed object before registry insertion.
-- [x] Add an authenticated raw-byte ingestion endpoint using a dedicated token, exact content length, and no URL fetching.\n- [x] Add an authenticated read-only object streaming endpoint bound to the registry asset ID.
+- [x] Add an authenticated raw-byte ingestion endpoint using a dedicated token, exact content length, and no URL fetching.
+- [x] Add an authenticated read-only object streaming endpoint bound to the registry asset ID.
 - [ ] Deploy a trusted gateway to stage authorized source bytes and provision durable object storage with production immutability/retention controls.
 - [x] Implement the server-side backend forwarder that streams the registered object into the parser and verifies the signed response against the registry-bound asset ID and digest.
 - [ ] Deploy and end-to-end validate the forwarder against the live private Compose services.
