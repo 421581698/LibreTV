@@ -12,6 +12,7 @@ import os
 import re
 import stat
 import tempfile
+import time
 from pathlib import Path, PurePosixPath
 from typing import BinaryIO
 from urllib.parse import unquote, urlsplit
@@ -152,10 +153,23 @@ def ingest_hls_directory(
 ) -> dict:
     """Ingest a local clear-HLS graph and rewrite every URI to immutable asset URLs."""
     root = Path(staging_root).resolve(strict=True)
-    playlist_path = Path(root_playlist)
-    if not playlist_path.is_absolute():
-        playlist_path = root / playlist_path
-    playlist_path = playlist_path.resolve(strict=True)
+    requested_playlist = Path(root_playlist)
+    if not requested_playlist.is_absolute():
+        requested_playlist = root / requested_playlist
+    requested_playlist = Path(os.path.abspath(requested_playlist))
+    try:
+        root_relative_path = requested_playlist.relative_to(root)
+    except ValueError as exc:
+        raise HlsIngestionError("Root playlist must be inside the trusted staging directory.") from exc
+    current = root
+    for part in root_relative_path.parts:
+        current = current / part
+        try:
+            if stat.S_ISLNK(current.lstat().st_mode):
+                raise HlsIngestionError("Symlinked root playlists are not accepted.")
+        except FileNotFoundError as exc:
+            raise HlsIngestionError("Root playlist is missing from the staging directory.") from exc
+    playlist_path = requested_playlist.resolve(strict=True)
     if not playlist_path.is_relative_to(root):
         raise HlsIngestionError("Root playlist must be inside the trusted staging directory.")
     object_dir = Path(object_root)
@@ -267,7 +281,7 @@ def ingest_hls_directory(
         connection.execute(
             """INSERT OR IGNORE INTO registry_hls_asset_graphs
                (graph_id,resource_id,root_asset_id,created_at) VALUES(?,?,?,?)""",
-            (root_asset["asset_id"], resource_id, root_asset["asset_id"], int(__import__("time").time())),
+            (root_asset["asset_id"], resource_id, root_asset["asset_id"], int(time.time())),
         )
         for parent_path, child_id, uri, role, ordinal in edges:
             parent_id = completed[parent_path]["asset_id"]
