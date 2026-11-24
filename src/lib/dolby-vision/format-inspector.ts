@@ -10,7 +10,7 @@ export type DolbyVisionDeclarationSource = 'codecs' | 'supplemental-codecs';
 
 export interface DolbyVisionCodecDeclaration {
   raw: string;
-  codec: 'dvhe' | 'dvh1' | 'dav1' | 'dva1';
+  codec: 'dvhe' | 'dvh1' | 'dav1' | 'dva1' | 'dvav';
   profile: number;
   level: number;
   family: DolbyVisionCodecFamily;
