@@ -75,15 +75,23 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
   const gestureRef = useRef<{ pointerId: number; startX: number; lastX: number; lastAt: number; width: number; wasOpen: boolean } | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const environmentRootRef = useRef<HTMLDivElement | null>(null);
+  const wideLayoutRef = useRef(false);
 
   useEffect(() => {
     const root = environmentRootRef.current;
     if (!root) return;
     const updateLayout = () => {
       const expanded = resolveIpadNavigationLayout(root.getBoundingClientRect().width) === 'expanded';
+      const wasWide = wideLayoutRef.current;
+      wideLayoutRef.current = expanded;
       setWideLayout(expanded);
-      if (!expanded) setNavigationCollapsed(false);
-      else setSidebarOpen(false);
+      if (!expanded) {
+        setNavigationCollapsed(false);
+        setSidebarOpen(false);
+      } else if (!wasWide) {
+        setNavigationCollapsed(true);
+        setSidebarOpen(false);
+      }
     };
     updateLayout();
     const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateLayout) : null;
