@@ -42,6 +42,27 @@ Passing a parser unit test or reading a `CODECS` string is not elementary-stream
 - Independent decode reference: https://github.com/AOMediaCodec/libiamf
 - SHA-256 values have **not** been recorded; Git blob IDs above pin the upstream objects but are not SHA-256. Do not put them in a SHA-256 field or imply a file hash verification has occurred.
 
+### IAMF decoder and licensing audit (2026-11-24)
+
+The pinned `iamf-tools` revision exposes two distinct command-line paths:
+
+- `probe_main` parses descriptor OBUs and can optionally scan temporal units; it does **not** decode audio.
+- `decoder_main` is a separate example decoder that accepts a standalone `.iamf` input and writes a multichannel WAV. Its documented invocation is:
+  `bazel-bin/iamf/cli/decoder_main --input_filename=<sample.iamf> --output_filename=<output.wav>`.
+  This is useful as an implementation cross-check, but it is not the AOM normative reference decoder.
+
+The normative reference decoder is maintained separately in `AOMediaCodec/libiamf`. Its current release reviewed for this register is `v2.0.1`, pinned to commit `63cafdd9b2d7bdba08cfeec2f008718198d7362e`. The upstream README identifies this repository as the decoder-only reference implementation for IAMF v2.0.0. Use this pinned version as the reference side of a future decode comparison; do not silently substitute a moving `main` branch.
+
+**License finding:** the pinned `iamf-tools` root LICENSE grants BSD-3-Clause software rights and includes the AOM Patent License 1.0 text. However, the small-vector inventory and testdata README describe the five files as synthetic noise/tone samples but do not provide an explicit per-file asset copyright/redistribution grant. The software license therefore does not close the media-asset rights question. Keep all five binary samples external-only until the asset scope is confirmed. No sample has been copied into LibreTV.
+
+**Execution status:** no probe or decoder binary was built or run in this review. No output WAV, PCM hash, channel-by-channel comparison, or reference-decoder result exists yet. Therefore all five samples remain candidate-only. The next controlled run must record, per exact sample, (1) probe JSON and temporal-unit scan result, (2) `iamf-tools` decoder exit status and output WAV metadata/hash, (3) `libiamf v2.0.1` decoder result and output WAV metadata/hash, and (4) a documented comparison policy. Exact PCM byte equality must not be assumed if the two implementations use different rendering or limiter paths; compare decoded substream/PCM only under a defined common mix, layout, sample rate, and tolerance.
+
+Pinned references:
+- `iamf-tools` decoder CLI: https://github.com/AOMediaCodec/iamf-tools/blob/7a52020dec74976394a730455a473e2933350b4d/docs/iamf_decoder_main.md
+- `iamf-tools` probe CLI: https://github.com/AOMediaCodec/iamf-tools/blob/7a52020dec74976394a730455a473e2933350b4d/docs/iamf_probe_main.md
+- Exact pinned software license: https://github.com/AOMediaCodec/iamf-tools/blob/7a52020dec74976394a730455a473e2933350b4d/LICENSE
+- IAMF v2.0.1 reference decoder: https://github.com/AOMediaCodec/libiamf/tree/63cafdd9b2d7bdba08cfeec2f008718198d7362e
+
 ## Rules before a fixture can be used
 
 - Record the exact upstream URL, immutable revision/release, filename, SHA-256, upstream license, source-media attribution, and any additional terms.
