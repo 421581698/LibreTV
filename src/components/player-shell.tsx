@@ -593,6 +593,7 @@ export function PlayerShell({
             }
             let destroyed = false;
             let rejectStart: ((reason?: Error) => void) | null = null;
+            let cleanupStart: (() => void) | null = null;
             const nativeTrackList = (media as HTMLVideoElement & {
               audioTracks?: { length: number; [index: number]: { label?: string; language?: string; enabled: boolean } };
             }).audioTracks;
@@ -613,15 +614,16 @@ export function PlayerShell({
                   reject(error);
                 };
                 const timeout = setTimeout(() => {
-                  media.removeEventListener('loadedmetadata', onReady);
-                  media.removeEventListener('error', onError);
+                  cleanup();
                   reject(new Error('Safari 原生 HLS 元数据加载超时'));
                 }, 12_000);
                 const cleanup = () => {
                   clearTimeout(timeout);
                   media.removeEventListener('loadedmetadata', onReady);
                   media.removeEventListener('error', onError);
+                  cleanupStart = null;
                 };
+                cleanupStart = cleanup;
                 media.addEventListener('loadedmetadata', onReady, { once: true });
                 media.addEventListener('error', onError, { once: true });
                 media.src = sourceUrl;
@@ -630,6 +632,7 @@ export function PlayerShell({
               }),
               destroy: () => {
                 destroyed = true;
+                cleanupStart?.();
                 rejectStart?.(new Error('HLS 会话已销毁'));
               },
               get audioTracks() { return readNativeTracks(); },
@@ -644,23 +647,46 @@ export function PlayerShell({
           }
           const hls = new Hls({ enableWorker: true, lowLatencyMode: false });
           let startPromise: Promise<void> | null = null;
+          let startupTimer: ReturnType<typeof setTimeout> | null = null;
+          let settled = false;
           return {
             start: () => {
               if (startPromise) return startPromise;
               startPromise = new Promise<void>((resolve, reject) => {
-                hls.once(Hls.Events.MANIFEST_PARSED, () => resolve());
+                const fail = (error: Error) => {
+                  if (settled) return;
+                  settled = true;
+                  if (startupTimer) clearTimeout(startupTimer);
+                  startupTimer = null;
+                  reject(error);
+                };
+                hls.once(Hls.Events.MANIFEST_PARSED, () => {
+                  if (settled) return;
+                  settled = true;
+                  if (startupTimer) clearTimeout(startupTimer);
+                  startupTimer = null;
+                  resolve();
+                });
                 hls.on(Hls.Events.ERROR, (_event, data) => {
                   if (!data.fatal) return;
                   const reason = data.details || data.type || 'HLS fatal error';
                   onFatalError('独立 HLS 会话失败：' + reason);
-                  reject(new Error('独立 HLS 会话失败：' + reason));
+                  fail(new Error('独立 HLS 会话失败：' + reason));
                 });
+                startupTimer = setTimeout(() => {
+                  fail(new Error('独立 HLS manifest 加载超时'));
+                  hls.destroy();
+                }, 15_000);
                 hls.loadSource(sourceUrl);
                 hls.attachMedia(media);
               });
               return startPromise;
             },
-            destroy: () => hls.destroy(),
+            destroy: () => {
+              if (startupTimer) clearTimeout(startupTimer);
+              startupTimer = null;
+              hls.destroy();
+            },
             get audioTracks() { return hls.audioTracks; },
             get audioTrack() { return hls.audioTrack; },
             set audioTrack(index: number) { hls.audioTrack = index; },
