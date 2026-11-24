@@ -13,7 +13,7 @@ import ssl
 import tempfile
 import time
 from pathlib import Path, PurePosixPath
-from urllib.parse import urljoin, urlsplit, urlunsplit
+from urllib.parse import unquote, urljoin, urlsplit
 
 from fastapi import HTTPException
 
@@ -58,6 +58,17 @@ def _safe_origin_url(raw_url: str, *, public_https_url, resolve_public_addresses
     if not addresses:
         raise HlsSourceGatewayError("HLS source hostname has no validated public address")
     return normalized, host, addresses[0]
+
+
+def _resolve_member_url(base_url: str, raw_reference: str) -> str:
+    if not isinstance(raw_reference, str) or not raw_reference or len(raw_reference) > 4096:
+        raise HlsSourceGatewayError("Invalid HLS member reference")
+    parsed = urlsplit(raw_reference)
+    decoded_path = unquote(parsed.path)
+    if ("\\" in decoded_path or "\\x00" in decoded_path
+            or any(part in {".", ".."} for part in PurePosixPath(decoded_path).parts)):
+        raise HlsSourceGatewayError("HLS member path traversal is not allowed")
+    return urljoin(base_url, raw_reference)
 
 
 def _member_suffix(url: str) -> str:
@@ -327,12 +338,12 @@ def ingest_authorized_hls_candidate(
                         if not matches or len(matches) != uri_attribute_count:
                             raise HlsSourceGatewayError("HLS URI attributes must use the exact quoted RFC format")
                         for match in reversed(matches):
-                            absolute = urljoin(normalized, match.group(1))
+                            absolute = _resolve_member_url(normalized, match.group(1))
                             child_name = fetch_graph(absolute, depth + 1)
                             line = line[:match.start(1)] + child_name + line[match.end(1):]
                     rewritten.append(line)
                     continue
-                absolute = urljoin(normalized, stripped)
+                absolute = _resolve_member_url(normalized, stripped)
                 rewritten.append(fetch_graph(absolute, depth + 1))
             path.write_text("\n".join(rewritten) + "\n", encoding="utf-8")
             visiting.remove(normalized)
