@@ -113,43 +113,39 @@ After the owner manually deploys the Blueprint, verify all of the following befo
 5. Set the Preview Worker's `SCRAPLING_API_BASE` and `SCRAPLING_API_TOKEN` secrets, then verify `/api/resource-collector` from the Preview app.
 6. Keep this service isolated from production. Do not reuse production secrets.
 
-## Dolby Vision immutable media identity
+## Dolby Vision immutable media identity and ingestion
 
-The registry has a separate `registry_media_assets` table and an internal registration endpoint:
+The registry stores immutable media-asset metadata in `registry_media_assets`. The separate `X-DV-Ingestion-Token` credential is not interchangeable with the collector API token. The asset registration endpoint is an internal assertion interface; the trusted raw-byte ingestion endpoint below is preferred because it computes the digest from bytes received by the service.
 
-`POST /v1/registry/resources/{resource_id}/media-assets`
+### Trusted local-file worker
 
-The endpoint requires the dedicated `X-DV-Ingestion-Token` credential (`DV_INGESTION_TOKEN_FILE` in Compose), not the ordinary collector API token. The secret is mounted read-only from `secrets/dv-ingestion-token`; generate it with `openssl rand -hex 32` and keep it outside source control.
+The collector image includes `dv_media_ingest.py`. It accepts a staged local regular file only; it has no URL-fetching code and does not resolve or contact candidate hosts. It hashes the staged bytes, rejects symlinks and empty files, and writes to `/data/dv-media-objects/sha256/{prefix}/{digest}` using a temporary file, fsync, and atomic no-overwrite hard-link creation. Existing objects are re-hashed before reuse. Registration occurs only after the durable object is verified. The CLI worker supports up to 2 GiB, subject to the configured per-invocation limit.
 
-Request JSON contains `sha256`, `byte_length`, and `content_type`. The registry derives a stable asset ID and content-addressed object key, permits idempotent re-registration of identical metadata, and rejects metadata changes for an existing resource/digest pair. New media bytes produce a new asset ID; records are not overwritten.
+### Authenticated raw-byte ingress
 
-**Trust boundary:** this endpoint records an assertion from a trusted ingestion worker. It does not download URLs, hash media bytes, or prove that an object exists. The future ingestion worker must stream the exact authorized media object into controlled immutable object storage, compute SHA-256 over those exact bytes, verify the durable object at its content-addressed key, and only then call this endpoint. Never let a browser or an ordinary candidate-validation request call it. Until that worker and object storage are deployed, registry rows are not proof of real media bytes and must not be used as expected digests for player evidence.
+`POST /v1/registry/resources/{resource_id}/media-assets/ingest` accepts bytes only; it has no URL parameter, redirect handling, or remote-fetch behavior. It requires the dedicated ingestion token, an allowed media content type, and an exact `Content-Length`. The default HTTP ingress limit is 512 MiB (`DV_MAX_INGEST_BYTES`, allowed range 1 KiB–2 GiB). Concurrent HTTP ingestions default to one (`DV_MAX_CONCURRENT_INGESTS`, allowed range 1–4); excess requests receive HTTP 429 with `Retry-After: 5`. Disk hashing and object creation run outside the ASGI event loop. The temporary upload is removed after success or failure.
 
-### Trusted local Dolby Vision media ingestion
+The registry also exposes `GET /v1/registry/media-assets/{asset_id}/content`, an authenticated read-only stream resolved solely from the registry row. It validates the digest/key relationship and regular-file metadata. Consumers must still verify the bytes they receive against the advertised digest; the Dolby Vision parser independently hashes the forwarded upload and rejects a mismatch.
 
-The collector image includes `dv_media_ingest.py`. It accepts a staged local regular file only; it has no URL-fetching code and does not resolve or contact candidate hosts. A separately trusted media gateway must first place the exact authorized media bytes in a private staging directory. Do not expose that staging directory to browsers or ordinary collector tasks.
+### Local Compose provisioning
 
-The worker streams the staged file to compute SHA-256 itself, enforces a 2 GiB maximum (lower limits may be selected per invocation), rejects symlinks and empty files, and writes to the persistent content-addressed store at `/data/dv-media-objects/sha256/{prefix}/{digest}`. It uses a temporary file, fsync, and an atomic no-overwrite hard link; if an object already exists, the worker re-hashes it before reuse. Only after durable object verification does it register the computed digest in the resource registry. The SQLite registry and object store both persist on the existing `scrapling_data` volume.
-
-Provision the separate ingestion credential before starting the collector profile:
+The collector runs as UID/GID 10001. The mounted token file must be readable by that service user:
 
 ```sh
 mkdir -p secrets
 openssl rand -hex 32 > secrets/dv-ingestion-token
-chmod 600 secrets/dv-ingestion-token
+sudo chown 10001:10001 secrets/dv-ingestion-token
+chmod 400 secrets/dv-ingestion-token
+export DV_INGESTION_TOKEN_FILE="$PWD/secrets/dv-ingestion-token"
 docker compose --profile collector up -d --build
 ```
 
-A trusted staging workflow inside the collector container can invoke:
+A trusted local staging workflow may invoke:
 
 ```sh
-python dv_media_ingest.py --resource-id r_<registry-id> --file /private-staging/media.bin --content-type video/mp4
+python dv_media_ingest.py --resource-id <existing-resource-id> --file /private-staging/media.bin --content-type video/x-matroska
 ```
 
-The resource ID must already exist in the registry. The content type is an explicit trusted-ingestion assertion, not a media parser result. The worker does not download remote URLs, bypass access controls, or decide whether a media source is lawful or authorized. Do not run it on arbitrary user-provided paths.
+The resource ID must already exist. The content type is a trusted-ingestion assertion, not a codec-analysis result. The worker does not download remote URLs, bypass access controls, or decide whether a source is lawful or authorized. Never run it on arbitrary user-provided paths.
 
-For a trusted backend that already possesses the authorized media bytes, the collector also exposes `POST /v1/registry/resources/{resource_id}/media-assets/ingest`. It requires the dedicated `X-DV-Ingestion-Token`, an explicit allowed media `Content-Type`, and an exact `Content-Length`; the request body is streamed to a private staging file, then the same worker computes the digest, writes the content-addressed object, and registers it. The endpoint accepts bytes only—there is no URL parameter, redirect handling, or remote fetch. It is an internal byte-ingress primitive, not a public upload/playback API. Keep it on the private collector network and give the ingestion token only to the trusted source gateway.
-
-The registry also exposes an authenticated read-only byte stream at `GET /v1/registry/media-assets/{asset_id}/content`. It resolves the object key only from the registry row (never from a caller path), rejects malformed digest/key bindings and non-regular files, and returns the stored digest in `ETag` and `X-DV-Asset-SHA256`. A backend consumer must still hash the received stream and compare it to that digest; the endpoint does not independently re-hash every read. It is not a public playback URL and must remain behind the collector API credential.
-
-**Current boundary:** this creates and verifies durable local objects and records their computed digest. It does not yet implement the trusted source gateway that obtains authorized source bytes and posts them to the private byte-ingress endpoint, a parser-side forwarder that streams the object into the isolated Dolby Vision parser and verifies the parser's received-byte digest, or a complete route from the selected player resource to that exact object. Until those pieces exist, registered assets are not yet consumable as player evidence.
+**Remaining boundary:** the trusted source gateway that obtains authorized media bytes and submits them to the private byte-ingress endpoint is not implemented. The local Docker volume is not an external WORM/object-lock store. The server-side Next.js forwarder streams registered bytes into the isolated parser and verifies the signed response, but has not been validated against live Compose services. Stable identity still needs to flow from the selected player source into the registry, and authenticated evidence is not yet wired into the diagnostics panel.
