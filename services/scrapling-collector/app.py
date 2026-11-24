@@ -2205,7 +2205,27 @@ def record_playback_evidence(
              payload.selected_rendition_bitrate_kbps, int(time.time())),
         )
     registry_result = register_candidate_playback(candidate_id, evidence)
-    return {"candidate_id": candidate_id, "playback_verification": evidence, **registry_result}
+    media_ingestion = {"status": "skipped", "reason": "source_gateway_disabled"}
+    # The source gateway is deliberately opt-in and runs only after this endpoint
+    # has persisted independent PUBLIC preflight and browser playback evidence.
+    from dv_source_gateway import gateway_enabled, ingest_authorized_candidate
+    if gateway_enabled():
+        if os.environ.get("SCRAPLING_EGRESS_FIREWALL_CONFIRMED", "").strip() != "1":
+            media_ingestion = {"status": "skipped", "reason": "egress_firewall_not_confirmed"}
+        else:
+            media_ingestion = ingest_authorized_candidate(
+                candidate_id,
+                registry_result["resource"]["id"],
+                public_https_url=public_https_url,
+                resolve_public_addresses=resolve_public_addresses,
+                pinned_connection_cls=PinnedHTTPSConnection,
+            )
+    return {
+        "candidate_id": candidate_id,
+        "playback_verification": evidence,
+        "media_ingestion": media_ingestion,
+        **registry_result,
+    }
 
 
 @app.post("/v1/playback-samples")
