@@ -194,7 +194,6 @@ export async function POST(request: Request, context: { params: Promise<{ assetI
       expiresAt: verified.expiresAt,
       sourceHashBinding: verified.sourceHashBinding,
       evidence: verified.evidence,
-      report: verified.report,
     }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
   } catch {
     await mediaResponse?.body?.cancel().catch(() => undefined);
