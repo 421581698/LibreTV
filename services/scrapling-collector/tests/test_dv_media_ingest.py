@@ -32,7 +32,11 @@ class DolbyVisionMediaIngestionTests(unittest.TestCase):
             "url": "https://media.example.test/asset.mp4",
             "title": "Ingestion fixture",
             "access_state": "PUBLIC",
-        })
+            "media_format": "mp4",
+        }) | {}
+        registry.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        registry.record_verification(resource["id"], "player", "passed", {"progressed_seconds": 5})
+        return resource
 
     def test_ingests_exact_bytes_and_registers_computed_digest(self):
         resource = self.add_resource("dv-ingest:one")
@@ -78,6 +82,30 @@ class DolbyVisionMediaIngestionTests(unittest.TestCase):
 
         self.assertEqual(one["asset"]["object_key"], two["asset"]["object_key"])
         self.assertNotEqual(one["asset"]["asset_id"], two["asset"]["asset_id"])
+
+    def test_rejects_ingestion_when_resource_is_not_validated_and_player_confirmed(self):
+        resource = registry.upsert_resource({
+            "resource_key": "dv-ingest:unverified",
+            "source_key": "trusted-ingest-test",
+            "resource_type": "DIRECT_MEDIA",
+            "url": "https://media.example.test/unverified.mp4",
+            "title": "Unverified fixture",
+            "access_state": "PUBLIC",
+            "media_format": "mp4",
+        })
+        staged = self.root / "unverified.mp4"
+        staged.write_bytes(b"media")
+        with self.assertRaises(IngestionError):
+            ingest_staged_file(resource["id"], staged, self.object_root, "video/mp4")
+        self.assertFalse(self.object_root.exists())
+
+    def test_rejects_content_type_that_disagrees_with_validated_resource_format(self):
+        resource = self.add_resource("dv-ingest:mime-mismatch")
+        staged = self.root / "mismatch.webm"
+        staged.write_bytes(b"webm bytes")
+        with self.assertRaises(IngestionError):
+            ingest_staged_file(resource["id"], staged, self.object_root, "video/webm")
+        self.assertFalse(self.object_root.exists())
 
     def test_rejects_symlink_source_and_unknown_resource(self):
         resource = self.add_resource("dv-ingest:symlink")
