@@ -152,15 +152,15 @@ class DolbyVisionMediaIngestionTests(unittest.TestCase):
         variant = staging / "video"
         variant.mkdir(parents=True)
         (staging / "master.m3u8").write_text(
-            '#EXTM3U\\n#EXT-X-VERSION:7\\n'
-            '#EXT-X-STREAM-INF:BANDWIDTH=1200000,CODECS="dvhe.08.06,mp4a.40.2"\\n'
-            'video/variant.m3u8\\n',
+            '#EXTM3U\n#EXT-X-VERSION:7\n'
+            '#EXT-X-STREAM-INF:BANDWIDTH=1200000,CODECS="dvhe.08.06,mp4a.40.2"\n'
+            'video/variant.m3u8\n',
             encoding="utf-8",
         )
         (variant / "variant.m3u8").write_text(
-            '#EXTM3U\\n#EXT-X-VERSION:7\\n'
-            '#EXT-X-MAP:URI="init.mp4"\\n'
-            '#EXTINF:4.0,\\nsegment-0001.m4s\\n#EXT-X-ENDLIST\\n',
+            '#EXTM3U\n#EXT-X-VERSION:7\n'
+            '#EXT-X-MAP:URI="init.mp4"\n'
+            '#EXTINF:4.0,\nsegment-0001.m4s\n#EXT-X-ENDLIST\n',
             encoding="utf-8",
         )
         (variant / "init.mp4").write_bytes(b"init-segment")
@@ -195,10 +195,10 @@ class DolbyVisionMediaIngestionTests(unittest.TestCase):
         staging = self.root / "hls-reject"
         staging.mkdir()
         playlist = staging / "master.m3u8"
-        playlist.write_text('#EXTM3U\\n#EXT-X-KEY:METHOD=AES-128,URI="key.bin"\\n', encoding="utf-8")
+        playlist.write_text('#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI="key.bin"\n', encoding="utf-8")
         with self.assertRaises(HlsIngestionError):
             ingest_hls_directory(resource["id"], staging, playlist, self.object_root)
-        playlist.write_text('#EXTM3U\\n#EXTINF:4.0,\\n../outside.ts\\n', encoding="utf-8")
+        playlist.write_text('#EXTM3U\n#EXTINF:4.0,\n../outside.ts\n', encoding="utf-8")
         with self.assertRaises(HlsIngestionError):
             ingest_hls_directory(resource["id"], staging, playlist, self.object_root)
         with registry.connect() as connection:
