@@ -21,6 +21,25 @@ This ledger distinguishes implemented code from evidence that requires real medi
 - Cross-check the declared metadata against actual audio elementary-stream samples and real HLS manifests from controlled fixtures.
 - Verify parser results against real AC-3, E-AC-3/JOC, AC-4, TrueHD, MAT, DTS-family, AAC/PCM and IAMF/Eclipsa media. A manifest declaration alone is not bitstream validation.
 
+### P1 fixture-source review (research only; no media copied into this repository)
+
+The following public sources are candidates for controlled parser/stream tests. A source being publicly reachable is not, by itself, permission to redistribute its media. Do not vendor any binary until the exact file's license and attribution are checked.
+
+- Chromium `media/test/data` documents `bear.ac3` and `bear.eac3` as files converted from `bear.ogv`; it also documents three AC-4 elementary streams (A-JOC, channel-based, IMS) as encoded by Dolby. The AC-4 provenance is explicit, but a per-file redistribution grant was not established in this review; keep those files out of the repository pending permission review.
+- The same Chromium README documents `dts.bin` and `dtsx.bin` as single DTS/DTS:X frames. These are useful only as narrow frame-parser fixtures, not full programme/playback validation. Its `bear_dtsc.mp4`, `bear_dtse.mp4`, and `bear_dtsx.mp4` examples are described as moov-only files without media payload, so they must not be counted as bitstream playback evidence.
+- Chromium's IAMF examples (`iamf_alternating_sine_waves_714.mp4`, stereo, and 96 kHz FLAC variants) are generated from synthetic sine/silence sources. They can validate IAMF container/layout parsing and supported decode paths, but do not prove authored Atmos objects or Dolby decoding.
+- AOMedia's Android `iamf-tools` repository publishes standalone IAMF, fragmented MP4, standalone MP4, and rendered-WAV test-vector groupings; the repository states a BSD 3-Clause Clear License. Verify the exact testdata file and attribution before copying it into this repository.
+- ICL Forge publishes 60 self-generated AC-3/E-AC-3 vectors, including E-AC-3/JOC object metadata, with source PCM and a project license. Its own documentation says the inputs are synthetic and that the set has no AC-4 or TrueHD vector; it is a useful independent implementation comparison, not a normative conformance suite.
+- Do not use the open-media-test-corpus files from sources marked “license undeclared” (including filesamples.com and samplelib.com). Its own credits explicitly distinguish these from BSD/CC0/CC-BY sources and say the media files retain their individual source licenses.
+
+Source references:
+- Chromium media fixtures and generation notes: https://chromium.googlesource.com/chromium/src/+/refs/heads/main/media/test/data/README.md
+- AOMedia IAMF tools and license: https://android.googlesource.com/platform/external/iamf_tools/
+- ICL Forge conformance-vector scope and license: https://iainchesworthlabs.github.io/iclforge/conformance-vectors/
+- Open media corpus per-source attribution: https://github.com/bandusix/open-media-test-corpus/blob/main/CREDITS.md
+
+**Result of this review:** candidate sources now exist for portions of AC-3/E-AC-3/JOC, AAC/PCM, DTS frame parsing, AC-4 metadata/container inspection, and IAMF. No fully cleared, broad test set has been assembled. TrueHD/MAT and complete DTS-family coverage remain unresolved. This review does not change P1 acceptance status and does not claim a real-stream test has run.
+ 
 ## P2 — Decode and spatial-render research
 
 **Implemented foundation**
