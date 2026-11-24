@@ -70,6 +70,28 @@ def _open_regular(path: Path) -> int:
     return fd
 
 
+def _verify_existing_object(path: Path, expected_digest: str, expected_length: int) -> None:
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        fd = os.open(path, flags)
+    except OSError as exc:
+        raise HlsIngestionError("Existing HLS object cannot be safely opened.") from exc
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_size != expected_length:
+            raise HlsIngestionError("Existing HLS object metadata does not match.")
+        digest = hashlib.sha256()
+        size = 0
+        with os.fdopen(fd, "rb", closefd=False) as existing:
+            for chunk in iter(lambda: existing.read(CHUNK_SIZE), b""):
+                size += len(chunk)
+                digest.update(chunk)
+        if size != expected_length or digest.hexdigest() != expected_digest:
+            raise HlsIngestionError("Existing immutable HLS object failed digest verification.")
+    finally:
+        os.close(fd)
+
+
 def _store_stream(resource_id: str, source: BinaryIO, content_type: str, object_root: Path, limit: int) -> dict:
     digest_builder = hashlib.sha256()
     total = 0
@@ -90,19 +112,7 @@ def _store_stream(resource_id: str, source: BinaryIO, content_type: str, object_
     destination_dir.mkdir(parents=True, exist_ok=True)
     destination = object_root / relative_key
     if destination.exists() or destination.is_symlink():
-        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
-        try:
-            fd = os.open(destination, flags)
-        except OSError as exc:
-            raise HlsIngestionError("Existing HLS object cannot be safely opened.") from exc
-        with os.fdopen(fd, "rb") as existing:
-            check = hashlib.sha256()
-            size = 0
-            for chunk in iter(lambda: existing.read(CHUNK_SIZE), b""):
-                size += len(chunk)
-                check.update(chunk)
-        if size != total or check.hexdigest() != digest:
-            raise HlsIngestionError("Existing immutable HLS object failed digest verification.")
+        _verify_existing_object(destination, digest, total)
     else:
         fd, name = tempfile.mkstemp(prefix=".hls-ingest-", dir=destination_dir)
         temporary = Path(name)
@@ -122,10 +132,7 @@ def _store_stream(resource_id: str, source: BinaryIO, content_type: str, object_
                 os.link(temporary, destination, follow_symlinks=False)
             except FileExistsError:
                 # Another worker won the content-addressed race; verify its object.
-                with destination.open("rb") as existing:
-                    check = hashlib.sha256(existing.read()).hexdigest()
-                if check != digest:
-                    raise HlsIngestionError("Concurrent immutable HLS object failed verification.")
+                _verify_existing_object(destination, digest, total)
             directory_fd = os.open(destination_dir, os.O_RDONLY)
             try:
                 os.fsync(directory_fd)
