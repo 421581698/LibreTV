@@ -37,6 +37,10 @@ describe('detectMediaFormat', () => {
     expect(report.notes.join(' ')).toContain('不证明浏览器解码或 HDMI 位流直通');
   });
 
+  it('recognizes DTS:X as a DTS-family hint without claiming decoding', () => {
+    expect(detectMediaFormat({ audioCodec: 'DTS:X' })).toMatchObject({ audioCodec: 'dts-x', dolbyFamily: 'none' });
+  });
+
   it('recognizes IAMF and PCM declarations as non-Dolby codec hints', () => {
     expect(detectMediaFormat({ audioCodec: 'iamf.001' })).toMatchObject({ audioCodec: 'iamf', dolbyFamily: 'none' });
     expect(detectMediaFormat({ audioCodec: 'lpcm' })).toMatchObject({ audioCodec: 'pcm', dolbyFamily: 'none' });
