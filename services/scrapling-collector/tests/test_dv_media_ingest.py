@@ -24,7 +24,7 @@ class DolbyVisionMediaIngestionTests(unittest.TestCase):
         self.db_patch.stop()
         self.tmp.cleanup()
 
-    def add_resource(self, resource_key):
+    def add_resource(self, resource_key, media_format="mp4"):
         resource = registry.upsert_resource({
             "resource_key": resource_key,
             "source_key": "trusted-ingest-test",
@@ -32,7 +32,7 @@ class DolbyVisionMediaIngestionTests(unittest.TestCase):
             "url": "https://media.example.test/asset.mp4",
             "title": "Ingestion fixture",
             "access_state": "PUBLIC",
-            "media_format": "mp4",
+            "media_format": media_format,
         })
         registry.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
         registry.record_verification(resource["id"], "player", "passed", {"progressed_seconds": 5})
@@ -57,7 +57,7 @@ class DolbyVisionMediaIngestionTests(unittest.TestCase):
         self.assertEqual(result["asset"]["object_key"], f"sha256/{expected[:2]}/{expected}")
 
     def test_ingests_webm_assets_for_native_registry_playback(self):
-        resource = self.add_resource("dv-ingest:webm")
+        resource = self.add_resource("dv-ingest:webm", media_format="webm")
         payload = b"webm-media-bytes"
         staged = self.root / "staged.webm"
         staged.write_bytes(payload)
