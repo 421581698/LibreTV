@@ -139,6 +139,9 @@ function setPannerPosition(panner: PannerNode, position: readonly [number, numbe
 }
 
 const attachedEngines = new WeakMap<HTMLMediaElement, SpatialAudioEngine>();
+// createMediaElementSource is a one-shot binding for the lifetime of the element,
+// even after the node is disconnected and its AudioContext is closed.
+const attachedMediaElements = new WeakSet<HTMLMediaElement>();
 
 /**
  * Web Audio will output silence for a non-CORS cross-origin media element.
@@ -188,6 +191,7 @@ export class SpatialAudioEngine {
   private route: SpatialAudioRoute = 'bypass';
   private inputChannels: number;
   private inputLayout: '5.1' | 'unknown';
+  private destroyed = false;
 
   private constructor(
     readonly media: HTMLMediaElement,
@@ -200,6 +204,7 @@ export class SpatialAudioEngine {
     this.inputChannels = inputChannels;
     this.inputLayout = inputLayout;
     this.source = context.createMediaElementSource(media);
+    attachedMediaElements.add(media);
     this.output = context.createGain();
     this.output.gain.value = 1;
     this.source.connect(this.output);
@@ -212,7 +217,13 @@ export class SpatialAudioEngine {
     contextFactory: () => AudioContext = () => new AudioContext(),
   ): SpatialAudioEngine {
     const existing = attachedEngines.get(media);
-    if (existing) return existing;
+    if (existing) {
+      if (existing.isDestroyed) throw new Error('此视频元素的 Web Audio 生命周期已结束，请使用新的视频元素');
+      return existing;
+    }
+    if (attachedMediaElements.has(media)) {
+      throw new Error('此视频元素已绑定过 Web Audio，不能再次创建 MediaElementAudioSourceNode');
+    }
     const pageOrigin = typeof window !== 'undefined' ? window.location.origin : '';
     if (!pageOrigin || !isMediaElementAudioOriginSafe(media, pageOrigin)) {
       throw new Error('当前视频源未通过 CORS 安全检查，空间音频已保持关闭以避免静音');
@@ -221,9 +232,18 @@ export class SpatialAudioEngine {
       throw new Error('当前音轨声道布局尚未得到支持，空间音频保持关闭');
     }
     const context = contextFactory();
-    const engine = new SpatialAudioEngine(media, context, options.inputChannels, options.inputLayout ?? 'unknown');
-    attachedEngines.set(media, engine);
-    return engine;
+    try {
+      const engine = new SpatialAudioEngine(media, context, options.inputChannels, options.inputLayout ?? 'unknown');
+      attachedEngines.set(media, engine);
+      return engine;
+    } catch (error) {
+      if (context.state !== 'closed') void context.close().catch(() => undefined);
+      throw error;
+    }
+  }
+
+  get isDestroyed(): boolean {
+    return this.destroyed;
   }
 
   get status(): { mode: SpatialAudioMode; route: SpatialAudioRoute; contextState: AudioContextState; inputChannels: number; inputLayout: '5.1' | 'unknown' } {
@@ -237,11 +257,13 @@ export class SpatialAudioEngine {
   }
 
   async resumeFromUserGesture(): Promise<void> {
+    if (this.destroyed) throw new Error('Spatial audio engine has been destroyed');
     if (this.context.state === 'suspended') await this.context.resume();
     if (this.context.state !== 'running') throw new Error('AudioContext is not running');
   }
 
   setMode(mode: SpatialAudioMode): SpatialAudioPlan {
+    if (this.destroyed) throw new Error('Spatial audio engine has been destroyed');
     this.clearSpatialGraph();
     this.mode = mode;
 
@@ -290,6 +312,7 @@ export class SpatialAudioEngine {
    * while retaining the same HTMLVideoElement.
    */
   updateInputChannels(inputChannels: number, inputLayout: '5.1' | 'unknown' = 'unknown'): SpatialAudioPlan {
+    if (this.destroyed) throw new Error('Spatial audio engine has been destroyed');
     if (!Number.isInteger(inputChannels) || inputChannels < 1 || inputChannels > 32) {
       this.inputChannels = 0;
     } else {
@@ -305,14 +328,16 @@ export class SpatialAudioEngine {
    * bind MediaElementAudioSourceNode to its original element for its lifetime.
    */
   async destroyAfterMediaElementRemoval(): Promise<void> {
+    if (this.destroyed) return;
     this.disable();
-    attachedEngines.delete(this.media);
+    this.destroyed = true;
     try { this.source.disconnect(); } catch { /* already disconnected */ }
     try { this.output.disconnect(); } catch { /* already disconnected */ }
     if (this.context.state !== 'closed') await this.context.close();
   }
 
   setOutputGain(value: number): void {
+    if (this.destroyed) return;
     if (!Number.isFinite(value)) return;
     this.output.gain.setTargetAtTime(
       Math.min(1, Math.max(0, value)),
@@ -327,6 +352,7 @@ export class SpatialAudioEngine {
    * not be called a second time for the same media element.
    */
   disable(): void {
+    if (this.destroyed) return;
     this.clearSpatialGraph();
     this.mode = 'off';
     this.route = 'bypass';
