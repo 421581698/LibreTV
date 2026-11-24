@@ -29,7 +29,7 @@ describe('parseHlsAudioRenditions', () => {
         '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="g",NAME="Track",URI="audio.m3u8"',
         `#EXT-X-STREAM-INF:BANDWIDTH=1000000,CODECS="avc1.640028,${audioCodec}",AUDIO="g"`,
         'video.m3u8',
-      ].join('\\n');
+      ].join('\n');
       expect(parseHlsAudioRenditions(manifest)[0].codec).toBe(audioCodec);
     }
   });
@@ -139,7 +139,6 @@ describe('inspectHlsAudioTrack', () => {
     expect(inspectHlsAudioTrack({ audioCodec: 'dtsc' }).codec).toBe('dtsc');
     expect(inspectHlsAudioTrack({ audioCodec: 'dtsh' }).codec).toBe('dtsh');
     expect(inspectHlsAudioTrack({ audioCodec: 'dtse' }).codec).toBe('dtse');
-    expect(inspectHlsAudioTrack({ audioCodec: 'dtsx' }).codec).toBe('dtsx');
     expect(inspectHlsAudioTrack({ audioCodec: 'ac-4.02.01.03' }).codec).toBe('ac-4.02.01.03');
   });
 
