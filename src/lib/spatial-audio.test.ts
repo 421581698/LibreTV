@@ -172,10 +172,10 @@ describe('SpatialAudioEngine lifecycle', () => {
     const listener = vi.fn();
     const unsubscribe = engine.subscribeStateChange(listener);
 
-    (context.setState as (state: AudioContextState) => void)('interrupted');
+    (context as unknown as { setState: (state: AudioContextState) => void }).setState('interrupted');
     expect(listener).toHaveBeenCalledWith('interrupted');
     unsubscribe();
-    (context.setState as (state: AudioContextState) => void)('running');
+    (context as unknown as { setState: (state: AudioContextState) => void }).setState('running');
     expect(listener).toHaveBeenCalledTimes(1);
 
     await engine.destroyAfterMediaElementRemoval();
