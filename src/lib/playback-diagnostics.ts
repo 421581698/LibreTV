@@ -160,6 +160,21 @@ export function toHlsAudioTrackLike(track: {
   };
 }
 
+/**
+ * Read only the count exposed by a native HTMLMediaElement AudioTrackList.
+ * Native track APIs do not reliably expose codec, channel layout or JOC.
+ * A null result means the browser does not expose the API; [] means it does
+ * expose the API and currently reports no tracks.
+ */
+export function toNativeAudioTrackLikes(
+  trackList: { length: number } | null | undefined,
+): HlsAudioTrackLike[] | null {
+  if (!trackList || !Number.isInteger(trackList.length) || trackList.length < 0 || trackList.length > 64) {
+    return null;
+  }
+  return Array.from({ length: trackList.length }, (_value, id) => ({ id }));
+}
+
 function boundedRatio(value: number | null): number | null {
   return typeof value === 'number' && Number.isFinite(value)
     ? Math.max(0, Math.min(1, value))
