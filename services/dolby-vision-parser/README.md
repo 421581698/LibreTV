@@ -21,14 +21,19 @@ mkdir -p secrets
 openssl genpkey -algorithm ED25519 -out secrets/dv-signing-private-key.pem
 openssl pkey -in secrets/dv-signing-private-key.pem -pubout -out secrets/dv-signing-public-key.pem
 openssl rand -hex 32 > secrets/dv-ingestion-token
-chmod 400 secrets/dv-signing-private-key.pem secrets/dv-ingestion-token\n# The containers run as node (UID 1000) and collector (UID 10001).\n# Make the two mounted files readable by their respective service users.\nsudo chown 1000:1000 secrets/dv-signing-private-key.pem\nsudo chown 10001:10001 secrets/dv-ingestion-token
+chmod 400 secrets/dv-signing-private-key.pem secrets/dv-ingestion-token
+# The containers run as node (UID 1000) and collector (UID 10001).
+# Make the two mounted files readable by their respective service users.
+sudo chown 1000:1000 secrets/dv-signing-private-key.pem
+sudo chown 10001:10001 secrets/dv-ingestion-token
 export PASSWORD="replace-with-your-own-long-password"
 export SCRAPLING_API_TOKEN="$(openssl rand -hex 32)"
 export DV_INGESTION_TOKEN_FILE="$PWD/secrets/dv-ingestion-token"
 export DV_SERVICE_TOKEN="$(openssl rand -hex 32)"
 export DV_SIGNING_KEY_ID="dv-key-1"
 export DV_SIGNING_PRIVATE_KEY_FILE="$PWD/secrets/dv-signing-private-key.pem"
-export DV_SIGNING_PUBLIC_KEY_PEM_B64="$(base64 < secrets/dv-signing-public-key.pem | tr -d '\n')"
+export DV_SIGNING_PUBLIC_KEY_PEM_B64="$(base64 < secrets/dv-signing-public-key.pem | tr -d '
+')"
 export DV_REGISTRY_API_BASE="http://scrapling-collector:8000"
 export DV_PARSER_API_BASE="http://dolby-vision-parser:8788"
 docker compose --profile collector --profile dolby-vision up -d --build
