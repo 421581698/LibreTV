@@ -53,12 +53,17 @@ describe('GET /api/dolby-vision/assets/[assetId]/content', () => {
     await expect(response.text()).resolves.toBe('2345');
   });
 
-  it('rejects multiple or malformed ranges before contacting the registry', async () => {
+  it('preserves the registry 416 response for unsupported multiple ranges', async () => {
+    vi.mocked(fetchDolbyVisionRegistryAsset).mockResolvedValue(new Response(null, {
+      status: 416,
+      headers: { 'Content-Range': 'bytes */10', 'Accept-Ranges': 'bytes' },
+    }));
     const response = await GET(makeRequest('bytes=0-1,4-5'), {
       params: Promise.resolve({ assetId }),
     });
+    expect(fetchDolbyVisionRegistryAsset).toHaveBeenCalledWith(assetId, 20_000, 'bytes=0-1,4-5');
     expect(response.status).toBe(416);
-    expect(fetchDolbyVisionRegistryAsset).not.toHaveBeenCalled();
+    expect(response.headers.get('Content-Range')).toBe('bytes */10');
   });
 
   it('fails closed when authentication is disabled', async () => {
