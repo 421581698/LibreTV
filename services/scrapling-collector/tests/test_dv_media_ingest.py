@@ -158,7 +158,7 @@ class DolbyVisionMediaIngestionTests(unittest.TestCase):
             encoding="utf-8",
         )
         (variant / "variant.m3u8").write_text(
-            '#EXTM3U\n#EXT-X-VERSION:7\n'
+            '#EXTM3U\n#EXT-X-VERSION:7\n#EXT-X-KEY:METHOD=NONE\n'
             '#EXT-X-MAP:URI="init.mp4"\n'
             '#EXTINF:4.0,\nsegment-0001.m4s\n#EXT-X-ENDLIST\n',
             encoding="utf-8",
