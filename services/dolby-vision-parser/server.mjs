@@ -59,7 +59,7 @@ export function createSignedEnvelope(report, assetId, keyId, privateKeyPem, now 
   if (!keyId || keyId.length > 128) throw new Error('Invalid signing key ID.');
   if (!report || report.source !== 'dovi_tool' || report.verified !== true || report.rpuPresent !== true ||
       report.inputKind !== 'hevc' || report.extractionScope?.frameLimit !== null ||
-      !/^2\\.3\\.\\d+$/.test(report.parserVersion || '') ||
+      !/^2\.3\.\d+$/.test(report.parserVersion || '') ||
       !/^[a-f0-9]{64}$/i.test(report.inputSha256 || '') ||
       !/^[a-f0-9]{64}$/i.test(report.rpuSha256 || '') ||
       !Number.isSafeInteger(report.frameCount) || report.frameCount <= 0 ||
