@@ -177,7 +177,7 @@ interface PlayerShellProps {
   onRequestSwitchSource?: (reason: string) => void;
   /** Route fullscreen requests through the page shell so every custom overlay remains in the fullscreen layer. */
   onRequestFullscreen?: () => void;
-  /** 控制条上的上一集 / 下一集：不在播放器里也能切集，省得回到页面下方找按钮 */
+  /** 控制条上的上一集 / 下一集：不在播放器里也能切集，省得回到页面按钮 */
   onPrevEpisode?: () => void;
   onNextEpisode?: () => void;
   hasPrevEpisode?: boolean;
@@ -264,7 +264,7 @@ export function PlayerShell({
         get volume() { return video?.volume ?? art.volume ?? 1; },
         set volume(value: number) { if (video) video.volume = value; else art.volume = value; },
         get muted() { return video?.muted ?? false; },
-        set muted(value: boolean) { if (video) video.muted = value; else art.volume = value; },
+        set muted(value: boolean) { if (video) video.muted = value; },
         get fullscreen() { return Boolean(art.fullscreen); },
         set fullscreen(value: boolean) { art.fullscreen = value; },
       } : null;
