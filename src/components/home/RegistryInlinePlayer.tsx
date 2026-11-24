@@ -22,6 +22,7 @@ export function RegistryInlinePlayer({
   const autoplayNext = useAppStore((state) => state.autoplayNext);
   const [pendingStart, setPendingStart] = useState<number | null>(null);
   const [immutableAsset, setImmutableAsset] = useState<{
+    resourceId: string;
     assetId: string;
     url: string;
     mediaType: 'mp4' | 'webm';
@@ -53,6 +54,7 @@ export function RegistryInlinePlayer({
       const assetMediaType = asset.contentType === 'video/webm' ? 'webm' : 'mp4';
       if (assetMediaType !== resourceMediaFormat) return null;
       return {
+        resourceId,
         assetId: asset.assetId,
         url: `/api/dolby-vision/assets/${encodeURIComponent(asset.assetId)}/content`,
         mediaType: assetMediaType as 'mp4' | 'webm',
@@ -86,7 +88,8 @@ export function RegistryInlinePlayer({
   }, [resource?.candidate_id]);
 
   if (!resource) return null;
-  const mediaType = immutableAsset?.mediaType ?? resource.media_format;
+  const activeImmutableAsset = immutableAsset?.resourceId === resource.id ? immutableAsset : null;
+  const mediaType = activeImmutableAsset?.mediaType ?? resource.media_format;
   if (!resource.candidate_id || !mediaType || !['hls', 'mp4', 'webm'].includes(mediaType)) return null;
 
   return (
@@ -105,8 +108,8 @@ export function RegistryInlinePlayer({
         </header>
         <div className="aspect-video w-full bg-black">
           <PlayerShell
-            key={immutableAsset ? `${resource.id}:${immutableAsset.assetId}` : resource.id}
-            url={immutableAsset?.url ?? resource.url}
+            key={activeImmutableAsset ? `${resource.id}:${activeImmutableAsset.assetId}` : resource.id}
+            url={activeImmutableAsset?.url ?? resource.url}
             title={resource.title}
             mediaType={mediaType}
             onPlaybackConfirmed={confirmPlayback}
@@ -116,7 +119,7 @@ export function RegistryInlinePlayer({
             pendingStart={pendingStart}
             onPendingStart={setPendingStart}
             episodeKey={`registry:${resource.id}`}
-            dolbyVisionAssetId={immutableAsset?.assetId}
+            dolbyVisionAssetId={activeImmutableAsset?.assetId}
           />
         </div>
       </section>
