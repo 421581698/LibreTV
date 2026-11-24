@@ -393,7 +393,7 @@ describe('SpatialMediaSession activation and fallback', () => {
     setPaused(native, false);
     const spatial = makeVideo();
     const engine = makeEngine();
-    let reportFatal: ((reason: string) => void) | null = null;
+    const fatalHandler: { current?: (reason: string) => void } = {};
     const controller = {
       start: vi.fn(async () => undefined),
       destroy: vi.fn(),
@@ -406,14 +406,14 @@ describe('SpatialMediaSession activation and fallback', () => {
       createMediaElement: () => spatial,
       createEngine: () => engine,
       createHlsController: (_media, _url, onFatalError) => {
-        reportFatal = onFatalError;
+        fatalHandler.current = onFatalError;
         return controller;
       },
     });
     await session.activateFromUserGesture();
     expect(native.muted).toBe(true);
     expect(spatial.play).toHaveBeenCalled();
-    reportFatal?.('levelLoadError');
+    fatalHandler.current?.('levelLoadError');
     await Promise.resolve();
     await Promise.resolve();
     expect(session.snapshot.state).toBe('fallback');
