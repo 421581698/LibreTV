@@ -23,6 +23,7 @@ import {
   buildPlaybackDiagnostics,
   readStabilityMetrics,
   toHlsAudioTrackLike,
+  toNativeAudioTrackLikes,
   type DiagnosticsInput,
   type PlaybackDiagnostics,
   type StabilityPeaks,
@@ -1119,11 +1120,8 @@ export function PlayerShell({
       const nativeVideo = video as HTMLVideoElement & {
         audioTracks?: { length: number };
       };
-      if (!nativeVideo.audioTracks || !Number.isFinite(nativeVideo.audioTracks.length)) return;
-      diagnosticsRef.current.input.audioTracks = Array.from(
-        { length: nativeVideo.audioTracks.length },
-        (_value, index) => ({ id: index }),
-      );
+      const observedTracks = toNativeAudioTrackLikes(nativeVideo.audioTracks);
+      if (observedTracks !== null) diagnosticsRef.current.input.audioTracks = observedTracks;
     };
 
     const restoreEvents = ['loadedmetadata', 'durationchange', 'canplay'] as const;
