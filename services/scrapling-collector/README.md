@@ -129,7 +129,7 @@ The registry also exposes `GET /v1/registry/media-assets/{asset_id}/content`, an
 
 ### Immutable HLS asset graphs
 
-The collector image also includes `dv_hls_ingest.py`, a local-staging-only clear-HLS graph ingester. It accepts an already-authorized staging directory and root playlist; it does not fetch URLs. It recursively registers child playlists, initialization sections, media segments, audio and subtitle members as content-addressed immutable objects, then rewrites every playlist URI to the server-side immutable asset content route. Parent/child relationships are persisted in `registry_hls_asset_edges`.
+The collector image includes `dv_hls_ingest.py` and `dv_hls_source_gateway.py`. The former converts a trusted local clear-HLS staging directory into immutable content-addressed assets. The latter is the graph-aware authorized source adapter: after validated PUBLIC preflight and browser playback confirmation, the durable worker fetches the root playlist and every referenced child playlist, initialization section, media segment, audio and subtitle member. Every URL is independently checked against the exact hostname allowlist, DNS-resolved to public addresses, and fetched over a connection pinned to the validated IP. It stages a complete local graph and then invokes `dv_hls_ingest.py`, which rewrites every playlist URI to the server-side immutable asset content route. Parent/child relationships are persisted in `registry_hls_asset_edges`.
 
 The worker rejects path traversal, symlinked members, missing files, unsupported extensions, cyclic playlist references, non-UTF-8/oversized playlists, encrypted/DRM key declarations, and graphs exceeding 10,000 members, 50,000 edges, or 4 GiB aggregate staged bytes. It supports local `.m3u8`, `.m4s`, `.mp4`, `.ts`, `.aac`, `.m4a`, `.mp3`, and `.vtt` members. The root playlist is registered as `application/vnd.apple.mpegurl`; the player resolves that immutable root for HLS resources, and HLS.js requests the rewritten child asset URLs through the same authenticated byte-range proxy.
 
@@ -139,7 +139,7 @@ Only invoke it after the registry resource is independently validated as PUBLIC 
 python dv_hls_ingest.py --resource-id <existing-resource-id> --staging-dir /private-staging/hls --playlist master.m3u8
 ```
 
-This is the HLS graph ingestion primitive. The progressive MP4/WebM source gateway described below intentionally does not fetch HLS manifests or segments; HLS needs its own graph-aware authorized fetcher so every referenced member can be pinned, validated, staged, and registered together.
+This is the HLS graph storage primitive. The graph-aware network acquisition adapter is described below.
 
 ### Local Compose provisioning
 
@@ -186,6 +186,6 @@ DV_SOURCE_GATEWAY_MAX_BYTES=536870912
 DV_SOURCE_GATEWAY_TIMEOUT_SECONDS=15
 ```
 
-In Compose, these variables are passed only to the collector API container. The gateway remains disabled by default and will not download from the discovery allowlist automatically. A host being public, or a candidate being playable, is not proof of redistribution rights; the explicit source-host list is the operator's authorization boundary and must be maintained accordingly. This gateway currently automates progressive MP4/WebM ingestion; clear-HLS graph acquisition remains a separate graph-aware staging workflow.
+In Compose, these variables are passed only to the collector API container. The gateway remains disabled by default and will not download from the discovery allowlist automatically. A host being public, or a candidate being playable, is not proof of redistribution rights; the explicit source-host list is the operator's authorization boundary and must be maintained accordingly. This gateway automates progressive MP4/WebM ingestion. Confirmed clear-HLS sources are routed through the separate graph-aware `dv_hls_source_gateway.py` worker, which applies the same exact-host allowlist, pinned-public-IP, no-redirect, byte-limit and cancellation rules to every graph member before immutable graph registration. The HLS per-member limit uses `DV_SOURCE_GATEWAY_MAX_BYTES`; the graph-wide hard limit is 4 GiB and the member/depth/edge limits are enforced by the HLS graph ingester.
 
 **Remaining boundary:** the gateway code and opt-in wiring are implemented, but it has not yet been run against a real operator-authorized origin or a live Compose deployment. The local Docker volume is not an external WORM/object-lock store.
