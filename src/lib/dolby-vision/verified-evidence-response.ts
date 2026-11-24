@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 const verifiedEvidenceSchema = z.object({
   source: z.literal('dovi_tool'),
-  parserVersion: z.string().regex(/^2\\.3\\.\\d+$/),
+  parserVersion: z.string().regex(/^2\.3\.\d+$/),
   verified: z.literal(true),
   rpuPresent: z.literal(true),
   profile: z.number().int().min(0).max(20).nullable(),
