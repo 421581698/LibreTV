@@ -103,7 +103,14 @@ def _fetch_member(
             "Connection": "close",
         })
         response = connection.getresponse()
-        headers = {key.lower(): value for key, value in response.getheaders()}
+        headers = {}
+        for key, value in response.getheaders():
+            name = key.lower()
+            if name in {"content-type", "content-length", "content-encoding", "transfer-encoding"} and name in headers:
+                raise HlsSourceGatewayError("HLS origin returned duplicate framing or media headers")
+            headers[name] = value
+        if "transfer-encoding" in headers or "content-range" in headers:
+            raise HlsSourceGatewayError("Chunked and partial HLS origin responses are not accepted")
         if response.status != 200:
             raise HlsSourceGatewayError("HLS origin must return HTTP 200; redirects and partial responses are rejected")
         content_type = headers.get("content-type", "").split(";", 1)[0].strip().lower()
@@ -299,10 +306,11 @@ def ingest_authorized_hls_candidate(
                         if (not method or method.group(1).strip().strip('"').upper() != "NONE"
                                 or re.search(r"(?:^|,)\s*URI=", attrs, re.IGNORECASE)):
                             raise HlsSourceGatewayError("Encrypted or DRM HLS playlists are not fetched")
-                    if "URI=" in line:
+                    if re.search(r"\\bURI\\s*=", line, re.IGNORECASE):
                         matches = list(URI_ATTRIBUTE.finditer(line))
-                        if not matches:
-                            raise HlsSourceGatewayError("HLS URI attributes must use the quoted RFC format")
+                        uri_attribute_count = len(re.findall(r"\\bURI\\s*=", line, re.IGNORECASE))
+                        if not matches or len(matches) != uri_attribute_count:
+                            raise HlsSourceGatewayError("HLS URI attributes must use the exact quoted RFC format")
                         for match in reversed(matches):
                             absolute = urljoin(normalized, match.group(1))
                             child_name = fetch_graph(absolute, depth + 1)
