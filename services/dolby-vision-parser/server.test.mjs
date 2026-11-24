@@ -10,21 +10,41 @@ import {
   createSignedEnvelope,
   createDolbyVisionParserServer,
   isValidAssetId,
+  readBoundedInteger,
 } from './server.mjs';
 
 const { privateKey, publicKey } = generateKeyPairSync('ed25519');
 const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
 const publicKeyPem = publicKey.export({ type: 'spki', format: 'pem' }).toString();
 const report = {
+  source: 'dovi_tool',
+  parserVersion: '2.3.4',
+  verified: true,
+  rpuPresent: true,
+  profile: 8,
+  profiles: [8],
+  frameCount: 3,
+  metadataLevels: [1],
+  metadataLevelFrameCounts: { '1': 3 },
+  input: 'sample.hevc',
+  inputSha256: 'a'.repeat(64),
+  rpuSha256: 'b'.repeat(64),
   inputKind: 'hevc',
   extractionScope: { track: null, frameLimit: null },
-  inputSha256: 'a'.repeat(64),
-  parserVersion: '2.3.4',
+  notes: [],
 };
 
 describe('Dolby Vision parser service security primitives', () => {
   it('canonicalizes nested JSON with deterministic key ordering', () => {
     assert.equal(canonicalize({ z: 1, a: { y: true, b: 2 } }), '{"a":{"b":2,"y":true},"z":1}');
+  });
+
+  it('rejects invalid or unbounded service resource limits', () => {
+    assert.equal(readBoundedInteger('LIMIT', undefined, 10, 1, 20), 10);
+    assert.equal(readBoundedInteger('LIMIT', '20', 10, 1, 20), 20);
+    assert.throws(() => readBoundedInteger('LIMIT', 'NaN', 10, 1, 20));
+    assert.throws(() => readBoundedInteger('LIMIT', '-1', 10, 1, 20));
+    assert.throws(() => readBoundedInteger('LIMIT', '21', 10, 1, 20));
   });
 
   it('validates stable asset IDs and rejects path-like values', () => {
