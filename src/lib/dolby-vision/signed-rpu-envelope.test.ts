@@ -1,6 +1,6 @@
 import { generateKeyPairSync, sign } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { verifySignedDolbyVisionRpuEnvelope } from './signed-rpu-envelope';
+import { canonicalizeDolbyVisionRpuPayload, verifySignedDolbyVisionRpuEnvelope } from './signed-rpu-envelope';
 
 const { privateKey, publicKey } = generateKeyPairSync('ed25519');
 const publicKeyPem = publicKey.export({ type: 'spki', format: 'pem' }).toString();
@@ -34,7 +34,7 @@ function makeEnvelope(overrides: Record<string, unknown> = {}) {
     report,
     ...overrides,
   };
-  const signature = sign(null, Buffer.from(JSON.stringify(payload)), privateKey).toString('base64url');
+  const signature = sign(null, Buffer.from(canonicalizeDolbyVisionRpuPayload(payload)), privateKey).toString('base64url');
   return { ...payload, signature };
 }
 
