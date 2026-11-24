@@ -83,6 +83,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
       const expanded = resolveIpadNavigationLayout(root.getBoundingClientRect().width) === 'expanded';
       setWideLayout(expanded);
       if (!expanded) setNavigationCollapsed(false);
+      else setSidebarOpen(false);
     };
     updateLayout();
     const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateLayout) : null;
