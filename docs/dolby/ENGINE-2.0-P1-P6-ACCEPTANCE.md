@@ -43,21 +43,20 @@ This ledger distinguishes implemented code from evidence that requires real medi
 
 ## P3 — PlayerShell integration and lifecycle
 
-**Status: initial direct-media integration implemented; full phase not accepted**
+**Status: isolated direct-media and HLS session paths implemented; full phase not accepted**
 
-- `src/lib/spatial-media-session.ts` owns a distinct media element for direct MP4/WebM only. It verifies CORS before allocating the element, sets CORS mode before assigning the source, starts Web Audio only from an explicit user gesture, synchronizes playback state, and restores the untouched ArtPlayer element on fallback/disposal.
-- `src/components/player-shell.tsx` exposes an opt-in two-step prepare/activate control. Source changes and unmount dispose the session; a generation guard prevents stale preparation from replacing a newer source.
-- The spatial session rejects HLS. Existing hls.js/MSE and Safari native-HLS paths remain untouched; spatial-session HLS ownership and audio-track switching are not implemented.
-- Lifecycle tests cover CORS failure/timeout, separate media-element identity, activation rejection, pause/resume/seek/rate/volume synchronization, mute fallback, media error fallback, idempotent disposal, and disposal while activation is still pending. The last case verifies native audio restoration and one-time cleanup during an activation/dispose race.
+- `src/lib/spatial-media-session.ts` owns a distinct media element for direct MP4/WebM and HLS. It verifies source CORS before allocation, sets CORS mode before source assignment, activates Web Audio only from an explicit user gesture, synchronizes playback state, and restores the untouched ArtPlayer element on fallback/disposal.
+- `src/components/player-shell.tsx` exposes an opt-in two-step prepare/activate control and creates an independent hls.js/MSE controller for the spatial element when supported, or a separate native-HLS controller on Safari when hls.js/MSE is unavailable. Fatal HLS errors dispose the isolated pipeline and fall back to the original ArtPlayer route.
+- The spatial session exposes its own HLS audio-track list and selection method; the existing audio-track UI routes selection to the spatial HLS instance while active. Native Safari HLS track access is used only when the platform exposes `audioTracks`. The original ArtPlayer video and its HLS instance are never captured by Web Audio.
+- Lifecycle tests cover direct-media and isolated HLS preparation, independent element identity, CORS failure, HLS track selection and teardown, activation, pause/resume/seek/rate/volume synchronization, mute/error/context-interruption fallback, idempotent disposal, and activation/dispose races.
 - Exact-head software CI passed on `f6f0309c4129b44ffd54473740824b5be5484f7a`: iPad Edition Verify run `45373955182`, Resource Playback Verification run `45373955096`, HLS Browser Playback Smoke run `45373955327`, and HLS External Stream Smoke run `45373955245`.
 
 **Acceptance still required**
-- Independently owned hls.js/MSE spatial session, including manifest/playlist/segment/key CORS lifecycle and deterministic fallback.
-- Audio-track identity and switching inside any supported spatial session.
+- Verify real HLS manifest, alternate playlist, media segment, encryption-key and redirect CORS behavior using controlled/licensed multi-track fixtures; the manifest preflight alone does not prove every resource is readable.
 - Full P3 lifecycle matrix, including AudioContext interruption/recovery and browser-level fallback continuity.
 - Exact-head Ubuntu Preview audit and real Safari/iPhone/iPad regression. Chromium CI is not Safari or physical-device evidence.
 
-Safari native HLS and the existing ArtPlayer/hls.js paths remain the default protected routes. P3 is partially implemented and software-tested, not finally accepted.
+Safari native HLS and the existing ArtPlayer/hls.js route remain the default protected playback path; the spatial path uses a separate media element and independently owned pipeline. P3 core integration is implemented, but P3 is not finally accepted until automated, Preview and device evidence is recorded.
 
 ## P4 — Physical output-chain verification
 
