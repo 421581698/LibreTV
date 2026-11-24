@@ -9,7 +9,7 @@ This ledger distinguishes implemented code from evidence that requires real medi
 
 **Code scope implemented**
 - Declared codec recognition: AC-3, E-AC-3, E-AC-3/JOC, AC-4 (including the four-part profile), TrueHD, Dolby MAT transport marker, DTS, DTS-HD, DTS:X, AAC, PCM/LPCM, IAMF and Eclipsa.
-- HLS audio rendition inspection reads declared `CHANNELS` and `CODECS` metadata and hls.js audio-track metadata. HLS sample-entry matching is exact (including `dtsx`), malformed prefixes fail closed, and declarations containing multiple recognized audio codecs remain unknown rather than selecting the first token.
+- HLS audio rendition inspection reads declared `CHANNELS` and `CODECS` metadata and hls.js audio-track metadata. HLS sample-entry matching is exact (including `dtsx`), malformed prefixes fail closed, and declarations containing multiple recognized audio codecs remain unknown rather than selecting the first token. RFC 8216 §4.3.4.1.1 requires a variant's `CODECS` value to enumerate every sample format in its referenced rendition group; it does not map each codec token to an individual `EXT-X-MEDIA` member. Therefore a group-level list such as `ec-3,mp4a.40.2` cannot identify the codec of a specific language track, and remains unknown unless hls.js exposes track-level codec metadata.
 - JOC is detected from either the channel declaration or codec token, but remains metadata only.
 - Six channels are not promoted to a 5.1 layout without explicit layout evidence.
 - The telemetry sanitizer and diagnostics HUD retain the expanded enum set without retaining URLs, tokens or rendition names.
