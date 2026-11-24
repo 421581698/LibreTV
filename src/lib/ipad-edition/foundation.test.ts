@@ -36,7 +36,10 @@ describe('LibreTV iPad Edition foundation', () => {
     expect(resolveIpadNavigationLayout(520)).toBe('compact');
     expect(resolveIpadNavigationLayout(834)).toBe('compact');
     expect(resolveIpadNavigationLayout(1023)).toBe('compact');
-    expect(resolveIpadNavigationLayout(1024)).toBe('expanded');
+    expect(resolveIpadNavigationLayout(1024)).toBe('compact');
+    expect(resolveIpadNavigationLayout(1032)).toBe('compact');
+    expect(resolveIpadNavigationLayout(1059)).toBe('compact');
+    expect(resolveIpadNavigationLayout(1060)).toBe('expanded');
     expect(resolveIpadNavigationLayout(1366)).toBe('expanded');
     expect(resolveIpadNavigationLayout(Number.NaN)).toBe('compact');
   });
