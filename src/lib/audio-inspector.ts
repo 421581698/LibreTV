@@ -25,7 +25,7 @@ function parseAttributeList(line: string): Record<string, string> {
 function audioCodecFromCodecs(codecs?: string): string | null {
   if (!codecs) return null;
   return codecs.split(',').map((value) => value.trim())
-    .find((value) => /^(mp4a|ac-3|ec-3|opus|flac|alac|dts|mlpa)/i.test(value)) ?? null;
+    .find((value) => /^(mp4a|ac-4|ac-3|ec-3|opus|flac|alac|dts|mlpa)/i.test(value)) ?? null;
 }
 function channelLayout(count: number | null): AudioChannelLayout {
   if (count === 1) return 'mono';
