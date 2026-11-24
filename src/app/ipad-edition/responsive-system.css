@@ -1,3 +1,22 @@
+
+/* Shared iPad cinema design tokens — all product surfaces consume these values. */
+.ipad-edition {
+  --ipad-font-display: clamp(34px, 4.8vw, 62px);
+  --ipad-font-section: clamp(19px, 1.6vw, 24px);
+  --ipad-font-body: 14px;
+  --ipad-font-meta: 12px;
+  --ipad-font-caption: 11px;
+  --ipad-space-1: 4px;
+  --ipad-space-2: 8px;
+  --ipad-space-3: 12px;
+  --ipad-space-4: 16px;
+  --ipad-space-5: 24px;
+  --ipad-space-6: 32px;
+  --ipad-space-7: 42px;
+  --ipad-poster-radius: 14px;
+  --ipad-panel-radius: 18px;
+  --ipad-cast-avatar-size: 76px;
+}
 /* PR #99 — adaptive cinema shell. Layout follows the actual app window. */
 .ipad-edition {
   width: 100%;
@@ -119,4 +138,23 @@
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
+}
+
+/* Typography and poster tokens are shared by every homepage content rail. */
+.ipad-edition[data-ipad-home="true"] .ipad-edition__section-heading h2 {
+  font-size: var(--ipad-font-section);
+  line-height: 1.2;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__poster-art {
+  border-radius: var(--ipad-poster-radius);
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__poster-card > strong,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__anime-card > strong,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__continue-card > strong {
+  font-size: 13px;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__poster-card > small,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__anime-card > small,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__continue-card > small {
+  font-size: var(--ipad-font-caption);
 }

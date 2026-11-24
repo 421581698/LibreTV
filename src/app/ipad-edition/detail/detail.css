@@ -724,3 +724,24 @@
 .ipad-edition [data-ipad-detail="true"] .ipad-cinema-cast__item:not(button) {
   cursor: default;
 }
+
+/* Detail hero, information blocks and cast use the same global typography and spacing tokens. */
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content h1 {
+  font-size: var(--ipad-font-display);
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-info h2,
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-section > h2 {
+  font-size: var(--ipad-font-section);
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-info p {
+  font-size: var(--ipad-font-body);
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-meta {
+  font-size: var(--ipad-font-meta);
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-cast__item img {
+  width: var(--ipad-cast-avatar-size);
+  height: var(--ipad-cast-avatar-size);
+  aspect-ratio: 1;
+  border-radius: 50%;
+}
