@@ -13,6 +13,7 @@ from fastapi import APIRouter, Header, HTTPException, Query
 
 DB_PATH = Path(os.environ.get("SCRAPLING_DB_PATH", "/data/collector.sqlite3"))
 TOKEN = os.environ.get("SCRAPLING_API_TOKEN", "").strip()
+DV_INGESTION_TOKEN = os.environ.get("DV_INGESTION_TOKEN", "").strip()
 router = APIRouter()
 TERMINAL = {"succeeded", "partial", "failed", "cancelled"}
 ACCESS_BLOCKED = {"AUTH_REQUIRED", "SUBSCRIPTION_REQUIRED", "CHALLENGE", "DRM_PROTECTED", "ENCRYPTED_STREAM"}
@@ -57,6 +58,14 @@ def initialize() -> None:
         CREATE INDEX IF NOT EXISTS idx_registry_resources_movie ON registry_resources(movie_id);
         CREATE INDEX IF NOT EXISTS idx_registry_resources_episode ON registry_resources(episode_id);
         CREATE INDEX IF NOT EXISTS idx_registry_resources_verified ON registry_resources(validation_state,playback_state);
+        CREATE TABLE IF NOT EXISTS registry_media_assets (
+          asset_id TEXT PRIMARY KEY, resource_id TEXT NOT NULL REFERENCES registry_resources(id),
+          sha256 TEXT NOT NULL, byte_length INTEGER NOT NULL CHECK(byte_length > 0),
+          content_type TEXT NOT NULL, object_key TEXT NOT NULL UNIQUE,
+          created_at INTEGER NOT NULL, UNIQUE(resource_id,sha256)
+        );
+        CREATE INDEX IF NOT EXISTS idx_registry_media_assets_resource
+          ON registry_media_assets(resource_id,created_at DESC);
         CREATE TABLE IF NOT EXISTS registry_verifications (
           id TEXT PRIMARY KEY, resource_id TEXT NOT NULL REFERENCES registry_resources(id),
           verification_type TEXT NOT NULL, outcome TEXT NOT NULL, evidence TEXT NOT NULL,
@@ -103,6 +112,48 @@ def initialize() -> None:
         )
         for row in retired:
             event(c, row["id"], "seedhub_collection_retired", {"job_type": row["job_type"]})
+
+
+def require_dv_ingestion_auth(token: str | None) -> None:
+    import hmac
+    supplied = token.strip() if token else ""
+    if not DV_INGESTION_TOKEN or not supplied or not hmac.compare_digest(supplied, DV_INGESTION_TOKEN):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+def register_dolby_vision_media_asset(resource_id: str, sha256: str, byte_length: int, content_type: str) -> dict:
+    import re
+    digest = sha256.lower() if isinstance(sha256, str) else ""
+    if not re.fullmatch(r"[a-f0-9]{64}", digest):
+        raise ValueError("Invalid media SHA-256.")
+    if isinstance(byte_length, bool) or not isinstance(byte_length, int) or not 1 <= byte_length <= 2 * 1024 * 1024 * 1024:
+        raise ValueError("Invalid media byte length.")
+    allowed_types = {"application/octet-stream", "video/mp4", "video/x-matroska", "video/mp2t", "video/hevc"}
+    if content_type not in allowed_types:
+        raise ValueError("Unsupported media content type.")
+    asset_id = "dv_" + hashlib.sha256(f"{resource_id}:{digest}".encode()).hexdigest()[:32]
+    object_key = f"sha256/{digest[:2]}/{digest}"
+    now = int(time.time())
+    with connect() as c:
+        c.execute("BEGIN IMMEDIATE")
+        resource = c.execute("SELECT id FROM registry_resources WHERE id=?", (resource_id,)).fetchone()
+        if not resource:
+            c.rollback()
+            raise KeyError(resource_id)
+        existing = c.execute("SELECT * FROM registry_media_assets WHERE resource_id=? AND sha256=?", (resource_id, digest)).fetchone()
+        if existing:
+            if existing["byte_length"] != byte_length or existing["content_type"] != content_type:
+                c.rollback()
+                raise ValueError("Immutable asset metadata conflict.")
+            c.commit()
+            return dict(existing)
+        row = c.execute(
+            """INSERT INTO registry_media_assets(asset_id,resource_id,sha256,byte_length,content_type,object_key,created_at)
+               VALUES(?,?,?,?,?,?,?) RETURNING *""",
+            (asset_id, resource_id, digest, byte_length, content_type, object_key, now),
+        ).fetchone()
+        c.commit()
+        return dict(row)
 
 
 def require_auth(authorization: str | None) -> None:
@@ -572,6 +623,20 @@ def api_get_resource(resource_id: str, authorization: str | None = Header(defaul
         history=c.execute("SELECT * FROM registry_history WHERE resource_id=? ORDER BY created_at DESC",(resource_id,)).fetchall()
     if not row: raise HTTPException(status_code=404,detail="Resource not found")
     return {"resource":dict(row),"verifications":[dict(v) for v in verifications],"history":[dict(h) for h in history]}
+
+
+@router.post("/v1/registry/resources/{resource_id}/media-assets")
+def api_register_dv_media_asset(resource_id: str, payload: dict, x_dv_ingestion_token: str | None = Header(default=None)):
+    # Separate server-only credential: the general collector token is not sufficient.
+    require_dv_ingestion_auth(x_dv_ingestion_token)
+    try:
+        return {"asset": register_dolby_vision_media_asset(
+            resource_id, payload.get("sha256"), payload.get("byte_length"), payload.get("content_type")
+        )}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Resource not found")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
 
 
 @router.post("/v1/registry/resources/{resource_id}/verifications")
