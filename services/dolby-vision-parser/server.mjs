@@ -108,14 +108,15 @@ async function analyzeUpload(request, response, env) {
     return;
   }
 
-  const directory = await mkdtemp(resolve(tmpdir(), 'libretv-dv-job-'));
-  const inputPath = resolve(directory, 'input-media');
-  const hevcPath = resolve(directory, 'video-track.hevc');
   const sourceContentType = request.headers['x-dv-source-content-type'];
   if (!['video/mp4', 'video/hevc'].includes(sourceContentType)) {
     sendJson(response, 415, { error: 'SOURCE_CONTAINER_UNSUPPORTED' });
     return;
   }
+
+  const directory = await mkdtemp(resolve(tmpdir(), 'libretv-dv-job-'));
+  const inputPath = resolve(directory, 'input-media');
+  const hevcPath = resolve(directory, 'video-track.hevc');
   const digest = createHash('sha256');
   let received = 0;
   const meter = new Transform({
