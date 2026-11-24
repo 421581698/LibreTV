@@ -321,9 +321,9 @@ def ingest_authorized_hls_candidate(
                         if (not method or method.group(1).strip().strip('"').upper() != "NONE"
                                 or re.search(r"(?:^|,)\s*URI=", attrs, re.IGNORECASE)):
                             raise HlsSourceGatewayError("Encrypted or DRM HLS playlists are not fetched")
-                    if re.search(r"\\bURI\\s*=", line, re.IGNORECASE):
+                    if re.search(r"\bURI\s*=", line, re.IGNORECASE):
                         matches = list(URI_ATTRIBUTE.finditer(line))
-                        uri_attribute_count = len(re.findall(r"\\bURI\\s*=", line, re.IGNORECASE))
+                        uri_attribute_count = len(re.findall(r"\bURI\s*=", line, re.IGNORECASE))
                         if not matches or len(matches) != uri_attribute_count:
                             raise HlsSourceGatewayError("HLS URI attributes must use the exact quoted RFC format")
                         for match in reversed(matches):
