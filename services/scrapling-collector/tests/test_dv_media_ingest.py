@@ -173,6 +173,13 @@ class DolbyVisionMediaIngestionTests(unittest.TestCase):
         self.assertEqual(root_asset["content_type"], "application/vnd.apple.mpegurl")
         self.assertEqual(result["member_count"], 4)
         self.assertEqual(result["edge_count"], 3)
+        with registry.connect() as connection:
+            graph = connection.execute(
+                "SELECT graph_id,root_asset_id FROM registry_hls_asset_graphs WHERE resource_id=?",
+                (resource["id"],),
+            ).fetchone()
+        self.assertEqual(graph["graph_id"], root_asset["asset_id"])
+        self.assertEqual(graph["root_asset_id"], root_asset["asset_id"])
         stored = self.object_root / "sha256" / root_asset["sha256"][:2] / root_asset["sha256"]
         manifest = stored.read_text(encoding="utf-8")
         self.assertIn(f'/api/dolby-vision/assets/{result["assets"]["video/variant.m3u8"]["asset_id"]}/content', manifest)
