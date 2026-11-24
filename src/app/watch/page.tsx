@@ -1023,16 +1023,11 @@ function WatchContent() {
                     scrubbingPositionRef.current = position;
                     setScrubbingPosition(position);
                   }}
-                  onPointerDown={(event) => {
-                    // Keep the drag stream attached to the range input even if
-                    // the finger leaves its narrow visual track. Synthetic test
-                    // events and older WebKit builds may reject pointer capture;
-                    // the window-level release listener remains the fallback.
-                    try {
-                      event.currentTarget.setPointerCapture(event.pointerId);
-                    } catch {
-                      // Continue with window-level pointerup/touchend handling.
-                    }
+                  onPointerDown={() => {
+                    // The shell capture listener starts the scrub lifecycle.
+                    // Do not call setPointerCapture here: iOS Safari's native
+                    // range control can lose its drag stream when capture is
+                    // transferred from the browser's slider implementation.
                   }}
                   onKeyUp={(event) => {
                     if (['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) {
