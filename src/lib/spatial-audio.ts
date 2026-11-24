@@ -246,6 +246,13 @@ export class SpatialAudioEngine {
     return this.destroyed;
   }
 
+  /** Subscribe to browser AudioContext lifecycle changes for deterministic fallback. */
+  subscribeStateChange(listener: (state: string) => void): () => void {
+    const handleStateChange = () => listener(this.context.state);
+    this.context.addEventListener('statechange', handleStateChange);
+    return () => this.context.removeEventListener('statechange', handleStateChange);
+  }
+
   get status(): { mode: SpatialAudioMode; route: SpatialAudioRoute; contextState: AudioContextState; inputChannels: number; inputLayout: '5.1' | 'unknown' } {
     return {
       mode: this.mode,
