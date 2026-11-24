@@ -35,7 +35,8 @@ const source = 'const exports = {};\n' + ts.transpileModule(spatialSource, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
 }).outputText + '\nwindow.SpatialAudioEngine = exports.SpatialAudioEngine;';
 
-const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--autoplay-policy=no-user-gesture-required'] });
+// Keep Chromium's real autoplay policy: AudioContext activation must come from the button click below.
+const browser = await chromium.launch({ channel: 'chrome', headless: true });
 let failed = false;
 try {
   const page = await browser.newPage();
