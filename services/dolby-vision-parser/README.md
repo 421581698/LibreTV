@@ -25,9 +25,9 @@ Provide secrets through the deployment secret manager:
 - `DV_SERVICE_TOKEN`: long random backend-only bearer token.
 - `DV_SIGNING_KEY_ID`: current public-key identifier.
 - `DV_SIGNING_PRIVATE_KEY_PEM`: Ed25519 PKCS#8 private PEM.
-- `DV_MAX_UPLOAD_BYTES`: optional, defaults to 536870912 (512 MiB).
-- `DV_MAX_CONCURRENT_JOBS`: optional, defaults to 1.
-- `DV_ANALYSIS_TIMEOUT_MS`: optional, defaults to 900000 (15 minutes).
+- `DV_MAX_UPLOAD_BYTES`: optional, defaults to 536870912 (512 MiB); accepted range is 1 KiB–2 GiB.
+- `DV_MAX_CONCURRENT_JOBS`: optional, defaults to 1; accepted range is 1–8.
+- `DV_ANALYSIS_TIMEOUT_MS`: optional, defaults to 900000 (15 minutes); accepted range is 10 seconds–1 hour.
 
 Run the container behind private ingress only. Store the matching public key in the web backend as `DOLBY_VISION_VERIFY_PUBLIC_KEY_PEM` and configure the expected key ID separately. Rotate keys by deploying a new key ID and overlapping verifier support during the rotation window.
 
