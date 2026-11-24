@@ -8,6 +8,7 @@ import { useAppStore, resolveSource } from '@/lib/store';
 import { useAuth } from '@/components/auth';
 import { SmartImage } from '@/components/smart-image';
 import { IpadCinemaDetailLayout } from '@/components/ipad-edition/IpadCinemaDetailLayout';
+import { IpadCinemaCastRow } from '@/components/ipad-edition/IpadCinemaCastRow';
 import { LoadingState, ErrorState } from '@/components/states';
 import { addFavorite, addSearchHistory, db, removeFavorite } from '@/lib/db';
 import { favoriteIdFor } from '@/lib/favorite-id';
@@ -53,7 +54,11 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
   const [error, setError] = useState('');
   const [sharing, setSharing] = useState(false);
   const [episodeMenuIndex, setEpisodeMenuIndex] = useState<number | null>(null);
-  const [tmdbArtwork, setTmdbArtwork] = useState<{ poster: string; backdrop: string } | null>(null);
+  const [tmdbArtwork, setTmdbArtwork] = useState<{
+    poster: string;
+    backdrop: string;
+    cast: { id: number; name: string; character?: string; profile_path?: string | null }[];
+  } | null>(null);
 
   // Episode actions are a real popover: dismiss on outside tap or Escape so the
   // menu never remains stranded over the horizontal episode shelf on mobile.
@@ -157,11 +162,16 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
         if (!match || !Number.isInteger(match.id) || match.id <= 0) return;
         const detailsResponse = await fetch('/api/tmdb/details?' + new URLSearchParams({ id: String(match.id), type: match.type }), { signal: controller.signal });
         if (!detailsResponse.ok) throw new Error('TMDB_DETAILS_UNAVAILABLE');
-        const metadata = await detailsResponse.json() as { poster_path?: string | null; backdrop_path?: string | null };
+        const metadata = await detailsResponse.json() as {
+          poster_path?: string | null;
+          backdrop_path?: string | null;
+          credits?: { cast?: { id: number; name: string; character?: string; profile_path?: string | null }[] };
+        };
         if (controller.signal.aborted) return;
         setTmdbArtwork({
           poster: metadata.poster_path ? `https://image.tmdb.org/t/p/original${metadata.poster_path}` : match.posterUrl || '',
           backdrop: metadata.backdrop_path ? `https://image.tmdb.org/t/p/original${metadata.backdrop_path}` : match.backdropUrl || '',
+          cast: (metadata.credits?.cast || []).slice(0, 18),
         });
       })
       .catch(() => {
@@ -290,7 +300,7 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
           {metadata.map((value) => <span key={value}>{value}</span>)}
         </>
       }
-      overview={info?.desc || '暂无剧情简介'}
+      overview={info?.desc || undefined}
       actions={
         <>
           <button type="button" onClick={() => play(0)} disabled={episodes.length === 0} className="ipad-cinema-play">
@@ -304,11 +314,8 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
       }
       onBack={() => router.back()}
     >
-      <section className="ipad-cinema-info">
-        <div>
-          <h2>剧情简介</h2>
-          <p>{info?.desc || '暂无剧情简介'}</p>
-        </div>
+      <section className={`ipad-cinema-info${info?.desc ? ' has-overview' : ''}`}>
+        {info?.desc ? <div><h2>剧情简介</h2><p>{info.desc}</p></div> : null}
         <dl>
           <div><dt>年份</dt><dd>{info?.year || '暂无数据'}</dd></div>
           <div><dt>地区</dt><dd>{info?.area || '暂无数据'}</dd></div>
@@ -371,6 +378,16 @@ export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch'
           </div>
         </section>
       )}
+      <IpadCinemaCastRow
+        actors={(tmdbArtwork?.cast || []).map((actor) => ({
+          id: actor.id,
+          name: actor.name,
+          role: actor.character,
+          imageUrl: actor.profile_path ? `https://image.tmdb.org/t/p/w342${actor.profile_path}` : '',
+        }))}
+        imageMode={imageProxyMode}
+        customImageProxy={customImageProxy}
+      />
     </IpadCinemaDetailLayout>
   );
 }
