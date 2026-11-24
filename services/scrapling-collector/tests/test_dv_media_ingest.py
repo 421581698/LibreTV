@@ -190,6 +190,20 @@ class DolbyVisionMediaIngestionTests(unittest.TestCase):
             ).fetchall()
         self.assertEqual(sorted(row["role"] for row in edges), ["initialization", "playlist", "segment"])
 
+        segment_asset = result["assets"]["video/segment-0001.m4s"]
+        with patch.object(registry, "DV_MEDIA_OBJECT_ROOT", self.object_root), patch.object(registry, "require_auth"):
+            ranged = registry.api_get_dolby_vision_media_asset_content(
+                segment_asset["asset_id"],
+                authorization="Bearer collector",
+                range_header="bytes=1-3",
+            )
+        async def read_range():
+            return b"".join([chunk async for chunk in ranged.body_iterator])
+        self.assertEqual(asyncio.run(read_range()), b"edi")
+        self.assertEqual(ranged.status_code, 206)
+        self.assertEqual(ranged.headers["content-range"], "bytes 1-3/13")
+        self.assertEqual(ranged.headers["content-length"], "3")
+
     def test_rejects_encrypted_hls_and_path_traversal_without_registering_a_graph(self):
         resource = self.add_hls_resource("dv-hls:reject")
         staging = self.root / "hls-reject"
