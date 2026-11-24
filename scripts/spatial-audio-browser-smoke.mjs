@@ -99,7 +99,22 @@ try {
   if (!teardown.bypass || !teardown.destroyed || teardown.contextState !== 'closed') {
     throw new Error('Spatial graph teardown did not close cleanly: ' + JSON.stringify(teardown));
   }
-  console.log('PASS real Chromium Web Audio graph:', JSON.stringify({ active, teardown }));
+  const corsGuard = await page.evaluate(() => {
+    const unsafe = document.createElement('audio');
+    unsafe.src = 'https://cross-origin.invalid/track.wav';
+    let factoryCalls = 0;
+    try {
+      window.SpatialAudioEngine.attach(unsafe, { inputChannels: 2 }, () => {
+        factoryCalls += 1;
+        return new AudioContext();
+      });
+      return false;
+    } catch (error) {
+      return String(error?.message || error).includes('CORS') && factoryCalls === 0;
+    }
+  });
+  if (!corsGuard) throw new Error('Cross-origin media was not rejected before AudioContext creation');
+  console.log('PASS real Chromium Web Audio graph:', JSON.stringify({ active, teardown, corsGuard }));
 } catch (error) {
   failed = true;
   console.error('FAIL real Chromium Web Audio graph:', error instanceof Error ? error.stack || error.message : String(error));
