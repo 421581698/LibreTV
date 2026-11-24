@@ -556,8 +556,7 @@ export function PlayerShell({
             label: [track.name, track.lang, track.channels ? `${track.channels} ch` : ''].filter(Boolean).join(' · ') || `音轨 ${index + 1}`,
             isDefault: Boolean(track.default),
           })));
-          setSelectedAudioTrack(spatialTracks.findIndex((track) => track.default) >= 0
-            ? spatialTracks.findIndex((track) => track.default) : current.audioTracks.length > 0 ? 0 : -1);
+          setSelectedAudioTrack(spatialTracks.find((track) => track.default)?.id ?? spatialTracks[0]?.id ?? -1);
         }
         setSpatialSessionState(snapshot.state);
         setSpatialSessionMessage(snapshot.route === 'bypass'
