@@ -113,3 +113,16 @@ export function getBufferedAheadSeconds(
   }
   return 0;
 }
+
+
+/** Starts a measured buffering window once; duplicate waiting events do not reset it. */
+export function beginStallWindow(startedAtMs: number | null, nowMs: number): number | null {
+  if (!Number.isFinite(nowMs)) return startedAtMs;
+  return startedAtMs ?? nowMs;
+}
+
+/** Closes a measured buffering window and returns its non-negative duration. */
+export function endStallWindow(startedAtMs: number | null, nowMs: number): number {
+  if (startedAtMs === null || !Number.isFinite(nowMs)) return 0;
+  return Math.max(0, nowMs - startedAtMs);
+}
