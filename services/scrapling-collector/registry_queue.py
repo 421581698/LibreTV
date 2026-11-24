@@ -792,6 +792,10 @@ def api_get_dolby_vision_media_asset_content(
     """Stream one registered immutable object with single-range support."""
     import re
     require_auth(authorization)
+    # Direct unit calls see FastAPI's Header sentinel as the default value;
+    # only an actual string represents a supplied HTTP Range header.
+    if not isinstance(range_header, str):
+        range_header = None
     with connect() as c:
         row = c.execute(
             "SELECT asset_id,sha256,byte_length,content_type,object_key FROM registry_media_assets WHERE asset_id=?",
