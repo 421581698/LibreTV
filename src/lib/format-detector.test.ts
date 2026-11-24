@@ -41,8 +41,12 @@ describe('detectMediaFormat', () => {
     expect(detectMediaFormat({ audioCodec: 'DTS:X' })).toMatchObject({ audioCodec: 'dts-x', dolbyFamily: 'none' });
   });
 
-  it('recognizes IAMF and PCM declarations as non-Dolby codec hints', () => {
+  it('recognizes IAMF and Eclipsa declarations as IAMF-family hints', () => {
     expect(detectMediaFormat({ audioCodec: 'iamf.001' })).toMatchObject({ audioCodec: 'iamf', dolbyFamily: 'none' });
+    expect(detectMediaFormat({ audioCodec: 'Eclipsa Audio' })).toMatchObject({ audioCodec: 'iamf', dolbyFamily: 'none' });
+  });
+
+  it('recognizes PCM declarations as non-Dolby codec hints', () => {
     expect(detectMediaFormat({ audioCodec: 'lpcm' })).toMatchObject({ audioCodec: 'pcm', dolbyFamily: 'none' });
   });
 
