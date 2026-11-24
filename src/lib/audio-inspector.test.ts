@@ -46,6 +46,21 @@ describe('parseHlsAudioRenditions', () => {
     }
   });
 
+  it('validates MPEG-4 audio object identifiers instead of accepting arbitrary suffixes', () => {
+    const accepted = '#EXTM3U\\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="g",NAME="AAC",URI="audio.m3u8"\\n#EXT-X-STREAM-INF:BANDWIDTH=1000000,CODECS="avc1.640028,mp4a.40.2",AUDIO="g"\\nvideo.m3u8';
+    expect(parseHlsAudioRenditions(accepted)[0].codec).toBe('mp4a.40.2');
+
+    for (const audioCodec of ['mp4a.bad', 'mp4a.4g.2', 'mp4a.40', 'mp4a.40.foo']) {
+      const manifest = [
+        '#EXTM3U',
+        '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="g",NAME="Unknown",URI="audio.m3u8"',
+        `#EXT-X-STREAM-INF:BANDWIDTH=1000000,CODECS="avc1.640028,${audioCodec}",AUDIO="g"`,
+        'video.m3u8',
+      ].join('\\n');
+      expect(parseHlsAudioRenditions(manifest)[0].codec).toBeNull();
+    }
+  });
+
   it('rejects malformed codec prefixes instead of reporting supported formats', () => {
     const malformed = ['ac-30', 'ec-30', 'dtsx-extra', 'mp4a-not-a-codec', 'truehdx', 'iamf-invalid'];
     for (const audioCodec of malformed) {
