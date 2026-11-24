@@ -57,17 +57,21 @@
   position: absolute;
   top: max(22px, env(safe-area-inset-top, 0px) + 16px);
   right: 16px;
-  display: grid;
-  width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 68px;
   height: 40px;
-  place-items: center;
+  padding: 0 10px;
   border: 1px solid var(--ipad-nav-line);
   border-radius: 12px;
   color: var(--ipad-nav-ink);
   background: rgba(128, 140, 160, .1);
   cursor: pointer;
 }
-.ipad-nav__collapse-button .ipad-nav__icon { width: 19px; height: 19px; }
+.ipad-nav__collapse-button .ipad-nav__icon { width: 17px; height: 17px; flex: 0 0 auto; }
+.ipad-nav__collapse-button span { font-size: 12px; font-weight: 650; white-space: nowrap; }
 .ipad-edition__home,
 .ipad-edition__page {
   min-width: 0;
