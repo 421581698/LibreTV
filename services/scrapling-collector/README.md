@@ -127,6 +127,20 @@ The collector image includes `dv_media_ingest.py`. It accepts a staged local reg
 
 The registry also exposes `GET /v1/registry/media-assets/{asset_id}/content`, an authenticated read-only stream resolved solely from the registry row. It validates the digest/key relationship and regular-file metadata, supports one RFC 7233 byte range (including suffix and open-ended ranges), returns `206`/`Content-Range` for satisfiable ranges and `416`/`Content-Range: bytes */<length>` for invalid or unsatisfiable ranges. Consumers must still verify the bytes they receive against the advertised digest; the Dolby Vision parser independently hashes the forwarded upload and rejects a mismatch.
 
+### Immutable HLS asset graphs
+
+The collector image also includes `dv_hls_ingest.py`, a local-staging-only clear-HLS graph ingester. It accepts an already-authorized staging directory and root playlist; it does not fetch URLs. It recursively registers child playlists, initialization sections, media segments, audio and subtitle members as content-addressed immutable objects, then rewrites every playlist URI to the server-side immutable asset content route. Parent/child relationships are persisted in `registry_hls_asset_edges`.
+
+The worker rejects path traversal, symlinked members, missing files, unsupported extensions, cyclic playlist references, non-UTF-8/oversized playlists, and encrypted/DRM key declarations. It supports local `.m3u8`, `.m4s`, `.mp4`, `.ts`, `.aac`, `.m4a`, `.mp3`, and `.vtt` members. The root playlist is registered as `application/vnd.apple.mpegurl`; the player resolves that immutable root for HLS resources, and HLS.js requests the rewritten child asset URLs through the same authenticated byte-range proxy.
+
+Only invoke it after the registry resource is independently validated as PUBLIC and player-confirmed:
+
+```sh
+python dv_hls_ingest.py --resource-id <existing-resource-id> --staging-dir /private-staging/hls --playlist master.m3u8
+```
+
+This is an ingestion primitive for a trusted staging gateway, not a general-purpose remote downloader. The upstream authorized-source gateway and its live production operation remain separate deployment work.
+
 ### Local Compose provisioning
 
 The collector runs as UID/GID 10001. The mounted token file must be readable by that service user:
