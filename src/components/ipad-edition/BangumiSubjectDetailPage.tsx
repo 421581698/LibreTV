@@ -197,7 +197,7 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
           <span className="ipad-cinema-rating">★ {(subject.rating?.score || 0).toFixed(1)}</span>
         </>
       }
-      overview={subject.summary || '暂无剧情简介'}
+      overview={subject.summary || undefined}
       actions={
         <>
           <button type="button" onClick={() => void startPlayback()} disabled={starting} className="ipad-cinema-play">
@@ -208,11 +208,8 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
       }
       onBack={() => router.back()}
     >
-      <section className="ipad-cinema-info">
-        <div>
-          <h2>作品资料</h2>
-          <p>{subject.summary || '暂无剧情简介'}</p>
-        </div>
+      <section className={`ipad-cinema-info${subject.summary ? ' has-overview' : ''}`}>
+        {subject.summary ? <div><h2>作品资料</h2><p>{subject.summary}</p></div> : null}
         <dl>
           <div><dt>年份</dt><dd>{year || '暂无数据'}</dd></div>
           <div><dt>集数</dt><dd>{subject.total_episodes || '待定'}</dd></div>
@@ -230,10 +227,12 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
         imageMode={imageProxyMode}
         customImageProxy={customImageProxy}
       />
-      <section className="ipad-cinema-tags ipad-cinema-section">
-        <h2>作品标签</h2>
-        <div className="flex flex-wrap gap-2">{tags.length ? tags.map((tag) => <span key={tag} className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/75">{tag}</span>) : <span className="text-sm text-white/55">暂无标签</span>}</div>
-      </section>
+      {tags.length ? (
+        <section className="ipad-cinema-tags ipad-cinema-section">
+          <h2>作品标签</h2>
+          <div className="flex flex-wrap gap-2">{tags.map((tag) => <span key={tag} className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/75">{tag}</span>)}</div>
+        </section>
+      ) : null}
     </IpadCinemaDetailLayout>
   );
 }

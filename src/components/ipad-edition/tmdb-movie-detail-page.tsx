@@ -189,7 +189,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
           {runtime && <span>{runtime} 分钟{type === 'tv' ? '/集' : ''}</span>}
         </>
       }
-      overview={movie.overview || '暂无剧情简介'}
+      overview={movie.overview || undefined}
       actions={
         <>
           <button type="button" onClick={() => void startPlayback()} disabled={startingPlayback} className="ipad-cinema-play" aria-label="▶ 开始播放">
@@ -203,11 +203,8 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
       }
       onBack={() => router.back()}
     >
-      <section className="ipad-cinema-info">
-        <div>
-          <h2>剧情简介</h2>
-          <p>{movie.overview || '暂无剧情简介'}</p>
-        </div>
+      <section className={`ipad-cinema-info${movie.overview ? ' has-overview' : ''}`}>
+        {movie.overview ? <div><h2>剧情简介</h2><p>{movie.overview}</p></div> : null}
         <dl>
           <div><dt>导演</dt><dd>{director || '暂无数据'}</dd></div>
           <div><dt>年份</dt><dd>{releaseYear || '暂无数据'}</dd></div>

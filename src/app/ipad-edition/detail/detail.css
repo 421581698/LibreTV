@@ -714,3 +714,13 @@
 @media (prefers-reduced-motion: reduce) {
   .ipad-edition [data-ipad-detail="true"] .ipad-cinema-cast__item:active img { transform: none; }
 }
+
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-info:not(.has-overview) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-cast__rail > .ipad-cinema-cast__item {
+  text-align: center;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-cast__item:not(button) {
+  cursor: default;
+}
