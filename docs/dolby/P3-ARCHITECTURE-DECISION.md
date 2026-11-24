@@ -1,6 +1,6 @@
 # P3 Architecture Decision Record: Independent Spatial Media Session
 
-- Status: Accepted architecture / implementation pending
+- Status: Accepted architecture / initial direct-media milestone implemented; full P3 pending
 - Date: 2026-11-24
 - Scope: Dolby Immersive Audio Engine 2.0, P3
 - Branch: `feature/libretv-ipad-edition-product` (PR #99 remains Draft)
@@ -18,6 +18,8 @@ Do not attach the spatial engine to the existing reusable `art.video`.
 A spatial playback session must own a distinct media element and an isolated player/session controller. The existing ArtPlayer element remains the native playback route and recovery target. The session controller owns the spatial element, its source/track lifecycle, Web Audio graph, and teardown.
 
 The initial implementation must be opt-in. Native playback remains the default and must continue to work when spatial prerequisites are absent or fail.
+
+Implementation note (2026-11-24): the first code milestone now supports direct MP4/WebM only via `SpatialMediaSession`, a distinct media element and a two-step prepare/gesture activation UI. It CORS-probes the source, preserves the native ArtPlayer element, and falls back on failure or source changes. The engine currently receives an unknown channel layout for this path and therefore remains unprocessed/bypass. No independent hls.js/MSE session or spatial HLS track switching is implemented. This is a partial P3 implementation, not P3 acceptance.
 
 ## Session model
 
