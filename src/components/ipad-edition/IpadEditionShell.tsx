@@ -22,7 +22,7 @@ const personalNavigation = [
   { label: '设置', href: '/ipad-edition/settings', icon: 'settings' },
 ] as const;
 
-type NavigationIconName = 'house' | 'user-round' | 'search' | 'panel-left' | 'settings' | 'clapperboard' | 'tv' | 'drama';
+type NavigationIconName = 'house' | 'user-round' | 'search' | 'panel-left' | 'x' | 'settings' | 'clapperboard' | 'tv' | 'drama';
 
 function NavigationIcon({ name }: { name: NavigationIconName }) {
   const common = {
@@ -51,6 +51,9 @@ function NavigationIcon({ name }: { name: NavigationIconName }) {
   }
   if (name === 'panel-left') {
     return <svg {...common}><rect x="3.5" y="4" width="17" height="16" rx="2.2" /><path d="M9 4v16" /></svg>;
+  }
+  if (name === 'x') {
+    return <svg {...common}><path d="m18 6-12 12M6 6l12 12" /></svg>;
   }
   if (name === 'clapperboard') {
     return <svg {...common}><path d="M4 8h16v12H4zM4 8l2-4h14l-2 4M9 4l3 4m3-4 3 4" /></svg>;
@@ -287,7 +290,8 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
               setNavigationCollapsed(true);
             }}
           >
-            <NavigationIcon name="panel-left" />
+            <NavigationIcon name="x" />
+            <span>关闭</span>
           </button>
 
           <p className="ipad-nav__section-label">主导航</p>
