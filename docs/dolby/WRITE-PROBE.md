@@ -1,1 +1,0 @@
-Connector write-access probe. Safe to delete.
