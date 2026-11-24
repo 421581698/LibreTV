@@ -166,9 +166,9 @@ describe('SpatialMediaSession activation and fallback', () => {
     const native = makeVideo();
     const spatial = makeVideo();
     const engine = makeEngine();
-    let finishResume: (() => void) | null = null;
+    const resumeGate: { finish: (() => void) | null } = { finish: null };
     engine.resumeFromUserGesture = vi.fn(() => new Promise<void>((resolve) => {
-      finishResume = resolve;
+      resumeGate.finish = resolve;
     }));
     const session = await SpatialMediaSession.prepare({
       nativeVideo: native, host: makeHost(), sourceUrl: 'https://media.example/movie.mp4',
@@ -189,7 +189,7 @@ describe('SpatialMediaSession activation and fallback', () => {
     expect(spatial.remove).toHaveBeenCalledTimes(1);
     expect(engine.destroyAfterMediaElementRemoval).toHaveBeenCalledTimes(1);
 
-    finishResume?.();
+    resumeGate.finish?.();
     await expect(activation).rejects.toThrow(/回退/);
   });
 
