@@ -72,11 +72,13 @@ services:
     environment:
       - DV_SERVICE_TOKEN=${DV_SERVICE_TOKEN:-}
       - DV_SIGNING_KEY_ID=${DV_SIGNING_KEY_ID:-dv-key-1}
-      - DV_SIGNING_PRIVATE_KEY_PEM=${DV_SIGNING_PRIVATE_KEY_PEM:-}
+      - DV_SIGNING_PRIVATE_KEY_FILE=/run/secrets/dv-signing-private-key
       - DV_MAX_UPLOAD_BYTES=${DV_MAX_UPLOAD_BYTES:-536870912}
       - DV_MAX_CONCURRENT_JOBS=${DV_MAX_CONCURRENT_JOBS:-1}
       - DV_ANALYSIS_TIMEOUT_MS=${DV_ANALYSIS_TIMEOUT_MS:-900000}
       - PORT=8788
+    volumes:
+      - ${DV_SIGNING_PRIVATE_KEY_FILE:-./secrets/dv-signing-private-key.pem}:/run/secrets/dv-signing-private-key:ro
     expose:
       - "8788"
     healthcheck:
