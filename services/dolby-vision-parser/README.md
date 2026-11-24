@@ -1,13 +1,13 @@
 # LibreTV Dolby Vision parser service
 
-A private Node.js analysis service for trusted backend-to-backend use. It accepts **media bytes**, never arbitrary URLs, hashes the received bytes, runs the repository's pinned offline `dovi_tool` adapter, and signs a short-lived report using an Ed25519 private key.
+A private Node.js analysis service for trusted backend-to-backend use. It accepts **MP4 media bytes**, never arbitrary URLs, hashes the original upload, uses FFmpeg to copy-extract the HEVC video track without re-encoding, runs the repository's pinned offline `dovi_tool` adapter, and signs a short-lived report using an Ed25519 private key.
 
 ## Security boundary
 
 - Keep this service on a private network. Do not expose it directly to browsers or the public Internet.
 - Only the authenticated Node.js backend route `/api/dolby-vision/assets/{assetId}/analyze` may call it, using `DV_SERVICE_TOKEN`; browsers never receive this token.
-- The backend route resolves `assetId` through the authenticated collector registry, streams the registered content-addressed object, checks the registry digest/ETag binding, and sends those exact bytes with the asset ID and digest headers.
-- The service independently hashes the received upload and rejects any digest mismatch.
+- The backend route resolves `assetId` through the authenticated collector registry, streams the registered content-addressed MP4 object, checks the registry digest/ETag binding, and sends those exact bytes with the asset ID, original SHA-256 and source MIME headers.
+- The service independently hashes the received MP4 upload and rejects any digest mismatch. It also records the extracted HEVC track hash separately; the signed `sourceMediaSha256` remains bound to the original MP4 bytes.
 - The signing key is injected at runtime as a secret; never commit it, bake it into the image, or expose it to the player.
 - No remote URL fetching is implemented. This avoids SSRF and uncontrolled third-party media retrieval.
 - Upload size, concurrent jobs, parser runtime and request time are bounded.
@@ -41,7 +41,7 @@ docker compose ps libretv scrapling-collector dolby-vision-parser
 
 The private key is mounted read-only at `/run/secrets/dv-signing-private-key`; the local `secrets/` directory is ignored by Git. The public key is passed to the backend verifier as base64 PEM through `DV_SIGNING_PUBLIC_KEY_PEM_B64`; it is not secret, but must match the private key. The backend route checks the expected key ID, signature, asset ID, expiry, and exact media digest before returning verified evidence. The health endpoint is available inside the Compose network at `http://dolby-vision-parser:8788/health`.
 
-These profiles start the collector and private parser. The local-file ingestion worker and authenticated object-streaming route are available, and the backend analysis route now forwards the registered object to the parser and verifies its signed response. The trusted source-staging gateway and player diagnostics-panel integration are still missing. Do not configure the browser to call the parser or collector directly.
+These profiles start the collector and private parser. The local-file ingestion worker and authenticated Range-capable object-streaming route are available. The registry player switches to the registered immutable MP4/WebM object when available; the diagnostics panel requests RPU analysis only for MP4 assets. The parser rejects non-HEVC MP4 video tracks rather than treating arbitrary MP4 bytes as HEVC. Browser-native Dolby Vision decode and display output remain unverified. Do not configure the browser to call the parser or collector directly.
 
 ## Build
 
@@ -71,11 +71,12 @@ Headers:
 - `Content-Type: application/octet-stream`
 - `Content-Length: <exact byte count>`
 - `X-DV-Asset-Id: <immutable catalogue asset ID>`
-- `X-DV-Asset-SHA256: <catalogue SHA-256>`
+- `X-DV-Asset-SHA256: <original MP4 SHA-256>`
+- `X-DV-Source-Content-Type: video/mp4`
 
 Body: the exact full media object bytes. The gateway, not the browser, is responsible for the trusted asset-ID-to-digest mapping.
 
-Success: a signed version-1 envelope containing asset ID, issue/expiry times, parser report and Ed25519 signature. Failure: a generic error code; internal paths, keys and parser stderr are not returned.
+Success: a signed version-1 envelope containing asset ID, issue/expiry times, parser report and Ed25519 signature. `report.inputSha256` identifies the extracted HEVC bitstream; `report.sourceMediaSha256` identifies the original MP4 object used by the player. Failure: a generic error code; internal paths, keys and parser stderr are not returned.
 
 ## Local tests
 
@@ -83,4 +84,4 @@ Success: a signed version-1 envelope containing asset ID, issue/expiry times, pa
 node --test services/dolby-vision-parser/server.test.mjs
 ```
 
-The backend analysis route is wired to the trusted registry and parser transport, but the player panel does not yet invoke it. The asset must already have been ingested by the trusted local-file worker; never send client-supplied digests as trusted expectations.
+The backend analysis route is wired to the trusted registry and parser transport, and the player panel invokes it only for immutable MP4 assets. The asset must already have been ingested by the trusted local-file worker; never send client-supplied digests as trusted expectations.
