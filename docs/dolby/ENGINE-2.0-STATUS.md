@@ -13,7 +13,7 @@ Implementation code evidence: `3a607107a16d21320231877a281df48345fcef4e` (docume
 | P3 player integration | Isolated MP4/WebM and HLS sessions; separate hls.js/MSE or Safari native-HLS controller; spatial-session audio-track selection; source-generation guard and native fallback | Core integration implemented; exact-head automation pending; not accepted | Manifest/playlist/segment/key CORS matrix, delayed errors and race tests, exact-head Preview, Safari/iOS and real-device regression |
 | P4 physical devices | Not implemented/recorded | Not accepted | Named iPhone/iPad and output-chain test records |
 | P5 diagnostics | Read-only diagnostics HUD foundation exists | Not finally accepted | Correlation with observed output on real device chains |
-| P6 release gates | Exact-head software CI passed on `f6f0309c4129b44ffd54473740824b5be5484f7a` | Not accepted | Ubuntu Preview run `45373944056` pending; visual audit and Safari/iOS device regression remain open |
+| P6 release gates | iPad Verify, Resource Playback Verification and HLS External Stream Smoke are being re-run on the documentation-updated branch head `202837cf591193e33470b6ab466d1e233e406247`; iPad Verify run `45378989163` and Resource run `45378986008` are in progress, External HLS run `45378986144` passed | Not accepted | Exact-head Ubuntu Preview run `45378980789` pending; HLS Browser Smoke `45378986359` in progress; visual audit and Safari/iOS device regression remain open |
 
 ## Landed foundations
 
