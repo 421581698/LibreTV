@@ -33,13 +33,16 @@ export interface DolbyVisionMetadataReport {
 }
 
 function isValidEvidence(evidence: DolbyVisionRpuEvidence): boolean {
+  const validSources: RpuEvidenceSource[] = ['dovi_tool', 'libdovi', 'external-parser'];
   return evidence.verified === true
+    && validSources.includes(evidence.source)
+    && typeof evidence.rpuPresent === 'boolean'
     && typeof evidence.parserVersion === 'string'
     && evidence.parserVersion.trim().length > 0
-    && (evidence.frameCount === null || (Number.isInteger(evidence.frameCount) && evidence.frameCount >= 0))
+    && (evidence.frameCount === null || (Number.isSafeInteger(evidence.frameCount) && evidence.frameCount >= 0))
     && (evidence.profile === null || (Number.isInteger(evidence.profile) && evidence.profile >= 0 && evidence.profile <= 20))
     && Array.isArray(evidence.metadataLevels)
-    && evidence.metadataLevels.every((level) => Number.isInteger(level) && level >= 0 && level <= 255);
+    && evidence.metadataLevels.every((level) => Number.isInteger(level) && level >= 1 && level <= 11);
 }
 
 /**
