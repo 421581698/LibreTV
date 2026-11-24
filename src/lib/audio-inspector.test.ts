@@ -15,6 +15,15 @@ describe('parseHlsAudioRenditions', () => {
     expect(result[0]).toMatchObject({ name: 'English', channelCount: 2, layout: 'stereo', default: true, autoselect: true });
     expect(result[1]).toMatchObject({ name: 'English 5.1', channelCount: 6, layout: 'unknown', codec: 'ec-3' });
   });
+  it('recognizes the Dolby AC-4 FourCC in HLS CODECS', () => {
+    const manifest = [
+      '#EXTM3U',
+      '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="immersive",NAME="AC-4",URI="audio/ac4.m3u8"',
+      '#EXT-X-STREAM-INF:BANDWIDTH=4000000,CODECS="avc1.640028,ac-4.02.01.04",AUDIO="immersive"',
+      'video/1080p.m3u8',
+    ].join('\\n');
+    expect(parseHlsAudioRenditions(manifest)[0].codec).toBe('ac-4.02.01.04');
+  });
   it('recognizes JOC as metadata only', () => {
     expect(parseHlsAudioRenditions('#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a",NAME="E-AC3 JOC",CHANNELS="6/JOC",URI="a.m3u8"')[0])
       .toMatchObject({ channelCount: 6, layout: 'unknown', hasJocMarker: true });
