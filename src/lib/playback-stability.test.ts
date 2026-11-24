@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { evaluatePlaybackHealth, getBufferedAheadSeconds, getPlaybackRetryDelayMs } from './playback-stability';
+import { beginStallWindow, endStallWindow, evaluatePlaybackHealth, getBufferedAheadSeconds, getPlaybackRetryDelayMs } from './playback-stability';
 
 const base = {
   nowMs: 20_000,
@@ -78,5 +78,26 @@ describe('getBufferedAheadSeconds', () => {
   it('returns null when the TimeRanges object throws', () => {
     const ranges = { length: 1, start: () => { throw new Error('detached'); }, end: () => 0 } as unknown as TimeRanges;
     expect(getBufferedAheadSeconds(ranges, 12)).toBeNull();
+  });
+});
+
+
+describe('read-only stall window measurement', () => {
+  it('keeps the first waiting timestamp when duplicate waiting events arrive', () => {
+    const started = beginStallWindow(null, 1_000);
+    expect(beginStallWindow(started, 2_500)).toBe(1_000);
+  });
+
+  it('measures the completed waiting interval', () => {
+    const started = beginStallWindow(null, 1_000);
+    expect(endStallWindow(started, 3_837)).toBe(2_837);
+  });
+
+  it('does not report a stall when no waiting window was opened', () => {
+    expect(endStallWindow(null, 5_000)).toBe(0);
+  });
+
+  it('clamps clock skew to a zero-length interval', () => {
+    expect(endStallWindow(5_000, 4_000)).toBe(0);
   });
 });
