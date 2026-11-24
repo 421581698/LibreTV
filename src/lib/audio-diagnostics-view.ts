@@ -167,6 +167,13 @@ function capabilityGroup(diag: PlaybackDiagnostics): DiagnosticsViewGroup | null
       row('Atmos 对象解码', '未确立（not-established）', 'unknown'),
       row('浏览器解码提示', BROWSER_DECODE_LABELS[cap.browserDecode] ?? '未探测',
         cap.browserDecode === 'not-probed' ? 'unknown' : 'neutral'),
+      row('AudioContext', cap.audioContext === undefined ? '未知' : cap.audioContext ? '可用' : '不可用', 'neutral'),
+      row('MediaSource', cap.mediaSource === undefined ? '未知' : cap.mediaSource ? '可用' : '不可用', 'neutral'),
+      row('MediaCapabilities', cap.mediaCapabilities === undefined ? '未知' : cap.mediaCapabilities ? '可用' : '不可用', 'neutral'),
+      row('输出最大声道数', cap.outputMaxChannels == null ? '未知' : String(cap.outputMaxChannels), cap.outputMaxChannels == null ? 'unknown' : 'neutral'),
+      row('输出延迟', cap.outputLatencyMs == null ? '未知' : `${cap.outputLatencyMs} ms`, cap.outputLatencyMs == null ? 'unknown' : 'neutral'),
+      row('输出设备名称', cap.outputDeviceName === 'not-exposed' ? '浏览器未公开设备名称' : '未知', 'unknown'),
+      row('空间渲染接入', cap.spatialRendering === 'not-integrated' ? '播放器尚未接入（保持原始播放）' : '未知', 'unknown'),
       row('默认播放路径', '浏览器原生媒体播放', 'positive'),
     ],
   };
