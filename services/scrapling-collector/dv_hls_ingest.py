@@ -248,8 +248,13 @@ def ingest_hls_directory(
             raise HlsIngestionError("HLS playlist must be UTF-8.") from exc
         if not playlist.lstrip().startswith("#EXTM3U"):
             raise HlsIngestionError("Invalid HLS playlist header.")
-        if re.search(r"(?im)^#EXT-X-(?:KEY|SESSION-KEY):", playlist):
+        if re.search(r"(?im)^#EXT-X-SESSION-KEY:", playlist):
             raise HlsIngestionError("Encrypted or DRM HLS playlists are not ingested.")
+        for key_line in (line.strip() for line in playlist.splitlines() if line.strip().upper().startswith("#EXT-X-KEY:")):
+            attributes = key_line.split(":", 1)[1]
+            method = re.search(r"(?:^|,)\\s*METHOD=([^,]+)", attributes, re.IGNORECASE)
+            if not method or method.group(1).strip().strip('"').upper() != "NONE" or re.search(r"(?:^|,)\\s*URI=", attributes, re.IGNORECASE):
+                raise HlsIngestionError("Encrypted or DRM HLS playlists are not ingested.")
 
         rewritten: list[str] = []
         member_ordinal = 0
