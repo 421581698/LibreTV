@@ -52,6 +52,20 @@ class DolbyVisionMediaIngestionTests(unittest.TestCase):
         self.assertEqual(result["asset"]["sha256"], expected)
         self.assertEqual(result["asset"]["object_key"], f"sha256/{expected[:2]}/{expected}")
 
+    def test_ingests_webm_assets_for_native_registry_playback(self):
+        resource = self.add_resource("dv-ingest:webm")
+        payload = b"webm-media-bytes"
+        staged = self.root / "staged.webm"
+        staged.write_bytes(payload)
+
+        result = ingest_staged_file(
+            resource["id"], staged, self.object_root, "video/webm"
+        )
+
+        self.assertEqual(result["asset"]["content_type"], "video/webm")
+        self.assertEqual(result["byte_length"], len(payload))
+        self.assertEqual(result["sha256"], hashlib.sha256(payload).hexdigest())
+
     def test_same_content_is_shared_without_overwriting_existing_object(self):
         first = self.add_resource("dv-ingest:first")
         second = self.add_resource("dv-ingest:second")
