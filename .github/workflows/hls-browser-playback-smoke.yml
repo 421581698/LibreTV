@@ -9,7 +9,6 @@ on:
       - 'scripts/hls-browser-playback-smoke.mjs'
       - 'scripts/spatial-audio-browser-smoke.mjs'
       - 'scripts/spatial-hls-resource-cors-smoke.mjs'
-      - 'scripts/spatial-hls-resource-cors-smoke.mjs'
       - 'src/lib/spatial-audio.ts'
       - 'src/lib/spatial-media-session.ts'
       - '.github/workflows/hls-browser-playback-smoke.yml'
@@ -24,6 +23,7 @@ on:
     paths:
       - 'scripts/hls-browser-playback-smoke.mjs'
       - 'scripts/spatial-audio-browser-smoke.mjs'
+      - 'scripts/spatial-hls-resource-cors-smoke.mjs'
       - 'src/lib/spatial-audio.ts'
       - 'src/lib/spatial-media-session.ts'
       - 'src/components/player-shell.tsx'
