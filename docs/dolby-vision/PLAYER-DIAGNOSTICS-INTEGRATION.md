@@ -2,7 +2,7 @@
 
 Updated: 2026-11-24  
 Branch: `feature/libretv-ipad-edition-product`  
-Status: initial read-only UI integration; acceptance is still in progress.
+Status: read-only UI and server-side signed-evidence transport are implemented; selected-playback-to-asset mapping and panel invocation remain blocked.
 
 ## Implemented
 
@@ -11,6 +11,7 @@ Status: initial read-only UI integration; acceptance is still in progress.
 - For hls.js playback, the player inspects each parsed level's original `CODECS` and `SUPPLEMENTAL-CODECS` attributes in addition to the normalized `videoCodec` field. This avoids relying on a normalized field that may not preserve supplemental Dolby Vision signaling.
 - For direct-file and native-HLS paths, the current integration reports only information actually available from the URL/path and leaves codec/RPU status unknown when no trustworthy declaration is exposed.
 - The panel distinguishes declared format/Profile from RPU presence, dynamic metadata, browser decoding and display output.
+- Added `POST /api/dolby-vision/assets/{assetId}/analyze`: it reads the registered object through the authenticated collector endpoint, streams it to the private parser, and verifies the signed envelope against the registry-provided digest before returning evidence. Server-only tokens and the pinned public key are never sent to the browser.
 
 ## Deliberate non-claims
 
@@ -26,7 +27,7 @@ Status: initial read-only UI integration; acceptance is still in progress.
 2. Run TypeScript, ESLint, unit tests, production build and browser playback smoke tests on the latest branch head.
 3. Execute the physical-device acceptance matrix in [IPADOS-DEVICE-ACCEPTANCE.md](./IPADOS-DEVICE-ACCEPTANCE.md); desktop WebKit automation is not a substitute.
 4. Add controlled, licensed HEVC samples for full-stream RPU analysis and compare the analyzer output with the corresponding manifest declarations.
-5. The evidence transport trust boundary is now documented in [RPU-EVIDENCE-TRANSPORT.md](./RPU-EVIDENCE-TRANSPORT.md). Runtime integration remains blocked until a controlled parser worker, authenticated report signing, and exact media-byte binding exist. Do not embed parser claims or synthetic fixtures as runtime evidence.
+5. The evidence transport trust boundary and server-side forwarding route are documented in [RPU-EVIDENCE-TRANSPORT.md](./RPU-EVIDENCE-TRANSPORT.md). The player panel must not call the route until the selected playback episode can be mapped to a registered `assetId` whose bytes are the exact media being played. The current `sourceKey` / `resourceKey` episode labels are not registry asset IDs and must not be substituted. The trusted source-staging gateway and this stable mapping are still missing. Do not embed parser claims or synthetic fixtures as runtime evidence.
 
 ## Release boundary
 
