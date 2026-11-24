@@ -125,6 +125,7 @@ describe('SpatialMediaSession activation and fallback', () => {
     });
     await session.activateFromUserGesture();
     spatial.currentTime = 28;
+    spatial.dispatch('timeupdate');
     await session.dispose();
     expect(native.muted).toBe(false);
     expect(native.currentTime).toBe(28);
