@@ -181,6 +181,73 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(stored.read_bytes(), payload)
         self.assertFalse(any(staging_root.iterdir()))
 
+    def test_authorized_source_gateway_rejects_redirects_without_following_them(self):
+        from unittest.mock import patch
+
+        task_id = "3" * 32
+        candidate_id = "4" * 32
+        now = 1_800_000_003
+        validation = {
+            "reachable": True,
+            "media_format": "progressive",
+            "content_type": "video/mp4",
+            "final_url": "https://media.example/movie.mp4",
+            "access": {"access_state": "PUBLIC"},
+        }
+        with collector.db() as connection:
+            connection.execute(
+                "INSERT INTO tasks(id,url,host,status,mode,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                (task_id, "https://media.example/movie.mp4", "media.example", "completed", "http", now, now),
+            )
+            connection.execute(
+                """INSERT INTO candidates
+                   (id,task_id,url,host,kind,title,status,created_at,access_state,validation)
+                   VALUES(?,?,?,?,?,?,?,?,?,?)""",
+                (candidate_id, task_id, "https://media.example/movie.mp4", "media.example",
+                 "direct-media", "Redirect test", "validated", now, "PUBLIC",
+                 collector.json.dumps(validation)),
+            )
+
+        class RedirectResponse:
+            status = 302
+            def getheaders(self):
+                return [("Location", "https://other.example/redirected.mp4")]
+            def close(self):
+                pass
+
+        class RedirectConnection:
+            calls = 0
+            def __init__(self, *args, **kwargs):
+                pass
+            def request(self, method, target, headers):
+                type(self).calls += 1
+            def getresponse(self):
+                return RedirectResponse()
+            def close(self):
+                pass
+
+        with (
+            patch.dict(os.environ, {
+                "DV_SOURCE_GATEWAY_ENABLED": "1",
+                "DV_AUTHORIZED_SOURCE_HOSTS": "media.example,other.example",
+                "SCRAPLING_EGRESS_FIREWALL_CONFIRMED": "1",
+            }),
+            patch.object(collector, "public_https_url", return_value=("https://media.example/movie.mp4", "media.example")),
+            patch.object(collector, "resolve_public_addresses", return_value=["93.184.216.34"]),
+            patch.object(collector, "PinnedHTTPSConnection", RedirectConnection),
+            patch.object(collector, "require_token"),
+        ):
+            result = collector.record_playback_evidence(
+                candidate_id,
+                collector.PlaybackEvidence(
+                    media_type="mp4", observed_seconds=5, progressed_seconds=3
+                ),
+                "Bearer test",
+            )
+        self.assertEqual(result["media_ingestion"]["status"], "failed")
+        self.assertIn("redirects", result["media_ingestion"]["reason"])
+        self.assertEqual(RedirectConnection.calls, 1)
+
     def test_source_gateway_skips_non_allowlisted_host_without_network_access(self):
         from unittest.mock import patch
 
