@@ -212,7 +212,7 @@ export class SpatialMediaSession {
     try {
       this.engine = this.createEngine(this.media, this.getDeclaredInputChannels());
       this.removeEngineStateListener = this.engine.subscribeStateChange?.((state) => {
-        if (this.state === 'active' && state !== 'running') {
+        if ((this.state === 'active' || this.state === 'activating') && state !== 'running') {
           void this.fallback('AudioContext 被系统中断或关闭，已恢复原生播放');
         }
       }) ?? null;
