@@ -21,7 +21,7 @@ describe('parseHlsAudioRenditions', () => {
       '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="immersive",NAME="AC-4",URI="audio/ac4.m3u8"',
       '#EXT-X-STREAM-INF:BANDWIDTH=4000000,CODECS="avc1.640028,ac-4.02.01.04",AUDIO="immersive"',
       'video/1080p.m3u8',
-    ].join('\\n');
+    ].join('\n');
     expect(parseHlsAudioRenditions(manifest)[0].codec).toBe('ac-4.02.01.04');
   });
   it('recognizes JOC as metadata only', () => {
