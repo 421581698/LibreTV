@@ -64,6 +64,15 @@ def gateway_enabled() -> bool:
     return os.environ.get("DV_SOURCE_GATEWAY_ENABLED", "").strip() == "1"
 
 
+def is_source_host_authorized(host: str | None) -> bool:
+    if not isinstance(host, str):
+        return False
+    try:
+        return host.strip().lower().rstrip(".") in _authorized_hosts()
+    except SourceGatewayError:
+        return False
+
+
 def _json_object(value) -> dict:
     if isinstance(value, dict):
         return value
@@ -109,6 +118,8 @@ def ingest_authorized_candidate(
     public_https_url,
     resolve_public_addresses,
     pinned_connection_cls,
+    cancelled=lambda: False,
+    checkpoint=lambda _value: None,
 ) -> dict:
     """Fetch one approved MP4/WebM source and register the exact received bytes.
 
@@ -211,7 +222,10 @@ def ingest_authorized_candidate(
             received = 0
             deadline = time.monotonic() + max(60, timeout * 20)
             with os.fdopen(descriptor, "wb", closefd=True) as target_file:
+                last_checkpoint = 0
                 while received < expected_length:
+                    if cancelled():
+                        raise registry.JobCancelled()
                     if time.monotonic() > deadline:
                         raise SourceGatewayError("Origin transfer exceeded the total transfer deadline")
                     chunk = response.read(min(CHUNK_SIZE, expected_length - received))
@@ -222,10 +236,16 @@ def ingest_authorized_candidate(
                         raise SourceGatewayError("Origin exceeded the declared media length")
                     digest.update(chunk)
                     target_file.write(chunk)
+                    if received - last_checkpoint >= 8 * CHUNK_SIZE:
+                        checkpoint({"stage": "authorized_media_download", "bytes_received": received, "total_bytes": expected_length})
+                        last_checkpoint = received
                 target_file.flush()
                 os.fsync(target_file.fileno())
+            if cancelled():
+                raise registry.JobCancelled()
             if response.read(1):
                 raise SourceGatewayError("Origin sent bytes beyond the declared Content-Length")
+            checkpoint({"stage": "authorized_media_storing", "bytes_received": received, "total_bytes": expected_length})
 
             result = ingest_staged_file(
                 resource_id, temporary_path, registry.DV_MEDIA_OBJECT_ROOT,
