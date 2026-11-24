@@ -57,8 +57,8 @@ Key safety decision: Web Audio is attached only to the separately-owned direct-m
 
 - Chromium HLS playback and standalone Web Audio graph smoke passed on commit `aeb2c7b9a54900698dd5cfb2ebb4e044927f0fa0` (run `45364845662`), with autoplay restrictions enabled. The graph smoke uses a same-origin generated PCM fixture; it is not a multichannel or Atmos decode test.
 - Earlier iPad CSS structure audit, TypeScript, ESLint, unit tests and production build passed on commit `aeb2c7b9` (Verify run `45364845773`).
-- The current implementation head at the time this ledger was prepared is `10ddd29e280e831274f108b0c3b4005ba001ad7a`. Its exact-head Verify/HLS workflows must finish successfully before software acceptance is recorded. Earlier green runs do not substitute for this exact SHA.
-- Exact-head isolated Preview visual audit and physical iPad/Safari regression are not yet evidenced as passed in this ledger.
+- The implementation head `8ebfb58726b34a0831e2248ee706c7fccfa3594f` passed exact-SHA iPad Edition Verify, Resource Playback Verification, HLS Browser Playback Smoke, and HLS External Stream Smoke (2026-11-24). This verifies software gates only; it is not Preview or physical-device acceptance.
+- The isolated Ubuntu iPad Preview for the exact implementation SHA `8ebfb58726b34a0831e2248ee706c7fccfa3594f` is queued/pending. No exact-head Preview visual audit or physical iPad/Safari regression has passed yet.
 
 ## Remaining acceptance requirements
 
