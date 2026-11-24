@@ -733,9 +733,23 @@ async def api_ingest_dolby_vision_media_asset(
     if content_length <= 0 or content_length > maximum_bytes:
         raise HTTPException(status_code=413, detail="Media upload size rejected")
     with connect() as connection:
-        exists = connection.execute("SELECT 1 FROM registry_resources WHERE id=?", (resource_id,)).fetchone()
-    if not exists:
+        resource = connection.execute(
+            """SELECT resource_type,access_state,validation_state,playback_state,media_format
+               FROM registry_resources WHERE id=?""",
+            (resource_id,),
+        ).fetchone()
+    if not resource:
         raise HTTPException(status_code=404, detail="Registry resource not found")
+    expected_format = "webm" if content_type == "video/webm" else "mp4"
+    if (resource["resource_type"] != "DIRECT_MEDIA" or
+            resource["access_state"] != "PUBLIC" or
+            resource["validation_state"] != "validated" or
+            resource["playback_state"] != "PLAYER_CONFIRMED" or
+            resource["media_format"] != expected_format):
+        raise HTTPException(
+            status_code=409,
+            detail="Media ingestion requires a validated PUBLIC player-confirmed resource with matching media format",
+        )
     if not DV_INGESTION_SLOTS.acquire(blocking=False):
         raise HTTPException(status_code=429, detail="Media ingestion capacity is busy", headers={"Retry-After": "5"})
 
