@@ -267,9 +267,8 @@ class CollectorTests(unittest.TestCase):
                 patch.object(worker, "resolve_public_addresses", return_value=["93.184.216.34"]),
                 patch.object(worker, "PinnedHTTPSConnection", RedirectConnection),
             ):
-                ingestion = worker.handle(job_payload, lambda _event: None, lambda: False)
-        self.assertEqual(ingestion["status"], "failed")
-        self.assertIn("redirects", ingestion["reason"])
+                with self.assertRaisesRegex(RuntimeError, "authorized_media_ingest_failed"):
+                    worker.handle(job_payload, lambda _event: None, lambda: False)
         self.assertEqual(RedirectConnection.calls, 1)
 
     def test_source_gateway_skips_non_allowlisted_host_without_network_access(self):
