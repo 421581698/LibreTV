@@ -80,7 +80,7 @@ export async function GET(
     );
   }
 
-  const expectedContentType = record.media_format === 'webm' ? 'video/webm' : 'video/mp4';
+  const expectedContentType = String(record.media_format).toLowerCase() === 'webm' ? 'video/webm' : 'video/mp4';
   const asset = assets
     .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object' && !Array.isArray(item))
     .filter((item) => item.resource_id === resourceId && item.content_type === expectedContentType)
