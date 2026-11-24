@@ -120,7 +120,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
     setSidebarDragOffset(0);
   }, [pathname]);
   useEffect(() => {
-    if (!sidebarOpen) return;
+    if (!sidebarOpen && !isExpandedSidebar) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const sidebar = document.getElementById('ipad-edition-sidebar');
@@ -132,7 +132,8 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        setSidebarOpen(false);
+        if (wideLayout) setNavigationCollapsed(true);
+        else setSidebarOpen(false);
         return;
       }
       if (event.key !== 'Tab') return;
@@ -156,7 +157,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
       window.removeEventListener('keydown', onKeyDown);
       menuButtonRef.current?.focus({ preventScroll: true });
     };
-  }, [sidebarOpen]);
+  }, [sidebarOpen, isExpandedSidebar, wideLayout]);
 
   const beginSidebarGesture = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType === 'mouse' || !event.isPrimary || isChromeHidden || (wideLayout && !navigationCollapsed)) return;
@@ -230,7 +231,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
       data-ipad-home={pathname === '/ipad-edition' ? 'true' : undefined}
       data-ipad-scrolled={cinemaScrolled ? 'true' : 'false'}
       data-ipad-sidebar-open={sidebarOpen || isExpandedSidebar ? 'true' : 'false'}
-      data-ipad-layout={isExpandedSidebar ? 'expanded' : 'compact'}
+      data-ipad-layout={wideLayout ? 'expanded' : 'compact'}
       data-ipad-sidebar-dragging={sidebarDragging ? 'true' : 'false'}
       onPointerDown={beginSidebarGesture}
       onPointerMove={moveSidebarGesture}
