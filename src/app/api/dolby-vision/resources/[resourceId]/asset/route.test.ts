@@ -22,7 +22,7 @@ const asset = {
   sha256: 'a'.repeat(64),
   byte_length: 4096,
   content_type: 'video/mp4',
-  object_key: `sha256/a/${'a'.repeat(64)}`,
+  object_key: `sha256/aa/${'a'.repeat(64)}`,
   created_at: 10,
 };
 const registryPayload = {
