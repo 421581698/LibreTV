@@ -21,6 +21,7 @@ import registry_queue as registry
 from dv_hls_ingest import (
     CONTENT_TYPES,
     HlsIngestionError,
+    MAX_GRAPH_EDGES,
     MAX_GRAPH_MEMBERS,
     MAX_GRAPH_TOTAL_BYTES,
     MAX_PLAYLIST_BYTES,
@@ -249,6 +250,7 @@ def ingest_authorized_hls_candidate(
             "allowed_hosts": allowed_hosts,
             "members_downloaded": 0,
             "allocated_members": 0,
+            "edges": 0,
             "total_bytes": 0,
             "deadline": time.monotonic() + 1800,
         }
@@ -340,11 +342,17 @@ def ingest_authorized_hls_candidate(
                         if not matches or len(matches) != uri_attribute_count:
                             raise HlsSourceGatewayError("HLS URI attributes must use the exact quoted RFC format")
                         for match in reversed(matches):
+                            progress["edges"] += 1
+                            if progress["edges"] > MAX_GRAPH_EDGES:
+                                raise HlsSourceGatewayError("HLS graph exceeds its edge limit")
                             absolute = _resolve_member_url(normalized, match.group(1))
                             child_name = fetch_graph(absolute, depth + 1)
                             line = line[:match.start(1)] + child_name + line[match.end(1):]
                     rewritten.append(line)
                     continue
+                progress["edges"] += 1
+                if progress["edges"] > MAX_GRAPH_EDGES:
+                    raise HlsSourceGatewayError("HLS graph exceeds its edge limit")
                 absolute = _resolve_member_url(normalized, stripped)
                 rewritten.append(fetch_graph(absolute, depth + 1))
             path.write_text("\n".join(rewritten) + "\n", encoding="utf-8")
