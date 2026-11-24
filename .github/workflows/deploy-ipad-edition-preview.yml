@@ -1232,7 +1232,9 @@ jobs:
                 await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
                 const scrollAudit = await page.evaluate(() => {
                   const layoutMode = document.querySelector('.ipad-edition')?.getAttribute('data-ipad-layout') ?? 'compact';
-                  const navElement = layoutMode === 'expanded' ? document.querySelector('.ipad-nav__sidebar.is-open') : document.querySelector('.ipad-nav__topbar');
+                  const navElement = layoutMode === 'expanded'
+                    ? document.querySelector('.ipad-nav__sidebar.is-open')
+                    : (document.querySelector('.ipad-nav__topbar-inner') || document.querySelector('.ipad-nav__topbar'));
                   const nav = navElement?.getBoundingClientRect();
                   const main = document.querySelector('.ipad-edition__main')?.getBoundingClientRect();
                   const expandedLayout = layoutMode === 'expanded';
