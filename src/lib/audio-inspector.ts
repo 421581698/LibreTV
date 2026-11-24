@@ -28,8 +28,14 @@ function audioCodecFromCodecs(codecs?: string): string | null {
   // check can mislabel malformed/unknown tokens (for example, `ac-30`) as a
   // supported Dolby codec and pollute the diagnostics HUD.
   const supportedAudioCodec = /^(?:mp4a\.[0-9a-f]{2}\.[0-9]+|ac-4(?:\.[0-9a-f]{2}){3}|ac-3|ec-3|opus|flac|alac|dtsc|dtsh|dtse|dtsx|mlpa|lpcm|iamf(?:\.[0-9a-z]+)?)$/i;
-  return codecs.split(',').map((value) => value.trim())
-    .find((value) => supportedAudioCodec.test(value)) ?? null;
+  const declaredAudioCodecs = [...new Set(
+    codecs.split(',').map((value) => value.trim())
+      .filter((value) => supportedAudioCodec.test(value)),
+  )];
+  // A CODECS list can describe more than one audio format. Without a
+  // rendition-level mapping, choosing the first token would be a false
+  // certainty; preserve a codec only when the declaration is unambiguous.
+  return declaredAudioCodecs.length === 1 ? declaredAudioCodecs[0] : null;
 }
 function channelLayout(count: number | null): AudioChannelLayout {
   if (count === 1) return 'mono';
