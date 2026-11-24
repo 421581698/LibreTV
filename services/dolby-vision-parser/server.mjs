@@ -174,6 +174,10 @@ export function createDolbyVisionParserServer(env = process.env) {
   let activeJobs = 0;
 
   const server = createServer(async (request, response) => {
+    if (request.method === 'GET' && request.url === '/health') {
+      sendJson(response, 200, { status: 'ok', service: 'dolby-vision-parser' });
+      return;
+    }
     if (request.method !== 'POST' || request.url !== '/v1/analyze') {
       sendJson(response, 404, { error: 'NOT_FOUND' });
       return;
