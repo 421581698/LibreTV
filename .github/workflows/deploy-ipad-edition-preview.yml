@@ -152,6 +152,7 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing preview secret: CLOUDFLARE_API_TOKEN" && exit 1)
           test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "Missing preview secret: CLOUDFLARE_ACCOUNT_ID" && exit 1)
       - name: Deploy dedicated iPad Edition Preview Worker
+        id: deploy_preview
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -199,6 +200,7 @@ jobs:
           console.log("Dedicated iPad Edition Preview route returned an HTML document.");
           NODE
       - name: Install Playwright package for simulated iPad visual audit
+        id: install_playwright
         timeout-minutes: 5
         run: npm install --no-save --no-package-lock playwright@1.56.1 pngjs@7.0.0
       - name: Verify runner Chromium runtime prerequisites
@@ -213,6 +215,7 @@ jobs:
           ldconfig -p | grep -q libgbm.so.1
           fc-match ':lang=zh' >/dev/null
       - name: Install Playwright Chromium browser
+        id: install_chromium
         timeout-minutes: 8
         env:
           PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT: "120000"
@@ -1303,7 +1306,7 @@ jobs:
           if (failures) process.exitCode = 1;
           NODE
       - name: Verify clean Preview URL without layout debug parameter
-        if: always()
+        if: ${{ !cancelled() && steps.deploy_preview.outcome == 'success' && steps.install_playwright.outcome == 'success' && steps.install_chromium.outcome == 'success' }}
         timeout-minutes: 8
         run: |
           node --input-type=module <<'NODE'
@@ -1360,7 +1363,7 @@ jobs:
           }
           NODE
       - name: Capture iPad subpage visual baselines
-        if: always()
+        if: ${{ !cancelled() && steps.deploy_preview.outcome == 'success' && steps.install_playwright.outcome == 'success' && steps.install_chromium.outcome == 'success' }}
         timeout-minutes: 12
         run: |
           mkdir -p artifacts/ipad-visual-audit/subpages
@@ -1656,7 +1659,7 @@ jobs:
           }
           NODE
       - name: Audit iPad player geometry and overlay collisions
-        if: always()
+        if: ${{ !cancelled() && steps.deploy_preview.outcome == 'success' && steps.install_playwright.outcome == 'success' && steps.install_chromium.outcome == 'success' }}
         timeout-minutes: 10
         run: |
           mkdir -p artifacts/ipad-visual-audit/player-geometry
@@ -2236,7 +2239,7 @@ jobs:
           if (failures) process.exitCode = 1;
           NODE
       - name: Upload iPad visual audit screenshots and report
-        if: always()
+        if: ${{ always() && steps.install_playwright.outcome == 'success' && steps.install_chromium.outcome == 'success' && steps.deploy_preview.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
           name: ipad-edition-visual-audit
