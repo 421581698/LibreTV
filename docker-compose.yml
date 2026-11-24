@@ -121,6 +121,7 @@ services:
       net.ipv6.conf.default.disable_ipv6: "1"
     environment:
       - SCRAPLING_API_TOKEN=${SCRAPLING_API_TOKEN:-}
+      - DV_INGESTION_TOKEN_FILE=/run/secrets/dv-ingestion-token
       # Keep every outbound collector operation disabled until the host firewall has been installed and verified.
       - SCRAPLING_EGRESS_FIREWALL_CONFIRMED=${SCRAPLING_EGRESS_FIREWALL_CONFIRMED:-0}
       - SCRAPLING_DB_PATH=${SCRAPLING_DB_PATH:-/data/collector.sqlite3}
@@ -130,6 +131,7 @@ services:
       - "8000"
     volumes:
       - scrapling_data:/data
+      - ${DV_INGESTION_TOKEN_FILE:-./secrets/dv-ingestion-token}:/run/secrets/dv-ingestion-token:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
       interval: 30s
