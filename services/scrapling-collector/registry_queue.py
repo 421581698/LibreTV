@@ -7,9 +7,10 @@ import sqlite3
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 
 from fastapi import APIRouter, Header, HTTPException, Query
+from pydantic import BaseModel, ConfigDict, Field
 
 DB_PATH = Path(os.environ.get("SCRAPLING_DB_PATH", "/data/collector.sqlite3"))
 TOKEN = os.environ.get("SCRAPLING_API_TOKEN", "").strip()
@@ -61,7 +62,7 @@ def initialize() -> None:
         CREATE TABLE IF NOT EXISTS registry_media_assets (
           asset_id TEXT PRIMARY KEY, resource_id TEXT NOT NULL REFERENCES registry_resources(id),
           sha256 TEXT NOT NULL, byte_length INTEGER NOT NULL CHECK(byte_length > 0),
-          content_type TEXT NOT NULL, object_key TEXT NOT NULL UNIQUE,
+          content_type TEXT NOT NULL, object_key TEXT NOT NULL,
           created_at INTEGER NOT NULL, UNIQUE(resource_id,sha256)
         );
         CREATE INDEX IF NOT EXISTS idx_registry_media_assets_resource
@@ -112,6 +113,13 @@ def initialize() -> None:
         )
         for row in retired:
             event(c, row["id"], "seedhub_collection_retired", {"job_type": row["job_type"]})
+
+
+class DolbyVisionMediaAssetRegistration(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    sha256: str = Field(pattern=r"^[a-fA-F0-9]{64}$")
+    byte_length: int = Field(gt=0, le=2 * 1024 * 1024 * 1024)
+    content_type: Literal["application/octet-stream", "video/mp4", "video/x-matroska", "video/mp2t", "video/hevc"]
 
 
 def require_dv_ingestion_auth(token: str | None) -> None:
@@ -626,12 +634,12 @@ def api_get_resource(resource_id: str, authorization: str | None = Header(defaul
 
 
 @router.post("/v1/registry/resources/{resource_id}/media-assets")
-def api_register_dv_media_asset(resource_id: str, payload: dict, x_dv_ingestion_token: str | None = Header(default=None)):
+def api_register_dv_media_asset(resource_id: str, payload: DolbyVisionMediaAssetRegistration, x_dv_ingestion_token: str | None = Header(default=None)):
     # Separate server-only credential: the general collector token is not sufficient.
     require_dv_ingestion_auth(x_dv_ingestion_token)
     try:
         return {"asset": register_dolby_vision_media_asset(
-            resource_id, payload.get("sha256"), payload.get("byte_length"), payload.get("content_type")
+            resource_id, payload.sha256, payload.byte_length, payload.content_type
         )}
     except KeyError:
         raise HTTPException(status_code=404, detail="Resource not found")
