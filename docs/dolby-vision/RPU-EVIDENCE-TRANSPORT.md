@@ -2,7 +2,7 @@
 
 Updated: 2026-11-24  
 Branch: `feature/libretv-ipad-edition-product`  
-Status: offline parser, private parser-service implementation, and Ed25519 verifier implemented; service deployment, trusted asset catalogue/gateway, and runtime player binding remain blocked.
+Status: offline parser, private parser-service implementation, Ed25519 verifier, and immutable asset-registry metadata primitive implemented; trusted byte-ingestion/object storage, service deployment, and runtime player binding remain blocked.
 
 ## Current verified capabilities
 
@@ -49,15 +49,15 @@ A future implementation must provide all of these properties:
 
 ## Deployment blocker
 
-The current repository has no controlled Dolby Vision analysis service, private signing-key lifecycle, asset-digest registry, or authenticated report endpoint. The offline CLI and CI fixtures cannot safely substitute for those missing production components. The generic media proxy is not an evidence producer and must not be repurposed as one.
+The repository now contains a private parser service, an authenticated registry endpoint for immutable asset metadata, and a dedicated ingestion credential. However, no trusted ingestion worker or immutable object store currently proves that a registered digest was computed from the exact durable media bytes; no production parser deployment, key lifecycle, or player evidence endpoint exists. The registry endpoint records an assertion from a trusted worker, not independent proof. The offline CLI and CI fixtures cannot substitute for those missing production components. The generic media proxy is not an evidence producer and must not be repurposed as one.
 
 Until the deployment prerequisites exist, the player correctly displays RPU/dynamic metadata as **unverified**. This is an intentional trust boundary, not an unfinished UI toggle.
 
 ## Acceptance gates
 
-- [x] Implement and document a private parser service and backend-only bearer boundary.\n- [ ] Deploy the parser service behind private ingress and provision signing/service secrets with a key rotation process.
+- [x] Implement and document a private parser service and backend-only bearer boundary.\n- [ ] Deploy the parser service behind private ingress and provision signing/service secrets with a key rotation process.\n- [ ] Provision the separate DV ingestion secret and connect only the trusted ingestion worker to the registry endpoint.
 - [x] Define canonical signed envelope and signature verification tests (valid, tampered, wrong-key, expired/stale, unsupported version).
-- [ ] Establish exact media asset identity and digest binding across source selection and playback.
+- [x] Add a content-addressed media-asset registry primitive with a separate ingestion credential and immutable metadata semantics.\n- [ ] Deploy a trusted ingestion worker and immutable object storage that hash and verify the exact durable media bytes before registration.\n- [ ] Establish exact media asset identity and digest binding across source selection and playback.
 - [x] Add upload size, concurrent job, parser timeout and backend bearer controls to the parser service.\n- [x] Run parser subprocess asynchronously so the HTTP server can enforce concurrency limits and remain responsive during long analysis jobs.\n- [ ] Configure production ingress rate limits, monitoring, key rotation and operational alerting.
 - [x] Add verifier unit tests proving detached, tampered, mismatched and partial reports are rejected.\n- [ ] Add end-to-end integration tests proving rejected reports never become positive player evidence.
 - [ ] Only then connect authenticated evidence to the read-only diagnostics panel.
