@@ -547,6 +547,18 @@ export function PlayerShell({
       setSpatialSessionState('activating');
       try {
         const snapshot = await current.activateFromUserGesture();
+        const spatialTracks = current.audioTracks as Array<{
+          id?: number; name?: string; lang?: string; channels?: string; default?: boolean;
+        }>;
+        if (spatialTracks.length > 0) {
+          setAudioTrackOptions(spatialTracks.map((track, index) => ({
+            id: track.id ?? index,
+            label: [track.name, track.lang, track.channels ? `${track.channels} ch` : ''].filter(Boolean).join(' · ') || `音轨 ${index + 1}`,
+            isDefault: Boolean(track.default),
+          })));
+          setSelectedAudioTrack(spatialTracks.findIndex((track) => track.default) >= 0
+            ? spatialTracks.findIndex((track) => track.default) : current.audioTracks.length > 0 ? 0 : -1);
+        }
         setSpatialSessionState(snapshot.state);
         setSpatialSessionMessage(snapshot.route === 'bypass'
           ? '独立会话已启动；音轨声道布局尚未验证，当前保持未处理旁路（不是 Atmos 解码）'
@@ -2099,8 +2111,12 @@ export function PlayerShell({
                     aria-pressed={selectedAudioTrack === track.id}
                     className={`w-full rounded-lg px-3 py-2 text-left text-xs transition ${selectedAudioTrack === track.id ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
                     onClick={() => {
+                      const spatial = spatialSessionRef.current;
                       const hls = hlsRef.current;
-                      if (!hls || !selectHlsAudioTrack(hls, track.id)) {
+                      const switched = spatial?.snapshot.state === 'active'
+                        ? spatial.selectAudioTrack(track.id)
+                        : Boolean(hls && selectHlsAudioTrack(hls, track.id));
+                      if (!switched) {
                         showHint('当前音轨不可用，请稍后重试');
                         return;
                       }
