@@ -11,6 +11,9 @@ from app import (
     crawl_site,
     discover_sites,
     require_egress_firewall,
+    public_https_url,
+    resolve_public_addresses,
+    PinnedHTTPSConnection,
     task_candidates,
     validate_candidate,
 )
@@ -24,6 +27,26 @@ MAX_AUTOMATIC_MEDIA_PREFLIGHTS = 20
 def handle(payload: dict, checkpoint, cancelled):
     if cancelled():
         raise JobCancelled()
+    if payload.get("_job_type") == "dv_media_ingest":
+        require_egress_firewall()
+        candidate_id = payload.get("candidate_id")
+        resource_id = payload.get("resource_id")
+        if not isinstance(candidate_id, str) or not isinstance(resource_id, str):
+            raise ValueError("Authorized media ingestion job is missing its registry identifiers")
+        checkpoint({"stage": "authorized_media_ingest_started", "candidate_id": candidate_id})
+        from dv_source_gateway import ingest_authorized_candidate
+        result = ingest_authorized_candidate(
+            candidate_id,
+            resource_id,
+            public_https_url=public_https_url,
+            resolve_public_addresses=resolve_public_addresses,
+            pinned_connection_cls=PinnedHTTPSConnection,
+            cancelled=cancelled,
+            checkpoint=checkpoint,
+        )
+        checkpoint({"stage": "authorized_media_ingest_finished", "status": result.get("status")})
+        return result
+
     if payload.get("_job_type") == "discover":
         require_egress_firewall()
         checkpoint({"stage": "fmhy_discovery_started"})
