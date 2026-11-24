@@ -34,6 +34,19 @@ describe('parseHlsAudioRenditions', () => {
     }
   });
 
+  it('rejects malformed codec prefixes instead of reporting supported formats', () => {
+    const malformed = ['ac-30', 'ec-30', 'dtsx-extra', 'mp4a-not-a-codec', 'truehdx', 'iamf-invalid'];
+    for (const audioCodec of malformed) {
+      const manifest = [
+        '#EXTM3U',
+        '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="g",NAME="Unknown",URI="audio.m3u8"',
+        `#EXT-X-STREAM-INF:BANDWIDTH=1000000,CODECS="avc1.640028,${audioCodec}",AUDIO="g"`,
+        'video.m3u8',
+      ].join('\\n');
+      expect(parseHlsAudioRenditions(manifest)[0].codec).toBeNull();
+    }
+  });
+
   it('does not guess a rendition codec when variants sharing a group disagree', () => {
     const manifest = [
       '#EXTM3U',
