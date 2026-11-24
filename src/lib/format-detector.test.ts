@@ -80,6 +80,7 @@ describe('detectMediaFormat', () => {
   it('recognizes explicit container codec aliases without prefix matching', () => {
     const cases: Array<[string, string]> = [
       ['A_EAC3', 'eac3'],
+      ['ec+3', 'eac3'],
       ['A_AC3', 'ac3'],
       ['A_TRUEHD', 'truehd'],
       ['DTS-HD MA', 'dts-hd'],
