@@ -88,8 +88,10 @@ function parseAc4Profile(codecString: string | null): Ac4CodecProfile | null {
 /** Detect declared media metadata; this is not a decoder or playback-support probe. */
 export function detectMediaFormat(input: MediaFormatInput): MediaFormatReport {
   const codecValues = [
-    ...(Array.isArray(input.codecs) ? input.codecs : input.codecs ? input.codecs.split(',') : []),
+    // A selected audio-track codec is more specific than the variant's broad
+    // CODECS list; prefer it when both declarations are present.
     ...(input.audioCodec ? [input.audioCodec] : []),
+    ...(Array.isArray(input.codecs) ? input.codecs : input.codecs ? input.codecs.split(',') : []),
   ].map(normalizeCodec).filter(Boolean);
   const detected = detectCodec(codecValues);
   const channels = parseChannels(input.hlsChannels);
