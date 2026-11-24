@@ -37,6 +37,8 @@ on:
       - "src/app/api/detail/route.test.ts"
       - "src/app/page.tsx"
       - "src/app/watch/page.tsx"
+      - "src/lib/watch-playback-state.ts"
+      - "src/lib/watch-playback-state.test.ts"
       - "src/app/globals.css"
       - "src/components/player-shell.tsx"
       - "src/lib/player-*.ts"
