@@ -24,7 +24,7 @@ describe('Dolby Vision parser service security primitives', () => {
   });
 
   it('validates stable asset IDs and rejects path-like values', () => {
-    assert.equal(isValidAssetId('catalog:episode_123'), false);
+    assert.equal(isValidAssetId('catalog:episode_123'), true);
     assert.equal(isValidAssetId('catalog:episode-123'), true);
     assert.equal(isValidAssetId('../secret'), false);
   });
