@@ -64,6 +64,10 @@ describe('Dolby Vision RPU evidence report contract', () => {
     expect(validateDolbyVisionRpuReport({ ...validHevcReport, profile: 7 })).toBeNull();
     expect(validateDolbyVisionRpuReport({ ...validHevcReport, metadataLevels: [1, 5] })).toBeNull();
     expect(validateDolbyVisionRpuReport({ ...validHevcReport, metadataLevels: [1, 1, 2, 5, 6] })).toBeNull();
+    expect(validateDolbyVisionRpuReport({
+      ...validHevcReport,
+      metadataLevelFrameCounts: { '1': 241, '2': 240, '5': 1, '6': 1 },
+    })).toBeNull();
   });
 
   it('requires HEVC extraction scope and an explicit detached-RPU scope', () => {
