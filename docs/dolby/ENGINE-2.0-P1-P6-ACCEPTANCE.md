@@ -34,23 +34,28 @@ This ledger distinguishes implemented code from evidence that requires real medi
 - No 7.1 renderer, dynamic object panning or head tracking is implemented.
 - OpenJOC remains research-only: it is not a drop-in browser/WASM decoder and does not restore the original authored Atmos master.
 
+**Acceptance evidence**
+- **Verified on commit `aeb2c7b9a54900698dd5cfb2ebb4e044927f0fa0`**: GitHub Actions run `45364845662` passed both real Chromium HLS playback and Web Audio spatial-graph smoke. The graph harness exercises a generated same-origin PCM WAV, explicit user-gesture `AudioContext.resume()`, HRTF graph routing, bypass, teardown and CORS guard. The browser was run without disabling autoplay restrictions. This closes the Chromium graph-smoke sub-gate only; it does not cover Safari or real multichannel/Atmos streams.
+
 **Acceptance still required**
-- **Verified on commit `b74c4d20ba070fbef3dd2e17d4d100d265b6af1c`**: GitHub Actions run `45364223280` passed both real Chromium HLS playback and Web Audio spatial-graph smoke. The graph harness exercises a generated same-origin PCM WAV, explicit user-gesture `AudioContext.resume()`, HRTF graph routing, bypass, teardown and CORS guard. The browser was run without disabling autoplay restrictions. This closes the Chromium graph-smoke sub-gate only; it does not cover Safari or real multichannel/Atmos streams.
 - Additional browser coverage is still required for real multichannel CORS-safe HLS/MSE media, Safari AudioContext behavior, suspend/resume and failure recovery.
 - Separate decoder feasibility and licensing review before any decoder or renderer is considered for shipping.
 
 ## P3 — PlayerShell integration and lifecycle
 
-**Status: blocked by lifecycle design; not enabled**
-- The spatial module is not attached to PlayerShell and no spatial-audio user control is exposed.
-- PlayerShell reuses its video element across episodes and providers. Once `createMediaElementSource()` is attached, disconnecting the graph does not restore the native media path for that same element.
-- Enabling the engine without a proven element-replacement or all-sources-CORS-safe lifecycle can silently mute later direct MP4/native-HLS sources.
-- Safari native HLS must remain untouched. AudioContext creation/resume must originate from an explicit user gesture.
+**Status: intentionally blocked; integration design decision recorded**
+- The spatial module is not attached to PlayerShell and no spatial-audio user control is exposed. This is deliberate safety behavior, not a completed integration.
+- PlayerShell creates ArtPlayer once and reuses `art.video` while `setupHls()` / `setupDirectMedia()` repeatedly change the source. Direct MP4/WebM and Safari native HLS explicitly remove `crossorigin`; hls.js owns its own MSE pipeline and audio-track lifecycle.
+- `createMediaElementSource()` is a one-shot binding for a given media element. Disconnecting or destroying the current graph does not restore the element's native media path, and the browser does not provide a supported way to recreate a fresh source node for that same element.
+- Therefore an opt-in toggle on the existing video element is not safe: a later cross-origin direct source or Safari native HLS source could be rendered silent after the element was already captured by Web Audio.
+- **Decision:** do not attach Web Audio to the current reusable `art.video`. Keep browser-native playback as the default. Any future integration must use a separately owned media element per spatial session (or a new player instance with a proven replacement lifecycle), gate entry on verified CORS-readable media and supported browser capabilities, create/resume AudioContext only from a user gesture, and destroy the entire spatial session before returning to a native playback element. Never attempt to "detach" and reuse a captured element as a native fallback.
+- Safari native HLS remains on the existing untouched path. No changes to `PlayerShell` are justified until a browser test proves that source transitions cannot inherit an unsafe Web Audio binding.
 
 **Acceptance still required**
-- Prove a source-switch lifecycle that cannot carry an unsafe Web Audio attachment into a later source.
-- Verify track switching continuity, volume/rate controls, pause/resume, unmount, episode changes and recovery.
-- Demonstrate failure always falls back to native playback without muting or rebuilding the existing player unexpectedly.
+- Implement an isolated spatial-session/player architecture that does not reuse a Web-Audio-captured media element for native playback.
+- Verify track switching continuity, volume/rate controls, pause/resume, unmount, episode changes and recovery across direct MP4/WebM, hls.js MSE and Safari native HLS.
+- Demonstrate failure returns to a separate native media element and never attempts to reuse a captured element as a native fallback.
+- Until those tests exist, P3 remains blocked and no PlayerShell integration should be merged.
 
 ## P4 — Physical output-chain verification
 
@@ -89,5 +94,7 @@ For every device/output combination, record separately: OS/browser decode, PCM o
 ## Release decision
 
 P1's parser and telemetry code changes are implemented, but P1's real-bitstream cross-validation remains open. P2 is a presentation foundation and research track, not an Atmos decoder; its real-Chromium HLS and Web Audio graph smoke sub-gate passed on `b74c4d20`, while Safari, real multichannel media and hardware validation remain open. P3 is not integrated. P4 is not physically verified. P5 is a truthful read-only HUD, not a complete decoder/output analyzer. P6's real-device matrix is not complete.
+
+On commit `aeb2c7b9`, P6 software gates (CSS structure, TypeScript, ESLint, unit tests, production build, Chromium HLS, Chromium Web Audio graph, external HLS, and Resource Playback Verification) all passed. The isolated iPad Preview visual audit is still running and is not included in that result.
 
 Therefore P1–P6 are **not all accepted**. Keep PR #99 Draft. Do not merge, deploy production, or claim Dolby Atmos playback until the corresponding evidence is recorded. Browser-native playback remains the default and safety fallback.
