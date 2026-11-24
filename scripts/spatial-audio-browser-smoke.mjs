@@ -5,6 +5,7 @@
  * AudioContext activation, HRTF graph routing, bypass, and teardown.
  * This is not an iOS/Safari or Atmos bitstream acceptance test.
  */
+import { readFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
 import ts from 'typescript';
 
@@ -29,12 +30,10 @@ for (let i = 0; i < frameCount; i += 1) {
   wav.writeInt16LE(Math.round(Math.sin(2 * Math.PI * 440 * i / sampleRate) * 8000), 44 + i * 2);
 }
 
-const source = ts.transpileModule(
-  (await import('node:fs/promises')).readFile
-    ? await (await import('node:fs/promises')).readFile('src/lib/spatial-audio.ts', 'utf8')
-    : '',
-  { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } },
-).outputText + '\nwindow.SpatialAudioEngine = SpatialAudioEngine;';
+const spatialSource = await readFile('src/lib/spatial-audio.ts', 'utf8');
+const source = 'const exports = {};\\n' + ts.transpileModule(spatialSource, {
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+}).outputText + '\\nwindow.SpatialAudioEngine = exports.SpatialAudioEngine;';
 
 const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--autoplay-policy=no-user-gesture-required'] });
 let failed = false;
