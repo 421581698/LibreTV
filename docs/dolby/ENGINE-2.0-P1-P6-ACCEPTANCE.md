@@ -9,7 +9,7 @@ This ledger distinguishes implemented code from evidence that requires real medi
 
 **Code scope implemented**
 - Declared codec recognition: AC-3, E-AC-3, E-AC-3/JOC, AC-4 (including the four-part profile), TrueHD, Dolby MAT transport marker, DTS, DTS-HD, DTS:X, AAC, PCM/LPCM, IAMF and Eclipsa.
-- HLS audio rendition inspection reads declared `CHANNELS` and `CODECS` metadata and hls.js audio-track metadata.
+- HLS audio rendition inspection reads declared `CHANNELS` and `CODECS` metadata and hls.js audio-track metadata. HLS sample-entry matching is exact (including `dtsx`) and malformed prefixes fail closed.
 - JOC is detected from either the channel declaration or codec token, but remains metadata only.
 - Six channels are not promoted to a 5.1 layout without explicit layout evidence.
 - The telemetry sanitizer and diagnostics HUD retain the expanded enum set without retaining URLs, tokens or rendition names.
@@ -36,7 +36,7 @@ This ledger distinguishes implemented code from evidence that requires real medi
 - OpenJOC remains research-only: it is not a drop-in browser/WASM decoder and does not restore the original authored Atmos master.
 
 **Acceptance evidence**
-- **Verified on commit `aeb2c7b9a54900698dd5cfb2ebb4e044927f0fa0`**: GitHub Actions run `45364845662` passed both real Chromium HLS playback and Web Audio spatial-graph smoke. The graph harness exercises a generated same-origin PCM WAV, explicit user-gesture `AudioContext.resume()`, HRTF graph routing, bypass, teardown and CORS guard. The browser was run without disabling autoplay restrictions. This closes the Chromium graph-smoke sub-gate only; it does not cover Safari or real multichannel/Atmos streams.
+- **Verified on commit `aeb2c7b9a54900698dd5cfb2ebb4e044927f0fa0`**: GitHub Actions run `45364845662` passed both real Chromium HLS playback and Web Audio spatial-graph smoke. The graph harness exercises generated same-origin stereo and six-channel PCM WAV fixtures (the latter declares a 5.1 speaker mask), explicit user-gesture `AudioContext.resume()`, HRTF graph routing, bypass, teardown and CORS guard. The workflow also runs a Playwright WebKit graph smoke, which is not macOS/iOS Safari device acceptance. Browser playback of generated PCM validates the Web Audio routing graph only; it does not validate encoded AC-3/E-AC-3/JOC, AC-4, TrueHD, DTS or IAMF decoding, nor Atmos object rendering or bitstream passthrough. This closes the browser PCM graph-smoke sub-gate only.
 
 **Acceptance still required**
 - Additional browser coverage is still required for real multichannel CORS-safe HLS/MSE media, Safari AudioContext behavior, suspend/resume and failure recovery.
