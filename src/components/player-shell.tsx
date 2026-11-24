@@ -593,10 +593,21 @@ export function PlayerShell({
             }
             let destroyed = false;
             let rejectStart: ((reason?: Error) => void) | null = null;
+            const nativeTrackList = (media as HTMLVideoElement & {
+              audioTracks?: { length: number; [index: number]: { label?: string; language?: string; enabled: boolean } };
+            }).audioTracks;
+            const readNativeTracks = () => Array.from({ length: nativeTrackList?.length ?? 0 }, (_, index) => ({
+              id: index,
+              name: nativeTrackList?.[index]?.label ?? '',
+              lang: nativeTrackList?.[index]?.language ?? '',
+              default: Boolean(nativeTrackList?.[index]?.enabled),
+            }));
             return {
               start: () => new Promise<void>((resolve, reject) => {
                 rejectStart = reject;
+                let timeout: ReturnType<typeof setTimeout>;
                 const cleanup = () => {
+                  clearTimeout(timeout);
                   media.removeEventListener('loadedmetadata', onReady);
                   media.removeEventListener('error', onError);
                 };
@@ -609,6 +620,10 @@ export function PlayerShell({
                 };
                 media.addEventListener('loadedmetadata', onReady, { once: true });
                 media.addEventListener('error', onError, { once: true });
+                timeout = setTimeout(() => {
+                  cleanup();
+                  reject(new Error('Safari 原生 HLS 元数据加载超时'));
+                }, 12_000);
                 media.src = sourceUrl;
                 media.load();
                 if (destroyed) { cleanup(); reject(new Error('HLS 会话已销毁')); }
@@ -617,8 +632,14 @@ export function PlayerShell({
                 destroyed = true;
                 rejectStart?.(new Error('HLS 会话已销毁'));
               },
-              audioTracks: [],
-              audioTrack: -1,
+              get audioTracks() { return readNativeTracks(); },
+              get audioTrack() { return readNativeTracks().findIndex((track) => track.default); },
+              set audioTrack(index: number) {
+                if (!nativeTrackList) return;
+                Array.from({ length: nativeTrackList.length }, (_, trackIndex) => {
+                  nativeTrackList[trackIndex].enabled = trackIndex === index;
+                });
+              },
             };
           }
           const hls = new Hls({ enableWorker: true, lowLatencyMode: false });
