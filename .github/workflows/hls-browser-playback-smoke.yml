@@ -27,7 +27,6 @@ on:
       - '.github/workflows/hls-browser-playback-smoke.yml'
       - 'src/lib/m3u8-downloader.ts'
       - 'src/lib/m3u8-parse.ts'
-      - 'src/components/player-shell.tsx'
       - 'src/components/live-player.tsx'
   workflow_dispatch:
 
