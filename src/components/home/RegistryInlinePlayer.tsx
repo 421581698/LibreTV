@@ -35,7 +35,7 @@ export function RegistryInlinePlayer({
     if (!resourceId || !['mp4', 'webm'].includes(resourceMediaFormat ?? '')) return;
 
     const controller = new AbortController();
-    void fetch(\`/api/dolby-vision/resources/\${encodeURIComponent(resourceId)}/asset\`, {
+    void fetch(`/api/dolby-vision/resources/${encodeURIComponent(resourceId)}/asset`, {
       method: 'GET',
       cache: 'no-store',
       credentials: 'same-origin',
@@ -54,7 +54,7 @@ export function RegistryInlinePlayer({
       if (assetMediaType !== resourceMediaFormat) return null;
       return {
         assetId: asset.assetId,
-        url: \`/api/dolby-vision/assets/\${encodeURIComponent(asset.assetId)}/content\`,
+        url: `/api/dolby-vision/assets/${encodeURIComponent(asset.assetId)}/content`,
         mediaType: assetMediaType as 'mp4' | 'webm',
       };
     }).then((asset) => {
