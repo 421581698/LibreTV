@@ -149,7 +149,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId }: DolbyVi
               <span>未验证</span>
             </div>
           </div>
-          {assetId && (
+          {assetId && report?.container === 'mp4' && (
             <div className="mt-3 border-t border-white/10 pt-3">
               <button
                 type="button"
