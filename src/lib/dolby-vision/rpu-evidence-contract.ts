@@ -27,6 +27,7 @@ export const DolbyVisionRpuReportSchema = z.object({
   metadataLevelFrameCounts: z.record(z.string().regex(/^(?:[1-9]|1[01])$/), z.number().int().positive()),
   input: z.string().min(1),
   inputSha256: sha256Schema,
+  sourceMediaSha256: sha256Schema.nullable(),
   rpuSha256: sha256Schema,
   inputKind: z.enum(['hevc', 'rpu']),
   extractionScope: extractionScopeSchema,
@@ -53,6 +54,12 @@ export const DolbyVisionRpuReportSchema = z.object({
   if (report.inputKind === 'hevc' && typeof report.extractionScope !== 'object') {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['extractionScope'], message: 'HEVC 报告必须包含轨道/帧范围。' });
   }
+  if (report.inputKind === 'hevc' && report.sourceMediaSha256 === null) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['sourceMediaSha256'], message: 'HEVC 报告必须绑定原始媒体 SHA-256。' });
+  }
+  if (report.inputKind === 'rpu' && report.sourceMediaSha256 !== null) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['sourceMediaSha256'], message: '独立 RPU 文件不能声明原始媒体绑定。' });
+  }
   if (report.inputKind === 'rpu' && report.extractionScope !== 'pre-extracted-rpu-file') {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['extractionScope'], message: 'RPU 输入必须标记为预提取 RPU 文件。' });
   }
@@ -76,7 +83,7 @@ export function validateDolbyVisionRpuReport(
   const sourceHashBinding: RpuSourceHashBinding = report.inputKind === 'rpu'
     ? 'detached'
     : expectedMediaSha256
-      ? (expectedMediaSha256.toLowerCase() === report.inputSha256.toLowerCase() ? 'matched' : 'mismatch')
+      ? (report.sourceMediaSha256?.toLowerCase() === expectedMediaSha256.toLowerCase() ? 'matched' : 'mismatch')
       : 'detached';
 
   if (sourceHashBinding === 'mismatch') return null;
