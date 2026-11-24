@@ -73,7 +73,7 @@ For every device/output combination, record separately: OS/browser decode, PCM o
 **Read-only HUD implemented; capability coverage expanded**
 - Shows declared codec/container, AC-4 source metadata, JOC hints, HLS rendition count/channel declarations, browser decode hints and playback health.
 - Shows AudioContext, MediaSource and MediaCapabilities availability, reported maximum output channels and output latency when exposed by the browser.
-- Explicitly reports that browser APIs do not expose the selected output-device name here, spatial rendering is not yet integrated, native Dolby decode and bitstream passthrough are unverified, and Atmos object decode is not established.
+- Explicitly reports that browser APIs do not expose the selected output-device name here, the integrated spatial path is limited to stereo HRTF presentation, native Dolby decode and bitstream passthrough are unverified, and Atmos object decode is not established.
 - Copyable report remains telemetry-whitelisted and must not contain media URLs, tokens or rendition names.
 
 **Acceptance still required**
@@ -94,6 +94,6 @@ For every device/output combination, record separately: OS/browser decode, PCM o
 
 ## Release decision
 
-P1 parser/metadata recognition and P5 read-only diagnostics are implemented at the software level; both still require controlled real-stream/device evidence. P2 provides stereo HRTF and explicitly gated 5.1 presentation primitives, not a Dolby decoder or Atmos object renderer. P3 has an isolated direct MP4/WebM session and initial lifecycle coverage, but no independent HLS/MSE spatial session or spatial audio-track switching. P4 physical output-chain testing has not been performed. P6 exact-head software CI passed on `f6f0309c4129b44ffd54473740824b5be5484f7a`; the exact-head Ubuntu Preview run `45373944056` remains pending with no artifacts yet.
+P1 parser/metadata recognition and P5 read-only diagnostics are implemented at the software level; both still require controlled real-stream/device evidence. P2 provides stereo HRTF and explicitly gated 5.1 presentation primitives, not a Dolby decoder or Atmos object renderer. P3 has isolated MP4/WebM/HLS sessions and initial lifecycle/track-selection coverage; real segment/key CORS fixtures, full lifecycle matrix and device evidence remain open. P4 physical output-chain testing has not been performed. P6 iPad Edition Verify (`45378508106`), Resource Playback Verification (`45378507893`) and HLS External Stream Smoke (`45378507620`) passed on code head `3a607107a16d21320231877a281df48345fcef4e`; HLS Browser Playback Smoke (`45378507613`) was still running. The exact-head Ubuntu Preview run `45378499085` remained pending.
 
 Therefore P1–P6 are **not all accepted**. Do not claim Atmos bitstream decoding, object rendering, or passthrough. Keep PR #99 Draft; do not merge, modify `main`, or deploy production. Browser-native playback remains the default and safety fallback.
