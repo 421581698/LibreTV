@@ -162,6 +162,37 @@ describe('SpatialMediaSession activation and fallback', () => {
     expect(engine.setMode).toHaveBeenCalledWith('headphone-stereo');
   });
 
+  it('falls back if AudioContext is interrupted while activation is still pending', async () => {
+    const native = makeVideo();
+    const spatial = makeVideo();
+    const engine = makeEngine();
+    let finishResume: (() => void) | null = null;
+    engine.resumeFromUserGesture = vi.fn(() => new Promise<void>((resolve) => {
+      finishResume = resolve;
+    }));
+    const session = await SpatialMediaSession.prepare({
+      nativeVideo: native, host: makeHost(), sourceUrl: 'https://media.example/movie.mp4',
+      sourceKind: 'mp4', verifyCors: vi.fn(async () => true),
+      createMediaElement: () => spatial, createEngine: () => engine,
+    });
+
+    const activation = session.activateFromUserGesture();
+    await Promise.resolve();
+    expect(session.snapshot.state).toBe('activating');
+    expect(native.muted).toBe(true);
+
+    engine.emitContextState('interrupted');
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(session.snapshot.state).toBe('fallback');
+    expect(native.muted).toBe(false);
+    expect(spatial.remove).toHaveBeenCalledTimes(1);
+    expect(engine.destroyAfterMediaElementRemoval).toHaveBeenCalledTimes(1);
+
+    finishResume?.();
+    await expect(activation).rejects.toThrow(/回退/);
+  });
+
   it('restores native audio and position when disabled', async () => {
     const native = makeVideo();
     const spatial = makeVideo();
