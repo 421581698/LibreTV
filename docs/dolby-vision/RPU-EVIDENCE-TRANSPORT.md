@@ -2,7 +2,7 @@
 
 Updated: 2026-11-24  
 Branch: `feature/libretv-ipad-edition-product`  
-Status: offline parser, private parser service with MP4-to-HEVC demux, Ed25519 verifier, immutable asset registry, authenticated MP4/WebM byte ingress, Range streaming, registry-backed MP4/WebM playback, and local clear-HLS immutable graph ingestion/playback binding implemented; authorized source gateway, production object-lock storage, live-service validation, and physical-device output validation remain blocked.
+Status: offline parser, private parser service with MP4-to-HEVC demux, Ed25519 verifier, immutable asset registry, opt-in allowlisted MP4/WebM and clear-HLS source gateways, durable asynchronous ingestion jobs, Range streaming, and registry-backed immutable playback implemented; production object-lock storage, live authorized-origin validation, and physical-device output validation remain pending.
 
 ## Current verified capabilities
 
@@ -55,19 +55,20 @@ A future implementation must provide all of these properties:
 
 - `services/scrapling-collector/dv_hls_ingest.py` now ingests a trusted local clear-HLS staging directory recursively. It creates content-addressed objects for the root/master playlists, nested playlists, initialization sections, media segments, audio and subtitles, and records parent-child edges in `registry_hls_asset_edges`.
 - Playlist URI references are rewritten to immutable same-origin asset content routes. The Next.js asset lookup can select an HLS root playlist, while the content proxy accepts the bounded HLS member MIME allowlist and preserves byte-range responses.
-- Path traversal, symlinks, external URLs, cyclic playlist references, unsupported member types, and encryption/DRM key tags are rejected. The worker does not fetch media or keys.
+- `services/scrapling-collector/dv_hls_source_gateway.py` fetches the complete authorized graph into private staging after playback confirmation. Every root/child hostname must be explicitly allowlisted and pinned to a validated public IP; redirects, path traversal, live playlists, malformed URI attributes, cyclic references, unsupported member types, and encryption/DRM key tags are rejected.
+- The durable worker verifies staged media-member digests against transfer digests before immutable graph registration, checkpoints large transfers, and cleans staging on success, failure, or cancellation. HLS source acquisition is opt-in and does not fetch arbitrary client URLs.
 - The registry player can use an immutable HLS root playlist when one has been staged and registered. HLS codec declarations remain declaration-only: HLS RPU parsing and signed whole-program/segment evidence are not claimed by this graph implementation.
 
 ## Deployment blocker
 
-The repository now contains the offline analyzer, private parser service, Ed25519 signing/verifier primitives, immutable asset registry, local-file ingestion worker, authenticated raw-byte ingress, object streaming endpoint, and server-side parser forwarder. The ingress path computes SHA-256 from the bytes received, stores them under a content-addressed key, verifies durable storage before registration, and applies configurable upload/concurrency limits.
+The repository now contains the offline analyzer, private parser service, Ed25519 signing/verifier primitives, immutable asset registry, local-file ingestion worker, authenticated raw-byte ingress, allowlisted progressive-media and HLS graph source gateways, durable asynchronous ingestion jobs, object streaming endpoint, and server-side parser forwarder. Source gateways require explicit operator enablement, exact authorized-host allowlists, public-IP pinning, bounded bytes/time, and persisted preflight plus playback confirmation. The ingestion path computes SHA-256 from received bytes, stores content-addressed objects, verifies storage before registration, and applies configurable upload/concurrency limits.
 
 The remaining blockers are operational and end-to-end:
-- A trusted source gateway must obtain only authorized media bytes from the selected source and submit them to the private byte-ingress endpoint. No generic URL-fetching proxy is permitted.
+- The source gateways are implemented but disabled by default. Operators must configure exact authorized hostnames, verify the egress firewall, and test against sources they have explicit rights to retrieve and store. No generic URL-fetching proxy is permitted.
 - The current local Docker volume is not an external WORM/object-lock store with production retention and durability guarantees.
 - The parser service, signing key lifecycle, collector secret, and backend public-key configuration must be provisioned and deployed behind private network boundaries.
 - The server-side forwarder and MP4 demux transport have automated tests but have not yet been validated against the live Compose services.
-- A trusted source-staging gateway must populate the registry with authorized MP4 bytes. The player now resolves and plays the matching immutable asset, and passes its asset ID to RPU diagnostics only for MP4; live Compose integration is still pending.
+- The durable worker now populates the registry from authorized MP4/WebM sources and clear-HLS graphs after playback confirmation. The player resolves matching immutable assets and passes an asset ID to RPU diagnostics only for MP4; live Compose and authorized-origin integration are still pending.
 - Actual Dolby Vision decoding and display output still require validation on supported physical iPad hardware.
 
 Until these prerequisites are met, the player correctly displays RPU/dynamic metadata as **unverified**. This is an intentional trust boundary, not an unfinished UI toggle.
