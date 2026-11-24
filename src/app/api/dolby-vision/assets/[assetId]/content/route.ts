@@ -89,7 +89,8 @@ export async function GET(
           upstream.headers.get('etag') !== expectedEtag ||
           !['video/mp4', 'video/webm', 'application/vnd.apple.mpegurl', 'video/mp2t', 'video/iso.segment', 'audio/aac', 'audio/mp4', 'audio/mpeg', 'text/vtt'].includes(contentType ?? '') ||
           upstream.headers.get('accept-ranges') !== 'bytes' ||
-          !/^\d+$/.test(upstream.headers.get('content-length') ?? '') ||\n          !Number.isSafeInteger(contentLength) || contentLength < 0 ||
+          !/^\d+$/.test(upstream.headers.get('content-length') ?? '') ||
+          !Number.isSafeInteger(contentLength) || contentLength < 0 ||
           invalidPartialRange) {
         return NextResponse.json(
           { code: 'DV_ASSET_UPSTREAM_BINDING_INVALID' },
