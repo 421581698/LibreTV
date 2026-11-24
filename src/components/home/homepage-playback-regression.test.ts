@@ -307,7 +307,11 @@ describe('首页与播放页回归契约', () => {
     expect(watch).toContain('scrubbingPositionRef.current = position');
     expect(watch).toContain('Number.isFinite(watchClock.duration) && watchClock.duration > 0');
     expect(watch).toContain('disabled={!hasFiniteDuration}');
-    expect(watch).toContain('event.currentTarget.setPointerCapture(event.pointerId)');
+    expect(watch).not.toContain('setPointerCapture(event.pointerId)');
+    expect(watch).toContain('onPointerDown={() => {');
+    expect(watchStyles).toContain('touch-action: none !important;');
+    expect(watchStyles).toContain('.netflix-player-frame .artplayer .art-progress');
+    expect(watchStyles).toContain('.netflix-watch-shell .watch-cinema-progress');
     expect(watch).not.toContain('onTouchEnd={(event) =>');
     expect(watch).not.toContain('onBlur={(event) =>');
     expect(watch).not.toContain('setScrubbingPosition(position);\n                    playerApiRef.current?.seek(position);');
