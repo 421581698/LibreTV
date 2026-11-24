@@ -35,7 +35,8 @@ This ledger distinguishes implemented code from evidence that requires real medi
 - OpenJOC remains research-only: it is not a drop-in browser/WASM decoder and does not restore the original authored Atmos master.
 
 **Acceptance still required**
-- A browser AudioContext graph harness with real CORS-safe media, graph teardown, resume/suspend and failure-path tests.
+- A real Chromium AudioContext graph smoke harness now exercises a generated same-origin PCM WAV, explicit user-gesture resume, HRTF graph routing, native bypass, and teardown. Its CI result is pending; this does not cover Safari or real multichannel/Atmos streams.
+- Additional browser coverage is still required for real CORS-safe HLS/MSE media, suspend/resume, and failure paths.
 - Separate decoder feasibility and licensing review before any decoder or renderer is considered for shipping.
 
 ## P3 — PlayerShell integration and lifecycle
@@ -77,7 +78,7 @@ For every device/output combination, record separately: OS/browser decode, PCM o
 
 **Automated coverage present**
 - Vitest unit coverage for format parsing, JOC metadata, HLS rendition inspection, CORS guards, spatial routing decisions, one-shot Web Audio lifecycle, and diagnostics sanitization.
-- Repository workflows cover TypeScript, ESLint, unit tests, production build, HLS browser smoke and external HLS smoke.
+- Repository workflows cover TypeScript, ESLint, unit tests, production build, HLS browser smoke, external HLS smoke, and now a real Chromium Web Audio spatial-graph smoke.
 
 **Acceptance still required**
 - Chromium desktop, macOS Safari, iPhone Safari and iPad Safari.
@@ -87,6 +88,6 @@ For every device/output combination, record separately: OS/browser decode, PCM o
 
 ## Release decision
 
-P1's parser and telemetry code changes are implemented, but P1's real-bitstream cross-validation remains open. P2 is a presentation foundation and research track, not an Atmos decoder. P3 is not integrated. P4 is not physically verified. P5 is a truthful read-only HUD, not a complete decoder/output analyzer. P6's real-device matrix is not complete.
+P1's parser and telemetry code changes are implemented, but P1's real-bitstream cross-validation remains open. P2 is a presentation foundation and research track, not an Atmos decoder; the new real-Chromium graph harness must pass before its browser-graph sub-gate can be marked verified. P3 is not integrated. P4 is not physically verified. P5 is a truthful read-only HUD, not a complete decoder/output analyzer. P6's real-device matrix is not complete.
 
 Therefore P1–P6 are **not all accepted**. Keep PR #99 Draft. Do not merge, deploy production, or claim Dolby Atmos playback until the corresponding evidence is recorded. Browser-native playback remains the default and safety fallback.
