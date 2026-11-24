@@ -198,7 +198,14 @@ def ingest_authorized_candidate(
                 "Connection": "close",
             })
             response = connection.getresponse()
-            headers = {key.lower(): value for key, value in response.getheaders()}
+            headers = {}
+            for key, value in response.getheaders():
+                name = key.lower()
+                if name in {"content-type", "content-length", "content-encoding", "transfer-encoding"} and name in headers:
+                    raise SourceGatewayError("Origin returned duplicate framing or media headers")
+                headers[name] = value
+            if "transfer-encoding" in headers or "content-range" in headers:
+                raise SourceGatewayError("Chunked and partial origin responses are not accepted")
             if response.status != 200:
                 raise SourceGatewayError("Origin did not return HTTP 200; redirects and partial responses are rejected")
             received_type = headers.get("content-type", "").split(";", 1)[0].strip().lower()
