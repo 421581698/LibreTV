@@ -2,7 +2,7 @@
 
 Updated: 2026-11-24  
 Branch: `feature/libretv-ipad-edition-product`  
-Status: design decision; runtime RPU evidence remains disabled.
+Status: trust contract and Ed25519 verifier implemented; parser-service deployment and runtime player binding remain blocked.
 
 ## Current verified capabilities
 
@@ -20,6 +20,13 @@ Therefore:
 - Do not pass a structurally valid but `detached` report to `inspectDolbyVisionMetadata` as trusted evidence.
 - Do not label the player as RPU-present or dynamic-metadata-confirmed based on a report until both producer authenticity and exact media-byte binding are established.
 - Keep browser decode and display Dolby Vision output as separate, unverified states.
+
+## Implemented verification primitive
+
+- `src/lib/dolby-vision/signed-rpu-envelope.ts` validates a versioned Ed25519-signed envelope.
+- The verifier pins key ID, stable asset ID, issue/expiry time, full-scan scope, strict report schema, and exact media SHA-256.
+- Unit tests cover valid signatures, tampering, wrong key ID, wrong asset, digest mismatch, expiry, future issue time, partial scans, and detached RPU input.
+- The verifier deliberately requires the expected asset ID and digest as trusted server-side inputs. It must not be called with values copied from the client request or the envelope itself.
 
 ## Required production transport
 
@@ -42,10 +49,10 @@ Until the deployment prerequisites exist, the player correctly displays RPU/dyna
 ## Acceptance gates
 
 - [ ] Provision and document a controlled parser worker and key rotation process.
-- [ ] Define canonical signed envelope and signature verification tests (valid, tampered, wrong-key, expired/stale, unsupported version).
+- [x] Define canonical signed envelope and signature verification tests (valid, tampered, wrong-key, expired/stale, unsupported version).
 - [ ] Establish exact media asset identity and digest binding across source selection and playback.
 - [ ] Add bounded analysis jobs and abuse controls.
-- [ ] Add integration tests proving detached, forged, mismatched and partial reports never become positive player evidence.
+- [x] Add verifier unit tests proving detached, tampered, mismatched and partial reports are rejected.\n- [ ] Add end-to-end integration tests proving rejected reports never become positive player evidence.
 - [ ] Only then connect authenticated evidence to the read-only diagnostics panel.
 - [ ] Separately test native HLS behavior and actual Dolby Vision output on supported physical iPad hardware.
 
