@@ -753,7 +753,10 @@ export function PlayerShell({
     hlsRef.current = null;
     currentMediaUrlRef.current = mediaUrl;
     const mediaKind = getMediaPlaybackKind(mediaUrl, propsRef.current.mediaType);
-    setDolbyVisionFormatReport(inspectDolbyVisionFormat({ url: mediaUrl }));
+    setDolbyVisionFormatReport(inspectDolbyVisionFormat({
+      url: mediaUrl,
+      mimeType: mediaKind === 'hls' ? 'application/vnd.apple.mpegurl' : mediaKind === 'webm' ? 'video/webm' : 'video/mp4',
+    }));
     if (mediaKind === 'mp4' || mediaKind === 'webm') {
       setupDirectMedia(video, mediaUrl);
       return;
