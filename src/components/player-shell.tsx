@@ -6,6 +6,7 @@ import Hls, { type HlsConfig } from 'hls.js';
 import type { PlaybackSample } from '@/lib/playback-telemetry';
 import { getAdvertised4kStatus, resolveQualitySelection, type QualityPreference } from '@/lib/player-quality';
 import { getMediaPlaybackKind } from '@/lib/media-playback';
+import { selectHlsAudioTrack } from '@/lib/hls-audio-track-control';
 import { hasSustainedPlaybackProgress } from '@/lib/playback-verification';
 
 import { PlaybackRecovery, describeHlsError } from '@/lib/playback-recovery';
@@ -256,6 +257,9 @@ export function PlayerShell({
   const [showPoster, setShowPoster] = useState(true);
   const [qualityPreference, setQualityPreference] = useState<QualityPreference>('auto');
   const [qualityPanelOpen, setQualityPanelOpen] = useState(false);
+  const [audioTrackOptions, setAudioTrackOptions] = useState<Array<{ id: number; label: string; isDefault: boolean }>>([]);
+  const [selectedAudioTrack, setSelectedAudioTrack] = useState(-1);
+  const [audioTrackPanelOpen, setAudioTrackPanelOpen] = useState(false);
   const [availableQualityHeights, setAvailableQualityHeights] = useState<number[]>([]);
   const [availableQualityLevelCount, setAvailableQualityLevelCount] = useState(0);
   const [qualityMetadataComplete, setQualityMetadataComplete] = useState(false);
@@ -710,6 +714,11 @@ export function PlayerShell({
    * 注意：不销毁 ArtPlayer，只销毁并重建 hls，从而保留网页全屏等播放器状态。
    */
   const setupHls = (video: HTMLVideoElement, mediaUrl: string, allowProxyFallback: boolean) => {
+    // Audio-track selection belongs to one HLS instance only. Native Safari HLS
+    // remains browser-managed and intentionally exposes no hls.js selector.
+    setAudioTrackOptions([]);
+    setSelectedAudioTrack(-1);
+    setAudioTrackPanelOpen(false);
     // Every HLS reconfiguration (including direct→proxy fallback and fatal-error
     // recovery) invalidates async restore work from the previous media pipeline.
     const loadGeneration = ++mediaLoadGenerationRef.current;
@@ -905,6 +914,12 @@ export function PlayerShell({
       // the audio-track listener can never mutate stale diagnostics after换集.
       if (hlsRef.current !== hls || loadGeneration !== mediaLoadGenerationRef.current) return;
       const tracks = hls.audioTracks.map(toHlsAudioTrackLike);
+      setAudioTrackOptions(hls.audioTracks.map((track, index) => ({
+        id: track.id,
+        label: [track.name, track.lang, track.channels ? `${track.channels} ch` : ''].filter(Boolean).join(' · ') || `音轨 ${index + 1}`,
+        isDefault: Boolean(track.default),
+      })));
+      setSelectedAudioTrack(hls.audioTrack);
       diagnosticsRef.current.input.audioTracks = tracks;
       // 把默认音轨的声道声明补进格式检测（JOC 只是元数据提示）。
       const declared = tracks.find((track) => track.default) ?? tracks[0];
@@ -922,6 +937,10 @@ export function PlayerShell({
       }
     };
     hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, observeAudioTracks);
+    hls.on(Hls.Events.AUDIO_TRACK_SWITCHED, (_event, data) => {
+      if (!isCurrentHls()) return;
+      setSelectedAudioTrack(data.id);
+    });
     if (hls.audioTracks.length > 0) observeAudioTracks();
 
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -1121,6 +1140,9 @@ export function PlayerShell({
     setActualQualityHeight(0);
     setActualQualityWidth(0);
     setAvailableQualityHeights([]);
+    setAudioTrackOptions([]);
+    setSelectedAudioTrack(-1);
+    setAudioTrackPanelOpen(false);
     setAvailableQualityLevelCount(0);
     setQualityMetadataComplete(false);
     setQualityNotice('');
@@ -1899,6 +1921,46 @@ export function PlayerShell({
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" style={{ WebkitTouchCallout: 'none' }} />
       <AudioDiagnosticsPanel diagnostics={diagnosticsSnapshot} />
+      {audioTrackOptions.length > 1 && (
+        <div className="absolute right-3 top-3 z-20 flex flex-col items-end gap-2" data-testid="audio-track-controls">
+          <button
+            type="button"
+            className="player-quality-badge"
+            aria-expanded={audioTrackPanelOpen}
+            aria-label="音轨选择"
+            onClick={() => setAudioTrackPanelOpen((open) => !open)}
+          >
+            音轨 · {audioTrackOptions.find((track) => track.id === selectedAudioTrack)?.label ?? '当前'}
+          </button>
+          {audioTrackPanelOpen && (
+            <div className="w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-white/15 bg-black/90 p-3 text-white shadow-2xl backdrop-blur-xl" role="group" aria-label="可用音轨">
+              <p className="mb-2 text-sm font-semibold">选择音轨</p>
+              <div className="space-y-1">
+                {audioTrackOptions.map((track) => (
+                  <button
+                    key={track.id}
+                    type="button"
+                    aria-pressed={selectedAudioTrack === track.id}
+                    className={`w-full rounded-lg px-3 py-2 text-left text-xs transition ${selectedAudioTrack === track.id ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                    onClick={() => {
+                      const hls = hlsRef.current;
+                      if (!hls || !selectHlsAudioTrack(hls, track.id)) {
+                        showHint('当前音轨不可用，请稍后重试');
+                        return;
+                      }
+                      setSelectedAudioTrack(track.id);
+                      setAudioTrackPanelOpen(false);
+                      showHint('已切换音轨');
+                    }}
+                  >
+                    {track.label}{track.isDefault ? ' · 默认' : ''}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       <div className="player-quality-controls absolute right-3 top-3 z-20 flex flex-col items-end gap-2">
         <button
           type="button"
