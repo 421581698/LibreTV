@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import os
 import tempfile
@@ -87,6 +88,43 @@ class DolbyVisionMediaIngestionTests(unittest.TestCase):
         staged.write_bytes(b"media")
         with self.assertRaises(IngestionError):
             ingest_staged_file(resource["id"], staged, self.object_root, "text/html")
+
+    def test_registered_object_content_endpoint_streams_only_registry_bound_bytes(self):
+        resource = self.add_resource("dv-ingest:stream")
+        payload = b"stream only the exact content-addressed object"
+        staged = self.root / "stream.mp4"
+        staged.write_bytes(payload)
+        with patch.object(registry, "DV_MEDIA_OBJECT_ROOT", self.object_root):
+            result = ingest_staged_file(resource["id"], staged, self.object_root, "video/mp4")
+            with patch.object(registry, "require_auth"):
+                response = registry.api_get_dolby_vision_media_asset_content(
+                    result["asset"]["asset_id"], authorization="Bearer collector"
+                )
+            async def read_body():
+                return b"".join([chunk async for chunk in response.body_iterator])
+            body = asyncio.run(read_body())
+        self.assertEqual(body, payload)
+        self.assertEqual(response.headers["x-dv-asset-sha256"], result["sha256"])
+        self.assertEqual(response.headers["content-length"], str(len(payload)))
+        self.assertEqual(response.headers["etag"], f'"{result["sha256"]}"')
+
+    def test_registered_object_content_endpoint_rejects_tampered_registry_key(self):
+        resource = self.add_resource("dv-ingest:tampered-key")
+        staged = self.root / "tampered.mp4"
+        staged.write_bytes(b"bound media")
+        result = ingest_staged_file(resource["id"], staged, self.object_root, "video/mp4")
+        with registry.connect() as connection:
+            connection.execute(
+                "UPDATE registry_media_assets SET object_key=? WHERE asset_id=?",
+                ("../../etc/passwd", result["asset"]["asset_id"]),
+            )
+        from fastapi import HTTPException
+        with patch.object(registry, "require_auth"), patch.object(registry, "DV_MEDIA_OBJECT_ROOT", self.object_root):
+            with self.assertRaises(HTTPException) as raised:
+                registry.api_get_dolby_vision_media_asset_content(
+                    result["asset"]["asset_id"], authorization="Bearer collector"
+                )
+        self.assertEqual(raised.exception.status_code, 409)
 
     def test_detects_corrupted_existing_content_addressed_object(self):
         resource = self.add_resource("dv-ingest:corrupt")
