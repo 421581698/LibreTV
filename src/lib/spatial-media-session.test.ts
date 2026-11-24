@@ -35,6 +35,10 @@ function makeVideo() {
   return video as unknown as HTMLVideoElement & { dispatch: (name: string) => void };
 }
 
+function setPaused(video: HTMLVideoElement, paused: boolean) {
+  Object.defineProperty(video, 'paused', { configurable: true, value: paused });
+}
+
 function makeHost() {
   return { appendChild: vi.fn(), } as unknown as HTMLElement;
 }
@@ -131,7 +135,7 @@ describe('SpatialMediaSession activation and fallback', () => {
 
   it('mirrors native pause, resume, seek, rate and volume without replacing the native element', async () => {
     const native = makeVideo();
-    native.paused = false;
+    setPaused(native, false);
     const spatial = makeVideo();
     const session = await SpatialMediaSession.prepare({
       nativeVideo: native, host: makeHost(), sourceUrl: 'https://media.example/movie.mp4',
@@ -139,7 +143,7 @@ describe('SpatialMediaSession activation and fallback', () => {
       createMediaElement: () => spatial, createEngine: () => makeEngine(),
     });
     await session.activateFromUserGesture();
-    native.paused = true;
+    setPaused(native, true);
     native.dispatch('pause');
     expect(spatial.pause).toHaveBeenCalled();
     native.paused = false;
