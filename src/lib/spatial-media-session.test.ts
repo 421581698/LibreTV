@@ -78,14 +78,17 @@ describe('SpatialMediaSession preparation', () => {
     const controller = {
       start: vi.fn(async () => undefined),
       destroy: vi.fn(),
-      audioTracks: [{ id: 0, name: 'Main' }, { id: 1, name: 'Commentary' }],
+      audioTracks: [{ id: 0, name: 'Main', channels: '6' }, { id: 1, name: 'Commentary', channels: '2' }],
       audioTrack: 0,
     };
     const session = await SpatialMediaSession.prepare({
       nativeVideo: native, host: makeHost(), sourceUrl: 'https://media.example/master.m3u8',
       sourceKind: 'hls', verifyCors: vi.fn(async () => true),
       createMediaElement: () => spatial,
-      createEngine: () => engine,
+      createEngine: vi.fn((_media: HTMLVideoElement, declaredInputChannels: number) => {
+        expect(declaredInputChannels).toBe(2);
+        return engine;
+      }),
       createHlsController: vi.fn(() => controller),
     });
     expect(controller.start).toHaveBeenCalledTimes(1);
