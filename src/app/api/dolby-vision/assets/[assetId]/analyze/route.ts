@@ -135,9 +135,13 @@ export async function POST(request: Request, context: { params: Promise<{ assetI
     const contentLengthRaw = mediaResponse.headers.get('content-length') ?? '';
     const contentLength = Number(contentLengthRaw);
     const contentType = (mediaResponse.headers.get('content-type') ?? '').split(';', 1)[0].trim().toLowerCase();
+    if (Number.isSafeInteger(contentLength) && contentLength > maximumUploadBytes) {
+      await mediaResponse.body?.cancel();
+      return NextResponse.json({ code: 'DV_MEDIA_TOO_LARGE' }, { status: 413, headers: { 'Cache-Control': 'no-store' } });
+    }
     if (returnedAssetId !== assetId || !/^[a-f0-9]{64}$/.test(digest) ||
         etag !== `"${digest}"` || !Number.isSafeInteger(contentLength) ||
-        contentLength <= 0 || contentLength > maximumUploadBytes ||
+        contentLength <= 0 ||
         !ALLOWED_MEDIA_TYPES.has(contentType) || !mediaResponse.body) {
       await mediaResponse.body?.cancel();
       return NextResponse.json({ code: 'DV_ASSET_BINDING_INVALID' }, { status: 409, headers: { 'Cache-Control': 'no-store' } });
