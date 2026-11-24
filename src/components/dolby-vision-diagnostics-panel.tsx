@@ -7,7 +7,7 @@ interface VerifiedEvidence {
   source: 'dovi_tool';
   rpuPresent: boolean;
   parserVersion: string;
-  profile: number;
+  profile: number | null;
   frameCount: number;
   metadataLevels: number[];
 }
@@ -37,7 +37,7 @@ function parseSignedEvidence(value: unknown, expectedAssetId: string): SignedEvi
       typeof report.parserVersion !== 'string' || !/^2\\.3\\.\\d+$/.test(report.parserVersion) ||
       !Array.isArray(report.metadataLevels) || !report.metadataLevels.every((v) => Number.isInteger(v)) ||
       !Number.isSafeInteger(report.frameCount) || (report.frameCount as number) < 0 ||
-      !Number.isInteger(report.profile)) return null;
+      (report.profile !== null && !Number.isInteger(report.profile))) return null;
   return {
     verified: true,
     assetId: expectedAssetId,
@@ -156,7 +156,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId }: DolbyVi
                 </div>
                 <div className="flex justify-between gap-3">
                   <span className="text-white/55">RPU Profile</span>
-                  <span>{verifiedEvidence.evidence.profile}</span>
+                  <span>{verifiedEvidence.evidence.profile === null ? '多 Profile / 未唯一归属' : verifiedEvidence.evidence.profile}</span>
                 </div>
                 <div className="flex justify-between gap-3">
                   <span className="text-white/55">分析帧数</span>
