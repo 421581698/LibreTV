@@ -57,11 +57,18 @@ class AuthorizedHlsSourceGatewayTests(unittest.TestCase):
                      "progressed_seconds": 4.0,
                  })),
             )
-        self.registry_result = registry_queue.register_candidate_playback(
-            self.candidate_id,
-            {"state": "PLAYER_CONFIRMED", "media_type": "hls", "progressed_seconds": 4.0},
-        )
-        self.resource_id = self.registry_result["resource"]["id"]
+        with patch.dict(os.environ, {
+            "DV_SOURCE_GATEWAY_ENABLED": "0",
+            "SCRAPLING_EGRESS_FIREWALL_CONFIRMED": "1",
+        }), patch.object(collector, "require_token"):
+            self.registry_result = collector.record_playback_evidence(
+                self.candidate_id,
+                collector.PlaybackEvidence(
+                    media_type="hls", observed_seconds=5, progressed_seconds=4.0
+                ),
+                "Bearer test",
+            )
+        self.resource_id = self.registry_result["resource"]["resource"]["id"]
 
     def tearDown(self):
         (
@@ -134,6 +141,48 @@ class AuthorizedHlsSourceGatewayTests(unittest.TestCase):
                 resolve_public_addresses=self.public_addresses,
                 pinned_connection_cls=selected_connection,
             ), selected_connection
+
+    def test_confirmed_hls_playback_queues_durable_graph_ingestion(self):
+        with (
+            patch.dict(os.environ, {
+                "DV_SOURCE_GATEWAY_ENABLED": "1",
+                "DV_AUTHORIZED_SOURCE_HOSTS": "media.example",
+                "SCRAPLING_EGRESS_FIREWALL_CONFIRMED": "1",
+            }),
+            patch.object(collector, "require_token"),
+        ):
+            result = collector.record_playback_evidence(
+                self.candidate_id,
+                collector.PlaybackEvidence(
+                    media_type="hls", observed_seconds=5, progressed_seconds=4.0
+                ),
+                "Bearer test",
+            )
+        self.assertEqual(result["media_ingestion"]["status"], "queued")
+        with registry_queue.connect() as db:
+            row = db.execute(
+                "SELECT job_type,payload FROM collector_jobs WHERE id=?",
+                (result["media_ingestion"]["job_id"],),
+            ).fetchone()
+        self.assertEqual(row["job_type"], "dv_media_ingest")
+        self.assertEqual(json.loads(row["payload"])["candidate_id"], self.candidate_id)
+        self.assertEqual(json.loads(row["payload"])["resource_id"], self.resource_id)
+
+    def test_worker_dispatches_hls_candidate_to_graph_source_gateway(self):
+        import worker
+        from dv_hls_source_gateway import ingest_authorized_hls_candidate
+
+        with (
+            patch.object(worker, "require_egress_firewall"),
+            patch("dv_hls_source_gateway.ingest_authorized_hls_candidate", return_value={"status": "registered"}) as ingest,
+        ):
+            result = worker.handle(
+                {"_job_type": "dv_media_ingest", "candidate_id": self.candidate_id, "resource_id": self.resource_id},
+                lambda _event: None,
+                lambda: False,
+            )
+        self.assertEqual(result["status"], "registered")
+        ingest.assert_called_once()
 
     def test_downloads_authorized_hls_graph_and_registers_immutable_assets(self):
         manifest = b"#EXTM3U\n#EXTINF:4.0,\nsegment.ts\n#EXT-X-ENDLIST\n"
