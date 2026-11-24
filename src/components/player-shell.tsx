@@ -575,6 +575,65 @@ export function PlayerShell({
         host,
         sourceUrl: mediaUrl,
         sourceKind,
+        createHlsController: sourceKind === 'hls' ? (media, sourceUrl, onFatalError) => {
+          if (!Hls.isSupported()) {
+            if (!media.canPlayType('application/vnd.apple.mpegurl')) {
+              throw new Error('当前浏览器既不支持 hls.js，也不支持原生 HLS');
+            }
+            let destroyed = false;
+            let rejectStart: ((reason?: Error) => void) | null = null;
+            return {
+              start: () => new Promise<void>((resolve, reject) => {
+                rejectStart = reject;
+                const cleanup = () => {
+                  media.removeEventListener('loadedmetadata', onReady);
+                  media.removeEventListener('error', onError);
+                };
+                const onReady = () => { cleanup(); resolve(); };
+                const onError = () => {
+                  cleanup();
+                  const error = new Error('Safari 原生 HLS 独立会话加载失败');
+                  onFatalError(error.message);
+                  reject(error);
+                };
+                media.addEventListener('loadedmetadata', onReady, { once: true });
+                media.addEventListener('error', onError, { once: true });
+                media.src = sourceUrl;
+                media.load();
+                if (destroyed) { cleanup(); reject(new Error('HLS 会话已销毁')); }
+              }),
+              destroy: () => {
+                destroyed = true;
+                rejectStart?.(new Error('HLS 会话已销毁'));
+              },
+              audioTracks: [],
+              audioTrack: -1,
+            };
+          }
+          const hls = new Hls({ enableWorker: true, lowLatencyMode: false });
+          let startPromise: Promise<void> | null = null;
+          return {
+            start: () => {
+              if (startPromise) return startPromise;
+              startPromise = new Promise<void>((resolve, reject) => {
+                hls.once(Hls.Events.MANIFEST_PARSED, () => resolve());
+                hls.on(Hls.Events.ERROR, (_event, data) => {
+                  if (!data.fatal) return;
+                  const reason = data.details || data.type || 'HLS fatal error';
+                  onFatalError('独立 HLS 会话失败：' + reason);
+                  reject(new Error('独立 HLS 会话失败：' + reason));
+                });
+                hls.loadSource(sourceUrl);
+                hls.attachMedia(media);
+              });
+              return startPromise;
+            },
+            destroy: () => hls.destroy(),
+            get audioTracks() { return hls.audioTracks; },
+            get audioTrack() { return hls.audioTrack; },
+            set audioTrack(index: number) { hls.audioTrack = index; },
+          };
+        } : undefined,
         onStateChange: (snapshot) => {
           if (prepareGeneration !== spatialPrepareGenerationRef.current) return;
           setSpatialSessionState(snapshot.state);
