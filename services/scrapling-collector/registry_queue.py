@@ -629,8 +629,9 @@ def api_get_resource(resource_id: str, authorization: str | None = Header(defaul
         row=c.execute("SELECT * FROM registry_resources WHERE id=?",(resource_id,)).fetchone()
         verifications=c.execute("SELECT * FROM registry_verifications WHERE resource_id=? ORDER BY created_at DESC",(resource_id,)).fetchall()
         history=c.execute("SELECT * FROM registry_history WHERE resource_id=? ORDER BY created_at DESC",(resource_id,)).fetchall()
+        media_assets=c.execute("SELECT asset_id,resource_id,sha256,byte_length,content_type,object_key,created_at FROM registry_media_assets WHERE resource_id=? ORDER BY created_at DESC",(resource_id,)).fetchall()
     if not row: raise HTTPException(status_code=404,detail="Resource not found")
-    return {"resource":dict(row),"verifications":[dict(v) for v in verifications],"history":[dict(h) for h in history]}
+    return {"resource":dict(row),"media_assets":[dict(a) for a in media_assets],"verifications":[dict(v) for v in verifications],"history":[dict(h) for h in history]}
 
 
 @router.post("/v1/registry/resources/{resource_id}/media-assets")
