@@ -8,6 +8,8 @@ on:
     paths:
       - 'scripts/hls-browser-playback-smoke.mjs'
       - 'scripts/spatial-audio-browser-smoke.mjs'
+      - 'scripts/spatial-hls-resource-cors-smoke.mjs'
+      - 'scripts/spatial-hls-resource-cors-smoke.mjs'
       - 'src/lib/spatial-audio.ts'
       - 'src/lib/spatial-media-session.ts'
       - '.github/workflows/hls-browser-playback-smoke.yml'
@@ -56,6 +58,8 @@ jobs:
         run: node scripts/hls-browser-playback-smoke.mjs
       - name: Verify real browser Web Audio spatial graph
         run: node scripts/spatial-audio-browser-smoke.mjs
+      - name: Verify spatial HLS resource CORS matrix
+        run: node scripts/spatial-hls-resource-cors-smoke.mjs
       - name: Verify WebKit Web Audio spatial graph (not iOS Safari device acceptance)
         env:
           SPATIAL_BROWSER_ENGINE: webkit
