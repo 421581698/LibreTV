@@ -135,6 +135,39 @@ class DolbyVisionMediaIngestionTests(unittest.TestCase):
         self.assertEqual(result["asset"]["sha256"], expected)
         self.assertFalse(any((self.root / "staging").iterdir()))
 
+    def test_stream_ingest_rejects_uploads_over_configured_limit_before_staging(self):
+        resource = self.add_resource("dv-ingest:http-limit")
+        request = self.make_stream_request(b"123456")
+        with (
+            patch.object(registry, "DV_INGESTION_TOKEN", "dedicated-secret"),
+            patch.object(registry, "DV_MAX_INGEST_BYTES", 5),
+            patch.object(registry, "DV_MEDIA_STAGING_ROOT", self.root / "staging"),
+        ):
+            with self.assertRaises(Exception) as raised:
+                asyncio.run(registry.api_ingest_dolby_vision_media_asset(
+                    resource["id"], request, x_dv_ingestion_token="dedicated-secret"
+                ))
+        self.assertEqual(getattr(raised.exception, "status_code", None), 413)
+        self.assertFalse((self.root / "staging").exists())
+
+    def test_stream_ingest_returns_retryable_busy_when_capacity_is_full(self):
+        from unittest.mock import Mock
+        resource = self.add_resource("dv-ingest:http-busy")
+        semaphore = Mock()
+        semaphore.acquire.return_value = False
+        with (
+            patch.object(registry, "DV_INGESTION_TOKEN", "dedicated-secret"),
+            patch.object(registry, "DV_INGESTION_SLOTS", semaphore),
+        ):
+            with self.assertRaises(Exception) as raised:
+                asyncio.run(registry.api_ingest_dolby_vision_media_asset(
+                    resource["id"], self.make_stream_request(b"payload"),
+                    x_dv_ingestion_token="dedicated-secret"
+                ))
+        self.assertEqual(getattr(raised.exception, "status_code", None), 429)
+        self.assertEqual(raised.exception.headers.get("Retry-After"), "5")
+        semaphore.release.assert_not_called()
+
     def test_stream_ingest_requires_dedicated_token_and_exact_content_length(self):
         resource = self.add_resource("dv-ingest:http-reject")
         with patch.object(registry, "DV_INGESTION_TOKEN", "dedicated-secret"):
