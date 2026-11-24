@@ -17,7 +17,7 @@ Branch: `feature/libretv-ipad-edition-product` (PR #99, Draft)
 
 - No Dolby AC-4, E-AC-3 JOC, TrueHD or MAT decoder is included.
 - No Dolby Atmos object renderer is integrated into the playback pipeline.
-- The spatial-audio module is a standalone foundation; it is **not yet attached to PlayerShell or exposed as a user control**.
+- The spatial-audio module is a standalone foundation; it is **not attached to PlayerShell or exposed as a user control**. This is intentional until a separate media-element lifecycle can guarantee safe native fallback.
 - No bitstream passthrough path is implemented or verified.
 - Native Safari/iOS/iPadOS decode and output capabilities remain unknown until verified on real devices and a named output chain.
 - No AC-4 profile or JOC metadata may be presented as proof of decoded Atmos output.
@@ -26,18 +26,22 @@ Branch: `feature/libretv-ipad-edition-product` (PR #99, Draft)
 
 1. Keep browser-native playback as the default route.
 2. Never attach Web Audio to a cross-origin media element unless its CORS mode and response are known safe. A failed CORS check must leave native playback untouched.
-3. Respect the MediaElementAudioSourceNode one-element lifecycle: once attached, every future source assigned to that element must remain CORS-safe. PlayerShell currently reuses its video element across episodes and sources, so a UI integration must solve this lifecycle before enabling the engine there.
+3. Respect the MediaElementAudioSourceNode one-element lifecycle: once attached, every future source assigned to that element must remain CORS-safe. PlayerShell creates ArtPlayer once and reuses `art.video` across episodes and providers; direct MP4/WebM and Safari native-HLS paths can remove `crossorigin`. Disconnecting the Web Audio graph does not restore native playback on the captured element. Therefore do not attach the engine to the existing reusable element. A future spatial session must own a distinct media element/player instance and return to a separate native element on fallback.
 4. Do not infer a 5.1 speaker order from `CHANNELS=6` or `6/JOC`. Unknown layouts bypass spatial routing.
 5. AudioContext activation must happen in an explicit user gesture.
 6. Keep codec support hints, actual decode, object rendering, output routing and physical-device acceptance as separate states.
 
-## Next implementation gates
+## Verified software gates and remaining acceptance
 
-- P2a: test the spatial engine against a browser AudioContext test harness and CORS-safe HLS/MSE media.
-- P2b: design a player lifecycle that can safely opt into Web Audio without breaking source switching, native HLS or Safari playback.
-- P2c: add a user-controlled spatial presentation setting only after P2b passes; default remains off.
-- P3: evaluate real decoder paths separately for AC-4, E-AC-3 JOC and TrueHD. OpenJOC is a research-only Rust project, not a drop-in browser/WASM decoder.
-- P4: verify each named browser, OS, output device and content fixture on physical hardware. Keep Atmos object decode and passthrough unverified until the corresponding path is demonstrated end-to-end.
+- Chromium HLS playback and standalone Web Audio graph smoke passed on commit `aeb2c7b9a54900698dd5cfb2ebb4e044927f0fa0` (run `45364845662`), with autoplay restrictions enabled. The graph smoke uses a same-origin generated PCM fixture; it is not a multichannel or Atmos decode test.
+- iPad CSS structure audit, TypeScript, ESLint, unit tests and production build passed on commit `aeb2c7b9` (Verify run `45364845773`).
+- The current follow-up commit `5f4a01d4505a2d47ddf06027abcee545e1260ad9` updates the acceptance ledger and lifecycle decision; its own CI and isolated iPad preview are still required before its status can be accepted.
+- P1: validate metadata against licensed/controlled real elementary-stream samples and matching HLS manifests; parser fixtures alone are insufficient.
+- P2: add real multichannel CORS-safe HLS/MSE, Safari AudioContext, suspend/resume and failure-recovery evidence. No Atmos object renderer or codec decoder is implemented.
+- P3: keep PlayerShell integration disabled until a separate media-element/player session and native fallback are implemented and tested across hls.js MSE, direct MP4/WebM, Safari native HLS, track/source changes, pause/resume and teardown.
+- P4: physical iPhone/iPad, AirPods/Bluetooth, USB-C, HDMI and named AVR/soundbar tests are required. These cannot be inferred from CI.
+- P5: validate the read-only diagnostics on those physical output chains; report unsupported platform fields as unknown/null.
+- P6: pass the exact-commit CI, isolated Preview visual audit, and real Safari/iOS regression matrix. The simulated Chromium viewport audit is not real iPad acceptance.
 
 ## AC-4 metadata reference
 
