@@ -35,20 +35,24 @@
   padding: 0;
 }
 .ipad-edition[data-ipad-layout="expanded"] { --ipad-sidebar-width: 264px; }
-.ipad-edition[data-ipad-layout="expanded"] > .ipad-edition__main {
-  /* The legacy homepage and shell rules use !important full-width sizing.
-     Expanded navigation must reserve its fixed sidebar column above those rules. */
+.ipad-edition[data-ipad-layout="expanded"][data-ipad-sidebar-open="true"] > .ipad-edition__main {
+  /* Reserve the sidebar column only while the user has explicitly opened it. */
   width: calc(100% - var(--ipad-sidebar-width)) !important;
   margin: 0 0 0 var(--ipad-sidebar-width) !important;
 }
 .ipad-edition[data-ipad-layout="expanded"] .ipad-nav__sidebar {
   width: var(--ipad-sidebar-width) !important;
-  transform: translateX(0) !important;
-  visibility: visible !important;
-  transition: none;
 }
-.ipad-edition[data-ipad-layout="expanded"] .ipad-nav__topbar,
-.ipad-edition[data-ipad-layout="expanded"] .ipad-nav__edge-swipe-zone { display: none !important; }
+.ipad-edition[data-ipad-layout="expanded"][data-ipad-sidebar-open="false"] .ipad-nav__sidebar {
+  transform: translateX(calc(-105% + var(--ipad-sidebar-drag, 0px))) !important;
+  visibility: hidden !important;
+}
+.ipad-edition[data-ipad-layout="expanded"][data-ipad-sidebar-open="true"] .ipad-nav__sidebar {
+  transform: translateX(var(--ipad-sidebar-drag, 0px)) !important;
+  visibility: visible !important;
+}
+.ipad-edition[data-ipad-layout="expanded"][data-ipad-sidebar-open="true"] .ipad-nav__topbar,
+.ipad-edition[data-ipad-layout="expanded"][data-ipad-sidebar-open="true"] .ipad-nav__edge-swipe-zone { display: none !important; }
 .ipad-nav__collapse-button {
   position: absolute;
   top: max(22px, env(safe-area-inset-top, 0px) + 16px);
