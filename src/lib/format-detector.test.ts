@@ -54,6 +54,33 @@ describe('detectMediaFormat', () => {
     expect(detectMediaFormat({ url: 'clip.webm', codecs: 'vp9,opus' })).toMatchObject({ container: 'webm', audioCodec: 'opus', dolbyFamily: 'none' });
   });
 
+  it('rejects malformed codec prefixes rather than reporting false Dolby or audio matches', () => {
+    const malformed = [
+      'fakeac3', 'xtruehdx', 'eac30', 'ec-30', 'dtsx-extra',
+      'not-aac', 'pcmish', 'foo-iamf', 'matte', 'prefix-ac-4',
+    ];
+    for (const audioCodec of malformed) {
+      expect(detectMediaFormat({ audioCodec }).audioCodec).toBe('unknown');
+    }
+  });
+
+  it('recognizes explicit container codec aliases without prefix matching', () => {
+    const cases: Array<[string, string]> = [
+      ['A_EAC3', 'eac3'],
+      ['A_AC3', 'ac3'],
+      ['A_TRUEHD', 'truehd'],
+      ['DTS-HD MA', 'dts-hd'],
+      ['PCM_S24LE', 'pcm'],
+      ['AAC-LC', 'aac'],
+      ['A_OPUS', 'opus'],
+      ['A_FLAC', 'flac'],
+      ['A_ALAC', 'alac'],
+    ];
+    for (const [audioCodec, expected] of cases) {
+      expect(detectMediaFormat({ audioCodec }).audioCodec).toBe(expected);
+    }
+  });
+
   it('does not invent a codec or container when metadata is absent', () => {
     expect(detectMediaFormat({})).toMatchObject({ container: 'unknown', audioCodec: 'unknown', dolbyFamily: 'unknown', confidence: 'unknown' });
   });
