@@ -287,7 +287,7 @@ class AuthorizedHlsSourceGatewayTests(unittest.TestCase):
         import hashlib
         import dv_hls_source_gateway as gateway
 
-        manifest = b"#EXTM3U\\n#EXTINF:4.0,\\nsegment.ts\\n#EXT-X-ENDLIST\\n"
+        manifest = b"#EXTM3U\n#EXTINF:4.0,\nsegment.ts\n#EXT-X-ENDLIST\n"
         segment = b"authorized-segment-bytes"
         def fake_fetch(url, destination, **kwargs):
             payload = manifest if url.endswith("master.m3u8") else segment
@@ -320,7 +320,7 @@ class AuthorizedHlsSourceGatewayTests(unittest.TestCase):
         self.assertFalse(any(self.staging_root.iterdir()))
 
     def test_rejects_live_hls_playlist_before_fetching_segments(self):
-        manifest = b"#EXTM3U\\n#EXTINF:4.0,\\nsegment.ts\\n"
+        manifest = b"#EXTM3U\n#EXTINF:4.0,\nsegment.ts\n"
         responses = {
             ("media.example", "/master.m3u8"): (200, {
                 "Content-Type": "application/vnd.apple.mpegurl",
