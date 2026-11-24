@@ -2,7 +2,7 @@
 
 Updated: 2026-11-24  
 Branch: `feature/libretv-ipad-edition-product` (PR #99, Draft)  
-Baseline head observed before this status update: `053139fdf923048241465ba5d156575e97ed7330`
+Status snapshot head: `f6f0309c4129b44ffd54473740824b5be5484f7a`
 
 ## P1–P6 acceptance summary
 
@@ -13,7 +13,7 @@ Baseline head observed before this status update: `053139fdf923048241465ba5d1565
 | P3 player integration | Initial isolated session controller and opt-in PlayerShell control implemented for direct MP4/WebM; source-generation guard and native fallback wired | Partially automated; not accepted | Independent hls.js/MSE session, real audio-track selection in the spatial session, Safari/native-HLS device evidence, full lifecycle matrix, exact-head Preview and real-device regression |
 | P4 physical devices | Not implemented/recorded | Not accepted | Named iPhone/iPad and output-chain test records |
 | P5 diagnostics | Read-only diagnostics HUD foundation exists | Not finally accepted | Correlation with observed output on real device chains |
-| P6 release gates | Software CI has passed on earlier recorded commits; current-head CI/Preview must be checked independently | Not accepted | Exact-head CI, isolated Preview visual audit, Safari/iOS device regression |
+| P6 release gates | Exact-head software CI passed on `f6f0309c4129b44ffd54473740824b5be5484f7a` | Not accepted | Ubuntu Preview run `45373944056` pending; visual audit and Safari/iOS device regression remain open |
 
 ## Landed foundations
 
@@ -57,8 +57,8 @@ Key safety decision: Web Audio is attached only to the separately-owned direct-m
 
 - Chromium HLS playback and standalone Web Audio graph smoke passed on commit `aeb2c7b9a54900698dd5cfb2ebb4e044927f0fa0` (run `45364845662`), with autoplay restrictions enabled. The graph smoke uses a same-origin generated PCM fixture; it is not a multichannel or Atmos decode test.
 - Earlier iPad CSS structure audit, TypeScript, ESLint, unit tests and production build passed on commit `aeb2c7b9` (Verify run `45364845773`).
-- The implementation head `8ebfb58726b34a0831e2248ee706c7fccfa3594f` passed exact-SHA iPad Edition Verify, Resource Playback Verification, HLS Browser Playback Smoke, and HLS External Stream Smoke (2026-11-24). This verifies software gates only; it is not Preview or physical-device acceptance.
-- The isolated Ubuntu iPad Preview for the exact implementation SHA `8ebfb58726b34a0831e2248ee706c7fccfa3594f` is queued/pending. No exact-head Preview visual audit or physical iPad/Safari regression has passed yet.
+- The exact current head `f6f0309c4129b44ffd54473740824b5be5484f7a` passed iPad Edition Verify (run `45373955182`), Resource Playback Verification (`45373955096`), HLS Browser Playback Smoke (`45373955327`) and HLS External Stream Smoke (`45373955245`). This verifies software gates only; it is not Preview or physical-device acceptance.
+- The isolated Ubuntu iPad Preview for exact head `f6f0309c4129b44ffd54473740824b5be5484f7a` is queued/pending as run `45373944056`. No exact-head Preview visual audit or physical iPad/Safari regression has passed yet.
 
 ## Remaining acceptance requirements
 

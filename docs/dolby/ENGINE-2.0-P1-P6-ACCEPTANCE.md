@@ -43,19 +43,21 @@ This ledger distinguishes implemented code from evidence that requires real medi
 
 ## P3 — PlayerShell integration and lifecycle
 
-**Status: intentionally blocked; integration design decision recorded**
-- The spatial module is not attached to PlayerShell and no spatial-audio user control is exposed. This is deliberate safety behavior, not a completed integration.
-- PlayerShell creates ArtPlayer once and reuses `art.video` while `setupHls()` / `setupDirectMedia()` repeatedly change the source. Direct MP4/WebM and Safari native HLS explicitly remove `crossorigin`; hls.js owns its own MSE pipeline and audio-track lifecycle.
-- `createMediaElementSource()` is a one-shot binding for a given media element. Disconnecting or destroying the current graph does not restore the element's native media path, and the browser does not provide a supported way to recreate a fresh source node for that same element.
-- Therefore an opt-in toggle on the existing video element is not safe: a later cross-origin direct source or Safari native HLS source could be rendered silent after the element was already captured by Web Audio.
-- **Decision:** do not attach Web Audio to the current reusable `art.video`. Keep browser-native playback as the default. Any future integration must use a separately owned media element per spatial session (or a new player instance with a proven replacement lifecycle), gate entry on verified CORS-readable media and supported browser capabilities, create/resume AudioContext only from a user gesture, and destroy the entire spatial session before returning to a native playback element. Never attempt to "detach" and reuse a captured element as a native fallback.
-- Safari native HLS remains on the existing untouched path. No changes to `PlayerShell` are justified until a browser test proves that source transitions cannot inherit an unsafe Web Audio binding.
+**Status: initial direct-media integration implemented; full phase not accepted**
+
+- `src/lib/spatial-media-session.ts` owns a distinct media element for direct MP4/WebM only. It verifies CORS before allocating the element, sets CORS mode before assigning the source, starts Web Audio only from an explicit user gesture, synchronizes playback state, and restores the untouched ArtPlayer element on fallback/disposal.
+- `src/components/player-shell.tsx` exposes an opt-in two-step prepare/activate control. Source changes and unmount dispose the session; a generation guard prevents stale preparation from replacing a newer source.
+- The spatial session rejects HLS. Existing hls.js/MSE and Safari native-HLS paths remain untouched; spatial-session HLS ownership and audio-track switching are not implemented.
+- Lifecycle tests cover CORS failure/timeout, separate media-element identity, activation rejection, pause/resume/seek/rate/volume synchronization, mute fallback, media error fallback, idempotent disposal, and disposal while activation is still pending. The last case verifies native audio restoration and one-time cleanup during an activation/dispose race.
+- Exact-head software CI passed on `f6f0309c4129b44ffd54473740824b5be5484f7a`: iPad Edition Verify run `45373955182`, Resource Playback Verification run `45373955096`, HLS Browser Playback Smoke run `45373955327`, and HLS External Stream Smoke run `45373955245`.
 
 **Acceptance still required**
-- Implement an isolated spatial-session/player architecture that does not reuse a Web-Audio-captured media element for native playback.
-- Verify track switching continuity, volume/rate controls, pause/resume, unmount, episode changes and recovery across direct MP4/WebM, hls.js MSE and Safari native HLS.
-- Demonstrate failure returns to a separate native media element and never attempts to reuse a captured element as a native fallback.
-- Until those tests exist, P3 remains blocked and no PlayerShell integration should be merged.
+- Independently owned hls.js/MSE spatial session, including manifest/playlist/segment/key CORS lifecycle and deterministic fallback.
+- Audio-track identity and switching inside any supported spatial session.
+- Full P3 lifecycle matrix, including AudioContext interruption/recovery and browser-level fallback continuity.
+- Exact-head Ubuntu Preview audit and real Safari/iPhone/iPad regression. Chromium CI is not Safari or physical-device evidence.
+
+Safari native HLS and the existing ArtPlayer/hls.js paths remain the default protected routes. P3 is partially implemented and software-tested, not finally accepted.
 
 ## P4 — Physical output-chain verification
 
@@ -93,8 +95,6 @@ For every device/output combination, record separately: OS/browser decode, PCM o
 
 ## Release decision
 
-P1's parser and telemetry code changes are implemented, but P1's real-bitstream cross-validation remains open. P2 is a presentation foundation and research track, not an Atmos decoder; its real-Chromium HLS and Web Audio graph smoke sub-gate passed on `b74c4d20`, while Safari, real multichannel media and hardware validation remain open. P3 is not integrated. P4 is not physically verified. P5 is a truthful read-only HUD, not a complete decoder/output analyzer. P6's real-device matrix is not complete.
+P1 parser/metadata recognition and P5 read-only diagnostics are implemented at the software level; both still require controlled real-stream/device evidence. P2 provides stereo HRTF and explicitly gated 5.1 presentation primitives, not a Dolby decoder or Atmos object renderer. P3 has an isolated direct MP4/WebM session and initial lifecycle coverage, but no independent HLS/MSE spatial session or spatial audio-track switching. P4 physical output-chain testing has not been performed. P6 exact-head software CI passed on `f6f0309c4129b44ffd54473740824b5be5484f7a`; the exact-head Ubuntu Preview run `45373944056` remains pending with no artifacts yet.
 
-On commit `aeb2c7b9`, P6 software gates (CSS structure, TypeScript, ESLint, unit tests, production build, Chromium HLS, Chromium Web Audio graph, external HLS, and Resource Playback Verification) all passed. The isolated iPad Preview visual audit is still running and is not included in that result.
-
-Therefore P1–P6 are **not all accepted**. Keep PR #99 Draft. Do not merge, deploy production, or claim Dolby Atmos playback until the corresponding evidence is recorded. Browser-native playback remains the default and safety fallback.
+Therefore P1–P6 are **not all accepted**. Do not claim Atmos bitstream decoding, object rendering, or passthrough. Keep PR #99 Draft; do not merge, modify `main`, or deploy production. Browser-native playback remains the default and safety fallback.
