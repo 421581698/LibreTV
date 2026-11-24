@@ -324,16 +324,13 @@ export class SpatialMediaSession {
     this.reason = reason;
     this.state = isFallback ? 'fallback' : 'disposed';
     this.notifyState();
-    // The native video remains the canonical visual clock and is continuously
-    // synchronized from the spatial element while active. Never copy a failed
-    // or not-yet-ready spatial element's zero/stale time over the native clock.
-    this.nativeVideo.muted = this.restoreMuted;
+    // Keep native audio muted until the spatial element and graph are fully
+    // torn down; unmuting earlier can briefly play both media elements at once.
     const selectedAudioTrack = this.hlsController?.audioTrack ?? -1;
-    if (selectedAudioTrack >= 0) this.onRestoreAudioTrack?.(selectedAudioTrack);
     this.removeEngineStateListener?.();
     this.removeEngineStateListener = null;
     this.media.pause();
-    this.hlsController?.destroy();
+    try { this.hlsController?.destroy(); } catch { /* native fallback remains available */ }
     this.hlsController = null;
     this.listeners.splice(0).forEach((remove) => remove());
     this.media.removeAttribute('src');
@@ -342,8 +339,14 @@ export class SpatialMediaSession {
     const engine = this.engine;
     this.engine = null;
     if (engine) {
-      try { await engine.destroyAfterMediaElementRemoval(); } catch { /* native playback is already restored */ }
+      try { await engine.destroyAfterMediaElementRemoval(); } catch { /* continue restoring native playback */ }
     }
+    if (selectedAudioTrack >= 0) {
+      try { this.onRestoreAudioTrack?.(selectedAudioTrack); } catch { /* keep native audio restoration independent */ }
+    }
+    // The native video remains the canonical visual clock. Never copy a failed
+    // or not-yet-ready spatial element's zero/stale time over the native clock.
+    this.nativeVideo.muted = this.restoreMuted;
     this.route = null;
   }
 }
