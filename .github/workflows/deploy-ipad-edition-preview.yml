@@ -203,7 +203,11 @@ jobs:
       - name: Install Playwright package for simulated iPad visual audit
         id: install_playwright
         timeout-minutes: 5
-        run: npm install --no-save --no-package-lock playwright@1.56.1 pngjs@7.0.0
+        run: |
+          mkdir -p "$RUNNER_TEMP/ipad-audit"
+          npm install --prefix "$RUNNER_TEMP/ipad-audit" --no-save --no-package-lock playwright@1.56.1 pngjs@7.0.0
+          test -f "$RUNNER_TEMP/ipad-audit/node_modules/playwright/package.json"
+          test -f "$RUNNER_TEMP/ipad-audit/node_modules/pngjs/package.json"
       - name: Verify runner Chromium runtime prerequisites
         timeout-minutes: 2
         run: |
@@ -221,16 +225,18 @@ jobs:
         env:
           PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT: "120000"
           PLAYWRIGHT_DOWNLOAD_NO_PROGRESS: "1"
-        run: npx playwright install chromium
+        run: "$RUNNER_TEMP/ipad-audit/node_modules/.bin/playwright" install chromium
       # [deploy-ipad-edition-preview] Re-run after edge-swipe touch handling fix.
       - name: Run iPad viewport and theme visual audit
         timeout-minutes: 18
         run: |
           mkdir -p artifacts/ipad-visual-audit
           node --input-type=module <<'NODE'
-          import { chromium } from 'playwright';
+          import { createRequire } from 'node:module';
+          const require = createRequire(process.env.RUNNER_TEMP + '/ipad-audit/package.json');
+          const { chromium } = require('playwright');
           import fs from 'node:fs/promises';
-          import { PNG } from 'pngjs';
+          const { PNG } = require('pngjs');
 
           const target = "https://libretv-ipad-edition-preview.bggdbh.workers.dev/ipad-edition?__layout_debug=1";
           const viewports = [
@@ -1311,7 +1317,9 @@ jobs:
         timeout-minutes: 8
         run: |
           node --input-type=module <<'NODE'
-          import { chromium } from 'playwright';
+          import { createRequire } from 'node:module';
+          const require = createRequire(process.env.RUNNER_TEMP + '/ipad-audit/package.json');
+          const { chromium } = require('playwright');
           const url = "https://libretv-ipad-edition-preview.bggdbh.workers.dev/ipad-edition";
           const browser = await chromium.launch({ headless: true });
           const results = [];
@@ -1369,7 +1377,9 @@ jobs:
         run: |
           mkdir -p artifacts/ipad-visual-audit/subpages
           node --input-type=module <<'NODE'
-          import { chromium } from 'playwright';
+          import { createRequire } from 'node:module';
+          const require = createRequire(process.env.RUNNER_TEMP + '/ipad-audit/package.json');
+          const { chromium } = require('playwright');
           import fs from 'node:fs/promises';
 
           const base = "https://libretv-ipad-edition-preview.bggdbh.workers.dev";
@@ -1665,7 +1675,9 @@ jobs:
         run: |
           mkdir -p artifacts/ipad-visual-audit/player-geometry
           node --input-type=module <<'NODE'
-          import { chromium } from 'playwright';
+          import { createRequire } from 'node:module';
+          const require = createRequire(process.env.RUNNER_TEMP + '/ipad-audit/package.json');
+          const { chromium } = require('playwright');
           import fs from 'node:fs/promises';
 
           const base = "https://libretv-ipad-edition-preview.bggdbh.workers.dev";
