@@ -39,7 +39,7 @@ export async function GET(
   }
 
   const rangeHeader = request.headers.get('range') ?? undefined;
-  if (rangeHeader && (rangeHeader.length > 128 || !/^bytes=\d*-\d*$/.test(rangeHeader) || rangeHeader.includes(','))) {
+  if (rangeHeader && rangeHeader.length > 128) {
     return NextResponse.json(
       { code: 'DV_ASSET_RANGE_INVALID' },
       { status: 416, headers: { 'Cache-Control': 'no-store' } },
