@@ -5,8 +5,8 @@ A private Node.js analysis service for trusted backend-to-backend use. It accept
 ## Security boundary
 
 - Keep this service on a private network. Do not expose it directly to browsers or the public Internet.
-- Only the trusted media gateway may call it, using `DV_SERVICE_TOKEN`.
-- The gateway must resolve `assetId` to an immutable media object and its SHA-256 in a trusted catalogue, then stream those exact bytes and send the catalogue's ID and digest headers.
+- Only the authenticated Node.js backend route `/api/dolby-vision/assets/{assetId}/analyze` may call it, using `DV_SERVICE_TOKEN`; browsers never receive this token.
+- The backend route resolves `assetId` through the authenticated collector registry, streams the registered content-addressed object, checks the registry digest/ETag binding, and sends those exact bytes with the asset ID and digest headers.
 - The service independently hashes the received upload and rejects any digest mismatch.
 - The signing key is injected at runtime as a secret; never commit it, bake it into the image, or expose it to the player.
 - No remote URL fetching is implemented. This avoids SSRF and uncontrolled third-party media retrieval.
@@ -14,22 +14,30 @@ A private Node.js analysis service for trusted backend-to-backend use. It accept
 
 ## Local Docker Compose profile
 
-The repository's root `docker-compose.yml` includes an opt-in `dolby-vision` profile. It does not publish a host port; the parser runs on a dedicated `internal: true` network shared only with the LibreTV app container, so the parser has no direct outbound Internet route.
+The repository's root `docker-compose.yml` includes opt-in `collector` and `dolby-vision` profiles. The parser does not publish a host port; it runs on a dedicated `internal: true` network shared only with the LibreTV app container, so the parser has no direct outbound Internet route. The collector stores staged media on its persistent volume and the app reaches it through the private collector network.
 
 ```sh
 mkdir -p secrets
 openssl genpkey -algorithm ED25519 -out secrets/dv-signing-private-key.pem
 openssl pkey -in secrets/dv-signing-private-key.pem -pubout -out secrets/dv-signing-public-key.pem
+openssl rand -hex 32 > secrets/dv-ingestion-token
+chmod 600 secrets/dv-signing-private-key.pem secrets/dv-ingestion-token
+export PASSWORD="replace-with-your-own-long-password"
+export SCRAPLING_API_TOKEN="$(openssl rand -hex 32)"
+export DV_INGESTION_TOKEN_FILE="$PWD/secrets/dv-ingestion-token"
 export DV_SERVICE_TOKEN="$(openssl rand -hex 32)"
 export DV_SIGNING_KEY_ID="dv-key-1"
 export DV_SIGNING_PRIVATE_KEY_FILE="$PWD/secrets/dv-signing-private-key.pem"
-docker compose --profile dolby-vision up -d --build
-docker compose ps dolby-vision-parser
+export DV_SIGNING_PUBLIC_KEY_PEM_B64="$(base64 < secrets/dv-signing-public-key.pem | tr -d '\\n')"
+export DV_REGISTRY_API_BASE="http://scrapling-collector:8000"
+export DV_PARSER_API_BASE="http://dolby-vision-parser:8788"
+docker compose --profile collector --profile dolby-vision up -d --build
+docker compose ps libretv scrapling-collector dolby-vision-parser
 ```
 
-The private key is mounted read-only at `/run/secrets/dv-signing-private-key`; the local `secrets/` directory is ignored by Git. Keep the public key separate and configure it only in the trusted backend verifier. The health endpoint is available inside the Compose network at `http://dolby-vision-parser:8788/health`.
+The private key is mounted read-only at `/run/secrets/dv-signing-private-key`; the local `secrets/` directory is ignored by Git. The public key is passed to the backend verifier as base64 PEM through `DV_SIGNING_PUBLIC_KEY_PEM_B64`; it is not secret, but must match the private key. The backend route checks the expected key ID, signature, asset ID, expiry, and exact media digest before returning verified evidence. The health endpoint is available inside the Compose network at `http://dolby-vision-parser:8788/health`.
 
-This starts the parser service only. It does **not** create the missing immutable media catalogue, trusted media gateway, or player integration. Do not configure the browser to call the parser directly.
+These profiles start the collector and private parser. The local-file ingestion worker and authenticated object-streaming route are available, and the backend analysis route now forwards the registered object to the parser and verifies its signed response. The trusted source-staging gateway and player diagnostics-panel integration are still missing. Do not configure the browser to call the parser or collector directly.
 
 ## Build
 
@@ -48,7 +56,7 @@ Provide secrets through the deployment secret manager:
 - `DV_MAX_CONCURRENT_JOBS`: optional, defaults to 1; accepted range is 1–8.
 - `DV_ANALYSIS_TIMEOUT_MS`: optional, defaults to 900000 (15 minutes); accepted range is 10 seconds–1 hour.
 
-Run the container behind private ingress only. Store the matching public key in the web backend as `DOLBY_VISION_VERIFY_PUBLIC_KEY_PEM` and configure the expected key ID separately. Rotate keys by deploying a new key ID and overlapping verifier support during the rotation window.
+Run the container behind private ingress only. Store the matching public key in the web backend as base64 PEM in `DV_SIGNING_PUBLIC_KEY_PEM_B64` and configure `DV_SIGNING_KEY_ID` separately. Rotate keys by deploying a new key ID and overlapping verifier support during the rotation window.
 
 ## Request contract
 
@@ -71,4 +79,4 @@ Success: a signed version-1 envelope containing asset ID, issue/expiry times, pa
 node --test services/dolby-vision-parser/server.test.mjs
 ```
 
-This service is not yet wired to LibreTV's player: the current application does not provide the immutable asset catalogue and trusted media gateway required by the request contract. Do not send client-supplied IDs/digests as trusted expectations.
+The backend analysis route is wired to the trusted registry and parser transport, but the player panel does not yet invoke it. The asset must already have been ingested by the trusted local-file worker; never send client-supplied digests as trusted expectations.
