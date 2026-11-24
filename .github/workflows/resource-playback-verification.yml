@@ -8,6 +8,8 @@ on:
       - integration/**
     paths:
       - "src/components/player-shell.tsx"
+      - "src/lib/dolby-vision/**"
+      - "docs/dolby-vision/**"
       - "src/components/source-manager.tsx"
       - "src/components/home/home-inline-play.test.ts"
       - "src/lib/resource-collector-workflow.ts"
@@ -32,6 +34,8 @@ on:
   pull_request:
     paths:
       - "src/components/player-shell.tsx"
+      - "src/lib/dolby-vision/**"
+      - "docs/dolby-vision/**"
       - "src/components/source-manager.tsx"
       - "src/lib/media-playback.ts"
       - "src/lib/media-playback.test.ts"
