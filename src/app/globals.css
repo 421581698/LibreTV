@@ -1780,3 +1780,15 @@ html.dark .netflix-watch-sidebar .netflix-sidebar-footer {
     touch-action: manipulation;
   }
 }
+
+
+/* Keep the player toolbar above the isolated video stacking context.
+   z-index has no effect on the original static header positioning. */
+.netflix-watch-shell > .watch-topbar {
+  position: relative;
+  z-index: 140;
+  pointer-events: auto;
+}
+.netflix-watch-shell > .watch-topbar button {
+  pointer-events: auto;
+}
