@@ -17,6 +17,10 @@ from dv_hls_source_gateway import ingest_authorized_hls_candidate
 class AuthorizedHlsSourceGatewayTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
+        self.previous_paths = (
+            collector.DB_PATH, registry_queue.DB_PATH,
+            registry_queue.DV_MEDIA_OBJECT_ROOT, registry_queue.DV_MEDIA_STAGING_ROOT,
+        )
         self.db_path = Path(self.temp.name) / "collector.sqlite3"
         collector.DB_PATH = self.db_path
         registry_queue.DB_PATH = self.db_path
@@ -24,6 +28,8 @@ class AuthorizedHlsSourceGatewayTests(unittest.TestCase):
         registry_queue.initialize()
         self.object_root = Path(self.temp.name) / "objects"
         self.staging_root = Path(self.temp.name) / "staging"
+        registry_queue.DV_MEDIA_OBJECT_ROOT = self.object_root
+        registry_queue.DV_MEDIA_STAGING_ROOT = self.staging_root
         self.staging_root.mkdir()
         task_id = "a" * 32
         self.candidate_id = "b" * 32
@@ -58,6 +64,10 @@ class AuthorizedHlsSourceGatewayTests(unittest.TestCase):
         self.resource_id = self.registry_result["resource"]["id"]
 
     def tearDown(self):
+        (
+            collector.DB_PATH, registry_queue.DB_PATH,
+            registry_queue.DV_MEDIA_OBJECT_ROOT, registry_queue.DV_MEDIA_STAGING_ROOT,
+        ) = self.previous_paths
         self.temp.cleanup()
 
     @staticmethod
