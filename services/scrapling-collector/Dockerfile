@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt \
     && useradd --create-home --uid 10001 collector \
     && chown -R collector:collector /data \
     && scrapling install
-COPY app.py registry_queue.py stats.py worker.py seedhub.py dv_media_ingest.py ./
+COPY app.py registry_queue.py stats.py worker.py seedhub.py dv_media_ingest.py dv_hls_ingest.py dv_source_gateway.py ./
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod 755 /usr/local/bin/docker-entrypoint.sh
 EXPOSE 10000
