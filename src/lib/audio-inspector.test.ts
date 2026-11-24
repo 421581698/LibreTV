@@ -51,7 +51,7 @@ describe('parseHlsAudioRenditions', () => {
         `#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="atmos",NAME="Dolby metadata fixture",CHANNELS="${channels}",URI="audio.m3u8"`,
         '#EXT-X-STREAM-INF:BANDWIDTH=1000000,CODECS="avc1.640028,ec-3",AUDIO="atmos"',
         'video.m3u8',
-      ].join('\\n');
+      ].join('\n');
       expect(parseHlsAudioRenditions(manifest)[0]).toMatchObject({
         channelsRaw: channels,
         channelCount: Number(channels.split('/')[0]),
