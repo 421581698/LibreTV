@@ -11,8 +11,8 @@ Status: offline parser, private parser-service implementation, Ed25519 verifier,
 - HEVC reports can be compared with a separately computed SHA-256 of the exact media bytes. A mismatch is rejected; a missing hash is marked `detached`.
 - CI exercises a parser RPU fixture plus pinned HEVC elementary-stream and Matroska fixtures. This verifies the offline adapter, not a production media-analysis service.
 - `services/scrapling-collector/dv_media_ingest.py` hashes trusted staged local files, stores them under content-addressed keys using no-overwrite atomic creation, verifies existing objects before reuse, and registers only after durable storage. It does not fetch URLs.
-- `POST /v1/registry/resources/{resource_id}/media-assets/ingest` accepts bounded raw bytes behind a dedicated ingestion token, stages them privately, then invokes the same hashing/storage worker. It accepts no URLs and never fetches remote resources.
-- `GET /v1/registry/media-assets/{asset_id}/content` streams only registry-bound objects behind the collector bearer credential. Consumers must hash the received bytes and compare them with the returned digest.
+- `POST /v1/registry/resources/{resource_id}/media-assets/ingest` accepts bounded MP4/WebM bytes behind a dedicated ingestion token, stages them privately, then invokes the same hashing/storage worker. It accepts no URLs and never fetches remote resources.
+- `GET /v1/registry/media-assets/{asset_id}/content` streams only registry-bound MP4/WebM objects behind the collector bearer credential and supports a single byte range for native playback and seeking. Consumers must hash the received bytes and compare them with the returned digest.
 - `POST /api/dolby-vision/assets/{assetId}/analyze` uses server-only collector/parser credentials, streams the exact registered object into the parser, and verifies the Ed25519 envelope against the registry-provided asset ID and digest before returning positive evidence.
 
 ## Security decision: do not import arbitrary report JSON into the player
