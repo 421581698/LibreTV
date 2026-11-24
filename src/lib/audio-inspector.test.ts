@@ -21,16 +21,28 @@ describe('parseHlsAudioRenditions', () => {
     expect(parseHlsAudioRenditions(manifest)[0].codec).toBe('ac-4.02.01.04');
   });
 
-  it('recognizes declared TrueHD, MAT, DTS:X, PCM and Eclipsa codec tokens in CODECS', () => {
-    const cases = ['truehd', 'mat', 'dts-x', 'lpcm', 'eclipsa'];
+  it('recognizes registered HLS audio sample-entry tokens', () => {
+    const cases = ['mlpa', 'dtsc', 'dtsh', 'dtse', 'lpcm', 'iamf.001'];
     for (const audioCodec of cases) {
       const manifest = [
         '#EXTM3U',
         '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="g",NAME="Track",URI="audio.m3u8"',
         `#EXT-X-STREAM-INF:BANDWIDTH=1000000,CODECS="avc1.640028,${audioCodec}",AUDIO="g"`,
         'video.m3u8',
-      ].join('\n');
+      ].join('\\n');
       expect(parseHlsAudioRenditions(manifest)[0].codec).toBe(audioCodec);
+    }
+  });
+
+  it('does not treat descriptive labels as registered HLS CODECS sample entries', () => {
+    for (const audioCodec of ['truehd', 'mat', 'dts-x', 'eclipsa']) {
+      const manifest = [
+        '#EXTM3U',
+        '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="g",NAME="Track",URI="audio.m3u8"',
+        `#EXT-X-STREAM-INF:BANDWIDTH=1000000,CODECS="avc1.640028,${audioCodec}",AUDIO="g"`,
+        'video.m3u8',
+      ].join('\\n');
+      expect(parseHlsAudioRenditions(manifest)[0].codec).toBeNull();
     }
   });
 
