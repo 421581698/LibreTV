@@ -77,7 +77,8 @@ permissions:
 
 concurrency:
   group: libretv-ipad-edition-preview
-  cancel-in-progress: true
+  # Preserve the current exact-SHA audit while a newer preview request is queued.
+  cancel-in-progress: false
 
 jobs:
   deploy-preview:
