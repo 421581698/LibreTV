@@ -264,6 +264,11 @@ def ingest_hls_directory(
     root_relative = playlist_path.relative_to(root).as_posix()
     root_asset = ingest_member(root_relative)
     with registry.connect() as connection:
+        connection.execute(
+            """INSERT OR IGNORE INTO registry_hls_asset_graphs
+               (graph_id,resource_id,root_asset_id,created_at) VALUES(?,?,?,?)""",
+            (root_asset["asset_id"], resource_id, root_asset["asset_id"], int(__import__("time").time())),
+        )
         for parent_path, child_id, uri, role, ordinal in edges:
             parent_id = completed[parent_path]["asset_id"]
             existing = connection.execute(
