@@ -2,6 +2,7 @@ import { SpatialAudioEngine } from './spatial-audio';
 
 export type SpatialMediaSessionState =
   | 'prepared'
+  | 'activating'
   | 'active'
   | 'fallback'
   | 'disposed';
@@ -143,10 +144,11 @@ export class SpatialMediaSession {
    */
   async activateFromUserGesture(): Promise<SpatialMediaSessionSnapshot> {
     if (this.state !== 'prepared') throw new Error('空间媒体会话当前不可启动');
+    this.state = 'activating';
     try {
       this.engine = this.createEngine(this.media);
       const resume = this.engine.resumeFromUserGesture();
-      this.media.currentTime = this.nativeVideo.currentTime;
+      try { this.media.currentTime = this.nativeVideo.currentTime; } catch { /* metadata may not be ready yet */ }
       this.media.playbackRate = this.nativeVideo.playbackRate;
       this.media.volume = this.nativeVideo.volume;
       this.media.muted = this.nativeVideo.muted;
@@ -156,6 +158,7 @@ export class SpatialMediaSession {
       // through the independently-owned element while the session is active.
       this.nativeVideo.muted = true;
       await Promise.all([resume, play]);
+      if (this.state !== 'activating') throw new Error('空间会话已在启动期间回退');
       const plan = this.engine.setMode('headphone-stereo');
       this.route = plan.route;
       this.reason = plan.reason;
