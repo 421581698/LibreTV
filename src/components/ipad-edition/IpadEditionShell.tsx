@@ -71,7 +71,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
   const [sidebarDragging, setSidebarDragging] = useState(false);
   const [cinemaScrolled, setCinemaScrolled] = useState(false);
   const [wideLayout, setWideLayout] = useState(false);
-  const [navigationCollapsed, setNavigationCollapsed] = useState(false);
+  const [navigationCollapsed, setNavigationCollapsed] = useState(true);
   const gestureRef = useRef<{ pointerId: number; startX: number; lastX: number; lastAt: number; width: number; wasOpen: boolean } | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const environmentRootRef = useRef<HTMLDivElement | null>(null);
@@ -268,11 +268,18 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
               <small>YOUR CINEMA</small>
             </span>
           </Link>
-          {isExpandedSidebar && (
-            <button type="button" className="ipad-nav__collapse-button" aria-label="收起侧边栏" onClick={() => setNavigationCollapsed(true)}>
-              <NavigationIcon name="panel-left" />
-            </button>
-          )}
+          <button
+            type="button"
+            className="ipad-nav__collapse-button"
+            aria-label="关闭侧边栏"
+            title="关闭侧边栏"
+            onClick={() => {
+              setSidebarOpen(false);
+              setNavigationCollapsed(true);
+            }}
+          >
+            <NavigationIcon name="panel-left" />
+          </button>
 
           <p className="ipad-nav__section-label">主导航</p>
           <nav className="ipad-nav__links" aria-label="主要内容">
