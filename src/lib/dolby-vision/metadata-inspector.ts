@@ -87,15 +87,17 @@ export function inspectDolbyVisionMetadata(input: DolbyVisionMetadataInput): Dol
   }
 
   const rpuPresence: RpuPresence = rpuEvidence.rpuPresent ? 'present' : 'absent';
+  const hasFrameDynamicMetadata = rpuEvidence.metadataLevels.includes(1)
+    || rpuEvidence.metadataLevels.includes(2);
   const dynamicMetadata: DynamicMetadataStatus = rpuEvidence.rpuPresent
-    ? (rpuEvidence.metadataLevels.length > 0 ? 'confirmed' : 'unknown')
+    ? (hasFrameDynamicMetadata ? 'confirmed' : 'unknown')
     : 'not-confirmed';
   const consistentWithDeclaration = rpuEvidence.profile === null || format.profiles.length === 0
     ? null
     : format.profiles.includes(rpuEvidence.profile);
 
-  if (rpuEvidence.rpuPresent && rpuEvidence.metadataLevels.length === 0) {
-    notes.push('解析器报告存在 RPU，但没有提供可识别的元数据层级；动态元数据内容保持未知。');
+  if (rpuEvidence.rpuPresent && !hasFrameDynamicMetadata) {
+    notes.push('解析器报告存在 RPU，但未发现 L1/L2 帧级动态元数据；不能仅凭 L5/L6 等其他层级确认动态元数据。');
   } else if (rpuEvidence.rpuPresent) {
     notes.push('RPU 及元数据层级由外部解析器报告；这仍不证明设备已解码或显示端已输出 Dolby Vision。');
   } else {
