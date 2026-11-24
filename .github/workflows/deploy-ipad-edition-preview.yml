@@ -1602,13 +1602,22 @@ jobs:
                   if (!frame) throw new Error("Player frame is missing.");
                   const video = frame.querySelector("video");
                   if (!video) throw new Error("PlayerShell media element did not mount.");
+                  // This audit validates the UI state machine, not the browser decoder.
+                  // Stop and detach the short media fixture so native loop/buffer events
+                  // cannot repeatedly cancel the auto-hide timer. Real HLS decoding is
+                  // covered by the independent Chromium HLS playback workflow.
+                  video.pause();
+                  video.autoplay = false;
+                  video.loop = false;
+                  video.removeAttribute("src");
+                  video.querySelectorAll("source").forEach(source => source.remove());
+                  video.srcObject = null;
+                  video.preload = "none";
+                  video.load();
+
                   let paused = true;
                   let ended = false;
                   let currentTime = 0;
-                  // Keep the short valid WebM fixture alive throughout the 7s auto-hide
-                  // assertion. Without looping, Chromium emits a native `ended` event
-                  // after 2s and correctly forces controls visible, invalidating the test.
-                  video.loop = true;
                   Object.defineProperties(video, {
                     paused: { configurable: true, get: () => paused },
                     ended: { configurable: true, get: () => ended },
