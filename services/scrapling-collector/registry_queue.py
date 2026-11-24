@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import sqlite3
+import stat
 import time
 import uuid
 from pathlib import Path
@@ -689,7 +690,7 @@ def api_get_dolby_vision_media_asset_content(asset_id: str, authorization: str |
     except OSError:
         raise HTTPException(status_code=409, detail="Registered media object cannot be safely opened")
     info = os.fstat(descriptor)
-    if not __import__("stat").S_ISREG(info.st_mode) or info.st_size != row["byte_length"]:
+    if not stat.S_ISREG(info.st_mode) or info.st_size != row["byte_length"]:
         os.close(descriptor)
         raise HTTPException(status_code=409, detail="Registered media object size or type mismatch")
 
