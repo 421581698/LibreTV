@@ -6,7 +6,7 @@
  * This is not an iOS/Safari or Atmos bitstream acceptance test.
  */
 import { readFile } from 'node:fs/promises';
-import { chromium } from 'playwright';
+import { chromium, webkit } from 'playwright';
 import ts from 'typescript';
 
 const sampleRate = 48_000;
@@ -66,7 +66,11 @@ const source = 'const exports = {};\n' + ts.transpileModule(spatialSource, {
 }).outputText + '\nwindow.SpatialAudioEngine = exports.SpatialAudioEngine;';
 
 // Keep Chromium's real autoplay policy: AudioContext activation must come from the button click below.
-const browser = await chromium.launch({ channel: 'chrome', headless: true });
+const browserEngine = process.env.SPATIAL_BROWSER_ENGINE === 'webkit' ? webkit : chromium;
+const browser = await browserEngine.launch({
+  headless: true,
+  ...(browserEngine === chromium ? { channel: 'chrome' } : {}),
+});
 let failed = false;
 try {
   const page = await browser.newPage();
