@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { validateDolbyVisionRpuReport } from './rpu-evidence-contract';
 
@@ -21,6 +22,17 @@ const validHevcReport = {
 };
 
 describe('Dolby Vision RPU evidence report contract', () => {
+  const actualReportPath = process.env.DOLBY_VISION_REPORT_PATH;
+
+  it.skipIf(!actualReportPath)('accepts the real dovi_tool report emitted by CI', () => {
+    const actualReport = JSON.parse(readFileSync(actualReportPath!, 'utf8')) as unknown;
+    const result = validateDolbyVisionRpuReport(actualReport);
+    expect(result).not.toBeNull();
+    expect(result?.sourceHashBinding).toBe('detached');
+    expect(result?.evidence.source).toBe('dovi_tool');
+    expect(result?.evidence.rpuPresent).toBe(true);
+  });
+
   it('accepts a strict report bound to the exact media SHA-256', () => {
     const result = validateDolbyVisionRpuReport(validHevcReport, hash);
     expect(result).not.toBeNull();
