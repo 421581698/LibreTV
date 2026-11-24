@@ -125,7 +125,7 @@ The collector image includes `dv_media_ingest.py`. It accepts a staged local reg
 
 `POST /v1/registry/resources/{resource_id}/media-assets/ingest` accepts bytes only; it has no URL parameter, redirect handling, or remote-fetch behavior. It requires the dedicated ingestion token, an allowed media content type, and an exact `Content-Length`. The default HTTP ingress limit is 512 MiB (`DV_MAX_INGEST_BYTES`, allowed range 1 KiB–2 GiB). Concurrent HTTP ingestions default to one (`DV_MAX_CONCURRENT_INGESTS`, allowed range 1–4); excess requests receive HTTP 429 with `Retry-After: 5`. Disk hashing and object creation run outside the ASGI event loop. The temporary upload is removed after success or failure.
 
-The registry also exposes `GET /v1/registry/media-assets/{asset_id}/content`, an authenticated read-only stream resolved solely from the registry row. It validates the digest/key relationship and regular-file metadata. Consumers must still verify the bytes they receive against the advertised digest; the Dolby Vision parser independently hashes the forwarded upload and rejects a mismatch.
+The registry also exposes `GET /v1/registry/media-assets/{asset_id}/content`, an authenticated read-only stream resolved solely from the registry row. It validates the digest/key relationship and regular-file metadata, supports one RFC 7233 byte range (including suffix and open-ended ranges), returns `206`/`Content-Range` for satisfiable ranges and `416`/`Content-Range: bytes */<length>` for invalid or unsatisfiable ranges. Consumers must still verify the bytes they receive against the advertised digest; the Dolby Vision parser independently hashes the forwarded upload and rejects a mismatch.
 
 ### Local Compose provisioning
 
@@ -143,7 +143,7 @@ docker compose --profile collector up -d --build
 A trusted local staging workflow may invoke:
 
 ```sh
-python dv_media_ingest.py --resource-id <existing-resource-id> --file /private-staging/media.bin --content-type video/x-matroska
+python dv_media_ingest.py --resource-id <existing-resource-id> --file /private-staging/media.bin --content-type video/mp4
 ```
 
 The resource ID must already exist. The content type is a trusted-ingestion assertion, not a codec-analysis result. The worker does not download remote URLs, bypass access controls, or decide whether a source is lawful or authorized. Never run it on arbitrary user-provided paths.
