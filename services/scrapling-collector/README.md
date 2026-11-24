@@ -124,3 +124,28 @@ The endpoint requires the dedicated `X-DV-Ingestion-Token` credential (`DV_INGES
 Request JSON contains `sha256`, `byte_length`, and `content_type`. The registry derives a stable asset ID and content-addressed object key, permits idempotent re-registration of identical metadata, and rejects metadata changes for an existing resource/digest pair. New media bytes produce a new asset ID; records are not overwritten.
 
 **Trust boundary:** this endpoint records an assertion from a trusted ingestion worker. It does not download URLs, hash media bytes, or prove that an object exists. The future ingestion worker must stream the exact authorized media object into controlled immutable object storage, compute SHA-256 over those exact bytes, verify the durable object at its content-addressed key, and only then call this endpoint. Never let a browser or an ordinary candidate-validation request call it. Until that worker and object storage are deployed, registry rows are not proof of real media bytes and must not be used as expected digests for player evidence.
+
+### Trusted local Dolby Vision media ingestion
+
+The collector image includes `dv_media_ingest.py`. It accepts a staged local regular file only; it has no URL-fetching code and does not resolve or contact candidate hosts. A separately trusted media gateway must first place the exact authorized media bytes in a private staging directory. Do not expose that staging directory to browsers or ordinary collector tasks.
+
+The worker streams the staged file to compute SHA-256 itself, enforces a 2 GiB maximum (lower limits may be selected per invocation), rejects symlinks and empty files, and writes to the persistent content-addressed store at `/data/dv-media-objects/sha256/{prefix}/{digest}`. It uses a temporary file, fsync, and an atomic no-overwrite hard link; if an object already exists, the worker re-hashes it before reuse. Only after durable object verification does it register the computed digest in the resource registry. The SQLite registry and object store both persist on the existing `scrapling_data` volume.
+
+Provision the separate ingestion credential before starting the collector profile:
+
+```sh
+mkdir -p secrets
+openssl rand -hex 32 > secrets/dv-ingestion-token
+chmod 600 secrets/dv-ingestion-token
+docker compose --profile collector up -d --build
+```
+
+A trusted staging workflow inside the collector container can invoke:
+
+```sh
+python dv_media_ingest.py --resource-id r_<registry-id> --file /private-staging/media.bin --content-type video/mp4
+```
+
+The resource ID must already exist in the registry. The content type is an explicit trusted-ingestion assertion, not a media parser result. The worker does not download remote URLs, bypass access controls, or decide whether a media source is lawful or authorized. Do not run it on arbitrary user-provided paths.
+
+**Current boundary:** this creates and verifies durable local objects and records their computed digest. It does not yet implement the trusted gateway that stages media, a read-only media gateway for the Dolby Vision parser, or a complete route from the selected player resource to that exact object. Until those pieces exist, registered assets are not yet consumable as player evidence.
