@@ -8,13 +8,20 @@
  */
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { access, copyFile, mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { access, mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, dirname, resolve } from 'node:path';
+import { basename, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const LEVELS = [1, 2, 3, 4, 5, 6, 8, 9, 10, 11];
 const MAX_BUFFER = 32 * 1024 * 1024;
+
+async function sha256File(filePath) {
+  const hash = createHash('sha256');
+  for await (const chunk of createReadStream(filePath)) hash.update(chunk);
+  return hash.digest('hex');
+}
 
 export function parseDoviToolInfoSummary(output) {
   const frameMatch = output.match(/^\s*Frames:\s*(\d+)\s*$/im);
@@ -106,8 +113,7 @@ export async function analyzeRpu(options) {
   const inputStat = await stat(inputPath);
   if (!inputStat.isFile() || inputStat.size <= 0) throw new Error('输入必须是非空的本地文件。');
 
-  const inputBytes = await readFile(inputPath);
-  const inputSha256 = createHash('sha256').update(inputBytes).digest('hex');
+  const inputSha256 = await sha256File(inputPath);
   const tempDirectory = await mkdtemp(resolve(tmpdir(), 'libretv-dovi-'));
   try {
     const rpuPath = options.kind === 'rpu'
@@ -151,8 +157,7 @@ export async function analyzeRpu(options) {
       levelFiles[level] = bytes.toString('utf8');
     }
     const levels = parseLevelExportFiles(levelFiles);
-    const rpuBytes = await readFile(rpuPath);
-    const rpuSha256 = createHash('sha256').update(rpuBytes).digest('hex');
+    const rpuSha256 = await sha256File(rpuPath);
 
     return {
       source: 'dovi_tool',
