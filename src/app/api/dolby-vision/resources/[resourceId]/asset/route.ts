@@ -62,7 +62,8 @@ export async function GET(
   const data = payload as Record<string, unknown>;
   const resource = data.resource;
   const assets = data.media_assets;
-  if (!resource || typeof resource !== 'object' || Array.isArray(resource) || !Array.isArray(assets)) {
+  const hlsGraphs = data.hls_graphs;
+  if (!resource || typeof resource !== 'object' || Array.isArray(resource) || !Array.isArray(assets) || !Array.isArray(hlsGraphs)) {
     return NextResponse.json(
       { code: 'DV_REGISTRY_RESPONSE_INVALID' },
       { status: 502, headers: { 'Cache-Control': 'no-store' } },
