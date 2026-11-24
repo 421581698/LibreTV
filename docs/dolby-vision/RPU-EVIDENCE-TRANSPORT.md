@@ -2,7 +2,7 @@
 
 Updated: 2026-11-24  
 Branch: `feature/libretv-ipad-edition-product`  
-Status: offline parser, private parser-service implementation, Ed25519 verifier, immutable asset registry, local-file ingestion worker, authenticated object streaming endpoint, and server-side parser forwarding/signature verification route implemented; trusted source-staging gateway, production deployment, and runtime player binding remain blocked.
+Status: offline parser, private parser-service implementation, Ed25519 verifier, immutable asset registry, local-file ingestion worker, authenticated raw-byte ingress and object streaming endpoints, and server-side parser forwarding/signature verification route implemented; trusted source-staging gateway, production deployment, and runtime player binding remain blocked.
 
 ## Current verified capabilities
 
