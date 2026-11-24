@@ -89,6 +89,73 @@ class DolbyVisionMediaIngestionTests(unittest.TestCase):
         with self.assertRaises(IngestionError):
             ingest_staged_file(resource["id"], staged, self.object_root, "text/html")
 
+    def make_stream_request(self, payload, content_type="video/mp4", declared_length=None):
+        from starlette.requests import Request
+        length = len(payload) if declared_length is None else declared_length
+        scope = {
+            "type": "http",
+            "asgi": {"version": "3.0"},
+            "http_version": "1.1",
+            "method": "POST",
+            "scheme": "http",
+            "path": "/v1/registry/resources/test/media-assets/ingest",
+            "raw_path": b"/v1/registry/resources/test/media-assets/ingest",
+            "query_string": b"",
+            "headers": [
+                (b"content-type", content_type.encode()),
+                (b"content-length", str(length).encode()),
+            ],
+            "server": ("testserver", 80),
+            "client": ("127.0.0.1", 12345),
+        }
+        consumed = False
+        async def receive():
+            nonlocal consumed
+            if consumed:
+                return {"type": "http.disconnect"}
+            consumed = True
+            return {"type": "http.request", "body": payload, "more_body": False}
+        return Request(scope, receive)
+
+    def test_authenticated_stream_ingest_hashes_and_registers_received_bytes(self):
+        resource = self.add_resource("dv-ingest:http")
+        payload = b"trusted byte-ingress payload"
+        request = self.make_stream_request(payload)
+        with (
+            patch.object(registry, "DV_INGESTION_TOKEN", "dedicated-secret"),
+            patch.object(registry, "DV_MEDIA_STAGING_ROOT", self.root / "staging"),
+            patch.object(registry, "DV_MEDIA_OBJECT_ROOT", self.object_root),
+        ):
+            result = asyncio.run(registry.api_ingest_dolby_vision_media_asset(
+                resource["id"], request, x_dv_ingestion_token="dedicated-secret"
+            ))
+        expected = hashlib.sha256(payload).hexdigest()
+        self.assertEqual(result["sha256"], expected)
+        self.assertEqual(result["byte_length"], len(payload))
+        self.assertEqual(result["asset"]["sha256"], expected)
+        self.assertFalse(any((self.root / "staging").iterdir()))
+
+    def test_stream_ingest_requires_dedicated_token_and_exact_content_length(self):
+        resource = self.add_resource("dv-ingest:http-reject")
+        with patch.object(registry, "DV_INGESTION_TOKEN", "dedicated-secret"):
+            with self.assertRaises(Exception) as unauthorized:
+                asyncio.run(registry.api_ingest_dolby_vision_media_asset(
+                    resource["id"], self.make_stream_request(b"payload"),
+                    x_dv_ingestion_token="wrong-token"
+                ))
+            self.assertEqual(getattr(unauthorized.exception, "status_code", None), 401)
+            with (
+                patch.object(registry, "DV_MEDIA_STAGING_ROOT", self.root / "staging"),
+                patch.object(registry, "DV_MEDIA_OBJECT_ROOT", self.object_root),
+            ):
+                with self.assertRaises(Exception) as mismatch:
+                    asyncio.run(registry.api_ingest_dolby_vision_media_asset(
+                        resource["id"], self.make_stream_request(b"short", declared_length=20),
+                        x_dv_ingestion_token="dedicated-secret"
+                    ))
+                self.assertEqual(getattr(mismatch.exception, "status_code", None), 400)
+        self.assertFalse((self.root / "staging").exists() and any((self.root / "staging").iterdir()))
+
     def test_registered_object_content_endpoint_streams_only_registry_bound_bytes(self):
         resource = self.add_resource("dv-ingest:stream")
         payload = b"stream only the exact content-addressed object"
