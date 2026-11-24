@@ -27,6 +27,7 @@ import { useAuth } from '@/components/auth';
 import { resolveSource, useAppStore } from '@/lib/store';
 import { qualityKey } from '@/lib/quality';
 import { requestNativeFullscreenWithFallback, type NativeFullscreenVideo } from '@/lib/player-fullscreen';
+import { bindWatchPlaybackState, toggleWatchPlayback } from '@/lib/watch-playback-state';
 import {
   clearProgress,
   progressKeyOf,
@@ -475,48 +476,15 @@ function WatchContent() {
       return episodes[idx] || directUrl;
     }
     return directUrl;
-  }, [episodes, indexParam, directUrl]);  // The cinema transport icon is driven by the real media element state,
-  // not by the button click. MutationObserver handles PlayerShell's async mount
-  // and any video element replacement during source recovery.
+  }, [episodes, indexParam, directUrl]);  // Keep the cinema transport synchronized with the currently mounted media element.
+  // The helper owns native listeners and rebinds safely when PlayerShell replaces video.
   useEffect(() => {
     const frame = playerFrameRef.current;
     if (!frame) return;
-    let video: HTMLVideoElement | null = null;
-    const sync = () => {
-      setIsPlaying(Boolean(video && !video.paused && !video.ended));
-      const rate = video?.playbackRate;
-      if (typeof rate === 'number' && Number.isFinite(rate) && rate > 0) setWatchRate(rate);
-    };
-    const detach = () => {
-      if (!video) return;
-      video.removeEventListener('play', sync);
-      video.removeEventListener('playing', sync);
-      video.removeEventListener('pause', sync);
-      video.removeEventListener('ended', sync);
-      video.removeEventListener('ratechange', sync);
-      video = null;
-      setIsPlaying(false);
-    };
-    const attach = () => {
-      const next = frame.querySelector('video');
-      if (next === video) return;
-      detach();
-      if (!next) return;
-      video = next;
-      video.addEventListener('play', sync);
-      video.addEventListener('playing', sync);
-      video.addEventListener('pause', sync);
-      video.addEventListener('ended', sync);
-      video.addEventListener('ratechange', sync);
-      sync();
-    };
-    const observer = new MutationObserver(attach);
-    observer.observe(frame, { childList: true, subtree: true });
-    attach();
-    return () => {
-      observer.disconnect();
-      detach();
-    };
+    return bindWatchPlaybackState(frame, ({ isPlaying, playbackRate }) => {
+      setIsPlaying(isPlaying);
+      if (playbackRate !== null && playbackRate > 0) setWatchRate(playbackRate);
+    });
   }, [sourceKey, vodId, indexParam, directUrl]);
 
   const currentIndex = useMemo(() => {
@@ -1003,22 +971,11 @@ function WatchContent() {
                 onClick={() => {
                   const video = playerFrameRef.current?.querySelector('video');
                   if (!video) return;
-                  if (video.paused || video.ended) {
-                    void video.play().then(() => {
-                      // A source recovery may replace the media element while play() is pending.
-                      // Never let a stale Promise overwrite the state of the newly mounted video.
-                      if (playerFrameRef.current?.querySelector('video') === video) {
-                        setIsPlaying(!video.paused && !video.ended);
-                      }
-                    }).catch(() => {
-                      if (playerFrameRef.current?.querySelector('video') === video) {
-                        setIsPlaying(false);
-                      }
-                    });
-                  } else {
-                    video.pause();
-                    setIsPlaying(false);
-                  }
+                  toggleWatchPlayback(
+                    video,
+                    (candidate) => playerFrameRef.current?.querySelector('video') === candidate,
+                    setIsPlaying,
+                  );
                 }}
               >
                 {isPlaying

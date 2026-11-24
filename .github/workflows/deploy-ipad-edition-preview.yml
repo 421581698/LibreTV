@@ -1651,8 +1651,15 @@ jobs:
                     video.dispatchEvent(new Event("pause"));
                   };
                   window.__mockPlaybackReject = false;
+                  // Re-emit pause after replacing the media API so React's real
+                  // state observer receives a deterministic initial paused state.
+                  video.dispatchEvent(new Event("pause"));
                 });
-                await page.waitForFunction(() => document.querySelector(".cinema-play-control")?.getAttribute("data-playback-state") === "paused", undefined, { timeout: 5000 });
+                await page.waitForFunction(() => {
+                  const video = document.querySelector(".netflix-player-frame video");
+                  const button = document.querySelector(".cinema-play-control");
+                  return Boolean(video?.paused && button?.getAttribute("data-playback-state") === "paused");
+                }, undefined, { timeout: 10000 });
                 const playButton = page.locator(".cinema-play-control");
                 await playButton.click();
                 await page.waitForFunction(() => {
