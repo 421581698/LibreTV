@@ -9,7 +9,9 @@ Status: offline parser, private parser-service implementation, Ed25519 verifier,
 - The offline `scripts/dolby-vision/analyze-rpu.mjs` adapter invokes pinned `dovi_tool 2.3.x` against local HEVC/MKV or pre-extracted RPU bytes.
 - The strict Zod report contract validates parser version, report shape, profile/level consistency, distinct-frame counts, extraction scope and SHA-256 syntax.
 - HEVC reports can be compared with a separately computed SHA-256 of the exact media bytes. A mismatch is rejected; a missing hash is marked `detached`.
-- CI exercises a parser RPU fixture plus pinned HEVC elementary-stream and Matroska fixtures. This verifies the offline adapter, not a production media-analysis service.\n- `services/scrapling-collector/dv_media_ingest.py` hashes trusted staged local files, stores them under content-addressed keys using no-overwrite atomic creation, verifies existing objects before reuse, and registers only after durable storage. It does not fetch URLs.\n- `GET /v1/registry/media-assets/{asset_id}/content` streams only registry-bound objects behind the collector bearer credential. Consumers must hash the received bytes and compare them with the returned digest.
+- CI exercises a parser RPU fixture plus pinned HEVC elementary-stream and Matroska fixtures. This verifies the offline adapter, not a production media-analysis service.
+- `services/scrapling-collector/dv_media_ingest.py` hashes trusted staged local files, stores them under content-addressed keys using no-overwrite atomic creation, verifies existing objects before reuse, and registers only after durable storage. It does not fetch URLs.
+- `GET /v1/registry/media-assets/{asset_id}/content` streams only registry-bound objects behind the collector bearer credential. Consumers must hash the received bytes and compare them with the returned digest.
 
 ## Security decision: do not import arbitrary report JSON into the player
 
@@ -55,11 +57,21 @@ Until the deployment prerequisites exist, the player correctly displays RPU/dyna
 
 ## Acceptance gates
 
-- [x] Implement and document a private parser service and backend-only bearer boundary.\n- [ ] Deploy the parser service behind private ingress and provision signing/service secrets with a key rotation process.\n- [ ] Provision the separate DV ingestion secret and connect only the trusted ingestion worker to the registry endpoint.
+- [x] Implement and document a private parser service and backend-only bearer boundary.
+- [ ] Deploy the parser service behind private ingress and provision signing/service secrets with a key rotation process.
+- [ ] Provision the separate DV ingestion secret and connect only the trusted ingestion worker to the registry endpoint.
 - [x] Define canonical signed envelope and signature verification tests (valid, tampered, wrong-key, expired/stale, unsupported version).
-- [x] Add a content-addressed media-asset registry primitive with a separate ingestion credential and immutable metadata semantics.\n- [x] Implement a local-file ingestion worker that hashes staged bytes and writes a no-overwrite content-addressed object before registry insertion.\n- [x] Add an authenticated read-only object streaming endpoint bound to the registry asset ID.\n- [ ] Deploy a trusted gateway to stage authorized source bytes and provision durable object storage with production immutability/retention controls.\n- [ ] Implement the backend forwarder that streams the registered object into the parser and verifies the parser-received digest.\n- [ ] Establish exact media asset identity and digest binding across source selection and playback.
-- [x] Add upload size, concurrent job, parser timeout and backend bearer controls to the parser service.\n- [x] Run parser subprocess asynchronously so the HTTP server can enforce concurrency limits and remain responsive during long analysis jobs.\n- [ ] Configure production ingress rate limits, monitoring, key rotation and operational alerting.
-- [x] Add verifier unit tests proving detached, tampered, mismatched and partial reports are rejected.\n- [ ] Add end-to-end integration tests proving rejected reports never become positive player evidence.
+- [x] Add a content-addressed media-asset registry primitive with a separate ingestion credential and immutable metadata semantics.
+- [x] Implement a local-file ingestion worker that hashes staged bytes and writes a no-overwrite content-addressed object before registry insertion.
+- [x] Add an authenticated read-only object streaming endpoint bound to the registry asset ID.
+- [ ] Deploy a trusted gateway to stage authorized source bytes and provision durable object storage with production immutability/retention controls.
+- [ ] Implement the backend forwarder that streams the registered object into the parser and verifies the parser-received digest.
+- [ ] Establish exact media asset identity and digest binding across source selection and playback.
+- [x] Add upload size, concurrent job, parser timeout and backend bearer controls to the parser service.
+- [x] Run parser subprocess asynchronously so the HTTP server can enforce concurrency limits and remain responsive during long analysis jobs.
+- [ ] Configure production ingress rate limits, monitoring, key rotation and operational alerting.
+- [x] Add verifier unit tests proving detached, tampered, mismatched and partial reports are rejected.
+- [ ] Add end-to-end integration tests proving rejected reports never become positive player evidence.
 - [ ] Only then connect authenticated evidence to the read-only diagnostics panel.
 - [ ] Separately test native HLS behavior and actual Dolby Vision output on supported physical iPad hardware.
 
