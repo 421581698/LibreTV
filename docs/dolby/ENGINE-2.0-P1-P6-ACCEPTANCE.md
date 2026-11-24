@@ -25,6 +25,8 @@ This ledger distinguishes implemented code from evidence that requires real medi
 - 5.1 routing requires an explicitly verified speaker layout; unknown layouts bypass processing.
 - CORS checks reject cross-origin direct media without a CORS mode and now reject Blob URLs belonging to a different origin.
 - The engine preserves a native bypass path when spatial processing is disabled.
+- The engine enforces the one-shot `MediaElementAudioSourceNode` binding per video element, refuses reattachment after final teardown, and closes a newly created context if graph construction fails.
+- Node-based tests exercise the mocked graph lifecycle, explicit resume, bypass, teardown and reattachment rejection; this is not a substitute for real-browser media tests.
 
 **Not implemented**
 - No E-AC-3/JOC, AC-4 or TrueHD decoder is bundled.
@@ -74,7 +76,7 @@ For every device/output combination, record separately: OS/browser decode, PCM o
 ## P6 — Cross-platform regression and release gate
 
 **Automated coverage present**
-- Vitest unit coverage for format parsing, JOC metadata, HLS rendition inspection, CORS guards, spatial routing decisions and diagnostics sanitization.
+- Vitest unit coverage for format parsing, JOC metadata, HLS rendition inspection, CORS guards, spatial routing decisions, one-shot Web Audio lifecycle, and diagnostics sanitization.
 - Repository workflows cover TypeScript, ESLint, unit tests, production build, HLS browser smoke and external HLS smoke.
 
 **Acceptance still required**
