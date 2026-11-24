@@ -4,6 +4,7 @@ import {
   readStabilityMetrics,
   sanitizePlaybackDiagnostics,
   toHlsAudioTrackLike,
+  toNativeAudioTrackLikes,
   type PlaybackDiagnostics,
 } from './playback-diagnostics';
 
@@ -165,5 +166,26 @@ describe('sanitizePlaybackDiagnostics (telemetry whitelist)', () => {
     expect(sanitizePlaybackDiagnostics({} as PlaybackDiagnostics)).toEqual({
       format: null, audio: null, capability: null, stability: null,
     });
+  });
+});
+
+
+describe('native Safari audio-track observations', () => {
+  it('records only exposed track count and does not invent codec or channel metadata', () => {
+    expect(toNativeAudioTrackLikes({ length: 2 })).toEqual([{ id: 0 }, { id: 1 }]);
+    const snapshot = buildPlaybackDiagnostics({ audioTracks: toNativeAudioTrackLikes({ length: 2 }) });
+    expect(snapshot.audio).toEqual({ renditionCount: 2, maxChannels: null, hasJocMarker: false });
+    expect(snapshot.format).toBeNull();
+  });
+
+  it('distinguishes an unavailable native track API from an exposed empty list', () => {
+    expect(toNativeAudioTrackLikes(undefined)).toBeNull();
+    expect(toNativeAudioTrackLikes({ length: 0 })).toEqual([]);
+  });
+
+  it('rejects invalid or implausibly large native track counts', () => {
+    expect(toNativeAudioTrackLikes({ length: -1 })).toBeNull();
+    expect(toNativeAudioTrackLikes({ length: 1.5 })).toBeNull();
+    expect(toNativeAudioTrackLikes({ length: 65 })).toBeNull();
   });
 });
