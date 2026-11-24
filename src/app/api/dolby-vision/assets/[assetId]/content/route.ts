@@ -73,7 +73,7 @@ export async function GET(
       if (upstream.headers.get('x-dv-asset-id') !== assetId ||
           !/^[a-f0-9]{64}$/.test(digest) ||
           upstream.headers.get('etag') !== expectedEtag ||
-          !['video/mp4', 'video/webm'].includes(contentType ?? '') ||
+          !['video/mp4', 'video/webm', 'application/vnd.apple.mpegurl', 'video/mp2t', 'video/iso.segment', 'audio/aac', 'audio/mp4', 'audio/mpeg', 'text/vtt'].includes(contentType ?? '') ||
           upstream.headers.get('accept-ranges') !== 'bytes' ||
           !/^\d+$/.test(upstream.headers.get('content-length') ?? '') ||
           (upstream.status === 206 && !/^bytes \d+-\d+\/\d+$/.test(upstream.headers.get('content-range') ?? ''))) {
