@@ -1,6 +1,6 @@
 # P3 Lifecycle Test Matrix
 
-- Status: Test specification / execution pending
+- Status: Initial direct-media controller unit coverage added; full 20-case matrix pending
 - Date: 2026-11-24
 - Related decision: [P3 Architecture Decision Record](./P3-ARCHITECTURE-DECISION.md)
 - Branch: `feature/libretv-ipad-edition-product` (PR #99 remains Draft)
@@ -15,6 +15,17 @@ Each test result must use four separate evidence fields:
 - **Real device** — named physical device, OS/browser version, source fixture, output chain, and observed result are recorded.
 
 Allowed values: `Not started`, `In progress`, `Pass`, `Fail`, `Blocked`, `Not applicable`. A pass in one evidence field never implies a pass in another.
+
+## Initial implementation evidence (not full acceptance)
+
+Code added on the current P3 implementation line:
+
+- `src/lib/spatial-media-session.ts`: independent direct MP4/WebM media element, CORS probe, CORS-before-src ordering, explicit gesture activation, play/pause/seek/rate/volume synchronization, error fallback, native-element restoration and idempotent disposal.
+- `src/components/player-shell.tsx`: opt-in two-step prepare/activate control; source-change and unmount teardown; generation guard against stale asynchronous preparation.
+- `src/lib/spatial-media-session.test.ts`: unit coverage for HLS rejection without native mutation, CORS failure, distinct element/CORS ordering, explicit activation, pause/resume and state synchronization, native mute fallback, media error fallback, activation rejection and idempotent disposal.
+- `src/lib/spatial-audio.test.ts`: unknown input layout remains on bypass.
+
+The controller deliberately supports direct MP4/WebM only. It does not own an hls.js instance, does not switch audio tracks inside the spatial session, and does not process audio when channel layout is unknown. These tests are unit-level evidence only; they do not establish browser autoplay behavior, successful cross-origin CORS on real media, Preview acceptance, Safari/iOS behavior, or physical output.
 
 ## Required test matrix
 
