@@ -51,6 +51,13 @@ A future implementation must provide all of these properties:
 6. **Fail closed** — missing signature, unknown key/version, digest mismatch, partial/unavailable evidence or parser error maps to `unknown`, not `absent`.
 7. **Privacy** — do not upload user-selected local media without an explicit user action and clear disclosure. Prefer a controlled origin-side analysis pipeline for media already hosted by the service.
 
+## Immutable HLS graph
+
+- `services/scrapling-collector/dv_hls_ingest.py` now ingests a trusted local clear-HLS staging directory recursively. It creates content-addressed objects for the root/master playlists, nested playlists, initialization sections, media segments, audio and subtitles, and records parent-child edges in `registry_hls_asset_edges`.
+- Playlist URI references are rewritten to immutable same-origin asset content routes. The Next.js asset lookup can select an HLS root playlist, while the content proxy accepts the bounded HLS member MIME allowlist and preserves byte-range responses.
+- Path traversal, symlinks, external URLs, cyclic playlist references, unsupported member types, and encryption/DRM key tags are rejected. The worker does not fetch media or keys.
+- The registry player can use an immutable HLS root playlist when one has been staged and registered. HLS codec declarations remain declaration-only: HLS RPU parsing and signed whole-program/segment evidence are not claimed by this graph implementation.
+
 ## Deployment blocker
 
 The repository now contains the offline analyzer, private parser service, Ed25519 signing/verifier primitives, immutable asset registry, local-file ingestion worker, authenticated raw-byte ingress, object streaming endpoint, and server-side parser forwarder. The ingress path computes SHA-256 from the bytes received, stores them under a content-addressed key, verifies durable storage before registration, and applies configurable upload/concurrency limits.
