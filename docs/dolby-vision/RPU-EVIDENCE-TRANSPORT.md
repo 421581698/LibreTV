@@ -11,6 +11,7 @@ Status: offline parser, private parser-service implementation, Ed25519 verifier,
 - HEVC reports can be compared with a separately computed SHA-256 of the exact media bytes. A mismatch is rejected; a missing hash is marked `detached`.
 - CI exercises a parser RPU fixture plus pinned HEVC elementary-stream and Matroska fixtures. This verifies the offline adapter, not a production media-analysis service.
 - `services/scrapling-collector/dv_media_ingest.py` hashes trusted staged local files, stores them under content-addressed keys using no-overwrite atomic creation, verifies existing objects before reuse, and registers only after durable storage. It does not fetch URLs.
+- `POST /v1/registry/resources/{resource_id}/media-assets/ingest` accepts bounded raw bytes behind a dedicated ingestion token, stages them privately, then invokes the same hashing/storage worker. It accepts no URLs and never fetches remote resources.
 - `GET /v1/registry/media-assets/{asset_id}/content` streams only registry-bound objects behind the collector bearer credential. Consumers must hash the received bytes and compare them with the returned digest.
 - `POST /api/dolby-vision/assets/{assetId}/analyze` uses server-only collector/parser credentials, streams the exact registered object into the parser, and verifies the Ed25519 envelope against the registry-provided asset ID and digest before returning positive evidence.
 
@@ -52,7 +53,7 @@ A future implementation must provide all of these properties:
 
 ## Deployment blocker
 
-The repository now contains a local-file ingestion worker that computes SHA-256 from the staged bytes, stores them in a persistent content-addressed volume with no-overwrite semantics, and only then registers the digest. An authenticated read-only registry endpoint streams the exact object by asset ID. However, the trusted gateway that obtains and stages authorized source bytes is not implemented; the local Docker volume is not an external WORM/object-lock store; A server-side Next.js forwarder now streams the registered object into the parser and verifies the signed envelope, but this route has not yet been deployed or validated against a live Compose environment.  The parser deployment, key lifecycle, and player evidence endpoint also remain unimplemented. The ingestion worker is a local primitive, not an automatic public-URL fetcher. The generic media proxy is not an evidence producer and must not be repurposed as one.
+The repository now contains a local-file ingestion worker that computes SHA-256 from the staged bytes, stores them in a persistent content-addressed volume with no-overwrite semantics, and only then registers the digest. An authenticated read-only registry endpoint streams the exact object by asset ID. However, the trusted source gateway that obtains authorized source bytes and posts them to the private byte-ingress endpoint is not implemented; the local Docker volume is not an external WORM/object-lock store; A server-side Next.js forwarder now streams the registered object into the parser and verifies the signed envelope, but this route has not yet been deployed or validated against a live Compose environment.  The parser deployment, key lifecycle, and player evidence endpoint also remain unimplemented. The ingestion worker is a local primitive, not an automatic public-URL fetcher. The generic media proxy is not an evidence producer and must not be repurposed as one.
 
 Until the deployment prerequisites exist, the player correctly displays RPU/dynamic metadata as **unverified**. This is an intentional trust boundary, not an unfinished UI toggle.
 
@@ -64,7 +65,7 @@ Until the deployment prerequisites exist, the player correctly displays RPU/dyna
 - [x] Define canonical signed envelope and signature verification tests (valid, tampered, wrong-key, expired/stale, unsupported version).
 - [x] Add a content-addressed media-asset registry primitive with a separate ingestion credential and immutable metadata semantics.
 - [x] Implement a local-file ingestion worker that hashes staged bytes and writes a no-overwrite content-addressed object before registry insertion.
-- [x] Add an authenticated read-only object streaming endpoint bound to the registry asset ID.
+- [x] Add an authenticated raw-byte ingestion endpoint using a dedicated token, exact content length, and no URL fetching.\n- [x] Add an authenticated read-only object streaming endpoint bound to the registry asset ID.
 - [ ] Deploy a trusted gateway to stage authorized source bytes and provision durable object storage with production immutability/retention controls.
 - [x] Implement the server-side backend forwarder that streams the registered object into the parser and verifies the signed response against the registry-bound asset ID and digest.
 - [ ] Deploy and end-to-end validate the forwarder against the live private Compose services.
