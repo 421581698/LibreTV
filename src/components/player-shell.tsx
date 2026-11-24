@@ -9,6 +9,13 @@ import { getMediaPlaybackKind } from '@/lib/media-playback';
 import { hasSustainedPlaybackProgress } from '@/lib/playback-verification';
 
 import { PlaybackRecovery, describeHlsError } from '@/lib/playback-recovery';
+import {
+  PHASE1_AUTO_RECOVERY_POLICY,
+  applyStallDecision,
+  getAutoRecoveryMode,
+  resolveRecoveryAction,
+  resolveStallAction,
+} from '@/lib/playback-auto-policy';
 import { createHlsLoader } from '@/lib/hls-loader';
 import { getVideoPrefetcher } from '@/lib/video-prefetcher';
 import { loadCacheSettings } from '@/lib/video-cache';
@@ -170,7 +177,7 @@ interface PlayerShellProps {
   onRequestSwitchSource?: (reason: string) => void;
   /** Route fullscreen requests through the page shell so every custom overlay remains in the fullscreen layer. */
   onRequestFullscreen?: () => void;
-  /** 控制条上的上一集 / 下一集：不在播放器里也能切集，省得回到页面按钮 */
+  /** 控制条上的上一集 / 下一集：不在播放器里也能切集，省得回到页面下方找按钮 */
   onPrevEpisode?: () => void;
   onNextEpisode?: () => void;
   hasPrevEpisode?: boolean;
@@ -257,7 +264,7 @@ export function PlayerShell({
         get volume() { return video?.volume ?? art.volume ?? 1; },
         set volume(value: number) { if (video) video.volume = value; else art.volume = value; },
         get muted() { return video?.muted ?? false; },
-        set muted(value: boolean) { if (video) video.muted = value; },
+        set muted(value: boolean) { if (video) video.muted = value; else art.volume = value; },
         get fullscreen() { return Boolean(art.fullscreen); },
         set fullscreen(value: boolean) { art.fullscreen = value; },
       } : null;
@@ -304,6 +311,7 @@ export function PlayerShell({
     selectedRenditionBitrateKbps: undefined as number | undefined,
     stalls: 0, fatalErrors: 0, recoveries: 0, playedSeconds: 0,
     lastPosition: 0, lastTickAt: 0, height: 0, waiting: false, flushed: false,
+    stalledObserved: false, degradedObserved: false, suppressedRecoveries: 0,
   });
   const resetPlaybackMetrics = () => {
     setSelectedHlsRendition(null);
@@ -318,6 +326,7 @@ export function PlayerShell({
       selectedRenditionBitrateKbps: undefined, stalls: 0, fatalErrors: 0,
       recoveries: 0, playedSeconds: 0, lastPosition: 0, lastTickAt: 0,
       height: 0, waiting: false, flushed: false,
+      stalledObserved: false, degradedObserved: false, suppressedRecoveries: 0,
     };
   };
   const flushPlaybackMetrics = () => {
@@ -341,6 +350,10 @@ export function PlayerShell({
       fatalErrors: metrics.fatalErrors,
       recoveries: metrics.recoveries,
       playedSeconds: metrics.playedSeconds,
+      autoRecoveryMode: getAutoRecoveryMode(PHASE1_AUTO_RECOVERY_POLICY),
+      stalledObserved: metrics.stalledObserved,
+      degradedObserved: metrics.degradedObserved,
+      suppressedRecoveries: metrics.suppressedRecoveries,
     });
   };
 
@@ -896,8 +909,20 @@ export function PlayerShell({
       if (!recovery) return;
       const decision = recovery.onFatal(data.type, data.details);
       playbackMetricsRef.current.fatalErrors += 1;
-      if (decision.action === 'retry' || decision.action === 'recover-media') playbackMetricsRef.current.recoveries += 1;
-      switch (decision.action) {
+      // 第一阶段：所有自动恢复动作必须经过只读策略过滤。observe-only 分支只记录上报，
+      // 不重试、不 recoverMediaError（detach/attach 重启）、不自动切源、不降画质。
+      const effective = resolveRecoveryAction(decision, PHASE1_AUTO_RECOVERY_POLICY);
+      if (effective.action === 'observe-only') {
+        playbackMetricsRef.current.suppressedRecoveries += 1;
+        if (effective.wouldHave === 'switch-source' || effective.wouldHave === 'recover-media') {
+          playbackMetricsRef.current.degradedObserved = true;
+        }
+        // 只读提示，不触发任何恢复行为；错误详情随下一次 flush 上报。
+        showHint(`${describeHlsError(data.type, data.details)}：${effective.reason}（仅诊断，不自动恢复）`);
+        return;
+      }
+      if (effective.action === 'retry' || effective.action === 'recover-media') playbackMetricsRef.current.recoveries += 1;
+      switch (effective.action) {
         case 'ignore':
           break;
         case 'retry': {
@@ -906,31 +931,31 @@ export function PlayerShell({
           if (
             allowProxyFallback &&
             !mediaUrl.startsWith('/api/proxy') &&
-            (decision.attempt >= 2 || data.details === 'manifestLoadError')
+            (effective.attempt >= 2 || data.details === 'manifestLoadError')
           ) {
             showHint('直连失败，改用代理重试...');
             setupHls(video, `/api/proxy?url=${encodeURIComponent(mediaUrl)}`, false);
             return;
           }
-          showHint(`${decision.reason}（第 ${decision.attempt} 次）...`);
-          recovery.schedule(decision.delayMs, () => {
+          showHint(`${effective.reason}（第 ${effective.attempt} 次）...`);
+          recovery.schedule(effective.delayMs, () => {
             if (isCurrentHls()) hls.startLoad();
           });
           break;
         }
         case 'recover-media': {
-          showHint(`${decision.reason}（第 ${decision.attempt} 次）...`);
-          if (decision.swapAudio) hls.swapAudioCodec?.();
+          showHint(`${effective.reason}（第 ${effective.attempt} 次）...`);
+          if (effective.swapAudio) hls.swapAudioCodec?.();
           hls.recoverMediaError();
           break;
         }
         case 'switch-source': {
           // 覆盖播放开始后的场景：起播失败走 setError 遮罩；
           // 播放中失败走回调弹换源面板（父级未提供回调时同样 setError）
-          const message = `${describeHlsError(data.type, data.details)}：${decision.reason}`;
+          const message = `${describeHlsError(data.type, data.details)}：${effective.reason}`;
           if (playbackStartedRef.current) {
             showHint(message);
-            propsRef.current.onRequestSwitchSource?.(decision.reason);
+            propsRef.current.onRequestSwitchSource?.(effective.reason);
           } else {
             setError(`视频加载失败，${message}，请尝试其他视频源`);
           }
@@ -1297,9 +1322,15 @@ export function PlayerShell({
     art.on('video:error', () => {
       playbackMetricsRef.current.fatalErrors += 1;
       mediaHealthyRef.current = false;
-      // 起播阶段的 video 元素级错误（MSE/解码偶发失败）：重建一次播放链路自愈，
-      // 而不是直接钉死错误遮罩——重建后视频轨重新 append，黑屏有声即可解除
-      if (!playbackStartedRef.current && !videoErrorRetryUsedRef.current) {
+      // 起播阶段的 video 元素级错误：原实现会重建一次播放链路自愈。
+      // 第一阶段严格执行只读——自动重建属于"自动重启播放器"，默认关闭；
+      // 改为记录观测并继续走下方错误遮罩（用户可手动换源/重试）。
+      // 保留原代码路径，待未来开启 autoRetry 策略后再恢复自愈。
+      if (
+        !playbackStartedRef.current &&
+        !videoErrorRetryUsedRef.current &&
+        PHASE1_AUTO_RECOVERY_POLICY.autoRetry
+      ) {
         videoErrorRetryUsedRef.current = true;
         playbackMetricsRef.current.recoveries += 1;
         showHint('播放异常，正在重试...');
@@ -1307,6 +1338,7 @@ export function PlayerShell({
         setupHls(art.video, currentMediaUrlRef.current, true);
         return;
       }
+      playbackMetricsRef.current.suppressedRecoveries += 1;
       const mediaError = art.video?.error;
       const errorMessage = mediaError?.code === 1
         ? '播放请求已取消，请重新点击播放'
@@ -1405,7 +1437,8 @@ export function PlayerShell({
     art.on('video:waiting', () => {
       const metrics = playbackMetricsRef.current;
       if (!art.video?.paused && !metrics.waiting) { metrics.stalls += 1; metrics.waiting = true; }
-      // 已经正常播放后持续缓冲 12 秒，主动打开换源流程；短暂抖动不打扰用户。
+      // 已经正常播放后持续缓冲 12 秒：第一阶段只记录 stalled/degraded 并上报，
+      // 不自动切源（策略由 resolveStallAction 决定，默认 observe-only）。
       if (
         playbackStartedRef.current &&
         !stallRecoveryRequestedRef.current &&
@@ -1415,9 +1448,21 @@ export function PlayerShell({
         stallRecoveryTimerRef.current = setTimeout(() => {
           stallRecoveryTimerRef.current = null;
           if (art.video && !art.video.paused && !art.video.ended && playbackMetricsRef.current.waiting) {
-            stallRecoveryRequestedRef.current = true;
-            showHint('当前线路持续缓冲，正在准备切换播放线路…');
-            propsRef.current.onRequestSwitchSource?.('视频持续缓冲超过 12 秒');
+            const action = resolveStallAction(12_000, PHASE1_AUTO_RECOVERY_POLICY);
+            // 与单测共享同一执行函数：第一阶段 onSwitchSource 绝不会被调用。
+            applyStallDecision(action, {
+              onSwitchSource: (reason) => {
+                stallRecoveryRequestedRef.current = true;
+                showHint('当前线路持续缓冲，正在准备切换播放线路…');
+                propsRef.current.onRequestSwitchSource?.(reason);
+              },
+              onObserve: (observation) => {
+                const metrics = playbackMetricsRef.current;
+                metrics.stalledObserved = true;
+                if (observation.status === 'degraded') metrics.degradedObserved = true;
+                showHint(`${observation.reason}（仅诊断，未自动切换线路）`);
+              },
+            });
           }
         }, 12_000);
       }
