@@ -60,6 +60,13 @@ export interface CapabilityDiagnostics {
   browserDecode: CodecCapabilityAssessment['browserDecode'];
   atmosObjectDecode: 'not-established';
   safeDefault: 'native-media-playback';
+  audioContext?: boolean;
+  mediaSource?: boolean;
+  mediaCapabilities?: boolean;
+  outputMaxChannels?: number | null;
+  outputLatencyMs?: number | null;
+  outputDeviceName?: 'not-exposed';
+  spatialRendering?: 'not-integrated';
 }
 
 export interface StabilityDiagnostics {
@@ -219,6 +226,13 @@ export function buildPlaybackDiagnostics(
       browserDecode,
       atmosObjectDecode: 'not-established',
       safeDefault: 'native-media-playback',
+      audioContext: env.audioContextAvailable,
+      mediaSource: env.mediaSourceAvailable,
+      mediaCapabilities: env.mediaCapabilitiesAvailable,
+      outputMaxChannels: profile.outputMaxChannels,
+      outputLatencyMs: profile.outputLatencyMs,
+      outputDeviceName: 'not-exposed',
+      spatialRendering: 'not-integrated',
     };
   }
 
@@ -291,6 +305,13 @@ export function sanitizePlaybackDiagnostics(value: PlaybackDiagnostics | undefin
       browserDecode: oneOf(BROWSER_DECODE, value.capability.browserDecode, 'not-probed') as CodecCapabilityAssessment['browserDecode'],
       atmosObjectDecode: 'not-established',
       safeDefault: 'native-media-playback',
+      audioContext: value.capability.audioContext === true,
+      mediaSource: value.capability.mediaSource === true,
+      mediaCapabilities: value.capability.mediaCapabilities === true,
+      outputMaxChannels: typeof value.capability.outputMaxChannels === 'number' && Number.isFinite(value.capability.outputMaxChannels) && value.capability.outputMaxChannels > 0 ? Math.min(64, Math.floor(value.capability.outputMaxChannels)) : null,
+      outputLatencyMs: typeof value.capability.outputLatencyMs === 'number' && Number.isFinite(value.capability.outputLatencyMs) && value.capability.outputLatencyMs >= 0 ? Math.min(60000, Math.floor(value.capability.outputLatencyMs)) : null,
+      outputDeviceName: 'not-exposed',
+      spatialRendering: 'not-integrated',
     };
   }
   if (value.stability && typeof value.stability === 'object') {
