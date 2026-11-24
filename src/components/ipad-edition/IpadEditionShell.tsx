@@ -120,7 +120,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
     setSidebarDragOffset(0);
   }, [pathname]);
   useEffect(() => {
-    if (!sidebarOpen && !isExpandedSidebar) return;
+    if (!sidebarOpen && !(wideLayout && !navigationCollapsed)) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const sidebar = document.getElementById('ipad-edition-sidebar');
@@ -157,7 +157,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
       window.removeEventListener('keydown', onKeyDown);
       menuButtonRef.current?.focus({ preventScroll: true });
     };
-  }, [sidebarOpen, isExpandedSidebar, wideLayout]);
+  }, [sidebarOpen, wideLayout, navigationCollapsed]);
 
   const beginSidebarGesture = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType === 'mouse' || !event.isPrimary || isChromeHidden || (wideLayout && !navigationCollapsed)) return;
