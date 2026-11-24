@@ -168,6 +168,11 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId }: DolbyVi
               当前播放源尚未绑定可信媒体资产 ID，因此不能执行 RPU 验证。
             </p>
           )}
+          {assetId && report?.container !== 'mp4' && (
+            <p className="mt-3 border-t border-white/10 pt-3 text-[10px] leading-snug text-white/45">
+              当前媒体已绑定不可变资产 ID；服务端 RPU 分析目前仅支持 MP4 + HEVC，HLS/WebM 的 RPU 分析保持未验证。
+            </p>
+          )}
           {report?.notes.map((note) => (
             <p key={note} className="mt-2 text-[10px] leading-snug text-white/50">{note}</p>
           ))}
