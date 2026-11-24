@@ -141,6 +141,19 @@ export class SpatialMediaSession {
     return { state: this.state, route: this.route, reason: this.reason };
   }
 
+  get audioTracks(): readonly unknown[] {
+    return this.hlsController?.audioTracks ?? [];
+  }
+
+  selectAudioTrack(trackIndex: number): boolean {
+    const controller = this.hlsController;
+    if (!controller || !Number.isInteger(trackIndex) || trackIndex < 0 || trackIndex >= controller.audioTracks.length) {
+      return false;
+    }
+    controller.audioTrack = trackIndex;
+    return true;
+  }
+
   /**
    * Must be invoked directly by a user click/tap. Both AudioContext.resume()
    * and media.play() are initiated before the first await to preserve activation.
@@ -271,6 +284,8 @@ export class SpatialMediaSession {
     this.removeEngineStateListener?.();
     this.removeEngineStateListener = null;
     this.media.pause();
+    this.hlsController?.destroy();
+    this.hlsController = null;
     this.listeners.splice(0).forEach((remove) => remove());
     this.media.removeAttribute('src');
     this.media.load();
