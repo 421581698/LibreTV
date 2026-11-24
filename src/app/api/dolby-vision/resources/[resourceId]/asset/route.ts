@@ -81,9 +81,16 @@ export async function GET(
   }
 
   const expectedContentType = String(record.media_format).toLowerCase() === 'webm'\n    ? 'video/webm'\n    : String(record.media_format).toLowerCase() === 'hls'\n      ? 'application/vnd.apple.mpegurl'\n      : 'video/mp4';
+  const hlsRootAssetId = String(record.media_format).toLowerCase() === 'hls'
+    ? hlsGraphs
+      .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object' && !Array.isArray(item))
+      .filter((item) => item.resource_id === resourceId && typeof item.root_asset_id === 'string')
+      .sort((a, b) => Number(b.created_at) - Number(a.created_at))[0]?.root_asset_id
+    : null;
   const asset = assets
     .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object' && !Array.isArray(item))
     .filter((item) => item.resource_id === resourceId && item.content_type === expectedContentType)
+    .filter((item) => hlsRootAssetId ? item.asset_id === hlsRootAssetId : true)
     .sort((a, b) => Number(b.created_at) - Number(a.created_at))[0];
 
   if (!asset) {
