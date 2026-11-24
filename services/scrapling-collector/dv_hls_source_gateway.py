@@ -117,6 +117,8 @@ def _fetch_member(
         expected_length = int(raw_length)
         if expected_length <= 0 or expected_length > max_bytes:
             raise HlsSourceGatewayError("HLS member exceeds its configured byte limit")
+        if progress["total_bytes"] + expected_length > MAX_GRAPH_TOTAL_BYTES:
+            raise HlsSourceGatewayError("HLS graph exceeds the aggregate byte limit before download")
 
         digest = hashlib.sha256()
         received = 0
@@ -196,6 +198,8 @@ def ingest_authorized_hls_candidate(
             resolve_public_addresses=resolve_public_addresses,
             allowed_hosts=allowed_hosts,
         )
+        if root_host != str(candidate.get("host") or "").lower().rstrip("."):
+            raise HlsSourceGatewayError("Persisted candidate hostname does not match its source URL")
         validated_final = str(validation.get("final_url") or root_url)
         final_url, final_host, _ = _safe_origin_url(
             validated_final,
