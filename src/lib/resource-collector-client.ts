@@ -29,6 +29,39 @@ function collectorConfig(request?: Request) {
   return base && token ? { base, token } : null;
 }
 
+function trustedServerRegistryBase(): string | null {
+  const raw = (process.env.DV_REGISTRY_API_BASE ?? process.env.SCRAPLING_API_BASE ?? '').trim();
+  if (!raw) return null;
+  const httpsBase = validCollectorBase(raw);
+  if (httpsBase) return httpsBase;
+  // Plain HTTP is allowed only for the fixed Docker Compose service name on
+  // its private collector network; arbitrary HTTP hosts remain rejected.
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== 'http:' || parsed.hostname !== 'scrapling-collector' ||
+        parsed.port !== '8000' || parsed.username || parsed.password ||
+        (parsed.pathname !== '' && parsed.pathname !== '/') || parsed.search || parsed.hash) return null;
+    return parsed.origin;
+  } catch {
+    return null;
+  }
+}
+
+/** Server-only byte fetch. It never reads browser-supplied collector credentials. */
+export async function fetchDolbyVisionRegistryAsset(assetId: string, timeoutMs = 20_000): Promise<Response | null> {
+  if (!/^[A-Za-z0-9:_-]{1,200}$/.test(assetId)) return null;
+  const base = trustedServerRegistryBase();
+  const token = process.env.SCRAPLING_API_TOKEN?.trim();
+  if (!base || !token) return null;
+  return fetch(`${base}/v1/registry/media-assets/${encodeURIComponent(assetId)}/content`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+    redirect: 'manual',
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+}
+
 /** Server-side proxy. Browser overrides are accepted only after the route's private-feature auth guard. */
 export async function collectorRequest(
   path: string,
