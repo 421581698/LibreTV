@@ -23,6 +23,7 @@ export interface SpatialMediaSessionOptions {
   verifyCors?: (url: string) => Promise<boolean>;
   createMediaElement?: () => HTMLVideoElement;
   createEngine?: (media: HTMLVideoElement) => SpatialEngineHandle;
+  onStateChange?: (snapshot: SpatialMediaSessionSnapshot) => void;
 }
 
 export interface SpatialMediaSessionSnapshot {
@@ -86,6 +87,7 @@ export class SpatialMediaSession {
     readonly media: HTMLVideoElement,
     private readonly host: HTMLElement,
     private readonly createEngine: (media: HTMLVideoElement) => SpatialEngineHandle,
+    private readonly onStateChange?: (snapshot: SpatialMediaSessionSnapshot) => void,
   ) {
     this.originalMuted = nativeVideo.muted;
     this.originalVolume = nativeVideo.volume;
@@ -131,7 +133,7 @@ export class SpatialMediaSession {
 
     const createEngine = options.createEngine ?? ((element: HTMLVideoElement) =>
       SpatialAudioEngine.attach(element, { inputChannels: 0 }));
-    return new SpatialMediaSession(nativeVideo, media, host, createEngine);
+    return new SpatialMediaSession(nativeVideo, media, host, createEngine, options.onStateChange);
   }
 
   get snapshot(): SpatialMediaSessionSnapshot {
@@ -145,6 +147,7 @@ export class SpatialMediaSession {
   async activateFromUserGesture(): Promise<SpatialMediaSessionSnapshot> {
     if (this.state !== 'prepared') throw new Error('空间媒体会话当前不可启动');
     this.state = 'activating';
+    this.notifyState();
     try {
       this.engine = this.createEngine(this.media);
       const resume = this.engine.resumeFromUserGesture();
@@ -163,6 +166,7 @@ export class SpatialMediaSession {
       this.route = plan.route;
       this.reason = plan.reason;
       this.state = 'active';
+      this.notifyState();
       return this.snapshot;
     } catch (error) {
       await this.fallback(error instanceof Error ? error.message : '空间会话启动失败');
@@ -179,6 +183,10 @@ export class SpatialMediaSession {
   async dispose(): Promise<void> {
     if (this.state === 'disposed') return;
     await this.teardown('用户关闭空间会话', false);
+  }
+
+  private notifyState(): void {
+    this.onStateChange?.(this.snapshot);
   }
 
   private readonly handleSpatialError = () => {
@@ -239,6 +247,7 @@ export class SpatialMediaSession {
     if (this.state === 'disposed' || this.state === 'fallback') return;
     this.reason = reason;
     this.state = isFallback ? 'fallback' : 'disposed';
+    this.notifyState();
     if (Number.isFinite(this.media.currentTime) && this.media.currentTime >= 0) {
       try { this.nativeVideo.currentTime = this.media.currentTime; } catch { /* keep last native position */ }
     }
