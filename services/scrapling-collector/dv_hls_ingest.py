@@ -252,8 +252,8 @@ def ingest_hls_directory(
             raise HlsIngestionError("Encrypted or DRM HLS playlists are not ingested.")
         for key_line in (line.strip() for line in playlist.splitlines() if line.strip().upper().startswith("#EXT-X-KEY:")):
             attributes = key_line.split(":", 1)[1]
-            method = re.search(r"(?:^|,)\\s*METHOD=([^,]+)", attributes, re.IGNORECASE)
-            if not method or method.group(1).strip().strip('"').upper() != "NONE" or re.search(r"(?:^|,)\\s*URI=", attributes, re.IGNORECASE):
+            method = re.search(r"(?:^|,)\s*METHOD=([^,]+)", attributes, re.IGNORECASE)
+            if not method or method.group(1).strip().strip('"').upper() != "NONE" or re.search(r"(?:^|,)\s*URI=", attributes, re.IGNORECASE):
                 raise HlsIngestionError("Encrypted or DRM HLS playlists are not ingested.")
 
         rewritten: list[str] = []
