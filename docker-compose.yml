@@ -131,6 +131,8 @@ services:
       - DV_INGESTION_TOKEN_FILE=/run/secrets/dv-ingestion-token
       - DV_MEDIA_OBJECT_ROOT=/data/dv-media-objects
       - DV_MEDIA_STAGING_ROOT=/data/dv-media-staging
+      - DV_MAX_INGEST_BYTES=${DV_MAX_INGEST_BYTES:-536870912}
+      - DV_MAX_CONCURRENT_INGESTS=${DV_MAX_CONCURRENT_INGESTS:-1}
       # Keep every outbound collector operation disabled until the host firewall has been installed and verified.
       - SCRAPLING_EGRESS_FIREWALL_CONFIRMED=${SCRAPLING_EGRESS_FIREWALL_CONFIRMED:-0}
       - SCRAPLING_DB_PATH=${SCRAPLING_DB_PATH:-/data/collector.sqlite3}
