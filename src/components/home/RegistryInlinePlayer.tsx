@@ -37,7 +37,7 @@ export function RegistryInlinePlayer({
     if (!resourceId || !['hls', 'mp4', 'webm'].includes(resourceMediaFormat ?? '')) return;
 
     const controller = new AbortController();
-    const retryDelays = [3_000, 6_000, 12_000, 20_000, 30_000, 45_000, 60_000, 90_000, 120_000, 180_000];
+    const retryDelays = assetLookupNonce > 0 ? [3_000, 6_000, 12_000, 20_000, 30_000, 45_000, 60_000, 90_000, 120_000, 180_000] : [];
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let attempts = 0;
 
@@ -71,7 +71,7 @@ export function RegistryInlinePlayer({
               }
             }
           }
-        } else if (![404, 409].includes(response.status)) {
+        } else if (![404, 409, 429].includes(response.status) && response.status < 500) {
           return;
         }
       } catch {
@@ -107,8 +107,16 @@ export function RegistryInlinePlayer({
         selected_rendition_height: evidence.selectedRenditionHeight,
         selected_rendition_bitrate_kbps: evidence.selectedRenditionBitrateKbps,
       }),
-    }).then((response) => {
-      if (response.ok) setAssetLookupNonce((value) => value + 1);
+    }).then(async (response) => {
+      if (!response.ok) return;
+      const payload: unknown = await response.json().catch(() => null);
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return;
+      const mediaIngestion = (payload as Record<string, unknown>).media_ingestion;
+      if (!mediaIngestion || typeof mediaIngestion !== 'object' || Array.isArray(mediaIngestion)) return;
+      const status = (mediaIngestion as Record<string, unknown>).status;
+      if (status === 'queued' || status === 'registered') {
+        setAssetLookupNonce((value) => value + 1);
+      }
     }).catch(() => {
       // Playback remains available if the audit writeback service is temporarily offline.
     });
