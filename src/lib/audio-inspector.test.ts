@@ -44,6 +44,24 @@ describe('parseHlsAudioRenditions', () => {
     expect(parseHlsAudioRenditions(manifest)[0]).toMatchObject({ codec: 'ec-3-joc', hasJocMarker: true });
   });
 
+  it('preserves 12/JOC and 16/JOC as declared Atmos metadata without guessing speaker layout', () => {
+    for (const channels of ['12/JOC', '16/JOC']) {
+      const manifest = [
+        '#EXTM3U',
+        `#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="atmos",NAME="Dolby metadata fixture",CHANNELS="${channels}",URI="audio.m3u8"`,
+        '#EXT-X-STREAM-INF:BANDWIDTH=1000000,CODECS="avc1.640028,ec-3",AUDIO="atmos"',
+        'video.m3u8',
+      ].join('\\n');
+      expect(parseHlsAudioRenditions(manifest)[0]).toMatchObject({
+        channelsRaw: channels,
+        channelCount: Number(channels.split('/')[0]),
+        layout: 'unknown',
+        hasJocMarker: true,
+        codec: 'ec-3',
+      });
+    }
+  });
+
   it('keeps absent and unsupported channel declarations unknown', () => {
     const result = parseHlsAudioRenditions('#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a",NAME="Unknown",URI="a.m3u8"\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="b",NAME="7.1",CHANNELS="8",URI="b.m3u8"');
     expect(result.map((item) => [item.channelCount, item.layout])).toEqual([[null, 'unknown'], [8, 'unknown']]);
