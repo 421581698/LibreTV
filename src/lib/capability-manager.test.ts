@@ -50,6 +50,13 @@ describe('assessCodecCapability', () => {
     expect(result.notes.join(' ')).toContain('未验证 Dolby 位流直通');
   });
 
+  it('keeps AC-4 browser support as a hint and never establishes Atmos decode', () => {
+    const result = assessCodecCapability('ac4', 'dolby-ac4', 'audio/mp4; codecs="ac-4.02.01.04"', {
+      audioContextAvailable: true, mediaSourceAvailable: true, mediaCapabilitiesAvailable: true, canPlayType: () => 'probably',
+    });
+    expect(result).toMatchObject({ browserDecode: 'can-play-hint', atmosObjectDecode: 'not-established', bitstreamPassthrough: 'not-established', safeDefault: 'native-media-playback' });
+  });
+
   it('distinguishes an explicit negative browser hint', () => {
     expect(assessCodecCapability('truehd', 'dolby-truehd', 'audio/matroska', {
       audioContextAvailable: false, mediaSourceAvailable: false, mediaCapabilitiesAvailable: false,
