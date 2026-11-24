@@ -113,6 +113,13 @@ describe('inspectHlsAudioTrack', () => {
       .toMatchObject({ channelCount: 6, layout: 'unknown', hasJocMarker: true });
   });
 
+  it('rejects malformed hls.js codec metadata instead of forwarding it as a known codec', () => {
+    expect(inspectHlsAudioTrack({ audioCodec: 'ec-30', channels: '6/JOC' }))
+      .toMatchObject({ codec: null, channelCount: 6, layout: 'unknown', hasJocMarker: true });
+    expect(inspectHlsAudioTrack({ audioCodec: 'dtsx-extra' }))
+      .toMatchObject({ codec: null, hasJocMarker: false });
+  });
+
   it('keeps missing metadata unknown', () => {
     expect(inspectHlsAudioTrack({ name: 'Unknown' })).toMatchObject({ channelCount: null, layout: 'unknown', hasJocMarker: false });
   });
