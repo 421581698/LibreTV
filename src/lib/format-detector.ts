@@ -55,20 +55,20 @@ function detectContainer(url?: string | null, mimeType?: string | null): MediaCo
 
 function detectCodec(codecs: string[]): { codec: AudioCodec; source: string | null; family: DolbyFamily } {
   const rules: Array<[RegExp, AudioCodec, DolbyFamily]> = [
-    [/(?:^|[.,\s])ac-4(?:$|[.,\s])|^ac4$/i, 'ac4', 'dolby-ac4'],
-    [/(?:^|[.,\s])mlp(?:$|[.,\s])|truehd|mlpa/i, 'truehd', 'dolby-truehd'],
-    [/\b(?:dolby[- ]?)?mat(?:\s?2(?:\.0|\.1)?)?\b/i, 'dolby-mat', 'dolby-mat'],
-    [/(?:^|[.,\s])ec-3(?:$|[.,\s-])|e-ac-?3|eac3/i, 'eac3', 'dolby-digital-plus'],
-    [/(?:^|[.,\s])ac-3(?:$|[.,\s])|ac3/i, 'ac3', 'dolby-digital'],
-    [/dts[: -]?x/i, 'dts-x', 'none'],
-    [/dts-hd|dtshd|dts-hd ma/i, 'dts-hd', 'none'],
-    [/(?:^|[.,\s])dts(?:$|[.,\s])|dca/i, 'dts', 'none'],
-    [/\b(?:iamf(?:[.,\s]|$)|eclipsa\b)/i, 'iamf', 'none'],
-    [/\b(?:l?pcm|sowt|twos|in24|in32|fl32)\b/i, 'pcm', 'none'],
-    [/mp4a|aac/i, 'aac', 'none'],
-    [/opus/i, 'opus', 'none'],
-    [/flac/i, 'flac', 'none'],
-    [/alac/i, 'alac', 'none'],
+    [/^(?:ac-4(?:\\.[0-9a-f]{2}){3}|ac-4|ac4)$/i, 'ac4', 'dolby-ac4'],
+    [/^(?:truehd|mlp|mlpa|a_truehd|a_mlp)$/i, 'truehd', 'dolby-truehd'],
+    [/^(?:dolby[- ]?mat(?:\\s?2(?:\\.0|\\.1)?)?|mat(?:\\s?2(?:\\.0|\\.1)?)?)$/i, 'dolby-mat', 'dolby-mat'],
+    [/^(?:ec-3(?:-joc)?|e-ac-?3|eac3|a_eac3)$/i, 'eac3', 'dolby-digital-plus'],
+    [/^(?:ac-3|ac3|a_ac3)$/i, 'ac3', 'dolby-digital'],
+    [/^(?:dts[: -]?x|dtsx)$/i, 'dts-x', 'none'],
+    [/^(?:dts-hd(?:\\s?(?:ma|hra))?|dtshd(?:\\s?(?:ma|hra))?)$/i, 'dts-hd', 'none'],
+    [/^(?:dts|dca|a_dts)$/i, 'dts', 'none'],
+    [/^(?:iamf(?:\\.[0-9a-z]+)?|eclipsa(?: audio)?)$/i, 'iamf', 'none'],
+    [/^(?:l?pcm(?:[_ -](?:s16le|s24le|s32le|f32le|f64le))?|sowt|twos|in24|in32|fl32)$/i, 'pcm', 'none'],
+    [/^(?:mp4a(?:\\.[0-9a-z.]+)?|aac(?:[- ](?:lc|he|heaac|xhe))?|a_aac(?:\\/.*)?)$/i, 'aac', 'none'],
+    [/^(?:opus|a_opus)$/i, 'opus', 'none'],
+    [/^(?:flac|a_flac)$/i, 'flac', 'none'],
+    [/^(?:alac|a_alac)$/i, 'alac', 'none'],
   ];
   for (const value of codecs) {
     for (const [pattern, codec, family] of rules) {
