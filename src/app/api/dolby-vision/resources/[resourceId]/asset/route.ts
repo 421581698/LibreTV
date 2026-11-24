@@ -95,7 +95,7 @@ export async function GET(
   const asset = assets
     .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object' && !Array.isArray(item))
     .filter((item) => item.resource_id === resourceId && item.content_type === expectedContentType)
-    .filter((item) => hlsRootAssetId ? item.asset_id === hlsRootAssetId : true)
+    .filter((item) => String(record.media_format).toLowerCase() === 'hls'\n      ? typeof hlsRootAssetId === 'string' && item.asset_id === hlsRootAssetId\n      : true)
     .sort((a, b) => Number(b.created_at) - Number(a.created_at))[0];
 
   if (!asset) {
