@@ -1,4 +1,4 @@
-import { generateKeyPairSync, sign } from 'node:crypto';
+import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { canonicalizeDolbyVisionRpuPayload } from '@/lib/dolby-vision/signed-rpu-envelope';
 
@@ -15,7 +15,8 @@ import { POST } from './route';
 const { privateKey, publicKey } = generateKeyPairSync('ed25519');
 const publicKeyPem = publicKey.export({ type: 'spki', format: 'pem' }).toString();
 const assetId = 'dv_asset-123';
-const digest = 'a'.repeat(64);
+const mediaBytes = Buffer.from('test-media-bytes');
+const digest = createHash('sha256').update(mediaBytes).digest('hex');
 const now = Math.floor(Date.now() / 1000);
 const report = {
   source: 'dovi_tool',
@@ -50,7 +51,7 @@ function signedEnvelope(overrides: Record<string, unknown> = {}) {
 }
 
 function makeRegistryResponse(overrides: Record<string, string> = {}) {
-  const bytes = Buffer.from('test-media-bytes');
+  const bytes = mediaBytes;
   const hash = overrides.digest ?? digest;
   return new Response(bytes, {
     status: 200,
