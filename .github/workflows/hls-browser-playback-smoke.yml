@@ -46,7 +46,13 @@ jobs:
         run: npm install --no-save --package-lock=false playwright@1.55.0
       - name: Install Google Chrome with proprietary media codecs
         run: npx playwright install --with-deps chrome
+      - name: Install WebKit runtime
+        run: npx playwright install --with-deps webkit
       - name: Verify real browser HLS playback
         run: node scripts/hls-browser-playback-smoke.mjs
       - name: Verify real browser Web Audio spatial graph
+        run: node scripts/spatial-audio-browser-smoke.mjs
+      - name: Verify WebKit Web Audio spatial graph (not iOS Safari device acceptance)
+        env:
+          SPATIAL_BROWSER_ENGINE: webkit
         run: node scripts/spatial-audio-browser-smoke.mjs
