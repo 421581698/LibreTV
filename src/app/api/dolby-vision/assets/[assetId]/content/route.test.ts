@@ -66,6 +66,42 @@ describe('GET /api/dolby-vision/assets/[assetId]/content', () => {
     expect(response.headers.get('Content-Range')).toBe('bytes */10');
   });
 
+  it('streams immutable HLS playlists and fMP4 segments through the same asset proxy', async () => {
+    const playlist = '#EXTM3U\\n#EXT-X-ENDLIST\\n';
+    const playlistDigest = 'c'.repeat(64);
+    vi.mocked(fetchDolbyVisionRegistryAsset).mockResolvedValue(new Response(playlist, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/vnd.apple.mpegurl',
+        'Content-Length': String(new TextEncoder().encode(playlist).length),
+        'Accept-Ranges': 'bytes',
+        ETag: `"${playlistDigest}"`,
+        'X-DV-Asset-ID': assetId,
+        'X-DV-Asset-SHA256': playlistDigest,
+      },
+    }));
+    const playlistResponse = await GET(makeRequest(), { params: Promise.resolve({ assetId }) });
+    expect(playlistResponse.status).toBe(200);
+    expect(playlistResponse.headers.get('content-type')).toContain('application/vnd.apple.mpegurl');
+
+    vi.mocked(fetchDolbyVisionRegistryAsset).mockResolvedValue(new Response('seg', {
+      status: 206,
+      headers: {
+        'Content-Type': 'video/iso.segment',
+        'Content-Length': '3',
+        'Content-Range': 'bytes 0-2/8',
+        'Accept-Ranges': 'bytes',
+        ETag: `"${'d'.repeat(64)}"`,
+        'X-DV-Asset-ID': assetId,
+        'X-DV-Asset-SHA256': 'd'.repeat(64),
+      },
+    }));
+    const segmentResponse = await GET(makeRequest('bytes=0-2'), { params: Promise.resolve({ assetId }) });
+    expect(segmentResponse.status).toBe(206);
+    expect(segmentResponse.headers.get('content-type')).toContain('video/iso.segment');
+    expect(segmentResponse.headers.get('content-range')).toBe('bytes 0-2/8');
+  });
+
   it('fails closed when authentication is disabled', async () => {
     vi.mocked(isAuthDisabled).mockReturnValue(true);
     const response = await GET(makeRequest(), {
