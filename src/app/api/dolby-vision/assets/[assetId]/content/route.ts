@@ -75,8 +75,8 @@ export async function GET(
           upstream.headers.get('etag') !== expectedEtag ||
           !['video/mp4', 'video/webm'].includes(contentType ?? '') ||
           upstream.headers.get('accept-ranges') !== 'bytes' ||
-          !/^\\d+$/.test(upstream.headers.get('content-length') ?? '') ||
-          (upstream.status === 206 && !/^bytes \\d+-\\d+\\/\\d+$/.test(upstream.headers.get('content-range') ?? ''))) {
+          !/^\d+$/.test(upstream.headers.get('content-length') ?? '') ||
+          (upstream.status === 206 && !/^bytes \d+-\d+\/\d+$/.test(upstream.headers.get('content-range') ?? ''))) {
         return NextResponse.json(
           { code: 'DV_ASSET_UPSTREAM_BINDING_INVALID' },
           { status: 502, headers: { 'Cache-Control': 'no-store' } },
