@@ -351,7 +351,7 @@ describe('首页与播放页回归契约', () => {
     expect(player).toContain('playbackRate: true');
     expect(watchPlaybackState).toContain("video.addEventListener('ratechange', sync)");
     expect(watch).toContain('bindWatchPlaybackState(frame,');
-    expect(watch).toContain('setWatchRate(rate)');
+    expect(watch).toContain('setWatchRate(playbackRate)');
     expect(player).toContain('art.on(\'video:ratechange\'');
     expect(player).toContain('art.on(\'video:loadedmetadata\'');
     expect(player).toContain('onTimeUpdate');
