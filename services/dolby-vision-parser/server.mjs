@@ -28,7 +28,6 @@ export function readBoundedInteger(name, rawValue, fallback, minimum, maximum) {
 const MAX_UPLOAD_BYTES = readBoundedInteger('DV_MAX_UPLOAD_BYTES', process.env.DV_MAX_UPLOAD_BYTES, 512 * 1024 * 1024, 1024, 2 * 1024 * 1024 * 1024);
 const MAX_CONCURRENT_JOBS = readBoundedInteger('DV_MAX_CONCURRENT_JOBS', process.env.DV_MAX_CONCURRENT_JOBS, 1, 1, 8);
 const ANALYSIS_TIMEOUT_MS = readBoundedInteger('DV_ANALYSIS_TIMEOUT_MS', process.env.DV_ANALYSIS_TIMEOUT_MS, 15 * 60 * 1000, 10_000, 60 * 60 * 1000);
-let activeJobs = 0;
 
 export function canonicalize(value) {
   if (value === null) return 'null';
@@ -172,6 +171,7 @@ export function createDolbyVisionParserServer(env = process.env) {
   }
   // Validate the private key once at startup; secrets are never logged.
   createPrivateKey(env.DV_SIGNING_PRIVATE_KEY_PEM);
+  let activeJobs = 0;
 
   const server = createServer(async (request, response) => {
     if (request.method !== 'POST' || request.url !== '/v1/analyze') {
