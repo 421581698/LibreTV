@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 import registry_queue as registry
 from dv_media_ingest import IngestionError, ingest_staged_file
+from dv_hls_ingest import HlsIngestionError, ingest_hls_directory
 
 
 class DolbyVisionMediaIngestionTests(unittest.TestCase):
@@ -130,6 +131,74 @@ class DolbyVisionMediaIngestionTests(unittest.TestCase):
         staged.write_bytes(b"media")
         with self.assertRaises(IngestionError):
             ingest_staged_file(resource["id"], staged, self.object_root, "text/html")
+
+    def add_hls_resource(self, resource_key):
+        resource = registry.upsert_resource({
+            "resource_key": resource_key,
+            "source_key": "trusted-hls-ingest-test",
+            "resource_type": "DIRECT_MEDIA",
+            "url": "https://media.example.test/master.m3u8",
+            "title": "HLS graph fixture",
+            "access_state": "PUBLIC",
+            "media_format": "hls",
+        })
+        registry.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        registry.record_verification(resource["id"], "player", "passed", {"progressed_seconds": 5})
+        return resource
+
+    def test_ingests_hls_master_playlist_and_rewrites_every_member_to_immutable_assets(self):
+        resource = self.add_hls_resource("dv-hls:graph")
+        staging = self.root / "hls"
+        variant = staging / "video"
+        variant.mkdir(parents=True)
+        (staging / "master.m3u8").write_text(
+            '#EXTM3U\\n#EXT-X-VERSION:7\\n'
+            '#EXT-X-STREAM-INF:BANDWIDTH=1200000,CODECS="dvhe.08.06,mp4a.40.2"\\n'
+            'video/variant.m3u8\\n',
+            encoding="utf-8",
+        )
+        (variant / "variant.m3u8").write_text(
+            '#EXTM3U\\n#EXT-X-VERSION:7\\n'
+            '#EXT-X-MAP:URI="init.mp4"\\n'
+            '#EXTINF:4.0,\\nsegment-0001.m4s\\n#EXT-X-ENDLIST\\n',
+            encoding="utf-8",
+        )
+        (variant / "init.mp4").write_bytes(b"init-segment")
+        (variant / "segment-0001.m4s").write_bytes(b"media-segment")
+
+        result = ingest_hls_directory(
+            resource["id"], staging, "master.m3u8", self.object_root
+        )
+        root_asset = result["root_asset"]
+        self.assertEqual(root_asset["content_type"], "application/vnd.apple.mpegurl")
+        self.assertEqual(result["member_count"], 4)
+        self.assertEqual(result["edge_count"], 3)
+        stored = self.object_root / "sha256" / root_asset["sha256"][:2] / root_asset["sha256"]
+        manifest = stored.read_text(encoding="utf-8")
+        self.assertIn(f'/api/dolby-vision/assets/{result["assets"]["video/variant.m3u8"]["asset_id"]}/content', manifest)
+        with registry.connect() as connection:
+            edges = connection.execute(
+                "SELECT role FROM registry_hls_asset_edges WHERE parent_asset_id IN (?,?) ORDER BY role",
+                (root_asset["asset_id"], result["assets"]["video/variant.m3u8"]["asset_id"]),
+            ).fetchall()
+        self.assertEqual(sorted(row["role"] for row in edges), ["initialization", "playlist", "segment"])
+
+    def test_rejects_encrypted_hls_and_path_traversal_without_registering_a_graph(self):
+        resource = self.add_hls_resource("dv-hls:reject")
+        staging = self.root / "hls-reject"
+        staging.mkdir()
+        playlist = staging / "master.m3u8"
+        playlist.write_text('#EXTM3U\\n#EXT-X-KEY:METHOD=AES-128,URI="key.bin"\\n', encoding="utf-8")
+        with self.assertRaises(HlsIngestionError):
+            ingest_hls_directory(resource["id"], staging, playlist, self.object_root)
+        playlist.write_text('#EXTM3U\\n#EXTINF:4.0,\\n../outside.ts\\n', encoding="utf-8")
+        with self.assertRaises(HlsIngestionError):
+            ingest_hls_directory(resource["id"], staging, playlist, self.object_root)
+        with registry.connect() as connection:
+            count = connection.execute(
+                "SELECT COUNT(*) FROM registry_media_assets WHERE resource_id=?", (resource["id"],)
+            ).fetchone()[0]
+        self.assertEqual(count, 0)
 
     def make_stream_request(self, payload, content_type="video/mp4", declared_length=None):
         from starlette.requests import Request
