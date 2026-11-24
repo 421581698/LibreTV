@@ -271,6 +271,59 @@ class CollectorTests(unittest.TestCase):
                     worker.handle(job_payload, lambda _event: None, lambda: False)
         self.assertEqual(RedirectConnection.calls, 1)
 
+    def test_playback_confirmation_queues_allowlisted_hls_for_graph_ingestion(self):
+        from unittest.mock import patch
+
+        task_id = "5" * 32
+        candidate_id = "6" * 32
+        now = 1_800_000_004
+        validation = {
+            "reachable": True,
+            "media_format": "hls",
+            "content_type": "application/vnd.apple.mpegurl",
+            "final_url": "https://media.example/master.m3u8",
+            "access": {"access_state": "PUBLIC"},
+        }
+        with collector.db() as connection:
+            connection.execute(
+                "INSERT INTO tasks(id,url,host,status,mode,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                (task_id, "https://media.example/master.m3u8", "media.example", "completed", "http", now, now),
+            )
+            connection.execute(
+                """INSERT INTO candidates
+                   (id,task_id,url,host,kind,title,status,created_at,access_state,validation)
+                   VALUES(?,?,?,?,?,?,?,?,?,?)""",
+                (candidate_id, task_id, "https://media.example/master.m3u8", "media.example",
+                 "direct-media", "Authorized HLS source", "validated", now, "PUBLIC",
+                 collector.json.dumps(validation)),
+            )
+        with (
+            patch.dict(os.environ, {
+                "DV_SOURCE_GATEWAY_ENABLED": "1",
+                "DV_AUTHORIZED_SOURCE_HOSTS": "media.example",
+                "SCRAPLING_EGRESS_FIREWALL_CONFIRMED": "1",
+            }),
+            patch.object(collector, "require_token"),
+        ):
+            result = collector.record_playback_evidence(
+                candidate_id,
+                collector.PlaybackEvidence(
+                    media_type="hls", observed_seconds=5, progressed_seconds=3
+                ),
+                "Bearer test",
+            )
+        self.assertEqual(result["media_ingestion"]["status"], "queued")
+        with collector.registry_store.connect() as connection:
+            job = connection.execute(
+                "SELECT job_type,payload FROM collector_jobs WHERE id=?",
+                (result["media_ingestion"]["job_id"],),
+            ).fetchone()
+        self.assertEqual(job["job_type"], "dv_media_ingest")
+        self.assertEqual(collector.json.loads(job["payload"]), {
+            "candidate_id": candidate_id,
+            "resource_id": result["resource"]["id"],
+        })
+
     def test_source_gateway_skips_non_allowlisted_host_without_network_access(self):
         from unittest.mock import patch
 
