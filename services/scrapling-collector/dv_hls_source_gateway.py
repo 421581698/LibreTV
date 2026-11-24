@@ -303,6 +303,9 @@ def ingest_authorized_hls_candidate(
                 raise HlsSourceGatewayError("HLS playlist must be UTF-8") from exc
             if not playlist.lstrip().startswith("#EXTM3U"):
                 raise HlsSourceGatewayError("Invalid HLS playlist header")
+            upper_playlist = playlist.upper()
+            if "#EXTINF:" in upper_playlist and "#EXT-X-ENDLIST" not in upper_playlist:
+                raise HlsSourceGatewayError("Only finalized HLS VOD/event playlists can be frozen into an immutable graph")
             if re.search(r"(?im)^#EXT-X-SESSION-KEY:", playlist):
                 raise HlsSourceGatewayError("Encrypted or DRM HLS playlists are not fetched")
             rewritten = []
