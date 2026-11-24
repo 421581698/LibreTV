@@ -1234,3 +1234,13 @@ body:has(.ipad-edition[data-ipad-home="true"]) {
 .ipad-edition[data-ipad-home="true"] > .ipad-edition__main {
   overflow: visible !important;
 }
+
+
+/* Final container-safe hero override: the shell's content canvas owns its width. */
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100%;
+  margin-inline: 0 !important;
+  border-radius: 0;
+}
