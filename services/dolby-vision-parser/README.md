@@ -21,7 +21,7 @@ mkdir -p secrets
 openssl genpkey -algorithm ED25519 -out secrets/dv-signing-private-key.pem
 openssl pkey -in secrets/dv-signing-private-key.pem -pubout -out secrets/dv-signing-public-key.pem
 openssl rand -hex 32 > secrets/dv-ingestion-token
-chmod 600 secrets/dv-signing-private-key.pem secrets/dv-ingestion-token
+chmod 400 secrets/dv-signing-private-key.pem secrets/dv-ingestion-token\n# The containers run as node (UID 1000) and collector (UID 10001).\n# Make the two mounted files readable by their respective service users.\nsudo chown 1000:1000 secrets/dv-signing-private-key.pem\nsudo chown 10001:10001 secrets/dv-ingestion-token
 export PASSWORD="replace-with-your-own-long-password"
 export SCRAPLING_API_TOKEN="$(openssl rand -hex 32)"
 export DV_INGESTION_TOKEN_FILE="$PWD/secrets/dv-ingestion-token"
