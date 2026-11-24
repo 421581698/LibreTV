@@ -6,6 +6,7 @@ Encrypted/DRM playlists are deliberately rejected.
 """
 from __future__ import annotations
 
+import argparse
 import hashlib
 import os
 import re
@@ -275,3 +276,20 @@ def ingest_hls_directory(
         "edge_count": len(edges),
         "assets": completed,
     }
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Ingest a trusted staged clear-HLS directory as an immutable asset graph.")
+    parser.add_argument("--resource-id", required=True)
+    parser.add_argument("--staging-dir", required=True)
+    parser.add_argument("--playlist", required=True, help="Root playlist path, relative to staging-dir.")
+    parser.add_argument("--object-root", default=os.environ.get("DV_MEDIA_OBJECT_ROOT", "/data/dv-media-objects"))
+    args = parser.parse_args()
+    result = ingest_hls_directory(args.resource_id, args.staging_dir, args.playlist, args.object_root)
+    root = result["root_asset"]
+    print(f"Registered HLS graph root={root['asset_id']} sha256={root['sha256']} members={result['member_count']} edges={result['edge_count']}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
