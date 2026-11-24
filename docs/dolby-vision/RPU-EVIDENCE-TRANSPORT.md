@@ -2,7 +2,7 @@
 
 Updated: 2026-11-24  
 Branch: `feature/libretv-ipad-edition-product`  
-Status: offline parser, private parser service with MP4-to-HEVC demux, Ed25519 verifier, immutable asset registry, local-file ingestion worker, authenticated byte ingress and Range streaming, and registry-backed MP4/WebM player binding implemented; trusted source-staging gateway, production deployment, and live-service validation remain blocked.
+Status: offline parser, private parser service with MP4-to-HEVC demux, Ed25519 verifier, immutable asset registry, authenticated MP4/WebM byte ingress, Range streaming, registry-backed MP4/WebM playback, and local clear-HLS immutable graph ingestion/playback binding implemented; authorized source gateway, production object-lock storage, live-service validation, and physical-device output validation remain blocked.
 
 ## Current verified capabilities
 
@@ -80,6 +80,8 @@ Until these prerequisites are met, the player correctly displays RPU/dynamic met
 - [ ] Provision the secret in the deployment environment and connect only the trusted source gateway to the registry endpoint.
 - [x] Define canonical signed envelope and signature verification tests (valid, tampered, wrong-key, expired/stale, unsupported version).
 - [x] Add a content-addressed media-asset registry primitive with a separate ingestion credential and immutable metadata semantics.
+- [x] Add an immutable HLS asset graph with explicit root identity, parent/child edges, local playlist/segment ingestion, URI rewriting, and shared byte-range proxy delivery.
+- [ ] Validate an ingested immutable HLS graph end-to-end in live HLS.js and native Safari playback against real media sources.
 - [x] Implement a local-file ingestion worker that hashes staged bytes and writes a no-overwrite content-addressed object before registry insertion.
 - [x] Add an authenticated raw-byte ingestion endpoint using a dedicated token, exact content length, and no URL fetching.
 - [x] Add an authenticated read-only object streaming endpoint bound to the registry asset ID.
