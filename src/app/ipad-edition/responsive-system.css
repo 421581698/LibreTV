@@ -158,3 +158,24 @@
 .ipad-edition[data-ipad-home="true"] .ipad-edition__continue-card > small {
   font-size: var(--ipad-font-caption);
 }
+
+/* Safari compositing budget: keep blur local to the navigation surfaces only. */
+.ipad-edition .ipad-nav__sidebar[data-liquid-glass-engine="fallback"] {
+  -webkit-backdrop-filter: blur(12px) saturate(140%) !important;
+  backdrop-filter: blur(12px) saturate(140%) !important;
+}
+.ipad-edition .ipad-nav__topbar-inner[data-liquid-glass-engine="fallback"] {
+  -webkit-backdrop-filter: blur(14px) saturate(145%) !important;
+  backdrop-filter: blur(14px) saturate(145%) !important;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__poster-card {
+  transform: none;
+  will-change: auto;
+}
+@media (prefers-reduced-transparency: reduce) {
+  .ipad-edition .ipad-nav__sidebar[data-liquid-glass-engine="fallback"],
+  .ipad-edition .ipad-nav__topbar-inner[data-liquid-glass-engine="fallback"] {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
