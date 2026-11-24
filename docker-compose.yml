@@ -56,8 +56,8 @@ services:
 
 
   # Optional private Dolby Vision RPU analysis service.
-  # Start explicitly after setting DV_SERVICE_TOKEN and DV_SIGNING_PRIVATE_KEY_PEM:
-  # docker compose --profile dolby-vision up -d --build
+  # Start with both --profile collector and --profile dolby-vision after provisioning the collector token, parser token, and signing key file.
+  # See services/dolby-vision-parser/README.md for the complete private setup.
   dolby-vision-parser:
     profiles: ["dolby-vision"]
     build:
