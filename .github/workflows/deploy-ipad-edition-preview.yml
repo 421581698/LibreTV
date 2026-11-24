@@ -83,8 +83,9 @@ permissions:
 
 concurrency:
   group: libretv-ipad-edition-preview
-  # Preserve the current exact-SHA audit while a newer preview request is queued.
-  cancel-in-progress: false
+  # Newest feature-branch SHA supersedes stale Preview runs blocked on cancelled Verify jobs.
+  # Deployment remains serialized against the dedicated Preview Worker.
+  cancel-in-progress: true
 
 jobs:
   deploy-preview:
