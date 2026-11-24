@@ -16,6 +16,13 @@ export interface SpatialEngineHandle {
   subscribeStateChange?(listener: (state: string) => void): () => void;
 }
 
+export interface SpatialHlsController {
+  start(): Promise<void>;
+  destroy(): void;
+  readonly audioTracks: readonly unknown[];
+  audioTrack: number;
+}
+
 export interface SpatialMediaSessionOptions {
   nativeVideo: HTMLVideoElement;
   host: HTMLElement;
@@ -24,6 +31,7 @@ export interface SpatialMediaSessionOptions {
   verifyCors?: (url: string) => Promise<boolean>;
   createMediaElement?: () => HTMLVideoElement;
   createEngine?: (media: HTMLVideoElement) => SpatialEngineHandle;
+  createHlsController?: (media: HTMLVideoElement, sourceUrl: string, onFatalError: (reason: string) => void) => SpatialHlsController;
   onStateChange?: (snapshot: SpatialMediaSessionSnapshot) => void;
 }
 
@@ -84,14 +92,17 @@ export class SpatialMediaSession {
   private readonly listeners: Array<() => void> = [];
   private fallbackPromise: Promise<void> | null = null;
   private removeEngineStateListener: (() => void) | null = null;
+  private hlsController: SpatialHlsController | null = null;
 
   private constructor(
     readonly nativeVideo: HTMLVideoElement,
     readonly media: HTMLVideoElement,
     private readonly createEngine: (media: HTMLVideoElement) => SpatialEngineHandle,
     private readonly onStateChange?: (snapshot: SpatialMediaSessionSnapshot) => void,
+    hlsController: SpatialHlsController | null = null,
   ) {
     this.restoreMuted = nativeVideo.muted;
+    this.hlsController = hlsController;
     this.bindNativeSynchronization();
     this.media.addEventListener('error', this.handleSpatialError);
     this.listeners.push(() => this.media.removeEventListener('error', this.handleSpatialError));
@@ -99,10 +110,11 @@ export class SpatialMediaSession {
 
   static async prepare(options: SpatialMediaSessionOptions): Promise<SpatialMediaSession> {
     const { nativeVideo, host, sourceUrl, sourceKind } = options;
-    if (sourceKind !== 'mp4' && sourceKind !== 'webm') {
-      throw new Error(sourceKind === 'hls'
-        ? 'HLS 暂不开放独立空间会话；Safari 原生 HLS 保持原样'
-        : '当前媒体格式不支持独立空间会话');
+    if (sourceKind !== 'mp4' && sourceKind !== 'webm' && sourceKind !== 'hls') {
+      throw new Error('当前媒体格式不支持独立空间会话');
+    }
+    if (sourceKind === 'hls' && !options.createHlsController) {
+      throw new Error('当前环境没有独立 HLS 会话适配器；原生 HLS 保持原样');
     }
     if (!sourceUrl || !host || !nativeVideo) throw new Error('缺少媒体会话所需的播放器元素或媒体地址');
     if (nativeVideo.error) throw new Error('原生播放器当前处于媒体错误状态');
@@ -128,13 +140,30 @@ export class SpatialMediaSession {
       left: '-10000px',
       top: '0',
     });
-    media.src = sourceUrl;
     host.appendChild(media);
-    media.load();
-
     const createEngine = options.createEngine ?? ((element: HTMLVideoElement) =>
       SpatialAudioEngine.attach(element, { inputChannels: 0 }));
-    return new SpatialMediaSession(nativeVideo, media, createEngine, options.onStateChange);
+    let hlsController: SpatialHlsController | null = null;
+    let session: SpatialMediaSession | null = null;
+    try {
+      if (sourceKind === 'hls') {
+        hlsController = options.createHlsController!(media, sourceUrl, (reason) => {
+          if (session) void session.fallback(reason);
+        });
+        await hlsController.start();
+      } else {
+        media.src = sourceUrl;
+        media.load();
+      }
+      session = new SpatialMediaSession(nativeVideo, media, createEngine, options.onStateChange, hlsController);
+      return session;
+    } catch (error) {
+      hlsController?.destroy();
+      media.removeAttribute('src');
+      media.load();
+      media.remove();
+      throw error;
+    }
   }
 
   get snapshot(): SpatialMediaSessionSnapshot {
