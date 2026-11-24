@@ -208,6 +208,7 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/ipad-audit" --no-save --no-package-lock playwright@1.56.1 pngjs@7.0.0
           test -f "$RUNNER_TEMP/ipad-audit/node_modules/playwright/package.json"
           test -f "$RUNNER_TEMP/ipad-audit/node_modules/pngjs/package.json"
+          test -x "$RUNNER_TEMP/ipad-audit/node_modules/.bin/playwright"
       - name: Verify runner Chromium runtime prerequisites
         timeout-minutes: 2
         run: |
@@ -225,7 +226,8 @@ jobs:
         env:
           PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT: "120000"
           PLAYWRIGHT_DOWNLOAD_NO_PROGRESS: "1"
-        run: "$RUNNER_TEMP/ipad-audit/node_modules/.bin/playwright" install chromium
+        run: |
+          "$RUNNER_TEMP/ipad-audit/node_modules/.bin/playwright" install chromium
       # [deploy-ipad-edition-preview] Re-run after edge-swipe touch handling fix.
       - name: Run iPad viewport and theme visual audit
         timeout-minutes: 18
