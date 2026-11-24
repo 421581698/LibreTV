@@ -37,7 +37,7 @@ export function RegistryInlinePlayer({
     if (!resourceId || !['hls', 'mp4', 'webm'].includes(resourceMediaFormat ?? '')) return;
 
     const controller = new AbortController();
-    const retryDelays = assetLookupNonce > 0 ? [3_000, 6_000, 12_000, 20_000, 30_000, 45_000, 60_000, 90_000, 120_000, 180_000] : [];
+    const retryDelays = assetLookupNonce > 0 ? [3_000, 6_000, 12_000, 20_000, 30_000, 45_000, 60_000, 90_000, 120_000, 180_000, 240_000, 300_000, 360_000, 480_000] : [];
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let attempts = 0;
 
