@@ -15,9 +15,19 @@ import { pipeline } from 'node:stream/promises';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ANALYZER = resolve(HERE, '../../scripts/dolby-vision/analyze-rpu.mjs');
-const MAX_UPLOAD_BYTES = Number(process.env.DV_MAX_UPLOAD_BYTES || 512 * 1024 * 1024);
-const MAX_CONCURRENT_JOBS = Number(process.env.DV_MAX_CONCURRENT_JOBS || 1);
-const ANALYSIS_TIMEOUT_MS = Number(process.env.DV_ANALYSIS_TIMEOUT_MS || 15 * 60 * 1000);
+export function readBoundedInteger(name, rawValue, fallback, minimum, maximum) {
+  const raw = rawValue === undefined || rawValue === '' ? String(fallback) : String(rawValue);
+  if (!/^\\d+$/.test(raw)) throw new Error(`${name} must be an integer between ${minimum} and ${maximum}.`);
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value) || value < minimum || value > maximum) {
+    throw new Error(`${name} must be an integer between ${minimum} and ${maximum}.`);
+  }
+  return value;
+}
+
+const MAX_UPLOAD_BYTES = readBoundedInteger('DV_MAX_UPLOAD_BYTES', process.env.DV_MAX_UPLOAD_BYTES, 512 * 1024 * 1024, 1024, 2 * 1024 * 1024 * 1024);
+const MAX_CONCURRENT_JOBS = readBoundedInteger('DV_MAX_CONCURRENT_JOBS', process.env.DV_MAX_CONCURRENT_JOBS, 1, 1, 8);
+const ANALYSIS_TIMEOUT_MS = readBoundedInteger('DV_ANALYSIS_TIMEOUT_MS', process.env.DV_ANALYSIS_TIMEOUT_MS, 15 * 60 * 1000, 10_000, 60 * 60 * 1000);
 let activeJobs = 0;
 
 export function canonicalize(value) {
@@ -48,8 +58,16 @@ export function authorizeBearer(header, expectedToken) {
 export function createSignedEnvelope(report, assetId, keyId, privateKeyPem, now = Math.floor(Date.now() / 1000)) {
   if (!isValidAssetId(assetId)) throw new Error('Invalid stable asset ID.');
   if (!keyId || keyId.length > 128) throw new Error('Invalid signing key ID.');
-  if (!report || report.inputKind !== 'hevc' || report.extractionScope?.frameLimit !== null) {
-    throw new Error('Only full-scope HEVC media reports can be signed.');
+  if (!report || report.source !== 'dovi_tool' || report.verified !== true || report.rpuPresent !== true ||
+      report.inputKind !== 'hevc' || report.extractionScope?.frameLimit !== null ||
+      !/^2\\.3\\.\\d+$/.test(report.parserVersion || '') ||
+      !/^[a-f0-9]{64}$/i.test(report.inputSha256 || '') ||
+      !/^[a-f0-9]{64}$/i.test(report.rpuSha256 || '') ||
+      !Number.isSafeInteger(report.frameCount) || report.frameCount <= 0 ||
+      !Array.isArray(report.profiles) || report.profiles.length === 0 ||
+      !Array.isArray(report.metadataLevels) || !report.metadataLevelFrameCounts ||
+      typeof report.metadataLevelFrameCounts !== 'object') {
+    throw new Error('Only structurally valid full-scope dovi_tool HEVC reports can be signed.');
   }
   const payload = {
     version: 1,
