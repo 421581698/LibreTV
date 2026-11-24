@@ -146,7 +146,15 @@ process.exit(2);
       assert.equal(mismatch.status, 409);
       assert.deepEqual(await mismatch.json(), { error: 'ASSET_DIGEST_MISMATCH' });
 
-      const response = await fetch(endpoint, { method: 'POST', headers, body: media });
+      let response;
+      // A digest-mismatch request remains counted until its temporary upload directory is removed.
+      // Retry a transient capacity response rather than making this cleanup race flaky.
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        response = await fetch(endpoint, { method: 'POST', headers, body: media });
+        if (response.status !== 429) break;
+        await response.arrayBuffer();
+        await new Promise((resolveDelay) => setTimeout(resolveDelay, 10));
+      }
       assert.equal(response.status, 200);
       const envelope = await response.json();
       assert.equal(envelope.assetId, headers['X-DV-Asset-Id']);
