@@ -3,29 +3,34 @@ import { z } from 'zod';
 import { DolbyVisionRpuReportSchema, validateDolbyVisionRpuReport } from './rpu-evidence-contract';
 
 const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/i);
-const signedPayloadSchema = z.object({
+const signedPayloadShape = {
   version: z.literal(1),
   keyId: z.string().min(1).max(128),
   assetId: z.string().min(1).max(512),
   issuedAt: z.number().int().positive(),
   expiresAt: z.number().int().positive(),
   report: DolbyVisionRpuReportSchema,
-}).strict().superRefine((payload, context) => {
+};
+
+function addPayloadIssues(payload: z.infer<z.ZodObject<typeof signedPayloadShape>>, context: z.RefinementCtx) {
   if (payload.expiresAt <= payload.issuedAt) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['expiresAt'], message: '过期时间必须晚于签发时间。' });
   }
   if (payload.report.inputKind !== 'hevc') {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['report', 'inputKind'], message: '签名证据必须绑定原始 HEVC 媒体输入，不能使用脱离媒体的 RPU 文件。' });
   }
-  if (payload.report.extractionScope === 'pre-extracted-rpu-file' ||
+  if (typeof payload.report.extractionScope !== 'object' ||
       payload.report.extractionScope.frameLimit !== null) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['report', 'extractionScope'], message: '不能将局部帧扫描包装成完整媒体证据。' });
   }
-}).readonly();
+}
 
-export const SignedDolbyVisionRpuEnvelopeSchema = signedPayloadSchema.extend({
+const signedPayloadSchema = z.object(signedPayloadShape).strict().superRefine(addPayloadIssues);
+
+export const SignedDolbyVisionRpuEnvelopeSchema = z.object({
+  ...signedPayloadShape,
   signature: z.string().min(80).max(256),
-}).strict();
+}).strict().superRefine((envelope, context) => addPayloadIssues(envelope, context));
 
 export type SignedDolbyVisionRpuEnvelope = z.infer<typeof SignedDolbyVisionRpuEnvelopeSchema>;
 
@@ -39,12 +44,12 @@ export interface VerifiedDolbyVisionRpuEnvelope {
   sourceHashBinding: 'matched';
 }
 
-function canonicalize(value: unknown): string {
+export function canonicalizeDolbyVisionRpuPayload(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonicalize).join(',')}]`;
+  if (Array.isArray(value)) return `[${value.map(canonicalizeDolbyVisionRpuPayload).join(',')}]`;
   const entries = Object.entries(value as Record<string, unknown>)
     .sort(([left], [right]) => left.localeCompare(right));
-  return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${canonicalize(entry)}`).join(',')}}`;
+  return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${canonicalizeDolbyVisionRpuPayload(entry)}`).join(',')}}`;
 }
 
 function decodePublicKey(publicKeyPem: string): KeyObject {
@@ -84,7 +89,7 @@ export function verifySignedDolbyVisionRpuEnvelope(
   try {
     validSignature = verifySignature(
       null,
-      Buffer.from(canonicalize(signedPayload), 'utf8'),
+      Buffer.from(canonicalizeDolbyVisionRpuPayload(signedPayload), 'utf8'),
       decodePublicKey(options.publicKeyPem),
       Buffer.from(signature, 'base64url'),
     );
