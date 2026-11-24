@@ -131,6 +131,7 @@ describe('SpatialMediaSession activation and fallback', () => {
 
   it('mirrors native pause, resume, seek, rate and volume without replacing the native element', async () => {
     const native = makeVideo();
+    native.paused = false;
     const spatial = makeVideo();
     const session = await SpatialMediaSession.prepare({
       nativeVideo: native, host: makeHost(), sourceUrl: 'https://media.example/movie.mp4',
