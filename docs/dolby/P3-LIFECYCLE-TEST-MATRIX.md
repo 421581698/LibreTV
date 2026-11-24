@@ -25,7 +25,7 @@ Code added on the current P3 implementation line:
 - `src/lib/spatial-media-session.test.ts`: unit coverage for HLS rejection without native mutation, CORS failure, distinct element/CORS ordering, explicit activation, pause/resume and state synchronization, native mute fallback, media error fallback, activation rejection and idempotent disposal.
 - `src/lib/spatial-audio.test.ts`: unknown input layout remains on bypass.
 
-The controller deliberately supports direct MP4/WebM only. It does not own an hls.js instance, does not switch audio tracks inside the spatial session, and does not process audio when channel layout is unknown. These tests are unit-level evidence only; they do not establish browser autoplay behavior, successful cross-origin CORS on real media, Preview acceptance, Safari/iOS behavior, or physical output.
+The controller deliberately supports direct MP4/WebM only. It does not own an hls.js instance, does not switch audio tracks inside the spatial session, and does not process audio when channel layout is unknown. Exact-head CI passed on implementation commit `8ebfb58726b34a0831e2248ee706c7fccfa3594f`: iPad Edition Verify, Resource Playback Verification, HLS Browser Playback Smoke and HLS External Stream Smoke. These unit/software gates do not establish successful cross-origin CORS on real media, Preview acceptance, Safari/iOS behavior, or physical output.
 
 ## Required test matrix
 
