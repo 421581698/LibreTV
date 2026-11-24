@@ -2,7 +2,7 @@
 
 Updated: 2026-11-24  
 Branch: `feature/libretv-ipad-edition-product`  
-Status: offline parser, private parser-service implementation, Ed25519 verifier, immutable asset registry, local-file ingestion worker, and authenticated object streaming endpoint implemented; trusted staging gateway, parser forwarding/deployment, and runtime player binding remain blocked.
+Status: offline parser, private parser-service implementation, Ed25519 verifier, immutable asset registry, local-file ingestion worker, authenticated object streaming endpoint, and server-side parser forwarding/signature verification route implemented; trusted source-staging gateway, production deployment, and runtime player binding remain blocked.
 
 ## Current verified capabilities
 
@@ -11,7 +11,7 @@ Status: offline parser, private parser-service implementation, Ed25519 verifier,
 - HEVC reports can be compared with a separately computed SHA-256 of the exact media bytes. A mismatch is rejected; a missing hash is marked `detached`.
 - CI exercises a parser RPU fixture plus pinned HEVC elementary-stream and Matroska fixtures. This verifies the offline adapter, not a production media-analysis service.
 - `services/scrapling-collector/dv_media_ingest.py` hashes trusted staged local files, stores them under content-addressed keys using no-overwrite atomic creation, verifies existing objects before reuse, and registers only after durable storage. It does not fetch URLs.
-- `GET /v1/registry/media-assets/{asset_id}/content` streams only registry-bound objects behind the collector bearer credential. Consumers must hash the received bytes and compare them with the returned digest.
+- `GET /v1/registry/media-assets/{asset_id}/content` streams only registry-bound objects behind the collector bearer credential. Consumers must hash the received bytes and compare them with the returned digest.\n- `POST /api/dolby-vision/assets/{assetId}/analyze` uses server-only collector/parser credentials, streams the exact registered object into the parser, and verifies the Ed25519 envelope against the registry-provided asset ID and digest before returning positive evidence.
 
 ## Security decision: do not import arbitrary report JSON into the player
 
@@ -51,7 +51,7 @@ A future implementation must provide all of these properties:
 
 ## Deployment blocker
 
-The repository now contains a local-file ingestion worker that computes SHA-256 from the staged bytes, stores them in a persistent content-addressed volume with no-overwrite semantics, and only then registers the digest. An authenticated read-only registry endpoint streams the exact object by asset ID. However, the trusted gateway that obtains and stages authorized source bytes is not implemented; the local Docker volume is not an external WORM/object-lock store; and no backend forwarder currently streams the object into the private parser and compares the parser's received-byte digest. The parser deployment, key lifecycle, and player evidence endpoint also remain unimplemented. The ingestion worker is a local primitive, not an automatic public-URL fetcher. The generic media proxy is not an evidence producer and must not be repurposed as one.
+The repository now contains a local-file ingestion worker that computes SHA-256 from the staged bytes, stores them in a persistent content-addressed volume with no-overwrite semantics, and only then registers the digest. An authenticated read-only registry endpoint streams the exact object by asset ID. However, the trusted gateway that obtains and stages authorized source bytes is not implemented; the local Docker volume is not an external WORM/object-lock store; A server-side Next.js forwarder now streams the registered object into the parser and verifies the signed envelope, but this route has not yet been deployed or validated against a live Compose environment.  The parser deployment, key lifecycle, and player evidence endpoint also remain unimplemented. The ingestion worker is a local primitive, not an automatic public-URL fetcher. The generic media proxy is not an evidence producer and must not be repurposed as one.
 
 Until the deployment prerequisites exist, the player correctly displays RPU/dynamic metadata as **unverified**. This is an intentional trust boundary, not an unfinished UI toggle.
 
@@ -65,13 +65,13 @@ Until the deployment prerequisites exist, the player correctly displays RPU/dyna
 - [x] Implement a local-file ingestion worker that hashes staged bytes and writes a no-overwrite content-addressed object before registry insertion.
 - [x] Add an authenticated read-only object streaming endpoint bound to the registry asset ID.
 - [ ] Deploy a trusted gateway to stage authorized source bytes and provision durable object storage with production immutability/retention controls.
-- [ ] Implement the backend forwarder that streams the registered object into the parser and verifies the parser-received digest.
+- [x] Implement the server-side backend forwarder that streams the registered object into the parser and verifies the signed response against the registry-bound asset ID and digest.\n- [ ] Deploy and end-to-end validate the forwarder against the live private Compose services.
 - [ ] Establish exact media asset identity and digest binding across source selection and playback.
 - [x] Add upload size, concurrent job, parser timeout and backend bearer controls to the parser service.
 - [x] Run parser subprocess asynchronously so the HTTP server can enforce concurrency limits and remain responsive during long analysis jobs.
 - [ ] Configure production ingress rate limits, monitoring, key rotation and operational alerting.
 - [x] Add verifier unit tests proving detached, tampered, mismatched and partial reports are rejected.
-- [ ] Add end-to-end integration tests proving rejected reports never become positive player evidence.
+- [x] Add route tests proving digest/asset mismatches and unbound registry responses fail closed before returning positive evidence.\n- [ ] Add full live-service integration tests proving rejected reports never become positive player evidence.
 - [ ] Only then connect authenticated evidence to the read-only diagnostics panel.
 - [ ] Separately test native HLS behavior and actual Dolby Vision output on supported physical iPad hardware.
 
