@@ -20,6 +20,13 @@ services:
       # 可选：FMHY / Scrapling 采集服务（启用 collector profile 后使用）
       - SCRAPLING_API_BASE=${SCRAPLING_API_BASE:-http://scrapling-collector:8000}
       - SCRAPLING_API_TOKEN=${SCRAPLING_API_TOKEN:-}
+      - DV_REGISTRY_API_BASE=${DV_REGISTRY_API_BASE:-http://scrapling-collector:8000}
+      - DV_PARSER_API_BASE=${DV_PARSER_API_BASE:-http://dolby-vision-parser:8788}
+      - DV_SERVICE_TOKEN=${DV_SERVICE_TOKEN:-}
+      - DV_SIGNING_KEY_ID=${DV_SIGNING_KEY_ID:-dv-key-1}
+      - DV_SIGNING_PUBLIC_KEY_PEM_B64=${DV_SIGNING_PUBLIC_KEY_PEM_B64:-}
+      - DV_MAX_UPLOAD_BYTES=${DV_MAX_UPLOAD_BYTES:-536870912}
+      - DV_ANALYSIS_TIMEOUT_MS=${DV_ANALYSIS_TIMEOUT_MS:-900000}
       # 可选：会话/代理签名密钥（多实例部署建议显式设置：openssl rand -hex 32）
       # - PROXY_SECRET=your-secret
       # 可选：Cookie Secure 策略覆盖（true=强制开启 / false=强制关闭；不设置时按请求协议自动推导，HTTP 部署无需配置）
