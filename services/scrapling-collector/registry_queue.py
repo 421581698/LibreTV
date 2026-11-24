@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import os
 import sqlite3
 import stat
 import tempfile
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -20,6 +22,23 @@ TOKEN = os.environ.get("SCRAPLING_API_TOKEN", "").strip()
 DV_INGESTION_TOKEN = (os.environ.get("DV_INGESTION_TOKEN", "").strip() or (Path(os.environ["DV_INGESTION_TOKEN_FILE"]).read_text(encoding="utf-8").strip() if os.environ.get("DV_INGESTION_TOKEN_FILE") else ""))
 DV_MEDIA_OBJECT_ROOT = Path(os.environ.get("DV_MEDIA_OBJECT_ROOT", "/data/dv-media-objects"))
 DV_MEDIA_STAGING_ROOT = Path(os.environ.get("DV_MEDIA_STAGING_ROOT", "/data/dv-media-staging"))
+
+
+def _bounded_env_integer(name: str, default: int, minimum: int, maximum: int) -> int:
+    raw = os.environ.get(name, str(default)).strip()
+    if not raw.isdigit():
+        raise RuntimeError(f"{name} must be an integer between {minimum} and {maximum}")
+    value = int(raw)
+    if not minimum <= value <= maximum:
+        raise RuntimeError(f"{name} must be an integer between {minimum} and {maximum}")
+    return value
+
+
+DV_MAX_INGEST_BYTES = _bounded_env_integer(
+    "DV_MAX_INGEST_BYTES", 512 * 1024 * 1024, 1024, 2 * 1024 * 1024 * 1024
+)
+DV_MAX_CONCURRENT_INGESTS = _bounded_env_integer("DV_MAX_CONCURRENT_INGESTS", 1, 1, 4)
+DV_INGESTION_SLOTS = threading.BoundedSemaphore(DV_MAX_CONCURRENT_INGESTS)
 router = APIRouter()
 TERMINAL = {"succeeded", "partial", "failed", "cancelled"}
 ACCESS_BLOCKED = {"AUTH_REQUIRED", "SUBSCRIPTION_REQUIRED", "CHALLENGE", "DRM_PROTECTED", "ENCRYPTED_STREAM"}
@@ -683,19 +702,22 @@ async def api_ingest_dolby_vision_media_asset(
     if len(raw_length) > 10 or not re.fullmatch(r"\d+", raw_length):
         raise HTTPException(status_code=413, detail="Media upload size rejected")
     content_length = int(raw_length)
-    maximum_bytes = 2 * 1024 * 1024 * 1024
+    maximum_bytes = DV_MAX_INGEST_BYTES
     if content_length <= 0 or content_length > maximum_bytes:
         raise HTTPException(status_code=413, detail="Media upload size rejected")
     with connect() as connection:
         exists = connection.execute("SELECT 1 FROM registry_resources WHERE id=?", (resource_id,)).fetchone()
     if not exists:
         raise HTTPException(status_code=404, detail="Registry resource not found")
+    if not DV_INGESTION_SLOTS.acquire(blocking=False):
+        raise HTTPException(status_code=429, detail="Media ingestion capacity is busy", headers={"Retry-After": "5"})
 
-    DV_MEDIA_STAGING_ROOT.mkdir(parents=True, exist_ok=True)
-    descriptor, temporary_name = tempfile.mkstemp(prefix="dv-upload-", suffix=".staged", dir=DV_MEDIA_STAGING_ROOT)
-    temporary_path = Path(temporary_name)
-    received = 0
+    temporary_path: Path | None = None
     try:
+        DV_MEDIA_STAGING_ROOT.mkdir(parents=True, exist_ok=True)
+        descriptor, temporary_name = tempfile.mkstemp(prefix="dv-upload-", suffix=".staged", dir=DV_MEDIA_STAGING_ROOT)
+        temporary_path = Path(temporary_name)
+        received = 0
         with os.fdopen(descriptor, "wb", closefd=True) as staged_file:
             async for chunk in request.stream():
                 if not chunk:
@@ -711,7 +733,10 @@ async def api_ingest_dolby_vision_media_asset(
 
         from dv_media_ingest import IngestionError, ingest_staged_file
         try:
-            result = ingest_staged_file(
+            # Hashing, fsync, and content-addressed object creation are blocking
+            # disk operations; keep them off the ASGI event loop.
+            result = await asyncio.to_thread(
+                ingest_staged_file,
                 resource_id, temporary_path, DV_MEDIA_OBJECT_ROOT, content_type, maximum_bytes
             )
         except IngestionError as exc:
@@ -723,10 +748,12 @@ async def api_ingest_dolby_vision_media_asset(
             "content_type": result["content_type"],
         }
     finally:
-        try:
-            temporary_path.unlink()
-        except FileNotFoundError:
-            pass
+        if temporary_path is not None:
+            try:
+                temporary_path.unlink()
+            except FileNotFoundError:
+                pass
+        DV_INGESTION_SLOTS.release()
 
 
 @router.get("/v1/registry/media-assets/{asset_id}/content")
