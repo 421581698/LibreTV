@@ -7,6 +7,8 @@ on:
       - feature/libretv-ipad-edition-product
     paths:
       - 'scripts/hls-browser-playback-smoke.mjs'
+      - 'scripts/spatial-audio-browser-smoke.mjs'
+      - 'src/lib/spatial-audio.ts'
       - '.github/workflows/hls-browser-playback-smoke.yml'
       - 'src/lib/m3u8-downloader.ts'
       - 'src/lib/m3u8-parse.ts'
@@ -46,3 +48,5 @@ jobs:
         run: npx playwright install --with-deps chrome
       - name: Verify real browser HLS playback
         run: node scripts/hls-browser-playback-smoke.mjs
+      - name: Verify real browser Web Audio spatial graph
+        run: node scripts/spatial-audio-browser-smoke.mjs
