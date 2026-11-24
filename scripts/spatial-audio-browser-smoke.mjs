@@ -31,9 +31,9 @@ for (let i = 0; i < frameCount; i += 1) {
 }
 
 const spatialSource = await readFile('src/lib/spatial-audio.ts', 'utf8');
-const source = 'const exports = {};\\n' + ts.transpileModule(spatialSource, {
+const source = 'const exports = {};\n' + ts.transpileModule(spatialSource, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
-}).outputText + '\\nwindow.SpatialAudioEngine = exports.SpatialAudioEngine;';
+}).outputText + '\nwindow.SpatialAudioEngine = exports.SpatialAudioEngine;';
 
 const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--autoplay-policy=no-user-gesture-required'] });
 let failed = false;
