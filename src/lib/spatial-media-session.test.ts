@@ -53,6 +53,7 @@ function makeEngine() {
       stateListener = listener;
       return () => { stateListener = null; };
     }),
+    updateInputChannels: vi.fn(),
   };
   return Object.assign(engine, {
     emitContextState: (state: string) => { if (stateListener) stateListener(state); },
@@ -100,6 +101,8 @@ describe('SpatialMediaSession preparation', () => {
     expect(controller.audioTrack).toBe(1);
     expect(session.selectAudioTrack(4)).toBe(false);
     await session.activateFromUserGesture();
+    expect(session.selectAudioTrack(0)).toBe(true);
+    expect(engine.updateInputChannels).toHaveBeenCalledWith(6, 'unknown');
     await session.dispose();
     expect(controller.destroy).toHaveBeenCalledTimes(1);
     expect(spatial.remove).toHaveBeenCalledTimes(1);
