@@ -21,6 +21,13 @@ describe('parseHlsAudioRenditions', () => {
     expect(parseHlsAudioRenditions(manifest)[0].codec).toBe('ac-4.02.01.04');
   });
 
+  it('recognizes declared TrueHD, MAT, DTS:X, PCM and Eclipsa codec tokens', () => {
+    const cases = ['truehd', 'mat', 'dts-x', 'lpcm', 'Eclipsa Audio'];
+    for (const audioCodec of cases) {
+      expect(inspectHlsAudioTrack({ audioCodec }).codec).toBe(audioCodec);
+    }
+  });
+
   it('recognizes JOC in CHANNELS as metadata only', () => {
     expect(parseHlsAudioRenditions('#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a",NAME="E-AC3 JOC",CHANNELS="6/JOC",URI="a.m3u8"')[0])
       .toMatchObject({ channelCount: 6, layout: 'unknown', hasJocMarker: true });
