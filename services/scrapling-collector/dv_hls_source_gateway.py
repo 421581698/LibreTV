@@ -231,6 +231,7 @@ def ingest_authorized_hls_candidate(
         }
         fetched: dict[str, Path] = {}
         visiting: set[str] = set()
+        expected_media_digests: dict[str, tuple[str, int]] = {}
 
         def local_name(ordinal: int, suffix: str) -> str:
             return f"member-{ordinal:05d}{suffix}"
@@ -258,7 +259,7 @@ def ingest_authorized_hls_candidate(
             if suffix != ".m3u8":
                 name = local_name(ordinal, suffix)
                 path = staging / name
-                _fetch_member(
+                member_digest, member_length = _fetch_member(
                     normalized, path, expected_suffix=suffix,
                     public_https_url=public_https_url,
                     resolve_public_addresses=resolve_public_addresses,
@@ -266,6 +267,7 @@ def ingest_authorized_hls_candidate(
                     max_bytes=max_member, timeout=timeout,
                     cancelled=cancelled, checkpoint=checkpoint, progress=progress,
                 )
+                expected_media_digests[name] = (member_digest, member_length)
                 fetched[normalized] = path
                 progress["members_downloaded"] += 1
                 return name
@@ -328,6 +330,17 @@ def ingest_authorized_hls_candidate(
         root_name = fetch_graph(root_url)
         if cancelled():
             raise registry.JobCancelled()
+        # Verify every downloaded media member still matches its network-transfer
+        # digest before the local graph ingester computes and registers its own hash.
+        for relative_name, (expected_digest, expected_length) in expected_media_digests.items():
+            digest_builder = hashlib.sha256()
+            observed_length = 0
+            with (staging / relative_name).open("rb") as source:
+                for chunk in iter(lambda: source.read(CHUNK_SIZE), b""):
+                    observed_length += len(chunk)
+                    digest_builder.update(chunk)
+            if observed_length != expected_length or digest_builder.hexdigest() != expected_digest:
+                raise HlsSourceGatewayError("Staged HLS media member differs from the authorized origin transfer")
         checkpoint({
             "stage": "authorized_hls_graph_storing",
             "members_downloaded": progress["members_downloaded"],
