@@ -42,7 +42,7 @@ describe('parseHlsAudioRenditions', () => {
       'video/720p.m3u8',
       '#EXT-X-STREAM-INF:BANDWIDTH=6000000,CODECS="avc1.640028,ac-4.02.01.04",AUDIO="shared"',
       'video/1080p.m3u8',
-    ].join('\\n');
+    ].join('\n');
 
     expect(parseHlsAudioRenditions(manifest)[0]).toMatchObject({
       codec: null,
