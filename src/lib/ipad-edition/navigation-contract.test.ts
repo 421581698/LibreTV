@@ -6,6 +6,10 @@ const shell = readFileSync(
   resolve(process.cwd(), 'src/components/ipad-edition/IpadEditionShell.tsx'),
   'utf8',
 );
+const responsiveStyles = readFileSync(
+  resolve(process.cwd(), 'src/app/ipad-edition/responsive-system.css'),
+  'utf8',
+);
 const searchPage = readFileSync(
   resolve(process.cwd(), 'src/app/ipad-edition/search/page.tsx'),
   'utf8',
@@ -83,6 +87,13 @@ describe('iPad Edition navigation contract', () => {
     expect(styles).toContain('left: 50%;');
     expect(styles).toContain('background: transparent;');
     expect(styles).toContain('transform: translateX(-50%);');
+  });
+
+  it('switches navigation by app width and keeps expanded links keyboard reachable', () => {
+    expect(shell).toContain('resolveIpadNavigationLayout(root.getBoundingClientRect().width)');
+    expect(shell).toContain('tabIndex={sidebarOpen || isExpandedSidebar ? 0 : -1}');
+    expect(responsiveStyles).toContain('width: calc(100% - var(--ipad-sidebar-width))');
+    expect(responsiveStyles).toContain('container-type: inline-size');
   });
 
   it('preserves an accessible sidebar toggle and manages modal focus/scroll lifecycle', () => {
