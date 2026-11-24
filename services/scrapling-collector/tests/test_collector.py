@@ -92,8 +92,9 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(sample["sample_source"], "collector_preview")
         self.assertEqual(sample["decoded_width"], 0)
 
-    def test_playback_confirmation_automatically_ingests_allowlisted_media_bytes(self):
+    def test_playback_confirmation_queues_and_worker_registers_allowlisted_media(self):
         import hashlib
+        import worker
         from unittest.mock import patch
 
         task_id = "e" * 32
@@ -151,6 +152,7 @@ class CollectorTests(unittest.TestCase):
 
         object_root = Path(self.temp.name) / "dv-objects"
         staging_root = Path(self.temp.name) / "dv-staging"
+        checkpoints = []
         with (
             patch.dict(os.environ, {
                 "DV_SOURCE_GATEWAY_ENABLED": "1",
@@ -158,11 +160,6 @@ class CollectorTests(unittest.TestCase):
                 "SCRAPLING_EGRESS_FIREWALL_CONFIRMED": "1",
                 "DV_SOURCE_GATEWAY_MAX_BYTES": str(len(payload) + 1),
             }),
-            patch.object(collector, "public_https_url", return_value=("https://media.example/movie.mp4", "media.example")),
-            patch.object(collector, "resolve_public_addresses", return_value=["93.184.216.34"]),
-            patch.object(collector, "PinnedHTTPSConnection", FakeConnection),
-            patch.object(collector.registry_store, "DV_MEDIA_OBJECT_ROOT", object_root),
-            patch.object(collector.registry_store, "DV_MEDIA_STAGING_ROOT", staging_root),
             patch.object(collector, "require_token"),
         ):
             result = collector.record_playback_evidence(
@@ -172,16 +169,33 @@ class CollectorTests(unittest.TestCase):
                 ),
                 "Bearer test",
             )
+            self.assertEqual(result["media_ingestion"]["status"], "queued")
+            job_id = result["media_ingestion"]["job_id"]
+            with collector.registry_store.connect() as connection:
+                job_row = connection.execute(
+                    "SELECT payload FROM collector_jobs WHERE id=?", (job_id,)
+                ).fetchone()
+            job_payload = collector.json.loads(job_row["payload"])
+            job_payload["_job_type"] = "dv_media_ingest"
+            with (
+                patch.object(worker, "public_https_url", return_value=("https://media.example/movie.mp4", "media.example")),
+                patch.object(worker, "resolve_public_addresses", return_value=["93.184.216.34"]),
+                patch.object(worker, "PinnedHTTPSConnection", FakeConnection),
+                patch.object(collector.registry_store, "DV_MEDIA_OBJECT_ROOT", object_root),
+                patch.object(collector.registry_store, "DV_MEDIA_STAGING_ROOT", staging_root),
+            ):
+                ingestion = worker.handle(job_payload, checkpoints.append, lambda: False)
 
-        ingestion = result["media_ingestion"]
         self.assertEqual(ingestion["status"], "registered", msg=repr(ingestion))
         self.assertEqual(ingestion["sha256"], hashlib.sha256(payload).hexdigest())
         self.assertEqual(ingestion["byte_length"], len(payload))
         stored = object_root / "sha256" / ingestion["sha256"][:2] / ingestion["sha256"]
         self.assertEqual(stored.read_bytes(), payload)
         self.assertFalse(any(staging_root.iterdir()))
+        self.assertIn("authorized_media_ingest_finished", [item["stage"] for item in checkpoints])
 
     def test_authorized_source_gateway_rejects_redirects_without_following_them(self):
+        import worker
         from unittest.mock import patch
 
         task_id = "3" * 32
@@ -232,9 +246,6 @@ class CollectorTests(unittest.TestCase):
                 "DV_AUTHORIZED_SOURCE_HOSTS": "media.example,other.example",
                 "SCRAPLING_EGRESS_FIREWALL_CONFIRMED": "1",
             }),
-            patch.object(collector, "public_https_url", return_value=("https://media.example/movie.mp4", "media.example")),
-            patch.object(collector, "resolve_public_addresses", return_value=["93.184.216.34"]),
-            patch.object(collector, "PinnedHTTPSConnection", RedirectConnection),
             patch.object(collector, "require_token"),
         ):
             result = collector.record_playback_evidence(
@@ -244,8 +255,21 @@ class CollectorTests(unittest.TestCase):
                 ),
                 "Bearer test",
             )
-        self.assertEqual(result["media_ingestion"]["status"], "failed")
-        self.assertIn("redirects", result["media_ingestion"]["reason"])
+            job_id = result["media_ingestion"]["job_id"]
+            with collector.registry_store.connect() as connection:
+                job_row = connection.execute(
+                    "SELECT payload FROM collector_jobs WHERE id=?", (job_id,)
+                ).fetchone()
+            job_payload = collector.json.loads(job_row["payload"])
+            job_payload["_job_type"] = "dv_media_ingest"
+            with (
+                patch.object(worker, "public_https_url", return_value=("https://media.example/movie.mp4", "media.example")),
+                patch.object(worker, "resolve_public_addresses", return_value=["93.184.216.34"]),
+                patch.object(worker, "PinnedHTTPSConnection", RedirectConnection),
+            ):
+                ingestion = worker.handle(job_payload, lambda _event: None, lambda: False)
+        self.assertEqual(ingestion["status"], "failed")
+        self.assertIn("redirects", ingestion["reason"])
         self.assertEqual(RedirectConnection.calls, 1)
 
     def test_source_gateway_skips_non_allowlisted_host_without_network_access(self):
