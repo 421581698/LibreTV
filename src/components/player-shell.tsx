@@ -586,6 +586,23 @@ export function PlayerShell({
         host,
         sourceUrl: mediaUrl,
         sourceKind,
+        onRestoreAudioTrack: (trackIndex) => {
+          const originalHls = hlsRef.current;
+          if (originalHls && trackIndex < originalHls.audioTracks.length) {
+            originalHls.audioTrack = trackIndex;
+            setSelectedAudioTrack(trackIndex);
+            return;
+          }
+          const nativeTracks = (video as HTMLVideoElement & {
+            audioTracks?: { length: number; [index: number]: { enabled: boolean } };
+          }).audioTracks;
+          if (nativeTracks && trackIndex < nativeTracks.length) {
+            Array.from({ length: nativeTracks.length }, (_, index) => {
+              nativeTracks[index].enabled = index === trackIndex;
+            });
+            setSelectedAudioTrack(trackIndex);
+          }
+        },
         createHlsController: sourceKind === 'hls' ? (media, sourceUrl, onFatalError) => {
           if (!Hls.isSupported()) {
             if (!media.canPlayType('application/vnd.apple.mpegurl')) {
