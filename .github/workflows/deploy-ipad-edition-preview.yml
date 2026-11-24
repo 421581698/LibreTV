@@ -365,11 +365,9 @@ jobs:
                   return root.getAttribute('data-ipad-layout') === expectedLayout;
                 }, colorScheme, { timeout: 30000 });
                 const layoutMode = await page.locator('.ipad-edition').getAttribute('data-ipad-layout');
-                if (layoutMode === 'expanded') {
-                  await page.locator('.ipad-nav__sidebar.is-open').waitFor({ state: 'visible', timeout: 30000 });
-                } else {
-                  await page.locator('.ipad-nav__topbar').waitFor({ state: 'visible', timeout: 30000 });
-                }
+                // All layouts start closed; the top capsule is always the explicit entry point.
+                await page.locator('.ipad-nav__topbar').waitFor({ state: 'visible', timeout: 30000 });
+                await page.waitForFunction(() => !document.querySelector('.ipad-nav__sidebar')?.classList.contains('is-open'), undefined, { timeout: 10000 });
                 // Exercise the real navigation controls in every viewport/theme pair.
             // Wait for React to attach client event props before clicking: domcontentloaded
             // can occur before hydration, which otherwise creates a false timeout.
@@ -377,42 +375,40 @@ jobs:
             const sidebarInteraction = { opened: false, escapeClosed: false, scrimClosed: false, edgeSwipeOpened: false, edgeSwipeClosed: false };
             if (layoutMode === 'expanded') {
               try {
-                const permanentSidebar = page.locator('.ipad-nav__sidebar.is-open');
-                await permanentSidebar.waitFor({ state: 'visible', timeout: 10000 });
-                sidebarInteraction.opened = await permanentSidebar.isVisible();
-                sidebarInteraction.keyboardReachable = await page.locator('.ipad-nav__sidebar a').evaluateAll(links =>
-                  links.length > 0 && links.every(link => link.tabIndex >= 0)
-                );
-                const collapseButton = page.locator('.ipad-nav__collapse-button');
-                await page.waitForFunction(() => {
-                  const button = document.querySelector('.ipad-nav__collapse-button');
-                  return Boolean(button && Object.keys(button).some(key => key.startsWith('__reactProps$')));
-                }, undefined, { timeout: 20000 });
-                await collapseButton.click();
-                await page.locator('.ipad-nav__topbar').waitFor({ state: 'visible', timeout: 10000 });
                 const menuButton = page.locator('.ipad-nav__menu-button');
                 await page.waitForFunction(() => {
                   const button = document.querySelector('.ipad-nav__menu-button');
                   return Boolean(button && Object.keys(button).some(key => key.startsWith('__reactProps$')));
                 }, undefined, { timeout: 20000 });
+                sidebarInteraction.initialClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
                 await menuButton.click();
                 await page.locator('.ipad-nav__sidebar.is-open').waitFor({ state: 'visible', timeout: 10000 });
-                sidebarInteraction.capsuleExpandedSidebar = await page.locator('.ipad-nav__sidebar.is-open').isVisible();
-                await page.waitForFunction(() => document.querySelector('.ipad-edition')?.getAttribute('data-ipad-layout') === 'expanded', undefined, { timeout: 5000 });
-                sidebarInteraction.restoredExpanded = await page.locator('.ipad-edition[data-ipad-layout="expanded"] .ipad-nav__sidebar.is-open').isVisible();
+                sidebarInteraction.opened = await page.locator('.ipad-nav__sidebar a').evaluateAll(links =>
+                  links.length > 0 && links.every(link => link.tabIndex >= 0)
+                );
+                await page.keyboard.press('Escape');
+                await page.waitForFunction(() => document.querySelector('.ipad-nav__sidebar')?.classList.contains('is-open') === false);
+                sidebarInteraction.escapeClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
+                await menuButton.click();
+                await page.locator('.ipad-nav__sidebar.is-open').waitFor({ state: 'visible', timeout: 10000 });
+                const closeButton = page.getByRole('button', { name: '关闭侧边栏' });
+                await closeButton.waitFor({ state: 'visible', timeout: 10000 });
+                await closeButton.click();
+                await page.locator('.ipad-nav__topbar').waitFor({ state: 'visible', timeout: 10000 });
+                sidebarInteraction.explicitClosePassed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
                 sidebarInteraction.scrimNotApplicable = true;
                 sidebarInteraction.edgeSwipeNotApplicable = true;
                 sidebarInteraction.diagnostics = await page.evaluate(() => {
                   const sidebar = document.querySelector('.ipad-nav__sidebar');
                   return {
                     finalState: { computedStyle: { position: sidebar ? getComputedStyle(sidebar).position : null } },
-                    mode: 'expanded-sidebar',
+                    mode: 'expanded-sidebar-collapsed-by-default',
                   };
                 });
-                sidebarInteractionPassed = sidebarInteraction.opened &&
-                  sidebarInteraction.keyboardReachable &&
-                  sidebarInteraction.capsuleExpandedSidebar &&
-                  sidebarInteraction.restoredExpanded;
+                sidebarInteractionPassed = sidebarInteraction.initialClosed &&
+                  sidebarInteraction.opened &&
+                  sidebarInteraction.escapeClosed &&
+                  sidebarInteraction.explicitClosePassed;
               } catch (error) {
                 sidebarInteraction.error = String(error);
                 sidebarInteractionPassed = false;
