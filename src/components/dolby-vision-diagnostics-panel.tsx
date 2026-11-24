@@ -2,48 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { DolbyVisionFormatReport } from '@/lib/dolby-vision/format-inspector';
-
-interface VerifiedEvidence {
-  source: 'dovi_tool';
-  rpuPresent: boolean;
-  parserVersion: string;
-  profile: number | null;
-  frameCount: number;
-  metadataLevels: number[];
-}
-
-interface SignedEvidenceResponse {
-  verified: true;
-  assetId: string;
-  sourceHashBinding: 'matched';
-  evidence: VerifiedEvidence;
-}
+import { parseVerifiedDolbyVisionEvidenceResponse, type VerifiedDolbyVisionEvidenceResponse } from '@/lib/dolby-vision/verified-evidence-response';
 
 interface DolbyVisionDiagnosticsPanelProps {
   report: DolbyVisionFormatReport | null;
   /** Stable server-issued registry asset ID; never derive this from a playback URL. */
   assetId?: string;
-}
-
-function parseSignedEvidence(value: unknown, expectedAssetId: string): SignedEvidenceResponse | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  const candidate = value as Record<string, unknown>;
-  const evidence = candidate.evidence;
-  if (candidate.verified !== true || candidate.assetId !== expectedAssetId ||
-      candidate.sourceHashBinding !== 'matched' || !evidence ||
-      typeof evidence !== 'object' || Array.isArray(evidence)) return null;
-  const report = evidence as Record<string, unknown>;
-  if (report.source !== 'dovi_tool' || typeof report.rpuPresent !== 'boolean' ||
-      typeof report.parserVersion !== 'string' || !/^2\\.3\\.\\d+$/.test(report.parserVersion) ||
-      !Array.isArray(report.metadataLevels) || !report.metadataLevels.every((v) => Number.isInteger(v)) ||
-      !Number.isSafeInteger(report.frameCount) || (report.frameCount as number) < 0 ||
-      (report.profile !== null && !Number.isInteger(report.profile))) return null;
-  return {
-    verified: true,
-    assetId: expectedAssetId,
-    sourceHashBinding: 'matched',
-    evidence: report as unknown as VerifiedEvidence,
-  };
 }
 
 /**
@@ -55,7 +19,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId }: DolbyVi
   const profileLabel = report?.profiles.length
     ? report.profiles.map((profile) => `Profile ${profile}`).join(' / ')
     : '未检测到可验证的 Profile 声明';
-  const [verifiedEvidence, setVerifiedEvidence] = useState<SignedEvidenceResponse | null>(null);
+  const [verifiedEvidence, setVerifiedEvidence] = useState<VerifiedDolbyVisionEvidenceResponse | null>(null);
   const [analysisState, setAnalysisState] = useState<'idle' | 'loading' | 'error'>('idle');
   const [analysisError, setAnalysisError] = useState('');
   const requestRef = useRef<AbortController | null>(null);
@@ -85,7 +49,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId }: DolbyVi
         signal: controller.signal,
       });
       const payload: unknown = await response.json().catch(() => null);
-      const parsed = parseSignedEvidence(payload, assetId);
+      const parsed = parseVerifiedDolbyVisionEvidenceResponse(payload, assetId);
       if (!response.ok || !parsed) {
         throw new Error(response.status === 503
           ? '可信分析服务尚未配置或当前账户不可用'
