@@ -20,12 +20,8 @@ import registry_queue as registry
 MAX_MEDIA_BYTES = 2 * 1024 * 1024 * 1024
 CHUNK_SIZE = 1024 * 1024
 ALLOWED_CONTENT_TYPES = {
-    "application/octet-stream",
     "video/mp4",
     "video/webm",
-    "video/x-matroska",
-    "video/mp2t",
-    "video/hevc",
 }
 RESOURCE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,200}$")
 
