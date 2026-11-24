@@ -388,6 +388,43 @@ describe('SpatialMediaSession activation and fallback', () => {
   });
 });
 
+  it('falls back to native playback on a fatal HLS error after activation', async () => {
+    const native = makeVideo();
+    setPaused(native, false);
+    const spatial = makeVideo();
+    const engine = makeEngine();
+    let reportFatal: ((reason: string) => void) | null = null;
+    const controller = {
+      start: vi.fn(async () => undefined),
+      destroy: vi.fn(),
+      audioTracks: [{ id: 0, name: 'Main', channels: '2' }],
+      audioTrack: 0,
+    };
+    const session = await SpatialMediaSession.prepare({
+      nativeVideo: native, host: makeHost(), sourceUrl: 'https://media.example/master.m3u8',
+      sourceKind: 'hls', verifyCors: vi.fn(async () => true),
+      createMediaElement: () => spatial,
+      createEngine: () => engine,
+      createHlsController: (_media, _url, onFatalError) => {
+        reportFatal = onFatalError;
+        return controller;
+      },
+    });
+    await session.activateFromUserGesture();
+    expect(native.muted).toBe(true);
+    expect(spatial.play).toHaveBeenCalled();
+    reportFatal?.('levelLoadError');
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(session.snapshot.state).toBe('fallback');
+    expect(session.snapshot.reason).toBe('levelLoadError');
+    expect(native.muted).toBe(false);
+    expect(spatial.pause).toHaveBeenCalled();
+    expect(controller.destroy).toHaveBeenCalledTimes(1);
+    expect(spatial.remove).toHaveBeenCalledTimes(1);
+    expect(engine.destroyAfterMediaElementRemoval).toHaveBeenCalledTimes(1);
+  });
+
 describe('verifySpatialMediaCors', () => {
   it('rejects when fetch cannot confirm a readable CORS response', async () => {
     vi.stubGlobal('window', { location: { href: 'https://app.example', origin: 'https://app.example' } });
