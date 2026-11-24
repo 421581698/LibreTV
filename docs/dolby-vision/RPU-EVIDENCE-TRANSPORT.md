@@ -2,7 +2,7 @@
 
 Updated: 2026-11-24  
 Branch: `feature/libretv-ipad-edition-product`  
-Status: trust contract and Ed25519 verifier implemented; parser-service deployment and runtime player binding remain blocked.
+Status: offline parser, private parser-service implementation, and Ed25519 verifier implemented; service deployment, trusted asset catalogue/gateway, and runtime player binding remain blocked.
 
 ## Current verified capabilities
 
@@ -21,6 +21,13 @@ Therefore:
 - Do not label the player as RPU-present or dynamic-metadata-confirmed based on a report until both producer authenticity and exact media-byte binding are established.
 - Keep browser decode and display Dolby Vision output as separate, unverified states.
 
+## Implemented parser service and verification primitive
+
+- `services/dolby-vision-parser/` contains a private Node service and Docker image pinned to `dovi_tool 2.3.4`.
+- The service accepts raw media bytes only; it does not fetch caller-provided URLs. It requires a backend bearer token, stable asset ID and catalogue SHA-256, verifies the uploaded bytes against that digest, bounds upload size/concurrency/runtime, runs the offline analyzer, and signs the result with an injected Ed25519 private key.
+- Service secrets are runtime-only and must be stored in a deployment secret manager. The service must sit behind private ingress, not be exposed directly to browsers.
+- The trusted media gateway must resolve the immutable asset ID to the digest and stream those exact bytes. The service cannot independently infer the catalogue relationship from a client-supplied ID.
+
 ## Implemented verification primitive
 
 - `src/lib/dolby-vision/signed-rpu-envelope.ts` validates a versioned Ed25519-signed envelope.
@@ -32,7 +39,7 @@ Therefore:
 
 A future implementation must provide all of these properties:
 
-1. **Trusted producer** — a controlled analysis worker/service runs the pinned parser. The signing key is available only to that worker, never shipped to the browser or included in the repository.
+1. **Trusted producer** — the private parser service implementation is present under `services/dolby-vision-parser/`; it still must be deployed behind private ingress with secrets provisioned. The signing key is available only to that service, never shipped to the browser or included in the repository.
 2. **Exact asset identity** — the worker hashes the exact media object it analyzes. The player/backend resolves a stable asset identity (not merely a URL string) and compares the report's input digest with the selected asset's digest.
 3. **Authenticated report** — the worker signs a canonical, versioned report envelope (for example Ed25519). The app verifies the signature against a pinned public key before parsing the payload.
 4. **Scope transparency** — the report carries track, frame limit, parser version and analysis timestamp. Partial scans must remain explicitly partial and cannot be presented as whole-file absence.
@@ -48,10 +55,10 @@ Until the deployment prerequisites exist, the player correctly displays RPU/dyna
 
 ## Acceptance gates
 
-- [ ] Provision and document a controlled parser worker and key rotation process.
+- [x] Implement and document a private parser service and backend-only bearer boundary.\n- [ ] Deploy the parser service behind private ingress and provision signing/service secrets with a key rotation process.
 - [x] Define canonical signed envelope and signature verification tests (valid, tampered, wrong-key, expired/stale, unsupported version).
 - [ ] Establish exact media asset identity and digest binding across source selection and playback.
-- [ ] Add bounded analysis jobs and abuse controls.
+- [x] Add upload size, concurrent job, parser timeout and backend bearer controls to the parser service.\n- [ ] Configure production ingress rate limits, monitoring, key rotation and operational alerting.
 - [x] Add verifier unit tests proving detached, tampered, mismatched and partial reports are rejected.\n- [ ] Add end-to-end integration tests proving rejected reports never become positive player evidence.
 - [ ] Only then connect authenticated evidence to the read-only diagnostics panel.
 - [ ] Separately test native HLS behavior and actual Dolby Vision output on supported physical iPad hardware.
