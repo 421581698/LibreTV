@@ -127,6 +127,7 @@ describe('inspectHlsAudioTrack', () => {
     expect(inspectHlsAudioTrack({ audioCodec: 'dtsc' }).codec).toBe('dtsc');
     expect(inspectHlsAudioTrack({ audioCodec: 'dtsh' }).codec).toBe('dtsh');
     expect(inspectHlsAudioTrack({ audioCodec: 'dtse' }).codec).toBe('dtse');
+    expect(inspectHlsAudioTrack({ audioCodec: 'dtsx' }).codec).toBe('dtsx');
     expect(inspectHlsAudioTrack({ audioCodec: 'ac-4.02.01.03' }).codec).toBe('ac-4.02.01.03');
   });
 
