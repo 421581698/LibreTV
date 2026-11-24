@@ -78,7 +78,6 @@ export class SpatialMediaSession {
   private reason: string | null = null;
   private syncing = false;
   private readonly originalMuted: boolean;
-  private readonly originalVolume: number;
   private readonly listeners: Array<() => void> = [];
   private fallbackPromise: Promise<void> | null = null;
 
@@ -90,7 +89,6 @@ export class SpatialMediaSession {
     private readonly onStateChange?: (snapshot: SpatialMediaSessionSnapshot) => void,
   ) {
     this.originalMuted = nativeVideo.muted;
-    this.originalVolume = nativeVideo.volume;
     this.bindNativeSynchronization();
     this.media.addEventListener('error', this.handleSpatialError);
     this.listeners.push(() => this.media.removeEventListener('error', this.handleSpatialError));
@@ -155,7 +153,7 @@ export class SpatialMediaSession {
       this.media.playbackRate = this.nativeVideo.playbackRate;
       this.media.volume = this.nativeVideo.volume;
       this.media.muted = this.nativeVideo.muted;
-      const play = this.media.play();
+      const play = this.nativeVideo.paused ? Promise.resolve() : this.media.play();
 
       // Keep the native element alive and synchronized, but route audible output
       // through the independently-owned element while the session is active.
@@ -206,6 +204,9 @@ export class SpatialMediaSession {
     bind(this.nativeVideo, 'pause', () => {
       if (this.state === 'active' && !this.media.paused) this.media.pause();
     });
+    bind(this.nativeVideo, 'ended', () => {
+      if (this.state === 'active') this.media.pause();
+    });
     const syncNativeToSpatial = () => {
       if (this.state !== 'active' || this.syncing) return;
       this.syncing = true;
@@ -252,7 +253,6 @@ export class SpatialMediaSession {
       try { this.nativeVideo.currentTime = this.media.currentTime; } catch { /* keep last native position */ }
     }
     this.nativeVideo.muted = this.originalMuted;
-    this.nativeVideo.volume = this.originalVolume;
     this.media.pause();
     this.listeners.splice(0).forEach((remove) => remove());
     this.media.removeAttribute('src');
