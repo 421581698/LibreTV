@@ -70,13 +70,24 @@ export async function GET(
       const digest = upstream.headers.get('x-dv-asset-sha256') ?? '';
       const contentType = upstream.headers.get('content-type')?.split(';', 1)[0].trim().toLowerCase();
       const expectedEtag = `"${digest}"`;
+      const contentLength = Number(upstream.headers.get('content-length'));
+      const contentRange = upstream.headers.get('content-range') ?? '';
+      const rangeMatch = upstream.status === 206
+        ? /^bytes (\d+)-(\d+)\/(\d+)$/.exec(contentRange)
+        : null;
+      const invalidPartialRange = upstream.status === 206 && (
+        !rangeMatch ||
+        Number(rangeMatch[1]) > Number(rangeMatch[2]) ||
+        Number(rangeMatch[2]) >= Number(rangeMatch[3]) ||
+        contentLength !== Number(rangeMatch[2]) - Number(rangeMatch[1]) + 1
+      );
       if (upstream.headers.get('x-dv-asset-id') !== assetId ||
           !/^[a-f0-9]{64}$/.test(digest) ||
           upstream.headers.get('etag') !== expectedEtag ||
           !['video/mp4', 'video/webm', 'application/vnd.apple.mpegurl', 'video/mp2t', 'video/iso.segment', 'audio/aac', 'audio/mp4', 'audio/mpeg', 'text/vtt'].includes(contentType ?? '') ||
           upstream.headers.get('accept-ranges') !== 'bytes' ||
           !/^\d+$/.test(upstream.headers.get('content-length') ?? '') ||
-          (upstream.status === 206 && !/^bytes \d+-\d+\/\d+$/.test(upstream.headers.get('content-range') ?? ''))) {
+          invalidPartialRange) {
         return NextResponse.json(
           { code: 'DV_ASSET_UPSTREAM_BINDING_INVALID' },
           { status: 502, headers: { 'Cache-Control': 'no-store' } },
