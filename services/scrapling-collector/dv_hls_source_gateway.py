@@ -214,6 +214,7 @@ def ingest_authorized_hls_candidate(
         progress = {
             "allowed_hosts": allowed_hosts,
             "members_downloaded": 0,
+            "allocated_members": 0,
             "total_bytes": 0,
             "deadline": time.monotonic() + 1800,
         }
@@ -226,8 +227,8 @@ def ingest_authorized_hls_candidate(
         def fetch_graph(member_url: str, depth: int = 0) -> str:
             if cancelled():
                 raise registry.JobCancelled()
-            if depth > MAX_PLAYLIST_DEPTH or len(fetched) >= MAX_GRAPH_MEMBERS:
-                raise HlsSourceGatewayError("HLS graph exceeds its member or nesting limit")
+            if depth > MAX_PLAYLIST_DEPTH:
+                raise HlsSourceGatewayError("HLS graph exceeds its nesting limit")
             normalized, _, _ = _safe_origin_url(
                 member_url,
                 public_https_url=public_https_url,
@@ -238,9 +239,13 @@ def ingest_authorized_hls_candidate(
                 return fetched[normalized].name
             if normalized in visiting:
                 raise HlsSourceGatewayError("Cyclic HLS playlist references are not supported")
+            if progress["allocated_members"] >= MAX_GRAPH_MEMBERS:
+                raise HlsSourceGatewayError("HLS graph exceeds its member limit")
             suffix = _member_suffix(normalized)
+            ordinal = progress["allocated_members"]
+            progress["allocated_members"] += 1
             if suffix != ".m3u8":
-                name = local_name(len(fetched), suffix)
+                name = local_name(ordinal, suffix)
                 path = staging / name
                 _fetch_member(
                     normalized, path, expected_suffix=suffix,
@@ -255,7 +260,7 @@ def ingest_authorized_hls_candidate(
                 return name
 
             visiting.add(normalized)
-            name = local_name(len(fetched), ".m3u8")
+            name = local_name(ordinal, ".m3u8")
             path = staging / name
             _fetch_member(
                 normalized, path, expected_suffix=suffix,
