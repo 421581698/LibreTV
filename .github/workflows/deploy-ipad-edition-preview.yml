@@ -358,12 +358,17 @@ jobs:
                 });
                 const response = await page.goto(target, { waitUntil: "domcontentloaded", timeout: 60000 });
                 await page.locator('[data-ipad-edition="true"]').waitFor({ state: "attached", timeout: 30000 });
-                await page.waitForFunction((scheme) => document.querySelector('.ipad-edition')?.getAttribute('data-environment') === scheme, colorScheme, { timeout: 30000 });
+                await page.waitForFunction((scheme) => {
+                  const root = document.querySelector('.ipad-edition');
+                  if (!root || root.getAttribute('data-environment') !== scheme) return false;
+                  const expectedLayout = root.getBoundingClientRect().width >= 1060 ? 'expanded' : 'compact';
+                  return root.getAttribute('data-ipad-layout') === expectedLayout;
+                }, colorScheme, { timeout: 30000 });
                 const layoutMode = await page.locator('.ipad-edition').getAttribute('data-ipad-layout');
                 if (layoutMode === 'expanded') {
                   await page.locator('.ipad-nav__sidebar.is-open').waitFor({ state: 'visible', timeout: 30000 });
                 } else {
-                  await page.locator('.ipad-nav__topbar-inner').waitFor({ state: 'visible', timeout: 30000 });
+                  await page.locator('.ipad-nav__topbar').waitFor({ state: 'visible', timeout: 30000 });
                 }
                 // Exercise the real navigation controls in every viewport/theme pair.
             // Wait for React to attach client event props before clicking: domcontentloaded
@@ -378,8 +383,13 @@ jobs:
                 sidebarInteraction.keyboardReachable = await page.locator('.ipad-nav__sidebar a').evaluateAll(links =>
                   links.length > 0 && links.every(link => link.tabIndex >= 0)
                 );
-                await page.locator('.ipad-nav__collapse-button').click();
-                await page.locator('.ipad-nav__topbar-inner').waitFor({ state: 'visible', timeout: 10000 });
+                const collapseButton = page.locator('.ipad-nav__collapse-button');
+                await page.waitForFunction(() => {
+                  const button = document.querySelector('.ipad-nav__collapse-button');
+                  return Boolean(button && Object.keys(button).some(key => key.startsWith('__reactProps$')));
+                }, undefined, { timeout: 20000 });
+                await collapseButton.click();
+                await page.locator('.ipad-nav__topbar').waitFor({ state: 'visible', timeout: 10000 });
                 const menuButton = page.locator('.ipad-nav__menu-button');
                 await page.waitForFunction(() => {
                   const button = document.querySelector('.ipad-nav__menu-button');
@@ -2155,7 +2165,34 @@ jobs:
                   if (panelState === "open") {
                     await page.locator(".netflix-watch-panel-heading button").click();
                     await page.waitForFunction(() => !document.querySelector(".netflix-watch-utility-panel")?.classList.contains("is-open"), undefined, { timeout: 5000 });
-                    const closeButtonDismissed = !(await page.locator(".netflix-watch-panel-heading button").isVisible());
+                    await page.waitForFunction(() => {
+                      const panel = document.querySelector('.netflix-watch-utility-panel');
+                      const close = panel?.querySelector('.netflix-watch-panel-heading button');
+                      if (!panel || panel.classList.contains('is-open')) return false;
+                      if (!close) return true;
+                      let opacity = 1;
+                      for (let node = close; node instanceof HTMLElement; node = node.parentElement) {
+                        const style = getComputedStyle(node);
+                        if (style.display === 'none' || style.visibility === 'hidden') return true;
+                        opacity *= Number.parseFloat(style.opacity || '1');
+                      }
+                      const rect = close.getBoundingClientRect();
+                      return opacity <= 0.01 || rect.width <= 0 || rect.height <= 0;
+                    }, undefined, { timeout: 5000, polling: 50 });
+                    const closeButtonDismissed = await page.evaluate(() => {
+                      const panel = document.querySelector('.netflix-watch-utility-panel');
+                      const close = panel?.querySelector('.netflix-watch-panel-heading button');
+                      if (!panel || panel.classList.contains('is-open')) return false;
+                      if (!close) return true;
+                      let opacity = 1;
+                      for (let node = close; node instanceof HTMLElement; node = node.parentElement) {
+                        const style = getComputedStyle(node);
+                        if (style.display === 'none' || style.visibility === 'hidden') return true;
+                        opacity *= Number.parseFloat(style.opacity || '1');
+                      }
+                      const rect = close.getBoundingClientRect();
+                      return opacity <= 0.01 || rect.width <= 0 || rect.height <= 0;
+                    });
                     if (!closeButtonDismissed) failures += 1;
 
                     await page.locator(".cinema-utility-control").click();
