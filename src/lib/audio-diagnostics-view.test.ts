@@ -63,6 +63,19 @@ describe('audio diagnostics read-only view', () => {
     expect(view.plainText).not.toContain('Czech');
   });
 
+  it('shows AC-4 mdcompat as a source declaration, never as device capability', () => {
+    const ac4: PlaybackDiagnostics = {
+      format: { container: 'hls', audioCodec: 'ac4', dolbyFamily: 'dolby-ac4', confidence: 'declared', hasJocMarker: false, ac4Profile: { bitstreamVersion: 2, presentationVersion: 1, mdcompat: 4 } },
+      audio: null, capability: null, stability: null,
+    };
+    const view = buildDiagnosticsView(ac4);
+    const format = view.groups.find((group) => group.title === '媒体格式');
+    expect(format?.rows.find((item) => item.label === '音频编码')?.value).toContain('Dolby AC-4');
+    expect(format?.rows.find((item) => item.label === 'AC-4 源声明级别')?.value).toContain('沉浸式兼容级别');
+    expect(view.plainText).not.toContain('Atmos 已开启');
+    expect(hasAtmosSignal(ac4)).toBe(false);
+  });
+
   it('has no Atmos signal for plain AAC stereo', () => {
     const plain: PlaybackDiagnostics = {
       format: { container: 'mp4', audioCodec: 'aac', dolbyFamily: 'none', confidence: 'declared', hasJocMarker: false },
