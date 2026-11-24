@@ -58,7 +58,7 @@ Until the deployment prerequisites exist, the player correctly displays RPU/dyna
 - [x] Implement and document a private parser service and backend-only bearer boundary.\n- [ ] Deploy the parser service behind private ingress and provision signing/service secrets with a key rotation process.
 - [x] Define canonical signed envelope and signature verification tests (valid, tampered, wrong-key, expired/stale, unsupported version).
 - [ ] Establish exact media asset identity and digest binding across source selection and playback.
-- [x] Add upload size, concurrent job, parser timeout and backend bearer controls to the parser service.\n- [ ] Configure production ingress rate limits, monitoring, key rotation and operational alerting.
+- [x] Add upload size, concurrent job, parser timeout and backend bearer controls to the parser service.\n- [x] Run parser subprocess asynchronously so the HTTP server can enforce concurrency limits and remain responsive during long analysis jobs.\n- [ ] Configure production ingress rate limits, monitoring, key rotation and operational alerting.
 - [x] Add verifier unit tests proving detached, tampered, mismatched and partial reports are rejected.\n- [ ] Add end-to-end integration tests proving rejected reports never become positive player evidence.
 - [ ] Only then connect authenticated evidence to the read-only diagnostics panel.
 - [ ] Separately test native HLS behavior and actual Dolby Vision output on supported physical iPad hardware.
