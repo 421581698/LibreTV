@@ -52,8 +52,8 @@ describe('inspectDolbyVisionFormat', () => {
 
   it('rejects malformed codec prefixes, invalid zero values and trailing junk', () => {
     const malformed = [
-      'xdvhe.08.06', 'dvhe.08.060', 'dvhe.00.06', 'dvh1.08.00',
-      'dvhe.8.06', 'dav1.10.08.extra', 'dvhe.xx.06',
+      'xdvhe.08.06', 'dvhe.08.060', 'dvh1.08.00',
+      'dvhe.8.06', 'dav1.10.08.extra', 'dvhe.xx.06', 'dvhe.21.06',
     ];
     for (const codecs of malformed) {
       expect(inspectDolbyVisionFormat({ codecs }).detected, codecs).toBe(false);
