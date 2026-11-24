@@ -64,7 +64,7 @@ describe('inspectDolbyVisionMetadata', () => {
     });
   });
 
-  it('does not claim RPU exists when the parser reports none', () => {
+  it('does not mistake static or active-area levels for frame dynamic metadata', () => {\n    const evidence: DolbyVisionRpuEvidence = {\n      source: 'dovi_tool', parserVersion: '2.3.4', verified: true,\n      rpuPresent: true, profile: 8, frameCount: 10, metadataLevels: [5, 6],\n    };\n    expect(inspectDolbyVisionMetadata({ format: declared, rpuEvidence: evidence })).toMatchObject({\n      rpuPresence: 'present', dynamicMetadata: 'unknown', metadataLevels: [5, 6],\n    });\n  });\n\n  it('does not claim RPU exists when the parser reports none', () => {
     const evidence: DolbyVisionRpuEvidence = {
       source: 'dovi_tool', parserVersion: '2.3.4', verified: true,
       rpuPresent: false, profile: null, frameCount: 0, metadataLevels: [],
