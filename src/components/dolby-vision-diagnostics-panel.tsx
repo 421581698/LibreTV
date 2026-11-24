@@ -6,8 +6,8 @@ import type { DolbyVisionFormatReport } from '@/lib/dolby-vision/format-inspecto
 interface VerifiedEvidence {
   source: 'dovi_tool';
   rpuPresent: boolean;
-  profile: number | null;
-  profiles: number[];
+  parserVersion: string;
+  profile: number;
   frameCount: number;
   metadataLevels: number[];
 }
@@ -34,10 +34,10 @@ function parseSignedEvidence(value: unknown, expectedAssetId: string): SignedEvi
       typeof evidence !== 'object' || Array.isArray(evidence)) return null;
   const report = evidence as Record<string, unknown>;
   if (report.source !== 'dovi_tool' || typeof report.rpuPresent !== 'boolean' ||
-      !Array.isArray(report.profiles) || !report.profiles.every((v) => Number.isInteger(v)) ||
+      typeof report.parserVersion !== 'string' || !/^2\\.3\\.\\d+$/.test(report.parserVersion) ||
       !Array.isArray(report.metadataLevels) || !report.metadataLevels.every((v) => Number.isInteger(v)) ||
       !Number.isSafeInteger(report.frameCount) || (report.frameCount as number) < 0 ||
-      (report.profile !== null && !Number.isInteger(report.profile))) return null;
+      !Number.isInteger(report.profile)) return null;
   return {
     verified: true,
     assetId: expectedAssetId,
@@ -156,9 +156,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId }: DolbyVi
                 </div>
                 <div className="flex justify-between gap-3">
                   <span className="text-white/55">RPU Profile</span>
-                  <span>{verifiedEvidence.evidence.profiles.length
-                    ? verifiedEvidence.evidence.profiles.join(' / ')
-                    : '未检出'}</span>
+                  <span>{verifiedEvidence.evidence.profile}</span>
                 </div>
                 <div className="flex justify-between gap-3">
                   <span className="text-white/55">分析帧数</span>
