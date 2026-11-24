@@ -75,18 +75,21 @@ export async function GET(
       const rangeMatch = upstream.status === 206
         ? /^bytes (\d+)-(\d+)\/(\d+)$/.exec(contentRange)
         : null;
+      const rangeNumbers = rangeMatch?.slice(1).map(Number) ?? [];
       const invalidPartialRange = upstream.status === 206 && (
         !rangeMatch ||
-        Number(rangeMatch[1]) > Number(rangeMatch[2]) ||
-        Number(rangeMatch[2]) >= Number(rangeMatch[3]) ||
-        contentLength !== Number(rangeMatch[2]) - Number(rangeMatch[1]) + 1
+        !Number.isSafeInteger(contentLength) ||
+        rangeNumbers.some((value) => !Number.isSafeInteger(value)) ||
+        rangeNumbers[0] > rangeNumbers[1] ||
+        rangeNumbers[1] >= rangeNumbers[2] ||
+        contentLength !== rangeNumbers[1] - rangeNumbers[0] + 1
       );
       if (upstream.headers.get('x-dv-asset-id') !== assetId ||
           !/^[a-f0-9]{64}$/.test(digest) ||
           upstream.headers.get('etag') !== expectedEtag ||
           !['video/mp4', 'video/webm', 'application/vnd.apple.mpegurl', 'video/mp2t', 'video/iso.segment', 'audio/aac', 'audio/mp4', 'audio/mpeg', 'text/vtt'].includes(contentType ?? '') ||
           upstream.headers.get('accept-ranges') !== 'bytes' ||
-          !/^\d+$/.test(upstream.headers.get('content-length') ?? '') ||
+          !/^\d+$/.test(upstream.headers.get('content-length') ?? '') ||\n          !Number.isSafeInteger(contentLength) || contentLength < 0 ||
           invalidPartialRange) {
         return NextResponse.json(
           { code: 'DV_ASSET_UPSTREAM_BINDING_INVALID' },
