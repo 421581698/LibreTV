@@ -9,7 +9,6 @@ export const dynamic = 'force-dynamic';
 const ALLOWED_CONTENT_TYPES = new Set([
   'video/mp4',
   'video/webm',
-  'application/octet-stream',
 ]);
 
 /**
@@ -99,7 +98,7 @@ export async function GET(
   const contentType = asset.content_type;
   if (typeof assetId !== 'string' || !/^[A-Za-z0-9:_-]{1,200}$/.test(assetId) ||
       typeof digest !== 'string' || !/^[a-f0-9]{64}$/.test(digest) ||
-      !Number.isSafeInteger(byteLength) || Number(byteLength) <= 0 ||
+      typeof byteLength !== 'number' || !Number.isSafeInteger(byteLength) || byteLength <= 0 ||
       typeof contentType !== 'string' || !ALLOWED_CONTENT_TYPES.has(contentType) ||
       asset.object_key !== `sha256/${digest.slice(0, 2)}/${digest}`) {
     return NextResponse.json(
