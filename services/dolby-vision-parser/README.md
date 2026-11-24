@@ -14,7 +14,7 @@ A private Node.js analysis service for trusted backend-to-backend use. It accept
 
 ## Local Docker Compose profile
 
-The repository's root `docker-compose.yml` includes an opt-in `dolby-vision` profile. It does not publish a host port; the service is reachable only from containers on the private Compose network.
+The repository's root `docker-compose.yml` includes an opt-in `dolby-vision` profile. It does not publish a host port; the parser runs on a dedicated `internal: true` network shared only with the LibreTV app container, so the parser has no direct outbound Internet route.
 
 ```sh
 mkdir -p secrets
