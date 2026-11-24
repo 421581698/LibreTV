@@ -29,7 +29,6 @@ on:
       - "services/scrapling-collector/app.py"
       - "services/scrapling-collector/tests/test_collector.py"
       - ".github/workflows/resource-playback-verification.yml"
-      - "src/app/api/dolby-vision/**"
       - "src/lib/api-guard.ts"
       - "src/lib/api-guard.test.ts"
       - "src/app/api/auth-guard.test.ts"
@@ -40,6 +39,7 @@ on:
   pull_request:
     paths:
       - "src/components/player-shell.tsx"
+      - "src/app/api/dolby-vision/**"
       - "src/lib/dolby-vision/**"
       - "docs/dolby-vision/**"
       - "scripts/dolby-vision/**"
