@@ -2,7 +2,7 @@
 import { createHash, createPrivateKey, sign, timingSafeEqual } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { createWriteStream } from 'node:fs';
+import { createWriteStream, readFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -166,11 +166,14 @@ async function analyzeUpload(request, response, env) {
 }
 
 export function createDolbyVisionParserServer(env = process.env) {
-  if (!env.DV_SERVICE_TOKEN || !env.DV_SIGNING_KEY_ID || !env.DV_SIGNING_PRIVATE_KEY_PEM) {
-    throw new Error('DV_SERVICE_TOKEN, DV_SIGNING_KEY_ID and DV_SIGNING_PRIVATE_KEY_PEM are required.');
+  const signingPrivateKeyPem = env.DV_SIGNING_PRIVATE_KEY_PEM ||
+    (env.DV_SIGNING_PRIVATE_KEY_FILE ? readFileSync(env.DV_SIGNING_PRIVATE_KEY_FILE, 'utf8') : '');
+  if (!env.DV_SERVICE_TOKEN || !env.DV_SIGNING_KEY_ID || !signingPrivateKeyPem) {
+    throw new Error('DV_SERVICE_TOKEN, DV_SIGNING_KEY_ID and a signing private key value/file are required.');
   }
   // Validate the private key once at startup; secrets are never logged.
-  createPrivateKey(env.DV_SIGNING_PRIVATE_KEY_PEM);
+  createPrivateKey(signingPrivateKeyPem);
+  const runtimeEnv = { ...env, DV_SIGNING_PRIVATE_KEY_PEM: signingPrivateKeyPem };
   let activeJobs = 0;
 
   const server = createServer(async (request, response) => {
@@ -192,7 +195,7 @@ export function createDolbyVisionParserServer(env = process.env) {
     }
     activeJobs += 1;
     try {
-      await analyzeUpload(request, response, env);
+      await analyzeUpload(request, response, runtimeEnv);
     } finally {
       activeJobs -= 1;
     }
