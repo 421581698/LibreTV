@@ -13,7 +13,7 @@ from fastapi import APIRouter, Header, HTTPException, Query
 
 DB_PATH = Path(os.environ.get("SCRAPLING_DB_PATH", "/data/collector.sqlite3"))
 TOKEN = os.environ.get("SCRAPLING_API_TOKEN", "").strip()
-DV_INGESTION_TOKEN = os.environ.get("DV_INGESTION_TOKEN", "").strip()
+DV_INGESTION_TOKEN = (os.environ.get("DV_INGESTION_TOKEN", "").strip() or (Path(os.environ["DV_INGESTION_TOKEN_FILE"]).read_text(encoding="utf-8").strip() if os.environ.get("DV_INGESTION_TOKEN_FILE") else ""))
 router = APIRouter()
 TERMINAL = {"succeeded", "partial", "failed", "cancelled"}
 ACCESS_BLOCKED = {"AUTH_REQUIRED", "SUBSCRIPTION_REQUIRED", "CHALLENGE", "DRM_PROTECTED", "ENCRYPTED_STREAM"}
