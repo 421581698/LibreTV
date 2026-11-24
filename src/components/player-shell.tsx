@@ -30,6 +30,7 @@ import {
 import AudioDiagnosticsPanel from '@/components/audio-diagnostics-panel';
 import DolbyVisionDiagnosticsPanel from '@/components/dolby-vision-diagnostics-panel';
 import { inspectDolbyVisionFormat, type DolbyVisionFormatReport } from '@/lib/dolby-vision/format-inspector';
+import { inspectHlsDolbyVisionFormat } from '@/lib/dolby-vision/hls-level-inspector';
 import { createHlsLoader } from '@/lib/hls-loader';
 import { getVideoPrefetcher } from '@/lib/video-prefetcher';
 import { loadCacheSettings } from '@/lib/video-cache';
@@ -74,25 +75,6 @@ function readCapabilityEnvironment(video: HTMLVideoElement) {
     mediaCapabilitiesAvailable: 'mediaCapabilities' in navigator,
     canPlayType: (mimeType: string) => video.canPlayType(mimeType),
   };
-}
-
-/** Preserve the original HLS codec attributes; videoCodec alone can omit supplemental DV signaling. */
-function inspectHlsDolbyVisionFormat(
-  url: string,
-  levels: Array<{ videoCodec?: string; attrs?: unknown }>,
-): DolbyVisionFormatReport {
-  const codecs: string[] = [];
-  const supplementalCodecs: string[] = [];
-  for (const level of levels) {
-    if (level.videoCodec) codecs.push(level.videoCodec);
-    if (!level.attrs || typeof level.attrs !== 'object') continue;
-    const attrs = level.attrs as Record<string, unknown>;
-    if (typeof attrs.CODECS === 'string') codecs.push(attrs.CODECS);
-    if (typeof attrs['SUPPLEMENTAL-CODECS'] === 'string') {
-      supplementalCodecs.push(attrs['SUPPLEMENTAL-CODECS']);
-    }
-  }
-  return inspectDolbyVisionFormat({ url, codecs, supplementalCodecs });
 }
 
 const QUALITY_PREFERENCE_KEY = 'libretv-quality-preference';
