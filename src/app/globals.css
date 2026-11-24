@@ -1792,3 +1792,12 @@ html.dark .netflix-watch-sidebar .netflix-sidebar-footer {
 .netflix-watch-shell > .watch-topbar button {
   pointer-events: auto;
 }
+
+
+/* The decoded video is a visual surface, not the interaction layer.
+   Route taps through the ArtPlayer wrapper so page-owned chrome (especially
+   the shell fullscreen toolbar) remains reachable above composited video. */
+.netflix-watch-shell .art-video-player video,
+.netflix-watch-shell .artplayer video {
+  pointer-events: none !important;
+}
