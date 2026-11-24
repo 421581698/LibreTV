@@ -38,9 +38,11 @@ export function IpadCinemaDetailLayout({
   onBack,
   children,
 }: IpadCinemaDetailLayoutProps) {
+  const displayTitle = title.replace(/([：:])\\s+/g, '$1');
+
   return (
     <main className="ipad-cinema-detail" data-ipad-detail-page="true">
-      <section className="ipad-cinema-hero" aria-label={title}>
+      <section className="ipad-cinema-hero" aria-label={displayTitle}>
         {posterUrl ? (
           <SmartImage
             url={posterUrl}
@@ -77,7 +79,7 @@ export function IpadCinemaDetailLayout({
         </header>
         <div className="ipad-cinema-hero__content">
           <div className="ipad-cinema-kicker">{eyebrow}</div>
-          <h1>{title}</h1>
+          <h1>{displayTitle}</h1>
           {originalTitle && originalTitle !== title ? <p className="ipad-cinema-original">{originalTitle}</p> : null}
           {metadata ? <div className="ipad-cinema-meta">{metadata}</div> : null}
           {overview ? <p className="ipad-cinema-overview">{overview}</p> : null}
