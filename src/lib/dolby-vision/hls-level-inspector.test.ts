@@ -20,6 +20,13 @@ describe('inspectHlsDolbyVisionFormat', () => {
     });
   });
 
+  it('retains the HLS container identity for extensionless immutable proxy URLs', () => {
+    const report = inspectHlsDolbyVisionFormat('/api/dolby-vision/assets/dv_hls_root/content', [
+      { attrs: { CODECS: 'dvh1.08.06' } },
+    ]);
+    expect(report).toMatchObject({ container: 'hls', detected: true, profiles: [8] });
+  });
+
   it('retains normalized videoCodec as a fallback', () => {
     const report = inspectHlsDolbyVisionFormat('https://media.example/master.m3u8', [
       { videoCodec: 'dvh1.08.06' },
