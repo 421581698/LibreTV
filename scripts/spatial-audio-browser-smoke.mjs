@@ -34,24 +34,29 @@ for (let i = 0; i < frameCount; i += 1) {
 // This verifies the browser/Web Audio channel-routing graph, not Dolby bitstream decode.
 const surroundChannels = 6;
 const surroundFrequencies = [440, 550, 660, 80, 770, 880];
-const wav51 = Buffer.alloc(44 + frameCount * surroundChannels * 2);
+// WAVEFORMATEXTENSIBLE supplies an explicit 5.1 speaker mask (FL, FR, FC, LFE, BL, BR).
+const wav51 = Buffer.alloc(68 + frameCount * surroundChannels * 2);
 wav51.write('RIFF', 0);
 wav51.writeUInt32LE(wav51.length - 8, 4);
 wav51.write('WAVE', 8);
 wav51.write('fmt ', 12);
-wav51.writeUInt32LE(16, 16);
-wav51.writeUInt16LE(1, 20);
+wav51.writeUInt32LE(40, 16);
+wav51.writeUInt16LE(0xfffe, 20);
 wav51.writeUInt16LE(surroundChannels, 22);
 wav51.writeUInt32LE(sampleRate, 24);
 wav51.writeUInt32LE(sampleRate * surroundChannels * 2, 28);
 wav51.writeUInt16LE(surroundChannels * 2, 32);
 wav51.writeUInt16LE(16, 34);
-wav51.write('data', 36);
-wav51.writeUInt32LE(frameCount * surroundChannels * 2, 40);
+wav51.writeUInt16LE(22, 36);
+wav51.writeUInt16LE(16, 38);
+wav51.writeUInt32LE(0x3f, 40);
+Buffer.from([0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71]).copy(wav51, 44);
+wav51.write('data', 60);
+wav51.writeUInt32LE(frameCount * surroundChannels * 2, 64);
 for (let frame = 0; frame < frameCount; frame += 1) {
   for (let channel = 0; channel < surroundChannels; channel += 1) {
     const sample = Math.round(Math.sin(2 * Math.PI * surroundFrequencies[channel] * frame / sampleRate) * 3000);
-    wav51.writeInt16LE(sample, 44 + (frame * surroundChannels + channel) * 2);
+    wav51.writeInt16LE(sample, 68 + (frame * surroundChannels + channel) * 2);
   }
 }
 
