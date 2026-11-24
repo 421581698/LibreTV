@@ -31,7 +31,7 @@ beforeEach(() => {
       'Content-Length': '4',
       'Content-Range': 'bytes 2-5/10',
       'Accept-Ranges': 'bytes',
-      ETag: '"fixture-digest"',
+      ETag: `"${'a'.repeat(64)}"`,
       'X-DV-Asset-ID': assetId,
       'X-DV-Asset-SHA256': 'a'.repeat(64),
     },
