@@ -10,7 +10,6 @@ import { chromium } from 'playwright';
 
 const appOrigin = 'http://127.0.0.1:4173';
 const cdnOrigin = 'http://127.0.0.1:4174';
-const redirectOrigin = 'http://127.0.0.1:4175';
 const allowOrigin = { 'Access-Control-Allow-Origin': appOrigin, 'Access-Control-Expose-Headers': 'Content-Length, Content-Range' };
 const appServer = createServer((_request, response) => {
   response.writeHead(200, { 'Content-Type': 'text/html' });
@@ -31,8 +30,11 @@ const cdnServer = createServer((request, response) => {
     response.writeHead(200, { ...allowOrigin, 'Content-Type': 'application/octet-stream' });
     response.end(Buffer.alloc(16, 7));
   } else if (path === '/redirect/segment.ts') {
-    response.writeHead(302, { ...allowOrigin, Location: redirectOrigin + '/final/segment.ts' });
+    response.writeHead(302, { ...allowOrigin, Location: cdnOrigin + '/final/segment.ts' });
     response.end();
+  } else if (path === '/final/segment.ts') {
+    response.writeHead(200, { ...allowOrigin, 'Content-Type': 'video/mp2t' });
+    response.end(Buffer.from([0x47, 0x00, 0x00, 0x11]));
   } else if (path === '/denied/key.bin') {
     // Deliberately omit Access-Control-Allow-Origin: browser fetch must reject.
     response.writeHead(200, { 'Content-Type': 'application/octet-stream' });
@@ -42,14 +44,9 @@ const cdnServer = createServer((request, response) => {
     response.end('not found');
   }
 });
-const redirectServer = createServer((_request, response) => {
-  response.writeHead(200, { ...allowOrigin, 'Content-Type': 'video/mp2t' });
-  response.end(Buffer.from([0x47, 0x00, 0x00, 0x11]));
-});
 const servers = [
   [appServer, 4173],
   [cdnServer, 4174],
-  [redirectServer, 4175],
 ];
 const listen = (server, port) => new Promise((resolve, reject) => {
   server.once('error', reject);
