@@ -12,6 +12,7 @@ on:
       - "docs/dolby-vision/**"
       - "scripts/dolby-vision/**"
       - "services/dolby-vision-parser/**"
+      - "services/dolby-vision-parser/**"
       - "src/components/source-manager.tsx"
       - "src/components/home/home-inline-play.test.ts"
       - "src/lib/resource-collector-workflow.ts"
@@ -39,6 +40,7 @@ on:
       - "src/lib/dolby-vision/**"
       - "docs/dolby-vision/**"
       - "scripts/dolby-vision/**"
+      - "services/dolby-vision-parser/**"
       - "src/components/source-manager.tsx"
       - "src/lib/media-playback.ts"
       - "src/lib/media-playback.test.ts"
@@ -101,6 +103,8 @@ jobs:
         run: npm ci
       - name: Verify private parser service signing and request primitives
         run: node --test services/dolby-vision-parser/server.test.mjs
+      - name: Build private parser service container
+        run: docker build -f services/dolby-vision-parser/Dockerfile -t libretv-dolby-vision-parser:ci .
       - name: Run LibreTV RPU adapter against real parser fixture
         run: |
           DOVI_TOOL_BIN=/usr/local/bin/dovi_tool node scripts/dolby-vision/analyze-rpu.mjs --input /tmp/dolby-vision-profile8.rpu --kind rpu > /tmp/dolby-vision-report.json
