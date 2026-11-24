@@ -143,7 +143,7 @@ class DolbyVisionMediaAssetRegistration(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     sha256: str = Field(pattern=r"^[a-fA-F0-9]{64}$")
     byte_length: int = Field(gt=0, le=2 * 1024 * 1024 * 1024)
-    content_type: Literal["application/octet-stream", "video/mp4", "video/x-matroska", "video/mp2t", "video/hevc"]
+    content_type: Literal["video/mp4", "video/webm"]
 
 
 def require_dv_ingestion_auth(token: str | None) -> None:
@@ -160,7 +160,7 @@ def register_dolby_vision_media_asset(resource_id: str, sha256: str, byte_length
         raise ValueError("Invalid media SHA-256.")
     if isinstance(byte_length, bool) or not isinstance(byte_length, int) or not 1 <= byte_length <= 2 * 1024 * 1024 * 1024:
         raise ValueError("Invalid media byte length.")
-    allowed_types = {"application/octet-stream", "video/mp4", "video/x-matroska", "video/mp2t", "video/hevc"}
+    allowed_types = {"video/mp4", "video/webm"}
     if content_type not in allowed_types:
         raise ValueError("Unsupported media content type.")
     asset_id = "dv_" + hashlib.sha256(f"{resource_id}:{digest}".encode()).hexdigest()[:32]
@@ -692,7 +692,7 @@ def _parse_single_byte_range(value: str, total_size: int) -> tuple[int, int]:
     import re
     if not isinstance(value, str) or not value.startswith("bytes=") or "," in value:
         raise ValueError("Only one bytes range is supported")
-    match = re.fullmatch(r"bytes=(\\d*)-(\\d*)", value.strip())
+    match = re.fullmatch(r"bytes=(\d*)-(\d*)", value.strip())
     if not match or (not match.group(1) and not match.group(2)):
         raise ValueError("Malformed byte range")
     first, last = match.groups()
