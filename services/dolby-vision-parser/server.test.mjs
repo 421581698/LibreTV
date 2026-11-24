@@ -82,6 +82,8 @@ describe('Dolby Vision parser service security primitives', () => {
   it('runs the full upload-to-parser-to-signed-envelope HTTP path', async () => {
     const directory = await mkdtemp(resolve(tmpdir(), 'libretv-dv-service-test-'));
     const fakeParser = resolve(directory, 'fake-dovi-tool.mjs');
+    const fakeFfprobe = resolve(directory, 'fake-ffprobe.mjs');
+    const fakeFfmpeg = resolve(directory, 'fake-ffmpeg.mjs');
     const { privateKey: servicePrivateKey, publicKey: servicePublicKey } = generateKeyPairSync('ed25519');
     const servicePrivatePem = servicePrivateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
     const servicePublicPem = servicePublicKey.export({ type: 'spki', format: 'pem' }).toString();
@@ -108,12 +110,18 @@ process.exit(2);
 `;
     await writeFile(fakeParser, parserSource, { mode: 0o700 });
     await chmod(fakeParser, 0o700);
+    await writeFile(fakeFfprobe, "#!/usr/bin/env node\\nprocess.stdout.write('hevc\\\\n');\\n", { mode: 0o700 });
+    await chmod(fakeFfprobe, 0o700);
+    await writeFile(fakeFfmpeg, "#!/usr/bin/env node\\nimport { writeFileSync } from 'node:fs';\\nwriteFileSync(process.argv.at(-1), Buffer.from('extracted-hevc-track'));\\n", { mode: 0o700 });
+    await chmod(fakeFfmpeg, 0o700);
 
     const server = createDolbyVisionParserServer({
       DV_SERVICE_TOKEN: 'integration-secret',
       DV_SIGNING_KEY_ID: 'integration-key-1',
       DV_SIGNING_PRIVATE_KEY_PEM: servicePrivatePem,
       DOVI_TOOL_BIN: fakeParser,
+      FFPROBE_BIN: fakeFfprobe,
+      FFMPEG_BIN: fakeFfmpeg,
     });
     await new Promise((resolveListen, reject) => {
       server.once('error', reject);
@@ -122,14 +130,15 @@ process.exit(2);
     const address = server.address();
     assert.ok(address && typeof address === 'object');
     const endpoint = `http://127.0.0.1:${address.port}/v1/analyze`;
-    const media = Buffer.from('known test HEVC bytes');
+    const media = Buffer.from('known test MP4 container bytes');
     const digest = createHash('sha256').update(media).digest('hex');
+    const extractedHevcDigest = createHash('sha256').update('extracted-hevc-track').digest('hex');
     const headers = {
       Authorization: 'Bearer integration-secret',
       'Content-Type': 'application/octet-stream',
       'X-DV-Asset-Id': 'r_0123456789abcdef0123456789ab',
       'X-DV-Asset-SHA256': digest,
-      'X-DV-Source-Content-Type': 'video/hevc',
+      'X-DV-Source-Content-Type': 'video/mp4',
     };
 
     try {
@@ -165,7 +174,8 @@ process.exit(2);
       const envelope = await response.json();
       assert.equal(envelope.assetId, headers['X-DV-Asset-Id']);
       assert.equal(envelope.keyId, 'integration-key-1');
-      assert.equal(envelope.report.inputSha256, digest);
+      assert.equal(envelope.report.inputSha256, extractedHevcDigest);
+      assert.equal(envelope.report.sourceMediaSha256, digest);
       assert.equal(envelope.report.parserVersion, '2.3.4');
       assert.equal(envelope.report.frameCount, 3);
       assert.equal(envelope.report.metadataLevelFrameCounts['1'], 3);
