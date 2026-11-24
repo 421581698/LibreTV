@@ -29,6 +29,8 @@ on:
       - "src/lib/spatial-audio.test.ts"
       - "src/lib/audio-diagnostics-view.ts"
       - "src/lib/audio-diagnostics-view.test.ts"
+      - "src/lib/hls-audio-track-control.ts"
+      - "src/lib/hls-audio-track-control.test.ts"
       - "src/lib/player-*.ts"
       - "src/lib/control-hide.ts"
       - "src/lib/touch-pointer.ts"
