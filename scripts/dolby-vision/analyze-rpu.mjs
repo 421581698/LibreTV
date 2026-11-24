@@ -60,7 +60,9 @@ export function parseLevelExportFiles(levelFiles) {
     if (validFrames.length !== parsed.length) {
       throw new Error(`RPU Level ${level} 导出包含无效帧记录。`);
     }
-    if (validFrames.length > 0) metadataLevelFrameCounts[level] = validFrames.length;
+    // Export files may contain multiple records for one frame; the report contract counts distinct frames.
+    const distinctFrameCount = new Set(validFrames.map((record) => record.frame)).size;
+    if (distinctFrameCount > 0) metadataLevelFrameCounts[level] = distinctFrameCount;
   }
   return {
     metadataLevels: Object.keys(metadataLevelFrameCounts).map(Number).sort((a, b) => a - b),
