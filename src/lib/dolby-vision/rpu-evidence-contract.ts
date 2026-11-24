@@ -47,6 +47,9 @@ export const DolbyVisionRpuReportSchema = z.object({
   if (countLevels.length !== levels.length || countLevels.some((value, index) => value !== levels[index])) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['metadataLevelFrameCounts'], message: '层级帧计数必须与 metadataLevels 完全对应。' });
   }
+  if (Object.values(report.metadataLevelFrameCounts).some((count) => count > report.frameCount)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['metadataLevelFrameCounts'], message: '单个元数据层级的帧计数不能超过 RPU 总帧数。' });
+  }
   if (report.inputKind === 'hevc' && typeof report.extractionScope !== 'object') {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['extractionScope'], message: 'HEVC 报告必须包含轨道/帧范围。' });
   }
