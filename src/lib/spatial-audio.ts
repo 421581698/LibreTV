@@ -154,7 +154,9 @@ export function isAudioSourceUrlOriginSafe(
   if (!sourceUrl || !pageOrigin) return false;
   try {
     const url = new URL(sourceUrl, pageOrigin);
-    if (url.protocol === 'blob:' || url.protocol === 'data:' || url.origin === pageOrigin) return true;
+    if (url.protocol === 'data:') return true;
+    if (url.protocol === 'blob:') return url.origin === pageOrigin;
+    if (url.origin === pageOrigin) return true;
     return crossOrigin === 'anonymous' || crossOrigin === 'use-credentials';
   } catch {
     return false;
