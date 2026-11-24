@@ -62,6 +62,7 @@ const CODEC_LABELS: Record<string, string> = {
   'dolby-mat': 'Dolby MAT（传输格式标记）',
   iamf: 'IAMF',
   pcm: 'PCM / LPCM',
+  'dts-x': 'DTS:X',
   'dts-hd': 'DTS-HD',
   dts: 'DTS',
   aac: 'AAC',
