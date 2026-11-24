@@ -605,12 +605,6 @@ export function PlayerShell({
             return {
               start: () => new Promise<void>((resolve, reject) => {
                 rejectStart = reject;
-                let timeout: ReturnType<typeof setTimeout>;
-                const cleanup = () => {
-                  clearTimeout(timeout);
-                  media.removeEventListener('loadedmetadata', onReady);
-                  media.removeEventListener('error', onError);
-                };
                 const onReady = () => { cleanup(); resolve(); };
                 const onError = () => {
                   cleanup();
@@ -618,12 +612,18 @@ export function PlayerShell({
                   onFatalError(error.message);
                   reject(error);
                 };
-                media.addEventListener('loadedmetadata', onReady, { once: true });
-                media.addEventListener('error', onError, { once: true });
-                timeout = setTimeout(() => {
-                  cleanup();
+                const timeout = setTimeout(() => {
+                  media.removeEventListener('loadedmetadata', onReady);
+                  media.removeEventListener('error', onError);
                   reject(new Error('Safari 原生 HLS 元数据加载超时'));
                 }, 12_000);
+                const cleanup = () => {
+                  clearTimeout(timeout);
+                  media.removeEventListener('loadedmetadata', onReady);
+                  media.removeEventListener('error', onError);
+                };
+                media.addEventListener('loadedmetadata', onReady, { once: true });
+                media.addEventListener('error', onError, { once: true });
                 media.src = sourceUrl;
                 media.load();
                 if (destroyed) { cleanup(); reject(new Error('HLS 会话已销毁')); }
