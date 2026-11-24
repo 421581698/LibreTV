@@ -88,6 +88,23 @@ describe('parseHlsAudioRenditions', () => {
     });
   });
 
+  it('does not assign group-wide CODECS values to individual language renditions', () => {
+    // RFC 8216 requires CODECS to list every sample format in the referenced
+    // rendition group; it does not map a codec token to a specific EXT-X-MEDIA.
+    const manifest = [
+      '#EXTM3U',
+      '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="languages",NAME="English",CHANNELS="2",URI="audio/en.m3u8"',
+      '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="languages",NAME="Spanish",CHANNELS="6",URI="audio/es.m3u8"',
+      '#EXT-X-STREAM-INF:BANDWIDTH=4000000,CODECS="avc1.640028,ec-3,mp4a.40.2",AUDIO="languages"',
+      'video/1080p.m3u8',
+    ].join('\\n');
+
+    expect(parseHlsAudioRenditions(manifest)).toMatchObject([
+      { name: 'English', channelCount: 2, codec: null },
+      { name: 'Spanish', channelCount: 6, codec: null },
+    ]);
+  });
+
   it('does not guess a rendition codec when variants sharing a group disagree', () => {
     const manifest = [
       '#EXTM3U',
