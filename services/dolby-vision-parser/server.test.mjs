@@ -28,6 +28,7 @@ const report = {
   metadataLevelFrameCounts: { '1': 3 },
   input: 'sample.hevc',
   inputSha256: 'a'.repeat(64),
+  sourceMediaSha256: 'a'.repeat(64),
   rpuSha256: 'b'.repeat(64),
   inputKind: 'hevc',
   extractionScope: { track: null, frameLimit: null },
