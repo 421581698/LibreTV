@@ -148,10 +148,12 @@ export class SpatialMediaSession {
       SpatialAudioEngine.attach(element, { inputChannels: declaredInputChannels }));
     let hlsController: SpatialHlsController | null = null;
     let session: SpatialMediaSession | null = null;
+    let pendingFatalReason: string | null = null;
     try {
       if (sourceKind === 'hls') {
         hlsController = options.createHlsController!(media, sourceUrl, (reason) => {
           if (session) void session.fallback(reason);
+          else pendingFatalReason = reason;
         });
         await hlsController.start();
       } else {
@@ -159,6 +161,9 @@ export class SpatialMediaSession {
         media.load();
       }
       session = new SpatialMediaSession(nativeVideo, media, createEngine, options.onStateChange, options.onRestoreAudioTrack, hlsController);
+      // An HLS fatal error can arrive while start() is still resolving. Do not
+      // lose that callback just because the session object is not constructed yet.
+      if (pendingFatalReason) void session.fallback(pendingFatalReason);
       return session;
     } catch (error) {
       hlsController?.destroy();
