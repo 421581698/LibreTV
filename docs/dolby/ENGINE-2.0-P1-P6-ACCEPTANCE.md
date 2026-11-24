@@ -33,6 +33,8 @@ The following public sources are candidates for controlled parser/stream tests. 
 - Do not use the open-media-test-corpus files from sources marked “license undeclared” (including filesamples.com and samplelib.com). Its own credits explicitly distinguish these from BSD/CC0/CC-BY sources and say the media files retain their individual source licenses.
 
 Source references:
+- HLS group-level CODECS semantics and CHANNELS rules (RFC 8216 §§4.3.4.1.1–4.3.4.2): https://www.rfc-editor.org/rfc/rfc8216.html
+- Apple HLS authoring requirements and registered codec identifiers: https://developer.apple.com/streaming/hls-authoring-specification-for-apple-devices.html
 - Chromium media fixtures and generation notes: https://chromium.googlesource.com/chromium/src/+/refs/heads/main/media/test/data/README.md
 - AOMedia IAMF tools and license: https://android.googlesource.com/platform/external/iamf_tools/
 - ICL Forge conformance-vector scope and license: https://iainchesworthlabs.github.io/iclforge/conformance-vectors/
