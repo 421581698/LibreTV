@@ -264,6 +264,7 @@ export function PlayerShell({
   const [spatialSessionState, setSpatialSessionState] = useState<SpatialMediaSessionState | 'idle' | 'preparing'>('idle');
   const [spatialSessionMessage, setSpatialSessionMessage] = useState('');
   const spatialSessionRef = useRef<SpatialMediaSession | null>(null);
+  const spatialPrepareGenerationRef = useRef(0);
   const [availableQualityHeights, setAvailableQualityHeights] = useState<number[]>([]);
   const [availableQualityLevelCount, setAvailableQualityLevelCount] = useState(0);
   const [qualityMetadataComplete, setQualityMetadataComplete] = useState(false);
@@ -525,6 +526,7 @@ export function PlayerShell({
   };
 
   const disposeSpatialSession = (reason: string) => {
+    spatialPrepareGenerationRef.current += 1;
     const session = spatialSessionRef.current;
     spatialSessionRef.current = null;
     if (session) void session.dispose();
@@ -564,6 +566,7 @@ export function PlayerShell({
     }
     const mediaUrl = currentMediaUrlRef.current || video.currentSrc || video.src;
     const sourceKind = getMediaPlaybackKind(mediaUrl, propsRef.current.mediaType);
+    const prepareGeneration = ++spatialPrepareGenerationRef.current;
     setSpatialSessionState('preparing');
     setSpatialSessionMessage('正在验证媒体源 CORS；原生播放保持不变');
     try {
@@ -580,10 +583,15 @@ export function PlayerShell({
           }
         },
       });
+      if (prepareGeneration !== spatialPrepareGenerationRef.current || artRef.current?.video !== video) {
+        await session.dispose();
+        return;
+      }
       spatialSessionRef.current = session;
       setSpatialSessionState('prepared');
       setSpatialSessionMessage('媒体源已通过 CORS 检查。再次轻点以启用独立会话（需要用户手势）');
     } catch (error) {
+      if (prepareGeneration !== spatialPrepareGenerationRef.current) return;
       setSpatialSessionState('idle');
       setSpatialSessionMessage(error instanceof Error ? error.message : '当前媒体源不支持空间会话；原生播放未改变');
     }
