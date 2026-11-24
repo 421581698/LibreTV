@@ -56,7 +56,7 @@ export function RegistryInlinePlayer({
         resourceId,
         assetId: asset.assetId,
         url: `/api/dolby-vision/assets/${encodeURIComponent(asset.assetId)}/content`,
-        mediaType: assetMediaType as 'mp4' | 'webm',
+        mediaType: assetMediaType as 'hls' | 'mp4' | 'webm',
       };
     }).then((asset) => {
       if (!controller.signal.aborted && asset) setImmutableAsset(asset);
