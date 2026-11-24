@@ -82,7 +82,7 @@ describe('bindWatchPlaybackState', () => {
 
     active = second;
     observer.trigger();
-    expect(onChange).toHaveBeenLastCalledWith({ isPlaying: false, playbackRate: null });
+    expect(onChange).toHaveBeenLastCalledWith({ isPlaying: false, playbackRate: 1.25 });
 
     first.setPaused(true);
     first.dispatchEvent(new Event('pause'));

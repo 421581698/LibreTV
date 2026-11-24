@@ -13,6 +13,7 @@ const avatarModule = source('src/components/home/header/AvatarModule.tsx');
 const navModules = ['HomeNavModule', 'MoviesNavModule', 'TvNavModule', 'OverseasNavModule', 'AnimeNavModule', 'VarietyNavModule', 'LiveNavModule'].map((name) => source('src/components/home/header/' + name + '.tsx'));
 const v4Styles = source('src/app/v4-homepage.css');
 const watch = source('src/app/watch/page.tsx');
+const watchPlaybackState = source('src/lib/watch-playback-state.ts');
 const watchStyles = source('src/app/pr84-watch-mobile-fix.css');
 const hero = source('src/components/friday/FridayHero.tsx');
 const canvas = source('src/components/home/HomeIntentCanvas.tsx');
@@ -348,7 +349,8 @@ describe('首页与播放页回归契约', () => {
     expect(watchStyles).toContain('.netflix-watch-shell:fullscreen .watch-cinema-info');
     expect(player).toContain('if (!art.fullscreenWeb) art.fullscreenWeb = true;');
     expect(player).toContain('playbackRate: true');
-    expect(watch).toContain("video.addEventListener('ratechange', sync)");
+    expect(watchPlaybackState).toContain("video.addEventListener('ratechange', sync)");
+    expect(watch).toContain('bindWatchPlaybackState(frame,');
     expect(watch).toContain('setWatchRate(rate)');
     expect(player).toContain('art.on(\'video:ratechange\'');
     expect(player).toContain('art.on(\'video:loadedmetadata\'');
