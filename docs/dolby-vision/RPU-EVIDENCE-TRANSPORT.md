@@ -53,15 +53,23 @@ A future implementation must provide all of these properties:
 
 ## Deployment blocker
 
-The repository now contains a local-file ingestion worker that computes SHA-256 from the staged bytes, stores them in a persistent content-addressed volume with no-overwrite semantics, and only then registers the digest. An authenticated read-only registry endpoint streams the exact object by asset ID. However, the trusted source gateway that obtains authorized source bytes and posts them to the private byte-ingress endpoint is not implemented; the local Docker volume is not an external WORM/object-lock store; A server-side Next.js forwarder now streams the registered object into the parser and verifies the signed envelope, but this route has not yet been deployed or validated against a live Compose environment.  The parser deployment, key lifecycle, and player evidence endpoint also remain unimplemented. The ingestion worker is a local primitive, not an automatic public-URL fetcher. The generic media proxy is not an evidence producer and must not be repurposed as one.
+The repository now contains the offline analyzer, private parser service, Ed25519 signing/verifier primitives, immutable asset registry, local-file ingestion worker, authenticated raw-byte ingress, object streaming endpoint, and server-side parser forwarder. The ingress path computes SHA-256 from the bytes received, stores them under a content-addressed key, verifies durable storage before registration, and applies configurable upload/concurrency limits.
 
-Until the deployment prerequisites exist, the player correctly displays RPU/dynamic metadata as **unverified**. This is an intentional trust boundary, not an unfinished UI toggle.
+The remaining blockers are operational and end-to-end:
+- A trusted source gateway must obtain only authorized media bytes from the selected source and submit them to the private byte-ingress endpoint. No generic URL-fetching proxy is permitted.
+- The current local Docker volume is not an external WORM/object-lock store with production retention and durability guarantees.
+- The parser service, signing key lifecycle, collector secret, and backend public-key configuration must be provisioned and deployed behind private network boundaries.
+- The server-side forwarder has unit tests but has not yet been validated against the live Compose services.
+- Stable asset identity must flow from the selected player source to the registry; the authenticated evidence result is not yet connected to the player diagnostics panel.
+- Actual Dolby Vision decoding and display output still require validation on supported physical iPad hardware.
+
+Until these prerequisites are met, the player correctly displays RPU/dynamic metadata as **unverified**. This is an intentional trust boundary, not an unfinished UI toggle.
 
 ## Acceptance gates
 
 - [x] Implement and document a private parser service and backend-only bearer boundary.
 - [ ] Deploy the parser service behind private ingress and provision signing/service secrets with a key rotation process.
-- [ ] Provision the separate DV ingestion secret and connect only the trusted ingestion worker to the registry endpoint.
+- [x] Add a separate DV ingestion secret and authenticated raw-byte ingress endpoint.\n- [ ] Provision the secret in the deployment environment and connect only the trusted source gateway to the registry endpoint.
 - [x] Define canonical signed envelope and signature verification tests (valid, tampered, wrong-key, expired/stale, unsupported version).
 - [x] Add a content-addressed media-asset registry primitive with a separate ingestion credential and immutable metadata semantics.
 - [x] Implement a local-file ingestion worker that hashes staged bytes and writes a no-overwrite content-addressed object before registry insertion.
