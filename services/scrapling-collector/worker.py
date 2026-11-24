@@ -44,6 +44,8 @@ def handle(payload: dict, checkpoint, cancelled):
             cancelled=cancelled,
             checkpoint=checkpoint,
         )
+        if result.get("status") == "failed":
+            raise RuntimeError("authorized_media_ingest_failed:" + str(result.get("error_type") or "unknown"))
         checkpoint({"stage": "authorized_media_ingest_finished", "status": result.get("status")})
         return result
 
