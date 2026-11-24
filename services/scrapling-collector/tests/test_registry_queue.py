@@ -174,6 +174,25 @@ class RegistryQueueTests(unittest.TestCase):
                 queue.require_dv_ingestion_auth("collector-api-token")
             queue.require_dv_ingestion_auth("dedicated-ingest-secret")
 
+    def test_dolby_vision_asset_registration_api_uses_dedicated_secret_and_returns_binding(self):
+        from unittest.mock import patch
+        resource = queue.upsert_resource({
+            "resource_key": "resource:dv-api", "source_key": "provider",
+            "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/dv.mp4",
+            "title": "DV API", "access_state": "PUBLIC",
+        })
+        payload = queue.DolbyVisionMediaAssetRegistration(
+            sha256="c" * 64, byte_length=456789, content_type="video/mp4"
+        )
+        with patch.object(queue, "DV_INGESTION_TOKEN", "ingest-only-secret"):
+            result = queue.api_register_dv_media_asset(
+                resource["id"], payload, x_dv_ingestion_token="ingest-only-secret"
+            )
+        with patch.object(queue, "require_auth"):
+            detail = queue.api_get_resource(resource["id"], authorization="Bearer collector")
+        self.assertEqual(result["asset"]["asset_id"], detail["media_assets"][0]["asset_id"])
+        self.assertEqual(detail["media_assets"][0]["sha256"], "c" * 64)
+
     def test_playback_requires_public_preflight(self):
         resource = queue.upsert_resource({
             "resource_key": "resource:private", "source_key": "provider",
